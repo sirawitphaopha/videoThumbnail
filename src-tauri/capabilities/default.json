@@ -1,15 +1,18 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "สิทธิ์ของหน้าต่างหลัก · ปุ่มย่อ ขยาย ปิด ลากหน้าต่าง และกล่องเลือกไฟล์ · เปิดไฟล์หรือโฟลเดอร์ทำจากฝั่ง Rust ไม่เปิดสิทธิ์ให้หน้าจอ",
+  "description": "สิทธิ์ของหน้าต่างหลัก · ปุ่มย่อ ขยาย ปิด ลากหน้าต่าง และกล่องเลือกไฟล์ · เปิดไฟล์หรือโฟลเดอร์ทำจากฝั่ง Rust ไม่เปิดสิทธิ์ให้หน้าจอ · ไม่ให้สิทธิ์ destroy หน้าต่าง ปิดตอนมีงานได้ทางเดียวคือคำสั่ง force_close ที่เช็กงานก่อน (TECH-REVIEW ข้อ 7) · ใช้รายการเฉพาะแทน core:default ที่ให้เมนู ถาด และอ่านรูปจากที่อยู่ใดก็ได้",
   "windows": ["main"],
   "permissions": [
-    "core:default",
+    "core:event:default",
+    "core:window:default",
+    "core:app:default",
+    "core:path:default",
+    "core:webview:default",
     "core:window:allow-minimize",
     "core:window:allow-toggle-maximize",
-    "core:window:allow-is-maximized",
+    "core:window:allow-internal-toggle-maximize",
     "core:window:allow-close",
-    "core:window:allow-destroy",
     "core:window:allow-start-dragging",
     "dialog:allow-open"
   ]

@@ -1,34 +1,65 @@
-// หน้าชั่วคราวของขั้น 0 ไว้ยืนยันว่าหน้าต่างเปิดได้และเรียกเครื่องมือจากฝั่ง Rust ได้
-// ขั้น 1 จะแทนด้วยกรอบหน้าต่างจริงตามต้นแบบ
+/* กรอบหน้าต่างโปรแกรมชั้นหนัง (ต้นแบบ docs/mockups/poster-shelf.html · สเปกข้อ 1 กรอบหน้าต่าง และข้อ 3 เมนูซ้าย)
+   แถบชื่อทำเอง · เมนูซ้ายกาง 200 ย่อ 64 จำค่าไว้ · 4 หน้า · แถบแจ้งผล · หน้าต่างถามตอนปิดขณะมีงาน · แถบเลื่อนลอย */
 import { useEffect, useState } from "react";
-import { invoke, isTauri } from "@tauri-apps/api/core";
-
-type ToolCheck = { name: string; ok: boolean; version: string };
+import TitleBar from "./components/TitleBar";
+import Sidebar, { type Page } from "./components/Sidebar";
+import { ToastHost } from "./components/Toasts";
+import CloseGuard from "./components/CloseGuard";
+import OverlayScrollbar from "./components/OverlayScrollbar";
+import { SettingsHost, useSettings } from "./lib/settings";
+import Placeholder from "./pages/Placeholder";
+import DevParts from "./pages/DevParts";
 
 export default function App() {
-  const [tools, setTools] = useState<ToolCheck[] | null>(null);
-  const [error, setError] = useState<string | null>(null);
+  return (
+    <ToastHost>
+      <SettingsHost>
+        <Frame />
+      </SettingsHost>
+    </ToastHost>
+  );
+}
+
+function Frame() {
+  const { settings, update } = useSettings();
+  const [page, setPage] = useState<Page>("shelf");
+  const [hash, setHash] = useState(location.hash);
 
   useEffect(() => {
-    if (!isTauri()) { setError("เปิดในเบราว์เซอร์ ไม่ได้เปิดในโปรแกรม"); return; }
-    invoke<ToolCheck[]>("check_tools").then(setTools).catch((e) => setError(String(e)));
+    const f = () => setHash(location.hash);
+    window.addEventListener("hashchange", f);
+    return () => window.removeEventListener("hashchange", f);
   }, []);
 
+  const parts = import.meta.env.DEV && hash === "#parts";
+  const collapsed = settings?.sidebarCollapsed ?? false;
+
   return (
-    <main style={{ fontFamily: "Sarabun, Tahoma, sans-serif", padding: 24, color: "#4a2b38", background: "#fdf2f6", minHeight: "100vh", boxSizing: "border-box" }}>
-      <h1 style={{ margin: 0 }}>ชั้นหนัง</h1>
-      <p>ขั้น 0 · เช็กเครื่องมือเบื้องหลัง</p>
-      {error && <p style={{ color: "#b04545" }}>{error}</p>}
-      {!tools && !error && <p>กำลังเช็ก…</p>}
-      {tools && (
-        <ul>
-          {tools.map((t) => (
-            <li key={t.name}>
-              {t.ok ? "พร้อม" : "ไม่พร้อม"} · {t.name} · {t.version}
-            </li>
-          ))}
-        </ul>
+    <div className="app">
+      <TitleBar />
+      {/* รอการตั้งค่าก่อนวาดเมนู ไม่งั้นเมนูกางแวบแล้วค่อยย่อ */}
+      {settings && (
+        <div className="body">
+          <Sidebar
+            page={page}
+            onPage={(p) => { setPage(p); if (parts) location.hash = ""; }}
+            collapsed={collapsed}
+            onToggle={() => update({ sidebarCollapsed: !collapsed })}
+          />
+          <main className="main">
+            {parts ? <DevParts /> : (
+              <>
+                {page === "shelf" && <Placeholder title="ชั้นวางหนัง" stage={2} />}
+                {page === "poster" && <Placeholder title="ใส่โปสเตอร์" stage={4} />}
+                {page === "check" && <Placeholder title="ตรวจไฟล์" stage={6} />}
+                {page === "settings" && <Placeholder title="ตั้งค่า" stage={7} />}
+              </>
+            )}
+          </main>
+        </div>
       )}
-    </main>
+      <CloseGuard />
+      <OverlayScrollbar />
+    </div>
   );
 }
