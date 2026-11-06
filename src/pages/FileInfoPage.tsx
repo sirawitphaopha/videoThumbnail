@@ -37,6 +37,8 @@ export default function FileInfoPage({ m, onBack }: { m: Movie; onBack: () => vo
     });
   }, [info]);
   const label = (i: number) => items[i].s.kind === "attachment" ? (items[i].item?.name ?? items[i].s.title) : items[i].s.title;
+  /** แถวกำลังแยก แบบต้นแบบ Audio #1 .ac3 */
+  const rowLabel = (i: number) => items[i].s.kind === "attachment" ? label(i) : `${items[i].s.title} .${items[i].item?.ext ?? ""}`;
 
   useEffect(() => {
     if (!inApp) return;
@@ -46,7 +48,7 @@ export default function FileInfoPage({ m, onBack }: { m: Movie; onBack: () => vo
 
   const runExtract = async (sel: number[], policy: string[]) => {
     const its = sel.map((i) => items[i].item!);
-    setXRun({ items: its, labels: sel.map(label), pct: its.map(() => 0), result: null, running: true });
+    setXRun({ items: its, labels: sel.map(rowLabel), pct: its.map(() => 0), result: null, running: true });
     try {
       const result = await infoApi.extract(m.path, folder || null, its, policy);
       setXRun((r) => r && { ...r, result, running: false });
@@ -148,6 +150,7 @@ export default function FileInfoPage({ m, onBack }: { m: Movie; onBack: () => vo
         </div>
 
         <HashCard m={m} />
+        <Kinds />
       </div>
     </div>
   );
@@ -186,7 +189,8 @@ function HashCard({ m }: { m: Movie }) {
   const rows = h ? ALGOS.filter(([k]) => (h as unknown as Record<string, string | null>)[k]) : [];
   const val = (k: string) => (h as unknown as Record<string, string | null>)[k] ?? "";
   const copy = async (t: string, what: string) => { await navigator.clipboard.writeText(t); toast({ kind: "ok", title: `คัดลอก${what}แล้ว`, detail: "แถบนี้หายเองใน 3 วินาที" }); };
-  const firstAlgo = ALGOS.find(([k]) => algos.includes(k))?.[1] ?? "";
+  // อ่านไฟล์รอบเดียวคิดทุกแบบพร้อมกัน · บอกชื่อตัวหลัก SHA-256 ถ้าติ๊กไว้ (ต้นแบบ)
+  const firstAlgo = algos.includes("sha256") ? "SHA-256" : ALGOS.find(([k]) => algos.includes(k))?.[1] ?? "";
   return (
     <div className="card" style={{ background: "#fff" }} data-hash>
       <h3>ค่า hash · {m.name}.{m.ext}</h3>
@@ -202,7 +206,7 @@ function HashCard({ m }: { m: Movie }) {
       </div>
       {running ? (
         <div className="workbox">
-          <div style={{ fontSize: 14 }}>{firstAlgo} · อ่านไฟล์ไปแล้ว <span className="nw">{fmtSize(prog!.done)}</span> จาก <span className="nw">{fmtSize(prog!.total)}</span></div>
+          <div style={{ fontSize: 14 }}>{firstAlgo} · อ่านไฟล์ไปแล้ว <span className="nw">{fmtSize(prog!.done)}</span> จาก <span className="nw">{fmtSize(prog!.total)}</span> · {prog!.total ? Math.round((prog!.done / prog!.total) * 100) : 0}%</div>
           <div className="bar"><i style={{ width: `${prog!.total ? (prog!.done / prog!.total) * 100 : 0}%` }} /></div>
           <button type="button" className="btn btn-bad btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => infoApi.hashCancel()}>หยุด</button>
         </div>
@@ -234,6 +238,29 @@ function HashCard({ m }: { m: Movie }) {
       ) : (
         <button type="button" className={"btn btn-sm " + (algos.length ? "btn-main" : "btn-wait")} aria-disabled={!algos.length || undefined} title={algos.length ? undefined : "ติ๊กอย่างน้อย 1 แบบก่อน"} onClick={() => { if (algos.length) start(); }} data-hash-start>คำนวณ</button>
       )}
+    </div>
+  );
+}
+
+/** ชื่อชนิดที่เจอบ่อย หมายถึงอะไร (ต้นแบบบรรทัด 670–692) */
+const KINDS: [string, [string, string][]][] = [
+  ["ภาพ", [["H.264 (AVC)", "ชนิดที่ใช้มากที่สุด เปิดได้แทบทุกเครื่อง"], ["H.265 (HEVC)", "ไฟล์เล็กกว่า H.264 ที่ความคมเท่ากัน เครื่องเก่าบางเครื่องเปิดไม่ได้"], ["AV1", "ชนิดใหม่ ไฟล์เล็กมาก ต้องใช้เครื่อง หรือโปรแกรมรุ่นใหม่"], ["HDR", "ภาพสว่างและสีกว้างกว่าปกติ ต้องใช้จอที่รองรับ"]]],
+  ["เสียง", [["AAC", "ใช้ทั่วไป ไฟล์เล็ก เปิดได้ทุกเครื่อง"], ["AC-3 · E-AC-3", "Dolby Digital ใช้กับลำโพงรอบทิศทาง 5.1"], ["DTS · TrueHD", "เสียงคุณภาพสูงจากแผ่นบลูเรย์ ไฟล์ใหญ่"], ["FLAC · Opus", "FLAC เสียงไม่ลดคุณภาพ · Opus ไฟล์เล็กมาก"]]],
+  ["ซับไตเติล", [["SRT", "ตัวหนังสือธรรมดา แก้ไขได้ด้วย Notepad"], ["ASS", "แต่งสี ฟอนต์ ตำแหน่งได้ ใช้กับการ์ตูนบ่อย"], ["PGS · VobSub", "ซับแบบภาพจากแผ่นบลูเรย์และดีวีดี แก้คำไม่ได้"]]],
+];
+function Kinds() {
+  return (
+    <div className="card" data-kinds>
+      <h3>ชื่อชนิดที่เจอบ่อย หมายถึงอะไร</h3>
+      <div className="three">
+        {KINDS.map(([cap, rows]) => (
+          <div key={cap}>
+            <div className="small" style={{ color: "var(--accent-ink)", fontWeight: 600, marginBottom: 6 }}>{cap}</div>
+            {/* กริดแทนตาราง · ช่องตารางแคบ ตัวตัดคำตัดกลางคำ (เท่า|กัน · บ|ลูเรย์) · ในกริดวลีขึ้นบรรทัดใหม่ตรงเว้นวรรคได้ */}
+            <div className="kinds">{rows.map(([k, v]) => <div key={k} className="kindrow"><b>{k}</b><div>{v.split(" · ").map((x, i) => <div key={i}><Phr>{x}</Phr></div>)}</div></div>)}</div>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

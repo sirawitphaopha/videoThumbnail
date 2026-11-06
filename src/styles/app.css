@@ -424,3 +424,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .hval { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px; color: #3a2530; word-break: break-all; background: #fdf3f7; border-radius: 6px; padding: 4px 8px; }
 .algs { display: flex; gap: 16px; flex-wrap: wrap; font-size: 14px; }
 .algs label { display: flex; align-items: center; gap: 7px; cursor: pointer; }
+.kinds { background: #fff; border-radius: 10px; overflow: hidden; font-size: 14px; }
+.kindrow { display: grid; grid-template-columns: 112px 1fr; gap: 10px; padding: 9px 12px; border-top: 1px solid #f8e3eb; line-height: 1.55; }
+.kindrow:first-child { border-top: 0; }
+.kindrow b { white-space: nowrap; }

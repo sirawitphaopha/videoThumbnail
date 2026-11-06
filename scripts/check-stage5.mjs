@@ -122,6 +122,48 @@ check("ไฟล์ MP4 แยกเสียงเป็น .aac ด้วย f
   check("คิดค่า hash ไฟล์ใหญ่แล้วกดหยุด หยุดได้ทันที ไม่มีผล", (await hr) === null);
 }
 
+// หน้าจอกำลังแยก · กำลังคำนวณ · ที่ว่างไม่พอ · คัดลอกข้อมูล (ไฟล์ใหญ่ 1.6 GB)
+{
+  await inv("scan_library");
+  for (let i = 0; i < 100 && (await inv("get_library")).scanning; i++) await sleep(200);
+  await c.evaluate("[...document.querySelectorAll('button')].find(b => b.innerText === 'กลับไปชั้นวาง')?.click()"); await sleep(500);
+  await c.click('.book[data-movie="หนังยาว (2020)"]'); await sleep(300);
+  await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.innerText.includes('ข้อมูลไฟล์')).click()");
+  for (let i = 0; i < 60 && !(await q("return !!document.querySelector('[data-mi]')")); i++) await sleep(150);
+  await c.evaluate("document.querySelector('[data-kinds]').scrollIntoView()"); await sleep(200);
+  await shot("06-ชื่อชนิดที่เจอบ่อย.png", "[data-kinds]");
+  check("การ์ดชื่อชนิดที่เจอบ่อย ภาพ เสียง ซับ ครบ 11 แถวตามต้นแบบ", (await q("return document.querySelectorAll('[data-kinds] .kindrow').length")) === 11);
+  await c.evaluate("[...document.querySelectorAll('[data-mi] .mih.pick')].find(h => h.innerText.includes('Video')).click()");
+  await c.evaluate("[...document.querySelectorAll('[data-mi] .mih.pick')].find(h => h.innerText.includes('Audio')).click()");
+  await c.evaluate("document.querySelector('[data-extract-start]').click()");
+  for (let i = 0; i < 100 && !(await q("return /กำลังทำ [1-9]/.test(document.querySelector('[data-extract]').innerText)")); i++) await sleep(50);
+  const xr = await q("return document.querySelector('[data-extract]').innerText");
+  await shot("07-กำลังแยก.png", "[data-extract]");
+  await c.evaluate("[...document.querySelectorAll('[data-extract] button')].find(b => b.innerText === 'หยุด').click()");
+  for (let i = 0; i < 100 && !(await q("return document.querySelector('[data-extract]').innerText.includes('หยุดแล้ว')")); i++) await sleep(100);
+  check("กำลังแยก แถวละชิ้น Video .mkv กำลังทำ เปอร์เซ็นต์ Audio รอคิว ปุ่มหยุด", /Video #?1? ?\.mkv|Video \.mkv/.test(xr) && /กำลังทำ \d+%/.test(xr) && xr.includes("รอคิว") && xr.includes("หยุด"), xr.split("\n").join(" / "));
+  await c.evaluate("[...document.querySelectorAll('[data-extract] button')].find(b => b.innerText === 'แยกอย่างอื่นต่อ')?.click()"); await sleep(200);
+  await inv("dev_fake_free", { bytes: 100 * 1024 * 1024 });
+  await c.evaluate("document.querySelector('[data-extract-start]').click()");
+  for (let i = 0; i < 60 && !(await q("return document.querySelector('[data-extract]').innerText.includes('ไม่พอ')")); i++) await sleep(100);
+  const ns = await q("return document.querySelector('[data-extract]').innerText");
+  await shot("08-แยกที่ว่างไม่พอ.png", "[data-extract]");
+  await inv("dev_fake_free", { bytes: 0 });
+  check("แยก Video ไม่สำเร็จ พื้นที่ในไดรฟ์ D ไม่พอ ต้องการเท่าไหร่ เหลือเท่าไหร่ ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ ปุ่มลองใหม่", ns.includes("แยก Video ไม่สำเร็จ พื้นที่ในไดรฟ์ D ไม่พอ") && /ต้องการ .+ แต่เหลือ 100 MB/.test(ns) && ns.includes("ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ") && ns.includes("ลองใหม่"), ns.split("\n").join(" / "));
+  await c.evaluate("[...document.querySelectorAll('[data-hash] .algs label')].find(l => l.innerText.includes('SHA-512')).click()");
+  await c.evaluate("document.querySelector('[data-hash-start]').click()");
+  for (let i = 0; i < 100 && !(await q("return document.querySelector('[data-hash]').innerText.includes('อ่านไฟล์ไปแล้ว')")); i++) await sleep(50);
+  await sleep(300);
+  const hp = await q("return document.querySelector('[data-hash]').innerText");
+  await shot("09-กำลังคำนวณ.png", "[data-hash]");
+  await c.evaluate("[...document.querySelectorAll('[data-hash] button')].find(b => b.innerText === 'หยุด').click()"); await sleep(500);
+  check("กำลังคำนวณ บอกอ่านไฟล์ไปแล้วกี่ GB จากเท่าไหร่ แถบ ปุ่มหยุด · กดหยุดแล้วกลับเป็นปุ่มคำนวณ", /SHA-256 · อ่านไฟล์ไปแล้ว .+ จาก .+GB · \d+%/.test(hp) && hp.includes("หยุด") && (await q("return !!document.querySelector('[data-hash-start]')")), hp.split("\n").join(" / "));
+  await c.evaluate("[...document.querySelectorAll('button')].find(b => b.innerText === 'คัดลอกข้อมูลเป็นข้อความ').click()"); await sleep(400);
+  const toast = await q("return document.querySelector('.toast')?.innerText ?? ''");
+  await shot("10-คัดลอกข้อมูล.png", ".toast", 6);
+  check("คัดลอกข้อมูลเป็นข้อความ ขึ้นแถบ คัดลอกข้อมูลไฟล์แล้ว วางในแชทหรือโน้ตได้เลย แถบนี้หายเองใน 3 วินาที", toast.includes("คัดลอกข้อมูลไฟล์แล้ว") && toast.includes("วางในแชทหรือโน้ตได้เลย"), toast.split("\n").join(" / "));
+}
+
 writeFileSync(`${OUT}/ผลเทส.json`, JSON.stringify(results, null, 2) + "\n");
 const failed = results.filter((x) => !x.pass);
 console.log(`\nผ่าน ${results.length - failed.length} จาก ${results.length}`);

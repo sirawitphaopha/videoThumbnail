@@ -274,13 +274,16 @@ pub async fn extract_start(app: tauri::AppHandle, req: ExtractReq) -> Result<Ext
                     _ => { r.states[i] = "conflict".into(); continue; }
                 }
             }
-            if it.kind == "video" {
-                let free = crate::poster::free_space(&dir);
-                if free < src_size {
-                    r.states[i] = "failed".into();
-                    r.error = Some(format!("แยก Video ไม่สำเร็จ พื้นที่ในไดรฟ์ไม่พอ · ต้องการ {:.1} GB แต่เหลือ {:.1} GB · ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ", src_size as f64 / 1073741824.0, free as f64 / 1073741824.0));
-                    break;
-                }
+            // ที่ว่างในไดรฟ์ · ภาพต้องการราวขนาดไฟล์หนัง · เสียง ซับ บท ไฟล์แนบ ไม่เกินขนาดไฟล์หนัง เผื่ออย่างน้อย 64 MB
+            let need = if it.kind == "video" { src_size } else { (src_size / 4).max(64 << 20).min(src_size + (64 << 20)) };
+            let free = crate::poster::free_space(&dir);
+            if free < need {
+                let title = match it.kind.as_str() { "video" => "Video".to_string(), "audio" => format!("Audio #{}", it.nth), "text" => format!("Text #{}", it.nth), "menu" => "Menu".into(), _ => it.name.clone().unwrap_or_default() };
+                let drive = dir.to_string_lossy().chars().next().unwrap_or('?').to_ascii_uppercase();
+                let gb = |b: u64| if b >= 1 << 30 { format!("{:.1} GB", b as f64 / 1073741824.0) } else { format!("{:.0} MB", b as f64 / 1048576.0) };
+                r.states[i] = "failed".into();
+                r.error = Some(format!("แยก {title} ไม่สำเร็จ พื้นที่ในไดรฟ์ {drive} ไม่พอ · ต้องการ {} แต่เหลือ {} · ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ", gb(need), gb(free)));
+                break;
             }
             let partial = PathBuf::from(format!("{}.partial", target.to_string_lossy()));
             let _ = std::fs::remove_file(&partial);
