@@ -1,5 +1,8 @@
 //! ชั้นหนัง · ฝั่งทำงานหนักของโปรแกรม
 
+mod extract;
+mod fileinfo;
+mod hashes;
 mod jobs;
 mod library;
 mod poster;
@@ -70,6 +73,8 @@ pub fn run() {
         rename::check_rename, rename::rename_movie,
         poster::poster_open, poster::poster_render, poster::poster_clear, poster::poster_folder_images,
         poster::poster_inspect, poster::poster_apply, poster::poster_cancel,
+        fileinfo::media_info, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_compare, fileinfo::hash_save,
+        extract::extract_start, extract::extract_cancel, extract::extract_default_folder,
     ]);
     #[cfg(not(debug_assertions))]
     let builder = builder.invoke_handler(tauri::generate_handler![
@@ -79,6 +84,8 @@ pub fn run() {
         rename::check_rename, rename::rename_movie,
         poster::poster_open, poster::poster_render, poster::poster_clear, poster::poster_folder_images,
         poster::poster_inspect, poster::poster_apply, poster::poster_cancel,
+        fileinfo::media_info, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_compare, fileinfo::hash_save,
+        extract::extract_start, extract::extract_cancel, extract::extract_default_folder,
     ]);
 
     builder

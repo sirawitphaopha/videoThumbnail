@@ -49,7 +49,7 @@ function Hl({ text, used, head, tail }: { text: string; used: string; head?: Rea
   return <Phrases parts={highlightParts(text, used).map((p) => ({ text: p.text, hit: p.hit }))} head={head} tail={tail} />;
 }
 
-export default function ShelfPage({ onPage, onPoster }: { onPage: (p: Page) => void; onPoster: (path: string) => void }) {
+export default function ShelfPage({ onPage, onPoster, onInfo }: { onPage: (p: Page) => void; onPoster: (path: string) => void; onInfo: (id: string) => void }) {
   const { settings, update } = useSettings();
   const { movies, folders, scanning, progress, scan } = useLibrary();
   const toast = useToast();
@@ -150,7 +150,7 @@ export default function ShelfPage({ onPage, onPoster }: { onPage: (p: Page) => v
         </div>
         {/* key ต่อเรื่อง สลับเรื่องแล้วสร้างแผงกับปุ่มใหม่ ไม่ใช้ปุ่มเดิมซ้ำ (เดิมปุ่มชมพูค่อย ๆ เปลี่ยนเป็นเขียวตอนสลับเรื่อง) */}
         {selected && (
-          <Detail key={selected.id} m={selected} scanning={scanning} reminder={reminder} onPage={onPage} onPoster={onPoster} soon={soon}
+          <Detail key={selected.id} m={selected} scanning={scanning} reminder={reminder} onPage={onPage} onPoster={onPoster} onInfo={() => onInfo(selected.id)} soon={soon}
             onPlay={() => api.playMovie(selected.path).catch((e) => toast({ kind: "bad", title: "เปิดเล่นไม่ได้", detail: String(e) }))}
             onReveal={() => api.revealMovie(selected.path).catch((e) => toast({ kind: "bad", title: "เปิดโฟลเดอร์ไม่ได้", detail: String(e) }))} />
         )}
@@ -335,7 +335,7 @@ function ShelfTable(p: { list: Movie[]; selId: string | null; onSel: (id: string
 }
 
 /* ---------- แผงรายละเอียด (ต้นแบบบรรทัด 388–426) ---------- */
-function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg: Page) => void; onPoster: (path: string) => void; soon: (what: string, stage: number) => void; onPlay: () => void; onReveal: () => void }) {
+function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg: Page) => void; onPoster: (path: string) => void; onInfo: () => void; soon: (what: string, stage: number) => void; onPlay: () => void; onReveal: () => void }) {
   const { m } = p;
   const src = thumbUrl(m.thumb);
   const [imgOk, setImgOk] = useState(true);
@@ -392,7 +392,7 @@ function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg:
         <button type="button" className={"btn " + (m.missing ? "btn-wait" : "btn-ghost")} aria-disabled={m.missing || undefined}
           title={m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : undefined} onClick={() => { if (!m.missing) p.onPoster(m.path); }}>เปลี่ยนโปสเตอร์</button>
         <button type="button" className="btn btn-ghost" onClick={() => p.onPage("check")}>ตรวจไฟล์</button>
-        <button type="button" className="btn btn-ghost" onClick={() => p.soon("ข้อมูลไฟล์", 5)}>
+        <button type="button" onClick={() => { if (!m.missing) p.onInfo(); }} className={"btn " + (m.missing ? "btn-wait" : "btn-ghost")} aria-disabled={m.missing || undefined} title={m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : undefined}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5h.01" /></svg>ข้อมูลไฟล์
         </button>
         <button type="button" className="btn btn-ghost" onClick={p.onReveal}>

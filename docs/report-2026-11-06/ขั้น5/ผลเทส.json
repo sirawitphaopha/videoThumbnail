@@ -1,0 +1,57 @@
+[
+  {
+    "name": "ข้อความ MediaInfo ตรงกับรัน MediaInfo เองทุกบรรทัด · หัวข้อติ๊กได้บอกนามสกุลที่จะได้",
+    "pass": true,
+    "detail": "97 บรรทัด · General | Video แยกเป็น .mkv | Audio #1 แยกเป็น .aac | Audio #2 แยกเป็น .ac3 | Text #1 แยกเป็น .srt | Text #2 แยกเป็น .ass | Menu แยกเป็น .xml"
+  },
+  {
+    "name": "ติ๊ก 3 อย่างแล้วแยก ได้ครบ 3 ไฟล์ ชื่อแบบต้นแบบ · ไฟล์หนังเดิม hash เท่าเดิม",
+    "pass": true,
+    "detail": "ดาวเหนือ (2023).Audio2.en.ac3, ดาวเหนือ (2023).chapters.xml, ดาวเหนือ (2023).Text1.th.srt"
+  },
+  {
+    "name": "แยกซ้ำ ชื่อชน บอกมีไฟล์ชื่อเดียวกันอยู่แล้ว ไม่เขียนทับ · กดตั้งชื่อใหม่ต่อท้ายเลข 2 ได้ไฟล์ใหม่",
+    "pass": true,
+    "detail": "ดาวเหนือ (2023).Audio2.en 2.ac3, ดาวเหนือ (2023).Audio2.en.ac3, ดาวเหนือ (2023).chapters 2.xml, ดาวเหนือ (2023).chapters.xml, ดาวเหนือ (2023).Text1.th 2.srt, ดาวเหนือ (2023).Text1.th.srt"
+  },
+  {
+    "name": "ค่า hash ตรงกับตัวคำนวณของ Windows · CRC32 ตัวพิมพ์ใหญ่",
+    "pass": true,
+    "detail": "{\"MD5\":\"7fb5f9eae9c4ce0ada5ac26691d9f9ee\",\"SHA-256\":\"27c75abf4561b076b1102c7efee8324fde8da33b206b844a50f7c3637a9e74b5\",\"CRC32\":\"46C077E5\"}"
+  },
+  {
+    "name": "ค่า SHA-256 จดไว้ในคลังใช้ตอนตรวจแบบเร็ว",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "วางค่าที่ต่างตัวท้าย บอกไม่ตรงกับ SHA-256 ต่างกันที่ 2 ตัวท้าย",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "บันทึกไฟล์ .sha256 แบบที่ sha256sum อ่านได้ · กดซ้ำไม่เขียนทับ ได้ไฟล์ (2)",
+    "pass": true,
+    "detail": "ดาวเหนือ (2023).mkv (2).sha256, ดาวเหนือ (2023).mkv.sha256"
+  },
+  {
+    "name": "ไฟล์แนบใน MKV ขึ้นเป็นหัวข้อ Attachment แยกปกออกมาเป็น .cover.jpg",
+    "pass": true,
+    "detail": "File name cover.jpg · MIME type image/jpeg · Size 95 KiB"
+  },
+  {
+    "name": "ไฟล์ MP4 แยกเสียงเป็น .aac ด้วย ffmpeg ไม่แปลงใหม่ เปิดได้",
+    "pass": true,
+    "detail": "The Last Orchard (2022).Audio1.aac"
+  },
+  {
+    "name": "แยกภาพจากไฟล์ใหญ่แล้วกดหยุด ไฟล์ที่ทำค้างถูกลบ ไฟล์หนังเดิม hash เท่าเดิม",
+    "pass": true,
+    "detail": "cancelled · เหลือ 0 ไฟล์"
+  },
+  {
+    "name": "คิดค่า hash ไฟล์ใหญ่แล้วกดหยุด หยุดได้ทันที ไม่มีผล",
+    "pass": true,
+    "detail": ""
+  }
+]

@@ -98,6 +98,23 @@ export const posterApi = {
   cancel: () => call<void>("poster_cancel"),
 };
 
+/* ---------- หน้าข้อมูลไฟล์ (fileinfo.rs · hashes.rs · extract.rs) ---------- */
+export type MiSection = { title: string; kind: "general" | "video" | "audio" | "text" | "menu" | "attachment" | string; rows: [string, string][]; ext: string | null; lang: string | null };
+export type Hashes = { md5: string | null; sha1: string | null; sha256: string | null; crc32: string | null; sha512: string | null; bytes: number; seconds: number };
+export type HashCompare = { algo: string | null; same: boolean; diff: string | null };
+export type ExtractItem = { kind: string; nth: number; ext: string; lang: string | null; name: string | null };
+export type ExtractResult = { folder: string; states: string[]; files: (string | null)[]; error: string | null };
+export const infoApi = {
+  mediaInfo: (path: string) => call<{ text: string; sections: MiSection[] }>("media_info", { path }),
+  hash: (path: string, algos: string[]) => call<Hashes | null>("hash_file", { path, algos }),
+  hashCancel: () => call<void>("hash_cancel"),
+  compare: (pasted: string, hashes: Hashes) => call<HashCompare>("hash_compare", { pasted, hashes }),
+  saveSha256: (path: string, sha256: string) => call<string>("hash_save", { path, sha256 }),
+  defaultFolder: (path: string) => call<string>("extract_default_folder", { path }),
+  extract: (path: string, folder: string | null, items: ExtractItem[], policy: string[]) => call<ExtractResult>("extract_start", { req: { path, folder, items, policy } }),
+  extractCancel: () => call<void>("extract_cancel"),
+};
+
 /** เลือกไฟล์จากเครื่อง · kind = movie หรือ image */
 export async function pickFile(kind: "movie" | "image"): Promise<string | null> {
   if (!inApp) return null;
