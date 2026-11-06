@@ -273,7 +273,7 @@ export default function PosterPage(p: { initialPath: string | null; onPage: (pg:
               <div className="small" style={{ minWidth: 0 }}>
                 {movie ? (mode === "cover" ? <>ไฟล์เดิม<br /><b style={{ color: "var(--txt)", wordBreak: "break-word" }}><Phr>{newName}</Phr></b><br /><Phr>เปลี่ยนแค่รูปแนบ ไม่ต้องครอบใหม่</Phr></>
                   : <>ไฟล์ใหม่<br /><b style={{ color: "var(--txt)", wordBreak: "break-word" }}><Phr>{newName}</Phr></b><br />ขนาดราว <span className="nw">{fmtSize(movie.size + (choice?.render.bytes ?? 0))}</span> เท่าเดิม</>)
-                  : "ใส่ไฟล์หนังกับรูปโปสเตอร์ก่อน"}
+                  : choice ? "ใส่ไฟล์หนังก่อน" : "ใส่ไฟล์หนังกับรูปโปสเตอร์ก่อน"}
               </div>
             </div>
           </div>
