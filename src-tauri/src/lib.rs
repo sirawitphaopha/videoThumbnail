@@ -1,5 +1,6 @@
 //! ชั้นหนัง · ฝั่งทำงานหนักของโปรแกรม
 
+mod check;
 mod extract;
 mod fileinfo;
 mod hashes;
