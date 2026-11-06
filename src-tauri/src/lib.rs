@@ -3,6 +3,7 @@
 mod jobs;
 mod library;
 mod probe;
+mod rename;
 mod store;
 mod tools;
 mod winutil;
@@ -63,12 +64,14 @@ pub fn run() {
         tools::check_tools, store::get_settings, store::set_settings,
         jobs::running_jobs, jobs::force_close, jobs::dev_fake_job,
         library::get_library, library::scan_library, library::play_movie, library::reveal_movie,
+        rename::check_rename, rename::rename_movie,
     ]);
     #[cfg(not(debug_assertions))]
     let builder = builder.invoke_handler(tauri::generate_handler![
         tools::check_tools, store::get_settings, store::set_settings,
         jobs::running_jobs, jobs::force_close,
         library::get_library, library::scan_library, library::play_movie, library::reveal_movie,
+        rename::check_rename, rename::rename_movie,
     ]);
 
     builder

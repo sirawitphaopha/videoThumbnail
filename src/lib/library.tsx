@@ -60,12 +60,15 @@ export function LibraryHost({ children }: { children: React.ReactNode }) {
           const i = l.movies.findIndex((m) => m.id === e.payload.id || m.path === e.payload.path);
           const movies = l.movies.slice();
           if (i >= 0) movies[i] = e.payload; else movies.push(e.payload);
-          return { ...l, movies, scanning: true };
+          // ไม่แตะสถานะกำลังอ่าน · เหตุการณ์นี้มาจากงานอื่นได้ด้วย (เปลี่ยนชื่อ) เดิมตั้ง scanning เป็นจริงทุกครั้ง
+          // เปลี่ยนชื่อเสร็จแล้วหน้าจอค้างว่ากำลังอ่านโฟลเดอร์ ปุ่มดินสอกับปุ่มอ่านโฟลเดอร์ใหม่กดไม่ได้ตลอด
+          return { ...l, movies };
         });
         // ฝั่ง Rust ส่งความคืบหน้าไม่เกิน 10 ครั้งต่อวินาที แต่ส่งหนังทุกเรื่อง · นับเพิ่มเองทีละเรื่อง
         // ให้คำว่า อ่านแล้ว X จาก N ตรงกับจำนวนปกที่ขึ้นชั้นจริง (เดิมชั้นขึ้น 12 เรื่อง คำบอกยังเป็น 9)
         setProgress((p) => (p ? { ...p, done: Math.min(p.total, p.done + 1) } : p));
       }),
+      listen("scan-started", () => setLib((l) => ({ ...l, scanning: true }))),
       listen<{ done: number; total: number }>("scan-progress", (e) =>
         setProgress((p) => ({ total: e.payload.total, done: Math.max(e.payload.done, p?.done ?? 0) }))),
       listen<LibraryReply>("scan-finished", (e) => {

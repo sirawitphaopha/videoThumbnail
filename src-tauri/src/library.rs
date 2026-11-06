@@ -111,6 +111,24 @@ impl LibraryStore {
     pub fn is_scanning(&self) -> bool {
         self.scanning.load(Ordering::SeqCst)
     }
+
+    /// จองคลังไว้ทำงานที่ห้ามชนกับการอ่านโฟลเดอร์ (เปลี่ยนชื่อ) · กำลังอ่านอยู่ได้ false
+    /// ใช้ธงเดียวกับตัวอ่านโฟลเดอร์ ระหว่างนี้กดอ่านโฟลเดอร์ใหม่จะไม่เริ่ม
+    pub fn try_begin_exclusive(&self) -> bool {
+        !self.scanning.swap(true, Ordering::SeqCst)
+    }
+
+    pub fn end_exclusive(&self) {
+        self.scanning.store(false, Ordering::SeqCst);
+    }
+
+    /// แก้หนังหนึ่งเรื่องในคลัง (ในหน่วยความจำ) แล้วคืนของที่แก้แล้ว · บันทึกลงไฟล์ด้วย save
+    pub fn update_movie(&self, id: &str, f: impl FnOnce(&mut Movie)) -> Option<Movie> {
+        let mut list = self.movies.lock().unwrap();
+        let m = list.iter_mut().find(|m| m.id == id)?;
+        f(m);
+        Some(m.clone())
+    }
 }
 
 /// ไฟล์ที่เจอในโฟลเดอร์

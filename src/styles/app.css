@@ -133,6 +133,9 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
   transition: background-color .15s, color .15s;
 }
 .icon-btn:hover { background-color: #fbdde8; color: var(--accent-ink); }
+/* ปุ่มไอคอนที่กดไม่ได้ ใช้โทนเดียวกับปุ่มกดไม่ได้ (.btn-wait) ชี้แล้วยังเปลี่ยนสี บอกเหตุผลใน title */
+.icon-btn.off { color: #c9a35a; cursor: not-allowed; }
+.icon-btn.off:hover { background-color: #fdf3dc; color: #a8812e; }
 
 /* ปุ่มคู่ ปุ่มสาม */
 .seg { display: flex; border: 1px solid #efc6d5; border-radius: 9px; overflow: hidden; flex: none; }
@@ -216,6 +219,13 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
 .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
 .hint { font-size: 12.5px; color: var(--txt3); margin-top: 6px; line-height: 1.55; }
 .hint.e { color: var(--bad-ink); }
+/* ช่องพิมพ์ (ต้นแบบ .inp บรรทัด 110–115) · ชั้นวาดกับช่องพิมพ์จริงใช้ .sb-field .sb-draw ตัวเดียวกับช่องค้นหา */
+.inp { display: flex; align-items: center; height: 40px; border-radius: 9px; border: 1px solid #efc6d5; background: #fff; padding: 0 10px; font-size: 14px; gap: 2px; cursor: text; transition: border .15s, box-shadow .15s; }
+.inp:hover { border: 1px solid #eeb3c8; }
+.inp.focus { border: 1px solid var(--accent); box-shadow: 0 0 0 3px rgba(233,138,172,.25); }
+.inp.err { border: 1px solid var(--bad); box-shadow: 0 0 0 3px rgba(236,143,143,.25); }
+.inp .ext { margin-left: auto; padding-left: 8px; font-size: 13px; flex: none; }
+.rename { margin-bottom: 8px; }
 .small { font-size: 12.5px; color: var(--txt3); line-height: 1.55; }
 
 /* ---------- หน้าต่างซ้อน ---------- */

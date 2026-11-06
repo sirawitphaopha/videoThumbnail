@@ -87,14 +87,16 @@ export function Skel(p: { w: number | string; h: number; r?: number; style?: Rea
   return <div className="skel" aria-hidden="true" style={{ width: p.w, height: p.h, borderRadius: p.r ?? 6, ...p.style }} />;
 }
 
-/* ---------- ไอคอนเส้นในการ์ดสถานะของแผงรายละเอียด (ต้นแบบบรรทัด 400 418 421 424) ---------- */
-export function CardIcon({ kind }: { kind: "ok" | "bad" | "warn" | "info" }) {
+/* ---------- ไอคอนเส้นในการ์ดสถานะของแผงรายละเอียด (ต้นแบบบรรทัด 400 418 421 424) ----------
+   done = เครื่องหมายถูกเปล่า ใช้กับการ์ดบอกว่าทำสำเร็จ (ต้นแบบเปลี่ยนชื่อสำเร็จ บรรทัด 452) · ok = โล่ ใช้กับไฟล์สมบูรณ์ */
+export function CardIcon({ kind }: { kind: "ok" | "bad" | "warn" | "info" | "done" }) {
   return (
     <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
       {kind === "ok" && <><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z" /><path d="M8.5 12l2.5 2.5 4.5-5" /></>}
       {kind === "bad" && <><path d="M12 3l9.5 17h-19z" /><path d="M12 10v4.5M12 17.5h.01" /></>}
       {kind === "warn" && <><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5h.01" /></>}
       {kind === "info" && <><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5h.01" /></>}
+      {kind === "done" && <path d="M5 12.5l4.5 4.5L19 7.5" />}
     </svg>
   );
 }
@@ -137,10 +139,12 @@ export function Phrases({ parts, head, tail }: { parts: Part[]; head?: React.Rea
   let k = 0;
   let cur: React.ReactNode[] = head ? [<span key={k++}>{head}</span>] : [];
   const flush = () => { if (cur.length) out.push(<span key={k++} className="phr">{cur}</span>); cur = []; };
+  let numOnly = false; // วลีที่เพิ่งจบเป็นตัวเลขล้วน · เลขกับคำถัดไป (3 วินาที · 19 เรื่อง) ห้ามแยกบรรทัด
   for (const p of parts) {
     for (const s of p.text.split(/( +)(?!ๆ)/)) {
       if (!s) continue;
-      if (!s.trim()) { flush(); out.push(s); continue; }
+      if (!s.trim()) { if (numOnly) { cur.push(s); numOnly = false; continue; } flush(); out.push(s); continue; }
+      numOnly = /^[\d.,:]+$/.test(s);
       cur.push(p.hit ? <span key={k++} className="hl">{s}</span> : s);
     }
   }

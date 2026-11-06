@@ -5,6 +5,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import type { Page } from "../components/Sidebar";
 import SearchBox from "../components/SearchBox";
+import RenameBox from "../components/RenameBox";
 import Dropdown from "../components/Dropdown";
 import { Badge, CardIcon, Phr, Phrases, Seg, Skel, Switch } from "../components/ui";
 import { useToast } from "../components/Toasts";
@@ -149,7 +150,7 @@ export default function ShelfPage({ onPage }: { onPage: (p: Page) => void }) {
         </div>
         {/* key ต่อเรื่อง สลับเรื่องแล้วสร้างแผงกับปุ่มใหม่ ไม่ใช้ปุ่มเดิมซ้ำ (เดิมปุ่มชมพูค่อย ๆ เปลี่ยนเป็นเขียวตอนสลับเรื่อง) */}
         {selected && (
-          <Detail key={selected.id} m={selected} reminder={reminder} onPage={onPage} soon={soon}
+          <Detail key={selected.id} m={selected} scanning={scanning} reminder={reminder} onPage={onPage} soon={soon}
             onPlay={() => api.playMovie(selected.path).catch((e) => toast({ kind: "bad", title: "เปิดเล่นไม่ได้", detail: String(e) }))}
             onReveal={() => api.revealMovie(selected.path).catch((e) => toast({ kind: "bad", title: "เปิดโฟลเดอร์ไม่ได้", detail: String(e) }))} />
         )}
@@ -334,11 +335,17 @@ function ShelfTable(p: { list: Movie[]; selId: string | null; onSel: (id: string
 }
 
 /* ---------- แผงรายละเอียด (ต้นแบบบรรทัด 388–426) ---------- */
-function Detail(p: { m: Movie; reminder: number; onPage: (pg: Page) => void; soon: (what: string, stage: number) => void; onPlay: () => void; onReveal: () => void }) {
+function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg: Page) => void; soon: (what: string, stage: number) => void; onPlay: () => void; onReveal: () => void }) {
   const { m } = p;
   const src = thumbUrl(m.thumb);
   const [imgOk, setImgOk] = useState(true);
   useEffect(() => setImgOk(true), [src]);
+  // เปลี่ยนชื่อ (สเปกข้อ 2) · ⑤ สำเร็จ การ์ดเขียวหายเองใน 3 วินาที
+  const [editing, setEditing] = useState(false);
+  const [renamed, setRenamed] = useState(false);
+  useEffect(() => { if (!renamed) return; const t = setTimeout(() => setRenamed(false), 3000); return () => clearTimeout(t); }, [renamed]);
+  const renameBlock = m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : p.scanning ? "กำลังอ่านโฟลเดอร์อยู่ รอให้เสร็จก่อน" : null;
+  const startRename = () => { if (!renameBlock) { setRenamed(false); setEditing(true); } };
   return (
     <aside className="detail" aria-label="รายละเอียดไฟล์">
       {src && imgOk ? (
@@ -349,12 +356,22 @@ function Detail(p: { m: Movie; reminder: number; onPage: (pg: Page) => void; soo
           ยังไม่มีโปสเตอร์
         </div>
       )}
-      <div className="fname">
-        <div className="nm"><Hl text={m.name} used="" tail={<span className="ext">.{m.ext}</span>} /></div>
-        <button type="button" className="icon-btn" aria-label="เปลี่ยนชื่อไฟล์" title="เปลี่ยนชื่อไฟล์" onClick={() => p.soon("เปลี่ยนชื่อไฟล์", 3)}>
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M14 6l4 4" /></svg>
-        </button>
-      </div>
+      {editing ? (
+        <RenameBox m={m} onCancel={() => setEditing(false)} onDone={(_, changed) => { setEditing(false); setRenamed(changed); }} />
+      ) : (
+        <div className="fname">
+          <div className="nm"><Hl text={m.name} used="" tail={<span className="ext">.{m.ext}</span>} /></div>
+          <button type="button" className={"icon-btn" + (renameBlock ? " off" : "")} aria-label="เปลี่ยนชื่อไฟล์" aria-disabled={!!renameBlock || undefined}
+            title={renameBlock ? "เปลี่ยนชื่อไม่ได้ · " + renameBlock : "เปลี่ยนชื่อไฟล์"} onClick={startRename}>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M14 6l4 4" /></svg>
+          </button>
+        </div>
+      )}
+      {renamed && !editing && (
+        <div className="stat ok" style={{ marginTop: 0, marginBottom: 12 }} role="status" data-renamed>
+          <CardIcon kind="done" /><div><b>เปลี่ยนชื่อไฟล์แล้ว</b><Phr>ชื่อในเครื่องเปลี่ยนตามแล้ว แถบนี้หายเองใน 3 วินาที</Phr></div>
+        </div>
+      )}
       <dl className="kv">
         <dt>ขนาดไฟล์</dt><dd><span className="nw">{fmtSize(m.size)}</span></dd>
         <dt>ความยาว</dt><dd><span className="nw">{fmtDuration(m.duration)}</span></dd>
@@ -370,7 +387,8 @@ function Detail(p: { m: Movie; reminder: number; onPage: (pg: Page) => void; soo
         ) : (
           <button type="button" className="btn btn-main" onClick={p.onPlay}><PlayIcon />เปิดเล่น</button>
         )}
-        <button type="button" className="btn btn-ghost" onClick={() => p.soon("เปลี่ยนชื่อไฟล์", 3)}>เปลี่ยนชื่อ</button>
+        <button type="button" className={"btn " + (renameBlock ? "btn-wait" : "btn-ghost")} aria-disabled={!!renameBlock || undefined}
+          title={renameBlock ? "เปลี่ยนชื่อไม่ได้ · " + renameBlock : undefined} onClick={startRename}>เปลี่ยนชื่อ</button>
         <button type="button" className="btn btn-ghost" onClick={() => p.onPage("poster")}>เปลี่ยนโปสเตอร์</button>
         <button type="button" className="btn btn-ghost" onClick={() => p.onPage("check")}>ตรวจไฟล์</button>
         <button type="button" className="btn btn-ghost" onClick={() => p.soon("ข้อมูลไฟล์", 5)}>

@@ -64,6 +64,17 @@ export const api = {
   scanLibrary: () => call<void>("scan_library"),
   playMovie: (path: string) => call<void>("play_movie", { path }),
   revealMovie: (path: string) => call<void>("reveal_movie", { path }),
+  /** เช็กชื่อใหม่ตอนพิมพ์ (ไม่รวมนามสกุล) · null = ใช้ได้ หรือชื่อเหมือนเดิม · ตัวเช็กอยู่ฝั่ง Rust ที่เดียว (rename.rs) */
+  checkRename: (id: string, stem: string) => call<RenameProblem | null>("check_rename", { id, stem }),
+  /** เปลี่ยนชื่อไฟล์จริงแบบไม่เขียนทับ · ไม่สำเร็จ promise ล้มพร้อม RenameProblem */
+  renameMovie: (id: string, stem: string) => call<Movie>("rename_movie", { id, stem }),
+};
+
+/** เหตุที่เปลี่ยนชื่อไม่ได้ · inuse denied missing busy other ขึ้นการ์ดแดงพร้อมปุ่มลองใหม่ · ที่เหลือขึ้นใต้ช่องพิมพ์ */
+export type RenameProblem = {
+  kind: "empty" | "chars" | "invisible" | "reserved" | "trailing" | "long" | "duplicate" | "inuse" | "denied" | "missing" | "busy" | "other";
+  title: string;
+  detail: string | null;
 };
 
 /** ที่อยู่ภาพเล็กของปกสำหรับแท็ก img · ผ่าน asset protocol ที่อนุญาตเฉพาะโฟลเดอร์ thumbs */
