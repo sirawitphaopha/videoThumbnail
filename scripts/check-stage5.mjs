@@ -90,7 +90,7 @@ const att = await inv("media_info", { path: join(DIR, "Harbor Lights (2021).mkv"
 const a1 = att.sections.find((s) => s.kind === "attachment");
 const xr = await inv("extract_start", { req: { path: join(DIR, "Harbor Lights (2021).mkv"), folder: null, items: [{ kind: "attachment", nth: 1, ext: a1?.ext ?? "jpg", lang: null, name: a1?.rows.find((r) => r[0] === "File name")?.[1] ?? null }], policy: ["ask"] } });
 const cover = join(DIR, "Harbor Lights (2021) แยกไฟล์", "Harbor Lights (2021).cover.jpg");
-check("ไฟล์แนบใน MKV ขึ้นเป็นหัวข้อ Attachment แยกปกออกมาเป็น .cover.jpg", a1 && a1.rows.some((r) => r[1] === "cover.jpg") && xr.states[0] === "done" && existsSync(cover), a1?.rows.map((r) => r.join(" ")).join(" · "));
+check("ไฟล์แนบใน MKV ขึ้นเป็นหัวข้อ Attachment บอกขนาดรูป แยกปกออกมาเป็น .cover.jpg", a1 && a1.rows.some((r) => r[1] === "cover.jpg") && a1.rows.some((r) => r[0] === "Dimensions" && / × /.test(r[1])) && xr.states[0] === "done" && existsSync(cover), a1?.rows.map((r) => r.join(" ")).join(" · "));
 const mp4 = join(DIR, "The Last Orchard (2022).mp4");
 const mi = await inv("media_info", { path: mp4 });
 const au = mi.sections.find((s) => s.kind === "audio");

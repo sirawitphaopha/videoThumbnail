@@ -60,6 +60,52 @@ check("ไม่มีของโดนกติกาความปลอด�
   check("ภาพตัวอย่างของหน้าต่างครอปกับรูปที่จะแนบโหลดได้ (โฟลเดอร์ previews)", r.src === "1200x675" && r.out === "1000x1500", JSON.stringify(r));
 }
 
+// ขั้น 5 · กดปุ่มคัดลอกบนหน้าจอจริง ① หน้าต่างไม่ได้โฟกัส คัดลอกไม่ได้ ต้องขึ้นแถบบอกเหตุผล ไม่เงียบ ② ได้โฟกัส ต้องขึ้นว่าคัดลอกแล้ว
+{
+  const toastNow = () => q("return [...document.querySelectorAll('.toast')].map((t) => t.innerText.replace(/\\n/g, ' / ')).join(' || ')");
+  await c.click('.book[data-movie="Harbor Lights (2021)"]'); await sleep(300);
+  await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.innerText.includes('ข้อมูลไฟล์')).click()");
+  for (let i = 0; i < 60 && !(await q("return !!document.querySelector('[data-mi]')")); i++) await sleep(150);
+  const copyBtn = "[...document.querySelectorAll('button')].find(b => b.innerText === 'คัดลอกข้อมูลเป็นข้อความ').click()";
+  // โฟกัสขึ้นกับว่าหน้าต่างอยู่หน้าหรือหลัง คุมไม่ได้ทุกรอบ จึงจำลองว่าระบบไม่ให้คัดลอก ด้วยข้อผิดพลาดแบบเดียวกับที่เจอจริง
+  await c.evaluate(`(() => { const cb = navigator.clipboard; window.__realWrite = cb.writeText.bind(cb);
+    cb.writeText = () => Promise.reject(new DOMException("Failed to execute 'writeText' on 'Clipboard': Document is not focused.", "NotAllowedError")); })()`);
+  await c.evaluate(copyBtn); await sleep(500);
+  const bad = await toastNow();
+  await c.evaluate("navigator.clipboard.writeText = window.__realWrite");
+  await c.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 100, y: 600 }); await sleep(250);
+  await c.shot(`${OUT}/17-คัดลอกไม่สำเร็จ.png`, ".toast", 6).catch(() => {});
+  check("ระบบไม่ให้คัดลอก (หน้าต่างไม่ได้โฟกัส) กดคัดลอก ขึ้นแถบแดง คัดลอกไม่สำเร็จ บอกวิธีแก้ ไม่เงียบ", bad.includes("คัดลอกไม่สำเร็จ") && bad.includes("หน้าต่างโปรแกรมไม่ได้โฟกัสอยู่") && bad.includes("คลิกที่หน้าต่างโปรแกรมแล้วกดคัดลอกอีกครั้ง") && !bad.includes("คัดลอกข้อมูลไฟล์แล้ว"), bad);
+  // ปิดแถบแดงก่อน (ผิดพลาดไม่หายเอง) แล้วลองแบบได้โฟกัส
+  await c.evaluate("document.querySelectorAll('.toast button').forEach((b) => b.click())"); await sleep(300);
+  await c.send("Emulation.setFocusEmulationEnabled", { enabled: true }); await sleep(200);
+  await c.evaluate(copyBtn); await sleep(500);
+  const ok = await toastNow();
+  check("ได้โฟกัสแล้ว กดคัดลอก ขึ้นแถบ คัดลอกข้อมูลไฟล์แล้ว", ok.includes("คัดลอกข้อมูลไฟล์แล้ว"), ok);
+  await c.send("Emulation.setFocusEmulationEnabled", { enabled: false });
+  // กลับชั้นวางด้วยปุ่มบนจอ แล้วปิดแถบที่ค้าง ภาพสุดท้ายต้องเป็นชั้นวาง
+  await c.evaluate("[...document.querySelectorAll('button')].find(b => b.innerText === 'กลับไปชั้นวาง')?.click()"); await sleep(300);
+  await c.evaluate("document.querySelectorAll('.toast button').forEach((b) => b.click())"); await sleep(400);
+  const back = await q("return { book: document.querySelector('.book.sel')?.dataset.movie ?? null, detail: document.querySelector('.detail')?.innerText.includes('Harbor Lights (2021)') }");
+  check("กลับจากหน้าข้อมูลไฟล์ ชั้นวางยังเลือกเรื่องเดิม (Harbor Lights) ไม่เด้งไปเรื่องแรก", back.book === "Harbor Lights (2021)" && back.detail, JSON.stringify(back));
+}
+
+// ขั้น 5 · ข้อความ MediaInfo กับปุ่มคัดลอกข้อมูลเป็นข้อความ (คัดลอกได้เฉพาะหน้าที่ปลอดภัย ต้องลองกับตัวจริง)
+{
+  const mv = "D:\\movie-shelf\\test-media\\สร้าง\\หนัง\\ดาวเหนือ (2023).mkv";
+  // หน้าต่างเทสเปิดแบบไม่รับโฟกัส (ไม่แย่งหน้าจอพี่กัน) เบราว์เซอร์ไม่ให้คัดลอกถ้าหน้าไม่ได้โฟกัส
+  // ให้หน้าถือว่าได้โฟกัส เหมือนตอนคนคลิกหน้าต่างแล้วกดปุ่มคัดลอก
+  await c.send("Emulation.setFocusEmulationEnabled", { enabled: true });
+  await sleep(200);
+  const r = await c.evaluate(`(async () => {
+    const info = await window.__TAURI_INTERNALS__.invoke("media_info", { path: ${JSON.stringify(mv)} });
+    let copied = "ไม่ได้";
+    try { await navigator.clipboard.writeText("ทดสอบคัดลอก"); copied = "ได้"; } catch (e) { copied = String(e); }
+    return { sections: info.sections.length, secure: window.isSecureContext, copied };
+  })()`);
+  check("ข้อความ MediaInfo อ่านได้ · หน้าเป็นแบบปลอดภัย คัดลอกข้อความได้", r.sections >= 7 && r.secure && r.copied === "ได้", JSON.stringify(r));
+}
+
 // ลองโหลดรูปจากเน็ต ต้องโดนกัน = กติกาบังคับจริง (ถ้าไม่โดนกัน แปลว่าเทสนี้ไม่ได้เทสอะไรเลย)
 await q("const i = new Image(); i.src = 'https://example.com/โดนกัน.png'; document.body.appendChild(i); setTimeout(() => i.remove(), 500);");
 await sleep(800);

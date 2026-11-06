@@ -49,12 +49,12 @@ function Hl({ text, used, head, tail }: { text: string; used: string; head?: Rea
   return <Phrases parts={highlightParts(text, used).map((p) => ({ text: p.text, hit: p.hit }))} head={head} tail={tail} />;
 }
 
-export default function ShelfPage({ onPage, onPoster, onInfo }: { onPage: (p: Page) => void; onPoster: (path: string) => void; onInfo: (id: string) => void }) {
+/** sel เก็บที่ตัวโปรแกรม (App) ไม่ใช่ในหน้านี้ · ไปหน้าข้อมูลไฟล์หรือใส่โปสเตอร์แล้วกลับมา ต้องยังเลือกเรื่องเดิมอยู่ */
+export default function ShelfPage({ onPage, onPoster, onInfo, sel, setSel }: { onPage: (p: Page) => void; onPoster: (path: string) => void; onInfo: (id: string) => void; sel: string | null; setSel: (id: string) => void }) {
   const { settings, update } = useSettings();
   const { movies, folders, scanning, progress, scan } = useLibrary();
   const toast = useToast();
   const [query, setQuery] = useState("");
-  const [sel, setSel] = useState<string | null>(null);
   const reminder = settings?.recheckReminderDays ?? 30;
   const sort = settings?.sort ?? "name-asc";
   const view = settings?.viewMode ?? "grid";

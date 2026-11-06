@@ -39,6 +39,8 @@ function Frame() {
   /** หน้าข้อมูลไฟล์ เปิดจากปุ่มข้อมูลไฟล์ในแผงขวาของชั้นวาง */
   const [infoId, setInfoId] = useState<string | null>(null);
   const infoMovie = infoId ? movies.find((m) => m.id === infoId) ?? null : null;
+  /** เรื่องที่เลือกบนชั้นวาง เก็บไว้ตรงนี้ ไปหน้าอื่นแล้วกลับมาต้องยังเลือกเรื่องเดิม */
+  const [shelfSel, setShelfSel] = useState<string | null>(null);
   const [hash, setHash] = useState(location.hash);
 
   useEffect(() => {
@@ -73,7 +75,7 @@ function Frame() {
             {parts ? <DevParts /> : (
               <>
                 {page === "shelf" && (infoMovie ? <FileInfoPage m={infoMovie} onBack={() => setInfoId(null)} />
-                  : <ShelfPage onPage={setPage} onPoster={(path) => { setPosterPath(path); setPage("poster"); }} onInfo={setInfoId} />)}
+                  : <ShelfPage onPage={setPage} onPoster={(path) => { setPosterPath(path); setPage("poster"); }} onInfo={setInfoId} sel={shelfSel} setSel={setShelfSel} />)}
                 {page === "poster" && <PosterPage initialPath={posterPath} onPage={setPage} onConsumed={() => setPosterPath(null)} />}
                 {page === "check" && <Placeholder title="ตรวจไฟล์" stage={6} />}
                 {page === "settings" && <Placeholder title="ตั้งค่า" stage={7} />}

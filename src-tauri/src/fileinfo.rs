@@ -93,10 +93,17 @@ pub async fn media_info(app: AppHandle, path: String) -> Result<MediaInfoReply, 
         let mut text = String::from_utf8_lossy(&out.stdout).replace("\r\n", "\n").trim_end().to_string();
         let mut sections = parse(&text);
         if p.extension().map(|e| e.eq_ignore_ascii_case("mkv")).unwrap_or(false) {
+            let work = app.path().app_local_data_dir().map_err(|e| e.to_string())?.join("tmp");
             for (i, a) in attachments(&tools, &p).into_iter().enumerate() {
                 let title = format!("Attachment #{}", i + 1);
                 let ext = Path::new(&a.0).extension().map(|e| e.to_string_lossy().to_lowercase());
-                let rows = vec![("File name".into(), a.0.clone()), ("MIME type".into(), a.1.clone()), ("Size".into(), human(a.2))];
+                let mut rows = vec![("File name".into(), a.0.clone()), ("MIME type".into(), a.1.clone()), ("Size".into(), human(a.2))];
+                // ขนาดรูป · ดึงไฟล์แนบออกมาไว้ในโฟลเดอร์ชั่วคราวของโปรแกรม อ่านแค่หัวรูป แล้วลบทิ้ง (สเปก Dimensions)
+                if a.1.starts_with("image/") {
+                    if let Some((w, h)) = attachment_size(&tools, &p, a.3, &work) {
+                        rows.push(("Dimensions".into(), format!("{w} × {h} pixels")));
+                    }
+                }
                 text.push_str(&format!("\n\n{title}\n{}", rows.iter().map(|(k, v)| format!("{k:<41}: {v}")).collect::<Vec<_>>().join("\n")));
                 sections.push(Section { title, kind: "attachment".into(), rows, ext, lang: None });
             }
@@ -109,16 +116,30 @@ fn human(b: u64) -> String {
     if b >= 1 << 20 { format!("{:.1} MiB", b as f64 / 1048576.0) } else { format!("{:.0} KiB", b as f64 / 1024.0) }
 }
 
-/// ไฟล์แนบใน MKV (ชื่อ ชนิด ขนาด)
-fn attachments(tools: &Path, file: &Path) -> Vec<(String, String, u64)> {
+/// ไฟล์แนบใน MKV (ชื่อ ชนิด ขนาด เลขของ mkvmerge)
+fn attachments(tools: &Path, file: &Path) -> Vec<(String, String, u64, u64)> {
     let Ok(out) = run_tool_timeout(tools, "mkvmerge", [OsStr::new("-J"), file.as_os_str()], Duration::from_secs(60)) else { return vec![] };
     if !tool_succeeded("mkvmerge", &out.status) {
         return vec![];
     }
     let j: Value = serde_json::from_slice(&out.stdout).unwrap_or(Value::Null);
     j["attachments"].as_array().map(|a| a.iter().map(|x| (
-        x["file_name"].as_str().unwrap_or("").to_string(), x["content_type"].as_str().unwrap_or("").to_string(), x["size"].as_u64().unwrap_or(0),
+        x["file_name"].as_str().unwrap_or("").to_string(), x["content_type"].as_str().unwrap_or("").to_string(), x["size"].as_u64().unwrap_or(0), x["id"].as_u64().unwrap_or(0),
     )).collect()).unwrap_or_default()
+}
+
+/// กว้าง สูง ของรูปที่แนบ · ดึงออกมาไว้ในโฟลเดอร์ชั่วคราวของโปรแกรม อ่านหัวรูป แล้วลบ
+fn attachment_size(tools: &Path, file: &Path, id: u64, work: &Path) -> Option<(u32, u32)> {
+    std::fs::create_dir_all(work).ok()?;
+    let out = work.join(format!("att-{}-{id}", crate::poster_image::unique()));
+    let mut t = std::ffi::OsString::from(format!("{id}:"));
+    t.push(out.as_os_str());
+    let r = run_tool_timeout(tools, "mkvextract", [file.as_os_str(), OsStr::new("attachments"), &t], Duration::from_secs(60)).ok();
+    // ไฟล์ที่ดึงออกมาไม่มีนามสกุล ต้องเดาชนิดจากเนื้อไฟล์ (image_dimensions เดาจากนามสกุล อ่านไม่ได้)
+    let dims = r.filter(|r| tool_succeeded("mkvextract", &r.status))
+        .and_then(|_| image::ImageReader::open(&out).ok()?.with_guessed_format().ok()?.into_dimensions().ok());
+    let _ = std::fs::remove_file(&out);
+    dims
 }
 
 // ---------------------------------------------------------------- ค่า hash

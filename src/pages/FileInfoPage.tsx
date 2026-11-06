@@ -12,6 +12,14 @@ import { kb } from "../lib/popup";
 
 const ALGOS: [string, string][] = [["md5", "MD5"], ["sha1", "SHA-1"], ["sha256", "SHA-256"], ["crc32", "CRC32"], ["sha512", "SHA-512"]];
 
+/** คัดลอกไม่สำเร็จ ต้องบอก ไม่เงียบ · ที่เจอบ่อยคือหน้าต่างไม่ได้โฟกัส ระบบไม่ให้คัดลอก บอกเป็นภาษาไทยเต็มประโยค ไม่ตัดกลางคำ */
+const copyFail = (e: unknown) => {
+  const name = (e as { name?: string })?.name;
+  return name === "NotAllowedError"
+    ? "ระบบไม่ให้คัดลอกตอนหน้าต่างโปรแกรมไม่ได้โฟกัสอยู่ · คลิกที่หน้าต่างโปรแกรมแล้วกดคัดลอกอีกครั้ง"
+    : `${(e as { message?: string })?.message ?? String(e)} · ลองกดคัดลอกอีกครั้ง`;
+};
+
 export default function FileInfoPage({ m, onBack }: { m: Movie; onBack: () => void }) {
   const toast = useToast();
   const [info, setInfo] = useState<{ text: string; sections: MiSection[] } | null>(null);
@@ -65,8 +73,13 @@ export default function FileInfoPage({ m, onBack }: { m: Movie; onBack: () => vo
 
   const copyAll = async () => {
     if (!info) return;
-    await navigator.clipboard.writeText(info.text);
-    toast({ kind: "ok", title: "คัดลอกข้อมูลไฟล์แล้ว", detail: "วางในแชทหรือโน้ตได้เลย · แถบนี้หายเองใน 3 วินาที" });
+    // คัดลอกไม่สำเร็จต้องบอก ไม่เงียบ (Windows ไม่ให้คัดลอกถ้าหน้าต่างไม่ได้โฟกัสอยู่)
+    try {
+      await navigator.clipboard.writeText(info.text);
+      toast({ kind: "ok", title: "คัดลอกข้อมูลไฟล์แล้ว", detail: "วางในแชทหรือโน้ตได้เลย · แถบนี้หายเองใน 3 วินาที" });
+    } catch (e) {
+      toast({ kind: "bad", title: "คัดลอกไม่สำเร็จ", detail: copyFail(e) });
+    }
   };
 
   const done = xRun?.result ? xRun.result.states.filter((s) => s === "done").length : 0;
@@ -188,7 +201,14 @@ function HashCard({ m }: { m: Movie }) {
   };
   const rows = h ? ALGOS.filter(([k]) => (h as unknown as Record<string, string | null>)[k]) : [];
   const val = (k: string) => (h as unknown as Record<string, string | null>)[k] ?? "";
-  const copy = async (t: string, what: string) => { await navigator.clipboard.writeText(t); toast({ kind: "ok", title: `คัดลอก${what}แล้ว`, detail: "แถบนี้หายเองใน 3 วินาที" }); };
+  const copy = async (t: string, what: string) => {
+    try {
+      await navigator.clipboard.writeText(t);
+      toast({ kind: "ok", title: `คัดลอก${what}แล้ว`, detail: "แถบนี้หายเองใน 3 วินาที" });
+    } catch (e) {
+      toast({ kind: "bad", title: "คัดลอกไม่สำเร็จ", detail: copyFail(e) });
+    }
+  };
   // อ่านไฟล์รอบเดียวคิดทุกแบบพร้อมกัน · บอกชื่อตัวหลัก SHA-256 ถ้าติ๊กไว้ (ต้นแบบ)
   const firstAlgo = algos.includes("sha256") ? "SHA-256" : ALGOS.find(([k]) => algos.includes(k))?.[1] ?? "";
   return (

@@ -35,9 +35,9 @@
     "detail": "ดาวเหนือ (2023).mkv (2).sha256, ดาวเหนือ (2023).mkv.sha256"
   },
   {
-    "name": "ไฟล์แนบใน MKV ขึ้นเป็นหัวข้อ Attachment แยกปกออกมาเป็น .cover.jpg",
+    "name": "ไฟล์แนบใน MKV ขึ้นเป็นหัวข้อ Attachment บอกขนาดรูป แยกปกออกมาเป็น .cover.jpg",
     "pass": true,
-    "detail": "File name cover.jpg · MIME type image/jpeg · Size 95 KiB"
+    "detail": "File name cover.jpg · MIME type image/jpeg · Size 95 KiB · Dimensions 1000 × 1500 pixels"
   },
   {
     "name": "ไฟล์ MP4 แยกเสียงเป็น .aac ด้วย ffmpeg ไม่แปลงใหม่ เปิดได้",
