@@ -14,6 +14,7 @@ import { fmtSize } from "./lib/format";
 import Placeholder from "./pages/Placeholder";
 import DevParts from "./pages/DevParts";
 import ShelfPage from "./pages/ShelfPage";
+import PosterPage from "./pages/PosterPage";
 import FirstRun from "./pages/FirstRun";
 
 export default function App() {
@@ -32,6 +33,8 @@ function Frame() {
   const { settings, update } = useSettings();
   const { movies } = useLibrary();
   const [page, setPage] = useState<Page>("shelf");
+  /** มาจากปุ่มเปลี่ยนโปสเตอร์บนชั้นวาง · หน้าใส่โปสเตอร์ใส่ไฟล์หนังให้เลย */
+  const [posterPath, setPosterPath] = useState<string | null>(null);
   const [hash, setHash] = useState(location.hash);
 
   useEffect(() => {
@@ -65,8 +68,8 @@ function Frame() {
           <main className="main">
             {parts ? <DevParts /> : (
               <>
-                {page === "shelf" && <ShelfPage onPage={setPage} />}
-                {page === "poster" && <Placeholder title="ใส่โปสเตอร์" stage={4} />}
+                {page === "shelf" && <ShelfPage onPage={setPage} onPoster={(path) => { setPosterPath(path); setPage("poster"); }} />}
+                {page === "poster" && <PosterPage initialPath={posterPath} onPage={setPage} onConsumed={() => setPosterPath(null)} />}
                 {page === "check" && <Placeholder title="ตรวจไฟล์" stage={6} />}
                 {page === "settings" && <Placeholder title="ตั้งค่า" stage={7} />}
               </>

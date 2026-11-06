@@ -1,0 +1,40 @@
+{
+ "when": "2026-11-06T15:36:55.712Z",
+ "results": [
+  {
+   "name": "หน้าโหลดจากตัวโปรแกรม ไม่ใช่ dev server",
+   "pass": true,
+   "detail": "http://tauri.localhost"
+  },
+  {
+   "name": "ปกบนชั้นโหลดผ่าน asset ได้ทุกรูป ขนาด 300 × 450",
+   "pass": true,
+   "detail": "16 รูป · {\"src\":\"http://asset.localhost/C%3A%5CUsers%5CPK\",\"w\":300,\"h\":450}"
+  },
+  {
+   "name": "โปสเตอร์ในแผงขวาโหลดได้",
+   "pass": true,
+   "detail": "{\"w\":300,\"ok\":true}"
+  },
+  {
+   "name": "ฟอนต์ Sarabun ที่ฝังในโปรแกรมโหลดได้",
+   "pass": true,
+   "detail": "Sarabun 400 · Sarabun 600 · Sarabun 700 · Sarabun 400 · Sarabun 600 · Sarabun 700"
+  },
+  {
+   "name": "ไม่มีของโดนกติกาความปลอดภัยกันตอนเปิดชั้น",
+   "pass": true,
+   "detail": "ไม่มี"
+  },
+  {
+   "name": "ภาพตัวอย่างของหน้าต่างครอปกับรูปที่จะแนบโหลดได้ (โฟลเดอร์ previews)",
+   "pass": true,
+   "detail": "{\"src\":\"1200x675\",\"out\":\"1000x1500\"}"
+  },
+  {
+   "name": "รูปจากเน็ตโดนกติกาความปลอดภัยกัน (กติกาบังคับจริง)",
+   "pass": true,
+   "detail": "img-src · https://example.com/%E0%B9%82%E0%B8%94%E0%B8%99%E0%B8%81%E0%B8%B1%E0%B8%99.png"
+  }
+ ]
+}

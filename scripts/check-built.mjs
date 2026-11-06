@@ -47,6 +47,19 @@ check("ฟอนต์ Sarabun ที่ฝังในโปรแกรมโ�
 const before = await q("return window.__csp.slice()");
 check("ไม่มีของโดนกติกาความปลอดภัยกันตอนเปิดชั้น", before.length === 0, before.length ? JSON.stringify(before.slice(0, 3)) : "ไม่มี");
 
+// ขั้น 4 · ภาพตัวอย่างในหน้าต่างครอปกับรูปที่จะแนบ อยู่โฟลเดอร์ previews ของโปรแกรม ต้องโหลดได้ภายใต้กติกาตัวจริง
+{
+  const img = "D:\\movie-shelf\\test-media\\สร้าง\\รูป\\wide.jpg";
+  const r = await c.evaluate(`(async () => {
+    const inv = window.__TAURI_INTERNALS__.invoke;
+    const info = await inv("poster_open", { path: ${JSON.stringify(img)} });
+    const out = await inv("poster_render", { req: { geo: { rotate: 0, flip: false, mode: "crop", x: info.crop[0], y: info.crop[1], w: info.crop[2], h: info.crop[3], pad: "#ffffff" }, format: "jpg", quality: 90, choose: false, sizes: false } });
+    const load = (p) => new Promise((ok) => { const i = new Image(); i.onload = () => ok(i.naturalWidth + "x" + i.naturalHeight); i.onerror = () => ok("โหลดไม่ได้"); i.src = window.__TAURI_INTERNALS__.convertFileSrc(p); });
+    return { src: await load(info.preview), out: await load(out.preview) };
+  })()`);
+  check("ภาพตัวอย่างของหน้าต่างครอปกับรูปที่จะแนบโหลดได้ (โฟลเดอร์ previews)", r.src === "1200x675" && r.out === "1000x1500", JSON.stringify(r));
+}
+
 // ลองโหลดรูปจากเน็ต ต้องโดนกัน = กติกาบังคับจริง (ถ้าไม่โดนกัน แปลว่าเทสนี้ไม่ได้เทสอะไรเลย)
 await q("const i = new Image(); i.src = 'https://example.com/โดนกัน.png'; document.body.appendChild(i); setTimeout(() => i.remove(), 500);");
 await sleep(800);

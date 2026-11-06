@@ -344,6 +344,45 @@ fn read_one(env: &ScanEnv, f: &Found, fid: &str, old: Option<Movie>) -> Movie {
     m
 }
 
+/// โปรแกรมแก้ไฟล์เอง (เปลี่ยนรูปแนบ ขั้น 4) · อ่านข้อมูลไฟล์ใหม่ จดขนาดกับเวลาใหม่ ปกใหม่ ภาพเล็กใหม่
+/// ประวัติตรวจคงเดิม ไม่ขึ้นว่าไฟล์ถูกเปลี่ยน (แผนขั้น 4 หลังโปรแกรมแก้ไฟล์เอง จดค่า hash ใหม่)
+/// ค่า hash ทั้งไฟล์ที่จดไว้คิดใหม่จากไฟล์จริง ไม่งั้นตรวจแบบเร็วครั้งหน้าจะบอกว่าไฟล์ถูกแก้
+pub fn refresh_own_edit(app: &AppHandle, path: &Path, on_hash: &dyn Fn(f64)) {
+    let lib = app.state::<Arc<LibraryStore>>();
+    let key = path.to_string_lossy().to_lowercase();
+    let Some(old) = lib.movies.lock().unwrap().iter().find(|m| m.path.to_lowercase() == key).cloned() else { return };
+    let (Ok(tools), Ok(local), Ok(md)) = (crate::tools::tools_dir(app), app.path().app_local_data_dir(), fs::metadata(path)) else { return };
+    let (folders, originals) = {
+        let s = app.state::<SettingsStore>();
+        let s = s.current.lock().unwrap();
+        (s.folders.clone(), s.originals_folder.clone())
+    };
+    let env = ScanEnv { tools: &tools, thumbs: &local.join("thumbs"), work: &local.join("tmp"), folders: &folders, originals: &originals, workers: 1 };
+    let mtime = md.modified().ok().and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map(|d| d.as_secs() as i64).unwrap_or(0);
+    let f = Found { path: path.to_path_buf(), root: old.root.clone(), size: md.len(), mtime };
+    let mut m = read_one(&env, &f, &old.id, Some(old.clone()));
+    m.status = old.status.clone();
+    m.check = old.check.clone();
+    if old.sha256.is_some() {
+        m.sha256 = crate::poster::sha256_file(path, on_hash).ok();
+    }
+    lib.update_movie(&old.id, |x| *x = m.clone());
+    let _ = app.emit("movie-updated", &m);
+    if let Err(e) = lib.save() {
+        let _ = app.emit("library-error", e);
+    }
+}
+
+/// ตั้งสถานะตรวจกับค่า hash ให้หนังหนึ่งเรื่อง ใช้ในเทสหน้าจอขั้น 4 (ยังไม่มีหน้าตรวจไฟล์) · ตัวติดตั้งจริงไม่มีคำสั่งนี้
+#[cfg(debug_assertions)]
+#[tauri::command]
+pub fn dev_set_check(app: AppHandle, lib: State<'_, Arc<LibraryStore>>, path: String, status: String, sha256: Option<String>) -> Result<(), String> {
+    let id = lib.movies.lock().unwrap().iter().find(|m| m.path.eq_ignore_ascii_case(&path)).map(|m| m.id.clone()).ok_or("ไม่เจอเรื่องนี้ในคลัง")?;
+    let m = lib.update_movie(&id, |m| { m.status = status; m.sha256 = sha256; }).unwrap();
+    let _ = app.emit("movie-updated", &m);
+    lib.save()
+}
+
 /// เลขประจำไฟล์ที่ใช้เป็นชื่อไฟล์ได้
 fn safe_id(id: &str) -> String {
     id.chars().map(|c| if c.is_ascii_alphanumeric() || c == '-' { c } else { '_' }).take(80).collect()

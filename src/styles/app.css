@@ -234,7 +234,8 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
 /* สูงขั้นต่ำ 236 ตามต้นแบบ หน้าต่างลบขั้น 1 กับขั้น 2 สูงเท่ากัน ปุ่มไม่กระโดดตอนกดถัดไป (working-with-gun ข้อ 8) */
 .dlg { background: #fff; border-radius: 14px; box-shadow: 0 18px 40px rgba(120,50,80,.25); padding: 20px; width: 100%; max-width: 440px; min-height: 236px; display: flex; flex-direction: column; gap: 10px; max-height: calc(100vh - 48px); overflow-y: auto; overscroll-behavior: contain; animation: pop-in .14s ease-out; }
 .dlg h4 { margin: 0; font-size: 16px; line-height: 1.5; }
-.dlg .acts { margin-top: auto; display: flex; gap: 8px; justify-content: flex-end; padding-top: 6px; }
+/* ปุ่มล่างติดขอบล่างของหน้าต่างเสมอ เนื้อหายาวเกินจอก็ยังเห็นปุ่ม */
+.dlg .acts { margin-top: auto; display: flex; gap: 8px; justify-content: flex-end; padding-top: 6px; position: sticky; bottom: -20px; background: #fff; padding-bottom: 20px; margin-bottom: -20px; z-index: 1; }
 .dlg .acts.split { justify-content: space-between; }
 
 /* ---------- แถบแจ้งผล ลอยกลางล่าง (save-status ข้อ 3) ---------- */
@@ -359,3 +360,49 @@ tbody tr:last-child td { border-bottom: 0; }
   .skel { background: #f8e1ea; }
   .pop-in, .dlg, .toast { translate: 0 0; opacity: 1; }
 }
+
+/* ---------- หน้าใส่โปสเตอร์ (ต้นแบบบรรทัด 120–141 · 191–213 · 287–292 · หน้า 2 บรรทัด 725–931) ---------- */
+.wrapin { padding: 22px; display: flex; flex-direction: column; gap: 18px; flex: 1; }
+.three { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
+.card { background: var(--win2); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.card h3 { margin: 0 0 10px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+.step { width: 22px; height: 22px; border-radius: 50%; background: #f6b3cb; color: #7a2346; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; flex: none; }
+.drop { border: 2px dashed #eeb3c8; border-radius: 12px; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--txt3); font-size: 13.5px; text-align: center; padding: 14px; min-height: 120px; transition: background-color .15s, border-color .15s; }
+.drop b { color: inherit; }
+.drop.over { border: 2px dashed var(--accent); background: #fdeaf1; color: var(--accent-ink); }
+.drop.bad { border: 2px dashed var(--bad); background: var(--bad-soft); color: var(--bad-ink); }
+.vfile { display: flex; gap: 12px; align-items: center; background: #fff; border-radius: 10px; padding: 12px; }
+.vthumb { width: 72px; height: 42px; border-radius: 5px; background: linear-gradient(135deg, #9fc3e0, #5f86a8); flex: none; object-fit: cover; }
+.pprev { display: flex; gap: 14px; align-items: flex-start; }
+.pp { width: 96px; height: 144px; border-radius: 6px; flex: none; box-shadow: 0 6px 12px rgba(150,70,100,.25); object-fit: cover; display: block; background: #fdeef4; }
+.opts { display: flex; flex-direction: column; gap: 12px; }
+.chk.off { cursor: not-allowed; opacity: .55; }
+.extag { font-family: Consolas, "Cascadia Mono", monospace; font-size: 12px; font-weight: 600; border-radius: 5px; padding: 1px 6px; white-space: nowrap; }
+.extag.ok { background: var(--ok-soft); color: var(--ok-ink); }
+.extag.cv { background: var(--warn-soft); color: var(--warn-ink); }
+.mc { width: 72px; height: 108px; border-radius: 5px; flex: none; box-shadow: 0 4px 8px rgba(150,70,100,.22); object-fit: cover; display: block; background: #fdeef4; }
+.mc.none { border: 1.5px dashed #eeb3c8; box-shadow: none; }
+.workbox { display: flex; flex-direction: column; gap: 10px; scroll-margin: 16px; }
+.fmt { width: 100%; border-collapse: collapse; font-size: 14px; background: #fff; border-radius: 10px; overflow: hidden; }
+.fmt th { background: var(--win2); color: var(--txt2); font-size: 13px; padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--line); }
+.fmt td { padding: 9px 12px; border-bottom: 1px solid #f8e3eb; vertical-align: top; line-height: 1.55; }
+.fmt tr:last-child td { border-bottom: 0; }
+.fmt tr.on td { background: #fdeaf1; }
+/* หน้าต่างครอป · ภาพอยู่ในกรอบ 520 × 293 แบบไม่ตัด กรอบครอปล็อก 2 : 3 นอกกรอบมืด */
+.stage { position: relative; width: 520px; height: 293px; border-radius: 10px; overflow: hidden; flex: none; background: #f7e3eb; touch-action: none; user-select: none; }
+.stage img, .pv img { position: absolute; max-width: none; pointer-events: none; }
+.cropbox { position: absolute; border: 2px solid #fff; box-shadow: 0 0 0 999px rgba(70,25,45,.55); cursor: move; }
+.cropbox::before, .cropbox::after { content: ""; position: absolute; inset: 0; pointer-events: none; }
+.cropbox::before { border-left: 1px solid rgba(255,255,255,.45); border-right: 1px solid rgba(255,255,255,.45); left: 33.3%; right: 33.3%; }
+.cropbox::after { border-top: 1px solid rgba(255,255,255,.45); border-bottom: 1px solid rgba(255,255,255,.45); top: 33.3%; bottom: 33.3%; }
+.hd { position: absolute; width: 14px; height: 14px; background: #fff; border: 2px solid var(--accent-d); border-radius: 3px; }
+.hd.nw { left: -8px; top: -8px; cursor: nwse-resize; } .hd.ne { right: -8px; top: -8px; cursor: nesw-resize; }
+.hd.sw { left: -8px; bottom: -8px; cursor: nesw-resize; } .hd.se { right: -8px; bottom: -8px; cursor: nwse-resize; }
+.pv { position: relative; overflow: hidden; border-radius: 5px; flex: none; box-shadow: 0 4px 10px rgba(150,70,100,.25); }
+.swatch { width: 26px; height: 26px; border-radius: 7px; border: 1px solid #e5c3d1; cursor: pointer; padding: 0; transition: box-shadow .15s; }
+.swatch:hover { box-shadow: 0 0 0 3px rgba(233,138,172,.25); }
+.swatch.on { outline: 3px solid var(--accent); outline-offset: 2px; }
+.imgrow { display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: center; padding: 7px 6px; border-top: 1px solid #f8e3eb; font-size: 13.5px; border-radius: 8px; cursor: pointer; transition: background-color .15s; }
+.imgrow:first-child { border-top: 0; }
+.imgrow:hover { background-color: #fdeaf1; }
+.imgth { width: 34px; height: 50px; border-radius: 4px; object-fit: cover; background: #fdeef4; }

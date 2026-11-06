@@ -70,6 +70,48 @@ export const api = {
   renameMovie: (id: string, stem: string) => call<Movie>("rename_movie", { id, stem }),
 };
 
+/* ---------- หน้าใส่โปสเตอร์ (poster.rs · poster_image.rs) ---------- */
+export type Geometry = { rotate: 0 | 90 | 180 | 270; flip: boolean; mode: "crop" | "pad"; x: number; y: number; w: number; h: number; pad: string };
+export type PosterInfo = {
+  path: string; name: string; ext: string; attachable: boolean; width: number; height: number;
+  aspect: string; twoThree: boolean; preview: string; fileSize: number; exif: number; icc: boolean; crop: [number, number, number, number];
+};
+export type RenderInfo = { bytes: number; width: number; height: number; cropW: number; cropH: number; small: boolean; preview: string; sizes: [number, number][] };
+export type FolderImage = { path: string; name: string; ext: string; width: number; height: number; thumb: string | null; attachable: boolean; error: string | null };
+export type StreamInfo = { index: number; kind: "video" | "audio" | "subtitle"; codec: string; lang: string | null; mp4: "ok" | "style" | "no"; why: string | null };
+export type Counts = { video: number; audio: number; subs: number };
+export type MovieInfo = { path: string; name: string; ext: string; size: number; duration: number | null; width: number; height: number; streams: StreamInfo[]; counts: Counts; free: number; drive: string };
+export type ApplyReq = { path: string; output: "mkv" | "mp4"; checkSource: boolean; checkOutput: boolean; original: "keep" | "trash"; drop: number[] };
+export type ApplyProblem = { kind: string; title: string; detail: string[] };
+export type ApplyResult = { mode: "cover" | "wrap" | "mp4"; output: string; counts: Counts; verified: boolean; original: "kept" | "trash" | "none"; originalTo: string | null; notes: string[] };
+export type PosterProgress = { phase: string; percent: number; eta: number | null; next: string | null };
+
+export const posterApi = {
+  open: (path: string) => call<PosterInfo>("poster_open", { path }),
+  render: (geo: Geometry, format: "jpg" | "png", quality: number, opts: { choose?: boolean; sizes?: boolean } = {}) =>
+    call<RenderInfo>("poster_render", { req: { geo, format, quality, choose: !!opts.choose, sizes: !!opts.sizes } }),
+  clear: () => call<void>("poster_clear"),
+  folderImages: (movie: string) => call<FolderImage[]>("poster_folder_images", { movie }),
+  inspect: (path: string) => call<MovieInfo>("poster_inspect", { path }),
+  /** ไม่สำเร็จ promise ล้มพร้อม ApplyProblem */
+  apply: (req: ApplyReq) => call<ApplyResult>("poster_apply", { req }),
+  cancel: () => call<void>("poster_cancel"),
+};
+
+/** เลือกไฟล์จากเครื่อง · kind = movie หรือ image */
+export async function pickFile(kind: "movie" | "image"): Promise<string | null> {
+  if (!inApp) return null;
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const r = await open({
+    multiple: false, directory: false,
+    title: kind === "movie" ? "เลือกไฟล์หนัง" : "เลือกรูปโปสเตอร์",
+    filters: kind === "movie"
+      ? [{ name: "ไฟล์หนัง", extensions: ["mkv", "mp4", "m4v", "mov", "avi", "webm", "ts", "m2ts", "mpg", "mpeg", "vob", "flv"] }]
+      : [{ name: "รูปโปสเตอร์", extensions: ["jpg", "jpeg", "png", "webp", "bmp", "tif", "tiff", "heic", "heif"] }],
+  });
+  return typeof r === "string" ? r : null;
+}
+
 /** เหตุที่เปลี่ยนชื่อไม่ได้ · inuse denied missing busy other ขึ้นการ์ดแดงพร้อมปุ่มลองใหม่ · ที่เหลือขึ้นใต้ช่องพิมพ์ */
 export type RenameProblem = {
   kind: "empty" | "chars" | "invisible" | "reserved" | "trailing" | "long" | "duplicate" | "inuse" | "denied" | "missing" | "busy" | "other";

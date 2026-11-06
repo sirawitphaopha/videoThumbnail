@@ -2,6 +2,8 @@
 
 mod jobs;
 mod library;
+mod poster;
+mod poster_image;
 mod probe;
 mod rename;
 mod store;
@@ -28,6 +30,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(Arc::new(Jobs::default()))
+        .manage(poster::PosterState::default())
         .setup(|app| {
             let path = store::settings_path(app.handle())?;
             app.manage(SettingsStore::load(path));
@@ -62,9 +65,11 @@ pub fn run() {
     #[cfg(debug_assertions)]
     let builder = builder.invoke_handler(tauri::generate_handler![
         tools::check_tools, store::get_settings, store::set_settings,
-        jobs::running_jobs, jobs::force_close, jobs::dev_fake_job,
+        jobs::running_jobs, jobs::force_close, jobs::dev_fake_job, poster::dev_fake_free, library::dev_set_check,
         library::get_library, library::scan_library, library::play_movie, library::reveal_movie,
         rename::check_rename, rename::rename_movie,
+        poster::poster_open, poster::poster_render, poster::poster_clear, poster::poster_folder_images,
+        poster::poster_inspect, poster::poster_apply, poster::poster_cancel,
     ]);
     #[cfg(not(debug_assertions))]
     let builder = builder.invoke_handler(tauri::generate_handler![
@@ -72,6 +77,8 @@ pub fn run() {
         jobs::running_jobs, jobs::force_close,
         library::get_library, library::scan_library, library::play_movie, library::reveal_movie,
         rename::check_rename, rename::rename_movie,
+        poster::poster_open, poster::poster_render, poster::poster_clear, poster::poster_folder_images,
+        poster::poster_inspect, poster::poster_apply, poster::poster_cancel,
     ]);
 
     builder

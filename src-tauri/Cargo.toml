@@ -21,10 +21,21 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 dunce = "1"
 # เรียกคำสั่งของ Windows ตรง ๆ · ส่งหน้าต่างเทสไปอยู่หลังสุด · Job Object ให้เครื่องมือตายตามโปรแกรม (TECH-REVIEW ข้อ 9)
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_Security", "Win32_Storage_FileSystem"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_Security", "Win32_Storage_FileSystem", "Win32_UI_Shell"] }
 # ค่า hash ของปกและไฟล์หนัง (ขั้น 2 ปก · ขั้น 5 ขั้น 6 ทั้งไฟล์)
 sha2 = "0.10"
+# รูปโปสเตอร์ (ขั้น 4 · TECH-REVIEW ข้อ 10) อ่าน JPG PNG WebP BMP TIFF หมุนตามข้อมูลกล้อง · HEIC ให้ ffmpeg ถอดก่อน
+image = { version = "0.25", default-features = false, features = ["jpeg", "png", "webp", "bmp", "tiff"] }
+# แปลงสีตามโปรไฟล์ในรูป (Display P3 ของไอโฟน Adobe RGB) เป็น sRGB ไม่ให้ภาพซีด
+qcms = "0.3"
+# เข้ารหัส JPG แบบตารางฮัฟแมนที่คำนวณจากรูปจริง ไฟล์เล็กกว่าตัวเข้ารหัสของ image
+jpeg-encoder = "0.6"
 
 # งานรูปและ hash ช้าลง 10–30 เท่าในโหมดทดสอบ ถ้าไม่เปิดตัวเลือกนี้ (TECH-REVIEW ข้อ 10)
 [profile.dev.package."*"]
 opt-level = 3
+
+# โค้ดย่อรูปกับเข้ารหัส JPG เป็นแบบทั่วไป (generic) ถูกสร้างในตัวโปรแกรมเอง ไม่ใช่ในส่วนประกอบ
+# ไม่เปิดตัวนี้ หน้าต่างครอปคิดขนาดไฟล์ช้า 1.5 วินาทีต่อครั้งในโหมดทดสอบ (วัดแล้ว ขั้น 4)
+[profile.dev.package.movie-shelf]
+opt-level = 2
