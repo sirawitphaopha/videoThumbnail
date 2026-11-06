@@ -3,6 +3,7 @@
 mod jobs;
 mod store;
 mod tools;
+mod winutil;
 
 use std::sync::Arc;
 
@@ -27,6 +28,19 @@ pub fn run() {
         .setup(|app| {
             let path = store::settings_path(app.handle())?;
             app.manage(SettingsStore::load(path));
+            // หน้าต่างตั้งไว้ไม่แสดงตอนสร้าง (tauri.conf.json visible:false) แสดงที่นี่
+            // ตอนเทสผ่าน scripts/dev-app.ps1 เปิดแบบไม่แย่งโฟกัส อยู่หลังหน้าต่างอื่น · ตัวจริงขึ้นหน้าตามปกติ
+            match app.get_webview_window("main") {
+                Some(w) if cfg!(debug_assertions) && std::env::var("MOVIE_SHELF_BACKGROUND").as_deref() == Ok("1") => {
+                    winutil::show_behind(&w);
+                    eprintln!("ชั้นหนัง: หน้าต่างเทสเปิดแบบไม่แย่งโฟกัส อยู่หลังสุด");
+                }
+                Some(w) => {
+                    w.show()?;
+                    w.set_focus()?;
+                }
+                None => eprintln!("ชั้นหนัง: ยังไม่มีหน้าต่าง main ตอน setup"),
+            }
             Ok(())
         })
         // กันปิดตอนมีงาน ทางที่ 1 กดปิดหน้าต่าง (ปุ่มปิดของแถบชื่อ · Alt+F4 · ปิดจากแถบงาน)
