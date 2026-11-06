@@ -1,0 +1,26 @@
+[package]
+name = "movie-shelf"
+version = "0.1.0"
+description = "ชั้นหนัง โปรแกรมใส่โปสเตอร์ในไฟล์หนัง"
+edition = "2024"
+rust-version = "1.90"
+
+[lib]
+name = "movie_shelf_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2.7.4", features = [] }
+
+[dependencies]
+tauri = { version = "2.12.5", features = ["protocol-asset"] }
+tauri-plugin-dialog = "2"
+tauri-plugin-opener = "2"
+tauri-plugin-single-instance = "2"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+dunce = "1"
+
+# งานรูปและ hash ช้าลง 10–30 เท่าในโหมดทดสอบ ถ้าไม่เปิดตัวเลือกนี้ (TECH-REVIEW ข้อ 10)
+[profile.dev.package."*"]
+opt-level = 3

@@ -1,0 +1,25 @@
+# ของที่สร้างใหม่ได้
+node_modules/
+dist/
+src-tauri/target/
+src-tauri/gen/schemas/
+
+# 🔴 สกิลกับบันทึกของ Claude ห้ามขึ้น git
+# ที่เก็บบน GitHub เป็นแบบสาธารณะ ข้างในมีบันทึกส่วนตัวของพี่กันและเรื่องระบบโรงพยาบาล (ผลตรวจขั้น 0 ข้อ 1)
+.claude/
+
+# เครื่องมือแตกจาก vendor ด้วย scripts/fetch-tools.ps1 (ใหญ่ราว 540 MB)
+src-tauri/tools/*.exe
+src-tauri/tools/*.dll
+src-tauri/tools/*.DLL
+
+# ไฟล์ทดสอบ สร้างใหม่ด้วย scripts/make-test-media.mjs · มีไฟล์ส่วนตัวของพี่กัน
+# ยกเว้น test-media/src ที่เขียนด้วยมือ สคริปต์สร้างไฟล์ทดสอบต้องใช้ สร้างใหม่ไม่ได้
+test-media/*
+!test-media/src/
+
+# ไฟล์บีบอัดของเครื่องมือ ใหญ่ เก็บแค่ README
+vendor/**/*.7z
+vendor/**/*.zip
+vendor/**/*.tar.xz
+vendor/**/*.sig

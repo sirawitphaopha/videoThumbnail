@@ -1,0 +1,1190 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ชั้นหนัง มอคอัป</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!--
+  มอคอัปโปรแกรม "ชั้นหนัง" (ชื่อชั่วคราว) — โปรแกรมบนคอม Windows สำหรับครอบโปสเตอร์หนังเข้าไฟล์ MKV
+  กรอบหน้าต่างทุกจอกว้าง 1200px = ขนาดหน้าต่างโปรแกรมจริงบนจอคอม 1920 px
+  ข้อมูลในมอคอัปเป็นของสมมติทั้งหมด ชื่อหนังแต่งขึ้นเอง โปสเตอร์วาดด้วยสีไล่เฉด
+-->
+<style>
+:root{
+  --bg:#fdf2f6; --ink:#4a2b38; --muted:#8a6474;
+  --win:#fffafc; --win2:#fdeef4; --line:#f4d3e0;
+  --txt:#4a2b38; --txt2:#8a5d6e; --txt3:#b28a9a;
+  --accent:#e98aac; --accent-d:#d9719a; --accent-soft:#fbd7e5; --accent-ink:#c2547f;
+  --ok:#7fc9a2; --ok-soft:#e2f5ea; --ok-ink:#2f7a52;
+  --bad:#ec8f8f; --bad-soft:#fde5e5; --bad-ink:#b04545;
+  --warn:#f2c76e; --warn-soft:#fdf1d6; --warn-ink:#94680f;
+  --info:#8dbbe8; --info-soft:#e4effb; --info-ink:#2f6496;
+  --wood1:#f2cfd9; --wood2:#e6b3c3; --wood3:#d69aae;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Sarabun,"Noto Sans Thai",Tahoma,sans-serif;font-size:15px;line-height:1.6;min-width:1260px}
+.page{width:1200px;margin:0 auto;padding:36px 0 80px}
+h1{font-size:28px;margin:0 0 6px}
+.lead{color:var(--muted);margin:0 0 8px}
+.sec{margin-top:56px}
+.sec h2{font-size:21px;margin:0 0 4px}
+.sec .note{color:var(--muted);margin:0 0 16px;max-width:900px}
+.tag{display:inline-block;background:#f6b3cb;color:#7a2346;border-radius:6px;padding:0 9px;font-size:13px;margin-right:8px}
+
+.win{background:var(--win);color:var(--txt);border-radius:12px;overflow:hidden;box-shadow:0 18px 40px rgba(200,110,145,.18);border:1px solid var(--line)}
+.titlebar{height:34px;display:flex;align-items:center;justify-content:space-between;padding:0 0 0 14px;background:#fbe3ec;font-size:13px;color:var(--txt2)}
+.titlebar .ctl{display:flex}
+.titlebar .ctl span{width:46px;height:34px;display:flex;align-items:center;justify-content:center}
+.body{display:flex;min-height:640px}
+.side{width:200px;flex:none;background:var(--win2);border-right:1px solid var(--line);padding:16px 10px;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 8px 16px;font-weight:700;font-size:17px;color:var(--accent-ink)}
+.nav{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;color:var(--txt2);cursor:pointer;border:0;background-color:transparent;font:inherit;text-align:left;width:100%;transition:background-color .15s,color .15s}
+.nav:hover{background-color:#f9dde8;color:var(--accent-ink)}
+.nav.on{background-color:var(--accent-soft);color:var(--accent-ink);font-weight:600}
+.nav.on:hover{background-color:#f6c6d8;color:#ad4370}
+.nav .count{margin-left:auto;font-size:12px;background:#fff;border-radius:10px;padding:0 7px;color:var(--txt2)}
+.side .foot{margin-top:auto;font-size:12px;color:var(--txt3);padding:8px}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.topbar{display:flex;align-items:center;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line)}
+.path{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:9px;height:38px;padding:0 12px;color:var(--txt2);font-size:14px;flex:1;min-width:0}
+.search{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:9px;height:38px;padding:0 12px;width:200px;color:var(--txt3);font-size:14px}
+.dd{height:38px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;border-radius:9px;border:1px solid var(--line);background-color:#fff;color:var(--txt);font:inherit;font-size:14px;cursor:pointer;overflow:hidden;transition:background-color .15s,border .15s}
+.dd:hover{background-color:#fdeaf1;border:1px solid #eeb3c8}
+.dd span{white-space:nowrap;min-width:0}
+
+.btn{height:38px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 16px;border-radius:9px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background-color .15s,color .15s,border .15s}
+.btn-main{background-color:#f6b3cb;color:#7a2346;border:1px solid #ef9dbb}
+.btn-main:hover{background-color:#f09dbd;color:#6a1d3c;border:1px solid #e584a9}
+.btn-ghost{background-color:#fff;color:var(--txt);border:1px solid #efc6d5}
+.btn-ghost:hover{background-color:#fdeaf1;color:var(--accent-ink);border:1px solid #e79ab8}
+.btn-ok{background-color:var(--ok-soft);color:var(--ok-ink);border:1px solid #a9dcc0}
+.btn-ok:hover{background-color:#cdeedb;color:#24653f;border:1px solid #84c9a3}
+.btn-bad{background-color:#fff;color:var(--bad-ink);border:1px solid #f1b7b7}
+.btn-bad:hover{background-color:var(--bad-soft);color:#953535;border:1px solid #e48d8d}
+.btn-wait{background-color:#fdf3dc;color:#a8812e;border:1px solid #f0d9a2;cursor:not-allowed}
+.btn-wait:hover{background-color:#fbecc5;color:#94680f;border:1px solid #e8c77c}
+.btn-sm{height:32px;padding:0 12px;font-size:13px}
+.icon-btn{width:32px;height:32px;flex:none;display:inline-flex;align-items:center;justify-content:center;border-radius:8px;border:1px solid transparent;background-color:transparent;color:var(--txt2);cursor:pointer;transition:background-color .15s,color .15s}
+.icon-btn:hover{background-color:#fbdde8;color:var(--accent-ink)}
+
+.content{display:flex;flex:1;min-height:0}
+.shelfwrap{flex:1;padding:18px 18px 24px;min-width:0}
+.shelfhead b{font-size:18px}
+.legend{display:flex;align-items:center;gap:14px;font-size:13px;color:var(--txt2);margin:6px 0 16px;flex-wrap:wrap}
+.legend i{display:inline-block;width:10px;height:10px;border-radius:50%;margin-right:6px}
+.shelf{position:relative;display:flex;gap:14px;padding:0 14px;margin-bottom:34px;align-items:flex-end}
+.shelf::after{content:"";position:absolute;left:0;right:0;bottom:-16px;height:16px;border-radius:8px;background:linear-gradient(180deg,var(--wood1),var(--wood2) 55%,var(--wood3));box-shadow:0 8px 14px rgba(200,110,145,.22)}
+.book{width:110px;flex:none;cursor:pointer;position:relative;z-index:1}
+.cover{width:110px;height:165px;border-radius:6px;position:relative;overflow:hidden;box-shadow:0 6px 12px rgba(150,70,100,.25);transition:translate .15s,box-shadow .15s;display:flex;flex-direction:column;justify-content:flex-end;padding:10px}
+.book:hover .cover{translate:0 -6px;box-shadow:0 12px 18px rgba(150,70,100,.32)}
+.book.sel .cover{outline:3px solid var(--accent);outline-offset:3px}
+.cover .ttl{font-weight:700;font-size:15px;line-height:1.4;color:#fff;text-shadow:0 1px 4px rgba(0,0,0,.45)}
+.cover .yr{font-size:12px;color:rgba(255,255,255,.85)}
+.cover.none{background:repeating-linear-gradient(135deg,#fff 0 10px,#fdf0f5 10px 20px);border:2px dashed #eeb3c8;box-shadow:none;align-items:center;justify-content:center;text-align:center;color:var(--txt3);font-size:13px;gap:6px}
+.badge{position:absolute;top:7px;right:7px;width:22px;height:22px;border-radius:50%;display:flex;align-items:center;justify-content:center;box-shadow:0 0 0 2px #fff}
+.b-ok{background:var(--ok)} .b-bad{background:var(--bad)} .b-warn{background:var(--warn)} .b-info{background:var(--info)}
+.bname{font-size:12.5px;color:var(--txt2);margin-top:22px;line-height:1.5;word-break:break-word;min-height:38px}
+
+.detail{width:320px;flex:none;background:var(--win2);border-left:1px solid var(--line);padding:18px;display:flex;flex-direction:column;gap:14px}
+.dposter{width:150px;height:225px;border-radius:8px;margin:0 auto;box-shadow:0 8px 18px rgba(150,70,100,.3);display:flex;flex-direction:column;justify-content:flex-end;padding:12px}
+.dposter .ttl{font-size:19px;font-weight:700;color:#fff;line-height:1.35;text-shadow:0 1px 4px rgba(0,0,0,.45)}
+.fname{display:flex;align-items:flex-start;gap:6px}
+.fname .nm{font-weight:600;font-size:15px;line-height:1.6;word-break:break-word;flex:1}
+.ext{color:var(--txt3);font-weight:400}
+.kv{display:grid;grid-template-columns:90px 1fr;gap:4px 10px;font-size:13.5px;margin:0}
+.kv dt{color:var(--txt3)} .kv dd{margin:0;color:var(--txt)}
+.stat{display:flex;gap:10px;align-items:flex-start;border-radius:10px;padding:10px 12px;font-size:13.5px;line-height:1.55}
+.stat.ok{background:var(--ok-soft);color:var(--ok-ink)}
+.stat.bad{background:var(--bad-soft);color:var(--bad-ink)}
+.stat.warn{background:var(--warn-soft);color:var(--warn-ink)}
+.stat.info{background:var(--info-soft);color:var(--info-ink)}
+.stat b{display:block;color:inherit}
+.stat svg{flex:none;margin-top:3px}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+
+.strip{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.mini{background:var(--win);color:var(--txt);border-radius:12px;padding:16px;border:1px solid var(--line);box-shadow:0 10px 24px rgba(200,110,145,.12)}
+.mini .cap{font-size:13px;color:var(--accent-ink);font-weight:600;margin-bottom:10px}
+.inp{display:flex;align-items:center;height:40px;border-radius:9px;border:1px solid #efc6d5;background:#fff;padding:0 10px;font-size:14px;gap:2px}
+.inp.focus{border:1px solid var(--accent);box-shadow:0 0 0 3px rgba(233,138,172,.25)}
+.inp.err{border:1px solid var(--bad);box-shadow:0 0 0 3px rgba(236,143,143,.25)}
+.inp .typed{white-space:nowrap}
+.inp .caret{width:1.5px;height:20px;background:var(--accent-ink);margin-left:1px;flex:none}
+.inp .ext{margin-left:auto;padding-left:8px;font-size:13px}
+.hint{font-size:12.5px;color:var(--txt3);margin-top:6px;line-height:1.55}
+.hint.e{color:var(--bad-ink)}
+.minirow{display:flex;gap:8px;margin-top:10px;flex-wrap:wrap}
+
+.wrapin{padding:22px;display:flex;flex-direction:column;gap:18px;flex:1}
+.three{display:grid;grid-template-columns:1fr 1fr 1fr;gap:16px}
+.card{background:var(--win2);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card h3{margin:0 0 10px;font-size:15px;display:flex;align-items:center;gap:8px}
+.step{width:22px;height:22px;border-radius:50%;background:#f6b3cb;color:#7a2346;font-size:13px;display:inline-flex;align-items:center;justify-content:center;font-weight:700}
+.drop{border:2px dashed #eeb3c8;border-radius:12px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--txt3);font-size:13.5px;text-align:center;padding:14px}
+.vfile{display:flex;gap:12px;align-items:center;background:#fff;border-radius:10px;padding:12px}
+.vthumb{width:72px;height:42px;border-radius:5px;background:linear-gradient(135deg,#9fc3e0,#5f86a8);flex:none}
+.small{font-size:12.5px;color:var(--txt3);line-height:1.55}
+.pprev{display:flex;gap:14px;align-items:flex-start}
+.pp{width:96px;height:144px;border-radius:6px;flex:none;display:flex;align-items:flex-end;padding:8px;box-shadow:0 6px 12px rgba(150,70,100,.25)}
+.pp .ttl{font-weight:700;color:#fff;font-size:14px;line-height:1.35}
+.opts{display:flex;flex-direction:column;gap:12px}
+.chk{display:flex;gap:10px;align-items:flex-start;font-size:14px;cursor:pointer}
+.box{width:20px;height:20px;border-radius:6px;flex:none;margin-top:2px;display:flex;align-items:center;justify-content:center}
+.box.on{background:var(--accent)}
+.radio{width:20px;height:20px;border-radius:50%;flex:none;margin-top:2px;border:2px solid #e5b7c8;background:#fff;display:flex;align-items:center;justify-content:center}
+.radio.on{border:2px solid var(--accent)} .radio.on::after{content:"";width:10px;height:10px;border-radius:50%;background:var(--accent)}
+.bar{height:10px;border-radius:6px;background:#f7dbe6;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:6px}
+.states{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.st{background:var(--win);color:var(--txt);border-radius:12px;padding:16px;border:1px solid var(--line);box-shadow:0 10px 24px rgba(200,110,145,.12);display:flex;flex-direction:column;gap:12px}
+.st .cap{font-size:13px;color:var(--accent-ink);font-weight:600}
+
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.mode{border-radius:12px;padding:14px 16px;border:1px solid var(--line);background:#fff}
+.mode.on{border:1px solid var(--accent);background:#fdeaf1}
+.mode h4{margin:0 0 4px;font-size:15px;display:flex;gap:8px;align-items:center}
+table{width:100%;border-collapse:collapse;font-size:14px;background:#fff}
+th{text-align:left;color:var(--txt2);font-weight:600;font-size:13px;padding:10px 12px;border-bottom:1px solid var(--line);background:var(--win2)}
+td{padding:12px;border-bottom:1px solid #f8e3eb;vertical-align:top}
+tbody tr:last-child td{border-bottom:0}
+.pill{display:inline-flex;align-items:center;border-radius:20px;padding:1px 10px;font-size:13px;font-weight:600;white-space:nowrap}
+.p-ok{background:var(--ok-soft);color:var(--ok-ink)} .p-bad{background:var(--bad-soft);color:var(--bad-ink)} .p-warn{background:var(--warn-soft);color:var(--warn-ink)} .p-info{background:var(--info-soft);color:var(--info-ink)}
+.tblwrap{border:1px solid var(--line);border-radius:12px;overflow:hidden}
+
+.explain{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 22px;margin-top:14px}
+.explain ol{margin:6px 0;padding-left:22px}
+.explain li{margin:6px 0}
+.callout{background:#fdeaf1;border-left:4px solid var(--accent);padding:12px 16px;border-radius:8px;margin-top:12px}
+
+/* สถานะเพิ่มเติม */
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.sub{font-size:16px;margin:30px 0 4px;color:var(--ink)}
+.sbox{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--accent);box-shadow:0 0 0 3px rgba(233,138,172,.22);border-radius:9px;height:40px;padding:0 6px 0 12px;font-size:14px;position:relative}
+.sbox .q{flex:1;min-width:0;white-space:nowrap;color:var(--txt)}
+.sbox .swap{font-size:11.5px;font-weight:600;color:var(--accent-ink);background:#fdeaf1;border-radius:6px;padding:2px 8px;white-space:nowrap;line-height:1.75}
+.clr{width:28px;height:28px;flex:none;border-radius:7px;border:0;background-color:transparent;color:#a0768a;display:flex;align-items:center;justify-content:center;cursor:pointer;transition:background-color .15s,color .15s}
+.clr:hover{background-color:#fbdde8;color:var(--accent-ink)}
+.hl{background:#fbd7e5;color:#a33a66;font-weight:700;border-radius:3px;padding:0 1px}
+.minishelf{display:flex;gap:10px;align-items:flex-end;padding:14px 10px 0;position:relative;margin-bottom:22px}
+.minishelf::after{content:"";position:absolute;left:0;right:0;bottom:-12px;height:12px;border-radius:6px;background:linear-gradient(180deg,var(--wood1),var(--wood2) 55%,var(--wood3))}
+.mc{width:72px;height:108px;border-radius:5px;flex:none;display:flex;align-items:flex-end;padding:7px;color:#fff;font-weight:700;font-size:12px;line-height:1.35;box-shadow:0 4px 8px rgba(150,70,100,.22);position:relative;z-index:1}
+.mname{font-size:12px;color:var(--txt2);margin-top:20px;line-height:1.5}
+.skel{background:linear-gradient(90deg,#f8e1ea 0%,#fdf1f6 42%,#f8e1ea 84%);background-size:260% 100%;animation:skel-wave 1.4s ease-in-out infinite;border-radius:6px}
+@keyframes skel-wave{0%{background-position:130% 0}100%{background-position:-30% 0}}
+.menu{background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 26px rgba(150,70,100,.18);padding:6px;display:flex;flex-direction:column;gap:2px}
+.opt{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 10px;border-radius:7px;font-size:14px;cursor:pointer;line-height:1.6;transition:background-color .15s,color .15s}
+.opt:hover{background-color:#fdeaf1;color:var(--accent-ink)}
+.opt.on{background-color:#fbd7e5;color:#7a2346;font-weight:600}
+.opt.on:hover{background-color:#f7c4d7}
+.dlgstage{background:rgba(110,55,80,.22);border-radius:12px;padding:20px;display:flex;align-items:center;justify-content:center}
+.dlg{background:#fff;border-radius:14px;box-shadow:0 18px 40px rgba(120,50,80,.25);padding:20px;width:100%;display:flex;flex-direction:column;gap:10px;min-height:236px}
+.dlg h4{margin:0;font-size:16px;line-height:1.5}
+.dlg .acts{margin-top:auto;display:flex;gap:8px;justify-content:flex-end;padding-top:6px}
+.dlg ol{margin:0;padding-left:20px;font-size:13.5px;line-height:1.6}
+.btn-danger{background-color:#f6c3c3;color:#8a2a2a;border:1px solid #ee9e9e}
+.btn-danger:hover{background-color:#f0a9a9;color:#7a2020;border:1px solid #e48585}
+.cbx{width:18px;height:18px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;vertical-align:-3px}
+.cbx.on{background:var(--accent)} .cbx.off{border:2px solid #e5b7c8;background:#fff}
+.drop.over{border:2px dashed var(--accent);background:#fdeaf1;color:var(--accent-ink)}
+.drop.bad{border:2px dashed var(--bad);background:var(--bad-soft);color:var(--bad-ink)}
+.fmt{width:100%;border-collapse:collapse;font-size:14px;background:#fff;border-radius:10px;overflow:hidden}
+.fmt th{background:var(--win2);color:var(--txt2);font-size:13px;padding:9px 12px;text-align:left;border-bottom:1px solid var(--line)}
+.fmt td{padding:9px 12px;border-bottom:1px solid #f8e3eb;vertical-align:top;line-height:1.55}
+.fmt tr:last-child td{border-bottom:0}
+.mini .fmt td:first-child{white-space:nowrap}
+.y{color:var(--ok-ink);font-weight:600} .n{color:var(--bad-ink);font-weight:600} .m{color:var(--warn-ink);font-weight:600}
+
+
+/* ครอปภาพ */
+.scene{position:absolute;left:0;top:0;width:520px;height:293px;background:linear-gradient(180deg,#f9c9d8 0%,#fbe3c4 58%,#b8d98f 59%,#7fae5f 100%);transform-origin:0 0}
+.scene .sun{position:absolute;left:236px;top:58px;width:84px;height:84px;border-radius:50%;background:#fff6dc;box-shadow:0 0 30px #fff3cf}
+.scene .tree{position:absolute;bottom:60px;width:70px;height:70px;border-radius:50%;background:#5e9452}
+.scene .trunk{position:absolute;bottom:34px;width:10px;height:34px;background:#8a6a4a;border-radius:3px}
+.scene .ttl{position:absolute;left:206px;bottom:34px;width:110px;font-weight:700;color:#fff;font-size:17px;line-height:1.3;text-shadow:0 1px 4px rgba(0,0,0,.35);text-align:center}
+.stage{position:relative;width:520px;height:293px;border-radius:10px;overflow:hidden;flex:none}
+.cropbox{position:absolute;left:180px;top:16px;width:174px;height:261px;border:2px solid #fff;box-shadow:0 0 0 999px rgba(70,25,45,.55);cursor:move}
+.cropbox::before,.cropbox::after{content:"";position:absolute;inset:0;pointer-events:none}
+.cropbox::before{border-left:1px solid rgba(255,255,255,.45);border-right:1px solid rgba(255,255,255,.45);left:33.3%;right:33.3%}
+.cropbox::after{border-top:1px solid rgba(255,255,255,.45);border-bottom:1px solid rgba(255,255,255,.45);top:33.3%;bottom:33.3%}
+.hd{position:absolute;width:14px;height:14px;background:#fff;border:2px solid var(--accent-d);border-radius:3px}
+.pv{position:relative;overflow:hidden;border-radius:5px;flex:none;box-shadow:0 4px 10px rgba(150,70,100,.25)}
+.range{position:relative;height:6px;border-radius:3px;background:#f3d3df;flex:1}
+.range i{position:absolute;left:0;top:0;bottom:0;width:30%;background:var(--accent);border-radius:3px}
+.range b{position:absolute;left:30%;top:50%;width:18px;height:18px;margin:-9px 0 0 -9px;border-radius:50%;background:#fff;border:2px solid var(--accent-d);box-shadow:0 1px 3px rgba(120,50,80,.3)}
+
+button:focus{outline:none}
+button:focus-visible,[role=option]:focus-visible{outline:2px solid var(--accent-d);outline-offset:2px}
+.stat div,.hint,.small,.dlg div,li,.bname,.mname,.fmt td,.mini .cap,.st .cap{text-wrap:balance}
+
+
+/* ข้อมูลไฟล์แบบ MediaInfo */
+.mi{font-family:Consolas,"Cascadia Mono","Courier New",monospace;font-size:13px;line-height:1.6;background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px 18px 16px;color:#3a2530}
+.mih{display:flex;align-items:center;gap:10px;font-weight:700;margin:14px 0 4px;padding-top:10px;border-top:1px solid #f8e3eb;color:var(--accent-ink)}
+.mih:first-child{border-top:0;padding-top:4px}
+.miext{margin-left:auto;font-family:Sarabun,"Noto Sans Thai",Tahoma,sans-serif;font-weight:500;font-size:12.5px;color:var(--txt3)}
+.mir{display:grid;grid-template-columns:270px 18px 1fr}
+.mir span:last-child{word-break:break-all}
+
+
+/* แถบเมนูย่อได้ */
+.side{transition:width .2s ease,padding .2s ease;overflow:hidden}
+.nav{position:relative;white-space:nowrap}
+.navtxt{white-space:nowrap;transition:opacity .15s ease}
+.navtoggle{margin-top:8px}
+.side .foot+.navtoggle{margin-top:8px}
+.side:not(:has(.foot)) .navtoggle{margin-top:auto}
+.side.mini-nav{width:64px;padding:16px 8px}
+.side.mini-nav .navtxt{opacity:0;width:0;overflow:hidden}
+.side.mini-nav .brand{justify-content:center;padding:2px 0 16px;gap:0}
+.side.mini-nav .nav{justify-content:center;gap:0;padding:9px 0}
+.side.mini-nav .nav .count{position:absolute;top:-3px;right:-2px;margin:0;min-width:16px;height:16px;padding:0 4px;border-radius:8px;font-size:10px !important;line-height:16px !important;background:var(--accent);color:#fff;font-size:11px;line-height:18px;text-align:center}
+.side.mini-nav .foot{display:none}
+.side.mini-nav .navtoggle svg{transform:scaleX(-1)}
+@media (prefers-reduced-motion: reduce){.side{transition:none}}
+
+
+/* สลับมุมมองและขนาดปก */
+.shelfhead{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.seg.sm button{height:30px;padding:0 10px;font-size:13px;display:inline-flex;align-items:center;gap:6px}
+.seg-off button{color:#c9a9b6;cursor:not-allowed;background-color:#fbf3f6}
+.seg-off button:hover{background-color:#f8eaf0;color:#b8919f}
+.size-s .book{width:80px} .size-s .cover{width:80px;height:120px;padding:7px} .size-s .cover .ttl{font-size:12px} .size-s .cover .yr{font-size:10.5px} .size-s .bname{font-size:11.5px;margin-top:20px} .size-s .badge{width:18px;height:18px;top:5px;right:5px}
+.size-l .book{width:150px} .size-l .cover{width:150px;height:225px;padding:12px} .size-l .cover .ttl{font-size:19px} .size-l .bname{font-size:13.5px}
+.size-s .shelf,.size-l .shelf{gap:12px}
+.lv{width:100%;border-collapse:collapse;font-size:13.5px}
+.lv th{text-align:left;color:var(--txt2);font-weight:600;font-size:12.5px;padding:9px 10px;background:var(--win2);border-bottom:1px solid var(--line);white-space:nowrap}
+.lv td{padding:7px 10px;border-bottom:1px solid #f8e3eb;vertical-align:middle}
+.lv tr.sel td{background:#fdeaf1}
+.lv tbody tr{cursor:pointer;transition:background-color .15s}
+.lv tbody tr:hover td{background:#fdf0f5}
+.lv .th{width:30px;height:45px;border-radius:3px;display:block}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:6px}
+
+.nw{white-space:nowrap}
+
+/* จุดบอกสภาพไฟล์ อยู่หน้าชื่อไฟล์ ไม่บังโปสเตอร์ */
+.book .bname .badge{position:static;display:inline-flex;vertical-align:-2px;width:15px;height:15px;margin-right:5px;box-shadow:none}
+.book .bname .badge svg{width:10px;height:10px}
+
+
+
+/* ค่า hash */
+.hrow{display:grid;grid-template-columns:90px 1fr 32px;align-items:center;gap:10px;padding:7px 0;border-top:1px solid #f8e3eb}
+.hrow:first-child{border-top:0}
+.halg{font-weight:700;font-size:13px;color:var(--accent-ink)}
+.hval{font-family:Consolas,"Cascadia Mono",monospace;font-size:13px;color:#3a2530;word-break:break-all;background:#fdf3f7;border-radius:6px;padding:4px 8px}
+.hin{font-family:Consolas,"Cascadia Mono",monospace;font-size:13px;display:flex;align-items:center;height:40px;border-radius:9px;border:1px solid #efc6d5;background:#fff;padding:0 10px;overflow:hidden;white-space:nowrap}
+.hin.ok{border:1px solid var(--ok);box-shadow:0 0 0 3px rgba(127,201,162,.25)}
+.hin.bad{border:1px solid var(--bad);box-shadow:0 0 0 3px rgba(236,143,143,.25)}
+.algs{display:flex;gap:16px;flex-wrap:wrap;font-size:14px}
+.algs label{display:flex;align-items:center;gap:7px;cursor:pointer}
+
+
+/* ป้ายนามสกุลรูป */
+.extag{font-family:Consolas,"Cascadia Mono",monospace;font-size:12px;font-weight:600;border-radius:5px;padding:1px 6px;white-space:nowrap}
+.extag.ok{background:var(--ok-soft);color:var(--ok-ink)}
+.extag.cv{background:var(--warn-soft);color:var(--warn-ink)}
+.imgrow{display:grid;grid-template-columns:34px 1fr auto;gap:10px;align-items:center;padding:7px 0;border-top:1px solid #f8e3eb;font-size:13.5px}
+.imgrow:first-child{border-top:0}
+.imgth{width:34px;height:50px;border-radius:4px}
+
+/* หน้าตั้งค่า */
+.setwrap{padding:22px;display:grid;grid-template-columns:1fr 1fr;gap:16px;align-content:start;flex:1}
+.setcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px 18px}
+.setcard h3{margin:0 0 4px;font-size:15px;display:flex;align-items:center;gap:8px;color:var(--accent-ink)}
+.setrow{display:flex;align-items:center;justify-content:space-between;gap:14px;padding:11px 0;border-top:1px solid #f8e3eb}
+.setrow:first-of-type{border-top:0}
+.setrow .lbl{font-size:14px;line-height:1.5}
+.setrow .lbl .small{display:block}
+.switch{width:44px;height:26px;border-radius:13px;flex:none;position:relative;cursor:pointer;border:0;padding:0;transition:background-color .15s}
+.switch::after{content:"";position:absolute;top:3px;width:20px;height:20px;border-radius:50%;background:#fff;box-shadow:0 1px 3px rgba(120,50,80,.3)}
+.switch.on{background-color:var(--accent)} .switch.on::after{right:3px}
+.switch.on:hover{background-color:var(--accent-d)}
+.switch.off{background-color:#ecd3dd} .switch.off::after{left:3px}
+.switch.off:hover{background-color:#e3bfce}
+.seg{display:flex;border:1px solid #efc6d5;border-radius:9px;overflow:hidden;flex:none}
+.seg button{height:34px;padding:0 14px;border:0;background-color:#fff;color:var(--txt2);font:inherit;font-size:13.5px;cursor:pointer;transition:background-color .15s,color .15s}
+.seg button+button{border-left:1px solid #efc6d5}
+.seg button:hover{background-color:#fdeaf1;color:var(--accent-ink)}
+.seg button.on{background-color:#f6b3cb;color:#7a2346;font-weight:600}
+.seg button.on:hover{background-color:#f09dbd;color:#6a1d3c}
+.folder{display:flex;align-items:center;gap:10px;background:var(--win2);border-radius:9px;padding:9px 12px;font-size:14px;margin-top:6px}
+.folder .grow{flex:1;min-width:0}
+.toolok{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--ok-ink);background:var(--ok-soft);border-radius:20px;padding:1px 10px;font-weight:600;white-space:nowrap}
+.toolwarn{display:inline-flex;align-items:center;gap:6px;font-size:13px;color:var(--warn-ink);background:var(--warn-soft);border-radius:20px;padding:1px 10px;font-weight:600;white-space:nowrap}
+
+@media (prefers-reduced-motion: reduce){
+  *{transition:none !important;animation:none !important}
+  .book:hover .cover{translate:0 0}
+  .skel{background:#f8e1ea}
+}
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>มอคอัปโปรแกรม "ชั้นหนัง"</h1>
+<p class="lead">โปรแกรมบนคอม Windows สำหรับครอบโปสเตอร์เข้าไปในไฟล์หนังแบบ MKV จัดหนังขึ้นชั้นให้เห็นเป็นปก และตรวจว่าไฟล์เสียหายหรือเปล่า</p>
+<p class="lead">ชื่อโปรแกรม ชื่อหนัง และโปสเตอร์ในหน้านี้เป็นของสมมติ · ทุกหน้าและทุกสถานะวางเรียงลงมาให้เห็นครบโดยไม่ต้องกดอะไร · เอาเมาส์ชี้ปุ่มหรือปกหนังเพื่อดูอาการตอนชี้ได้</p>
+<p class="lead">เรียงในหน้านี้ · หน้า 1 ชั้นวางหนัง · เปลี่ยนชื่อไฟล์ · แถบเมนูย่อได้ · สลับมุมมองและขนาดปก · ค้นหา เรียงลำดับ อ่านโฟลเดอร์ · ข้อมูลไฟล์และแยกไฟล์ · หน้า 2 ใส่โปสเตอร์ · ลากวางและไฟล์ไม่ตรงเงื่อนไข · ยืนยันลบไฟล์เดิม · หน้า 3 ตรวจไฟล์ · ผลตรวจ · หน้า 4 ตั้งค่า · ชั้นว่าง · เบื้องหลัง · ไฟล์ที่รองรับ</p>
+
+<!-- ==================== หน้า 1 ชั้นวาง ==================== -->
+<div class="sec">
+  <h2><span class="tag">หน้า 1</span>ชั้นวางหนัง (หน้าแรกที่เปิดโปรแกรมแล้วเจอ)</h2>
+  <p class="note">โปรแกรมอ่านโฟลเดอร์หนังที่เลือกไว้ แล้วเรียงทุกไฟล์ขึ้นชั้นเป็นปก<br>จุดสีหน้าชื่อไฟล์บอกสภาพไฟล์<br>กดปกแล้วแผงขวาโชว์รายละเอียด พร้อมปุ่มเปลี่ยนชื่อ เปลี่ยนโปสเตอร์ ตรวจไฟล์ และเปิดเล่น</p>
+
+  <div class="win">
+    <div class="titlebar"><span>ชั้นหนัง</span><div class="ctl">
+      <span><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5h10" stroke="#b07a90" stroke-width="1.2"/></svg></span>
+      <span><svg width="10" height="10" viewBox="0 0 10 10"><rect x=".6" y=".6" width="8.8" height="8.8" fill="none" stroke="#b07a90" stroke-width="1.2"/></svg></span>
+      <span><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="#b07a90" stroke-width="1.2"/></svg></span>
+    </div></div>
+    <div class="body">
+      <aside class="side">
+        <div class="brand"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#e07a9f" stroke-width="2"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="18" rx="1"/><path d="M17.5 4.5l3.5 1-4 15.5-3.4-1"/></svg><span class="navtxt">ชั้นหนัง</span></div>
+        <button title="ชั้นวางหนัง" class="nav on"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h18M5 20V6h4v14M11 20V4h4v16M17 20l2-12 3 .6-2 11.4"/></svg><span class="navtxt">ชั้นวางหนัง</span><span class="count">10</span></button>
+        <button title="ใส่โปสเตอร์" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 15l3-3 2 2 3-3 2 2"/><circle cx="9" cy="8" r="1.5"/></svg><span class="navtxt">ใส่โปสเตอร์</span></button>
+        <button title="ตรวจไฟล์" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg><span class="navtxt">ตรวจไฟล์</span><span class="count">1</span></button>
+        <button title="ตั้งค่า" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span class="navtxt">ตั้งค่า</span></button>
+        <div class="foot">โฟลเดอร์หนัง 1 โฟลเดอร์<br>ใช้พื้นที่รวม <span class="nw">38.4 GB</span></div>
+      <button class="nav navtoggle" aria-label="ย่อเมนู" title="ย่อเมนู"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="M15.5 9.5L13 12l2.5 2.5"/></svg><span class="navtxt">ย่อเมนู</span></button></aside>
+      <div class="main">
+        <div class="topbar">
+          <div class="path"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><span>D:\หนัง</span></div>
+          <div class="search"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/></svg>ค้นหาชื่อหนัง</div>
+          <button class="dd" aria-haspopup="listbox"><span>เรียงตามชื่อ ก–ฮ</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b07a90" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></button>
+          <button class="btn btn-ghost"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M4 4v6h6M20 20v-6h-6"/><path d="M20 10a8 8 0 00-14-4L4 10M4 14a8 8 0 0014 4l2-4"/></svg>อ่านโฟลเดอร์ใหม่</button>
+        </div>
+        <div class="content">
+          <div class="shelfwrap">
+            <div class="shelfhead"><b>หนังทั้งหมด <span class="nw">10 เรื่อง</span></b><div style="display:flex;gap:10px;align-items:center"><div class="seg sm" role="group" aria-label="มุมมอง"><button class="on"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="4" width="6" height="7" rx="1"/><rect x="14" y="4" width="6" height="7" rx="1"/><rect x="4" y="14" width="6" height="7" rx="1"/><rect x="14" y="14" width="6" height="7" rx="1"/></svg>ภาพปก</button><button class=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 6h11M9 12h11M9 18h11"/><rect x="3.5" y="4.5" width="3" height="3" rx=".6"/><rect x="3.5" y="10.5" width="3" height="3" rx=".6"/><rect x="3.5" y="16.5" width="3" height="3" rx=".6"/></svg>ตาราง</button></div><div class="seg sm" role="group" aria-label="ขนาดปก"><button class="">เล็ก</button><button class="on">กลาง</button><button class="">ใหญ่</button></div><button class="btn btn-ghost btn-sm" aria-haspopup="true" aria-expanded="false"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>การแสดงผล</button></div></div>
+            <div class="legend">
+              <span><i style="background:var(--ok)"></i>ไฟล์สมบูรณ์</span>
+              <span><i style="background:var(--warn)"></i>ควรตรวจ (ยังไม่เคยตรวจ หรือไฟล์เปลี่ยนไป)</span>
+              <span><i style="background:var(--bad)"></i>ไฟล์เสียหาย</span>
+              <span><i style="background:var(--info)"></i>ยังไม่ได้ครอบเป็น MKV</span>
+            </div>
+
+            <div class="shelf">
+              <div class="book sel"><div class="cover" style="background:linear-gradient(170deg,#8fa8d8 0%,#6f7fb8 60%,#f3b6c9 140%)"><div class="ttl">ดาวเหนือ</div><div class="yr">2023</div></div><div class="bname"><span class="badge b-ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>ดาวเหนือ (2023)</div></div>
+              <div class="book"><div class="cover" style="background:linear-gradient(160deg,#f2a08f,#c96f86)"><div class="ttl">Harbor Lights</div><div class="yr">2021</div></div><div class="bname"><span class="badge b-ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>Harbor Lights (2021)</div></div>
+              <div class="book"><div class="cover" style="background:linear-gradient(180deg,#b9c4cf,#7f8ea0)"><div class="ttl">เมืองในหมอก</div><div class="yr">2019</div></div><div class="bname"><span class="badge b-warn"><svg width="14" height="14" viewBox="0 0 24 24" fill="#7a5410"><rect x="10" y="3.5" width="4" height="11" rx="2"/><circle cx="12" cy="19" r="2.3"/></svg></span>เมืองในหมอก (2019)</div></div>
+              <div class="book"><div class="cover none"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#c99aad" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 15l3-3 2 2 3-3 2 2"/></svg>ยังไม่มีโปสเตอร์</div><div class="bname"><span class="badge b-info"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M12 6v12M6 12h12"/></svg></span>The Last Orchard (2022) <span class="ext">.mp4</span></div></div>
+              <div class="book"><div class="cover" style="background:linear-gradient(165deg,#93cfb0,#5e9c80)"><div class="ttl">ลมหนาวที่เชียงดาว</div><div class="yr">2020</div></div><div class="bname"><span class="badge b-ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>ลมหนาวที่เชียงดาว (2020)</div></div>
+            </div>
+
+            <div class="shelf">
+              <div class="book"><div class="cover" style="background:linear-gradient(170deg,#fbe6c8,#e3b98f)"><div class="ttl" style="color:#3a2a17;text-shadow:none">Paper Moons</div><div class="yr" style="color:#4d3a22">2018</div></div><div class="bname"><span class="badge b-warn"><svg width="14" height="14" viewBox="0 0 24 24" fill="#7a5410"><rect x="10" y="3.5" width="4" height="11" rx="2"/><circle cx="12" cy="19" r="2.3"/></svg></span>Paper Moons (2018)</div></div>
+              <div class="book"><div class="cover" style="background:linear-gradient(160deg,#a39bc0,#6f6690)"><div class="ttl">Iron Tide</div><div class="yr">2024</div></div><div class="bname"><span class="badge b-bad"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M7 7l10 10M17 7L7 17"/></svg></span>Iron Tide (2024)</div></div>
+              <div class="book"><div class="cover" style="background:linear-gradient(175deg,#f5c98a,#d0956a)"><div class="ttl">บ้านริมคลอง</div><div class="yr">2017</div></div><div class="bname"><span class="badge b-ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>บ้านริมคลอง (2017)</div></div>
+              <div class="book"><div class="cover" style="background:linear-gradient(160deg,#c6a3e0,#8d6bb5)"><div class="ttl">Silent Atlas</div><div class="yr">2016</div></div><div class="bname"><span class="badge b-warn"><svg width="14" height="14" viewBox="0 0 24 24" fill="#7a5410"><rect x="10" y="3.5" width="4" height="11" rx="2"/><circle cx="12" cy="19" r="2.3"/></svg></span>Silent Atlas (2016)</div></div>
+              <div class="book"><div class="cover" style="background:linear-gradient(180deg,#a8d8ea,#6aa5c2)"><div class="ttl">ฝนแรก</div><div class="yr">2025</div></div><div class="bname"><span class="badge b-ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>ฝนแรก (2025)</div></div>
+            </div>
+          </div>
+
+          <aside class="detail">
+            <div class="dposter" style="background:linear-gradient(170deg,#8fa8d8 0%,#6f7fb8 60%,#f3b6c9 140%)"><div class="ttl">ดาวเหนือ</div><div style="color:rgba(255,255,255,.8);font-size:13px">2023</div></div>
+            <div class="fname"><div class="nm">ดาวเหนือ (2023)<span class="ext">.mkv</span></div>
+              <button class="icon-btn" aria-label="เปลี่ยนชื่อไฟล์"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg></button></div>
+            <dl class="kv">
+              <dt>ขนาดไฟล์</dt><dd><span class="nw">4.21 GB</span></dd>
+              <dt>ความยาว</dt><dd><span class="nw">2 ชั่วโมง 08 นาที</span></dd>
+              <dt>ภาพ</dt><dd>1920 × 1080 · H.264</dd>
+              <dt>เสียง</dt><dd>ไทย AC-3 5.1 · อังกฤษ AAC 2.0</dd>
+              <dt>ซับไตเติล</dt><dd>ไทย SRT · อังกฤษ ASS</dd>
+              <dt>ไฟล์แนบ</dt><dd>โปสเตอร์ 1 รูป</dd>
+            </dl>
+            <div class="stat ok"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg><div><b>ไฟล์สมบูรณ์</b>ตรวจละเอียดเมื่อ <span class="nw">6 พ.ย. 2569 เวลา 14:20</span><br>ไม่พบภาพหรือเสียงเสีย</div></div>
+            <div class="actions">
+              <button class="btn btn-main"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l12-7.5z"/></svg>เปิดเล่น</button>
+              <button class="btn btn-ghost">เปลี่ยนชื่อ</button>
+              <button class="btn btn-ghost">เปลี่ยนโปสเตอร์</button>
+              <button class="btn btn-ghost">ตรวจไฟล์</button>
+              <button class="btn btn-ghost"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></svg>ข้อมูลไฟล์</button>
+              <button class="btn btn-ghost"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>เปิดโฟลเดอร์</button>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="note" style="margin-top:18px">แผงขวาเปลี่ยนตามปกที่กด<br>ข้างล่างคือส่วนบอกสภาพไฟล์ในแผงขวา ตอนกดหนังเรื่องอื่นที่สภาพต่างกัน</p>
+  <div class="strip" style="grid-template-columns:repeat(3,1fr)">
+    <div class="mini"><div class="cap">กดเรื่องที่ยังไม่ได้ครอบ (ไฟล์ .mp4)</div>
+      <div class="stat info"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></svg><div><b>ยังไม่ได้ครอบเป็น MKV</b>ไฟล์นี้เป็น MP4 ใส่โปสเตอร์ได้หลังครอบเป็น MKV<br>ภาพและเสียงไม่ถูกแปลงใหม่ คุณภาพเท่าเดิม</div></div>
+      <div class="minirow"><button class="btn btn-main">ครอบเป็น MKV และใส่โปสเตอร์</button></div></div>
+    <div class="mini"><div class="cap">กดเรื่องที่ตรวจแล้วเจอที่เสีย</div>
+      <div class="stat bad"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4.5M12 17.5h.01"/></svg><div><b>ไฟล์เสียหาย</b>ภาพเสียช่วงนาที <span class="nw">1:12:30 ถึง 1:12:41</span><br>ไฟล์น่าจะโหลดมาไม่ครบ ควรโหลดใหม่</div></div>
+      <div class="minirow"><button class="btn btn-ghost">ดูรายละเอียดผลตรวจ</button><button class="btn btn-ghost">ตรวจซ้ำ</button></div></div>
+    <div class="mini"><div class="cap">กดเรื่องที่ยังไม่เคยตรวจ</div>
+      <div class="stat warn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5h.01"/></svg><div><b>ยังไม่เคยตรวจไฟล์นี้</b>ตรวจแบบเร็วใช้เวลาไม่กี่วินาที<br>ตรวจละเอียดราว <span class="nw">3–6 นาที</span></div></div>
+      <div class="minirow"><button class="btn btn-ok">ตรวจแบบเร็ว</button><button class="btn btn-ghost">ตรวจละเอียด</button></div></div>
+  </div>
+</div>
+
+<!-- ==================== เปลี่ยนชื่อ ==================== -->
+<div class="sec">
+  <h2><span class="tag">หน้า 1 ต่อ</span>เปลี่ยนชื่อไฟล์จากในโปรแกรม</h2>
+  <p class="note">กดไอคอนดินสอข้างชื่อ หรือกดปุ่ม "เปลี่ยนชื่อ" ชื่อกลายเป็นช่องพิมพ์ตรงที่เดิม<br>นามสกุล .mkv ล็อกไว้ให้ พิมพ์ทับไม่ได้<br>กด Enter บันทึก กด Esc ยกเลิก<br>ชื่อบนชั้นกับชื่อไฟล์จริงในเครื่องเปลี่ยนพร้อมกัน</p>
+  <div class="strip" style="grid-template-columns:repeat(3,1fr)">
+    <div class="mini"><div class="cap">① ก่อนกด</div>
+      <div class="fname"><div class="nm">ดาวเหนือ (2023)<span class="ext">.mkv</span></div><button class="icon-btn" aria-label="เปลี่ยนชื่อไฟล์"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg></button></div>
+      <div class="hint">ชี้ไอคอนดินสอแล้วเปลี่ยนสี</div></div>
+    <div class="mini"><div class="cap">② กำลังพิมพ์</div>
+      <div class="inp focus"><span class="typed">ดาวเหนือ (2023) 1080p</span><span class="caret"></span><span class="ext">.mkv</span></div>
+      <div class="hint">ชื่อใหม่ ดาวเหนือ (2023) 1080p.mkv</div>
+      <div class="minirow"><button class="btn btn-main btn-sm">บันทึกชื่อ</button><button class="btn btn-ghost btn-sm">ยกเลิก</button></div></div>
+    <div class="mini"><div class="cap">③ ชื่อซ้ำกับไฟล์ที่มีอยู่</div>
+      <div class="inp err"><span class="typed">ฝนแรก (2025)</span><span class="caret"></span><span class="ext">.mkv</span></div>
+      <div class="hint e">ในโฟลเดอร์นี้มีไฟล์ชื่อนี้อยู่แล้ว ตั้งชื่ออื่น</div>
+      <div class="minirow"><button class="btn btn-wait btn-sm">บันทึกชื่อ</button><button class="btn btn-ghost btn-sm">ยกเลิก</button></div></div>
+    <div class="mini"><div class="cap">④ มีตัวอักษรที่ Windows ห้ามใช้</div>
+      <div class="inp err"><span class="typed">ดาวเหนือ: ภาค 2?</span><span class="caret"></span><span class="ext">.mkv</span></div>
+      <div class="hint e">ชื่อไฟล์ใช้ตัวอักษร \ / : * ? " &lt; &gt; | ไม่ได้<br>ตอนนี้มี : กับ ?</div>
+      <div class="minirow"><button class="btn btn-wait btn-sm">บันทึกชื่อ</button><button class="btn btn-ghost btn-sm">ยกเลิก</button></div></div>
+    <div class="mini"><div class="cap">⑤ เปลี่ยนชื่อสำเร็จ</div>
+      <div class="fname"><div class="nm">ดาวเหนือ (2023) 1080p<span class="ext">.mkv</span></div><button class="icon-btn" aria-label="เปลี่ยนชื่อไฟล์"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg></button></div>
+      <div class="stat ok" style="margin-top:8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><b>เปลี่ยนชื่อไฟล์แล้ว</b>ชื่อในเครื่องเปลี่ยนตามแล้ว แถบนี้หายเองใน <span class="nw">3 วินาที</span></div></div></div>
+    <div class="mini"><div class="cap">⑥ เปลี่ยนชื่อไม่ได้</div>
+      <div class="inp"><span class="typed">ดาวเหนือ (2023) 1080p</span><span class="ext">.mkv</span></div>
+      <div class="stat bad" style="margin-top:8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4.5M12 17.5h.01"/></svg><div><b>ไฟล์ถูกเปิดอยู่ในโปรแกรมอื่น</b>ปิดโปรแกรมเล่นหนังก่อน แล้วกดลองใหม่<br>แถบนี้ไม่หายเอง</div></div>
+      <div class="minirow"><button class="btn btn-ghost btn-sm">ลองใหม่</button><button class="btn btn-ghost btn-sm">ยกเลิก</button></div></div>
+  </div>
+</div>
+
+
+<div class="sec">
+  <h2><span class="tag">ทุกหน้า</span>แถบเมนูซ้ายย่อได้</h2>
+  <p class="note">กดปุ่ม "ย่อเมนู" ท้ายแถบเมนู แถบเหลือแต่ไอคอน หน้าเนื้อหากว้างขึ้น <span class="nw">136 px</span><br>กดอีกครั้งเพื่อขยายกลับ<br>โปรแกรมจำไว้ว่าย่ออยู่ เปิดครั้งหน้ายังย่อเหมือนเดิม<br>ตอนย่อ ชี้เมาส์ที่ไอคอนแล้วขึ้นชื่อเมนู<br>ตัวเลขนับย้ายไปเป็นจุดชมพูที่มุมไอคอน<br>ทุกหน้าต่างในหน้านี้กดย่อเมนูได้จริง ลองกดดูได้</p>
+  <div style="display:flex;gap:40px;align-items:flex-start">
+    <div><div class="cap" style="font-size:13px;color:var(--accent-ink);font-weight:600;margin-bottom:8px">ตอนกาง กว้าง <span class="nw">200 px</span></div><div class="win" style="display:inline-flex"><div class="body" style="min-height:420px"><aside class="side">
+        <div class="brand"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#e07a9f" stroke-width="2"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="18" rx="1"/><path d="M17.5 4.5l3.5 1-4 15.5-3.4-1"/></svg><span class="navtxt">ชั้นหนัง</span></div>
+        <button title="ชั้นวางหนัง" class="nav on"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h18M5 20V6h4v14M11 20V4h4v16M17 20l2-12 3 .6-2 11.4"/></svg><span class="navtxt">ชั้นวางหนัง</span><span class="count">10</span></button>
+        <button title="ใส่โปสเตอร์" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 15l3-3 2 2 3-3 2 2"/><circle cx="9" cy="8" r="1.5"/></svg><span class="navtxt">ใส่โปสเตอร์</span></button>
+        <button title="ตรวจไฟล์" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg><span class="navtxt">ตรวจไฟล์</span><span class="count">1</span></button>
+        <button title="ตั้งค่า" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span class="navtxt">ตั้งค่า</span></button>
+        
+      <button class="nav navtoggle" aria-label="ย่อเมนู" title="ย่อเมนู"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="M15.5 9.5L13 12l2.5 2.5"/></svg><span class="navtxt">ย่อเมนู</span></button></aside><div style="width:150px;background:var(--win);padding:18px"><div class="skel" style="height:12px;width:110px"></div><div class="skel" style="height:12px;width:80px;margin-top:10px"></div></div></div></div></div>
+    <div><div class="cap" style="font-size:13px;color:var(--accent-ink);font-weight:600;margin-bottom:8px">ตอนย่อ กว้าง <span class="nw">64 px</span></div><div class="win" style="display:inline-flex"><div class="body" style="min-height:420px"><aside class="side mini-nav">
+        <div class="brand"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#e07a9f" stroke-width="2"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="18" rx="1"/><path d="M17.5 4.5l3.5 1-4 15.5-3.4-1"/></svg><span class="navtxt">ชั้นหนัง</span></div>
+        <button title="ชั้นวางหนัง" class="nav on"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h18M5 20V6h4v14M11 20V4h4v16M17 20l2-12 3 .6-2 11.4"/></svg><span class="navtxt">ชั้นวางหนัง</span><span class="count">10</span></button>
+        <button title="ใส่โปสเตอร์" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 15l3-3 2 2 3-3 2 2"/><circle cx="9" cy="8" r="1.5"/></svg><span class="navtxt">ใส่โปสเตอร์</span></button>
+        <button title="ตรวจไฟล์" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg><span class="navtxt">ตรวจไฟล์</span><span class="count">1</span></button>
+        <button title="ตั้งค่า" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span class="navtxt">ตั้งค่า</span></button>
+        
+      <button class="nav navtoggle" aria-label="ขยายเมนู" title="ขยายเมนู"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="M15.5 9.5L13 12l2.5 2.5"/></svg><span class="navtxt">ขยายเมนู</span></button></aside><div style="width:150px;background:var(--win);padding:18px"><div class="skel" style="height:12px;width:110px"></div><div class="skel" style="height:12px;width:80px;margin-top:10px"></div></div></div></div></div>
+    <div class="mini" style="flex:1;align-self:stretch">
+      <div class="cap">ชี้เมาส์ที่ไอคอนตอนย่อ</div>
+      <div style="display:flex;align-items:center;gap:10px;margin-top:6px">
+        <div style="width:48px;height:40px;border-radius:9px;background:#f9dde8;display:flex;align-items:center;justify-content:center;color:var(--accent-ink)"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg></div>
+        <div style="background:#4a2b38;color:#fff;font-size:13px;border-radius:7px;padding:4px 10px;white-space:nowrap">ตรวจไฟล์ · มี <span class="nw">1 เรื่อง</span>ที่ควรตรวจ</div>
+      </div>
+      <div class="hint" style="margin-top:14px">กล่องชื่อเมนูขึ้นข้างไอคอนทางขวา ไม่บังเนื้อหาเมนูอื่น · หายเมื่อเมาส์ออก</div>
+    </div>
+  </div>
+</div>
+
+
+<div class="sec">
+  <h2><span class="tag">หน้า 1 ต่อ</span>สลับมุมมองและขนาดปก</h2>
+  <p class="note">ปุ่มอยู่ขวามือของหัวข้อ "หนังทั้งหมด" แบบเดียวกับโปรแกรมเก็บหนังอย่าง Plex และ Jellyfin<br>ภาพปก กับ ตาราง สลับมุมมอง<br>เล็ก กลาง ใหญ่ เปลี่ยนขนาดปก ปกเล็กเห็นได้ทีละหลายเรื่อง ปกใหญ่เห็นรายละเอียดโปสเตอร์ชัด<br>โปรแกรมจำค่าที่เลือกไว้<br>ขนาดกลางคือหน้าต่างหน้า 1 ข้างบน</p>
+  <div class="grid2" style="align-items:start"><div class="mini" style="padding:18px 18px 8px"><div class="cap">ปกเล็ก · แถวละ <span class="nw">6 เรื่อง</span></div><div class="shelfhead" style="margin-bottom:14px"><b>หนังทั้งหมด <span class="nw">10 เรื่อง</span></b><div style="display:flex;gap:10px;align-items:center"><div class="seg sm" role="group" aria-label="มุมมอง"><button class="on"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="4" width="6" height="7" rx="1"/><rect x="14" y="4" width="6" height="7" rx="1"/><rect x="4" y="14" width="6" height="7" rx="1"/><rect x="14" y="14" width="6" height="7" rx="1"/></svg>ภาพปก</button><button class=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 6h11M9 12h11M9 18h11"/><rect x="3.5" y="4.5" width="3" height="3" rx=".6"/><rect x="3.5" y="10.5" width="3" height="3" rx=".6"/><rect x="3.5" y="16.5" width="3" height="3" rx=".6"/></svg>ตาราง</button></div><div class="seg sm" role="group" aria-label="ขนาดปก"><button class="on">เล็ก</button><button class="">กลาง</button><button class="">ใหญ่</button></div></div></div><div class="size-s"><div class="shelf"><div class="book sel"><div class="cover" style="background:linear-gradient(170deg,#8fa8d8 0%,#6f7fb8 60%,#f3b6c9 140%)"><div class="ttl">ดาวเหนือ</div><div class="yr">2023</div></div><div class="bname"><span class="badge b-ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>ดาวเหนือ (2023)</div></div><div class="book"><div class="cover" style="background:linear-gradient(160deg,#f2a08f,#c96f86)"><div class="ttl">Harbor Lights</div><div class="yr">2021</div></div><div class="bname"><span class="badge b-ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>Harbor Lights (2021)</div></div><div class="book"><div class="cover" style="background:linear-gradient(180deg,#b9c4cf,#7f8ea0)"><div class="ttl">เมืองในหมอก</div><div class="yr">2019</div></div><div class="bname"><span class="badge b-warn"><svg width="14" height="14" viewBox="0 0 24 24" fill="#7a5410"><rect x="10" y="3.5" width="4" height="11" rx="2"/><circle cx="12" cy="19" r="2.3"/></svg></span>เมืองในหมอก (2019)</div></div><div class="book"><div class="cover none"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#c99aad" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 15l3-3 2 2 3-3 2 2"/></svg>ยังไม่มีโปสเตอร์</div><div class="bname"><span class="badge b-info"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M12 6v12M6 12h12"/></svg></span>The Last Orchard (2022) <span class="ext">.mp4</span></div></div><div class="book"><div class="cover" style="background:linear-gradient(165deg,#93cfb0,#5e9c80)"><div class="ttl">ลมหนาวที่เชียงดาว</div><div class="yr">2020</div></div><div class="bname"><span class="badge b-ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>ลมหนาวที่เชียงดาว (2020)</div></div><div class="book"><div class="cover" style="background:linear-gradient(170deg,#fbe6c8,#e3b98f)"><div class="ttl" style="color:#3a2a17;text-shadow:none">Paper Moons</div><div class="yr" style="color:#4d3a22">2018</div></div><div class="bname"><span class="badge b-warn"><svg width="14" height="14" viewBox="0 0 24 24" fill="#7a5410"><rect x="10" y="3.5" width="4" height="11" rx="2"/><circle cx="12" cy="19" r="2.3"/></svg></span>Paper Moons (2018)</div></div></div><div class="shelf"><div class="book"><div class="cover" style="background:linear-gradient(160deg,#a39bc0,#6f6690)"><div class="ttl">Iron Tide</div><div class="yr">2024</div></div><div class="bname"><span class="badge b-bad"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M7 7l10 10M17 7L7 17"/></svg></span>Iron Tide (2024)</div></div><div class="book"><div class="cover" style="background:linear-gradient(175deg,#f5c98a,#d0956a)"><div class="ttl">บ้านริมคลอง</div><div class="yr">2017</div></div><div class="bname"><span class="badge b-ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>บ้านริมคลอง (2017)</div></div><div class="book"><div class="cover" style="background:linear-gradient(160deg,#c6a3e0,#8d6bb5)"><div class="ttl">Silent Atlas</div><div class="yr">2016</div></div><div class="bname"><span class="badge b-warn"><svg width="14" height="14" viewBox="0 0 24 24" fill="#7a5410"><rect x="10" y="3.5" width="4" height="11" rx="2"/><circle cx="12" cy="19" r="2.3"/></svg></span>Silent Atlas (2016)</div></div><div class="book"><div class="cover" style="background:linear-gradient(180deg,#a8d8ea,#6aa5c2)"><div class="ttl">ฝนแรก</div><div class="yr">2025</div></div><div class="bname"><span class="badge b-ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>ฝนแรก (2025)</div></div></div></div></div><div class="mini" style="padding:18px 18px 8px"><div class="cap">ปกใหญ่ · แถวละ <span class="nw">3 เรื่อง</span></div><div class="shelfhead" style="margin-bottom:14px"><b>หนังทั้งหมด <span class="nw">10 เรื่อง</span></b><div style="display:flex;gap:10px;align-items:center"><div class="seg sm" role="group" aria-label="มุมมอง"><button class="on"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="4" width="6" height="7" rx="1"/><rect x="14" y="4" width="6" height="7" rx="1"/><rect x="4" y="14" width="6" height="7" rx="1"/><rect x="14" y="14" width="6" height="7" rx="1"/></svg>ภาพปก</button><button class=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 6h11M9 12h11M9 18h11"/><rect x="3.5" y="4.5" width="3" height="3" rx=".6"/><rect x="3.5" y="10.5" width="3" height="3" rx=".6"/><rect x="3.5" y="16.5" width="3" height="3" rx=".6"/></svg>ตาราง</button></div><div class="seg sm" role="group" aria-label="ขนาดปก"><button class="">เล็ก</button><button class="">กลาง</button><button class="on">ใหญ่</button></div></div></div><div class="size-l"><div class="shelf"><div class="book sel"><div class="cover" style="background:linear-gradient(170deg,#8fa8d8 0%,#6f7fb8 60%,#f3b6c9 140%)"><div class="ttl">ดาวเหนือ</div><div class="yr">2023</div></div><div class="bname"><span class="badge b-ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>ดาวเหนือ (2023)</div></div><div class="book"><div class="cover" style="background:linear-gradient(160deg,#f2a08f,#c96f86)"><div class="ttl">Harbor Lights</div><div class="yr">2021</div></div><div class="bname"><span class="badge b-ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>Harbor Lights (2021)</div></div><div class="book"><div class="cover" style="background:linear-gradient(180deg,#b9c4cf,#7f8ea0)"><div class="ttl">เมืองในหมอก</div><div class="yr">2019</div></div><div class="bname"><span class="badge b-warn"><svg width="14" height="14" viewBox="0 0 24 24" fill="#7a5410"><rect x="10" y="3.5" width="4" height="11" rx="2"/><circle cx="12" cy="19" r="2.3"/></svg></span>เมืองในหมอก (2019)</div></div></div><div class="shelf"><div class="book"><div class="cover none"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#c99aad" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 15l3-3 2 2 3-3 2 2"/></svg>ยังไม่มีโปสเตอร์</div><div class="bname"><span class="badge b-info"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M12 6v12M6 12h12"/></svg></span>The Last Orchard (2022) <span class="ext">.mp4</span></div></div><div class="book"><div class="cover" style="background:linear-gradient(165deg,#93cfb0,#5e9c80)"><div class="ttl">ลมหนาวที่เชียงดาว</div><div class="yr">2020</div></div><div class="bname"><span class="badge b-ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>ลมหนาวที่เชียงดาว (2020)</div></div><div class="book"><div class="cover" style="background:linear-gradient(170deg,#fbe6c8,#e3b98f)"><div class="ttl" style="color:#3a2a17;text-shadow:none">Paper Moons</div><div class="yr" style="color:#4d3a22">2018</div></div><div class="bname"><span class="badge b-warn"><svg width="14" height="14" viewBox="0 0 24 24" fill="#7a5410"><rect x="10" y="3.5" width="4" height="11" rx="2"/><circle cx="12" cy="19" r="2.3"/></svg></span>Paper Moons (2018)</div></div></div><div class="shelf"><div class="book"><div class="cover" style="background:linear-gradient(160deg,#a39bc0,#6f6690)"><div class="ttl">Iron Tide</div><div class="yr">2024</div></div><div class="bname"><span class="badge b-bad"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M7 7l10 10M17 7L7 17"/></svg></span>Iron Tide (2024)</div></div><div class="book"><div class="cover" style="background:linear-gradient(175deg,#f5c98a,#d0956a)"><div class="ttl">บ้านริมคลอง</div><div class="yr">2017</div></div><div class="bname"><span class="badge b-ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>บ้านริมคลอง (2017)</div></div><div class="book"><div class="cover" style="background:linear-gradient(160deg,#c6a3e0,#8d6bb5)"><div class="ttl">Silent Atlas</div><div class="yr">2016</div></div><div class="bname"><span class="badge b-warn"><svg width="14" height="14" viewBox="0 0 24 24" fill="#7a5410"><rect x="10" y="3.5" width="4" height="11" rx="2"/><circle cx="12" cy="19" r="2.3"/></svg></span>Silent Atlas (2016)</div></div></div><div class="shelf"><div class="book"><div class="cover" style="background:linear-gradient(180deg,#a8d8ea,#6aa5c2)"><div class="ttl">ฝนแรก</div><div class="yr">2025</div></div><div class="bname"><span class="badge b-ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>ฝนแรก (2025)</div></div></div></div></div></div>
+
+  <h3 class="sub">ปุ่มการแสดงผลบนชั้นวาง</h3>
+  <div class="grid3">
+    <div class="mini"><div class="cap">กดปุ่มการแสดงผล</div>
+      <div style="display:flex;justify-content:flex-end"><button class="btn btn-ghost btn-sm" aria-haspopup="true" aria-expanded="true" style="background-color:#fdeaf1;border:1px solid #e79ab8"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/></svg>การแสดงผล</button></div>
+      <div class="menu" style="margin-top:4px;padding:6px 14px;align-self:flex-end">
+        <div class="setrow" style="border-top:0"><div class="lbl">ชื่อไฟล์ใต้ปก</div><button class="switch on" aria-label="ชื่อไฟล์ใต้ปก เปิดอยู่"></button></div>
+        <div class="setrow"><div class="lbl">จุดสีบอกสภาพไฟล์</div><button class="switch on" aria-label="จุดสีบอกสภาพไฟล์ เปิดอยู่"></button></div>
+      </div>
+      <div class="hint">กดสวิตช์แล้วชั้นวางเปลี่ยนทันที<br>ค่าเดียวกับในหน้าตั้งค่า เปลี่ยนที่ไหนก็ตรงกันทั้งสองที่<br>กล่องวัดที่ว่างบนจอก่อนกาง ไม่ตกขอบ</div></div>
+    <div class="mini" style="padding:18px 18px 8px"><div class="cap">ปิดจุดสีบอกสภาพไฟล์</div><div class="size-s"><div class="shelf"><div class="book"><div class="cover" style="background:linear-gradient(170deg,#8fa8d8 0%,#6f7fb8 60%,#f3b6c9 140%)"><div class="ttl">ดาวเหนือ</div><div class="yr">2023</div></div><div class="bname">ดาวเหนือ (2023)</div></div><div class="book"><div class="cover" style="background:linear-gradient(160deg,#f2a08f,#c96f86)"><div class="ttl">Harbor Lights</div><div class="yr">2021</div></div><div class="bname">Harbor Lights (2021)</div></div><div class="book"><div class="cover" style="background:linear-gradient(180deg,#b9c4cf,#7f8ea0)"><div class="ttl">เมืองในหมอก</div><div class="yr">2019</div></div><div class="bname">เมืองในหมอก (2019)</div></div></div></div><div class="hint" style="margin-top:22px">เห็นแต่โปสเตอร์ล้วน ๆ · ไฟล์ที่เสียยังดูได้ในหน้าตรวจไฟล์</div></div>
+    <div class="mini" style="padding:18px 18px 8px"><div class="cap">ปิดชื่อไฟล์ใต้ปก</div><div class="size-s"><div class="shelf"><div class="book"><div class="cover" style="background:linear-gradient(170deg,#8fa8d8 0%,#6f7fb8 60%,#f3b6c9 140%)"><div class="ttl">ดาวเหนือ</div><div class="yr">2023</div></div><div class="bname" style="min-height:0"><span class="badge b-ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></div></div><div class="book"><div class="cover" style="background:linear-gradient(160deg,#f2a08f,#c96f86)"><div class="ttl">Harbor Lights</div><div class="yr">2021</div></div><div class="bname" style="min-height:0"><span class="badge b-ok"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></div></div><div class="book"><div class="cover" style="background:linear-gradient(180deg,#b9c4cf,#7f8ea0)"><div class="ttl">เมืองในหมอก</div><div class="yr">2019</div></div><div class="bname" style="min-height:0"><span class="badge b-warn"><svg width="14" height="14" viewBox="0 0 24 24" fill="#7a5410"><rect x="10" y="3.5" width="4" height="11" rx="2"/><circle cx="12" cy="19" r="2.3"/></svg></span></div></div></div></div><div class="hint" style="margin-top:22px">ชั้นวางแน่นขึ้น · ชี้เมาส์ที่ปกแล้วขึ้นชื่อไฟล์</div></div>
+  </div>
+
+  <h3 class="sub">มุมมองตาราง</h3>
+  <p class="note" style="margin-bottom:12px">เห็นข้อมูลหลายเรื่องเทียบกันในจอเดียว<br>กดหัวคอลัมน์เพื่อเรียงได้ ลูกศรบอกว่ากำลังเรียงตามคอลัมน์ไหน<br>กดแถวแล้วแผงขวาขึ้นรายละเอียดเหมือนตอนกดปก<br>ปุ่มขนาดปกกดไม่ได้ในมุมมองนี้ ภาพหน้าจอนี้ย่อแถบเมนูซ้ายไว้</p>
+  <div class="win"><div class="titlebar"><span>ชั้นหนัง</span><div class="ctl">
+      <span><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5h10" stroke="#b07a90" stroke-width="1.2"/></svg></span>
+      <span><svg width="10" height="10" viewBox="0 0 10 10"><rect x=".6" y=".6" width="8.8" height="8.8" fill="none" stroke="#b07a90" stroke-width="1.2"/></svg></span>
+      <span><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="#b07a90" stroke-width="1.2"/></svg></span>
+    </div></div>
+    <div class="body" style="min-height:0"><aside class="side mini-nav">
+        <div class="brand"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#e07a9f" stroke-width="2"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="18" rx="1"/><path d="M17.5 4.5l3.5 1-4 15.5-3.4-1"/></svg><span class="navtxt">ชั้นหนัง</span></div>
+        <button title="ชั้นวางหนัง" class="nav on"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h18M5 20V6h4v14M11 20V4h4v16M17 20l2-12 3 .6-2 11.4"/></svg><span class="navtxt">ชั้นวางหนัง</span><span class="count">10</span></button>
+        <button title="ใส่โปสเตอร์" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 15l3-3 2 2 3-3 2 2"/><circle cx="9" cy="8" r="1.5"/></svg><span class="navtxt">ใส่โปสเตอร์</span></button>
+        <button title="ตรวจไฟล์" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg><span class="navtxt">ตรวจไฟล์</span><span class="count">1</span></button>
+        <button title="ตั้งค่า" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span class="navtxt">ตั้งค่า</span></button>
+        
+      <button class="nav navtoggle" aria-label="ขยายเมนู" title="ขยายเมนู"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="M15.5 9.5L13 12l2.5 2.5"/></svg><span class="navtxt">ขยายเมนู</span></button></aside>
+      <div class="main">
+        <div class="content">
+          <div class="shelfwrap" style="padding:18px">
+            <div class="shelfhead" style="margin-bottom:12px"><b>หนังทั้งหมด <span class="nw">10 เรื่อง</span></b><div style="display:flex;gap:10px;align-items:center"><div class="seg sm" role="group" aria-label="มุมมอง"><button class=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="4" width="6" height="7" rx="1"/><rect x="14" y="4" width="6" height="7" rx="1"/><rect x="4" y="14" width="6" height="7" rx="1"/><rect x="14" y="14" width="6" height="7" rx="1"/></svg>ภาพปก</button><button class="on"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 6h11M9 12h11M9 18h11"/><rect x="3.5" y="4.5" width="3" height="3" rx=".6"/><rect x="3.5" y="10.5" width="3" height="3" rx=".6"/><rect x="3.5" y="16.5" width="3" height="3" rx=".6"/></svg>ตาราง</button></div><div class="seg sm seg-off" role="group" aria-label="ขนาดปก" title="ขนาดปกใช้ได้ตอนดูแบบภาพปก"><button>เล็ก</button><button>กลาง</button><button>ใหญ่</button></div></div></div>
+            <div class="tblwrap"><table class="lv"><thead><tr><th style="width:50px">ปก</th><th>ชื่อไฟล์<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="vertical-align:-1px;margin-left:4px"><path d="M6 15l6-6 6 6"/></svg></th><th style="width:80px">ขนาด</th><th style="width:120px">Video</th><th style="width:150px">Audio</th><th style="width:120px">สภาพไฟล์</th></tr></thead><tbody><tr class="sel"><td><span class="th" style="background:linear-gradient(170deg,#8fa8d8,#6f7fb8)"></span></td><td>ดาวเหนือ (2023).mkv</td><td><span class="nw">4.21 GB</span></td><td>AVC 1080p</td><td>AC-3 5.1 · AAC 2.0</td><td style="white-space:nowrap"><span class="dot" style="background:var(--ok)"></span>สมบูรณ์</td></tr><tr><td><span class="th" style="background:linear-gradient(170deg,#f2a08f,#c96f86)"></span></td><td>Harbor Lights (2021).mkv</td><td><span class="nw">3.05 GB</span></td><td>AVC 1080p</td><td>AAC 2.0</td><td style="white-space:nowrap"><span class="dot" style="background:var(--ok)"></span>สมบูรณ์</td></tr><tr><td><span class="th" style="background:linear-gradient(170deg,#b9c4cf,#7f8ea0)"></span></td><td>เมืองในหมอก (2019).mkv</td><td><span class="nw">3.40 GB</span></td><td>HEVC 2160p HDR</td><td>E-AC-3 5.1</td><td style="white-space:nowrap"><span class="dot" style="background:var(--warn)"></span>ควรตรวจ</td></tr><tr><td><span class="th" style="border:1.5px dashed #eeb3c8;background:#fff"></span></td><td>The Last Orchard (2022).mp4</td><td><span class="nw">3.62 GB</span></td><td>AVC 1080p</td><td>AAC 2.0</td><td style="white-space:nowrap"><span class="dot" style="background:var(--info)"></span>ยังไม่ได้ครอบ</td></tr><tr><td><span class="th" style="background:linear-gradient(170deg,#93cfb0,#5e9c80)"></span></td><td>ลมหนาวที่เชียงดาว (2020).mkv</td><td><span class="nw">2.71 GB</span></td><td>AVC 720p</td><td>AAC 2.0</td><td style="white-space:nowrap"><span class="dot" style="background:var(--ok)"></span>สมบูรณ์</td></tr><tr><td><span class="th" style="background:linear-gradient(170deg,#fbe6c8,#e3b98f)"></span></td><td>Paper Moons (2018).mkv</td><td><span class="nw">2.94 GB</span></td><td>AVC 1080p</td><td>AC-3 5.1</td><td style="white-space:nowrap"><span class="dot" style="background:var(--warn)"></span>ควรตรวจ</td></tr><tr><td><span class="th" style="background:linear-gradient(170deg,#a39bc0,#6f6690)"></span></td><td>Iron Tide (2024).mkv</td><td><span class="nw">5.08 GB</span></td><td>HEVC 2160p</td><td>TrueHD 7.1 · AC-3 5.1</td><td style="white-space:nowrap"><span class="dot" style="background:var(--bad)"></span>เสียหาย</td></tr><tr><td><span class="th" style="background:linear-gradient(170deg,#f5c98a,#d0956a)"></span></td><td>บ้านริมคลอง (2017).mkv</td><td><span class="nw">2.20 GB</span></td><td>AVC 1080p</td><td>AAC 2.0</td><td style="white-space:nowrap"><span class="dot" style="background:var(--ok)"></span>สมบูรณ์</td></tr><tr><td><span class="th" style="background:linear-gradient(170deg,#c6a3e0,#8d6bb5)"></span></td><td>Silent Atlas (2016).mkv</td><td><span class="nw">2.12 GB</span></td><td>AVC 1080p</td><td>DTS 5.1</td><td style="white-space:nowrap"><span class="dot" style="background:var(--warn)"></span>ควรตรวจ</td></tr><tr><td><span class="th" style="background:linear-gradient(170deg,#a8d8ea,#6aa5c2)"></span></td><td>ฝนแรก (2025).mkv</td><td><span class="nw">3.88 GB</span></td><td>AV1 1080p</td><td>Opus 5.1</td><td style="white-space:nowrap"><span class="dot" style="background:var(--ok)"></span>สมบูรณ์</td></tr></tbody></table></div>
+          </div>
+          <aside class="detail">
+            <div class="dposter" style="background:linear-gradient(170deg,#8fa8d8 0%,#6f7fb8 60%,#f3b6c9 140%)"><div class="ttl">ดาวเหนือ</div><div style="color:rgba(255,255,255,.8);font-size:13px">2023</div></div>
+            <div class="fname"><div class="nm">ดาวเหนือ (2023)<span class="ext">.mkv</span></div>
+              <button class="icon-btn" aria-label="เปลี่ยนชื่อไฟล์"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 20h4L19 9l-4-4L4 16z"/><path d="M14 6l4 4"/></svg></button></div>
+            <dl class="kv">
+              <dt>ขนาดไฟล์</dt><dd><span class="nw">4.21 GB</span></dd>
+              <dt>ความยาว</dt><dd><span class="nw">2 ชั่วโมง 08 นาที</span></dd>
+              <dt>ภาพ</dt><dd>1920 × 1080 · H.264</dd>
+              <dt>เสียง</dt><dd>ไทย AC-3 5.1 · อังกฤษ AAC 2.0</dd>
+              <dt>ซับไตเติล</dt><dd>ไทย SRT · อังกฤษ ASS</dd>
+              <dt>ไฟล์แนบ</dt><dd>โปสเตอร์ 1 รูป</dd>
+            </dl>
+            <div class="stat ok"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg><div><b>ไฟล์สมบูรณ์</b>ตรวจละเอียดเมื่อ <span class="nw">6 พ.ย. 2569 เวลา 14:20</span><br>ไม่พบภาพหรือเสียงเสีย</div></div>
+            <div class="actions">
+              <button class="btn btn-main"><svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><path d="M7 4.5v15l12-7.5z"/></svg>เปิดเล่น</button>
+              <button class="btn btn-ghost">เปลี่ยนชื่อ</button>
+              <button class="btn btn-ghost">เปลี่ยนโปสเตอร์</button>
+              <button class="btn btn-ghost">ตรวจไฟล์</button>
+              <button class="btn btn-ghost"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></svg>ข้อมูลไฟล์</button>
+              <button class="btn btn-ghost"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg>เปิดโฟลเดอร์</button>
+            </div>
+          </aside>
+        </div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== หน้า 1 ค้นหา เรียง อ่านโฟลเดอร์ ==================== -->
+<div class="sec">
+  <h2><span class="tag">หน้า 1 ต่อ</span>ค้นหา เรียงลำดับ และอ่านโฟลเดอร์</h2>
+  <p class="note">ช่องค้นหากรองหนังบนชั้นทันทีที่พิมพ์ ค้นจากชื่อไฟล์<br>ลืมสลับแป้นพิมพ์ โปรแกรมแปลงให้และขึ้นป้ายบอกว่าค้นด้วยคำไหน<br>ปุ่มกากบาทในช่องโผล่เฉพาะตอนมีคำค้น</p>
+  <div class="grid3">
+    <div class="mini"><div class="cap">พิมพ์ค้นหา</div>
+      <div class="sbox"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a0768a" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><span class="q">ดาว</span><button class="clr" aria-label="ล้างคำค้น"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div class="hint">เจอ 1 จาก <span class="nw">10 เรื่อง</span></div>
+      <div class="minishelf"><div><div class="mc" style="background:linear-gradient(170deg,#8fa8d8,#6f7fb8)">ดาวเหนือ</div><div class="mname"><span class="hl">ดาว</span>เหนือ (2023)</div></div></div></div>
+    <div class="mini"><div class="cap">ลืมสลับแป้นพิมพ์</div>
+      <div class="sbox"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a0768a" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><span class="q">รพนื</span><span class="swap">ค้นว่า iron</span><button class="clr" aria-label="ล้างคำค้น"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div class="hint">พิมพ์ iron ตอนแป้นค้างภาษาไทย · เจอ 1 จาก <span class="nw">10 เรื่อง</span></div>
+      <div class="minishelf"><div><div class="mc" style="background:linear-gradient(160deg,#a39bc0,#6f6690)">Iron Tide</div><div class="mname"><span class="hl">Iron</span> Tide (2024)</div></div></div></div>
+    <div class="mini"><div class="cap">ค้นไม่เจอ</div>
+      <div class="sbox"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#a0768a" stroke-width="2.2" stroke-linecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg><span class="q">ฟ้าใส</span><button class="clr" aria-label="ล้างคำค้น"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" stroke-linecap="round"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div style="text-align:center;padding:22px 6px 6px;display:flex;flex-direction:column;align-items:center;gap:8px">
+        <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#d29ab0" stroke-width="2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5M8.5 8.5l5 5M13.5 8.5l-5 5"/></svg>
+        <div style="font-size:14px">ไม่มีหนังที่ชื่อมีคำว่า <b>ฟ้าใส</b></div>
+        <button class="btn btn-ghost btn-sm">ล้างคำค้น</button></div></div>
+
+    <div class="mini"><div class="cap">กดปุ่มเรียงตาม</div>
+      <button class="dd" aria-haspopup="listbox" aria-expanded="true" style="width:100%;border:1px solid #e79ab8;background-color:#fdeaf1"><span>เรียงตามชื่อ ก–ฮ</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b07a90" stroke-width="2.5" style="transform:rotate(180deg)"><path d="M6 9l6 6 6-6"/></svg></button>
+      <div class="menu" role="listbox" style="margin-top:4px">
+        <div class="opt on" role="option">ชื่อ ก–ฮ<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+        <div class="opt" role="option">ชื่อ ฮ–ก</div>
+        <div class="opt" role="option">ปีที่ออกฉาย ใหม่ไปเก่า</div>
+        <div class="opt" role="option">เพิ่มเข้าชั้นล่าสุด</div>
+        <div class="opt" role="option">ขนาดไฟล์ ใหญ่ไปเล็ก</div>
+        <div class="opt" role="option">สภาพไฟล์ ที่เสียขึ้นก่อน</div>
+      </div>
+      <div class="hint">ปุ่มอยู่บนสุดของหน้าต่างจึงกางลง · ถ้าข้างล่างไม่พอ รายการพลิกขึ้นเอง</div></div>
+    <div class="mini"><div class="cap">กำลังอ่านโฟลเดอร์</div>
+      <div style="font-weight:700;font-size:15px">หนังทั้งหมด</div>
+      <div class="hint" style="margin-top:2px">กำลังอ่าน D:\หนัง · ปกขึ้นทีละเรื่องเมื่ออ่านเสร็จ</div>
+      <div class="minishelf">
+        <div><div class="mc skel"></div><div class="skel" style="height:10px;width:60px;margin-top:22px"></div></div>
+        <div><div class="mc skel"></div><div class="skel" style="height:10px;width:48px;margin-top:22px"></div></div>
+        <div><div class="mc skel"></div><div class="skel" style="height:10px;width:56px;margin-top:22px"></div></div>
+      </div></div>
+    <div class="mini"><div class="cap">อ่านโฟลเดอร์ไม่สำเร็จ</div>
+      <div class="stat bad"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4.5M12 17.5h.01"/></svg><div><b>หาโฟลเดอร์ E:\หนังเก่า ไม่เจอ</b>ไดรฟ์อาจถอดออกอยู่ หนังในโฟลเดอร์นี้ยังอยู่บนชั้นแบบจาง ๆ แต่เปิดเล่นไม่ได้จนกว่าจะเสียบไดรฟ์</div></div>
+      <div class="minirow"><button class="btn btn-ghost btn-sm">ลองใหม่</button><button class="btn btn-ghost btn-sm">ไปตั้งค่าโฟลเดอร์</button></div>
+      <div class="hint">คนละอย่างกับชั้นว่าง ชั้นว่างคือยังไม่ได้เลือกโฟลเดอร์</div></div>
+  </div>
+</div>
+
+<!-- ==================== ข้อมูลไฟล์และแยกไฟล์ ==================== -->
+<div class="sec">
+  <h2><span class="tag">หน้า 1 ต่อ</span>ข้อมูลไฟล์และแยกไฟล์</h2>
+  <p class="note">กดปุ่ม "ข้อมูลไฟล์" ในแผงขวาของชั้นวาง<br>แสดงข้อมูลภาษาอังกฤษ จัดแบบเดียวกับหน้า Text ของโปรแกรม MediaInfo บอกว่า Video Audio Text แต่ละอันเป็นชนิดไหน<br>ติ๊กช่องหน้าหัวข้อที่อยากได้ แล้วกดแยกออกมาเป็นไฟล์ของตัวเองได้เลย ไฟล์หนังเดิมไม่ถูกแตะ</p>
+
+  <div class="win">
+    <div class="titlebar"><span>ชั้นหนัง</span><div class="ctl">
+      <span><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5h10" stroke="#b07a90" stroke-width="1.2"/></svg></span>
+      <span><svg width="10" height="10" viewBox="0 0 10 10"><rect x=".6" y=".6" width="8.8" height="8.8" fill="none" stroke="#b07a90" stroke-width="1.2"/></svg></span>
+      <span><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="#b07a90" stroke-width="1.2"/></svg></span>
+    </div></div>
+    <div class="body" style="min-height:0">
+      <aside class="side">
+        <div class="brand"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#e07a9f" stroke-width="2"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="18" rx="1"/><path d="M17.5 4.5l3.5 1-4 15.5-3.4-1"/></svg><span class="navtxt">ชั้นหนัง</span></div>
+        <button title="ชั้นวางหนัง" class="nav on"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h18M5 20V6h4v14M11 20V4h4v16M17 20l2-12 3 .6-2 11.4"/></svg><span class="navtxt">ชั้นวางหนัง</span><span class="count">10</span></button>
+        <button title="ใส่โปสเตอร์" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 15l3-3 2 2 3-3 2 2"/><circle cx="9" cy="8" r="1.5"/></svg><span class="navtxt">ใส่โปสเตอร์</span></button>
+        <button title="ตรวจไฟล์" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg><span class="navtxt">ตรวจไฟล์</span><span class="count">1</span></button>
+        <button title="ตั้งค่า" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span class="navtxt">ตั้งค่า</span></button>
+      <button class="nav navtoggle" aria-label="ย่อเมนู" title="ย่อเมนู"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="M15.5 9.5L13 12l2.5 2.5"/></svg><span class="navtxt">ย่อเมนู</span></button></aside>
+      <div class="main">
+        <div class="wrapin">
+          <div style="display:flex;align-items:center;gap:12px">
+            <button class="btn btn-ghost btn-sm"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 6l-6 6 6 6"/></svg>กลับไปชั้นวาง</button>
+            <div style="display:flex;align-items:center;gap:10px;flex:1;min-width:0">
+              <div class="mc" style="width:34px;height:51px;padding:0;background:linear-gradient(170deg,#8fa8d8,#6f7fb8)"></div>
+              <div><div style="font-weight:700;font-size:17px">ดาวเหนือ (2023)<span class="ext">.mkv</span></div><div class="small">D:\หนัง</div></div>
+            </div>
+            <button class="btn btn-ghost btn-sm"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 00-1-1H5a1 1 0 00-1 1v10a1 1 0 001 1h3"/></svg>คัดลอกข้อมูลเป็นข้อความ</button>
+          </div>
+
+          <div class="mi"><div class="mih"><span>General</span></div><div class="mir"><span>Unique ID</span><span>:</span><span>203485117291848362009512736410983522 (0x99263F1C4A8E1B2D7F0A33E5C9D1B482)</span></div><div class="mir"><span>Complete name</span><span>:</span><span>D:\หนัง\ดาวเหนือ (2023).mkv</span></div><div class="mir"><span>Format</span><span>:</span><span>Matroska</span></div><div class="mir"><span>Format version</span><span>:</span><span>Version 4</span></div><div class="mir"><span>File size</span><span>:</span><span><span class="nw">4.21 GiB</span></span></div><div class="mir"><span>Duration</span><span>:</span><span>2 h 8 min</span></div><div class="mir"><span>Overall bit rate</span><span>:</span><span>4 <span class="nw">690 kb/s</span></span></div><div class="mir"><span>Frame rate</span><span>:</span><span>23.976 FPS</span></div><div class="mir"><span>Movie name</span><span>:</span><span>Dao Nuea</span></div><div class="mir"><span>Encoded date</span><span>:</span><span>2025-11-02 <span class="nw">13:40:12</span> UTC</span></div><div class="mir"><span>Writing application</span><span>:</span><span>mkvmerge v88.0 ('All I Know') 64-bit</span></div><div class="mir"><span>Writing library</span><span>:</span><span>libebml v1.4.5 + libmatroska v1.7.1</span></div><div class="mir"><span>Cover</span><span>:</span><span>Yes</span></div><div class="mir"><span>Attachments</span><span>:</span><span>cover.jpg</span></div><div class="mih"><span class="cbx off" role="checkbox" aria-checked="false" aria-label="เลือกเพื่อแยกไฟล์"></span> <span>Video</span><span class="miext">แยกเป็น .mkv</span></div><div class="mir"><span>ID</span><span>:</span><span>1</span></div><div class="mir"><span>Format</span><span>:</span><span>AVC</span></div><div class="mir"><span>Format/Info</span><span>:</span><span>Advanced Video Codec</span></div><div class="mir"><span>Format profile</span><span>:</span><span>High@L4.1</span></div><div class="mir"><span>Format settings</span><span>:</span><span>CABAC / 4 Ref Frames</span></div><div class="mir"><span>Codec ID</span><span>:</span><span>V_MPEG4/ISO/AVC</span></div><div class="mir"><span>Duration</span><span>:</span><span>2 h 8 min</span></div><div class="mir"><span>Bit rate</span><span>:</span><span>4 <span class="nw">000 kb/s</span></span></div><div class="mir"><span>Width</span><span>:</span><span>1 920 pixels</span></div><div class="mir"><span>Height</span><span>:</span><span>1 080 pixels</span></div><div class="mir"><span>Display aspect ratio</span><span>:</span><span>16:9</span></div><div class="mir"><span>Frame rate mode</span><span>:</span><span>Constant</span></div><div class="mir"><span>Frame rate</span><span>:</span><span>23.976 (24000/1001) FPS</span></div><div class="mir"><span>Color space</span><span>:</span><span>YUV</span></div><div class="mir"><span>Chroma subsampling</span><span>:</span><span>4:2:0</span></div><div class="mir"><span>Bit depth</span><span>:</span><span>8 bits</span></div><div class="mir"><span>Scan type</span><span>:</span><span>Progressive</span></div><div class="mir"><span>Stream size</span><span>:</span><span><span class="nw">3.58 GiB</span> (85%)</span></div><div class="mir"><span>Writing library</span><span>:</span><span>x264 core 164</span></div><div class="mir"><span>Default</span><span>:</span><span>Yes</span></div><div class="mir"><span>Forced</span><span>:</span><span>No</span></div><div class="mih"><span class="cbx on" role="checkbox" aria-checked="true" aria-label="เลือกเพื่อแยกไฟล์"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span> <span>Audio #1</span><span class="miext">แยกเป็น .ac3</span></div><div class="mir"><span>ID</span><span>:</span><span>2</span></div><div class="mir"><span>Format</span><span>:</span><span>AC-3</span></div><div class="mir"><span>Format/Info</span><span>:</span><span>Audio Coding 3</span></div><div class="mir"><span>Commercial name</span><span>:</span><span>Dolby Digital</span></div><div class="mir"><span>Codec ID</span><span>:</span><span>A_AC3</span></div><div class="mir"><span>Duration</span><span>:</span><span>2 h 8 min</span></div><div class="mir"><span>Bit rate mode</span><span>:</span><span>Constant</span></div><div class="mir"><span>Bit rate</span><span>:</span><span><span class="nw">448 kb/s</span></span></div><div class="mir"><span>Channel(s)</span><span>:</span><span>6 channels</span></div><div class="mir"><span>Channel layout</span><span>:</span><span>L R C LFE Ls Rs</span></div><div class="mir"><span>Sampling rate</span><span>:</span><span><span class="nw">48.0 kHz</span></span></div><div class="mir"><span>Frame rate</span><span>:</span><span>31.250 FPS (1536 SPF)</span></div><div class="mir"><span>Compression mode</span><span>:</span><span>Lossy</span></div><div class="mir"><span>Stream size</span><span>:</span><span><span class="nw">411 MiB</span> (10%)</span></div><div class="mir"><span>Language</span><span>:</span><span>Thai</span></div><div class="mir"><span>Default</span><span>:</span><span>Yes</span></div><div class="mir"><span>Forced</span><span>:</span><span>No</span></div><div class="mih"><span class="cbx off" role="checkbox" aria-checked="false" aria-label="เลือกเพื่อแยกไฟล์"></span> <span>Audio #2</span><span class="miext">แยกเป็น .aac</span></div><div class="mir"><span>ID</span><span>:</span><span>3</span></div><div class="mir"><span>Format</span><span>:</span><span>AAC LC</span></div><div class="mir"><span>Format/Info</span><span>:</span><span>Advanced Audio Codec Low Complexity</span></div><div class="mir"><span>Codec ID</span><span>:</span><span>A_AAC-2</span></div><div class="mir"><span>Duration</span><span>:</span><span>2 h 8 min</span></div><div class="mir"><span>Bit rate</span><span>:</span><span><span class="nw">192 kb/s</span></span></div><div class="mir"><span>Channel(s)</span><span>:</span><span>2 channels</span></div><div class="mir"><span>Channel layout</span><span>:</span><span>L R</span></div><div class="mir"><span>Sampling rate</span><span>:</span><span><span class="nw">48.0 kHz</span></span></div><div class="mir"><span>Compression mode</span><span>:</span><span>Lossy</span></div><div class="mir"><span>Stream size</span><span>:</span><span><span class="nw">176 MiB</span> (4%)</span></div><div class="mir"><span>Language</span><span>:</span><span>English</span></div><div class="mir"><span>Default</span><span>:</span><span>No</span></div><div class="mir"><span>Forced</span><span>:</span><span>No</span></div><div class="mih"><span class="cbx on" role="checkbox" aria-checked="true" aria-label="เลือกเพื่อแยกไฟล์"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span> <span>Text #1</span><span class="miext">แยกเป็น .srt</span></div><div class="mir"><span>ID</span><span>:</span><span>4</span></div><div class="mir"><span>Format</span><span>:</span><span>UTF-8</span></div><div class="mir"><span>Codec ID</span><span>:</span><span>S_TEXT/UTF8</span></div><div class="mir"><span>Codec ID/Info</span><span>:</span><span>UTF-8 Plain Text</span></div><div class="mir"><span>Duration</span><span>:</span><span>2 h 3 min</span></div><div class="mir"><span>Count of elements</span><span>:</span><span>1284</span></div><div class="mir"><span>Language</span><span>:</span><span>Thai</span></div><div class="mir"><span>Default</span><span>:</span><span>Yes</span></div><div class="mir"><span>Forced</span><span>:</span><span>No</span></div><div class="mih"><span class="cbx off" role="checkbox" aria-checked="false" aria-label="เลือกเพื่อแยกไฟล์"></span> <span>Text #2</span><span class="miext">แยกเป็น .ass</span></div><div class="mir"><span>ID</span><span>:</span><span>5</span></div><div class="mir"><span>Format</span><span>:</span><span>ASS</span></div><div class="mir"><span>Codec ID</span><span>:</span><span>S_TEXT/ASS</span></div><div class="mir"><span>Codec ID/Info</span><span>:</span><span>Advanced Sub Station Alpha</span></div><div class="mir"><span>Duration</span><span>:</span><span>2 h 3 min</span></div><div class="mir"><span>Count of elements</span><span>:</span><span>1302</span></div><div class="mir"><span>Language</span><span>:</span><span>English</span></div><div class="mir"><span>Default</span><span>:</span><span>No</span></div><div class="mir"><span>Forced</span><span>:</span><span>No</span></div><div class="mih"><span class="cbx on" role="checkbox" aria-checked="true" aria-label="เลือกเพื่อแยกไฟล์"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span> <span>Attachment</span><span class="miext">แยกเป็น .jpg</span></div><div class="mir"><span>File name</span><span>:</span><span>cover.jpg</span></div><div class="mir"><span>MIME type</span><span>:</span><span>image/jpeg</span></div><div class="mir"><span>Size</span><span>:</span><span><span class="nw">412 KiB</span></span></div><div class="mir"><span>Dimensions</span><span>:</span><span>1000 x 1500 pixels</span></div><div class="mih"><span class="cbx off" role="checkbox" aria-checked="false" aria-label="เลือกเพื่อแยกไฟล์"></span> <span>Menu</span><span class="miext">แยกเป็น .xml</span></div><div class="mir"><span><span class="nw">00:00:00</span>.000</span><span>:</span><span>en:Chapter 01</span></div><div class="mir"><span><span class="nw">00:09:48</span>.120</span><span>:</span><span>en:Chapter 02</span></div><div class="mir"><span><span class="nw">00:21:15</span>.400</span><span>:</span><span>en:Chapter 03</span></div><div class="mir"><span>…</span><span>:</span><span>…</span></div><div class="mir"><span><span class="nw">01:59:40</span>.020</span><span>:</span><span>en:Chapter 12</span></div></div>
+          <div class="card" style="display:flex;align-items:center;gap:14px;flex-wrap:wrap">
+            <div style="font-size:14px"><b>เลือกไว้ 3 อย่าง</b> · Audio #1 · Text #1 · cover.jpg</div>
+            <div class="small" style="flex:1;min-width:260px">เก็บที่ D:\หนัง\ดาวเหนือ (2023) แยกไฟล์ · <button class="btn btn-ghost btn-sm" style="height:28px">เปลี่ยนที่เก็บ</button></div>
+            <button class="btn btn-main">แยกไฟล์ที่เลือก</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="sub">ค่า hash ของไฟล์</h3>
+  <p class="note">อยู่ในหน้าข้อมูลไฟล์ ใต้ข้อมูลแบบ MediaInfo<br>เลือกชนิด hash แล้วกดคำนวณ<br>ใช้เทียบกับค่า hash ที่เว็บต้นทางให้มา ว่าไฟล์ที่โหลดมาครบและตรงกับต้นฉบับทุกไบต์<br>วางค่าที่ได้มาลงช่องเทียบ โปรแกรมบอกทันทีว่าตรงหรือไม่ตรง</p>
+  <div class="grid2" style="align-items:start">
+    <div class="card" style="background:#fff">
+      <h3>ค่า hash · ดาวเหนือ (2023).mkv</h3>
+      <div class="algs" style="margin-bottom:12px"><label><span class="cbx on" role="checkbox" aria-checked="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>MD5</label><label><span class="cbx off" role="checkbox" aria-checked="false"></span>SHA-1</label><label><span class="cbx on" role="checkbox" aria-checked="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>SHA-256</label><label><span class="cbx on" role="checkbox" aria-checked="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span>CRC32</label><label><span class="cbx off" role="checkbox" aria-checked="false"></span>SHA-512</label></div>
+      <div class="hrow"><span class="halg">MD5</span><code class="hval">3b8f0c2a9e4d71f65a0c8e2b7d4f19a6</code><button class="icon-btn" aria-label="คัดลอกค่า hash" title="คัดลอก"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 00-1-1H5a1 1 0 00-1 1v10a1 1 0 001 1h3"/></svg></button></div><div class="hrow"><span class="halg">SHA-256</span><code class="hval">9f2c4e7a1b6d8053c2e9a4f1d7b03e6c58a2f9d4e1c7b6a0938f5e2d1c4b7a96</code><button class="icon-btn" aria-label="คัดลอกค่า hash" title="คัดลอก"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 00-1-1H5a1 1 0 00-1 1v10a1 1 0 001 1h3"/></svg></button></div><div class="hrow"><span class="halg">CRC32</span><code class="hval">A41F09C3</code><button class="icon-btn" aria-label="คัดลอกค่า hash" title="คัดลอก"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M16 8V5a1 1 0 00-1-1H5a1 1 0 00-1 1v10a1 1 0 001 1h3"/></svg></button></div>
+      <div class="small" style="margin-top:8px">คำนวณเมื่อ 6 พ.ย. 2569 เวลา 15:20 · ใช้เวลา 18 วินาที · ค่า SHA-256 ถูกจำไว้ใช้ตอนตรวจแบบเร็วครั้งต่อไป</div>
+      <div style="display:flex;gap:8px;margin-top:12px;flex-wrap:wrap"><button class="btn btn-main btn-sm">คำนวณใหม่</button><button class="btn btn-ghost btn-sm">คัดลอกทั้งหมด</button><button class="btn btn-ghost btn-sm">บันทึกเป็นไฟล์ .sha256</button></div>
+    </div>
+    <div style="display:flex;flex-direction:column;gap:14px">
+      <div class="mini"><div class="cap">กำลังคำนวณ</div>
+        <div style="font-size:14px">SHA-256 · อ่านไฟล์ไปแล้ว 2.70 จาก 4.21 GB</div>
+        <div class="bar" style="margin-top:8px"><i style="width:64%"></i></div>
+        <div class="minirow"><button class="btn btn-bad btn-sm">หยุด</button></div></div>
+      <div class="mini"><div class="cap">วางค่าที่ได้มา แล้วตรงกัน</div>
+        <div class="hin ok">9f2c4e7a1b6d8053c2e9a4f1d7b03e6c58a2f9d4e1c7b6a0938f5e2d1c4b7a96</div>
+        <div class="stat ok" style="margin-top:8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><b>ตรงกับ SHA-256 ของไฟล์นี้</b>ไฟล์ครบและเหมือนต้นฉบับทุกไบต์</div></div></div>
+      <div class="mini"><div class="cap">วางค่าที่ได้มา แล้วไม่ตรง</div>
+        <div class="hin bad">9f2c4e7a1b6d8053c2e9a4f1d7b03e6c58a2f9d4e1c7b6a0938f5e2d1c4b7a11</div>
+        <div class="stat bad" style="margin-top:8px"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4.5M12 17.5h.01"/></svg><div><b>ไม่ตรงกับ SHA-256 ของไฟล์นี้</b>ไฟล์อาจโหลดมาไม่ครบหรือถูกแก้ไข<br>ต่างกันที่ 2 ตัวท้าย</div></div></div>
+    </div>
+  </div>
+
+  <h3 class="sub">ชื่อชนิดที่เจอบ่อย หมายถึงอะไร</h3>
+  <div class="grid3">
+    <div class="mini"><div class="cap">ภาพ</div>
+      <table class="fmt">
+        <tr><td><b>H.264 (AVC)</b></td><td>ชนิดที่ใช้มากที่สุด เปิดได้แทบทุกเครื่อง</td></tr>
+        <tr><td><b>H.265 (HEVC)</b></td><td>ไฟล์เล็กกว่า H.264 ที่ความคมเท่ากัน เครื่องเก่าบางเครื่องเปิดไม่ได้</td></tr>
+        <tr><td><b>AV1</b></td><td>ชนิดใหม่ ไฟล์เล็กมาก ต้องใช้เครื่องหรือโปรแกรมรุ่นใหม่</td></tr>
+        <tr><td><b>HDR</b></td><td>ภาพสว่างและสีกว้างกว่าปกติ ต้องใช้จอที่รองรับ</td></tr>
+      </table></div>
+    <div class="mini"><div class="cap">เสียง</div>
+      <table class="fmt">
+        <tr><td><b>AAC</b></td><td>ใช้ทั่วไป ไฟล์เล็ก เปิดได้ทุกเครื่อง</td></tr>
+        <tr><td><b>AC-3 · E-AC-3</b></td><td>Dolby Digital ใช้กับลำโพงรอบทิศทาง 5.1</td></tr>
+        <tr><td><b>DTS · TrueHD</b></td><td>เสียงคุณภาพสูงจากแผ่นบลูเรย์ ไฟล์ใหญ่</td></tr>
+        <tr><td><b>FLAC · Opus</b></td><td>FLAC เสียงไม่ลดคุณภาพ · Opus ไฟล์เล็กมาก</td></tr>
+      </table></div>
+    <div class="mini"><div class="cap">ซับไตเติล</div>
+      <table class="fmt">
+        <tr><td><b>SRT</b></td><td>ตัวหนังสือธรรมดา แก้ไขได้ด้วย Notepad</td></tr>
+        <tr><td><b>ASS</b></td><td>แต่งสี ฟอนต์ ตำแหน่งได้ ใช้กับการ์ตูนบ่อย</td></tr>
+        <tr><td><b>PGS · VobSub</b></td><td>ซับแบบภาพจากแผ่นบลูเรย์และดีวีดี แก้คำไม่ได้</td></tr>
+      </table></div>
+  </div>
+
+  <h3 class="sub">กดแยกไฟล์แล้วเกิดอะไร</h3>
+  <div class="grid3">
+    <div class="st"><div class="cap">ยังไม่ได้ติ๊กอะไร</div>
+      <button class="btn btn-wait">แยกไฟล์ที่เลือก</button>
+      <div class="hint" style="margin:0;color:#94680f">ยังกดไม่ได้ ติ๊กอย่างน้อย 1 อย่างในตารางก่อน</div></div>
+    <div class="st"><div class="cap">กำลังแยก</div>
+      <div style="font-size:14px">Audio #1 .ac3 <span class="small">เสร็จแล้ว</span></div>
+      <div class="bar"><i style="width:100%"></i></div>
+      <div style="font-size:14px">Text #1 .srt <span class="small">กำลังทำ 40%</span></div>
+      <div class="bar"><i style="width:40%"></i></div>
+      <div style="font-size:14px">cover.jpg <span class="small">รอคิว</span></div>
+      <div class="bar"><i style="width:0"></i></div>
+      <button class="btn btn-bad btn-sm" style="align-self:flex-start">หยุด</button></div>
+    <div class="st"><div class="cap">แยกเสร็จ</div>
+      <div class="stat ok"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><b>แยกครบ <span class="nw">3 ไฟล์</span></b>ดาวเหนือ (2023).Audio1.th.ac3<br>ดาวเหนือ (2023).Text1.th.srt<br>ดาวเหนือ (2023).cover.jpg</div></div>
+      <button class="btn btn-ok btn-sm" style="align-self:flex-start">เปิดโฟลเดอร์ที่เก็บ</button></div>
+    <div class="dlgstage"><div class="dlg">
+      <h4>มีไฟล์ชื่อเดียวกันอยู่แล้ว</h4>
+      <div style="font-size:14px;line-height:1.6">ในที่เก็บมีไฟล์ <b>ดาวเหนือ (2023).Text1.th.srt</b> อยู่แล้ว<br>โปรแกรมไม่เขียนทับไฟล์เดิม</div>
+      <div class="acts"><button class="btn btn-ghost btn-sm">ข้ามไฟล์นี้</button><button class="btn btn-main btn-sm">ตั้งชื่อใหม่ต่อท้ายเลข 2</button></div>
+    </div></div>
+    <div class="st"><div class="cap">แยกไม่สำเร็จ</div>
+      <div class="stat bad"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4.5M12 17.5h.01"/></svg><div><b>แยก Video ไม่สำเร็จ พื้นที่ในไดรฟ์ D ไม่พอ</b>ต้องการ <span class="nw">3.9 GB</span> แต่เหลือ <span class="nw">1.2 GB</span><br>ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ</div></div>
+      <button class="btn btn-ghost btn-sm" style="align-self:flex-start">ลองใหม่</button></div>
+    <div class="st"><div class="cap">กดคัดลอกข้อมูลเป็นข้อความ</div>
+      <div class="stat ok"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><b>คัดลอกข้อมูลไฟล์แล้ว</b>วางในแชทหรือโน้ตได้เลย<br>แถบนี้หายเองใน <span class="nw">3 วินาที</span></div></div>
+      <div class="small">ข้อความที่ได้หน้าตาแบบเดียวกับที่โปรแกรม MediaInfo คัดลอกออกมา</div></div>
+  </div>
+</div>
+
+<!-- ==================== หน้า 2 ใส่โปสเตอร์ ==================== -->
+<div class="sec">
+  <h2><span class="tag">หน้า 2</span>ใส่โปสเตอร์</h2>
+  <p class="note">ลากไฟล์หนังกับรูปโปสเตอร์มาวาง แล้วกดปุ่มเดียว<br>ไฟล์ MP4 จะถูกครอบเป็น MKV ให้เองโดยไม่แปลงภาพและเสียงใหม่ จึงเสร็จในไม่กี่วินาที</p>
+
+  <div class="win">
+    <div class="titlebar"><span>ชั้นหนัง</span><div class="ctl">
+      <span><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5h10" stroke="#b07a90" stroke-width="1.2"/></svg></span>
+      <span><svg width="10" height="10" viewBox="0 0 10 10"><rect x=".6" y=".6" width="8.8" height="8.8" fill="none" stroke="#b07a90" stroke-width="1.2"/></svg></span>
+      <span><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="#b07a90" stroke-width="1.2"/></svg></span>
+    </div></div>
+    <div class="body" style="min-height:540px">
+      <aside class="side">
+        <div class="brand"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#e07a9f" stroke-width="2"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="18" rx="1"/><path d="M17.5 4.5l3.5 1-4 15.5-3.4-1"/></svg><span class="navtxt">ชั้นหนัง</span></div>
+        <button title="ชั้นวางหนัง" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h18M5 20V6h4v14M11 20V4h4v16M17 20l2-12 3 .6-2 11.4"/></svg><span class="navtxt">ชั้นวางหนัง</span><span class="count">10</span></button>
+        <button title="ใส่โปสเตอร์" class="nav on"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 15l3-3 2 2 3-3 2 2"/><circle cx="9" cy="8" r="1.5"/></svg><span class="navtxt">ใส่โปสเตอร์</span></button>
+        <button title="ตรวจไฟล์" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg><span class="navtxt">ตรวจไฟล์</span><span class="count">1</span></button>
+        <button title="ตั้งค่า" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span class="navtxt">ตั้งค่า</span></button>
+      <button class="nav navtoggle" aria-label="ย่อเมนู" title="ย่อเมนู"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="M15.5 9.5L13 12l2.5 2.5"/></svg><span class="navtxt">ย่อเมนู</span></button></aside>
+      <div class="main">
+        <div class="wrapin">
+          <div class="three">
+            <div class="card"><h3><span class="step">1</span>ไฟล์หนัง</h3>
+              <div class="vfile"><div class="vthumb"></div><div><div style="font-weight:600;font-size:14px;line-height:1.5">The Last Orchard (2022).mp4</div><div class="small"><span class="nw">3.62 GB</span> · <span class="nw">1 ชั่วโมง 54 นาที</span><br>1920 × 1080</div></div></div>
+              <div class="small" style="margin-top:10px">ลากไฟล์อื่นมาวางทับเพื่อเปลี่ยน หรือ</div>
+              <button class="btn btn-ghost btn-sm" style="margin-top:6px">เลือกไฟล์จากเครื่อง</button>
+              <div class="small" style="margin-top:10px">รองรับ MKV · MP4 · M4V · MOV<br>AVI · WebM · TS · M2TS · MPG · FLV</div>
+            </div>
+            <div class="card"><h3><span class="step">2</span>รูปโปสเตอร์</h3>
+              <div class="pprev"><div class="pp" style="background:linear-gradient(170deg,#b8d98f,#7fae5f)"><div class="ttl">The Last Orchard</div></div>
+                <div class="small">orchard-poster.jpg<br><span class="extag ok">.jpg</span> แนบได้เลย<br><span class="nw">1000 × 1500 px</span><br>สัดส่วน 2 : 3 พอดีปก<br><span style="display:flex;gap:6px;margin-top:10px"><button class="btn btn-ghost btn-sm">เปลี่ยนรูป</button><button class="btn btn-ghost btn-sm">ครอปภาพ</button></span></div></div>
+              <div class="small" style="margin-top:10px">รองรับ JPG · PNG แนบได้เลย<br>WebP BMP TIFF HEIC แปลงให้ก่อนแนบ</div>
+            </div>
+            <div class="card"><h3><span class="step">3</span>หน้าตาที่จะได้</h3>
+              <div class="small" style="margin-bottom:8px">บนชั้นวางของโปรแกรมนี้</div>
+              <div style="display:flex;gap:14px;align-items:flex-end">
+                <div class="pp" style="width:72px;height:108px;background:linear-gradient(170deg,#b8d98f,#7fae5f)"><div class="ttl" style="font-size:11px">The Last Orchard</div></div>
+                <div class="small">ไฟล์ใหม่<br><b style="color:var(--txt)">The Last Orchard (2022).mkv</b><br>ขนาดราว <span class="nw">3.62 GB</span> เท่าเดิม</div>
+              </div>
+            </div>
+          </div>
+
+          <div class="card"><h3>ตัวเลือก</h3>
+            <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
+              <div class="opts">
+                <label class="chk"><span class="box on"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span>ตรวจไฟล์ต้นทางก่อนครอบ<br><span class="small">ถ้าไฟล์เสียอยู่แล้ว จะบอกก่อนลงมือ</span></span></label>
+                <label class="chk"><span class="box on"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span>ตรวจไฟล์ใหม่หลังครอบเสร็จ<br><span class="small">เทียบว่าภาพ เสียง ซับ ครบเท่าต้นทาง</span></span></label>
+              </div>
+              <div class="opts">
+                <label class="chk"><span class="radio on"></span><span>เก็บไฟล์เดิมไว้ ย้ายไปโฟลเดอร์ "ไฟล์เดิม"<br><span class="small">ปลอดภัยที่สุด แต่ใช้พื้นที่เพิ่ม <span class="nw">3.62 GB</span></span></span></label>
+                <label class="chk"><span class="radio"></span><span>ลบไฟล์เดิมหลังตรวจไฟล์ใหม่ผ่านแล้ว<br><span class="small">ไม่ลบถ้าไฟล์ใหม่ตรวจไม่ผ่าน</span></span></label>
+              </div>
+            </div>
+          </div>
+
+          <div class="card"><h3>ไฟล์ที่ได้</h3>
+            <div style="display:flex;align-items:center;gap:16px;flex-wrap:wrap">
+              <div class="seg"><button class="on">MKV (แนะนำ)</button><button>MP4</button></div>
+              <div class="small" style="flex:1;min-width:300px">MKV ใส่ซับและเสียงได้ทุกแบบ · MP4 ปกขึ้นเป็นไอคอนใน Windows ได้เลยโดยไม่ต้องลง Icaros แต่ซับบางแบบใส่ไม่ได้ · ตารางเทียบอยู่ท้ายหน้านี้</div>
+            </div>
+          </div>
+
+          <div style="display:flex;justify-content:flex-end;gap:10px">
+            <button class="btn btn-ghost" style="height:44px">ล้างทั้งหมด</button>
+            <button class="btn btn-main" style="height:44px;padding:0 26px;font-size:15px">ครอบเป็น MKV พร้อมโปสเตอร์</button>
+          </div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <p class="note" style="margin-top:18px">สถานะของปุ่มและการทำงาน เรียงตามลำดับที่จะเกิด</p>
+  <div class="states">
+    <div class="st"><div class="cap">ยังไม่ได้ใส่รูปโปสเตอร์</div>
+      <div class="drop"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#c99aad" stroke-width="2"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg>ลากรูปโปสเตอร์มาวางตรงนี้<br>JPG หรือ PNG</div>
+      <button class="btn btn-wait">ครอบเป็น MKV พร้อมโปสเตอร์</button>
+      <div class="hint" style="color:#94680f;margin:0">ยังกดไม่ได้ ใส่รูปโปสเตอร์ก่อน</div></div>
+    <div class="st"><div class="cap">กำลังทำงาน</div>
+      <div style="font-size:14px">กำลังครอบเป็น MKV</div>
+      <div class="bar"><i style="width:64%"></i></div>
+      <div class="small">64% · เหลือราว <span class="nw">8 วินาที</span><br>ขั้นถัดไป ตรวจไฟล์ใหม่</div>
+      <button class="btn btn-bad btn-sm" style="align-self:flex-start">หยุด</button></div>
+    <div class="st"><div class="cap">เสร็จแล้ว</div>
+      <div class="stat ok"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><b>ครอบเสร็จ ไฟล์ใหม่ตรวจผ่าน</b>ภาพ 1 · เสียง 2 · ซับ 2<br>ครบเท่าต้นทาง</div></div>
+      <div class="small">ไฟล์เดิมย้ายไปที่ D:\หนัง\ไฟล์เดิม</div>
+      <button class="btn btn-ok btn-sm" style="align-self:flex-start">ไปดูบนชั้นวาง</button></div>
+    <div class="st"><div class="cap">ทำไม่สำเร็จ</div>
+      <div class="stat bad"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4.5M12 17.5h.01"/></svg><div><b>พื้นที่ในไดรฟ์ D ไม่พอ</b>ต้องการ <span class="nw">3.7 GB</span> แต่เหลือ <span class="nw">1.2 GB</span><br>ไฟล์เดิมไม่ถูกแตะ</div></div>
+      <button class="btn btn-ghost btn-sm" style="align-self:flex-start">ลองใหม่</button></div>
+  </div>
+
+  <h3 class="sub">ตอนลากไฟล์มาวาง และไฟล์ที่ไม่ตรงเงื่อนไข</h3>
+  <div class="grid3">
+    <div class="st"><div class="cap">ลากไฟล์มาค้างเหนือช่อง</div>
+      <div class="drop over" style="min-height:120px"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg><b>ปล่อยเมาส์เพื่อใส่รูปนี้</b>orchard-poster.jpg</div>
+      <div class="hint" style="margin:0">ช่องเปลี่ยนเป็นสีชมพูให้รู้ว่าวางได้</div></div>
+    <div class="st"><div class="cap">วางไฟล์ผิดชนิด</div>
+      <div class="drop bad" style="min-height:120px"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4.5M12 17.5h.01"/></svg><b>ไฟล์ .wmv ใช้ไม่ได้</b>ไฟล์หนังรองรับ MKV MP4 M4V MOV AVI WebM TS M2TS MPG FLV</div>
+      <div class="hint" style="margin:0">ข้อความนี้ค้างไว้จนกว่าจะวางไฟล์ใหม่</div></div>
+    <div class="st"><div class="cap">รูปไม่ใช่สัดส่วนปก 2 : 3</div>
+      <div class="stat warn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5h.01"/></svg><div><b>รูปนี้เป็นภาพแนวนอน 16 : 9</b>เลือกว่าจะทำให้เป็นปกแบบไหน</div></div>
+      <div style="display:flex;gap:12px;align-items:flex-end">
+        <div style="text-align:center"><div style="width:56px;height:84px;border-radius:5px;background:linear-gradient(170deg,#b8d98f,#7fae5f);outline:3px solid var(--accent);outline-offset:2px"></div><div class="small" style="margin-top:6px">ตัดให้พอดีปก</div></div>
+        <div style="text-align:center"><div style="width:56px;height:84px;border-radius:5px;background:#fdeef4;display:flex;align-items:center"><div style="width:56px;height:32px;background:linear-gradient(170deg,#b8d98f,#7fae5f)"></div></div><div class="small" style="margin-top:6px">เติมขอบให้เต็ม</div></div>
+      </div>
+      <button class="btn btn-main btn-sm" style="align-self:flex-start">ครอปเองพร้อมดูตัวอย่าง</button></div>
+    <div class="st"><div class="cap">เลือกส่งออกเป็น MP4 แต่มีซับที่ใส่ไม่ได้</div>
+      <div class="stat warn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5h.01"/></svg><div><b>ซับภาษาไทย 1 อันใส่ใน MP4 ไม่ได้</b>เป็นซับแบบภาพจากแผ่นบลูเรย์ ถ้าทำต่อ ซับนี้จะหายจากไฟล์ใหม่</div></div>
+      <div class="minirow" style="margin:0"><button class="btn btn-main btn-sm">กลับไปใช้ MKV</button><button class="btn btn-ghost btn-sm">ทิ้งซับนี้แล้วทำต่อ</button></div></div>
+    <div class="st"><div class="cap">มาจากปุ่มเปลี่ยนโปสเตอร์บนชั้นวาง</div>
+      <div style="display:flex;gap:12px;align-items:center">
+        <div style="text-align:center"><div class="mc" style="background:linear-gradient(170deg,#8fa8d8,#6f7fb8);margin:0 auto">ดาวเหนือ</div><div class="small" style="margin-top:6px">ปกเดิม</div></div>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c2547f" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        <div style="text-align:center"><div class="mc" style="background:linear-gradient(170deg,#f3b6c9,#c96f86);margin:0 auto">ดาวเหนือ</div><div class="small" style="margin-top:6px">ปกใหม่</div></div>
+      </div>
+      <div class="hint" style="margin:0">ไฟล์หนังใส่ให้แล้ว เหลือแค่ลากรูปใหม่มาวาง<br>ไฟล์เป็น MKV อยู่แล้ว เปลี่ยนแค่รูปแนบ ไม่ต้องครอบใหม่</div></div>
+    <div class="dlgstage"><div class="dlg">
+      <h4>ยืนยันหยุดครอบไฟล์</h4>
+      <div style="font-size:14px;line-height:1.6">ไฟล์ใหม่ที่ทำไปได้ 64% จะถูกลบทิ้ง ไฟล์เดิม The Last Orchard (2022).mp4 ไม่ถูกแตะ</div>
+      <div class="acts"><button class="btn btn-ghost btn-sm">ทำต่อ</button><button class="btn btn-bad btn-sm">หยุด</button></div>
+    </div></div>
+  </div>
+
+  <h3 class="sub">ครอปรูปโปสเตอร์ — ดูตัวอย่างก่อนกดใช้</h3>
+  <p class="note">วางรูปแล้วหน้าต่างนี้ขึ้นเองทุกครั้ง หรือกดปุ่ม "ครอปภาพ"<br>กรอบล็อกสัดส่วนปก 2 : 3 ไว้ ลากกรอบเพื่อเลื่อน ลากมุมเพื่อย่อขยาย<br>ฝั่งขวาโชว์ว่าปกจะออกมาหน้าตายังไงในแต่ละที่ ก่อนกดใช้</p>
+  <div class="dlgstage" style="padding:26px"><div class="dlg" style="max-width:none;gap:14px">
+    <div style="display:flex;justify-content:space-between;align-items:baseline;gap:12px">
+      <h4>ครอปรูปโปสเตอร์</h4>
+      <div class="small">orchard-wide.jpg · <span class="nw">1920 × 1080 px</span> · ภาพแนวนอน</div>
+    </div>
+    <div style="display:flex;gap:24px;align-items:flex-start">
+      <div style="display:flex;flex-direction:column;gap:12px">
+        <div class="stage"><div class="scene"><div class="sun"></div><div class="trunk" style="left:150px"></div><div class="tree" style="left:120px"></div><div class="trunk" style="left:268px"></div><div class="tree" style="left:238px;width:80px;height:80px"></div><div class="trunk" style="left:390px"></div><div class="tree" style="left:360px"></div><div class="ttl">The Last Orchard</div></div><div class="cropbox"><span class="hd" style="left:-8px;top:-8px"></span><span class="hd" style="right:-8px;top:-8px"></span><span class="hd" style="left:-8px;bottom:-8px"></span><span class="hd" style="right:-8px;bottom:-8px"></span></div></div>
+        <div class="small">ลากกรอบเพื่อเลื่อน · ลากมุมเพื่อย่อขยาย · หมุนล้อเมาส์เพื่อซูม</div>
+        <div style="display:flex;align-items:center;gap:12px">
+          <span style="font-size:14px;white-space:nowrap">ซูม</span>
+          <div class="range" role="slider" aria-label="ซูม" aria-valuenow="130"><i></i><b></b></div>
+          <span class="small" style="white-space:nowrap">130%</span>
+        </div>
+        <div style="display:flex;gap:8px;flex-wrap:wrap">
+          <button class="btn btn-ghost btn-sm">หมุนซ้าย</button><button class="btn btn-ghost btn-sm">หมุนขวา</button><button class="btn btn-ghost btn-sm">พลิกซ้ายขวา</button><button class="btn btn-ghost btn-sm">กลับเป็นแบบเดิม</button>
+        </div>
+      </div>
+      <div style="flex:1;display:flex;flex-direction:column;gap:14px">
+        <div style="font-weight:600;font-size:14px">ตัวอย่างหลังครอป</div>
+        <div style="display:flex;gap:18px;align-items:flex-end;flex-wrap:wrap"><div style="text-align:center"><div class="pv" style="width:72px;height:108px"><div class="scene" style="transform:scale(0.4138) translate(-180px,-16px)"><div class="sun"></div><div class="trunk" style="left:150px"></div><div class="tree" style="left:120px"></div><div class="trunk" style="left:268px"></div><div class="tree" style="left:238px;width:80px;height:80px"></div><div class="trunk" style="left:390px"></div><div class="tree" style="left:360px"></div><div class="ttl">The Last Orchard</div></div></div><div class="small" style="margin-top:6px">บนชั้นวาง</div></div><div style="text-align:center"><div class="pv" style="width:110px;height:165px"><div class="scene" style="transform:scale(0.6322) translate(-180px,-16px)"><div class="sun"></div><div class="trunk" style="left:150px"></div><div class="tree" style="left:120px"></div><div class="trunk" style="left:268px"></div><div class="tree" style="left:238px;width:80px;height:80px"></div><div class="trunk" style="left:390px"></div><div class="tree" style="left:360px"></div><div class="ttl">The Last Orchard</div></div></div><div class="small" style="margin-top:6px">แผงรายละเอียด</div></div><div style="text-align:center"><div class="pv" style="width:40px;height:60px"><div class="scene" style="transform:scale(0.2299) translate(-180px,-16px)"><div class="sun"></div><div class="trunk" style="left:150px"></div><div class="tree" style="left:120px"></div><div class="trunk" style="left:268px"></div><div class="tree" style="left:238px;width:80px;height:80px"></div><div class="trunk" style="left:390px"></div><div class="tree" style="left:360px"></div><div class="ttl">The Last Orchard</div></div></div><div class="small" style="margin-top:6px">ไอคอน Windows</div></div></div>
+        <div class="setrow" style="border-top:1px solid #f8e3eb"><div class="lbl">ทำให้เป็นปกแบบไหน</div><div class="seg"><button class="on">ตัดให้พอดี 2 : 3</button><button>เติมขอบ</button></div></div>
+        <div class="setrow"><div class="lbl">ไฟล์รูปที่ได้</div><div class="seg"><button class="on">JPG</button><button>PNG</button></div></div><div style="display:flex;align-items:center;gap:12px"><span style="font-size:14px;white-space:nowrap">คุณภาพ JPG</span><div class="range" role="slider" aria-label="คุณภาพ JPG" aria-valuenow="90"><i style="width:90%"></i><b style="left:90%"></b></div><span class="small" style="white-space:nowrap;min-width:36px;text-align:right">90%</span></div><div class="small">ได้รูปขนาด <span class="nw">1000 × 1500 px</span> · ไฟล์ JPG ราว <span class="nw">380 KB</span><br>รูปเดิมในเครื่องไม่ถูกแก้</div>
+      </div>
+    </div>
+    <div class="acts"><button class="btn btn-ghost btn-sm">ยกเลิก</button><button class="btn btn-main btn-sm">ใช้รูปนี้</button></div>
+  </div></div>
+
+  <div class="grid3" style="margin-top:14px">
+    <div class="st"><div class="cap">ก่อนครอป กับ หลังครอป</div>
+      <div style="display:flex;gap:14px;align-items:flex-end">
+        <div style="text-align:center"><div class="pv" style="width:160px;height:90px"><div class="scene" style="transform:scale(0.3077)"><div class="sun"></div><div class="trunk" style="left:150px"></div><div class="tree" style="left:120px"></div><div class="trunk" style="left:268px"></div><div class="tree" style="left:238px;width:80px;height:80px"></div><div class="trunk" style="left:390px"></div><div class="tree" style="left:360px"></div><div class="ttl">The Last Orchard</div></div></div><div class="small" style="margin-top:6px">ก่อน</div></div>
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c2547f" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
+        <div style="text-align:center"><div class="pv" style="width:60px;height:90px"><div class="scene" style="transform:scale(0.3448) translate(-180px,-16px)"><div class="sun"></div><div class="trunk" style="left:150px"></div><div class="tree" style="left:120px"></div><div class="trunk" style="left:268px"></div><div class="tree" style="left:238px;width:80px;height:80px"></div><div class="trunk" style="left:390px"></div><div class="tree" style="left:360px"></div><div class="ttl">The Last Orchard</div></div></div><div class="small" style="margin-top:6px">หลัง</div></div>
+      </div></div>
+    <div class="st"><div class="cap">ถ้าเลือกเติมขอบ</div>
+      <div style="display:flex;gap:14px;align-items:flex-end">
+        <div style="text-align:center"><div class="pv" style="width:72px;height:108px;background:#f6dbe5;display:flex;align-items:center"><div style="position:relative;width:72px;height:41px;overflow:hidden"><div class="scene" style="transform:scale(0.1385)"><div class="sun"></div><div class="tree" style="left:120px"></div><div class="tree" style="left:238px;width:80px;height:80px"></div><div class="tree" style="left:360px"></div></div></div></div><div class="small" style="margin-top:6px">ขอบสีชมพูจาง</div></div>
+        <div class="small" style="flex:1">ภาพไม่ถูกตัดเลยสักส่วน<br>สีขอบเลือกได้ ชมพูจาง ดำ หรือขาว</div>
+      </div></div>
+    <div class="st"><div class="cap">รูปเล็กเกินไป</div>
+      <div class="stat warn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5h.01"/></svg><div><b>ส่วนที่ครอปเหลือแค่ <span class="nw">320 × 480 px</span></b>ปกจะดูเบลอบนจอใหญ่<br>ใช้ต่อได้ แต่แนะนำหารูปที่ใหญ่กว่านี้</div></div>
+      <div class="minirow" style="margin:0"><button class="btn btn-ghost btn-sm">ใช้ต่อ</button><button class="btn btn-ghost btn-sm">เปลี่ยนรูป</button></div></div>
+  </div>
+
+  <h3 class="sub">แปลงชนิดรูปโปสเตอร์</h3>
+  <p class="note">รูปที่แนบใน MKV ได้ตรง ๆ มีแค่ JPG กับ PNG<br>รูปชนิดอื่นโปรแกรมแปลงให้ก่อนแนบ<br>JPG ไฟล์เล็ก ปรับคุณภาพได้<br>PNG ไม่ลดคุณภาพเลย แต่ไฟล์ใหญ่กว่า</p>
+  <div class="grid3" style="align-items:start">
+    <div class="st"><div class="cap">วางรูปที่ต้องแปลง</div>
+      <div class="stat info"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></svg><div><b>poster.heic ต้องแปลงก่อนแนบ</b>นามสกุลเดิม <span class="extag cv">.heic</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" style="vertical-align:-1px;margin:0 3px"><path d="M5 12h14M13 6l6 6-6 6"/></svg><span class="extag ok">.jpg</span><br>แนบใน MKV ตรง ๆ ไม่ได้ โปรแกรมแปลงให้</div></div>
+      <div class="setrow" style="border-top:0;padding:0"><div class="lbl">แปลงเป็น</div><div class="seg"><button class="on">JPG</button><button>PNG</button></div></div>
+      <div class="small">ค่าตั้งต้นมาจากหน้าตั้งค่า · รูปเดิมในเครื่องไม่ถูกแก้</div></div>
+    <div class="st"><div class="cap">เลือก JPG แล้วปรับคุณภาพ</div>
+      <div style="display:flex;align-items:center;gap:12px"><span style="font-size:14px;white-space:nowrap">คุณภาพ JPG</span><div class="range" role="slider" aria-label="คุณภาพ JPG" aria-valuenow="90"><i style="width:90%"></i><b style="left:90%"></b></div><span class="small" style="white-space:nowrap;min-width:36px;text-align:right">90%</span></div>
+      <table class="fmt">
+        <tr><th>คุณภาพ</th><th>ไฟล์ราว</th><th>ความต่างที่ตาเห็น</th></tr>
+        <tr><td>100%</td><td><span class="nw">820 KB</span></td><td>เท่าต้นฉบับ</td></tr>
+        <tr style="background:#fdeaf1"><td><b>90%</b></td><td><span class="nw">380 KB</span></td><td>แทบไม่ต่าง · แนะนำ</td></tr>
+        <tr><td>75%</td><td><span class="nw">210 KB</span></td><td>ขอบตัวหนังสือเริ่มเบลอ</td></tr>
+        <tr><td>50%</td><td><span class="nw">120 KB</span></td><td>เห็นเป็นบล็อกชัด</td></tr>
+      </table>
+      <div class="small">ขนาดไฟล์คิดใหม่ทันทีที่เลื่อน · ตัวอย่างในหน้าต่างครอปเปลี่ยนตาม</div></div>
+    <div class="st"><div class="cap">เลือก PNG</div>
+      <div class="stat warn"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5h.01"/></svg><div><b>PNG ไม่ลดคุณภาพ</b>ไฟล์ราว <span class="nw">2.1 MB</span> ใหญ่กว่า JPG ราว 5 เท่า<br>ไม่มีแถบปรับคุณภาพ</div></div>
+      <div class="small">เหมาะกับโปสเตอร์ที่มีตัวหนังสือคม ๆ หรือสีพื้นเรียบ<br>ไฟล์หนังใหญ่ขึ้นแค่ขนาดรูป</div></div>
+  <div class="st" style="grid-column:1 / -1"><div class="cap">เลือกรูปจากโฟลเดอร์ของหนัง · บอกว่ารูปไหนต้องแปลงก่อน</div><div style="display:grid;grid-template-columns:1fr 1fr;gap:24px;align-items:start"><div><div class="imgrow"><span class="imgth" style="background:linear-gradient(170deg,#b8d98f,#7fae5f)"></span><div>orchard-poster.jpg<div class="small"><span class="nw">1000 × 1500 px</span></div></div><div style="font-size:12.5px;white-space:nowrap"><span class="extag ok">.jpg</span> แนบได้เลย</div></div><div class="imgrow"><span class="imgth" style="background:linear-gradient(170deg,#f3b6c9,#c96f86)"></span><div>orchard-alt.webp<div class="small"><span class="nw">800 × 1200 px</span></div></div><div style="font-size:12.5px;white-space:nowrap"><span class="extag cv">.webp</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" style="vertical-align:-1px;margin:0 3px"><path d="M5 12h14M13 6l6 6-6 6"/></svg><span class="extag ok">.jpg</span></div></div><div class="imgrow"><span class="imgth" style="background:linear-gradient(170deg,#c6a3e0,#8d6bb5)"></span><div>IMG_2041.heic<div class="small"><span class="nw">3024 × 4032 px</span></div></div><div style="font-size:12.5px;white-space:nowrap"><span class="extag cv">.heic</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" style="vertical-align:-1px;margin:0 3px"><path d="M5 12h14M13 6l6 6-6 6"/></svg><span class="extag ok">.jpg</span></div></div><div class="imgrow"><span class="imgth" style="background:linear-gradient(170deg,#fbe6c8,#e3b98f)"></span><div>scan-cover.bmp<div class="small"><span class="nw">1240 × 1754 px</span></div></div><div style="font-size:12.5px;white-space:nowrap"><span class="extag cv">.bmp</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6" style="vertical-align:-1px;margin:0 3px"><path d="M5 12h14M13 6l6 6-6 6"/></svg><span class="extag ok">.jpg</span></div></div><div class="imgrow"><span class="imgth" style="background:linear-gradient(170deg,#a8d8ea,#6aa5c2)"></span><div>logo-art.png<div class="small"><span class="nw">1000 × 1500 px</span></div></div><div style="font-size:12.5px;white-space:nowrap"><span class="extag ok">.png</span> แนบได้เลย</div></div></div><div class="small" style="font-size:13px;line-height:1.7">กดปุ่ม "เปลี่ยนรูป" แล้วโปรแกรมเปิดรายการรูปทั้งหมดในโฟลเดอร์เดียวกับไฟล์หนังให้เลือก<br>ป้ายเขียวคือนามสกุลที่แนบได้เลย<br>ป้ายเหลืองคือนามสกุลเดิมที่ต้องแปลง ลูกศรชี้ไปนามสกุลที่จะได้<br>นามสกุลที่จะได้เปลี่ยนตามที่เลือก JPG หรือ PNG ในหน้าตั้งค่า</div></div></div>
+  </div>
+
+  <h3 class="sub">เลือกลบไฟล์เดิมหลังตรวจผ่าน — ยืนยัน 2 ขั้น</h3>
+  <p class="note">การลบไฟล์ย้อนยาก จึงถาม 2 ครั้ง<br>กดนอกหน้าต่างไม่ปิด ต้องกดปุ่มเอง<br>ขั้นที่สองสลับปุ่มยืนยันไว้ซ้ายกันเผลอกด</p>
+  <div class="grid2">
+    <div class="dlgstage"><div class="dlg">
+      <h4>ลบไฟล์เดิมหลังตรวจผ่าน · ขั้นที่ 1 จาก 2</h4>
+      <div style="font-size:14px;line-height:1.6">เมื่อไฟล์ใหม่ตรวจผ่าน ไฟล์เดิมจะถูกย้ายไปถังขยะของ Windows<br><b>The Last Orchard (2022).mp4</b> · <span class="nw">3.62 GB</span><br>ถ้าไฟล์ใหม่ตรวจไม่ผ่าน ไฟล์เดิมไม่ถูกลบ</div>
+      <div class="acts"><button class="btn btn-ghost btn-sm">ยกเลิก</button><button class="btn btn-main btn-sm">ถัดไป</button></div>
+    </div></div>
+    <div class="dlgstage"><div class="dlg">
+      <h4>ยืนยันอีกครั้ง · ขั้นที่ 2 จาก 2</h4>
+      <div style="font-size:14px;line-height:1.6">ลบไฟล์เดิม <b>The Last Orchard (2022).mp4</b> หลังตรวจไฟล์ใหม่ผ่าน<br>กู้คืนได้จากถังขยะของ Windows จนกว่าจะล้างถังขยะ</div>
+      <div class="acts" style="justify-content:space-between"><button class="btn btn-danger btn-sm">ยืนยันลบ</button><button class="btn btn-ghost btn-sm">ย้อนกลับ</button></div>
+    </div></div>
+  </div>
+</div>
+
+<!-- ==================== หน้า 3 ตรวจไฟล์ ==================== -->
+<div class="sec">
+  <h2><span class="tag">หน้า 3</span>ตรวจไฟล์</h2>
+  <p class="note">ตรวจทีละเรื่องหรือทั้งชั้นก็ได้<br>มีสองแบบ แบบเร็วไว้เช็คประจำ แบบละเอียดไว้ใช้ตอนสงสัยหรือหลังโหลดหนังมาใหม่</p>
+
+  <div class="win">
+    <div class="titlebar"><span>ชั้นหนัง</span><div class="ctl">
+      <span><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5h10" stroke="#b07a90" stroke-width="1.2"/></svg></span>
+      <span><svg width="10" height="10" viewBox="0 0 10 10"><rect x=".6" y=".6" width="8.8" height="8.8" fill="none" stroke="#b07a90" stroke-width="1.2"/></svg></span>
+      <span><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="#b07a90" stroke-width="1.2"/></svg></span>
+    </div></div>
+    <div class="body" style="min-height:520px">
+      <aside class="side">
+        <div class="brand"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#e07a9f" stroke-width="2"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="18" rx="1"/><path d="M17.5 4.5l3.5 1-4 15.5-3.4-1"/></svg><span class="navtxt">ชั้นหนัง</span></div>
+        <button title="ชั้นวางหนัง" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h18M5 20V6h4v14M11 20V4h4v16M17 20l2-12 3 .6-2 11.4"/></svg><span class="navtxt">ชั้นวางหนัง</span><span class="count">10</span></button>
+        <button title="ใส่โปสเตอร์" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 15l3-3 2 2 3-3 2 2"/><circle cx="9" cy="8" r="1.5"/></svg><span class="navtxt">ใส่โปสเตอร์</span></button>
+        <button title="ตรวจไฟล์" class="nav on"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg><span class="navtxt">ตรวจไฟล์</span><span class="count">1</span></button>
+        <button title="ตั้งค่า" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span class="navtxt">ตั้งค่า</span></button>
+      <button class="nav navtoggle" aria-label="ย่อเมนู" title="ย่อเมนู"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="M15.5 9.5L13 12l2.5 2.5"/></svg><span class="navtxt">ย่อเมนู</span></button></aside>
+      <div class="main">
+        <div class="wrapin">
+          <div class="modes">
+            <div class="mode on"><h4><span class="radio on"></span>ตรวจแบบเร็ว · ไม่กี่วินาทีต่อเรื่อง</h4><div class="small" style="padding-left:28px">เช็คว่าโครงไฟล์ครบ ไม่ขาดท้าย และเทียบค่า hash ของไฟล์กับที่บันทึกไว้ตอนตรวจครั้งก่อน ว่าไฟล์ถูกเปลี่ยนหรือเสียไปหรือเปล่า</div></div>
+            <div class="mode"><h4><span class="radio"></span>ตรวจละเอียด · ราว <span class="nw">3–6 นาที</span>ต่อเรื่อง</h4><div class="small" style="padding-left:28px">อ่านภาพและเสียงทุกช่วงตั้งแต่ต้นจนจบ บอกได้ว่าเสียที่นาทีไหน</div></div>
+          </div>
+          <div style="display:flex;justify-content:space-between;align-items:center">
+            <div style="font-size:14px;color:var(--txt2)">เลือกไว้ <span class="nw">10 เรื่อง</span></div>
+            <div style="display:flex;gap:10px"><button class="btn btn-ghost">เลือกเฉพาะที่ยังไม่เคยตรวจ</button><button class="btn btn-ok">เริ่มตรวจ</button></div>
+          </div>
+          <div class="tblwrap"><table>
+            <thead><tr><th style="width:44px"><span class="cbx on" role="checkbox" aria-checked="true" aria-label="เลือกทุกเรื่อง"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></th><th style="width:230px">ชื่อไฟล์</th><th style="width:90px">ขนาด</th><th style="width:150px">ตรวจล่าสุด</th><th style="width:150px">ผล</th><th>รายละเอียด</th></tr></thead>
+            <tbody>
+              <tr><td><span class="cbx on" role="checkbox" aria-checked="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></td><td>ดาวเหนือ (2023).mkv</td><td><span class="nw">4.21 GB</span></td><td><span class="nw">6 พ.ย. 2569</span> 14:20</td><td><span class="pill p-ok">ไฟล์สมบูรณ์</span></td><td class="small">ตรวจละเอียด ไม่พบที่เสีย</td></tr>
+              <tr><td><span class="cbx on" role="checkbox" aria-checked="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></td><td>Iron Tide (2024).mkv</td><td><span class="nw">5.08 GB</span></td><td><span class="nw">6 พ.ย. 2569</span> 14:31</td><td><span class="pill p-bad">ไฟล์เสียหาย</span></td><td class="small">ภาพเสียช่วงนาที <span class="nw">1:12:30 ถึง 1:12:41</span></td></tr>
+              <tr><td><span class="cbx on" role="checkbox" aria-checked="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></td><td>Paper Moons (2018).mkv</td><td><span class="nw">2.94 GB</span></td><td><span class="nw">2 พ.ย. 2569</span> 09:05</td><td><span class="pill p-warn">ไฟล์ถูกเปลี่ยน</span></td><td class="small">ค่า hashไม่ตรงกับตอนตรวจครั้งก่อน ไฟล์อาจเสียระหว่างย้ายไดรฟ์ ควรตรวจละเอียด</td></tr>
+              <tr><td><span class="cbx on" role="checkbox" aria-checked="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></td><td>เมืองในหมอก (2019).mkv</td><td><span class="nw">3.40 GB</span></td><td>—</td><td><span class="pill p-info">กำลังตรวจ 46%</span></td><td><div class="bar" style="max-width:220px;margin-top:7px"><i style="width:46%"></i></div></td></tr>
+              <tr><td><span class="cbx on" role="checkbox" aria-checked="true"><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></td><td>Silent Atlas (2016).mkv</td><td><span class="nw">2.12 GB</span></td><td>—</td><td><span class="pill" style="background:#f6e8ee;color:#8a5d6e">รอคิว</span></td><td class="small">ยังไม่เคยตรวจ</td></tr>
+            </tbody>
+          </table></div>
+        </div>
+      </div>
+    </div>
+  </div>
+
+  <h3 class="sub">ตรวจครบแล้ว และกดดูรายละเอียดผลตรวจ</h3>
+  <div class="grid2">
+    <div class="st"><div class="cap">สรุปหลังตรวจครบทุกเรื่องที่เลือก</div>
+      <div style="display:grid;grid-template-columns:repeat(3,1fr);gap:10px">
+        <div class="stat ok" style="flex-direction:column;gap:2px"><b style="font-size:22px">8</b>ไฟล์สมบูรณ์</div>
+        <div class="stat bad" style="flex-direction:column;gap:2px"><b style="font-size:22px">1</b>ไฟล์เสียหาย</div>
+        <div class="stat warn" style="flex-direction:column;gap:2px"><b style="font-size:22px">1</b>ไฟล์ถูกเปลี่ยน</div>
+      </div>
+      <div class="small">ตรวจ <span class="nw">10 เรื่อง</span>เสร็จเมื่อ <span class="nw">6 พ.ย. 2569 เวลา 15:02</span> · ใช้เวลา <span class="nw">41 วินาที</span></div>
+      <div class="minirow" style="margin:0"><button class="btn btn-ghost btn-sm">ดูเฉพาะที่มีปัญหา</button><button class="btn btn-ghost btn-sm">ตรวจละเอียดเรื่องที่มีปัญหา</button></div></div>
+    <div class="dlgstage"><div class="dlg">
+      <h4>ผลตรวจ Iron Tide (2024).mkv</h4>
+      <div class="small">ตรวจละเอียด · <span class="nw">6 พ.ย. 2569</span> 14:31 · ความยาว <span class="nw">2 ชั่วโมง 21 นาที</span></div>
+      <table class="fmt">
+        <tr><th>ช่วงเวลา</th><th>เสียอะไร</th></tr>
+        <tr><td><span class="nw">1:12:30 – 1:12:41</span></td><td>ภาพแตกเป็นสี่เหลี่ยม <span class="nw">11 วินาที</span></td></tr>
+        <tr><td><span class="nw">1:58:02</span></td><td>เสียงเงียบหายไป <span class="nw">2 วินาที</span></td></tr>
+      </table>
+      <div class="small">ต้นเหตุที่พบบ่อย ไฟล์โหลดมาไม่ครบ หรือไดรฟ์มีจุดเสีย · แนะนำให้โหลดใหม่</div>
+      <div class="acts"><button class="btn btn-ghost btn-sm">เปิดเล่นที่ <span class="nw">1:12:30</span></button><button class="btn btn-main btn-sm">ปิด</button></div>
+    </div></div>
+  </div>
+</div>
+
+<!-- ==================== หน้า 4 ตั้งค่า ==================== -->
+<div class="sec">
+  <h2><span class="tag">หน้า 4</span>ตั้งค่า</h2>
+  <p class="note">ค่าที่ตั้งตรงนี้คือค่าตั้งต้น ทุกครั้งที่ใส่โปสเตอร์หรือตรวจไฟล์ยังเปลี่ยนเฉพาะครั้งนั้นได้<br>สวิตช์สีชมพูคือเปิด สีชมพูจางคือปิด<br>ตั้งแล้วมีผลทันที ไม่ต้องกดบันทึก</p>
+
+  <div class="win">
+    <div class="titlebar"><span>ชั้นหนัง</span><div class="ctl">
+      <span><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5h10" stroke="#b07a90" stroke-width="1.2"/></svg></span>
+      <span><svg width="10" height="10" viewBox="0 0 10 10"><rect x=".6" y=".6" width="8.8" height="8.8" fill="none" stroke="#b07a90" stroke-width="1.2"/></svg></span>
+      <span><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="#b07a90" stroke-width="1.2"/></svg></span>
+    </div></div>
+    <div class="body" style="min-height:0">
+      <aside class="side">
+        <div class="brand"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#e07a9f" stroke-width="2"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="18" rx="1"/><path d="M17.5 4.5l3.5 1-4 15.5-3.4-1"/></svg><span class="navtxt">ชั้นหนัง</span></div>
+        <button title="ชั้นวางหนัง" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h18M5 20V6h4v14M11 20V4h4v16M17 20l2-12 3 .6-2 11.4"/></svg><span class="navtxt">ชั้นวางหนัง</span><span class="count">10</span></button>
+        <button title="ใส่โปสเตอร์" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 15l3-3 2 2 3-3 2 2"/><circle cx="9" cy="8" r="1.5"/></svg><span class="navtxt">ใส่โปสเตอร์</span></button>
+        <button title="ตรวจไฟล์" class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg><span class="navtxt">ตรวจไฟล์</span><span class="count">1</span></button>
+        <button title="ตั้งค่า" class="nav on"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span class="navtxt">ตั้งค่า</span></button>
+      <button class="nav navtoggle" aria-label="ย่อเมนู" title="ย่อเมนู"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="M15.5 9.5L13 12l2.5 2.5"/></svg><span class="navtxt">ย่อเมนู</span></button></aside>
+      <div class="main">
+        <div class="setwrap">
+
+          <div class="setcard"><h3>โฟลเดอร์หนัง</h3>
+            <div class="small">โปรแกรมอ่านหนังจากโฟลเดอร์ในรายการนี้ขึ้นชั้น</div>
+            <div class="folder"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c2547f" stroke-width="2"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><div class="grow">D:\หนัง<span class="small"> · <span class="nw">10 เรื่อง</span></span></div><button class="btn btn-bad btn-sm">เอาออกจากชั้น</button></div>
+            <div class="folder"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c2547f" stroke-width="2"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/></svg><div class="grow">E:\หนังเก่า<span class="small"> · <span class="nw">0 เรื่อง</span></span></div><button class="btn btn-bad btn-sm">เอาออกจากชั้น</button></div>
+            <div class="small" style="margin:8px 0 10px">เอาออกจากชั้นแล้ว ไฟล์ในเครื่องยังอยู่ครบ ไม่ถูกลบ</div>
+            <button class="btn btn-ghost btn-sm">เพิ่มโฟลเดอร์</button>
+            <div class="setrow" style="margin-top:10px;border-top:1px solid #f8e3eb"><div class="lbl">อ่านโฟลเดอร์ใหม่ทุกครั้งที่เปิดโปรแกรม<span class="small">หนังที่โหลดมาเพิ่มจะขึ้นชั้นเอง</span></div><button class="switch on" aria-label="อ่านโฟลเดอร์ใหม่ทุกครั้งที่เปิดโปรแกรม เปิดอยู่"></button></div>
+          </div>
+
+          <div class="setcard"><h3>ใส่โปสเตอร์</h3>
+            <div class="setrow"><div class="lbl">ตรวจไฟล์ต้นทางก่อนครอบ<span class="small">ไฟล์เสียอยู่แล้ว จะบอกก่อนลงมือ</span></div><button class="switch on" aria-label="ตรวจไฟล์ต้นทางก่อนครอบ เปิดอยู่"></button></div>
+            <div class="setrow"><div class="lbl">ตรวจไฟล์ใหม่หลังครอบเสร็จ<span class="small">เทียบว่าภาพ เสียง ซับ ครบเท่าต้นทาง</span></div><button class="switch on" aria-label="ตรวจไฟล์ใหม่หลังครอบเสร็จ เปิดอยู่"></button></div>
+            <div class="setrow"><div class="lbl">ไฟล์ที่ได้</div><div class="seg"><button class="on">MKV</button><button>MP4</button></div></div>
+            <div class="setrow"><div class="lbl">ไฟล์เดิมหลังครอบ</div><div class="seg"><button class="on">เก็บไว้</button><button>ลบเมื่อตรวจผ่าน</button></div></div>
+            <div class="setrow"><div class="lbl">โฟลเดอร์เก็บไฟล์เดิม<span class="small">D:\หนัง\ไฟล์เดิม</span></div><button class="btn btn-ghost btn-sm">เปลี่ยน</button></div>
+            <div class="setrow"><div class="lbl">รูปโปสเตอร์ที่แนบ<span class="small">ใช้กับรูปที่ต้องแปลง และรูปที่ครอป</span></div><div class="seg"><button class="on">JPG</button><button>PNG</button></div></div><div class="setrow" style="display:block"><div style="display:flex;align-items:center;gap:12px"><span style="font-size:14px;white-space:nowrap">คุณภาพ JPG</span><div class="range" role="slider" aria-label="คุณภาพ JPG" aria-valuenow="90"><i style="width:90%"></i><b style="left:90%"></b></div><span class="small" style="white-space:nowrap;min-width:36px;text-align:right">90%</span></div></div><div class="setrow"><div class="lbl">ย่อรูปโปสเตอร์ที่ใหญ่เกิน<span class="small">ย่อเหลือ <span class="nw">1000 × 1500 px</span> ไฟล์หนังไม่บวม</span></div><button class="switch on" aria-label="ย่อรูปโปสเตอร์ที่ใหญ่เกิน เปิดอยู่"></button></div>
+          </div>
+
+          <div class="setcard"><h3>ตรวจไฟล์</h3>
+            <div class="setrow"><div class="lbl">แบบตรวจตั้งต้น</div><div class="seg"><button class="on">ตรวจแบบเร็ว</button><button>ตรวจละเอียด</button></div></div>
+            <div class="setrow"><div class="lbl">ตรวจแบบเร็วทุกเรื่องตอนเปิดโปรแกรม<span class="small">ช่วยจับไฟล์ที่เสียระหว่างย้ายไดรฟ์</span></div><button class="switch off" aria-label="ตรวจแบบเร็วทุกเรื่องตอนเปิดโปรแกรม ปิดอยู่"></button></div>
+            <div class="setrow"><div class="lbl">เตือนให้ตรวจซ้ำ<span class="small">จุดบนปกเปลี่ยนเป็นสีเหลืองเมื่อถึงเวลา</span></div><button class="dd" aria-haspopup="listbox" style="min-width:150px"><span>ทุก <span class="nw">30 วัน</span></span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b07a90" stroke-width="2.5"><path d="M6 9l6 6 6-6"/></svg></button></div>
+          </div>
+
+          <div class="setcard"><h3>ชั้นวาง</h3>
+            <div class="setrow"><div class="lbl">ขนาดปก</div><div class="seg"><button>เล็ก</button><button class="on">กลาง</button><button>ใหญ่</button></div></div>
+            <div class="setrow"><div class="lbl">ชื่อไฟล์ใต้ปก</div><button class="switch on" aria-label="ชื่อไฟล์ใต้ปก เปิดอยู่"></button></div>
+            <div class="setrow"><div class="lbl">จุดสีบอกสภาพไฟล์</div><button class="switch on" aria-label="จุดสีบอกสภาพไฟล์ เปิดอยู่"></button></div>
+            <div class="setrow"><div class="lbl">แสดงโครงจางค้างไว้<span class="small">ไว้ดูหน้าตาตอนรออ่านโฟลเดอร์ · ปิดโปรแกรมแล้วกลับเป็นปิดเอง</span></div><button class="switch off" aria-label="แสดงโครงจางค้างไว้ ปิดอยู่"></button></div>
+          </div>
+
+          <div class="setcard"><h3>เปิดเล่นหนัง</h3>
+            <div class="setrow"><div class="lbl">โปรแกรมที่ใช้เล่น<span class="small">กดปุ่มเปิดเล่นแล้วส่งไฟล์ไปโปรแกรมนี้</span></div><div class="seg"><button class="on">โปรแกรมหลักของ Windows</button><button>เลือกเอง</button></div></div>
+          </div>
+
+          <div class="setcard"><h3>เครื่องมือเบื้องหลัง</h3>
+            <div class="setrow"><div class="lbl">mkvmerge<span class="small">ใช้ครอบ MKV และแนบโปสเตอร์</span></div><span class="toolok">พร้อมใช้งาน</span></div>
+            <div class="setrow"><div class="lbl">ffmpeg<span class="small">ใช้ตรวจละเอียด</span></div><span class="toolok">พร้อมใช้งาน</span></div>
+            <div class="setrow"><div class="lbl">Icaros<span class="small">ให้ Windows โชว์โปสเตอร์เป็นไอคอนไฟล์ ไม่ลงก็ใช้โปรแกรมนี้ได้ครบ</span></div><div style="display:flex;gap:8px;align-items:center"><span class="toolwarn">ยังไม่ได้ลง</span><button class="btn btn-ghost btn-sm">วิธีลง</button></div></div>
+          </div>
+
+        </div>
+      </div>
+    </div>
+  </div>
+  <h3 class="sub">กดปุ่มในหน้าตั้งค่าแล้วเกิดอะไร</h3>
+  <div class="grid2">
+    <div class="dlgstage"><div class="dlg">
+      <h4>เอา E:\หนังเก่า ออกจากชั้น</h4>
+      <div style="font-size:14px;line-height:1.6">หนังในโฟลเดอร์นี้จะหายจากชั้นวาง แต่ไฟล์ในเครื่องยังอยู่ครบ ไม่ถูกลบ<br>เพิ่มโฟลเดอร์กลับมาเมื่อไหร่ก็ได้</div>
+      <div class="acts"><button class="btn btn-ghost btn-sm">ยกเลิก</button><button class="btn btn-bad btn-sm">เอาออกจากชั้น</button></div>
+    </div></div>
+    <div class="st"><div class="cap">กดเตือนให้ตรวจซ้ำ (แถวล่างของหน้าต่าง)</div>
+      <div class="menu" role="listbox" style="align-self:flex-end;min-width:190px">
+        <div class="opt" role="option">ไม่ต้องเตือน</div>
+        <div class="opt" role="option">ทุก <span class="nw">7 วัน</span></div>
+        <div class="opt on" role="option">ทุก <span class="nw">30 วัน</span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></div>
+        <div class="opt" role="option">ทุก <span class="nw">90 วัน</span></div>
+      </div>
+      <div class="setrow" style="border-top:0;padding:0"><div class="lbl">เตือนให้ตรวจซ้ำ</div><button class="dd" aria-haspopup="listbox" aria-expanded="true" style="min-width:190px;border:1px solid #e79ab8;background-color:#fdeaf1"><span>ทุก <span class="nw">30 วัน</span></span><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#b07a90" stroke-width="2.5" style="transform:rotate(180deg)"><path d="M6 9l6 6 6-6"/></svg></button></div>
+      <div class="hint" style="margin:0">ข้างล่างเหลือที่ไม่พอ รายการจึงพลิกขึ้นข้างบน · วัดที่ว่างทุกครั้งก่อนกาง</div></div>
+    <div class="st"><div class="cap">เลือกโปรแกรมเล่นหนังเอง</div>
+      <div class="setrow" style="border-top:0;padding:0"><div class="lbl">โปรแกรมที่ใช้เล่น</div><div class="seg"><button>โปรแกรมหลักของ Windows</button><button class="on">เลือกเอง</button></div></div>
+      <div class="folder" style="background:#fdeef4"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c2547f" stroke-width="2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M10 9l5 3-5 3z" fill="#c2547f"/></svg><div class="grow">C:\Program Files\VideoLAN\VLC\vlc.exe</div><button class="btn btn-ghost btn-sm">เปลี่ยน</button></div>
+      <div class="hint" style="margin:0">ถ้าวันหลังหาโปรแกรมนี้ไม่เจอ กดเปิดเล่นแล้วจะบอก และพากลับมาตั้งที่นี่</div></div>
+    <div class="dlgstage"><div class="dlg">
+      <h4>วิธีลง Icaros</h4>
+      <div class="small">ลงครั้งเดียว ไอคอนไฟล์ MKV ในหน้าต่างโฟลเดอร์จะเป็นโปสเตอร์ · ไม่ลงก็ใช้โปรแกรมชั้นหนังได้ครบ</div>
+      <ol>
+        <li>กดปุ่มข้างล่าง เปิดหน้าเว็บของผู้พัฒนา Icaros แล้วโหลดตัวติดตั้ง</li>
+        <li>ติดตั้ง แล้วเปิดโปรแกรม Icaros Config</li>
+        <li>กดเปิดการสร้างภาพตัวอย่าง (Thumbnailing) และดูว่ามี mkv อยู่ในรายการ</li>
+        <li>กลับมาที่นี่ กดตรวจใหม่ ป้ายจะเปลี่ยนเป็นพร้อมใช้งาน</li>
+      </ol>
+      <div class="acts"><button class="btn btn-ghost btn-sm">ปิด</button><button class="btn btn-main btn-sm">เปิดหน้าเว็บ Icaros</button></div>
+    </div></div>
+  </div>
+</div>
+
+<!-- ==================== ชั้นว่าง ==================== -->
+<div class="sec">
+  <h2><span class="tag">หน้า 1</span>ตอนเปิดโปรแกรมครั้งแรก ยังไม่ได้เลือกโฟลเดอร์</h2>
+  <div class="win" style="width:760px">
+    <div style="padding:60px 40px;display:flex;flex-direction:column;align-items:center;gap:14px;text-align:center">
+      <svg width="64" height="64" viewBox="0 0 24 24" fill="none" stroke="#e07a9f" stroke-width="1.6"><path d="M3 20h18M5 20V6h4v14M11 20V4h4v16M17 20l2-12 3 .6-2 11.4"/></svg>
+      <div style="font-size:19px;font-weight:700">ชั้นยังว่างอยู่</div>
+      <div style="color:var(--txt2);max-width:440px">เลือกโฟลเดอร์ที่เก็บหนังไว้ โปรแกรมจะเรียงทุกเรื่องขึ้นชั้นให้ ไฟล์ในเครื่องไม่ถูกย้ายหรือแก้จนกว่าจะสั่งเอง</div>
+      <button class="btn btn-main" style="height:44px;padding:0 24px">เลือกโฟลเดอร์หนัง</button>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== เบื้องหลัง ==================== -->
+<div class="sec">
+  <h2>เบื้องหลังที่โปรแกรมทำ</h2>
+  <div class="explain">
+    <ol>
+      <li><b>ครอบเป็น MKV</b> ใช้เครื่องมือฟรี mkvmerge (ชุดเดียวกับ MKVToolNix) ห่อภาพ เสียง ซับ ของเดิมเข้ากล่อง MKV แล้วแนบรูปโปสเตอร์เป็นไฟล์แนบชื่อ cover.jpg · ไม่แปลงภาพใหม่ จึงเร็วและคุณภาพเท่าเดิม</li>
+      <li><b>ส่งออกเป็น MP4</b> ใช้ ffmpeg ห่อภาพ เสียง ซับของเดิมเข้ากล่อง MP4 แล้วฝังรูปโปสเตอร์เป็นภาพปก · ไม่แปลงภาพใหม่เหมือนกัน · ซับหรือเสียงที่ MP4 รับไม่ได้ โปรแกรมบอกก่อนลงมือ</li>
+      <li><b>ตรวจแบบเร็ว</b> อ่านโครงไฟล์ MKV ว่าครบ ไม่ขาดท้าย แล้วเทียบค่า hash แบบ SHA-256 (ค่าที่คำนวณจากเนื้อไฟล์ทั้งก้อน) กับที่โปรแกรมจดไว้ครั้งก่อน ถ้าไม่ตรง แปลว่าไฟล์ถูกแก้หรือเสียไป</li>
+      <li><b>ตรวจละเอียด</b> ใช้ ffmpeg อ่านภาพและเสียงทุกช่วง ถ้าอ่านช่วงไหนไม่ได้ จะจดนาทีไว้ให้</li>
+      <li><b>ชั้นวาง</b> โปรแกรมดึงรูป cover.jpg ที่แนบในไฟล์ออกมาโชว์เอง ไม่ต้องพึ่ง Windows</li>
+    </ol>
+    <div class="callout"><b>เรื่องที่ต้องรู้</b> · Windows ไม่โชว์โปสเตอร์ที่แนบใน MKV เป็นไอคอนไฟล์เอง ต้องลงโปรแกรมเสริมฟรีชื่อ Icaros ก่อน ไอคอนในหน้าต่างโฟลเดอร์ถึงจะเป็นโปสเตอร์ · ส่วนในโปรแกรมชั้นหนัง เห็นโปสเตอร์ทุกเรื่องโดยไม่ต้องลงอะไรเพิ่ม</div>
+  </div>
+</div>
+
+<!-- ==================== ไฟล์ที่รองรับ ==================== -->
+<div class="sec">
+  <h2>ไฟล์ที่รองรับ</h2>
+  <p class="note">ไฟล์ที่รองรับใส่โปสเตอร์ได้โดยไม่แปลงภาพและเสียงใหม่ จึงเร็วและคุณภาพเท่าเดิม<br>ไฟล์ที่ไม่รองรับต้องแปลงด้วยโปรแกรมอื่นก่อน</p>
+  <div class="grid2">
+    <div>
+      <h3 class="sub" style="margin-top:0">ไฟล์หนังที่ใส่เข้ามา</h3>
+      <table class="fmt">
+        <tr><th>ชนิดไฟล์</th><th>ใช้ได้ไหม</th></tr>
+        <tr><td>MKV</td><td class="y">ได้ · เปลี่ยนแค่รูปแนบ ไม่ต้องครอบใหม่</td></tr>
+        <tr><td>MP4 · M4V · MOV</td><td class="y">ได้</td></tr>
+        <tr><td>AVI · WebM · FLV</td><td class="y">ได้</td></tr>
+        <tr><td>TS · M2TS (ไฟล์จากกล่องทีวี และแผ่นบลูเรย์)</td><td class="y">ได้</td></tr>
+        <tr><td>MPG · MPEG · VOB (ไฟล์จากแผ่นดีวีดี)</td><td class="y">ได้</td></tr>
+        <tr><td>WMV</td><td class="n">ไม่ได้ · ต้องแปลงก่อน</td></tr>
+        <tr><td>ISO (ไฟล์อิมเมจทั้งแผ่น)</td><td class="n">ไม่ได้ · ต้องแตกไฟล์ออกมาก่อน</td></tr>
+      </table>
+    </div>
+    <div>
+      <h3 class="sub" style="margin-top:0">รูปโปสเตอร์</h3>
+      <table class="fmt">
+        <tr><th>ชนิดไฟล์</th><th>ใช้ได้ไหม</th></tr>
+        <tr><td>JPG · JPEG</td><td class="y">ได้ · แนะนำ</td></tr>
+        <tr><td>PNG</td><td class="y">ได้</td></tr>
+        <tr><td>WebP · BMP · TIFF</td><td class="m">ได้ · แปลงให้ก่อนแนบ เลือกได้ว่าเป็น JPG หรือ PNG</td></tr>
+        <tr><td>HEIC (รูปจากไอโฟน)</td><td class="m">ได้ · แปลงให้ก่อนแนบ เลือกได้ว่าเป็น JPG หรือ PNG</td></tr>
+      </table>
+      <div class="small" style="margin-top:8px">ขนาดที่เหมาะ <span class="nw">1000 × 1500 px</span> สัดส่วน 2 : 3 · รูปใหญ่กว่านี้ย่อให้เองถ้าเปิดไว้ในหน้าตั้งค่า</div>
+    </div>
+  </div>
+
+  <h3 class="sub">ไฟล์ที่ส่งออกได้ — MKV กับ MP4</h3>
+  <table class="fmt">
+    <tr><th style="width:280px">เรื่อง</th><th>MKV (แนะนำ)</th><th>MP4</th></tr>
+    <tr><td>เห็นโปสเตอร์ในโปรแกรมชั้นหนัง</td><td class="y">เห็น</td><td class="y">เห็น</td></tr>
+    <tr><td>โปสเตอร์เป็นไอคอนไฟล์ในหน้าต่างโฟลเดอร์ของ Windows</td><td class="m">ต้องลง Icaros ก่อน</td><td class="y">เห็นได้เลย</td></tr>
+    <tr><td>ซับไตเติลแบบตัวหนังสือธรรมดา (SRT)</td><td class="y">ใส่ได้</td><td class="y">ใส่ได้</td></tr>
+    <tr><td>ซับที่แต่งสีและฟอนต์ (ASS)</td><td class="y">ใส่ได้ครบ</td><td class="m">ใส่ได้ แต่สีกับฟอนต์หาย</td></tr>
+    <tr><td>ซับแบบภาพจากแผ่นบลูเรย์และดีวีดี</td><td class="y">ใส่ได้</td><td class="n">ใส่ไม่ได้</td></tr>
+    <tr><td>เสียงหลายภาษาในไฟล์เดียว</td><td class="y">ได้</td><td class="y">ได้ · เสียงบางชนิดใส่ไม่ได้</td></tr>
+    <tr><td>ตรวจความเสียหาย</td><td class="y">ตรวจได้ทั้งสองแบบ</td><td class="y">ตรวจได้ทั้งสองแบบ</td></tr>
+    <tr><td>เปิดบนมือถือ ทีวี และเครื่องเล่นทั่วไป</td><td class="m">ต้องใช้โปรแกรมที่รองรับ MKV</td><td class="y">เปิดได้แทบทุกเครื่อง</td></tr>
+  </table>
+  <div class="small" style="margin-top:8px">AVI และ WebM ฝังโปสเตอร์ไม่ได้ จึงไม่มีให้เลือกเป็นไฟล์ที่ส่งออก</div>
+</div>
+
+</div>
+
+<script>
+document.querySelectorAll('.navtoggle').forEach(function (b) {
+  b.addEventListener('click', function () {
+    var side = b.closest('.side');
+    var ย่อ = side.classList.toggle('mini-nav');
+    var ป้าย = ย่อ ? 'ขยายเมนู' : 'ย่อเมนู';
+    b.setAttribute('aria-label', ป้าย); b.title = ป้าย;
+    b.querySelector('.navtxt').textContent = ป้าย;
+  });
+});
+</script>
+</body>
+</html>

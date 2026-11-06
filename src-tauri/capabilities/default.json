@@ -1,0 +1,16 @@
+{
+  "$schema": "../gen/schemas/desktop-schema.json",
+  "identifier": "default",
+  "description": "สิทธิ์ของหน้าต่างหลัก · ปุ่มย่อ ขยาย ปิด ลากหน้าต่าง และกล่องเลือกไฟล์ · เปิดไฟล์หรือโฟลเดอร์ทำจากฝั่ง Rust ไม่เปิดสิทธิ์ให้หน้าจอ",
+  "windows": ["main"],
+  "permissions": [
+    "core:default",
+    "core:window:allow-minimize",
+    "core:window:allow-toggle-maximize",
+    "core:window:allow-is-maximized",
+    "core:window:allow-close",
+    "core:window:allow-destroy",
+    "core:window:allow-start-dragging",
+    "dialog:allow-open"
+  ]
+}
