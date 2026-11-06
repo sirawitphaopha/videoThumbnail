@@ -1,6 +1,8 @@
 //! ชั้นหนัง · ฝั่งทำงานหนักของโปรแกรม
 
 mod jobs;
+mod library;
+mod probe;
 mod store;
 mod tools;
 mod winutil;
@@ -28,6 +30,8 @@ pub fn run() {
         .setup(|app| {
             let path = store::settings_path(app.handle())?;
             app.manage(SettingsStore::load(path));
+            let lib = library::library_path(app.handle())?;
+            app.manage(Arc::new(library::LibraryStore::load(lib)));
             // หน้าต่างตั้งไว้ไม่แสดงตอนสร้าง (tauri.conf.json visible:false) แสดงที่นี่
             // ตอนเทสผ่าน scripts/dev-app.ps1 เปิดแบบไม่แย่งโฟกัส อยู่หลังหน้าต่างอื่น · ตัวจริงขึ้นหน้าตามปกติ
             match app.get_webview_window("main") {
@@ -58,11 +62,13 @@ pub fn run() {
     let builder = builder.invoke_handler(tauri::generate_handler![
         tools::check_tools, store::get_settings, store::set_settings,
         jobs::running_jobs, jobs::force_close, jobs::dev_fake_job,
+        library::get_library, library::scan_library, library::play_movie, library::reveal_movie,
     ]);
     #[cfg(not(debug_assertions))]
     let builder = builder.invoke_handler(tauri::generate_handler![
         tools::check_tools, store::get_settings, store::set_settings,
         jobs::running_jobs, jobs::force_close,
+        library::get_library, library::scan_library, library::play_movie, library::reveal_movie,
     ]);
 
     builder

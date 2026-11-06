@@ -111,6 +111,9 @@ pub struct SettingsStore {
     path: PathBuf,
     pub current: Mutex<Settings>,
     pub loaded_from: LoadedFrom,
+    /// บันทึกสำเร็จแล้วอย่างน้อยครั้งหนึ่ง = ไฟล์ตั้งค่ากลับมาดีแล้ว ไม่ต้องเตือนว่าใช้ชุดสำรองอีก
+    /// (เดิมเตือนทุกครั้งที่หน้าจอโหลดใหม่ แม้บันทึกทับไฟล์เสียไปแล้ว)
+    saved_once: std::sync::atomic::AtomicBool,
 }
 
 /// เขียนไฟล์แบบปลอดภัย ไฟล์ชั่วคราว → ลงดิสก์ → เก็บของเดิมเป็น .bak → เปลี่ยนชื่อ
@@ -151,13 +154,20 @@ impl SettingsStore {
         } else {
             (Settings::default(), LoadedFrom::Defaults)
         };
-        Self { path, current: Mutex::new(s), loaded_from: from }
+        Self { path, current: Mutex::new(s), loaded_from: from, saved_once: Default::default() }
     }
 
     pub fn save(&self, s: &Settings) -> Result<(), String> {
         let bytes = serde_json::to_vec_pretty(s).map_err(|e| e.to_string())?;
         let current_ok = read_settings(&self.path).is_some();
-        write_atomic(&self.path, &bytes, current_ok).map_err(|e| format!("บันทึกการตั้งค่าไม่สำเร็จ: {e}"))
+        write_atomic(&self.path, &bytes, current_ok).map_err(|e| format!("บันทึกการตั้งค่าไม่สำเร็จ: {e}"))?;
+        self.saved_once.store(true, std::sync::atomic::Ordering::Relaxed);
+        Ok(())
+    }
+
+    /// ที่มาของการตั้งค่าที่หน้าจอควรรู้ตอนนี้ · บันทึกแล้วนับเป็นไฟล์ปกติ
+    pub fn source_now(&self) -> LoadedFrom {
+        if self.saved_once.load(std::sync::atomic::Ordering::Relaxed) { LoadedFrom::File } else { self.loaded_from }
     }
 }
 
@@ -174,7 +184,7 @@ pub struct SettingsReply {
 
 #[tauri::command]
 pub fn get_settings(store: State<'_, SettingsStore>) -> SettingsReply {
-    SettingsReply { settings: store.current.lock().unwrap().clone(), loaded_from: store.loaded_from }
+    SettingsReply { settings: store.current.lock().unwrap().clone(), loaded_from: store.source_now() }
 }
 
 /// แก้การตั้งค่าเฉพาะช่องที่ส่งมา ช่องอื่นคงเดิม (ไม่ล้างช่องที่ไม่ได้ส่ง · data-integrity ข้อ ①)
@@ -233,10 +243,12 @@ mod tests {
         fs::write(&p, &full[..full.len() / 2]).unwrap(); // ไฟล์จริงเสียครึ่งไฟล์
         let again = SettingsStore::load(p.clone());
         assert_eq!(again.loaded_from, LoadedFrom::Backup);
+        assert_eq!(again.source_now(), LoadedFrom::Backup, "ยังไม่บันทึก ต้องยังเตือนว่าใช้ชุดสำรอง");
         assert_eq!(again.current.lock().unwrap().jpg_quality, 75);
         // บันทึกต่อหลังใช้สำรอง ไฟล์ที่เสียต้องไม่ไปทับ .bak ที่ดี
         s.jpg_quality = 80;
         again.save(&s).unwrap();
+        assert_eq!(again.source_now(), LoadedFrom::File, "บันทึกทับไฟล์เสียแล้ว ต้องเลิกเตือน");
         let bak = read_settings(&p.with_extension("json.bak")).expect(".bak ต้องยังอ่านได้");
         assert_eq!(bak.jpg_quality, 75, ".bak ที่ดีโดนไฟล์เสียทับ");
         assert_eq!(read_settings(&p).unwrap().jpg_quality, 80);

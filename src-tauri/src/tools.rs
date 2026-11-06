@@ -74,6 +74,8 @@ where
         .stderr(Stdio::piped())
         .spawn()
         .map_err(|e| format!("เปิด {name} ไม่ได้: {e}"))?;
+    // โปรแกรมปิดหรือพังเมื่อไหร่ เครื่องมือตายตาม ไม่ค้างถือไฟล์ (TECH-REVIEW ข้อ 9)
+    crate::winutil::kill_with_app(&child);
     let mut out_pipe = child.stdout.take().expect("ท่อผล");
     let mut err_pipe = child.stderr.take().expect("ท่อข้อผิดพลาด");
     let out_reader = std::thread::spawn(move || { let mut b = Vec::new(); let _ = out_pipe.read_to_end(&mut b); b });
@@ -228,6 +230,21 @@ mod tests {
         assert!(!tool_succeeded("mkvmerge", &s(2)));
         assert!(!tool_succeeded("ffmpeg", &s(1)));
         assert_eq!(exit_text(&s(2)), "2");
+    }
+
+    #[test]
+    fn tools_are_tied_to_the_app_job() {
+        use windows_sys::Win32::System::JobObjects::IsProcessInJob;
+        use std::os::windows::io::AsRawHandle;
+        let child = tool_command(&dev_tools_dir(), "ffmpeg", ["-hide_banner", "-nostdin", "-re", "-f", "lavfi", "-i", "anullsrc", "-f", "null", "-"])
+            .stdout(Stdio::null()).stderr(Stdio::null()).spawn().unwrap();
+        let mut child = child;
+        assert!(crate::winutil::kill_with_app(&child), "ผูกเครื่องมือเข้า Job Object ไม่ได้");
+        let mut inside = 0;
+        unsafe { IsProcessInJob(child.as_raw_handle() as _, std::ptr::null_mut(), &mut inside) };
+        let _ = child.kill();
+        let _ = child.wait();
+        assert!(inside != 0, "เครื่องมือไม่ได้อยู่ใน Job Object ของโปรแกรม");
     }
 
     #[test]

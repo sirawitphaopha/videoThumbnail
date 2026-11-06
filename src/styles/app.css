@@ -43,6 +43,8 @@ button { font: inherit; }
 button:focus { outline: none; }
 button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--accent-d); outline-offset: 2px; }
 .nw { white-space: nowrap; }
+/* วลีไทยหนึ่งวลี ขึ้นบรรทัดใหม่ได้เฉพาะตรงเว้นวรรค (ui.tsx Phrases) · วลีที่ยาวกว่าช่องค่อยตัดข้างใน */
+.phr { display: inline-block; max-width: 100%; }
 .stat div, .hint, .small, .dlg div, li, .bname, .fmt td { text-wrap: balance; }
 
 /* ---------- โครงหน้าต่าง ---------- */
@@ -249,7 +251,93 @@ table { width: 100%; border-collapse: collapse; font-size: 14px; background: #ff
 th { text-align: left; color: var(--txt2); font-weight: 600; font-size: 13px; padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--win2); }
 td { padding: 12px; border-bottom: 1px solid #f8e3eb; vertical-align: top; }
 tbody tr:last-child td { border-bottom: 0; }
-.tblwrap { border: 1px solid var(--line); border-radius: 12px; overflow: hidden; }
+/* overflow: clip ตัดมุมมนได้เหมือน hidden แต่ไม่เป็นกล่องเลื่อนเอง หัวตารางจึงตรึงกับชั้น (.shelfwrap) ได้ (web-craft 6.2) */
+.tblwrap { border: 1px solid var(--line); border-radius: 12px; overflow: clip; }
+
+/* ---------- ช่องค้นหา (ต้นแบบบรรทัด 52 165–169) · โครงสามชั้นกันวรรณยุกต์โดนตัด ---------- */
+.search { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 9px; height: 38px; padding: 0 6px 0 12px; color: var(--txt3); font-size: 14px; flex: none; cursor: text; position: relative; transition: width .15s ease, border .15s, box-shadow .15s; }
+.search:hover { border: 1px solid #eeb3c8; }
+.search.focus { border: 1px solid var(--accent); box-shadow: 0 0 0 3px rgba(233,138,172,.22); }
+.sb-field { position: relative; flex: 1; min-width: 0; height: 100%; }
+.sb-draw { position: absolute; left: 0; right: 0; top: -7px; bottom: -7px; overflow: hidden; display: flex; align-items: center; pointer-events: none; white-space: pre; font-size: 14px; }
+.sb-draw span { color: var(--txt); }
+.sb-draw span.ph { color: var(--txt3); }
+.sb-field input { position: relative; width: 100%; height: 100%; border: 0; outline: 0; background: transparent; color: transparent; caret-color: var(--accent-ink); font: inherit; font-size: 14px; padding: 0; }
+.sb-field input::selection { background: rgba(233,138,172,.35); color: transparent; }
+.swap { font-size: 11.5px; font-weight: 600; color: var(--accent-ink); background: #fdeaf1; border-radius: 6px; padding: 2px 8px; white-space: nowrap; line-height: 1.75; flex: none; pointer-events: none; }
+.clr { width: 28px; height: 28px; flex: none; border-radius: 7px; border: 0; background-color: transparent; color: #a0768a; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background-color .15s, color .15s; }
+.clr:hover { background-color: #fbdde8; color: var(--accent-ink); }
+.hl { background: #fbd7e5; color: #a33a66; font-weight: 700; border-radius: 3px; padding: 0 1px; }
+
+/* ---------- ชั้นวาง (ต้นแบบบรรทัด 72–105 249–270) ---------- */
+.content { display: flex; flex: 1; min-height: 0; }
+.shelfwrap { flex: 1; padding: 18px 18px 24px; min-width: 0; overflow-y: auto; }
+.shelfhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+.shelfhead b { font-size: 18px; }
+.legend { display: flex; align-items: center; gap: 14px; font-size: 13px; color: var(--txt2); margin: 6px 0 16px; flex-wrap: wrap; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+[data-shelf], .size-s, .size-m, .size-l { padding-top: 14px; }
+/* ต่างจากต้นแบบ: ต้นแบบจัดขอบล่างตรงกัน (flex-end) ชื่อยาวสามบรรทัดดันปกขึ้นไม่ตรงแถว · ของจริงจัดขอบบนปกให้ตรงกัน */
+.shelf { position: relative; display: flex; gap: 14px; padding: 0 14px; margin-bottom: 34px; align-items: flex-start; }
+.shelf::after { content: ""; position: absolute; left: 0; right: 0; bottom: -16px; height: 16px; border-radius: 8px; background: linear-gradient(180deg, var(--wood1), var(--wood2) 55%, var(--wood3)); box-shadow: 0 8px 14px rgba(200,110,145,.22); }
+.book { width: 110px; flex: none; cursor: pointer; position: relative; z-index: 1; border-radius: 6px; }
+.book:focus-visible { outline: none; }
+.book:focus-visible .cover { outline: 2px solid var(--accent-d); outline-offset: 3px; }
+.cover { width: 110px; height: 165px; border-radius: 6px; position: relative; overflow: hidden; box-shadow: 0 6px 12px rgba(150,70,100,.25); transition: translate .15s, box-shadow .15s; display: flex; flex-direction: column; justify-content: flex-end; padding: 10px; background: #f3d9e3; }
+.cover.has-img { padding: 0; }
+.cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.book:hover .cover { translate: 0 -6px; box-shadow: 0 12px 18px rgba(150,70,100,.32); }
+.book.sel .cover { outline: 3px solid var(--accent); outline-offset: 3px; }
+.cover.none { background: repeating-linear-gradient(135deg, #fff 0 10px, #fdf0f5 10px 20px); border: 2px dashed #eeb3c8; box-shadow: none; align-items: center; justify-content: center; text-align: center; color: var(--txt3); font-size: 13px; gap: 6px; }
+.book.missing { opacity: .45; }
+.badge { position: absolute; top: 7px; right: 7px; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2px #fff; }
+.b-ok { background: var(--ok); } .b-bad { background: var(--bad); } .b-warn { background: var(--warn); } .b-info { background: var(--info); }
+.bname { font-size: 12.5px; color: var(--txt2); margin-top: 22px; line-height: 1.5; word-break: break-word; min-height: 38px; }
+.book .bname .badge { position: static; display: inline-flex; vertical-align: -2px; width: 15px; height: 15px; margin-right: 5px; box-shadow: none; }
+.book .bname .badge svg { width: 10px; height: 10px; }
+.ext { color: var(--txt3); font-weight: 400; }
+.size-s .book { width: 80px; } .size-s .cover { width: 80px; height: 120px; padding: 7px; } .size-s .cover.has-img { padding: 0; } .size-s .bname { font-size: 11.5px; margin-top: 20px; } .size-s .cover.none { font-size: 11px; }
+.size-l .book { width: 150px; } .size-l .cover { width: 150px; height: 225px; padding: 12px; } .size-l .cover.has-img { padding: 0; } .size-l .bname { font-size: 13.5px; }
+.size-s .shelf, .size-l .shelf { gap: 12px; }
+.empty-search { text-align: center; padding: 40px 6px 6px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.minirow { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.btn-ghost.pressed { background-color: #fdeaf1; border: 1px solid #e79ab8; color: var(--accent-ink); }
+
+/* ตาราง (ต้นแบบบรรทัด 257–264) */
+.lv { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.lv th { text-align: left; color: var(--txt2); font-weight: 600; font-size: 12.5px; padding: 9px 10px; background: var(--win2); white-space: nowrap; }
+/* หัวตารางตรึง · top ติดลบเท่าระยะขอบในบนของ .shelfwrap (18) หัวจึงชิดขอบบนพอดี ไม่มีร่องให้แถวลอด
+   เส้นใต้หัววาดด้วย box-shadow ตารางแบบ collapse วาดเส้นที่ตัวตาราง ตรึงแล้วเส้นไม่ลอยตาม (web-craft 6.2.1) */
+.lv thead th { position: sticky; top: -18px; z-index: 2; box-shadow: inset 0 -1px 0 var(--line); }
+.lv td { padding: 7px 10px; border-bottom: 1px solid #f8e3eb; vertical-align: middle; }
+.lv tr.sel td { background: #fdeaf1; }
+.lv tbody tr { cursor: pointer; transition: background-color .15s; }
+.lv tbody tr:hover td { background: #fdf0f5; }
+.lv tbody tr.sel:hover td { background: #fbe0eb; }
+.lv tr.missing td { opacity: .5; }
+.lv .th { width: 30px; height: 45px; border-radius: 3px; display: block; object-fit: cover; }
+.lv .th.none { border: 1.5px dashed #eeb3c8; background: #fff; }
+.thsort { all: unset; cursor: pointer; display: inline-flex; align-items: center; border-radius: 5px; padding: 1px 4px; margin: -1px -4px; transition: background-color .15s, color .15s; }
+.thsort:hover { background-color: #fbdde8; color: var(--accent-ink); }
+.thsort:focus-visible { outline: 2px solid var(--accent-d); outline-offset: 2px; }
+
+/* แผงรายละเอียด (ต้นแบบบรรทัด 90–105) */
+.detail { width: 320px; flex: none; background: var(--win2); border-left: 1px solid var(--line); padding: 18px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+.dposter { width: 150px; height: 225px; border-radius: 8px; margin: 0 auto; box-shadow: 0 8px 18px rgba(150,70,100,.3); object-fit: cover; display: block; flex: none; }
+.dposter.none { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: repeating-linear-gradient(135deg, #fff 0 10px, #fdf0f5 10px 20px); border: 2px dashed #eeb3c8; box-shadow: none; color: var(--txt3); font-size: 13px; }
+.fname { display: flex; align-items: flex-start; gap: 6px; }
+.fname .nm { font-weight: 600; font-size: 15px; line-height: 1.6; word-break: break-word; flex: 1; }
+.kv { display: grid; grid-template-columns: 90px 1fr; gap: 4px 10px; font-size: 13.5px; margin: 0; }
+.kv dt { color: var(--txt3); } .kv dd { margin: 0; color: var(--txt); }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+
+/* แถวสวิตช์ (ต้นแบบบรรทัด 298–301) */
+.setrow { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 11px 0; border-top: 1px solid #f8e3eb; }
+.setrow .lbl { font-size: 14px; line-height: 1.5; }
+
+/* ชั้นว่าง (ต้นแบบบรรทัด 1105–1111) */
+.firstrun { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--bg); }
+.firstrun-card { width: 760px; max-width: 100%; background: var(--win); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 18px 40px rgba(200,110,145,.18); padding: 60px 40px; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
 
 /* ---------- การ์ดทั่วไป ---------- */
 .card { background: var(--win2); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }

@@ -87,6 +87,30 @@ export function Skel(p: { w: number | string; h: number; r?: number; style?: Rea
   return <div className="skel" aria-hidden="true" style={{ width: p.w, height: p.h, borderRadius: p.r ?? 6, ...p.style }} />;
 }
 
+/* ---------- ไอคอนเส้นในการ์ดสถานะของแผงรายละเอียด (ต้นแบบบรรทัด 400 418 421 424) ---------- */
+export function CardIcon({ kind }: { kind: "ok" | "bad" | "warn" | "info" }) {
+  return (
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+      {kind === "ok" && <><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z" /><path d="M8.5 12l2.5 2.5 4.5-5" /></>}
+      {kind === "bad" && <><path d="M12 3l9.5 17h-19z" /><path d="M12 10v4.5M12 17.5h.01" /></>}
+      {kind === "warn" && <><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5h.01" /></>}
+      {kind === "info" && <><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5h.01" /></>}
+    </svg>
+  );
+}
+
+/* ---------- จุดสีบอกสภาพไฟล์หน้าชื่อบนชั้นวาง (ต้นแบบบรรทัด 86–87 · 269–270) ---------- */
+export function Badge({ kind, title }: { kind: "ok" | "bad" | "warn" | "info"; title: string }) {
+  return (
+    <span className={"badge b-" + kind} title={title} aria-label={title} role="img">
+      {kind === "ok" && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="4"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>}
+      {kind === "bad" && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="4"><path d="M7 7l10 10M17 7L7 17" /></svg>}
+      {kind === "warn" && <svg width="14" height="14" viewBox="0 0 24 24" fill="#7a5410"><rect x="10" y="3.5" width="4" height="11" rx="2" /><circle cx="12" cy="19" r="2.3" /></svg>}
+      {kind === "info" && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="4"><path d="M12 6v12M6 12h12" /></svg>}
+    </span>
+  );
+}
+
 /* ---------- ไอคอนในการ์ดสถานะ (ต้นแบบใช้วงกลมสีทึบกับเครื่องหมายสีขาว) ---------- */
 export function StatIcon({ kind }: { kind: "ok" | "bad" | "warn" | "info" }) {
   const fill = { ok: "var(--ok)", bad: "var(--bad)", warn: "var(--warn)", info: "var(--info)" }[kind];
@@ -100,3 +124,28 @@ export function StatIcon({ kind }: { kind: "ok" | "bad" | "warn" | "info" }) {
     </svg>
   );
 }
+
+/* ---------- ข้อความไทยตัดบรรทัดตรงเว้นวรรค ----------
+   ภาษาไทยเว้นวรรคระหว่างวลี แต่เบราว์เซอร์ตัดกลางวลีได้ตามพจนานุกรม (ขาด|ท้าย · คุณภาพเท่า|เดิม)
+   ยิ่งเปิด text-wrap: balance ยิ่งตัดกลางวลีบ่อย · word-break: keep-all ไม่มีผลกับภาษาไทยใน WebView2 (ลองแล้ว)
+   ทางแก้ แต่ละวลีเป็นกล่อง .phr (inline-block กว้างไม่เกินช่อง) บรรทัดจึงขึ้นใหม่เฉพาะตรงเว้นวรรค
+   วลีที่ยาวกว่าช่องเองค่อยตัดในวลีตามพจนานุกรม · ไม้ยมก ๆ ติดกับวลีหน้าเสมอ ห้ามขึ้นต้นบรรทัด
+   head = ของที่นำหน้าวลีแรก (จุดสีบนชั้น) ไม่ให้ค้างอยู่บรรทัดเดียวโดด ๆ · tail = ของที่ต่อท้ายวลีสุดท้าย (นามสกุลไฟล์) */
+type Part = { text: string; hit?: boolean };
+export function Phrases({ parts, head, tail }: { parts: Part[]; head?: React.ReactNode; tail?: React.ReactNode }) {
+  const out: React.ReactNode[] = [];
+  let k = 0;
+  let cur: React.ReactNode[] = head ? [<span key={k++}>{head}</span>] : [];
+  const flush = () => { if (cur.length) out.push(<span key={k++} className="phr">{cur}</span>); cur = []; };
+  for (const p of parts) {
+    for (const s of p.text.split(/( +)(?!ๆ)/)) {
+      if (!s) continue;
+      if (!s.trim()) { flush(); out.push(s); continue; }
+      cur.push(p.hit ? <span key={k++} className="hl">{s}</span> : s);
+    }
+  }
+  if (tail) cur.push(<span key={k++}>{tail}</span>);
+  flush();
+  return <>{out}</>;
+}
+export const Phr = ({ children, tail }: { children: string; tail?: React.ReactNode }) => <Phrases parts={[{ text: children }]} tail={tail} />;

@@ -4,7 +4,7 @@
    🔴 ปิดเองได้เสมอ */
 import { createContext, useCallback, useContext, useRef, useState } from "react";
 import { IcClose } from "./icons";
-import { StatIcon } from "./ui";
+import { Phr, StatIcon } from "./ui";
 
 /** ok หายเองใน 3 วินาที · bad warn info ไม่หายเอง ต้องกดปิด · warn ใช้กับเรื่องที่ต้องรู้แต่ไม่ใช่ความผิดพลาด (เช่น ใช้ไฟล์สำรอง) */
 export type ToastKind = "ok" | "bad" | "warn" | "info";
@@ -33,7 +33,7 @@ export function ToastHost({ children }: { children: React.ReactNode }) {
             <StatIcon kind={t.kind} />
             <div className="grow">
               <b>{t.title}</b>
-              {t.detail?.split(" · ").map((line) => <div key={line}>{line}</div>)}
+              {t.detail?.split(" · ").map((line) => <div key={line}><Phr>{line}</Phr></div>)}
             </div>
             <button type="button" className="x" aria-label="ปิดแถบนี้" title="ปิดแถบนี้" onClick={() => remove(t.id)}>
               <IcClose />
