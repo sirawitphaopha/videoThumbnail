@@ -169,6 +169,26 @@ pub async fn check_tools(app: AppHandle) -> Result<Vec<ToolCheck>, String> {
         .map_err(|e| e.to_string())
 }
 
+/// ลง Icaros แล้วหรือยัง · ดูไฟล์ IcarosConfig.exe ในโฟลเดอร์ติดตั้งมาตรฐาน (Program Files ทั้งสองแบบ)
+/// Icaros ทำให้ Windows โชว์โปสเตอร์ใน MKV เป็นไอคอนไฟล์ ไม่ลงก็ใช้โปรแกรมนี้ได้ครบ (สเปกข้อ 9 · ข้อ 10)
+pub fn icaros_installed() -> bool {
+    ["ProgramFiles", "ProgramW6432", "ProgramFiles(x86)"].iter()
+        .filter_map(|k| std::env::var_os(k))
+        .any(|d| Path::new(&d).join("Icaros").join("IcarosConfig.exe").exists())
+}
+
+#[tauri::command]
+pub fn check_icaros() -> bool {
+    icaros_installed()
+}
+
+/// เปิดหน้าเว็บของผู้พัฒนา Icaros ในเบราว์เซอร์หลัก · ที่อยู่ตายตัว หน้าจอส่งที่อยู่อื่นมาเปิดไม่ได้
+#[tauri::command]
+pub fn open_icaros_page(app: AppHandle) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    app.opener().open_url("https://github.com/Xanashi/Icaros", None::<&str>).map_err(|e| format!("เปิดหน้าเว็บไม่ได้: {e}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

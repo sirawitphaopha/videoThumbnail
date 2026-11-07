@@ -18,6 +18,7 @@ import { fmtDateTime, fmtDuration, fmtSize } from "../lib/format";
 import { kindOf, KIND_ORDER, SHELF_LABEL, TABLE_LABEL, quickEstimate, fullEstimate, type Kind } from "../lib/status";
 import { dropStyle, useDropPlacement } from "../lib/popupFit";
 import { useClickOutside, useEscClose, kb } from "../lib/popup";
+import { useSkelPreview } from "../lib/skelPreview";
 
 const SORTS = [
   { value: "name-asc", label: "ชื่อ ก–ฮ" },
@@ -51,10 +52,11 @@ function Hl({ text, used, head, tail }: { text: string; used: string; head?: Rea
 }
 
 /** sel เก็บที่ตัวโปรแกรม (App) ไม่ใช่ในหน้านี้ · ไปหน้าข้อมูลไฟล์หรือใส่โปสเตอร์แล้วกลับมา ต้องยังเลือกเรื่องเดิมอยู่ */
-export default function ShelfPage({ onPage, onPoster, onInfo, onCheck, onGraph, sel, setSel }: { onPage: (p: Page) => void; onPoster: (path: string) => void; onInfo: (id: string) => void; onCheck: (r: CheckReq) => void; onGraph: (path: string) => void; sel: string | null; setSel: (id: string) => void }) {
+export default function ShelfPage({ onPage, onPoster, onInfo, onCheck, onGraph, sel, setSel }: { onPage: (p: Page) => void; onPoster: (path: string) => void; onInfo: (id: string) => void; onCheck: (r: CheckReq) => void; onGraph: (path: string) => void; sel: string | null; setSel: (id: string | null) => void }) {
   const { settings, update } = useSettings();
   const { movies, folders, scanning, progress, scan } = useLibrary();
   const toast = useToast();
+  const skelPreview = useSkelPreview();
   const [query, setQuery] = useState("");
   const reminder = settings?.recheckReminderDays ?? 30;
   const sort = settings?.sort ?? "name-asc";
@@ -67,7 +69,9 @@ export default function ShelfPage({ onPage, onPoster, onInfo, onCheck, onGraph, 
   const orient = settings?.coverOrient ?? "tall";
   const found = useMemo(() => searchByName(movies, query, (m) => m.name), [movies, query]);
   const list = useMemo(() => sortMovies(found.items, sort, reminder).map((m) => withCover(m, orient)), [found.items, sort, reminder, orient]);
-  const selected = list.find((m) => m.id === sel) ?? list[0] ?? null;
+  // แผงขวาขึ้นเฉพาะตอนกดเลือกเรื่อง ปิดได้ ชั้นวางกว้างขึ้น (พี่กัน 7 พ.ย. 2569 *"แถบนี้ เราอยากให้มันขึ้นตอนที่กดหนังนั้นๆ เเละมีปุ่มปิดได้ เราอยากห้มันเเสดงชั้นวางมากกว่า"*)
+  // เดิมไม่ได้เลือกก็ขึ้นเรื่องแรกค้างไว้ตลอด
+  const selected = list.find((m) => m.id === sel) ?? null;
 
   const missingFolders = folders.filter((f) => !f.ok);
   const pathText = settings?.folders.length
@@ -142,7 +146,7 @@ export default function ShelfPage({ onPage, onPoster, onInfo, onCheck, onGraph, 
               <div style={{ fontSize: 14 }}>ไม่มีหนังที่ชื่อมีคำว่า <b>{query.trim()}</b></div>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setQuery("")}>ล้างคำค้น</button>
             </div>
-          ) : scanning && movies.length === 0 ? (
+          ) : (scanning && movies.length === 0) || skelPreview ? (
             <SkeletonShelf size={size} />
           ) : view === "grid" ? (
             <ShelfGrid list={list} size={size} selId={selected?.id ?? null} onSel={setSel} used={found.used} reminder={reminder}
@@ -154,8 +158,12 @@ export default function ShelfPage({ onPage, onPoster, onInfo, onCheck, onGraph, 
         </div>
         {/* key ต่อเรื่อง สลับเรื่องแล้วสร้างแผงกับปุ่มใหม่ ไม่ใช้ปุ่มเดิมซ้ำ (เดิมปุ่มชมพูค่อย ๆ เปลี่ยนเป็นเขียวตอนสลับเรื่อง) */}
         {selected && (
-          <Detail key={selected.id} m={selected} scanning={scanning} reminder={reminder} onPage={onPage} onCheck={onCheck} onGraph={onGraph} onPoster={onPoster} onInfo={() => onInfo(selected.id)} soon={soon}
-            onPlay={() => api.playMovie(selected.path).catch((e) => toast({ kind: "bad", title: "เปิดเล่นไม่ได้", detail: String(e) }))}
+          <Detail key={selected.id} m={selected} scanning={scanning} reminder={reminder} onPage={onPage} onCheck={onCheck} onGraph={onGraph} onPoster={onPoster} onInfo={() => onInfo(selected.id)} soon={soon} onClose={() => setSel(null)}
+            onPlay={() => api.playMovie(selected.path).catch((e) => {
+              toast({ kind: "bad", title: "เปิดเล่นไม่ได้", detail: String(e) });
+              // โปรแกรมเล่นที่เลือกเองหาไม่เจอ พากลับไปตั้งที่หน้าตั้งค่า (สเปกข้อ 9 *"หาไม่เจอวันหลัง กดเปิดเล่นแล้วบอก และพากลับมาตั้ง"*)
+              if (String(e).includes("หาโปรแกรมเล่นหนัง")) onPage("settings");
+            })}
             onReveal={() => api.revealMovie(selected.path).catch((e) => toast({ kind: "bad", title: "เปิดโฟลเดอร์ไม่ได้", detail: String(e) }))} />
         )}
       </div>
@@ -365,7 +373,7 @@ function ShelfTable(p: { list: Movie[]; selId: string | null; onSel: (id: string
 }
 
 /* ---------- แผงรายละเอียด (ต้นแบบบรรทัด 388–426) ---------- */
-function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg: Page) => void; onCheck: (r: CheckReq) => void; onGraph: (path: string) => void; onPoster: (path: string) => void; onInfo: () => void; soon: (what: string, stage: number) => void; onPlay: () => void; onReveal: () => void }) {
+function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg: Page) => void; onCheck: (r: CheckReq) => void; onGraph: (path: string) => void; onPoster: (path: string) => void; onInfo: () => void; soon: (what: string, stage: number) => void; onPlay: () => void; onReveal: () => void; onClose: () => void }) {
   const { m } = p;
   const src = thumbUrl(m.thumb);
   const [imgOk, setImgOk] = useState(true);
@@ -377,7 +385,12 @@ function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg:
   const renameBlock = m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : p.scanning ? "กำลังอ่านโฟลเดอร์อยู่ รอให้เสร็จก่อน" : null;
   const startRename = () => { if (!renameBlock) { setRenamed(false); setEditing(true); } };
   return (
-    <aside className="detail" aria-label="รายละเอียดไฟล์">
+    <aside className="detail" aria-label="รายละเอียดไฟล์" data-detail>
+      <div className="dhead"><span>รายละเอียดไฟล์</span>
+        <button type="button" className="dclose" onClick={p.onClose} aria-label="ปิดแผงรายละเอียด" title="ปิดแผงรายละเอียด ชั้นวางกว้างขึ้น" data-detailclose>
+          <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+        </button>
+      </div>
       {src && imgOk ? (
         <img className={"dposter" + ((m.coverAspect ?? 0) >= 1 ? " wide" : "")} src={src} alt={"โปสเตอร์ " + m.name} onError={() => setImgOk(false)} />
       ) : (

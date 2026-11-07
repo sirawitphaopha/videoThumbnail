@@ -339,6 +339,11 @@ tbody tr:last-child td { border-bottom: 0; }
 
 /* แผงรายละเอียด (ต้นแบบบรรทัด 90–105) */
 .detail { width: 320px; flex: none; background: var(--win2); border-left: 1px solid var(--line); padding: 18px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+/* หัวแผงขวา ปุ่มปิด (คิว 6 แผงขึ้นเฉพาะตอนกดเลือกเรื่อง) */
+.dhead { display: flex; align-items: center; justify-content: space-between; margin: -6px -4px -4px 0; font-size: 13px; font-weight: 600; color: var(--txt3); }
+.dclose { width: 30px; height: 30px; border-radius: 8px; border: 1px solid #efc6d5; background-color: #fff; color: var(--txt2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; transition: background-color .15s, color .15s; }
+.dclose:hover { background-color: #fdeaf1; color: var(--accent-ink); }
+.dclose:focus-visible { outline: none; box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent-d); }
 .dposter { width: 150px; height: 225px; border-radius: 8px; margin: 0 auto; box-shadow: 0 8px 18px rgba(150,70,100,.3); object-fit: cover; display: block; flex: none; }
 .dposter.none { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: repeating-linear-gradient(135deg, #fff 0 10px, #fdf0f5 10px 20px); border: 2px dashed #eeb3c8; box-shadow: none; color: var(--txt3); font-size: 13px; }
 .fname { display: flex; align-items: flex-start; gap: 6px; }
@@ -350,6 +355,20 @@ tbody tr:last-child td { border-bottom: 0; }
 /* แถวสวิตช์ (ต้นแบบบรรทัด 298–301) */
 .setrow { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 11px 0; border-top: 1px solid #f8e3eb; }
 .setrow .lbl { font-size: 14px; line-height: 1.5; }
+/* หน้าตั้งค่า (ต้นแบบบรรทัด 295–317 · ขั้น 7) */
+/* การ์ดสูงตามเนื้อหา ไม่ยืดเท่าการ์ดข้าง ๆ (เดิมการ์ดสั้นมีที่ว่างโล่งครึ่งการ์ด เจอตอนตรวจภาพ) */
+.setwrap { padding: 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-content: start; align-items: start; }
+.setcard { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; min-width: 0; }
+.setcard h3 { margin: 0 0 4px; font-size: 15px; display: flex; align-items: center; gap: 8px; color: var(--accent-ink); }
+.setcard .setrow:first-of-type { border-top: 0; }
+.setrow .lbl .small { display: block; }
+.folder { display: flex; align-items: center; gap: 10px; background: var(--win2); border-radius: 9px; padding: 9px 12px; font-size: 14px; margin-top: 6px; }
+.folder .grow { flex: 1; min-width: 0; }
+.toolok, .toolwarn, .toolbad { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; border-radius: 20px; padding: 1px 10px; font-weight: 600; white-space: nowrap; }
+.toolok { color: var(--ok-ink); background: var(--ok-soft); }
+.toolwarn { color: var(--warn-ink); background: var(--warn-soft); }
+.toolbad { color: var(--bad-ink); background: var(--bad-soft); }
+ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height: 1.6; }
 
 /* ชั้นว่าง (ต้นแบบบรรทัด 1105–1111) */
 .firstrun { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--bg); }
@@ -546,6 +565,13 @@ tbody tr:last-child td { border-bottom: 0; }
 .spk .s:focus-visible circle, .spk .s:focus-visible rect { stroke: var(--accent-d); stroke-width: 2.5; }
 .graph-recent { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }
 .graph-recent .dd { height: auto; min-height: 42px; padding: 6px 12px; }
+/* รายการเปิดล่าสุด ปุ่มเปิดกับปุ่มกากบาทเอาออก (คิว 7) */
+.recentrow { display: flex; gap: 6px; align-items: stretch; min-width: 0; }
+.recentrow .dd { flex: 1; min-width: 0; }
+.rnote { width: 18px; height: 27px; border-radius: 3px; background: #fbe3ec; color: var(--accent-ink); display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.rmx { width: 32px; flex: none; border-radius: 10px; border: 1px solid #efc6d5; background-color: #fff; color: var(--txt3); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; transition: background-color .15s, color .15s; }
+.rmx:hover { background-color: #fdeaf1; color: var(--bad, #c0392b); }
+.rmx:focus-visible { outline: none; box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent-d); }
 @media (max-width: 1100px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
 /* ความถี่เฉลี่ยแบบ Audacity · วงกลมที่ยอดใกล้สุด กับช่องบอกค่าใต้กราฟ (Cursor · Peak) */
 .psdpk { position: absolute; width: 11px; height: 11px; margin: -6px 0 0 -6px; border-radius: 50%; border: 2px solid #4a2b38; background: #fff; pointer-events: none; }

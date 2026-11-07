@@ -14,8 +14,9 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use std::sync::{Arc, Mutex, OnceLock};
 use std::time::{Duration, Instant};
 
-use serde::Serialize;
+use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
+use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::jobs::Jobs;
@@ -522,7 +523,7 @@ fn decode(tools: &Path, path: &Path, track: usize, ch: usize, start: Option<f64>
 
 // ---------- คำสั่งที่หน้าจอเรียก ----------
 
-#[derive(Serialize, Clone, Debug)]
+#[derive(Serialize, Deserialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Overview {
     pub duration: f64,
@@ -576,6 +577,108 @@ fn cache_key(path: &Path, track: usize) -> String {
     let size = m.as_ref().map(|m| m.len()).unwrap_or(0);
     let mt = m.and_then(|m| m.modified().ok()).and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_secs()).unwrap_or(0);
     format!("{}|{track}|{size}|{mt}", path.display())
+}
+
+/* ---------- เก็บผลภาพรวมลงเครื่อง (คิว 8) ----------
+   พี่กัน 7 พ.ย. 2569 *"ไฟล์ไหนที่แปลงคลื่นเเล้ว มันต้องรันใหม่ทุกครั้งเลยไหม มันเเบบรันครั้เดียวเเล้วดูตลอดได้มั้ย เเบบบันทึกข้อมูลไว้นเครื่องี้"*
+   เดิมจำไว้ในหน่วยความจำอย่างเดียว ปิดโปรแกรมแล้วต้องอ่านใหม่ (หนัง 20 นาที 5.1 ราว 14 วินาที)
+   ไฟล์ละหนึ่งไฟล์ในโฟลเดอร์ graphcache ของโปรแกรม ชื่อจาก hash ของที่อยู่ แทร็ก ขนาด เวลาแก้ไฟล์ · ไฟล์หนังเปลี่ยนแล้วชื่อไม่ตรง ไม่ใช้ผลเก่า
+   รวมกันเกิน 300 MB ลบอันที่ไม่ได้ใช้นานที่สุดก่อน · หน้าตั้งค่าบอกขนาดและล้างได้ */
+const CACHE_VER: u32 = 1;
+const CACHE_LIMIT: u64 = 300 * 1024 * 1024;
+
+#[derive(Serialize, Deserialize)]
+struct Cached {
+    ver: u32,
+    key: String,
+    o: Overview,
+}
+
+fn cache_dir(app: &AppHandle) -> Option<std::path::PathBuf> {
+    app.path().app_local_data_dir().ok().map(|d| d.join("graphcache"))
+}
+
+fn cache_file(dir: &Path, key: &str) -> std::path::PathBuf {
+    let h = Sha256::digest(key.as_bytes());
+    dir.join(format!("{}.json", h.iter().take(16).map(|b| format!("{b:02x}")).collect::<String>()))
+}
+
+/// อ่านผลที่เก็บไว้ · ชื่อไม่ตรง รุ่นไม่ตรง หรือไฟล์เสีย = ไม่มี (อ่านเสียงใหม่ตามปกติ) · อ่านได้แตะเวลาไฟล์ ไว้ลบอันที่ไม่ได้ใช้นานก่อน
+fn disk_load(dir: &Path, key: &str) -> Option<Overview> {
+    let f = cache_file(dir, key);
+    let c: Cached = serde_json::from_slice(&std::fs::read(&f).ok()?).ok()?;
+    if c.ver != CACHE_VER || c.key != key { return None; }
+    let _ = std::fs::File::options().write(true).open(&f).and_then(|h| h.set_modified(std::time::SystemTime::now()));
+    Some(c.o)
+}
+
+/// เขียนแบบไฟล์ชั่วคราวแล้วเปลี่ยนชื่อ ปิดโปรแกรมกลางทางไม่ได้ไฟล์ครึ่ง ๆ · แล้วตัดให้รวมไม่เกินขนาดที่กำหนด
+fn disk_save(dir: &Path, key: &str, o: &Overview, limit: u64) {
+    if std::fs::create_dir_all(dir).is_err() { return; }
+    let f = cache_file(dir, key);
+    let tmp = f.with_extension("tmp");
+    let Ok(bytes) = serde_json::to_vec(&Cached { ver: CACHE_VER, key: key.to_string(), o: o.clone() }) else { return };
+    if std::fs::write(&tmp, &bytes).is_ok() && std::fs::rename(&tmp, &f).is_err() {
+        let _ = std::fs::remove_file(&tmp);
+    }
+    prune(dir, limit);
+}
+
+/// รวมเกินขนาด ลบไฟล์ที่ใช้ล่าสุดนานที่สุดก่อน · ลบเฉพาะไฟล์ .json ในโฟลเดอร์ของโปรแกรมเอง
+fn prune(dir: &Path, limit: u64) {
+    let Ok(rd) = std::fs::read_dir(dir) else { return };
+    let mut files: Vec<(std::time::SystemTime, u64, std::path::PathBuf)> = rd.flatten()
+        .filter(|e| e.path().extension().map(|x| x == "json").unwrap_or(false))
+        .filter_map(|e| { let m = e.metadata().ok()?; Some((m.modified().ok()?, m.len(), e.path())) }).collect();
+    let mut total: u64 = files.iter().map(|f| f.1).sum();
+    files.sort_by_key(|f| f.0);
+    for (_, len, p) in files {
+        if total <= limit { break; }
+        if std::fs::remove_file(&p).is_ok() { total -= len; }
+    }
+}
+
+/// จำนวนไฟล์กับขนาดรวมของผลที่เก็บไว้ · หน้าตั้งค่าใช้
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct CacheInfo { files: u32, bytes: u64 }
+
+fn cache_info_in(dir: &Path) -> CacheInfo {
+    let mut ci = CacheInfo { files: 0, bytes: 0 };
+    if let Ok(rd) = std::fs::read_dir(dir) {
+        for e in rd.flatten().filter(|e| e.path().extension().map(|x| x == "json").unwrap_or(false)) {
+            ci.files += 1;
+            ci.bytes += e.metadata().map(|m| m.len()).unwrap_or(0);
+        }
+    }
+    ci
+}
+
+#[tauri::command]
+pub fn graph_cache_info(app: AppHandle) -> CacheInfo {
+    cache_dir(&app).map(|d| cache_info_in(&d)).unwrap_or(CacheInfo { files: 0, bytes: 0 })
+}
+
+/// ล้างผลที่เก็บไว้ทั้งหมด ทั้งในเครื่องและในหน่วยความจำ · ไฟล์หนังไม่ถูกแตะ
+#[tauri::command]
+pub fn graph_cache_clear(app: AppHandle) -> CacheInfo {
+    OVERVIEWS.get_or_init(Default::default).lock().unwrap().clear();
+    if let Some(d) = cache_dir(&app) {
+        if let Ok(rd) = std::fs::read_dir(&d) {
+            for e in rd.flatten().filter(|e| e.path().extension().map(|x| x == "json" || x == "tmp").unwrap_or(false)) {
+                let _ = std::fs::remove_file(e.path());
+            }
+        }
+        return cache_info_in(&d);
+    }
+    CacheInfo { files: 0, bytes: 0 }
+}
+
+/// ลืมผลในหน่วยความจำ เหมือนปิดเปิดโปรแกรมใหม่ · ใช้ในตัวเทสหน้าจอ ตัวติดตั้งจริงไม่มีคำสั่งนี้
+#[cfg(debug_assertions)]
+#[tauri::command]
+pub fn graph_dev_forget() {
+    OVERVIEWS.get_or_init(Default::default).lock().unwrap().clear();
 }
 
 fn rms_db(sq: f64, n: u64) -> f32 {
@@ -728,6 +831,15 @@ pub async fn graph_overview(app: AppHandle, path: String, track: usize) -> Resul
     if let Some(o) = OVERVIEWS.get_or_init(Default::default).lock().unwrap().get(&key) {
         return Ok(Some((**o).clone()));
     }
+    // ผลที่เก็บไว้ในเครื่องจากครั้งก่อน (ปิดเปิดโปรแกรมแล้วก็ยังใช้ได้)
+    let dir = cache_dir(&app);
+    if let Some(d) = dir.clone() {
+        let k = key.clone();
+        if let Ok(Some(o)) = tauri::async_runtime::spawn_blocking(move || disk_load(&d, &k)).await {
+            OVERVIEWS.get_or_init(Default::default).lock().unwrap().insert(key, Arc::new(o.clone()));
+            return Ok(Some(o));
+        }
+    }
     let my_gen = OVERVIEW_GEN.fetch_add(1, Ordering::SeqCst) + 1;
     let jobs = app.state::<Arc<Jobs>>().inner().clone();
     let app2 = app.clone();
@@ -741,7 +853,12 @@ pub async fn graph_overview(app: AppHandle, path: String, track: usize) -> Resul
         overview(&tools, p, &t, g.duration, &on, &stop)
     }).await.map_err(|e| e.to_string())??;
     if let Some(o) = &res {
-        OVERVIEWS.get_or_init(Default::default).lock().unwrap().insert(key, Arc::new(o.clone()));
+        OVERVIEWS.get_or_init(Default::default).lock().unwrap().insert(key.clone(), Arc::new(o.clone()));
+        // อ่านไม่ครบเพราะไฟล์ขาดท้ายก็เก็บ (ผลเหมือนเดิมทุกครั้ง) · ไฟล์เปลี่ยนแล้วชื่อไม่ตรงเอง
+        if let Some(d) = dir {
+            let o = o.clone();
+            tauri::async_runtime::spawn_blocking(move || disk_save(&d, &key, &o, CACHE_LIMIT));
+        }
     }
     Ok(res)
 }
@@ -932,6 +1049,27 @@ mod tests {
         let df = 48000.0 / 4096.0;
         let (imax, _) = p.db[0].iter().enumerate().fold((0, -999.0f32), |m, (i, &v)| if v > m.1 { (i, v) } else { m });
         assert!(((imax as f64 * df) - 1000.0).abs() < df * 1.5, "ยอดอยู่ที่ {} Hz", imax as f64 * df);
+    }
+
+    /// เก็บผลลงเครื่องแล้วอ่านกลับได้ตรง · ชื่อไม่ตรง (ไฟล์เปลี่ยน) ไม่ใช้ผลเก่า · รวมเกินขนาด ลบอันเก่าสุดก่อน
+    #[test]
+    fn overview_disk_cache_roundtrip_and_prune() {
+        let dir = std::env::temp_dir().join(format!("ชั้นหนังแคช-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&dir);
+        let o = Overview { duration: 12.5, cols: 2, env: vec![vec![0.1, 0.2, 0.3, 0.4, 0.5, 0.6]], spec_cols: 0, spec_bins: 0, spec: vec!["ab".into()], loud: vec![-20.0, -21.0],
+            integrated: Some(-14.2), lra: None, true_peak: Some(-0.3), peaks: vec![-0.3], rms: vec![-18.0], clips: vec![0], silences: vec![[1.0, 2.0]], read_to: 12.5 };
+        disk_save(&dir, "ก|0|100|1", &o, CACHE_LIMIT);
+        let back = disk_load(&dir, "ก|0|100|1").expect("ต้องอ่านกลับได้");
+        assert_eq!(serde_json::to_string(&back).unwrap(), serde_json::to_string(&o).unwrap());
+        assert!(disk_load(&dir, "ก|0|100|2").is_none(), "เวลาแก้ไฟล์เปลี่ยน ต้องไม่ใช้ผลเก่า");
+        std::thread::sleep(Duration::from_millis(20));
+        disk_save(&dir, "ข|0|100|1", &o, CACHE_LIMIT);
+        let one = std::fs::metadata(cache_file(&dir, "ข|0|100|1")).unwrap().len();
+        // จำกัดให้เหลือได้ไฟล์เดียว อันเก่า (ก) ต้องถูกลบ อันใหม่ (ข) อยู่
+        prune(&dir, one);
+        assert!(disk_load(&dir, "ก|0|100|1").is_none() && disk_load(&dir, "ข|0|100|1").is_some());
+        assert_eq!(cache_info_in(&dir).files, 1);
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// ซ้ายขวาเสียงเดียวกันเป๊ะ เส้นกลางมียอดที่ 1000 Hz เส้นข้าง (ซ้าย−ขวา) ต้องเงียบ · ได้ 4 เส้น ซ้าย ขวา กลาง ข้าง

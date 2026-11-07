@@ -52,6 +52,19 @@ const lib0 = await inv("get_library");
 const harbor = lib0.movies.find((m) => m.name === "Harbor Lights (2021)");
 check("ปกตั้งเดิม ภาพเล็กสร้างแบบคงสัดส่วน (ชื่อลงท้าย -a) และจดสัดส่วนปก", harbor?.thumb?.endsWith("-a.jpg") && harbor.coverAspect > 0.6 && harbor.coverAspect < 0.7, `${harbor?.thumb?.split("\\").pop()} · ${harbor?.coverAspect}`);
 
+// ---------- แผงขวาขึ้นเฉพาะตอนกดเลือกเรื่อง มีปุ่มปิด (คิว 6) ----------
+// พี่กัน *"แถบนี้ เราอยากให้มันขึ้นตอนที่กดหนังนั้นๆ เเละมีปุ่มปิดได้ เราอยากห้มันเเสดงชั้นวางมากกว่า"*
+const shelfW = () => q("return Math.round(document.querySelector('.shelfwrap').getBoundingClientRect().width)");
+const noPanel = await q("return !document.querySelector('[data-detail]')"), sw0 = await shelfW();
+await shot("10-ชั้นวาง-ยังไม่เลือก-ไม่มีแผงขวา.png");
+await c.click('.book[data-movie="Harbor Lights (2021)"]'); await sleep(400);
+const panelOn = await q("return document.querySelector('[data-detail] .nm')?.innerText ?? ''"), sw1 = await shelfW();
+await shot("11-ชั้นวาง-กดเลือก-แผงขวาขึ้น.png");
+await c.click("[data-detailclose]"); await sleep(400);
+const closed = await q("return !document.querySelector('[data-detail]') && !document.querySelector('.book.sel')"), sw2 = await shelfW();
+check("เปิดชั้นวางยังไม่มีแผงขวา ชั้นวางกว้างเต็ม · กดเรื่องแล้วแผงขวาขึ้นเรื่องนั้น · กดปุ่มปิดแล้วแผงหาย ชั้นวางกว้างคืน", noPanel && panelOn.includes("Harbor") && closed && sw0 > sw1 + 250 && sw2 === sw0,
+  `ชั้นวางกว้าง ${sw0} → กดเลือก ${sw1} → ปิด ${sw2} จุดภาพ · แผงขึ้น ${panelOn}`);
+
 // ---------- หน้าใส่โปสเตอร์ แบบตามรูปเดิม ----------
 await c.evaluate("[...document.querySelectorAll('button.nav')].find(b => b.innerText.includes('ใส่โปสเตอร์')).click()"); await sleep(600);
 await drop(join(DIR, "ดาวเหนือ (2023).mkv"), "movie"); await sleep(1500);

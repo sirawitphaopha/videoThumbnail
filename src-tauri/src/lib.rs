@@ -69,7 +69,7 @@ pub fn run() {
 
     #[cfg(debug_assertions)]
     let builder = builder.invoke_handler(tauri::generate_handler![
-        tools::check_tools, store::get_settings, store::set_settings,
+        tools::check_tools, tools::check_icaros, tools::open_icaros_page, store::get_settings, store::set_settings,
         jobs::running_jobs, jobs::force_close, jobs::dev_fake_job, poster::dev_fake_free, library::dev_set_check,
         library::get_library, library::scan_library, library::play_movie, library::reveal_movie,
         rename::check_rename, rename::rename_movie,
@@ -79,10 +79,11 @@ pub fn run() {
         extract::extract_start, extract::extract_cancel, extract::extract_default_folder,
         check::check_start, check::check_cancel, check::check_running, check::play_at,
         audiograph::graph_info, audiograph::graph_overview, audiograph::graph_window, audiograph::graph_psd, audiograph::graph_cancel, audiograph::graph_save,
+        audiograph::graph_cache_info, audiograph::graph_cache_clear, audiograph::graph_dev_forget,
     ]);
     #[cfg(not(debug_assertions))]
     let builder = builder.invoke_handler(tauri::generate_handler![
-        tools::check_tools, store::get_settings, store::set_settings,
+        tools::check_tools, tools::check_icaros, tools::open_icaros_page, store::get_settings, store::set_settings,
         jobs::running_jobs, jobs::force_close,
         library::get_library, library::scan_library, library::play_movie, library::reveal_movie,
         rename::check_rename, rename::rename_movie,
@@ -92,6 +93,7 @@ pub fn run() {
         extract::extract_start, extract::extract_cancel, extract::extract_default_folder,
         check::check_start, check::check_cancel, check::check_running, check::play_at,
         audiograph::graph_info, audiograph::graph_overview, audiograph::graph_window, audiograph::graph_psd, audiograph::graph_cancel, audiograph::graph_save,
+        audiograph::graph_cache_info, audiograph::graph_cache_clear,
     ]);
 
     builder

@@ -63,6 +63,10 @@ export const api = {
   getSettings: () => call<{ settings: Settings; loadedFrom: LoadedFrom }>("get_settings"),
   setSettings: (patch: Partial<Settings>) => call<Settings>("set_settings", { patch }),
   checkTools: () => call<ToolCheck[]>("check_tools"),
+  /** ลง Icaros แล้วหรือยัง (หน้าตั้งค่า การ์ดเครื่องมือเบื้องหลัง) */
+  checkIcaros: () => call<boolean>("check_icaros"),
+  /** เปิดหน้าเว็บผู้พัฒนา Icaros ในเบราว์เซอร์หลัก (ที่อยู่ตายตัวในฝั่ง Rust) */
+  openIcarosPage: () => call<void>("open_icaros_page"),
   /** มีงานกำลังรันอยู่กี่งาน · ใช้ตอนกดปิดโปรแกรม */
   runningJobs: () => call<number>("running_jobs"),
   /** ปิดโปรแกรมจริง หลังผู้ใช้ยืนยันในหน้าต่างถาม */
@@ -161,6 +165,9 @@ export const graphApi = {
   info: (path: string) => call<GInfo>("graph_info", { path }),
   overview: (path: string, track: number) => call<GOverview | null>("graph_overview", { path, track }),
   window: (path: string, track: number, t0: number, t1: number, cols: number, bins: number, log: boolean) => call<GWindow | null>("graph_window", { path, track, t0, t1, cols, bins, log }),
+  /** ผลอ่านคลื่นที่เก็บไว้ในเครื่อง จำนวนไฟล์กับขนาดรวม · ล้างได้จากหน้าตั้งค่า */
+  cacheInfo: () => call<{ files: number; bytes: number }>("graph_cache_info"),
+  cacheClear: () => call<{ files: number; bytes: number }>("graph_cache_clear"),
   /** ms = คู่ช่องซ้ายขวา ได้เส้นกลางกับเส้นข้างเพิ่มท้าย 2 เส้น */
   psd: (path: string, track: number, t0: number, t1: number, series: number[][], size: number, ms: number[] | null = null) => call<GPsd | null>("graph_psd", { path, track, t0, t1, series, size, ms }),
   cancel: () => call<void>("graph_cancel"),
@@ -186,6 +193,14 @@ export type RenameProblem = {
 export function thumbUrl(path: string | null): string | null {
   if (!path) return null;
   return inApp ? convertFileSrc(path) : path;
+}
+
+/** เลือกโปรแกรมเล่นหนังเอง (หน้าตั้งค่า) · ยกเลิก = null */
+export async function pickExe(): Promise<string | null> {
+  if (!inApp) return "C:\\Program Files\\VideoLAN\\VLC\\vlc.exe";
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const r = await open({ multiple: false, directory: false, title: "เลือกโปรแกรมเล่นหนัง", filters: [{ name: "โปรแกรม", extensions: ["exe"] }] });
+  return typeof r === "string" ? r : null;
 }
 
 /** กล่องเลือกโฟลเดอร์ของ Windows · ยกเลิก = null */

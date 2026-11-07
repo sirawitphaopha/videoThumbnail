@@ -71,7 +71,10 @@ const openDrop = async (p, name) => { await drop(p); return waitFor(`return (doc
 const hoverMid = async (sel, fx = 0.5, fy = 0.5) => { const b = await c.box(sel); await c.move(b.left + b.w * fx, b.top + b.h * fy); await sleep(300); };
 
 /* ---------- เตรียม ---------- */
-await inv("set_settings", { patch: { folders: [DIR], playerPath: "", recheckReminderDays: 30, defaultCheck: "quick", quickCheckOnStart: false, viewMode: "grid", coverSize: "m" } });
+await inv("set_settings", { patch: { folders: [DIR], playerPath: "", recheckReminderDays: 30, defaultCheck: "quick", quickCheckOnStart: false, viewMode: "grid", coverSize: "m", coverOrient: "tall" } });
+// ล้างผลกราฟที่เก็บไว้ในเครื่องจากรอบก่อน ไฟล์ที่คัดลอกมาเวลาแก้ไฟล์เท่าเดิม จะขึ้นทันทีโดยไม่ได้อ่านจริง (คิว 8)
+await inv("graph_cache_clear");
+await q("localStorage.removeItem('graph-recent'); return 1"); // รายการเปิดล่าสุดของรอบก่อน (คิว 7)
 if (BUILT) {
   await c.send("Page.enable");
   await c.send("Page.addScriptToEvaluateOnNewDocument", {
@@ -530,6 +533,34 @@ await openDrop(A("ยาว 20 นาที 5.1.ac3"), "ยาว 20 นาท�
 const again = Date.now() - tAgain;
 check("เปิดไฟล์เดิมซ้ำ ใช้ผลที่อ่านไว้ ขึ้นภายใน 2 วินาที", again < 2000, `${again} ms`);
 await shot("25-ไฟล์ยาว-อ่านเสร็จ.png");
+
+/* ---------- 15 หน้ารวมกราฟเสียง (คิว 7) ---------- */
+// พี่กัน *"หาวิธีที่เราจะกดกลับไปน้าเสียงรวมที ตอนที่เราอยู่หน้านี้ เเละไฟล์เสียงไหนที่เราโหลดเข้ามาเเล้ว ทำไมมันไม่อยู่ในหน้ารวมเสียงเลย"*
+const recNames = () => q("return [...document.querySelectorAll('[data-graphrecentpick]')].map((b) => b.dataset.graphrecentpick)");
+await c.click("[data-graphhome]"); await sleep(500);
+const home = await q("return !!document.querySelector('[data-graphdrop]')"), rec = await recNames();
+check("ปุ่ม หน้ารวม กลับหน้ารวมกราฟเสียง · รายการเปิดล่าสุดมีไฟล์ที่เปิดแล้ว รวมไฟล์เสียงที่ไม่ได้อยู่บนชั้นวาง อันล่าสุดอยู่บนสุด",
+  home && rec[0] === "ยาว 20 นาที 5.1.ac3" && rec.includes("เสียงเดียว.mp3") && rec.some((n) => n.endsWith(".flac")), rec.join(" · "));
+await shot("34-หน้ารวม-เปิดล่าสุด.png");
+// ข้อมูลในรายการต้องเป็นของไฟล์นั้นเอง (เดิมวิดีโอไม่มีเสียงได้ข้อมูลของไฟล์ก่อนหน้า ขึ้นว่าไฟล์เสียง 0:10) · ข้อความขวาไม่โดนตัด
+const vidMeta = await q("return document.querySelector('[data-graphrecentpick=\"อัดหน้าจอไม่มีเสียง.mp4\"]')?.innerText.replace(/\\s+/g, ' ') ?? ''");
+const cut = await q("return [...document.querySelectorAll('[data-graphrecentpick] > .small')].filter((s) => s.scrollWidth > s.clientWidth + 1 || s.getBoundingClientRect().right > s.parentElement.getBoundingClientRect().right).length");
+check("รายการเปิดล่าสุด ข้อมูลตรงกับไฟล์ของแถวนั้น (วิดีโอไม่มีเสียงไม่ขึ้นว่าไฟล์เสียง) · ความยาวกับช่องเสียงด้านขวาไม่โดนตัด", !vidMeta.includes("ไฟล์เสียง") && cut === 0, `${vidMeta || "ไม่มีในรายการ"} · โดนตัด ${cut} แถว`);
+await c.click('[data-graphforget="เสียงเดียว.mp3"]'); await sleep(300);
+const rec2 = await recNames();
+check("ปุ่มกากบาทเอาไฟล์ออกจากรายการเปิดล่าสุด ไฟล์ในเครื่องยังอยู่", !rec2.includes("เสียงเดียว.mp3") && rec2.length === rec.length - 1 && existsSync(A("เสียงเดียว.mp3")), `เหลือ ${rec2.length} ไฟล์`);
+
+/* ---------- 16 ผลอ่านคลื่นเก็บลงเครื่อง (คิว 8) ---------- */
+// พี่กัน *"ไฟล์ไหนที่แปลงคลื่นเเล้ว มันต้องรันใหม่ทุกครั้งเลยไหม มันเเบบรันครั้เดียวเเล้วดูตลอดได้มั้ย เเบบบันทึกข้อมูลไว้นเครื่องี้"*
+await sleep(800); // ให้เขียนไฟล์ผลของอันล่าสุดเสร็จ
+const ci = await inv("graph_cache_info");
+await inv("graph_dev_forget"); // ลืมผลในหน่วยความจำ เหมือนปิดเปิดโปรแกรมใหม่
+const tDisk = Date.now();
+await c.click('[data-graphrecentpick="ยาว 20 นาที 5.1.ac3"]');
+await waitFor("return (document.querySelector('.fchip .nm')?.innerText ?? '').startsWith('ยาว 20 นาที 5.1')", 10000); await plotReady();
+const diskMs = Date.now() - tDisk;
+check("ผลอ่านคลื่นเก็บลงเครื่อง · ลืมผลในหน่วยความจำแล้วเปิดไฟล์ 20 นาทีเดิมจากรายการเปิดล่าสุด ขึ้นภายใน 2 วินาที ไม่ต้องอ่านใหม่",
+  ci.files >= 3 && diskMs < 2000 && (await count("[data-lane]")) === 6, `เก็บไว้ ${ci.files} ไฟล์ ${(ci.bytes / 1048576).toFixed(1)} MB · เปิดใหม่ ${diskMs} ms (อ่านจริงตอนแรก ${secs.toFixed(1)} วินาที)`);
 
 if (BUILT) {
   const csp = await q("return window.__csp ?? null");

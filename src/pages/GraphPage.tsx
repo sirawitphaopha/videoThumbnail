@@ -281,6 +281,18 @@ function overviewOnce(path: string, track: number) {
 }
 
 type WaveStyle = "fine" | "bars" | "aud";
+/** ไฟล์ที่เคยเปิดในหน้ากราฟ ขึ้นในหน้ารวมกราฟเสียง รวมไฟล์เสียงที่ไม่ได้อยู่บนชั้นวาง (พี่กัน 7 พ.ย. 2569
+    *"หาวิธีที่เราจะกดกลับไปน้าเสียงรวมที ตอนที่เราอยู่หน้านี้ เเละไฟล์เสียงไหนที่เราโหลดเข้ามาเเล้ว ทำไมมันไม่อยู่ในหน้ารวมเสียงเลย"*)
+    เก็บในเครื่องนี้ 12 ไฟล์ล่าสุด · เดิมหน้ารวมดึงจากชั้นวางอย่างเดียว ไฟล์ที่เปิดจากเครื่องไม่ถูกจดไว้ */
+type Recent = { path: string; name: string; size: number; duration: number; audioOnly: boolean; layout?: string; at: number };
+const RECENT_KEY = "graph-recent";
+function loadRecent(): Recent[] {
+  try { const v = JSON.parse(localStorage.getItem(RECENT_KEY) ?? "[]"); return Array.isArray(v) ? v.filter((r) => r && typeof r.path === "string" && typeof r.name === "string") : []; } catch { return []; }
+}
+function saveRecent(list: Recent[]) {
+  try { localStorage.setItem(RECENT_KEY, JSON.stringify(list.slice(0, 12))); } catch { /* เก็บไม่ได้ ใช้รายการในหน้านี้ไปก่อน */ }
+}
+
 /** laneK ตัวคูณความสูงแถบรูปคลื่นกับแถบความถี่ ที่ลากจากที่จับใต้กราฟ · จำไว้ เปิดครั้งหน้ายังสูงเท่าเดิม */
 type Prefs = { view: View; theme: string; style: WaveStyle; cmap: "theme" | "rainbow"; scmap: "heat" | "rainbow" | "mono" | "theme"; laneK: number };
 const PREF_KEY = "graph-prefs";
@@ -341,12 +353,23 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [req]);
 
+  // จดไฟล์ที่เปิดได้ลงรายการเปิดล่าสุด · จดตอนข้อมูลของไฟล์นั้นมาถึง
+  // (เดิมจดตอนที่อยู่ไฟล์เปลี่ยน ข้อมูลไฟล์ก่อนหน้ายังไม่ถูกล้าง ได้ชื่อไฟล์ใหม่คู่กับข้อมูลไฟล์เก่า เจอตอนตรวจภาพ)
+  const [recent, setRecent] = useState<Recent[]>(loadRecent);
+  const remember = (p: string, g: GInfo) => {
+    const r: Recent = { path: p, name: p.split(/[\\/]/).pop() ?? p, size: g.size, duration: g.duration, audioOnly: g.audioOnly, layout: g.tracks[0]?.layout, at: Date.now() };
+    setRecent((l) => { const n = [r, ...l.filter((x) => x.path.toLowerCase() !== p.toLowerCase())].slice(0, 12); saveRecent(n); return n; });
+  };
+  const forget = (p: string) => setRecent((l) => { const n = l.filter((x) => x.path !== p); saveRecent(n); return n; });
+  /** กลับหน้ารวมกราฟเสียง · กำลังอ่านอยู่ก็หยุดอ่าน */
+  const goHome = () => { if (progress != null) graphApi.cancel(); setPath(null); };
+
   // อ่านข้อมูลแทร็ก
   useEffect(() => {
     if (!path) return;
     let live = true;
     setInfo(null); setOvRaw(null); setWin(null); setPsd(null); setError(null); setHidden([]); setTrack(0);
-    graphApi.info(path).then((g) => { if (live) setInfo(g); }, (e) => { if (live) setError(String(e)); });
+    graphApi.info(path).then((g) => { if (live) { setInfo(g); remember(path, g); } }, (e) => { if (live) setError(String(e)); });
     return () => { live = false; };
   }, [path, nonce]);
 
@@ -491,7 +514,8 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
 
   /* ---------- ยังไม่เลือกไฟล์ ---------- */
   if (!path) {
-    const recent = movies.filter((m) => !m.missing && m.audio.length).slice(0, 6);
+    const shelfPicks = movies.filter((m) => !m.missing && m.audio.length).slice(0, 6);
+    const music = <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M9 18V5l11-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" /></svg>;
     return (
       <div className="ag" data-graph>
         <div className="drop" style={{ minHeight: 180 }} data-graphdrop>
@@ -500,8 +524,26 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
           <button type="button" className="btn btn-ghost btn-sm" onClick={openOther}>เลือกไฟล์จากเครื่อง</button>
           <span className="small">รับไฟล์หนังทุกชนิดในชั้นวาง และไฟล์เสียง {AUDIO_EXT.map((e) => e.toUpperCase()).join(" · ")}</span>
         </div>
-        {recent.length > 0 && <><div className="small">หรือเลือกจากชั้นวาง</div>
-          <div className="graph-recent">{recent.map((m) => (
+        {recent.length > 0 && <><div className="small">เปิดล่าสุด · กดเพื่อดูกราฟอีกครั้ง ปุ่มกากบาทเอาออกจากรายการ ไฟล์ในเครื่องไม่ถูกแตะ</div>
+          <div className="graph-recent" data-graphrecent>{recent.map((r) => {
+            const mv = movies.find((m) => m.path.toLowerCase() === r.path.toLowerCase());
+            return (
+              <div key={r.path} className="recentrow">
+                <button type="button" className="dd" onClick={() => setPath(r.path)} data-graphrecentpick={r.name} title={r.path}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: "1 1 auto", overflow: "hidden" }}>
+                    {r.audioOnly ? <i className="rnote">{music}</i> : mv?.thumb ? <img src={thumbUrl(mv.thumb) ?? ""} alt="" style={{ width: 18, height: 27, borderRadius: 3, objectFit: "cover" }} /> : <i style={{ width: 18, height: 27, borderRadius: 3, background: "#f6d6e2" }} />}
+                    <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{r.name}</span></span>
+                  {/* ข้อความขวาไม่หด ชื่อยาวตัดเป็นสามจุดแทน (เดิมเวลาโดนตัดเหลือ 5:1 เจอตอนตรวจภาพ) */}
+                  <span className="small" style={{ flex: "none" }}>{[r.audioOnly ? "ไฟล์เสียง" : "", r.layout ?? "", tfmt(r.duration)].filter(Boolean).join(" · ")}</span>
+                </button>
+                <button type="button" className="rmx" onClick={() => forget(r.path)} aria-label={`เอา ${r.name} ออกจากรายการเปิดล่าสุด`} title="เอาออกจากรายการ ไฟล์ในเครื่องไม่ถูกแตะ" data-graphforget={r.name}>
+                  <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
+                </button>
+              </div>
+            );
+          })}</div></>}
+        {shelfPicks.length > 0 && <><div className="small">หรือเลือกจากชั้นวาง</div>
+          <div className="graph-recent">{shelfPicks.map((m) => (
             <button key={m.id} type="button" className="dd" onClick={() => setPath(m.path)} data-graphpick={m.name}>
               <span style={{ display: "flex", alignItems: "center", gap: 8 }}>{m.thumb ? <img src={thumbUrl(m.thumb) ?? ""} alt="" style={{ width: 18, height: 27, borderRadius: 3, objectFit: "cover" }} /> : <i style={{ width: 18, height: 27, borderRadius: 3, background: "#f6d6e2" }} />}{m.name}</span>
               <span className="small">{[...new Set(m.audio.map((a) => a.layout))].join(" · ")}</span>
@@ -516,6 +558,9 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
     : movie?.thumb ? <img className="fthumb" src={thumbUrl(movie.thumb) ?? ""} alt="" /> : <div className="fthumb" style={{ background: "linear-gradient(160deg,#f2b8c6,#c25d7f)" }} />;
   const head = (
     <div className="agtop">
+      {/* กลับหน้ารวมกราฟเสียง (คิว 7 · เดิมมีแค่ เปิดไฟล์อื่น ที่เปิดหน้าต่างเลือกไฟล์ กลับหน้ารวมไม่ได้) */}
+      <button type="button" className="btn btn-ghost" onClick={goHome} title="กลับหน้ารวมกราฟเสียง ดูไฟล์ที่เปิดล่าสุด" data-graphhome>
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>หน้ารวม</button>
       <div className="fchip">{thumb}<div style={{ minWidth: 0 }}>
         <div className="nm">{fileName.replace(/\.[^.]+$/, "")}<span className="ext">{fileName.match(/\.[^.]+$/)?.[0] ?? ""}</span></div>
         <div className="meta">{info ? `${info.audioOnly ? "ไฟล์เสียง · " : ""}${fmtSize(info.size)} · ยาว ${tfmt(info.duration)}${info.audioOnly && !movie ? " · ไม่ได้อยู่บนชั้นวาง" : ""}` : error ? "อ่านข้อมูลเสียงไม่ได้" : "กำลังอ่านข้อมูลไฟล์"}</div>
