@@ -394,7 +394,7 @@ pub fn refresh_own_edit(app: &AppHandle, path: &Path, on_hash: &dyn Fn(f64)) {
     m.status = old.status.clone();
     m.check = old.check.clone();
     if old.sha256.is_some() {
-        m.sha256 = crate::poster::sha256_file(path, on_hash).ok();
+        m.sha256 = crate::outfile::sha256_file(path, on_hash).ok();
     }
     lib.update_movie(&old.id, |x| *x = m.clone());
     let _ = app.emit("movie-updated", &m);

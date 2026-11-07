@@ -385,7 +385,7 @@ pub async fn extract_start(app: tauri::AppHandle, req: ExtractReq) -> Result<Ext
             }
             // ที่ว่างในไดรฟ์ · ภาพต้องการราวขนาดไฟล์หนัง · เสียง ซับ บท ไฟล์แนบ ไม่เกินขนาดไฟล์หนัง เผื่ออย่างน้อย 64 MB
             let need = if it.kind == "video" { src_size } else { (src_size / 4).max(64 << 20).min(src_size + (64 << 20)) };
-            let free = crate::poster::free_space(&dir);
+            let free = crate::outfile::free_space(&dir);
             if free < need {
                 let title = title_of(it);
                 let drive = dir.to_string_lossy().chars().next().unwrap_or('?').to_ascii_uppercase();

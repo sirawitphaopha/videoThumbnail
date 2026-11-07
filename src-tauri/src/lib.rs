@@ -7,6 +7,7 @@ mod fileinfo;
 mod hashes;
 mod jobs;
 mod library;
+mod outfile;
 mod poster;
 mod poster_image;
 mod probe;

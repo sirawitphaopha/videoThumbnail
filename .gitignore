@@ -17,6 +17,7 @@ src-tauri/tools/*.DLL
 # ยกเว้น test-media/src ที่เขียนด้วยมือ สคริปต์สร้างไฟล์ทดสอบต้องใช้ สร้างใหม่ไม่ได้
 test-media/*
 !test-media/src/
+!test-media/README.md
 
 # ไฟล์บีบอัดของเครื่องมือ ใหญ่ เก็บแค่ README
 vendor/**/*.7z

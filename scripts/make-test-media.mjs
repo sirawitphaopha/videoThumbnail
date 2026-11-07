@@ -181,6 +181,95 @@ if (ff("ขาดท้าย (2022).mkv", [...vid(LONG), ...tone(LONG), ...x264
   console.log(`  ตัดเหลือ ${Math.floor(size * 0.7).toLocaleString()} จาก ${size.toLocaleString()} ไบต์`);
 }
 
+// ---------- เสียงและซับ (แผนเสียงและซับ ขั้น 0) ----------
+// อยู่โฟลเดอร์ เสียงซับ แยกจาก หนัง เพราะตัวตรวจเดิมนับเรื่องในโฟลเดอร์หนัง เพิ่มไฟล์ตรงนั้นแล้วยอดเพี้ยน
+// เสียงทดสอบเป็นเสียงซ่าชมพูที่ seed ตายตัวคูณซองความดังที่ไม่ซ้ำ หาค่าเลื่อนด้วย cross-correlation ได้จริง
+// (เสียงโทนเดียวซ้ำทุกคาบ หาค่าเลื่อนไม่ได้)
+const AV = join(OUT, "เสียงซับ");
+mkdirSync(AV, { recursive: true });
+const MKVMERGE = join(root, "src-tauri", "tools", "mkvmerge.exe");
+const AVD = 60;
+const noise = (d, seed = 7) => [
+  "-f", "lavfi", "-i",
+  `anoisesrc=color=pink:seed=${seed}:amplitude=0.5:duration=${d}:sample_rate=48000,volume='0.15+0.85*abs(sin(2*PI*t*0.37))*abs(sin(2*PI*t*1.31+1))':eval=frame`,
+];
+const small = (d) => ["-f", "lavfi", "-i", `testsrc2=size=854x480:rate=24:duration=${d}`];
+const star = join(AV, "ดาวตก (2024).mkv");
+ff("เสียงซับ/ดาวตก (2024).mkv  ภาพ 1 เสียงอังกฤษ 1 ยาว 60 วินาที", [
+  ...small(AVD), ...noise(AVD), "-map", "0:v", "-map", "1:a", ...x264, "-c:a", "aac", "-b:a", "160k", "-ac", "2",
+  "-metadata:s:a:0", "language=eng", "-metadata:s:a:0", "title=English", star,
+]);
+// พากย์ไทยที่โหลดแยก AC-3 5.1 · เนื้อเสียงช้ากว่าหนัง 120 ms (มีหัวเกิน 120 ms) ตามแบบชื่อไฟล์ของ eac3to
+// DELAY -120ms = ต้องเลื่อนเสียงไปก่อน 120 ms · ใส่ด้วย mkvmerge --sync 0:-120 แล้วต้องตรงกับหนัง
+const ch51 = "pan=5.1|FL=0.7*c0|FR=0.7*c0|FC=c0|LFE=0.2*c0|BL=0.4*c0|BR=0.4*c0";
+ff("เสียงซับ/ดาวตก (2024) พากย์ไทย DELAY -120ms.ac3  เลื่อนจริง 120 ms", [
+  ...noise(AVD), "-af", `adelay=120:all=1,${ch51}`, "-c:a", "ac3", "-b:a", "384k", join(AV, "ดาวตก (2024) พากย์ไทย DELAY -120ms.ac3"),
+]);
+// เสียงจากแผ่นยุโรป 25 fps ที่เร็วกว่าหนัง 23.976 fps (เร็วขึ้น 4.27% เสียงสูงขึ้น) ไว้เทสตัวจับเสียงเหลื่อมเพิ่ม
+ff("เสียงซับ/ดาวตก (2024) PAL 25fps.ac3  เร็ว 25/23.976", [
+  ...noise(AVD), "-af", `asetrate=${48000 * 25 / 23.976},aresample=48000`, "-ac", "2", "-c:a", "ac3", "-b:a", "192k",
+  join(AV, "ดาวตก (2024) PAL 25fps.ac3"),
+]);
+// ซับแยก SRT ASS VTT และ SRT ที่เข้ารหัส TIS-620 (ไฟล์ซับไทยเก่าที่เจอบ่อย)
+copyFileSync(join(SRC, "th.srt"), join(AV, "ดาวตก (2024).th.srt"));
+copyFileSync(join(SRC, "en.ass"), join(AV, "ดาวตก (2024).en.ass"));
+console.log("สร้างแล้ว  เสียงซับ/ดาวตก (2024).th.srt · .en.ass  (สำเนาจาก test-media/src)");
+ff("เสียงซับ/ดาวตก (2024).en.vtt", ["-i", join(SRC, "en.ass"), "-c:s", "webvtt", join(AV, "ดาวตก (2024).en.vtt")]);
+{
+  const text = readFileSync(join(SRC, "th.srt"), "utf8").replace(/^\uFEFF/, "");
+  const bytes = Buffer.from([...text].map((ch) => {
+    const c = ch.codePointAt(0);
+    if (c < 0x80) return c;
+    if (c >= 0x0e01 && c <= 0x0e5b) return c - 0x0d60; // ช่วงอักษรไทยของ TIS-620 คือ 0xA1 ถึง 0xFB
+    return 0x3f;
+  }));
+  writeFileSync(join(AV, "ดาวตก (2024).tis620.th.srt"), bytes);
+  console.log("สร้างแล้ว  เสียงซับ/ดาวตก (2024).tis620.th.srt  เข้ารหัส TIS-620");
+}
+// เพลงไว้เทสหน้ากราฟเสียง โหมดแปลงเป็นคิว ข้อมูลเพลง ปก · FLAC 96 kHz 24 บิต มีแท็กและปก
+const music = (d) => [
+  "-f", "lavfi", "-i",
+  `sine=frequency=220:sample_rate=96000:duration=${d}`, "-f", "lavfi", "-i", `sine=frequency=277.18:sample_rate=96000:duration=${d}`,
+  "-f", "lavfi", "-i", `anoisesrc=color=pink:seed=3:amplitude=0.08:duration=${d}:sample_rate=96000`,
+];
+const tags = (title) => ["-metadata", `title=${title}`, "-metadata", "artist=วงทดสอบ", "-metadata", "album=อัลบั้มทดสอบ", "-metadata", "date=2024", "-metadata", "track=3"];
+const mix = ["-filter_complex", "[0:a][1:a][2:a]amerge=inputs=3,pan=stereo|c0=0.4*c0+0.2*c1+c2|c1=0.2*c0+0.4*c1+c2[a]", "-map", "[a]"];
+ff("เสียงซับ/เพลงทดสอบ 96k.flac  96 kHz 24 บิต แท็ก ปก", [
+  ...music(30), "-i", cover, ...mix, "-map", "3:v", "-c:v", "copy", "-disposition:v", "attached_pic",
+  "-c:a", "flac", "-sample_fmt", "s32", "-ar", "96000", ...tags("เพลงทดสอบ 96k"), join(AV, "เพลงทดสอบ 96k.flac"),
+]);
+ff("เสียงซับ/เพลงทดสอบ.mp3  แท็ก ปก", [
+  ...music(30), "-i", cover, ...mix, "-map", "3:v", "-c:v", "copy", "-disposition:v", "attached_pic",
+  "-c:a", "libmp3lame", "-q:a", "2", "-ar", "44100", "-id3v2_version", "3", ...tags("เพลงทดสอบ MP3"), join(AV, "เพลงทดสอบ.mp3"),
+]);
+ff("เสียงซับ/เพลงทดสอบ.opus", [...music(30), ...mix, "-c:a", "libopus", "-b:a", "128k", "-ar", "48000", ...tags("เพลงทดสอบ Opus"), join(AV, "เพลงทดสอบ.opus")]);
+ff("เสียงซับ/เพลงทดสอบ.wav  16 บิต 44.1 kHz", [...music(30), ...mix, "-c:a", "pcm_s16le", "-ar", "44100", join(AV, "เพลงทดสอบ.wav")]);
+// MKV มีฟอนต์แนบกับซับ ASS ไว้เทสว่ารวมแล้วฟอนต์ยังอยู่ · ฟอนต์ Tahoma ของ Windows (ไม่ขึ้น git)
+const tahoma = join(process.env.WINDIR ?? "C:\\Windows", "Fonts", "tahoma.ttf");
+if (existsSync(tahoma)) {
+  ff("เสียงซับ/ฟอนต์แนบ (2024).mkv  ซับ ASS กับฟอนต์แนบ", [
+    ...small(D), ...noise(D, 11), "-i", join(SRC, "en.ass"), "-map", "0:v", "-map", "1:a", "-map", "2:s", ...x264, "-c:a", "aac", "-ac", "2", "-c:s", "ass",
+    "-attach", tahoma, "-metadata:s:t", "mimetype=application/x-truetype-font", "-metadata:s:t", "filename=tahoma.ttf",
+    join(AV, "ฟอนต์แนบ (2024).mkv"),
+  ]);
+} else console.log(`ข้าม  ฟอนต์แนบ (2024).mkv · ไม่มี ${tahoma}`);
+// MKV มีซับรูป PGS (บลูเรย์) กับ VobSub (DVD) จากไฟล์ตัวอย่างทางการของ FFmpeg (test-media/ซับตัวอย่าง-ffmpeg ไม่ขึ้น git · แหล่งอยู่ test-media/README.md)
+// ffmpeg ทำซับรูปจากตัวหนังสือเองไม่ได้ จึงใช้ไฟล์ตัวอย่าง · VobSub ตัวอย่างเริ่มวินาทีที่ 132 เลื่อนมาเริ่มราววินาทีที่ 2.5
+const SUBS = join(root, "test-media", "ซับตัวอย่าง-ffmpeg");
+if (existsSync(join(SUBS, "vobsub.idx")) && existsSync(join(SUBS, "supsample.mkv"))) {
+  const base = join(AV, "__ฐานซับรูป.mkv");
+  if (ff("ฐานภาพเสียง 240 วินาที", [...small(240), ...noise(240, 5), "-map", "0:v", "-map", "1:a", ...x264, "-c:a", "aac", "-ac", "2", base], { quiet: true })) {
+    const r = spawnSync(MKVMERGE, [
+      "-q", "-o", join(AV, "ซับรูป (2024).mkv"), base,
+      "-D", "-A", "--no-chapters", "--language", "1:tha", "--track-name", "1:PGS ตัวอย่าง", join(SUBS, "supsample.mkv"),
+      "--sync", "0:-130000", "--language", "0:eng", "--track-name", "0:VobSub ตัวอย่าง", join(SUBS, "vobsub.idx"),
+    ], { encoding: "utf8" });
+    rmSync(base, { force: true });
+    if (r.status === 0 || r.status === 1) console.log("สร้างแล้ว  เสียงซับ/ซับรูป (2024).mkv  ซับ PGS 2 ภาพ VobSub 46 ภาพ");
+    else { console.log(`พัง  ซับรูป (2024).mkv\n${r.stdout}${r.stderr}`); process.exitCode = 1; }
+  }
+} else console.log("ข้าม  ซับรูป (2024).mkv · ยังไม่มีไฟล์ตัวอย่างใน test-media/ซับตัวอย่าง-ffmpeg (ดูแหล่งที่ test-media/README.md)");
+
 // ไฟล์ของพี่กัน
 const fromGun = join(root, "test-media", "จากพี่กัน");
 if (existsSync(join(fromGun, "IMG_4149.HEIC"))) copyFileSync(join(fromGun, "IMG_4149.HEIC"), join(IMG, "IMG_4149.HEIC"));
