@@ -64,8 +64,9 @@ export default function ShelfPage({ onPage, onPoster, onInfo, onCheck, onGraph, 
   const wrapRef = useRef<HTMLDivElement>(null);
   useEffect(() => { wrapRef.current?.scrollTo({ top: 0 }); }, [view]);
 
+  const orient = settings?.coverOrient ?? "tall";
   const found = useMemo(() => searchByName(movies, query, (m) => m.name), [movies, query]);
-  const list = useMemo(() => sortMovies(found.items, sort, reminder), [found.items, sort, reminder]);
+  const list = useMemo(() => sortMovies(found.items, sort, reminder).map((m) => withCover(m, orient)), [found.items, sort, reminder, orient]);
   const selected = list.find((m) => m.id === sel) ?? list[0] ?? null;
 
   const missingFolders = folders.filter((f) => !f.ok);
@@ -106,6 +107,8 @@ export default function ShelfPage({ onPage, onPoster, onInfo, onCheck, onGraph, 
               <Seg small label="ขนาดปก" value={size} onChange={(v) => update({ coverSize: v })}
                 disabledReason={view === "table" ? "ขนาดปกใช้ได้ตอนดูแบบภาพปก" : undefined}
                 options={[{ value: "s", label: "เล็ก" }, { value: "m", label: "กลาง" }, { value: "l", label: "ใหญ่" }]} />
+              <Seg small label="ดูปก" value={orient} onChange={(v) => update({ coverOrient: v })}
+                options={[{ value: "tall", label: "ปกตั้ง" }, { value: "wide", label: "ปกนอน" }]} />
               <DisplayMenu />
             </div>
           </div>
@@ -199,6 +202,16 @@ function usePerRow(size: keyof typeof SIZES) {
   }, []);
   const { w: bw, gap } = SIZES[size];
   return { ref, w, perRow: Math.max(1, Math.floor((w - 28 + gap) / (bw + gap))) };
+}
+
+/** ปกที่ชั้นวางใช้ตามที่เลือก ปกตั้งหรือปกนอน · เรื่องที่มีแบบเดียวขึ้นแบบนั้นเสมอ
+    ภาพปก ตาราง แผงขวา ใช้ thumb กับ coverAspect ของเรื่องที่ผ่านตรงนี้แล้ว จึงสลับพร้อมกันทุกที่
+    (พี่กัน 7 พ.ย. 2569 *"ทำระบบที่ดูรูปแบบเเนวตั้ง หรือเเนวนอนได้ ยกเว้นเรื่องนั้นๆมีเเค่เเนวเดียวมันจะเเสดงเเค่เเนวนั้น"*) */
+function withCover(m: Movie, orient: "tall" | "wide"): Movie {
+  if (!m.thumb2) return m;
+  const want = (a: number) => (orient === "wide" ? a >= 1 : a < 1);
+  const a1 = m.coverAspect ?? 0, a2 = m.cover2Aspect ?? 0;
+  return want(a1) || !want(a2) ? m : { ...m, thumb: m.thumb2, coverAspect: a2 };
 }
 
 /** กว้างของเล่มบนชั้น · ปกแนวนอน (กว้างหารสูงตั้งแต่ 1) สูงเท่าเล่มอื่น กว้างตามสัดส่วนไม่เกิน 16:9 · ปกตั้งกับเล่มที่ยังไม่มีปกกว้างเท่าเดิม

@@ -52,6 +52,11 @@ pub struct Movie {
     pub thumb: Option<String>,
     /// กว้างหารสูงของปก · ชั้นวางวางปกแนวนอน (ตั้งแต่ 1 ขึ้นไป) เป็นกรอบแนวนอน · คลังเก่าไม่มีค่านี้ อ่านโฟลเดอร์รอบหน้าได้ค่า
     pub cover_aspect: Option<f32>,
+    /// ปกที่สอง เมื่อไฟล์มีทั้งปกตั้งและปกนอน (cover กับ cover_land) · ปกตั้งอยู่ thumb เสมอ ปกนอนอยู่ช่องนี้
+    /// ชั้นวางสลับดูได้ เรื่องที่มีแบบเดียวไม่มีช่องนี้ (พี่กัน 7 พ.ย. 2569 *"ทำระบบที่ดูรูปแบบเเนวตั้ง หรือเเนวนอนได้ ยกเว้นเรื่องนั้นๆมีเเค่เเนวเดียวมันจะเเสดงเเค่เเนวนั้น"*)
+    pub thumb2: Option<String>,
+    pub cover2_name: Option<String>,
+    pub cover2_aspect: Option<f32>,
     /// "unchecked" ยังไม่เคยตรวจ · "ok" สมบูรณ์ · "bad" เสียหาย · "changed" ไฟล์เปลี่ยนหลังตรวจครั้งก่อน
     pub status: String,
     /// ผลตรวจครั้งล่าสุด (ขั้น 6)
@@ -235,7 +240,8 @@ pub fn scan_core(env: &ScanEnv, existing: Vec<Movie>, on_movie: &(dyn Fn(&Movie,
         let (name, ext) = split_name(&f.path);
         match old {
             Some(mut m) if m.size == f.size && m.mtime == f.mtime && m.error.is_none()
-                && (!m.has_cover || m.thumb.as_deref().map(probe::thumb_is_current).unwrap_or(false)) => {
+                && (!m.has_cover || m.thumb.as_deref().map(probe::thumb_is_current).unwrap_or(false))
+                && m.thumb2.as_deref().map(probe::thumb_is_current).unwrap_or(true) => {
                 // ไม่เปลี่ยน · อาจแค่เปลี่ยนชื่อหรือย้ายใน Explorer
                 m.id = fid;
                 m.path = f.path.to_string_lossy().to_string();
@@ -283,10 +289,9 @@ pub fn scan_core(env: &ScanEnv, existing: Vec<Movie>, on_movie: &(dyn Fn(&Movie,
             movies.push(Movie { missing: true, ..m });
         } else {
             // ไฟล์ถูกลบหรือย้ายออกไป หรือโฟลเดอร์ถูกเอาออกจากชั้น
-            if let Some(t) = &m.thumb {
+            for t in [&m.thumb, &m.thumb2].into_iter().flatten() {
                 let _ = fs::remove_file(t);
             }
-
         }
     }
     for f in folders.iter_mut().filter(|f| !f.ok) {
@@ -321,24 +326,37 @@ fn read_one(env: &ScanEnv, f: &Found, fid: &str, old: Option<Movie>) -> Movie {
             m.audio = p.audio;
             m.subs = p.subs;
             m.images = p.images;
-            m.has_cover = p.cover.is_some();
-            let old_thumb = m.thumb.take();
+            m.has_cover = p.cover.is_some() || p.cover_land.is_some();
+            let old_thumbs = [m.thumb.take(), m.thumb2.take()];
             m.cover_name = None;
             m.cover_sha256 = None;
             m.cover_aspect = None;
-            if let Some(src) = p.cover {
+            m.cover2_name = None;
+            m.cover2_aspect = None;
+            // ปกหลัก (cover) กับปกนอน (cover_land) ทำภาพเล็กทั้งคู่ · ปกตั้งขึ้นก่อนเสมอ ดูจากสัดส่วนจริงของรูป ไม่ใช่ชื่อ
+            // (ไฟล์ที่แนบรูปแนวนอนไว้ชื่อ cover.jpg ก่อนมีระบบนี้ ก็ยังนับเป็นปกนอน)
+            let mut made: Vec<probe::Thumb> = vec![];
+            for src in [p.cover, p.cover_land].into_iter().flatten() {
                 match probe::make_thumb(env.tools, &f.path, &src, env.work, env.thumbs, &safe_id(fid)) {
-                    Ok(t) => {
-                        m.thumb = Some(t.path.to_string_lossy().to_string());
-                        m.cover_name = Some(t.cover_name);
-                        m.cover_sha256 = Some(t.cover_sha256);
-                        m.cover_aspect = Some(t.aspect);
-                    }
+                    Ok(t) => made.push(t),
                     Err(e) => m.error = Some(e),
                 }
             }
-            if let Some(t) = old_thumb {
-                if m.thumb.as_deref() != Some(t.as_str()) {
+            made.sort_by_key(|t| t.aspect >= 1.0);
+            let mut it = made.into_iter();
+            if let Some(t) = it.next() {
+                m.thumb = Some(t.path.to_string_lossy().to_string());
+                m.cover_name = Some(t.cover_name);
+                m.cover_sha256 = Some(t.cover_sha256);
+                m.cover_aspect = Some(t.aspect);
+            }
+            if let Some(t) = it.next() {
+                m.thumb2 = Some(t.path.to_string_lossy().to_string());
+                m.cover2_name = Some(t.cover_name);
+                m.cover2_aspect = Some(t.aspect);
+            }
+            for t in old_thumbs.into_iter().flatten() {
+                if m.thumb.as_deref() != Some(t.as_str()) && m.thumb2.as_deref() != Some(t.as_str()) {
                     let _ = fs::remove_file(t);
                 }
             }

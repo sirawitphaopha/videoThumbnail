@@ -38,7 +38,7 @@ const drop = async (path, zone) => {
   await c.evaluate(`window.__TAURI_INTERNALS__.invoke('plugin:event|emit_to', { target: { kind: 'Webview', label: 'main' }, event: 'tauri://drag-drop', payload: { paths: [${JSON.stringify(path)}], position: ${JSON.stringify(pos)} } })`);
 };
 
-await inv("set_settings", { patch: { folders: [DIR], viewMode: "grid", coverSize: "m" } });
+await inv("set_settings", { patch: { folders: [DIR], viewMode: "grid", coverSize: "m", coverOrient: "tall" } });
 if (BUILT) {
   await c.send("Page.enable");
   await c.send("Page.addScriptToEvaluateOnNewDocument", { source: "window.__csp = []; document.addEventListener('securitypolicyviolation', (e) => window.__csp.push({ dir: e.violatedDirective, uri: e.blockedURI }));" });
@@ -71,7 +71,10 @@ await shot("02-การ์ดรูป-แนวนอน.png", "[data-card=pos
 await c.evaluate("document.querySelector('[data-start]').click()");
 for (let i = 0; i < 200; i++) { const r = await q("return document.querySelector('[data-run]')?.dataset.run"); if (r === "done" || r === "failed") break; await sleep(150); }
 const run = await text("[data-run]");
-check("ใส่ปกแนวนอนให้ MKV สำเร็จ", /เสร็จ|ใส่ปก/.test(run) && !/ไม่ได้|ผิดพลาด/.test(run), run);
+const MKVMERGE = join("src-tauri", "tools", "mkvmerge.exe");
+const attNames = (f) => (JSON.parse(execFileSync(MKVMERGE, ["-J", f], { encoding: "utf8" })).attachments ?? []).map((a) => a.file_name).sort();
+const att1 = attNames(join(DIR, "ดาวเหนือ (2023).mkv"));
+check("ใส่ปกแนวนอนให้ MKV สำเร็จ · รูปแนวนอนแนบชื่อ cover_land.jpg ตามธรรมเนียมปกแนวนอน", /เสร็จ|ใส่ปก/.test(run) && !/ไม่ได้|ผิดพลาด/.test(run) && att1.join(" ") === "cover_land.jpg", `${run} · ไฟล์แนบ ${att1.join(" ")}`);
 
 // ---------- ชั้นวาง ----------
 await c.evaluate("[...document.querySelectorAll('button.nav')].find(b => b.innerText.includes('ชั้นวางหนัง')).click()"); await sleep(600);
@@ -98,6 +101,53 @@ const off = await q("return [...document.querySelectorAll('.lv tbody td:first-ch
 check("ตาราง ภาพเล็กอยู่กลางช่องทั้งปกตั้งและปกแนวนอน", off.length === 2 && off.every((d) => d <= 1), `ห่างจากกลางช่อง ${off.join(" · ")} จุดภาพ`);
 await shot("05-ตาราง-ปกแนวนอน.png", ".lv");
 await clickText(".seg button", "ภาพปก"); await sleep(300);
+
+// ---------- ปกตั้งกับปกนอนในไฟล์เดียว สลับดูบนชั้นวาง (คิว 5) ----------
+// พี่กัน *"ทำระบบนี้มาเลย ให้เเนบหลายรูปได้ เเละทำระบบที่ดูรูปแบบเเนวตั้ง หรือเเนวนอนได้ ยกเว้นเรื่องนั้นๆมีเเค่เเนวเดียวมันจะเเสดงเเค่เเนวนั้น"*
+const attach = async (img, mode) => {
+  await c.evaluate("[...document.querySelectorAll('button.nav')].find(b => b.innerText.includes('ใส่โปสเตอร์')).click()"); await sleep(600);
+  await drop(join(DIR, "ดาวเหนือ (2023).mkv"), "movie"); await sleep(1500);
+  await drop(join(IMG, img), "poster");
+  await waitFor("return !!document.querySelector('[data-crop]')", 10000);
+  await clickText("[data-crop] .seg button", mode); await sleep(400);
+  await c.evaluate("document.querySelector('[data-use]').click()");
+  await waitFor("return !document.querySelector('[data-crop]') && !!document.querySelector('[data-pp]')", 15000); await sleep(500);
+  await c.evaluate("document.querySelector('[data-start]').click()");
+  for (let i = 0; i < 200; i++) { const r = await q("return document.querySelector('[data-run]')?.dataset.run"); if (r === "done" || r === "failed") break; await sleep(150); }
+  return text("[data-run]");
+};
+const run2 = await attach("poster.jpg", "ตัดให้พอดี 2 : 3");
+const att2 = attNames(join(DIR, "ดาวเหนือ (2023).mkv"));
+check("ใส่ปกตั้งเพิ่มให้ไฟล์ที่มีปกนอนอยู่แล้ว · ไฟล์แนบ cover.jpg กับ cover_land.jpg ปกนอนเดิมยังอยู่ · หน้าจอบอกว่าปกนอนยังอยู่", att2.join(" ") === "cover.jpg cover_land.jpg" && run2.includes("ปกแนวนอนเดิมยังอยู่"), `ไฟล์แนบ ${att2.join(" ")} · ${run2}`);
+await shot("06-ใส่ปกตั้งเพิ่ม-ปกนอนยังอยู่.png", "[data-run]");
+const lib2 = await inv("get_library"), dao2 = lib2.movies.find((m) => m.name === "ดาวเหนือ (2023)"), har2 = lib2.movies.find((m) => m.name === "Harbor Lights (2021)");
+check("คลังหนังจดสองปก ปกตั้งเป็นปกหลัก ปกนอนเป็นปกที่สอง · เรื่องที่มีปกเดียวไม่มีปกที่สอง", dao2?.thumb && dao2.coverAspect < 1 && dao2.thumb2 && dao2.cover2Aspect >= 1 && dao2.cover2Name === "cover_land.jpg" && !har2?.thumb2,
+  `ดาวเหนือ ${dao2?.coverName} ${dao2?.coverAspect?.toFixed(2)} · ${dao2?.cover2Name} ${dao2?.cover2Aspect?.toFixed(2)} · Harbor ปกที่สอง ${har2?.thumb2 ?? "ไม่มี"}`);
+
+await c.evaluate("[...document.querySelectorAll('button.nav')].find(b => b.innerText.includes('ชั้นวางหนัง')).click()"); await sleep(800);
+const wideOf = (n) => q(`return document.querySelector('.book[data-movie="${n}"]')?.classList.contains('wide') ?? null`);
+await clickText(".seg button", "ปกตั้ง"); await sleep(400);
+const tallState = [await wideOf("ดาวเหนือ (2023)"), await wideOf("Harbor Lights (2021)")];
+await shot("07-ชั้นวาง-ดูปกตั้ง.png", "[data-shelf]");
+await clickText(".seg button", "ปกนอน"); await sleep(500);
+const wideState = [await wideOf("ดาวเหนือ (2023)"), await wideOf("Harbor Lights (2021)")];
+const orientSaved = (await inv("get_settings")).settings?.coverOrient ?? (await inv("get_settings")).coverOrient;
+check("ชั้นวาง ปุ่มดูปก · ปกตั้ง ดาวเหนือขึ้นปกตั้ง · ปกนอน ดาวเหนือขึ้นปกนอน · Harbor มีแค่ปกตั้งขึ้นปกตั้งทั้งสองแบบ · จำค่าไว้",
+  tallState[0] === false && tallState[1] === false && wideState[0] === true && wideState[1] === false && orientSaved === "wide", `ปกตั้ง ${JSON.stringify(tallState)} · ปกนอน ${JSON.stringify(wideState)} · ค่าที่จำ ${orientSaved}`);
+await shot("08-ชั้นวาง-ดูปกนอน.png", "[data-shelf]");
+await c.click('.book[data-movie="ดาวเหนือ (2023)"]'); await sleep(400);
+const dpWide = await q("return document.querySelector('.dposter')?.classList.contains('wide')");
+await clickText(".seg button", "ตาราง"); await sleep(500);
+const thWide = await q("return [...document.querySelectorAll('.lv tbody tr')].map((tr) => !!tr.querySelector('.th.wide'))");
+check("ดูปกนอน แผงขวากับตารางขึ้นปกนอนของดาวเหนือ · Harbor ในตารางยังเป็นปกตั้ง", dpWide === true && thWide.filter(Boolean).length === 1, `แผงขวา ${dpWide} · ตาราง ${JSON.stringify(thWide)}`);
+await clickText(".seg button", "ภาพปก"); await sleep(300);
+
+// ใส่ปกนอนใหม่ แทนเฉพาะปกนอนเดิม ปกตั้งยังอยู่
+const run3 = await attach("wide.jpg", "ตามรูปเดิม");
+const att3 = attNames(join(DIR, "ดาวเหนือ (2023).mkv"));
+check("ใส่ปกนอนใหม่ แทนเฉพาะปกนอนเดิม · ไฟล์แนบยังเป็น cover.jpg กับ cover_land.jpg อย่างละอัน · หน้าจอบอกว่าปกตั้งยังอยู่", att3.join(" ") === "cover.jpg cover_land.jpg" && run3.includes("ปกแนวตั้งเดิมยังอยู่"), `ไฟล์แนบ ${att3.join(" ")} · ${run3}`);
+await c.evaluate("[...document.querySelectorAll('button.nav')].find(b => b.innerText.includes('ชั้นวางหนัง')).click()"); await sleep(600);
+await clickText(".seg button", "ปกตั้ง"); await sleep(300);
 
 if (BUILT) {
   const csp = await q("return window.__csp ?? null");

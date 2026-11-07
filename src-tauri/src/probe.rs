@@ -45,6 +45,13 @@ pub struct Probe {
     /// จำนวนรูปที่แนบในไฟล์
     pub images: u32,
     pub cover: Option<CoverSource>,
+    /// ปกแนวนอนตามธรรมเนียม MKV ไฟล์แนบชื่อ cover_land.* (พี่กัน 7 พ.ย. 2569 สั่งแนบได้ทั้งปกตั้งและปกนอน)
+    pub cover_land: Option<CoverSource>,
+}
+
+/// ชื่อไฟล์แนบตัด นามสกุลออก ตัวเล็ก · cover.jpg → cover · Cover_Land.PNG → cover_land
+pub fn att_stem(name: &str) -> String {
+    Path::new(&name.to_lowercase()).file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default()
 }
 
 /// อ่านข้อมูลไฟล์หนังหนึ่งไฟล์
@@ -87,9 +94,7 @@ pub fn parse(j: &Value) -> Probe {
                     Some(n) => CoverSource::Attachment { name: n.to_string() },
                     None => CoverSource::AttachedPic { index: st["index"].as_u64().unwrap_or(0), codec: codec.to_string() },
                 };
-                if better_cover(&p.cover, &src) {
-                    p.cover = Some(src);
-                }
+                put_cover(&mut p, src);
             }
             "video" if p.video.is_none() => {
                 let (w, h) = (st["width"].as_u64().unwrap_or(0), st["height"].as_u64().unwrap_or(0));
@@ -109,16 +114,24 @@ pub fn parse(j: &Value) -> Probe {
                 let mime = st["tags"].get("mimetype").and_then(Value::as_str).unwrap_or("");
                 if mime.starts_with("image/") {
                     p.images += 1;
-                    let src = CoverSource::Attachment { name };
-                    if better_cover(&p.cover, &src) {
-                        p.cover = Some(src);
-                    }
+                    put_cover(&mut p, CoverSource::Attachment { name });
                 }
             }
             _ => {}
         }
     }
     p
+}
+
+/// ไฟล์แนบชื่อ cover_land.* ไปช่องปกแนวนอน · รูปอื่นแข่งกันเป็นปกหลัก
+fn put_cover(p: &mut Probe, src: CoverSource) {
+    if matches!(&src, CoverSource::Attachment { name } if att_stem(name) == "cover_land") {
+        if p.cover_land.is_none() {
+            p.cover_land = Some(src);
+        }
+    } else if better_cover(&p.cover, &src) {
+        p.cover = Some(src);
+    }
 }
 
 /// รูปไหนควรเป็นปก · ยังไม่มี = เอา · ไฟล์แนบชื่อขึ้นต้นด้วย cover ชนะรูปอื่น (ตามธรรมเนียมของโปรแกรมเล่นหนัง)
@@ -369,6 +382,20 @@ mod tests {
         assert_eq!(p.subs[0], Track { lang: Some("ไทย".into()), codec: "SRT".into(), layout: None });
         assert_eq!(p.images, 2, "นับเฉพาะไฟล์แนบที่เป็นรูป ไม่นับฟอนต์");
         assert_eq!(p.cover, Some(CoverSource::Attachment { name: "cover.jpg".into() }), "ต้องเลือก cover.jpg ก่อนรูปอื่น");
+        assert_eq!(p.cover_land, None);
+    }
+
+    /// ไฟล์มีทั้งปกตั้งกับปกนอน · cover_land ไปช่องปกนอน ไม่แย่งปกหลัก ไม่ว่าจะมาก่อนหรือหลัง
+    #[test]
+    fn parse_cover_and_cover_land() {
+        for order in [["cover_land.jpg", "cover.jpg"], ["cover.jpg", "Cover_Land.JPG"]] {
+            let j: Value = serde_json::json!({ "format": {}, "streams": order.iter().enumerate().map(|(i, n)| serde_json::json!({
+                "index": i, "codec_type": "attachment", "codec_name": "mjpeg", "tags": { "filename": n, "mimetype": "image/jpeg" } })).collect::<Vec<_>>() });
+            let p = parse(&j);
+            assert_eq!(p.images, 2);
+            assert_eq!(p.cover, Some(CoverSource::Attachment { name: "cover.jpg".into() }), "{order:?}");
+            assert!(matches!(&p.cover_land, Some(CoverSource::Attachment { name }) if att_stem(name) == "cover_land"), "{order:?}");
+        }
     }
 
     #[test]

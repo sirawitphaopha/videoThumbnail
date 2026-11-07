@@ -25,6 +25,8 @@ export type Settings = {
   sidebarCollapsed: boolean;
   viewMode: "grid" | "table";
   sort: string;
+  /** ชั้นวางดูปกตั้งหรือปกนอน · เรื่องที่มีแบบเดียวขึ้นแบบนั้น */
+  coverOrient: "tall" | "wide";
 };
 
 export type LoadedFrom = "file" | "backup" | "defaults" | "new";
@@ -39,6 +41,10 @@ export type Movie = {
   images: number; hasCover: boolean; coverName: string | null; coverSha256: string | null; thumb: string | null;
   /** กว้างหารสูงของปก · ตั้งแต่ 1 คือปกแนวนอน ชั้นวางวางเป็นกรอบแนวนอน */
   coverAspect?: number | null;
+  /** ปกที่สอง (ปกนอน) เมื่อไฟล์มีทั้งปกตั้งและปกนอน · thumb เป็นปกตั้งเสมอ */
+  thumb2?: string | null;
+  cover2Name?: string | null;
+  cover2Aspect?: number | null;
   status: MovieStatus; check: CheckInfo | null; sha256: string | null; missing: boolean; error: string | null;
 };
 /** ผลตรวจครั้งล่าสุด (ขั้น 6) */

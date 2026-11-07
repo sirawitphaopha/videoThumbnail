@@ -23,6 +23,7 @@ const defaults: Settings = {
   sidebarCollapsed: false,
   viewMode: "grid",
   sort: "name-asc",
+  coverOrient: "tall",
 };
 
 let settings: Settings = { ...defaults };
