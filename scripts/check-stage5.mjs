@@ -61,6 +61,8 @@ await c.evaluate("[...document.querySelectorAll('[data-extract] button')].find(b
 for (let i = 0; i < 100 && !(await q("return document.querySelector('[data-extract]').innerText.includes('แยกครบ')")); i++) await sleep(150);
 const files2 = readdirSync(xdir);
 check("แยกซ้ำ ชื่อชน บอกมีไฟล์ชื่อเดียวกันอยู่แล้ว ไม่เขียนทับ · กดตั้งชื่อใหม่ต่อท้ายเลข 2 ได้ไฟล์ใหม่", conflict.includes("โปรแกรมไม่เขียนทับไฟล์เดิม") && same && files2.includes("ดาวเหนือ (2023).Audio2.en 2.ac3"), files2.join(", "));
+// การ์ดบอกชื่อไฟล์ที่มีอยู่แล้วทุกไฟล์ · ชน 3 ไฟล์ ปุ่มข้ามบอกจำนวน (ผู้ช่วยตรวจสเปกข้อ 10)
+check("การ์ดชื่อชนบอกชื่อไฟล์ที่มีอยู่แล้วทุกไฟล์ · ชนหลายไฟล์ปุ่มข้ามบอกจำนวน", conflict.includes("ในที่เก็บมีไฟล์ ดาวเหนือ (2023).Audio2.en.ac3 อยู่แล้ว") && conflict.includes("ในที่เก็บมีไฟล์ ดาวเหนือ (2023).Text1.th.srt อยู่แล้ว") && conflict.includes("ข้ามทั้ง 3 ไฟล์"), conflict.split("\n").join(" / "));
 
 // ค่า hash
 await c.evaluate("document.querySelector('[data-hash-start]').click()");

@@ -39,7 +39,7 @@ impl Jobs {
     pub fn may_close(&self) -> bool {
         self.count() == 0 || self.force_exit.load(Ordering::SeqCst)
     }
-    #[allow(dead_code)] // งานยาวขั้น 2 ขึ้นไปใช้เช็กว่าโดนสั่งหยุดไหม
+    /// งานยาวเช็กตัวนี้เป็นระยะว่าโดนสั่งหยุดตอนปิดโปรแกรมไหม
     pub fn cancelled(&self) -> bool {
         self.cancel_all.load(Ordering::SeqCst)
     }
@@ -50,12 +50,31 @@ pub fn running_jobs(jobs: State<'_, Arc<Jobs>>) -> usize {
     jobs.count()
 }
 
-/// ผู้ใช้ยืนยันในหน้าต่างถามแล้วว่าปิดเลย · สั่งทุกงานหยุด แล้วปิดโปรแกรม
+/// ผู้ใช้ยืนยันในหน้าต่างถามแล้วว่าปิดเลย · สั่งทุกงานหยุด รอให้งานหยุดเองและลบไฟล์ .partial ของตัวเอง แล้วค่อยปิดโปรแกรม
+/// เดิมปิดทันที งานโดนฆ่ากลางทาง ไฟล์ .partial ขนาดเกือบเท่าหนังค้างข้างไฟล์หนัง และถ้าตรงจังหวะ mkvpropedit กำลังเขียนรูปแนบ
+/// เครื่องมือโดนฆ่ากลางการเขียนไฟล์เดิม (ผู้ช่วยตรวจโค้ดเจอ) · mkvpropedit ไม่ฟังตัวหยุด รอจนเขียนเสร็จ (ไม่กี่วินาที)
+/// รอไม่เกิน WAIT_EXIT งานที่ค้างนานกว่านั้นปิดตามเดิม
+const WAIT_EXIT: std::time::Duration = std::time::Duration::from_secs(20);
+
 #[tauri::command]
 pub fn force_close(app: AppHandle, jobs: State<'_, Arc<Jobs>>) {
     jobs.cancel_all.store(true, Ordering::SeqCst);
     jobs.force_exit.store(true, Ordering::SeqCst);
-    app.exit(0);
+    let jobs = jobs.inner().clone();
+    std::thread::spawn(move || {
+        wait_idle(&jobs, WAIT_EXIT);
+        app.exit(0);
+    });
+}
+
+/// รอจนไม่มีงาน หรือครบเวลา · คืนว่างานหมดไหม
+fn wait_idle(jobs: &Jobs, limit: std::time::Duration) -> bool {
+    let t0 = std::time::Instant::now();
+    while jobs.count() > 0 {
+        if t0.elapsed() >= limit { return false; }
+        std::thread::sleep(std::time::Duration::from_millis(100));
+    }
+    true
 }
 
 /// งานปลอมไว้เทสตัวกันปิด มีเฉพาะตอนทดสอบ ตัวติดตั้งจริงไม่มีคำสั่งนี้
@@ -63,8 +82,13 @@ pub fn force_close(app: AppHandle, jobs: State<'_, Arc<Jobs>>) {
 #[tauri::command]
 pub fn dev_fake_job(jobs: State<'_, Arc<Jobs>>, seconds: u64) {
     let g = jobs.start();
+    let j = jobs.inner().clone();
+    // ฟังตัวหยุดเหมือนงานจริง ทุก 100 ms · ปิดโปรแกรมแล้วงานปลอมจบเอง ไม่ต้องรอครบ 20 วินาที
     std::thread::spawn(move || {
-        std::thread::sleep(std::time::Duration::from_secs(seconds));
+        let t0 = std::time::Instant::now();
+        while t0.elapsed().as_secs() < seconds && !j.cancelled() {
+            std::thread::sleep(std::time::Duration::from_millis(100));
+        }
         drop(g);
     });
 }
@@ -88,6 +112,20 @@ mod tests {
         assert_eq!(jobs.count(), 1, "งานที่พังต้องคืนตัวนับ");
         drop(g2);
         assert!(jobs.may_close());
+    }
+
+    /// ปิดโปรแกรมรองานหยุดเองก่อน · งานจบในเวลา คืนจริง · งานค้างเกินเวลา คืนเท็จ (ปิดตามเดิม)
+    #[test]
+    fn wait_idle_waits_for_jobs_to_finish() {
+        let jobs = Arc::new(Jobs::default());
+        let g = jobs.start();
+        let j2 = jobs.clone();
+        let t = std::thread::spawn(move || wait_idle(&j2, std::time::Duration::from_secs(5)));
+        std::thread::sleep(std::time::Duration::from_millis(300));
+        drop(g);
+        assert!(t.join().unwrap(), "งานจบแล้วต้องเลิกรอ");
+        let _g = jobs.start();
+        assert!(!wait_idle(&jobs, std::time::Duration::from_millis(250)), "งานค้างเกินเวลาต้องเลิกรอ");
     }
 
     #[test]

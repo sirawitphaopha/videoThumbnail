@@ -36,7 +36,8 @@ struct Source {
 pub struct PosterState {
     source: Mutex<Option<Source>>,
     /// ผลหมุน ครอป ย่อ ของค่าล่าสุด · เลื่อนแถบคุณภาพไม่ต้องคิดรูปใหม่ เข้ารหัสใหม่อย่างเดียว
-    rendered: Mutex<Option<(Geometry, RgbImage, (u32, u32))>>,
+    /// รูปที่ทำแล้ว · จำคู่กับค่าย่อรูปที่ใหญ่เกินตอนทำ เปลี่ยนสวิตช์แล้วทำใหม่
+    rendered: Mutex<Option<(Geometry, RgbImage, (u32, u32), bool)>>,
     /// รูปที่กด ใช้รูปนี้ แล้ว (ไบต์ที่จะแนบจริง)
     chosen: Mutex<Option<(Vec<u8>, String)>>,
     /// ไฟล์ภาพตัวอย่างที่โปรแกรมสร้าง แยกตามชนิด สร้างใหม่แล้วลบของเก่า ไม่ให้กองในเครื่อง
@@ -150,20 +151,23 @@ pub async fn poster_render(app: AppHandle, req: RenderReq) -> Result<RenderInfo,
     tauri::async_runtime::spawn_blocking(move || {
         let d = dirs(&app)?;
         let st = app.state::<PosterState>();
+        // สวิตช์ ย่อรูปโปสเตอร์ที่ใหญ่เกิน ในหน้าตั้งค่า (เดิมไม่มีโค้ดอ่านค่านี้ ย่อเป็น 1000 × 1500 ทุกครั้ง ผู้ช่วยตรวจสเปกเจอ)
+        let shrink = app.state::<crate::store::SettingsStore>().current.lock().unwrap().shrink_large_posters;
         let mut cache = st.rendered.lock().unwrap();
-        if cache.as_ref().map(|c| c.0 != req.geo).unwrap_or(true) {
+        if cache.as_ref().map(|c| c.0 != req.geo || c.3 != shrink).unwrap_or(true) {
             let src = st.source.lock().unwrap();
             let Some(src) = src.as_ref() else { return Err("ยังไม่ได้เลือกรูปโปสเตอร์".to_string()) };
-            let (img, crop) = pi::render(&src.img, &req.geo);
-            *cache = Some((req.geo.clone(), img, crop));
+            let (img, crop) = pi::render(&src.img, &req.geo, shrink);
+            *cache = Some((req.geo.clone(), img, crop, shrink));
         }
-        let (_, img, crop) = cache.as_ref().unwrap();
+        let (_, img, crop, _) = cache.as_ref().unwrap();
         let format = if req.format == "png" { "png" } else { "jpg" };
         let bytes = pi::encode(img, format, req.quality)?;
         std::fs::create_dir_all(&d.previews).map_err(|e| e.to_string())?;
         let preview = d.previews.join(format!("render-{}.{format}", pi::unique()));
         std::fs::write(&preview, &bytes).map_err(|e| e.to_string())?;
-        st.keep_preview("render", preview.clone());
+        // ภาพของรูปที่กดใช้แล้วเก็บช่องแยก · เดิมใช้ช่องเดียวกับภาพในหน้าต่างครอป เปิดครอปอีกครั้งแล้วกดยกเลิก การ์ดชี้ไฟล์ที่ถูกลบ รูปเสีย (ผู้ช่วยตรวจโค้ดเจอ)
+        st.keep_preview(if req.choose { "chosen" } else { "render" }, preview.clone());
         let sizes = if req.sizes && format == "jpg" {
             [100u8, 90, 75, 50].iter().map(|q| (*q, pi::encode(img, "jpg", *q).map(|b| b.len() as u64).unwrap_or(0))).collect()
         } else {
@@ -623,7 +627,8 @@ fn apply(app: &AppHandle, req: &ApplyReq, jobs: &Arc<crate::jobs::Jobs>) -> Resu
         return Err(fail("exists", "มีไฟล์ชื่อนี้อยู่แล้ว ไม่เขียนทับ", vec![target.to_string_lossy().to_string(), untouched]));
     }
     let partial = PathBuf::from(format!("{}.partial", target.to_string_lossy()));
-    if target.to_string_lossy().encode_utf16().count() + 8 > MAX_PATH_LEN {
+    // ไฟล์ใหม่ต่อท้าย .partial (8 ตัว) · เปลี่ยนรูปแนบแก้ในไฟล์เดิม ไม่มีไฟล์ใหม่ ไม่ต้องบวก (เดิมบวกทุกโหมด ไฟล์ที่ที่อยู่ยาว 252–259 ใส่ปกไม่ได้)
+    if target.to_string_lossy().encode_utf16().count() + if mode == "cover" { 0 } else { 8 } > MAX_PATH_LEN {
         return Err(fail("other", "ที่อยู่ไฟล์ยาวเกินไป", vec!["เปลี่ยนชื่อไฟล์ให้สั้นลงก่อน".into(), untouched]));
     }
 
@@ -731,6 +736,10 @@ fn apply(app: &AppHandle, req: &ApplyReq, jobs: &Arc<crate::jobs::Jobs>) -> Resu
         if keep_other {
             notes.push(if land { "ปกแนวตั้งเดิมยังอยู่ในไฟล์ ชั้นวางสลับดูได้".into() } else { "ปกแนวนอนเดิมยังอยู่ในไฟล์ ชั้นวางสลับดูได้".into() });
         }
+        // เช็กซ้ำตรงจังหวะที่เขียนจริง · ตรวจไฟล์ต้นทางของไฟล์ใหญ่ใช้หลายนาที ระหว่างนั้นผู้ใช้อาจเปิดหนังเรื่องนี้ดู (ผู้ช่วยตรวจโค้ดเจอ)
+        if !not_in_use(&src) {
+            return Err(fail("inuse", "ไฟล์ถูกเปิดอยู่ในโปรแกรมอื่น", vec!["ถูกเปิดระหว่างตรวจไฟล์ต้นทาง ยังไม่ได้แก้ไฟล์ ปิดโปรแกรมเล่นหนังก่อน แล้วกดลองใหม่".into(), untouched.clone()]));
+        }
         let out = run_tool_timeout(&d.tools, "mkvpropedit", &args, Duration::from_secs(300))
             .map_err(|e| fail("tool", "เปลี่ยนรูปแนบไม่สำเร็จ", vec![e]))?;
         if !tool_succeeded("mkvpropedit", &out.status) {
@@ -738,19 +747,28 @@ fn apply(app: &AppHandle, req: &ApplyReq, jobs: &Arc<crate::jobs::Jobs>) -> Resu
         }
         // ตรวจ · ปกมีอันเดียว ชื่อ ชนิดถูก ดึงออกมาแล้ว hash ตรงกับรูปที่ทำ · แทร็กเท่าเดิม
         emit("กำลังตรวจไฟล์ใหม่", 80.0, None, None);
-        verify_cover(&d, &target, &cover_name, mime, &poster_sha).map_err(|e| fail("verify", "ตรวจรูปแนบไม่ผ่าน", vec![e]))?;
-        // ปกอีกแนวที่ตั้งใจเก็บไว้ ต้องยังอยู่ครบหนึ่งอัน
-        let other_stem = if land { "cover" } else { "cover_land" };
-        let kept = mkv_attachments(&d.tools, &target).map(|a| a.iter().filter(|x| crate::probe::att_stem(&x.0) == other_stem).count()).unwrap_or(0);
-        if kept != usize::from(keep_other) {
-            return Err(fail("verify", "ปกอีกแนวในไฟล์ไม่ตรงกับที่ควรเป็น", vec![format!("ควรมี {other_stem} {} อัน เจอ {kept} อัน", usize::from(keep_other))]));
+        let check = || -> Result<Counts, (String, String)> {
+            verify_cover(&d, &target, &cover_name, mime, &poster_sha).map_err(|e| ("ตรวจรูปแนบไม่ผ่าน".to_string(), e))?;
+            // ปกอีกแนวที่ตั้งใจเก็บไว้ ต้องยังอยู่ (ไฟล์จากที่อื่นอาจมีปกอีกแนวมากกว่าหนึ่งอัน เช่น cover.jpg กับ cover.png · เดิมนับว่าต้องเท่ากับ 1 พอดี ขึ้นแดงทั้งที่แนบสำเร็จ ผู้ช่วยตรวจโค้ดเจอ)
+            let other_stem = if land { "cover" } else { "cover_land" };
+            let kept = mkv_attachments(&d.tools, &target).map(|a| a.iter().filter(|x| crate::probe::att_stem(&x.0) == other_stem).count()).unwrap_or(0);
+            if (kept >= 1) != keep_other {
+                return Err(("ปกอีกแนวในไฟล์ไม่ตรงกับที่ควรเป็น".into(), format!("{other_stem} ควร{} เจอ {kept} อัน", if keep_other { "ยังอยู่" } else { "ไม่มี" })));
+            }
+            let after = ffprobe_json(&d.tools, &target).map(|j| count(&streams_of(&j))).unwrap_or_default();
+            if after != count(&src_streams) {
+                return Err(("แทร็กในไฟล์เปลี่ยนไปหลังเปลี่ยนรูปแนบ".into(), format!("เดิม {:?} ตอนนี้ {:?}", count(&src_streams), after)));
+            }
+            Ok(after)
+        };
+        match check() {
+            Ok(after) => { verified = true; result_counts = after; }
+            Err((title, why)) => {
+                // ไฟล์ถูกแก้ไปแล้ว จดขนาดกับ hash ใหม่ลงคลังเสมอ ไม่งั้นอ่านโฟลเดอร์ครั้งหน้าขึ้นว่าไฟล์ถูกเปลี่ยน · บอกตรง ๆ ว่าแนบปกใหม่ไปแล้ว
+                crate::library::refresh_own_edit(app, &target, &|pct| emit("กำลังจดค่า hash ใหม่", pct, None, None));
+                return Err(fail("verify", title, vec![why, "แนบปกใหม่ลงไฟล์แล้ว ภาพ เสียง ซับ ไม่ได้ถูกแปลงใหม่ · ควรตรวจละเอียดเรื่องนี้".into()]));
+            }
         }
-        let after = ffprobe_json(&d.tools, &target).map(|j| count(&streams_of(&j))).unwrap_or_default();
-        if after != count(&src_streams) {
-            return Err(fail("verify", "แทร็กในไฟล์เปลี่ยนไปหลังเปลี่ยนรูปแนบ", vec![format!("เดิม {:?} ตอนนี้ {:?}", count(&src_streams), after)]));
-        }
-        verified = true;
-        result_counts = after;
     } else {
         // ② ③ ทำไฟล์ใหม่เป็น .partial ในโฟลเดอร์เดียวกัน
         let _ = std::fs::remove_file(&partial); // .partial ของรอบก่อนที่ค้าง เป็นของโปรแกรมเอง ไม่ใช่ไฟล์หนัง
@@ -777,6 +795,15 @@ fn apply(app: &AppHandle, req: &ApplyReq, jobs: &Arc<crate::jobs::Jobs>) -> Resu
         } else {
             let mut a: Vec<OsString> = ["--gui-mode", "--ui-language", "en", "-o"].iter().map(OsString::from).collect();
             a.push(partial.as_os_str().to_owned());
+            // ปกที่ฝังในต้นทาง (MP4 M4V MOV) mkvmerge ยกมาเป็นไฟล์แนบชื่อ cover.* เอง · ชนกับรูปใหม่ได้ปกชื่อซ้ำสองอัน ตรวจไม่ผ่าน (ผู้ช่วยตรวจโค้ดเจอ ลองแล้วจริง)
+            // เก็บปกเดิมเฉพาะตอนรูปใหม่เป็นแนวนอน (cover_land) และปกเดิมเป็นแนวตั้งทั้งหมด ชื่อไม่ชน ชั้นวางสลับดูได้ · นอกนั้นไม่ยกไฟล์แนบของต้นทางมา
+            let old_pics: Vec<(u64, u64)> = src_json["streams"].as_array().map(|a| a.iter()
+                .filter(|s| s["disposition"]["attached_pic"].as_i64() == Some(1))
+                .map(|s| (s["width"].as_u64().unwrap_or(0), s["height"].as_u64().unwrap_or(0))).collect()).unwrap_or_default();
+            let keep_old = land && !old_pics.is_empty() && old_pics.iter().all(|&(w, h)| w <= h);
+            if !keep_old { a.push("--no-attachments".into()); }
+            if keep_old { notes.push("ปกแนวตั้งที่ฝังในไฟล์ต้นทางยกมาด้วย ชั้นวางสลับดูได้".into()); }
+            else if !old_pics.is_empty() { notes.push("ปกที่ฝังในไฟล์ต้นทางไม่ได้ยกมา ใช้รูปที่ใส่แทน".into()); }
             a.push(src.as_os_str().to_owned());
             a.extend(["--attachment-name".into(), cover_name.clone().into(), "--attachment-mime-type".into(), mime.into(), "--attach-file".into(), cover_file.as_os_str().to_owned()]);
             a
@@ -877,7 +904,10 @@ fn apply(app: &AppHandle, req: &ApplyReq, jobs: &Arc<crate::jobs::Jobs>) -> Resu
         if req.original == "trash" && !trash {
             notes.push(if !verified { "ไม่ได้ตรวจไฟล์ใหม่ จึงไม่ลบไฟล์เดิม ย้ายไปโฟลเดอร์ไฟล์เดิมแทน".into() } else { "ไดรฟ์นี้ไม่มีถังขยะ ย้ายไฟล์เดิมไปโฟลเดอร์ไฟล์เดิมแทน".into() });
         }
-        let moved = if trash {
+        // ไฟล์เดิมถูกเปิดระหว่างครอบ · ไม่ย้าย ไม่ลบ ทิ้งไว้ที่เดิม (เช็กซ้ำตรงจังหวะที่ย้ายจริง)
+        let moved = if !not_in_use(&src) {
+            Err("ไฟล์เดิมถูกเปิดอยู่ในโปรแกรมอื่น".to_string())
+        } else if trash {
             to_trash(&src).map(|_| { original = "trash".into(); })
         } else {
             let keep_dir = originals_dir(app, &dir);
@@ -892,7 +922,13 @@ fn apply(app: &AppHandle, req: &ApplyReq, jobs: &Arc<crate::jobs::Jobs>) -> Resu
             }
             notes.push(format!("ย้ายไฟล์เดิมไม่สำเร็จ {e} · ไฟล์เดิมยังอยู่ที่เดิม"));
         } else if same_name {
-            finish_partial(&mut notes)?;
+            // ชื่อเดียวกัน (MP4 ส่งออกเป็น MP4) ย้ายไฟล์เดิมออกไปแล้ว ถ้าเปลี่ยน .partial เป็นชื่อจริงไม่สำเร็จ ย้ายไฟล์เดิมกลับที่เดิม ไม่ให้ที่เดิมว่าง (ผู้ช่วยตรวจโค้ดเจอ)
+            if let Err(mut p) = finish_partial(&mut notes) {
+                if let Some(to) = &original_to {
+                    if move_no_replace(Path::new(to), &src).is_ok() { p.detail.push("ไฟล์เดิมย้ายกลับที่เดิมแล้ว".into()); }
+                }
+                return Err(p);
+            }
         }
     }
     drop(cleanup_cover);

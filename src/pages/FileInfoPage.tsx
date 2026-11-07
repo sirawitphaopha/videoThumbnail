@@ -1,7 +1,7 @@
 /* หน้าข้อมูลไฟล์ (สเปกข้อ 6 · ต้นแบบบรรทัด 606–722 · แผนขั้น 5) เปิดจากปุ่ม ข้อมูลไฟล์ ในแผงขวาของชั้นวาง
    ข้อความ MediaInfo ภาษาอังกฤษ ตัวอักษรความกว้างคงที่ สามคอลัมน์ · ติ๊กหัวข้อไหน = แยกส่วนนั้นเป็นไฟล์ · ไฟล์หนังเดิมไม่ถูกแตะ
    แถบแยกไฟล์ (ทีละชิ้น หยุดได้ ชื่อชนถามก่อน ไม่เขียนทับ) · ค่า hash 5 แบบ อ่านไฟล์รอบเดียว หยุดได้ เทียบค่าที่วาง บันทึก .sha256 */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { api, infoApi, inApp, pickFolder, thumbUrl, type ExtractItem, type ExtractResult, type HashCompare, type Hashes, type MiSection, type Movie } from "../lib/api";
 import { CardIcon, Phr, Skel } from "../components/ui";
@@ -26,7 +26,9 @@ export default function FileInfoPage({ m, onBack }: { m: Movie; onBack: () => vo
   const [err, setErr] = useState<string | null>(null);
   const [picked, setPicked] = useState<number[]>([]);
   const [folder, setFolder] = useState<string>("");
-  const [xRun, setXRun] = useState<{ items: ExtractItem[]; labels: string[]; pct: number[]; result: ExtractResult | null; running: boolean } | null>(null);
+  /** sel = แถวในตารางที่กดแยกรอบนี้ ตรึงไว้ · เดิมการ์ดชื่อชนใช้รายการติ๊กปัจจุบัน ติ๊กเพิ่มหรือเอาออกระหว่างการ์ดค้าง กดตั้งชื่อใหม่แล้วแยกผิดชิ้น (ผู้ช่วยตรวจโค้ดเจอ) */
+  const [xRun, setXRun] = useState<{ sel: number[]; items: ExtractItem[]; labels: string[]; pct: number[]; result: ExtractResult | null; running: boolean } | null>(null);
+  const xElsewhere = useElsewhere(infoApi.extractRunning, !!xRun?.running);
   const dir = m.path.replace(/[\\/][^\\/]+$/, "");
 
   useEffect(() => {
@@ -56,7 +58,7 @@ export default function FileInfoPage({ m, onBack }: { m: Movie; onBack: () => vo
 
   const runExtract = async (sel: number[], policy: string[]) => {
     const its = sel.map((i) => items[i].item!);
-    setXRun({ items: its, labels: sel.map(rowLabel), pct: its.map(() => 0), result: null, running: true });
+    setXRun({ sel, items: its, labels: sel.map(rowLabel), pct: its.map(() => 0), result: null, running: true });
     try {
       const result = await infoApi.extract(m.path, folder || null, its, policy);
       setXRun((r) => r && { ...r, result, running: false });
@@ -67,7 +69,7 @@ export default function FileInfoPage({ m, onBack }: { m: Movie; onBack: () => vo
   const conflicts = xRun?.result ? xRun.result.states.map((s, i) => (s === "conflict" ? i : -1)).filter((i) => i >= 0) : [];
   const resolve = (how: "skip" | "number") => {
     if (!xRun) return;
-    const sel = conflicts.map((i) => picked[i]);
+    const sel = conflicts.map((i) => xRun.sel[i]);
     runExtract(sel, sel.map(() => how));
   };
 
@@ -119,6 +121,10 @@ export default function FileInfoPage({ m, onBack }: { m: Movie; onBack: () => vo
 
         {/* แถบแยกไฟล์ */}
         <div className="card" data-extract>
+          {xElsewhere && !xRun && (
+            <div className="stat warn" style={{ marginBottom: 12 }} data-extract-elsewhere><CardIcon kind="warn" /><div><b>งานแยกไฟล์ที่เริ่มไว้ก่อนเปลี่ยนหน้ายังทำอยู่</b><Phr>ไฟล์ที่แยกลงโฟลเดอร์ที่เลือกไว้ตอนกดแยก · รอให้เสร็จก่อนแยกอย่างอื่น หรือกดหยุด</Phr>
+              <div className="minirow" style={{ marginTop: 6 }}><button type="button" className="btn btn-bad btn-sm" onClick={() => infoApi.extractCancel()}>หยุดงานนั้น</button></div></div></div>
+          )}
           {!xRun || (!xRun.running && !xRun.result) ? (
             <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
               <div style={{ fontSize: 14 }}>{picked.length ? <><b>เลือกไว้ {picked.length} อย่าง</b> · {picked.map(label).join(" · ")}</> : "ติ๊กหัวข้อในตารางเพื่อแยกเป็นไฟล์"}</div>
@@ -136,9 +142,9 @@ export default function FileInfoPage({ m, onBack }: { m: Movie; onBack: () => vo
               {xRun.running && <button type="button" className="btn btn-bad btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => infoApi.extractCancel()}>หยุด</button>}
               {xRun.result && conflicts.length > 0 && (
                 <>
-                  <div className="stat warn"><CardIcon kind="warn" /><div><b>มีไฟล์ชื่อเดียวกันอยู่แล้ว</b>โปรแกรมไม่เขียนทับไฟล์เดิม</div></div>
+                  <div className="stat warn" data-conflict><CardIcon kind="warn" /><div><b>มีไฟล์ชื่อเดียวกันอยู่แล้ว</b>{conflicts.map((i) => <div key={i} style={{ wordBreak: "break-all" }}>ในที่เก็บมีไฟล์ {(xRun.result!.files[i] ?? "").split(/[\\/]/).pop()} อยู่แล้ว</div>)}<div>โปรแกรมไม่เขียนทับไฟล์เดิม</div></div></div>
                   <div className="minirow" style={{ marginTop: 0 }}>
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => resolve("skip")}>ข้ามไฟล์นี้</button>
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => resolve("skip")}>{conflicts.length > 1 ? `ข้ามทั้ง ${conflicts.length} ไฟล์` : "ข้ามไฟล์นี้"}</button>
                     <button type="button" className="btn btn-main btn-sm" onClick={() => resolve("number")}>ตั้งชื่อใหม่ต่อท้ายเลข 2</button>
                   </div>
                 </>
@@ -146,14 +152,14 @@ export default function FileInfoPage({ m, onBack }: { m: Movie; onBack: () => vo
               {xRun.result?.error && (
                 <>
                   <div className="stat bad"><CardIcon kind="bad" /><div>{xRun.result.error.split(" · ").map((l, i) => i === 0 ? <b key={i}>{l}</b> : <div key={i}><Phr>{l}</Phr></div>)}</div></div>
-                  <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => runExtract(picked, picked.map(() => "ask"))}>ลองใหม่</button>
+                  <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => runExtract(xRun.sel, xRun.sel.map(() => "ask"))}>ลองใหม่</button>
                 </>
               )}
               {xRun.result && !xRun.result.error && conflicts.length === 0 && (
                 <>
-                  {done > 0 && <div className="stat ok"><CardIcon kind="done" /><div><b>แยกครบ {done} ไฟล์</b>{xRun.result.files.filter(Boolean).map((f, i) => <div key={i} style={{ wordBreak: "break-all" }}>{f!.split(/[\\/]/).pop()}</div>)}</div></div>}
+                  {done > 0 && <div className="stat ok"><CardIcon kind="done" /><div><b>แยกครบ {done} ไฟล์</b>{xRun.result.files.filter((f, i) => f && xRun.result!.states[i] === "done").map((f, i) => <div key={i} style={{ wordBreak: "break-all" }}>{f!.split(/[\\/]/).pop()}</div>)}</div></div>}
                   <div className="minirow" style={{ marginTop: 0 }}>
-                    {done > 0 && <button type="button" className="btn btn-ok btn-sm" onClick={() => { const f = xRun.result!.files.find(Boolean); if (f) api.revealMovie(f).catch(() => {}); }}>เปิดโฟลเดอร์ที่เก็บ</button>}
+                    {done > 0 && <button type="button" className="btn btn-ok btn-sm" onClick={() => { const f = xRun.result!.files.find((f, i) => f && xRun.result!.states[i] === "done"); if (f) api.revealMovie(f).catch(() => {}); }}>เปิดโฟลเดอร์ที่เก็บ</button>}
                     <button type="button" className="btn btn-ghost btn-sm" onClick={() => setXRun(null)}>แยกอย่างอื่นต่อ</button>
                   </div>
                 </>
@@ -169,18 +175,39 @@ export default function FileInfoPage({ m, onBack }: { m: Movie; onBack: () => vo
   );
 }
 
+/** งานที่เริ่มไว้ก่อนเปลี่ยนหน้า (หน้านี้ถูกถอดตอนเปลี่ยนหน้า สถานะบนจอหาย แต่งานฝั่ง Rust ยังทำต่อ) · ถามซ้ำทุก 1 วินาทีจนงานจบ
+    mine = หน้านี้เป็นคนเริ่มงานเอง ไม่ต้องถาม */
+function useElsewhere(ask: () => Promise<boolean>, mine: boolean) {
+  const [on, setOn] = useState(false);
+  useEffect(() => {
+    if (!inApp || mine) { setOn(false); return; }
+    let live = true;
+    let t: number | undefined;
+    const tick = () => ask().then((r) => { if (!live) return; setOn(r); if (r) t = window.setTimeout(tick, 1000); }).catch(() => {});
+    tick();
+    return () => { live = false; clearTimeout(t); };
+  }, [ask, mine]);
+  return on;
+}
+
 /** ค่า hash · ติ๊กได้หลายแบบ · อ่านไฟล์รอบเดียว · หยุดได้ · เทียบค่าที่วาง · บันทึก .sha256 */
 function HashCard({ m }: { m: Movie }) {
   const toast = useToast();
   const [algos, setAlgos] = useState<string[]>(["md5", "sha256", "crc32"]);
   const [h, setH] = useState<Hashes | null>(null);
   const [at, setAt] = useState<number | null>(null);
+  /** ค่า SHA-256 ที่จดไว้ในคลังตอนกดคำนวณ · ไม่ตรงกับที่คิดได้ = ไฟล์ถูกเปลี่ยนหรือเสีย ค่าเดิมไม่ถูกทับ (fileinfo.rs hash_file) */
+  const [stored, setStored] = useState<string | null>(null);
   const [prog, setProg] = useState<{ done: number; total: number } | null>(null);
   const [paste, setPaste] = useState("");
   const [cmp, setCmp] = useState<HashCompare | null>(null);
+  /** หน้านี้เป็นคนกดคำนวณเอง · ความคืบหน้าของงานที่เริ่มไว้ก่อนเปลี่ยนหน้าไปแสดงในการ์ดเหลืองแทน
+      (เดิมรับมาแสดงเป็นงานของหน้านี้ พองานจบหน้านี้ไม่รู้ผล ค้างที่เปอร์เซ็นต์สุดท้าย เจอตอนตรวจภาพ) */
+  const mine = useRef(false);
+  const [other, setOther] = useState<{ done: number; total: number } | null>(null);
   useEffect(() => {
     if (!inApp) return;
-    const off = listen<{ done: number; total: number }>("hash-progress", (e) => setProg(e.payload));
+    const off = listen<{ done: number; total: number }>("hash-progress", (e) => (mine.current ? setProg : setOther)(e.payload));
     return () => { off.then((f) => f()); };
   }, []);
   useEffect(() => {
@@ -188,8 +215,10 @@ function HashCard({ m }: { m: Movie }) {
     infoApi.compare(paste, h).then(setCmp).catch(() => setCmp(null));
   }, [paste, h]);
   const running = prog !== null && h === null;
+  const elsewhere = useElsewhere(infoApi.hashRunning, running);
   const start = async () => {
-    setH(null); setProg({ done: 0, total: m.size });
+    setH(null); setProg({ done: 0, total: m.size }); setStored(m.sha256 ?? null);
+    mine.current = true;
     try {
       const r = await infoApi.hash(m.path, algos);
       setProg(null);
@@ -197,6 +226,8 @@ function HashCard({ m }: { m: Movie }) {
     } catch (e) {
       setProg(null);
       toast({ kind: "bad", title: "คำนวณค่า hash ไม่สำเร็จ", detail: String(e) });
+    } finally {
+      mine.current = false;
     }
   };
   const rows = h ? ALGOS.filter(([k]) => (h as unknown as Record<string, string | null>)[k]) : [];
@@ -224,6 +255,12 @@ function HashCard({ m }: { m: Movie }) {
           );
         })}
       </div>
+      {elsewhere && !running && (
+        <div className="stat warn" style={{ marginBottom: 12 }} data-hash-elsewhere><CardIcon kind="warn" /><div><b>กำลังคิดค่า hash ที่เริ่มไว้ก่อนเปลี่ยนหน้า</b>
+          {other && <div>อ่านไฟล์ไปแล้ว <span className="nw">{fmtSize(other.done)}</span> จาก <span className="nw">{fmtSize(other.total)}</span> · {other.total ? Math.round((other.done / other.total) * 100) : 0}%</div>}
+          <Phr>รอให้เสร็จก่อนคำนวณใหม่ หรือกดหยุด · ค่า SHA-256 ที่ได้ยังจดลงคลังตามปกติ</Phr>
+          <div className="minirow" style={{ marginTop: 6 }}><button type="button" className="btn btn-bad btn-sm" onClick={() => infoApi.hashCancel()}>หยุดงานนั้น</button></div></div></div>
+      )}
       {running ? (
         <div className="workbox">
           <div style={{ fontSize: 14 }}>{firstAlgo} · อ่านไฟล์ไปแล้ว <span className="nw">{fmtSize(prog!.done)}</span> จาก <span className="nw">{fmtSize(prog!.total)}</span> · {prog!.total ? Math.round((prog!.done / prog!.total) * 100) : 0}%</div>
@@ -238,7 +275,10 @@ function HashCard({ m }: { m: Movie }) {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 012-2h10" /></svg>
               </button></div>
           ))}
-          <div className="small" style={{ marginTop: 8 }}>คำนวณเมื่อ <span className="nw">{at ? fmtDateTime(at) : ""}</span> · ใช้เวลา <span className="nw">{Math.max(1, Math.round(h.seconds))} วินาที</span>{h.sha256 ? " · ค่า SHA-256 ถูกจำไว้ใช้ตอนตรวจแบบเร็วครั้งต่อไป" : ""}</div>
+          <div className="small" style={{ marginTop: 8 }}>คำนวณเมื่อ <span className="nw">{at ? fmtDateTime(at) : ""}</span> · ใช้เวลา <span className="nw">{Math.max(1, Math.round(h.seconds))} วินาที</span>{h.sha256 && (!stored || stored.toLowerCase() === h.sha256.toLowerCase()) ? " · ค่า SHA-256 ถูกจำไว้ใช้ตอนตรวจแบบเร็วครั้งต่อไป" : ""}</div>
+          {h.sha256 && stored && stored.toLowerCase() !== h.sha256.toLowerCase() && (
+            <div className="stat warn" style={{ marginTop: 8 }} data-hashchanged><CardIcon kind="warn" /><div><b>ค่า SHA-256 ไม่ตรงกับที่จดไว้ตอนตรวจครั้งก่อน</b><Phr>ไฟล์อาจถูกเปลี่ยนหรือเสียระหว่างย้ายไดรฟ์ · ค่าที่จดไว้ไม่ถูกเปลี่ยน ชั้นวางขึ้นว่าไฟล์ถูกเปลี่ยน ควรตรวจละเอียด</Phr></div></div>
+          )}
           <div className="minirow">
             <button type="button" className="btn btn-ghost btn-sm" onClick={start}>คำนวณใหม่</button>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => copy(rows.map(([k, l]) => `${l}: ${val(k)}`).join("\n"), "ค่า hash ทั้งหมด")}>คัดลอกทั้งหมด</button>
@@ -256,7 +296,8 @@ function HashCard({ m }: { m: Movie }) {
           </div>
         </>
       ) : (
-        <button type="button" className={"btn btn-sm " + (algos.length ? "btn-main" : "btn-wait")} aria-disabled={!algos.length || undefined} title={algos.length ? undefined : "ติ๊กอย่างน้อย 1 แบบก่อน"} onClick={() => { if (algos.length) start(); }} data-hash-start>คำนวณ</button>
+        <button type="button" className={"btn btn-sm " + (algos.length && !elsewhere ? "btn-main" : "btn-wait")} aria-disabled={!algos.length || elsewhere || undefined}
+          title={elsewhere ? "รองานที่เริ่มไว้ก่อนเปลี่ยนหน้าเสร็จก่อน" : algos.length ? undefined : "ติ๊กอย่างน้อย 1 แบบก่อน"} onClick={() => { if (algos.length && !elsewhere) start(); }} data-hash-start>คำนวณ</button>
       )}
     </div>
   );
@@ -264,7 +305,7 @@ function HashCard({ m }: { m: Movie }) {
 
 /** ชื่อชนิดที่เจอบ่อย หมายถึงอะไร (ต้นแบบบรรทัด 670–692) */
 const KINDS: [string, [string, string][]][] = [
-  ["ภาพ", [["H.264 (AVC)", "ชนิดที่ใช้มากที่สุด เปิดได้แทบทุกเครื่อง"], ["H.265 (HEVC)", "ไฟล์เล็กกว่า H.264 ที่ความคมเท่ากัน เครื่องเก่าบางเครื่องเปิดไม่ได้"], ["AV1", "ชนิดใหม่ ไฟล์เล็กมาก ต้องใช้เครื่อง หรือโปรแกรมรุ่นใหม่"], ["HDR", "ภาพสว่างและสีกว้างกว่าปกติ ต้องใช้จอที่รองรับ"]]],
+  ["ภาพ", [["H.264 (AVC)", "ชนิดที่ใช้มากที่สุด เปิดได้แทบทุกเครื่อง"], ["H.265 (HEVC)", "ไฟล์เล็กกว่า H.264 ที่ความคมเท่ากัน เครื่องเก่าบางเครื่องเปิดไม่ได้"], ["AV1", "ชนิดใหม่ ไฟล์เล็กมาก ต้องใช้เครื่องหรือโปรแกรมรุ่นใหม่"], ["HDR", "ภาพสว่างและสีกว้างกว่าปกติ ต้องใช้จอที่รองรับ"]]],
   ["เสียง", [["AAC", "ใช้ทั่วไป ไฟล์เล็ก เปิดได้ทุกเครื่อง"], ["AC-3 · E-AC-3", "Dolby Digital ใช้กับลำโพงรอบทิศทาง 5.1"], ["DTS · TrueHD", "เสียงคุณภาพสูงจากแผ่นบลูเรย์ ไฟล์ใหญ่"], ["FLAC · Opus", "FLAC เสียงไม่ลดคุณภาพ · Opus ไฟล์เล็กมาก"]]],
   ["ซับไตเติล", [["SRT", "ตัวหนังสือธรรมดา แก้ไขได้ด้วย Notepad"], ["ASS", "แต่งสี ฟอนต์ ตำแหน่งได้ ใช้กับการ์ตูนบ่อย"], ["PGS · VobSub", "ซับแบบภาพจากแผ่นบลูเรย์และดีวีดี แก้คำไม่ได้"]]],
 ];

@@ -78,7 +78,6 @@ export default function ShelfPage({ onPage, onPoster, onInfo, onCheck, onGraph, 
     ? settings.folders[0] + (settings.folders.length > 1 ? ` และอีก ${settings.folders.length - 1} โฟลเดอร์` : "")
     : "";
 
-  const soon = (what: string, stage: number) => toast({ kind: "info", title: `${what}ทำในขั้น ${stage} ของแผน`, detail: "ปุ่มนี้ใช้ได้เมื่อทำขั้นนั้นเสร็จ" });
 
   return (
     <>
@@ -158,7 +157,7 @@ export default function ShelfPage({ onPage, onPoster, onInfo, onCheck, onGraph, 
         </div>
         {/* key ต่อเรื่อง สลับเรื่องแล้วสร้างแผงกับปุ่มใหม่ ไม่ใช้ปุ่มเดิมซ้ำ (เดิมปุ่มชมพูค่อย ๆ เปลี่ยนเป็นเขียวตอนสลับเรื่อง) */}
         {selected && (
-          <Detail key={selected.id} m={selected} scanning={scanning} reminder={reminder} onPage={onPage} onCheck={onCheck} onGraph={onGraph} onPoster={onPoster} onInfo={() => onInfo(selected.id)} soon={soon} onClose={() => setSel(null)}
+          <Detail key={selected.id} m={selected} scanning={scanning} reminder={reminder} onPage={onPage} onCheck={onCheck} onGraph={onGraph} onPoster={onPoster} onInfo={() => onInfo(selected.id)} onClose={() => setSel(null)}
             onPlay={() => api.playMovie(selected.path).catch((e) => {
               toast({ kind: "bad", title: "เปิดเล่นไม่ได้", detail: String(e) });
               // โปรแกรมเล่นที่เลือกเองหาไม่เจอ พากลับไปตั้งที่หน้าตั้งค่า (สเปกข้อ 9 *"หาไม่เจอวันหลัง กดเปิดเล่นแล้วบอก และพากลับมาตั้ง"*)
@@ -373,7 +372,7 @@ function ShelfTable(p: { list: Movie[]; selId: string | null; onSel: (id: string
 }
 
 /* ---------- แผงรายละเอียด (ต้นแบบบรรทัด 388–426) ---------- */
-function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg: Page) => void; onCheck: (r: CheckReq) => void; onGraph: (path: string) => void; onPoster: (path: string) => void; onInfo: () => void; soon: (what: string, stage: number) => void; onPlay: () => void; onReveal: () => void; onClose: () => void }) {
+function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg: Page) => void; onCheck: (r: CheckReq) => void; onGraph: (path: string) => void; onPoster: (path: string) => void; onInfo: () => void; onPlay: () => void; onReveal: () => void; onClose: () => void }) {
   const { m } = p;
   const src = thumbUrl(m.thumb);
   const [imgOk, setImgOk] = useState(true);

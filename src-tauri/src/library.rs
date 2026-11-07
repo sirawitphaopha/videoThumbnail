@@ -90,6 +90,12 @@ pub struct LibraryStore {
     pub movies: Mutex<Vec<Movie>>,
     pub folders: Mutex<Vec<FolderState>>,
     scanning: AtomicBool,
+    /// บันทึกทีละทาง · ตรวจทั้งชุด (ทุก 2 วินาที) อ่านโฟลเดอร์ hash เปลี่ยนชื่อ บันทึกพร้อมกันได้
+    /// เดิมไม่ล็อก ไฟล์ชั่วคราวชื่อเดียวกันโดนสองทางเขียนทับกัน ขึ้นแถบแดงบันทึกไม่สำเร็จ หรือสำเนาเก่าเขียนทีหลังทับของใหม่ (ผู้ช่วยตรวจโค้ดเจอ)
+    save_lock: Mutex<()>,
+    /// มีคนสั่งอ่านโฟลเดอร์ระหว่างกำลังอ่าน (เพิ่มหรือเอาโฟลเดอร์ออก ครอบ MKV เสร็จ) · อ่านจบแล้วอ่านอีกรอบเอง
+    /// เดิมคำสั่งถูกทิ้งเงียบ ๆ โฟลเดอร์ที่เพิ่งเพิ่มขึ้น 0 เรื่อง ทั้งที่แถบบอกว่ากำลังอ่าน (ผู้ช่วยตรวจโค้ดเจอ)
+    rescan: AtomicBool,
 }
 
 fn now() -> i64 {
@@ -105,10 +111,12 @@ impl LibraryStore {
     /// อ่านคลัง · ไฟล์เสียใช้สำรอง · สำรองเสียเริ่มคลังว่าง (หนังกลับมาเมื่ออ่านโฟลเดอร์ใหม่ แต่ประวัติตรวจหาย)
     pub fn load(path: PathBuf) -> Self {
         let lib = read_library(&path).or_else(|| read_library(&path.with_extension("json.bak"))).unwrap_or_default();
-        Self { path, movies: Mutex::new(lib.movies), folders: Mutex::new(vec![]), scanning: AtomicBool::new(false) }
+        Self { path, movies: Mutex::new(lib.movies), folders: Mutex::new(vec![]), scanning: AtomicBool::new(false), save_lock: Mutex::new(()), rescan: AtomicBool::new(false) }
     }
 
     pub fn save(&self) -> Result<(), String> {
+        // ถ่ายสำเนาในล็อกเดียวกับที่เขียน · ทางที่เขียนทีหลังถือสำเนาที่ใหม่กว่าเสมอ
+        let _one_at_a_time = self.save_lock.lock().unwrap_or_else(|e| e.into_inner());
         let movies = self.movies.lock().unwrap().clone();
         let bytes = serde_json::to_vec(&LibraryFile { version: 1, movies }).map_err(|e| e.to_string())?;
         let current_ok = read_library(&self.path).is_some();
@@ -457,6 +465,7 @@ pub fn get_library(lib: State<'_, Arc<LibraryStore>>) -> LibraryReply {
 #[tauri::command]
 pub fn scan_library(app: AppHandle, lib: State<'_, Arc<LibraryStore>>) -> Result<(), String> {
     if lib.scanning.swap(true, Ordering::SeqCst) {
+        lib.rescan.store(true, Ordering::SeqCst);
         return Ok(());
     }
     let lib = lib.inner().clone();
@@ -492,9 +501,13 @@ pub fn scan_library(app: AppHandle, lib: State<'_, Arc<LibraryStore>>) -> Result
         *lib.folders.lock().unwrap() = r.folders.clone();
         let saved = lib.save();
         lib.scanning.store(false, Ordering::SeqCst);
+        let again = lib.rescan.swap(false, Ordering::SeqCst);
         let _ = app.emit("scan-finished", LibraryReply { movies, folders: r.folders, scanning: false });
         if let Err(e) = saved {
             let _ = app.emit("library-error", e);
+        }
+        if again {
+            let _ = scan_library(app.clone(), app.state::<Arc<LibraryStore>>());
         }
     });
     Ok(())
@@ -506,14 +519,20 @@ fn check_at(m: &Movie) -> i64 {
 }
 
 /// ผลตรวจที่เสร็จระหว่างอ่านโฟลเดอร์ · เรื่องที่ผลตรวจในคลังตอนนี้ใหม่กว่าสำเนาตอนเริ่มอ่าน ใช้สถานะ ผลตรวจ และค่า hash ในคลัง
+/// เรื่องที่ถูกแก้ในคลังระหว่างอ่านแบบอื่น (จดคลังหลังโปรแกรมเปลี่ยนรูปแนบเอง) ใช้ของในคลังทั้งเรื่อง เพราะใหม่กว่าที่ตัวอ่านเห็น
+/// เดิมตัวอ่านเอาสำเนาตอนเริ่มมาทับ เรื่องที่เพิ่งใส่ปกได้ขนาดเก่า hash เก่า อ่านครั้งหน้าขึ้นว่าไฟล์ถูกเปลี่ยน (ผู้ช่วยตรวจโค้ดข้อ 12
+/// เจอจริงในตัวเทสขั้น 4 หลังให้ตัวอ่านอ่านซ้ำเองเมื่อมีคำสั่งระหว่างอ่าน ช่วงอ่านยาวขึ้นจึงชนบ่อยขึ้น)
 pub fn keep_newer_checks(scanned: &mut [Movie], before: &[Movie], now: &[Movie]) {
     for m in scanned.iter_mut() {
         let Some(cur) = now.iter().find(|c| c.id == m.id) else { continue };
-        let was = before.iter().find(|b| b.id == m.id).map(check_at).unwrap_or(0);
+        let old = before.iter().find(|b| b.id == m.id);
+        let was = old.map(check_at).unwrap_or(0);
         if check_at(cur) > was {
             m.status = cur.status.clone();
             m.check = cur.check.clone();
             m.sha256 = cur.sha256.clone();
+        } else if old.is_some_and(|o| o != cur) {
+            *m = cur.clone();
         }
     }
 }
@@ -585,6 +604,20 @@ mod tests {
         assert_eq!(scanned[1].sha256.as_deref(), Some("h200"));
         assert_eq!(scanned[2].status, "changed", "เรื่องที่ไม่ได้ตรวจเพิ่ม ใช้ผลของตัวอ่าน");
         assert_eq!(scanned[0].status, "ok");
+    }
+
+    /// จดคลังหลังเปลี่ยนรูปแนบระหว่างอ่านโฟลเดอร์ · ตัวอ่านต้องไม่เอาสำเนาเก่ามาทับ (ผู้ช่วยตรวจโค้ดข้อ 12)
+    #[test]
+    fn scan_result_keeps_own_edits_made_during_scan() {
+        let mv = |id: &str, size: u64, sha: &str| Movie { id: id.into(), status: "ok".into(), size, sha256: Some(sha.into()), check: Some(serde_json::json!({ "at": 100 })), ..Default::default() };
+        let before = vec![mv("a", 1000, "เก่า"), mv("b", 2000, "บี")];
+        // ระหว่างอ่าน โปรแกรมเปลี่ยนรูปแนบของ a แล้วจดขนาดกับ hash ใหม่ (เวลาตรวจเท่าเดิม)
+        let now = vec![mv("a", 1100, "ใหม่"), mv("b", 2000, "บี")];
+        // ตัวอ่านเห็น a ตอนก่อนแก้ ได้ขนาดเก่า · b ตัวอ่านเห็นไฟล์เปลี่ยนเอง
+        let mut scanned = vec![mv("a", 1000, "เก่า"), Movie { status: "changed".into(), ..mv("b", 2500, "บี") }];
+        keep_newer_checks(&mut scanned, &before, &now);
+        assert_eq!((scanned[0].size, scanned[0].sha256.as_deref()), (1100, Some("ใหม่")), "ของที่จดระหว่างอ่านต้องไม่โดนทับ");
+        assert_eq!((scanned[1].size, scanned[1].status.as_str()), (2500, "changed"), "เรื่องที่ไม่ถูกแก้ระหว่างอ่าน ใช้ผลของตัวอ่าน");
     }
 
     #[test]

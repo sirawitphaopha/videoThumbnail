@@ -37,7 +37,38 @@ pub fn out_name(stem: &str, it: &Item) -> String {
         "audio" => format!("{stem}.Audio{}{lang}.{}", it.nth, it.ext),
         "text" => format!("{stem}.Text{}{lang}.{}", it.nth, it.ext),
         "menu" => format!("{stem}.chapters.xml"),
-        _ => format!("{stem}.{}", it.name.clone().unwrap_or_else(|| format!("attachment{}.{}", it.nth, it.ext))),
+        _ => format!("{stem}.{}", safe_att_name(it)),
+    }
+}
+
+/// ชื่อไฟล์แนบใน MKV เป็นข้อความอะไรก็ได้ (เช่น `x\..\..\Startup\a.cmd`) · เอาเฉพาะชื่อส่วนท้าย ตัดอักษรที่ Windows ห้ามในชื่อไฟล์และอักษรควบคุม
+/// ชื่อว่าง ชื่อสงวน หรือเหลือแต่จุด ใช้ attachment<n>.<ext> แทน · เดิมใช้ชื่อตรง ๆ แยกแล้วไฟล์ไปโผล่นอกโฟลเดอร์ที่เลือกได้ (ผู้ช่วยตรวจโค้ดเจอ)
+fn safe_att_name(it: &Item) -> String {
+    let fallback = || format!("attachment{}.{}", it.nth, it.ext);
+    let Some(raw) = it.name.as_deref() else { return fallback() };
+    let last = raw.rsplit(['/', '\\']).next().unwrap_or("");
+    let clean: String = last.chars().map(|c| if c.is_control() || "<>:\"/\\|?*".contains(c) { '_' } else { c }).collect();
+    let clean = clean.trim().trim_end_matches(['.', ' ']).to_string();
+    let stem = clean.split('.').next().unwrap_or("").trim().to_uppercase();
+    let reserved = matches!(stem.as_str(), "CON" | "PRN" | "AUX" | "NUL") || (stem.len() == 4 && (stem.starts_with("COM") || stem.starts_with("LPT")) && stem.as_bytes()[3].is_ascii_digit());
+    if clean.is_empty() || clean.chars().all(|c| c == '.') || reserved { fallback() } else { clean }
+}
+
+/// ชนิดไฟล์ปลายทางของ ffmpeg ตามนามสกุล · ไม่รู้จัก = None (ตั้งนามสกุลเป็น mka mks mkv ตามจริงแทน)
+fn ff_format(ext: &str) -> Option<&'static str> {
+    Some(match ext {
+        "mkv" | "mka" | "mks" => "matroska", "aac" => "adts", "ac3" => "ac3", "eac3" => "eac3", "mp3" => "mp3", "dts" => "dts", "flac" => "flac",
+        "thd" => "truehd", "wav" => "wav", "ogg" | "opus" => "ogg", "wma" => "asf",
+        "srt" => "srt", "ass" | "ssa" => "ass", "sup" => "sup", "vtt" => "webvtt",
+        _ => return None,
+    })
+}
+
+/// ไฟล์ที่ไม่ใช่ MKV แยกด้วย ffmpeg · นามสกุลที่ ffmpeg เขียนแยกเดี่ยวไม่ได้ (เช่น ซับ VobSub .sub) เปลี่ยนเป็นไฟล์ Matroska ตามชนิด
+/// เดิมเขียนข้างในเป็น Matroska ใต้นามสกุลเดิม ได้ไฟล์ .sup .thd ที่ข้างในเป็น MKV เปิดไม่ได้ (ผู้ช่วยตรวจโค้ดเจอ)
+pub fn fix_ext_for_ffmpeg(it: &mut Item) {
+    if ff_format(&it.ext).is_none() {
+        it.ext = match it.kind.as_str() { "audio" => "mka", "text" => "mks", _ => "mkv" }.into();
     }
 }
 
@@ -64,13 +95,13 @@ fn mkv_attachment_id(tools: &Path, file: &Path, nth: usize) -> Result<u64, Strin
     j["attachments"].as_array().and_then(|a| a.get(nth - 1)).and_then(|x| x["id"].as_u64()).ok_or_else(|| "ไม่เจอไฟล์แนบ".into())
 }
 
-/// เลขสตรีมของ ffmpeg ของแทร็กลำดับที่ nth ในชนิดนั้น (ไม่นับรูปปก)
-fn ff_stream(tools: &Path, file: &Path, kind: &str, nth: usize) -> Result<u64, String> {
+/// เลขสตรีมของ ffmpeg กับชนิดข้อมูล ของแทร็กลำดับที่ nth ในชนิดนั้น (ไม่นับรูปปก)
+fn ff_stream(tools: &Path, file: &Path, kind: &str, nth: usize) -> Result<(u64, String), String> {
     let out = run_tool_timeout(tools, "ffprobe", [OsStr::new("-v"), OsStr::new("error"), OsStr::new("-print_format"), OsStr::new("json"), OsStr::new("-show_streams"), file.as_os_str()], Duration::from_secs(60))?;
     let j: Value = serde_json::from_slice(&out.stdout).map_err(|e| e.to_string())?;
     let want = match kind { "video" => "video", "audio" => "audio", _ => "subtitle" };
     j["streams"].as_array().and_then(|s| s.iter().filter(|x| x["codec_type"] == want && x["disposition"]["attached_pic"].as_i64() != Some(1)).nth(nth - 1))
-        .and_then(|x| x["index"].as_u64()).ok_or_else(|| format!("ไม่เจอแทร็กที่ {nth} ในไฟล์"))
+        .and_then(|x| Some((x["index"].as_u64()?, x["codec_name"].as_str().unwrap_or("").to_string()))).ok_or_else(|| format!("ไม่เจอแทร็กที่ {nth} ในไฟล์"))
 }
 
 pub enum Done {
@@ -102,10 +133,12 @@ pub fn extract_one(tools: &Path, file: &Path, it: &Item, partial: &Path, on: &dy
             }
         }
     } else {
-        let idx = ff_stream(tools, file, &it.kind, it.nth)?;
-        let fmt = match it.ext.as_str() { "mkv" => "matroska", "aac" => "adts", "ac3" => "ac3", "eac3" => "eac3", "mp3" => "mp3", "dts" => "dts", "flac" => "flac", "srt" => "srt", "ass" => "ass", "wav" => "wav", "ogg" | "opus" => "ogg", _ => "matroska" };
+        let (idx, codec) = ff_stream(tools, file, &it.kind, it.nth)?;
+        let fmt = ff_format(&it.ext).unwrap_or("matroska");
+        // ซับตัวหนังสือของ MP4 (mov_text) ตัวเขียน srt ของ ffmpeg รับแบบ copy ไม่ได้ ต้องแปลงตัวหนังสือเป็น SRT (ไม่ใช่ภาพหรือเสียง ไม่เสียคุณภาพ)
+        let codec_arg = if fmt == "srt" && codec != "subrip" && codec != "text" { "srt" } else { "copy" };
         ("ffmpeg", vec!["-hide_banner".into(), "-nostdin".into(), "-n".into(), "-v".into(), "error".into(), "-i".into(), file.into(), "-map".into(), format!("0:{idx}").into(),
-            "-c".into(), "copy".into(), "-f".into(), fmt.into(), partial.into()])
+            "-c".into(), codec_arg.into(), "-f".into(), fmt.into(), partial.into()])
     };
     let mut child = tool_command(tools, tool, &args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::null())
         .spawn().map_err(|e| format!("เรียก {tool} ไม่ได้: {e}"))?;
@@ -169,6 +202,52 @@ mod tests {
         assert_eq!(out_name("ดาวเหนือ (2023)", &it("video", 1, "mkv", None, None)), "ดาวเหนือ (2023).Video1.mkv");
     }
 
+    /// ชื่อไฟล์แนบที่ตั้งใจทำมาให้หลุดโฟลเดอร์ เหลือแค่ชื่อส่วนท้ายที่ปลอดภัย (ผู้ช่วยตรวจโค้ดข้อ 5)
+    #[test]
+    fn attachment_names_cannot_escape_the_folder() {
+        let att = |name: &str| Item { kind: "attachment".into(), nth: 3, ext: "bin".into(), lang: None, name: Some(name.into()) };
+        let stem = "ดาวเหนือ (2023)";
+        assert_eq!(out_name(stem, &att(r"x\..\..\..\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\a.cmd")), "ดาวเหนือ (2023).a.cmd");
+        assert_eq!(out_name(stem, &att("../../evil.ttf")), "ดาวเหนือ (2023).evil.ttf");
+        assert_eq!(out_name(stem, &att("font:stream.ttf")), "ดาวเหนือ (2023).font_stream.ttf");
+        assert_eq!(out_name(stem, &att("..")), "ดาวเหนือ (2023).attachment3.bin");
+        assert_eq!(out_name(stem, &att("CON.txt")), "ดาวเหนือ (2023).attachment3.bin");
+        assert_eq!(out_name(stem, &att("a\u{7}b.ttf ")), "ดาวเหนือ (2023).a_b.ttf");
+        let dir = Path::new(r"D:\หนัง\ดาวเหนือ (2023) แยกไฟล์");
+        for n in [r"..\..\x.cmd", "/abs/y.ttf", r"C:\z.ttf", "ok.ttf"] {
+            assert_eq!(dir.join(out_name(stem, &att(n))).parent(), Some(dir), "{n} ต้องอยู่ในโฟลเดอร์ที่เลือก");
+        }
+    }
+
+    /// ไฟล์ที่ไม่ใช่ MKV · นามสกุลที่ ffmpeg เขียนเดี่ยวไม่ได้กลายเป็น mka mks · ที่เขียนได้คงเดิม (ผู้ช่วยตรวจโค้ดข้อ 7)
+    #[test]
+    fn ffmpeg_extensions_match_what_is_written() {
+        let fx = |kind: &str, ext: &str| { let mut it = Item { kind: kind.into(), nth: 1, ext: ext.into(), lang: None, name: None }; fix_ext_for_ffmpeg(&mut it); it.ext };
+        assert_eq!(fx("text", "sub"), "mks");
+        assert_eq!(fx("audio", "weird"), "mka");
+        for (k, e) in [("text", "sup"), ("audio", "thd"), ("text", "vtt"), ("text", "ssa"), ("audio", "wma"), ("audio", "ac3"), ("text", "srt")] {
+            assert_eq!(fx(k, e), e, "{e} ffmpeg เขียนได้ ต้องคงนามสกุลเดิม");
+        }
+        assert_eq!(ff_format("sup"), Some("sup"));
+        assert_eq!(ff_format("thd"), Some("truehd"));
+        assert_eq!(ff_format("vtt"), Some("webvtt"));
+    }
+
+    /// ซับ mov_text ใน MP4 แยกเป็น SRT ได้ไฟล์ SRT จริง (เดิม -c copy ตัวเขียน srt ไม่รับ mov_text)
+    #[test]
+    fn mp4_mov_text_extracts_as_real_srt() {
+        let src = movie().parent().unwrap().join("The Last Orchard (2022).mp4");
+        let d = std::env::temp_dir().join(format!("ชั้นหนัง-แยกซับ-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        let out = d.join("sub.srt");
+        let it = Item { kind: "text".into(), nth: 1, ext: "srt".into(), lang: None, name: None };
+        assert!(matches!(extract_one(&tools(), &src, &it, &out, &|_| {}, &|| false).unwrap(), Done::Ok));
+        let t = std::fs::read_to_string(&out).unwrap();
+        assert!(t.contains("-->") && t.trim_start().starts_with('1'), "ต้องได้ SRT จริง: {}", t.chars().take(80).collect::<String>());
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
     #[test]
     fn extracted_tracks_match_mkvextract_and_source_untouched() {
         let d = std::env::temp_dir().join(format!("ชั้นหนัง-แยก-{}", std::process::id()));
@@ -205,6 +284,13 @@ mod tests {
 // ---------------------------------------------------------------- คำสั่งให้หน้าจอเรียก
 
 static STOP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// กำลังแยกอยู่ · กดแยกซ้อนอีกงาน (เปลี่ยนหน้าแล้วกลับมากดใหม่) ไม่ให้เริ่ม เพราะใช้ตัวหยุดตัวเดียวกันและ .partial ชื่อเดียวกัน (ผู้ช่วยตรวจโค้ดเจอ)
+static RUNNING: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+#[tauri::command]
+pub fn extract_running() -> bool {
+    RUNNING.load(std::sync::atomic::Ordering::SeqCst)
+}
 
 #[derive(Deserialize)]
 #[serde(rename_all = "camelCase")]
@@ -234,6 +320,11 @@ struct ExtractProgress {
     percent: f64,
 }
 
+/// ชื่อชิ้นแบบหัวข้อ MediaInfo บนจอ · Audio #2 · ไฟล์แนบใช้ชื่อของมัน · เดิมข้อความผิดพลาดบอกชนิดภาษาอังกฤษตัวเล็ก (audio) ไม่ตรงกับหัวข้อบนจอ (ผู้ช่วยตรวจสเปกเจอ)
+fn title_of(it: &Item) -> String {
+    match it.kind.as_str() { "video" => "Video".to_string(), "audio" => format!("Audio #{}", it.nth), "text" => format!("Text #{}", it.nth), "menu" => "Menu".into(), _ => it.name.clone().unwrap_or_default() }
+}
+
 pub fn default_folder(movie: &Path) -> PathBuf {
     let stem = movie.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
     movie.parent().unwrap_or(Path::new("")).join(format!("{stem} แยกไฟล์"))
@@ -253,7 +344,14 @@ pub fn extract_cancel() {
 #[tauri::command]
 pub async fn extract_start(app: tauri::AppHandle, req: ExtractReq) -> Result<ExtractResult, String> {
     use tauri::{Emitter, Manager};
-    STOP.store(false, std::sync::atomic::Ordering::SeqCst);
+    use std::sync::atomic::Ordering;
+    if RUNNING.swap(true, Ordering::SeqCst) {
+        return Err("กำลังแยกไฟล์อีกงานอยู่ รอให้เสร็จก่อน หรือกดหยุดงานนั้น".into());
+    }
+    STOP.store(false, Ordering::SeqCst);
+    struct Release;
+    impl Drop for Release { fn drop(&mut self) { RUNNING.store(false, std::sync::atomic::Ordering::SeqCst); } }
+    let _release = Release;
     tauri::async_runtime::spawn_blocking(move || {
         let tools = crate::tools::tools_dir(&app)?;
         let jobs = app.state::<std::sync::Arc<crate::jobs::Jobs>>().inner().clone();
@@ -265,20 +363,31 @@ pub async fn extract_start(app: tauri::AppHandle, req: ExtractReq) -> Result<Ext
         let n = req.items.len();
         let mut r = ExtractResult { folder: dir.to_string_lossy().to_string(), states: vec!["queued".into(); n], files: vec![None; n], error: None };
         let src_size = std::fs::metadata(&src).map(|m| m.len()).unwrap_or(0);
-        for (i, it) in req.items.iter().enumerate() {
+        let src_mkv = src.extension().map(|e| e.eq_ignore_ascii_case("mkv")).unwrap_or(false);
+        for (i, it0) in req.items.iter().enumerate() {
+            let mut it_fixed = it0.clone();
+            if !src_mkv { fix_ext_for_ffmpeg(&mut it_fixed); }
+            let it = &it_fixed;
             let mut target = dir.join(out_name(&stem, it));
+            // ไฟล์ที่แยกต้องอยู่ในโฟลเดอร์ที่เลือกเท่านั้น · กันชื่อที่หลุดตัวกรอง
+            if target.parent() != Some(dir.as_path()) {
+                r.states[i] = "failed".into();
+                r.error = Some(format!("แยก {} ไม่สำเร็จ ชื่อไฟล์ไม่ปลอดภัย · ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ", title_of(it)));
+                break;
+            }
             if target.exists() {
                 match req.policy.get(i).map(String::as_str).unwrap_or("ask") {
                     "skip" => { r.states[i] = "skipped".into(); continue; }
                     "number" => target = numbered(&target),
-                    _ => { r.states[i] = "conflict".into(); continue; }
+                    // ชื่อไฟล์ที่มีอยู่แล้ว ส่งกลับให้การ์ดบอกว่าไฟล์ไหนชน (ต้นแบบ ในที่เก็บมีไฟล์ … อยู่แล้ว)
+                    _ => { r.states[i] = "conflict".into(); r.files[i] = Some(target.to_string_lossy().to_string()); continue; }
                 }
             }
             // ที่ว่างในไดรฟ์ · ภาพต้องการราวขนาดไฟล์หนัง · เสียง ซับ บท ไฟล์แนบ ไม่เกินขนาดไฟล์หนัง เผื่ออย่างน้อย 64 MB
             let need = if it.kind == "video" { src_size } else { (src_size / 4).max(64 << 20).min(src_size + (64 << 20)) };
             let free = crate::poster::free_space(&dir);
             if free < need {
-                let title = match it.kind.as_str() { "video" => "Video".to_string(), "audio" => format!("Audio #{}", it.nth), "text" => format!("Text #{}", it.nth), "menu" => "Menu".into(), _ => it.name.clone().unwrap_or_default() };
+                let title = title_of(it);
                 let drive = dir.to_string_lossy().chars().next().unwrap_or('?').to_ascii_uppercase();
                 let gb = |b: u64| if b >= 1 << 30 { format!("{:.1} GB", b as f64 / 1073741824.0) } else { format!("{:.0} MB", b as f64 / 1048576.0) };
                 r.states[i] = "failed".into();
@@ -286,6 +395,12 @@ pub async fn extract_start(app: tauri::AppHandle, req: ExtractReq) -> Result<Ext
                 break;
             }
             let partial = PathBuf::from(format!("{}.partial", target.to_string_lossy()));
+            // ที่อยู่ยาวเกินที่ Windows รับ · บอกตรงสาเหตุก่อนเริ่ม (เดิมเครื่องมือหรือตัวย้ายล้มแล้วขึ้นว่าหาไฟล์ไม่เจอ ผู้ช่วยตรวจโค้ดเจอ · TECH-REVIEW ข้อ 16)
+            if partial.to_string_lossy().encode_utf16().count() > crate::rename::MAX_PATH_LEN {
+                r.states[i] = "failed".into();
+                r.error = Some(format!("แยก {} ไม่สำเร็จ ที่อยู่ไฟล์ยาวเกินไป · เลือกที่เก็บที่สั้นกว่า หรือเปลี่ยนชื่อไฟล์หนังให้สั้นลง · ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ", title_of(it)));
+                break;
+            }
             let _ = std::fs::remove_file(&partial);
             let stop = || STOP.load(std::sync::atomic::Ordering::SeqCst) || jobs.cancelled();
             match extract_one(&tools, &src, it, &partial, &|p| { let _ = app.emit("extract-progress", ExtractProgress { index: i, percent: p }); }, &stop) {
@@ -297,7 +412,7 @@ pub async fn extract_start(app: tauri::AppHandle, req: ExtractReq) -> Result<Ext
                     r.states[i] = "cancelled".into();
                     break;
                 }
-                Err(e) => { r.states[i] = "failed".into(); r.error = Some(format!("แยก {} ไม่สำเร็จ · {e} · ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ", it.kind)); break; }
+                Err(e) => { r.states[i] = "failed".into(); r.error = Some(format!("แยก {} ไม่สำเร็จ · {e} · ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ", title_of(it))); break; }
             }
         }
         Ok(r)

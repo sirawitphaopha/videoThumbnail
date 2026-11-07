@@ -91,6 +91,23 @@ for (const f of wrapTypes) {
 for (const r of wrapRows) check(`ครอบ ${r.f} เป็น MKV · แทร็กชนิดเดิมจำนวนเท่าเดิม ความยาวต่างไม่เกิน 0.1 วินาที ปก cover.jpg ตรงรูปที่ทำ ไฟล์เดิมอยู่ในไฟล์เดิม hash เท่าเดิม`, r.ok, r.why);
 check("ครอบครบทุกชนิดแล้วไม่มีไฟล์ชั่วคราว .partial ค้าง", partials().length === 0, partials().join(", ") || "ไม่มี");
 
+// MP4 ที่มีปกฝังอยู่แล้ว (ผู้ช่วยตรวจโค้ดข้อ 3) · mkvmerge ยกปกเดิมมาเป็น cover.jpg เอง ต้องไม่ได้ปกชื่อซ้ำสองอัน
+{
+  const mk = (name) => { const p = join(DIR, name); tool("ffmpeg", ["-v", "error", "-y", "-i", join(SRC, "The Last Orchard (2022).mp4"), "-i", join(IMG, "cover.jpg"), "-map", "0", "-map", "1", "-c", "copy", "-disposition:v:1", "attached_pic", p]); return p; };
+  const a = mk("มีปกฝัง ก (2022).mp4");
+  const pa = await choose("poster.jpg");
+  const ra = await apply(a);
+  const ca = ra.ok ? (ident(join(DIR, "มีปกฝัง ก (2022).mkv")).attachments ?? []).map((x) => x.file_name) : [];
+  const shaA = ra.ok ? coverSha(join(DIR, "มีปกฝัง ก (2022).mkv"), covers(join(DIR, "มีปกฝัง ก (2022).mkv"))[0]) : null;
+  check("ครอบ MP4 ที่มีปกฝังอยู่แล้วด้วยรูปแนวตั้ง · ได้ cover.jpg อันเดียวเป็นรูปใหม่ ตรวจผ่าน · บอกว่าปกเดิมไม่ได้ยกมา", ra.ok && ra.r.verified && ca.join(" ") === "cover.jpg" && shaA === pa.sha && ra.r.notes.some((n) => n.includes("ไม่ได้ยกมา")), ra.ok ? `ไฟล์แนบ ${ca.join(" ")} · ${ra.r.notes.join(" / ")}` : `${ra.e?.title} ${(ra.e?.detail ?? []).join(" ")}`);
+  const b = mk("มีปกฝัง ข (2022).mp4");
+  const wi = await inv("poster_open", { path: join(IMG, "wide.jpg") });
+  await inv("poster_render", { req: { geo: { ...GEO(wi), mode: "original", x: 0, y: 0, w: 1, h: 1 }, format: "jpg", quality: 90, choose: true, sizes: false } });
+  const rb = await apply(b);
+  const cb = rb.ok ? (ident(join(DIR, "มีปกฝัง ข (2022).mkv")).attachments ?? []).map((x) => x.file_name).sort() : [];
+  check("ครอบ MP4 ที่มีปกแนวตั้งฝังอยู่ ด้วยรูปแนวนอน · ได้ cover.jpg (ปกเดิม) กับ cover_land.jpg (รูปใหม่) ตรวจผ่าน", rb.ok && rb.r.verified && cb.join(" ") === "cover.jpg cover_land.jpg" && rb.r.notes.some((n) => n.includes("ยกมาด้วย")), rb.ok ? `ไฟล์แนบ ${cb.join(" ")} · ${rb.r.notes.join(" / ")}` : `${rb.e?.title} ${(rb.e?.detail ?? []).join(" ")}`);
+}
+
 // =====================================================================  ② ใส่ปกให้ MKV · เปลี่ยน JPG เป็น PNG
 {
   const p = join(DIR, "ดาวเหนือ (2023).mkv");
@@ -402,6 +419,14 @@ const nospace = (await page()).run;
 await shot("20-ที่ว่างไม่พอ.png", "[data-run]", 8);
 await inv("dev_fake_free", { bytes: 0 });
 check("ทำไม่สำเร็จ พื้นที่ในไดรฟ์ D ไม่พอ ต้องการเท่าไหร่ เหลือเท่าไหร่ ไฟล์เดิมไม่ถูกแตะ ปุ่มลองใหม่", nospace.includes("พื้นที่ในไดรฟ์ D ไม่พอ") && /ต้องการ .+ แต่เหลือ 10 MB/.test(nospace) && nospace.includes("ไม่ถูกแตะ") && nospace.includes("ลองใหม่"), nospace.split("\n").join(" / "));
+// ระหว่างการ์ดแดงค้าง เปลี่ยนเป็นลบไฟล์เดิม แล้วกดลองใหม่ ต้องถามยืนยัน 2 ขั้นเหมือนปุ่มเริ่ม (ผู้ช่วยตรวจโค้ดข้อ 4 · เดิมเริ่มเลยไม่ถาม)
+await c.evaluate("[...document.querySelectorAll('.chk')].find(e => e.innerText.startsWith('ลบไฟล์เดิมหลังตรวจ')).click()"); await sleep(300);
+await c.evaluate("[...document.querySelectorAll('[data-run] button')].find(b => b.innerText === 'ลองใหม่').click()"); await sleep(400);
+const retryAsk = await q("return document.querySelector('.dlg h4')?.innerText ?? ''");
+const retryRun = await q("return document.querySelector('[data-run]')?.dataset.run");
+await c.evaluate("[...document.querySelectorAll('.dlg button')].find(b => b.innerText === 'ยกเลิก')?.click()"); await sleep(200);
+await c.evaluate("[...document.querySelectorAll('.chk')].find(e => e.innerText.startsWith('เก็บไฟล์เดิมไว้')).click()"); await sleep(200);
+check("ตั้งลบไฟล์เดิมระหว่างการ์ดแดงค้าง แล้วกดลองใหม่ ถามยืนยันขั้นที่ 1 ก่อน ยังไม่เริ่มงาน", retryAsk === "ลบไฟล์เดิมหลังตรวจผ่าน · ขั้นที่ 1 จาก 2" && retryRun === "failed", `${retryAsk} · ${retryRun}`);
 
 // มาจากปุ่มเปลี่ยนโปสเตอร์บนชั้นวาง · MKV ที่มีปกแล้ว
 await c.evaluate(`[...document.querySelectorAll('[data-navbar] button')].find(b => b.innerText.includes('ชั้นวางหนัง')).click()`); await sleep(500);

@@ -126,6 +126,9 @@ export const infoApi = {
   defaultFolder: (path: string) => call<string>("extract_default_folder", { path }),
   extract: (path: string, folder: string | null, items: ExtractItem[], policy: string[]) => call<ExtractResult>("extract_start", { req: { path, folder, items, policy } }),
   extractCancel: () => call<void>("extract_cancel"),
+  /** งานแยกไฟล์หรือ hash ที่เริ่มไว้ก่อนเปลี่ยนหน้ายังทำอยู่ไหม · ฝั่ง Rust ไม่ให้เริ่มซ้อน */
+  extractRunning: () => call<boolean>("extract_running"),
+  hashRunning: () => call<boolean>("hash_running"),
 };
 
 const MOVIE_EXT = ["mkv", "mp4", "m4v", "mov", "avi", "webm", "ts", "m2ts", "mpg", "mpeg", "vob", "flv"];

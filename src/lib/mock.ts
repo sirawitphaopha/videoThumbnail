@@ -49,6 +49,8 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
     case "force_close":
       return undefined as T;
     case "check_running":
+    case "extract_running":
+    case "hash_running":
       return false as T;
     default:
       throw new Error(`ข้อมูลจำลองยังไม่มีคำสั่ง ${cmd}`);

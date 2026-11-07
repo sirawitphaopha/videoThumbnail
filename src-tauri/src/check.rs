@@ -396,7 +396,7 @@ fn rough_pass(tools: &Path, path: &Path, total: Option<f64>, on: &dyn Fn(f64), s
     let size = std::fs::metadata(path).map(|m| m.len()).unwrap_or(0);
     let args: Vec<OsString> = vec![
         "-nostdin".into(), "-hide_banner".into(), "-n".into(), "-v".into(), "error".into(), "-progress".into(), "pipe:2".into(),
-        "-stats_period".into(), "0.05".into(), "-i".into(), path.into(), "-map".into(), "0:v?".into(), "-map".into(), "0:a?".into(),
+        "-stats_period".into(), "0.05".into(), "-i".into(), path.into(), "-map".into(), "0:V?".into(), "-map".into(), "0:a?".into(),
         "-f".into(), "null".into(), "-".into(),
     ];
     let mut child = crate::tools::tool_command(tools, "ffmpeg", &args).stdout(Stdio::null()).stderr(Stdio::piped())

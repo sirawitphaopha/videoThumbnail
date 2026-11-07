@@ -169,9 +169,11 @@ check("ปุ่มเปิดเล่นที่ 0:30 ส่งเวลา�
 await inv("set_settings", { patch: { playerPath: "D:\\ไม่มีจริง\\vlc.exe" } });
 await c.evaluate("document.querySelector('[data-ckplay]').click()"); await sleep(600);
 const toastMissing = await q("return [...document.querySelectorAll('.toast')].map(t => t.innerText.replace(/\\s+/g, ' ')).join(' | ')");
-check("โปรแกรมเล่นที่ตั้งไว้หาไม่เจอ บอกให้ไปตั้งใหม่ที่หน้าตั้งค่า", toastMissing.includes("หาโปรแกรมเล่นหนัง") && toastMissing.includes("หน้าตั้งค่า"), toastMissing);
+// หาไม่เจอ พากลับไปหน้าตั้งค่าเหมือนปุ่มเปิดเล่นบนชั้นวาง (สเปกข้อ 9 · ผู้ช่วยตรวจสเปกข้อ 26) · หน้าต่างผลตรวจปิดเอง
+const wentSettings = await q("return !!document.querySelector('[data-settingsscroll]') && !document.querySelector('.dlg')");
+check("โปรแกรมเล่นที่ตั้งไว้หาไม่เจอ บอกให้ไปตั้งใหม่ที่หน้าตั้งค่า แล้วพาไปหน้าตั้งค่า", toastMissing.includes("หาโปรแกรมเล่นหนัง") && toastMissing.includes("หน้าตั้งค่า") && wentSettings, `${toastMissing} · ไปหน้าตั้งค่า ${wentSettings}`);
 await inv("set_settings", { patch: { playerPath: "" } });
-await c.evaluate("[...document.querySelectorAll('.dlg .btn')].find(b => b.innerText === 'ปิด').click()"); await sleep(300);
+await c.evaluate("[...document.querySelectorAll('button.nav')].find(n => n.innerText.includes('ตรวจไฟล์')).click()"); await sleep(500);
 await closeToasts();
 
 // ---------- 6 กำลังตรวจ · หยุดทั้งชุด ----------

@@ -9,7 +9,8 @@ import { useCheck } from "../lib/check";
 import { useToast } from "../components/Toasts";
 import { kb } from "../lib/popup";
 import { fmtDateTime, fmtDuration, fmtRoughMinutes, fmtSize } from "../lib/format";
-import { reminderDue } from "../lib/status";
+import { FULL_SPEED, reminderDue } from "../lib/status";
+import type { Page } from "../components/Sidebar";
 import Dialog from "../components/Dialog";
 import { Skel, StatIcon } from "../components/ui";
 import type { GraphReq } from "./GraphPage";
@@ -48,7 +49,7 @@ function quickTotal(ms: Movie[]): string {
 function fullTotal(ms: Movie[]): string {
   const min = ms.reduce((s, m) => s + (m.duration ?? 0), 0) / 60;
   if (min <= 0) return "หลายนาที";
-  return rough(min / 30, min / 15);
+  return rough(min / FULL_SPEED.fast, min / FULL_SPEED.slow);
 }
 
 function elapsed(sec: number): string {
@@ -66,7 +67,7 @@ const fmtT = (sec: number) => {
 };
 const spanTime = (sp: CheckSpan) => (fmtT(sp.from) === fmtT(sp.to) ? fmtT(sp.from) : `${fmtT(sp.from)} – ${fmtT(sp.to)}`);
 
-export default function CheckPage(p: { req: CheckReq | null; onConsumed: () => void; onGraph: (r: GraphReq) => void }) {
+export default function CheckPage(p: { req: CheckReq | null; onConsumed: () => void; onGraph: (r: GraphReq) => void; onPage: (pg: Page) => void }) {
   const { movies, loaded } = useLibrary();
   const { settings } = useSettings();
   const { s, start, cancel } = useCheck();
@@ -218,7 +219,7 @@ export default function CheckPage(p: { req: CheckReq | null; onConsumed: () => v
       </div>
 
       {open && open.check && (
-        <ResultDialog m={open} onClose={() => setOpenId(null)} onGraph={p.onGraph}
+        <ResultDialog m={open} onClose={() => setOpenId(null)} onGraph={p.onGraph} onPage={p.onPage}
           onDeep={() => { setOpenId(null); setMode("full"); start([open.id], "full"); }} running={s.running} />
       )}
     </div>
@@ -262,7 +263,7 @@ function Row(p: { m: Movie; on: boolean; running: boolean; reminder: number; cur
   );
 }
 
-function ResultDialog(p: { m: Movie; onClose: () => void; onDeep: () => void; onGraph: (r: GraphReq) => void; running: boolean }) {
+function ResultDialog(p: { m: Movie; onClose: () => void; onDeep: () => void; onGraph: (r: GraphReq) => void; onPage: (pg: Page) => void; running: boolean }) {
   const { m } = p;
   const c = m.check!;
   const toast = useToast();
@@ -279,6 +280,8 @@ function ResultDialog(p: { m: Movie; onClose: () => void; onDeep: () => void; on
       else toast({ kind: "warn", title: "เปิดด้วยโปรแกรมหลักของ Windows แล้ว แต่เปิดตรงนาทีไม่ได้", detail: `เลื่อนไปที่ ${fmtT(first.from)} เอง · ลง VLC MPC-HC PotPlayer หรือ mpv แล้วกดอีกครั้ง หรือเลือกโปรแกรมเล่นในหน้าตั้งค่า` });
     } catch (e) {
       toast({ kind: "bad", title: "เปิดเล่นไม่ได้", detail: String(e) });
+      // โปรแกรมเล่นที่เลือกเองหาไม่เจอ พากลับไปตั้งที่หน้าตั้งค่า (สเปกข้อ 9) · เดิมขึ้นแถบอย่างเดียว ผู้ช่วยตรวจสเปกเจอ
+      if (String(e).includes("หาโปรแกรมเล่นหนัง")) { p.onClose(); p.onPage("settings"); }
     }
   };
   return (

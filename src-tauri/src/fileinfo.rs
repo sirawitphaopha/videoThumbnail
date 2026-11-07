@@ -145,6 +145,12 @@ fn attachment_size(tools: &Path, file: &Path, id: u64, work: &Path) -> Option<(u
 // ---------------------------------------------------------------- ค่า hash
 
 static HASH_STOP: AtomicBool = AtomicBool::new(false);
+static HASH_RUNNING: AtomicBool = AtomicBool::new(false);
+
+#[tauri::command]
+pub fn hash_running() -> bool {
+    HASH_RUNNING.load(Ordering::SeqCst)
+}
 
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
@@ -156,6 +162,13 @@ struct HashProgress {
 /// คิดค่า hash ที่ติ๊ก · ความคืบหน้าทางเหตุการณ์ hash-progress · กดหยุดได้ (คืน None) · SHA-256 จดไว้ในคลังใช้ตอนตรวจแบบเร็ว
 #[tauri::command]
 pub async fn hash_file(app: AppHandle, path: String, algos: Vec<String>) -> Result<Option<Hashes>, String> {
+    // คิดซ้อนสองงาน (เปลี่ยนหน้าแล้วกลับมากดใหม่) งานหลังล้างตัวหยุดของงานแรก กดหยุดแล้วหยุดทั้งคู่ไม่ได้ · ไม่ให้เริ่มซ้อน (ผู้ช่วยตรวจโค้ดเจอ)
+    if HASH_RUNNING.swap(true, Ordering::SeqCst) {
+        return Err("กำลังคิดค่า hash อีกไฟล์อยู่ รอให้เสร็จก่อน หรือกดหยุดงานนั้น".into());
+    }
+    struct Release;
+    impl Drop for Release { fn drop(&mut self) { HASH_RUNNING.store(false, Ordering::SeqCst); } }
+    let _release = Release;
     HASH_STOP.store(false, Ordering::SeqCst);
     tauri::async_runtime::spawn_blocking(move || {
         let jobs = app.state::<Arc<crate::jobs::Jobs>>().inner().clone();
@@ -165,9 +178,16 @@ pub async fn hash_file(app: AppHandle, path: String, algos: Vec<String>) -> Resu
             &|| HASH_STOP.load(Ordering::SeqCst) || jobs.cancelled())?;
         let Outcome::Done(h) = r else { return Ok(None) };
         if let Some(sha) = &h.sha256 {
+            // จดเป็นค่าอ้างอิงเฉพาะตอนยังไม่มี · มีแล้วไม่ตรง = ไฟล์ถูกเปลี่ยนหรือเสีย ตั้งสถานะ changed คงค่าเดิมไว้เทียบ แบบตรวจแบบเร็ว (check.rs quick)
+            // เดิมจดทับทุกครั้ง ไฟล์ที่เสียแล้วกลายเป็นค่าอ้างอิงใหม่ ตรวจแบบเร็วครั้งหน้าขึ้นสมบูรณ์ (ผู้ช่วยตรวจทั้งสองตัวเจอ)
             let lib = app.state::<Arc<crate::library::LibraryStore>>();
             let id = lib.movies.lock().unwrap().iter().find(|m| m.path.eq_ignore_ascii_case(&path)).map(|m| m.id.clone());
-            if let Some(m) = id.and_then(|id| lib.update_movie(&id, |m| m.sha256 = Some(sha.clone()))) {
+            let remember = |m: &mut crate::library::Movie| match m.sha256.as_deref() {
+                None => m.sha256 = Some(sha.clone()),
+                Some(old) if old.eq_ignore_ascii_case(sha) => {}
+                Some(_) => { if m.status != "bad" { m.status = "changed".into(); } }
+            };
+            if let Some(m) = id.and_then(|id| lib.update_movie(&id, remember)) {
                 let _ = app.emit("movie-updated", &m);
                 if let Err(e) = lib.save() { let _ = app.emit("library-error", e); }
             }

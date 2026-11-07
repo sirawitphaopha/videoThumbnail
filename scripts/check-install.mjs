@@ -67,6 +67,31 @@ if (c) {
   const shelfOk = await waitFor("return document.querySelectorAll('.book[data-movie]').length === 1 && !!document.querySelector('.book .cover.has-img img')?.naturalWidth", 60000);
   check("ตัวที่ติดตั้ง อ่านโฟลเดอร์หนังขึ้นชั้น ปกโหลดได้ภายใต้กติกาความปลอดภัยของตัวจริง", shelfOk, await q("return [...document.querySelectorAll('.book[data-movie]')].map((b) => b.dataset.movie).join(' · ')"));
   await c.shot(`${OUT}/01-ตัวที่ติดตั้ง-ชั้นวาง.png`, null, 0);
+
+  // ปิดโปรแกรมระหว่างครอบไฟล์ใหญ่ (ผู้ช่วยตรวจโค้ดข้อ 2) · เดิมปิดทันที ไฟล์ .partial ค้าง · ตอนนี้ต้องรองานลบไฟล์ที่ทำค้างก่อนปิด
+  // ไฟล์ใหญ่ราว 1.6 GB ต่อจากคลิปเดิมแบบไม่แปลงใหม่ (แบบตัวเทสขั้น 4) · สั่งปิดผ่านคำสั่งเดียวกับปุ่ม หยุดงานแล้วปิดโปรแกรม
+  const big = join(MOVIES, "หนังยาว (2020).mp4");
+  const list = join(TMP, "__list-install.txt");
+  writeFileSync(list, Array.from({ length: 100 }, () => `file '${resolve("test-media", "สร้าง", "หนัง", "The Last Orchard (2022).mp4").replace(/\\/g, "/")}'`).join("\n"));
+  spawnSync(resolve("src-tauri", "tools", "ffmpeg.exe"), ["-v", "error", "-nostdin", "-n", "-f", "concat", "-safe", "0", "-i", list, "-c", "copy", big]);
+  rmSync(list, { force: true });
+  const bigSha = fileSha(big);
+  const partials = () => readdirSync(MOVIES).filter((f) => f.endsWith(".partial"));
+  const info = await inv("poster_open", { path: resolve("test-media", "สร้าง", "รูป", "poster.jpg") });
+  await inv("poster_render", { req: { geo: { rotate: 0, flip: false, mode: "crop", x: info.crop[0], y: info.crop[1], w: info.crop[2], h: info.crop[3], pad: "#ffffff" }, format: "jpg", quality: 90, choose: true, sizes: false } });
+  c.evaluate(`window.__TAURI_INTERNALS__.invoke('poster_apply', { req: { path: ${JSON.stringify(big)}, output: 'mkv', checkSource: false, checkOutput: true, original: 'keep', drop: [] } }).catch(() => {})`).catch(() => {});
+  let sawPartial = false;
+  for (let i = 0; i < 100 && !sawPartial; i++) { await sleep(100); sawPartial = partials().length > 0; }
+  await sleep(300);
+  const tClose = Date.now();
+  await c.evaluate("window.__TAURI_INTERNALS__.invoke('force_close')").catch(() => {});
+  const running = () => spawnSync("tasklist", ["/FI", `IMAGENAME eq ${exe}`, "/NH"], { encoding: "utf8" }).stdout.toLowerCase().includes(exe.toLowerCase());
+  let closed = false;
+  for (let i = 0; i < 60 && !closed; i++) { await sleep(500); closed = !running(); }
+  const closeSecs = ((Date.now() - tClose) / 1000).toFixed(1);
+  check("กด หยุดงานแล้วปิดโปรแกรม ระหว่างครอบไฟล์ 1.6 GB · โปรแกรมรองานหยุดแล้วปิดเอง ไฟล์ที่ทำค้างถูกลบ ไม่มีไฟล์ใหม่ ไฟล์เดิม hash เท่าเดิม",
+    sawPartial && closed && partials().length === 0 && !existsSync(join(MOVIES, "หนังยาว (2020).mkv")) && fileSha(big) === bigSha,
+    `เห็น .partial ก่อนปิด ${sawPartial} · ปิดเองใน ${closeSecs} วินาที ${closed} · .partial ที่เหลือ ${partials().length}`);
   await c.close?.();
 }
 spawnSync("taskkill", ["/F", "/IM", exe ?? "movie-shelf.exe"], { stdio: "ignore" });

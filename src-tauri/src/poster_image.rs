@@ -163,8 +163,13 @@ fn parse_color(s: &str) -> Rgb<u8> {
     Rgb([v(0), v(2), v(4)])
 }
 
-/// หมุน พลิก ครอปหรือเติมขอบ ย่อเป็น 1000 × 1500 · คืนรูปกับขนาดส่วนที่ครอปจริงในรูปต้นฉบับ (พิกเซล)
-pub fn render(src: &RgbImage, g: &Geometry) -> (RgbImage, (u32, u32)) {
+/// ด้านยาวสูงสุดที่ยอมคงขนาดเดิมตอนปิดสวิตช์ย่อรูป · ใหญ่กว่านี้ย่อเป็นขนาดปกติ
+pub const KEEP_MAX: u32 = 6000;
+
+/// หมุน พลิก ครอปหรือเติมขอบ ทำเป็น 1000 × 1500 · คืนรูปกับขนาดส่วนที่ครอปจริงในรูปต้นฉบับ (พิกเซล)
+/// shrink = สวิตช์ ย่อรูปโปสเตอร์ที่ใหญ่เกิน ในหน้าตั้งค่า · ปิด รูปที่ใหญ่กว่า 1000 × 1500 คงความละเอียดเดิม สัดส่วนเดิม
+/// รูปที่เล็กกว่ายังขยายเป็น 1000 × 1500 ทั้งสองแบบ
+pub fn render(src: &RgbImage, g: &Geometry, shrink: bool) -> (RgbImage, (u32, u32)) {
     let turned: RgbImage = match g.rotate % 360 {
         90 => imageops::rotate90(src),
         180 => imageops::rotate180(src),
@@ -173,20 +178,26 @@ pub fn render(src: &RgbImage, g: &Geometry) -> (RgbImage, (u32, u32)) {
     };
     let turned = if g.flip { imageops::flip_horizontal(&turned) } else { turned };
     let (w, h) = turned.dimensions();
+    // รูปใหญ่มาก (ด้านยาวเกิน KEEP_MAX) ย่อเสมอแม้ปิดสวิตช์ · เติมขอบภาพพาโนรามาแล้วกรอบใหญ่เกินที่ JPG รับได้ (65,535 px) และกินหน่วยความจำหลายร้อย MB
+    let shrink = shrink || w.max(h) > KEEP_MAX;
     if g.mode == "original" {
         // ตามรูปเดิม ไม่ตัด ไม่เติมขอบ คงสัดส่วน ด้านยาวย่อหรือขยายเป็น 1500 เท่าด้านยาวของปก 2:3
         // ปกแนวนอนจึงเป็นแนวนอน (พี่กัน 7 พ.ย. 2569 *"ถ้าเราเอาโปสเตอร์แบบเเนวนอนมา มันก็จะเเสดงเป็เเเนวนอนด้วยนะ"*)
-        let scale = OUT_H as f64 / w.max(h) as f64;
+        let side = if shrink { OUT_H } else { OUT_H.max(w.max(h)) };
+        if side == w.max(h) { return (turned, (w, h)); }
+        let scale = side as f64 / w.max(h) as f64;
         let (nw, nh) = (((w as f64 * scale).round() as u32).max(1), ((h as f64 * scale).round() as u32).max(1));
         return (imageops::resize(&turned, nw, nh, imageops::FilterType::Lanczos3), (w, h));
     }
     if g.mode == "pad" {
-        // ทั้งรูปอยู่ในกรอบ 2 : 3 ไม่ตัดส่วนไหนเลย ที่ว่างเติมสีขอบ
-        let scale = (OUT_W as f64 / w as f64).min(OUT_H as f64 / h as f64);
-        let (nw, nh) = (((w as f64 * scale).round() as u32).clamp(1, OUT_W), ((h as f64 * scale).round() as u32).clamp(1, OUT_H));
-        let small = imageops::resize(&turned, nw, nh, imageops::FilterType::Lanczos3);
-        let mut canvas = RgbImage::from_pixel(OUT_W, OUT_H, parse_color(&g.pad));
-        imageops::overlay(&mut canvas, &small, ((OUT_W - nw) / 2) as i64, ((OUT_H - nh) / 2) as i64);
+        // ทั้งรูปอยู่ในกรอบ 2 : 3 ไม่ตัดส่วนไหนเลย ที่ว่างเติมสีขอบ · ไม่ย่อ กรอบใหญ่ตามรูปเดิม
+        let k = if shrink { 1.0 } else { (w as f64 / OUT_W as f64).max(h as f64 / OUT_H as f64).max(1.0) };
+        let (cw, ch) = ((OUT_W as f64 * k).round() as u32, (OUT_H as f64 * k).round() as u32);
+        let scale = (cw as f64 / w as f64).min(ch as f64 / h as f64);
+        let (nw, nh) = (((w as f64 * scale).round() as u32).clamp(1, cw), ((h as f64 * scale).round() as u32).clamp(1, ch));
+        let small = if (nw, nh) == (w, h) { turned } else { imageops::resize(&turned, nw, nh, imageops::FilterType::Lanczos3) };
+        let mut canvas = RgbImage::from_pixel(cw, ch, parse_color(&g.pad));
+        imageops::overlay(&mut canvas, &small, ((cw - nw) / 2) as i64, ((ch - nh) / 2) as i64);
         return (canvas, (w, h));
     }
     let cx = ((g.x.clamp(0.0, 1.0) * w as f64).round() as u32).min(w - 1);
@@ -194,7 +205,9 @@ pub fn render(src: &RgbImage, g: &Geometry) -> (RgbImage, (u32, u32)) {
     let cw = ((g.w.clamp(0.0, 1.0) * w as f64).round() as u32).clamp(1, w - cx);
     let ch = ((g.h.clamp(0.0, 1.0) * h as f64).round() as u32).clamp(1, h - cy);
     let part = imageops::crop_imm(&turned, cx, cy, cw, ch).to_image();
-    (imageops::resize(&part, OUT_W, OUT_H, imageops::FilterType::Lanczos3), (cw, ch))
+    // ไม่ย่อ ส่วนที่ครอปใหญ่กว่า 1000 × 1500 คงขนาดเดิม (กรอบเป็น 2 : 3 อยู่แล้ว ปัดให้พอดี 2 : 3)
+    let (ow, oh) = if !shrink && cw > OUT_W { (cw, ((cw as f64) * OUT_H as f64 / OUT_W as f64).round() as u32) } else { (OUT_W, OUT_H) };
+    (imageops::resize(&part, ow, oh, imageops::FilterType::Lanczos3), (cw, ch))
 }
 
 /// กรอบ 2 : 3 ใหญ่สุดที่อยู่กลางรูป (ซูม 100%) · ค่าเป็นสัดส่วนของรูปหลังหมุน
@@ -219,6 +232,10 @@ pub fn encode(img: &RgbImage, format: &str, quality: u8) -> Result<Vec<u8>, Stri
             .write_image(img.as_raw(), img.width(), img.height(), image::ExtendedColorType::Rgb8)
             .map_err(|e| format!("เข้ารหัส PNG ไม่สำเร็จ: {e}"))?;
     } else {
+        // JPG เก็บขนาดได้ไม่เกิน 65,535 px ต่อด้าน · เดิมตัดเลขเงียบ ๆ ได้ไฟล์เสีย
+        if img.width() > u16::MAX as u32 || img.height() > u16::MAX as u32 {
+            return Err(format!("รูปใหญ่เกินที่ JPG รับได้ ({} × {} px) เลือก PNG หรือเปิดสวิตช์ย่อรูปในหน้าตั้งค่า", img.width(), img.height()));
+        }
         let mut enc = jpeg_encoder::Encoder::new(&mut buf, quality.clamp(1, 100));
         enc.set_optimized_huffman_tables(true);
         enc.encode(img.as_raw(), img.width() as u16, img.height() as u16, jpeg_encoder::ColorType::Rgb)
@@ -287,6 +304,26 @@ mod tests {
         (0..4).all(|i| (0..4).all(|j| i == j || !near(c[i], c[j])))
     }
 
+    /// สวิตช์ ย่อรูปโปสเตอร์ที่ใหญ่เกิน · เปิด ทุกแบบได้ 1000 × 1500 (ตามรูปเดิมด้านยาว 1500) · ปิด รูปใหญ่คงความละเอียดเดิม รูปเล็กยังขยาย
+    #[test]
+    fn shrink_switch_keeps_large_images_when_off() {
+        let g = |mode: &str, w: f64, h: f64| Geometry { rotate: 0, flip: false, mode: mode.into(), x: 0.0, y: 0.0, w, h, pad: "#000000".into() };
+        let tall = RgbImage::new(3000, 4500);
+        assert_eq!(render(&tall, &g("crop", 1.0, 1.0), true).0.dimensions(), (1000, 1500));
+        assert_eq!(render(&tall, &g("crop", 1.0, 1.0), false).0.dimensions(), (3000, 4500));
+        let wide = RgbImage::new(4000, 2000);
+        assert_eq!(render(&wide, &g("pad", 1.0, 1.0), true).0.dimensions(), (1000, 1500));
+        assert_eq!(render(&wide, &g("pad", 1.0, 1.0), false).0.dimensions(), (4000, 6000));
+        assert_eq!(render(&wide, &g("original", 1.0, 1.0), true).0.dimensions(), (1500, 750));
+        assert_eq!(render(&wide, &g("original", 1.0, 1.0), false).0.dimensions(), (4000, 2000));
+        let small = RgbImage::new(500, 750);
+        assert_eq!(render(&small, &g("crop", 1.0, 1.0), false).0.dimensions(), (1000, 1500), "รูปเล็กยังขยายเป็น 1000 × 1500");
+        // พาโนรามาด้านยาวเกิน KEEP_MAX ย่อเสมอ ไม่ทำกรอบเติมขอบ 9,000 × 13,500
+        let pano = RgbImage::new(9000, 1000);
+        assert_eq!(render(&pano, &g("pad", 1.0, 1.0), false).0.dimensions(), (1000, 1500));
+        assert_eq!(render(&pano, &g("original", 1.0, 1.0), false).0.dimensions(), (1500, 167));
+    }
+
     #[test]
     fn exif_rotation_is_applied_before_crop() {
         // quad.png ไม่มีป้ายหมุน · quad-ป้ายหมุน6.jpg เก็บพิกเซลแบบหมุนซ้าย แล้วติดป้าย 6 ให้หมุนขวากลับ ต้องได้หน้าตาเดียวกัน
@@ -318,16 +355,16 @@ mod tests {
             [p(0.25, 0.25), p(0.75, 0.25), p(0.25, 0.75), p(0.75, 0.75)]
         };
         // หมุนขวา 90 · ซ้ายบนเดิมไปอยู่ขวาบน ซ้ายล่างเดิมขึ้นมาซ้ายบน
-        let r = corners(&render(&src, &pad(90, false)).0);
+        let r = corners(&render(&src, &pad(90, false), true).0);
         assert!(near(r[1], tl) && near(r[3], tr) && near(r[0], bl) && near(r[2], br), "หมุนขวาผิด {r:?}");
         // หมุนซ้าย 90 (270) · ซ้ายบนเดิมไปซ้ายล่าง
-        let l = corners(&render(&src, &pad(270, false)).0);
+        let l = corners(&render(&src, &pad(270, false), true).0);
         assert!(near(l[2], tl) && near(l[0], tr) && near(l[3], bl) && near(l[1], br), "หมุนซ้ายผิด {l:?}");
         // พลิกซ้ายขวา · ซ้ายบนไปขวาบน
-        let f = corners(&render(&src, &pad(0, true)).0);
+        let f = corners(&render(&src, &pad(0, true), true).0);
         assert!(near(f[1], tl) && near(f[0], tr) && near(f[3], bl) && near(f[2], br), "พลิกผิด {f:?}");
         // หมุน 180 · ซ้ายบนไปขวาล่าง
-        let h = corners(&render(&src, &pad(180, false)).0);
+        let h = corners(&render(&src, &pad(180, false), true).0);
         assert!(near(h[3], tl) && near(h[0], br), "หมุน 180 ผิด {h:?}");
     }
 
@@ -340,11 +377,11 @@ mod tests {
         let (x, y, cw, ch) = default_crop(w, h);
         assert!((x - (1.0 - cw) / 2.0).abs() < 1e-9 && y == 0.0 && ch == 1.0, "กรอบตั้งต้นต้องอยู่กลางภาพ เต็มความสูง");
         let g = Geometry { rotate: 0, flip: false, mode: "crop".into(), x, y, w: cw, h: ch, pad: "#ffffff".into() };
-        let (out, (pw, ph)) = render(&wide, &g);
+        let (out, (pw, ph)) = render(&wide, &g, true);
         assert_eq!(out.dimensions(), (OUT_W, OUT_H));
         assert!(((pw as f64 / ph as f64) - 2.0 / 3.0).abs() < 0.01, "ส่วนที่ครอปต้องเป็น 2 : 3 ได้ {pw} × {ph}");
         let gp = Geometry { mode: "pad".into(), pad: "#f6dbe5".into(), ..g };
-        let (padded, _) = render(&wide, &gp);
+        let (padded, _) = render(&wide, &gp, true);
         assert_eq!(padded.dimensions(), (OUT_W, OUT_H));
         assert_eq!(padded.get_pixel(5, 5).0, [0xf6, 0xdb, 0xe5], "ขอบต้องเป็นสีที่เลือก");
         assert_eq!(padded.get_pixel(OUT_W - 5, OUT_H - 5).0, [0xf6, 0xdb, 0xe5]);
@@ -352,7 +389,7 @@ mod tests {
         assert_eq!(aspect_label(1920, 1080), "ภาพแนวนอน 16 : 9");
         // ตามรูปเดิม คงสัดส่วนแนวนอน ด้านยาว 1500 ไม่มีขอบเติม
         let go = Geometry { mode: "original".into(), ..g };
-        let (orig, (ow, oh)) = render(&wide, &go);
+        let (orig, (ow, oh)) = render(&wide, &go, true);
         let (rw, rh) = orig.dimensions();
         assert_eq!(rw, OUT_H, "ด้านยาวต้องเป็น 1500 ได้ {rw} × {rh}");
         assert!(((rw as f64 / rh as f64) - (w as f64 / h as f64)).abs() < 0.01, "ต้องคงสัดส่วนเดิม ได้ {rw} × {rh} จาก {w} × {h}");
@@ -363,7 +400,7 @@ mod tests {
     fn jpg_size_shrinks_with_quality_and_png_is_lossless() {
         let src = decode(&tools(), &work(), &img_dir().join("poster.jpg")).unwrap().img;
         let (x, y, w, h) = default_crop(src.width(), src.height());
-        let (out, _) = render(&src, &Geometry { rotate: 0, flip: false, mode: "crop".into(), x, y, w, h, pad: "#ffffff".into() });
+        let (out, _) = render(&src, &Geometry { rotate: 0, flip: false, mode: "crop".into(), x, y, w, h, pad: "#ffffff".into() }, true);
         let sizes: Vec<usize> = [100u8, 90, 75, 50].iter().map(|q| encode(&out, "jpg", *q).unwrap().len()).collect();
         assert!(sizes.windows(2).all(|p| p[0] > p[1]), "คุณภาพยิ่งต่ำไฟล์ยิ่งเล็ก {sizes:?}");
         let png = encode(&out, "png", 90).unwrap();
