@@ -285,6 +285,81 @@ pub fn scopeguard(p: PathBuf) -> TempFile {
     TempFile(p)
 }
 
+// ---------------------------------------------------------------- ผลไม่สำเร็จ กับการจัดการไฟล์เดิม (ใช้ร่วมหน้าใส่โปสเตอร์กับหน้าเสียงและซับ)
+
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ApplyProblem {
+    /// space inuse exists badsource verify cancelled mp4 tool nocover other
+    pub kind: String,
+    pub title: String,
+    pub detail: Vec<String>,
+}
+
+pub fn fail(kind: &str, title: impl Into<String>, detail: Vec<String>) -> ApplyProblem {
+    ApplyProblem { kind: kind.into(), title: title.into(), detail }
+}
+
+pub fn cancelled(untouched: &str, partial: Option<&Path>) -> ApplyProblem {
+    let mut d = vec![];
+    if partial.is_some() {
+        d.push("ไฟล์ใหม่ที่ทำค้างถูกลบแล้ว".to_string());
+    }
+    d.push(untouched.to_string());
+    fail("cancelled", "หยุดแล้ว", d)
+}
+
+/// ไฟล์ใหม่ที่ทำเสร็จ (.partial) เป็นชื่อจริง แล้วจัดการไฟล์เดิม · คืน (kept | trash, ที่ย้ายไป)
+/// ย้ายไปโฟลเดอร์ไฟล์เดิม หรือลงถังขยะเฉพาะหลังตรวจผ่าน บนไดรฟ์ที่มีถังขยะ · ไฟล์เดิมถูกเปิดอยู่ ไม่ย้าย ไม่ลบ
+/// ชื่อเดียวกัน (MKV เป็น MKV · MP4 เป็น MP4) ต้องย้ายไฟล์เดิมออกก่อน แล้วค่อยเปลี่ยน .partial เป็นชื่อจริง · เปลี่ยนไม่สำเร็จ ย้ายไฟล์เดิมกลับที่เดิม
+/// ย้ายมาจาก poster.rs apply() ทั้งก้อนตอนทำหน้าเสียงและซับ (แผนเสียงและซับ ขั้น 1) ไม่ได้แก้พฤติกรรม
+pub fn finish_output(
+    app: &AppHandle, src: &Path, target: &Path, partial: &Path, original_mode: &str, verified: bool, untouched: &str, notes: &mut Vec<String>,
+) -> Result<(String, Option<String>), ApplyProblem> {
+    use crate::rename::move_no_replace;
+    let dir = src.parent().map(Path::to_path_buf).unwrap_or_default();
+    let same_name = target.to_string_lossy().to_lowercase() == src.to_string_lossy().to_lowercase();
+    let mut original = "none".to_string();
+    let mut original_to = None;
+    let finish_partial = || -> Result<(), ApplyProblem> {
+        move_no_replace(partial, target).map_err(|p| fail("other", "เปลี่ยนไฟล์ใหม่เป็นชื่อจริงไม่สำเร็จ", vec![p.title, format!("ไฟล์ใหม่อยู่ที่ {}", partial.display())]))
+    };
+    if !same_name {
+        finish_partial()?;
+    }
+    let trash = original_mode == "trash" && verified && drive_is_fixed(&dir) && src.to_string_lossy().encode_utf16().count() < 260;
+    if original_mode == "trash" && !trash {
+        notes.push(if !verified { "ไม่ได้ตรวจไฟล์ใหม่ จึงไม่ลบไฟล์เดิม ย้ายไปโฟลเดอร์ไฟล์เดิมแทน".into() } else { "ไดรฟ์นี้ไม่มีถังขยะ ย้ายไฟล์เดิมไปโฟลเดอร์ไฟล์เดิมแทน".into() });
+    }
+    // ไฟล์เดิมถูกเปิดระหว่างทำ · ไม่ย้าย ไม่ลบ ทิ้งไว้ที่เดิม (เช็กซ้ำตรงจังหวะที่ย้ายจริง)
+    let moved = if !not_in_use(src) {
+        Err("ไฟล์เดิมถูกเปิดอยู่ในโปรแกรมอื่น".to_string())
+    } else if trash {
+        to_trash(src).map(|_| { original = "trash".into(); })
+    } else {
+        let keep_dir = originals_dir(app, &dir);
+        std::fs::create_dir_all(&keep_dir).map_err(|e| e.to_string())
+            .and_then(|_| { let to = free_name(&keep_dir, src); move_no_replace(src, &to).map_err(|p| p.title).map(|_| to) })
+            .map(|to| { original = "kept".into(); original_to = Some(to.to_string_lossy().to_string()); })
+    };
+    if let Err(e) = moved {
+        if same_name {
+            // ชื่อเดียวกัน ย้ายไฟล์เดิมไม่ได้ ไฟล์ใหม่จึงยังเป็น .partial · ไฟล์เดิมอยู่ที่เดิมครบ
+            return Err(fail("other", "ย้ายไฟล์เดิมไม่สำเร็จ", vec![e, format!("ไฟล์ใหม่ที่ตรวจผ่านแล้วอยู่ที่ {}", partial.display()), untouched.to_string()]));
+        }
+        notes.push(format!("ย้ายไฟล์เดิมไม่สำเร็จ {e} · ไฟล์เดิมยังอยู่ที่เดิม"));
+    } else if same_name {
+        // ย้ายไฟล์เดิมออกไปแล้ว ถ้าเปลี่ยน .partial เป็นชื่อจริงไม่สำเร็จ ย้ายไฟล์เดิมกลับที่เดิม ไม่ให้ที่เดิมว่าง (ผู้ช่วยตรวจโค้ดเจอ)
+        if let Err(mut p) = finish_partial() {
+            if let Some(to) = &original_to {
+                if move_no_replace(Path::new(to), src).is_ok() { p.detail.push("ไฟล์เดิมย้ายกลับที่เดิมแล้ว".into()); }
+            }
+            return Err(p);
+        }
+    }
+    Ok((original, original_to))
+}
+
 /// SHA-256 ทั้งไฟล์ อ่านทีละ 4 MB บอกความคืบหน้า
 pub fn sha256_file(p: &Path, on: &dyn Fn(f64)) -> Result<String, String> {
     let mut f = std::fs::File::open(p).map_err(|e| e.to_string())?;

@@ -7,6 +7,7 @@ mod fileinfo;
 mod hashes;
 mod jobs;
 mod library;
+mod merge;
 mod outfile;
 mod poster;
 mod poster_image;
@@ -37,6 +38,7 @@ pub fn run() {
         .plugin(tauri_plugin_opener::init())
         .manage(Arc::new(Jobs::default()))
         .manage(poster::PosterState::default())
+        .manage(merge::MergeState::default())
         .setup(|app| {
             let path = store::settings_path(app.handle())?;
             app.manage(SettingsStore::load(path));
@@ -78,6 +80,7 @@ pub fn run() {
         rename::check_rename, rename::rename_movie,
         poster::poster_open, poster::poster_render, poster::poster_clear, poster::poster_folder_images,
         poster::poster_inspect, poster::poster_apply, poster::poster_cancel,
+        merge::merge_inspect, merge::merge_add_file, merge::merge_apply, merge::merge_cancel,
         fileinfo::media_info, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_running, fileinfo::hash_compare, fileinfo::hash_save,
         extract::extract_start, extract::extract_cancel, extract::extract_running, extract::extract_default_folder,
         check::check_start, check::check_cancel, check::check_running, check::play_at,
@@ -92,6 +95,7 @@ pub fn run() {
         rename::check_rename, rename::rename_movie,
         poster::poster_open, poster::poster_render, poster::poster_clear, poster::poster_folder_images,
         poster::poster_inspect, poster::poster_apply, poster::poster_cancel,
+        merge::merge_inspect, merge::merge_add_file, merge::merge_apply, merge::merge_cancel,
         fileinfo::media_info, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_running, fileinfo::hash_compare, fileinfo::hash_save,
         extract::extract_start, extract::extract_cancel, extract::extract_running, extract::extract_default_folder,
         check::check_start, check::check_cancel, check::check_running, check::play_at,
