@@ -488,6 +488,12 @@ pub async fn encoders_status(app: tauri::AppHandle) -> Result<Vec<EncoderInfo>, 
     }).await.map_err(|e| e.to_string())?
 }
 
+/// ที่อยู่โฟลเดอร์ตัวแปลงที่ใส่เอง ให้หน้าตั้งค่าแสดง (ไม่เปิด Explorer)
+#[tauri::command]
+pub fn encoders_user_dir(app: tauri::AppHandle) -> Result<String, String> {
+    Ok(user_dir(&app)?.to_string_lossy().to_string())
+}
+
 /// เปิดโฟลเดอร์ตัวแปลงที่ใส่เองใน Explorer (หน้าตั้งค่า) · สร้างให้ก่อนถ้ายังไม่มี
 #[tauri::command]
 pub fn encoders_open_dir(app: tauri::AppHandle) -> Result<String, String> {

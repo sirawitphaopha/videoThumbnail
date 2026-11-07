@@ -155,6 +155,17 @@ await c.evaluate("document.querySelector('[data-shelfav]')?.click()");
 const opened = await waitFor("return document.querySelector('[data-movie-chip]')?.innerText.includes('ดาวตก')", 15000);
 check("ปุ่มเสียงและซับในแผงขวาของชั้นวาง คู่กับกราฟเสียง เปิดหน้าเสียงและซับพร้อมเรื่องนั้น", opened, opened ? "" : await q("return document.querySelector('.main').innerText.slice(0,120)"));
 
+// ---------- การ์ดตัวแปลงเสียงในหน้าตั้งค่า (ขั้น 4) · ไม่กดปุ่มเปิดโฟลเดอร์ (จะเปิด Explorer ขึ้นจอ) ----------
+await c.evaluate("[...document.querySelectorAll('.side .nav')].find(b => b.innerText.includes('ตั้งค่า')).click()");
+await waitFor("return document.querySelectorAll('[data-setcard=encoders] [data-enc]').length >= 7", 20000);
+const encRows = await q("return [...document.querySelectorAll('[data-setcard=encoders] [data-enc]')].map(r => r.innerText.replace(/\\s+/g, ' '))");
+const encText = await q("return document.querySelector('[data-setcard=encoders]').innerText");
+check("หน้าตั้งค่ามีการ์ดตัวแปลงเสียง flac 1.5.0 · libopus 1.6.1 · LAME 4.0 · wavpack 5.9.0 แนบมากับโปรแกรม พร้อมใช้งาน · qaac fdkaac ยังไม่ได้ใส่ · บอกโฟลเดอร์ตัวแปลง",
+  encRows.some((r) => r.includes("flac") && r.includes("1.5.0") && r.includes("แนบมากับโปรแกรม") && r.includes("พร้อมใช้งาน")) && encRows.some((r) => r.includes("libopus 1.6.1")) && encRows.some((r) => r.startsWith("lame") && r.includes("4.0"))
+  && encRows.some((r) => r.includes("wavpack") && r.includes("5.9.0")) && encRows.some((r) => r.includes("qaac64") && r.includes("ยังไม่ได้ใส่")) && encText.includes(String.raw`ชั้นหนัง\ตัวแปลง`), encRows.join(" | "));
+await c.evaluate("document.querySelector('[data-setcard=encoders]').scrollIntoView({ block: 'center' })");
+await shot("09-การ์ดตัวแปลงเสียง.png", "[data-setcard=encoders]", 6);
+
 await c.send("Emulation.clearDeviceMetricsOverride");
 writeFileSync(`${OUT}/ผลเทส.json`, JSON.stringify(results, null, 2) + "\n");
 const failed = results.filter((x) => !x.pass);

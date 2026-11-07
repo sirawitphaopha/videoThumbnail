@@ -2,7 +2,7 @@
    ตั้งแล้วมีผลทันที ไม่ต้องกดบันทึก · สวิตช์ชมพู = เปิด · ค่าเก็บในไฟล์ค่าตั้งของโปรแกรมผ่าน set_settings (store.rs เขียนแบบปลอดภัยมีสำรอง)
    ค่าที่นี่คือค่าตั้งต้น ทุกครั้งที่ใส่โปสเตอร์หรือตรวจไฟล์ยังเปลี่ยนเฉพาะครั้งนั้นได้ */
 import { useEffect, useRef, useState } from "react";
-import { api, graphApi, pickExe, pickFolder, type Settings, type ToolCheck } from "../lib/api";
+import { api, encodeApi, graphApi, pickExe, pickFolder, type EncoderInfo, type Settings, type ToolCheck } from "../lib/api";
 import { useSettings } from "../lib/settings";
 import { useLibrary } from "../lib/library";
 import { useToast } from "../components/Toasts";
@@ -36,6 +36,16 @@ export default function SettingsPage() {
   const [icaros, setIcaros] = useState<boolean | null>(null);
   const [checking, setChecking] = useState(false);
   const [cache, setCache] = useState<{ files: number; bytes: number } | null>(null);
+  /** ตัวแปลงเสียง (แผนเสียงและซับ ขั้น 4 · มอคอัปหน้าตั้งค่า การ์ดตัวแปลงเสียง) */
+  const [encs, setEncs] = useState<EncoderInfo[] | null>(null);
+  const [encDir, setEncDir] = useState("");
+  const [encChecking, setEncChecking] = useState(false);
+  const recheckEnc = async () => {
+    setEncChecking(true);
+    try { const [list, dir] = await Promise.all([encodeApi.status(), encodeApi.userDir()]); setEncs(list); setEncDir(dir); }
+    catch (e) { toast({ kind: "bad", title: "ตรวจตัวแปลงเสียงไม่ได้", detail: String(e) }); }
+    finally { setEncChecking(false); }
+  };
   // คุณภาพ JPG · แถบเลื่อนส่งค่าทุกครั้งที่ขยับ เก็บลงไฟล์ตอนหยุดลาก 0.3 วินาที ไม่เขียนไฟล์ถี่
   const [jpg, setJpg] = useState<number | null>(null);
   const jpgTimer = useRef<number | undefined>(undefined);
@@ -49,6 +59,7 @@ export default function SettingsPage() {
       toast({ kind: "bad", title: "ตรวจเครื่องมือไม่ได้", detail: String(e) });
     } finally { setChecking(false); }
   };
+  useEffect(() => { void recheckEnc(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
   useEffect(() => { void recheck(); graphApi.cacheInfo().then(setCache, () => setCache(null)); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
   if (!settings) return <div className="setwrap" aria-busy="true">{[0, 1, 2, 3].map((i) => <div key={i} className="setcard"><Skel w="40%" h={14} /><Skel w="90%" h={12} style={{ marginTop: 14 }} /><Skel w="70%" h={12} style={{ marginTop: 10 }} /></div>)}</div>;
@@ -183,6 +194,22 @@ export default function SettingsPage() {
             {icaros === false && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setIcarosHelp(true)} data-icaroshelp>วิธีลง</button>}</div></div>
         <div className="setrow"><div className="lbl small" style={{ margin: 0 }}>ซ่อนหรือย้ายเครื่องมือแล้ว กดตรวจใหม่เพื่อดูสถานะล่าสุด</div>
           <button type="button" className={"btn btn-sm " + (checking ? "btn-wait" : "btn-ghost")} aria-disabled={checking || undefined} onClick={() => { if (!checking) void recheck(); }} data-retools>{checking ? "กำลังตรวจ" : "ตรวจเครื่องมือใหม่"}</button></div>
+      </div>
+
+      {/* ---------- ตัวแปลงเสียง (มอคอัปเสียงและซับ หัวข้อ 8) · ตัวที่แนบมากับโปรแกรม กับตัวที่วางเองในโฟลเดอร์ตัวแปลง (ตัวที่สัญญาอนุญาตไม่ให้แจก) ---------- */}
+      <div className="setcard" data-setcard="encoders">
+        <h3 style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}><span>ตัวแปลงเสียง</span>
+          <span style={{ display: "flex", gap: 6 }}>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => encodeApi.openDir().catch((e) => toast({ kind: "bad", title: "เปิดโฟลเดอร์ตัวแปลงไม่ได้", detail: String(e) }))} data-encdir>เปิดโฟลเดอร์ตัวแปลง</button>
+            <button type="button" className={"btn btn-sm " + (encChecking ? "btn-wait" : "btn-ghost")} aria-disabled={encChecking || undefined} onClick={() => { if (!encChecking) void recheckEnc(); }} data-reenc>{encChecking ? "กำลังตรวจ" : "ตรวจตัวแปลงใหม่"}</button>
+          </span></h3>
+        <div className="small" style={{ marginBottom: 6 }}>โฟลเดอร์ตัวแปลงที่ใส่เอง <span className="nw" style={{ fontFamily: "var(--mono)", overflowWrap: "anywhere" }}>{encDir || "…"}</span> · <Phr>{"ตอนแปลงใช้ตัวต้นฉบับเป็นค่าตั้งต้น ffmpeg เป็นตัวรอง · วางรุ่นใหม่กว่าตัวที่แนบมา โปรแกรมใช้ตัวที่ใหม่กว่า"}</Phr></div>
+        {encs == null
+          ? [0, 1, 2, 3, 4].map((i) => <div key={i} className="setrow" aria-busy="true"><Skel w="45%" h={12} /><Skel w={90} h={20} r={10} /></div>)
+          : encs.map((e) => (
+            <div key={e.name} className="setrow" data-enc={e.name}><div className="lbl">{e.name}<span className="small">{e.codecs} · {e.ok ? `${e.version ?? "ไม่ทราบรุ่น"} · ${e.source === "user" ? "โฟลเดอร์ตัวแปลง" : "แนบมากับโปรแกรม"}` : e.problem ? e.problem : "ไม่เจอในโฟลเดอร์ตัวแปลง"}</span></div>
+              {e.ok ? <span className="toolok">พร้อมใช้งาน</span> : e.problem ? <span className="toolwarn">ขาดไฟล์ประกอบ</span> : <span className="toolwarn">ยังไม่ได้ใส่</span>}</div>))}
+        <div className="small" style={{ marginTop: 6 }}><Phr>{"qaac (AAC ของ Apple) กับ fdkaac (AAC ของ Fraunhofer) สัญญาอนุญาตไม่ให้แจกไปกับตัวติดตั้ง โหลดเองแล้ววางทุกไฟล์ที่มากับชุดไว้ในโฟลเดอร์ตัวแปลง แล้วกดตรวจตัวแปลงใหม่ · รายชื่อ รุ่น และสัญญาอนุญาตอยู่ docs/research/codec-เสียง.md"}</Phr></div>
       </div>
 
       {/* ---------- กราฟเสียง (แคลร์เพิ่ม · ผลอ่านคลื่นที่เก็บลงเครื่อง คิว 8) ---------- */}

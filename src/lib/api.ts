@@ -138,6 +138,7 @@ export const encodeApi = {
   preview: (spec: EncodeSpec, srcName: string, stream: number, channels: number | null) => call<EncodePlan>("encode_preview", { spec, srcName, stream, channels }),
   status: () => call<EncoderInfo[]>("encoders_status"),
   openDir: () => call<string>("encoders_open_dir"),
+  userDir: () => call<string>("encoders_user_dir"),
 };
 export type MergeAttachment = { id: number; name: string; mime: string; size: number };
 export type MergeMovie = { path: string; name: string; ext: string; size: number; duration: number | null; tracks: MergeTrack[]; attachments: MergeAttachment[]; free: number; drive: string; mp4Ok: boolean };
