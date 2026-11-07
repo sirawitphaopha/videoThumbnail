@@ -9,10 +9,12 @@ import type { Page } from "../components/Sidebar";
 import Dialog from "../components/Dialog";
 import CropDialog, { type CropChoice } from "../components/CropDialog";
 import LangPicker from "../components/LangPicker";
+import CodecPanel from "../components/CodecPanel";
+import { convertLabel } from "../lib/codecs";
 import ThaiInput from "../components/ThaiInput";
 import { CardIcon, Phr, Seg } from "../components/ui";
 import { useToast } from "../components/Toasts";
-import { ADD_EXT, inApp, mergeApi, pickAddFiles, pickFile, posterApi, thumbUrl, type ApplyProblem, type CoverTarget, type MergeResult, type PosterInfo } from "../lib/api";
+import { ADD_EXT, encodeApi, inApp, mergeApi, pickAddFiles, pickFile, posterApi, thumbUrl, type ApplyProblem, type CoverTarget, type EncoderInfo, type MergeResult, type PosterInfo } from "../lib/api";
 import { useSettings } from "../lib/settings";
 import { useLibrary } from "../lib/library";
 import { fmtDuration, fmtSize } from "../lib/format";
@@ -92,6 +94,10 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
   const [askVtt, setAskVtt] = useState(false);
   const [askDelete, setAskDelete] = useState<0 | 1 | 2>(0);
   const [askStop, setAskStop] = useState(false);
+  /** แถวที่เปิดแผงตั้งค่าเสียง · ตัวแปลงที่มี (อ่านครั้งแรกที่เปิดแผง) */
+  const [codecFor, setCodecFor] = useState<string | null>(null);
+  const [encs, setEncs] = useState<EncoderInfo[] | null>(null);
+  const openCodec = (key: string) => { setCodecFor(key); if (!encs) encodeApi.status().then(setEncs, () => setEncs([])); };
   const output = (av.once.output ?? settings?.outputFormat ?? "mkv") as "mkv" | "mp4";
   const original = (av.once.original ?? settings?.originalAfter ?? "keep") as "keep" | "trash";
   const working = run.state === "working";
@@ -256,8 +262,10 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
   const origOrder = movie?.tracks.map((t) => t.tid).join(",") ?? "";
   const changed = !!movie && (
     tracks.some((t) => !t.inMovie) || tracks.some((t) => t.lang !== t.base.lang || t.name !== t.base.name || t.default !== t.base.default || t.delay !== t.base.delay || t.keep !== t.base.keep)
-    || movieOrder !== origOrder || coverChanged || output !== movie.ext.replace("m4v", "mp4") && !(output === "mkv" && movie.ext === "mkv"));
-  const mp4Bad = output === "mp4" ? kept.filter((t) => t.mp4 === "no" || t.ff == null) : [];
+    || tracks.some((t) => t.keep && !!t.convert) || movieOrder !== origOrder || coverChanged || output !== movie.ext.replace("m4v", "mp4") && !(output === "mkv" && movie.ext === "mkv"));
+  // แทร็กที่ตั้งแปลง ใส่ MP4 ได้ไหมดูชนิดหลังแปลง (WavPack ใส่ไม่ได้)
+  const mp4Of = (t: AvTrack) => (t.convert ? (t.convert.codec === "wv" ? "no" : "ok") : t.mp4);
+  const mp4Bad = output === "mp4" ? kept.filter((t) => mp4Of(t) === "no" || (!t.convert && t.ff == null)) : [];
   const mp4Style = output === "mp4" ? kept.filter((t) => t.mp4 === "style") : [];
   const vtts = output === "mkv" ? kept.filter((t) => !t.inMovie && t.codec === "webvtt") : [];
   const longer = kept.filter((t) => !t.inMovie && t.kind === "audio" && t.longerBy != null && Math.abs(t.longerBy) >= 2);
@@ -368,6 +376,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
               const pills = [
                 <span key="a" className={"tpill " + (t.inMovie ? "in" : "new")}>{t.inMovie ? "ในหนัง" : "เพิ่มใหม่"}</span>,
                 !t.keep ? <span key="b" className="tpill off">เอาออก</span> : null,
+                t.convert && t.keep ? <span key="f" className="tpill conv">แปลง</span> : null,
                 !t.inMovie && t.delayFromName != null && t.delay === t.delayFromName && t.delay !== 0 ? <span key="c" className="tpill warn">ดีเลย์จากชื่อไฟล์</span> : null,
                 t.charset === "CP874" ? <span key="d" className="tpill warn">TIS-620</span> : null,
                 output === "mkv" && !t.inMovie && t.codec === "webvtt" ? <span key="e" className="tpill conv">แปลงเป็น SRT</span> : null,
@@ -396,7 +405,14 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
                         {...kb(() => { if (!off && t.keep) setMain(t.key); })} role="radio" data-main style={{ cursor: off || !t.keep ? "not-allowed" : "pointer", marginTop: 0 }} />}
                   </div>
                   {t.kind === "video" ? <span className="small">—</span> : <DelayBox value={t.delay} onChange={(v) => setDelay(t.key, v)} label={title} off={off} />}
-                  <span className="small">{t.kind === "audio" ? "ไม่แปลง" : t.kind === "subtitle" ? "ซับไม่ต้องแปลง" : "—"}</span>
+                  {t.kind === "audio" ? (
+                    <button type="button" className={"dd" + (off || !t.keep ? " btn-wait" : "")} aria-disabled={!!off || !t.keep || undefined} title={off ?? (!t.keep ? "แทร็กที่เอาออกไม่ต้องแปลง" : "ตั้งค่าแปลงเสียง")}
+                      style={t.convert ? { border: "1px solid #9fc4ea", background: "#f3f8fe", color: "#2f6496" } : undefined}
+                      onClick={(e) => { e.stopPropagation(); if (!off && t.keep) openCodec(t.key); }} data-conv>
+                      <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{t.convert ? `${convertLabel(t.convert)}${t.inMovie ? (t.pair ?? true ? " · เพิ่มคู่" : " · แทนที่") : ""}` : "ไม่แปลง"}</span>
+                      <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+                    </button>
+                  ) : <span className="small">{t.kind === "subtitle" ? "ซับไม่ต้องแปลง" : "—"}</span>}
                   <div className="avacts" onClick={(e) => e.stopPropagation()}>
                     {t.kind === "video" ? null : !t.inMovie ? (
                       <button type="button" className="ib bad" aria-label={`เอาไฟล์ ${baseName(t.src)} ออก`} title={off ?? "เอาไฟล์นี้ออก"} aria-disabled={!!off || undefined} onClick={() => { if (!off) removeAdded(t.src); }} data-remove>
@@ -519,6 +535,9 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
         </div>
       </div>
 
+      {codecFor && (() => { const ct = tracks.find((t) => t.key === codecFor); return ct ? (
+        <CodecPanel track={ct} encoders={encs} onClose={() => setCodecFor(null)}
+          onApply={(convert, pair, convName) => { patch(ct.key, { convert, pair, convName }); setCodecFor(null); }} />) : null; })()}
       {crop && (
         <CropDialog info={crop.info} start={crop.start} target={crop.slot} defaultFormat={(settings?.posterFormat ?? "jpg") as "jpg" | "png"} defaultQuality={settings?.jpgQuality ?? 90}
           onCancel={() => setCrop(null)}

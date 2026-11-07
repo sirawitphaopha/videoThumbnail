@@ -125,6 +125,22 @@ await waitFor("return document.querySelectorAll('.trk:not(.head)').length > 0");
 const back = await q("return [...document.querySelectorAll('.trk:not(.head) .ft')].map(f => f.innerText).join(' ') + ' · ' + document.querySelector('[data-slot=cover]').innerText.includes('เพิ่มใหม่') + ' · ' + document.querySelectorAll('.trk:not(.head)')[3].querySelector('.avnum').value");
 check("ไปหน้าตั้งค่าแล้วกลับมา แทร็ก ลำดับ ดีเลย์ ปกใหม่ ยังอยู่ครบ", back === "H.264 AC-3 AAC SRT SRT VTT · true · +500", back);
 
+// ---------- แผงตั้งค่าเสียงแบบง่าย (ขั้น 4) · เสียงอังกฤษ AAC ในหนัง แปลงเป็น Opus เพิ่มคู่ ----------
+await c.evaluate(`${row(2)}.querySelector('[data-conv]').click()`);
+await waitFor("return !!document.querySelector('[data-codec-panel]') && document.querySelector('[data-cmd]').innerText.includes('opusenc')", 15000);
+const cmd1 = await q("return document.querySelector('[data-cmd]').innerText");
+check("กดช่องแปลง แผงตั้งค่าเสียงขึ้น ค่าตั้งต้น Opus ตัวต้นฉบับ opusenc คำสั่งที่จะรันมาจากฝั่ง Rust", cmd1.includes("ffmpeg -hide_banner") && cmd1.includes("opusenc --quiet --ignorelength --bitrate 384"), cmd1.replace(/\s+/g, " ").slice(0, 160));
+await c.evaluate("document.querySelector('[data-preset=\"1\"]').click()");
+await waitFor("return document.querySelector('[data-cmd]').innerText.includes('--bitrate 160')", 8000);
+const panelText = await q("return document.querySelector('[data-codec-panel]').innerText");
+check("เลือกชุดเพลงคุณภาพดี คำสั่งเปลี่ยนเป็น 160 kbps · บอกขนาดทั้งแทร็ก · เตือนแปลงเสียคุณภาพซ้อน · เพิ่มคู่เป็นค่าตั้งต้น",
+  panelText.includes("ทั้งแทร็กราว") && panelText.includes("แปลงแบบเสียคุณภาพซ้อน AAC เป็น Opus") && panelText.includes("แทร็กใหม่ชื่อ English Opus ต่อท้ายแทร็กเดิม"), panelText.replace(/\s+/g, " ").slice(0, 200));
+await shot("10-แผงตั้งค่าเสียง.png", "[role=dialog]", 8);
+await c.evaluate("document.querySelector('[data-conv-use]').click()");
+await sleep(300);
+const convCell = await q(`return ${row(2)}.querySelector('[data-conv]').innerText + ' · ' + ${row(2)}.innerText.includes('แปลง')`);
+check("กดใช้ค่านี้ ช่องแปลงขึ้น Opus 160 · เพิ่มคู่ แถวมีป้ายแปลง", convCell.startsWith("Opus 160 · เพิ่มคู่") && convCell.endsWith("true"), convCell);
+
 // ---------- หน้าต่างบอกเรื่อง VTT ก่อนรวม แล้วรวมจริง ----------
 await c.evaluate("document.querySelector('[data-start]').click()");
 await waitFor("return !!document.querySelector('[data-vtt-dialog]')");
@@ -135,11 +151,11 @@ await c.evaluate("document.querySelector('[data-vtt-ok]').click()");
 const okRun = await waitFor("const r = document.querySelector('[data-run]')?.dataset.run; return r === 'done' || r === 'failed'", 120000);
 await sleep(400);
 const runText = await q("return document.querySelector('[data-run]')?.innerText ?? ''");
-check("รวมเสร็จ ไฟล์ใหม่ตรวจผ่าน ภาพ 1 เสียง 2 ซับ 3 · ไฟล์เดิมย้ายไปไฟล์เดิม", okRun && runText.includes("รวมเสร็จ ไฟล์ใหม่ตรวจผ่าน") && runText.includes("ภาพ 1 · เสียง 2 · ซับ 3") && runText.includes("ไฟล์เดิม"), runText.replace(/\s+/g, " ").slice(0, 220));
+check("รวมเสร็จ ไฟล์ใหม่ตรวจผ่าน ภาพ 1 เสียง 3 (Opus ที่แปลงเพิ่มคู่) ซับ 3 · ไฟล์เดิมย้ายไปไฟล์เดิม", okRun && runText.includes("รวมเสร็จ ไฟล์ใหม่ตรวจผ่าน") && runText.includes("ภาพ 1 · เสียง 3 · ซับ 3") && runText.includes("ไฟล์เดิม"), runText.replace(/\s+/g, " ").slice(0, 220));
 await shot("07-รวมเสร็จ.png", ".main");
 const j = existsSync(MOVIE) ? ident(MOVIE) : { tracks: [], attachments: [] };
 const got = (j.tracks ?? []).map((t) => `${t.codec}|${t.properties.language}|${t.properties.default_track ? 1 : 0}`);
-check("ไฟล์ใหม่ ภาพ พากย์ไทยหลัก AAC ซับไทยหลัก ซับไทยเก่า ซับอังกฤษ SRT · มีปก cover.jpg", got[1] === "AC-3|tha|1" && got[2] === "AAC|eng|0" && got[3] === "SubRip/SRT|tha|1" && got[5] === "SubRip/SRT|eng|0" && (j.attachments ?? []).some((a) => a.file_name === "cover.jpg"), got.join(" · "));
+check("ไฟล์ใหม่ ภาพ พากย์ไทยหลัก AAC Opus ที่แปลงเพิ่มคู่ ซับไทยหลัก ซับไทยเก่า ซับอังกฤษ SRT · มีปก cover.jpg", got[1] === "AC-3|tha|1" && got[2] === "AAC|eng|0" && got[3] === "Opus|eng|0" && got[4] === "SubRip/SRT|tha|1" && got[6] === "SubRip/SRT|eng|0" && (j.attachments ?? []).some((a) => a.file_name === "cover.jpg"), got.join(" · "));
 check("ไฟล์เดิม hash เท่าก่อนรวม", existsSync(join(DIR, "ไฟล์เดิม", "ดาวตก (2024).mkv")) && sha(join(DIR, "ไฟล์เดิม", "ดาวตก (2024).mkv")) === h0);
 check("ไม่มีไฟล์ชั่วคราว .partial ค้าง", readdirSync(DIR).every((f) => !f.endsWith(".partial")));
 
