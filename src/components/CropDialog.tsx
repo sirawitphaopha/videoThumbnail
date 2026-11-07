@@ -7,7 +7,7 @@
 import { useEffect, useMemo, useRef, useState } from "react";
 import Dialog from "./Dialog";
 import { Range, Seg, CardIcon, Phr } from "./ui";
-import { posterApi, thumbUrl, type Geometry, type PosterInfo, type RenderInfo } from "../lib/api";
+import { posterApi, thumbUrl, type CoverTarget, type Geometry, type PosterInfo, type RenderInfo } from "../lib/api";
 import { fmtSize } from "../lib/format";
 
 const SW = 520, SH = 293;
@@ -28,6 +28,8 @@ export default function CropDialog(p: {
   onCancel: () => void;
   onUse: (c: CropChoice) => void;
   onChangeImage: () => void;
+  /** ช่องปกของหน้าเสียงและซับ · ไม่ส่ง = หน้าใส่โปสเตอร์ */
+  target?: CoverTarget;
 }) {
   const { info } = p;
   const [view, setView] = useState<View>(() => p.start ? fromGeo(p.start.geo, info) : START);
@@ -51,7 +53,7 @@ export default function CropDialog(p: {
     const n = ++seq.current;
     setBusy(true);
     const t = setTimeout(() => {
-      posterApi.render(geo, format, quality, { sizes: format === "jpg" }).then((r) => {
+      posterApi.render(geo, format, quality, { sizes: format === "jpg", target: p.target }).then((r) => {
         if (n !== seq.current) return;
         setRender(r);
         if (format === "jpg") setJpgBytes(r.bytes);
@@ -64,12 +66,18 @@ export default function CropDialog(p: {
 
   useEffect(() => { if (render && !render.small) setSmallOk(false); }, [render]);
 
+  /** กดใช้รูปนี้ไม่สำเร็จ (เช่น ช่องปกนอนของหน้าเสียงและซับได้รูปแนวตั้ง) ขึ้นเหตุผลข้างปุ่ม · เดิมไม่มีที่บอก กดแล้วเงียบ */
+  const [useErr, setUseErr] = useState<string | null>(null);
+  useEffect(() => { setUseErr(null); }, [geoKey, format]);
   const use = async () => {
     if (using) return;
     setUsing(true);
+    setUseErr(null);
     try {
-      const r = await posterApi.render(geo, format, quality, { choose: true });
+      const r = await posterApi.render(geo, format, quality, { choose: true, target: p.target });
       p.onUse({ geo, format, quality, render: r });
+    } catch (e) {
+      setUseErr(String(e));
     } finally {
       setUsing(false);
     }
@@ -116,6 +124,7 @@ export default function CropDialog(p: {
         <span className="small" style={{ fontWeight: 400 }}>{name} · <span className="nw">{info.width} × {info.height} px</span> · {info.aspect === "2 : 3" ? "สัดส่วน 2 : 3 พอดีปก" : info.aspect}</span>
       </span>
     } actions={<>
+      {useErr && <div className="hint e" role="alert" style={{ margin: "0 auto 0 0", maxWidth: 520 }} data-use-err>{useErr}</div>}
       <button type="button" className={"btn btn-sm " + (using ? "btn-wait" : "btn-ghost")} aria-disabled={using || undefined} onClick={() => { if (!using) p.onCancel(); }}>ยกเลิก</button>
       <button type="button" className={"btn btn-sm " + (using ? "btn-wait" : "btn-main")} aria-disabled={using || undefined} onClick={use} data-use>{using ? "กำลังทำรูป…" : "ใช้รูปนี้"}</button>
     </>}>

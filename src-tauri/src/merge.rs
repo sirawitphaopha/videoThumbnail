@@ -32,6 +32,8 @@ pub struct MergeState {
     running: AtomicBool,
     /// รูปปกใหม่ที่ครอปแล้ว แยกตามช่อง cover (ปกตั้ง) · cover_land (ปกนอน) → (ไบต์, jpg | png)
     pub covers: Mutex<HashMap<String, (Vec<u8>, String)>>,
+    /// ภาพปกเดิมที่ดึงออกมาให้หน้าจอดู แยกตามช่อง · ดึงใหม่แล้วลบของเก่า ไม่ให้กองในเครื่อง
+    previews: Mutex<HashMap<String, PathBuf>>,
 }
 
 // ---------------------------------------------------------------- แทร็ก
@@ -418,6 +420,51 @@ pub async fn merge_add_file(app: AppHandle, path: String, movie_duration: Option
         let (tools, _) = tools_of(&app)?;
         add_file(&tools, Path::new(&path), movie_duration)
     }).await.map_err(|e| e.to_string())?
+}
+
+// ---------------------------------------------------------------- ช่องปก
+
+#[derive(Serialize, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct CoverPreview {
+    preview: String,
+    width: u32,
+    height: u32,
+    bytes: u64,
+}
+
+/** ภาพของปกเดิมในหนัง (ไฟล์แนบเลข id) ให้หน้าจอดูในช่องปก · ดึงลงโฟลเดอร์ภาพตัวอย่างของโปรแกรม (หน้าจอเปิดรูปได้เฉพาะโฟลเดอร์นี้) */
+#[tauri::command]
+pub async fn merge_cover_preview(app: AppHandle, path: String, id: u64, slot: String) -> Result<CoverPreview, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let (tools, _) = tools_of(&app)?;
+        let dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?.join("previews");
+        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+        let out = dir.join(format!("merge-old-{slot}-{}", crate::poster_image::unique()));
+        let mut target = OsString::from(format!("{id}:"));
+        target.push(out.as_os_str());
+        let r = run_tool_timeout(&tools, "mkvextract", [OsStr::new(&path), OsStr::new("attachments"), &target], Duration::from_secs(120))?;
+        if !tool_succeeded("mkvextract", &r.status) || !out.exists() {
+            let _ = std::fs::remove_file(&out);
+            return Err("ดึงรูปปกเดิมออกมาไม่ได้".into());
+        }
+        let bytes = std::fs::metadata(&out).map(|m| m.len()).unwrap_or(0);
+        let (width, height) = image::ImageReader::open(&out).ok().and_then(|r| r.with_guessed_format().ok()).and_then(|r| r.into_dimensions().ok()).unwrap_or((0, 0));
+        if let Some(old) = app.state::<MergeState>().previews.lock().unwrap().insert(slot, out.clone()) {
+            let _ = std::fs::remove_file(old);
+        }
+        Ok(CoverPreview { preview: out.to_string_lossy().to_string(), width, height, bytes })
+    }).await.map_err(|e| e.to_string())?
+}
+
+/// เอารูปปกใหม่ที่ครอปไว้ในช่องนั้นออก (ปุ่มเอาออกของรูปใหม่ · ล้างทั้งหมด)
+#[tauri::command]
+pub fn merge_cover_drop(st: State<'_, MergeState>, slot: Option<String>) {
+    let mut c = st.covers.lock().unwrap();
+    match slot {
+        Some(s) => { c.remove(&s); }
+        None => c.clear(),
+    }
 }
 
 // ---------------------------------------------------------------- คำสั่งรวม

@@ -16,6 +16,9 @@ export const IcPoster = ({ size = 18, stroke = "currentColor" }: P) =>
   svg(size, 2, stroke, <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 15l3-3 2 2 3-3 2 2" /><circle cx="9" cy="8" r="1.5" /></>);
 export const IcCheck = ({ size = 18, stroke = "currentColor" }: P) =>
   svg(size, 2, stroke, <><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z" /><path d="M8.5 12l2.5 2.5 4.5-5" /></>);
+/** เสียงและซับ (มอคอัป docs/mockups/audio-merge.html ไอคอน mix) */
+export const IcMix = ({ size = 18, stroke = "currentColor" }: P) =>
+  svg(size, 2, stroke, <path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" />);
 /** กราฟเสียง (มอคอัป docs/mockups/audio-graph.html) */
 export const IcGraph = ({ size = 18, stroke = "currentColor" }: P) =>
   svg(size, 2, stroke, <path d="M3 12h2M7 7v10M11 4v16M15 8v8M19 10v4" />);

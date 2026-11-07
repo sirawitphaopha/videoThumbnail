@@ -2,9 +2,9 @@
    ย่ออยู่ ชี้ไอคอนแล้วขึ้นกล่องชื่อเมนูข้างไอคอนทางขวา ไม่บังเมนูอื่น · เลขนับกลายเป็นจุดชมพูที่มุมไอคอน
    ค่าย่อกางจำไว้ในการตั้งค่า (sidebarCollapsed) เปิดครั้งหน้ายังเหมือนเดิม */
 import { useState } from "react";
-import { IcBrand, IcCheck, IcCollapse, IcGraph, IcPoster, IcSettings, IcShelf } from "./icons";
+import { IcBrand, IcCheck, IcCollapse, IcGraph, IcMix, IcPoster, IcSettings, IcShelf } from "./icons";
 
-export type Page = "shelf" | "poster" | "check" | "graph" | "settings";
+export type Page = "shelf" | "poster" | "av" | "check" | "graph" | "settings";
 
 type Item = { id: Page; label: string; icon: React.ReactNode; count?: number; tip?: string };
 
@@ -25,6 +25,8 @@ export default function Sidebar({ page, onPage, collapsed, onToggle, shelfCount,
   const items: Item[] = [
     { id: "shelf", label: "ชั้นวางหนัง", icon: <IcShelf />, count: shelfCount },
     { id: "poster", label: "ใส่โปสเตอร์", icon: <IcPoster /> },
+    // หน้าเสียงและซับ ต่อจากใส่โปสเตอร์ (มอคอัป docs/mockups/audio-merge.html · แผนเสียงและซับ ขั้น 2)
+    { id: "av", label: "เสียงและซับ", icon: <IcMix /> },
     {
       id: "check", label: "ตรวจไฟล์", icon: <IcCheck />, count: checkCount || undefined,
       tip: checkCount ? `ตรวจไฟล์ · มี ${checkCount} เรื่องที่ควรตรวจ` : undefined,

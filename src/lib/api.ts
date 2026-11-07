@@ -99,17 +99,50 @@ export type ApplyProblem = { kind: string; title: string; detail: string[] };
 export type ApplyResult = { mode: "cover" | "wrap" | "mp4"; output: string; counts: Counts; verified: boolean; original: "kept" | "trash" | "none"; originalTo: string | null; notes: string[] };
 export type PosterProgress = { phase: string; percent: number; eta: number | null; next: string | null };
 
+/** ปลายทางของรูปที่ครอป · ไม่ส่ง = หน้าใส่โปสเตอร์ · cover กับ cover_land = ช่องปกตั้งกับปกนอนของหน้าเสียงและซับ (ที่เก็บรูปแยกกัน ไม่ทับกัน) */
+export type CoverTarget = "cover" | "cover_land";
 export const posterApi = {
-  open: (path: string) => call<PosterInfo>("poster_open", { path }),
-  render: (geo: Geometry, format: "jpg" | "png", quality: number, opts: { choose?: boolean; sizes?: boolean } = {}) =>
-    call<RenderInfo>("poster_render", { req: { geo, format, quality, choose: !!opts.choose, sizes: !!opts.sizes } }),
-  clear: () => call<void>("poster_clear"),
+  open: (path: string, target?: CoverTarget) => call<PosterInfo>("poster_open", { path, target: target ?? null }),
+  render: (geo: Geometry, format: "jpg" | "png", quality: number, opts: { choose?: boolean; sizes?: boolean; target?: CoverTarget } = {}) =>
+    call<RenderInfo>("poster_render", { req: { geo, format, quality, choose: !!opts.choose, sizes: !!opts.sizes, target: opts.target ?? null } }),
+  clear: (target?: CoverTarget) => call<void>("poster_clear", { target: target ?? null }),
   folderImages: (movie: string) => call<FolderImage[]>("poster_folder_images", { movie }),
   inspect: (path: string) => call<MovieInfo>("poster_inspect", { path }),
   /** ไม่สำเร็จ promise ล้มพร้อม ApplyProblem */
   apply: (req: ApplyReq) => call<ApplyResult>("poster_apply", { req }),
   cancel: () => call<void>("poster_cancel"),
 };
+
+/* ---------- หน้าเสียงและซับ (merge.rs · แผนเสียงและซับ) ---------- */
+/** แทร็กหนึ่งแทร็ก ทั้งในหนังและในไฟล์ที่เพิ่ม · หน้าจอแก้ lang name default delay keep แล้วส่งกลับทั้งรายการตามลำดับใหม่ */
+export type MergeTrack = {
+  src: string; tid: number; ff: number | null; kind: "video" | "audio" | "subtitle"; codec: string; profile: string | null;
+  lang: string; name: string; default: boolean; forced: boolean;
+  channels: number | null; layout: string | null; rate: number | null; bits: number | null; bitrate: number | null;
+  width: number | null; height: number | null; fps: number | null; duration: number | null; bytes: number | null; frames: number | null;
+  mp4: "ok" | "style" | "no"; why: string | null; charset: string | null; delay: number; keep: boolean; inMovie: boolean;
+};
+export type MergeAttachment = { id: number; name: string; mime: string; size: number };
+export type MergeMovie = { path: string; name: string; ext: string; size: number; duration: number | null; tracks: MergeTrack[]; attachments: MergeAttachment[]; free: number; drive: string; mp4Ok: boolean };
+export type AddedFile = { path: string; name: string; ext: string; size: number; tracks: MergeTrack[]; delayFromName: number | null; langFromName: string | null; longerBy: number | null; notes: string[] };
+/** keep ใช้ของเดิม · remove เอาออก · new ใช้รูปที่ครอปไว้ในช่องนั้น */
+export type CoverMode = "keep" | "remove" | "new";
+export type MergeReq = { movie: string; tracks: MergeTrack[]; covers: { portrait: CoverMode; land: CoverMode }; output: "mkv" | "mp4"; original: "keep" | "trash"; checkSource: boolean; checkOutput: boolean };
+export type MergeResult = { mode: "mkv" | "mp4"; output: string; counts: Counts; verified: boolean; original: "kept" | "trash" | "none"; originalTo: string | null; notes: string[] };
+export type CoverPreview = { preview: string; width: number; height: number; bytes: number };
+
+export const mergeApi = {
+  inspect: (path: string) => call<MergeMovie>("merge_inspect", { path }),
+  addFile: (path: string, movieDuration: number | null) => call<AddedFile>("merge_add_file", { path, movieDuration }),
+  /** ไม่สำเร็จ promise ล้มพร้อม ApplyProblem · ความคืบหน้ามาทางเหตุการณ์ merge-progress */
+  apply: (req: MergeReq) => call<MergeResult>("merge_apply", { req }),
+  cancel: () => call<void>("merge_cancel"),
+  coverPreview: (path: string, id: number, slot: CoverTarget) => call<CoverPreview>("merge_cover_preview", { path, id, slot }),
+  coverDrop: (slot: CoverTarget | null) => call<void>("merge_cover_drop", { slot }),
+};
+/** ไฟล์เสียงกับซับที่เพิ่มเข้าหนังได้ (มอคอัป ช่องลากไฟล์ของตารางแทร็ก) */
+export const ADD_EXT = ["ac3", "eac3", "ec3", "dts", "dtshd", "thd", "truehd", "mlp", "aac", "m4a", "flac", "wav", "w64", "mp3", "mp2", "opus", "ogg", "oga", "mka", "wv", "tta",
+  "srt", "ass", "ssa", "vtt", "sup", "idx", "sub", "mks"];
 
 /* ---------- หน้าข้อมูลไฟล์ (fileinfo.rs · hashes.rs · extract.rs) ---------- */
 export type MiSection = { title: string; kind: "general" | "video" | "audio" | "text" | "menu" | "attachment" | string; rows: [string, string][]; ext: string | null; lang: string | null };
@@ -149,6 +182,14 @@ export async function pickFile(kind: "movie" | "image" | "media"): Promise<strin
         : [{ name: "รูปโปสเตอร์", extensions: ["jpg", "jpeg", "png", "webp", "bmp", "tif", "tiff", "heic", "heif"] }],
   });
   return typeof r === "string" ? r : null;
+}
+
+/** เลือกไฟล์เสียงหรือซับหลายไฟล์ (หน้าเสียงและซับ) · ยกเลิก = [] */
+export async function pickAddFiles(): Promise<string[]> {
+  if (!inApp) return [];
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const r = await open({ multiple: true, directory: false, title: "เลือกไฟล์เสียงหรือซับ", filters: [{ name: "ไฟล์เสียงและซับ", extensions: ADD_EXT }] });
+  return Array.isArray(r) ? r : typeof r === "string" ? [r] : [];
 }
 
 /* ---------- หน้ากราฟเสียง (audiograph.rs) ---------- */

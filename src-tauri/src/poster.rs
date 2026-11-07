@@ -44,6 +44,9 @@ pub struct PosterState {
     /// ไฟล์ภาพตัวอย่างที่โปรแกรมสร้าง แยกตามชนิด สร้างใหม่แล้วลบของเก่า ไม่ให้กองในเครื่อง
     previews: Mutex<HashMap<String, PathBuf>>,
     thumbs: Mutex<HashMap<String, FolderImage>>,
+    /// ที่เก็บรูปของช่องปกในหน้าเสียงและซับ แยกจากของหน้าใส่โปสเตอร์ · ครอปรูปในหน้าหนึ่งไม่ทับรูปที่ค้างในอีกหน้า
+    m_source: Mutex<Option<Source>>,
+    m_rendered: Mutex<Option<(Geometry, RgbImage, (u32, u32), bool)>>,
     cancel: AtomicBool,
     running: AtomicBool,
 }
@@ -91,7 +94,7 @@ pub struct PosterInfo {
 
 /// เปิดรูปที่ลากมาวางหรือเลือก · อ่านจริงแล้วเก็บไว้ในหน่วยความจำ · รูปเดิมในเครื่องไม่ถูกแก้
 #[tauri::command]
-pub async fn poster_open(app: AppHandle, path: String) -> Result<PosterInfo, String> {
+pub async fn poster_open(app: AppHandle, path: String, target: Option<String>) -> Result<PosterInfo, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let d = dirs(&app)?;
         let p = PathBuf::from(&path);
@@ -100,10 +103,17 @@ pub async fn poster_open(app: AppHandle, path: String) -> Result<PosterInfo, Str
         let (w, h) = dec.img.dimensions();
         let preview = pi::write_preview(&dec.img, 1200, &d.previews, "src")?;
         let st = app.state::<PosterState>();
-        st.keep_preview("src", preview.clone());
-        *st.rendered.lock().unwrap() = None;
-        *st.chosen.lock().unwrap() = None;
-        *st.source.lock().unwrap() = Some(Source { img: dec.img });
+        if target.is_some() {
+            // ช่องปกของหน้าเสียงและซับ · ไม่แตะรูปที่เลือกไว้ในหน้าใส่โปสเตอร์
+            st.keep_preview("msrc", preview.clone());
+            *st.m_rendered.lock().unwrap() = None;
+            *st.m_source.lock().unwrap() = Some(Source { img: dec.img });
+        } else {
+            st.keep_preview("src", preview.clone());
+            *st.rendered.lock().unwrap() = None;
+            *st.chosen.lock().unwrap() = None;
+            *st.source.lock().unwrap() = Some(Source { img: dec.img });
+        }
         let ext = pi::ext_of(&p);
         let (x, y, cw, ch) = pi::default_crop(w, h);
         Ok(PosterInfo {
@@ -128,6 +138,9 @@ pub struct RenderReq {
     /// คิดขนาดไฟล์ของคุณภาพ 100 90 75 50 ด้วย (ตารางในส่วนแปลงชนิดรูป)
     #[serde(default)]
     sizes: bool,
+    /// ไม่มี = หน้าใส่โปสเตอร์ · cover หรือ cover_land = ช่องปกของหน้าเสียงและซับ กดใช้รูปนี้แล้วเก็บลงช่องนั้น
+    #[serde(default)]
+    target: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -154,9 +167,10 @@ pub async fn poster_render(app: AppHandle, req: RenderReq) -> Result<RenderInfo,
         let st = app.state::<PosterState>();
         // สวิตช์ ย่อรูปโปสเตอร์ที่ใหญ่เกิน ในหน้าตั้งค่า (เดิมไม่มีโค้ดอ่านค่านี้ ย่อเป็น 1000 × 1500 ทุกครั้ง ผู้ช่วยตรวจสเปกเจอ)
         let shrink = app.state::<crate::store::SettingsStore>().current.lock().unwrap().shrink_large_posters;
-        let mut cache = st.rendered.lock().unwrap();
+        let merge = req.target.is_some();
+        let mut cache = if merge { st.m_rendered.lock().unwrap() } else { st.rendered.lock().unwrap() };
         if cache.as_ref().map(|c| c.0 != req.geo || c.3 != shrink).unwrap_or(true) {
-            let src = st.source.lock().unwrap();
+            let src = if merge { st.m_source.lock().unwrap() } else { st.source.lock().unwrap() };
             let Some(src) = src.as_ref() else { return Err("ยังไม่ได้เลือกรูปโปสเตอร์".to_string()) };
             let (img, crop) = pi::render(&src.img, &req.geo, shrink);
             *cache = Some((req.geo.clone(), img, crop, shrink));
@@ -168,7 +182,7 @@ pub async fn poster_render(app: AppHandle, req: RenderReq) -> Result<RenderInfo,
         let preview = d.previews.join(format!("render-{}.{format}", pi::unique()));
         std::fs::write(&preview, &bytes).map_err(|e| e.to_string())?;
         // ภาพของรูปที่กดใช้แล้วเก็บช่องแยก · เดิมใช้ช่องเดียวกับภาพในหน้าต่างครอป เปิดครอปอีกครั้งแล้วกดยกเลิก การ์ดชี้ไฟล์ที่ถูกลบ รูปเสีย (ผู้ช่วยตรวจโค้ดเจอ)
-        st.keep_preview(if req.choose { "chosen" } else { "render" }, preview.clone());
+        st.keep_preview(match (merge, req.choose) { (false, true) => "chosen".to_string(), (false, false) => "render".into(), (true, true) => format!("m-{}", req.target.clone().unwrap_or_default()), (true, false) => "mrender".into() }.as_str(), preview.clone());
         let sizes = if req.sizes && format == "jpg" {
             [100u8, 90, 75, 50].iter().map(|q| (*q, pi::encode(img, "jpg", *q).map(|b| b.len() as u64).unwrap_or(0))).collect()
         } else {
@@ -180,7 +194,22 @@ pub async fn poster_render(app: AppHandle, req: RenderReq) -> Result<RenderInfo,
             preview: preview.to_string_lossy().to_string(), sizes,
         };
         if req.choose {
-            *st.chosen.lock().unwrap() = Some((bytes, format.to_string()));
+            if let Some(slot) = &req.target {
+                // ปกตั้งต้องเป็นรูปแนวตั้งหรือจัตุรัส ปกนอนต้องเป็นรูปแนวนอน ชั้นวางกับตัวอ่านปกแยกแนวด้วยชื่อ cover กับ cover_land
+                let land = img.width() > img.height();
+                if slot == "cover_land" && !land {
+                    return Err("ปกนอนต้องเป็นรูปแนวนอน เลือกแบบปก ตามรูปเดิม กับรูปแนวนอน".into());
+                }
+                if slot == "cover" && land {
+                    return Err("ปกตั้งต้องเป็นรูปแนวตั้ง เลือกแบบปก ตัดให้พอดีปก".into());
+                }
+                if slot != "cover" && slot != "cover_land" {
+                    return Err(format!("ไม่รู้จักช่องปก {slot}"));
+                }
+                app.state::<crate::merge::MergeState>().covers.lock().unwrap().insert(slot.clone(), (bytes, format.to_string()));
+            } else {
+                *st.chosen.lock().unwrap() = Some((bytes, format.to_string()));
+            }
         }
         Ok(info)
     }).await.map_err(|e| e.to_string())?
@@ -188,7 +217,12 @@ pub async fn poster_render(app: AppHandle, req: RenderReq) -> Result<RenderInfo,
 
 /// ล้างรูปที่เลือกไว้ (ปุ่ม ล้างทั้งหมด · เปลี่ยนรูป)
 #[tauri::command]
-pub fn poster_clear(st: State<'_, PosterState>) {
+pub fn poster_clear(st: State<'_, PosterState>, target: Option<String>) {
+    if target.is_some() {
+        *st.m_source.lock().unwrap() = None;
+        *st.m_rendered.lock().unwrap() = None;
+        return;
+    }
     *st.source.lock().unwrap() = None;
     *st.rendered.lock().unwrap() = None;
     *st.chosen.lock().unwrap() = None;

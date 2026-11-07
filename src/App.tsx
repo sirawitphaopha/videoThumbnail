@@ -15,6 +15,7 @@ import SettingsPage from "./pages/SettingsPage";
 import DevParts from "./pages/DevParts";
 import ShelfPage from "./pages/ShelfPage";
 import PosterPage from "./pages/PosterPage";
+import AvPage from "./pages/AvPage";
 import FileInfoPage from "./pages/FileInfoPage";
 import FirstRun from "./pages/FirstRun";
 import CheckPage, { type CheckReq } from "./pages/CheckPage";
@@ -41,6 +42,8 @@ function Frame() {
   const [page, setPage] = useState<Page>("shelf");
   /** มาจากปุ่มเปลี่ยนโปสเตอร์บนชั้นวาง · หน้าใส่โปสเตอร์ใส่ไฟล์หนังให้เลย */
   const [posterPath, setPosterPath] = useState<string | null>(null);
+  /** มาจากปุ่มเสียงและซับบนชั้นวาง · หน้าเสียงและซับใส่ไฟล์หนังให้เลย */
+  const [avPath, setAvPath] = useState<string | null>(null);
   /** หน้าข้อมูลไฟล์ เปิดจากปุ่มข้อมูลไฟล์ในแผงขวาของชั้นวาง */
   const [infoId, setInfoId] = useState<string | null>(null);
   const infoMovie = infoId ? movies.find((m) => m.id === infoId) ?? null : null;
@@ -85,8 +88,9 @@ function Frame() {
             {parts ? <DevParts /> : (
               <>
                 {page === "shelf" && (infoMovie ? <FileInfoPage m={infoMovie} onBack={() => setInfoId(null)} />
-                  : <ShelfPage onPage={setPage} onPoster={(path) => { setPosterPath(path); setPage("poster"); }} onInfo={setInfoId} onCheck={(r) => { setCheckReq(r); setPage("check"); }} onGraph={(path) => openGraph({ path })} sel={shelfSel} setSel={setShelfSel} />)}
+                  : <ShelfPage onPage={setPage} onPoster={(path) => { setPosterPath(path); setPage("poster"); }} onInfo={setInfoId} onCheck={(r) => { setCheckReq(r); setPage("check"); }} onGraph={(path) => openGraph({ path })} onAv={(path) => { setAvPath(path); setPage("av"); }} sel={shelfSel} setSel={setShelfSel} />)}
                 {page === "poster" && <PosterPage initialPath={posterPath} onPage={setPage} onConsumed={() => setPosterPath(null)} />}
+                {page === "av" && <AvPage initialPath={avPath} onConsumed={() => setAvPath(null)} onPage={setPage} onGraph={(path) => openGraph({ path })} />}
                 {page === "check" && <CheckPage req={checkReq} onConsumed={() => setCheckReq(null)} onGraph={openGraph} onPage={setPage} />}
                 {/* หน้ากราฟอยู่ในกล่องเลื่อน แถบสูงขึ้นหรือลากขยายจนยาวกว่าหน้าต่างแล้วเลื่อนลงไปถึงแถวปุ่มล่างได้ (เดิมแถวปุ่มล่างโดนตัดใต้จอ เจอตอนตรวจภาพ) */}
                 {page === "graph" && <div className="pagewrap" data-graphscroll><GraphBoundary><GraphPage req={graphReq} onConsumed={() => setGraphReq(null)} /></GraphBoundary></div>}

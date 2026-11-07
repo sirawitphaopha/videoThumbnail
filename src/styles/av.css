@@ -1,0 +1,94 @@
+/* หน้าเสียงและซับ (ต้นแบบ docs/mockups/audio-merge.html บรรทัด 121–207)
+   ชื่อคลาสที่ชนกับของเดิมในโปรแกรม (pill fchip fthumb acts lbl detail inp) เปลี่ยนชื่อใหม่ ไม่แตะ app.css */
+
+.avwrap { display: flex; flex-direction: column; gap: 12px; padding: 16px 18px 18px; min-width: 0; }
+.avtop { display: flex; align-items: center; gap: 12px; }
+.avchip { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 6px 12px 6px 6px; }
+.avthumb { width: 30px; height: 44px; border-radius: 4px; flex: none; box-shadow: 0 2px 6px rgba(150, 70, 100, .25); background: linear-gradient(160deg, #f2b8c6, #c25d7f); object-fit: cover; }
+.avchip .nm { font-weight: 600; font-size: 14.5px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.avchip .ext { color: var(--txt3); font-weight: 400; }
+.avchip .meta { font-size: 12.5px; color: var(--txt3); line-height: 1.4; }
+
+/* ป้ายชนิดไฟล์ · สีมาจากค่า --h ของแต่ละชนิด (สีโทนเดียวกันคือตระกูลเดียวกัน) · ตัวหนังสือบนพื้นต่ำสุด 5.64:1 (วัดตอนทำมอคอัป) */
+.ft { display: inline-flex; align-items: center; justify-content: center; height: 24px; padding: 0 8px; border-radius: 7px; font-size: 12px; font-weight: 700; letter-spacing: .2px; white-space: nowrap;
+  background: hsl(var(--h) 80% 93%); color: hsl(var(--h) 60% 26%); border: 1px solid hsl(var(--h) 55% 80%); }
+.ft.unk { background: #efeaec; color: #5c4f55; border: 1px solid #ddd2d7; }
+.ft.line { background: #fff; border: 1.5px dashed hsl(var(--h) 50% 42%); }
+
+/* ป้ายของแถวแทร็ก ในหนัง เพิ่มใหม่ แปลง เอาออก */
+.tpill { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; border-radius: 999px; padding: 0 9px; line-height: 1.75; white-space: nowrap; }
+.tpill.in { background: #f3e6ec; color: var(--txt2); }
+.tpill.new { background: #f6b3cb; color: #7a2346; font-weight: 600; }
+.tpill.conv { background: var(--info-soft); color: var(--info-ink); }
+.tpill.off { background: var(--bad-soft); color: var(--bad-ink); }
+.tpill.ok { background: var(--ok-soft); color: var(--ok-ink); }
+.tpill.warn { background: var(--warn-soft); color: var(--warn-ink); }
+
+.tracks { display: flex; flex-direction: column; gap: 6px; }
+.trk { display: grid; grid-template-columns: 30px 26px 84px minmax(0, 1fr) 116px 44px 124px 142px 70px; gap: 8px; align-items: center;
+  background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; font-size: 13px; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.trk:hover { border-color: #eeb3c8; }
+.trk.head { background: transparent; border: 0; padding: 0 10px; color: var(--txt2); font-size: 12px; font-weight: 600; cursor: default; }
+.trk.out { background: #fdf6f8; }
+.trk.out > :not(.avacts):not(.mv) { opacity: .55; }
+.trk.out .nm { text-decoration: line-through; }
+.trk.sel { border: 1px solid var(--accent); box-shadow: 0 0 0 3px rgba(233, 138, 172, .18); }
+.trk .nm { font-weight: 600; color: var(--txt); overflow-wrap: anywhere; line-height: 1.35; }
+.trk .dt { font-size: 12px; color: var(--txt3); overflow-wrap: anywhere; line-height: 1.5; margin-top: 2px; }
+.trk .dd { height: 30px; font-size: 12.5px; }
+.mv { display: flex; flex-direction: column; align-items: center; gap: 1px; color: var(--txt3); }
+.mv button { width: 22px; height: 14px; border: 0; background: transparent; color: var(--txt3); cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
+.mv button:hover { background: #fdeaf1; color: var(--accent-ink); }
+.mv button[aria-disabled="true"] { opacity: .35; cursor: not-allowed; background: transparent; }
+.kind { width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center; }
+.kind.v { background: #e4effb; color: #2f6496; }
+.kind.a { background: #fbe0ea; color: #b54879; }
+.kind.s { background: #efe7fb; color: #6a4aa6; }
+.delay { display: flex; align-items: center; gap: 3px; }
+.avnum { width: 64px; height: 30px; border-radius: 8px; border: 1px solid #efc6d5; background: #fff; text-align: right; padding: 0 6px; font: inherit; font-size: 12.5px; color: var(--txt);
+  font-variant-numeric: tabular-nums; outline: none; transition: border .15s, box-shadow .15s; }
+.avnum:hover { border-color: #eeb3c8; }
+.avnum:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(233, 138, 172, .25); }
+.delay button { width: 24px; height: 30px; border-radius: 7px; border: 1px solid #efc6d5; background: #fff; color: var(--txt2); cursor: pointer; font: inherit; font-size: 13px; padding: 0; }
+.delay button:hover { background: #fdeaf1; color: var(--accent-ink); }
+.avacts { display: flex; gap: 4px; justify-content: flex-end; }
+.ib { width: 30px; height: 30px; border-radius: 8px; border: 1px solid #efc6d5; background: #fff; color: var(--txt2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: background-color .15s, color .15s; padding: 0; }
+.ib:hover { background: #fdeaf1; color: var(--accent-ink); }
+.ib.bad:hover { background: var(--bad-soft); color: var(--bad-ink); }
+.ib[aria-disabled="true"] { opacity: .45; cursor: not-allowed; background: #fff; color: var(--txt3); }
+
+/* โปสเตอร์ในหน้าเสียงและซับ */
+.pslots { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.pslot { display: flex; align-items: center; gap: 12px; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; min-height: 112px; transition: background-color .15s, border-color .15s; }
+.pslot.over { border: 2px dashed var(--accent); background: #fdeaf1; }
+.pslot.bad { border: 2px dashed var(--bad); background: var(--bad-soft); }
+.pslot .nm { font-weight: 600; font-size: 13.5px; display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.pslot .dt { font-size: 12px; color: var(--txt3); margin-top: 2px; }
+.pth { flex: none; border-radius: 5px; box-shadow: 0 2px 8px rgba(150, 70, 100, .25); object-fit: cover; }
+.pth.tall { width: 60px; height: 90px; }
+.pth.wide { width: 144px; height: 81px; }
+.pth.none { box-shadow: none; border: 1.5px dashed #eeb3c8; background: repeating-linear-gradient(45deg, #fbe7ef 0 8px, #fff 8px 16px); }
+
+/* รายการภาษา */
+.lpop { width: 370px; background: #fff; border: 1px solid #efc6d5; border-radius: 10px; box-shadow: 0 12px 28px rgba(150, 70, 100, .18); overflow: hidden; display: flex; flex-direction: column; }
+.lsearch { display: flex; align-items: center; gap: 8px; padding: 8px 10px; border-bottom: 1px solid var(--line); color: var(--txt3); flex: none; }
+.lsearch input { flex: 1; border: 0; outline: none; font: inherit; font-size: 13px; color: var(--txt); background: transparent; padding: 3px 0; }
+.llist { overflow: auto; padding: 4px 0; overscroll-behavior: contain; }
+.lgrp { font-size: 11.5px; font-weight: 700; color: var(--txt3); padding: 7px 12px 2px; }
+.lrow { display: grid; grid-template-columns: 110px 1fr auto 16px; gap: 8px; align-items: center; padding: 5px 12px; font-size: 13px; cursor: pointer; }
+.lrow:hover, .lrow.hi { background: #fdeaf1; }
+.lrow.on { background: #fdeaf1; color: var(--accent-ink); font-weight: 600; }
+.lrow .en { color: var(--txt2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lrow .cd { font-family: var(--mono); font-size: 12px; color: var(--txt3); }
+.lnone { padding: 10px 12px; font-size: 12.5px; color: var(--txt3); }
+
+.avrow2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.optline { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.avfoot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+.avdetail { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
+.avfield { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
+.avfield .avlbl { font-weight: 600; color: var(--txt); font-size: 13px; }
+.avfield .small { margin: 0; }
+.avdrop { border: 2px dashed #eeb3c8; border-radius: 10px; background: #fff; display: flex; align-items: center; gap: 10px; padding: 10px 12px; color: var(--txt3); font-size: 13px; margin-top: 8px; transition: background-color .15s, border-color .15s; }
+.avdrop.over { border-color: var(--accent); background: #fdeaf1; color: var(--accent-ink); }
+.avdrop > span { flex: 1; min-width: 0; }
