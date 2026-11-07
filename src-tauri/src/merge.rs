@@ -514,6 +514,24 @@ fn yes() -> bool {
     true
 }
 
+/// ขนาดคร่าว ๆ ของเสียงที่แปลง · แบบเสียคุณภาพจากบิตเรตที่ตั้ง (ไม่มีบิตเรต เช่น MP3 VBR AAC TVBR คิด 320 kbps)
+/// แบบไม่เสียคุณภาพคิด 60% ของเสียงดิบ 24 บิต · ไม่รู้ความยาว คิดไม่ได้ ไม่บวก
+pub fn conv_estimate(t: &Track) -> Option<u64> {
+    let spec = t.convert.as_ref()?;
+    let secs = t.duration?;
+    let ch = spec.channels.map(|c| c as u64).or(t.channels).unwrap_or(2) as f64;
+    let rate = spec.rate.map(|r| r as u64).or(t.rate).unwrap_or(48000) as f64;
+    let secs = match spec.speed { Some([a, b]) if a > 0.0 && b > 0.0 => secs * a / b, _ => secs };
+    let bytes = match spec.codec.as_str() {
+        "flac" | "wv" => secs * rate * ch * 3.0 * 0.6,
+        _ => {
+            let kbps = spec.p.get("bitrate").and_then(|v| v.as_f64().or_else(|| v.as_str().and_then(|s| s.parse().ok()))).unwrap_or(320.0);
+            secs * kbps * 1000.0 / 8.0
+        }
+    };
+    Some(bytes as u64)
+}
+
 /// ไฟล์รูปปกใหม่ที่เขียนลงโฟลเดอร์ชั่วคราวแล้ว
 #[derive(Clone, Debug)]
 pub struct NewCover {
@@ -1115,13 +1133,22 @@ fn apply(app: &AppHandle, req: &MergeReq, jobs: &Arc<crate::jobs::Jobs>) -> Resu
     if target.to_string_lossy().encode_utf16().count() + 8 > MAX_PATH_LEN {
         return Err(fail("other", "ที่อยู่ไฟล์ยาวเกินไป", vec!["เปลี่ยนชื่อไฟล์ให้สั้นลงก่อน".into(), untouched]));
     }
-    // ที่ว่าง · ราวขนาดหนัง บวกไฟล์ที่เพิ่ม บวกรูปปก
+    // ที่ว่าง · ราวขนาดหนัง บวกไฟล์ที่เพิ่ม บวกรูปปก บวกเสียงที่แปลง
     let added: u64 = inputs_of(&req.movie, &req.tracks).iter().skip(1).filter_map(|s| std::fs::metadata(s).ok()).map(|m| m.len()).sum();
     let cover_bytes: u64 = st.covers.lock().unwrap().values().map(|c| c.0.len() as u64).sum();
-    let need = src_size + added + cover_bytes + 64 * 1024 * 1024;
+    let conv: u64 = req.tracks.iter().filter(|t| t.keep && t.kind == "audio").filter_map(conv_estimate).sum();
+    let need = src_size + added + cover_bytes + conv + 64 * 1024 * 1024;
     let free = free_space(&dir);
     if free < need {
         return Err(fail("space", format!("พื้นที่ในไดรฟ์ {} ไม่พอ", drive_letter(&dir)), vec![format!("ต้องการ {} แต่เหลือ {}", fmt_gb(need), fmt_gb(free)), untouched]));
+    }
+    // เสียงที่แปลงเขียนลงโฟลเดอร์ชั่วคราวของโปรแกรม (ไดรฟ์ C) ก่อนรวม · ไดรฟ์นั้นต้องมีที่พอด้วย
+    if conv > 0 {
+        let wfree = free_space(work.parent().unwrap_or(&work));
+        let wneed = conv + 64 * 1024 * 1024;
+        if drive_letter(&work) != drive_letter(&dir) && wfree < wneed {
+            return Err(fail("space", format!("พื้นที่ในไดรฟ์ {} ไม่พอสำหรับไฟล์เสียงที่แปลง", drive_letter(&work)), vec![format!("ต้องการ {} แต่เหลือ {}", fmt_gb(wneed), fmt_gb(wfree)), untouched]));
+        }
     }
     // ตรวจไฟล์ต้นทางก่อน · อ่านทุกแพ็กเก็ตโดยไม่ถอดภาพ (แบบหน้าใส่โปสเตอร์)
     if req.check_source {
@@ -1537,6 +1564,21 @@ mod tests {
         assert!(notes.iter().any(|n| n.contains("เพิ่มคู่กับแทร็กเดิม")), "{notes:?}");
         // ไฟล์ชั่วคราวของการแปลงถูกลบหมด
         assert!(std::fs::read_dir(&dir.0).unwrap().flatten().all(|e| !e.file_name().to_string_lossy().starts_with("merge-conv-")));
+    }
+
+    #[test]
+    fn converted_size_estimates() {
+        let mut t = Track { kind: "audio".into(), duration: Some(7680.0), channels: Some(6), rate: Some(48000), keep: true, ..Default::default() };
+        assert_eq!(conv_estimate(&t), None, "ไม่แปลง ไม่บวก");
+        t.convert = Some(crate::encode::EncodeSpec { codec: "opus".into(), p: serde_json::json!({"bitrate": 384}).as_object().cloned().unwrap(), ..Default::default() });
+        // 384 kbps 7,680 วินาที = 368,640,000 ไบต์ (ราว 352 MB ตรงกับมอคอัป 1 kbps ≈ 0.96 MB)
+        assert_eq!(conv_estimate(&t), Some(368_640_000));
+        t.convert = Some(crate::encode::EncodeSpec { codec: "flac".into(), ..Default::default() });
+        // 5.1 24 บิต 48 kHz 7,680 วินาที เสียงดิบ 6.6 พันล้านไบต์ (มอคอัป WAV ราว 6.2 GB) 60% ราว 3.98 พันล้าน
+        assert_eq!(conv_estimate(&t), Some((7680.0 * 48000.0 * 6.0 * 3.0 * 0.6) as u64));
+        t.convert = Some(crate::encode::EncodeSpec { codec: "mp3".into(), channels: Some(2), speed: Some([25.0, 23.976]), ..Default::default() });
+        // MP3 VBR ไม่มีบิตเรต คิด 320 · ยืดความเร็วแล้วยาวขึ้น
+        assert_eq!(conv_estimate(&t), Some((7680.0 * 25.0 / 23.976 * 320_000.0 / 8.0) as u64));
     }
 
     /// กดหยุดกลางทาง ไฟล์ทำค้างถูกลบ
