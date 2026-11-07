@@ -7,11 +7,13 @@
 - สเปกทุกหน้าทุกสถานะ [docs/MOCKUP-SPEC.md](docs/MOCKUP-SPEC.md) · หน้าตาต้นแบบ [docs/mockups/poster-shelf.html](docs/mockups/poster-shelf.html)
 - หลุมทางเทคนิคกับผลที่ลองจริง [docs/TECH-REVIEW.md](docs/TECH-REVIEW.md)
 - เครื่องมือที่โหลดมาและค่า hash [vendor/README.md](vendor/README.md)
+- งานที่พี่กันสั่งไว้ทำหลังขั้นที่ทำอยู่ [docs/ROADMAP.md](docs/ROADMAP.md)
 
 ## สร้างและรัน
 - ทุกคำสั่งสร้างโปรแกรมต้องเรียก `. D:\movie-shelf\dev.ps1` ก่อน (Rust อยู่ไดรฟ์ D ยังไม่อยู่ในที่อยู่ค้นหาของโปรแกรมที่เปิดอยู่ · ไดรฟ์ C ที่ว่างน้อย)
 - แตกเครื่องมือ `scripts/fetch-tools.ps1` · สร้างไฟล์ทดสอบ `node scripts/make-test-media.mjs`
-- เปิดโปรแกรมแบบทดสอบ `scripts/dev-app.ps1` · คุมหน้าต่างและถ่ายภาพ `node scripts/cdp.mjs`
+- เปิดโปรแกรมแบบทดสอบ `scripts/dev-app.ps1` (ค่าตั้งต้นเปิดอยู่หลังสุด · `-Front` ขึ้นหน้าจอ พี่กันอนุญาต 7 พ.ย. 2569 · `-Built` ตัวจริง) · รอหน้าต่างพร้อม `node scripts/wait-app.mjs` · คุมหน้าต่างและถ่ายภาพ `node scripts/cdp.mjs`
+- ก่อนแก้โค้ด Rust แล้วรัน `cargo test` ปิดงานเบื้องหลังที่รัน `dev-app.ps1` ให้หมด ปิดแค่หน้าต่างไม่พอ ตัว `tauri dev` ยังเฝ้าไฟล์แล้วสร้างใหม่พร้อมเทส ของที่เก็บไว้ใช้ซ้ำเพี้ยน ฟ้อง `LNK1120` `unresolved external symbol anon.…llvm…` และฟ้องต่อทุกรอบ · เจอแล้วล้างด้วย `cargo clean -p movie-shelf` (ไม่แตะห้องสมุดอื่น)
 - ตัวเทสฝั่ง Rust `cd src-tauri; cargo test` · ต้องสร้างไฟล์ทดสอบก่อน ไม่มีไฟล์เทสชื่อไทยจะล้มพร้อมบอกวิธีสร้าง (ตั้ง `MOVIE_SHELF_SKIP_MEDIA=1` ถ้าตั้งใจข้าม)
 - `test-media/จากพี่กัน/` เป็นไฟล์ส่วนตัวของพี่กัน (รูป HEIC คลิปอัดหน้าจอ) ห้ามขึ้น git · `.gitignore` กันไว้แล้ว เหลือขึ้น git แค่ `test-media/src/`
 - เทสเรื่องรูปหรือการโหลดของ ต้องเทสกับตัวโปรแกรมที่สร้างจริง `npm run tauri build -- --debug --no-bundle` ด้วย เพราะ `tauri dev` ไม่ใช้กติกาความปลอดภัย (CSP) ตัวจริง (TECH-REVIEW ข้อ 5)

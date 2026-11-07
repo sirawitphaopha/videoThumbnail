@@ -376,9 +376,16 @@ pub fn refresh_own_edit(app: &AppHandle, path: &Path, on_hash: &dyn Fn(f64)) {
 /// ตั้งสถานะตรวจกับค่า hash ให้หนังหนึ่งเรื่อง ใช้ในเทสหน้าจอขั้น 4 (ยังไม่มีหน้าตรวจไฟล์) · ตัวติดตั้งจริงไม่มีคำสั่งนี้
 #[cfg(debug_assertions)]
 #[tauri::command]
-pub fn dev_set_check(app: AppHandle, lib: State<'_, Arc<LibraryStore>>, path: String, status: String, sha256: Option<String>) -> Result<(), String> {
+pub fn dev_set_check(app: AppHandle, lib: State<'_, Arc<LibraryStore>>, path: String, status: String, sha256: Option<String>, check_at: Option<i64>) -> Result<(), String> {
     let id = lib.movies.lock().unwrap().iter().find(|m| m.path.eq_ignore_ascii_case(&path)).map(|m| m.id.clone()).ok_or("ไม่เจอเรื่องนี้ในคลัง")?;
-    let m = lib.update_movie(&id, |m| { m.status = status; m.sha256 = sha256; }).unwrap();
+    // check_at ใช้เทสเตือนตรวจซ้ำ (ขั้น 6) ตั้งเวลาตรวจครั้งล่าสุดย้อนหลังได้
+    let m = lib.update_movie(&id, |m| {
+        if let Some(at) = check_at {
+            m.check = Some(serde_json::json!({ "at": at, "mode": "quick", "result": status, "summary": "ตรวจแบบเร็ว โครงไฟล์ครบ ค่า hash ตรงกับครั้งก่อน", "spans": [] }));
+        }
+        m.status = status;
+        m.sha256 = sha256;
+    }).unwrap();
     let _ = app.emit("movie-updated", &m);
     lib.save()
 }
@@ -438,6 +445,7 @@ pub fn scan_library(app: AppHandle, lib: State<'_, Arc<LibraryStore>>) -> Result
     std::thread::spawn(move || {
         let env = ScanEnv { tools: &tools, thumbs: &local.join("thumbs"), work: &local.join("tmp"), folders: &folders, originals: &originals, workers: 3 };
         let existing = lib.movies.lock().unwrap().clone();
+        let before = existing.clone();
         let last = Mutex::new(std::time::Instant::now() - std::time::Duration::from_secs(1));
         let r = scan_core(&env, existing, &|m, done, total| {
             let _ = app.emit("movie-updated", m);
@@ -448,16 +456,40 @@ pub fn scan_library(app: AppHandle, lib: State<'_, Arc<LibraryStore>>) -> Result
                 let _ = app.emit("scan-progress", Progress { done, total });
             }
         });
-        *lib.movies.lock().unwrap() = r.movies.clone();
+        let mut movies = r.movies;
+        {
+            // ตรวจไฟล์เสร็จระหว่างอ่านโฟลเดอร์ (ขั้น 6) ผลตรวจในคลังใหม่กว่าสำเนาตอนเริ่มอ่าน ห้ามโดนรายการที่อ่านเสร็จทับ
+            let mut cur = lib.movies.lock().unwrap();
+            keep_newer_checks(&mut movies, &before, &cur);
+            *cur = movies.clone();
+        }
         *lib.folders.lock().unwrap() = r.folders.clone();
         let saved = lib.save();
         lib.scanning.store(false, Ordering::SeqCst);
-        let _ = app.emit("scan-finished", LibraryReply { movies: r.movies, folders: r.folders, scanning: false });
+        let _ = app.emit("scan-finished", LibraryReply { movies, folders: r.folders, scanning: false });
         if let Err(e) = saved {
             let _ = app.emit("library-error", e);
         }
     });
     Ok(())
+}
+
+/// เวลาที่ตรวจครั้งล่าสุด · ไม่เคยตรวจ = 0
+fn check_at(m: &Movie) -> i64 {
+    m.check.as_ref().and_then(|c| c.get("at")).and_then(|v| v.as_i64()).unwrap_or(0)
+}
+
+/// ผลตรวจที่เสร็จระหว่างอ่านโฟลเดอร์ · เรื่องที่ผลตรวจในคลังตอนนี้ใหม่กว่าสำเนาตอนเริ่มอ่าน ใช้สถานะ ผลตรวจ และค่า hash ในคลัง
+pub fn keep_newer_checks(scanned: &mut [Movie], before: &[Movie], now: &[Movie]) {
+    for m in scanned.iter_mut() {
+        let Some(cur) = now.iter().find(|c| c.id == m.id) else { continue };
+        let was = before.iter().find(|b| b.id == m.id).map(check_at).unwrap_or(0);
+        if check_at(cur) > was {
+            m.status = cur.status.clone();
+            m.check = cur.check.clone();
+            m.sha256 = cur.sha256.clone();
+        }
+    }
 }
 
 /// เปิดเล่นด้วยโปรแกรมที่ตั้งไว้ หรือโปรแกรมหลักของ Windows
@@ -509,6 +541,24 @@ mod tests {
         let _ = fs::remove_dir_all(&d);
         fs::create_dir_all(&d).unwrap();
         Temp(d)
+    }
+
+    #[test]
+    fn scan_result_keeps_checks_finished_during_scan() {
+        let mv = |id: &str, status: &str, at: Option<i64>| Movie {
+            id: id.into(), status: status.into(), check: at.map(|a| serde_json::json!({ "at": a })), sha256: at.map(|a| format!("h{a}")), ..Default::default()
+        };
+        // ก่อนอ่าน · a ตรวจแล้วที่ 100 · b ยังไม่เคยตรวจ · c ตรวจแล้วที่ 50
+        let before = vec![mv("a", "ok", Some(100)), mv("b", "unchecked", None), mv("c", "ok", Some(50))];
+        // ระหว่างอ่าน · b ตรวจเสร็จที่ 200 ผลเสียหาย · a กับ c ไม่ได้ตรวจเพิ่ม
+        let now = vec![mv("a", "ok", Some(100)), mv("b", "bad", Some(200)), mv("c", "ok", Some(50))];
+        // ตัวอ่านเห็นไฟล์ c เปลี่ยนจึงตั้งเป็น changed · b ยังเป็นค่าตอนเริ่มอ่าน
+        let mut scanned = vec![mv("a", "ok", Some(100)), mv("b", "unchecked", None), mv("c", "changed", Some(50))];
+        keep_newer_checks(&mut scanned, &before, &now);
+        assert_eq!(scanned[1].status, "bad", "ผลตรวจที่เสร็จระหว่างอ่านต้องไม่โดนทับ");
+        assert_eq!(scanned[1].sha256.as_deref(), Some("h200"));
+        assert_eq!(scanned[2].status, "changed", "เรื่องที่ไม่ได้ตรวจเพิ่ม ใช้ผลของตัวอ่าน");
+        assert_eq!(scanned[0].status, "ok");
     }
 
     #[test]

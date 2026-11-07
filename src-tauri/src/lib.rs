@@ -76,6 +76,7 @@ pub fn run() {
         poster::poster_inspect, poster::poster_apply, poster::poster_cancel,
         fileinfo::media_info, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_compare, fileinfo::hash_save,
         extract::extract_start, extract::extract_cancel, extract::extract_default_folder,
+        check::check_start, check::check_cancel, check::check_running, check::play_at,
     ]);
     #[cfg(not(debug_assertions))]
     let builder = builder.invoke_handler(tauri::generate_handler![
@@ -87,6 +88,7 @@ pub fn run() {
         poster::poster_inspect, poster::poster_apply, poster::poster_cancel,
         fileinfo::media_info, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_compare, fileinfo::hash_save,
         extract::extract_start, extract::extract_cancel, extract::extract_default_folder,
+        check::check_start, check::check_cancel, check::check_running, check::play_at,
     ]);
 
     builder

@@ -428,3 +428,43 @@ tbody tr:last-child td { border-bottom: 0; }
 .kindrow { display: grid; grid-template-columns: 112px 1fr; gap: 10px; padding: 9px 12px; border-top: 1px solid #f8e3eb; line-height: 1.55; }
 .kindrow:first-child { border-top: 0; }
 .kindrow b { white-space: nowrap; }
+
+/* ---------- หน้าตรวจไฟล์ (สเปกข้อ 8 · ต้นแบบบรรทัด 144–147 934–999) ---------- */
+.modes { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+.mode { border-radius: 12px; padding: 14px 16px; border: 1px solid var(--line); background: #fff; cursor: pointer; transition: border-color .15s, background-color .15s; }
+.mode:hover { border-color: #eeb3c8; }
+.mode.on { border: 1px solid var(--accent); background: #fdeaf1; }
+.mode.on:hover { border-color: var(--accent-d); }
+.mode.off { cursor: not-allowed; }
+.mode:focus-visible { outline: 2px solid var(--accent-d); outline-offset: 2px; }
+.mode h4 { margin: 0 0 4px; font-size: 15px; display: flex; gap: 8px; align-items: center; }
+.ckbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.ckcount { font-size: 14px; color: var(--txt2); }
+.ckacts { display: flex; gap: 10px; }
+.pill.p-queue { background: #f6e8ee; color: #8a5d6e; }
+/* หัวตารางตรึงกับกล่องเลื่อนของหน้า (.pagewrap ไม่มีระยะขอบใน จึง top 0) · หัววาดเส้นบนล่างเองด้วย box-shadow
+   กรอบถอดเส้นบนออก ไม่งั้นตอนยังไม่เลื่อนเส้นบนหนาสองจุด (web-craft 6.2.1) */
+.ckwrap { border-top: 0; }
+.ck thead th { position: sticky; top: 0; z-index: 2; border-bottom: 0; box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line); }
+.ck thead th:first-child { border-top-left-radius: 12px; box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line), inset 1px 0 0 var(--line); }
+.ck thead th:last-child { border-top-right-radius: 12px; box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line), inset -1px 0 0 var(--line); }
+/* ต่างจากต้นแบบ: ต้นแบบชิดบน ข้อความรายละเอียดตัวเล็กเลยลอยสูงกว่าชื่อไฟล์ · ของจริงจัดกึ่งกลางแนวตั้งทั้งแถว */
+.ck td { vertical-align: middle; }
+.ck tbody tr.click { cursor: pointer; transition: background-color .15s; }
+.ck tbody tr.click:hover td { background: #fdf0f5; }
+.ck tbody tr.click:focus-visible { outline: 2px solid var(--accent-d); outline-offset: -2px; }
+.ck tr.missing td { opacity: .5; }
+.ck .ckname { word-break: break-word; }
+.cbx[role="checkbox"] { cursor: pointer; }
+.cbx[role="checkbox"]:focus-visible { outline: 2px solid var(--accent-d); outline-offset: 2px; }
+.ck .cbx.off:hover { border-color: var(--accent-d); }
+/* ช่องติ๊กที่กดไม่ได้ (กำลังตรวจ · ไฟล์หาไม่เจอ) ชี้แล้วยังเปลี่ยนนิดเดียว ไม่ให้ดูเหมือนกดได้ (button-feedback ปุ่มที่กดไม่ได้) */
+.ck .cbx.dis { cursor: not-allowed; opacity: .5; }
+.ck .cbx.dis.off:hover { border-color: #dcaabd; }
+.ck .cbx.dis.on:hover { opacity: .6; }
+.ckdue { color: var(--warn-ink); }
+.cksum { display: flex; flex-direction: column; gap: 12px; }
+.cksum-stats { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.cksum-stats .stat { flex-direction: column; gap: 2px; }
+.cksum-stats .stat b { font-size: 22px; line-height: 1.3; }
+.ckres { display: flex; gap: 10px; align-items: center; }

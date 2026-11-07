@@ -40,7 +40,7 @@ export type Movie = {
   status: MovieStatus; check: CheckInfo | null; sha256: string | null; missing: boolean; error: string | null;
 };
 /** ผลตรวจครั้งล่าสุด (ขั้น 6) */
-export type CheckInfo = { at: number; mode: "quick" | "full"; result: "ok" | "bad" | "changed"; summary?: string; spans?: { from: number; to: number; what: string }[] };
+export type CheckInfo = { at: number; mode: "quick" | "full"; result: "ok" | "bad" | "changed"; summary?: string; spans?: CheckSpan[] };
 export type FolderState = { path: string; ok: boolean; count: number; error: string | null };
 export type LibraryReply = { movies: Movie[]; folders: FolderState[]; scanning: boolean };
 
@@ -149,3 +149,20 @@ export async function pickFolder(title: string): Promise<string | null> {
   const r = await open({ directory: true, multiple: false, title });
   return typeof r === "string" ? r : null;
 }
+
+/* ---------- หน้าตรวจไฟล์ (check.rs · ขั้น 6) ---------- */
+export type CheckMode = "quick" | "full";
+export type CheckSpan = { from: number; to: number; what: string; tail?: boolean };
+export type CheckProgress = { id: string; percent: number; index: number; total: number };
+export type CheckItem = { id: string; error: string | null };
+export type CheckFinished = { mode: CheckMode; total: number; done: number; ok: number; bad: number; changed: number; failed: number; cancelled: boolean; seconds: number; at: number };
+export type PlayResult = { player: string; seeked: boolean };
+
+export const checkApi = {
+  /** เริ่มตรวจเรื่องที่เลือกเบื้องหลัง · ผลมาทางเหตุการณ์ check-started check-progress movie-updated check-item check-finished */
+  start: (ids: string[], mode: CheckMode) => call<void>("check_start", { ids, mode }),
+  cancel: () => call<void>("check_cancel"),
+  running: () => call<boolean>("check_running"),
+  /** เปิดเล่นที่วินาทีนั้น · โปรแกรมที่ตั้งไว้ หรือที่หาเจอในเครื่อง (VLC MPC-HC PotPlayer mpv) */
+  playAt: (path: string, secs: number) => call<PlayResult>("play_at", { path, secs }),
+};

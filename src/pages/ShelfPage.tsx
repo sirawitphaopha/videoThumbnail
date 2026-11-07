@@ -3,6 +3,7 @@
    ชั้นไม้ แถวละกี่เรื่องคิดจากความกว้างจริง · ตารางกดหัวคอลัมน์เรียง · แผงรายละเอียด การ์ดสถานะทุกแบบ ปุ่ม 6 ปุ่ม
    ไดรฟ์ที่ถอดออก หนังยังอยู่บนชั้นแบบจาง เปิดเล่นไม่ได้ · กำลังอ่านมีโครงจาง ปกขึ้นทีละเรื่อง */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import type { CheckReq } from "./CheckPage";
 import type { Page } from "../components/Sidebar";
 import SearchBox from "../components/SearchBox";
 import RenameBox from "../components/RenameBox";
@@ -50,7 +51,7 @@ function Hl({ text, used, head, tail }: { text: string; used: string; head?: Rea
 }
 
 /** sel เก็บที่ตัวโปรแกรม (App) ไม่ใช่ในหน้านี้ · ไปหน้าข้อมูลไฟล์หรือใส่โปสเตอร์แล้วกลับมา ต้องยังเลือกเรื่องเดิมอยู่ */
-export default function ShelfPage({ onPage, onPoster, onInfo, sel, setSel }: { onPage: (p: Page) => void; onPoster: (path: string) => void; onInfo: (id: string) => void; sel: string | null; setSel: (id: string) => void }) {
+export default function ShelfPage({ onPage, onPoster, onInfo, onCheck, sel, setSel }: { onPage: (p: Page) => void; onPoster: (path: string) => void; onInfo: (id: string) => void; onCheck: (r: CheckReq) => void; sel: string | null; setSel: (id: string) => void }) {
   const { settings, update } = useSettings();
   const { movies, folders, scanning, progress, scan } = useLibrary();
   const toast = useToast();
@@ -150,7 +151,7 @@ export default function ShelfPage({ onPage, onPoster, onInfo, sel, setSel }: { o
         </div>
         {/* key ต่อเรื่อง สลับเรื่องแล้วสร้างแผงกับปุ่มใหม่ ไม่ใช้ปุ่มเดิมซ้ำ (เดิมปุ่มชมพูค่อย ๆ เปลี่ยนเป็นเขียวตอนสลับเรื่อง) */}
         {selected && (
-          <Detail key={selected.id} m={selected} scanning={scanning} reminder={reminder} onPage={onPage} onPoster={onPoster} onInfo={() => onInfo(selected.id)} soon={soon}
+          <Detail key={selected.id} m={selected} scanning={scanning} reminder={reminder} onPage={onPage} onCheck={onCheck} onPoster={onPoster} onInfo={() => onInfo(selected.id)} soon={soon}
             onPlay={() => api.playMovie(selected.path).catch((e) => toast({ kind: "bad", title: "เปิดเล่นไม่ได้", detail: String(e) }))}
             onReveal={() => api.revealMovie(selected.path).catch((e) => toast({ kind: "bad", title: "เปิดโฟลเดอร์ไม่ได้", detail: String(e) }))} />
         )}
@@ -335,7 +336,7 @@ function ShelfTable(p: { list: Movie[]; selId: string | null; onSel: (id: string
 }
 
 /* ---------- แผงรายละเอียด (ต้นแบบบรรทัด 388–426) ---------- */
-function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg: Page) => void; onPoster: (path: string) => void; onInfo: () => void; soon: (what: string, stage: number) => void; onPlay: () => void; onReveal: () => void }) {
+function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg: Page) => void; onCheck: (r: CheckReq) => void; onPoster: (path: string) => void; onInfo: () => void; soon: (what: string, stage: number) => void; onPlay: () => void; onReveal: () => void }) {
   const { m } = p;
   const src = thumbUrl(m.thumb);
   const [imgOk, setImgOk] = useState(true);
@@ -380,7 +381,7 @@ function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg:
         <dt>ซับไตเติล</dt><dd>{tracks(m.subs, false) || "ไม่มี"}</dd>
         <dt>ไฟล์แนบ</dt><dd>{m.images ? `${m.hasCover ? "โปสเตอร์" : "รูป"} ${m.images} รูป` : "ไม่มี"}</dd>
       </dl>
-      <StatusCard m={m} reminder={p.reminder} onPage={p.onPage} onPoster={() => p.onPoster(m.path)} />
+      <StatusCard m={m} reminder={p.reminder} onCheck={p.onCheck} onPoster={() => p.onPoster(m.path)} />
       <div className="actions">
         {m.missing ? (
           <button type="button" className="btn btn-wait" aria-disabled="true" title="หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" onClick={p.onPlay}><PlayIcon />เปิดเล่น</button>
@@ -391,7 +392,7 @@ function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg:
           title={renameBlock ? "เปลี่ยนชื่อไม่ได้ · " + renameBlock : undefined} onClick={startRename}>เปลี่ยนชื่อ</button>
         <button type="button" className={"btn " + (m.missing ? "btn-wait" : "btn-ghost")} aria-disabled={m.missing || undefined}
           title={m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : undefined} onClick={() => { if (!m.missing) p.onPoster(m.path); }}>เปลี่ยนโปสเตอร์</button>
-        <button type="button" className="btn btn-ghost" onClick={() => p.onPage("check")}>ตรวจไฟล์</button>
+        <button type="button" className="btn btn-ghost" onClick={() => p.onCheck({ ids: [m.id] })}>ตรวจไฟล์</button>
         <button type="button" onClick={() => { if (!m.missing) p.onInfo(); }} className={"btn " + (m.missing ? "btn-wait" : "btn-ghost")} aria-disabled={m.missing || undefined} title={m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : undefined}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5h.01" /></svg>ข้อมูลไฟล์
         </button>
@@ -404,7 +405,7 @@ function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg:
 }
 
 /** การ์ดสถานะในแผงรายละเอียด ตามสภาพของไฟล์ (สเปกข้อ 1 การ์ดสถานะแบบอื่น) */
-function StatusCard({ m, reminder, onPage, onPoster }: { m: Movie; reminder: number; onPage: (pg: Page) => void; onPoster: () => void }) {
+function StatusCard({ m, reminder, onCheck, onPoster }: { m: Movie; reminder: number; onCheck: (r: CheckReq) => void; onPoster: () => void }) {
   if (m.missing) {
     return <div className="stat bad"><CardIcon kind="bad" /><div><b>หาไฟล์ไม่เจอ</b><Phr>ไดรฟ์อาจถอดออกอยู่</Phr><br /><Phr>เสียบไดรฟ์แล้วกดอ่านโฟลเดอร์ใหม่</Phr></div></div>;
   }
@@ -418,8 +419,8 @@ function StatusCard({ m, reminder, onPage, onPoster }: { m: Movie; reminder: num
       <>
         <div className="stat bad"><CardIcon kind="bad" /><div><b>ไฟล์เสียหาย</b>{m.check?.summary ?? (span ? "พบที่เสียในไฟล์" : "ตรวจแล้วพบที่เสีย")}<br /><Phr>ไฟล์น่าจะโหลดมาไม่ครบ ควรโหลดใหม่</Phr></div></div>
         <div className="minirow" style={{ marginTop: -4 }}>
-          <button type="button" className="btn btn-ghost" onClick={() => onPage("check")}>ดูรายละเอียดผลตรวจ</button>
-          <button type="button" className="btn btn-ghost" onClick={() => onPage("check")}>ตรวจซ้ำ</button>
+          <button type="button" className="btn btn-ghost" onClick={() => onCheck({ ids: [m.id], open: m.id })}>ดูรายละเอียดผลตรวจ</button>
+          <button type="button" className="btn btn-ghost" onClick={() => onCheck({ ids: [m.id], mode: "full" })}>ตรวจซ้ำ</button>
         </div>
       </>
     );
@@ -438,8 +439,8 @@ function StatusCard({ m, reminder, onPage, onPoster }: { m: Movie; reminder: num
       <>
         <div className="stat warn"><CardIcon kind="warn" /><div><b>{title}</b>ตรวจแบบเร็วใช้เวลา{quickEstimate(m)}<br />ตรวจละเอียด<span className="nw">{fullEstimate(m)}</span></div></div>
         <div className="minirow" style={{ marginTop: -4 }}>
-          <button type="button" className="btn btn-ok" onClick={() => onPage("check")}>ตรวจแบบเร็ว</button>
-          <button type="button" className="btn btn-ghost" onClick={() => onPage("check")}>ตรวจละเอียด</button>
+          <button type="button" className="btn btn-ok" onClick={() => onCheck({ ids: [m.id], mode: "quick" })}>ตรวจแบบเร็ว</button>
+          <button type="button" className="btn btn-ghost" onClick={() => onCheck({ ids: [m.id], mode: "full" })}>ตรวจละเอียด</button>
         </div>
       </>
     );
