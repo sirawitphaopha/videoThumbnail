@@ -7,7 +7,7 @@ import { AUDIO_EXT, checkApi, graphApi, inApp, pickFile, pickSave, thumbUrl, typ
 import { useLibrary } from "../lib/library";
 import { useToast } from "../components/Toasts";
 import Dropdown from "../components/Dropdown";
-import { Phr } from "../components/ui";
+import { Phr, Switch } from "../components/ui";
 import { fmtSize } from "../lib/format";
 
 export type GraphReq = { path: string; t?: number };
@@ -27,6 +27,16 @@ const HEAT = ["#000000", "#000036", "#180062", "#4f007b", "#81007e", "#ae0068", 
 const MONO = ["#000000", "#ffffff"];
 /** สีเทียบช่อง ซ้าย ขวา กลาง · 3 สีแรกของชุดสีตั้งต้นสกิล dataviz ผ่านตัวตรวจทุกคู่ · สีตามช่อง */
 const CMP: Record<string, string> = { FL: "#2a78d6", FR: "#eb6834", FC: "#1baf7a" };
+/** ไอคอนนำหน้าปุ่ม 6 แบบ ตามมอคอัป (ตกหล่นตอนทำรอบแรก พี่กันส่งภาพมอคอัปมา 7 พ.ย. 2569 แคลร์เห็นเอง) */
+const vi = (children: React.ReactNode) => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">{children}</svg>;
+const VIEW_ICON: Record<View, React.ReactNode> = {
+  wave: vi(<path d="M3 12h2M7 7v10M11 4v16M15 8v8M19 10v4" />),
+  spec: vi(<><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 16v-3M11 16V9M15 16v-5M19 16v-2" /></>),
+  loud: vi(<path d="M3 18l5-6 4 3 4-8 5 5" />),
+  cmp: vi(<><path d="M3 15c3-6 5-6 8 0s5 6 10-4" /><path d="M3 10c4 4 7 4 10-1s5-4 8 1" opacity=".55" /></>),
+  spek: vi(<><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M7 17V9M10 17V6M13 17v-5M16 17V8" /><path d="M21 7h-2M21 12h-2M21 17h-2" /></>),
+  psd: vi(<><path d="M3 20h18" /><path d="M4 17c2-1 3-9 5-9s2 6 4 6 3-4 5-4 2 3 3 3" /></>),
+};
 const VIEWS: [View, string][] = [["wave", "รูปคลื่น"], ["spec", "ความถี่"], ["loud", "ความดัง"], ["cmp", "ซ้อนเทียบ"], ["spek", "วิเคราะห์"], ["psd", "ความถี่เฉลี่ย"]];
 const ZOOMS: [number | "all", string][] = [["all", "ทั้งเรื่อง"], [600, "10 นาที"], [240, "4 นาที"], [30, "30 วินาที"]];
 const PSD_SPANS: [number | "all", string][] = [[10, "10 วินาที"], [30, "30 วินาที"], [120, "2 นาที"], ["all", "ทั้งเรื่อง"]];
@@ -42,7 +52,6 @@ const lines = (s: string) => s.split(" · ").map((l) => <div key={l}><Phr>{l}</P
 /** ยอดหรือความดังเฉลี่ยของช่อง (dB) · ช่องที่เงียบทั้งเรื่องบอกว่าเงียบ ไม่ขึ้น −120.0 dB */
 const pkTxt = (v: number) => (v <= -119 ? "เงียบ" : minus(v.toFixed(1)) + " dB");
 const dbTxt = (v: number) => v <= 0.0001 ? "−∞" : minus((20 * Math.log10(v)).toFixed(1));
-const fTxt = (f: number) => f >= 1000 ? (f / 1000).toFixed(2) + " kHz" : Math.round(f) + " Hz";
 const dec = (s: string) => Uint8Array.from(atob(s), (c) => c.charCodeAt(0));
 
 /** ชื่อช่องที่โชว์ · 2 ช่อง L R · ช่องเดียว M */
@@ -441,8 +450,8 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
   );
   const ctl = (
     <div className="agctl">
-      <div className="seg">{VIEWS.map(([k, l]) => <button key={k} type="button" className={view === k ? "on" : ""} onClick={() => setPref("view", k)} data-view={k}
-        disabled={k === "cmp" && !names.includes("FL")} title={k === "cmp" && !names.includes("FL") ? "ซ้อนเทียบใช้กับแทร็กที่มีช่องซ้ายขวา" : undefined}>{l}</button>)}</div>
+      <div className="seg agviews">{VIEWS.map(([k, l]) => <button key={k} type="button" className={view === k ? "on" : ""} onClick={() => setPref("view", k)} data-view={k}
+        disabled={k === "cmp" && !names.includes("FL")} title={k === "cmp" && !names.includes("FL") ? "ซ้อนเทียบใช้กับแทร็กที่มีช่องซ้ายขวา" : undefined}>{VIEW_ICON[k]}{l}</button>)}</div>
       {view === "wave" && seg<"fine" | "bars">([["fine", "เส้นละเอียด"], ["bars", "แท่ง"]], prefs.style, (v) => setPref("style", v), "data-style")}
       {view === "spec" && seg<"theme" | "rainbow">([["theme", "สีตามชุด"], ["rainbow", "สีรุ้ง"]], prefs.cmap, (v) => setPref("cmap", v), "data-cmap")}
       <span className="lbl" style={{ marginLeft: "auto" }}>ชุดสี</span>
@@ -542,7 +551,7 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
         </div>
         <div className="agfoot">
           {view === "wave"
-            ? <div className="lg">{prefs.style === "bars" ? <span>ความสูงแท่ง คือยอดเสียงช่วงนั้น</span> : <><span><i style={{ background: th.peak }} />ยอดเสียง</span><span><i style={{ background: th.rms }} />ความดังเฉลี่ย</span></>}{marks.length > 0 && <span style={{ color: "#b03535" }}><i style={{ background: "rgba(208,59,59,.25)", border: "1px solid rgba(208,59,59,.75)" }} />จุดเสีย</span>}</div>
+            ? <div className="lg">{prefs.style === "bars" ? <span><svg width="22" height="14" viewBox="0 0 22 14" style={{ verticalAlign: -2, marginRight: 5 }} aria-hidden="true"><rect width="22" height="14" rx="3" fill={th.lane} stroke={th.peak} /><rect x="4" y="5" width="2" height="4" rx="1" fill={th.rms} /><rect x="8" y="2" width="2" height="10" rx="1" fill={th.rms} /><rect x="12" y="4" width="2" height="6" rx="1" fill={th.rms} /><rect x="16" y="3" width="2" height="8" rx="1" fill={th.rms} /></svg>ความสูงแท่ง คือยอดเสียงช่วงนั้น</span> : <><span><i style={{ background: th.peak }} />ยอดเสียง</span><span><i style={{ background: th.rms }} />ความดังเฉลี่ย</span></>}{marks.length > 0 && <span style={{ color: "#b03535" }}><i style={{ background: "rgba(208,59,59,.25)", border: "1px solid rgba(208,59,59,.75)" }} />จุดเสีย</span>}</div>
             : <div className="speclegend"><span className="nw">−120 dB</span><span className="rampbar" style={{ background: `linear-gradient(90deg,${(prefs.cmap === "rainbow" ? RAINBOW : th.ramp).join(",")})` }} /><span className="nw">0 dB</span><span style={{ marginLeft: 10 }}>แกนตั้ง 20 Hz ล่าง ถึง {Math.round((t?.rate ?? 48000) / 2000)} kHz บน</span></div>}
           <div style={{ display: "flex", gap: 8 }}><button type="button" className="btn btn-ghost btn-sm" onClick={play} data-graphplay>เปิดเล่นที่ {tfmt(at)}</button><button type="button" className="btn btn-ghost btn-sm" onClick={saveImage}>บันทึกเป็นรูป</button></div>
         </div>
@@ -828,6 +837,10 @@ function SpekView({ ov, win, track, fileName, names, t0, t1, zoomBox, scmap, set
 
 /* ---------- ความถี่เฉลี่ย (แบบ Plot Spectrum ของ Audacity) ---------- */
 const PSM = { L: 52, R: 18, T: 14, B: 30 };
+/** ค่าบนเส้นโค้งผ่าน 4 จุดที่ตำแหน่ง 0 1 2 3 (พหุนามลากรานจ์ดีกรีสาม) · x คือตำแหน่งระหว่าง 0 ถึง 3 */
+function cubicAt(y0: number, y1: number, y2: number, y3: number, x: number) {
+  return y0 * -(x - 1) * (x - 2) * (x - 3) / 6 + y1 * x * (x - 2) * (x - 3) / 2 - y2 * x * (x - 1) * (x - 3) / 2 + y3 * x * (x - 1) * (x - 2) / 6;
+}
 function PsdView({ psd, names, psdCh, setPsdCh, psdLog, setPsdLog, psdSize, setPsdSize, th, ov, t0, t1, zoomBox, onPick, f, setF, fileName, save, exportRef, plotRef, toast }: CommonProps & {
   psd: GPsd | null; names: string[]; psdCh: string; setPsdCh: (v: string) => void; psdLog: boolean; setPsdLog: (b: boolean) => void; psdSize: number; setPsdSize: (n: number) => void; th: Theme; ov: GOverview; t0: number; t1: number;
   zoomBox: React.ReactNode; onPick: (t: number) => void; f: number | null; setF: (f: number | null) => void; fileName: string; toast: ReturnType<typeof useToast>;
@@ -848,35 +861,118 @@ function PsdView({ psd, names, psdCh, setPsdCh, psdLog, setPsdLog, psdSize, setP
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [psd]);
-  /** เสียงฮัมจากไฟบ้าน 50 Hz ของไทยกับเลขคูณ · 60 Hz ของไฟล์จากต่างประเทศ · คลาดได้ 4% หรือราวครึ่งช่องความถี่ */
-  const HUM = [50, 100, 150, 200, 250, 300, 350, 60, 120, 180, 240, 300, 360];
-  const hum = peaks.flatMap(([fr, d]) => { const h = HUM.find((x) => Math.abs(fr - x) < Math.max(x * 0.04, fOf(0.75))); return d > -70 && fr < 400 && h ? [[fr, d, h] as const] : []; });
+  /** เสียงฮัมจากไฟบ้าน 50 Hz ของไทยกับเลขคูณ · 60 Hz ของไฟล์จากต่างประเทศ
+      ต้องเจอยอดแคบในตระกูลเดียวกันอย่างน้อย 2 ยอด (เช่น 50 กับ 100) · คลาดได้ 3% หรือ 0.3 ช่องความถี่
+      (เดิมยอดเดียวก็เตือน คลาดได้ 0.75 ช่อง เพลงจริง 96 kHz ช่องละ 23 Hz โน้ตเบสใกล้ 60 Hz เลยโดนเตือนว่าเป็นเสียงฮัม เจอตอนตรวจภาพ 7 พ.ย. 2569) */
+  const hum = useMemo(() => {
+    for (const base of [50, 60]) {
+      const fam = [1, 2, 3, 4, 5, 6, 7].map((k) => base * k);
+      const hit = peaks.flatMap(([fr, d]) => { const h = fam.find((x) => Math.abs(fr - x) < Math.max(x * 0.03, fOf(0.3))); return d > -70 && fr < 400 && h ? [[fr, d, h] as const] : []; });
+      if (new Set(hit.map((x) => x[2])).size >= 2) return hit;
+    }
+    return [] as (readonly [number, number, number])[];
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [peaks]);
   const topF = useMemo(() => { if (!psd) return 0; const d = psd.db[0]; for (let i = d.length - 1; i > 0; i--) if (d[i] > -90) return fOf(i); return 0; /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [psd]);
   const X = (fr: number, w: number) => { const PW = w - PSM.L - PSM.R; return psdLog ? PSM.L + (Math.log10(Math.max(fr, 20)) - Math.log10(20)) / (Math.log10(nyq) - Math.log10(20)) * PW : PSM.L + fr / nyq * PW; };
+  /* หน้าตาแบบ Audacity (พี่กันส่งภาพหน้าต่าง Frequency Analysis ของ Audacity มา 7 พ.ย. 2569 *"กราฟมันยังไม่เหมือนใน audicity เลย"*)
+     ระบายทึบสีเดียวใต้เส้น · แกน dB ปรับตามเสียงจริง ขีดทุก 6 dB · เส้นตารางถี่ทุกหลัก (20 30 40 … 100 200 300 …) เปิดปิดได้
+     ช่วง dB เลือกได้ (แทนแถบซูมแนวตั้งของ Audacity) · บอกค่าที่ชี้กับยอดใกล้สุดในช่องใต้กราฟ วงกลมที่ยอด */
+  const [grids, setGrids] = useState(true);
+  const [range, setRange] = useState(90);
+  const start = psdLog ? Math.max(1, Math.ceil(20 / fOf(1))) : 0;
+  const top = useMemo(() => {
+    if (!psd) return 0;
+    let m = -150; for (const d of psd.db) for (let i = start; i < d.length; i++) m = Math.max(m, d[i]);
+    return Math.min(0, Math.ceil(m / 6) * 6);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [psd, start]);
+  const lo = top - range;
+  /* ค่าที่วาดต่อจุดภาพ ใช้หลักเดียวกับ Audacity (อ่านจาก au3-fft/SpectrumAnalyst.cpp GetProcessedValue · เขียนเอง ไม่ได้คัดลอก Audacity ใช้ GPL)
+     จุดภาพแคบกว่าหนึ่งช่องความถี่ (เสียงต่ำบนแกนล็อก) ลากเส้นโค้งผ่าน 4 ช่องข้างเคียง เส้นจึงเนียน ไม่เป็นหยักตรง ๆ แบบเดิม
+     จุดภาพครอบหลายช่อง ใช้ค่าเฉลี่ยถ่วงตามส่วนที่ครอบ */
+  const binHz = (psd?.rate ?? 48000) / (psd?.size ?? 4096);
+  const valRange = (d: number[], f0: number, f1: number) => {
+    let b0 = f0 / binHz, b1 = f1 / binHz;
+    if (b1 - b0 < 1) {
+      const mid = (b0 + b1) / 2, i = Math.max(0, Math.min(d.length - 4, Math.floor(mid) - 1));
+      return cubicAt(d[i], d[i + 1], d[i + 2], d[i + 3], mid - i);
+    }
+    b0 = Math.max(0, b0); b1 = Math.min(d.length - 1, b1);
+    let s = 0, i0 = Math.floor(b0), i1 = Math.floor(b1);
+    if (i1 > i0) { s += d[i0] * (i0 + 1 - b0); for (let i = i0 + 1; i < i1; i++) s += d[i]; s += d[i1] * (b1 - i1); } else s = d[i0] * (b1 - b0);
+    return s / Math.max(1e-9, b1 - b0);
+  };
+  const fAt = (x: number, PW: number) => (psdLog ? 20 * Math.pow(nyq / 20, x / PW) : Math.max(0, x / PW * nyq));
+  /** ยอดทุกยอดย่อยแบบ Audacity (FindPeak) ใช้กับช่องยอดใกล้สุด · ตำแหน่งจริงคิดด้วยพาราโบลาผ่าน 3 ช่อง
+      (เส้นโค้งผ่าน 4 ช่องแบบ Audacity เลื่อนยอดฮัม 50 Hz ไปเป็น 51 Hz เจอตอนตรวจภาพ · พาราโบลาบนค่า dB ของหน้าต่าง Hann ได้ 50 Hz) */
+  const allPeaks = useMemo(() => {
+    if (!psd) return [] as [number, number][];
+    const d = psd.db[0], out: [number, number][] = [];
+    for (let b = 1; b < d.length - 1; b++) {
+      if (!(d[b] > d[b - 1] && d[b] >= d[b + 1]) || d[b] < -100) continue;
+      const a = d[b - 1], c = d[b + 1], den = a - 2 * d[b] + c, p = den ? Math.max(-0.5, Math.min(0.5, 0.5 * (a - c) / den)) : 0;
+      out.push([(b + p) * binHz, d[b] - 0.25 * (a - c) * p]);
+    }
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [psd]);
+  const Yof = (d: number, h: number) => PSM.T + (top - Math.max(lo, Math.min(top, d))) / (top - lo) * (h - PSM.T - PSM.B);
   const ref = useCanvas((g, w, h) => {
     g.fillStyle = "#fff"; g.fillRect(0, 0, w, h);
-    const { L, R, T, B } = PSM, PW = w - L - R, PH = h - T - B, lo = -110, hi = 0, Y = (d: number) => T + (hi - Math.max(lo, Math.min(hi, d))) / (hi - lo) * PH;
-    g.font = "11px Sarabun, sans-serif"; g.textAlign = "right"; g.textBaseline = "middle";
-    for (let d = hi; d >= lo; d -= 10) { g.fillStyle = "#f3e2e9"; g.fillRect(L, Math.round(Y(d)), PW, 1); g.fillStyle = "#a88595"; g.fillText(minus(String(d)) + (d === hi ? " dB" : ""), L - 6, Y(d)); }
-    g.textAlign = "center"; g.textBaseline = "top";
-    const ticks = psdLog ? [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 40000] : Array.from({ length: Math.floor(nyq / 2000) + 1 }, (_, i) => i * 2000);
-    for (const fr of ticks) { if (fr > nyq || (psdLog && fr < 20)) continue; const x = X(Math.max(fr, 1), w); g.fillStyle = "#f3e2e9"; g.fillRect(Math.round(x), T, 1, PH); g.fillStyle = "#a88595"; g.fillText(fr >= 1000 ? fr / 1000 + "k" : String(fr), x, T + PH + 6); }
-    g.textAlign = "right"; g.fillText("Hz", L + PW, T + PH + 18);
-    if (!psd) { g.textAlign = "center"; g.textBaseline = "middle"; g.fillStyle = "#b28a9a"; g.font = "13px Sarabun, sans-serif"; g.fillText("กำลังคิดความถี่เฉลี่ยของช่วงที่เลือก", L + PW / 2, T + PH / 2); return; }
-    for (const s of series) {
-      const start = psdLog ? Math.max(1, Math.ceil(20 / fOf(1))) : 0;
-      if (series.length === 1) { g.fillStyle = th.peak; g.globalAlpha = 0.35; g.beginPath(); g.moveTo(X(fOf(start), w), Y(lo)); for (let i = start; i < s.d.length; i++) g.lineTo(X(fOf(i), w), Y(s.d[i])); g.lineTo(X(fOf(s.d.length - 1), w), Y(lo)); g.closePath(); g.fill(); g.globalAlpha = 1; }
-      g.strokeStyle = s.color; g.lineWidth = series.length > 1 ? 2 : 1.6; g.lineJoin = "round"; g.beginPath();
-      for (let i = start; i < s.d.length; i++) { const x = X(fOf(i), w), y = Y(s.d[i]); if (i === start) g.moveTo(x, y); else g.lineTo(x, y); }
-      g.stroke();
+    const { L, R, T, B } = PSM, PW = w - L - R, PH = h - T - B, Y = (d: number) => Yof(d, h);
+    const ink = "#4a2b38", minor = "#efdde5", major = "#dcc0cc";
+    // เส้นตารางแนวนอนทุก 6 dB (ถี่เกินไปเป็นทุก 12) · ตัวเลขทุกเส้น
+    const step = PH * 6 / range >= 16 ? 6 : 12;
+    g.font = "600 11px Sarabun, sans-serif"; g.textAlign = "right"; g.textBaseline = "middle";
+    for (let d = top; d >= lo - 0.01; d -= step) {
+      const y = Math.round(Y(d)) + 0.5;
+      if (grids) { g.strokeStyle = major; g.lineWidth = 1; g.beginPath(); g.moveTo(L, y); g.lineTo(L + PW, y); g.stroke(); }
+      g.fillStyle = ink; g.fillText(minus(String(d)) + " dB", L - 6, y);
     }
-  }, [psd, psdLog, th, series]);
+    // เส้นตารางแนวตั้ง · แบบล็อก ทุก 1–9 × 10ⁿ (หลักเข้ม ตัวคั่นจาง) · แบบเส้นตรง ทุก 1 kHz
+    g.textAlign = "center"; g.textBaseline = "top"; g.font = "600 11px Sarabun, sans-serif";
+    const vline = (fr: number, strong: boolean) => { if (!grids) return; const x = Math.round(X(fr, w)) + 0.5; g.strokeStyle = strong ? major : minor; g.beginPath(); g.moveTo(x, T); g.lineTo(x, T + PH); g.stroke(); };
+    const hz = (fr: number) => (fr >= 1000 ? `${fr / 1000} kHz` : `${fr} Hz`);
+    if (psdLog) {
+      for (let dec = 10; dec <= nyq; dec *= 10) for (let m = 1; m <= 9; m++) { const fr = m * dec; if (fr >= 20 && fr <= nyq) vline(fr, m === 1); }
+      let lastX = -99;
+      for (const fr of [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 40000]) {
+        if (fr > nyq) continue; const x = X(fr, w); const tw = g.measureText(hz(fr)).width;
+        if (x - tw / 2 < lastX + 8 || x + tw / 2 > L + PW + R) continue;
+        g.fillStyle = ink; g.fillText(hz(fr), x, T + PH + 6); lastX = x + tw / 2;
+      }
+    } else {
+      for (let fr = 1000; fr < nyq; fr += 1000) vline(fr, fr % 5000 === 0);
+      const every = nyq > 30000 ? 8000 : 4000;
+      for (let fr = 0; fr <= nyq; fr += every) { g.fillStyle = ink; g.fillText(hz(fr), X(Math.max(fr, 1), w), T + PH + 6); }
+    }
+    if (!psd) { g.textAlign = "center"; g.textBaseline = "middle"; g.fillStyle = "#b28a9a"; g.font = "13px Sarabun, sans-serif"; g.fillText("กำลังคิดความถี่เฉลี่ยของช่วงที่เลือก", L + PW / 2, T + PH / 2); }
+    else if (series.length === 1) {
+      // ระบายทึบสีเดียวจากเส้นลงถึงพื้นกราฟ แบบ Audacity · สีกลางของชุดสี (ชุดม่วงใกล้สีของ Audacity)
+      // ค่าทีละจุดภาพ (valRange) ไม่ใช่ทีละช่องความถี่
+      const s = series[0]; g.fillStyle = th.ramp[4]; g.beginPath(); g.moveTo(L, T + PH);
+      for (let x = 0; x < PW; x++) g.lineTo(L + x + 0.5, Y(valRange(s.d, fAt(x, PW), fAt(x + 1, PW))));
+      g.lineTo(L + PW, T + PH); g.closePath(); g.fill();
+    } else {
+      // เทียบซ้ายขวา (ของเราเพิ่มเอง Audacity ไม่มี) เป็นเส้นสองสีตามช่อง
+      for (const s of series) {
+        g.strokeStyle = s.color; g.lineWidth = 2; g.lineJoin = "round"; g.beginPath();
+        for (let x = 0; x < PW; x++) { const y = Y(valRange(s.d, fAt(x, PW), fAt(x + 1, PW))); if (x) g.lineTo(L + x + 0.5, y); else g.moveTo(L + 0.5, y); }
+        g.stroke();
+      }
+    }
+    g.strokeStyle = ink; g.lineWidth = 1; g.strokeRect(L + 0.5, T + 0.5, PW - 1, PH - 1);
+  }, [psd, psdLog, th, series, grids, range, top]);
   exportRef.current = () => ref.current;
   const [box, setBox] = useState<HTMLDivElement | null>(null);
   const cur = f ?? (hum[0]?.[0] ?? 1000);
-  const W = box?.clientWidth ?? 0, cx = W ? X(cur, W) : 0;
-  const nearest = (fr: number) => peaks.slice().sort((a, b) => Math.abs(Math.log(a[0] / fr)) - Math.abs(Math.log(b[0] / fr)))[0];
-  const valAt = (d: number[], fr: number) => d[Math.max(0, Math.min(d.length - 1, Math.round(fr / fOf(1))))];
+  const W = box?.clientWidth ?? 0, H = box?.clientHeight ?? 0, cx = W ? X(cur, W) : 0;
+  // ยอดใกล้ตำแหน่งชี้ที่สุด วัดระยะแบบล็อก (บนแกนล็อกตรงกับที่ตาเห็นกว่าวัดเป็น Hz แบบ Audacity)
+  const nearest = (fr: number) => allPeaks.slice().sort((a, b) => Math.abs(Math.log(a[0] / fr)) - Math.abs(Math.log(b[0] / fr)))[0];
+  const valAt = (d: number[], fr: number) => valRange(d, fr * 0.999, fr * 1.001);
+  const hzTxt = (fr: number) => `${Math.round(fr).toLocaleString("en-US")} Hz`;
+  const pk = psd ? nearest(cur) : undefined;
   const exportCsv = async () => {
     if (!psd) return;
     const where = await pickSave(fileName.replace(/\.[^.]+$/, "") + " ความถี่เฉลี่ย.csv", "csv", "ตาราง CSV"); if (!where) return;
@@ -894,14 +990,18 @@ function PsdView({ psd, names, psdCh, setPsdCh, psdLog, setPsdLog, psdSize, setP
       <div style={{ position: "relative", marginTop: 8 }} ref={setBox} data-psdbox
         onPointerMove={(e) => { const r = e.currentTarget.getBoundingClientRect(), PW = r.width - PSM.L - PSM.R, x = Math.min(PW, Math.max(0, e.clientX - r.left - PSM.L)); setF(psdLog ? Math.pow(10, Math.log10(20) + x / PW * (Math.log10(nyq) - Math.log10(20))) : Math.max(1, x / PW * nyq)); }}
         onPointerLeave={() => setF(null)}>
-        <canvas className="cv" style={{ height: 320 }} ref={ref} data-psd />
+        <canvas className="cv" style={{ height: 340 }} ref={ref} data-psd />
         {psd && W > 0 && <>
           <div className="xh" style={{ left: cx, top: PSM.T, bottom: PSM.B }} />
-          <div className="tip" style={{ left: cx + 12 + 200 > W ? cx - 212 : cx + 12, top: 24 }}>
-            <div className="t">{fTxt(cur)} · โน้ต {noteOf(cur)}</div>
-            <div className="r">{series.map((s) => <Fragment2 key={s.name} v={minus(Math.round(valAt(s.d, cur)).toString()) + " dB"} k={s.name} color={series.length > 1 ? s.color : undefined} />)}
-              {nearest(cur) && <Fragment2 v={minus(Math.round(nearest(cur)[1]).toString()) + " dB"} k={`ยอดใกล้สุด ${fTxt(nearest(cur)[0])} · ${noteOf(nearest(cur)[0])}`} />}</div>
-          </div></>}
+          {pk && pk[1] >= lo && <div className="psdpk" style={{ left: X(pk[0], W), top: Yof(pk[1], H) }} />}
+        </>}
+      </div>
+      {/* ช่องบอกค่าใต้กราฟ แบบ Cursor กับ Peak ของ Audacity */}
+      <div className="psdread" data-psdreadout>
+        <span className="lbl">ตำแหน่งชี้</span>
+        <span className="psdbox" data-psdcursor>{psd ? `${hzTxt(cur)} (${noteOf(cur)}) = ${series.map((s) => (series.length > 1 ? s.name + " " : "") + minus(Math.round(valAt(s.d, cur)).toString()) + " dB").join(" · ")}` : "—"}</span>
+        <span className="lbl">ยอดใกล้สุด</span>
+        <span className="psdbox" data-psdpeak>{pk ? `${hzTxt(pk[0])} (${noteOf(pk[0])}) = ${minus(pk[1].toFixed(1))} dB` : "—"}</span>
       </div>
       {psd && (hum.length
         ? <div className="stat warn" style={{ marginTop: 10 }} data-psdverdict>{WARN}<div><b><Phr>{`เจอเสียงฮัมจากไฟบ้าน ยอดแคบที่ ${[...new Set(hum.map((x) => x[2]))].sort((a, b) => a - b).join(" ")} Hz`}</Phr></b>{lines("ไฟบ้านในไทย 50 Hz เสียงฮัมจะเป็นยอดแคบที่ 50 กับเลขคูณ · มักมาจากสายไมค์หรือปลั๊กพ่วง · ในหนังอาจเป็นเสียงประกอบที่ตั้งใจใส่")}</div></div>
@@ -910,7 +1010,10 @@ function PsdView({ psd, names, psdCh, setPsdCh, psdLog, setPsdLog, psdSize, setP
       <div className="agfoot"><div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}><span className="lbl">แกนความถี่</span>
         <div className="seg sm"><button type="button" className={psdLog ? "on" : ""} onClick={() => setPsdLog(true)} data-psdaxis="log">แบบล็อก</button><button type="button" className={!psdLog ? "on" : ""} onClick={() => setPsdLog(false)} data-psdaxis="lin">เส้นตรง</button></div>
         <span data-psdsize title="ยิ่งมากยิ่งแยกความถี่ละเอียด แต่ช้าลง"><Dropdown label="ความละเอียด" value={String(psdSize)} onChange={(v) => setPsdSize(Number(v))}
-          options={[1024, 4096, 16384].map((n) => ({ value: String(n), label: `ความละเอียด ${n.toLocaleString("en-US")}` }))} /></span></div>
+          options={[1024, 4096, 16384].map((n) => ({ value: String(n), label: `ความละเอียด ${n.toLocaleString("en-US")}` }))} /></span>
+        <span className="lbl">ช่วง</span>
+        <div className="seg sm">{[60, 90, 120].map((r) => <button key={r} type="button" className={range === r ? "on" : ""} onClick={() => setRange(r)} data-psdrange={r}>{r} dB</button>)}</div>
+        <span className="lbl">เส้นตาราง</span><span data-psdgrid style={{ display: "inline-flex" }}><Switch on={grids} onChange={setGrids} label="เส้นตาราง" /></span></div>
         <div style={{ display: "flex", gap: 8 }}><button type="button" className="btn btn-ghost btn-sm" onClick={exportCsv}>ส่งออกเป็นตาราง</button><button type="button" className="btn btn-ghost btn-sm" onClick={save}>บันทึกเป็นรูป</button></div></div>
     </div>
   );

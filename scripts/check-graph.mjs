@@ -184,10 +184,16 @@ await shot("11-วิเคราะห์-ความร้อน.png");
 await view("psd");
 await waitFor("return !!document.querySelector('[data-psdverdict]')", 30000);
 await hoverMid("[data-psdbox]", 0.35, 0.5);
-const psdTip = await text(".tip");
-check("แบบความถี่เฉลี่ย คิดจากช่วงที่เลือก ชี้แล้วบอกความถี่ โน้ต และยอดใกล้สุด", psdTip.includes("โน้ต") && /Hz/.test(psdTip), psdTip);
-await shot("12-ความถี่เฉลี่ย.png");
+// ช่องบอกค่าใต้กราฟแบบ Cursor กับ Peak ของ Audacity · รูปแบบ 1,234 Hz (A5) = −30 dB
+const psdCur = await text("[data-psdcursor]"), psdPk = await text("[data-psdpeak]");
+check("แบบความถี่เฉลี่ย (หน้าตาแบบ Audacity) ชี้แล้วช่องใต้กราฟบอกความถี่ โน้ต ค่า และยอดใกล้สุด", /^[\d,]+ Hz \([A-G]#?-?\d+\) = /.test(psdCur) && /^[\d,]+ Hz \([A-G]#?-?\d+\) = −?[\d.]+ dB$/.test(psdPk), `${psdCur} · ${psdPk}`);
+await shotHere("12-ความถี่เฉลี่ย.png");
 await c.move(500, 12);
+await c.click('[data-psdrange="60"]'); await c.click("[data-psdgrid] .switch"); await sleep(300);
+const gridOff = await q("return document.querySelector('[data-psdgrid] .switch').getAttribute('aria-checked')");
+check("ปุ่มช่วง 60 dB กับสวิตช์เส้นตาราง กดได้", (await q("return document.querySelector('[data-psdrange=\"60\"]').classList.contains('on')")) && gridOff === "false", `เส้นตาราง ${gridOff}`);
+await shot("12ข-ความถี่เฉลี่ย-60dB-ไม่มีเส้นตาราง.png");
+await c.click('[data-psdrange="90"]'); await c.click("[data-psdgrid] .switch"); await sleep(200);
 
 /* ---------- 9 ชุดสี ---------- */
 await view("wave");
@@ -251,7 +257,8 @@ await openDrop(A("อัดใกล้ปลั๊ก มีเสียงฮ�
 await view("psd");
 await waitFor("return !!document.querySelector('[data-psdverdict]')", 30000);
 const vHum = await text("[data-psdverdict]");
-check("เสียงอัดใกล้ปลั๊ก ความถี่เฉลี่ยขึ้นเตือนเสียงฮัมจากไฟบ้าน ยอดแคบที่ 50 100 150 Hz", vHum.includes("เสียงฮัม") && vHum.includes("ยอดแคบที่ 50 100 150 Hz"), vHum);
+const pkHum = await text("[data-psdpeak]");
+check("เสียงอัดใกล้ปลั๊ก ความถี่เฉลี่ยขึ้นเตือนเสียงฮัมจากไฟบ้าน ยอดแคบที่ 50 100 150 Hz · ยอดใกล้สุดบอก 50 Hz", vHum.includes("เสียงฮัม") && vHum.includes("ยอดแคบที่ 50 100 150 Hz") && pkHum.startsWith("50 Hz"), `${vHum} · ${pkHum}`);
 await shot("20-เสียงฮัม-50Hz.png");
 
 await view("wave");
@@ -309,8 +316,10 @@ if (existsSync(SONG)) {
   await openDrop(A("เพลงจริง 96k 24-bit.flac"), "เพลงจริง 96k 24-bit"); await plotReady();
   await waitFor("return !!document.querySelector('[data-psdverdict]')", 30000);
   await hoverMid("[data-psdbox]", 0.3, 0.5);
-  check("เพลงจริง ความถี่เฉลี่ย ชี้แล้วบอกโน้ต", (await text(".tip")).includes("โน้ต"), await text(".tip"));
-  await shot("32-เพลงจริง-ความถี่เฉลี่ย.png");
+  // เพลงจริงไม่มีเสียงฮัม (เดิมโน้ตเบสใกล้ 60 Hz โดนเตือน เจอตอนตรวจภาพ 7 พ.ย. 2569)
+  check("เพลงจริง ความถี่เฉลี่ย ไม่ขึ้นเตือนเสียงฮัม", (await text("[data-psdverdict]")).includes("ไม่พบเสียงฮัม"), await text("[data-psdverdict]"));
+  check("เพลงจริง ความถี่เฉลี่ย ชี้แล้วช่องใต้กราฟบอกความถี่กับโน้ต", /Hz \([A-G]#?-?\d+\)/.test(await text("[data-psdcursor]")), `${await text("[data-psdcursor]")} · ${await text("[data-psdpeak]")}`);
+  await shotHere("32-เพลงจริง-ความถี่เฉลี่ย.png");
   await c.move(500, 12);
   await view("wave");
 } else console.log("ข้าม เพลงจริงจากพี่กัน · ไม่มีไฟล์ " + SONG);

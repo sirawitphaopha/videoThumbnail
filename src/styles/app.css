@@ -543,3 +543,9 @@ tbody tr:last-child td { border-bottom: 0; }
 .graph-recent { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }
 .graph-recent .dd { height: auto; min-height: 42px; padding: 6px 12px; }
 @media (max-width: 1100px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
+/* ความถี่เฉลี่ยแบบ Audacity · วงกลมที่ยอดใกล้สุด กับช่องบอกค่าใต้กราฟ (Cursor · Peak) */
+.psdpk { position: absolute; width: 11px; height: 11px; margin: -6px 0 0 -6px; border-radius: 50%; border: 2px solid #4a2b38; background: #fff; pointer-events: none; }
+.psdread { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.psdbox { min-width: 230px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--win2); font-size: 13px; color: var(--txt); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* ปุ่ม 6 แบบมีไอคอนนำหน้า ตามมอคอัป */
+.agviews button { display: inline-flex; align-items: center; gap: 6px; }
