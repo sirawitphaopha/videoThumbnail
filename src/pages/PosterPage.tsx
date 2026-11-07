@@ -227,12 +227,13 @@ export default function PosterPage(p: { initialPath: string | null; onPage: (pg:
             <h3><span className="step">2</span>รูปโปสเตอร์</h3>
             {poster && choice && !posterErr && over !== "poster" ? (
               <div className="pprev" data-drop="poster">
-                <img className="pp" src={thumbUrl(choice.render.preview) ?? undefined} alt="รูปโปสเตอร์ที่จะแนบ" />
+                <img className="pp" src={thumbUrl(choice.render.preview) ?? undefined} alt="รูปโปสเตอร์ที่จะแนบ"
+                  style={choice.render.width > choice.render.height ? { width: Math.round(144 * Math.min(choice.render.width / choice.render.height, 16 / 9)) } : undefined} data-pp />
                 <div className="small" style={{ minWidth: 0 }}>
                   <span style={{ wordBreak: "break-all" }}>{poster.name}</span><br />
                   {poster.attachable ? <><span className="extag ok">.{poster.ext}</span> แนบได้เลย</> : <><span className="extag cv">.{poster.ext}→.{choice.format}</span> แปลงให้ก่อนแนบ</>}<br />
                   <span className="nw">{choice.render.width} × {choice.render.height} px</span> · <span className="nw">{fmtSize(choice.render.bytes)}</span><br />
-                  {poster.twoThree ? "สัดส่วน 2 : 3 พอดีปก" : choice.geo.mode === "pad" ? "เติมขอบให้เต็มปก" : "ครอปให้พอดีปกแล้ว"}
+                  {poster.twoThree ? "สัดส่วน 2 : 3 พอดีปก" : choice.geo.mode === "pad" ? "เติมขอบให้เต็มปก" : choice.geo.mode === "original" ? "ใช้ตามรูปเดิม ไม่ตัด" : "ครอปให้พอดีปกแล้ว"}
                   <span style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
                     <Btn off={working && BUSY} onClick={() => setListOpen(true)}>เปลี่ยนรูป</Btn>
                     <Btn off={working && BUSY} onClick={() => setCropOpen(true)}>ครอปภาพ</Btn>
@@ -253,7 +254,7 @@ export default function PosterPage(p: { initialPath: string | null; onPage: (pg:
               </>
             )}
             {poster && !poster.twoThree && choice && (
-              <div className="stat warn" style={{ marginTop: 12 }} data-not23><CardIcon kind="warn" /><div><b>รูปนี้เป็น{poster.aspect}</b><div>{choice.geo.mode === "pad" ? "เลือกเติมขอบให้เต็มปกไว้" : "เลือกตัดให้พอดีปกไว้"}</div><div><Phr>กดครอปภาพเพื่อเปลี่ยน</Phr></div></div></div>
+              <div className="stat warn" style={{ marginTop: 12 }} data-not23><CardIcon kind="warn" /><div><b>รูปนี้เป็น{poster.aspect}</b><div>{choice.geo.mode === "pad" ? "เลือกเติมขอบให้เต็มปกไว้" : choice.geo.mode === "original" ? "เลือกใช้ตามรูปเดิมไว้ ขึ้นชั้นวางตามสัดส่วนรูป" : "เลือกตัดให้พอดีปกไว้"}</div><div><Phr>กดครอปภาพเพื่อเปลี่ยน</Phr></div></div></div>
             )}
             <div className="small" style={{ marginTop: 10 }}>รองรับ JPG · PNG แนบได้เลย<br />WebP BMP TIFF HEIC แปลงให้ก่อนแนบ</div>
           </div>

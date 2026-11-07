@@ -549,3 +549,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .psdbox { min-width: 230px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--win2); font-size: 13px; color: var(--txt); font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* ปุ่ม 6 แบบมีไอคอนนำหน้า ตามมอคอัป */
 .agviews button { display: inline-flex; align-items: center; gap: 6px; }
+/* ปกแนวนอน (พี่กัน 7 พ.ย. 2569) · ชั้นวาง สูงเท่าเล่มอื่น กว้างตามสัดส่วน (ความกว้างตั้งที่ตัวเล่ม) · แผงขวา กว้างเต็มแผง · ตาราง ภาพเล็กแนวนอน */
+.book.wide .cover { width: 100%; }
+.dposter.wide { width: 100%; max-width: 290px; height: auto; object-fit: contain; }
+.lv .th.wide { width: 45px; height: 26px; margin: 9px 0; }

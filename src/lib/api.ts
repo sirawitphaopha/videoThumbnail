@@ -37,6 +37,8 @@ export type Movie = {
   size: number; mtime: number; added: number; year: number | null; duration: number | null;
   video: string | null; videoShort: string | null; audio: Track[]; subs: Track[];
   images: number; hasCover: boolean; coverName: string | null; coverSha256: string | null; thumb: string | null;
+  /** กว้างหารสูงของปก · ตั้งแต่ 1 คือปกแนวนอน ชั้นวางวางเป็นกรอบแนวนอน */
+  coverAspect?: number | null;
   status: MovieStatus; check: CheckInfo | null; sha256: string | null; missing: boolean; error: string | null;
 };
 /** ผลตรวจครั้งล่าสุด (ขั้น 6) */
@@ -71,7 +73,8 @@ export const api = {
 };
 
 /* ---------- หน้าใส่โปสเตอร์ (poster.rs · poster_image.rs) ---------- */
-export type Geometry = { rotate: 0 | 90 | 180 | 270; flip: boolean; mode: "crop" | "pad"; x: number; y: number; w: number; h: number; pad: string };
+/** mode crop ตัดให้พอดี 2:3 · pad เติมขอบ · original ตามรูปเดิม คงสัดส่วน (ปกแนวนอนเป็นแนวนอน) */
+export type Geometry = { rotate: 0 | 90 | 180 | 270; flip: boolean; mode: "crop" | "pad" | "original"; x: number; y: number; w: number; h: number; pad: string };
 export type PosterInfo = {
   path: string; name: string; ext: string; attachable: boolean; width: number; height: number;
   aspect: string; twoThree: boolean; preview: string; fileSize: number; exif: number; icc: boolean; crop: [number, number, number, number];

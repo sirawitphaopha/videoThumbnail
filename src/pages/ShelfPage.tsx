@@ -198,26 +198,40 @@ function usePerRow(size: keyof typeof SIZES) {
     return () => ro.disconnect();
   }, []);
   const { w: bw, gap } = SIZES[size];
-  return { ref, perRow: Math.max(1, Math.floor((w - 28 + gap) / (bw + gap))) };
+  return { ref, w, perRow: Math.max(1, Math.floor((w - 28 + gap) / (bw + gap))) };
 }
 
-function chunk<T>(a: T[], n: number): T[][] {
-  const out: T[][] = [];
-  for (let i = 0; i < a.length; i += n) out.push(a.slice(i, i + n));
-  return out;
+/** กว้างของเล่มบนชั้น · ปกแนวนอน (กว้างหารสูงตั้งแต่ 1) สูงเท่าเล่มอื่น กว้างตามสัดส่วนไม่เกิน 16:9 · ปกตั้งกับเล่มที่ยังไม่มีปกกว้างเท่าเดิม
+    (พี่กัน 7 พ.ย. 2569 *"ถ้าเราเอาโปสเตอร์แบบเเนวนอนมา มันก็จะเเสดงเป็เเเนวนอนด้วยนะ"*) */
+function bookWidth(m: Movie | null, bw: number) {
+  const a = m?.thumb ? m.coverAspect ?? 0 : 0;
+  return a >= 1 ? Math.round(bw * 1.5 * Math.min(a, 16 / 9)) : bw;
+}
+
+/** แบ่งแถวตามความกว้างจริงของแต่ละเล่ม (เดิมแบ่งจำนวนเท่ากันทุกแถว เพราะทุกเล่มกว้างเท่ากัน) */
+function packRows(items: (Movie | null)[], avail: number, bw: number, gap: number) {
+  const rows: (Movie | null)[][] = [];
+  let cur: (Movie | null)[] = [], used = 0;
+  for (const it of items) {
+    const w = bookWidth(it, bw), need = cur.length ? used + gap + w : w;
+    if (cur.length && need > avail) { rows.push(cur); cur = [it]; used = w; } else { cur.push(it); used = need; }
+  }
+  if (cur.length) rows.push(cur);
+  return rows;
 }
 
 /** pending = เรื่องที่เจอในโฟลเดอร์แต่ยังอ่านไม่เสร็จ · ขึ้นเป็นโครงจางต่อท้ายชั้น เต็มแถวที่ค้างกับอีกหนึ่งแถว (ไม่วาดครบทุกเรื่อง ชั้น 500 เรื่องจะหนัก) */
 function ShelfGrid(p: { list: Movie[]; size: "s" | "m" | "l"; selId: string | null; onSel: (id: string) => void; used: string; reminder: number; showNames: boolean; showDots: boolean; pending: number }) {
-  const { ref, perRow } = usePerRow(p.size);
+  const { ref, w, perRow } = usePerRow(p.size);
+  const { w: bw, gap } = SIZES[p.size];
   const skel = Math.min(p.pending, ((perRow - (p.list.length % perRow)) % perRow) + perRow);
   const items: (Movie | null)[] = skel ? [...p.list, ...Array<null>(skel).fill(null)] : p.list;
   return (
     <div ref={ref} className={"size-" + p.size} data-shelf>
-      {chunk(items, perRow).map((row, i) => (
+      {packRows(items, w - 28, bw, gap).map((row, i) => (
         <div key={i} className="shelf">
           {row.map((m, j) => m
-            ? <Book key={m.id} m={m} sel={m.id === p.selId} onSel={p.onSel} used={p.used} reminder={p.reminder} showNames={p.showNames} showDots={p.showDots} />
+            ? <Book key={m.id} m={m} width={bookWidth(m, bw)} sel={m.id === p.selId} onSel={p.onSel} used={p.used} reminder={p.reminder} showNames={p.showNames} showDots={p.showDots} />
             : <SkelBook key={"skel" + j} size={p.size} i={j} />)}
         </div>
       ))}
@@ -235,14 +249,16 @@ function SkelBook({ size, i }: { size: "s" | "m" | "l"; i: number }) {
   );
 }
 
-function Book(p: { m: Movie; sel: boolean; onSel: (id: string) => void; used: string; reminder: number; showNames: boolean; showDots: boolean }) {
+function Book(p: { m: Movie; width: number; sel: boolean; onSel: (id: string) => void; used: string; reminder: number; showNames: boolean; showDots: boolean }) {
   const { m } = p;
   const k = kindOf(m, p.reminder);
   const src = thumbUrl(m.thumb);
   const full = m.name + (m.ext === "mkv" ? "" : "." + m.ext);
+  const wide = src != null && (m.coverAspect ?? 0) >= 1;
   return (
     <div
-      className={"book" + (p.sel ? " sel" : "") + (m.missing ? " missing" : "")}
+      className={"book" + (wide ? " wide" : "") + (p.sel ? " sel" : "") + (m.missing ? " missing" : "")}
+      style={wide ? { width: p.width } : undefined}
       title={[p.showNames ? "" : full, m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : ""].filter(Boolean).join("\n") || undefined}
       aria-label={full + " · " + SHELF_LABEL[k] + (m.missing ? " · หาไฟล์ไม่เจอ" : "")}
       aria-pressed={p.sel}
@@ -320,7 +336,7 @@ function ShelfTable(p: { list: Movie[]; selId: string | null; onSel: (id: string
             const src = thumbUrl(m.thumb);
             return (
               <tr key={m.id} className={(m.id === p.selId ? "sel" : "") + (m.missing ? " missing" : "")} {...kb(() => p.onSel(m.id))} aria-selected={m.id === p.selId}>
-                <td>{src ? <img className="th" src={src} alt="" loading="lazy" /> : <span className="th none" />}</td>
+                <td>{src ? <img className={"th" + ((m.coverAspect ?? 0) >= 1 ? " wide" : "")} src={src} alt="" loading="lazy" /> : <span className="th none" />}</td>
                 <td><Hl text={m.name + "." + m.ext} used={p.used} /></td>
                 <td><span className="nw">{fmtSize(m.size)}</span></td>
                 <td>{m.videoShort ?? "—"}</td>
@@ -350,7 +366,7 @@ function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg:
   return (
     <aside className="detail" aria-label="รายละเอียดไฟล์">
       {src && imgOk ? (
-        <img className="dposter" src={src} alt={"โปสเตอร์ " + m.name} onError={() => setImgOk(false)} />
+        <img className={"dposter" + ((m.coverAspect ?? 0) >= 1 ? " wide" : "")} src={src} alt={"โปสเตอร์ " + m.name} onError={() => setImgOk(false)} />
       ) : (
         <div className="dposter none">
           <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#c99aad" strokeWidth="2" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 15l3-3 2 2 3-3 2 2" /></svg>

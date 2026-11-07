@@ -147,7 +147,7 @@ pub struct Geometry {
     pub rotate: u16,
     /// พลิกซ้ายขวา (ทำหลังหมุน)
     pub flip: bool,
-    /// "crop" ตัดให้พอดี 2 : 3 · "pad" เติมขอบ
+    /// "crop" ตัดให้พอดี 2 : 3 · "pad" เติมขอบ · "original" ตามรูปเดิม คงสัดส่วน (ปกแนวนอนเป็นแนวนอน)
     pub mode: String,
     pub x: f64,
     pub y: f64,
@@ -173,6 +173,13 @@ pub fn render(src: &RgbImage, g: &Geometry) -> (RgbImage, (u32, u32)) {
     };
     let turned = if g.flip { imageops::flip_horizontal(&turned) } else { turned };
     let (w, h) = turned.dimensions();
+    if g.mode == "original" {
+        // ตามรูปเดิม ไม่ตัด ไม่เติมขอบ คงสัดส่วน ด้านยาวย่อหรือขยายเป็น 1500 เท่าด้านยาวของปก 2:3
+        // ปกแนวนอนจึงเป็นแนวนอน (พี่กัน 7 พ.ย. 2569 *"ถ้าเราเอาโปสเตอร์แบบเเนวนอนมา มันก็จะเเสดงเป็เเเนวนอนด้วยนะ"*)
+        let scale = OUT_H as f64 / w.max(h) as f64;
+        let (nw, nh) = (((w as f64 * scale).round() as u32).max(1), ((h as f64 * scale).round() as u32).max(1));
+        return (imageops::resize(&turned, nw, nh, imageops::FilterType::Lanczos3), (w, h));
+    }
     if g.mode == "pad" {
         // ทั้งรูปอยู่ในกรอบ 2 : 3 ไม่ตัดส่วนไหนเลย ที่ว่างเติมสีขอบ
         let scale = (OUT_W as f64 / w as f64).min(OUT_H as f64 / h as f64);
@@ -343,6 +350,13 @@ mod tests {
         assert_eq!(padded.get_pixel(OUT_W - 5, OUT_H - 5).0, [0xf6, 0xdb, 0xe5]);
         assert_eq!(aspect_label(1000, 1500), "2 : 3");
         assert_eq!(aspect_label(1920, 1080), "ภาพแนวนอน 16 : 9");
+        // ตามรูปเดิม คงสัดส่วนแนวนอน ด้านยาว 1500 ไม่มีขอบเติม
+        let go = Geometry { mode: "original".into(), ..g };
+        let (orig, (ow, oh)) = render(&wide, &go);
+        let (rw, rh) = orig.dimensions();
+        assert_eq!(rw, OUT_H, "ด้านยาวต้องเป็น 1500 ได้ {rw} × {rh}");
+        assert!(((rw as f64 / rh as f64) - (w as f64 / h as f64)).abs() < 0.01, "ต้องคงสัดส่วนเดิม ได้ {rw} × {rh} จาก {w} × {h}");
+        assert_eq!((ow, oh), (w, h), "ใช้ทั้งรูป ไม่ตัด");
     }
 
     #[test]

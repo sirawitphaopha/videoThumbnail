@@ -237,6 +237,8 @@ pub struct Thumb {
     /// ค่า SHA-256 ของรูปปกในไฟล์ (ก่อนย่อ) ไว้เทียบว่าปกบนชั้นตรงกับปกในไฟล์
     pub cover_sha256: String,
     pub cover_name: String,
+    /// กว้างหารสูงของปก (ภาพเล็กคงสัดส่วน) · 2:3 = 0.667 · 16:9 = 1.778
+    pub aspect: f32,
 }
 
 /// ดึงปกออกจากไฟล์หนัง แล้วย่อเป็น 300 × 450 (คมพอสำหรับปกใหญ่ 150 × 225 บนจอขยาย 200%)
@@ -276,14 +278,17 @@ pub fn make_thumb(tools: &Path, file: &Path, cover: &CoverSource, work: &Path, t
     };
     let bytes = std::fs::read(&raw).map_err(|e| format!("อ่านปกที่ดึงออกมาไม่ได้: {e}"))?;
     let sha = hex(&Sha256::digest(&bytes));
-    let thumb = thumbs.join(format!("{id}-{}.jpg", &sha[..12]));
+    // ภาพเล็กคงสัดส่วนเดิม สูง 450 (ปก 2:3 ได้ 300 × 450 · ปกแนวนอน 16:9 ได้ 800 × 450) ชั้นวางวางปกแนวนอนเป็นกรอบแนวนอน
+    // เดิมตัดเป็น 300 × 450 ทุกปก ปกแนวนอนเหลือแค่กลางภาพ (พี่กัน 7 พ.ย. 2569 *"ถ้าเราเอาโปสเตอร์แบบเเนวนอนมา มันก็จะเเสดงเป็เเเนวนอนด้วยนะ"*)
+    // ชื่อลงท้าย -a = ภาพเล็กแบบคงสัดส่วน ภาพเล็กแบบเก่าที่ตัดแล้วไม่มี -a ตัวอ่านโฟลเดอร์สร้างใหม่ให้ (library.rs scan)
+    let thumb = thumbs.join(format!("{id}-{}-a.jpg", &sha[..12]));
     let made = if thumb.exists() {
         Ok(())
     } else {
         let out = run_tool_timeout(tools, "ffmpeg", [
             OsStr::new("-hide_banner"), OsStr::new("-nostdin"), OsStr::new("-v"), OsStr::new("error"), OsStr::new("-n"),
             OsStr::new("-i"), raw.as_os_str(),
-            OsStr::new("-vf"), OsStr::new("scale=300:450:force_original_aspect_ratio=increase,crop=300:450"),
+            OsStr::new("-vf"), OsStr::new("scale=-2:450"),
             OsStr::new("-frames:v"), OsStr::new("1"), OsStr::new("-q:v"), OsStr::new("3"), thumb.as_os_str(),
         ], PROBE_TIMEOUT);
         match out {
@@ -294,7 +299,13 @@ pub fn make_thumb(tools: &Path, file: &Path, cover: &CoverSource, work: &Path, t
     };
     let _ = std::fs::remove_file(&raw);
     made?;
-    Ok(Thumb { path: thumb, cover_sha256: sha, cover_name })
+    let aspect = image::image_dimensions(&thumb).map(|(w, h)| w as f32 / h.max(1) as f32).unwrap_or(2.0 / 3.0);
+    Ok(Thumb { path: thumb, cover_sha256: sha, cover_name, aspect })
+}
+
+/// ภาพเล็กรุ่นปัจจุบัน (คงสัดส่วน) ไหม · รุ่นเก่าที่ตัดเป็น 2:3 ต้องสร้างใหม่
+pub fn thumb_is_current(path: &str) -> bool {
+    path.ends_with("-a.jpg") && Path::new(path).exists()
 }
 
 /// เลขไฟล์แนบใน MKV ที่ mkvextract ใช้ หาจากชื่อไฟล์แนบ

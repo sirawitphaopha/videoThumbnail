@@ -50,6 +50,8 @@ pub struct Movie {
     pub cover_sha256: Option<String>,
     /// ที่อยู่ภาพเล็กของปก ในโฟลเดอร์ thumbs ของโปรแกรม
     pub thumb: Option<String>,
+    /// กว้างหารสูงของปก · ชั้นวางวางปกแนวนอน (ตั้งแต่ 1 ขึ้นไป) เป็นกรอบแนวนอน · คลังเก่าไม่มีค่านี้ อ่านโฟลเดอร์รอบหน้าได้ค่า
+    pub cover_aspect: Option<f32>,
     /// "unchecked" ยังไม่เคยตรวจ · "ok" สมบูรณ์ · "bad" เสียหาย · "changed" ไฟล์เปลี่ยนหลังตรวจครั้งก่อน
     pub status: String,
     /// ผลตรวจครั้งล่าสุด (ขั้น 6)
@@ -233,7 +235,7 @@ pub fn scan_core(env: &ScanEnv, existing: Vec<Movie>, on_movie: &(dyn Fn(&Movie,
         let (name, ext) = split_name(&f.path);
         match old {
             Some(mut m) if m.size == f.size && m.mtime == f.mtime && m.error.is_none()
-                && (!m.has_cover || m.thumb.as_deref().map(|t| Path::new(t).exists()).unwrap_or(false)) => {
+                && (!m.has_cover || m.thumb.as_deref().map(probe::thumb_is_current).unwrap_or(false)) => {
                 // ไม่เปลี่ยน · อาจแค่เปลี่ยนชื่อหรือย้ายใน Explorer
                 m.id = fid;
                 m.path = f.path.to_string_lossy().to_string();
@@ -323,12 +325,14 @@ fn read_one(env: &ScanEnv, f: &Found, fid: &str, old: Option<Movie>) -> Movie {
             let old_thumb = m.thumb.take();
             m.cover_name = None;
             m.cover_sha256 = None;
+            m.cover_aspect = None;
             if let Some(src) = p.cover {
                 match probe::make_thumb(env.tools, &f.path, &src, env.work, env.thumbs, &safe_id(fid)) {
                     Ok(t) => {
                         m.thumb = Some(t.path.to_string_lossy().to_string());
                         m.cover_name = Some(t.cover_name);
                         m.cover_sha256 = Some(t.cover_sha256);
+                        m.cover_aspect = Some(t.aspect);
                     }
                     Err(e) => m.error = Some(e),
                 }

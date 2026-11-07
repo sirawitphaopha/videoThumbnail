@@ -31,7 +31,7 @@ export default function CropDialog(p: {
 }) {
   const { info } = p;
   const [view, setView] = useState<View>(() => p.start ? fromGeo(p.start.geo, info) : START);
-  const [mode, setMode] = useState<"crop" | "pad">(p.start?.geo.mode ?? (info.twoThree ? "crop" : "crop"));
+  const [mode, setMode] = useState<"crop" | "pad" | "original">(p.start?.geo.mode ?? (info.twoThree ? "crop" : "crop"));
   const [pad, setPad] = useState(p.start?.geo.pad ?? PADS[0].c);
   const [format, setFormat] = useState<"jpg" | "png">(p.start?.format ?? p.defaultFormat);
   const [quality, setQuality] = useState(p.start?.quality ?? p.defaultQuality);
@@ -139,7 +139,7 @@ export default function CropDialog(p: {
               </div>
             ) : null}
           </div>
-          <div className="small">{mode === "crop" ? "ลากกรอบเพื่อเลื่อน · ลากมุมเพื่อย่อขยาย · หมุนล้อเมาส์เพื่อซูม" : "ภาพไม่ถูกตัดเลยสักส่วน · ที่ว่างเติมสีขอบที่เลือก"}</div>
+          <div className="small">{mode === "crop" ? "ลากกรอบเพื่อเลื่อน · ลากมุมเพื่อย่อขยาย · หมุนล้อเมาส์เพื่อซูม" : mode === "pad" ? "ภาพไม่ถูกตัดเลยสักส่วน · ที่ว่างเติมสีขอบที่เลือก" : "ใช้ทั้งรูปตามสัดส่วนเดิม ไม่ตัด ไม่เติมขอบ · ปกแนวนอนขึ้นชั้นวางเป็นแนวนอน"}</div>
           <div style={{ display: "flex", alignItems: "center", gap: 12, opacity: mode === "crop" ? 1 : 0.45 }}>
             <span style={{ fontSize: 14, whiteSpace: "nowrap" }}>ซูม</span>
             <Range value={Math.round(view.z * 100)} min={100} max={400} step={5} label="ซูม" format={(v) => `${v}%`} onChange={(v) => { if (mode === "crop") setZoom(v / 100); }} />
@@ -167,16 +167,22 @@ export default function CropDialog(p: {
         <div style={{ flex: 1, display: "flex", flexDirection: "column", gap: 12, minWidth: 0 }}>
           <div style={{ fontWeight: 600, fontSize: 14 }}>ตัวอย่างหลังครอป</div>
           <div style={{ display: "flex", gap: 18, alignItems: "flex-end", flexWrap: "wrap" }} data-previews>
-            {[{ w: 72, h: 108, cap: "บนชั้นวาง" }, { w: 110, h: 165, cap: "แผงรายละเอียด" }, { w: 40, h: 60, cap: "ไอคอน Windows" }].map((s) => (
-              <div key={s.cap} style={{ textAlign: "center" }}>
-                <Preview info={info} view={view} lay={lay} mode={mode} pad={pad} w={s.w} h={s.h} />
-                <div className="small" style={{ marginTop: 6 }}>{s.cap}</div>
-              </div>
-            ))}
+            {(() => {
+              const sizes = [{ w: 72, h: 108, cap: "บนชั้นวาง" }, { w: 110, h: 165, cap: "แผงรายละเอียด" }, { w: 40, h: 60, cap: "ไอคอน Windows" }];
+              // ตามรูปเดิมกับรูปแนวนอน ตัวอย่างกว้างขึ้น ย่อทั้งสามเท่ากันให้อยู่แถวเดียว (เดิมตกคนละแถว แถบคุณภาพ JPG ตกขอบล่าง เจอตอนตรวจภาพ)
+              const ar = mode === "original" ? Math.min(lay.bw / lay.bh, 16 / 9) : 0;
+              const k = ar >= 1 ? Math.min(1, 380 / sizes.reduce((s, x) => s + x.h * ar + 18, 0)) : 1;
+              return sizes.map((s) => (
+                <div key={s.cap} style={{ textAlign: "center" }}>
+                  <Preview info={info} view={view} lay={lay} mode={mode} pad={pad} w={Math.round(s.w * k)} h={Math.round(s.h * k)} />
+                  <div className="small" style={{ marginTop: 6 }}>{s.cap}</div>
+                </div>
+              ));
+            })()}
           </div>
           <div className="setrow" style={{ borderTop: "1px solid #f8e3eb" }}>
             <div className="lbl">ทำให้เป็นปกแบบไหน</div>
-            <Seg small label="ทำให้เป็นปกแบบไหน" value={mode} onChange={setMode} options={[{ value: "crop", label: "ตัดให้พอดี 2 : 3" }, { value: "pad", label: "เติมขอบ" }]} />
+            <Seg small label="ทำให้เป็นปกแบบไหน" value={mode} onChange={setMode} options={[{ value: "crop", label: "ตัดให้พอดี 2 : 3" }, { value: "pad", label: "เติมขอบ" }, { value: "original", label: "ตามรูปเดิม" }]} />
           </div>
           {mode === "pad" && (
             <div style={{ display: "flex", alignItems: "center", gap: 10 }} data-pads>
@@ -260,9 +266,14 @@ function ImageLayer(p: { info: PosterInfo; view: View; k: number; originX: numbe
   );
 }
 
-/** ตัวอย่างหลังครอปขนาด w × h · ตัด = ส่วนในกรอบเต็มช่อง · เติมขอบ = ทั้งรูปอยู่กลางช่อง ที่ว่างเป็นสีขอบ */
-function Preview(p: { info: PosterInfo; view: View; lay: ReturnType<typeof layout>; mode: "crop" | "pad"; pad: string; w: number; h: number }) {
+/** ตัวอย่างหลังครอปขนาด w × h · ตัด = ส่วนในกรอบเต็มช่อง · เติมขอบ = ทั้งรูปอยู่กลางช่อง ที่ว่างเป็นสีขอบ
+    ตามรูปเดิม = สูงเท่าเดิม กว้างตามสัดส่วนรูป (ไม่เกิน 16:9) แบบเดียวกับที่ชั้นวางวาง */
+function Preview(p: { info: PosterInfo; view: View; lay: ReturnType<typeof layout>; mode: "crop" | "pad" | "original"; pad: string; w: number; h: number }) {
   const L = p.lay;
+  if (p.mode === "original") {
+    const w = Math.round(p.h * Math.min(L.bw / L.bh, 16 / 9)), k = Math.min(w / L.bw, p.h / L.bh);
+    return <div className="pv" style={{ width: w, height: p.h }}><ImageLayer info={p.info} view={p.view} k={k} originX={w / 2} originY={p.h / 2} /></div>;
+  }
   if (p.mode === "pad") {
     const k = Math.min(p.w / L.bw, p.h / L.bh);
     return <div className="pv" style={{ width: p.w, height: p.h, background: p.pad }}><ImageLayer info={p.info} view={p.view} k={k} originX={p.w / 2} originY={p.h / 2} /></div>;
