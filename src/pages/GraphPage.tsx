@@ -108,10 +108,23 @@ function sample(src: Src, ch: number, a: number, b: number, n: number) {
   return { mx, mn, rm };
 }
 
-function drawWave(g: CanvasRenderingContext2D, w: number, h: number, d: ReturnType<typeof sample>, th: Theme, bars: boolean) {
+/** style fine เส้นละเอียด · bars แท่ง · aud แบบ Audacity · vz ขยายแนวตั้ง (0.25 ถึง 8 เท่า ต่ำกว่า 1 คือบีบ) */
+function drawWave(g: CanvasRenderingContext2D, w: number, h: number, d: ReturnType<typeof sample>, th: Theme, style: WaveStyle, vz = 1) {
   g.fillStyle = th.lane; g.fillRect(0, 0, w, h);
-  const mid = h / 2, A = h / 2 - 2;
-  if (bars) {
+  const mid = h / 2, A = (h / 2 - 2) * vz;
+  if (style === "aud") {
+    // แบบ Audacity (พี่กันส่งภาพหน้าคลื่นของ Audacity 7 พ.ย. 2569) · คลื่นยอดสีเข้ม ความดังเฉลี่ยสีอ่อนกว่าข้างใน · เส้นศูนย์ เส้นครึ่ง · ตัวเลขความสูงคลื่นทางซ้าย
+    // สีตามชุดสีของโปรแกรม ไม่ใช้สีฟ้าของ Audacity (พี่กัน *"ไม่ต้องคล้ายแบบ 100% เเค่ปรับให้เข้ากับธีมเว็บเรา"*)
+    // ตัวเลขความสูงคลื่นอยู่ไม้บรรทัดแนวตั้งนอกกราฟ (drawAmpRuler) ไม่ทับคลื่น (พี่กัน 7 พ.ย. 2569 *"เอาตัวนี้ออกมาข้างนอก ไม่เอาทับกราฟ"*) · ในกราฟเหลือเส้นจางตรงค่าเดียวกับไม้บรรทัด
+    const lim = (v: number) => Math.min(h / 2 - 1, v * A);
+    g.fillStyle = "rgba(74,43,56,.10)";
+    for (const t of ampTicks(h, vz).major) if (t.v !== 0) g.fillRect(0, Math.round(t.y), w, 1);
+    g.fillStyle = "rgba(74,43,56,.28)"; g.fillRect(0, Math.round(mid), w, 1);
+    const band = (top: Float32Array, bot: Float32Array, col: string) => { g.fillStyle = col; g.beginPath(); g.moveTo(0, mid); for (let x = 0; x < w; x++) g.lineTo(x + 0.5, mid - lim(top[x])); for (let x = w - 1; x >= 0; x--) g.lineTo(x + 0.5, mid + lim(bot[x])); g.closePath(); g.fill(); };
+    band(d.mx, d.mn, th.rms); band(d.rm, d.rm, th.ramp[5]);
+    return;
+  }
+  if (style === "bars") {
     const BW = 3, GAP = 3, n = Math.floor(w / (BW + GAP)), grad = g.createLinearGradient(0, 4, 0, h - 4);
     grad.addColorStop(0, th.peak); grad.addColorStop(0.5, th.rms); grad.addColorStop(1, th.peak); g.fillStyle = grad;
     for (let i = 0; i < n; i++) {
@@ -125,8 +138,31 @@ function drawWave(g: CanvasRenderingContext2D, w: number, h: number, d: ReturnTy
     return;
   }
   g.fillStyle = "rgba(74,43,56,.07)"; g.fillRect(0, Math.round(mid), w, 1);
-  const band = (top: Float32Array, bot: Float32Array, col: string) => { g.fillStyle = col; g.beginPath(); g.moveTo(0, mid); for (let x = 0; x < w; x++) g.lineTo(x + 0.5, mid - Math.min(1, top[x]) * A); for (let x = w - 1; x >= 0; x--) g.lineTo(x + 0.5, mid + Math.min(1, bot[x]) * A); g.closePath(); g.fill(); };
+  const band = (top: Float32Array, bot: Float32Array, col: string) => { g.fillStyle = col; g.beginPath(); g.moveTo(0, mid); for (let x = 0; x < w; x++) g.lineTo(x + 0.5, mid - Math.min(h / 2 - 1, top[x] * A)); for (let x = w - 1; x >= 0; x--) g.lineTo(x + 0.5, mid + Math.min(h / 2 - 1, bot[x] * A)); g.closePath(); g.fill(); };
   band(d.mx, d.mn, th.peak); band(d.rm, d.rm, th.rms);
+}
+
+/** ขีดของไม้บรรทัดความสูงคลื่น · ระยะขีดเลือกจาก 1 2 2.5 5 ให้ตัวเลขห่างกันอย่างน้อย 20 px · ขอบกรอบคือ 1 ÷ vz */
+const AMP_STEPS = [0.01, 0.02, 0.025, 0.05, 0.1, 0.2, 0.25, 0.5, 1, 2, 2.5, 5];
+function ampTicks(h: number, vz: number) {
+  const mid = h / 2, ppu = (h / 2 - 2) * vz, top = (h / 2 - 1) / ppu;
+  const step = AMP_STEPS.find((s) => s * ppu >= 20) ?? 5;
+  let d = 1; while (d < 4 && Math.abs(Math.round(step * 10 ** d) - step * 10 ** d) > 1e-9) d++;
+  const list = (st: number) => { const out: { v: number; y: number }[] = []; for (let k = -Math.floor(top / st + 1e-9); k * st <= top + 1e-9; k++) out.push({ v: k * st, y: mid - k * st * ppu }); return out; };
+  return { major: list(step), minor: list(step / 2), d };
+}
+const RUL_W = 40;
+/** ไม้บรรทัดแนวตั้งทางซ้ายของรูปคลื่นแบบ Audacity · ตัวเลขชิดขวา ขีดยาวที่ตัวเลข ขีดสั้นตรงกลาง */
+function drawAmpRuler(g: CanvasRenderingContext2D, w: number, h: number, vz: number) {
+  g.clearRect(0, 0, w, h);
+  const { major, minor, d } = ampTicks(h, vz);
+  g.fillStyle = "#e3bccb"; g.fillRect(w - 1, 0, 1, h);
+  g.fillStyle = "#d9a9bb"; for (const t of minor) g.fillRect(w - 4, Math.round(t.y), 3, 1);
+  g.font = "600 10.5px Sarabun, sans-serif"; g.textAlign = "right"; g.textBaseline = "middle";
+  for (const t of major) {
+    g.fillStyle = "#c48aa1"; g.fillRect(w - 7, Math.round(t.y), 6, 1);
+    g.fillStyle = "#7a5666"; g.fillText(minus(t.v.toFixed(d)), w - 9, Math.max(6, Math.min(h - 6, t.y)));
+  }
 }
 
 /** ภาพความถี่ cols × rows ลงขนาดกรอบ · getRow(row, col) คืนเลข 0–255 */
@@ -181,14 +217,20 @@ function Speakers({ names, th, levels, hidden, onToggle }: { names: string[]; th
 
 type Mark = { from: number; to: number; text: string };
 
-function Lane({ code, th: thai, peak, height, draw, deps }: { code: string; th: string; peak: string; height: number; draw: (g: CanvasRenderingContext2D, w: number, h: number) => void; deps: unknown[] }) {
+type Draw = (g: CanvasRenderingContext2D, w: number, h: number) => void;
+function Lane({ code, th: thai, peak, height, draw, deps, ruler }: { code: string; th: string; peak: string; height: number; draw: Draw; deps: unknown[]; ruler?: Draw }) {
   const ref = useCanvas((g, w, h) => draw(g, w, h), deps);
   return (
-    <div className="lane" data-lane={code}>
+    <div className="lane" data-lane={code} style={ruler ? { gridTemplateColumns: `96px ${RUL_W}px 1fr` } : undefined}>
       <div className="lab"><b>{code}</b><span>{thai}</span><em>{peak}</em></div>
+      {ruler && <RulerCv height={height} draw={ruler} deps={deps} />}
       <canvas className="cv" style={{ height }} ref={ref} />
     </div>
   );
+}
+function RulerCv({ height, draw, deps }: { height: number; draw: Draw; deps: unknown[] }) {
+  const ref = useCanvas((g, w, h) => draw(g, w, h), deps);
+  return <canvas className="vrul" style={{ height }} ref={ref} data-vrul />;
 }
 
 function Crosshair({ box, left, right, t0, t1, at, rows }: { box: HTMLDivElement | null; left: number; right: number; t0: number; t1: number; at: number; rows: { v: string; k: string; color?: string }[] }) {
@@ -235,11 +277,15 @@ function overviewOnce(path: string, track: number) {
   return p;
 }
 
-type Prefs = { view: View; theme: string; style: "fine" | "bars"; cmap: "theme" | "rainbow"; scmap: "heat" | "rainbow" | "mono" | "theme" };
+type WaveStyle = "fine" | "bars" | "aud";
+/** laneK ตัวคูณความสูงแถบรูปคลื่นกับแถบความถี่ ที่ลากจากที่จับใต้กราฟ · จำไว้ เปิดครั้งหน้ายังสูงเท่าเดิม */
+type Prefs = { view: View; theme: string; style: WaveStyle; cmap: "theme" | "rainbow"; scmap: "heat" | "rainbow" | "mono" | "theme"; laneK: number };
 const PREF_KEY = "graph-prefs";
+const LANE_K_MIN = 0.5, LANE_K_MAX = 4;
+const laneKClamp = (k: number) => Math.round(Math.max(LANE_K_MIN, Math.min(LANE_K_MAX, k)) * 100) / 100;
 function loadPrefs(): Prefs {
-  const d: Prefs = { view: "wave", theme: "ชมพู", style: "fine", cmap: "theme", scmap: "heat" };
-  try { const p = JSON.parse(localStorage.getItem(PREF_KEY) ?? "{}"); return { ...d, ...p, theme: THEMES[p.theme] ? p.theme : d.theme }; } catch { return d; }
+  const d: Prefs = { view: "wave", theme: "ชมพู", style: "fine", cmap: "theme", scmap: "heat", laneK: 1 };
+  try { const p = JSON.parse(localStorage.getItem(PREF_KEY) ?? "{}"); return { ...d, ...p, theme: THEMES[p.theme] ? p.theme : d.theme, laneK: Number.isFinite(p.laneK) ? laneKClamp(p.laneK) : 1 }; } catch { return d; }
 }
 
 export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; onConsumed: () => void }) {
@@ -328,9 +374,35 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
   }, [ov]);
 
   const view = prefs.view;
-  const zoomFor = view === "psd" ? zoom : zoom;
-  const span = zoomFor === "all" ? dur : Math.min(dur, zoomFor);
+  const span = zoom === "all" ? dur : Math.min(dur, zoom);
   const t0 = Math.max(0, Math.min(dur - span, center - span / 2)), t1 = t0 + span;
+  /* ตัวซูม ตัวเลื่อน แบบหน้าดูคลื่นของ Audacity (พี่กัน *"พวกตัวซูม พวกตัวขยาย ตัวเลื่อนซ้ายขวา เอามาได้เลย"* · เอาแค่ส่วนดูกราฟ ไม่เอาส่วนปรับแต่ง)
+     ซูมเข้าออกทีละสองเท่า ถึงครึ่งวินาที · ซูมจากล้อเมาส์ตรึงจุดที่ชี้ไว้ที่เดิม · เลื่อนไม่หลุดหัวท้ายเรื่อง */
+  const [vz, setVz] = useState(1);
+  // ขยายแนวตั้งใช้กับเส้นละเอียดและแบบ Audacity · แบบ Audacity มีไม้บรรทัดตัวเลขนอกกราฟ ขอบซ้ายของกราฟจึงขยับไปอีก RUL_W
+  const VZ_W = view === "wave" && prefs.style !== "bars" ? 30 : 0;
+  const LW = view === "wave" && prefs.style === "aud" ? 96 + RUL_W : 96;
+  const zoomBy = (f: number, at?: number) => {
+    if (!dur) return;
+    let ns = span * f;
+    if (ns >= dur * 0.999) { setZoom("all"); setCenter(dur / 2); return; }
+    ns = Math.max(0.5, ns);
+    const anchor = at ?? (t0 + t1) / 2, rel = (anchor - t0) / (span || 1);
+    const nt0 = Math.max(0, Math.min(dur - ns, anchor - rel * ns));
+    setZoom(ns); setCenter(nt0 + ns / 2);
+  };
+  const panTo = (c: number) => setCenter(Math.max(span / 2, Math.min(dur - span / 2, c)));
+  // Ctrl หมุนล้อ ซูมตรงที่ชี้ · Shift หมุนล้อ หรือเลื่อนแนวนอนของทัชแพด เลื่อนซ้ายขวา · หมุนล้อเฉย ๆ เลื่อนหน้าตามปกติ
+  useEffect(() => {
+    const el = boxEl; if (!el) return;
+    const fn = (e: WheelEvent) => {
+      const r = el.getBoundingClientRect(), W = r.width - LW, x = e.clientX - r.left - LW;
+      if (e.ctrlKey) { e.preventDefault(); zoomBy(e.deltaY < 0 ? 0.5 : 2, x >= 0 && x <= W ? t0 + x / W * (t1 - t0) : undefined); }
+      else if (e.shiftKey || Math.abs(e.deltaX) > Math.abs(e.deltaY)) { e.preventDefault(); panTo((t0 + t1) / 2 + (e.shiftKey ? e.deltaY || e.deltaX : e.deltaX) / Math.max(1, W) * (t1 - t0)); }
+    };
+    el.addEventListener("wheel", fn, { passive: false });
+    return () => el.removeEventListener("wheel", fn);
+  });
 
   // ช่วงที่ซูม อ่านเฉพาะช่วง (รอ 150 ms ก่อนขอ เลื่อนเร็ว ๆ ไม่ขอซ้ำ)
   useEffect(() => {
@@ -382,7 +454,8 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
     for (const [a, b] of ov?.silences ?? []) if (!m.some((x) => Math.abs(x.from - a) < 1.5)) m.push({ from: a, to: b, text: `เงียบทุกช่อง ${(b - a).toFixed(1)} วินาที` });
     return m;
   }, [movie, ov]);
-  const at = hover ?? tip;
+  // จุดเดิมหลุดช่วงที่ดู (ซูมหรือเลื่อนไปที่อื่น) ใช้กลางช่วงที่ดู ปุ่มเปิดเล่นที่จะไม่บอกเวลาที่มองไม่เห็น (เจอตอนตรวจภาพ)
+  const at = hover ?? (tip >= t0 && tip <= t1 ? tip : (t0 + t1) / 2);
 
   const toggleCh = (c: string) => setHidden((h) => h.includes(c) ? h.filter((x) => x !== c) : vis.length > 1 ? [...h, c] : h);
   const openOther = async () => { const f = await pickFile("media"); if (f) setPath(f); };
@@ -445,19 +518,28 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
     <div className="seg sm">{opts.map(([k, l]) => <button key={String(k)} type="button" className={cur === k ? "on" : ""} onClick={() => set(k)} {...{ [attr]: String(k) }}>{l}</button>)}</div>
   );
   const zoomBox = (opts: [number | "all", string][], lbl: string) => (
-    <span style={{ display: "flex", alignItems: "center", gap: 8 }}><span className="lbl">{lbl}</span>
+    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      {lbl === "ซูม" && <span className="zbtns">
+        <button type="button" className="zb" onClick={() => zoomBy(2)} disabled={zoom === "all"} aria-label="ซูมออก" title="ซูมออก · Ctrl หมุนล้อเมาส์ลง" data-zoomout><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6" /></svg></button>
+        <button type="button" className="zb" onClick={() => zoomBy(0.5)} disabled={span <= 0.5} aria-label="ซูมเข้า" title="ซูมเข้า · Ctrl หมุนล้อเมาส์ขึ้น" data-zoomin><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6M10.5 7.5v6" /></svg></button>
+      </span>}
+      <span className="lbl">{lbl}</span>
       {seg(opts.map(([k, l]) => [String(k), l] as [string, string]), String(zoom), (v) => { setZoom(v === "all" ? "all" : Number(v)); setWin(null); }, "data-zoom")}</span>
+  );
+  /** แถบเลื่อนซ้ายขวาใต้กราฟ แบบ Audacity · ก้อนกว้างตามช่วงที่ซูม ลากเพื่อเลื่อน กดที่แถบเพื่อกระโดด */
+  const scroller = (left: number, right: number) => (
+    <TimeScroll dur={dur} t0={t0} t1={t1} left={left} right={right} onPan={panTo} />
   );
   const ctl = (
     <div className="agctl">
       <div className="seg agviews">{VIEWS.map(([k, l]) => <button key={k} type="button" className={view === k ? "on" : ""} onClick={() => setPref("view", k)} data-view={k}
         disabled={k === "cmp" && !names.includes("FL")} title={k === "cmp" && !names.includes("FL") ? "ซ้อนเทียบใช้กับแทร็กที่มีช่องซ้ายขวา" : undefined}>{VIEW_ICON[k]}{l}</button>)}</div>
-      {view === "wave" && seg<"fine" | "bars">([["fine", "เส้นละเอียด"], ["bars", "แท่ง"]], prefs.style, (v) => setPref("style", v), "data-style")}
+      {view === "wave" && seg<WaveStyle>([["fine", "เส้นละเอียด"], ["bars", "แท่ง"], ["aud", "แบบ Audacity"]], prefs.style, (v) => setPref("style", v), "data-style")}
       {view === "spec" && seg<"theme" | "rainbow">([["theme", "สีตามชุด"], ["rainbow", "สีรุ้ง"]], prefs.cmap, (v) => setPref("cmap", v), "data-cmap")}
       <span className="lbl" style={{ marginLeft: "auto" }}>ชุดสี</span>
       <div className="sws">{THEME_ORDER.map((n) => <button key={n} type="button" className={"sw" + (prefs.theme === n ? " on" : "")} aria-label={"ชุดสี" + n} title={"ชุดสี" + n} onClick={() => setPref("theme", n)} data-theme={n}
         style={{ background: `linear-gradient(135deg,${THEMES[n].ramp[2]},${THEMES[n].ramp[5]} 60%,${THEMES[n].ramp[7]})` }} />)}</div>
-      <span className="swname">{prefs.theme}</span>
+      {/* ชื่อชุดสีที่เคยเขียนต่อท้ายเอาออก ปุ่ม แบบ Audacity เพิ่มเข้ามาแล้วชื่อตกบรรทัดสองตัวเดียว · ชุดที่เลือกมีวงกรอบ ชี้แล้วขึ้นชื่อ */}
     </div>
   );
 
@@ -530,39 +612,51 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
   let plot: React.ReactNode = null;
   const lanesView = view === "wave" || view === "spec";
   if (lanesView) {
-    const laneH = view === "spec" ? (vis.length > 6 ? 46 : 58) : (vis.length > 6 ? 46 : vis.length > 2 ? 56 : 92);
+    // แถบสูงขึ้นจากเดิม (พี่กัน 7 พ.ย. 2569 *"ใ้ห้ระบบมันขยายกราฟลงมาได้มากกว่านี้ ตอนนี้มันเเค่สองเเถบที่โคตรจะชิดกัน"*) · ลากที่จับใต้กราฟขยายต่อได้ถึง 4 เท่า
+    const baseH = vis.length > 6 ? 52 : vis.length > 2 ? 72 : 120;
+    const laneH = Math.round(Math.max(30, baseH * prefs.laneK));
     const colors = lut(prefs.cmap === "rainbow" ? RAINBOW : th.ramp);
     plot = (
       <div className="plot" data-plot ref={plotRef}>
         <div className="plothead"><span><b>{view === "wave" ? "รูปคลื่นทุกช่อง" : "ความถี่ทุกช่อง"}</b> · {tfmt(t0)} ถึง {tfmt(t1)}</span>{zoomBox(ZOOMS, "ซูม")}</div>
-        <Overview ov={ov} th={th} t0={t0} t1={t1} onPick={(x) => { setCenter(x); setTip(x); if (zoom === "all") setZoom(240); }} left={96} />
-        <Ruler left={96} right={0} />
-        <div className="lanes" ref={setBoxEl} style={{ marginTop: marks.some((m) => m.to > t0 && m.from < t1) ? 28 : 6 }} onPointerMove={onMove(96, 0)} onPointerLeave={() => setHover(null)} data-lanes>
+        <Overview ov={ov} th={th} t0={t0} t1={t1} onPick={(x) => { setCenter(x); setTip(x); if (zoom === "all") setZoom(240); }} left={LW} right={VZ_W} />
+        <Ruler left={LW} right={VZ_W} />
+        <div className="lanewrap" style={{ marginTop: marks.some((m) => m.to > t0 && m.from < t1) ? 28 : 6 }}>
+        <div className="lanes" ref={setBoxEl} style={{ marginTop: 0 }} onPointerMove={onMove(LW, 0)} onPointerLeave={() => setHover(null)} data-lanes>
           {vis.map((c) => {
             const i = names.indexOf(c), l = label(names, c);
             return view === "wave"
-              ? <Lane key={c + view} code={l.code} th={l.th} peak={peakTxt(c)} height={laneH} deps={[src, t0, t1, th, prefs.style, i]}
-                  draw={(g, w, h) => drawWave(g, w, h, sample(src, i, t0, t1, w), th, prefs.style === "bars")} />
-              : <Lane key={c + view} code={l.code} th={l.th} peak={peakTxt(c)} height={laneH} deps={[src, win, winOk, t0, t1, prefs.cmap, th, i]}
+              ? <Lane key={c + view} code={l.code} th={l.th} peak={peakTxt(c)} height={prefs.style === "aud" ? Math.max(laneH, 60) : laneH} deps={[src, t0, t1, th, prefs.style, i, vz, laneH]}
+                  draw={(g, w, h) => drawWave(g, w, h, sample(src, i, t0, t1, w), th, prefs.style, prefs.style === "bars" ? 1 : vz)}
+                  ruler={prefs.style === "aud" ? (g, w, h) => drawAmpRuler(g, w, h, vz) : undefined} />
+              : <Lane key={c + view} code={l.code} th={l.th} peak={peakTxt(c)} height={laneH} deps={[src, win, winOk, t0, t1, prefs.cmap, th, i, laneH]}
                   draw={(g, w, h) => drawSpecLane(g, w, h, i, winOk ? win : null, ov, t0, t1, t?.rate ?? 48000, colors)} />;
           })}
-          <Marks marks={marks} t0={t0} t1={t1} left={96} right={0} />
-          <Crosshair box={boxEl} left={96} right={0} t0={t0} t1={t1} at={at} rows={vis.map((c) => ({ v: dbTxt(valueAt(names.indexOf(c), at)) + " dB", k: `${label(names, c).code} ${label(names, c).th}` }))} />
+          <Marks marks={marks} t0={t0} t1={t1} left={LW} right={0} />
+          {/* เส้นตั้งกับกล่องบอกค่าขึ้นเฉพาะตอนเมาส์ชี้ (พี่กัน 7 พ.ย. 2569 *"ต้องให้เเสดงเฉพาะเมาส์ชี้"*) */}
+          {hover != null && <Crosshair box={boxEl} left={LW} right={0} t0={t0} t1={t1} at={at} rows={vis.map((c) => ({ v: dbTxt(valueAt(names.indexOf(c), at)) + " dB", k: `${label(names, c).code} ${label(names, c).th}` }))} />}
         </div>
+        {VZ_W > 0 && <VZoom value={vz} onChange={setVz} />}
+        </div>
+        <LaneGrip k={prefs.laneK} total={vis.length * baseH} left={LW} right={VZ_W} onChange={(k) => setPref("laneK", k)} />
+        {scroller(LW, VZ_W)}
         <div className="agfoot">
           {view === "wave"
-            ? <div className="lg">{prefs.style === "bars" ? <span><svg width="22" height="14" viewBox="0 0 22 14" style={{ verticalAlign: -2, marginRight: 5 }} aria-hidden="true"><rect width="22" height="14" rx="3" fill={th.lane} stroke={th.peak} /><rect x="4" y="5" width="2" height="4" rx="1" fill={th.rms} /><rect x="8" y="2" width="2" height="10" rx="1" fill={th.rms} /><rect x="12" y="4" width="2" height="6" rx="1" fill={th.rms} /><rect x="16" y="3" width="2" height="8" rx="1" fill={th.rms} /></svg>ความสูงแท่ง คือยอดเสียงช่วงนั้น</span> : <><span><i style={{ background: th.peak }} />ยอดเสียง</span><span><i style={{ background: th.rms }} />ความดังเฉลี่ย</span></>}{marks.length > 0 && <span style={{ color: "#b03535" }}><i style={{ background: "rgba(208,59,59,.25)", border: "1px solid rgba(208,59,59,.75)" }} />จุดเสีย</span>}</div>
+            ? <div className="lg">{prefs.style === "bars" ? <span><svg width="22" height="14" viewBox="0 0 22 14" style={{ verticalAlign: -2, marginRight: 5 }} aria-hidden="true"><rect width="22" height="14" rx="3" fill={th.lane} stroke={th.peak} /><rect x="4" y="5" width="2" height="4" rx="1" fill={th.rms} /><rect x="8" y="2" width="2" height="10" rx="1" fill={th.rms} /><rect x="12" y="4" width="2" height="6" rx="1" fill={th.rms} /><rect x="16" y="3" width="2" height="8" rx="1" fill={th.rms} /></svg>ความสูงแท่ง คือยอดเสียงช่วงนั้น</span> : prefs.style === "aud" ? <><span><i style={{ background: th.rms }} />ยอดเสียง</span><span><i style={{ background: th.ramp[5] }} />ความดังเฉลี่ย</span><span className="small">ตัวเลขซ้ายคือความสูงคลื่น 1.0 เต็มสเกล</span></> : <><span><i style={{ background: th.peak }} />ยอดเสียง</span><span><i style={{ background: th.rms }} />ความดังเฉลี่ย</span></>}{marks.length > 0 && <span style={{ color: "#b03535" }}><i style={{ background: "rgba(208,59,59,.25)", border: "1px solid rgba(208,59,59,.75)" }} />จุดเสีย</span>}</div>
             : <div className="speclegend"><span className="nw">−120 dB</span><span className="rampbar" style={{ background: `linear-gradient(90deg,${(prefs.cmap === "rainbow" ? RAINBOW : th.ramp).join(",")})` }} /><span className="nw">0 dB</span><span style={{ marginLeft: 10 }}>แกนตั้ง 20 Hz ล่าง ถึง {Math.round((t?.rate ?? 48000) / 2000)} kHz บน</span></div>}
-          <div style={{ display: "flex", gap: 8 }}><button type="button" className="btn btn-ghost btn-sm" onClick={play} data-graphplay>เปิดเล่นที่ {tfmt(at)}</button><button type="button" className="btn btn-ghost btn-sm" onClick={saveImage}>บันทึกเป็นรูป</button></div>
+          <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+            {/* ขยายแนวตั้งอยู่แถวล่าง (เดิมอยู่แถวปุ่มบน ชุดสีตกบรรทัดที่สอง เจอตอนตรวจภาพ) */}
+            {VZ_W > 0 && <><span className="lbl">ขยายแนวตั้ง</span>{seg<number>([[1, "1×"], [2, "2×"], [4, "4×"]], vz, setVz, "data-vz")}<span className="vzval" data-vzval title="ลากแถบแนวตั้งขวามือรูปคลื่น ขึ้นยืด ลงบีบ">{vzTxt(vz)}</span></>}
+            <button type="button" className="btn btn-ghost btn-sm" onClick={play} data-graphplay>เปิดเล่นที่ {tfmt(at)}</button><button type="button" className="btn btn-ghost btn-sm" onClick={saveImage}>บันทึกเป็นรูป</button></div>
         </div>
       </div>
     );
     exportRef.current = () => composeLanes(boxEl);
   } else if (view === "loud") {
-    plot = <LoudView ov={ov} th={th} t0={t0} t1={t1} names={names} marks={marks} zoomBox={zoomBox(ZOOMS, "ซูม")} at={at} setHover={setHover} showTable={showTable} setShowTable={setShowTable} save={saveImage} exportRef={exportRef} plotRef={plotRef} />;
+    plot = <LoudView ov={ov} th={th} t0={t0} t1={t1} names={names} marks={marks} zoomBox={zoomBox(ZOOMS, "ซูม")} at={at} live={hover != null} setHover={setHover} showTable={showTable} setShowTable={setShowTable} save={saveImage} exportRef={exportRef} plotRef={plotRef} />;
   } else if (view === "cmp") {
     const cc = ["FL", "FR", "FC"].filter((c) => names.includes(c));
-    plot = <CmpView src={src} names={names} cc={cc} t0={t0} t1={t1} marks={marks} zoomBox={zoomBox(ZOOMS, "ซูม")} at={at} setHover={setHover} play={play} save={saveImage} exportRef={exportRef} plotRef={plotRef} />;
+    plot = <CmpView src={src} names={names} cc={cc} t0={t0} t1={t1} marks={marks} zoomBox={zoomBox(ZOOMS, "ซูม")} at={at} live={hover != null} setHover={setHover} play={play} save={saveImage} exportRef={exportRef} plotRef={plotRef} />;
   } else if (view === "spek") {
     plot = <SpekView ov={ov} win={winOk ? win : null} track={t} fileName={fileName} names={names} t0={t0} t1={t1} zoomBox={zoomBox(ZOOMS, "ซูม")} scmap={prefs.scmap} setScmap={(v) => setPref("scmap", v)} th={th} audioOnly={!!info?.audioOnly} play={play} save={saveImage} exportRef={exportRef} plotRef={plotRef} at={at} />;
   } else {
@@ -599,7 +693,7 @@ export class GraphBoundary extends Component<{ children: React.ReactNode }, { er
 function FragmentKV({ k, v }: { k: string; v: string }) { return <><dt>{k}</dt><dd>{v}</dd></>; }
 
 /** แถบทั้งเรื่อง · กดเพื่อกระโดด */
-function Overview({ ov, th, t0, t1, onPick, left }: { ov: GOverview; th: Theme; t0: number; t1: number; onPick: (t: number) => void; left: number }) {
+function Overview({ ov, th, t0, t1, onPick, left, right = 0 }: { ov: GOverview; th: Theme; t0: number; t1: number; onPick: (t: number) => void; left: number; right?: number }) {
   const ref = useCanvas((g, w, h) => {
     g.fillStyle = th.lane; g.fillRect(0, 0, w, h);
     const all: Src = { env: ov.env, cols: ov.cols, t0: 0, t1: ov.duration };
@@ -614,9 +708,88 @@ function Overview({ ov, th, t0, t1, onPick, left }: { ov: GOverview; th: Theme; 
     }
   }, [ov, th, t0, t1]);
   return (<>
-    <div className="ovw" style={{ marginLeft: left }} onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); onPick((e.clientX - r.left) / r.width * ov.duration); }} title="กดเพื่อไปช่วงนั้น" data-ovw><canvas ref={ref} /></div>
-    <div className="ovrul" style={{ marginLeft: left }}><span>0:00</span><span style={{ left: "50%" }}>ทั้งเรื่อง {tfmt(ov.duration)}{ov.readTo < ov.duration - 1 ? ` · อ่านได้ถึง ${tfmt(ov.readTo)}` : ""}</span><span style={{ left: "100%" }}>{tfmt(ov.duration)}</span></div>
+    <div className="ovw" style={{ marginLeft: left, marginRight: right }} onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); onPick((e.clientX - r.left) / r.width * ov.duration); }} title="กดเพื่อไปช่วงนั้น" data-ovw><canvas ref={ref} /></div>
+    <div className="ovrul" style={{ marginLeft: left, marginRight: right }}><span>0:00</span><span style={{ left: "50%" }}>ทั้งเรื่อง {tfmt(ov.duration)}{ov.readTo < ov.duration - 1 ? ` · อ่านได้ถึง ${tfmt(ov.readTo)}` : ""}</span><span style={{ left: "100%" }}>{tfmt(ov.duration)}</span></div>
   </>);
+}
+
+/** ที่จับใต้แถบกราฟ ลากลงให้แถบสูงขึ้น ลากขึ้นให้เตี้ยลง แบบลากขอบล่างแทร็กของ Audacity · total คือความสูงรวมตอนตัวคูณ 1
+   ลูกศรขึ้นลงทีละ 10% · ดับเบิลคลิกกลับขนาดเดิม */
+function LaneGrip({ k, total, left, right, onChange }: { k: number; total: number; left: number; right: number; onChange: (k: number) => void }) {
+  const drag = useRef<{ y: number; k: number } | null>(null);
+  return (
+    <div className="lanegrip" style={{ marginLeft: left, marginRight: right }} role="separator" aria-orientation="horizontal" aria-label="ความสูงกราฟ"
+      aria-valuemin={LANE_K_MIN * 100} aria-valuemax={LANE_K_MAX * 100} aria-valuenow={Math.round(k * 100)} aria-valuetext={`${Math.round(k * 100)}%`} tabIndex={0}
+      title="ลากลงขยายความสูงกราฟ ลากขึ้นลดลง · ดับเบิลคลิกกลับขนาดเดิม" data-lanegrip
+      onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); drag.current = { y: e.clientY, k }; }}
+      onPointerMove={(e) => { if (drag.current) onChange(laneKClamp(drag.current.k + (e.clientY - drag.current.y) / Math.max(1, total))); }}
+      onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }}
+      onDoubleClick={() => onChange(1)}
+      onKeyDown={(e) => { if (e.key === "ArrowDown") { e.preventDefault(); onChange(laneKClamp(k + 0.1)); } if (e.key === "ArrowUp") { e.preventDefault(); onChange(laneKClamp(k - 0.1)); } }}>
+      <i />
+    </div>
+  );
+}
+
+const VZ_MIN = 0.25, VZ_MAX = 8;
+/** ค่าขยายแนวตั้งในช่วงที่รับ · ใกล้ 1 2 4 เท่า (ไม่เกิน 4%) ดูดเข้าหา ปุ่ม 1× 2× 4× จะติดตาม */
+const vzClamp = (v: number) => { const c = Math.max(VZ_MIN, Math.min(VZ_MAX, v)); return [1, 2, 4].find((k) => Math.abs(c / k - 1) < 0.04) ?? Math.round(c * 100) / 100; };
+const vzTxt = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(2).replace(/0$/, "")) + "×";
+
+/** แถบเลื่อนแนวตั้งขวามือรูปคลื่น บีบหรือยืดคลื่น (พี่กัน 7 พ.ย. 2569 *"ขอเส้นเเนวตั้ง ที่เอาไว้เลื่อนบีบเส้นกราฟด้วย เพราะตามรูป ตัวกราฟมันเกินกรอบไป"*)
+   ลากขึ้นยืด ลากลงบีบ · สเกลล็อก 0.25 ถึง 8 เท่า · ขีดขวางคือ 1 เท่า ยอดเต็มสเกลชนขอบกรอบพอดี ต่ำกว่านั้นคลื่นไม่ล้นกรอบ
+   กดที่แถบกระโดดไปจุดนั้น · หมุนล้อเมาส์บนแถบ · ลูกศรขึ้นลง · PageUp PageDown ทีละสองเท่า · ดับเบิลคลิกกลับ 1 เท่า */
+function VZoom({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const root = useRef<HTMLDivElement>(null), track = useRef<HTMLDivElement>(null), drag = useRef(false);
+  const L = Math.log(VZ_MAX / VZ_MIN), pos = (v: number) => Math.log(v / VZ_MIN) / L * 100;
+  const fromY = (y: number) => { const r = track.current!.getBoundingClientRect(); const p = 1 - Math.max(0, Math.min(1, (y - r.top) / r.height)); return vzClamp(VZ_MIN * Math.exp(p * L)); };
+  const cur = useRef(value); cur.current = value;
+  useEffect(() => {
+    const el = root.current; if (!el) return;
+    const fn = (e: WheelEvent) => { e.preventDefault(); onChange(vzClamp(cur.current * (e.deltaY < 0 ? 1.25 : 0.8))); };
+    el.addEventListener("wheel", fn, { passive: false });
+    return () => el.removeEventListener("wheel", fn);
+  }, [onChange]);
+  const key = (e: React.KeyboardEvent) => {
+    const m: Record<string, number> = { ArrowUp: 1.25, ArrowRight: 1.25, ArrowDown: 0.8, ArrowLeft: 0.8, PageUp: 2, PageDown: 0.5 };
+    if (m[e.key]) { e.preventDefault(); onChange(vzClamp(value * m[e.key])); }
+    else if (e.key === "Home") { e.preventDefault(); onChange(VZ_MIN); }
+    else if (e.key === "End") { e.preventDefault(); onChange(VZ_MAX); }
+  };
+  const ic = (d: string) => <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>;
+  return (
+    <div className="vzoom" ref={root} data-vzoom>
+      <span className="ic" title="ลากขึ้น ยืดคลื่น">{ic("M12 3v18M8 7l4-4 4 4M8 17l4 4 4-4")}</span>
+      <div className="track" ref={track} onDoubleClick={() => onChange(1)}
+        onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); drag.current = true; onChange(fromY(e.clientY)); }}
+        onPointerMove={(e) => { if (drag.current) onChange(fromY(e.clientY)); }}
+        onPointerUp={() => { drag.current = false; }} onPointerCancel={() => { drag.current = false; }}>
+        <i className="fit" style={{ bottom: pos(1) + "%" }} title="1 เท่า ยอดเต็มสเกลชนขอบพอดี" />
+        <div className="knob" role="slider" aria-orientation="vertical" aria-label="ขยายแนวตั้ง" aria-valuemin={VZ_MIN} aria-valuemax={VZ_MAX} aria-valuenow={value} aria-valuetext={vzTxt(value)} tabIndex={0}
+          title={`ขยายแนวตั้ง ${vzTxt(value)} · ลากขึ้นยืด ลากลงบีบ · ดับเบิลคลิกกลับ 1×`} style={{ bottom: pos(value) + "%" }} onKeyDown={key} data-vzknob />
+      </div>
+      <span className="ic" title="ลากลง บีบคลื่น">{ic("M4 12h16M12 3v5M9 5.5l3 3 3-3M12 21v-5M9 18.5l3-3 3 3")}</span>
+    </div>
+  );
+}
+
+/** แถบเลื่อนซ้ายขวา แบบ Audacity · ก้อนกว้างตามช่วงที่ซูม ลากเพื่อเลื่อน กดที่แถบเพื่อกระโดด · ลูกศรซ้ายขวาเลื่อนทีละหนึ่งในสิบ */
+function TimeScroll({ dur, t0, t1, left, right, onPan }: { dur: number; t0: number; t1: number; left: number; right: number; onPan: (center: number) => void }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const drag = useRef<{ x: number; c: number } | null>(null);
+  const all = !dur || t1 - t0 >= dur * 0.999, span = t1 - t0, mid = (t0 + t1) / 2;
+  const toTime = (dx: number) => dx / Math.max(1, ref.current?.clientWidth ?? 1) * dur;
+  return (
+    <div className="tscroll" ref={ref} style={{ marginLeft: left, marginRight: right }} data-tscroll
+      onPointerDown={(e) => { if (all || (e.target as HTMLElement).dataset.thumb) return; const r = e.currentTarget.getBoundingClientRect(); onPan((e.clientX - r.left) / r.width * dur); }}>
+      <div className={"thumb" + (all ? " all" : "")} data-thumb="1" style={{ left: (dur ? t0 / dur * 100 : 0) + "%", width: Math.max(dur ? span / dur * 100 : 100, 2) + "%" }}
+        role="scrollbar" aria-orientation="horizontal" aria-label="เลื่อนช่วงที่ดู" aria-valuemin={0} aria-valuemax={Math.round(dur)} aria-valuenow={Math.round(t0)} tabIndex={all ? -1 : 0}
+        onKeyDown={(e) => { if (e.key === "ArrowLeft") { e.preventDefault(); onPan(mid - span / 10); } if (e.key === "ArrowRight") { e.preventDefault(); onPan(mid + span / 10); } }}
+        onPointerDown={(e) => { if (all) return; e.currentTarget.setPointerCapture(e.pointerId); drag.current = { x: e.clientX, c: mid }; }}
+        onPointerMove={(e) => { if (drag.current) onPan(drag.current.c + toTime(e.clientX - drag.current.x)); }}
+        onPointerUp={() => { drag.current = null; }} onPointerCancel={() => { drag.current = null; }} />
+    </div>
+  );
 }
 
 /** ความถี่ของช่องหนึ่งในแถบ · แกนตั้งแบบล็อก 20 Hz ถึงครึ่งอัตราสุ่ม */
@@ -639,22 +812,23 @@ function composeLanes(box: HTMLDivElement | null): HTMLCanvasElement | null {
   if (!box) return null;
   const lanes = [...box.querySelectorAll<HTMLDivElement>("[data-lane]")];
   if (!lanes.length) return null;
-  const r = window.devicePixelRatio || 1, W = box.clientWidth, H = lanes.reduce((s, l) => s + l.clientHeight + 2, 8);
+  const r = window.devicePixelRatio || 1, W = box.clientWidth, H = lanes.reduce((s, l) => s + l.clientHeight + 6, 8);
   const out = document.createElement("canvas"); out.width = W * r; out.height = H * r;
   const g = out.getContext("2d"); if (!g) return null;
   g.scale(r, r); g.fillStyle = "#fff"; g.fillRect(0, 0, W, H);
   let y = 4;
   for (const l of lanes) {
-    const cv = l.querySelector("canvas"); g.fillStyle = "#4a2b38"; g.font = "700 13px Sarabun, sans-serif"; g.textBaseline = "middle"; g.fillText(l.dataset.lane ?? "", 6, y + l.clientHeight / 2);
-    if (cv) g.drawImage(cv, 96, y, cv.clientWidth, cv.clientHeight);
-    y += l.clientHeight + 2;
+    g.fillStyle = "#4a2b38"; g.font = "700 13px Sarabun, sans-serif"; g.textBaseline = "middle"; g.fillText(l.dataset.lane ?? "", 6, y + l.clientHeight / 2);
+    // รูปคลื่นกับไม้บรรทัดตัวเลข (แบบ Audacity) วางตามตำแหน่งจริงบนจอ
+    for (const cv of l.querySelectorAll<HTMLCanvasElement>("canvas.vrul, canvas.cv")) g.drawImage(cv, cv.offsetLeft, y, cv.clientWidth, cv.clientHeight);
+    y += l.clientHeight + 6;
   }
   return out;
 }
 
 /* ---------- ความดัง ---------- */
 type CommonProps = { save: () => void; exportRef: React.MutableRefObject<() => HTMLCanvasElement | null>; plotRef: React.RefObject<HTMLDivElement | null> };
-function LoudView({ ov, th, t0, t1, names, marks, zoomBox, at, setHover, showTable, setShowTable, save, exportRef, plotRef }: CommonProps & { ov: GOverview; th: Theme; t0: number; t1: number; names: string[]; marks: Mark[]; zoomBox: React.ReactNode; at: number; setHover: (t: number | null) => void; showTable: boolean; setShowTable: (b: boolean) => void }) {
+function LoudView({ ov, th, t0, t1, names, marks, zoomBox, at, live, setHover, showTable, setShowTable, save, exportRef, plotRef }: CommonProps & { ov: GOverview; th: Theme; t0: number; t1: number; names: string[]; marks: Mark[]; zoomBox: React.ReactNode; at: number; live: boolean; setHover: (t: number | null) => void; showTable: boolean; setShowTable: (b: boolean) => void }) {
   const X0 = 44;
   const pick = (t: number) => { const c = Math.max(0, Math.min(ov.cols - 1, Math.floor(t / ov.duration * ov.cols))); return ov.loud[c]; };
   const ref = useCanvas((g, w, h) => {
@@ -684,7 +858,7 @@ function LoudView({ ov, th, t0, t1, names, marks, zoomBox, at, setHover, showTab
       <div style={{ position: "relative" }} ref={setBox} onPointerMove={(e) => { const r = e.currentTarget.getBoundingClientRect(), W = r.width - X0 - 4, x = e.clientX - r.left - X0; if (x >= 0 && x <= W) setHover(t0 + x / W * (t1 - t0)); }} onPointerLeave={() => setHover(null)} data-loudbox>
         <canvas className="cv" style={{ height: 200 }} ref={ref} />
         <Marks marks={marks} t0={t0} t1={t1} left={X0} right={4} inline />
-        <Crosshair box={box} left={X0} right={4} t0={t0} t1={t1} at={at} rows={[{ v: minus(pick(at).toFixed(1)) + " LUFS", k: "ทุกช่องรวม" }]} />
+        {live && <Crosshair box={box} left={X0} right={4} t0={t0} t1={t1} at={at} rows={[{ v: minus(pick(at).toFixed(1)) + " LUFS", k: "ทุกช่องรวม" }]} />}
       </div>
       <div className="sub">ยอดเสียงแต่ละช่อง</div>
       <div className="pbars">{names.map((c, i) => <FragmentBar key={c} code={label(names, c).code} th={label(names, c).th} w={Math.max(ov.peaks[i] <= -119 ? 0 : 2, (ov.peaks[i] + 48) / 48 * 100)} color={th.rms} v={pkTxt(ov.peaks[i])} />)}</div>
@@ -700,7 +874,7 @@ function FragmentBar({ code, th, w, color, v }: { code: string; th: string; w: n
 }
 
 /* ---------- ซ้อนเทียบ ---------- */
-function CmpView({ src, names, cc, t0, t1, marks, zoomBox, at, setHover, play, save, exportRef, plotRef }: CommonProps & { src: Src; names: string[]; cc: string[]; t0: number; t1: number; marks: Mark[]; zoomBox: React.ReactNode; at: number; setHover: (t: number | null) => void; play: () => void }) {
+function CmpView({ src, names, cc, t0, t1, marks, zoomBox, at, live, setHover, play, save, exportRef, plotRef }: CommonProps & { src: Src; names: string[]; cc: string[]; t0: number; t1: number; marks: Mark[]; zoomBox: React.ReactNode; at: number; live: boolean; setHover: (t: number | null) => void; play: () => void }) {
   // ที่ว่างป้ายชื่อเส้นทางขวา พอสำหรับคำที่ยาวสุด "ซ้ายหน้า" (60 ตัดตัวสุดท้าย เจอตอนเทส 7 พ.ย. 2569)
   const X0 = 44, RW = 80;
   const ref = useCanvas((g, w, h) => {
@@ -734,7 +908,7 @@ function CmpView({ src, names, cc, t0, t1, marks, zoomBox, at, setHover, play, s
       <div style={{ position: "relative" }} ref={setBox} onPointerMove={(e) => { const r = e.currentTarget.getBoundingClientRect(), W = r.width - X0 - RW, x = e.clientX - r.left - X0; if (x >= 0 && x <= W) setHover(t0 + x / W * (t1 - t0)); }} onPointerLeave={() => setHover(null)} data-cmpbox>
         <canvas className="cv" style={{ height: 250 }} ref={ref} />
         <Marks marks={marks} t0={t0} t1={t1} left={X0} right={RW} inline />
-        <Crosshair box={box} left={X0} right={RW} t0={t0} t1={t1} at={at} rows={cc.map((c) => ({ v: dbTxt(val(c)) + " dB", k: `${label(names, c).code} ${label(names, c).th}`, color: CMP[c] }))} />
+        {live && <Crosshair box={box} left={X0} right={RW} t0={t0} t1={t1} at={at} rows={cc.map((c) => ({ v: dbTxt(val(c)) + " dB", k: `${label(names, c).code} ${label(names, c).th}`, color: CMP[c] }))} />}
       </div>
       <div className="agfoot"><div className="lg">{cc.map((c) => <span key={c}><span className="ln" style={{ background: CMP[c] }} />{label(names, c).code} {label(names, c).th}</span>)}<span className="small">ซ้อนได้ไม่เกิน 3 ช่อง</span></div>
         <div style={{ display: "flex", gap: 8 }}><button type="button" className="btn btn-ghost btn-sm" onClick={play}>เปิดเล่นที่ {tfmt(at)}</button><button type="button" className="btn btn-ghost btn-sm" onClick={save}>บันทึกเป็นรูป</button></div></div>
@@ -1001,7 +1175,8 @@ function PsdView({ psd, names, psdCh, setPsdCh, psdLog, setPsdLog, psdSize, setP
         onPointerMove={(e) => { const r = e.currentTarget.getBoundingClientRect(), PW = r.width - PSM.L - PSM.R, x = Math.min(PW, Math.max(0, e.clientX - r.left - PSM.L)); setF(psdLog ? Math.pow(10, Math.log10(20) + x / PW * (Math.log10(nyq) - Math.log10(20))) : Math.max(1, x / PW * nyq)); }}
         onPointerLeave={() => setF(null)}>
         <canvas className="cv" style={{ height: 340 }} ref={ref} data-psd />
-        {psd && W > 0 && <>
+        {/* เส้นตั้งกับวงยอดขึ้นเฉพาะตอนเมาส์ชี้ (พี่กัน *"ต้องให้เเสดงเฉพาะเมาส์ชี้"*) · ช่องบอกค่าใต้กราฟยังอยู่ตลอด */}
+        {psd && W > 0 && f != null && <>
           <div className="xh" style={{ left: cx, top: PSM.T, bottom: PSM.B }} />
           {pk && pk[1] >= lo && <div className="psdpk" style={{ left: X(pk[0], W), top: Yof(pk[1], H) }} />}
         </>}

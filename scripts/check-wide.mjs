@@ -38,7 +38,7 @@ const drop = async (path, zone) => {
   await c.evaluate(`window.__TAURI_INTERNALS__.invoke('plugin:event|emit_to', { target: { kind: 'Webview', label: 'main' }, event: 'tauri://drag-drop', payload: { paths: [${JSON.stringify(path)}], position: ${JSON.stringify(pos)} } })`);
 };
 
-await inv("set_settings", { patch: { folders: [DIR] } });
+await inv("set_settings", { patch: { folders: [DIR], viewMode: "grid", coverSize: "m" } });
 if (BUILT) {
   await c.send("Page.enable");
   await c.send("Page.addScriptToEvaluateOnNewDocument", { source: "window.__csp = []; document.addEventListener('securitypolicyviolation', (e) => window.__csp.push({ dir: e.violatedDirective, uri: e.blockedURI }));" });
@@ -93,6 +93,9 @@ await shot("04-แผงขวา-ปกแนวนอน.png", ".detail");
 await clickText(".seg button", "ตาราง"); await sleep(500);
 const th = await q("const t = document.querySelector('.lv .th.wide'); return t ? [t.clientWidth, t.clientHeight] : null");
 check("ตาราง ภาพเล็กของปกแนวนอนเป็นแนวนอน", th && th[0] > th[1], th?.join(" × "));
+// ภาพเล็กอยู่กลางช่องทั้งปกตั้งและปกแนวนอน (พี่กัน *"ตอนปรับเป็นมุมมองตารา เราอยากห้รู้มันอยู่เเนวกลาง"*)
+const off = await q("return [...document.querySelectorAll('.lv tbody td:first-child')].map(td => { const a = td.getBoundingClientRect(), i = td.querySelector('.th').getBoundingClientRect(); return Math.round(Math.abs((a.left + a.right) / 2 - (i.left + i.right) / 2)); })");
+check("ตาราง ภาพเล็กอยู่กลางช่องทั้งปกตั้งและปกแนวนอน", off.length === 2 && off.every((d) => d <= 1), `ห่างจากกลางช่อง ${off.join(" · ")} จุดภาพ`);
 await shot("05-ตาราง-ปกแนวนอน.png", ".lv");
 await clickText(".seg button", "ภาพปก"); await sleep(300);
 

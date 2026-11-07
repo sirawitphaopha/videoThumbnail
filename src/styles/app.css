@@ -23,6 +23,11 @@
 
 * { box-sizing: border-box; }
 html, body, #root { height: 100%; }
+/* โปรแกรมลากไฮไลต์ตัวหนังสือไม่ได้ ยกเว้นหน้าที่มีไว้ให้คัดลอก (พี่กัน 7 พ.ย. 2569 *"โปรแกรมไม่ควรไฮไลต์แบบนี้ได้ ยกเว้นหน้าที่ปล่อยให้ copy"*)
+   หน้าข้อมูลไฟล์ (ข้อความ MediaInfo กับค่า hash) เลือกได้ · ช่องพิมพ์ทุกช่องเลือกได้ · ปุ่มกับช่องติ๊กในหน้านั้นยังเลือกไม่ได้ ดับเบิลคลิกปุ่มไม่ติดไฮไลต์ */
+body { user-select: none; }
+input, textarea, [contenteditable="true"], [data-info-page] { user-select: text; }
+[data-info-page] button, [data-info-page] .btn, [data-info-page] [role="checkbox"] { user-select: none; }
 /* ต่างจากต้นแบบ: ต้นแบบเป็นหน้าเว็บกว้าง 1260 · โปรแกรมจริงเต็มหน้าต่าง เลื่อนเฉพาะกล่องข้างใน */
 body {
   margin: 0; background: var(--bg); color: var(--ink);
@@ -484,7 +489,6 @@ tbody tr:last-child td { border-bottom: 0; }
 .sw { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #ecc3d3; cursor: pointer; padding: 0; transition: box-shadow .15s, transform .15s; }
 .sw:hover { box-shadow: 0 0 0 2px var(--accent); transform: scale(1.08); }
 .sw.on { box-shadow: 0 0 0 2px var(--accent-d); }
-.swname { font-size: 13px; color: var(--txt2); min-width: 48px; }
 .ag .seg button:disabled { color: #c9a9b6; cursor: not-allowed; background-color: #fbf3f6; }
 .agb { display: grid; grid-template-columns: 232px 1fr; gap: 14px; align-items: start; }
 .apanel { display: flex; flex-direction: column; gap: 12px; }
@@ -505,7 +509,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .ovrul span { position: absolute; top: 1px; transform: translateX(-50%); white-space: nowrap; }
 .ovrul span:first-child { transform: none; }
 .ovrul span:last-child { transform: translateX(-100%); }
-.lanes { position: relative; display: flex; flex-direction: column; gap: 2px; margin-top: 6px; }
+.lanes { position: relative; display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
 .lane { display: grid; grid-template-columns: 96px 1fr; align-items: stretch; }
 .lab { display: flex; flex-direction: column; justify-content: center; padding-right: 8px; line-height: 1.25; min-width: 0; }
 .lab b { font-size: 13px; color: var(--txt); }
@@ -552,4 +556,34 @@ tbody tr:last-child td { border-bottom: 0; }
 /* ปกแนวนอน (พี่กัน 7 พ.ย. 2569) · ชั้นวาง สูงเท่าเล่มอื่น กว้างตามสัดส่วน (ความกว้างตั้งที่ตัวเล่ม) · แผงขวา กว้างเต็มแผง · ตาราง ภาพเล็กแนวนอน */
 .book.wide .cover { width: 100%; }
 .dposter.wide { width: 100%; max-width: 290px; height: auto; object-fit: contain; }
-.lv .th.wide { width: 45px; height: 26px; margin: 9px 0; }
+.lv .th.wide { width: 45px; height: 26px; margin: 9px auto; }
+/* ตัวซูม ตัวเลื่อน แบบหน้าดูคลื่นของ Audacity */
+.zbtns { display: inline-flex; gap: 4px; }
+.zb { width: 30px; height: 30px; border-radius: 8px; border: 1px solid #efc6d5; background-color: #fff; color: var(--txt2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; transition: background-color .15s, color .15s; }
+.zb:hover { background-color: #fdeaf1; color: var(--accent-ink); }
+.zb:disabled { color: #c9a9b6; background-color: #fbf3f6; cursor: not-allowed; }
+.tscroll { position: relative; height: 12px; margin-top: 8px; border-radius: 6px; background: #f6e3ea; cursor: pointer; }
+.tscroll .thumb { position: absolute; top: 1px; bottom: 1px; border-radius: 5px; background: var(--accent); cursor: grab; outline: none; }
+.tscroll .thumb:hover { background: var(--accent-d); }
+.tscroll .thumb:focus-visible { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent-d); }
+.tscroll .thumb.all { background: #edc6d5; cursor: default; }
+/* แถบเลื่อนแนวตั้งบีบยืดคลื่น อยู่ขวามือแถบคลื่น (กว้าง 22 + ช่องห่าง 8 = 30 ตรงกับ VZ_W) · ไม้บรรทัดตัวเลขนอกกราฟ */
+.lanewrap { display: flex; gap: 8px; align-items: stretch; }
+.lanewrap > .lanes { flex: 1; min-width: 0; }
+.vzoom { width: 22px; flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; user-select: none; }
+.vzoom .ic { color: var(--txt3); line-height: 0; }
+.vzoom .track { position: relative; flex: 1; width: 8px; min-height: 60px; border-radius: 4px; background: #f6e3ea; cursor: pointer; touch-action: none; }
+.vzoom .fit { position: absolute; left: -5px; right: -5px; height: 2px; margin-bottom: -1px; border-radius: 1px; background: #dcaabd; }
+.vzoom .knob { position: absolute; left: 50%; width: 20px; height: 12px; transform: translate(-50%, 50%); border-radius: 6px; background: var(--accent); cursor: grab; outline: none; transition: background-color .15s; }
+.vzoom .knob:hover { background: var(--accent-d); }
+.vzoom .knob:focus-visible { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent-d); }
+.vzval { min-width: 38px; font-size: 12.5px; font-weight: 600; color: var(--txt2); font-variant-numeric: tabular-nums; }
+.vrul { width: 100%; display: block; }
+/* ที่จับใต้แถบกราฟ ลากลงขยายความสูง */
+.lanegrip { height: 14px; margin-top: 2px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: ns-resize; touch-action: none; outline: none; transition: background-color .15s; }
+.lanegrip i { width: 46px; height: 4px; border-radius: 2px; background: #e6bccc; transition: background-color .15s; }
+.lanegrip:hover { background: #fcecf2; }
+.lanegrip:hover i { background: var(--accent); }
+.lanegrip:focus-visible { box-shadow: 0 0 0 2px var(--accent-d); }
+/* ตาราง ภาพเล็กอยู่กลางช่องทั้งปกตั้งและปกแนวนอน (พี่กัน 7 พ.ย. 2569 *"ตอนปรับเป็นมุมมองตารา เราอยากห้รู้มันอยู่เเนวกลาง"*) */
+.lv td .th { margin-left: auto; margin-right: auto; }

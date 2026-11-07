@@ -328,7 +328,7 @@ function ShelfTable(p: { list: Movie[]; selId: string | null; onSel: (id: string
     <div className="tblwrap" data-table>
       <table className="lv">
         <thead><tr>
-          <th style={{ width: 50 }}>ปก</th>{head("name", "ชื่อไฟล์")}{head("size", "ขนาด", 80)}{head("video", "Video", 120)}{head("audio", "Audio", 150)}{head("status", "สภาพไฟล์", 120)}
+          <th style={{ width: 50, textAlign: "center" }}>ปก</th>{head("name", "ชื่อไฟล์")}{head("size", "ขนาด", 80)}{head("video", "Video", 120)}{head("audio", "Audio", 150)}{head("status", "สภาพไฟล์", 120)}
         </tr></thead>
         <tbody>
           {rows.map((m) => {

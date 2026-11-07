@@ -71,7 +71,7 @@ const openDrop = async (p, name) => { await drop(p); return waitFor(`return (doc
 const hoverMid = async (sel, fx = 0.5, fy = 0.5) => { const b = await c.box(sel); await c.move(b.left + b.w * fx, b.top + b.h * fy); await sleep(300); };
 
 /* ---------- เตรียม ---------- */
-await inv("set_settings", { patch: { folders: [DIR], playerPath: "", recheckReminderDays: 30, defaultCheck: "quick", quickCheckOnStart: false } });
+await inv("set_settings", { patch: { folders: [DIR], playerPath: "", recheckReminderDays: 30, defaultCheck: "quick", quickCheckOnStart: false, viewMode: "grid", coverSize: "m" } });
 if (BUILT) {
   await c.send("Page.enable");
   await c.send("Page.addScriptToEvaluateOnNewDocument", {
@@ -121,6 +121,11 @@ const ink = await inked("[data-lane='FC'] canvas"), inkFL = await inked("[data-l
 const labFL = await text("[data-lane='FL'] .lab");
 check("แถบรูปคลื่นวาดจากเสียงจริง ช่องกลางมีเส้น ช่องที่เงียบทั้งเรื่องว่างและบอกว่าเงียบ", ink > 0.01 && inkFL < 0.03 && labFL.includes("เงียบทั้งเรื่อง"), `ช่องกลาง ${ink} · ซ้ายหน้า ${inkFL} · ${labFL}`);
 await shot("03-รูปคลื่น-5.1.png");
+// 6 แถบสูงเกินหน้าต่าง หน้ากราฟต้องเลื่อนลงจนเห็นแถวปุ่มล่างครบ (เดิมโดนตัดใต้จอ เจอตอนตรวจภาพ)
+const scr = await q("const s = document.querySelector('[data-graphscroll]'); s.scrollTop = s.scrollHeight; return new Promise((r) => setTimeout(() => { const f = document.querySelector('.agfoot').getBoundingClientRect(), b = s.getBoundingClientRect(); r({ over: s.scrollHeight - s.clientHeight, top: s.scrollTop, footBottom: Math.round(f.bottom), boxBottom: Math.round(b.bottom) }); }, 300));");
+await shotHere("03ข-รูปคลื่น-5.1-เลื่อนลงสุด.png");
+await q("document.querySelector('[data-graphscroll]').scrollTop = 0; return 1");
+check("5.1 แถบสูงเกินหน้าต่าง เลื่อนหน้ากราฟลงได้ เห็นแถวปุ่มล่างครบ", scr.over > 0 && scr.top > 0 && scr.footBottom <= scr.boxBottom, JSON.stringify(scr));
 
 await c.click('[data-style="bars"]'); await sleep(300);
 check("ปุ่มแบบแท่ง เปลี่ยนเป็นแท่ง", (await q("return document.querySelector('[data-style=bars]').classList.contains('on')")) && (await inked("[data-lane='FL'] canvas")) > 0.02);
@@ -131,12 +136,15 @@ await c.click('[data-style="fine"]'); await sleep(200);
 await c.click('[data-zoom="30"]');
 await sleep(1500);
 const head30 = await text(".plothead");
-const tipBefore = await text(".tip .t");
+// เส้นตั้งกับกล่องบอกค่าขึ้นเฉพาะตอนเมาส์ชี้ (พี่กัน 7 พ.ย. 2569 *"ต้องให้เเสดงเฉพาะเมาส์ชี้"*)
+await c.move(500, 12); await sleep(200);
+const xhBefore = await count("[data-plot] .xh") + await count("[data-plot] .tip");
 await hoverMid("[data-lanes]", 0.8, 0.4);
 const tipRows = await count(".tip .r b"), tipAt = await text(".tip .t");
-check("ซูม 30 วินาที แล้วชี้บนกราฟ เส้นชี้ย้ายตามเมาส์ ขึ้นกล่องค่าทุกช่องที่เวลานั้น 6 แถว", tipRows === 6 && /ถึง/.test(head30) && tipAt !== tipBefore, `${head30} · ก่อนชี้ ${tipBefore} ชี้แล้ว ${tipAt} · ${tipRows} แถว`);
+check("ซูม 30 วินาที ก่อนชี้ไม่มีเส้นตั้งกับกล่องค่า · ชี้บนกราฟแล้วขึ้นกล่องค่าทุกช่องที่เวลานั้น 6 แถว", tipRows === 6 && /ถึง/.test(head30) && xhBefore === 0, `${head30} · ก่อนชี้มี ${xhBefore} ชิ้น · ชี้แล้ว ${tipAt} · ${tipRows} แถว`);
 await shotHere("05-ซูมแล้วชี้อ่านค่า.png");
-await c.move(500, 12);
+await c.move(500, 12); await sleep(200);
+check("เอาเมาส์ออกจากกราฟ เส้นตั้งกับกล่องค่าหาย", (await count("[data-plot] .xh")) + (await count("[data-plot] .tip")) === 0);
 await c.click('.spk .s[aria-label="ซ่อนช่อง LFE"]'); await sleep(300);
 const hid = await text(".apanel .card h3");
 check("กดลำโพง LFE ในแผนผัง ซ่อนช่องนั้น เหลือ 5 แถบ", (await count("[data-lane]")) === 5 && hid.includes("แสดง 5 จาก 6 ช่อง"), hid);
@@ -188,7 +196,9 @@ await hoverMid("[data-psdbox]", 0.35, 0.5);
 const psdCur = await text("[data-psdcursor]"), psdPk = await text("[data-psdpeak]");
 check("แบบความถี่เฉลี่ย (หน้าตาแบบ Audacity) ชี้แล้วช่องใต้กราฟบอกความถี่ โน้ต ค่า และยอดใกล้สุด", /^[\d,]+ Hz \([A-G]#?-?\d+\) = /.test(psdCur) && /^[\d,]+ Hz \([A-G]#?-?\d+\) = −?[\d.]+ dB$/.test(psdPk), `${psdCur} · ${psdPk}`);
 await shotHere("12-ความถี่เฉลี่ย.png");
-await c.move(500, 12);
+const psdXhOn = await count("[data-psdbox] .xh");
+await c.move(500, 12); await sleep(200);
+check("ความถี่เฉลี่ย เส้นตั้งขึ้นตอนชี้ เอาเมาส์ออกแล้วหาย ช่องบอกค่าใต้กราฟยังอยู่", psdXhOn === 1 && (await count("[data-psdbox] .xh")) === 0 && (await count("[data-psdcursor]")) === 1, `ชี้ ${psdXhOn} เส้น · ออกแล้ว ${await count("[data-psdbox] .xh")} เส้น`);
 await c.click('[data-psdrange="60"]'); await c.click("[data-psdgrid] .switch"); await sleep(300);
 const gridOff = await q("return document.querySelector('[data-psdgrid] .switch').getAttribute('aria-checked')");
 check("ปุ่มช่วง 60 dB กับสวิตช์เส้นตาราง กดได้", (await q("return document.querySelector('[data-psdrange=\"60\"]').classList.contains('on')")) && gridOff === "false", `เส้นตาราง ${gridOff}`);
@@ -199,7 +209,7 @@ await c.click('[data-psdrange="90"]'); await c.click("[data-psdgrid] .switch"); 
 await view("wave");
 await c.click('[data-theme="ฟ้า"]'); await sleep(300);
 const pref = await q("return JSON.parse(localStorage.getItem('graph-prefs') ?? '{}')");
-check("เปลี่ยนชุดสีเป็นฟ้า จำค่าไว้ เปิดครั้งหน้ายังเป็นฟ้า", pref.theme === "ฟ้า" && (await text(".swname")) === "ฟ้า", JSON.stringify(pref));
+check("เปลี่ยนชุดสีเป็นฟ้า จำค่าไว้ เปิดครั้งหน้ายังเป็นฟ้า", pref.theme === "ฟ้า" && (await q("return document.querySelector('.sws .sw.on')?.dataset.theme")) === "ฟ้า", JSON.stringify(pref));
 await shot("13-ชุดสีฟ้า.png");
 await c.click('[data-theme="ชมพู"]'); await sleep(200);
 
@@ -292,6 +302,89 @@ if (existsSync(SONG)) {
   const infoSong = await text("[data-graphinfo]");
   check("เพลงจริง FLAC 96 kHz 24 บิต เปิดได้ แถบ L R การ์ดบอก FLAC 2 channels 96 kHz 24-bit", (await q("return [...document.querySelectorAll('[data-lane]')].map(l => l.dataset.lane).join(' ')")) === "L R" && /FLAC/.test(infoSong) && infoSong.includes("2 channels") && infoSong.includes("96 kHz") && infoSong.includes("24-bit"), `${infoSong} · อ่านทั้งเพลง 5 นาที 14 วินาที ใช้ ${songSecs} วินาที`);
   await shot("26-เพลงจริง-รูปคลื่น.png");
+
+  // ---------- รูปคลื่นแบบ Audacity ตัวซูม ตัวเลื่อน (พี่กัน *"พวกตัวซูม พวกตัวขยาย ตัวเลื่อนซ้ายขวา เอามาได้เลย"*) ----------
+  const range = async () => { const m = (await text(".plothead span")).match(/(\d+):(\d\d) ถึง (\d+):(\d\d)/); return m ? [+m[1] * 60 + +m[2], +m[3] * 60 + +m[4]] : [NaN, NaN]; };
+  await c.click('[data-style="aud"]'); await sleep(500);
+  const audInk = await inked("[data-lane] canvas");
+  const r0 = await range();
+  await c.click("[data-zoomin]"); await sleep(700);
+  const r1 = await range();
+  const lb = await c.box("[data-lanes]");
+  await c.send("Input.dispatchMouseEvent", { type: "mouseWheel", x: lb.left + 96 + (lb.w - 96) * 0.25, y: lb.top + 30, deltaX: 0, deltaY: -120, modifiers: 2 }); await sleep(700);
+  const r2 = await range();
+  const tb = await c.box("[data-tscroll] .thumb");
+  await c.send("Input.dispatchMouseEvent", { type: "mousePressed", x: tb.x, y: tb.y, button: "left", buttons: 1, clickCount: 1 });
+  await c.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: tb.x + 120, y: tb.y, button: "left", buttons: 1 });
+  await c.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: tb.x + 120, y: tb.y, button: "left", buttons: 0, clickCount: 1 });
+  await sleep(700);
+  const r3 = await range();
+  await c.click('[data-vz="2"]'); await sleep(400);
+  const sp = (r) => r[1] - r[0];
+  check("รูปคลื่นแบบ Audacity วาดได้ · ปุ่มซูมเข้าเหลือครึ่งช่วง", audInk > 0.05 && Math.abs(sp(r1) - sp(r0) / 2) <= 2, `${r0.join("–")} → ${r1.join("–")} วิ`);
+  check("Ctrl หมุนล้อเมาส์ ซูมเข้าอีกครึ่ง ตรึงจุดที่ชี้", Math.abs(sp(r2) - sp(r1) / 2) <= 2 && r2[0] >= r1[0] - 1 && r2[1] <= r1[1] + 1, `${r1.join("–")} → ${r2.join("–")} วิ`);
+  check("ลากแถบเลื่อนไปขวา ช่วงที่ดูเลื่อนตาม ความยาวช่วงเท่าเดิม", r3[0] > r2[0] && Math.abs(sp(r3) - sp(r2)) <= 1, `${r2.join("–")} → ${r3.join("–")} วิ`);
+  check("ปุ่มขยายแนวตั้ง 2× กดได้", await q("return document.querySelector('[data-vz=\"2\"]').classList.contains('on')"));
+  await shot("26ข-เพลงจริง-แบบAudacity-ซูม.png");
+
+  // ไม้บรรทัดตัวเลขอยู่นอกกราฟ (พี่กัน *"เอาตัวนี้ออกมาข้างนอก ไม่เอาทับกราฟ"*) · ขอบเวลา แถบทั้งเรื่อง แถบเลื่อน ตรงกับขอบคลื่นทั้งซ้ายขวา
+  const geo = await q(`const cv = document.querySelector('[data-lane] canvas.cv').getBoundingClientRect(), ru = document.querySelector('[data-lane] [data-vrul]')?.getBoundingClientRect();
+    const e = (s) => document.querySelector(s).getBoundingClientRect(), tr = e('.ruler'), ts = e('[data-tscroll]'), ov = e('[data-ovw]');
+    return { rulers: document.querySelectorAll('[data-vrul]').length, lanes: document.querySelectorAll('[data-lane]').length, rulRight: ru ? Math.round(ru.right - cv.left) : null,
+      dl: [tr.left, ts.left, ov.left].map((x) => Math.round(x - cv.left)), dr: [tr.right, ts.right, ov.right].map((x) => Math.round(x - cv.right)) };`);
+  check("แบบ Audacity มีไม้บรรทัดตัวเลขนอกกราฟทุกแถบ ชิดซ้ายของคลื่นไม่ทับ · ขอบเวลา แถบเลื่อน แถบทั้งเรื่อง ตรงขอบคลื่น",
+    geo.rulers === geo.lanes && geo.rulRight <= 0 && [...geo.dl, ...geo.dr].every((d) => Math.abs(d) <= 1), JSON.stringify(geo));
+
+  // แถบเลื่อนแนวตั้งบีบคลื่น (พี่กัน *"ขอเส้นเเนวตั้ง ที่เอาไว้เลื่อนบีบเส้นกราฟด้วย เพราะตามรูป ตัวกราฟมันเกินกรอบไป"*)
+  // นับจุดสีคลื่นในแถวบนสุด 6% ของแถบแรก · 2 เท่าคลื่นล้นถึงขอบ บีบแล้วต้องไม่มี
+  const topInk = () => q(`const cv = document.querySelector('[data-lane] canvas.cv'), g = cv.getContext('2d'), rows = Math.max(2, Math.round(cv.height * 0.06));
+    const [r, gg, b] = getComputedStyle(document.querySelector('.agfoot .lg i')).backgroundColor.match(/\\d+/g).map(Number), d = g.getImageData(0, 0, cv.width, rows).data;
+    let n = 0; for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - r) + Math.abs(d[i + 1] - gg) + Math.abs(d[i + 2] - b) < 18) n++; return n / (d.length / 4);`);
+  const ink2 = await topInk();
+  const kb = await c.box("[data-vzknob]");
+  await c.send("Input.dispatchMouseEvent", { type: "mousePressed", x: kb.x, y: kb.y, button: "left", buttons: 1, clickCount: 1 });
+  await c.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: kb.x, y: kb.y + 70, button: "left", buttons: 1 });
+  await c.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: kb.x, y: kb.y + 70, button: "left", buttons: 0, clickCount: 1 });
+  await sleep(400);
+  const vzSq = await text("[data-vzval]"), inkSq = await topInk(), segOff = await q("return !document.querySelector('[data-vz].on')");
+  check("ลากแถบแนวตั้งลง บีบคลื่นเหลือต่ำกว่า 1 เท่า คลื่นไม่ล้นกรอบ · ปุ่ม 1× 2× 4× ไม่ติดสักปุ่ม", parseFloat(vzSq) < 1 && ink2 > 0.2 && inkSq === 0 && segOff, `2× สีคลื่นในแถวบน ${(ink2 * 100).toFixed(0)}% · บีบ ${vzSq} เหลือ ${(inkSq * 100).toFixed(1)}%`);
+  await shot("26ค-เพลงจริง-บีบแนวตั้ง.png");
+  const tk = await c.box("[data-vzoom] .track");
+  await c.send("Input.dispatchMouseEvent", { type: "mousePressed", x: tk.x, y: tk.top + 8, button: "left", buttons: 1, clickCount: 1 });
+  await c.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: tk.x, y: tk.top + 8, button: "left", buttons: 0, clickCount: 1 });
+  await sleep(200);
+  const vzHi = await text("[data-vzval]");
+  await c.send("Input.dispatchMouseEvent", { type: "mousePressed", x: tk.x, y: tk.top + 8, button: "left", buttons: 1, clickCount: 2 });
+  await c.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: tk.x, y: tk.top + 8, button: "left", buttons: 0, clickCount: 2 });
+  await c.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: tk.x - 300, y: tk.top + 8 });
+  await sleep(300);
+  // ที่จับใต้กราฟ ลากลงขยายความสูง (พี่กัน *"ใ้ห้ระบบมันขยายกราฟลงมาได้มากกว่านี้ ตอนนี้มันเเค่สองเเถบที่โคตรจะชิดกัน"*)
+  const laneHs = () => q("return [...document.querySelectorAll('[data-lane] canvas.cv')].map((c) => Math.round(c.getBoundingClientRect().height))");
+  const gapPx = await q("const l = [...document.querySelectorAll('[data-lane]')]; return Math.round(l[1].getBoundingClientRect().top - l[0].getBoundingClientRect().bottom)");
+  const h0 = await laneHs(), gb = await c.box("[data-lanegrip]");
+  await c.send("Input.dispatchMouseEvent", { type: "mousePressed", x: gb.x, y: gb.y, button: "left", buttons: 1, clickCount: 1 });
+  await c.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: gb.x, y: gb.y + 100, button: "left", buttons: 1 });
+  await c.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: gb.x, y: gb.y + 100, button: "left", buttons: 0, clickCount: 1 });
+  await sleep(400);
+  const h1 = await laneHs(), kSaved = (await q("return JSON.parse(localStorage.getItem('graph-prefs') ?? '{}').laneK"));
+  check("แถบกราฟสองช่องสูง 120 ห่างกัน 6 px · ลากที่จับใต้กราฟลง 100 px แถบสูงขึ้นทุกแถบ จำค่าไว้", h0.every((h) => h === 120) && gapPx === 6 && h1.every((h, i) => h - h0[i] >= 40) && kSaved > 1, `ก่อน ${h0.join(" ")} px ห่าง ${gapPx} · หลังลาก ${h1.join(" ")} px · ตัวคูณ ${kSaved}`);
+  await shot("26ง-เพลงจริง-ลากขยายความสูง.png");
+  const gb2 = await c.box("[data-lanegrip]");
+  await c.send("Input.dispatchMouseEvent", { type: "mousePressed", x: gb2.x, y: gb2.y, button: "left", buttons: 1, clickCount: 2 });
+  await c.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: gb2.x, y: gb2.y, button: "left", buttons: 0, clickCount: 2 });
+  await sleep(300);
+  check("ดับเบิลคลิกที่จับ แถบกลับสูง 120 เท่าเดิม", (await laneHs()).every((h) => h === 120), (await laneHs()).join(" "));
+
+  // ลากไฮไลต์ตัวหนังสือไม่ได้ ยกเว้นหน้าข้อมูลไฟล์ (พี่กัน *"โปรแกรมไม่ควรไฮไลต์แบบนี้ได้ ยกเว้นหน้าที่ปล่อยให้ copy"*)
+  const ib = await c.box("[data-graphinfo]");
+  await c.send("Input.dispatchMouseEvent", { type: "mousePressed", x: ib.left + 10, y: ib.top + 10, button: "left", buttons: 1, clickCount: 1 });
+  await c.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: ib.left + ib.w - 10, y: ib.top + ib.h - 10, button: "left", buttons: 1 });
+  await c.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: ib.left + ib.w - 10, y: ib.top + ib.h - 10, button: "left", buttons: 0, clickCount: 1 });
+  const selTxt = await q("return getSelection().toString()");
+  const copyPage = await q("const d = document.createElement('div'); d.dataset.infoPage = ''; const b = document.createElement('button'); d.append(b); document.body.append(d); const r = [getComputedStyle(d).userSelect, getComputedStyle(b).userSelect]; d.remove(); return r.join(' ')");
+  check("ลากเมาส์ทับการ์ดข้อมูลเสียง ไม่ติดไฮไลต์ · หน้าข้อมูลไฟล์ยังเลือกข้อความได้ ปุ่มในหน้านั้นไม่ได้", selTxt === "" && copyPage === "text none", `ไฮไลต์ได้ "${selTxt.slice(0, 30)}" · หน้าข้อมูลไฟล์ ${copyPage}`);
+  check("กดบนแถบแนวตั้งกระโดดไปจุดนั้น · ดับเบิลคลิกกลับ 1 เท่า ปุ่ม 1× ติด", parseFloat(vzHi) > 4 && (await text("[data-vzval]")) === "1×" && (await q("return document.querySelector('[data-vz=\"1\"]').classList.contains('on')")), `กดบนสุด ${vzHi} · ดับเบิลคลิก ${await text("[data-vzval]")}`);
+  await c.click("[data-zoomout]"); await sleep(300); await c.click('[data-zoom="all"]'); await c.click('[data-vz="1"]'); await c.click('[data-style="fine"]'); await sleep(300);
   await view("loud");
   check("เพลงจริง ความดังรวม", /LUFS/.test(await text("[data-graphtiles]")), await text("[data-graphtiles]"));
   await shot("27-เพลงจริง-ความดัง.png");
