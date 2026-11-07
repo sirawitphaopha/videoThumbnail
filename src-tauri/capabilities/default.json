@@ -1,7 +1,7 @@
 {
   "$schema": "../gen/schemas/desktop-schema.json",
   "identifier": "default",
-  "description": "สิทธิ์ของหน้าต่างหลัก · ปุ่มย่อ ขยาย ปิด ลากหน้าต่าง และกล่องเลือกไฟล์ · เปิดไฟล์หรือโฟลเดอร์ทำจากฝั่ง Rust ไม่เปิดสิทธิ์ให้หน้าจอ · ไม่ให้สิทธิ์ destroy หน้าต่าง ปิดตอนมีงานได้ทางเดียวคือคำสั่ง force_close ที่เช็กงานก่อน (TECH-REVIEW ข้อ 7) · ใช้รายการเฉพาะแทน core:default ที่ให้เมนู ถาด และอ่านรูปจากที่อยู่ใดก็ได้",
+  "description": "สิทธิ์ของหน้าต่างหลัก · ปุ่มย่อ ขยาย ปิด ลากหน้าต่าง กล่องเลือกไฟล์ และกล่องบันทึกไฟล์ (บันทึกกราฟเสียงเป็นรูป · ตัวเขียนไฟล์อยู่ฝั่ง Rust ไม่เขียนทับ) · เปิดไฟล์หรือโฟลเดอร์ทำจากฝั่ง Rust ไม่เปิดสิทธิ์ให้หน้าจอ · ไม่ให้สิทธิ์ destroy หน้าต่าง ปิดตอนมีงานได้ทางเดียวคือคำสั่ง force_close ที่เช็กงานก่อน (TECH-REVIEW ข้อ 7) · ใช้รายการเฉพาะแทน core:default ที่ให้เมนู ถาด และอ่านรูปจากที่อยู่ใดก็ได้",
   "windows": ["main"],
   "permissions": [
     "core:event:default",
@@ -14,6 +14,7 @@
     "core:window:allow-internal-toggle-maximize",
     "core:window:allow-close",
     "core:window:allow-start-dragging",
-    "dialog:allow-open"
+    "dialog:allow-open",
+    "dialog:allow-save"
   ]
 }

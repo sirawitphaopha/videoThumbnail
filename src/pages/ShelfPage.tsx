@@ -51,7 +51,7 @@ function Hl({ text, used, head, tail }: { text: string; used: string; head?: Rea
 }
 
 /** sel เก็บที่ตัวโปรแกรม (App) ไม่ใช่ในหน้านี้ · ไปหน้าข้อมูลไฟล์หรือใส่โปสเตอร์แล้วกลับมา ต้องยังเลือกเรื่องเดิมอยู่ */
-export default function ShelfPage({ onPage, onPoster, onInfo, onCheck, sel, setSel }: { onPage: (p: Page) => void; onPoster: (path: string) => void; onInfo: (id: string) => void; onCheck: (r: CheckReq) => void; sel: string | null; setSel: (id: string) => void }) {
+export default function ShelfPage({ onPage, onPoster, onInfo, onCheck, onGraph, sel, setSel }: { onPage: (p: Page) => void; onPoster: (path: string) => void; onInfo: (id: string) => void; onCheck: (r: CheckReq) => void; onGraph: (path: string) => void; sel: string | null; setSel: (id: string) => void }) {
   const { settings, update } = useSettings();
   const { movies, folders, scanning, progress, scan } = useLibrary();
   const toast = useToast();
@@ -151,7 +151,7 @@ export default function ShelfPage({ onPage, onPoster, onInfo, onCheck, sel, setS
         </div>
         {/* key ต่อเรื่อง สลับเรื่องแล้วสร้างแผงกับปุ่มใหม่ ไม่ใช้ปุ่มเดิมซ้ำ (เดิมปุ่มชมพูค่อย ๆ เปลี่ยนเป็นเขียวตอนสลับเรื่อง) */}
         {selected && (
-          <Detail key={selected.id} m={selected} scanning={scanning} reminder={reminder} onPage={onPage} onCheck={onCheck} onPoster={onPoster} onInfo={() => onInfo(selected.id)} soon={soon}
+          <Detail key={selected.id} m={selected} scanning={scanning} reminder={reminder} onPage={onPage} onCheck={onCheck} onGraph={onGraph} onPoster={onPoster} onInfo={() => onInfo(selected.id)} soon={soon}
             onPlay={() => api.playMovie(selected.path).catch((e) => toast({ kind: "bad", title: "เปิดเล่นไม่ได้", detail: String(e) }))}
             onReveal={() => api.revealMovie(selected.path).catch((e) => toast({ kind: "bad", title: "เปิดโฟลเดอร์ไม่ได้", detail: String(e) }))} />
         )}
@@ -336,7 +336,7 @@ function ShelfTable(p: { list: Movie[]; selId: string | null; onSel: (id: string
 }
 
 /* ---------- แผงรายละเอียด (ต้นแบบบรรทัด 388–426) ---------- */
-function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg: Page) => void; onCheck: (r: CheckReq) => void; onPoster: (path: string) => void; onInfo: () => void; soon: (what: string, stage: number) => void; onPlay: () => void; onReveal: () => void }) {
+function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg: Page) => void; onCheck: (r: CheckReq) => void; onGraph: (path: string) => void; onPoster: (path: string) => void; onInfo: () => void; soon: (what: string, stage: number) => void; onPlay: () => void; onReveal: () => void }) {
   const { m } = p;
   const src = thumbUrl(m.thumb);
   const [imgOk, setImgOk] = useState(true);
@@ -399,6 +399,12 @@ function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg:
         <button type="button" className="btn btn-ghost" onClick={p.onReveal}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>เปิดโฟลเดอร์
         </button>
+        {/* ปุ่มที่ 7 เต็มแถว (มอคอัปกราฟเสียง) */}
+        {(() => { const block = m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : m.audio.length === 0 ? "ไฟล์นี้ไม่มีแทร็กเสียง" : null; return (
+          <button type="button" className={"btn " + (block ? "btn-wait" : "btn-ghost")} style={{ gridColumn: "1 / -1" }} aria-disabled={!!block || undefined} title={block ?? undefined}
+            onClick={() => { if (!block) p.onGraph(m.path); }} data-shelfgraph>
+            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M3 12h2M7 7v10M11 4v16M15 8v8M19 10v4" /></svg>กราฟเสียง
+          </button>); })()}
       </div>
     </aside>
   );

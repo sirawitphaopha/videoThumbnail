@@ -115,17 +115,53 @@ export const infoApi = {
   extractCancel: () => call<void>("extract_cancel"),
 };
 
-/** เลือกไฟล์จากเครื่อง · kind = movie หรือ image */
-export async function pickFile(kind: "movie" | "image"): Promise<string | null> {
+const MOVIE_EXT = ["mkv", "mp4", "m4v", "mov", "avi", "webm", "ts", "m2ts", "mpg", "mpeg", "vob", "flv"];
+/** ไฟล์เสียงที่หน้ากราฟเสียงเปิดได้ (มอคอัปกราฟเสียง) */
+export const AUDIO_EXT = ["mp3", "flac", "wav", "m4a", "aac", "ac3", "eac3", "dts", "ogg", "opus", "mka", "wma"];
+
+/** เลือกไฟล์จากเครื่อง · kind = movie image หรือ media (หนังหรือไฟล์เสียง ของหน้ากราฟเสียง) */
+export async function pickFile(kind: "movie" | "image" | "media"): Promise<string | null> {
   if (!inApp) return null;
   const { open } = await import("@tauri-apps/plugin-dialog");
   const r = await open({
     multiple: false, directory: false,
-    title: kind === "movie" ? "เลือกไฟล์หนัง" : "เลือกรูปโปสเตอร์",
+    title: kind === "movie" ? "เลือกไฟล์หนัง" : kind === "media" ? "เลือกไฟล์หนังหรือไฟล์เสียง" : "เลือกรูปโปสเตอร์",
     filters: kind === "movie"
-      ? [{ name: "ไฟล์หนัง", extensions: ["mkv", "mp4", "m4v", "mov", "avi", "webm", "ts", "m2ts", "mpg", "mpeg", "vob", "flv"] }]
-      : [{ name: "รูปโปสเตอร์", extensions: ["jpg", "jpeg", "png", "webp", "bmp", "tif", "tiff", "heic", "heif"] }],
+      ? [{ name: "ไฟล์หนัง", extensions: MOVIE_EXT }]
+      : kind === "media"
+        ? [{ name: "ไฟล์หนังและไฟล์เสียง", extensions: [...MOVIE_EXT, ...AUDIO_EXT] }]
+        : [{ name: "รูปโปสเตอร์", extensions: ["jpg", "jpeg", "png", "webp", "bmp", "tif", "tiff", "heic", "heif"] }],
   });
+  return typeof r === "string" ? r : null;
+}
+
+/* ---------- หน้ากราฟเสียง (audiograph.rs) ---------- */
+export type GTrack = { index: number; codec: string; layout: string; names: string[]; lang: string | null; title: string | null; rate: number; bits: number | null; bitrate: number | null };
+export type GInfo = { duration: number; size: number; audioOnly: boolean; tracks: GTrack[] };
+/** env ต่อช่อง ทีละคอลัมน์ 3 ค่า ยอดบน ยอดล่าง RMS · spec ต่อช่อง base64 เลข 0–255 (−120 ถึง 0 dB) */
+export type GOverview = {
+  duration: number; cols: number; env: number[][]; specCols: number; specBins: number; spec: string[];
+  loud: number[]; integrated: number | null; lra: number | null; truePeak: number | null;
+  peaks: number[]; rms: number[]; clips: number[]; silences: [number, number][]; readTo: number;
+};
+export type GWindow = { t0: number; t1: number; cols: number; env: number[][]; bins: number; spec: string[] };
+export type GPsd = { size: number; rate: number; db: number[][] };
+export type GProgress = { path: string; track: number; percent: number };
+
+export const graphApi = {
+  info: (path: string) => call<GInfo>("graph_info", { path }),
+  overview: (path: string, track: number) => call<GOverview | null>("graph_overview", { path, track }),
+  window: (path: string, track: number, t0: number, t1: number, cols: number, bins: number, log: boolean) => call<GWindow | null>("graph_window", { path, track, t0, t1, cols, bins, log }),
+  psd: (path: string, track: number, t0: number, t1: number, series: number[][], size: number) => call<GPsd | null>("graph_psd", { path, track, t0, t1, series, size }),
+  cancel: () => call<void>("graph_cancel"),
+  save: (path: string, b64: string | null, text: string | null) => call<string>("graph_save", { path, b64, text }),
+};
+
+/** กล่องบันทึกไฟล์ของ Windows · ยกเลิก = null */
+export async function pickSave(defaultName: string, ext: string, label: string): Promise<string | null> {
+  if (!inApp) return null;
+  const { save } = await import("@tauri-apps/plugin-dialog");
+  const r = await save({ defaultPath: defaultName, filters: [{ name: label, extensions: [ext] }] });
   return typeof r === "string" ? r : null;
 }
 

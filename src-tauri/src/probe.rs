@@ -157,7 +157,7 @@ fn res_label(w: u64, h: u64) -> String {
     }
 }
 
-fn audio_name(codec: &str, profile: &str) -> String {
+pub(crate) fn audio_name(codec: &str, profile: &str) -> String {
     match codec {
         "aac" => "AAC".into(),
         "ac3" => "AC-3".into(),
@@ -191,7 +191,7 @@ fn sub_name(codec: &str) -> String {
     }
 }
 
-fn layout(ch: u64) -> String {
+pub(crate) fn layout(ch: u64) -> String {
     match ch {
         1 => "1.0".into(),
         2 => "2.0".into(),
@@ -204,7 +204,7 @@ fn layout(ch: u64) -> String {
 }
 
 /// รหัสภาษาในไฟล์ (ISO 639) เป็นชื่อภาษาไทย · ไม่ระบุ = None · รหัสที่ไม่รู้จักโชว์รหัสตัวใหญ่
-fn lang_th(code: &str) -> Option<String> {
+pub(crate) fn lang_th(code: &str) -> Option<String> {
     let t = match code.to_lowercase().as_str() {
         "" | "und" | "zxx" | "mis" => return None,
         "tha" | "th" => "ไทย",

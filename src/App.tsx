@@ -1,5 +1,5 @@
 /* กรอบหน้าต่างโปรแกรมชั้นหนัง (ต้นแบบ docs/mockups/poster-shelf.html · สเปกข้อ 1 กรอบหน้าต่าง และข้อ 3 เมนูซ้าย)
-   แถบชื่อทำเอง · เมนูซ้ายกาง 200 ย่อ 64 จำค่าไว้ · 4 หน้า · แถบแจ้งผล · หน้าต่างถามตอนปิดขณะมีงาน · แถบเลื่อนลอย
+   แถบชื่อทำเอง · เมนูซ้ายกาง 200 ย่อ 64 จำค่าไว้ · 5 หน้า (กราฟเสียงเพิ่ม 7 พ.ย. 2569) · แถบแจ้งผล · หน้าต่างถามตอนปิดขณะมีงาน · แถบเลื่อนลอย
    ยังไม่ได้เลือกโฟลเดอร์ = ชั้นว่าง ไม่มีเมนู (สเปกข้อ 10) */
 import { useEffect, useMemo, useState } from "react";
 import TitleBar from "./components/TitleBar";
@@ -18,6 +18,7 @@ import PosterPage from "./pages/PosterPage";
 import FileInfoPage from "./pages/FileInfoPage";
 import FirstRun from "./pages/FirstRun";
 import CheckPage, { type CheckReq } from "./pages/CheckPage";
+import GraphPage, { GraphBoundary, type GraphReq } from "./pages/GraphPage";
 import { CheckHost } from "./lib/check";
 
 export default function App() {
@@ -47,6 +48,9 @@ function Frame() {
   const [shelfSel, setShelfSel] = useState<string | null>(null);
   /** มาจากปุ่มบนการ์ดสถานะของชั้นวาง · หน้าตรวจไฟล์ตรวจเรื่องนั้นเลย หรือเปิดผลตรวจ */
   const [checkReq, setCheckReq] = useState<CheckReq | null>(null);
+  /** มาจากปุ่มกราฟเสียงในแผงขวาของชั้นวาง หรือปุ่มดูกราฟเสียงช่วงนี้ในหน้าต่างผลตรวจ */
+  const [graphReq, setGraphReq] = useState<GraphReq | null>(null);
+  const openGraph = (r: GraphReq) => { setGraphReq(r); setPage("graph"); };
   const [hash, setHash] = useState(location.hash);
 
   useEffect(() => {
@@ -81,9 +85,10 @@ function Frame() {
             {parts ? <DevParts /> : (
               <>
                 {page === "shelf" && (infoMovie ? <FileInfoPage m={infoMovie} onBack={() => setInfoId(null)} />
-                  : <ShelfPage onPage={setPage} onPoster={(path) => { setPosterPath(path); setPage("poster"); }} onInfo={setInfoId} onCheck={(r) => { setCheckReq(r); setPage("check"); }} sel={shelfSel} setSel={setShelfSel} />)}
+                  : <ShelfPage onPage={setPage} onPoster={(path) => { setPosterPath(path); setPage("poster"); }} onInfo={setInfoId} onCheck={(r) => { setCheckReq(r); setPage("check"); }} onGraph={(path) => openGraph({ path })} sel={shelfSel} setSel={setShelfSel} />)}
                 {page === "poster" && <PosterPage initialPath={posterPath} onPage={setPage} onConsumed={() => setPosterPath(null)} />}
-                {page === "check" && <CheckPage req={checkReq} onConsumed={() => setCheckReq(null)} />}
+                {page === "check" && <CheckPage req={checkReq} onConsumed={() => setCheckReq(null)} onGraph={openGraph} />}
+                {page === "graph" && <GraphBoundary><GraphPage req={graphReq} onConsumed={() => setGraphReq(null)} /></GraphBoundary>}
                 {page === "settings" && <Placeholder title="ตั้งค่า" stage={7} />}
               </>
             )}

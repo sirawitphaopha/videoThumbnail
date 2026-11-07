@@ -376,12 +376,16 @@ pub fn refresh_own_edit(app: &AppHandle, path: &Path, on_hash: &dyn Fn(f64)) {
 /// ตั้งสถานะตรวจกับค่า hash ให้หนังหนึ่งเรื่อง ใช้ในเทสหน้าจอขั้น 4 (ยังไม่มีหน้าตรวจไฟล์) · ตัวติดตั้งจริงไม่มีคำสั่งนี้
 #[cfg(debug_assertions)]
 #[tauri::command]
-pub fn dev_set_check(app: AppHandle, lib: State<'_, Arc<LibraryStore>>, path: String, status: String, sha256: Option<String>, check_at: Option<i64>) -> Result<(), String> {
+pub fn dev_set_check(app: AppHandle, lib: State<'_, Arc<LibraryStore>>, path: String, status: String, sha256: Option<String>, check_at: Option<i64>, spans: Option<serde_json::Value>) -> Result<(), String> {
     let id = lib.movies.lock().unwrap().iter().find(|m| m.path.eq_ignore_ascii_case(&path)).map(|m| m.id.clone()).ok_or("ไม่เจอเรื่องนี้ในคลัง")?;
     // check_at ใช้เทสเตือนตรวจซ้ำ (ขั้น 6) ตั้งเวลาตรวจครั้งล่าสุดย้อนหลังได้
+    // spans ใช้เทสหน้ากราฟเสียง ผลตรวจละเอียดที่มีจุดเสียเป็นเสียง (ไฟล์ทดสอบที่ทำเสีย ตัวตรวจจับได้แค่ภาพแตก)
     let m = lib.update_movie(&id, |m| {
         if let Some(at) = check_at {
-            m.check = Some(serde_json::json!({ "at": at, "mode": "quick", "result": status, "summary": "ตรวจแบบเร็ว โครงไฟล์ครบ ค่า hash ตรงกับครั้งก่อน", "spans": [] }));
+            m.check = Some(match &spans {
+                Some(sp) => serde_json::json!({ "at": at, "mode": "full", "result": status, "summary": "ตรวจละเอียด เจอจุดเสีย", "spans": sp }),
+                None => serde_json::json!({ "at": at, "mode": "quick", "result": status, "summary": "ตรวจแบบเร็ว โครงไฟล์ครบ ค่า hash ตรงกับครั้งก่อน", "spans": [] }),
+            });
         }
         m.status = status;
         m.sha256 = sha256;

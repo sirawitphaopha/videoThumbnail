@@ -12,6 +12,7 @@ import { fmtDateTime, fmtDuration, fmtRoughMinutes, fmtSize } from "../lib/forma
 import { reminderDue } from "../lib/status";
 import Dialog from "../components/Dialog";
 import { Skel, StatIcon } from "../components/ui";
+import type { GraphReq } from "./GraphPage";
 
 /** คำขอจากปุ่มบนชั้นวาง · ตรวจเรื่องนี้เลย หรือเปิดผลตรวจของเรื่องนี้ */
 export type CheckReq = { ids: string[]; mode?: CheckMode; open?: string };
@@ -65,7 +66,7 @@ const fmtT = (sec: number) => {
 };
 const spanTime = (sp: CheckSpan) => (fmtT(sp.from) === fmtT(sp.to) ? fmtT(sp.from) : `${fmtT(sp.from)} – ${fmtT(sp.to)}`);
 
-export default function CheckPage(p: { req: CheckReq | null; onConsumed: () => void }) {
+export default function CheckPage(p: { req: CheckReq | null; onConsumed: () => void; onGraph: (r: GraphReq) => void }) {
   const { movies, loaded } = useLibrary();
   const { settings } = useSettings();
   const { s, start, cancel } = useCheck();
@@ -217,7 +218,7 @@ export default function CheckPage(p: { req: CheckReq | null; onConsumed: () => v
       </div>
 
       {open && open.check && (
-        <ResultDialog m={open} onClose={() => setOpenId(null)}
+        <ResultDialog m={open} onClose={() => setOpenId(null)} onGraph={p.onGraph}
           onDeep={() => { setOpenId(null); setMode("full"); start([open.id], "full"); }} running={s.running} />
       )}
     </div>
@@ -261,12 +262,14 @@ function Row(p: { m: Movie; on: boolean; running: boolean; reminder: number; cur
   );
 }
 
-function ResultDialog(p: { m: Movie; onClose: () => void; onDeep: () => void; running: boolean }) {
+function ResultDialog(p: { m: Movie; onClose: () => void; onDeep: () => void; onGraph: (r: GraphReq) => void; running: boolean }) {
   const { m } = p;
   const c = m.check!;
   const toast = useToast();
   const spans = c.spans ?? [];
   const first = spans[0];
+  /** จุดเสียที่เป็นเสียง มีปุ่มดูกราฟเสียงช่วงนี้ พาไปหน้ากราฟเสียงซูมที่เวลานั้น (มอคอัปกราฟเสียง) */
+  const sound = spans.find((sp) => sp.what.includes("เสียง"));
   const [d, t] = dateParts(c.at);
   const play = async () => {
     try {
@@ -281,6 +284,7 @@ function ResultDialog(p: { m: Movie; onClose: () => void; onDeep: () => void; ru
   return (
     <Dialog open onClose={p.onClose} kind="menu" width={520} title={<>ผลตรวจ {m.name}.{m.ext}</>}
       actions={<>
+        {sound && <button type="button" className="btn btn-ghost btn-sm" onClick={() => p.onGraph({ path: m.path, t: sound.from })} data-ckgraph>ดูกราฟเสียงช่วงนี้</button>}
         {first && <button type="button" className="btn btn-ghost btn-sm" onClick={play} data-ckplay>เปิดเล่นที่ <span className="nw">{fmtT(first.from)}</span></button>}
         {c.result === "changed" && <button type="button" className={"btn btn-sm " + (p.running ? "btn-wait" : "btn-ghost")} onClick={() => { if (!p.running) p.onDeep(); }}
           aria-disabled={p.running || undefined} title={p.running ? "รอให้ชุดที่กำลังตรวจเสร็จก่อน" : undefined}>ตรวจละเอียดเรื่องนี้</button>}

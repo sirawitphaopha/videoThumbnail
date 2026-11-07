@@ -1,5 +1,6 @@
 //! ชั้นหนัง · ฝั่งทำงานหนักของโปรแกรม
 
+mod audiograph;
 mod check;
 mod extract;
 mod fileinfo;
@@ -77,6 +78,7 @@ pub fn run() {
         fileinfo::media_info, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_compare, fileinfo::hash_save,
         extract::extract_start, extract::extract_cancel, extract::extract_default_folder,
         check::check_start, check::check_cancel, check::check_running, check::play_at,
+        audiograph::graph_info, audiograph::graph_overview, audiograph::graph_window, audiograph::graph_psd, audiograph::graph_cancel, audiograph::graph_save,
     ]);
     #[cfg(not(debug_assertions))]
     let builder = builder.invoke_handler(tauri::generate_handler![
@@ -89,6 +91,7 @@ pub fn run() {
         fileinfo::media_info, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_compare, fileinfo::hash_save,
         extract::extract_start, extract::extract_cancel, extract::extract_default_folder,
         check::check_start, check::check_cancel, check::check_running, check::play_at,
+        audiograph::graph_info, audiograph::graph_overview, audiograph::graph_window, audiograph::graph_psd, audiograph::graph_cancel, audiograph::graph_save,
     ]);
 
     builder

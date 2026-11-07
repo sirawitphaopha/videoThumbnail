@@ -16,6 +16,9 @@ export const IcPoster = ({ size = 18, stroke = "currentColor" }: P) =>
   svg(size, 2, stroke, <><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 15l3-3 2 2 3-3 2 2" /><circle cx="9" cy="8" r="1.5" /></>);
 export const IcCheck = ({ size = 18, stroke = "currentColor" }: P) =>
   svg(size, 2, stroke, <><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z" /><path d="M8.5 12l2.5 2.5 4.5-5" /></>);
+/** กราฟเสียง (มอคอัป docs/mockups/audio-graph.html) */
+export const IcGraph = ({ size = 18, stroke = "currentColor" }: P) =>
+  svg(size, 2, stroke, <path d="M3 12h2M7 7v10M11 4v16M15 8v8M19 10v4" />);
 export const IcSettings = ({ size = 18, stroke = "currentColor" }: P) =>
   svg(size, 2, stroke, <><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" /></>);
 export const IcCollapse = ({ size = 18, stroke = "currentColor" }: P) =>
