@@ -924,15 +924,18 @@ function PsdView({ psd, names, psdCh, setPsdCh, psdLog, setPsdLog, psdSize, setP
     const ink = "#4a2b38", minor = "#efdde5", major = "#dcc0cc";
     // เส้นตารางแนวนอนทุก 6 dB (ถี่เกินไปเป็นทุก 12) · ตัวเลขทุกเส้น
     const step = PH * 6 / range >= 16 ? 6 : 12;
+    /** เส้นตารางทุกเส้น จดไว้วาดซ้ำทับพื้นสีด้วยสีขาวโปร่ง แบบ Audacity ที่เส้นตารางอยู่หน้าสุด
+        (พี่กัน *"ของ audacity เส้นตารางมันจะอยู่หน้าสุดนะ … เอาเส้นตารางที่พาดผ่านสีจะอ่อนกว่าเส้นตารางพื้นหลังที่อยู่ฉากขาว"*) */
+    const gl: [number, number, number, number, boolean][] = [];
     g.font = "600 11px Sarabun, sans-serif"; g.textAlign = "right"; g.textBaseline = "middle";
     for (let d = top; d >= lo - 0.01; d -= step) {
       const y = Math.round(Y(d)) + 0.5;
-      if (grids) { g.strokeStyle = major; g.lineWidth = 1; g.beginPath(); g.moveTo(L, y); g.lineTo(L + PW, y); g.stroke(); }
+      if (grids) { gl.push([L, y, L + PW, y, true]); g.strokeStyle = major; g.lineWidth = 1; g.beginPath(); g.moveTo(L, y); g.lineTo(L + PW, y); g.stroke(); }
       g.fillStyle = ink; g.fillText(minus(String(d)) + " dB", L - 6, y);
     }
     // เส้นตารางแนวตั้ง · แบบล็อก ทุก 1–9 × 10ⁿ (หลักเข้ม ตัวคั่นจาง) · แบบเส้นตรง ทุก 1 kHz
     g.textAlign = "center"; g.textBaseline = "top"; g.font = "600 11px Sarabun, sans-serif";
-    const vline = (fr: number, strong: boolean) => { if (!grids) return; const x = Math.round(X(fr, w)) + 0.5; g.strokeStyle = strong ? major : minor; g.beginPath(); g.moveTo(x, T); g.lineTo(x, T + PH); g.stroke(); };
+    const vline = (fr: number, strong: boolean) => { if (!grids) return; const x = Math.round(X(fr, w)) + 0.5; gl.push([x, T, x, T + PH, strong]); g.strokeStyle = strong ? major : minor; g.beginPath(); g.moveTo(x, T); g.lineTo(x, T + PH); g.stroke(); };
     const hz = (fr: number) => (fr >= 1000 ? `${fr / 1000} kHz` : `${fr} Hz`);
     if (psdLog) {
       for (let dec = 10; dec <= nyq; dec *= 10) for (let m = 1; m <= 9; m++) { const fr = m * dec; if (fr >= 20 && fr <= nyq) vline(fr, m === 1); }
@@ -951,9 +954,16 @@ function PsdView({ psd, names, psdCh, setPsdCh, psdLog, setPsdLog, psdSize, setP
     else if (series.length === 1) {
       // ระบายทึบสีเดียวจากเส้นลงถึงพื้นกราฟ แบบ Audacity · สีกลางของชุดสี (ชุดม่วงใกล้สีของ Audacity)
       // ค่าทีละจุดภาพ (valRange) ไม่ใช่ทีละช่องความถี่
-      const s = series[0]; g.fillStyle = th.ramp[4]; g.beginPath(); g.moveTo(L, T + PH);
-      for (let x = 0; x < PW; x++) g.lineTo(L + x + 0.5, Y(valRange(s.d, fAt(x, PW), fAt(x + 1, PW))));
-      g.lineTo(L + PW, T + PH); g.closePath(); g.fill();
+      const s = series[0], area = new Path2D(); area.moveTo(L, T + PH);
+      for (let x = 0; x < PW; x++) area.lineTo(L + x + 0.5, Y(valRange(s.d, fAt(x, PW), fAt(x + 1, PW))));
+      area.lineTo(L + PW, T + PH); area.closePath();
+      g.fillStyle = th.ramp[4]; g.fill(area);
+      // เส้นตารางเส้นเดิมวาดซ้ำเฉพาะในพื้นสี ขาวโปร่ง อ่อนกว่าเส้นบนพื้นขาว
+      if (grids) {
+        g.save(); g.clip(area); g.lineWidth = 1;
+        for (const [x1, y1, x2, y2, strong] of gl) { g.strokeStyle = strong ? "rgba(255,255,255,.34)" : "rgba(255,255,255,.18)"; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); }
+        g.restore();
+      }
     } else {
       // เทียบซ้ายขวา (ของเราเพิ่มเอง Audacity ไม่มี) เป็นเส้นสองสีตามช่อง
       for (const s of series) {
