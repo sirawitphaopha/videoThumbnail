@@ -2,7 +2,8 @@
 // เช็ก ① หน้าโหลดจากตัวโปรแกรม ไม่ใช่ dev server ② กติกาความปลอดภัยบังคับจริง (รูปจากเน็ตโดนกัน)
 //      ③ ปกบนชั้นกับโปสเตอร์ในแผงขวาโหลดผ่าน asset ได้ ④ ฟอนต์ Sarabun ที่ฝังในโปรแกรมโหลดได้ ⑤ ไม่มีของโดนกันนอกจากที่ตั้งใจลอง
 // ใช้: scripts/dev-app.ps1 -Built (ปิดตัว dev ก่อน) แล้ว node scripts/check-built.mjs <โฟลเดอร์ผลเทส>
-import { mkdirSync, writeFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, copyFileSync, readdirSync, rmSync } from "node:fs";
+import { join, resolve } from "node:path";
 import { connect, sleep } from "./lib/cdp-client.mjs";
 
 const OUT = process.argv[2] ?? "docs/report-2026-11-06/ขั้น2";
@@ -11,6 +12,14 @@ const c = await connect();
 const results = [];
 const check = (name, pass, detail = "") => { results.push({ name, pass: !!pass, detail }); console.log(`${pass ? "✅" : "❌"} ${name}${detail ? " · " + detail : ""}`); };
 const q = (js) => c.evaluate(`(() => { ${js} })()`);
+// ชั้นวางของตัวเทสนี้เอง มีเรื่องที่มีปก (Harbor Lights) กับเรื่องที่ยังไม่มีปก · เดิมใช้ชั้นที่ค้างจากตัวเทสก่อนหน้า
+// รันต่อจากตัวเทสขั้น 6 แล้วชั้นไม่มีปกสักเรื่อง ล้มสองข้อ (เจอตอนรันเทสรวม 7 พ.ย. 2569)
+const TMP = "D:\\dev\\tmp";
+for (const d of readdirSync(TMP)) if (d.startsWith("ชั้นตัวจริงรวม")) rmSync(join(TMP, d), { recursive: true, force: true });
+const DIR = join(TMP, `ชั้นตัวจริงรวม-${Date.now()}`);
+mkdirSync(DIR, { recursive: true });
+for (const f of ["Harbor Lights (2021).mkv", "ดาวเหนือ (2023).mkv"]) copyFileSync(resolve("test-media", "สร้าง", "หนัง", f), join(DIR, f));
+await c.evaluate(`window.__TAURI_INTERNALS__.invoke("set_settings", { patch: { folders: [${JSON.stringify(DIR)}], viewMode: "grid", coverSize: "m", coverOrient: "tall", rescanOnStart: true } })`);
 
 // จดทุกครั้งที่กติกาความปลอดภัยกันของ ตั้งแต่ก่อนหน้าโหลด แล้วโหลดหน้าใหม่
 await c.send("Page.enable");
