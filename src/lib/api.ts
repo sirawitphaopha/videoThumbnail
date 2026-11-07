@@ -121,6 +121,23 @@ export type MergeTrack = {
   channels: number | null; layout: string | null; rate: number | null; bits: number | null; bitrate: number | null;
   width: number | null; height: number | null; fps: number | null; duration: number | null; bytes: number | null; frames: number | null;
   mp4: "ok" | "style" | "no"; why: string | null; charset: string | null; delay: number; keep: boolean; inMovie: boolean;
+  /** แปลงชนิดเสียงตอนรวม · null = ไม่แปลง · pair แทร็กในหนังแปลงแล้วเพิ่มคู่กับแทร็กเดิม (ค่าตั้งต้นที่พี่กันเคาะ) · convName ชื่อแทร็กใหม่แบบเพิ่มคู่ */
+  convert?: EncodeSpec | null; pair?: boolean; convName?: string;
+};
+/* ---------- ตัวแปลงเสียง (encode.rs · แผนเสียงและซับ ขั้น 3) ---------- */
+/** ค่าในแผงตั้งค่าเสียง · codec opus aac mp3 ac3 eac3 flac wv · encoder native ffmpeg qaac fdkaac · p ค่าของการ์ดแต่ละใบ ชื่อเดียวกับมอคอัป */
+export type EncodeSpec = {
+  codec: string; encoder: string; channels?: number | null; bits?: number | null; rate?: number | null;
+  gain?: number; loudnorm?: boolean; speed?: [number, number] | null; p: Record<string, string | number | boolean>;
+};
+export type EncodeStep = { tool: string; args: string[] };
+/** คำสั่งที่จะรันจริง · text แบบพิมพ์ใน Command Prompt ได้ */
+export type EncodePlan = { steps: EncodeStep[]; piped: boolean; text: string; note: string };
+export type EncoderInfo = { name: string; codecs: string; source: "bundled" | "user" | "missing"; version: string | null; ok: boolean; problem: string | null; dir: string };
+export const encodeApi = {
+  preview: (spec: EncodeSpec, srcName: string, stream: number, channels: number | null) => call<EncodePlan>("encode_preview", { spec, srcName, stream, channels }),
+  status: () => call<EncoderInfo[]>("encoders_status"),
+  openDir: () => call<string>("encoders_open_dir"),
 };
 export type MergeAttachment = { id: number; name: string; mime: string; size: number };
 export type MergeMovie = { path: string; name: string; ext: string; size: number; duration: number | null; tracks: MergeTrack[]; attachments: MergeAttachment[]; free: number; drive: string; mp4Ok: boolean };

@@ -82,6 +82,12 @@ pub struct Track {
     pub keep: bool,
     /// แทร็กในหนัง (true) หรือไฟล์ที่เพิ่ม (false)
     pub in_movie: bool,
+    /// แปลงชนิดเสียงตอนรวม (ค่าในแผงตั้งค่าเสียง) · ไม่มี = ไม่แปลง เสียงเดิมทุกไบต์
+    pub convert: Option<crate::encode::EncodeSpec>,
+    /// แทร็กในหนังที่แปลง · true เพิ่มคู่กับแทร็กเดิม (ค่าตั้งต้นที่พี่กันเคาะ) · false แทนที่แทร็กเดิม
+    pub pair: bool,
+    /// ชื่อแทร็กใหม่ที่ได้จากการแปลงแบบเพิ่มคู่ · ว่าง = ชื่อเดิมต่อด้วยชนิดใหม่
+    pub conv_name: String,
 }
 
 /// ffprobe codec_name จากรหัส codec ของ mkvmerge · ใช้ตอนจับคู่ ffprobe ไม่ได้
@@ -186,6 +192,9 @@ pub fn probe_source(tools: &Path, file: &Path, in_movie: bool) -> Result<Vec<Tra
             keep: true,
             in_movie,
             codec,
+            convert: None,
+            pair: true,
+            conv_name: String::new(),
         }
     }).collect())
 }
@@ -833,6 +842,60 @@ pub fn produce(
         }
     }
 
+    // แปลงชนิดเสียงก่อนรวม (ช่วงที่นานสุด) · ไฟล์ที่แปลงอยู่โฟลเดอร์ชั่วคราว รวมเสร็จแล้วลบเอง
+    // แทร็กในหนังแบบเพิ่มคู่ เก็บแทร็กเดิมไว้ แทร็กใหม่ต่อท้ายแทร็กเดิม · แบบแทนที่และไฟล์ที่เพิ่ม ใช้แทร็กใหม่แทน
+    let total_conv = tracks.iter().filter(|t| t.keep && t.kind == "audio" && t.convert.is_some()).count();
+    if total_conv > 0 {
+        // ตัวแปลงที่ใส่เองในโฟลเดอร์ตัวแปลง (qaac fdkaac หรือรุ่นใหม่กว่า) · ไม่มีโฟลเดอร์ก็ใช้ตัวที่แนบมา
+        let user = std::env::var_os("LOCALAPPDATA").map(|d| PathBuf::from(d).join("ชั้นหนัง").join("ตัวแปลง")).unwrap_or_default();
+        let encs = crate::encode::status(tools, &user);
+        let mut n = 0;
+        let mut list = vec![];
+        for t in tracks.into_iter() {
+            let Some(spec) = t.convert.clone().filter(|_| t.keep && t.kind == "audio") else { list.push(t); continue };
+            n += 1;
+            let out = work.join(format!("merge-conv-{}.{}", crate::poster_image::unique(), spec.ext()));
+            let plan = crate::encode::build(&spec, &t.src, t.ff.unwrap_or(t.tid), &out.to_string_lossy(), t.channels.map(|c| c as u32))
+                .map_err(|e| fail("tool", "ตั้งค่าแปลงเสียงไม่ถูก", vec![e, untouched.into()]))?;
+            let ft = spec.codec.to_uppercase();
+            let phase = format!("กำลังแปลงเสียง {n} จาก {total_conv} เป็น {ft}");
+            let next = if n < total_conv { "แปลงเสียงถัดไป" } else { "รวมเข้าไฟล์ใหม่" };
+            emit(&phase, 0.0, None, Some(next));
+            let t0 = Instant::now();
+            guards.push(scopeguard(out.clone()));
+            let r = crate::encode::run(&|name| crate::encode::dir_for(&encs, tools, name), &plan, t.duration.or(movie_duration), stop, &mut |p| emit(&phase, p, eta(t0, p), Some(next)))
+                .map_err(|e| fail("tool", "แปลงเสียงไม่สำเร็จ", vec![e, untouched.into()]))?;
+            match r {
+                crate::encode::Done::Ok => {}
+                crate::encode::Done::Cancelled => return Err(cancelled(untouched, None)),
+                crate::encode::Done::Failed(m) => return Err(fail("tool", "แปลงเสียงไม่สำเร็จ", vec![m, untouched.into()])),
+            }
+            let mut nt = t.clone();
+            nt.src = out.to_string_lossy().to_string();
+            nt.tid = 0;
+            nt.ff = Some(0);
+            nt.codec = spec.probe_codec().to_string();
+            let (fit, why) = mp4_fit("audio", &nt.codec);
+            nt.mp4 = fit.into();
+            nt.why = why;
+            nt.in_movie = false;
+            nt.convert = None;
+            nt.charset = None;
+            if t.in_movie && t.pair {
+                nt.default = false;
+                nt.name = if t.conv_name.trim().is_empty() { format!("{} {ft}", t.name).trim().to_string() } else { t.conv_name.clone() };
+                let mut old = t;
+                old.convert = None;
+                list.push(old);
+                notes.push(format!("แปลงเสียงเป็น {ft} เพิ่มคู่กับแทร็กเดิม"));
+            } else {
+                notes.push(format!("แปลงเสียงเป็น {ft}"));
+            }
+            list.push(nt);
+        }
+        tracks = list;
+    }
+
     // รูปปกใหม่เขียนลงโฟลเดอร์ชั่วคราว
     let mut covers: Vec<NewCover> = vec![];
     for (slot, plan) in [("cover", &req.covers.portrait), ("cover_land", &req.covers.land)] {
@@ -1446,6 +1509,34 @@ mod tests {
         order.swap(0, 1);
         let e2 = verify_mkv(&tl, &dir.0, &movie, &order, &[], &[], m.duration).unwrap_err();
         assert!(e2.iter().any(|w| w.contains("แทร็กไม่ตรงที่สั่ง")), "{e2:?}");
+    }
+
+    /// แปลงเสียงตอนรวม · พากย์ไทย AC-3 แทนที่เป็น Opus · เสียงอังกฤษ AAC ในหนังเพิ่มคู่เป็น FLAC
+    #[test]
+    fn convert_while_merging() {
+        let Some(movie) = av("เสียงซับ/ดาวตก (2024).mkv") else { return };
+        let dir = temp_dir("conv");
+        let tl = tools();
+        let m = inspect(&tl, &movie).unwrap();
+        let mut dub = add_file(&tl, &av("เสียงซับ/ดาวตก (2024) พากย์ไทย DELAY -120ms.ac3").unwrap(), m.duration).unwrap().tracks.remove(0);
+        dub.convert = Some(crate::encode::EncodeSpec { codec: "opus".into(), encoder: "native".into(), p: serde_json::json!({"bitrate": 256}).as_object().cloned().unwrap(), ..Default::default() });
+        dub.name = "พากย์ไทย Opus".into();
+        let mut eng = m.tracks[1].clone();
+        eng.convert = Some(crate::encode::EncodeSpec { codec: "flac".into(), encoder: "native".into(), ..Default::default() });
+        eng.pair = true;
+        let out = dir.0.join("c.mkv.partial");
+        let (res, notes) = run(&req(&movie, vec![m.tracks[0].clone(), dub, eng], "mkv"), &HashMap::new(), &out, &dir.0);
+        let made = res.unwrap_or_else(|p| panic!("{} {:?}", p.title, p.detail));
+        assert!(made.verified);
+        let codecs: Vec<String> = streams_of(&ffprobe_json(&tl, &out).unwrap()).into_iter().map(|s| s.codec).collect();
+        assert_eq!(codecs, ["h264", "opus", "aac", "flac"], "{notes:?}");
+        let j = mkv_json(&tl, &out).unwrap();
+        assert_eq!(j["tracks"][1]["properties"]["track_name"], "พากย์ไทย Opus");
+        assert_eq!(j["tracks"][3]["properties"]["track_name"], "English FLAC");
+        assert_eq!(j["tracks"][1]["properties"]["audio_channels"], 6, "Opus เก็บ 5.1 ครบ");
+        assert!(notes.iter().any(|n| n.contains("เพิ่มคู่กับแทร็กเดิม")), "{notes:?}");
+        // ไฟล์ชั่วคราวของการแปลงถูกลบหมด
+        assert!(std::fs::read_dir(&dir.0).unwrap().flatten().all(|e| !e.file_name().to_string_lossy().starts_with("merge-conv-")));
     }
 
     /// กดหยุดกลางทาง ไฟล์ทำค้างถูกลบ

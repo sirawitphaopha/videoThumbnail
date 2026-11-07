@@ -135,6 +135,18 @@ const r6 = await invTry("merge_apply", { req: { movie: img, tracks: keepPgs, cov
 check("มีไฟล์ชื่อเดียวกันอยู่แล้ว ไม่เขียนทับ", !r6.ok && r6.e.kind === "exists" && sha(img) === hImg, r6.e?.title);
 rmSync(join(DIR, "ซับรูป (2024).mp4"), { force: true });
 
+// ---------- แปลงเสียงตอนรวม (ขั้น 3) · พากย์ไทย AC-3 แทนที่เป็น Opus 256 · เสียงอังกฤษเพิ่มคู่เป็น FLAC ----------
+copyFileSync(join(AV, "ดาวตก (2024).mkv"), join(DIR, "แปลงเสียง (2024).mkv"));
+const CM = join(DIR, "แปลงเสียง (2024).mkv");
+const cm = await inv("merge_inspect", { path: CM });
+const cdub = await inv("merge_add_file", { path: join(AV, "ดาวตก (2024) พากย์ไทย DELAY -120ms.ac3"), movieDuration: cm.duration });
+const conv = [cm.tracks[0], { ...cdub.tracks[0], name: "พากย์ไทย Opus", convert: { codec: "opus", encoder: "native", p: { bitrate: 256 } } }, { ...cm.tracks[1], convert: { codec: "flac", encoder: "native", p: {} }, pair: true, convName: "English FLAC" }];
+await c.evaluate("window.__mergeEvents = []");
+const r7 = await invTry("merge_apply", { req: { movie: CM, tracks: conv, covers: { portrait: "keep", land: "keep" }, output: "mkv", original: "keep", checkSource: false, checkOutput: true } });
+const ev7 = [...new Set((await c.evaluate("window.__mergeEvents")).map((e) => e.phase))];
+const t7 = r7.ok ? ident(r7.r.output).tracks.map((t) => `${t.codec}|${t.properties.track_name ?? ""}`) : [];
+check("แปลงเสียงตอนรวม พากย์ไทยเป็น Opus แทนที่ · เสียงอังกฤษเพิ่มคู่เป็น FLAC · บอกขั้นกำลังแปลงเสียง 1 จาก 2 กับ 2 จาก 2", r7.ok && r7.r.verified && t7.join(" · ") === "AVC/H.264/MPEG-4p10| · Opus|พากย์ไทย Opus · AAC|English · FLAC|English FLAC" && ev7.includes("กำลังแปลงเสียง 1 จาก 2 เป็น OPUS") && ev7.includes("กำลังแปลงเสียง 2 จาก 2 เป็น FLAC"), r7.ok ? `${t7.join(" · ")} · ${ev7.join(" → ")}` : JSON.stringify(r7.e));
+
 // ---------- ต้นฉบับใน test-media ไม่ถูกแตะ ----------
 const srcAfter = Object.fromEntries(readdirSync(AV).map((f) => [f, sha(join(AV, f))]));
 check("ไฟล์ชุดเสียงซับใน test-media hash เท่าเดิมทุกไฟล์", JSON.stringify(srcAfter) === JSON.stringify(srcBefore), `${Object.keys(srcAfter).length} ไฟล์`);

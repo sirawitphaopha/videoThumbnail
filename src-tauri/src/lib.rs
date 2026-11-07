@@ -2,6 +2,7 @@
 
 mod audiograph;
 mod check;
+mod encode;
 mod extract;
 mod fileinfo;
 mod hashes;
@@ -80,7 +81,7 @@ pub fn run() {
         rename::check_rename, rename::rename_movie,
         poster::poster_open, poster::poster_render, poster::poster_clear, poster::poster_folder_images,
         poster::poster_inspect, poster::poster_apply, poster::poster_cancel,
-        merge::merge_inspect, merge::merge_add_file, merge::merge_apply, merge::merge_cancel, merge::merge_cover_preview, merge::merge_cover_drop,
+        merge::merge_inspect, merge::merge_add_file, merge::merge_apply, merge::merge_cancel, merge::merge_cover_preview, merge::merge_cover_drop, encode::encode_preview, encode::encoders_status, encode::encoders_open_dir,
         fileinfo::media_info, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_running, fileinfo::hash_compare, fileinfo::hash_save,
         extract::extract_start, extract::extract_cancel, extract::extract_running, extract::extract_default_folder,
         check::check_start, check::check_cancel, check::check_running, check::play_at,
@@ -95,7 +96,7 @@ pub fn run() {
         rename::check_rename, rename::rename_movie,
         poster::poster_open, poster::poster_render, poster::poster_clear, poster::poster_folder_images,
         poster::poster_inspect, poster::poster_apply, poster::poster_cancel,
-        merge::merge_inspect, merge::merge_add_file, merge::merge_apply, merge::merge_cancel, merge::merge_cover_preview, merge::merge_cover_drop,
+        merge::merge_inspect, merge::merge_add_file, merge::merge_apply, merge::merge_cancel, merge::merge_cover_preview, merge::merge_cover_drop, encode::encode_preview, encode::encoders_status, encode::encoders_open_dir,
         fileinfo::media_info, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_running, fileinfo::hash_compare, fileinfo::hash_save,
         extract::extract_start, extract::extract_cancel, extract::extract_running, extract::extract_default_folder,
         check::check_start, check::check_cancel, check::check_running, check::play_at,
