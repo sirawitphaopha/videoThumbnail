@@ -723,8 +723,9 @@ fn find_player() -> Option<PathBuf> {
     if let Some(l) = std::env::var_os("LOCALAPPDATA") {
         roots.push(PathBuf::from(l).join("Programs"));
     }
-    let rel = ["VideoLAN/VLC/vlc.exe", "MPC-HC/mpc-hc64.exe", "MPC-HC/mpc-hc.exe", "MPC-BE x64/mpc-be64.exe", "MPC-BE/mpc-be.exe",
-        "DAUM/PotPlayer/PotPlayerMini64.exe", "DAUM/PotPlayer/PotPlayerMini.exe", "mpv/mpv.exe"];
+    // K-Lite Codec Pack วาง MPC-HC ไว้ในโฟลเดอร์ของตัวเอง (เจอบนเครื่องพี่กัน 7 พ.ย. 2569 · Program Files (x86)\K-Lite Codec Pack\MPC-HC64)
+    let rel = ["VideoLAN/VLC/vlc.exe", "MPC-HC/mpc-hc64.exe", "MPC-HC/mpc-hc.exe", "K-Lite Codec Pack/MPC-HC64/mpc-hc64.exe", "K-Lite Codec Pack/MPC-HC/mpc-hc.exe",
+        "MPC-BE x64/mpc-be64.exe", "MPC-BE/mpc-be.exe", "DAUM/PotPlayer/PotPlayerMini64.exe", "DAUM/PotPlayer/PotPlayerMini.exe", "mpv/mpv.exe"];
     for r in &roots {
         for p in rel {
             let c = r.join(p);
