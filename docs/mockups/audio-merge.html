@@ -1,0 +1,1781 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ชั้นหนัง มอคอัปเสียงและซับ</title>
+<script>/* เก็บข้อผิดพลาดในหน้าไว้ให้ตัวตรวจอ่าน (รอบก่อนไม่มีตัวนี้ ตัวตรวจอ่านได้ศูนย์เสมอ) */ window.__errs = []; addEventListener("error", (e) => window.__errs.push(String(e.message)));</script>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!--
+  มอคอัปหน้า "เสียงและซับ" กับหน้าแปลงเสียงในกราฟเสียง · แคลร์ทำ 7 พ.ย. 2569
+  พี่กันเสนอ "การใส่เสียงในหนัง สามารถปรับ delay เสียงด้วยหน่อย" · "ไฟล์เสียงตอนที่รวม สามารถแปลงได้ ... codec ที่ใช้จะต้องมีการปรับแต่งได้ทุกอย่างตามแต่ละ codec"
+  สิ่งที่พี่กันเคาะทั้งหมดอยู่ docs/ROADMAP.md หัวข้องานถัดไป · ชนิดเสียงกับรุ่นตัวแปลงอยู่ docs/research/codec-เสียง.md
+  หน้าตาส่วนกลาง (สี ปุ่ม กรอบหน้าต่าง เมนู) ยกจาก poster-shelf.html กับ audio-graph.html ทุกค่า · ข้อมูลไฟล์ทั้งหมดเป็นของสมมติ
+-->
+<style>
+:root{
+  --bg:#fdf2f6; --ink:#4a2b38; --muted:#8a6474;
+  --win:#fffafc; --win2:#fdeef4; --line:#f4d3e0;
+  --txt:#4a2b38; --txt2:#8a5d6e; --txt3:#b28a9a;
+  --accent:#e98aac; --accent-d:#d9719a; --accent-soft:#fbd7e5; --accent-ink:#c2547f;
+  --ok:#7fc9a2; --ok-soft:#e2f5ea; --ok-ink:#2f7a52;
+  --bad:#ec8f8f; --bad-soft:#fde5e5; --bad-ink:#b04545;
+  --warn:#f2c76e; --warn-soft:#fdf1d6; --warn-ink:#94680f;
+  --info:#8dbbe8; --info-soft:#e4effb; --info-ink:#2f6496;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Sarabun,"Noto Sans Thai",Tahoma,sans-serif;font-size:15px;line-height:1.6;min-width:1260px}
+.page{width:1200px;margin:0 auto;padding:36px 0 80px}
+h1{font-size:28px;margin:0 0 6px}
+.lead{color:var(--muted);margin:0 0 8px;max-width:980px}
+.sec{margin-top:56px}
+.sec h2{font-size:21px;margin:0 0 4px}
+.sec .note{color:var(--muted);margin:0 0 16px;max-width:980px}
+.tag{display:inline-block;background:#f6b3cb;color:#7a2346;border-radius:6px;padding:0 9px;font-size:13px;margin-right:8px}
+.win{background:var(--win);color:var(--txt);border-radius:12px;overflow:hidden;box-shadow:0 18px 40px rgba(200,110,145,.18);border:1px solid var(--line)}
+.titlebar{height:34px;display:flex;align-items:center;justify-content:space-between;padding:0 0 0 14px;background:#fbe3ec;font-size:13px;color:var(--txt2)}
+.titlebar .ctl{display:flex}
+.titlebar .ctl span{width:46px;height:34px;display:flex;align-items:center;justify-content:center}
+.body{display:flex;min-height:640px}
+.side{width:200px;flex:none;background:var(--win2);border-right:1px solid var(--line);padding:16px 10px;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 8px 16px;font-weight:700;font-size:17px;color:var(--accent-ink)}
+.nav{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;color:var(--txt2);cursor:pointer;border:0;background-color:transparent;font:inherit;text-align:left;width:100%;transition:background-color .15s,color .15s;white-space:nowrap}
+.nav:hover{background-color:#f9dde8;color:var(--accent-ink)}
+.nav.on{background-color:var(--accent-soft);color:var(--accent-ink);font-weight:600}
+.nav.on:hover{background-color:#f6c6d8;color:#ad4370}
+.nav .count{margin-left:auto;font-size:12px;background:#fff;border-radius:10px;padding:0 7px;color:var(--txt2)}
+.nav .new{margin-left:auto;font-size:11px;font-weight:700;background:#f6b3cb;color:#7a2346;border-radius:10px;padding:0 7px}
+.side .foot{margin-top:auto;font-size:12px;color:var(--txt3);padding:8px}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.dd{height:34px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 10px;border-radius:9px;border:1px solid var(--line);background-color:#fff;color:var(--txt);font:inherit;font-size:13.5px;cursor:pointer;overflow:hidden;transition:background-color .15s,border .15s}
+.dd:hover{background-color:#fdeaf1;border:1px solid #eeb3c8}
+.dd span{white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.inp{height:34px;border-radius:9px;border:1px solid var(--line);background:#fff;padding:0 10px;font:inherit;font-size:13.5px;color:var(--txt);min-width:0}
+.inp:focus{outline:none;border:1px solid var(--accent);box-shadow:0 0 0 3px rgba(233,138,172,.22)}
+.btn{height:38px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 16px;border-radius:9px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background-color .15s,color .15s,border .15s}
+.btn-main{background-color:#f6b3cb;color:#7a2346;border:1px solid #ef9dbb}
+.btn-main:hover{background-color:#f09dbd;color:#6a1d3c;border:1px solid #e584a9}
+.btn-ghost{background-color:#fff;color:var(--txt);border:1px solid #efc6d5}
+.btn-ghost:hover{background-color:#fdeaf1;color:var(--accent-ink);border:1px solid #e79ab8}
+.btn-ok{background-color:var(--ok-soft);color:var(--ok-ink);border:1px solid #a9dcc0}
+.btn-ok:hover{background-color:#cdeedb;color:#24653f;border:1px solid #8fd1ad}
+.btn-bad{background-color:#fff;color:var(--bad-ink);border:1px solid #f1b7b7}
+.btn-bad:hover{background-color:var(--bad-soft);color:#953535;border:1px solid #e48d8d}
+.btn-wait{background-color:#fdf3dc;color:#a8812e;border:1px solid #f0d9a2;cursor:not-allowed}
+.btn-sm{height:32px;padding:0 12px;font-size:13px}
+.btn-xs{height:28px;padding:0 9px;font-size:12.5px;border-radius:8px}
+.small{font-size:12.5px;color:var(--txt3);line-height:1.55}
+.nw{white-space:nowrap}
+.seg{display:flex;border:1px solid #efc6d5;border-radius:9px;overflow:hidden;flex:none}
+.seg button{height:34px;padding:0 14px;border:0;background-color:#fff;color:var(--txt2);font:inherit;font-size:13.5px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background-color .15s,color .15s}
+.seg button+button{border-left:1px solid #efc6d5}
+.seg button:hover{background-color:#fdeaf1;color:var(--accent-ink)}
+.seg button.on{background-color:#f6b3cb;color:#7a2346;font-weight:600}
+.seg button.on:hover{background-color:#f09dbd;color:#6a1d3c}
+.seg.sm button{height:30px;padding:0 10px;font-size:13px}
+.card{background:var(--win2);border:1px solid var(--line);border-radius:12px;padding:14px}
+.card h3{margin:0 0 10px;font-size:14.5px;display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--accent-ink)}
+.stat{display:flex;gap:10px;align-items:flex-start;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.55}
+.stat.ok{background:var(--ok-soft);color:var(--ok-ink)}
+.stat.warn{background:var(--warn-soft);color:var(--warn-ink)}
+.stat.bad{background:var(--bad-soft);color:var(--bad-ink)}
+.stat.info{background:var(--info-soft);color:var(--info-ink)}
+.stat b{display:block;color:inherit}
+.stat svg{flex:none;margin-top:2px}
+.bar{height:10px;border-radius:6px;background:#f7dbe6;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:6px}
+.drop{border:2px dashed #eeb3c8;border-radius:12px;background:#fff;display:flex;align-items:center;justify-content:center;gap:12px;color:var(--txt3);font-size:13.5px;text-align:center;padding:14px}
+.fmt{width:100%;border-collapse:collapse;font-size:13.5px;background:#fff;border-radius:10px;overflow:hidden}
+.fmt th{background:var(--win2);color:var(--txt2);font-size:12.5px;padding:8px 12px;text-align:left;border-bottom:1px solid var(--line);font-weight:600}
+.fmt td{padding:8px 12px;border-bottom:1px solid #f8e3eb;line-height:1.5;vertical-align:top}
+.fmt tr:last-child td{border-bottom:0}
+.fmt .num{text-align:right;font-variant-numeric:tabular-nums}
+.grid2{display:grid;grid-template-columns:repeat(2,1fr);gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.st{background:var(--win);color:var(--txt);border-radius:12px;padding:16px;border:1px solid var(--line);box-shadow:0 10px 24px rgba(200,110,145,.12);display:flex;flex-direction:column;gap:10px}
+.st .cap{font-size:13px;color:var(--accent-ink);font-weight:600}
+.explain{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 22px;margin-top:14px}
+.explain ol,.explain ul{margin:6px 0;padding-left:22px}
+.explain li{margin:5px 0}
+button:focus{outline:none}
+button:focus-visible{outline:2px solid var(--accent-d);outline-offset:2px}
+.stat div,.small,li,.st .cap{text-wrap:balance}
+.chk{display:flex;align-items:flex-start;gap:8px;font-size:13.5px;cursor:pointer}
+.cbx{width:18px;height:18px;border-radius:5px;flex:none;margin-top:2px;display:inline-flex;align-items:center;justify-content:center}
+.cbx.on{background:#e98aac;border:1px solid #d9719a}
+.cbx.off{background:#fff;border:1px solid #e6b5c7}
+.radio{width:18px;height:18px;border-radius:50%;flex:none;margin-top:2px;border:1px solid #e6b5c7;background:#fff;display:inline-flex;align-items:center;justify-content:center}
+.radio.on{border:1px solid #d9719a}
+.radio.on::after{content:"";width:10px;height:10px;border-radius:50%;background:#e98aac}
+.pill{display:inline-flex;align-items:center;gap:4px;font-size:12px;border-radius:999px;padding:0 9px;line-height:1.75;white-space:nowrap}
+.pill.in{background:#f3e6ec;color:var(--txt2)}
+.pill.new{background:#f6b3cb;color:#7a2346;font-weight:600}
+.pill.conv{background:var(--info-soft);color:var(--info-ink)}
+.pill.off{background:var(--bad-soft);color:var(--bad-ink)}
+.pill.ok{background:var(--ok-soft);color:var(--ok-ink)}
+.pill.warn{background:var(--warn-soft);color:var(--warn-ink)}
+.code{font-family:Consolas,"Cascadia Mono",monospace;font-size:12.5px;background:#fbe9f0;color:#8a3a5e;border-radius:5px;padding:0 5px}
+@media (prefers-reduced-motion: reduce){*{transition:none !important;animation:none !important}}
+
+/* ---------- หน้าเสียงและซับ ---------- */
+.mx{display:flex;flex-direction:column;gap:12px;padding:16px 18px 18px;flex:1;min-width:0}
+.mtop{display:flex;align-items:center;gap:12px}
+.fchip{display:flex;align-items:center;gap:10px;flex:1;min-width:0;background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px 12px 6px 6px}
+.fthumb{width:30px;height:44px;border-radius:4px;flex:none;box-shadow:0 2px 6px rgba(150,70,100,.25)}
+.fchip .nm{font-weight:600;font-size:14.5px;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fchip .ext{color:var(--txt3);font-weight:400}
+.fchip .meta{font-size:12.5px;color:var(--txt3);line-height:1.4}
+.tracks{display:flex;flex-direction:column;gap:6px}
+/* ป้ายชนิดไฟล์ · สีมาจากค่า --h ของแต่ละชนิด (สีโทนเดียวกันคือตระกูลเดียวกัน) · ตัวหนังสือบนพื้นต่ำสุด 5.64:1 */
+.ft{display:inline-flex;align-items:center;justify-content:center;height:24px;padding:0 8px;border-radius:7px;font-size:12px;font-weight:700;letter-spacing:.2px;white-space:nowrap;background:hsl(var(--h) 80% 93%);color:hsl(var(--h) 60% 26%);border:1px solid hsl(var(--h) 55% 80%)}
+.ft.unk{background:#efeaec;color:#5c4f55;border:1px solid #ddd2d7}
+.ft.line{background:#fff;border:1.5px dashed hsl(var(--h) 50% 42%)}
+.ftleg{display:flex;flex-direction:column;gap:8px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:12px}
+.ftleg .row{display:flex;align-items:flex-start;gap:6px}
+.ftleg .row .k{padding-top:3px;flex:none}
+.ftl{display:flex;align-items:center;gap:6px 14px;flex-wrap:wrap;flex:1;min-width:0}
+.ftn{display:inline-flex;align-items:center;gap:6px}
+.ftn small{font-size:11.5px;color:var(--txt2)}
+.ftleg .k{width:150px;font-size:12.5px;font-weight:600;color:var(--txt2)}
+/* อ่านซับแบบ notepad · ตัวอักษรไทยใช้ Sarabun เพราะ Consolas ไม่มีตัวไทย */
+.np{background:#fff;border:1px solid var(--line);border-radius:8px;max-height:420px;overflow:auto;padding:6px 0;font-family:Consolas,"Cascadia Mono",Sarabun,monospace;font-size:13px;line-height:1.6}
+.npl{display:grid;grid-template-columns:52px minmax(0,1fr);gap:12px;padding-right:12px}
+.npl .ln{color:#c9a9b6;text-align:right;user-select:none;font-size:12px}
+.npl .tx{white-space:pre-wrap;overflow-wrap:anywhere;color:var(--txt)}
+.npl.cur{background:#fdf1f5}
+.np .tm{color:#2f6496}
+.np .sx{color:var(--accent-ink)}
+.np .ky{color:#9b7d8a}
+.np .tg{color:#7a5cc0}
+.npgap{padding:3px 0 3px 64px;color:var(--txt3);font-size:12px;font-family:Sarabun,sans-serif;background:repeating-linear-gradient(135deg,#fff,#fff 6px,#fbf1f5 6px,#fbf1f5 12px)}
+.npst{display:flex;justify-content:flex-end;gap:18px;font-size:12px;color:var(--txt2);background:#fbeef3;border-radius:6px;padding:4px 12px}
+/* โปสเตอร์ในหน้าเสียงและซับ */
+.pslots{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.pslot{display:flex;align-items:center;gap:12px;background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px}
+.pslot.sel{border:1px solid var(--accent);box-shadow:0 0 0 3px rgba(233,138,172,.18)}
+.pslot .nm{font-weight:600;font-size:13.5px;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.pslot .dt{font-size:12px;color:var(--txt3);margin-top:2px}
+.pth{flex:none;border-radius:5px;box-shadow:0 2px 8px rgba(150,70,100,.25)}
+.pth.tall{width:60px;height:90px}
+.pth.wide{width:144px;height:81px}
+/* รายการภาษา */
+.langdemo{display:grid;grid-template-columns:384px 1fr;gap:20px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;margin-top:12px;align-items:start}
+.lpop{margin-top:6px;width:370px;background:#fff;border:1px solid #efc6d5;border-radius:10px;box-shadow:0 12px 28px rgba(150,70,100,.18);overflow:hidden}
+.lsearch{display:flex;align-items:center;gap:8px;padding:8px 10px;border-bottom:1px solid var(--line);color:var(--txt3)}
+.lsearch input{flex:1;border:0;outline:none;font:inherit;font-size:13px;color:var(--txt);background:transparent}
+.llist{max-height:300px;overflow:auto;padding:4px 0}
+.llist [hidden]{display:none}
+.lgrp{font-size:11.5px;font-weight:700;color:var(--txt3);padding:7px 12px 2px}
+.lrow{display:grid;grid-template-columns:100px 1fr auto 16px;gap:8px;align-items:center;padding:5px 12px;font-size:13px;cursor:pointer}
+.lrow:hover{background:#fdeaf1}
+.lrow.on{background:#fdeaf1;color:var(--accent-ink);font-weight:600}
+.lrow .en{color:var(--txt2)}
+.lrow .cd{font-family:Consolas,"Cascadia Mono",monospace;font-size:12px;color:var(--txt3)}
+.lnone{padding:10px 12px;font-size:12.5px;color:var(--txt3)}
+.ldn{margin:28px 0 0;padding-left:18px;font-size:13px;color:var(--txt2);display:flex;flex-direction:column;gap:6px;line-height:1.55}
+.trk{display:grid;grid-template-columns:30px 26px 84px minmax(0,1fr) 100px 44px 124px 142px 70px;gap:8px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:7px 10px;font-size:13px}
+.trk.head{background:transparent;border:0;padding:0 10px;color:var(--txt2);font-size:12px;font-weight:600}
+.trk.out{opacity:.55;background:#fdf6f8}
+.trk.out .nm{text-decoration:line-through}
+.trk.sel{border:1px solid var(--accent);box-shadow:0 0 0 3px rgba(233,138,172,.18)}
+.trk .nm{font-weight:600;color:var(--txt);overflow-wrap:anywhere;line-height:1.35}
+.trk .dt{font-size:12px;color:var(--txt3);overflow-wrap:anywhere;line-height:1.5;margin-top:2px}
+.trk .dd,.trk .inp{height:30px;font-size:12.5px}
+.mv{display:flex;flex-direction:column;align-items:center;gap:1px;color:var(--txt3)}
+.mv button{width:22px;height:14px;border:0;background:transparent;color:var(--txt3);cursor:pointer;padding:0;display:flex;align-items:center;justify-content:center;border-radius:4px}
+.mv button:hover{background:#fdeaf1;color:var(--accent-ink)}
+.kind{width:26px;height:26px;border-radius:7px;display:flex;align-items:center;justify-content:center}
+.kind.v{background:#e4effb;color:#2f6496}
+.kind.a{background:#fbe0ea;color:#b54879}
+.kind.s{background:#efe7fb;color:#6a4aa6}
+.delay{display:flex;align-items:center;gap:3px}
+.delay .inp{width:64px;text-align:right;padding:0 6px;font-variant-numeric:tabular-nums}
+.delay button{width:24px;height:30px;border-radius:7px;border:1px solid #efc6d5;background:#fff;color:var(--txt2);cursor:pointer;font:inherit;font-size:13px;padding:0}
+.delay button:hover{background:#fdeaf1;color:var(--accent-ink)}
+.acts{display:flex;gap:4px;justify-content:flex-end}
+.ib{width:30px;height:30px;border-radius:8px;border:1px solid #efc6d5;background:#fff;color:var(--txt2);display:inline-flex;align-items:center;justify-content:center;cursor:pointer;transition:background-color .15s,color .15s}
+.ib:hover{background:#fdeaf1;color:var(--accent-ink)}
+.ib.bad:hover{background:var(--bad-soft);color:var(--bad-ink)}
+.mrow{display:grid;grid-template-columns:1fr 1fr;gap:12px}
+.optline{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.lbl{font-size:13px;color:var(--txt2)}
+.mfoot{display:flex;align-items:center;justify-content:flex-end;gap:10px}
+.detail{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.field{display:flex;flex-direction:column;gap:5px}
+.field .lbl{font-weight:600;color:var(--txt)}
+.field .small{margin:0}
+.hint{font-size:12.5px;color:#94680f}
+
+/* ---------- แผงตั้งค่าเสียง ---------- */
+.dlg{background:#fff;border:1px solid var(--line);border-radius:14px;box-shadow:0 22px 50px rgba(150,70,100,.22);overflow:hidden}
+.dlghead{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:14px 18px;border-bottom:1px solid var(--line);background:var(--win)}
+.dlghead b{font-size:16px}
+.dlgbody{padding:16px 18px;display:flex;flex-direction:column;gap:14px}
+.dlgfoot{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:12px 18px;border-top:1px solid var(--line);background:var(--win)}
+.codecs{display:flex;flex-wrap:wrap;gap:6px}
+.cbtn{height:32px;padding:0 11px;border-radius:9px;border:1px solid #efc6d5;background:#fff;color:var(--txt2);font:inherit;font-size:13px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background-color .15s,color .15s}
+.cbtn:hover{background:#fdeaf1;color:var(--accent-ink)}
+.cbtn.on{background:#f6b3cb;color:#7a2346;border:1px solid #ef9dbb;font-weight:600}
+.cbtn em{font-style:normal;font-size:11px;opacity:.75;margin-left:6px}
+/* ปุ่มชนิดเสียงสองบรรทัด ชื่อย่อกับชื่อเต็ม · พี่กันสั่ง "ชื่อ codec ทั้งหมดใส่ชื่อเต็มด้วย" */
+.cbtn{flex-direction:column;align-items:flex-start;justify-content:center;height:auto;min-height:44px;padding:4px 12px;gap:0;line-height:1.35}
+.cbtn small{font-size:10.5px;font-weight:400;opacity:.8}
+.ab{font-weight:400;color:var(--txt3)}
+.lbl .ab,.ach .ab{font-size:12px}
+.cline{display:block;line-height:1.7;margin:0}
+.cline .infob{vertical-align:middle}
+/* คำสั่งที่โปรแกรมจะรัน */
+.cmdbox{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 14px 12px;display:flex;flex-direction:column;gap:8px}
+.cmdh{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.cmdh .lbl{font-weight:700;color:var(--txt);font-size:13.5px}
+.cmd{margin:0;background:#2e1f27;color:#fbe4ee;border-radius:8px;padding:10px 12px;font-family:Consolas,"Cascadia Mono",Sarabun,monospace;font-size:12.5px;line-height:1.65;white-space:pre-wrap;overflow-wrap:anywhere}
+.cgroup{font-size:12px;color:var(--txt3);font-weight:600;margin:2px 0 -2px}
+.presets{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.pre{border:1px solid var(--line);border-radius:11px;padding:10px 12px;background:#fff;cursor:pointer;display:flex;flex-direction:column;gap:2px;transition:background-color .15s,border .15s}
+.pre:hover{background:#fdf4f8;border:1px solid #eeb3c8}
+.pre.on{border:1px solid var(--accent);background:#fdeaf1;box-shadow:0 0 0 3px rgba(233,138,172,.18)}
+.pre b{font-size:13.5px}
+.pre span{font-size:12px;color:var(--txt2)}
+.pre em{font-style:normal;font-size:12px;color:var(--txt3)}
+.adv{display:grid;grid-template-columns:repeat(2,1fr);gap:12px 18px}
+.adv .field .lbl{font-size:13px}
+.adv .rng{display:flex;align-items:center;gap:10px}
+.adv input[type=range]{flex:1}
+/* แถบเลื่อนโทนเดียวกับโปรแกรม · ค่าตั้งต้นของเบราว์เซอร์เป็นรางสีดำ */
+input[type=range]{-webkit-appearance:none;appearance:none;height:6px;border-radius:4px;background:#f3cfdc;outline:none}
+input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;height:18px;border-radius:50%;background:#e98aac;border:2px solid #fff;box-shadow:0 0 0 1px #d9719a;cursor:pointer}
+.adv .val{min-width:76px;text-align:right;font-variant-numeric:tabular-nums;font-size:13px;font-weight:600}
+.engine{display:flex;align-items:center;gap:10px;flex-wrap:wrap}
+/* การ์ดละช่อง · ชื่อ ปุ่ม ⓘ และค่าอยู่หัวการ์ดเดียวกัน (พี่กันทักว่า 384 kbps ลอยอยู่ ไม่รู้ว่าของช่องไหน) */
+[data-codec]{position:relative}
+.cards{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+.acard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 14px 12px;display:flex;flex-direction:column;gap:8px;min-width:0}
+.ach{display:flex;align-items:center;justify-content:space-between;gap:10px;min-height:32px}
+.ach .lbl{font-weight:700;color:var(--txt);font-size:13.5px}
+.ilbl{display:inline-flex;align-items:center;gap:2px}
+/* ชื่อคลาส infob ห้ามใช้ info · info ชนกับกล่องเตือน .stat.info ทั้งหน้า กล่องเตือนหดเหลือ 26 px (เจอตอนตรวจภาพ FLAC) */
+.infob{width:26px;height:26px;border:0;background:transparent;border-radius:50%;color:#c47a98;display:inline-flex;align-items:center;justify-content:center;cursor:pointer;padding:0;flex:none;transition:background-color .15s,color .15s}
+.infob:hover{background:#fdeaf1;color:var(--accent-ink)}
+.infob[aria-expanded="true"]{background:#f6b3cb;color:#7a2346}
+.vbox{display:inline-flex;align-items:center;gap:4px;border:1px solid #efc6d5;border-radius:8px;background:#fff;height:32px;padding:0 8px;flex:none}
+.vbox:focus-within{border:1px solid var(--accent);box-shadow:0 0 0 3px rgba(233,138,172,.18)}
+.vbox input{border:0;outline:none;font:inherit;font-size:14px;font-weight:700;text-align:right;color:var(--txt);background:transparent;font-variant-numeric:tabular-nums;padding:0}
+.vbox .px{font-weight:700;color:var(--txt2);font-size:14px}
+.vbox .u{font-size:12.5px;color:var(--txt3)}
+/* แถบเลื่อนเป็นขั้น · ขีดทุกขั้น ตัวเลขใต้ขั้นหลัก · ตำแหน่งขีดหักครึ่งปุ่มจับ 9 px สองข้าง ให้ตรงกลางปุ่มจับ */
+.stepw{position:relative;padding:8px 0 30px}
+.stepw input[type=range]{width:100%;display:block;margin:0;position:relative;z-index:1}
+.ticks{position:absolute;left:9px;right:9px;top:17px;height:8px}
+.ticks i{position:absolute;top:0;width:2px;height:5px;margin-left:-1px;background:#ebc3d2;border-radius:1px}
+.ticks i.mj{height:8px;background:#d98aab}
+.tlabels{position:absolute;left:9px;right:9px;top:26px;height:14px}
+.tlabels span{position:absolute;transform:translateX(-50%);font-size:11px;color:var(--txt3);white-space:nowrap;font-variant-numeric:tabular-nums;line-height:1.3}
+.asz{display:flex;align-items:baseline;gap:8px;font-size:12.5px;color:var(--txt2);background:#fdf4f8;border-radius:8px;padding:4px 10px}
+.asz>span{font-size:11.5px;font-weight:700;color:var(--accent-ink);flex:none}
+.asz b{color:var(--txt)}
+.asz.none{background:transparent;padding:0;color:var(--txt3);font-size:12px}
+.pre em.tot{color:var(--txt2);font-weight:600}
+/* กล่องคำอธิบายจากปุ่ม ⓘ · ตำแหน่งมาจาก placeTip ที่วัดที่ว่างทุกครั้งที่กาง */
+.tip{position:absolute;z-index:40;width:380px;background:#fff;border:1px solid #efc6d5;border-radius:12px;box-shadow:0 16px 36px rgba(150,70,100,.24);padding:10px 14px 12px;font-size:12.8px;line-height:1.55;color:var(--txt);overflow:auto;overscroll-behavior:contain}
+.tip[hidden]{display:none}
+.tiph{display:flex;align-items:center;justify-content:space-between;gap:8px;margin-bottom:2px}
+.tiph b{font-size:14.5px;color:var(--accent-ink)}
+.tip .tw{margin:0 0 6px;color:var(--txt2)}
+.tip .tw,.tip .tp>div,.tip .tc>div,.tip .tr,.tip .to{text-wrap:pretty}
+.tip .to{padding:6px 0 4px;border-top:1px dashed #f1dbe4}
+.tip .tp,.tip .tc{display:flex;gap:6px;align-items:baseline;margin-top:3px}
+.tip .tp>span,.tip .tc>span{flex:none;font-size:11px;font-weight:700;border-radius:999px;padding:0 7px;line-height:1.75}
+.tip .tp>span{background:var(--ok-soft);color:var(--ok-ink)}
+.tip .tc>span{background:var(--bad-soft);color:var(--bad-ink)}
+.tip .top{padding-top:4px}
+.tip .tr{margin-top:8px;background:#fdf1f5;border-radius:8px;padding:6px 10px}
+.tip .tr>span{font-weight:700;color:var(--accent-ink);margin-right:6px}
+.sizeline{display:flex;align-items:center;gap:14px;font-size:13px;color:var(--txt2)}
+.sizeline b{color:var(--txt)}
+
+/* ---------- ตัวช่วยหาดีเลย์ ---------- */
+.lanes2{display:flex;flex-direction:column;gap:6px;position:relative}
+.lane2{display:grid;grid-template-columns:120px 1fr;align-items:center;gap:8px}
+.lane2 .lab{font-size:12.5px;color:var(--txt2);line-height:1.3}
+.lane2 .lab b{display:block;color:var(--txt);font-size:13px}
+.lane2 canvas{width:100%;height:64px;display:block;border-radius:6px;background:#fff8fa}
+.ruler2{margin-left:128px;position:relative;height:18px;font-size:11px;color:var(--txt3);font-variant-numeric:tabular-nums}
+.ruler2 span{position:absolute;transform:translateX(-50%);white-space:nowrap}
+.match{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+
+/* ---------- อ่านซับ ---------- */
+.subtext{background:#fff;border:1px solid var(--line);border-radius:10px;max-height:330px;overflow:hidden;font-size:14px}
+.cue{display:grid;grid-template-columns:44px 210px 1fr;gap:10px;padding:7px 14px;border-bottom:1px solid #f8e3eb;line-height:1.55}
+.cue:last-child{border-bottom:0}
+.cue .n{color:var(--txt3);font-variant-numeric:tabular-nums;text-align:right}
+.cue .t{color:var(--txt2);font-variant-numeric:tabular-nums;font-size:13px}
+.cue mark{background:#fde7a6;color:inherit;border-radius:3px;padding:0 1px}
+.subimgs{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+.simg{background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px;display:flex;flex-direction:column;gap:6px}
+.simg .pic{height:66px;border-radius:6px;background:repeating-conic-gradient(#ece3e7 0% 25%,#f8f3f5 0% 50%) 50%/14px 14px;display:flex;align-items:flex-end;justify-content:center;padding:0 8px 8px}
+.simg .pic span{color:#fff;font-weight:700;font-size:13px;line-height:1.3;text-align:center;text-shadow:0 0 3px #000,0 0 3px #000,0 0 2px #000;letter-spacing:.2px}
+.simg .t{font-size:12px;color:var(--txt2);font-variant-numeric:tabular-nums;display:flex;justify-content:space-between}
+
+/* ---------- อ่านซับแบบ Aegisub ---------- */
+.aegtop{display:grid;grid-template-columns:360px 1fr;gap:14px;align-items:start}
+.vframe{position:relative;width:360px;height:203px;border-radius:8px;overflow:hidden;background:#0d0b1e}
+.vscene{position:absolute;inset:0;background:radial-gradient(1.5px 1.5px at 22% 18%,#fff 60%,transparent),radial-gradient(1px 1px at 48% 12%,#fff 60%,transparent),radial-gradient(1.6px 1.6px at 70% 26%,#fff 60%,transparent),radial-gradient(1px 1px at 84% 9%,#fff 60%,transparent),radial-gradient(1.2px 1.2px at 35% 34%,#fff 60%,transparent),radial-gradient(1px 1px at 60% 40%,#fff 60%,transparent),linear-gradient(180deg,#141233 0%,#2b2457 55%,#3d2a3f 78%,#121016 79%,#0b0a0e 100%)}
+.vsub{position:absolute;left:10px;right:10px;bottom:14px;text-align:center;color:#fff;font-weight:600;font-size:14px;line-height:1.4;text-shadow:0 0 3px #000,0 0 3px #000,0 1px 2px #000}
+.vtime{position:absolute;top:6px;right:8px;font-size:11px;color:#e8dff0;background:rgba(0,0,0,.45);border-radius:5px;padding:0 6px;font-variant-numeric:tabular-nums}
+.aud{width:100%;height:150px;display:block;border-radius:6px;border:1px solid var(--line)}
+.sgrid{border:1px solid var(--line);border-radius:10px;overflow:hidden;background:#fff}
+.sgrid table{width:100%;border-collapse:collapse;font-size:13.5px}
+.sgrid th{background:var(--win2);color:var(--txt2);font-size:12px;font-weight:600;padding:6px 10px;text-align:left;border-bottom:1px solid var(--line)}
+.sgrid td{padding:5px 10px;border-bottom:1px solid #f8e3eb;line-height:1.5;cursor:pointer}
+.sgrid tr:last-child td{border-bottom:0}
+.sgrid tbody tr:hover td{background:#fdf4f8}
+.sgrid tr.on td{background:#fbd7e5;color:#5f1d39}
+.sgrid .num{text-align:right;font-variant-numeric:tabular-nums;white-space:nowrap;width:1%}
+.sgrid td.bad{background:#fde5e5;color:#b04545;font-weight:600}
+.sgrid tr.on td.bad{background:#f8c9c9}
+.sgrid mark{background:#fde7a6;color:inherit;border-radius:3px;padding:0 1px}
+
+/* ---------- หน้าแปลงเสียง ---------- */
+.queue{display:flex;flex-direction:column;gap:6px}
+.qrow{display:grid;grid-template-columns:40px minmax(0,1.4fr) 24px minmax(0,1fr) 200px 112px;gap:10px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px}
+.qrow.head{background:transparent;border:0;padding:0 10px;color:var(--txt2);font-size:12px;font-weight:600}
+.qrow .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.35}
+.qrow .dt{font-size:12px;color:var(--txt3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.35}
+.cov{width:40px;height:40px;border-radius:6px;box-shadow:0 2px 5px rgba(150,70,100,.22)}
+/* ---------- เทียบก่อนกับหลังแปลง · หน้ากราฟเสียงหลักแบบเปิดสองไฟล์ ---------- */
+.gtop{display:flex;align-items:center;gap:10px}
+.gfile{display:flex;align-items:center;gap:10px;flex:1;min-width:0;background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px 12px 6px 14px}
+.gfile .ic{width:36px;height:36px;border-radius:8px;border:1px solid #efc6d5;display:flex;align-items:center;justify-content:center;flex:none}
+.gfile .nm{font-weight:600;font-size:14.5px;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.gfile .ext{color:var(--txt3);font-weight:400}
+.gfile .meta{font-size:12.5px;color:var(--txt3);line-height:1.4}
+.who{display:inline-flex;align-items:center;gap:5px;font-size:12px;font-weight:700;white-space:nowrap}
+.who i{width:8px;height:8px;border-radius:50%;display:inline-block}
+.gtabs{display:flex;align-items:center;justify-content:space-between;gap:10px}
+.gbody{display:grid;grid-template-columns:232px minmax(0,1fr);gap:14px;align-items:start}
+.gside{display:flex;flex-direction:column;gap:12px}
+.gcard{background:#fbeef3;border:1px solid var(--line);border-radius:12px;padding:12px 14px}
+.gch{display:flex;align-items:center;justify-content:space-between;margin-bottom:8px}
+.gch b{color:var(--accent-ink);font-size:14.5px}
+.spk{position:relative;height:104px}
+.spk .sp{position:absolute;top:10px;width:32px;height:32px;border-radius:50%;background:#d98aab;border:1px solid #c25d7f;color:#fff;font-size:11.5px;font-weight:700;display:flex;align-items:center;justify-content:center}
+.spk .seat{position:absolute;left:50%;top:50px;transform:translateX(-50%)}
+.spk .seatl{position:absolute;left:50%;top:80px;transform:translateX(-50%);font-size:11px;color:var(--txt3);white-space:nowrap}
+.ginfo{display:grid;grid-template-columns:1fr auto auto;gap:7px 10px;font-size:12.5px;align-items:baseline}
+.ginfo .k{color:var(--txt2)}
+.ginfo .v{font-weight:600;text-align:right;white-space:nowrap}
+.ginfo .h{font-size:11.5px;font-weight:700;text-align:right}
+.gmain{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px 14px;display:flex;flex-direction:column;gap:10px;min-width:0}
+.ghead{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.ghead b{font-size:14px}
+.zm{display:flex;align-items:center;gap:6px}
+.gcv{width:100%;display:block}
+.glane{display:grid;grid-template-columns:96px minmax(0,1fr);gap:8px;align-items:center}
+.glane .lab{font-size:12px;color:var(--txt3);line-height:1.45}
+.glane .lab b{color:var(--txt);font-size:13px}
+.glane canvas{width:100%;height:56px;display:block;border-radius:4px}
+.gruler{position:relative;height:16px;font-size:11px;color:var(--txt3);border-bottom:1px solid #f1e4ea}
+.gruler span{position:absolute;top:0;transform:translateX(-50%)}
+.gruler span:first-child{transform:none}
+.gfoot{display:flex;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap}
+.lg .sq{display:inline-block;width:10px;height:10px;border-radius:2px;margin-right:3px;vertical-align:-1px}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px}
+.tile{background:#fbeef3;border-radius:10px;padding:8px 12px;display:flex;flex-direction:column;gap:2px}
+.tile .tv{display:flex;align-items:center;justify-content:space-between;gap:6px}
+.tile .tv b{font-size:14px;white-space:nowrap}
+.tile .tv .who{font-size:11.5px}
+.rd{display:flex;align-items:center;gap:8px 16px;flex-wrap:wrap}
+.rd .grp{display:inline-flex;align-items:center;gap:8px;white-space:nowrap}
+.rd .box{background:#fdf1f5;border:1px solid var(--line);border-radius:8px;padding:5px 10px;font-size:12.5px;font-variant-numeric:tabular-nums}
+.lg{display:flex;align-items:center;gap:14px;font-size:12.5px;color:var(--txt2);flex-wrap:wrap}
+.lg .ln{display:inline-block;width:16px;height:3px;border-radius:2px;margin-right:6px;vertical-align:3px}
+.tagview{display:grid;grid-template-columns:150px 1fr;gap:14px;align-items:start}
+.tagview .art{width:150px;height:150px;border-radius:10px;box-shadow:0 6px 16px rgba(150,70,100,.22)}
+.kv{display:grid;grid-template-columns:112px 1fr;gap:4px 12px;font-size:13.5px;margin:0}
+.kv dt{color:var(--txt2)} .kv dd{margin:0;color:var(--txt);font-weight:600}
+.shelfcard{background:#fff;border:1px solid var(--line);border-radius:12px;padding:12px;display:flex;flex-direction:column;gap:8px}
+.pair{display:grid;grid-template-columns:26px 1fr auto;gap:8px;align-items:center;font-size:13px}
+.pair .p{font-size:12px;color:var(--txt3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.enc{display:grid;grid-template-columns:150px 120px 1fr 110px;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #f8e3eb;font-size:13.5px}
+.enc:last-child{border-bottom:0}
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>มอคอัปหน้า "เสียงและซับ" กับหน้าแปลงเสียง</h1>
+<p class="lead">ใส่เสียงหรือซับที่โหลดแยกมาเข้าหนัง ปรับเวลาเป็นมิลลิวินาทีแบบ MKVToolNix แปลงชนิดเสียงตอนรวม จัดการแทร็กที่อยู่ในหนัง หรือจับคู่ไว้เฉย ๆ ไม่รวมก็ได้ · แปลงไฟล์เสียงอย่างเดียวทำที่หน้ากราฟเสียง แปลงเป็นคิวแล้วเทียบความถี่ก่อนกับหลังแปลง<br>
+ตัวแปลงใช้ตัวต้นฉบับเป็นค่าตั้งต้น ffmpeg เป็นตัวรอง · ทุกชนิดตั้งค่าได้ทั้งแบบง่ายและขั้นสูง · กรอบที่เขียนว่า <b>กดได้จริง</b> ลองกดเปลี่ยนได้ · ข้อมูลไฟล์ทั้งหมดเป็นของสมมติ</p>
+
+<!-- ==================== 1 หน้าเสียงและซับ ==================== -->
+<div class="sec">
+  <h2><span class="tag">หน้าใหม่</span>เสียงและซับ · หนัง MKV · เพิ่มพากย์ไทยกับซับ แปลงเสียงอังกฤษ</h2>
+  <p class="note">เมนูซ้ายมีหน้าใหม่ <b>เสียงและซับ</b> ต่อจากใส่โปสเตอร์ · ตารางบนคือแทร็กที่อยู่ในหนังกับไฟล์ที่เพิ่ม เรียงตามลำดับในไฟล์ใหม่ · ลูกศรซ้ายสุดเลื่อนลำดับ · คอลัมน์ <b>ชนิด</b> บอกชนิดไฟล์ของทุกแทร็ก แต่ละชนิดสีไม่ซ้ำกัน · <span class="nw">ป้าย <span class="pill in">ในหนัง</span> <span class="pill new">เพิ่มใหม่</span> <span class="pill conv">แปลง</span> <span class="pill off">เอาออก</span></span> · กดแถวเพื่อตั้งค่าแทร็กนั้นด้านล่าง<br>
+  ไฟล์ที่เพิ่มอยู่ต่างโฟลเดอร์กับหนังได้ · ชื่อไฟล์มีคำว่า DELAY ตามด้วยตัวเลข โปรแกรมใส่ดีเลย์ให้เอง · <b>โปสเตอร์</b> ปกตั้งกับปกนอนใส่ในหน้านี้ได้ รวมรอบเดียวพร้อมเสียงและซับ · หน้าใส่โปสเตอร์คงเดิมทุกอย่าง</p>
+  <div class="win" data-win="merge"></div>
+  <div data-ftlegend></div>
+  <div data-langdemo></div>
+</div>
+
+<!-- ==================== 2 แผงตั้งค่าเสียง ==================== -->
+<div class="sec">
+  <h2><span class="tag">ตั้งค่าเสียง</span>แผงตั้งค่าเสียง · แบบง่ายกับขั้นสูง · กดได้จริง</h2>
+  <p class="note">เปิดจากปุ่มในช่อง <b>แปลง</b> ของแต่ละแทร็ก · ใช้แผงเดียวกันทั้งหน้าเสียงและซับกับหน้าแปลงเสียง · <b>แบบง่าย</b> กดเลือกชุดค่าที่ตั้งไว้ · <b>ขั้นสูง</b> เปิดทุกตัวเลือกของชนิดนั้น มีคำอธิบายกับช่วงค่าที่ใช้ได้ · เริ่มจากแบบง่ายแล้วเปิดขั้นสูงแก้ต่อได้ ค่าที่เลือกไม่หาย<br>
+  <b>ตัวแปลง</b> ตัวต้นฉบับเป็นค่าตั้งต้น ffmpeg เป็นตัวรอง · AAC ใช้ตัวที่พี่กันวางเองในโฟลเดอร์ตัวแปลง (กรอบนี้สมมติว่าวาง qaac ไว้แล้ว) · ลองกด Codec แบบง่าย ขั้นสูง และ Encoder · คำเทคนิคใช้คำอังกฤษที่คนเล่นเรื่องนี้ใช้กัน คำอธิบายไทยอยู่ใต้ช่อง<br>
+  <b>ขั้นสูง</b> การ์ดละช่อง ชื่อ ปุ่ม ⓘ และค่าอยู่หัวการ์ด · แถบเลื่อนเป็นขั้นตามค่าที่ตัวแปลงใช้ได้จริง มีช่องพิมพ์ค่าเอง · ทุกการ์ดบอกขนาดไฟล์ที่คาด เปลี่ยนตามค่าทันที · กด <b>ⓘ</b> หลังชื่อไหนก็ได้ เปิดคำอธิบายว่าคืออะไร ปรับแบบไหนได้อะไร ข้อดี ข้อเสีย ค่าที่แนะนำ · แต่ละชนิดเสียงมีการ์ดไม่เหมือนกัน</p>
+  <div data-codec></div>
+</div>
+
+<!-- ==================== 3 ตัวช่วยหาดีเลย์ ==================== -->
+<div class="sec">
+  <h2><span class="tag">ดีเลย์</span>ตัวช่วยหาค่าดีเลย์ · กดได้จริง</h2>
+  <p class="note">กดปุ่ม <b>หาค่าดีเลย์</b> ในแถวเสียงที่เพิ่ม · คลื่นเสียงเดิมของหนังอยู่บน เสียงใหม่อยู่ล่าง ลากแถบเลื่อนให้ยอดเสียงตรงกัน หรือกด <b>ให้โปรแกรมหาให้</b> · กด <b>ลองฟัง 20 วินาที</b> เปิดโปรแกรมเล่นที่ตั้งไว้พร้อมเสียงใหม่ที่ใส่ดีเลย์แล้ว ไฟล์หนังไม่ถูกแก้ · ลองลากแถบเลื่อนได้</p>
+  <div data-delay></div>
+</div>
+
+<!-- ==================== 4 อ่านซับ ==================== -->
+<div class="sec">
+  <h2><span class="tag">อ่านซับ</span>ดูซับตัวหนังสือแบบ Aegisub · แบบอ่านยาวแบบ notepad · เพิ่มแบบ notepad ทุกชนิด · ดูซับแบบรูป · กดได้จริง</h2>
+  <p class="note">กดปุ่มรูปตาในแถวซับ ทั้งซับในหนังและซับที่เพิ่ม · <b>ซับตัวหนังสือ</b> (SRT ASS VTT) เปิดแบบ Aegisub ตามที่พี่กันส่งมา ตารางบรรทัดซับอยู่ล่าง คลื่นเสียงช่วงนั้นพร้อมกรอบเวลาของแต่ละบรรทัดอยู่ขวาบน ภาพหนังตรงเวลานั้นพร้อมซับทับอยู่ซ้ายบน · กดแถวในตาราง คลื่นเสียงกับภาพเลื่อนไปที่บรรทัดนั้น · ช่องตัวอักษรต่อวินาทีขึ้นสีเมื่ออ่านไม่ทัน ช่องเวลาขึ้นสีเมื่อซ้อนกับบรรทัดก่อน · สลับเป็นแบบอ่านยาวแบบ notepad ได้ · <b>เพิ่มแบบ notepad</b> (กรอบล่างสุด) เปิดไฟล์จริงทุกตัวอักษร มีเลขบรรทัด ใช้ได้กับซับตัวหนังสือทุกชนิด ลองกดสลับ SRT ASS VTT ได้ · ดูอย่างเดียว การแก้ซับมากับไอเดียให้ AI ทำซับในโรดแมป<br>
+  <b>ซับแบบรูป</b> (ซับบลูเรย์ PGS กับซับ DVD) โปรแกรมถอดเป็นรูปให้ดูทีละภาพพร้อมเวลา · ใส่ดีเลย์ไว้ เวลาที่แสดงเลื่อนตามดีเลย์ทั้งสองแบบ</p>
+  <div data-subview></div>
+  <div class="grid2" style="margin-top:14px">
+    <div class="dlg">
+      <div class="dlghead"><div><b>ซับ ดาวเหนือ.th.srt · แบบอ่านยาว</b><div class="small">กดสลับจากแบบ Aegisub · เรียงบรรทัดแบบเปิด notepad · ดีเลย์ +500 ms เวลาที่แสดงเลื่อนแล้ว</div></div><button class="ib" aria-label="ปิด"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div class="dlgbody">
+        <div style="display:flex;gap:8px;align-items:center"><input class="inp" style="flex:1" value="ดาวเหนือ" aria-label="ค้นในซับ"><span class="small nw">เจอ 6 ที่ · ที่ 2 จาก 6</span><button class="btn btn-ghost btn-sm">ก่อนหน้า</button><button class="btn btn-ghost btn-sm">ถัดไป</button></div>
+        <div class="subtext">
+          <div class="cue"><span class="n">212</span><span class="t">00:18:41,620 → 00:18:44,100</span><span>คืนนี้ฟ้าเปิด เห็นดาวชัดทั้งแผ่น</span></div>
+          <div class="cue"><span class="n">213</span><span class="t">00:18:44,560 → 00:18:47,210</span><span>พ่อเคยบอกว่า ถ้าหลงทางให้มองหา<mark>ดาวเหนือ</mark></span></div>
+          <div class="cue"><span class="n">214</span><span class="t">00:18:47,800 → 00:18:49,030</span><span>แล้วมันอยู่ตรงไหน</span></div>
+          <div class="cue"><span class="n">215</span><span class="t">00:18:49,400 → 00:18:52,950</span><span>ลากเส้นจากดาวสองดวงท้ายกระบวยขึ้นไป<br>ห้าช่วงเท่า ๆ กัน</span></div>
+          <div class="cue"><span class="n">216</span><span class="t">00:18:53,300 → 00:18:55,180</span><span>เจอแล้ว ดวงไม่สว่างเท่าไหร่เลย</span></div>
+          <div class="cue"><span class="n">217</span><span class="t">00:18:55,600 → 00:18:58,420</span><span>ไม่ต้องสว่าง แค่ไม่เคยย้ายที่ก็พอ</span></div>
+        </div>
+        <div class="small">ดูอย่างเดียว แก้ไม่ได้ · ซับ ASS แสดงเฉพาะข้อความ ไม่แสดงสีกับตำแหน่ง · ภาษาไทยที่เข้ารหัสแบบเก่า (TIS-620) โปรแกรมแปลงให้อ่านได้</div>
+      </div>
+    </div>
+    <div class="dlg">
+      <div class="dlghead"><div><b>ซับ 3 · อังกฤษ · ซับบลูเรย์ (PGS)</b><div class="small">ซับในหนัง · เป็นรูป 1,204 ภาพ · ถอดเป็นรูปให้ดูทีละหน้า</div></div><button class="ib" aria-label="ปิด"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6L6 18"/></svg></button></div>
+      <div class="dlgbody">
+        <div class="subimgs">
+          <div class="simg"><div class="pic"><span>Tonight the sky is clear.</span></div><div class="t"><span>ภาพ 212</span><span>18:41.6</span></div></div>
+          <div class="simg"><div class="pic"><span>Look for the North Star.</span></div><div class="t"><span>ภาพ 213</span><span>18:44.6</span></div></div>
+          <div class="simg"><div class="pic"><span>Where is it?</span></div><div class="t"><span>ภาพ 214</span><span>18:47.8</span></div></div>
+          <div class="simg"><div class="pic"><span>Follow the two stars...</span></div><div class="t"><span>ภาพ 215</span><span>18:49.4</span></div></div>
+          <div class="simg"><div class="pic"><span>Found it. Not so bright.</span></div><div class="t"><span>ภาพ 216</span><span>18:53.3</span></div></div>
+          <div class="simg"><div class="pic"><span>It never moves.</span></div><div class="t"><span>ภาพ 217</span><span>18:55.6</span></div></div>
+        </div>
+        <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><span class="small">ภาพที่ 212–217 จาก 1,204 · กดภาพเพื่อดูเต็ม</span><div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm">หน้าก่อน</button><button class="btn btn-ghost btn-sm">หน้าถัดไป</button></div></div>
+        <div class="small">พื้นตารางหมากรุกคือส่วนโปร่งใสของรูปซับ · ซับแบบรูปค้นคำไม่ได้</div>
+      </div>
+    </div>
+  </div>
+  <div data-notepad style="margin-top:14px"></div>
+</div>
+
+<!-- ==================== 5 จับคู่ไม่รวม ==================== -->
+<div class="sec">
+  <h2><span class="tag">จับคู่</span>จับคู่ไว้ ไม่รวมเข้าไฟล์ · เปิดดูพร้อมเสียงและซับที่จับคู่</h2>
+  <p class="note">เลือก <b>จับคู่ไว้ ไม่รวม</b> แทน <b>รวมเข้าไฟล์หนัง</b> · ไฟล์หนังไม่ถูกแตะเลย ไม่ต้องรอ ไม่ใช้ที่ว่างเพิ่ม · ไฟล์เสียงกับซับอยู่โฟลเดอร์ไหนก็ได้ โปรแกรมจำไว้กับหนังในคลัง · กดเปิดเล่น โปรแกรมส่งไฟล์ที่จับคู่ไปให้โปรแกรมเล่นพร้อมดีเลย์ที่ตั้งไว้ · ย้ายหรือเปลี่ยนชื่อไฟล์ที่จับคู่ โปรแกรมบอกว่าหาไม่เจอ</p>
+  <div class="grid3">
+    <div class="st"><div class="cap">เลือกวิธีในหน้าเสียงและซับ</div>
+      <div class="seg" style="align-self:flex-start"><button>รวมเข้าไฟล์หนัง</button><button class="on">จับคู่ไว้ ไม่รวม</button></div>
+      <div class="stat info"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg><div><b>ไฟล์หนังไม่ถูกแตะ</b>จับคู่ได้เฉพาะเสียงกับซับที่เพิ่ม · แปลงชนิด เอาแทร็กออก เรียงลำดับ ทำได้เฉพาะตอนรวม · ดีเลย์ใช้ได้ทั้งสองแบบ</div></div>
+      <div class="mfoot"><button class="btn btn-main">จับคู่ไว้กับหนังเรื่องนี้</button></div>
+    </div>
+    <div class="st"><div class="cap">แผงขวาของชั้นวาง</div>
+      <div class="shelfcard">
+        <b style="font-size:14px">จับคู่ไว้ 2 ไฟล์</b>
+        <div class="pair"><span class="kind a"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 10v4"/></svg></span><div style="min-width:0"><div>พากย์ไทย 5.1 · ดีเลย์ −120 ms</div><div class="p">D:\ดาวน์โหลด\เสียง\ดาวเหนือ พากย์ไทย DELAY -120ms.ac3</div></div><span class="pill ok">เจอไฟล์</span></div>
+        <div class="pair"><span class="kind s"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 14h4M13 14h4M7 10h10"/></svg></span><div style="min-width:0"><div>ซับไทย · ดีเลย์ +500 ms</div><div class="p">E:\ซับ\ดาวเหนือ.th.srt</div></div><span class="pill ok">เจอไฟล์</span></div>
+        <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-main btn-sm">เปิดเล่นพร้อมเสียงและซับที่จับคู่</button><button class="btn btn-ghost btn-sm">แก้การจับคู่</button></div>
+      </div>
+      <div class="small">ปุ่มเปิดเล่นเดิมยังเปิดเฉพาะไฟล์หนัง · บนชั้นมีจุดเล็กมุมปกบอกว่าเรื่องนี้จับคู่ไว้</div>
+    </div>
+    <div class="st"><div class="cap">ไฟล์ที่จับคู่หาไม่เจอ · โปรแกรมเล่นที่ไม่รับ</div>
+      <div class="stat warn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17v.5"/></svg><div><b>หาซับที่จับคู่ไม่เจอ</b>E:\ซับ\ดาวเหนือ.th.srt · ไดรฟ์อาจถอดออกอยู่ หรือไฟล์ถูกย้าย · เปิดเล่นได้พร้อมพากย์ไทย ไม่มีซับ</div></div>
+      <div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm">หาไฟล์ใหม่</button><button class="btn btn-ghost btn-sm">เอาออกจากคู่</button></div>
+      <div class="stat warn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17v.5"/></svg><div><b>โปรแกรมเล่นหลักของ Windows รับไฟล์เสียงแยกไม่ได้</b>เปิดได้เฉพาะหนัง · เลือกโปรแกรมเล่น VLC MPC-HC PotPlayer หรือ mpv ในหน้าตั้งค่า</div></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 6 สถานะ ==================== -->
+<div class="sec">
+  <h2><span class="tag">สถานะ</span>สถานะอื่นของหน้าเสียงและซับ</h2>
+  <p class="note">ยังไม่ใส่ไฟล์ · กำลังรวม · เสร็จ · ไม่สำเร็จ · ไฟล์ที่ได้เป็น MP4 แต่มีของที่ใส่ไม่ได้ · ทำงานแบบเดียวกับหน้าใส่โปสเตอร์ ทำเป็นไฟล์ชั่วคราวก่อน ตรวจเทียบแล้วค่อยเป็นไฟล์จริง ไม่เขียนทับไฟล์ใด</p>
+  <div class="grid3">
+    <div class="st"><div class="cap">ยังไม่ใส่ไฟล์หนัง</div>
+      <div class="drop" style="flex-direction:column;min-height:150px"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#e5a3bd" stroke-width="1.8"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg><b style="color:var(--txt2)">ลากไฟล์หนังมาวางตรงนี้</b><span>แล้วลากไฟล์เสียงหรือซับตามมาวางได้เลย</span><button class="btn btn-ghost btn-sm">เลือกไฟล์จากเครื่อง</button></div>
+      <div class="small">ลากหนังกับเสียงมาพร้อมกันได้ โปรแกรมแยกให้เองว่าไฟล์ไหนเป็นหนัง · รับหนัง 12 ชนิดเหมือนหน้าใส่โปสเตอร์</div>
+    </div>
+    <div class="st"><div class="cap">กำลังรวม</div>
+      <div style="font-size:14px">กำลังแปลงเสียง 2 · อังกฤษ เป็น AC-3</div>
+      <div class="bar"><i style="width:38%"></i></div>
+      <div class="small">38% · เหลือราว 2 นาที 10 วินาที<br>ขั้นถัดไป รวมเข้าไฟล์ใหม่ แล้วตรวจไฟล์ใหม่</div>
+      <button class="btn btn-bad btn-sm" style="align-self:flex-start">หยุด</button>
+      <div class="small">แปลงเสียงก่อน (ช่วงที่นานสุด) แล้วค่อยรวมด้วย mkvmerge · กดหยุด ไฟล์ที่ทำค้างถูกลบ ไฟล์เดิมไม่ถูกแตะ</div>
+    </div>
+    <div class="st"><div class="cap">เสร็จ</div>
+      <div class="stat ok"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><b>รวมเสร็จ ไฟล์ใหม่ตรวจผ่าน</b>ภาพ 1 · เสียง 4 · ซับ 2 · ครบตามที่ตั้ง · ความยาวเท่าเดิม<br>ไฟล์เดิมย้ายไปที่ D:\หนัง\ไฟล์เดิม</div></div>
+      <div style="display:flex;gap:6px"><button class="btn btn-ok btn-sm">ไปดูบนชั้นวาง</button><button class="btn btn-ghost btn-sm">ดูกราฟเสียง</button></div>
+    </div>
+    <div class="st"><div class="cap">ไฟล์ที่ได้เป็น MP4 · มีของที่ใส่ไม่ได้</div>
+      <div class="stat warn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17v.5"/></svg><div><b>ซับ 3 · อังกฤษ เป็นรูป ใส่ใน MP4 ไม่ได้</b>ถ้าทำต่อ ซับนี้จะหายจากไฟล์ใหม่</div></div>
+      <div class="stat warn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17v.5"/></svg><div><b>เสียงที่แปลงเป็น WavPack ใส่ใน MP4 ไม่ได้</b>เลือกชนิดอื่น เช่น FLAC หรือกลับไปใช้ MKV</div></div>
+      <div style="display:flex;gap:6px;flex-wrap:wrap"><button class="btn btn-main btn-sm">กลับไปใช้ MKV</button><button class="btn btn-ghost btn-sm">ทิ้งซับนี้แล้วทำต่อ</button></div>
+    </div>
+    <div class="st"><div class="cap">ไม่สำเร็จ</div>
+      <div class="stat bad"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg><div><b>เสียงที่เพิ่มยาวกว่าหนัง 4 นาที 12 วินาที</b>อาจเป็นเสียงของหนังคนละรุ่น ลองตั้งความเร็วเสียง หรือตรวจว่าเลือกไฟล์ถูก · ยังไม่ได้เริ่มรวม ไฟล์เดิมไม่ถูกแตะ</div></div>
+      <div class="stat bad"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg><div><b>พื้นที่ในไดรฟ์ D ไม่พอ</b>ต้องการ 9.2 GB แต่เหลือ 3.1 GB · ไฟล์เดิมไม่ถูกแตะ</div></div>
+      <button class="btn btn-ghost btn-sm" style="align-self:flex-start">ลองใหม่</button>
+    </div>
+    <div class="st"><div class="cap">ทางเข้าจากที่อื่น</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button class="btn btn-main btn-sm">เปิดเล่น</button><button class="btn btn-ghost btn-sm">เปลี่ยนชื่อ</button>
+        <button class="btn btn-ghost btn-sm">เปลี่ยนโปสเตอร์</button><button class="btn btn-ghost btn-sm">ตรวจไฟล์</button>
+        <button class="btn btn-ghost btn-sm">ข้อมูลไฟล์</button><button class="btn btn-ghost btn-sm">เปิดโฟลเดอร์</button>
+        <button class="btn btn-ghost btn-sm">กราฟเสียง</button>
+        <button class="btn btn-ghost btn-sm" style="border:1px solid var(--accent);background:#fdeaf1;color:var(--accent-ink)">เสียงและซับ</button>
+      </div>
+      <div class="small">แผงขวาของชั้นวางเพิ่มปุ่มที่ 8 คู่กับกราฟเสียง · หน้าข้อมูลไฟล์มีปุ่มนี้ด้วย</div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 7 หน้าแปลงเสียง ==================== -->
+<div class="sec">
+  <h2><span class="tag">กราฟเสียง</span>แปลงไฟล์เสียงที่หน้ากราฟเสียง · แปลงเป็นคิว · เทียบความถี่ก่อนกับหลังแปลง</h2>
+  <p class="note">หน้ากราฟเสียงเพิ่มปุ่ม <b>แปลงเสียง</b> ข้างปุ่มเปิดไฟล์อื่น · ลากไฟล์เสียงมาหลายไฟล์ได้ ตั้งชนิดทีเดียวทั้งคิวหรือทีละไฟล์ · ไฟล์ใหม่วางข้างไฟล์เดิม ชื่อเดิมนามสกุลใหม่ ชื่อชนต่อท้ายเลข ไม่เขียนทับ · ข้อมูลเพลงกับรูปปกติดไปด้วย<br>
+  แปลงเสร็จกด <b>เทียบความถี่</b> ได้ทีละไฟล์ · Monkey's Audio กับ TAK มีเฉพาะหน้านี้ เพราะใส่ในไฟล์หนังไม่ได้</p>
+  <div class="win" data-win="convert"></div>
+</div>
+
+<div class="sec">
+  <h2><span class="tag">เทียบ</span>เทียบก่อนกับหลังแปลง · หน้ากราฟเสียงหลักแบบเปิดสองไฟล์ · เพลง ก.flac เป็น Opus 160 kbps · กดได้จริง</h2>
+  <p class="note">กด <b>เทียบความถี่</b> ในคิวแปลง เปิดหน้ากราฟเสียงหลักพร้อมสองไฟล์ · แท็บเดิมทั้ง 6 แท็บ รูปคลื่น ความถี่ ความดัง ซ้อนเทียบ วิเคราะห์ ความถี่เฉลี่ย ทุกกราฟแสดงสองไฟล์ <b style="color:#1d5fae">ต้นฉบับสีฟ้า</b> <b style="color:#b4461a">หลังแปลงสีส้ม</b> · แผงซ้ายช่องเสียงกับข้อมูลเสียงเทียบสองคอลัมน์ · ซูม ช่วงเวลา ช่องที่ซ่อน ใช้กับสองไฟล์พร้อมกัน<br>
+  ภาพตั้งต้นคือแท็บวิเคราะห์ ลองกดแท็บอื่นได้ · กราฟเป็นข้อมูลสมมติ ของจริงใช้ตัววาดของหน้ากราฟเสียงที่มีอยู่</p>
+  <div class="win" data-win="compare"></div>
+</div>
+
+<div class="sec">
+  <h2><span class="tag">ข้อมูลเพลง</span>ดูข้อมูลเพลงกับรูปปก · ดูอย่างเดียว</h2>
+  <p class="note">กดชื่อไฟล์บนหน้ากราฟเสียงหรือในคิวแปลง · ดูได้ แก้ไม่ได้ (พี่กันสั่ง การแก้ข้อมูลหนังและเพลงอยู่ในโรดแมป) · ไฟล์ที่ไม่มีข้อมูลเพลงขึ้นว่าไม่มี</p>
+  <div class="grid2">
+    <div class="st"><div class="cap">เพลง ก.flac</div>
+      <div class="tagview">
+        <div class="art" style="background:linear-gradient(150deg,#ffd1dc 0%,#f39bb8 45%,#8a4fb8 100%)"></div>
+        <dl class="kv">
+          <dt>ชื่อเพลง</dt><dd>ฝนแรกของปี</dd>
+          <dt>ศิลปิน</dt><dd>วงตัวอย่าง</dd>
+          <dt>อัลบั้ม</dt><dd>ฤดูกาล</dd>
+          <dt>ปี</dt><dd>2568</dd>
+          <dt>แทร็ก</dt><dd>3 จาก 10 · แผ่น 1</dd>
+          <dt>ประเภท</dt><dd>ป็อป</dd>
+          <dt>รูปปก</dt><dd>JPG 1400 × 1400 · 412 KB</dd>
+          <dt>ค่าความดัง</dt><dd>อัลบั้ม −7.2 dB · เพลง −6.8 dB</dd>
+        </dl>
+      </div>
+      <div class="small">ดูอย่างเดียว · ปุ่มคัดลอกข้อมูลเป็นข้อความ แบบหน้าข้อมูลไฟล์</div>
+    </div>
+    <div class="st"><div class="cap">ไฟล์ที่ไม่มีข้อมูลเพลง</div>
+      <div class="tagview">
+        <div class="art" style="background:repeating-linear-gradient(45deg,#fbe7ef 0 8px,#fff 8px 16px);border:1px dashed #eeb3c8;display:flex;align-items:center;justify-content:center;color:var(--txt3);font-size:13px;box-shadow:none">ไม่มีรูปปก</div>
+        <div class="stat info"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg><div><b>ไฟล์นี้ไม่มีข้อมูลเพลง</b>ไฟล์ WAV ส่วนใหญ่ไม่เก็บชื่อเพลงกับรูปปก · แปลงเป็น FLAC แล้วก็ยังไม่มีข้อมูล เพราะต้นฉบับไม่มี</div></div>
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 8 ตั้งค่า ตัวแปลงเสียง ==================== -->
+<div class="sec">
+  <h2><span class="tag">ตั้งค่า</span>หน้าตั้งค่า การ์ดตัวแปลงเสียง · โฟลเดอร์ตัวแปลงที่ใส่เอง</h2>
+  <p class="note">การ์ดใหม่ในหน้าตั้งค่า · ตัวที่แนบมากับโปรแกรม กับตัวที่พี่กันโหลดเองแล้ววางในโฟลเดอร์ตัวแปลง (ตัวที่สัญญาอนุญาตไม่ให้แจกไปกับตัวติดตั้ง เช่น AAC ของ Apple กับ Fraunhofer) · โปรแกรมหาเจอเอง บอกรุ่นกับสถานะ · วางรุ่นใหม่กว่าตัวที่แนบมาก็ได้ โปรแกรมใช้ตัวที่ใหม่กว่าและบอกว่าใช้ตัวไหน</p>
+  <div class="st" style="max-width:860px">
+    <div style="display:flex;align-items:center;justify-content:space-between;gap:10px"><b style="font-size:15px;color:var(--accent-ink)">ตัวแปลงเสียง</b><div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm">เปิดโฟลเดอร์ตัวแปลง</button><button class="btn btn-ghost btn-sm">ตรวจตัวแปลงใหม่</button></div></div>
+    <div class="small">โฟลเดอร์ตัวแปลงที่ใส่เอง <span class="code">C:\Users\…\AppData\Local\ชั้นหนัง\ตัวแปลง</span> · ตอนแปลงใช้ตัวต้นฉบับเป็นค่าตั้งต้น ffmpeg เป็นตัวรอง</div>
+    <div>
+      <div class="enc" style="color:var(--txt2);font-size:12px;font-weight:600;padding-top:0"><span>ตัวแปลง</span><span>ชนิด</span><span>รุ่น · มาจากไหน</span><span>สถานะ</span></div>
+      <div class="enc"><b>flac</b><span>FLAC</span><span>1.5.0 · แนบมากับโปรแกรม</span><span class="pill ok">พร้อมใช้งาน</span></div>
+      <div class="enc"><b>opusenc</b><span>Opus</span><span>libopus 1.6.1 · แนบมากับโปรแกรม</span><span class="pill ok">พร้อมใช้งาน</span></div>
+      <div class="enc"><b>lame</b><span>MP3</span><span>3.100 · แนบมากับโปรแกรม</span><span class="pill ok">พร้อมใช้งาน</span></div>
+      <div class="enc"><b>wavpack</b><span>WavPack</span><span>5.9.0 · แนบมากับโปรแกรม</span><span class="pill ok">พร้อมใช้งาน</span></div>
+      <div class="enc"><b>qaac</b><span>AAC · ALAC</span><span>3.07 · โฟลเดอร์ตัวแปลง</span><span class="pill ok">พร้อมใช้งาน</span></div>
+      <div class="enc"><b>fdkaac</b><span>AAC · HE-AAC</span><span>ไม่เจอในโฟลเดอร์</span><span class="pill in">ยังไม่ได้ใส่</span></div>
+      <div class="enc"><b>MAC (Monkey's Audio)</b><span>APE</span><span>13.45 · โฟลเดอร์ตัวแปลง</span><span class="pill ok">พร้อมใช้งาน</span></div>
+      <div class="enc"><b>Takc (TAK)</b><span>TAK</span><span>2.3.2 · โฟลเดอร์ตัวแปลง</span><span class="pill warn">ขาดไฟล์ประกอบ</span></div>
+      <div class="enc"><b>ffmpeg</b><span>ทุกชนิดที่แปลงได้</span><span>9.0.2 · แนบมากับโปรแกรม (ตัวรอง)</span><span class="pill ok">พร้อมใช้งาน</span></div>
+    </div>
+    <div class="stat warn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17v.5"/></svg><div><b>TAK ขาดไฟล์ประกอบ</b>โปรแกรมเรียก Takc.exe แล้วตัวแปลงตอบว่าหาไฟล์ที่ต้องใช้ไม่เจอ · วางทุกไฟล์ที่มากับชุด TAK ไว้ในโฟลเดอร์เดียวกัน แล้วกดตรวจตัวแปลงใหม่ (สถานะตัวอย่าง)</div></div>
+    <div class="small">รายชื่อตัวแปลงทั้งหมด รุ่นล่าสุด และสัญญาอนุญาต อยู่ใน <span class="nw">docs/research/codec-เสียง.md</span> · รุ่นในตารางนี้เป็นตัวอย่างตามผลค้น ของจริงอ่านจากตัวแปลงตอนเปิดโปรแกรม</div>
+  </div>
+</div>
+
+<!-- ==================== 9 ข้างใน ==================== -->
+<div class="sec">
+  <h2><span class="tag">ข้างใน</span>ทำงานยังไง และจุดที่แคลร์ตั้งเอง</h2>
+  <div class="explain">
+    <b>ทำงานยังไง</b>
+    <ol>
+      <li><b>รวม</b> ใช้ mkvmerge ที่แนบอยู่แล้ว · ดีเลย์ใส่เป็นเวลาเลื่อนของแทร็กนั้น ไม่แปลงเสียงใหม่ · ลำดับแทร็ก ภาษา ชื่อ เสียงหลัก ซับหลัก และโปสเตอร์ (ไฟล์แนบ cover.jpg cover_land.jpg) ตั้งในคำสั่งเดียวกัน รวมรอบเดียวจบ · ไฟล์ที่ได้เป็น MP4 ใช้ ffmpeg แบบไม่แปลงภาพ</li>
+      <li><b>แปลงเสียง</b> ffmpeg ถอดเสียงต้นทางเป็นเสียงดิบ ส่งต่อให้ตัวแปลงที่เลือก (ตัวต้นฉบับหรือ ffmpeg เอง) · ไฟล์ทำงานอยู่โฟลเดอร์ชั่วคราวของโปรแกรม เสร็จแล้วรวมเข้าไฟล์ใหม่</li>
+      <li><b>ความเร็วเสียง</b> ยืดเสียงจริงด้วย rubberband ใน ffmpeg ระดับเสียงไม่เพี้ยน แล้วแปลงใหม่ด้วยค่าที่ตั้ง · ใช้กับเสียงที่เหลื่อมเพิ่มเรื่อย&nbsp;ๆ</li>
+      <li><b>หาค่าดีเลย์ให้</b> อ่านคลื่นเสียงช่วงต้นเรื่องของทั้งสองแทร็กแบบหน้ากราฟเสียง แล้วเลื่อนหาตำแหน่งที่ยอดเสียงตรงกันมากที่สุด · บอกว่าตรงกันกี่เปอร์เซ็นต์ ตรงน้อยแปลว่าอาจเป็นเสียงคนละรุ่น</li>
+      <li><b>อ่านซับแบบรูป</b> ffmpeg ถอดซับ PGS กับ DVD เป็นรูปทีละภาพ เก็บไว้ในเครื่องแบบผลอ่านคลื่นเสียง เปิดครั้งหน้าไม่ต้องถอดใหม่</li>
+      <li><b>จับคู่ไม่รวม</b> จำที่อยู่ไฟล์เสียงกับซับไว้กับหนังในคลัง (ตามเลขประจำไฟล์ เปลี่ยนชื่อหนังแล้วยังจำได้) · เปิดเล่นส่งไฟล์ให้โปรแกรมเล่น VLC MPC-HC PotPlayer mpv ซึ่งรับเสียงและซับแยกพร้อมดีเลย์ได้</li>
+      <li><b>ทุกงาน</b> ทำเป็นไฟล์ชั่วคราวข้างไฟล์ปลายทาง ตรวจเทียบแล้วค่อยเป็นไฟล์จริง · เช็กที่ว่าง เช็กไฟล์ถูกเปิดอยู่ · ไม่เขียนทับไฟล์ใด · ไฟล์เดิมเก็บไว้หรือลงถังขยะหลังตรวจผ่าน แบบหน้าใส่โปสเตอร์</li>
+    </ol>
+    <b>จุดที่แคลร์ตั้งเอง</b>
+    <ul>
+      <li>ชื่อหน้า <b>เสียงและซับ</b> อยู่ในเมนูซ้ายต่อจากใส่โปสเตอร์ · ปุ่มเข้าจากแผงขวาของชั้นวางกับหน้าข้อมูลไฟล์</li>
+      <li>แปลงแทร็กในหนัง ค่าตั้งต้นเพิ่มคู่กับแทร็กเดิม (พี่กันเคาะ) · แทร็กใหม่ชื่อตามชนิดที่แปลง เช่น อังกฤษ AC-3 5.1 แปลงจาก DTS</li>
+      <li>ปุ่มดีเลย์ ทีละ 100 ms · กดค้างไว้ Shift ทีละ 10 ms · ใส่ได้ตั้งแต่ −600,000 ถึง +600,000 ms (10 นาที)</li>
+      <li>ความเร็วเสียงมีคู่ที่เจอบ่อย 25 → 23.976 · 24 → 23.976 · 23.976 → 25 · 23.976 → 24 · ใส่ตัวเลขเองได้</li>
+      <li>เตือนก่อนเริ่มเมื่อแปลงแบบเสียคุณภาพไปเป็นแบบเสียคุณภาพอีกชนิด (เสียซ้อน) และแบบเสียคุณภาพไปเป็นแบบไม่เสียคุณภาพ (ไฟล์ใหญ่ขึ้น คุณภาพไม่กลับมา) · ไม่ห้าม แค่บอก</li>
+      <li>ชุดค่าแบบง่ายของแต่ละชนิดตั้งจากค่าที่ผู้ทำตัวแปลงแนะนำ · ขนาดไฟล์ที่คาดคิดจากความยาวจริงของแทร็ก</li>
+      <li>ซับ ASS ในหน้าอ่านซับแสดงเฉพาะข้อความ · ภาษาไทยเข้ารหัสแบบเก่าแปลงให้อ่านได้</li>
+      <li>แปลงไฟล์เพลง ข้อมูลเพลงกับรูปปกติดไปทุกชนิดที่เก็บได้ · ชนิดที่เก็บรูปปกไม่ได้ บอกก่อนเริ่ม</li>
+    </ul>
+  </div>
+</div>
+
+</div>
+
+<script>
+/* ---------- ไอคอน ---------- */
+const I = {
+  v: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M10 9l5 3-5 3z"/></svg>',
+  a: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 10v4"/></svg>',
+  s: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="5" width="18" height="14" rx="2"/><path d="M7 14h4M13 14h4M7 10h10"/></svg>',
+  up: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 15l6-6 6 6"/></svg>',
+  down: '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3"><path d="M6 9l6 6 6-6"/></svg>',
+  eye: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z"/><circle cx="12" cy="12" r="3"/></svg>',
+  x: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 6l12 12M18 6L6 18"/></svg>',
+  undo: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/></svg>',
+  wave: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h2M7 7v10M11 4v16M15 8v8M19 10v4"/></svg>',
+  chev: '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 9l6 6 6-6"/></svg>',
+  mix: '<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/></svg>',
+};
+const TITLE = `<div class="titlebar"><span>ชั้นหนัง</span><div class="ctl">
+  <span><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5h10" stroke="#b07a90" stroke-width="1.2"/></svg></span>
+  <span><svg width="10" height="10" viewBox="0 0 10 10"><rect x=".6" y=".6" width="8.8" height="8.8" fill="none" stroke="#b07a90" stroke-width="1.2"/></svg></span>
+  <span><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="#b07a90" stroke-width="1.2"/></svg></span></div></div>`;
+const NAV = (on) => `<aside class="side">
+  <div class="brand"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#e07a9f" stroke-width="2"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="18" rx="1"/><path d="M17.5 4.5l3.5 1-4 15.5-3.4-1"/></svg><span>ชั้นหนัง</span></div>
+  <button class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h18M5 20V6h4v14M11 20V4h4v16M17 20l2-12 3 .6-2 11.4"/></svg><span>ชั้นวางหนัง</span><span class="count">10</span></button>
+  <button class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 15l3-3 2 2 3-3 2 2"/><circle cx="9" cy="8" r="1.5"/></svg><span>ใส่โปสเตอร์</span></button>
+  <button class="nav${on === "merge" ? " on" : ""}">${I.mix}<span>เสียงและซับ</span><span class="new">ใหม่</span></button>
+  <button class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg><span>ตรวจไฟล์</span><span class="count">1</span></button>
+  <button class="nav${on === "graph" ? " on" : ""}"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h2M7 7v10M11 4v16M15 8v8M19 10v4"/></svg><span>กราฟเสียง</span></button>
+  <button class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span>ตั้งค่า</span></button>
+  <div class="foot">โฟลเดอร์หนัง 1 โฟลเดอร์<br>ใช้พื้นที่รวม 38.4 GB</div>
+</aside>`;
+
+/* ---------- 1 หน้าเสียงและซับ ---------- */
+const TRACKS = [
+  { k:"v", ft:"H.264", tag:"in", nm:"ภาพ · 1920 × 1080", dt:"23.976 ภาพต่อวินาที · 2 ชั่วโมง 08 นาที", lang:"—", name:"", main:true, delay:null, conv:"—", noout:true },
+  { k:"a", ft:"AC-3", tag:"in", nm:"เสียง 1 · 5.1", dt:"448 kbps · 410 MB", lang:"ไทย", name:"พากย์ไทยเดิม", main:false, delay:null, conv:"ไม่แปลง" },
+  { k:"a", ft:"AC-3", tag:"new", nm:"ดาวเหนือ พากย์ไทย DELAY -120ms.ac3", dt:"D:\\ดาวน์โหลด\\เสียง · 5.1 · 640 kbps", lang:"ไทย", name:"พากย์ไทย 5.1", main:true, delay:-120, auto:true, conv:"ไม่แปลง", sel:true },
+  { k:"a", ft:"DTS", tag:"in", nm:"เสียง 2 · 5.1", dt:"1,509 kbps · 1.38 GB", lang:"อังกฤษ", name:"English", main:false, delay:null, conv:"AC-3 640 · เพิ่มคู่", convOn:true },
+  { k:"a", ft:"FLAC", tag:"new", nm:"Polaris.2023.Commentary.flac", dt:"E:\\เสียงบรรยาย · 2.0 · ความเร็ว 25 → 23.976", lang:"อังกฤษ", name:"เสียงบรรยายผู้กำกับ", main:false, delay:0, conv:"Opus 128", convOn:true },
+  { k:"s", ft:"ASS", tag:"in", nm:"ซับ 1", dt:"ตัวหนังสือมีรูปแบบ · 1,180 บรรทัด", lang:"ไทย", name:"ไทย", main:false, delay:null, conv:"—", eye:true },
+  { k:"s", ft:"SRT", tag:"new", nm:"ดาวเหนือ.th.srt", dt:"E:\\ซับ · ตัวหนังสือ · 1,184 บรรทัด", lang:"ไทย", name:"ไทย ฉบับใหม่", main:true, delay:500, conv:"—", eye:true },
+  { k:"s", ft:"PGS", tag:"in", nm:"ซับ 3", dt:"ซับบลูเรย์ เป็นรูป · 1,204 ภาพ", lang:"อังกฤษ", name:"English", main:false, delay:null, conv:"—", eye:true, out:true },
+];
+/* ชนิดไฟล์ทุกชนิดที่โปรแกรมรู้จัก · ตัวเลขคือสี (มุมบนวงล้อสี) ไม่ซ้ำกัน · ชนิดที่ไม่อยู่ในรายการขึ้นสีเทา */
+const FT_GROUPS = [
+  ["ภาพ", [["H.264",210],["H.265",250],["AV1",175],["VP9",125],["MPEG-2",30]]],
+  ["เสียง Dolby", [["AC-3",22],["E-AC-3",37],["TrueHD",50]]],
+  ["เสียง DTS", [["DTS",0],["DTS-HD MA",345]]],
+  ["เสียง Lossy อื่น", [["AAC",325],["Opus",285],["MP3",262],["Vorbis",305]]],
+  ["เสียง Lossless อื่น", [["FLAC",170],["PCM",95],["ALAC",225],["WavPack",72],["TTA",200],["APE",125],["TAK",150]]],
+  ["ซับ ตัวหนังสือ", [["SRT",48],["ASS",15],["VTT",160]]],
+  ["ซับ รูป", [["PGS",270],["VobSub",220]]],
+];
+const FT = Object.fromEntries(FT_GROUPS.flatMap((g) => g[1]));
+/* ชื่อเต็มของทุกชนิด · พี่กันสั่ง "ชื่อ codec ทั้งหมดใส่ชื่อเต็มด้วย" */
+const FT_FULL = { "H.264":"Advanced Video Coding (AVC)", "H.265":"High Efficiency Video Coding (HEVC)", "AV1":"AOMedia Video 1", "VP9":"Google VP9", "MPEG-2":"MPEG-2 Video (H.262)",
+  "AC-3":"Dolby Digital", "E-AC-3":"Dolby Digital Plus", "TrueHD":"Dolby TrueHD", "DTS":"Digital Theater Systems", "DTS-HD MA":"DTS-HD Master Audio",
+  "AAC":"Advanced Audio Coding", "Opus":"Opus Interactive Audio Codec", "MP3":"MPEG-1 Audio Layer III", "Vorbis":"Ogg Vorbis",
+  "FLAC":"Free Lossless Audio Codec", "PCM":"Pulse-Code Modulation", "ALAC":"Apple Lossless Audio Codec", "WavPack":"WavPack Hybrid Lossless", "TTA":"True Audio", "APE":"Monkey's Audio", "TAK":"Tom's lossless Audio Kompressor",
+  "SRT":"SubRip Text", "ASS":"Advanced SubStation Alpha", "VTT":"Web Video Text Tracks", "PGS":"Presentation Graphic Stream", "VobSub":"VOB Subtitle (ซับ DVD)", "DTS Express":"DTS Express" };
+/* APE กับ TAK ใช้เฉพาะหน้าแปลงเสียง · ป้ายพื้นขาวขอบประ แยกจาก FLAC ที่สีใกล้กัน (เจอตอนตรวจภาพ) */
+const FT_LINE = new Set(["APE", "TAK"]);
+const ftChip = (n) => n in FT ? `<span class="ft${FT_LINE.has(n) ? " line" : ""}" style="--h:${FT[n]}" title="${FT_FULL[n] || n}">${n}</span>` : `<span class="ft unk" title="${FT_FULL[n] || n}">${n}</span>`;
+/* ในแถบรวมสี ป้ายคู่ชื่อเต็ม */
+const ftChipFull = (n) => `<span class="ftn">${ftChip(n)}<small>${FT_FULL[n] || ""}</small></span>`;
+/* รายการภาษา · แบบ MKVToolNix กลุ่มใช้บ่อยอยู่บนสุด (Often used languages) ตามด้วยทุกภาษา เรียงตามชื่ออังกฤษ
+   รหัสคู่ = BCP 47 ที่ MKVToolNix รุ่นใหม่เขียน · ISO 639-2 ที่เขียนคู่ให้เครื่องเล่นรุ่นเก่า */
+const LANG_OFTEN = [["ไทย","Thai","th · tha"],["อังกฤษ","English","en · eng"]];
+const LANG_ALL = [["อาหรับ","Arabic","ar · ara"],["พม่า","Burmese","my · bur"],["จีน กวางตุ้ง","Cantonese","yue · yue"],["จีน","Chinese","zh · chi"],["เช็ก","Czech","cs · cze"],["เดนมาร์ก","Danish","da · dan"],["ดัตช์","Dutch","nl · dut"],["อังกฤษ","English","en · eng"],["ฟินแลนด์","Finnish","fi · fin"],["ฝรั่งเศส","French","fr · fre"],["เยอรมัน","German","de · ger"],["กรีก","Greek","el · gre"],["ฮีบรู","Hebrew","he · heb"],["ฮินดี","Hindi","hi · hin"],["ฮังการี","Hungarian","hu · hun"],["อินโดนีเซีย","Indonesian","id · ind"],["อิตาลี","Italian","it · ita"],["ญี่ปุ่น","Japanese","ja · jpn"],["เขมร","Khmer","km · khm"],["เกาหลี","Korean","ko · kor"],["ลาว","Lao","lo · lao"],["มลายู","Malay","ms · may"],["นอร์เวย์","Norwegian","no · nor"],["โปแลนด์","Polish","pl · pol"],["โปรตุเกส","Portuguese","pt · por"],["รัสเซีย","Russian","ru · rus"],["สเปน","Spanish","es · spa"],["สวีเดน","Swedish","sv · swe"],["ตากาล็อก","Tagalog","tl · tgl"],["ไทย","Thai","th · tha"],["ตุรกี","Turkish","tr · tur"],["ยูเครน","Ukrainian","uk · ukr"],["เวียดนาม","Vietnamese","vi · vie"]];
+function langDemo(root){
+  const row = ([th, en, cd], on) => `<div class="lrow${on ? " on" : ""}" data-lt="${th} ${en} ${cd}"><span class="th">${th}</span><span class="en">${en}</span><span class="cd">${cd}</span>${on ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>' : ""}</div>`;
+  root.innerHTML = `<div class="langdemo">
+    <div class="ldl">
+      <div class="small" style="margin:0 0 8px"><b style="color:var(--txt)">รายการภาษา · กดช่องภาษาในแถวไหนก็ได้</b> · กดได้จริง ลองพิมพ์ค้น</div>
+      <button class="dd" style="width:150px;border:1px solid var(--accent);box-shadow:0 0 0 3px rgba(233,138,172,.18)"><span>ไทย</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M6 15l6-6 6 6"/></svg></button>
+      <div class="lpop">
+        <div class="lsearch"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5"/></svg><input placeholder="ค้นชื่อไทย ชื่ออังกฤษ หรือรหัส" aria-label="ค้นภาษา" data-lq></div>
+        <div class="llist" data-ll>
+          <div class="lgrp">ใช้บ่อย</div>${LANG_OFTEN.map((l, i) => row(l, i === 0)).join("")}
+          <div class="lgrp">ไม่ระบุ</div>${row(["ไม่ระบุภาษา", "Undetermined", "und"])}
+          <div class="lgrp">ทุกภาษา · เรียงตามชื่ออังกฤษ แบบ MKVToolNix</div>${LANG_ALL.map((l) => row(l)).join("")}
+          <div class="lnone" hidden>ไม่เจอภาษานี้ · ลองพิมพ์ชื่ออังกฤษหรือรหัส 3 ตัว</div>
+        </div>
+      </div>
+    </div>
+    <ul class="ldn">
+      <li><b>ใช้บ่อย</b> ไทยกับอังกฤษอยู่บนสุดเสมอ ไม่ต้องเลื่อนหา · เพิ่มภาษาอื่นเข้ากลุ่มนี้ได้ที่หน้าตั้งค่า แบบ Often used languages ของ MKVToolNix</li>
+      <li><b>ทุกภาษา</b> ครบตามมาตรฐาน ISO 639 ชุดเดียวกับที่ MKVToolNix ใช้ (ในภาพตัดมาบางส่วน) · ชื่อไทยคู่ชื่ออังกฤษ</li>
+      <li><b>รหัส</b> th · tha คือรหัสที่เขียนลงไฟล์ ใช้แบบเดียวกับ MKVToolNix รุ่นใหม่ เครื่องเล่นรุ่นเก่าก็อ่านได้</li>
+      <li><b>ค้น</b> พิมพ์ได้ทั้ง ญี่ปุ่น Japanese หรือ jpn · โปรแกรมจริงใช้ตัวค้นเดียวกับชั้นวาง ลืมสลับแป้นพิมพ์ก็หาเจอ</li>
+      <li><b>ไฟล์ที่เพิ่ม</b> ตั้งภาษาจากชื่อไฟล์ให้ก่อน เช่น .th. .tha. พากย์ไทย · แทร็กในหนังใช้ภาษาเดิมในไฟล์</li>
+    </ul>
+  </div>`;
+  const q = root.querySelector("[data-lq]"), list = root.querySelector("[data-ll]");
+  q.oninput = () => {
+    const s = q.value.trim().toLowerCase(); let any = false, grp = null, grpAny = false;
+    const close = () => { if (grp) grp.hidden = !grpAny; };
+    [...list.children].forEach((el) => {
+      if (el.classList.contains("lgrp")) { close(); grp = el; grpAny = false; return; }
+      if (el.classList.contains("lnone")) return;
+      const hit = !s || el.dataset.lt.toLowerCase().includes(s); el.hidden = !hit; if (hit) { any = true; grpAny = true; }
+    });
+    close(); list.querySelector(".lnone").hidden = any;
+  };
+}
+function ftLegend(root){
+  root.innerHTML = `<div class="ftleg">
+    <div class="small" style="margin:0"><b style="color:var(--txt)">สีป้ายชนิดไฟล์ทุกชนิด</b> · แต่ละชนิดสีไม่ซ้ำกัน · สีโทนเดียวกันคือตระกูลเดียวกัน (Dolby ส้มทอง · DTS แดง · Lossy ชมพูม่วง · Lossless เขียวฟ้า) · แถบนี้ไว้ให้ดูสีครบ ในโปรแกรมจริงไม่มี</div>
+    ${FT_GROUPS.map(([k, list]) => `<div class="row"><span class="k">${k}</span><div class="ftl">${list.map(([n]) => ftChipFull(n)).join("")}${k.includes("Lossless") ? `<span class="small" style="margin:0">PCM คือเสียงจาก WAV · APE กับ TAK ขอบประ ใช้เฉพาะหน้าแปลงเสียง</span>` : ""}</div></div>`).join("")}
+    <div class="row"><span class="k">ชนิดอื่น</span><div class="ftl">${ftChipFull("DTS Express")}<span class="small" style="margin:0">ชนิดที่ไม่อยู่ในรายการขึ้นสีเทา</span></div></div>
+  </div>`;
+}
+const TAGW = { in:"ในหนัง", new:"เพิ่มใหม่" };
+/* บรรทัดรองของแถว · ตัดบรรทัดได้เฉพาะตรงจุดคั่น จุดคั่นติดท้ายช่วงก่อนหน้า ไม่ค้างหัวบรรทัด (เจอตอนตรวจภาพ) */
+const dtLine = (parts) => { const p = parts.filter(Boolean); return p.map((s, i) => `<span class="nw">${s}${i < p.length - 1 ? " ·" : ""}</span>`).join(" "); };
+function trackRow(t){
+  const delay = t.delay === null ? `<span class="small">—</span>`
+    : `<div class="delay"><button aria-label="ลด 100 ms">−</button><input class="inp" value="${t.delay > 0 ? "+" : ""}${t.delay.toLocaleString("en-US")}" aria-label="ดีเลย์ มิลลิวินาที"><button aria-label="เพิ่ม 100 ms">+</button></div>`;
+  const conv = t.k !== "a" ? `<span class="small">${t.k === "s" ? "ซับไม่ต้องแปลง" : "—"}</span>`
+    : `<button class="dd" style="${t.convOn ? "border:1px solid #9fc4ea;background:#f3f8fe;color:#2f6496" : ""}"><span>${t.conv}</span>${I.chev}</button>`;
+  const pills = `<span class="pill ${t.tag}">${TAGW[t.tag]}</span>${t.convOn ? ' <span class="pill conv">แปลง</span>' : ""}${t.out ? ' <span class="pill off">เอาออก</span>' : ""}${t.auto ? ' <span class="pill warn">ดีเลย์จากชื่อไฟล์</span>' : ""}`;
+  const acts = `${t.eye ? `<button class="ib" aria-label="ดูซับ" title="ดูซับ">${I.eye}</button>` : ""}${t.k === "a" && t.tag === "new" ? `<button class="ib" aria-label="หาค่าดีเลย์" title="หาค่าดีเลย์">${I.wave}</button>` : ""}${t.noout ? "" : t.out ? `<button class="ib" aria-label="เอากลับ" title="เอากลับ">${I.undo}</button>` : `<button class="ib bad" aria-label="เอาออก" title="${t.tag === "new" ? "เอาไฟล์นี้ออก" : "เอาแทร็กนี้ออกจากไฟล์ใหม่"}">${I.x}</button>`}`;
+  return `<div class="trk${t.out ? " out" : ""}${t.sel ? " sel" : ""}">
+    <div class="mv"><button aria-label="เลื่อนขึ้น">${I.up}</button><button aria-label="เลื่อนลง">${I.down}</button></div>
+    <span class="kind ${t.k}">${I[t.k]}</span>
+    <div>${ftChip(t.ft)}</div>
+    <div style="min-width:0"><div class="nm">${t.nm}</div><div class="dt">${dtLine([pills, t.name ? `ชื่อ <b style="color:var(--txt2)">${t.name}</b>` : "", ...t.dt.split(" · ")])}</div></div>
+    ${t.k === "v" ? `<span class="small">—</span>` : `<button class="dd"><span>${t.lang}</span>${I.chev}</button>`}
+    <div style="display:flex;justify-content:center"><span class="radio${t.main ? " on" : ""}" role="radio" aria-checked="${t.main}"></span></div>
+    ${delay}
+    ${conv}
+    <div class="acts">${acts}</div>
+  </div>`;
+}
+function buildMerge(root){
+  root.innerHTML = TITLE + `<div class="body">${NAV("merge")}<div class="main"><div class="mx">
+    <div class="mtop">
+      <div class="fchip"><div class="fthumb" style="background:linear-gradient(160deg,#f2b8c6,#c25d7f)"></div><div style="min-width:0"><div class="nm">ดาวเหนือ (2023)<span class="ext">.mkv</span></div><div class="meta">D:\\หนัง · 6.48 GB · 2 ชั่วโมง 08 นาที · ภาพ 1 · เสียง 2 · ซับ 2 · ปกตั้ง</div></div></div>
+      <button class="btn btn-ghost btn-sm">เปลี่ยนไฟล์หนัง</button>
+    </div>
+    <div class="card" style="padding:12px">
+      <h3><span>แทร็กในไฟล์ใหม่ · เรียงตามลำดับ</span><span class="small" style="font-weight:400">ภาพ 1 · เสียง 4 · ซับ 2 · เอาออก 1</span></h3>
+      <div class="tracks">
+        <div class="trk head"><span></span><span></span><span>ชนิด</span><span>แทร็ก · ชื่อแทร็ก</span><span>ภาษา</span><span style="text-align:center">หลัก</span><span>ดีเลย์ (ms)</span><span>แปลง</span><span></span></div>
+        ${TRACKS.map(trackRow).join("")}
+      </div>
+      <div class="drop" style="margin-top:8px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e5a3bd" stroke-width="1.9"><path d="M12 5v14M5 12h14"/></svg><span><b style="color:var(--txt2)">ลากไฟล์เสียงหรือซับมาวางเพิ่ม</b> · เสียง AC-3 E-AC-3 DTS AAC FLAC WAV MP3 Opus · ซับ SRT ASS VTT SUP SUB</span><button class="btn btn-ghost btn-sm">เลือกไฟล์จากเครื่อง</button></div>
+    </div>
+    <div class="card">
+      <h3><span>โปสเตอร์ · ใส่ในรอบเดียวกับเสียงและซับ</span><span class="small" style="font-weight:400">ไม่ต้องไปรวมอีกรอบที่หน้าใส่โปสเตอร์</span></h3>
+      <div class="pslots">
+        <div class="pslot">
+          <div class="pth tall" style="background:linear-gradient(160deg,#f2b8c6,#c25d7f)"></div>
+          <div style="min-width:0"><div class="nm">ปกตั้ง · cover.jpg <span class="pill in">ในหนัง</span></div><div class="dt">1000 × 1500 · 412 KB · ใช้รูปเดิม</div>
+            <div style="display:flex;gap:6px;margin-top:8px"><button class="btn btn-ghost btn-sm">เปลี่ยนรูป</button><button class="btn btn-ghost btn-sm">เอาออก</button></div></div>
+        </div>
+        <div class="pslot sel">
+          <div class="pth wide" style="background:linear-gradient(120deg,#1d2a4a,#5a4b8a 55%,#e6a3c0)"></div>
+          <div style="min-width:0"><div class="nm">ปกนอน · cover_land.jpg <span class="pill new">เพิ่มใหม่</span></div><div class="dt">จาก ดาวเหนือ-ฉากดาว.jpg · ครอปแล้ว 1920 × 1080 · 586 KB</div>
+            <div style="display:flex;gap:6px;margin-top:8px"><button class="btn btn-ghost btn-sm">ครอปใหม่</button><button class="btn btn-ghost btn-sm">เอาออก</button></div></div>
+        </div>
+      </div>
+      <div class="small" style="margin-top:8px">ลากรูปมาวางที่ช่องไหนก็ได้ · เปลี่ยนรูปเปิดหน้าครอปเดียวกับหน้าใส่โปสเตอร์ · รูปเข้าไฟล์ใหม่ในคำสั่งรวมเดียวกับเสียงและซับ · ไฟล์แนบอื่นในหนัง เช่น ฟอนต์ของซับ ASS ติดไปด้วย</div>
+    </div>
+    <div class="card">
+      <h3><span>ตั้งค่าแทร็ก · ดาวเหนือ พากย์ไทย DELAY -120ms.ac3</span><span class="pill new">เพิ่มใหม่</span></h3>
+      <div class="detail">
+        <div class="field"><span class="lbl">ภาษา · ชื่อแทร็ก</span>
+          <div style="display:flex;gap:8px"><button class="dd" style="width:130px"><span>ไทย</span>${I.chev}</button><input class="inp" style="flex:1" value="พากย์ไทย 5.1" aria-label="ชื่อแทร็ก"></div>
+          <span class="small">ชื่อที่โปรแกรมเล่นแสดงตอนเลือกเสียง · ไฟล์ที่เพิ่มตั้งภาษาจากชื่อไฟล์ให้ก่อน (คำว่า พากย์ไทย th tha)</span></div>
+        <div class="field"><span class="lbl">ตั้งเป็นเสียงหลัก</span>
+          <span class="chk"><span class="cbx on"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span>เปิดหนังแล้วเล่นเสียงนี้ก่อน</span></span>
+          <span class="small">เสียงหลักมีได้แทร็กเดียว เลือกอันนี้แล้วเสียง 1 เลิกเป็นหลัก · ซับหลักตั้งแยกกัน</span></div>
+        <div class="field"><span class="lbl">ดีเลย์</span>
+          <div class="delay"><button>−</button><input class="inp" style="width:92px" value="−120"><button>+</button><span class="small" style="margin-left:6px">ms · ติดลบ = เสียงมาเร็วขึ้น</span></div>
+          <span class="small">อ่านจากชื่อไฟล์ (คำว่า DELAY -120ms) · แก้เองได้ · <a href="#" style="color:var(--accent-ink)">หาค่าดีเลย์ด้วยคลื่นเสียง</a></span></div>
+        <div class="field"><span class="lbl">ความเร็วเสียง</span>
+          <button class="dd" style="max-width:300px"><span>ไม่เปลี่ยน</span>${I.chev}</button>
+          <span class="small">ไม่เปลี่ยน ใช้กับเสียงที่ช้าหรือเร็วเท่ากันตลอดเรื่อง · เสียงที่เหลื่อมเพิ่มขึ้นเรื่อย&nbsp;ๆ เลือกคู่ความเร็ว เช่น <span class="nw">25 → 23.976</span> · ต้องแปลงเสียงใหม่ ใช้แผงตั้งค่าเสียง</span></div>
+        <div class="field"><span class="lbl">แปลงชนิดเสียง</span>
+          <div class="seg sm" style="align-self:flex-start"><button class="on">ไม่แปลง</button><button>แปลง</button></div>
+          <span class="small">ไม่แปลง เสียงเดิมทุกไบต์ เสร็จเร็ว · เสียง AC-3 5.1 640 kbps ใส่ได้ทั้ง MKV และ MP4</span></div>
+        <div class="field"><span class="lbl">แทร็กที่อยู่ในหนังแล้ว · แปลงแล้วจะ</span>
+          <div class="seg sm" style="align-self:flex-start"><button class="on">เพิ่มคู่กับแทร็กเดิม</button><button>แทนที่แทร็กเดิม</button></div>
+          <span class="small">ใช้กับแถวที่เป็นแทร็กในหนัง เช่น เสียง 2 DTS · แถวนี้เป็นไฟล์ที่เพิ่ม จึงไม่มีผล</span></div>
+      </div>
+    </div>
+    <div class="mrow">
+      <div class="card">
+        <h3>วิธี</h3>
+        <div class="seg" style="margin-bottom:6px"><button class="on">รวมเข้าไฟล์หนัง</button><button>จับคู่ไว้ ไม่รวม</button></div>
+        <div class="small">รวม ได้ไฟล์ใหม่ที่มีทุกแทร็กในตัว · จับคู่ ไฟล์หนังไม่ถูกแตะ เปิดเล่นพร้อมไฟล์ที่จับคู่</div>
+      </div>
+      <div class="card">
+        <h3>ไฟล์ที่ได้ · ไฟล์เดิม</h3>
+        <div class="optline"><div class="seg sm"><button class="on">MKV (แนะนำ)</button><button>MP4</button></div>
+          <div style="display:flex;flex-direction:column;gap:4px"><span class="chk"><span class="radio on"></span><span>เก็บไฟล์เดิมไว้ ย้ายไปโฟลเดอร์ "ไฟล์เดิม"</span></span>
+          <span class="chk"><span class="radio"></span><span>ลบไฟล์เดิมหลังตรวจไฟล์ใหม่ผ่านแล้ว</span></span></div></div>
+        <div class="small" style="margin-top:6px">ไฟล์ใหม่ ดาวเหนือ (2023).mkv · ขนาดราว 6.0 GB (เอาซับรูปออก DTS แปลงเป็น AC-3 เพิ่มคู่ เพิ่มพากย์ไทยกับเสียงบรรยาย เพิ่มปกนอน) · ตรวจไฟล์ใหม่หลังรวมเสร็จ</div>
+      </div>
+    </div>
+    <div class="stat warn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17v.5"/></svg><div><b>เสียงบรรยาย FLAC แปลงเป็น Opus</b>แปลงจากแบบไม่เสียคุณภาพไปแบบเสียคุณภาพ ไฟล์เล็กลงมาก เสียงต่างจากต้นฉบับเล็กน้อย · เสียง 2 DTS เป็น AC-3 แปลงแบบเสียคุณภาพซ้อน แทร็กเดิมยังอยู่ เพราะเลือกเพิ่มคู่</div></div>
+    <div class="mfoot"><button class="btn btn-ghost" style="height:44px">ล้างทั้งหมด</button><button class="btn btn-main" style="height:44px;padding:0 26px;font-size:15px">รวมเข้าไฟล์หนัง</button></div>
+  </div></div></div>`;
+}
+
+/* ---------- 2 แผงตั้งค่าเสียง ---------- */
+/* คำอธิบายในกล่อง ⓘ · w คืออะไร · o ปรับแบบนี้ได้อะไร [ชื่อ ได้อะไร ข้อดี ข้อเสีย] · p ข้อดี · c ข้อเสีย · r แนะนำ */
+const TIP_CH = { w:"จำนวนช่องเสียงในไฟล์ใหม่", o:[["ตามต้นฉบับ","เก็บครบทุกช่อง","ลำโพงรอบทิศใช้ได้ครบ","ไฟล์ใหญ่กว่า"],["ลดเป็น 2.0","รวมช่องรอบลงซ้ายขวา","ไฟล์เล็กลง เหมาะกับหูฟังหรือลำโพงสองตัว","เสียงรอบทิศหายไป ทำกลับไม่ได้"],["ช่องเดียว","รวมทุกช่องเป็นช่องเดียว","เล็กสุด ใช้กับเสียงบรรยาย","ไม่มีมิติซ้ายขวา"]], r:"ตามต้นฉบับ" };
+const TIP_VERIFY = { w:"ระหว่างแปลง ถอดไฟล์ที่บีบแล้วกลับมาเทียบกับต้นฉบับทุกตัวอย่างเสียง", o:[["On","ตรวจทุกตัวอย่าง","มั่นใจว่าไม่มีอะไรเพี้ยน","แปลงช้าลงเล็กน้อย"],["Off","ไม่ตรวจ","แปลงเร็วกว่า","ถ้ามีอะไรผิดพลาดจะไม่รู้"]], r:"On สำหรับไฟล์ที่เก็บถาวร" };
+const TIP_BD = { w:"ความละเอียดของแต่ละตัวอย่างเสียง ยิ่งมากยิ่งเก็บเสียงเบา ๆ ได้ละเอียด", o:[["ตามต้นฉบับ","คงเดิม","ไม่เสียคุณภาพจริง",""],["ลด 24 เป็น 16-bit","ทิ้งรายละเอียดส่วนที่เบามาก ใส่ dither ให้","ไฟล์เล็กลงราวหนึ่งในสาม","ไม่ใช่ไม่เสียคุณภาพอีกต่อไป"],["เพิ่ม 16 เป็น 24-bit","เติมศูนย์","ไม่ได้อะไร","ไฟล์ใหญ่ขึ้นเปล่า ๆ"]], r:"ตามต้นฉบับ" };
+const TIP_SR = { w:"จำนวนตัวอย่างเสียงต่อวินาที กำหนดเสียงสูงสุดที่เก็บได้ คือครึ่งหนึ่งของค่านี้", o:[["ตามต้นฉบับ","คงเดิม","ไม่ต้องคำนวณใหม่",""],["ลด 96 เป็น 48 kHz","เก็บเสียงถึง 24 kHz","ไฟล์เล็กลงราวครึ่ง เสียงที่หูได้ยินยังครบ","ต้องคำนวณใหม่ (resample) ไม่ตรงต้นฉบับทุกตัวอย่าง"],["เพิ่มขึ้น","คำนวณเติม","ไม่ได้อะไร","ไฟล์ใหญ่ขึ้นเปล่า ๆ"]], r:"ตามต้นฉบับ" };
+/* คำอธิบายส่วนบนของแผง · หัวกลุ่ม ตัวแปลง และช่องที่ใช้ทุกชนิด */
+/* ขนาดที่คาด · แทร็กนี้ยาว 2 ชั่วโมง 08 นาที = 7,680 วินาที · บิตเรต 1 kbps ได้ราว 0.96 MB · WAV ของแทร็กนี้ (5.1 24-bit 48 kHz) ราว 6.2 GB */
+const ints = (a, b) => Array.from({ length: b - a + 1 }, (_, i) => a + i);
+const MBofK = (k) => k * 0.96;
+const fmtMB = (mb) => mb >= 1000 ? 'ราว ' + (mb / 1024).toFixed(1) + ' GB' : 'ราว ' + Math.round(mb / 10) * 10 + ' MB';
+const SZ_KBPS = (v) => 'ทั้งแทร็ก' + fmtMB(MBofK(v));
+const AAC_Q = { 0:40, 9:45, 18:55, 27:65, 36:75, 45:90, 54:100, 63:115, 73:130, 82:165, 91:190, 100:225, 109:250, 118:285, 127:320 };
+const SZ_AAC = (v) => { const k = Math.round(AAC_Q[v] * 1.87); return 'ทั้งแทร็ก' + fmtMB(MBofK(k)) + ' · เฉลี่ยราว ' + k + ' kbps สำหรับ 5.1'; };
+const MP3_V = [245, 225, 190, 175, 165, 130, 115, 100, 85, 65];
+const SZ_MP3V = (v) => 'ทั้งแทร็ก' + fmtMB(MBofK(MP3_V[v])) + ' · เฉลี่ยราว ' + MP3_V[v] + ' kbps (MP3 สูงสุด 2 ช่อง)';
+const FLAC_P = [60, 58.5, 58, 56.5, 55.5, 55, 54.8, 54, 53];
+const SZ_FLAC = (v) => 'ทั้งแทร็กราว ' + (6.2 * FLAC_P[v] / 100).toFixed(2) + ' GB · ' + FLAC_P[v] + '% ของ WAV';
+const SZ_WVX = (v) => 'ทั้งแทร็กราว ' + (3.41 * (1 - 0.004 * v)).toFixed(2) + ' GB';
+const TIPS = {
+  codec: { w:"วิธีบีบเสียงให้ไฟล์เล็กลง แต่ละชนิดเก่งคนละแบบ แบ่งเป็นสองกลุ่ม Lossy กับ Lossless · กด ⓘ ของแต่ละกลุ่ม และของชนิดที่เลือกในบรรทัดล่าง เพื่อดูละเอียด" },
+  lossy: { w:"บีบโดยทิ้งเสียงส่วนที่หูได้ยินยาก เช่น เสียงเบาที่ถูกเสียงดังกลบ เสียงที่สูงเกินหูได้ยิน", p:"ไฟล์เล็กมาก หนัง 5.1 เหลือไม่กี่ร้อย MB", c:"ทิ้งแล้วเอากลับไม่ได้ · แปลงจาก Lossy เป็น Lossy อีกรอบยิ่งเสีย (เสียซ้อน)", r:"ใช้เมื่อต้องประหยัดที่ · เก็บต้นฉบับไว้อีกที่ถ้าทำได้" },
+  lossless: { w:"บีบแบบไม่ทิ้งอะไรเลย เหมือนบีบไฟล์ zip ถอดกลับได้ตรงต้นฉบับทุกตัวอย่างเสียง", p:"คุณภาพเท่าต้นฉบับ · แปลงไปมากี่รอบก็ไม่เสีย", c:"ไฟล์ใหญ่ ราว 50–60% ของ WAV · แปลงจาก Lossy มาเป็น Lossless คุณภาพไม่กลับมา ไฟล์ใหญ่ขึ้นเปล่า ๆ", r:"เก็บต้นฉบับ หรือแปลงเสียงที่เครื่องเล่นไม่รับ โดยไม่เสียอะไร" },
+  engine: { w:"โปรแกรมที่ทำการบีบเสียงจริง ชนิดเดียวกันมีได้หลายตัว", o:[["ตัวต้นฉบับ","โปรแกรมของผู้ทำ codec นั้นเอง","ตั้งค่าได้ครบทุกตัวเลือก ได้รุ่นใหม่ก่อน","ต้องมีไฟล์ตัวแปลงแยก บางตัวต้องวางเองในโฟลเดอร์ตัวแปลง"],["ffmpeg","ตัวแปลงรวมที่แนบมากับโปรแกรมอยู่แล้ว","มีพร้อมใช้ ไม่ต้องหาเพิ่ม","บางชนิด ffmpeg เขียนเอง ตัวเลือกน้อยกว่า"]], r:"ตัวต้นฉบับ · ใช้ ffmpeg เมื่อยังไม่มีตัวต้นฉบับ" },
+  gain: { w:"เพิ่มหรือลดความดังทั้งแทร็กก่อนแปลง", o:[["ลด −1 ถึง −2 dB","เสียงเบาลงเล็กน้อย","กันยอดเสียงเกิน 0 หลังแปลงแบบ Lossy","เบากว่าแทร็กอื่นเล็กน้อย"],["เพิ่ม","เสียงดังขึ้น","แทร็กที่เบาผิดปกติฟังง่ายขึ้น","ยอดเสียงเกิน 0 แล้วแตก (clipping)"]], r:"0 dB · ถ้าหน้าเทียบเตือนยอดเสียงเกิน 0 ค่อยลด 1 dB" },
+  loud: { w:"วัดความดังเฉลี่ยทั้งแทร็ก แล้วปรับให้ได้ −23 LUFS ตามมาตรฐาน EBU R128", o:[["Off","ความดังตามต้นฉบับ","ตรงกับที่ผู้มิกซ์ตั้งใจ",""],["EBU R128 −23 LUFS","ทุกแทร็กดังเท่ากัน","สลับพากย์ไทยกับเสียงอังกฤษไม่ต้องปรับเสียง","หนังส่วนใหญ่เบาลง · ใช้กับ Lossless แล้วไม่ตรงต้นฉบับ"]], r:"Off" },
+};
+const CODECS = {
+  opus: { name:"Opus", group:"เสียคุณภาพ", engines:[["opusenc","ตัวต้นฉบับ opusenc · libopus 1.6.1"],["ffmpeg","ffmpeg 9.0.2 (libopus ข้างใน)"]], mkv:true, mp4:true, ch:"สูงสุด 255 ช่อง · 7.1 ได้",
+    tip:{ w:"codec เปิดฟรี ไม่มีค่าสิทธิบัตร ออกปี 2012 โดย Xiph กับ IETF ใหม่สุดในกลุ่มนี้", p:"บิตเรตเท่ากัน เสียงดีสุดในกลุ่ม Lossy เกือบทุกช่วง · หลายช่องได้ · ใส่ได้ทั้ง MKV และ MP4", c:"ทีวีกับเครื่องเล่นรุ่นเก่าบางรุ่นเล่นไม่ได้ · เก็บเสียงถึงราว 20 kHz เสมอ", r:"หนังกับเพลงที่เล่นในคอมหรือมือถือ" },
+    presets:[["เสียงพูด","VBR 64 kbps · 2.0","ราว 29 MB ต่อชั่วโมง"],["เพลงคุณภาพดี","VBR 160 kbps · 2.0","ราว 72 MB ต่อชั่วโมง"],["หนัง 5.1 ดี","VBR 256 kbps · 5.1","ราว 115 MB ต่อชั่วโมง"],["หนัง 5.1 ดีมาก","VBR 384 kbps · 5.1","ราว 173 MB ต่อชั่วโมง"]], preset:3,
+    adv:[["Bitrate","step",{ stops:[6,8,12,16,24,32,48,64,96,128,160,192,256,320,384,448,512], val:384, unit:"kbps", free:[6,512], major:[6,64,128,192,256,320,384,512] },"บิตเรต 6–512 kbps รวมทุกช่อง · ผู้ทำแนะนำ 5.1 ราว 256–384",
+           { w:"จำนวนข้อมูลเสียงต่อวินาที รวมทุกช่อง ยิ่งสูงยิ่งเก็บรายละเอียดได้มาก", o:[["ปรับสูง","เสียงใกล้ต้นฉบับขึ้น","เสียงสูงกับเสียงก้องครบ","ไฟล์ใหญ่ขึ้นตามตัวเลข"],["ปรับต่ำ","ไฟล์เล็กลง","ประหยัดที่","เสียงสูงเริ่มแบน มีเสียงแปลกปลอม โดยเฉพาะฉาบกับเสียงปรบมือ"]], r:"เพลง 2.0 ราว 128–160 · หนัง 5.1 ราว 256–384 kbps · สูงกว่านี้หูแยกแทบไม่ออก" }, SZ_KBPS],
+         ["Bitrate mode","seg",["VBR","Constrained VBR","Hard CBR"],"VBR บิตเรตแปรผัน ได้เสียงดีสุดที่ขนาดเท่ากัน · CBR คงที่ ใช้กับการส่งสด",
+           { w:"วิธีจ่ายบิตเรตให้เสียงแต่ละช่วง", o:[["VBR","ช่วงเสียงยากใช้บิตมาก ช่วงเงียบใช้น้อย เฉลี่ยใกล้ค่าที่ตั้ง","เสียงดีสุดที่ขนาดเท่ากัน","ขนาดไฟล์คลาดจากที่คาดได้เล็กน้อย"],["Constrained VBR","ขึ้นลงได้ แต่ไม่เกินกรอบที่ตั้ง","คุมขนาดได้แน่นกว่า","เสียงด้อยกว่า VBR เล็กน้อย"],["Hard CBR","บิตเรตเท่ากันทุกก้อน","ขนาดแน่นอน ใช้กับการส่งสด","เปลืองที่สุด ช่วงเงียบก็ใช้บิตเท่าช่วงดัง"]], r:"VBR สำหรับไฟล์ที่เก็บไว้ดู" }, "ใกล้เคียงกันทุกแบบ ตามบิตเรตที่ตั้ง"],
+         ["Complexity","step",{ stops:ints(0,10), val:10 },"ความละเอียดการคำนวณ 0–10 · สูงช้ากว่าแต่เสียงดีกว่า ค่าตั้งต้น 10",
+           { w:"ตัวแปลงคิดละเอียดแค่ไหนตอนบีบเสียง 0 ถึง 10 · ไม่เกี่ยวกับขนาดไฟล์", o:[["ปรับสูง","ตัวแปลงลองหลายทางก่อนเลือก","เสียงดีขึ้นเล็กน้อยที่บิตเรตเท่ากัน","แปลงช้าลง"],["ปรับต่ำ","ตัวแปลงคิดน้อยลง","แปลงเร็ว เหมาะกับเครื่องช้าหรือส่งสด","เสียงด้อยลงเล็กน้อย"]], r:"10 ค่าตั้งต้น · ตอนเล่นเร็วเท่ากันทุกค่า" }],
+         ["Frame size","seg",["2.5","5","10","*20","40","60 ms"],"ขนาดเฟรม ค่าตั้งต้น 20 ms · เล็กหน่วงน้อย ใหญ่ประหยัดกว่าเล็กน้อย",
+           { w:"ความยาวเสียงแต่ละก้อนที่ตัวแปลงบีบทีละก้อน", o:[["เล็ก 2.5–10 ms","เสียงออกเร็ว หน่วงน้อย","เหมาะกับคุยสด เล่นเกม","เปลืองข้อมูลหัวก้อน เสียงด้อยลงที่บิตเรตเท่ากัน"],["ใหญ่ 40–60 ms","ก้อนน้อยลง","ประหยัดขึ้นเล็กน้อย เห็นผลตอนบิตเรตต่ำ เช่น เสียงพูด","หน่วงมากขึ้น ที่บิตเรตสูงไม่ได้อะไรเพิ่ม"]], r:"20 ms ค่าตั้งต้นของผู้ทำ · ไฟล์เก็บดูไม่ต้องสนเรื่องหน่วง" }, "แทบไม่เปลี่ยน"],
+         ["Tuning","seg",["Auto","Music","Speech"],"บอกตัวแปลงว่าเสียงเป็นเพลงหรือเสียงพูด",
+           { w:"บอกตัวแปลงว่าเสียงเป็นเพลงหรือเสียงพูด ตัวแปลงเลือกวิธีบีบให้เหมาะ", o:[["Auto","ตัวแปลงฟังแล้วเลือกเองทีละช่วง","หนังที่มีทั้งพูดและเพลงได้ผลดีทั้งคู่",""],["Music","เน้นความเที่ยงของเครื่องดนตรี","เพลงล้วนได้เสียงเต็มขึ้น","ช่วงพูดอาจไม่ชัดเท่า Speech ที่บิตเรตต่ำ"],["Speech","เน้นความชัดของเสียงพูด","เสียงบรรยาย พอดแคสต์ บิตเรตต่ำยังฟังรู้เรื่อง","ดนตรีประกอบแบนลง"]], r:"Auto · ที่บิตเรตสูงทั้งสามแบบแทบไม่ต่าง" }],
+         ["Channels","dd","ตามต้นฉบับ (5.1)","จำนวนช่อง ลดเป็น 2.0 หรือช่องเดียวได้", TIP_CH, "บิตเรตรวมทุกช่องคงเดิม ขนาดไม่เปลี่ยน"]] },
+  aac: { name:"AAC", group:"เสียคุณภาพ", engines:[["qaac","ตัวของ Apple ผ่าน qaac 3.07 (โฟลเดอร์ตัวแปลง)"],["fdkaac","fdkaac (ยังไม่ได้ใส่)"],["ffmpeg","ffmpeg 9.0.2 (AAC-LC ของ ffmpeg)"]], mkv:true, mp4:true, ch:"7.1 ได้",
+    tip:{ w:"codec มาตรฐานของ MP4 ใช้กับ iPhone YouTube และทีวีแทบทุกรุ่น", p:"เล่นได้แทบทุกเครื่อง · ตัวของ Apple (qaac) เสียงดีมาก", c:"ตัวที่ดีต้องวางเองในโฟลเดอร์ตัวแปลง · ตัวของ ffmpeg ด้อยกว่าที่บิตเรตต่ำ", r:"ไฟล์ที่ต้องเล่นบนทีวี มือถือ หรือส่งต่อให้คนอื่น" },
+    presets:[["เสียงพูด","HE-AAC CVBR 48 kbps · 2.0","ราว 22 MB ต่อชั่วโมง"],["เพลงคุณภาพดี","TVBR 91 · 2.0","ราว 85 MB ต่อชั่วโมง"],["หนัง 5.1 ดี","TVBR 91 · 5.1","ราว 160 MB ต่อชั่วโมง"],["หนัง 5.1 ดีมาก","TVBR 109 · 5.1","ราว 210 MB ต่อชั่วโมง"]], preset:2,
+    adv:[["Mode","seg",["TVBR","CVBR","ABR","CBR"],"TVBR คุณภาพแปรผัน โหมดที่ Apple แนะนำ · CVBR ABR CBR ตั้งเป็นบิตเรต",
+           { w:"วิธีคุมคุณภาพกับขนาดของ AAC", o:[["TVBR","ตั้งเป็นระดับคุณภาพ บิตเรตขึ้นลงตามเสียง","คุณภาพดีสุดต่อขนาด","รู้ขนาดไฟล์แน่ ๆ หลังแปลงเสร็จ"],["CVBR","ตั้งบิตเรตเป้าหมาย ขึ้นลงได้บ้าง","ขนาดใกล้ที่ตั้ง ใช้กับ HE-AAC ได้","ด้อยกว่า TVBR เล็กน้อย"],["ABR","เฉลี่ยตามบิตเรตที่ตั้ง","ขนาดคาดได้","ด้อยกว่า CVBR"],["CBR","บิตเรตเท่ากันตลอด","เข้ากับเครื่องเก่าทุกเครื่อง","เปลืองที่สุด"]], r:"TVBR · ใช้ HE-AAC ต้องเลือก CVBR ABR หรือ CBR" }, "ตามช่อง TVBR quality หรือบิตเรตที่ตั้ง"],
+         ["TVBR quality","step",{ stops:[0,9,18,27,36,45,54,63,73,82,91,100,109,118,127], val:91, free:[0,127], snap:true, major:[0,27,54,82,91,109,127] },"0–127 · 91 ใกล้ต้นฉบับมาก 109 แทบแยกไม่ออก",
+           { w:"ระดับคุณภาพของโหมด TVBR 0 ถึง 127 · ตัวแปลงปัดเป็นขั้นละราว 9 เช่น 82 91 100 109 118 127", o:[["ปรับสูง","บิตเรตเฉลี่ยสูงขึ้น","91 แทบแยกจากต้นฉบับไม่ออก 109 ขึ้นไปหูแยกไม่ได้","ไฟล์ใหญ่ขึ้น"],["ปรับต่ำ","บิตเรตเฉลี่ยลดลง","ไฟล์เล็ก","ต่ำกว่า 64 เริ่มได้ยินว่าเสียงเปลี่ยน"]], r:"91 ดูทั่วไป · 109 เก็บถาวร · สเตอริโอ 91 ราว 180–200 kbps" }, SZ_AAC],
+         ["Profile","seg",["AAC-LC","HE-AAC","HE-AAC v2"],"AAC-LC ใช้ทั่วไป · HE-AAC ใช้กับบิตเรตต่ำ เสียงพูด ใช้ TVBR ไม่ได้ · HE-AAC v2 ใช้ได้กับ fdkaac",
+           { w:"รุ่นย่อยของ AAC แต่ละรุ่นเหมาะกับบิตเรตต่างกัน", o:[["AAC-LC","แบบปกติ","เครื่องเล่นทุกเครื่องเล่นได้ ใช้ได้ทุกบิตเรต","บิตเรตต่ำมากเสียงทึบ"],["HE-AAC","เก็บเสียงช่วงล่าง แล้วสร้างเสียงสูงขึ้นใหม่ตอนเล่น (SBR)","48–80 kbps ยังฟังรู้เรื่อง","เสียงสูงเป็นเสียงที่สร้างขึ้น ไม่ใช่ของจริง · ใช้ TVBR ไม่ได้"],["HE-AAC v2","HE-AAC บวกเก็บสเตอริโอแบบย่อ (PS)","ต่ำกว่า 48 kbps ยังเป็นสเตอริโอ","ใช้ได้แค่ 2.0 · ตัวแปลงที่ทำได้คือ fdkaac"]], r:"AAC-LC สำหรับหนังและเพลง" }, "HE-AAC ใช้กับบิตเรตต่ำ ไฟล์เล็กตามบิตเรตที่ตั้ง"],
+         ["Encoder quality","seg",["0","1","*2"],"ความละเอียดการคำนวณ 0 เร็วสุด · 2 ดีสุด ค่าตั้งต้น",
+           { w:"ตัวแปลงคิดละเอียดแค่ไหน 0 ถึง 2 · ไม่เกี่ยวกับขนาดไฟล์", o:[["2","คิดละเอียดสุด","เสียงดีสุด","ช้ากว่าเล็กน้อย"],["0","คิดน้อยสุด","เร็วสุด","เสียงด้อยลงเล็กน้อย"]], r:"2 ค่าตั้งต้น · ต่างกันน้อยมาก" }],
+         ["Lowpass","dd","Auto","ความถี่สูงสุดที่เก็บ ตัดเสียงสูงเพื่อประหยัด",
+           { w:"ตัดเสียงที่สูงกว่าความถี่นี้ทิ้ง เอาบิตไปใช้กับช่วงที่หูได้ยินชัดกว่า", o:[["Auto","ตัวแปลงตั้งให้ตามบิตเรต","สมดุลที่ผู้ทำจูนไว้แล้ว",""],["ตั้งสูงเอง","เก็บเสียงสูงมากขึ้น","เสียงสูงครบกว่าที่บิตเรตสูง","ที่บิตเรตต่ำ บิตไม่พอ เสียงแปลกปลอมเพิ่ม"],["ตั้งต่ำเอง","ตัดเสียงสูงมากขึ้น","ช่วงกลางชัดขึ้นที่บิตเรตต่ำ","เสียงทึบ ฉาบหาย"]], r:"Auto" }, "Auto ตามบิตเรต · ตั้งเองเปลี่ยนเล็กน้อย"],
+         ["Channels","dd","ตามต้นฉบับ (5.1)","จำนวนช่อง ลดเป็น 2.0 ได้", TIP_CH, "ที่ TVBR 91 · 5.1 ราว 340 MB · 2.0 ราว 180 MB"]] },
+  mp3: { name:"MP3", group:"เสียคุณภาพ", engines:[["lame","ตัวต้นฉบับ LAME 3.100"],["ffmpeg","ffmpeg 9.0.2 (LAME 3.100 ข้างใน)"]], mkv:true, mp4:true, ch:"สูงสุด 2 ช่อง",
+    tip:{ w:"codec เก่าแก่ ออกปี 1993 สิทธิบัตรหมดแล้ว", p:"เล่นได้ทุกเครื่องบนโลก", c:"บิตเรตเท่ากัน เสียงด้อยกว่า AAC กับ Opus · สูงสุด 2 ช่อง ใช้กับเสียง 5.1 ไม่ได้", r:"เพลงที่ต้องเล่นกับเครื่องเก่า เช่น วิทยุรถ" },
+    presets:[["เสียงพูด","V7 · ราว 100 kbps","ราว 45 MB ต่อชั่วโมง"],["ทั่วไป","V2 · ราว 190 kbps","ราว 85 MB ต่อชั่วโมง"],["ดีมาก","V0 · ราว 245 kbps","ราว 110 MB ต่อชั่วโมง"],["สูงสุด","CBR 320 kbps","ราว 144 MB ต่อชั่วโมง"]], preset:1,
+    adv:[["Mode","seg",["VBR","ABR","CBR"],"VBR บิตเรตแปรผัน ได้เสียงดีสุดที่ขนาดเท่ากัน",
+           { w:"วิธีคุมคุณภาพกับขนาดของ MP3", o:[["VBR","ตั้งเป็นระดับ V0–V9 บิตเรตขึ้นลงตามเสียง","ดีสุดต่อขนาด","เครื่องเล่นเก่ามากบางรุ่นแสดงเวลาเพี้ยน"],["ABR","เฉลี่ยตามบิตเรตที่ตั้ง","ขนาดคาดได้","ด้อยกว่า VBR ที่ขนาดเท่ากัน"],["CBR","บิตเรตเท่ากันตลอด","เล่นได้ทุกเครื่อง","เปลืองที่สุด"]], r:"VBR" }, "ตามช่อง VBR quality หรือบิตเรตที่ตั้ง"],
+         ["VBR quality","step",{ stops:ints(0,9), val:2, pre:"V" },"V0 ดีสุด V9 เล็กสุด · ค่าที่นิยม V2",
+           { w:"ระดับคุณภาพของ VBR · V0 ดีสุด V9 เล็กสุด", o:[["V0","ราว 245 kbps","ใกล้ต้นฉบับมาก","ใหญ่สุดในกลุ่ม VBR"],["V2","ราว 190 kbps","คนส่วนใหญ่แยกจากต้นฉบับไม่ออก",""],["V5 ขึ้นไป","ราว 130 kbps ลงไป","ไฟล์เล็ก","เริ่มได้ยินเสียงสูงแบน"]], r:"V2 · เก็บถาวรใช้ V0 หรือเลือก FLAC" }, SZ_MP3V],
+         ["Bitrate ของ ABR กับ CBR","step",{ stops:[32,40,48,56,64,80,96,112,128,160,192,224,256,320], val:192, unit:"kbps", major:[32,64,96,128,160,192,256,320] },"บิตเรต 8–320 kbps ใช้ตอนเลือก ABR หรือ CBR",
+           { w:"บิตเรตที่ใช้เมื่อเลือก ABR หรือ CBR · โหมด VBR ไม่ใช้ช่องนี้", o:[["320 kbps","สูงสุดของ MP3","เสียงดีสุดที่ MP3 ทำได้","ใหญ่กว่า V0 แต่เสียงแทบเท่ากัน"],["128 kbps ลงไป","ไฟล์เล็ก","ประหยัดที่","ได้ยินเสียงแปลกปลอมชัด"]], r:"ถ้าต้องใช้ CBR เลือก 192 ขึ้นไป" }, SZ_KBPS],
+         ["Stereo mode","seg",["Joint stereo","Stereo","Mono"],"Joint stereo ประหยัดกว่า เสียงไม่เสีย",
+           { w:"วิธีเก็บเสียงซ้ายขวา", o:[["Joint stereo","ส่วนที่ซ้ายขวาเหมือนกันเก็บครั้งเดียว เอาบิตไปใช้ส่วนอื่น","เสียงดีกว่าที่ขนาดเท่ากัน",""],["Stereo","เก็บซ้ายขวาแยกกันเต็ม ๆ","ซ้ายขวาไม่ยุ่งกันเลย","เปลืองบิต เสียงด้อยลงที่ขนาดเท่ากัน"],["Mono","รวมเป็นช่องเดียว","เล็กสุด","ไม่มีมิติซ้ายขวา"]], r:"Joint stereo" }, "Joint stereo เล็กกว่าเล็กน้อยในโหมด VBR"],
+         ["Quality (-q)","step",{ stops:ints(0,9), val:3 },"ความละเอียดการคำนวณ 0 ดีสุด ช้าสุด · 9 เร็วสุด · ค่าตั้งต้น 3",
+           { w:"LAME คิดละเอียดแค่ไหน 0 ถึง 9 · แทบไม่เกี่ยวกับขนาดไฟล์", o:[["0–2","คิดละเอียด","เสียงดีขึ้นเล็กน้อย","ช้าลงมาก ได้ไม่คุ้ม"],["7–9","คิดน้อย","เร็วมาก","เสียงด้อยลงชัด"]], r:"3 ค่าตั้งต้นของ LAME" }],
+         ["Lowpass","dd","Auto","ความถี่สูงสุดที่เก็บ LAME ตั้งตามคุณภาพเอง",
+           { w:"ตัดเสียงที่สูงกว่าความถี่นี้ทิ้ง เอาบิตไปใช้ช่วงที่หูได้ยินชัด", o:[["Auto","LAME ตั้งตามระดับคุณภาพ ยิ่งคุณภาพต่ำยิ่งตัดต่ำ","ผู้ทำจูนไว้แล้ว",""],["ตั้งเอง","บังคับความถี่ตัด","ปรับเฉพาะงานได้","ตั้งสูงเกินที่บิตเรตต่ำ เสียงแปลกปลอมเพิ่ม"]], r:"Auto" }, "ตั้งต่ำลง ไฟล์เล็กลงเล็กน้อยในโหมด VBR"]] },
+  ac3: { name:"AC-3", group:"เสียคุณภาพ", engines:[["ffmpeg","ffmpeg 9.0.2 (ไม่มีตัวต้นฉบับให้ใช้)"]], mkv:true, mp4:true, ch:"สูงสุด 5.1",
+    tip:{ w:"Dolby Digital เสียงมาตรฐานของดีวีดีและทีวี", p:"ทีวี ซาวด์บาร์ เครื่องเสียงรับได้แทบทุกตัว ส่งผ่าน HDMI หรือสาย optical ได้", c:"เปลืองกว่า codec ใหม่ · สูงสุด 5.1 · ไม่มีตัวต้นฉบับให้ ใช้ ffmpeg", r:"แปลง DTS หรือ TrueHD ให้เครื่องเสียงที่รับได้แค่ AC-3" },
+    presets:[["2.0 ทั่วไป","192 kbps · 2.0","ราว 86 MB ต่อชั่วโมง"],["5.1 แบบดีวีดี","448 kbps · 5.1","ราว 200 MB ต่อชั่วโมง"],["5.1 สูงสุด","640 kbps · 5.1","ราว 288 MB ต่อชั่วโมง"],["5.1 ทีวีบางรุ่น","384 kbps · 5.1","ราว 173 MB ต่อชั่วโมง"]], preset:2,
+    adv:[["Bitrate","step",{ stops:[32,40,48,56,64,80,96,112,128,160,192,224,256,320,384,448,512,576,640], val:640, unit:"kbps", major:[32,128,192,256,384,448,640] },"บิตเรต 32–640 kbps",
+           { w:"จำนวนข้อมูลเสียงต่อวินาทีรวมทุกช่อง AC-3 สูงสุด 640 kbps", o:[["640","สูงสุดของ AC-3","5.1 เสียงดีสุดที่ทำได้","ใหญ่สุด"],["448","มาตรฐานดีวีดี","ทุกเครื่องเล่นได้ ประหยัดกว่า","เสียงรอบด้อยกว่า 640 เล็กน้อย"],["192–256","สำหรับ 2.0","พอสำหรับสองช่อง","ใช้กับ 5.1 เสียงด้อยชัด"]], r:"5.1 ใช้ 640 · 2.0 ใช้ 192–256" }, SZ_KBPS],
+         ["Dialnorm","step",{ stops:ints(-31,-1), val:-31, unit:"dB", major:[-31,-27,-23,-19,-15,-11,-7,-3] },"บอกเครื่องเล่นว่าเสียงพูดดังแค่ไหน ไว้ปรับความดัง · ค่าตั้งต้น −31",
+           { w:"ไม่ได้เปลี่ยนเสียงในไฟล์ แต่บอกเครื่องเล่นว่าเสียงพูดดังเท่าไหร่ เครื่องเล่นจะลดเสียงลงให้เท่ามาตรฐาน", o:[["−31","บอกว่าเบาเท่ามาตรฐานแล้ว เครื่องเล่นไม่ลด","เสียงออกเท่าเดิม",""],["ค่าอื่น เช่น −24","บอกว่าดังกว่ามาตรฐาน เครื่องเล่นลดลง 7 dB","ดังเท่ารายการอื่นในทีวี","ตั้งผิด เสียงเบาเกินโดยไม่รู้ตัว"]], r:"−31 เมื่อไม่รู้ค่าความดังจริง" }],
+         ["Center mix level","seg",["−3 dB","*−4.5 dB","−6 dB"],"ระดับช่องกลาง ตอนเครื่องเล่นลดเป็น 2.0 เอง",
+           { w:"ใช้ตอนเครื่องเล่นลด 5.1 เป็น 2.0 เอง กำหนดว่าช่องกลาง (เสียงพูด) ผสมลงซ้ายขวาดังแค่ไหน · เล่นแบบ 5.1 ไม่มีผล", o:[["−3 dB","ช่องกลางดังขึ้น","เสียงพูดชัดขึ้นตอนฟัง 2.0","เพลงประกอบเบาลงเทียบกับเสียงพูด"],["−6 dB","ช่องกลางเบาลง","เพลงกับเสียงรอบเด่นขึ้น","เสียงพูดอาจจม"]], r:"−4.5 dB ค่าตั้งต้น" }],
+         ["Surround mix level","seg",["−3 dB","*−6 dB","Off"],"ระดับช่องรอบ ตอนเครื่องเล่นลดเป็น 2.0 เอง",
+           { w:"ใช้ตอนเครื่องเล่นลด 5.1 เป็น 2.0 เอง กำหนดว่าช่องรอบผสมลงซ้ายขวาดังแค่ไหน · เล่นแบบ 5.1 ไม่มีผล", o:[["−3 dB","ช่องรอบดังขึ้น","บรรยากาศครบ","เสียงพูดอาจถูกกลบ"],["Off","ทิ้งช่องรอบ","เสียงพูดชัดสุด","เสียงบรรยากาศหาย"]], r:"−6 dB ค่าตั้งต้น" }],
+         ["Room type","seg",["Not indicated","Large","Small"],"ประเภทห้องที่มิกซ์ ข้อมูลประกอบ ไม่เปลี่ยนเสียง",
+           { w:"ข้อมูลประกอบว่ามิกซ์เสียงในห้องแบบไหน ไม่เปลี่ยนเสียง เครื่องเล่นส่วนใหญ่ไม่ได้ใช้", r:"Not indicated" }],
+         ["Channels","dd","ตามต้นฉบับ (7.1 ลดเป็น 5.1)","จำนวนช่อง AC-3 เก็บได้สูงสุด 5.1",
+           { w:"จำนวนช่องในไฟล์ใหม่ AC-3 เก็บได้สูงสุด 5.1", o:[["ตามต้นฉบับ","ต้นฉบับ 7.1 ระบบลดเป็น 5.1 ให้","ใช้กับลำโพง 5.1 ได้ครบ","ช่องหลังของ 7.1 ถูกรวมเข้าช่องรอบ"],["ลดเป็น 2.0","รวมเป็นซ้ายขวา","ไฟล์เล็กลงเมื่อลดบิตเรตด้วย","เสียงรอบทิศหาย"]], r:"ตามต้นฉบับ" }, "ตามบิตเรตที่ตั้ง ไม่ใช่จำนวนช่อง"]] },
+  flac: { name:"FLAC", group:"ไม่เสียคุณภาพ", engines:[["flac","ตัวต้นฉบับ flac 1.5.0"],["ffmpeg","ffmpeg 9.0.2 (ffmpeg เขียนเอง)"]], mkv:true, mp4:true, ch:"สูงสุด 8 ช่อง",
+    tip:{ w:"codec Lossless เปิดฟรี นิยมที่สุด", p:"ไม่เสียคุณภาพ · ถอดเร็ว ใช้แรงเครื่องน้อย · เล่นได้เกือบทุกโปรแกรม ใส่ได้ทั้ง MKV และ MP4", c:"ไฟล์ใหญ่ ราวครึ่งหนึ่งของ WAV · สูงสุด 8 ช่อง", r:"เก็บต้นฉบับ เช่น แปลงจาก WAV หรือ TrueHD ที่เครื่องเล่นไม่รับ" },
+    presets:[["เร็ว","Level 0","ราว 60% ของ WAV"],["มาตรฐาน","Level 5","ราว 55% ของ WAV"],["เล็กสุด","Level 8","ราว 53% ของ WAV"],["เก็บถาวร","Level 8 · Verify","ราว 53% ของ WAV"]], preset:1,
+    adv:[["Compression level","step",{ stops:ints(0,8), val:5 },"ระดับการบีบ 0 เร็วสุด 8 เล็กสุด · เสียงเหมือนต้นฉบับทุกระดับ",
+           { w:"บีบแน่นแค่ไหน 0 ถึง 8 · ทุกระดับถอดกลับได้ตรงต้นฉบับทุกตัวอย่าง ต่างกันแค่ขนาดกับเวลาแปลง", o:[["ปรับสูง","ไฟล์เล็กลง","ประหยัดที่","แปลงช้าลง · 8 เล็กกว่า 5 แค่ราว 1–2%"],["ปรับต่ำ","ไฟล์ใหญ่ขึ้นเล็กน้อย","แปลงเร็วมาก",""]], r:"5 สมดุล · ตอนเล่นเร็วพอ ๆ กันทุกระดับ" }, SZ_FLAC],
+         ["Threads","step",{ stops:ints(1,16), val:8, major:[1,2,4,6,8,10,12,14,16] },"ใหม่ใน 1.5.0 แปลงหลายเส้นพร้อมกัน เร็วขึ้นมาก",
+           { w:"แปลงหลายเส้นพร้อมกัน มีตั้งแต่ flac 1.5.0", o:[["มากขึ้น","ใช้หลายแกนของซีพียู","เร็วขึ้นหลายเท่า ไฟล์ที่ได้เหมือนเดิม","เครื่องทำงานหนักช่วงแปลง · ตั้งเกินจำนวนแกนไม่เร็วขึ้น"],["1","แปลงเส้นเดียว","เครื่องยังว่างทำอย่างอื่น","ช้าสุด"]], r:"เท่าจำนวนแกนของซีพียู" }],
+         ["Verify","seg",["On","Off"],"ถอดกลับมาเทียบทุกตัวอย่างเสียงหลังบีบ", TIP_VERIFY],
+         ["Bit depth","seg",["ตามต้นฉบับ","16-bit","24-bit"],"ความลึกบิต · ลดบิตแล้วไม่ใช่ไม่เสียคุณภาพอีกต่อไป", TIP_BD, "ตามต้นฉบับ 24-bit ราว 3.4 GB · 16-bit ราว 2.3 GB"],
+         ["Sample rate","dd","ตามต้นฉบับ (48 kHz)","อัตราสุ่มเสียง เปลี่ยนแล้วต้องคำนวณใหม่", TIP_SR, "ลด 48 เป็น 44.1 kHz เล็กลงราว 8%"],
+         ["Block size","dd","Auto (4,096)","ผู้ทำแนะนำให้ปล่อย Auto",
+           { w:"ขนาดก้อนเสียงที่ flac บีบทีละก้อน", o:[["Auto","flac เลือกให้ (4,096 ที่ 44.1 และ 48 kHz)","ผู้ทำจูนไว้ เครื่องเล่นทุกตัวเล่นได้",""],["ตั้งเอง","บังคับขนาดก้อน","บางเพลงเล็กลงเล็กน้อย","เครื่องเล่นฮาร์ดแวร์บางรุ่นเล่นขนาดแปลก ๆ ไม่ได้"]], r:"Auto" }, "แทบไม่เปลี่ยน"]] },
+  wv: { name:"WavPack", group:"ไม่เสียคุณภาพ", engines:[["wavpack","ตัวต้นฉบับ wavpack 5.9.0"],["ffmpeg","ffmpeg 9.0.2"]], mkv:true, mp4:false, ch:"หลายช่องได้",
+    tip:{ w:"codec Lossless เปิดฟรี มีโหมดผสม (Hybrid) แบบเดียวในกลุ่ม", p:"โหมดสูงบีบได้เล็กกว่า FLAC เล็กน้อย · รองรับ 32-bit float และหลายช่อง", c:"ใส่ MP4 ไม่ได้ · เครื่องเล่นรองรับน้อยกว่า FLAC", r:"เก็บถาวรใน MKV เมื่ออยากได้ไฟล์เล็กกว่า FLAC" },
+    presets:[["เร็ว","Fast · -f","ราว 58% ของ WAV"],["มาตรฐาน","Normal","ราว 55% ของ WAV"],["เล็ก","High · -h","ราว 54% ของ WAV"],["เล็กสุด","Very High · -hh -x6","ราว 53% ของ WAV"]], preset:1,
+    adv:[["Mode","seg",["Fast","*Normal","High","Very High"],"High เล็กลงแต่ถอดช้าลงเล็กน้อย",
+           { w:"บีบแน่นแค่ไหน · ทุกโหมดถอดกลับได้ตรงต้นฉบับ", o:[["Fast","บีบน้อย","แปลงและเล่นเร็ว ใช้แรงเครื่องน้อย","ไฟล์ใหญ่สุด"],["Normal","สมดุล","ค่าตั้งต้น",""],["High · Very High","บีบมากขึ้น","ไฟล์เล็กลง","แปลงช้าลง และตอนเล่นถอดช้าลงด้วย ต่างจาก FLAC"]], r:"Normal หรือ High" }, "Fast ราว 3.6 GB · Normal 3.4 GB · High 3.35 GB · Very High 3.3 GB"],
+         ["Extra","step",{ stops:ints(0,6), val:0 },"บีบเพิ่ม 0–6 · ใช้เวลาตอนแปลงมากขึ้น ถอดเร็วเท่าเดิม",
+           { w:"ให้ตัวแปลงลองหลายแบบเพิ่ม เพื่อหาแบบที่เล็กที่สุด 0 ถึง 6", o:[["ปรับสูง","ลองมากขึ้น","ไฟล์เล็กลงอีกเล็กน้อย ตอนเล่นเร็วเท่าเดิม","แปลงช้าลงมาก"],["0","ไม่ลองเพิ่ม","แปลงเร็ว",""]], r:"0–3 · เก็บถาวรใช้ 6 ได้ถ้าไม่รีบ" }, SZ_WVX],
+         ["Hybrid","seg",["Off","On"],"ไฟล์เล็กแบบเสียคุณภาพ คู่กับไฟล์แก้ .wvc ให้กลับเป็นไม่เสียคุณภาพ",
+           { w:"แยกเก็บเป็นสองส่วน ไฟล์เสียงเล็กแบบเสียคุณภาพ (.wv) กับไฟล์แก้ (.wvc)", o:[["On","มีสองส่วน","ครบสองส่วน = ไม่เสียคุณภาพ · ใช้แค่ .wv ก็ฟังได้ ไฟล์เล็ก","ต้องดูแลสองส่วน ไฟล์แก้หายก็เหลือแค่แบบเสียคุณภาพ"],["Off","ไฟล์เดียวแบบไม่เสียคุณภาพ","ดูแลง่าย",""]], r:"Off" }, "On ไฟล์ .wv เล็กมาก บวกไฟล์แก้ รวมแล้วใหญ่กว่า Off เล็กน้อย"],
+         ["Verify","seg",["On","Off"],"ถอดกลับมาเทียบหลังบีบ", TIP_VERIFY],
+         ["Bit depth","seg",["ตามต้นฉบับ","16-bit","24-bit"],"ความลึกบิต", TIP_BD, "ตามต้นฉบับ 24-bit ราว 3.4 GB · 16-bit ราว 2.3 GB"],
+         ["Sample rate","dd","ตามต้นฉบับ","อัตราสุ่มเสียง", TIP_SR, "ลด 48 เป็น 44.1 kHz เล็กลงราว 8%"]] },
+  ape: { name:"Monkey's Audio", group:"ไม่เสียคุณภาพ เฉพาะหน้าแปลงเสียง", engines:[["mac","ตัวต้นฉบับ MAC 13.45 (โฟลเดอร์ตัวแปลง)"]], mkv:false, mp4:false, ch:"หลายช่องได้", only:true,
+    tip:{ w:"codec Lossless (ไฟล์ .ape) บีบแน่นมาก", p:"ไฟล์เล็กกว่า FLAC เล็กน้อย", c:"ใส่ MKV และ MP4 ไม่ได้ · ตอนเล่นถอดหนัก · เครื่องเล่นรองรับน้อย", r:"เก็บเพลงเป็นไฟล์แยกในคอม · ใช้ได้เฉพาะหน้าแปลงเสียง" },
+    presets:[["เร็ว","Fast · -c1000","ราว 55% ของ WAV"],["ปกติ","Normal · -c2000","ราว 53% ของ WAV"],["สูง","High · -c3000","ราว 52% ของ WAV"],["สูงสุด","Insane · -c5000","ราว 51% ของ WAV"]], preset:1,
+    adv:[["Compression level","seg",["Fast","*Normal","High","Extra High","Insane"],"ระดับการบีบ -c1000 ถึง -c5000 · สูงเล็กลง แต่ถอดช้าลงด้วย",
+           { w:"บีบแน่นแค่ไหน · ทุกระดับถอดกลับได้ตรงต้นฉบับ", o:[["Fast · Normal","บีบน้อยถึงกลาง","แปลงและเล่นเร็ว",""],["High · Extra High · Insane","บีบมาก","ไฟล์เล็กสุดในกลุ่ม Lossless","ตอนเล่นถอดหนัก เครื่องเก่าอาจกระตุก · Insane เล็กกว่า Normal แค่ราว 2–3%"]], r:"Normal หรือ High" }, "Fast ราว 3.4 GB · Normal 3.3 GB · High 3.2 GB · Extra High 3.2 GB · Insane 3.15 GB"],
+         ["Verify","seg",["On","Off"],"ถอดกลับมาเทียบหลังบีบ", TIP_VERIFY]] },
+};
+const CODEC_ORDER = ["opus","aac","mp3","ac3","flac","wv","ape"];
+const MORE = "Vorbis · E-AC-3 · ALAC · TTA · WAV · TAK (เฉพาะหน้าแปลงเสียง)";
+let cs = { c:"opus", tab:"easy", eng:0 };
+/* ขนาดทั้งแทร็กของชุดค่าแบบง่าย · แทร็กยาว 2 ชั่วโมง 08 นาที (2.133 ชั่วโมง) · WAV ของแทร็กนี้ 5.1 24 บิต 48 kHz ราว 6.2 GB */
+function trackSize(s){
+  const mb = s.match(/ราว ([\d,]+) MB ต่อชั่วโมง/), pct = s.match(/ราว (\d+)% ของ WAV/);
+  if (mb) { const v = +mb[1].replace(",", "") * 2.133; return v >= 1000 ? `ทั้งแทร็กราว ${(v / 1024).toFixed(1)} GB` : `ทั้งแทร็กราว ${Math.round(v / 10) * 10} MB`; }
+  if (pct) return `ทั้งแทร็กราว ${(6.2 * +pct[1] / 100).toFixed(1)} GB`;
+  return s;
+}
+/* ช่องที่ใช้ทุกชนิด */
+const GAIN = ["Gain","step",{ stops:ints(-12,12), val:0, unit:"dB", signed:true, major:[-12,-9,-6,-3,0,3,6,9,12] },"เพิ่มลดความดังทีละ 1 dB · ใช้กับทุกชนิด", TIPS.gain];
+const LOUD = ["Loudness normalize","seg",["Off","EBU R128 −23 LUFS"],"ปรับความดังตามมาตรฐาน EBU R128 ให้ได้ −23 LUFS ทุกแทร็กดังพอ ๆ กัน · ใช้กับทุกชนิด", TIPS.loud];
+
+/* ---------- ตัวย่อกับชื่อเต็ม · พี่กันสั่ง "ตัวย่อทุกตัวในนี้ วงเล็บคำเต็มด้วย" "ชื่อ codec ทั้งหมดใส่ชื่อเต็มด้วย" ----------
+   ขยายครั้งแรกที่เจอในแต่ละการ์ด แต่ละกล่อง ⓘ แต่ละบรรทัด · ปุ่มเลือกกับค่าตัวเลขคงตัวย่อ เพราะคำเต็มอยู่ในการ์ดกับกล่องแล้ว */
+const ABBR = {
+  "HE-AAC v2":"High-Efficiency Advanced Audio Coding version 2", "HE-AAC":"High-Efficiency Advanced Audio Coding", "AAC-LC":"Advanced Audio Coding Low Complexity",
+  "TVBR":"True Variable Bitrate", "CVBR":"Constrained Variable Bitrate", "VBR":"Variable Bitrate", "ABR":"Average Bitrate", "CBR":"Constant Bitrate",
+  "SBR":"Spectral Band Replication", "PS":"Parametric Stereo", "EBU R128":"European Broadcasting Union Recommendation R 128",
+  "LUFS":"Loudness Units relative to Full Scale", "dBTP":"decibels True Peak", "dB":"decibel", "kbps":"kilobits per second", "kHz":"kilohertz", "Hz":"hertz", "ms":"millisecond",
+  "WAV":"Waveform Audio File Format", "MKV":"Matroska Video", "MP4":"MPEG-4 Part 14", "PCM":"Pulse-Code Modulation", "DTS":"Digital Theater Systems",
+  "LAME":"LAME Ain't an MP3 Encoder", "IETF":"Internet Engineering Task Force", "HDMI":"High-Definition Multimedia Interface",
+  "ffmpeg":"Fast Forward MPEG", "qaac":"QuickTime AAC encoder", "fdkaac":"Fraunhofer FDK AAC",
+  "Opus":"Opus Interactive Audio Codec", "AAC":"Advanced Audio Coding", "MP3":"MPEG-1 Audio Layer III", "AC-3":"Dolby Digital", "E-AC-3":"Dolby Digital Plus",
+  "FLAC":"Free Lossless Audio Codec", "ALAC":"Apple Lossless Audio Codec", "TTA":"True Audio", "TAK":"Tom's lossless Audio Kompressor", "APE":"Monkey's Audio",
+  "TrueHD":"Dolby TrueHD", "Vorbis":"Ogg Vorbis", "Dialnorm":"Dialogue Normalization",
+};
+const reEsc = (k) => k.replace(/[.*+?^$()|[\]\\{}]/g, "\\$&");
+const ABBR_RE = new RegExp("(?<![A-Za-z0-9-])(" + Object.keys(ABBR).sort((a, b) => b.length - a.length).map(reEsc).join("|") + ")(?![A-Za-z0-9-])", "g");
+/* ตัวขยายหนึ่งตัวต่อหนึ่งการ์ดหรือหนึ่งกล่อง · คำที่ขยายแล้วไม่ขยายซ้ำ */
+function expander(){
+  const seen = new Set();
+  return (s) => s == null ? "" : String(s).replace(ABBR_RE, (k) => { if (seen.has(k)) return k; seen.add(k); return `${k} <span class="ab">(${ABBR[k]})</span>`; });
+}
+const CODEC_FULL = { opus:"Opus Interactive Audio Codec", aac:"Advanced Audio Coding", mp3:"MPEG-1 Audio Layer III", ac3:"Dolby Digital", flac:"Free Lossless Audio Codec", wv:"WavPack Hybrid Lossless", ape:"APE" };
+
+/* ---------- คำสั่งที่โปรแกรมจะรัน · พี่กันขอ "ตอนที่เราปรับความละเอียดเสียงขั้นสูง มันจะได้ code มาด้วย เราอยากให้แสดงด้วย" ----------
+   ตัวต้นฉบับ ffmpeg ถอดเสียงจากหนังเป็นเสียงดิบ ส่งทางท่อให้ตัวแปลง · ffmpeg ล้วน ถอดและบีบในคำสั่งเดียว · s คือค่าในการ์ดตามลำดับ */
+const SRC = `"ดาวเหนือ (2023).mkv"`;
+const afOf = (g, ln, extra = []) => { const f = [...extra]; if (+g) f.push(`volume=${g}dB`); if (String(ln).startsWith("EBU")) f.push("loudnorm=I=-23:TP=-1"); return f.length ? ` -af "${f.join(",")}"` : ""; };
+// ระบุ pcm_s24le เสมอ ไม่งั้น ffmpeg เขียน WAV เป็น 16-bit ตัดบิตทิ้งเงียบ ๆ
+const pipeIn = (g, ln, o = {}) => `ffmpeg -i ${SRC} -map 0:a:1${o.ac ? " -ac " + o.ac : ""}${afOf(g, ln, o.af || [])} -c:a ${o.pcm || "pcm_s24le"} -f wav - |`;
+const ffOut = (g, ln, o = {}) => `ffmpeg -i ${SRC} -map 0:a:1${o.ac ? " -ac " + o.ac : ""}${afOf(g, ln, o.af || [])}`;
+const DITHER16 = { pcm:"pcm_s16le", af:["aresample=osf=s16:dither_method=triangular"] };
+const CMD = {
+  opus: (s, e, g, ln) => {
+    const fs = String(s[3]).replace(" ms", "");
+    if (e === 0) {
+      const mode = { "VBR":"--vbr", "Constrained VBR":"--cvbr", "Hard CBR":"--hard-cbr" }[s[1]] || "--vbr";
+      const tune = { Music:" --music", Speech:" --speech" }[s[4]] || "";
+      return { code:`${pipeIn(g, ln)}\n  opusenc --bitrate ${s[0]} ${mode} --comp ${s[2]} --framesize ${fs}${tune} - "เสียง 2.opus"`, note:"ffmpeg ถอดเสียงจากหนังเป็นเสียงดิบ ส่งทางท่อให้ opusenc บีบ" };
+    }
+    const vbr = { "VBR":"on", "Constrained VBR":"constrained", "Hard CBR":"off" }[s[1]] || "on";
+    const app = { Music:" -application audio", Speech:" -application voip" }[s[4]] || "";
+    return { code:`${ffOut(g, ln)} -c:a libopus -b:a ${s[0]}k -vbr ${vbr} -compression_level ${s[2]} -frame_duration ${fs}${app} "เสียง 2.opus"`, note:"ffmpeg ถอดและบีบในคำสั่งเดียว ใช้ libopus ข้างใน" };
+  },
+  aac: (s, e, g, ln) => {
+    if (e === 1) return { code:"ยังไม่มี fdkaac ในโฟลเดอร์ตัวแปลง", note:"วาง fdkaac แล้วคำสั่งขึ้นตรงนี้" };
+    if (e === 0) {
+      const m = { TVBR:`--tvbr ${s[1]}`, CVBR:"--cvbr 256", ABR:"--abr 256", CBR:"--cbr 256" }[s[0]] || `--tvbr ${s[1]}`;
+      return { code:`${pipeIn(g, ln)}\n  qaac64 ${m}${s[2] === "AAC-LC" ? "" : " --he"} --quality ${s[3]} - -o "เสียง 2.m4a"`,
+        note: s[0] === "TVBR" ? "ffmpeg ถอดเสียงส่งทางท่อให้ qaac บีบด้วยตัวของ Apple" : "โหมดนี้ตั้งเป็นบิตเรต ของจริงมีการ์ด Bitrate แทนการ์ด TVBR quality · มอคอัปใส่ 256 ไว้" };
+    }
+    const k = Math.round(AAC_Q[s[1]] * 1.87);
+    return { code:`${ffOut(g, ln)} -c:a aac -b:a ${k}k "เสียง 2.m4a"`, note:`AAC ของ ffmpeg ไม่มี TVBR ใช้บิตเรตเฉลี่ยใกล้เคียงแทน ${k} kbps` };
+  },
+  mp3: (s, e, g, ln) => {
+    const ac = s[3] === "Mono" ? 1 : 2;
+    if (e === 0) {
+      const m = s[0] === "ABR" ? `--abr ${s[2]}` : s[0] === "CBR" ? `-b ${s[2]} --cbr` : `-V ${s[1]}`;
+      const st = { "Joint stereo":"j", "Stereo":"s", "Mono":"m" }[s[3]] || "j";
+      return { code:`${pipeIn(g, ln, { ac })}\n  lame ${m} -q ${s[4]} -m ${st} - "เสียง 2.mp3"`, note:"MP3 เก็บได้สูงสุด 2 ช่อง ffmpeg รวม 5.1 เป็น 2 ช่องก่อน (-ac 2) แล้วส่งให้ lame" };
+    }
+    const m = s[0] === "ABR" ? `-abr 1 -b:a ${s[2]}k` : s[0] === "CBR" ? `-b:a ${s[2]}k` : `-q:a ${s[1]}`;
+    return { code:`${ffOut(g, ln, { ac })} -c:a libmp3lame ${m} -compression_level ${s[4]} -joint_stereo ${s[3] === "Joint stereo" ? 1 : 0} "เสียง 2.mp3"`, note:"ffmpeg ใช้ LAME ข้างใน ค่าเหมือนตัวต้นฉบับ" };
+  },
+  ac3: (s, e, g, ln) => {
+    const cm = { "−3 dB":"0.707", "−4.5 dB":"0.595", "−6 dB":"0.500" }[s[2]] || "0.595";
+    const sm = { "−3 dB":"0.707", "−6 dB":"0.500", "Off":"0.000" }[s[3]] || "0.500";
+    const rt = { "Not indicated":"notindicated", "Large":"large", "Small":"small" }[s[4]] || "notindicated";
+    return { code:`${ffOut(g, ln)} -c:a ac3 -b:a ${s[0]}k -dialnorm ${s[1]} -center_mixlev ${cm} -surround_mixlev ${sm} -room_type ${rt} "เสียง 2.ac3"`, note:"AC-3 ไม่มีตัวต้นฉบับ ffmpeg บีบเอง" };
+  },
+  flac: (s, e, g, ln) => {
+    const b16 = s[3] === "16-bit";
+    if (e === 0) return { code:`${pipeIn(g, ln, b16 ? DITHER16 : {})}\n  flac -${s[0]} -j ${s[1]}${s[2] === "On" ? " -V" : ""} - -o "เสียง 2.flac"`,
+      note: b16 ? "ลดเป็น 16-bit ที่ ffmpeg ก่อน ใส่ dither ให้" : "ffmpeg ส่งเสียงดิบ 24-bit ให้ flac ครบทุกบิต" };
+    return { code:`${ffOut(g, ln, b16 ? { af: DITHER16.af } : {})} -c:a flac -compression_level ${s[0]}${b16 ? " -sample_fmt s16" : ""} "เสียง 2.flac"`, note:"FLAC ของ ffmpeg ไม่มีช่อง Threads กับ Verify" };
+  },
+  wv: (s, e, g, ln) => {
+    const b16 = s[4] === "16-bit";
+    if (e === 0) {
+      const md = { Fast:" -f", Normal:"", High:" -h", "Very High":" -hh" }[s[0]] ?? "";
+      return { code:`${pipeIn(g, ln, b16 ? DITHER16 : {})}\n  wavpack${md}${+s[1] ? " -x" + s[1] : ""}${s[2] === "On" ? " -b4 -c" : ""}${s[3] === "On" ? " -v" : ""} - -o "เสียง 2.wv"`,
+        note: s[2] === "On" ? "Hybrid ได้สองไฟล์ เสียง 2.wv กับไฟล์แก้ เสียง 2.wvc" : "ffmpeg ถอดเสียงส่งทางท่อให้ wavpack บีบ" };
+    }
+    const cl = { Fast:1, Normal:2, High:3, "Very High":4 }[s[0]] ?? 2;
+    return { code:`${ffOut(g, ln, b16 ? { af: DITHER16.af } : {})} -c:a wavpack -compression_level ${cl}${b16 ? " -sample_fmt s16p" : ""} "เสียง 2.wv"`, note:"WavPack ของ ffmpeg ไม่มี Hybrid กับ Verify" };
+  },
+  ape: (s, e, g, ln) => {
+    const lv = { Fast:1000, Normal:2000, High:3000, "Extra High":4000, Insane:5000 }[s[0]] ?? 2000;
+    return { code:`ffmpeg -i ${SRC} -map 0:a:1${afOf(g, ln)} -c:a pcm_s24le "เสียง 2.wav"\nmac "เสียง 2.wav" "เสียง 2.ape" -c${lv}${s[1] === "On" ? `\nmac "เสียง 2.ape" -v` : ""}`,
+      note:"ตัวแปลงของ Monkey's Audio รับไฟล์ WAV โปรแกรมถอดเป็นไฟล์ชั่วคราวก่อน แล้วลบทิ้งเมื่อเสร็จ" };
+  },
+};
+const TIP_CMD = { w:"คำสั่งจริงที่โปรแกรมจะส่งให้ ffmpeg กับตัวแปลง สร้างจากค่าในการ์ดทุกใบ เปลี่ยนค่าแล้วคำสั่งเปลี่ยนตามทันที", o:[["คัดลอก","เอาไปรันเองใน Command Prompt หรือเก็บไว้ดูว่าใช้ค่าอะไร","ตรวจได้ว่าโปรแกรมทำอะไรกับไฟล์",""]], r:"ดูไว้เป็นข้อมูล ไม่ต้องแก้ · ชื่อไฟล์ชั่วคราวในภาพย่อไว้ ของจริงเป็นที่อยู่เต็ม" };
+
+/* ---------- ปุ่ม ⓘ กับกล่องคำอธิบาย ---------- */
+let tipReg = [], tipOpen = -1, tipBtn = null;
+const INFO_SVG = '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>';
+function infoBtn(title, tip){
+  if (!tip) return "";
+  tipReg.push([title, tip]);
+  return `<button class="infob" data-tipk="${tipReg.length - 1}" aria-label="${title} คืออะไร" aria-expanded="false" title="${title} คืออะไร">${INFO_SVG}</button>`;
+}
+function tipHtml(title, t){
+  const ex = expander();   // ตัวย่อในกล่องนี้ขยายครั้งแรกที่เจอ เริ่มจากหัวกล่อง
+  const head = ex(title), w = ex(t.w);
+  const opt = (t.o || []).map(([n, e, p, c]) => { const nn = ex(n), ee = ex(e), pp = ex(p), cc = ex(c);
+    return `<div class="to"><b>${nn}</b> ${ee}${p ? `<div class="tp"><span>ข้อดี</span><div>${pp}</div></div>` : ""}${c ? `<div class="tc"><span>ข้อเสีย</span><div>${cc}</div></div>` : ""}</div>`; }).join("");
+  const p = ex(t.p), c = ex(t.c), r = ex(t.r);
+  return `<div class="tiph"><b>${head}</b><button class="ib" style="width:26px;height:26px;flex:none" aria-label="ปิดคำอธิบาย" data-tipx>${I.x}</button></div>
+    <p class="tw">${w}</p>${opt}
+    ${t.p ? `<div class="tp top"><span>ข้อดี</span><div>${p}</div></div>` : ""}${t.c ? `<div class="tc top"><span>ข้อเสีย</span><div>${c}</div></div>` : ""}
+    ${t.r ? `<div class="tr"><span>แนะนำ</span>${r}</div>` : ""}`;
+}
+/* วางกล่องคำอธิบาย ตามกฎ popup-fit · วัดที่ว่างจริงทุกครั้งที่กาง ก่อนจอติด (ซ่อนไว้ระหว่างวัด)
+   ① ล่างพอ กางลง ② บนพอ กางขึ้น ③ ไม่พอทั้งคู่ เลือกฝั่งที่กว้างกว่า สูงไม่ต่ำกว่า 160 แล้วเลื่อนในกล่อง · ไม่ล้นซ้ายขวา */
+/* ค่อย ๆ เลื่อนหน้า ห้ามวาร์บ · มีตัวกันเผื่อหน้าต่างอยู่หลังสุดแล้วเฟรมไม่เดิน ให้จบที่ตำแหน่งปลายทางเสมอ */
+let tipGliding = false;
+function glideBy(dy, done){
+  const y0 = window.scrollY, t0 = performance.now(), D = 220; let fin = false;
+  tipGliding = true;
+  const end = () => { if (fin) return; fin = true; window.scrollTo(0, y0 + dy); tipGliding = false; done && done(); };
+  const step = (t) => { if (fin) return; const k = Math.min(1, (t - t0) / D); window.scrollTo(0, y0 + dy * (1 - Math.pow(1 - k, 3))); k < 1 ? requestAnimationFrame(step) : end(); };
+  requestAnimationFrame(step); setTimeout(end, D + 120);
+}
+function placeTip(root, btn, tip, allowScroll = true){
+  tip.hidden = false; tip.style.visibility = "hidden"; tip.style.maxHeight = "";
+  const R = root.getBoundingClientRect(), b = btn.getBoundingClientRect(), H = tip.offsetHeight, W = tip.offsetWidth;
+  const top0 = 8, bot0 = window.innerHeight - 8, gap = 6;
+  const below = bot0 - b.bottom - gap, above = b.top - gap - top0;
+  let up = false, max = H;
+  if (H <= below) up = false;
+  else if (H <= above) up = true;
+  else {
+    // ③ ไม่พอทั้งสองทาง หน้ายังเลื่อนได้ · ค่อย ๆ เลื่อนหน้าขึ้นแล้วกางลงเต็ม ปุ่มต้องยังอยู่ในจอ (รอบแรกข้ามขั้นนี้ จอเตี้ยกล่องยื่นเลยขอบล่าง เจอตอนทดสอบ)
+    const need = Math.ceil(H - below), se = document.scrollingElement || document.documentElement;
+    if (allowScroll && need <= se.scrollHeight - se.clientHeight - window.scrollY && b.top - need >= top0) {
+      tip.style.visibility = "";
+      tip.hidden = true;
+      glideBy(need, () => placeTip(root, btn, tip, false));
+      return;
+    }
+    // ④ เลื่อนหน้าไม่ได้ · ฝั่งที่กว้างกว่า สูงไม่ต่ำกว่า 160 แล้วเลื่อนในกล่อง
+    up = above > below; max = Math.max(160, up ? above : below);
+  }
+  const h = Math.min(H, max);
+  tip.style.maxHeight = max + "px";
+  tip.style.top = ((up ? b.top - gap - h : b.bottom + gap) - R.top) + "px";
+  const minL = Math.max(R.left, 0) + 8, maxL = Math.min(R.right, window.innerWidth) - W - 8;
+  tip.style.left = (Math.min(Math.max(b.left - 18, minL), maxL) - R.left) + "px";
+  tip.dataset.side = up ? "บน" : "ล่าง";
+  tip.style.visibility = "";
+}
+
+/* ---------- การ์ดละช่อง ---------- */
+const fmtNum = (s, signed) => (s < 0 ? "−" + Math.abs(s) : (signed && s > 0 ? "+" : "") + s);
+let stepSpecs = {};
+const segSel = {};
+function stepCtl(lbl, v, key){
+  const n = v.stops.length, idx = nearestIdx(v.stops, v.val), major = v.major || v.stops;
+  const pos = (i) => (i / (n - 1) * 100).toFixed(3) + "%";
+  const ticks = v.stops.map((s, i) => `<i style="left:${pos(i)}"${major.includes(s) ? ' class="mj"' : ""}></i>`).join("");
+  const labels = major.map((s) => `<span style="left:${pos(v.stops.indexOf(s))}">${v.pre || ""}${fmtNum(s, v.signed)}</span>`).join("");
+  return `<div class="stepw"><input type="range" min="0" max="${n - 1}" step="1" value="${idx}" data-step="${key}" aria-label="${lbl}"><div class="ticks">${ticks}</div><div class="tlabels">${labels}</div></div>`;
+}
+const nearestIdx = (stops, x) => stops.reduce((bi, s, i) => Math.abs(s - x) < Math.abs(stops[bi] - x) ? i : bi, 0);
+/* ช่องพิมพ์กว้างตามจำนวนหลักที่เป็นไปได้ (รอบแรกกว้างตายตัว ตัว V กับเลขของ MP3 ห่างกันเหมือนคนละช่อง เจอตอนตรวจภาพ) */
+const vbox = (v, key) => { const w = Math.max(...v.stops.map((s) => fmtNum(s, v.signed).length), v.free ? String(v.free[1]).length : 0) + 0.8;
+  return `<span class="vbox">${v.pre ? `<span class="px">${v.pre}</span>` : ""}<input value="${fmtNum(v.val, v.signed)}" data-vin="${key}" inputmode="numeric" aria-label="พิมพ์ค่าเอง" style="width:${w}ch"><span class="u">${v.unit || ""}</span></span>`; };
+function card(spec, key){
+  const [lbl, kind, v, note, tip, size] = spec;
+  const ex = expander();   // ตัวย่อในการ์ดนี้ขยายครั้งแรกที่เจอ ชื่อการ์ด ขนาดไฟล์ แล้วคำอธิบาย
+  const lblX = ex(lbl);
+  let ctl = "", head = "";
+  if (kind === "step") { ctl = stepCtl(lbl, v, key); head = vbox(v, key); stepSpecs[key] = { v, size }; }
+  // ตัวเลือกที่ขึ้นต้นด้วย * คือค่าตั้งต้น · ไม่มี * ใช้ตัวแรก
+  // ค่าที่กดเลือกไว้จำใน segSel ไม่หายเมื่อแผงวาดใหม่ (รอบแรกเปลี่ยนตัวแปลงแล้วปุ่มกลับเป็นค่าตั้งต้น เจอตอนทดสอบคำสั่ง)
+  if (kind === "seg") { const d = segSel[key] ?? Math.max(0, v.findIndex((x) => x.startsWith("*"))); ctl = `<div class="seg sm" style="align-self:flex-start;flex-wrap:wrap">${v.map((x, i) => `<button class="${i === d ? "on" : ""}">${x.replace(/^\*/, "")}</button>`).join("")}</div>`; }
+  if (kind === "dd") ctl = `<button class="dd" style="max-width:280px"><span>${v}</span>${I.chev}</button>`;
+  const sz = typeof size === "function" ? `<div class="asz"><span>ขนาดที่คาด</span><b data-sz="${key}">${size(v.val)}</b></div>`
+    : size ? `<div class="asz"><span>ขนาดไฟล์</span><div>${ex(size)}</div></div>` : `<div class="asz none">ไม่เปลี่ยนขนาดไฟล์</div>`;
+  return `<div class="acard" data-ci="${key}"><div class="ach"><span class="lbl">${lblX}${infoBtn(lbl, tip)}</span>${head}</div>${ctl}${sz}${note ? `<div class="small" style="margin:0">${ex(note)}</div>` : ""}</div>`;
+}
+
+function codecDlg(root){
+  const C = CODECS[cs.c];
+  tipReg = []; tipOpen = -1; stepSpecs = {};
+  const grp = (g) => CODEC_ORDER.filter((k) => CODECS[k].group.startsWith(g)).map((k) => `<button class="cbtn${k === cs.c ? " on" : ""}" data-c="${k}"><span>${CODECS[k].name}${CODECS[k].only ? "<em>หน้าแปลงเสียง</em>" : ""}</span><small>${CODEC_FULL[k]}</small></button>`).join("");
+  const exi = expander(), exh = expander(), exw = expander();
+  const advKeys = C.adv.map((_, i) => `${cs.c}-${i}`);
+  const mainI = C.adv.findIndex((a) => typeof a[5] === "function");
+  const mainKey = mainI >= 0 ? advKeys[mainI] : null;
+  const body = cs.tab === "easy"
+    ? `<div class="presets">${C.presets.map((p, i) => `<div class="pre${i === C.preset ? " on" : ""}" data-p="${i}"><b>${p[0]}</b><span>${p[1]}</span><em>${p[2]}</em><em class="tot">${trackSize(p[2])}</em></div>`).join("")}</div>
+       <div class="small">ชุดค่าตั้งจากค่าที่ผู้ทำตัวแปลงแนะนำ · กด <b>ขั้นสูง</b> เพื่อดูหรือแก้ทุกตัวเลือกของชุดที่เลือก</div>`
+    : `<div class="cards">${C.adv.map((a, i) => card(a, advKeys[i])).join("")}</div>
+       <div class="cgroup" style="margin-top:2px">ใช้กับทุกชนิด</div>
+       <div class="cards">${card(GAIN, "gain")}${card(LOUD, "loud")}</div>
+       <div class="cmdbox"><div class="cmdh"><span class="lbl ilbl">คำสั่งที่โปรแกรมจะรัน · Command line${infoBtn("Command line", TIP_CMD)}</span><button class="btn btn-ghost btn-sm" data-copy>คัดลอก</button></div>
+         <pre class="cmd" data-cmd></pre><div class="small" style="margin:0" data-cmdnote></div></div>`;
+  const headSize = cs.tab === "easy" ? trackSize(C.presets[C.preset][2])
+    : mainKey ? C.adv[mainI][5](C.adv[mainI][2].val).split(" · ")[0] : trackSize(C.presets[C.preset][2]);
+  const warn = C.group.startsWith("เสียคุณภาพ")
+    ? `<div class="stat warn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17v.5"/></svg><div><b>${exw("ต้นทางเป็น DTS ซึ่งเสียคุณภาพอยู่แล้ว")}</b>${exw(`แปลงเป็น ${C.name} อีกรอบเสียคุณภาพซ้อน · แทร็ก DTS เดิมยังอยู่ เพราะเลือกเพิ่มคู่`)}</div></div>`
+    : `<div class="stat info"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg><div><b>${exw("ต้นทางเป็น DTS ซึ่งเสียคุณภาพอยู่แล้ว")}</b>${exw(`แปลงเป็น ${C.name} ได้เสียงเท่า DTS ที่ถอดแล้ว คุณภาพไม่กลับมา และไฟล์ใหญ่ขึ้นราว 2 เท่า`)}</div></div>`;
+  root.innerHTML = `<div class="dlg" style="max-width:1000px">
+    <div class="dlghead"><div><b>${exh("ตั้งค่าเสียง · เสียง 2 · อังกฤษ · DTS 5.1")}</b><div class="small">ใช้ในหน้าเสียงและซับ · แผงเดียวกันใช้ในหน้าแปลงเสียง</div></div><button class="ib" aria-label="ปิด">${I.x}</button></div>
+    <div class="dlgbody">
+      <div class="field"><span class="lbl ilbl">Codec${infoBtn("Codec", TIPS.codec)}</span>
+        <div class="cgroup ilbl">Lossy · เสียคุณภาพ ไฟล์เล็ก${infoBtn("Lossy", TIPS.lossy)}</div><div class="codecs">${grp("เสียคุณภาพ")}</div>
+        <div class="cgroup ilbl" style="margin-top:6px">Lossless · ไม่เสียคุณภาพ ถอดแล้วได้เสียงเหมือนต้นฉบับทุกตัวอย่างเสียง${infoBtn("Lossless", TIPS.lossless)}</div><div class="codecs">${grp("ไม่เสียคุณภาพ")}</div>
+        <span class="small cline"><b style="color:var(--txt2)">${C.name}</b> <span class="ab">(${CODEC_FULL[cs.c]})</span>${infoBtn(C.name, C.tip)} ${exi(`${C.ch} · ใส่ MKV ${C.mkv ? "ได้" : "ไม่ได้"} · ใส่ MP4 ${C.mp4 ? "ได้" : "ไม่ได้"}${C.only ? " · ใช้ได้เฉพาะหน้าแปลงเสียง" : ""}`)}<br>ชนิดอื่นในรายการเต็ม ${exi(MORE)}</span></div>
+      <div class="engine"><span class="lbl ilbl" style="font-weight:600;color:var(--txt)">Encoder${infoBtn("Encoder", TIPS.engine)}</span><div class="seg sm">${C.engines.map((e, i) => `<button class="${i === Math.min(cs.eng, C.engines.length - 1) ? "on" : ""}" data-e="${i}">${e[1]}</button>`).join("")}</div><span class="small" style="margin:0">การ์ดขั้นสูงเปลี่ยนตามตัวแปลงที่เลือก · มอคอัปแสดงของตัวแปลงตัวแรก</span></div>
+      <div style="display:flex;align-items:center;justify-content:space-between"><div class="seg"><button class="${cs.tab === "easy" ? "on" : ""}" data-t="easy">แบบง่าย</button><button class="${cs.tab === "adv" ? "on" : ""}" data-t="adv">ขั้นสูง</button></div>
+        <div class="sizeline"><span>ขนาดที่คาดของแทร็กนี้ <b data-headsz>${headSize}</b></span><span>${cs.tab === "easy" ? C.presets[C.preset][2] : "ตามค่าในการ์ด"}</span></div></div>
+      ${body}
+      ${warn}
+    </div>
+    <div class="dlgfoot"><span class="small">ค่าที่ตั้งจำไว้เป็นค่าตั้งต้นของชนิดนี้ครั้งหน้า · ขนาดเป็นค่าประมาณ ของจริงขึ้นกับเสียงในแทร็ก</span><div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm">ยกเลิก</button><button class="btn btn-main btn-sm">ใช้ค่านี้</button></div></div>
+  </div>
+  <div class="tip" role="dialog" aria-label="คำอธิบาย" hidden data-tip></div>`;
+  root.querySelectorAll("[data-c]").forEach((b) => b.onclick = () => { cs.c = b.dataset.c; cs.eng = 0; codecDlg(root); });
+  root.querySelectorAll("[data-t]").forEach((b) => b.onclick = () => { cs.tab = b.dataset.t; codecDlg(root); });
+  root.querySelectorAll("[data-e]").forEach((b) => b.onclick = () => { cs.eng = +b.dataset.e; codecDlg(root); });
+  root.querySelectorAll("[data-p]").forEach((b) => b.onclick = () => { CODECS[cs.c].preset = +b.dataset.p; codecDlg(root); });
+  root.querySelectorAll(".seg button:not([data-t]):not([data-e])").forEach((b) => b.addEventListener("click", () => { b.parentElement.querySelectorAll("button").forEach((x) => x.classList.remove("on")); b.classList.add("on");
+    const ci = b.closest("[data-ci]"); if (ci) segSel[ci.dataset.ci] = [...b.parentElement.children].indexOf(b);
+    updateCmd(); }));
+  // คำสั่งที่โปรแกรมจะรัน · อ่านค่าจากการ์ดทุกใบ สร้างคำสั่งใหม่ทุกครั้งที่ค่าเปลี่ยน
+  function readState(){
+    return C.adv.map((a, i) => { const key = `${cs.c}-${i}`, el = root.querySelector(`[data-ci="${key}"]`);
+      if (!el) return null;
+      if (a[1] === "step") return stepSpecs[key].v.val;
+      if (a[1] === "seg") return (el.querySelector(".seg button.on") || {}).textContent;
+      return (el.querySelector(".dd span") || {}).textContent; });
+  }
+  function updateCmd(){
+    const box = root.querySelector("[data-cmd]");
+    if (!box) return;
+    const loud = (root.querySelector('[data-ci="loud"] .seg button.on') || {}).textContent || "Off";
+    const r = CMD[cs.c](readState(), Math.min(cs.eng, C.engines.length - 1), stepSpecs.gain ? stepSpecs.gain.v.val : 0, loud);
+    box.textContent = r.code;
+    root.querySelector("[data-cmdnote]").innerHTML = expander()(r.note);
+  }
+  const copyBtn = root.querySelector("[data-copy]");
+  if (copyBtn) copyBtn.onclick = (e) => {
+    e.stopPropagation();
+    try { navigator.clipboard.writeText(root.querySelector("[data-cmd]").textContent).catch(() => {}); } catch (err) {}
+    copyBtn.textContent = "คัดลอกแล้ว"; setTimeout(() => { copyBtn.textContent = "คัดลอก"; }, 1500);
+  };
+  // แถบเลื่อนเป็นขั้น กับช่องพิมพ์ค่าเอง · พิมพ์ค่าที่ไม่อยู่ในขั้น แถบชี้ขั้นที่ใกล้ที่สุด · ช่องที่ตัวแปลงปัดค่าเอง (snap) ปัดให้เห็นเลย
+  const setVal = (key, val, idx) => {
+    const S = stepSpecs[key]; S.v.val = val;
+    root.querySelector(`[data-step="${key}"]`).value = idx;
+    root.querySelector(`[data-vin="${key}"]`).value = fmtNum(val, S.v.signed);
+    if (typeof S.size === "function") {
+      root.querySelector(`[data-sz="${key}"]`).textContent = S.size(val);
+      if (key === mainKey) root.querySelector("[data-headsz]").textContent = S.size(val).split(" · ")[0];
+    }
+    updateCmd();
+  };
+  updateCmd();
+  root.querySelectorAll("[data-step]").forEach((r) => r.oninput = () => { const k = r.dataset.step; setVal(k, stepSpecs[k].v.stops[+r.value], +r.value); });
+  root.querySelectorAll("[data-vin]").forEach((inp) => inp.onchange = () => {
+    const k = inp.dataset.vin, v = stepSpecs[k].v;
+    let x = parseFloat(inp.value.replace("−", "-").replace(/[^\d.+-]/g, ""));
+    if (isNaN(x)) x = v.val;
+    const [lo, hi] = v.free || [v.stops[0], v.stops[v.stops.length - 1]];
+    x = Math.round(Math.min(hi, Math.max(lo, x)));
+    const i = nearestIdx(v.stops, x);
+    setVal(k, v.free && !v.snap ? x : v.stops[i], i);
+  });
+  // ปุ่ม ⓘ · กดเปิด กดซ้ำหรือกดที่อื่นหรือ Esc ปิด
+  const tipEl = root.querySelector("[data-tip]");
+  const closeTip = () => { tipEl.hidden = true; tipOpen = -1; root.querySelectorAll('.infob[aria-expanded="true"]').forEach((b) => b.setAttribute("aria-expanded", "false")); };
+  root.querySelectorAll("[data-tipk]").forEach((b) => b.onclick = (e) => {
+    e.stopPropagation();
+    const k = +b.dataset.tipk;
+    if (tipOpen === k) return closeTip();
+    closeTip();
+    const [t, d] = tipReg[k];
+    tipEl.innerHTML = tipHtml(t, d);
+    tipEl.querySelector("[data-tipx]").onclick = closeTip;
+    placeTip(root, b, tipEl);
+    b.setAttribute("aria-expanded", "true"); tipOpen = k; tipBtn = b;
+  });
+  tipEl.onclick = (e) => e.stopPropagation();
+  window.__closeTip = closeTip;
+  window.__replaceTip = () => { if (!tipGliding && tipOpen >= 0 && !tipEl.hidden && tipBtn) placeTip(root, tipBtn, tipEl, false); };
+  if (!window.__tipBound) {
+    window.__tipBound = true;
+    document.addEventListener("click", () => window.__closeTip && window.__closeTip());
+    document.addEventListener("keydown", (e) => { if (e.key === "Escape" && window.__closeTip) window.__closeTip(); });
+    addEventListener("resize", () => window.__replaceTip && window.__replaceTip());
+    addEventListener("scroll", () => window.__replaceTip && window.__replaceTip(), { passive: true });
+  }
+}
+
+/* ---------- เสียงสมมติ ---------- */
+function hash(i, s){ let x = Math.imul(i, 374761393) + Math.imul(s, 668265263) | 0; x = Math.imul(x ^ (x >>> 13), 1274126177); return ((x ^ (x >>> 16)) >>> 0) / 4294967296; }
+function vn(t, s){ const i = Math.floor(t), f = t - i, u = f * f * (3 - 2 * f); return hash(i, s) * (1 - u) + hash(i + 1, s) * u; }
+function speech(t){ const talk = vn(t / 1.6, 4) > 0.38 ? 1 : 0.06; const syl = 0.4 + 0.6 * Math.abs(Math.sin(t * 9.5 + vn(t, 5) * 6)); return 0.04 + talk * syl * 0.75 + (vn(t / 0.5, 8) > 0.9 ? 0.25 : 0); }
+function setup(cv){ const r = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight; cv.width = Math.round(w * r); cv.height = Math.round(h * r); const g = cv.getContext("2d"); g.setTransform(r, 0, 0, r, 0, 0); return { g, w, h }; }
+function drawLane(cv, shift, peak, rms){
+  const { g, w, h } = setup(cv); g.fillStyle = "#fff8fa"; g.fillRect(0, 0, w, h);
+  const t0 = 60, t1 = 72, mid = h / 2;
+  g.fillStyle = "rgba(74,43,56,.07)"; g.fillRect(0, mid, w, 1);
+  for (let x = 0; x < w; x++) {
+    const t = t0 + (t1 - t0) * x / w - shift;
+    const v = Math.min(0.97, speech(t) * (0.75 + 0.25 * hash(Math.floor(t * 50), 3)));
+    g.fillStyle = peak; g.fillRect(x, mid - v * (mid - 2), 1, v * (mid - 2) * 2);
+    g.fillStyle = rms; const r = v * 0.55; g.fillRect(x, mid - r * (mid - 2), 1, r * (mid - 2) * 2);
+  }
+}
+
+/* ---------- 3 ตัวช่วยหาดีเลย์ ---------- */
+function delayDlg(root){
+  root.innerHTML = `<div class="dlg" style="max-width:1000px">
+    <div class="dlghead"><div><b>หาค่าดีเลย์ · ดาวเหนือ พากย์ไทย DELAY -120ms.ac3</b><div class="small">เทียบกับเสียง 1 · ไทย · AC-3 ในหนัง · ช่วงนาที 1:00–1:12 · ช่องกลาง (เสียงพูด)</div></div><button class="ib" aria-label="ปิด">${I.x}</button></div>
+    <div class="dlgbody">
+      <div class="lanes2">
+        <div class="lane2"><div class="lab"><b>เสียงเดิมในหนัง</b>เสียง 1 · ไทย</div><canvas data-l="a"></canvas></div>
+        <div class="lane2"><div class="lab"><b>เสียงใหม่</b>ดีเลย์ <span data-dv>−120</span> ms</div><canvas data-l="b"></canvas></div>
+        <div class="ruler2"><span style="left:0%;transform:none">1:00</span><span style="left:25%">1:03</span><span style="left:50%">1:06</span><span style="left:75%">1:09</span><span style="left:100%;transform:translateX(-100%)">1:12</span></div>
+      </div>
+      <div class="match">
+        <span class="lbl" style="font-weight:600;color:var(--txt)">ดีเลย์</span>
+        <input type="range" min="-1000" max="1000" step="10" value="-120" style="flex:1;accent-color:#e98aac" aria-label="ดีเลย์" data-rng>
+        <div class="delay"><button>−</button><input class="inp" style="width:84px" value="−120" data-num><button>+</button></div><span class="small">ms</span>
+      </div>
+      <div class="stat ok" data-res><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><b>โปรแกรมหาให้ −120 ms · ตรงกัน 94%</b>ตรงกับค่าในชื่อไฟล์ · เทียบ 3 ช่วง ต้นเรื่อง กลางเรื่อง ท้ายเรื่อง ได้ค่าเดียวกัน แปลว่าไม่ต้องตั้งความเร็วเสียง</div></div>
+      <div class="stat warn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17v.5"/></svg><div><b>ตัวอย่างอีกกรณี · ต้นเรื่อง −120 ms ท้ายเรื่อง +5,120 ms</b>เสียงเหลื่อมเพิ่มขึ้นเรื่อย&nbsp;ๆ น่าจะเป็นเสียงของหนังรุ่น 25 ภาพต่อวินาที · โปรแกรมเสนอความเร็วเสียง 25 → 23.976 ต้องแปลงเสียงใหม่</div></div>
+    </div>
+    <div class="dlgfoot"><div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm">ให้โปรแกรมหาให้</button><button class="btn btn-ghost btn-sm">ลองฟัง 20 วินาที</button></div><div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm">ยกเลิก</button><button class="btn btn-main btn-sm">ใช้ค่านี้</button></div></div>
+  </div>`;
+  const a = root.querySelector('[data-l="a"]'), b = root.querySelector('[data-l="b"]');
+  const draw = (ms) => { drawLane(a, 0, "#f0b4ca", "#b54879"); drawLane(b, (-120 - ms) / 1000 * 3, "#a3ccf7", "#1577c8"); };
+  draw(-120);
+  const rng = root.querySelector("[data-rng]"), num = root.querySelector("[data-num]"), dv = root.querySelector("[data-dv]"), res = root.querySelector("[data-res]");
+  rng.oninput = () => { const v = +rng.value; const s = (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toLocaleString("en-US"); num.value = s; dv.textContent = s; draw(v);
+    res.className = "stat " + (Math.abs(v + 120) <= 20 ? "ok" : "info");
+    res.querySelector("b").textContent = Math.abs(v + 120) <= 20 ? "ตรงกัน 94% ที่ −120 ms" : `ที่ ${s} ms ตรงกัน ${Math.max(12, Math.round(94 - Math.abs(v + 120) / 9))}% · ยอดเสียงยังไม่ตรง`; };
+}
+
+/* ---------- 4 อ่านซับแบบ Aegisub · ตาราง คลื่นเสียงพร้อมกรอบบรรทัด ภาพหนังพร้อมซับทับ ---------- */
+const CUES = [
+  [210, 1112.40, 1114.90, "เมื่อคืนฝนตกทั้งคืน"],
+  [211, 1115.30, 1118.10, "ไม่คิดว่าเช้านี้ฟ้าจะเปิด"],
+  [212, 1121.62, 1124.10, "คืนนี้ฟ้าเปิด เห็นดาวชัดทั้งแผ่น"],
+  [213, 1124.56, 1127.21, "พ่อเคยบอกว่า ถ้าหลงทางให้มองหาดาวเหนือ"],
+  [214, 1127.80, 1129.03, "แล้วมันอยู่ตรงไหน"],
+  [215, 1128.90, 1132.95, "ลากเส้นจากดาวสองดวงท้ายกระบวยขึ้นไป ห้าช่วงเท่า ๆ กัน"],
+  [216, 1133.30, 1134.10, "เจอแล้ว ดวงไม่สว่างเท่าไหร่เลยนะพี่"],
+  [217, 1135.60, 1138.42, "ไม่ต้องสว่าง แค่ไม่เคยย้ายที่ก็พอ"],
+  [218, 1139.10, 1141.75, "เหมือนพ่อ"],
+];
+const ts = (t) => { const h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = t % 60; return `${h}:${String(m).padStart(2, "0")}:${s.toFixed(2).padStart(5, "0")}`; };
+let selCue = 213;
+function subView(root){
+  const c = CUES.find((x) => x[0] === selCue);
+  const rows = CUES.map(([n, a, b, tx], i) => {
+    const dur = b - a, cps = tx.replace(/\s/g, "").length / dur, prev = CUES[i - 1];
+    const overlap = prev && a < prev[2], fast = cps > 20;
+    return `<tr class="${n === selCue ? "on" : ""}" data-n="${n}">
+      <td class="num">${n}</td><td class="num${overlap ? " bad" : ""}" title="${overlap ? "เวลาซ้อนกับบรรทัดก่อน" : ""}">${ts(a)}</td><td class="num">${ts(b)}</td>
+      <td class="num">${dur.toFixed(2)}</td><td class="num${fast ? " bad" : ""}" title="${fast ? "อ่านไม่ทัน เกิน 20 ตัวอักษรต่อวินาที" : ""}">${Math.round(cps)}</td><td>${n === 213 ? tx.replace("ดาวเหนือ", "<mark>ดาวเหนือ</mark>") : tx}</td></tr>`;
+  }).join("");
+  root.innerHTML = `<div class="dlg">
+    <div class="dlghead"><div><b>ซับ ดาวเหนือ.th.srt</b><div class="small">ซับที่เพิ่ม · ตัวหนังสือ SRT · 1,184 บรรทัด · ดีเลย์ +500 ms เวลาที่แสดงเลื่อนแล้ว</div></div>
+      <div style="display:flex;gap:8px;align-items:center"><div class="seg sm"><button class="on">แบบ Aegisub</button><button>แบบอ่านยาว</button><button>แบบ notepad</button></div><button class="ib" aria-label="ปิด">${I.x}</button></div></div>
+    <div class="dlgbody">
+      <div class="aegtop">
+        <div class="vframe"><div class="vscene"></div><div class="vsub">${c[3]}</div><div class="vtime">${ts(c[1])}</div></div>
+        <div style="min-width:0;display:flex;flex-direction:column;gap:6px">
+          <canvas class="aud" data-aud></canvas>
+          <div class="ruler2" style="margin-left:0" data-arul></div>
+          <div style="display:flex;align-items:center;justify-content:space-between;gap:8px;flex-wrap:wrap">
+            <div style="display:flex;gap:6px"><button class="btn btn-ghost btn-xs" data-mv="-1">บรรทัดก่อน</button><button class="btn btn-ghost btn-xs" data-mv="1">บรรทัดถัดไป</button><button class="btn btn-ghost btn-xs">เปิดเล่นที่ ${ts(c[1]).slice(0, 7)}</button></div>
+            <div class="seg sm"><button class="on">รูปคลื่น</button><button>ความถี่</button></div>
+          </div>
+          <div class="small">กรอบชมพูคือเวลาของแต่ละบรรทัด กรอบเข้มคือบรรทัดที่เลือก · เส้นตั้งซ้ายขวาคือเวลาเริ่มกับจบ · ใช้คลื่นเสียงชุดเดียวกับหน้ากราฟเสียง</div>
+        </div>
+      </div>
+      <div style="display:flex;gap:8px;align-items:center"><input class="inp" style="flex:1" value="ดาวเหนือ" aria-label="ค้นในซับ"><span class="small nw">เจอ 6 ที่ · ที่ 2 จาก 6</span><button class="btn btn-ghost btn-sm">ก่อนหน้า</button><button class="btn btn-ghost btn-sm">ถัดไป</button></div>
+      <div class="sgrid"><table><thead><tr><th class="num">#</th><th class="num">เริ่ม</th><th class="num">จบ</th><th class="num">ยาว (วิ)</th><th class="num">ตัว/วิ</th><th>ข้อความ</th></tr></thead><tbody>${rows}</tbody></table></div>
+      <div class="lg"><span><i class="ln" style="background:#ec8f8f"></i>ตัวอักษรต่อวินาทีเกิน 20 อ่านไม่ทัน</span><span><i class="ln" style="background:#ec8f8f"></i>เวลาเริ่มซ้อนกับบรรทัดก่อน</span><span>ซับ ASS มีช่องสไตล์เพิ่ม</span></div>
+      <div class="small">ดูอย่างเดียว แก้ไม่ได้ · กดแถวแล้วคลื่นเสียงกับภาพเลื่อนตาม · ภาพหนังโปรแกรมถอดจากไฟล์หนังตรงเวลานั้นทีละภาพ ไม่ต้องเล่นหนัง · หน้าตาแบบ Aegisub ไม่ได้ใช้โค้ดของ Aegisub</div>
+    </div>
+  </div>`;
+  document.fonts.ready.then(() => drawAud(root.querySelector("[data-aud]"), c));
+  root.querySelectorAll("[data-n]").forEach((tr) => tr.onclick = () => { selCue = +tr.dataset.n; subView(root); });
+  root.querySelectorAll("[data-mv]").forEach((b) => b.onclick = () => { const i = CUES.findIndex((x) => x[0] === selCue) + +b.dataset.mv; if (CUES[i]) { selCue = CUES[i][0]; subView(root); } });
+  const t0 = c[1] - 4, t1 = c[2] + 4, rul = root.querySelector("[data-arul]");
+  let h = ""; for (let t = Math.ceil(t0); t <= t1; t++) { const p = (t - t0) / (t1 - t0) * 100; if (p > 3 && p < 97) h += `<span style="left:${p}%">${ts(t).slice(2, 7)}</span>`; }
+  rul.innerHTML = h;
+}
+function drawAud(cv, c){
+  const { g, w, h } = setup(cv); g.fillStyle = "#fff8fa"; g.fillRect(0, 0, w, h);
+  const t0 = c[1] - 4, t1 = c[2] + 4, X = (t) => (t - t0) / (t1 - t0) * w;
+  for (const [n, a, b] of CUES) { if (b < t0 || a > t1) continue; const on = n === c[0];
+    g.fillStyle = on ? "rgba(233,138,172,.32)" : "rgba(233,138,172,.14)"; g.fillRect(X(a), 0, X(b) - X(a), h);
+    g.fillStyle = on ? "#7a2346" : "#b28a9a"; g.font = `${on ? 700 : 600} 11px Sarabun`; g.fillText(String(n), X(a) + 4, 13); }
+  const mid = h / 2; g.fillStyle = "rgba(74,43,56,.07)"; g.fillRect(0, mid, w, 1);
+  for (let x = 0; x < w; x++) { const t = t0 + (t1 - t0) * x / w; const inCue = CUES.some(([, a, b]) => t >= a - 0.1 && t <= b); const v = Math.min(0.95, (inCue ? speech(t * 1.3) : 0.03 + 0.04 * vn(t * 6, 9)) * (0.75 + 0.25 * hash(Math.floor(t * 60), 2)));
+    g.fillStyle = "#f0b4ca"; g.fillRect(x, mid - v * (mid - 4), 1, v * (mid - 4) * 2); g.fillStyle = "#b54879"; const r = v * 0.5; g.fillRect(x, mid - r * (mid - 4), 1, r * (mid - 4) * 2); }
+  g.fillStyle = "#c2547f"; g.fillRect(X(c[1]) - 1, 0, 2, h); g.fillRect(X(c[2]) - 1, 0, 2, h);
+}
+
+/* ---------- อ่านซับแบบ notepad · เปิดไฟล์จริงทุกตัวอักษร ใช้ได้กับซับตัวหนังสือทุกชนิด ----------
+   บรรทัด @@ตัด a b คือช่วงที่ตัดออกในมอคอัป · ของจริงเลื่อนดูได้ทั้งไฟล์ */
+const NP = {
+  srt: { title: "ซับ ดาวเหนือ.th.srt", sub: "ซับที่เพิ่ม · SRT", start: 845, cur: 851, hits: 6,
+    status: ["บรรทัด 851 คอลัมน์ 31", "4,736 บรรทัด", "Windows (CRLF)", "UTF-8"],
+    lines: String.raw`212
+00:18:41,620 --> 00:18:44,100
+คืนนี้ฟ้าเปิด เห็นดาวชัดทั้งแผ่น
+
+213
+00:18:44,560 --> 00:18:47,210
+พ่อเคยบอกว่า ถ้าหลงทางให้มองหาดาวเหนือ
+
+214
+00:18:47,800 --> 00:18:49,030
+แล้วมันอยู่ตรงไหน
+
+215
+00:18:49,400 --> 00:18:52,950
+ลากเส้นจากดาวสองดวงท้ายกระบวยขึ้นไป
+ห้าช่วงเท่า ๆ กัน
+
+216
+00:18:53,300 --> 00:18:55,180
+เจอแล้ว ดวงไม่สว่างเท่าไหร่เลย
+
+217
+00:18:55,600 --> 00:18:58,420
+<i>ไม่ต้องสว่าง แค่ไม่เคยย้ายที่ก็พอ</i>` },
+  ass: { title: "ซับ 1 · ไทย · ASS", sub: "ซับในหนัง · ASS มีรูปแบบ สี ตำแหน่ง ฟอนต์", start: 1, cur: 233, hits: 7,
+    status: ["บรรทัด 233 คอลัมน์ 72", "1,213 บรรทัด", "Windows (CRLF)", "UTF-8 มี BOM"],
+    lines: String.raw`[Script Info]
+; Script generated by Aegisub 3.2.2
+Title: ดาวเหนือ (2023)
+ScriptType: v4.00+
+WrapStyle: 0
+PlayResX: 1920
+PlayResY: 1080
+YCbCr Matrix: TV.709
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Sarabun,64,&H00FFFFFF,&H000000FF,&H00000000,&H80000000,0,0,0,0,100,100,0,0,1,3,1,2,60,60,48,222
+Style: Sign,Sarabun,48,&H00FFFFFF,&H000000FF,&H00402020,&H00000000,-1,0,0,0,100,100,0,0,1,2,0,8,60,60,40,222
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+@@ตัด 17 231
+Dialogue: 0,0:18:41.62,0:18:44.10,Default,,0,0,0,,คืนนี้ฟ้าเปิด เห็นดาวชัดทั้งแผ่น
+Dialogue: 0,0:18:44.56,0:18:47.21,Default,,0,0,0,,พ่อเคยบอกว่า ถ้าหลงทางให้มองหาดาวเหนือ
+Dialogue: 0,0:18:47.80,0:18:49.03,Default,,0,0,0,,แล้วมันอยู่ตรงไหน
+Dialogue: 0,0:18:49.40,0:18:52.95,Default,,0,0,0,,ลากเส้นจากดาวสองดวงท้ายกระบวยขึ้นไป\Nห้าช่วงเท่า ๆ กัน
+Dialogue: 0,0:18:50.10,0:18:52.95,Sign,,0,0,0,,{\an8\fad(200,200)}กลุ่มดาวหมีใหญ่
+Dialogue: 0,0:18:53.30,0:18:55.18,Default,,0,0,0,,เจอแล้ว ดวงไม่สว่างเท่าไหร่เลย
+Dialogue: 0,0:18:55.60,0:18:58.42,Default,,0,0,0,,{\i1}ไม่ต้องสว่าง แค่ไม่เคยย้ายที่ก็พอ{\i0}` },
+  vtt: { title: "ซับ ดาวเหนือ.th.vtt", sub: "ซับที่เพิ่ม · WebVTT", start: 1, cur: 856, hits: 6,
+    status: ["บรรทัด 856 คอลัมน์ 31", "4,741 บรรทัด", "Unix (LF)", "UTF-8"],
+    lines: String.raw`WEBVTT
+Kind: captions
+Language: th
+
+@@ตัด 5 849
+212
+00:18:41.620 --> 00:18:44.100
+คืนนี้ฟ้าเปิด เห็นดาวชัดทั้งแผ่น
+
+213
+00:18:44.560 --> 00:18:47.210 line:85%
+พ่อเคยบอกว่า ถ้าหลงทางให้มองหาดาวเหนือ
+
+214
+00:18:47.800 --> 00:18:49.030
+แล้วมันอยู่ตรงไหน
+
+215
+00:18:49.400 --> 00:18:52.950
+ลากเส้นจากดาวสองดวงท้ายกระบวยขึ้นไป
+ห้าช่วงเท่า ๆ กัน` },
+};
+let npFmt = "srt";
+const npEsc = (s) => s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+/* สีอ่อน ๆ ช่วยอ่าน · เวลาฟ้า หัวส่วนชมพู แท็กรูปแบบม่วง · ตัวอักษรครบตามไฟล์ */
+function npLine(s){
+  let h = npEsc(s);
+  h = h.replace(/\{[^}]*\}/g, (m) => `<span class="tg">${m}</span>`)
+       .replace(/&lt;\/?[a-z]+&gt;/g, (m) => `<span class="tg">${m}</span>`)
+       .replace(/\\N/g, '<span class="tg">\\N</span>')
+       .replace(/\d{1,2}:\d{2}:\d{2}[,.]\d{2,3}/g, (m) => `<span class="tm">${m}</span>`)
+       .replace(/ดาวเหนือ/g, "<mark>ดาวเหนือ</mark>");
+  if (/^(\[[^\]]+\]|WEBVTT)$/.test(s)) h = `<b class="sx">${h}</b>`;
+  else h = h.replace(/^(Dialogue|Style|Format|Title|ScriptType|WrapStyle|PlayResX|PlayResY|YCbCr Matrix|Kind|Language):/, '<span class="ky">$1:</span>').replace(/^(;.*)$/, '<span class="ky">$1</span>');
+  return h;
+}
+function noteView(root){
+  const N = NP[npFmt]; let ln = N.start;
+  const rows = N.lines.split(/\r?\n/).map((s) => {
+    const g = s.match(/^@@ตัด (\d+) (\d+)$/);
+    if (g) { ln = +g[2] + 1; return `<div class="npgap">⋯ บรรทัด ${g[1]}–${g[2]} ตัดออกในมอคอัป</div>`; }
+    return `<div class="npl${ln === N.cur ? " cur" : ""}"><span class="ln">${ln++}</span><span class="tx">${npLine(s) || "&nbsp;"}</span></div>`;
+  }).join("");
+  root.innerHTML = `<div class="dlg">
+    <div class="dlghead"><div><b>${N.title} · แบบ notepad</b><div class="small">${N.sub} · เปิดไฟล์จริงทุกตัวอักษร เหมือนเปิดใน notepad · เวลาตามไฟล์ ยังไม่บวกดีเลย์</div></div>
+      <div style="display:flex;align-items:center;gap:8px"><span class="small" style="margin:0">ตัวอย่างชนิดไฟล์</span><div class="seg sm">${["srt", "ass", "vtt"].map((k) => `<button class="${k === npFmt ? "on" : ""}" data-npf="${k}">${k.toUpperCase()}</button>`).join("")}</div><button class="ib" aria-label="ปิด">${I.x}</button></div></div>
+    <div class="dlgbody">
+      <div style="display:flex;gap:8px;align-items:center;flex-wrap:wrap"><input class="inp" style="flex:1;min-width:200px" value="ดาวเหนือ" aria-label="ค้นในซับ"><span class="small nw" style="margin:0">เจอ ${N.hits} ที่ · ที่ 2 จาก ${N.hits}</span><button class="btn btn-ghost btn-sm">ก่อนหน้า</button><button class="btn btn-ghost btn-sm">ถัดไป</button>
+        <span class="chk" style="margin-left:6px"><span class="cbx on"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span>ตัดบรรทัดยาว</span></span>
+        <div class="seg sm"><button>แบบ Aegisub</button><button>แบบอ่านยาว</button><button class="on">แบบ notepad</button></div></div>
+      <div class="np">${rows}</div>
+      <div class="npst">${N.status.map((s) => `<span>${s}</span>`).join("")}</div>
+      <div class="small" style="margin:0">ดูอย่างเดียว แก้ไม่ได้ · ใช้ได้กับซับตัวหนังสือทุกชนิด SRT ASS SSA VTT และชนิดตัวหนังสืออื่น · ซับในหนังโปรแกรมถอดออกมาให้ดู ไฟล์หนังไม่ถูกแตะ · ภาษาไทยเข้ารหัสแบบเก่า (TIS-620) โปรแกรมแปลงให้อ่านได้ และบอกที่แถบล่าง</div>
+    </div></div>`;
+  root.querySelectorAll("[data-npf]").forEach((b) => b.onclick = () => { npFmt = b.dataset.npf; noteView(root); });
+  // เลื่อนไปบรรทัดที่ค้นเจอ แบบ notepad (รอบแรกไม่เลื่อน บรรทัดที่เจอตกขอบล่าง เจอตอนตรวจภาพ)
+  const np = root.querySelector(".np"), cur = root.querySelector(".npl.cur");
+  if (np && cur) np.scrollTop += cur.getBoundingClientRect().top - np.getBoundingClientRect().top - 150;
+}
+
+/* ---------- 7 หน้าแปลงเสียง ---------- */
+function buildConvert(root){
+  const Q = [
+    ["linear-gradient(150deg,#ffd1dc,#f39bb8 45%,#8a4fb8)","เพลง ก.flac","FLAC 2.0 · 24 บิต 96 kHz · 112 MB","Opus 160 kbps","done","เสร็จ · 4.9 MB","เพลง ก.opus"],
+    ["linear-gradient(150deg,#d6f0ff,#7fb9e6 50%,#2f6496)","เพลง ข.wav","WAV 2.0 · 16 บิต 44.1 kHz · 52 MB","FLAC Level 8 · flac 1.5.0","work","62% · เหลือราว 3 วินาที",""],
+    ["linear-gradient(150deg,#fff1c9,#f2c76e 50%,#b4772c)","สารคดี.dts","DTS 5.1 · 1,509 kbps · 1.1 GB","AC-3 448 kbps","wait","รอคิว",""],
+    ["linear-gradient(150deg,#e9e2f8,#a98bd8 55%,#5a3c96)","เพลง ค.ape","Monkey's Audio 2.0 · 38 MB","FLAC Level 5","wait","รอคิว",""],
+  ];
+  const row = ([bg, nm, dt, to, st, s2, out]) => `<div class="qrow">
+    <div class="cov" style="background:${bg}"></div>
+    <div style="min-width:0"><div class="nm">${nm}</div><div class="dt">${dt}</div></div>
+    <span style="color:var(--txt3)">→</span>
+    <button class="dd"><span>${to}</span>${I.chev}</button>
+    <div>${st === "work" ? `<div class="bar"><i style="width:62%"></i></div><div class="small" style="margin-top:3px">${s2}</div>` : st === "done" ? `<span class="pill ok">${s2}</span><div class="small" style="margin-top:3px">${out} · เล็กลง 96%</div>` : `<span class="small">${s2}</span>`}</div>
+    <div style="display:flex;gap:4px;justify-content:flex-end">${st === "done" ? `<button class="btn btn-ghost btn-xs">เทียบความถี่</button>` : ""}<button class="ib bad" aria-label="เอาออกจากคิว">${I.x}</button></div>
+  </div>`;
+  root.innerHTML = TITLE + `<div class="body">${NAV("graph")}<div class="main"><div class="mx">
+    <div class="mtop">
+      <div class="seg"><button>ดูกราฟ</button><button class="on">แปลงเสียง</button></div>
+      <div class="small" style="flex:1">แปลงไฟล์เสียงอย่างเดียว ไม่รวมเข้าหนัง · ไฟล์เดิมไม่ถูกแก้</div>
+      <button class="btn btn-ghost btn-sm">เพิ่มไฟล์</button>
+    </div>
+    <div class="card" style="padding:12px">
+      <h3><span>คิวแปลง · 4 ไฟล์</span><span class="small" style="font-weight:400">เสร็จ 1 · กำลังทำ 1 · รอ 2 · ทีละไฟล์ตามลำดับ</span></h3>
+      <div class="queue">
+        <div class="qrow head"><span></span><span>ไฟล์</span><span></span><span>แปลงเป็น</span><span>สถานะ</span><span></span></div>
+        ${Q.map(row).join("")}
+      </div>
+      <div class="drop" style="margin-top:8px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e5a3bd" stroke-width="1.9"><path d="M12 5v14M5 12h14"/></svg><span><b style="color:var(--txt2)">ลากไฟล์เสียงมาวางเพิ่ม</b> · MP3 FLAC WAV M4A AAC AC3 E-AC3 DTS OGG OPUS WV APE TAK และเสียงในไฟล์หนัง</span></div>
+    </div>
+    <div class="mrow">
+      <div class="card"><h3>ตั้งทีเดียวทั้งคิว</h3>
+        <div class="optline"><button class="dd" style="min-width:230px"><span>ตั้งทีละไฟล์ (ตามแถว)</span>${I.chev}</button><button class="btn btn-ghost btn-sm">เปิดแผงตั้งค่าเสียง</button></div>
+        <div class="small" style="margin-top:6px">เลือกชนิดที่นี่ ใช้กับทุกไฟล์ที่ยังไม่เริ่ม · ข้อมูลเพลงกับรูปปกติดไปด้วย</div></div>
+      <div class="card"><h3>ที่เก็บไฟล์ใหม่</h3>
+        <div class="optline"><div class="seg sm"><button class="on">ข้างไฟล์เดิม</button><button>เลือกโฟลเดอร์</button></div></div>
+        <div class="small" style="margin-top:6px">ชื่อเดิม นามสกุลใหม่ · ชื่อชนต่อท้าย (2) ไม่เขียนทับ</div></div>
+    </div>
+    <div class="mfoot"><button class="btn btn-bad">หยุดทั้งคิว</button><button class="btn btn-wait" style="height:44px;padding:0 26px">กำลังแปลง 2 จาก 4…</button></div>
+  </div></div></div>`;
+}
+
+/* ---------- เทียบก่อนกับหลังแปลง · หน้ากราฟเสียงหลักแบบเปิดสองไฟล์ ---------- */
+const RAMP = ["#2e1720","#591b38","#841f51","#aa2f6b","#c84d85","#dd73a0","#e89eba","#ebcad5","#ffecf2"];
+/* สีความร้อนแบบแท็บวิเคราะห์ของหน้ากราฟจริง (ดำ ม่วง แดง ส้ม เหลือง) */
+const INF = ["#000004","#1b0c41","#4a0c6b","#781c6d","#a52c60","#cf4446","#ed6925","#fb9b06","#f7d13d","#fcffa4"];
+function rampAt(v, R = RAMP){ v = Math.max(0, Math.min(1, v)) * (R.length - 1); const i = Math.floor(v), f = v - i; const a = R[i], b = R[Math.min(R.length - 1, i + 1)]; const p = (s, k) => parseInt(s.slice(k, k + 2), 16); const m = (k) => Math.round(p(a, k) * (1 - f) + p(b, k) * f); return `rgb(${m(1)},${m(3)},${m(5)})`; }
+/* ความถี่ตามเวลาสีตามชุด (แท็บความถี่) */
+function drawSpec(cv, cut){
+  const { g, w, h } = setup(cv);
+  const cols = 220, rows = 50, cw = w / cols, rh = h / rows;
+  for (let x = 0; x < cols; x++) for (let y = 0; y < rows; y++) {
+    const f = 1 - y / rows; const khz = f * 48;
+    const base = 1 - Math.pow(f, 0.55) * 0.85;
+    // สุ่มแยกแกนเวลากับแกนความถี่ ไม่เกิดลายเฉียง (รอบแรกบวกสองแกนรวมกัน ภาพเป็นริ้วเฉียง เจอตอนตรวจภาพ)
+    const music = vn(x / 7, 20) * 0.35 + vn(x / 2.5, 21) * vn(y / 5, 22) * 0.4;
+    let v = (base * 0.75 + music * (1 - f * 0.6) - 0.15) * (0.6 + 0.4 * songEnv(x / cols) / 0.9);
+    if (khz > cut) v = cut < 40 ? 0.02 : v * 0.55;
+    if (cut < 40 && khz > cut - 2.5 && khz <= cut) v *= 0.75;
+    g.fillStyle = rampAt(v); g.fillRect(x * cw, y * rh, cw + 0.6, rh + 0.6);
+  }
+}
+const CA = "#2a78d6", CB = "#eb6834";   // ต้นฉบับ ฟ้า · หลังแปลง ส้ม
+const SONG = 252;                         // เพลงยาว 4:12
+const sm = (t, a, b) => { const x = Math.max(0, Math.min(1, (t - a) / (b - a))); return x * x * (3 - 2 * x); };
+/* เพลงสมมติ เบาช่วงต้น ดังขึ้นราวนาทีที่ 1 จบแบบค่อยเบา */
+const songEnv = (t) => (0.42 + 0.48 * sm(t, 0.2, 0.42)) * (1 - sm(t, 0.95, 1)) * (0.9 + 0.1 * vn(t * 90, 61));
+
+/* แท็บวิเคราะห์ · ภาพแบบหน้ากราฟจริง พื้นดำ แกนความถี่ แถบสี dB */
+function drawSpek(cv, o){
+  const { g, w, h } = setup(cv);
+  g.fillStyle = "#000"; g.fillRect(0, 0, w, h);
+  const L = 64, R = 86, T = 50, B = 28, pw = w - L - R, ph = h - T - B;
+  const cols = Math.round(pw / 2), rows = Math.round(ph / 2), cw = pw / cols, rh = ph / rows;
+  for (let x = 0; x < cols; x++) {
+    const t = x / cols, env = songEnv(t), hit = vn(x / 2.2, 40) > 0.8 ? 0.16 : 0;
+    const gap = Math.abs(t - 0.31) < 0.005 || Math.abs(t - 0.67) < 0.005;
+    for (let y = 0; y < rows; y++) {
+      const f = 1 - (y + 0.5) / rows, khz = f * 48;
+      // พื้นเสียงสูงของต้นฉบับ 96 kHz มีถึงราว 46 kHz (รอบแรกไม่มี ช่วงบนมืดสนิท เจอตอนตรวจภาพ)
+      let v = (1 - Math.pow(f, 0.4)) * 1.05 * env + 0.24 * Math.pow(1 - f, 0.5) * (khz < 46 ? 1 : 0.3) + hit * (1 - f * 0.7) + 0.1 * (vn(x / 1.7, 41) * vn(y / 2.5, 42) - 0.3);
+      if (gap) v *= 0.35;
+      if (khz > o.cut) v = 0.03 + 0.04 * hash(x * 7 + y, 43);
+      else if (khz > o.cut - 1.5) v *= 0.85;
+      g.fillStyle = rampAt(v, INF); g.fillRect(L + x * cw, T + y * rh, cw + 0.6, rh + 0.6);
+    }
+  }
+  g.strokeStyle = "rgba(255,255,255,.85)"; g.lineWidth = 1; g.strokeRect(L - 0.5, T - 0.5, pw + 1, ph + 1);
+  g.fillStyle = "#fff"; g.font = "600 11px Sarabun"; g.textAlign = "right";
+  for (let k = 0; k <= 48; k += 8) { const y = T + ph * (1 - k / 48); g.fillText(`${k} kHz`, L - 8, y + 4); g.fillRect(L - 4, Math.round(y), 4, 1); }
+  g.textAlign = "center";
+  for (let s = 0; s <= 240; s += 60) { const x = L + pw * s / SONG; g.fillText(`${s / 60}:00`, x, T + ph + 18); g.fillRect(Math.round(x), T + ph, 1, 4); }
+  const bx = L + pw + 22, grd = g.createLinearGradient(0, T, 0, T + ph);
+  INF.slice().reverse().forEach((c, i, a) => grd.addColorStop(i / (a.length - 1), c));
+  g.fillStyle = grd; g.fillRect(bx, T, 12, ph);
+  g.fillStyle = "#fff"; g.textAlign = "left";
+  for (let d = 0; d <= 120; d += 20) { const y = T + ph * d / 120; g.fillText(`${d ? "−" + d : 0} dB`, bx + 18, y + 4); g.fillRect(bx + 12, Math.round(y), 4, 1); }
+  g.font = "700 13px Sarabun"; g.fillText(o.title, L, 20);
+  g.font = "11.5px Sarabun"; g.fillStyle = "#d9d0d4"; g.fillText(o.sub, L, 37);
+  g.textAlign = "right"; g.font = "11px Sarabun"; g.fillText("ชั้นหนัง", w - 10, 20);
+  if (o.cut < 48) {
+    const y = Math.round(T + ph * (1 - o.cut / 48)) + 0.5;
+    g.strokeStyle = "rgba(255,255,255,.75)"; g.setLineDash([5, 4]); g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw, y); g.stroke(); g.setLineDash([]);
+    g.fillStyle = "#fff"; g.font = "600 12px Sarabun"; g.fillText(`ตัดเหนือ ${o.cut} kHz`, L + pw - 8, y - 7);
+  }
+}
+
+/* แท็บความถี่เฉลี่ย · แกนความถี่แบบ log 20 Hz ถึง 40 kHz แบบหน้ากราฟจริง */
+const avgA = (hz) => { const lf = Math.log10(hz); const d = lf < 1.9 ? -24 - 20 * (1.9 - lf) : -24 - 17 * (lf - 1.9) - 28 * Math.pow(Math.max(0, lf - 3.4), 1.6);
+  return d + (lf > 2.2 ? 2.6 * Math.sin(lf * 26) : 0.8 * Math.sin(lf * 9)) + 2 * (vn(lf * 45, 50) - 0.5); };
+const avgB = (hz) => hz > 20200 ? -105 + 2 * vn(hz / 900, 51) : avgA(hz) - (hz > 15000 ? (hz - 15000) / 5200 * 2.4 : 0) + 0.25 * (vn(hz / 50, 52) - 0.5);
+function drawAvg(cv){
+  const { g, w, h } = setup(cv); g.fillStyle = "#fff"; g.fillRect(0, 0, w, h);
+  const L = 56, R = 14, T = 8, B = 24, pw = w - L - R, ph = h - T - B;
+  const lo = Math.log10(20), hi = Math.log10(40000), X = (hz) => L + pw * (Math.log10(hz) - lo) / (hi - lo);
+  const Y = (db) => T + ph * Math.min(1, Math.max(0, (-18 - db) / 90));
+  g.font = "11px Sarabun"; g.fillStyle = "#7d5d6a"; g.textAlign = "right"; g.lineWidth = 1;
+  for (let d = -18; d >= -108; d -= 6) { const y = Math.round(Y(d)) + 0.5; g.strokeStyle = "#f1e4ea"; g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw, y); g.stroke(); g.fillText(`−${-d} dB`, L - 6, y + 4); }
+  for (let dec = 10; dec <= 10000; dec *= 10) for (let m = 1; m < 10; m++) { const hz = dec * m; if (hz < 20 || hz > 40000) continue; const x = Math.round(X(hz)) + 0.5; g.strokeStyle = m === 1 ? "#e6d3db" : "#f5ecf0"; g.beginPath(); g.moveTo(x, T); g.lineTo(x, T + ph); g.stroke(); }
+  g.textAlign = "center";
+  [[20,"20 Hz"],[50,"50 Hz"],[100,"100 Hz"],[200,"200 Hz"],[500,"500 Hz"],[1000,"1 kHz"],[2000,"2 kHz"],[5000,"5 kHz"],[10000,"10 kHz"],[20000,"20 kHz"],[40000,"40 kHz"]]
+    .forEach(([hz, t]) => g.fillText(t, Math.min(Math.max(X(hz), L + 16), L + pw - 18), h - 6));
+  g.strokeStyle = "#c9b3bd"; g.strokeRect(L + 0.5, T + 0.5, pw, ph);
+  const path = (fn) => { g.beginPath(); for (let x = 0; x <= pw; x++) { const hz = Math.pow(10, lo + (hi - lo) * x / pw); const y = Y(fn(hz)); x ? g.lineTo(L + x, y) : g.moveTo(L + x, y); } };
+  [[avgA, CA, "rgba(42,120,214,.13)"], [avgB, CB, "rgba(235,104,52,.13)"]].forEach(([fn, col, fill]) => {
+    path(fn); g.lineTo(L + pw, T + ph); g.lineTo(L, T + ph); g.closePath(); g.fillStyle = fill; g.fill();
+    path(fn); g.strokeStyle = col; g.lineWidth = 2; g.stroke(); g.lineWidth = 1;
+  });
+  const cx = Math.round(X(146)) + 0.5; g.strokeStyle = "#4a2b38"; g.beginPath(); g.moveTo(cx, T); g.lineTo(cx, T + ph); g.stroke();
+  g.fillStyle = "#fff"; g.lineWidth = 1.5; g.beginPath(); g.arc(cx, Y(avgA(146)), 4, 0, 7); g.fill(); g.stroke(); g.lineWidth = 1;
+  const kx = Math.round(X(20200)) + 0.5; g.strokeStyle = "rgba(208,59,59,.7)"; g.setLineDash([4, 4]); g.beginPath(); g.moveTo(kx, T); g.lineTo(kx, T + ph); g.stroke(); g.setLineDash([]);
+  g.fillStyle = "#b03535"; g.font = "600 12px Sarabun"; g.textAlign = "right"; g.fillText("หลังแปลงตัดเหนือ 20.2 kHz", kx - 6, T + 16);
+}
+
+/* แท็บรูปคลื่น · ยอดเสียงสีอ่อน ความดังเฉลี่ยสีเข้ม แบบหน้ากราฟจริง */
+function drawWave(cv, peak, rms, mod){
+  const { g, w, h } = setup(cv); g.fillStyle = "#fffafc"; g.fillRect(0, 0, w, h);
+  const mid = h / 2; g.fillStyle = "rgba(74,43,56,.08)"; g.fillRect(0, Math.round(mid), w, 1);
+  for (let x = 0; x < w; x++) {
+    const v = Math.min(0.97, songEnv(x / w) * (0.72 + 0.28 * hash(x, 70)) * mod);
+    g.fillStyle = peak; g.fillRect(x, mid - v * (mid - 3), 1, v * (mid - 3) * 2);
+    const r = v * 0.42; g.fillStyle = rms; g.fillRect(x, mid - r * (mid - 3), 1, r * (mid - 3) * 2);
+  }
+}
+
+/* แท็บความดังกับซ้อนเทียบ · เส้นความดังตามเวลา */
+const loudA = (t) => t > 0.975 ? -60 : -20 + 10.5 * sm(t, 0.2, 0.42) + 3 * (vn(t * 70, 62) - 0.5) - (t < 0.3 ? 8 * sm(vn(t * 25, 63), 0.7, 0.95) : 0);
+const loudB = (t) => t > 0.975 ? -60 : loudA(t) - 0.1 + 0.3 * (hash(Math.floor(t * 400), 64) - 0.5);
+const chL = (fn) => (t) => fn(t) - 2.4 + 1.2 * (vn(t * 30, 65) - 0.5);
+function drawLoud(cv, lines, ref){
+  const { g, w, h } = setup(cv); g.fillStyle = "#fff"; g.fillRect(0, 0, w, h);
+  const L = 58, R = 10, T = 8, B = 22, pw = w - L - R, ph = h - T - B, Y = (v) => T + ph * Math.min(1, -v / 60);
+  g.font = "11px Sarabun"; g.textAlign = "right"; g.fillStyle = "#7d5d6a"; g.lineWidth = 1;
+  for (let d = 0; d <= 60; d += 10) { const y = Math.round(Y(-d)) + 0.5; g.strokeStyle = "#f1e4ea"; g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw, y); g.stroke(); g.fillText(d ? `−${d}` : "0 LUFS", L - 6, y + 4); }
+  g.textAlign = "center"; for (let s = 0; s <= 240; s += 60) g.fillText(`${s / 60}:00`, Math.min(L + pw * s / SONG, L + pw - 14), h - 5);
+  if (ref) { const y = Math.round(Y(-23)) + 0.5; g.strokeStyle = "#4a2b38"; g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw, y); g.stroke(); g.textAlign = "right"; g.fillStyle = "#4a2b38"; g.fillText("อ้างอิง −23 LUFS", L + pw - 4, y - 5); }
+  lines.forEach(([fn, col]) => { g.strokeStyle = col; g.lineWidth = 1.6; g.beginPath(); for (let x = 0; x <= pw; x++) { const y = Y(fn(x / pw)); x ? g.lineTo(L + x, y) : g.moveTo(L + x, y); } g.stroke(); g.lineWidth = 1; });
+}
+/* ผลต่าง หลังแปลง ลบ ต้นฉบับ · กราฟแยกของมันเอง แกน ±2 dB */
+function drawDiff(cv){
+  const { g, w, h } = setup(cv); g.fillStyle = "#fff"; g.fillRect(0, 0, w, h);
+  const L = 58, R = 10, T = 6, B = 6, pw = w - L - R, ph = h - T - B, Y = (v) => T + ph * (2 - v) / 4;
+  g.font = "11px Sarabun"; g.textAlign = "right"; g.fillStyle = "#7d5d6a";
+  [2, 0, -2].forEach((d) => { const y = Math.round(Y(d)) + 0.5; g.strokeStyle = d ? "#f1e4ea" : "#c9b3bd"; g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw, y); g.stroke(); g.fillText(`${d > 0 ? "+" : d < 0 ? "−" : ""}${Math.abs(d)} dB`, L - 6, y + 4); });
+  g.strokeStyle = CB; g.lineWidth = 1.4; g.beginPath();
+  for (let x = 0; x <= pw; x++) { const t = x / pw; const d = t > 0.975 ? 0 : chL(loudB)(t) - chL(loudA)(t); const y = Y(d); x ? g.lineTo(L + x, y) : g.moveTo(L + x, y); }
+  g.stroke(); g.lineWidth = 1;
+}
+
+const CMP_TABS = [
+  ["wave", "รูปคลื่น", '<path d="M3 12h2M7 8v8M11 5v14M15 9v6M19 11v2"/>'],
+  ["freq", "ความถี่", '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 16v-3M11 16V9M15 16v-5"/>'],
+  ["loud", "ความดัง", '<path d="M3 17l5-6 4 3 8-8"/>'],
+  ["over", "ซ้อนเทียบ", '<path d="M3 13c2 0 2-5 4-5s2 8 4 8 2-10 4-10 2 7 6 7"/>'],
+  ["spek", "วิเคราะห์", '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 16v-5M11 16V7M15 16V9"/>'],
+  ["avg", "ความถี่เฉลี่ย", '<path d="M3 17c3-8 6-10 9-8s5 4 9-4"/><path d="M3 20h18"/>'],
+];
+let cmpTab = "spek";
+const ZOOMBAR = `<div class="zm"><button class="ib" aria-label="ซูมออก"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5M8 11h6"/></svg></button><input type="range" min="0" max="100" value="0" style="width:96px" aria-label="ซูมเวลา"><button class="ib" aria-label="ซูมเข้า"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="6"/><path d="M20 20l-4.5-4.5M8 11h6M11 8v6"/></svg></button><span class="small" style="margin:0">ซูม</span><div class="seg sm"><button class="on">ทั้งเรื่อง</button><button>10 นาที</button><button>4 นาที</button><button>30 วินาที</button></div></div>`;
+const WHO = { a: ["ต้นฉบับ", CA], b: ["หลังแปลง", CB] };
+const who = (k) => `<span class="who" style="color:${WHO[k][1]}"><i style="background:${WHO[k][1]}"></i>${WHO[k][0]}</span>`;
+const RULER = `<div class="gruler">${[0, 60, 120, 180, 240].map((s) => `<span style="left:${(s / SONG * 100).toFixed(2)}%">${s / 60}:00</span>`).join("")}</div>`;
+const statBox = (kind, b, t) => `<div class="stat ${kind}">${kind === "warn" ? '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17v.5"/></svg>' : '<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg>'}<div><b>${b}</b>${t}</div></div>`;
+function cmpPane(){
+  const lanes = (pre) => [["L", "ซ้าย"], ["R", "ขวา"]].flatMap(([c, th]) => ["a", "b"].map((f) => `<div class="glane"><div class="lab"><b>${c}</b> ${th}<br>${who(f)}${pre === "wv" ? `<br>ยอด ${f === "a" ? "−0.2" : "+0.3"} dB` : ""}</div><canvas data-${pre}="${f}"></canvas></div>`)).join("");
+  const foot = (lg) => `<div class="gfoot"><div class="lg">${lg}</div><div style="display:flex;gap:6px"><button class="btn btn-ghost btn-sm">เปิดเล่นที่ 1:00</button><button class="btn btn-ghost btn-sm">บันทึกเป็นรูป</button></div></div>`;
+  const fileLg = `<span><i class="ln" style="background:${CA}"></i>ต้นฉบับ</span><span><i class="ln" style="background:${CB}"></i>หลังแปลง</span>`;
+  if (cmpTab === "wave") return `<div class="ghead"><div><b>รูปคลื่นทุกช่อง</b> <span class="small">· 0:00 ถึง 4:12 · ไฟล์ละแถว ช่องเดียวกันอยู่ติดกัน</span></div>${ZOOMBAR}</div>
+    <div class="glane"><span></span>${RULER}</div>${lanes("wv")}
+    ${foot(`<span><i class="sq" style="background:#a9cdf2"></i><i class="sq" style="background:#f6c2a8"></i>ยอดเสียง</span><span><i class="sq" style="background:#1d5fae"></i><i class="sq" style="background:#b4461a"></i>ความดังเฉลี่ย</span>${fileLg}`)}
+    ${statBox("info", "รูปคลื่นแทบเหมือนกันทุกช่วง", "ยอดเสียงหลังแปลงขึ้นเป็น +0.3 dB เพราะการแปลงแบบ Lossy ทำให้ยอดคลื่นขยับเล็กน้อย · ดูแท็บความดังว่าเกิน 0 ช่วงไหน")}`;
+  if (cmpTab === "freq") return `<div class="ghead"><div><b>ความถี่ทุกช่อง</b> <span class="small">· 0:00 ถึง 4:12 · แกนตั้ง 0 ถึง 48 kHz เท่ากันทั้งสองไฟล์</span></div>${ZOOMBAR}</div>
+    <div class="glane"><span></span>${RULER}</div>${lanes("fq")}
+    ${foot(fileLg)}
+    ${statBox("info", "หลังแปลงไม่มีเสียงเหนือ 20.2 kHz ทุกช่อง", "ช่วงล่างกว่านั้นสีแทบเหมือนเดิม · สีตามชุดสีที่เลือกในหน้ากราฟเสียง")}`;
+  if (cmpTab === "loud") {
+    const T = [["ความดังรวม", "−10.7 LUFS", "−10.8 LUFS", "ทั้งเรื่อง ตามมาตรฐาน EBU R128"], ["ยอดเสียงสูงสุด", "−0.2 dBTP", "+0.3 dBTP", "หลังแปลงเกิน 0"], ["ช่วงความดัง", "14.6 LU", "14.6 LU", "ห่างระหว่างช่วงเบากับช่วงดัง"], ["ช่วงเงียบผิดปกติ", "ไม่พบ", "ไม่พบ", "เงียบทุกช่องเกิน 1 วินาที"]];
+    return `<div class="tiles">${T.map(([k, a, b, n]) => `<div class="tile"><span class="small" style="margin:0">${k}</span><div class="tv">${who("a")}<b>${a}</b></div><div class="tv">${who("b")}<b${b.startsWith("+") ? ' style="color:var(--bad-ink)"' : ""}>${b}</b></div><span class="small" style="margin:0">${n}</span></div>`).join("")}</div>
+    <div class="ghead"><div><b>ความดังตลอดเรื่อง</b> <span class="small">· 0:00 ถึง 4:12</span></div>${ZOOMBAR}</div>
+    <canvas class="gcv" style="height:220px" data-ld></canvas>
+    ${foot(`${fileLg}<span><i class="ln" style="background:#4a2b38"></i>เส้นอ้างอิง</span><span class="small" style="margin:0">สองเส้นแทบทับกัน</span>`)}
+    ${statBox("warn", "ยอดเสียงหลังแปลง +0.3 dBTP เกิน 0", "เครื่องเล่นบางตัวเสียงแตกช่วงที่ดังสุด · ตั้ง Gain −1 dB ในแผงตั้งค่าเสียงแล้วแปลงใหม่")}`;
+  }
+  if (cmpTab === "over") return `<div class="ghead"><div style="display:flex;align-items:center;gap:10px"><b>ซ้อนเทียบช่องเดียวกันของสองไฟล์</b><div class="seg sm"><button class="on">L ซ้าย</button><button>R ขวา</button></div></div>${ZOOMBAR}</div>
+    <canvas class="gcv" style="height:220px" data-ov></canvas>
+    <div class="small" style="margin:0"><b style="color:var(--txt)">ผลต่าง หลังแปลง ลบ ต้นฉบับ</b> · กราฟแยก แกน ±2 dB</div>
+    <canvas class="gcv" style="height:70px" data-df></canvas>
+    ${foot(`<span><i class="ln" style="background:${CA}"></i>L ต้นฉบับ</span><span><i class="ln" style="background:${CB}"></i>L หลังแปลง</span>`)}
+    ${statBox("info", "ช่อง L ต่างกันเฉลี่ย 0.1 dB มากสุด 0.4 dB ที่ 3:12", "ต่ำกว่าที่หูแยกได้ (ราว 1 dB) · เลือกช่อง R ได้ที่ปุ่มบน")}`;
+  if (cmpTab === "spek") return `<div class="ghead"><div style="display:flex;align-items:center;gap:10px"><b>วิเคราะห์ความถี่</b><button class="dd" style="width:130px"><span>รวมทุกช่อง</span>${I.chev}</button></div>${ZOOMBAR}</div>
+    <canvas class="gcv" style="height:250px;border-radius:6px" data-sk="a"></canvas>
+    <canvas class="gcv" style="height:250px;border-radius:6px" data-sk="b"></canvas>
+    <div class="gfoot"><div class="seg sm"><button class="on">สีความร้อน</button><button>สีรุ้ง</button><button>ขาวดำ</button><button>สีตามชุด</button></div><button class="btn btn-ghost btn-sm">บันทึกเป็นรูป</button></div>
+    ${statBox("info", "Opus เก็บความถี่ได้ถึงราว 20 kHz เสมอ", "ต้นฉบับมีเสียงสูงถึง 46.1 kHz ซึ่งหูคนไม่ได้ยิน (หูได้ยินถึงราว 20 kHz) · ช่วงต่ำกว่า 20 kHz ภาพแทบเหมือนกัน")}`;
+  const a = avgA(146), b = avgB(146);
+  return `<div class="ghead"><div style="display:flex;align-items:center;gap:10px"><b>ความถี่เฉลี่ย</b><div class="seg sm"><button class="on">รวมทุกช่อง</button><button>L</button><button>R</button></div></div>
+      <div style="display:flex;align-items:center;gap:8px"><span class="small" style="margin:0">ช่วงที่เลือก</span><div class="seg sm"><button>10 วินาที</button><button>30 วินาที</button><button>2 นาที</button><button class="on">ทั้งเรื่อง</button></div></div></div>
+    <canvas class="gcv" style="height:300px" data-av></canvas>
+    <div class="lg">${fileLg}</div>
+    <div class="rd"><span class="grp"><span class="small" style="margin:0">ตำแหน่งชี้</span><span class="box">146 Hz (D3) = ต้นฉบับ ${a.toFixed(0).replace("-", "−")} dB · หลังแปลง ${b.toFixed(0).replace("-", "−")} dB · ต่าง ${Math.abs(a - b).toFixed(1)} dB</span></span><span class="grp"><span class="small" style="margin:0">ต่างมากสุดช่วงที่ได้ยิน</span><span class="box">19.6 kHz · หลังแปลงบางลง 2.2 dB</span></span></div>
+    ${statBox("info", "ช่วงที่ได้ยิน 20 Hz ถึง 15 kHz สองเส้นต่างกันไม่เกิน 0.5 dB", "15 ถึง 20 kHz หลังแปลงบางลงสูงสุด 2.2 dB · เหนือ 20.2 kHz หลังแปลงไม่มีเสียง")}`;
+}
+function buildCompare(root){
+  const chip = (k, nm, ext, meta) => `<div class="gfile" style="box-shadow:inset 4px 0 0 ${WHO[k][1]}"><span class="ic"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c25d7f" stroke-width="2"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></span><div style="min-width:0"><div class="nm">${nm}<span class="ext">${ext}</span> ${who(k)}</div><div class="meta">${meta}</div></div></div>`;
+  const info = [["รหัสเสียง", "FLAC", "Opus"], ["ช่องเสียง", "2.0", "2.0"], ["อัตราสุ่ม", "96 kHz", "48 kHz"], ["ความละเอียด", "24-bit", "—"], ["บิตเรต", "3,069 kb/s", "160 kb/s"], ["ขนาด", "112 MB", "4.9 MB"]];
+  root.innerHTML = TITLE + `<div class="body">${NAV("graph")}<div class="main"><div class="mx">
+    <div class="gtop">
+      <button class="btn btn-ghost" style="height:48px"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M15 5l-7 7 7 7"/></svg>คิวแปลง</button>
+      ${chip("a", "เพลง ก", ".flac", "ไฟล์เสียง · 112 MB · ยาว 4:12")}
+      ${chip("b", "เพลง ก", ".opus", "ไฟล์เสียง · 4.9 MB · ยาว 4:12 · แปลงเมื่อสักครู่")}
+      <button class="btn btn-ghost" style="height:48px">ปิดการเทียบ</button>
+    </div>
+    <div class="gtabs"><div class="seg">${CMP_TABS.map(([k, t, ic]) => `<button class="${k === cmpTab ? "on" : ""}" data-gt="${k}"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${ic}</svg>${t}</button>`).join("")}</div>
+      <div class="lg"><span><i class="ln" style="background:${CA}"></i>ต้นฉบับ</span><span><i class="ln" style="background:${CB}"></i>หลังแปลง</span></div></div>
+    <div class="gbody">
+      <div class="gside">
+        <div class="gcard"><div class="gch"><b>ช่องเสียง 2.0</b><span class="small" style="margin:0">2 ช่อง</span></div>
+          <div class="spk"><span class="sp" style="left:30px">L</span><span class="sp" style="right:30px">R</span>
+            <svg class="seat" width="30" height="26" viewBox="0 0 30 26" fill="#f2b8cc"><circle cx="15" cy="7" r="6"/><path d="M3 26c0-7 5.5-11 12-11s12 4 12 11z"/></svg><span class="seatl">ที่นั่งฟัง</span></div>
+          <div class="small" style="text-align:center;margin:0">กดลำโพงเพื่อซ่อนหรือแสดงช่องนั้น ทั้งสองไฟล์พร้อมกัน</div></div>
+        <div class="gcard"><div class="gch"><b>ข้อมูลเสียง</b></div>
+          <div class="ginfo"><span></span><span class="h" style="color:#1d5fae">ต้นฉบับ</span><span class="h" style="color:#b4461a">หลังแปลง</span>
+            ${info.map(([k, a, b]) => `<span class="k">${k}</span><span class="v">${a}</span><span class="v">${b}</span>`).join("")}</div>
+          <div class="small" style="margin:8px 0 0">แปลงด้วย opusenc · libopus 1.6.1 · VBR 160 kbps</div></div>
+      </div>
+      <div class="gmain">${cmpPane()}</div>
+    </div>
+  </div></div></div>`;
+  root.querySelectorAll("[data-gt]").forEach((b) => b.onclick = () => { cmpTab = b.dataset.gt; buildCompare(root); });
+  root.querySelectorAll(".gmain .seg button").forEach((b) => b.addEventListener("click", () => { b.parentElement.querySelectorAll("button").forEach((x) => x.classList.remove("on")); b.classList.add("on"); }));
+  // วาดหลังฟอนต์โหลดเสร็จ ตัวหนังสือบนกราฟเป็น Sarabun (รอบแรกวาดก่อน ได้ฟอนต์มีเชิง เจอตอนตรวจภาพ)
+  document.fonts.ready.then(() => {
+    const q = (s) => root.querySelectorAll(s);
+    q('[data-sk="a"]').forEach((c) => drawSpek(c, { cut: 99, title: "เพลง ก.flac", sub: "FLAC · 96,000 Hz · 24-bit · 2 channels mixed" }));
+    q('[data-sk="b"]').forEach((c) => drawSpek(c, { cut: 20.2, title: "เพลง ก.opus", sub: "Opus · 48,000 Hz · 160 kb/s · 2 channels mixed · แกนตั้งเท่ากับต้นฉบับ" }));
+    q("[data-av]").forEach(drawAvg);
+    q('[data-wv="a"]').forEach((c) => drawWave(c, "#a9cdf2", "#1d5fae", 1));
+    q('[data-wv="b"]').forEach((c) => drawWave(c, "#f6c2a8", "#b4461a", 1.004));
+    q('[data-fq="a"]').forEach((c) => drawSpec(c, 99));
+    q('[data-fq="b"]').forEach((c) => drawSpec(c, 20.2));
+    q("[data-ld]").forEach((c) => drawLoud(c, [[loudA, CA], [loudB, CB]], true));
+    q("[data-ov]").forEach((c) => drawLoud(c, [[chL(loudA), CA], [chL(loudB), CB]], false));
+    q("[data-df]").forEach(drawDiff);
+  });
+}
+
+buildMerge(document.querySelector('[data-win="merge"]'));
+ftLegend(document.querySelector("[data-ftlegend]"));
+langDemo(document.querySelector("[data-langdemo]"));
+codecDlg(document.querySelector("[data-codec]"));
+delayDlg(document.querySelector("[data-delay]"));
+subView(document.querySelector("[data-subview]"));
+noteView(document.querySelector("[data-notepad]"));
+buildConvert(document.querySelector('[data-win="convert"]'));
+buildCompare(document.querySelector('[data-win="compare"]'));
+</script>
+</body>
+</html>
