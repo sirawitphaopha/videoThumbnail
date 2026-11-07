@@ -1,0 +1,854 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ชั้นหนัง มอคอัปกราฟเสียง</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!--
+  มอคอัปหน้า "กราฟเสียง" ของโปรแกรมชั้นหนัง · แคลร์ทำ 7 พ.ย. 2569 ตามที่พี่กันสั่ง
+  "กราฟเสียง เธอทำมาเลย แต่ขอสวยๆ มีโทนสีสวย ดูได้หลายแบบ ดูช่องเสียงได้ทั้งหมด แบบรองรับ 7.1 5.1 2.0 ทั้งหมด และเอาไว้ดูเฉพาะไฟล์เสียงได้"
+  หน้าตาส่วนกลาง (สี ปุ่ม กรอบหน้าต่าง เมนู) ยกจาก poster-shelf.html ทุกค่า
+  กราฟวาดจากข้อมูลสมมติที่สร้างด้วยสูตร ของจริงอ่านจากไฟล์ด้วย ffmpeg ที่แนบอยู่แล้ว
+  ชุดสีกราฟ 4 ชุดคำนวณจาก OKLCH สีเดียวไล่ความสว่าง (สกิล dataviz) · สีเทียบช่องใช้ 3 สีแรกของชุดสีตั้งต้นของสกิล ผ่านตัวตรวจทุกคู่
+-->
+<style>
+:root{
+  --bg:#fdf2f6; --ink:#4a2b38; --muted:#8a6474;
+  --win:#fffafc; --win2:#fdeef4; --line:#f4d3e0;
+  --txt:#4a2b38; --txt2:#8a5d6e; --txt3:#b28a9a;
+  --accent:#e98aac; --accent-d:#d9719a; --accent-soft:#fbd7e5; --accent-ink:#c2547f;
+  --ok:#7fc9a2; --ok-soft:#e2f5ea; --ok-ink:#2f7a52;
+  --bad:#ec8f8f; --bad-soft:#fde5e5; --bad-ink:#b04545;
+  --warn:#f2c76e; --warn-soft:#fdf1d6; --warn-ink:#94680f;
+  --info:#8dbbe8; --info-soft:#e4effb; --info-ink:#2f6496;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Sarabun,"Noto Sans Thai",Tahoma,sans-serif;font-size:15px;line-height:1.6;min-width:1260px}
+.page{width:1200px;margin:0 auto;padding:36px 0 80px}
+h1{font-size:28px;margin:0 0 6px}
+.lead{color:var(--muted);margin:0 0 8px;max-width:960px}
+.sec{margin-top:56px}
+.sec h2{font-size:21px;margin:0 0 4px}
+.sec .note{color:var(--muted);margin:0 0 16px;max-width:960px}
+.tag{display:inline-block;background:#f6b3cb;color:#7a2346;border-radius:6px;padding:0 9px;font-size:13px;margin-right:8px}
+.win{background:var(--win);color:var(--txt);border-radius:12px;overflow:hidden;box-shadow:0 18px 40px rgba(200,110,145,.18);border:1px solid var(--line)}
+.titlebar{height:34px;display:flex;align-items:center;justify-content:space-between;padding:0 0 0 14px;background:#fbe3ec;font-size:13px;color:var(--txt2)}
+.titlebar .ctl{display:flex}
+.titlebar .ctl span{width:46px;height:34px;display:flex;align-items:center;justify-content:center}
+.body{display:flex;min-height:640px}
+.side{width:200px;flex:none;background:var(--win2);border-right:1px solid var(--line);padding:16px 10px;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 8px 16px;font-weight:700;font-size:17px;color:var(--accent-ink)}
+.nav{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;color:var(--txt2);cursor:pointer;border:0;background-color:transparent;font:inherit;text-align:left;width:100%;transition:background-color .15s,color .15s;white-space:nowrap}
+.nav:hover{background-color:#f9dde8;color:var(--accent-ink)}
+.nav.on{background-color:var(--accent-soft);color:var(--accent-ink);font-weight:600}
+.nav.on:hover{background-color:#f6c6d8;color:#ad4370}
+.nav .count{margin-left:auto;font-size:12px;background:#fff;border-radius:10px;padding:0 7px;color:var(--txt2)}
+.nav .new{margin-left:auto;font-size:11px;font-weight:700;background:#f6b3cb;color:#7a2346;border-radius:10px;padding:0 7px}
+.side .foot{margin-top:auto;font-size:12px;color:var(--txt3);padding:8px}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.dd{height:38px;display:flex;align-items:center;justify-content:space-between;gap:8px;padding:0 12px;border-radius:9px;border:1px solid var(--line);background-color:#fff;color:var(--txt);font:inherit;font-size:14px;cursor:pointer;overflow:hidden;transition:background-color .15s,border .15s}
+.dd:hover{background-color:#fdeaf1;border:1px solid #eeb3c8}
+.dd span{white-space:nowrap;min-width:0;overflow:hidden;text-overflow:ellipsis}
+.btn{height:38px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 16px;border-radius:9px;font:inherit;font-size:14px;font-weight:600;cursor:pointer;white-space:nowrap;transition:background-color .15s,color .15s,border .15s}
+.btn-main{background-color:#f6b3cb;color:#7a2346;border:1px solid #ef9dbb}
+.btn-main:hover{background-color:#f09dbd;color:#6a1d3c;border:1px solid #e584a9}
+.btn-ghost{background-color:#fff;color:var(--txt);border:1px solid #efc6d5}
+.btn-ghost:hover{background-color:#fdeaf1;color:var(--accent-ink);border:1px solid #e79ab8}
+.btn-bad{background-color:#fff;color:var(--bad-ink);border:1px solid #f1b7b7}
+.btn-bad:hover{background-color:var(--bad-soft);color:#953535;border:1px solid #e48d8d}
+.btn-sm{height:32px;padding:0 12px;font-size:13px}
+.small{font-size:12.5px;color:var(--txt3);line-height:1.55}
+.nw{white-space:nowrap}
+.seg{display:flex;border:1px solid #efc6d5;border-radius:9px;overflow:hidden;flex:none}
+.seg button{height:34px;padding:0 14px;border:0;background-color:#fff;color:var(--txt2);font:inherit;font-size:13.5px;cursor:pointer;display:inline-flex;align-items:center;gap:6px;transition:background-color .15s,color .15s}
+.seg button+button{border-left:1px solid #efc6d5}
+.seg button:hover{background-color:#fdeaf1;color:var(--accent-ink)}
+.seg button.on{background-color:#f6b3cb;color:#7a2346;font-weight:600}
+.seg button.on:hover{background-color:#f09dbd;color:#6a1d3c}
+.seg.sm button{height:30px;padding:0 10px;font-size:13px}
+.card{background:var(--win2);border:1px solid var(--line);border-radius:12px;padding:14px}
+.card h3{margin:0 0 8px;font-size:14.5px;display:flex;align-items:center;justify-content:space-between;gap:8px;color:var(--accent-ink)}
+.kv{display:grid;grid-template-columns:1fr auto;gap:5px 10px;font-size:13.5px;margin:0}
+.kv dt{color:var(--txt2)} .kv dd{margin:0;color:var(--txt);font-weight:600;text-align:right;font-variant-numeric:tabular-nums}
+.stat{display:flex;gap:10px;align-items:flex-start;border-radius:10px;padding:10px 12px;font-size:13px;line-height:1.55}
+.stat.warn{background:var(--warn-soft);color:var(--warn-ink)}
+.stat.bad{background:var(--bad-soft);color:var(--bad-ink)}
+.stat.info{background:var(--info-soft);color:var(--info-ink)}
+.stat b{display:block;color:inherit}
+.stat svg{flex:none;margin-top:2px}
+.bar{height:10px;border-radius:6px;background:#f7dbe6;overflow:hidden}
+.bar i{display:block;height:100%;background:var(--accent);border-radius:6px}
+.drop{border:2px dashed #eeb3c8;border-radius:12px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--txt3);font-size:13.5px;text-align:center;padding:18px}
+.skel{background:linear-gradient(90deg,#f8e1ea 0%,#fdf1f6 42%,#f8e1ea 84%);background-size:260% 100%;animation:skel-wave 1.4s ease-in-out infinite;border-radius:6px}
+@keyframes skel-wave{0%{background-position:130% 0}100%{background-position:-30% 0}}
+.menu{background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 12px 26px rgba(150,70,100,.18);padding:6px;display:flex;flex-direction:column;gap:2px}
+.opt{display:flex;align-items:center;justify-content:space-between;gap:10px;padding:7px 10px;border-radius:7px;font-size:14px;cursor:pointer;line-height:1.6;transition:background-color .15s,color .15s}
+.opt:hover{background-color:#fdeaf1;color:var(--accent-ink)}
+.opt.on{background-color:#fbd7e5;color:#7a2346;font-weight:600}
+.opt.on:hover{background-color:#f7c4d7}
+.opt .small{white-space:nowrap;flex:none}
+.fmt{width:100%;border-collapse:collapse;font-size:13.5px;background:#fff;border-radius:10px;overflow:hidden}
+.fmt th{background:var(--win2);color:var(--txt2);font-size:12.5px;padding:8px 12px;text-align:left;border-bottom:1px solid var(--line);font-weight:600}
+.fmt td{padding:8px 12px;border-bottom:1px solid #f8e3eb;line-height:1.5}
+.fmt tr:last-child td{border-bottom:0}
+.fmt .num{text-align:right;font-variant-numeric:tabular-nums}
+.grid4{display:grid;grid-template-columns:repeat(4,1fr);gap:14px}
+.grid3{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.st{background:var(--win);color:var(--txt);border-radius:12px;padding:16px;border:1px solid var(--line);box-shadow:0 10px 24px rgba(200,110,145,.12);display:flex;flex-direction:column;gap:10px}
+.st .cap{font-size:13px;color:var(--accent-ink);font-weight:600}
+.explain{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 22px;margin-top:14px}
+.explain ol,.explain ul{margin:6px 0;padding-left:22px}
+.explain li{margin:5px 0}
+button:focus{outline:none}
+button:focus-visible{outline:2px solid var(--accent-d);outline-offset:2px}
+.stat div,.small,li,.st .cap{text-wrap:balance}
+
+/* ---------- หน้ากราฟเสียง ---------- */
+.ag{display:flex;flex-direction:column;gap:12px;padding:16px 18px 18px;flex:1;min-width:0}
+.agtop{display:flex;align-items:center;gap:10px}
+.fchip{display:flex;align-items:center;gap:10px;flex:1;min-width:0;background:#fff;border:1px solid var(--line);border-radius:10px;padding:6px 12px 6px 6px}
+.fthumb{width:30px;height:44px;border-radius:4px;flex:none;box-shadow:0 2px 6px rgba(150,70,100,.25)}
+.fnote{width:44px;height:44px;border-radius:8px;flex:none;display:flex;align-items:center;justify-content:center}
+.fchip .nm{font-weight:600;font-size:14.5px;line-height:1.4;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.fchip .ext{color:var(--txt3);font-weight:400}
+.fchip .meta{font-size:12.5px;color:var(--txt3);line-height:1.4}
+.agctl{display:flex;align-items:center;gap:12px;flex-wrap:wrap}
+.agctl .lbl{font-size:13px;color:var(--txt2)}
+.sws{display:flex;align-items:center;gap:6px}
+.sw{width:26px;height:26px;border-radius:50%;border:2px solid #fff;box-shadow:0 0 0 1px #ecc3d3;cursor:pointer;padding:0;transition:box-shadow .15s,transform .15s}
+.sw:hover{box-shadow:0 0 0 2px var(--accent);transform:scale(1.08)}
+.sw.on{box-shadow:0 0 0 2px var(--accent-d)}
+.swname{font-size:13px;color:var(--txt2);min-width:48px}
+.mk{display:inline-flex;align-items:center;gap:6px;height:30px;padding:0 10px;border-radius:8px;border:1px solid #f1b7b7;background:#fff;color:var(--bad-ink);font:inherit;font-size:13px;cursor:pointer;transition:background-color .15s}
+.mk:hover{background-color:var(--bad-soft)}
+.mk.off{border:1px solid #efc6d5;color:var(--txt3)}
+.agb{display:grid;grid-template-columns:232px 1fr;gap:14px;align-items:start}
+.apanel{display:flex;flex-direction:column;gap:12px}
+.plot{background:#fff;border:1px solid var(--line);border-radius:12px;padding:10px 12px 12px;min-width:0;position:relative}
+.plothead{display:flex;align-items:center;justify-content:space-between;gap:10px;font-size:13px;color:var(--txt2);margin-bottom:8px;min-height:32px}
+.plothead .lbl{font-size:12.5px;color:var(--txt2)}
+.plothead b{color:var(--txt);font-size:14px}
+.ovw{position:relative;height:38px;margin-left:96px;border-radius:6px;overflow:hidden;cursor:pointer}
+.ovw canvas{width:100%;height:100%;display:block}
+.ruler{position:relative;height:22px;margin-left:96px;border-bottom:1px solid #f1d9e3;font-size:11.5px;color:var(--txt3);font-variant-numeric:tabular-nums}
+.ruler span{position:absolute;bottom:3px;transform:translateX(-50%);white-space:nowrap}
+.ruler i{position:absolute;bottom:-1px;width:1px;height:5px;background:#e9c6d4}
+.ovrul{position:relative;height:16px;margin-left:96px;font-size:11px;color:var(--txt3);font-variant-numeric:tabular-nums}
+.ovrul span{position:absolute;top:1px;transform:translateX(-50%);white-space:nowrap}
+.ovrul span:first-child{transform:none} .ovrul span:last-child{transform:translateX(-100%)}
+.lanes{position:relative;display:flex;flex-direction:column;gap:2px;margin-top:6px}
+.lane{display:grid;grid-template-columns:96px 1fr;align-items:stretch}
+.lab{display:flex;flex-direction:column;justify-content:center;padding-right:8px;line-height:1.25}
+.lab b{font-size:13px;color:var(--txt)}
+.lab span{font-size:11.5px;color:var(--txt2);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.lab em{font-style:normal;font-size:11px;color:var(--txt3);font-variant-numeric:tabular-nums}
+.lane.hid .lab{opacity:.55}
+.cv{width:100%;display:block;border-radius:4px}
+.xh{position:absolute;top:0;bottom:0;width:1px;background:#4a2b38;opacity:.55;pointer-events:none}
+.tip{position:absolute;top:6px;background:#fff;border:1px solid var(--line);border-radius:10px;box-shadow:0 10px 22px rgba(120,50,80,.18);padding:8px 10px;font-size:12px;pointer-events:none;min-width:150px;z-index:3}
+.tip .t{font-weight:700;color:var(--txt);margin-bottom:3px;font-variant-numeric:tabular-nums}
+.tip .r{display:grid;grid-template-columns:auto 1fr;gap:0 10px;line-height:1.55}
+.tip .r b{font-variant-numeric:tabular-nums;text-align:right;color:var(--txt)}
+.tip .r span{color:var(--txt2)}
+.tip .key{display:inline-block;width:12px;height:2px;border-radius:1px;vertical-align:middle;margin-right:5px}
+.mark{position:absolute;top:0;bottom:0;background:rgba(208,59,59,.13);border-left:1px solid rgba(208,59,59,.75);border-right:1px solid rgba(208,59,59,.75);pointer-events:none}
+.mark .ml{position:absolute;top:-24px;left:50%;transform:translateX(-50%);white-space:nowrap;font-size:11.5px;font-weight:600;color:#b03535;background:#fff;border:1px solid #f1b7b7;border-radius:6px;padding:0 6px;display:flex;align-items:center;gap:4px;line-height:1.6}
+.agfoot{display:flex;align-items:center;justify-content:space-between;gap:10px;margin-top:10px}
+.lg{display:flex;align-items:center;gap:14px;font-size:12.5px;color:var(--txt2);flex-wrap:wrap}
+.lg i{display:inline-block;width:12px;height:10px;border-radius:2px;margin-right:5px;vertical-align:-1px}
+.lg .ln{display:inline-block;width:14px;height:2px;border-radius:1px;margin-right:5px;vertical-align:3px}
+.speclegend{display:flex;align-items:center;gap:8px;font-size:12px;color:var(--txt2)}
+.speclegend .rampbar{width:140px;height:10px;border-radius:3px}
+.tiles{display:grid;grid-template-columns:repeat(4,1fr);gap:10px;margin-bottom:10px}
+.tile{background:var(--win2);border-radius:10px;padding:10px 12px}
+.tile b{display:block;font-size:20px;line-height:1.3;color:var(--txt)}
+.tile span{font-size:12.5px;color:var(--txt2)}
+.tile em{display:block;font-style:normal;font-size:11.5px;color:var(--txt3);line-height:1.45}
+.pbars{display:grid;grid-template-columns:96px 1fr 64px;gap:4px 10px;align-items:center;font-size:12.5px;margin-top:6px}
+.pbars .bt{height:10px;border-radius:0 4px 4px 0;background:#f6e6ed;position:relative}
+.pbars .bt i{position:absolute;left:0;top:0;bottom:0;border-radius:0 4px 4px 0}
+.pbars .v{text-align:right;font-variant-numeric:tabular-nums;color:var(--txt)}
+.sub{font-size:13.5px;font-weight:600;color:var(--txt);margin:12px 0 2px}
+.spk{display:block;margin:0 auto}
+.spk .s{cursor:pointer}
+.chlist{display:flex;flex-wrap:wrap;gap:4px 10px;font-size:12px;color:var(--txt2);margin-top:6px}
+.chlist b{color:var(--txt)}
+.minicv{width:100%;height:44px;display:block;border-radius:4px}
+@media (prefers-reduced-motion: reduce){*{transition:none !important;animation:none !important}.skel{background:#f8e1ea}}
+</style>
+</head>
+<body>
+<div class="page">
+
+<h1>มอคอัปหน้า "กราฟเสียง"</h1>
+<p class="lead">ดูเสียงในไฟล์หนังหรือไฟล์เสียงเป็นภาพ ทุกช่องเสียง รองรับ 7.1 · 5.1 · 2.0 · ช่องเดียว · ดูได้ 5 แบบ รูปคลื่น (เส้นละเอียด หรือ แท่ง) · ความถี่ (สีตามชุด หรือ สีรุ้ง) · ความดัง · ซ้อนเทียบ · วิเคราะห์ความถี่แบบโปรแกรม Spek · เลือกชุดสีได้ 4 ชุด<br>
+กราฟในหน้านี้วาดจากข้อมูลสมมติ กดเปลี่ยนแบบ ชุดสี ซูม และชี้บนกราฟได้จริงในกรอบแรก · ข้อมูลไฟล์ทั้งหมดเป็นของสมมติ</p>
+
+<!-- ==================== 1 หน้ากราฟเสียง 7.1 รูปคลื่น ==================== -->
+<div class="sec">
+  <h2><span class="tag">หน้าใหม่</span>กราฟเสียง · หนัง 7.1 · แบบรูปคลื่น</h2>
+  <p class="note">เมนูซ้ายมีหน้าใหม่ <b>กราฟเสียง</b> ต่อจากตรวจไฟล์ · แต่ละช่องเสียงมีแถบของตัวเอง สีอ่อนคือยอดเสียง สีเข้มคือความดังเฉลี่ย · แถบบนสุดคือทั้งเรื่อง กรอบชมพูคือช่วงที่ซูมอยู่ · ผลตรวจไฟล์ที่เจอเสียงเงียบหายไปขึ้นเป็นแถบแดงตรงเวลานั้น<br>
+  <b>กรอบนี้กดได้จริง</b> เปลี่ยนแบบ เปลี่ยนชุดสี ซูม กดลำโพงในแผนผังเพื่อซ่อนช่อง และชี้บนกราฟเพื่ออ่านค่าทุกช่องที่เวลานั้น</p>
+  <div class="win"><div data-win="main"></div></div>
+</div>
+
+<!-- ==================== 2 ความถี่ 5.1 ==================== -->
+<div class="sec">
+  <h2><span class="tag">แบบที่ 2</span>ความถี่ (สเปกตรัม) · แทร็ก 5.1 · ชุดสีม่วง</h2>
+  <p class="note">แกนตั้งคือความถี่ เสียงต่ำอยู่ล่าง เสียงสูงอยู่บน · ยิ่งสว่างยิ่งดัง · เห็นว่าเสียงพูดอยู่ช่องกลาง เสียงเบสอยู่แต่ช่อง LFE · ช่วงที่เสียงเงียบหายไปเป็นแถบมืดทุกช่อง · ไฟล์ที่เสียงถูกตัดความถี่สูงทิ้ง (โหลดมาแบบบีบอัดหนัก) จะเห็นขอบบนมืดเป็นเส้นตรง</p>
+  <div class="win"><div data-win="spec"></div></div>
+</div>
+
+<!-- ==================== 2ข ความถี่สีรุ้ง ==================== -->
+<div class="sec">
+  <h2><span class="tag">แบบที่ 2 ข</span>ความถี่แบบสีรุ้ง · แทร็ก 5.1</h2>
+  <p class="note">กราฟเดียวกับแบบที่ 2 เปลี่ยนแค่สี กดสลับ <b>สีตามชุด</b> กับ <b>สีรุ้ง</b> ได้ที่ปุ่มข้างแบบกราฟ · น้ำเงินเข้มคือเบา ไล่ไปเขียว เหลือง แดง ชมพูคือดังสุด มีแถบสเกล dB กำกับใต้กราฟ<br>
+  ไม่ต้องโหลดตัวถอดรหัสเพิ่ม ffmpeg ที่แนบอยู่ถอดเสียงได้ทุกแบบแล้ว · สีรุ้งเป็นตัวเลือก ไม่ใช่ค่าตั้งต้น เพราะคนตาบอดสีแยกเขียวกับแดงไม่ออก</p>
+  <div class="win"><div data-win="rainbow"></div></div>
+</div>
+
+<!-- ==================== 3 ความดัง ==================== -->
+<div class="sec">
+  <h2><span class="tag">แบบที่ 3</span>ความดัง · ภาพรวมทั้งเรื่อง · ชุดสีฟ้า</h2>
+  <p class="note">ตัวเลขสรุปทั้งเรื่องตามมาตรฐานวัดความดัง EBU R128 · กราฟความดังตลอดเรื่อง พร้อมเส้นอ้างอิง · ยอดเสียงแต่ละช่อง · มีปุ่มดูเป็นตาราง สำหรับอ่านตัวเลขโดยไม่ต้องชี้กราฟ</p>
+  <div class="win"><div data-win="loud"></div></div>
+</div>
+
+<!-- ==================== 4 ซ้อนเทียบ ==================== -->
+<div class="sec">
+  <h2><span class="tag">แบบที่ 4</span>ซ้อนเทียบ ซ้าย ขวา กลาง · แทร็ก 2.0</h2>
+  <p class="note">วางเส้นความดังของช่องซ้าย ขวา (และกลาง ถ้ามี) ซ้อนกันในกราฟเดียว ไว้ดูว่าเสียงเอียงไปข้างไหน หรือช่องหนึ่งหายไป · ซ้อนได้ทีละไม่เกิน 3 ช่อง สีประจำช่องตายตัว ซ้ายฟ้า ขวาส้ม กลางเขียว เพราะเกิน 3 สีคนตาบอดสีแยกไม่ออก (ผ่านตัวตรวจทุกคู่) · มีป้ายชื่อที่ปลายเส้นทุกเส้น ไม่พึ่งสีอย่างเดียว</p>
+  <div class="win"><div data-win="overlay"></div></div>
+</div>
+
+<!-- ==================== 4ข วิเคราะห์ความถี่ แบบโปรแกรม Spek ==================== -->
+<div class="sec">
+  <h2><span class="tag">แบบที่ 5</span>วิเคราะห์ความถี่ · หน้าตาแบบโปรแกรม Spek · จับไฟล์ FLAC ที่แปลงมา</h2>
+  <p class="note">พื้นดำ แกนซ้ายเป็นความถี่ kHz แกนล่างเป็นเวลา แถบสีด้านขวาบอกความดัง 0 ถึง −120 dB เหมือน Spek (ขอบ ช่วง dB และระยะแกนเวลา ยกจากซอร์สของ Spek บน GitHub)<br>
+  <b>ที่ทำได้มากกว่า Spek</b> ดูรวมทุกช่องหรือทีละช่อง (Spek ทีละช่อง) · ซูมได้ (Spek ไม่มี) · ชี้แล้วบอกเวลา ความถี่ ความดัง · ชุดสี 4 แบบ ความร้อน สีรุ้ง ขาวดำ สีตามชุด · <b>บอกเองว่าไฟล์น่าจะแปลงมา</b> ตัวอย่างนี้เป็น FLAC แต่เสียงหยุดเป็นเส้นตรงที่ 16 kHz</p>
+  <div class="win"><div data-win="spek"></div></div>
+</div>
+
+<!-- ==================== 5 ไฟล์เสียงอย่างเดียว ==================== -->
+<div class="sec">
+  <h2><span class="tag">ไฟล์เสียง</span>เปิดไฟล์เสียงอย่างเดียว · FLAC 2.0 · รูปคลื่นแบบแท่ง · ชุดสีชมพู</h2>
+  <p class="note">รูปคลื่นมีสองลักษณะ <b>เส้นละเอียด</b> กับ <b>แท่ง</b> แบบแท่งเป็นแท่งมนบนพื้นสว่างโทนเดียวกับโปรแกรม ไล่สีเข้มตรงกลางไปอ่อนที่ปลาย ความสูงแท่งคือยอดเสียงช่วงนั้น กดสลับได้ที่ปุ่มข้างแบบกราฟ ทั้งกรอบนี้และกรอบแรก<br>
+  กด <b>เปิดไฟล์อื่น</b> หรือลากไฟล์มาวางบนหน้านี้ ได้ทั้งไฟล์หนังและไฟล์เสียง · ไฟล์เสียงไม่ต้องอยู่บนชั้นวาง ไม่ถูกเพิ่มเข้าชั้น · รับ MP3 · FLAC · WAV · M4A · AAC · AC3 · E-AC3 · DTS · OGG · OPUS · MKA · WMA</p>
+  <div class="win"><div data-win="music"></div></div>
+</div>
+
+<!-- ==================== 6 ช่องเสียงที่รองรับ ==================== -->
+<div class="sec">
+  <h2><span class="tag">ช่องเสียง</span>ช่องเสียงที่รองรับ</h2>
+  <p class="note">แผนผังลำโพงเปลี่ยนตามแทร็กที่เลือก · กดลำโพงเพื่อซ่อนหรือแสดงช่องนั้น · ชื่อช่องเขียนตัวย่อสากลคู่ชื่อไทย · แทร็กที่มีช่องแบบอื่น (เช่น 6.1 หรือ Atmos) ขึ้นทุกช่องตามที่ไฟล์บอก เรียงตามลำดับในไฟล์</p>
+  <div class="grid4" data-layouts></div>
+</div>
+
+<!-- ==================== 7 ชุดสี ==================== -->
+<div class="sec">
+  <h2><span class="tag">ชุดสี</span>ชุดสี 4 ชุด</h2>
+  <p class="note">กดวงกลมสีบนแถบเครื่องมือ เปลี่ยนทั้งรูปคลื่น ความถี่ และความดังพร้อมกัน · จำชุดสีที่เลือกไว้ เปิดครั้งหน้ายังเป็นชุดเดิม · ทุกชุดเป็นสีเดียวไล่ความเข้ม สีเข้มชัดบนพื้นเกิน 4 เท่า (วัดแล้ว)</p>
+  <div class="grid4" data-themes></div>
+</div>
+
+<!-- ==================== 8 สถานะอื่น ==================== -->
+<div class="sec">
+  <h2><span class="tag">สถานะ</span>สถานะอื่นของหน้ากราฟเสียง</h2>
+  <p class="note">ยังไม่เลือกไฟล์ · กำลังอ่านเสียง · เลือกแทร็กเสียง · อ่านไม่ได้ · และทางเข้าหน้านี้จากที่อื่น</p>
+  <div class="grid3">
+    <div class="st"><div class="cap">ยังไม่เลือกไฟล์</div>
+      <div class="drop" style="min-height:150px"><svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#e5a3bd" stroke-width="1.8"><path d="M3 12h2M7 7v10M11 4v16M15 8v8M19 10v4M21 12h0"/></svg><b style="color:var(--txt2)">ลากไฟล์หนังหรือไฟล์เสียงมาวางตรงนี้</b><span>หรือ</span><button class="btn btn-ghost btn-sm">เลือกไฟล์จากเครื่อง</button></div>
+      <div class="small">หรือเลือกจากชั้นวาง</div>
+      <div style="display:flex;flex-direction:column;gap:6px">
+        <button class="dd" style="height:40px"><span style="display:flex;align-items:center;gap:8px"><i style="width:18px;height:27px;border-radius:3px;background:linear-gradient(160deg,#5d6f9e,#2c3459);flex:none"></i>Iron Tide (2024)</span><span class="small">7.1</span></button>
+        <button class="dd" style="height:40px"><span style="display:flex;align-items:center;gap:8px"><i style="width:18px;height:27px;border-radius:3px;background:linear-gradient(160deg,#f2b8c6,#c25d7f);flex:none"></i>ดาวเหนือ (2023)</span><span class="small">5.1</span></button>
+      </div>
+    </div>
+    <div class="st"><div class="cap">กำลังอ่านเสียง</div>
+      <div style="display:flex;align-items:center;justify-content:space-between;gap:8px"><div style="font-size:13.5px;color:var(--txt)">อ่านเสียง 8 ช่อง <b>42%</b> · เหลือราว 25 วินาที</div><button class="btn btn-bad btn-sm">หยุด</button></div>
+      <div class="bar"><i style="width:42%"></i></div>
+      <div style="display:flex;flex-direction:column;gap:3px">
+        <div style="display:grid;grid-template-columns:44px 1fr;gap:8px;align-items:center"><div class="skel" style="height:12px"></div><div class="skel" style="height:30px"></div></div>
+        <div style="display:grid;grid-template-columns:44px 1fr;gap:8px;align-items:center"><div class="skel" style="height:12px"></div><div class="skel" style="height:30px"></div></div>
+        <div style="display:grid;grid-template-columns:44px 1fr;gap:8px;align-items:center"><div class="skel" style="height:12px"></div><div class="skel" style="height:30px"></div></div>
+        <div style="display:grid;grid-template-columns:44px 1fr;gap:8px;align-items:center"><div class="skel" style="height:12px"></div><div class="skel" style="height:30px"></div></div>
+      </div>
+      <div class="small">อ่านเฉพาะเสียง ไม่ถอดภาพ <span class="nw">หนัง 2 ชั่วโมงราว 40 วินาที</span> · <span class="nw">อ่านครั้งเดียว</span> เก็บผลไว้ <span class="nw">เปิดครั้งหน้าขึ้นทันที</span> · <span class="nw">ไฟล์หนังไม่ถูกแก้</span></div>
+    </div>
+    <div class="st"><div class="cap">เลือกแทร็กเสียง</div>
+      <button class="dd" style="border:1px solid var(--accent);box-shadow:0 0 0 3px rgba(233,138,172,.22)"><span>เสียง 2 · อังกฤษ · E-AC-3 · 7.1</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4" style="transform:rotate(180deg)"><path d="M6 9l6 6 6-6"/></svg></button>
+      <div class="menu">
+        <div class="opt"><span>เสียง 1 · ไทย · AC-3 · 5.1</span><span class="small">6 channels</span></div>
+        <div class="opt on"><span>เสียง 2 · อังกฤษ · E-AC-3 · 7.1</span><span class="small" style="color:#7a2346">8 channels</span></div>
+        <div class="opt"><span>เสียง 3 · ไทย · AAC · 2.0</span><span class="small">2 channels</span></div>
+        <div class="opt"><span>เสียง 4 · อังกฤษ · เสียงบรรยายภาพ · 2.0</span><span class="small">2 channels</span></div>
+      </div>
+      <div class="small">กล่องเลือกวัดที่ว่างก่อนกาง ใกล้ขอบล่างพลิกขึ้น (สกิล popup-fit)</div>
+    </div>
+    <div class="st"><div class="cap">อ่านไม่ได้</div>
+      <div class="stat bad"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg><div><b>ไฟล์นี้ไม่มีแทร็กเสียง</b>วิดีโออัดหน้าจอบางแบบไม่ได้อัดเสียงไว้</div></div>
+      <div class="stat bad"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg><div><b>อ่านเสียงได้ถึงนาที 41:20</b>ไฟล์ขาดท้าย กราฟขึ้นถึงตรงที่อ่านได้</div></div>
+      <div class="stat bad"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 7v6M12 16.5v.5"/></svg><div><b>หาไฟล์ไม่เจอ</b>ไดรฟ์อาจถอดออกอยู่</div></div>
+    </div>
+    <div class="st"><div class="cap">ทางเข้าจากแผงขวาของชั้นวาง</div>
+      <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
+        <button class="btn btn-main">เปิดเล่น</button><button class="btn btn-ghost">เปลี่ยนชื่อ</button>
+        <button class="btn btn-ghost">เปลี่ยนโปสเตอร์</button><button class="btn btn-ghost">ตรวจไฟล์</button>
+        <button class="btn btn-ghost">ข้อมูลไฟล์</button><button class="btn btn-ghost">เปิดโฟลเดอร์</button>
+        <button class="btn btn-ghost" style="grid-column:1/-1;border:1px solid var(--accent);background:#fdeaf1;color:var(--accent-ink)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h2M7 7v10M11 4v16M15 8v8M19 10v4"/></svg>กราฟเสียง</button>
+      </div>
+      <div class="small">เพิ่มปุ่มที่ 7 เต็มแถว ใต้ปุ่มเดิม 6 ปุ่ม</div>
+    </div>
+    <div class="st"><div class="cap">ทางเข้าจากหน้าต่างผลตรวจ</div>
+      <div style="background:#fff;border-radius:12px;border:1px solid var(--line);padding:14px;display:flex;flex-direction:column;gap:8px">
+        <b style="font-size:14.5px">ผลตรวจ Iron Tide (2024).mkv</b>
+        <table class="fmt"><thead><tr><th>ช่วงเวลา</th><th>เสียอะไร</th></tr></thead><tbody><tr><td class="nw">1:58:02</td><td>เสียงเงียบหายไป 2 วินาที</td></tr></tbody></table>
+        <div style="display:flex;gap:8px;justify-content:flex-end;flex-wrap:wrap"><button class="btn btn-ghost btn-sm">ดูกราฟเสียงช่วงนี้</button><button class="btn btn-ghost btn-sm">เปิดเล่นที่ 1:58:02</button><button class="btn btn-main btn-sm">ปิด</button></div>
+      </div>
+      <div class="small">จุดเสียที่เป็นเสียง มีปุ่ม <span class="nw">ดูกราฟเสียงช่วงนี้</span> พาไปหน้ากราฟเสียง <span class="nw">ซูมที่เวลานั้น</span></div>
+    </div>
+  </div>
+</div>
+
+<!-- ==================== 9 วิธีทำงาน ==================== -->
+<div class="sec">
+  <h2><span class="tag">ข้างใน</span>ทำงานยังไง และจุดที่แคลร์ตั้งเอง</h2>
+  <div class="explain">
+    <b>ไม่ต้องโหลดอะไรเพิ่ม</b> ใช้ ffmpeg ที่แนบอยู่ในโปรแกรมแล้ว
+    <ol>
+      <li>ffmpeg อ่านเฉพาะแทร็กเสียงที่เลือก ถอดเป็นตัวเลขระดับเสียงทุกช่อง ไม่ถอดภาพ ไฟล์หนังไม่ถูกแก้</li>
+      <li>โปรแกรมย่อเหลือค่าสูงสุดกับค่าเฉลี่ยทีละช่วงสั้น ๆ เก็บไว้ในเครื่อง เปิดครั้งหน้าไม่ต้องอ่านใหม่ (ไฟล์เปลี่ยนแล้วค่อยอ่านใหม่)</li>
+      <li>ความถี่คิดจากตัวเลขชุดเดียวกัน · ความดังตามมาตรฐาน EBU R128 ใช้ตัววัดของ ffmpeg (ebur128) · ยอดเสียงกับจุดเสียงแตกใช้ astats</li>
+      <li>กราฟวาดในหน้าต่างโปรแกรมเอง เปลี่ยนชุดสีหรือซูมได้ทันทีโดยไม่ต้องอ่านไฟล์ใหม่</li>
+    </ol>
+    <b>จุดที่แคลร์ตั้งเอง</b>
+    <ul>
+      <li>หน้าใหม่อยู่ในเมนูซ้ายต่อจากตรวจไฟล์ ชื่อ <b>กราฟเสียง</b> · มีปุ่มเข้าจากแผงขวาของชั้นวาง และจากหน้าต่างผลตรวจ</li>
+      <li>แบบตั้งต้นคือรูปคลื่นเส้นละเอียด · ชุดสีตั้งต้นคือชมพู เข้ากับโปรแกรม · แบบแท่ง สีรุ้ง และวิเคราะห์ความถี่ เป็นปุ่มเพิ่ม ของเดิมอยู่ครบ</li>
+      <li>วิเคราะห์ความถี่ ใช้ขอบ ช่วง 0 ถึง −120 dB และระยะแกนเวลาตามซอร์สของ Spek · ชุดสีความร้อนคำนวณจุดสีเอง ไม่ได้คัดลอกโค้ด (Spek ใช้สัญญาอนุญาต GPL)</li>
+      <li>บอกว่าไฟล์น่าจะแปลงมา เมื่อเสียงสูงสุดต่ำกว่าปกติของรหัสเสียงนั้น FLAC ต่ำกว่า 19.5 kHz · AC-3 กับ E-AC-3 ต่ำกว่า 19 kHz · AAC ต่ำกว่า 15.5 kHz</li>
+      <li>ซ้อนเทียบได้เฉพาะช่องซ้าย ขวา กลาง ไม่เกิน 3 เส้น</li>
+      <li>เส้นอ้างอิงความดัง −23 LUFS ตามมาตรฐาน EBU R128</li>
+      <li>บันทึกกราฟเป็นรูป PNG ได้ ชื่อไฟล์ตามชื่อหนัง ไม่เขียนทับไฟล์เดิม</li>
+    </ul>
+  </div>
+</div>
+
+</div>
+
+<script>
+/* ---------- ชุดสี คำนวณจาก OKLCH สีเดียวต่อชุด (มุมสี ชมพู 355 ฟ้า 250 ม่วง 300 อำพัน 62)
+   พื้นเลน L 0.985 · ยอดเสียง L 0.83 C 0.075 · ความดังเฉลี่ย L 0.56 C 0.15 · สเปกตรัม 9 ขั้น L 0.24 ถึง 0.96 ---------- */
+const THEMES = {
+  "ชมพู": { lane:"#fff8fa", peak:"#f0b4ca", rms:"#b54879", dark:"#220f17", ramp:["#2e1720","#591b38","#841f51","#aa2f6b","#c84d85","#dd73a0","#e89eba","#ebcad5","#ffecf2"] },
+  "ฟ้า":   { lane:"#f7fafe", peak:"#a3ccf7", rms:"#1577c8", dark:"#091725", ramp:["#102031","#003763","#014f8a","#0068b5","#0b83de","#4fa0ee","#89bcf2","#c1d7ee","#e9f3fe"] },
+  "ม่วง":  { lane:"#fbf9ff", peak:"#cebdf2", rms:"#835cbe", dark:"#181224", ramp:["#221b2f","#3e275f","#5a348d","#7648b6","#9164d3","#a985e5","#c0aaeb","#d8cfeb","#f4efff"] },
+  // พีชแทนอำพัน (พี่กันทัก 7 พ.ย. 2569 ว่าแบบแท่งพื้นน้ำตาลไม่เข้ากับโปรแกรม · อำพันออกน้ำตาล เข้ากับชมพูไม่ได้)
+  "พีช":   { lane:"#fef9f7", peak:"#f4b7a7", rms:"#bc4c31", dark:"#24100b", ramp:["#301812","#5d1d0e","#8a2306","#b13412","#d05233","#e4785d","#eda28e","#edccc3","#ffede9"] },
+};
+const THEME_ORDER = ["ชมพู","ฟ้า","ม่วง","พีช"];
+/* สีรุ้งของกราฟความถี่ (พี่กันขอ 7 พ.ย. 2569 ส่งภาพแอปวัดเสียง) · น้ำเงินเข้ม → ฟ้า → เขียว → เหลือง → แดง → ชมพู
+   สกิล dataviz ไม่ให้ใช้สีรุ้งเป็นค่าตั้งต้น จึงเป็นตัวเลือก และมีแถบสเกล dB กำกับเสมอ */
+const RAINBOW = ["#00004d","#0000b4","#0046ff","#00aaff","#00e6d2","#64ff64","#e6f000","#ff9600","#ff1e1e","#ff46c8"];
+/* สีเทียบช่อง ซ้าย ขวา กลาง · 3 สีแรกของชุดสีตั้งต้นสกิล dataviz ผ่านตัวตรวจทุกคู่ · สีตามช่อง ไม่ตามลำดับ */
+const CMP = { FL:"#2a78d6", FR:"#eb6834", FC:"#1baf7a" };
+
+const LAY = {
+  "7.1": [["FL","ซ้ายหน้า"],["FR","ขวาหน้า"],["FC","กลาง · เสียงพูด"],["LFE","เสียงเบส"],["BL","ซ้ายหลัง"],["BR","ขวาหลัง"],["SL","ซ้ายข้าง"],["SR","ขวาข้าง"]],
+  "5.1": [["FL","ซ้ายหน้า"],["FR","ขวาหน้า"],["FC","กลาง · เสียงพูด"],["LFE","เสียงเบส"],["SL","ซ้ายเซอร์ราวด์"],["SR","ขวาเซอร์ราวด์"]],
+  "2.0": [["FL","ซ้าย"],["FR","ขวา"]],
+  "1.0": [["FC","เสียงเดียว"]],
+};
+const DISP = (lay, c) => lay === "2.0" ? ({ FL:"L", FR:"R" })[c] : lay === "1.0" ? "M" : c;
+const POS = {
+  "7.1": { FC:[100,24], FL:[48,38], FR:[152,38], LFE:[100,62], SL:[20,110], SR:[180,110], BL:[50,160], BR:[150,160] },
+  "5.1": { FC:[100,24], FL:[48,38], FR:[152,38], LFE:[100,62], SL:[28,146], SR:[172,146] },
+  "2.0": { FL:[52,38], FR:[148,38] },
+  "1.0": { FC:[100,31] },
+};
+
+/* ---------- เสียงสมมติ · คิดจากเวลา ภาพรวมกับภาพซูมจึงตรงกัน ---------- */
+function hash(i, s){ let x = Math.imul(i, 374761393) + Math.imul(s, 668265263) | 0; x = Math.imul(x ^ (x >>> 13), 1274126177); return ((x ^ (x >>> 16)) >>> 0) / 4294967296; }
+function vn(t, s){ const i = Math.floor(t), f = t - i, u = f * f * (3 - 2 * f); return hash(i, s) * (1 - u) + hash(i + 1, s) * u; }
+/* สุ่มแบบสองแกน (เวลา ความถี่) แยกกัน ไม่เกิดลายเฉียง */
+function vn2(x, y, s){ const i = Math.floor(x), j = Math.floor(y), fx = x - i, fy = y - j, ux = fx * fx * (3 - 2 * fx), uy = fy * fy * (3 - 2 * fy); const h = (a, b) => hash(Math.imul(a, 73856093) ^ Math.imul(b, 19349663), s); return (h(i, j) * (1 - ux) + h(i + 1, j) * ux) * (1 - uy) + (h(i, j + 1) * (1 - ux) + h(i + 1, j + 1) * ux) * uy; }
+const SEED = { FL:1, FR:2, FC:3, LFE:4, BL:5, BR:6, SL:7, SR:8 };
+const DROP = [7082, 7084]; // 1:58:02 เสียงเงียบหายไป 2 วินาที (ตรงกับผลตรวจในต้นแบบเดิม)
+function level(kind, ch, t){
+  const s = SEED[ch] || 3;
+  if (kind === "movie") {
+    if (t >= DROP[0] && t < DROP[1]) return 0.0012;
+    const scene = 0.45 + 0.35 * vn(t / 45, 90) + 0.2 * vn(t / 9, 91);
+    const act = Math.min(1, Math.max(0, (vn(t / 30, 92) - 0.56) * 3.2)) * (0.7 + 0.3 * vn(t / 2, 93));
+    if (ch === "FC") { const talk = vn(t / 4, 94) > 0.35 ? 1 : 0; const syl = 0.45 + 0.55 * Math.abs(Math.sin(t * 9 + vn(t, 95) * 6)); const gap = vn(t / 0.6, 96) > 0.3 ? 1 : 0.08; return 0.05 + talk * gap * syl * 0.6 * (1 - act * 0.4) + act * 0.24; }
+    if (ch === "LFE") return 0.015 + act * 0.85 * Math.pow(vn(t / 0.8, 97), 2);
+    if (ch === "FL" || ch === "FR") return 0.07 + 0.2 * scene + 0.6 * act * (0.8 + 0.2 * vn(t / 0.3, s * 7)) + 0.06 * vn(t / 0.15, s * 13);
+    return 0.035 + 0.1 * scene + 0.36 * act * vn(t / 0.9, s * 11) + 0.04 * vn(t / 0.2, s * 17);
+  }
+  if (kind === "stereo") { // แทร็กไทย 2.0 ของหนังเรื่องเดียวกัน · ช่องขวาเบากว่าช่วงหนึ่ง
+    if (t >= DROP[0] && t < DROP[1]) return 0.0012;
+    const base = level("movie", "FC", t) * 0.55 + level("movie", ch, t) * 0.6;
+    const tilt = ch === "FR" && t > 7020 && t < 7060 ? 0.45 : 1;
+    return base * tilt;
+  }
+  if (kind === "music") {
+    const sec = 0.32 + 0.33 * vn(t / 20, 70) + 0.15 * vn(t / 5, 71);
+    const beat = Math.pow(Math.max(0, Math.sin(Math.PI * 2 * t * 2.1)), 6) * 0.22;
+    const fade = Math.max(0, Math.min(1, t / 6, (252 - t) / 8));
+    return Math.max(0.002, (sec + beat + 0.08 * vn(t / 0.12, s * 5)) * fade * (ch === "FR" ? 0.96 : 1));
+  }
+  const talk = vn(t / 3, 80) > 0.3 ? 1 : 0.05; return 0.02 + talk * (0.4 + 0.6 * Math.abs(Math.sin(t * 8 + vn(t, 81) * 5))) * 0.6;
+}
+function env(kind, ch, t0, t1, n){
+  const mx = new Float32Array(n), mn = new Float32Array(n), rm = new Float32Array(n), K = 8;
+  for (let x = 0; x < n; x++) {
+    let a = 0, sum = 0, b = 0;
+    for (let k = 0; k < K; k++) {
+      const t = t0 + (t1 - t0) * (x + k / K) / n;
+      const v = Math.min(0.98, level(kind, ch, t) * (0.72 + 0.28 * hash(Math.floor(t * 40), SEED[ch] || 9)));
+      a = Math.max(a, v); sum += v * v;
+      b = Math.max(b, Math.min(0.98, v * (0.86 + 0.14 * hash(Math.floor(t * 37), 50 + (SEED[ch] || 9)))));
+    }
+    mx[x] = a; mn[x] = b; rm[x] = Math.sqrt(sum / K) * 0.62;
+  }
+  return { mx, mn, rm };
+}
+const dB = (v) => v <= 0.0015 ? "−∞" : ((20 * Math.log10(v)).toFixed(1)).replace("-", "−");
+function tfmt(t){ t = Math.max(0, Math.round(t)); const h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = t % 60; return h ? `${h}:${String(m).padStart(2,"0")}:${String(s).padStart(2,"0")}` : `${m}:${String(s).padStart(2,"0")}`; }
+
+/* ---------- วาด ---------- */
+function setup(cv){ const r = window.devicePixelRatio || 1, w = cv.clientWidth, h = cv.clientHeight; cv.width = Math.round(w * r); cv.height = Math.round(h * r); const g = cv.getContext("2d"); g.setTransform(r, 0, 0, r, 0, 0); return { g, w, h, r }; }
+function drawWave(cv, kind, ch, t0, t1, th){
+  const { g, w, h } = setup(cv); g.fillStyle = th.lane; g.fillRect(0, 0, w, h);
+  const e = env(kind, ch, t0, t1, w), mid = h / 2, A = h / 2 - 2;
+  g.fillStyle = "rgba(74,43,56,.07)"; g.fillRect(0, Math.round(mid), w, 1);
+  const band = (top, bot, col) => { g.fillStyle = col; g.beginPath(); g.moveTo(0, mid); for (let x = 0; x < w; x++) g.lineTo(x + 0.5, mid - top[x] * A); for (let x = w - 1; x >= 0; x--) g.lineTo(x + 0.5, mid + bot[x] * A); g.closePath(); g.fill(); };
+  band(e.mx, e.mn, th.peak); band(e.rm, e.rm, th.rms);
+  return e;
+}
+/* รูปคลื่นแบบแท่ง (พี่กันขอ 7 พ.ย. 2569 ส่งภาพแท่งมน) · แท่งกว้าง 3 px เว้น 3 px สูงตามยอดเสียง
+   พื้นสว่างโทนเดียวกับโปรแกรม แท่งไล่สีเข้มตรงกลางไปอ่อนที่ปลาย · รอบแรกทำพื้นมืดตามภาพตัวอย่าง พี่กันทักว่าไม่เข้ากับโปรแกรม */
+function drawBars(cv, kind, ch, t0, t1, th){
+  const { g, w, h } = setup(cv); g.fillStyle = th.lane; g.fillRect(0, 0, w, h);
+  const BW = 3, GAP = 3, n = Math.floor(w / (BW + GAP)), e = env(kind, ch, t0, t1, n), mid = h / 2;
+  const grad = g.createLinearGradient(0, 4, 0, h - 4); grad.addColorStop(0, th.peak); grad.addColorStop(0.5, th.rms); grad.addColorStop(1, th.peak);
+  g.fillStyle = grad;
+  for (let i = 0; i < n; i++) {
+    const bh = Math.max(BW, e.mx[i] * (h - 8)), x = i * (BW + GAP) + GAP / 2;
+    g.beginPath(); g.roundRect(x, mid - bh / 2, BW, bh, BW / 2); g.fill();
+  }
+  return e;
+}
+function rampColor(ramp, v){ const p = Math.max(0, Math.min(1, v)) * (ramp.length - 1), i = Math.min(ramp.length - 2, Math.floor(p)), f = p - i; const a = ramp[i], b = ramp[i + 1]; const c = (k) => Math.round(parseInt(a.slice(k, k + 2), 16) * (1 - f) + parseInt(b.slice(k, k + 2), 16) * f); return [c(1), c(3), c(5)]; }
+function shape(ch, lf, t){
+  if (ch === "LFE") return lf < 2.25 ? Math.exp(-(((lf - 1.75) / 0.24) ** 2)) : 0;
+  if (ch === "FC") return Math.exp(-(((lf - 2.8) / 0.45) ** 2)) * (0.72 + 0.28 * Math.abs(Math.sin(lf * 30 + t * 2))) + 0.08;
+  if (ch === "FL" || ch === "FR") return 0.95 * Math.exp(-(((lf - 2.2) / 0.85) ** 2)) + 0.22 * Math.max(0, 1 - (lf - 2.2) / 2.2) + 0.35 * Math.pow(Math.max(0, Math.sin(lf * 22)), 6) * vn(t / 6, 41);
+  return 0.5 * Math.exp(-(((lf - 3.4) / 0.6) ** 2)) + 0.14 * Math.exp(-(((lf - 2.2) / 0.5) ** 2));
+}
+function drawSpec(cv, kind, ch, t0, t1, th){
+  const { g, w, h, r } = setup(cv), W = cv.width, H = cv.height, img = g.createImageData(W, H);
+  const e = env(kind, ch, t0, t1, W);
+  for (let x = 0; x < W; x++) {
+    const t = t0 + (t1 - t0) * x / W, lv = e.rm[x] / 0.62;
+    for (let y = 0; y < H; y++) {
+      const lf = 1.3 + 3 * (1 - y / H); // 20 Hz ล่าง → 20 kHz บน
+      const cut = lf > 4.22 ? 0.05 : 1; // ไฟล์บีบอัดตัดเหนือ 16.5 kHz
+      const tv = 0.45 + 1.0 * vn2(t * 0.25, lf * 2.5, (SEED[ch] || 3) * 31); // ก้อนเสียงเปลี่ยนตามเวลาและความถี่
+      const v = lv * shape(ch, lf, t) * tv * cut * (0.85 + 0.3 * hash(x * 131 + y * 7, SEED[ch] || 3));
+      const d = v <= 0 ? 0 : Math.pow(Math.max(0, (20 * Math.log10(v) + 60) / 58), 1.4);
+      const [R, G, B] = rampColor(th.ramp, d), o = (y * W + x) * 4;
+      img.data[o] = R; img.data[o + 1] = G; img.data[o + 2] = B; img.data[o + 3] = 255;
+    }
+  }
+  g.setTransform(1, 0, 0, 1, 0, 0); g.putImageData(img, 0, 0); g.setTransform(r, 0, 0, r, 0, 0);
+  return e;
+}
+/* วิเคราะห์ความถี่ หน้าตาแบบโปรแกรม Spek (พี่กันขอ 7 พ.ย. 2569) · พื้นดำ แกนความถี่เป็น kHz เส้นตรง แถบสเกล 0 ถึง −120 dB
+   ใช้ดูคุณภาพไฟล์ เช่น FLAC ที่แปลงมาจาก MP3 เสียงจะหยุดเป็นเส้นตรงที่ราว 16 kHz */
+// จุดสี 13 จุด แคลร์คำนวณเองจากหลักเดียวกับชุดสี sox ของ Spek (แดงขึ้นก่อน เขียวตามทีหลัง น้ำเงินขึ้นช่วงต่ำแล้วกลับมาตอนท้ายจนเป็นขาว) · ขาวดำเหมือนชุด mono ของ Spek
+const HEAT = ["#000000","#000036","#180062","#4f007b","#81007e","#ae0068","#d20040","#ec000b","#fc5500","#ffb000","#ffec3e","#ffff9e","#ffffff"];
+const MONO = ["#000000","#ffffff"];
+// ขอบเท่ากับ Spek (ซ้าย 60 บน 60 ขวา 90 ล่าง 40) ปรับนิดหน่อยให้ตัวหนังสือไทยพอดี
+const SPK = { L: 62, R: 92, T: 58, B: 36 };
+function spekDb(kind, chans, t, f, cut){
+  let s = 0; for (const c of chans) { const v = level(kind, c, t); s += v * v; } const lv = Math.sqrt(s / chans.length);
+  if (lv <= 0.0015) return -118;
+  let d = 20 * Math.log10(lv) - 4 - 12.5 * Math.log2(Math.max(f, 60) / 300) * (f > 300 ? 1 : 0.15);
+  if (f > 18000) d -= (f - 18000) / 350;
+  d += 9 * (vn2(t * 0.35, f / 950, 77) - 0.5);
+  if (f > cut) d = -104 + 6 * vn2(t * 0.5, f / 2000, 78);
+  return d;
+}
+function drawSpek(cv, kind, chans, t0, t1, o){
+  const { g, w, h, r } = setup(cv); g.fillStyle = "#000"; g.fillRect(0, 0, w, h);
+  const { L, R, T, B } = SPK, PW = w - L - R, PH = h - T - B, W = Math.round(PW * r), H = Math.round(PH * r);
+  const img = g.createImageData(W, H);
+  for (let x = 0; x < W; x++) {
+    const t = t0 + (t1 - t0) * (x + 0.5) / W;
+    for (let y = 0; y < H; y++) {
+      const f = o.nyq * (1 - (y + 0.5) / H);
+      const d = spekDb(kind, chans, t, f, o.cut) + 5 * (hash(x * 977 + y * 31, 5) - 0.5);
+      const [Rr, Gg, Bb] = rampColor(o.ramp, (d + 120) / 120), k = (y * W + x) * 4;
+      img.data[k] = Rr; img.data[k + 1] = Gg; img.data[k + 2] = Bb; img.data[k + 3] = 255;
+    }
+  }
+  g.setTransform(1, 0, 0, 1, 0, 0); g.putImageData(img, Math.round(L * r), Math.round(T * r)); g.setTransform(r, 0, 0, r, 0, 0);
+  g.strokeStyle = "#fff"; g.lineWidth = 1; g.strokeRect(L - 0.5, T - 0.5, PW + 1, PH + 1);
+  // หัว ชื่อไฟล์ กับข้อมูลแทร็ก
+  g.textBaseline = "alphabetic"; g.textAlign = "left"; g.fillStyle = "#fff"; g.font = "700 13.5px Sarabun, sans-serif"; g.fillText(o.title, L, 22);
+  g.fillStyle = "#d8d8d8"; g.font = "12px Sarabun, sans-serif"; g.fillText(o.sub, L, 42);
+  g.textAlign = "right"; g.fillStyle = "#9a9a9a"; g.fillText("ชั้นหนัง", w - 12, 22);
+  // แกนความถี่
+  g.fillStyle = "#e6e6e6"; g.font = "11.5px Sarabun, sans-serif"; g.textBaseline = "middle";
+  const fs = o.nyq > 30000 ? 8000 : 2000;
+  for (let f = 0; f <= o.nyq + 1; f += fs) { const y = T + PH * (1 - f / o.nyq); g.fillRect(L - 5, Math.round(y), 5, 1); g.fillText(`${f / 1000} kHz`, L - 8, y); }
+  // แกนเวลา
+  g.textAlign = "center"; g.textBaseline = "top"; const span = t1 - t0, steps = [5, 10, 15, 30, 60, 120, 300, 600, 900, 1800]; const st = steps.find((s) => span / s <= 10) || 3600;
+  for (let t = Math.ceil(t0 / st) * st; t <= t1 + 0.01; t += st) { const x = L + (t - t0) / span * PW; g.fillRect(Math.round(x), T + PH, 1, 5); g.fillText(tfmt(t), x, T + PH + 8); }
+  // แถบสเกล dB
+  const bx = L + PW + 18, grad = g.createLinearGradient(0, T, 0, T + PH); o.ramp.slice().reverse().forEach((c, i, a) => grad.addColorStop(i / (a.length - 1), c));
+  g.fillStyle = grad; g.fillRect(bx, T, 12, PH); g.fillStyle = "#e6e6e6"; g.textAlign = "left"; g.textBaseline = "middle";
+  for (let d = 0; d >= -120; d -= 20) { const y = T + PH * (-d / 120); g.fillRect(bx + 12, Math.round(y), 4, 1); g.fillText(`${d === 0 ? "0" : "−" + -d} dB`, bx + 20, y); }
+}
+function loudAt(kind, chans, t){ let s = 0; for (const c of chans) { const v = level(kind, c, t); s += v * v * (c === "LFE" ? 0 : (c[0] === "S" || c[0] === "B") ? 1.41 : 1); } return s <= 1e-6 ? -70 : -0.691 + 10 * Math.log10(s) - 23; }
+/* ตัวเลขสรุปทั้งเรื่อง คิดจากข้อมูลชุดเดียวกับกราฟ ตัวเลขกับกราฟจึงตรงกัน */
+function summary(kind, chans, total){
+  const N = 2400, st = []; let e = 0, pk = 0;
+  for (let i = 0; i < N; i++) { const t = total * (i + 0.5) / N, l = loudAt(kind, chans, t); st.push(l); e += Math.pow(10, l / 10); for (const c of chans) pk = Math.max(pk, Math.min(0.98, level(kind, c, t))); }
+  const s = st.filter((v) => v > -60).sort((a, b) => a - b), q = (p) => s[Math.floor(p * (s.length - 1))];
+  const f = (v) => v.toFixed(1).replace("-", "−");
+  return { I: f(10 * Math.log10(e / N)), TP: f(20 * Math.log10(pk) + 0.3), LRA: Math.round(q(0.95) - q(0.1)) };
+}
+function axisY(g, w, h, pad, lo, hi, step, unit){
+  g.font = "11px Sarabun, sans-serif"; g.textAlign = "right"; g.textBaseline = "middle";
+  for (let v = hi; v >= lo; v -= step) { const y = pad + (hi - v) / (hi - lo) * (h - pad * 2); g.fillStyle = "#f3e2e9"; g.fillRect(40, Math.round(y), w - 40, 1); g.fillStyle = "#a88595"; g.fillText(String(v).replace("-", "−") + (v === hi ? " " + unit : ""), 36, y); }
+}
+function drawLoud(cv, kind, chans, t0, t1, th){
+  const { g, w, h } = setup(cv); g.fillStyle = "#fff"; g.fillRect(0, 0, w, h);
+  const pad = 12, lo = -60, hi = 0, Y = (v) => pad + (hi - Math.max(lo, Math.min(hi, v))) / (hi - lo) * (h - pad * 2), X0 = 44, PW = w - X0 - 4;
+  axisY(g, w, h, pad, lo, hi, 10, "LUFS");
+  const pts = []; const N = PW;
+  // เฉลี่ยพลังงานในแต่ละจุดภาพ เส้นจึงไม่หยักถี่ตอนดูทั้งเรื่อง
+  for (let x = 0; x < N; x++) { let e = 0; for (let k = 0; k < 8; k++) e += Math.pow(10, loudAt(kind, chans, t0 + (t1 - t0) * (x + k / 8) / N) / 10); pts.push(10 * Math.log10(e / 8)); }
+  g.fillStyle = th.peak; g.globalAlpha = 0.35; g.beginPath(); g.moveTo(X0, Y(lo)); pts.forEach((v, x) => g.lineTo(X0 + x, Y(v))); g.lineTo(X0 + N, Y(lo)); g.closePath(); g.fill(); g.globalAlpha = 1;
+  g.strokeStyle = th.rms; g.lineWidth = 2; g.lineJoin = "round"; g.beginPath(); pts.forEach((v, x) => x ? g.lineTo(X0 + x, Y(v)) : g.moveTo(X0, Y(v))); g.stroke();
+  g.fillStyle = "#8a6474"; g.fillRect(X0, Math.round(Y(-23)), N, 1);
+  g.font = "600 11.5px Sarabun, sans-serif"; g.textAlign = "right"; g.textBaseline = "bottom"; g.fillStyle = "#6b4a58"; g.fillText("อ้างอิง −23 LUFS", X0 + N - 4, Y(-23) - 3);
+  return { X0, N };
+}
+function drawOverlay(cv, kind, chans, t0, t1){
+  const { g, w, h } = setup(cv); g.fillStyle = "#fff"; g.fillRect(0, 0, w, h);
+  const pad = 12, lo = -48, hi = 0, X0 = 44, RW = 60, N = w - X0 - RW, Y = (v) => pad + (hi - Math.max(lo, Math.min(hi, v))) / (hi - lo) * (h - pad * 2);
+  axisY(g, w - RW, h, pad, lo, hi, 12, "dB");
+  const ends = [];
+  for (const c of chans) {
+    const e = env(kind, c, t0, t1, N); g.strokeStyle = CMP[c]; g.lineWidth = 2; g.lineJoin = "round"; g.beginPath();
+    // ความดังเฉลี่ยช่วง 3 วินาที อ่านง่ายกว่าค่าทุกจุดภาพ · จุดที่เงียบหายไม่เกลี่ย ยังเห็นเป็นร่องลึก
+    const win = Math.max(1, Math.round(N * 3 / (t1 - t0) / 2)), sm = new Float32Array(N);
+    for (let x = 0; x < N; x++) { if (e.rm[x] <= 0.0015) { sm[x] = e.rm[x]; continue; } let s = 0, n = 0; for (let k = -win; k <= win; k++) { const j = x + k; if (j < 0 || j >= N) continue; s += e.rm[j] * e.rm[j]; n++; } sm[x] = Math.sqrt(s / n); }
+    let last = 0; for (let x = 0; x < N; x++) { const v = sm[x] <= 0.0015 ? lo : 20 * Math.log10(sm[x] / 0.62); last = v; x ? g.lineTo(X0 + x, Y(v)) : g.moveTo(X0, Y(v)); } g.stroke();
+    ends.push([c, Y(last)]);
+  }
+  // ป้ายชื่อที่ปลายเส้น กันทับกัน
+  ends.sort((a, b) => a[1] - b[1]); for (let i = 1; i < ends.length; i++) if (ends[i][1] - ends[i - 1][1] < 15) ends[i][1] = ends[i - 1][1] + 15;
+  g.font = "600 12px Sarabun, sans-serif"; g.textAlign = "left"; g.textBaseline = "middle";
+  for (const [c, y] of ends) { g.fillStyle = CMP[c]; g.fillRect(X0 + N + 6, Math.round(y), 12, 2); g.fillStyle = "#4a2b38"; g.fillText(({ FL:"ซ้าย", FR:"ขวา", FC:"กลาง" })[c], X0 + N + 22, y); }
+  return { X0, N };
+}
+function drawOverview(cv, kind, chans, total, t0, t1, th){
+  const { g, w, h } = setup(cv); g.fillStyle = th.lane; g.fillRect(0, 0, w, h);
+  const all = chans.map((c) => env(kind, c, 0, total, w)), mid = h / 2;
+  g.fillStyle = th.peak; for (let x = 0; x < w; x++) { let m = 0; for (const e of all) m = Math.max(m, e.mx[x]); g.fillRect(x, mid - m * (mid - 2), 1, m * (mid - 2) * 2); }
+  g.fillStyle = th.rms; for (let x = 0; x < w; x++) { let m = 0; for (const e of all) m = Math.max(m, e.rm[x]); g.fillRect(x, mid - m * (mid - 2), 1, m * (mid - 2) * 2); }
+  if (t1 - t0 < total * 0.999) {
+    const a = t0 / total * w, b = t1 / total * w; g.fillStyle = "rgba(255,250,252,.72)"; g.fillRect(0, 0, a, h); g.fillRect(b, 0, w - b, h);
+    g.strokeStyle = "#d9719a"; g.lineWidth = 2; g.strokeRect(a + 1, 1, Math.max(4, b - a - 2), h - 2);
+  }
+}
+
+/* ---------- แผนผังลำโพง ---------- */
+function speakers(lay, th, levels, hidden, small){
+  const P = POS[lay], sz = small ? 0.8 : 1, VH = lay === "7.1" || lay === "5.1" ? 184 : lay === "2.0" ? 124 : 62, W = 200 * sz, H = VH * sz;
+  let s = `<svg class="spk" width="${W}" height="${H}" viewBox="0 0 200 ${VH}" role="img" aria-label="แผนผังลำโพง ${lay}">`;
+  // ที่นั่งฟัง วาดเป็นคนนั่ง หัวกับไหล่ ไม่ใช่วงกลมเปล่า (วงกลมเปล่าดูเหมือนวงหมุนรอโหลด)
+  const hy = lay === "7.1" || lay === "5.1" ? 108 : 84;
+  if (lay !== "1.0") s += `<circle cx="100" cy="${hy - 7}" r="7" fill="#f1bfd1"/><path d="M87 ${hy + 11} q13 -16 26 0 z" fill="#f1bfd1"/><text x="100" y="${hy + 26}" text-anchor="middle" font-size="10" fill="#b28a9a" font-family="Sarabun">ที่นั่งฟัง</text>`;
+  for (const [c] of LAY[lay]) {
+    const [x, y] = P[c], off = hidden.includes(c), a = off ? 0 : 0.25 + 0.75 * Math.min(1, (levels[c] || 0) * 1.6), d = DISP(lay, c);
+    const shape = c === "LFE" ? `<rect x="${x - 15}" y="${y - 11}" width="30" height="22" rx="6"` : `<circle cx="${x}" cy="${y}" r="15"`;
+    s += `<g class="s" data-ch="${c}" tabindex="0" role="button" aria-label="${off ? "แสดง" : "ซ่อน"}ช่อง ${d}"><title>${off ? "กดเพื่อแสดง" : "กดเพื่อซ่อน"}ช่อง ${d}</title>`;
+    s += `${shape} fill="${off ? "#fff" : th.rms}" fill-opacity="${off ? 1 : a.toFixed(2)}" stroke="${off ? "#e5b7c8" : th.rms}" stroke-width="1.5" ${off ? 'stroke-dasharray="3 3"' : ""}/>`;
+    s += `<text x="${x}" y="${y + 4}" text-anchor="middle" font-size="${d.length > 2 ? 9.5 : 11}" font-weight="700" font-family="Sarabun" fill="${off ? "#b28a9a" : a > 0.55 ? "#fff" : "#4a2b38"}">${d}</text></g>`;
+  }
+  return s + "</svg>";
+}
+
+/* ---------- ประกอบหน้า ---------- */
+const SIDE = (fileCount) => `
+  <div class="titlebar"><span>ชั้นหนัง</span><div class="ctl">
+    <span><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 5h10" stroke="#b07a90" stroke-width="1.2"/></svg></span>
+    <span><svg width="10" height="10" viewBox="0 0 10 10"><rect x=".6" y=".6" width="8.8" height="8.8" fill="none" stroke="#b07a90" stroke-width="1.2"/></svg></span>
+    <span><svg width="10" height="10" viewBox="0 0 10 10"><path d="M0 0l10 10M10 0L0 10" stroke="#b07a90" stroke-width="1.2"/></svg></span>
+  </div></div>`;
+const NAV = `<aside class="side">
+  <div class="brand"><svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="#e07a9f" stroke-width="2"><rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="18" rx="1"/><path d="M17.5 4.5l3.5 1-4 15.5-3.4-1"/></svg><span>ชั้นหนัง</span></div>
+  <button class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 20h18M5 20V6h4v14M11 20V4h4v16M17 20l2-12 3 .6-2 11.4"/></svg><span>ชั้นวางหนัง</span><span class="count">10</span></button>
+  <button class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 15l3-3 2 2 3-3 2 2"/><circle cx="9" cy="8" r="1.5"/></svg><span>ใส่โปสเตอร์</span></button>
+  <button class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/></svg><span>ตรวจไฟล์</span><span class="count">1</span></button>
+  <button class="nav on"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h2M7 7v10M11 4v16M15 8v8M19 10v4"/></svg><span>กราฟเสียง</span><span class="new">ใหม่</span></button>
+  <button class="nav"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/></svg><span>ตั้งค่า</span></button>
+  <div class="foot">โฟลเดอร์หนัง 1 โฟลเดอร์<br>ใช้พื้นที่รวม 38.4 GB</div>
+</aside>`;
+const ICON = {
+  wave: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 12h2M7 7v10M11 4v16M15 8v8M19 10v4"/></svg>',
+  spec: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 16v-3M11 16V9M15 16v-5M19 16v-2" /></svg>',
+  loud: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 18l5-6 4 3 4-8 5 5"/></svg>',
+  cmp: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 15c3-6 5-6 8 0s5 6 10-4"/><path d="M3 10c4 4 7 4 10-1s5-4 8 1" opacity=".55"/></svg>',
+  spek: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 17V9M10 17V6M13 17v-5M16 17V8"/><path d="M21 7h-2M21 12h-2M21 17h-2"/></svg>',
+};
+const VIEWS = [["wave","รูปคลื่น"],["spec","ความถี่"],["loud","ความดัง"],["cmp","ซ้อนเทียบ"],["spek","วิเคราะห์"]];
+const ZOOMS = [["all","ทั้งเรื่อง"],[600,"10 นาที"],[240,"4 นาที"],[30,"30 วินาที"]];
+const WARN_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></svg>';
+
+function mount(root, p){
+  const th = THEMES[p.theme], chans = LAY[p.lay].map((x) => x[0]);
+  const rainbow = p.cmap === "rainbow", specTh = rainbow ? { ...th, ramp: RAINBOW } : th;
+  const span = p.zoom === "all" ? p.total : p.zoom, t0 = Math.max(0, Math.min(p.total - span, p.center - span / 2)), t1 = t0 + span;
+  const vis = chans.filter((c) => !p.hidden.includes(c));
+  const levels = {}; for (const c of chans) { const e = env(p.kind, c, 0, p.total, 200); let s = 0; for (const v of e.rm) s += v; levels[c] = s / 200 / 0.62; }
+  const file = p.file;
+  // รหัสเสียง อัตราสุ่ม และความถี่สูงสุดที่มีเสียง · ไม่ระบุใช้ค่าปกติของรหัสเสียงนั้น
+  const codec = file["codec"] || file.info[0][1], rate = file["rate"] || 48000, bits = file.bits || 0,
+    cut = file["cut"] || ({ "E-AC-3": 20000, "AC-3": 20000, "AAC": 16500, "FLAC": 21500 })[codec] || 20000;
+  const thumb = file.audio
+    ? `<div class="fnote" style="background:${th.lane};color:${th.rms};border:1px solid ${th.peak}"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 18V5l11-2v13"/><circle cx="6" cy="18" r="3"/><circle cx="17" cy="16" r="3"/></svg></div>`
+    : `<div class="fthumb" style="background:${file.poster}"></div>`;
+  const viewSeg = VIEWS.map(([k, t]) => `<button class="${p.view === k ? "on" : ""}" data-view="${k}" ${k === "cmp" && !chans.includes("FL") ? 'disabled title="ซ้อนเทียบใช้กับแทร็กที่มีช่องซ้ายขวา"' : ""}>${ICON[k]}${t}</button>`).join("");
+  const sw = THEME_ORDER.map((n) => `<button class="sw ${p.theme === n ? "on" : ""}" data-theme="${n}" aria-label="ชุดสี${n}" title="ชุดสี${n}" style="background:linear-gradient(135deg,${THEMES[n].ramp[2]},${THEMES[n].ramp[5]} 60%,${THEMES[n].ramp[7]})"></button>`).join("");
+  const zoomSeg = ZOOMS.map(([k, t]) => `<button class="${p.zoom === k ? "on" : ""}" data-zoom="${k}">${t}</button>`).join("");
+  const zoomBox = `<span style="display:flex;align-items:center;gap:8px"><span class="lbl">ซูม</span><div class="seg sm">${zoomSeg}</div></span>`;
+  const hasCheck = p.check && !file.audio;
+  const lanesView = p.view === "wave" || p.view === "spec";
+  const laneH = p.view === "spec" ? (chans.length > 6 ? 46 : 58) : (chans.length > 6 ? 46 : chans.length > 2 ? 56 : 92);
+  const lanes = lanesView ? chans.map(([c], i) => "").join("") : "";
+
+  let plot = "";
+  if (lanesView) {
+    plot = `<div class="plot" data-plot>
+      <div class="plothead"><span><b>${p.view === "wave" ? "รูปคลื่นทุกช่อง" : "ความถี่ทุกช่อง"}</b> · ${tfmt(t0)} ถึง ${tfmt(t1)}</span>${zoomBox}</div>
+      <div class="ovw"><canvas data-ovw></canvas></div>
+      <div class="ovrul"><span>0:00</span><span style="left:50%">ทั้งเรื่อง ${tfmt(p.total)}</span><span style="left:100%">${tfmt(p.total)}</span></div>
+      <div class="ruler" data-ruler></div>
+      <div class="lanes" data-lanes style="margin-top:${hasCheck ? 28 : 6}px">
+        ${chans.map((c) => { const lab = LAY[p.lay].find((x) => x[0] === c)[1], off = p.hidden.includes(c); return off ? "" : `<div class="lane" data-lane="${c}"><div class="lab"><b>${DISP(p.lay, c)}</b><span>${lab}</span><em data-pk="${c}"></em></div><canvas class="cv" style="height:${laneH}px" data-cv="${c}"></canvas></div>`; }).join("")}
+      </div>
+      <div class="agfoot">
+        ${p.view === "wave"
+          ? `<div class="lg">${p.style === "bars" ? `<span><svg width="22" height="14" viewBox="0 0 22 14" style="vertical-align:-2px;margin-right:5px"><rect width="22" height="14" rx="3" fill="${th.lane}" stroke="${th.peak}"/><rect x="4" y="5" width="2" height="4" rx="1" fill="${th.rms}"/><rect x="8" y="2" width="2" height="10" rx="1" fill="${th.rms}"/><rect x="12" y="4" width="2" height="6" rx="1" fill="${th.rms}"/><rect x="16" y="3" width="2" height="8" rx="1" fill="${th.rms}"/></svg>ความสูงแท่ง คือยอดเสียงช่วงนั้น</span>` : `<span><i style="background:${th.peak}"></i>ยอดเสียง</span><span><i style="background:${th.rms}"></i>ความดังเฉลี่ย</span>`}${hasCheck ? `<span style="color:#b03535"><i style="background:rgba(208,59,59,.25);border:1px solid rgba(208,59,59,.75)"></i>จุดเสียจากผลตรวจ</span>` : ""}</div>`
+          : `<div class="speclegend"><span class="nw">−60 dB</span><span class="rampbar" style="background:linear-gradient(90deg,${specTh.ramp.join(",")})"></span><span class="nw">0 dB</span><span style="margin-left:10px">แกนตั้ง 20 Hz ล่าง ถึง 20 kHz บน</span></div>`}
+        <div style="display:flex;gap:8px">${file.audio ? "" : `<button class="btn btn-ghost btn-sm" data-play>เปิดเล่นที่ ${tfmt(p.tip)}</button>`}<button class="btn btn-ghost btn-sm">บันทึกเป็นรูป</button></div>
+      </div>
+    </div>`;
+  } else if (p.view === "spek") {
+    const chOpts = [["mix", "รวมทุกช่อง"], ...chans.map((c) => [c, DISP(p.lay, c)])];
+    const chSel = chans.length <= 2
+      ? `<div class="seg sm">${chOpts.map(([k, t]) => `<button class="${(p.spekCh || "mix") === k ? "on" : ""}" data-spekch="${k}">${t}</button>`).join("")}</div>`
+      : `<button class="dd" style="height:30px;font-size:13px"><span>ช่อง ${(p.spekCh || "mix") === "mix" ? "รวมทุกช่อง" : DISP(p.lay, p.spekCh)}</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg></button>`;
+    const codecOK = { "FLAC": [19500, "FLAC ของจริงมีเสียงถึงราว 20–22 kHz"], "E-AC-3": [19000, "ปกติของ E-AC-3 คุณภาพดี"], "AC-3": [19000, "ปกติของ AC-3 448 kb/s"], "AAC": [15500, "ปกติของ AAC 192 kb/s"] }[codec] || [19000, ""];
+    const fake = cut < codecOK[0];
+    plot = `<div class="plot" data-plot>
+      <div class="plothead"><span style="display:flex;align-items:center;gap:8px"><b>วิเคราะห์ความถี่</b>${chSel}</span>${zoomBox}</div>
+      <div style="position:relative" data-spekbox><canvas class="cv" style="height:430px;border-radius:8px" data-spek></canvas></div>
+      ${fake
+        ? `<div class="stat warn" style="margin-top:10px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></svg><div><b>เป็นไฟล์ ${codec} แต่เสียงหยุดที่ราว ${(cut / 1000).toFixed(1)} kHz</b>${codecOK[1]} · ไฟล์นี้น่าจะแปลงมาจาก MP3 หรือ AAC คุณภาพไม่ได้ดีกว่าไฟล์ต้นทาง ดูได้จากขอบบนที่ตัดเป็นเส้นตรง</div></div>`
+        : `<div class="stat info" style="margin-top:10px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg><div><b>เสียงสูงสุดราว ${(cut / 1000).toFixed(1)} kHz</b>${codecOK[1]}</div></div>`}
+      <div class="agfoot"><div class="seg sm">${[["heat", "สีความร้อน"], ["rainbow", "สีรุ้ง"], ["mono", "ขาวดำ"], ["theme", "สีตามชุด"]].map(([k, t]) => `<button class="${(p.scmap || "heat") === k ? "on" : ""}" data-scmap="${k}">${t}</button>`).join("")}</div><div style="display:flex;gap:8px">${file.audio ? "" : `<button class="btn btn-ghost btn-sm" data-play>เปิดเล่นที่ ${tfmt(p.tip)}</button>`}<button class="btn btn-ghost btn-sm">บันทึกเป็นรูป</button></div></div>
+    </div>`;
+  } else if (p.view === "loud") {
+    const S = summary(p.kind, chans, p.total), L = [S.I, S.TP, S.LRA];
+    plot = `<div class="plot" data-plot>
+      <div class="tiles">
+        <div class="tile"><span>ความดังรวม</span><b>${L[0]} LUFS</b><em>ทั้งเรื่อง ตามมาตรฐาน EBU R128</em></div>
+        <div class="tile"><span>ยอดเสียงสูงสุด</span><b>${L[1]} dBTP</b><em>ไม่ถึง 0 · ไม่มีเสียงแตก</em></div>
+        <div class="tile"><span>ช่วงความดัง</span><b>${L[2]} LU</b><em>ห่างระหว่างช่วงเบากับช่วงดัง</em></div>
+        <div class="tile"><span>ช่วงเงียบผิดปกติ</span><b>${hasCheck ? "1 ช่วง" : "ไม่พบ"}</b><em>${hasCheck ? "ที่ 1:58:02 นาน 2 วินาที" : "เงียบทุกช่องเกิน 1 วินาที"}</em></div>
+      </div>
+      <div class="plothead"><span><b>ความดังตลอดเรื่อง</b> · ${tfmt(t0)} ถึง ${tfmt(t1)}</span>${zoomBox}</div>
+      <div style="position:relative" data-loudbox><canvas class="cv" style="height:200px" data-loud></canvas></div>
+      <div class="ruler" data-ruler style="margin-left:44px"></div>
+      <div class="sub">ยอดเสียงแต่ละช่อง</div>
+      <div class="pbars" data-pbars></div>
+      <div class="agfoot"><div class="lg"><span><i style="background:${th.peak}"></i>ความดังทุก 3 วินาที</span><span><span class="ln" style="background:${th.rms}"></span>เส้นความดัง</span><span><span class="ln" style="background:#8a6474"></span>เส้นอ้างอิง</span></div>
+      <div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" data-table>ดูเป็นตาราง</button><button class="btn btn-ghost btn-sm">บันทึกเป็นรูป</button></div></div>
+      <div data-tablebox></div>
+    </div>`;
+  } else {
+    const cc = ["FL", "FR", "FC"].filter((c) => chans.includes(c));
+    plot = `<div class="plot" data-plot>
+      <div class="plothead"><span><b>ซ้อนเทียบความดังเฉลี่ย</b> · ${tfmt(t0)} ถึง ${tfmt(t1)}</span>${zoomBox}</div>
+      <div style="position:relative" data-cmpbox><canvas class="cv" style="height:250px" data-cmp></canvas></div>
+      <div class="ruler" data-ruler style="margin-left:44px;margin-right:60px"></div>
+      <div class="stat info" style="margin-top:10px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg><div><b>ช่องขวาเบากว่าช่องซ้ายราว 7 dB ช่วง 1:57:00 ถึง 1:57:40</b>ถ้าตั้งใจให้เสียงอยู่ซ้าย (เช่นตัวละครยืนซ้ายจอ) ถือว่าปกติ ถ้าทั้งเรื่องเป็นแบบนี้ ช่องขวาอาจเสีย</div></div>
+      <div class="agfoot"><div class="lg">${cc.map((c) => `<span><span class="ln" style="background:${CMP[c]}"></span>${DISP(p.lay, c)} ${({ FL:"ซ้าย", FR:"ขวา", FC:"กลาง" })[c]}</span>`).join("")}<span class="small">ซ้อนได้ไม่เกิน 3 ช่อง</span></div><div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" data-play>เปิดเล่นที่ ${tfmt(p.tip)}</button><button class="btn btn-ghost btn-sm">บันทึกเป็นรูป</button></div></div>
+    </div>`;
+  }
+
+  root.innerHTML = SIDE() + `<div class="body">${NAV}<div class="main"><div class="ag">
+    <div class="agtop">
+      <div class="fchip">${thumb}<div style="min-width:0"><div class="nm">${file.name}<span class="ext">${file.ext}</span></div><div class="meta">${file.meta}</div></div></div>
+      ${file.tracks ? `<button class="dd" style="width:250px"><span>${file.tracks}</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg></button>` : ""}
+      <button class="btn btn-ghost"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>เปิดไฟล์อื่น</button>
+    </div>
+    <div class="agctl">
+      <div class="seg">${viewSeg}</div>
+      ${p.view === "wave" ? `<div class="seg sm">${[["fine", "เส้นละเอียด"], ["bars", "แท่ง"]].map(([k, t]) => `<button class="${(p.style || "fine") === k ? "on" : ""}" data-style="${k}">${t}</button>`).join("")}</div>` : ""}
+      ${p.view === "spec" ? `<div class="seg sm">${[["theme", "สีตามชุด"], ["rainbow", "สีรุ้ง"]].map(([k, t]) => `<button class="${(p.cmap || "theme") === k ? "on" : ""}" data-cmap="${k}">${t}</button>`).join("")}</div>` : ""}
+      <span class="lbl" style="margin-left:auto">ชุดสี</span><div class="sws">${sw}</div><span class="swname">${p.theme}</span>
+    </div>
+    <div class="agb">
+      <div class="apanel">
+        <div class="card"><h3><span>ช่องเสียง ${p.lay}</span><span class="small" style="color:var(--txt3)">${p.hidden.length ? `แสดง ${vis.length} จาก ${chans.length} ช่อง` : `${chans.length} ช่อง`}</span></h3>${speakers(p.lay, th, levels, p.hidden)}<div class="small" style="text-align:center;margin-top:4px">${chans.length > 1 ? "กดลำโพงเพื่อซ่อนหรือแสดงช่องนั้น" : "ไฟล์นี้มีเสียงช่องเดียว"}</div></div>
+        <div class="card"><h3>ข้อมูลเสียง</h3><dl class="kv">${file.info.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl></div>
+        ${hasCheck ? `<div class="stat warn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></svg><div><b>ผลตรวจล่าสุด</b><span class="nw">เสียงเงียบหายไป 2 วินาที</span> <span class="nw">ที่ 1:58:02</span><br><span class="nw" style="opacity:.8">ตรวจละเอียด 6 พ.ย. 2569</span><div style="margin-top:6px"><button class="btn btn-ghost btn-sm" data-goto>ซูมไปที่ 1:58:02</button></div></div></div>` : ""}
+      </div>
+      ${plot}
+    </div>
+  </div></div></div>`;
+
+  // วาด
+  const plotEl = root.querySelector("[data-plot]");
+  const ruler = root.querySelector("[data-ruler]");
+  if (ruler) { const W = ruler.clientWidth; const steps = [5, 10, 15, 30, 60, 120, 300, 600, 900, 1800]; const step = steps.find((s) => span / s <= 9) || 3600; let html = ""; for (let t = Math.ceil(t0 / step) * step; t <= t1; t += step) { const x = (t - t0) / span * W; if (x < 14 || x > W - 14) continue; html += `<i style="left:${x}px"></i><span style="left:${x}px">${tfmt(t)}</span>`; } ruler.innerHTML = html; }
+  const ov = root.querySelector("[data-ovw]"); if (ov) drawOverview(ov, p.kind, chans, p.total, t0, t1, th);
+  const data = {};
+  root.querySelectorAll("[data-cv]").forEach((cv) => { const c = cv.dataset.cv; data[c] = p.view === "spec" ? drawSpec(cv, p.kind, c, t0, t1, specTh) : p.style === "bars" ? drawBars(cv, p.kind, c, t0, t1, th) : drawWave(cv, p.kind, c, t0, t1, th); let m = 0; for (const v of data[c].mx) m = Math.max(m, v); const pk = root.querySelector(`[data-pk="${c}"]`); if (pk) pk.textContent = "ยอด " + dB(m) + " dB"; });
+  const lc = root.querySelector("[data-loud]"); if (lc) drawLoud(lc, p.kind, chans, t0, t1, th);
+  const sk = root.querySelector("[data-spek]");
+  const spekChans = (p.spekCh || "mix") === "mix" ? chans.filter((c) => c !== "LFE") : [p.spekCh];
+  const spekRamp = { heat: HEAT, rainbow: RAINBOW, mono: MONO, theme: th.ramp }[p.scmap || "heat"];
+  if (sk) drawSpek(sk, p.kind, spekChans, t0, t1, { nyq: rate / 2, cut: cut, ramp: spekRamp, title: file.name + file.ext,
+    // ข้อมูลแทร็กเป็นภาษาอังกฤษทั้งบรรทัด (พี่กันสั่ง 7 พ.ย. 2569 "ภาษาอังกฤษให้หมด")
+    sub: `${codec} · ${rate.toLocaleString("en-US")} Hz${bits ? " · " + bits + "-bit" : ""} · ${(p.spekCh || "mix") === "mix" ? spekChans.length + " channels mixed" : "channel " + DISP(p.lay, p.spekCh)}` });
+  const cc = root.querySelector("[data-cmp]"); if (cc) drawOverlay(cc, p.kind, ["FL", "FR", "FC"].filter((c) => chans.includes(c)), t0, t1);
+  const pb = root.querySelector("[data-pbars]");
+  if (pb) { let h = ""; for (const [c, lab] of LAY[p.lay]) { const e = env(p.kind, c, 0, p.total, 400); let m = 0; for (const v of e.mx) m = Math.max(m, v); const d = 20 * Math.log10(m), w = Math.max(2, (d + 48) / 48 * 100); h += `<div class="small" style="color:var(--txt2)"><b style="color:var(--txt)">${DISP(p.lay, c)}</b> ${lab}</div><div class="bt"><i style="width:${w}%;background:${th.rms}"></i></div><div class="v">${dB(m)} dB</div>`; } pb.innerHTML = h; }
+
+  // แถบจุดเสียจากผลตรวจ · ทุกแบบที่มีแกนเวลา
+  const lanesEl = root.querySelector("[data-lanes]");
+  const markBox = lanesEl || root.querySelector("[data-loudbox]") || root.querySelector("[data-cmpbox]");
+  if (markBox && hasCheck && DROP[1] > t0 && DROP[0] < t1) {
+    const L0 = lanesEl ? 96 : 44, R0 = root.querySelector("[data-cmpbox]") ? 60 : (lanesEl ? 0 : 4);
+    const W = markBox.clientWidth - L0 - R0, a = Math.max(0, (DROP[0] - t0) / span * W), b = Math.min(W, (DROP[1] - t0) / span * W);
+    const m = document.createElement("div"); m.className = "mark"; m.style.left = L0 + a + "px"; m.style.width = Math.max(3, b - a) + "px";
+    if (!lanesEl) { m.style.top = "8px"; m.style.bottom = "8px"; }
+    // แบบที่ไม่มีแถบเลน ป้ายอยู่ข้างแถบ ใกล้ขอบขวาย้ายไปฝั่งซ้าย ไม่ล้นกรอบ
+    const side = lanesEl ? "" : (L0 + a > markBox.clientWidth * 0.6 ? "top:0;left:auto;right:calc(100% + 6px);transform:none" : "top:0;left:calc(100% + 6px);transform:none");
+    m.innerHTML = `<span class="ml" style="${side}">${WARN_ICON}เสียงเงียบหายไป 2 วินาที · ผลตรวจ</span>`; markBox.appendChild(m);
+  }
+
+  // เส้นชี้เวลา + กล่องค่าทุกช่อง (ชี้ได้จริง · ไม่ชี้แสดงที่เวลาตั้งต้น)
+  // วิเคราะห์ความถี่ ชี้แล้วบอกเวลา ความถี่ และความดังตรงจุดนั้น
+  const sbox = root.querySelector("[data-spekbox]");
+  if (sbox) {
+    const xh = document.createElement("div"); xh.className = "xh"; xh.style.background = "#fff"; xh.style.opacity = ".7";
+    const yh = document.createElement("div"); yh.style.cssText = "position:absolute;height:1px;background:#fff;opacity:.7;pointer-events:none";
+    const tip = document.createElement("div"); tip.className = "tip"; sbox.append(xh, yh, tip);
+    const showAt = (px, py) => {
+      const { L, R, T, B } = SPK, PW = sbox.clientWidth - L - R, PH = sbox.clientHeight - T - B;
+      const x = Math.min(PW, Math.max(0, px - L)), y = Math.min(PH, Math.max(0, py - T)), t = t0 + x / PW * span, f = rate / 2 * (1 - y / PH);
+      xh.style.left = L + x + "px"; xh.style.top = T + "px"; xh.style.bottom = B + "px"; yh.style.top = T + y + "px"; yh.style.left = L + "px"; yh.style.width = PW + "px";
+      tip.replaceChildren(); const hd = document.createElement("div"); hd.className = "t"; hd.textContent = tfmt(t); tip.appendChild(hd);
+      const grid = document.createElement("div"); grid.className = "r";
+      for (const [k, v] of [["ความถี่", (f / 1000).toFixed(1) + " kHz"], ["ความดัง", Math.round(spekDb(p.kind, spekChans, t, f, cut)).toString().replace("-", "−") + " dB"]]) { const b = document.createElement("b"); b.textContent = v; const s = document.createElement("span"); s.textContent = k; grid.append(b, s); }
+      tip.appendChild(grid); const tw = tip.offsetWidth; tip.style.left = (L + x + 12 + tw > sbox.clientWidth - R ? L + x - 12 - tw : L + x + 12) + "px"; tip.style.top = Math.max(T, T + y - 60) + "px";
+    };
+    const { L: l0, R: r0, T: tt, B: bb } = SPK; const PW0 = sbox.clientWidth - l0 - r0, PH0 = sbox.clientHeight - tt - bb;
+    const sx = l0 + (p.tip - t0) / span * PW0, sy = tt + PH0 * (1 - 8000 / (rate / 2));
+    showAt(sx, sy);
+    sbox.addEventListener("pointermove", (e) => { const rr = sbox.getBoundingClientRect(); showAt(e.clientX - rr.left, e.clientY - rr.top); });
+    sbox.addEventListener("pointerleave", () => showAt(sx, sy));
+  }
+  const box = lanesEl || root.querySelector("[data-loudbox]") || root.querySelector("[data-cmpbox]");
+  if (box) {
+    const left = lanesEl ? 96 : 44, right = root.querySelector("[data-cmpbox]") ? 60 : 4;
+    const xh = document.createElement("div"); xh.className = "xh"; const tip = document.createElement("div"); tip.className = "tip"; box.appendChild(xh); box.appendChild(tip);
+    if (!lanesEl) tip.style.top = "34px"; // ไม่บังป้ายจุดเสียที่อยู่บนสุดของกราฟ
+    const show = (t) => {
+      const W = box.clientWidth - left - right, x = left + (t - t0) / span * W; xh.style.left = x + "px";
+      tip.replaceChildren(); const hd = document.createElement("div"); hd.className = "t"; hd.textContent = tfmt(t); tip.appendChild(hd);
+      const grid = document.createElement("div"); grid.className = "r";
+      const rows = p.view === "loud" ? [["ความดัง", loudAt(p.kind, chans, t).toFixed(1).replace("-", "−") + " LUFS"]] : (p.view === "cmp" ? ["FL", "FR", "FC"].filter((c) => chans.includes(c)) : vis).map((c) => [c, dB(level(p.kind, c, t)) + " dB"]);
+      for (const [c, v] of rows) { const b = document.createElement("b"); b.textContent = v; const s = document.createElement("span"); if (p.view === "cmp") { const k = document.createElement("i"); k.className = "key"; k.style.background = CMP[c]; s.appendChild(k); } s.appendChild(document.createTextNode(c === "ความดัง" ? "ทุกช่องรวม" : DISP(p.lay, c) + " " + LAY[p.lay].find((x) => x[0] === c)[1])); grid.appendChild(b); grid.appendChild(s); }
+      tip.appendChild(grid);
+      const tw = tip.offsetWidth; tip.style.left = (x + 12 + tw > box.clientWidth ? x - 12 - tw : x + 12) + "px";
+    };
+    show(p.tip);
+    box.addEventListener("pointermove", (ev) => { const r = box.getBoundingClientRect(), W = r.width - left - right, x = ev.clientX - r.left - left; if (x < 0 || x > W) return; show(t0 + x / W * span); });
+    box.addEventListener("pointerleave", () => show(p.tip));
+  }
+
+  // ตาราง
+  const tb = root.querySelector("[data-table]");
+  if (tb) tb.addEventListener("click", () => { const host = root.querySelector("[data-tablebox]"); if (host.childElementCount) { host.replaceChildren(); tb.textContent = "ดูเป็นตาราง"; return; } tb.textContent = "ซ่อนตาราง";
+    let h = `<table class="fmt" style="margin-top:10px"><thead><tr><th>ช่อง</th><th class="num">ยอดเสียง</th><th class="num">ความดังเฉลี่ย</th><th class="num">เงียบนานสุด</th><th class="num">เสียงแตก</th></tr></thead><tbody>`;
+    for (const [c, lab] of LAY[p.lay]) { const e = env(p.kind, c, 0, p.total, 400); let m = 0, s = 0; for (let i = 0; i < 400; i++) { m = Math.max(m, e.mx[i]); s += e.rm[i]; } h += `<tr><td><b>${DISP(p.lay, c)}</b> ${lab}</td><td class="num">${dB(m)} dB</td><td class="num">${dB(s / 400 / 0.62 * 0.7)} dB</td><td class="num">${hasCheck ? "2 วินาที" : "—"}</td><td class="num">ไม่พบ</td></tr>`; }
+    host.innerHTML = h + "</tbody></table>"; });
+
+  // ปุ่มบนหน้า (เฉพาะกรอบที่กดได้)
+  if (p.live) {
+    root.querySelectorAll("[data-view]").forEach((b) => b.addEventListener("click", () => { if (b.disabled) return; p.view = b.dataset.view; mount(root, p); }));
+    root.querySelectorAll("[data-theme]").forEach((b) => b.addEventListener("click", () => { p.theme = b.dataset.theme; mount(root, p); }));
+    root.querySelectorAll("[data-style]").forEach((b) => b.addEventListener("click", () => { p.style = b.dataset.style; mount(root, p); }));
+    root.querySelectorAll("[data-cmap]").forEach((b) => b.addEventListener("click", () => { p.cmap = b.dataset.cmap; mount(root, p); }));
+    root.querySelectorAll("[data-scmap]").forEach((b) => b.addEventListener("click", () => { p.scmap = b.dataset.scmap; mount(root, p); }));
+    root.querySelectorAll("[data-spekch]").forEach((b) => b.addEventListener("click", () => { p.spekCh = b.dataset.spekch; mount(root, p); }));
+    root.querySelectorAll("[data-zoom]").forEach((b) => b.addEventListener("click", () => { const z = b.dataset.zoom; p.zoom = z === "all" ? "all" : Number(z); mount(root, p); }));
+    root.querySelectorAll(".spk .s").forEach((g) => { const go = () => { const c = g.dataset.ch; if (chans.length < 2) return; p.hidden = p.hidden.includes(c) ? p.hidden.filter((x) => x !== c) : (vis.length > 1 ? [...p.hidden, c] : p.hidden); mount(root, p); }; g.addEventListener("click", go); g.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } }); });
+    const gt = root.querySelector("[data-goto]"); if (gt) gt.addEventListener("click", () => { p.center = 7083; p.zoom = 30; p.tip = 7082; if (p.view !== "wave" && p.view !== "spec") p.view = "wave"; mount(root, p); });
+    if (ov) ov.parentElement.addEventListener("click", (ev) => { const r = ov.getBoundingClientRect(); p.center = (ev.clientX - r.left) / r.width * p.total; if (p.zoom === "all") p.zoom = 240; p.tip = p.center; mount(root, p); });
+  }
+}
+
+const MOVIE = { name:"Iron Tide (2024)", ext:".mkv", poster:"linear-gradient(160deg,#5d6f9e,#2c3459)", rate:48000 };
+const PRESETS = {
+  main: { live:true, kind:"movie", lay:"7.1", view:"wave", theme:"ชมพู", total:8460, zoom:240, center:7080, tip:7070, hidden:[], check:true,
+    file:{ ...MOVIE, meta:"5.08 GB · ยาว 2:21:00", tracks:"เสียง 2 · อังกฤษ · E-AC-3 · 7.1", info:[["รหัสเสียง","E-AC-3"],["ช่องเสียง","7.1 · 8 channels"],["อัตราสุ่ม","48 kHz"],["บิตเรต","1,024 kb/s"],["ภาษา","อังกฤษ"]] } },
+  spec: { kind:"movie", lay:"5.1", view:"spec", theme:"ม่วง", total:8460, zoom:240, center:7080, tip:7064, hidden:[], check:true,
+    file:{ ...MOVIE, meta:"5.08 GB · ยาว 2:21:00", tracks:"เสียง 1 · ไทย · AC-3 · 5.1", info:[["รหัสเสียง","AC-3"],["ช่องเสียง","5.1 · 6 channels"],["อัตราสุ่ม","48 kHz"],["บิตเรต","448 kb/s"],["ภาษา","ไทย"]] } },
+  rainbow: { kind:"movie", lay:"5.1", view:"spec", cmap:"rainbow", theme:"ฟ้า", total:8460, zoom:240, center:7080, tip:7064, hidden:[], check:true,
+    file:{ ...MOVIE, meta:"5.08 GB · ยาว 2:21:00", tracks:"เสียง 1 · ไทย · AC-3 · 5.1", info:[["รหัสเสียง","AC-3"],["ช่องเสียง","5.1 · 6 channels"],["อัตราสุ่ม","48 kHz"],["บิตเรต","448 kb/s"],["ภาษา","ไทย"]] } },
+  loud: { kind:"movie", lay:"7.1", view:"loud", theme:"ฟ้า", total:8460, zoom:"all", center:4230, tip:2700, hidden:[], check:true,
+    file:{ ...MOVIE, meta:"5.08 GB · ยาว 2:21:00", tracks:"เสียง 2 · อังกฤษ · E-AC-3 · 7.1", info:[["รหัสเสียง","E-AC-3"],["ช่องเสียง","7.1 · 8 channels"],["อัตราสุ่ม","48 kHz"],["บิตเรต","1,024 kb/s"],["ภาษา","อังกฤษ"]] } },
+  overlay: { kind:"stereo", lay:"2.0", view:"cmp", theme:"ชมพู", total:8460, zoom:240, center:7070, tip:7040, hidden:[], check:true,
+    file:{ ...MOVIE, meta:"5.08 GB · ยาว 2:21:00", tracks:"เสียง 3 · ไทย · AAC · 2.0", info:[["รหัสเสียง","AAC"],["ช่องเสียง","2.0 · 2 channels"],["อัตราสุ่ม","48 kHz"],["บิตเรต","192 kb/s"],["ภาษา","ไทย"]] } },
+  spek: { kind:"music", lay:"2.0", view:"spek", theme:"ชมพู", total:252, zoom:"all", center:126, tip:150, hidden:[], check:false,
+    file:{ name:"เพลงประกอบ ตอนจบ", ext:".flac", audio:true, rate:44100, bits:16, cut:16000, meta:"ไฟล์เสียง · 27.4 MB · ยาว 4:12 · ไม่ได้อยู่บนชั้นวาง", tracks:"", info:[["รหัสเสียง","FLAC"],["ช่องเสียง","2.0 · 2 channels"],["อัตราสุ่ม","44.1 kHz"],["ความละเอียด","16-bit"],["บิตเรต","870 kb/s"]] } },
+  music: { kind:"music", lay:"2.0", view:"wave", style:"bars", theme:"ชมพู", total:252, zoom:"all", center:126, tip:96, hidden:[], check:false,
+    file:{ name:"บันทึกการแสดงสด ช่วงที่ 3", ext:".flac", audio:true, rate:96000, bits:24, meta:"ไฟล์เสียง · 58.2 MB · ยาว 4:12 · ไม่ได้อยู่บนชั้นวาง", tracks:"", info:[["รหัสเสียง","FLAC"],["ช่องเสียง","2.0 · 2 channels"],["อัตราสุ่ม","96 kHz"],["ความละเอียด","24-bit"],["บิตเรต","1,848 kb/s"]] } },
+};
+
+function render(){
+  document.querySelectorAll("[data-win]").forEach((el) => mount(el, PRESETS[el.dataset.win]));
+  // ช่องเสียงที่รองรับ
+  const lw = document.querySelector("[data-layouts]"); lw.innerHTML = "";
+  for (const lay of ["7.1", "5.1", "2.0", "1.0"]) {
+    const d = document.createElement("div"); d.className = "st"; const kind = lay === "1.0" ? "speech" : "movie";
+    const levels = {}; for (const [c] of LAY[lay]) levels[c] = 0.35;
+    d.innerHTML = `<div class="cap">${lay} · ${LAY[lay].length} ช่อง</div><div style="min-height:150px;display:flex;align-items:center;justify-content:center">${speakers(lay, THEMES["ชมพู"], levels, [], true)}</div><div class="chlist">${LAY[lay].map(([c, t]) => `<span><b>${DISP(lay, c)}</b> ${t}</span>`).join("")}</div>`;
+    lw.appendChild(d);
+  }
+  // ชุดสี
+  const tw = document.querySelector("[data-themes]"); tw.innerHTML = "";
+  for (const n of THEME_ORDER) {
+    const d = document.createElement("div"); d.className = "st"; const t = THEMES[n];
+    d.innerHTML = `<div class="cap" style="display:flex;align-items:center;gap:8px"><span class="sw" style="width:20px;height:20px;cursor:default;background:linear-gradient(135deg,${t.ramp[2]},${t.ramp[5]} 60%,${t.ramp[7]})"></span>${n}${n === "ชมพู" ? " · ตั้งต้น" : ""}</div><canvas class="minicv" data-w></canvas><canvas class="minicv" data-s></canvas><div class="lg"><span><i style="background:${t.peak}"></i>ยอดเสียง</span><span><i style="background:${t.rms}"></i>เฉลี่ย</span></div>`;
+    tw.appendChild(d); drawWave(d.querySelector("[data-w]"), "movie", "FL", 7110, 7200, t); drawSpec(d.querySelector("[data-s]"), "movie", "FC", 7040, 7130, t);
+  }
+}
+document.fonts.ready.then(render);
+</script>
+</body>
+</html>
