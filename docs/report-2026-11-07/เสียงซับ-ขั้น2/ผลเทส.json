@@ -90,6 +90,11 @@
     "detail": "ต้นทาง AAC · 2 ช่อง · 48 kHz · 1 นาที Lossy (เสียคุณภาพ ไฟล์เล็ก) Opus AAC MP3 AC-3 Lossless (ไม่เสียคุณภาพ) FLAC WavPack Opus (Opus Interactive Audio Codec) · บิตเรตเท่ากัน เสียงดีสุดในกลุ่ม Lossy เก"
   },
   {
+    "name": "ตั้งความเร็ว 25 → 23.976 Gain −3 dB ความดังมาตรฐาน คำสั่งมี rubberband=tempo=0.959040,volume=-3dB,loudnorm",
+    "pass": true,
+    "detail": "ffmpeg -hide_banner -nostdin -v error -progress pipe:2 -nostats -i \"ดาวตก (2024).mkv\" -map 0:1 -vn -sn -dn -af \"rubberband=tempo=0.959040,volume=-3dB,loudnorm=I=-23:TP=-1\" -c:a pcm_s24le -f wav - | opusenc --quiet --igno"
+  },
+  {
     "name": "กดใช้ค่านี้ ช่องแปลงขึ้น Opus 160 · เพิ่มคู่ แถวมีป้ายแปลง",
     "pass": true,
     "detail": "Opus 160 · เพิ่มคู่ · true"

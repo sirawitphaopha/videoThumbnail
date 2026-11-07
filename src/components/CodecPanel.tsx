@@ -4,6 +4,7 @@
    ขั้นสูง การ์ดละช่องพร้อม ⓘ ทำต่อในรอบถัดไป */
 import { useEffect, useMemo, useState } from "react";
 import Dialog from "./Dialog";
+import Dropdown from "./Dropdown";
 import { CardIcon, Phr, Seg } from "./ui";
 import { encodeApi, type EncodePlan, type EncodeSpec, type EncoderInfo, type MergeTrack } from "../lib/api";
 import { CODECS, codecOf, presetSize, type Codec } from "../lib/codecs";
@@ -55,10 +56,15 @@ export default function CodecPanel(p: {
   };
   const engUse = eng && engs.some((e) => e.value === eng && e.ok) ? eng : firstOk;
   const pr = c.presets[pi] ?? c.presets[c.preset];
+  /** ใช้กับทุกชนิด (มอคอัป GAIN LOUD กับช่องความเร็วเสียงในการ์ดตั้งค่าแทร็ก) */
+  const [gain, setGain] = useState<number>(t.convert?.gain ?? 0);
+  const [loud, setLoud] = useState<boolean>(t.convert?.loudnorm ?? false);
+  const [speed, setSpeed] = useState<string>(t.convert?.speed ? t.convert.speed.join(">") : "");
   const spec: EncodeSpec = useMemo(() => ({
     codec: c.id, encoder: engUse, p: pr.p,
     channels: pr.channels && (t.channels ?? 2) > pr.channels ? pr.channels : null,
-  }), [c.id, engUse, pr, t.channels]);
+    gain, loudnorm: loud, speed: speed ? (speed.split(">").map(Number) as [number, number]) : null,
+  }), [c.id, engUse, pr, t.channels, gain, loud, speed]);
 
   useEffect(() => {
     let live = true;
@@ -113,6 +119,20 @@ export default function CodecPanel(p: {
               options={[{ value: "pair", label: "เพิ่มคู่กับแทร็กเดิม" }, { value: "replace", label: "แทนที่แทร็กเดิม" }]} /></div>
             <div className="small" style={{ marginTop: 4 }}>{pair ? `แทร็กใหม่ชื่อ ${name} ต่อท้ายแทร็กเดิม แทร็กเดิมอยู่ครบ` : "แทร็กเดิมถูกแทนที่ด้วยแทร็กที่แปลง"}</div></div>
         )}
+        <div style={{ display: "flex", gap: 18, flexWrap: "wrap", alignItems: "flex-start" }} data-extra>
+          <div><div className="small" style={{ marginBottom: 4 }}><b style={{ color: "var(--txt2)" }}>ความเร็วเสียง</b> · เสียงที่เหลื่อมเพิ่มขึ้นเรื่อย ๆ</div>
+            <Dropdown label="ความเร็วเสียง" value={speed} onChange={setSpeed} options={[
+              { value: "", label: "ไม่เปลี่ยน" }, { value: "25>23.976", label: "25 → 23.976 (แผ่นยุโรป PAL)" }, { value: "24>23.976", label: "24 → 23.976" },
+              { value: "23.976>25", label: "23.976 → 25" }, { value: "23.976>24", label: "23.976 → 24" }]} /></div>
+          <div><div className="small" style={{ marginBottom: 4 }}><b style={{ color: "var(--txt2)" }}>Gain</b> (ปรับความดัง dB)</div>
+            <div className="delay"><button type="button" aria-label="ลดความดัง 1 dB" onClick={() => setGain((g) => Math.max(-12, g - 1))}>−</button>
+              <span className="avnum" style={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-end", width: 56 }} data-gain>{gain > 0 ? `+${gain}` : gain} dB</span>
+              <button type="button" aria-label="เพิ่มความดัง 1 dB" onClick={() => setGain((g) => Math.min(12, g + 1))}>+</button></div></div>
+          <div><div className="small" style={{ marginBottom: 4 }}><b style={{ color: "var(--txt2)" }}>Loudness normalize</b> (ความดังมาตรฐาน)</div>
+            <div style={{ display: "flex" }}><Seg small label="ความดังมาตรฐาน" value={loud ? "on" : "off"} onChange={(v) => setLoud(v === "on")}
+              options={[{ value: "off", label: "Off" }, { value: "on", label: "EBU R128 −23 LUFS" }]} /></div></div>
+        </div>
+        {speed && <div className="small"><Phr>{`ยืดเสียงด้วย rubberband ระดับเสียงไม่เพี้ยน · ความยาวเปลี่ยนจาก ${t.duration ? Math.round(t.duration) : "?"} เป็นราว ${t.duration ? Math.round(t.duration * Number(speed.split(">")[0]) / Number(speed.split(">")[1])) : "?"} วินาที`}</Phr></div>}
         {warn && <div className="stat warn"><CardIcon kind="warn" /><div><Phr>{warn}</Phr> · <Phr>ไม่ห้าม แค่บอก</Phr></div></div>}
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>

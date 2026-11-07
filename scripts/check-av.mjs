@@ -135,6 +135,24 @@ await waitFor("return document.querySelector('[data-cmd]').innerText.includes('-
 const panelText = await q("return document.querySelector('[data-codec-panel]').innerText");
 check("เลือกชุดเพลงคุณภาพดี คำสั่งเปลี่ยนเป็น 160 kbps · บอกขนาดทั้งแทร็ก · เตือนแปลงเสียคุณภาพซ้อน · เพิ่มคู่เป็นค่าตั้งต้น",
   panelText.includes("ทั้งแทร็กราว") && panelText.includes("แปลงแบบเสียคุณภาพซ้อน AAC เป็น Opus") && panelText.includes("แทร็กใหม่ชื่อ English Opus ต่อท้ายแทร็กเดิม"), panelText.replace(/\s+/g, " ").slice(0, 200));
+// ความเร็วเสียง Gain ความดังมาตรฐาน · คำสั่งต้องมีตัวกรองตามที่ตั้ง แล้วตั้งกลับ ไม่ให้กระทบการรวมข้างล่าง
+const pickDd = async (label, text) => {
+  await c.evaluate(`[...document.querySelectorAll('[data-codec-panel] .dd')].find(b => b.getAttribute('aria-label').startsWith(${JSON.stringify(label)})).click()`);
+  await sleep(200);
+  await c.evaluate(`[...document.querySelectorAll('[data-codec-panel] [role=option]')].find(o => o.innerText.startsWith(${JSON.stringify(text)})).click()`);
+  await sleep(200);
+};
+await pickDd("ความเร็วเสียง", "25 → 23.976");
+for (let i = 0; i < 3; i++) await c.evaluate("document.querySelector('[data-codec-panel] [aria-label=\"ลดความดัง 1 dB\"]').click()");
+await c.evaluate("[...document.querySelectorAll('[data-codec-panel] [data-extra] .seg button')].find(b => b.innerText.startsWith('EBU')).click()");
+await waitFor("return document.querySelector('[data-cmd]').innerText.includes('loudnorm')", 8000);
+const cmd2 = await q("return document.querySelector('[data-cmd]').innerText.replace(/\\s+/g, ' ')");
+check("ตั้งความเร็ว 25 → 23.976 Gain −3 dB ความดังมาตรฐาน คำสั่งมี rubberband=tempo=0.959040,volume=-3dB,loudnorm", cmd2.includes('-af "rubberband=tempo=0.959040,volume=-3dB,loudnorm=I=-23:TP=-1"'), cmd2.slice(0, 220));
+await shot("11-แผงตั้งค่าเสียง-ความเร็ว.png", "[data-extra]", 8);
+await pickDd("ความเร็วเสียง", "ไม่เปลี่ยน");
+for (let i = 0; i < 3; i++) await c.evaluate("document.querySelector('[data-codec-panel] [aria-label=\"เพิ่มความดัง 1 dB\"]').click()");
+await c.evaluate("[...document.querySelectorAll('[data-codec-panel] [data-extra] .seg button')].find(b => b.innerText === 'Off').click()");
+await waitFor("return !document.querySelector('[data-cmd]').innerText.includes('-af')", 8000);
 await shot("10-แผงตั้งค่าเสียง.png", "[role=dialog]", 8);
 await c.evaluate("document.querySelector('[data-conv-use]').click()");
 await sleep(300);

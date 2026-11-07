@@ -92,3 +92,6 @@
 .avdrop { border: 2px dashed #eeb3c8; border-radius: 10px; background: #fff; display: flex; align-items: center; gap: 10px; padding: 10px 12px; color: var(--txt3); font-size: 13px; margin-top: 8px; transition: background-color .15s, border-color .15s; }
 .avdrop.over { border-color: var(--accent); background: #fdeaf1; color: var(--accent-ink); }
 .avdrop > span { flex: 1; min-width: 0; }
+
+/* ช่องเลือกความเร็วเสียงในแผงตั้งค่าเสียง สูงเท่าปุ่มเล็กข้าง ๆ (เดิม 40 กับ 30 แถวไม่เสมอกัน เจอตอนตรวจภาพ) */
+[data-extra] .dd { height: 30px; font-size: 13px; }
