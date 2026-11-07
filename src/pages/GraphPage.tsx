@@ -1,7 +1,7 @@
 /* หน้ากราฟเสียง (มอคอัป docs/mockups/audio-graph.html · พี่กันสั่ง "ลงมือทำเลย" 7 พ.ย. 2569)
    6 แบบ รูปคลื่น (เส้นละเอียด หรือ แท่ง) · ความถี่ (สีตามชุด หรือ สีรุ้ง) · ความดัง · ซ้อนเทียบ · วิเคราะห์ (แบบ Spek) · ความถี่เฉลี่ย (แบบ Plot Spectrum ของ Audacity)
    ข้อมูลจริงจาก audiograph.rs · ภาพรวมทั้งเรื่องอ่านครั้งเดียว ช่วงที่ซูมอ่านเฉพาะช่วง ระหว่างรอใช้ภาพรวมวาดไปก่อน ไม่มีจอว่าง */
-import { Component, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Component, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { AUDIO_EXT, checkApi, graphApi, inApp, pickFile, pickSave, thumbUrl, type GInfo, type GOverview, type GProgress, type GPsd, type GTrack, type GWindow, type Movie } from "../lib/api";
 import { useLibrary } from "../lib/library";
@@ -27,6 +27,9 @@ const HEAT = ["#000000", "#000036", "#180062", "#4f007b", "#81007e", "#ae0068", 
 const MONO = ["#000000", "#ffffff"];
 /** สีเทียบช่อง ซ้าย ขวา กลาง · 3 สีแรกของชุดสีตั้งต้นสกิล dataviz ผ่านตัวตรวจทุกคู่ · สีตามช่อง */
 const CMP: Record<string, string> = { FL: "#2a78d6", FR: "#eb6834", FC: "#1baf7a" };
+/** สีของความถี่เฉลี่ยแบบซ้อนทุกช่อง ตามตำแหน่งช่อง 8 สี ลำดับตายตัว (ชุดสีแยกกลุ่มของสกิลกราฟ ผ่านตัวตรวจตาบอดสี ΔE ข้างเคียงต่ำสุด 9.1)
+    สามสีแรกตรงกับแบบซ้อนเทียบ · สีเหลือง เขียวน้ำทะเล ชมพู ตัดพื้นขาวต่ำ จึงมีชื่อช่องบนป้ายกับตัวเลขในช่องบอกค่าเสมอ */
+const OVER = ["#2a78d6", "#eb6834", "#1baf7a", "#eda100", "#e87ba4", "#008300", "#6250d6", "#e34948"];
 /** ไอคอนนำหน้าปุ่ม 6 แบบ ตามมอคอัป (ตกหล่นตอนทำรอบแรก พี่กันส่งภาพมอคอัปมา 7 พ.ย. 2569 แคลร์เห็นเอง) */
 const vi = (children: React.ReactNode) => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">{children}</svg>;
 const VIEW_ICON: Record<View, React.ReactNode> = {
@@ -392,6 +395,13 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
     setZoom(ns); setCenter(nt0 + ns / 2);
   };
   const panTo = (c: number) => setCenter(Math.max(span / 2, Math.min(dur - span / 2, c)));
+  /** ตั้งความยาวช่วงที่ดูตรง ๆ จากแถบซูมแนวนอน · ซูมรอบกลางช่วงเดิม · ยาวเท่าเรื่องกลับเป็นทั้งเรื่อง */
+  const setSpan = useCallback((ns: number) => {
+    if (!dur) return;
+    if (ns >= dur * 0.999) { setZoom("all"); setCenter(dur / 2); return; }
+    ns = Math.max(HZ_MIN, ns);
+    setZoom(ns); setCenter((c) => { const mid = zoom === "all" ? dur / 2 : c; return Math.max(ns / 2, Math.min(dur - ns / 2, mid)); });
+  }, [dur, zoom]);
   // Ctrl หมุนล้อ ซูมตรงที่ชี้ · Shift หมุนล้อ หรือเลื่อนแนวนอนของทัชแพด เลื่อนซ้ายขวา · หมุนล้อเฉย ๆ เลื่อนหน้าตามปกติ
   useEffect(() => {
     const el = boxEl; if (!el) return;
@@ -419,20 +429,23 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
   // ความถี่เฉลี่ย
   const psdSeries = useMemo(() => {
     const base = names.map((_, i) => i).filter((i) => names[i] !== "LFE");
+    // ซ้อนทุกช่อง · เส้นละช่อง (รวมเสียงเบส) · แทร็กสองช่องเพิ่มเส้นกลางกับเส้นข้าง แบบ SpectrumAnalyzer
+    if (psdCh === "all" && names.length > 1) return names.map((_, i) => [i]);
     if (psdCh === "lr" && names.includes("FR")) return [[names.indexOf("FL")], [names.indexOf("FR")]];
     if (psdCh !== "mix" && names.includes(psdCh)) return [[names.indexOf(psdCh)]];
     return [base.length ? base : [0]];
   }, [names, psdCh]);
+  const psdMs = useMemo(() => (psdCh === "all" && names.length === 2 && names.includes("FL") && names.includes("FR") ? [names.indexOf("FL"), names.indexOf("FR")] : null), [names, psdCh]);
   useEffect(() => {
     if (!path || !ov || view !== "psd") return;
     let live = true;
     setPsd(null);
     const id = setTimeout(() => {
-      graphApi.psd(path, track, t0, t1, psdSeries, psdSize).then((p) => { if (live && p) setPsd(p); }, (e) => { if (live) toast({ kind: "bad", title: "คิดความถี่เฉลี่ยไม่ได้", detail: String(e) }); });
+      graphApi.psd(path, track, t0, t1, psdSeries, psdSize, psdMs).then((p) => { if (live && p) setPsd(p); }, (e) => { if (live) toast({ kind: "bad", title: "คิดความถี่เฉลี่ยไม่ได้", detail: String(e) }); });
     }, 150);
     return () => { live = false; clearTimeout(id); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [path, ov, track, t0, t1, view, psdSeries, psdSize]);
+  }, [path, ov, track, t0, t1, view, psdSeries, psdMs, psdSize]);
 
   // ลากไฟล์มาวาง
   useEffect(() => {
@@ -521,6 +534,7 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
     <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
       {lbl === "ซูม" && <span className="zbtns">
         <button type="button" className="zb" onClick={() => zoomBy(2)} disabled={zoom === "all"} aria-label="ซูมออก" title="ซูมออก · Ctrl หมุนล้อเมาส์ลง" data-zoomout><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6" /></svg></button>
+        <HZoom dur={dur} span={span} onSpan={setSpan} />
         <button type="button" className="zb" onClick={() => zoomBy(0.5)} disabled={span <= 0.5} aria-label="ซูมเข้า" title="ซูมเข้า · Ctrl หมุนล้อเมาส์ขึ้น" data-zoomin><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6M10.5 7.5v6" /></svg></button>
       </span>}
       <span className="lbl">{lbl}</span>
@@ -660,7 +674,7 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
   } else if (view === "spek") {
     plot = <SpekView ov={ov} win={winOk ? win : null} track={t} fileName={fileName} names={names} t0={t0} t1={t1} zoomBox={zoomBox(ZOOMS, "ซูม")} scmap={prefs.scmap} setScmap={(v) => setPref("scmap", v)} th={th} audioOnly={!!info?.audioOnly} play={play} save={saveImage} exportRef={exportRef} plotRef={plotRef} at={at} />;
   } else {
-    plot = <PsdView psd={psd && psd.db.length === psdSeries.length ? psd : null} names={names} psdCh={psdCh} setPsdCh={setPsdCh} psdLog={psdLog} setPsdLog={setPsdLog} psdSize={psdSize} setPsdSize={setPsdSize} th={th} ov={ov} t0={t0} t1={t1}
+    plot = <PsdView psd={psd && psd.db.length === psdSeries.length + (psdMs ? 2 : 0) ? psd : null} names={names} psdCh={psdCh} setPsdCh={setPsdCh} psdLog={psdLog} setPsdLog={setPsdLog} psdSize={psdSize} setPsdSize={setPsdSize} th={th} ov={ov} t0={t0} t1={t1}
       zoomBox={zoomBox(PSD_SPANS, "ช่วงที่เลือก")} onPick={(x) => { setCenter(x); if (zoom === "all") setZoom(30); }} f={psdF} setF={setPsdF} fileName={fileName} save={saveImage} exportRef={exportRef} plotRef={plotRef} toast={toast} />;
   }
 
@@ -728,6 +742,42 @@ function LaneGrip({ k, total, left, right, onChange }: { k: number; total: numbe
       onKeyDown={(e) => { if (e.key === "ArrowDown") { e.preventDefault(); onChange(laneKClamp(k + 0.1)); } if (e.key === "ArrowUp") { e.preventDefault(); onChange(laneKClamp(k - 0.1)); } }}>
       <i />
     </div>
+  );
+}
+
+/** แถบเลื่อนซูมเวลาแนวนอน อยู่ระหว่างปุ่มแว่นขยายซูมออกกับซูมเข้า (พี่กัน 7 พ.ย. 2569 *"เรามีย่อขยายเเนวตั้งเเล้ว ยังเหลือย่อขยายเเนวนอนนะ"* · *"เอาตอนนี้เลย"*)
+   ซ้ายสุดเห็นทั้งเรื่อง ขวาสุดครึ่งวินาที สเกลล็อก · ซูมรอบกลางช่วงที่ดูอยู่ · กดที่แถบกระโดด · หมุนล้อเมาส์บนแถบ · ลูกศรซ้ายขวา · Home ทั้งเรื่อง End ครึ่งวินาที */
+const HZ_MIN = 0.5;
+function HZoom({ dur, span, onSpan }: { dur: number; span: number; onSpan: (s: number) => void }) {
+  const root = useRef<HTMLSpanElement>(null), track = useRef<HTMLSpanElement>(null), drag = useRef(false);
+  const ok = dur > HZ_MIN * 1.01, L = Math.log(Math.max(dur, HZ_MIN * 1.01) / HZ_MIN);
+  const pos = ok ? Math.max(0, Math.min(1, Math.log(dur / Math.max(HZ_MIN, Math.min(dur, span))) / L)) : 0;
+  const fromX = (x: number) => { const r = track.current!.getBoundingClientRect(); const p = Math.max(0, Math.min(1, (x - r.left) / r.width)); return dur * Math.exp(-p * L); };
+  const cur = useRef(span); cur.current = span;
+  useEffect(() => {
+    const el = root.current; if (!el || !ok) return;
+    const fn = (e: WheelEvent) => { e.preventDefault(); onSpan(cur.current * (e.deltaY < 0 ? 0.8 : 1.25)); };
+    el.addEventListener("wheel", fn, { passive: false });
+    return () => el.removeEventListener("wheel", fn);
+  }, [onSpan, ok]);
+  const key = (e: React.KeyboardEvent) => {
+    const m: Record<string, number> = { ArrowRight: 0.8, ArrowUp: 0.8, ArrowLeft: 1.25, ArrowDown: 1.25, PageUp: 0.5, PageDown: 2 };
+    if (m[e.key]) { e.preventDefault(); onSpan(span * m[e.key]); }
+    else if (e.key === "Home") { e.preventDefault(); onSpan(dur); }
+    else if (e.key === "End") { e.preventDefault(); onSpan(HZ_MIN); }
+  };
+  return (
+    <span className={"hzoom" + (ok ? "" : " off")} ref={root} data-hzoom>
+      <span className="track" ref={track}
+        onPointerDown={(e) => { if (!ok) return; e.currentTarget.setPointerCapture(e.pointerId); drag.current = true; onSpan(fromX(e.clientX)); }}
+        onPointerMove={(e) => { if (drag.current) onSpan(fromX(e.clientX)); }}
+        onPointerUp={() => { drag.current = false; }} onPointerCancel={() => { drag.current = false; }}>
+        <span className="fill" style={{ width: pos * 100 + "%" }} />
+        <span className="knob" role="slider" aria-orientation="horizontal" aria-label="ซูมเวลา" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pos * 100)}
+          aria-valuetext={`ช่วงที่ดู ${tfmt(Math.min(dur, span))}`} tabIndex={ok ? 0 : -1} title={`ช่วงที่ดู ${tfmt(Math.min(dur, span))} · ลากขวาซูมเข้า ลากซ้ายซูมออก`}
+          style={{ left: pos * 100 + "%" }} onKeyDown={key} data-hzknob />
+      </span>
+    </span>
   );
 }
 
@@ -1020,7 +1070,23 @@ function PsdView({ psd, names, psdCh, setPsdCh, psdLog, setPsdLog, psdSize, setP
   zoomBox: React.ReactNode; onPick: (t: number) => void; f: number | null; setF: (f: number | null) => void; fileName: string; toast: ReturnType<typeof useToast>;
 }) {
   const nyq = (psd?.rate ?? 48000) / 2;
-  const series = useMemo(() => (psd ? psd.db.map((d, i) => ({ d, color: psd.db.length > 1 ? (i === 0 ? CMP.FL : CMP.FR) : th.rms, name: psd.db.length > 1 ? (i === 0 ? "ซ้าย" : "ขวา") : psdCh === "mix" ? (names.length === 1 ? "เสียงเดียว" : "รวมทุกช่อง") : label(names, psdCh).th })) : []), [psd, th, psdCh, names]);
+  type Series = { d: number[]; key: string; color: string; name: string; long: string };
+  const series = useMemo((): Series[] => {
+    if (!psd) return [];
+    // ซ้อนทุกช่อง สีตามตำแหน่งช่องในแทร็ก (ซ้ายฟ้า ขวาส้ม กลางเขียวน้ำทะเล ตรงกับแบบซ้อนเทียบ) · แทร็กสองช่องมีเส้นกลางกับเส้นข้างท้าย
+    if (psdCh === "all") return psd.db.map((d, i) => {
+      if (i < names.length) { const l = label(names, names[i]); return { d, key: names[i], color: OVER[i % OVER.length], name: l.code, long: `${l.code} ${l.th}` }; }
+      return i === names.length ? { d, key: "M", color: OVER[2], name: "M", long: "M กลาง ซ้าย+ขวา" } : { d, key: "S", color: OVER[3], name: "S", long: "S ข้าง ซ้าย−ขวา" };
+    });
+    return psd.db.map((d, i) => {
+      const name = psd.db.length > 1 ? (i === 0 ? "ซ้าย" : "ขวา") : psdCh === "mix" ? (names.length === 1 ? "เสียงเดียว" : "รวมทุกช่อง") : label(names, psdCh).th;
+      return { d, key: String(i), color: psd.db.length > 1 ? (i === 0 ? CMP.FL : CMP.FR) : th.rms, name, long: name };
+    });
+  }, [psd, th, psdCh, names]);
+  /** เส้นที่กดซ่อนจากป้ายใต้กราฟ · เปลี่ยนแบบแล้วแสดงครบทุกเส้น · ต้องเหลืออย่างน้อยหนึ่งเส้น */
+  const [off, setOff] = useState<string[]>([]);
+  useEffect(() => setOff([]), [psdCh]);
+  const shown = series.filter((s) => !off.includes(s.key));
   const fOf = (i: number) => i * (psd?.rate ?? 48000) / (psd?.size ?? 4096);
   // ยอดแคบ · ตำแหน่งจริงระหว่างช่องความถี่คิดจากพาราโบลาผ่าน 3 ช่อง (ช่องละ 11.7 Hz ที่ 4096 · 50 Hz ตกที่ช่อง 46.9 Hz ถ้าไม่คิดตรงนี้ เจอตอนเทส 7 พ.ย. 2569)
   const peaks = useMemo(() => {
@@ -1125,7 +1191,19 @@ function PsdView({ psd, names, psdCh, setPsdCh, psdLog, setPsdLog, psdSize, setP
       for (let fr = 0; fr <= nyq; fr += every) { g.fillStyle = ink; g.fillText(hz(fr), X(Math.max(fr, 1), w), T + PH + 6); }
     }
     if (!psd) { g.textAlign = "center"; g.textBaseline = "middle"; g.fillStyle = "#b28a9a"; g.font = "13px Sarabun, sans-serif"; g.fillText("กำลังคิดความถี่เฉลี่ยของช่วงที่เลือก", L + PW / 2, T + PH / 2); }
-    else if (series.length === 1) {
+    else if (psdCh === "all") {
+      // ซ้อนทุกช่อง แบบ SpectrumAnalyzer (พี่กัน 7 พ.ย. 2569 *"เราอยากให้มันซ้อนกันแบบนี้ได้ของ spectrum ที่ดูได้ทุกความถี่ เเละมีสีที่ต่างกัน"*)
+      // ระบายสีโปร่งของทุกเส้นก่อน แล้ววาดเส้นทึบทับทีหลัง เส้นจึงไม่จมใต้พื้นสีของเส้นอื่น · ส่วนที่ซ้อนกันเห็นสีผสม
+      const drawn = shown.map((s) => {
+        const area = new Path2D(), line = new Path2D(); area.moveTo(L, T + PH);
+        for (let x = 0; x < PW; x++) { const y = Y(valRange(s.d, fAt(x, PW), fAt(x + 1, PW))); area.lineTo(L + x + 0.5, y); if (x) line.lineTo(L + x + 0.5, y); else line.moveTo(L + 0.5, y); }
+        area.lineTo(L + PW, T + PH); area.closePath();
+        return { s, area, line };
+      });
+      // ความทึบพื้นสีต่อเส้นลดตามจำนวนเส้น ส่วนที่ทุกเส้นซ้อนกันทึบรวมราว 45% (เดิม 20% ทุกเส้น 4 เส้นซ้อนกันเป็นสีหม่นขุ่น เจอตอนตรวจภาพ)
+      g.globalAlpha = 1 - Math.pow(0.55, 1 / Math.max(1, drawn.length)); for (const { s, area } of drawn) { g.fillStyle = s.color; g.fill(area); }
+      g.globalAlpha = 1; g.lineWidth = 1.5; g.lineJoin = "round"; for (const { s, line } of drawn) { g.strokeStyle = s.color; g.stroke(line); }
+    } else if (series.length === 1) {
       // ระบายทึบสีเดียวจากเส้นลงถึงพื้นกราฟ แบบ Audacity · สีกลางของชุดสี (ชุดม่วงใกล้สีของ Audacity)
       // ค่าทีละจุดภาพ (valRange) ไม่ใช่ทีละช่องความถี่
       const s = series[0], area = new Path2D(); area.moveTo(L, T + PH);
@@ -1140,14 +1218,14 @@ function PsdView({ psd, names, psdCh, setPsdCh, psdLog, setPsdLog, psdSize, setP
       }
     } else {
       // เทียบซ้ายขวา (ของเราเพิ่มเอง Audacity ไม่มี) เป็นเส้นสองสีตามช่อง
-      for (const s of series) {
+      for (const s of shown) {
         g.strokeStyle = s.color; g.lineWidth = 2; g.lineJoin = "round"; g.beginPath();
         for (let x = 0; x < PW; x++) { const y = Y(valRange(s.d, fAt(x, PW), fAt(x + 1, PW))); if (x) g.lineTo(L + x + 0.5, y); else g.moveTo(L + 0.5, y); }
         g.stroke();
       }
     }
     g.strokeStyle = ink; g.lineWidth = 1; g.strokeRect(L + 0.5, T + 0.5, PW - 1, PH - 1);
-  }, [psd, psdLog, th, series, grids, range, top]);
+  }, [psd, psdLog, th, series, off, grids, range, top]);
   exportRef.current = () => ref.current;
   const [box, setBox] = useState<HTMLDivElement | null>(null);
   const cur = f ?? (hum[0]?.[0] ?? 1000);
@@ -1165,7 +1243,7 @@ function PsdView({ psd, names, psdCh, setPsdCh, psdLog, setPsdLog, psdSize, setP
     try { const saved = await graphApi.save(where, null, [head, ...rows].join("\r\n")); toast({ kind: "ok", title: "ส่งออกตารางแล้ว", detail: saved }); }
     catch (e) { toast({ kind: "bad", title: "ส่งออกไม่ได้", detail: String(e) }); }
   };
-  const opts: [string, string][] = names.length === 1 ? [["mix", label(names, names[0]).code]] : [["mix", "รวมทุกช่อง"], ...(names.includes("FR") ? [["FL", label(names, "FL").code], ["FR", label(names, "FR").code], ["lr", "เทียบซ้ายขวา"]] as [string, string][] : [])];
+  const opts: [string, string][] = names.length === 1 ? [["mix", label(names, names[0]).code]] : [["mix", "รวมทุกช่อง"], ...(names.includes("FR") ? [["FL", label(names, "FL").code], ["FR", label(names, "FR").code], ["lr", "เทียบซ้ายขวา"]] as [string, string][] : []), ["all", "ซ้อนทุกช่อง"]];
   return (
     <div className="plot" data-plot ref={plotRef as React.RefObject<HTMLDivElement>}>
       <div className="plothead"><span style={{ display: "flex", alignItems: "center", gap: 8 }}><b>ความถี่เฉลี่ย</b>
@@ -1181,10 +1259,18 @@ function PsdView({ psd, names, psdCh, setPsdCh, psdLog, setPsdLog, psdSize, setP
           {pk && pk[1] >= lo && <div className="psdpk" style={{ left: X(pk[0], W), top: Yof(pk[1], H) }} />}
         </>}
       </div>
+      {/* ป้ายบอกสีทุกเส้น กดเพื่อซ่อนหรือแสดงเส้นนั้น (สีอย่างเดียวไม่พอ ชื่อช่องอยู่บนป้ายเสมอ) */}
+      {series.length > 1 && <div className="psdlg" data-psdlegend>{series.map((s) => {
+        const on = !off.includes(s.key), last = on && shown.length === 1;
+        return <button key={s.key} type="button" className={"psdk" + (on ? " on" : "")} aria-pressed={on} aria-disabled={last || undefined}
+          title={last ? "ต้องเหลืออย่างน้อยหนึ่งเส้น" : on ? `กดเพื่อซ่อน ${s.long}` : `กดเพื่อแสดง ${s.long}`} data-psdkey={s.key}
+          onClick={() => { if (!last) setOff((o) => (on ? [...o, s.key] : o.filter((k) => k !== s.key))); }}>
+          <i style={on ? { background: s.color, borderColor: s.color } : { borderColor: s.color }} />{s.long}</button>;
+      })}</div>}
       {/* ช่องบอกค่าใต้กราฟ แบบ Cursor กับ Peak ของ Audacity */}
       <div className="psdread" data-psdreadout>
         <span className="lbl">ตำแหน่งชี้</span>
-        <span className="psdbox" data-psdcursor>{psd ? `${hzTxt(cur)} (${noteOf(cur)}) = ${series.map((s) => (series.length > 1 ? s.name + " " : "") + minus(Math.round(valAt(s.d, cur)).toString()) + " dB").join(" · ")}` : "—"}</span>
+        <span className="psdbox" data-psdcursor>{psd ? `${hzTxt(cur)} (${noteOf(cur)}) = ${shown.map((s) => (series.length > 1 ? s.name + " " : "") + minus(Math.round(valAt(s.d, cur)).toString()) + " dB").join(" · ")}` : "—"}</span>
         <span className="lbl">ยอดใกล้สุด</span>
         <span className="psdbox" data-psdpeak>{pk ? `${hzTxt(pk[0])} (${noteOf(pk[0])}) = ${minus(pk[1].toFixed(1))} dB` : "—"}</span>
       </div>

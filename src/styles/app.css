@@ -579,6 +579,22 @@ tbody tr:last-child td { border-bottom: 0; }
 .vzoom .knob:focus-visible { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent-d); }
 .vzval { min-width: 38px; font-size: 12.5px; font-weight: 600; color: var(--txt2); font-variant-numeric: tabular-nums; }
 .vrul { width: 100%; display: block; }
+/* แถบซูมเวลาแนวนอน ระหว่างปุ่มแว่นขยายสองปุ่ม · ส่วนที่ระบายบอกว่าซูมเข้าไปแค่ไหน */
+.hzoom { display: inline-flex; align-items: center; width: 116px; height: 30px; padding: 0 8px; touch-action: none; }
+.hzoom .track { position: relative; flex: 1; height: 8px; border-radius: 4px; background: #f6e3ea; cursor: pointer; }
+.hzoom .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: #efc0d2; pointer-events: none; }
+.hzoom .knob { position: absolute; top: 50%; width: 12px; height: 20px; transform: translate(-50%, -50%); border-radius: 6px; background: var(--accent); cursor: grab; outline: none; transition: background-color .15s; }
+.hzoom .knob:hover { background: var(--accent-d); }
+.hzoom .knob:focus-visible { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent-d); }
+.hzoom.off .track { cursor: default; }
+.hzoom.off .knob { background: #edc6d5; cursor: default; }
+/* ป้ายสีของความถี่เฉลี่ยแบบซ้อนทุกช่อง กดซ่อนแสดงทีละเส้น · ปิดอยู่เป็นกรอบสีโปร่ง ตัวหนังสือจาง */
+.psdlg { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.psdk { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 14px; border: 1px solid #efc6d5; background-color: #fff; color: var(--txt3); font: inherit; font-size: 12.5px; cursor: pointer; transition: background-color .15s, color .15s; }
+.psdk.on { color: var(--txt); }
+.psdk:hover { background-color: #fdeaf1; }
+.psdk[aria-disabled] { cursor: not-allowed; }
+.psdk i { width: 12px; height: 12px; border-radius: 3px; border: 2px solid; box-sizing: border-box; }
 /* ที่จับใต้แถบกราฟ ลากลงขยายความสูง */
 .lanegrip { height: 14px; margin-top: 2px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: ns-resize; touch-action: none; outline: none; transition: background-color .15s; }
 .lanegrip i { width: 46px; height: 4px; border-radius: 2px; background: #e6bccc; transition: background-color .15s; }

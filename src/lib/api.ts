@@ -155,7 +155,8 @@ export const graphApi = {
   info: (path: string) => call<GInfo>("graph_info", { path }),
   overview: (path: string, track: number) => call<GOverview | null>("graph_overview", { path, track }),
   window: (path: string, track: number, t0: number, t1: number, cols: number, bins: number, log: boolean) => call<GWindow | null>("graph_window", { path, track, t0, t1, cols, bins, log }),
-  psd: (path: string, track: number, t0: number, t1: number, series: number[][], size: number) => call<GPsd | null>("graph_psd", { path, track, t0, t1, series, size }),
+  /** ms = คู่ช่องซ้ายขวา ได้เส้นกลางกับเส้นข้างเพิ่มท้าย 2 เส้น */
+  psd: (path: string, track: number, t0: number, t1: number, series: number[][], size: number, ms: number[] | null = null) => call<GPsd | null>("graph_psd", { path, track, t0, t1, series, size, ms }),
   cancel: () => call<void>("graph_cancel"),
   save: (path: string, b64: string | null, text: string | null) => call<string>("graph_save", { path, b64, text }),
 };

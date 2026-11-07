@@ -650,8 +650,10 @@ pub fn window(tools: &Path, path: &Path, track: &GTrack, t0: f64, t1: f64, cols:
 }
 
 /// ความถี่เฉลี่ยของช่วง · series = ชุดของช่องที่เอามารวมกันต่อเส้น · size ขนาด FFT
+/// ms = คู่ช่องซ้ายขวา ได้เส้นเพิ่มท้าย 2 เส้น กลาง (ซ้าย+ขวา)÷2 กับ ข้าง (ซ้าย−ขวา)÷2 รวมเสียงก่อนคิด ไม่ใช่เฉลี่ยกำลัง
+/// (พี่กันส่งภาพ SpectrumAnalyzer 7 พ.ย. 2569 *"เราอยากให้มันซ้อนกันแบบนี้ได้ของ spectrum ที่ดูได้ทุกความถี่ เเละมีสีที่ต่างกัน"*)
 #[allow(clippy::too_many_arguments)]
-pub fn psd(tools: &Path, path: &Path, track: &GTrack, t0: f64, t1: f64, series: &[Vec<usize>], size: usize, stop: &dyn Fn() -> bool) -> Result<Option<Psd>, String> {
+pub fn psd(tools: &Path, path: &Path, track: &GTrack, t0: f64, t1: f64, series: &[Vec<usize>], ms: Option<[usize; 2]>, size: usize, stop: &dyn Fn() -> bool) -> Result<Option<Psd>, String> {
     let ch = track.names.len();
     let size = size.clamp(256, 65536).next_power_of_two();
     let len = (t1 - t0).max(0.05);
@@ -666,7 +668,8 @@ pub fn psd(tools: &Path, path: &Path, track: &GTrack, t0: f64, t1: f64, series: 
     let mut sp = Spectrum::new(size);
     let mut tmp = vec![0.0f32; size];
     let mut one = vec![0.0f32; size / 2];
-    let mut acc = vec![vec![0.0f32; size / 2]; series.len()];
+    let ms = ms.filter(|[a, b]| *a < ch && *b < ch && a != b);
+    let mut acc = vec![vec![0.0f32; size / 2]; series.len() + if ms.is_some() { 2 } else { 0 }];
     let mut count = 0u32;
     let mut hop_i = 0u64;
     let mut feed = |f: &[i16]| {
@@ -683,6 +686,14 @@ pub fn psd(tools: &Path, path: &Path, track: &GTrack, t0: f64, t1: f64, series: 
                         sp.add_power(&tmp, &mut one);
                         let w = 1.0 / chans.len() as f32;
                         for (a, o) in acc[si].iter_mut().zip(&one) { *a += o * w; }
+                    }
+                }
+                if let Some([a, b]) = ms {
+                    for (k, sign) in [(0usize, 1.0f32), (1, -1.0)] {
+                        for j in 0..size { let i = (pos + j) % size; tmp[j] = (ring[a][i] + sign * ring[b][i]) * 0.5; }
+                        one.iter_mut().for_each(|v| *v = 0.0);
+                        sp.add_power(&tmp, &mut one);
+                        for (x, o) in acc[series.len() + k].iter_mut().zip(&one) { *x += o; }
                     }
                 }
                 count += 1;
@@ -756,7 +767,9 @@ pub async fn graph_window(app: AppHandle, path: String, track: usize, t0: f64, t
 }
 
 #[tauri::command]
-pub async fn graph_psd(app: AppHandle, path: String, track: usize, t0: f64, t1: f64, series: Vec<Vec<usize>>, size: usize) -> Result<Option<Psd>, String> {
+#[allow(clippy::too_many_arguments)]
+pub async fn graph_psd(app: AppHandle, path: String, track: usize, t0: f64, t1: f64, series: Vec<Vec<usize>>, size: usize, ms: Option<Vec<usize>>) -> Result<Option<Psd>, String> {
+    let ms = ms.and_then(|v| (v.len() == 2).then(|| [v[0], v[1]]));
     let tools = tools_dir(&app)?;
     // คำขอใหม่ (เลือกช่วงใหม่ หรือกดหยุด) ทำให้คำขอเก่าหยุดเอง เหมือนช่วงที่ซูม
     let my_gen = WINDOW_GEN.fetch_add(1, Ordering::SeqCst) + 1;
@@ -765,7 +778,7 @@ pub async fn graph_psd(app: AppHandle, path: String, track: usize, t0: f64, t1: 
         let g = info(&tools, p)?;
         let t = track_of(&g, track)?;
         let stop = || WINDOW_GEN.load(Ordering::SeqCst) != my_gen;
-        psd(&tools, p, &t, t0, t1, &series, size, &stop)
+        psd(&tools, p, &t, t0, t1, &series, ms, size, &stop)
     }).await.map_err(|e| e.to_string())?
 }
 
@@ -914,10 +927,28 @@ mod tests {
         let out = crate::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "sine=frequency=1000:sample_rate=48000:duration=3", f.to_str().unwrap()]).unwrap();
         assert!(out.status.success());
         let g = info(&tools(), &f).unwrap();
-        let p = psd(&tools(), &f, &g.tracks[0], 0.5, 2.5, &[vec![0]], 4096, &|| false).unwrap().unwrap();
+        let p = psd(&tools(), &f, &g.tracks[0], 0.5, 2.5, &[vec![0]], None, 4096, &|| false).unwrap().unwrap();
         let _ = std::fs::remove_dir_all(&dir);
         let df = 48000.0 / 4096.0;
         let (imax, _) = p.db[0].iter().enumerate().fold((0, -999.0f32), |m, (i, &v)| if v > m.1 { (i, v) } else { m });
         assert!(((imax as f64 * df) - 1000.0).abs() < df * 1.5, "ยอดอยู่ที่ {} Hz", imax as f64 * df);
+    }
+
+    /// ซ้ายขวาเสียงเดียวกันเป๊ะ เส้นกลางมียอดที่ 1000 Hz เส้นข้าง (ซ้าย−ขวา) ต้องเงียบ · ได้ 4 เส้น ซ้าย ขวา กลาง ข้าง
+    #[test]
+    fn psd_mid_side_of_identical_channels() {
+        let dir = std::env::temp_dir().join(format!("ชั้นหนังกราฟ3-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let f = dir.join("ไซน์สองข้างเท่ากัน.flac");
+        let out = crate::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "sine=frequency=1000:sample_rate=48000:duration=3", "-ac", "2", f.to_str().unwrap()]).unwrap();
+        assert!(out.status.success());
+        let g = info(&tools(), &f).unwrap();
+        let p = psd(&tools(), &f, &g.tracks[0], 0.5, 2.5, &[vec![0], vec![1]], Some([0, 1]), 4096, &|| false).unwrap().unwrap();
+        let _ = std::fs::remove_dir_all(&dir);
+        assert_eq!(p.db.len(), 4);
+        let top = |d: &Vec<f32>| d.iter().cloned().fold(-999.0f32, f32::max);
+        let (l, mid, side) = (top(&p.db[0]), top(&p.db[2]), top(&p.db[3]));
+        assert!((mid - l).abs() < 1.0, "กลาง {mid} ต้องเท่าซ้าย {l}");
+        assert!(side < mid - 60.0, "ข้าง {side} ต้องเบากว่ากลาง {mid} เกิน 60 dB");
     }
 }

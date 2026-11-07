@@ -384,6 +384,26 @@ if (existsSync(SONG)) {
   const copyPage = await q("const d = document.createElement('div'); d.dataset.infoPage = ''; const b = document.createElement('button'); d.append(b); document.body.append(d); const r = [getComputedStyle(d).userSelect, getComputedStyle(b).userSelect]; d.remove(); return r.join(' ')");
   check("ลากเมาส์ทับการ์ดข้อมูลเสียง ไม่ติดไฮไลต์ · หน้าข้อมูลไฟล์ยังเลือกข้อความได้ ปุ่มในหน้านั้นไม่ได้", selTxt === "" && copyPage === "text none", `ไฮไลต์ได้ "${selTxt.slice(0, 30)}" · หน้าข้อมูลไฟล์ ${copyPage}`);
   check("กดบนแถบแนวตั้งกระโดดไปจุดนั้น · ดับเบิลคลิกกลับ 1 เท่า ปุ่ม 1× ติด", parseFloat(vzHi) > 4 && (await text("[data-vzval]")) === "1×" && (await q("return document.querySelector('[data-vz=\"1\"]').classList.contains('on')")), `กดบนสุด ${vzHi} · ดับเบิลคลิก ${await text("[data-vzval]")}`);
+  // แถบซูมเวลาแนวนอน ระหว่างปุ่มแว่นขยาย (พี่กัน *"เรามีย่อขยายเเนวตั้งเเล้ว ยังเหลือย่อขยายเเนวนอนนะ"* · *"เอาตอนนี้เลย"*)
+  const drag = async (x0, y0, x1) => {
+    await c.send("Input.dispatchMouseEvent", { type: "mousePressed", x: x0, y: y0, button: "left", buttons: 1, clickCount: 1 });
+    await c.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: x1, y: y0, button: "left", buttons: 1 });
+    await c.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: x1, y: y0, button: "left", buttons: 0, clickCount: 1 });
+    await sleep(600);
+  };
+  const rh0 = await range(), hk = await c.box("[data-hzknob]");
+  await drag(hk.x, hk.y, hk.x + 18);
+  const rh1 = await range(), mid = (r) => (r[0] + r[1]) / 2;
+  await shot("26จ-เพลงจริง-แถบซูมเวลา.png");
+  const hk1 = await c.box("[data-hzknob]"), htr = await c.box("[data-hzoom] .track");
+  await drag(hk1.x, hk1.y, htr.left - 40);
+  const rh2 = await range(), allOn = await q("return document.querySelector('[data-zoom=\"all\"]').classList.contains('on')");
+  const kxAll = (await c.box("[data-hzknob]")).x;
+  await c.click("[data-zoomin]"); await sleep(500);
+  const kxIn = (await c.box("[data-hzknob]")).x;
+  check("แถบซูมเวลา ลากขวาช่วงสั้นลง ซูมรอบกลางเดิม · ลากซ้ายสุดกลับทั้งเรื่อง · กดปุ่มซูมเข้าแล้วปุ่มบนแถบเลื่อนขวาตาม",
+    sp(rh1) < sp(rh0) - 5 && Math.abs(mid(rh1) - mid(rh0)) <= 2 && allOn && rh2[0] === 0 && rh2[1] === 315 && kxIn > kxAll + 5,
+    `${rh0.join("–")} → ${rh1.join("–")} วิ · ลากซ้ายสุด ${rh2.join("–")} ทั้งเรื่อง ${allOn} · ปุ่มบนแถบ ${Math.round(kxAll)} → ${Math.round(kxIn)}`);
   await c.click("[data-zoomout]"); await sleep(300); await c.click('[data-zoom="all"]'); await c.click('[data-vz="1"]'); await c.click('[data-style="fine"]'); await sleep(300);
   await view("loud");
   check("เพลงจริง ความดังรวม", /LUFS/.test(await text("[data-graphtiles]")), await text("[data-graphtiles]"));
@@ -414,6 +434,25 @@ if (existsSync(SONG)) {
   check("เพลงจริง ความถี่เฉลี่ย ชี้แล้วช่องใต้กราฟบอกความถี่กับโน้ต", /Hz \([A-G]#?-?\d+\)/.test(await text("[data-psdcursor]")), `${await text("[data-psdcursor]")} · ${await text("[data-psdpeak]")}`);
   await shotHere("32-เพลงจริง-ความถี่เฉลี่ย.png");
   await c.move(500, 12);
+
+  // ซ้อนทุกช่อง แบบ SpectrumAnalyzer (พี่กัน *"เราอยากให้มันซ้อนกันแบบนี้ได้ของ spectrum ที่ดูได้ทุกความถี่ เเละมีสีที่ต่างกัน"*)
+  await c.click('[data-psdch="all"]');
+  await waitFor("return document.querySelectorAll('[data-psdkey]').length === 4 && !/—/.test(document.querySelector('[data-psdcursor]').textContent)", 30000);
+  await hoverMid("[data-psdbox]", 0.3, 0.5);
+  const keys = await q("return [...document.querySelectorAll('[data-psdkey]')].map((b) => b.dataset.psdkey + ' ' + getComputedStyle(b.querySelector('i')).backgroundColor)");
+  const curAll = await text("[data-psdcursor]");
+  const mv = Number((curAll.match(/M (−?[\d.]+) dB/) ?? [])[1]?.replace("−", "-")), sv = Number((curAll.match(/S (−?[\d.]+) dB/) ?? [])[1]?.replace("−", "-"));
+  check("เพลงจริง ความถี่เฉลี่ยซ้อนทุกช่อง ได้ 4 เส้น L R M S สีไม่ซ้ำกัน ช่องบอกค่าครบ 4 ค่า · เส้นข้างเบากว่าเส้นกลางแบบเพลงทั่วไป",
+    keys.length === 4 && keys.map((k) => k.split(" ")[0]).join(" ") === "FL FR M S" && new Set(keys.map((k) => k.slice(k.indexOf(" ")))).size === 4 && /L .* R .* M .* S /.test(curAll) && sv < mv,
+    `${keys.join(" · ")} · ${curAll}`);
+  await shotHere("32ข-เพลงจริง-ซ้อนทุกช่อง.png");
+  await c.move(500, 12);
+  await c.click('[data-psdkey="S"]'); await sleep(300);
+  const curNoS = await text("[data-psdcursor]");
+  await c.click('[data-psdkey="FL"]'); await c.click('[data-psdkey="FR"]'); await c.click('[data-psdkey="M"]'); await sleep(300);
+  const lastOn = await q("return [...document.querySelectorAll('[data-psdkey][aria-pressed=true]')].map((b) => b.dataset.psdkey).join(' ')");
+  check("กดป้าย S ซ่อนเส้นข้าง ช่องบอกค่าเหลือ 3 ค่า · กดซ่อนจนเหลือเส้นสุดท้าย ซ่อนต่อไม่ได้", !/ S /.test(curNoS + " ") && /M /.test(curNoS) && lastOn === "M", `${curNoS} · เหลือแสดง ${lastOn}`);
+  await c.click('[data-psdch="mix"]'); await sleep(300);
   await view("wave");
 } else console.log("ข้าม เพลงจริงจากพี่กัน · ไม่มีไฟล์ " + SONG);
 
@@ -442,6 +481,16 @@ for (const [file, name] of [["surround-test-5.1.wav", "5.1"], ["surround-test-7.
   await hoverMid("[data-lanes]", 0.05, 0.3);
   await shotHere(`33-ทดสอบลำโพงจริง-${name}.png`);
   await c.move(500, 12);
+  // ความถี่เฉลี่ยซ้อนทุกช่องของแทร็กหลายช่อง ได้เส้นละช่อง ไม่มีเส้นกลางกับเส้นข้าง (มีเฉพาะแทร็กสองช่อง)
+  await view("psd");
+  await c.click('[data-psdch="all"]');
+  const nCh = g.tracks[0].names.length;
+  await waitFor(`return document.querySelectorAll('[data-psdkey]').length === ${nCh} && !/—/.test(document.querySelector('[data-psdcursor]').textContent)`, 30000).catch(() => {});
+  const surKeys = await q("return [...document.querySelectorAll('[data-psdkey]')].map((b) => b.dataset.psdkey).join(' ')");
+  check(`ไฟล์ทดสอบลำโพงจริง ${name} ความถี่เฉลี่ยซ้อนทุกช่อง ได้ ${nCh} เส้นตามช่อง ไม่มีเส้นกลางเส้นข้าง`, surKeys === g.tracks[0].names.join(" "), surKeys);
+  if (name === "7.1") await shot("33ข-ทดสอบลำโพงจริง-7.1-ซ้อนทุกช่อง.png");
+  await c.click('[data-psdch="mix"]'); await sleep(200);
+  await view("wave");
 }
 
 /* ---------- 13 บันทึกรูป บันทึกตาราง (ตัวเขียนไฟล์ฝั่ง Rust · กล่องบันทึกของ Windows กดจากตัวเทสไม่ได้) ---------- */
