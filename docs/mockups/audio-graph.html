@@ -183,7 +183,7 @@ button:focus-visible{outline:2px solid var(--accent-d);outline-offset:2px}
 <div class="page">
 
 <h1>มอคอัปหน้า "กราฟเสียง"</h1>
-<p class="lead">ดูเสียงในไฟล์หนังหรือไฟล์เสียงเป็นภาพ ทุกช่องเสียง รองรับ 7.1 · 5.1 · 2.0 · ช่องเดียว · ดูได้ 5 แบบ รูปคลื่น (เส้นละเอียด หรือ แท่ง) · ความถี่ (สีตามชุด หรือ สีรุ้ง) · ความดัง · ซ้อนเทียบ · วิเคราะห์ความถี่แบบโปรแกรม Spek · เลือกชุดสีได้ 4 ชุด<br>
+<p class="lead">ดูเสียงในไฟล์หนังหรือไฟล์เสียงเป็นภาพ ทุกช่องเสียง รองรับ 7.1 · 5.1 · 2.0 · ช่องเดียว · ดูได้ 6 แบบ รูปคลื่น (เส้นละเอียด หรือ แท่ง) · ความถี่ (สีตามชุด หรือ สีรุ้ง) · ความดัง · ซ้อนเทียบ · วิเคราะห์ความถี่แบบโปรแกรม Spek · ความถี่เฉลี่ยแบบ Plot Spectrum ของ Audacity · เลือกชุดสีได้ 4 ชุด<br>
 กราฟในหน้านี้วาดจากข้อมูลสมมติ กดเปลี่ยนแบบ ชุดสี ซูม และชี้บนกราฟได้จริงในกรอบแรก · ข้อมูลไฟล์ทั้งหมดเป็นของสมมติ</p>
 
 <!-- ==================== 1 หน้ากราฟเสียง 7.1 รูปคลื่น ==================== -->
@@ -229,6 +229,15 @@ button:focus-visible{outline:2px solid var(--accent-d);outline-offset:2px}
   <p class="note">พื้นดำ แกนซ้ายเป็นความถี่ kHz แกนล่างเป็นเวลา แถบสีด้านขวาบอกความดัง 0 ถึง −120 dB เหมือน Spek (ขอบ ช่วง dB และระยะแกนเวลา ยกจากซอร์สของ Spek บน GitHub)<br>
   <b>ที่ทำได้มากกว่า Spek</b> ดูรวมทุกช่องหรือทีละช่อง (Spek ทีละช่อง) · ซูมได้ (Spek ไม่มี) · ชี้แล้วบอกเวลา ความถี่ ความดัง · ชุดสี 4 แบบ ความร้อน สีรุ้ง ขาวดำ สีตามชุด · <b>บอกเองว่าไฟล์น่าจะแปลงมา</b> ตัวอย่างนี้เป็น FLAC แต่เสียงหยุดเป็นเส้นตรงที่ 16 kHz</p>
   <div class="win"><div data-win="spek"></div></div>
+</div>
+
+<!-- ==================== 4ค ความถี่เฉลี่ย แบบ Plot Spectrum ของ Audacity ==================== -->
+<div class="sec">
+  <h2><span class="tag">แบบที่ 6</span>ความถี่เฉลี่ยของช่วงที่เลือก · แบบ Plot Spectrum ของ Audacity · จับเสียงฮัมจากไฟบ้าน</h2>
+  <p class="note"><b>ดูอะไร</b> ดูว่าในช่วงที่เลือก แต่ละความถี่ดังเท่าไหร่ โดยเฉลี่ยทั้งช่วง แกนนอนคือความถี่ เสียงต่ำซ้าย เสียงสูงขวา แกนตั้งคือความดัง dB · ต่างจากแบบความถี่ที่ดูไล่ตามเวลา อันนี้เป็นภาพนิ่งของช่วงเดียว อ่านค่าได้ละเอียดกว่า<br>
+  <b>เอาไว้ทำอะไร</b> หาเสียงฮัมจากไฟบ้าน (ยอดแคบที่ 50 Hz กับเลขคูณ) · เสียงซ่า · ดูว่าเสียงถูกตัดที่ความถี่ไหน · เบสหนักแค่ไหน · เทียบช่องซ้ายขวา<br>
+  เลือกช่วงบนแถบด้านบน · ชี้บนกราฟบอกความถี่ ความดัง ยอดที่ใกล้ที่สุด และชื่อโน้ต แบบ Audacity · แกนแบบล็อกหรือเส้นตรง · <b>ที่ทำได้มากกว่า Audacity</b> บอกเองว่าเจอเสียงฮัม และความถี่สูงสุดที่มีเสียง</p>
+  <div class="win"><div data-win="plot"></div></div>
 </div>
 
 <!-- ==================== 5 ไฟล์เสียงอย่างเดียว ==================== -->
@@ -513,6 +522,61 @@ function drawSpek(cv, kind, chans, t0, t1, o){
   g.fillStyle = grad; g.fillRect(bx, T, 12, PH); g.fillStyle = "#e6e6e6"; g.textAlign = "left"; g.textBaseline = "middle";
   for (let d = 0; d >= -120; d -= 20) { const y = T + PH * (-d / 120); g.fillRect(bx + 12, Math.round(y), 4, 1); g.fillText(`${d === 0 ? "0" : "−" + -d} dB`, bx + 20, y); }
 }
+/* ความถี่เฉลี่ยของช่วงที่เลือก แบบ Plot Spectrum ของ Audacity (พี่กันขอ 7 พ.ย. 2569)
+   แกนนอนความถี่ แกนตั้ง dB · เฉลี่ยพลังงานทุกจุดเวลาในช่วง · ไฟล์ที่มีเสียงฮัมใส่ยอดแคบที่ 50 100 150 200 Hz */
+const NOTES = ["C","C#","D","D#","E","F","F#","G","G#","A","A#","B"];
+const noteOf = (f) => { const n = Math.round(12 * Math.log2(f / 440)) + 57; return NOTES[((n % 12) + 12) % 12] + Math.floor(n / 12); };
+/* รูปร่างความถี่ของเสียงจริงโดยประมาณ · ต่ำกว่า 120 Hz ลดลงแรง (เสียงพูดแทบไม่มีย่านนี้) · ดังสุดแถว 200–600 Hz · สูงขึ้นไปลดลงทีละช่วง
+   พื้นเสียงซ่าราว −95 dB · เหนือความถี่ที่ตัดเหลือแต่พื้น */
+function psdDb(kind, chans, t, f, cut){
+  let s = 0; for (const c of chans) { const v = level(kind, c, t); s += v * v; } const lv = Math.sqrt(s / chans.length);
+  const floor = -96 + 4 * Math.log2(f / 1000) * 0.3;
+  if (lv <= 0.0015 || f > cut + 1) return f > cut + 1 ? -112 : floor; // +1 กันจุดสุดท้ายที่ปัดเศษเกินความถี่ตัดไปนิดเดียว
+  let d = 20 * Math.log10(lv) - 12;
+  if (f < 150) d -= 30 * Math.log2(150 / f);
+  if (f >= 150 && f <= 600) d -= 3 * Math.log2(f / 300) ** 2; // เนินโค้ง สูงสุดแถว 300 Hz
+  if (f > 20000) d -= (f - 20000) / 150; // เสียงจริงค่อย ๆ ลดลงเหนือ 20 kHz
+  if (f > 600) d -= 7 * Math.log2(f / 600);
+  if (f > 4000) d -= 4 * Math.log2(f / 4000);
+  if (kind === "music" || chans.includes("LFE")) d += f < 120 ? 18 : 0; // ดนตรีกับหนังมีเบสจริง
+  d += 4 * (vn2(t * 0.4, f / 400, 91) - 0.5);
+  return 10 * Math.log10(Math.pow(10, d / 10) + Math.pow(10, floor / 10));
+}
+function avgSpectrum(kind, chans, t0, t1, cut, nyq, hum){
+  const pts = [], N = 420, T = 36, lo = Math.log10(20), hi = Math.log10(nyq);
+  for (let i = 0; i < N; i++) {
+    const f = Math.pow(10, lo + (hi - lo) * i / (N - 1)); let p = 0;
+    for (let k = 0; k < T; k++) p += Math.pow(10, psdDb(kind, chans, t0 + (t1 - t0) * (k + 0.5) / T, f, cut) / 10);
+    let d = 10 * Math.log10(p / T);
+    if (hum) for (const [h, a] of [[50, -30], [100, -35], [150, -40], [200, -47]]) { const x = Math.log2(f / h) / 0.012; d = 10 * Math.log10(Math.pow(10, d / 10) + Math.pow(10, a / 10) * Math.exp(-x * x)); }
+    pts.push([f, d]);
+  }
+  return pts;
+}
+function peaksOf(pts){
+  const out = [];
+  for (let i = 3; i < pts.length - 3; i++) { const d = pts[i][1]; if (d > pts[i - 1][1] && d >= pts[i + 1][1] && d - Math.min(pts[i - 3][1], pts[i + 3][1]) > 8) out.push(pts[i]); }
+  return out;
+}
+const PSM = { L: 52, R: 18, T: 14, B: 30 };
+function drawPlotSpec(cv, series, th, logAxis, nyq){
+  const { g, w, h } = setup(cv); g.fillStyle = "#fff"; g.fillRect(0, 0, w, h);
+  const { L, R, T, B } = PSM, PW = w - L - R, PH = h - T - B, lo = -90, hi = 0;
+  const X = (f) => logAxis ? L + (Math.log10(f) - Math.log10(20)) / (Math.log10(nyq) - Math.log10(20)) * PW : L + f / nyq * PW;
+  const Y = (d) => T + (hi - Math.max(lo, Math.min(hi, d))) / (hi - lo) * PH;
+  g.font = "11px Sarabun, sans-serif"; g.fillStyle = "#a88595"; g.textAlign = "right"; g.textBaseline = "middle";
+  for (let d = hi; d >= lo; d -= 10) { g.fillStyle = "#f3e2e9"; g.fillRect(L, Math.round(Y(d)), PW, 1); g.fillStyle = "#a88595"; g.fillText(String(d).replace("-", "−") + (d === hi ? " dB" : ""), L - 6, Y(d)); }
+  g.textAlign = "center"; g.textBaseline = "top";
+  const ticks = logAxis ? [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000] : Array.from({ length: Math.floor(nyq / 2000) + 1 }, (_, i) => i * 2000);
+  for (const f of ticks) { if (f > nyq) continue; const x = X(Math.max(f, 1)); g.fillStyle = "#f3e2e9"; g.fillRect(Math.round(x), T, 1, PH); g.fillStyle = "#a88595"; g.fillText(f >= 1000 ? f / 1000 + "k" : String(f), x, T + PH + 6); }
+  g.textAlign = "right"; g.fillText("Hz", L + PW, T + PH + 18);
+  for (const s of series) {
+    const pts = s.pts.filter(([f]) => logAxis || f > 0);
+    if (series.length === 1) { g.fillStyle = th.peak; g.globalAlpha = 0.35; g.beginPath(); g.moveTo(X(pts[0][0]), Y(lo)); for (const [f, d] of pts) g.lineTo(X(f), Y(d)); g.lineTo(X(pts[pts.length - 1][0]), Y(lo)); g.closePath(); g.fill(); g.globalAlpha = 1; }
+    g.strokeStyle = s.color; g.lineWidth = 2; g.lineJoin = "round"; g.beginPath(); pts.forEach(([f, d], i) => i ? g.lineTo(X(f), Y(d)) : g.moveTo(X(f), Y(d))); g.stroke();
+  }
+  return { X, Y };
+}
 function loudAt(kind, chans, t){ let s = 0; for (const c of chans) { const v = level(kind, c, t); s += v * v * (c === "LFE" ? 0 : (c[0] === "S" || c[0] === "B") ? 1.41 : 1); } return s <= 1e-6 ? -70 : -0.691 + 10 * Math.log10(s) - 23; }
 /* ตัวเลขสรุปทั้งเรื่อง คิดจากข้อมูลชุดเดียวกับกราฟ ตัวเลขกับกราฟจึงตรงกัน */
 function summary(kind, chans, total){
@@ -609,7 +673,9 @@ const ICON = {
   cmp: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 15c3-6 5-6 8 0s5 6 10-4"/><path d="M3 10c4 4 7 4 10-1s5-4 8 1" opacity=".55"/></svg>',
   spek: '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="3" y="3" width="18" height="18" rx="2"/><path d="M7 17V9M10 17V6M13 17v-5M16 17V8"/><path d="M21 7h-2M21 12h-2M21 17h-2"/></svg>',
 };
-const VIEWS = [["wave","รูปคลื่น"],["spec","ความถี่"],["loud","ความดัง"],["cmp","ซ้อนเทียบ"],["spek","วิเคราะห์"]];
+ICON.psd = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 20h18"/><path d="M4 17c2-1 3-9 5-9s2 6 4 6 3-4 5-4 2 3 3 3"/></svg>';
+const VIEWS = [["wave","รูปคลื่น"],["spec","ความถี่"],["loud","ความดัง"],["cmp","ซ้อนเทียบ"],["spek","วิเคราะห์"],["psd","ความถี่เฉลี่ย"]];
+const PSD_SPANS = [[10, "10 วินาที"], [30, "30 วินาที"], [120, "2 นาที"], ["all", "ทั้งเรื่อง"]];
 const ZOOMS = [["all","ทั้งเรื่อง"],[600,"10 นาที"],[240,"4 นาที"],[30,"30 วินาที"]];
 const WARN_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></svg>';
 
@@ -666,6 +732,20 @@ function mount(root, p){
         ? `<div class="stat warn" style="margin-top:10px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></svg><div><b>เป็นไฟล์ ${codec} แต่เสียงหยุดที่ราว ${(cut / 1000).toFixed(1)} kHz</b>${codecOK[1]} · ไฟล์นี้น่าจะแปลงมาจาก MP3 หรือ AAC คุณภาพไม่ได้ดีกว่าไฟล์ต้นทาง ดูได้จากขอบบนที่ตัดเป็นเส้นตรง</div></div>`
         : `<div class="stat info" style="margin-top:10px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg><div><b>เสียงสูงสุดราว ${(cut / 1000).toFixed(1)} kHz</b>${codecOK[1]}</div></div>`}
       <div class="agfoot"><div class="seg sm">${[["heat", "สีความร้อน"], ["rainbow", "สีรุ้ง"], ["mono", "ขาวดำ"], ["theme", "สีตามชุด"]].map(([k, t]) => `<button class="${(p.scmap || "heat") === k ? "on" : ""}" data-scmap="${k}">${t}</button>`).join("")}</div><div style="display:flex;gap:8px">${file.audio ? "" : `<button class="btn btn-ghost btn-sm" data-play>เปิดเล่นที่ ${tfmt(p.tip)}</button>`}<button class="btn btn-ghost btn-sm">บันทึกเป็นรูป</button></div></div>
+    </div>`;
+  } else if (p.view === "psd") {
+    const opts = chans.length === 1 ? [["mix", DISP(p.lay, chans[0])]] : [["mix", "รวมทุกช่อง"], ...(chans.includes("FR") ? [["FL", DISP(p.lay, "FL")], ["FR", DISP(p.lay, "FR")], ["lr", "เทียบซ้ายขวา"]] : [])];
+    const chSel = `<div class="seg sm">${opts.map(([k, t]) => `<button class="${(p.psdCh || "mix") === k ? "on" : ""}" data-psdch="${k}">${t}</button>`).join("")}</div>`;
+    const spanBox = `<span style="display:flex;align-items:center;gap:8px"><span class="lbl">ช่วงที่เลือก</span><div class="seg sm">${PSD_SPANS.map(([k, t]) => `<button class="${p.zoom === k ? "on" : ""}" data-zoom="${k}">${t}</button>`).join("")}</div></span>`;
+    plot = `<div class="plot" data-plot>
+      <div class="plothead"><span style="display:flex;align-items:center;gap:8px"><b>ความถี่เฉลี่ย</b>${chSel}</span>${spanBox}</div>
+      <div class="ovw" style="margin-left:52px"><canvas data-ovw></canvas></div>
+      <div class="ovrul" style="margin-left:52px"><span>0:00</span><span style="left:50%">ช่วงที่เลือก ${tfmt(t0)} ถึง ${tfmt(t1)} · กดที่แถบเพื่อย้ายช่วง</span><span style="left:100%">${tfmt(p.total)}</span></div>
+      <div style="position:relative;margin-top:8px" data-psdbox><canvas class="cv" style="height:320px" data-psd></canvas></div>
+      <div data-psdnote></div>
+      <div class="agfoot"><div style="display:flex;align-items:center;gap:8px;flex-wrap:wrap"><span class="lbl">แกนความถี่</span><div class="seg sm">${[["log", "แบบล็อก"], ["lin", "เส้นตรง"]].map(([k, t]) => `<button class="${(p.psdAxis || "log") === k ? "on" : ""}" data-psdaxis="${k}">${t}</button>`).join("")}</div>
+        <button class="dd" style="height:30px;font-size:13px" title="ยิ่งมากยิ่งแยกความถี่ละเอียด แต่ช้าลง"><span>ความละเอียด ${p.psdSize || "4096"}</span><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg></button></div>
+        <div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm">ส่งออกเป็นตาราง</button><button class="btn btn-ghost btn-sm">บันทึกเป็นรูป</button></div></div>
     </div>`;
   } else if (p.view === "loud") {
     const S = summary(p.kind, chans, p.total), L = [S.I, S.TP, S.LRA];
@@ -750,6 +830,45 @@ function mount(root, p){
   }
 
   // เส้นชี้เวลา + กล่องค่าทุกช่อง (ชี้ได้จริง · ไม่ชี้แสดงที่เวลาตั้งต้น)
+  // ความถี่เฉลี่ย แบบ Plot Spectrum ของ Audacity
+  const pc = root.querySelector("[data-psd]");
+  if (pc) {
+    const logAxis = (p.psdAxis || "log") === "log", nyq = rate / 2, mode = p.psdCh || "mix";
+    const base = chans.filter((c) => c !== "LFE");
+    const series = mode === "lr"
+      ? [["FL", "ซ้าย"], ["FR", "ขวา"]].map(([c, n]) => ({ name: n, color: CMP[c], pts: avgSpectrum(p.kind, [c], t0, t1, cut, nyq, file.hum) }))
+      : [{ name: mode === "mix" ? (chans.length === 1 ? DISP(p.lay, chans[0]) : "รวมทุกช่อง") : DISP(p.lay, mode), color: th.rms, pts: avgSpectrum(p.kind, mode === "mix" ? base : [mode], t0, t1, cut, nyq, file.hum) }];
+    const ax = drawPlotSpec(pc, series, th, logAxis, nyq);
+    // ข้อสังเกตอัตโนมัติ เสียงฮัมจากไฟบ้าน กับความถี่สูงสุดที่มีเสียง
+    const pk = peaksOf(series[0].pts), hum = pk.filter(([f, d]) => d > -60 && [50, 100, 150, 60, 120, 180].some((h) => Math.abs(f / h - 1) < 0.04));
+    let top = 0; for (const [f, d] of series[0].pts) if (d > -80) top = f;
+    const note = root.querySelector("[data-psdnote]");
+    note.innerHTML = (hum.length
+      ? `<div class="stat warn" style="margin-top:10px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></svg><div><b>เจอเสียงฮัมจากไฟบ้าน ยอดแคบที่ ${hum.map(([f]) => Math.round(f / 50) * 50).filter((v, i, a) => a.indexOf(v) === i).join(" ")} Hz</b>ไฟบ้านในไทย 50 Hz เสียงฮัมจะเป็นยอดแคบที่ 50 กับเลขคูณ · มักมาจากสายไมค์หรือปลั๊กพ่วง</div></div>`
+      : `<div class="stat info" style="margin-top:10px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg><div><b>ไม่พบเสียงฮัม</b>ไม่มียอดแคบที่ 50 Hz กับเลขคูณ</div></div>`)
+      + `<div class="small" style="margin-top:6px">เสียงสูงสุดที่มีราว ${(top / 1000).toFixed(1)} kHz · ช่วงที่เลือก ${tfmt(t0)} ถึง ${tfmt(t1)}</div>`;
+    // ชี้แล้วบอกความถี่ ความดัง และยอดที่ใกล้ที่สุด พร้อมชื่อโน้ต (แบบ Audacity)
+    const box = root.querySelector("[data-psdbox]");
+    const xh = document.createElement("div"); xh.className = "xh"; const tip = document.createElement("div"); tip.className = "tip"; box.append(xh, tip);
+    const showF = (f) => {
+      const x = ax.X(f); xh.style.left = x + "px"; xh.style.top = PSM.T + "px"; xh.style.bottom = PSM.B + "px";
+      tip.replaceChildren(); const hd = document.createElement("div"); hd.className = "t"; hd.textContent = (f >= 1000 ? (f / 1000).toFixed(2) + " kHz" : Math.round(f) + " Hz") + " · โน้ต " + noteOf(f); tip.appendChild(hd);
+      const grid = document.createElement("div"); grid.className = "r";
+      for (const s of series) {
+        let best = s.pts[0]; for (const q of s.pts) if (Math.abs(Math.log(q[0] / f)) < Math.abs(Math.log(best[0] / f))) best = q;
+        const b = document.createElement("b"); b.textContent = Math.round(best[1]).toString().replace("-", "−") + " dB"; const sp = document.createElement("span");
+        if (series.length > 1) { const k = document.createElement("i"); k.className = "key"; k.style.background = s.color; sp.appendChild(k); }
+        sp.appendChild(document.createTextNode(s.name)); grid.append(b, sp);
+      }
+      const near = peaksOf(series[0].pts).sort((a, b2) => Math.abs(Math.log(a[0] / f)) - Math.abs(Math.log(b2[0] / f)))[0];
+      if (near) { const b = document.createElement("b"); b.textContent = Math.round(near[1]).toString().replace("-", "−") + " dB"; const sp = document.createElement("span"); sp.textContent = `ยอดใกล้สุด ${near[0] >= 1000 ? (near[0] / 1000).toFixed(2) + " kHz" : Math.round(near[0]) + " Hz"} · ${noteOf(near[0])}`; grid.append(b, sp); }
+      tip.appendChild(grid); const tw = tip.offsetWidth; tip.style.left = (x + 12 + tw > box.clientWidth ? x - 12 - tw : x + 12) + "px"; tip.style.top = "24px";
+    };
+    const f0 = p.psdTipF || 1000; showF(f0);
+    box.addEventListener("pointermove", (e) => { const r = box.getBoundingClientRect(), PW = r.width - PSM.L - PSM.R, x = Math.min(PW, Math.max(0, e.clientX - r.left - PSM.L));
+      showF(logAxis ? Math.pow(10, Math.log10(20) + x / PW * (Math.log10(nyq) - Math.log10(20))) : Math.max(1, x / PW * nyq)); });
+    box.addEventListener("pointerleave", () => showF(f0));
+  }
   // วิเคราะห์ความถี่ ชี้แล้วบอกเวลา ความถี่ และความดังตรงจุดนั้น
   const sbox = root.querySelector("[data-spekbox]");
   if (sbox) {
@@ -805,10 +924,13 @@ function mount(root, p){
     root.querySelectorAll("[data-cmap]").forEach((b) => b.addEventListener("click", () => { p.cmap = b.dataset.cmap; mount(root, p); }));
     root.querySelectorAll("[data-scmap]").forEach((b) => b.addEventListener("click", () => { p.scmap = b.dataset.scmap; mount(root, p); }));
     root.querySelectorAll("[data-spekch]").forEach((b) => b.addEventListener("click", () => { p.spekCh = b.dataset.spekch; mount(root, p); }));
+    root.querySelectorAll("[data-psdch]").forEach((b) => b.addEventListener("click", () => { p.psdCh = b.dataset.psdch; mount(root, p); }));
+    root.querySelectorAll("[data-psdaxis]").forEach((b) => b.addEventListener("click", () => { p.psdAxis = b.dataset.psdaxis; mount(root, p); }));
+    root.querySelectorAll("[data-psdsize]").forEach((b) => b.addEventListener("click", () => { p.psdSize = b.dataset.psdsize; mount(root, p); }));
     root.querySelectorAll("[data-zoom]").forEach((b) => b.addEventListener("click", () => { const z = b.dataset.zoom; p.zoom = z === "all" ? "all" : Number(z); mount(root, p); }));
     root.querySelectorAll(".spk .s").forEach((g) => { const go = () => { const c = g.dataset.ch; if (chans.length < 2) return; p.hidden = p.hidden.includes(c) ? p.hidden.filter((x) => x !== c) : (vis.length > 1 ? [...p.hidden, c] : p.hidden); mount(root, p); }; g.addEventListener("click", go); g.addEventListener("keydown", (e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); go(); } }); });
     const gt = root.querySelector("[data-goto]"); if (gt) gt.addEventListener("click", () => { p.center = 7083; p.zoom = 30; p.tip = 7082; if (p.view !== "wave" && p.view !== "spec") p.view = "wave"; mount(root, p); });
-    if (ov) ov.parentElement.addEventListener("click", (ev) => { const r = ov.getBoundingClientRect(); p.center = (ev.clientX - r.left) / r.width * p.total; if (p.zoom === "all") p.zoom = 240; p.tip = p.center; mount(root, p); });
+    if (ov) ov.parentElement.addEventListener("click", (ev) => { const r = ov.getBoundingClientRect(); p.center = (ev.clientX - r.left) / r.width * p.total; if (p.zoom === "all") p.zoom = p.view === "psd" ? 30 : 240; p.tip = p.center; mount(root, p); });
   }
 }
 
@@ -826,6 +948,8 @@ const PRESETS = {
     file:{ ...MOVIE, meta:"5.08 GB · ยาว 2:21:00", tracks:"เสียง 3 · ไทย · AAC · 2.0", info:[["รหัสเสียง","AAC"],["ช่องเสียง","2.0 · 2 channels"],["อัตราสุ่ม","48 kHz"],["บิตเรต","192 kb/s"],["ภาษา","ไทย"]] } },
   spek: { kind:"music", lay:"2.0", view:"spek", theme:"ชมพู", total:252, zoom:"all", center:126, tip:150, hidden:[], check:false,
     file:{ name:"เพลงประกอบ ตอนจบ", ext:".flac", audio:true, rate:44100, bits:16, cut:16000, meta:"ไฟล์เสียง · 27.4 MB · ยาว 4:12 · ไม่ได้อยู่บนชั้นวาง", tracks:"", info:[["รหัสเสียง","FLAC"],["ช่องเสียง","2.0 · 2 channels"],["อัตราสุ่ม","44.1 kHz"],["ความละเอียด","16-bit"],["บิตเรต","870 kb/s"]] } },
+  plot: { kind:"speech", lay:"1.0", view:"psd", theme:"ชมพู", total:302, zoom:30, center:95, tip:95, psdTipF:50, hidden:[], check:false,
+    file:{ name:"สัมภาษณ์คุณยาย ตอนที่ 2", ext:".wav", audio:true, rate:48000, bits:24, cut:24000, hum:true, meta:"ไฟล์เสียง · 41.5 MB · ยาว 5:02 · ไม่ได้อยู่บนชั้นวาง", tracks:"", info:[["รหัสเสียง","PCM (WAV)"],["ช่องเสียง","1.0 · 1 channel"],["อัตราสุ่ม","48 kHz"],["ความละเอียด","24-bit"],["บิตเรต","1,152 kb/s"]] } },
   music: { kind:"music", lay:"2.0", view:"wave", style:"bars", theme:"ชมพู", total:252, zoom:"all", center:126, tip:96, hidden:[], check:false,
     file:{ name:"บันทึกการแสดงสด ช่วงที่ 3", ext:".flac", audio:true, rate:96000, bits:24, meta:"ไฟล์เสียง · 58.2 MB · ยาว 4:12 · ไม่ได้อยู่บนชั้นวาง", tracks:"", info:[["รหัสเสียง","FLAC"],["ช่องเสียง","2.0 · 2 channels"],["อัตราสุ่ม","96 kHz"],["ความละเอียด","24-bit"],["บิตเรต","1,848 kb/s"]] } },
 };
