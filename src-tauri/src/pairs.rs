@@ -73,6 +73,7 @@ pub fn player_args(player: Option<&Path>, movie: &Path, pairs: &[Pair]) -> (Opti
         if audio.iter().skip(1).any(|p| p.delay != audio[0].delay) || subs.iter().skip(1).any(|p| p.delay != subs[0].delay) {
             notes.push("mpv ใส่ดีเลย์ได้ค่าเดียวต่อชนิด ใช้ของไฟล์แรก".into());
         }
+        if audio.first().is_some_and(|p| p.delay != 0) { notes.push("ดีเลย์เสียงของ mpv ใช้กับทุกเสียง สลับไปเสียงเดิมของหนังในโปรแกรมเล่นจะเลื่อนตามด้วย".into()); }
     } else if name.contains("vlc") {
         if !audio.is_empty() { a.push(format!("--input-slave={}", audio.iter().map(|p| p.path.as_str()).collect::<Vec<_>>().join("#")).into()); }
         if let Some(p) = subs.first() { a.push(format!("--sub-file={}", p.path).into()); }
@@ -86,6 +87,9 @@ pub fn player_args(player: Option<&Path>, movie: &Path, pairs: &[Pair]) -> (Opti
         }
         if subs.len() > 1 { notes.push("VLC ใส่ซับจากคำสั่งได้ไฟล์เดียว ส่งไฟล์แรก".into()); }
         if audio.iter().skip(1).any(|p| p.delay != audio[0].delay) { notes.push("VLC ใส่ดีเลย์เสียงได้ค่าเดียว ใช้ของไฟล์แรก".into()); }
+        if audio.first().is_some_and(|p| p.delay != 0) { notes.push("ดีเลย์เสียงของ VLC ใช้กับทุกเสียง สลับไปเสียงเดิมของหนังในโปรแกรมเล่นจะเลื่อนตามด้วย".into()); }
+        // VLC ใช้ # คั่นไฟล์ใน --input-slave ที่อยู่ที่มี # จะขาด (ผู้ช่วยตรวจขั้น 10 ข้อ 17)
+        if audio.iter().any(|p| p.path.contains('#')) { notes.push("ที่อยู่ไฟล์เสียงมีเครื่องหมาย # VLC อ่านไม่ได้ ย้ายไฟล์ไปโฟลเดอร์ที่ชื่อไม่มี # หรือใช้โปรแกรมเล่นอื่น".into()); }
     } else if name.contains("mpc-hc") || name.contains("mpc-be") {
         for p in &audio { a.push("/dub".into()); a.push((&p.path).into()); }
         for p in &subs { a.push("/sub".into()); a.push((&p.path).into()); }
@@ -98,6 +102,11 @@ pub fn player_args(player: Option<&Path>, movie: &Path, pairs: &[Pair]) -> (Opti
         if !audio.is_empty() { notes.push("PotPlayer ใส่เสียงแยกจากคำสั่งไม่ได้ เปิดได้เฉพาะหนังกับซับ".into()); }
         if subs.len() > 1 { notes.push("PotPlayer ใส่ซับจากคำสั่งได้ไฟล์เดียว ส่งไฟล์แรก".into()); }
         if pairs.iter().any(|p| p.delay != 0) { notes.push("PotPlayer ใส่ดีเลย์จากคำสั่งไม่ได้ ตั้งเองในโปรแกรมเล่น".into()); }
+    } else if player.is_some() {
+        // โปรแกรมเล่นที่ตั้งไว้แต่ไม่รู้จัก เปิดหนังด้วยโปรแกรมนั้น ส่งแค่ไฟล์หนัง (ผู้ช่วยตรวจขั้น 10 ข้อ 16 · เดิมเปิดโปรแกรมหลักของ Windows แทน)
+        let who = player.and_then(|p| p.file_stem()).map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+        notes.push(format!("โปรแกรมไม่รู้วิธีส่งเสียงกับซับแยกให้ {who} เปิดได้เฉพาะหนัง · เลือก VLC MPC-HC PotPlayer หรือ mpv ในหน้าตั้งค่า ถ้าอยากได้ไฟล์ที่จับคู่"));
+        return (Some(a), notes);
     } else {
         notes.push("โปรแกรมเล่นหลักของ Windows รับไฟล์เสียงกับซับแยกไม่ได้ เปิดได้เฉพาะหนัง · เลือก VLC MPC-HC PotPlayer หรือ mpv ในหน้าตั้งค่า".into());
         return (None, notes);
@@ -147,7 +156,7 @@ pub fn pair_play(app: AppHandle, lib: State<'_, Arc<LibraryStore>>, movie: Strin
     notes.extend(more);
     let name = player.as_ref().and_then(|p| p.file_stem()).map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
     let (cmd, sent) = match (&player, &args) {
-        (Some(exe), Some(a)) => (format!("{} {}", quote(&exe.clone().into_os_string()), a.iter().map(quote).collect::<Vec<_>>().join(" ")), found.len()),
+        (Some(exe), Some(a)) => (format!("{} {}", quote(&exe.clone().into_os_string()), a.iter().map(quote).collect::<Vec<_>>().join(" ")), if a.len() > 1 { found.len() } else { 0 }),
         _ => (quote(&file.clone().into_os_string()), 0),
     };
     let mut opened = false;
@@ -184,10 +193,19 @@ mod tests {
     fn player_commands() {
         let (a, n) = player_args(Some(Path::new("C:\\mpv\\mpv.exe")), Path::new(M), &pairs());
         assert_eq!(s(&a), format!("{M} | --audio-file=D:\\เสียง\\พากย์ไทย DELAY -120ms.ac3 | --sub-file=E:\\ซับ\\เรื่อง.th.srt | --audio-delay=-0.12 | --alang=th | --sub-delay=0.5 | --slang=th"));
-        assert!(n.is_empty());
+        // ดีเลย์เสียงของ mpv VLC ใช้กับทุกเสียง บอกให้รู้ (ผู้ช่วยตรวจขั้น 10 ข้อ 17)
+        assert_eq!(n, vec!["ดีเลย์เสียงของ mpv ใช้กับทุกเสียง สลับไปเสียงเดิมของหนังในโปรแกรมเล่นจะเลื่อนตามด้วย".to_string()]);
         let (a, n) = player_args(Some(Path::new("C:\\Program Files\\VideoLAN\\VLC\\vlc.exe")), Path::new(M), &pairs());
         assert_eq!(s(&a), format!("{M} | --input-slave=D:\\เสียง\\พากย์ไทย DELAY -120ms.ac3 | --sub-file=E:\\ซับ\\เรื่อง.th.srt | --audio-desync=-120 | --audio-language=th | --sub-delay=5 | --sub-language=th"));
-        assert!(n.is_empty());
+        assert_eq!(n.len(), 1, "{n:?}");
+        // โปรแกรมเล่นที่ไม่รู้จัก เปิดด้วยโปรแกรมนั้น ส่งแค่ไฟล์หนัง (ข้อ 16)
+        let (a, n) = player_args(Some(Path::new(r"C:\SMPlayer\smplayer.exe")), Path::new(M), &pairs());
+        assert_eq!(s(&a), M);
+        assert!(n[0].contains("smplayer") && n[0].contains("เปิดได้เฉพาะหนัง"), "{n:?}");
+        // VLC ที่อยู่มี # อ่านไม่ได้ บอก
+        let mut hp = pairs();
+        hp[0].path = r"D:\เสียง\#Thai\a.ac3".into();
+        assert!(player_args(Some(Path::new(r"C:\VLC\vlc.exe")), Path::new(M), &hp).1.iter().any(|x| x.contains('#')));
         let (a, n) = player_args(Some(Path::new("C:\\K-Lite\\mpc-hc64.exe")), Path::new(M), &pairs());
         assert_eq!(s(&a), format!("{M} | /dub | D:\\เสียง\\พากย์ไทย DELAY -120ms.ac3 | /sub | E:\\ซับ\\เรื่อง.th.srt"));
         assert_eq!(n, vec!["MPC-HC ใส่ดีเลย์จากคำสั่งไม่ได้ ตั้งเองในโปรแกรมเล่น (เสียง −120 ms · ซับ +500 ms)".to_string()]);

@@ -51,6 +51,16 @@ pub fn run() {
             app.manage(SettingsStore::load(path));
             let lib = library::library_path(app.handle())?;
             app.manage(Arc::new(library::LibraryStore::load(lib)));
+            // กวาดไฟล์ชั่วคราวที่ค้างจากงานที่โดนปิดกลางทางหรือไฟดับ (โปรแกรมเปิดได้ทีละตัว ตอนนี้ยังไม่มีงานไหนถือไฟล์)
+            // ไดรฟ์ C ที่ว่างน้อย เสียงที่แปลงตอนรวมค้างได้หลาย GB (ผู้ช่วยตรวจขั้น 10 ข้อ 11) · ภาพซับรูป subimg- เป็นของที่เก็บไว้ใช้ซ้ำ ไม่ลบ
+            if let Ok(tmp) = app.path().app_local_data_dir().map(|d| d.join("tmp")) {
+                for e in std::fs::read_dir(&tmp).into_iter().flatten().flatten() {
+                    let n = e.file_name().to_string_lossy().to_string();
+                    if ["merge-conv-", "merge-vtt-", "merge-oldcover-", "conv-cover-", "sub-"].iter().any(|p| n.starts_with(p)) && e.path().is_file() {
+                        let _ = std::fs::remove_file(e.path());
+                    }
+                }
+            }
             // หน้าต่างตั้งไว้ไม่แสดงตอนสร้าง (tauri.conf.json visible:false) แสดงที่นี่
             // ตอนเทสผ่าน scripts/dev-app.ps1 เปิดแบบไม่แย่งโฟกัส อยู่หลังหน้าต่างอื่น · เปิดปกติขึ้นหน้าตามปกติ
             // รุ่นจริงที่ติดตั้งแล้วก็ใช้ได้เมื่อคนเปิดตั้งตัวแปรนี้เอง ใช้เทสตัวติดตั้งตอนพี่กันลงเวร ไม่ให้หน้าต่างเด้งขึ้นหน้าจอคนอื่น (ขั้น 8)

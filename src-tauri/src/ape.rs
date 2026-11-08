@@ -251,8 +251,10 @@ pub fn run(dir: &Path, ff_dir: &Path, plan: &Plan, total_secs: Option<f64>, stop
     let destroy = |h: *mut c_void| unsafe { (mac.destroy)(h) };
     if let Some(t) = mac.threads { unsafe { t(h, threads) }; }
     let w = wide(OsStr::new(&out));
-    // -1 คู่ท้าย = ไม่รู้ความยาวเสียงล่วงหน้า (APE_MAX_AUDIO_BYTES_UNKNOWN) กับให้ตัวบีบสร้างหัว WAV เองตอนถอดกลับ
-    let r = unsafe { (mac.start)(h, w.as_ptr(), &wf, -1, level, std::ptr::null(), -1) };
+    // บอกขนาดเสียงสูงสุดล่วงหน้าจากความยาว (เผื่อ 15% กับความเร็วเสียงที่ยืดได้ถึงราว 4%) · ไม่รู้ความยาวใช้ -1 (APE_MAX_AUDIO_BYTES_UNKNOWN)
+    // หัวไฟล์ SDK บอกว่าแบบไม่รู้ขนาดรับได้ถึง 2 GB (ผู้ช่วยตรวจขั้น 10 ข้อ 27) · -1 ตัวท้ายให้ตัวบีบสร้างหัว WAV เองตอนถอดกลับ
+    let max_bytes: i64 = total_secs.filter(|t| *t > 0.0).map(|t| (t * 1.15 * rate as f64 * align as f64) as i64 + (16 << 20)).unwrap_or(-1);
+    let r = unsafe { (mac.start)(h, w.as_ptr(), &wf, max_bytes, level, std::ptr::null(), -1) };
     if r != 0 { destroy(h); kill(&mut ff); return Ok(Done::Failed(format!("เริ่มเขียนไฟล์ .ape ไม่ได้ (รหัส {r})"))); }
 
     let mut buf = vec![0u8; 1 << 20];

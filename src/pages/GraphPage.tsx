@@ -1541,6 +1541,9 @@ export function CompareView({ a, b, note, onBack, onClose }: { a: string; b: str
   const t0 = Math.max(0, Math.min(dur - span, center - span / 2)), t1 = t0 + span;
   const nyqA = (ta?.rate ?? 48000) / 2, nyqB = (tb?.rate ?? 48000) / 2, maxNyq = Math.max(nyqA, nyqB);
   const common = na.filter((c) => nb.includes(c));
+  // ไฟล์หลังแปลงยาวไม่เท่าต้นฉบับ (ตั้งความเร็วเสียง) เทียบตามเวลาตรง ๆ ไม่ได้ (ผู้ช่วยตรวจขั้น 10 ข้อ 24)
+  const lenA = A.ov?.duration ?? A.info?.duration ?? 0, lenB = Bs.ov?.duration ?? Bs.info?.duration ?? 0;
+  const lenDiff = lenA > 0 && lenB > 0 && Math.abs(lenA - lenB) > Math.max(1, Math.max(lenA, lenB) * 0.01);
   const cmpUse = common.includes(cmpCh) ? cmpCh : common[0] ?? "";
   const ready = !!(A.ov && Bs.ov && ta && tb);
   const nameOf = (p: string) => p.split(/[\\/]/).pop() ?? p;
@@ -1622,6 +1625,7 @@ export function CompareView({ a, b, note, onBack, onClose }: { a: string; b: str
         <div className="ginfo" data-cmpinfo><span /><span className="h" style={{ color: INK_A }}>ต้นฉบับ</span><span className="h" style={{ color: INK_B }}>หลังแปลง</span>
           {["รหัสเสียง", "ช่องเสียง", "อัตราสุ่ม", "ความละเอียด", "บิตเรต", "ขนาด", "ความยาว"].map((k, i) => <FragmentInfo key={k} k={k} a={ia?.[i] ?? "…"} b={ib?.[i] ?? "…"} />)}</div>
         {note && <div className="small" style={{ marginTop: 8 }}><Phr>{note}</Phr></div>}</div>
+      {lenDiff && <div className="stat warn" data-cmplen><CardIcon kind="warn" /><div><b>{`สองไฟล์ยาวไม่เท่ากัน ${tfmt(lenA)} กับ ${tfmt(lenB)}`}</b><Phr>น่าจะตั้งความเร็วเสียงตอนแปลง · รูปคลื่น ความดัง ซ้อนเทียบ เทียบตามเวลาตรง ๆ ไม่ได้ ดูความถี่เฉลี่ยกับวิเคราะห์แทน</Phr></div></div>}
     </div>
   );
 

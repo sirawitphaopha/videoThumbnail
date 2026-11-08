@@ -174,6 +174,10 @@ await waitFor("return !!document.querySelector('[data-lane=b]')", 20000);
 await sleep(400);
 const pres = await q("return document.querySelector('[data-delay-res]')?.dataset.delayRes + ' · ' + document.querySelector('[data-delay-res]')?.innerText.replace(/\\s+/g, ' ')");
 check("เสียง PAL 25 fps โปรแกรมบอกว่าเร็วไม่เท่าหนัง เสนอคู่ความเร็ว 25 → 23.976 บอกว่าเทียบตรง ๆ ตรงกันน้อย", gotPal && pres.startsWith("speed") && pres.includes("25 → 23.976") && pres.includes("แผ่นยุโรป PAL"), pres.slice(0, 200));
+// ต้องยืดความเร็ว ไฟล์ลองฟังใส่ได้แค่ดีเลย์ ช่วงกลางเรื่องจะคนละฉาก · ปุ่มลองฟังกดไม่ได้ พร้อมบอกเหตุ (ผู้ช่วยตรวจขั้น 10 ข้อ 7)
+const np = await q("return (document.querySelector('[data-delay-play]')?.getAttribute('aria-disabled') ?? '') + ' · ' + (document.querySelector('[data-delay-noplay]')?.innerText ?? '')");
+check("เสียงต้องยืดความเร็ว ปุ่มลองฟังกดไม่ได้ บอกว่าลองฟังยังใส่ความเร็วไม่ได้", np.startsWith("true · ") && np.includes("ใส่ความเร็วเสียงไม่ได้"), np);
+const palFound = await q("return document.querySelector('[data-delay-num]').value");
 await shot("16-ตัวช่วยหาดีเลย์-PAL.png", "[role=dialog]", 8);
 await c.evaluate("document.querySelector('[data-delay-speed]').click()");
 await waitFor("return !!document.querySelector('[data-codec-panel]')", 15000);
@@ -182,6 +186,9 @@ const spd = await q("return [...document.querySelectorAll('[data-codec-panel] [d
 check("กดปุ่มตั้งความเร็วในตัวช่วยหาดีเลย์ แผงตั้งค่าเสียงเปิดพร้อมความเร็ว 25 → 23.976", spd.includes("25 → 23.976"), spd);
 await clickTextAny("[role=dialog] button", "ยกเลิก");
 await sleep(300);
+// กดตั้งความเร็วแล้ว ดีเลย์ที่หาได้ต้องใส่ให้แถวด้วย (ข้อ 8 · เดิมค่าหาย)
+const palRow = await q(`return ${findRow("PAL 25fps")}.querySelector('.avnum').value`);
+check("กดตั้งความเร็วจากตัวช่วยหาดีเลย์ ช่องดีเลย์ของแถวเป็นค่าที่หาได้ ไม่หาย", palRow.replace("−", "-") === palFound.replace("−", "-") && palRow !== "0", `แถว ${palRow} · หาได้ ${palFound}`);
 await c.evaluate(`${findRow("PAL 25fps")}.querySelector('[data-remove]').click()`);
 await sleep(300);
 check("เอาไฟล์ PAL ที่ลากมาทดสอบออกแล้ว แถวกลับเป็นเหมือนเดิม", !(await q(`return !!${findRow("PAL 25fps")}`)) && !(await q("return !!document.querySelector('[data-codec-panel]')")));
@@ -263,7 +270,8 @@ for (let i = 0; i < 3; i++) await c.evaluate("document.querySelector('[data-code
 await c.evaluate("[...document.querySelectorAll('[data-codec-panel] [data-extra] .seg button')].find(b => b.innerText.startsWith('EBU')).click()");
 await waitFor("return document.querySelector('[data-cmd]').innerText.includes('loudnorm')", 8000);
 const cmd2 = await q("return document.querySelector('[data-cmd]').innerText.replace(/\\s+/g, ' ')");
-check("ตั้งความเร็ว 25 → 23.976 Gain −3 dB ความดังมาตรฐาน คำสั่งมี rubberband=tempo=0.959040,volume=-3dB,loudnorm", cmd2.includes('-af "rubberband=tempo=0.959040,volume=-3dB,loudnorm=I=-23:TP=-1"'), cmd2.slice(0, 220));
+// loudnorm บังคับ 192 kHz ต่อ aresample อัตราของต้นทาง (48 kHz) ไว้ท้าย (ผู้ช่วยตรวจขั้น 10 ข้อ 3)
+check("ตั้งความเร็ว 25 → 23.976 Gain −3 dB ความดังมาตรฐาน คำสั่งมี rubberband=tempo=0.959040,volume=-3dB,loudnorm แล้วคืนอัตราสุ่มเดิม aresample=48000", cmd2.includes('-af "rubberband=tempo=0.959040,volume=-3dB,loudnorm=I=-23:TP=-1,aresample=48000"'), cmd2.slice(0, 220));
 await shot("11-แผงตั้งค่าเสียง-ความเร็ว.png", "[data-extra]", 8);
 const extraH = await q("return [...new Set([...document.querySelectorAll('[data-extra] .dd, [data-extra] .delay button, [data-extra] .seg button')].map(e => Math.round(e.getBoundingClientRect().height)))]");
 check("แถวความเร็ว Gain ความดังมาตรฐาน ช่องเลือก ปุ่ม − + ปุ่มเลือก สูงเท่ากันทุกตัว (form-input ข้อ ⑥)", extraH.length === 1, extraH.join(","));
@@ -494,6 +502,24 @@ await shot("21-จับคู่บนชั้นวาง.png", "[data-pairs]
 await c.evaluate("document.querySelector('[data-pair-drop]').click()");
 await waitFor("return document.querySelectorAll('[data-pairs] [data-pair]').length === 1", 10000);
 check("กดเอาออกจากคู่ เหลือจับคู่ไว้ 1 ไฟล์", (await q("return document.querySelector('[data-pairs] > b').innerText")) === "จับคู่ไว้ 1 ไฟล์");
+// แก้การจับคู่ · เปิดหน้าเสียงและซับใหม่ ตารางยังไม่มีไฟล์ที่จับคู่ไว้ ขึ้นการ์ดเตือนว่าบันทึกใหม่แทนทั้งชุด กดใส่ไฟล์ที่จับคู่ไว้ลงตารางได้ (ผู้ช่วยตรวจขั้น 10 ข้อ 15)
+await c.evaluate("[...document.querySelectorAll('.side .nav')].find(b => b.innerText.includes('เสียงและซับ')).click()");
+await sleep(500);
+await clickTextAny(".avfoot button", "ล้างทั้งหมด").catch(() => {});
+await sleep(400);
+await drop([MOVIE]);
+await waitFor("return document.querySelector('[data-movie-chip]')?.innerText.includes('ดาวตก')", 20000);
+await clickTextAny("[data-method] .seg button", "จับคู่ไว้ ไม่รวม");
+await waitFor("return !!document.querySelector('[data-pairs-saved]')", 10000);
+const saved = await q("return document.querySelector('[data-pairs-saved]').innerText.replace(/\\s+/g, ' ')");
+check("เปิดเรื่องที่จับคู่ไว้แล้ว แบบจับคู่ บอกว่าจับคู่ไว้แล้ว 1 ไฟล์ ยังไม่อยู่ในตาราง บันทึกใหม่แทนทั้งชุด", saved.includes("จับคู่ไว้แล้ว 1 ไฟล์") && saved.includes("แทนทั้งชุด"), saved.slice(0, 160));
+await shot("31-จับคู่ไว้แล้ว.png", "[data-method]", 8);
+await c.evaluate("document.querySelector('[data-pairs-load]').click()");
+await waitFor(`return !!${findRow("DELAY -120ms")}`, 20000);
+await sleep(400);
+const lr = await q(`return ${findRow("DELAY -120ms")}.querySelector('.avnum').value + ' · ' + !document.querySelector('[data-pairs-saved]')`);
+check("กดใส่ไฟล์ที่จับคู่ไว้ลงตาราง แถวพากย์ไทยขึ้นพร้อมดีเลย์เดิม −120 ms การ์ดเตือนหายไป", lr.replace("−", "-").startsWith("-120") && lr.endsWith("true"), lr);
+
 
 // ---------- ตัวดูซับรูป (ขั้น 6) · หนังที่มีซับ PGS กับ VobSub (สำเนาในโฟลเดอร์ทดสอบ) ----------
 copyFileSync(join(AV, "ซับรูป (2024).mkv"), join(DIR, "ซับรูป (2024).mkv"));

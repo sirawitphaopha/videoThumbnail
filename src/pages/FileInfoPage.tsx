@@ -20,7 +20,7 @@ const copyFail = (e: unknown) => {
     : `${(e as { message?: string })?.message ?? String(e)} · ลองกดคัดลอกอีกครั้ง`;
 };
 
-export default function FileInfoPage({ m, onBack }: { m: Movie; onBack: () => void }) {
+export default function FileInfoPage({ m, onBack, onAv }: { m: Movie; onBack: () => void; onAv?: (path: string) => void }) {
   const toast = useToast();
   const [info, setInfo] = useState<{ text: string; sections: MiSection[] } | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -90,6 +90,8 @@ export default function FileInfoPage({ m, onBack }: { m: Movie; onBack: () => vo
       <div className="wrapin">
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <button type="button" className="btn btn-ghost btn-sm" onClick={onBack}>กลับไปชั้นวาง</button>
+          {/* ไปหน้าเสียงและซับของเรื่องนี้ (ต้นแบบเสียงและซับ หน้าข้อมูลไฟล์มีปุ่มนี้ด้วย · ผู้ช่วยตรวจขั้น 10 ข้อ 25) */}
+          {onAv && !m.missing && <button type="button" className="btn btn-ghost btn-sm" onClick={() => onAv(m.path)} data-info-av>เสียงและซับ</button>}
           <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
             {m.thumb ? <img className="mc" src={thumbUrl(m.thumb) ?? undefined} alt="" style={{ width: 34, height: 51 }} /> : <div className="mc none" style={{ width: 34, height: 51 }} />}
             <div style={{ minWidth: 0 }}><div style={{ fontWeight: 700, fontSize: 17 }}><Phr tail={<span className="ext">.{m.ext}</span>}>{m.name}</Phr></div><div className="small" style={{ wordBreak: "break-all" }}>{dir}</div></div>

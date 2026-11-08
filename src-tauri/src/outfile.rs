@@ -353,6 +353,9 @@ pub fn finish_output(
         if let Err(mut p) = finish_partial() {
             if let Some(to) = &original_to {
                 if move_no_replace(Path::new(to), src).is_ok() { p.detail.push("ไฟล์เดิมย้ายกลับที่เดิมแล้ว".into()); }
+            } else if original == "trash" {
+                // ส่งลงถังขยะแล้วย้ายกลับเองไม่ได้ · บอกให้รู้ว่าไฟล์เดิมอยู่ไหน (ผู้ช่วยตรวจขั้น 10 ข้อ 23)
+                p.detail.push("ไฟล์เดิมอยู่ในถังขยะของ Windows อย่าเพิ่งล้างถังขยะ · กู้คืนจากถังขยะ หรือเปลี่ยนชื่อไฟล์ .partial ที่ตรวจผ่านแล้วเป็นชื่อจริงเอง".into());
             }
             return Err(p);
         }

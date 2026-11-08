@@ -266,10 +266,8 @@ pub fn sub_charset(path: &Path) -> Option<String> {
     if b.starts_with(&[0xEF, 0xBB, 0xBF]) || b.starts_with(&[0xFF, 0xFE]) || b.starts_with(&[0xFE, 0xFF]) {
         return None;
     }
-    if std::str::from_utf8(&b).is_ok() {
-        return Some("UTF-8".into());
-    }
-    b.iter().any(|c| (0xA1..=0xFB).contains(c)).then(|| "CP874".into())
+    // กติกาเดียวกับตัวดูซับ · ไม่ใช่ไทยจริงถือเป็น Windows-1252 ไม่เดาเป็นไทย (ผู้ช่วยตรวจขั้น 10 ข้อ 4)
+    Some(crate::subs::guess_charset(&b).into())
 }
 
 // ---------------------------------------------------------------- เปิดไฟล์หนัง · เพิ่มไฟล์
@@ -446,14 +444,31 @@ pub struct CoverPreview {
 #[tauri::command]
 pub async fn merge_cover_preview(app: AppHandle, path: String, id: u64, slot: String) -> Result<CoverPreview, String> {
     tauri::async_runtime::spawn_blocking(move || {
+        // slot เป็นส่วนของชื่อไฟล์ รับเฉพาะสองช่องนี้ (ผู้ช่วยตรวจขั้น 10 ข้อ 22 · แบบ poster_render)
+        if slot != "cover" && slot != "cover_land" { return Err("ช่องปกไม่ถูกต้อง".into()); }
         let (tools, _) = tools_of(&app)?;
         let dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?.join("previews");
         std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
         let out = dir.join(format!("merge-old-{slot}-{}", crate::poster_image::unique()));
-        let mut target = OsString::from(format!("{id}:"));
-        target.push(out.as_os_str());
-        let r = run_tool_timeout(&tools, "mkvextract", [OsStr::new(&path), OsStr::new("attachments"), &target], Duration::from_secs(120))?;
-        if !tool_succeeded("mkvextract", &r.status) || !out.exists() {
+        let src = Path::new(&path);
+        let ok = if is_matroska(src) {
+            let mut target = OsString::from(format!("{id}:"));
+            target.push(out.as_os_str());
+            let r = run_tool_timeout(&tools, "mkvextract", [OsStr::new(&path), OsStr::new("attachments"), &target], Duration::from_secs(120))?;
+            tool_succeeded("mkvextract", &r.status)
+        } else {
+            // ปกที่ฝังใน MP4 MOV mkvextract เปิดไม่ได้ ดึงสตรีมรูปปกด้วย ffmpeg ไม่แปลง
+            match attached_pic_index(&tools, src) {
+                Some(ix) => {
+                    let map = format!("0:{ix}");
+                    let r = run_tool_timeout(&tools, "ffmpeg", [OsStr::new("-v"), OsStr::new("error"), OsStr::new("-nostdin"), OsStr::new("-n"), OsStr::new("-i"), src.as_os_str(),
+                        OsStr::new("-map"), OsStr::new(&map), OsStr::new("-c"), OsStr::new("copy"), OsStr::new("-frames:v"), OsStr::new("1"), OsStr::new("-f"), OsStr::new("image2"), out.as_os_str()], Duration::from_secs(120))?;
+                    tool_succeeded("ffmpeg", &r.status)
+                }
+                None => false,
+            }
+        };
+        if !ok || !out.exists() {
             let _ = std::fs::remove_file(&out);
             return Err("ดึงรูปปกเดิมออกมาไม่ได้".into());
         }
@@ -815,6 +830,29 @@ pub struct Produced {
 }
 
 /// ปกตั้ง (cover) หรือปกนอน (cover_land) ของไฟล์แนบชื่อนี้
+/// ไฟล์ Matroska ไหม (mkvextract ใช้ได้เฉพาะ Matroska) · ดูหัวไฟล์ EBML ไม่เชื่อนามสกุล
+fn is_matroska(p: &Path) -> bool {
+    use std::io::Read;
+    let mut b = [0u8; 4];
+    std::fs::File::open(p).and_then(|mut f| f.read_exact(&mut b)).is_ok() && b == [0x1A, 0x45, 0xDF, 0xA3]
+}
+
+/// เลขสตรีมรูปปกที่ฝังในไฟล์ (attached_pic ของ ffprobe)
+fn attached_pic_index(tools: &Path, p: &Path) -> Option<u64> {
+    ffprobe_json(tools, p).ok().and_then(|j| j["streams"].as_array().and_then(|a| a.iter()
+        .find(|s| s["disposition"]["attached_pic"].as_i64() == Some(1)).and_then(|s| s["index"].as_u64())))
+}
+
+/// แทร็กนี้ทำให้ไฟล์ MP4 ไม่ได้ไหม · แทร็กที่ตั้งแปลงดูชนิดหลังแปลง · แทร็กในหนังแบบเพิ่มคู่ แทร็กเดิมยังอยู่ ต้องใส่ได้ด้วย
+/// กติกาเดียวกับหน้าจอ (AvPage mp4Of) · เดิมดูชนิดเดิมเสมอ TrueHD ที่ตั้งแปลงแบบแทนที่ทำ MP4 ไม่ได้ (ผู้ช่วยตรวจขั้น 10 ข้อ 2)
+pub fn mp4_unfit(t: &Track) -> bool {
+    let orig_bad = t.mp4 == "no" || t.ff.is_none();
+    match t.convert.as_ref().filter(|_| t.kind == "audio") {
+        Some(spec) => mp4_fit("audio", spec.probe_codec()).0 == "no" || (t.in_movie && t.pair && orig_bad),
+        None => orig_bad,
+    }
+}
+
 fn cover_slot(name: &str) -> Option<&'static str> {
     match crate::probe::att_stem(name).as_str() {
         "cover" => Some("cover"),
@@ -873,6 +911,8 @@ pub fn produce(
             let Some(spec) = t.convert.clone().filter(|_| t.keep && t.kind == "audio") else { list.push(t); continue };
             n += 1;
             let out = work.join(format!("merge-conv-{}.{}", crate::poster_image::unique(), spec.ext()));
+            let mut spec = spec;
+            spec.src_rate = t.rate.map(|r| r as u32);
             let plan = crate::encode::build(&spec, &t.src, t.ff.unwrap_or(t.tid), &out.to_string_lossy(), t.channels.map(|c| c as u32), t.bits.map(|b| b as u32))
                 .map_err(|e| fail("tool", "ตั้งค่าแปลงเสียงไม่ถูก", vec![e, untouched.into()]))?;
             let ft = spec.codec.to_uppercase();
@@ -958,7 +998,10 @@ pub fn produce(
         let cover = if let Some(c) = covers.iter().find(|c| c.name.starts_with("cover.")) {
             Some(Mp4Cover::File(c.file.clone()))
         } else if req.covers.portrait == "keep" {
-            if let Some(a) = kept_atts.iter().find(|a| cover_slot(&a.name) == Some("cover")) {
+            // mkvmerge รายงานปกที่ฝังใน MP4 เป็นไฟล์แนบชื่อ cover.jpg ด้วย แต่ mkvextract เปิดได้เฉพาะ Matroska
+            // (ผู้ช่วยตรวจขั้น 10 ข้อ 1 · ลองแล้ว mkvextract กับ MP4 ตอบ Not a valid Matroska file รหัส 2 · เดิมปกหายเงียบ ตรวจไฟล์ใหม่ผ่าน)
+            let had_cover = kept_atts.iter().any(|a| cover_slot(&a.name) == Some("cover"));
+            let found = if let Some(a) = kept_atts.iter().find(|a| cover_slot(&a.name) == Some("cover")).filter(|_| is_matroska(movie)) {
                 // ปกเดิมที่เป็นไฟล์แนบของ MKV ดึงออกมาเป็นไฟล์ก่อน
                 let out = work.join(format!("merge-oldcover-{}.{}", crate::poster_image::unique(), Path::new(&a.name).extension().map(|e| e.to_string_lossy().to_string()).unwrap_or("jpg".into())));
                 let mut target = OsString::from(format!("{}:", a.id));
@@ -968,10 +1011,14 @@ pub fn produce(
                 guards.push(scopeguard(out.clone()));
                 ok.then_some(Mp4Cover::File(out))
             } else {
-                // หนัง MP4 ที่มีปกฝังอยู่แล้ว
-                ffprobe_json(tools, movie).ok().and_then(|j| j["streams"].as_array().and_then(|a| a.iter()
-                    .find(|s| s["disposition"]["attached_pic"].as_i64() == Some(1)).and_then(|s| s["index"].as_u64()))).map(Mp4Cover::Stream)
+                // หนัง MP4 MOV ที่มีปกฝังอยู่แล้ว ใช้สตรีมรูปปกของ ffprobe
+                attached_pic_index(tools, movie).map(Mp4Cover::Stream)
+            };
+            // หนังมีปกแต่ดึงไม่ได้ ไม่ทำต่อเงียบ ๆ ให้ปกหายจากไฟล์ใหม่
+            if had_cover && found.is_none() {
+                return Err(fail("tool", "ดึงรูปปกเดิมของหนังไม่ได้", vec!["ไม่ได้รวม เพื่อไม่ให้ปกหายจากไฟล์ใหม่".into(), "เลือกเอาปกออก หรือใส่รูปปกใหม่ แล้วรวมอีกครั้ง".into(), untouched.into()]));
             }
+            found
         } else {
             None
         };
@@ -1116,7 +1163,7 @@ fn apply(app: &AppHandle, req: &MergeReq, jobs: &Arc<crate::jobs::Jobs>) -> Resu
     }
     // MP4 · แทร็กที่ใส่ไม่ได้ต้องเอาออกก่อน (หน้าจอถามแล้วเอาออกให้)
     if mp4 {
-        let bad: Vec<String> = kept.iter().filter(|t| t.mp4 == "no" || t.ff.is_none())
+        let bad: Vec<String> = kept.iter().filter(|t| mp4_unfit(t))
             .map(|t| format!("{} {} · {}", kind_word(&t.kind), t.codec, t.why.clone().unwrap_or_else(|| "ใส่ใน MP4 ไม่ได้".into()))).collect();
         if !bad.is_empty() {
             let mut d = bad;
@@ -1146,6 +1193,10 @@ fn apply(app: &AppHandle, req: &MergeReq, jobs: &Arc<crate::jobs::Jobs>) -> Resu
     if conv > 0 {
         let wfree = free_space(work.parent().unwrap_or(&work));
         let wneed = conv + 64 * 1024 * 1024;
+        // ไดรฟ์เดียวกับหนัง เสียงที่แปลงอยู่ในโฟลเดอร์ชั่วคราวพร้อมไฟล์ใหม่ที่มีเสียงนี้ ต้องใช้สองเท่า (ผู้ช่วยตรวจขั้น 10 ข้อ 12)
+        if drive_letter(&work) == drive_letter(&dir) && free < need + conv {
+            return Err(fail("space", format!("พื้นที่ในไดรฟ์ {} ไม่พอ", drive_letter(&dir)), vec![format!("ต้องการ {} (รวมไฟล์เสียงที่แปลงในโฟลเดอร์ชั่วคราว) แต่เหลือ {}", fmt_gb(need + conv), fmt_gb(free)), untouched]));
+        }
         if drive_letter(&work) != drive_letter(&dir) && wfree < wneed {
             return Err(fail("space", format!("พื้นที่ในไดรฟ์ {} ไม่พอสำหรับไฟล์เสียงที่แปลง", drive_letter(&work)), vec![format!("ต้องการ {} แต่เหลือ {}", fmt_gb(wneed), fmt_gb(wfree)), untouched]));
         }
@@ -1185,8 +1236,23 @@ fn apply(app: &AppHandle, req: &MergeReq, jobs: &Arc<crate::jobs::Jobs>) -> Resu
     let mut notes = vec![];
     let new_covers = st.covers.lock().unwrap().clone();
     let made = produce(&tools, &work, req, &new_covers, &partial, &stop, &emit, &mut notes, &untouched)?;
+    // กดหยุดระหว่างตรวจไฟล์ใหม่ · หยุดจริงก่อนแตะไฟล์เดิม ตามที่ข้อความยืนยันหยุดบอก (ผู้ช่วยตรวจขั้น 10 ข้อ 9)
+    if stop() {
+        let _ = std::fs::remove_file(&partial);
+        return Err(cancelled(&untouched, None));
+    }
+    // การจับคู่เก็บไว้กับเรื่องเดิม · ไฟล์ใหม่คนละชื่อ (เช่น MP4 เป็น MKV) การจับคู่ไม่ตามไป บอกในผล (ข้อ 13)
+    let old_pairs = { let lib = app.state::<Arc<crate::library::LibraryStore>>(); let k = src.to_string_lossy().to_lowercase(); lib.movies.lock().unwrap().iter().find(|m| m.path.to_lowercase() == k).map(|m| m.pairs.len()).unwrap_or(0) };
     // เช็กซ้ำก่อนย้ายไฟล์เดิม · ระหว่างรวมผู้ใช้อาจเปิดหนังเรื่องนี้ดู
     let (original, original_to) = finish_output(app, &src, &target, &partial, &req.original, made.verified, &untouched, &mut notes)?;
+    if old_pairs > 0 && !target.to_string_lossy().eq_ignore_ascii_case(&src.to_string_lossy()) {
+        notes.push(format!("เรื่องเดิมจับคู่เสียงหรือซับไว้ {old_pairs} ไฟล์ · ไฟล์ใหม่ชื่อนามสกุลต่างจากเดิม การจับคู่ไม่ตามไป จับคู่ใหม่ได้ที่หน้านี้"));
+    }
+    // ไฟล์ใหม่ชื่อเดิม จดขนาดกับค่า hash ใหม่เป็นงานของโปรแกรมเอง ไม่ให้ชั้นวางขึ้นว่าไฟล์ถูกเปลี่ยนหลังตรวจ (ข้อ 14 · แบบหน้าใส่โปสเตอร์)
+    if target.to_string_lossy().eq_ignore_ascii_case(&src.to_string_lossy()) {
+        emit("กำลังจดข้อมูลไฟล์ใหม่", 100.0, None, None);
+        crate::library::refresh_own_edit(app, &target, &|pct| emit("กำลังจดค่า hash ใหม่", pct, None, None));
+    }
     // ใส่รูปปกใหม่เข้าไฟล์แล้ว ล้างช่องรูป ไม่ให้ติดไปเรื่องถัดไป
     st.covers.lock().unwrap().clear();
     let lib = app.state::<Arc<crate::library::LibraryStore>>();
@@ -1491,6 +1557,29 @@ mod tests {
         let made = res.unwrap_or_else(|p| panic!("{} {:?}", p.title, p.detail));
         assert_eq!(made.counts.subs, 2);
         assert_eq!(mkv_attachments(&tl, &out).unwrap().iter().map(|a| a.0.as_str()).collect::<Vec<_>>(), ["tahoma.ttf"]);
+    }
+
+    /// หนัง MP4 ที่มีปกฝัง รวมซับออกเป็น MP4 ปกต้องยังอยู่ (ผู้ช่วยตรวจขั้น 10 ข้อ 1 · เดิมดึงปกด้วย mkvextract ซึ่งเปิด MP4 ไม่ได้ ปกหายเงียบ)
+    #[test]
+    fn mp4_cover_stays_when_merging_to_mp4() {
+        let (Some(srt), Some(poster)) = (av("เสียงซับ/ดาวตก (2024).th.srt"), av("รูป/poster.jpg")) else { return };
+        let dir = temp_dir("mp4cover");
+        let tl = tools();
+        let movie = dir.0.join("มีปก.mp4");
+        let o = crate::tools::run_tool(&tl, "ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=size=320x240:rate=25:duration=3", "-f", "lavfi", "-i", "sine=frequency=440:duration=3"].iter().map(OsString::from)
+            .chain([OsString::from("-i"), poster.into_os_string()])
+            .chain(["-map", "0:v", "-map", "1:a", "-map", "2:v", "-c:v:0", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-c:v:1", "copy", "-disposition:v:1", "attached_pic"].iter().map(OsString::from))
+            .chain([movie.clone().into_os_string()])).unwrap();
+        assert!(o.status.success(), "ทำไฟล์ทดสอบไม่ได้ {}", String::from_utf8_lossy(&o.stderr));
+        let m = inspect(&tl, &movie).unwrap();
+        assert!(m.attachments.iter().any(|a| a.name == "cover.jpg"), "mkvmerge รายงานปกของ MP4 เป็นไฟล์แนบ");
+        let mut tracks = m.tracks.clone();
+        tracks.push(add_file(&tl, &srt, m.duration).unwrap().tracks.remove(0));
+        let out = dir.0.join("ใหม่.mp4.partial");
+        let (res, _) = run(&req(&movie, tracks, "mp4"), &HashMap::new(), &out, &dir.0);
+        res.unwrap_or_else(|p| panic!("{} {:?}", p.title, p.detail));
+        assert!(attached_pic_index(&tl, &out).is_some(), "ไฟล์ MP4 ใหม่ต้องมีปก");
+        assert!(!is_matroska(&movie) && is_matroska(&av("เสียงซับ/ดาวตก (2024).mkv").unwrap()));
     }
 
     /// เอาปกเดิมออก · เอาซับรูป VobSub ออก เหลือ PGS

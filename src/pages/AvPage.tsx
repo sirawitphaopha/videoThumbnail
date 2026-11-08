@@ -59,7 +59,8 @@ function rowText(t: AvTrack, nth: number): { title: string; parts: string[] } {
     };
   }
   const image = ft === "PGS" || ft === "VobSub";
-  const count = t.frames ? `${t.frames.toLocaleString("en-US")} ${image ? "ภาพ" : "บรรทัด"}` : "";
+  // ซับรูปนับเป็นแพ็กเก็ต (รวมแพ็กเก็ตล้างจอ) ไม่ใช่จำนวนภาพ · เดิมเขียนว่าภาพ ไม่ตรงกับตัวดูซับเกือบสองเท่า (ผู้ช่วยตรวจขั้น 10 ข้อ 19)
+  const count = t.frames ? `${t.frames.toLocaleString("en-US")} ${image ? "แพ็กเก็ต" : "บรรทัด"}` : "";
   return {
     title: t.inMovie ? `ซับ ${nth}` : baseName(t.src),
     parts: [where, image ? (ft === "PGS" ? "ซับบลูเรย์ เป็นรูป" : "ซับ DVD เป็นรูป") : ft === "ASS" ? "ตัวหนังสือมีรูปแบบ" : "ตัวหนังสือ", count],
@@ -89,6 +90,8 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
   const av = useAv();
   const { movie, tracks, sel, covers, run } = av;
   const [loading, setLoading] = useState<string | null>(null);
+  /** เลขคำขอเปิดหนังล่าสุด (ผู้ช่วยตรวจขั้น 10 ข้อ 20) */
+  const loadSeq = useRef(0);
   const [movieErr, setMovieErr] = useState<string | null>(null);
   const [over, setOver] = useState<string | null>(null);
   const [crop, setCrop] = useState<{ slot: CoverTarget; info: PosterInfo; start: CropChoice | null } | null>(null);
@@ -113,12 +116,15 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
 
   // ---------- ไฟล์หนัง ----------
   const loadMovie = useCallback(async (path: string) => {
+    // เลขคำขอ · ผลของคำขอที่ไม่ใช่ล่าสุดทิ้ง (เปิดหนัง ก แล้วรีบเลือก ข ผลของ ก มาทีหลังเคยทับ · ผู้ช่วยตรวจขั้น 10 ข้อ 20)
+    const my = ++loadSeq.current;
     setMovieErr(null);
     const ext = extOf(path);
     if (!MOVIE_EXT.includes(ext)) { setMovieErr(`ไฟล์ .${ext || "?"} ไม่ใช่ไฟล์หนังที่ใช้ได้`); return false; }
     setLoading("movie");
     try {
       const m = await mergeApi.inspect(path);
+      if (my !== loadSeq.current) return false;
       const slot = (stem: string): CoverSlot => {
         const att = m.attachments.find((a) => a.name.toLowerCase().replace(/\.[^.]+$/, "") === stem) ?? null;
         return { mode: "keep", old: att ? { att, preview: null } : null, neu: null };
@@ -136,10 +142,10 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
       }
       return true;
     } catch (e) {
-      setMovieErr(String(e));
+      if (my === loadSeq.current) setMovieErr(String(e));
       return false;
     } finally {
-      setLoading(null);
+      if (my === loadSeq.current) setLoading(null);
     }
   }, []);
 
@@ -148,6 +154,12 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
     const m = getAv().movie;
     if (!m) { toast({ kind: "warn", title: "ใส่ไฟล์หนังก่อน", detail: "ลากไฟล์หนังมาวาง แล้วค่อยลากเสียงหรือซับตามมา" }); return; }
     for (const path of paths) {
+      // เปลี่ยนหนังระหว่างอ่านไฟล์ที่ลากมาหลายไฟล์ ไฟล์ที่เหลือไม่เพิ่มเข้าหนังเรื่องใหม่ (ข้อ 20)
+      if (getAv().movie?.path !== m.path) break;
+      if (path.toLowerCase() === m.path.toLowerCase()) {
+        toast({ kind: "warn", title: "ไฟล์นี้คือไฟล์หนังที่เปิดอยู่", detail: "แทร็กของหนังอยู่ในตารางแล้ว ไม่ต้องเพิ่มซ้ำ" });
+        continue;
+      }
       if (getAv().tracks.some((t) => !t.inMovie && t.src.toLowerCase() === path.toLowerCase())) {
         toast({ kind: "warn", title: "ไฟล์นี้เพิ่มไว้แล้ว", detail: baseName(path) });
         continue;
@@ -155,6 +167,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
       setLoading("add");
       try {
         const f = await mergeApi.addFile(path, m.duration);
+        if (getAv().movie?.path !== m.path) break;
         const added = tracksOfAdded(f);
         // แทร็กใหม่ต่อท้ายกลุ่มชนิดเดียวกัน ภาพ เสียง ซับ ยังอยู่เป็นกลุ่ม
         setAv((s) => {
@@ -272,9 +285,14 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
   const changed = !!movie && (
     tracks.some((t) => !t.inMovie) || tracks.some((t) => t.lang !== t.base.lang || t.name !== t.base.name || t.default !== t.base.default || t.delay !== t.base.delay || t.keep !== t.base.keep)
     || tracks.some((t) => t.keep && !!t.convert) || movieOrder !== origOrder || coverChanged || output !== movie.ext.replace("m4v", "mp4") && !(output === "mkv" && movie.ext === "mkv"));
-  // แทร็กที่ตั้งแปลง ใส่ MP4 ได้ไหมดูชนิดหลังแปลง (WavPack ใส่ไม่ได้)
-  const mp4Of = (t: AvTrack) => (t.convert ? (t.convert.codec === "wv" ? "no" : "ok") : t.mp4);
-  const mp4Bad = output === "mp4" ? kept.filter((t) => mp4Of(t) === "no" || (!t.convert && t.ff == null)) : [];
+  // แทร็กที่ตั้งแปลง ใส่ MP4 ได้ไหมดูชนิดหลังแปลง (WavPack ใส่ไม่ได้) · แทร็กในหนังแบบเพิ่มคู่ แทร็กเดิมยังอยู่ ต้องใส่ได้ด้วย
+  // กติกาเดียวกับฝั่ง Rust (merge.rs mp4_unfit · ผู้ช่วยตรวจขั้น 10 ข้อ 2 · เดิมแบบเพิ่มคู่ไม่เตือน แบบแทนที่ฝั่ง Rust ปฏิเสธ)
+  const mp4Of = (t: AvTrack) => {
+    if (!t.convert) return t.ff == null ? "no" : t.mp4;
+    if (t.inMovie && (t.pair ?? true) && (t.mp4 === "no" || t.ff == null)) return "no";
+    return t.convert.codec === "wv" ? "no" : "ok";
+  };
+  const mp4Bad = output === "mp4" ? kept.filter((t) => mp4Of(t) === "no") : [];
   const mp4Style = output === "mp4" ? kept.filter((t) => t.mp4 === "style") : [];
   const vtts = output === "mkv" ? kept.filter((t) => !t.inMovie && t.codec === "webvtt") : [];
   const longer = kept.filter((t) => !t.inMovie && t.kind === "audio" && t.longerBy != null && Math.abs(t.longerBy) >= 2);
@@ -330,6 +348,16 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
   const pairable = tracks.filter((t) => !t.inMovie && t.keep && (t.kind === "audio" || t.kind === "subtitle"));
   const pairBlocked = !movie ? "ยังกดไม่ได้ ใส่ไฟล์หนังก่อน" : !inLib ? "หนังเรื่องนี้ไม่ได้อยู่บนชั้น เพิ่มโฟลเดอร์ของหนังในหน้าตั้งค่าก่อน"
     : !pairable.length ? "ยังไม่มีเสียงหรือซับที่เพิ่ม ลากไฟล์มาวางก่อน" : null;
+  /** การจับคู่ที่บันทึกไว้แล้วของเรื่องนี้ · บันทึกใหม่แทนทั้งชุด จึงให้ใส่ของเดิมลงตารางก่อนได้ (ผู้ช่วยตรวจขั้น 10 ข้อ 15 · เดิมกดแก้การจับคู่แล้วคู่เดิมไม่ขึ้น บันทึกแล้วหาย) */
+  const savedPairs = inLib?.pairs ?? [];
+  const pairsNotInTable = savedPairs.filter((p) => !tracks.some((t) => !t.inMovie && t.src.toLowerCase() === p.path.toLowerCase()));
+  const loadSavedPairs = async () => {
+    await addFiles(pairsNotInTable.map((p) => p.path));
+    setAv((st) => ({ tracks: st.tracks.map((t) => {
+      const p = savedPairs.find((x) => !t.inMovie && x.kind === t.kind && x.path.toLowerCase() === t.src.toLowerCase());
+      return p ? { ...t, lang: p.lang || t.lang, name: p.name || t.name, delay: p.delay } : t;
+    }) }));
+  };
   const savePairs = () => {
     if (pairBlocked || !movie) return;
     const list = pairable.map((t) => ({ path: t.src, kind: t.kind as "audio" | "subtitle", lang: t.lang, name: t.name, delay: Math.round(t.delay) }));
@@ -401,7 +429,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
                 !t.keep ? <span key="b" className="tpill off">เอาออก</span> : null,
                 t.convert && t.keep ? <span key="f" className="tpill conv">แปลง</span> : null,
                 !t.inMovie && t.delayFromName != null && t.delay === t.delayFromName && t.delay !== 0 ? <span key="c" className="tpill warn">ดีเลย์จากชื่อไฟล์</span> : null,
-                t.charset === "CP874" ? <span key="d" className="tpill warn">TIS-620</span> : null,
+                t.charset === "CP874" ? <span key="d" className="tpill warn">TIS-620</span> : t.charset === "CP1252" ? <span key="d" className="tpill warn" title="ไม่ใช่ UTF-8 และไม่ใช่อักษรไทย อ่านแบบ Windows-1252 (ซับภาษายุโรปแบบเก่า)">Windows-1252</span> : null,
                 output === "mkv" && !t.inMovie && t.codec === "webvtt" ? <span key="e" className="tpill conv">แปลงเป็น SRT</span> : null,
               ].filter(Boolean);
               const off = working ? BUSY : undefined;
@@ -523,6 +551,10 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
             options={[{ value: "merge", label: "รวมเข้าไฟล์หนัง" }, { value: "pair", label: "จับคู่ไว้ ไม่รวม" }]} /></div>
           {method === "pair" && <div className="stat info" style={{ marginTop: 8 }}><CardIcon kind="info" /><div><b>ไฟล์หนังไม่ถูกแตะ</b>
             <Phr>{`จับคู่ได้เฉพาะเสียงกับซับที่เพิ่ม (${pairable.length} ไฟล์) · แปลงชนิด เอาแทร็กออก เรียงลำดับ ใส่ปก ทำได้เฉพาะตอนรวม · ดีเลย์ใช้ได้ทั้งสองแบบ · ไฟล์ที่จับคู่อยู่โฟลเดอร์ไหนก็ได้ โปรแกรมจำไว้กับหนังในคลัง`}</Phr></div></div>}
+          {method === "pair" && pairsNotInTable.length > 0 && <div className="stat warn" style={{ marginTop: 8 }} data-pairs-saved><CardIcon kind="warn" /><div>
+            <b>{`เรื่องนี้จับคู่ไว้แล้ว ${savedPairs.length} ไฟล์ · ยังไม่อยู่ในตาราง ${pairsNotInTable.length} ไฟล์`}</b>
+            <Phr>กดจับคู่ไว้กับหนังเรื่องนี้แล้ว ชุดเดิมถูกแทนทั้งชุด · ใส่ไฟล์ที่จับคู่ไว้ลงตารางก่อน ถ้าจะเก็บไว้ด้วย</Phr>
+            <div style={{ marginTop: 6 }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => { void loadSavedPairs(); }} disabled={working} data-pairs-load>{`ใส่ไฟล์ที่จับคู่ไว้ ${pairsNotInTable.length} ไฟล์ลงตาราง`}</button></div></div></div>}
           {method === "pair" && paired && (paired.err ? <div className="stat bad" style={{ marginTop: 8 }}><CardIcon kind="bad" /><div><b>จับคู่ไม่สำเร็จ</b><Phr>{paired.err}</Phr></div></div>
             : <div className="stat ok" style={{ marginTop: 8 }} data-paired-ok><CardIcon kind="done" /><div><b>{`จับคู่ไว้ ${paired.n} ไฟล์แล้ว`}</b><Phr>เปิดเล่นพร้อมไฟล์ที่จับคู่ได้ที่แผงขวาของชั้นวาง · บันทึกใหม่แทนการจับคู่เดิมของเรื่องนี้ทั้งชุด</Phr></div></div>)}
         </div>
@@ -553,7 +585,10 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
             <div className="stat warn"><CardIcon kind="warn" /><div><b>{rowText(t, nth(t)).title} · {ftName(t.kind, t.codec, t.profile)} ใส่ใน MP4 ไม่ได้</b><Phr>{`${t.why ?? ""} ถ้าทำต่อ ${KIND_WORD[t.kind]}นี้จะหายจากไฟล์ใหม่`}</Phr></div></div>
             <div className="minirow" style={{ marginTop: 6 }}>
               <button type="button" className="btn btn-main btn-sm" onClick={() => setAv((s) => ({ once: { ...s.once, output: "mkv" } }))}>กลับไปใช้ MKV</button>
-              {t.kind !== "video" && <button type="button" className="btn btn-ghost btn-sm" onClick={() => (t.inMovie ? patch(t.key, { keep: false, default: false }) : removeAdded(t.src))}>เอา{KIND_WORD[t.kind]}นี้ออก</button>}
+              {/* แทร็กเดิมที่ตั้งแปลงแบบเพิ่มคู่ เปลี่ยนเป็นแทนที่ ได้ทั้งแทร็กที่แปลงและ MP4 (ผู้ช่วยตรวจขั้น 10 ข้อ 2) */}
+              {t.convert && t.inMovie && (t.pair ?? true) && t.convert.codec !== "wv"
+                ? <button type="button" className="btn btn-ghost btn-sm" onClick={() => patch(t.key, { pair: false })} data-mp4replace>ใช้แทร็กที่แปลงแทนที่แทร็กเดิม</button>
+                : t.kind !== "video" && <button type="button" className="btn btn-ghost btn-sm" onClick={() => (t.inMovie ? patch(t.key, { keep: false, default: false }) : removeAdded(t.src))}>เอา{KIND_WORD[t.kind]}นี้ออก</button>}
             </div>
           </div>
         ))}
@@ -591,7 +626,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
       {delayFor && refAudio && (() => { const dt = tracks.find((t) => t.key === delayFor); return dt ? (
         <DelayDialog movie={{ path: movie.path, duration: movie.duration ?? null }} refTrack={refAudio} track={dt} onClose={() => setDelayFor(null)}
           onApply={(d) => { setDelay(dt.key, d); setDelayFor(null); }}
-          onSpeed={(pair) => { setDelayFor(null); setCodecSpeed(pair.join(">")); openCodec(dt.key); }} />) : null; })()}
+          onSpeed={(pair, d) => { setDelay(dt.key, d); setDelayFor(null); setCodecSpeed(pair.join(">")); openCodec(dt.key); }} />) : null; })()}
       {crop && (
         <CropDialog info={crop.info} start={crop.start} target={crop.slot} defaultFormat={(settings?.posterFormat ?? "jpg") as "jpg" | "png"} defaultQuality={settings?.jpgQuality ?? 90}
           onCancel={() => setCrop(null)}

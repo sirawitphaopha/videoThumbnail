@@ -196,9 +196,9 @@ export default function CodecPanel(p: {
   useEffect(() => {
     let alive = true;
     setPlanErr(null);
-    encodeApi.preview(spec, baseName(t.src), t.ff ?? t.tid, t.channels, t.bits).then((r) => { if (alive) setPlan(r); }, (e) => { if (alive) { setPlan(null); setPlanErr(String(e)); } });
+    encodeApi.preview(spec, baseName(t.src), t.ff ?? t.tid, t.channels, t.bits, t.rate).then((r) => { if (alive) setPlan(r); }, (e) => { if (alive) { setPlan(null); setPlanErr(String(e)); } });
     return () => { alive = false; };
-  }, [spec, t.src, t.ff, t.tid, t.channels, t.bits]);
+  }, [spec, t.src, t.ff, t.tid, t.channels, t.bits, t.rate]);
 
   // ขนาดที่คาด · ความยาวหลังเปลี่ยนความเร็ว ช่องกับอัตราสุ่มของไฟล์ใหม่ ความลึกบิตที่ตัวแปลงได้รับ
   const ctxOf = (v: Vals): SizeCtx | null => {

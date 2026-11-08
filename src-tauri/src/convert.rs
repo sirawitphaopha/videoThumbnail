@@ -364,7 +364,9 @@ fn convert(app: &AppHandle, req: &ConvReq, jobs: &Arc<crate::jobs::Jobs>) -> Res
         }
     }
 
-    let mut plan = encode::build(spec, &req.path, f.stream, &partial.to_string_lossy(), Some(f.channels), f.bits)
+    let mut spec_r = spec.clone();
+    spec_r.src_rate = Some(f.rate);
+    let mut plan = encode::build(&spec_r, &req.path, f.stream, &partial.to_string_lossy(), Some(f.channels), f.bits)
         .map_err(|e| fail("tool", "ตั้งค่าแปลงเสียงไม่ถูก", vec![e, untouched.clone()]))?;
     // ชนิดที่โปรแกรมใส่ข้อมูลเพลงเอง ให้ ffmpeg ไม่ส่งต่อข้อมูลเดิม (ไม่ซ้อนสองชุด และ WavPack ไม่เก็บหัว WAV ที่มีข้อมูลเพลงติดไป)
     if own_tag || opus_native {
@@ -413,7 +415,9 @@ fn convert(app: &AppHandle, req: &ConvReq, jobs: &Arc<crate::jobs::Jobs>) -> Res
         let try_once = |with_cover: bool| -> bool {
             let _ = std::fs::remove_file(&p2);
             let a = remux_args(&partial.to_string_lossy(), &req.path, &p2.to_string_lossy(), codec, &f, with_cover);
-            run_tool_timeout(&tools, "ffmpeg", a.iter().map(OsStr::new), Duration::from_secs(600)).map(|o| tool_succeeded("ffmpeg", &o.status)).unwrap_or(false)
+            // ฟังตัวหยุดระหว่างคัดลอกเสียงลงไฟล์ชั่วคราวที่สอง · ปิดโปรแกรมแล้วงานจบเอง ลบไฟล์ทำค้างได้ (ผู้ช่วยตรวจขั้น 10 ข้อ 10 · เดิมรอได้ถึง 600 วินาที)
+            let a: Vec<std::ffi::OsString> = a.iter().map(std::ffi::OsString::from).collect();
+            matches!(crate::outfile::run_live(&tools, "ffmpeg", &a, &stop, &mut |_| {}), Ok(crate::outfile::Run::Done(st, _)) if tool_succeeded("ffmpeg", &st))
         };
         if try_once(cover_fits) { cover_ok = cover_fits; tags_n = f.tags.len(); final_tmp = p2.clone(); }
         else if cover_fits && try_once(false) { tags_n = f.tags.len(); final_tmp = p2.clone(); notes.push("ใส่รูปปกไม่ได้ ใส่แค่ข้อมูลเพลง".into()); }
@@ -454,6 +458,8 @@ fn convert(app: &AppHandle, req: &ConvReq, jobs: &Arc<crate::jobs::Jobs>) -> Res
         return Err(fail("verify", "ไฟล์ใหม่ยาวไม่เท่าต้นฉบับ", vec![format!("ได้ {:.1} วินาที ควรได้ {:.1} วินาที", g.duration, want), "ลบไฟล์ใหม่แล้ว".into(), untouched]));
     }
 
+    // กดหยุดระหว่างใส่ข้อมูลเพลงหรือตรวจ ไม่ตั้งชื่อไฟล์ใหม่ (ผู้ช่วยตรวจขั้น 10 ข้อ 9)
+    if stop() { return Err(fail("cancelled", "หยุดแปลงแล้ว", vec!["ไฟล์ที่ทำค้างถูกลบ".into(), untouched])); }
     // ย้ายชื่อแบบไม่เขียนทับ · ระหว่างแปลงมีไฟล์ชื่อนี้โผล่มา ใช้ชื่อถัดไป
     let mut dest = free_name(&dir, Path::new(&format!("{stem}.{ext}")));
     if let Err(p) = crate::rename::move_no_replace(&final_tmp, &dest) {
@@ -553,6 +559,24 @@ mod tests {
             String::from_utf8_lossy(&o.stdout).trim().to_string()
         };
         assert_eq!(md5(&out), md5(&src), "ไม่เสียคุณภาพ");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// เปิด Loudness normalize แล้วอัตราสุ่มต้องเท่าต้นทาง (ผู้ช่วยตรวจขั้น 10 ข้อ 3 · เดิมได้ 192 kHz)
+    #[test]
+    fn loudnorm_keeps_source_rate() {
+        let Some(src) = av("เพลงทดสอบ.wav") else { return };
+        let f = probe(&tools(), &src).unwrap();
+        assert_eq!(f.rate, 44100);
+        let dir = std::env::temp_dir().join(format!("ms-conv-{}", crate::poster_image::unique()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let out = dir.join("ln.flac");
+        let spec = EncodeSpec { codec: "flac".into(), loudnorm: true, src_rate: Some(f.rate), ..Default::default() };
+        let plan = encode::build(&spec, &src.to_string_lossy(), f.stream, &out.to_string_lossy(), Some(f.channels), f.bits).unwrap();
+        assert!(plan.text.contains("loudnorm=I=-23:TP=-1,aresample=44100"), "{}", plan.text);
+        let r = encode::run(&|_| tools(), &plan, Some(f.duration), &|| false, &mut |_| {}).unwrap();
+        assert!(matches!(r, encode::Done::Ok));
+        assert_eq!(probe(&tools(), &out).unwrap().rate, 44100, "อัตราสุ่มเท่าต้นทาง");
         let _ = std::fs::remove_dir_all(&dir);
     }
 

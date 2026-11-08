@@ -39,6 +39,8 @@ pub struct EncodeSpec {
     pub speed: Option<[f64; 2]>,
     /// ค่าของการ์ดแต่ละใบ เช่น bitrate mode comp framesize tune quality level verify
     pub p: serde_json::Map<String, Value>,
+    /// อัตราสุ่มของต้นทาง คนเรียกตั้งก่อนสร้างคำสั่ง (หน้าจอไม่ต้องส่ง) · ใช้คืนอัตราสุ่มหลัง loudnorm
+    pub src_rate: Option<u32>,
 }
 
 impl EncodeSpec {
@@ -133,6 +135,10 @@ fn filters(spec: &EncodeSpec, dither16: bool) -> Vec<String> {
     }
     if let Some(r) = spec.rate {
         f.push(format!("aresample={r}"));
+    } else if spec.loudnorm {
+        // loudnorm แบบผ่านเดียวบังคับอัตราสุ่มขาออกเป็น 192 kHz · คืนเป็นอัตราของต้นทาง
+        // (ผู้ช่วยตรวจขั้น 10 ข้อ 3 · ลองแล้วเสียง 48 kHz ได้ 192 kHz ไฟล์ไม่เสียคุณภาพใหญ่ 4 เท่า fdkaac รับไม่ได้)
+        f.push(format!("aresample={}", spec.src_rate.unwrap_or(48000)));
     }
     if dither16 {
         f.push("aresample=osf=s16:dither_method=triangular".into());
@@ -178,6 +184,12 @@ fn lowpass_hz(spec: &EncodeSpec) -> Option<f64> {
 /// แปลงค่าในการ์ดเป็นขั้นตอนจริง · out = ไฟล์ปลายทางในโฟลเดอร์ชั่วคราว · src_channels = ช่องของต้นทาง (MP3 รับได้ 2 ช่อง)
 /// src_bits = ความลึกบิตของต้นทาง (ffprobe) · ต้นทาง 16 บิตแปลงแบบไม่เสียคุณภาพตามต้นฉบับ ได้ 16 บิต ไม่ขยายเป็น 24
 pub fn build(spec: &EncodeSpec, src: &str, stream: u64, out: &str, src_channels: Option<u32>, src_bits: Option<u32>) -> Result<Plan, String> {
+    // ลดช่องได้ ไม่เพิ่ม · ตั้งทีเดียวทั้งคิวลดเป็น 2.0 แล้วไฟล์ช่องเดียวเคยกลายเป็นสเตอริโอปลอม (ผู้ช่วยตรวจขั้น 10 ข้อ 18)
+    let mut capped = spec.clone();
+    if let (Some(c), Some(sc)) = (capped.channels, src_channels) { if c >= sc { capped.channels = None; } }
+    // TAK เก็บได้สูงสุด 6 ช่อง (ข้อ 30)
+    if capped.codec == "tak" && capped.channels.unwrap_or(src_channels.unwrap_or(2)) > 6 { capped.channels = Some(6); }
+    let spec = &capped;
     let lossless = matches!(spec.codec.as_str(), "flac" | "wv" | "ape" | "tak");
     let src16 = src_bits.is_some_and(|b| b > 0 && b <= 16);
     // ใส่ dither เฉพาะตอนลดบิตจริง · ต้นทาง 16 บิตอยู่แล้วตัดศูนย์ที่เติมไว้ทิ้งได้ตรงทุกตัวอย่าง
@@ -580,7 +592,8 @@ pub fn encoders_open_dir(app: tauri::AppHandle) -> Result<String, String> {
 
 /// คำสั่งที่จะรันจริงของค่าในการ์ด · หน้าจอแสดงในกล่องคำสั่งพร้อมปุ่มคัดลอก (ชื่อไฟล์เป็นตัวอย่าง ของจริงเป็นที่อยู่เต็มในโฟลเดอร์ชั่วคราว)
 #[tauri::command]
-pub fn encode_preview(spec: EncodeSpec, src_name: String, stream: u64, channels: Option<u32>, bits: Option<u32>) -> Result<Plan, String> {
+pub fn encode_preview(mut spec: EncodeSpec, src_name: String, stream: u64, channels: Option<u32>, bits: Option<u32>, rate: Option<u32>) -> Result<Plan, String> {
+    spec.src_rate = rate;
     let out = format!("เสียง {}.{}", stream, spec.ext());
     build(&spec, &src_name, stream, &out, channels, bits)
 }

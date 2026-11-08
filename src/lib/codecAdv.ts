@@ -228,7 +228,7 @@ export const ADV: Record<Codec["id"], { tip: Tip; cards: Card[] }> = {
   ape: {
     tip: { w: "codec Lossless (ไฟล์ .ape) บีบแน่นมาก", p: "ไฟล์เล็กกว่า FLAC เล็กน้อย · ไม่เสียคุณภาพ", c: "ใส่ MKV และ MP4 ไม่ได้ · ตอนเล่นถอดหนัก · เครื่องเล่นรองรับน้อย", r: "เก็บเพลงเป็นไฟล์แยกในคอม · ใช้ได้เฉพาะหน้าแปลงเสียง" },
     cards: [
-      { key: "level", label: "Compression level", kind: "seg", def: "Normal", opts: ["Fast", "Normal", "High", "Extra High", "Insane"], note: "ระดับการบีบ · เสียงเหมือนต้นฉบับทุกระดับ",
+      { key: "level", label: "Compression level", kind: "seg", def: "Normal", opts: ["Fast", "Normal", "High", "Extra High", "Insane"], note: "ระดับการบีบ · เสียงเหมือนต้นฉบับทุกระดับ · ไม่มีช่อง Verify ตัวบีบผ่าน DLL ไม่ถอดกลับมาเทียบ โปรแกรมตรวจชนิดกับความยาวไฟล์ใหม่ให้",
         tip: { w: "บีบแน่นแค่ไหน · ทุกระดับถอดกลับได้ตรงต้นฉบับทุกตัวอย่าง", o: [["Fast · Normal", "บีบพอประมาณ", "แปลงและเล่นเร็ว", "ไฟล์ใหญ่กว่าเล็กน้อย"], ["High · Extra High", "บีบมากขึ้น", "ไฟล์เล็กลง", "แปลงช้าลง ตอนเล่นถอดหนักขึ้น"], ["Insane", "บีบสุด", "เล็กสุด", "ช้ามาก เครื่องเล่นบางตัวเล่นสะดุด"]], r: "Normal หรือ High" },
         size: apeSize },
       BITS,

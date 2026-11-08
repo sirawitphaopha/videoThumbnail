@@ -54,6 +54,32 @@ fn cp874(b: u8) -> char {
 }
 
 /// ไบต์ของไฟล์ซับเป็นข้อความ · BOM ก่อน · UTF-8 ที่ถูกต้อง · ไม่ใช่ = ไทยแบบเก่า
+/// เดาชุดอักษรของซับที่ไม่มี BOM · UTF-8 (ยอมเศษตัวอักษรที่ขาดท้ายบัฟเฟอร์) · CP874 เฉพาะเมื่อไบต์สูงเกือบทั้งหมดเป็นอักษรไทยจริง
+/// และมีพยัญชนะไทยพอ · นอกนั้นถือเป็น Windows-1252 (ซับฝรั่งเศส สเปน เยอรมันแบบเก่า)
+/// (ผู้ช่วยตรวจขั้น 10 ข้อ 4 · เดิมไม่ใช่ UTF-8 และมีไบต์ 0xA1–0xFB สักตัว = TIS-620 ซับฝรั่งเศส é กลายเป็นวรรณยุกต์ไทย)
+pub fn guess_charset(b: &[u8]) -> &'static str {
+    match std::str::from_utf8(b) {
+        Ok(_) => return "UTF-8",
+        Err(e) if e.error_len().is_none() && e.valid_up_to() > 0 => return "UTF-8",
+        Err(_) => {}
+    }
+    let (mut high, mut thai, mut cons) = (0usize, 0usize, 0usize);
+    for &c in b {
+        if c < 0x80 { continue; }
+        high += 1;
+        if (0xA1..=0xDA).contains(&c) || (0xDF..=0xFB).contains(&c) { thai += 1; }
+        if (0xA1..=0xCE).contains(&c) { cons += 1; }
+    }
+    if high > 0 && thai * 10 >= high * 9 && cons * 10 >= high * 3 { "CP874" } else { "CP1252" }
+}
+
+/// Windows-1252 ช่วง 0x80–0x9F (นอกนั้นตรงกับ Latin-1)
+fn cp1252(b: u8) -> char {
+    const T: [u16; 32] = [0x20AC, 0x81, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021, 0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0x8D, 0x017D, 0x8F,
+        0x90, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014, 0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x9D, 0x017E, 0x0178];
+    if (0x80..=0x9F).contains(&b) { char::from_u32(T[(b - 0x80) as usize] as u32).unwrap_or('�') } else { b as char }
+}
+
 pub fn decode_text(b: &[u8]) -> (String, String) {
     if let Some(r) = b.strip_prefix(&[0xEF, 0xBB, 0xBF]) {
         return (String::from_utf8_lossy(r).into_owned(), "UTF-8".into());
@@ -64,9 +90,10 @@ pub fn decode_text(b: &[u8]) -> (String, String) {
     };
     if let Some(r) = b.strip_prefix(&[0xFF, 0xFE]) { return (u16s(r, true), "UTF-16".into()); }
     if let Some(r) = b.strip_prefix(&[0xFE, 0xFF]) { return (u16s(r, false), "UTF-16".into()); }
-    match std::str::from_utf8(b) {
-        Ok(s) => (s.to_string(), "UTF-8".into()),
-        Err(_) => (b.iter().map(|&x| cp874(x)).collect(), "TIS-620".into()),
+    match guess_charset(b) {
+        "UTF-8" => (String::from_utf8_lossy(b).into_owned(), "UTF-8".into()),
+        "CP874" => (b.iter().map(|&x| cp874(x)).collect(), "TIS-620".into()),
+        _ => (b.iter().map(|&x| cp1252(x)).collect(), "Windows-1252".into()),
     }
 }
 
@@ -178,7 +205,10 @@ fn work_dir(app: &AppHandle) -> Result<PathBuf, String> {
 /// ข้อความของซับ · ไฟล์ที่เพิ่มอ่านตรง · ซับในหนัง MKV ดึงด้วย mkvextract · MP4 ให้ ffmpeg แปลงเป็น SRT
 pub fn text_of(tools: &Path, work: &Path, path: &Path, in_movie: bool, tid: u64, ff: u64) -> Result<SubText, String> {
     let ext = path.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
-    let bytes = if !in_movie {
+    // อ่านตรงเฉพาะไฟล์ซับข้อความ · ไฟล์ห่อที่เพิ่ม (MKS MKA MP4) ดึงแทร็กด้วยเครื่องมือแบบซับในหนัง
+    // (ผู้ช่วยตรวจขั้น 10 ข้อ 6 · เดิมอ่าน MKS ทั้งไฟล์เป็นข้อความ ได้อักษรขยะ 0 บรรทัด)
+    let plain = matches!(ext.as_str(), "srt" | "ass" | "ssa" | "vtt" | "txt");
+    let bytes = if !in_movie && plain {
         std::fs::read(path).map_err(|e| format!("อ่านไฟล์ซับไม่ได้ {e}"))?
     } else if is_mkv(path) {
         let out = work.join(format!("sub-{}.txt", crate::poster_image::unique()));
@@ -197,7 +227,7 @@ pub fn text_of(tools: &Path, work: &Path, path: &Path, in_movie: bool, tid: u64,
         o.stdout
     };
     let (raw, charset) = decode_text(&bytes);
-    let kind = kind_of(&raw, if in_movie && !is_mkv(path) { "srt" } else { &ext }).to_string();
+    let kind = kind_of(&raw, if plain && !in_movie { &ext } else if is_mkv(path) { "" } else { "srt" }).to_string();
     let cues = parse(&raw, &kind);
     Ok(SubText { raw, kind, charset, cues })
 }
@@ -254,15 +284,31 @@ fn cache_key(path: &Path, ff: u64) -> String {
 }
 
 /// ถอดซับรูปทั้งแทร็กเป็นภาพ · ใช้ผลที่ถอดไว้แล้วถ้ามี
+/// ซับรูปที่กำลังถอดอยู่ (ตาม cache_key) · คำขอที่สองของซับเดียวกันรอผลของงานแรก ไม่ลบโฟลเดอร์แล้วถอดซ้อน
+/// (ผู้ช่วยตรวจขั้น 10 ข้อ 5 · เดิมปิดหน้าต่างแล้วเปิดซ้ำระหว่างถอด ffmpeg สองตัวเขียนโฟลเดอร์เดียวกัน ผลที่เก็บไว้เพี้ยนถาวร)
+static IMG_BUSY: std::sync::OnceLock<std::sync::Mutex<std::collections::HashSet<String>>> = std::sync::OnceLock::new();
+struct BusyGuard(String);
+impl Drop for BusyGuard {
+    fn drop(&mut self) { IMG_BUSY.get_or_init(Default::default).lock().unwrap().remove(&self.0); }
+}
+
 pub fn images(tools: &Path, work: &Path, path: &Path, ff: u64) -> Result<Vec<SubImg>, String> {
-    let dir = work.join(format!("subimg-{}", cache_key(path, ff)));
+    let key = cache_key(path, ff);
+    let dir = work.join(format!("subimg-{key}"));
     let idx = dir.join("index.json");
-    if let Ok(s) = std::fs::read_to_string(&idx) {
-        if let Ok(mut v) = serde_json::from_str::<Vec<SubImg>>(&s) {
-            for i in v.iter_mut() { i.file = dir.join(format!("c{:06}.png", i.n)); }
-            return Ok(v);
-        }
-    }
+    let cached = || -> Option<Vec<SubImg>> {
+        let mut v = serde_json::from_str::<Vec<SubImg>>(&std::fs::read_to_string(&idx).ok()?).ok()?;
+        for i in v.iter_mut() { i.file = dir.join(format!("c{:06}.png", i.n)); }
+        Some(v)
+    };
+    let _busy = loop {
+        if let Some(v) = cached() { return Ok(v); }
+        let mut set = IMG_BUSY.get_or_init(Default::default).lock().unwrap();
+        if set.insert(key.clone()) { break BusyGuard(key.clone()); }
+        drop(set);
+        std::thread::sleep(Duration::from_millis(300));
+    };
+    if let Some(v) = cached() { return Ok(v); }
     let raw = dir.join("raw");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&raw).map_err(|e| e.to_string())?;
@@ -370,6 +416,19 @@ pub async fn sub_images(app: AppHandle, path: String, ff: u64, page: usize, per:
 mod tests {
     use super::*;
 
+    /// เดาชุดอักษร · ไทย TIS-620 จริง · ฝรั่งเศส Windows-1252 ไม่โดนเดาเป็นไทย · UTF-8 ที่ขาดกลางตัวอักษรท้ายบัฟเฟอร์ยังเป็น UTF-8 (ผู้ช่วยตรวจขั้น 10 ข้อ 4)
+    #[test]
+    fn charset_guess_thai_french_truncated_utf8() {
+        let thai: Vec<u8> = vec![0xCA, 0xC7, 0xD1, 0xCA, 0xB4, 0xD5, b' ', 0xA4, 0xE8, 0xD0]; // สวัสดี ค่ะ
+        assert_eq!(guess_charset(&thai), "CP874");
+        let french = b"Caf\xE9 \xE0 l'\xE9t\xE9 tr\xE8s \xE7a";
+        assert_eq!(guess_charset(french), "CP1252");
+        assert_eq!(decode_text(french).0, "Café à l'été très ça");
+        let utf8 = "สวัสดี".as_bytes();
+        assert_eq!(guess_charset(&utf8[..utf8.len() - 1]), "UTF-8", "ขาดไบต์ท้ายยังเป็น UTF-8");
+        assert_eq!(decode_text(&thai).1, "TIS-620");
+    }
+
     fn tools() -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tools")
     }
@@ -407,6 +466,17 @@ mod tests {
         let a = parse(ass, kind_of(ass, "ass"));
         assert_eq!(a.len(), 2);
         assert_eq!((a[0].n, a[0].text.as_str(), a[1].text.as_str(), a[1].end), (1, "หนึ่ง", "สอง, มีจุลภาค\nบรรทัด", 6.5));
+    }
+
+    /// ไฟล์ MKV ที่เพิ่มเข้ามา (ไม่ใช่หนังในหน้า) ดึงแทร็กซับด้วย mkvextract ไม่อ่านไบต์ทั้งไฟล์ (ผู้ช่วยตรวจขั้น 10 ข้อ 6)
+    #[test]
+    fn added_container_sub_is_extracted() {
+        let Some(mkv) = av("ฟอนต์แนบ (2024).mkv") else { return };
+        let o = crate::tools::run_tool(&tools(), "mkvmerge", [std::ffi::OsStr::new("-J"), mkv.as_os_str()]).unwrap();
+        let j: serde_json::Value = serde_json::from_slice(&o.stdout).unwrap();
+        let tid = j["tracks"].as_array().unwrap().iter().find(|t| t["type"] == "subtitles" && t["codec"].as_str().unwrap_or("") == "SubStationAlpha").and_then(|t| t["id"].as_u64()).expect("หนังทดสอบมีซับ ASS");
+        let s = text_of(&tools(), &work(), &mkv, false, tid, tid).unwrap();
+        assert!(!s.cues.is_empty() && s.charset == "UTF-8" && s.kind == "ass", "{} บรรทัด {} {}", s.cues.len(), s.charset, s.kind);
     }
 
     /// ไฟล์ทดสอบ SRT ไทย · TIS-620 ได้ข้อความเดียวกัน · ASS เอาแท็กสีออก · VTT · ซับในหนังดึงด้วย mkvextract
