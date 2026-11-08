@@ -1,7 +1,9 @@
 //! ชั้นหนัง · ฝั่งทำงานหนักของโปรแกรม
 
+mod ape;
 mod audiograph;
 mod check;
+mod convert;
 mod delay;
 mod encode;
 mod extract;
@@ -43,6 +45,7 @@ pub fn run() {
         .manage(Arc::new(Jobs::default()))
         .manage(poster::PosterState::default())
         .manage(merge::MergeState::default())
+        .manage(convert::ConvertState::default())
         .setup(|app| {
             let path = store::settings_path(app.handle())?;
             app.manage(SettingsStore::load(path));
@@ -88,6 +91,7 @@ pub fn run() {
         delay::delay_find, delay::delay_view, delay::delay_preview,
         subs::sub_text, subs::sub_frame, subs::sub_wave, subs::sub_images,
         pairs::pair_set, pairs::pair_check, pairs::pair_play,
+        convert::convert_probe, convert::convert_cover, convert::convert_one, convert::convert_cancel,
         fileinfo::media_info, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_running, fileinfo::hash_compare, fileinfo::hash_save,
         extract::extract_start, extract::extract_cancel, extract::extract_running, extract::extract_default_folder,
         check::check_start, check::check_cancel, check::check_running, check::play_at,
@@ -106,6 +110,7 @@ pub fn run() {
         delay::delay_find, delay::delay_view, delay::delay_preview,
         subs::sub_text, subs::sub_frame, subs::sub_wave, subs::sub_images,
         pairs::pair_set, pairs::pair_check, pairs::pair_play,
+        convert::convert_probe, convert::convert_cover, convert::convert_one, convert::convert_cancel,
         fileinfo::media_info, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_running, fileinfo::hash_compare, fileinfo::hash_save,
         extract::extract_start, extract::extract_cancel, extract::extract_running, extract::extract_default_folder,
         check::check_start, check::check_cancel, check::check_running, check::play_at,

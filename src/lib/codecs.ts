@@ -5,7 +5,7 @@ import type { EncodeSpec } from "./api";
 
 export type Preset = { label: string; detail: string; mbPerHour?: number; pctWav?: number; p: EncodeSpec["p"]; channels?: number };
 export type Codec = {
-  id: "opus" | "aac" | "mp3" | "ac3" | "flac" | "wv";
+  id: "opus" | "aac" | "mp3" | "ac3" | "flac" | "wv" | "ape" | "tak";
   name: string;
   full: string;
   lossless: boolean;
@@ -16,6 +16,8 @@ export type Codec = {
   why: string;
   presets: Preset[];
   preset: number;
+  /** ใช้ได้เฉพาะหน้าแปลงเสียง (ใส่ในไฟล์หนังไม่ได้) */
+  only?: boolean;
 };
 
 export const CODECS: Codec[] = [
@@ -67,6 +69,22 @@ export const CODECS: Codec[] = [
       { label: "เล็ก", detail: "High · -h", pctWav: 54, p: { mode: "High" } },
       { label: "เล็กสุด", detail: "Very High · -hh -x6", pctWav: 53, p: { mode: "Very High", extra: 6 } },
     ], preset: 1 },
+  { id: "ape", name: "Monkey's Audio", full: "Monkey's Audio Lossless (APE)", lossless: true, native: "MACDll64", mp4: false, ch: "หลายช่องได้", only: true,
+    why: "บีบแน่นกว่า FLAC เล็กน้อย · เครื่องเล่นรองรับน้อย ตอนเล่นถอดหนักกว่า FLAC",
+    presets: [
+      { label: "เร็ว", detail: "Fast", pctWav: 57, p: { level: "Fast" } },
+      { label: "มาตรฐาน", detail: "Normal", pctWav: 54, p: { level: "Normal" } },
+      { label: "เล็ก", detail: "High", pctWav: 53, p: { level: "High" } },
+      { label: "เล็กสุด", detail: "Extra High", pctWav: 52, p: { level: "Extra High" } },
+    ], preset: 1 },
+  { id: "tak", name: "TAK", full: "Tom's lossless Audio Kompressor", lossless: true, native: "Takc", mp4: false, ch: "สูงสุด 6 ช่อง", only: true,
+    why: "เล็กพอ ๆ กับ Monkey's Audio แต่ถอดเร็วกว่ามาก · วาง Takc.exe เองในโฟลเดอร์ตัวแปลง",
+    presets: [
+      { label: "เร็ว", detail: "-p0", pctWav: 56, p: { preset: 0, eval: "Normal" } },
+      { label: "มาตรฐาน", detail: "-p2", pctWav: 54, p: { preset: 2, eval: "Normal" } },
+      { label: "เล็ก", detail: "-p4", pctWav: 53, p: { preset: 4, eval: "Normal" } },
+      { label: "เล็กสุด", detail: "-p4m", pctWav: 52, p: { preset: 4, eval: "Max" } },
+    ], preset: 1 },
 ];
 
 export const codecOf = (id: string) => CODECS.find((c) => c.id === id) ?? CODECS[0];
@@ -76,7 +94,8 @@ export function convertLabel(spec: EncodeSpec): string {
   const c = codecOf(spec.codec);
   const p = spec.p;
   const v = c.id === "mp3" ? (p.mode === "CBR" ? `CBR ${p.bitrate}` : `V${p.vbrq ?? 2}`)
-    : c.id === "flac" ? `L${p.level ?? 5}` : c.id === "wv" ? String(p.mode ?? "Normal")
+    : c.id === "flac" ? `L${p.level ?? 5}` : c.id === "wv" ? String(p.mode ?? "Normal") : c.id === "ape" ? String(p.level ?? "Normal")
+    : c.id === "tak" ? `-p${p.preset ?? 2}${p.eval === "Max" ? "m" : p.eval === "Extra" ? "e" : ""}`
     : c.id === "aac" && spec.encoder === "qaac" && p.mode === "TVBR" ? `TVBR ${p.tvbr}` : String(p.bitrate ?? "");
   return `${c.name} ${v}`.trim();
 }

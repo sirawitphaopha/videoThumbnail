@@ -218,3 +218,50 @@
 .pair .kind.s { background: #e3effb; color: #2f6496; }
 .pair .p { font-size: 11.5px; color: var(--txt3); overflow-wrap: anywhere; line-height: 1.4; }
 .pairdot { position: absolute; top: 6px; right: 6px; z-index: 2; width: 10px; height: 10px; border-radius: 50%; background: #3f8fd8; border: 2px solid #fff; box-shadow: 0 1px 3px rgba(0, 0, 0, .3); }
+
+/* ---------- หน้ากราฟเสียง โหมดแปลงเสียง เทียบสองไฟล์ ข้อมูลเพลง (แผนเสียงและซับ ขั้น 8 · มอคอัปหัวข้อ 7) ---------- */
+.gmodebar { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.btn-xs { height: 28px; padding: 0 10px; font-size: 12.5px; border-radius: 8px; }
+.linklike { background: none; border: 0; padding: 0; font: inherit; color: inherit; text-align: left; cursor: pointer; max-width: 100%; display: block; }
+.linklike:hover { color: var(--accent-ink); text-decoration: underline; text-decoration-color: #eeb3c8; text-underline-offset: 3px; }
+.linklike:focus-visible { outline: 2px solid #e79ab8; outline-offset: 2px; border-radius: 4px; }
+.cq { display: flex; flex-direction: column; gap: 12px; }
+.cqtop { display: flex; align-items: center; gap: 10px; }
+.cqlist { display: flex; flex-direction: column; gap: 6px; }
+.cqrow { display: grid; grid-template-columns: 40px minmax(0, 1.4fr) 18px minmax(0, 1fr) 200px 132px; gap: 10px; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font-size: 13px; }
+.cqrow.head { background: transparent; border: 0; padding: 0 10px; color: var(--txt2); font-size: 12px; font-weight: 600; }
+.cqrow.work { border-color: #e79ab8; box-shadow: 0 0 0 2px #fbe3ec; }
+.cqrow.fail { border-color: #efb4b4; }
+.cqrow .nm { font-weight: 600; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.4; }
+.cqrow .dt { font-size: 12px; color: var(--txt3); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; line-height: 1.4; }
+.cqrow .dd { height: 34px; font-size: 13px; }
+.cqrow .dd.locked { cursor: default; background: var(--win2); color: var(--txt2); }
+.cqrow .dd.locked:hover { background: var(--win2); border: 1px solid var(--line); }
+.cqbtns { display: flex; gap: 4px; justify-content: flex-end; align-items: center; }
+.cqmore { grid-column: 2 / -1; font-size: 12px; color: var(--txt2); line-height: 1.5; margin-top: -2px; }
+.cqmore.bad { color: var(--bad-ink); }
+.cqmore .warnline { display: flex; align-items: center; gap: 6px; color: var(--warn-ink); }
+.cqmore .warnline svg { flex: none; width: 13px; height: 13px; }
+.cqcov { border-radius: 6px; object-fit: cover; box-shadow: 0 2px 5px rgba(150, 70, 100, .22); display: block; }
+.cqcov.none { display: flex; align-items: center; justify-content: center; background: #fbeef3; color: #c25d7f; border: 1px solid #efc6d5; box-shadow: none; }
+.cqcards { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
+.cqcards .card h3 { margin-bottom: 8px; }
+@media (max-width: 1100px) { .cqrow { grid-template-columns: 40px minmax(0, 1fr) 14px minmax(0, 1fr) 150px 112px; } .cqcards { grid-template-columns: 1fr; } }
+/* เทียบสองไฟล์ · ต้นฉบับสีฟ้า หลังแปลงสีส้ม */
+.who { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; white-space: nowrap; vertical-align: 1px; }
+.who i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+.cmpchip .nm .who { margin-left: 6px; }
+/* ค่าไม่ตัดบรรทัด (บิตเรต 2,612 kb/s เคยตกเป็นสองบรรทัดในคอลัมน์ 1fr ที่แคบ เจอตอนตรวจภาพ) */
+.ginfo { display: grid; grid-template-columns: auto auto auto; justify-content: start; gap: 4px 10px; font-size: 13px; align-items: baseline; }
+.ginfo .h { font-size: 12px; font-weight: 700; }
+.ginfo .k { color: var(--txt3); white-space: nowrap; }
+.ginfo .v { color: var(--txt); white-space: nowrap; font-variant-numeric: tabular-nums; }
+.cmptile .tv { display: flex; align-items: baseline; justify-content: space-between; gap: 8px; margin-top: 2px; }
+.cmptile .tv b { font-size: 16.5px; }
+.cmplanes .lane .lab span { font-size: 11.5px; line-height: 1.35; }
+/* ข้อมูลเพลง */
+.tagview { display: flex; gap: 16px; align-items: flex-start; }
+.tagview .art { width: 150px; height: 150px; flex: none; border-radius: 10px; object-fit: cover; box-shadow: 0 4px 12px rgba(150, 70, 100, .22); }
+.tagview .art.none { display: flex; align-items: center; justify-content: center; color: var(--txt3); font-size: 13px; background: repeating-linear-gradient(45deg, #fbe7ef 0 8px, #fff 8px 16px); border: 1px dashed #eeb3c8; box-shadow: none; }
+.tagview .kv { flex: 1; grid-template-columns: 100px 1fr; }
+.tagview .stat { flex: 1; }

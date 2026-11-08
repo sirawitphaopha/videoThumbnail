@@ -74,6 +74,8 @@ impl EncodeSpec {
             "eac3" => "eac3",
             "flac" => "flac",
             "wv" => "wv",
+            "ape" => "ape",
+            "tak" => "tak",
             _ => "mka",
         }
     }
@@ -87,6 +89,8 @@ impl EncodeSpec {
             "eac3" => "eac3",
             "flac" => "flac",
             "wv" => "wavpack",
+            "ape" => "ape",
+            "tak" => "tak",
             _ => "",
         }
     }
@@ -174,7 +178,7 @@ fn lowpass_hz(spec: &EncodeSpec) -> Option<f64> {
 /// แปลงค่าในการ์ดเป็นขั้นตอนจริง · out = ไฟล์ปลายทางในโฟลเดอร์ชั่วคราว · src_channels = ช่องของต้นทาง (MP3 รับได้ 2 ช่อง)
 /// src_bits = ความลึกบิตของต้นทาง (ffprobe) · ต้นทาง 16 บิตแปลงแบบไม่เสียคุณภาพตามต้นฉบับ ได้ 16 บิต ไม่ขยายเป็น 24
 pub fn build(spec: &EncodeSpec, src: &str, stream: u64, out: &str, src_channels: Option<u32>, src_bits: Option<u32>) -> Result<Plan, String> {
-    let lossless = matches!(spec.codec.as_str(), "flac" | "wv");
+    let lossless = matches!(spec.codec.as_str(), "flac" | "wv" | "ape" | "tak");
     let src16 = src_bits.is_some_and(|b| b > 0 && b <= 16);
     // ใส่ dither เฉพาะตอนลดบิตจริง · ต้นทาง 16 บิตอยู่แล้วตัดศูนย์ที่เติมไว้ทิ้งได้ตรงทุกตัวอย่าง
     let dither16 = lossless && spec.bits == Some(16) && !src16;
@@ -274,6 +278,23 @@ pub fn build(spec: &EncodeSpec, src: &str, stream: u64, out: &str, src_channels:
             ff.extend(["-n".into(), out.into()]);
             (vec![Step { tool: "ffmpeg".into(), args: ff }], false, "WavPack ของ ffmpeg ไม่มี Hybrid กับ Verify".into())
         }
+        // Monkey's Audio กับ TAK ใช้เฉพาะหน้าแปลงเสียง (ใส่ในไฟล์หนังไม่ได้) · ไม่มีตัวสำรองของ ffmpeg (ffmpeg อ่านได้อย่างเดียว เขียนไม่ได้)
+        ("ape", _, _) => {
+            let mut ff = ff_head(src, stream, spec, dither16, None);
+            ff_pipe_tail(&mut ff, pcm16);
+            let threads = std::thread::available_parallelism().map(|n| n.get().min(8)).unwrap_or(2);
+            let e = vec!["--level".to_string(), crate::ape::level_of(&spec.s("level", "Normal")).to_string(), "--threads".into(), threads.to_string(), out.into()];
+            (vec![Step { tool: "ffmpeg".into(), args: ff }, Step { tool: "MACDll64".into(), args: e }], true,
+             "ffmpeg ถอดเสียงส่งทางท่อให้ MACDll64.dll (Monkey's Audio) บีบในโปรแกรม · ชุดของผู้ทำไม่มีตัวแปลงแบบคำสั่ง".into())
+        }
+        ("tak", _, _) => {
+            let mut ff = ff_head(src, stream, spec, dither16, None);
+            ff_pipe_tail(&mut ff, pcm16);
+            let ev = match spec.s("eval", "Normal").as_str() { "Extra" => "e", "Max" => "m", _ => "" };
+            let e = vec!["-e".to_string(), format!("-p{}{ev}", fmt_num(spec.n("preset", 2.0))), "-ihs".into(), "-".into(), out.into()];
+            (vec![Step { tool: "ffmpeg".into(), args: ff }, Step { tool: "Takc".into(), args: e }], true,
+             "ffmpeg ถอดเสียงส่งทางท่อให้ Takc บีบ · Takc วางเองในโฟลเดอร์ตัวแปลง".into())
+        }
         ("ac3" | "eac3", _, _) => {
             let mut ff = ff_head(src, stream, spec, false, Some(6.min(src_channels.unwrap_or(6).max(1))));
             let cm = match spec.s("cmix", "−4.5 dB").as_str() { "−3 dB" => "0.707", "−6 dB" => "0.500", _ => "0.595" };
@@ -327,8 +348,13 @@ pub fn build(spec: &EncodeSpec, src: &str, stream: u64, out: &str, src_channels:
         }
         (c, _, _) => return Err(format!("ยังแปลงเป็นชนิด {c} ไม่ได้")),
     };
-    let text = steps.iter().map(|s| format!("{} {}", s.tool, s.args.iter().map(|a| quote(a)).collect::<Vec<_>>().join(" "))).collect::<Vec<_>>().join(" |\n  ");
+    let text = text_of(&steps);
     Ok(Plan { steps, piped, text, note })
+}
+
+/// คำสั่งทั้งชุดแบบที่พิมพ์ใน Command Prompt ได้ · หน้าแปลงเสียงเติมข้อมูลเพลงเข้าขั้นตอนแล้วสร้างข้อความใหม่
+pub fn text_of(steps: &[Step]) -> String {
+    steps.iter().map(|s| format!("{} {}", s.tool, s.args.iter().map(|a| quote(a)).collect::<Vec<_>>().join(" "))).collect::<Vec<_>>().join(" |\n  ")
 }
 
 fn quote(a: &str) -> String {
@@ -346,7 +372,11 @@ pub enum Done {
 /// รันงานแปลง · dir_of = โฟลเดอร์ของตัวแปลงแต่ละตัว (ตัวที่แนบมา หรือโฟลเดอร์ตัวแปลงที่ใส่เอง) · progress รับเปอร์เซ็นต์ (ต้องรู้ความยาวต้นทาง)
 /// stop = กดหยุด · ไฟล์ปลายทางที่ทำค้าง คนเรียกลบเอง
 pub fn run(dir_of: &dyn Fn(&str) -> PathBuf, plan: &Plan, total_secs: Option<f64>, stop: &dyn Fn() -> bool, progress: &mut dyn FnMut(f64)) -> Result<Done, String> {
-    let mut ff = tool_command(&dir_of(&plan.steps[0].tool), &plan.steps[0].tool, plan.steps[0].args.iter().map(OsStr::new))
+    // Monkey's Audio ไม่ใช่โปรแกรม เป็น DLL ที่โปรแกรมป้อนเสียงให้เอง (ape.rs)
+    if plan.piped && plan.steps.get(1).is_some_and(|s| s.tool == "MACDll64") {
+        return crate::ape::run(&dir_of("MACDll64"), &dir_of(&plan.steps[0].tool), plan, total_secs, stop, progress);
+    }
+    let mut ff =tool_command(&dir_of(&plan.steps[0].tool), &plan.steps[0].tool, plan.steps[0].args.iter().map(OsStr::new))
         .stdout(if plan.piped { Stdio::piped() } else { Stdio::null() }).stderr(Stdio::piped())
         .spawn().map_err(|e| format!("เรียก {} ไม่ได้: {e}", plan.steps[0].tool))?;
     crate::winutil::kill_with_app(&ff);
@@ -418,13 +448,15 @@ pub fn run(dir_of: &dyn Fn(&str) -> PathBuf, plan: &Plan, total_secs: Option<f64
 // ---------------------------------------------------------------- ทะเบียนตัวแปลง
 
 /// ตัวแปลงที่โปรแกรมรู้จัก (ชื่อไฟล์ ชนิด คำสั่งถามรุ่น แนบมากับโปรแกรมไหม) · ตัวที่สัญญาอนุญาตไม่ให้แจก ผู้ใช้วางเองในโฟลเดอร์ตัวแปลง
-pub const ENCODERS: [(&str, &str, &str, bool); 7] = [
+pub const ENCODERS: [(&str, &str, &str, bool); 8] = [
     ("flac", "FLAC", "--version", true),
     ("opusenc", "Opus", "--version", true),
     ("lame", "MP3", "--version", true),
     ("wavpack", "WavPack", "--version", true),
     ("qaac64", "AAC · ALAC", "--check", false),
     ("fdkaac", "AAC · HE-AAC", "--help", false),
+    // TAK แจกได้แต่ไม่เปิดซอร์ส สัญญาไม่ชัดว่าแนบไปกับโปรแกรมอื่นได้ไหม · วางเองในโฟลเดอร์ตัวแปลง ใช้เฉพาะหน้าแปลงเสียง
+    ("Takc", "TAK · หน้าแปลงเสียง", "-h", false),
     ("ffmpeg", "ทุกชนิดที่แปลงได้ (ตัวรอง)", "-version", true),
 ];
 
@@ -480,6 +512,21 @@ fn probe_one(dir: &Path, name: &str, arg: &str) -> Result<String, String> {
 
 /// สถานะตัวแปลงทุกตัว · ตัวที่อยู่ทั้งสองที่ ใช้ตัวที่รุ่นใหม่กว่า
 pub fn status(tools: &Path, user: &Path) -> Vec<EncoderInfo> {
+    let mut list = cli_status(tools, user);
+    // Monkey's Audio เป็น DLL ไม่ใช่ตัวแปลงแบบคำสั่ง · ถามรุ่นจาก DLL เอง · วางต่อจาก wavpack
+    let mac = crate::ape::version(tools);
+    let at = list.iter().position(|e| e.name == "wavpack").map(|i| i + 1).unwrap_or(list.len());
+    list.insert(at, EncoderInfo {
+        name: "MACDll64".into(), codecs: "Monkey's Audio · หน้าแปลงเสียง".into(),
+        source: if mac.is_ok() { "bundled".into() } else { "missing".into() },
+        version: mac.as_ref().ok().filter(|v| !v.is_empty()).cloned(), ok: mac.is_ok(),
+        problem: mac.as_ref().err().filter(|e| !e.starts_with("ไม่มี")).cloned(),
+        dir: if mac.is_ok() { tools.to_string_lossy().to_string() } else { String::new() },
+    });
+    list
+}
+
+fn cli_status(tools: &Path, user: &Path) -> Vec<EncoderInfo> {
     ENCODERS.iter().map(|(name, codecs, arg, bundled)| {
         let b = if *bundled { probe_one(tools, name, arg).ok().map(|t| (version_of(name, &t), tools.to_path_buf())) } else { None };
         let u = probe_one(user, name, arg);
@@ -593,7 +640,15 @@ mod tests {
         // คำสั่งที่แสดงใส่เครื่องหมายคำพูดให้ชื่อที่มีเว้นวรรค
         let t = build(&spec("opus", "ffmpeg", json!({"bitrate": 128})), "D:\\หนัง\\ดาวตก (2024).mkv", 1, "เสียง 1.opus", None, None).unwrap();
         assert!(t.text.contains("\"D:\\หนัง\\ดาวตก (2024).mkv\""), "{}", t.text);
-        assert!(build(&spec("ape", "native", json!({})), "M", 1, "O", None, None).is_err());
+        // ชนิดที่ไม่รู้จักสร้างคำสั่งไม่ได้ · Monkey's Audio กับ TAK ใช้ได้แล้ว (ขั้น 8 หน้าแปลงเสียง)
+        assert!(build(&spec("tta", "native", json!({})), "M", 1, "O", None, None).is_err());
+        let ape = build(&spec("ape", "native", json!({"level": "Extra High"})), "M.flac", 0, "O.ape", Some(2), Some(16)).unwrap();
+        assert_eq!(ape.steps[1].tool, "MACDll64");
+        assert!(ape.steps[1].args.join(" ").starts_with("--level 4000 --threads "), "{:?}", ape.steps[1].args);
+        assert!(ape.steps[0].args.join(" ").ends_with("-c:a pcm_s16le -f wav -"), "ต้นทาง 16 บิตส่ง 16 บิต {:?}", ape.steps[0].args);
+        let tak = build(&spec("tak", "native", json!({"preset": 4, "eval": "Max"})), "M.flac", 0, "O.tak", Some(2), None).unwrap();
+        assert_eq!(tak.steps[1].args.join(" "), "-e -p4m -ihs - O.tak");
+        assert!(tak.steps[0].args.join(" ").ends_with("-c:a pcm_s24le -f wav -"));
     }
 
     /// ความลึกบิต · ต้นทาง 16 บิตตามต้นฉบับได้ 16 บิต ไม่ใส่ dither · ลดจาก 24 เป็น 16 ใส่ dither · Lowpass · Block size · HE-AAC กับ TVBR

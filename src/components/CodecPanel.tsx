@@ -24,6 +24,8 @@ function engines(c: Codec, encs: EncoderInfo[] | null): { value: string; label: 
   const has = (n: string) => !!encs?.find((e) => e.name === n && e.ok);
   const ver = (n: string) => encs?.find((e) => e.name === n)?.version ?? "";
   const ff = { value: "ffmpeg", label: `ffmpeg ${ver("ffmpeg")}`.trim(), ok: true };
+  // Monkey's Audio กับ TAK ffmpeg อ่านได้อย่างเดียว เขียนไม่ได้ · มีแต่ตัวต้นฉบับ
+  if (c.only && c.native) return [{ value: "native", label: c.id === "ape" ? `Monkey's Audio ${ver(c.native)} (MACDll64.dll)`.trim() : `${c.native} ${ver(c.native)}`.trim(), ok: has(c.native) }];
   if (c.id === "aac") return [{ value: "qaac", label: "qaac (Apple)", ok: has("qaac64") }, { value: "fdkaac", label: "fdkaac", ok: has("fdkaac") }, ff];
   if (!c.native) return [ff];
   return [{ value: "native", label: `${c.native} ${ver(c.native)}`.trim(), ok: has(c.native) }, ff];
@@ -50,8 +52,10 @@ function saveLast(id: string, l: Last) {
 function valsOf(spec: EncodeSpec): Vals {
   const v: Vals = { ...cardDefaults(spec.codec as Codec["id"]), ...(spec.p as Vals) };
   v.channels = spec.channels ? String(spec.channels) : "src";
-  v.bits = spec.bits ? String(spec.bits) : "src";
-  v.rate = spec.rate ? String(spec.rate) : "src";
+  // ใส่ bits rate เฉพาะชนิดที่มีการ์ดนั้น · เดิมใส่ทุกชนิด Opus ที่ไม่มีการ์ดสองใบนี้เลยไม่ตรงชุดค่าไหน เปิดแผงซ้ำแล้วเด้งไปขั้นสูง (เจอตอนเทสหน้าแปลงเสียง)
+  const has = new Set(ADV[spec.codec as Codec["id"]]?.cards.map((k) => k.key) ?? []);
+  if (has.has("bits")) v.bits = spec.bits ? String(spec.bits) : "src";
+  if (has.has("rate")) v.rate = spec.rate ? String(spec.rate) : "src";
   return v;
 }
 
@@ -105,6 +109,10 @@ export default function CodecPanel(p: {
   onClose: () => void;
   /** ความเร็วเสียงตั้งต้น เช่น 25>23.976 จากตัวช่วยหาดีเลย์ · ไม่ส่ง = ตามค่าที่ตั้งไว้ของแทร็ก */
   speed?: string | null;
+  /** เปิดจากหน้าแปลงเสียง (หน้ากราฟเสียง) · มี Monkey's Audio กับ TAK เพิ่ม */
+  convertPage?: boolean;
+  /** หัวแผงแทนชื่อแทร็ก เช่น ตั้งทีเดียวทั้งคิว */
+  title?: string;
 }) {
   const t = p.track;
   const srcCh = t.channels;
@@ -150,6 +158,9 @@ export default function CodecPanel(p: {
     return n;
   });
   const engUse = eng && engs.some((e) => e.value === eng && e.ok) ? eng : firstOk;
+  /** ชนิดที่มีแต่ตัวต้นฉบับ แต่ยังไม่ได้ใส่ (TAK ต้องวาง Takc.exe เอง) */
+  const missingNative = c.only && !engs.some((e) => e.ok) ? (c.id === "tak" ? "ยังไม่ได้วาง Takc.exe ในโฟลเดอร์ตัวแปลง · วางแล้วกดตรวจตัวแปลงใหม่ในหน้าตั้งค่า" : "หา MACDll64.dll ในโฟลเดอร์เครื่องมือไม่เจอ") : null;
+  const blocked = planErr ?? missingNative;
 
   /** ตัวเลือกของการ์ดที่ขึ้นกับแทร็ก · ช่องลดได้ต่ำกว่าต้นทางเท่านั้น (AC-3 ได้สูงสุด 5.1) · อัตราสุ่มที่ต่างจากต้นทาง */
   const optsOf = (k: Card): { value: string; label: string }[] => {
@@ -208,7 +219,7 @@ export default function CodecPanel(p: {
     : !srcLossless && c.lossless ? `${srcFt} เป็นแบบเสียคุณภาพอยู่แล้ว แปลงเป็น ${c.name} ไฟล์ใหญ่ขึ้น คุณภาพไม่กลับมา` : null;
   const name = `${t.name || ""} ${c.name}`.trim();
   const apply = () => {
-    if (planErr) return;
+    if (blocked) return;
     saveLast(c.id, { eng, vals, tab });
     p.onApply(spec, pair, pair && t.inMovie ? name : "");
   };
@@ -249,12 +260,12 @@ export default function CodecPanel(p: {
   const exTop = abbrer();
 
   return (
-    <Dialog open onClose={p.onClose} width={tab === "adv" ? 900 : 780} title={<span>ตั้งค่าแปลงเสียง · <span style={{ overflowWrap: "anywhere" }}>{t.inMovie ? (t.name || "เสียงในหนัง") : baseName(t.src)}</span></span>}
+    <Dialog open onClose={p.onClose} width={tab === "adv" ? 900 : 780} title={<span>ตั้งค่าแปลงเสียง · <span style={{ overflowWrap: "anywhere" }}>{p.title ?? (t.inMovie ? (t.name || "เสียงในหนัง") : baseName(t.src))}</span></span>}
       actions={<>
         <span className="small" style={{ marginRight: "auto", alignSelf: "center" }}>ค่าที่กดใช้จำไว้เป็นค่าตั้งต้นของชนิดนี้ครั้งหน้า · ขนาดเป็นค่าประมาณ ของจริงขึ้นกับเสียงในแทร็ก</span>
         {t.convert && <button type="button" className="btn btn-ghost btn-sm" onClick={() => p.onApply(null, pair, "")} data-conv-off>ไม่แปลง</button>}
         <button type="button" className="btn btn-ghost btn-sm" onClick={p.onClose}>ยกเลิก</button>
-        <button type="button" className={"btn btn-sm " + (planErr ? "btn-wait" : "btn-main")} aria-disabled={!!planErr || undefined} title={planErr ?? undefined} onClick={apply} data-conv-use>ใช้ค่านี้</button>
+        <button type="button" className={"btn btn-sm " + (blocked ? "btn-wait" : "btn-main")} aria-disabled={!!blocked || undefined} title={blocked ?? undefined} onClick={apply} data-conv-use>ใช้ค่านี้</button>
       </>}>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }} data-codec-panel data-tab={tab}>
         <div className="small">ต้นทาง <b style={{ color: "var(--txt2)" }}>{srcFt}</b>{t.channels ? ` · ${t.channels} ช่อง` : ""}{t.rate ? ` · ${t.rate / 1000} kHz` : ""}{t.bits && srcLossless ? ` · ${t.bits}-bit` : ""}{t.duration ? ` · ${Math.round(t.duration / 60)} นาที` : ""}</div>
@@ -262,9 +273,9 @@ export default function CodecPanel(p: {
           <div><div className="small ilbl" style={{ marginBottom: 4 }}><b style={{ color: "var(--txt2)" }}>Lossy</b>&nbsp;(เสียคุณภาพ ไฟล์เล็ก)<InfoTip title="Lossy" tip={TIPS.lossy} /></div>
             <Seg small label="ชนิดแบบเสียคุณภาพ" value={c.lossless ? ("" as Codec["id"]) : c.id} onChange={pickCodec} options={CODECS.filter((x) => !x.lossless).map((x) => ({ value: x.id, label: x.name }))} /></div>
           <div><div className="small ilbl" style={{ marginBottom: 4 }}><b style={{ color: "var(--txt2)" }}>Lossless</b>&nbsp;(ไม่เสียคุณภาพ)<InfoTip title="Lossless" tip={TIPS.lossless} /></div>
-            <Seg small label="ชนิดแบบไม่เสียคุณภาพ" value={c.lossless ? c.id : ("" as Codec["id"])} onChange={pickCodec} options={CODECS.filter((x) => x.lossless).map((x) => ({ value: x.id, label: x.name }))} /></div>
+            <Seg small label="ชนิดแบบไม่เสียคุณภาพ" value={c.lossless ? c.id : ("" as Codec["id"])} onChange={pickCodec} options={CODECS.filter((x) => x.lossless && (!x.only || p.convertPage)).map((x) => ({ value: x.id, label: x.name }))} /></div>
         </div>
-        <div className="small ilbl" style={{ display: "block" }}><b style={{ color: "var(--txt)" }}>{c.name}</b> <span className="ab">({c.full})</span><InfoTip title={c.name} tip={ADV[c.id].tip} /> · <Phr>{`${c.why} · ${c.ch}${c.mp4 ? "" : " · ใส่ MP4 ไม่ได้"}`}</Phr></div>
+        <div className="small ilbl" style={{ display: "block" }}><b style={{ color: "var(--txt)" }}>{c.name}</b> <span className="ab">({c.full})</span><InfoTip title={c.name} tip={ADV[c.id].tip} /> · <Phr>{`${c.why} · ${c.ch}${c.only ? " · ใส่ไฟล์หนังไม่ได้ ใช้เฉพาะหน้าแปลงเสียง" : c.mp4 ? "" : " · ใส่ MP4 ไม่ได้"}`}</Phr></div>
         <div><div className="small ilbl" style={{ marginBottom: 4 }}><b style={{ color: "var(--txt2)" }}>Encoder</b>&nbsp;(ตัวแปลง)<InfoTip title="Encoder" tip={TIPS.engine} /></div>
           <div style={{ display: "flex" }}><Seg small label="ตัวแปลง" value={engUse} onChange={(v) => { if (engs.find((e) => e.value === v)?.ok) setEng(v); }}
             options={engs.map((e) => ({ value: e.value, label: e.ok ? e.label : `${e.label} (ยังไม่ได้ใส่)` }))} /></div></div>
@@ -333,6 +344,7 @@ export default function CodecPanel(p: {
               options={[{ value: "pair", label: "เพิ่มคู่กับแทร็กเดิม" }, { value: "replace", label: "แทนที่แทร็กเดิม" }]} /></div>
             <div className="small" style={{ marginTop: 4 }}>{pair ? `แทร็กใหม่ชื่อ ${name} ต่อท้ายแทร็กเดิม แทร็กเดิมอยู่ครบ` : "แทร็กเดิมถูกแทนที่ด้วยแทร็กที่แปลง"}</div></div>
         )}
+        {missingNative && <div className="stat warn" data-native-missing><CardIcon kind="warn" /><div><b>{c.name} ยังใช้ไม่ได้</b><Phr>{missingNative}</Phr></div></div>}
         {warn && <div className="stat warn"><CardIcon kind="warn" /><div><Phr>{warn}</Phr> · <Phr>ไม่ห้าม แค่บอก</Phr></div></div>}
         <div>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>

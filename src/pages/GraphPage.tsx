@@ -4,10 +4,14 @@
 import { Component, useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { AUDIO_EXT, checkApi, graphApi, inApp, pickFile, pickSave, thumbUrl, type GInfo, type GOverview, type GProgress, type GPsd, type GTrack, type GWindow, type Movie } from "../lib/api";
+import ConvertPane from "../components/ConvertPane";
+import "../styles/av.css";
+import TagDialog from "../components/TagDialog";
+import { addFiles } from "../lib/convertJob";
 import { useLibrary } from "../lib/library";
 import { useToast } from "../components/Toasts";
 import Dropdown from "../components/Dropdown";
-import { Phr, Switch } from "../components/ui";
+import { CardIcon, Phr, Switch } from "../components/ui";
 import { fmtSize } from "../lib/format";
 
 export type GraphReq = { path: string; t?: number };
@@ -303,9 +307,23 @@ function loadPrefs(): Prefs {
   try { const p = JSON.parse(localStorage.getItem(PREF_KEY) ?? "{}"); return { ...d, ...p, theme: THEMES[p.theme] ? p.theme : d.theme, laneK: Number.isFinite(p.laneK) ? laneKClamp(p.laneK) : 1 }; } catch { return d; }
 }
 
+/** โหมดของหน้า กับการเทียบที่เปิดอยู่ · จำระดับโปรแกรม ไปหน้าอื่นแล้วกลับมาอยู่ที่เดิม (คิวแปลงเก็บใน convertJob.ts) */
+let lastMode: "graph" | "convert" = "graph";
+let lastCmp: { a: string; b: string; note?: string } | null = null;
+
 export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; onConsumed: () => void }) {
+  const [mode, setModeRaw] = useState<"graph" | "convert">(lastMode);
+  const setMode = (m: "graph" | "convert") => { lastMode = m; setModeRaw(m); };
+  const [cmp, setCmpRaw] = useState(lastCmp);
+  const setCmp = (c: typeof lastCmp) => { lastCmp = c; setCmpRaw(c); };
+  const [tagFor, setTagFor] = useState<string | null>(null);
+  const modeRef = useRef(mode);
+  modeRef.current = cmp ? "graph" : mode;
   const { movies } = useLibrary();
   const toast = useToast();
+  /** ตัวรับไฟล์ที่ลากลงทะเบียนครั้งเดียว ใช้ตัวแจ้งเตือนล่าสุดผ่านตัวนี้ */
+  const toastRef = useRef(toast);
+  toastRef.current = toast;
   const [path, setPath] = useState<string | null>(null);
   const [info, setInfo] = useState<GInfo | null>(null);
   const [track, setTrack] = useState(0);
@@ -346,6 +364,7 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
   // เปิดจากที่อื่น (ชั้นวาง หน้าต่างผลตรวจ)
   useEffect(() => {
     if (!req) return;
+    setMode("graph"); setCmp(null);
     setPath(req.path);
     if (req.path === path && error) setNonce((n) => n + 1);
     if (req.t != null) { jumped.current = true; setCenter(req.t); setTip(req.t); setZoom(30); if (prefs.view !== "wave" && prefs.view !== "spec") setPref("view", "wave"); }
@@ -475,7 +494,10 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
     if (!inApp) return;
     let off: (() => void) | undefined, live = true;
     import("@tauri-apps/api/webview").then(({ getCurrentWebview }) => getCurrentWebview().onDragDropEvent((e) => {
-      if (e.payload.type === "drop" && e.payload.paths[0] && document.querySelector("[data-graph]")) setPath(e.payload.paths[0]);
+      if (e.payload.type !== "drop" || !e.payload.paths[0] || !document.querySelector("[data-graph]")) return;
+      // โหมดแปลงเสียง ไฟล์ที่ลากมาทุกไฟล์เข้าคิว · โหมดดูกราฟ เปิดไฟล์แรก
+      if (modeRef.current === "convert") { const s = addFiles(e.payload.paths); if (s) toastRef.current({ kind: "info", title: `ข้าม ${s} ไฟล์ที่อยู่ในคิวแล้ว` }); }
+      else if (!document.querySelector("[data-compare]")) setPath(e.payload.paths[0]);
     })).then((u) => { if (live) off = u; else u(); });
     return () => { live = false; off?.(); };
   }, []);
@@ -512,12 +534,36 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
     catch (e) { toast({ kind: "bad", title: "บันทึกรูปไม่ได้", detail: String(e) }); }
   };
 
+  const modeSeg = (
+    <div className="seg gmode" role="tablist" aria-label="โหมดหน้ากราฟเสียง">
+      <button type="button" role="tab" aria-selected={mode === "graph"} className={mode === "graph" ? "on" : ""} onClick={() => setMode("graph")} data-gmode="graph">ดูกราฟ</button>
+      <button type="button" role="tab" aria-selected={mode === "convert"} className={mode === "convert" ? "on" : ""} onClick={() => setMode("convert")} data-gmode="convert">แปลงเสียง</button>
+    </div>
+  );
+  const tagDlg = tagFor && <TagDialog path={tagFor} onClose={() => setTagFor(null)} />;
+  if (cmp) {
+    return (<>
+      <CompareView a={cmp.a} b={cmp.b} note={cmp.note} onBack={() => { setCmp(null); setMode("convert"); }} onClose={() => { const a = cmp.a; setCmp(null); setMode("graph"); setPath(a); }} />
+      {tagDlg}
+    </>);
+  }
+  if (mode === "convert") {
+    return (
+      <div className="ag" data-graph data-graphmode="convert">
+        <div className="gmodebar">{modeSeg}</div>
+        <ConvertPane onCompare={(a, b, note) => setCmp({ a, b, note })} onTags={setTagFor} />
+        {tagDlg}
+      </div>
+    );
+  }
+
   /* ---------- ยังไม่เลือกไฟล์ ---------- */
   if (!path) {
     const shelfPicks = movies.filter((m) => !m.missing && m.audio.length).slice(0, 6);
     const music = <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M9 18V5l11-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" /></svg>;
     return (
       <div className="ag" data-graph>
+        <div className="gmodebar">{modeSeg}<span className="small">ดูกราฟเสียงทีละไฟล์ · แปลงเสียงเป็นคิว แล้วเทียบความถี่ก่อนกับหลังแปลง</span></div>
         <div className="drop" style={{ minHeight: 180 }} data-graphdrop>
           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#e5a3bd" strokeWidth="1.8" aria-hidden="true"><path d="M3 12h2M7 7v10M11 4v16M15 8v8M19 10v4" /></svg>
           <b style={{ color: "var(--txt2)" }}>ลากไฟล์หนังหรือไฟล์เสียงมาวางตรงนี้</b><span>หรือ</span>
@@ -562,7 +608,7 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
       <button type="button" className="btn btn-ghost" onClick={goHome} title="กลับหน้ารวมกราฟเสียง ดูไฟล์ที่เปิดล่าสุด" data-graphhome>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>หน้ารวม</button>
       <div className="fchip">{thumb}<div style={{ minWidth: 0 }}>
-        <div className="nm">{fileName.replace(/\.[^.]+$/, "")}<span className="ext">{fileName.match(/\.[^.]+$/)?.[0] ?? ""}</span></div>
+        <button type="button" className="nm linklike" onClick={() => path && setTagFor(path)} title="กดเพื่อดูข้อมูลเพลงกับรูปปก" data-graphtags>{fileName.replace(/\.[^.]+$/, "")}<span className="ext">{fileName.match(/\.[^.]+$/)?.[0] ?? ""}</span></button>
         <div className="meta">{info ? `${info.audioOnly ? "ไฟล์เสียง · " : ""}${fmtSize(info.size)} · ยาว ${tfmt(info.duration)}${info.audioOnly && !movie ? " · ไม่ได้อยู่บนชั้นวาง" : ""}` : error ? "อ่านข้อมูลเสียงไม่ได้" : "กำลังอ่านข้อมูลไฟล์"}</div>
       </div></div>
       {info && info.tracks.length > 1 && (
@@ -570,6 +616,8 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
           options={info.tracks.map((x) => ({ value: String(x.index), label: `เสียง ${x.index + 1} · ${x.lang ?? "ไม่ระบุภาษา"} · ${x.codec} · ${x.layout}` }))} /></span>
       )}
       <button type="button" className="btn btn-ghost" onClick={openOther}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>เปิดไฟล์อื่น</button>
+      {/* หน้าแปลงเสียงอยู่ข้างปุ่มเปิดไฟล์อื่น (มอคอัปหัวข้อ 7) · ไฟล์ที่เปิดอยู่ไม่เข้าคิวเอง ลากหรือกดเพิ่มไฟล์ในหน้าแปลง */}
+      <button type="button" className="btn btn-ghost" onClick={() => setMode("convert")} title="แปลงไฟล์เสียงเป็นคิว" data-graphconvert><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 7h13l-3-3M20 17H7l3 3" /></svg>แปลงเสียง</button>
     </div>
   );
   const seg = <T extends string | number>(opts: [T, string][], cur: T, set: (v: T) => void, attr: string) => (
@@ -624,7 +672,7 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
   if (error && !ov) {
     const stopped = error === "หยุดอ่านเสียงแล้ว";
     return (
-      <div className="ag" data-graph>{head}
+      <div className="ag" data-graph>{head}{tagDlg}
         <div className={"stat " + (stopped ? "info" : "bad")} data-grapherror>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
           <div><b>{error}</b>{stopped ? "ยังไม่ได้วาดกราฟ · กดอ่านใหม่เพื่อเริ่มอีกครั้ง" : error.includes("ไม่มีแทร็กเสียง") ? "วิดีโออัดหน้าจอบางแบบไม่ได้อัดเสียงไว้" : "ลองเปิดไฟล์อื่น หรือตรวจไฟล์นี้ที่หน้าตรวจไฟล์"}
@@ -635,7 +683,7 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
   }
   if (!ov || !src) {
     return (
-      <div className="ag" data-graph>{head}{ctl}
+      <div className="ag" data-graph>{head}{ctl}{tagDlg}
         <div className="agb">{panel}
           <div className="plot" data-graphloading>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
@@ -727,6 +775,7 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
     <div className="ag" data-graph data-graphview={view}>
       {head}{ctl}
       <div className="agb">{panel}{plot}</div>
+      {tagDlg}
     </div>
   );
 }
@@ -1333,4 +1382,451 @@ function PsdView({ psd, names, psdCh, setPsdCh, psdLog, setPsdLog, psdSize, setP
         <div style={{ display: "flex", gap: 8 }}><button type="button" className="btn btn-ghost btn-sm" onClick={exportCsv}>ส่งออกเป็นตาราง</button><button type="button" className="btn btn-ghost btn-sm" onClick={save}>บันทึกเป็นรูป</button></div></div>
     </div>
   );
+}
+
+/* ---------- เทียบสองไฟล์ (แผนเสียงและซับ ขั้น 8 · มอคอัปหัวข้อ 7 เทียบก่อนกับหลังแปลง) ----------
+   กดเทียบความถี่ในคิวแปลง เปิดหน้านี้พร้อมสองไฟล์ · แท็บเดิมทั้ง 6 แท็บ ทุกกราฟแสดงสองไฟล์ ต้นฉบับสีฟ้า หลังแปลงสีส้ม
+   แผงซ้ายช่องเสียงกับข้อมูลเสียงเทียบสองคอลัมน์ · ซูม ช่วงเวลา ช่องที่ซ่อน ใช้กับสองไฟล์พร้อมกัน
+   อ่านภาพรวมทีละไฟล์ (ฝั่ง Rust คำขอใหม่หยุดคำขอเก่า อ่านพร้อมกันไม่ได้) · ซูมใช้ข้อมูลภาพรวม ละเอียดเท่าที่ภาพรวมมี */
+const CA = "#2a78d6", CB = "#eb6834";
+const INK_A = "#1d5fae", INK_B = "#b4461a";
+const TH_A: Theme = { lane: "#f1f7fd", peak: "#a9cdf2", rms: INK_A, dark: "#0b2747", ramp: THEMES["ฟ้า"].ramp };
+const TH_B: Theme = { lane: "#fdf4ef", peak: "#f6c2a8", rms: INK_B, dark: "#3d1406", ramp: THEMES["พีช"].ramp };
+type Side = { info: GInfo | null; ov: GOverview | null; err: string | null; pct: number | null };
+const EMPTY: Side = { info: null, ov: null, err: null, pct: null };
+
+function Who({ k }: { k: "a" | "b" }) {
+  return <span className="who" style={{ color: k === "a" ? INK_A : INK_B }}><i style={{ background: k === "a" ? CA : CB }} />{k === "a" ? "ต้นฉบับ" : "หลังแปลง"}</span>;
+}
+
+/** ความถี่ของช่องหนึ่ง แกนตั้งเส้นตรง 0 ถึงครึ่งอัตราสุ่มที่สูงกว่า เท่ากันทั้งสองไฟล์ · เหนือครึ่งอัตราสุ่มของไฟล์นี้ ไม่มีเสียง (ดำ) */
+function drawSpecCmp(g: CanvasRenderingContext2D, w: number, h: number, ch: number, ov: GOverview, t0: number, t1: number, nyq: number, maxNyq: number, colors: Uint8ClampedArray) {
+  g.fillStyle = "#000"; g.fillRect(0, 0, w, h);
+  const d = dec(ov.spec[ch] ?? ""), B = ov.specBins, rows = Math.max(32, Math.min(200, Math.round(h)));
+  if (!d.length) return;
+  const c0 = Math.floor(t0 / ov.duration * ov.specCols), c1 = Math.max(c0 + 1, Math.ceil(t1 / ov.duration * ov.specCols));
+  drawMatrix(g, 0, 0, w, h, Math.min(ov.specCols, c1) - c0, rows, colors, (row, col) => {
+    const f = (row + 0.5) / rows * maxNyq;
+    return f > nyq ? 0 : d[(c0 + col) * B + Math.min(B - 1, Math.floor(f / nyq * B))] ?? 0;
+  });
+}
+
+/** ภาพวิเคราะห์แบบ Spek ของไฟล์หนึ่ง · รวมทุกช่อง (ไม่นับเสียงเบส) เอาค่ามากสุด · แกนตั้งเท่ากันทั้งสองไฟล์ · เส้นประตรงขอบบนของเสียง */
+function drawSpekCmp(g: CanvasRenderingContext2D, w: number, h: number, ov: GOverview, names: string[], nyq: number, maxNyq: number, t0: number, t1: number, title: string, sub: string, top: number | null, colors: Uint8ClampedArray, ramp: string[]) {
+  g.fillStyle = "#000"; g.fillRect(0, 0, w, h);
+  const L = 62, R = 86, T = 46, Bm = 28, pw = w - L - R, ph = h - T - Bm;
+  const chans = names.map((_, i) => i).filter((i) => names[i] !== "LFE");
+  const srcs = (chans.length ? chans : [0]).map((i) => dec(ov.spec[i] ?? ""));
+  const B = ov.specBins, c0 = Math.floor(t0 / ov.duration * ov.specCols), c1 = Math.max(c0 + 1, Math.min(ov.specCols, Math.ceil(t1 / ov.duration * ov.specCols)));
+  const rows = Math.max(32, Math.round(ph / 2));
+  drawMatrix(g, L, T, pw, ph, c1 - c0, rows, colors, (row, col) => {
+    const f = (row + 0.5) / rows * maxNyq; if (f > nyq) return 0;
+    const b = Math.min(B - 1, Math.floor(f / nyq * B)); let m = 0;
+    for (const d of srcs) m = Math.max(m, d[(c0 + col) * B + b] ?? 0);
+    return m;
+  });
+  g.strokeStyle = "rgba(255,255,255,.85)"; g.lineWidth = 1; g.strokeRect(L - 0.5, T - 0.5, pw + 1, ph + 1);
+  g.fillStyle = "#fff"; g.font = "600 11px Sarabun, sans-serif"; g.textAlign = "right"; g.textBaseline = "middle";
+  const kStep = maxNyq > 30000 ? 8000 : maxNyq > 15000 ? 4000 : 2000;
+  for (let f = 0; f <= maxNyq + 1; f += kStep) { const y = T + ph * (1 - f / maxNyq); g.fillText(`${f / 1000} kHz`, L - 8, y); g.fillRect(L - 4, Math.round(y), 4, 1); }
+  g.textAlign = "center"; g.textBaseline = "top";
+  const st = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600].find((s) => (t1 - t0) / s <= 8) ?? 7200;
+  for (let s = Math.ceil(t0 / st) * st; s <= t1; s += st) { const x = L + pw * (s - t0) / (t1 - t0 || 1); g.fillText(tfmt(s), x, T + ph + 8); g.fillRect(Math.round(x), T + ph, 1, 4); }
+  const bx = L + pw + 22, grd = g.createLinearGradient(0, T, 0, T + ph);
+  ramp.slice().reverse().forEach((c, i, a) => grd.addColorStop(i / (a.length - 1), c));
+  g.fillStyle = grd; g.fillRect(bx, T, 12, ph);
+  g.fillStyle = "#fff"; g.textAlign = "left"; g.textBaseline = "middle";
+  for (let d = 0; d <= 120; d += 20) { const y = T + ph * d / 120; g.fillText(`${d ? "−" + d : 0} dB`, bx + 18, y); g.fillRect(bx + 12, Math.round(y), 4, 1); }
+  g.textBaseline = "alphabetic"; g.font = "700 13px Sarabun, sans-serif"; g.fillText(title, L, 18);
+  g.font = "11.5px Sarabun, sans-serif"; g.fillStyle = "#d9d0d4"; g.fillText(sub, L, 35);
+  g.textAlign = "right"; g.fillText("ชั้นหนัง", w - 10, 18);
+  if (top != null && top < maxNyq * 0.98) {
+    const y = Math.round(T + ph * (1 - top / maxNyq)) + 0.5;
+    g.strokeStyle = "rgba(255,255,255,.75)"; g.setLineDash([5, 4]); g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw, y); g.stroke(); g.setLineDash([]);
+    g.fillStyle = "#fff"; g.font = "600 12px Sarabun, sans-serif"; g.fillText(`เสียงหยุดที่ราว ${(top / 1000).toFixed(1)} kHz`, L + pw - 8, y - 7);
+  }
+}
+
+/** ขอบบนของเสียงทั้งไฟล์ (รวมทุกช่อง ไม่นับเสียงเบส) */
+function edgeAll(ov: GOverview, names: string[], nyq: number) {
+  const chans = names.map((_, i) => i).filter((i) => names[i] !== "LFE");
+  return edgeOf((chans.length ? chans : [0]).map((i) => dec(ov.spec[i] ?? "")), ov.specBins, 0, ov.specCols, nyq);
+}
+
+/** ความดังเฉลี่ยเป็น dB ตามเวลา ของช่องหนึ่ง n จุด (หน้าต่างเลื่อนแบบแท็บซ้อนเทียบ) */
+function rmsDb(ov: GOverview, ch: number, t0: number, t1: number, n: number) {
+  const d = sample({ env: ov.env, cols: ov.cols, t0: 0, t1: ov.duration }, ch, t0, t1, n), out = new Float32Array(n), win = Math.max(1, Math.round(n * 3 / (t1 - t0 || 1) / 2));
+  for (let x = 0; x < n; x++) { let s = 0, k = 0; for (let j = Math.max(0, x - win); j <= Math.min(n - 1, x + win); j++) { s += d.rm[j] ** 2; k++; } out[x] = s <= 1e-12 ? -120 : 10 * Math.log10(s / k); }
+  return out;
+}
+function loudPts(ov: GOverview, t0: number, t1: number, n: number) {
+  const out = new Float32Array(n);
+  for (let x = 0; x < n; x++) {
+    const a = t0 + (t1 - t0) * x / n, b = t0 + (t1 - t0) * (x + 1) / n; let e = 0, k = 0;
+    for (let c = Math.floor(a / ov.duration * ov.cols); c <= Math.floor(b / ov.duration * ov.cols) && c < ov.cols; c++) { if (c < 0) continue; e += Math.pow(10, ov.loud[c] / 10); k++; }
+    out[x] = k ? 10 * Math.log10(e / k) : -70;
+  }
+  return out;
+}
+const f1 = (v: number | null | undefined) => (v == null ? "—" : minus(v.toFixed(1)));
+const sgn = (v: number) => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(1);
+const khz = (f: number) => (f / 1000).toLocaleString("en-US", { maximumFractionDigits: 1 });
+
+function Stat({ kind, b, d }: { kind: "info" | "warn"; b: string; d: string }) {
+  return <div className={"stat " + kind} data-cmpstat><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">{kind === "warn" ? <><path d="M12 3l9 16H3z" /><path d="M12 10v4M12 17v.5" /></> : <><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5v.5" /></>}</svg><div><b>{b}</b><Phr>{d}</Phr></div></div>;
+}
+
+/** รูปทุกกราฟในหน้าต่างเทียบรวมเป็นรูปเดียว ไว้บันทึก */
+function composeAll(box: HTMLElement | null): HTMLCanvasElement | null {
+  if (!box) return null;
+  const cvs = [...box.querySelectorAll<HTMLCanvasElement>("canvas.cv")].filter((c) => c.clientWidth > 0);
+  if (!cvs.length) return null;
+  const r = window.devicePixelRatio || 1, bx = box.getBoundingClientRect();
+  const W = Math.round(bx.width), H = Math.round(Math.max(...cvs.map((c) => c.getBoundingClientRect().bottom)) - bx.top + 6);
+  const out = document.createElement("canvas"); out.width = W * r; out.height = H * r;
+  const g = out.getContext("2d"); if (!g) return null;
+  g.scale(r, r); g.fillStyle = "#fff"; g.fillRect(0, 0, W, H);
+  g.font = "700 12px Sarabun, sans-serif"; g.textBaseline = "middle";
+  for (const lab of box.querySelectorAll<HTMLElement>("[data-lane]")) { const lr = lab.getBoundingClientRect(); g.fillStyle = "#4a2b38"; g.fillText(lab.dataset.lane ?? "", lr.left - bx.left + 4, lr.top - bx.top + lr.height / 2); }
+  for (const c of cvs) { const cr = c.getBoundingClientRect(); g.drawImage(c, cr.left - bx.left, cr.top - bx.top, cr.width, cr.height); }
+  return out;
+}
+
+export function CompareView({ a, b, note, onBack, onClose }: { a: string; b: string; note?: string; onBack: () => void; onClose: () => void }) {
+  const toast = useToast();
+  const [A, setA] = useState<Side>(EMPTY);
+  const [Bs, setB] = useState<Side>(EMPTY);
+  const [tab, setTab] = useState<View>("wave");
+  const [zoom, setZoom] = useState<number | "all">("all");
+  const [center, setCenter] = useState(0);
+  const [hidden, setHidden] = useState<string[]>([]);
+  const [cmpCh, setCmpCh] = useState<string>("");
+  const [psdCh, setPsdCh] = useState("mix");
+  const [psdSpan, setPsdSpan] = useState<number | "all">("all");
+  const [psd, setPsd] = useState<{ key: string; a: GPsd; b: GPsd } | null>(null);
+  const [psdF, setPsdF] = useState<number | null>(null);
+  const plotRef = useRef<HTMLDivElement>(null);
+
+  // อ่านทีละไฟล์ ต้นฉบับก่อน
+  useEffect(() => {
+    let live = true;
+    setA(EMPTY); setB(EMPTY); setPsd(null); setHidden([]); setZoom("all");
+    let off: (() => void) | undefined;
+    if (inApp) listen<GProgress>("graph-progress", (e) => {
+      if (!live) return;
+      if (e.payload.path === a) setA((s) => ({ ...s, pct: e.payload.percent }));
+      if (e.payload.path === b) setB((s) => ({ ...s, pct: e.payload.percent }));
+    }).then((u) => { if (live) off = u; else u(); });
+    (async () => {
+      const one = async (p: string, set: React.Dispatch<React.SetStateAction<Side>>) => {
+        try {
+          const info = await graphApi.info(p); if (!live) return;
+          set((s) => ({ ...s, info, pct: 0 }));
+          const ov = await overviewOnce(p, 0); if (!live) return;
+          set((s) => ({ ...s, ov, pct: null, err: ov ? null : "หยุดอ่านเสียงแล้ว" }));
+        } catch (e) { if (live) set((s) => ({ ...s, err: String(e), pct: null })); }
+      };
+      await one(a, setA);
+      await one(b, setB);
+    })();
+    return () => { live = false; off?.(); };
+  }, [a, b]);
+
+  const ta = A.info?.tracks[0], tb = Bs.info?.tracks[0];
+  const na = ta?.names ?? [], nb = tb?.names ?? [];
+  const union = [...na, ...nb.filter((c) => !na.includes(c))];
+  const vis = union.filter((c) => !hidden.includes(c));
+  const dur = Math.max(A.ov?.duration ?? A.info?.duration ?? 0, Bs.ov?.duration ?? Bs.info?.duration ?? 0);
+  const span = zoom === "all" ? dur : Math.min(dur, zoom);
+  const t0 = Math.max(0, Math.min(dur - span, center - span / 2)), t1 = t0 + span;
+  const nyqA = (ta?.rate ?? 48000) / 2, nyqB = (tb?.rate ?? 48000) / 2, maxNyq = Math.max(nyqA, nyqB);
+  const common = na.filter((c) => nb.includes(c));
+  const cmpUse = common.includes(cmpCh) ? cmpCh : common[0] ?? "";
+  const ready = !!(A.ov && Bs.ov && ta && tb);
+  const nameOf = (p: string) => p.split(/[\\/]/).pop() ?? p;
+  const toggleCh = (c: string) => setHidden((h) => h.includes(c) ? h.filter((x) => x !== c) : vis.length > 1 ? [...h, c] : h);
+
+  // ความถี่เฉลี่ย ทีละไฟล์ (คำขอใหม่หยุดคำขอเก่าที่ฝั่ง Rust)
+  const psdT = psdSpan === "all" ? [0, dur] : [Math.max(0, (t0 + t1) / 2 - psdSpan / 2), Math.min(dur, (t0 + t1) / 2 + psdSpan / 2)];
+  const psdKey = `${a}|${b}|${psdCh}|${psdT[0].toFixed(2)}|${psdT[1].toFixed(2)}`;
+  useEffect(() => {
+    if (tab !== "psd" || !ready) return;
+    let live = true;
+    const series = (names: string[]) => {
+      if (psdCh !== "mix" && names.includes(psdCh)) return [[names.indexOf(psdCh)]];
+      const base = names.map((_, i) => i).filter((i) => names[i] !== "LFE");
+      return [base.length ? base : [0]];
+    };
+    (async () => {
+      try {
+        // ช่องความถี่กว้างเท่ากันทั้งสองไฟล์ · เดิมใช้ 4096 ทั้งคู่ ไฟล์ 96 kHz ช่องกว้าง 23.4 Hz ไฟล์ 48 kHz กว้าง 11.7 Hz
+        // ค่าต่อช่องของเสียงรบกวนต่างกัน 3 dB ทั้งเส้น และยอดเสียงแหลมคมไม่เท่ากัน เส้นหลังแปลงต่ำกว่าต้นฉบับทั้งที่เสียงเดียวกัน (เจอตอนตรวจภาพ)
+        const top = Math.max(ta!.rate, tb!.rate), sz = (r: number) => Math.max(1024, 2 ** Math.round(Math.log2(4096 * r / top)));
+        const pa = await graphApi.psd(a, 0, psdT[0], psdT[1], series(na), sz(ta!.rate), null); if (!live || !pa) return;
+        const pb = await graphApi.psd(b, 0, psdT[0], Math.min(psdT[1], Bs.ov!.duration), series(nb), sz(tb!.rate), null); if (!live || !pb) return;
+        setPsd({ key: psdKey, a: pa, b: pb });
+      } catch (e) { if (live) toast({ kind: "bad", title: "คิดความถี่เฉลี่ยไม่ได้", detail: String(e) }); }
+    })();
+    return () => { live = false; };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tab, ready, psdKey]);
+
+  const saveImage = async () => {
+    const cv = composeAll(plotRef.current); if (!cv) return;
+    const where = await pickSave(nameOf(a).replace(/\.[^.]+$/, "") + " เทียบ " + nameOf(b).replace(/\.[^.]+$/, "") + ".png", "png", "รูป PNG"); if (!where) return;
+    try { const saved = await graphApi.save(where, cv.toDataURL("image/png"), null); toast({ kind: "ok", title: "บันทึกรูปแล้ว", detail: saved }); }
+    catch (e) { toast({ kind: "bad", title: "บันทึกรูปไม่ได้", detail: String(e) }); }
+  };
+  const mid = (t0 + t1) / 2;
+  const play = async (p: string) => {
+    try { const r = await checkApi.playAt(p, mid); toast({ kind: r.seeked ? "ok" : "warn", title: r.seeked ? `เปิดด้วย ${r.player} ที่ ${tfmt(mid)}` : "เปิดแล้ว แต่เปิดตรงนาทีไม่ได้", detail: r.seeked ? undefined : `เลื่อนไปที่ ${tfmt(mid)} เอง` }); }
+    catch (e) { toast({ kind: "bad", title: "เปิดเล่นไม่ได้", detail: String(e) }); }
+  };
+
+  const chip = (k: "a" | "b", p: string, s: Side) => {
+    const nm = nameOf(p);
+    return (
+      <div className="fchip cmpchip" style={{ boxShadow: `inset 4px 0 0 ${k === "a" ? CA : CB}` }} data-cmpfile={k}>
+        <div className="fnote" style={{ background: k === "a" ? TH_A.lane : TH_B.lane, color: k === "a" ? INK_A : INK_B, border: `1px solid ${k === "a" ? TH_A.peak : TH_B.peak}` }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M9 18V5l11-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" /></svg></div>
+        <div style={{ minWidth: 0 }}>
+          <div className="nm">{nm.replace(/\.[^.]+$/, "")}<span className="ext">{nm.match(/\.[^.]+$/)?.[0] ?? ""}</span> <Who k={k} /></div>
+          <div className="meta">{s.info ? `${s.info.audioOnly ? "ไฟล์เสียง" : "ไฟล์หนัง"} · ${fmtSize(s.info.size)} · ยาว ${tfmt(s.info.duration)}${k === "b" && note ? " · แปลงเมื่อสักครู่" : ""}` : s.err ? "อ่านไม่ได้" : "กำลังอ่านข้อมูลไฟล์"}</div>
+        </div>
+      </div>
+    );
+  };
+  const head = (
+    <div className="agtop">
+      <button type="button" className="btn btn-ghost" onClick={onBack} data-cmpback><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>คิวแปลง</button>
+      {chip("a", a, A)}{chip("b", b, Bs)}
+      <button type="button" className="btn btn-ghost" onClick={onClose} title="เปิดต้นฉบับในหน้ากราฟเสียงแบบไฟล์เดียว" data-cmpclose>ปิดการเทียบ</button>
+    </div>
+  );
+  const fileLg = <><span><span className="ln" style={{ background: CA }} />ต้นฉบับ</span><span><span className="ln" style={{ background: CB }} />หลังแปลง</span></>;
+  const ctl = (
+    <div className="agctl">
+      <div className="seg agviews">{VIEWS.map(([k, l]) => <button key={k} type="button" className={tab === k ? "on" : ""} onClick={() => setTab(k)} data-cmptab={k} disabled={k === "cmp" && !common.length}
+        title={k === "cmp" && !common.length ? "สองไฟล์ไม่มีช่องเสียงที่ตรงกัน" : undefined}>{VIEW_ICON[k]}{l}</button>)}</div>
+      <div className="lg" style={{ marginLeft: "auto" }}>{fileLg}</div>
+    </div>
+  );
+  const infoRow = (t: GTrack | undefined, info: GInfo | null) => t && info ? [t.codec, `${t.layout}`, `${khz(t.rate)} kHz`, t.bits ? `${t.bits}-bit` : "—", t.bitrate ? `${Math.round(t.bitrate / 1000).toLocaleString("en-US")} kb/s` : "—", fmtSize(info.size), tfmt(info.duration)] : null;
+  const ia = infoRow(ta, A.info), ib = infoRow(tb, Bs.info);
+  const panel = (
+    <div className="apanel">
+      <div className="card"><h3><span>ช่องเสียง {ta?.layout ?? ""}</span><span className="small" style={{ color: "var(--txt3)" }}>{union.length} ช่อง</span></h3>
+        {na.length > 0 && <Speakers names={union} th={TH_A} levels={union.map(() => 0.3)} hidden={hidden} onToggle={toggleCh} />}
+        <div className="small" style={{ textAlign: "center", marginTop: 4 }}>{union.length > 1 ? "กดลำโพงเพื่อซ่อนหรือแสดงช่องนั้น ทั้งสองไฟล์พร้อมกัน" : "ไฟล์นี้มีเสียงช่องเดียว"}</div>
+        {ta && tb && na.join() !== nb.join() && <div className="small" style={{ marginTop: 4 }}>ช่องเสียงไม่เท่ากัน · ต้นฉบับ {ta.layout} หลังแปลง {tb.layout}</div>}</div>
+      <div className="card"><h3>ข้อมูลเสียง</h3>
+        <div className="ginfo" data-cmpinfo><span /><span className="h" style={{ color: INK_A }}>ต้นฉบับ</span><span className="h" style={{ color: INK_B }}>หลังแปลง</span>
+          {["รหัสเสียง", "ช่องเสียง", "อัตราสุ่ม", "ความละเอียด", "บิตเรต", "ขนาด", "ความยาว"].map((k, i) => <FragmentInfo key={k} k={k} a={ia?.[i] ?? "…"} b={ib?.[i] ?? "…"} />)}</div>
+        {note && <div className="small" style={{ marginTop: 8 }}><Phr>{note}</Phr></div>}</div>
+    </div>
+  );
+
+  let body: React.ReactNode;
+  const err = A.err || Bs.err;
+  if (err) {
+    body = <div className="plot"><div className="stat bad"><CardIcon kind="bad" /><div><b>อ่าน{A.err ? "ต้นฉบับ" : "ไฟล์หลังแปลง"}ไม่ได้</b><Phr>{err}</Phr></div></div></div>;
+  } else if (!ready) {
+    const which = !A.ov ? "ต้นฉบับ" : "ไฟล์หลังแปลง", pct = (!A.ov ? A.pct : Bs.pct) ?? 0;
+    body = (
+      <div className="plot" data-cmploading>
+        <div style={{ fontSize: 13.5, marginBottom: 8 }}>อ่านเสียง{which} <b>{Math.round(pct)}%</b> · อ่านทีละไฟล์ ต้นฉบับก่อน</div>
+        <div className="bar"><i style={{ width: `${pct}%` }} /></div>
+        <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 10 }}>{[0, 1, 2, 3].map((i) => <div key={i} style={{ display: "grid", gridTemplateColumns: "84px 1fr", gap: 10, alignItems: "center" }}><div className="skel" style={{ height: 12 }} /><div className="skel" style={{ height: 40 }} /></div>)}</div>
+      </div>
+    );
+  } else {
+    const oa = A.ov!, ob = Bs.ov!;
+    const zoomBar = (
+      <span style={{ display: "flex", alignItems: "center", gap: 8 }}><span className="lbl">ซูม</span>
+        <div className="seg sm">{ZOOMS.map(([k, l]) => <button key={String(k)} type="button" className={String(zoom) === String(k) ? "on" : ""} onClick={() => { setZoom(k); if (k !== "all" && zoom === "all") setCenter(Math.min(dur / 2, 60)); }} data-cmpzoom={String(k)}>{l}</button>)}</div></span>
+    );
+    const foot = (lg: React.ReactNode) => (
+      <div className="agfoot"><div className="lg">{lg}</div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => play(a)}>เปิดต้นฉบับที่ {tfmt(mid)}</button><button type="button" className="btn btn-ghost btn-sm" onClick={() => play(b)}>เปิดหลังแปลงที่ {tfmt(mid)}</button><button type="button" className="btn btn-ghost btn-sm" onClick={saveImage}>บันทึกเป็นรูป</button></div></div>
+    );
+    const Ruler = () => (
+      <div className="ruler" style={{ marginLeft: 96 }}>{(() => { const steps = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600]; const st = steps.find((s) => (t1 - t0) / s <= 9) ?? 7200; const out: number[] = []; for (let x = Math.ceil(t0 / st) * st; x <= t1; x += st) out.push(x); return out; })().map((x) => { const p = (x - t0) / (t1 - t0 || 1) * 100; return p < 2 || p > 98 ? null : <span key={x} style={{ left: p + "%" }}>{tfmt(x)}</span>; })}</div>
+    );
+    const ea = edgeAll(oa, na, nyqA), eb = edgeAll(ob, nb, nyqB);
+    const cutNote = eb.top < ea.top - 1500 && !eb.full
+      ? { kind: "info" as const, b: `หลังแปลงไม่มีเสียงเหนือ ${khz(eb.top)} kHz`, d: `ต้นฉบับมีเสียงถึงราว ${khz(ea.top)} kHz${ea.top > 20000 ? " ซึ่งหูคนไม่ได้ยิน (หูได้ยินถึงราว 20 kHz)" : ""} · ช่วงต่ำกว่านั้นภาพแทบเหมือนกัน` }
+      : { kind: "info" as const, b: "ช่วงความถี่ของสองไฟล์ใกล้เคียงกัน", d: `ต้นฉบับมีเสียงถึงราว ${khz(ea.top)} kHz · หลังแปลงราว ${khz(eb.top)} kHz` };
+    const laneH = vis.length > 4 ? 46 : vis.length > 2 ? 60 : 84;
+    const colors = lut(THEMES["ชมพู"].ramp);
+    if (tab === "wave" || tab === "spec") {
+      const lanes = vis.flatMap((c) => (["a", "b"] as const).flatMap((k) => {
+        const names = k === "a" ? na : nb, ov = k === "a" ? oa : ob, i = names.indexOf(c);
+        if (i < 0) return [];
+        const l = label(names, c), pk = ov.peaks[i];
+        const peak = pk == null ? "" : pk <= -119 ? "เงียบทั้งเรื่อง" : "ยอด " + pkTxt(pk);
+        return [tab === "wave"
+          ? <Lane key={c + k} code={l.code} th={`${l.th} · ${k === "a" ? "ต้นฉบับ" : "หลังแปลง"}`} peak={peak} height={laneH} deps={[ov, t0, t1, i, laneH]}
+              draw={(g, w, h) => drawWave(g, w, h, sample({ env: ov.env, cols: ov.cols, t0: 0, t1: ov.duration }, i, t0, t1, w), k === "a" ? TH_A : TH_B, "fine")} />
+          : <Lane key={c + k} code={l.code} th={`${l.th} · ${k === "a" ? "ต้นฉบับ" : "หลังแปลง"}`} peak={peak} height={laneH} deps={[ov, t0, t1, i, laneH, maxNyq]}
+              draw={(g, w, h) => drawSpecCmp(g, w, h, i, ov, t0, t1, k === "a" ? nyqA : nyqB, maxNyq, colors)} />];
+      }));
+      const pkA = Math.max(...oa.peaks), pkB = Math.max(...ob.peaks);
+      body = (
+        <div className="plot cmpplot" data-plot ref={plotRef} data-cmpview={tab}>
+          <div className="plothead"><span><b>{tab === "wave" ? "รูปคลื่นทุกช่อง" : "ความถี่ทุกช่อง"}</b> · {tfmt(t0)} ถึง {tfmt(t1)} · {tab === "wave" ? "ไฟล์ละแถว ช่องเดียวกันอยู่ติดกัน" : `แกนตั้ง 0 ถึง ${khz(maxNyq)} kHz เท่ากันทั้งสองไฟล์`}</span>{zoomBar}</div>
+          <Ruler />
+          <div className="lanes cmplanes" data-lanes>{lanes}</div>
+          <TimeScroll dur={dur} t0={t0} t1={t1} left={96} right={0} onPan={(c) => setCenter(Math.max(span / 2, Math.min(dur - span / 2, c)))} />
+          {foot(tab === "wave" ? <><span><i style={{ background: TH_A.peak }} /><i style={{ background: TH_B.peak }} />ยอดเสียง</span><span><i style={{ background: INK_A }} /><i style={{ background: INK_B }} />ความดังเฉลี่ย</span>{fileLg}</>
+            : <><span className="nw">−120 dB</span><span className="rampbar" style={{ background: `linear-gradient(90deg,${THEMES["ชมพู"].ramp.join(",")})` }} /><span className="nw">0 dB</span>{fileLg}</>)}
+          {tab === "wave"
+            ? (pkB > -0.05 && pkB > pkA + 0.05
+              ? <Stat kind="warn" b={`ยอดเสียงหลังแปลงขึ้นเป็น ${pkTxt(pkB)}`} d={`ต้นฉบับ ${pkTxt(pkA)} · การแปลงแบบเสียคุณภาพทำให้ยอดคลื่นขยับเล็กน้อย · ดูแท็บความดังว่าเกิน 0 ช่วงไหน`} />
+              : <Stat kind="info" b="รูปคลื่นของสองไฟล์" d={`ยอดเสียงสูงสุด ต้นฉบับ ${pkTxt(pkA)} · หลังแปลง ${pkTxt(pkB)}`} />)
+            : <Stat {...cutNote} />}
+        </div>
+      );
+    } else if (tab === "loud") {
+      const T: [string, string, string, string, boolean][] = [
+        ["ความดังรวม", `${f1(oa.integrated)} LUFS`, `${f1(ob.integrated)} LUFS`, "ทั้งเรื่อง ตามมาตรฐาน EBU R128", false],
+        ["ยอดเสียงสูงสุด", `${f1(oa.truePeak)} dBTP`, `${(ob.truePeak ?? -99) > 0 ? "+" : ""}${f1(ob.truePeak)} dBTP`, (ob.truePeak ?? -99) >= 0 ? "หลังแปลงถึงหรือเกิน 0" : "ไม่ถึง 0 ทั้งสองไฟล์", (ob.truePeak ?? -99) >= 0],
+        ["ช่วงความดัง", `${f1(oa.lra)} LU`, `${f1(ob.lra)} LU`, "ห่างระหว่างช่วงเบากับช่วงดัง", false],
+        ["ช่วงเงียบผิดปกติ", oa.silences.length ? `${oa.silences.length} ช่วง` : "ไม่พบ", ob.silences.length ? `${ob.silences.length} ช่วง` : "ไม่พบ", "เงียบทุกช่องเกิน 1 วินาที", ob.silences.length > oa.silences.length],
+      ];
+      body = (
+        <div className="plot cmpplot" data-plot ref={plotRef} data-cmpview="loud">
+          <div className="tiles" data-cmptiles>{T.map(([k, x, y, n, bad]) => (
+            <div className="tile cmptile" key={k}><span>{k}</span><div className="tv"><Who k="a" /><b>{x}</b></div><div className="tv"><Who k="b" /><b style={bad ? { color: "var(--bad-ink)" } : undefined}>{y}</b></div><em>{n}</em></div>))}</div>
+          <div className="plothead"><span><b>ความดังตลอดเรื่อง</b> · {tfmt(t0)} ถึง {tfmt(t1)}</span>{zoomBar}</div>
+          <CmpChart height={220} deps={[oa, ob, t0, t1]} lo={-60} hi={0} step={10} unit="LUFS" ref23
+            series={(n) => [[loudPts(oa, t0, t1, n), CA], [loudPts(ob, t0, t1, n), CB]]} />
+          <TimeScroll dur={dur} t0={t0} t1={t1} left={44} right={4} onPan={(c) => setCenter(Math.max(span / 2, Math.min(dur - span / 2, c)))} />
+          {foot(<>{fileLg}<span><span className="ln" style={{ background: "#8a6474" }} />เส้นอ้างอิง −23 LUFS</span></>)}
+          {(ob.truePeak ?? -99) >= 0
+            ? <Stat kind="warn" b={`ยอดเสียงหลังแปลง ${(ob.truePeak ?? 0) > 0 ? "+" : ""}${f1(ob.truePeak)} dBTP ถึงหรือเกิน 0`} d="เครื่องเล่นบางตัวเสียงแตกช่วงที่ดังสุด · ตั้ง Gain −1 dB ในแผงตั้งค่าเสียงแล้วแปลงใหม่" />
+            : <Stat kind="info" b={`ความดังรวมต่างกัน ${Math.abs((ob.integrated ?? 0) - (oa.integrated ?? 0)).toFixed(1)} LU`} d="สองเส้นแทบทับกันแปลว่าความดังไม่เปลี่ยน · ต่างกันไม่ถึง 1 LU หูแยกไม่ออก" />}
+        </div>
+      );
+    } else if (tab === "cmp") {
+      const ia2 = na.indexOf(cmpUse), ib2 = nb.indexOf(cmpUse), l = label(na, cmpUse);
+      const N = 600, da = rmsDb(oa, ia2, t0, t1, N), db = rmsDb(ob, ib2, t0, t1, N);
+      let sum = 0, cnt = 0, mx = 0, mxAt = t0;
+      for (let x = 0; x < N; x++) { if (da[x] < -60 || db[x] < -60) continue; const d = db[x] - da[x]; sum += Math.abs(d); cnt++; if (Math.abs(d) > Math.abs(mx)) { mx = d; mxAt = t0 + (t1 - t0) * x / N; } }
+      const avg = cnt ? sum / cnt : 0;
+      body = (
+        <div className="plot cmpplot" data-plot ref={plotRef} data-cmpview="cmp">
+          <div className="plothead"><span style={{ display: "flex", alignItems: "center", gap: 10 }}><b>ซ้อนเทียบช่องเดียวกันของสองไฟล์</b>
+            <div className="seg sm">{common.map((c) => <button key={c} type="button" className={cmpUse === c ? "on" : ""} onClick={() => setCmpCh(c)} data-cmpch={c}>{label(na, c).code} {label(na, c).th.split(" ")[0]}</button>)}</div></span>{zoomBar}</div>
+          <CmpChart height={220} deps={[oa, ob, t0, t1, cmpUse]} lo={-48} hi={0} step={12} unit="dB" series={(n) => [[rmsDb(oa, ia2, t0, t1, n), CA], [rmsDb(ob, ib2, t0, t1, n), CB]]} />
+          <div className="small" style={{ margin: "6px 0 2px" }}><b style={{ color: "var(--txt)" }}>ผลต่าง หลังแปลง ลบ ต้นฉบับ</b> · กราฟแยก แกน ±2 dB</div>
+          <CmpChart height={80} deps={[oa, ob, t0, t1, cmpUse]} lo={-2} hi={2} step={1} unit="dB" diff series={(n) => { const x = rmsDb(oa, ia2, t0, t1, n), y = rmsDb(ob, ib2, t0, t1, n); const d = new Float32Array(n); for (let i = 0; i < n; i++) d[i] = x[i] < -60 || y[i] < -60 ? 0 : y[i] - x[i]; return [[d, "#7a4fb0"]]; }} />
+          <TimeScroll dur={dur} t0={t0} t1={t1} left={44} right={4} onPan={(c) => setCenter(Math.max(span / 2, Math.min(dur - span / 2, c)))} />
+          {foot(<><span><span className="ln" style={{ background: CA }} />{l.code} ต้นฉบับ</span><span><span className="ln" style={{ background: CB }} />{l.code} หลังแปลง</span><span><span className="ln" style={{ background: "#7a4fb0" }} />ผลต่าง</span></>)}
+          <Stat kind={Math.abs(mx) >= 1 ? "warn" : "info"} b={`ช่อง ${l.code} ต่างกันเฉลี่ย ${avg.toFixed(1)} dB มากสุด ${sgn(mx)} dB ที่ ${tfmt(mxAt)}`}
+            d={Math.abs(mx) >= 1 ? "ต่างเกินราว 1 dB ที่หูเริ่มแยกได้ ลองเปิดฟังช่วงนั้นเทียบกัน" : "ต่ำกว่าที่หูแยกได้ (ราว 1 dB) · ไม่นับช่วงที่เบากว่า −60 dB"} />
+        </div>
+      );
+    } else if (tab === "spek") {
+      const heat = lut(HEAT);
+      const sub = (t: GTrack, info: GInfo, n: string[]) => `${t.codec} · ${t.rate.toLocaleString("en-US")} Hz${t.bits ? ` · ${t.bits}-bit` : ""}${t.bitrate ? ` · ${Math.round(t.bitrate / 1000).toLocaleString("en-US")} kb/s` : ""} · ${n.length} channels mixed${info === Bs.info && nyqB !== maxNyq ? " · แกนตั้งเท่ากับต้นฉบับ" : ""}`;
+      body = (
+        <div className="plot cmpplot" data-plot ref={plotRef} data-cmpview="spek">
+          <div className="plothead"><span><b>วิเคราะห์ความถี่</b> · รวมทุกช่อง · แกนตั้งเท่ากันทั้งสองไฟล์</span>{zoomBar}</div>
+          <SpekCv deps={[oa, t0, t1, maxNyq]} draw={(g, w, h) => drawSpekCmp(g, w, h, oa, na, nyqA, maxNyq, t0, t1, nameOf(a), sub(ta!, A.info!, na), ea.full ? null : ea.top, heat, HEAT)} data="a" />
+          <SpekCv deps={[ob, t0, t1, maxNyq]} draw={(g, w, h) => drawSpekCmp(g, w, h, ob, nb, nyqB, maxNyq, t0, t1, nameOf(b), sub(tb!, Bs.info!, nb), eb.full ? null : eb.top, heat, HEAT)} data="b" />
+          {foot(fileLg)}
+          <Stat {...cutNote} />
+        </div>
+      );
+    } else {
+      const ok = psd && psd.key === psdKey;
+      body = (
+        <div className="plot cmpplot" data-plot ref={plotRef} data-cmpview="psd">
+          <div className="plothead"><span style={{ display: "flex", alignItems: "center", gap: 10 }}><b>ความถี่เฉลี่ย</b>
+            <div className="seg sm">{[["mix", "รวมทุกช่อง"], ...common.filter((c) => c !== "LFE").slice(0, 6).map((c) => [c, label(na, c).code])].map(([k, l2]) => <button key={k} type="button" className={psdCh === k ? "on" : ""} onClick={() => setPsdCh(k)} data-cmppsdch={k}>{l2}</button>)}</div></span>
+            <span style={{ display: "flex", alignItems: "center", gap: 8 }}><span className="lbl">ช่วงที่เลือก</span>
+              <div className="seg sm">{PSD_SPANS.map(([k, l2]) => <button key={String(k)} type="button" className={String(psdSpan) === String(k) ? "on" : ""} onClick={() => setPsdSpan(k)} data-cmppsdspan={String(k)}>{l2}</button>)}</div></span></div>
+          {ok ? <PsdCmp a={psd.a} b={psd.b} maxNyq={maxNyq} f={psdF} setF={setPsdF} /> : <div className="skel" style={{ height: 300, borderRadius: 8 }} data-cmppsdwait />}
+          <div className="small" style={{ marginTop: 4 }}>{psdSpan === "all" ? `ทั้งเรื่อง ${tfmt(dur)}` : `${tfmt(psdT[0])} ถึง ${tfmt(psdT[1])} รอบกลางช่วงที่ดู`} · คิดทีละไฟล์ ต้นฉบับก่อน{ok ? ` · ช่องความถี่กว้าง ${(psd.a.rate / psd.a.size).toFixed(1)} Hz ทั้งสองไฟล์ เทียบกันได้ตรง` : ""}</div>
+          {foot(fileLg)}
+        </div>
+      );
+    }
+  }
+
+  return (
+    <div className="ag" data-graph data-compare>
+      {head}{ctl}
+      <div className="agb">{panel}{body}</div>
+    </div>
+  );
+}
+
+function FragmentInfo({ k, a, b }: { k: string; a: string; b: string }) {
+  return <><span className="k">{k}</span><span className="v">{a}</span><span className="v" style={a !== b && a !== "…" ? { fontWeight: 700 } : undefined}>{b}</span></>;
+}
+
+function SpekCv({ deps, draw, data }: { deps: unknown[]; draw: Draw; data: string }) {
+  const ref = useCanvas((g, w, h) => draw(g, w, h), deps);
+  return <canvas className="cv" style={{ height: 250, borderRadius: 6, marginTop: 8 }} ref={ref} data-cmpspek={data} />;
+}
+
+/** กราฟเส้นของสองไฟล์บนแกนเดียว · series(n) คืนเส้นละชุด n จุด · ref23 เส้นอ้างอิง −23 LUFS · diff เส้นศูนย์เข้ม */
+function CmpChart({ height, deps, lo, hi, step, unit, series, ref23, diff }: { height: number; deps: unknown[]; lo: number; hi: number; step: number; unit: string; series: (n: number) => [Float32Array, string][]; ref23?: boolean; diff?: boolean }) {
+  const X0 = 44;
+  const ref = useCanvas((g, w, h) => {
+    g.fillStyle = "#fff"; g.fillRect(0, 0, w, h);
+    const pad = diff ? 8 : 12, N = Math.max(10, w - X0 - 4), Y = (v: number) => pad + (hi - Math.max(lo, Math.min(hi, v))) / (hi - lo) * (h - pad * 2);
+    axisY(g, X0, w, h, pad, lo, hi, step, unit);
+    if (diff) { g.fillStyle = "#8a6474"; g.fillRect(X0, Math.round(Y(0)), N, 1); }
+    for (const [pts, col] of series(N)) {
+      g.strokeStyle = col; g.lineWidth = 2; g.lineJoin = "round"; g.beginPath();
+      pts.forEach((v, x) => (x ? g.lineTo(X0 + x, Y(v)) : g.moveTo(X0, Y(v)))); g.stroke();
+    }
+    if (ref23) {
+      g.fillStyle = "#8a6474"; g.fillRect(X0, Math.round(Y(-23)), N, 1);
+      g.font = "600 11.5px Sarabun, sans-serif"; g.textAlign = "right"; g.textBaseline = "bottom"; g.fillStyle = "#6b4a58"; g.fillText("อ้างอิง −23 LUFS", X0 + N - 4, Y(-23) - 3);
+    }
+  }, deps);
+  return <canvas className="cv" style={{ height }} ref={ref} data-cmpchart />;
+}
+
+/** ความถี่เฉลี่ยของสองไฟล์ · แกนนอนแบบล็อก 20 Hz ถึงครึ่งอัตราสุ่มที่สูงกว่า · ชี้แล้วบอกค่าของทั้งสองไฟล์กับผลต่าง */
+function PsdCmp({ a, b, maxNyq, f, setF }: { a: GPsd; b: GPsd; maxNyq: number; f: number | null; setF: (f: number | null) => void }) {
+  const L = 52, R = 18, T = 14, Bm = 30;
+  const at = (p: GPsd, fr: number) => { const d = p.db[0], x = fr * p.size / p.rate, i = Math.floor(x); if (i < 0 || i + 1 >= d.length) return -140; return d[i] + (d[i + 1] - d[i]) * (x - i); };
+  const fmax = Math.max(20.5, maxNyq);
+  const top = Math.ceil(Math.max(...a.db[0].slice(2), ...b.db[0].slice(2)) / 6) * 6, bot = top - 96;
+  const ref = useCanvas((g, w, h) => {
+    g.fillStyle = "#fff"; g.fillRect(0, 0, w, h);
+    const PW = w - L - R, PH = h - T - Bm;
+    const X = (fr: number) => L + (Math.log10(Math.max(fr, 20)) - Math.log10(20)) / (Math.log10(fmax) - Math.log10(20)) * PW;
+    const Y = (v: number) => T + (top - Math.max(bot, Math.min(top, v))) / (top - bot) * PH;
+    g.font = "11px Sarabun, sans-serif"; g.textAlign = "right"; g.textBaseline = "middle";
+    for (let v = top; v >= bot; v -= 12) { g.fillStyle = "#f3e2e9"; g.fillRect(L, Math.round(Y(v)), PW, 1); g.fillStyle = "#a88595"; g.fillText(minus(String(v)) + (v === top ? " dB" : ""), L - 5, Y(v)); }
+    g.textAlign = "center"; g.textBaseline = "top";
+    for (const fr of [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 40000]) { if (fr > fmax) break; g.fillStyle = "#f3e2e9"; g.fillRect(Math.round(X(fr)), T, 1, PH); g.fillStyle = "#a88595"; g.fillText(fr >= 1000 ? `${fr / 1000}k` : String(fr), X(fr), T + PH + 6); }
+    for (const [p, col] of [[a, CA], [b, CB]] as const) {
+      g.strokeStyle = col; g.lineWidth = 2; g.lineJoin = "round"; g.beginPath();
+      let first = true;
+      for (let x = 0; x <= PW; x++) { const fr = 20 * Math.pow(fmax / 20, x / PW); if (fr > p.rate / 2) break; const v = at(p, fr); const y = Y(v); if (first) { g.moveTo(L + x, y); first = false; } else g.lineTo(L + x, y); }
+      g.stroke();
+    }
+    if (f != null) { g.fillStyle = "rgba(74,43,56,.5)"; g.fillRect(Math.round(X(f)), T, 1, PH); }
+  }, [a, b, maxNyq, f]);
+  // ผลต่างช่วงที่ได้ยิน · ไม่นับช่วงที่เบากว่า −100 dB ทั้งคู่
+  let mx = 0, mxF = 0;
+  for (let fr = 20; fr <= Math.min(20000, a.rate / 2, b.rate / 2); fr *= 1.01) { const va = at(a, fr), vb = at(b, fr); if (va < -100 && vb < -100) continue; const d = vb - va; if (Math.abs(d) > Math.abs(mx)) { mx = d; mxF = fr; } }
+  let low = 0;
+  for (let fr = 20; fr <= Math.min(15000, a.rate / 2, b.rate / 2); fr *= 1.01) { const va = at(a, fr), vb = at(b, fr); if (va < -100 && vb < -100) continue; low = Math.max(low, Math.abs(vb - va)); }
+  const fTxt = (fr: number) => (fr >= 1000 ? `${(fr / 1000).toFixed(1)} kHz` : `${Math.round(fr)} Hz`);
+  return (<>
+    <div style={{ position: "relative" }} onPointerMove={(e) => { const r = e.currentTarget.getBoundingClientRect(), PW = r.width - L - R, x = e.clientX - r.left - L; if (x >= 0 && x <= PW) setF(20 * Math.pow(fmax / 20, x / PW)); }} onPointerLeave={() => setF(null)} data-cmppsd>
+      <canvas className="cv" style={{ height: 300 }} ref={ref} />
+    </div>
+    <div className="psdread" data-cmppsdread>
+      <span className="lbl">ตำแหน่งชี้</span><span className="psdbox" style={{ whiteSpace: "normal" }}>{f == null ? "ชี้บนกราฟเพื่อดูค่า" : `${fTxt(f)} (${noteOf(f)}) = ต้นฉบับ ${minus(at(a, f).toFixed(0))} dB · หลังแปลง ${minus(at(b, f).toFixed(0))} dB · ต่าง ${Math.abs(at(b, f) - at(a, f)).toFixed(1)} dB`}</span>
+      <span className="lbl">ต่างมากสุดช่วงที่ได้ยิน</span><span className="psdbox">{fTxt(mxF)} · หลังแปลง{mx < 0 ? "บางลง" : "หนาขึ้น"} {Math.abs(mx).toFixed(1)} dB</span>
+    </div>
+    <Stat kind={low > 3 ? "warn" : "info"} b={`ช่วงที่ได้ยิน 20 Hz ถึง 15 kHz สองเส้นต่างกันไม่เกิน ${low.toFixed(1)} dB`} d={`ต่างมากสุดในช่วง 20 Hz ถึง 20 kHz ที่ ${fTxt(mxF)} หลังแปลง${mx < 0 ? "บางลง" : "หนาขึ้น"} ${Math.abs(mx).toFixed(1)} dB`} />
+  </>);
 }

@@ -144,6 +144,26 @@ export const encodeApi = {
   openDir: () => call<string>("encoders_open_dir"),
   userDir: () => call<string>("encoders_user_dir"),
 };
+/* ---------- แปลงเสียงเป็นคิว หน้ากราฟเสียง (convert.rs · แผนเสียงและซับ ขั้น 8) ---------- */
+/** ข้อมูลเพลงหนึ่งช่อง · key ชื่อกลาง title artist album album_artist date track disc genre composer comment replaygain_* */
+export type AudioTag = { key: string; value: string };
+/** ไฟล์เสียงหนึ่งไฟล์ในคิว · แทร็กเสียงแรกของไฟล์ · stream เลขสตรีมของ ffprobe · codec ชื่อของ ffprobe */
+export type AudioFile = {
+  path: string; name: string; size: number; duration: number; audioOnly: boolean; stream: number; codec: string; profile: string;
+  layout: string; channels: number; rate: number; bits: number | null; bitrate: number | null;
+  tags: AudioTag[]; tagsInStream: boolean; cover: { codec: string; width: number; height: number; stream: number } | null;
+};
+export type CoverData = { url: string; bytes: number; codec: string; width: number; height: number };
+export type ConvReq = { id: string; path: string; spec: EncodeSpec; outDir: string | null };
+export type ConvResult = { out: string; size: number; srcSize: number; tags: number; cover: boolean; notes: string[]; tool: string; cmd: string; secs: number };
+export type ConvProgress = { id: string; percent: number; eta: number | null; phase: string };
+export const convertApi = {
+  probe: (path: string) => call<AudioFile>("convert_probe", { path }),
+  cover: (path: string) => call<CoverData | null>("convert_cover", { path }),
+  /** ไม่สำเร็จ promise ล้มพร้อม ApplyProblem */
+  one: (req: ConvReq) => call<ConvResult>("convert_one", { req }),
+  cancel: () => call<void>("convert_cancel"),
+};
 export type MergeAttachment = { id: number; name: string; mime: string; size: number };
 export type MergeMovie = { path: string; name: string; ext: string; size: number; duration: number | null; tracks: MergeTrack[]; attachments: MergeAttachment[]; free: number; drive: string; mp4Ok: boolean };
 export type AddedFile = { path: string; name: string; ext: string; size: number; tracks: MergeTrack[]; delayFromName: number | null; langFromName: string | null; longerBy: number | null; notes: string[] };
@@ -219,7 +239,7 @@ export const infoApi = {
 
 const MOVIE_EXT = ["mkv", "mp4", "m4v", "mov", "avi", "webm", "ts", "m2ts", "mpg", "mpeg", "vob", "flv"];
 /** ไฟล์เสียงที่หน้ากราฟเสียงเปิดได้ (มอคอัปกราฟเสียง) */
-export const AUDIO_EXT = ["mp3", "flac", "wav", "m4a", "aac", "ac3", "eac3", "dts", "ogg", "opus", "mka", "wma"];
+export const AUDIO_EXT = ["mp3", "flac", "wav", "m4a", "aac", "ac3", "eac3", "dts", "ogg", "opus", "mka", "wma", "wv", "ape", "tak"];
 
 /** เลือกไฟล์จากเครื่อง · kind = movie image หรือ media (หนังหรือไฟล์เสียง ของหน้ากราฟเสียง) */
 export async function pickFile(kind: "movie" | "image" | "media"): Promise<string | null> {
@@ -235,6 +255,14 @@ export async function pickFile(kind: "movie" | "image" | "media"): Promise<strin
         : [{ name: "รูปโปสเตอร์", extensions: ["jpg", "jpeg", "png", "webp", "bmp", "tif", "tiff", "heic", "heif"] }],
   });
   return typeof r === "string" ? r : null;
+}
+
+/** เลือกไฟล์เสียงหลายไฟล์เข้าคิวแปลง (หน้ากราฟเสียง) · ไฟล์หนังก็ได้ แปลงแทร็กเสียงแรก · ยกเลิก = [] */
+export async function pickAudioFiles(): Promise<string[]> {
+  if (!inApp) return [];
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const r = await open({ multiple: true, directory: false, title: "เลือกไฟล์เสียงเข้าคิวแปลง", filters: [{ name: "ไฟล์เสียงและไฟล์หนัง", extensions: [...AUDIO_EXT, ...MOVIE_EXT] }] });
+  return Array.isArray(r) ? r : typeof r === "string" ? [r] : [];
 }
 
 /** เลือกไฟล์เสียงหรือซับหลายไฟล์ (หน้าเสียงและซับ) · ยกเลิก = [] */

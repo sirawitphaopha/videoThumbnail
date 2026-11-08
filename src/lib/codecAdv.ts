@@ -49,6 +49,10 @@ const MP3_V = [245, 225, 190, 175, 165, 130, 115, 100, 85, 65];
 const FLAC_P = [60, 58.5, 58, 56.5, 55.5, 55, 54.8, 54, 53];
 const WV_P: Record<string, number> = { Fast: 58, Normal: 55, High: 54, "Very High": 53 };
 const wvSize = (v: Vals, x: SizeCtx) => raw(x) * (WV_P[String(v.mode)] ?? 55) / 100 * (1 - 0.004 * num(v.extra, 0));
+/** Monkey's Audio กับ TAK เปอร์เซ็นต์ของเสียงดิบ (ค่าประมาณจากผลเทียบของผู้ทำ · ของจริงขึ้นกับเพลง) */
+const APE_P: Record<string, number> = { Fast: 57, Normal: 54, High: 53, "Extra High": 52, Insane: 51.5 };
+const apeSize = (v: Vals, x: SizeCtx) => raw(x) * (APE_P[String(v.level)] ?? 54) / 100;
+const takSize = (v: Vals, x: SizeCtx) => raw(x) * (56 - num(v.preset, 2)) / 100 * (v.eval === "Max" ? 0.99 : v.eval === "Extra" ? 0.995 : 1);
 
 /** บิตเรตเฉลี่ยที่คาดของ AAC ตามตัวแปลงกับโหมด (ใช้แสดงในการ์ดด้วย) */
 export function aacKbps(v: Vals, eng: string, ch: number): number {
@@ -66,6 +70,8 @@ export function advSize(c: Codec["id"], eng: string, v: Vals, x: SizeCtx): numbe
     case "mp3": return kbpsSize(mp3Kbps(v), x);
     case "flac": return raw(x) * FLAC_P[Math.min(8, Math.max(0, num(v.level, 5)))] / 100;
     case "wv": return wvSize(v, x);
+    case "ape": return apeSize(v, x);
+    case "tak": return takSize(v, x);
   }
 }
 
@@ -219,6 +225,29 @@ export const ADV: Record<Codec["id"], { tip: Tip; cards: Card[] }> = {
       RATE,
     ],
   },
+  ape: {
+    tip: { w: "codec Lossless (ไฟล์ .ape) บีบแน่นมาก", p: "ไฟล์เล็กกว่า FLAC เล็กน้อย · ไม่เสียคุณภาพ", c: "ใส่ MKV และ MP4 ไม่ได้ · ตอนเล่นถอดหนัก · เครื่องเล่นรองรับน้อย", r: "เก็บเพลงเป็นไฟล์แยกในคอม · ใช้ได้เฉพาะหน้าแปลงเสียง" },
+    cards: [
+      { key: "level", label: "Compression level", kind: "seg", def: "Normal", opts: ["Fast", "Normal", "High", "Extra High", "Insane"], note: "ระดับการบีบ · เสียงเหมือนต้นฉบับทุกระดับ",
+        tip: { w: "บีบแน่นแค่ไหน · ทุกระดับถอดกลับได้ตรงต้นฉบับทุกตัวอย่าง", o: [["Fast · Normal", "บีบพอประมาณ", "แปลงและเล่นเร็ว", "ไฟล์ใหญ่กว่าเล็กน้อย"], ["High · Extra High", "บีบมากขึ้น", "ไฟล์เล็กลง", "แปลงช้าลง ตอนเล่นถอดหนักขึ้น"], ["Insane", "บีบสุด", "เล็กสุด", "ช้ามาก เครื่องเล่นบางตัวเล่นสะดุด"]], r: "Normal หรือ High" },
+        size: apeSize },
+      BITS,
+      RATE,
+    ],
+  },
+  tak: {
+    tip: { w: "codec Lossless (ไฟล์ .tak) ของ Thomas Becker", p: "เล็กพอ ๆ กับ Monkey's Audio แต่ถอดเร็วเกือบเท่า FLAC", c: "ใส่ MKV และ MP4 ไม่ได้ · ตัวแปลงมีแต่บน Windows ต้องวางเอง · เครื่องเล่นรองรับน้อย", r: "เก็บเพลงในคอมเมื่อใช้โปรแกรมเล่นที่รองรับ เช่น foobar2000" },
+    cards: [
+      { key: "preset", label: "Preset", kind: "step", def: 2, stops: ints(0, 4), pre: "-p", note: "0 เร็วสุด 4 เล็กสุด · เสียงเหมือนต้นฉบับทุกระดับ",
+        tip: { w: "ชุดการบีบของ TAK 0 ถึง 4", o: [["ปรับสูง", "บีบแน่นขึ้น", "ไฟล์เล็กลง", "แปลงช้าลง ตอนเล่นถอดช้าลงเล็กน้อย"], ["ปรับต่ำ", "บีบน้อย", "แปลงเร็วมาก", "ไฟล์ใหญ่ขึ้นเล็กน้อย"]], r: "2" },
+        size: takSize },
+      { key: "eval", label: "Evaluation", kind: "seg", def: "Normal", opts: ["Normal", "Extra", "Max"], note: "ลองหลายแบบเพิ่มเพื่อหาแบบที่เล็กที่สุด · ตอนเล่นเร็วเท่าเดิม",
+        tip: { w: "ให้ตัวแปลงลองหลายแบบเพิ่ม (ต่อท้าย e หรือ m ในคำสั่ง)", o: [["Extra · Max", "ลองมากขึ้น", "ไฟล์เล็กลงอีกเล็กน้อย", "แปลงช้าลงมาก"]], r: "Normal" },
+        size: takSize },
+      BITS,
+      RATE,
+    ],
+  },
 };
 
 /** การ์ดที่ตัวแปลงนี้มี และค่าตอนนี้ทำให้แสดง */
@@ -252,7 +281,7 @@ export const ABBR: Record<string, string> = {
   LAME: "LAME Ain't an MP3 Encoder", IETF: "Internet Engineering Task Force", HDMI: "High-Definition Multimedia Interface",
   ffmpeg: "Fast Forward MPEG", qaac: "QuickTime AAC encoder", fdkaac: "Fraunhofer FDK AAC",
   Opus: "Opus Interactive Audio Codec", AAC: "Advanced Audio Coding", MP3: "MPEG-1 Audio Layer III", "AC-3": "Dolby Digital", "E-AC-3": "Dolby Digital Plus",
-  FLAC: "Free Lossless Audio Codec", WavPack: "WavPack Hybrid Lossless", TrueHD: "Dolby TrueHD", Dialnorm: "Dialogue Normalization",
+  FLAC: "Free Lossless Audio Codec", WavPack: "WavPack Hybrid Lossless", APE: "Monkey's Audio", TAK: "Tom's lossless Audio Kompressor", TrueHD: "Dolby TrueHD", Dialnorm: "Dialogue Normalization",
 };
 const reEsc = (k: string) => k.replace(/[.*+?^$()|[\]\\{}]/g, "\\$&");
 export const ABBR_RE = new RegExp("(?<![A-Za-z0-9-])(" + Object.keys(ABBR).sort((a, b) => b.length - a.length).map(reEsc).join("|") + ")(?![A-Za-z0-9-])", "g");
