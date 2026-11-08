@@ -83,8 +83,8 @@ check("คลังจดค่า hash ของปกในไฟล์ไว�
 const noCover = await q(`return document.querySelectorAll('.cover.none').length`);
 check("เรื่องที่ไม่มีปกขึ้นกรอบประ ยังไม่มีโปสเตอร์", noCover === got.length - 1, `${noCover} เรื่อง`);
 
-// เมนูซ้าย
-const side = await q("return { shelf: document.querySelector('.nav[aria-current=page] .count')?.innerText, check: [...document.querySelectorAll('.nav')][2].querySelector('.count')?.innerText, foot: document.querySelector('.side .foot')?.innerText.replace(/\\n/g, ' / ') }");
+// เมนูซ้าย · หาเมนูตรวจไฟล์จากชื่อ (เดิมหยิบเมนูที่ 3 ตั้งแต่มีเมนูเสียงและซับแทรก เมนูที่ 3 ไม่ใช่ตรวจไฟล์แล้ว)
+const side = await q("return { shelf: document.querySelector('.nav[aria-current=page] .count')?.innerText, check: [...document.querySelectorAll('.nav')].find(n => n.innerText.includes('ตรวจไฟล์'))?.querySelector('.count')?.innerText, foot: document.querySelector('.side .foot')?.innerText.replace(/\\n/g, ' / ') }");
 const mkv = s1.lib.movies.filter((m) => m.ext === "mkv").length;
 check("เมนูซ้ายนับหนังบนชั้น นับเรื่องที่ควรตรวจ และบอกพื้นที่รวม", side.shelf === String(got.length) && side.check === String(mkv) && /โฟลเดอร์หนัง 1 โฟลเดอร์/.test(side.foot), JSON.stringify(side));
 

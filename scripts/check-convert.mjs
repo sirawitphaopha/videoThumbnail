@@ -69,7 +69,16 @@ const leftovers = () => readdirSync(DIR).filter((n) => n.includes(".partial-"));
 /* ---------- เตรียม ---------- */
 await inv("dev_fake_free", { bytes: 0 });
 await q("localStorage.removeItem('ms.convAll'); localStorage.removeItem('ms.codecLast'); localStorage.removeItem('graph-prefs'); return 1");
+// ตัวที่สร้างจริง จดทุกอย่างที่โดนกติกาความปลอดภัย (CSP) กัน ตั้งแต่ก่อนหน้าโหลด (แบบ check-graph --built)
+if (BUILT) {
+  await c.send("Page.enable");
+  await c.send("Page.addScriptToEvaluateOnNewDocument", { source: "window.__csp = []; document.addEventListener('securitypolicyviolation', (e) => window.__csp.push({ dir: e.violatedDirective, uri: e.blockedURI }));" });
+}
 await c.evaluate("location.hash = ''; location.reload()"); await sleep(2500);
+if (BUILT) {
+  const origin = await q("return location.origin");
+  check("ตัวโปรแกรมที่สร้างจริง หน้าโหลดจากตัวโปรแกรม ไม่ใช่ dev server", origin === "http://tauri.localhost", origin);
+}
 await waitFor("return !!document.querySelector('.side .nav')", 30000);
 await clickText(".side .nav", "กราฟเสียง");
 await waitFor("return !!document.querySelector('[data-gmode]')", 10000);
@@ -320,6 +329,10 @@ check("กดกากบาทเอาไฟล์ออกจากคิว 
 await c.click('[data-gmode="graph"]');
 await waitFor("return !document.querySelector('[data-convert]')", 5000);
 
+if (BUILT) {
+  const csp = await q("return window.__csp ?? null");
+  check("ตัวโปรแกรมที่สร้างจริง ไม่มีอะไรโดนกติกาความปลอดภัยกันตลอดการเทส (รูปปกเป็น data URL)", Array.isArray(csp) && csp.length === 0, JSON.stringify(csp));
+}
 writeFileSync(`${OUT}/ผลเทส-แปลงเสียง.json`, JSON.stringify(results, null, 2) + "\n");
 const failed = results.filter((r) => !r.pass);
 console.log(`\nผ่าน ${results.length - failed.length} จาก ${results.length} ข้อ`);

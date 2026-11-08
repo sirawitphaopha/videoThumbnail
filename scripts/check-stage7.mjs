@@ -151,6 +151,8 @@ if (BUILT && existsSync(mi)) {
 
 /* ---------- 6 วิธีลง Icaros (ไม่กดเปิดหน้าเว็บ) ---------- */
 await nav("ตั้งค่า"); await waitFor("return !!document.querySelector('[data-tool=\"Icaros\"]')", 10000);
+// รอผลเช็ก Icaros ก่อน (ระหว่างเช็กป้ายเป็นโครงจาง ไม่มีทั้งปุ่มวิธีลงและคำว่าลงแล้ว · รอบเทสรวม 8 พ.ย. 2569 อ่านตอนยังเช็กไม่เสร็จ ข้อล้มผิด)
+await waitFor("const t = document.querySelector('[data-tool=\"Icaros\"]')?.innerText ?? ''; return t.includes('ลงแล้ว') || t.includes('ยังไม่ได้ลง')", 30000);
 if (await q("return !!document.querySelector('[data-icaroshelp]')")) {
   await c.click("[data-icaroshelp]"); await waitFor("return !!document.querySelector('[data-openicaros]')", 5000);
   const help = await q("return { steps: document.querySelectorAll('.dlg ol.steps li').length, btns: [...document.querySelectorAll('.dlg .acts button')].map((b) => b.innerText.trim()) }");

@@ -68,7 +68,7 @@ function Status({ it }: { it: QItem }) {
       <div className="small" style={{ marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.out}>{baseName(r.out)} · {d >= 0 ? `เล็กลง ${d}%` : `ใหญ่ขึ้น ${-d}%`}</div></div>;
   }
   if (it.state === "fail") return <div data-qfail><span className="tpill off">{it.bad ? "อ่านไฟล์ไม่ได้" : "ไม่สำเร็จ"}</span>{it.bad ? <div className="small" style={{ marginTop: 3 }}>ไม่มีแทร็กเสียง หรือไฟล์เสีย</div> : <div className="small" style={{ marginTop: 3 }}>เหตุอยู่ใต้แถว</div>}</div>;
-  if (it.state === "stop") return <div data-qstop><span className="tpill warn">หยุดแล้ว</span><div className="small" style={{ marginTop: 3 }}>ไฟล์ที่ทำค้างถูกลบ</div></div>;
+  if (it.state === "stop") return <div data-qstopped><span className="tpill warn">หยุดแล้ว</span><div className="small" style={{ marginTop: 3 }}>ไฟล์ที่ทำค้างถูกลบ</div></div>;
   return <span className="small" data-qwait>{it.file ? "รอคิว" : "กำลังอ่านไฟล์"}</span>;
 }
 
