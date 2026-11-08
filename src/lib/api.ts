@@ -46,7 +46,11 @@ export type Movie = {
   cover2Name?: string | null;
   cover2Aspect?: number | null;
   status: MovieStatus; check: CheckInfo | null; sha256: string | null; missing: boolean; error: string | null;
+  /** เสียงกับซับที่จับคู่ไว้ ไม่รวมเข้าไฟล์ (แผนเสียงและซับ ขั้น 7) */
+  pairs?: Pair[];
 };
+export type Pair = { path: string; kind: "audio" | "subtitle"; lang: string; name: string; delay: number };
+export type PairPlay = { player: string; cmd: string; notes: string[]; sent: number; opened: boolean };
 /** ผลตรวจครั้งล่าสุด (ขั้น 6) */
 export type CheckInfo = { at: number; mode: "quick" | "full"; result: "ok" | "bad" | "changed"; summary?: string; spans?: CheckSpan[] };
 export type FolderState = { path: string; ok: boolean; count: number; error: string | null };
@@ -148,6 +152,13 @@ export type CoverMode = "keep" | "remove" | "new";
 export type MergeReq = { movie: string; tracks: MergeTrack[]; covers: { portrait: CoverMode; land: CoverMode }; output: "mkv" | "mp4"; original: "keep" | "trash"; checkSource: boolean; checkOutput: boolean };
 export type MergeResult = { mode: "mkv" | "mp4"; output: string; counts: Counts; verified: boolean; original: "kept" | "trash" | "none"; originalTo: string | null; notes: string[] };
 export type CoverPreview = { preview: string; width: number; height: number; bytes: number };
+
+/* จับคู่ไว้ ไม่รวม (ขั้น 7 · pairs.rs) · dry มีผลเฉพาะรุ่นทดสอบ ไม่เปิดโปรแกรมเล่น */
+export const pairApi = {
+  set: (movie: string, pairs: Pair[]) => call<Movie>("pair_set", { movie, pairs }),
+  check: (paths: string[]) => call<boolean[]>("pair_check", { paths }),
+  play: (movie: string, dry?: boolean) => call<PairPlay>("pair_play", { movie, dry: dry ?? null }),
+};
 
 /* ตัวดูซับ (แผนเสียงและซับ ขั้น 6 · subs.rs) · เวลาเป็นวินาทีตามไฟล์ ยังไม่บวกดีเลย์ */
 export type Cue = { n: number; start: number; end: number; text: string };

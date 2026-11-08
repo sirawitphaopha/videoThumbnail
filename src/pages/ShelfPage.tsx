@@ -10,7 +10,8 @@ import RenameBox from "../components/RenameBox";
 import Dropdown from "../components/Dropdown";
 import { Badge, CardIcon, Phr, Phrases, Seg, Skel, Switch } from "../components/ui";
 import { useToast } from "../components/Toasts";
-import { api, thumbUrl, type Movie } from "../lib/api";
+import { api, thumbUrl, type Movie, pairApi, pickAddFiles, type Pair, type PairPlay } from "../lib/api";
+import { langName } from "../lib/langs";
 import { useLibrary } from "../lib/library";
 import { useSettings } from "../lib/settings";
 import { searchByName, highlightParts } from "../lib/thaiSearch";
@@ -285,6 +286,7 @@ function Book(p: { m: Movie; width: number; sel: boolean; onSel: (id: string) =>
       data-movie={m.name}
       {...kb(() => p.onSel(m.id))}
     >
+      {(m.pairs?.length ?? 0) > 0 && <span className="pairdot" title="จับคู่เสียงหรือซับไว้" aria-label="จับคู่เสียงหรือซับไว้" data-pairdot />}
       {src ? (
         <div className="cover has-img"><img src={src} alt="" loading="lazy" draggable={false} /></div>
       ) : (
@@ -423,6 +425,7 @@ function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg:
         <dt>ไฟล์แนบ</dt><dd>{m.images ? `${m.hasCover ? "โปสเตอร์" : "รูป"} ${m.images} รูป` : "ไม่มี"}</dd>
       </dl>
       <StatusCard m={m} reminder={p.reminder} onCheck={p.onCheck} onPoster={() => p.onPoster(m.path)} />
+      {(m.pairs?.length ?? 0) > 0 && <PairCard m={m} onEdit={() => p.onAv(m.path)} />}
       <div className="actions">
         {m.missing ? (
           <button type="button" className="btn btn-wait" aria-disabled="true" title="หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" onClick={p.onPlay}><PlayIcon />เปิดเล่น</button>
@@ -452,6 +455,50 @@ function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg:
         </button>
       </div>
     </aside>
+  );
+}
+
+/** เสียงกับซับที่จับคู่ไว้ ไม่รวม (มอคอัปหัวข้อ 5) · บอกว่าเจอไฟล์ไหม · เปิดเล่นพร้อมไฟล์ที่จับคู่ · ไฟล์หาไม่เจอ หาไฟล์ใหม่หรือเอาออกจากคู่ */
+function PairCard({ m, onEdit }: { m: Movie; onEdit: () => void }) {
+  const pairs = m.pairs ?? [];
+  const [found, setFound] = useState<boolean[] | null>(null);
+  const [res, setRes] = useState<{ ok?: PairPlay; err?: string } | null>(null);
+  const key = pairs.map((x) => x.path).join("|");
+  useEffect(() => { let live = true; setFound(null); pairApi.check(pairs.map((x) => x.path)).then((f) => { if (live) setFound(f); }, () => {}); return () => { live = false; }; }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  const save = (next: Pair[]) => pairApi.set(m.path, next).catch((e) => setRes({ err: String(e) }));
+  const relink = async (i: number) => {
+    const f = await pickAddFiles();
+    if (f[0]) save(pairs.map((x, j) => (j === i ? { ...x, path: f[0] } : x)));
+  };
+  const label = (x: Pair) => [x.kind === "audio" ? `เสียง${x.lang ? " " + langName(x.lang) : ""}` : `ซับ${x.lang ? langName(x.lang) : ""}`, x.name, x.delay ? `ดีเลย์ ${x.delay > 0 ? "+" : "−"}${Math.abs(x.delay).toLocaleString("en-US")} ms` : ""].filter(Boolean).join(" · ");
+  const missing = found ? found.filter((f) => !f).length : 0;
+  return (
+    <div className="paircard" data-pairs>
+      <b>จับคู่ไว้ {pairs.length} ไฟล์</b>
+      {pairs.map((x, i) => (
+        <div key={i} className="pair" data-pair={i}>
+          <span className={"kind " + (x.kind === "audio" ? "a" : "s")} aria-hidden="true">{x.kind === "audio"
+            ? <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M4 10v4M8 7v10M12 4v16M16 8v8M20 10v4" /></svg>
+            : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M7 14h4M13 14h4M7 10h10" /></svg>}</span>
+          <div style={{ minWidth: 0 }}><div>{label(x)}</div><div className="p">{x.path}</div>
+            {found && !found[i] && <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => relink(i)}>หาไฟล์ใหม่</button>
+              <button type="button" className="btn btn-bad btn-sm" onClick={() => save(pairs.filter((_, j) => j !== i))} data-pair-drop>เอาออกจากคู่</button></div>}</div>
+          {found ? <span className={"tpill " + (found[i] ? "ok" : "warn")}>{found[i] ? "เจอไฟล์" : "หาไม่เจอ"}</span> : <Skel w={56} h={18} r={9} />}
+        </div>
+      ))}
+      {missing > 0 && <div className="stat warn" data-pair-missing><CardIcon kind="warn" /><div><b>{`หาไฟล์ที่จับคู่ไม่เจอ ${missing} ไฟล์`}</b><Phr>ไดรฟ์อาจถอดออกอยู่ หรือไฟล์ถูกย้าย · เปิดเล่นได้พร้อมไฟล์ที่เหลือ</Phr></div></div>}
+      <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
+        <button type="button" className={"btn btn-sm " + (m.missing ? "btn-wait" : "btn-main")} aria-disabled={m.missing || undefined} title={m.missing ? "หาไฟล์หนังไม่เจอ" : undefined}
+          onClick={() => { if (m.missing) return; setRes(null); pairApi.play(m.path, (window as unknown as { __pairDry?: boolean }).__pairDry).then((ok) => setRes({ ok }), (e) => setRes({ err: String(e) })); }} data-pair-play>เปิดเล่นพร้อมเสียงและซับที่จับคู่</button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onEdit} title="เปิดหน้าเสียงและซับ ลากไฟล์ใหม่แล้วกดจับคู่อีกครั้ง แทนชุดเดิม">แก้การจับคู่</button>
+      </div>
+      {res?.ok && <div className="small" data-pair-res data-cmd={res.ok.cmd}><Phr>{res.ok.opened ? `เปิดด้วย ${res.ok.player || "โปรแกรมหลักของ Windows"} · ส่งไฟล์ที่จับคู่ ${res.ok.sent} ไฟล์` : `รุ่นทดสอบไม่เปิดโปรแกรมเล่น · ${res.ok.player || "โปรแกรมหลักของ Windows"} ส่งไฟล์ที่จับคู่ ${res.ok.sent} ไฟล์`}</Phr></div>}
+      {/* ไฟล์ที่หาไม่เจอการ์ดบอกอยู่แล้วข้างบน ไม่บอกซ้ำ */}
+      {res?.ok?.notes.filter((n) => !n.includes("ที่จับคู่ไม่เจอ")).map((n, i) => <div key={i} className="stat warn" data-pair-note><CardIcon kind="warn" /><div><Phr>{n}</Phr></div></div>)}
+      {res?.err && <div className="stat bad"><CardIcon kind="bad" /><div><b>เปิดเล่นไม่ได้</b><Phr>{res.err}</Phr></div></div>}
+      <div className="small"><Phr>ปุ่มเปิดเล่นเดิมยังเปิดเฉพาะไฟล์หนัง · บนชั้นมีจุดเล็กมุมปกบอกว่าเรื่องนี้จับคู่ไว้</Phr></div>
+    </div>
   );
 }
 

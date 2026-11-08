@@ -1,7 +1,7 @@
 // เทสหน้าเสียงและซับ (แผนเสียงและซับ ขั้น 2) ในหน้าต่างโปรแกรมจริง ผ่านพอร์ตดีบัก · ถ่ายภาพทุกสถานะลงโฟลเดอร์รายงาน
 // ลากไฟล์จำลองด้วยตัวรับไฟล์ของหน้า (window.__avDrop มีเฉพาะตอนทดสอบ) · ไฟล์หนังเป็นสำเนาในโฟลเดอร์ทดสอบ ไม่แตะ test-media
 // ใช้: node scripts/check-av.mjs  (โปรแกรมเปิดผ่าน scripts/dev-app.ps1 แบบอยู่หลังสุด)
-import { mkdirSync, writeFileSync, copyFileSync, rmSync, existsSync, readdirSync, readFileSync } from "node:fs";
+import { mkdirSync, writeFileSync, copyFileSync, rmSync, existsSync, readdirSync, readFileSync, renameSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
@@ -440,6 +440,60 @@ check("หน้าตั้งค่ามีการ์ดตัวแปล�
   && encRows.some((r) => r.includes("wavpack") && r.includes("5.9.0")) && encRows.some((r) => r.includes("qaac64") && r.includes("ยังไม่ได้ใส่")) && encText.includes(String.raw`ชั้นหนัง\ตัวแปลง`), encRows.join(" | "));
 await c.evaluate("document.querySelector('[data-setcard=encoders]').scrollIntoView({ block: 'center' })");
 await shot("09-การ์ดตัวแปลงเสียง.png", "[data-setcard=encoders]", 6);
+
+// ---------- จับคู่ไว้ ไม่รวม (ขั้น 7) · สำเนาเสียงกับซับในโฟลเดอร์ทดสอบ · ไม่เปิดโปรแกรมเล่น (window.__pairDry) ----------
+const PAIR_DIR = join(DIR, "คู่");
+mkdirSync(PAIR_DIR, { recursive: true });
+const pairSrt = join(PAIR_DIR, "ดาวตก (2024).th.srt"), pairAc3 = join(PAIR_DIR, "ดาวตก (2024) พากย์ไทย DELAY -120ms.ac3");
+copyFileSync(join(AV, "ดาวตก (2024).th.srt"), pairSrt);
+copyFileSync(join(AV, "ดาวตก (2024) พากย์ไทย DELAY -120ms.ac3"), pairAc3);
+const hPair = sha(MOVIE);
+await c.evaluate(`[...document.querySelectorAll('.side .nav')].find(b => b.innerText.includes('เสียงและซับ')).click()`);
+await sleep(500);
+if (!(await q("return document.querySelector('[data-movie-chip]')?.innerText.includes('ดาวตก')"))) { await clickTextAny(".avfoot button", "ล้างทั้งหมด").catch(() => {}); await drop([MOVIE]); }
+await waitFor("return document.querySelector('[data-movie-chip]')?.innerText.includes('ดาวตก')", 20000);
+await drop([pairAc3, pairSrt]);
+await waitFor(`return !!${findRow("คู่")} || document.querySelectorAll('.trk:not(.head)').length > 6`, 20000);
+await sleep(500);
+await clickTextAny("[data-method] .seg button", "จับคู่ไว้ ไม่รวม");
+await sleep(300);
+await waitFor("return document.querySelectorAll('.toast').length === 0", 8000);
+const pm = await q("return document.querySelector('[data-method]').innerText.replace(/\\s+/g, ' ') + ' · ' + !!document.querySelector('[data-start]') + ' · ' + (document.querySelector('[data-pair-save]')?.innerText ?? '')");
+check("เลือกวิธีจับคู่ไว้ ไม่รวม บอกว่าไฟล์หนังไม่ถูกแตะ จับคู่ได้เฉพาะเสียงกับซับที่เพิ่ม 2 ไฟล์ · ปุ่มรวมเปลี่ยนเป็นปุ่มจับคู่", pm.includes("ไฟล์หนังไม่ถูกแตะ") && pm.includes("2 ไฟล์") && pm.includes("false · จับคู่ไว้กับหนังเรื่องนี้"), pm.slice(0, 160));
+await c.evaluate("document.querySelector('[data-pair-save]').click()");
+await waitFor("return !!document.querySelector('[data-paired-ok]')", 10000);
+check("กดจับคู่ไว้กับหนังเรื่องนี้ บอกว่าจับคู่ไว้ 2 ไฟล์แล้ว · ไฟล์หนัง hash เท่าเดิม", (await q("return document.querySelector('[data-paired-ok]')?.innerText ?? ''")).includes("จับคู่ไว้ 2 ไฟล์แล้ว") && sha(MOVIE) === hPair);
+await shot("20-วิธีจับคู่.png", "[data-method]", 8);
+// แผงขวาของชั้นวาง
+await c.evaluate("[...document.querySelectorAll('.side .nav')].find(b => b.innerText.includes('ชั้นวางหนัง')).click()");
+await waitFor("return !!document.querySelector('.book[data-movie=\"ดาวตก (2024)\"]')", 15000);
+await c.click('.book[data-movie="ดาวตก (2024)"]');
+await waitFor("return document.querySelectorAll('[data-pairs] .tpill').length === 2", 10000);
+const pc = await q("return document.querySelector('[data-pairs]').innerText.replace(/\\s+/g, ' ') + ' · จุด ' + !!document.querySelector('.book[data-movie=\"ดาวตก (2024)\"] [data-pairdot]')");
+check("แผงขวาของชั้นวางมีการ์ดจับคู่ไว้ 2 ไฟล์ พากย์ไทยดีเลย์ −120 ms ซับไทยดีเลย์ +500 ms เจอไฟล์ทั้งคู่ · มุมปกบนชั้นมีจุดบอกว่าจับคู่ไว้",
+  pc.includes("จับคู่ไว้ 2 ไฟล์") && pc.includes("เสียง ไทย") && pc.includes("ดีเลย์ −120 ms") && (pc.match(/เจอไฟล์/g) || []).length === 2 && pc.endsWith("จุด true"), pc.slice(0, 200));
+await c.evaluate("window.__pairDry = true; document.querySelector('[data-pair-play]').click()");
+await waitFor("return !!document.querySelector('[data-pair-res]')", 10000);
+const pcmd = await q("return document.querySelector('[data-pair-res]').dataset.cmd + ' ¦ ' + document.querySelector('[data-pair-res]').innerText");
+check("เปิดเล่นพร้อมเสียงและซับที่จับคู่ (รุ่นทดสอบไม่เปิด) คำสั่งส่งไฟล์เสียงกับซับที่จับคู่ไปให้โปรแกรมเล่น", pcmd.includes("DELAY -120ms.ac3") && pcmd.includes("คู่\\ดาวตก (2024).th.srt") && pcmd.includes("ส่งไฟล์ที่จับคู่ 2 ไฟล์"), pcmd.slice(0, 260));
+// ซับที่จับคู่ถูกย้าย
+renameSync(pairSrt, pairSrt + ".ย้าย");
+await c.evaluate("[...document.querySelectorAll('.side .nav')].find(b => b.innerText.includes('ตั้งค่า')).click()");
+await sleep(400);
+await c.evaluate("[...document.querySelectorAll('.side .nav')].find(b => b.innerText.includes('ชั้นวางหนัง')).click()");
+await waitFor("return !!document.querySelector('.book[data-movie=\"ดาวตก (2024)\"]')", 15000);
+await c.click('.book[data-movie="ดาวตก (2024)"]');
+await waitFor("return !!document.querySelector('[data-pair-missing]')", 10000);
+await c.evaluate("document.querySelector('[data-pair-play]').click()");
+await waitFor("return document.querySelector('[data-pair-res]')?.innerText.includes('ส่งไฟล์ที่จับคู่ 1 ไฟล์')", 10000);
+const miss = await q("return document.querySelector('[data-pairs]').innerText.replace(/\\s+/g, ' ')");
+check("ย้ายไฟล์ซับที่จับคู่ออก การ์ดขึ้นหาไม่เจอ มีปุ่มหาไฟล์ใหม่กับเอาออกจากคู่ · เปิดเล่นได้พร้อมไฟล์ที่เหลือ 1 ไฟล์ · ไม่บอกไฟล์หายซ้ำสองกล่อง", miss.includes("หาไม่เจอ") && miss.includes("หาไฟล์ใหม่") && miss.includes("เอาออกจากคู่") && miss.includes("หาไฟล์ที่จับคู่ไม่เจอ 1 ไฟล์") && !miss.includes("หาซับที่จับคู่ไม่เจอ") && miss.includes("ส่งไฟล์ที่จับคู่ 1 ไฟล์"), miss.slice(0, 260));
+await c.evaluate("document.querySelector('[data-detail]').scrollTop = document.querySelector('[data-pairs]').offsetTop - 20");
+await sleep(200);
+await shot("21-จับคู่บนชั้นวาง.png", "[data-pairs]", 8);
+await c.evaluate("document.querySelector('[data-pair-drop]').click()");
+await waitFor("return document.querySelectorAll('[data-pairs] [data-pair]').length === 1", 10000);
+check("กดเอาออกจากคู่ เหลือจับคู่ไว้ 1 ไฟล์", (await q("return document.querySelector('[data-pairs] > b').innerText")) === "จับคู่ไว้ 1 ไฟล์");
 
 // ---------- ตัวดูซับรูป (ขั้น 6) · หนังที่มีซับ PGS กับ VobSub (สำเนาในโฟลเดอร์ทดสอบ) ----------
 copyFileSync(join(AV, "ซับรูป (2024).mkv"), join(DIR, "ซับรูป (2024).mkv"));

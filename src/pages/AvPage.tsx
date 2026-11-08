@@ -16,7 +16,7 @@ import { convertLabel } from "../lib/codecs";
 import ThaiInput from "../components/ThaiInput";
 import { CardIcon, Phr, Seg } from "../components/ui";
 import { useToast } from "../components/Toasts";
-import { ADD_EXT, encodeApi, inApp, mergeApi, pickAddFiles, pickFile, posterApi, thumbUrl, type ApplyProblem, type CoverTarget, type EncoderInfo, type MergeResult, type PosterInfo } from "../lib/api";
+import { ADD_EXT, encodeApi, inApp, mergeApi, pickAddFiles, pickFile, posterApi, thumbUrl, type ApplyProblem, type CoverTarget, type EncoderInfo, type MergeResult, type PosterInfo, pairApi } from "../lib/api";
 import { useSettings } from "../lib/settings";
 import { useLibrary } from "../lib/library";
 import { fmtDuration, fmtSize } from "../lib/format";
@@ -102,6 +102,9 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
   const [codecSpeed, setCodecSpeed] = useState<string | null>(null);
   const [delayFor, setDelayFor] = useState<string | null>(null);
   const [subFor, setSubFor] = useState<string | null>(null);
+  /** วิธี รวมเข้าไฟล์หนัง หรือจับคู่ไว้ ไม่รวม (มอคอัปหัวข้อ 5) */
+  const [method, setMethod] = useState<"merge" | "pair">("merge");
+  const [paired, setPaired] = useState<{ n: number; err?: string } | null>(null);
   const [encs, setEncs] = useState<EncoderInfo[] | null>(null);
   const openCodec = (key: string) => { setCodecFor(key); if (!encs) encodeApi.status().then(setEncs, () => setEncs([])); };
   const output = (av.once.output ?? settings?.outputFormat ?? "mkv") as "mkv" | "mp4";
@@ -323,6 +326,18 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
   useEffect(() => { runBox.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, [run.state]);
   const pct = working && run.progress ? Math.round(run.progress.percent) : 0;
   const inLib = movie ? movies.find((m) => m.path.toLowerCase() === movie.path.toLowerCase()) : undefined;
+  /** จับคู่ได้เฉพาะเสียงกับซับที่เพิ่มจากไฟล์แยก · ไฟล์ในตัวหนัง (MKV ที่มีหลายแทร็ก) จับคู่ทั้งไฟล์ */
+  const pairable = tracks.filter((t) => !t.inMovie && t.keep && (t.kind === "audio" || t.kind === "subtitle"));
+  const pairBlocked = !movie ? "ยังกดไม่ได้ ใส่ไฟล์หนังก่อน" : !inLib ? "หนังเรื่องนี้ไม่ได้อยู่บนชั้น เพิ่มโฟลเดอร์ของหนังในหน้าตั้งค่าก่อน"
+    : !pairable.length ? "ยังไม่มีเสียงหรือซับที่เพิ่ม ลากไฟล์มาวางก่อน" : null;
+  const savePairs = () => {
+    if (pairBlocked || !movie) return;
+    const list = pairable.map((t) => ({ path: t.src, kind: t.kind as "audio" | "subtitle", lang: t.lang, name: t.name, delay: Math.round(t.delay) }));
+    const uniq = list.filter((x, i) => list.findIndex((y) => y.path === x.path && y.kind === x.kind) === i);
+    // บอกผลในการ์ดของหน้าที่เดียว (เดิมขึ้นแจ้งเตือนซ้ำ บังการ์ด เจอตอนตรวจภาพ)
+    pairApi.set(movie.path, uniq).then(() => setPaired({ n: uniq.length }),
+      (e) => setPaired({ n: 0, err: String(e) }));
+  };
   const selected = tracks.find((t) => t.key === sel) ?? null;
   /** เสียงเดิมในหนังที่ใช้เทียบตอนหาดีเลย์ · เสียงแรกในหนังที่ยังเก็บไว้ */
   const refAudio = tracks.find((t) => t.inMovie && t.kind === "audio" && t.keep) ?? tracks.find((t) => t.inMovie && t.kind === "audio") ?? null;
@@ -501,8 +516,19 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
           </div>
         )}
 
+        {/* วิธี · รวมเข้าไฟล์หนัง หรือจับคู่ไว้ ไม่รวม */}
+        <div className="card" data-method={method}>
+          <h3>วิธี</h3>
+          <div style={{ display: "flex" }}><Seg label="วิธี" value={method} onChange={(v) => { setMethod(v); setPaired(null); }} disabledReason={working ? BUSY : undefined}
+            options={[{ value: "merge", label: "รวมเข้าไฟล์หนัง" }, { value: "pair", label: "จับคู่ไว้ ไม่รวม" }]} /></div>
+          {method === "pair" && <div className="stat info" style={{ marginTop: 8 }}><CardIcon kind="info" /><div><b>ไฟล์หนังไม่ถูกแตะ</b>
+            <Phr>{`จับคู่ได้เฉพาะเสียงกับซับที่เพิ่ม (${pairable.length} ไฟล์) · แปลงชนิด เอาแทร็กออก เรียงลำดับ ใส่ปก ทำได้เฉพาะตอนรวม · ดีเลย์ใช้ได้ทั้งสองแบบ · ไฟล์ที่จับคู่อยู่โฟลเดอร์ไหนก็ได้ โปรแกรมจำไว้กับหนังในคลัง`}</Phr></div></div>}
+          {method === "pair" && paired && (paired.err ? <div className="stat bad" style={{ marginTop: 8 }}><CardIcon kind="bad" /><div><b>จับคู่ไม่สำเร็จ</b><Phr>{paired.err}</Phr></div></div>
+            : <div className="stat ok" style={{ marginTop: 8 }} data-paired-ok><CardIcon kind="done" /><div><b>{`จับคู่ไว้ ${paired.n} ไฟล์แล้ว`}</b><Phr>เปิดเล่นพร้อมไฟล์ที่จับคู่ได้ที่แผงขวาของชั้นวาง · บันทึกใหม่แทนการจับคู่เดิมของเรื่องนี้ทั้งชุด</Phr></div></div>)}
+        </div>
+
         {/* ไฟล์ที่ได้ · ไฟล์เดิม */}
-        <div className="card">
+        {method === "merge" && <div className="card">
           <h3>ไฟล์ที่ได้ · ไฟล์เดิม</h3>
           <div className="optline">
             <Seg small label="ไฟล์ที่ได้" value={output} onChange={(v) => setAv((s) => ({ once: { ...s.once, output: v } }))} disabledReason={working ? BUSY : undefined}
@@ -519,7 +545,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
             <Phr>{(settings?.checkOutputAfter ?? true) ? "ตรวจไฟล์ใหม่หลังรวมเสร็จ" : "ไม่ได้ตั้งตรวจไฟล์ใหม่ (หน้าตั้งค่า)"}</Phr>
             {output === "mp4" && <><br /><Phr>MP4 ปกขึ้นเป็นไอคอนใน Windows ได้เลย แต่เก็บปกได้รูปเดียว (ปกตั้ง) และเก็บไฟล์แนบอย่างฟอนต์ไม่ได้</Phr></>}
           </div>
-        </div>
+        </div>}
 
         {/* คำเตือนก่อนเริ่ม */}
         {mp4Bad.map((t) => (
@@ -543,10 +569,16 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
         {run.state !== "idle" && <div ref={runBox} className="card workbox" data-run={run.state}><RunCard run={run} pct={pct} runMovie={av.runMovie} onStop={() => setAskStop(true)} onShelf={() => p.onPage("shelf")} onGraph={p.onGraph} onRetry={() => pressStart()} /></div>}
 
         <div className="avfoot">
+          {method === "pair" ? (<>
+            {pairBlocked && <div className="hint" style={{ color: "#94680f", margin: 0 }} data-blocked>{pairBlocked}</div>}
+            <button type="button" className={"btn " + (pairBlocked ? "btn-wait" : "btn-main")} style={{ height: 44, padding: "0 26px", fontSize: 15 }}
+              aria-disabled={!!pairBlocked || undefined} title={pairBlocked ?? undefined} onClick={savePairs} data-pair-save>จับคู่ไว้กับหนังเรื่องนี้</button>
+          </>) : (<>
           {blocked && !working && <div className="hint" style={{ color: "#94680f", margin: 0 }} data-blocked>{blocked}</div>}
           <button type="button" className={"btn " + (working ? "btn-wait" : "btn-ghost")} style={{ height: 44 }} aria-disabled={working || undefined} title={working ? BUSY : undefined} onClick={clearAll}>ล้างทั้งหมด</button>
           <button type="button" className={"btn " + (blocked || working ? "btn-wait" : "btn-main")} style={{ height: 44, padding: "0 26px", fontSize: 15 }}
             aria-disabled={!!blocked || working || undefined} title={blocked ?? undefined} onClick={() => pressStart()} data-start>{working ? "กำลังรวม…" : output === "mp4" ? "รวมเป็น MP4" : "รวมเข้าไฟล์หนัง"}</button>
+          </>)}
         </div>
       </div>
 

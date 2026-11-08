@@ -67,6 +67,8 @@ pub struct Movie {
     pub missing: bool,
     /// อ่านข้อมูลไฟล์ไม่ได้ บอกสาเหตุ
     pub error: Option<String>,
+    /// เสียงกับซับที่จับคู่ไว้ ไม่รวมเข้าไฟล์ (แผนเสียงและซับ ขั้น 7) · คลังเก่าไม่มีช่องนี้ อ่านได้เป็นว่าง
+    pub pairs: Vec<crate::pairs::Pair>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
