@@ -57,8 +57,12 @@ export type Movie = {
   linked?: LinkedCover[];
   /** เรื่องที่มีสองปก "file" แสดงปกในไฟล์ · ว่าง แสดงปกจับคู่ */
   coverPick?: string;
+  /** ชั้นวางคำนวณเอง ไม่ได้มาจากคลัง · ปกจับคู่ที่กำลังแสดง ไม่มีคือแสดงปกในไฟล์หรือไม่มีปก */
+  shownLink?: LinkedCover | null;
+  /** ชั้นวางคำนวณเอง · มีปกในไฟล์ไหม */
+  fileCover?: boolean;
 };
-export type LinkedCover = { orient: "tall" | "wide"; source: string; geo: Geometry | null; store: "beside" | "app" | "link"; file: string | null; owned: boolean; sha256: string | null; thumb: string; aspect: number; at: number };
+export type LinkedCover = { orient: "tall" | "wide"; source: string; geo: Geometry | null; store: "beside" | "app" | "link"; file: string | null; owned: boolean; sha256: string | null; thumb: string; aspect: number; at: number; cropped?: boolean };
 export type Pair = { path: string; kind: "audio" | "subtitle"; lang: string; name: string; delay: number };
 export type PairPlay = { player: string; cmd: string; notes: string[]; sent: number; opened: boolean };
 /** ผลตรวจครั้งล่าสุด (ขั้น 6) */

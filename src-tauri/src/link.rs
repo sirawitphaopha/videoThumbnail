@@ -179,6 +179,9 @@ pub struct LinkedCover {
     pub thumb: String,
     pub aspect: f32,
     pub at: i64,
+    /// ผู้ใช้ครอปเอง · ไม่ใช่ค่ากลางรูปที่โปรแกรมตั้งให้ แผงขวาของชั้นวางกับป้ายในตารางอ่านตัวนี้
+    #[serde(default)]
+    pub cropped: bool,
 }
 
 // ---------------------------------------------------------------- แถวในตารางตรวจผล
@@ -1120,7 +1123,7 @@ pub fn write_cover(env: &WriteEnv, id: &str, movie: &Path, orient: &str, pick: &
     if already && pick.geo.is_none() {
         let sha = file_sha(src).unwrap_or_default();
         let (thumb, aspect) = write_thumb(env, id, orient, &dec.img, &sha).map_err(fail)?;
-        return Ok(LinkedCover { orient: orient.into(), source: pick.path.clone(), geo: None, store: "beside".into(), file: Some(pick.path.clone()), owned: false, sha256: Some(sha), thumb: thumb.to_string_lossy().to_string(), aspect, at: now });
+        return Ok(LinkedCover { orient: orient.into(), source: pick.path.clone(), cropped: false, geo: None, store: "beside".into(), file: Some(pick.path.clone()), owned: false, sha256: Some(sha), thumb: thumb.to_string_lossy().to_string(), aspect, at: now });
     }
     let geo = pick.geo.clone().unwrap_or_else(|| default_geo(orient, w, h));
     let (img, _) = pi::render(&dec.img, &geo, env.shrink);
@@ -1152,7 +1155,7 @@ pub fn write_cover(env: &WriteEnv, id: &str, movie: &Path, orient: &str, pick: &
         }
     };
     let (thumb, aspect) = write_thumb(env, id, orient, &img, &sha).map_err(fail)?;
-    Ok(LinkedCover { orient: orient.into(), source: pick.path.clone(), geo: Some(geo), store: store.into(), file: file.map(|f| f.to_string_lossy().to_string()), owned, sha256: Some(sha), thumb: thumb.to_string_lossy().to_string(), aspect, at: now })
+    Ok(LinkedCover { orient: orient.into(), source: pick.path.clone(), cropped: pick.geo.is_some(), geo: Some(geo), store: store.into(), file: file.map(|f| f.to_string_lossy().to_string()), owned, sha256: Some(sha), thumb: thumb.to_string_lossy().to_string(), aspect, at: now })
 }
 
 /// เอาปกหนึ่งช่องออก · ลบได้เฉพาะไฟล์ที่โปรแกรมทำเองและยังไม่ถูกแก้ ลงถังขยะเท่านั้น (พี่กันตอบตอนทำแผน)
@@ -1417,8 +1420,10 @@ pub async fn link_open_row(app: AppHandle, id: String) -> Result<LinkReply, Stri
                 r.via = "shelf".into();
                 for c in &m.linked {
                     if let Ok(mut p) = pick_of(&d, &c.source) {
-                        p.geo = c.geo.clone();
-                        p.crop_thumb = Some(c.thumb.clone());
+                        if c.cropped {
+                            p.geo = c.geo.clone();
+                            p.crop_thumb = Some(c.thumb.clone());
+                        }
                         if c.orient == "wide" { r.wide = Some(p); } else { r.tall = Some(p); }
                     }
                 }
@@ -1454,7 +1459,7 @@ pub struct MigrateResult {
     pub notes: Vec<String>,
 }
 
-/// ย้ายปกที่จับคู่ไว้แล้วไปเก็บแบบใหม่ทีเดียว · รูปต้นทางหายแล้วใช้สำเนาเดิมเป็นต้นทาง · เก็บใหม่สำเร็จค่อยเอาของเก่าออก
+/// ย้ายปกที่จับคู่ไว้แล้วไปเก็บแบบใหม่ทีเดียว · ช่องหนึ่งของเรื่องล้ม ไม่ย้ายเฉพาะช่องนั้น · รูปต้นทางหายแล้วใช้สำเนาเดิมเป็นต้นทาง · เก็บใหม่สำเร็จค่อยเอาของเก่าออก
 #[tauri::command]
 pub async fn link_migrate(app: AppHandle, to: String) -> Result<MigrateResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -1478,7 +1483,8 @@ pub async fn link_migrate(app: AppHandle, to: String) -> Result<MigrateResult, S
             let mut bad = false;
             for c in m.linked.iter().filter(|c| c.store != to) {
                 let (path, geo) = if Path::new(&c.source).is_file() {
-                    (c.source.clone(), c.geo.clone())
+                    // ส่งค่าครอปเฉพาะที่ผู้ใช้ครอปเอง · ค่ากลางรูปที่โปรแกรมตั้งให้ส่งไปด้วย รูปข้างหนังชื่อถูกอยู่แล้วจะกลายเป็นต้องทำไฟล์ใหม่ แล้วชนตัวเอง
+                    (c.source.clone(), if c.cropped { c.geo.clone() } else { None })
                 } else if let Some(f) = c.file.clone().filter(|f| Path::new(f).is_file()) {
                     (f, Some(Geometry { mode: "original".into(), pad: "#f6dbe5".into(), w: 1.0, h: 1.0, ..Default::default() }))
                 } else {
@@ -1489,7 +1495,7 @@ pub async fn link_migrate(app: AppHandle, to: String) -> Result<MigrateResult, S
                 let (width, height) = header_size(Path::new(&path));
                 let pick = Pick { name: Path::new(&path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(), path, width, height, geo, ..Default::default() };
                 match write_cover(&env, &m.id, Path::new(&m.path), &c.orient, &pick, &to, Some(c)) {
-                    Ok(n) => fresh.push(n),
+                    Ok(mut n) => { n.cropped = c.cropped; fresh.push(n); }
                     Err(e) => { notes.push(format!("{} {}", m.name, e.msg)); bad = true; }
                 }
             }
@@ -1830,6 +1836,20 @@ mod tests {
         let e = apply_row(&l.env(), &l.mv(), &Row { tall: Some(p), wide: None, ..l.row() }, "beside").unwrap_err();
         assert!(e.conflict.is_some(), "ครอปแล้วชื่อชนกับต้นฉบับ ต้องไม่ทับ");
         assert_eq!(file_sha(&art), sha);
+    }
+
+    /// แผงขวากับป้ายในตารางบอกว่าครอปแล้วเฉพาะที่ผู้ใช้ครอปเอง · ค่ากลางรูปที่โปรแกรมตั้งให้ไม่นับ
+    #[test]
+    fn cropped_only_when_user_cropped() {
+        let Some(l) = lab("ครอปเอง") else { return };
+        let plain = apply_row(&l.env(), &l.mv(), &Row { wide: None, ..l.row() }, "app").unwrap();
+        assert!(!plain[0].cropped);
+        assert!(plain[0].geo.is_some(), "ค่ากลางรูปยังจดไว้ ใช้ต่อตอนรวมเข้าไฟล์");
+
+        let mut p = l.pick(&l.tall);
+        p.geo = Some(Geometry { tilt: 2.0, ..default_geo("tall", p.width, p.height) });
+        let done = apply_row(&l.env(), &l.mv(), &Row { tall: Some(p), wide: None, ..l.row() }, "app").unwrap();
+        assert!(done[0].cropped);
     }
 
     /// เอาปกออก · ไฟล์ของโปรแกรมลงถังขยะ · ไฟล์ที่ถูกแก้ไม่ลบ · เปลี่ยนชื่อหนังแล้วสำเนาตามชื่อ

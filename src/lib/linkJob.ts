@@ -22,10 +22,14 @@ export type LinkJob = {
   view: LinkView;
   /** แถวที่พาไปจากปุ่มบนชั้นวาง */
   focus: string | null;
+  /** พาไปแล้วเปิดหน้าครอปของแถวนั้นเลย (ปุ่มครอปใหม่) */
+  focusCrop: boolean;
+  /** เปิดโปรแกรมมาแล้วมีคู่ค้างจากรอบก่อน ชั้นวางขึ้นแถบทำต่อ · กดทำต่อ ไว้ทีหลัง หรือเข้าหน้าจับคู่ปกแล้วเลิกขึ้น */
+  resume: boolean;
 };
 
 const EMPTY: LinkReplyData = { rows: [], imageFolders: [], loose: [], scope: "nocover", waiting: 0 };
-let job: LinkJob = { reply: EMPTY, images: [], thumbs: {}, run: { state: "idle" }, view: "start", focus: null };
+let job: LinkJob = { reply: EMPTY, images: [], thumbs: {}, run: { state: "idle" }, view: "start", focus: null, focusCrop: false, resume: false };
 const subs = new Set<() => void>();
 
 export function setLinkJob(patch: Partial<LinkJob>) {
@@ -50,6 +54,12 @@ export async function reloadImages() {
   setLinkJob({ images: await linkApi.images() });
 }
 
+/** ปุ่มบนชั้นวาง · เปิดแถวของเรื่องนั้นในตารางตรวจผล แก้แล้วยืนยันอีกครั้งถึงเปลี่ยนบนชั้น (พี่กันสั่ง ทุกวิธีมาจบที่ตาราง) */
+export async function openLinkRow(id: string, crop = false) {
+  const reply = await linkApi.openRow(id);
+  setLinkJob({ reply, view: "table", focus: id, focusCrop: crop });
+}
+
 /** ยืนยัน · งานอยู่ระดับโปรแกรม เปลี่ยนหน้าแล้วไม่หาย */
 export async function runConfirm(which: string): Promise<ConfirmResult | null> {
   setLinkJob({ run: { state: "working", progress: null } });
@@ -64,7 +74,7 @@ export async function runConfirm(which: string): Promise<ConfirmResult | null> {
 }
 
 if (inApp) {
-  linkApi.state().then(setReply).catch(() => {});
+  linkApi.state().then((reply) => setLinkJob({ reply, resume: reply.waiting > 0 })).catch(() => {});
   listen<LinkImage>("link-thumb", (e) => {
     const m = e.payload;
     const images = job.images.map((i) => (i.path === m.path ? { ...i, ...m, used: i.used } : i));

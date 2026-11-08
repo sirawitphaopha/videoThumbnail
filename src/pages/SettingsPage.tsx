@@ -2,7 +2,8 @@
    ตั้งแล้วมีผลทันที ไม่ต้องกดบันทึก · สวิตช์ชมพู = เปิด · ค่าเก็บในไฟล์ค่าตั้งของโปรแกรมผ่าน set_settings (store.rs เขียนแบบปลอดภัยมีสำรอง)
    ค่าที่นี่คือค่าตั้งต้น ทุกครั้งที่ใส่โปสเตอร์หรือตรวจไฟล์ยังเปลี่ยนเฉพาะครั้งนั้นได้ */
 import { useEffect, useRef, useState } from "react";
-import { api, encodeApi, graphApi, pickExe, pickFolder, type EncoderInfo, type LatestInfo, type Settings, type ToolCheck } from "../lib/api";
+import { api, encodeApi, graphApi, linkApi, pickExe, pickFolder, type EncoderInfo, type LatestInfo, type Settings, type ToolCheck } from "../lib/api";
+import { kb } from "../lib/popup";
 import { useSettings } from "../lib/settings";
 import { useLibrary } from "../lib/library";
 import { useToast } from "../components/Toasts";
@@ -25,6 +26,17 @@ const TOOL_ROLE: Record<string, string> = {
   MediaInfo: "ใช้หน้าข้อมูลไฟล์",
 };
 
+/** เก็บรูปที่จับคู่ไว้ที่ไหน 3 แบบ (พี่กันเคาะข้อ 1 · มอคอัปจับคู่ปกหัวข้อหน้าตั้งค่า) */
+const LINK_MODES: { v: Settings["linkStore"]; title: string; rec?: string; lines: string[]; sample?: string[] }[] = [
+  { v: "beside", title: "คัดลอกไปไว้ข้างไฟล์หนัง", rec: "ค่าตั้งต้น",
+    lines: ["คัดลอกรูปที่ครอปแล้วไปไว้โฟลเดอร์เดียวกับหนัง ชื่อเหมือนไฟล์หนัง · รูปต้นฉบับอยู่ที่เดิม ไม่ถูกแก้ กลับมาครอปใหม่ได้", "ชื่อลงท้ายแบบที่ Kodi อ่านได้ · เปลี่ยนรูปทีหลัง ไฟล์นี้เปลี่ยนตาม · เปลี่ยนชื่อหนังในชั้นหนัง รูปเปลี่ยนชื่อตาม · มีไฟล์ชื่อนี้อยู่แล้วที่โปรแกรมไม่ได้ทำ ไม่เขียนทับ ถามก่อน"],
+    sample: ["ดาวเหนือ (2023).mkv", "ดาวเหนือ (2023)-poster.jpg", "ดาวเหนือ (2023)-landscape.jpg"] },
+  { v: "app", title: "เก็บสำเนาไว้ในโปรแกรม",
+    lines: ["คัดลอกรูปที่ครอปแล้วไปไว้โฟลเดอร์ข้อมูลของโปรแกรม ไม่มีไฟล์เพิ่มในโฟลเดอร์หนัง · ลบหรือย้ายรูปต้นฉบับแล้วปกไม่หาย · มีแต่ชั้นหนังที่เห็น โปรแกรมอื่นไม่เห็น"] },
+  { v: "link", title: "จับคู่อย่างเดียว",
+    lines: ["ไม่คัดลอก รูปอยู่ชื่อเดิมที่เดิม โปรแกรมจำแค่ที่อยู่รูปแล้วดึงมาแสดง · ไม่ใช้ที่เพิ่มเลย · ย้ายหรือลบรูปต้นฉบับ ชั้นวางขึ้นว่าหารูปไม่เจอ ต้องจับคู่ใหม่"] },
+];
+
 /** ผลเช็กรุ่นล่าสุดครั้งล่าสุด จำไว้นอกหน้า (เปลี่ยนหน้าแล้วไม่หาย ไม่ออกเน็ตซ้ำเอง) */
 let latestMemo: { at: Date; list: LatestInfo[] } | null = null;
 
@@ -40,7 +52,7 @@ function LatestLine({ l, onOpen }: { l: LatestInfo; onOpen: (name: string) => vo
 
 export default function SettingsPage() {
   const { settings, update } = useSettings();
-  const { folders, scan } = useLibrary();
+  const { folders, scan, movies } = useLibrary();
   const toast = useToast();
   const skel = useSkelPreview();
   const [removing, setRemoving] = useState<string | null>(null);
@@ -49,6 +61,21 @@ export default function SettingsPage() {
   const [icaros, setIcaros] = useState<boolean | null>(null);
   const [checking, setChecking] = useState(false);
   const [cache, setCache] = useState<{ files: number; bytes: number } | null>(null);
+  /** ย้ายปกจับคู่เดิมไปเก็บแบบใหม่ทีเดียว (มอคอัป *"เรื่องเดิมกดย้ายให้ทีเดียวได้"*) */
+  const [askMigrate, setAskMigrate] = useState(false);
+  const [migrating, setMigrating] = useState(false);
+  const migrate = async () => {
+    if (migrating || !settings) return;
+    setMigrating(true);
+    try {
+      const r = await linkApi.migrate(settings.linkStore);
+      setAskMigrate(false);
+      toast({ kind: r.failed ? "warn" : "ok", title: r.failed ? `ย้ายแล้ว ${r.done} เรื่อง · ไม่สำเร็จ ${r.failed} เรื่อง` : `ย้ายแล้ว ${r.done} เรื่อง`, detail: "ไฟล์หนังกับรูปต้นฉบับไม่ถูกแตะ" });
+      r.notes.forEach((n) => toast({ kind: "warn", title: "มีเรื่องที่ต้องดู", detail: n }));
+    } catch (e) {
+      toast({ kind: "bad", title: "ย้ายไม่สำเร็จ", detail: String(e) });
+    } finally { setMigrating(false); }
+  };
   /** ตัวแปลงเสียง (แผนเสียงและซับ ขั้น 4 · มอคอัปหน้าตั้งค่า การ์ดตัวแปลงเสียง) */
   const [encs, setEncs] = useState<EncoderInfo[] | null>(null);
   const [encDir, setEncDir] = useState("");
@@ -126,9 +153,22 @@ export default function SettingsPage() {
     catch (e) { toast({ kind: "bad", title: "ล้างไม่ได้", detail: String(e) }); }
   };
   const countOf = (f: string) => folders.find((x) => x.path.toLowerCase() === f.toLowerCase());
+  const migrateCount = movies.filter((m) => (m.linked ?? []).some((c) => c.store !== settings.linkStore)).length;
+  const modeName = LINK_MODES.find((x) => x.v === settings.linkStore)?.title ?? "";
 
   return (
     <div className="setwrap" data-settings>
+      <Dialog open={askMigrate} onClose={() => { if (!migrating) setAskMigrate(false); }} kind="work" confirm title={<>ย้าย <span className="nw">{migrateCount} เรื่อง</span>ไปแบบ {modeName}</>}
+        actions={<>
+          <button type="button" className="btn btn-ghost" onClick={() => { if (!migrating) setAskMigrate(false); }}>ยังไม่ย้าย</button>
+          <button type="button" className={"btn " + (migrating ? "btn-wait" : "btn-main")} aria-disabled={migrating || undefined} data-link-migrate-ok onClick={migrate}>{migrating ? "กำลังย้าย…" : "ย้ายเลย"}</button>
+        </>}>
+        <div className="small" style={{ fontSize: 14, color: "var(--txt2)" }}>
+          <div>ทำไฟล์ใหม่ก่อน สำเร็จแล้วค่อยเอาของเก่าออก</div>
+          <div>รูปที่โปรแกรมคัดลอกไว้ข้างไฟล์หนังย้ายลงถังขยะ · ไฟล์ที่โปรแกรมไม่ได้ทำไม่ถูกลบ</div>
+          <div>ไฟล์หนังกับรูปต้นฉบับไม่ถูกแตะ</div>
+        </div>
+      </Dialog>
       {/* ---------- โฟลเดอร์หนัง ---------- */}
       <div className="setcard" data-setcard="folders"><h3>โฟลเดอร์หนัง</h3>
         <div className="small">โปรแกรมอ่านหนังจากโฟลเดอร์ในรายการนี้ขึ้นชั้น</div>
@@ -170,6 +210,31 @@ export default function SettingsPage() {
           <span className="small" style={{ whiteSpace: "nowrap", minWidth: 36, textAlign: "right" }} data-jpgq>{jpgNow}%</span></div></div>
         <div className="setrow"><div className="lbl">ย่อรูปโปสเตอร์ที่ใหญ่เกิน<span className="small">ย่อเหลือ <span className="nw">1000 × 1500 px</span> ไฟล์หนังไม่บวม</span></div>
           <Switch on={settings.shrinkLargePosters} onChange={(v) => set({ shrinkLargePosters: v })} label="ย่อรูปโปสเตอร์ที่ใหญ่เกิน" /></div>
+      </div>
+
+      {/* ---------- เก็บรูปที่จับคู่ไว้ที่ไหน กว้างเต็มแถว การ์ด 3 แบบเรียงกัน ---------- */}
+      <div className="setcard wideflow" data-setcard="link"><h3>เก็บรูปที่จับคู่ไว้ที่ไหน</h3>
+        <div className="small" style={{ marginBottom: 10 }}>ใช้ตอนกดยืนยันในหน้าจับคู่ปก · ทุกแบบ ไฟล์หนังไม่ถูกแตะ</div>
+        <div className="modes three" role="radiogroup" aria-label="เก็บรูปที่จับคู่ไว้ที่ไหน">
+          {LINK_MODES.map((x) => {
+            const on = settings.linkStore === x.v;
+            return (
+              <div key={x.v} className={"mode" + (on ? " on" : "")} {...kb(() => { if (!on) void set({ linkStore: x.v }); })} role="radio" aria-checked={on} data-link-mode={x.v}>
+                <h4><span className={"radio" + (on ? " on" : "")} />{x.title}{x.rec && <span className="extag" style={{ marginLeft: 2 }}>{x.rec}</span>}</h4>
+                <div className="small"><Phr>{x.lines[0]}</Phr></div>
+                {x.sample && <div className="pathsample">{x.sample.map((l) => <div key={l}>{l}</div>)}</div>}
+                {x.lines[1] && <div className="small"><Phr>{x.lines[1]}</Phr></div>}
+              </div>
+            );
+          })}
+        </div>
+        <div className="small" style={{ marginTop: 10 }}>ย้ายหรือเปลี่ยนชื่อไฟล์หนังผ่านชั้นหนัง ปกตามไป · ย้ายด้วย Explorer ในไดรฟ์เดียวกัน โปรแกรมยังตามเจอ ย้ายข้ามไดรฟ์ต้องจับคู่ใหม่ · เปลี่ยนแบบทีหลัง มีผลกับเรื่องที่จับคู่ใหม่</div>
+        {migrateCount > 0 && (
+          <div className="minirow" style={{ marginTop: 10 }} data-link-migrate>
+            <span className="small" style={{ alignSelf: "center" }}>มี <span className="nw">{migrateCount} เรื่อง</span>ที่จับคู่ไว้แบบอื่น</span>
+            <button type="button" className={"btn btn-sm " + (migrating ? "btn-wait" : "btn-ghost")} aria-disabled={migrating || undefined} data-link-migrate-go onClick={() => { if (!migrating) setAskMigrate(true); }}>{migrating ? "กำลังย้าย…" : "ย้ายมาแบบนี้ทีเดียว"}</button>
+          </div>
+        )}
       </div>
 
       {/* ---------- ตรวจไฟล์ ---------- */}

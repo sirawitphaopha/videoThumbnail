@@ -83,13 +83,11 @@ pub fn run() {
             }
             Ok(())
         })
-        // กันปิดตอนมีงาน ทางที่ 1 กดปิดหน้าต่าง (ปุ่มปิดของแถบชื่อ · Alt+F4 · ปิดจากแถบงาน)
+        // กันปิดตอนมีงาน ทางที่ 1 กดปิดหน้าต่าง (ปุ่มปิดของแถบชื่อ · Alt+F4 · ปิดจากแถบงาน) · มีคู่รูปปกที่ยังไม่ยืนยันก็ถามที่นี่
         .on_window_event(|window, event| {
             if let WindowEvent::CloseRequested { api, .. } = event {
-                let jobs = window.state::<Arc<Jobs>>();
-                if !jobs.may_close() {
+                if jobs::guard_close(window.app_handle()) {
                     api.prevent_close();
-                    let _ = window.emit("close-blocked", jobs.count());
                 }
             }
         });
@@ -139,6 +137,7 @@ pub fn run() {
         .build(tauri::generate_context!())
         .expect("เปิดโปรแกรมชั้นหนังไม่สำเร็จ")
         // กันปิดตอนมีงาน ทางที่ 2 โปรแกรมกำลังจะออก (หน้าต่างสุดท้ายหายไปด้วยทางอื่น) · ผลตรวจขั้น 0 โค้ดข้อ 6
+        // ทางนี้ไม่กันเรื่องคู่รูปปก หน้าต่างหายไปแล้วถามไม่ได้ โปรแกรมจะค้างโดยไม่มีหน้าต่าง · คู่ที่รอจดลงไฟล์ไว้แล้ว ไม่หาย
         .run(|app, event| {
             if let RunEvent::ExitRequested { api, .. } = event {
                 let jobs = app.state::<Arc<Jobs>>();

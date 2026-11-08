@@ -14,9 +14,9 @@ import { fmtSize } from "./lib/format";
 import SettingsPage from "./pages/SettingsPage";
 import DevParts from "./pages/DevParts";
 import ShelfPage from "./pages/ShelfPage";
-import PosterPage from "./pages/PosterPage";
+import PosterPage, { type PosterStart } from "./pages/PosterPage";
 import LinkPage from "./pages/LinkPage";
-import { useLinkJob } from "./lib/linkJob";
+import { setLinkJob, useLinkJob } from "./lib/linkJob";
 import AvPage from "./pages/AvPage";
 import FileInfoPage from "./pages/FileInfoPage";
 import FirstRun from "./pages/FirstRun";
@@ -45,6 +45,8 @@ function Frame() {
   const [page, setPage] = useState<Page>("shelf");
   /** มาจากปุ่มเปลี่ยนโปสเตอร์บนชั้นวาง · หน้าใส่โปสเตอร์ใส่ไฟล์หนังให้เลย */
   const [posterPath, setPosterPath] = useState<string | null>(null);
+  /** มาจากปุ่มรวมเข้าไฟล์บนชั้นวาง · ใส่รูปกับค่าครอปของปกจับคู่ให้ด้วย */
+  const [posterImage, setPosterImage] = useState<PosterStart | null>(null);
   /** มาจากปุ่มเสียงและซับบนชั้นวาง · หน้าเสียงและซับใส่ไฟล์หนังให้เลย */
   const [avPath, setAvPath] = useState<string | null>(null);
   /** หน้าข้อมูลไฟล์ เปิดจากปุ่มข้อมูลไฟล์ในแผงขวาของชั้นวาง */
@@ -92,8 +94,8 @@ function Frame() {
             {parts ? <DevParts /> : (
               <>
                 {page === "shelf" && (infoMovie ? <FileInfoPage m={infoMovie} onBack={() => setInfoId(null)} onAv={(path) => { setInfoId(null); setAvPath(path); setPage("av"); }} />
-                  : <ShelfPage onPage={setPage} onPoster={(path) => { setPosterPath(path); setPage("poster"); }} onInfo={setInfoId} onCheck={(r) => { setCheckReq(r); setPage("check"); }} onGraph={(path) => openGraph({ path })} onAv={(path) => { setAvPath(path); setPage("av"); }} sel={shelfSel} setSel={setShelfSel} />)}
-                {page === "poster" && <PosterPage initialPath={posterPath} onPage={setPage} onConsumed={() => setPosterPath(null)} />}
+                  : <ShelfPage onPage={setPage} onPoster={(path) => { setPosterPath(path); setPosterImage(null); setPage("poster"); }} onMerge={(path, image) => { setPosterPath(path); setPosterImage(image); setPage("poster"); }} onInfo={setInfoId} onCheck={(r) => { setCheckReq(r); setPage("check"); }} onGraph={(path) => openGraph({ path })} onAv={(path) => { setAvPath(path); setPage("av"); }} sel={shelfSel} setSel={setShelfSel} />)}
+                {page === "poster" && <PosterPage initialPath={posterPath} initialImage={posterImage} onPage={setPage} onConsumed={() => { setPosterPath(null); setPosterImage(null); }} />}
                 {page === "link" && <LinkPage />}
                 {page === "av" && <AvPage initialPath={avPath} onConsumed={() => setAvPath(null)} onPage={setPage} onGraph={(path) => openGraph({ path })} />}
                 {page === "check" && <CheckPage req={checkReq} onConsumed={() => setCheckReq(null)} onGraph={openGraph} onPage={setPage} />}
@@ -105,7 +107,7 @@ function Frame() {
           </main>
         </div>
       ))}
-      <CloseGuard />
+      <CloseGuard onGoLink={() => { setLinkJob({ view: "table" }); setInfoId(null); setPage("link"); }} />
       <OverlayScrollbar />
     </div>
   );

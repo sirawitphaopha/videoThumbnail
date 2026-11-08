@@ -95,3 +95,12 @@
 .mtover { position: absolute; left: 4px; right: 4px; bottom: 6px; background: rgba(255, 255, 255, .92); border-radius: 6px; padding: 2px 4px; font-size: 11.5px; color: var(--accent-ink); text-align: center; }
 .bghost { position: fixed; z-index: var(--z-menu, 50); pointer-events: none; transform: rotate(-4deg); opacity: .92; }
 .bghost img { width: 60px; height: 88px; object-fit: cover; border-radius: 6px; box-shadow: 0 8px 18px rgba(120, 50, 80, .35); display: block; }
+
+/* ชั้นวาง · ป้ายโซ่อยู่หน้าชื่อหนัง ไม่ทับรูป (พี่กันสั่ง) · ตัวกรองที่มาของปก (ขั้น 6) */
+.linkb { display: inline-flex; vertical-align: -2px; margin-right: 4px; }
+.shelftabs { margin: 0 0 12px; }
+
+/* หน้าตั้งค่า · การ์ดเก็บรูป 3 แบบ กว้างเต็มแถว */
+.setcard.wideflow { grid-column: 1 / -1; }
+.modes.three { grid-template-columns: repeat(3, minmax(0, 1fr)); }
+.pathsample { background-color: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 7px 10px; margin: 8px 0; font-family: Consolas, monospace; font-size: 12.5px; line-height: 1.7; overflow-wrap: anywhere; }

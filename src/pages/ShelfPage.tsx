@@ -9,8 +9,12 @@ import SearchBox from "../components/SearchBox";
 import RenameBox from "../components/RenameBox";
 import Dropdown from "../components/Dropdown";
 import { Badge, CardIcon, Phr, Phrases, Seg, Skel, Switch } from "../components/ui";
+import Dialog from "../components/Dialog";
+import { IcLink } from "../components/icons";
+import { openLinkRow, setLinkJob, setReply, useLinkJob } from "../lib/linkJob";
+import type { PosterStart } from "./PosterPage";
 import { useToast } from "../components/Toasts";
-import { api, thumbUrl, type Movie, pairApi, pickAddFiles, type Pair, type PairPlay } from "../lib/api";
+import { api, linkApi, thumbUrl, type Geometry, type LinkedCover, type Movie, pairApi, pickAddFiles, type Pair, type PairPlay } from "../lib/api";
 import { langName } from "../lib/langs";
 import { useLibrary } from "../lib/library";
 import { useSettings } from "../lib/settings";
@@ -31,6 +35,14 @@ const SORTS = [
 ];
 const SIZES = { s: { w: 80, gap: 12 }, m: { w: 110, gap: 14 }, l: { w: 150, gap: 12 } } as const;
 const byName = (a: Movie, b: Movie) => a.name.localeCompare(b.name, "th");
+const baseName = (p: string) => p.split(/[\\/]/).pop() ?? p;
+
+/** ตัวกรองที่มาของปก (พี่กันเคาะ *"ชั้นวางกรองได้ว่าเรื่องไหนปกมาจากการรวม เรื่องไหนจับคู่"*) · จำไว้ระหว่างเปลี่ยนหน้า ปิดโปรแกรมกลับเป็นทั้งหมด จะได้ไม่งงว่าหนังหาย */
+type CoverFilter = "all" | "file" | "linked" | "none";
+let filterMemo: CoverFilter = "all";
+/** นับตามปกที่กำลังแสดง เรื่องหนึ่งอยู่หมวดเดียว ยอดสามหมวดรวมกันเท่าทั้งหมด */
+const coverFrom = (m: Movie): Exclude<CoverFilter, "all"> => (m.shownLink ? "linked" : m.thumb ? "file" : "none");
+const LinkMark = () => <span className="linkb" title="ปกจับคู่ไว้ ไม่ได้อยู่ในไฟล์" data-linkb><IcLink size={13} stroke="#c2547f" /></span>;
 
 export function sortMovies(list: Movie[], key: string, reminder: number): Movie[] {
   const l = list.slice();
@@ -53,7 +65,7 @@ function Hl({ text, used, head, tail }: { text: string; used: string; head?: Rea
 }
 
 /** sel เก็บที่ตัวโปรแกรม (App) ไม่ใช่ในหน้านี้ · ไปหน้าข้อมูลไฟล์หรือใส่โปสเตอร์แล้วกลับมา ต้องยังเลือกเรื่องเดิมอยู่ */
-export default function ShelfPage({ onPage, onPoster, onInfo, onCheck, onGraph, onAv, sel, setSel }: { onPage: (p: Page) => void; onPoster: (path: string) => void; onInfo: (id: string) => void; onCheck: (r: CheckReq) => void; onGraph: (path: string) => void; onAv: (path: string) => void; sel: string | null; setSel: (id: string | null) => void }) {
+export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, onGraph, onAv, sel, setSel }: { onPage: (p: Page) => void; onPoster: (path: string) => void; onMerge: (path: string, image: PosterStart) => void; onInfo: (id: string) => void; onCheck: (r: CheckReq) => void; onGraph: (path: string) => void; onAv: (path: string) => void; sel: string | null; setSel: (id: string | null) => void }) {
   const { settings, update } = useSettings();
   const { movies, folders, scanning, progress, scan } = useLibrary();
   const toast = useToast();
@@ -69,7 +81,17 @@ export default function ShelfPage({ onPage, onPoster, onInfo, onCheck, onGraph, 
 
   const orient = settings?.coverOrient ?? "tall";
   const found = useMemo(() => searchByName(movies, query, (m) => m.name), [movies, query]);
-  const list = useMemo(() => sortMovies(found.items, sort, reminder).map((m) => withCover(m, orient)), [found.items, sort, reminder, orient]);
+  const covered = useMemo(() => sortMovies(found.items, sort, reminder).map((m) => withCover(m, orient)), [found.items, sort, reminder, orient]);
+  const [filter, setFilterNow] = useState<CoverFilter>(filterMemo);
+  const setFilter = (v: CoverFilter) => { filterMemo = v; setFilterNow(v); };
+  const counts = useMemo(() => {
+    const c = { all: covered.length, file: 0, linked: 0, none: 0 };
+    for (const m of covered) c[coverFrom(m)]++;
+    return c;
+  }, [covered]);
+  const list = useMemo(() => (filter === "all" ? covered : covered.filter((m) => coverFrom(m) === filter)), [covered, filter]);
+  const linkJob = useLinkJob();
+  const resume = linkJob.resume ? linkJob.reply.waiting : 0;
   // แผงขวาขึ้นเฉพาะตอนกดเลือกเรื่อง ปิดได้ ชั้นวางกว้างขึ้น (พี่กัน 7 พ.ย. 2569 *"แถบนี้ เราอยากให้มันขึ้นตอนที่กดหนังนั้นๆ เเละมีปุ่มปิดได้ เราอยากห้มันเเสดงชั้นวางมากกว่า"*)
   // เดิมไม่ได้เลือกก็ขึ้นเรื่องแรกค้างไว้ตลอด
   const selected = list.find((m) => m.id === sel) ?? null;
@@ -101,7 +123,7 @@ export default function ShelfPage({ onPage, onPoster, onInfo, onCheck, onGraph, 
         <div className="shelfwrap" ref={wrapRef}>
           <div className="shelfhead">
             <b>
-              {query ? <>เจอ {list.length} จาก <span className="nw">{movies.length} เรื่อง</span></> : <>หนังทั้งหมด <span className="nw">{movies.length} เรื่อง</span></>}
+              {query || filter !== "all" ? <>เจอ {list.length} จาก <span className="nw">{movies.length} เรื่อง</span></> : <>หนังทั้งหมด <span className="nw">{movies.length} เรื่อง</span></>}
             </b>
             <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
               <Seg small label="มุมมอง" value={view} onChange={(v) => update({ viewMode: v })} options={[
@@ -116,6 +138,26 @@ export default function ShelfPage({ onPage, onPoster, onInfo, onCheck, onGraph, 
               <DisplayMenu />
             </div>
           </div>
+          {resume > 0 && (
+            <div className="stat info" style={{ margin: "0 0 12px" }} data-link-resume>
+              <CardIcon kind="info" />
+              <div style={{ flex: 1 }}>
+                <b>ทำต่อ <span className="nw">{resume} คู่</span>ที่ค้างไว้</b>
+                <Phr>จับคู่รูปปกไว้แล้วแต่ยังไม่ได้ยืนยัน โปรแกรมจำไว้ให้ ปกยังไม่ขึ้นชั้นวาง</Phr>
+                <div className="minirow">
+                  <button type="button" className="btn btn-main btn-sm" data-link-resume-go onClick={() => { setLinkJob({ view: "table" }); onPage("link"); }}>ทำต่อ</button>
+                  <button type="button" className="btn btn-ghost btn-sm" data-link-resume-later onClick={() => setLinkJob({ resume: false })}>ไว้ทีหลัง</button>
+                </div>
+              </div>
+            </div>
+          )}
+          {movies.length > 0 && (
+            <div className="tabs shelftabs" role="tablist" aria-label="กรองตามที่มาของปก" data-shelf-filter>
+              {([["all", "ทั้งหมด"], ["file", "ปกในไฟล์"], ["linked", "ปกจับคู่"], ["none", "ยังไม่มีปก"]] as const).map(([v, label]) => (
+                <button key={v} type="button" role="tab" aria-selected={filter === v} className={"tabchip" + (filter === v ? " on" : "")} data-shelf-tab={v} onClick={() => setFilter(v)}>{label} {counts[v]}</button>
+              ))}
+            </div>
+          )}
           {scanning && (
             <div className="hint" style={{ marginTop: 2 }}>
               กำลังอ่าน {pathText} · ปกขึ้นทีละเรื่องเมื่ออ่านเสร็จ
@@ -140,7 +182,12 @@ export default function ShelfPage({ onPage, onPoster, onInfo, onCheck, onGraph, 
               </div>
             </div>
           ))}
-          {query && list.length === 0 ? (
+          {!query && filter !== "all" && list.length === 0 && !scanning ? (
+            <div className="empty-search" data-shelf-empty>
+              <div style={{ fontSize: 14 }}>ไม่มีเรื่องในหมวดนี้</div>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setFilter("all")}>ดูทั้งหมด</button>
+            </div>
+          ) : query && list.length === 0 ? (
             <div className="empty-search">
               <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#d29ab0" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5M8.5 8.5l5 5M13.5 8.5l-5 5" /></svg>
               <div style={{ fontSize: 14 }}>ไม่มีหนังที่ชื่อมีคำว่า <b>{query.trim()}</b></div>
@@ -158,7 +205,7 @@ export default function ShelfPage({ onPage, onPoster, onInfo, onCheck, onGraph, 
         </div>
         {/* key ต่อเรื่อง สลับเรื่องแล้วสร้างแผงกับปุ่มใหม่ ไม่ใช้ปุ่มเดิมซ้ำ (เดิมปุ่มชมพูค่อย ๆ เปลี่ยนเป็นเขียวตอนสลับเรื่อง) */}
         {selected && (
-          <Detail key={selected.id} m={selected} scanning={scanning} reminder={reminder} onPage={onPage} onCheck={onCheck} onGraph={onGraph} onAv={onAv} onPoster={onPoster} onInfo={() => onInfo(selected.id)} onClose={() => setSel(null)}
+          <Detail key={selected.id} m={selected} scanning={scanning} reminder={reminder} onPage={onPage} onCheck={onCheck} onGraph={onGraph} onAv={onAv} onPoster={onPoster} onMerge={onMerge} onInfo={() => onInfo(selected.id)} onClose={() => setSel(null)}
             onPlay={() => api.playMovie(selected.path).catch((e) => {
               toast({ kind: "bad", title: "เปิดเล่นไม่ได้", detail: String(e) });
               // โปรแกรมเล่นที่เลือกเองหาไม่เจอ พากลับไปตั้งที่หน้าตั้งค่า (สเปกข้อ 9 *"หาไม่เจอวันหลัง กดเปิดเล่นแล้วบอก และพากลับมาตั้ง"*)
@@ -216,10 +263,17 @@ function usePerRow(size: keyof typeof SIZES) {
     ภาพปก ตาราง แผงขวา ใช้ thumb กับ coverAspect ของเรื่องที่ผ่านตรงนี้แล้ว จึงสลับพร้อมกันทุกที่
     (พี่กัน 7 พ.ย. 2569 *"ทำระบบที่ดูรูปแบบเเนวตั้ง หรือเเนวนอนได้ ยกเว้นเรื่องนั้นๆมีเเค่เเนวเดียวมันจะเเสดงเเค่เเนวนั้น"*) */
 function withCover(m: Movie, orient: "tall" | "wide"): Movie {
-  if (!m.thumb2) return m;
+  const fileCover = !!m.thumb;
+  // ปกจับคู่แสดงแบบเดียวกับปกในไฟล์ สลับปกตั้งปกนอนตาม · เรื่องที่มีทั้งสองปก เลือกได้ทีละเรื่อง ค่าตั้งต้นปกจับคู่ (แคลร์ตั้ง · พี่กันตอบ *"เลือกได้"*)
+  const linked = m.linked ?? [];
+  if (linked.length && (!fileCover || m.coverPick !== "file")) {
+    const c = linked.find((x) => x.orient === orient) ?? linked[0];
+    return { ...m, fileCover, shownLink: c, thumb: c.thumb, coverAspect: c.aspect };
+  }
+  if (!m.thumb2) return { ...m, fileCover, shownLink: null };
   const want = (a: number) => (orient === "wide" ? a >= 1 : a < 1);
   const a1 = m.coverAspect ?? 0, a2 = m.cover2Aspect ?? 0;
-  return want(a1) || !want(a2) ? m : { ...m, thumb: m.thumb2, coverAspect: a2 };
+  return want(a1) || !want(a2) ? { ...m, fileCover, shownLink: null } : { ...m, fileCover, shownLink: null, thumb: m.thumb2, coverAspect: a2 };
 }
 
 /** กว้างของเล่มบนชั้น · ปกแนวนอน (กว้างหารสูงตั้งแต่ 1) สูงเท่าเล่มอื่น กว้างตามสัดส่วนไม่เกิน 16:9 · ปกตั้งกับเล่มที่ยังไม่มีปกกว้างเท่าเดิม
@@ -281,7 +335,7 @@ function Book(p: { m: Movie; width: number; sel: boolean; onSel: (id: string) =>
       className={"book" + (wide ? " wide" : "") + (p.sel ? " sel" : "") + (m.missing ? " missing" : "")}
       style={wide ? { width: p.width } : undefined}
       title={[p.showNames ? "" : full, m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : ""].filter(Boolean).join("\n") || undefined}
-      aria-label={full + " · " + SHELF_LABEL[k] + (m.missing ? " · หาไฟล์ไม่เจอ" : "")}
+      aria-label={full + " · " + SHELF_LABEL[k] + (m.shownLink ? " · ปกจับคู่" : "") + (m.missing ? " · หาไฟล์ไม่เจอ" : "")}
       aria-pressed={p.sel}
       data-movie={m.name}
       {...kb(() => p.onSel(m.id))}
@@ -295,11 +349,11 @@ function Book(p: { m: Movie; width: number; sel: boolean; onSel: (id: string) =>
           ยังไม่มีโปสเตอร์
         </div>
       )}
-      {(p.showNames || p.showDots) && (
+      {(p.showNames || p.showDots || m.shownLink) && (
         <div className="bname" style={p.showNames ? undefined : { minHeight: 0 }}>
           {p.showNames
-            ? <><Hl text={m.name} used={p.used} head={p.showDots && <Badge kind={k} title={SHELF_LABEL[k]} />} />{m.ext !== "mkv" && <> <span className="ext">.{m.ext}</span></>}</>
-            : <Badge kind={k} title={SHELF_LABEL[k]} />}
+            ? <><Hl text={m.name} used={p.used} head={<>{p.showDots && <Badge kind={k} title={SHELF_LABEL[k]} />}{m.shownLink && <LinkMark />}</>} />{m.ext !== "mkv" && <> <span className="ext">.{m.ext}</span></>}</>
+            : <><Badge kind={k} title={SHELF_LABEL[k]} />{m.shownLink && <LinkMark />}</>}
         </div>
       )}
     </div>
@@ -359,7 +413,7 @@ function ShelfTable(p: { list: Movie[]; selId: string | null; onSel: (id: string
             return (
               <tr key={m.id} className={(m.id === p.selId ? "sel" : "") + (m.missing ? " missing" : "")} {...kb(() => p.onSel(m.id))} aria-selected={m.id === p.selId}>
                 <td>{src ? <img className={"th" + ((m.coverAspect ?? 0) >= 1 ? " wide" : "")} src={src} alt="" loading="lazy" /> : <span className="th none" />}</td>
-                <td><Hl text={m.name + "." + m.ext} used={p.used} /></td>
+                <td><Hl text={m.name + "." + m.ext} used={p.used} head={m.shownLink ? <LinkMark /> : undefined} /></td>
                 <td><span className="nw">{fmtSize(m.size)}</span></td>
                 <td>{m.videoShort ?? "—"}</td>
                 <td>{m.audio.map((a) => [a.codec, a.layout].filter(Boolean).join(" ")).join(" · ") || "—"}</td>
@@ -374,7 +428,7 @@ function ShelfTable(p: { list: Movie[]; selId: string | null; onSel: (id: string
 }
 
 /* ---------- แผงรายละเอียด (ต้นแบบบรรทัด 388–426) ---------- */
-function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg: Page) => void; onCheck: (r: CheckReq) => void; onGraph: (path: string) => void; onAv: (path: string) => void; onPoster: (path: string) => void; onInfo: () => void; onPlay: () => void; onReveal: () => void; onClose: () => void }) {
+function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg: Page) => void; onCheck: (r: CheckReq) => void; onGraph: (path: string) => void; onAv: (path: string) => void; onPoster: (path: string) => void; onMerge: (path: string, image: PosterStart) => void; onInfo: () => void; onPlay: () => void; onReveal: () => void; onClose: () => void }) {
   const { m } = p;
   const src = thumbUrl(m.thumb);
   const [imgOk, setImgOk] = useState(true);
@@ -426,6 +480,7 @@ function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg:
       </dl>
       <StatusCard m={m} reminder={p.reminder} onCheck={p.onCheck} onPoster={() => p.onPoster(m.path)} />
       {(m.pairs?.length ?? 0) > 0 && <PairCard m={m} onEdit={() => p.onAv(m.path)} />}
+      {(m.linked?.length ?? 0) > 0 && <LinkCard m={m} onPage={p.onPage} onMerge={p.onMerge} />}
       <div className="actions">
         {m.missing ? (
           <button type="button" className="btn btn-wait" aria-disabled="true" title="หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" onClick={p.onPlay}><PlayIcon />เปิดเล่น</button>
@@ -443,6 +498,7 @@ function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg:
         <button type="button" className="btn btn-ghost" onClick={p.onReveal}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>เปิดโฟลเดอร์
         </button>
+        {!(m.linked?.length) && <LinkPairButton m={m} onPage={p.onPage} />}
         {/* ปุ่มที่ 7 กราฟเสียง คู่กับปุ่มที่ 8 เสียงและซับ (มอคอัปเสียงและซับ *"แผงขวาของชั้นวางเพิ่มปุ่มที่ 8 คู่กับกราฟเสียง"*) */}
         {(() => { const block = m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : m.audio.length === 0 ? "ไฟล์นี้ไม่มีแทร็กเสียง" : null; return (
           <button type="button" className={"btn " + (block ? "btn-wait" : "btn-ghost")} aria-disabled={!!block || undefined} title={block ?? undefined}
@@ -455,6 +511,105 @@ function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg:
         </button>
       </div>
     </aside>
+  );
+}
+
+/** ปุ่มจับคู่รูปปก เรื่องที่ยังไม่มีปกจับคู่ · พาไปแถวของเรื่องนี้ในตารางตรวจผล เลือกรูปหรือลากรูปมาวางที่นั่น (มอคอัปทางที่ 3) */
+function LinkPairButton({ m, onPage }: { m: Movie; onPage: (pg: Page) => void }) {
+  const toast = useToast();
+  const block = m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : null;
+  return (
+    <button type="button" className={"btn " + (block ? "btn-wait" : "btn-ghost")} aria-disabled={!!block || undefined} title={block ?? undefined} data-shelflink
+      onClick={async () => {
+        if (block) return;
+        try { await openLinkRow(m.id); onPage("link"); } catch (e) { toast({ kind: "bad", title: "เปิดตารางจับคู่ไม่ได้", detail: String(e) }); }
+      }}>
+      <IcLink size={15} />จับคู่รูปปก
+    </button>
+  );
+}
+
+/** ค่าที่ใช้ตอนรวมเข้าไฟล์จากสำเนา รูปต้นฉบับหายแล้ว · สำเนาครอปมาแล้ว ใช้ทั้งรูป */
+const WHOLE: Geometry = { rotate: 0, flip: false, mode: "original", pad: "#f6dbe5", x: 0, y: 0, w: 1, h: 1 };
+const whereText = (c: LinkedCover) => c.store === "app" ? "เก็บสำเนาไว้ในโปรแกรม"
+  : c.store === "link" ? "จับคู่อย่างเดียว ใช้รูปต้นฉบับ"
+  : c.owned ? `คัดลอกไว้ข้างไฟล์หนัง ${baseName(c.file ?? "")}` : `ใช้ไฟล์ ${baseName(c.file ?? "")} ที่อยู่ข้างหนัง`;
+
+/** ปกที่จับคู่ไว้ (มอคอัปหน้า 5) · บอกที่มา ไม่ได้อยู่ในไฟล์ ไอคอนใน Windows ไม่เปลี่ยน · ครอปใหม่กับเปลี่ยนรูปพาไปตาราง แก้แล้วยืนยันอีกครั้งถึงเปลี่ยนบนชั้น
+    เอาปกออก รูปที่โปรแกรมคัดลอกเองลงถังขยะ (พี่กันตอบตอนทำแผน) · รวมเข้าไฟล์พาไปหน้าใส่โปสเตอร์พร้อมรูปกับค่าครอป · เรื่องที่มีสองปก เลือกปกที่แสดงได้ */
+function LinkCard({ m, onPage, onMerge }: { m: Movie; onPage: (pg: Page) => void; onMerge: (path: string, image: PosterStart) => void }) {
+  const toast = useToast();
+  const linked = m.linked ?? [];
+  const c = m.shownLink ?? linked[0];
+  const [found, setFound] = useState<{ file: boolean; source: boolean } | null>(null);
+  const [ask, setAsk] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const shownFile = c.file ?? c.source;
+  useEffect(() => {
+    let live = true;
+    pairApi.check([shownFile, c.source]).then(([f, s]) => { if (live) setFound({ file: f, source: s }); }).catch(() => {});
+    return () => { live = false; };
+  }, [shownFile, c.source]);
+  const go = async (crop: boolean) => {
+    try { await openLinkRow(m.id, crop); onPage("link"); }
+    catch (e) { toast({ kind: "bad", title: "เปิดตารางจับคู่ไม่ได้", detail: String(e) }); }
+  };
+  const remove = async () => {
+    if (busy) return;
+    setBusy(true);
+    try {
+      const r = await linkApi.remove(m.id);
+      setReply(r.reply);
+      setAsk(false);
+      toast({ kind: "ok", title: "เอาปกจับคู่ออกแล้ว", detail: "ไฟล์หนังกับรูปต้นฉบับไม่ถูกแตะ" });
+      r.notes.forEach((n) => toast({ kind: "warn", title: "มีไฟล์ที่ไม่ได้ลบ", detail: n }));
+    } catch (e) {
+      toast({ kind: "bad", title: "เอาปกออกไม่สำเร็จ", detail: String(e) });
+    } finally { setBusy(false); }
+  };
+  const lost = found ? !found.file : false;
+  const noSource = found ? !found.source : false;
+  const mergeBlock = m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : lost && noSource ? "หารูปไม่เจอ ต้องจับคู่ใหม่ก่อน" : null;
+  const cropBlock = noSource ? "หารูปต้นฉบับไม่เจอ ครอปใหม่ไม่ได้ กดเปลี่ยนรูปแทน" : null;
+  const trash = linked.filter((x) => x.owned && x.store === "beside" && x.file).map((x) => baseName(x.file!));
+  const hasApp = linked.some((x) => x.owned && x.store === "app");
+  return (
+    <div data-link-card style={{ marginBottom: 12 }}>
+      <div className="stat info" style={{ marginTop: 0 }}><span style={{ flex: "none", marginTop: 1 }}><IcLink size={16} /></span><div>
+        <b>{m.shownLink ? "ปกจับคู่ไว้ ไม่ได้อยู่ในไฟล์" : "มีปกจับคู่ไว้ด้วย ตอนนี้แสดงปกในไฟล์"}</b>
+        <div style={{ overflowWrap: "anywhere" }}>จากรูป {baseName(c.source)}{c.cropped ? " · ครอปแล้ว" : ""}</div>
+        <div style={{ overflowWrap: "anywhere" }} data-link-where>{whereText(c)}</div>
+        <Phr>ไอคอนไฟล์ใน Windows ยังไม่เปลี่ยน เพราะ Icaros อ่านปกจากในไฟล์</Phr>
+      </div></div>
+      {lost && (
+        <div className="stat warn" style={{ marginTop: 8 }} data-link-lost><CardIcon kind="warn" /><div><b>หารูปไม่เจอ</b><Phr>รูปถูกย้ายหรือลบไปแล้ว ปกที่เห็นเป็นภาพเล็กที่โปรแกรมจำไว้ กดเปลี่ยนรูปเพื่อจับคู่ใหม่</Phr></div></div>
+      )}
+      {m.fileCover && (
+        <div className="setrow" style={{ borderTop: 0, padding: "8px 0 4px" }} data-link-pick>
+          <div className="lbl" style={{ fontSize: 13.5 }}>ปกที่แสดง</div>
+          <Seg small label="ปกที่แสดง" value={m.coverPick === "file" ? "file" : "linked"} onChange={(v) => { linkApi.coverPick(m.id, v).catch((e) => toast({ kind: "bad", title: "เปลี่ยนปกที่แสดงไม่ได้", detail: String(e) })); }}
+            options={[{ value: "linked", label: "ปกจับคู่" }, { value: "file", label: "ปกในไฟล์" }]} />
+        </div>
+      )}
+      <div className="actions" style={{ marginTop: 8 }}>
+        <button type="button" className={"btn btn-sm " + (cropBlock ? "btn-wait" : "btn-ghost")} aria-disabled={!!cropBlock || undefined} title={cropBlock ?? undefined} data-link-recrop onClick={() => { if (!cropBlock) void go(true); }}>ครอปใหม่</button>
+        <button type="button" className="btn btn-ghost btn-sm" data-link-rechange onClick={() => void go(false)}>เปลี่ยนรูป</button>
+        <button type="button" className="btn btn-ghost btn-sm" data-link-remove onClick={() => setAsk(true)}>เอาปกออก</button>
+        <button type="button" className={"btn btn-sm " + (mergeBlock ? "btn-wait" : "btn-main")} aria-disabled={!!mergeBlock || undefined} title={mergeBlock ?? undefined} data-link-merge
+          onClick={() => { if (!mergeBlock) onMerge(m.path, noSource ? { path: shownFile, geo: WHOLE } : { path: c.source, geo: c.geo ?? WHOLE }); }}>รวมเข้าไฟล์</button>
+      </div>
+      <Dialog open={ask} onClose={() => { if (!busy) setAsk(false); }} kind="work" confirm title={<>เอาปกจับคู่ของ {m.name} ออก</>}
+        actions={<>
+          <button type="button" className="btn btn-ghost" onClick={() => { if (!busy) setAsk(false); }}>ไม่เอาออก</button>
+          <button type="button" className={"btn " + (busy ? "btn-wait" : "btn-bad")} aria-disabled={busy || undefined} data-link-remove-ok onClick={remove}>{busy ? "กำลังเอาออก…" : "เอาปกออก"}</button>
+        </>}>
+        <div className="small" style={{ fontSize: 14, color: "var(--txt2)" }}>
+          {trash.length > 0 && <div style={{ overflowWrap: "anywhere" }}>รูปที่โปรแกรมคัดลอกไว้ {trash.join(" · ")} ย้ายลงถังขยะ กู้คืนได้</div>}
+          {hasApp && <div>สำเนาในโปรแกรมถูกลบ</div>}
+          <div>รูปต้นฉบับกับไฟล์หนังไม่ถูกแตะ · ไฟล์ที่โปรแกรมไม่ได้ทำไม่ถูกลบ</div>
+        </div>
+      </Dialog>
+    </div>
   );
 }
 

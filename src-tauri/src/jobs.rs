@@ -7,7 +7,7 @@
 use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 use std::sync::Arc;
 
-use tauri::{AppHandle, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 #[derive(Default)]
 pub struct Jobs {
@@ -75,6 +75,26 @@ fn wait_idle(jobs: &Jobs, limit: std::time::Duration) -> bool {
         std::thread::sleep(std::time::Duration::from_millis(100));
     }
     true
+}
+
+/// กดปิดหน้าต่าง · คืน true เมื่อกันไว้ หน้าจอขึ้นหน้าต่างถาม
+/// มีงานทำอยู่ใช้หน้าต่างเดิมก่อน · ไม่มีงานแต่มีคู่รูปปกที่ยังไม่ยืนยัน ถาม (พี่กันเคาะ *"แค่ต้องห้ามด้วยถ้าเผลอปิดโปรแกรม"*)
+/// force_exit คือผู้ใช้ตอบแล้วว่าปิดเลย ไม่ถามซ้ำ
+pub fn guard_close(app: &AppHandle) -> bool {
+    let jobs = app.state::<Arc<Jobs>>();
+    if !jobs.may_close() {
+        let _ = app.emit("close-blocked", jobs.count());
+        return true;
+    }
+    if jobs.force_exit.load(Ordering::SeqCst) {
+        return false;
+    }
+    let waiting = app.try_state::<Arc<crate::link::LinkStore>>().map(|s| s.waiting()).unwrap_or(0);
+    if waiting > 0 {
+        let _ = app.emit("close-pairs", waiting);
+        return true;
+    }
+    false
 }
 
 /// งานปลอมไว้เทสตัวกันปิด มีเฉพาะตอนทดสอบ ตัวติดตั้งจริงไม่มีคำสั่งนี้

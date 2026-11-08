@@ -2,7 +2,7 @@
 // ลอกชุดทดสอบไปไว้ D:\dev\tmp\ชั้นจับคู่ ไม่แตะของจริง · ยืนยันจริง เขียนไฟล์จริงในโฟลเดอร์นั้น เช็กด้วยไฟล์บนดิสก์
 // ไม่กดปุ่มเลือกไฟล์เลือกโฟลเดอร์ (หน้าต่างเลือกไฟล์จะเด้งขึ้นจอ) · ลากจาก Explorer จำลองด้วย window.__linkDrop ลากจริงพี่กันต้องลองเอง
 // ใช้: node scripts/check-link.mjs  (โปรแกรมเปิดผ่าน scripts/dev-app.ps1)
-import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
+import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, renameSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { basename, dirname, extname, join } from "node:path";
 import { spawnSync } from "node:child_process";
@@ -469,6 +469,254 @@ const out8 = join(dirname(r8.movie), `${basename(r8.movie, extname(r8.movie))}-p
 const same8 = ssim(pvShot, out8), noTilt8 = ssim(pvShot, BARS, "", "crop=ih*2/3:ih,");
 // เกณฑ์ 0.8 · ตัวอย่างบนจอมีมุมมนและมาจากภาพย่อ เปิดดูเทียบกับตาแล้วเส้นตรงกันทุกเส้นได้ 0.85 · ตัวคุมที่ไม่เอียงได้ 0.57
 check("ตัวอย่างบนจอตรงกับรูปจริงที่ได้ คะแนนสูง และสูงกว่ารูปที่ไม่ได้เอียงชัดเจน", same8 > 0.8 && same8 - noTilt8 > 0.1,`ตรงกับรูปจริง ${same8} · ตรงกับรูปไม่เอียง ${noTilt8}`);
+
+/* ---------- ขั้น 6 ชั้นวาง ตั้งค่า กันปิด ---------- */
+const lib = async () => (await inv("get_library")).movies;
+const mvOf = async (s) => (await lib()).find((m) => m.name.startsWith(s));
+const tabN = (v) => q(`return Number(document.querySelector('[data-shelf-tab="${v}"]').textContent.replace(/\\D/g, ''))`);
+const tabClick = async (v) => { await c.evaluate(`document.querySelector('[data-shelf-tab="${v}"]').click()`); await sleep(150); };
+const BOOK = (s) => `document.querySelector(${JSON.stringify(`[data-movie^="${s}"]`)})`;
+const pickBook = async (s) => {
+  await c.evaluate(`${BOOK(s)}.click()`);
+  await waitFor(`return document.querySelector('[data-detail] .nm')?.textContent.startsWith(${JSON.stringify(s)})`);
+  await sleep(300);
+};
+const segClick = async (scope, label) => { await c.evaluate(`[...document.querySelectorAll(${JSON.stringify(scope + " .seg button")})].find((b) => b.textContent.includes(${JSON.stringify(label)})).click()`); await sleep(200); };
+const toShelf = async () => { await closeToasts(); await nav("ชั้นวางหนัง"); await waitFor("return !!document.querySelector('[data-shelf-filter]')"); await sleep(250); };
+const isLinked = (m) => (m.linked?.length ?? 0) > 0 && (!m.thumb || m.coverPick !== "file");
+await toShelf();
+await segClick(".shelfhead", "ภาพปก");
+await segClick(".shelfhead", "ปกตั้ง");
+const all0 = await lib();
+const n0 = { all: all0.length, linked: all0.filter(isLinked).length, file: all0.filter((m) => !isLinked(m) && m.thumb).length, none: all0.filter((m) => !isLinked(m) && !m.thumb).length };
+const t0 = { all: await tabN("all"), linked: await tabN("linked"), file: await tabN("file"), none: await tabN("none") };
+check("ตัวกรอง 4 แท็บ ยอดตรงกับคลัง สามหมวดรวมเท่าทั้งหมด", JSON.stringify(n0) === JSON.stringify(t0) && t0.linked + t0.file + t0.none === t0.all && t0.linked > 0 && t0.file > 0, JSON.stringify(t0));
+
+await tabClick("linked");
+check("กรองปกจับคู่ ขึ้นเฉพาะเรื่องที่จับคู่ ทุกเล่มมีป้ายโซ่", await q(`const b = [...document.querySelectorAll('[data-shelf] .book')]; return b.length === ${t0.linked} && b.every((x) => x.querySelector('[data-linkb]'))`));
+check("ป้ายโซ่อยู่ใต้ปก ไม่ทับรูป และอยู่หน้าชื่อหนัง", await q(`return [...document.querySelectorAll('[data-shelf] .book')].every((b) => { const l = b.querySelector('[data-linkb]'), k = b.querySelector('.cover'), n = b.querySelector('.bname'); return l.getBoundingClientRect().top >= k.getBoundingClientRect().bottom - 1 && n.contains(l); })`));
+check("ปกจับคู่แสดงรูปจริงบนชั้นวาง", await waitFor("const i = document.querySelector('[data-shelf] .book img'); return !!i && i.complete && i.naturalWidth > 0", 8000));
+await sleep(400);
+await shot("11-ชั้นวาง-ปกจับคู่.png", ".main", 900);
+await tabClick("none");
+check("กรองยังไม่มีปก ไม่มีรูป ไม่มีป้ายโซ่", await q(`const b = [...document.querySelectorAll('[data-shelf] .book')]; return b.length === ${t0.none} && b.every((x) => x.querySelector('.cover.none') && !x.querySelector('[data-linkb]'))`));
+await tabClick("file");
+check("กรองปกในไฟล์ มีเรื่องที่รวมแล้ว ไม่มีป้ายโซ่", await q(`const b = [...document.querySelectorAll('[data-shelf] .book')]; return b.length === ${t0.file} && !!document.querySelector('[data-movie^="มีปกแล้ว"]') && b.every((x) => !x.querySelector('[data-linkb]'))`));
+await tabClick("all");
+
+await segClick(".shelfhead", "ปกนอน");
+check("สลับปกนอนทั้งชั้น เรื่องที่มีปกนอนเป็นแนวนอน เรื่องที่มีแบบเดียวใช้แบบที่มี", await q(`return ${BOOK("Silent.Orbit")}.classList.contains('wide') && !${BOOK("Tidal")}.classList.contains('wide')`));
+await segClick(".shelfhead", "ปกตั้ง");
+check("สลับกลับปกตั้ง", await q(`return !${BOOK("Silent.Orbit")}.classList.contains('wide')`));
+await segClick(".shelfhead", "ตาราง");
+check("มุมมองตาราง ป้ายโซ่หน้าชื่อหนังครบ", await q(`return document.querySelectorAll('[data-table] tbody [data-linkb]').length === ${t0.linked}`));
+await segClick(".shelfhead", "ภาพปก");
+
+await pickBook("Harbor.Lights");
+check("แผงขวาบอกว่าไม่ได้อยู่ในไฟล์ ไอคอนไฟล์ไม่เปลี่ยน เก็บในโปรแกรม", await q("const t = document.querySelector('[data-link-card]').textContent; return t.includes('ปกจับคู่ไว้ ไม่ได้อยู่ในไฟล์') && t.includes('ไอคอนไฟล์ใน Windows ยังไม่เปลี่ยน') && t.includes('harbor_lights_2021.png') && t.includes('เก็บสำเนาไว้ในโปรแกรม')"));
+await pickBook("Tidal.2021");
+check("เรื่องที่เก็บข้างไฟล์ บอกชื่อไฟล์ -poster", await q("return document.querySelector('[data-link-where]').textContent.includes('Tidal.2021.1080p-poster.jpg')"));
+await shot("12-แผงขวา-ปกจับคู่.png", "[data-detail]", 1100);
+
+// ครอปใหม่ · พาไปตาราง เปิดหน้าครอป ค่าเดิมกลับมา · หมุน พลิก เอียงพร้อมกัน ตัวอย่างบนจอต้องตรงกับรูปจริง
+const stem8 = basename(r8.movie, extname(r8.movie));
+await pickBook(stem8);
+const shaOld8 = sha(out8), at8 = (await mvOf(stem8)).linked[0].at, old8 = join(DIR, "รูปก่อนครอปใหม่.jpg");
+cpSync(out8, old8);
+await c.evaluate("document.querySelector('[data-link-recrop]').click()");
+await waitFor("return !!document.querySelector('[data-crop] .cropbox')", 15000);
+check("ครอปใหม่ พาไปตาราง เปิดหน้าครอป ค่าเอียงเดิมกลับมา", await q(`return !!document.querySelector('[data-link-table]') && !!${rowSel(t8)} && document.querySelector('[data-tilt-val]').textContent === '+8°'`));
+await c.evaluate("[...document.querySelectorAll('.dlg button')].find((b) => b.textContent === 'หมุนขวา').click()");
+await c.evaluate("[...document.querySelectorAll('.dlg button')].find((b) => b.textContent === 'พลิกซ้ายขวา').click()");
+await sleep(700);
+const pvShot2 = join(DIR, "ตัวอย่างบนจอ2.png");
+await c.send("Emulation.setDeviceMetricsOverride", { width: 1400, height: 900, deviceScaleFactor: 1, mobile: false });
+await sleep(300);
+await c.shot(pvShot2, "[data-previews] > div:nth-child(2) .pv", 0);
+await c.send("Emulation.clearDeviceMetricsOverride");
+await sleep(150);
+await c.evaluate("document.querySelector('[data-use]').click()");
+await waitFor("return !document.querySelector('[data-crop]')");
+await sleep(300);
+check("ครอปใหม่แล้วยังไม่ยืนยัน ไฟล์กับปกบนชั้นยังเป็นของเดิม", sha(out8) === shaOld8 && (await mvOf(stem8)).linked[0].at === at8);
+await clickIn(t8, "[data-link-confirm]");
+await waitFor(`return ${rowSel(t8)}?.dataset.linkStatus === 'saved'`);
+const same9 = ssim(pvShot2, out8), old9 = ssim(pvShot2, old8);
+// เกณฑ์ 0.75 · เปิดดูเทียบกับตาแล้วทิศและลำดับแถบสีตรงกัน ขอบคมต่างกันไม่ถึง 2 จุดจากการปัดเศษได้ 0.80 · ตัวคุมได้ 0.31
+check("หมุน พลิก เอียงพร้อมกัน ตัวอย่างบนจอตรงกับรูปจริงที่ได้", same9 > 0.75 && same9 - old9 > 0.1,`ตรงกับรูปจริง ${same9} · ตรงกับรูปก่อนหมุน ${old9}`);
+check("ยืนยันซ้ำ แทนไฟล์ของโปรแกรมเอง ไม่เกิดไฟล์ชื่อซ้ำ", sha(out8) !== shaOld8 && !existsSync(out8.replace("-poster.jpg", "-poster (2).jpg")));
+
+// เปลี่ยนรูป แล้วเลิกแก้ · ปกเดิมคงอยู่ ไม่มีอะไรถูกเขียน
+await toShelf();
+await pickBook("Tidal.2021");
+const tidalFile = moviePoster("Tidal.2021.1080p"), tidalSha = sha(tidalFile);
+await c.evaluate("document.querySelector('[data-link-rechange]').click()");
+await waitFor(`return ${rowSel("Tidal (2021)")}?.dataset.linkStatus === 'manual'`, 15000);
+check("เปลี่ยนรูป พาไปแถวของเรื่องนั้น รูปเดิมมาตั้งรอไว้ เหตุที่จับคู่บอกว่ามาจากชั้นวาง", (await reasonOf("Tidal (2021)")) === "เลือกจากชั้นวาง");
+await clickIn("Tidal (2021)", "[data-link-skip]");
+await waitFor(`return !${rowSel("Tidal (2021)")}`);
+check("กดเลิกแก้ แถวหาย ปกกับไฟล์ยังอยู่เหมือนเดิม", sha(tidalFile) === tidalSha && (await mvOf("Tidal.2021")).linked.length === 1);
+
+// เปลี่ยนชื่อหนังในชั้นหนัง สำเนาข้างไฟล์เปลี่ยนชื่อตาม · เปลี่ยนกลับเพื่อให้ข้อถัดไปใช้ชื่อเดิม
+const tidalId = (await mvOf("Tidal.2021")).id;
+await inv("rename_movie", { id: tidalId, stem: "Tidal เปลี่ยนชื่อ" });
+const tidalNew = moviePoster("Tidal เปลี่ยนชื่อ");
+check("เปลี่ยนชื่อหนัง สำเนาเปลี่ยนชื่อตาม คลังจดชื่อใหม่", existsSync(tidalNew) && !existsSync(tidalFile) && (await lib()).find((m) => m.id === tidalId).linked[0].file === tidalNew);
+await inv("rename_movie", { id: tidalId, stem: "Tidal.2021.1080p" });
+check("เปลี่ยนชื่อกลับ สำเนากลับชื่อเดิม", existsSync(tidalFile) && !existsSync(tidalNew));
+
+// อ่านโฟลเดอร์ใหม่ ปกจับคู่ต้องไม่หาย
+const linkedBefore = JSON.stringify((await lib()).map((m) => [m.id, (m.linked ?? []).map((x) => x.thumb)]).sort());
+await inv("scan_library");
+for (let i = 0; i < 100; i++) { await sleep(200); if (!(await inv("get_library")).scanning) break; }
+check("อ่านโฟลเดอร์ใหม่ ปกจับคู่อยู่ครบ", JSON.stringify((await lib()).map((m) => [m.id, (m.linked ?? []).map((x) => x.thumb)]).sort()) === linkedBefore);
+
+// เอาปกออก · สำเนาของโปรแกรมลงถังขยะ รูปต้นฉบับไม่โดน
+await toShelf();
+await pickBook("Paper.Kites");
+const pkTall = moviePoster("Paper.Kites.2012"), pkWide = join(MOV, "Paper.Kites.2012-landscape.jpg");
+await c.evaluate("document.querySelector('[data-link-remove]').click()");
+await waitFor("return !!document.querySelector('[data-link-remove-ok]')");
+check("ถามก่อนเอาออก บอกชื่อไฟล์ที่ลงถังขยะ และรูปต้นฉบับไม่โดน", await q("const t = document.querySelector('[data-link-remove-ok]').closest('.dlg').textContent; return t.includes('Paper.Kites.2012-poster.jpg') && t.includes('Paper.Kites.2012-landscape.jpg') && t.includes('ถังขยะ') && t.includes('รูปต้นฉบับกับไฟล์หนังไม่ถูกแตะ')"));
+await shot("13-เอาปกออก.png", ".dlg", 900);
+await c.evaluate("document.querySelector('[data-link-remove-ok]').click()");
+await waitFor("return !document.querySelector('[data-link-card]')");
+check("เอาปกออก สำเนาหายจากโฟลเดอร์ รูปต้นฉบับยังอยู่ เล่มไม่มีป้ายโซ่", !existsSync(pkTall) && !existsSync(pkWide) && existsSync(join(DL, "copper-tall.jpg")) && (await q(`return !${BOOK("Paper.Kites")}.querySelector('[data-linkb]') && !!${BOOK("Paper.Kites")}.querySelector('.cover.none')`)));
+
+// ปุ่มจับคู่รูปปก · พาไปแถว ลากรูปมาวาง รอยืนยัน ใช้ต่อกับแถบทำต่อและกันปิดข้างล่าง
+await c.evaluate("document.querySelector('[data-shelflink]').click()");
+await waitFor(`return !!${rowSel("Paper Kites (2012)")}`, 15000);
+await dropOnRow("Paper Kites (2012)", [join(IMG, "tidal_alt.jpg")]);
+await waitFor(`return ${rowSel("Paper Kites (2012)")}?.dataset.linkStatus === 'manual'`);
+check("ปุ่มจับคู่รูปปก พาไปแถวในตาราง ลากรูปมาวาง คู่รอยืนยัน", (await rowNow("Paper Kites (2012)")).tall?.name === "tidal_alt.jpg");
+
+// หน้าตั้งค่า 3 แบบ · ย้ายของเดิมทีเดียว · ไฟล์คนอื่นไม่โดน
+const storeNow = () => c.evaluate("window.__TAURI_INTERNALS__.invoke('get_settings').then((r) => r.settings.linkStore)");
+const pickMode = async (v) => { await c.evaluate(`document.querySelector('[data-link-mode="${v}"]').click()`); for (let i = 0; i < 40 && (await storeNow()) !== v; i++) await sleep(100); await sleep(250); };
+const runMigrate = async () => {
+  await c.evaluate("document.querySelector('[data-link-migrate-go]').click()");
+  await waitFor("return !!document.querySelector('[data-link-migrate-ok]')");
+  await c.evaluate("document.querySelector('[data-link-migrate-ok]').click()");
+  await waitFor("return !document.querySelector('[data-link-migrate-ok]')", 60000);
+  await sleep(300);
+};
+await closeToasts();
+await nav("ตั้งค่า");
+await waitFor("return !!document.querySelector('[data-setcard=\"link\"]')");
+check("การ์ดเก็บรูป 3 แบบ ค่าตั้งต้นข้างไฟล์หนัง", await q("const m = [...document.querySelectorAll('[data-link-mode]')]; return m.length === 3 && m.find((x) => x.classList.contains('on')).dataset.linkMode === 'beside' && m[0].textContent.includes('-poster.jpg') && m[0].textContent.includes('-landscape.jpg')"));
+check("การ์ดเรียงเต็มแถว ไม่ล้นหน้าต่าง", await q("const c = document.querySelector('[data-setcard=\"link\"]').getBoundingClientRect(), w = document.querySelector('[data-settings]').getBoundingClientRect(); return c.width > w.width * 0.8 && c.right <= w.right"));
+await sleep(200);
+await shot("14-ตั้งค่า-เก็บรูป.png", '[data-setcard="link"]', 1000);
+await c.send("Emulation.setDeviceMetricsOverride", { width: 1024, height: 640, deviceScaleFactor: 1, mobile: false });
+await sleep(350);
+check("หน้าต่างเล็กสุด 1024 การ์ดเก็บรูปไม่ล้น ข้อความไม่ตกการ์ด", await q("const c = document.querySelector('[data-setcard=\"link\"]').getBoundingClientRect(); return document.querySelector('[data-settingsscroll]').scrollWidth <= document.querySelector('[data-settingsscroll]').clientWidth && [...document.querySelectorAll('[data-link-mode]')].every((m) => { const r = m.getBoundingClientRect(); return r.right <= c.right && m.scrollWidth <= m.clientWidth + 1; })"));
+await c.send("Emulation.clearDeviceMetricsOverride");
+await sleep(150);
+await pickMode("link");
+check("เปลี่ยนแบบ ขึ้นปุ่มย้ายของเดิม บอกจำนวนเรื่อง", await q("return !!document.querySelector('[data-link-migrate-go]') && /\\d+ เรื่อง/.test(document.querySelector('[data-link-migrate]').textContent)"));
+const emberFile = join(MOV, "Ember (2022)-poster.jpg"), emberSha = sha(emberFile);
+await runMigrate();
+const inLink = (await lib()).filter((m) => m.linked?.length);
+check("ย้ายเป็นจับคู่อย่างเดียว ทุกเรื่องเปลี่ยนแบบ สำเนาที่โปรแกรมทำหายจากโฟลเดอร์", inLink.every((m) => m.linked.every((x) => x.store === "link" && !x.file)) && !existsSync(tidalFile), `${inLink.length} เรื่อง`);
+check("ย้ายแล้ว ไฟล์ที่โปรแกรมไม่ได้ทำไม่โดน", sha(emberFile) === emberSha && sha(harbor) === harborSha);
+
+// ย้ายรูปต้นฉบับหนี · ชั้นวางบอกหารูปไม่เจอ ปกยังเห็นจากภาพเล็ก
+const harborImg = join(IMG, "harbor_lights_2021.png"), harborHid = harborImg + ".ซ่อน";
+renameSync(harborImg, harborHid);
+await toShelf();
+await pickBook("Harbor.Lights");
+check("แบบจับคู่อย่างเดียว รูปต้นฉบับหาย แผงขวาบอกหารูปไม่เจอ ครอปใหม่กดไม่ได้ รวมเข้าไฟล์กดไม่ได้", await waitFor("return !!document.querySelector('[data-link-lost]') && document.querySelector('[data-link-recrop]').getAttribute('aria-disabled') === 'true' && document.querySelector('[data-link-merge]').getAttribute('aria-disabled') === 'true'", 4000));
+await sleep(200);
+await shot("15-หารูปไม่เจอ.png", "[data-detail]", 1100);
+renameSync(harborHid, harborImg);
+
+// ย้ายกลับข้างไฟล์หนัง · Harbor มีไฟล์ชื่อนี้ของคนอื่นอยู่ ต้องไม่เขียนทับ
+await closeToasts();
+await nav("ตั้งค่า");
+await waitFor("return !!document.querySelector('[data-setcard=\"link\"]')");
+await pickMode("beside");
+await runMigrate();
+const backNow = await lib();
+check("ย้ายกลับข้างไฟล์หนัง ได้ไฟล์ -poster คืน", existsSync(tidalFile) && backNow.find((m) => m.name.startsWith("Tidal")).linked[0].store === "beside");
+check("ย้ายกลับ เจอไฟล์ชื่อซ้ำของคนอื่น ไม่เขียนทับ เรื่องนั้นคงแบบเดิม แจ้งเตือน", sha(harbor) === harborSha && backNow.find((m) => m.name.startsWith("Harbor")).linked[0].store === "link" && (await q("return [...document.querySelectorAll('.toast')].some((t) => t.textContent.includes('ไม่สำเร็จ 1 เรื่อง'))")));
+
+// เรื่องที่มีทั้งปกในไฟล์และปกจับคู่ เลือกได้ทีละเรื่อง
+await toShelf();
+await pickBook("มีปกแล้ว");
+await c.evaluate("document.querySelector('[data-shelflink]').click()");
+await waitFor(`return !!${rowSel("มีปกแล้ว (2017)")}`, 15000);
+await dropOnRow("มีปกแล้ว (2017)", [join(IMG, "มีปกแล้ว (2017).jpg")]);
+await waitFor(`return ${rowSel("มีปกแล้ว (2017)")}?.querySelector('[data-link-confirm]') && ${rowSel("มีปกแล้ว (2017)")}?.dataset.linkStatus === 'manual'`);
+await clickIn("มีปกแล้ว (2017)", "[data-link-confirm]");
+await waitFor(`return ${rowSel("มีปกแล้ว (2017)")}?.dataset.linkStatus === 'saved'`);
+await toShelf();
+await pickBook("มีปกแล้ว");
+const srcBoth = () => q(`return ${BOOK("มีปกแล้ว")}.querySelector('img').src`);
+const linkedSrc = await srcBoth();
+check("สองปก ค่าตั้งต้นแสดงปกจับคู่ มีป้ายโซ่ มีปุ่มเลือก", await q(`return !!${BOOK("มีปกแล้ว")}.querySelector('[data-linkb]') && !!document.querySelector('[data-link-pick]')`));
+await shot("16-สองปก-เลือกได้.png", "[data-detail]", 1100);
+const beforeFile = await tabN("file");
+await segClick("[data-link-pick]", "ปกในไฟล์");
+await waitFor(`return !${BOOK("มีปกแล้ว")}.querySelector('[data-linkb]')`);
+check("เลือกปกในไฟล์ รูปเปลี่ยน ป้ายโซ่หาย ยอดหมวดย้ายตาม", (await srcBoth()) !== linkedSrc && (await tabN("file")) === beforeFile + 1 && (await q("return document.querySelector('[data-link-card]').textContent.includes('ตอนนี้แสดงปกในไฟล์')")));
+await segClick("[data-link-pick]", "ปกจับคู่");
+await waitFor(`return !!${BOOK("มีปกแล้ว")}.querySelector('[data-linkb]')`);
+check("เลือกกลับปกจับคู่ รูปกลับมา จำค่าในคลัง", (await srcBoth()) === linkedSrc && ((await mvOf("มีปกแล้ว")).coverPick ?? "") === "");
+
+// รวมเข้าไฟล์ · พาไปหน้าใส่โปสเตอร์พร้อมไฟล์หนัง รูป และค่าครอป ไม่ต้องครอปซ้ำ
+await pickBook("Night.Bus");
+await c.evaluate("document.querySelector('[data-link-merge]').click()");
+await waitFor("return !!document.querySelector('[data-poster-page]') && document.querySelector('[data-card=\"movie\"]').textContent.includes('Night.Bus') && document.querySelector('[data-card=\"poster\"]').textContent.includes('poster_tt7654321') && !!document.querySelector('[data-start]') && document.querySelector('[data-start]').getAttribute('aria-disabled') !== 'true'", 15000);
+check("รวมเข้าไฟล์ ใส่ไฟล์หนังกับรูปให้ ไม่ขึ้นหน้าครอป ปุ่มเริ่มกดได้", await q("return !document.querySelector('[data-crop]') && !!document.querySelector('[data-card=\"movie\"]') && document.querySelector('[data-start]').getAttribute('aria-disabled') !== 'true'"));
+await shot("17-รวมเข้าไฟล์.png", "[data-poster-page]", 1000);
+await c.evaluate("document.querySelector('[data-start]').click()");
+for (let i = 0; i < 300; i++) { const n = await mvOf("Night.Bus"); if (n.thumb && (await inv("running_jobs")) === 0) break; await sleep(200); }
+const nb = await mvOf("Night.Bus");
+check("รวมเข้าไฟล์เสร็จ มีปกในไฟล์ ปกจับคู่ยังอยู่ เลือกได้", !!nb.thumb && nb.hasCover && nb.linked.length === 1);
+
+// แถบทำต่อ · เปิดโปรแกรมมาแล้วมีคู่ค้าง
+await c.evaluate("location.reload()");
+await waitFor("return !!document.querySelector('.side .nav')");
+await waitFor("return !!document.querySelector('[data-link-resume]')", 8000);
+const waitN = (await stateNow()).waiting;
+check("เปิดใหม่มีคู่ค้าง ชั้นวางขึ้นแถบทำต่อ บอกจำนวนถูก", (await q("return document.querySelector('[data-link-resume]').textContent")).includes(`ทำต่อ ${waitN} คู่ที่ค้างไว้`), waitN);
+await shot("18-แถบทำต่อ.png", "[data-link-resume]", 900);
+await c.evaluate("document.querySelector('[data-link-resume-later]').click()");
+await sleep(150);
+check("กดไว้ทีหลัง แถบหาย", await q("return !document.querySelector('[data-link-resume]')"));
+await c.evaluate("location.reload()");
+await waitFor("return !!document.querySelector('[data-link-resume-go]')", 8000);
+await c.evaluate("document.querySelector('[data-link-resume-go]').click()");
+await waitFor("return !!document.querySelector('[data-link-table]')");
+check("กดทำต่อ พาไปตารางตรวจผล คู่ที่รอยังอยู่", (await statusOf("Paper Kites (2012)")) === "manual");
+await nav("ชั้นวางหนัง");
+await waitFor("return !!document.querySelector('[data-shelf-filter]')");
+check("เข้าตารางแล้ว แถบทำต่อไม่ขึ้นซ้ำ", await q("return !document.querySelector('[data-link-resume]')"));
+
+// กันปิด · กดปุ่มปิดจริงของแถบชื่อ ฝั่ง Rust กันไว้ · __closeDry ไม่ให้ปิดจริงตอนตอบ
+await c.click(".titlebar .ctl button.close");
+check("กดปิดตอนมีคู่รอ ขึ้นหน้าต่างถาม โปรแกรมไม่ปิด", await waitFor("return !!document.querySelector('[data-closepairs]')", 4000));
+check("หน้าต่างถามบอกจำนวนรอกับติ๊ก ปิดแล้วไม่หาย มี 3 ปุ่ม", await q(`const d = document.querySelector('[data-closepairs]').closest('.dlg'), t = d.textContent; return t.includes('ยังไม่ได้ยืนยัน ${waitN} คู่') && t.includes('ปิดโดยไม่ยืนยันก็ไม่หาย') && t.includes('ทำต่อ ${waitN} คู่ที่ค้างไว้') && !!d.querySelector('[data-closepairs-skip]') && !!d.querySelector('[data-closepairs-back]') && !!d.querySelector('[data-closepairs-ok]')`));
+await shot("19-กันปิด.png", ".dlg", 900);
+await c.evaluate("document.querySelector('[data-closepairs-back]').click()");
+await waitFor("return !!document.querySelector('[data-link-table]')");
+check("กดกลับไปดูก่อน พาไปตารางตรวจผล", await q("return !document.querySelector('[data-closepairs]')"));
+await c.evaluate("window.__closeDry = true");
+await c.click(".titlebar .ctl button.close");
+await waitFor("return !!document.querySelector('[data-closepairs-skip]')", 4000);
+await c.evaluate("document.querySelector('[data-closepairs-skip]').click()");
+await sleep(150);
+check("กดปิดโดยไม่ยืนยัน สั่งปิด คู่ที่รอไม่หาย", (await c.evaluate("window.__closedDry === true")) && (await stateNow()).waiting === waitN);
+await c.evaluate("window.__closedDry = false");
+await c.click(".titlebar .ctl button.close");
+await waitFor("return !!document.querySelector('[data-closepairs-ok]')", 4000);
+await c.evaluate("document.querySelector('[data-closepairs-ok]').click()");
+check("กดยืนยันที่ติ๊กแล้วปิด ยืนยันครบ แล้วสั่งปิด", await waitFor("return window.__closedDry === true", 30000) && (await rowNow("Paper Kites (2012)")).status === "saved" && existsSync(moviePoster("Paper.Kites.2012")));
+await c.evaluate("window.__closeDry = false");
+
+const after = Object.keys(movieHash0).filter((p) => !p.includes("Night.Bus") && sha(p) !== movieHash0[p]);
+check("จบขั้น 6 ไฟล์หนังทุกเรื่องเท่าเดิม ยกเว้นเรื่องที่กดรวมเข้าไฟล์เอง", after.length === 0, after.join(" "));
+check("จบขั้น 6 รูปต้นฉบับทุกรูปเท่าเดิม", JSON.stringify(hashes(IMG)) === JSON.stringify(imgHash0));
 
 const pass = results.filter((r) => r.pass).length;
 console.log(`\nผ่าน ${pass} จาก ${results.length} ข้อ`);

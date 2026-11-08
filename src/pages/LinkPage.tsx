@@ -33,7 +33,7 @@ export default function LinkPage() {
   const [over, setOver] = useState(false);
   const [badDrop, setBadDrop] = useState<string | null>(null);
 
-  useEffect(() => { reloadImages().catch(() => {}); }, []);
+  useEffect(() => { reloadImages().catch(() => {}); setLinkJob({ resume: false }); }, []);
 
   // มีคู่ค้างอยู่แล้ว เปิดหน้ามาเจอตารางเลย ไม่ต้องลากรูปใหม่
   useEffect(() => {
@@ -200,10 +200,13 @@ function ReviewTable() {
     setTab("all");
     setQuery("");
     const t = setTimeout(() => {
-      document.querySelector(`[data-link-row="${CSS.escape(job.focus!)}"]`)?.scrollIntoView({ block: "center" });
-      setLinkJob({ focus: null });
+      const id = job.focus!;
+      document.querySelector(`[data-link-row="${CSS.escape(id)}"]`)?.scrollIntoView({ block: "center" });
+      if (job.focusCrop) { const r = getLinkJob().reply.rows.find((x) => x.id === id); if (r?.tall || r?.wide) void openCrop(id, r.tall ? "tall" : "wide"); }
+      setLinkJob({ focus: null, focusCrop: false });
     }, 60);
     return () => clearTimeout(t);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [job.focus]);
 
   const act = async (fn: () => Promise<{ rows: LinkRow[] } | unknown>, title: string) => {
@@ -371,6 +374,7 @@ function RowView(p: {
             {!has && <button type="button" className="btn btn-ghost btn-sm" data-link-change onClick={p.onChange}>เลือกรูป</button>}
             {!!r.prev && <button type="button" className="btn btn-ghost btn-sm" data-link-undo onClick={p.onUndo}>ย้อน</button>}
             {r.status === "unsure" && !has && <button type="button" className="btn btn-ghost btn-sm" data-link-skip onClick={p.onSkip}>ข้ามเรื่องนี้</button>}
+            {r.via === "shelf" && <button type="button" className="btn btn-ghost btn-sm" data-link-skip title="ปกบนชั้นวางคงเดิม ไม่มีอะไรถูกเขียน" onClick={p.onSkip}>เลิกแก้</button>}
             {has && <button type="button" className={"btn btn-sm " + (p.busy ? "btn-wait" : "btn-ok")} aria-disabled={p.busy || undefined} data-link-confirm onClick={() => { if (!p.busy) p.onConfirm(); }}>{r.status === "unsure" ? "ยืนยันรูปที่เลือก" : "ยืนยัน"}</button>}
           </>
         )}

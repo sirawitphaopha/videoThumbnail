@@ -22,7 +22,10 @@ const extOf = (p: string) => (p.match(/\.([^.\\/]+)$/)?.[1] ?? "").toLowerCase()
 const baseName = (p: string) => p.split(/[\\/]/).pop() ?? p;
 
 
-export default function PosterPage(p: { initialPath: string | null; onPage: (pg: Page) => void; onConsumed: () => void }) {
+/** ปุ่มรวมเข้าไฟล์ของปกจับคู่ · รูปกับค่าครอปที่ทำไว้แล้ว ไม่ต้องครอปซ้ำ · เปิดหน้าครอปแก้ต่อได้จากการ์ดรูป */
+export type PosterStart = { path: string; geo: Geometry };
+
+export default function PosterPage(p: { initialPath: string | null; initialImage?: PosterStart | null; onPage: (pg: Page) => void; onConsumed: () => void }) {
   const { settings } = useSettings();
   const toast = useToast();
   const { movies } = useLibrary();
@@ -94,9 +97,31 @@ export default function PosterPage(p: { initialPath: string | null; onPage: (pg:
     }
   }, []);
 
+  /** รูปที่ครอปไว้แล้วจากปกจับคู่ · ทำรูปด้วยค่าเดิม ไม่เปิดหน้าครอป */
+  const loadChosen = async (img: PosterStart) => {
+    setPosterErr(null);
+    setLoading("poster");
+    try {
+      const format = (settings?.posterFormat ?? "jpg") as "jpg" | "png", quality = settings?.jpgQuality ?? 90;
+      const info = await posterApi.open(img.path);
+      const render = await posterApi.render(img.geo, format, quality, { choose: true });
+      setPoster(info);
+      setChoice({ geo: img.geo, format, quality, render });
+      setCropOpen(false);
+    } catch (e) {
+      setPosterErr(String(e));
+    } finally {
+      setLoading(null);
+    }
+  };
+
   // มาจากปุ่มเปลี่ยนโปสเตอร์บนชั้นวาง · ไฟล์หนังใส่ให้แล้ว
   useEffect(() => {
-    if (p.initialPath) { loadMovie(p.initialPath); p.onConsumed(); }
+    if (!p.initialPath) return;
+    loadMovie(p.initialPath);
+    if (p.initialImage) void loadChosen(p.initialImage);
+    p.onConsumed();
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p.initialPath, loadMovie, p]);
 
   // ---------- ลากไฟล์จาก Explorer มาวาง ----------
