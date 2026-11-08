@@ -169,8 +169,13 @@ pub fn rename_in_library(lib: &LibraryStore, id: &str, stem: &str) -> Result<(Mo
 
 #[tauri::command]
 pub fn rename_movie(app: AppHandle, lib: State<'_, Arc<LibraryStore>>, id: String, stem: String) -> Result<Movie, RenameProblem> {
-    let (m, changed) = rename_in_library(&lib, &id, &stem)?;
+    let (mut m, changed) = rename_in_library(&lib, &id, &stem)?;
     if changed {
+        // รูปที่โปรแกรมคัดลอกไว้ข้างไฟล์หนัง เปลี่ยนชื่อตาม (แผนจับคู่รูปปก)
+        if !m.linked.is_empty() {
+            let new_path = PathBuf::from(&m.path);
+            if let Some(up) = lib.update_movie(&id, |x| crate::link::rename_beside(x, &new_path)) { m = up; }
+        }
         let _ = app.emit("movie-updated", &m);
         // ไฟล์เปลี่ยนชื่อแล้วจริง · บันทึกคลังไม่สำเร็จก็ยังนับว่าเปลี่ยนชื่อสำเร็จ อ่านโฟลเดอร์ครั้งหน้าคลังตามทันเอง (จำด้วยเลขประจำไฟล์)
         if let Err(e) = lib.save() {

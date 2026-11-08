@@ -140,7 +140,7 @@ pub fn unique() -> u64 {
 }
 
 /// ค่าที่ผู้ใช้ตั้งในหน้าต่างครอป · กรอบเป็นสัดส่วน 0–1 ของรูปหลังหมุนและพลิกแล้ว
-#[derive(Deserialize, Serialize, Clone, Debug, PartialEq)]
+#[derive(Deserialize, Serialize, Clone, Debug, PartialEq, Default)]
 #[serde(rename_all = "camelCase")]
 pub struct Geometry {
     /// 0 90 180 270 หมุนตามเข็มนาฬิกา
@@ -155,6 +155,48 @@ pub struct Geometry {
     pub h: f64,
     /// สีขอบตอนเติมขอบ "#rrggbb"
     pub pad: String,
+    /// ปรับเอียงกี่องศา ตามเข็มนาฬิกา ทำหลังหมุนและพลิก ขยายภาพให้เต็มกรอบไม่มีมุมว่าง (แผนจับคู่รูปปก · หน้าจออื่นไม่ส่งค่านี้ได้ 0)
+    #[serde(default)]
+    pub tilt: f64,
+    /// ตอนตัดให้พอดี "wide" กรอบ 16 : 9 ได้รูป 1920 × 1080 · ว่าง กรอบ 2 : 3 แบบเดิม (ปกนอนของระบบจับคู่รูปปก)
+    #[serde(default)]
+    pub aspect: String,
+}
+
+/// ปกนอนที่ตัดกรอบ 16 : 9
+pub const WIDE_W: u32 = 1920;
+pub const WIDE_H: u32 = 1080;
+
+/// ปรับเอียง ขยายภาพจากจุดกลางพอให้เต็มกรอบเดิมไม่มีมุมว่าง · หน้าต่างครอปใช้สูตรขยายเดียวกันในตัวอย่าง (CropDialog tiltScale)
+/// เดินทุกจุดของรูปผลลัพธ์ หาจุดในรูปเดิมด้วยการหมุนกลับ เฉลี่ยสี่จุดรอบ ๆ
+pub fn tilt_fill(src: &RgbImage, deg: f64) -> RgbImage {
+    let (w, h) = src.dimensions();
+    let (fw, fh) = (w as f64, h as f64);
+    let th = deg.to_radians();
+    let (sin, cos) = th.sin_cos();
+    let k = ((fw * cos.abs() + fh * sin.abs()) / fw).max((fw * sin.abs() + fh * cos.abs()) / fh);
+    let (cx, cy) = (fw / 2.0, fh / 2.0);
+    let raw = src.as_raw();
+    let stride = w as usize * 3;
+    let mut out = RgbImage::new(w, h);
+    for (y, row) in out.as_mut().chunks_exact_mut(stride).enumerate() {
+        let dy = y as f64 + 0.5 - cy;
+        for (x, px) in row.chunks_exact_mut(3).enumerate() {
+            let dx = x as f64 + 0.5 - cx;
+            let sx = (cx + (dx * cos + dy * sin) / k - 0.5).clamp(0.0, fw - 1.0);
+            let sy = (cy + (-dx * sin + dy * cos) / k - 0.5).clamp(0.0, fh - 1.0);
+            let (x0, y0) = (sx.floor() as usize, sy.floor() as usize);
+            let (x1, y1) = ((x0 + 1).min(w as usize - 1), (y0 + 1).min(h as usize - 1));
+            let (ax, ay) = (sx - x0 as f64, sy - y0 as f64);
+            for (c, v) in px.iter_mut().enumerate() {
+                let at = |xx: usize, yy: usize| raw[yy * stride + xx * 3 + c] as f64;
+                let top = at(x0, y0) * (1.0 - ax) + at(x1, y0) * ax;
+                let bot = at(x0, y1) * (1.0 - ax) + at(x1, y1) * ax;
+                *v = (top * (1.0 - ay) + bot * ay).round() as u8;
+            }
+        }
+    }
+    out
 }
 
 fn parse_color(s: &str) -> Rgb<u8> {
@@ -177,6 +219,7 @@ pub fn render(src: &RgbImage, g: &Geometry, shrink: bool) -> (RgbImage, (u32, u3
         _ => src.clone(),
     };
     let turned = if g.flip { imageops::flip_horizontal(&turned) } else { turned };
+    let turned = if g.tilt.abs() > 0.001 { tilt_fill(&turned, g.tilt) } else { turned };
     let (w, h) = turned.dimensions();
     // รูปใหญ่มาก (ด้านยาวเกิน KEEP_MAX) ย่อเสมอแม้ปิดสวิตช์ · เติมขอบภาพพาโนรามาแล้วกรอบใหญ่เกินที่ JPG รับได้ (65,535 px) และกินหน่วยความจำหลายร้อย MB
     let shrink = shrink || w.max(h) > KEEP_MAX;
@@ -205,9 +248,23 @@ pub fn render(src: &RgbImage, g: &Geometry, shrink: bool) -> (RgbImage, (u32, u3
     let cw = ((g.w.clamp(0.0, 1.0) * w as f64).round() as u32).clamp(1, w - cx);
     let ch = ((g.h.clamp(0.0, 1.0) * h as f64).round() as u32).clamp(1, h - cy);
     let part = imageops::crop_imm(&turned, cx, cy, cw, ch).to_image();
-    // ไม่ย่อ ส่วนที่ครอปใหญ่กว่า 1000 × 1500 คงขนาดเดิม (กรอบเป็น 2 : 3 อยู่แล้ว ปัดให้พอดี 2 : 3)
-    let (ow, oh) = if !shrink && cw > OUT_W { (cw, ((cw as f64) * OUT_H as f64 / OUT_W as f64).round() as u32) } else { (OUT_W, OUT_H) };
+    // ไม่ย่อ ส่วนที่ครอปใหญ่กว่า 1000 × 1500 คงขนาดเดิม (กรอบเป็น 2 : 3 อยู่แล้ว ปัดให้พอดี 2 : 3) · ปกนอนเทียบกับ 1920 × 1080 แบบเดียวกัน
+    let (bw, bh) = if g.aspect == "wide" { (WIDE_W, WIDE_H) } else { (OUT_W, OUT_H) };
+    let (ow, oh) = if !shrink && cw > bw { (cw, ((cw as f64) * bh as f64 / bw as f64).round() as u32) } else { (bw, bh) };
     (imageops::resize(&part, ow, oh, imageops::FilterType::Lanczos3), (cw, ch))
+}
+
+/// กรอบ 16 : 9 ใหญ่สุดที่อยู่กลางรูป · ค่าเป็นสัดส่วนของรูปหลังหมุน
+pub fn default_crop_wide(w: u32, h: u32) -> (f64, f64, f64, f64) {
+    let target = WIDE_W as f64 / WIDE_H as f64;
+    let ratio = w as f64 / h as f64;
+    if ratio > target {
+        let cw = target / ratio;
+        ((1.0 - cw) / 2.0, 0.0, cw, 1.0)
+    } else {
+        let ch = ratio / target;
+        (0.0, (1.0 - ch) / 2.0, 1.0, ch)
+    }
 }
 
 /// กรอบ 2 : 3 ใหญ่สุดที่อยู่กลางรูป (ซูม 100%) · ค่าเป็นสัดส่วนของรูปหลังหมุน
@@ -307,7 +364,7 @@ mod tests {
     /// สวิตช์ ย่อรูปโปสเตอร์ที่ใหญ่เกิน · เปิด ทุกแบบได้ 1000 × 1500 (ตามรูปเดิมด้านยาว 1500) · ปิด รูปใหญ่คงความละเอียดเดิม รูปเล็กยังขยาย
     #[test]
     fn shrink_switch_keeps_large_images_when_off() {
-        let g = |mode: &str, w: f64, h: f64| Geometry { rotate: 0, flip: false, mode: mode.into(), x: 0.0, y: 0.0, w, h, pad: "#000000".into() };
+        let g = |mode: &str, w: f64, h: f64| Geometry { rotate: 0, flip: false, mode: mode.into(), x: 0.0, y: 0.0, w, h, pad: "#000000".into(), ..Default::default() };
         let tall = RgbImage::new(3000, 4500);
         assert_eq!(render(&tall, &g("crop", 1.0, 1.0), true).0.dimensions(), (1000, 1500));
         assert_eq!(render(&tall, &g("crop", 1.0, 1.0), false).0.dimensions(), (3000, 4500));
@@ -343,7 +400,7 @@ mod tests {
         let q = [at(&src, 0.25, 0.25), at(&src, 0.75, 0.25), at(&src, 0.25, 0.75), at(&src, 0.75, 0.75)];
         let [tl, tr, bl, br] = q;
         assert!(distinct4(q), "รูปทดสอบต้องเป็นสี่สีไม่ซ้ำ {q:?}");
-        let pad = |rotate, flip| Geometry { rotate, flip, mode: "pad".into(), x: 0.0, y: 0.0, w: 1.0, h: 1.0, pad: "#808080".into() };
+        let pad = |rotate, flip| Geometry { rotate, flip, mode: "pad".into(), x: 0.0, y: 0.0, w: 1.0, h: 1.0, pad: "#808080".into(), ..Default::default() };
         // เติมขอบแล้วรูปอยู่กลาง หาขอบเขตรูปจริงจากแถวกลางกับคอลัมน์กลาง ไม่ให้ขอบเทาปน
         let corners = |img: &RgbImage| {
             let (w, h) = img.dimensions();
@@ -376,11 +433,11 @@ mod tests {
         assert!(aspect_label(w, h).starts_with("ภาพแนวนอน"), "{}", aspect_label(w, h));
         let (x, y, cw, ch) = default_crop(w, h);
         assert!((x - (1.0 - cw) / 2.0).abs() < 1e-9 && y == 0.0 && ch == 1.0, "กรอบตั้งต้นต้องอยู่กลางภาพ เต็มความสูง");
-        let g = Geometry { rotate: 0, flip: false, mode: "crop".into(), x, y, w: cw, h: ch, pad: "#ffffff".into() };
+        let g = Geometry { rotate: 0, flip: false, mode: "crop".into(), x, y, w: cw, h: ch, pad: "#ffffff".into(), ..Default::default() };
         let (out, (pw, ph)) = render(&wide, &g, true);
         assert_eq!(out.dimensions(), (OUT_W, OUT_H));
         assert!(((pw as f64 / ph as f64) - 2.0 / 3.0).abs() < 0.01, "ส่วนที่ครอปต้องเป็น 2 : 3 ได้ {pw} × {ph}");
-        let gp = Geometry { mode: "pad".into(), pad: "#f6dbe5".into(), ..g };
+        let gp = Geometry { mode: "pad".into(), pad: "#f6dbe5".into(), ..g.clone() };
         let (padded, _) = render(&wide, &gp, true);
         assert_eq!(padded.dimensions(), (OUT_W, OUT_H));
         assert_eq!(padded.get_pixel(5, 5).0, [0xf6, 0xdb, 0xe5], "ขอบต้องเป็นสีที่เลือก");
@@ -400,7 +457,7 @@ mod tests {
     fn jpg_size_shrinks_with_quality_and_png_is_lossless() {
         let src = decode(&tools(), &work(), &img_dir().join("poster.jpg")).unwrap().img;
         let (x, y, w, h) = default_crop(src.width(), src.height());
-        let (out, _) = render(&src, &Geometry { rotate: 0, flip: false, mode: "crop".into(), x, y, w, h, pad: "#ffffff".into() }, true);
+        let (out, _) = render(&src, &Geometry { rotate: 0, flip: false, mode: "crop".into(), x, y, w, h, pad: "#ffffff".into(), ..Default::default() }, true);
         let sizes: Vec<usize> = [100u8, 90, 75, 50].iter().map(|q| encode(&out, "jpg", *q).unwrap().len()).collect();
         assert!(sizes.windows(2).all(|p| p[0] > p[1]), "คุณภาพยิ่งต่ำไฟล์ยิ่งเล็ก {sizes:?}");
         let png = encode(&out, "png", 90).unwrap();
@@ -408,6 +465,42 @@ mod tests {
         assert_eq!(back.as_raw(), out.as_raw(), "PNG ต้องไม่ลดคุณภาพ");
         let jpg = encode(&out, "jpg", 90).unwrap();
         assert_eq!(image::load_from_memory(&jpg).unwrap().to_rgb8().dimensions(), (OUT_W, OUT_H));
+    }
+
+    /// ปรับเอียงไม่มีมุมว่าง สีตามมุมเดิม · ไม่เอียงได้ไบต์เท่าเดิม · กรอบ 16 : 9 ได้ 1920 × 1080 (แผนจับคู่รูปปก)
+    #[test]
+    fn tilt_fills_corners_and_wide_crop() {
+        let quad = decode(&tools(), &work(), &img_dir().join("quad.png")).unwrap().img;
+        let plain = Geometry { rotate: 0, flip: false, mode: "crop".into(), x: 0.0, y: 0.0, w: 1.0, h: 1.0, pad: "#ffffff".into(), ..Default::default() };
+        let (base, _) = render(&quad, &plain, true);
+        // ค่าใหม่ที่เป็นศูนย์ ต้องเท่าของเดิมทุกไบต์ (หน้าใส่โปสเตอร์กับเสียงและซับไม่ได้ส่งค่านี้)
+        let json: Geometry = serde_json::from_str(r##"{"rotate":0,"flip":false,"mode":"crop","x":0,"y":0,"w":1,"h":1,"pad":"#ffffff"}"##).unwrap();
+        assert_eq!(json, plain, "ของเดิมที่ไม่ส่งปรับเอียงต้องอ่านได้");
+        assert_eq!(render(&quad, &Geometry { tilt: 0.0, ..plain.clone() }, true).0.as_raw(), base.as_raw());
+        for deg in [10.0, -10.0, 0.5] {
+            let (out, _) = render(&quad, &Geometry { tilt: deg, ..plain.clone() }, true);
+            assert_eq!(out.dimensions(), (OUT_W, OUT_H));
+            // ซ้ายบนแดง ขวาบนเขียว ซ้ายล่างน้ำเงิน ขวาล่างเหลือง · มุมต้องยังเป็นสีเดิม ไม่มีมุมว่าง
+            assert!(near(at(&out, 0.01, 0.01), [255, 0, 0]), "ซ้ายบน {deg}° {:?}", at(&out, 0.01, 0.01));
+            assert!(near(at(&out, 0.98, 0.01), [0, 255, 0]), "ขวาบน {deg}° {:?}", at(&out, 0.98, 0.01));
+            assert!(near(at(&out, 0.01, 0.98), [0, 0, 255]), "ซ้ายล่าง {deg}° {:?}", at(&out, 0.01, 0.98));
+            assert!(near(at(&out, 0.98, 0.98), [255, 255, 0]), "ขวาล่าง {deg}° {:?}", at(&out, 0.98, 0.98));
+        }
+        // เอียงตามเข็ม เส้นแบ่งแดงเขียวด้านบนต้องเลื่อนไปทางขวา (รูปหมุนตามเข็ม ของด้านบนไปทางขวา)
+        let (cw, _) = render(&quad, &Geometry { tilt: 10.0, ..plain.clone() }, true);
+        assert!(near(at(&cw, 0.53, 0.08), [255, 0, 0]), "ทิศเอียงต้องตรงกับที่หน้าจอวาด {:?}", at(&cw, 0.53, 0.08));
+
+        // กรอบ 16 : 9 จากรูปตั้งกับรูปนอน
+        let (x, y, w, h) = default_crop_wide(1000, 1500);
+        assert!((h * 1500.0 / (w * 1000.0) - 9.0 / 16.0).abs() < 1e-6 && x == 0.0 && (y - (1.0 - h) / 2.0).abs() < 1e-9);
+        let (out, _) = render(&quad, &Geometry { x, y, w, h, aspect: "wide".into(), ..plain.clone() }, true);
+        assert_eq!(out.dimensions(), (WIDE_W, WIDE_H));
+        let big = RgbImage::new(3840, 2160);
+        let (bx, by, bw, bh) = default_crop_wide(3840, 2160);
+        assert_eq!((bx, by, bw, bh), (0.0, 0.0, 1.0, 1.0));
+        let g = Geometry { x: bx, y: by, w: bw, h: bh, aspect: "wide".into(), ..plain };
+        assert_eq!(render(&big, &g, true).0.dimensions(), (WIDE_W, WIDE_H));
+        assert_eq!(render(&big, &g, false).0.dimensions(), (3840, 2160), "ปิดสวิตช์ย่อ คงขนาดเดิม");
     }
 
     #[test]

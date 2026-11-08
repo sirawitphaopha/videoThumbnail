@@ -55,6 +55,8 @@ pub struct Settings {
     pub sort: String,
     /// "tall" ดูปกตั้ง | "wide" ดูปกนอน · เรื่องที่มีปกแบบเดียวขึ้นแบบนั้นเสมอ
     pub cover_orient: String,
+    /// เก็บรูปที่จับคู่ไว้ที่ไหน "beside" คัดลอกไปข้างไฟล์หนัง (ค่าตั้งต้น พี่กันเคาะ) | "app" สำเนาในโปรแกรม | "link" จับคู่อย่างเดียว
+    pub link_store: String,
 }
 
 impl Default for Settings {
@@ -82,6 +84,7 @@ impl Default for Settings {
             view_mode: "grid".into(),
             sort: "name-asc".into(),
             cover_orient: "tall".into(),
+            link_store: "beside".into(),
         }
     }
 }
@@ -98,6 +101,7 @@ impl Settings {
         self.cover_size = pick(&self.cover_size, &["s", "m", "l"], &d.cover_size);
         self.view_mode = pick(&self.view_mode, &["grid", "table"], &d.view_mode);
         self.cover_orient = pick(&self.cover_orient, &["tall", "wide"], &d.cover_orient);
+        self.link_store = pick(&self.link_store, &["beside", "app", "link"], &d.link_store);
         if !(50..=100).contains(&self.jpg_quality) { self.jpg_quality = d.jpg_quality; }
         if ![0, 7, 30, 90].contains(&self.recheck_reminder_days) { self.recheck_reminder_days = d.recheck_reminder_days; }
         self.folders.retain(|f| !f.trim().is_empty());

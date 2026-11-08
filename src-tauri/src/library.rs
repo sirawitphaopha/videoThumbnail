@@ -306,6 +306,13 @@ pub fn scan_core(env: &ScanEnv, existing: Vec<Movie>, on_movie: &(dyn Fn(&Movie,
             for t in [&m.thumb, &m.thumb2].into_iter().flatten() {
                 let _ = fs::remove_file(t);
             }
+            // ภาพเล็กของปกจับคู่กับสำเนาในโปรแกรมตามไปด้วย · สำเนาข้างไฟล์หนังกับรูปต้นฉบับไม่แตะ
+            for c in &m.linked {
+                let _ = fs::remove_file(&c.thumb);
+                if c.store == "app" {
+                    if let Some(f) = &c.file { let _ = fs::remove_file(f); }
+                }
+            }
         }
     }
     for f in folders.iter_mut().filter(|f| !f.ok) {
