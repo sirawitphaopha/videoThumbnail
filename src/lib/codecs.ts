@@ -78,7 +78,7 @@ export const CODECS: Codec[] = [
       { label: "เล็กสุด", detail: "Extra High", pctWav: 52, p: { level: "Extra High" } },
     ], preset: 1 },
   { id: "tak", name: "TAK", full: "Tom's lossless Audio Kompressor", lossless: true, native: "Takc", mp4: false, ch: "สูงสุด 6 ช่อง", only: true,
-    why: "เล็กพอ ๆ กับ Monkey's Audio แต่ถอดเร็วกว่ามาก · วาง Takc.exe เองในโฟลเดอร์ตัวแปลง",
+    why: "เล็กพอ ๆ กับ Monkey's Audio แต่ถอดเร็วกว่ามาก · เครื่องเล่นรองรับน้อย",
     presets: [
       { label: "เร็ว", detail: "-p0", pctWav: 56, p: { preset: 0, eval: "Normal" } },
       { label: "มาตรฐาน", detail: "-p2", pctWav: 54, p: { preset: 2, eval: "Normal" } },

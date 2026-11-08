@@ -6,4 +6,5 @@
 - opusenc จาก opus-tools 0.2-52-g5f894e9 ทำด้วย libopus 1.6.1 · ชุดที่ทำโดย RareWares https://www.rarewares.org/files/opus/ · สัญญา BSD 2 ข้อ (Xiph) ไฟล์บีบอัดไม่มีข้อความสัญญาแนบ ข้อความเต็มอยู่ https://github.com/xiph/opus-tools/blob/master/COPYING และ https://opus-codec.org/license/
 - LAME 4.0 (lame.exe libmpg123-0.dll) · ชุดที่ทำโดย RareWares https://www.rarewares.org/files/mp3/ · LAME สัญญา LGPL รุ่น 2 หรือใหม่กว่า libmpg123 สัญญา LGPL 2.1 (ใช้ข้อความ LGPL 2.1 จากชุด FLAC เพราะไฟล์บีบอัดไม่มีข้อความสัญญาแนบ) · ซอร์สโค้ด https://lame.sourceforge.io/ และ https://www.mpg123.de/
 - WavPack 5.9.0 (wavpack.exe) จาก https://github.com/dbry/WavPack/releases · สัญญา BSD 3 ข้อ
-- Monkey's Audio 13.45 (MACDll64.dll จากชุด SDK) จาก https://www.monkeysaudio.com/ · สัญญา BSD 3 ข้อ
+- Monkey's Audio 13.46 (MACDll64.dll จากตัวติดตั้ง MAC_1346_x64.exe มีลายเซ็นของผู้ทำ ข้อความสัญญาจากชุด SDK) จาก https://www.monkeysaudio.com/ · สัญญา BSD 3 ข้อ
+- TAK 2.3.3 (TAK_2.3.3.zip ไฟล์เดิมทั้งไฟล์ โปรแกรมแตก Takc.exe ไปใช้เอง) จาก http://www.thbeck.de/Tak/Tak.html · ฟรีสำหรับใช้ส่วนตัวที่ไม่ใช่การค้า แจกต่อได้เฉพาะไฟล์ zip เดิมทั้งไฟล์ ไม่คิดเงิน

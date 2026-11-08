@@ -31,10 +31,11 @@ copyFileSync(join(AV, "เพลงทดสอบ.wav"), F("เพลงทด�
 copyFileSync(join(AV, "เพลงทดสอบ.mp3"), F("เพลงทดสอบ.mp3"));
 copyFileSync(join(AV, "ดาวตก (2024) พากย์ไทย DELAY -120ms.ac3"), F("พากย์ไทย 5.1.ac3"));
 copyFileSync(join(AV, "เพลงทดสอบ 96k.flac"), F("เพลงทดสอบ 96k สำเนา.flac"));
+copyFileSync(join(AV, "เพลงทดสอบ 96k.flac"), F("เพลงทดสอบ 96k TAK.flac"));
 ff(["-f", "lavfi", "-i", "testsrc2=size=320x240:rate=25:duration=2", "-c:v", "libx264", "-pix_fmt", "yuv420p", "-an", F("ไม่มีเสียง.mp4")]);
 // ไฟล์ชื่อชน · ไฟล์ปลายทางของ WAV มีอยู่แล้ว ต้องได้ (2) และไฟล์นี้ไม่ถูกแตะ
 writeFileSync(F("เพลงทดสอบ.ape"), "ไฟล์เดิมห้ามทับ");
-const ORDER = ["ยาว 30 นาที.wav", "เพลงทดสอบ 96k.flac", "เพลงทดสอบ.wav", "เพลงทดสอบ.mp3", "พากย์ไทย 5.1.ac3", "เพลงทดสอบ 96k สำเนา.flac", "ไม่มีเสียง.mp4"];
+const ORDER = ["ยาว 30 นาที.wav", "เพลงทดสอบ 96k.flac", "เพลงทดสอบ.wav", "เพลงทดสอบ.mp3", "พากย์ไทย 5.1.ac3", "เพลงทดสอบ 96k สำเนา.flac", "เพลงทดสอบ 96k TAK.flac", "ไม่มีเสียง.mp4"];
 const h0 = Object.fromEntries(ORDER.map((n) => [n, sha(F(n))]));
 const hBlock = sha(F("เพลงทดสอบ.ape"));
 
@@ -152,13 +153,13 @@ const pickCodec = async (name, preset) => {
 await setRow("ยาว 30 นาที.wav", async () => { await pickCodec("Monkey's Audio", 3); await clickText("[data-codec-panel] .seg button", "ขั้นสูง"); await sleep(300); await clickText("[data-card=level] .seg button", "Insane"); });
 const wavRow = await setRow("เพลงทดสอบ.wav", () => pickCodec("Monkey's Audio", 2));
 check("ตั้งไฟล์เดียว WAV เป็น Monkey's Audio High แถวอื่นไม่เปลี่ยน", wavRow.includes("Monkey's Audio High") && (await rowText("เพลงทดสอบ.mp3")).includes("Opus 160"), wavRow.slice(0, 120));
-// TAK ยังไม่ได้วาง Takc.exe
+// TAK แตก Takc.exe จากชุดที่แนบมาเอง (8 พ.ย. 2569 · เดิมต้องวางเอง ข้อนี้เคยเช็กว่าปุ่มกดไม่ได้)
 await c.click('[data-qrow="เพลงทดสอบ.mp3"] [data-qto]');
 await waitFor("return !!document.querySelector('[data-codec-panel]')", 10000);
 await pickCodec("TAK");
-await waitFor("return !!document.querySelector('[data-native-missing]')", 5000);
-const tak = await q("return document.querySelector('[data-native-missing]').innerText.replace(/\\s+/g, ' ') + ' · ' + document.querySelector('[data-conv-use]').getAttribute('aria-disabled') + ' · ' + document.querySelector('[data-cmd]').innerText.replace(/\\s+/g, ' ')");
-check("เลือก TAK ยังไม่ได้วาง Takc.exe บอกตรง ๆ ปุ่มใช้ค่านี้กดไม่ได้ · คำสั่งที่จะรันเป็น Takc -e -p2 -ihs", tak.includes("ยังไม่ได้วาง Takc.exe") && tak.includes("· true ·") && tak.includes("Takc -e -p2 -ihs"), tak.slice(0, 220));
+await waitFor("return (document.querySelector('[data-cmd]')?.innerText ?? '').includes('Takc')", 5000);
+const tak = await q("return !!document.querySelector('[data-native-missing]') + ' · ' + document.querySelector('[data-conv-use]').getAttribute('aria-disabled') + ' · ' + document.querySelector('[data-codec-panel]').innerText.includes('Takc 2.3.3') + ' · ' + document.querySelector('[data-cmd]').innerText.replace(/\\s+/g, ' ')");
+check("เลือก TAK ใช้ได้เลย ไม่มีป้ายหาตัวแปลงไม่เจอ ปุ่มใช้ค่านี้กดได้ ตัวแปลง Takc 2.3.3 · คำสั่งที่จะรันเป็น Takc -e -p2 -ihs", tak.startsWith("false · null · true") && tak.includes("Takc -e -p2 -ihs"), tak.slice(0, 220));
 await shot("22-แผงตั้งค่า-TAK.png", ".dlg", 4);
 await pickCodec("Monkey's Audio", 1);
 const apeCmd = await q("return document.querySelector('[data-cmd]').innerText.replace(/\\s+/g, ' ')");
@@ -168,9 +169,10 @@ await sleep(300);
 await setRow("เพลงทดสอบ.mp3", () => pickCodec("FLAC", 2));
 await setRow("พากย์ไทย 5.1.ac3", () => pickCodec("WavPack", 1));
 await setRow("เพลงทดสอบ 96k สำเนา.flac", () => pickCodec("Monkey's Audio", 1));
+await setRow("เพลงทดสอบ 96k TAK.flac", () => pickCodec("TAK", 3));
 const targets = await q("return Object.fromEntries([...document.querySelectorAll('[data-qrow]')].map(r => [r.dataset.qrow, r.querySelector('[data-qto]').innerText.trim()]))");
-check("ปลายทางรายแถว Monkey's Audio · Opus · Monkey's Audio · FLAC · WavPack · Monkey's Audio", targets["ยาว 30 นาที.wav"] === "Monkey's Audio Insane" && targets["เพลงทดสอบ 96k.flac"].startsWith("Opus 160") && targets["เพลงทดสอบ.wav"] === "Monkey's Audio High"
-  && targets["เพลงทดสอบ.mp3"] === "FLAC Level 8" && targets["พากย์ไทย 5.1.ac3"] === "WavPack Normal" && targets["เพลงทดสอบ 96k สำเนา.flac"] === "Monkey's Audio Normal", JSON.stringify(targets));
+check("ปลายทางรายแถว Monkey's Audio · Opus · Monkey's Audio · FLAC · WavPack · Monkey's Audio · TAK",targets["ยาว 30 นาที.wav"] === "Monkey's Audio Insane" && targets["เพลงทดสอบ 96k.flac"].startsWith("Opus 160") && targets["เพลงทดสอบ.wav"] === "Monkey's Audio High"
+  && targets["เพลงทดสอบ.mp3"] === "FLAC Level 8" && targets["พากย์ไทย 5.1.ac3"] === "WavPack Normal" && targets["เพลงทดสอบ 96k สำเนา.flac"] === "Monkey's Audio Normal" && targets["เพลงทดสอบ 96k TAK.flac"] === "TAK -p4m", JSON.stringify(targets));
 await shot("23-คิวแปลงก่อนเริ่ม.png", "[data-convert]", 4);
 
 /* ---------- 5 ที่ว่างไม่พอ ไม่เริ่ม ---------- */
@@ -182,7 +184,7 @@ await waitFor("return !document.querySelector('[data-qstop]')", 60000);
 await inv("dev_fake_free", { bytes: 0 });
 check("ที่ว่างในไดรฟ์ไม่พอ ไม่เริ่มแปลง บอกต้องใช้เท่าไหร่ มีว่างเท่าไหร่ ไม่มีไฟล์ค้าง", space.includes("ที่ว่างในไดรฟ์ D ไม่พอ") && space.includes("ต้องใช้ราว") && leftovers().length === 0, space.slice(0, 200));
 // ไฟล์อื่นในคิวทำต่อตามปกติ (ที่ว่างหลอกกลับเป็นของจริงแล้วตอนนี้ บางไฟล์อาจไม่สำเร็จด้วยที่ว่างหลอก) · คืนทุกแถวเป็นรอคิว
-for (const n of ORDER.slice(0, 6)) await q(`const r = ${row(n)}; r?.querySelector('[data-qretry]')?.click(); return 1`);
+for (const n of ORDER.slice(0, ORDER.length - 1)) await q(`const r = ${row(n)}; r?.querySelector('[data-qretry]')?.click(); return 1`);
 await sleep(300);
 const done0 = await q("return [...document.querySelectorAll('[data-qrow]')].filter(r => r.dataset.qstate === 'done').map(r => r.dataset.qrow)");
 for (const n of done0) {
@@ -202,19 +204,19 @@ await waitFor(`return (${row("ยาว 30 นาที.wav")}?.querySelector('[
 const work = await rowText("ยาว 30 นาที.wav");
 const btn = await q("return document.querySelector('[data-qstart]').innerText");
 await shot("24-กำลังแปลง.png", "[data-convert]", 4);
-check("กำลังแปลงไฟล์แรก แถบความคืบหน้าบอกเปอร์เซ็นต์กับเวลาที่เหลือ · ปุ่มบอกว่ากำลังแปลงไฟล์ที่เท่าไหร่จากกี่ไฟล์", work.includes("%") && work.includes("เหลือราว") && btn.includes("กำลังแปลง 1 จาก 6"), `${work.slice(0, 140)} · ${btn}`);
+check("กำลังแปลงไฟล์แรก แถบความคืบหน้าบอกเปอร์เซ็นต์กับเวลาที่เหลือ · ปุ่มบอกว่ากำลังแปลงไฟล์ที่เท่าไหร่จากกี่ไฟล์", work.includes("%") && work.includes("เหลือราว") && btn.includes(`กำลังแปลง 1 จาก ${ORDER.length - 1}`), `${work.slice(0, 140)} · ${btn}`);
 await c.click("[data-qstop]");
 await waitFor(`return ${row("ยาว 30 นาที.wav")}?.dataset.qstate === 'stop'`, 30000);
 await waitFor("return !document.querySelector('[data-qstop]')", 10000);
 await sleep(500);
 const stopped = await q("return [...document.querySelectorAll('[data-qrow]')].map(r => r.dataset.qstate).join(',')");
-check("กดหยุดทั้งคิว ไฟล์ที่กำลังทำขึ้นหยุดแล้ว ไฟล์ทำค้างถูกลบ ไฟล์ที่เหลือรอคิวเหมือนเดิม", stopped === "stop,wait,wait,wait,wait,wait,fail" && leftovers().length === 0 && !existsSync(F("ยาว 30 นาที.ape")), `${stopped} · ค้าง ${leftovers().join(",") || "ไม่มี"}`);
+check("กดหยุดทั้งคิว ไฟล์ที่กำลังทำขึ้นหยุดแล้ว ไฟล์ทำค้างถูกลบ ไฟล์ที่เหลือรอคิวเหมือนเดิม", stopped === "stop,wait,wait,wait,wait,wait,wait,fail" && leftovers().length === 0 && !existsSync(F("ยาว 30 นาที.ape")), `${stopped} · ค้าง ${leftovers().join(",") || "ไม่มี"}`);
 
 /* ---------- 7 แปลงจริงทุกไฟล์ ---------- */
 await c.click("[data-qstart]");
 await waitFor("return !document.querySelector('[data-qstop]') && ![...document.querySelectorAll('[data-qrow]')].some(r => r.dataset.qstate === 'wait' || r.dataset.qstate === 'work')", 240000);
 const states = await q("return Object.fromEntries([...document.querySelectorAll('[data-qrow]')].map(r => [r.dataset.qrow, r.dataset.qstate]))");
-check("แปลงต่อ 5 ไฟล์ที่รอ เสร็จครบ · ไฟล์ที่หยุดไว้ไม่ถูกเริ่มเอง", ["เพลงทดสอบ 96k.flac", "เพลงทดสอบ.wav", "เพลงทดสอบ.mp3", "พากย์ไทย 5.1.ac3", "เพลงทดสอบ 96k สำเนา.flac"].every((n) => states[n] === "done") && states["ยาว 30 นาที.wav"] === "stop", JSON.stringify(states));
+check("แปลงต่อ 6 ไฟล์ที่รอ เสร็จครบ · ไฟล์ที่หยุดไว้ไม่ถูกเริ่มเอง", ["เพลงทดสอบ 96k.flac", "เพลงทดสอบ.wav", "เพลงทดสอบ.mp3", "พากย์ไทย 5.1.ac3", "เพลงทดสอบ 96k สำเนา.flac", "เพลงทดสอบ 96k TAK.flac"].every((n) => states[n] === "done") && states["ยาว 30 นาที.wav"] === "stop", JSON.stringify(states));
 const probe = async (n) => { try { return await inv("convert_probe", { path: F(n) }); } catch (e) { return { err: String(e) }; } };
 const tag = (f, k) => f.tags?.find((t) => t.key === k)?.value;
 const opus = await probe("เพลงทดสอบ 96k.opus");
@@ -230,6 +232,11 @@ const wv = await probe("พากย์ไทย 5.1.wv");
 check("AC-3 5.1 เป็น WavPack ได้ 6 ช่อง", wv.codec === "wavpack" && wv.channels === 6 && wv.layout === "5.1", `${wv.codec} · ${wv.channels} · ${wv.layout}`);
 const apeTag = await probe("เพลงทดสอบ 96k สำเนา.ape");
 check("FLAC เป็น Monkey's Audio · แท็ก APEv2 ที่โปรแกรมเขียนเอง ชื่อเพลงไทยกับรูปปกอ่านกลับได้", apeTag.codec === "ape" && tag(apeTag, "title") === "เพลงทดสอบ 96k" && tag(apeTag, "date") === "2024" && !!apeTag.cover, `${apeTag.tags?.map((t) => t.key + "=" + t.value).join(" ")} · ปก ${!!apeTag.cover}`);
+const takF = await probe("เพลงทดสอบ 96k TAK.tak");
+const takRes = await q(`return ${row("เพลงทดสอบ 96k TAK.flac")}.querySelector('[data-qresult]').innerText.replace(/\\s+/g, ' ')`);
+check("FLAC เป็น TAK ด้วย Takc ที่แตกจากชุดที่แนบมา · แท็ก APEv2 ชื่อเพลงไทยกับรูปปกอ่านกลับได้ · ถอดกลับเสียงตรงต้นฉบับทุกตัวอย่าง",
+  takF.codec === "tak" && tag(takF, "title") === "เพลงทดสอบ 96k" && !!takF.cover && md5(F("เพลงทดสอบ 96k TAK.tak")) === md5(F("เพลงทดสอบ 96k TAK.flac")) && takRes.includes("Takc"),
+  `${takF.codec ?? takF.err} · ${takF.tags?.map((t) => t.key + "=" + t.value).join(" ")} · ปก ${!!takF.cover} · ${takRes.slice(0, 120)}`);
 const same = ORDER.every((n) => sha(F(n)) === h0[n]);
 check("ไฟล์เดิมทุกไฟล์ hash เท่าก่อนแปลง · ไม่มีไฟล์ .partial ค้าง", same && leftovers().length === 0, leftovers().join(","));
 const res = await q(`return ${row("เพลงทดสอบ 96k.flac")}.querySelector('[data-qresult]').innerText.replace(/\\s+/g, ' ')`);
@@ -316,10 +323,10 @@ await clickText(".side .nav", "ตั้งค่า");
 await waitFor("return !!document.querySelector('[data-setcard=encoders] [data-enc]')", 20000);
 await waitFor("return [...document.querySelectorAll('[data-setcard=encoders] [data-enc]')].length >= 9", 20000);
 const enc = await q("return [...document.querySelectorAll('[data-setcard=encoders] [data-enc]')].map(r => r.innerText.replace(/\\s+/g, ' ')).join(' | ')");
-check("หน้าตั้งค่ามีการ์ด Monkey's Audio (MACDll64 แนบมา รุ่นจาก DLL) กับ TAK (ยังไม่ได้ใส่)", /MACDll64[^|]*12\.36/.test(enc) && /Takc[^|]*(ยังไม่ได้ใส่|ไม่เจอ)/.test(enc), enc.split(" | ").filter((x) => x.includes("MACDll64") || x.includes("Takc")).join(" | "));
+check("หน้าตั้งค่ามีการ์ด Monkey's Audio 13.46 (MACDll64 จากตัวติดตั้งของผู้ทำ) กับ TAK 2.3.3 แนบมากับโปรแกรม พร้อมใช้งาน", /MACDll64[^|]*13\.46/.test(enc) && /Takc[^|]*2\.3\.3 · แนบมากับโปรแกรม[^|]*พร้อมใช้งาน/.test(enc), enc.split(" | ").filter((x) => x.includes("MACDll64") || x.includes("Takc")).join(" | "));
 await clickText(".side .nav", "กราฟเสียง");
 await waitFor("return !!document.querySelector('[data-convert]')", 5000);
-check("ไปหน้าอื่นแล้วกลับมา ยังอยู่โหมดแปลงเสียง คิวกับผลอยู่ครบ", (await q("return document.querySelectorAll('[data-qrow][data-qstate=done]').length")) === 5);
+check("ไปหน้าอื่นแล้วกลับมา ยังอยู่โหมดแปลงเสียง คิวกับผลอยู่ครบ", (await q("return document.querySelectorAll('[data-qrow][data-qstate=done]').length")) === 6);
 await c.click('[data-qrow="ไม่มีเสียง.mp4"] [data-qremove]');
 await sleep(300);
 await c.click("[data-qclear]");

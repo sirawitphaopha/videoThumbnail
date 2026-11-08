@@ -15,9 +15,17 @@ $fl  = @{ path = 'vendor\flac\flac-1.5.0-win.zip';                      sha = '5
 $op  = @{ path = 'vendor\opus-tools\opus-tools-0.2-52-g5f894e9(using libopus 1.6.1-11-g788cc89)-x64.zip'; sha = 'e6ed867d539f609da32f4780af70fffe2ed75a2a7a9751d42537341ca7995a09' }
 $lm  = @{ path = 'vendor\lame\lame-4.0-x64.zip';                        sha = '722f4311e2795d5c852076a579b3183beeb76e9010d9cab1e7f9d2e86d9d0808' }
 $wv  = @{ path = 'vendor\wavpack\wavpack-5.9.0-x64.zip';                sha = 'ad5e94bcde6f4edfc859210d98f144f225805a391c633c68f6dbb15a9e52570e' }
-$ma  = @{ path = 'vendor\monkeys-audio\MAC_1345_SDK.zip';               sha = 'b12bda0eb9e31dbe01d54a970d387add3a8c1079901141021d257de17a6a9106' }
+# Monkey's Audio 13.46 (ออก 7 พ.ย. 2569) · ชุด SDK ให้ข้อความสัญญาอนุญาต · ตัวติดตั้งให้ MACDll64.dll รุ่นจริง
+# MACDll64.dll ในชุด SDK 13.45 และ 13.46 เป็นไฟล์เก่ารุ่น 12.36 ที่ผู้ทำไม่ได้สร้างใหม่ (vendor\README.md)
+# พี่กันอนุญาตโหลดตัวติดตั้ง 8 พ.ย. 2569 "จัดเลย / ลิง เอาไงงง ไปหามา"
+$ma  = @{ path = 'vendor\monkeys-audio\MAC_1346_SDK.zip';               sha = '17359c36099b7e1000da40306905f027088ac798fed1cb5e2405c33aaa030f83' }
+$mai = @{ path = 'vendor\monkeys-audio\MAC_1346_x64.exe';               sha = '6a45c39588160e4154f23cb71607062131fbbec1cc4f566ddb92efc5bddbcf49' }
+$macDllSha = '281a72e6e27a49c03a41b02542490f296f235fd2fec30e62c1b0783f653c3a6c'
+# TAK 2.3.3 ฟรีสำหรับใช้ส่วนตัว แจกต่อได้เฉพาะไฟล์ zip เดิมทั้งไฟล์ไม่ดัดแปลง · แนบ zip ทั้งไฟล์ โปรแกรมแตก Takc.exe เอง (encode.rs ensure_tak)
+# พี่กันสั่ง 7 พ.ย. 2569 "ลิง และ TAK เอามาด้วยนะ" · เว็บผู้ทำมีแต่ http · Takc.exe ในนี้ตรงทุกไบต์กับตัวที่ตัวติดตั้ง Monkey's Audio ที่มีลายเซ็นแนบมา
+$tk  = @{ path = 'vendor\tak\TAK_2.3.3.zip';                            sha = '40d26992266f1377d576b88b84b88d2ab256dc321e47f90314402a80692aba6a' }
 
-foreach ($a in @($mkv, $ff, $mi, $fl, $op, $lm, $wv, $ma)) {
+foreach ($a in @($mkv, $ff, $mi, $fl, $op, $lm, $wv, $ma, $mai, $tk)) {
   $full = Join-Path $root $a.path
   $h = (Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash.ToLower()
   if ($h -ne $a.sha) { throw "ค่า SHA-256 ไม่ตรงกับที่จดไว้: $($a.path)" }
@@ -55,10 +63,20 @@ if ($LASTEXITCODE -ne 0) { throw 'แตก LAME ไม่สำเร็จ' }
 & $tar -xf (Join-Path $root $wv.path) -C (Join-Path $work 'wavpack') 'wavpack.exe' 'license.txt'
 if ($LASTEXITCODE -ne 0) { throw 'แตก WavPack ไม่สำเร็จ' }
 
-# Monkey's Audio ชุด SDK ไม่มีตัวแปลงแบบคำสั่ง (MAC.exe) มีแต่ MACDll64.dll ที่รับเสียงแบบส่งต่อเนื่องได้
-# โปรแกรมเรียก DLL นี้ตรงจาก Rust (c_APECompress_StartW AddData Finish) ไม่ต้องโหลดตัวติดตั้งเพิ่ม
-& $tar -xf (Join-Path $root $ma.path) -C $work 'Shared/64/MACDll64.dll' 'License.txt'
-if ($LASTEXITCODE -ne 0) { throw "แตก Monkey's Audio ไม่สำเร็จ" }
+# Monkey's Audio โปรแกรมเรียก MACDll64.dll ตรงจาก Rust (c_APECompress_StartW AddData Finish)
+# ข้อความสัญญาอนุญาตเอาจากชุด SDK · ตัว DLL ดึงจากตัวติดตั้งด้วย scripts\nsis-extract.py (ถอดในเครื่อง ไม่รันตัวติดตั้ง ไม่มีหน้าต่าง)
+& $tar -xf (Join-Path $root $ma.path) -C $work 'License.txt'
+if ($LASTEXITCODE -ne 0) { throw "แตกสัญญาอนุญาตของ Monkey's Audio ไม่สำเร็จ" }
+New-Item -ItemType Directory -Force (Join-Path $work 'Shared\64') | Out-Null
+$macDll = Join-Path $work 'Shared\64\MACDll64.dll'
+$py = Get-Command py -ErrorAction SilentlyContinue
+if (-not $py) { throw 'ต้องมี Python (คำสั่ง py) ไว้ถอด MACDll64.dll จากตัวติดตั้ง Monkey''s Audio' }
+& $py.Source -3 -I -X utf8 (Join-Path $PSScriptRoot 'nsis-extract.py') (Join-Path $root $mai.path) 'MACDll64.dll' $macDll
+if ($LASTEXITCODE -ne 0) { throw "ถอด MACDll64.dll จากตัวติดตั้ง Monkey's Audio ไม่สำเร็จ" }
+if ((Get-FileHash -LiteralPath $macDll -Algorithm SHA256).Hash.ToLower() -ne $macDllSha) { throw 'ค่า SHA-256 ของ MACDll64.dll ไม่ตรงกับที่จดไว้' }
+$sig = Get-AuthenticodeSignature -LiteralPath $macDll
+if ($sig.Status -ne 'Valid' -or $sig.SignerCertificate.Subject -notlike '*Matthew Ashland*') { throw "ลายเซ็นของ MACDll64.dll ไม่ถูกต้อง: $($sig.Status)" }
+Write-Host "ลายเซ็น MACDll64.dll ถูกต้อง: $($sig.SignerCertificate.Subject)"
 
 $dest = Join-Path $root 'src-tauri\tools'
 $lic  = Join-Path $dest 'licenses'
@@ -92,6 +110,8 @@ $copies = @(
 foreach ($c in $copies) {
   Copy-Item -LiteralPath (Join-Path $work $c[0]) -Destination (Join-Path $dest $c[1]) -Force
 }
+# TAK แนบไฟล์ zip เดิมทั้งไฟล์ ตามเงื่อนไขการแจกของผู้ทำ (สัญญาอยู่ใน Readme.html ของแต่ละโฟลเดอร์ใน zip)
+Copy-Item -LiteralPath (Join-Path $root $tk.path) -Destination (Join-Path $dest 'TAK_2.3.3.zip') -Force
 
 $sources = @"
 ที่มาของเครื่องมือในโฟลเดอร์นี้ (แตกจาก vendor ด้วย scripts\fetch-tools.ps1)
@@ -102,7 +122,8 @@ $sources = @"
 - opusenc จาก opus-tools 0.2-52-g5f894e9 ทำด้วย libopus 1.6.1 · ชุดที่ทำโดย RareWares https://www.rarewares.org/files/opus/ · สัญญา BSD 2 ข้อ (Xiph) ไฟล์บีบอัดไม่มีข้อความสัญญาแนบ ข้อความเต็มอยู่ https://github.com/xiph/opus-tools/blob/master/COPYING และ https://opus-codec.org/license/
 - LAME 4.0 (lame.exe libmpg123-0.dll) · ชุดที่ทำโดย RareWares https://www.rarewares.org/files/mp3/ · LAME สัญญา LGPL รุ่น 2 หรือใหม่กว่า libmpg123 สัญญา LGPL 2.1 (ใช้ข้อความ LGPL 2.1 จากชุด FLAC เพราะไฟล์บีบอัดไม่มีข้อความสัญญาแนบ) · ซอร์สโค้ด https://lame.sourceforge.io/ และ https://www.mpg123.de/
 - WavPack 5.9.0 (wavpack.exe) จาก https://github.com/dbry/WavPack/releases · สัญญา BSD 3 ข้อ
-- Monkey's Audio 13.45 (MACDll64.dll จากชุด SDK) จาก https://www.monkeysaudio.com/ · สัญญา BSD 3 ข้อ
+- Monkey's Audio 13.46 (MACDll64.dll จากตัวติดตั้ง MAC_1346_x64.exe มีลายเซ็นของผู้ทำ ข้อความสัญญาจากชุด SDK) จาก https://www.monkeysaudio.com/ · สัญญา BSD 3 ข้อ
+- TAK 2.3.3 (TAK_2.3.3.zip ไฟล์เดิมทั้งไฟล์ โปรแกรมแตก Takc.exe ไปใช้เอง) จาก http://www.thbeck.de/Tak/Tak.html · ฟรีสำหรับใช้ส่วนตัวที่ไม่ใช่การค้า แจกต่อได้เฉพาะไฟล์ zip เดิมทั้งไฟล์ ไม่คิดเงิน
 "@
 Set-Content -LiteralPath (Join-Path $lic 'SOURCES.txt') -Value $sources -Encoding UTF8
 

@@ -305,7 +305,7 @@ pub fn build(spec: &EncodeSpec, src: &str, stream: u64, out: &str, src_channels:
             let ev = match spec.s("eval", "Normal").as_str() { "Extra" => "e", "Max" => "m", _ => "" };
             let e = vec!["-e".to_string(), format!("-p{}{ev}", fmt_num(spec.n("preset", 2.0))), "-ihs".into(), "-".into(), out.into()];
             (vec![Step { tool: "ffmpeg".into(), args: ff }, Step { tool: "Takc".into(), args: e }], true,
-             "ffmpeg ถอดเสียงส่งทางท่อให้ Takc บีบ · Takc วางเองในโฟลเดอร์ตัวแปลง".into())
+             "ffmpeg ถอดเสียงส่งทางท่อให้ Takc บีบ · Takc แตกจากชุด TAK 2.3.3 ที่แนบมา".into())
         }
         ("ac3" | "eac3", _, _) => {
             let mut ff = ff_head(src, stream, spec, false, Some(6.min(src_channels.unwrap_or(6).max(1))));
@@ -467,10 +467,50 @@ pub const ENCODERS: [(&str, &str, &str, bool); 8] = [
     ("wavpack", "WavPack", "--version", true),
     ("qaac64", "AAC · ALAC", "--check", false),
     ("fdkaac", "AAC · HE-AAC", "--help", false),
-    // TAK แจกได้แต่ไม่เปิดซอร์ส สัญญาไม่ชัดว่าแนบไปกับโปรแกรมอื่นได้ไหม · วางเองในโฟลเดอร์ตัวแปลง ใช้เฉพาะหน้าแปลงเสียง
-    ("Takc", "TAK · หน้าแปลงเสียง", "-h", false),
+    // TAK ฟรีสำหรับใช้ส่วนตัว แจกต่อได้เฉพาะไฟล์ zip เดิมทั้งไฟล์ · แนบ zip มาทั้งไฟล์ แตก Takc.exe ตอนใช้ (ensure_tak) · ใช้เฉพาะหน้าแปลงเสียง
+    // ถามรุ่นด้วย -version ได้ "TAKC 2.3.3" (-h ไม่มีในคู่มือ Takc ตอบ invalid mode ไม่บอกรุ่น · ลอง 8 พ.ย. 2569)
+    ("Takc", "TAK · หน้าแปลงเสียง", "-version", true),
     ("ffmpeg", "ทุกชนิดที่แปลงได้ (ตัวรอง)", "-version", true),
 ];
+
+/// ชุด TAK ที่แนบมากับโปรแกรม (ไฟล์ zip เดิมของผู้ทำ ไม่ดัดแปลง ตามเงื่อนไขการแจก)
+pub const TAK_ZIP: &str = "TAK_2.3.3.zip";
+
+/// โฟลเดอร์ที่แตก Takc.exe จากชุดที่แนบมา · ข้างโฟลเดอร์ตัวแปลงที่ใส่เอง (AppData\Local\ชั้นหนัง\TAK 2.3.3)
+/// โฟลเดอร์เครื่องมือในที่ติดตั้งเขียนไม่ได้ จึงแตกมาไว้ในโฟลเดอร์ข้อมูลของโปรแกรม
+pub fn tak_dir(user: &Path) -> PathBuf {
+    user.parent().unwrap_or(user).join("TAK 2.3.3")
+}
+
+/// แตก Takc.exe กับ Readme.html (สัญญาอนุญาต) จาก zip ที่แนบมา ถ้ายังไม่มี · ใช้ tar ของ Windows ไม่ต้องเพิ่มห้องสมุด
+/// แตกลงโฟลเดอร์ชั่วคราวที่อยู่เป็นอักษรอังกฤษก่อน แล้วค่อยคัดลอกไปที่อยู่ภาษาไทยด้วย Rust (tar ส่งชื่อไฟล์ภาษาไทยผ่านหน้ารหัสของระบบ)
+/// ไม่มี zip = "missing" (ตัวที่สร้างจากซอร์สโดยไม่รัน fetch-tools)
+pub fn ensure_tak(tools: &Path, dir: &Path) -> Result<(), String> {
+    if dir.join("Takc.exe").exists() { return Ok(()); }
+    let zip = tools.join(TAK_ZIP);
+    if !zip.exists() { return Err("missing".into()); }
+    let tmp = std::env::temp_dir().join(format!("movie-shelf-tak-{}", crate::poster_image::unique()));
+    std::fs::create_dir_all(&tmp).map_err(|e| e.to_string())?;
+    struct Clean(PathBuf);
+    impl Drop for Clean { fn drop(&mut self) { let _ = std::fs::remove_dir_all(&self.0); } }
+    let _clean = Clean(tmp.clone());
+    let sys = PathBuf::from(std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into())).join("System32");
+    let out = crate::tools::run_tool_timeout(&sys, "tar", [OsStr::new("-x"), OsStr::new("-f"), zip.as_os_str(), OsStr::new("-C"), tmp.as_os_str(),
+        OsStr::new("--strip-components"), OsStr::new("1"), OsStr::new("Applications/Takc.exe"), OsStr::new("Applications/Readme.html")], crate::tools::SHORT_TIMEOUT)?;
+    if !out.status.success() || !tmp.join("Takc.exe").exists() {
+        return Err(format!("แตก Takc.exe จาก {TAK_ZIP} ไม่สำเร็จ {}", String::from_utf8_lossy(&out.stderr).trim()));
+    }
+    std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
+    let _ = std::fs::copy(tmp.join("Readme.html"), dir.join("Readme.html"));
+    // คัดลอกเป็นชื่อชั่วคราวก่อนแล้วเปลี่ยนชื่อ · สองงานแตกพร้อมกันไม่ได้ไฟล์ครึ่งไฟล์
+    let part = dir.join(format!("Takc.partial-{}", crate::poster_image::unique()));
+    std::fs::copy(tmp.join("Takc.exe"), &part).map_err(|e| e.to_string())?;
+    if std::fs::rename(&part, dir.join("Takc.exe")).is_err() {
+        let _ = std::fs::remove_file(&part);
+        if !dir.join("Takc.exe").exists() { return Err("วาง Takc.exe ไม่สำเร็จ".into()); }
+    }
+    Ok(())
+}
 
 /// โฟลเดอร์ตัวแปลงที่ใส่เอง · AppData\Local\ชั้นหนัง\ตัวแปลง (มอคอัปหน้าตั้งค่า)
 pub fn user_dir(app: &tauri::AppHandle) -> Result<PathBuf, String> {
@@ -540,7 +580,9 @@ pub fn status(tools: &Path, user: &Path) -> Vec<EncoderInfo> {
 
 fn cli_status(tools: &Path, user: &Path) -> Vec<EncoderInfo> {
     ENCODERS.iter().map(|(name, codecs, arg, bundled)| {
-        let b = if *bundled { probe_one(tools, name, arg).ok().map(|t| (version_of(name, &t), tools.to_path_buf())) } else { None };
+        // TAK ที่แนบมาอยู่ในโฟลเดอร์ที่แตกจาก zip ไม่ได้อยู่ในโฟลเดอร์เครื่องมือ
+        let bdir = if *name == "Takc" { let d = tak_dir(user); let _ = ensure_tak(tools, &d); d } else { tools.to_path_buf() };
+        let b = if *bundled { probe_one(&bdir, name, arg).ok().map(|t| (version_of(name, &t), bdir.clone())) } else { None };
         let u = probe_one(user, name, arg);
         let u_ok = u.as_ref().ok().map(|t| (version_of(name, t), user.to_path_buf()));
         let use_user = match (&b, &u_ok) {
@@ -722,6 +764,11 @@ mod tests {
         assert_eq!(by("lame").version.as_deref(), Some("4.0"));
         assert_eq!(by("opusenc").version.as_deref(), Some("libopus 1.6.1"));
         assert_eq!((by("qaac64").source.as_str(), by("qaac64").ok), ("missing", false));
+        // TAK แตกจาก zip ที่แนบมาเอง ถามรุ่นด้วย -version (เดิม -h ได้รุ่นว่าง)
+        assert_eq!(version_of("Takc", "TAKC 2.3.3\n32 bit\n").as_deref(), Some("2.3.3"));
+        assert_eq!((by("Takc").source.as_str(), by("Takc").version.as_deref()), ("bundled", Some("2.3.3")));
+        assert_eq!(PathBuf::from(&by("Takc").dir), tak_dir(&empty));
+        assert!(tak_dir(&empty).join("Readme.html").exists(), "สัญญาอนุญาตของ TAK แตกมาด้วย");
         // วาง flac.exe ไว้โฟลเดอร์ที่ใส่เองโดยไม่มี libFLAC.dll · ตัวที่แนบมายังใช้ได้ ไม่ถูกตัวที่พังแทน
         std::fs::copy(tools().join("flac.exe"), empty.join("flac.exe")).unwrap();
         let st2 = status(&tools(), &empty);

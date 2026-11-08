@@ -33,7 +33,7 @@
 
 - ✅ ขนาดทั้งสองไฟล์ตรงกับที่เว็บบอกทุกไบต์ ย้ายจากโฟลเดอร์ Downloads มาเก็บที่นี่แล้ว · แตกแล้วด้วย `scripts/fetch-tools.ps1`
 - สองเว็บนี้ไม่ได้ให้ค่า hash ไว้เทียบ ค่าในตารางแคลร์คำนวณเองไว้ใช้เช็กว่าไฟล์ไม่เปลี่ยนไปภายหลัง
-- 🔴 ค่า SHA-256 ของไฟล์บีบอัดทุกตัวจดซ้ำไว้ใน `scripts/fetch-tools.ps1` บรรทัด 10 ถึง 18 · เปลี่ยนรุ่นเครื่องมือเมื่อไหร่ ต้องแก้ทั้งสองที่
+- 🔴 ค่า SHA-256 ของไฟล์บีบอัดทุกตัวจดซ้ำไว้ใน `scripts/fetch-tools.ps1` ช่วงบนของไฟล์ (รวมค่าของ `MACDll64.dll` ที่ถอดจากตัวติดตั้ง) · เปลี่ยนรุ่นเครื่องมือเมื่อไหร่ ต้องแก้ทั้งสองที่
 
 ## ตัวแปลงเสียง · แคลร์โหลด 7 พ.ย. 2569
 
@@ -45,19 +45,27 @@
 | `opus-tools/opus-tools-0.2-52-g5f894e9(using libopus 1.6.1-11-g788cc89)-x64.zip` | https://www.rarewares.org/files/opus/ (RareWares ทำจาก libopus 1.6.1) | 2,956,072 | `e6ed867d539f609da32f4780af70fffe2ed75a2a7a9751d42537341ca7995a09` |
 | `lame/lame-4.0-x64.zip` | https://www.rarewares.org/files/mp3/lame-4.0-x64.zip (RareWares 23 ส.ค. 2569) | 823,296 | `722f4311e2795d5c852076a579b3183beeb76e9010d9cab1e7f9d2e86d9d0808` |
 | `wavpack/wavpack-5.9.0-x64.zip` | https://github.com/dbry/WavPack/releases/download/5.9.0/wavpack-5.9.0-x64.zip (ทางการ) | 426,226 | `ad5e94bcde6f4edfc859210d98f144f225805a391c633c68f6dbb15a9e52570e` |
-| `monkeys-audio/MAC_1345_SDK.zip` | https://www.monkeysaudio.com/files/MAC_1345_SDK.zip (ทางการ รุ่น 13.45) | 1,806,340 | `b12bda0eb9e31dbe01d54a970d387add3a8c1079901141021d257de17a6a9106` |
+| `monkeys-audio/MAC_1345_SDK.zip` | https://www.monkeysaudio.com/files/MAC_1345_SDK.zip (ทางการ รุ่น 13.45 · เก็บไว้ ไม่ได้ใช้แล้ว) | 1,806,340 | `b12bda0eb9e31dbe01d54a970d387add3a8c1079901141021d257de17a6a9106` |
+| `monkeys-audio/MAC_1346_SDK.zip` | https://www.monkeysaudio.com/files/MAC_1346_SDK.zip (ทางการ รุ่น 13.46 ขึ้นเว็บ 7 พ.ย. 2569 23:06 เวลาไทย · โหลด 8 พ.ย. 2569) ใช้แค่ข้อความสัญญาอนุญาต | 1,806,894 | `17359c36099b7e1000da40306905f027088ac798fed1cb5e2405c33aaa030f83` |
+| `monkeys-audio/MAC_1346_x64.exe` | https://monkeysaudio.com/x64 → `files/MAC_1346_x64.exe` (ตัวติดตั้งทางการ ลายเซ็น Open Source Developer Matthew Ashland ถูกต้อง · โหลด 8 พ.ย. 2569) ใช้ดึง `MACDll64.dll` | 2,959,848 | `6a45c39588160e4154f23cb71607062131fbbec1cc4f566ddb92efc5bddbcf49` |
+| `tak/TAK_2.3.3.zip` | http://www.thbeck.de/Download/TAK_2.3.3.zip (เว็บผู้ทำ Thomas Becker · มีแต่ http · TAK 2.3.3 ตัวจริง ออก 30 มิ.ย. 2565 · โหลด 8 พ.ย. 2569) | 1,765,343 | `40d26992266f1377d576b88b84b88d2ab256dc321e47f90314402a80692aba6a` |
 
 - ทุกเว็บไม่ได้ให้ค่า hash ไว้เทียบ ค่าในตารางแคลร์คำนวณเองหลังโหลด ไว้เช็กว่าไฟล์ไม่เปลี่ยนภายหลัง
 - เปิดแต่ละตัวแบบมีแค่ไฟล์ exe ตัวเดียวในโฟลเดอร์ว่างแล้ว `flac.exe` ต้องมี `libFLAC.dll` ข้างกัน · `lame.exe` ต้องมี `libmpg123-0.dll` ข้างกัน · `opusenc.exe` กับ `wavpack.exe` เปิดได้ตัวเดียว
-- 🔴 **ชุด SDK ของ Monkey's Audio ไม่มีตัวแปลงแบบคำสั่ง (`MAC.exe`)** มีแต่ `Shared/64/MACDll64.dll` ซอร์สโค้ด และหัวไฟล์ · ใน DLL มีคำสั่งรับเสียงแบบส่งต่อเนื่อง `c_APECompress_Create` `c_APECompress_StartW` `c_APECompress_AddData` `c_APECompress_Finish` (หัวไฟล์ `Shared/MACDll.h`) โปรแกรมเรียก DLL นี้ตรงจาก Rust ส่งเสียงที่ ffmpeg ถอดแล้วเข้าไป ไม่ต้องโหลดตัวติดตั้ง `MAC_1345.exe` เพิ่ม
+- 🔴 **ชุด SDK ของ Monkey's Audio ไม่มีตัวแปลงแบบคำสั่ง (`MAC.exe`)** มีแต่ `Shared/64/MACDll64.dll` ซอร์สโค้ด และหัวไฟล์ · ใน DLL มีคำสั่งรับเสียงแบบส่งต่อเนื่อง `c_APECompress_Create` `c_APECompress_StartW` `c_APECompress_AddData` `c_APECompress_Finish` (หัวไฟล์ `Shared/MACDll.h`) โปรแกรมเรียก DLL นี้ตรงจาก Rust ส่งเสียงที่ ffmpeg ถอดแล้วเข้าไป
 - ไฟล์บีบอัดของ opus-tools กับ LAME ไม่มีข้อความสัญญาอนุญาตแนบ · ใช้ข้อความ LGPL 2.1 จากชุด FLAC แทนของ LAME กับ libmpg123 (LAME เขียนว่า LGPL รุ่น 2 หรือใหม่กว่า) · ของ opus-tools จดชื่อสัญญา BSD 2 ข้อกับที่อยู่ข้อความเต็มไว้ใน `src-tauri/tools/licenses/SOURCES.txt`
-- รุ่นที่อ่านจากตัวโปรแกรมจริง `flac 1.5.0` · `LAME 64bits version 4.0` · `opusenc opus-tools 0.2-52-g5f894e9 (using libopus 1.6.1-11-g788cc89)` · `wavpack 5.9.0` · Monkey's Audio หัวไฟล์ซอร์สในชุด `APE_VERSION_MAJOR 13` `APE_VERSION_REVISION 45` (`Shared/Version.h`)
-- 🔴 **`MACDll64.dll` ที่คอมไพล์มาแล้วในชุด SDK 13.45 เป็นรุ่น 12.36** · เรียก `GetLibraryVersionString` ของ DLL จริงได้ `12.36` และในไฟล์มีข้อความ 12.36 ไม่มี 13.45 (ลอง 8 พ.ย. 2569 ตอนทำหน้าแปลงเสียง) · ซอร์สในชุดเป็น 13.45 แต่ DLL ที่แนบในชุดไม่ได้คอมไพล์ใหม่ · ใช้แปลงได้ครบ เทสแปลง FLAC เป็น APE แล้วถอดกลับเสียงตรงทุกตัวอย่าง · ได้ DLL รุ่น 13.45 ต้องคอมไพล์จากซอร์สในชุด หรือเอาจากตัวติดตั้ง `MAC_1345.exe` (ยังไม่ได้โหลด ต้องขออนุญาตก่อน)
-- qaac fdkaac TAK ไม่แนบ (สัญญาอนุญาตหรือของที่ต้องพึ่งไม่ให้แจก) ผู้ใช้ใส่เองในโฟลเดอร์ตัวแปลงที่ใส่เอง (แผนขั้น 3)
+- รุ่นที่อ่านจากตัวโปรแกรมจริง `flac 1.5.0` · `LAME 64bits version 4.0` · `opusenc opus-tools 0.2-52-g5f894e9 (using libopus 1.6.1-11-g788cc89)` · `wavpack 5.9.0` · Monkey's Audio `MACDll64.dll` ตอบ `13.46` · TAK `TAKC 2.3.3` (`Takc -version` · Takc เป็นโปรแกรม 32 บิต)
+- 🔴 **`MACDll64.dll` ที่คอมไพล์มาแล้วในชุด SDK 13.45 และ 13.46 เป็นไฟล์เดียวกัน รุ่น 12.36** (719,872 ไบต์ ลงวันที่ 25 ก.พ. 2569) · เรียก `GetLibraryVersionString` ได้ `12.36` และในไฟล์ไม่มีเลข 13.x · ซอร์สในชุดเป็นรุ่นใหม่แต่ผู้ทำไม่ได้สร้าง DLL ใหม่ใส่ชุด (ลอง 8 พ.ย. 2569)
+- 🔴 **`MACDll64.dll` รุ่น 13.46 จริงดึงจากตัวติดตั้ง `MAC_1346_x64.exe`** ด้วย `scripts/nsis-extract.py` (8 พ.ย. 2569 พี่กันสั่ง *"จัดเลย / ลิง เอาไงงง ไปหามา"*) · ตัวติดตั้งเป็น NSIS บีบ LZMA ก้อนเดียว สคริปต์ถอดในเครื่องแล้วหาก้อนที่ตาราง export ชื่อ `MACDll64.dll` ไม่รันตัวติดตั้ง ไม่มีหน้าต่าง ไม่ต้องใช้ 7-Zip (เครื่องนี้ไม่มี) · ต้องมี Python (`py`) · DLL ที่ได้ 764,728 ไบต์ รุ่น 13.46.0.0 ลายเซ็น Matthew Ashland ถูกต้อง ประทับเวลา Certum · `fetch-tools.ps1` เช็กทั้ง hash และลายเซ็นทุกครั้ง
+- ในตัวติดตั้ง 13.46 ผู้ทำแนบตัวแปลงอื่นมาด้วย (ตรงกับหน้าเว็บที่เขียนว่า external encoders are part of the install) · `flac.exe` `libFLAC.dll` `wavpack.exe` ในนั้นตรงทุกไบต์กับตัวที่เราใช้ และ `Takc.exe` ตรงทุกไบต์กับตัวในชุด TAK 2.3.3 (SHA-256 `a78a96a6fb7c0a83dfa6d2ed9156f11a51a5f1deed97187c18b24def82dbc195`) · เป็นการยืนยันจากแหล่งที่สองที่มีลายเซ็น
+- qaac fdkaac ไม่แนบ (สัญญาอนุญาตหรือของที่ต้องพึ่งไม่ให้แจก) ผู้ใช้ใส่เองในโฟลเดอร์ตัวแปลงที่ใส่เอง (แผนขั้น 3)
+- 🔴 **TAK แนบไฟล์ zip เดิมทั้งไฟล์** · สัญญาใน Readme.html ของชุด (หัวข้อ License กับ Distribution) บอกว่าฟรีสำหรับใช้ส่วนตัวที่ไม่ใช่การค้า แจกต่อได้ถ้าไม่ดัดแปลง ไฟล์ zip เดิมอยู่ครบพร้อมไฟล์ประกอบทุกไฟล์ และไม่คิดเงิน · จึงไม่แยก Takc.exe ออกไปแจกเดี่ยว ๆ · `fetch-tools.ps1` คัดลอก `TAK_2.3.3.zip` ทั้งไฟล์ลง `src-tauri/tools/` โปรแกรมแตก `Takc.exe` กับ `Readme.html` ไปไว้ที่ `AppData\Local\ชั้นหนัง\TAK 2.3.3` ตอนใช้ครั้งแรก (`encode.rs` `ensure_tak` ใช้ tar ของ Windows)
+- เว็บ TAK เปิดได้แค่ http (https ต่อไม่ได้) ไม่มี hash ให้เทียบ · ยืนยันความถูกต้องด้วย Takc.exe ที่ตรงกับตัวในตัวติดตั้ง Monkey's Audio ที่มีลายเซ็น
+- ปลั๊กอิน foo_input_tak ของ foobar2000 (0.5.9 ออก 5 พ.ย. 2568) กับตัวถอด TAK ใน FFmpeg (`libavcodec/tak.h`) อ่านได้อย่างเดียว สร้างไฟล์ TAK ไม่ได้ · ffmpeg ที่แนบมามีตัวถอดนี้ จึงตรวจและวาดกราฟไฟล์ TAK ได้
 
 ## ไฟล์ที่แตกแล้ว · `src-tauri/tools/` (ไม่ขึ้น git · 6 พ.ย. 2569 · ตัวแปลงเสียงเพิ่ม 7 พ.ย. 2569)
 
-`scripts/fetch-tools.ps1` เช็ก SHA-256 ของไฟล์บีบอัดก่อนแตก แล้วคัดเฉพาะ 14 ไฟล์นี้กับไฟล์สัญญาอนุญาตลง `src-tauri/tools/`
+`scripts/fetch-tools.ps1` เช็ก SHA-256 ของไฟล์บีบอัดก่อนแตก แล้วคัดเฉพาะ 15 ไฟล์นี้กับไฟล์สัญญาอนุญาตลง `src-tauri/tools/`
 ค่าข้างล่างไว้เทียบตอนเช็กสถานะเครื่องมือ (ขั้น 7) และตอนตรวจตัวติดตั้ง (ขั้น 8) ว่าเครื่องมือที่แนบไปไม่เพี้ยน
 
 | ไฟล์ | ขนาด (ไบต์) | ค่า SHA-256 |
@@ -75,7 +83,8 @@
 | `libmpg123-0.dll` | 429,481 | `018e6833088b3fc7d9a97c3f45abb5f9f947f7c46de4f17fddf423f430fa70fa` |
 | `opusenc.exe` | 793,600 | `ec1597618e30fbe97b3dfcd60639d444644cf302a777eb92049a61d1930ef5e8` |
 | `wavpack.exe` | 321,536 | `e26ad2ed3c8e417bd62e0b8eb4ee9b9e2f261a859c9cc18c99026e2b7f8fc661` |
-| `MACDll64.dll` | 719,872 | `da666525fb65d3ce8511c8a53c10f30e7e52c56ec5111ca66683eb4b07339302` |
+| `MACDll64.dll` | 764,728 | `281a72e6e27a49c03a41b02542490f296f235fd2fec30e62c1b0783f653c3a6c` (13.46 จากตัวติดตั้ง · เดิม 12.36 จากชุด SDK `da666525…39302` 719,872 ไบต์) |
+| `TAK_2.3.3.zip` | 1,765,343 | `40d26992266f1377d576b88b84b88d2ab256dc321e47f90314402a80692aba6a` (ไฟล์เดิมทั้งไฟล์) |
 
 ## รายการเครื่องมือของโปรแกรมชั้นหนัง
 

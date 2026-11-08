@@ -1,5 +1,5 @@
 //! Monkey's Audio (.ape) กับแท็ก APEv2 (แผนเสียงและซับ ขั้น 8 · หน้ากราฟเสียง แปลงเป็นคิว)
-//! ชุด SDK ของ Monkey's Audio 13.45 ไม่มีตัวแปลงแบบคำสั่ง มีแต่ MACDll64.dll (vendor/README.md)
+//! ชุด SDK ของ Monkey's Audio ไม่มีตัวแปลงแบบคำสั่ง มีแต่ MACDll64.dll · ตัว DLL รุ่น 13.46 ดึงจากตัวติดตั้งของผู้ทำ (ตัวในชุด SDK เป็นไฟล์เก่า 12.36 · vendor/README.md)
 //! โปรแกรมเรียก DLL ตรง ffmpeg ถอดเสียงเป็น WAV ส่งทางท่อ อ่านหัว WAV เอาช่อง อัตราสุ่ม ความลึกบิต แล้วป้อนเสียงดิบเข้า c_APECompress_AddData
 //! แท็ก APEv2 เขียนเองที่ท้ายไฟล์ ใช้กับ .ape .wv .tak (ทั้งสามชนิดเก็บแท็กแบบเดียวกัน) · DLL มีแค่ตัวเขียนแท็กแบบ ANSI ภาษาไทยเพี้ยน
 
@@ -343,9 +343,9 @@ mod tests {
     fn mac_dll_loads_and_reports_version() {
         let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tools");
         let v = version(&dir).expect("เปิด MACDll64.dll ได้");
-        // DLL ที่คอมไพล์มาแล้วในชุด SDK 13.45 ตอบรุ่น 12.36 (หัวไฟล์ซอร์สในชุดเป็น 13.45 · ลองจริง 8 พ.ย. 2569)
-        let major: u32 = v.split('.').next().and_then(|m| m.parse().ok()).unwrap_or(0);
-        assert!(major >= 12 && v.contains('.'), "รุ่น {v}");
+        // DLL ในชุด SDK 13.45 และ 13.46 ตอบรุ่น 12.36 · ตัวที่ fetch-tools ดึงจากตัวติดตั้ง 13.46 ต้องตอบ 13.46 ขึ้นไป (ลองจริง 8 พ.ย. 2569)
+        let key: Vec<u32> = v.split('.').map(|x| x.parse().unwrap_or(0)).collect();
+        assert!(key >= vec![13, 46], "รุ่น {v} · รัน scripts/fetch-tools.ps1 ใหม่ให้ได้ DLL จากตัวติดตั้ง");
         Mac::load(&dir).expect("มีคำสั่งบีบเสียงครบ");
     }
 }

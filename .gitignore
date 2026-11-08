@@ -12,6 +12,7 @@ src-tauri/gen/schemas/
 src-tauri/tools/*.exe
 src-tauri/tools/*.dll
 src-tauri/tools/*.DLL
+src-tauri/tools/*.zip
 
 # ไฟล์ทดสอบ สร้างใหม่ด้วย scripts/make-test-media.mjs · มีไฟล์ส่วนตัวของพี่กัน
 # ยกเว้น test-media/src ที่เขียนด้วยมือ สคริปต์สร้างไฟล์ทดสอบต้องใช้ สร้างใหม่ไม่ได้
@@ -24,6 +25,7 @@ vendor/**/*.7z
 vendor/**/*.zip
 vendor/**/*.tar.xz
 vendor/**/*.sig
+vendor/**/*.exe
 
 # ภาพหน้าจอที่มีรูปส่วนตัวของพี่กัน (รูป HEIC จากไอโฟน) เก็บไว้ในเครื่องเท่านั้น ห้ามขึ้น git · ที่เก็บบน GitHub เป็นแบบสาธารณะ
 docs/report-*/**/*HEIC*.png

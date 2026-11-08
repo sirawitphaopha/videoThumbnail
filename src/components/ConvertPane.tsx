@@ -65,7 +65,10 @@ function Status({ it }: { it: QItem }) {
   if (it.state === "done" && it.result) {
     const r = it.result, d = r.srcSize ? Math.round((1 - r.size / r.srcSize) * 100) : 0;
     return <div data-qdone><span className="tpill ok">เสร็จ · {fmtSize(r.size)}</span>
-      <div className="small" style={{ marginTop: 3, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={r.out}>{baseName(r.out)} · {d >= 0 ? `เล็กลง ${d}%` : `ใหญ่ขึ้น ${-d}%`}</div></div>;
+      {/* ชื่อไฟล์ยาวตัดเฉพาะชื่อ · เล็กลงหรือใหญ่ขึ้นกี่เปอร์เซ็นต์ต้องเห็นครบ (8 พ.ย. 2569 เดิมตัดทั้งบรรทัดเหลือ "ใหญ่ขึ...") */}
+      <div className="small" style={{ marginTop: 3, display: "flex", minWidth: 0, whiteSpace: "nowrap" }} title={r.out}>
+        <span style={{ overflow: "hidden", textOverflow: "ellipsis", minWidth: 0 }}>{baseName(r.out)}</span>
+        <span style={{ flex: "none" }}>&nbsp;· {d >= 0 ? `เล็กลง ${d}%` : `ใหญ่ขึ้น ${-d}%`}</span></div></div>;
   }
   if (it.state === "fail") return <div data-qfail><span className="tpill off">{it.bad ? "อ่านไฟล์ไม่ได้" : "ไม่สำเร็จ"}</span>{it.bad ? <div className="small" style={{ marginTop: 3 }}>ไม่มีแทร็กเสียง หรือไฟล์เสีย</div> : <div className="small" style={{ marginTop: 3 }}>เหตุอยู่ใต้แถว</div>}</div>;
   if (it.state === "stop") return <div data-qstopped><span className="tpill warn">หยุดแล้ว</span><div className="small" style={{ marginTop: 3 }}>ไฟล์ที่ทำค้างถูกลบ</div></div>;

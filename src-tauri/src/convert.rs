@@ -562,6 +562,39 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
     }
 
+    /// FLAC 96 kHz 24 บิต แปลงเป็น TAK ด้วย Takc ที่แตกจากชุดที่แนบมา · แท็กกับปกติดไปแบบ APEv2 · ถอดกลับเสียงตรงทุกตัวอย่าง
+    /// (8 พ.ย. 2569 · ก่อนหน้านี้ไม่เคยลอง TAK กับตัวแปลงจริง)
+    #[test]
+    fn flac_to_tak_with_tags_real() {
+        let Some(src) = av("เพลงทดสอบ 96k.flac") else { return };
+        let f = probe(&tools(), &src).unwrap();
+        let dir = std::env::temp_dir().join(format!("ms-conv-{}", crate::poster_image::unique()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let tak = dir.join("TAK 2.3.3");
+        encode::ensure_tak(&tools(), &tak).expect("แตก Takc.exe จาก zip ที่แนบมาได้");
+        let out = dir.join("t.tak");
+        let spec = EncodeSpec { codec: "tak".into(), p: json!({"preset": 4, "eval": "Max"}).as_object().cloned().unwrap(), ..Default::default() };
+        let plan = encode::build(&spec, &src.to_string_lossy(), f.stream, &out.to_string_lossy(), Some(f.channels), f.bits).unwrap();
+        assert_eq!(plan.steps[1].tool, "Takc");
+        assert!(plan.steps[1].args.contains(&"-p4m".to_string()), "{:?}", plan.steps[1].args);
+        let mut last = 0.0;
+        let r = encode::run(&|n: &str| if n == "Takc" { tak.clone() } else { tools() }, &plan, Some(f.duration), &|| false, &mut |p| last = p).unwrap();
+        assert!(matches!(r, encode::Done::Ok), "แปลงสำเร็จ");
+        assert_eq!(last, 100.0);
+        let items: Vec<crate::ape::ApeItem> = f.tags.iter().map(|t| crate::ape::ApeItem { key: ape_key(&t.key), value: t.value.as_bytes().to_vec(), binary: false }).collect();
+        crate::ape::append_tag(&out, &items).unwrap();
+        let g = probe(&tools(), &out).unwrap();
+        assert_eq!((g.codec.as_str(), g.channels, g.rate), ("tak", f.channels, f.rate));
+        assert!((g.duration - f.duration).abs() < 0.1, "ยาว {} เทียบ {}", g.duration, f.duration);
+        assert_eq!(g.tags.iter().find(|t| t.key == "title").map(|t| t.value.clone()), f.tags.iter().find(|t| t.key == "title").map(|t| t.value.clone()), "ชื่อเพลงภาษาไทยติดไป");
+        let md5 = |p: &Path| {
+            let o = crate::tools::run_tool(&tools(), "ffmpeg", [OsStr::new("-v"), OsStr::new("error"), OsStr::new("-i"), p.as_os_str(), OsStr::new("-map"), OsStr::new("0:a:0"), OsStr::new("-c:a"), OsStr::new("pcm_s24le"), OsStr::new("-f"), OsStr::new("md5"), OsStr::new("-")]).unwrap();
+            String::from_utf8_lossy(&o.stdout).trim().to_string()
+        };
+        assert_eq!(md5(&out), md5(&src), "ไม่เสียคุณภาพ");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     /// เปิด Loudness normalize แล้วอัตราสุ่มต้องเท่าต้นทาง (ผู้ช่วยตรวจขั้น 10 ข้อ 3 · เดิมได้ 192 kHz)
     #[test]
     fn loudnorm_keeps_source_rate() {

@@ -158,8 +158,8 @@ export default function CodecPanel(p: {
     return n;
   });
   const engUse = eng && engs.some((e) => e.value === eng && e.ok) ? eng : firstOk;
-  /** ชนิดที่มีแต่ตัวต้นฉบับ แต่ยังไม่ได้ใส่ (TAK ต้องวาง Takc.exe เอง) */
-  const missingNative = c.only && !engs.some((e) => e.ok) ? (c.id === "tak" ? "ยังไม่ได้วาง Takc.exe ในโฟลเดอร์ตัวแปลง · วางแล้วกดตรวจตัวแปลงใหม่ในหน้าตั้งค่า" : "หา MACDll64.dll ในโฟลเดอร์เครื่องมือไม่เจอ") : null;
+  /** ชนิดที่มีแต่ตัวต้นฉบับ แต่หาตัวแปลงไม่เจอ (TAK แตกจาก zip ที่แนบมา · Monkey's Audio เป็น DLL ในโฟลเดอร์เครื่องมือ) */
+  const missingNative = c.only && !engs.some((e) => e.ok) ? (c.id === "tak" ? "หา Takc.exe ไม่เจอ แตกจากชุด TAK ที่แนบมาไม่ได้ · วาง Takc.exe ในโฟลเดอร์ตัวแปลงแล้วกดตรวจตัวแปลงใหม่ในหน้าตั้งค่า" : "หา MACDll64.dll ในโฟลเดอร์เครื่องมือไม่เจอ") : null;
   const blocked = planErr ?? missingNative;
 
   /** ตัวเลือกของการ์ดที่ขึ้นกับแทร็ก · ช่องลดได้ต่ำกว่าต้นทางเท่านั้น (AC-3 ได้สูงสุด 5.1) · อัตราสุ่มที่ต่างจากต้นทาง */
