@@ -43,7 +43,7 @@ await c.evaluate(`[...document.querySelectorAll('.side .nav')].find(b => b.inner
 await waitFor("return !!document.querySelector('[data-av-page]')");
 const empty = await q("return document.querySelector('[data-av-page]').innerText");
 const navs = await q("return [...document.querySelectorAll('.side .nav')].map(b => b.innerText.trim()).join('|')");
-check("เมนูซ้ายมีหน้าเสียงและซับต่อจากใส่โปสเตอร์ · หน้าว่างบอกให้ลากไฟล์หนัง", empty.includes("ลากไฟล์หนังมาวางตรงนี้") && empty.includes("แล้วลากไฟล์เสียงหรือซับตามมาวางได้เลย") && navs.includes("ใส่โปสเตอร์|เสียงและซับ"), navs);
+check("เมนูซ้ายเรียง ใส่โปสเตอร์ จับคู่ปก เสียงและซับ · หน้าว่างบอกให้ลากไฟล์หนัง", empty.includes("ลากไฟล์หนังมาวางตรงนี้") && empty.includes("แล้วลากไฟล์เสียงหรือซับตามมาวางได้เลย") && /ใส่โปสเตอร์\|จับคู่ปก[^|]*\|เสียงและซับ/.test(navs), navs);
 await shot("01-หน้าว่าง.png", ".main");
 
 // ---------- ลากหนังกับเสียงซับมาพร้อมกัน ----------

@@ -196,6 +196,8 @@ pub struct Pick {
     pub thumb: Option<String>,
     /// ค่าครอปที่ตั้งเอง · ไม่มี = ครอปกลางรูปตอนยืนยัน
     pub geo: Option<Geometry>,
+    /// ภาพเล็กหลังครอป ตารางโชว์ตัวนี้ก่อน คนเห็นว่าครอปแล้วได้อะไร
+    pub crop_thumb: Option<String>,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq, Default)]
@@ -253,7 +255,7 @@ pub fn link_is_dir(paths: Vec<String>) -> Vec<bool> {
 pub fn assign(row: &mut Row, pick: Pick) {
     if pick.width > pick.height {
         if row.tall.is_none() || row.derived_tall {
-            row.tall = Some(Pick { geo: None, ..pick.clone() });
+            row.tall = Some(Pick { geo: None, crop_thumb: None, ..pick.clone() });
             row.derived_tall = true;
         }
         row.wide = Some(pick);
@@ -280,7 +282,7 @@ impl ImgIn {
         Path::new(&self.name).file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default()
     }
     fn pick(&self) -> Pick {
-        Pick { path: self.path.clone(), name: self.name.clone(), folder: self.folder.clone(), width: self.width, height: self.height, thumb: self.thumb.clone(), geo: None }
+        Pick { path: self.path.clone(), name: self.name.clone(), folder: self.folder.clone(), width: self.width, height: self.height, thumb: self.thumb.clone(), geo: None, crop_thumb: None }
     }
 }
 
@@ -863,7 +865,7 @@ fn pick_of(d: &Dirs, path: &str) -> Result<Pick, String> {
         let (t, w, h) = make_src_thumb(&d.tools, &d.work, &d.thumbs, p)?;
         width = w; height = h; thumb = Some(t.to_string_lossy().to_string());
     }
-    Ok(Pick { path: path.to_string(), name: p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(), folder: p.parent().map(|f| f.to_string_lossy().to_string()).unwrap_or_default(), width, height, thumb, geo: None })
+    Ok(Pick { path: path.to_string(), name: p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(), folder: p.parent().map(|f| f.to_string_lossy().to_string()).unwrap_or_default(), width, height, thumb, geo: None, crop_thumb: None })
 }
 
 fn blank_row(m: &Movie) -> Row {
@@ -936,6 +938,43 @@ pub struct RowPatch {
     pub geo: Option<Geometry>,
     /// ข้ามเรื่องนี้ แถวออกจากตาราง จับคู่อัตโนมัติรอบหน้ากลับมาใหม่
     pub skip: Option<bool>,
+}
+
+/// ใส่ค่าครอปจากหน้าครอปลงแถว ยังไม่เขียนรูปจริง · ทำภาพเล็กหลังครอปให้ตารางโชว์
+/// ช่องนี้ยังไม่มีรูป ใช้รูปของอีกช่อง (รูปเดียวทำได้ทั้งปกตั้งและปกนอน มอคอัปหน้า 4)
+#[tauri::command]
+pub async fn link_set_crop(app: AppHandle, id: String, orient: String, geo: Geometry) -> Result<LinkReply, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let d = dirs(&app)?;
+        let store = app.state::<Arc<LinkStore>>().inner().clone();
+        let movies = movies_of(&app.state::<Arc<LibraryStore>>());
+        let wide = orient == "wide";
+        let base = {
+            let x = store.data.lock().unwrap();
+            let r = x.rows.iter().find(|r| r.id == id).ok_or("ไม่เจอแถวนี้")?;
+            let (own, other) = if wide { (&r.wide, &r.tall) } else { (&r.tall, &r.wide) };
+            own.clone().or_else(|| other.clone()).ok_or("แถวนี้ยังไม่มีรูป")?
+        };
+        let dec = pi::decode(&d.tools, &d.work, Path::new(&base.path))?;
+        let (img, _) = pi::render(&dec.img, &geo, true);
+        let (w, h) = img.dimensions();
+        let nh = 240u32;
+        let small = imageops::resize(&img, ((w as f64 * nh as f64 / h.max(1) as f64).round() as u32).max(1), nh, imageops::FilterType::Triangle);
+        let bytes = pi::encode(&small, "jpg", 85)?;
+        fs::create_dir_all(&d.thumbs).map_err(|e| e.to_string())?;
+        let out = d.thumbs.join(format!("crop-{}-{}x{}.jpg", &sha_of(&bytes)[..16], w, h));
+        fs::write(&out, &bytes).map_err(|e| e.to_string())?;
+        {
+            let mut x = store.data.lock().unwrap();
+            let r = x.rows.iter_mut().find(|r| r.id == id).ok_or("ไม่เจอแถวนี้")?;
+            let pick = Pick { geo: Some(geo), crop_thumb: Some(out.to_string_lossy().to_string()), ..base };
+            if wide { r.wide = Some(pick); } else { r.tall = Some(pick); r.derived_tall = false; }
+            r.error = None;
+            r.conflict = None;
+        }
+        store.save()?;
+        Ok(reply(&store, &movies))
+    }).await.map_err(|e| e.to_string())?
 }
 
 /// แก้แถว · ติ๊ก เลือกรูปใกล้เคียง ค่าครอป ข้าม
@@ -1379,6 +1418,7 @@ pub async fn link_open_row(app: AppHandle, id: String) -> Result<LinkReply, Stri
                 for c in &m.linked {
                     if let Ok(mut p) = pick_of(&d, &c.source) {
                         p.geo = c.geo.clone();
+                        p.crop_thumb = Some(c.thumb.clone());
                         if c.orient == "wide" { r.wide = Some(p); } else { r.tall = Some(p); }
                     }
                 }

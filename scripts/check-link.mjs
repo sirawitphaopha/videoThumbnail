@@ -4,7 +4,8 @@
 // ใช้: node scripts/check-link.mjs  (โปรแกรมเปิดผ่าน scripts/dev-app.ps1)
 import { cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, statSync, writeFileSync } from "node:fs";
 import { createHash } from "node:crypto";
-import { join } from "node:path";
+import { basename, dirname, extname, join } from "node:path";
+import { spawnSync } from "node:child_process";
 import { connect, sleep } from "./lib/cdp-client.mjs";
 
 const SRC = join("test-media", "สร้าง", "จับคู่");
@@ -358,6 +359,116 @@ await waitFor(sentOf("Paper Kites (2012)"));
 await c.evaluate("document.querySelector('[data-board-back]').click()");
 await waitFor("return !!document.querySelector('[data-link-table]')");
 check("กลับตาราง คู่จากกระดานรอยืนยันอยู่", (await statusOf("Paper Kites (2012)")) === "manual" && (await reasonOf("Paper Kites (2012)")) === "ลากจาก Explorer");
+
+/* ---------- ขั้น 5 หน้าครอป ---------- */
+const dims = (p) => spawnSync(join("src-tauri", "tools", "ffprobe.exe"), ["-v", "error", "-select_streams", "v:0", "-show_entries", "stream=width,height", "-of", "csv=p=0", p], { encoding: "utf8" }).stdout.trim();
+await c.evaluate(`${rowSel("Paper Kites (2012)")}.scrollIntoView({ block: 'center' })`);
+// แถบแจ้งผลจากข้อก่อนหน้าทับหน้าต่างในภาพ ปิดให้หมดก่อนถ่าย
+const closeToasts = () => c.evaluate("document.querySelectorAll('.toast .x').forEach((b) => b.click())");
+await closeToasts();
+await clickIn("Paper Kites (2012)", "[data-link-crop]");
+await waitFor("return !!document.querySelector('[data-crop] .cropbox')");
+check("หน้าครอปมีปรับเอียงกับช่องปก ไม่มีปรับสี ไม่มีเลือกชนิดไฟล์", await q("const d = document.querySelector('[data-crop]'); const t = d.closest('.dlg').textContent; return !!d.querySelector('[data-tilt]') && t.includes('ปกนอน 16 : 9') && !t.includes('ไฟล์รูปที่ได้') && !t.includes('ความสว่าง')"));
+check("หัวหน้าต่างบอกชื่อหนัง ปุ่มเขียนว่าใช้ค่านี้ เพราะยังไม่เขียนไฟล์", await q("const d = document.querySelector('[data-crop]').closest('.dlg'); return d.textContent.includes('ครอปรูปปก · Paper Kites (2012)') && document.querySelector('[data-use]').textContent === 'ใช้ค่านี้'"));
+check("ไม่มีตารางคุณภาพ ไม่มีตัวอย่างไอคอน Windows เพราะปกจับคู่ไม่เปลี่ยนไอคอนไฟล์", await q("const d = document.querySelector('[data-crop]'); return !d.querySelector('[data-qtable]') && d.querySelectorAll('[data-previews] .pv').length === 2 && !d.textContent.includes('ไอคอน Windows')"));
+// มุมจับต้องหน้าตาเดียวกันทั้ง 4 มุม · เดิมมุมซ้ายล่างเป็นวงกลมขาว ชื่อคลาส sw ชนปุ่มเลือกธีมหน้ากราฟเสียง
+const handlesSame = "const h = [...document.querySelectorAll('[data-crop] .hd')].map((e) => { const r = e.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height), getComputedStyle(e).borderRadius].join(); }); return h.length === 4 && new Set(h).size === 1 && h[0].endsWith('3px')";
+check("มุมจับทั้ง 4 มุมหน้าตาเดียวกัน", await q(handlesSame));
+await c.evaluate("{ const s = document.createElement('style'); s.id = 'คืนบั๊กมุมจับ'; s.textContent = '.sw { width: 26px; height: 26px; border-radius: 50%; }'; document.head.append(s); }");
+check("คืนบั๊กมุมจับชั่วคราว ตัวตรวจข้อบนต้องจับได้", !(await q(handlesSame)));
+await c.evaluate("document.getElementById('คืนบั๊กมุมจับ').remove()");
+const tiltClick = async (sel, n) => { for (let i = 0; i < n; i++) await c.evaluate(`document.querySelector(${JSON.stringify(sel)}).click()`); await sleep(120); };
+await tiltClick("[data-tilt-plus]", 3);
+check("ปรับเอียงทีละครึ่งองศา ขึ้น +1.5°", (await q("return document.querySelector('[data-tilt-val]').textContent")) === "+1.5°");
+check("ภาพบนจอเอียงตาม ไม่ล้นกรอบ", await q("const i = document.querySelector('[data-crop] .stage img'); return i.style.transform.includes('rotate(1.5deg)') && i.parentElement.style.overflow === 'hidden'"));
+await sleep(500);
+await c.evaluate("document.querySelector('[data-use]').click()");
+await waitFor("return !document.querySelector('[data-crop]')");
+await waitFor(`return !!${rowSel("Paper Kites (2012)")}?.querySelector('[data-link-cropped]')`);
+const r5 = await rowNow("Paper Kites (2012)");
+check("ใช้รูปนี้ จำค่าครอปลงแถว ยังไม่เขียนรูป", r5.tall.geo?.tilt === 1.5 && !!r5.tall.cropThumb && !existsSync(moviePoster("Paper.Kites.2012")));
+check("แถวโชว์ภาพหลังครอป", await q(`const i = ${rowSel("Paper Kites (2012)")}.querySelector('[data-link-chosen] img'); return decodeURIComponent(i.src).includes('crop-')`));
+// เปิดอีกครั้ง ค่าเดิมกลับมา · ยกเลิกไม่เปลี่ยน
+await clickIn("Paper Kites (2012)", "[data-link-crop]");
+await waitFor("return !!document.querySelector('[data-crop] .cropbox')");
+check("เปิดอีกครั้ง ค่าเอียงเดิมกลับมา", (await q("return document.querySelector('[data-tilt-val]').textContent")) === "+1.5°");
+// กดยกเลิก ค่าที่ลองปรับไม่เข้าแถว
+await tiltClick("[data-tilt-plus]", 2);
+await c.evaluate("[...document.querySelectorAll('.dlg button')].find((b) => b.textContent === 'ยกเลิก').click()");
+await waitFor("return !document.querySelector('[data-crop]')");
+check("กดยกเลิก ค่าเอียงในแถวยังเท่าเดิม", (await rowNow("Paper Kites (2012)")).tall.geo?.tilt === 1.5);
+await clickIn("Paper Kites (2012)", "[data-link-crop]");
+await waitFor("return !!document.querySelector('[data-crop] .cropbox')");
+await tiltClick("[data-tilt-minus]", 8);
+check("เอียงทวนเข็มได้ ขึ้น −2.5°", (await q("return document.querySelector('[data-tilt-val]').textContent")) === "−2.5°");
+// คีย์บอร์ด ลูกศรซ้ายขวาทีละครึ่งองศา ตามมอคอัปหน้า 4
+await c.evaluate("document.querySelector('[data-tilt] .range').focus()");
+await c.key("ArrowRight");
+await sleep(80);
+check("กดลูกศรขวาบนแถบเอียง ขึ้น −2°", (await q("return document.querySelector('[data-tilt-val]').textContent")) === "−2°");
+await c.key("ArrowLeft");
+await sleep(80);
+// สลับไปปกนอน ค่าที่แก้ไว้ในช่องเดิมต้องไม่หายเงียบ (เดิมหาย ต้องกดใช้ค่านี้ก่อนสลับ)
+await c.evaluate("[...document.querySelectorAll('.dlg .seg button')].find(b => b.textContent === 'ปกนอน 16 : 9').click()");
+await waitFor("const b = document.querySelector('[data-crop] .cropbox'); if (!b) return false; const r = b.getBoundingClientRect(); return Math.abs(r.width / r.height - 16 / 9) < 0.05", 8000);
+check("ช่องปกนอน กรอบครอป 16 : 9 ไม่มีตัวเลือกเติมขอบ", await q("const b = document.querySelector('[data-crop] .cropbox').getBoundingClientRect(); return Math.abs(b.width / b.height - 16 / 9) < 0.05 && !document.querySelector('.dlg').textContent.includes('เติมขอบ')"));
+check("สลับช่องแล้ว ค่าเอียง −2.5° ของปกตั้งถูกจำลงแถว", (await rowNow("Paper Kites (2012)")).tall.geo?.tilt === -2.5);
+await sleep(500);
+await shot("9-ครอป-ปกนอน.png", ".dlg", 900);
+await c.evaluate("document.querySelector('[data-use]').click()");
+await waitFor("return !document.querySelector('[data-crop]')");
+await waitFor(`return !!${rowSel("Paper Kites (2012)")}?.querySelectorAll('[data-link-chosen] img')[1]`);
+const r6 = await rowNow("Paper Kites (2012)");
+check("รูปเดียวได้ทั้งปกตั้งและปกนอน ค่าครอปแยกกัน", r6.wide?.path === r6.tall?.path && r6.wide?.geo?.aspect === "wide" && r6.tall?.geo?.tilt === -2.5);
+await shot("10-ตาราง-หลังครอป.png", `[data-link-row="${r6.id.replace(/["\\]/g, "\\$&")}"]`);
+await clickIn("Paper Kites (2012)", "[data-link-confirm]");
+await waitFor(`return ${rowSel("Paper Kites (2012)")}?.dataset.linkStatus === 'saved'`);
+check("ยืนยันแล้ว ปกตั้ง 1000 × 1500", dims(moviePoster("Paper.Kites.2012")) === "1000,1500", dims(moviePoster("Paper.Kites.2012")));
+check("ยืนยันแล้ว ปกนอน 1920 × 1080", dims(join(MOV, "Paper.Kites.2012-landscape.jpg")) === "1920,1080", dims(join(MOV, "Paper.Kites.2012-landscape.jpg")));
+check("รูปต้นฉบับไม่ถูกแก้ รูปที่ได้ไม่เหมือนต้นฉบับ", sha(join(DL, "copper-tall.jpg")) === sha(join(SRC, "รูปดาวน์โหลด", "copper-tall.jpg")) && sha(moviePoster("Paper.Kites.2012")) !== sha(join(DL, "copper-tall.jpg")));
+
+// ตัวอย่างบนจอต้องตรงกับรูปจริงที่ได้ · ใช้รูปแถบสี เห็นการเอียงชัด เทียบด้วย ssim
+// และเทียบกับรูปที่ไม่ได้เอียงเป็นตัวคุม ถ้าเอียงผิดทาง หรือไม่เอียงจริง คะแนนจะกลับด้าน
+const ssim = (a, b, fa = "", fb = "") => {
+  const r = spawnSync(join("src-tauri", "tools", "ffmpeg.exe"), ["-hide_banner", "-i", a, "-i", b, "-filter_complex", `[0]${fa}scale=110:165[a];[1]${fb}scale=110:165[b];[a][b]ssim`, "-f", "null", "-"], { encoding: "utf8" });
+  return Number(/All:([\d.]+)/.exec(r.stderr)?.[1] ?? 0);
+};
+const BARS = join(DIR, "แถบสี.jpg");
+cpSync(join("test-media", "สร้าง", "รูป", "wide.jpg"), BARS);
+const t8 = await q("return [...document.querySelectorAll('[data-link-row]')].filter((r) => r.dataset.linkStatus !== 'saved').map((r) => r.querySelector('.lname b').textContent)[0] ?? null");
+await dropOnRow(t8, [BARS]);
+await waitFor(`return !!${rowSel(t8)}?.querySelector('[data-link-crop]') && ${rowSel(t8)}.textContent.includes('แถบสี.jpg')`);
+const before8 = await rowNow(t8);
+await clickIn(t8, "[data-link-crop]");
+await waitFor("return !!document.querySelector('[data-crop] .cropbox')");
+// สลับช่องโดยไม่ได้แก้อะไร แถวต้องไม่เปลี่ยน ไม่ขึ้นว่าครอปแล้ว
+await c.evaluate("[...document.querySelectorAll('.dlg .seg button')].find(b => b.textContent === 'ปกนอน 16 : 9').click()");
+await waitFor("const b = document.querySelector('[data-crop] .cropbox'); if (!b) return false; const r = b.getBoundingClientRect(); return Math.abs(r.width / r.height - 16 / 9) < 0.05", 8000);
+const mid8 = await rowNow(t8);
+check("สลับช่องโดยไม่ได้แก้อะไร แถวไม่เปลี่ยน", JSON.stringify(mid8.tall) === JSON.stringify(before8.tall) && JSON.stringify(mid8.wide) === JSON.stringify(before8.wide));
+await c.evaluate("[...document.querySelectorAll('.dlg .seg button')].find(b => b.textContent === 'ปกตั้ง 2 : 3').click()");
+await waitFor("const b = document.querySelector('[data-crop] .cropbox'); if (!b) return false; const r = b.getBoundingClientRect(); return Math.abs(r.width / r.height - 2 / 3) < 0.05", 8000);
+await tiltClick("[data-tilt-plus]", 16);
+check("เอียงได้ 8°", (await q("return document.querySelector('[data-tilt-val]').textContent")) === "+8°");
+await sleep(600);
+await closeToasts();
+await shot("8-ครอป-ปรับเอียง.png", ".dlg", 900);
+const pvShot = join(DIR, "ตัวอย่างบนจอ.png");
+await c.send("Emulation.setDeviceMetricsOverride", { width: 1400, height: 900, deviceScaleFactor: 1, mobile: false });
+await sleep(300);
+await c.shot(pvShot, "[data-previews] > div:nth-child(2) .pv", 0);
+await c.send("Emulation.clearDeviceMetricsOverride");
+await sleep(150);
+await c.evaluate("document.querySelector('[data-use]').click()");
+await waitFor("return !document.querySelector('[data-crop]')");
+await waitFor(`return !!${rowSel(t8)}?.querySelector('[data-link-cropped]')`);
+await clickIn(t8, "[data-link-confirm]");
+await waitFor(`return ${rowSel(t8)}?.dataset.linkStatus === 'saved'`);
+const r8 = await rowNow(t8);
+const out8 = join(dirname(r8.movie), `${basename(r8.movie, extname(r8.movie))}-poster.jpg`);
+const same8 = ssim(pvShot, out8), noTilt8 = ssim(pvShot, BARS, "", "crop=ih*2/3:ih,");
+// เกณฑ์ 0.8 · ตัวอย่างบนจอมีมุมมนและมาจากภาพย่อ เปิดดูเทียบกับตาแล้วเส้นตรงกันทุกเส้นได้ 0.85 · ตัวคุมที่ไม่เอียงได้ 0.57
+check("ตัวอย่างบนจอตรงกับรูปจริงที่ได้ คะแนนสูง และสูงกว่ารูปที่ไม่ได้เอียงชัดเจน", same8 > 0.8 && same8 - noTilt8 > 0.1,`ตรงกับรูปจริง ${same8} · ตรงกับรูปไม่เอียง ${noTilt8}`);
 
 const pass = results.filter((r) => r.pass).length;
 console.log(`\nผ่าน ${pass} จาก ${results.length} ข้อ`);

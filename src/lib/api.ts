@@ -115,11 +115,13 @@ export type PosterProgress = { phase: string; percent: number; eta: number | nul
 
 /** ปลายทางของรูปที่ครอป · ไม่ส่ง = หน้าใส่โปสเตอร์ · cover กับ cover_land = ช่องปกตั้งกับปกนอนของหน้าเสียงและซับ (ที่เก็บรูปแยกกัน ไม่ทับกัน) */
 export type CoverTarget = "cover" | "cover_land";
+/** หน้าครอปใช้กับหน้าไหน · link ระบบจับคู่รูปปก เก็บแค่ค่าครอป */
+export type CropTarget = CoverTarget | "link";
 export const posterApi = {
-  open: (path: string, target?: CoverTarget) => call<PosterInfo>("poster_open", { path, target: target ?? null }),
-  render: (geo: Geometry, format: "jpg" | "png", quality: number, opts: { choose?: boolean; sizes?: boolean; target?: CoverTarget } = {}) =>
+  open: (path: string, target?: CropTarget) => call<PosterInfo>("poster_open", { path, target: target ?? null }),
+  render: (geo: Geometry, format: "jpg" | "png", quality: number, opts: { choose?: boolean; sizes?: boolean; target?: CropTarget } = {}) =>
     call<RenderInfo>("poster_render", { req: { geo, format, quality, choose: !!opts.choose, sizes: !!opts.sizes, target: opts.target ?? null } }),
-  clear: (target?: CoverTarget) => call<void>("poster_clear", { target: target ?? null }),
+  clear: (target?: CropTarget) => call<void>("poster_clear", { target: target ?? null }),
   folderImages: (movie: string) => call<FolderImage[]>("poster_folder_images", { movie }),
   inspect: (path: string) => call<MovieInfo>("poster_inspect", { path }),
   /** ไม่สำเร็จ promise ล้มพร้อม ApplyProblem */
@@ -204,7 +206,7 @@ export const pairApi = {
 };
 
 /* จับคู่รูปปก (แผนจับคู่รูปปก · link.rs) · ทุกวิธีจับคู่ไปรอที่ตารางตรวจผล ยืนยันแล้วค่อยเก็บรูปจริง */
-export type LinkPick = { path: string; name: string; folder: string; width: number; height: number; thumb: string | null; geo: Geometry | null };
+export type LinkPick = { path: string; name: string; folder: string; width: number; height: number; thumb: string | null; geo: Geometry | null; cropThumb?: string | null };
 export type LinkStatus = "sure" | "unsure" | "none" | "manual" | "saved";
 export type LinkRow = {
   id: string; movie: string; title: string; hasCover: boolean; status: LinkStatus; reason: string; via: "auto" | "board" | "explorer" | "shelf";
@@ -228,6 +230,7 @@ export const linkApi = {
   pair: (id: string, paths: string[], via: "board" | "explorer" | "shelf") => call<LinkReplyData>("link_pair", { id, paths, via }),
   undo: (id: string) => call<LinkReplyData>("link_undo", { id }),
   update: (id: string, patch: RowPatch) => call<LinkReplyData>("link_row_update", { id, patch }),
+  setCrop: (id: string, orient: "tall" | "wide", geo: Geometry) => call<LinkReplyData>("link_set_crop", { id, orient, geo }),
   /** ticked ที่ติ๊กไว้ · all ทั้งหมด · ไม่งั้นเป็นเลขแถว */
   confirm: (which: string) => call<ConfirmResult>("link_confirm", { which }),
   cancel: () => call<void>("link_cancel"),

@@ -190,11 +190,14 @@ pub async fn poster_render(app: AppHandle, req: RenderReq) -> Result<RenderInfo,
         };
         let info = RenderInfo {
             bytes: bytes.len() as u64, width: img.width(), height: img.height(), crop_w: crop.0, crop_h: crop.1,
-            small: req.geo.mode == "crop" && (crop.0 < pi::SMALL_W || crop.1 < pi::SMALL_H),
+            // ปกนอน 16 : 9 ใช้เกณฑ์เดียวกัน พลิกด้านกว้างกับด้านสูง
+            small: req.geo.mode == "crop" && if req.geo.aspect == "wide" { crop.0 < pi::SMALL_H || crop.1 < pi::SMALL_W * 9 / 16 } else { crop.0 < pi::SMALL_W || crop.1 < pi::SMALL_H },
             preview: preview.to_string_lossy().to_string(), sizes,
         };
         if req.choose {
-            if let Some(slot) = &req.target {
+            // ระบบจับคู่รูปปกเก็บแค่ค่าครอปไว้ในแถว ยังไม่เก็บรูป รูปจริงทำตอนยืนยัน
+            if req.target.as_deref() == Some("link") {
+            } else if let Some(slot) = &req.target {
                 // ปกตั้งต้องเป็นรูปแนวตั้งหรือจัตุรัส ปกนอนต้องเป็นรูปแนวนอน ชั้นวางกับตัวอ่านปกแยกแนวด้วยชื่อ cover กับ cover_land
                 let land = img.width() > img.height();
                 if slot == "cover_land" && !land {

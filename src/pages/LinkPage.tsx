@@ -7,9 +7,11 @@ import { useCallback, useEffect, useMemo, useState } from "react";
 import { CardIcon, Phr, Seg } from "../components/ui";
 import SearchBox from "../components/SearchBox";
 import LinkBoard from "../components/LinkBoard";
+import CropDialog, { type CropChoice } from "../components/CropDialog";
+import { useSettings } from "../lib/settings";
 import { useToast } from "../components/Toasts";
 import { useLibrary } from "../lib/library";
-import { inApp, linkApi, pickFile, pickFolder, thumbUrl, type AutoSummary, type LinkPick, type LinkRow, type LinkStatus } from "../lib/api";
+import { inApp, linkApi, pickFile, pickFolder, posterApi, thumbUrl, type PosterInfo, type AutoSummary, type LinkPick, type LinkRow, type LinkStatus } from "../lib/api";
 import { searchByName } from "../lib/thaiSearch";
 import { getLinkJob, reloadImages, runConfirm, setLinkJob, setReply, thumbOf, useLinkJob } from "../lib/linkJob";
 import "../styles/link.css";
@@ -158,6 +160,23 @@ function ReviewTable() {
   const working = run.state === "working";
   const [tab, setTab] = useState<Tab>("all");
   const [query, setQuery] = useState("");
+  const { settings } = useSettings();
+  const [crop, setCrop] = useState<{ id: string; orient: "tall" | "wide"; info: PosterInfo; start: CropChoice | null } | null>(null);
+  /** เปิดหน้าครอปของช่องนั้น · ช่องยังไม่มีรูป ใช้รูปของอีกช่อง รูปเดียวทำได้ทั้งปกตั้งและปกนอน */
+  const openCrop = async (id: string, orient: "tall" | "wide") => {
+    const r = getLinkJob().reply.rows.find((x) => x.id === id);
+    if (!r) return;
+    const pick = (orient === "wide" ? r.wide : r.tall) ?? r.tall ?? r.wide;
+    if (!pick) return;
+    try {
+      const info = await posterApi.open(pick.path, "link");
+      const own = orient === "wide" ? r.wide : r.tall;
+      const format = (settings?.posterFormat ?? "jpg") as "jpg" | "png";
+      setCrop({ id, orient, info, start: own?.geo ? { geo: own.geo, format, quality: settings?.jpgQuality ?? 90, render: null as never } : null });
+    } catch (e) {
+      toast({ kind: "bad", title: "เปิดรูปไม่ได้", detail: String(e) });
+    }
+  };
 
   const rows = reply.rows;
   const counts = useMemo(() => {
@@ -234,6 +253,7 @@ function ReviewTable() {
           <RowView key={r.id} r={r} coverThumb={movies.find((m) => m.id === r.id)?.thumb ?? null} busy={working}
             onTick={(v) => act(() => linkApi.update(r.id, { ticked: v }), "ติ๊กไม่สำเร็จ")}
             onChoose={(p) => act(() => linkApi.update(r.id, { choose: p }), "เลือกรูปไม่สำเร็จ")}
+            onCrop={() => openCrop(r.id, r.tall ? "tall" : "wide")}
             onChange={async () => { const f = await pickFile("image"); if (f) act(() => linkApi.pair(r.id, [f], "board"), "ใช้รูปนี้ไม่ได้"); }}
             onConfirm={() => confirm(r.id)}
             onSkip={() => act(() => linkApi.update(r.id, { skip: true }), "ข้ามไม่สำเร็จ")}
@@ -265,23 +285,34 @@ function ReviewTable() {
           )}
         </span>
       </div>
+      {crop && (
+        <CropDialog key={crop.id + crop.orient + crop.info.path} info={crop.info} start={crop.start} target="link"
+          defaultFormat={(settings?.posterFormat ?? "jpg") as "jpg" | "png"} defaultQuality={settings?.jpgQuality ?? 90}
+          link={{ movie: rows.find((r) => r.id === crop.id)?.title ?? "", orient: crop.orient, onOrient: async (o, keep) => {
+            if (keep) await act(() => linkApi.setCrop(crop.id, crop.orient, keep.geo), "จำค่าครอปไม่สำเร็จ");
+            await openCrop(crop.id, o);
+          } }}
+          onCancel={() => setCrop(null)}
+          onChangeImage={async () => { const id = crop.id; setCrop(null); const f = await pickFile("image"); if (f) act(() => linkApi.pair(id, [f], "board"), "ใช้รูปนี้ไม่ได้"); }}
+          onUse={(c) => { const { id, orient } = crop; setCrop(null); act(() => linkApi.setCrop(id, orient, c.geo), "จำค่าครอปไม่สำเร็จ"); }} />
+      )}
     </div>
   );
 }
 
 function Thumb({ p, wide }: { p: LinkPick | null; wide?: boolean }) {
-  const src = thumbUrl(thumbOf(p));
+  const src = thumbUrl(p?.cropThumb ?? thumbOf(p));
   return src ? <img className={"lthumb" + (wide ? " wide" : "")} src={src} alt="" loading="lazy" draggable={false} /> : <span className={"lthumb none" + (wide ? " wide" : "")} />;
 }
 
 function RowView(p: {
   r: LinkRow; coverThumb: string | null; busy: boolean;
-  onTick: (v: boolean) => void; onChoose: (path: string) => void; onChange: () => void; onConfirm: () => void; onSkip: () => void; onUndo: () => void; onUnsave: () => void; onResolve: (how: "use" | "app") => void;
+  onTick: (v: boolean) => void; onChoose: (path: string) => void; onCrop: () => void; onChange: () => void; onConfirm: () => void; onSkip: () => void; onUndo: () => void; onUnsave: () => void; onResolve: (how: "use" | "app") => void;
 }) {
   const { r } = p;
   const has = !!(r.tall || r.wide);
   const main = r.tall ?? r.wide;
-  const second = r.wide && r.tall && r.wide.path !== r.tall.path ? r.wide : null;
+  const second = r.wide && r.tall && (r.wide.path !== r.tall.path || r.wide.geo) ? r.wide : null;
   const saved = r.status === "saved";
   const pillText = saved ? r.reason : r.reason;
   return (
@@ -305,6 +336,7 @@ function RowView(p: {
               <span className="fn" title={main!.path}>{main!.name}</span>
               <span className="small">{main!.folder ? <span title={main!.folder}>{main!.folder} · </span> : null}<span className="nw">{main!.width} × {main!.height}</span> · {main!.width > main!.height ? "ปกนอน" : "ปกตั้ง"}{second ? " · มีปกนอนด้วย" : ""}</span>
               {r.derivedTall && <span className="small">ครอปเป็นปกตั้งให้แล้ว</span>}
+              {(r.tall?.geo || r.wide?.geo) && !r.derivedTall && <span className="small" data-link-cropped>ครอปแล้ว</span>}
             </div>
           </div>
         ) : null}
@@ -334,6 +366,7 @@ function RowView(p: {
           <><span className="pill p-ok">บันทึกแล้ว</span><button type="button" className="btn btn-ghost btn-sm" data-link-unsave onClick={p.onUnsave}>ยกเลิก</button></>
         ) : (
           <>
+            {has && <button type="button" className="btn btn-ghost btn-sm" data-link-crop onClick={p.onCrop}>ครอป</button>}
             {has && <button type="button" className="btn btn-ghost btn-sm" data-link-change onClick={p.onChange}>เปลี่ยนรูป</button>}
             {!has && <button type="button" className="btn btn-ghost btn-sm" data-link-change onClick={p.onChange}>เลือกรูป</button>}
             {!!r.prev && <button type="button" className="btn btn-ghost btn-sm" data-link-undo onClick={p.onUndo}>ย้อน</button>}
