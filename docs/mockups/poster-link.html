@@ -1,0 +1,404 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>จับคู่รูปปก มอคอัป</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
+<!--
+  มอคอัประบบจับคู่รูปปกกับไฟล์หนัง โดยไม่รวมเข้าไฟล์ (8 พ.ย. 2569)
+  พี่กันสั่ง "เธอไปร่างมอคอัปมา สิ่งที่เราต้องการคือ เเม้โปสเต้อ เเละวิดีโอจะอยู่คนละที่ เเต่โปรแกรมจะจับคู่กันได้ โดยไม่ต้อง merge
+  เเละภาพที่เอามาจับคู่ก้สามารุดัดแปลง ครอบ บิด อะไรได้หมดเหมือนที่จะรวมกับรูป เเละเราอยากได้วิธีกดที่ง่าย เพราะสมมุติเรามีหนัง 100 เรื่อง กับรูป 100 รูป"
+  กรอบหน้าต่างกว้าง 1200px เท่าหน้าต่างโปรแกรมจริง · ชื่อหนังกับรูปเป็นของสมมติ โปสเตอร์วาดด้วยสีไล่เฉด · ใช้สีกับชิ้นส่วนเดียวกับ poster-shelf.html
+-->
+<style>
+:root{
+  --bg:#fdf2f6; --ink:#4a2b38; --muted:#8a6474;
+  --win:#fffafc; --win2:#fdeef4; --line:#f4d3e0;
+  --txt:#4a2b38; --txt2:#8a5d6e; --txt3:#b28a9a;
+  --accent:#e98aac; --accent-d:#d9719a; --accent-soft:#fbd7e5; --accent-ink:#c2547f;
+  --ok:#7fc9a2; --ok-soft:#e2f5ea; --ok-ink:#2f7a52;
+  --bad:#ec8f8f; --bad-soft:#fde5e5; --bad-ink:#b04545;
+  --warn:#f2c76e; --warn-soft:#fdf1d6; --warn-ink:#94680f;
+  --info:#8dbbe8; --info-soft:#e4effb; --info-ink:#2f6496;
+  --wood1:#f2cfd9; --wood2:#e6b3c3; --wood3:#d69aae;
+}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:Sarabun,"Noto Sans Thai",Tahoma,sans-serif;font-size:15px;line-height:1.6;min-width:1260px}
+.page{width:1200px;margin:0 auto;padding:36px 0 80px}
+h1{font-size:28px;margin:0 0 6px}
+.lead{color:var(--muted);margin:0 0 8px}
+.sec{margin-top:56px}
+.sec h2{font-size:21px;margin:0 0 4px}
+.sec .note{color:var(--muted);margin:0 0 16px;max-width:960px}
+.tag{display:inline-block;background:#f6b3cb;color:#7a2346;border-radius:6px;padding:0 9px;font-size:13px;margin-right:8px}
+.win{background:var(--win);color:var(--txt);border-radius:12px;overflow:hidden;box-shadow:0 18px 40px rgba(200,110,145,.18);border:1px solid var(--line)}
+.titlebar{height:34px;display:flex;align-items:center;justify-content:space-between;padding:0 0 0 14px;background:#fbe3ec;font-size:13px;color:var(--txt2)}
+.titlebar .ctl{display:flex}
+.titlebar .ctl span{width:46px;height:34px;display:flex;align-items:center;justify-content:center}
+.body{display:flex;min-height:600px}
+.side{width:200px;flex:none;background:var(--win2);border-right:1px solid var(--line);padding:16px 10px;display:flex;flex-direction:column;gap:4px}
+.brand{display:flex;align-items:center;gap:10px;padding:2px 8px 16px;font-weight:700;font-size:17px;color:var(--accent-ink)}
+.nav{display:flex;align-items:center;gap:10px;padding:9px 10px;border-radius:9px;color:var(--txt2);font-size:15px}
+.nav.on{background-color:var(--accent-soft);color:var(--accent-ink);font-weight:600}
+.nav .new{margin-left:auto;font-size:11px;background:#f6b3cb;color:#7a2346;border-radius:10px;padding:0 7px;font-weight:600}
+.main{flex:1;display:flex;flex-direction:column;min-width:0}
+.wrapin{padding:20px 22px;display:flex;flex-direction:column;gap:16px;flex:1}
+.btn{height:38px;display:inline-flex;align-items:center;justify-content:center;gap:8px;padding:0 16px;border-radius:9px;font:inherit;font-size:14px;font-weight:600;white-space:nowrap}
+.btn-main{background-color:#f6b3cb;color:#7a2346;border:1px solid #ef9dbb}
+.btn-ghost{background-color:#fff;color:var(--txt);border:1px solid #efc6d5}
+.btn-ok{background-color:var(--ok-soft);color:var(--ok-ink);border:1px solid #a9dcc0}
+.btn-sm{height:32px;padding:0 12px;font-size:13px}
+.btn-xs{height:28px;padding:0 10px;font-size:12.5px;border-radius:8px}
+.card{background:var(--win2);border:1px solid var(--line);border-radius:12px;padding:16px}
+.card h3{margin:0 0 10px;font-size:15px;display:flex;align-items:center;gap:8px}
+.step{width:22px;height:22px;border-radius:50%;background:#f6b3cb;color:#7a2346;font-size:13px;display:inline-flex;align-items:center;justify-content:center;font-weight:700;flex:none}
+.drop{border:2px dashed #eeb3c8;border-radius:12px;background:#fff;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:6px;color:var(--txt3);font-size:14px;text-align:center;padding:22px}
+.small{font-size:12.5px;color:var(--txt3);line-height:1.55}
+.pill{display:inline-flex;align-items:center;gap:5px;border-radius:20px;padding:1px 10px;font-size:12.5px;font-weight:600;white-space:nowrap}
+.p-ok{background:var(--ok-soft);color:var(--ok-ink)} .p-warn{background:var(--warn-soft);color:var(--warn-ink)} .p-bad{background:var(--bad-soft);color:var(--bad-ink)} .p-info{background:var(--info-soft);color:var(--info-ink)} .p-pink{background:#fdeaf1;color:var(--accent-ink)}
+.seg{display:inline-flex;border:1px solid #efc6d5;border-radius:9px;overflow:hidden;background:#fff}
+.seg span{padding:5px 14px;font-size:13.5px;color:var(--txt2);border-left:1px solid #f4d9e3}
+.seg span:first-child{border-left:0}
+.seg span.on{background:#fbd7e5;color:#7a2346;font-weight:600}
+.stat{display:flex;gap:10px;align-items:flex-start;border-radius:10px;padding:10px 12px;font-size:13.5px;line-height:1.55}
+.stat.ok{background:var(--ok-soft);color:var(--ok-ink)} .stat.info{background:var(--info-soft);color:var(--info-ink)} .stat.warn{background:var(--warn-soft);color:var(--warn-ink)}
+.stat b{display:block}
+.chk{display:inline-flex;align-items:center}
+.cbx{width:18px;height:18px;border-radius:5px;display:inline-flex;align-items:center;justify-content:center;flex:none}
+.cbx.on{background:var(--accent)} .cbx.off{border:2px solid #e5b7c8;background:#fff}
+/* ปกสมมติ */
+.pp{border-radius:6px;flex:none;display:flex;flex-direction:column;justify-content:flex-end;padding:7px;color:#fff;box-shadow:0 4px 10px rgba(150,70,100,.25);position:relative;overflow:hidden}
+.pp .t{font-weight:700;font-size:12.5px;line-height:1.3;text-shadow:0 1px 3px rgba(0,0,0,.45)}
+.pp.tall{width:54px;height:80px}
+.pp.wide{width:96px;height:54px}
+.pp.none{background:repeating-linear-gradient(135deg,#fff 0 8px,#fdf0f5 8px 16px);border:2px dashed #eeb3c8;box-shadow:none;color:var(--txt3);align-items:center;justify-content:center;font-size:11px;text-align:center}
+.g1{background:linear-gradient(160deg,#ffb4a2,#b5536f)} .g2{background:linear-gradient(160deg,#9fc3e0,#3d5a80)} .g3{background:linear-gradient(160deg,#c3e6b0,#4f7a49)}
+.g4{background:linear-gradient(160deg,#f6d186,#b57a2a)} .g5{background:linear-gradient(160deg,#d7b8f3,#6b4a9a)} .g6{background:linear-gradient(160deg,#a6e3e0,#2d7f7a)}
+.g7{background:linear-gradient(160deg,#f7a8c9,#8e3b63)} .g8{background:linear-gradient(160deg,#c9c9c9,#55505a)} .g9{background:linear-gradient(160deg,#ffd6a5,#c0603c)}
+/* ตารางตรวจผล */
+.tblwrap{border:1px solid var(--line);border-radius:12px;overflow:hidden;background:#fff}
+table{width:100%;border-collapse:collapse;font-size:14px}
+th{text-align:left;color:var(--txt2);font-weight:600;font-size:13px;padding:9px 12px;border-bottom:1px solid var(--line);background:var(--win2)}
+td{padding:9px 12px;border-bottom:1px solid #f8e3eb;vertical-align:middle}
+tbody tr:last-child td{border-bottom:0}
+td.acts{white-space:nowrap}
+tr.unsure td{background:#fffaf0}
+tr.none td{background:#fff7f7}
+.mv b{display:block;font-size:14px}
+.fn{font-size:12.5px;color:var(--txt2);word-break:break-all}
+.arrow{color:var(--txt3);font-size:18px;text-align:center}
+.pick{display:flex;gap:6px;align-items:center}
+.sugg{display:flex;gap:6px;margin-top:4px}
+.sugg .pp{opacity:.95}
+.sugg .pp.sel{outline:3px solid var(--accent);outline-offset:2px}
+.tabs{display:flex;gap:6px;align-items:center}
+.tabs span{padding:5px 12px;border-radius:20px;font-size:13.5px;color:var(--txt2);background:#fff;border:1px solid #f1d2de}
+.tabs span.on{background:#fbd7e5;color:#7a2346;border-color:#efa9c3;font-weight:600}
+.foot{display:flex;justify-content:space-between;align-items:center;gap:12px}
+/* กระดานจับคู่ */
+.board{display:grid;grid-template-columns:1fr 1fr;gap:16px}
+.imgs{display:grid;grid-template-columns:repeat(4,1fr);gap:12px}
+.ic{background:#fff;border:1px solid #f1d6e1;border-radius:10px;padding:8px;display:flex;flex-direction:column;align-items:center;gap:5px;position:relative}
+.ic .pp.tall{width:72px;height:106px}
+.ic .pp.wide{width:118px;height:66px;margin:20px 0}
+.ic.sel{border:2px solid var(--accent);box-shadow:0 0 0 3px rgba(233,138,172,.22)}
+.ic .fn{text-align:center;font-size:11.5px}
+.ic.drag{opacity:.45}
+.mvlist{display:flex;flex-direction:column;gap:6px}
+.mvrow{display:flex;gap:10px;align-items:center;background:#fff;border:1px solid #f1d6e1;border-radius:10px;padding:7px 10px}
+.mvrow .pp.tall{width:38px;height:56px}
+.mvrow .nm{flex:1;min-width:0}
+.mvrow .nm b{display:block;font-size:14px}
+.mvrow.target{border:2px dashed var(--accent);background:#fdeaf1}
+.mvrow.done{background:var(--ok-soft);border-color:#bfe6cf}
+.ghost{position:absolute;pointer-events:none;opacity:.9;transform:rotate(-4deg)}
+.search{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:9px;height:36px;padding:0 12px;color:var(--txt3);font-size:14px}
+/* ครอป */
+.crop{display:grid;grid-template-columns:1fr 300px;gap:18px}
+.stage{background:#2b1d24;border-radius:12px;height:430px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
+.photo{width:560px;height:315px;border-radius:4px;background:linear-gradient(160deg,#9fc3e0 0%,#3d5a80 55%,#1e2d45 100%);position:relative;transform:rotate(-3deg)}
+.photo .ttl{position:absolute;left:40px;bottom:36px;color:#fff;font-weight:700;font-size:30px;text-shadow:0 2px 6px rgba(0,0,0,.5)}
+.frame{position:absolute;width:190px;height:285px;border:2px solid #fff;box-shadow:0 0 0 2000px rgba(20,10,15,.55);left:50%;top:50%;transform:translate(-30%,-50%)}
+.frame i{position:absolute;width:12px;height:12px;background:#fff;border-radius:3px}
+.tools{display:flex;flex-direction:column;gap:12px}
+.slider{height:6px;border-radius:3px;background:#f3d5e0;position:relative;margin:10px 4px}
+.slider i{position:absolute;top:-6px;width:18px;height:18px;border-radius:50%;background:#fff;border:2px solid var(--accent);left:40%}
+.row{display:flex;gap:8px;align-items:center;flex-wrap:wrap}
+.thumbs2{display:flex;gap:14px;align-items:flex-end}
+/* ชั้นวาง */
+.shelfbox{display:flex;min-height:420px}
+.shelfwrap{flex:1;padding:18px 18px 24px}
+.shelf{position:relative;display:flex;gap:14px;padding:0 14px;margin:14px 0 34px;align-items:flex-end}
+.shelf::after{content:"";position:absolute;left:0;right:0;bottom:-16px;height:16px;border-radius:8px;background:linear-gradient(180deg,var(--wood1),var(--wood2) 55%,var(--wood3));box-shadow:0 8px 14px rgba(200,110,145,.22)}
+.book{width:100px;flex:none;position:relative;z-index:1}
+.cover{width:100px;height:150px;border-radius:6px;position:relative;overflow:hidden;box-shadow:0 6px 12px rgba(150,70,100,.25);display:flex;flex-direction:column;justify-content:flex-end;padding:9px;color:#fff}
+.cover .t{font-weight:700;font-size:14px;line-height:1.35;text-shadow:0 1px 4px rgba(0,0,0,.45)}
+.book.sel .cover{outline:3px solid var(--accent);outline-offset:3px}
+.linkb{position:absolute;top:6px;left:6px;width:22px;height:22px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.bname{font-size:12px;color:var(--txt2);margin-top:22px;line-height:1.5;min-height:36px}
+.detail{width:300px;flex:none;background:var(--win2);border-left:1px solid var(--line);padding:18px;display:flex;flex-direction:column;gap:12px}
+.dposter{width:140px;height:210px;border-radius:8px;margin:0 auto;box-shadow:0 8px 18px rgba(150,70,100,.3);display:flex;flex-direction:column;justify-content:flex-end;padding:12px;color:#fff;position:relative}
+.dposter .t{font-size:18px;font-weight:700;line-height:1.35;text-shadow:0 1px 4px rgba(0,0,0,.45)}
+.actions{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+/* ข้อเสนอ */
+.explain{background:#fff;border:1px solid var(--line);border-radius:12px;padding:18px 22px}
+.explain ol,.explain ul{margin:6px 0;padding-left:22px}
+.explain li{margin:5px 0}
+.ways{display:grid;grid-template-columns:repeat(3,1fr);gap:14px}
+.way{background:#fff;border:1px solid var(--line);border-radius:12px;padding:16px}
+.way h4{margin:0 0 6px;font-size:16px;display:flex;gap:8px;align-items:center}
+.way .when{font-size:13px;color:var(--accent-ink);font-weight:600;margin-bottom:6px}
+.mode{border-radius:12px;padding:14px 16px;border:1px solid var(--line);background:#fff}
+.mode.on{border:1px solid var(--accent);background:#fdeaf1}
+.mode h4{margin:0 0 4px;font-size:15px;display:flex;gap:8px;align-items:center}
+.modes{display:grid;grid-template-columns:1fr 1fr;gap:14px}
+.ask{counter-reset:q}
+.ask li{margin:10px 0}
+.rec{display:inline-block;background:var(--ok-soft);color:var(--ok-ink);border-radius:6px;padding:0 8px;font-size:12.5px;font-weight:600;margin-left:6px}
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>จับคู่รูปปกกับไฟล์หนัง โดยไม่รวมเข้าไฟล์</h1>
+  <p class="lead">มอคอัป 8 พ.ย. 2569 · พี่กันสั่ง <i>"แม้โปสเตอร์และวิดีโอจะอยู่คนละที่ แต่โปรแกรมจะจับคู่กันได้ โดยไม่ต้อง merge · ภาพที่เอามาจับคู่ดัดแปลง ครอป บิด ได้หมดเหมือนที่จะรวมกับรูป · อยากได้วิธีกดที่ง่าย สมมุติมีหนัง 100 เรื่องกับรูป 100 รูป"</i></p>
+  <p class="lead">ไฟล์หนังไม่ถูกแตะเลย ไม่ต้องรอครอบ ไม่ใช้ที่ว่างเพิ่ม ใช้ได้กับไฟล์ทุกชนิด รวมถึง MP4 AVI ที่ใส่ปกในไฟล์ยาก · วันไหนอยากรวมเข้าไฟล์จริง กดรวมจากรูปที่จับคู่ไว้ได้เลย</p>
+
+  <!-- ===================== ข้อเสนอ 3 ทาง ===================== -->
+  <section class="sec" id="ways">
+    <h2><span class="tag">ข้อเสนอ</span>จับคู่ได้ 3 ทาง เรียงจากเร็วที่สุด</h2>
+    <p class="note">หนัง 100 เรื่องกับรูป 100 รูป ส่วนใหญ่จบที่ทางที่ 1 ภายในกดปุ่มเดียว · ที่เหลือไม่กี่เรื่องจบที่ทางที่ 2 · ทางที่ 3 ไว้เปลี่ยนรูปทีละเรื่องตอนดูชั้นวาง</p>
+    <div class="ways">
+      <div class="way"><h4><span class="step">1</span>ลากรูปทั้งโฟลเดอร์มา โปรแกรมจับคู่ให้</h4>
+        <div class="when">หนังหลายเรื่อง รูปหลายรูปพร้อมกัน</div>
+        <div class="small" style="font-size:13.5px;color:var(--txt2)">ลากโฟลเดอร์รูปมาวาง โปรแกรมเทียบชื่อรูปกับชื่อหนังบนชั้นวาง (ตัดปี ความละเอียด ชื่อทีมทำไฟล์ ออกก่อนเทียบ) แล้วขึ้นตารางให้ตรวจ · คู่ที่ชื่อกับปีตรงกันติ๊กไว้ให้ กดยืนยันทีเดียว</div></div>
+      <div class="way"><h4><span class="step">2</span>กระดานจับคู่ ลากรูปไปวางบนหนัง</h4>
+        <div class="when">คู่ที่โปรแกรมไม่แน่ใจหรือหาไม่เจอ</div>
+        <div class="small" style="font-size:13.5px;color:var(--txt2)">รูปที่เหลืออยู่ซ้าย หนังที่ยังไม่มีปกอยู่ขวา · ลากรูปไปวางบนหนัง หรือกดรูปแล้วกดหนัง สองคลิกจบ · ค้นชื่อหนังได้ จับคู่แล้วแถวหายไปจากกระดาน เหลือแต่ที่ยังไม่เสร็จ</div></div>
+      <div class="way"><h4><span class="step">3</span>ทีละเรื่องจากชั้นวาง</h4>
+        <div class="when">เปลี่ยนปกเรื่องเดียว</div>
+        <div class="small" style="font-size:13.5px;color:var(--txt2)">แผงขวาของชั้นวางมีปุ่ม จับคู่รูปปก ลากรูปมาวางหรือเลือกรูป แล้วเปิดหน้าครอปเดิม · เรื่องที่จับคู่ไว้แล้ว กดครอปใหม่หรือเปลี่ยนรูปได้ตลอด</div></div>
+    </div>
+  </section>
+
+  <!-- ===================== หน้า 1 ลากโฟลเดอร์ ===================== -->
+  <section class="sec" id="s1">
+    <h2><span class="tag">หน้า 1</span>หน้าจับคู่ปก · ลากรูปทั้งโฟลเดอร์มาวาง</h2>
+    <p class="note">หน้าใหม่ในเมนูซ้าย ต่อจากหน้าใส่โปสเตอร์ · เลือกได้ว่าจะจับคู่กับหนังทุกเรื่อง หรือเฉพาะเรื่องที่ยังไม่มีปก · อ่านรูปเสร็จบอกผลรวมก่อนเปิดตาราง</p>
+    <div class="win">
+      <div class="titlebar"><span>ชั้นหนัง</span><span class="ctl"><span>–</span><span>□</span><span>×</span></span></div>
+      <div class="body">
+        <div class="side">
+          <div class="brand">ชั้นหนัง</div>
+          <div class="nav">ชั้นวาง</div><div class="nav">ใส่โปสเตอร์</div><div class="nav on">จับคู่ปก <span class="new">ใหม่</span></div><div class="nav">เสียงและซับ</div><div class="nav">ตรวจไฟล์</div><div class="nav">กราฟเสียง</div><div class="nav">ตั้งค่า</div>
+        </div>
+        <div class="main"><div class="wrapin">
+          <div class="card">
+            <h3><span class="step">1</span>รูปที่จะเอามาจับคู่</h3>
+            <div class="drop" style="height:170px">
+              <svg width="36" height="36" viewBox="0 0 24 24" fill="none" stroke="#e5a3bd" stroke-width="1.8"><rect x="3" y="4" width="18" height="16" rx="2"/><circle cx="9" cy="10" r="2"/><path d="M21 16l-5-5-8 8"/></svg>
+              <b style="color:var(--txt2);font-size:15px">ลากโฟลเดอร์รูป หรือรูปหลายรูปมาวางตรงนี้</b>
+              <span>JPG PNG WEBP HEIC · รูปในโฟลเดอร์ย่อยอ่านด้วย · รูปต้นฉบับไม่ถูกแก้</span>
+              <span class="btn btn-ghost btn-sm" style="margin-top:6px">เลือกโฟลเดอร์</span>
+            </div>
+          </div>
+          <div class="card">
+            <h3><span class="step">2</span>จับคู่กับหนังเรื่องไหน</h3>
+            <div class="row"><span class="seg"><span class="on">เฉพาะเรื่องที่ยังไม่มีปก (100 เรื่อง)</span><span>ทุกเรื่องบนชั้นวาง (128 เรื่อง)</span></span>
+              <span class="small">เรื่องที่มีปกในไฟล์อยู่แล้ว ข้ามให้ เปลี่ยนเป็นทุกเรื่องถ้าจะเปลี่ยนปกด้วย</span></div>
+          </div>
+          <div class="stat ok"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg>
+            <div><b>อ่านรูปจาก D:\โปสเตอร์ 104 รูป · จับคู่ได้แน่ 92 คู่ · ไม่แน่ใจ 7 · หาคู่ไม่เจอ 5</b>
+            รูปแนวตั้ง 96 รูป ใช้เป็นปกตั้ง · รูปแนวนอน 8 รูป ใช้เป็นปกนอน และครอปเป็นปกตั้งได้ · ใช้เวลา 3 วินาที</div></div>
+          <div class="foot"><span class="small">กดดูผลแล้วยังไม่มีอะไรถูกบันทึก ต้องกดยืนยันในตารางก่อน</span><span class="btn btn-main">ดูผลจับคู่ 104 รูป</span></div>
+        </div></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== หน้า 2 ตารางตรวจผล ===================== -->
+  <section class="sec" id="s2">
+    <h2><span class="tag">หน้า 2</span>ตารางตรวจผลจับคู่ · ยืนยันทีเดียว</h2>
+    <p class="note">คู่ที่ชื่อกับปีตรงกันติ๊กไว้ให้ · คู่ที่ไม่แน่ใจขึ้นสีเหลือง มีรูปที่ใกล้ที่สุด 3 รูปให้กดเลือก · คู่ที่หาไม่เจอขึ้นสีแดง ไปต่อที่กระดานจับคู่ · ครอปได้ตั้งแต่ในตาราง</p>
+    <div class="win">
+      <div class="titlebar"><span>ชั้นหนัง · จับคู่ปก</span><span class="ctl"><span>–</span><span>□</span><span>×</span></span></div>
+      <div class="wrapin">
+        <div class="foot"><div class="tabs"><span class="on">ทั้งหมด 104</span><span>จับคู่ได้แน่ 92</span><span>ไม่แน่ใจ 7</span><span>หาคู่ไม่เจอ 5</span></div>
+          <div class="search" style="width:240px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>ค้นชื่อหนังหรือชื่อรูป</div></div>
+        <div class="tblwrap"><table>
+          <thead><tr><th style="width:36px"></th><th>หนังบนชั้นวาง</th><th style="width:30px"></th><th>รูปที่โปรแกรมเลือกให้</th><th style="width:170px">เหตุที่จับคู่</th><th style="width:170px"></th></tr></thead>
+          <tbody>
+            <tr><td><span class="cbx on"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></td>
+              <td><div class="pick"><span class="pp tall none">ไม่มีปก</span><div class="mv"><b>ดาวเหนือ (2023)</b><span class="fn">ดาวเหนือ.2023.1080p.BluRay.x265.mkv</span></div></div></td>
+              <td class="arrow">→</td>
+              <td><div class="pick"><span class="pp tall g2"><span class="t">ดาวเหนือ</span></span><div><span class="fn">ดาวเหนือ (2023) poster.jpg</span><br><span class="small">1000 × 1500 · ปกตั้ง</span></div></div></td>
+              <td><span class="pill p-ok">ชื่อกับปีตรง</span></td>
+              <td class="acts"><span class="btn btn-ghost btn-xs">ครอป</span> <span class="btn btn-ghost btn-xs">เปลี่ยนรูป</span></td></tr>
+            <tr><td><span class="cbx on"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></td>
+              <td><div class="pick"><span class="pp tall none">ไม่มีปก</span><div class="mv"><b>Harbor Lights (2021)</b><span class="fn">Harbor.Lights.2021.2160p.WEB-DL.mkv</span></div></div></td>
+              <td class="arrow">→</td>
+              <td><div class="pick"><span class="pp tall g6"><span class="t">Harbor Lights</span></span><div><span class="fn">harbor_lights_2021.png</span><br><span class="small">2000 × 3000 · ปกตั้ง</span></div></div></td>
+              <td><span class="pill p-ok">ชื่อกับปีตรง</span></td>
+              <td class="acts"><span class="btn btn-ghost btn-xs">ครอป</span> <span class="btn btn-ghost btn-xs">เปลี่ยนรูป</span></td></tr>
+            <tr><td><span class="cbx on"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></td>
+              <td><div class="pick"><span class="pp tall none">ไม่มีปก</span><div class="mv"><b>ฝนสุดท้ายของฤดู (2019)</b><span class="fn">D:\หนังไทย\ฝนสุดท้ายของฤดู (2019)\movie.mkv</span></div></div></td>
+              <td class="arrow">→</td>
+              <td><div class="pick"><span class="pp tall g3"><span class="t">ฝนสุดท้าย</span></span><div><span class="fn">folder.jpg (อยู่ในโฟลเดอร์เดียวกับหนัง)</span><br><span class="small">680 × 1000 · ปกตั้ง</span></div></div></td>
+              <td><span class="pill p-ok">รูปอยู่ข้างไฟล์หนัง</span></td>
+              <td class="acts"><span class="btn btn-ghost btn-xs">ครอป</span> <span class="btn btn-ghost btn-xs">เปลี่ยนรูป</span></td></tr>
+            <tr><td><span class="cbx on"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></td>
+              <td><div class="pick"><span class="pp tall none">ไม่มีปก</span><div class="mv"><b>Silent Orbit (2018)</b><span class="fn">Silent.Orbit.2018.mkv</span></div></div></td>
+              <td class="arrow">→</td>
+              <td><div class="pick"><span class="pp wide g5"><span class="t">Silent Orbit</span></span><div><span class="fn">silent-orbit-backdrop.jpg</span><br><span class="small">1920 × 1080 · ปกนอน · ครอปเป็นปกตั้งให้แล้ว</span></div></div></td>
+              <td><span class="pill p-ok">ชื่อตรง ไม่มีปีในชื่อรูป</span></td>
+              <td class="acts"><span class="btn btn-ghost btn-xs">ครอป</span> <span class="btn btn-ghost btn-xs">เปลี่ยนรูป</span></td></tr>
+            <tr class="unsure"><td><span class="cbx off"></span></td>
+              <td><div class="pick"><span class="pp tall none">ไม่มีปก</span><div class="mv"><b>เมืองในหมอก (2015)</b><span class="fn">Mueang.Nai.Mok.2015.mkv</span></div></div></td>
+              <td class="arrow">→</td>
+              <td><div class="small" style="color:var(--warn-ink)">ชื่อใกล้เคียง 3 รูป กดรูปที่ใช่</div>
+                <div class="sugg"><span class="pp tall g8 sel"><span class="t">เมืองในหมอก</span></span><span class="pp tall g1"><span class="t">เมืองหมอก</span></span><span class="pp tall g4"><span class="t">หมอกเมือง 2</span></span></div></td>
+              <td><span class="pill p-warn">ไม่แน่ใจ ชื่อคล้าย 82%</span></td>
+              <td><span class="btn btn-ghost btn-xs">ข้ามเรื่องนี้</span></td></tr>
+            <tr class="none"><td><span class="cbx off"></span></td>
+              <td><div class="pick"><span class="pp tall none">ไม่มีปก</span><div class="mv"><b>Paper Kites (2012)</b><span class="fn">PK.2012.mkv</span></div></div></td>
+              <td class="arrow">→</td>
+              <td><span class="small" style="color:var(--bad-ink)">ไม่มีรูปชื่อใกล้เคียง · ไปจับคู่เองที่กระดาน</span></td>
+              <td><span class="pill p-bad">หาคู่ไม่เจอ</span></td>
+              <td><span class="btn btn-ghost btn-xs">ไปกระดาน</span></td></tr>
+          </tbody>
+        </table></div>
+        <div class="foot"><span class="small">ติ๊กไว้ 92 คู่ · รูปต้นฉบับไม่ถูกแก้ ไฟล์หนังไม่ถูกแตะ · ยืนยันแล้วยังเปลี่ยนหรือเอาออกได้ทุกเมื่อ</span>
+          <span class="row"><span class="btn btn-ghost">ไปกระดานจับคู่ (12 ที่เหลือ)</span><span class="btn btn-main">ยืนยัน 92 คู่</span></span></div>
+      </div>
+    </div>
+    <div class="explain" style="margin-top:14px"><b>โปรแกรมเทียบชื่อยังไง</b>
+      <ol>
+        <li>ตัดส่วนที่ไม่ใช่ชื่อเรื่องออกก่อน ทั้งชื่อหนังและชื่อรูป · ปี ความละเอียด (1080p 2160p) แหล่ง (BluRay WEB-DL) ตัวแปลง (x264 x265) ชื่อทีมทำไฟล์ คำว่า poster cover folder · จุด ขีด ขีดล่าง เป็นช่องว่าง · ตัวพิมพ์เล็กใหญ่ไม่นับ</li>
+        <li>รูปที่อยู่โฟลเดอร์เดียวกับหนัง ชื่อ folder poster cover หรือชื่อเดียวกับไฟล์หนัง จับคู่ให้ก่อนเลย (ชุดหนังที่โหลดมามักแถมรูปไว้ข้างไฟล์)</li>
+        <li>ชื่อตรงกันและปีตรงกัน = จับคู่ได้แน่ ติ๊กไว้ให้ · ชื่อตรงแต่ไม่มีปีในชื่อรูป = จับคู่ได้แน่ถ้าไม่มีหนังชื่อซ้ำ · ชื่อคล้ายกันแต่ไม่ตรง = ไม่แน่ใจ ไม่ติ๊กให้</li>
+        <li>รูปหนึ่งรูปจับคู่ได้หนังเรื่องเดียว · หนังสองเรื่องชื่อซ้ำ (ภาคต่อ รีเมก) ใช้ปีแยก ถ้าไม่มีปีขึ้นว่าไม่แน่ใจ</li>
+        <li>มีเลข IMDb (tt1234567) ในชื่อรูปหรือในไฟล์ .nfo ข้างหนัง ใช้เลขนั้นจับคู่ แม่นที่สุด</li>
+      </ol>
+    </div>
+  </section>
+
+  <!-- ===================== หน้า 3 กระดานจับคู่ ===================== -->
+  <section class="sec" id="s3">
+    <h2><span class="tag">หน้า 3</span>กระดานจับคู่ · ลากรูปไปวางบนหนัง หรือกดรูปแล้วกดหนัง</h2>
+    <p class="note">เหลือแต่คู่ที่ยังไม่เสร็จ · กดรูปซ้ายหนึ่งครั้ง (กรอบชมพู) แล้วกดหนังขวา จบใน 2 คลิก · หรือลากรูปไปวางบนหนัง · จับคู่แล้วแถวเขียวสักครู่แล้วหายจากกระดาน · กดย้อนได้</p>
+    <div class="win">
+      <div class="titlebar"><span>ชั้นหนัง · จับคู่ปก · กระดาน</span><span class="ctl"><span>–</span><span>□</span><span>×</span></span></div>
+      <div class="wrapin">
+        <div class="board">
+          <div class="card" style="position:relative">
+            <h3 style="justify-content:space-between"><span>รูปที่ยังไม่ได้ใช้ · 12 รูป</span><span class="small" style="font-weight:400">เรียงตามชื่อ · ลากรูปเพิ่มมาวางได้</span></h3>
+            <div class="imgs">
+              <div class="ic sel"><span class="pp tall g7"><span class="t">Paper Kites</span></span><span class="fn">pk_poster_final.jpg</span></div>
+              <div class="ic"><span class="pp tall g9"><span class="t">ทะเลสาบ</span></span><span class="fn">lake2016.jpg</span></div>
+              <div class="ic drag"><span class="pp tall g4"><span class="t">Copper</span></span><span class="fn">IMG_2031.jpg</span></div>
+              <div class="ic"><span class="pp wide g2"><span class="t">Night Bus</span></span><span class="fn">nightbus-wide.png</span></div>
+              <div class="ic"><span class="pp tall g1"><span class="t">เมืองหมอก</span></span><span class="fn">เมืองหมอก.jpg</span></div>
+              <div class="ic"><span class="pp tall g5"><span class="t">Ember</span></span><span class="fn">ember (1).webp</span></div>
+              <div class="ic"><span class="pp tall g3"><span class="t">ป่าใบเตย</span></span><span class="fn">ป่าใบเตย-cover.jpg</span></div>
+              <div class="ic"><span class="pp tall g6"><span class="t">Tidal</span></span><span class="fn">tidal_alt.jpg</span></div>
+            </div>
+            <div class="ghost" style="left:556px;top:160px;z-index:5"><span class="pp tall g4" style="width:60px;height:88px"><span class="t">Copper</span></span></div>
+          </div>
+          <div class="card">
+            <h3 style="justify-content:space-between"><span>หนังที่ยังไม่มีปก · 12 เรื่อง</span></h3>
+            <div class="search" style="margin-bottom:8px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>ค้นชื่อหนัง</div>
+            <div class="mvlist">
+              <div class="mvrow"><span class="pp tall none">ไม่มีปก</span><div class="nm"><b>Paper Kites (2012)</b><span class="fn">PK.2012.mkv</span></div><span class="small" style="color:var(--accent-ink)">กดเพื่อใช้รูปที่เลือก</span></div>
+              <div class="mvrow target"><span class="pp tall none">ไม่มีปก</span><div class="nm"><b>Copper Sky (2014)</b><span class="fn">Copper.Sky.2014.mp4</span></div><span class="small" style="color:var(--accent-ink)">ปล่อยเมาส์เพื่อใช้รูปนี้</span></div>
+              <div class="mvrow done"><span class="pp tall g9"><span class="t">ทะเลสาบ</span></span><div class="nm"><b>ทะเลสาบสีเงิน (2016)</b><span class="fn">จับคู่แล้ว · lake2016.jpg</span></div><span class="btn btn-ghost btn-xs">ย้อน</span></div>
+              <div class="mvrow"><span class="pp tall none">ไม่มีปก</span><div class="nm"><b>Night Bus (2020)</b><span class="fn">night_bus_2020.avi</span></div></div>
+              <div class="mvrow"><span class="pp tall none">ไม่มีปก</span><div class="nm"><b>Ember (2022)</b><span class="fn">Ember.2022.WEB.mkv</span></div></div>
+            </div>
+          </div>
+        </div>
+        <div class="foot"><span class="small">คีย์บอร์ด ลูกศรเลือกรูป · Tab ไปฝั่งหนัง · Enter จับคู่ · Ctrl+Z ย้อน</span><span class="btn btn-main">เสร็จ กลับไปชั้นวาง</span></div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== หน้า 4 ครอป ===================== -->
+  <section class="sec" id="s4">
+    <h2><span class="tag">หน้า 4</span>ครอป หมุน ปรับเอียง ได้ทุกอย่างเหมือนตอนรวม</h2>
+    <p class="note">ใช้หน้าครอปเดียวกับหน้าใส่โปสเตอร์ · เพิ่มหมุน 90° พลิก และปรับเอียงทีละองศาสำหรับรูปถ่ายที่เอียง · รูปต้นฉบับไม่ถูกแก้ โปรแกรมจำค่าที่ปรับไว้ เปิดมาแก้ใหม่ได้ทุกเมื่อ · รูปแนวนอนรูปเดียวได้ทั้งปกนอนกับปกตั้ง</p>
+    <div class="win">
+      <div class="titlebar"><span>ครอปรูปปก · Night Bus (2020)</span><span class="ctl"><span>–</span><span>□</span><span>×</span></span></div>
+      <div class="wrapin">
+        <div class="crop">
+          <div class="stage"><div class="photo"><span class="ttl">NIGHT BUS</span></div><div class="frame"><i style="left:-7px;top:-7px"></i><i style="right:-7px;top:-7px"></i><i style="left:-7px;bottom:-7px"></i><i style="right:-7px;bottom:-7px"></i></div></div>
+          <div class="tools">
+            <div><div class="small" style="margin-bottom:4px"><b style="color:var(--txt2)">ช่อง</b></div><span class="seg"><span class="on">ปกตั้ง 2:3</span><span>ปกนอน 16:9</span></span></div>
+            <div><div class="small"><b style="color:var(--txt2)">หมุนกับพลิก</b></div><div class="row" style="margin-top:4px"><span class="btn btn-ghost btn-sm">หมุนซ้าย 90°</span><span class="btn btn-ghost btn-sm">หมุนขวา 90°</span><span class="btn btn-ghost btn-sm">พลิกซ้ายขวา</span></div></div>
+            <div><div class="small"><b style="color:var(--txt2)">ปรับเอียง</b> · −3° (รูปถ่ายจากจอที่เอียง)</div><div class="slider"><i></i></div><div class="small">ลากหรือกด ← → ทีละ 0.5° · ช่วง ±15°</div></div>
+            <div><div class="small"><b style="color:var(--txt2)">ซูม</b> · ล้อเมาส์ · ลากเลื่อนรูปในกรอบ</div></div>
+            <div class="thumbs2"><div style="text-align:center"><span class="pp tall g2" style="width:70px;height:104px;display:inline-flex"><span class="t">Night Bus</span></span><div class="small">ปกตั้ง</div></div>
+              <div style="text-align:center"><span class="pp wide g2" style="width:128px;height:72px;display:inline-flex"><span class="t">Night Bus</span></span><div class="small">ปกนอน (ใช้รูปเดียวกัน)</div></div></div>
+            <div class="row" style="margin-top:auto;justify-content:flex-end"><span class="btn btn-ghost">ยกเลิก</span><span class="btn btn-main">ใช้ค่านี้</span></div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== หน้า 5 ชั้นวาง ===================== -->
+  <section class="sec" id="s5">
+    <h2><span class="tag">หน้า 5</span>บนชั้นวาง · ปกที่จับคู่ไว้มีป้ายโซ่</h2>
+    <p class="note">ชั้นวางแสดงปกที่จับคู่เหมือนปกในไฟล์ มีป้ายโซ่เล็ก ๆ บอกว่าปกไม่ได้อยู่ในไฟล์ · แผงขวามีปุ่มครอปใหม่ เปลี่ยนรูป เอาออก และรวมเข้าไฟล์ (เปิดหน้าใส่โปสเตอร์พร้อมรูปที่ครอปไว้แล้ว)</p>
+    <div class="win">
+      <div class="titlebar"><span>ชั้นหนัง</span><span class="ctl"><span>–</span><span>□</span><span>×</span></span></div>
+      <div class="shelfbox">
+        <div class="shelfwrap">
+          <b style="font-size:18px">ชั้นวาง</b> <span class="small">128 เรื่อง · ปกในไฟล์ 28 · ปกจับคู่ 92 · ยังไม่มีปก 8</span>
+          <div class="shelf">
+            <div class="book"><div class="cover g2"><span class="t">ดาวเหนือ</span><span class="linkb"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#c2547f" stroke-width="2.4"><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1"/><path d="M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1"/></svg></span></div><div class="bname">ดาวเหนือ (2023)</div></div>
+            <div class="book sel"><div class="cover g6"><span class="t">Harbor Lights</span><span class="linkb"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#c2547f" stroke-width="2.4"><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1"/><path d="M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1"/></svg></span></div><div class="bname">Harbor Lights (2021)</div></div>
+            <div class="book"><div class="cover g4"><span class="t">สายลมเดือนเมษา</span></div><div class="bname">สายลมเดือนเมษา (2017) · ปกในไฟล์</div></div>
+            <div class="book"><div class="cover g3"><span class="t">ฝนสุดท้าย</span><span class="linkb"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#c2547f" stroke-width="2.4"><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1"/><path d="M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1"/></svg></span></div><div class="bname">ฝนสุดท้ายของฤดู (2019)</div></div>
+            <div class="book"><div class="cover" style="background:repeating-linear-gradient(135deg,#fff 0 10px,#fdf0f5 10px 20px);border:2px dashed #eeb3c8;box-shadow:none;color:var(--txt3);align-items:center;justify-content:center;text-align:center;font-size:12.5px">ยังไม่มีปก</div><div class="bname">Paper Kites (2012)</div></div>
+          </div>
+        </div>
+        <div class="detail">
+          <div class="dposter g6"><span class="t">Harbor Lights</span></div>
+          <div><b>Harbor Lights (2021)</b><div class="small">Harbor.Lights.2021.2160p.WEB-DL.mkv</div></div>
+          <div class="stat info"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1"/><path d="M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1"/></svg>
+            <div><b>ปกจับคู่ไว้ ไม่ได้อยู่ในไฟล์</b>จากรูป harbor_lights_2021.png · ครอปแล้ว · ไอคอนไฟล์ใน Windows ยังไม่เปลี่ยน (Icaros อ่านปกจากในไฟล์)</div></div>
+          <div class="actions"><span class="btn btn-ghost btn-sm">ครอปใหม่</span><span class="btn btn-ghost btn-sm">เปลี่ยนรูป</span><span class="btn btn-ghost btn-sm">เอาปกออก</span><span class="btn btn-main btn-sm">รวมเข้าไฟล์</span></div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== เก็บรูปไว้ที่ไหน ===================== -->
+  <section class="sec" id="s6">
+    <h2><span class="tag">หน้าตั้งค่า</span>เก็บรูปที่จับคู่ไว้ที่ไหน</h2>
+    <p class="note">รูปต้นฉบับอยู่ที่ไหนก็ได้ แต่ถ้าพี่กันลบหรือย้ายรูปทีหลัง ปกจะหาย · แคลร์เสนอให้โปรแกรมเก็บสำเนารูปที่ครอปแล้วไว้เอง ส่วนวางรูปข้างไฟล์หนังเป็นตัวเลือกเสริมสำหรับโปรแกรมอื่น</p>
+    <div class="modes">
+      <div class="mode on"><h4><span class="radio" style="width:18px;height:18px;border-radius:50%;border:2px solid var(--accent);display:inline-flex;align-items:center;justify-content:center"><span style="width:8px;height:8px;border-radius:50%;background:var(--accent)"></span></span>เก็บสำเนาไว้ในโปรแกรม <span class="rec">แคลร์แนะนำ</span></h4>
+        <div class="small" style="font-size:13.5px;color:var(--txt2)">เก็บรูปที่ครอปแล้วกับรูปต้นฉบับหนึ่งชุดไว้ในโฟลเดอร์ข้อมูลของโปรแกรม · ลบหรือย้ายรูปต้นฉบับแล้วปกไม่หาย ครอปใหม่ได้ · ย้ายหรือเปลี่ยนชื่อไฟล์หนังผ่านชั้นหนังปกตามไป · ย้ายด้วย Explorer ในไดรฟ์เดียวกัน โปรแกรมยังตามเจอจากเลขประจำไฟล์ของ Windows แบบเดียวกับการจับคู่เสียงซับ · ย้ายข้ามไดรฟ์ต้องจับคู่ใหม่ · หนัง 100 เรื่องใช้ที่ราว 100–200 MB</div></div>
+      <div class="mode"><h4><span class="cbx off"></span>วางรูปข้างไฟล์หนังด้วย</h4>
+        <div class="small" style="font-size:13.5px;color:var(--txt2)">เขียนรูปชื่อ <b>ชื่อหนัง-poster.jpg</b> กับ <b>ชื่อหนัง-fanart.jpg</b> ไว้ข้างไฟล์หนัง แบบที่ Kodi Jellyfin Plex อ่าน · โปรแกรมพวกนั้นเห็นปกด้วย · ไฟล์หนังยังไม่ถูกแตะ แต่โฟลเดอร์หนังมีไฟล์รูปเพิ่ม · เปลี่ยนชื่อไฟล์หนังในชั้นหนังแล้วรูปเปลี่ยนชื่อตาม</div></div>
+    </div>
+  </section>
+
+  <!-- ===================== ต้องให้พี่กันเคาะ ===================== -->
+  <section class="sec" id="s7">
+    <h2><span class="tag">รอพี่กันเคาะ</span>ข้อที่ต้องตัดสินก่อนลงมือ</h2>
+    <div class="explain">
+      <ol class="ask">
+        <li><b>เก็บรูปไว้ที่ไหน</b> · เก็บสำเนาไว้ในโปรแกรมอย่างเดียว หรือมีตัวเลือกวางรูปข้างไฟล์หนังด้วย <span class="rec">แนะนำ มีทั้งสอง วางข้างไฟล์ปิดไว้ก่อน</span></li>
+        <li><b>หน้าใหม่ในเมนูซ้าย หรืออยู่ในหน้าใส่โปสเตอร์</b> · หน้าจับคู่ปกแยก ทำงานกับหลายเรื่องพร้อมกัน ส่วนหน้าใส่โปสเตอร์เดิมทำทีละเรื่องแล้วรวมเข้าไฟล์ <span class="rec">แนะนำ หน้าแยก</span></li>
+        <li><b>คู่ที่จับคู่ได้แน่ ให้บันทึกเลยไหม</b> · หรือต้องกดยืนยันในตารางก่อนเสมอ <span class="rec">แนะนำ กดยืนยันก่อนเสมอ เห็นทุกคู่ก่อนบันทึก</span></li>
+        <li><b>ปรับรูปได้แค่ไหน</b> · ครอป หมุน 90° พลิก ปรับเอียง ตามมอคอัป หรืออยากได้ปรับสี ความสว่าง ด้วย <span class="rec">แนะนำ ตามมอคอัปก่อน ปรับสีค่อยเพิ่ม</span></li>
+        <li><b>ชั้นวางสลับดูปกตั้งกับปกนอนทั้งชั้น</b> · อยู่ในโรดแมปเดิมของเรื่องนี้ ทำพร้อมกันไหม <span class="rec">แนะนำ ทำพร้อมกัน ข้อมูลปกนอนมีอยู่แล้ว</span></li>
+      </ol>
+      <div class="small" style="margin-top:8px">ข้อจำกัดที่บอกไว้ก่อน · ไอคอนไฟล์ใน Windows ไม่เปลี่ยน เพราะ Icaros อ่านปกจากในไฟล์ · โปรแกรมเล่นหนังไม่เห็นปกที่จับคู่ · อยากให้เห็นทุกที่ ใช้ปุ่มรวมเข้าไฟล์</div>
+    </div>
+  </section>
+</div>
+</body>
+</html>
