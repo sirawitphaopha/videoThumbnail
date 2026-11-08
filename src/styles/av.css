@@ -95,3 +95,61 @@
 
 /* ช่องเลือกความเร็วเสียงในแผงตั้งค่าเสียง สูงเท่าปุ่มเล็กข้าง ๆ (เดิม 40 กับ 30 แถวไม่เสมอกัน เจอตอนตรวจภาพ) */
 [data-extra] .dd { height: 30px; font-size: 13px; }
+
+/* ---------- แผงตั้งค่าเสียงแบบขั้นสูง (มอคอัป audio-merge.html บรรทัด 224–293) ---------- */
+.ab { font-weight: 400; color: var(--txt3); }
+.lbl .ab, .ach .ab { font-size: 12px; }
+.ilbl { display: inline-flex; align-items: center; gap: 2px; }
+.small .infob { vertical-align: middle; }
+.cgroup { font-size: 12.5px; font-weight: 700; color: var(--txt2); margin-top: 2px; }
+.cards { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 12px; }
+.acard { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 14px 12px; display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.ach { display: flex; align-items: center; justify-content: space-between; gap: 10px; min-height: 32px; }
+.ach .lbl { font-weight: 700; color: var(--txt); font-size: 13.5px; }
+.acard .dd { height: 30px; font-size: 13px; }
+/* ปุ่ม ⓘ ใส ไม่มีขอบ · ชี้แล้วพื้นชมพูจางกับตัวสีธีม (button-feedback ตารางสี แถวใส ไม่มีขอบ) · เปิดอยู่พื้นชมพูเข้ม */
+.infob { width: 26px; height: 26px; border: 0; background-color: transparent; border-radius: 50%; color: #c47a98; display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; flex: none; transition: background-color .15s, color .15s; }
+.infob:hover { background-color: #fdeaf1; color: var(--accent-ink); }
+.infob[aria-expanded="true"] { background-color: #f6b3cb; color: #7a2346; }
+.infob[aria-expanded="true"]:hover { background-color: #f09dbd; color: #6a1d3c; }
+/* ช่องพิมพ์ค่าเอง สูง 32 เท่าหัวการ์ด */
+.vbox { display: inline-flex; align-items: center; gap: 4px; border: 1px solid #efc6d5; border-radius: 8px; background-color: #fff; height: 32px; padding: 0 8px; flex: none; transition: border-color .15s; }
+.vbox:hover { border: 1px solid #e79ab8; }
+.vbox:focus-within { border: 1px solid var(--accent); box-shadow: 0 0 0 3px rgba(233, 138, 172, .18); }
+.vbox input { border: 0; outline: none; font: inherit; font-size: 14px; font-weight: 700; text-align: right; color: var(--txt); background: transparent; font-variant-numeric: tabular-nums; padding: 0; }
+.vbox .px { font-weight: 700; color: var(--txt2); font-size: 14px; }
+.vbox .u { font-size: 12.5px; color: var(--txt3); }
+/* แถบเลื่อนเป็นขั้น · ขีดกับป้ายวางตามตำแหน่งกลางปุ่มเลื่อน (ปุ่มเลื่อนของโปรแกรมกลางอยู่ที่ 0–100% ของราง) */
+.stepw { position: relative; padding: 8px 0 26px; }
+.stepw .range { display: block; z-index: 1; }
+.stepw .ticks { position: absolute; left: 0; right: 0; top: 17px; height: 8px; pointer-events: none; }
+.stepw .ticks i { position: absolute; top: 0; width: 2px; height: 5px; margin-left: -1px; background: #ebc3d2; border-radius: 1px; }
+.stepw .ticks i.mj { height: 8px; background: #d98aab; }
+.stepw .tlabels { position: absolute; left: 0; right: 0; top: 26px; height: 14px; pointer-events: none; }
+.stepw .tlabels span { position: absolute; transform: translateX(-50%); font-size: 11px; color: var(--txt3); white-space: nowrap; font-variant-numeric: tabular-nums; line-height: 1.3; }
+.stepw .tlabels span:first-child { transform: none; margin-left: -2px; }
+.stepw .tlabels span:last-child { transform: translateX(-100%); margin-left: 2px; }
+.asz { display: flex; align-items: baseline; flex-wrap: wrap; gap: 4px 8px; font-size: 12.5px; color: var(--txt2); background: #fdf4f8; border-radius: 8px; padding: 4px 10px; }
+.asz > span:first-child { font-size: 11.5px; font-weight: 700; color: var(--accent-ink); flex: none; }
+.asz b { color: var(--txt); }
+.asz .avg { color: var(--txt2); }
+.asz.none { background: transparent; padding: 0; color: var(--txt3); font-size: 12px; }
+/* ชุดค่าแบบง่าย */
+.btn.preset { border: 1px solid #efc6d5; background-color: #fff; color: var(--txt); }
+.btn.preset:hover { border: 1px solid #e79ab8; background-color: #fdeaf1; }
+.btn.preset.on { border: 1px solid var(--accent); background-color: #fdeaf1; box-shadow: 0 0 0 3px rgba(233, 138, 172, .18); }
+.btn.preset.on:hover { background-color: #fbdde8; }
+/* กล่องคำอธิบาย ⓘ · อยู่ชั้นบนหน้าต่างแผง ต่ำกว่าป๊อปยืนยัน */
+.infotip { position: fixed; z-index: var(--z-pick); width: min(380px, calc(100vw - 16px)); background: #fff; border: 1px solid #efc6d5; border-radius: 12px; box-shadow: 0 16px 36px rgba(150, 70, 100, .24); padding: 10px 14px 12px; font-size: 12.8px; line-height: 1.55; color: var(--txt); overflow: auto; overscroll-behavior: contain; }
+.infotip .tiph { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 2px; }
+.infotip .tiph b { font-size: 14.5px; color: var(--accent-ink); }
+.infotip .tw { margin: 0 0 6px; color: var(--txt2); }
+.infotip .tw, .infotip .tp > div, .infotip .tc > div, .infotip .tr, .infotip .to { text-wrap: pretty; }
+.infotip .to { padding: 6px 0 4px; border-top: 1px dashed #f1dbe4; }
+.infotip .tp, .infotip .tc { display: flex; gap: 6px; align-items: baseline; margin-top: 3px; }
+.infotip .tp > span, .infotip .tc > span { flex: none; font-size: 11px; font-weight: 700; border-radius: 999px; padding: 0 7px; line-height: 1.75; }
+.infotip .tp > span { background: var(--ok-soft); color: var(--ok-ink); }
+.infotip .tc > span { background: var(--bad-soft); color: var(--bad-ink); }
+.infotip .top { padding-top: 4px; }
+.infotip .tr { margin-top: 8px; background: #fdf1f5; border-radius: 8px; padding: 6px 10px; }
+.infotip .tr > span { font-weight: 700; color: var(--accent-ink); margin-right: 6px; }

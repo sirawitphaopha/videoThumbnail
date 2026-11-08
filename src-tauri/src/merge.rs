@@ -873,7 +873,7 @@ pub fn produce(
             let Some(spec) = t.convert.clone().filter(|_| t.keep && t.kind == "audio") else { list.push(t); continue };
             n += 1;
             let out = work.join(format!("merge-conv-{}.{}", crate::poster_image::unique(), spec.ext()));
-            let plan = crate::encode::build(&spec, &t.src, t.ff.unwrap_or(t.tid), &out.to_string_lossy(), t.channels.map(|c| c as u32))
+            let plan = crate::encode::build(&spec, &t.src, t.ff.unwrap_or(t.tid), &out.to_string_lossy(), t.channels.map(|c| c as u32), t.bits.map(|b| b as u32))
                 .map_err(|e| fail("tool", "ตั้งค่าแปลงเสียงไม่ถูก", vec![e, untouched.into()]))?;
             let ft = spec.codec.to_uppercase();
             let phase = format!("กำลังแปลงเสียง {n} จาก {total_conv} เป็น {ft}");

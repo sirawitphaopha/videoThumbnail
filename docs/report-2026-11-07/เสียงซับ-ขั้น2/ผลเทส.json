@@ -95,6 +95,96 @@
     "detail": "ffmpeg -hide_banner -nostdin -v error -progress pipe:2 -nostats -i \"ดาวตก (2024).mkv\" -map 0:1 -vn -sn -dn -af \"rubberband=tempo=0.959040,volume=-3dB,loudnorm=I=-23:TP=-1\" -c:a pcm_s24le -f wav - | opusenc --quiet --igno"
   },
   {
+    "name": "แถวความเร็ว Gain ความดังมาตรฐาน ช่องเลือก ปุ่ม − + ปุ่มเลือก สูงเท่ากันทุกตัว (form-input ข้อ ⑥)",
+    "pass": true,
+    "detail": "30"
+  },
+  {
+    "name": "กดขั้นสูง Opus มีการ์ด Bitrate · Bitrate mode · Complexity · Frame size · Tuning · Channels · ใช้กับทุกชนิด Gain · Loudness · ความเร็ว · ทุกการ์ดมีปุ่ม ⓘ หัวการ์ด · ค่าจากชุดที่เลือกในแบบง่ายไม่หาย (160)",
+    "pass": true,
+    "detail": "bitrate,mode,comp,framesize,tune,channels,gain,loud,speed · ค่า 160"
+  },
+  {
+    "name": "ตัวย่อมีคำเต็มครั้งแรกที่เจอในการ์ด VBR (Variable Bitrate) ครั้งเดียว · CBR (Constant Bitrate) · kbps (kilobits per second)",
+    "pass": true,
+    "detail": "Bitrate mode VBR Constrained VBR Hard CBR ขนาดไฟล์ ใกล้เคียงกันทุกแบบ ตามบิตเรตที่ตั้ง VBR (Variable Bitrate) บิตเรตแปรผัน ได้เสียงดีสุดที่ข"
+  },
+  {
+    "name": "เลื่อนแถบ Bitrate หนึ่งขั้น 160 เป็น 192 ช่องค่าเปลี่ยนตาม ขนาดที่คาดใหญ่ขึ้น คำสั่งเป็น --bitrate 192",
+    "pass": true,
+    "detail": "ทั้งแทร็กราว 1.14 MB → ทั้งแทร็กราว 1.37 MB · 192"
+  },
+  {
+    "name": "พิมพ์ค่าเอง 200 ได้ --bitrate 200 · พิมพ์ 900 เกินช่วง ปัดเป็น 512",
+    "pass": true,
+    "detail": "opusenc --quiet --ignorelength --bitrate 512 --vbr --comp 10"
+  },
+  {
+    "name": "กด Tuning Music คำสั่งมี --music",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "การ์ดขั้นสูง ช่องเลือกกับปุ่มเลือกสูง 30 เท่ากันทุกการ์ด · ช่องพิมพ์ค่า 32 · ปุ่ม ⓘ 26 ทุกตัว",
+    "pass": true,
+    "detail": "{\"ctl\":[30],\"vbox\":[32],\"info\":[26]}"
+  },
+  {
+    "name": "จุดคั่นในการ์ดติดคำข้างหน้าทุกที่ ไม่ขึ้นต้นบรรทัดใหม่",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "หัวแผงไม่บอกความลึกบิตของต้นทางที่เสียคุณภาพ (AAC ถอดเป็นทศนิยม 32 บิต ไม่ใช่ความลึกบิตจริง)",
+    "pass": true,
+    "detail": "ต้นทาง AAC · 2 ช่อง · 48 kHz · 1 นาที"
+  },
+  {
+    "name": "กด ⓘ ของ Bitrate กล่องคำอธิบายขึ้น มีคืออะไร ปรับสูงปรับต่ำ ข้อดี ข้อเสีย แนะนำ · ตัวย่อในกล่องมีคำเต็ม · อยู่ในจอทั้งสี่ด้าน ใต้แถบบน",
+    "pass": true,
+    "detail": "บน 391 ล่าง 720 จอ 900 แถบบน 34 ฝั่ง ล่าง"
+  },
+  {
+    "name": "กด Esc ปิดเฉพาะกล่องคำอธิบาย แผงตั้งค่าเสียงยังอยู่",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "ⓘ ของการ์ดล่างสุด (ความเร็วเสียง) กางแล้วไม่จมขอบล่าง ไม่ทับแถบบน",
+    "pass": true,
+    "detail": "บน 518 ล่าง 844 จอ 900 ฝั่ง บน"
+  },
+  {
+    "name": "กดที่อื่นในแผง กล่องคำอธิบายปิด",
+    "pass": true,
+    "detail": ""
+  },
+  {
+    "name": "เปิดดรอปดาวน์ความเร็วในแผงแล้วกด Esc ปิดเฉพาะดรอปดาวน์ แผงตั้งค่าเสียงยังอยู่",
+    "pass": true,
+    "detail": "ตัวเลือก 5"
+  },
+  {
+    "name": "เปลี่ยนเป็น FLAC การ์ด Compression level · Threads · Verify · Bit depth · Sample rate · Block size · ไม่มีการ์ดของ Opus ค้าง · เลือก Block size 4,608 คำสั่งมี -b 4608",
+    "pass": true,
+    "detail": "level,threads,verify,bits,rate,block · flac --silent --ignore-chunk-sizes -5 -j 4 -b 4608 -V - -o \"เสียง 1.fl"
+  },
+  {
+    "name": "ตัวแปลง ffmpeg การ์ด Threads กับ Verify หายไปพร้อมบอกเหตุผล · Block size ยังอยู่ คำสั่ง -frame_size 4608",
+    "pass": true,
+    "detail": "level,bits,rate,block"
+  },
+  {
+    "name": "MP3 เลือกโหมด CBR การ์ด VBR quality หายไป การ์ด Bitrate ขึ้นแทน คำสั่ง -b 192 --cbr",
+    "pass": true,
+    "detail": "mode,bitrate,stereo,quality,lowpass"
+  },
+  {
+    "name": "ต้นทาง 16 บิต FLAC ตามต้นฉบับส่งเสียงดิบ 16 บิต ไม่ใส่ dither · ต้นทาง 24 บิตส่ง 24 บิต (เดิมส่ง 24 บิตเสมอ)",
+    "pass": true,
+    "detail": ""
+  },
+  {
     "name": "กดใช้ค่านี้ ช่องแปลงขึ้น Opus 160 · เพิ่มคู่ แถวมีป้ายแปลง",
     "pass": true,
     "detail": "Opus 160 · เพิ่มคู่ · true"

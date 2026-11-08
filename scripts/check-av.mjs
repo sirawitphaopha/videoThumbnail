@@ -34,7 +34,7 @@ const MOVIE = join(DIR, "ดาวตก (2024).mkv");
 const h0 = sha(MOVIE);
 await inv("dev_fake_free", { bytes: 0 });
 await inv("set_settings", { patch: { folders: [DIR], originalAfter: "keep", outputFormat: "mkv", checkSourceBefore: true, checkOutputAfter: true } });
-await c.evaluate("location.hash = ''; location.reload()");
+await c.evaluate("localStorage.removeItem('ms.codecLast'); location.hash = ''; location.reload()");
 await sleep(1500);
 await c.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
 
@@ -149,11 +149,136 @@ await waitFor("return document.querySelector('[data-cmd]').innerText.includes('l
 const cmd2 = await q("return document.querySelector('[data-cmd]').innerText.replace(/\\s+/g, ' ')");
 check("ตั้งความเร็ว 25 → 23.976 Gain −3 dB ความดังมาตรฐาน คำสั่งมี rubberband=tempo=0.959040,volume=-3dB,loudnorm", cmd2.includes('-af "rubberband=tempo=0.959040,volume=-3dB,loudnorm=I=-23:TP=-1"'), cmd2.slice(0, 220));
 await shot("11-แผงตั้งค่าเสียง-ความเร็ว.png", "[data-extra]", 8);
+const extraH = await q("return [...new Set([...document.querySelectorAll('[data-extra] .dd, [data-extra] .delay button, [data-extra] .seg button')].map(e => Math.round(e.getBoundingClientRect().height)))]");
+check("แถวความเร็ว Gain ความดังมาตรฐาน ช่องเลือก ปุ่ม − + ปุ่มเลือก สูงเท่ากันทุกตัว (form-input ข้อ ⑥)", extraH.length === 1, extraH.join(","));
 await pickDd("ความเร็วเสียง", "ไม่เปลี่ยน");
 for (let i = 0; i < 3; i++) await c.evaluate("document.querySelector('[data-codec-panel] [aria-label=\"เพิ่มความดัง 1 dB\"]').click()");
 await c.evaluate("[...document.querySelectorAll('[data-codec-panel] [data-extra] .seg button')].find(b => b.innerText === 'Off').click()");
 await waitFor("return !document.querySelector('[data-cmd]').innerText.includes('-af')", 8000);
 await shot("10-แผงตั้งค่าเสียง.png", "[role=dialog]", 8);
+
+// ---------- แผงตั้งค่าเสียงแบบขั้นสูง (ขั้น 4) · การ์ดละช่อง ⓘ ทุกช่อง ตัวย่อมีคำเต็ม แถบเลื่อนเป็นขั้น ช่องพิมพ์ค่าเอง ขนาดที่คาด ----------
+const card = (k) => `document.querySelector('[data-codec-panel] [data-card="${k}"]')`;
+const cmdNow = () => q("return document.querySelector('[data-cmd]').innerText.replace(/\\s+/g, ' ')");
+const clickText = (sel, text) => c.evaluate(`[...document.querySelectorAll(${JSON.stringify(sel)})].find(b => b.innerText.trim() === ${JSON.stringify(text)}).click()`);
+await clickText("[data-codec-panel] .seg button", "ขั้นสูง");
+await waitFor("return !!document.querySelector('[data-cards]')", 8000);
+await sleep(300);
+const advCards = await q("return [...document.querySelectorAll('[data-codec-panel] .acard')].map(a => a.dataset.card)");
+const infoInCards = await q("return [...document.querySelectorAll('[data-codec-panel] .acard')].every(a => a.querySelector('.ach .infob'))");
+const br0 = await q(`return ${card("bitrate")}.querySelector('[data-vin]').value`);
+check("กดขั้นสูง Opus มีการ์ด Bitrate · Bitrate mode · Complexity · Frame size · Tuning · Channels · ใช้กับทุกชนิด Gain · Loudness · ความเร็ว · ทุกการ์ดมีปุ่ม ⓘ หัวการ์ด · ค่าจากชุดที่เลือกในแบบง่ายไม่หาย (160)",
+  advCards.join(",") === "bitrate,mode,comp,framesize,tune,channels,gain,loud,speed" && infoInCards && br0 === "160", `${advCards.join(",")} · ค่า ${br0}`);
+const modeText = await q(`return ${card("mode")}.innerText.replace(/\\s+/g, ' ')`);
+const brText = await q(`return ${card("bitrate")}.innerText.replace(/\\s+/g, ' ')`);
+check("ตัวย่อมีคำเต็มครั้งแรกที่เจอในการ์ด VBR (Variable Bitrate) ครั้งเดียว · CBR (Constant Bitrate) · kbps (kilobits per second)",
+  (modeText.match(/\(Variable Bitrate\)/g) || []).length === 1 && modeText.includes("CBR (Constant Bitrate)") && brText.includes("kbps (kilobits per second)"), modeText.slice(0, 140));
+// แถบเลื่อน ลูกศรขวาหนึ่งขั้น 160 → 192 · ขนาดที่คาดกับคำสั่งเปลี่ยนตาม
+const sz0 = await q(`return ${card("bitrate")}.querySelector('[data-sz]').innerText`);
+await c.evaluate(`${card("bitrate")}.querySelector('.range').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))`);
+await waitFor("return document.querySelector('[data-cmd]').innerText.includes('--bitrate 192')", 8000);
+const sz1 = await q(`return ${card("bitrate")}.querySelector('[data-sz]').innerText + ' · ' + ${card("bitrate")}.querySelector('[data-vin]').value`);
+check("เลื่อนแถบ Bitrate หนึ่งขั้น 160 เป็น 192 ช่องค่าเปลี่ยนตาม ขนาดที่คาดใหญ่ขึ้น คำสั่งเป็น --bitrate 192", sz1.endsWith("· 192") && sz0 !== sz1.split(" · ")[0], `${sz0} → ${sz1}`);
+// พิมพ์ค่าเองที่ไม่อยู่ในขั้น Opus รับได้ทุกค่า 6–512 · พิมพ์เกินช่วงปัดเข้าช่วง
+const typeIn = async (k, v) => {
+  await c.evaluate(`(() => { const i = ${card(k)}.querySelector('[data-vin]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, ${JSON.stringify(v)}); i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+  await sleep(80);
+  await c.evaluate(`${card(k)}.querySelector('[data-vin]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))`);
+  await sleep(250);
+};
+await typeIn("bitrate", "200");
+await waitFor("return document.querySelector('[data-cmd]').innerText.includes('--bitrate 200')", 8000);
+const c200 = await cmdNow();
+await typeIn("bitrate", "900");
+await waitFor("return document.querySelector('[data-cmd]').innerText.includes('--bitrate 512')", 8000);
+const c512 = await cmdNow();
+check("พิมพ์ค่าเอง 200 ได้ --bitrate 200 · พิมพ์ 900 เกินช่วง ปัดเป็น 512", c200.includes("--bitrate 200") && c512.includes("--bitrate 512"), c512.slice(c512.indexOf("opusenc"), c512.indexOf("opusenc") + 60));
+await typeIn("bitrate", "160");
+await waitFor("return document.querySelector('[data-cmd]').innerText.includes('--bitrate 160')", 8000);
+// ปุ่มเลือกในการ์ด Tuning เปลี่ยนคำสั่ง
+await clickText(`[data-codec-panel] [data-card="tune"] .seg button`, "Music");
+await waitFor("return document.querySelector('[data-cmd]').innerText.includes('--music')", 8000);
+check("กด Tuning Music คำสั่งมี --music", (await cmdNow()).includes("--music"));
+await clickText(`[data-codec-panel] [data-card="tune"] .seg button`, "Auto");
+await sleep(200);
+await shot("12-แผงขั้นสูง-Opus.png", "[role=dialog]", 8);
+const advH = await q("return { ctl: [...new Set([...document.querySelectorAll('[data-codec-panel] .acard .dd, [data-codec-panel] .acard .seg button')].map(e => Math.round(e.getBoundingClientRect().height)))], vbox: [...new Set([...document.querySelectorAll('[data-codec-panel] .vbox')].map(e => Math.round(e.getBoundingClientRect().height)))], info: [...new Set([...document.querySelectorAll('[data-codec-panel] .infob')].map(e => Math.round(e.getBoundingClientRect().height)))] }");
+check("การ์ดขั้นสูง ช่องเลือกกับปุ่มเลือกสูง 30 เท่ากันทุกการ์ด · ช่องพิมพ์ค่า 32 · ปุ่ม ⓘ 26 ทุกตัว", advH.ctl.join() === "30" && advH.vbox.join() === "32" && advH.info.join() === "26", JSON.stringify(advH));
+const plainDot = await q("return [...document.querySelectorAll('[data-codec-panel] .acard .small, [data-codec-panel] .asz')].filter(e => e.textContent.includes(' · ')).map(e => e.textContent.slice(0, 40))");
+check("จุดคั่นในการ์ดติดคำข้างหน้าทุกที่ ไม่ขึ้นต้นบรรทัดใหม่", plainDot.length === 0, plainDot.join(" | "));
+const head = await q("return document.querySelector('[data-codec-panel] .small').innerText");
+check("หัวแผงไม่บอกความลึกบิตของต้นทางที่เสียคุณภาพ (AAC ถอดเป็นทศนิยม 32 บิต ไม่ใช่ความลึกบิตจริง)", !head.includes("bit"), head);
+
+// ปุ่ม ⓘ · กล่องคำอธิบายพอดีจอ ไม่ทับแถบบน ไม่จมขอบล่าง · Esc ปิดเฉพาะกล่อง แผงยังอยู่
+const tipBox = "return (() => { const t = document.querySelector('.infotip'); if (!t) return null; const r = t.getBoundingClientRect(), top = document.querySelector('header')?.getBoundingClientRect().bottom ?? 0; return { text: t.innerText.replace(/\\s+/g, ' '), top: Math.round(r.top), bottom: Math.round(r.bottom), left: Math.round(r.left), right: Math.round(r.right), head: Math.round(top), h: innerHeight, w: innerWidth, side: t.dataset.side, vis: getComputedStyle(t).visibility }; })()";
+await c.evaluate(`${card("bitrate")}.querySelector('.infob').click()`);
+await waitFor("const t = document.querySelector('.infotip'); return t && getComputedStyle(t).visibility === 'visible'", 5000);
+await sleep(200);
+const tb = await q(tipBox);
+check("กด ⓘ ของ Bitrate กล่องคำอธิบายขึ้น มีคืออะไร ปรับสูงปรับต่ำ ข้อดี ข้อเสีย แนะนำ · ตัวย่อในกล่องมีคำเต็ม · อยู่ในจอทั้งสี่ด้าน ใต้แถบบน",
+  tb && tb.text.includes("จำนวนข้อมูลเสียงต่อวินาที") && tb.text.includes("ข้อดี") && tb.text.includes("ข้อเสีย") && tb.text.includes("แนะนำ") && tb.text.includes("kbps (kilobits per second)")
+  && tb.top >= tb.head && tb.bottom <= tb.h && tb.left >= 0 && tb.right <= tb.w, tb ? `บน ${tb.top} ล่าง ${tb.bottom} จอ ${tb.h} แถบบน ${tb.head} ฝั่ง ${tb.side}` : "ไม่ขึ้น");
+await c.shot(`${OUT}/13-กล่องคำอธิบาย.png`, ".infotip", 10);
+await c.send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
+await c.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
+await sleep(300);
+check("กด Esc ปิดเฉพาะกล่องคำอธิบาย แผงตั้งค่าเสียงยังอยู่", (await q("return !document.querySelector('.infotip') && !!document.querySelector('[data-codec-panel]')")));
+// ⓘ ของการ์ดล่างสุดในแผง กางแล้วยังอยู่ในจอ
+await c.evaluate(`${card("speed")}.querySelector('.infob').scrollIntoView({ block: 'end' })`);
+await sleep(200);
+await c.evaluate(`${card("speed")}.querySelector('.infob').click()`);
+await waitFor("const t = document.querySelector('.infotip'); return t && getComputedStyle(t).visibility === 'visible'", 5000);
+await sleep(400);
+const tb2 = await q(tipBox);
+check("ⓘ ของการ์ดล่างสุด (ความเร็วเสียง) กางแล้วไม่จมขอบล่าง ไม่ทับแถบบน", tb2 && tb2.top >= tb2.head && tb2.bottom <= tb2.h, tb2 ? `บน ${tb2.top} ล่าง ${tb2.bottom} จอ ${tb2.h} ฝั่ง ${tb2.side}` : "ไม่ขึ้น");
+// กดที่อื่นปิดกล่อง
+await c.evaluate("document.querySelector('[data-codec-panel] .small').dispatchEvent(new MouseEvent('mousedown', { bubbles: true }))");
+await sleep(200);
+check("กดที่อื่นในแผง กล่องคำอธิบายปิด", await q("return !document.querySelector('.infotip')"));
+// ดรอปดาวน์ในแผง กด Esc ปิดเฉพาะดรอปดาวน์ แผงยังอยู่
+await c.evaluate(`${card("speed")}.querySelector('.dd').click()`);
+await sleep(250);
+const ddOpen = await q("return document.querySelectorAll('[role=option]').length");
+await c.send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
+await c.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
+await sleep(300);
+check("เปิดดรอปดาวน์ความเร็วในแผงแล้วกด Esc ปิดเฉพาะดรอปดาวน์ แผงตั้งค่าเสียงยังอยู่", ddOpen > 0 && (await q("return document.querySelectorAll('[role=option]').length === 0 && !!document.querySelector('[data-codec-panel]')")), `ตัวเลือก ${ddOpen}`);
+
+// FLAC การ์ดเปลี่ยนตามชนิด · Block size ลงคำสั่ง · เปลี่ยนเป็น ffmpeg การ์ดที่ ffmpeg ไม่มีหายไป
+await clickText("[data-codec-panel] .seg button", "FLAC");
+await waitFor("return document.querySelector('[data-cmd]').innerText.includes('flac --silent')", 8000);
+const flacCards = await q("return [...document.querySelectorAll('[data-codec-panel] [data-cards] .acard')].map(a => a.dataset.card).join(',')");
+await c.evaluate(`${card("block")}.querySelector('.dd').click()`);
+await sleep(200);
+await c.evaluate("[...document.querySelectorAll('[role=option]')].find(o => o.innerText.trim() === '4,608').click()");
+await waitFor("return document.querySelector('[data-cmd]').innerText.includes('-b 4608')", 8000);
+const flacCmd = await cmdNow();
+check("เปลี่ยนเป็น FLAC การ์ด Compression level · Threads · Verify · Bit depth · Sample rate · Block size · ไม่มีการ์ดของ Opus ค้าง · เลือก Block size 4,608 คำสั่งมี -b 4608",
+  flacCards === "level,threads,verify,bits,rate,block" && flacCmd.includes("-b 4608") && !flacCmd.includes("--bitrate"), `${flacCards} · ${flacCmd.slice(flacCmd.indexOf("flac --"), flacCmd.indexOf("flac --") + 70)}`);
+await shot("14-แผงขั้นสูง-FLAC.png", "[data-cards]", 8);
+await clickText("[data-codec-panel] .seg button", "ffmpeg 9.0.2");
+await waitFor("return document.querySelector('[data-cmd]').innerText.includes('-c:a flac')", 8000);
+const ffCards = await q("return [...document.querySelectorAll('[data-codec-panel] [data-cards] .acard')].map(a => a.dataset.card).join(',')");
+const ffCmd = await cmdNow();
+check("ตัวแปลง ffmpeg การ์ด Threads กับ Verify หายไปพร้อมบอกเหตุผล · Block size ยังอยู่ คำสั่ง -frame_size 4608",
+  ffCards === "level,bits,rate,block" && ffCmd.includes("-frame_size 4608") && (await q("return document.querySelector('[data-codec-panel]').innerText.includes('ไม่มีบางช่องของตัวต้นฉบับ flac การ์ดที่ไม่มีจึงไม่แสดง')")), `${ffCards}`);
+// MP3 โหมด CBR · การ์ด VBR quality หายไป การ์ด Bitrate ขึ้นแทน
+await clickText("[data-codec-panel] .seg button", "MP3");
+await waitFor("return document.querySelector('[data-cmd]').innerText.includes('lame')", 8000);
+await clickText(`[data-codec-panel] [data-card="mode"] .seg button`, "CBR");
+await waitFor("return document.querySelector('[data-cmd]').innerText.includes('--cbr')", 8000);
+const mp3Cards = await q("return [...document.querySelectorAll('[data-codec-panel] [data-cards] .acard')].map(a => a.dataset.card).join(',')");
+check("MP3 เลือกโหมด CBR การ์ด VBR quality หายไป การ์ด Bitrate ขึ้นแทน คำสั่ง -b 192 --cbr", mp3Cards === "mode,bitrate,stereo,quality,lowpass" && (await cmdNow()).includes("-b 192 --cbr"), mp3Cards);
+// ความลึกบิตต้นทาง · คำสั่งเดียวกับที่แผงเรียก ต้นทาง 16 บิตแปลงเป็น FLAC ตามต้นฉบับได้ 16 บิต
+const p16 = await inv("encode_preview", { spec: { codec: "flac", encoder: "native", p: { level: 5 } }, srcName: "a.wav", stream: 0, channels: 2, bits: 16 });
+const p24 = await inv("encode_preview", { spec: { codec: "flac", encoder: "native", p: { level: 5 } }, srcName: "a.wav", stream: 0, channels: 2, bits: 24 });
+check("ต้นทาง 16 บิต FLAC ตามต้นฉบับส่งเสียงดิบ 16 บิต ไม่ใส่ dither · ต้นทาง 24 บิตส่ง 24 บิต (เดิมส่ง 24 บิตเสมอ)", p16.text.includes("pcm_s16le") && !p16.text.includes("dither") && p24.text.includes("pcm_s24le"));
+// กลับ Opus แบบง่าย ชุดเพลงคุณภาพดี ให้การรวมข้างล่างได้ Opus 160 เหมือนเดิม
+await clickText("[data-codec-panel] .seg button", "Opus");
+await clickText("[data-codec-panel] .seg button", "แบบง่าย");
+await sleep(200);
+await c.evaluate("document.querySelector('[data-preset=\"1\"]').click()");
+await waitFor("return document.querySelector('[data-cmd]').innerText.includes('--bitrate 160')", 8000);
 await c.evaluate("document.querySelector('[data-conv-use]').click()");
 await sleep(300);
 const convCell = await q(`return ${row(2)}.querySelector('[data-conv]').innerText + ' · ' + ${row(2)}.innerText.includes('แปลง')`);

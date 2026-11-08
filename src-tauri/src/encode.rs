@@ -160,14 +160,25 @@ fn ff_head(src: &str, stream: u64, spec: &EncodeSpec, dither16: bool, channels_c
     a
 }
 
-/// ส่วนท้ายของ ffmpeg ที่ส่งเสียงดิบทางท่อ
-fn ff_pipe_tail(a: &mut Vec<String>, dither16: bool) {
-    a.extend(["-c:a".into(), if dither16 { "pcm_s16le".into() } else { "pcm_s24le".into() }, "-f".into(), "wav".into(), "-".into()]);
+/// ส่วนท้ายของ ffmpeg ที่ส่งเสียงดิบทางท่อ · pcm16 = ส่ง 16 บิต (ลดบิต หรือต้นทาง 16 บิตอยู่แล้ว)
+fn ff_pipe_tail(a: &mut Vec<String>, pcm16: bool) {
+    a.extend(["-c:a".into(), if pcm16 { "pcm_s16le".into() } else { "pcm_s24le".into() }, "-f".into(), "wav".into(), "-".into()]);
+}
+
+/// ค่า Lowpass ของการ์ด เป็น Hz · Auto หรือไม่ได้ตั้ง = ให้ตัวแปลงเลือกเอง
+fn lowpass_hz(spec: &EncodeSpec) -> Option<f64> {
+    let v = spec.n("lowpass", 0.0);
+    (v >= 1000.0).then_some(v)
 }
 
 /// แปลงค่าในการ์ดเป็นขั้นตอนจริง · out = ไฟล์ปลายทางในโฟลเดอร์ชั่วคราว · src_channels = ช่องของต้นทาง (MP3 รับได้ 2 ช่อง)
-pub fn build(spec: &EncodeSpec, src: &str, stream: u64, out: &str, src_channels: Option<u32>) -> Result<Plan, String> {
-    let dither16 = spec.bits == Some(16) && matches!(spec.codec.as_str(), "flac" | "wv");
+/// src_bits = ความลึกบิตของต้นทาง (ffprobe) · ต้นทาง 16 บิตแปลงแบบไม่เสียคุณภาพตามต้นฉบับ ได้ 16 บิต ไม่ขยายเป็น 24
+pub fn build(spec: &EncodeSpec, src: &str, stream: u64, out: &str, src_channels: Option<u32>, src_bits: Option<u32>) -> Result<Plan, String> {
+    let lossless = matches!(spec.codec.as_str(), "flac" | "wv");
+    let src16 = src_bits.is_some_and(|b| b > 0 && b <= 16);
+    // ใส่ dither เฉพาะตอนลดบิตจริง · ต้นทาง 16 บิตอยู่แล้วตัดศูนย์ที่เติมไว้ทิ้งได้ตรงทุกตัวอย่าง
+    let dither16 = lossless && spec.bits == Some(16) && !src16;
+    let pcm16 = lossless && (spec.bits == Some(16) || (spec.bits.is_none() && src16));
     let native = spec.encoder.is_empty() || spec.encoder == "native";
     let (steps, piped, note): (Vec<Step>, bool, String) = match (spec.codec.as_str(), native, spec.encoder.as_str()) {
         ("opus", true, _) => {
@@ -202,7 +213,10 @@ pub fn build(spec: &EncodeSpec, src: &str, stream: u64, out: &str, src_channels:
                 _ => e.extend(["-V".into(), fmt_num(spec.n("vbrq", 2.0))]),
             }
             let st = match spec.s("stereo", "Joint stereo").as_str() { "Stereo" => "s", "Mono" => "m", _ => "j" };
-            e.extend(["-q".into(), fmt_num(spec.n("quality", 2.0)), "-m".into(), st.into(), "-".into(), out.into()]);
+            e.extend(["-q".into(), fmt_num(spec.n("quality", 2.0)), "-m".into(), st.into()]);
+            // lame รับ Lowpass เป็น kHz
+            if let Some(hz) = lowpass_hz(spec) { e.extend(["--lowpass".into(), fmt_num(hz / 1000.0)]); }
+            e.extend(["-".into(), out.into()]);
             (vec![Step { tool: "ffmpeg".into(), args: ff }, Step { tool: "lame".into(), args: e }], true, "MP3 เก็บได้สูงสุด 2 ช่อง ffmpeg รวมช่องก่อน แล้วส่งเสียงดิบให้ lame".into())
         }
         ("mp3", false, _) => {
@@ -214,28 +228,36 @@ pub fn build(spec: &EncodeSpec, src: &str, stream: u64, out: &str, src_channels:
                 "CBR" => ff.extend(["-b:a".into(), format!("{}k", fmt_num(spec.n("bitrate", 192.0)))]),
                 _ => ff.extend(["-q:a".into(), fmt_num(spec.n("vbrq", 2.0))]),
             }
-            ff.extend(["-compression_level".into(), fmt_num(spec.n("quality", 2.0)), "-joint_stereo".into(), if spec.s("stereo", "Joint stereo") == "Joint stereo" { "1".into() } else { "0".into() }, "-n".into(), out.into()]);
+            ff.extend(["-compression_level".into(), fmt_num(spec.n("quality", 2.0)), "-joint_stereo".into(), if spec.s("stereo", "Joint stereo") == "Joint stereo" { "1".into() } else { "0".into() }]);
+            if let Some(hz) = lowpass_hz(spec) { ff.extend(["-cutoff".into(), fmt_num(hz)]); }
+            ff.extend(["-n".into(), out.into()]);
             (vec![Step { tool: "ffmpeg".into(), args: ff }], false, "ffmpeg ใช้ LAME ข้างใน ค่าเหมือนตัวต้นฉบับ".into())
         }
         ("flac", true, _) => {
             let mut ff = ff_head(src, stream, spec, dither16, None);
-            ff_pipe_tail(&mut ff, dither16);
+            ff_pipe_tail(&mut ff, pcm16);
             let mut e = vec!["--silent".to_string(), "--ignore-chunk-sizes".into(), format!("-{}", fmt_num(spec.n("level", 8.0))), "-j".into(), fmt_num(spec.n("threads", 4.0))];
+            let block = spec.n("block", 0.0);
+            if block >= 16.0 { e.extend(["-b".into(), fmt_num(block)]); }
             if spec.on("verify", true) { e.push("-V".into()); }
             e.extend(["-".into(), "-o".into(), out.into()]);
             (vec![Step { tool: "ffmpeg".into(), args: ff }, Step { tool: "flac".into(), args: e }], true,
-             if dither16 { "ลดเป็น 16 บิตที่ ffmpeg ก่อน ใส่ dither ให้".into() } else { "ffmpeg ส่งเสียงดิบ 24 บิตให้ flac ครบทุกบิต".into() })
+             if dither16 { "ลดเป็น 16 บิตที่ ffmpeg ก่อน ใส่ dither ให้".into() }
+             else if pcm16 { "ต้นทาง 16 บิต ffmpeg ส่งเสียงดิบ 16 บิตให้ flac ครบทุกบิต".into() }
+             else { "ffmpeg ส่งเสียงดิบ 24 บิตให้ flac ครบทุกบิต".into() })
         }
         ("flac", false, _) => {
             let mut ff = ff_head(src, stream, spec, dither16, None);
             ff.extend(["-c:a".into(), "flac".into(), "-compression_level".into(), fmt_num(spec.n("level", 8.0))]);
-            if dither16 { ff.extend(["-sample_fmt".into(), "s16".into()]); }
+            let block = spec.n("block", 0.0);
+            if block >= 16.0 { ff.extend(["-frame_size".into(), fmt_num(block)]); }
+            if pcm16 { ff.extend(["-sample_fmt".into(), "s16".into()]); }
             ff.extend(["-n".into(), out.into()]);
             (vec![Step { tool: "ffmpeg".into(), args: ff }], false, "FLAC ของ ffmpeg ไม่มีช่อง Threads กับ Verify".into())
         }
         ("wv", true, _) => {
             let mut ff = ff_head(src, stream, spec, dither16, None);
-            ff_pipe_tail(&mut ff, dither16);
+            ff_pipe_tail(&mut ff, pcm16);
             let mut e = vec!["-q".to_string(), "-i".into()];
             match spec.s("mode", "Normal").as_str() { "Fast" => e.push("-f".into()), "High" => e.push("-h".into()), "Very High" => e.push("-hh".into()), _ => {} }
             let x = spec.n("extra", 0.0) as i64;
@@ -248,7 +270,7 @@ pub fn build(spec: &EncodeSpec, src: &str, stream: u64, out: &str, src_channels:
             let mut ff = ff_head(src, stream, spec, dither16, None);
             let cl = match spec.s("mode", "Normal").as_str() { "Fast" => 1, "High" => 3, "Very High" => 4, _ => 2 };
             ff.extend(["-c:a".into(), "wavpack".into(), "-compression_level".into(), cl.to_string()]);
-            if dither16 { ff.extend(["-sample_fmt".into(), "s16p".into()]); }
+            if pcm16 { ff.extend(["-sample_fmt".into(), "s16p".into()]); }
             ff.extend(["-n".into(), out.into()]);
             (vec![Step { tool: "ffmpeg".into(), args: ff }], false, "WavPack ของ ffmpeg ไม่มี Hybrid กับ Verify".into())
         }
@@ -276,8 +298,10 @@ pub fn build(spec: &EncodeSpec, src: &str, stream: u64, out: &str, src_channels:
                 "CBR" => e.extend(["--cbr".into(), fmt_num(spec.n("bitrate", 256.0))]),
                 _ => e.extend(["--tvbr".into(), fmt_num(spec.n("tvbr", 91.0))]),
             }
-            if spec.s("profile", "AAC-LC") != "AAC-LC" { e.push("--he".into()); }
-            e.extend(["--quality".into(), fmt_num(spec.n("quality", 2.0)), "-".into(), "-o".into(), out.into()]);
+            if spec.s("profile", "AAC-LC") != "AAC-LC" && spec.s("mode", "TVBR") != "TVBR" { e.push("--he".into()); }
+            e.extend(["--quality".into(), fmt_num(spec.n("quality", 2.0))]);
+            if let Some(hz) = lowpass_hz(spec) { e.extend(["--lowpass".into(), fmt_num(hz)]); }
+            e.extend(["-".into(), "-o".into(), out.into()]);
             (vec![Step { tool: "ffmpeg".into(), args: ff }, Step { tool: "qaac64".into(), args: e }], true, "ffmpeg ถอดเสียงส่งทางท่อให้ qaac บีบด้วยตัวของ Apple".into())
         }
         ("aac", _, "fdkaac") => {
@@ -289,13 +313,16 @@ pub fn build(spec: &EncodeSpec, src: &str, stream: u64, out: &str, src_channels:
                 _ => e.extend(["-m".into(), fmt_num(spec.n("vbr", 5.0))]),
             }
             if spec.s("profile", "AAC-LC") != "AAC-LC" { e.extend(["-p".into(), "5".into()]); }
+            if let Some(hz) = lowpass_hz(spec) { e.extend(["-w".into(), fmt_num(hz)]); }
             e.extend(["-o".into(), out.into(), "-".into()]);
             (vec![Step { tool: "ffmpeg".into(), args: ff }, Step { tool: "fdkaac".into(), args: e }], true, "ffmpeg ถอดเสียงส่งทางท่อให้ fdkaac บีบด้วยตัวของ Fraunhofer".into())
         }
         ("aac", _, _) => {
             // AAC ของ ffmpeg ไม่มี TVBR ใช้บิตเรตเฉลี่ย
             let mut ff = ff_head(src, stream, spec, false, None);
-            ff.extend(["-c:a".into(), "aac".into(), "-b:a".into(), format!("{}k", fmt_num(spec.n("bitrate", 256.0))), "-n".into(), out.into()]);
+            ff.extend(["-c:a".into(), "aac".into(), "-b:a".into(), format!("{}k", fmt_num(spec.n("bitrate", 256.0)))]);
+            if let Some(hz) = lowpass_hz(spec) { ff.extend(["-cutoff".into(), fmt_num(hz)]); }
+            ff.extend(["-n".into(), out.into()]);
             (vec![Step { tool: "ffmpeg".into(), args: ff }], false, "AAC ของ ffmpeg ไม่มี TVBR ใช้บิตเรตเฉลี่ย".into())
         }
         (c, _, _) => return Err(format!("ยังแปลงเป็นชนิด {c} ไม่ได้")),
@@ -506,9 +533,9 @@ pub fn encoders_open_dir(app: tauri::AppHandle) -> Result<String, String> {
 
 /// คำสั่งที่จะรันจริงของค่าในการ์ด · หน้าจอแสดงในกล่องคำสั่งพร้อมปุ่มคัดลอก (ชื่อไฟล์เป็นตัวอย่าง ของจริงเป็นที่อยู่เต็มในโฟลเดอร์ชั่วคราว)
 #[tauri::command]
-pub fn encode_preview(spec: EncodeSpec, src_name: String, stream: u64, channels: Option<u32>) -> Result<Plan, String> {
+pub fn encode_preview(spec: EncodeSpec, src_name: String, stream: u64, channels: Option<u32>, bits: Option<u32>) -> Result<Plan, String> {
     let out = format!("เสียง {}.{}", stream, spec.ext());
-    build(&spec, &src_name, stream, &out, channels)
+    build(&spec, &src_name, stream, &out, channels, bits)
 }
 
 #[cfg(test)]
@@ -535,18 +562,18 @@ mod tests {
     #[test]
     fn commands_follow_cards() {
         let s = spec("opus", "native", json!({"bitrate": 160, "mode": "VBR", "comp": 10, "framesize": "20 ms", "tune": "Music"}));
-        let p = build(&s, "M.mkv", 2, "O.opus", Some(6)).unwrap();
+        let p = build(&s, "M.mkv", 2, "O.opus", Some(6), None).unwrap();
         assert!(p.piped);
         assert_eq!(p.steps[1].args.join(" "), "--quiet --ignorelength --bitrate 160 --vbr --comp 10 --framesize 20 --music - O.opus");
         assert!(p.steps[0].args.join(" ").contains("-map 0:2 -vn -sn -dn -c:a pcm_s24le -f wav -"), "{:?}", p.steps[0].args);
         // MP3 5.1 รวมเป็น 2 ช่อง · lame รับ 16 บิต
-        let m = build(&spec("mp3", "native", json!({"mode": "VBR", "vbrq": 0, "quality": 2, "stereo": "Joint stereo"})), "M.mkv", 1, "O.mp3", Some(6)).unwrap();
+        let m = build(&spec("mp3", "native", json!({"mode": "VBR", "vbrq": 0, "quality": 2, "stereo": "Joint stereo"})), "M.mkv", 1, "O.mp3", Some(6), None).unwrap();
         assert!(m.steps[0].args.join(" ").contains("-ac 2"), "{:?}", m.steps[0].args);
         assert_eq!(m.steps[1].args.join(" "), "--quiet -V 0 -q 2 -m j - O.mp3");
         // FLAC ลด 16 บิตพร้อม dither
         let mut f = spec("flac", "native", json!({"level": 8, "threads": 4, "verify": "On"}));
         f.bits = Some(16);
-        let fp = build(&f, "M.mkv", 1, "O.flac", Some(2)).unwrap();
+        let fp = build(&f, "M.mkv", 1, "O.flac", Some(2), None).unwrap();
         assert!(fp.steps[0].args.join(" ").contains("aresample=osf=s16:dither_method=triangular -c:a pcm_s16le"), "{:?}", fp.steps[0].args);
         assert_eq!(fp.steps[1].args.join(" "), "--silent --ignore-chunk-sizes -8 -j 4 -V - -o O.flac");
         // AC-3 ffmpeg ล้วน ความเร็ว 25 → 23.976 กับ Gain −3 dB กับ loudnorm
@@ -554,19 +581,61 @@ mod tests {
         a.speed = Some([25.0, 23.976]);
         a.gain = -3.0;
         a.loudnorm = true;
-        let ap = build(&a, "M.mkv", 1, "O.ac3", Some(6)).unwrap();
+        let ap = build(&a, "M.mkv", 1, "O.ac3", Some(6), None).unwrap();
         let s = ap.steps[0].args.join(" ");
         assert!(!ap.piped);
         assert!(s.contains("-af rubberband=tempo=0.959040,volume=-3dB,loudnorm=I=-23:TP=-1"), "{s}");
         assert!(s.contains("-c:a ac3 -b:a 640k -dialnorm -31 -center_mixlev 0.707 -surround_mixlev 0.000 -mixing_level 105 -room_type large -n O.ac3"), "{s}");
         assert!(ap.text.starts_with("ffmpeg -hide_banner"), "{}", ap.text);
         // WavPack โหมด High extra 4 verify
-        let w = build(&spec("wv", "native", json!({"mode": "High", "extra": 4, "verify": "On"})), "M.mkv", 1, "O.wv", Some(2)).unwrap();
+        let w = build(&spec("wv", "native", json!({"mode": "High", "extra": 4, "verify": "On"})), "M.mkv", 1, "O.wv", Some(2), None).unwrap();
         assert_eq!(w.steps[1].args.join(" "), "-q -i -h -x4 -v - -o O.wv");
         // คำสั่งที่แสดงใส่เครื่องหมายคำพูดให้ชื่อที่มีเว้นวรรค
-        let t = build(&spec("opus", "ffmpeg", json!({"bitrate": 128})), "D:\\หนัง\\ดาวตก (2024).mkv", 1, "เสียง 1.opus", None).unwrap();
+        let t = build(&spec("opus", "ffmpeg", json!({"bitrate": 128})), "D:\\หนัง\\ดาวตก (2024).mkv", 1, "เสียง 1.opus", None, None).unwrap();
         assert!(t.text.contains("\"D:\\หนัง\\ดาวตก (2024).mkv\""), "{}", t.text);
-        assert!(build(&spec("ape", "native", json!({})), "M", 1, "O", None).is_err());
+        assert!(build(&spec("ape", "native", json!({})), "M", 1, "O", None, None).is_err());
+    }
+
+    /// ความลึกบิต · ต้นทาง 16 บิตตามต้นฉบับได้ 16 บิต ไม่ใส่ dither · ลดจาก 24 เป็น 16 ใส่ dither · Lowpass · Block size · HE-AAC กับ TVBR
+    #[test]
+    fn bit_depth_lowpass_block() {
+        let f = spec("flac", "native", json!({"level": 5}));
+        let a16 = build(&f, "M.mkv", 1, "O.flac", Some(2), Some(16)).unwrap();
+        let ff = a16.steps[0].args.join(" ");
+        assert!(ff.contains("-c:a pcm_s16le") && !ff.contains("dither"), "ต้นทาง 16 บิต {ff}");
+        let a24 = build(&f, "M.mkv", 1, "O.flac", Some(2), Some(24)).unwrap();
+        assert!(a24.steps[0].args.join(" ").contains("-c:a pcm_s24le"));
+        let lossy_src = build(&f, "M.mkv", 1, "O.flac", Some(6), None).unwrap();
+        assert!(lossy_src.steps[0].args.join(" ").contains("-c:a pcm_s24le"), "ไม่รู้บิต (เสียคุณภาพ ถอดเป็นทศนิยม) ส่ง 24 บิต");
+        let mut d = f.clone();
+        d.bits = Some(16);
+        let down = build(&d, "M.mkv", 1, "O.flac", Some(2), Some(24)).unwrap().steps[0].args.join(" ");
+        assert!(down.contains("dither_method=triangular -c:a pcm_s16le"), "{down}");
+        let same = build(&d, "M.mkv", 1, "O.flac", Some(2), Some(16)).unwrap().steps[0].args.join(" ");
+        assert!(!same.contains("dither"), "16 เป็น 16 ไม่ใส่ dither {same}");
+        let mut up = f.clone();
+        up.bits = Some(24);
+        assert!(build(&up, "M.mkv", 1, "O.flac", Some(2), Some(16)).unwrap().steps[0].args.join(" ").contains("pcm_s24le"), "เลือก 24 บิตเอง");
+        // ffmpeg ล้วน ต้นทาง 16 บิต
+        let fw = build(&spec("wv", "ffmpeg", json!({"mode": "Normal"})), "M.mkv", 1, "O.wv", Some(2), Some(16)).unwrap();
+        assert!(fw.steps[0].args.join(" ").contains("-sample_fmt s16p"));
+        // Opus ไม่สนบิตต้นทาง
+        assert!(build(&spec("opus", "native", json!({})), "M.mkv", 1, "O.opus", Some(2), Some(16)).unwrap().steps[0].args.join(" ").contains("pcm_s24le"));
+        // Block size
+        let b = build(&spec("flac", "native", json!({"level": 8, "threads": 2, "block": 4608, "verify": "Off"})), "M.mkv", 1, "O.flac", Some(2), None).unwrap();
+        assert_eq!(b.steps[1].args.join(" "), "--silent --ignore-chunk-sizes -8 -j 2 -b 4608 - -o O.flac");
+        let ba = build(&spec("flac", "native", json!({"level": 8, "block": "Auto"})), "M.mkv", 1, "O.flac", Some(2), None).unwrap();
+        assert!(!ba.steps[1].args.contains(&"-b".to_string()));
+        assert!(build(&spec("flac", "ffmpeg", json!({"block": 4096})), "M.mkv", 1, "O.flac", Some(2), None).unwrap().steps[0].args.join(" ").contains("-frame_size 4096"));
+        // Lowpass
+        let l = build(&spec("mp3", "native", json!({"mode": "VBR", "vbrq": 2, "quality": 3, "lowpass": 19000})), "M.mkv", 1, "O.mp3", Some(2), None).unwrap();
+        assert_eq!(l.steps[1].args.join(" "), "--quiet -V 2 -q 3 -m j --lowpass 19 - O.mp3");
+        assert!(build(&spec("mp3", "ffmpeg", json!({"lowpass": 18000})), "M.mkv", 1, "O.mp3", Some(2), None).unwrap().steps[0].args.join(" ").contains("-cutoff 18000"));
+        let q = build(&spec("aac", "qaac", json!({"mode": "CVBR", "bitrate": 96, "profile": "HE-AAC", "quality": 2, "lowpass": 16000})), "M.mkv", 1, "O.m4a", Some(2), None).unwrap();
+        assert_eq!(q.steps[1].args.join(" "), "--silent --ignorelength --cvbr 96 --he --quality 2 --lowpass 16000 - -o O.m4a");
+        let qt = build(&spec("aac", "qaac", json!({"mode": "TVBR", "tvbr": 91, "profile": "HE-AAC"})), "M.mkv", 1, "O.m4a", Some(2), None).unwrap();
+        assert!(!qt.steps[1].args.contains(&"--he".to_string()), "TVBR ส่ง --he ไม่ได้ qaac ฟ้อง");
+        assert!(!build(&spec("aac", "ffmpeg", json!({"bitrate": 192, "lowpass": "Auto"})), "M.mkv", 1, "O.m4a", Some(2), None).unwrap().steps[0].args.contains(&"-cutoff".to_string()));
     }
 
     #[test]
@@ -618,7 +687,7 @@ mod tests {
         let src = movie.to_string_lossy().to_string();
         for (i, s) in cases.iter().enumerate() {
             let out = dir.join(format!("{i}.{}", s.ext()));
-            let plan = build(s, &src, 1, &out.to_string_lossy(), Some(2)).unwrap();
+            let plan = build(s, &src, 1, &out.to_string_lossy(), Some(2), None).unwrap();
             let mut seen = 0.0;
             let r = run(&|_| tools(), &plan, Some(60.0), &|| false, &mut |p| seen = p).unwrap();
             assert!(matches!(r, Done::Ok), "{} {} ไม่สำเร็จ {}", s.codec, s.encoder, match r { Done::Failed(m) => m, _ => String::new() });
@@ -641,13 +710,28 @@ mod tests {
         let mut s = spec("flac", "native", json!({"level": 5}));
         s.speed = Some([25.0, 23.976]);
         let out = dir.join("pal.flac");
-        let plan = build(&s, &pal.to_string_lossy(), 0, &out.to_string_lossy(), Some(2)).unwrap();
+        let plan = build(&s, &pal.to_string_lossy(), 0, &out.to_string_lossy(), Some(2), None).unwrap();
         assert!(matches!(run(&|_| tools(), &plan, Some(57.6), &|| false, &mut |_| {}).unwrap(), Done::Ok));
         let d = crate::outfile::duration_of(&crate::outfile::ffprobe_json(&tools(), &out).unwrap()).unwrap();
         assert!((d - 60.03).abs() < 0.1, "ยืดแล้วยาว {d}");
+        // ต้นทาง WAV 16 บิต แปลงเป็น FLAC ตามต้นฉบับ ต้องได้ 16 บิต · ไม่บอกบิตต้นทาง (แบบเดิมก่อนแก้) ได้ 24 บิต ไฟล์ใหญ่ขึ้นเปล่า ๆ
+        if let Some(wav) = av("เพลงทดสอบ.wav") {
+            let wav = wav.to_string_lossy().to_string();
+            let bits_of = |p: &std::path::Path| {
+                let j = crate::outfile::ffprobe_json(&tools(), p).unwrap();
+                j["streams"][0]["bits_per_raw_sample"].as_str().and_then(|s| s.parse::<u32>().ok())
+                    .or_else(|| match j["streams"][0]["sample_fmt"].as_str() { Some("s16") => Some(16), Some("s32") => Some(24), _ => None })
+            };
+            for (name, bits, want) in [("w16.flac", Some(16), 16), ("w-old.flac", None, 24)] {
+                let out = dir.join(name);
+                let plan = build(&spec("flac", "native", json!({"level": 5})), &wav, 0, &out.to_string_lossy(), Some(2), bits).unwrap();
+                assert!(matches!(run(&|_| tools(), &plan, Some(30.0), &|| false, &mut |_| {}).unwrap(), Done::Ok));
+                assert_eq!(bits_of(&out), Some(want), "{name}");
+            }
+        }
         // กดหยุด
         let out = dir.join("stop.flac");
-        let plan = build(&spec("flac", "native", json!({})), &src, 1, &out.to_string_lossy(), Some(2)).unwrap();
+        let plan = build(&spec("flac", "native", json!({})), &src, 1, &out.to_string_lossy(), Some(2), None).unwrap();
         assert!(matches!(run(&|_| tools(), &plan, Some(60.0), &|| true, &mut |_| {}).unwrap(), Done::Cancelled));
         let _ = std::fs::remove_dir_all(&dir);
     }

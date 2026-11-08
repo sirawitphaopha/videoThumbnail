@@ -1,6 +1,6 @@
 /* ชนิดเสียงที่แปลงได้ กับชุดค่าแบบง่าย (มอคอัป docs/mockups/audio-merge.html CODECS presets)
    ชุดค่าแบบง่ายแปลงเป็นค่าในการ์ดของ EncodeSpec · ตัวสร้างคำสั่งอยู่ฝั่ง Rust ที่เดียว (encode.rs)
-   ขั้นสูง การ์ดละช่องพร้อม ⓘ ตามมอคอัป ทำต่อในรอบถัดไป */
+   การ์ดขั้นสูง คำอธิบาย ⓘ ตัวย่อ และขนาดที่คาด อยู่ codecAdv.ts */
 import type { EncodeSpec } from "./api";
 
 export type Preset = { label: string; detail: string; mbPerHour?: number; pctWav?: number; p: EncodeSpec["p"]; channels?: number };
@@ -70,14 +70,6 @@ export const CODECS: Codec[] = [
 ];
 
 export const codecOf = (id: string) => CODECS.find((c) => c.id === id) ?? CODECS[0];
-
-/** ขนาดที่คาดของชุดค่าทั้งแทร็ก · Lossy จาก MB ต่อชั่วโมงของมอคอัป · Lossless จากเปอร์เซ็นต์ของ WAV ที่คิดจากช่องกับอัตราสุ่มจริง (24 บิต) */
-export function presetSize(pr: Preset, secs: number | null, channels: number | null, rate: number | null): number | null {
-  if (!secs) return null;
-  if (pr.mbPerHour) return pr.mbPerHour * 1024 * 1024 * (secs / 3600);
-  if (pr.pctWav) return (secs * (rate ?? 48000) * (channels ?? 2) * 3) * pr.pctWav / 100;
-  return null;
-}
 
 /** ป้ายสั้นในช่องแปลงของตาราง เช่น Opus 384 · AC-3 640 · FLAC L5 */
 export function convertLabel(spec: EncodeSpec): string {
