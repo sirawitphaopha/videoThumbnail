@@ -12,7 +12,7 @@ export default function SearchBox(p: {
   label: string;
   /** คำที่ระบบใช้ค้นจริงตอนแปลงแป้น · ว่าง = ไม่ขึ้นป้าย */
   swapLabel?: string;
-  width?: number;
+  width?: number | string;
 }) {
   const draw = useRef<HTMLDivElement>(null);
   const input = useRef<HTMLInputElement>(null);

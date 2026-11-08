@@ -29,6 +29,9 @@ export type Settings = {
   coverOrient: "tall" | "wide";
   /** เก็บรูปที่จับคู่ไว้ที่ไหน beside ข้างไฟล์หนัง · app ในโปรแกรม · link จับคู่อย่างเดียว */
   linkStore: "beside" | "app" | "link";
+  /** กระดานจับคู่ list รายการ · only แค่รูป */
+  linkBoardImages: "list" | "only";
+  linkBoardMovies: "list" | "only";
 };
 
 export type LoadedFrom = "file" | "backup" | "defaults" | "new";
@@ -216,6 +219,8 @@ export type LinkProgress = { done: number; total: number; title: string };
 export type RowPatch = { ticked?: boolean; choose?: string; orient?: "tall" | "wide"; geo?: Geometry; skip?: boolean };
 export const linkApi = {
   state: () => call<LinkReplyData>("link_state"),
+  titles: (paths: string[]) => call<string[]>("link_titles", { paths }),
+  isDir: (paths: string[]) => call<boolean[]>("link_is_dir", { paths }),
   images: () => call<LinkImage[]>("link_images"),
   addImages: (paths: string[]) => call<LinkReplyData>("link_add_images", { paths }),
   removeImages: (path: string) => call<LinkReplyData>("link_remove_images", { path }),

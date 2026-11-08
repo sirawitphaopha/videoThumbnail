@@ -215,6 +215,150 @@ const clipped = await q("const box = document.querySelector('[data-link-rows]').
 check("หน้าต่างเล็กสุด 1024 ปุ่มในแถวไม่ตกขอบ", clipped === 0, clipped);
 await c.send("Emulation.clearDeviceMetricsOverride");
 
+/* ---------- ขั้น 4 กระดาน ---------- */
+const stPK = (await stateNow()).rows.find((r) => r.title === "Paper Kites (2012)");
+await inv("link_undo", { id: stPK.id });
+await c.evaluate("location.reload()");
+await waitFor("return !!document.querySelector('.side .nav')");
+await sleep(500);
+await nav("จับคู่ปก");
+await waitFor("return !!document.querySelector('[data-link-goboard]')");
+await c.evaluate("document.querySelector('[data-link-goboard]').click()");
+await waitFor("return !!document.querySelector('[data-link-board]')");
+await waitFor(`return !!document.querySelector('[data-board-title="Paper Kites (2012)"]') && document.querySelectorAll('[data-board-img]').length > 0`);
+const titlesOnBoard =() => q("return [...document.querySelectorAll('[data-board-movie]')].map(m => m.dataset.boardTitle)");
+const MT = (t) => `document.querySelector(${JSON.stringify(`[data-board-title="${t}"]`)})`;
+const IM = (n) => `document.querySelector(${JSON.stringify(`[data-board-img="${n}"]`)})`;
+check("กระดานขึ้นเฉพาะเรื่องที่ยังไม่มีปกและไม่มีคู่รอ", JSON.stringify((await titlesOnBoard()).sort()) === JSON.stringify(["Iron Tide (2010)", "Paper Kites (2012)"]), JSON.stringify(await titlesOnBoard()));
+check("แถวหนังบอกโฟลเดอร์ของไฟล์", await q(`return document.querySelector('[data-board-movie] .fn').textContent.includes(${JSON.stringify(MOV)})`));
+check("หัวแผงรูปขึ้นโฟลเดอร์ พร้อมจำนวน", await q(`const t = document.querySelector('[data-board-img-folders] .pathline').textContent; return t.includes(${JSON.stringify(IMG)}) && t.includes('15 รูป')`));
+check("หัวแผงหนังขึ้นโฟลเดอร์ พร้อมจำนวน", await q(`const t = document.querySelector('[data-board-mv-folders] .pathline').textContent; return t.includes(${JSON.stringify(MOV)}) && t.includes('14 เรื่อง')`));
+const pane = (name) => q(`const b = document.querySelector('[data-board-pane="${name}"]').getBoundingClientRect(); return { x: (b.left + 40) * devicePixelRatio, y: (b.top + 12) * devicePixelRatio };`);
+const movieBox = (title) => q(`const m = ${MT(title)}; m.scrollIntoView({ block: 'nearest' }); const b = m.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 };`);
+const boardDrop = (paths, p) => c.evaluate(`window.__boardDrop(${JSON.stringify(paths)}, ${p.x}, ${p.y})`);
+const boardHover = (paths, p) => c.evaluate(`window.__boardHover(${p.x}, ${p.y}, ${JSON.stringify(paths)})`);
+const rowNow = async (title) => (await stateNow()).rows.find((r) => r.title === title);
+const sentOf = (title) => `return ${MT(title)}?.classList.contains('sent')`;
+const notSent = (title) => `return !${MT(title)}?.classList.contains('sent')`;
+
+// เพิ่มโฟลเดอร์รูปที่สอง · แถวยาวลงมา · ไฟล์ที่ไม่ใช่รูปไม่ขึ้น
+const imgBefore = await q("return document.querySelectorAll('[data-board-img]').length");
+await boardDrop([DL], await pane("images"));
+await waitFor("return document.querySelectorAll('[data-board-img-folders] .pathline').length === 2");
+await waitFor(`return document.querySelectorAll('[data-board-img]').length === ${imgBefore + 1}`);
+// โฟลเดอร์นี้มี 3 รูป · copper-tall กับ copper-wide ถูกใช้กับ Copper Sky ไปแล้ว เหลือบนกระดานรูปเดียว
+check("เพิ่มโฟลเดอร์รูปที่สอง แถวโฟลเดอร์เป็น 2 รูปที่ยังไม่ใช้เพิ่ม 1 ไม่นับไฟล์ที่ไม่ใช่รูป", await q(`return document.querySelectorAll('[data-board-img]').length === ${imgBefore + 1} && !!${IM("ember-poster-hd.jpg")} && ![...document.querySelectorAll('[data-board-img]')].some(i => i.dataset.boardImg.endsWith('.txt'))`));
+check("หัวแผงนับรูปของโฟลเดอร์ที่สองครบ 3 รูป", await q(`return document.querySelectorAll('[data-board-img-folders] .pathline')[1].textContent.includes('3 รูป')`));
+
+// กดรูปแล้วกดหนัง
+await c.evaluate(`${IM("IMG_2031.jpg")}.click()`);
+await waitFor(`return ${IM("IMG_2031.jpg")}.classList.contains('sel')`);
+check("กดรูป ขึ้นกรอบชมพู หนังบอกกดเพื่อใช้รูปที่เลือก", await q("return document.querySelector('[data-board-movie] .mvhint')?.textContent === 'กดเพื่อใช้รูปที่เลือก'"));
+await c.evaluate(`${MT("Paper Kites (2012)")}.click()`);
+await waitFor(sentOf("Paper Kites (2012)"));
+const pk1 = await rowNow("Paper Kites (2012)");
+check("กดรูปแล้วกดหนัง 2 คลิก คู่ไปรอที่ตาราง ยังไม่บันทึก", pk1?.status === "manual" && pk1?.tall?.name === "IMG_2031.jpg" && pk1?.reason === "จับคู่เองบนกระดาน" && !existsSync(moviePoster("Paper.Kites.2012")));
+check("แถวสีฟ้าบอกส่งไปรอยืนยัน มีปุ่มย้อน", await q(`const m = ${MT("Paper Kites (2012)")}; return m.textContent.includes('ส่งไปรอยืนยันที่ตารางแล้ว') && !!m.querySelector('[data-board-undo]')`));
+await waitFor(`return !${IM("IMG_2031.jpg")}`);
+check("รูปที่ใช้แล้วหายจากแผงรูป", await q(`return !${IM("IMG_2031.jpg")}`));
+await c.evaluate(`${MT("Paper Kites (2012)")}.querySelector('[data-board-undo]').click()`);
+await waitFor(`return !!${IM("IMG_2031.jpg")}`);
+check("กดย้อน รูปกลับมาที่แผงรูป แถวไม่มีรูป", !(await rowNow("Paper Kites (2012)"))?.tall);
+
+// ลากรูปไปวางบนหนังในโปรแกรม
+const imgBox = await q(`const m = ${IM("IMG_2031.jpg")}; m.scrollIntoView({ block: 'center' }); const b = m.getBoundingClientRect(); return { x: b.left + b.width / 2, y: b.top + b.height / 2 };`);
+await sleep(150);
+const target = await movieBox("Paper Kites (2012)");
+await c.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: imgBox.x, y: imgBox.y });
+await c.send("Input.dispatchMouseEvent", { type: "mousePressed", x: imgBox.x, y: imgBox.y, button: "left", clickCount: 1, buttons: 1 });
+await c.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: imgBox.x + 30, y: imgBox.y + 10, buttons: 1 });
+await c.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: target.x, y: target.y, buttons: 1 });
+await sleep(250);
+check("ระหว่างลาก มีรูปตามเมาส์ ช่องหนังขึ้นปล่อยเมาส์", await q(`return !!document.querySelector('[data-board-ghost]') && ${MT("Paper Kites (2012)")}.textContent.includes('ปล่อยเมาส์เพื่อใช้รูปนี้')`));
+await c.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: target.x, y: target.y, button: "left", clickCount: 1 });
+await waitFor(sentOf("Paper Kites (2012)"));
+check("ลากรูปไปวางบนหนังได้", (await rowNow("Paper Kites (2012)"))?.tall?.name === "IMG_2031.jpg");
+await shot("5-กระดาน.png", "[data-link-board]", 900);
+await c.evaluate(`${MT("Paper Kites (2012)")}.querySelector('[data-board-undo]').click()`);
+await waitFor(`return !!${IM("IMG_2031.jpg")}`);
+
+// ลากจาก Explorer มาวางบนหนัง
+const pos = async (title) => { const b = await movieBox(title); const k = await q("return devicePixelRatio"); return { x: b.x * k, y: b.y * k }; };
+await boardHover([join(DL, "ember-poster-hd.jpg")], await pos("Iron Tide (2010)"));
+await sleep(150);
+check("ลากจาก Explorer มาชี้บนหนัง ขึ้นปล่อยเมาส์พร้อมชื่อรูป", await q(`const m = ${MT("Iron Tide (2010)")}; return m.classList.contains('target') && m.textContent.includes('ember-poster-hd.jpg')`));
+await shot("7-ลากจาก-Explorer.png", "[data-link-board]", 900);
+await boardHover([join(DL, "ไม่ใช่รูป.txt")], await pos("Iron Tide (2010)"));
+await sleep(150);
+check("ไฟล์ที่ไม่ใช่รูป ช่องขึ้นแดงว่าไม่รับ", await q(`const m = ${MT("Iron Tide (2010)")}; return m.classList.contains('bad') && m.textContent.includes('ไม่ใช่รูป ไม่รับ')`));
+await boardDrop([join(DL, "ไม่ใช่รูป.txt")], await pos("Iron Tide (2010)"));
+await waitFor("return document.querySelectorAll('.toasts .x').length > 0");
+check("ปล่อยไฟล์ที่ไม่ใช่รูป ไม่รับ แถวไม่เปลี่ยน", !(await rowNow("Iron Tide (2010)"))?.tall);
+await c.evaluate("document.querySelectorAll('.toasts .x').forEach(b => b.click())");
+await boardDrop([join(DL, "ember-poster-hd.jpg")], await pos("Iron Tide (2010)"));
+await waitFor(sentOf("Iron Tide (2010)"));
+const it = await rowNow("Iron Tide (2010)");
+check("วางจาก Explorer บนหนัง ไม่ต้องเอาเข้ากระดานก่อน เหตุที่จับคู่บอกทางมา", it?.tall?.name === "ember-poster-hd.jpg" && it?.reason === "ลากจาก Explorer" && it?.status === "manual");
+await c.evaluate(`${MT("Iron Tide (2010)")}.querySelector('[data-board-undo]').click()`);
+await waitFor(notSent("Iron Tide (2010)"));
+await boardDrop([join(DL, "copper-wide.jpg"), join(DL, "copper-tall.jpg")], await pos("Paper Kites (2012)"));
+await waitFor(sentOf("Paper Kites (2012)"));
+const pk2 = await rowNow("Paper Kites (2012)");
+check("ลากหลายรูปบนหนังเรื่องเดียว แนวตั้งเป็นปกตั้ง แนวนอนเป็นปกนอน", pk2?.tall?.name === "copper-tall.jpg" && pk2?.wide?.name === "copper-wide.jpg");
+
+// คีย์บอร์ด Ctrl+Z
+await c.send("Input.dispatchKeyEvent", { type: "keyDown", key: "z", code: "KeyZ", windowsVirtualKeyCode: 90, modifiers: 2 });
+await c.send("Input.dispatchKeyEvent", { type: "keyUp", key: "z", code: "KeyZ", windowsVirtualKeyCode: 90, modifiers: 2 });
+await waitFor(notSent("Paper Kites (2012)"));
+check("Ctrl+Z ย้อนคู่ล่าสุด", !(await rowNow("Paper Kites (2012)"))?.tall);
+// คีย์บอร์ด ลูกศร
+await c.evaluate("document.querySelector('[data-board-img]').focus()");
+const firstName = await q("return document.activeElement.dataset.boardImg");
+await c.send("Input.dispatchKeyEvent", { type: "keyDown", key: "ArrowRight", code: "ArrowRight", windowsVirtualKeyCode: 39 });
+await c.send("Input.dispatchKeyEvent", { type: "keyUp", key: "ArrowRight", code: "ArrowRight", windowsVirtualKeyCode: 39 });
+await sleep(100);
+check("ลูกศรเลื่อนไปรูปถัดไป", (await q("return document.activeElement.dataset.boardImg")) !== firstName);
+
+// สลับมุมมอง
+const seg = (p, label) => c.evaluate(`[...document.querySelectorAll('[data-board-pane="${p}"] .seg button')].find(b => b.textContent === ${JSON.stringify(label)}).click()`);
+await seg("images", "แค่รูป");
+await seg("movies", "แค่รูป");
+await waitFor(`return document.querySelector('[data-board-pane="movies"]').classList.contains('only') && document.querySelector('[data-board-pane="images"]').classList.contains('only')`);
+check("แบบแค่รูป ซ่อนชื่อไฟล์ แผงหนังเป็นช่องปก", await q("return getComputedStyle(document.querySelector('[data-board-img] .fn')).display === 'none' && !!document.querySelector('[data-board-movies].mvgrid') && !!document.querySelector('.mt .slot')"));
+await sleep(300);
+check("จำมุมมองไว้ในการตั้งค่า", (await inv("get_settings")).settings.linkBoardMovies === "only");
+await boardHover([join(DL, "ember-poster-hd.jpg")], await pos("Iron Tide (2010)"));
+await sleep(150);
+check("แบบแค่รูป ลากจาก Explorer ขึ้นปล่อยเมาส์", await q(`const m = ${MT("Iron Tide (2010)")}; return m.classList.contains('target') && m.textContent.includes('ปล่อยเมาส์')`));
+await shot("6-กระดาน-แค่รูป.png", "[data-link-board]", 900);
+await boardHover([], { x: 2, y: 2 });
+await seg("images", "มีชื่อไฟล์");
+await seg("movies", "รายการ");
+await sleep(200);
+
+// เพิ่มโฟลเดอร์หนัง ชื่อมีจุด · หนังขึ้นชั้นวางด้วย (พี่กันตอบตอนทำแผน)
+const EXTRA = join(DIR, "หนังเพิ่ม.ชุด2");
+mkdirSync(EXTRA, { recursive: true });
+cpSync(join(SRC, "หนัง", "Paper.Kites.2012.mkv"), join(EXTRA, "Pandan.Forest.2019.mkv"));
+await boardDrop([EXTRA], await pane("movies"));
+await waitFor("return document.querySelectorAll('[data-board-mv-folders] .pathline').length === 2");
+await waitFor(`return !!${MT("Pandan Forest (2019)")}`, 30000);
+check("ลากโฟลเดอร์หนังมาวาง แถวโฟลเดอร์เพิ่ม หนังขึ้นกระดาน", await q(`return !!${MT("Pandan Forest (2019)")}`));
+check("โฟลเดอร์ที่เพิ่มอยู่ในชั้นวางด้วย", (await inv("get_settings")).settings.folders.includes(EXTRA));
+await c.evaluate(`[...document.querySelectorAll('[data-board-rm-folder]')].find(b => b.dataset.boardRmFolder === ${JSON.stringify(EXTRA)}).click()`);
+await waitFor("return !!document.querySelector('[data-board-rm-yes]')");
+await c.evaluate("document.querySelector('[data-board-rm-yes]').click()");
+await waitFor("return document.querySelectorAll('[data-board-mv-folders] .pathline').length === 1");
+await waitFor(`return !${MT("Pandan Forest (2019)")}`, 30000);
+check("เอาโฟลเดอร์ออก หนังหายจากกระดาน ไฟล์ยังอยู่", existsSync(join(EXTRA, "Pandan.Forest.2019.mkv")) && !(await inv("get_settings")).settings.folders.includes(EXTRA));
+
+// กลับตาราง
+await boardDrop([join(DL, "copper-tall.jpg")], await pos("Paper Kites (2012)"));
+await waitFor(sentOf("Paper Kites (2012)"));
+await c.evaluate("document.querySelector('[data-board-back]').click()");
+await waitFor("return !!document.querySelector('[data-link-table]')");
+check("กลับตาราง คู่จากกระดานรอยืนยันอยู่", (await statusOf("Paper Kites (2012)")) === "manual" && (await reasonOf("Paper Kites (2012)")) === "ลากจาก Explorer");
+
 const pass = results.filter((r) => r.pass).length;
 console.log(`\nผ่าน ${pass} จาก ${results.length} ข้อ`);
 c.close();

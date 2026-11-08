@@ -237,6 +237,18 @@ impl Row {
     }
 }
 
+/// ชื่อเรื่องสำหรับแสดงบนกระดาน ใช้ตัวเทียบชื่อตัวเดียวกับตาราง · ตัดปี ความละเอียด ชื่อทีมทำไฟล์
+#[tauri::command]
+pub fn link_titles(paths: Vec<String>) -> Vec<String> {
+    paths.iter().map(|p| movie_title(Path::new(p)).pretty).collect()
+}
+
+/// ของที่ลากมาเป็นโฟลเดอร์ไหม · เดาจากจุดในชื่อไม่ได้ โฟลเดอร์ชื่อ Dune.2021 มีจุดเหมือนนามสกุล
+#[tauri::command]
+pub fn link_is_dir(paths: Vec<String>) -> Vec<bool> {
+    paths.iter().map(|p| Path::new(p).is_dir()).collect()
+}
+
 /// ใส่รูปลงช่องตามแนวของรูป · รูปแนวนอนเป็นปกนอน และครอปกลางเป็นปกตั้งให้ก่อน ถ้ายังไม่มีปกตั้งของจริง
 pub fn assign(row: &mut Row, pick: Pick) {
     if pick.width > pick.height {

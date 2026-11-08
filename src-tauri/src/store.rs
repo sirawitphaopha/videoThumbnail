@@ -57,6 +57,9 @@ pub struct Settings {
     pub cover_orient: String,
     /// เก็บรูปที่จับคู่ไว้ที่ไหน "beside" คัดลอกไปข้างไฟล์หนัง (ค่าตั้งต้น พี่กันเคาะ) | "app" สำเนาในโปรแกรม | "link" จับคู่อย่างเดียว
     pub link_store: String,
+    /// กระดานจับคู่ แผงรูปกับแผงหนัง "list" รายการ | "only" แค่รูป (พี่กันสั่ง *"เเละเราขอเปลี่ยนมุมมองเป็นทั้งเเบบที่เธอมีตอนนี้ กับเเสดงเเค่รุป"*)
+    pub link_board_images: String,
+    pub link_board_movies: String,
 }
 
 impl Default for Settings {
@@ -85,6 +88,8 @@ impl Default for Settings {
             sort: "name-asc".into(),
             cover_orient: "tall".into(),
             link_store: "beside".into(),
+            link_board_images: "list".into(),
+            link_board_movies: "list".into(),
         }
     }
 }
@@ -102,6 +107,8 @@ impl Settings {
         self.view_mode = pick(&self.view_mode, &["grid", "table"], &d.view_mode);
         self.cover_orient = pick(&self.cover_orient, &["tall", "wide"], &d.cover_orient);
         self.link_store = pick(&self.link_store, &["beside", "app", "link"], &d.link_store);
+        self.link_board_images = pick(&self.link_board_images, &["list", "only"], &d.link_board_images);
+        self.link_board_movies = pick(&self.link_board_movies, &["list", "only"], &d.link_board_movies);
         if !(50..=100).contains(&self.jpg_quality) { self.jpg_quality = d.jpg_quality; }
         if ![0, 7, 30, 90].contains(&self.recheck_reminder_days) { self.recheck_reminder_days = d.recheck_reminder_days; }
         self.folders.retain(|f| !f.trim().is_empty());

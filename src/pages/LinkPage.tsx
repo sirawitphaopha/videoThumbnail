@@ -6,11 +6,12 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { CardIcon, Phr, Seg } from "../components/ui";
 import SearchBox from "../components/SearchBox";
+import LinkBoard from "../components/LinkBoard";
 import { useToast } from "../components/Toasts";
 import { useLibrary } from "../lib/library";
 import { inApp, linkApi, pickFile, pickFolder, thumbUrl, type AutoSummary, type LinkPick, type LinkRow, type LinkStatus } from "../lib/api";
 import { searchByName } from "../lib/thaiSearch";
-import { reloadImages, runConfirm, setLinkJob, setReply, thumbOf, useLinkJob } from "../lib/linkJob";
+import { getLinkJob, reloadImages, runConfirm, setLinkJob, setReply, thumbOf, useLinkJob } from "../lib/linkJob";
 import "../styles/link.css";
 
 const baseName = (p: string) => p.split(/[\\/]/).pop() ?? p;
@@ -82,6 +83,8 @@ export default function LinkPage() {
     let off: (() => void) | undefined;
     let live = true;
     import("@tauri-apps/api/webview").then(({ getCurrentWebview }) => getCurrentWebview().onDragDropEvent((e) => {
+      // กระดานฟังการลากของตัวเอง หาว่าวางบนหนังเรื่องไหน
+      if (getLinkJob().view === "board") return;
       const t = e.payload.type;
       if (t === "over" || t === "enter") setOver(true);
       else if (t === "drop") handleDrop(e.payload.paths, e.payload.position.x, e.payload.position.y);
@@ -97,6 +100,7 @@ export default function LinkPage() {
     return () => { delete w.__linkDrop; };
   }, [handleDrop]);
 
+  if (view === "board") return <LinkBoard />;
   if (view === "table") return <ReviewTable />;
   return (
     <div className="pagewrap" data-link-page>

@@ -25,6 +25,8 @@ const defaults: Settings = {
   sort: "name-asc",
   coverOrient: "tall",
   linkStore: "beside",
+  linkBoardImages: "list",
+  linkBoardMovies: "list",
 };
 
 let settings: Settings = { ...defaults };
