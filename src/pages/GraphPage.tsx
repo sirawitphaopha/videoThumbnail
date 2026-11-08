@@ -13,6 +13,8 @@ import { useToast } from "../components/Toasts";
 import Dropdown from "../components/Dropdown";
 import { CardIcon, Phr, Switch } from "../components/ui";
 import { fmtSize } from "../lib/format";
+import { IcExpand, IcFile, IcMix } from "../components/icons";
+import { IcSearch, IbStop, IcRefresh, IcGraph, IbSave, IcClose, IbTable, IbPlay } from "../components/icons";
 
 export type GraphReq = { path: string; t?: number };
 type View = "wave" | "spec" | "loud" | "cmp" | "spek" | "psd";
@@ -82,9 +84,11 @@ function lut(ramp: string[]) {
 function useCanvas(draw: (g: CanvasRenderingContext2D, w: number, h: number, r: number) => void, deps: unknown[]) {
   const ref = useRef<HTMLCanvasElement>(null);
   const [w, setW] = useState(0);
+  const [cssH, setCssH] = useState(0);
   useLayoutEffect(() => {
     const cv = ref.current; if (!cv) return;
-    const ro = new ResizeObserver(() => setW(cv.clientWidth)); ro.observe(cv); setW(cv.clientWidth);
+    const read = () => { setW(cv.clientWidth); setCssH(cv.clientHeight); };
+    const ro = new ResizeObserver(read); ro.observe(cv); read();
     return () => ro.disconnect();
   }, []);
   useLayoutEffect(() => {
@@ -94,7 +98,7 @@ function useCanvas(draw: (g: CanvasRenderingContext2D, w: number, h: number, r: 
     const g = cv.getContext("2d"); if (!g) return;
     g.setTransform(r, 0, 0, r, 0, 0); draw(g, w, h, r);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [w, ...deps]);
+  }, [w, cssH, ...deps]);
   return ref;
 }
 
@@ -198,22 +202,38 @@ function Speakers({ names, th, levels, hidden, onToggle }: { names: string[]; th
   const pos = (c: string, i: number): [number, number] => {
     if (names.length === 2) return c === "FL" ? [52, 38] : [148, 38];
     if (names.length === 1) return [100, 31];
-    const P: Record<string, [number, number]> = { FC: [100, 24], FL: [48, 38], FR: [152, 38], LFE: [100, 62], BL: [50, 160], BR: [150, 160], BC: [100, 166], FLC: [74, 30], FRC: [126, 30],
+    const P: Record<string, [number, number]> = { FC: [100, 24], FL: [48, 38], FR: [152, 38], LFE: [100, 68], BL: [50, 160], BR: [150, 160], BC: [100, 166], FLC: [74, 30], FRC: [126, 30],
       SL: has("BL") ? [20, 110] : [28, 146], SR: has("BR") ? [180, 110] : [172, 146] };
     return P[c] ?? [20 + (i % 6) * 32, 120 + Math.floor(i / 6) * 30];
   };
-  const hy = surround ? 108 : 84;
+  const hy = surround ? 114 : 92;
   return (
     <svg className="spk" width="200" height={VH} viewBox={`0 0 200 ${VH}`} role="img" aria-label={`แผนผังลำโพง ${names.length} ช่อง`}>
-      {names.length > 1 && <><circle cx="100" cy={hy - 7} r="7" fill="#f1bfd1" /><path d={`M87 ${hy + 11} q13 -16 26 0 z`} fill="#f1bfd1" /><text x="100" y={hy + 26} textAnchor="middle" fontSize="10" fill="#b28a9a" fontFamily="Sarabun">ที่นั่งฟัง</text></>}
+      {names.length > 1 && <g aria-hidden="true">
+        {/* วงเสียงรอบที่นั่งฟัง */}
+        {[58, 40, 24].map((r, k) => <circle key={r} cx="100" cy={hy} r={r} fill={th.rms} fillOpacity={0.035 + k * 0.025} />)}
+        <circle cx="100" cy={hy - 6} r="6" fill={th.rms} fillOpacity="0.75" />
+        <path d={`M88 ${hy + 11} a12 10 0 0 1 24 0 z`} fill={th.rms} fillOpacity="0.75" />
+        <text x="100" y={hy + 24} textAnchor="middle" fontSize="10" fill="#8a6474" fontFamily="Sarabun">ที่นั่งฟัง</text>
+      </g>}
       {names.map((c, i) => {
         const [x, y] = pos(c, i), off = hidden.includes(c), a = off ? 0 : 0.25 + 0.75 * Math.min(1, (levels[i] ?? 0) * 3) /* ระหว่างอ่านยังไม่มีค่า ขึ้นจาง (ค่าว่างเคยทำให้ทึบทุกตัว) */, d = label(names, c).code;
         const toggle = () => onToggle(c);
+        const lfe = c === "LFE";
+        // คลื่นเสียงแผ่ไปทางที่นั่งฟัง ช่องเดียวแผ่ลงล่าง · ดังมากคลื่นมาก ดังน้อยคลื่นน้อย ช่องที่ซ่อนไม่มีคลื่น
+        const dir = names.length > 1 ? Math.atan2(hy - y, 100 - x) : Math.PI / 2;
+        const waves = off ? 0 : Math.max(1, Math.ceil(a * 3));
+        const R = lfe ? 11 : 15, half = lfe ? 0.8 : 0.62;
         return (
           <g key={c} className="s" tabIndex={0} role="button" aria-label={(off ? "แสดง" : "ซ่อน") + "ช่อง " + d} onClick={toggle} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } }}>
             <title>{(off ? "กดเพื่อแสดง" : "กดเพื่อซ่อน") + "ช่อง " + d}</title>
-            {c === "LFE" ? <rect x={x - 15} y={y - 11} width="30" height="22" rx="6" fill={off ? "#fff" : th.rms} fillOpacity={off ? 1 : a} stroke={off ? "#e5b7c8" : th.rms} strokeWidth="1.5" strokeDasharray={off ? "3 3" : undefined} />
-              : <circle cx={x} cy={y} r="15" fill={off ? "#fff" : th.rms} fillOpacity={off ? 1 : a} stroke={off ? "#e5b7c8" : th.rms} strokeWidth="1.5" strokeDasharray={off ? "3 3" : undefined} />}
+            {Array.from({ length: waves }, (_, k) => {
+              const r = R + 4 + k * 4, x1 = x + r * Math.cos(dir - half), y1 = y + r * Math.sin(dir - half), x2 = x + r * Math.cos(dir + half), y2 = y + r * Math.sin(dir + half);
+              return <path key={k} d={`M${x1.toFixed(1)} ${y1.toFixed(1)} A${r} ${r} 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)}`} fill="none" stroke={th.rms} strokeWidth="2" strokeLinecap="round" strokeOpacity={0.85 - k * 0.25} />;
+            })}
+            {lfe ? <rect x={x - 15} y={y - 11} width="30" height="22" rx="6" fill={off ? "#fff" : th.rms} fillOpacity={off ? 1 : a} stroke={off ? "#e5b7c8" : th.rms} strokeWidth="1.5" strokeDasharray={off ? "3 3" : undefined} />
+              : <><circle cx={x} cy={y} r="15" fill={off ? "#fff" : th.rms} fillOpacity={off ? 1 : a} stroke={off ? "#e5b7c8" : th.rms} strokeWidth="1.5" strokeDasharray={off ? "3 3" : undefined} />
+                {!off && <circle cx={x} cy={y} r="11.5" fill="none" stroke={a > 0.55 ? "#fff" : th.rms} strokeOpacity="0.45" strokeWidth="1" />}</>}
             <text x={x} y={y + 4} textAnchor="middle" fontSize={d.length > 2 ? 9.5 : 11} fontWeight="700" fontFamily="Sarabun" fill={off ? "#b28a9a" : a > 0.55 ? "#fff" : "#4a2b38"}>{d}</text>
           </g>
         );
@@ -298,12 +318,16 @@ function saveRecent(list: Recent[]) {
 }
 
 /** laneK ตัวคูณความสูงแถบรูปคลื่นกับแถบความถี่ ที่ลากจากที่จับใต้กราฟ · จำไว้ เปิดครั้งหน้ายังสูงเท่าเดิม */
-type Prefs = { view: View; theme: string; style: WaveStyle; cmap: "theme" | "rainbow"; scmap: "heat" | "rainbow" | "mono" | "theme"; laneK: number };
+/** แถบสีตัวอย่างบนปุ่มเลือกสี ใช้สีชุดเดียวกับที่วาดกราฟจริง */
+const Swatch = ({ ramp }: { ramp: readonly string[] }) => <i className="cswatch" data-keepcolor aria-hidden="true" style={{ background: `linear-gradient(90deg,${ramp.join(",")})` }} />;
+const WaveIc = ({ d }: { d: string }) => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>;
+
+type Prefs = { view: View; theme: string; style: WaveStyle; cmap: "theme" | "rainbow"; scmap: "heat" | "rainbow" | "mono" | "theme"; laneK: number; wide: boolean };
 const PREF_KEY = "graph-prefs";
 const LANE_K_MIN = 0.5, LANE_K_MAX = 4;
 const laneKClamp = (k: number) => Math.round(Math.max(LANE_K_MIN, Math.min(LANE_K_MAX, k)) * 100) / 100;
 function loadPrefs(): Prefs {
-  const d: Prefs = { view: "wave", theme: "ชมพู", style: "fine", cmap: "theme", scmap: "heat", laneK: 1 };
+  const d: Prefs = { view: "wave", theme: "ชมพู", style: "fine", cmap: "theme", scmap: "heat", laneK: 1, wide: false };
   try { const p = JSON.parse(localStorage.getItem(PREF_KEY) ?? "{}"); return { ...d, ...p, theme: THEMES[p.theme] ? p.theme : d.theme, laneK: Number.isFinite(p.laneK) ? laneKClamp(p.laneK) : 1 }; } catch { return d; }
 }
 
@@ -351,6 +375,14 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
   const [boxEl, setBoxEl] = useState<HTMLDivElement | null>(null);
   const [plotW, setPlotW] = useState(600);
   const plotRef = useRef<HTMLDivElement>(null);
+  const [paneH, setPaneH] = useState(0);
+  useEffect(() => {
+    const el = plotRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setPaneH(el.clientHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  });
   const exportRef = useRef<() => HTMLCanvasElement | null>(() => null);
 
   const setPref = <K extends keyof Prefs>(k: K, v: Prefs[K]) => setPrefs((p) => { const n = { ...p, [k]: v }; try { localStorage.setItem(PREF_KEY, JSON.stringify(n)); } catch { /* เก็บไม่ได้ก็ใช้ค่านี้ไปก่อน */ } return n; });
@@ -536,8 +568,8 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
 
   const modeSeg = (
     <div className="seg gmode" role="tablist" aria-label="โหมดหน้ากราฟเสียง">
-      <button type="button" role="tab" aria-selected={mode === "graph"} className={mode === "graph" ? "on" : ""} onClick={() => setMode("graph")} data-gmode="graph">ดูกราฟ</button>
-      <button type="button" role="tab" aria-selected={mode === "convert"} className={mode === "convert" ? "on" : ""} onClick={() => setMode("convert")} data-gmode="convert">แปลงเสียง</button>
+      <button type="button" role="tab" aria-selected={mode === "graph"} className={mode === "graph" ? "on" : ""} onClick={() => setMode("graph")} data-gmode="graph"><IcGraph size={15} />ดูกราฟ</button>
+      <button type="button" role="tab" aria-selected={mode === "convert"} className={mode === "convert" ? "on" : ""} onClick={() => setMode("convert")} data-gmode="convert"><IcMix size={15} />แปลงเสียง</button>
     </div>
   );
   const tagDlg = tagFor && <TagDialog path={tagFor} onClose={() => setTagFor(null)} />;
@@ -550,7 +582,7 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
   if (mode === "convert") {
     return (
       <div className="ag" data-graph data-graphmode="convert">
-        <div className="gmodebar">{modeSeg}</div>
+        <div className="gmodebar">{modeSeg}<span className="small">แปลงไฟล์เสียงอย่างเดียว ไม่รวมเข้าหนัง · ไฟล์เดิมไม่ถูกแก้</span></div>
         <ConvertPane onCompare={(a, b, note) => setCmp({ a, b, note })} onTags={setTagFor} />
         {tagDlg}
       </div>
@@ -567,7 +599,7 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
         <div className="drop" style={{ minHeight: 180 }} data-graphdrop>
           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#e5a3bd" strokeWidth="1.8" aria-hidden="true"><path d="M3 12h2M7 7v10M11 4v16M15 8v8M19 10v4" /></svg>
           <b style={{ color: "var(--txt2)" }}>ลากไฟล์หนังหรือไฟล์เสียงมาวางตรงนี้</b><span>หรือ</span>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={openOther}>เลือกไฟล์จากเครื่อง</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={openOther}><IcFile size={15} />เลือกไฟล์จากเครื่อง</button>
           <span className="small">รับไฟล์หนังทุกชนิดในชั้นวาง และไฟล์เสียง {AUDIO_EXT.map((e) => e.toUpperCase()).join(" · ")}</span>
         </div>
         {recent.length > 0 && <><div className="small">เปิดล่าสุด · กดเพื่อดูกราฟอีกครั้ง ปุ่มกากบาทเอาออกจากรายการ ไฟล์ในเครื่องไม่ถูกแตะ</div>
@@ -577,7 +609,7 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
               <div key={r.path} className="recentrow">
                 <button type="button" className="dd" onClick={() => setPath(r.path)} data-graphrecentpick={r.name} title={r.path}>
                   <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: "1 1 auto", overflow: "hidden" }}>
-                    {r.audioOnly ? <i className="rnote">{music}</i> : mv?.thumb ? <img src={thumbUrl(mv.thumb) ?? ""} alt="" style={{ width: 18, height: 27, borderRadius: 3, objectFit: "cover" }} /> : <i style={{ width: 18, height: 27, borderRadius: 3, background: "#f6d6e2" }} />}
+                    {r.audioOnly ? <i className="rnote">{music}</i> : (mv?.thumb ?? mv?.linked?.[0]?.thumb) ? <img src={thumbUrl(mv?.thumb ?? mv?.linked?.[0]?.thumb ?? null) ?? ""} alt="" style={{ width: 18, height: 27, borderRadius: 3, objectFit: "cover" }} /> : <i style={{ width: 18, height: 27, borderRadius: 3, background: "#fbe7ef" }} />}
                     <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{r.name}</span></span>
                   {/* ข้อความขวาไม่หด ชื่อยาวตัดเป็นสามจุดแทน (เดิมเวลาโดนตัดเหลือ 5:1 เจอตอนตรวจภาพ) */}
                   <span className="small" style={{ flex: "none" }}>{[r.audioOnly ? "ไฟล์เสียง" : "", r.layout ?? "", tfmt(r.duration)].filter(Boolean).join(" · ")}</span>
@@ -591,7 +623,7 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
         {shelfPicks.length > 0 && <><div className="small">หรือเลือกจากชั้นวาง</div>
           <div className="graph-recent">{shelfPicks.map((m) => (
             <button key={m.id} type="button" className="dd" onClick={() => setPath(m.path)} data-graphpick={m.name}>
-              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>{m.thumb ? <img src={thumbUrl(m.thumb) ?? ""} alt="" style={{ width: 18, height: 27, borderRadius: 3, objectFit: "cover" }} /> : <i style={{ width: 18, height: 27, borderRadius: 3, background: "#f6d6e2" }} />}{m.name}</span>
+              <span style={{ display: "flex", alignItems: "center", gap: 8 }}>{(m.thumb ?? m.linked?.[0]?.thumb) ? <img src={thumbUrl(m.thumb ?? m.linked?.[0]?.thumb ?? null) ?? ""} alt="" style={{ width: 18, height: 27, borderRadius: 3, objectFit: "cover" }} /> : <i style={{ width: 18, height: 27, borderRadius: 3, background: "#fbe7ef" }} />}{m.name}</span>
               <span className="small">{[...new Set(m.audio.map((a) => a.layout))].join(" · ")}</span>
             </button>))}</div></>}
       </div>
@@ -620,7 +652,7 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
       <button type="button" className="btn btn-ghost" onClick={() => setMode("convert")} title="แปลงไฟล์เสียงเป็นคิว" data-graphconvert><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 7h13l-3-3M20 17H7l3 3" /></svg>แปลงเสียง</button>
     </div>
   );
-  const seg = <T extends string | number>(opts: [T, string][], cur: T, set: (v: T) => void, attr: string) => (
+  const seg = <T extends string | number>(opts: [T, React.ReactNode][], cur: T, set: (v: T) => void, attr: string) => (
     <div className="seg sm">{opts.map(([k, l]) => <button key={String(k)} type="button" className={cur === k ? "on" : ""} onClick={() => set(k)} {...{ [attr]: String(k) }}>{l}</button>)}</div>
   );
   const zoomBox = (opts: [number | "all", string][], lbl: string) => (
@@ -641,20 +673,22 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
     <div className="agctl">
       <div className="seg agviews">{VIEWS.map(([k, l]) => <button key={k} type="button" className={view === k ? "on" : ""} onClick={() => setPref("view", k)} data-view={k}
         disabled={k === "cmp" && !names.includes("FL")} title={k === "cmp" && !names.includes("FL") ? "ซ้อนเทียบใช้กับแทร็กที่มีช่องซ้ายขวา" : undefined}>{VIEW_ICON[k]}{l}</button>)}</div>
-      {view === "wave" && seg<WaveStyle>([["fine", "เส้นละเอียด"], ["bars", "แท่ง"], ["aud", "แบบ Audacity"]], prefs.style, (v) => setPref("style", v), "data-style")}
-      {view === "spec" && seg<"theme" | "rainbow">([["theme", "สีตามชุด"], ["rainbow", "สีรุ้ง"]], prefs.cmap, (v) => setPref("cmap", v), "data-cmap")}
-      <span className="lbl" style={{ marginLeft: "auto" }}>ชุดสี</span>
-      <div className="sws">{THEME_ORDER.map((n) => <button key={n} type="button" className={"sw" + (prefs.theme === n ? " on" : "")} aria-label={"ชุดสี" + n} title={"ชุดสี" + n} onClick={() => setPref("theme", n)} data-theme={n}
+      {view === "wave" && seg<WaveStyle>([["fine", <><WaveIc d="M2 12h3l2-6 3 12 3-14 3 16 2-8h4" />เส้นละเอียด</>], ["bars", <><WaveIc d="M5 9v6M10 5v14M15 8v8M20 10v4" />แท่ง</>], ["aud", <><WaveIc d="M3 12c2-7 3-7 5 0s3 7 5 0 3-7 5 0 2 4 3 0" />แบบ Audacity</>]], prefs.style, (v) => setPref("style", v), "data-style")}
+      {view === "spec" && seg<"theme" | "rainbow">([["theme", <><Swatch ramp={th.ramp} />สีตามชุด</>], ["rainbow", <><Swatch ramp={RAINBOW} />สีรุ้ง</>]], prefs.cmap, (v) => setPref("cmap", v), "data-cmap")}
+      {view === "spek" && seg<Prefs["scmap"]>([["heat", <><Swatch ramp={HEAT} />สีความร้อน</>], ["rainbow", <><Swatch ramp={RAINBOW} />สีรุ้ง</>], ["mono", <><Swatch ramp={MONO} />ขาวดำ</>], ["theme", <><Swatch ramp={th.ramp} />สีตามชุด</>]], prefs.scmap, (v) => setPref("scmap", v), "data-scmap")}
+      <div className="sws" style={{ marginLeft: "auto" }} role="group" aria-label="ชุดสี">{THEME_ORDER.map((n) => <button key={n} type="button" className={"sw" + (prefs.theme === n ? " on" : "")} aria-label={"ชุดสี" + n} title={"ชุดสี" + n} onClick={() => setPref("theme", n)} data-theme={n}
         style={{ background: `linear-gradient(135deg,${THEMES[n].ramp[2]},${THEMES[n].ramp[5]} 60%,${THEMES[n].ramp[7]})` }} />)}</div>
+      {/* ขยายกราฟเต็มจอ พับแผงลำโพงซ้าย กดอีกครั้งกางคืน จำไว้ (พี่กันสั่ง 8 พ.ย. 2569) */}
+      <button type="button" className={"btn btn-ghost btn-sm" + (prefs.wide ? " pressed" : "")} style={{ width: 32, padding: 0, flex: "none" }} aria-pressed={prefs.wide} title={prefs.wide ? "แสดงแผงลำโพง" : "ขยายเต็มจอ"} aria-label={prefs.wide ? "แสดงแผงลำโพง" : "ขยายเต็มจอ"} onClick={() => setPref("wide", !prefs.wide)} data-graphwide><IcExpand size={14} /></button>
       {/* ชื่อชุดสีที่เคยเขียนต่อท้ายเอาออก ปุ่ม แบบ Audacity เพิ่มเข้ามาแล้วชื่อตกบรรทัดสองตัวเดียว · ชุดที่เลือกมีวงกรอบ ชี้แล้วขึ้นชื่อ */}
     </div>
   );
 
   /* ---------- แผงซ้าย ---------- */
   const infoRows: [string, string][] = t ? [
-    ["รหัสเสียง", t.codec], ["ช่องเสียง", `${t.layout} · ${names.length} ${names.length === 1 ? "channel" : "channels"}`], ["อัตราสุ่ม", `${(t.rate / 1000).toLocaleString("en-US", { maximumFractionDigits: 1 })} kHz`],
-    ...(t.bits ? [["ความละเอียด", `${t.bits}-bit`] as [string, string]] : []), ...(t.bitrate ? [["บิตเรต", `${Math.round(t.bitrate / 1000).toLocaleString("en-US")} kb/s`] as [string, string]] : []),
-    ...(t.lang ? [["ภาษา", t.lang] as [string, string]] : []),
+    ["Codec", t.codec], ["Channels", `${t.layout} · ${names.length} ${names.length === 1 ? "channel" : "channels"}`], ["Sample rate", `${(t.rate / 1000).toLocaleString("en-US", { maximumFractionDigits: 1 })} kHz`],
+    ...(t.bits ? [["Bit depth", `${t.bits}-bit`] as [string, string]] : []), ...(t.bitrate ? [["Bitrate", `${Math.round(t.bitrate / 1000).toLocaleString("en-US")} kb/s`] as [string, string]] : []),
+    ...(t.lang ? [["Language", t.lang] as [string, string]] : []),
   ] : [];
   const firstMark = marks[0];
   const panel = (
@@ -664,7 +698,7 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
         <div className="small" style={{ textAlign: "center", marginTop: 4 }}>{names.length > 1 ? "กดลำโพงเพื่อซ่อนหรือแสดงช่องนั้น" : "ไฟล์นี้มีเสียงช่องเดียว"}</div></div>
       {t && <div className="card"><h3>ข้อมูลเสียง</h3><dl className="kv" data-graphinfo>{infoRows.map(([k, v]) => <FragmentKV key={k} k={k} v={v} />)}</dl></div>}
       {firstMark && <div className="stat warn">{WARN}<div><b>{movie?.check?.spans?.length ? "ผลตรวจล่าสุด" : "ช่วงเงียบผิดปกติ"}</b><span className="nw">{firstMark.text.replace(" · ผลตรวจ", "")}</span> <span className="nw">ที่ {tfmt(firstMark.from)}</span>
-        <div style={{ marginTop: 6 }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => { setCenter(firstMark.from + 1); setTip(firstMark.from); setZoom(30); if (view !== "wave" && view !== "spec") setPref("view", "wave"); }} data-goto>ซูมไปที่ {tfmt(firstMark.from)}</button></div></div></div>}
+        <div style={{ marginTop: 6 }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => { setCenter(firstMark.from + 1); setTip(firstMark.from); setZoom(30); if (view !== "wave" && view !== "spec") setPref("view", "wave"); }} data-goto><IcSearch size={15} />ซูมไปที่ {tfmt(firstMark.from)}</button></div></div></div>}
     </div>
   );
 
@@ -676,19 +710,19 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
         <div className={"stat " + (stopped ? "info" : "bad")} data-grapherror>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
           <div><b>{error}</b>{stopped ? "ยังไม่ได้วาดกราฟ · กดอ่านใหม่เพื่อเริ่มอีกครั้ง" : error.includes("ไม่มีแทร็กเสียง") ? "วิดีโออัดหน้าจอบางแบบไม่ได้อัดเสียงไว้" : "ลองเปิดไฟล์อื่น หรือตรวจไฟล์นี้ที่หน้าตรวจไฟล์"}
-            {!error.includes("ไม่มีแทร็กเสียง") && <div style={{ marginTop: 8 }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => setNonce((n) => n + 1)} data-graphretry>อ่านใหม่</button></div>}</div>
+            {!error.includes("ไม่มีแทร็กเสียง") && <div style={{ marginTop: 8 }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => setNonce((n) => n + 1)} data-graphretry><IcRefresh size={15} />อ่านใหม่</button></div>}</div>
         </div>
       </div>
     );
   }
   if (!ov || !src) {
     return (
-      <div className="ag" data-graph>{head}{ctl}{tagDlg}
+      <div className="ag" data-graph><div className="agstick">{head}{ctl}</div>{tagDlg}
         <div className="agb">{panel}
           <div className="plot" data-graphloading>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
               <div style={{ fontSize: 13.5 }}>อ่านเสียง {names.length || ""} ช่อง <b>{Math.round(progress ?? 0)}%</b>{progress != null && progress > 3 && info ? "" : ""}</div>
-              <button type="button" className="btn btn-bad btn-sm" onClick={() => graphApi.cancel()}>หยุด</button>
+              <button type="button" className="btn btn-bad btn-sm" onClick={() => graphApi.cancel()}><IbStop size={15} />หยุด</button>
             </div>
             <div className="bar"><i style={{ width: `${progress ?? 0}%` }} /></div>
             <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 10 }}>
@@ -720,14 +754,18 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
   const lanesView = view === "wave" || view === "spec";
   if (lanesView) {
     // แถบสูงขึ้นจากเดิม (พี่กัน 7 พ.ย. 2569 *"ใ้ห้ระบบมันขยายกราฟลงมาได้มากกว่านี้ ตอนนี้มันเเค่สองเเถบที่โคตรจะชิดกัน"*) · ลากที่จับใต้กราฟขยายต่อได้ถึง 4 เท่า
-    const baseH = vis.length > 6 ? 52 : vis.length > 2 ? 72 : 120;
+    const minH = vis.length > 6 ? 52 : vis.length > 2 ? 72 : 120;
+    // 250 คือหัวกราฟ แถบเลื่อน แถวปุ่มท้าย ระยะขอบรวมกัน
+    const baseH = Math.max(minH, Math.floor((paneH - 250 - (vis.length - 1) * 6) / Math.max(1, vis.length)));
     const laneH = Math.round(Math.max(30, baseH * prefs.laneK));
     const colors = lut(prefs.cmap === "rainbow" ? RAINBOW : th.ramp);
     plot = (
       <div className="plot" data-plot ref={plotRef}>
+        <div className="plotstick">
         <div className="plothead"><span><b>{view === "wave" ? "รูปคลื่นทุกช่อง" : "ความถี่ทุกช่อง"}</b> · {tfmt(t0)} ถึง {tfmt(t1)}</span>{zoomBox(ZOOMS, "ซูม")}</div>
         <Overview ov={ov} th={th} t0={t0} t1={t1} onPick={(x) => { setCenter(x); setTip(x); if (zoom === "all") setZoom(240); }} left={LW} right={VZ_W} />
         <Ruler left={LW} right={VZ_W} />
+        </div>
         <div className="lanewrap" style={{ marginTop: marks.some((m) => m.to > t0 && m.from < t1) ? 28 : 6 }}>
         <div className="lanes" ref={setBoxEl} style={{ marginTop: 0 }} onPointerMove={onMove(LW, 0)} onPointerLeave={() => setHover(null)} data-lanes>
           {vis.map((c) => {
@@ -754,27 +792,27 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {/* ขยายแนวตั้งอยู่แถวล่าง (เดิมอยู่แถวปุ่มบน ชุดสีตกบรรทัดที่สอง เจอตอนตรวจภาพ) */}
             {VZ_W > 0 && <><span className="lbl">ขยายแนวตั้ง</span>{seg<number>([[1, "1×"], [2, "2×"], [4, "4×"]], vz, setVz, "data-vz")}<span className="vzval" data-vzval title="ลากแถบแนวตั้งขวามือรูปคลื่น ขึ้นยืด ลงบีบ">{vzTxt(vz)}</span></>}
-            <button type="button" className="btn btn-ghost btn-sm" onClick={play} data-graphplay>เปิดเล่นที่ {tfmt(at)}</button><button type="button" className="btn btn-ghost btn-sm" onClick={saveImage}>บันทึกเป็นรูป</button></div>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={play} data-graphplay><IbPlay size={15} />เปิดเล่นที่ {tfmt(at)}</button><button type="button" className="btn btn-ghost btn-sm" onClick={saveImage}><IbSave size={15} />บันทึกเป็นรูป</button></div>
         </div>
       </div>
     );
     exportRef.current = () => composeLanes(boxEl);
   } else if (view === "loud") {
-    plot = <LoudView ov={ov} th={th} t0={t0} t1={t1} names={names} marks={marks} zoomBox={zoomBox(ZOOMS, "ซูม")} at={at} live={hover != null} setHover={setHover} showTable={showTable} setShowTable={setShowTable} save={saveImage} exportRef={exportRef} plotRef={plotRef} />;
+    plot = <LoudView scroller={scroller} ov={ov} th={th} t0={t0} t1={t1} names={names} marks={marks} zoomBox={zoomBox(ZOOMS, "ซูม")} at={at} live={hover != null} setHover={setHover} showTable={showTable} setShowTable={setShowTable} save={saveImage} exportRef={exportRef} plotRef={plotRef} />;
   } else if (view === "cmp") {
     const cc = ["FL", "FR", "FC"].filter((c) => names.includes(c));
-    plot = <CmpView src={src} names={names} cc={cc} t0={t0} t1={t1} marks={marks} zoomBox={zoomBox(ZOOMS, "ซูม")} at={at} live={hover != null} setHover={setHover} play={play} save={saveImage} exportRef={exportRef} plotRef={plotRef} />;
+    plot = <CmpView scroller={scroller} src={src} names={names} cc={cc} t0={t0} t1={t1} marks={marks} zoomBox={zoomBox(ZOOMS, "ซูม")} at={at} live={hover != null} setHover={setHover} play={play} save={saveImage} exportRef={exportRef} plotRef={plotRef} />;
   } else if (view === "spek") {
-    plot = <SpekView ov={ov} win={winOk ? win : null} track={t} fileName={fileName} names={names} t0={t0} t1={t1} zoomBox={zoomBox(ZOOMS, "ซูม")} scmap={prefs.scmap} setScmap={(v) => setPref("scmap", v)} th={th} audioOnly={!!info?.audioOnly} play={play} save={saveImage} exportRef={exportRef} plotRef={plotRef} at={at} />;
+    plot = <SpekView scroller={scroller} ov={ov} win={winOk ? win : null} track={t} fileName={fileName} names={names} t0={t0} t1={t1} zoomBox={zoomBox(ZOOMS, "ซูม")} scmap={prefs.scmap} setScmap={(v) => setPref("scmap", v)} th={th} audioOnly={!!info?.audioOnly} play={play} save={saveImage} exportRef={exportRef} plotRef={plotRef} at={at} />;
   } else {
-    plot = <PsdView psd={psd && psd.db.length === psdSeries.length + (psdMs ? 2 : 0) ? psd : null} names={names} psdCh={psdCh} setPsdCh={setPsdCh} psdLog={psdLog} setPsdLog={setPsdLog} psdSize={psdSize} setPsdSize={setPsdSize} th={th} ov={ov} t0={t0} t1={t1}
+    plot = <PsdView scroller={scroller} psd={psd && psd.db.length === psdSeries.length + (psdMs ? 2 : 0) ? psd : null} names={names} psdCh={psdCh} setPsdCh={setPsdCh} psdLog={psdLog} setPsdLog={setPsdLog} psdSize={psdSize} setPsdSize={setPsdSize} th={th} ov={ov} t0={t0} t1={t1}
       zoomBox={zoomBox(PSD_SPANS, "ช่วงที่เลือก")} onPick={(x) => { setCenter(x); if (zoom === "all") setZoom(30); }} f={psdF} setF={setPsdF} fileName={fileName} save={saveImage} exportRef={exportRef} plotRef={plotRef} toast={toast} />;
   }
 
   return (
     <div className="ag" data-graph data-graphview={view}>
-      {head}{ctl}
-      <div className="agb">{panel}{plot}</div>
+      <div className="agstick">{head}{ctl}</div>
+      <div className={"agb" + (prefs.wide ? " wide" : "")}>{prefs.wide ? null : panel}{plot}</div>
       {tagDlg}
     </div>
   );
@@ -791,7 +829,7 @@ export class GraphBoundary extends Component<{ children: React.ReactNode }, { er
         <div className="stat bad" data-graphcrash>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
           <div><b>หน้ากราฟเสียงวาดกราฟของไฟล์นี้ไม่ได้</b>{this.state.err} · ไฟล์ไม่ถูกแก้
-            <div style={{ marginTop: 8 }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => this.setState({ err: null })}>เปิดหน้ากราฟใหม่</button></div></div>
+            <div style={{ marginTop: 8 }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => this.setState({ err: null })}><IcGraph size={15} />เปิดหน้ากราฟใหม่</button></div></div>
         </div>
       </div>
     );
@@ -971,8 +1009,8 @@ function composeLanes(box: HTMLDivElement | null): HTMLCanvasElement | null {
 }
 
 /* ---------- ความดัง ---------- */
-type CommonProps = { save: () => void; exportRef: React.MutableRefObject<() => HTMLCanvasElement | null>; plotRef: React.RefObject<HTMLDivElement | null> };
-function LoudView({ ov, th, t0, t1, names, marks, zoomBox, at, live, setHover, showTable, setShowTable, save, exportRef, plotRef }: CommonProps & { ov: GOverview; th: Theme; t0: number; t1: number; names: string[]; marks: Mark[]; zoomBox: React.ReactNode; at: number; live: boolean; setHover: (t: number | null) => void; showTable: boolean; setShowTable: (b: boolean) => void }) {
+type CommonProps = { scroller?: (left: number, right: number) => React.ReactNode; save: () => void; exportRef: React.MutableRefObject<() => HTMLCanvasElement | null>; plotRef: React.RefObject<HTMLDivElement | null> };
+function LoudView({ scroller, ov, th, t0, t1, names, marks, zoomBox, at, live, setHover, showTable, setShowTable, save, exportRef, plotRef }: CommonProps & { ov: GOverview; th: Theme; t0: number; t1: number; names: string[]; marks: Mark[]; zoomBox: React.ReactNode; at: number; live: boolean; setHover: (t: number | null) => void; showTable: boolean; setShowTable: (b: boolean) => void }) {
   const X0 = 44;
   const pick = (t: number) => { const c = Math.max(0, Math.min(ov.cols - 1, Math.floor(t / ov.duration * ov.cols))); return ov.loud[c]; };
   const ref = useCanvas((g, w, h) => {
@@ -992,6 +1030,7 @@ function LoudView({ ov, th, t0, t1, names, marks, zoomBox, at, live, setHover, s
   const sil = ov.silences.length;
   return (
     <div className="plot" data-plot ref={plotRef as React.RefObject<HTMLDivElement>}>
+      <div className="plotstick">
       <div className="tiles" data-graphtiles>
         <div className="tile"><span>ความดังรวม</span><b>{f1(ov.integrated)} LUFS</b><em>ทั้งเรื่อง ตามมาตรฐาน EBU R128</em></div>
         <div className="tile"><span>ยอดเสียงสูงสุด</span><b>{f1(ov.truePeak)} dBTP</b><em>{(ov.truePeak ?? -99) >= 0 ? "ถึง 0 · อาจมีเสียงแตก" : "ไม่ถึง 0"}{ov.clips.some((c) => c > 0) ? ` · เสียงแตก ${ov.clips.reduce((a, b) => a + b, 0)} จุด` : ""}</em></div>
@@ -999,15 +1038,17 @@ function LoudView({ ov, th, t0, t1, names, marks, zoomBox, at, live, setHover, s
         <div className="tile"><span>ช่วงเงียบผิดปกติ</span><b>{sil ? `${sil} ช่วง` : "ไม่พบ"}</b><em>{sil ? `แรกสุดที่ ${tfmt(ov.silences[0][0])}` : "เงียบทุกช่องเกิน 1 วินาที"}</em></div>
       </div>
       <div className="plothead"><span><b>ความดังตลอดเรื่อง</b> · {tfmt(t0)} ถึง {tfmt(t1)}</span>{zoomBox}</div>
-      <div style={{ position: "relative" }} ref={setBox} onPointerMove={(e) => { const r = e.currentTarget.getBoundingClientRect(), W = r.width - X0 - 4, x = e.clientX - r.left - X0; if (x >= 0 && x <= W) setHover(t0 + x / W * (t1 - t0)); }} onPointerLeave={() => setHover(null)} data-loudbox>
-        <canvas className="cv" style={{ height: 200 }} ref={ref} />
+      </div>
+      <div style={{ position: "relative", flex: "1 0 200px" }} ref={setBox} onPointerMove={(e) => { const r = e.currentTarget.getBoundingClientRect(), W = r.width - X0 - 4, x = e.clientX - r.left - X0; if (x >= 0 && x <= W) setHover(t0 + x / W * (t1 - t0)); }} onPointerLeave={() => setHover(null)} data-loudbox>
+        <canvas className="cv fillcv" ref={ref} />
         <Marks marks={marks} t0={t0} t1={t1} left={X0} right={4} inline />
         {live && <Crosshair box={box} left={X0} right={4} t0={t0} t1={t1} at={at} rows={[{ v: minus(pick(at).toFixed(1)) + " LUFS", k: "ทุกช่องรวม" }]} />}
       </div>
+      {scroller?.(X0, 4)}
       <div className="sub">ยอดเสียงแต่ละช่อง</div>
       <div className="pbars">{names.map((c, i) => <FragmentBar key={c} code={label(names, c).code} th={label(names, c).th} w={Math.max(ov.peaks[i] <= -119 ? 0 : 2, (ov.peaks[i] + 48) / 48 * 100)} color={th.rms} v={pkTxt(ov.peaks[i])} />)}</div>
       <div className="agfoot"><div className="lg"><span><i style={{ background: th.peak }} />ความดัง</span><span><span className="ln" style={{ background: th.rms }} />เส้นความดัง</span><span><span className="ln" style={{ background: "#8a6474" }} />เส้นอ้างอิง</span></div>
-        <div style={{ display: "flex", gap: 8 }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowTable(!showTable)} data-table>{showTable ? "ซ่อนตาราง" : "ดูเป็นตาราง"}</button><button type="button" className="btn btn-ghost btn-sm" onClick={save}>บันทึกเป็นรูป</button></div></div>
+        <div style={{ display: "flex", gap: 8 }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowTable(!showTable)} data-table><IbTable size={15} />{showTable ? "ซ่อนตาราง" : "ดูเป็นตาราง"}</button><button type="button" className="btn btn-ghost btn-sm" onClick={save}><IbSave size={15} />บันทึกเป็นรูป</button></div></div>
       {showTable && <table className="fmt" style={{ marginTop: 10 }} data-graphtable><thead><tr><th>ช่อง</th><th className="num">ยอดเสียง</th><th className="num">ความดังเฉลี่ย</th><th className="num">เสียงแตก</th></tr></thead>
         <tbody>{names.map((c, i) => <tr key={c}><td><b>{label(names, c).code}</b> {label(names, c).th}</td><td className="num">{pkTxt(ov.peaks[i])}</td><td className="num">{pkTxt(ov.rms[i])}</td><td className="num">{ov.clips[i] ? `${ov.clips[i]} จุด` : "ไม่พบ"}</td></tr>)}</tbody></table>}
     </div>
@@ -1018,7 +1059,7 @@ function FragmentBar({ code, th, w, color, v }: { code: string; th: string; w: n
 }
 
 /* ---------- ซ้อนเทียบ ---------- */
-function CmpView({ src, names, cc, t0, t1, marks, zoomBox, at, live, setHover, play, save, exportRef, plotRef }: CommonProps & { src: Src; names: string[]; cc: string[]; t0: number; t1: number; marks: Mark[]; zoomBox: React.ReactNode; at: number; live: boolean; setHover: (t: number | null) => void; play: () => void }) {
+function CmpView({ scroller, src, names, cc, t0, t1, marks, zoomBox, at, live, setHover, play, save, exportRef, plotRef }: CommonProps & { src: Src; names: string[]; cc: string[]; t0: number; t1: number; marks: Mark[]; zoomBox: React.ReactNode; at: number; live: boolean; setHover: (t: number | null) => void; play: () => void }) {
   // ที่ว่างป้ายชื่อเส้นทางขวา พอสำหรับคำที่ยาวสุด "ซ้ายหน้า" (60 ตัดตัวสุดท้าย เจอตอนเทส 7 พ.ย. 2569)
   const X0 = 44, RW = 80;
   const ref = useCanvas((g, w, h) => {
@@ -1049,13 +1090,14 @@ function CmpView({ src, names, cc, t0, t1, marks, zoomBox, at, live, setHover, p
   return (
     <div className="plot" data-plot ref={plotRef as React.RefObject<HTMLDivElement>}>
       <div className="plothead"><span><b>ซ้อนเทียบความดังเฉลี่ย</b> · {tfmt(t0)} ถึง {tfmt(t1)}</span>{zoomBox}</div>
-      <div style={{ position: "relative" }} ref={setBox} onPointerMove={(e) => { const r = e.currentTarget.getBoundingClientRect(), W = r.width - X0 - RW, x = e.clientX - r.left - X0; if (x >= 0 && x <= W) setHover(t0 + x / W * (t1 - t0)); }} onPointerLeave={() => setHover(null)} data-cmpbox>
-        <canvas className="cv" style={{ height: 250 }} ref={ref} />
+      <div style={{ position: "relative", flex: "1 0 250px" }} ref={setBox} onPointerMove={(e) => { const r = e.currentTarget.getBoundingClientRect(), W = r.width - X0 - RW, x = e.clientX - r.left - X0; if (x >= 0 && x <= W) setHover(t0 + x / W * (t1 - t0)); }} onPointerLeave={() => setHover(null)} data-cmpbox>
+        <canvas className="cv fillcv" ref={ref} />
         <Marks marks={marks} t0={t0} t1={t1} left={X0} right={RW} inline />
         {live && <Crosshair box={box} left={X0} right={RW} t0={t0} t1={t1} at={at} rows={cc.map((c) => ({ v: dbTxt(val(c)) + " dB", k: `${label(names, c).code} ${label(names, c).th}`, color: CMP[c] }))} />}
       </div>
+      {scroller?.(X0, RW)}
       <div className="agfoot"><div className="lg">{cc.map((c) => <span key={c}><span className="ln" style={{ background: CMP[c] }} />{label(names, c).code} {label(names, c).th}</span>)}<span className="small">ซ้อนได้ไม่เกิน 3 ช่อง</span></div>
-        <div style={{ display: "flex", gap: 8 }}><button type="button" className="btn btn-ghost btn-sm" onClick={play}>เปิดเล่นที่ {tfmt(at)}</button><button type="button" className="btn btn-ghost btn-sm" onClick={save}>บันทึกเป็นรูป</button></div></div>
+        <div style={{ display: "flex", gap: 8 }}><button type="button" className="btn btn-ghost btn-sm" onClick={play}><IbPlay size={15} />เปิดเล่นที่ {tfmt(at)}</button><button type="button" className="btn btn-ghost btn-sm" onClick={save}><IbSave size={15} />บันทึกเป็นรูป</button></div></div>
     </div>
   );
 }
@@ -1101,7 +1143,7 @@ function spekVerdict(codec: string, rate: number, e: { top: number; cliff: numbe
   if (LIMIT[codec] && e.top < LIMIT[codec]) return { warn: false, b, d: "เสียงสูงค่อย ๆ เบาลงเอง ไม่ได้ตัดเป็นเส้นตรงแบบไฟล์ที่แปลงมาจาก MP3 น่าจะเป็นลักษณะของเสียงต้นฉบับ เช่น เพลงหรือหนังเก่า" };
   return { warn: false, b, d: `${NORM[codec] ?? "ไฟล์ไม่บีบอัดของจริงมีเสียงถึงราว 20 kHz ขึ้นไป"} · ไฟล์นี้ไม่มีร่องรอยการตัดเสียงสูง` };
 }
-function SpekView({ ov, win, track, fileName, names, t0, t1, zoomBox, scmap, setScmap, th, audioOnly, play, save, exportRef, plotRef, at }: CommonProps & { ov: GOverview; win: GWindow | null; track: GTrack | undefined; fileName: string; names: string[]; t0: number; t1: number; zoomBox: React.ReactNode; scmap: Prefs["scmap"]; setScmap: (v: Prefs["scmap"]) => void; th: Theme; audioOnly: boolean; play: () => void; at: number }) {
+function SpekView({ scroller, ov, win, track, fileName, names, t0, t1, zoomBox, scmap, th, audioOnly, play, save, exportRef, plotRef, at }: CommonProps & { ov: GOverview; win: GWindow | null; track: GTrack | undefined; fileName: string; names: string[]; t0: number; t1: number; zoomBox: React.ReactNode; scmap: Prefs["scmap"]; setScmap: (v: Prefs["scmap"]) => void; th: Theme; audioOnly: boolean; play: () => void; at: number }) {
   const [ch, setCh] = useState(-1);
   const rate = track?.rate ?? 48000, nyq = rate / 2;
   const ramp = { heat: HEAT, rainbow: RAINBOW, mono: MONO, theme: th.ramp }[scmap];
@@ -1143,12 +1185,14 @@ function SpekView({ ov, win, track, fileName, names, t0, t1, zoomBox, scmap, set
       <div className="plothead"><span style={{ display: "flex", alignItems: "center", gap: 8 }}><b>วิเคราะห์ความถี่</b>
         <span data-spekch><Dropdown label="ช่องที่ดู" value={String(ch)} onChange={(v) => setCh(Number(v))}
           options={[{ value: "-1", label: "รวมทุกช่อง" }, ...names.map((c, i) => ({ value: String(i), label: `${label(names, c).code} ${label(names, c).th}` }))]} /></span></span>{zoomBox}</div>
-      <div style={{ position: "relative" }}><canvas className="cv" style={{ height: 430, borderRadius: 8 }} ref={ref} data-spek /></div>
-      {verdict.warn
-        ? <div className="stat warn" style={{ marginTop: 10 }} data-spekverdict data-cliff={Math.round(edge.cliff)}>{WARN}<div><b><Phr>{verdict.b}</Phr></b>{lines(verdict.d)}</div></div>
-        : <div className="stat info" style={{ marginTop: 10 }} data-spekverdict data-cliff={Math.round(edge.cliff)}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5v.5" /></svg><div><b><Phr>{verdict.b}</Phr></b>{lines(verdict.d)}</div></div>}
-      <div className="agfoot"><div className="seg sm">{([["heat", "สีความร้อน"], ["rainbow", "สีรุ้ง"], ["mono", "ขาวดำ"], ["theme", "สีตามชุด"]] as [Prefs["scmap"], string][]).map(([k, l]) => <button key={k} type="button" className={scmap === k ? "on" : ""} onClick={() => setScmap(k)} data-scmap={k}>{l}</button>)}</div>
-        <div style={{ display: "flex", gap: 8 }}>{!audioOnly && <button type="button" className="btn btn-ghost btn-sm" onClick={play}>เปิดเล่นที่ {tfmt(at)}</button>}<button type="button" className="btn btn-ghost btn-sm" onClick={save}>บันทึกเป็นรูป</button></div></div>
+      <div style={{ position: "relative", flex: "1 0 300px" }}><canvas className="cv fillcv" style={{ borderRadius: 8 }} ref={ref} data-spek /></div>
+      {scroller?.(0, 0)}
+      <div className="agfoot">
+        {verdict.warn
+        ? <div className="stat warn" title={verdict.b + " · " + verdict.d} data-spekverdict data-cliff={Math.round(edge.cliff)}>{WARN}<div><b><Phr>{verdict.b}</Phr></b>{lines(verdict.d)}</div></div>
+        : <div className="stat info" title={verdict.b + " · " + verdict.d} data-spekverdict data-cliff={Math.round(edge.cliff)}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5v.5" /></svg><div><b><Phr>{verdict.b}</Phr></b>{lines(verdict.d)}</div></div>}
+        
+        <div style={{ display: "flex", gap: 8 }}>{!audioOnly && <button type="button" className="btn btn-ghost btn-sm" onClick={play}><IbPlay size={15} />เปิดเล่นที่ {tfmt(at)}</button>}<button type="button" className="btn btn-ghost btn-sm" onClick={save}><IbSave size={15} />บันทึกเป็นรูป</button></div></div>
     </div>
   );
 }
@@ -1159,7 +1203,7 @@ const PSM = { L: 52, R: 18, T: 14, B: 30 };
 function cubicAt(y0: number, y1: number, y2: number, y3: number, x: number) {
   return y0 * -(x - 1) * (x - 2) * (x - 3) / 6 + y1 * x * (x - 2) * (x - 3) / 2 - y2 * x * (x - 1) * (x - 3) / 2 + y3 * x * (x - 1) * (x - 2) / 6;
 }
-function PsdView({ psd, names, psdCh, setPsdCh, psdLog, setPsdLog, psdSize, setPsdSize, th, ov, t0, t1, zoomBox, onPick, f, setF, fileName, save, exportRef, plotRef, toast }: CommonProps & {
+function PsdView({ scroller, psd, names, psdCh, setPsdCh, psdLog, setPsdLog, psdSize, setPsdSize, th, ov, t0, t1, zoomBox, onPick, f, setF, fileName, save, exportRef, plotRef, toast }: CommonProps & {
   psd: GPsd | null; names: string[]; psdCh: string; setPsdCh: (v: string) => void; psdLog: boolean; setPsdLog: (b: boolean) => void; psdSize: number; setPsdSize: (n: number) => void; th: Theme; ov: GOverview; t0: number; t1: number;
   zoomBox: React.ReactNode; onPick: (t: number) => void; f: number | null; setF: (f: number | null) => void; fileName: string; toast: ReturnType<typeof useToast>;
 }) {
@@ -1340,13 +1384,16 @@ function PsdView({ psd, names, psdCh, setPsdCh, psdLog, setPsdLog, psdSize, setP
   const opts: [string, string][] = names.length === 1 ? [["mix", label(names, names[0]).code]] : [["mix", "รวมทุกช่อง"], ...(names.includes("FR") ? [["FL", label(names, "FL").code], ["FR", label(names, "FR").code], ["lr", "เทียบซ้ายขวา"]] as [string, string][] : []), ["all", "ซ้อนทุกช่อง"]];
   return (
     <div className="plot" data-plot ref={plotRef as React.RefObject<HTMLDivElement>}>
+      <div className="plotstick">
       <div className="plothead"><span style={{ display: "flex", alignItems: "center", gap: 8 }}><b>ความถี่เฉลี่ย</b>
         <div className="seg sm">{opts.map(([k, l]) => <button key={k} type="button" className={psdCh === k ? "on" : ""} onClick={() => setPsdCh(k)} data-psdch={k}>{l}</button>)}</div></span>{zoomBox}</div>
       <Overview ov={ov} th={th} t0={t0} t1={t1} onPick={onPick} left={52} />
-      <div style={{ position: "relative", marginTop: 8 }} ref={setBox} data-psdbox
+      {scroller?.(52, 0)}
+      </div>
+      <div style={{ position: "relative", flex: "1 0 300px", marginTop: 8 }} ref={setBox} data-psdbox
         onPointerMove={(e) => { const r = e.currentTarget.getBoundingClientRect(), PW = r.width - PSM.L - PSM.R, x = Math.min(PW, Math.max(0, e.clientX - r.left - PSM.L)); setF(psdLog ? Math.pow(10, Math.log10(20) + x / PW * (Math.log10(nyq) - Math.log10(20))) : Math.max(1, x / PW * nyq)); }}
         onPointerLeave={() => setF(null)}>
-        <canvas className="cv" style={{ height: 340 }} ref={ref} data-psd />
+        <canvas className="cv fillcv" ref={ref} data-psd />
         {/* เส้นตั้งกับวงยอดขึ้นเฉพาะตอนเมาส์ชี้ (พี่กัน *"ต้องให้เเสดงเฉพาะเมาส์ชี้"*) · ช่องบอกค่าใต้กราฟยังอยู่ตลอด */}
         {psd && W > 0 && f != null && <>
           <div className="xh" style={{ left: cx, top: PSM.T, bottom: PSM.B }} />
@@ -1379,7 +1426,7 @@ function PsdView({ psd, names, psdCh, setPsdCh, psdLog, setPsdLog, psdSize, setP
         <span className="lbl">ช่วง</span>
         <div className="seg sm">{[60, 90, 120].map((r) => <button key={r} type="button" className={range === r ? "on" : ""} onClick={() => setRange(r)} data-psdrange={r}>{r} dB</button>)}</div>
         <span className="lbl">เส้นตาราง</span><span data-psdgrid style={{ display: "inline-flex" }}><Switch on={grids} onChange={setGrids} label="เส้นตาราง" /></span></div>
-        <div style={{ display: "flex", gap: 8 }}><button type="button" className="btn btn-ghost btn-sm" onClick={exportCsv}>ส่งออกเป็นตาราง</button><button type="button" className="btn btn-ghost btn-sm" onClick={save}>บันทึกเป็นรูป</button></div></div>
+        <div style={{ display: "flex", gap: 8 }}><button type="button" className="btn btn-ghost btn-sm" onClick={exportCsv}><IbSave size={15} />ส่งออกเป็นตาราง</button><button type="button" className="btn btn-ghost btn-sm" onClick={save}><IbSave size={15} />บันทึกเป็นรูป</button></div></div>
     </div>
   );
 }
@@ -1602,7 +1649,7 @@ export function CompareView({ a, b, note, onBack, onClose }: { a: string; b: str
     <div className="agtop">
       <button type="button" className="btn btn-ghost" onClick={onBack} data-cmpback><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>คิวแปลง</button>
       {chip("a", a, A)}{chip("b", b, Bs)}
-      <button type="button" className="btn btn-ghost" onClick={onClose} title="เปิดต้นฉบับในหน้ากราฟเสียงแบบไฟล์เดียว" data-cmpclose>ปิดการเทียบ</button>
+      <button type="button" className="btn btn-ghost" onClick={onClose} title="เปิดต้นฉบับในหน้ากราฟเสียงแบบไฟล์เดียว" data-cmpclose><IcClose size={15} />ปิดการเทียบ</button>
     </div>
   );
   const fileLg = <><span><span className="ln" style={{ background: CA }} />ต้นฉบับ</span><span><span className="ln" style={{ background: CB }} />หลังแปลง</span></>;
@@ -1650,7 +1697,7 @@ export function CompareView({ a, b, note, onBack, onClose }: { a: string; b: str
     );
     const foot = (lg: React.ReactNode) => (
       <div className="agfoot"><div className="lg">{lg}</div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => play(a)}>เปิดต้นฉบับที่ {tfmt(mid)}</button><button type="button" className="btn btn-ghost btn-sm" onClick={() => play(b)}>เปิดหลังแปลงที่ {tfmt(mid)}</button><button type="button" className="btn btn-ghost btn-sm" onClick={saveImage}>บันทึกเป็นรูป</button></div></div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => play(a)}><IbPlay size={15} />เปิดต้นฉบับที่ {tfmt(mid)}</button><button type="button" className="btn btn-ghost btn-sm" onClick={() => play(b)}><IbPlay size={15} />เปิดหลังแปลงที่ {tfmt(mid)}</button><button type="button" className="btn btn-ghost btn-sm" onClick={saveImage}><IbSave size={15} />บันทึกเป็นรูป</button></div></div>
     );
     const Ruler = () => (
       <div className="ruler" style={{ marginLeft: 96 }}>{(() => { const steps = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600]; const st = steps.find((s) => (t1 - t0) / s <= 9) ?? 7200; const out: number[] = []; for (let x = Math.ceil(t0 / st) * st; x <= t1; x += st) out.push(x); return out; })().map((x) => { const p = (x - t0) / (t1 - t0 || 1) * 100; return p < 2 || p > 98 ? null : <span key={x} style={{ left: p + "%" }}>{tfmt(x)}</span>; })}</div>
@@ -1759,7 +1806,7 @@ export function CompareView({ a, b, note, onBack, onClose }: { a: string; b: str
 
   return (
     <div className="ag" data-graph data-compare>
-      {head}{ctl}
+      <div className="agstick">{head}{ctl}</div>
       <div className="agb">{panel}{body}</div>
     </div>
   );

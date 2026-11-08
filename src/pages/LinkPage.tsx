@@ -15,6 +15,9 @@ import { inApp, linkApi, pickFile, pickFolder, posterApi, thumbUrl, type PosterI
 import { searchByName } from "../lib/thaiSearch";
 import { getLinkJob, reloadImages, runConfirm, setLinkJob, setReply, thumbOf, useLinkJob } from "../lib/linkJob";
 import "../styles/link.css";
+import { IcPoster, IcFolder, IcPlus } from "../components/icons";
+import HoverBig from "../components/HoverBig";
+import { IbBack, IbStop, IcLink, IbTick, IbEye, IbCrop } from "../components/icons";
 
 const isImagePath = (p: string) => /\.(jpe?g|png|webp|bmp|tiff?|heic|heif)$/i.test(p);
 const baseName = (p: string) => p.split(/[\\/]/).pop() ?? p;
@@ -131,7 +134,7 @@ export default function LinkPage() {
   if (view === "table") return <ReviewTable />;
   return (
     <div className="pagewrap" data-link-page>
-      <div className="wrapin" style={{ maxWidth: 980 }}>
+      <div className="wrapin">
         <div className="card">
           <h3><span className="step">1</span>รูปที่จะเอามาจับคู่</h3>
           <div className={"drop" + (over ? " over" : badDrop ? " bad" : "")} style={{ minHeight: 130 }} data-link-drop>
@@ -140,8 +143,8 @@ export default function LinkPage() {
               : <><b style={{ color: "var(--txt2)" }}>ลากโฟลเดอร์รูป หรือรูปหลายรูปมาวางตรงนี้</b><div>JPG PNG WebP BMP TIFF HEIC · รูปในโฟลเดอร์ย่อยอ่านด้วย · รูปต้นฉบับไม่ถูกแก้</div></>}
           </div>
           <div className="row8" style={{ marginTop: 10 }}>
-            <button type="button" className="btn btn-ghost btn-sm" data-link-pick onClick={async () => { const d = await pickFolder("เลือกโฟลเดอร์รูป"); if (d) addPaths([d]); }}>เลือกโฟลเดอร์</button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={async () => { const f = await pickFile("image"); if (f) addPaths([f]); }}>เลือกรูป</button>
+            <button type="button" className="btn btn-ghost btn-sm" data-link-pick onClick={async () => { const d = await pickFolder("เลือกโฟลเดอร์รูป"); if (d) addPaths([d]); }}><IcFolder size={15} />เลือกโฟลเดอร์</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={async () => { const f = await pickFile("image"); if (f) addPaths([f]); }}><IcPoster size={15} />เลือกรูป</button>
           </div>
           {reply.imageFolders.length + reply.loose.length > 0 && (
             <div className="folders" style={{ marginTop: 10 }} data-link-folders>
@@ -169,7 +172,7 @@ export default function LinkPage() {
         )}
         <div className="linkfoot">
           <span className="small">กดดูผลแล้วยังไม่มีอะไรถูกบันทึก ต้องกดยืนยันในตารางก่อน</span>
-          <button type="button" className={"btn " + (summary ? "btn-main" : "btn-ghost")} data-link-open onClick={() => setLinkJob({ view: "table" })}>{summary ? `ดูผลจับคู่ ${COUNT(reply.rows.length)} เรื่อง` : "ไปตารางตรวจผล"}</button>
+          <button type="button" className={"btn " + (summary ? "btn-main" : "btn-ghost")} data-link-open onClick={() => setLinkJob({ view: "table" })}><IbEye size={15} />{summary ? `ดูผลจับคู่ ${COUNT(reply.rows.length)} เรื่อง` : "ไปตารางตรวจผล"}</button>
         </div>
       </div>
     </div>
@@ -278,7 +281,7 @@ function ReviewTable() {
         </div>
         <span style={{ flex: 1 }} />
         <SearchBox value={query} onChange={setQuery} placeholder="ค้นชื่อหนังหรือชื่อไฟล์" label="ค้นชื่อหนังหรือชื่อไฟล์" swapLabel={shown.swapped ? shown.used : ""} width={240} />
-        <button type="button" className="btn btn-ghost btn-sm" data-link-addmore onClick={() => setLinkJob({ view: "start" })}>เพิ่มรูป</button>
+        <button type="button" className="btn btn-ghost btn-sm" data-link-addmore onClick={() => setLinkJob({ view: "start" })}><IcPlus size={15} />เพิ่มรูป</button>
       </div>
       <div className="linkhead" aria-hidden="true"><span /><span>หนังบนชั้นวาง</span><span /><span>รูปที่เลือกให้</span><span>เหตุที่จับคู่</span><span /></div>
       <div className="linkrows" data-link-rows>
@@ -310,12 +313,12 @@ function ReviewTable() {
         )}
         <span className="row8" style={{ flexWrap: "nowrap" }}>
           {working ? (
-            <button type="button" className="btn btn-ghost" data-link-stop onClick={() => linkApi.cancel()}>หยุด</button>
+            <button type="button" className="btn btn-ghost" data-link-stop onClick={() => linkApi.cancel()}><IbStop size={15} />หยุด</button>
           ) : (
             <>
-              <button type="button" className="btn btn-ghost" data-link-goboard onClick={() => setLinkJob({ view: "board" })}>ไปกระดาน ({COUNT(left)} ที่เหลือ)</button>
-              <button type="button" className={"btn " + (ticked ? "btn-ghost" : "btn-wait")} aria-disabled={!ticked || undefined} data-link-confirm-ticked onClick={() => { if (ticked) confirm("ticked"); }}>ยืนยัน {COUNT(ticked)} คู่ที่ติ๊กไว้</button>
-              <button type="button" className={"btn " + (waitingRows.length ? "btn-main" : "btn-wait")} aria-disabled={!waitingRows.length || undefined} data-link-confirm-all onClick={() => { if (waitingRows.length) confirm("all"); }}>ยืนยันทั้งหมด {COUNT(waitingRows.length)} คู่</button>
+              <button type="button" className="btn btn-ghost" data-link-goboard onClick={() => setLinkJob({ view: "board" })}><IcLink size={15} />ไปกระดาน ({COUNT(left)} ที่เหลือ)</button>
+              <button type="button" className={"btn " + (ticked ? "btn-ghost" : "btn-wait")} aria-disabled={!ticked || undefined} data-link-confirm-ticked onClick={() => { if (ticked) confirm("ticked"); }}><IbTick size={15} />ยืนยัน {COUNT(ticked)} คู่ที่ติ๊กไว้</button>
+              <button type="button" className={"btn " + (waitingRows.length ? "btn-main" : "btn-wait")} aria-disabled={!waitingRows.length || undefined} data-link-confirm-all onClick={() => { if (waitingRows.length) confirm("all"); }}><IbTick size={15} />ยืนยันทั้งหมด {COUNT(waitingRows.length)} คู่</button>
             </>
           )}
         </span>
@@ -335,9 +338,21 @@ function ReviewTable() {
   );
 }
 
-function Thumb({ p, wide }: { p: LinkPick | null; wide?: boolean }) {
+function ThumbImg({ p, wide }: { p: LinkPick | null; wide?: boolean }) {
   const src = thumbUrl(p?.cropThumb ?? thumbOf(p));
   return src ? <img className={"lthumb" + (wide ? " wide" : "")} src={src} alt="" loading="lazy" draggable={false} /> : <span className={"lthumb none" + (wide ? " wide" : "")} />;
+}
+
+/** ชี้แล้วขึ้นรูปใหญ่ ปุ่มมุมรูปดูเต็มจอ · ครอปแล้วใช้สัดส่วนช่องปก ยังไม่ครอปใช้สัดส่วนรูปจริง */
+function BigOf({ p, wide, children }: { p: LinkPick | null; wide?: boolean; children: React.ReactNode }) {
+  const src = thumbUrl(p?.cropThumb ?? thumbOf(p));
+  if (!p || !src) return <>{children}</>;
+  const ratio = p.cropThumb || !p.width || !p.height ? (wide ? 16 / 9 : 2 / 3) : p.width / p.height;
+  return <HoverBig src={src} ratio={ratio} view={{ path: p.path, geo: p.geo, name: p.name, folder: p.folder }}>{children}</HoverBig>;
+}
+
+function Thumb({ p, wide }: { p: LinkPick | null; wide?: boolean }) {
+  return <BigOf p={p} wide={wide}><ThumbImg p={p} wide={wide} /></BigOf>;
 }
 
 function RowView(p: {
@@ -362,7 +377,7 @@ function RowView(p: {
               onClick={() => { if (has && !p.busy) p.onTick(!r.ticked); }}>{r.ticked && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="4"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>}</button>}
       </div>
       <div className="lpick">
-        {p.coverThumb ? <img className="lthumb" src={thumbUrl(p.coverThumb) ?? undefined} alt="ปกที่เรื่องนี้มีอยู่" loading="lazy" draggable={false} /> : <span className="lthumb none">ไม่มีปก</span>}
+        {p.coverThumb ? <HoverBig src={thumbUrl(p.coverThumb)} name={"ปกที่มีอยู่ · " + r.title}><img className="lthumb" src={thumbUrl(p.coverThumb) ?? undefined} alt="ปกที่เรื่องนี้มีอยู่" loading="lazy" draggable={false} /></HoverBig> : <span className="lthumb none">ไม่มีปก</span>}
         <div className="lname"><b>{r.title}</b><span className="fn" title={r.movie}>{baseName(r.movie)}</span></div>
       </div>
       <div className="larrow" aria-hidden="true">→</div>
@@ -384,7 +399,7 @@ function RowView(p: {
             {!has && <div className="small" style={{ color: "var(--warn-ink)" }}>ชื่อใกล้เคียง {r.candidates.length} รูป กดรูปที่ใช่</div>}
             <div className="lsugg" data-link-cands style={has ? { marginTop: 6 } : undefined}>
               {r.candidates.map((c) => (
-                <button key={c.path} type="button" className={"lcand" + (main?.path === c.path ? " sel" : "")} title={c.name} aria-label={"ใช้รูป " + c.name} aria-pressed={main?.path === c.path} data-link-cand={c.name} onClick={() => p.onChoose(c.path)}><Thumb p={c} /></button>
+                <BigOf key={c.path} p={c}><button type="button" className={"lcand" + (main?.path === c.path ? " sel" : "")} title={c.name} aria-label={"ใช้รูป " + c.name} aria-pressed={main?.path === c.path} data-link-cand={c.name} onClick={() => p.onChoose(c.path)}><ThumbImg p={c} /></button></BigOf>
               ))}
             </div>
           </>
@@ -406,13 +421,13 @@ function RowView(p: {
           <><span className="pill p-ok">บันทึกแล้ว</span><button type="button" className={ghost} {...dis} data-link-unsave onClick={g(p.onUnsave)}>ยกเลิก</button></>
         ) : (
           <>
-            {has && <button type="button" className={ghost} {...dis} data-link-crop onClick={g(p.onCrop)}>ครอป</button>}
-            {has && <button type="button" className={ghost} {...dis} data-link-change onClick={g(p.onChange)}>เปลี่ยนรูป</button>}
-            {!has && <button type="button" className={ghost} {...dis} data-link-change onClick={g(p.onChange)}>เลือกรูป</button>}
-            {!!r.prev && <button type="button" className={ghost} {...dis} data-link-undo onClick={g(p.onUndo)}>ย้อน</button>}
+            {has && <button type="button" className={ghost} {...dis} data-link-crop onClick={g(p.onCrop)}><IbCrop size={15} />ครอป</button>}
+            {has && <button type="button" className={ghost} {...dis} data-link-change onClick={g(p.onChange)}><IcPoster size={15} />เปลี่ยนรูป</button>}
+            {!has && <button type="button" className={ghost} {...dis} data-link-change onClick={g(p.onChange)}><IcPoster size={15} />เลือกรูป</button>}
             {r.status === "unsure" && !has && <button type="button" className={ghost} {...dis} data-link-skip onClick={g(p.onSkip)}>ข้ามเรื่องนี้</button>}
+            {has && <button type="button" className={"btn btn-sm " + (p.busy ? "btn-wait" : "btn-ok")} aria-disabled={p.busy || undefined} data-link-confirm onClick={() => { if (!p.busy) p.onConfirm(); }}><IbTick size={15} />ยืนยัน</button>}
+            {!!r.prev && <button type="button" className={ghost} {...dis} data-link-undo onClick={g(p.onUndo)}><IbBack size={15} />ย้อน</button>}
             {r.via === "shelf" && <button type="button" className={ghost} aria-disabled={p.busy || undefined} data-link-skip title={p.busy ? dis.title : "ปกบนชั้นวางคงเดิม ไม่มีอะไรถูกเขียน"} onClick={g(p.onSkip)}>เลิกแก้</button>}
-            {has && <button type="button" className={"btn btn-sm " + (p.busy ? "btn-wait" : "btn-ok")} aria-disabled={p.busy || undefined} data-link-confirm onClick={() => { if (!p.busy) p.onConfirm(); }}>{r.status === "unsure" ? "ยืนยันรูปที่เลือก" : "ยืนยัน"}</button>}
           </>
         )}
       </div>

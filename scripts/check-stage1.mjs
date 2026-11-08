@@ -46,19 +46,19 @@ await c.shot(`${OUT}/02-ห้องชิ้นส่วน.png`);
 
 // ---------- ① ค่าตามต้นแบบ ----------
 const T = await css(".titlebar");
-check("แถบชื่อสูง 34 พื้นชมพูจาง ตัวหนังสือ 13", T.h === 34 && T.bg === hex("#fbe3ec") && T.font === "13px", `${T.h}px ${T.bg} ${T.font}`);
+check("แถบชื่อสูง 34 พื้นขาว ตัวหนังสือ 13", T.h === 34 && T.bg === hex("#ffffff") && T.font === "13px", `${T.h}px ${T.bg} ${T.font}`);
 const TB = await css(".titlebar .ctl button");
 check("ปุ่มย่อ ขยาย ปิด กว้าง 46", TB.w === 46 && TB.h === 34, `${TB.w}×${TB.h}`);
 const S = await css(".side");
-check("เมนูซ้ายกว้าง 200 พื้น #fdeef4", S.w === 200 && S.bg === hex("#fdeef4"), `${S.w}px ${S.bg}`);
+check("เมนูซ้ายกว้าง 200 พื้นขาว", S.w === 200 && S.bg === hex("#ffffff"), `${S.w}px ${S.bg}`);
 const NV = await css(".nav.on");
-check("เมนูที่เลือกพื้นชมพู โค้ง 9 ขอบใน 9 10", NV.bg === hex("#fbd7e5") && NV.radius === "9px" && NV.pad === "9px 10px", `${NV.bg} ${NV.radius} ${NV.pad}`);
+check("เมนูที่เลือกพื้นชมพูอ่อน โค้ง 6 ขอบใน 9 10", NV.bg === hex("#fbe9ef") && NV.radius === "6px" && NV.pad === "9px 10px", `${NV.bg} ${NV.radius} ${NV.pad}`);
 const BODY = await c.evaluate("getComputedStyle(document.body).fontFamily + ' ' + getComputedStyle(document.body).fontSize + ' ' + document.fonts.check('15px Sarabun')");
 check("ฟอนต์ Sarabun 15 ฝังในโปรแกรม โหลดได้", BODY.includes("Sarabun") && BODY.includes("15px") && BODY.endsWith("true"), BODY);
 
 const BTN = {
-  main: ["#f6b3cb", "#7a2346", "#ef9dbb", "#f09dbd", "#6a1d3c", "#e584a9"],
-  ghost: ["#ffffff", "#4a2b38", "#efc6d5", "#fdeaf1", "#c2547f", "#e79ab8"],
+  main: ["#c8406f", "#ffffff", "#c8406f", "#ad3560", "#ffffff", "#ad3560"],
+  ghost: ["#ffffff", "#3a2630", "#e8cdd6", "#faedf1", "#b0355f", "#d8a9b9"],
   ok: ["#e2f5ea", "#2f7a52", "#a9dcc0", "#cdeedb", "#24653f", "#84c9a3"],
   bad: ["#ffffff", "#b04545", "#f1b7b7", "#fde5e5", "#953535", "#e48d8d"],
   danger: ["#f6c3c3", "#8a2a2a", "#ee9e9e", "#f0a9a9", "#7a2020", "#e48585"],
@@ -66,10 +66,10 @@ const BTN = {
 };
 for (const [k, [bg, fg, bd, hbg, hfg, hbd]] of Object.entries(BTN)) {
   const { before: b, after: a } = await hovered(`[data-btn=${k}]`);
-  check(`ปุ่ม ${k} สูง 38 โค้ง 9 ตัวหนังสือ 14 หนา 600 สีตรงต้นแบบ`,
-    b.h === 38 && b.radius === "9px" && b.font === "14px" && b.weight === "600" && b.bg === hex(bg) && b.color === hex(fg) && b.border === hex(bd),
+  check(`ปุ่ม ${k} สูง 38 โค้ง 6 ตัวหนังสือ 14 หนา 600 สีตรงตามหน้าตาใหม่`,
+    b.h === 38 && b.radius === "6px" && b.font === "14px" && b.weight === "600" && b.bg === hex(bg) && b.color === hex(fg) && b.border === hex(bd),
     `${b.h}px ${b.radius} ${b.font}/${b.weight} ${b.bg} ${b.color} ${b.border}`);
-  check(`ปุ่ม ${k} ตอนชี้เปลี่ยนเป็นสีตามต้นแบบ`, a.bg === hex(hbg) && a.color === hex(hfg) && a.border === hex(hbd), `${a.bg} ${a.color} ${a.border}`);
+  check(`ปุ่ม ${k} ตอนชี้เปลี่ยนเป็นสีตามหน้าตาใหม่`, a.bg === hex(hbg) && a.color === hex(hfg) && a.border === hex(hbd), `${a.bg} ${a.color} ${a.border}`);
   await c.shot(`${OUT}/03-ชี้ปุ่ม-${k}.png`, `[data-btn=${k}]`, 10).catch(() => {});
   // ภาพตอนชี้
   await c.hover(`[data-btn=${k}]`); await settle();
@@ -79,23 +79,23 @@ for (const [k, [bg, fg, bd, hbg, hfg, hbd]] of Object.entries(BTN)) {
 const SM = await css("[data-btn=sm]");
 check("ปุ่มเล็กสูง 32 ตัวหนังสือ 13", SM.h === 32 && SM.font === "13px", `${SM.h}px ${SM.font}`);
 const { before: IB, after: IA } = await hovered("[data-btn=icon]");
-check("ปุ่มไอคอน 32×32 โค้ง 8 ตอนชี้พื้นชมพูจาง", IB.w === 32 && IB.h === 32 && IB.radius === "8px" && IA.bg === hex("#fbdde8") && IA.color === hex("#c2547f"), `${IB.w}×${IB.h} ${IB.radius} → ${IA.bg}`);
+check("ปุ่มไอคอน 32×32 โค้ง 8 ตอนชี้พื้นชมพูจาง ตัวสีเน้น", IB.w === 32 && IB.h === 32 && IB.radius === "8px" && IA.bg === hex("#f6e2e9") && IA.color === hex("#b0355f"), `${IB.w}×${IB.h} ${IB.radius} → ${IA.bg}`);
 
 const SEG = await css("[data-part=seg] .seg:not(.sm) button.on");
-check("ปุ่มคู่สูง 34 ตัวหนังสือ 13.5 ที่เลือกพื้นชมพู", SEG.h === 34 && SEG.font === "13.5px" && SEG.bg === hex("#f6b3cb"), `${SEG.h}px ${SEG.font} ${SEG.bg}`);
+check("ปุ่มคู่สูง 34 ตัวหนังสือ 13.5 ที่เลือกพื้นชมพูอ่อน", SEG.h === 34 && SEG.font === "13.5px" && SEG.bg === hex("#fbe9ef"), `${SEG.h}px ${SEG.font} ${SEG.bg}`);
 const { after: SEGH } = await hovered("[data-part=seg] .seg:not(.sm) button:not(.on)");
-check("ปุ่มคู่ที่ไม่ได้เลือก ตอนชี้พื้นชมพูจาง", SEGH.bg === hex("#fdeaf1"), SEGH.bg);
+check("ปุ่มคู่ที่ไม่ได้เลือก ตอนชี้พื้นชมพูจาง", SEGH.bg === hex("#faedf1"), SEGH.bg);
 const SEGS = await css("[data-part=seg] .seg.sm:not(.seg-off) button");
 check("ปุ่มสามแบบเล็กสูง 30 ตัวหนังสือ 13", SEGS.h === 30 && SEGS.font === "13px", `${SEGS.h}px ${SEGS.font}`);
 const OFF = await css(".seg-off button:not(.on)");
-check("ปุ่มสามที่กดไม่ได้ ตัวหนังสือจาง", OFF.color === hex("#c9a9b6"), OFF.color);
+check("ปุ่มสามที่กดไม่ได้ ตัวหนังสือจาง", OFF.color === hex("#c9aab4"), OFF.color);
 const offTitle = await c.evaluate("document.querySelector('.seg-off').title");
 check("ปุ่มที่กดไม่ได้บอกเหตุผล", offTitle === "ขนาดปกใช้ได้ตอนดูแบบภาพปก", offTitle);
 
 const { before: SW, after: SWH } = await hovered("[data-part=controls] .switch.on");
-check("สวิตช์เปิด 44×26 สีชมพู ตอนชี้เข้มขึ้น", SW.w === 44 && SW.h === 26 && SW.bg === hex("#e98aac") && SWH.bg === hex("#d9719a"), `${SW.w}×${SW.h} ${SW.bg} → ${SWH.bg}`);
+check("สวิตช์เปิด 44×26 สีเน้น ตอนชี้เข้มขึ้น", SW.w === 44 && SW.h === 26 && SW.bg === hex("#c8406f") && SWH.bg === hex("#ad3560"), `${SW.w}×${SW.h} ${SW.bg} → ${SWH.bg}`);
 const { before: SO, after: SOH } = await hovered("[data-part=controls] .switch.off");
-check("สวิตช์ปิดสีชมพูเทา ตอนชี้เข้มขึ้น", SO.bg === hex("#ecd3dd") && SOH.bg === hex("#e3bfce"), `${SO.bg} → ${SOH.bg}`);
+check("สวิตช์ปิดสีชมพูจาง ตอนชี้เข้มขึ้น", SO.bg === hex("#ebd4dc") && SOH.bg === hex("#e2c0cb"), `${SO.bg} → ${SOH.bg}`);
 const before = await c.evaluate("document.querySelector('[data-part=controls] .switch.on').getAttribute('aria-checked')");
 await c.click("[data-part=controls] .switch.on"); await sleep(200);
 const after = await c.evaluate("document.querySelector('[data-part=controls] label .switch').getAttribute('aria-checked')");
@@ -103,7 +103,7 @@ check("กดสวิตช์แล้วสลับ", before === "true" && a
 await c.click("[data-part=controls] label .switch");
 
 const STAT = await css(".stat.ok"), CARD = await css(".card") ?? { radius: "12px" };
-check("การ์ดสถานะโค้ง 10", STAT.radius === "10px", STAT.radius);
+check("การ์ดสถานะโค้ง 6", STAT.radius === "6px", STAT.radius);
 const SK = await css(".skel");
 check("โครงจางมีแอนิเมชันคลื่น", SK.anim === "skel-wave", SK.anim);
 
@@ -134,13 +134,13 @@ await c.move(...NEUTRAL);
 
 // ปุ่มแถบชื่อกับเมนู ตอนชี้
 const { after: MIN } = await hovered(".titlebar .ctl button:first-child");
-check("ปุ่มย่อหน้าต่างตอนชี้พื้นชมพู", MIN.bg === hex("#f9dde8"), MIN.bg);
+check("ปุ่มย่อหน้าต่างตอนชี้พื้นชมพูจาง", MIN.bg === hex("#f6e0e7"), MIN.bg);
 const { after: CLS } = await hovered(".titlebar .ctl button.close");
 check("ปุ่มปิดตอนชี้พื้นแดงจาง", CLS.bg === hex("#f6c3c3") && CLS.color === hex("#8a2a2a"), `${CLS.bg} ${CLS.color}`);
 await c.hover(".titlebar .ctl button.close"); await settle();
 await c.shotRect(`${OUT}/04-ชี้ปุ่มปิด.png`, 1100, 0, 180, 34); await c.move(...NEUTRAL);
 const { after: NVH } = await hovered(".nav:not(.on):not(.navtoggle)");
-check("เมนูที่ไม่ได้เลือก ตอนชี้พื้นชมพู", NVH.bg === hex("#f9dde8") && NVH.color === hex("#c2547f"), `${NVH.bg} ${NVH.color}`);
+check("เมนูที่ไม่ได้เลือก ตอนชี้พื้นชมพูจาง ตัวสีเน้น", NVH.bg === hex("#f6e0e7") && NVH.color === hex("#b0355f"), `${NVH.bg} ${NVH.color}`);
 
 // ---------- ③ รายการกาง ----------
 await c.click("[data-part=dd-bottom] .dd"); await sleep(250);
@@ -172,7 +172,7 @@ await c.key("Escape"); await sleep(200);
 check("Esc ปิดหน้าต่าง", !(await c.evaluate("!!document.querySelector('.dlg')")));
 await c.click("[data-open=delete2]"); await sleep(300);
 const DLG = await css(".dlg"), BACK = await css(".dlg-back");
-check("หน้าต่างซ้อนโค้ง 14 พื้นหลังชมพูเข้มโปร่ง", DLG.radius === "14px" && BACK.bg === "rgba(110, 55, 80, 0.22)", `${DLG.radius} ${BACK.bg}`);
+check("หน้าต่างซ้อนโค้ง 8 พื้นหลังเทาเข้มโปร่ง", DLG.radius === "8px" && BACK.bg === "rgba(60, 25, 40, 0.22)", `${DLG.radius} ${BACK.bg}`);
 const order = await c.evaluate("[...document.querySelectorAll('.dlg .acts button')].map(b => b.innerText.trim() + (b.getBoundingClientRect().left < innerWidth/2 ? '@ซ้าย' : '@ขวา')).join(' ') + ' · โฟกัส ' + document.activeElement.innerText.trim()");
 check("ลบขั้นที่ 2 ปุ่มยืนยันลบอยู่ซ้าย ย้อนกลับอยู่ขวา โฟกัสแรกไม่ใช่ปุ่มลบ", /^ยืนยันลบ.*ย้อนกลับ.*โฟกัส ย้อนกลับ$/.test(order), order);
 await c.shot(`${OUT}/06-หน้าต่างลบขั้น2.png`);

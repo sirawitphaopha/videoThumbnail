@@ -15,6 +15,9 @@ import { fmtDuration, fmtSize } from "../lib/format";
 import { kb } from "../lib/popup";
 import { useToast } from "../components/Toasts";
 import { getPosterJob, setPosterJob, usePosterJob, type Run } from "../lib/posterJob";
+import { IcFile, IcPoster, IcFolder } from "../components/icons";
+import { IbTrash, IbBack, IbNext, IbStop, IcRefresh, IcShelf } from "../components/icons";
+import { IbCrop } from "../components/icons";
 
 const MOVIE_EXT = ["mkv", "mp4", "m4v", "mov", "avi", "webm", "ts", "m2ts", "mpg", "mpeg", "vob", "flv"];
 const IMAGE_EXT = ["jpg", "jpeg", "png", "webp", "bmp", "tif", "tiff", "heic", "heif"];
@@ -268,7 +271,7 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
                   </div>
                 </div>
                 <div className="small" style={{ marginTop: 10 }}>ลากไฟล์อื่นมาวางทับเพื่อเปลี่ยน หรือ</div>
-                <Btn off={working && BUSY} style={{ marginTop: 6 }} onClick={async () => { const f = await pickFile("movie"); if (f) loadMovie(f); }}>เลือกไฟล์จากเครื่อง</Btn>
+                <Btn off={working && BUSY} style={{ marginTop: 6 }} onClick={async () => { const f = await pickFile("movie"); if (f) loadMovie(f); }}><IcFile size={15} />เลือกไฟล์จากเครื่อง</Btn>
               </>
             ) : (
               <>
@@ -277,7 +280,7 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
                     : movieErr ? <><b>{movieErr}</b><div><Phr>ไฟล์หนังรองรับ MKV MP4 M4V MOV AVI WebM TS M2TS MPG MPEG VOB FLV</Phr></div></>
                     : loading === "movie" ? "กำลังอ่านไฟล์หนัง…" : <>ลากไฟล์หนังมาวางตรงนี้<br />MKV MP4 และอีก 10 ชนิด</>}
                 </div>
-                <Btn off={working && BUSY} style={{ marginTop: 10 }} onClick={async () => { const f = await pickFile("movie"); if (f) loadMovie(f); }}>เลือกไฟล์จากเครื่อง</Btn>
+                <Btn off={working && BUSY} style={{ marginTop: 10 }} onClick={async () => { const f = await pickFile("movie"); if (f) loadMovie(f); }}><IcFile size={15} />เลือกไฟล์จากเครื่อง</Btn>
               </>
             )}
             <div className="small" style={{ marginTop: 10 }}>รองรับ MKV · MP4 · M4V · MOV<br />AVI · WebM · TS · M2TS · MPG · MPEG · VOB · FLV</div>
@@ -310,8 +313,8 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
                     : loading === "poster" ? "กำลังอ่านรูป…" : <>ลากรูปโปสเตอร์มาวางตรงนี้<br />JPG PNG WebP BMP TIFF HEIC</>}
                 </div>
                 <span style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
-                  <Btn off={working && BUSY} onClick={async () => { const f = await pickFile("image"); if (f) loadPoster(f); }}>เลือกรูปจากเครื่อง</Btn>
-                  {moviePath && <Btn off={working && BUSY} onClick={() => setListOpen(true)}>รูปในโฟลเดอร์หนัง</Btn>}
+                  <Btn off={working && BUSY} onClick={async () => { const f = await pickFile("image"); if (f) loadPoster(f); }}><IcPoster size={15} />เลือกรูปจากเครื่อง</Btn>
+                  {moviePath && <Btn off={working && BUSY} onClick={() => setListOpen(true)}><IcFolder size={15} />รูปในโฟลเดอร์หนัง</Btn>}
                 </span>
               </>
             )}
@@ -320,7 +323,7 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
               <div className="stat warn" style={{ marginTop: 12 }} data-not23><CardIcon kind="warn" /><div style={{ minWidth: 0 }}><b>รูปนี้เป็น{poster.aspect}</b><div>เลือกว่าจะทำให้เป็นปกแบบไหน</div>
                 <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8, marginTop: 8 }}>
                   <Seg small label="แบบปก" value={choice.geo.mode} onChange={(v) => { if (!working && !rendering) rechoose({ mode: v }); }} disabledReason={working ? "รอให้งานที่ทำอยู่เสร็จก่อน" : undefined}
-                    options={[{ value: "crop", label: "ตัดให้พอดีปก" }, { value: "pad", label: "เติมขอบให้เต็ม" }, { value: "original", label: "ตามรูปเดิม" }]} />
+                    options={[{ value: "crop", label: <><IbCrop size={14} />ตัดให้พอดีปก</> }, { value: "pad", label: <><IcPoster size={14} />เติมขอบให้เต็ม</> }, { value: "original", label: <><IcFile size={14} />ตามรูปเดิม</> }]} />
                   <Btn off={working && BUSY} onClick={() => setCropOpen(true)}>ครอปเองพร้อมดูตัวอย่าง</Btn>
                 </div></div></div>
             )}
@@ -340,8 +343,8 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
           {/* ③ หน้าตาที่จะได้ */}
           <div className="card" data-card="result">
             <h3><span className="step">3</span>หน้าตาที่จะได้</h3>
-            <div className="small" style={{ marginBottom: 8 }}>บนชั้นวางของโปรแกรมนี้</div>
-            <div style={{ display: "flex", gap: 14, alignItems: "flex-end" }}>
+            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 10 }}>
+              <div style={{ display: "flex", gap: 14, alignItems: "flex-end" }}>
               {mode === "cover" && inLib?.thumb && choice && (
                 <div style={{ textAlign: "center" }}><img className="mc" src={thumbUrl(inLib.thumb) ?? undefined} alt="ปกเดิม" /><div className="small" style={{ marginTop: 6 }}>ปกเดิม</div></div>
               )}
@@ -349,7 +352,9 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
                 {choice ? <img className="mc" src={thumbUrl(choice.render.preview) ?? undefined} alt="ปกใหม่" /> : <div className="mc none" />}
                 {mode === "cover" && inLib?.thumb && choice && <div className="small" style={{ marginTop: 6 }}>ปกใหม่</div>}
               </div>
+              </div>
               <div className="small" style={{ minWidth: 0 }}>
+                บนชั้นวางของโปรแกรมนี้<br />
                 {movie ? (mode === "cover" ? <>ไฟล์เดิม<br /><b style={{ color: "var(--txt)", wordBreak: "break-word" }}><Phr>{newName}</Phr></b><br /><b style={{ color: "var(--txt)" }}><Phr>ไฟล์เป็น MKV อยู่แล้ว เปลี่ยนแค่รูปแนบ ไม่ต้องครอบใหม่</Phr></b></>
                   : <>ไฟล์ใหม่<br /><b style={{ color: "var(--txt)", wordBreak: "break-word" }}><Phr>{newName}</Phr></b><br />ขนาดราว <span className="nw">{fmtSize(movie.size + (choice?.render.bytes ?? 0))}</span> เท่าเดิม</>)
                   : choice ? "ใส่ไฟล์หนังก่อน" : "ใส่ไฟล์หนังกับรูปโปสเตอร์ก่อน"}
@@ -358,14 +363,17 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
           </div>
         </div>
 
-        {/* ตัวเลือก */}
-        <div className="card">
-          <h3>ตัวเลือก</h3>
-          <div style={{ display: "grid", gridTemplateColumns: "1fr 1fr", gap: 20 }}>
+        {/* ตัวเลือก 3 กลุ่ม ตรงแนวกับ 3 ช่องข้างบน · ชื่อกลุ่มแคลร์ตั้ง */}
+        <div className="three">
+          <div className="card" data-opt="check">
+            <h3>ตรวจไฟล์</h3>
             <div className="opts">
               <Check on={checkSource} onChange={(v) => setOne({ checkSourceBefore: v })} title={mode === "cover" ? "ตรวจไฟล์ก่อนเปลี่ยนรูปแนบ" : "ตรวจไฟล์ต้นทางก่อนครอบ"} note="ถ้าไฟล์เสียอยู่แล้ว จะบอกก่อนลงมือ" disabled={working} />
               <Check on={checkOutput} onChange={(v) => setOne({ checkOutputAfter: v })} title={mode === "cover" ? "ตรวจรูปแนบหลังเปลี่ยนเสร็จ" : "ตรวจไฟล์ใหม่หลังครอบเสร็จ"} note={mode === "cover" ? "ดึงปกออกมาเทียบกับรูปที่ทำทุกไบต์" : "เทียบว่าภาพ เสียง ซับ ครบเท่าต้นทาง"} disabled={working} />
             </div>
+          </div>
+          <div className="card" data-opt="original">
+            <h3>ไฟล์เดิมหลังครอบ</h3>
             <div className="opts" title={mode === "cover" ? "ไฟล์เป็น MKV อยู่แล้ว เปลี่ยนแค่รูปแนบ ไม่มีไฟล์เดิมแยก" : undefined}>
               <Radio on={original === "keep"} onChange={() => setOne({ originalAfter: "keep" })} disabled={working || mode === "cover"}
                 title={`เก็บไฟล์เดิมไว้ ย้ายไปโฟลเดอร์ "ไฟล์เดิม"`} note={movie ? `ปลอดภัยที่สุด แต่ใช้พื้นที่เพิ่ม ${fmtSize(movie.size)}` : "ปลอดภัยที่สุด แต่ใช้พื้นที่เพิ่มเท่าไฟล์หนัง"} />
@@ -374,16 +382,13 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
               {mode === "cover" && <div className="small">ไฟล์เป็น MKV อยู่แล้ว เปลี่ยนแค่รูปแนบ ไม่มีไฟล์เดิมแยก</div>}
             </div>
           </div>
-        </div>
-
-        {/* ไฟล์ที่ได้ */}
-        <div className="card">
+          <div className="card" data-opt="output">
           <h3>ไฟล์ที่ได้</h3>
-          <div style={{ display: "flex", alignItems: "center", gap: 16, flexWrap: "wrap" }}>
+          <div>
             <Seg label="ไฟล์ที่ได้" value={output} onChange={(v) => { setDrop([]); setAck([]); setOne({ outputFormat: v }); }}
               disabledReason={working ? "รอให้งานที่ทำอยู่เสร็จก่อน" : undefined}
               options={[{ value: "mkv", label: "MKV (แนะนำ)" }, { value: "mp4", label: "MP4" }]} />
-            <div className="small" style={{ flex: 1, minWidth: 300 }}>MKV ใส่ซับและเสียงได้ทุกแบบ · MP4 ปกขึ้นเป็นไอคอนใน Windows ได้เลยโดยไม่ต้องลง Icaros แต่ซับบางแบบใส่ไม่ได้</div>
+            <div className="small" style={{ marginTop: 8 }}>MKV ใส่ซับและเสียงได้ทุกแบบ · MP4 ปกขึ้นเป็นไอคอนใน Windows ได้เลยโดยไม่ต้องลง Icaros แต่ซับบางแบบใส่ไม่ได้</div>
           </div>
           {mp4Bad.length > 0 && (
             <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }} data-mp4warn>
@@ -391,7 +396,7 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
                 <div key={s.index}>
                   <div className="stat warn"><CardIcon kind="warn" /><div><b>{trackTitle(s)}</b><Phr>{s.mp4 === "style" ? (s.why ?? "") : `${s.why ?? ""} ถ้าทำต่อ ${kindWord(s.kind)}นี้จะหายจากไฟล์ใหม่`}</Phr></div></div>
                   <div className="minirow" style={{ marginTop: 6 }}>
-                    <button type="button" className="btn btn-main btn-sm" onClick={() => { setDrop([]); setAck([]); setOne({ outputFormat: "mkv" }); }}>กลับไปใช้ MKV</button>
+                    <button type="button" className="btn btn-main btn-sm" onClick={() => { setDrop([]); setAck([]); setOne({ outputFormat: "mkv" }); }}><IbBack size={15} />กลับไปใช้ MKV</button>
                     {s.kind !== "video" && (
                       <button type="button" className="btn btn-ghost btn-sm" onClick={() => {
                         // ทำต่อ = ข้อนี้ตกลงแล้ว · ถ้าเป็นข้อสุดท้ายและใส่รูปแล้ว เริ่มงานเลย
@@ -405,6 +410,7 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
               ))}
             </div>
           )}
+          </div>
         </div>
 
         {/* สถานะงาน */}
@@ -420,7 +426,7 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
                     (เดิมปุ่มหยุดขึ้นตลอด หน้าต่างยืนยันบอกว่าไฟล์ใหม่จะถูกลบ ซึ่งโหมดนี้ไม่มีไฟล์ใหม่ ผู้ช่วยตรวจสเปกเจอ) */}
                 {runMode === "cover" && !(run.progress?.phase ?? "กำลังตรวจไฟล์ต้นทาง").startsWith("กำลังตรวจไฟล์ต้นทาง")
                   ? <div className="small" data-nostop>กำลังแก้ไฟล์เดิม ใช้เวลาไม่กี่วินาที หยุดกลางทางไม่ได้</div>
-                  : <button type="button" className="btn btn-bad btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => setAskStop(true)}>หยุด</button>}
+                  : <button type="button" className="btn btn-bad btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => setAskStop(true)}><IbStop size={15} />หยุด</button>}
               </>
             )}
             {run.state === "done" && <DoneCard r={run.result} onShelf={() => p.onPage("shelf")} />}
@@ -428,17 +434,19 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
               <>
                 <div className={"stat " + (run.problem.kind === "cancelled" ? "warn" : "bad")} role="alert"><CardIcon kind={run.problem.kind === "cancelled" ? "warn" : "bad"} />
                   <div><b>{run.problem.title}</b>{run.problem.detail.map((d, i) => <div key={i}><Phr>{d}</Phr></div>)}</div></div>
-                <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => pressStart()}>ลองใหม่</button>
+                <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => pressStart()}><IcRefresh size={15} />ลองใหม่</button>
               </>
             )}
           </div>
         )}
 
-        <div style={{ display: "flex", justifyContent: "flex-end", alignItems: "center", gap: 10 }}>
-          {blocked && !working && <div className="hint" style={{ color: "#94680f", margin: 0 }} data-blocked>{blocked}</div>}
-          <button type="button" className={"btn " + (working ? "btn-wait" : "btn-ghost")} style={{ height: 44 }} aria-disabled={working || undefined} title={working ? "รอให้งานที่ทำอยู่เสร็จก่อน" : undefined} onClick={clearAll}>ล้างทั้งหมด</button>
-          <button type="button" className={"btn " + (blocked || working ? "btn-wait" : "btn-main")} style={{ height: 44, padding: "0 26px", fontSize: 15 }}
-            aria-disabled={!!blocked || working || undefined} title={blocked ?? undefined} onClick={() => pressStart()} data-start>{working ? "กำลังทำ…" : startLabel}</button>
+        <div className="three pactions">
+          <div className="pact-msg">{blocked && !working && <div className="hint" style={{ color: "#94680f", margin: 0 }} data-blocked>{blocked}</div>}</div>
+          <div className="pact-btns">
+          <button type="button" className={"btn " + (working ? "btn-wait" : "btn-ghost")} style={{ height: 44 }} aria-disabled={working || undefined} title={working ? "รอให้งานที่ทำอยู่เสร็จก่อน" : undefined} onClick={clearAll}><IbTrash size={15} />ล้างทั้งหมด</button>
+          <button type="button" className={"btn " + (blocked || working ? "btn-wait" : "btn-main")} style={{ height: 44, padding: "0 14px", fontSize: 15, flex: 1 }}
+            aria-disabled={!!blocked || working || undefined} title={blocked ?? undefined} onClick={() => pressStart()} data-start><IcPoster size={15} />{working ? "กำลังทำ…" : startLabel}</button>
+          </div>
         </div>
       </div>
 
@@ -453,16 +461,16 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
 
       {/* ลบไฟล์เดิม ยืนยัน 2 ขั้น (ต้นแบบบรรทัด 917–930) · กดนอกหน้าต่างไม่ปิด */}
       <Dialog open={askDelete === 1} onClose={() => setAskDelete(0)} title="ลบไฟล์เดิมหลังตรวจผ่าน · ขั้นที่ 1 จาก 2"
-        actions={<><button type="button" className="btn btn-ghost btn-sm" onClick={() => setAskDelete(0)}>ยกเลิก</button><button type="button" className="btn btn-main btn-sm" onClick={() => setAskDelete(2)}>ถัดไป</button></>}>
+        actions={<><button type="button" className="btn btn-ghost btn-sm" onClick={() => setAskDelete(0)}>ยกเลิก</button><button type="button" className="btn btn-main btn-sm" onClick={() => setAskDelete(2)}><IbNext size={15} />ถัดไป</button></>}>
         <div style={{ fontSize: 14, lineHeight: 1.6 }}><Phr>เมื่อไฟล์ใหม่ตรวจผ่าน ไฟล์เดิมจะถูกย้ายไปถังขยะของ Windows</Phr><br /><b>{movie ? baseName(movie.path) : ""}</b> · <span className="nw">{movie ? fmtSize(movie.size) : ""}</span><br /><Phr>ถ้าไฟล์ใหม่ตรวจไม่ผ่าน ไฟล์เดิมไม่ถูกลบ</Phr></div>
       </Dialog>
       <Dialog open={askDelete === 2} onClose={() => setAskDelete(1)} title="ยืนยันอีกครั้ง · ขั้นที่ 2 จาก 2" splitActions
-        actions={<><button type="button" className="btn btn-danger btn-sm" onClick={() => { setAskDelete(0); start(pendingDrop.current ?? drop); pendingDrop.current = null; }}>ยืนยันลบ</button><button type="button" className="btn btn-ghost btn-sm" onClick={() => setAskDelete(1)}>ย้อนกลับ</button></>}>
+        actions={<><button type="button" className="btn btn-danger btn-sm" onClick={() => { setAskDelete(0); start(pendingDrop.current ?? drop); pendingDrop.current = null; }}>ยืนยันลบ</button><button type="button" className="btn btn-ghost btn-sm" onClick={() => setAskDelete(1)}><IbBack size={15} />ย้อนกลับ</button></>}>
         <div style={{ fontSize: 14, lineHeight: 1.6 }}>ลบไฟล์เดิม <b>{movie ? baseName(movie.path) : ""}</b> <Phr>หลังตรวจไฟล์ใหม่ผ่าน</Phr><br /><Phr>กู้คืนได้จากถังขยะของ Windows จนกว่าจะล้างถังขยะ</Phr></div>
       </Dialog>
       {/* ยืนยันหยุด */}
       <Dialog open={askStop} onClose={() => setAskStop(false)} title={runMode === "cover" ? "ยืนยันหยุดเปลี่ยนโปสเตอร์" : runMode === "mp4" ? "ยืนยันหยุดส่งออก MP4" : "ยืนยันหยุดครอบไฟล์"}
-        actions={<><button type="button" className="btn btn-ghost btn-sm" onClick={() => setAskStop(false)}>ทำต่อ</button><button type="button" className="btn btn-bad btn-sm" onClick={() => { setAskStop(false); posterApi.cancel(); }}>หยุด</button></>}>
+        actions={<><button type="button" className="btn btn-ghost btn-sm" onClick={() => setAskStop(false)}><IbNext size={15} />ทำต่อ</button><button type="button" className="btn btn-bad btn-sm" onClick={() => { setAskStop(false); posterApi.cancel(); }}><IbStop size={15} />หยุด</button></>}>
         <div style={{ fontSize: 14, lineHeight: 1.6 }}>{runMode === "cover"
           ? <><Phr>ยังไม่ได้เปลี่ยนรูปแนบ หยุดตอนนี้</Phr> <Phr>{`ไฟล์เดิม ${movie ? baseName(movie.path) : ""} ไม่ถูกแตะ`}</Phr></>
           : <><Phr>{`ไฟล์ใหม่ที่ทำไปได้ ${pct}% จะถูกลบทิ้ง`}</Phr> <Phr>{`ไฟล์เดิม ${movie ? baseName(movie.path) : ""} ไม่ถูกแตะ`}</Phr></>}</div>
@@ -510,7 +518,7 @@ function DoneCard({ r, onShelf }: { r: ApplyResult; onShelf: () => void }) {
       {where && <div className="small">ไฟล์เดิมย้ายไปที่ {where}</div>}
       {r.original === "trash" && <div className="small">ไฟล์เดิมอยู่ในถังขยะของ Windows กู้คืนได้จนกว่าจะล้างถังขยะ</div>}
       {r.notes.map((n, i) => <div key={i} className="small"><Phr>{n}</Phr></div>)}
-      <button type="button" className="btn btn-ok btn-sm" style={{ alignSelf: "flex-start" }} onClick={onShelf}>ไปดูบนชั้นวาง</button>
+      <button type="button" className="btn btn-ok btn-sm" style={{ alignSelf: "flex-start" }} onClick={onShelf}><IcShelf size={15} />ไปดูบนชั้นวาง</button>
     </>
   );
 }
@@ -551,7 +559,7 @@ function FolderImages(p: { open: boolean; movie: string | null; format: "jpg" | 
     <Dialog open={p.open} onClose={p.onClose} kind="menu" width={520} title="เลือกรูปโปสเตอร์"
       actions={<>
         <button type="button" className="btn btn-ghost btn-sm" onClick={p.onClose}>ปิด</button>
-        <button type="button" className="btn btn-main btn-sm" onClick={async () => { const f = await pickFile("image"); if (f) p.onPick(f); }}>เลือกรูปจากเครื่อง</button>
+        <button type="button" className="btn btn-main btn-sm" onClick={async () => { const f = await pickFile("image"); if (f) p.onPick(f); }}><IcPoster size={15} />เลือกรูปจากเครื่อง</button>
       </>}>
       <div className="small">{p.movie ? <>รูปในโฟลเดอร์เดียวกับไฟล์หนัง · บอกว่ารูปไหนต้องแปลงก่อน</> : "ยังไม่ได้ใส่ไฟล์หนัง เลือกรูปจากเครื่องแทน"}</div>
       <div data-folder-images style={{ maxHeight: 360, overflowY: "auto" }}>

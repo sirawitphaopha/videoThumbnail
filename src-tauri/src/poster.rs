@@ -219,6 +219,35 @@ pub async fn poster_render(app: AppHandle, req: RenderReq) -> Result<RenderInfo,
 }
 
 /// ล้างรูปที่เลือกไว้ (ปุ่ม ล้างทั้งหมด · เปลี่ยนรูป)
+/// รูปใหญ่ของตัวดูรูปเต็มจอ
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ViewInfo {
+    preview: String,
+    width: u32,
+    height: u32,
+    file_size: u64,
+    ext: String,
+}
+
+/// อ่านรูปตรง ๆ ไม่แตะรูปที่ค้างในหน้าใส่โปสเตอร์หรือหน้าครอป · ส่งค่าครอปมาได้ภาพหลังครอป · จำไว้ใบเดียว เปิดใบใหม่ใบเก่าถูกลบ
+#[tauri::command]
+pub async fn poster_view(app: AppHandle, path: String, geo: Option<pi::Geometry>) -> Result<ViewInfo, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let d = dirs(&app)?;
+        let p = PathBuf::from(&path);
+        let file_size = std::fs::metadata(&p).map_err(|_| "หารูปไม่เจอ ไฟล์อาจถูกย้ายไปแล้ว".to_string())?.len();
+        let dec = pi::decode(&d.tools, &d.work, &p)?;
+        let (width, height) = dec.img.dimensions();
+        let preview = match &geo {
+            Some(g) => { let (img, _) = pi::render(&dec.img, g, true); pi::write_preview(&img, 3000, &d.previews, "view")? }
+            None => pi::write_preview(&dec.img, 3000, &d.previews, "view")?,
+        };
+        app.state::<PosterState>().keep_preview("view", preview.clone());
+        Ok(ViewInfo { preview: preview.to_string_lossy().to_string(), width, height, file_size, ext: pi::ext_of(&p) })
+    }).await.map_err(|e| e.to_string())?
+}
+
 #[tauri::command]
 pub fn poster_clear(st: State<'_, PosterState>, target: Option<String>) {
     if target.is_some() {

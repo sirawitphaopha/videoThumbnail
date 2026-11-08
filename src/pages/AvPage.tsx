@@ -24,6 +24,8 @@ import { kb } from "../lib/popup";
 import { FtChip, ftName } from "../lib/ftypes";
 import { langName } from "../lib/langs";
 import { getAv, resetAv, setAv, trackFrom, tracksOfAdded, useAv, type AvTrack, type CoverSlot } from "../lib/avJob";
+import { IcFile, IcPoster } from "../components/icons";
+import { IbSwap, IcSearch, IbTrash, IbBack, IbNext, IbStop, IcRefresh, IcShelf, IcGraph, IcLink, IcMix } from "../components/icons";
 
 const MOVIE_EXT = ["mkv", "mp4", "m4v", "mov", "avi", "webm", "ts", "m2ts", "mpg", "mpeg", "vob", "flv"];
 const IMAGE_EXT = ["jpg", "jpeg", "png", "webp", "bmp", "tif", "tiff", "heic", "heif"];
@@ -424,9 +426,9 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
                 : loading === "movie" ? "กำลังอ่านไฟล์หนัง…"
                 : <><b style={{ color: "var(--txt2)" }}>ลากไฟล์หนังมาวางตรงนี้</b><span>แล้วลากไฟล์เสียงหรือซับตามมาวางได้เลย</span></>}
               <button type="button" className={"btn btn-sm " + (working ? "btn-wait" : "btn-ghost")} aria-disabled={working || undefined} title={working ? BUSY : undefined}
-                onClick={async () => { if (working) return; const f = await pickFile("movie"); if (f) loadMovie(f); }}>เลือกไฟล์จากเครื่อง</button>
+                onClick={async () => { if (working) return; const f = await pickFile("movie"); if (f) loadMovie(f); }}><IcFile size={15} />เลือกไฟล์จากเครื่อง</button>
             </div>
-            <div className="small" style={{ marginTop: 10 }}><Phr>ลากหนังกับเสียงมาพร้อมกันได้ โปรแกรมแยกให้เองว่าไฟล์ไหนเป็นหนัง · รับหนัง 12 ชนิดเหมือนหน้าใส่โปสเตอร์</Phr></div>
+            <div className="small" style={{ marginTop: 10 }}><Phr>{`ลากหนังกับเสียงมาพร้อมกันได้ โปรแกรมแยกให้เองว่าไฟล์ไหนเป็นหนัง · รับไฟล์หนัง ${MOVIE_EXT.map((e) => e.toUpperCase()).join(" ")}`}</Phr></div>
           </div>
         </div>
         <StopDialog open={askStop} pct={pct} name={av.runMovie} onClose={() => setAskStop(false)} />
@@ -449,7 +451,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
             </div>
           </div>
           <button type="button" className={"btn btn-sm " + (working ? "btn-wait" : "btn-ghost")} aria-disabled={working || undefined} title={working ? BUSY : undefined}
-            onClick={async () => { if (working) return; const f = await pickFile("movie"); if (f) loadMovie(f); }}>เปลี่ยนไฟล์หนัง</button>
+            onClick={async () => { if (working) return; const f = await pickFile("movie"); if (f) loadMovie(f); }}><IbSwap size={15} />เปลี่ยนไฟล์หนัง</button>
         </div>
         {movieErr && <div className="stat bad" role="alert"><CardIcon kind="bad" /><div><b>{movieErr}</b></div></div>}
 
@@ -525,7 +527,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e5a3bd" strokeWidth="1.9" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
             <span>{over === "add" ? <b>ปล่อยเมาส์เพื่อเพิ่มไฟล์</b> : loading === "add" ? "กำลังอ่านไฟล์…" : <><b style={{ color: "var(--txt2)" }}>ลากไฟล์เสียงหรือซับมาวางเพิ่ม</b> · <Phr>เสียง AC-3 E-AC-3 DTS AAC FLAC WAV MP3 Opus · ซับ SRT ASS VTT SUP IDX · ฟอนต์ของซับ TTF OTF</Phr></>}</span>
             <button type="button" className={"btn btn-sm " + (working ? "btn-wait" : "btn-ghost")} aria-disabled={working || undefined} title={working ? BUSY : undefined}
-              onClick={async () => { if (working) return; const f = await pickAddFiles(); if (f.length) addFiles(f); }}>เลือกไฟล์จากเครื่อง</button>
+              onClick={async () => { if (working) return; const f = await pickAddFiles(); if (f.length) addFiles(f); }}><IcFile size={15} />เลือกไฟล์จากเครื่อง</button>
           </div>
         </div>
 
@@ -570,7 +572,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
                     <span className="small">ms · ติดลบ = {KIND_WORD[selected.kind]}มาเร็วขึ้น</span>
                     {selected.kind === "audio" && !selected.inMovie && refAudio && (
                       <button type="button" className={"btn btn-sm " + (working ? "btn-wait" : "btn-ghost")} aria-disabled={working || undefined} title={working ? BUSY : "เทียบคลื่นเสียงกับเสียงเดิมในหนัง"}
-                        onClick={() => { if (!working) setDelayFor(selected.key); }} data-find-delay>หาค่าดีเลย์</button>)}</div>
+                        onClick={() => { if (!working) setDelayFor(selected.key); }} data-find-delay><IcSearch size={15} />หาค่าดีเลย์</button>)}</div>
                   <span className="small">{selected.delayFromName != null ? <Phr>{`อ่านจากชื่อไฟล์ (คำว่า DELAY ${selected.delayFromName}ms) · แก้เองได้`}</Phr> : <Phr>ปุ่ม − + ทีละ 100 ms · กด Shift ค้างไว้ทีละ 10 ms · ใส่ได้ถึง ±600,000 ms (10 นาที)</Phr>}</span></div>
               )}
               {!selected.inMovie && (
@@ -609,7 +611,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
             })}
             <div className="minirow" style={{ marginTop: 8, alignItems: "center" }}>
               <button type="button" className={"btn btn-sm " + (working ? "btn-wait" : "btn-ghost")} aria-disabled={working || undefined} title={working ? BUSY : undefined}
-                onClick={async () => { if (working) return; const f = await pickFonts(); if (f.length) addFonts(f); }} data-font-pick>เลือกไฟล์ฟอนต์</button>
+                onClick={async () => { if (working) return; const f = await pickFonts(); if (f.length) addFonts(f); }} data-font-pick><IcFile size={15} />เลือกไฟล์ฟอนต์</button>
               <span className="small"><Phr>หาฟอนต์จากโฟลเดอร์ข้างไฟล์ซับก่อน แล้วฟอนต์ที่ลงไว้ในเครื่อง · ลงฟอนต์ใหม่ระหว่างเปิดโปรแกรม ต้องปิดเปิดโปรแกรมใหม่</Phr></span>
             </div>
             {output === "mp4" && fontFiles.length > 0 && <div className="stat warn" style={{ marginTop: 8 }} data-fonts-mp4><CardIcon kind="warn" /><div><b>MP4 ฝังฟอนต์ไม่ได้</b><Phr>เลือกไฟล์ที่ได้เป็น MKV ถ้าต้องการฟอนต์ไปกับไฟล์</Phr></div></div>}
@@ -620,7 +622,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
         <div className="card" data-method={method}>
           <h3>วิธี</h3>
           <div style={{ display: "flex" }}><Seg label="วิธี" value={method} onChange={(v) => { setMethod(v); setPaired(null); }} disabledReason={working ? BUSY : undefined}
-            options={[{ value: "merge", label: "รวมเข้าไฟล์หนัง" }, { value: "pair", label: "จับคู่ไว้ ไม่รวม" }]} /></div>
+            options={[{ value: "merge", label: <><IcMix size={14} />รวมเข้าไฟล์หนัง</> }, { value: "pair", label: <><IcLink size={14} />จับคู่ไว้ ไม่รวม</> }]} /></div>
           {method === "pair" && <div className="stat info" style={{ marginTop: 8 }}><CardIcon kind="info" /><div><b>ไฟล์หนังไม่ถูกแตะ</b>
             <Phr>{`จับคู่ได้เฉพาะเสียงกับซับที่เพิ่ม (${pairable.length} ไฟล์) · แปลงชนิด เอาแทร็กออก เรียงลำดับ ใส่ปก ทำได้เฉพาะตอนรวม · ดีเลย์ใช้ได้ทั้งสองแบบ · ไฟล์ที่จับคู่อยู่โฟลเดอร์ไหนก็ได้ โปรแกรมจำไว้กับหนังในคลัง`}</Phr></div></div>}
           {method === "pair" && pairsNotInTable.length > 0 && <div className="stat warn" style={{ marginTop: 8 }} data-pairs-saved><CardIcon kind="warn" /><div>
@@ -656,11 +658,11 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
           <div key={t.key} data-mp4warn>
             <div className="stat warn"><CardIcon kind="warn" /><div><b>{rowText(t, nth(t)).title} · {ftName(t.kind, t.codec, t.profile)} ใส่ใน MP4 ไม่ได้</b><Phr>{`${t.why ?? ""} ถ้าทำต่อ ${KIND_WORD[t.kind]}นี้จะหายจากไฟล์ใหม่`}</Phr></div></div>
             <div className="minirow" style={{ marginTop: 6 }}>
-              <button type="button" className="btn btn-main btn-sm" onClick={() => setAv((s) => ({ once: { ...s.once, output: "mkv" } }))}>กลับไปใช้ MKV</button>
+              <button type="button" className="btn btn-main btn-sm" onClick={() => setAv((s) => ({ once: { ...s.once, output: "mkv" } }))}><IbBack size={15} />กลับไปใช้ MKV</button>
               {/* แทร็กเดิมที่ตั้งแปลงแบบเพิ่มคู่ เปลี่ยนเป็นแทนที่ ได้ทั้งแทร็กที่แปลงและ MP4 (ผู้ช่วยตรวจขั้น 10 ข้อ 2) */}
               {t.convert && t.inMovie && (t.pair ?? true) && t.convert.codec !== "wv"
-                ? <button type="button" className="btn btn-ghost btn-sm" onClick={() => patch(t.key, { pair: false })} data-mp4replace>ใช้แทร็กที่แปลงแทนที่แทร็กเดิม</button>
-                : t.kind !== "video" && <button type="button" className="btn btn-ghost btn-sm" onClick={() => (t.inMovie ? patch(t.key, { keep: false, default: false }) : removeAdded(t.src))}>เอา{KIND_WORD[t.kind]}นี้ออก</button>}
+                ? <button type="button" className="btn btn-ghost btn-sm" onClick={() => patch(t.key, { pair: false })} data-mp4replace><IbSwap size={15} />ใช้แทร็กที่แปลงแทนที่แทร็กเดิม</button>
+                : t.kind !== "video" && <button type="button" className="btn btn-ghost btn-sm" onClick={() => (t.inMovie ? patch(t.key, { keep: false, default: false }) : removeAdded(t.src))}><IbTrash size={15} />เอา{KIND_WORD[t.kind]}นี้ออก</button>}
             </div>
           </div>
         ))}
@@ -669,7 +671,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
         {longer.map((t) => (
           <div key={t.key} className="stat warn" data-longer><CardIcon kind="warn" /><div><b>{baseName(t.src)} {t.longerBy! > 0 ? "ยาวกว่า" : "สั้นกว่า"}หนัง {fmtDuration(Math.abs(t.longerBy!))}</b>
             <Phr>อาจเป็นเสียงของหนังคนละรุ่น ลองตั้งความเร็วเสียง หรือตรวจว่าเลือกไฟล์ถูก · ไม่ห้าม แค่บอก</Phr>
-            {t.kind === "audio" && refAudio && <div style={{ marginTop: 6 }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => { if (!working) setDelayFor(t.key); }} data-longer-check>ให้โปรแกรมเทียบเสียงกับหนัง</button></div>}</div></div>
+            {t.kind === "audio" && refAudio && <div style={{ marginTop: 6 }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => { if (!working) setDelayFor(t.key); }} data-longer-check><IcGraph size={15} />ให้โปรแกรมเทียบเสียงกับหนัง</button></div>}</div></div>
         ))}
 
         {/* สถานะงาน */}
@@ -679,12 +681,12 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
           {method === "pair" ? (<>
             {pairBlocked && <div className="hint" style={{ color: "#94680f", margin: 0 }} data-blocked>{pairBlocked}</div>}
             <button type="button" className={"btn " + (pairBlocked ? "btn-wait" : "btn-main")} style={{ height: 44, padding: "0 26px", fontSize: 15 }}
-              aria-disabled={!!pairBlocked || undefined} title={pairBlocked ?? undefined} onClick={savePairs} data-pair-save>จับคู่ไว้กับหนังเรื่องนี้</button>
+              aria-disabled={!!pairBlocked || undefined} title={pairBlocked ?? undefined} onClick={savePairs} data-pair-save><IcLink size={15} />จับคู่ไว้กับหนังเรื่องนี้</button>
           </>) : (<>
           {blocked && !working && <div className="hint" style={{ color: "#94680f", margin: 0 }} data-blocked>{blocked}</div>}
-          <button type="button" className={"btn " + (working ? "btn-wait" : "btn-ghost")} style={{ height: 44 }} aria-disabled={working || undefined} title={working ? BUSY : undefined} onClick={clearAll}>ล้างทั้งหมด</button>
+          <button type="button" className={"btn " + (working ? "btn-wait" : "btn-ghost")} style={{ height: 44 }} aria-disabled={working || undefined} title={working ? BUSY : undefined} onClick={clearAll}><IbTrash size={15} />ล้างทั้งหมด</button>
           <button type="button" className={"btn " + (blocked || working ? "btn-wait" : "btn-main")} style={{ height: 44, padding: "0 26px", fontSize: 15 }}
-            aria-disabled={!!blocked || working || undefined} title={blocked ?? undefined} onClick={() => pressStart()} data-start>{working ? "กำลังรวม…" : output === "mp4" ? "รวมเป็น MP4" : "รวมเข้าไฟล์หนัง"}</button>
+            aria-disabled={!!blocked || working || undefined} title={blocked ?? undefined} onClick={() => pressStart()} data-start><IcMix size={15} />{working ? "กำลังรวม…" : output === "mp4" ? "รวมเป็น MP4" : "รวมเข้าไฟล์หนัง"}</button>
           </>)}
         </div>
       </div>
@@ -708,8 +710,8 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
 
       {/* ก่อนรวม บอกว่าซับ VTT จะแปลงเป็น SRT (พี่กันสั่ง 7 พ.ย. 2569 *"ระบบจะต้องบอกด้วยนะ ว่าก่อนจะรวม ระบบจะ แปลง vtt เป็น srt เป็น popup ขึ้นก็ได้"*) */}
       <Dialog open={askVtt} onClose={() => setAskVtt(false)} title="ก่อนรวม โปรแกรมจะแปลงซับ VTT เป็น SRT"
-        actions={<><button type="button" className="btn btn-ghost btn-sm" onClick={() => setAskVtt(false)}>ย้อนกลับ</button>
-          <button type="button" className="btn btn-main btn-sm" onClick={() => { setAskVtt(false); pressStart(true); }} data-vtt-ok>แปลงแล้วรวมต่อ</button></>}>
+        actions={<><button type="button" className="btn btn-ghost btn-sm" onClick={() => setAskVtt(false)}><IbBack size={15} />ย้อนกลับ</button>
+          <button type="button" className="btn btn-main btn-sm" onClick={() => { setAskVtt(false); pressStart(true); }} data-vtt-ok><IcMix size={15} />แปลงแล้วรวมต่อ</button></>}>
         <div style={{ fontSize: 14, lineHeight: 1.6 }} data-vtt-dialog>
           {vtts.map((t) => <div key={t.key}><b style={{ overflowWrap: "anywhere" }}>{baseName(t.src)}</b> → SRT</div>)}
           <div style={{ marginTop: 6 }}><Phr>MKV เก็บซับ VTT ได้ แต่โปรแกรมเล่นหลายตัว (mpv และตัวที่ใช้ ffmpeg) ยังอ่านไม่ได้ ซับจะไม่ขึ้น</Phr></div>
@@ -718,11 +720,11 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
       </Dialog>
       {/* ลบไฟล์เดิม ยืนยัน 2 ขั้น (แบบหน้าใส่โปสเตอร์) · กดนอกหน้าต่างไม่ปิด */}
       <Dialog open={askDelete === 1} onClose={() => setAskDelete(0)} title="ลบไฟล์เดิมหลังตรวจผ่าน · ขั้นที่ 1 จาก 2"
-        actions={<><button type="button" className="btn btn-ghost btn-sm" onClick={() => setAskDelete(0)}>ยกเลิก</button><button type="button" className="btn btn-main btn-sm" onClick={() => setAskDelete(2)}>ถัดไป</button></>}>
+        actions={<><button type="button" className="btn btn-ghost btn-sm" onClick={() => setAskDelete(0)}>ยกเลิก</button><button type="button" className="btn btn-main btn-sm" onClick={() => setAskDelete(2)}><IbNext size={15} />ถัดไป</button></>}>
         <div style={{ fontSize: 14, lineHeight: 1.6 }}><Phr>เมื่อไฟล์ใหม่ตรวจผ่าน ไฟล์เดิมจะถูกย้ายไปถังขยะของ Windows</Phr><br /><b>{baseName(movie.path)}</b> · <span className="nw">{fmtSize(movie.size)}</span><br /><Phr>ถ้าไฟล์ใหม่ตรวจไม่ผ่าน ไฟล์เดิมไม่ถูกลบ</Phr></div>
       </Dialog>
       <Dialog open={askDelete === 2} onClose={() => setAskDelete(1)} title="ยืนยันอีกครั้ง · ขั้นที่ 2 จาก 2" splitActions
-        actions={<><button type="button" className="btn btn-danger btn-sm" onClick={() => { setAskDelete(0); start(); }}>ยืนยันลบ</button><button type="button" className="btn btn-ghost btn-sm" onClick={() => setAskDelete(1)}>ย้อนกลับ</button></>}>
+        actions={<><button type="button" className="btn btn-danger btn-sm" onClick={() => { setAskDelete(0); start(); }}>ยืนยันลบ</button><button type="button" className="btn btn-ghost btn-sm" onClick={() => setAskDelete(1)}><IbBack size={15} />ย้อนกลับ</button></>}>
         <div style={{ fontSize: 14, lineHeight: 1.6 }}>ลบไฟล์เดิม <b>{baseName(movie.path)}</b> <Phr>หลังตรวจไฟล์ใหม่ผ่าน</Phr><br /><Phr>กู้คืนได้จากถังขยะของ Windows จนกว่าจะล้างถังขยะ</Phr></div>
       </Dialog>
       <StopDialog open={askStop} pct={pct} name={av.runMovie} onClose={() => setAskStop(false)} />
@@ -761,7 +763,7 @@ function CoverSlotBox(p: { slot: CoverTarget; s: CoverSlot; over: boolean; err: 
   const dt = neu ? `จาก ${neu.info.name} · ${neu.choice.render.width} × ${neu.choice.render.height} · ${fmtSize(neu.choice.render.bytes)}`
     : s.old ? `${s.old.preview ? `${s.old.preview.width} × ${s.old.preview.height} · ` : ""}${fmtSize(s.old.att.size)} · ${s.mode === "remove" ? "ไม่ใส่ในไฟล์ใหม่" : "ใช้รูปเดิม"}`
     : `ยังไม่มี${label} · ลากรูป${tall ? "แนวตั้ง" : "แนวนอน"}มาวาง`;
-  const btn = (text: string, fn: () => void, extra?: string) => (
+  const btn = (text: React.ReactNode, fn: () => void, extra?: string) => (
     <button type="button" className={"btn btn-sm " + (p.busy ? "btn-wait" : "btn-ghost")} aria-disabled={p.busy ? true : undefined} title={p.busy} onClick={() => { if (!p.busy) fn(); }} data-slot-btn={extra ?? text}>{text}</button>
   );
   return (
@@ -774,7 +776,7 @@ function CoverSlotBox(p: { slot: CoverTarget; s: CoverSlot; over: boolean; err: 
           {neu ? <>{btn("ครอปใหม่", p.onRecrop)}{btn("เปลี่ยนรูป", p.onPick)}{btn("เอาออก", p.onRemove)}</>
             : s.old && s.mode === "remove" ? btn("เอากลับ", p.onUndo)
             : s.old ? <>{btn("เปลี่ยนรูป", p.onPick)}{btn("เอาออก", p.onRemove)}</>
-            : btn("เลือกรูปจากเครื่อง", p.onPick)}
+            : btn(<><IcPoster size={15} />เลือกรูปจากเครื่อง</>, p.onPick)}
         </div>
       </div>
     </div>
@@ -792,7 +794,7 @@ function RunCard(p: { run: ReturnType<typeof getAv>["run"]; pct: number; runMovi
         <div className="bar" role="progressbar" aria-valuenow={p.pct} aria-valuemin={0} aria-valuemax={100}><i style={{ width: `${p.pct}%` }} /></div>
         <div className="small">{p.pct}%{run.progress?.eta != null && run.progress.eta > 0 ? <> · เหลือราว <span className="nw">{fmtEta(run.progress.eta)}</span></> : null}
           {run.progress?.next ? <><br />ขั้นถัดไป {run.progress.next}</> : null}</div>
-        <button type="button" className="btn btn-bad btn-sm" style={{ alignSelf: "flex-start" }} onClick={p.onStop}>หยุด</button>
+        <button type="button" className="btn btn-bad btn-sm" style={{ alignSelf: "flex-start" }} onClick={p.onStop}><IbStop size={15} />หยุด</button>
         <div className="small"><Phr>กดหยุด ไฟล์ที่ทำค้างถูกลบ ไฟล์เดิมไม่ถูกแตะ</Phr></div>
       </>
     );
@@ -803,7 +805,7 @@ function RunCard(p: { run: ReturnType<typeof getAv>["run"]; pct: number; runMovi
       <>
         <div className={"stat " + (run.problem.kind === "cancelled" ? "warn" : "bad")} role="alert"><CardIcon kind={run.problem.kind === "cancelled" ? "warn" : "bad"} />
           <div><b>{run.problem.title}</b>{run.problem.detail.map((d, i) => <div key={i}><Phr>{d}</Phr></div>)}</div></div>
-        <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} onClick={p.onRetry}>ลองใหม่</button>
+        <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} onClick={p.onRetry}><IcRefresh size={15} />ลองใหม่</button>
       </>
     );
   }
@@ -821,8 +823,8 @@ function DoneCard({ r, onShelf, onGraph }: { r: MergeResult; onShelf: () => void
       {r.original === "trash" && <div className="small">ไฟล์เดิมอยู่ในถังขยะของ Windows กู้คืนได้จนกว่าจะล้างถังขยะ</div>}
       {r.notes.map((n, i) => <div key={i} className="small"><Phr>{n}</Phr></div>)}
       <div style={{ display: "flex", gap: 6 }}>
-        <button type="button" className="btn btn-ok btn-sm" onClick={onShelf}>ไปดูบนชั้นวาง</button>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => onGraph(r.output)}>ดูกราฟเสียง</button>
+        <button type="button" className="btn btn-ok btn-sm" onClick={onShelf}><IcShelf size={15} />ไปดูบนชั้นวาง</button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => onGraph(r.output)}><IcGraph size={15} />ดูกราฟเสียง</button>
       </div>
     </>
   );
@@ -831,7 +833,7 @@ function DoneCard({ r, onShelf, onGraph }: { r: MergeResult; onShelf: () => void
 function StopDialog(p: { open: boolean; pct: number; name: string | null; onClose: () => void }) {
   return (
     <Dialog open={p.open} onClose={p.onClose} title="ยืนยันหยุดรวมไฟล์"
-      actions={<><button type="button" className="btn btn-ghost btn-sm" onClick={p.onClose}>ทำต่อ</button><button type="button" className="btn btn-bad btn-sm" onClick={() => { p.onClose(); mergeApi.cancel(); }} data-stop-ok>หยุด</button></>}>
+      actions={<><button type="button" className="btn btn-ghost btn-sm" onClick={p.onClose}><IbNext size={15} />ทำต่อ</button><button type="button" className="btn btn-bad btn-sm" onClick={() => { p.onClose(); mergeApi.cancel(); }} data-stop-ok><IbStop size={15} />หยุด</button></>}>
       <div style={{ fontSize: 14, lineHeight: 1.6 }}><Phr>{`ไฟล์ใหม่ที่ทำไปได้ ${p.pct}% จะถูกลบทิ้ง`}</Phr> <Phr>{`ไฟล์เดิม ${p.name ? baseName(p.name) : ""} ไม่ถูกแตะ`}</Phr></div>
     </Dialog>
   );

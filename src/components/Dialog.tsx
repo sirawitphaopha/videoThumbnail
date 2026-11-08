@@ -19,6 +19,8 @@ export default function Dialog(p: {
   /** ปุ่มยืนยันแยกไว้ซ้าย ปุ่มย้อนกลับไว้ขวา กันเผลอกด (ต้นแบบ ลบขั้นที่ 2) */
   splitActions?: boolean;
   width?: number;
+  /** ความสูงตายตัว สลับเนื้อหาแล้วหน้าต่างไม่ขยับ · เนื้อยาวกว่าก็เลื่อนในหน้าต่าง */
+  height?: string;
 }) {
   const box = useRef<HTMLDivElement>(null);
   useEscClose(p.open, p.onClose);
@@ -44,7 +46,7 @@ export default function Dialog(p: {
       className={"dlg-back" + (p.confirm ? " confirm" : "")}
       onMouseDown={(e) => { if (p.kind === "menu" && e.target === e.currentTarget) p.onClose(); }}
     >
-      <div ref={box} className="dlg" role="dialog" aria-modal="true" style={{ maxWidth: p.width ?? 440 }}>
+      <div ref={box} className="dlg" role="dialog" aria-modal="true" style={{ maxWidth: p.width ?? 440, height: p.height }}>
         <h4>{p.title}</h4>
         {p.children}
         {p.actions && <div className={"acts" + (p.splitActions ? " split" : "")}>{p.actions}</div>}

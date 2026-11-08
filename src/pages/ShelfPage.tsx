@@ -8,9 +8,9 @@ import type { Page } from "../components/Sidebar";
 import SearchBox from "../components/SearchBox";
 import RenameBox from "../components/RenameBox";
 import Dropdown from "../components/Dropdown";
-import { Badge, CardIcon, Phr, Phrases, Seg, Skel, Switch } from "../components/ui";
+import { Badge, CardIcon, Phr, Phrases, Seg, Skel, SortArrow, Switch } from "../components/ui";
 import Dialog from "../components/Dialog";
-import { IcLink } from "../components/icons";
+import { IcLink, IcCoverL, IcCoverM, IcCoverS, IcTall, IcWide } from "../components/icons";
 import { openLinkRow, setLinkJob, setReply, useLinkJob } from "../lib/linkJob";
 import type { PosterStart } from "./PosterPage";
 import { useToast } from "../components/Toasts";
@@ -24,6 +24,8 @@ import { kindOf, KIND_ORDER, SHELF_LABEL, TABLE_LABEL, quickEstimate, fullEstima
 import { dropStyle, useDropPlacement } from "../lib/popupFit";
 import { useClickOutside, useEscClose, kb } from "../lib/popup";
 import { useSkelPreview } from "../lib/skelPreview";
+import HoverBig from "../components/HoverBig";
+import { IcSearch, IbTrash, IbNext, IcRefresh, IcCheck, IbPencil, IcMix, IcClose, IbEye, IbPlay, IcPoster, IbCrop, IcSettings } from "../components/icons";
 
 const SORTS = [
   { value: "name-asc", label: "ชื่อ ก–ฮ" },
@@ -33,7 +35,7 @@ const SORTS = [
   { value: "size", label: "ขนาดไฟล์ ใหญ่ไปเล็ก" },
   { value: "status", label: "สภาพไฟล์ ที่เสียขึ้นก่อน" },
 ];
-const SIZES = { s: { w: 80, gap: 12 }, m: { w: 110, gap: 14 }, l: { w: 150, gap: 12 } } as const;
+const SIZES = { s: { w: 100, gap: 14 }, m: { w: 140, gap: 18 }, l: { w: 180, gap: 20 } } as const;
 const byName = (a: Movie, b: Movie) => a.name.localeCompare(b.name, "th");
 const baseName = (p: string) => p.split(/[\\/]/).pop() ?? p;
 
@@ -42,7 +44,7 @@ type CoverFilter = "all" | "file" | "linked" | "none";
 let filterMemo: CoverFilter = "all";
 /** นับตามปกที่กำลังแสดง เรื่องหนึ่งอยู่หมวดเดียว ยอดสามหมวดรวมกันเท่าทั้งหมด */
 const coverFrom = (m: Movie): Exclude<CoverFilter, "all"> => (m.shownLink ? "linked" : m.thumb ? "file" : "none");
-const LinkMark = () => <span className="linkb" title="ปกจับคู่ไว้ ไม่ได้อยู่ในไฟล์" data-linkb><IcLink size={13} stroke="#c2547f" /></span>;
+const LinkMark = () => <span className="linkb" title="ปกจับคู่ไว้ ไม่ได้อยู่ในไฟล์" data-linkb><IcLink size={13} stroke="#b0355f" /></span>;
 
 export function sortMovies(list: Movie[], key: string, reminder: number): Movie[] {
   const l = list.slice();
@@ -109,7 +111,7 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
           <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
           <span>{pathText}</span>
         </div>
-        <SearchBox value={query} onChange={setQuery} placeholder="ค้นหาชื่อหนัง" label="ค้นหาชื่อหนัง" swapLabel={found.swapped ? found.used : ""} width={query ? 280 : 200} />
+        <SearchBox value={query} onChange={setQuery} placeholder="ค้นหาชื่อหนัง" label="ค้นหาชื่อหนัง" swapLabel={found.swapped ? found.used : ""} width="100%" />
         <Dropdown label="เรียง" value={sort} options={SORTS} onChange={(v) => update({ sort: v })} display={(o) => `เรียงตาม${o?.label ?? ""}`} />
         {scanning ? (
           <button type="button" className="btn btn-wait" aria-disabled="true" title="กำลังอ่านโฟลเดอร์อยู่ รอให้เสร็จก่อน">
@@ -119,25 +121,30 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
           <button type="button" className="btn btn-ghost" onClick={scan}><RefreshIcon />อ่านโฟลเดอร์ใหม่</button>
         )}
       </div>
+      {/* แถบที่สองอยู่นอกกล่องเลื่อน ใช้คอลัมน์เดียวกับแถบบน ปุ่มภาพปกกว้างเท่าแถบค้นหา ตรงแนวกันเสมอ แม้แผงขวาเปิดอยู่ (พี่กันสั่ง 8 พ.ย. 2569) */}
+      <div className="topbar shelfhead">
+        {movies.length > 0 ? (
+          <div className="seg sm shelffilter" role="tablist" aria-label="กรองตามที่มาของปก" data-shelf-filter>
+            {([["all", "ทั้งหมด"], ["file", "ปกในไฟล์"], ["linked", "ปกจับคู่"], ["none", "ยังไม่มีปก"]] as const).map(([v, label]) => (
+              <button key={v} type="button" role="tab" aria-selected={filter === v} className={filter === v ? "on" : ""} data-shelf-tab={v} onClick={() => setFilter(v)}>{label} {counts[v]}</button>
+            ))}
+          </div>
+        ) : <div />}
+        <Seg small label="มุมมอง" value={view} onChange={(v) => update({ viewMode: v })} options={[
+          { value: "grid", label: <><GridIcon />ภาพปก</> },
+          { value: "table", label: <><ListIcon />ตาราง</> },
+        ]} />
+        <Seg small label="ขนาดปก" value={size} onChange={(v) => update({ coverSize: v })}
+          disabledReason={view === "table" ? "ขนาดปกใช้ได้ตอนดูแบบภาพปก" : undefined}
+          options={[{ value: "s", label: <><IcCoverS />เล็ก</> }, { value: "m", label: <><IcCoverM />กลาง</> }, { value: "l", label: <><IcCoverL />ใหญ่</> }]} />
+        <div className="tborient">
+          <Seg small label="ดูปก" value={orient} onChange={(v) => update({ coverOrient: v })}
+            options={[{ value: "tall", label: <><IcTall />ปกตั้ง</> }, { value: "wide", label: <><IcWide />ปกนอน</> }]} />
+          <DisplayMenu />
+        </div>
+      </div>
       <div className="content">
         <div className="shelfwrap" ref={wrapRef}>
-          <div className="shelfhead">
-            <b>
-              {query || filter !== "all" ? <>เจอ {list.length} จาก <span className="nw">{movies.length} เรื่อง</span></> : <>หนังทั้งหมด <span className="nw">{movies.length} เรื่อง</span></>}
-            </b>
-            <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-              <Seg small label="มุมมอง" value={view} onChange={(v) => update({ viewMode: v })} options={[
-                { value: "grid", label: <><GridIcon />ภาพปก</> },
-                { value: "table", label: <><ListIcon />ตาราง</> },
-              ]} />
-              <Seg small label="ขนาดปก" value={size} onChange={(v) => update({ coverSize: v })}
-                disabledReason={view === "table" ? "ขนาดปกใช้ได้ตอนดูแบบภาพปก" : undefined}
-                options={[{ value: "s", label: "เล็ก" }, { value: "m", label: "กลาง" }, { value: "l", label: "ใหญ่" }]} />
-              <Seg small label="ดูปก" value={orient} onChange={(v) => update({ coverOrient: v })}
-                options={[{ value: "tall", label: "ปกตั้ง" }, { value: "wide", label: "ปกนอน" }]} />
-              <DisplayMenu />
-            </div>
-          </div>
           {resume > 0 && (
             <div className="stat info" style={{ margin: "0 0 12px" }} data-link-resume>
               <CardIcon kind="info" />
@@ -145,28 +152,16 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
                 <b>ทำต่อ <span className="nw">{resume} คู่</span>ที่ค้างไว้</b>
                 <Phr>จับคู่รูปปกไว้แล้วแต่ยังไม่ได้ยืนยัน โปรแกรมจำไว้ให้ ปกยังไม่ขึ้นชั้นวาง</Phr>
                 <div className="minirow">
-                  <button type="button" className="btn btn-main btn-sm" data-link-resume-go onClick={() => { setLinkJob({ view: "table" }); onPage("link"); }}>ทำต่อ</button>
+                  <button type="button" className="btn btn-main btn-sm" data-link-resume-go onClick={() => { setLinkJob({ view: "table" }); onPage("link"); }}><IbNext size={15} />ทำต่อ</button>
                   <button type="button" className="btn btn-ghost btn-sm" data-link-resume-later onClick={() => setLinkJob({ resume: false })}>ไว้ทีหลัง</button>
                 </div>
               </div>
-            </div>
-          )}
-          {movies.length > 0 && (
-            <div className="tabs shelftabs" role="tablist" aria-label="กรองตามที่มาของปก" data-shelf-filter>
-              {([["all", "ทั้งหมด"], ["file", "ปกในไฟล์"], ["linked", "ปกจับคู่"], ["none", "ยังไม่มีปก"]] as const).map(([v, label]) => (
-                <button key={v} type="button" role="tab" aria-selected={filter === v} className={"tabchip" + (filter === v ? " on" : "")} data-shelf-tab={v} onClick={() => setFilter(v)}>{label} {counts[v]}</button>
-              ))}
             </div>
           )}
           {scanning && (
             <div className="hint" style={{ marginTop: 2 }}>
               กำลังอ่าน {pathText} · ปกขึ้นทีละเรื่องเมื่ออ่านเสร็จ
               {progress && progress.total > 0 && <> · อ่านแล้ว <span className="nw">{progress.done} จาก {progress.total} เรื่อง</span></>}
-            </div>
-          )}
-          {settings?.showDots && view === "grid" && list.length > 0 && (
-            <div className="legend">
-              {(["ok", "warn", "bad", "info"] as Kind[]).map((k) => <span key={k}><i style={{ background: `var(--${k})` }} />{SHELF_LABEL[k]}</span>)}
             </div>
           )}
           {missingFolders.map((f) => (
@@ -176,8 +171,8 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
                 <b>หาโฟลเดอร์ {f.path} ไม่เจอ</b>
                 <div><Phr>ไดรฟ์อาจถอดออกอยู่ หนังในโฟลเดอร์นี้ยังอยู่บนชั้นแบบจาง ๆ แต่เปิดเล่นไม่ได้จนกว่าจะเสียบไดรฟ์</Phr></div>
                 <div className="minirow">
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={scan}>ลองใหม่</button>
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => onPage("settings")}>ไปตั้งค่าโฟลเดอร์</button>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={scan}><IcRefresh size={15} />ลองใหม่</button>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => onPage("settings")}><IcSettings size={15} />ไปตั้งค่าโฟลเดอร์</button>
                 </div>
               </div>
             </div>
@@ -185,22 +180,22 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
           {!query && filter !== "all" && list.length === 0 && !scanning ? (
             <div className="empty-search" data-shelf-empty>
               <div style={{ fontSize: 14 }}>ไม่มีเรื่องในหมวดนี้</div>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setFilter("all")}>ดูทั้งหมด</button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setFilter("all")}><IbEye size={15} />ดูทั้งหมด</button>
             </div>
           ) : query && list.length === 0 ? (
             <div className="empty-search">
-              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#d29ab0" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5M8.5 8.5l5 5M13.5 8.5l-5 5" /></svg>
+              <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#c99aad" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5M8.5 8.5l5 5M13.5 8.5l-5 5" /></svg>
               <div style={{ fontSize: 14 }}>ไม่มีหนังที่ชื่อมีคำว่า <b>{query.trim()}</b></div>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setQuery("")}>ล้างคำค้น</button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setQuery("")}><IcClose size={15} />ล้างคำค้น</button>
             </div>
           ) : (scanning && movies.length === 0) || skelPreview ? (
             <SkeletonShelf size={size} />
           ) : view === "grid" ? (
-            <ShelfGrid list={list} size={size} selId={selected?.id ?? null} onSel={setSel} used={found.used} reminder={reminder}
+            <ShelfGrid list={list} size={size} selId={selected?.id ?? null} onSel={(id) => setSel(selected?.id === id ? null : id)} used={found.used} reminder={reminder}
               showNames={settings?.showNames ?? true} showDots={settings?.showDots ?? true}
               pending={scanning && !query && progress ? Math.max(0, progress.total - movies.length) : 0} />
           ) : (
-            <ShelfTable list={list} selId={selected?.id ?? null} onSel={setSel} used={found.used} reminder={reminder} />
+            <ShelfTable list={list} selId={selected?.id ?? null} onSel={(id) => setSel(selected?.id === id ? null : id)} used={found.used} reminder={reminder} />
           )}
         </div>
         {/* key ต่อเรื่อง สลับเรื่องแล้วสร้างแผงกับปุ่มใหม่ ไม่ใช้ปุ่มเดิมซ้ำ (เดิมปุ่มชมพูค่อย ๆ เปลี่ยนเป็นเขียวตอนสลับเรื่อง) */}
@@ -212,6 +207,15 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
               if (String(e).includes("หาโปรแกรมเล่นหนัง")) onPage("settings");
             })}
             onReveal={() => api.revealMovie(selected.path).catch((e) => toast({ kind: "bad", title: "เปิดโฟลเดอร์ไม่ได้", detail: String(e) }))} />
+        )}
+      </div>
+      {/* แถบสถานะล่างแบบโปรแกรม บอกจำนวนเรื่องกับความหมายจุดสี ไม่กินที่ด้านบน */}
+      <div className="statusbar" data-statusbar>
+        <span>{query || filter !== "all" ? <>เจอ {list.length} จาก <span className="nw">{movies.length} เรื่อง</span></> : <>หนังทั้งหมด <span className="nw">{movies.length} เรื่อง</span></>}</span>
+        {settings?.showDots && view === "grid" && list.length > 0 && (
+          <div className="legend">
+            {(["ok", "warn", "bad", "info"] as Kind[]).map((k) => <span key={k}><i style={{ background: `var(--${k})` }} />{SHELF_LABEL[k]}</span>)}
+          </div>
         )}
       </div>
     </>
@@ -229,8 +233,8 @@ function DisplayMenu() {
   useClickOutside(open, wrap, () => setOpen(false));
   return (
     <div ref={wrap} style={{ position: "relative" }}>
-      <button type="button" className={"btn btn-ghost btn-sm" + (open ? " pressed" : "")} aria-haspopup="true" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
-        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="17" r="2" /></svg>การแสดงผล
+      <button type="button" className={"btn btn-ghost btn-sm" + (open ? " pressed" : "")} title="การแสดงผล" aria-label="การแสดงผล" style={{ width: 32, padding: 0, flex: "none" }} aria-haspopup="true" aria-expanded={open} onClick={() => setOpen((o) => !o)}>
+        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="17" r="2" /></svg>
       </button>
       {open && settings && (
         <div ref={panel} className="menu pop-in" role="dialog" aria-label="การแสดงผล"
@@ -256,7 +260,7 @@ function usePerRow(size: keyof typeof SIZES) {
     return () => ro.disconnect();
   }, []);
   const { w: bw, gap } = SIZES[size];
-  return { ref, w, perRow: Math.max(1, Math.floor((w - 28 + gap) / (bw + gap))) };
+  return { ref, w, perRow: Math.max(1, Math.floor((w + gap) / (bw + gap))) };
 }
 
 /** ปกที่ชั้นวางใช้ตามที่เลือก ปกตั้งหรือปกนอน · เรื่องที่มีแบบเดียวขึ้นแบบนั้นเสมอ
@@ -280,7 +284,7 @@ function withCover(m: Movie, orient: "tall" | "wide"): Movie {
     (พี่กัน 7 พ.ย. 2569 *"ถ้าเราเอาโปสเตอร์แบบเเนวนอนมา มันก็จะเเสดงเป็เเเนวนอนด้วยนะ"*) */
 function bookWidth(m: Movie | null, bw: number) {
   const a = m?.thumb ? m.coverAspect ?? 0 : 0;
-  return a >= 1 ? Math.round(bw * 1.5 * Math.min(a, 16 / 9)) : bw;
+  return a >= 1 ? bw * 1.5 * Math.min(a, 16 / 9) : bw;
 }
 
 /** แบ่งแถวตามความกว้างจริงของแต่ละเล่ม (เดิมแบ่งจำนวนเท่ากันทุกแถว เพราะทุกเล่มกว้างเท่ากัน) */
@@ -298,13 +302,20 @@ function packRows(items: (Movie | null)[], avail: number, bw: number, gap: numbe
 /** pending = เรื่องที่เจอในโฟลเดอร์แต่ยังอ่านไม่เสร็จ · ขึ้นเป็นโครงจางต่อท้ายชั้น เต็มแถวที่ค้างกับอีกหนึ่งแถว (ไม่วาดครบทุกเรื่อง ชั้น 500 เรื่องจะหนัก) */
 function ShelfGrid(p: { list: Movie[]; size: "s" | "m" | "l"; selId: string | null; onSel: (id: string) => void; used: string; reminder: number; showNames: boolean; showDots: boolean; pending: number }) {
   const { ref, w, perRow } = usePerRow(p.size);
-  const { w: bw, gap } = SIZES[p.size];
+  const { w: base, gap } = SIZES[p.size];
   const skel = Math.min(p.pending, ((perRow - (p.list.length % perRow)) % perRow) + perRow);
   const items: (Movie | null)[] = skel ? [...p.list, ...Array<null>(skel).fill(null)] : p.list;
+  // ขยายปกให้เต็มแถว ไม่เหลือที่ว่างขวา · ปกตั้งได้ความกว้างพอดีจำนวนต่อแถว · ปกนอนขยายตามแถวแรกอีกชั้น · แถวที่ยังเหลือเศษกระจายระยะห่าง แถวสุดท้ายชิดซ้ายให้ตรงคอลัมน์
+  let bw = Math.max(base, (w - (perRow - 1) * gap) / perRow);
+  let rows = packRows(items, w, bw, gap);
+  if (rows.length > 1) {
+    const room = w - (rows[0].length - 1) * gap, used = rows[0].reduce((n, m) => n + bookWidth(m, bw), 0);
+    if (used > 0 && room / used > 1.002) { bw = bw * (room / used); rows = packRows(items, w, bw, gap); }
+  }
   return (
-    <div ref={ref} className={"size-" + p.size} data-shelf>
-      {packRows(items, w - 28, bw, gap).map((row, i) => (
-        <div key={i} className="shelf">
+    <div ref={ref} className={"size-" + p.size} data-shelf style={{ "--bw": `${bw}px` } as React.CSSProperties}>
+      {rows.map((row, i) => (
+        <div key={i} className="shelf" style={i < rows.length - 1 ? { justifyContent: "space-between" } : undefined}>
           {row.map((m, j) => m
             ? <Book key={m.id} m={m} width={bookWidth(m, bw)} sel={m.id === p.selId} onSel={p.onSel} used={p.used} reminder={p.reminder} showNames={p.showNames} showDots={p.showDots} />
             : <SkelBook key={"skel" + j} size={p.size} i={j} />)}
@@ -394,8 +405,7 @@ function ShelfTable(p: { list: Movie[]; selId: string | null; onSel: (id: string
       <th style={w ? { width: w } : undefined} aria-sort={on ? (sort!.dir === 1 ? "ascending" : "descending") : "none"}>
         <button type="button" className="thsort" onClick={() => setSort(on ? { col, dir: sort!.dir === 1 ? -1 : 1 } : { col, dir: col === "size" ? -1 : 1 })}>
           {label}
-          {on && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden="true" style={{ marginLeft: 4 }}>
-            <path d={sort!.dir === 1 ? "M6 15l6-6 6 6" : "M6 9l6 6 6-6"} /></svg>}
+          <SortArrow dir={on ? sort!.dir : 0} />
         </button>
       </th>
     );
@@ -439,6 +449,9 @@ function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg:
   useEffect(() => { if (!renamed) return; const t = setTimeout(() => setRenamed(false), 3000); return () => clearTimeout(t); }, [renamed]);
   const renameBlock = m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : p.scanning ? "กำลังอ่านโฟลเดอร์อยู่ รอให้เสร็จก่อน" : null;
   const startRename = () => { if (!renameBlock) { setRenamed(false); setEditing(true); } };
+  // รูปต้นทางของตัวดูรูป · ปกจับคู่เปิดไฟล์ที่โปรแกรมเก็บไว้ หรือรูปต้นฉบับพร้อมค่าครอป · ปกในไฟล์หนังใช้ภาพที่มี
+  const shownCover = m.shownLink ? (m.linked ?? []).find((c) => c.thumb === m.thumb) ?? null : null;
+  const linkedView = shownCover ? { path: shownCover.file ?? shownCover.source, geo: shownCover.file ? null : shownCover.geo, name: m.name, folder: null } : undefined;
   return (
     <aside className="detail" aria-label="รายละเอียดไฟล์" data-detail>
       <div className="dhead"><span>รายละเอียดไฟล์</span>
@@ -447,7 +460,7 @@ function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg:
         </button>
       </div>
       {src && imgOk ? (
-        <img className={"dposter" + ((m.coverAspect ?? 0) >= 1 ? " wide" : "")} src={src} alt={"โปสเตอร์ " + m.name} onError={() => setImgOk(false)} />
+        <HoverBig noPop className="dpbig" src={src} name={m.name} view={linkedView}><img className={"dposter" + ((m.coverAspect ?? 0) >= 1 ? " wide" : "")} src={src} alt={"โปสเตอร์ " + m.name} onError={() => setImgOk(false)} /></HoverBig>
       ) : (
         <div className="dposter none">
           <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#c99aad" strokeWidth="2" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 15l3-3 2 2 3-3 2 2" /></svg>
@@ -488,10 +501,10 @@ function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg:
           <button type="button" className="btn btn-main" onClick={p.onPlay}><PlayIcon />เปิดเล่น</button>
         )}
         <button type="button" className={"btn " + (renameBlock ? "btn-wait" : "btn-ghost")} aria-disabled={!!renameBlock || undefined}
-          title={renameBlock ? "เปลี่ยนชื่อไม่ได้ · " + renameBlock : undefined} onClick={startRename}>เปลี่ยนชื่อ</button>
+          title={renameBlock ? "เปลี่ยนชื่อไม่ได้ · " + renameBlock : undefined} onClick={startRename}><IbPencil size={15} />เปลี่ยนชื่อ</button>
         <button type="button" className={"btn " + (m.missing ? "btn-wait" : "btn-ghost")} aria-disabled={m.missing || undefined}
-          title={m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : undefined} onClick={() => { if (!m.missing) p.onPoster(m.path); }}>เปลี่ยนโปสเตอร์</button>
-        <button type="button" className="btn btn-ghost" onClick={() => p.onCheck({ ids: [m.id] })}>ตรวจไฟล์</button>
+          title={m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : undefined} onClick={() => { if (!m.missing) p.onPoster(m.path); }}><IcPoster size={15} />เปลี่ยนโปสเตอร์</button>
+        <button type="button" className="btn btn-ghost" onClick={() => p.onCheck({ ids: [m.id] })}><IcCheck size={15} />ตรวจไฟล์</button>
         <button type="button" onClick={() => { if (!m.missing) p.onInfo(); }} className={"btn " + (m.missing ? "btn-wait" : "btn-ghost")} aria-disabled={m.missing || undefined} title={m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : undefined}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5h.01" /></svg>ข้อมูลไฟล์
         </button>
@@ -531,6 +544,7 @@ function LinkPairButton({ m, onPage }: { m: Movie; onPage: (pg: Page) => void })
 
 /** ค่าที่ใช้ตอนรวมเข้าไฟล์จากสำเนา รูปต้นฉบับหายแล้ว · สำเนาครอปมาแล้ว ใช้ทั้งรูป */
 const WHOLE: Geometry = { rotate: 0, flip: false, mode: "original", pad: "#f6dbe5", x: 0, y: 0, w: 1, h: 1 };
+const whereAll = (c: LinkedCover) => whereText(c) + (c.appCopy ? " และเก็บสำเนาไว้ในโปรแกรมด้วย" : "");
 const whereText = (c: LinkedCover) => c.store === "app" ? "เก็บสำเนาไว้ในโปรแกรม"
   : c.store === "link" ? "จับคู่อย่างเดียว ใช้รูปต้นฉบับ"
   : c.owned ? `คัดลอกไว้ข้างไฟล์หนัง ${baseName(c.file ?? "")}` : `ใช้ไฟล์ ${baseName(c.file ?? "")} ที่อยู่ข้างหนัง`;
@@ -572,13 +586,13 @@ function LinkCard({ m, onPage, onMerge }: { m: Movie; onPage: (pg: Page) => void
   const mergeBlock = m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : lost && noSource ? "หารูปไม่เจอ ต้องจับคู่ใหม่ก่อน" : null;
   const cropBlock = noSource ? "หารูปต้นฉบับไม่เจอ ครอปใหม่ไม่ได้ กดเปลี่ยนรูปแทน" : null;
   const trash = linked.filter((x) => x.owned && x.store === "beside" && x.file).map((x) => baseName(x.file!));
-  const hasApp = linked.some((x) => x.owned && x.store === "app");
+  const hasApp = linked.some((x) => (x.owned && x.store === "app") || x.appCopy);
   return (
     <div data-link-card style={{ marginBottom: 12 }}>
       <div className="stat info" style={{ marginTop: 0 }}><span style={{ flex: "none", marginTop: 1 }}><IcLink size={16} /></span><div>
         <b>{m.shownLink ? "ปกจับคู่ไว้ ไม่ได้อยู่ในไฟล์" : "มีปกจับคู่ไว้ด้วย ตอนนี้แสดงปกในไฟล์"}</b>
         <div style={{ overflowWrap: "anywhere" }}>จากรูป {baseName(c.source)}{c.cropped ? " · ครอปแล้ว" : ""}</div>
-        <div style={{ overflowWrap: "anywhere" }} data-link-where>{whereText(c)}</div>
+        <div style={{ overflowWrap: "anywhere" }} data-link-where>{whereAll(c)}</div>
         <Phr>ไอคอนไฟล์ใน Windows ยังไม่เปลี่ยน เพราะ Icaros อ่านปกจากในไฟล์</Phr>
       </div></div>
       {lost && (
@@ -588,20 +602,20 @@ function LinkCard({ m, onPage, onMerge }: { m: Movie; onPage: (pg: Page) => void
         <div className="setrow" style={{ borderTop: 0, padding: "8px 0 4px" }} data-link-pick>
           <div className="lbl" style={{ fontSize: 13.5 }}>ปกที่แสดง</div>
           <Seg small label="ปกที่แสดง" value={m.coverPick === "file" ? "file" : "linked"} onChange={(v) => { linkApi.coverPick(m.id, v).catch((e) => toast({ kind: "bad", title: "เปลี่ยนปกที่แสดงไม่ได้", detail: String(e) })); }}
-            options={[{ value: "linked", label: "ปกจับคู่" }, { value: "file", label: "ปกในไฟล์" }]} />
+            options={[{ value: "linked", label: <><IcLink size={14} />ปกจับคู่</> }, { value: "file", label: <><IcPoster size={14} />ปกในไฟล์</> }]} />
         </div>
       )}
       <div className="actions" style={{ marginTop: 8 }}>
-        <button type="button" className={"btn btn-sm " + (cropBlock ? "btn-wait" : "btn-ghost")} aria-disabled={!!cropBlock || undefined} title={cropBlock ?? undefined} data-link-recrop onClick={() => { if (!cropBlock) void go(true); }}>ครอปใหม่</button>
-        <button type="button" className="btn btn-ghost btn-sm" data-link-rechange onClick={() => void go(false)}>เปลี่ยนรูป</button>
-        <button type="button" className="btn btn-ghost btn-sm" data-link-remove onClick={() => setAsk(true)}>เอาปกออก</button>
+        <button type="button" className={"btn btn-sm " + (cropBlock ? "btn-wait" : "btn-ghost")} aria-disabled={!!cropBlock || undefined} title={cropBlock ?? undefined} data-link-recrop onClick={() => { if (!cropBlock) void go(true); }}><IbCrop size={15} />ครอปใหม่</button>
+        <button type="button" className="btn btn-ghost btn-sm" data-link-rechange onClick={() => void go(false)}><IcPoster size={15} />เปลี่ยนรูป</button>
+        <button type="button" className="btn btn-ghost btn-sm" data-link-remove onClick={() => setAsk(true)}><IbTrash size={15} />เอาปกออก</button>
         <button type="button" className={"btn btn-sm " + (mergeBlock ? "btn-wait" : "btn-main")} aria-disabled={!!mergeBlock || undefined} title={mergeBlock ?? undefined} data-link-merge
-          onClick={() => { if (!mergeBlock) onMerge(m.path, noSource ? { path: shownFile, geo: WHOLE } : { path: c.source, geo: c.geo ?? WHOLE }); }}>รวมเข้าไฟล์</button>
+          onClick={() => { if (!mergeBlock) onMerge(m.path, noSource ? { path: shownFile, geo: WHOLE } : { path: c.source, geo: c.geo ?? WHOLE }); }}><IcMix size={15} />รวมเข้าไฟล์</button>
       </div>
       <Dialog open={ask} onClose={() => { if (!busy) setAsk(false); }} kind="work" confirm title={<>เอาปกจับคู่ของ {m.name} ออก</>}
         actions={<>
           <button type="button" className="btn btn-ghost" onClick={() => { if (!busy) setAsk(false); }}>ไม่เอาออก</button>
-          <button type="button" className={"btn " + (busy ? "btn-wait" : "btn-bad")} aria-disabled={busy || undefined} data-link-remove-ok onClick={remove}>{busy ? "กำลังเอาออก…" : "เอาปกออก"}</button>
+          <button type="button" className={"btn " + (busy ? "btn-wait" : "btn-bad")} aria-disabled={busy || undefined} data-link-remove-ok onClick={remove}><IbTrash size={15} />{busy ? "กำลังเอาออก…" : "เอาปกออก"}</button>
         </>}>
         <div className="small" style={{ fontSize: 14, color: "var(--txt2)" }}>
           {trash.length > 0 && <div style={{ overflowWrap: "anywhere" }}>รูปที่โปรแกรมคัดลอกไว้ {trash.join(" · ")} ย้ายลงถังขยะ กู้คืนได้</div>}
@@ -637,16 +651,16 @@ function PairCard({ m, onEdit }: { m: Movie; onEdit: () => void }) {
             : <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M7 14h4M13 14h4M7 10h10" /></svg>}</span>
           <div style={{ minWidth: 0 }}><div>{label(x)}</div><div className="p">{x.path}</div>
             {found && !found[i] && <div style={{ display: "flex", gap: 6, marginTop: 4 }}>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={() => relink(i)}>หาไฟล์ใหม่</button>
-              <button type="button" className="btn btn-bad btn-sm" onClick={() => save(pairs.filter((_, j) => j !== i))} data-pair-drop>เอาออกจากคู่</button></div>}</div>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => relink(i)}><IcSearch size={15} />หาไฟล์ใหม่</button>
+              <button type="button" className="btn btn-bad btn-sm" onClick={() => save(pairs.filter((_, j) => j !== i))} data-pair-drop><IbTrash size={15} />เอาออกจากคู่</button></div>}</div>
           {found ? <span className={"tpill " + (found[i] ? "ok" : "warn")}>{found[i] ? "เจอไฟล์" : "หาไม่เจอ"}</span> : <Skel w={56} h={18} r={9} />}
         </div>
       ))}
       {missing > 0 && <div className="stat warn" data-pair-missing><CardIcon kind="warn" /><div><b>{`หาไฟล์ที่จับคู่ไม่เจอ ${missing} ไฟล์`}</b><Phr>ไดรฟ์อาจถอดออกอยู่ หรือไฟล์ถูกย้าย · เปิดเล่นได้พร้อมไฟล์ที่เหลือ</Phr></div></div>}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         <button type="button" className={"btn btn-sm " + (m.missing ? "btn-wait" : "btn-main")} aria-disabled={m.missing || undefined} title={m.missing ? "หาไฟล์หนังไม่เจอ" : undefined}
-          onClick={() => { if (m.missing) return; setRes(null); pairApi.play(m.path, (window as unknown as { __pairDry?: boolean }).__pairDry).then((ok) => setRes({ ok }), (e) => setRes({ err: String(e) })); }} data-pair-play>เปิดเล่นพร้อมเสียงและซับที่จับคู่</button>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={onEdit} title="เปิดหน้าเสียงและซับ ลากไฟล์ใหม่แล้วกดจับคู่อีกครั้ง แทนชุดเดิม">แก้การจับคู่</button>
+          onClick={() => { if (m.missing) return; setRes(null); pairApi.play(m.path, (window as unknown as { __pairDry?: boolean }).__pairDry).then((ok) => setRes({ ok }), (e) => setRes({ err: String(e) })); }} data-pair-play><IbPlay size={15} />เปิดเล่นพร้อมเสียงและซับที่จับคู่</button>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={onEdit} title="เปิดหน้าเสียงและซับ ลากไฟล์ใหม่แล้วกดจับคู่อีกครั้ง แทนชุดเดิม"><IcLink size={15} />แก้การจับคู่</button>
       </div>
       {res?.ok && <div className="small" data-pair-res data-cmd={res.ok.cmd}><Phr>{res.ok.opened ? `เปิดด้วย ${res.ok.player || "โปรแกรมหลักของ Windows"} · ส่งไฟล์ที่จับคู่ ${res.ok.sent} ไฟล์` : `รุ่นทดสอบไม่เปิดโปรแกรมเล่น · ${res.ok.player || "โปรแกรมหลักของ Windows"} ส่งไฟล์ที่จับคู่ ${res.ok.sent} ไฟล์`}</Phr></div>}
       {/* ไฟล์ที่หาไม่เจอการ์ดบอกอยู่แล้วข้างบน ไม่บอกซ้ำ */}
@@ -672,8 +686,8 @@ function StatusCard({ m, reminder, onCheck, onPoster }: { m: Movie; reminder: nu
       <>
         <div className="stat bad"><CardIcon kind="bad" /><div><b>ไฟล์เสียหาย</b>{m.check?.summary ?? (span ? "พบที่เสียในไฟล์" : "ตรวจแล้วพบที่เสีย")}<br /><Phr>ไฟล์น่าจะโหลดมาไม่ครบ ควรโหลดใหม่</Phr></div></div>
         <div className="minirow" style={{ marginTop: -4 }}>
-          <button type="button" className="btn btn-ghost" onClick={() => onCheck({ ids: [m.id], open: m.id })}>ดูรายละเอียดผลตรวจ</button>
-          <button type="button" className="btn btn-ghost" onClick={() => onCheck({ ids: [m.id], mode: "full" })}>ตรวจซ้ำ</button>
+          <button type="button" className="btn btn-ghost" onClick={() => onCheck({ ids: [m.id], open: m.id })}><IcCheck size={15} />ดูรายละเอียดผลตรวจ</button>
+          <button type="button" className="btn btn-ghost" onClick={() => onCheck({ ids: [m.id], mode: "full" })}><IcCheck size={15} />ตรวจซ้ำ</button>
         </div>
       </>
     );
@@ -682,7 +696,7 @@ function StatusCard({ m, reminder, onCheck, onPoster }: { m: Movie; reminder: nu
     return (
       <>
         <div className="stat info"><CardIcon kind="info" /><div><b>ยังไม่ได้ครอบเป็น MKV</b><Phr>{`ไฟล์นี้เป็น ${m.ext.toUpperCase()} ใส่โปสเตอร์ได้หลังครอบเป็น MKV`}</Phr><br /><Phr>ภาพและเสียงไม่ถูกแปลงใหม่ คุณภาพเท่าเดิม</Phr></div></div>
-        <div className="minirow" style={{ marginTop: -4 }}><button type="button" className="btn btn-main" onClick={onPoster}>ครอบเป็น MKV พร้อมโปสเตอร์</button></div>
+        <div className="minirow" style={{ marginTop: -4 }}><button type="button" className="btn btn-main" onClick={onPoster}><IcPoster size={15} />ครอบเป็น MKV พร้อมโปสเตอร์</button></div>
       </>
     );
   }
@@ -692,8 +706,8 @@ function StatusCard({ m, reminder, onCheck, onPoster }: { m: Movie; reminder: nu
       <>
         <div className="stat warn"><CardIcon kind="warn" /><div><b>{title}</b>ตรวจแบบเร็วใช้เวลา{quickEstimate(m)}<br />ตรวจละเอียด<span className="nw">{fullEstimate(m)}</span></div></div>
         <div className="minirow" style={{ marginTop: -4 }}>
-          <button type="button" className="btn btn-ok" onClick={() => onCheck({ ids: [m.id], mode: "quick" })}>ตรวจแบบเร็ว</button>
-          <button type="button" className="btn btn-ghost" onClick={() => onCheck({ ids: [m.id], mode: "full" })}>ตรวจละเอียด</button>
+          <button type="button" className="btn btn-ok" onClick={() => onCheck({ ids: [m.id], mode: "quick" })}><IcCheck size={15} />ตรวจแบบเร็ว</button>
+          <button type="button" className="btn btn-ghost" onClick={() => onCheck({ ids: [m.id], mode: "full" })}><IcCheck size={15} />ตรวจละเอียด</button>
         </div>
       </>
     );

@@ -12,6 +12,8 @@ import { CardIcon, Phr, Seg, Skel } from "./ui";
 import { checkApi, graphApi, subApi, type GWindow, type SubImg, type SubText } from "../lib/api";
 import type { AvTrack } from "../lib/avJob";
 import { ftName } from "../lib/ftypes";
+import { IbBack, IbNext, IbPlay } from "./icons";
+import { IcGraph, IbEye, IbTable, IcFile, IbPencil } from "./icons";
 
 const baseName = (p: string) => p.split(/[\\/]/).pop() ?? p;
 const ts = (t: number) => { const s = Math.max(0, t); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return `${h}:${String(m).padStart(2, "0")}:${x.toFixed(2).padStart(5, "0")}`; };
@@ -41,8 +43,8 @@ function Find(p: { q: string; setQ: (v: string) => void; n: number; at: number; 
       <input className="inp" style={{ flex: 1, height: 32, fontSize: 13.5 }} value={p.q} placeholder="ค้นในซับ" aria-label="ค้นในซับ" onChange={(e) => p.setQ(e.target.value)} data-sub-q
         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); p.go(e.shiftKey ? -1 : 1); } }} />
       <span className="small nw" data-sub-hits>{p.q ? (p.n ? `เจอ ${p.n} ที่ · ที่ ${p.at + 1} จาก ${p.n}` : "ไม่เจอ") : ""}</span>
-      <button type="button" className={"btn btn-sm " + (p.n ? "btn-ghost" : "btn-wait")} aria-disabled={!p.n || undefined} title={p.n ? undefined : p.q ? "ไม่เจอคำที่ค้น" : "พิมพ์คำที่จะค้นก่อน"} onClick={() => p.n && p.go(-1)}>ก่อนหน้า</button>
-      <button type="button" className={"btn btn-sm " + (p.n ? "btn-ghost" : "btn-wait")} aria-disabled={!p.n || undefined} title={p.n ? undefined : p.q ? "ไม่เจอคำที่ค้น" : "พิมพ์คำที่จะค้นก่อน"} onClick={() => p.n && p.go(1)} data-sub-next>ถัดไป</button>
+      <button type="button" className={"btn btn-sm " + (p.n ? "btn-ghost" : "btn-wait")} aria-disabled={!p.n || undefined} title={p.n ? undefined : p.q ? "ไม่เจอคำที่ค้น" : "พิมพ์คำที่จะค้นก่อน"} onClick={() => p.n && p.go(-1)}><IbBack size={15} />ก่อนหน้า</button>
+      <button type="button" className={"btn btn-sm " + (p.n ? "btn-ghost" : "btn-wait")} aria-disabled={!p.n || undefined} title={p.n ? undefined : p.q ? "ไม่เจอคำที่ค้น" : "พิมพ์คำที่จะค้นก่อน"} onClick={() => p.n && p.go(1)} data-sub-next><IbNext size={15} />ถัดไป</button>
     </div>
   );
 }
@@ -98,7 +100,7 @@ function TextView(p: { track: AvTrack; movie: string; refStream: number | null; 
     el.width = Math.round(w * r); el.height = Math.round(h * r);
     const g = el.getContext("2d")!;
     g.setTransform(r, 0, 0, r, 0, 0);
-    g.fillStyle = "#fff8fa"; g.fillRect(0, 0, w, h);
+    g.fillStyle = "#ffffff"; g.fillRect(0, 0, w, h);
     const X = (t: number) => ((t - wave.t0) / (wave.t1 - wave.t0)) * w;
     // ความถี่ · ช่องที่ดังสุดของทุกช่องเสียง แกนตั้งความถี่แบบล็อก ต่ำล่าง สูงบน
     const sp = look === "spec" && spec && spec.t0 === wave.t0 ? spec.w : null;
@@ -158,10 +160,10 @@ function TextView(p: { track: AvTrack; movie: string; refStream: number | null; 
         {p.refStream != null ? (wave ? <canvas ref={cv} className="aud" aria-label="คลื่นเสียงช่วงของบรรทัดที่เลือก" data-aud /> : <Skel w="100%" h={150} />) : <div className="small">ไม่มีเสียงในหนังให้แสดงคลื่น</div>}
         {wave && <div className="ruler2" style={{ marginLeft: 0 }}>{[0, 0.25, 0.5, 0.75, 1].map((f, i) => <span key={f} style={{ left: `${f * 100}%`, transform: i === 0 ? "none" : i === 4 ? "translateX(-100%)" : undefined }}>{short(wave.t0 + f * (wave.t1 - wave.t0))}</span>)}</div>}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
-          <button type="button" className={"btn btn-sm " + (sel > 0 ? "btn-ghost" : "btn-wait")} aria-disabled={sel === 0 || undefined} onClick={() => sel > 0 && setSel(sel - 1)} data-sub-prev>บรรทัดก่อน</button>
-          <button type="button" className={"btn btn-sm " + (sel < cues.length - 1 ? "btn-ghost" : "btn-wait")} aria-disabled={sel >= cues.length - 1 || undefined} onClick={() => sel < cues.length - 1 && setSel(sel + 1)} data-sub-nextline>บรรทัดถัดไป</button>
-          {c && <button type="button" className="btn btn-ghost btn-sm" title="เปิดหนังด้วยโปรแกรมเล่นที่ตั้งไว้ ตรงเวลาของบรรทัดนี้" onClick={() => { setPlayErr(null); checkApi.playAt(p.movie, Math.max(0, c.start + d - 1)).catch((e) => setPlayErr(String(e))); }} data-sub-play>เปิดเล่นที่ {ts(c.start + d).slice(0, 7)}</button>}
-          {p.refIdx != null && <span style={{ marginLeft: "auto" }}><Seg small label="แบบคลื่นเสียง" value={look} onChange={setLook} options={[{ value: "wave", label: "รูปคลื่น" }, { value: "spec", label: "ความถี่" }]} /></span>}
+          <button type="button" className={"btn btn-sm " + (sel > 0 ? "btn-ghost" : "btn-wait")} aria-disabled={sel === 0 || undefined} onClick={() => sel > 0 && setSel(sel - 1)} data-sub-prev><IbBack size={15} />บรรทัดก่อน</button>
+          <button type="button" className={"btn btn-sm " + (sel < cues.length - 1 ? "btn-ghost" : "btn-wait")} aria-disabled={sel >= cues.length - 1 || undefined} onClick={() => sel < cues.length - 1 && setSel(sel + 1)} data-sub-nextline><IbNext size={15} />บรรทัดถัดไป</button>
+          {c && <button type="button" className="btn btn-ghost btn-sm" title="เปิดหนังด้วยโปรแกรมเล่นที่ตั้งไว้ ตรงเวลาของบรรทัดนี้" onClick={() => { setPlayErr(null); checkApi.playAt(p.movie, Math.max(0, c.start + d - 1)).catch((e) => setPlayErr(String(e))); }} data-sub-play><IbPlay size={15} />เปิดเล่นที่ {ts(c.start + d).slice(0, 7)}</button>}
+          {p.refIdx != null && <span style={{ marginLeft: "auto" }}><Seg small label="แบบคลื่นเสียง" value={look} onChange={setLook} options={[{ value: "wave", label: <><IcGraph size={14} />รูปคลื่น</> }, { value: "spec", label: <><IbEye size={14} />ความถี่</> }]} /></span>}
         </div>
         {playErr && <div className="small" style={{ color: "var(--bad-ink)" }}>{playErr}</div>}
         <div className="small"><Phr>{`กรอบชมพูคือเวลาของแต่ละบรรทัด กรอบเข้มคือบรรทัดที่เลือก · เส้นตั้งคือเวลาเริ่มกับจบ${look === "spec" ? " · ความถี่ต่ำอยู่ล่าง สูงอยู่บน สว่างคือดัง" : ""}`}</Phr></div>
@@ -209,7 +211,7 @@ function ImageView(p: { track: AvTrack; path: string; ff: number }) {
     </div>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
       <span className="small">{`ภาพ ${big.n} · ${short(big.start + d)}${big.end != null ? ` ถึง ${short(big.end + d)}` : ""} · วางตรงตำแหน่งจริงบนจอ ${big.canvas[0]} × ${big.canvas[1]}`}</span>
-      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setBig(null)} data-bigsub-back>กลับไปดูทีละหน้า</button></div>
+      <button type="button" className="btn btn-ghost btn-sm" onClick={() => setBig(null)} data-bigsub-back><IbBack size={15} />กลับไปดูทีละหน้า</button></div>
   </>);
   return (<>
     {data.total === 0 ? <div className="small">ไม่มีภาพในซับนี้</div> : data.page !== page ? (
@@ -224,8 +226,8 @@ function ImageView(p: { track: AvTrack; path: string; ff: number }) {
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
       <span className="small" data-simg-count>{data.total ? `ภาพที่ ${page * PER + 1}–${Math.min(data.total, (page + 1) * PER)} จาก ${data.total.toLocaleString("en-US")} · กดภาพเพื่อดูเต็ม` : ""}</span>
       <div style={{ display: "flex", gap: 6 }}>
-        <button type="button" className={"btn btn-sm " + (page > 0 ? "btn-ghost" : "btn-wait")} aria-disabled={page === 0 || undefined} onClick={() => page > 0 && setPage(page - 1)}>หน้าก่อน</button>
-        <button type="button" className={"btn btn-sm " + (page < pages - 1 ? "btn-ghost" : "btn-wait")} aria-disabled={page >= pages - 1 || undefined} onClick={() => page < pages - 1 && setPage(page + 1)} data-simg-next>หน้าถัดไป</button>
+        <button type="button" className={"btn btn-sm " + (page > 0 ? "btn-ghost" : "btn-wait")} aria-disabled={page === 0 || undefined} onClick={() => page > 0 && setPage(page - 1)}><IbBack size={15} />หน้าก่อน</button>
+        <button type="button" className={"btn btn-sm " + (page < pages - 1 ? "btn-ghost" : "btn-wait")} aria-disabled={page >= pages - 1 || undefined} onClick={() => page < pages - 1 && setPage(page + 1)} data-simg-next><IbNext size={15} />หน้าถัดไป</button>
       </div>
     </div>
     <div className="small"><Phr>พื้นตารางหมากรุกคือส่วนโปร่งใสของรูปซับ · ซับแบบรูปค้นคำไม่ได้</Phr></div>
@@ -249,7 +251,7 @@ export default function SubViewer(p: { track: AvTrack; movie: string; refStream:
   return (
     <Dialog open onClose={p.onClose} width={980} title={<span style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
       <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>ซับ {name}</span>
-      {!image && <Seg small label="แบบการดู" value={tab} onChange={setTab} options={[{ value: "aeg", label: "แบบ Aegisub" }, { value: "long", label: "แบบอ่านยาว" }, { value: "pad", label: "แบบ notepad" }]} />}</span>}
+      {!image && <Seg small label="แบบการดู" value={tab} onChange={setTab} options={[{ value: "aeg", label: <><IbTable size={14} />แบบ Aegisub</> }, { value: "long", label: <><IcFile size={14} />แบบอ่านยาว</> }, { value: "pad", label: <><IbPencil size={14} />แบบ notepad</> }]} />}</span>}
       actions={<button type="button" className="btn btn-ghost btn-sm" onClick={p.onClose}>ปิด</button>}>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }} data-subviewer data-mode={image ? "image" : tab}>
         <div className="small" style={{ marginTop: -6 }}>{sub}</div>

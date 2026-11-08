@@ -9,6 +9,8 @@ import Dialog from "./Dialog";
 import { Range, Seg, CardIcon, Phr } from "./ui";
 import { posterApi, thumbUrl, type CropTarget, type Geometry, type PosterInfo, type RenderInfo } from "../lib/api";
 import { fmtSize } from "../lib/format";
+import { IcRefresh, IbTick, IcPoster, IbRotL, IbRotR, IbFlip } from "./icons";
+import { IcTall, IcWide, IbCrop, IcFile } from "./icons";
 
 const SW = 520, SH = 293;
 /** เว้นขอบรอบภาพ มุมจับของกรอบครอปที่ซูม 100% ไม่โดนขอบกรอบภาพตัดครึ่ง */
@@ -158,7 +160,7 @@ export default function CropDialog(p: {
     } actions={<>
       {useErr && <div className="hint e" role="alert" style={{ margin: "0 auto 0 0", maxWidth: 520 }} data-use-err>{useErr}</div>}
       <button type="button" className={"btn btn-sm " + (using ? "btn-wait" : "btn-ghost")} aria-disabled={using || undefined} onClick={() => { if (!using) p.onCancel(); }}>ยกเลิก</button>
-      <button type="button" className={"btn btn-sm " + (using ? "btn-wait" : "btn-main")} aria-disabled={using || undefined} onClick={use} data-use>{using ? "กำลังทำรูป…" : p.link ? "ใช้ค่านี้" : "ใช้รูปนี้"}</button>
+      <button type="button" className={"btn btn-sm " + (using ? "btn-wait" : "btn-main")} aria-disabled={using || undefined} onClick={use} data-use><IbTick size={15} />{using ? "กำลังทำรูป…" : p.link ? "ใช้ค่านี้" : "ใช้รูปนี้"}</button>
     </>}>
       <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }} data-crop>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>
@@ -196,10 +198,10 @@ export default function CropDialog(p: {
             </div>
           )}
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => turn(-90)}>หมุนซ้าย</button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => turn(90)}>หมุนขวา</button>
-            <button type="button" className={"btn btn-ghost btn-sm" + (view.flip ? " pressed" : "")} aria-pressed={view.flip} onClick={() => setView((v) => ({ ...v, flip: !v.flip }))}>พลิกซ้ายขวา</button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setView(START); setMode("crop"); }}>กลับเป็นแบบเดิม</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => turn(-90)}><IbRotL size={15} />หมุนซ้าย</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => turn(90)}><IbRotR size={15} />หมุนขวา</button>
+            <button type="button" className={"btn btn-ghost btn-sm" + (view.flip ? " pressed" : "")} aria-pressed={view.flip} onClick={() => setView((v) => ({ ...v, flip: !v.flip }))}><IbFlip size={15} />พลิกซ้ายขวา</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setView(START); setMode("crop"); }}><IcRefresh size={15} />กลับเป็นแบบเดิม</button>
           </div>
           {format === "jpg" && !p.link && (
             <>
@@ -218,7 +220,7 @@ export default function CropDialog(p: {
           {p.link && (
             <div className="setrow" style={{ borderTop: 0, paddingTop: 0 }}>
               <div className="lbl">ช่องปก</div>
-              <Seg small label="ช่องปก" value={p.link.orient} onChange={switchSlot} options={[{ value: "tall", label: "ปกตั้ง 2 : 3" }, { value: "wide", label: "ปกนอน 16 : 9" }]} />
+              <Seg small label="ช่องปก" value={p.link.orient} onChange={switchSlot} options={[{ value: "tall", label: <><IcTall size={14} />ปกตั้ง 2 : 3</> }, { value: "wide", label: <><IcWide size={14} />ปกนอน 16 : 9</> }]} />
             </div>
           )}
           <div style={{ fontWeight: 600, fontSize: 14 }}>ตัวอย่างหลังครอป</div>
@@ -239,9 +241,9 @@ export default function CropDialog(p: {
               ));
             })()}
           </div>
-          {!wideSlot && <div className="setrow" style={{ borderTop: "1px solid #f8e3eb" }}>
+          {!wideSlot && <div className="setrow" style={{ borderTop: "1px solid var(--line)" }}>
             <div className="lbl">ทำให้เป็นปกแบบไหน</div>
-            <Seg small label="ทำให้เป็นปกแบบไหน" value={mode} onChange={setMode} options={[{ value: "crop", label: "ตัดให้พอดี 2 : 3" }, { value: "pad", label: "เติมขอบ" }, { value: "original", label: "ตามรูปเดิม" }]} />
+            <Seg small label="ทำให้เป็นปกแบบไหน" value={mode} onChange={setMode} options={[{ value: "crop", label: <><IbCrop size={14} />ตัดให้พอดี 2 : 3</> }, { value: "pad", label: <><IcPoster size={14} />เติมขอบ</> }, { value: "original", label: <><IcFile size={14} />ตามรูปเดิม</> }]} />
           </div>}
           {!wideSlot && mode === "pad" && (
             <div style={{ display: "flex", alignItems: "center", gap: 10 }} data-pads>
@@ -277,7 +279,7 @@ export default function CropDialog(p: {
                 <div>ปกจะดูเบลอบนจอใหญ่</div><Phr>ใช้ต่อได้ แต่แนะนำหารูปที่ใหญ่กว่านี้</Phr></div></div>
               <div className="minirow" style={{ marginTop: 6 }}>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => setSmallOk(true)}>ใช้ต่อ</button>
-                <button type="button" className="btn btn-ghost btn-sm" onClick={p.onChangeImage}>เปลี่ยนรูป</button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={p.onChangeImage}><IcPoster size={15} />เปลี่ยนรูป</button>
               </div>
             </div>
           )}

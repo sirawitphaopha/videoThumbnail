@@ -9,6 +9,7 @@ import { api, inApp } from "../lib/api";
 import { runConfirm, useLinkJob } from "../lib/linkJob";
 import { CardIcon } from "./ui";
 import Dialog from "./Dialog";
+import { IbStop } from "./icons";
 
 /** รุ่นทดสอบ ตัวตรวจตั้ง window.__closeDry ให้ไม่ปิดจริง จดไว้ที่ window.__closedDry แทน · ตัวจริงไม่มีทางนี้ */
 function closeNow() {
@@ -64,7 +65,7 @@ export default function CloseGuard({ onGoLink }: { onGoLink: () => void }) {
             {!closing && <button type="button" className="btn btn-main" onClick={() => setJobs(0)}>ทำงานต่อ</button>}
             {closing
               ? <button type="button" className="btn btn-wait" aria-disabled="true" data-closing>กำลังหยุดงานและลบไฟล์ที่ทำค้าง…</button>
-              : <button type="button" className="btn btn-danger" onClick={() => { setClosing(true); api.forceClose(); }}>หยุดงานแล้วปิดโปรแกรม</button>}
+              : <button type="button" className="btn btn-danger" onClick={() => { setClosing(true); api.forceClose(); }}><IbStop size={15} />หยุดงานแล้วปิดโปรแกรม</button>}
           </>
         }
       >

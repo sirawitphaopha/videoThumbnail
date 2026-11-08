@@ -9,6 +9,8 @@ import ThaiInput from "../components/ThaiInput";
 import { useToast } from "../components/Toasts";
 import { fmtDateTime, fmtSize } from "../lib/format";
 import { kb } from "../lib/popup";
+import { IcCopy } from "../components/icons";
+import { IbBack, IbNext, IbStop, IcRefresh, IcMix, IcFolder, IcFile, IbSave } from "../components/icons";
 
 const ALGOS: [string, string][] = [["md5", "MD5"], ["sha1", "SHA-1"], ["sha256", "SHA-256"], ["crc32", "CRC32"], ["sha512", "SHA-512"]];
 
@@ -89,14 +91,14 @@ export default function FileInfoPage({ m, onBack, onAv }: { m: Movie; onBack: ()
     <div className="pagewrap" data-info-page>
       <div className="wrapin">
         <div style={{ display: "flex", alignItems: "center", gap: 12 }}>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={onBack}>กลับไปชั้นวาง</button>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={onBack}><IbBack size={15} />กลับไปชั้นวาง</button>
           {/* ไปหน้าเสียงและซับของเรื่องนี้ (ต้นแบบเสียงและซับ หน้าข้อมูลไฟล์มีปุ่มนี้ด้วย · ผู้ช่วยตรวจขั้น 10 ข้อ 25) */}
-          {onAv && !m.missing && <button type="button" className="btn btn-ghost btn-sm" onClick={() => onAv(m.path)} data-info-av>เสียงและซับ</button>}
+          {onAv && !m.missing && <button type="button" className="btn btn-ghost btn-sm" onClick={() => onAv(m.path)} data-info-av><IcMix size={15} />เสียงและซับ</button>}
           <div style={{ display: "flex", alignItems: "center", gap: 10, flex: 1, minWidth: 0 }}>
             {m.thumb ? <img className="mc" src={thumbUrl(m.thumb) ?? undefined} alt="" style={{ width: 34, height: 51 }} /> : <div className="mc none" style={{ width: 34, height: 51 }} />}
             <div style={{ minWidth: 0 }}><div style={{ fontWeight: 700, fontSize: 17 }}><Phr tail={<span className="ext">.{m.ext}</span>}>{m.name}</Phr></div><div className="small" style={{ wordBreak: "break-all" }}>{dir}</div></div>
           </div>
-          <button type="button" className={"btn btn-sm " + (info ? "btn-ghost" : "btn-wait")} aria-disabled={!info || undefined} title={info ? undefined : "รออ่านข้อมูลไฟล์ก่อน"} onClick={copyAll}>คัดลอกข้อมูลเป็นข้อความ</button>
+          <button type="button" className={"btn btn-sm " + (info ? "btn-ghost" : "btn-wait")} aria-disabled={!info || undefined} title={info ? undefined : "รออ่านข้อมูลไฟล์ก่อน"} onClick={copyAll}><IcCopy size={14} />คัดลอกข้อมูลเป็นข้อความ</button>
         </div>
 
         {err ? <div className="stat bad"><CardIcon kind="bad" /><div><b>อ่านข้อมูลไฟล์ไม่ได้</b><Phr>{err}</Phr></div></div> : !info ? (
@@ -125,14 +127,14 @@ export default function FileInfoPage({ m, onBack, onAv }: { m: Movie; onBack: ()
         <div className="card" data-extract>
           {xElsewhere && !xRun && (
             <div className="stat warn" style={{ marginBottom: 12 }} data-extract-elsewhere><CardIcon kind="warn" /><div><b>งานแยกไฟล์ที่เริ่มไว้ก่อนเปลี่ยนหน้ายังทำอยู่</b><Phr>ไฟล์ที่แยกลงโฟลเดอร์ที่เลือกไว้ตอนกดแยก · รอให้เสร็จก่อนแยกอย่างอื่น หรือกดหยุด</Phr>
-              <div className="minirow" style={{ marginTop: 6 }}><button type="button" className="btn btn-bad btn-sm" onClick={() => infoApi.extractCancel()}>หยุดงานนั้น</button></div></div></div>
+              <div className="minirow" style={{ marginTop: 6 }}><button type="button" className="btn btn-bad btn-sm" onClick={() => infoApi.extractCancel()}><IbStop size={15} />หยุดงานนั้น</button></div></div></div>
           )}
           {!xRun || (!xRun.running && !xRun.result) ? (
             <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
               <div style={{ fontSize: 14 }}>{picked.length ? <><b>เลือกไว้ {picked.length} อย่าง</b> · {picked.map(label).join(" · ")}</> : "ติ๊กหัวข้อในตารางเพื่อแยกเป็นไฟล์"}</div>
-              <div className="small" style={{ flex: 1, minWidth: 260, wordBreak: "break-all" }}>เก็บที่ {folder} · <button type="button" className="btn btn-ghost btn-sm" style={{ height: 28 }} onClick={async () => { const f = await pickFolder("เลือกที่เก็บไฟล์ที่แยก"); if (f) setFolder(f); }}>เปลี่ยนที่เก็บ</button></div>
+              <div className="small" style={{ flex: 1, minWidth: 260, wordBreak: "break-all" }}>เก็บที่ {folder} · <button type="button" className="btn btn-ghost btn-sm" style={{ height: 28 }} onClick={async () => { const f = await pickFolder("เลือกที่เก็บไฟล์ที่แยก"); if (f) setFolder(f); }}><IcFolder size={15} />เปลี่ยนที่เก็บ</button></div>
               {!picked.length && <div className="hint" style={{ color: "#94680f", margin: 0 }}>ยังกดไม่ได้ ติ๊กอย่างน้อย 1 อย่างในตารางก่อน</div>}
-              <button type="button" className={"btn " + (picked.length ? "btn-main" : "btn-wait")} aria-disabled={!picked.length || undefined} onClick={() => { if (picked.length) runExtract(picked, picked.map(() => "ask")); }} data-extract-start>แยกไฟล์ที่เลือก</button>
+              <button type="button" className={"btn " + (picked.length ? "btn-main" : "btn-wait")} aria-disabled={!picked.length || undefined} onClick={() => { if (picked.length) runExtract(picked, picked.map(() => "ask")); }} data-extract-start><IcFile size={15} />แยกไฟล์ที่เลือก</button>
             </div>
           ) : (
             <div className="workbox">
@@ -141,7 +143,7 @@ export default function FileInfoPage({ m, onBack, onAv }: { m: Movie; onBack: ()
                 const word = st === "done" ? "เสร็จแล้ว" : st === "working" ? `กำลังทำ ${Math.round(xRun.pct[i])}%` : st === "conflict" ? "มีไฟล์ชื่อเดียวกันอยู่แล้ว" : st === "skipped" ? "ข้ามแล้ว" : st === "failed" ? "ไม่สำเร็จ" : st === "cancelled" ? "หยุดแล้ว" : "รอคิว";
                 return <div key={i} className="setrow" style={i === 0 ? { borderTop: 0 } : undefined}><div className="lbl">{l}</div><div className="small">{word}</div></div>;
               })}
-              {xRun.running && <button type="button" className="btn btn-bad btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => infoApi.extractCancel()}>หยุด</button>}
+              {xRun.running && <button type="button" className="btn btn-bad btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => infoApi.extractCancel()}><IbStop size={15} />หยุด</button>}
               {xRun.result && conflicts.length > 0 && (
                 <>
                   <div className="stat warn" data-conflict><CardIcon kind="warn" /><div><b>มีไฟล์ชื่อเดียวกันอยู่แล้ว</b>{conflicts.map((i) => <div key={i} style={{ wordBreak: "break-all" }}>ในที่เก็บมีไฟล์ {(xRun.result!.files[i] ?? "").split(/[\\/]/).pop()} อยู่แล้ว</div>)}<div>โปรแกรมไม่เขียนทับไฟล์เดิม</div></div></div>
@@ -154,15 +156,15 @@ export default function FileInfoPage({ m, onBack, onAv }: { m: Movie; onBack: ()
               {xRun.result?.error && (
                 <>
                   <div className="stat bad"><CardIcon kind="bad" /><div>{xRun.result.error.split(" · ").map((l, i) => i === 0 ? <b key={i}>{l}</b> : <div key={i}><Phr>{l}</Phr></div>)}</div></div>
-                  <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => runExtract(xRun.sel, xRun.sel.map(() => "ask"))}>ลองใหม่</button>
+                  <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => runExtract(xRun.sel, xRun.sel.map(() => "ask"))}><IcRefresh size={15} />ลองใหม่</button>
                 </>
               )}
               {xRun.result && !xRun.result.error && conflicts.length === 0 && (
                 <>
                   {done > 0 && <div className="stat ok"><CardIcon kind="done" /><div><b>แยกครบ {done} ไฟล์</b>{xRun.result.files.filter((f, i) => f && xRun.result!.states[i] === "done").map((f, i) => <div key={i} style={{ wordBreak: "break-all" }}>{f!.split(/[\\/]/).pop()}</div>)}</div></div>}
                   <div className="minirow" style={{ marginTop: 0 }}>
-                    {done > 0 && <button type="button" className="btn btn-ok btn-sm" onClick={() => { const f = xRun.result!.files.find((f, i) => f && xRun.result!.states[i] === "done"); if (f) api.revealMovie(f).catch(() => {}); }}>เปิดโฟลเดอร์ที่เก็บ</button>}
-                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setXRun(null)}>แยกอย่างอื่นต่อ</button>
+                    {done > 0 && <button type="button" className="btn btn-ok btn-sm" onClick={() => { const f = xRun.result!.files.find((f, i) => f && xRun.result!.states[i] === "done"); if (f) api.revealMovie(f).catch(() => {}); }}><IcFolder size={15} />เปิดโฟลเดอร์ที่เก็บ</button>}
+                    <button type="button" className="btn btn-ghost btn-sm" onClick={() => setXRun(null)}><IbNext size={15} />แยกอย่างอื่นต่อ</button>
                   </div>
                 </>
               )}
@@ -261,13 +263,13 @@ function HashCard({ m }: { m: Movie }) {
         <div className="stat warn" style={{ marginBottom: 12 }} data-hash-elsewhere><CardIcon kind="warn" /><div><b>กำลังคิดค่า hash ที่เริ่มไว้ก่อนเปลี่ยนหน้า</b>
           {other && <div>อ่านไฟล์ไปแล้ว <span className="nw">{fmtSize(other.done)}</span> จาก <span className="nw">{fmtSize(other.total)}</span> · {other.total ? Math.round((other.done / other.total) * 100) : 0}%</div>}
           <Phr>รอให้เสร็จก่อนคำนวณใหม่ หรือกดหยุด · ค่า SHA-256 ที่ได้ยังจดลงคลังตามปกติ</Phr>
-          <div className="minirow" style={{ marginTop: 6 }}><button type="button" className="btn btn-bad btn-sm" onClick={() => infoApi.hashCancel()}>หยุดงานนั้น</button></div></div></div>
+          <div className="minirow" style={{ marginTop: 6 }}><button type="button" className="btn btn-bad btn-sm" onClick={() => infoApi.hashCancel()}><IbStop size={15} />หยุดงานนั้น</button></div></div></div>
       )}
       {running ? (
         <div className="workbox">
           <div style={{ fontSize: 14 }}>{firstAlgo} · อ่านไฟล์ไปแล้ว <span className="nw">{fmtSize(prog!.done)}</span> จาก <span className="nw">{fmtSize(prog!.total)}</span> · {prog!.total ? Math.round((prog!.done / prog!.total) * 100) : 0}%</div>
           <div className="bar"><i style={{ width: `${prog!.total ? (prog!.done / prog!.total) * 100 : 0}%` }} /></div>
-          <button type="button" className="btn btn-bad btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => infoApi.hashCancel()}>หยุด</button>
+          <button type="button" className="btn btn-bad btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => infoApi.hashCancel()}><IbStop size={15} />หยุด</button>
         </div>
       ) : h ? (
         <>
@@ -282,10 +284,10 @@ function HashCard({ m }: { m: Movie }) {
             <div className="stat warn" style={{ marginTop: 8 }} data-hashchanged><CardIcon kind="warn" /><div><b>ค่า SHA-256 ไม่ตรงกับที่จดไว้ตอนตรวจครั้งก่อน</b><Phr>ไฟล์อาจถูกเปลี่ยนหรือเสียระหว่างย้ายไดรฟ์ · ค่าที่จดไว้ไม่ถูกเปลี่ยน ชั้นวางขึ้นว่าไฟล์ถูกเปลี่ยน ควรตรวจละเอียด</Phr></div></div>
           )}
           <div className="minirow">
-            <button type="button" className="btn btn-ghost btn-sm" onClick={start}>คำนวณใหม่</button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => copy(rows.map(([k, l]) => `${l}: ${val(k)}`).join("\n"), "ค่า hash ทั้งหมด")}>คัดลอกทั้งหมด</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={start}><IcRefresh size={15} />คำนวณใหม่</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => copy(rows.map(([k, l]) => `${l}: ${val(k)}`).join("\n"), "ค่า hash ทั้งหมด")}><IcCopy size={14} />คัดลอกทั้งหมด</button>
             <button type="button" className={"btn btn-sm " + (h.sha256 ? "btn-ghost" : "btn-wait")} aria-disabled={!h.sha256 || undefined} title={h.sha256 ? undefined : "ติ๊ก SHA-256 แล้วคำนวณใหม่ก่อน"}
-              onClick={async () => { if (!h.sha256) return; try { const p = await infoApi.saveSha256(m.path, h.sha256); toast({ kind: "ok", title: "บันทึกไฟล์ .sha256 แล้ว", detail: p.split(/[\\/]/).pop() ?? p }); } catch (e) { toast({ kind: "bad", title: "บันทึกไฟล์ .sha256 ไม่สำเร็จ", detail: String(e) }); } }}>บันทึกเป็นไฟล์ .sha256</button>
+              onClick={async () => { if (!h.sha256) return; try { const p = await infoApi.saveSha256(m.path, h.sha256); toast({ kind: "ok", title: "บันทึกไฟล์ .sha256 แล้ว", detail: p.split(/[\\/]/).pop() ?? p }); } catch (e) { toast({ kind: "bad", title: "บันทึกไฟล์ .sha256 ไม่สำเร็จ", detail: String(e) }); } }}><IbSave size={15} />บันทึกเป็นไฟล์ .sha256</button>
           </div>
           <div style={{ marginTop: 12 }}>
             <ThaiInput value={paste} onChange={setPaste} label="วางค่า hash ที่ได้มาจากเว็บต้นทาง" err={!!cmp && !cmp.same} />
@@ -299,7 +301,7 @@ function HashCard({ m }: { m: Movie }) {
         </>
       ) : (
         <button type="button" className={"btn btn-sm " + (algos.length && !elsewhere ? "btn-main" : "btn-wait")} aria-disabled={!algos.length || elsewhere || undefined}
-          title={elsewhere ? "รองานที่เริ่มไว้ก่อนเปลี่ยนหน้าเสร็จก่อน" : algos.length ? undefined : "ติ๊กอย่างน้อย 1 แบบก่อน"} onClick={() => { if (algos.length && !elsewhere) start(); }} data-hash-start>คำนวณ</button>
+          title={elsewhere ? "รองานที่เริ่มไว้ก่อนเปลี่ยนหน้าเสร็จก่อน" : algos.length ? undefined : "ติ๊กอย่างน้อย 1 แบบก่อน"} onClick={() => { if (algos.length && !elsewhere) start(); }} data-hash-start><IcRefresh size={15} />คำนวณ</button>
       )}
     </div>
   );

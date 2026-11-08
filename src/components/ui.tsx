@@ -152,4 +152,9 @@ export function Phrases({ parts, head, tail }: { parts: Part[]; head?: React.Rea
   flush();
   return <>{out}</>;
 }
+/** ลูกศรหัวตาราง · เรียงอยู่บอกทิศจริง · คอลัมน์ที่กดเรียงได้แต่ยังไม่ได้เรียง ขึ้นลูกศรคู่จาง ๆ ให้รู้ว่ากดได้ */
+export const SortArrow = ({ dir }: { dir: 1 | -1 | 0 }) => (
+  <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden="true" style={{ marginLeft: 4, flex: "none", opacity: dir ? 1 : 0.4 }}>
+    <path d={dir === 1 ? "M6 15l6-6 6 6" : dir === -1 ? "M6 9l6 6 6-6" : "M8 10l4-4 4 4M8 14l4 4 4-4"} /></svg>
+);
 export const Phr = ({ children, tail }: { children: string; tail?: React.ReactNode }) => <Phrases parts={[{ text: children }]} tail={tail} />;

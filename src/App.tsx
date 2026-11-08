@@ -23,6 +23,7 @@ import FirstRun from "./pages/FirstRun";
 import CheckPage, { type CheckReq } from "./pages/CheckPage";
 import GraphPage, { GraphBoundary, type GraphReq } from "./pages/GraphPage";
 import { CheckHost } from "./lib/check";
+import { applyTone } from "./lib/tones";
 
 export default function App() {
   return (
@@ -40,6 +41,7 @@ export default function App() {
 
 function Frame() {
   const { settings, update } = useSettings();
+  useEffect(() => { if (settings?.tone) applyTone(settings.tone); }, [settings?.tone]);
   const { movies } = useLibrary();
   const linkWaiting = useLinkJob().reply.waiting;
   const [page, setPage] = useState<Page>("shelf");

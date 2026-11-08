@@ -11,12 +11,44 @@ import { useLibrary } from "../lib/library";
 import { useToast } from "../components/Toasts";
 import Dialog from "../components/Dialog";
 import Dropdown from "../components/Dropdown";
+import { IcPalette, IcCheck, IcCoverL, IcCoverM, IcCoverS, IcTall, IcWide, IcFolder, IcGraph, IcLink, IcMix, IcPoster, IcSettings, IcShelf } from "../components/icons";
 import { Phr, Range, Seg, Skel, Switch } from "../components/ui";
 import { setSkelPreview, useSkelPreview } from "../lib/skelPreview";
 import { fmtSize } from "../lib/format";
+import ToneCard from "../components/ToneCard";
+import { DEFAULT_TONE, TONES } from "../lib/tones";
+import { IbTrash, IcRefresh } from "../components/icons";
+import { IbTick, IbPlay } from "../components/icons";
 
-const FolderIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c2547f" strokeWidth="2" aria-hidden="true"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>;
-const PlayIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#c2547f" strokeWidth="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M10 9l5 3-5 3z" fill="#c2547f" /></svg>;
+const FolderIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b0355f" strokeWidth="2" aria-hidden="true"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>;
+const PlayIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b0355f" strokeWidth="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M10 9l5 3-5 3z" fill="#b0355f" /></svg>;
+
+const IcPlayBox = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M10 9l5 3-5 3z" fill="currentColor" /></svg>;
+
+/** เลขรุ่นจากข้อความของเครื่องมือ เช่น mkvmerge v103.0 ('The Darkness') 64-bit ได้ 103.0 */
+const verOf = (s: string) => s.match(/\d+(?:\.\d+)+/)?.[0] ?? "";
+
+/* เมนูหัวข้อซ้าย เปิดดูทีละหัวข้อ (พี่กันส่งภาพหน้าการตั้งค่าของโปรแกรม Claude เป็นแบบ 8 พ.ย. 2569) · ชื่อกลุ่มแคลร์ตั้ง */
+const SET_GROUPS: { title: string; items: { id: string; label: string; icon: React.ReactNode }[] }[] = [
+  { title: "ชั้นหนัง", items: [
+    { id: "folders", label: "โฟลเดอร์หนัง", icon: <IcFolder /> },
+    { id: "shelf", label: "ชั้นวาง", icon: <IcShelf /> },
+    { id: "tone", label: "โทนสี", icon: <IcPalette /> },
+    { id: "player", label: "เปิดเล่นหนัง", icon: <IcPlayBox /> },
+  ] },
+  { title: "งาน", items: [
+    { id: "poster", label: "ใส่โปสเตอร์", icon: <IcPoster /> },
+    { id: "link", label: "เก็บรูปที่จับคู่", icon: <IcLink /> },
+    { id: "check", label: "ตรวจไฟล์", icon: <IcCheck /> },
+    { id: "graph", label: "กราฟเสียง", icon: <IcGraph /> },
+  ] },
+  { title: "เครื่องมือ", items: [
+    { id: "tools", label: "เครื่องมือเบื้องหลัง", icon: <IcSettings /> },
+    { id: "encoders", label: "ตัวแปลงเสียง", icon: <IcMix /> },
+  ] },
+];
+/** จำหัวข้อล่าสุดไว้ ออกไปหน้าอื่นแล้วกลับมายังอยู่หัวข้อเดิม */
+let lastSec = "folders";
 
 /** หน้าที่ของเครื่องมือแต่ละตัว (สเปกข้อ 12 หน้าที่ของ ffmpeg = ส่งออก MP4 และตรวจละเอียด) */
 const TOOL_ROLE: Record<string, string> = {
@@ -53,6 +85,8 @@ function LatestLine({ l, onOpen }: { l: LatestInfo; onOpen: (name: string) => vo
 }
 
 export default function SettingsPage() {
+  const [sec, setSec] = useState(lastSec);
+  const goSec = (id: string) => { lastSec = id; setSec(id); document.querySelector("[data-settingsscroll]")?.scrollTo(0, 0); };
   const { settings, update } = useSettings();
   const { folders, scan, movies } = useLibrary();
   const toast = useToast();
@@ -163,10 +197,30 @@ export default function SettingsPage() {
     catch (e) { toast({ kind: "bad", title: "ล้างไม่ได้", detail: String(e) }); }
   };
   const countOf = (f: string) => folders.find((x) => x.path.toLowerCase() === f.toLowerCase());
-  const migrateCount = movies.filter((m) => (m.linked ?? []).some((c) => c.store !== settings.linkStore)).length;
-  const modeName = LINK_MODES.find((x) => x.v === settings.linkStore)?.title ?? "";
+  /** ติ๊กได้หลายแบบพร้อมกัน ต้องเหลืออย่างน้อยหนึ่งแบบ (พี่กันสั่ง 8 พ.ย. 2569 "สามารถเลือกได้ทุกแบบพร้อมกัน") */
+  const stores = settings.linkStores?.length ? settings.linkStores : [settings.linkStore];
+  const wantCopy = stores.includes("beside") && stores.includes("app");
+  const toggleStore = (v: Settings["linkStore"]) => {
+    const on = stores.includes(v);
+    if (on && stores.length === 1) { toast({ kind: "info", title: "ต้องเลือกอย่างน้อยหนึ่งแบบ", detail: "ติ๊กแบบอื่นก่อน แล้วค่อยเอาแบบนี้ออก" }); return; }
+    const next = (["beside", "app", "link"] as const).filter((x) => (x === v ? !on : stores.includes(x)));
+    void set({ linkStores: next, linkStore: next[0] });
+  };
+  const migrateCount = movies.filter((m) => (m.linked ?? []).some((c) => c.store !== settings.linkStore || !!c.appCopy !== wantCopy)).length;
+  const modeName = LINK_MODES.filter((x) => stores.includes(x.v)).map((x) => x.title).join(" กับ ");
 
   return (
+    <div className="setpage">
+      <nav className="setnav" aria-label="หัวข้อตั้งค่า"><div className="setnav-in">
+        {SET_GROUPS.map((g) => (
+          <div key={g.title} className="setnav-g">
+            <div className="setnav-t">{g.title}</div>
+            {g.items.map((it) => (
+              <button key={it.id} type="button" className={"setnav-b" + (sec === it.id ? " on" : "")} aria-current={sec === it.id ? "true" : undefined} data-setnav={it.id} onClick={() => goSec(it.id)}>{it.icon}<span>{it.label}</span></button>
+            ))}
+          </div>
+        ))}
+      </div></nav>
     <div className="setwrap" data-settings>
       <Dialog open={askMigrate} onClose={() => { if (!migrating) setAskMigrate(false); }} kind="work" confirm title={<>ย้าย <span className="nw">{migrateCount} เรื่อง</span>ไปแบบ {modeName}</>}
         actions={<>
@@ -181,24 +235,24 @@ export default function SettingsPage() {
         </div>
       </Dialog>
       {/* ---------- โฟลเดอร์หนัง ---------- */}
-      <div className="setcard" data-setcard="folders"><h3>โฟลเดอร์หนัง</h3>
+      <div className="setcard" data-setcard="folders" hidden={sec !== "folders"}><h3>โฟลเดอร์หนัง</h3>
         <div className="small">โปรแกรมอ่านหนังจากโฟลเดอร์ในรายการนี้ขึ้นชั้น</div>
         {settings.folders.map((f) => {
           const st = countOf(f);
           return (
             <div key={f} className="folder" data-folder={f}><FolderIcon /><div className="grow" style={{ wordBreak: "break-all" }}>{f}
               <span className="small" style={{ display: "block" }}>{st && !st.ok ? <span style={{ color: "var(--bad-ink)" }}>หาโฟลเดอร์ไม่เจอ ไดรฟ์อาจถอดออกอยู่</span> : <span className="nw">{st?.count ?? 0} เรื่อง</span>}</span></div>
-              <button type="button" className="btn btn-bad btn-sm" onClick={() => setRemoving(f)} data-removefolder>เอาออกจากชั้น</button></div>
+              <button type="button" className="btn btn-bad btn-sm" onClick={() => setRemoving(f)} data-removefolder><IbTrash size={15} />เอาออกจากชั้น</button></div>
           );
         })}
         <div className="small" style={{ margin: "8px 0 10px" }}>เอาออกจากชั้นแล้ว ไฟล์ในเครื่องยังอยู่ครบ ไม่ถูกลบ</div>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={addFolder} data-addfolder>เพิ่มโฟลเดอร์</button>
-        <div className="setrow" style={{ marginTop: 10, borderTop: "1px solid #f8e3eb" }}><div className="lbl">อ่านโฟลเดอร์ใหม่ทุกครั้งที่เปิดโปรแกรม<span className="small">หนังที่โหลดมาเพิ่มจะขึ้นชั้นเอง</span></div>
+        <button type="button" className="btn btn-ghost btn-sm" onClick={addFolder} data-addfolder><IcFolder size={15} />เพิ่มโฟลเดอร์</button>
+        <div className="setrow" style={{ marginTop: 10, borderTop: "1px solid var(--line)" }}><div className="lbl">อ่านโฟลเดอร์ใหม่ทุกครั้งที่เปิดโปรแกรม<span className="small">หนังที่โหลดมาเพิ่มจะขึ้นชั้นเอง</span></div>
           <Switch on={settings.rescanOnStart} onChange={(v) => set({ rescanOnStart: v })} label="อ่านโฟลเดอร์ใหม่ทุกครั้งที่เปิดโปรแกรม" /></div>
       </div>
 
       {/* ---------- ใส่โปสเตอร์ ---------- */}
-      <div className="setcard" data-setcard="poster"><h3>ใส่โปสเตอร์</h3>
+      <div className="setcard" data-setcard="poster" hidden={sec !== "poster"}><h3>ใส่โปสเตอร์</h3>
         <div className="setrow"><div className="lbl">ตรวจไฟล์ต้นทางก่อนครอบ<span className="small">ไฟล์เสียอยู่แล้ว จะบอกก่อนลงมือ</span></div>
           <Switch on={settings.checkSourceBefore} onChange={(v) => set({ checkSourceBefore: v })} label="ตรวจไฟล์ต้นทางก่อนครอบ" /></div>
         <div className="setrow"><div className="lbl">ตรวจไฟล์ใหม่หลังครอบเสร็จ<span className="small">เทียบว่าภาพ เสียง ซับ ครบเท่าต้นทาง</span></div>
@@ -206,13 +260,13 @@ export default function SettingsPage() {
         <div className="setrow"><div className="lbl">ไฟล์ที่ได้</div>
           <Seg label="ไฟล์ที่ได้" value={settings.outputFormat} onChange={(v) => set({ outputFormat: v })} options={[{ value: "mkv", label: "MKV" }, { value: "mp4", label: "MP4" }]} /></div>
         <div className="setrow"><div className="lbl">ไฟล์เดิมหลังครอบ</div>
-          <Seg label="ไฟล์เดิมหลังครอบ" value={settings.originalAfter} onChange={(v) => set({ originalAfter: v })} options={[{ value: "keep", label: "เก็บไว้" }, { value: "trash", label: "ลบเมื่อตรวจผ่าน" }]} /></div>
+          <Seg label="ไฟล์เดิมหลังครอบ" value={settings.originalAfter} onChange={(v) => set({ originalAfter: v })} options={[{ value: "keep", label: <><IbTick size={14} />เก็บไว้</> }, { value: "trash", label: <><IbTrash size={14} />ลบเมื่อตรวจผ่าน</> }]} /></div>
         <div className="setrow"><div className="lbl">โฟลเดอร์เก็บไฟล์เดิม
           <span className="small" style={{ wordBreak: "break-all" }} data-originals>{settings.originalsFolder || "ข้างไฟล์หนัง ในโฟลเดอร์ชื่อ ไฟล์เดิม"}</span>
           <span className="small">ต้องอยู่ไดรฟ์เดียวกับไฟล์หนัง คนละไดรฟ์ใช้โฟลเดอร์ ไฟล์เดิม ข้างไฟล์หนังแทน</span></div>
           <div style={{ display: "flex", gap: 6 }}>
             {settings.originalsFolder && <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ originalsFolder: "" })}>ใช้ข้างไฟล์หนัง</button>}
-            <button type="button" className="btn btn-ghost btn-sm" onClick={changeOriginals}>เปลี่ยน</button></div></div>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={changeOriginals}><IcFolder size={15} />เปลี่ยน</button></div></div>
         <div className="setrow"><div className="lbl">รูปโปสเตอร์ที่แนบ<span className="small">ใช้กับรูปที่ต้องแปลง และรูปที่ครอป</span></div>
           <Seg label="รูปโปสเตอร์ที่แนบ" value={settings.posterFormat} onChange={(v) => set({ posterFormat: v })} options={[{ value: "jpg", label: "JPG" }, { value: "png", label: "PNG" }]} /></div>
         <div className="setrow" style={{ display: "block" }}><div style={{ display: "flex", alignItems: "center", gap: 12 }}>
@@ -223,15 +277,15 @@ export default function SettingsPage() {
           <Switch on={settings.shrinkLargePosters} onChange={(v) => set({ shrinkLargePosters: v })} label="ย่อรูปโปสเตอร์ที่ใหญ่เกิน" /></div>
       </div>
 
-      {/* ---------- เก็บรูปที่จับคู่ไว้ที่ไหน กว้างเต็มแถว การ์ด 3 แบบเรียงกัน ---------- */}
-      <div className="setcard wideflow" data-setcard="link"><h3>เก็บรูปที่จับคู่ไว้ที่ไหน</h3>
-        <div className="small" style={{ marginBottom: 10 }}>ใช้ตอนกดยืนยันในหน้าจับคู่ปก · ทุกแบบ ไฟล์หนังไม่ถูกแตะ</div>
-        <div className="modes three" role="radiogroup" aria-label="เก็บรูปที่จับคู่ไว้ที่ไหน">
+      {/* ---------- เก็บรูปที่จับคู่ไว้ที่ไหน 3 แบบ ---------- */}
+      <div className="setcard" data-setcard="link" hidden={sec !== "link"}><h3>เก็บรูปที่จับคู่ไว้ที่ไหน</h3>
+        <div className="small" style={{ marginBottom: 10 }}>ใช้ตอนกดยืนยันในหน้าจับคู่ปก · ติ๊กได้หลายแบบพร้อมกัน · ทุกแบบ ไฟล์หนังไม่ถูกแตะ · โปรแกรมจำที่อยู่รูปต้นฉบับไว้เสมอ ติ๊กจับคู่อย่างเดียวคู่กับแบบอื่น ก็คัดลอกตามแบบนั้น</div>
+        <div className="modes three" role="group" aria-label="เก็บรูปที่จับคู่ไว้ที่ไหน">
           {LINK_MODES.map((x) => {
-            const on = settings.linkStore === x.v;
+            const on = stores.includes(x.v);
             return (
-              <div key={x.v} className={"mode" + (on ? " on" : "")} {...kb(() => { if (!on) void set({ linkStore: x.v }); })} role="radio" aria-checked={on} data-link-mode={x.v}>
-                <h4><span className={"radio" + (on ? " on" : "")} />{x.title}{x.rec && <span className="extag" style={{ marginLeft: 2 }}>{x.rec}</span>}</h4>
+              <div key={x.v} className={"mode" + (on ? " on" : "")} {...kb(() => toggleStore(x.v))} role="checkbox" aria-checked={on} data-link-mode={x.v}>
+                <h4><span className={"cbx " + (on ? "on" : "off")}>{on && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="4" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>}</span>{x.title}{x.rec && <span className="extag" style={{ marginLeft: 2 }}>{x.rec}</span>}</h4>
                 <div className="small"><Phr>{x.lines[0]}</Phr></div>
                 {x.sample && <div className="pathsample">{x.sample.map((l) => <div key={l}>{l}</div>)}</div>}
                 {x.lines[1] && <div className="small"><Phr>{x.lines[1]}</Phr></div>}
@@ -249,9 +303,9 @@ export default function SettingsPage() {
       </div>
 
       {/* ---------- ตรวจไฟล์ ---------- */}
-      <div className="setcard" data-setcard="check"><h3>ตรวจไฟล์</h3>
+      <div className="setcard" data-setcard="check" hidden={sec !== "check"}><h3>ตรวจไฟล์</h3>
         <div className="setrow"><div className="lbl">แบบตรวจตั้งต้น</div>
-          <Seg label="แบบตรวจตั้งต้น" value={settings.defaultCheck} onChange={(v) => set({ defaultCheck: v })} options={[{ value: "quick", label: "ตรวจแบบเร็ว" }, { value: "full", label: "ตรวจละเอียด" }]} /></div>
+          <Seg label="แบบตรวจตั้งต้น" value={settings.defaultCheck} onChange={(v) => set({ defaultCheck: v })} options={[{ value: "quick", label: <><IcCheck size={14} />ตรวจแบบเร็ว</> }, { value: "full", label: <><IcCheck size={14} />ตรวจละเอียด</> }]} /></div>
         <div className="setrow"><div className="lbl">ตรวจแบบเร็วทุกเรื่องตอนเปิดโปรแกรม<span className="small">ช่วยจับไฟล์ที่เสียระหว่างย้ายไดรฟ์</span></div>
           <Switch on={settings.quickCheckOnStart} onChange={(v) => set({ quickCheckOnStart: v })} label="ตรวจแบบเร็วทุกเรื่องตอนเปิดโปรแกรม" /></div>
         <div className="setrow"><div className="lbl">เตือนให้ตรวจซ้ำ<span className="small">จุดบนปกเปลี่ยนเป็นสีเหลืองเมื่อถึงเวลา</span></div>
@@ -260,11 +314,18 @@ export default function SettingsPage() {
       </div>
 
       {/* ---------- ชั้นวาง ---------- */}
-      <div className="setcard" data-setcard="shelf"><h3>ชั้นวาง</h3>
+      <div className="setcard" data-setcard="tone" hidden={sec !== "tone"}><h3>โทนสี</h3>
+        <div className="small" style={{ marginBottom: 12 }}>กดแล้วเปลี่ยนทั้งโปรแกรมทันที โปรแกรมจำไว้ · รูปโปสเตอร์กับสีกราฟเสียงไม่เปลี่ยนตาม</div>
+        <div className="tncards" role="radiogroup" aria-label="โทนสี">
+          {TONES.map((t) => <ToneCard key={t.id} t={t} on={(settings.tone || DEFAULT_TONE) === t.id} onPick={() => void set({ tone: t.id })} />)}
+        </div>
+      </div>
+
+      <div className="setcard" data-setcard="shelf" hidden={sec !== "shelf"}><h3>ชั้นวาง</h3>
         <div className="setrow"><div className="lbl">ขนาดปก</div>
-          <Seg label="ขนาดปก" value={settings.coverSize} onChange={(v) => set({ coverSize: v })} options={[{ value: "s", label: "เล็ก" }, { value: "m", label: "กลาง" }, { value: "l", label: "ใหญ่" }]} /></div>
+          <Seg label="ขนาดปก" value={settings.coverSize} onChange={(v) => set({ coverSize: v })} options={[{ value: "s", label: <><IcCoverS />เล็ก</> }, { value: "m", label: <><IcCoverM />กลาง</> }, { value: "l", label: <><IcCoverL />ใหญ่</> }]} /></div>
         <div className="setrow"><div className="lbl">ดูปก<span className="small">เรื่องที่แนบทั้งปกตั้งและปกนอน · เรื่องที่มีแบบเดียวขึ้นแบบนั้น</span></div>
-          <Seg label="ดูปก" value={settings.coverOrient} onChange={(v) => set({ coverOrient: v })} options={[{ value: "tall", label: "ปกตั้ง" }, { value: "wide", label: "ปกนอน" }]} /></div>
+          <Seg label="ดูปก" value={settings.coverOrient} onChange={(v) => set({ coverOrient: v })} options={[{ value: "tall", label: <><IcTall />ปกตั้ง</> }, { value: "wide", label: <><IcWide />ปกนอน</> }]} /></div>
         <div className="setrow"><div className="lbl">ชื่อไฟล์ใต้ปก</div><Switch on={settings.showNames} onChange={(v) => set({ showNames: v })} label="ชื่อไฟล์ใต้ปก" /></div>
         <div className="setrow"><div className="lbl">จุดสีบอกสภาพไฟล์</div><Switch on={settings.showDots} onChange={(v) => set({ showDots: v })} label="จุดสีบอกสภาพไฟล์" /></div>
         <div className="setrow"><div className="lbl">แสดงโครงจางค้างไว้<span className="small">ไว้ดูหน้าตาตอนรออ่านโฟลเดอร์ · ปิดโปรแกรมแล้วกลับเป็นปิดเอง</span></div>
@@ -272,37 +333,37 @@ export default function SettingsPage() {
       </div>
 
       {/* ---------- เปิดเล่นหนัง ---------- */}
-      <div className="setcard" data-setcard="player"><h3>เปิดเล่นหนัง</h3>
+      <div className="setcard" data-setcard="player" hidden={sec !== "player"}><h3>เปิดเล่นหนัง</h3>
         <div className="setrow"><div className="lbl">โปรแกรมที่ใช้เล่น<span className="small">กดปุ่มเปิดเล่นแล้วส่งไฟล์ไปโปรแกรมนี้</span></div>
           <Seg label="โปรแกรมที่ใช้เล่น" value={settings.playerPath ? "custom" : "default"} onChange={(v) => (v === "default" ? set({ playerPath: "" }) : choosePlayer())}
-            options={[{ value: "default", label: "โปรแกรมหลักของ Windows" }, { value: "custom", label: "เลือกเอง" }]} /></div>
+            options={[{ value: "default", label: <><IbPlay size={14} />โปรแกรมหลักของ Windows</> }, { value: "custom", label: <><IcFolder size={14} />เลือกเอง</> }]} /></div>
         {settings.playerPath && <>
           <div className="folder" style={{ background: "#fdeef4" }} data-player><PlayIcon /><div className="grow" style={{ wordBreak: "break-all" }}>{settings.playerPath}</div>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={choosePlayer}>เปลี่ยน</button></div>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={choosePlayer}><IcFolder size={15} />เปลี่ยน</button></div>
           <div className="hint" style={{ margin: "8px 0 0" }}>ถ้าวันหลังหาโปรแกรมนี้ไม่เจอ กดเปิดเล่นแล้วจะบอก และพากลับมาตั้งที่นี่</div></>}
       </div>
 
       {/* ---------- เครื่องมือเบื้องหลัง ---------- */}
-      <div className="setcard" data-setcard="tools"><h3>เครื่องมือเบื้องหลัง</h3>
+      <div className="setcard" data-setcard="tools" hidden={sec !== "tools"}><h3>เครื่องมือเบื้องหลัง</h3>
         {tools == null
           ? [0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="setrow" aria-busy="true"><Skel w="45%" h={12} /><Skel w={90} h={20} r={10} /></div>)
           : tools.map((t) => (
-            <div key={t.name} className="setrow" data-tool={t.name}><div className="lbl">{t.name}<span className="small">{TOOL_ROLE[t.name] ?? ""}{t.ok ? "" : ` · ${t.version}`}</span></div>
+            <div key={t.name} className="setrow" data-tool={t.name}><div className="lbl">{t.name}{t.ok && verOf(t.version) && <span className="setver" data-toolver>รุ่น {verOf(t.version)}</span>}<span className="small">{TOOL_ROLE[t.name] ?? ""}{t.ok ? "" : ` · ${t.version}`}</span></div>
               {t.ok ? <span className="toolok">พร้อมใช้งาน</span> : <span className="toolbad">ไม่พร้อม</span>}</div>))}
         <div className="setrow" data-tool="Icaros"><div className="lbl">Icaros<span className="small">ให้ Windows โชว์โปสเตอร์เป็นไอคอนไฟล์ ไม่ลงก็ใช้โปรแกรมนี้ได้ครบ</span></div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {icaros == null ? <Skel w={80} h={20} r={10} /> : icaros ? <span className="toolok">ลงแล้ว</span> : <span className="toolwarn">ยังไม่ได้ลง</span>}
             {icaros === false && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setIcarosHelp(true)} data-icaroshelp>วิธีลง</button>}</div></div>
         <div className="setrow"><div className="lbl small" style={{ margin: 0 }}>ซ่อนหรือย้ายเครื่องมือแล้ว กดตรวจใหม่เพื่อดูสถานะล่าสุด</div>
-          <button type="button" className={"btn btn-sm " + (checking ? "btn-wait" : "btn-ghost")} aria-disabled={checking || undefined} onClick={() => { if (!checking) void recheck(); }} data-retools>{checking ? "กำลังตรวจ" : "ตรวจเครื่องมือใหม่"}</button></div>
+          <button type="button" className={"btn btn-sm " + (checking ? "btn-wait" : "btn-ghost")} aria-disabled={checking || undefined} onClick={() => { if (!checking) void recheck(); }} data-retools><IcRefresh size={15} />{checking ? "กำลังตรวจ" : "ตรวจเครื่องมือใหม่"}</button></div>
       </div>
 
       {/* ---------- ตัวแปลงเสียง (มอคอัปเสียงและซับ หัวข้อ 8) · ตัวที่แนบมากับโปรแกรม กับตัวที่วางเองในโฟลเดอร์ตัวแปลง (ตัวที่สัญญาอนุญาตไม่ให้แจก) ---------- */}
-      <div className="setcard" data-setcard="encoders">
+      <div className="setcard" data-setcard="encoders" hidden={sec !== "encoders"}>
         <h3 style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}><span>ตัวแปลงเสียง</span>
           <span style={{ display: "flex", gap: 6 }}>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => encodeApi.openDir().catch((e) => toast({ kind: "bad", title: "เปิดโฟลเดอร์ตัวแปลงไม่ได้", detail: String(e) }))} data-encdir>เปิดโฟลเดอร์ตัวแปลง</button>
-            <button type="button" className={"btn btn-sm " + (encChecking ? "btn-wait" : "btn-ghost")} aria-disabled={encChecking || undefined} onClick={() => { if (!encChecking) void recheckEnc(); }} data-reenc>{encChecking ? "กำลังตรวจ" : "ตรวจตัวแปลงใหม่"}</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => encodeApi.openDir().catch((e) => toast({ kind: "bad", title: "เปิดโฟลเดอร์ตัวแปลงไม่ได้", detail: String(e) }))} data-encdir><IcFolder size={15} />เปิดโฟลเดอร์ตัวแปลง</button>
+            <button type="button" className={"btn btn-sm " + (encChecking ? "btn-wait" : "btn-ghost")} aria-disabled={encChecking || undefined} onClick={() => { if (!encChecking) void recheckEnc(); }} data-reenc><IcRefresh size={15} />{encChecking ? "กำลังตรวจ" : "ตรวจตัวแปลงใหม่"}</button>
           </span></h3>
         <div className="small" style={{ marginBottom: 6 }}>โฟลเดอร์ตัวแปลงที่ใส่เอง <span className="nw" style={{ fontFamily: "var(--mono)", overflowWrap: "anywhere" }}>{encDir || "…"}</span> · <Phr>{"ตอนแปลงใช้ตัวต้นฉบับเป็นค่าตั้งต้น ffmpeg เป็นตัวรอง · วางรุ่นใหม่กว่าตัวที่แนบมา โปรแกรมใช้ตัวที่ใหม่กว่า"}</Phr></div>
         <div className="setrow" data-latest-bar><div className="lbl small" style={{ margin: 0 }}>
@@ -313,7 +374,7 @@ export default function SettingsPage() {
             const nb = " ";
             return `เช็กรุ่นล่าสุดกับเว็บผู้ทำเมื่อ ${latest.at.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}${nb}น. · ล่าสุดแล้ว${nb}${n("ok") + n("ahead")} · มีรุ่นใหม่${nb}${n("new")} · ยังไม่ได้ใส่${nb}${n("missing")} · เช็กไม่ได้${nb}${n("error")}`;
           })() : "เช็กว่าตัวแปลงแต่ละตัวเป็นรุ่นล่าสุดไหม · ออกเน็ตไปดูหน้าเว็บผู้ทำเฉพาะตอนกด ไม่โหลดอะไรมาเปลี่ยนเอง"}</Phr></div>
-          <button type="button" className={"btn btn-sm " + (latestChecking ? "btn-wait" : "btn-ghost")} aria-disabled={latestChecking || undefined} onClick={() => { if (!latestChecking) void checkLatest(); }} data-enclatest>{latestChecking ? "กำลังเช็ก" : "เช็กรุ่นล่าสุด"}</button></div>
+          <button type="button" className={"btn btn-sm " + (latestChecking ? "btn-wait" : "btn-ghost")} aria-disabled={latestChecking || undefined} onClick={() => { if (!latestChecking) void checkLatest(); }} data-enclatest><IcRefresh size={15} />{latestChecking ? "กำลังเช็ก" : "เช็กรุ่นล่าสุด"}</button></div>
         {encs == null
           ? [0, 1, 2, 3, 4].map((i) => <div key={i} className="setrow" aria-busy="true"><Skel w="45%" h={12} /><Skel w={90} h={20} r={10} /></div>)
           : encs.map((e) => (
@@ -324,15 +385,15 @@ export default function SettingsPage() {
       </div>
 
       {/* ---------- กราฟเสียง (แคลร์เพิ่ม · ผลอ่านคลื่นที่เก็บลงเครื่อง คิว 8) ---------- */}
-      <div className="setcard" data-setcard="graph"><h3>กราฟเสียง</h3>
+      <div className="setcard" data-setcard="graph" hidden={sec !== "graph"}><h3>กราฟเสียง</h3>
         <div className="setrow"><div className="lbl">ผลอ่านคลื่นที่เก็บไว้ในเครื่อง<span className="small">เปิดไฟล์เดิมซ้ำไม่ต้องอ่านใหม่ · ไฟล์หนังเปลี่ยนแล้วอ่านใหม่เอง · รวมไม่เกิน 300 MB</span>
           <span className="small" data-graphcache>{cache ? `${cache.files} ไฟล์ · ${fmtSize(cache.bytes)}` : "—"}</span></div>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={clearCache} data-clearcache>ล้าง</button></div>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={clearCache} data-clearcache><IbTrash size={15} />ล้าง</button></div>
       </div>
 
       <Dialog open={removing != null} onClose={() => setRemoving(null)} kind="work" confirm title={<>เอา <span style={{ wordBreak: "break-all" }}>{removing}</span> <span className="nw">ออกจากชั้น</span></>}
         actions={<><button type="button" className="btn btn-ghost btn-sm" onClick={() => setRemoving(null)}>ยกเลิก</button>
-          <button type="button" className="btn btn-bad btn-sm" onClick={() => removing && removeFolder(removing)} data-confirmremove>เอาออกจากชั้น</button></>}>
+          <button type="button" className="btn btn-bad btn-sm" onClick={() => removing && removeFolder(removing)} data-confirmremove><IbTrash size={15} />เอาออกจากชั้น</button></>}>
         <div style={{ fontSize: 14, lineHeight: 1.6 }}><Phr>หนังในโฟลเดอร์นี้จะหายจากชั้นวาง แต่ไฟล์ในเครื่องยังอยู่ครบ ไม่ถูกลบ</Phr><br />เพิ่มโฟลเดอร์กลับมาเมื่อไหร่ก็ได้</div>
       </Dialog>
       <Dialog open={icarosHelp} onClose={() => setIcarosHelp(false)} kind="menu" title="วิธีลง Icaros"
@@ -346,6 +407,7 @@ export default function SettingsPage() {
           <li>กลับมาที่นี่ กดตรวจเครื่องมือใหม่ ป้ายจะเปลี่ยนเป็นลงแล้ว</li>
         </ol>
       </Dialog>
+    </div>
     </div>
   );
 }

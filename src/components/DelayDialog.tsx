@@ -7,6 +7,7 @@ import Dialog from "./Dialog";
 import { CardIcon, Phr, Range } from "./ui";
 import { delayApi, type DelayFound, type DelayPreview, type DelayView } from "../lib/api";
 import type { AvTrack } from "../lib/avJob";
+import { IcSearch, IbTick, IbPlay } from "./icons";
 
 const baseName = (p: string) => p.split(/[\\/]/).pop() ?? p;
 const sign = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(Math.round(v)).toLocaleString("en-US")}`;
@@ -22,7 +23,7 @@ function drawLane(cv: HTMLCanvasElement | null, v: DelayView, which: "a" | "b", 
   cv.width = Math.round(w * r); cv.height = Math.round(h * r);
   const g = cv.getContext("2d")!;
   g.setTransform(r, 0, 0, r, 0, 0);
-  g.fillStyle = "#fff8fa"; g.fillRect(0, 0, w, h);
+  g.fillStyle = "#ffffff"; g.fillRect(0, 0, w, h);
   const mid = h / 2;
   g.fillStyle = "rgba(74,43,56,.08)"; g.fillRect(0, mid, w, 1);
   g.fillStyle = which === "a" ? "#d9719a" : "#3f8fd8";
@@ -128,17 +129,17 @@ export default function DelayDialog(p: {
     <Dialog open onClose={p.onClose} width={900} title={<span>หาค่าดีเลย์ · <span style={{ overflowWrap: "anywhere" }}>{baseName(t.src)}</span></span>}
       actions={<>
         <div style={{ display: "flex", gap: 8, marginRight: "auto" }}>
-          <button type="button" className={"btn btn-sm " + (finding ? "btn-wait" : "btn-ghost")} aria-disabled={finding || undefined} title={finding ? "กำลังหาอยู่" : undefined} onClick={() => { if (!finding) find(); }} data-delay-find>ให้โปรแกรมหาให้</button>
+          <button type="button" className={"btn btn-sm " + (finding ? "btn-wait" : "btn-ghost")} aria-disabled={finding || undefined} title={finding ? "กำลังหาอยู่" : undefined} onClick={() => { if (!finding) find(); }} data-delay-find><IcSearch size={15} />ให้โปรแกรมหาให้</button>
           <button type="button" className={"btn btn-sm " + (prev.busy || !view || noPlay ? "btn-wait" : "btn-ghost")} aria-disabled={prev.busy || !view || !!noPlay || undefined} title={noPlay ?? (!view ? "รอคลื่นเสียงโหลดก่อน" : prev.busy ? "กำลังทำไฟล์ลองฟัง" : undefined)}
             onClick={() => {
               if (prev.busy || !view || noPlay) return;
               setPrev({ busy: true });
               delayApi.preview(p.movie.path, t.src, t.tid, delay, view.at, (window as unknown as { __delayDry?: boolean }).__delayDry)
                 .then((r) => setPrev({ busy: false, r }), (e) => setPrev({ busy: false, err: String(e) }));
-            }} data-delay-play>{prev.busy ? "กำลังทำไฟล์ลองฟัง…" : "ลองฟัง 20 วินาที"}</button>
+            }} data-delay-play><IbPlay size={15} />{prev.busy ? "กำลังทำไฟล์ลองฟัง…" : "ลองฟัง 20 วินาที"}</button>
         </div>
         <button type="button" className="btn btn-ghost btn-sm" onClick={p.onClose}>ยกเลิก</button>
-        <button type="button" className="btn btn-main btn-sm" onClick={() => p.onApply(delay)} data-delay-use>ใช้ค่านี้</button>
+        <button type="button" className="btn btn-main btn-sm" onClick={() => p.onApply(delay)} data-delay-use><IbTick size={15} />ใช้ค่านี้</button>
       </>}>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }} data-delay-dialog>
         <div className="small" style={{ marginTop: -6 }}>

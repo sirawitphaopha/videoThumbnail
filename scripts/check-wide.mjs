@@ -93,8 +93,8 @@ check("ใส่ปกแนวนอนให้ MKV สำเร็จ · ร�
 await c.evaluate("[...document.querySelectorAll('button.nav')].find(b => b.innerText.includes('ชั้นวางหนัง')).click()"); await sleep(600);
 const gotWide = await waitFor("return !!document.querySelector('.book.wide[data-movie=\"ดาวเหนือ (2023)\"]')", 30000);
 const w = await q("const b = (n) => document.querySelector(`.book[data-movie=\"${n}\"]`); const c1 = b('ดาวเหนือ (2023)').querySelector('.cover'), c2 = b('Harbor Lights (2021)').querySelector('.cover'); return { wideW: c1.clientWidth, wideH: c1.clientHeight, tallW: c2.clientWidth, tallH: c2.clientHeight };");
-const expectW = Math.round(110 * 1.5 * Math.min(AR, 16 / 9));
-check("ชั้นวาง ปกแนวนอนกว้างตามสัดส่วน สูงเท่าเล่มอื่น · ปกตั้งกว้างเท่าเดิม", gotWide && w.wideH === w.tallH && Math.abs(w.wideW - expectW) <= 2 && w.tallW === 110, `${JSON.stringify(w)} คาด ${expectW}`);
+const expectW = Math.round(140 * 1.5 * Math.min(AR, 16 / 9));
+check("ชั้นวาง ปกแนวนอนกว้างตามสัดส่วน สูงเท่าเล่มอื่น · ปกตั้งกว้างเท่าเดิม", gotWide && w.wideH === w.tallH && Math.abs(w.wideW - expectW) <= 2 && w.tallW === 140, `${JSON.stringify(w)} คาด ${expectW}`);
 await shot("03-ชั้นวาง-ปกแนวนอน.png", "[data-shelf]");
 for (const sz of ["เล็ก", "ใหญ่"]) {
   await clickText(".seg button", sz); await sleep(400);

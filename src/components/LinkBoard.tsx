@@ -13,6 +13,9 @@ import { useSettings } from "../lib/settings";
 import { inApp, linkApi, pickFile, pickFolder, thumbUrl, type LinkImage, type Movie } from "../lib/api";
 import { searchByName } from "../lib/thaiSearch";
 import { reloadImages, setLinkJob, setReply, thumbOf, useLinkJob } from "../lib/linkJob";
+import { IcPoster } from "./icons";
+import { IbTrash, IbBack } from "./icons";
+import { IbTable } from "./icons";
 
 const IMAGE_EXT = ["jpg", "jpeg", "png", "webp", "bmp", "tif", "tiff", "heic", "heif"];
 const extOf = (p: string) => (p.match(/\.([^.\\/]+)$/)?.[1] ?? "").toLowerCase();
@@ -229,7 +232,7 @@ export default function LinkBoard() {
         {/* ---------- รูป ---------- */}
         <div className={"card bpane" + (imgOnly ? " only" : "") + (overPane === "images" ? " over" : "")} data-board-pane="images">
           <div className="bhead"><b>รูปที่ยังไม่ได้ใช้ · <span className="nw">{COUNT(free.length)} รูป</span></b>
-            <Seg small label="มุมมองแผงรูป" value={imgOnly ? "only" : "list"} onChange={(v) => update({ linkBoardImages: v })} options={[{ value: "list", label: "มีชื่อไฟล์" }, { value: "only", label: "แค่รูป" }]} /></div>
+            <Seg small label="มุมมองแผงรูป" value={imgOnly ? "only" : "list"} onChange={(v) => update({ linkBoardImages: v })} options={[{ value: "list", label: <><IbTable size={14} />มีชื่อไฟล์</> }, { value: "only", label: <><IcPoster size={14} />แค่รูป</> }]} /></div>
           <div className="folders" data-board-img-folders>
             {reply.imageFolders.map((f) => (
               <div key={f} className="pathline"><FolderIcon /><b title={f}>{f}</b><span className="small">{COUNT(imgCount(f))} รูป</span>
@@ -237,7 +240,7 @@ export default function LinkBoard() {
             ))}
             {reply.loose.length > 0 && <div className="pathline"><FolderIcon /><b>รูปที่ลากมาทีละรูป</b><span className="small">{COUNT(reply.loose.length)} รูป</span></div>}
             <div className="addfolder"><button type="button" className="addbtn" data-board-add-images onClick={async () => { const d = await pickFolder("เลือกโฟลเดอร์รูป"); if (d) addImages([d]); }}>+ เพิ่มโฟลเดอร์รูป</button><span>หรือลากโฟลเดอร์หรือรูปมาวาง</span>
-              <button type="button" className="addbtn" style={{ marginLeft: "auto" }} onClick={async () => { const f = await pickFile("image"); if (f) addImages([f]); }}>เลือกรูป</button></div>
+              <button type="button" className="addbtn" style={{ marginLeft: "auto" }} onClick={async () => { const f = await pickFile("image"); if (f) addImages([f]); }}><IcPoster size={15} />เลือกรูป</button></div>
           </div>
           <div className="bscroll">
             {free.length === 0 ? <div className="small" style={{ padding: "18px 4px" }} data-board-noimg>ยังไม่มีรูปเหลือ · เพิ่มโฟลเดอร์รูป หรือลากรูปจาก Explorer มาวางบนหนังตรง ๆ</div> : (
@@ -250,7 +253,7 @@ export default function LinkBoard() {
         {/* ---------- หนัง ---------- */}
         <div className={"card bpane" + (mvOnly ? " only" : "") + (overPane === "movies" ? " over" : "")} data-board-pane="movies">
           <div className="bhead"><b>{reply.scope === "all" ? "หนังทุกเรื่องบนชั้น" : "หนังที่ยังไม่มีปก"} · <span className="nw">{COUNT(onBoard.length)} เรื่อง</span></b>
-            <Seg small label="มุมมองแผงหนัง" value={mvOnly ? "only" : "list"} onChange={(v) => update({ linkBoardMovies: v })} options={[{ value: "list", label: "รายการ" }, { value: "only", label: "แค่รูป" }]} /></div>
+            <Seg small label="มุมมองแผงหนัง" value={mvOnly ? "only" : "list"} onChange={(v) => update({ linkBoardMovies: v })} options={[{ value: "list", label: <><IbTable size={14} />รายการ</> }, { value: "only", label: <><IcPoster size={14} />แค่รูป</> }]} /></div>
           <div className="folders" data-board-mv-folders>
             {(settings?.folders ?? []).map((f) => (
               <div key={f} className="pathline"><FolderIcon /><b title={f}>{f}</b><span className="small">{COUNT(folderCount(f))} เรื่อง</span>
@@ -271,7 +274,7 @@ export default function LinkBoard() {
       </div>
       <div className="linkfoot">
         <span className="small" style={{ flex: 1, minWidth: 0 }}>คีย์บอร์ด ลูกศรเลือกรูป · Enter เลือก · Tab ไปฝั่งหนัง · Enter จับคู่ · Ctrl+Z ย้อน · คู่ที่จับบนกระดานยังไม่บันทึก ไปรอยืนยันที่ตาราง</span>
-        <button type="button" className="btn btn-main" data-board-back onClick={() => setLinkJob({ view: "table" })}>กลับตารางตรวจผล{waitingManual ? ` · จับคู่ไว้ ${COUNT(waitingManual)} คู่` : ""}</button>
+        <button type="button" className="btn btn-main" data-board-back onClick={() => setLinkJob({ view: "table" })}><IbBack size={15} />กลับตารางตรวจผล{waitingManual ? ` · จับคู่ไว้ ${COUNT(waitingManual)} คู่` : ""}</button>
       </div>
       {dragImg && drag && (
         <div className="bghost" style={{ left: drag.x + 10, top: drag.y + 10 }} data-board-ghost>
@@ -281,7 +284,7 @@ export default function LinkBoard() {
       <Dialog open={!!removing} onClose={() => setRemoving(null)} kind="work" confirm title="เอาโฟลเดอร์นี้ออกจากชั้นวางไหม"
         actions={<>
           <button type="button" className="btn btn-ghost" onClick={() => setRemoving(null)}>ไม่เอาออก</button>
-          <button type="button" className="btn btn-danger" data-board-rm-yes onClick={() => { if (removing) removeMovieFolder(removing); }}>เอาออกจากชั้น</button>
+          <button type="button" className="btn btn-danger" data-board-rm-yes onClick={() => { if (removing) removeMovieFolder(removing); }}><IbTrash size={15} />เอาออกจากชั้น</button>
         </>}>
         <div className="small" style={{ fontSize: 14, color: "var(--txt2)" }}>
           <div style={{ wordBreak: "break-all" }}>{removing}</div>
@@ -319,7 +322,7 @@ function MovieCell(p: { m: Movie; title: string; only: boolean; selected: string
           : cover ? <img className="slot" src={cover} alt="" draggable={false} />
           : <span className="slot none"><b>{p.title}</b>{over && <em>{dropText}</em>}</span>}
         {(pickSrc || cover) && over && <span className="mtover">{dropText}</span>}
-        {p.sent && <button type="button" className="btn btn-ghost btn-sm undo" data-board-undo onClick={(e) => { e.stopPropagation(); p.onUndo(); }}>ย้อน</button>}
+        {p.sent && <button type="button" className="btn btn-ghost btn-sm undo" data-board-undo onClick={(e) => { e.stopPropagation(); p.onUndo(); }}><IbBack size={15} />ย้อน</button>}
       </div>
     );
   }
@@ -331,7 +334,7 @@ function MovieCell(p: { m: Movie; title: string; only: boolean; selected: string
         : <span className="lthumb small none">ไม่มีปก</span>}
       <div className="lname"><b>{p.title}</b><span className="fn" title={m.path}>{p.sent && p.pick ? `ส่งไปรอยืนยันที่ตารางแล้ว · ${p.pick.name}` : `${baseName(m.path)} · ${m.root}`}</span></div>
       {over ? <span className="small mvhint">{dropText}{over.names ? <><br />{over.names}</> : null}</span>
-        : p.sent ? <button type="button" className="btn btn-ghost btn-sm" data-board-undo onClick={(e) => { e.stopPropagation(); p.onUndo(); }}>ย้อน</button>
+        : p.sent ? <button type="button" className="btn btn-ghost btn-sm" data-board-undo onClick={(e) => { e.stopPropagation(); p.onUndo(); }}><IbBack size={15} />ย้อน</button>
         : p.selected ? <span className="small mvhint">กดเพื่อใช้รูปที่เลือก</span> : null}
     </div>
   );

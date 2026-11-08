@@ -7,6 +7,7 @@ import { CardIcon, Phr, Skel } from "./ui";
 import { convertApi, type AudioFile, type CoverData } from "../lib/api";
 import { ftName } from "../lib/ftypes";
 import { fmtSize } from "../lib/format";
+import { IcCopy } from "./icons";
 
 const LABEL: Record<string, string> = {
   title: "ชื่อเพลง", artist: "ศิลปิน", album: "อัลบั้ม", album_artist: "ศิลปินอัลบั้ม", date: "ปี", track: "แทร็ก", disc: "แผ่น",
@@ -66,7 +67,7 @@ export default function TagDialog({ path, onClose }: { path: string; onClose: ()
     <Dialog open onClose={onClose} kind="menu" width={620} title={<span>ข้อมูลเพลง · <span style={{ overflowWrap: "anywhere" }}>{name}</span></span>}
       actions={<>
         <span className="small" style={{ marginRight: "auto", alignSelf: "center" }}>ดูอย่างเดียว · การแก้ข้อมูลเพลงอยู่ในโรดแมป</span>
-        {hasTags && <button type="button" className="btn btn-ghost btn-sm" onClick={copy} data-tagcopy>{copied ? "คัดลอกแล้ว" : "คัดลอกเป็นข้อความ"}</button>}
+        {hasTags && <button type="button" className="btn btn-ghost btn-sm" onClick={copy} data-tagcopy><IcCopy size={14} />{copied ? "คัดลอกแล้ว" : "คัดลอกเป็นข้อความ"}</button>}
         <button type="button" className="btn btn-main btn-sm" onClick={onClose}>ปิด</button>
       </>}>
       <div className="tagview" data-tagview>

@@ -14,6 +14,8 @@ import { CODECS, codecOf, type Codec } from "../lib/codecs";
 import { ADV, TIPS, advSize, aacKbps, cardDefaults, cardValue, cardsFor, optLabel, optVal, type Card, type SizeCtx, type Vals } from "../lib/codecAdv";
 import { ftName, isLossless } from "../lib/ftypes";
 import { fmtSize } from "../lib/format";
+import { IbTick, IcCopy, IcSettings } from "./icons";
+import { IcPlus, IbSwap } from "./icons";
 
 const baseName = (p: string) => p.split(/[\\/]/).pop() ?? p;
 const SPEC_KEYS = ["channels", "bits", "rate"];
@@ -38,6 +40,15 @@ function presetVals(c: Codec, i: number, srcCh: number | null): Vals {
   v.channels = pr.channels && (srcCh ?? 2) > pr.channels ? String(pr.channels) : "src";
   return v;
 }
+/** ชุดค่าแบบง่ายเป็นค่าที่ส่งฝั่ง Rust · ใช้กับดรอปดาวน์หน้าแปลงเสียง เลือกได้โดยไม่ต้องเปิดแผง · ตัวแปลงใช้ตัวต้นฉบับถ้ามี */
+export function presetSpec(c: Codec, i: number, encs: EncoderInfo[] | null): EncodeSpec {
+  const eng = engines(c, encs).find((e) => e.ok)?.value ?? "ffmpeg", v = presetVals(c, i, null), pp: Record<string, string | number> = {};
+  for (const k of cardsFor(c.id, eng, v)) {
+    if (!SPEC_KEYS.includes(k.key)) pp[k.key] = cardValue(k, v, k.kind === "step" ? undefined : (k.opts ?? []).map((o) => [optVal(o), optLabel(o)] as [string, string]));
+  }
+  return { codec: c.id, encoder: eng, p: pp, channels: null, bits: null, rate: null, gain: 0, loudnorm: false, speed: null, keepPitch: false };
+}
+
 const same = (a: Vals, b: Vals) => Object.keys({ ...a, ...b }).every((k) => String(a[k] ?? "") === String(b[k] ?? ""));
 const matchPreset = (c: Codec, v: Vals, srcCh: number | null) => c.presets.findIndex((_, i) => same(presetVals(c, i, srcCh), v));
 
@@ -100,6 +111,17 @@ function StepCtl({ k, value, onChange }: { k: Card; value: number; onChange: (v:
       <div className="tlabels" aria-hidden="true">{major.map((s) => <span key={s} style={{ left: pct(stops.indexOf(s)) }}>{lbl(s)}</span>)}</div>
     </div>
   );
+}
+
+/** จัดการ์ดไม่ให้เหลือช่องว่าง (พี่กันสั่ง 8 พ.ย. 2569 "ไปเรียงมาดีๆ ที่ว่างโคตรเยอะ") · แถบเลื่อนกับตัวเลือกยาวแถวละ 2 · ตัวเลือกสั้นแถวละ 3 · เศษท้ายยืดเต็มแถว */
+function arrange(cards: Card[]): [Card, number][] {
+  const long = (k: Card) => k.kind === "step" || (k.kind === "seg" && (k.opts ?? []).reduce((n, o) => n + optLabel(o).length, 0) > 28);
+  const a = cards.filter(long), b = cards.filter((k) => !long(k));
+  const r = b.length % 3, plain = r === 1 && b.length > 1 ? b.length - 4 : b.length - r;
+  return [
+    ...a.map((k, i): [Card, number] => [k, a.length % 2 && i === a.length - 1 ? 12 : 6]),
+    ...b.map((k, i): [Card, number] => [k, i < plain ? 4 : b.length - plain === 1 ? 12 : 6]),
+  ];
 }
 
 export default function CodecPanel(p: {
@@ -217,7 +239,7 @@ export default function CodecPanel(p: {
 
   const srcFt = ftName("audio", t.codec, t.profile);
   const srcLossless = isLossless(srcFt);
-  const warn = !srcLossless && !c.lossless ? `แปลงแบบเสียคุณภาพซ้อน ${srcFt} เป็น ${c.name} เสียงต่างจากต้นฉบับมากขึ้นอีกนิด`
+  const warn = !t.codec ? null : !srcLossless && !c.lossless ? `แปลงแบบเสียคุณภาพซ้อน ${srcFt} เป็น ${c.name} เสียงต่างจากต้นฉบับมากขึ้นอีกนิด`
     : !srcLossless && c.lossless ? `${srcFt} เป็นแบบเสียคุณภาพอยู่แล้ว แปลงเป็น ${c.name} ไฟล์ใหญ่ขึ้น คุณภาพไม่กลับมา` : null;
   const name = `${t.name || ""} ${c.name}`.trim();
   const apply = () => {
@@ -226,7 +248,7 @@ export default function CodecPanel(p: {
     p.onApply(spec, pair, pair && t.inMovie ? name : "");
   };
 
-  const cardEl = (k: Card) => {
+  const cardEl = (k: Card, span: number) => {
     const ex = abbrer();
     const label = ex(k.label);
     const v = live[k.key];
@@ -247,7 +269,7 @@ export default function CodecPanel(p: {
     } else if (k.size) size = <div className="asz"><span>ขนาดไฟล์</span><div>{ex(k.size)}</div></div>;
     else size = <div className="asz none">ไม่เปลี่ยนขนาดไฟล์</div>;
     return (
-      <div className="acard" key={k.key + k.label} data-card={k.key}>
+      <div className="acard" key={k.key + k.label} data-card={k.key} style={{ gridColumn: `span ${span}` }}>
         <div className="ach"><span className="lbl ilbl">{label}<InfoTip title={k.label} tip={k.tip} /></span>{head}</div>
         {ctl}{size}
         <div className="small" style={{ margin: 0 }}>{ex(k.note)}</div>
@@ -272,29 +294,30 @@ export default function CodecPanel(p: {
   const exTop = abbrer();
 
   return (
-    <Dialog open onClose={p.onClose} width={tab === "adv" ? 900 : 780} title={<span>ตั้งค่าแปลงเสียง · <span style={{ overflowWrap: "anywhere" }}>{p.title ?? (t.inMovie ? (t.name || "เสียงในหนัง") : baseName(t.src))}</span></span>}
+    <Dialog open onClose={p.onClose} width={900} height="min(680px, calc(100vh - 48px))" title={<span>ตั้งค่าแปลงเสียง · <span style={{ overflowWrap: "anywhere" }}>{p.title ?? (t.inMovie ? (t.name || "เสียงในหนัง") : baseName(t.src))}</span></span>}
       actions={<>
         <span className="small" style={{ marginRight: "auto", alignSelf: "center" }}>ค่าที่กดใช้จำไว้เป็นค่าตั้งต้นของชนิดนี้ครั้งหน้า · ขนาดเป็นค่าประมาณ ของจริงขึ้นกับเสียงในแทร็ก</span>
         {t.convert && <button type="button" className="btn btn-ghost btn-sm" onClick={() => p.onApply(null, pair, "")} data-conv-off>ไม่แปลง</button>}
         <button type="button" className="btn btn-ghost btn-sm" onClick={p.onClose}>ยกเลิก</button>
         <button type="button" className={"btn btn-sm " + (blocked ? "btn-wait" : "btn-main")} aria-disabled={!!blocked || undefined} title={blocked ?? undefined} onClick={apply} data-conv-use>ใช้ค่านี้</button>
       </>}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 12 }} data-codec-panel data-tab={tab}>
-        <div className="small">ต้นทาง <b style={{ color: "var(--txt2)" }}>{srcFt}</b>{t.channels ? ` · ${t.channels} ช่อง` : ""}{t.rate ? ` · ${t.rate / 1000} kHz` : ""}{t.bits && srcLossless ? ` · ${t.bits}-bit` : ""}{t.duration ? ` · ${Math.round(t.duration / 60)} นาที` : ""}</div>
-        <div style={{ display: "flex", gap: 16, flexWrap: "wrap", alignItems: "flex-end" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: "1 0 auto" }} data-codec-panel data-tab={tab}>
+        {t.codec && <div className="small">ต้นทาง <b style={{ color: "var(--txt2)" }}>{srcFt}</b>{t.channels ? ` · ${t.channels} ช่อง` : ""}{t.rate ? ` · ${t.rate / 1000} kHz` : ""}{t.bits && srcLossless ? ` · ${t.bits}-bit` : ""}{t.duration ? ` · ${Math.round(t.duration / 60)} นาที` : ""}</div>}
+        <div className="cp2">
           <div><div className="small ilbl" style={{ marginBottom: 4 }}><b style={{ color: "var(--txt2)" }}>Lossy</b>&nbsp;(เสียคุณภาพ ไฟล์เล็ก)<InfoTip title="Lossy" tip={TIPS.lossy} /></div>
             <Seg small label="ชนิดแบบเสียคุณภาพ" value={c.lossless ? ("" as Codec["id"]) : c.id} onChange={pickCodec} options={CODECS.filter((x) => !x.lossless).map((x) => ({ value: x.id, label: x.name }))} /></div>
           <div><div className="small ilbl" style={{ marginBottom: 4 }}><b style={{ color: "var(--txt2)" }}>Lossless</b>&nbsp;(ไม่เสียคุณภาพ)<InfoTip title="Lossless" tip={TIPS.lossless} /></div>
             <Seg small label="ชนิดแบบไม่เสียคุณภาพ" value={c.lossless ? c.id : ("" as Codec["id"])} onChange={pickCodec} options={CODECS.filter((x) => x.lossless && (!x.only || p.convertPage)).map((x) => ({ value: x.id, label: x.name }))} /></div>
         </div>
         <div className="small ilbl" style={{ display: "block" }}><b style={{ color: "var(--txt)" }}>{c.name}</b> <span className="ab">({c.full})</span><InfoTip title={c.name} tip={ADV[c.id].tip} /> · <Phr>{`${c.why} · ${c.ch}${c.only ? " · ใส่ไฟล์หนังไม่ได้ ใช้เฉพาะหน้าแปลงเสียง" : c.mp4 ? "" : " · ใส่ MP4 ไม่ได้"}`}</Phr></div>
-        <div><div className="small ilbl" style={{ marginBottom: 4 }}><b style={{ color: "var(--txt2)" }}>Encoder</b>&nbsp;(ตัวแปลง)<InfoTip title="Encoder" tip={TIPS.engine} /></div>
-          <div style={{ display: "flex" }}><Seg small label="ตัวแปลง" value={engUse} onChange={(v) => { if (engs.find((e) => e.value === v)?.ok) setEng(v); }}
-            options={engs.map((e) => ({ value: e.value, label: e.ok ? e.label : `${e.label} (ยังไม่ได้ใส่)` }))} /></div></div>
-        <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 12, flexWrap: "wrap" }}>
-          <div className="ilbl"><Seg label="แบบตั้งค่า" value={tab} onChange={setTab} options={[{ value: "easy", label: "แบบง่าย" }, { value: "adv", label: "ขั้นสูง" }]} /><InfoTip title="แบบง่ายกับขั้นสูง" tip={TIPS.mode} /></div>
-          <div className="small" data-headsz>ขนาดที่คาดของแทร็กนี้ <b style={{ color: "var(--txt)" }}>{headBytes ? `ราว ${fmtSize(headBytes)}` : "ไม่รู้ความยาวแทร็ก"}</b>
-            {c.id === "aac" && ctx ? ` · เฉลี่ยราว ${Math.round(aacKbps(live, engUse, ctx.ch))} kbps` : ""}</div>
+        <div className="cp2">
+          <div><div className="small ilbl" style={{ marginBottom: 4 }}><b style={{ color: "var(--txt2)" }}>Encoder</b>&nbsp;(ตัวแปลง)<InfoTip title="Encoder" tip={TIPS.engine} /></div>
+            <Seg small label="ตัวแปลง" value={engUse} onChange={(v) => { if (engs.find((e) => e.value === v)?.ok) setEng(v); }}
+              options={engs.map((e) => ({ value: e.value, label: e.ok ? e.label : `${e.label} (ยังไม่ได้ใส่)` }))} /></div>
+          <div><div className="cphead"><span className="small ilbl"><b style={{ color: "var(--txt2)" }}>แบบตั้งค่า</b><InfoTip title="แบบง่ายกับขั้นสูง" tip={TIPS.mode} /></span>
+              <span className="small" data-headsz>ขนาดที่คาดของแทร็กนี้ <b style={{ color: "var(--txt)" }}>{headBytes ? `ราว ${fmtSize(headBytes)}` : "ไม่รู้ความยาวแทร็ก"}</b>
+                {c.id === "aac" && ctx ? ` · เฉลี่ยราว ${Math.round(aacKbps(live, engUse, ctx.ch))} kbps` : ""}</span></div>
+            <Seg small label="แบบตั้งค่า" value={tab} onChange={setTab} options={[{ value: "easy", label: <><IbTick size={14} />แบบง่าย</> }, { value: "adv", label: <><IcSettings size={14} />ขั้นสูง</> }]} /></div>
         </div>
         {tab === "easy" ? (<>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }} role="radiogroup" aria-label="ชุดค่า">
@@ -312,36 +335,36 @@ export default function CodecPanel(p: {
             })}
           </div>
           <div className="small">{pi < 0 ? "ค่าที่แก้ในขั้นสูงยังไม่ตรงกับชุดไหน กดชุดค่าเพื่อกลับไปใช้ชุดนั้น · " : ""}ชุดค่าตั้งจากค่าที่ผู้ทำตัวแปลงแนะนำ · กด ขั้นสูง เพื่อดูหรือแก้ทุกตัวเลือกของชุดที่เลือก</div>
-          <div style={{ display: "flex", gap: 18, flexWrap: "wrap", alignItems: "flex-start" }} data-extra>
+          <div className="cp3" data-extra>
             <div><div className="small ilbl" style={{ marginBottom: 4 }}><b style={{ color: "var(--txt2)" }}>ความเร็วเสียง</b>&nbsp;· เสียงที่เหลื่อมเพิ่มขึ้นเรื่อย ๆ<InfoTip title="ความเร็วเสียง" tip={TIPS.speed} /></div>
               <Dropdown label="ความเร็วเสียง" value={speed} onChange={setSpeed} options={speedOpts} /></div>
             <div><div className="small ilbl" style={{ marginBottom: 4 }}><b style={{ color: "var(--txt2)" }}>Gain</b>&nbsp;(ปรับความดัง dB)<InfoTip title="Gain" tip={TIPS.gain} /></div>
               <div className="delay"><button type="button" aria-label="ลดความดัง 1 dB" onClick={() => setGain((g) => Math.max(-12, g - 1))}>−</button>
-                <span className="avnum" style={{ display: "inline-flex", alignItems: "center", justifyContent: "flex-end", width: 56 }} data-gain>{gain > 0 ? `+${gain}` : gain} dB</span>
+                <span className="avnum" style={{ display: "inline-flex", alignItems: "center", justifyContent: "center", flex: 1 }} data-gain>{gain > 0 ? `+${gain}` : gain} dB</span>
                 <button type="button" aria-label="เพิ่มความดัง 1 dB" onClick={() => setGain((g) => Math.min(12, g + 1))}>+</button></div></div>
             <div><div className="small ilbl" style={{ marginBottom: 4 }}><b style={{ color: "var(--txt2)" }}>Loudness normalize</b>&nbsp;(ความดังมาตรฐาน)<InfoTip title="Loudness normalize" tip={TIPS.loud} /></div>
               <div style={{ display: "flex" }}><Seg small label="ความดังมาตรฐาน" value={loud ? "on" : "off"} onChange={(v) => setLoud(v === "on")}
                 options={[{ value: "off", label: "Off" }, { value: "on", label: "EBU R128 −23 LUFS" }]} /></div></div>
           </div>
         </>) : (<>
-          <div className="cards" data-cards>{shown.map(cardEl)}</div>
+          <div className="cards acards" data-cards>{arrange(shown).map(([k, span]) => cardEl(k, span))}</div>
           {c.id === "wv" && <div className="small">{exTop("WavPack แบบ Hybrid ได้สองไฟล์ (.wv กับไฟล์แก้ .wvc) ใส่ในไฟล์หนังได้แค่ไฟล์แรก จึงไม่มีในหน้านี้ · ใช้ได้ในหน้าแปลงเสียง")}</div>}
           {engUse === "ffmpeg" && c.native && <div className="small">{exTop(`ffmpeg ไม่มีบางช่องของตัวต้นฉบับ ${c.native} การ์ดที่ไม่มีจึงไม่แสดง`)}</div>}
           <div className="cgroup">ใช้กับทุกชนิด</div>
-          <div className="cards">
-            <div className="acard" data-card="gain">
+          <div className="cards acards">
+            <div className="acard" data-card="gain" style={{ gridColumn: "span 4" }}>
               <div className="ach"><span className="lbl ilbl">Gain<InfoTip title="Gain" tip={TIPS.gain} /></span><VBox k={gainCard} value={gain} onCommit={setGain} /></div>
               <StepCtl k={gainCard} value={gain} onChange={setGain} />
               <div className="asz none">ไม่เปลี่ยนขนาดไฟล์</div>
               <div className="small" style={{ margin: 0 }}>{abbrer()(gainCard.note)}</div>
             </div>
-            <div className="acard" data-card="loud">
+            <div className="acard" data-card="loud" style={{ gridColumn: "span 4" }}>
               <div className="ach"><span className="lbl ilbl">Loudness normalize<InfoTip title="Loudness normalize" tip={TIPS.loud} /></span></div>
               <div style={{ display: "flex" }}><Seg small label="ความดังมาตรฐาน" value={loud ? "on" : "off"} onChange={(v) => setLoud(v === "on")} options={[{ value: "off", label: "Off" }, { value: "on", label: "EBU R128 −23 LUFS" }]} /></div>
               <div className="asz none">ไม่เปลี่ยนขนาดไฟล์</div>
               <div className="small" style={{ margin: 0 }}>{abbrer()("ปรับความดังตามมาตรฐาน EBU R128 ให้ได้ −23 LUFS ทุกแทร็กดังพอ ๆ กัน · ใช้กับทุกชนิด")}</div>
             </div>
-            <div className="acard" data-card="speed">
+            <div className="acard" data-card="speed" style={{ gridColumn: "span 4" }}>
               <div className="ach"><span className="lbl ilbl">ความเร็วเสียง<InfoTip title="ความเร็วเสียง" tip={TIPS.speed} /></span></div>
               <div style={{ display: "flex" }}><Dropdown label="ความเร็วเสียง" value={speed} onChange={setSpeed} options={speedOpts} /></div>
               <div className="asz"><span>ขนาดไฟล์</span><div>ยาวขึ้นหรือสั้นลงตามความเร็ว ขนาดเปลี่ยนตาม</div></div>
@@ -353,17 +376,18 @@ export default function CodecPanel(p: {
         {t.inMovie && (
           <div><div className="small" style={{ marginBottom: 4 }}><b style={{ color: "var(--txt2)" }}>แทร็กที่อยู่ในหนังแล้ว · แปลงแล้วจะ</b></div>
             <div style={{ display: "flex" }}><Seg small label="แปลงแล้วจะ" value={pair ? "pair" : "replace"} onChange={(v) => setPair(v === "pair")}
-              options={[{ value: "pair", label: "เพิ่มคู่กับแทร็กเดิม" }, { value: "replace", label: "แทนที่แทร็กเดิม" }]} /></div>
+              options={[{ value: "pair", label: <><IcPlus size={14} />เพิ่มคู่กับแทร็กเดิม</> }, { value: "replace", label: <><IbSwap size={14} />แทนที่แทร็กเดิม</> }]} /></div>
             <div className="small" style={{ marginTop: 4 }}>{pair ? `แทร็กใหม่ชื่อ ${name} ต่อท้ายแทร็กเดิม แทร็กเดิมอยู่ครบ` : "แทร็กเดิมถูกแทนที่ด้วยแทร็กที่แปลง"}</div></div>
         )}
         {missingNative && <div className="stat warn" data-native-missing><CardIcon kind="warn" /><div><b>{c.name} ยังใช้ไม่ได้</b><Phr>{missingNative}</Phr></div></div>}
         {warn && <div className="stat warn"><CardIcon kind="warn" /><div><Phr>{warn}</Phr> · <Phr>ไม่ห้าม แค่บอก</Phr></div></div>}
-        <div>
+        {/* กล่องคำสั่งยืดรับที่เหลือของหน้าต่าง ไม่ให้เหลือที่ว่างล่าง */}
+        <div style={{ display: "flex", flexDirection: "column", flex: "1 1 auto" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
             <span className="small ilbl"><b style={{ color: "var(--txt2)" }}>คำสั่งที่จะรัน</b>&nbsp;· Command line<InfoTip title="Command line" tip={TIPS.cmd} /></span>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { if (plan) navigator.clipboard?.writeText(plan.text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }).catch(() => {}); }} data-copy>{copied ? "คัดลอกแล้ว" : "คัดลอก"}</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { if (plan) navigator.clipboard?.writeText(plan.text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }).catch(() => {}); }} data-copy><IcCopy size={14} />{copied ? "คัดลอกแล้ว" : "คัดลอก"}</button>
           </div>
-          <pre data-cmd style={{ margin: 0, whiteSpace: "pre-wrap", overflowWrap: "break-word", fontFamily: "var(--mono)", fontSize: 12, lineHeight: 1.55, background: "#fff", border: "1px solid var(--line)", borderRadius: 8, padding: "8px 10px", userSelect: "text", color: "var(--txt)" }}>
+          <pre data-cmd style={{ flex: 1, minHeight: 40, margin: 0, whiteSpace: "pre-wrap", overflowWrap: "break-word", fontFamily: "var(--mono)", fontSize: 12, lineHeight: 1.55, background: "#fff", border: "1px solid var(--line)", borderRadius: 8, padding: "8px 10px", userSelect: "text", color: "var(--txt)" }}>
             {planErr ?? (plan
               // ตัดบรรทัดเฉพาะตรงเว้นวรรค · เดิมตัดหลังขีด -i กลายเป็นสองบรรทัด อ่านผิดคำสั่ง (เจอตอนตรวจภาพ) · คัดลอกใช้ plan.text ตรงตัว
               ? plan.text.split("\n").map((line, li) => <span key={li}>{li > 0 && <br />}{line.split(" ").map((w, wi) => <span key={wi}>{wi > 0 ? " " : ""}<span style={{ whiteSpace: "nowrap" }}>{w}</span></span>)}</span>)

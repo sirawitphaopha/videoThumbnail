@@ -40,7 +40,7 @@ check("เป็นตัวโปรแกรมที่สร้างจร�
 check("ตัวจริงไม่มีตัวรับลากจำลองของตัวตรวจ", await q("return window.__linkDrop === undefined && window.__boardDrop === undefined"));
 
 // เตรียมชุดทดสอบ · เอาโฟลเดอร์ออกจากคลังก่อนลบ คลังจำหนังตามที่อยู่ไฟล์ด้วย
-await inv("set_settings", { patch: { folders: [], linkStore: "beside" } });
+await inv("set_settings", { patch: { folders: [], linkStores: ["beside"] } });
 await inv("scan_library");
 for (let i = 0; i < 100; i++) { await sleep(200); const l = await inv("get_library"); if (!l.scanning && l.movies.length === 0) break; }
 await inv("dev_clear_parked");

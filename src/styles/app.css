@@ -4,21 +4,20 @@
    ส่วนที่ต่างจากต้นแบบ เขียนกำกับไว้ทุกจุดว่าทำไมต่าง */
 
 :root {
-  --bg: #fdf2f6; --ink: #4a2b38; --muted: #8a6474;
-  --win: #fffafc; --win2: #fdeef4; --line: #f4d3e0;
-  --txt: #4a2b38; --txt2: #8a5d6e; --txt3: #b28a9a;
-  --accent: #e98aac; --accent-d: #d9719a; --accent-soft: #fbd7e5; --accent-ink: #c2547f;
+  --bg: #fffafb; --ink: #3a2630; --muted: #7a5c68;
+  --win: #ffffff; --win2: #fdf6f8; --line: #f6e6ec;
+  --txt: #3a2630; --txt2: #6b4f5c; --txt3: #876572;
+  --accent: #c8406f; --accent-d: #ad3560; --accent-soft: #fbe9ef; --accent-ink: #b0355f;
   --ok: #7fc9a2; --ok-soft: #e2f5ea; --ok-ink: #2f7a52;
   --bad: #ec8f8f; --bad-soft: #fde5e5; --bad-ink: #b04545;
-  --warn: #f2c76e; --warn-soft: #fdf1d6; --warn-ink: #94680f;
+  --warn: #f2c76e; --warn-soft: #fdf1d6; --warn-ink: #8a600e;
   --info: #8dbbe8; --info-soft: #e4effb; --info-ink: #2f6496;
-  --wood1: #f2cfd9; --wood2: #e6b3c3; --wood3: #d69aae;
   --font: Sarabun, "Noto Sans Thai", Tahoma, sans-serif;
   --mono: Consolas, "Cascadia Mono", "Courier New", monospace;
   /* ความสูงแถบชื่อ ประกาศที่นี่ที่เดียว ทุกที่อ้างตัวนี้ (web-craft 6.22 ①) */
   --titlebar-h: 34px;
   /* ชั้นของที่ลอยทับกัน ตารางกลางตัวเดียว ห้ามตั้งเลขเอง (web-craft 6.4) */
-  --z-bar: 6; --z-float: 15; --z-menu: 29; --z-panel: 32; --z-over: 52; --z-pick: 70; --z-confirm: 85; --z-toast: 95;
+  --z-bar: 6; --z-float: 15; --z-menu: 29; --z-panel: 32; --z-over: 52; --z-pick: 70; --z-confirm: 85; --z-viewer: 90; --z-toast: 95;
 }
 
 * { box-sizing: border-box; }
@@ -39,10 +38,10 @@ body {
 ::-webkit-scrollbar { width: 0; height: 0; }
 * { scrollbar-width: none; }
 .ovthumb {
-  position: fixed; border-radius: 4px; background: #efc0d2; opacity: 0;
+  position: fixed; border-radius: 4px; background: #e7c8d2; opacity: 0;
   pointer-events: none; z-index: 99999; will-change: top, left, width, height, opacity;
 }
-.ovthumb:hover { background: #e39ab6; }
+.ovthumb:hover { background: #cdb0ba; }
 
 button { font: inherit; }
 button:focus { outline: none; }
@@ -56,7 +55,7 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
 .app { height: 100%; display: flex; flex-direction: column; background: var(--win); color: var(--txt); }
 .titlebar {
   height: var(--titlebar-h); flex: none; display: flex; align-items: center; justify-content: space-between;
-  padding: 0 0 0 14px; background: #fbe3ec; font-size: 13px; color: var(--txt2); user-select: none;
+  padding: 0 0 0 14px; background: var(--win); border-bottom: 1px solid var(--line); font-size: 13px; color: var(--txt2); user-select: none;
 }
 .titlebar .ttl-text { flex: 1; min-width: 0; height: 100%; display: flex; align-items: center; }
 .titlebar .ctl { display: flex; }
@@ -66,12 +65,12 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
   transition: background-color .15s, color .15s;
 }
 /* ต่างจากต้นแบบ: ต้นแบบวาดปุ่มเป็นภาพนิ่ง ไม่มีสีตอนชี้ · ปุ่มย่อขยายใช้โทนชมพูของเมนู ปุ่มปิดใช้โทนแดงเพราะปิดโปรแกรม (button-feedback ข้อ 3) */
-.titlebar .ctl button:hover { background-color: #f9dde8; color: var(--accent-ink); }
+.titlebar .ctl button:hover { background-color: #f6e0e7; color: var(--accent-ink); }
 .titlebar .ctl button.close:hover { background-color: #f6c3c3; color: #8a2a2a; }
 
 .body { flex: 1; min-height: 0; display: flex; }
 .side {
-  width: 200px; flex: none; background: var(--win2); border-right: 1px solid var(--line);
+  width: 200px; flex: none; background: var(--win); border-right: 1px solid var(--line);
   padding: 16px 10px; display: flex; flex-direction: column; gap: 4px;
   transition: width .2s ease, padding .2s ease; overflow: hidden;
 }
@@ -82,10 +81,10 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
   position: relative; white-space: nowrap; transition: background-color .15s, color .15s;
 }
 .nav svg { flex: none; }
-.nav:hover { background-color: #f9dde8; color: var(--accent-ink); }
+.nav:hover { background-color: #f6e0e7; color: var(--accent-ink); }
 .nav.on { background-color: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
-.nav.on:hover { background-color: #f6c6d8; color: #ad4370; }
-.nav .count { margin-left: auto; font-size: 12px; background: #fff; border-radius: 10px; padding: 0 7px; color: var(--txt2); }
+.nav.on:hover { background-color: #ebd1da; color: #96305a; }
+.nav .count { margin-left: auto; font-size: 11px; font-weight: 700; line-height: 18px; min-width: 18px; text-align: center; background: var(--accent); border-radius: 9px; padding: 0 5px; color: #fff; }
 .navtxt { white-space: nowrap; transition: opacity .15s ease; }
 .side .foot { margin-top: auto; font-size: 12px; color: var(--txt3); padding: 8px; white-space: nowrap; }
 .navtoggle { margin-top: 8px; }
@@ -99,15 +98,34 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
   border-radius: 8px; font-size: 10px; line-height: 16px; background: var(--accent); color: #fff; text-align: center;
 }
 .side.mini-nav .foot { display: none; }
+/* ปุ่มย่อขยายเมนูอยู่ล่างสุดทั้งตอนกางและตอนย่อ · ตอนย่อ .foot ถูกซ่อนแต่ยังอยู่ กฎ :not(:has(.foot)) จึงไม่ทำงาน (พี่กันถาม 8 พ.ย. 2569) */
+.side.mini-nav .navtoggle { margin-top: auto; }
 .side.mini-nav .navtoggle svg { transform: scaleX(-1); }
 /* กล่องชื่อเมนูตอนย่อ ขึ้นข้างไอคอนทางขวา ไม่บังเมนูอื่น (ต้นแบบบรรทัด 460–489) */
 .navtip {
-  position: fixed; z-index: var(--z-menu); background: #4a2b38; color: #fff; font-size: 12.5px; line-height: 1.5;
-  padding: 4px 10px; border-radius: 7px; white-space: nowrap; pointer-events: none; box-shadow: 0 6px 14px rgba(74,43,56,.25);
+  position: fixed; z-index: var(--z-menu); background: #472e36; color: #fff; font-size: 12.5px; line-height: 1.5;
+  padding: 4px 10px; border-radius: 7px; white-space: nowrap; pointer-events: none; box-shadow: 0 6px 14px rgba(60,25,40,.25);
 }
 
 .main { flex: 1; display: flex; flex-direction: column; min-width: 0; min-height: 0; }
-.topbar { display: flex; align-items: center; gap: 10px; padding: 14px 18px; border-bottom: 1px solid var(--line); flex: none; }
+/* สองแถบบนใช้คอลัมน์เดียวกัน ของบนกับล่างกว้างเท่ากันตรงแนว (พี่กันสั่ง 8 พ.ย. 2569 "ภาพปก กับเเถบค้นหา ให้มันเท่ากัน" · "ย่อกว่านี้ ไม่ให้เหลือที่ เเละจัดให้มันเป้นโปรแกรม ไม่ใช่เว็บ") */
+.topbar { --tbcol: 200px; display: grid; grid-template-columns: minmax(0, 1fr) repeat(3, var(--tbcol)); gap: 8px; align-items: center; padding: 8px 18px 4px; flex: none; }
+.topbar + .topbar { padding: 0 18px 8px; border-bottom: 1px solid var(--line); }
+.topbar .path, .topbar .search, .topbar .dd, .topbar > .btn { height: 32px; font-size: 13px; }
+.topbar .path { min-width: 0; overflow: hidden; }
+.topbar .dd, .topbar > .btn { width: 100%; }
+.topbar > .btn { padding: 0 8px; gap: 6px; }
+.topbar .seg { width: 100%; min-width: 0; }
+.topbar .seg button { flex: 1 1 0; min-width: 0; padding: 0 4px; justify-content: center; white-space: nowrap; }
+.tborient { display: flex; gap: 8px; min-width: 0; }
+.tborient .seg { width: auto; flex: 1 1 0; }
+@media (max-width: 1120px) {
+  .topbar { --tbcol: 168px; }
+  .topbar .seg.sm button { gap: 4px; font-size: 12.5px; }
+}
+/* แถบสถานะล่างแบบโปรแกรม */
+.statusbar { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 28px; padding: 0 18px; border-top: 1px solid var(--line); background: var(--win); font-size: 12.5px; color: var(--txt2); white-space: nowrap; overflow: hidden; }
+.statusbar .legend { margin: 0; font-size: 12.5px; flex-wrap: nowrap; }
 .path { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 9px; height: 38px; padding: 0 12px; color: var(--txt2); font-size: 14px; flex: 1; min-width: 0; }
 .path span { white-space: nowrap; }
 .pagewrap { flex: 1; min-height: 0; overflow-y: auto; }
@@ -118,10 +136,10 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
   border-radius: 9px; font: inherit; font-size: 14px; font-weight: 600; cursor: pointer; white-space: nowrap;
   transition: background-color .15s, color .15s, border .15s;
 }
-.btn-main { background-color: #f6b3cb; color: #7a2346; border: 1px solid #ef9dbb; }
-.btn-main:hover { background-color: #f09dbd; color: #6a1d3c; border: 1px solid #e584a9; }
-.btn-ghost { background-color: #fff; color: var(--txt); border: 1px solid #efc6d5; }
-.btn-ghost:hover { background-color: #fdeaf1; color: var(--accent-ink); border: 1px solid #e79ab8; }
+.btn-main { background-color: var(--accent); color: #fff; border: 1px solid var(--accent); }
+.btn-main:hover { background-color: var(--accent-d); color: #fff; border: 1px solid var(--accent-d); }
+.btn-ghost { background-color: #fff; color: var(--txt); border: 1px solid #e8cdd6; }
+.btn-ghost:hover { background-color: #faedf1; color: var(--accent-ink); border: 1px solid #d8a9b9; }
 .btn-ok { background-color: var(--ok-soft); color: var(--ok-ink); border: 1px solid #a9dcc0; }
 .btn-ok:hover { background-color: #cdeedb; color: #24653f; border: 1px solid #84c9a3; }
 .btn-bad { background-color: #fff; color: var(--bad-ink); border: 1px solid #f1b7b7; }
@@ -137,56 +155,59 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
   border-radius: 8px; border: 1px solid transparent; background-color: transparent; color: var(--txt2); cursor: pointer;
   transition: background-color .15s, color .15s;
 }
-.icon-btn:hover { background-color: #fbdde8; color: var(--accent-ink); }
+.icon-btn:hover { background-color: #f6e2e9; color: var(--accent-ink); }
 /* ปุ่มไอคอนที่กดไม่ได้ ใช้โทนเดียวกับปุ่มกดไม่ได้ (.btn-wait) ชี้แล้วยังเปลี่ยนสี บอกเหตุผลใน title */
 .icon-btn.off { color: #c9a35a; cursor: not-allowed; }
 .icon-btn.off:hover { background-color: #fdf3dc; color: #a8812e; }
 
 /* ปุ่มคู่ ปุ่มสาม */
-.seg { display: flex; border: 1px solid #efc6d5; border-radius: 9px; overflow: hidden; flex: none; }
+.seg { display: flex; border: 1px solid #e8cdd6; border-radius: 9px; overflow: hidden; flex: none; }
 .seg button { height: 34px; padding: 0 14px; border: 0; background-color: #fff; color: var(--txt2); font: inherit; font-size: 13.5px; cursor: pointer; transition: background-color .15s, color .15s; }
-.seg button + button { border-left: 1px solid #efc6d5; }
-.seg button:hover { background-color: #fdeaf1; color: var(--accent-ink); }
-.seg button.on { background-color: #f6b3cb; color: #7a2346; font-weight: 600; }
-.seg button.on:hover { background-color: #f09dbd; color: #6a1d3c; }
+.seg button + button { border-left: 1px solid #e8cdd6; }
+/* ไอคอนกับตัวหนังสือกึ่งกลางแนวเดียวกันทุกขนาดปุ่ม (พี่กันสั่ง 8 พ.ย. 2569 "icon เบี้ยว") */
+.seg button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
+.seg button svg { flex: none; display: block; }
+.seg button:hover { background-color: #faedf1; color: var(--accent-ink); }
+.seg button.on { background-color: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+.seg button.on:hover { background-color: #f8dde7; color: var(--accent-d); }
 .seg.sm button { height: 30px; padding: 0 10px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
-.seg-off button { color: #c9a9b6; cursor: not-allowed; background-color: #fbf3f6; }
-.seg-off button:hover { background-color: #f8eaf0; color: #b8919f; }
-.seg-off button.on { color: #c9a9b6; background-color: #f8e6ee; font-weight: 600; }
-.seg-off button.on:hover { background-color: #f6e0ea; color: #b8919f; }
+.seg-off button { color: #c9aab4; cursor: not-allowed; background-color: #f7f7f7; }
+.seg-off button:hover { background-color: #f9e9ee; color: #b8919e; }
+.seg-off button.on { color: #c9aab4; background-color: #f8e6ec; font-weight: 600; }
+.seg-off button.on:hover { background-color: #f6e0e7; color: #b8919e; }
 
 /* สวิตช์ */
 .switch { width: 44px; height: 26px; border-radius: 13px; flex: none; position: relative; cursor: pointer; border: 0; padding: 0; transition: background-color .15s; }
-.switch::after { content: ""; position: absolute; top: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(120,50,80,.3); transition: left .15s, right .15s; }
+.switch::after { content: ""; position: absolute; top: 3px; width: 20px; height: 20px; border-radius: 50%; background: #fff; box-shadow: 0 1px 3px rgba(60,25,40,.3); transition: left .15s, right .15s; }
 .switch.on { background-color: var(--accent); }
 .switch.on::after { right: 3px; }
 .switch.on:hover { background-color: var(--accent-d); }
-.switch.off { background-color: #ecd3dd; }
+.switch.off { background-color: #ebd4dc; }
 .switch.off::after { left: 3px; }
-.switch.off:hover { background-color: #e3bfce; }
+.switch.off:hover { background-color: #e2c0cb; }
 
 /* แถบเลื่อนค่า (ซูม คุณภาพ JPG) */
-.range { position: relative; height: 6px; border-radius: 3px; background: #f3d3df; flex: 1; cursor: pointer; }
+.range { position: relative; height: 6px; border-radius: 3px; background: #eed8df; flex: 1; cursor: pointer; }
 .range i { position: absolute; left: 0; top: 0; bottom: 0; background: var(--accent); border-radius: 3px; }
-.range b { position: absolute; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; background: #fff; border: 2px solid var(--accent-d); box-shadow: 0 1px 3px rgba(120,50,80,.3); transition: background-color .15s, border-color .15s; }
-.range:hover b { background: #fdeaf1; border-color: var(--accent-ink); }
+.range b { position: absolute; top: 50%; width: 18px; height: 18px; margin: -9px 0 0 -9px; border-radius: 50%; background: #fff; border: 2px solid var(--accent-d); box-shadow: 0 1px 3px rgba(60,25,40,.3); transition: background-color .15s, border-color .15s; }
+.range:hover b { background: #faedf1; border-color: var(--accent-ink); }
 
 /* ช่องติ๊ก ปุ่มเลือก */
 .chk { display: flex; gap: 10px; align-items: flex-start; font-size: 14px; cursor: pointer; }
-.box { width: 20px; height: 20px; border-radius: 6px; flex: none; margin-top: 2px; display: flex; align-items: center; justify-content: center; border: 2px solid #e5b7c8; background: #fff; transition: background-color .15s, border-color .15s; }
+.box { width: 20px; height: 20px; border-radius: 6px; flex: none; margin-top: 2px; display: flex; align-items: center; justify-content: center; border: 2px solid #e1bbc8; background: #fff; transition: background-color .15s, border-color .15s; }
 .box.on { background: var(--accent); border-color: var(--accent); }
 .chk:hover .box { border-color: var(--accent-d); }
 .chk:hover .box.on { background: var(--accent-d); }
-.radio { width: 20px; height: 20px; border-radius: 50%; flex: none; margin-top: 2px; border: 2px solid #e5b7c8; background: #fff; display: flex; align-items: center; justify-content: center; transition: border-color .15s; }
+.radio { width: 20px; height: 20px; border-radius: 50%; flex: none; margin-top: 2px; border: 2px solid #e1bbc8; background: #fff; display: flex; align-items: center; justify-content: center; transition: border-color .15s; }
 .radio.on { border: 2px solid var(--accent); }
 .radio.on::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
 .chk:hover .radio { border-color: var(--accent-d); }
 .cbx { width: 18px; height: 18px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; vertical-align: -3px; }
 .cbx.on { background: var(--accent); }
-.cbx.off { border: 2px solid #e5b7c8; background: #fff; }
+.cbx.off { border: 2px solid #e1bbc8; background: #fff; }
 
 /* แถบความคืบหน้า */
-.bar { height: 10px; border-radius: 6px; background: #f7dbe6; overflow: hidden; }
+.bar { height: 10px; border-radius: 6px; background: #f5dde5; overflow: hidden; }
 .bar i { display: block; height: 100%; background: var(--accent); border-radius: 6px; transition: width .2s ease; }
 
 /* ---------- ดรอปดาวน์ที่ทำเอง (ห้ามใช้ช่องเลือกของระบบกับข้อความไทย · form-input 6.12 ⑧) ---------- */
@@ -197,15 +218,15 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
   /* ปุ่มของระบบจัดตัวหนังสือกลางเป็นค่าตั้งต้น ต้นแบบชิดซ้าย */
   text-align: left;
 }
-.dd:hover { background-color: #fdeaf1; border: 1px solid #eeb3c8; }
+.dd:hover { background-color: #faedf1; border: 1px solid #e2bfcb; }
 .dd span { white-space: nowrap; min-width: 0; }
 .dd svg { flex: none; transition: transform .15s ease; }
 .dd[aria-expanded="true"] svg { transform: rotate(180deg); }
-.menu { background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 26px rgba(150,70,100,.18); padding: 6px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; overscroll-behavior: contain; }
+.menu { background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 26px rgba(60,25,40,.18); padding: 6px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; overscroll-behavior: contain; }
 .opt { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding: 7px 10px; border-radius: 7px; font-size: 14px; cursor: pointer; line-height: 1.6; border: 0; background-color: transparent; color: var(--txt); text-align: left; transition: background-color .15s, color .15s; }
-.opt:hover, .opt.hi { background-color: #fdeaf1; color: var(--accent-ink); }
-.opt.on { background-color: #fbd7e5; color: #7a2346; font-weight: 600; }
-.opt.on:hover, .opt.on.hi { background-color: #f7c4d7; }
+.opt:hover, .opt.hi { background-color: #faedf1; color: var(--accent-ink); }
+.opt.on { background-color: #fbe9ef; color: #8f2a4f; font-weight: 600; }
+.opt.on:hover, .opt.on.hi { background-color: #ead1d9; }
 .pop-in { animation: pop-in .12s ease-out; }
 @keyframes pop-in { from { opacity: 0; translate: 0 -4px; } to { opacity: 1; translate: 0 0; } }
 
@@ -220,35 +241,35 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
 .pill { display: inline-flex; align-items: center; border-radius: 20px; padding: 1px 10px; font-size: 13px; font-weight: 600; white-space: nowrap; }
 .p-ok { background: var(--ok-soft); color: var(--ok-ink); } .p-bad { background: var(--bad-soft); color: var(--bad-ink); }
 .p-warn { background: var(--warn-soft); color: var(--warn-ink); } .p-info { background: var(--info-soft); color: var(--info-ink); }
-.p-neutral { background: #f6edf1; color: var(--txt2); }
+.p-neutral { background: #f9eaef; color: var(--txt2); }
 .dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
 .hint { font-size: 12.5px; color: var(--txt3); margin-top: 6px; line-height: 1.55; }
 .hint.e { color: var(--bad-ink); }
 /* ช่องพิมพ์ (ต้นแบบ .inp บรรทัด 110–115) · ชั้นวาดกับช่องพิมพ์จริงใช้ .sb-field .sb-draw ตัวเดียวกับช่องค้นหา */
-.inp { display: flex; align-items: center; height: 40px; border-radius: 9px; border: 1px solid #efc6d5; background: #fff; padding: 0 10px; font-size: 14px; gap: 2px; cursor: text; transition: border .15s, box-shadow .15s; }
-.inp:hover { border: 1px solid #eeb3c8; }
-.inp.focus { border: 1px solid var(--accent); box-shadow: 0 0 0 3px rgba(233,138,172,.25); }
+.inp { display: flex; align-items: center; height: 40px; border-radius: 9px; border: 1px solid #e8cdd6; background: #fff; padding: 0 10px; font-size: 14px; gap: 2px; cursor: text; transition: border .15s, box-shadow .15s; }
+.inp:hover { border: 1px solid #e2bfcb; }
+.inp.focus { border: 1px solid var(--accent); box-shadow: 0 0 0 3px rgba(200,64,111,.25); }
 .inp.err { border: 1px solid var(--bad); box-shadow: 0 0 0 3px rgba(236,143,143,.25); }
 .inp .ext { margin-left: auto; padding-left: 8px; font-size: 13px; flex: none; }
 .rename { margin-bottom: 8px; }
 .small { font-size: 12.5px; color: var(--txt3); line-height: 1.55; }
 
 /* ---------- หน้าต่างซ้อน ---------- */
-.dlg-back { position: fixed; inset: 0; z-index: var(--z-panel); background: rgba(110,55,80,.22); display: flex; align-items: center; justify-content: center; padding: 24px; }
+.dlg-back { position: fixed; inset: 0; z-index: var(--z-panel); background: rgba(60,25,40,.22); display: flex; align-items: center; justify-content: center; padding: 24px; }
 .dlg-back.confirm { z-index: var(--z-confirm); }
 /* สูงขั้นต่ำ 236 ตามต้นแบบ หน้าต่างลบขั้น 1 กับขั้น 2 สูงเท่ากัน ปุ่มไม่กระโดดตอนกดถัดไป (working-with-gun ข้อ 8) */
-.dlg { background: #fff; border-radius: 14px; box-shadow: 0 18px 40px rgba(120,50,80,.25); padding: 20px; width: 100%; max-width: 440px; min-height: 236px; display: flex; flex-direction: column; gap: 10px; max-height: calc(100vh - 48px); overflow-y: auto; overscroll-behavior: contain; animation: pop-in .14s ease-out; }
+.dlg { background: #fff; border-radius: 14px; box-shadow: 0 18px 40px rgba(60,25,40,.25); padding: 20px; width: 100%; max-width: 440px; min-height: 236px; display: flex; flex-direction: column; gap: 10px; max-height: calc(100vh - 48px); overflow-y: auto; overscroll-behavior: contain; animation: pop-in .14s ease-out; }
 .dlg h4 { margin: 0; font-size: 16px; line-height: 1.5; }
 /* ปุ่มล่างติดขอบล่างของหน้าต่างเสมอ เนื้อหายาวเกินจอก็ยังเห็นปุ่ม */
-.dlg .acts { margin-top: auto; display: flex; gap: 8px; justify-content: flex-end; padding-top: 6px; position: sticky; bottom: -20px; background: #fff; padding-bottom: 20px; margin-bottom: -20px; z-index: 1; }
+.dlg .acts { margin: auto -20px -20px; display: flex; gap: 8px; justify-content: flex-end; padding: 12px 20px 20px; position: sticky; bottom: -20px; background: #fff; border-top: 1px solid var(--line); z-index: 1; }
 .dlg .acts.split { justify-content: space-between; }
 
 /* ---------- แถบแจ้งผล ลอยกลางล่าง (save-status ข้อ 3) ---------- */
 .toasts { position: fixed; left: 50%; bottom: 20px; translate: -50% 0; z-index: var(--z-toast); display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
-.toast { pointer-events: auto; display: flex; align-items: flex-start; gap: 10px; min-width: 320px; max-width: 560px; border-radius: 12px; padding: 12px 12px 12px 14px; font-size: 13.5px; line-height: 1.55; box-shadow: 0 12px 26px rgba(150,70,100,.22); animation: pop-in .14s ease-out; }
+.toast { pointer-events: auto; display: flex; align-items: flex-start; gap: 10px; min-width: 320px; max-width: 560px; border-radius: 12px; padding: 12px 12px 12px 14px; font-size: 13.5px; line-height: 1.55; box-shadow: 0 12px 26px rgba(60,25,40,.22); animation: pop-in .14s ease-out; }
 .toast.ok { background: var(--ok-soft); color: var(--ok-ink); border: 1px solid #a9dcc0; }
 .toast.bad { background: var(--bad-soft); color: var(--bad-ink); border: 1px solid #f1b7b7; }
-.toast.info { background: var(--info-soft); color: var(--info-ink); border: 1px solid #b9d5f1; }
+.toast.info { background: var(--info-soft); color: var(--info-ink); border: 1px solid var(--line); }
 .toast.warn { background: var(--warn-soft); color: var(--warn-ink); border: 1px solid #f0d9a2; }
 .toast .grow { flex: 1; min-width: 0; }
 .toast b { display: block; }
@@ -259,93 +280,96 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
 .toast.warn .x:hover { background-color: #fbecc5; }
 
 /* ---------- โครงจาง (loading-skeleton) ---------- */
-.skel { background: linear-gradient(90deg, #f8e1ea 0%, #fdf1f6 42%, #f8e1ea 84%); background-size: 260% 100%; animation: skel-wave 1.4s ease-in-out infinite; border-radius: 6px; }
+.skel { background: linear-gradient(90deg, #f7e2e9 0%, #f7f7f7 42%, #f7e2e9 84%); background-size: 260% 100%; animation: skel-wave 1.4s ease-in-out infinite; border-radius: 6px; }
 @keyframes skel-wave { 0% { background-position: 130% 0; } 100% { background-position: -30% 0; } }
 
 /* ---------- ตาราง ---------- */
 table { width: 100%; border-collapse: collapse; font-size: 14px; background: #fff; }
 th { text-align: left; color: var(--txt2); font-weight: 600; font-size: 13px; padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--win2); }
-td { padding: 12px; border-bottom: 1px solid #f8e3eb; vertical-align: top; }
+td { padding: 12px; border-bottom: 1px solid #f7e4ea; vertical-align: top; }
 tbody tr:last-child td { border-bottom: 0; }
 /* overflow: clip ตัดมุมมนได้เหมือน hidden แต่ไม่เป็นกล่องเลื่อนเอง หัวตารางจึงตรึงกับชั้น (.shelfwrap) ได้ (web-craft 6.2) */
 .tblwrap { border: 1px solid var(--line); border-radius: 12px; overflow: clip; }
 
 /* ---------- ช่องค้นหา (ต้นแบบบรรทัด 52 165–169) · โครงสามชั้นกันวรรณยุกต์โดนตัด ---------- */
 .search { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 9px; height: 38px; padding: 0 6px 0 12px; color: var(--txt3); font-size: 14px; flex: none; cursor: text; position: relative; transition: width .15s ease, border .15s, box-shadow .15s; }
-.search:hover { border: 1px solid #eeb3c8; }
-.search.focus { border: 1px solid var(--accent); box-shadow: 0 0 0 3px rgba(233,138,172,.22); }
+.search:hover { border: 1px solid #e2bfcb; }
+.search.focus { border: 1px solid var(--accent); box-shadow: 0 0 0 3px rgba(200,64,111,.22); }
 .sb-field { position: relative; flex: 1; min-width: 0; height: 100%; }
 .sb-draw { position: absolute; left: 0; right: 0; top: -7px; bottom: -7px; overflow: hidden; display: flex; align-items: center; pointer-events: none; white-space: pre; font-size: 14px; }
 .sb-draw span { color: var(--txt); }
 .sb-draw span.ph { color: var(--txt3); }
 .sb-field input { position: relative; width: 100%; height: 100%; border: 0; outline: 0; background: transparent; color: transparent; caret-color: var(--accent-ink); font: inherit; font-size: 14px; padding: 0; }
-.sb-field input::selection { background: rgba(233,138,172,.35); color: transparent; }
-.swap { font-size: 11.5px; font-weight: 600; color: var(--accent-ink); background: #fdeaf1; border-radius: 6px; padding: 2px 8px; white-space: nowrap; line-height: 1.75; flex: none; pointer-events: none; }
-.clr { width: 28px; height: 28px; flex: none; border-radius: 7px; border: 0; background-color: transparent; color: #a0768a; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background-color .15s, color .15s; }
-.clr:hover { background-color: #fbdde8; color: var(--accent-ink); }
-.hl { background: #fbd7e5; color: #a33a66; font-weight: 700; border-radius: 3px; padding: 0 1px; }
+.sb-field input::selection { background: rgba(200,64,111,.35); color: transparent; }
+.swap { font-size: 11.5px; font-weight: 600; color: var(--accent-ink); background: #faedf1; border-radius: 6px; padding: 2px 8px; white-space: nowrap; line-height: 1.75; flex: none; pointer-events: none; }
+.clr { width: 28px; height: 28px; flex: none; border-radius: 7px; border: 0; background-color: transparent; color: #a57182; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background-color .15s, color .15s; }
+.clr:hover { background-color: #f6e2e9; color: var(--accent-ink); }
+.hl { background: #fbe9ef; color: #875666; font-weight: 700; border-radius: 3px; padding: 0 1px; }
 
 /* ---------- ชั้นวาง (ต้นแบบบรรทัด 72–105 249–270) ---------- */
 .content { display: flex; flex: 1; min-height: 0; }
-.shelfwrap { flex: 1; padding: 18px 18px 24px; min-width: 0; overflow-y: auto; }
-.shelfhead { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
-.shelfhead b { font-size: 18px; }
+.shelfwrap { flex: 1; padding: 14px 18px 24px; min-width: 0; overflow-y: auto; background: var(--bg); }
 .legend { display: flex; align-items: center; gap: 14px; font-size: 13px; color: var(--txt2); margin: 6px 0 16px; flex-wrap: wrap; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
 [data-shelf], .size-s, .size-m, .size-l { padding-top: 14px; }
 /* ต่างจากต้นแบบ: ต้นแบบจัดขอบล่างตรงกัน (flex-end) ชื่อยาวสามบรรทัดดันปกขึ้นไม่ตรงแถว · ของจริงจัดขอบบนปกให้ตรงกัน */
-.shelf { position: relative; display: flex; gap: 14px; padding: 0 14px; margin-bottom: 34px; align-items: flex-start; }
-.shelf::after { content: ""; position: absolute; left: 0; right: 0; bottom: -16px; height: 16px; border-radius: 8px; background: linear-gradient(180deg, var(--wood1), var(--wood2) 55%, var(--wood3)); box-shadow: 0 8px 14px rgba(200,110,145,.22); }
-.book { width: 110px; flex: none; cursor: pointer; position: relative; z-index: 1; border-radius: 6px; }
+.shelf { position: relative; display: flex; gap: 18px; margin-bottom: 26px; align-items: flex-start; }
+.book { width: 140px; flex: none; cursor: pointer; position: relative; z-index: 1; border-radius: 6px; }
 .book:focus-visible { outline: none; }
 .book:focus-visible .cover { outline: 2px solid var(--accent-d); outline-offset: 3px; }
-.cover { width: 110px; height: 165px; border-radius: 6px; position: relative; overflow: hidden; box-shadow: 0 6px 12px rgba(150,70,100,.25); transition: translate .15s, box-shadow .15s; display: flex; flex-direction: column; justify-content: flex-end; padding: 10px; background: #f3d9e3; }
+.cover { width: 140px; height: 210px; border-radius: 0; position: relative; overflow: hidden; box-shadow: 0 1px 2px rgba(60,25,40,.22), 0 3px 10px rgba(60,25,40,.12); transition: translate .15s, box-shadow .15s; display: flex; flex-direction: column; justify-content: flex-end; padding: 10px; background: #f4d8e1; }
 .cover.has-img { padding: 0; }
 .cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
-.book:hover .cover { translate: 0 -6px; box-shadow: 0 12px 18px rgba(150,70,100,.32); }
-.book.sel .cover { outline: 3px solid var(--accent); outline-offset: 3px; }
-.cover.none { background: repeating-linear-gradient(135deg, #fff 0 10px, #fdf0f5 10px 20px); border: 2px dashed #eeb3c8; box-shadow: none; align-items: center; justify-content: center; text-align: center; color: var(--txt3); font-size: 13px; gap: 6px; }
+.book:hover .cover { translate: 0 -3px; box-shadow: 0 2px 4px rgba(60,25,40,.24), 0 8px 18px rgba(60,25,40,.2); }
+.book.sel .cover { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* ช่องไม่มีปกเป็นแถบเอียงแบบเดิม พี่กันสั่ง 8 พ.ย. 2569 "เรื่องที่ไม่มีปก เราอยากได้อันเดิม คือเเถบเอียง" · ตอนปรับหน้าตาอย่าเปลี่ยน */
+.cover.none { background: repeating-linear-gradient(135deg, #fff 0 10px, #fbf2f5 10px 20px); border: 2px dashed #eeb3c8; box-shadow: none; align-items: center; justify-content: center; text-align: center; color: var(--txt3); font-size: 13px; gap: 6px; }
 .book.missing { opacity: .45; }
 .badge { position: absolute; top: 7px; right: 7px; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2px #fff; }
 .b-ok { background: var(--ok); } .b-bad { background: var(--bad); } .b-warn { background: var(--warn); } .b-info { background: var(--info); }
-.bname { font-size: 12.5px; color: var(--txt2); margin-top: 22px; line-height: 1.5; word-break: break-word; min-height: 38px; }
+.bname { font-size: 12.5px; color: var(--txt2); margin-top: 8px; line-height: 1.5; word-break: break-word; min-height: 38px; }
 .book .bname .badge { position: static; display: inline-flex; vertical-align: -2px; width: 15px; height: 15px; margin-right: 5px; box-shadow: none; }
 .book .bname .badge svg { width: 10px; height: 10px; }
 .ext { color: var(--txt3); font-weight: 400; }
-.size-s .book { width: 80px; } .size-s .cover { width: 80px; height: 120px; padding: 7px; } .size-s .cover.has-img { padding: 0; } .size-s .bname { font-size: 11.5px; margin-top: 20px; } .size-s .cover.none { font-size: 11px; }
-.size-l .book { width: 150px; } .size-l .cover { width: 150px; height: 225px; padding: 12px; } .size-l .cover.has-img { padding: 0; } .size-l .bname { font-size: 13.5px; }
-.size-s .shelf, .size-l .shelf { gap: 12px; }
+.size-s .book { width: 100px; } .size-s .cover { width: 100px; height: 150px; padding: 7px; } .size-s .cover.has-img { padding: 0; } .size-s .bname { font-size: 11.5px; margin-top: 20px; } .size-s .cover.none { font-size: 11px; }
+.size-l .book { width: 180px; } .size-l .cover { width: 180px; height: 270px; padding: 12px; } .size-l .cover.has-img { padding: 0; } .size-l .bname { font-size: 13.5px; }
+.size-s .shelf { gap: 14px; } .size-l .shelf { gap: 20px; }
+/* ความกว้างปกคิดจากหน้าจอ ให้เต็มแถวพอดี (ShelfGrid ตั้ง --bw) */
+[data-shelf] .book { width: var(--bw, 140px); }
+[data-shelf] .cover { width: var(--bw, 140px); height: calc(var(--bw, 140px) * 1.5); }
 .empty-search { text-align: center; padding: 40px 6px 6px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
 .minirow { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
-.btn-ghost.pressed { background-color: #fdeaf1; border: 1px solid #e79ab8; color: var(--accent-ink); }
+.btn-ghost.pressed { background-color: #faedf1; border: 1px solid #d8a9b9; color: var(--accent-ink); }
 
 /* ตาราง (ต้นแบบบรรทัด 257–264) */
 .lv { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .lv th { text-align: left; color: var(--txt2); font-weight: 600; font-size: 12.5px; padding: 9px 10px; background: var(--win2); white-space: nowrap; }
-/* หัวตารางตรึง · top ติดลบเท่าระยะขอบในบนของ .shelfwrap (18) หัวจึงชิดขอบบนพอดี ไม่มีร่องให้แถวลอด
+/* หัวตารางตรึง · top ติดลบเท่าระยะขอบในบนของ .shelfwrap (14) หัวจึงชิดขอบบนพอดี ไม่มีร่องให้แถวลอด
    เส้นใต้หัววาดด้วย box-shadow ตารางแบบ collapse วาดเส้นที่ตัวตาราง ตรึงแล้วเส้นไม่ลอยตาม (web-craft 6.2.1) */
-.lv thead th { position: sticky; top: -18px; z-index: 2; box-shadow: inset 0 -1px 0 var(--line); }
-.lv td { padding: 7px 10px; border-bottom: 1px solid #f8e3eb; vertical-align: middle; }
-.lv tr.sel td { background: #fdeaf1; }
+.lv thead th { position: sticky; top: -14px; z-index: 2; box-shadow: inset 0 -1px 0 var(--line); }
+/* หัวคอลัมน์เด่นแบบเดียวกับตารางจับคู่ปก (พี่กันสั่ง 8 พ.ย. 2569) */
+.lv thead th, .ck thead th { background: var(--accent-soft); color: var(--accent-ink); font-size: 14px; font-weight: 700; }
+.lv td { padding: 7px 10px; border-bottom: 1px solid #f7e4ea; vertical-align: middle; }
+.lv tr.sel td { background: #faedf1; }
 .lv tbody tr { cursor: pointer; transition: background-color .15s; }
-.lv tbody tr:hover td { background: #fdf0f5; }
-.lv tbody tr.sel:hover td { background: #fbe0eb; }
+.lv tbody tr:hover td { background: #fbf2f5; }
+.lv tbody tr.sel:hover td { background: #f7e4ea; }
 .lv tr.missing td { opacity: .5; }
 .lv .th { width: 30px; height: 45px; border-radius: 3px; display: block; object-fit: cover; }
-.lv .th.none { border: 1.5px dashed #eeb3c8; background: #fff; }
+.lv .th.none { border: 1.5px dashed #e2bfcb; background: #fff; }
 .thsort { all: unset; cursor: pointer; display: inline-flex; align-items: center; border-radius: 5px; padding: 1px 4px; margin: -1px -4px; transition: background-color .15s, color .15s; }
-.thsort:hover { background-color: #fbdde8; color: var(--accent-ink); }
+.thsort:hover { background-color: #f6e2e9; color: var(--accent-ink); }
 .thsort:focus-visible { outline: 2px solid var(--accent-d); outline-offset: 2px; }
 
 /* แผงรายละเอียด (ต้นแบบบรรทัด 90–105) */
-.detail { width: 320px; flex: none; background: var(--win2); border-left: 1px solid var(--line); padding: 18px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+.detail { width: 320px; flex: none; background: var(--win); border-left: 1px solid var(--line); padding: 18px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
 /* หัวแผงขวา ปุ่มปิด (คิว 6 แผงขึ้นเฉพาะตอนกดเลือกเรื่อง) */
 .dhead { display: flex; align-items: center; justify-content: space-between; margin: -6px -4px -4px 0; font-size: 13px; font-weight: 600; color: var(--txt3); }
-.dclose { width: 30px; height: 30px; border-radius: 8px; border: 1px solid #efc6d5; background-color: #fff; color: var(--txt2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; transition: background-color .15s, color .15s; }
-.dclose:hover { background-color: #fdeaf1; color: var(--accent-ink); }
+.dclose { width: 30px; height: 30px; border-radius: 8px; border: 1px solid #e8cdd6; background-color: #fff; color: var(--txt2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; transition: background-color .15s, color .15s; }
+.dclose:hover { background-color: #faedf1; color: var(--accent-ink); }
 .dclose:focus-visible { outline: none; box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent-d); }
-.dposter { width: 150px; height: 225px; border-radius: 8px; margin: 0 auto; box-shadow: 0 8px 18px rgba(150,70,100,.3); object-fit: cover; display: block; flex: none; }
-.dposter.none { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: repeating-linear-gradient(135deg, #fff 0 10px, #fdf0f5 10px 20px); border: 2px dashed #eeb3c8; box-shadow: none; color: var(--txt3); font-size: 13px; }
+.dposter { width: 200px; height: 300px; border-radius: 0; margin: 0 auto; box-shadow: 0 2px 4px rgba(60,25,40,.2), 0 8px 20px rgba(60,25,40,.16); object-fit: cover; display: block; flex: none; }
+.dposter.none { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: repeating-linear-gradient(135deg, #fff 0 10px, #fbf2f5 10px 20px); border: 2px dashed #eeb3c8; box-shadow: none; color: var(--txt3); font-size: 13px; }
 .fname { display: flex; align-items: flex-start; gap: 6px; }
 .fname .nm { font-weight: 600; font-size: 15px; line-height: 1.6; word-break: break-word; flex: 1; }
 .kv { display: grid; grid-template-columns: 90px 1fr; gap: 4px 10px; font-size: 13.5px; margin: 0; }
@@ -353,16 +377,30 @@ tbody tr:last-child td { border-bottom: 0; }
 .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
 
 /* แถวสวิตช์ (ต้นแบบบรรทัด 298–301) */
-.setrow { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 11px 0; border-top: 1px solid #f8e3eb; }
+.setrow { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 11px 0; border-top: 1px solid #f7e4ea; }
 .setrow .lbl { font-size: 14px; line-height: 1.5; }
 /* หน้าตั้งค่า (ต้นแบบบรรทัด 295–317 · ขั้น 7) */
 /* การ์ดสูงตามเนื้อหา ไม่ยืดเท่าการ์ดข้าง ๆ (เดิมการ์ดสั้นมีที่ว่างโล่งครึ่งการ์ด เจอตอนตรวจภาพ) */
-.setwrap { padding: 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-content: start; align-items: start; }
-.setcard { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 16px 18px; min-width: 0; }
-.setcard h3 { margin: 0 0 4px; font-size: 15px; display: flex; align-items: center; gap: 8px; color: var(--accent-ink); }
+/* การ์ดเรียงต่อกันเป็นคอลัมน์ตามความกว้างหน้าต่าง ไม่เป็นแถวตาราง การ์ดสั้นจะได้ไม่ทิ้งที่ว่างข้าง ๆ การ์ดยาว (พี่กันสั่ง 8 พ.ย. 2569 *"ที่ว่างเยอะ ไปจัดเรียงเลย์เอ้าใหม่"*) */
+/* หน้าตั้งค่า เมนูหัวข้อซ้าย เปิดทีละหัวข้อ แถวเรียงคอลัมน์เดียว (พี่กันส่งภาพหน้าการตั้งค่าของโปรแกรม Claude เป็นแบบ 8 พ.ย. 2569) */
+.setpage { display: flex; min-height: 100%; background: var(--win); }
+.setnav { width: 196px; flex: none; border-right: 1px solid var(--line); }
+.setnav-in { position: sticky; top: 0; padding: 14px 10px; }
+.setnav-g + .setnav-g { margin-top: 14px; }
+.setnav-t { font-size: 12px; color: var(--txt3); padding: 0 10px 4px; }
+.setnav-b { display: flex; align-items: center; gap: 10px; width: 100%; height: 36px; padding: 0 10px; border: 0; border-radius: 9px; background: transparent; color: var(--txt); font: inherit; font-size: 14px; text-align: left; cursor: pointer; white-space: nowrap; transition: background-color .15s, color .15s; }
+.setnav-b svg { flex: none; }
+.setnav-b:hover { background-color: var(--win2); color: var(--accent-ink); }
+.setnav-b.on, .setnav-b.on:hover { background-color: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+.setwrap { flex: 1; min-width: 0; }
+.setcard { padding: 20px 28px 32px; min-width: 0; }
+.setcard h3 { margin: 0 0 6px; font-size: 18px; font-weight: 700; line-height: 1.5; display: flex; align-items: center; gap: 8px; color: var(--txt); }
+.setcard .setrow { padding: 13px 0; }
+.setver { margin-left: 8px; font-size: 12.5px; font-weight: 400; color: var(--txt2); }
 .setcard .setrow:first-of-type { border-top: 0; }
 .setrow .lbl .small { display: block; }
 .folder { display: flex; align-items: center; gap: 10px; background: var(--win2); border-radius: 9px; padding: 9px 12px; font-size: 14px; margin-top: 6px; }
+.setwrap .folder { background: transparent; border-radius: 0; padding: 9px 0; margin-top: 0; border-top: 1px solid #f7e4ea; }
 .folder .grow { flex: 1; min-width: 0; }
 .toolok, .toolwarn, .toolbad { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; border-radius: 20px; padding: 1px 10px; font-weight: 600; white-space: nowrap; }
 .toolok { color: var(--ok-ink); background: var(--ok-soft); }
@@ -370,101 +408,117 @@ tbody tr:last-child td { border-bottom: 0; }
 .latok { color: var(--ok-ink); font-weight: 600; }
 .latnew { color: var(--warn-ink); font-weight: 700; }
 .latbad { color: var(--bad-ink); font-weight: 600; }
-.latlink { background: none; border: 0; padding: 0; font: inherit; color: var(--accent-ink); text-decoration: underline; text-decoration-color: #eeb3c8; text-underline-offset: 3px; cursor: pointer; }
+.latlink { background: none; border: 0; padding: 0; font: inherit; color: var(--accent-ink); text-decoration: underline; text-decoration-color: #e2bfcb; text-underline-offset: 3px; cursor: pointer; }
 .latlink:hover { text-decoration-color: currentColor; }
-.latlink:focus-visible { outline: 2px solid #e79ab8; outline-offset: 2px; border-radius: 4px; }
+.latlink:focus-visible { outline: 2px solid #d8a9b9; outline-offset: 2px; border-radius: 4px; }
 .toolwarn { color: var(--warn-ink); background: var(--warn-soft); }
 .toolbad { color: var(--bad-ink); background: var(--bad-soft); }
 ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height: 1.6; }
 
 /* ชั้นว่าง (ต้นแบบบรรทัด 1105–1111) */
 .firstrun { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--bg); }
-.firstrun-card { width: 760px; max-width: 100%; background: var(--win); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 18px 40px rgba(200,110,145,.18); padding: 60px 40px; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
+.firstrun-card { width: 760px; max-width: 100%; background: var(--win); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 18px 40px rgba(200,64,111,.18); padding: 60px 40px; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
 
 /* ---------- การ์ดทั่วไป ---------- */
-.card { background: var(--win2); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+.card { padding: 0; }
 .card h3 { margin: 0 0 10px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
 
 @media (prefers-reduced-motion: reduce) {
   * { transition: none !important; animation: none !important; }
   .side { transition: none; }
-  .skel { background: #f8e1ea; }
+  .skel { background: #f7e2e9; }
   .pop-in, .dlg, .toast { translate: 0 0; opacity: 1; }
 }
 
 /* ---------- หน้าใส่โปสเตอร์ (ต้นแบบบรรทัด 120–141 · 191–213 · 287–292 · หน้า 2 บรรทัด 725–931) ---------- */
 .wrapin { padding: 22px; display: flex; flex-direction: column; gap: 18px; flex: 1; }
 .three { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 16px; }
-.card { background: var(--win2); border: 1px solid var(--line); border-radius: 12px; padding: 16px; }
+/* หน้าใส่โปสเตอร์ 3 คอลัมน์ตรงแนวกันทั้งแถวบนแถวล่าง แบ่งด้วยเส้น ตาไล่ตาม 1 2 3 แล้วลงมาตัวเลือก ปิดท้ายที่ปุ่ม (พี่กันบอก "หน้านี้โคตรงง" 8 พ.ย. 2569) */
+[data-poster-page] .three { gap: 0; }
+[data-poster-page] .three > .card { padding: 0 22px; border-left: 1px solid var(--line); min-width: 0; }
+[data-poster-page] .three > .card:first-child { padding-left: 0; border-left: 0; }
+[data-poster-page] .three > .card:last-child { padding-right: 0; }
+[data-poster-page] .three + .three { padding-top: 18px; border-top: 1px solid var(--line); }
+[data-poster-page] .three .card h3 { font-size: 16px; font-weight: 700; margin-bottom: 12px; }
+/* กรอบหน้าตาที่จะได้ สูงเท่าช่องลากไฟล์ ตรงแนวกัน (พี่กันถาม "เท่ากันเป้นไหม" 8 พ.ย. 2569) · สัดส่วนปก 2:3 */
+[data-card="result"] .mc { width: 80px; height: 120px; }
+[data-opt="output"] .seg { width: fit-content; }
+/* แถบปุ่มท้ายหน้าตรงแนวคอลัมน์ที่ 3 (พี่กันสั่ง "เอาให้มันตรงกัน" 8 พ.ย. 2569) */
+[data-poster-page] .three.pactions { padding-top: 16px; border-top: 1px solid var(--line); align-items: center; }
+.pact-msg { grid-column: 1 / 3; padding-right: 22px; display: flex; justify-content: flex-end; min-width: 0; }
+.pact-btns { grid-column: 3; padding-left: 23px; display: flex; flex-wrap: nowrap; gap: 8px; min-width: 0; }
+.pact-btns .btn { padding-inline: 10px !important; min-width: 0; }
+.pact-btns .btn:last-child { font-size: 14px !important; }
+.card { padding: 0; }
 .card h3 { margin: 0 0 10px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
-.step { width: 22px; height: 22px; border-radius: 50%; background: #f6b3cb; color: #7a2346; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; flex: none; }
-.drop { border: 2px dashed #eeb3c8; border-radius: 12px; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--txt3); font-size: 13.5px; text-align: center; padding: 14px; min-height: 120px; transition: background-color .15s, border-color .15s; }
+.step { width: 22px; height: 22px; border-radius: 50%; background: #e5c4cf; color: #8f2a4f; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; flex: none; }
+.drop { border: 2px dashed #e2bfcb; border-radius: 12px; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--txt3); font-size: 13.5px; text-align: center; padding: 14px; min-height: 120px; transition: background-color .15s, border-color .15s; }
 .drop b { color: inherit; }
-.drop.over { border: 2px dashed var(--accent); background: #fdeaf1; color: var(--accent-ink); }
+.drop.over { border: 2px dashed var(--accent); background: #faedf1; color: var(--accent-ink); }
 .drop.bad { border: 2px dashed var(--bad); background: var(--bad-soft); color: var(--bad-ink); }
 .vfile { display: flex; gap: 12px; align-items: center; background: #fff; border-radius: 10px; padding: 12px; }
 .vthumb { width: 72px; height: 42px; border-radius: 5px; background: linear-gradient(135deg, #9fc3e0, #5f86a8); flex: none; object-fit: cover; }
 .pprev { display: flex; gap: 14px; align-items: flex-start; }
-.pp { width: 96px; height: 144px; border-radius: 6px; flex: none; box-shadow: 0 6px 12px rgba(150,70,100,.25); object-fit: cover; display: block; background: #fdeef4; }
+.pp { width: 96px; height: 144px; border-radius: 6px; flex: none; box-shadow: 0 6px 12px rgba(60,25,40,.25); object-fit: cover; display: block; background: #fbf0f4; }
 .opts { display: flex; flex-direction: column; gap: 12px; }
 .chk.off { cursor: not-allowed; opacity: .55; }
 .extag { font-family: Consolas, "Cascadia Mono", monospace; font-size: 12px; font-weight: 600; border-radius: 5px; padding: 1px 6px; white-space: nowrap; }
 .extag.ok { background: var(--ok-soft); color: var(--ok-ink); }
 .extag.cv { background: var(--warn-soft); color: var(--warn-ink); }
-.mc { width: 72px; height: 108px; border-radius: 5px; flex: none; box-shadow: 0 4px 8px rgba(150,70,100,.22); object-fit: cover; display: block; background: #fdeef4; }
+.mc { width: 72px; height: 108px; border-radius: 5px; flex: none; box-shadow: 0 4px 8px rgba(60,25,40,.22); object-fit: cover; display: block; background: #fbf0f4; }
 .mc.none { border: 1.5px dashed #eeb3c8; box-shadow: none; }
 .workbox { display: flex; flex-direction: column; gap: 10px; scroll-margin: 16px; }
 .fmt { width: 100%; border-collapse: collapse; font-size: 14px; background: #fff; border-radius: 10px; overflow: hidden; }
 .fmt th { background: var(--win2); color: var(--txt2); font-size: 13px; padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--line); }
-.fmt td { padding: 9px 12px; border-bottom: 1px solid #f8e3eb; vertical-align: top; line-height: 1.55; }
+.fmt td { padding: 9px 12px; border-bottom: 1px solid #f7e4ea; vertical-align: top; line-height: 1.55; }
 .fmt tr:last-child td { border-bottom: 0; }
-.fmt tr.on td { background: #fdeaf1; }
+.fmt tr.on td { background: #faedf1; }
 /* หน้าต่างครอป · ภาพอยู่ในกรอบ 520 × 293 แบบไม่ตัด กรอบครอปล็อก 2 : 3 นอกกรอบมืด */
-.stage { position: relative; width: 520px; height: 293px; border-radius: 10px; overflow: hidden; flex: none; background: #f7e3eb; touch-action: none; user-select: none; }
+.stage { position: relative; width: 520px; height: 293px; border-radius: 6px; overflow: hidden; flex: none; background: #f7e3ea; touch-action: none; user-select: none; }
 .stage img, .pv img { position: absolute; max-width: none; pointer-events: none; }
-.cropbox { position: absolute; border: 2px solid #fff; box-shadow: 0 0 0 999px rgba(70,25,45,.55); cursor: move; }
+.cropbox { position: absolute; border: 2px solid #fff; box-shadow: 0 0 0 999px rgba(60,25,40,.55); cursor: move; }
 .cropbox::before, .cropbox::after { content: ""; position: absolute; inset: 0; pointer-events: none; }
 .cropbox::before { border-left: 1px solid rgba(255,255,255,.45); border-right: 1px solid rgba(255,255,255,.45); left: 33.3%; right: 33.3%; }
 .cropbox::after { border-top: 1px solid rgba(255,255,255,.45); border-bottom: 1px solid rgba(255,255,255,.45); top: 33.3%; bottom: 33.3%; }
 .hd { position: absolute; width: 14px; height: 14px; background: #fff; border: 2px solid var(--accent-d); border-radius: 3px; }
 .hd.nw { left: -8px; top: -8px; cursor: nwse-resize; } .hd.ne { right: -8px; top: -8px; cursor: nesw-resize; }
 .hd.sw { left: -8px; bottom: -8px; cursor: nesw-resize; } .hd.se { right: -8px; bottom: -8px; cursor: nwse-resize; }
-.pv { position: relative; overflow: hidden; border-radius: 5px; flex: none; box-shadow: 0 4px 10px rgba(150,70,100,.25); }
-.swatch { width: 26px; height: 26px; border-radius: 7px; border: 1px solid #e5c3d1; cursor: pointer; padding: 0; transition: box-shadow .15s; }
-.swatch:hover { box-shadow: 0 0 0 3px rgba(233,138,172,.25); }
+.pv { position: relative; overflow: hidden; border-radius: 5px; flex: none; box-shadow: 0 4px 10px rgba(60,25,40,.25); }
+.swatch { width: 26px; height: 26px; border-radius: 7px; border: 1px solid #e4c4cf; cursor: pointer; padding: 0; transition: box-shadow .15s; }
+.swatch:hover { box-shadow: 0 0 0 3px rgba(200,64,111,.25); }
 .swatch.on { outline: 3px solid var(--accent); outline-offset: 2px; }
-.imgrow { display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: center; padding: 7px 6px; border-top: 1px solid #f8e3eb; font-size: 13.5px; border-radius: 8px; cursor: pointer; transition: background-color .15s; }
+.imgrow { display: grid; grid-template-columns: 34px 1fr auto; gap: 10px; align-items: center; padding: 7px 6px; border-top: 1px solid #f7e4ea; font-size: 13.5px; border-radius: 8px; cursor: pointer; transition: background-color .15s; }
 .imgrow:first-child { border-top: 0; }
-.imgrow:hover { background-color: #fdeaf1; }
-.imgth { width: 34px; height: 50px; border-radius: 4px; object-fit: cover; background: #fdeef4; }
+.imgrow:hover { background-color: #faedf1; }
+.imgth { width: 34px; height: 50px; border-radius: 4px; object-fit: cover; background: #fbf0f4; }
 
 /* ---------- หน้าข้อมูลไฟล์ แยกไฟล์ ค่า hash (ต้นแบบบรรทัด 189–190 · 224–229 · 275–283 · หน้า 606–722) ---------- */
-.mi { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 13px; line-height: 1.6; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 6px 18px 16px; color: #3a2530; }
-.mih { display: flex; align-items: center; gap: 10px; font-weight: 700; margin: 14px 0 4px; padding-top: 10px; border-top: 1px solid #f8e3eb; color: var(--accent-ink); }
+.mi { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 13px; line-height: 1.6; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 6px 18px 16px; color: #3a252c; }
+.mih { display: flex; align-items: center; gap: 10px; font-weight: 700; margin: 14px 0 4px; padding-top: 10px; border-top: 1px solid #f7e4ea; color: var(--accent-ink); }
 .mih:first-child, .mi > div:first-child > .mih { border-top: 0; padding-top: 4px; margin-top: 4px; }
 .mih.pick { cursor: pointer; }
 .miext { margin-left: auto; font-family: Sarabun, "Noto Sans Thai", Tahoma, sans-serif; font-weight: 500; font-size: 12.5px; color: var(--txt3); }
 .mir { display: grid; grid-template-columns: 270px 18px 1fr; }
 .mir span:last-child { word-break: break-all; }
 .cbx { width: 18px; height: 18px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; vertical-align: -3px; flex: none; transition: background-color .15s, border-color .15s; }
-.cbx.on { background: var(--accent); border: 2px solid var(--accent); } .cbx.off { border: 2px solid #e5b7c8; background: #fff; }
+.cbx.on { background: var(--accent); border: 2px solid var(--accent); } .cbx.off { border: 2px solid #e1bbc8; background: #fff; }
 .mih.pick:hover .cbx.off, .algs label:hover .cbx.off { border-color: var(--accent-d); }
-.hrow { display: grid; grid-template-columns: 90px 1fr 32px; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid #f8e3eb; }
+.hrow { display: grid; grid-template-columns: 90px 1fr 32px; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid #f7e4ea; }
 .hrow:first-child { border-top: 0; }
 .halg { font-weight: 700; font-size: 13px; color: var(--accent-ink); }
-.hval { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px; color: #3a2530; word-break: break-all; background: #fdf3f7; border-radius: 6px; padding: 4px 8px; }
+.hval { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px; color: #3a252c; word-break: break-all; background: #f8f8f8; border-radius: 6px; padding: 4px 8px; }
 .algs { display: flex; gap: 16px; flex-wrap: wrap; font-size: 14px; }
 .algs label { display: flex; align-items: center; gap: 7px; cursor: pointer; }
 .kinds { background: #fff; border-radius: 10px; overflow: hidden; font-size: 14px; }
-.kindrow { display: grid; grid-template-columns: 112px 1fr; gap: 10px; padding: 9px 12px; border-top: 1px solid #f8e3eb; line-height: 1.55; }
+.kindrow { display: grid; grid-template-columns: 112px 1fr; gap: 10px; padding: 9px 12px; border-top: 1px solid #f7e4ea; line-height: 1.55; }
 .kindrow:first-child { border-top: 0; }
 .kindrow b { white-space: nowrap; }
 
 /* ---------- หน้าตรวจไฟล์ (สเปกข้อ 8 · ต้นแบบบรรทัด 144–147 934–999) ---------- */
 .modes { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .mode { border-radius: 12px; padding: 14px 16px; border: 1px solid var(--line); background: #fff; cursor: pointer; transition: border-color .15s, background-color .15s; }
-.mode:hover { border-color: #eeb3c8; }
-.mode.on { border: 1px solid var(--accent); background: #fdeaf1; }
+.mode:hover { border-color: #e2bfcb; }
+.mode.on { border: 1px solid var(--accent); background: #faedf1; }
 .mode.on:hover { border-color: var(--accent-d); }
 .mode.off { cursor: not-allowed; }
 .mode:focus-visible { outline: 2px solid var(--accent-d); outline-offset: 2px; }
@@ -472,17 +526,21 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .ckbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
 .ckcount { font-size: 14px; color: var(--txt2); }
 .ckacts { display: flex; gap: 10px; }
-.pill.p-queue { background: #f6e8ee; color: #8a5d6e; }
+.pill.p-queue { background: #f8e6ec; color: #8d5a6b; }
 /* หัวตารางตรึงกับกล่องเลื่อนของหน้า (.pagewrap ไม่มีระยะขอบใน จึง top 0) · หัววาดเส้นบนล่างเองด้วย box-shadow
    กรอบถอดเส้นบนออก ไม่งั้นตอนยังไม่เลื่อนเส้นบนหนาสองจุด (web-craft 6.2.1) */
 .ckwrap { border-top: 0; }
+/* ตรึงทั้งก้อน การ์ดแบบตรวจ แถวปุ่ม หัวตาราง เลื่อนเฉพาะแถว (พี่กันสั่ง 8 พ.ย. 2569 "ตรึงทั้งก้อนนี้") */
+[data-check] { display: flex; flex-direction: column; overflow: hidden; }
+[data-check] > .wrapin { min-height: 0; }
+[data-check] .ckwrap { flex: 1 1 0; min-height: 120px; overflow-x: hidden; overflow-y: auto; }
 .ck thead th { position: sticky; top: 0; z-index: 2; border-bottom: 0; box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line); }
 .ck thead th:first-child { border-top-left-radius: 12px; box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line), inset 1px 0 0 var(--line); }
 .ck thead th:last-child { border-top-right-radius: 12px; box-shadow: inset 0 1px 0 var(--line), inset 0 -1px 0 var(--line), inset -1px 0 0 var(--line); }
 /* ต่างจากต้นแบบ: ต้นแบบชิดบน ข้อความรายละเอียดตัวเล็กเลยลอยสูงกว่าชื่อไฟล์ · ของจริงจัดกึ่งกลางแนวตั้งทั้งแถว */
 .ck td { vertical-align: middle; }
 .ck tbody tr.click { cursor: pointer; transition: background-color .15s; }
-.ck tbody tr.click:hover td { background: #fdf0f5; }
+.ck tbody tr.click:hover td { background: #fbf2f5; }
 .ck tbody tr.click:focus-visible { outline: 2px solid var(--accent-d); outline-offset: -2px; }
 .ck tr.missing td { opacity: .5; }
 .ck .ckname { word-break: break-word; }
@@ -491,7 +549,7 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .ck .cbx.off:hover { border-color: var(--accent-d); }
 /* ช่องติ๊กที่กดไม่ได้ (กำลังตรวจ · ไฟล์หาไม่เจอ) ชี้แล้วยังเปลี่ยนนิดเดียว ไม่ให้ดูเหมือนกดได้ (button-feedback ปุ่มที่กดไม่ได้) */
 .ck .cbx.dis { cursor: not-allowed; opacity: .5; }
-.ck .cbx.dis.off:hover { border-color: #dcaabd; }
+.ck .cbx.dis.off:hover { border-color: #daacbb; }
 .ck .cbx.dis.on:hover { opacity: .6; }
 .ckdue { color: var(--warn-ink); }
 .cksum { display: flex; flex-direction: column; gap: 12px; }
@@ -504,20 +562,25 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .ag { display: flex; flex-direction: column; gap: 12px; padding: 16px 18px 18px; min-width: 0; }
 .agtop { display: flex; align-items: center; gap: 10px; }
 .fchip { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 6px 12px 6px 6px; }
-.fthumb { width: 30px; height: 44px; border-radius: 4px; flex: none; object-fit: cover; box-shadow: 0 2px 6px rgba(150,70,100,.25); }
+.fthumb { width: 30px; height: 44px; border-radius: 4px; flex: none; object-fit: cover; box-shadow: 0 2px 6px rgba(60,25,40,.25); }
 .fnote { width: 44px; height: 44px; border-radius: 8px; flex: none; display: flex; align-items: center; justify-content: center; }
 .fchip .nm { font-weight: 600; font-size: 14.5px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .fchip .ext { color: var(--txt3); font-weight: 400; }
 .fchip .meta { font-size: 12.5px; color: var(--txt3); line-height: 1.4; }
-.agctl { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+.agctl { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
+.agctl .seg { flex: none; }
+.agctl .seg button { height: 30px; font-size: 13px; padding: 0 8px; gap: 5px; white-space: nowrap; }
+@media (max-width: 1240px) { .agctl .seg button { padding: 0 5px; font-size: 12.5px; gap: 3px; } }
+@media (max-width: 1040px) { .agctl { flex-wrap: wrap; } }
 .ag .lbl { font-size: 13px; color: var(--txt2); }
 .sws { display: flex; align-items: center; gap: 6px; }
 /* ปุ่มเลือกธีมหน้ากราฟเสียง · ต้องอยู่ใต้ .sws เท่านั้น ชื่อ sw ชนมุมจับซ้ายล่างของกรอบครอป (.hd.sw) เดิมมุมนั้นกลายเป็นวงกลมขาว */
-.sws .sw { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #ecc3d3; cursor: pointer; padding: 0; transition: box-shadow .15s, transform .15s; }
+.sws .sw { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #e7c8d2; cursor: pointer; padding: 0; transition: box-shadow .15s, transform .15s; }
 .sws .sw:hover { box-shadow: 0 0 0 2px var(--accent); transform: scale(1.08); }
 .sws .sw.on { box-shadow: 0 0 0 2px var(--accent-d); }
-.ag .seg button:disabled { color: #c9a9b6; cursor: not-allowed; background-color: #fbf3f6; }
+.ag .seg button:disabled { color: #c9aab4; cursor: not-allowed; background-color: #f7f7f7; }
 .agb { display: grid; grid-template-columns: 232px 1fr; gap: 14px; align-items: start; }
+.agb.wide { grid-template-columns: minmax(0, 1fr); }
 .apanel { display: flex; flex-direction: column; gap: 12px; }
 .ag .card { padding: 14px; }
 .ag .card h3 { margin: 0 0 8px; font-size: 14.5px; justify-content: space-between; color: var(--accent-ink); }
@@ -530,7 +593,7 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .plothead .dd, .agfoot .dd { height: 30px; font-size: 13px; }
 .ovw { position: relative; height: 38px; border-radius: 6px; overflow: hidden; cursor: pointer; }
 .ovw canvas { width: 100%; height: 100%; display: block; }
-.ruler { position: relative; height: 22px; border-bottom: 1px solid #f1d9e3; font-size: 11.5px; color: var(--txt3); font-variant-numeric: tabular-nums; }
+.ruler { position: relative; height: 22px; border-bottom: 1px solid #efdbe2; font-size: 11.5px; color: var(--txt3); font-variant-numeric: tabular-nums; }
 .ruler span { position: absolute; bottom: 3px; transform: translateX(-50%); white-space: nowrap; }
 .ovrul { position: relative; height: 16px; font-size: 11px; color: var(--txt3); font-variant-numeric: tabular-nums; }
 .ovrul span { position: absolute; top: 1px; transform: translateX(-50%); white-space: nowrap; }
@@ -543,8 +606,8 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .lab span { font-size: 11.5px; color: var(--txt2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lab em { font-style: normal; font-size: 11px; color: var(--txt3); font-variant-numeric: tabular-nums; }
 .cv { width: 100%; display: block; border-radius: 4px; }
-.xh { position: absolute; top: 0; bottom: 0; width: 1px; background: #4a2b38; opacity: .55; pointer-events: none; }
-.tip { position: absolute; top: 6px; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 22px rgba(120,50,80,.18); padding: 8px 10px; font-size: 12px; pointer-events: none; min-width: 150px; z-index: 3; }
+.xh { position: absolute; top: 0; bottom: 0; width: 1px; background: #472e36; opacity: .55; pointer-events: none; }
+.tip { position: absolute; top: 6px; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 22px rgba(60,25,40,.18); padding: 8px 10px; font-size: 12px; pointer-events: none; min-width: 150px; z-index: 3; }
 .tip .t { font-weight: 700; color: var(--txt); margin-bottom: 3px; font-variant-numeric: tabular-nums; white-space: nowrap; }
 .tip .r { display: grid; grid-template-columns: auto 1fr; gap: 0 10px; line-height: 1.55; }
 .tip .r b { font-variant-numeric: tabular-nums; text-align: right; color: var(--txt); white-space: nowrap; }
@@ -564,7 +627,7 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .tile span { font-size: 12.5px; color: var(--txt2); }
 .tile em { display: block; font-style: normal; font-size: 11.5px; color: var(--txt3); line-height: 1.45; }
 .pbars { display: grid; grid-template-columns: 96px 1fr 64px; gap: 4px 10px; align-items: center; font-size: 12.5px; margin-top: 6px; }
-.pbars .bt { height: 10px; border-radius: 0 4px 4px 0; background: #f6e6ed; position: relative; }
+.pbars .bt { height: 10px; border-radius: 0 4px 4px 0; background: #f7e5eb; position: relative; }
 .pbars .bt i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 0 4px 4px 0; }
 .pbars .v { text-align: right; font-variant-numeric: tabular-nums; color: var(--txt); }
 .ag .sub { font-size: 13.5px; font-weight: 600; color: var(--txt); margin: 12px 0 2px; }
@@ -574,15 +637,17 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .graph-recent { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }
 .graph-recent .dd { height: auto; min-height: 42px; padding: 6px 12px; }
 /* รายการเปิดล่าสุด ปุ่มเปิดกับปุ่มกากบาทเอาออก (คิว 7) */
-.recentrow { display: flex; gap: 6px; align-items: stretch; min-width: 0; }
-.recentrow .dd { flex: 1; min-width: 0; }
-.rnote { width: 18px; height: 27px; border-radius: 3px; background: #fbe3ec; color: var(--accent-ink); display: inline-flex; align-items: center; justify-content: center; flex: none; }
-.rmx { width: 32px; flex: none; border-radius: 10px; border: 1px solid #efc6d5; background-color: #fff; color: var(--txt3); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; transition: background-color .15s, color .15s; }
-.rmx:hover { background-color: #fdeaf1; color: var(--bad, #c0392b); }
+.recentrow { position: relative; min-width: 0; }
+.recentrow .dd { width: 100%; min-width: 0; padding-right: 38px; }
+.recentrow > button:last-child { position: absolute; right: 6px; top: 50%; translate: 0 -50%; width: 26px; height: 26px; min-height: 0; padding: 0; border: 0; border-radius: 7px; background: transparent; display: flex; align-items: center; justify-content: center; }
+.recentrow > button:last-child:hover { background: var(--accent-soft); }
+.rnote { width: 18px; height: 27px; border-radius: 3px; background: #f8e6ec; color: var(--accent-ink); display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.rmx { width: 32px; flex: none; border-radius: 10px; border: 1px solid #e8cdd6; background-color: #fff; color: var(--txt3); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; transition: background-color .15s, color .15s; }
+.rmx:hover { background-color: #faedf1; color: var(--bad, #c0392b); }
 .rmx:focus-visible { outline: none; box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent-d); }
 @media (max-width: 1100px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
 /* ความถี่เฉลี่ยแบบ Audacity · วงกลมที่ยอดใกล้สุด กับช่องบอกค่าใต้กราฟ (Cursor · Peak) */
-.psdpk { position: absolute; width: 11px; height: 11px; margin: -6px 0 0 -6px; border-radius: 50%; border: 2px solid #4a2b38; background: #fff; pointer-events: none; }
+.psdpk { position: absolute; width: 11px; height: 11px; margin: -6px 0 0 -6px; border-radius: 50%; border: 2px solid #472e36; background: #fff; pointer-events: none; }
 .psdread { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
 .psdbox { min-width: 230px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--win2); font-size: 13px; color: var(--txt); font-variant-numeric: tabular-nums; white-space: nowrap; }
 /* ปุ่ม 6 แบบมีไอคอนนำหน้า ตามมอคอัป */
@@ -593,47 +658,135 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .lv .th.wide { width: 45px; height: 26px; margin: 9px auto; }
 /* ตัวซูม ตัวเลื่อน แบบหน้าดูคลื่นของ Audacity */
 .zbtns { display: inline-flex; gap: 4px; }
-.zb { width: 30px; height: 30px; border-radius: 8px; border: 1px solid #efc6d5; background-color: #fff; color: var(--txt2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; transition: background-color .15s, color .15s; }
-.zb:hover { background-color: #fdeaf1; color: var(--accent-ink); }
-.zb:disabled { color: #c9a9b6; background-color: #fbf3f6; cursor: not-allowed; }
-.tscroll { position: relative; height: 12px; margin-top: 8px; border-radius: 6px; background: #f6e3ea; cursor: pointer; }
+.zb { width: 30px; height: 30px; border-radius: 8px; border: 1px solid #e8cdd6; background-color: #fff; color: var(--txt2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; transition: background-color .15s, color .15s; }
+.zb:hover { background-color: #faedf1; color: var(--accent-ink); }
+.zb:disabled { color: #c9aab4; background-color: #f7f7f7; cursor: not-allowed; }
+.tscroll { position: relative; height: 12px; margin-top: 8px; border-radius: 6px; background: #f7e2e9; cursor: pointer; }
 .tscroll .thumb { position: absolute; top: 1px; bottom: 1px; border-radius: 5px; background: var(--accent); cursor: grab; outline: none; }
 .tscroll .thumb:hover { background: var(--accent-d); }
 .tscroll .thumb:focus-visible { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent-d); }
-.tscroll .thumb.all { background: #edc6d5; cursor: default; }
+.tscroll .thumb.all { background: #e8cbd5; cursor: default; }
 /* แถบเลื่อนแนวตั้งบีบยืดคลื่น อยู่ขวามือแถบคลื่น (กว้าง 22 + ช่องห่าง 8 = 30 ตรงกับ VZ_W) · ไม้บรรทัดตัวเลขนอกกราฟ */
 .lanewrap { display: flex; gap: 8px; align-items: stretch; }
 .lanewrap > .lanes { flex: 1; min-width: 0; }
 .vzoom { width: 22px; flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; user-select: none; }
 .vzoom .ic { color: var(--txt3); line-height: 0; }
-.vzoom .track { position: relative; flex: 1; width: 8px; min-height: 60px; border-radius: 4px; background: #f6e3ea; cursor: pointer; touch-action: none; }
-.vzoom .fit { position: absolute; left: -5px; right: -5px; height: 2px; margin-bottom: -1px; border-radius: 1px; background: #dcaabd; }
+.vzoom .track { position: relative; flex: 1; width: 8px; min-height: 60px; border-radius: 4px; background: #f7e2e9; cursor: pointer; touch-action: none; }
+.vzoom .fit { position: absolute; left: -5px; right: -5px; height: 2px; margin-bottom: -1px; border-radius: 1px; background: #daacbb; }
 .vzoom .knob { position: absolute; left: 50%; width: 20px; height: 12px; transform: translate(-50%, 50%); border-radius: 6px; background: var(--accent); cursor: grab; outline: none; transition: background-color .15s; }
 .vzoom .knob:hover { background: var(--accent-d); }
 .vzoom .knob:focus-visible { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent-d); }
 .vzval { min-width: 38px; font-size: 12.5px; font-weight: 600; color: var(--txt2); font-variant-numeric: tabular-nums; }
 .vrul { width: 100%; display: block; }
 /* แถบซูมเวลาแนวนอน ระหว่างปุ่มแว่นขยายสองปุ่ม · ส่วนที่ระบายบอกว่าซูมเข้าไปแค่ไหน */
-.hzoom { display: inline-flex; align-items: center; width: 116px; height: 30px; padding: 0 8px; touch-action: none; }
-.hzoom .track { position: relative; flex: 1; height: 8px; border-radius: 4px; background: #f6e3ea; cursor: pointer; }
-.hzoom .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: #efc0d2; pointer-events: none; }
+.hzoom { display: inline-flex; align-items: center; width: 220px; height: 30px; padding: 0 8px; touch-action: none; }
+.hzoom .track { position: relative; flex: 1; height: 8px; border-radius: 4px; background: #f7e2e9; cursor: pointer; }
+.hzoom .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: #e7c8d2; pointer-events: none; }
 .hzoom .knob { position: absolute; top: 50%; width: 12px; height: 20px; transform: translate(-50%, -50%); border-radius: 6px; background: var(--accent); cursor: grab; outline: none; transition: background-color .15s; }
 .hzoom .knob:hover { background: var(--accent-d); }
 .hzoom .knob:focus-visible { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent-d); }
 .hzoom.off .track { cursor: default; }
-.hzoom.off .knob { background: #edc6d5; cursor: default; }
+.hzoom.off .knob { background: #e8cbd5; cursor: default; }
 /* ป้ายสีของความถี่เฉลี่ยแบบซ้อนทุกช่อง กดซ่อนแสดงทีละเส้น · ปิดอยู่เป็นกรอบสีโปร่ง ตัวหนังสือจาง */
 .psdlg { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
-.psdk { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 14px; border: 1px solid #efc6d5; background-color: #fff; color: var(--txt3); font: inherit; font-size: 12.5px; cursor: pointer; transition: background-color .15s, color .15s; }
+.psdk { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 14px; border: 1px solid #e8cdd6; background-color: #fff; color: var(--txt3); font: inherit; font-size: 12.5px; cursor: pointer; transition: background-color .15s, color .15s; }
 .psdk.on { color: var(--txt); }
-.psdk:hover { background-color: #fdeaf1; }
+.psdk:hover { background-color: #faedf1; }
 .psdk[aria-disabled] { cursor: not-allowed; }
 .psdk i { width: 12px; height: 12px; border-radius: 3px; border: 2px solid; box-sizing: border-box; }
 /* ที่จับใต้แถบกราฟ ลากลงขยายความสูง */
 .lanegrip { height: 14px; margin-top: 2px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: ns-resize; touch-action: none; outline: none; transition: background-color .15s; }
-.lanegrip i { width: 46px; height: 4px; border-radius: 2px; background: #e6bccc; transition: background-color .15s; }
-.lanegrip:hover { background: #fcecf2; }
+.lanegrip i { width: 46px; height: 4px; border-radius: 2px; background: #e2c0cb; transition: background-color .15s; }
+.lanegrip:hover { background: #faeef2; }
 .lanegrip:hover i { background: var(--accent); }
 .lanegrip:focus-visible { box-shadow: 0 0 0 2px var(--accent-d); }
 /* ตาราง ภาพเล็กอยู่กลางช่องทั้งปกตั้งและปกแนวนอน (พี่กัน 7 พ.ย. 2569 *"ตอนปรับเป็นมุมมองตารา เราอยากห้รู้มันอยู่เเนวกลาง"*) */
 .lv td .th { margin-left: auto; margin-right: auto; }
+
+/* ตัวดูรูปเต็มจอ (components/ImageViewer.tsx · สกิล image-viewer) */
+.ivw-bar { width: 35%; border-radius: 0 3px 3px 0; animation: ivwBar 1.05s ease-in-out infinite; }
+@keyframes ivwBar { 0% { transform: translateX(-120%); } 100% { transform: translateX(420%); } }
+.ivw-btn { transition: background-color .15s ease, color .15s ease; }
+.ivw-btn:hover { background: var(--accent) !important; color: #fff !important; }
+
+/* การ์ดโทนสีในหน้าตั้งค่า (components/ToneCard.tsx) */
+.tncards { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.tncard { border-radius: 12px; overflow: hidden; text-align: left; background: var(--t-surface); color: var(--t-txt); border: 1px solid var(--t-line); padding: 0; font: inherit; cursor: pointer; display: flex; flex-direction: column; transition: translate .15s, box-shadow .15s; }
+.tncard:hover { translate: 0 -2px; box-shadow: 0 6px 16px rgba(60,20,35,.14); }
+.tncard:focus-visible { outline: 2px solid var(--t-accent); outline-offset: 2px; }
+.tncard.on { border-color: var(--t-accent); box-shadow: 0 0 0 2px var(--t-accent); }
+.tnmini { display: flex; height: 80px; background: var(--t-canvas); flex: none; }
+.tnmini i { display: block; }
+.tnside { width: 20px; background: var(--t-side); border-right: 1px solid var(--t-sideline); flex: none; }
+.tnposters { display: flex; gap: 5px; padding: 10px 8px; align-items: flex-start; min-width: 0; }
+.tnposters i { width: 30px; height: 45px; flex: none; box-shadow: 0 2px 5px rgba(0,0,0,.25); }
+.tnbody { padding: 10px; display: flex; flex-direction: column; gap: 6px; flex: 1; width: 100%; }
+.tnname { font-weight: 700; font-size: 14px; line-height: 1.35; }
+.tnrec { display: inline-block; margin-left: 6px; vertical-align: 1px; font-size: 11px; font-weight: 600; padding: 0 6px; border-radius: 5px; background: var(--t-accent); color: var(--t-on); white-space: nowrap; }
+.tnratio { display: flex; height: 14px; border: 1px solid var(--t-line); border-radius: 5px; overflow: hidden; flex: none; }
+.tnratio i { display: block; }
+.tndesc { font-size: 12px; line-height: 1.5; color: var(--t-txt2); flex: 1; }
+.tncon { font-size: 11px; line-height: 1.45; color: var(--t-txt3); border-top: 1px solid var(--t-line); padding-top: 6px; }
+@media (max-width: 1120px) { .tncards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+
+/* ตรึงแถบไฟล์กับแถบมุมมองของหน้ากราฟเสียงทั้งก้อน (พี่กันสั่ง 8 พ.ย. 2569 "ตรึงทั้งเเถบนี้") */
+.agstick { position: sticky; top: 0; flex: none; z-index: var(--z-bar); display: flex; flex-direction: column; gap: 12px; margin: -16px -18px 0; padding: 12px 18px; background: var(--bg); border-bottom: 1px solid var(--line); }
+
+/* หน้ากราฟเสียงแบ่งสองฝั่ง แผงลำโพงอยู่กับที่ กราฟเลื่อนฝั่งเดียว (พี่กันสั่ง 8 พ.ย. 2569 "แบ่งฝั่งที่เลื่อน เลื่อนกราฟ ลำโพงไม่เลื่อน")
+   ตรึงแถวซูม แถบภาพรวม แถวเวลา เลื่อนเฉพาะแถบของแต่ละช่อง ("ก็บอกว่าตรึงถึงตรงนี้") */
+.ag[data-graphview] { height: 100%; overflow: hidden; padding-bottom: 0; }
+.ag[data-graphview] .agb { flex: 1 1 0; min-height: 0; margin: -12px -18px 0; gap: 0; grid-template-columns: 250px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
+.ag[data-graphview] .agb.wide { grid-template-columns: minmax(0, 1fr); }
+/* แถบเลื่อนชิดเส้นแบ่งกับชิดขอบหน้าต่าง ระยะขอบอยู่ข้างในกล่อง */
+.ag[data-graphview] .apanel, .ag[data-graphview] .agb > .plot { height: 100%; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.ag[data-graphview] .apanel { padding: 12px 14px; border-right: 1px solid var(--line); gap: 0; }
+.ag[data-graphview] .apanel > .card { padding: 0; }
+.ag[data-graphview] .apanel > .card, .ag[data-graphview] .apanel > .stat { margin: 0; }
+.ag[data-graphview] .apanel > * + * { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.ag[data-graphview] .apanel > .stat { border-top: 0; padding: 10px; }
+.ag[data-graphview] .agb > .plot { border: 0; border-radius: 0; padding: 10px 18px 12px 12px; display: flex; flex-direction: column; }
+.ag[data-graphview] .agb > .plot > * { flex-shrink: 0; }
+.fillcv { position: absolute; inset: 0; width: 100%; height: 100%; }
+.plotstick { position: sticky; top: -10px; z-index: 5; margin: -10px -18px 0 -12px; padding: 10px 18px 6px 12px; background: #fff; border-bottom: 1px solid var(--line); }
+.plotstick .plothead { position: static; margin: 0 0 8px; padding: 0; }
+.ag[data-graphview] .plot > .plothead { position: sticky; top: -10px; z-index: 5; margin: -10px -18px 8px -12px; padding: 10px 18px 6px 12px; background: #fff; }
+.cswatch { display: inline-block; width: 22px; height: 10px; border-radius: 3px; flex: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
+.tnli { display: block; position: relative; padding-left: 11px; }
+.tnli::before { content: ""; position: absolute; left: 1px; top: .62em; width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+.tndesc .tnli + .tnli { margin-top: 3px; }
+.tnrgb { display: flex; flex-direction: column; gap: 1px; font-size: 11px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.tnrgb > span { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.tnrgb i { width: 10px; height: 10px; flex: none; border-radius: 3px; border: 1px solid var(--t-line); }
+.tnrgb b { font-weight: 600; min-width: 24px; }
+/* กล่องนี้ไม่เลื่อนแล้ว แถบบนไม่ต้องตรึง · ตรึงในกล่องที่มีระยะขอบ แถบถูกดันลง 16 จุด กล่องสองฝั่งลอดเข้าไปข้างใต้ แถบเลื่อนกับแถวซูมเลยโดนบัง */
+.ag[data-graphview] > .agstick { position: relative; }
+/* หน้ากราฟเสียงพื้นสีเดียวกับแถบชื่อโปรแกรม ไม่ให้เห็นสองโทน (พี่กันถาม 8 พ.ย. 2569 "ทำไมมีสองโทน") */
+.ag { background: var(--win); min-height: 100%; }
+.agstick { background: var(--win); }
+
+/* ตรึงแถบควบคุมทุกหน้าที่เลื่อนได้ แคลร์ไล่เอง (พี่กันถาม 8 พ.ย. 2569 "ให้ดกูบอกทุกอันเลยเหรอ") */
+.dhead { position: sticky; top: -18px; z-index: 3; flex: none; background: var(--win); margin: -18px -18px -4px; padding: 12px 14px 8px 18px; border-bottom: 1px solid var(--line); }
+[data-info-page] > .wrapin > :first-child { position: sticky; top: 0; z-index: var(--z-bar); background: var(--win); margin: -22px -22px 0; padding: 12px 22px; border-bottom: 1px solid var(--line); }
+.gmodebar { position: sticky; top: 0; z-index: var(--z-bar); background: var(--win); margin: -16px -18px 0; padding: 12px 18px; border-bottom: 1px solid var(--line); }
+[data-poster-page] .three.pactions { position: sticky; bottom: 0; z-index: var(--z-bar); background: var(--win); padding-bottom: 12px; }
+.setcard > h3 { position: sticky; top: 0; z-index: 2; background: var(--win); margin-top: -20px; padding: 20px 0 8px; }
+/* ปุ่มท้ายกราฟชิดขวาเสมอ แม้แถวตกบรรทัด (พี่กันสั่ง 8 พ.ย. 2569 "ปุ่ม จะขวา ก็ขวาให้หมด") */
+.agfoot > :last-child { margin-left: auto; }
+/* แถวหัวกราฟบรรทัดเดียว ปุ่มเวลาชิดขวาทุกมุมมอง แถบซูมหดตามที่เหลือ (พี่กันถาม 8 พ.ย. 2569 "ปุ่มเวลา จะอยู่ซ้ายหรือขวา") */
+.plothead { flex-wrap: nowrap; }
+.plothead > :first-child { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plothead > :last-child { margin-left: auto; flex: none; }
+.plothead .zbtns { flex: none; display: flex; align-items: center; }
+.plothead .hzoom { flex: none; width: 200px; }
+/* แถวคำอธิบายกับปุ่มท้ายกราฟตรึงล่างสุดทุกมุมมอง (พี่กันสั่ง 8 พ.ย. 2569 "ตรึงไว้ล่างสุดให้หมด พวกนี้") */
+.ag[data-graphview] .agb > .plot .agfoot { position: sticky; bottom: -12px; z-index: 5; background: #fff; margin: 10px -18px -12px -12px; padding: 8px 18px 12px 12px; border-top: 1px solid var(--line); }
+/* ผลตรวจในกราฟบรรทัดเดียว ชี้ดูข้อความเต็ม กราฟได้ที่เพิ่ม */
+[data-spekverdict], [data-psdverdict] { margin-top: 0 !important; flex: 0 1 auto; min-width: 0; padding: 4px 9px; gap: 6px; align-items: center; border-radius: 7px; font-size: 12.5px; line-height: 1.4; }
+[data-psdverdict] { margin-top: 8px !important; }
+[data-spekverdict] svg, [data-psdverdict] svg { width: 14px; height: 14px; flex: none; }
+[data-spekverdict] > div, [data-psdverdict] > div { display: block; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
+[data-spekverdict] > div *, [data-psdverdict] > div * { display: inline; white-space: nowrap; }
+[data-spekverdict] > div b, [data-psdverdict] > div b { margin-right: 6px; }
+[data-spekverdict] br, [data-psdverdict] br { display: none; }
+.agfoot { flex-wrap: nowrap; }
+.agfoot > :last-child { flex: none; }

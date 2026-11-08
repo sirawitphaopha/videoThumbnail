@@ -28,7 +28,11 @@ export type Settings = {
   /** ชั้นวางดูปกตั้งหรือปกนอน · เรื่องที่มีแบบเดียวขึ้นแบบนั้น */
   coverOrient: "tall" | "wide";
   /** เก็บรูปที่จับคู่ไว้ที่ไหน beside ข้างไฟล์หนัง · app ในโปรแกรม · link จับคู่อย่างเดียว */
+  /** โทนสีทั้งโปรแกรม lib/tones.ts */
+  tone: string;
   linkStore: "beside" | "app" | "link";
+  /** แบบที่ติ๊กไว้ เลือกได้หลายแบบพร้อมกัน · linkStore คือแบบหลักที่คิดจากค่านี้ */
+  linkStores: ("beside" | "app" | "link")[];
   /** กระดานจับคู่ list รายการ · only แค่รูป */
   linkBoardImages: "list" | "only";
   linkBoardMovies: "list" | "only";
@@ -62,7 +66,7 @@ export type Movie = {
   /** ชั้นวางคำนวณเอง · มีปกในไฟล์ไหม */
   fileCover?: boolean;
 };
-export type LinkedCover = { orient: "tall" | "wide"; source: string; geo: Geometry | null; store: "beside" | "app" | "link"; file: string | null; owned: boolean; sha256: string | null; thumb: string; aspect: number; at: number; cropped?: boolean };
+export type LinkedCover = { orient: "tall" | "wide"; source: string; geo: Geometry | null; store: "beside" | "app" | "link"; file: string | null; owned: boolean; sha256: string | null; appCopy?: string | null; thumb: string; aspect: number; at: number; cropped?: boolean };
 export type Pair = { path: string; kind: "audio" | "subtitle"; lang: string; name: string; delay: number };
 export type PairPlay = { player: string; cmd: string; notes: string[]; sent: number; opened: boolean };
 /** ผลตรวจครั้งล่าสุด (ขั้น 6) */
@@ -107,6 +111,7 @@ export type PosterInfo = {
   path: string; name: string; ext: string; attachable: boolean; width: number; height: number;
   aspect: string; twoThree: boolean; preview: string; fileSize: number; exif: number; icc: boolean; crop: [number, number, number, number];
 };
+export type ViewInfo = { preview: string; width: number; height: number; fileSize: number; ext: string };
 export type RenderInfo = { bytes: number; width: number; height: number; cropW: number; cropH: number; small: boolean; preview: string; sizes: [number, number][] };
 export type FolderImage = { path: string; name: string; ext: string; width: number; height: number; thumb: string | null; attachable: boolean; error: string | null };
 export type StreamInfo = { index: number; kind: "video" | "audio" | "subtitle"; codec: string; lang: string | null; mp4: "ok" | "style" | "no"; why: string | null };
@@ -126,6 +131,8 @@ export const posterApi = {
   render: (geo: Geometry, format: "jpg" | "png", quality: number, opts: { choose?: boolean; sizes?: boolean; target?: CropTarget } = {}) =>
     call<RenderInfo>("poster_render", { req: { geo, format, quality, choose: !!opts.choose, sizes: !!opts.sizes, target: opts.target ?? null } }),
   clear: (target?: CropTarget) => call<void>("poster_clear", { target: target ?? null }),
+  /** รูปใหญ่ของตัวดูรูปเต็มจอ · ส่งค่าครอปมาได้ภาพหลังครอป · ไม่แตะรูปที่ค้างในหน้าอื่น */
+  view: (path: string, geo: Geometry | null) => call<ViewInfo>("poster_view", { path, geo }),
   folderImages: (movie: string) => call<FolderImage[]>("poster_folder_images", { movie }),
   inspect: (path: string) => call<MovieInfo>("poster_inspect", { path }),
   /** ไม่สำเร็จ promise ล้มพร้อม ApplyProblem */

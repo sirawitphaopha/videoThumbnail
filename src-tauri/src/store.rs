@@ -57,6 +57,10 @@ pub struct Settings {
     pub cover_orient: String,
     /// เก็บรูปที่จับคู่ไว้ที่ไหน "beside" คัดลอกไปข้างไฟล์หนัง (ค่าตั้งต้น พี่กันเคาะ) | "app" สำเนาในโปรแกรม | "link" จับคู่อย่างเดียว
     pub link_store: String,
+    /// แบบที่ติ๊กไว้ เลือกได้หลายแบบพร้อมกัน (พี่กันสั่ง 8 พ.ย. 2569) · link_store คือแบบหลักที่คิดจากค่านี้ ข้างไฟล์หนังก่อน แล้วในโปรแกรม แล้วจับคู่อย่างเดียว
+    pub link_stores: Vec<String>,
+    /// โทนสีทั้งโปรแกรม รายชื่ออยู่ src/lib/tones.ts
+    pub tone: String,
     /// กระดานจับคู่ แผงรูปกับแผงหนัง "list" รายการ | "only" แค่รูป (พี่กันสั่ง *"เเละเราขอเปลี่ยนมุมมองเป็นทั้งเเบบที่เธอมีตอนนี้ กับเเสดงเเค่รุป"*)
     pub link_board_images: String,
     pub link_board_movies: String,
@@ -88,6 +92,9 @@ impl Default for Settings {
             sort: "name-asc".into(),
             cover_orient: "tall".into(),
             link_store: "beside".into(),
+            // ว่างไว้ ไฟล์ตั้งค่าเก่าจะได้คิดจาก link_store เดิม ไม่กลายเป็นข้างไฟล์หนังเอง
+            link_stores: vec![],
+            tone: "quartz".into(),
             link_board_images: "list".into(),
             link_board_movies: "list".into(),
         }
@@ -95,6 +102,18 @@ impl Default for Settings {
 }
 
 impl Settings {
+    /// ติ๊กทั้งข้างไฟล์หนังกับในโปรแกรม ได้สำเนาสองที่ · จับคู่อย่างเดียวติ๊กคู่กับแบบอื่นไม่เพิ่มไฟล์ โปรแกรมจำที่อยู่รูปต้นฉบับอยู่แล้วทุกแบบ
+    pub fn normalize_link_stores(&mut self) {
+        const STORES: [&str; 3] = ["beside", "app", "link"];
+        self.link_stores.retain(|s| STORES.contains(&s.as_str()));
+        if self.link_stores.is_empty() { self.link_stores = vec![self.link_store.clone()]; }
+        if let Some(main) = STORES.iter().find(|s| self.link_stores.iter().any(|x| x == *s)) { self.link_store = main.to_string(); }
+    }
+
+    pub fn also_app(&self) -> bool {
+        self.link_stores.iter().any(|x| x == "beside") && self.link_stores.iter().any(|x| x == "app")
+    }
+
     /// ค่าที่อยู่นอกรายการที่รับ กลับเป็นค่าตั้งต้น ไม่ปล่อยค่ามั่วลงไฟล์
     fn sanitize(mut self) -> Self {
         let d = Settings::default();
@@ -107,6 +126,8 @@ impl Settings {
         self.view_mode = pick(&self.view_mode, &["grid", "table"], &d.view_mode);
         self.cover_orient = pick(&self.cover_orient, &["tall", "wide"], &d.cover_orient);
         self.link_store = pick(&self.link_store, &["beside", "app", "link"], &d.link_store);
+        self.normalize_link_stores();
+        self.tone = pick(&self.tone, &["quartz", "wine", "night", "sage", "mauve"], &d.tone);
         self.link_board_images = pick(&self.link_board_images, &["list", "only"], &d.link_board_images);
         self.link_board_movies = pick(&self.link_board_movies, &["list", "only"], &d.link_board_movies);
         if !(50..=100).contains(&self.jpg_quality) { self.jpg_quality = d.jpg_quality; }

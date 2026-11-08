@@ -24,7 +24,9 @@ const defaults: Settings = {
   viewMode: "grid",
   sort: "name-asc",
   coverOrient: "tall",
+  tone: "quartz",
   linkStore: "beside",
+  linkStores: ["beside"],
   linkBoardImages: "list",
   linkBoardMovies: "list",
 };

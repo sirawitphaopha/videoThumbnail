@@ -12,8 +12,12 @@ import { fmtDateTime, fmtDuration, fmtRoughMinutes, fmtSize } from "../lib/forma
 import { FULL_SPEED, reminderDue } from "../lib/status";
 import type { Page } from "../components/Sidebar";
 import Dialog from "../components/Dialog";
-import { Skel, StatIcon } from "../components/ui";
+import { Skel, SortArrow, StatIcon } from "../components/ui";
 import type { GraphReq } from "./GraphPage";
+import { IbStop, IcGraph, IbTick, IcCheck } from "../components/icons";
+
+type CkCol = "name" | "size" | "at" | "status";
+const CK_ORDER: Record<string, number> = { bad: 0, changed: 1, unchecked: 2, ok: 3 };
 
 /** คำขอจากปุ่มบนชั้นวาง · ตรวจเรื่องนี้เลย หรือเปิดผลตรวจของเรื่องนี้ */
 export type CheckReq = { ids: string[]; mode?: CheckMode; open?: string };
@@ -79,7 +83,25 @@ export default function CheckPage(p: { req: CheckReq | null; onConsumed: () => v
   const [openId, setOpenId] = useState<string | null>(null);
   const [stopping, setStopping] = useState(false);
 
-  const list = useMemo(() => movies.slice().sort((a, b) => (a.name + "." + a.ext).localeCompare(b.name + "." + b.ext, "th")), [movies]);
+  /** กดหัวคอลัมน์เรียง (พี่กันสั่ง 8 พ.ย. 2569 "กดเรียงได้") · ผลเรียงเรื่องที่มีปัญหาขึ้นก่อน · ขนาดกับวันตรวจกดครั้งแรกเรียงจากมากไปน้อย */
+  const [sortBy, setSortBy] = useState<{ col: CkCol; dir: 1 | -1 }>({ col: "name", dir: 1 });
+  const list = useMemo(() => {
+    const fileName = (m: Movie) => m.name + "." + m.ext;
+    const key = (m: Movie): string | number => (sortBy.col === "name" ? fileName(m) : sortBy.col === "size" ? m.size : sortBy.col === "at" ? m.check?.at ?? 0 : CK_ORDER[m.status] ?? 4);
+    return movies.slice().sort((a, b) => {
+      const x = key(a), y = key(b);
+      const c = typeof x === "number" && typeof y === "number" ? x - y : String(x).localeCompare(String(y), "th");
+      return c * sortBy.dir || fileName(a).localeCompare(fileName(b), "th");
+    });
+  }, [movies, sortBy]);
+  const head = (col: CkCol, label: string, width?: number) => {
+    const on = sortBy.col === col;
+    return (
+      <th style={width ? { width } : undefined} aria-sort={on ? (sortBy.dir === 1 ? "ascending" : "descending") : "none"}>
+        <button type="button" className="thsort" data-cksort={col} onClick={() => setSortBy(on ? { col, dir: sortBy.dir === 1 ? -1 : 1 } : { col, dir: col === "size" || col === "at" ? -1 : 1 })}>{label}<SortArrow dir={on ? sortBy.dir : 0} /></button>
+      </th>
+    );
+  };
   // ตั้งต้นเลือกทุกเรื่องที่ไฟล์ยังอยู่ (ต้นแบบ เลือกไว้ทั้งหมด) · เลือกครั้งเดียวตอนคลังพร้อม
   useEffect(() => {
     if (sel === null && loaded) setSel(new Set(movies.filter((m) => !m.missing).map((m) => m.id)));
@@ -147,12 +169,12 @@ export default function CheckPage(p: { req: CheckReq | null; onConsumed: () => v
           <div className="ckacts">
             {s.running ? (
               <button type="button" className={"btn " + (stopping ? "btn-wait" : "btn-ghost")} onClick={() => { if (!stopping) stop(); }}
-                aria-disabled={stopping || undefined} title={stopping ? "รอให้เรื่องที่กำลังตรวจหยุดก่อน" : undefined} data-ckstop>{stopping ? "กำลังหยุด…" : "หยุดตรวจทั้งชุด"}</button>
+                aria-disabled={stopping || undefined} title={stopping ? "รอให้เรื่องที่กำลังตรวจหยุดก่อน" : undefined} data-ckstop><IbStop size={15} />{stopping ? "กำลังหยุด…" : "หยุดตรวจทั้งชุด"}</button>
             ) : (
               <>
-                <button type="button" className="btn btn-ghost" onClick={onlyUnchecked}>เลือกเฉพาะที่ยังไม่เคยตรวจ</button>
+                <button type="button" className="btn btn-ghost" onClick={onlyUnchecked}><IbTick size={15} />เลือกเฉพาะที่ยังไม่เคยตรวจ</button>
                 <button type="button" className={"btn " + (selected.length ? "btn-ok" : "btn-wait")} onClick={begin}
-                  aria-disabled={!selected.length || undefined} title={selected.length ? undefined : "เลือกเรื่องที่จะตรวจในตารางก่อน"} data-ckstart>เริ่มตรวจ</button>
+                  aria-disabled={!selected.length || undefined} title={selected.length ? undefined : "เลือกเรื่องที่จะตรวจในตารางก่อน"} data-ckstart><IcCheck size={15} />เริ่มตรวจ</button>
               </>
             )}
           </div>
@@ -178,7 +200,7 @@ export default function CheckPage(p: { req: CheckReq | null; onConsumed: () => v
                   {onlyProblems ? "ดูทุกเรื่อง" : "ดูเฉพาะที่มีปัญหา"}
                 </button>
                 {batchProblems.length > 0 && (
-                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setMode("full"); start(batchProblems.map((m) => m.id), "full"); }}>ตรวจละเอียดเรื่องที่มีปัญหา</button>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setMode("full"); start(batchProblems.map((m) => m.id), "full"); }}><IcCheck size={15} />ตรวจละเอียดเรื่องที่มีปัญหา</button>
                 )}
               </div>
             )}
@@ -195,11 +217,11 @@ export default function CheckPage(p: { req: CheckReq | null; onConsumed: () => v
                   {allOn ? <Tick /> : someOn ? <Dash /> : null}
                 </span>
               </th>
-              <th style={{ width: 230 }}>ชื่อไฟล์</th>
-              <th style={{ width: 90 }}>ขนาด</th>
-              <th style={{ width: 150 }}>ตรวจล่าสุด</th>
-              <th style={{ width: 150 }}>ผล</th>
-              <th>รายละเอียด</th>
+              {head("name", "ชื่อไฟล์")}
+              {head("size", "ขนาด", 90)}
+              {head("at", "ตรวจล่าสุด", 150)}
+              {head("status", "ผล", 150)}
+              <th style={{ width: "30%" }}>รายละเอียด</th>
             </tr></thead>
             <tbody>
               {!loaded && [0, 1, 2, 3, 4].map((i) => (
@@ -287,10 +309,10 @@ function ResultDialog(p: { m: Movie; onClose: () => void; onDeep: () => void; on
   return (
     <Dialog open onClose={p.onClose} kind="menu" width={520} title={<>ผลตรวจ {m.name}.{m.ext}</>}
       actions={<>
-        {sound && <button type="button" className="btn btn-ghost btn-sm" onClick={() => p.onGraph({ path: m.path, t: sound.from })} data-ckgraph>ดูกราฟเสียงช่วงนี้</button>}
+        {sound && <button type="button" className="btn btn-ghost btn-sm" onClick={() => p.onGraph({ path: m.path, t: sound.from })} data-ckgraph><IcGraph size={15} />ดูกราฟเสียงช่วงนี้</button>}
         {first && <button type="button" className="btn btn-ghost btn-sm" onClick={play} data-ckplay>เปิดเล่นที่ <span className="nw">{fmtT(first.from)}</span></button>}
         {c.result === "changed" && <button type="button" className={"btn btn-sm " + (p.running ? "btn-wait" : "btn-ghost")} onClick={() => { if (!p.running) p.onDeep(); }}
-          aria-disabled={p.running || undefined} title={p.running ? "รอให้ชุดที่กำลังตรวจเสร็จก่อน" : undefined}>ตรวจละเอียดเรื่องนี้</button>}
+          aria-disabled={p.running || undefined} title={p.running ? "รอให้ชุดที่กำลังตรวจเสร็จก่อน" : undefined}><IcCheck size={15} />ตรวจละเอียดเรื่องนี้</button>}
         <button type="button" className="btn btn-main btn-sm" onClick={p.onClose}>ปิด</button>
       </>}>
       <div className="small">{c.mode === "full" ? "ตรวจละเอียด" : "ตรวจแบบเร็ว"} · <span className="nw">{d}</span> {t} · ความยาว <span className="nw">{fmtDuration(m.duration)}</span></div>

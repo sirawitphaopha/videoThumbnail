@@ -1,0 +1,327 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>เลือกโทนชั้นหนัง</title>
+<!-- เลือกโทนบนหน้าจอจริงของโปรแกรม · เปิดผ่าน npm run dev ที่ http://127.0.0.1:1420/docs/mockups/theme-live.html · พี่กันสั่ง 8 พ.ย. 2569 "เราก็อยากได้โทนชมพูนั่นเเหละ เเต่พรีเมี่ยม เเละออกแบบตามหลักสี" · "ควรเหมือน 100%" -->
+<style>
+* { box-sizing: border-box; }
+/* กรอบเหลี่ยมใช้กับรูปโปสเตอร์เท่านั้น (พี่กันบอก 8 พ.ย. 2569 "เราหมายถึง รูปโปสเตอร์" · "รูป เราไม่ได้หมายถึง UXUI") · ปุ่ม เมนู การ์ด แผง ใช้ความมนเดิมของโปรแกรม */
+:root { --r-s: 5px; --r: 9px; --r-l: 10px; --r-win: 10px; }
+html, body { margin: 0; }
+body { font-family: Sarabun, "Noto Sans Thai", Tahoma, sans-serif; font-size: 15px; line-height: 1.6; color: var(--txt); background: var(--canvas); transition: background-color .2s; }
+button { font: inherit; color: inherit; }
+button:focus-visible, [tabindex]:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.page { max-width: 1380px; margin: 0 auto; padding: 28px 28px 60px; }
+h1 { font-size: 26px; margin: 0 0 4px; line-height: 1.4; }
+.lead { color: var(--txt2); margin: 0 0 18px; max-width: 900px; }
+h2 { font-size: 17px; margin: 28px 0 10px; line-height: 1.5; }
+.rules { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 0; border-top: 1px solid var(--line); border-bottom: 1px solid var(--line); }
+.rules > div { padding: 12px 16px; border-left: 1px solid var(--line); font-size: 13.5px; color: var(--txt2); }
+.rules > div:first-child { border-left: 0; padding-left: 0; }
+.rules b { display: block; color: var(--txt); font-size: 14.5px; margin-bottom: 2px; }
+
+/* การ์ดเลือกโทน */
+.tones { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.tone { border-radius: var(--r-l); overflow: hidden; text-align: left; background: var(--t-surface); color: var(--t-txt); border: 1px solid var(--t-line); padding: 0; cursor: pointer; display: flex; flex-direction: column; min-width: 0; transition: border-color .15s, box-shadow .15s, translate .15s; }
+.tone:hover { translate: 0 -2px; box-shadow: 0 6px 16px rgba(60,20,35,.14); }
+.tone.on { border-color: var(--t-accent); box-shadow: 0 0 0 2px var(--t-accent); }
+.mini { display: flex; height: 92px; background: var(--t-canvas); }
+.mini i { display: block; }
+.mini .ms { width: 28px; background: var(--t-side); border-right: 1px solid var(--t-sideline); flex: none; }
+.mini .mp { display: flex; gap: 6px; padding: 12px 10px; align-items: flex-start; }
+.mini .mp i { width: 34px; height: 51px; box-shadow: 0 2px 5px rgba(0,0,0,.25); }
+.tb { padding: 10px 12px 12px; display: flex; flex-direction: column; gap: 6px; flex: 1; }
+.tn { font-weight: 700; font-size: 15px; line-height: 1.35; }
+.rec { display: inline-block; font-size: 11.5px; font-weight: 600; padding: 0 7px; border-radius: var(--r-s); background: var(--t-accent); color: var(--t-on); vertical-align: 1px; margin-left: 4px; white-space: nowrap; }
+.ratio { display: flex; height: 16px; border: 1px solid var(--t-line); border-radius: var(--r-s); overflow: hidden; }
+.ratio i { display: block; }
+.td { font-size: 12.5px; line-height: 1.5; color: var(--t-txt2); flex: 1; }
+.li { display: block; position: relative; padding-left: 11px; }
+.li::before { content: ""; position: absolute; left: 1px; top: .62em; width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
+.td .li + .li { margin-top: 3px; }
+.rgb { display: flex; flex-direction: column; gap: 1px; font-size: 11px; line-height: 1.5; font-variant-numeric: tabular-nums; }
+.rgb > span { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
+.rgb i { width: 10px; height: 10px; flex: none; border-radius: 3px; border: 1px solid var(--t-line); }
+.rgb b { font-weight: 600; min-width: 24px; }
+.tc { font-size: 11.5px; color: var(--t-txt3); border-top: 1px solid var(--t-line); padding-top: 6px; }
+
+#app { display: block; flex: none; width: 1280px; height: min(800px, calc(100vh - 8px)); margin: 0 auto; border: 1px solid var(--line-s); border-radius: var(--r-win); box-shadow: 0 14px 40px rgba(60,20,35,.16); background: var(--surface); }
+/* สไตล์หน้าต่างที่วาดเองรุ่นก่อน ไม่ใช้แล้ว */
+.win { border-radius: var(--r-win); border: 1px solid var(--line-s); box-shadow: 0 14px 40px rgba(60,20,35,.16); height: 760px; display: flex; flex-direction: column; background: var(--surface); overflow: hidden; min-width: 1120px; }
+.wscroll { overflow-x: auto; padding-bottom: 2px; }
+.tbar { height: 34px; flex: none; display: flex; align-items: center; justify-content: space-between; padding-left: 14px; font-size: 13px; color: var(--txt2); background: var(--surface); border-bottom: 1px solid var(--line); }
+.tbar span { display: inline-block; width: 46px; text-align: center; color: var(--txt3); }
+.wbody { flex: 1; min-height: 0; display: flex; }
+.side { width: 196px; flex: none; background: var(--side); color: var(--side-txt); border-right: 1px solid var(--side-line); padding: 16px 10px; display: flex; flex-direction: column; gap: 3px; }
+.brand { display: flex; align-items: center; gap: 8px; font-weight: 700; font-size: 17px; padding: 2px 8px 14px; color: var(--side-brand); letter-spacing: .2px; border-bottom: 1px solid var(--side-line); margin-bottom: 8px; }
+.nav { border-radius: var(--r); display: flex; align-items: center; gap: 9px; height: 38px; padding: 0 10px; border: 0; background: transparent; color: var(--side-txt); text-align: left; cursor: pointer; font-size: 14.5px; transition: background-color .15s, color .15s; }
+.nav:hover { background: var(--side-hover); }
+.nav.on { background: var(--side-on); color: var(--side-ontxt); font-weight: 600; }
+.nav svg { flex: none; }
+.sfoot + .nav { margin-top: 4px; flex: none; }
+.tbar span svg, .dhd svg { vertical-align: middle; }
+.chain svg { vertical-align: -2px; }
+.fic { color: var(--accent); margin-right: 7px; }
+.fic svg { vertical-align: -3px; }
+.nav em { margin-left: auto; font-style: normal; font-size: 12px; color: var(--side-txt2); }
+.nav.on em { color: var(--side-ontxt); }
+.sfoot { margin-top: auto; font-size: 12px; color: var(--side-txt2); padding: 10px 8px 2px; border-top: 1px solid var(--side-line); }
+.main { flex: 1; min-width: 0; display: flex; flex-direction: column; }
+.top { flex: none; display: flex; gap: 10px; align-items: center; padding: 11px 18px; background: var(--surface); border-bottom: 1px solid var(--line); }
+.box { gap: 8px; height: 36px; display: flex; align-items: center; padding: 0 12px; border: 1px solid var(--line-s); background: var(--surface); color: var(--txt2); font-size: 13.5px; border-radius: var(--r); }
+.box.grow { flex: 1; min-width: 0; }
+.box svg { flex: none; color: var(--txt3); }
+.btn { display: inline-flex; flex: none; flex-direction: row; align-items: center; justify-content: center; gap: 6px; height: 34px; padding: 0 14px; border-radius: var(--r); border: 1px solid var(--line-s); background: var(--surface); color: var(--txt); font-weight: 600; font-size: 13.5px; cursor: pointer; white-space: nowrap; transition: background-color .15s, border-color .15s, color .15s; }
+.btn:hover { background: var(--soft); border-color: var(--accent); color: var(--soft-ink); }
+.btn.main { background: var(--accent); border-color: var(--accent); color: var(--on); }
+.btn.main:hover { background: var(--accent-h); border-color: var(--accent-h); color: var(--on); }
+.btn.ok { background: var(--ok-bg); border-color: var(--ok-line); color: var(--ok-ink); }
+.btn.ok:hover { background: var(--ok-ink); border-color: var(--ok-ink); color: var(--surface); }
+.btn.s { height: 30px; padding: 0 11px; font-size: 13px; }
+.seg { display: inline-flex; border: 1px solid var(--line-s); border-radius: var(--r); overflow: hidden; }
+.seg button { display: inline-flex; align-items: center; gap: 5px; height: 30px; padding: 0 11px; border: 0; background: var(--surface); color: var(--txt2); font-size: 13px; cursor: pointer; transition: background-color .15s, color .15s; }
+.seg button + button { border-left: 1px solid var(--line-s); }
+.seg button:hover { background: var(--panel); color: var(--soft-ink); }
+.seg button.on { background: var(--soft); color: var(--soft-ink); font-weight: 600; }
+.screen { flex: 1; min-height: 0; display: none; }
+.screen.on { display: flex; }
+.shelfw { flex: 1; min-width: 0; overflow-y: auto; background: var(--canvas); padding: 14px 20px 18px; }
+.shead { display: flex; align-items: center; justify-content: space-between; gap: 10px; padding-bottom: 10px; border-bottom: 1px solid var(--line); }
+.shead b { font-size: 17px; }
+.rowc { display: flex; gap: 8px; }
+.tabs { display: flex; gap: 22px; padding: 2px 0 0; border-bottom: 1px solid var(--line); margin-bottom: 16px; }
+.tab { border: 0; background: none; padding: 8px 0; font-size: 13.5px; color: var(--txt2); cursor: pointer; border-bottom: 2px solid transparent; margin-bottom: -1px; transition: color .15s, border-color .15s; }
+.tab:hover { color: var(--soft-ink); }
+.tab.on { color: var(--soft-ink); font-weight: 600; border-bottom-color: var(--accent); }
+/* เส้นชั้นบาง · แบ่งแถวโปสเตอร์ไม่ให้โล่ง แทนคานไม้หนาเดิม */
+.shelfrow { display: flex; gap: 18px; padding-bottom: 12px; margin-bottom: 18px; border-bottom: 1px solid var(--line-s); }
+.book { width: 132px; flex: none; cursor: pointer; }
+.cover { width: 132px; height: 198px; position: relative; overflow: hidden; display: flex; flex-direction: column; justify-content: flex-end; padding: 10px; color: #fff; box-shadow: 0 1px 2px rgba(30,10,18,.3), 0 4px 12px rgba(30,10,18,.18); transition: translate .15s, box-shadow .15s; }
+.book:hover .cover { translate: 0 -3px; box-shadow: 0 2px 4px rgba(30,10,18,.3), 0 10px 20px rgba(30,10,18,.26); }
+.book.sel .cover { outline: 2px solid var(--accent); outline-offset: 2px; }
+.cover b { font-family: Georgia, "Times New Roman", serif; font-size: 17px; line-height: 1.15; text-shadow: 0 1px 4px rgba(0,0,0,.5); }
+.cover small { font-size: 11px; opacity: .85; }
+/* ไม่มีปก แถบเอียงตามที่พี่กันสั่ง */
+.none, .cover.none { background: repeating-linear-gradient(135deg, var(--st1) 0 10px, var(--st2) 10px 20px); border: 2px dashed var(--dash); box-shadow: none; align-items: center; justify-content: center; text-align: center; color: var(--txt3); font-size: 12.5px; }
+.bname { font-size: 12.5px; margin-top: 7px; color: var(--txt2); line-height: 1.45; display: flex; gap: 5px; align-items: baseline; }
+.dot { width: 8px; height: 8px; border-radius: 50%; flex: none; background: var(--ok-ink); position: relative; top: -1px; }
+.dot.w { background: var(--warn-ink); }
+.chain { color: var(--accent); font-size: 12px; flex: none; }
+.detail { width: 292px; flex: none; background: var(--surface); border-left: 1px solid var(--line); padding: 14px 16px; overflow-y: auto; display: flex; flex-direction: column; }
+.dhd { font-size: 12.5px; color: var(--txt3); display: flex; justify-content: space-between; padding-bottom: 10px; }
+.dposter { width: 170px; height: 255px; margin: 0 auto 12px; display: flex; flex-direction: column; justify-content: flex-end; padding: 12px; color: #fff; box-shadow: 0 2px 4px rgba(30,10,18,.3), 0 8px 22px rgba(30,10,18,.22); }
+.dposter b { font-family: Georgia, "Times New Roman", serif; font-size: 22px; line-height: 1.15; text-shadow: 0 1px 4px rgba(0,0,0,.5); }
+.sect { border-top: 1px solid var(--line); padding: 10px 0; }
+.fname { font-weight: 700; font-size: 14.5px; }
+.kv { display: grid; grid-template-columns: 74px 1fr; font-size: 13px; row-gap: 3px; }
+.kv span:nth-child(odd) { color: var(--txt3); }
+.note { font-size: 13px; line-height: 1.55; color: var(--txt2); }
+.note b { color: var(--soft-ink); display: block; font-size: 13.5px; }
+.acts { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+.acts .wide { grid-column: 1 / -1; height: 36px; }
+.sect.note + .sect.acts { border-top: 0; padding-top: 0; }
+/* ตาราง */
+.tablew { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--surface); }
+.thead, .trow { display: grid; grid-template-columns: 24px minmax(160px, 1fr) 18px minmax(200px, 1.3fr) 130px 226px; column-gap: 12px; align-items: center; padding: 0 18px; }
+.thead { flex: none; height: 34px; font-size: 12.5px; font-weight: 600; color: var(--txt3); background: var(--panel); border-bottom: 1px solid var(--line-s); }
+.trows { flex: 1; min-height: 0; overflow-y: auto; }
+.trow { min-height: 88px; border-bottom: 1px solid var(--line); padding-top: 6px; padding-bottom: 6px; transition: background-color .15s; }
+.trow:hover { background: var(--canvas); }
+.pick { display: flex; gap: 10px; align-items: center; min-width: 0; }
+.th { width: 50px; height: 75px; flex: none; box-shadow: 0 1px 3px rgba(30,10,18,.3); }
+.th.none { font-size: 10.5px; display: flex; border-width: 1.5px; }
+.nm { font-size: 13.5px; font-weight: 600; line-height: 1.4; }
+.sub { font-size: 12px; color: var(--txt3); font-weight: 400; display: block; }
+.cb { width: 18px; height: 18px; border: 1.5px solid var(--line-s); background: var(--surface); border-radius: var(--r-s); display: flex; align-items: center; justify-content: center; font-size: 12px; color: var(--on); }
+.cb.on { background: var(--accent); border-color: var(--accent); }
+.pill { display: inline-block; font-size: 12px; padding: 1px 8px; border-radius: var(--r-s); background: var(--ok-bg); color: var(--ok-ink); font-weight: 600; }
+.pill.w { background: var(--warn-bg); color: var(--warn-ink); }
+.tacts { display: flex; gap: 6px; justify-content: flex-end; }
+.tfoot { flex: none; display: flex; justify-content: space-between; align-items: center; gap: 12px; padding: 10px 18px; border-top: 1px solid var(--line-s); background: var(--panel); font-size: 12.5px; color: var(--txt2); }
+/* ตั้งค่า แท็บ ไม่ต้องเลื่อนจอ */
+.setw { flex: 1; min-width: 0; display: flex; flex-direction: column; background: var(--canvas); }
+.settabs { flex: none; display: flex; gap: 24px; padding: 8px 22px 0; background: var(--surface); border-bottom: 1px solid var(--line-s); }
+.setbody { flex: 1; min-height: 0; padding: 16px 22px; display: grid; grid-template-columns: 1fr 1fr; gap: 16px; align-items: stretch; overflow-y: auto; }
+.setcol { display: flex; flex-direction: column; gap: 14px; min-width: 0; }
+/* แผงสุดท้ายยืดลงถึงก้นคอลัมน์ สองคอลัมน์จบระดับเดียวกัน ไม่เหลือที่ว่างแหว่ง */
+.setcol .panel:last-child { flex: 1; }
+.sctl { flex: none; display: inline-flex; align-items: center; gap: 8px; }
+.range { display: block; width: 130px; height: 4px; background: var(--line-s); border-radius: 2px; }
+.range i { display: block; height: 100%; background: var(--accent); border-radius: 2px; }
+.ver { margin-left: 8px; font-size: 12px; color: var(--txt2); }
+.rv { font-size: 12.5px; color: var(--txt2); min-width: 32px; text-align: right; }
+.panel { background: var(--surface); border: 1px solid var(--line); min-width: 0; border-radius: var(--r-l); overflow: hidden; }
+.panel h4 { margin: 0; padding: 9px 14px; font-size: 13.5px; font-weight: 700; color: var(--soft-ink); background: var(--panel); border-bottom: 1px solid var(--line); }
+.srow { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 10px 14px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.srow:last-child { border-bottom: 0; }
+.srow small { display: block; font-size: 12px; color: var(--txt3); }
+.sw { width: 40px; height: 22px; border-radius: 11px; background: var(--accent); position: relative; flex: none; }
+.sw::after { content: ""; position: absolute; width: 16px; height: 16px; border-radius: 50%; background: var(--on); top: 3px; right: 3px; }
+.sw.off { background: var(--line-s); }
+.sw.off::after { right: auto; left: 3px; background: var(--surface); }
+.radio { display: flex; gap: 10px; align-items: flex-start; padding: 11px 14px; border-bottom: 1px solid var(--line); font-size: 13.5px; }
+.radio:last-child { border-bottom: 0; }
+.radio.on { background: var(--soft); }
+.radio i { width: 16px; height: 16px; border-radius: 50%; border: 1.5px solid var(--line-s); background: var(--surface); flex: none; margin-top: 3px; }
+.radio.on i { border: 5px solid var(--accent); }
+.radio small { display: block; font-size: 12px; color: var(--txt2); line-height: 1.5; }
+.foot-note { font-size: 13.5px; color: var(--txt2); margin-top: 12px; }
+@media (max-width: 1180px) { .tones { grid-template-columns: repeat(3, minmax(0, 1fr)); } .rules { grid-template-columns: 1fr 1fr; } .rules > div:nth-child(3) { border-left: 0; padding-left: 0; } }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>เลือกโทนชมพูของชั้นหนัง</h1>
+  <p class="lead">ชมพูทุกแบบ ไม่มีสีเทาล้วน · กดเลือกโทนข้างล่าง หน้าจอจริงของโปรแกรมข้างล่างเปลี่ยนตาม · กดได้ทุกเมนู · ยังไม่แตะสีของโปรแกรมจริง</p>
+  <div class="rules">
+    <div><b>สัดส่วน 60 · 30 · 10</b>พื้นหลัง 60 สีรอง 30 สีเน้น 10 สีเน้นใช้แค่ปุ่มหลักกับของที่เลือกอยู่ จึงดูแพง ไม่ลาย</div>
+    <div><b>สีรอบรูปต้องไม่สด</b>ตาจับของที่สดกว่าก่อน ลดความสดของพื้นลง โปสเตอร์เลยเป็นของสดที่สุดบนจอ</div>
+    <div><b>สีตระกูลเดียวไล่น้ำหนัก</b>พื้น เส้น ตัวหนังสือ มาจากสีเดียวกันคนละความเข้ม ตัวหนังสือใช้ไวน์เข้มแทนดำกับเทา</div>
+    <div><b>เส้นบางแบ่งส่วน ไม่ซ้อนกรอบ</b>แบ่งตรงที่โล่งไปด้วยเส้นบางหรือพื้นอ่อน แต่ละส่วนมีกรอบชั้นเดียว</div>
+  </div>
+  <h2>โทนให้เลือก</h2>
+  <div class="tones" id="tones" role="radiogroup" aria-label="โทนสี"></div>
+  <h2 id="tname"></h2>
+  <div style="overflow-x:auto;padding-bottom:6px"><iframe id="app" title="หน้าจอจริงของโปรแกรมชั้นหนัง" src="theme-live-app.html"></iframe></div>
+  <p class="foot-note">กรอบบนคือหน้าจอจริงของโปรแกรม โค้ดชุดเดียวกับตัวโปรแกรม ขนาด 1280 × 800 เท่าหน้าต่างตอนเปิดโปรแกรม กดได้ทุกเมนู · ข้อมูลหนังกับรูปปกเป็นตัวอย่าง · เปลี่ยนสีตามโทนเฉพาะในหน้านี้ ยังไม่แตะสีของโปรแกรมจริง</p>
+</div>
+<script>
+const TONES = [
+  { id: "quartz", name: "โรสควอตซ์", rec: true, how: "สีตระกูลเดียว ไล่น้ำหนักจากขาวอมชมพูถึงไวน์เข้ม", why: "สว่าง สะอาด ละมุน เปลี่ยนจากของเดิมน้อยสุด ชมพูเหลือแค่จุดเน้น",
+    v: { canvas: "#fdf8f8", surface: "#ffffff", panel: "#faf0f2", line: "#f0e1e5", "line-s": "#e2cad1", txt: "#3a1d29", txt2: "#6c4a57", txt3: "#86636f", accent: "#a8436a", "accent-h": "#8f3558", on: "#ffffff", soft: "#f7e4ea", "soft-ink": "#8f3558", gold: "#a8436a", side: "#ffffff", "side-txt": "#3a1d29", "side-txt2": "#86636f", "side-line": "#f0e1e5", "side-hover": "#fbf1f4", "side-on": "#f7e4ea", "side-ontxt": "#8f3558", "side-brand": "#8f3558", st1: "#ffffff", st2: "#fbeef2", dash: "#e3bcc9", "ok-bg": "#e8f4ec", "ok-line": "#b9dcc6", "ok-ink": "#2c6e4a", "warn-bg": "#fbf1dc", "warn-ink": "#815a0c" } },
+  { id: "wine", name: "ไวน์กับทอง", how: "ชมพูเข้มถึงไวน์ คู่ทองแชมเปญ เป็นสีโลหะที่เข้ากับโทนอุ่น", why: "หรูสุด เมนูซ้ายสีไวน์ช่วยยึดหน้าจอ พื้นครีมอมชมพูปล่อยให้โปสเตอร์เด่น",
+    v: { canvas: "#fbf6f3", surface: "#fffdfb", panel: "#f6ece8", line: "#ecdfd9", "line-s": "#dcc9bf", txt: "#3b1a26", txt2: "#6b4852", txt3: "#85626c", accent: "#7d2445", "accent-h": "#661a37", on: "#ffffff", soft: "#f3e0e4", "soft-ink": "#7d2445", gold: "#d9b97c", side: "#3f1626", "side-txt": "#f6e6ea", "side-txt2": "#cfaab6", "side-line": "#55202f", "side-hover": "#4d1d30", "side-on": "#5c2338", "side-ontxt": "#f3d9a4", "side-brand": "#f3d9a4", st1: "#fffdfb", st2: "#f7ecea", dash: "#dcbcc4", "ok-bg": "#e9f2e9", "ok-line": "#bcd8bf", "ok-ink": "#2e6b45", "warn-bg": "#f9efd9", "warn-ink": "#7d560b" } },
+  { id: "night", dark: true, name: "กุหลาบกลางคืน", how: "ชมพูบนพื้นไวน์เกือบดำ แบบห้องฉายหนัง", why: "โปสเตอร์เด่นที่สุดในทุกแบบ เพราะรอบรูปมืด เหมาะตอนดูกลางคืน กลางวันแสงจ้าอ่านยากกว่า",
+    v: { canvas: "#1b0f15", surface: "#241620", panel: "#2c1b25", line: "#3e2a35", "line-s": "#533a47", txt: "#f8ecf0", txt2: "#d4bcc6", txt3: "#ad929e", accent: "#eb8fb0", "accent-h": "#f3a9c4", on: "#2a0d19", soft: "#442431", "soft-ink": "#f5b4cb", gold: "#d8b27a", side: "#160b11", "side-txt": "#f1dfe6", "side-txt2": "#ad929e", "side-line": "#33222b", "side-hover": "#25151d", "side-on": "#351d28", "side-ontxt": "#f5b4cb", "side-brand": "#f5b4cb", st1: "#241620", st2: "#2f1d28", dash: "#6d4858", "ok-bg": "#17352a", "ok-line": "#2c5a48", "ok-ink": "#9be0bf", "warn-bg": "#3a2d12", "warn-ink": "#f0cd80" } },
+  { id: "sage", name: "บลัชกับเสจ", how: "คู่สีตรงข้าม ชมพูคู่เขียวเสจหม่น ตัดกันแบบนุ่ม", why: "สดชื่นกว่าแบบอื่น เขียวใช้เฉพาะสถานะไฟล์ดี ดูมีมิติ ไม่หวานเกิน",
+    v: { canvas: "#fcf8f6", surface: "#ffffff", panel: "#f7eeeb", line: "#eee1dc", "line-s": "#dfccc6", txt: "#3a2127", txt2: "#68494f", txt3: "#82646b", accent: "#b24a6c", "accent-h": "#973a59", on: "#ffffff", soft: "#f8e6ea", "soft-ink": "#973a59", gold: "#5f7d6b", side: "#ffffff", "side-txt": "#3a2127", "side-txt2": "#82646b", "side-line": "#eee1dc", "side-hover": "#faf1ef", "side-on": "#f8e6ea", "side-ontxt": "#973a59", "side-brand": "#973a59", st1: "#ffffff", st2: "#f9eeec", dash: "#e6c3c9", "ok-bg": "#e6f0ea", "ok-line": "#b4cfbf", "ok-ink": "#3f6650", "warn-bg": "#f9f0dc", "warn-ink": "#7d5c12" } },
+  { id: "mauve", name: "มอฟหรู", how: "สีเพื่อนบ้าน ชมพูอมม่วง โทนเย็นกว่าแบบอื่น", why: "ดูเป็นผู้ใหญ่ นิ่ง คล้ายโปรแกรมตัดต่อระดับสูง แต่ออกม่วงมากกว่าชมพู",
+    v: { canvas: "#fbf8fa", surface: "#ffffff", panel: "#f5eef3", line: "#ebe0e8", "line-s": "#d9c8d4", txt: "#33202e", txt2: "#5f4a5a", txt3: "#7b6476", accent: "#8c3f73", "accent-h": "#743160", on: "#ffffff", soft: "#f1e3ec", "soft-ink": "#743160", gold: "#8c3f73", side: "#ffffff", "side-txt": "#33202e", "side-txt2": "#7b6476", "side-line": "#ebe0e8", "side-hover": "#f9f3f7", "side-on": "#f1e3ec", "side-ontxt": "#743160", "side-brand": "#743160", st1: "#ffffff", st2: "#f5ecf2", dash: "#d9bcd0", "ok-bg": "#e7f2ec", "ok-line": "#b8d9c6", "ok-ink": "#2d6b4a", "warn-bg": "#f9f0dc", "warn-ink": "#7d5c12" } },
+];
+const POSTERS = [
+  ["ดาวเหนือ", 2023, "linear-gradient(170deg,#0f2747,#1e5a7a 55%,#7fc1c4)"], ["Harbor Lights", 2021, "linear-gradient(170deg,#0b3a42,#147a78 60%,#e0b44c)"],
+  ["สายลมเดือนเมษา", 2017, "linear-gradient(170deg,#7a1f2b,#c9503a 55%,#f3b96a)"], null, ["ฝนสุดท้ายของฤดู", 2019, "linear-gradient(170deg,#1f3d2b,#3f7a54 55%,#bcd9a5)"],
+  ["Iron Tide", 2024, "linear-gradient(170deg,#16181f,#3d4452 55%,#a8adb8)"], ["Silent Orbit", 2018, "linear-gradient(170deg,#1b0f45,#5a2aa8 55%,#d58be0)"], ["เมืองในหมอก", 2015, "linear-gradient(170deg,#23303b,#51707f 55%,#d9e2e2)"],
+  ["Night Bus", 2020, "linear-gradient(170deg,#0a1230,#22358a 55%,#f0a640)"], ["Ember", 2022, "linear-gradient(170deg,#2a0a06,#a3320f 55%,#f2a23a)"], null, ["ลมหนาว", 2020, "linear-gradient(170deg,#0d3550,#2f8fc0 55%,#d5eef5)"],
+];
+/* รายการตรงกับหน้าตั้งค่าจริง (SettingsPage.tsx) ครบ 9 หัวข้อ แบ่งเป็น 3 แท็บ · แต่ละแท็บมี 2 คอลัมน์ */
+const SET = {
+  "ทั่วไป": [
+    [["โฟลเดอร์หนัง", "rows", [["D:\\หนัง", "96 เรื่อง", "out"], ["E:\\หนังเก่า", "32 เรื่อง", "out"], ["เพิ่มโฟลเดอร์", "เอาออกจากชั้นแล้ว ไฟล์ในเครื่องยังอยู่ครบ ไม่ถูกลบ", "add"], ["อ่านโฟลเดอร์ใหม่ทุกครั้งที่เปิดโปรแกรม", "หนังที่โหลดมาเพิ่มจะขึ้นชั้นเอง", "on"]]],
+     ["เปิดเล่นหนัง", "rows", [["โปรแกรมที่ใช้เล่น", "กดปุ่มเปิดเล่นแล้วส่งไฟล์ไปโปรแกรมนี้", "player"]]],
+     ["กราฟเสียง", "rows", [["ผลอ่านคลื่นที่เก็บไว้ในเครื่อง", "12 ไฟล์ · 84 MB · รวมไม่เกิน 300 MB", "clear"]]]],
+    [["ชั้นวาง", "rows", [["ขนาดปก", "", "size"], ["ดูปก", "เรื่องที่แนบทั้งปกตั้งและปกนอน", "orient"], ["ชื่อไฟล์ใต้ปก", "", "on"], ["จุดสีบอกสภาพไฟล์", "", "on"], ["แสดงโครงจางค้างไว้", "ไว้ดูหน้าตาตอนรออ่านโฟลเดอร์ · ปิดโปรแกรมแล้วกลับเป็นปิดเอง", "off"]]],
+     ["ตรวจไฟล์", "rows", [["แบบตรวจตั้งต้น", "", "check"], ["ตรวจแบบเร็วทุกเรื่องตอนเปิดโปรแกรม", "ช่วยจับไฟล์ที่เสียระหว่างย้ายไดรฟ์", "off"], ["เตือนให้ตรวจซ้ำ", "จุดบนปกเปลี่ยนเป็นสีเหลืองเมื่อถึงเวลา", "drop"]]]],
+  ],
+  "โปสเตอร์และปก": [
+    [["ใส่โปสเตอร์", "rows", [["ตรวจไฟล์ต้นทางก่อนครอบ", "ไฟล์เสียอยู่แล้ว จะบอกก่อนลงมือ", "on"], ["ตรวจไฟล์ใหม่หลังครอบเสร็จ", "เทียบว่าภาพ เสียง ซับ ครบเท่าต้นทาง", "on"], ["ไฟล์ที่ได้", "", "seg"], ["ไฟล์เดิมหลังครอบ", "", "orig"], ["โฟลเดอร์เก็บไฟล์เดิม", "ข้างไฟล์หนัง ในโฟลเดอร์ชื่อ ไฟล์เดิม", "change"], ["รูปโปสเตอร์ที่แนบ", "ใช้กับรูปที่ต้องแปลง และรูปที่ครอป", "fmt"], ["คุณภาพ JPG", "", "q"], ["ย่อรูปโปสเตอร์ที่ใหญ่เกิน", "ย่อเหลือ 1000 × 1500 px ไฟล์หนังไม่บวม", "on"]]]],
+    [["เก็บรูปที่จับคู่ไว้ที่ไหน", "radio", [["คัดลอกไปไว้ข้างไฟล์หนัง", "ชื่อหนัง-poster.jpg · ค่าตั้งต้น · รูปต้นฉบับอยู่ที่เดิม", 1], ["เก็บสำเนาไว้ในโปรแกรม", "ไม่มีไฟล์เพิ่มในโฟลเดอร์หนัง มีแต่ชั้นหนังที่เห็น", 0], ["จับคู่อย่างเดียว", "ไม่คัดลอก ย้ายรูปต้นฉบับแล้วต้องจับคู่ใหม่", 0]]],
+     ["เรื่องที่จับคู่ไว้แบบอื่น", "rows", [["มี 3 เรื่อง", "ย้ายมาแบบที่เลือกทีเดียว ไฟล์หนังไม่ถูกแตะ", "move"]]]],
+  ],
+  "เครื่องมือ": [
+    [["เครื่องมือเบื้องหลัง", "rows", [["mkvmerge", "ใช้ครอบ MKV และแนบโปสเตอร์", "ready", "รุ่น 103.0"], ["mkvextract", "ใช้ดึงปกออกมาโชว์และแยกไฟล์", "ready", "รุ่น 103.0"], ["mkvpropedit", "ใช้เปลี่ยนรูปแนบใน MKV", "ready", "รุ่น 103.0"], ["ffmpeg", "ใช้ส่งออก MP4 ตรวจละเอียด และกราฟเสียง", "ready", "รุ่น 9.0.2"], ["ffprobe", "ใช้อ่านข้อมูลไฟล์หนัง", "ready", "รุ่น 9.0.2"], ["MediaInfo", "ใช้หน้าข้อมูลไฟล์", "ready", "รุ่น 26.10"], ["Icaros", "ให้ Windows โชว์โปสเตอร์เป็นไอคอนไฟล์", "notyet"]]]],
+    [["ตัวแปลงเสียง", "rows", [["FLAC", "แนบมากับโปรแกรม", "ready", "รุ่น 1.5.0"], ["Opus", "แนบมากับโปรแกรม", "ready", "รุ่น 0.2-52 · libopus 1.6.1"], ["MP3 (LAME)", "แนบมากับโปรแกรม", "ready", "รุ่น 4.0"], ["WavPack", "แนบมากับโปรแกรม", "ready", "รุ่น 5.9.0"], ["Monkey's Audio", "แนบมากับโปรแกรม", "ready", "รุ่น 13.46"], ["TAK", "แนบมากับโปรแกรม", "ready", "รุ่น 2.3.3"], ["qaac", "วางเองในโฟลเดอร์ตัวแปลง", "notyet"], ["fdkaac", "วางเองในโฟลเดอร์ตัวแปลง", "notyet"], ["เช็กรุ่นล่าสุด", "ออกเน็ตเฉพาะตอนกด ไม่โหลดอะไรมาเปลี่ยนเอง", "latest"]]]],
+  ],
+};
+const $ = (s) => document.querySelector(s);
+/* ไอคอนชุดเดียวกับโปรแกรมจริง (src/components/icons.tsx · ShelfPage.tsx) */
+const IC = {
+  brand: [2, '<rect x="3" y="3" width="5" height="18" rx="1"/><rect x="10" y="3" width="5" height="18" rx="1"/><path d="M17.5 4.5l3.5 1-4 15.5-3.4-1"/>'],
+  shelf: [2, '<path d="M3 20h18M5 20V6h4v14M11 20V4h4v16M17 20l2-12 3 .6-2 11.4"/>'],
+  poster: [2, '<rect x="4" y="3" width="16" height="18" rx="2"/><path d="M8 15l3-3 2 2 3-3 2 2"/><circle cx="9" cy="8" r="1.5"/>'],
+  link: [2, '<path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1"/><path d="M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1"/>'],
+  mix: [2, '<path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6"/>'],
+  check: [2, '<path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z"/><path d="M8.5 12l2.5 2.5 4.5-5"/>'],
+  graph: [2, '<path d="M3 12h2M7 7v10M11 4v16M15 8v8M19 10v4"/>'],
+  settings: [2, '<circle cx="12" cy="12" r="3"/><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1"/>'],
+  collapse: [2.2, '<rect x="3" y="4" width="18" height="16" rx="2"/><path d="M9 4v16"/><path d="M15.5 9.5L13 12l2.5 2.5"/>'],
+  folder: [2, '<path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z"/>'],
+  search: [2.5, '<circle cx="11" cy="11" r="7"/><path d="M20 20l-4-4"/>'],
+  chev: [2.5, '<path d="M6 9l6 6 6-6"/>'],
+  refresh: [2.5, '<path d="M4 4v6h6M20 20v-6h-6"/><path d="M20 10a8 8 0 00-14-4L4 10M4 14a8 8 0 0014 4l2-4"/>'],
+  close: [2.4, '<path d="M6 6l12 12M18 6L6 18"/>'],
+  grid: [2.2, '<rect x="4" y="4" width="6" height="7" rx="1"/><rect x="14" y="4" width="6" height="7" rx="1"/><rect x="4" y="14" width="6" height="7" rx="1"/><rect x="14" y="14" width="6" height="7" rx="1"/>'],
+  list: [2.2, '<path d="M9 6h11M9 12h11M9 18h11"/><rect x="3.5" y="4.5" width="3" height="3" rx=".6"/><rect x="3.5" y="10.5" width="3" height="3" rx=".6"/><rect x="3.5" y="16.5" width="3" height="3" rx=".6"/>'],
+  display: [2.2, '<path d="M4 7h10M18 7h2M4 17h4M12 17h8"/><circle cx="16" cy="7" r="2"/><circle cx="10" cy="17" r="2"/>'],
+  info: [2, '<circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/>'],
+  play: [0, '<path d="M7 4.5v15l12-7.5z" fill="currentColor" stroke="none"/>'],
+};
+const TB = { min: '<path d="M0 5h10" stroke="currentColor" stroke-width="1.2"/>', max: '<rect x=".6" y=".6" width="8.8" height="8.8" fill="none" stroke="currentColor" stroke-width="1.2"/>', close: '<path d="M0 0l10 10M10 0L0 10" stroke="currentColor" stroke-width="1.2"/>' };
+const ic = (n, size = 16) => { if (n.startsWith("tb")) return `<svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true">${TB[n.slice(2)]}</svg>`; const [w, d] = IC[n]; return `<svg width="${size}" height="${size}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="${w}" aria-hidden="true">${d}</svg>`; };
+const fillIcons = () => document.querySelectorAll("[data-ic]").forEach((e) => { e.outerHTML = ic(e.dataset.ic, +(e.dataset.s || 16)); });
+const lum = (h) => { const c = [1, 3, 5].map((i) => parseInt(h.slice(i, i + 2), 16) / 255).map((x) => (x <= 0.03928 ? x / 12.92 : ((x + 0.055) / 1.055) ** 2.4)); return 0.2126 * c[0] + 0.7152 * c[1] + 0.0722 * c[2]; };
+const ratio = (a, b) => { const [x, y] = [lum(a), lum(b)].sort((p, q) => q - p); return (x + 0.05) / (y + 0.05); };
+/* ความเข้มทุกคู่ที่ใช้จริงในมอคอัป เกณฑ์ 4.5 · ตัวตรวจอ่าน window.__contrast */
+window.__contrast = TONES.flatMap((t) => { const v = t.v; return [["ตัวหนังสือ", v.txt, v.canvas], ["ตัวรอง", v.txt2, v.canvas], ["ตัวจาง", v.txt3, v.surface], ["ตัวจางบนพื้นรอง", v.txt3, v.panel], ["ปุ่มหลัก", v.on, v.accent], ["ปุ่มหลักตอนชี้", v.on, v["accent-h"]], ["ที่เลือก", v["soft-ink"], v.soft], ["เมนู", v["side-txt"], v.side], ["เมนูจาง", v["side-txt2"], v.side], ["เมนูที่เลือก", v["side-ontxt"], v["side-on"]], ["ป้ายดี", v["ok-ink"], v["ok-bg"]], ["ป้ายเตือน", v["warn-ink"], v["warn-bg"]], ["ปุ่มยืนยันตอนชี้", v.surface, v["ok-ink"]], ["ตัวเน้นบนขาว", v["soft-ink"], v.surface], ["ตัวเน้นบนพื้นรอง", v["soft-ink"], v.panel], ["ตัวจางบนแถบเอียง", v.txt3, v.st2], ["ตัวรองบนพื้นรอง", v.txt2, v.panel], ["ตัวจางบนพื้น", v.txt3, v.canvas], ["สีเน้นบนพื้น", v.accent, v.canvas], ["สีเน้นบนขาว", v.accent, v.surface], ["ตัวรองในที่เลือก", v.txt2, v.soft], ["เมนูจางตอนชี้", v["side-txt2"], v["side-hover"]], ["เมนูตอนชี้", v["side-txt"], v["side-hover"]]].map(([n, a, b]) => ({ tone: t.name, pair: n, r: +ratio(a, b).toFixed(2) })); });
+
+function card(t, on) {
+  const v = t.v, min = Math.min(...window.__contrast.filter((c) => c.tone === t.name).map((c) => c.r));
+  const vars = `--t-canvas:${v.canvas};--t-surface:${v.surface};--t-line:${v["line-s"]};--t-txt:${v.txt};--t-txt2:${v.txt2};--t-txt3:${v.txt3};--t-accent:${v.accent};--t-on:${v.on};--t-side:${v.side};--t-sideline:${v["side-line"]}`;
+  return `<button type="button" class="tone${on ? " on" : ""}" role="radio" aria-checked="${on}" data-tone="${t.id}" style="${vars}">
+    <span class="mini"><i class="ms"></i><span class="mp"><i style="background:${POSTERS[0][2]}"></i><i style="background:${POSTERS[2][2]}"></i><i style="background:${POSTERS[1][2]}"></i></span></span>
+    <span class="tb"><span class="tn">${t.name}${t.rec ? '<span class="rec">แนะนำ</span>' : ""}</span>
+    <span class="ratio" title="สัดส่วนสี 60 30 10"><i style="width:60%;background:${v.canvas}"></i><i style="width:30%;background:${v.panel}"></i><i style="width:10%;background:${v.accent}"></i></span>
+    <span class="rgb">${[["พื้น", v.canvas], ["รอง", v.panel], ["เน้น", v.accent]].map(([n, c]) => `<span><i style="background:${c}"></i><b>${n}</b>${c.toUpperCase()}</span>`).join("")}</span>
+    <span class="td"><span class="li">${t.how}</span>${t.why.split(/ · /).map((x) => `<span class="li">${x}</span>`).join("")}</span><span class="tc"><span class="li">ตัวหนังสือเข้มกับพื้น ${ratio(v.txt, v.canvas).toFixed(1)} เท่า</span><span class="li">คู่ที่จางสุด ${min.toFixed(1)} เท่า เกณฑ์ 4.5</span></span></span></button>`;
+}
+function apply(id) {
+  const t = TONES.find((x) => x.id === id) ?? TONES[0];
+  for (const [k, val] of Object.entries(t.v)) document.documentElement.style.setProperty("--" + k, val);
+  $("#tones").innerHTML = TONES.map((x) => card(x, x.id === t.id)).join("");
+  $("#tname").textContent = `หน้าจอจริงของโปรแกรม · ${t.name}`;
+  try { localStorage.setItem("theme-pink", t.id); } catch { /* เปิดแบบไม่จำได้ */ }
+  document.getElementById("app").contentWindow?.__applyTone?.(t);
+}
+function poster(p, cls) {
+  if (!p) return `<div class="${cls} none">ยังไม่มีโปสเตอร์</div>`;
+  return `<div class="${cls}" style="background:${p[2]}"><b>${p[0]}</b><small>${p[1]}</small></div>`;
+}
+function build() {
+  const rows = [POSTERS.slice(0, 6), POSTERS.slice(6, 12)];
+  $("#shelf").innerHTML = rows.map((r, i) => `<div class="shelfrow">${r.slice(0, 5).map((p, j) => `<div class="book${i === 0 && j === 1 ? " sel" : ""}" tabindex="0">${poster(p, "cover")}<div class="bname"><i class="dot${j % 3 === 2 ? " w" : ""}"></i>${p && (i + j) % 4 !== 2 ? '<span class="chain">' + ic("link", 13) + '</span>' : ""}<span>${p ? `${p[0]} (${p[1]})` : "Paper Kites (2012)"}</span></div></div>`).join("")}</div>`).join("");
+  const d = POSTERS[1];
+  $("#detail").innerHTML = `<div class="dhd"><span>รายละเอียดไฟล์</span><span>${ic("close", 14)}</span></div><div class="dposter" style="background:${d[2]}"><b>${d[0]}</b></div>
+    <div class="sect"><div class="fname">${d[0]} (${d[1]}).mkv</div></div>
+    <div class="sect acts"><button type="button" class="btn s main wide">${ic("play", 15)}เปิดเล่น</button><button type="button" class="btn s">${ic("info", 15)}ข้อมูลไฟล์</button><button type="button" class="btn s">${ic("folder", 15)}เปิดโฟลเดอร์</button><button type="button" class="btn s">${ic("graph", 15)}กราฟเสียง</button><button type="button" class="btn s">${ic("mix", 15)}เสียงและซับ</button></div>
+    <div class="sect kv"><span>ขนาดไฟล์</span><span>14.2 GB</span><span>ความยาว</span><span>2 ชม. 8 นาที</span><span>ภาพ</span><span>3840 × 2160 · H.265</span><span>เสียง</span><span>ไทย E-AC3 5.1</span></div>
+    <div class="sect note"><b>ปกจับคู่ไว้ ไม่ได้อยู่ในไฟล์</b>จากรูป harbor_lights_2021.png · ครอปแล้ว</div>
+    <div class="sect acts"><button type="button" class="btn s">ครอปใหม่</button><button type="button" class="btn s">เปลี่ยนรูป</button><button type="button" class="btn s">เอาปกออก</button><button type="button" class="btn s">รวมเข้าไฟล์</button></div>`;
+  const R = [[POSTERS[0], 1, "ชื่อกับปีตรง", 0], [POSTERS[1], 1, "ชื่อกับปีตรง", 0], [POSTERS[6], 0, "ชื่อตรง ไม่มีปีในชื่อรูป", 1], [POSTERS[9], 1, "รูปอยู่ข้างไฟล์หนัง", 0], [POSTERS[8], 1, "เลข IMDb ตรงกัน", 0], [POSTERS[5], 1, "ชื่อกับปีตรง", 0], [POSTERS[7], 1, "ชื่อกับปีตรง", 0], [POSTERS[11], 1, "รูปอยู่ข้างไฟล์หนัง", 0]];
+  $("#rows").innerHTML = R.map(([p, tick, why, warn]) => `<div class="trow"><span class="cb${tick ? " on" : ""}">${tick ? "✓" : ""}</span><div class="pick"><span class="th none">ไม่มีปก</span><span class="nm">${p[0]} (${p[1]})<span class="sub">${p[0].replace(/ /g, ".")}.${p[1]}.mkv</span></span></div><span style="color:var(--txt3)">→</span><div class="pick"><span class="th" style="background:${p[2]}"></span><span class="nm" style="font-weight:400">${p[0].toLowerCase().replace(/ /g, "_")}_${p[1]}.jpg<span class="sub">1000 × 1500 · ปกตั้ง</span></span></div><span><span class="pill${warn ? " w" : ""}">${why}</span></span><div class="tacts"><button type="button" class="btn s">ครอป</button><button type="button" class="btn s">เปลี่ยนรูป</button><button type="button" class="btn s ok">ยืนยัน</button></div></div>`).join("");
+  setTab("ทั่วไป");
+  fillIcons();
+}
+function setTab(name) {
+  $("#settabs").innerHTML = Object.keys(SET).map((k) => `<button type="button" class="tab${k === name ? " on" : ""}" data-settab="${k}">${k}</button>`).join("");
+  const seg = (a, on = 0) => `<span class="seg">${a.map((x, i) => `<button type="button"${i === on ? ' class="on"' : ""}>${x}</button>`).join("")}</span>`;
+  const btn = (t) => `<button type="button" class="btn s">${t}</button>`;
+  const CTL = { on: '<span class="sw"></span>', off: '<span class="sw off"></span>', out: btn("เอาออกจากชั้น"), add: btn("เพิ่มโฟลเดอร์"), change: btn("เปลี่ยน"), move: btn("ย้ายมาแบบนี้"), clear: btn("ล้าง"), latest: btn("เช็กรุ่นล่าสุด"), drop: `<span class="box" style="height:30px">ทุก 30 วัน${ic("chev", 14)}</span>`,
+    seg: seg(["MKV", "MP4"]), orig: seg(["เก็บไว้", "ลบเมื่อตรวจผ่าน"]), fmt: seg(["JPG", "PNG"]), size: seg(["เล็ก", "กลาง", "ใหญ่"], 1), orient: seg(["ปกตั้ง", "ปกนอน"]), check: seg(["ตรวจแบบเร็ว", "ตรวจละเอียด"]), player: seg(["โปรแกรมหลักของ Windows", "เลือกเอง"]),
+    q: '<span class="range"><i style="width:80%"></i></span><span class="rv">90%</span>', ready: '<span class="pill">พร้อมใช้งาน</span>', notyet: '<span class="pill w">ยังไม่ได้ลง</span>' };
+  const panel = ([h, kind, list]) => `<div class="panel"><h4>${h}</h4>${kind === "radio" ? list.map(([a, b, on]) => `<div class="radio${on ? " on" : ""}"><i></i><span>${a}<small>${b}</small></span></div>`).join("") : list.map(([a, b, c, v]) => `<div class="srow"><span>${c === "out" ? `<span class="fic">${ic("folder", 17)}</span>` : ""}${a}${v ? `<span class="ver">${v}</span>` : ""}${b ? `<small>${b}</small>` : ""}</span><span class="sctl">${CTL[c] ?? ""}</span></div>`).join("")}</div>`;
+  $("#setbody").innerHTML = SET[name].map((col) => `<div class="setcol">${col.map(panel).join("")}</div>`).join("");
+}
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-tone]");
+  if (t) apply(t.dataset.tone);
+  const go = e.target.closest("[data-go]");
+  if (go) {
+    document.querySelectorAll(".nav").forEach((n) => n.classList.toggle("on", n === go));
+    document.querySelectorAll(".screen").forEach((s) => s.classList.toggle("on", s.dataset.screen === go.dataset.go));
+  }
+  const st = e.target.closest("[data-settab]");
+  if (st) setTab(st.dataset.settab);
+});
+let saved = null;
+try { saved = localStorage.getItem("theme-pink"); } catch { /* เปิดแบบไม่จำได้ */ }
+/* ลิงก์ตรง #wine/set เปิดโทนกับหน้านั้นเลย ใช้ถ่ายภาพ */
+const hashTone = location.hash.slice(1);
+const current = () => TONES.find((t) => t.id === (hashTone || saved || "quartz"));
+apply(hashTone || saved || "quartz");
+const frame = document.getElementById("app");
+frame.addEventListener("load", () => { const on = document.querySelector(".tone.on")?.dataset.tone; const t = TONES.find((x) => x.id === on) ?? current(); frame.contentWindow.__applyTone?.(t); setTimeout(() => frame.contentWindow.__applyTone?.(t), 400); });
+</script>
+</body>
+</html>

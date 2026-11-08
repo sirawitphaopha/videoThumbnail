@@ -91,7 +91,7 @@ check("เมนูซ้ายนับหนังบนชั้น นับ
 // ชี้ปกแล้วลอย · กดแล้วเลือก
 const book = await c.hover('.book[data-movie="Harbor Lights (2021)"]'); await sleep(350);
 const lift = await q(`return getComputedStyle(document.querySelector('.book[data-movie="Harbor Lights (2021)"] .cover')).translate`);
-check("ชี้ปกแล้วปกลอยขึ้น 6", lift === "0px -6px", lift);
+check("ชี้ปกแล้วปกลอยขึ้น 3", lift === "0px -3px", lift);
 await c.click('.book[data-movie="Harbor Lights (2021)"]'); await sleep(250);
 const det = await q("return { nm: document.querySelector('.detail .nm')?.innerText, sel: document.querySelector('.book.sel')?.dataset.movie, card: document.querySelector('.detail .stat b')?.innerText, poster: document.querySelector('.detail img.dposter')?.naturalWidth }");
 check("กดปกแล้วแผงขวาขึ้นเรื่องนั้น โปสเตอร์ใหญ่โหลดได้ การ์ดยังไม่เคยตรวจ", det.nm === "Harbor Lights (2021).mkv" && det.sel === "Harbor Lights (2021)" && det.card === "ยังไม่เคยตรวจไฟล์นี้" && det.poster > 0, JSON.stringify(det));
@@ -104,7 +104,7 @@ const kv = await q("return [...document.querySelectorAll('.detail .kv dd')].map(
 check("แผงรายละเอียดบอกขนาด ความยาว ภาพ เสียง ซับ", /KB|MB/.test(kv) && kv.includes("20 วินาที") && kv.includes("H.264") && kv.includes("AAC"), kv);
 
 // ขนาดปก
-for (const [label, size, w] of [["เล็ก", "s", 80], ["ใหญ่", "l", 150], ["กลาง", "m", 110]]) {
+for (const [label, size, w] of [["เล็ก", "s", 100], ["ใหญ่", "l", 180], ["กลาง", "m", 140]]) {
   await c.evaluate(`[...document.querySelectorAll('[aria-label="ขนาดปก"] button')].find(b => b.innerText === ${JSON.stringify(label)}).click()`);
   await sleep(300);
   const r = await q("const c = document.querySelector('.book .cover'); const row = document.querySelector('.shelf'); return { w: Math.round(c.getBoundingClientRect().width), per: row.querySelectorAll('.book').length }");

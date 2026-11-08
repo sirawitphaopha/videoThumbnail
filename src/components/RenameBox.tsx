@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from "react";
 import { api, type Movie, type RenameProblem } from "../lib/api";
 import ThaiInput from "./ThaiInput";
 import { CardIcon, Phr } from "./ui";
+import { IcRefresh, IbTick } from "./icons";
 
 const CARD_KINDS = new Set(["inuse", "denied", "missing", "busy", "other"]);
 
@@ -77,13 +78,13 @@ export default function RenameBox(p: { m: Movie; onDone: (m: Movie, changed: boo
       )}
       <div className="minirow">
         {fail ? (
-          <button ref={retry} type="button" className="btn btn-ghost btn-sm" onClick={save}>ลองใหม่</button>
+          <button ref={retry} type="button" className="btn btn-ghost btn-sm" onClick={save}><IcRefresh size={15} />ลองใหม่</button>
         ) : saving ? (
           <button type="button" className="btn btn-wait btn-sm" aria-disabled="true">กำลังเปลี่ยนชื่อ…</button>
         ) : blocked ? (
-          <button type="button" className="btn btn-wait btn-sm" aria-disabled="true" title={problem!.title}>บันทึกชื่อ</button>
+          <button type="button" className="btn btn-wait btn-sm" aria-disabled="true" title={problem!.title}><IbTick size={15} />บันทึกชื่อ</button>
         ) : (
-          <button type="button" className="btn btn-main btn-sm" onClick={save}>บันทึกชื่อ</button>
+          <button type="button" className="btn btn-main btn-sm" onClick={save}><IbTick size={15} />บันทึกชื่อ</button>
         )}
         <button type="button" className={"btn btn-sm " + (saving ? "btn-wait" : "btn-ghost")} aria-disabled={saving || undefined}
           title={saving ? "รอเปลี่ยนชื่อเสร็จก่อน" : undefined} onClick={() => { if (!saving) p.onCancel(); }}>ยกเลิก</button>

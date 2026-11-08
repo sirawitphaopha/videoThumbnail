@@ -28,6 +28,11 @@ const scanOut = async () => {
 };
 await scanOut();
 await c.evaluate(`window.__TAURI_INTERNALS__.invoke("dev_clear_parked")`);
+// เริ่มจากศูนย์ · ค่าขอบเขตกับรายการโฟลเดอร์รูปจำไว้ข้ามรอบ ถ้าไม่ล้างจะไปปนกับรอบนี้
+{
+  const st = await c.evaluate(`window.__TAURI_INTERNALS__.invoke("link_auto", { scope: "nocover" })`);
+  for (const p of [...st.reply.imageFolders, ...st.reply.loose]) await c.evaluate(`window.__TAURI_INTERNALS__.invoke("link_remove_images", { path: ${JSON.stringify(p)} })`);
+}
 rmSync(DIR, { recursive: true, force: true });
 mkdirSync(DIR, { recursive: true });
 mkdirSync(OUT, { recursive: true });
@@ -65,7 +70,7 @@ const stateNow = () => inv("link_state");
 const bodyHas = (t) => q(`return document.body.innerText.includes(${JSON.stringify(t)})`);
 
 /* ---------- เตรียม ---------- */
-await inv("set_settings", { patch: { folders: [MOV], linkStore: "beside", posterFormat: "jpg", jpgQuality: 90 } });
+await inv("set_settings", { patch: { folders: [MOV], linkStores: ["beside"], posterFormat: "jpg", jpgQuality: 90 } });
 await inv("scan_library");
 await waitFor("return true", 500);
 for (let i = 0; i < 200; i++) {
@@ -125,7 +130,7 @@ check("สองปุ่มนับต่างกัน", await q("return doc
 // แถวไม่แน่ใจ กดเลือกรูป
 await c.evaluate(`${rowSel("เมืองในหมอก (2015)")}.querySelector('[data-link-cand="เมืองหมอก.jpg"]').click()`);
 await waitFor(`return !!${rowSel("เมืองในหมอก (2015)")}.querySelector('[data-link-chosen]')`);
-check("กดรูปใกล้เคียงแล้วถูกเลือกและติ๊ก", await q(`const r = ${rowSel("เมืองในหมอก (2015)")}; return r.querySelector('[data-link-tick]').getAttribute('aria-checked') === 'true' && r.querySelector('[data-link-confirm]').textContent === 'ยืนยันรูปที่เลือก' && r.querySelector('.lcand.sel') !== null`));
+check("กดรูปใกล้เคียงแล้วถูกเลือกและติ๊ก", await q(`const r = ${rowSel("เมืองในหมอก (2015)")}; return r.querySelector('[data-link-tick]').getAttribute('aria-checked') === 'true' && r.querySelector('[data-link-confirm]').textContent === 'ยืนยัน' && r.querySelector('.lcand.sel') !== null`));
 check("รอยืนยันเพิ่มเป็น 10 แถวไม่แน่ใจที่ยังไม่เลือกไม่นับ", /รอยืนยัน 10 คู่/.test(await countText()), await countText());
 
 // ลากรูปจาก Explorer ลงแถว · หลายรูปแยกแนว · ไฟล์ที่ไม่ใช่รูปไม่รับ
@@ -594,7 +599,7 @@ check("ปุ่มจับคู่รูปปก พาไปแถวใน
 
 // หน้าตั้งค่า 3 แบบ · ย้ายของเดิมทีเดียว · ไฟล์คนอื่นไม่โดน
 const storeNow = () => c.evaluate("window.__TAURI_INTERNALS__.invoke('get_settings').then((r) => r.settings.linkStore)");
-const pickMode = async (v) => { await c.evaluate(`document.querySelector('[data-link-mode="${v}"]').click()`); for (let i = 0; i < 40 && (await storeNow()) !== v; i++) await sleep(100); await sleep(250); };
+const pickMode = async (v) => { await inv("set_settings", { patch: { linkStores: [v] } }); await c.evaluate("location.reload()"); await sleep(1500); await nav("ตั้งค่า"); for (let i = 0; i < 40 && (await storeNow()) !== v; i++) await sleep(100); await sleep(250); };
 const runMigrate = async () => {
   await c.evaluate("document.querySelector('[data-link-migrate-go]').click()");
   await waitFor("return !!document.querySelector('[data-link-migrate-ok]')");
@@ -606,7 +611,7 @@ await closeToasts();
 await nav("ตั้งค่า");
 await waitFor("return !!document.querySelector('[data-setcard=\"link\"]')");
 check("การ์ดเก็บรูป 3 แบบ ค่าตั้งต้นข้างไฟล์หนัง", await q("const m = [...document.querySelectorAll('[data-link-mode]')]; return m.length === 3 && m.find((x) => x.classList.contains('on')).dataset.linkMode === 'beside' && m[0].textContent.includes('-poster.jpg') && m[0].textContent.includes('-landscape.jpg')"));
-check("การ์ดเรียงเต็มแถว ไม่ล้นหน้าต่าง", await q("const c = document.querySelector('[data-setcard=\"link\"]').getBoundingClientRect(), w = document.querySelector('[data-settings]').getBoundingClientRect(); return c.width > w.width * 0.8 && c.right <= w.right"));
+check("การ์ดเก็บรูปไม่ล้นหน้าต่าง ตัวเลือกเรียงลงมาในคอลัมน์", await q("const c = document.querySelector('[data-setcard=\"link\"]').getBoundingClientRect(), w = document.querySelector('[data-settings]').getBoundingClientRect(), m = [...document.querySelectorAll('[data-link-mode]')].map((x) => x.getBoundingClientRect()); return c.right <= w.right && m[0].top < m[1].top && m[1].top < m[2].top"));
 await sleep(200);
 await shot("14-ตั้งค่า-เก็บรูป.png", '[data-setcard="link"]', 1000);
 await c.send("Emulation.setDeviceMetricsOverride", { width: 1024, height: 640, deviceScaleFactor: 1, mobile: false });

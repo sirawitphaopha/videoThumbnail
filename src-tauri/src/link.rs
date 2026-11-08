@@ -204,6 +204,8 @@ pub struct LinkedCover {
     pub owned: bool,
     /// ค่า hash ตอนเขียน เช็กก่อนลบว่าเป็นไฟล์เดิมที่โปรแกรมทำ
     pub sha256: Option<String>,
+    /// ติ๊กทั้งข้างไฟล์หนังกับในโปรแกรม สำเนาที่สองอยู่ตรงนี้ ไบต์เดียวกับ file ค่า hash เดียวกัน
+    pub app_copy: Option<String>,
     pub thumb: String,
     pub aspect: f32,
     pub at: i64,
@@ -807,7 +809,7 @@ fn start_thumbs(app: &AppHandle) {
 
 /// ไฟล์ปกที่โปรแกรมทำเอง ตัวเล็กทั้งหมด
 fn own_files(movies: &[Movie]) -> HashSet<String> {
-    movies.iter().flat_map(|m| &m.linked).filter(|c| c.owned).filter_map(|c| c.file.as_ref()).map(|f| f.to_lowercase()).collect()
+    movies.iter().flat_map(|m| &m.linked).flat_map(|c| [c.file.as_ref().filter(|_| c.owned), c.app_copy.as_ref()]).flatten().map(|f| f.to_lowercase()).collect()
 }
 
 fn images_now(app: &AppHandle, store: &LinkStore) -> Result<Vec<LinkImage>, String> {
@@ -1123,6 +1125,8 @@ pub struct WriteEnv<'a> {
     /// jpg · png
     pub format: &'a str,
     pub quality: u8,
+    /// ติ๊กทั้งข้างไฟล์หนังกับในโปรแกรม ได้สำเนาในโปรแกรมอีกที่
+    pub also_app: bool,
 }
 
 #[derive(Debug, Clone, PartialEq)]
@@ -1255,6 +1259,13 @@ fn place_bytes(env: &WriteEnv, id: &str, movie: &Path, orient: &str, ext: &str, 
     }
 }
 
+/// สำเนาในโปรแกรมอีกที่ เฉพาะตอนติ๊กทั้งสองแบบและแถวนี้เก็บข้างไฟล์หนัง
+fn app_copy_of(env: &WriteEnv, id: &str, movie: &Path, orient: &str, ext: &str, bytes: &[u8], sha: &str, store: &str) -> Result<Option<String>, CoverProblem> {
+    if !env.also_app || store != "beside" { return Ok(None); }
+    let (f, _) = place_bytes(env, id, movie, orient, ext, bytes, sha, "app", None)?;
+    Ok(f.map(|x| x.to_string_lossy().to_string()))
+}
+
 /// เก็บรูปหนึ่งช่องตามแบบที่ตั้ง · รูปต้นฉบับไม่ถูกแก้ · ไฟล์หนังไม่ถูกแตะ
 /// `old` ปกเดิมของช่องนี้ ไว้ดูว่าไฟล์ปลายทางเป็นของโปรแกรมเองไหม
 pub fn write_cover(env: &WriteEnv, id: &str, movie: &Path, orient: &str, pick: &Pick, store: &str, old: Option<&LinkedCover>) -> Result<LinkedCover, CoverProblem> {
@@ -1269,26 +1280,49 @@ pub fn write_cover(env: &WriteEnv, id: &str, movie: &Path, orient: &str, pick: &
     if store == "beside" && is_existing_art(movie, orient, pick, &target, w, h) {
         let sha = file_sha(src).ok_or_else(|| fail(format!("อ่าน {} ไม่ได้", pick.name)))?;
         let (thumb, aspect) = write_thumb(env, id, orient, &dec.img, &sha).map_err(fail)?;
-        return Ok(LinkedCover { orient: orient.into(), source: pick.path.clone(), cropped: false, geo: None, store: "beside".into(), file: Some(pick.path.clone()), owned: false, sha256: Some(sha), thumb: thumb.to_string_lossy().to_string(), aspect, at: now });
+        let app_copy = if env.also_app {
+            let bytes = fs::read(src).map_err(|e| fail(format!("อ่าน {} ไม่ได้: {e}", pick.name)))?;
+            app_copy_of(env, id, movie, orient, &pi::ext_of(src), &bytes, &sha, store)?
+        } else { None };
+        return Ok(LinkedCover { app_copy, orient: orient.into(), source: pick.path.clone(), cropped: false, geo: None, store: "beside".into(), file: Some(pick.path.clone()), owned: false, sha256: Some(sha), thumb: thumb.to_string_lossy().to_string(), aspect, at: now });
     }
     let geo = pick.geo.clone().unwrap_or_else(|| default_geo(orient, w, h));
     let (img, _) = pi::render(&dec.img, &geo, env.shrink);
     let bytes = pi::encode(&img, env.format, env.quality).map_err(fail)?;
     let sha = sha_of(&bytes);
-    let (file, owned) = place_bytes(env, id, movie, orient, env.format, &bytes, &sha, store, old)?;
+    // ทำสำเนาในโปรแกรมก่อน ชื่อไม่มีวันชน · ไฟล์ข้างหนังเขียนไม่ได้ เอาสำเนาที่เพิ่งทำออก ไม่ค้างครึ่ง ๆ กลาง ๆ
+    let app_copy = app_copy_of(env, id, movie, orient, env.format, &bytes, &sha, store)?;
+    let (file, owned) = match place_bytes(env, id, movie, orient, env.format, &bytes, &sha, store, old) {
+        Ok(x) => x,
+        Err(e) => {
+            if let Some(f) = &app_copy {
+                if !old.is_some_and(|o| o.app_copy.as_deref() == Some(f.as_str())) { let _ = fs::remove_file(f); }
+            }
+            return Err(e);
+        }
+    };
     let (thumb, aspect) = write_thumb(env, id, orient, &img, &sha).map_err(fail)?;
-    Ok(LinkedCover { orient: orient.into(), source: pick.path.clone(), cropped: pick.geo.is_some(), geo: Some(geo), store: store.into(), file: file.map(|f| f.to_string_lossy().to_string()), owned, sha256: Some(sha), thumb: thumb.to_string_lossy().to_string(), aspect, at: now })
+    Ok(LinkedCover { app_copy, orient: orient.into(), source: pick.path.clone(), cropped: pick.geo.is_some(), geo: Some(geo), store: store.into(), file: file.map(|f| f.to_string_lossy().to_string()), owned, sha256: Some(sha), thumb: thumb.to_string_lossy().to_string(), aspect, at: now })
 }
 
 /// เอาปกหนึ่งช่องออก · ลบได้เฉพาะไฟล์ที่โปรแกรมทำเองและยังไม่ถูกแก้ ลงถังขยะเท่านั้น ทุกแบบที่เก็บ (พี่กันตอบตอนทำแผน)
 /// ไดรฟ์ที่ไม่มีถังขยะไม่ลบ · คืนข้อความเมื่อมีไฟล์ที่ไม่ลบ
 pub fn remove_cover(c: &LinkedCover) -> Option<String> {
     let _ = fs::remove_file(&c.thumb);
-    let f = Path::new(c.file.as_deref()?);
-    if !c.owned || !f.exists() {
+    let also = c.app_copy.as_deref().and_then(|f| trash_own(Path::new(f), &c.sha256));
+    let main = c.file.as_deref().filter(|_| c.owned).and_then(|f| trash_own(Path::new(f), &c.sha256));
+    match (main, also) {
+        (Some(a), Some(b)) => Some(format!("{a} · {b}")),
+        (a, b) => a.or(b),
+    }
+}
+
+/// ลบไฟล์ที่โปรแกรมทำเองลงถังขยะ ถ้ายังไม่ถูกแก้ · คืนข้อความเมื่อไม่ลบ
+fn trash_own(f: &Path, sha: &Option<String>) -> Option<String> {
+    if !f.exists() {
         return None;
     }
-    if file_sha(f) != c.sha256 {
+    if file_sha(f) != *sha {
         return Some(format!("{} ถูกแก้หลังโปรแกรมทำไว้ ไม่ลบให้", f.file_name().unwrap_or_default().to_string_lossy()));
     }
     if !crate::outfile::drive_is_fixed(f.parent().unwrap_or(Path::new(""))) {
@@ -1318,6 +1352,9 @@ pub fn apply_row(env: &WriteEnv, m: &Movie, row: &Row, store: &str) -> Result<Ve
                     if c.owned && !c.file.as_deref().is_some_and(in_old) {
                         if let Some(f) = &c.file { let _ = fs::remove_file(f); }
                     }
+                    if let Some(f) = &c.app_copy {
+                        if !m.linked.iter().any(|o| o.app_copy.as_deref() == Some(f.as_str())) { let _ = fs::remove_file(f); }
+                    }
                     if !m.linked.iter().any(|o| same_file(Path::new(&o.thumb), Path::new(&c.thumb))) { let _ = fs::remove_file(&c.thumb); }
                 }
                 return Err(e);
@@ -1342,6 +1379,8 @@ pub fn merge_covers(m: &mut Movie, covers: Vec<LinkedCover>) -> Vec<LinkedCover>
     gone.into_iter().map(|mut g| {
         let used = g.file.as_deref().is_some_and(|f| now.iter().any(|c| same_file(Path::new(&c.source), Path::new(f)) || c.file.as_deref().is_some_and(|x| same_file(Path::new(x), Path::new(f)))));
         if used { g.file = None; }
+        // สำเนาในโปรแกรมชื่อตามค่า hash รูปเดิมยืนยันซ้ำได้ชื่อเดิม ยังถูกปกใหม่ใช้อยู่ ห้ามลบ
+        if g.app_copy.as_deref().is_some_and(|f| now.iter().any(|c| c.app_copy.as_deref() == Some(f))) { g.app_copy = None; }
         if now.iter().any(|c| same_file(Path::new(&c.thumb), Path::new(&g.thumb))) { g.thumb.clear(); }
         g
     }).collect()
@@ -1405,12 +1444,12 @@ pub async fn link_confirm(app: AppHandle, which: String) -> Result<ConfirmResult
         let _busy = begin_busy(&store)?;
         let lib = app.state::<Arc<LibraryStore>>().inner().clone();
         let (tools, work, thumbs, covers) = write_env_dirs(&app)?;
-        let (mode, shrink, format, quality) = {
+        let (mode, shrink, format, quality, also_app) = {
             let s = app.state::<crate::store::SettingsStore>();
             let s = s.current.lock().unwrap();
-            (s.link_store.clone(), s.shrink_large_posters, s.poster_format.clone(), s.jpg_quality)
+            (s.link_store.clone(), s.shrink_large_posters, s.poster_format.clone(), s.jpg_quality, s.also_app())
         };
-        let env = WriteEnv { tools: &tools, work: &work, thumbs: &thumbs, covers: &covers, shrink, format: &format, quality };
+        let env = WriteEnv { tools: &tools, work: &work, thumbs: &thumbs, covers: &covers, shrink, format: &format, quality, also_app };
         store.stop.store(false, Ordering::SeqCst);
         let ids = select_rows(&store.data.lock().unwrap().rows, &which);
         let total = ids.len();
@@ -1626,14 +1665,16 @@ pub async fn link_migrate(app: AppHandle, to: String) -> Result<MigrateResult, S
         let _busy = begin_busy(&store)?;
         let lib = app.state::<Arc<LibraryStore>>().inner().clone();
         let (tools, work, thumbs, covers) = write_env_dirs(&app)?;
-        let (shrink, format, quality) = {
+        let (shrink, format, quality, also_app) = {
             let s = app.state::<crate::store::SettingsStore>();
             let s = s.current.lock().unwrap();
-            (s.shrink_large_posters, s.poster_format.clone(), s.jpg_quality)
+            (s.shrink_large_posters, s.poster_format.clone(), s.jpg_quality, s.also_app())
         };
-        let env = WriteEnv { tools: &tools, work: &work, thumbs: &thumbs, covers: &covers, shrink, format: &format, quality };
+        let env = WriteEnv { tools: &tools, work: &work, thumbs: &thumbs, covers: &covers, shrink, format: &format, quality, also_app };
         let movies = movies_of(&lib);
-        let todo: Vec<&Movie> = movies.iter().filter(|m| m.linked.iter().any(|c| c.store != to)).collect();
+        // ติ๊กเพิ่มหรือเอาสำเนาในโปรแกรมออก ปกที่เก็บแบบหลักถูกอยู่แล้วก็ต้องตามด้วย
+        let want_copy = also_app && to == "beside";
+        let todo: Vec<&Movie> = movies.iter().filter(|m| m.linked.iter().any(|c| c.store != to || c.app_copy.is_some() != want_copy)).collect();
         let total = todo.len();
         let (mut done, mut failed, mut notes) = (0, 0, vec![]);
         for (i, m) in todo.into_iter().enumerate() {
@@ -1673,15 +1714,42 @@ pub async fn link_migrate(app: AppHandle, to: String) -> Result<MigrateResult, S
                     Err(e) => { notes.push(format!("{} {}", m.name, e.msg)); bad = true; }
                 }
             }
-            if bad { failed += 1; }
-            if !fresh.is_empty() {
+            let had_fresh = !fresh.is_empty();
+            if had_fresh {
                 let mut gone = vec![];
                 let up = lib.update_movie(&m.id, |x| gone = merge_covers(x, fresh));
                 for g in &gone { if let Some(n) = remove_cover(g) { notes.push(n); } }
                 if let Some(up) = up { let _ = app.emit("movie-updated", &up); }
                 lib.save()?;
-                if !bad { done += 1; }
             }
+            // สำเนาในโปรแกรมของปกที่อยู่แบบหลักแล้ว เพิ่มหรือเอาออกให้ตรงกับที่ติ๊ก
+            let now = lib.movies.lock().unwrap().iter().find(|x| x.id == m.id).map(|x| x.linked.clone()).unwrap_or_default();
+            let mut copies: Vec<(String, Option<String>)> = vec![];
+            for c in now.iter().filter(|c| c.store == to && c.app_copy.is_some() != want_copy) {
+                if !want_copy {
+                    if let Some(n) = c.app_copy.as_deref().and_then(|f| trash_own(Path::new(f), &c.sha256)) { notes.push(n); }
+                    copies.push((c.orient.clone(), None));
+                    continue;
+                }
+                let from = c.file.clone().unwrap_or_else(|| c.source.clone());
+                let made = fs::read(&from).map_err(|e| format!("อ่านรูปไม่ได้: {e}")).and_then(|bytes| {
+                    let ext = Path::new(&from).extension().map(|e| e.to_string_lossy().to_string()).unwrap_or_else(|| "jpg".into());
+                    place_bytes(&env, &m.id, Path::new(&m.path), &c.orient, &ext, &bytes, &sha_of(&bytes), "app", None).map_err(|e| e.msg)
+                });
+                match made {
+                    Ok((file, _)) => copies.push((c.orient.clone(), file.map(|x| x.to_string_lossy().to_string()))),
+                    Err(e) => { notes.push(format!("{} {e}", m.name)); bad = true; }
+                }
+            }
+            let had_copies = !copies.is_empty();
+            if had_copies {
+                let up = lib.update_movie(&m.id, |x| for (orient, file) in &copies {
+                    if let Some(c) = x.linked.iter_mut().find(|c| &c.orient == orient) { c.app_copy = file.clone(); }
+                });
+                if let Some(up) = up { let _ = app.emit("movie-updated", &up); }
+                lib.save()?;
+            }
+            if bad { failed += 1; } else if had_fresh || had_copies { done += 1; }
         }
         let _ = app.emit("link-progress", LinkProgress { done: total, total, title: String::new() });
         Ok(MigrateResult { done, failed, notes })
@@ -1896,7 +1964,7 @@ mod tests {
     }
     impl Lab {
         fn env(&self) -> WriteEnv<'_> {
-            WriteEnv { tools: &self.tools, work: &self.work, thumbs: &self.thumbs, covers: &self.covers, shrink: true, format: "jpg", quality: 90 }
+            WriteEnv { tools: &self.tools, work: &self.work, thumbs: &self.thumbs, covers: &self.covers, shrink: true, format: "jpg", quality: 90, also_app: false }
         }
         fn pick(&self, p: &Path) -> Pick {
             let (width, height) = header_size(p);
@@ -1979,6 +2047,53 @@ mod tests {
         let env = WriteEnv { format: "png", ..l.env() };
         let cov = apply_row(&env, &a, &l.row(), "beside").unwrap();
         assert!(cov[0].file.as_ref().unwrap().ends_with("ดาวตก (2024)-poster.png"), "{:?}", cov[0].file);
+    }
+
+    /// ติ๊กทั้งข้างไฟล์หนังกับในโปรแกรม ได้สำเนาสองที่ ไบต์เดียวกัน · เอาปกออกไปทั้งคู่ · แบบอื่นไม่มีสำเนาซ้อน
+    #[test]
+    fn beside_and_app_together() {
+        let Some(l) = lab("สองที่") else { return };
+        let env = WriteEnv { also_app: true, ..l.env() };
+        let before = l.originals();
+        let m = l.mv();
+        let only_app = apply_row(&env, &m, &l.row(), "app").unwrap();
+        assert!(only_app.iter().all(|c| c.app_copy.is_none()), "เก็บในโปรแกรมอย่างเดียว ไม่มีสำเนาซ้อน");
+        let only_link = apply_row(&env, &m, &l.row(), "link").unwrap();
+        assert!(only_link.iter().all(|c| c.app_copy.is_none() && c.file.is_none()));
+        let cov = apply_row(&env, &m, &l.row(), "beside").unwrap();
+        assert_eq!(cov.len(), 2);
+        for c in &cov {
+            let copy = c.app_copy.as_ref().expect("ต้องมีสำเนาในโปรแกรม");
+            assert!(Path::new(copy).starts_with(&l.covers));
+            assert_eq!(file_sha(Path::new(copy)), c.sha256);
+            assert_eq!(file_sha(Path::new(c.file.as_ref().unwrap())), c.sha256);
+        }
+        // ยืนยันรูปเดิมซ้ำ สำเนาชื่อเดิมยังถูกใช้อยู่ ห้ามถูกลบ
+        let mut held = l.mv();
+        assert!(merge_covers(&mut held, cov.clone()).is_empty());
+        let again = apply_row(&env, &held, &l.row(), "beside").unwrap();
+        let gone = merge_covers(&mut held, again);
+        assert!(gone.iter().all(|g| g.app_copy.is_none()), "สำเนาที่ปกใหม่ใช้อยู่ต้องไม่อยู่ในรายการลบ");
+        assert_eq!(l.originals(), before, "ไฟล์หนังกับรูปต้นฉบับต้องไม่เปลี่ยน");
+        for c in &cov {
+            let (f, copy) = (c.file.clone().unwrap(), c.app_copy.clone().unwrap());
+            assert_eq!(remove_cover(c), None);
+            assert!(!Path::new(&f).exists() && !Path::new(&copy).exists(), "เอาออกต้องไปทั้งสองที่");
+        }
+    }
+
+    /// ค่าตั้งไฟล์เก่ามีแค่แบบเดียว อ่านแล้วคงแบบเดิม · ติ๊กหลายแบบ แบบหลักข้างไฟล์หนังก่อน
+    #[test]
+    fn store_settings_old_and_many() {
+        let mut old: crate::store::Settings = serde_json::from_str(r#"{"linkStore":"app"}"#).unwrap();
+        old.normalize_link_stores();
+        assert_eq!(old.link_stores, vec!["app".to_string()]);
+        assert_eq!(old.link_store, "app");
+        assert!(!old.also_app());
+        let mut all: crate::store::Settings = serde_json::from_str(r#"{"linkStores":["link","app","beside"]}"#).unwrap();
+        all.normalize_link_stores();
+        assert_eq!(all.link_store, "beside");
+        assert!(all.also_app());
     }
 
     /// ไฟล์ชื่อเดียวกันที่โปรแกรมไม่ได้ทำ ไม่โดนทับ · ช่องหลังล้ม ไฟล์ใหม่ของช่องก่อนถูกเอาออก
