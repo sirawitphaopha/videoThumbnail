@@ -16,7 +16,7 @@ import { convertLabel } from "../lib/codecs";
 import ThaiInput from "../components/ThaiInput";
 import { CardIcon, Phr, Seg } from "../components/ui";
 import { useToast } from "../components/Toasts";
-import { ADD_EXT, encodeApi, inApp, mergeApi, pickAddFiles, pickFile, posterApi, thumbUrl, type ApplyProblem, type CoverTarget, type EncoderInfo, type MergeResult, type PosterInfo, pairApi } from "../lib/api";
+import { ADD_EXT, FONT_EXT, encodeApi, inApp, mergeApi, pickAddFiles, pickFile, pickFonts, posterApi, thumbUrl, type ApplyProblem, type CoverTarget, type EncoderInfo, type FontHit, type MergeResult, type PosterInfo, pairApi } from "../lib/api";
 import { useSettings } from "../lib/settings";
 import { useLibrary } from "../lib/library";
 import { fmtDuration, fmtSize } from "../lib/format";
@@ -130,7 +130,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
         return { mode: "keep", old: att ? { att, preview: null } : null, neu: null };
       };
       mergeApi.coverDrop(null).catch(() => {});
-      setAv({ movie: m, tracks: m.tracks.map((t) => trackFrom(t)), sel: null, covers: { cover: slot("cover"), cover_land: slot("cover_land") }, run: { state: "idle" } });
+      setAv({ movie: m, tracks: m.tracks.map((t) => trackFrom(t)), sel: null, covers: { cover: slot("cover"), cover_land: slot("cover_land") }, run: { state: "idle" }, fontExtra: [], fontOff: [] });
       // ภาพของปกเดิม ดึงทีหลัง ไม่ให้หน้ารอ
       for (const s of ["cover", "cover_land"] as CoverTarget[]) {
         const old = getAv().covers[s].old;
@@ -189,6 +189,20 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
     }
   }, [toast]);
 
+  // ---------- ฟอนต์ของซับ ASS ที่ลากมาเพิ่มเอง (พี่กันสั่ง 8 พ.ย. 2569) ----------
+  const addFonts = useCallback(async (paths: string[]) => {
+    if (!getAv().movie) { toast({ kind: "warn", title: "ใส่ไฟล์หนังก่อน", detail: "ฟอนต์ใช้ฝังไปกับซับ ASS ตอนรวม" }); return; }
+    for (const path of paths) {
+      if (getAv().fontExtra.some((f) => f.path.toLowerCase() === path.toLowerCase())) continue;
+      try {
+        const f = await mergeApi.fontInfo(path);
+        setAv((s) => ({ fontExtra: [...s.fontExtra, f], fontOff: s.fontOff.filter((x) => x !== f.path) }));
+      } catch (e) {
+        toast({ kind: "bad", title: `เพิ่มฟอนต์ ${baseName(path)} ไม่ได้`, detail: String(e) });
+      }
+    }
+  }, [toast]);
+
   // ---------- ปก ----------
   const openCover = useCallback(async (path: string, slot: CoverTarget | null) => {
     setSlotErr(null);
@@ -226,15 +240,17 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
     const movies = paths.filter((f) => MOVIE_EXT.includes(extOf(f)));
     const images = paths.filter((f) => IMAGE_EXT.includes(extOf(f)));
     const adds = paths.filter((f) => ADD_EXT.includes(extOf(f)));
-    const other = paths.filter((f) => !movies.includes(f) && !images.includes(f) && !adds.includes(f));
+    const fontFiles = paths.filter((f) => FONT_EXT.includes(extOf(f)));
+    const other = paths.filter((f) => !movies.includes(f) && !images.includes(f) && !adds.includes(f) && !fontFiles.includes(f));
     if (images.length) openCover(images[0], zone === "cover" || zone === "cover_land" ? zone : null);
     // หนังที่วางในช่องเพิ่มไฟล์ (MKV ที่มีแต่เสียง) นับเป็นไฟล์ที่เพิ่ม · นอกนั้นเป็นหนังเรื่องใหม่
     if (movies.length && zone === "add" && getAv().movie) adds.push(...movies);
     else if (movies.length && !(await loadMovie(movies[0]))) return;
     if (adds.length) await addFiles(adds);
+    if (fontFiles.length) await addFonts(fontFiles);
     if (other.length) toast({ kind: "warn", title: `ใช้ไม่ได้ ${other.length} ไฟล์`, detail: other.map(baseName).join(" · ") });
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [loadMovie, addFiles, openCover, toast]);
+  }, [loadMovie, addFiles, addFonts, openCover, toast]);
   useEffect(() => {
     if (!inApp) return;
     let off: (() => void) | undefined;
@@ -300,6 +316,27 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
   const addedFiles = [...new Set(kept.filter((t) => !t.inMovie).map((t) => t.src))];
   const addedBytes = addedFiles.reduce((s, src) => s + (src ? 0 : 0), 0);
   const estimate = movie ? movie.size - removedBytes + addedBytes + kept.filter((t) => !t.inMovie).reduce((s, t) => s + (t.bytes ?? (t.bitrate && t.duration ? t.bitrate / 8 * t.duration : 0)), 0) : 0;
+  // ฟอนต์ของซับ ASS ที่เพิ่ม (fonts.rs) · ชื่อไม่ซ้ำ · ฟอนต์ที่หาไม่เจอใช้ไฟล์ที่ลากมาเพิ่มเองถ้าชื่อในไฟล์ตรง · ไฟล์แนบชื่อเดียวกันในหนังแล้วไม่ฝังซ้ำ
+  const fontRows: (FontHit & { inMovie: boolean; on: boolean })[] = (() => {
+    const rows: FontHit[] = [];
+    for (const t of kept) for (const h of t.fonts ?? []) if (!rows.some((r) => r.name.toLowerCase() === h.name.toLowerCase())) rows.push(h);
+    const extra = [...av.fontExtra];
+    const filled: FontHit[] = rows.map((r) => {
+      if (r.file) return r;
+      const i = extra.findIndex((e) => e.names.some((n) => n.toLowerCase() === r.name.toLowerCase()));
+      if (i < 0) return r;
+      const e = extra.splice(i, 1)[0];
+      return { ...r, file: e.path, from: "added", size: e.size };
+    });
+    // ไฟล์ที่ลากมาแต่ซับไม่ได้เรียกชื่อตรง (เช่นชื่อในซับสะกดต่างไป) ยังฝังได้
+    for (const e of extra) if (!filled.some((r) => r.file === e.path)) filled.push({ name: e.names[0], file: e.path, from: "added", size: e.size });
+    return filled.map((r) => {
+      const inMovie = !!r.file && !!movie?.attachments.some((a) => a.name.toLowerCase() === baseName(r.file!).toLowerCase());
+      return { ...r, inMovie, on: !!r.file && !inMovie && !av.fontOff.includes(r.file) };
+    });
+  })();
+  const fontFiles = [...new Set(fontRows.filter((r) => r.on).map((r) => r.file!))];
+  const fontBytes = fontFiles.reduce((s, f) => s + (fontRows.find((r) => r.file === f)?.size ?? 0), 0);
   const blocked = !movie ? "ยังกดไม่ได้ ใส่ไฟล์หนังก่อน"
     : !kept.some((t) => t.kind === "video") ? "ไฟล์ใหม่ต้องมีภาพ เอาแทร็กภาพกลับมาก่อน"
     : mp4Bad.length ? "เลือกก่อนว่าจะเอาแทร็กที่ใส่ใน MP4 ไม่ได้ออก หรือกลับไปใช้ MKV"
@@ -313,9 +350,10 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
     try {
       const result = await mergeApi.apply({
         movie: s.movie.path,
-        tracks: s.tracks.map(({ key: _k, base: _b, delayFromName: _d, longerBy: _l, notes: _n, ...t }) => t),
+        tracks: s.tracks.map(({ key: _k, base: _b, delayFromName: _d, longerBy: _l, notes: _n, fonts: _f, ...t }) => t),
         covers: { portrait: s.covers.cover.mode, land: s.covers.cover_land.mode },
         output, original, checkSource: settings?.checkSourceBefore ?? true, checkOutput: settings?.checkOutputAfter ?? true,
+        fonts: fontFiles,
       });
       // ไฟล์เดิมย้ายไปแล้ว หน้าว่าง เหลือการ์ดผล
       resetAv(true);
@@ -485,7 +523,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
           </div>
           <div className={"avdrop" + (over === "add" ? " over" : "")} data-drop="add">
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e5a3bd" strokeWidth="1.9" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-            <span>{over === "add" ? <b>ปล่อยเมาส์เพื่อเพิ่มไฟล์</b> : loading === "add" ? "กำลังอ่านไฟล์…" : <><b style={{ color: "var(--txt2)" }}>ลากไฟล์เสียงหรือซับมาวางเพิ่ม</b> · <Phr>เสียง AC-3 E-AC-3 DTS AAC FLAC WAV MP3 Opus · ซับ SRT ASS VTT SUP IDX</Phr></>}</span>
+            <span>{over === "add" ? <b>ปล่อยเมาส์เพื่อเพิ่มไฟล์</b> : loading === "add" ? "กำลังอ่านไฟล์…" : <><b style={{ color: "var(--txt2)" }}>ลากไฟล์เสียงหรือซับมาวางเพิ่ม</b> · <Phr>เสียง AC-3 E-AC-3 DTS AAC FLAC WAV MP3 Opus · ซับ SRT ASS VTT SUP IDX · ฟอนต์ของซับ TTF OTF</Phr></>}</span>
             <button type="button" className={"btn btn-sm " + (working ? "btn-wait" : "btn-ghost")} aria-disabled={working || undefined} title={working ? BUSY : undefined}
               onClick={async () => { if (working) return; const f = await pickAddFiles(); if (f.length) addFiles(f); }}>เลือกไฟล์จากเครื่อง</button>
           </div>
@@ -541,6 +579,40 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
                   {selected.notes?.map((n, i) => <span key={i} className="small"><Phr>{n}</Phr></span>)}</div>
               )}
             </div>
+          </div>
+        )}
+
+        {/* ฟอนต์ของซับ ASS (พี่กันสั่ง 8 พ.ย. 2569 "พวกซับ ass มันต้องฝังฟ้อนด้วยนี่นา") · ขึ้นเมื่อเพิ่มซับ ASS ที่เรียกฟอนต์ */}
+        {method === "merge" && fontRows.length > 0 && (
+          <div className="card" data-fonts>
+            <h3 style={{ justifyContent: "space-between" }}><span>ฟอนต์ของซับ ASS</span>
+              <span className="small" style={{ fontWeight: 400 }} data-fonts-sum>{fontFiles.length ? `ฝังไปด้วย ${fontFiles.length} ไฟล์ · ${fmtSize(fontBytes)}` : "ไม่ได้ฝังฟอนต์"}</span></h3>
+            <div className="small" style={{ marginBottom: 4 }}><Phr>ซับ ASS บอกแค่ชื่อฟอนต์ · ฝังไฟล์ฟอนต์ไปกับไฟล์ใหม่ เครื่องอื่นหรือทีวีที่ไม่มีฟอนต์นี้จะเห็นซับหน้าตาเดิม ภาษาไทยไม่เป็นกล่อง</Phr></div>
+            {fontRows.map((r) => {
+              const state = r.inMovie ? "inmovie" : !r.file ? "missing" : r.on ? "on" : "off";
+              const where = r.from === "folder" ? "เจอข้างไฟล์ซับ" : r.from === "user" ? "ฟอนต์ที่ลงไว้ในเครื่อง" : r.from === "system" ? "ฟอนต์ของ Windows" : "เพิ่มเอง";
+              const text = r.inMovie ? `มีในไฟล์หนังแล้ว ไม่ต้องฝังซ้ำ · ${baseName(r.file!)}`
+                : !r.file ? "ไม่เจอในเครื่อง · ลากไฟล์ฟอนต์ (.ttf .otf .ttc) มาวางที่หน้านี้ หรือกดเลือกไฟล์ฟอนต์"
+                : `${where} · ${baseName(r.file)} · ${fmtSize(r.size)}`;
+              const lock = working || !r.file || r.inMovie;
+              return (
+                <div key={r.name + (r.file ?? "")} className="fontrow" data-font={r.name} data-font-state={state}>
+                  {/* มีในหนังแล้ว ติ๊กไว้แบบจาง (ฟอนต์อยู่ในไฟล์ใหม่ เพราะไฟล์แนบเดิมติดไป) · เดิมเป็นช่องว่าง ดูเหมือนฟอนต์จะหาย */}
+                  <div className={"chk" + (lock ? " off" : "")} aria-checked={r.on || r.inMovie} aria-disabled={lock || undefined}
+                    {...kb(() => { if (lock) return; const f = r.file!; setAv((s) => ({ fontOff: r.on ? [...s.fontOff, f] : s.fontOff.filter((x) => x !== f) })); })} role="checkbox">
+                    <span className={"cbx " + (r.on || r.inMovie ? "on" : "off") + (r.inMovie ? " dim" : "")}>{(r.on || r.inMovie) && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="4" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>}</span>
+                    <span className="fontname">{r.name}</span>
+                  </div>
+                  <span className={"small" + (state === "missing" ? " fontmiss" : "")}><Phr>{text}</Phr></span>
+                </div>
+              );
+            })}
+            <div className="minirow" style={{ marginTop: 8, alignItems: "center" }}>
+              <button type="button" className={"btn btn-sm " + (working ? "btn-wait" : "btn-ghost")} aria-disabled={working || undefined} title={working ? BUSY : undefined}
+                onClick={async () => { if (working) return; const f = await pickFonts(); if (f.length) addFonts(f); }} data-font-pick>เลือกไฟล์ฟอนต์</button>
+              <span className="small"><Phr>หาฟอนต์จากโฟลเดอร์ข้างไฟล์ซับก่อน แล้วฟอนต์ที่ลงไว้ในเครื่อง · ลงฟอนต์ใหม่ระหว่างเปิดโปรแกรม ต้องปิดเปิดโปรแกรมใหม่</Phr></span>
+            </div>
+            {output === "mp4" && fontFiles.length > 0 && <div className="stat warn" style={{ marginTop: 8 }} data-fonts-mp4><CardIcon kind="warn" /><div><b>MP4 ฝังฟอนต์ไม่ได้</b><Phr>เลือกไฟล์ที่ได้เป็น MKV ถ้าต้องการฟอนต์ไปกับไฟล์</Phr></div></div>}
           </div>
         )}
 

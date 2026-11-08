@@ -265,3 +265,11 @@
 .tagview .art.none { display: flex; align-items: center; justify-content: center; color: var(--txt3); font-size: 13px; background: repeating-linear-gradient(45deg, #fbe7ef 0 8px, #fff 8px 16px); border: 1px dashed #eeb3c8; box-shadow: none; }
 .tagview .kv { flex: 1; grid-template-columns: 100px 1fr; }
 .tagview .stat { flex: 1; }
+/* การ์ดฟอนต์ของซับ ASS (fonts.rs) · ชื่อฟอนต์กับช่องติ๊กซ้าย ที่มาของไฟล์ขวา */
+.fontrow { display: grid; grid-template-columns: minmax(150px, 220px) 1fr; gap: 12px; align-items: baseline; padding: 7px 0; border-top: 1px solid #f8e3eb; }
+.fontrow:first-of-type { border-top: 0; }
+.fontrow .chk { align-items: center; }
+.fontrow .chk.off { cursor: default; }
+.fontname { font-weight: 600; color: var(--txt); overflow-wrap: anywhere; }
+.fontmiss { color: var(--warn-ink); }
+.fontrow .cbx.dim { opacity: .45; }

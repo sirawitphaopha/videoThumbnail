@@ -172,10 +172,15 @@ export const convertApi = {
 };
 export type MergeAttachment = { id: number; name: string; mime: string; size: number };
 export type MergeMovie = { path: string; name: string; ext: string; size: number; duration: number | null; tracks: MergeTrack[]; attachments: MergeAttachment[]; free: number; drive: string; mp4Ok: boolean };
-export type AddedFile = { path: string; name: string; ext: string; size: number; tracks: MergeTrack[]; delayFromName: number | null; langFromName: string | null; longerBy: number | null; notes: string[] };
+export type AddedFile = { path: string; name: string; ext: string; size: number; tracks: MergeTrack[]; delayFromName: number | null; langFromName: string | null; longerBy: number | null; notes: string[]; fonts: FontHit[] };
+/** ฟอนต์ที่ซับ ASS ใช้ (fonts.rs) · from folder ข้างไฟล์ซับ · user ลงเฉพาะผู้ใช้ · system ของ Windows · added ลากมาเพิ่มเอง · ว่าง = ไม่เจอ */
+export type FontHit = { name: string; file: string | null; from: "folder" | "user" | "system" | "added" | ""; size: number };
+/** ไฟล์ฟอนต์ที่ลากมาเพิ่มเอง · names ชื่อที่อ่านจากในไฟล์ */
+export type FontFile = { path: string; file: string; names: string[]; size: number };
+export const FONT_EXT = ["ttf", "otf", "ttc", "otc"];
 /** keep ใช้ของเดิม · remove เอาออก · new ใช้รูปที่ครอปไว้ในช่องนั้น */
 export type CoverMode = "keep" | "remove" | "new";
-export type MergeReq = { movie: string; tracks: MergeTrack[]; covers: { portrait: CoverMode; land: CoverMode }; output: "mkv" | "mp4"; original: "keep" | "trash"; checkSource: boolean; checkOutput: boolean };
+export type MergeReq = { movie: string; tracks: MergeTrack[]; covers: { portrait: CoverMode; land: CoverMode }; output: "mkv" | "mp4"; original: "keep" | "trash"; checkSource: boolean; checkOutput: boolean; fonts: string[] };
 export type MergeResult = { mode: "mkv" | "mp4"; output: string; counts: Counts; verified: boolean; original: "kept" | "trash" | "none"; originalTo: string | null; notes: string[] };
 export type CoverPreview = { preview: string; width: number; height: number; bytes: number };
 
@@ -218,7 +223,16 @@ export const mergeApi = {
   cancel: () => call<void>("merge_cancel"),
   coverPreview: (path: string, id: number, slot: CoverTarget) => call<CoverPreview>("merge_cover_preview", { path, id, slot }),
   coverDrop: (slot: CoverTarget | null) => call<void>("merge_cover_drop", { slot }),
+  /** อ่านชื่อฟอนต์ในไฟล์ฟอนต์ที่ลากมาเพิ่มเอง (fonts.rs) */
+  fontInfo: (path: string) => call<FontFile>("font_info", { path }),
 };
+/** เลือกไฟล์ฟอนต์ของซับ ASS (การ์ดฟอนต์ในหน้าเสียงและซับ) */
+export async function pickFonts(): Promise<string[]> {
+  if (!inApp) return [];
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const r = await open({ multiple: true, directory: false, title: "เลือกไฟล์ฟอนต์ของซับ", filters: [{ name: "ไฟล์ฟอนต์", extensions: FONT_EXT }] });
+  return Array.isArray(r) ? r : typeof r === "string" ? [r] : [];
+}
 /** ไฟล์เสียงกับซับที่เพิ่มเข้าหนังได้ (มอคอัป ช่องลากไฟล์ของตารางแทร็ก) */
 export const ADD_EXT = ["ac3", "eac3", "ec3", "dts", "dtshd", "thd", "truehd", "mlp", "aac", "m4a", "flac", "wav", "w64", "mp3", "mp2", "opus", "ogg", "oga", "mka", "wv", "tta",
   "srt", "ass", "ssa", "vtt", "sup", "idx", "sub", "mks"];

@@ -3,7 +3,7 @@
    ความคืบหน้าฟังที่นี่ที่เดียว เปลี่ยนหน้าแล้วยังรับต่อ */
 import { useSyncExternalStore } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { inApp, type AddedFile, type ApplyProblem, type CoverPreview, type MergeAttachment, type MergeMovie, type MergeResult, type MergeTrack, type PosterInfo, type PosterProgress } from "./api";
+import { inApp, type AddedFile, type ApplyProblem, type CoverPreview, type FontFile, type FontHit, type MergeAttachment, type MergeMovie, type MergeResult, type MergeTrack, type PosterInfo, type PosterProgress } from "./api";
 import type { CropChoice } from "../components/CropDialog";
 
 /** แถวในตารางแทร็ก · key ไม่ซ้ำตลอดหน้า · base = ค่าตอนเปิดไฟล์ ใช้ดูว่าแก้อะไรไปแล้ว */
@@ -14,6 +14,8 @@ export type AvTrack = MergeTrack & {
   delayFromName?: number | null;
   longerBy?: number | null;
   notes?: string[];
+  /** ซับ ASS ที่เพิ่ม · ฟอนต์ที่ซับใช้กับไฟล์ที่หาเจอ (fonts.rs) */
+  fonts?: FontHit[];
 };
 
 export type CoverSlot = {
@@ -40,10 +42,14 @@ export type AvState = {
   run: AvRun;
   /** ไฟล์ของงานที่รวมอยู่ · ปุ่มหยุดกับข้อความยืนยันใช้ชื่อนี้ */
   runMovie: string | null;
+  /** ไฟล์ฟอนต์ที่ลากมาเพิ่มเอง (ฟอนต์ที่ซับใช้แต่หาในเครื่องไม่เจอ) */
+  fontExtra: FontFile[];
+  /** ไฟล์ฟอนต์ที่ผู้ใช้เอาติ๊กออก ไม่ฝัง */
+  fontOff: string[];
 };
 
 const EMPTY_SLOT: CoverSlot = { mode: "keep", old: null, neu: null };
-const START: AvState = { movie: null, tracks: [], sel: null, covers: { cover: EMPTY_SLOT, cover_land: EMPTY_SLOT }, once: {}, run: { state: "idle" }, runMovie: null };
+const START: AvState = { movie: null, tracks: [], sel: null, covers: { cover: EMPTY_SLOT, cover_land: EMPTY_SLOT }, once: {}, run: { state: "idle" }, runMovie: null, fontExtra: [], fontOff: [] };
 
 let st: AvState = START;
 const subs = new Set<() => void>();
@@ -69,7 +75,7 @@ export function trackFrom(t: MergeTrack, extra: Partial<AvTrack> = {}): AvTrack 
   return { ...t, key: nextKey(), base: { lang: t.lang, name: t.name, default: t.default, delay: t.delay, keep: t.keep }, ...extra };
 }
 export function tracksOfAdded(f: AddedFile): AvTrack[] {
-  return f.tracks.map((t) => trackFrom(t, { delayFromName: f.delayFromName, longerBy: f.longerBy, notes: f.notes }));
+  return f.tracks.map((t) => trackFrom(t, { delayFromName: f.delayFromName, longerBy: f.longerBy, notes: f.notes, fonts: t.kind === "subtitle" && f.fonts?.length ? f.fonts : undefined }));
 }
 
 if (inApp) {

@@ -8,6 +8,7 @@ mod delay;
 mod encode;
 mod extract;
 mod fileinfo;
+mod fonts;
 mod hashes;
 mod jobs;
 mod latest;
@@ -98,7 +99,7 @@ pub fn run() {
         rename::check_rename, rename::rename_movie,
         poster::poster_open, poster::poster_render, poster::poster_clear, poster::poster_folder_images,
         poster::poster_inspect, poster::poster_apply, poster::poster_cancel,
-        merge::merge_inspect, merge::merge_add_file, merge::merge_apply, merge::merge_cancel, merge::merge_cover_preview, merge::merge_cover_drop, encode::encode_preview, encode::encoders_status, encode::encoders_open_dir, encode::encoders_user_dir, latest::encoders_latest, latest::encoders_open_page,
+        merge::merge_inspect, merge::merge_add_file, merge::merge_apply, merge::merge_cancel, merge::merge_cover_preview, merge::merge_cover_drop, encode::encode_preview, encode::encoders_status, encode::encoders_open_dir, encode::encoders_user_dir, latest::encoders_latest, latest::encoders_open_page, fonts::font_info,
         delay::delay_find, delay::delay_view, delay::delay_preview,
         subs::sub_text, subs::sub_frame, subs::sub_wave, subs::sub_images,
         pairs::pair_set, pairs::pair_check, pairs::pair_play,
@@ -117,7 +118,7 @@ pub fn run() {
         rename::check_rename, rename::rename_movie,
         poster::poster_open, poster::poster_render, poster::poster_clear, poster::poster_folder_images,
         poster::poster_inspect, poster::poster_apply, poster::poster_cancel,
-        merge::merge_inspect, merge::merge_add_file, merge::merge_apply, merge::merge_cancel, merge::merge_cover_preview, merge::merge_cover_drop, encode::encode_preview, encode::encoders_status, encode::encoders_open_dir, encode::encoders_user_dir, latest::encoders_latest, latest::encoders_open_page,
+        merge::merge_inspect, merge::merge_add_file, merge::merge_apply, merge::merge_cancel, merge::merge_cover_preview, merge::merge_cover_drop, encode::encode_preview, encode::encoders_status, encode::encoders_open_dir, encode::encoders_user_dir, latest::encoders_latest, latest::encoders_open_page, fonts::font_info,
         delay::delay_find, delay::delay_view, delay::delay_preview,
         subs::sub_text, subs::sub_frame, subs::sub_wave, subs::sub_images,
         pairs::pair_set, pairs::pair_check, pairs::pair_play,

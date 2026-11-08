@@ -358,6 +358,8 @@ pub struct AddedFile {
     /// ยาวกว่าหนังกี่วินาที (บวก = ยาวกว่า) · ไม่รู้ความยาวไม่บอก
     longer_by: Option<f64>,
     notes: Vec<String>,
+    /// ซับ ASS SSA · ฟอนต์ที่ซับใช้กับไฟล์ฟอนต์ที่หาเจอ (fonts.rs)
+    fonts: Vec<crate::fonts::FontHit>,
 }
 
 pub fn add_file(tools: &Path, path: &Path, movie_duration: Option<f64>) -> Result<AddedFile, String> {
@@ -416,8 +418,14 @@ pub fn add_file(tools: &Path, path: &Path, movie_duration: Option<f64>) -> Resul
     }
     let dur = tracks.iter().filter(|t| t.kind == "audio").filter_map(|t| t.duration).fold(None, |m: Option<f64>, d| Some(m.map_or(d, |x| x.max(d))));
     let longer_by = match (dur, movie_duration) { (Some(a), Some(m)) if m > 0.0 => Some(a - m), _ => None };
+    // ซับ ASS บอกแค่ชื่อฟอนต์ · หาไฟล์ฟอนต์ให้ ไว้ฝังไปกับไฟล์ใหม่ (พี่กันสั่ง 8 พ.ย. 2569)
+    let fonts = if matches!(ext.as_str(), "ass" | "ssa") {
+        std::fs::read(&p).ok().map(|b| crate::fonts::find(&p, &crate::fonts::ass_fonts(&crate::subs::decode_text(&b).0))).unwrap_or_default()
+    } else {
+        vec![]
+    };
     Ok(AddedFile {
-        path: p.to_string_lossy().to_string(), name, ext, size, tracks, delay_from_name: delay, lang_from_name: lang.map(String::from), longer_by, notes,
+        path: p.to_string_lossy().to_string(), name, ext, size, tracks, delay_from_name: delay, lang_from_name: lang.map(String::from), longer_by, notes, fonts,
     })
 }
 
@@ -523,6 +531,9 @@ pub struct MergeReq {
     pub check_source: bool,
     #[serde(default = "yes")]
     pub check_output: bool,
+    /// ไฟล์ฟอนต์ของซับ ASS ที่จะฝังเป็นไฟล์แนบ (fonts.rs · ผู้ใช้ติ๊กเลือกในการ์ดฟอนต์) · MP4 ใส่ไม่ได้
+    #[serde(default)]
+    pub fonts: Vec<String>,
 }
 
 fn yes() -> bool {
@@ -572,7 +583,8 @@ fn flag(b: bool) -> &'static str {
 }
 
 /// คำสั่ง mkvmerge ทั้งชุด · movie_atts = เลขไฟล์แนบของหนังที่เก็บไว้ · other_atts = ไฟล์แนบของไฟล์ที่เพิ่มที่เก็บไว้ (ฟอนต์ของซับ ASS)
-pub fn mkv_args(movie: &str, tracks: &[Track], movie_atts: &[u64], other_atts: &HashMap<String, Vec<u64>>, covers: &[NewCover], out: &Path) -> Vec<OsString> {
+/// covers = รูปปกใหม่ · fonts = ไฟล์ฟอนต์ของซับ ASS ที่หาเจอในเครื่อง (fonts.rs) แนบเป็นไฟล์ใหม่
+pub fn mkv_args(movie: &str, tracks: &[Track], movie_atts: &[u64], other_atts: &HashMap<String, Vec<u64>>, covers: &[NewCover], fonts: &[NewCover], out: &Path) -> Vec<OsString> {
     let mut a: Vec<OsString> = ["--gui-mode", "--ui-language", "en", "-o"].iter().map(OsString::from).collect();
     a.push(out.as_os_str().to_owned());
     let inputs = inputs_of(movie, tracks);
@@ -618,7 +630,7 @@ pub fn mkv_args(movie: &str, tracks: &[Track], movie_atts: &[u64], other_atts: &
         }
         a.push(src.into());
     }
-    for c in covers {
+    for c in covers.iter().chain(fonts) {
         a.extend(["--attachment-name".into(), c.name.clone().into(), "--attachment-mime-type".into(), c.mime.clone().into(), "--attach-file".into(), c.file.as_os_str().to_owned()]);
     }
     let order: Vec<String> = tracks.iter().filter(|t| t.keep)
@@ -992,6 +1004,28 @@ pub fn produce(
         }
     }
 
+    // ฟอนต์ของซับ ASS ที่เลือกฝัง (fonts.rs · พี่กันสั่ง 8 พ.ย. 2569) · ชื่อไฟล์ซ้ำกับไฟล์แนบที่มีอยู่แล้วไม่ใส่ซ้ำ · MP4 ใส่ไม่ได้
+    let mut fonts: Vec<NewCover> = vec![];
+    if !mp4 {
+        for f in &req.fonts {
+            let p = PathBuf::from(f);
+            let is_font = p.extension().map(|e| crate::fonts::FONT_EXT.contains(&e.to_string_lossy().to_lowercase().as_str())).unwrap_or(false);
+            if !is_font || !p.is_file() {
+                return Err(fail("other", "หาไฟล์ฟอนต์ไม่เจอ", vec![f.clone(), "เอาฟอนต์นี้ออกจากการ์ดฟอนต์ หรือลากไฟล์ฟอนต์มาใหม่".into(), untouched.into()]));
+            }
+            let name = p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+            let taken = kept_atts.iter().any(|a| a.name.eq_ignore_ascii_case(&name)) || other_names.iter().any(|n| n.eq_ignore_ascii_case(&name)) || fonts.iter().any(|c| c.name.eq_ignore_ascii_case(&name));
+            if taken {
+                notes.push(format!("ฟอนต์ {name} มีในไฟล์แนบอยู่แล้ว ไม่ใส่ซ้ำ"));
+                continue;
+            }
+            fonts.push(NewCover { name, mime: crate::fonts::mime_of(&p).into(), file: p, sha: String::new() });
+        }
+        if !fonts.is_empty() {
+            notes.push(format!("ฝังฟอนต์ของซับ {} ไฟล์ {}", fonts.len(), fonts.iter().map(|c| c.name.as_str()).collect::<Vec<_>>().join(" ")));
+        }
+    }
+
     let total = movie_duration.unwrap_or(0.0);
     let (tool, args, mp4_cover) = if mp4 {
         // MP4 เก็บปกได้รูปเดียว ใช้ปกตั้ง · ปกนอนกับฟอนต์ใส่ไม่ได้ บอกในผล
@@ -1025,7 +1059,7 @@ pub fn produce(
         if covers.iter().any(|c| c.name.starts_with("cover_land")) || kept_atts.iter().any(|a| cover_slot(&a.name) == Some("cover_land")) {
             notes.push("MP4 เก็บรูปปกได้รูปเดียว ใช้ปกตั้ง ปกนอนไม่ได้ใส่".into());
         }
-        if kept_atts.iter().any(|a| cover_slot(&a.name).is_none()) || !other_names.is_empty() {
+        if kept_atts.iter().any(|a| cover_slot(&a.name).is_none()) || !other_names.is_empty() || !req.fonts.is_empty() {
             notes.push("MP4 เก็บไฟล์แนบไม่ได้ ฟอนต์ของซับไม่ได้ใส่".into());
         }
         // MP4 ตั้งแทร็กแรกของแต่ละชนิดเป็นหลักเอง เมื่อไม่ได้เลือกแทร็กหลักของชนิดนั้น (กติกาของตัวเขียน MP4 ใน ffmpeg)
@@ -1036,7 +1070,7 @@ pub fn produce(
         ("ffmpeg", args, cover.is_some())
     } else {
         let ids: Vec<u64> = kept_atts.iter().map(|a| a.id).collect();
-        ("mkvmerge", mkv_args(&req.movie, &tracks, &ids, &other_atts, &covers, partial), false)
+        ("mkvmerge", mkv_args(&req.movie, &tracks, &ids, &other_atts, &covers, &fonts, partial), false)
     };
 
     let _ = std::fs::remove_file(partial); // .partial ของรอบก่อนที่ค้าง เป็นของโปรแกรมเอง
@@ -1079,6 +1113,7 @@ pub fn produce(
 
     let mut att_names: Vec<String> = kept_atts.iter().map(|a| a.name.clone()).collect();
     att_names.extend(other_names);
+    att_names.extend(fonts.iter().map(|c| c.name.clone()));
     if req.check_output {
         emit("กำลังตรวจไฟล์ใหม่", 100.0, None, None);
         let r = if mp4 { verify_mp4(tools, partial, &tracks, mp4_cover, movie_duration) } else { verify_mkv(tools, work, partial, &tracks, &att_names, &covers, movie_duration) };
@@ -1182,7 +1217,8 @@ fn apply(app: &AppHandle, req: &MergeReq, jobs: &Arc<crate::jobs::Jobs>) -> Resu
     }
     // ที่ว่าง · ราวขนาดหนัง บวกไฟล์ที่เพิ่ม บวกรูปปก บวกเสียงที่แปลง
     let added: u64 = inputs_of(&req.movie, &req.tracks).iter().skip(1).filter_map(|s| std::fs::metadata(s).ok()).map(|m| m.len()).sum();
-    let cover_bytes: u64 = st.covers.lock().unwrap().values().map(|c| c.0.len() as u64).sum();
+    let cover_bytes: u64 = st.covers.lock().unwrap().values().map(|c| c.0.len() as u64).sum::<u64>()
+        + req.fonts.iter().filter_map(|f| std::fs::metadata(f).ok()).map(|m| m.len()).sum::<u64>();
     let conv: u64 = req.tracks.iter().filter(|t| t.keep && t.kind == "audio").filter_map(conv_estimate).sum();
     let need = src_size + added + cover_bytes + conv + 64 * 1024 * 1024;
     let free = free_space(&dir);
@@ -1302,7 +1338,7 @@ mod tests {
     }
 
     fn req(movie: &Path, tracks: Vec<Track>, output: &str) -> MergeReq {
-        MergeReq { movie: movie.to_string_lossy().to_string(), tracks, covers: CoverPlan::default(), output: output.into(), original: "keep".into(), check_source: false, check_output: true }
+        MergeReq { movie: movie.to_string_lossy().to_string(), tracks, covers: CoverPlan::default(), output: output.into(), original: "keep".into(), check_source: false, check_output: true, fonts: vec![] }
     }
 
     /// เวลาของแพ็กเก็ตแรกที่มีเนื้อ · ข้ามแพ็กเก็ตว่าง (ซับ mov_text ใน MP4 มีแพ็กเก็ตว่าง 2 ไบต์คั่นช่วงที่ไม่มีซับ เริ่มที่วินาที 0)
@@ -1379,16 +1415,17 @@ mod tests {
         // ลำดับใหม่ ภาพ พากย์ไทย อังกฤษ ซับไทย (ซับรูปเดิมเอาออก)
         let tracks = vec![v, dub, a1, s_old, sub];
         let cover = NewCover { name: "cover_land.jpg".into(), mime: "image/jpeg".into(), file: PathBuf::from("C.jpg"), sha: String::new() };
-        let args: Vec<String> = mkv_args("M.mkv", &tracks, &[3], &HashMap::new(), &[cover], Path::new("OUT.mkv.partial")).iter().map(|a| a.to_string_lossy().to_string()).collect();
+        let font = NewCover { name: "f01.ttf".into(), mime: "font/ttf".into(), file: PathBuf::from("F.ttf"), sha: String::new() };
+        let args: Vec<String> = mkv_args("M.mkv", &tracks, &[3], &HashMap::new(), &[cover], &[font], Path::new("OUT.mkv.partial")).iter().map(|a| a.to_string_lossy().to_string()).collect();
         let s = args.join(" ");
         assert!(s.starts_with("--gui-mode --ui-language en -o OUT.mkv.partial -d 0 -a 1 -S --attachments 3 --language 0:und"), "{s}");
         assert!(s.contains("--track-name 1: --default-track-flag 1:0 --forced-display-flag 1:0 M.mkv"), "ชื่อว่างกับธงของเสียงเดิม {s}");
         assert!(s.contains("-D -a 0 -S --no-attachments --no-chapters --no-global-tags --language 0:tha --track-name 0:พากย์ไทย 5.1 --default-track-flag 0:1 --forced-display-flag 0:0 --sync 0:-120 D.ac3"), "{s}");
         assert!(s.contains("-D -A -s 0 --no-attachments --no-chapters --no-global-tags --language 0:tha --track-name 0: --default-track-flag 0:0 --forced-display-flag 0:0 --sync 0:500 --sub-charset 0:CP874 S.srt"), "{s}");
-        assert!(s.contains("--attachment-name cover_land.jpg --attachment-mime-type image/jpeg --attach-file C.jpg"), "{s}");
+        assert!(s.contains("--attachment-name cover_land.jpg --attachment-mime-type image/jpeg --attach-file C.jpg --attachment-name f01.ttf --attachment-mime-type font/ttf --attach-file F.ttf"), "ฟอนต์ของซับแนบต่อจากปก {s}");
         assert!(s.ends_with("--track-order 0:0,1:0,0:1,2:0"), "ลำดับ ภาพ พากย์ไทย อังกฤษ ซับ {s}");
         // ไม่มีไฟล์แนบเหลือ → --no-attachments
-        let args2: Vec<String> = mkv_args("M.mkv", &tracks, &[], &HashMap::new(), &[], Path::new("O")).iter().map(|a| a.to_string_lossy().to_string()).collect();
+        let args2: Vec<String> = mkv_args("M.mkv", &tracks, &[], &HashMap::new(), &[], &[], Path::new("O")).iter().map(|a| a.to_string_lossy().to_string()).collect();
         assert!(args2.join(" ").contains("-d 0 -a 1 -S --no-attachments --language"));
     }
 
@@ -1557,6 +1594,46 @@ mod tests {
         let made = res.unwrap_or_else(|p| panic!("{} {:?}", p.title, p.detail));
         assert_eq!(made.counts.subs, 2);
         assert_eq!(mkv_attachments(&tl, &out).unwrap().iter().map(|a| a.0.as_str()).collect::<Vec<_>>(), ["tahoma.ttf"]);
+    }
+
+    /// ซับ ASS ที่เพิ่มเข้าไป หาไฟล์ฟอนต์ที่ซับใช้ แล้วฝังไปกับไฟล์ใหม่ (พี่กันสั่ง 8 พ.ย. 2569)
+    /// ฟอนต์ในโฟลเดอร์ข้างซับมาก่อน ฟอนต์ของ Windows ตามมา · ชื่อซ้ำกับฟอนต์ที่หนังมีอยู่แล้วไม่ใส่ซ้ำ · ฟอนต์ที่ไม่มีในเครื่องบอกว่าไม่เจอ
+    #[test]
+    fn ass_fonts_are_found_and_embedded() {
+        let Some(movie) = av("เสียงซับ/ฟอนต์แนบ (2024).mkv") else { return };
+        let dir = temp_dir("assfont");
+        let tl = tools();
+        let win = PathBuf::from(std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into())).join("Fonts");
+        std::fs::create_dir_all(dir.0.join("fonts")).unwrap();
+        std::fs::copy(win.join("georgia.ttf"), dir.0.join("fonts").join("f01.ttf")).unwrap();
+        let ass = dir.0.join("ป้าย.th.ass");
+        std::fs::write(&ass, "\u{feff}[Script Info]\nScriptType: v4.00+\n\n[V4+ Styles]\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\nStyle: Default,Tahoma,48,&H00FFFFFF,&H000000FF,&H00000000,&H64000000,0,0,0,0,100,100,0,0,1,2,1,2,20,20,30,222\nStyle: Sign,Georgia,40,&H00FFFFFF,&H000000FF,&H00000000,&H64000000,0,0,0,0,100,100,0,0,1,2,1,8,20,20,30,1\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\nDialogue: 0,0:00:01.00,0:00:03.00,Default,,0,0,0,,{\\fnComic Sans MS}สวัสดี\nDialogue: 0,0:00:04.00,0:00:06.00,Sign,,0,0,0,,{\\fnฟอนต์ไม่มีในเครื่อง}ป้าย\n").unwrap();
+        let m = inspect(&tl, &movie).unwrap();
+        let added = add_file(&tl, &ass, m.duration).unwrap();
+        let f: Vec<(String, String, Option<String>)> = added.fonts.iter().map(|h| (h.name.clone(), h.from.clone(), h.file.as_ref().and_then(|p| Path::new(p).file_name()).map(|n| n.to_string_lossy().to_lowercase()))).collect();
+        assert_eq!(f, [
+            ("Tahoma".into(), "system".into(), Some("tahoma.ttf".into())),
+            ("Georgia".into(), "folder".into(), Some("f01.ttf".into())),
+            ("Comic Sans MS".into(), "system".into(), Some("comic.ttf".into())),
+            ("ฟอนต์ไม่มีในเครื่อง".into(), "".into(), None),
+        ], "{:?}", added.fonts);
+        let mut tracks = m.tracks.clone();
+        tracks.extend(added.tracks);
+        let mut r = req(&movie, tracks, "mkv");
+        r.fonts = added.fonts.iter().filter_map(|h| h.file.clone()).collect();
+        let out = dir.0.join("af.mkv.partial");
+        let (res, notes) = run(&r, &HashMap::new(), &out, &dir.0);
+        res.unwrap_or_else(|p| panic!("{} {:?}", p.title, p.detail));
+        let mut atts: Vec<(String, String)> = mkv_attachments(&tl, &out).unwrap().into_iter().map(|a| (a.0.to_lowercase(), a.1)).collect();
+        atts.sort();
+        assert_eq!(atts.iter().map(|a| a.0.as_str()).collect::<Vec<_>>(), ["comic.ttf", "f01.ttf", "tahoma.ttf"], "tahoma.ttf มีในหนังแล้วไม่ใส่ซ้ำ");
+        assert!(atts.iter().filter(|a| a.0 != "tahoma.ttf").all(|a| a.1 == "font/ttf"), "{atts:?}");
+        assert!(notes.iter().any(|n| n.contains("ไม่ใส่ซ้ำ")) && notes.iter().any(|n| n.contains("ฝังฟอนต์ของซับ 2 ไฟล์")), "{notes:?}");
+        // MP4 ใส่ฟอนต์ไม่ได้ บอกในผล · ฟอนต์ที่ไม่มีไฟล์แล้ว หยุดพร้อมบอก ไม่รวมต่อเงียบ ๆ
+        let mut bad = r.clone();
+        bad.fonts = vec![dir.0.join("หายไปแล้ว.ttf").to_string_lossy().to_string()];
+        let (res, _) = run(&bad, &HashMap::new(), &dir.0.join("bad.mkv.partial"), &dir.0);
+        assert_eq!(res.err().map(|p| p.title), Some("หาไฟล์ฟอนต์ไม่เจอ".to_string()));
     }
 
     /// หนัง MP4 ที่มีปกฝัง รวมซับออกเป็น MP4 ปกต้องยังอยู่ (ผู้ช่วยตรวจขั้น 10 ข้อ 1 · เดิมดึงปกด้วย mkvextract ซึ่งเปิด MP4 ไม่ได้ ปกหายเงียบ)
