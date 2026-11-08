@@ -271,8 +271,18 @@ await c.evaluate("[...document.querySelectorAll('[data-codec-panel] [data-extra]
 await waitFor("return document.querySelector('[data-cmd]').innerText.includes('loudnorm')", 8000);
 const cmd2 = await q("return document.querySelector('[data-cmd]').innerText.replace(/\\s+/g, ' ')");
 // loudnorm บังคับ 192 kHz ต่อ aresample อัตราของต้นทาง (48 kHz) ไว้ท้าย (ผู้ช่วยตรวจขั้น 10 ข้อ 3)
-check("ตั้งความเร็ว 25 → 23.976 Gain −3 dB ความดังมาตรฐาน คำสั่งมี rubberband=tempo=0.959040,volume=-3dB,loudnorm แล้วคืนอัตราสุ่มเดิม aresample=48000", cmd2.includes('-af "rubberband=tempo=0.959040,volume=-3dB,loudnorm=I=-23:TP=-1,aresample=48000"'), cmd2.slice(0, 220));
+// ค่าตั้งต้นคืนระดับเสียง tempo กับ pitch อัตราเดียวกัน (ผู้ช่วยตรวจขั้น 10 ข้อ 29 · พี่กันเคาะ 8 พ.ย. 2569)
+check("ตั้งความเร็ว 25 → 23.976 Gain −3 dB ความดังมาตรฐาน คำสั่งมี rubberband=tempo=0.959040:pitch=0.959040 (คืนระดับเสียง ค่าตั้งต้น) ,volume=-3dB,loudnorm แล้วคืนอัตราสุ่มเดิม aresample=48000", cmd2.includes('-af "rubberband=tempo=0.959040:pitch=0.959040,volume=-3dB,loudnorm=I=-23:TP=-1,aresample=48000"'), cmd2.slice(0, 220));
+const pitch0 = await q("return [...document.querySelectorAll('[data-pitch-box] .seg button')].map(b => b.innerText + (b.getAttribute('aria-checked') === 'true' || b.classList.contains('on') ? '*' : '')).join(' | ') + ' · ' + document.querySelector('[data-pitch-note]').innerText.replace(/\\s+/g, ' ')");
+check("เลือกความเร็วแล้วขึ้นตัวเลือกระดับเสียง คืนระดับเสียงเดิม (แนะนำ) เลือกไว้ พร้อมคำอธิบาย", pitch0.startsWith("คืนระดับเสียงเดิม (แนะนำ)*") && pitch0.includes("ระดับเสียงกลับเป็นแบบเดิมก่อนทำแผ่น"), pitch0.slice(0, 200));
 await shot("11-แผงตั้งค่าเสียง-ความเร็ว.png", "[data-extra]", 8);
+await shot("38-ระดับเสียงหลังเปลี่ยนความเร็ว.png", "[data-pitch-box]", 8);
+await c.evaluate("[...document.querySelectorAll('[data-pitch-box] .seg button')].find(b => b.innerText.startsWith('คงระดับเสียง')).click()");
+await waitFor("return !document.querySelector('[data-cmd]').innerText.includes('pitch=')", 8000);
+const cmdKeep = await q("return document.querySelector('[data-cmd]').innerText.replace(/\\s+/g, ' ')");
+check("เลือกคงระดับเสียงแบบในไฟล์ คำสั่งเหลือ rubberband=tempo=0.959040 ยืดเวลาอย่างเดียว", cmdKeep.includes('-af "rubberband=tempo=0.959040,volume=-3dB'), cmdKeep.slice(cmdKeep.indexOf("-af"), cmdKeep.indexOf("-af") + 80));
+await c.evaluate("[...document.querySelectorAll('[data-pitch-box] .seg button')].find(b => b.innerText.startsWith('คืนระดับเสียง')).click()");
+await sleep(200);
 const extraH = await q("return [...new Set([...document.querySelectorAll('[data-extra] .dd, [data-extra] .delay button, [data-extra] .seg button')].map(e => Math.round(e.getBoundingClientRect().height)))]");
 check("แถวความเร็ว Gain ความดังมาตรฐาน ช่องเลือก ปุ่ม − + ปุ่มเลือก สูงเท่ากันทุกตัว (form-input ข้อ ⑥)", extraH.length === 1, extraH.join(","));
 await pickDd("ความเร็วเสียง", "ไม่เปลี่ยน");

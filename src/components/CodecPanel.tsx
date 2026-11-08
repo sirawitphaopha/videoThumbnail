@@ -143,6 +143,8 @@ export default function CodecPanel(p: {
   const [gain, setGain] = useState<number>(t.convert?.gain ?? 0);
   const [loud, setLoud] = useState<boolean>(t.convert?.loudnorm ?? false);
   const [speed, setSpeed] = useState<string>(p.speed ?? (t.convert?.speed ? t.convert.speed.join(">") : ""));
+  /** เปลี่ยนความเร็วแล้วคงระดับเสียงแบบในไฟล์ · ค่าตั้งต้นคืนระดับเสียง (ข้อ 29 · พี่กันเคาะ 8 พ.ย. 2569) */
+  const [keepPitch, setKeepPitch] = useState<boolean>(t.convert?.keepPitch ?? false);
 
   // เปลี่ยนชนิด · ค่าของชนิดเดิมไม่ติดมา (form-input สลับประเภทต้องล้างค่าเก่าจริง) · ใช้ค่าที่จำไว้ของชนิดนั้นถ้ามี
   const pickCodec = (id: Codec["id"]) => {
@@ -189,9 +191,9 @@ export default function CodecPanel(p: {
     return {
       codec: c.id, encoder: engUse, p: pp,
       channels: numOr("channels"), bits: numOr("bits"), rate: numOr("rate"),
-      gain, loudnorm: loud, speed: speed ? (speed.split(">").map(Number) as [number, number]) : null,
+      gain, loudnorm: loud, speed: speed ? (speed.split(">").map(Number) as [number, number]) : null, keepPitch: !!speed && keepPitch,
     };
-  }, [c.id, engUse, liveKey, gain, loud, speed]); // eslint-disable-line react-hooks/exhaustive-deps
+  }, [c.id, engUse, liveKey, gain, loud, speed, keepPitch]); // eslint-disable-line react-hooks/exhaustive-deps
 
   useEffect(() => {
     let alive = true;
@@ -255,7 +257,17 @@ export default function CodecPanel(p: {
 
   const speedOpts = [{ value: "", label: "ไม่เปลี่ยน" }, { value: "25>23.976", label: "25 → 23.976 (แผ่นยุโรป PAL)" }, { value: "24>23.976", label: "24 → 23.976" },
     { value: "23.976>25", label: "23.976 → 25" }, { value: "23.976>24", label: "23.976 → 24" }];
-  const speedNote = speed && <div className="small"><Phr>{`ยืดเสียงด้วย rubberband ระดับเสียงไม่เพี้ยน · ความยาวเปลี่ยนจาก ${t.duration ? Math.round(t.duration) : "?"} เป็นราว ${t.duration ? Math.round(t.duration * Number(speed.split(">")[0]) / Number(speed.split(">")[1])) : "?"} วินาที`}</Phr></div>;
+  // ระดับเสียงหลังเปลี่ยนความเร็ว (ผู้ช่วยตรวจขั้น 10 ข้อ 29 · พี่กันเคาะ 8 พ.ย. 2569 ให้มีให้เลือก ค่าตั้งต้นคืนระดับเสียง)
+  const speedNote = speed && (
+    <div data-pitch-box>
+      <div className="small ilbl" style={{ marginBottom: 4 }}><b style={{ color: "var(--txt2)" }}>ระดับเสียงหลังเปลี่ยนความเร็ว</b><InfoTip title="ระดับเสียงหลังเปลี่ยนความเร็ว" tip={TIPS.pitch} /></div>
+      <div style={{ display: "flex" }}><Seg small label="ระดับเสียงหลังเปลี่ยนความเร็ว" value={keepPitch ? "keep" : "restore"} onChange={(v) => setKeepPitch(v === "keep")}
+        options={[{ value: "restore", label: "คืนระดับเสียงเดิม (แนะนำ)" }, { value: "keep", label: "คงระดับเสียงแบบในไฟล์" }]} /></div>
+      <div className="small" style={{ marginTop: 4 }} data-pitch-note><Phr>{`${keepPitch
+        ? "ยืดเวลาอย่างเดียว ระดับเสียงเท่าในไฟล์ · ใช้กับแผ่นที่สตูดิโอแก้ระดับเสียงมาแล้ว"
+        : "เล่นช้าลงหรือเร็วขึ้นแบบหมุนแผ่น ระดับเสียงกลับเป็นแบบเดิมก่อนทำแผ่น · แผ่น PAL ส่วนใหญ่ต้องใช้แบบนี้"} · ความยาวเปลี่ยนจาก ${t.duration ? Math.round(t.duration) : "?"} เป็นราว ${t.duration ? Math.round(t.duration * Number(speed.split(">")[0]) / Number(speed.split(">")[1])) : "?"} วินาที`}</Phr></div>
+    </div>
+  );
   const gainCard: Card = { key: "gain", label: "Gain", kind: "step", def: 0, stops: Array.from({ length: 25 }, (_, i) => i - 12), unit: "dB", signed: true, major: [-12, -9, -6, -3, 0, 3, 6, 9, 12], note: "เพิ่มลดความดังทีละ 1 dB · ใช้กับทุกชนิด", tip: TIPS.gain };
   const exTop = abbrer();
 
@@ -333,7 +345,7 @@ export default function CodecPanel(p: {
               <div className="ach"><span className="lbl ilbl">ความเร็วเสียง<InfoTip title="ความเร็วเสียง" tip={TIPS.speed} /></span></div>
               <div style={{ display: "flex" }}><Dropdown label="ความเร็วเสียง" value={speed} onChange={setSpeed} options={speedOpts} /></div>
               <div className="asz"><span>ขนาดไฟล์</span><div>ยาวขึ้นหรือสั้นลงตามความเร็ว ขนาดเปลี่ยนตาม</div></div>
-              <div className="small" style={{ margin: 0 }}>{abbrer()("เสียงที่เหลื่อมเพิ่มขึ้นเรื่อย ๆ จากต้นเรื่องถึงท้ายเรื่อง · ยืดด้วย rubberband ระดับเสียงไม่เพี้ยน")}</div>
+              <div className="small" style={{ margin: 0 }}>{abbrer()("เสียงที่เหลื่อมเพิ่มขึ้นเรื่อย ๆ จากต้นเรื่องถึงท้ายเรื่อง · เลือกคืนหรือคงระดับเสียงได้ข้างล่าง")}</div>
             </div>
           </div>
         </>)}

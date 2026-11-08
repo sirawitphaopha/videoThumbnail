@@ -2,7 +2,7 @@
 //! ① ตัวแปลงของผู้ทำ codec เป็นค่าตั้งต้น ffmpeg ถอดเสียงเป็นเสียงดิบ (WAV 24 บิต) ส่งทางท่อให้ opusenc lame flac wavpack qaac fdkaac
 //! ② ffmpeg ล้วนเป็นตัวรอง (และเป็นตัวเดียวของ AC-3 E-AC-3 ที่ไม่มีตัวแปลงต้นฉบับ)
 //! คำสั่งสร้างจากค่าในการ์ดที่เดียวที่นี่ หน้าจอเรียก encode_preview มาแสดง คำสั่งที่เห็นคือคำสั่งที่รันจริง (มอคอัป *"คำสั่งที่จะรัน"*)
-//! ความเร็วเสียง ยืดด้วย rubberband ใน ffmpeg ระดับเสียงไม่เพี้ยน · Gain ด้วย volume · ปรับความดังมาตรฐาน EBU R128 ด้วย loudnorm
+//! ความเร็วเสียง ยืดด้วย rubberband ใน ffmpeg · ค่าตั้งต้นคืนระดับเสียง (tempo กับ pitch อัตราเดียวกัน) เลือกคงระดับเสียงได้ (keep_pitch) · Gain ด้วย volume · ปรับความดังมาตรฐาน EBU R128 ด้วย loudnorm
 //! 🔴 ไฟล์ปลายทางเขียนลงโฟลเดอร์ชั่วคราวของโปรแกรมเสมอ ไม่เขียนข้างไฟล์หนัง · ตัวแปลงตายตามโปรแกรมด้วย Job Object
 
 use std::ffi::OsStr;
@@ -37,6 +37,10 @@ pub struct EncodeSpec {
     pub loudnorm: bool,
     /// ความเร็วเสียง [จาก, เป็น] เช่น [25, 23.976] · ไม่มี = ไม่เปลี่ยน
     pub speed: Option<[f64; 2]>,
+    /// เปลี่ยนความเร็วแล้วคงระดับเสียงแบบในไฟล์ (ยืดเวลาอย่างเดียว) · false (ค่าตั้งต้น) = คืนระดับเสียง ยืดเวลากับระดับเสียงด้วยอัตราเดียวกัน
+    /// แผ่น PAL เล่นหนังเร็วขึ้น 4% เสียงสูงขึ้นราว 0.7 ครึ่งเสียง · คืนระดับเสียง = กลับเป็นเสียงเดิมก่อนทำแผ่น · คงระดับเสียง = แผ่นที่สตูดิโอแก้ระดับเสียงมาแล้ว
+    /// (ผู้ช่วยตรวจขั้น 10 ข้อ 29 · พี่กันเคาะ 8 พ.ย. 2569 "เอาตามเธอได้ เพราะยังไงเราคงเเทบไม่เอาแบบนั้นมา")
+    pub keep_pitch: bool,
     /// ค่าของการ์ดแต่ละใบ เช่น bitrate mode comp framesize tune quality level verify
     pub p: serde_json::Map<String, Value>,
     /// อัตราสุ่มของต้นทาง คนเรียกตั้งก่อนสร้างคำสั่ง (หน้าจอไม่ต้องส่ง) · ใช้คืนอัตราสุ่มหลัง loudnorm
@@ -123,8 +127,10 @@ fn filters(spec: &EncodeSpec, dither16: bool) -> Vec<String> {
     let mut f = vec![];
     if let Some([from, to]) = spec.speed {
         if from > 0.0 && to > 0.0 && (from - to).abs() > 1e-6 {
-            // เสียงจาก 25 fps เร็วกว่าหนัง 23.976 · ยืดให้ช้าลง tempo = 23.976 / 25 · rubberband คงระดับเสียง
-            f.push(format!("rubberband=tempo={:.6}", to / from));
+            // เสียงจาก 25 fps เร็วกว่าหนัง 23.976 · ยืดให้ช้าลง tempo = 23.976 / 25
+            // คืนระดับเสียง ตั้ง pitch อัตราเดียวกับ tempo = เล่นช้าลงแบบหมุนแผ่นช้าลง (ไม่ใช้ asetrate เพราะรับอัตราสุ่มเป็นจำนวนเต็ม ความยาวคลาดได้ถึง 58 ms ต่อ 2 ชั่วโมง)
+            let r = to / from;
+            f.push(if spec.keep_pitch { format!("rubberband=tempo={r:.6}") } else { format!("rubberband=tempo={r:.6}:pitch={r:.6}") });
         }
     }
     if spec.gain.abs() > 1e-9 {
@@ -686,7 +692,10 @@ mod tests {
         let ap = build(&a, "M.mkv", 1, "O.ac3", Some(6), None).unwrap();
         let s = ap.steps[0].args.join(" ");
         assert!(!ap.piped);
-        assert!(s.contains("-af rubberband=tempo=0.959040,volume=-3dB,loudnorm=I=-23:TP=-1"), "{s}");
+        assert!(s.contains("-af rubberband=tempo=0.959040:pitch=0.959040,volume=-3dB,loudnorm=I=-23:TP=-1"), "ค่าตั้งต้นคืนระดับเสียง {s}");
+        a.keep_pitch = true;
+        assert!(build(&a, "M.mkv", 1, "O.ac3", Some(6), None).unwrap().steps[0].args.join(" ").contains("-af rubberband=tempo=0.959040,volume=-3dB"), "คงระดับเสียง ยืดเวลาอย่างเดียว");
+        a.keep_pitch = false;
         assert!(s.contains("-c:a ac3 -b:a 640k -dialnorm -31 -center_mixlev 0.707 -surround_mixlev 0.000 -mixing_level 105 -room_type large -n O.ac3"), "{s}");
         assert!(ap.text.starts_with("ffmpeg -hide_banner"), "{}", ap.text);
         // WavPack โหมด High extra 4 verify
@@ -829,6 +838,30 @@ mod tests {
         assert!(matches!(run(&|_| tools(), &plan, Some(57.6), &|| false, &mut |_| {}).unwrap(), Done::Ok));
         let d = crate::outfile::duration_of(&crate::outfile::ffprobe_json(&tools(), &out).unwrap()).unwrap();
         assert!((d - 60.03).abs() < 0.1, "ยืดแล้วยาว {d}");
+        // ระดับเสียง · เสียงทดสอบ 1,000 Hz 3 วินาที เปลี่ยน 25 → 23.976 · คืนระดับเสียงได้ราว 959 Hz (เหมือนหมุนแผ่นช้าลง) คงระดับเสียงได้ 1,000 Hz · ยาว 3.128 วินาทีทั้งคู่
+        // (ข้อ 29 · นับจุดที่คลื่นตัดศูนย์จากเสียงดิบที่ถอดกลับ)
+        let tone = dir.join("tone1k.wav");
+        let tp = tone.to_string_lossy().to_string();
+        let _ = crate::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "sine=frequency=1000:sample_rate=48000:duration=3", "-c:a", "pcm_s16le", tp.as_str()]);
+        let freq_of = |p: &std::path::Path| -> (f64, f64) {
+            let o = crate::tools::run_tool(&tools(), "ffmpeg", [OsStr::new("-v"), OsStr::new("error"), OsStr::new("-i"), p.as_os_str(), OsStr::new("-ac"), OsStr::new("1"), OsStr::new("-f"), OsStr::new("s16le"), OsStr::new("-")]).unwrap();
+            let s: Vec<i16> = o.stdout.chunks_exact(2).map(|b| i16::from_le_bytes([b[0], b[1]])).collect();
+            // ตัดหัวท้าย 0.3 วินาที (ตัวยืดเสียงเริ่มกับจบไม่นิ่ง)
+            let cut = &s[14400.min(s.len())..s.len().saturating_sub(14400)];
+            let ups = cut.windows(2).filter(|w| w[0] < 0 && w[1] >= 0).count() as f64;
+            (ups / (cut.len() as f64 / 48000.0), s.len() as f64 / 48000.0)
+        };
+        for (keep, want) in [(false, 959.04), (true, 1000.0)] {
+            let mut s = spec("flac", "native", json!({"level": 5}));
+            s.speed = Some([25.0, 23.976]);
+            s.keep_pitch = keep;
+            let out = dir.join(format!("tone-{keep}.flac"));
+            let plan = build(&s, &tone.to_string_lossy(), 0, &out.to_string_lossy(), Some(1), Some(16)).unwrap();
+            assert!(matches!(run(&|_| tools(), &plan, Some(3.0), &|| false, &mut |_| {}).unwrap(), Done::Ok));
+            let (hz, secs) = freq_of(&out);
+            assert!((hz - want).abs() < 4.0, "คงระดับเสียง {keep} ได้ {hz:.1} Hz ควรราว {want}");
+            assert!((secs - 3.128).abs() < 0.03, "คงระดับเสียง {keep} ยาว {secs:.3} วินาที");
+        }
         // ต้นทาง WAV 16 บิต แปลงเป็น FLAC ตามต้นฉบับ ต้องได้ 16 บิต · ไม่บอกบิตต้นทาง (แบบเดิมก่อนแก้) ได้ 24 บิต ไฟล์ใหญ่ขึ้นเปล่า ๆ
         if let Some(wav) = av("เพลงทดสอบ.wav") {
             let wav = wav.to_string_lossy().to_string();

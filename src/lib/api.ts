@@ -133,6 +133,8 @@ export type MergeTrack = {
 export type EncodeSpec = {
   codec: string; encoder: string; channels?: number | null; bits?: number | null; rate?: number | null;
   gain?: number; loudnorm?: boolean; speed?: [number, number] | null; p: Record<string, string | number | boolean>;
+  /** เปลี่ยนความเร็วแล้วคงระดับเสียงแบบในไฟล์ · ไม่ส่งหรือ false = คืนระดับเสียง (ข้อ 29) */
+  keepPitch?: boolean;
 };
 export type EncodeStep = { tool: string; args: string[] };
 /** คำสั่งที่จะรันจริง · text แบบพิมพ์ใน Command Prompt ได้ */
