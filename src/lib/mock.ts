@@ -24,6 +24,7 @@ const defaults: Settings = {
   viewMode: "grid",
   sort: "name-asc",
   coverOrient: "tall",
+  linkStore: "beside",
 };
 
 let settings: Settings = { ...defaults };
@@ -48,6 +49,10 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
       return 0 as T;
     case "force_close":
       return undefined as T;
+    case "link_state":
+      return { rows: [], imageFolders: [], loose: [], scope: "nocover", waiting: 0 } as T;
+    case "link_images":
+      return [] as T;
     case "check_running":
     case "extract_running":
     case "hash_running":

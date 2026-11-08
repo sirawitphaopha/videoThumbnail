@@ -660,6 +660,23 @@ pub fn link_state(store: State<'_, Arc<LinkStore>>, lib: State<'_, Arc<LibrarySt
     reply(&store, &movies_of(&lib))
 }
 
+/// ใส่ภาพเล็กที่ทำเสร็จแล้วลงรูปในแถว · คืนว่ามีอะไรเปลี่ยนไหม
+fn fill_thumbs(data: &mut LinkFile, cache: &HashMap<String, (PathBuf, u32, u32)>) -> bool {
+    let mut changed = false;
+    for r in data.rows.iter_mut() {
+        for p in [r.tall.as_mut(), r.wide.as_mut()].into_iter().flatten().chain(r.candidates.iter_mut()) {
+            if p.thumb.is_none() {
+                if let Some(h) = cache.get(&thumb_key(Path::new(&p.path))) {
+                    p.thumb = Some(h.0.to_string_lossy().to_string());
+                    if p.width == 0 { p.width = h.1; p.height = h.2; }
+                    changed = true;
+                }
+            }
+        }
+    }
+    changed
+}
+
 /// ทำภาพเล็กของรูปที่ยังไม่มี ทีละ 3 รูปพร้อมกัน แจ้งหน้าจอทีละรูป · กำลังทำอยู่แล้วทำอีกรอบตอนจบ
 fn start_thumbs(app: &AppHandle) {
     let store = app.state::<Arc<LinkStore>>().inner().clone();
@@ -671,7 +688,10 @@ fn start_thumbs(app: &AppHandle) {
     std::thread::spawn(move || {
         loop {
             let Ok(d) = dirs(&app) else { break };
-            let (folders, loose) = { let x = store.data.lock().unwrap(); (x.image_folders.clone(), x.loose.clone()) };
+            let (folders, mut loose) = { let x = store.data.lock().unwrap(); (x.image_folders.clone(), x.loose.clone()) };
+            // รูปในแถวที่ไม่ได้อยู่ในโฟลเดอร์ที่เลือก (รูปข้างไฟล์หนัง) ก็ต้องมีภาพเล็ก
+            loose.extend(store.data.lock().unwrap().rows.iter().flat_map(|r| [&r.tall, &r.wide]).flatten().map(|p| p.path.clone()));
+            loose.extend(store.data.lock().unwrap().rows.iter().flat_map(|r| r.candidates.iter()).map(|p| p.path.clone()));
             let todo: Vec<ImgIn> = list_images(&folders, &loose, &d.thumbs).into_iter().filter(|i| i.thumb.is_none()).collect();
             let queue = Mutex::new(todo);
             std::thread::scope(|sc| {
@@ -687,6 +707,9 @@ fn start_thumbs(app: &AppHandle) {
                     });
                 }
             });
+            // จดภาพเล็กลงแถว เปิดโปรแกรมครั้งหน้าไม่ต้องรอแจ้งใหม่ · ไม่จด รูปข้างไฟล์หนังขึ้นช่องว่างหลังเปิดหน้าใหม่
+            let cache = cached_thumbs(&d.thumbs);
+            if fill_thumbs(&mut store.data.lock().unwrap(), &cache) { let _ = store.save(); }
             if !store.rethumb.swap(false, Ordering::SeqCst) { break; }
         }
         store.thumbing.store(false, Ordering::SeqCst);

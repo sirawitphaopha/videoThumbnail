@@ -26,6 +26,8 @@ export const IcSettings = ({ size = 18, stroke = "currentColor" }: P) =>
   svg(size, 2, stroke, <><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" /></>);
 export const IcCollapse = ({ size = 18, stroke = "currentColor" }: P) =>
   svg(size, 2.2, stroke, <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /><path d="M15.5 9.5L13 12l2.5 2.5" /></>);
+export const IcLink = ({ size = 18, stroke = "currentColor" }: P) =>
+  svg(size, 2, stroke, <><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1" /><path d="M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1" /></>);
 export const IcFolder = ({ size = 18, stroke = "currentColor" }: P) =>
   svg(size, 2, stroke, <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />);
 export const IcSearch = ({ size = 16, stroke = "currentColor", width = 2.5 }: P) =>

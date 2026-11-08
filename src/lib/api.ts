@@ -27,6 +27,8 @@ export type Settings = {
   sort: string;
   /** ชั้นวางดูปกตั้งหรือปกนอน · เรื่องที่มีแบบเดียวขึ้นแบบนั้น */
   coverOrient: "tall" | "wide";
+  /** เก็บรูปที่จับคู่ไว้ที่ไหน beside ข้างไฟล์หนัง · app ในโปรแกรม · link จับคู่อย่างเดียว */
+  linkStore: "beside" | "app" | "link";
 };
 
 export type LoadedFrom = "file" | "backup" | "defaults" | "new";
@@ -48,7 +50,12 @@ export type Movie = {
   status: MovieStatus; check: CheckInfo | null; sha256: string | null; missing: boolean; error: string | null;
   /** เสียงกับซับที่จับคู่ไว้ ไม่รวมเข้าไฟล์ (แผนเสียงและซับ ขั้น 7) */
   pairs?: Pair[];
+  /** ปกที่จับคู่ไว้ ไม่ได้อยู่ในไฟล์ (แผนจับคู่รูปปก) */
+  linked?: LinkedCover[];
+  /** เรื่องที่มีสองปก "file" แสดงปกในไฟล์ · ว่าง แสดงปกจับคู่ */
+  coverPick?: string;
 };
+export type LinkedCover = { orient: "tall" | "wide"; source: string; geo: Geometry | null; store: "beside" | "app" | "link"; file: string | null; owned: boolean; sha256: string | null; thumb: string; aspect: number; at: number };
 export type Pair = { path: string; kind: "audio" | "subtitle"; lang: string; name: string; delay: number };
 export type PairPlay = { player: string; cmd: string; notes: string[]; sent: number; opened: boolean };
 /** ผลตรวจครั้งล่าสุด (ขั้น 6) */
@@ -88,7 +95,7 @@ export const api = {
 
 /* ---------- หน้าใส่โปสเตอร์ (poster.rs · poster_image.rs) ---------- */
 /** mode crop ตัดให้พอดี 2:3 · pad เติมขอบ · original ตามรูปเดิม คงสัดส่วน (ปกแนวนอนเป็นแนวนอน) */
-export type Geometry = { rotate: 0 | 90 | 180 | 270; flip: boolean; mode: "crop" | "pad" | "original"; x: number; y: number; w: number; h: number; pad: string };
+export type Geometry = { rotate: 0 | 90 | 180 | 270; flip: boolean; mode: "crop" | "pad" | "original"; x: number; y: number; w: number; h: number; pad: string; tilt?: number; aspect?: string };
 export type PosterInfo = {
   path: string; name: string; ext: string; attachable: boolean; width: number; height: number;
   aspect: string; twoThree: boolean; preview: string; fileSize: number; exif: number; icc: boolean; crop: [number, number, number, number];
@@ -191,6 +198,40 @@ export const pairApi = {
   set: (movie: string, pairs: Pair[]) => call<Movie>("pair_set", { movie, pairs }),
   check: (paths: string[]) => call<boolean[]>("pair_check", { paths }),
   play: (movie: string, dry?: boolean) => call<PairPlay>("pair_play", { movie, dry: dry ?? null }),
+};
+
+/* จับคู่รูปปก (แผนจับคู่รูปปก · link.rs) · ทุกวิธีจับคู่ไปรอที่ตารางตรวจผล ยืนยันแล้วค่อยเก็บรูปจริง */
+export type LinkPick = { path: string; name: string; folder: string; width: number; height: number; thumb: string | null; geo: Geometry | null };
+export type LinkStatus = "sure" | "unsure" | "none" | "manual" | "saved";
+export type LinkRow = {
+  id: string; movie: string; title: string; hasCover: boolean; status: LinkStatus; reason: string; via: "auto" | "board" | "explorer" | "shelf";
+  tall: LinkPick | null; wide: LinkPick | null; derivedTall: boolean; candidates: LinkPick[]; score: number; ticked: boolean;
+  error: string | null; prev: unknown | null; conflict: string | null; storeOverride: string | null;
+};
+export type LinkReplyData = { rows: LinkRow[]; imageFolders: string[]; loose: string[]; scope: "nocover" | "all"; waiting: number };
+export type LinkImage = { path: string; name: string; folder: string; width: number; height: number; thumb: string | null; used: boolean; error: string | null };
+export type AutoSummary = { images: number; sure: number; unsure: number; none: number; tall: number; wide: number; reply: LinkReplyData };
+export type ConfirmResult = { done: number; failed: number; stopped: boolean; notes: string[]; reply: LinkReplyData };
+export type LinkProgress = { done: number; total: number; title: string };
+export type RowPatch = { ticked?: boolean; choose?: string; orient?: "tall" | "wide"; geo?: Geometry; skip?: boolean };
+export const linkApi = {
+  state: () => call<LinkReplyData>("link_state"),
+  images: () => call<LinkImage[]>("link_images"),
+  addImages: (paths: string[]) => call<LinkReplyData>("link_add_images", { paths }),
+  removeImages: (path: string) => call<LinkReplyData>("link_remove_images", { path }),
+  auto: (scope: "nocover" | "all") => call<AutoSummary>("link_auto", { scope }),
+  pair: (id: string, paths: string[], via: "board" | "explorer" | "shelf") => call<LinkReplyData>("link_pair", { id, paths, via }),
+  undo: (id: string) => call<LinkReplyData>("link_undo", { id }),
+  update: (id: string, patch: RowPatch) => call<LinkReplyData>("link_row_update", { id, patch }),
+  /** ticked ที่ติ๊กไว้ · all ทั้งหมด · ไม่งั้นเป็นเลขแถว */
+  confirm: (which: string) => call<ConfirmResult>("link_confirm", { which }),
+  cancel: () => call<void>("link_cancel"),
+  resolve: (id: string, how: "use" | "app") => call<LinkReplyData>("link_resolve", { id, how }),
+  unsave: (id: string) => call<{ notes: string[]; reply: LinkReplyData }>("link_unsave", { id }),
+  remove: (id: string) => call<{ notes: string[]; reply: LinkReplyData }>("link_remove", { id }),
+  openRow: (id: string) => call<LinkReplyData>("link_open_row", { id }),
+  coverPick: (id: string, pick: "file" | "linked") => call<Movie>("link_cover_pick", { id, pick }),
+  migrate: (to: "beside" | "app" | "link") => call<{ done: number; failed: number; notes: string[] }>("link_migrate", { to }),
 };
 
 /* ตัวดูซับ (แผนเสียงและซับ ขั้น 6 · subs.rs) · เวลาเป็นวินาทีตามไฟล์ ยังไม่บวกดีเลย์ */

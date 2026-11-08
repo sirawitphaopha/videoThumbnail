@@ -1,0 +1,45 @@
+/* หน้าจับคู่ปก (แผนจับคู่รูปปก · มอคอัป docs/mockups/poster-link.html) */
+.row8 { display: flex; gap: 8px; align-items: center; flex-wrap: wrap; }
+.folders { display: flex; flex-direction: column; gap: 6px; }
+.pathline { display: flex; align-items: center; gap: 7px; background: #fff; border: 1px solid var(--line); border-radius: 8px; padding: 6px 10px; font-size: 13px; color: var(--txt2); min-width: 0; }
+.pathline b { font-weight: 600; color: var(--txt); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+.pathline .small { margin-left: auto; white-space: nowrap; padding-left: 8px; }
+.pathline .x { margin-left: auto; border: 0; background: none; color: var(--txt3); font-size: 16px; line-height: 1; cursor: pointer; padding: 0 2px; border-radius: 4px; }
+.pathline .small + .x { margin-left: 10px; }
+.pathline .x:hover { color: var(--bad-ink); background: var(--bad-soft); }
+
+.linktable { flex: 1; min-height: 0; display: flex; flex-direction: column; padding: 14px 18px; gap: 10px; }
+.linkbar { display: flex; align-items: center; gap: 10px; flex: none; flex-wrap: wrap; }
+.tabs { display: flex; gap: 6px; flex-wrap: wrap; }
+.tabchip { height: 30px; padding: 0 12px; border-radius: 20px; font: inherit; font-size: 13.5px; color: var(--txt2); background-color: #fff; border: 1px solid #f1d2de; cursor: pointer; white-space: nowrap; transition: background-color .15s, color .15s; }
+.tabchip:hover { background-color: #fdeaf1; color: var(--accent-ink); }
+.tabchip.on { background-color: #fbd7e5; color: #7a2346; border-color: #efa9c3; font-weight: 600; }
+.tabchip.on:hover { background-color: #f8c8db; color: #6a1d3c; }
+
+.linkhead, .lkrow { display: grid; grid-template-columns: 30px minmax(140px, 1fr) 18px minmax(160px, 1.25fr) minmax(96px, 150px) minmax(136px, 230px); column-gap: 10px; align-items: center; }
+.linkhead { flex: none; padding: 8px 12px; font-size: 13px; font-weight: 600; color: var(--txt2); background: #fff; border: 1px solid var(--line); border-bottom: 0; border-radius: 12px 12px 0 0; }
+.linkrows { flex: 1; min-height: 0; overflow-y: auto; border: 1px solid var(--line); border-radius: 0 0 12px 12px; background: #fff; }
+/* แถวนอกจอไม่กินเวลาวาด ร้อยแถวเลื่อนลื่น · ความสูงประมาณไว้ แถบเลื่อนไม่กระโดด */
+.lkrow { padding: 8px 12px; border-top: 1px solid #f8e3eb; content-visibility: auto; contain-intrinsic-size: auto 98px; }
+.lkrow:first-child { border-top: 0; }
+.lkrow.saved { background: #f2fbf5; }
+.lkrow.unsure { background: #fffaf0; }
+.lkrow.none { background: #fff7f7; }
+.lkrow.over { outline: 2px dashed var(--accent); outline-offset: -2px; background: #fdeaf1; }
+.lkrow .cbx { border: 0; padding: 0; cursor: pointer; }
+.lkrow .cbx.off { border: 2px solid #e5b7c8; }
+.lkrow .cbx[aria-disabled] { cursor: not-allowed; opacity: .5; }
+.lpick { display: flex; gap: 8px; align-items: center; min-width: 0; }
+.lname { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
+.lname b { font-size: 14px; line-height: 1.4; }
+.lname .fn { font-size: 12.5px; color: var(--txt2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.lthumb { width: 54px; height: 80px; border-radius: 6px; object-fit: cover; flex: none; box-shadow: 0 3px 8px rgba(150, 70, 100, .22); display: block; }
+.lthumb.wide { width: 96px; height: 54px; }
+.lthumb.none { background: repeating-linear-gradient(135deg, #fff 0 8px, #fdf0f5 8px 16px); border: 2px dashed #eeb3c8; box-shadow: none; color: var(--txt3); font-size: 11px; display: flex; align-items: center; justify-content: center; text-align: center; box-sizing: border-box; }
+.larrow { color: var(--txt3); font-size: 18px; text-align: center; }
+.lsugg { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+.lcand { border: 0; background: none; padding: 0; cursor: pointer; border-radius: 7px; outline: 3px solid transparent; outline-offset: 2px; transition: outline-color .15s; }
+.lcand:hover { outline-color: #f6c4d6; }
+.lcand.sel { outline-color: var(--accent); }
+.lacts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
+.linkfoot { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex: none; }
