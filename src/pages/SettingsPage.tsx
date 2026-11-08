@@ -2,7 +2,7 @@
    ตั้งแล้วมีผลทันที ไม่ต้องกดบันทึก · สวิตช์ชมพู = เปิด · ค่าเก็บในไฟล์ค่าตั้งของโปรแกรมผ่าน set_settings (store.rs เขียนแบบปลอดภัยมีสำรอง)
    ค่าที่นี่คือค่าตั้งต้น ทุกครั้งที่ใส่โปสเตอร์หรือตรวจไฟล์ยังเปลี่ยนเฉพาะครั้งนั้นได้ */
 import { useEffect, useRef, useState } from "react";
-import { api, encodeApi, graphApi, pickExe, pickFolder, type EncoderInfo, type Settings, type ToolCheck } from "../lib/api";
+import { api, encodeApi, graphApi, pickExe, pickFolder, type EncoderInfo, type LatestInfo, type Settings, type ToolCheck } from "../lib/api";
 import { useSettings } from "../lib/settings";
 import { useLibrary } from "../lib/library";
 import { useToast } from "../components/Toasts";
@@ -25,6 +25,19 @@ const TOOL_ROLE: Record<string, string> = {
   MediaInfo: "ใช้หน้าข้อมูลไฟล์",
 };
 
+/** ผลเช็กรุ่นล่าสุดครั้งล่าสุด จำไว้นอกหน้า (เปลี่ยนหน้าแล้วไม่หาย ไม่ออกเน็ตซ้ำเอง) */
+let latestMemo: { at: Date; list: LatestInfo[] } | null = null;
+
+/** บรรทัดรุ่นล่าสุดใต้ตัวแปลงแต่ละตัว */
+function LatestLine({ l, onOpen }: { l: LatestInfo; onOpen: (name: string) => void }) {
+  const page = <button type="button" className="latlink" onClick={() => onOpen(l.name)} data-latest-page>เปิดหน้าโหลด</button>;
+  if (l.state === "ok") return <span className="small" data-latest="ok"><b className="latok">ล่าสุดแล้ว</b> · เว็บ {l.from} รุ่น {l.latest}</span>;
+  if (l.state === "new") return <span className="small" data-latest="new"><b className="latnew">มีรุ่นใหม่ {l.latest}</b> · ใช้อยู่ {l.installed} · {page}</span>;
+  if (l.state === "ahead") return <span className="small" data-latest="ahead"><b className="latok">ใหม่กว่าหน้าเว็บ</b> · เว็บ {l.from} ยังเป็น {l.latest}</span>;
+  if (l.state === "missing") return <span className="small" data-latest="missing">รุ่นล่าสุดบนเว็บ {l.latest} · {page}</span>;
+  return <span className="small" data-latest="error"><b className="latbad">เช็กไม่ได้</b> · {l.error}</span>;
+}
+
 export default function SettingsPage() {
   const { settings, update } = useSettings();
   const { folders, scan } = useLibrary();
@@ -46,6 +59,18 @@ export default function SettingsPage() {
     catch (e) { toast({ kind: "bad", title: "ตรวจตัวแปลงเสียงไม่ได้", detail: String(e) }); }
     finally { setEncChecking(false); }
   };
+  /** รุ่นล่าสุดบนเว็บผู้ทำ (พี่กันสั่ง 8 พ.ย. 2569) · ออกเน็ตเฉพาะตอนกด · ผลจำไว้จนปิดโปรแกรม เปลี่ยนหน้าแล้วกลับมายังเห็น */
+  const [latest, setLatest] = useState(latestMemo);
+  const [latestChecking, setLatestChecking] = useState(false);
+  const checkLatest = async () => {
+    setLatestChecking(true);
+    // รุ่นทดสอบ ตัวตรวจป้อนผลจำลองผ่าน window.__latestSample ได้ ไว้ถ่ายสถานะที่ของจริงยังไม่เกิด (มีรุ่นใหม่ เช็กไม่ได้) · ตัวจริงไม่มีทางนี้
+    const sample = import.meta.env.DEV ? (window as unknown as { __latestSample?: LatestInfo[] }).__latestSample : undefined;
+    try { latestMemo = { at: new Date(), list: sample ?? await encodeApi.latest() }; setLatest(latestMemo); }
+    catch (e) { toast({ kind: "bad", title: "เช็กรุ่นล่าสุดไม่ได้", detail: String(e) }); }
+    finally { setLatestChecking(false); }
+  };
+  const openPage = (name: string) => encodeApi.openPage(name).catch((e) => toast({ kind: "bad", title: "เปิดหน้าโหลดไม่ได้", detail: String(e) }));
   // คุณภาพ JPG · แถบเลื่อนส่งค่าทุกครั้งที่ขยับ เก็บลงไฟล์ตอนหยุดลาก 0.3 วินาที ไม่เขียนไฟล์ถี่
   const [jpg, setJpg] = useState<number | null>(null);
   const jpgTimer = useRef<number | undefined>(undefined);
@@ -204,10 +229,20 @@ export default function SettingsPage() {
             <button type="button" className={"btn btn-sm " + (encChecking ? "btn-wait" : "btn-ghost")} aria-disabled={encChecking || undefined} onClick={() => { if (!encChecking) void recheckEnc(); }} data-reenc>{encChecking ? "กำลังตรวจ" : "ตรวจตัวแปลงใหม่"}</button>
           </span></h3>
         <div className="small" style={{ marginBottom: 6 }}>โฟลเดอร์ตัวแปลงที่ใส่เอง <span className="nw" style={{ fontFamily: "var(--mono)", overflowWrap: "anywhere" }}>{encDir || "…"}</span> · <Phr>{"ตอนแปลงใช้ตัวต้นฉบับเป็นค่าตั้งต้น ffmpeg เป็นตัวรอง · วางรุ่นใหม่กว่าตัวที่แนบมา โปรแกรมใช้ตัวที่ใหม่กว่า"}</Phr></div>
+        <div className="setrow" data-latest-bar><div className="lbl small" style={{ margin: 0 }}>
+          {/* Phr กันคำขาดกลางวลี (เดิม "ล่าสุดแล้ว 5" ขาดเป็น ล่าสุด กับ แล้ว 5) */}
+          <Phr>{latest ? (() => {
+            const n = (s: string) => latest.list.filter((l) => l.state === s).length;
+            // ช่องว่างแบบไม่ตัดบรรทัด ( ) ผูกคำกับเลขของมัน ไม่ให้เลขหลุดไปขึ้นบรรทัดใหม่
+            const nb = " ";
+            return `เช็กรุ่นล่าสุดกับเว็บผู้ทำเมื่อ ${latest.at.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}${nb}น. · ล่าสุดแล้ว${nb}${n("ok") + n("ahead")} · มีรุ่นใหม่${nb}${n("new")} · ยังไม่ได้ใส่${nb}${n("missing")} · เช็กไม่ได้${nb}${n("error")}`;
+          })() : "เช็กว่าตัวแปลงแต่ละตัวเป็นรุ่นล่าสุดไหม · ออกเน็ตไปดูหน้าเว็บผู้ทำเฉพาะตอนกด ไม่โหลดอะไรมาเปลี่ยนเอง"}</Phr></div>
+          <button type="button" className={"btn btn-sm " + (latestChecking ? "btn-wait" : "btn-ghost")} aria-disabled={latestChecking || undefined} onClick={() => { if (!latestChecking) void checkLatest(); }} data-enclatest>{latestChecking ? "กำลังเช็ก" : "เช็กรุ่นล่าสุด"}</button></div>
         {encs == null
           ? [0, 1, 2, 3, 4].map((i) => <div key={i} className="setrow" aria-busy="true"><Skel w="45%" h={12} /><Skel w={90} h={20} r={10} /></div>)
           : encs.map((e) => (
-            <div key={e.name} className="setrow" data-enc={e.name}><div className="lbl">{e.name}<span className="small">{e.codecs} · {e.ok ? `${e.version ?? "ไม่ทราบรุ่น"} · ${e.source === "user" ? "โฟลเดอร์ตัวแปลง" : "แนบมากับโปรแกรม"}` : e.problem ? e.problem : "ไม่เจอในโฟลเดอร์ตัวแปลง"}</span></div>
+            <div key={e.name} className="setrow" data-enc={e.name}><div className="lbl">{e.name}<span className="small">{e.codecs} · {e.ok ? `${e.version ?? "ไม่ทราบรุ่น"} · ${e.source === "user" ? "โฟลเดอร์ตัวแปลง" : "แนบมากับโปรแกรม"}` : e.problem ? e.problem : "ไม่เจอในโฟลเดอร์ตัวแปลง"}</span>
+              {(() => { const l = latest?.list.find((x) => x.name === e.name); return l ? <LatestLine l={l} onOpen={openPage} /> : null; })()}</div>
               {e.ok ? <span className="toolok">พร้อมใช้งาน</span> : e.problem ? <span className="toolwarn">ขาดไฟล์ประกอบ</span> : <span className="toolwarn">ยังไม่ได้ใส่</span>}</div>))}
         <div className="small" style={{ marginTop: 6 }}><Phr>{"qaac (AAC ของ Apple) กับ fdkaac (AAC ของ Fraunhofer) สัญญาอนุญาตไม่ให้แจกไปกับตัวติดตั้ง โหลดเองแล้ววางทุกไฟล์ที่มากับชุดไว้ในโฟลเดอร์ตัวแปลง แล้วกดตรวจตัวแปลงใหม่ · TAK แนบชุดเดิมของผู้ทำมาทั้งไฟล์ตามเงื่อนไขการแจก โปรแกรมแตก Takc.exe ไปใช้เอง ใช้เฉพาะหน้าแปลงเสียง · รายชื่อ รุ่น และสัญญาอนุญาตอยู่ docs/research/codec-เสียง.md"}</Phr></div>
       </div>

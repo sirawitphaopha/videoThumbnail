@@ -143,7 +143,13 @@ export const encodeApi = {
   status: () => call<EncoderInfo[]>("encoders_status"),
   openDir: () => call<string>("encoders_open_dir"),
   userDir: () => call<string>("encoders_user_dir"),
+  /** เช็กรุ่นล่าสุดจากหน้าเว็บผู้ทำ (latest.rs) · ออกเน็ตเฉพาะตอนเรียก */
+  latest: () => call<LatestInfo[]>("encoders_latest"),
+  /** เปิดหน้าโหลดของตัวแปลง · ที่อยู่ตายตัวฝั่ง Rust */
+  openPage: (name: string) => call<void>("encoders_open_page", { name }),
 };
+/** ผลเช็กรุ่นล่าสุด · state ok ตรงกับล่าสุด · new มีรุ่นใหม่ · ahead ที่ใช้อยู่ใหม่กว่าหน้าเว็บ · missing ยังไม่ได้ใส่ · error เช็กไม่ได้ */
+export type LatestInfo = { name: string; installed: string | null; latest: string | null; state: "ok" | "new" | "ahead" | "missing" | "error"; from: string; error: string | null };
 /* ---------- แปลงเสียงเป็นคิว หน้ากราฟเสียง (convert.rs · แผนเสียงและซับ ขั้น 8) ---------- */
 /** ข้อมูลเพลงหนึ่งช่อง · key ชื่อกลาง title artist album album_artist date track disc genre composer comment replaygain_* */
 export type AudioTag = { key: string; value: string };

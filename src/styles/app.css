@@ -366,6 +366,13 @@ tbody tr:last-child td { border-bottom: 0; }
 .folder .grow { flex: 1; min-width: 0; }
 .toolok, .toolwarn, .toolbad { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; border-radius: 20px; padding: 1px 10px; font-weight: 600; white-space: nowrap; }
 .toolok { color: var(--ok-ink); background: var(--ok-soft); }
+/* บรรทัดรุ่นล่าสุดใต้ตัวแปลงในหน้าตั้งค่า (latest.rs) */
+.latok { color: var(--ok-ink); font-weight: 600; }
+.latnew { color: var(--warn-ink); font-weight: 700; }
+.latbad { color: var(--bad-ink); font-weight: 600; }
+.latlink { background: none; border: 0; padding: 0; font: inherit; color: var(--accent-ink); text-decoration: underline; text-decoration-color: #eeb3c8; text-underline-offset: 3px; cursor: pointer; }
+.latlink:hover { text-decoration-color: currentColor; }
+.latlink:focus-visible { outline: 2px solid #e79ab8; outline-offset: 2px; border-radius: 4px; }
 .toolwarn { color: var(--warn-ink); background: var(--warn-soft); }
 .toolbad { color: var(--bad-ink); background: var(--bad-soft); }
 ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height: 1.6; }
