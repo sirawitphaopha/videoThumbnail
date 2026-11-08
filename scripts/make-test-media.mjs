@@ -270,6 +270,61 @@ if (existsSync(join(SUBS, "vobsub.idx")) && existsSync(join(SUBS, "supsample.mkv
   }
 } else console.log("ข้าม  ซับรูป (2024).mkv · ยังไม่มีไฟล์ตัวอย่างใน test-media/ซับตัวอย่าง-ffmpeg (ดูแหล่งที่ test-media/README.md)");
 
+// ---------- ชุดจับคู่รูปปก (แผนจับคู่รูปปก ขั้น 0) ----------
+// แยกจาก หนัง/ เพราะตัวตรวจเดิมนับเรื่องในโฟลเดอร์นั้น และรูปข้างไฟล์หนังจะไปโผล่ในรายการรูปของหน้าใส่โปสเตอร์
+// ผลที่ถูกของแต่ละไฟล์อยู่ test-media/README.md
+const JM = join(OUT, "จับคู่");
+const JM_MOV = join(JM, "หนัง");
+const JM_IMG = join(JM, "รูป");
+const JM_DL = join(JM, "รูปดาวน์โหลด");
+rmSync(JM, { recursive: true, force: true });
+for (const d of [JM_MOV, JM_IMG, JM_DL, join(JM_MOV, "ฝนสุดท้ายของฤดู (2019)")]) mkdirSync(d, { recursive: true });
+// รูปไล่สี แต่ละรูปคนละสี ตาเห็นว่าคนละรูป · ffmpeg ทำจากตัวกำเนิด gradients
+const grad = (file, size, c0, c1, dir = JM_IMG, extra = []) => ff(`จับคู่/${file}`, [
+  "-f", "lavfi", "-i", `gradients=size=${size}:c0=${c0}:c1=${c1}:x0=0:y0=0:x1=0:y1=${size.split("x")[1]}:duration=1:rate=1`,
+  "-frames:v", "1", ...extra, join(dir, file),
+]);
+const JM_BASE = join(JM, "__ฐาน.mkv");
+if (ff("จับคู่/ฐานหนัง 2 วินาที", ["-f", "lavfi", "-i", "testsrc2=size=320x240:rate=12:duration=2", "-f", "lavfi", "-i", "sine=frequency=440:sample_rate=48000:duration=2", ...x264, "-c:a", "aac", JM_BASE], { quiet: true })) {
+  for (const n of [
+    "ดาวเหนือ.2023.1080p.BluRay.x265.mkv", "Harbor.Lights.2021.2160p.WEB-DL.mkv", join("ฝนสุดท้ายของฤดู (2019)", "movie.mkv"), "Silent.Orbit.2018.mkv",
+    "เมืองในหมอก (2015).mkv", "Paper.Kites.2012.mkv", "Iron Tide (2010).mkv", "Iron Tide (2024).mkv", "Ember (2022).mkv",
+    "ลมหนาว.2020.720p.WEB-DL.AAC.H264-Tigole.mkv", "Tidal.2021.1080p.mkv", "Night.Bus.2020.mkv",
+  ]) copyFileSync(JM_BASE, join(JM_MOV, n));
+  ff("จับคู่/Copper.Sky.2014.mp4", ["-i", JM_BASE, "-c", "copy", "-movflags", "+faststart", join(JM_MOV, "Copper.Sky.2014.mp4")]);
+  // เรื่องที่มีปกในไฟล์อยู่แล้ว · จับคู่อัตโนมัติแบบเฉพาะเรื่องที่ยังไม่มีปกต้องข้าม
+  grad("__ปกในไฟล์.jpg", "1000x1500", "0x2d6a4f", "0xb7e4c7", JM, ["-q:v", "3"]);
+  ff("จับคู่/มีปกแล้ว (2017).mkv", ["-i", JM_BASE, "-map", "0", "-c", "copy", "-attach", join(JM, "__ปกในไฟล์.jpg"), "-metadata:s:t", "mimetype=image/jpeg", "-metadata:s:t", "filename=cover.jpg", join(JM_MOV, "มีปกแล้ว (2017).mkv")]);
+  rmSync(join(JM, "__ปกในไฟล์.jpg"), { force: true });
+  rmSync(JM_BASE, { force: true });
+  // ข้างไฟล์หนัง
+  grad("folder.jpg", "680x1000", "0x588157", "0xdad7cd", join(JM_MOV, "ฝนสุดท้ายของฤดู (2019)"), ["-q:v", "3"]);
+  grad("Ember (2022)-poster.jpg", "1000x1500", "0x5a189a", "0xe0aaff", JM_MOV, ["-q:v", "3"]);
+  writeFileSync(join(JM_MOV, "Night.Bus.2020.nfo"), "<movie><title>Night Bus</title></movie>\nhttps://www.imdb.com/title/tt7654321/\n");
+  // โฟลเดอร์รูป
+  grad("ดาวเหนือ (2023) poster.jpg", "1000x1500", "0x1d3557", "0xa8dadc", JM_IMG, ["-q:v", "3"]);
+  grad("harbor_lights_2021.png", "1000x1500", "0x006d77", "0x83c5be");
+  grad("silent-orbit-backdrop.jpg", "1920x1080", "0x3c096c", "0xc77dff", JM_IMG, ["-q:v", "3"]);
+  grad("เมืองหมอก.jpg", "1000x1500", "0x9d0208", "0xffba08", JM_IMG, ["-q:v", "3"]);
+  grad("หมอกเมือง 2.jpg", "1000x1500", "0x6a040f", "0xfaa307", JM_IMG, ["-q:v", "3"]);
+  grad("เมืองในหมอก ภาค 2.jpg", "1000x1500", "0x370617", "0xf48c06", JM_IMG, ["-q:v", "3"]);
+  grad("iron-tide-2024.jpg", "1000x1500", "0x343a40", "0xced4da", JM_IMG, ["-q:v", "3"]);
+  grad("iron tide.jpg", "1000x1500", "0x212529", "0xadb5bd", JM_IMG, ["-q:v", "3"]);
+  grad("poster_tt7654321.jpg", "1000x1500", "0x023e8a", "0x90e0ef", JM_IMG, ["-q:v", "3"]);
+  grad("ลมหนาว 2020.webp", "800x1200", "0x48cae4", "0xcaf0f8", JM_IMG, ["-c:v", "libwebp", "-quality", "85"]);
+  grad("tidal_2021.jpg", "1000x1500", "0x0a9396", "0x94d2bd", JM_IMG, ["-q:v", "3"]);
+  grad("tidal_alt.jpg", "1000x1500", "0x005f73", "0xe9d8a6", JM_IMG, ["-q:v", "3"]);
+  grad("IMG_2031.jpg", "1200x1800", "0xbc6c25", "0xfefae0", JM_IMG, ["-q:v", "3"]);
+  grad("มีปกแล้ว (2017).jpg", "1000x1500", "0xd00000", "0xffdde1", JM_IMG, ["-q:v", "3"]);
+  mkdirSync(join(JM_IMG, "โฟลเดอร์ย่อย"), { recursive: true });
+  grad("ไม่มีหนังเรื่องนี้.jpg", "1000x1500", "0x6c757d", "0xf8f9fa", join(JM_IMG, "โฟลเดอร์ย่อย"), ["-q:v", "3"]);
+  // โฟลเดอร์ที่สอง ไว้เทสเพิ่มโฟลเดอร์ ลากจาก Explorer ลากหลายรูป และไฟล์ที่ไม่ใช่รูป
+  grad("ember-poster-hd.jpg", "2000x3000", "0x7209b7", "0xf72585", JM_DL, ["-q:v", "3"]);
+  grad("copper-wide.jpg", "1920x1080", "0xbb3e03", "0xee9b00", JM_DL, ["-q:v", "3"]);
+  grad("copper-tall.jpg", "1000x1500", "0xae2012", "0xe9d8a6", JM_DL, ["-q:v", "3"]);
+  writeFileSync(join(JM_DL, "ไม่ใช่รูป.txt"), "ไฟล์นี้ไม่ใช่รูป\n");
+}
+
 // ไฟล์ของพี่กัน
 const fromGun = join(root, "test-media", "จากพี่กัน");
 if (existsSync(join(fromGun, "IMG_4149.HEIC"))) copyFileSync(join(fromGun, "IMG_4149.HEIC"), join(IMG, "IMG_4149.HEIC"));
