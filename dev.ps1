@@ -15,4 +15,9 @@ New-Item -ItemType Directory -Force 'D:\dev\tmp' | Out-Null
 $env:TEMP = 'D:\dev\tmp'
 $env:TMP  = 'D:\dev\tmp'
 
+# เครื่องนี้แรม 8 GB มี SSD ลูกเดียว C กับ D ใช้ร่วมกัน · พี่กันบอก 8 พ.ย. 2569 "เธอรันเเล้วคอมเรากระตุก"
+# งานสร้างโปรแกรมใช้ไม่เกิน 6 จาก 12 เธรด และยอมให้โปรแกรมที่คนกำลังใช้ก่อน · โปรแกรมลูกทุกตัวรับค่าความสำคัญนี้ต่อ
+$env:CARGO_BUILD_JOBS = '6'
+try { [System.Diagnostics.Process]::GetCurrentProcess().PriorityClass = 'BelowNormal' } catch { }
+
 Set-Location 'D:\movie-shelf'

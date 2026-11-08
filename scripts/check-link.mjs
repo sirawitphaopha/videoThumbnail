@@ -674,6 +674,20 @@ for (let i = 0; i < 300; i++) { const n = await mvOf("Night.Bus"); if (n.thumb &
 const nb = await mvOf("Night.Bus");
 check("รวมเข้าไฟล์เสร็จ มีปกในไฟล์ ปกจับคู่ยังอยู่ เลือกได้", !!nb.thumb && nb.hasCover && nb.linked.length === 1);
 
+// รวมเข้าไฟล์จากปกนอน · ค่าครอป 16:9 ใช้ต่อ ได้ปกแนวนอนในไฟล์
+await toShelf();
+await segClick(".shelfhead", "ปกนอน");
+await pickBook("Silent.Orbit");
+await c.evaluate("document.querySelector('[data-link-merge]').click()");
+await waitFor("return !!document.querySelector('[data-poster-page]') && document.querySelector('[data-card=\"movie\"]').textContent.includes('Silent.Orbit') && document.querySelector('[data-card=\"poster\"]').textContent.includes('silent-orbit') && document.querySelector('[data-start]').getAttribute('aria-disabled') !== 'true'", 15000);
+check("รวมเข้าไฟล์จากปกนอน ใช้รูปปกนอน ปุ่มเริ่มกดได้ ไม่ขึ้นหน้าครอป", await q("return !document.querySelector('[data-crop]') && document.querySelector('[data-card=\"poster\"]').textContent.includes('silent-orbit')"));
+await c.evaluate("document.querySelector('[data-start]').click()");
+for (let i = 0; i < 300; i++) { const n = await mvOf("Silent.Orbit"); if (n.thumb && (await inv("running_jobs")) === 0) break; await sleep(200); }
+const so = await mvOf("Silent.Orbit");
+check("รวมจากปกนอนเสร็จ ปกในไฟล์เป็นแนวนอน", !!so.thumb && (so.coverAspect ?? 0) >= 1, so.coverAspect);
+await toShelf();
+await segClick(".shelfhead", "ปกตั้ง");
+
 // แถบทำต่อ · เปิดโปรแกรมมาแล้วมีคู่ค้าง
 await c.evaluate("location.reload()");
 await waitFor("return !!document.querySelector('.side .nav')");
@@ -714,8 +728,8 @@ await c.evaluate("document.querySelector('[data-closepairs-ok]').click()");
 check("กดยืนยันที่ติ๊กแล้วปิด ยืนยันครบ แล้วสั่งปิด", await waitFor("return window.__closedDry === true", 30000) && (await rowNow("Paper Kites (2012)")).status === "saved" && existsSync(moviePoster("Paper.Kites.2012")));
 await c.evaluate("window.__closeDry = false");
 
-const after = Object.keys(movieHash0).filter((p) => !p.includes("Night.Bus") && sha(p) !== movieHash0[p]);
-check("จบขั้น 6 ไฟล์หนังทุกเรื่องเท่าเดิม ยกเว้นเรื่องที่กดรวมเข้าไฟล์เอง", after.length === 0, after.join(" "));
+const after = Object.keys(movieHash0).filter((p) => !p.includes("Night.Bus") && !p.includes("Silent.Orbit") && sha(p) !== movieHash0[p]);
+check("จบขั้น 6 ไฟล์หนังทุกเรื่องเท่าเดิม ยกเว้นสองเรื่องที่กดรวมเข้าไฟล์เอง", after.length === 0, after.join(" "));
 check("จบขั้น 6 รูปต้นฉบับทุกรูปเท่าเดิม", JSON.stringify(hashes(IMG)) === JSON.stringify(imgHash0));
 
 const pass = results.filter((r) => r.pass).length;
