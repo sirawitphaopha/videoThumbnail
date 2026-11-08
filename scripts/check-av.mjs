@@ -186,6 +186,61 @@ await c.evaluate(`${findRow("PAL 25fps")}.querySelector('[data-remove]').click()
 await sleep(300);
 check("เอาไฟล์ PAL ที่ลากมาทดสอบออกแล้ว แถวกลับเป็นเหมือนเดิม", !(await q(`return !!${findRow("PAL 25fps")}`)) && !(await q("return !!document.querySelector('[data-codec-panel]')")));
 
+// ---------- ตัวดูซับ (ขั้น 6) · ซับตัวหนังสือ แบบ Aegisub แบบอ่านยาว แบบ notepad · ดีเลย์ +500 ของซับไทยเลื่อนเวลาที่แสดง ----------
+const openSub = async (text) => { await c.evaluate(`${findRow(text)}.querySelector('[data-subview]').click()`); await waitFor("return !!document.querySelector('[data-subviewer]')", 8000); };
+const closeDlg = async () => { await clickTextAny("[role=dialog] .acts button", "ปิด"); await sleep(250); };
+await openSub("(2024).th.srt");
+await waitFor("return document.querySelectorAll('[data-sub-table] tbody tr').length > 0", 15000);
+const subRows = await q("return [...document.querySelectorAll('[data-sub-table] tbody tr')].map(r => [...r.children].map(td => td.innerText).join('|'))");
+const subHead = await q("return document.querySelector('[data-subviewer] .small').innerText");
+check("กดรูปตาในแถวซับไทย เปิดแบบ Aegisub ตาราง 3 บรรทัด เวลาเลื่อนตามดีเลย์ +500 (1.00 เป็น 1.50) ช่องตัว/วิ ข้อความภาษาไทยครบ",
+  subRows.length === 3 && subRows[0].startsWith("1|0:00:01.50|0:00:04.50|3.00|") && subRows[0].includes("ซับไตเติลภาษาไทย") && subHead.includes("ดีเลย์ +500 ms") && subHead.includes("3 บรรทัด"), subRows[0] + " · " + subHead);
+const frameOk = await waitFor("const i = document.querySelector('[data-vframe] img'); return i && i.complete && i.naturalWidth > 0", 20000);
+const audOk = await waitFor("return !!document.querySelector('[data-aud]')", 20000);
+await c.evaluate("document.querySelectorAll('[data-sub-table] tbody tr')[1].click()");
+await waitFor("return document.querySelector('[data-vframe] .vsub')?.innerText.includes('ไฟล์ทดสอบ')", 8000);
+const vsub = await q("return document.querySelector('[data-vframe] .vsub').innerText + ' · ' + document.querySelector('[data-vframe] .vtime').innerText + ' · ' + document.querySelectorAll('[data-sub-table] tr.on').length");
+check("ภาพหนังตรงเวลานั้นขึ้น คลื่นเสียงช่วงนั้นขึ้น · กดบรรทัด 2 ซับที่ทับภาพกับเวลาเปลี่ยนเป็นบรรทัด 2", frameOk && audOk && vsub.startsWith("ไฟล์ทดสอบของโปรแกรมชั้นหนัง") && vsub.includes("0:00:05.50 · 1"), vsub);
+await sleep(800);
+await shot("17-ดูซับ-Aegisub.png", "[role=dialog]", 8);
+const findH = await q("return [...new Set([...document.querySelectorAll('[data-sub-q], [data-sub-q] ~ button')].map(e => Math.round(e.getBoundingClientRect().height)))]");
+check("แถวค้นในซับ ช่องค้นกับปุ่มก่อนหน้า ถัดไป สูงเท่ากัน", findH.length === 1, findH.join(","));
+await clickTextAny("[data-subviewer] .seg button", "ความถี่");
+const specOk = await waitFor("const cv = document.querySelector('[data-aud]'); if (!cv) return false; const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data; let light = 0, all = 0; for (let i = 0; i < d.length; i += 16) { all++; if (d[i + 1] > 235) light++; } return all > 1000 && light / all < 0.1", 20000);
+const playBtn = await q("return document.querySelector('[data-sub-play]')?.innerText ?? ''");
+check("แบบ Aegisub กดความถี่ คลื่นเปลี่ยนเป็นภาพความถี่ (คำสั่งเดียวกับหน้ากราฟเสียง) · มีปุ่มเปิดเล่นที่เวลาบรรทัด (ไม่กด เพราะจะเปิดโปรแกรมเล่นขึ้นจอ)", specOk && playBtn.startsWith("เปิดเล่นที่ 0:00:05"), playBtn);
+await sleep(300);
+await shot("17-ดูซับ-ความถี่.png", "[data-subviewer] .aegtop", 8);
+await clickTextAny("[data-subviewer] .seg button, [role=dialog] .seg button", "แบบอ่านยาว");
+await waitFor("return !!document.querySelector('[data-long-view]')", 5000);
+await c.evaluate(`(() => { const i = document.querySelector('[data-sub-q]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, 'ไฟล์'); i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+await sleep(300);
+const longHit = await q("return document.querySelector('[data-sub-hits]').innerText + ' · ' + document.querySelectorAll('[data-long-view] mark').length");
+check("แบบอ่านยาว ค้นคำว่า ไฟล์ เจอ 1 ที่ ไฮไลต์คำที่เจอ", longHit.startsWith("เจอ 1 ที่") && longHit.endsWith("· 1"), longHit);
+await clickTextAny("[role=dialog] .seg button", "แบบ notepad");
+await waitFor("return !!document.querySelector('[data-notepad-view]')", 5000);
+await c.evaluate(`(() => { const i = document.querySelector('[data-sub-q]'); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, '-->'); i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+await sleep(300);
+const pad = await q("return document.querySelectorAll('[data-notepad-view] .npl').length + ' · ' + document.querySelector('[data-notepad-view] .npl .ln').innerText + ' · ' + document.querySelector('[data-sub-hits]').innerText + ' · ' + document.querySelector('.npst').innerText.replace(/\\s+/g, ' ')");
+check("แบบ notepad เปิดไฟล์จริงมีเลขบรรทัด ค้น --> เจอ 3 ที่ (บรรทัดเวลาของ 3 บรรทัดซับ) บอก SRT UTF-8", Number(pad.split(" · ")[0]) >= 11 && pad.includes("· 1 ·") && pad.includes("เจอ 3 ที่") && pad.includes("SRT") && pad.includes("UTF-8"), pad);
+await shot("18-ดูซับ-notepad.png", "[role=dialog]", 8);
+await closeDlg();
+// ซับไทยเข้ารหัสแบบเก่า อ่านได้เหมือนซับ UTF-8
+await openSub("tis620");
+await waitFor("return document.querySelectorAll('[data-sub-table] tbody tr').length > 0", 15000);
+const tisRow = await q("return document.querySelector('[data-sub-table] tbody tr td:last-child').innerText");
+await clickTextAny("[role=dialog] .seg button", "แบบ notepad");
+await waitFor("return !!document.querySelector('.npst')", 5000);
+const tisCs = await q("return document.querySelector('.npst').innerText");
+check("ซับไทย TIS-620 อ่านได้ ข้อความเหมือนซับ UTF-8 บอกว่าเป็น TIS-620", tisRow.includes("ซับไตเติลภาษาไทย") && tisCs.includes("TIS-620"), tisRow + " · " + tisCs.replace(/\s+/g, " "));
+await closeDlg();
+// ซับ VTT
+await openSub(".en.vtt");
+await waitFor("return document.querySelectorAll('[data-sub-table] tbody tr').length > 0", 15000);
+const vttRows = await q("return document.querySelectorAll('[data-sub-table] tbody tr').length + ' · ' + document.querySelector('[data-sub-table] tbody tr td:last-child').innerText");
+check("ซับ VTT เปิดได้ 2 บรรทัด", vttRows.startsWith("2 · "), vttRows);
+await closeDlg();
+
 // ---------- แผงตั้งค่าเสียงแบบง่าย (ขั้น 4) · เสียงอังกฤษ AAC ในหนัง แปลงเป็น Opus เพิ่มคู่ ----------
 await c.evaluate(`${row(2)}.querySelector('[data-conv]').click()`);
 await waitFor("return !!document.querySelector('[data-codec-panel]') && document.querySelector('[data-cmd]').innerText.includes('opusenc')", 15000);
@@ -385,6 +440,33 @@ check("หน้าตั้งค่ามีการ์ดตัวแปล�
   && encRows.some((r) => r.includes("wavpack") && r.includes("5.9.0")) && encRows.some((r) => r.includes("qaac64") && r.includes("ยังไม่ได้ใส่")) && encText.includes(String.raw`ชั้นหนัง\ตัวแปลง`), encRows.join(" | "));
 await c.evaluate("document.querySelector('[data-setcard=encoders]').scrollIntoView({ block: 'center' })");
 await shot("09-การ์ดตัวแปลงเสียง.png", "[data-setcard=encoders]", 6);
+
+// ---------- ตัวดูซับรูป (ขั้น 6) · หนังที่มีซับ PGS กับ VobSub (สำเนาในโฟลเดอร์ทดสอบ) ----------
+copyFileSync(join(AV, "ซับรูป (2024).mkv"), join(DIR, "ซับรูป (2024).mkv"));
+await c.evaluate(`[...document.querySelectorAll('.side .nav')].find(b => b.innerText.includes('เสียงและซับ')).click()`);
+await sleep(400);
+await clickTextAny(".avfoot button", "ล้างทั้งหมด").catch(() => {});
+await sleep(300);
+await drop([join(DIR, "ซับรูป (2024).mkv")]);
+await waitFor(`return !!${findRow("PGS")}`, 20000);
+await c.evaluate(`${findRow("PGS")}.querySelector('[data-subview]').click()`);
+await waitFor("return !!document.querySelector('[data-subimgs]') || !!document.querySelector('[data-subviewer] .stat.bad')", 60000);
+const pgs = await q("return (document.querySelector('[data-simg-count]')?.innerText ?? '') + ' · ' + document.querySelectorAll('[data-simg] img').length + ' · ' + (document.querySelector('[data-simg] .t')?.innerText.replace(/\\s+/g, ' ') ?? '')");
+check("ซับรูป PGS ถอดเป็นภาพ 1 ภาพ ขึ้นที่ 0:01.0", pgs.startsWith("ภาพที่ 1–1 จาก 1") && pgs.includes("· 1 ·") && pgs.includes("0:01.0"), pgs);
+await closeDlg();
+await c.evaluate(`${findRow("VobSub")}.querySelector('[data-subview]').click()`);
+await waitFor("return !!document.querySelector('[data-subimgs]') || !!document.querySelector('[data-subviewer] .stat.bad')", 60000);
+const vob = await q("return (document.querySelector('[data-simg-count]')?.innerText ?? '') + ' · ' + document.querySelectorAll('[data-simg] img').length");
+const imgOk = await waitFor("return [...document.querySelectorAll('[data-simg] img')].every(i => i.complete && i.naturalWidth > 0)", 8000);
+check("ซับรูป VobSub ถอดเป็นภาพ 42 ภาพ หน้าละ 6 ภาพ รูปขึ้นครบ", vob.startsWith("ภาพที่ 1–6 จาก 42") && vob.endsWith("· 6") && imgOk, vob);
+await shot("19-ดูซับรูป.png", "[role=dialog]", 8);
+await c.evaluate("document.querySelector('[data-simg-next]').click()");
+await waitFor("return document.querySelector('[data-simg-count]')?.innerText.startsWith('ภาพที่ 7–12') && document.querySelector('[data-simg] img')?.alt === 'ซับภาพ 7'", 15000);
+await c.evaluate("document.querySelector('[data-simg]').click()");
+await sleep(300);
+const big = await q("const b = document.querySelector('[data-bigsub]'); if (!b) return ''; const r = b.getBoundingClientRect(); return Math.round(r.width) + 'x' + Math.round(r.height) + ' · ' + b.nextElementSibling.innerText");
+check("หน้าถัดไปได้ภาพ 7–12 · กดภาพดูเต็มจอ วางตรงตำแหน่งจริงบนจอ 720 × 480", big.includes("ภาพ 7") && big.includes("720 × 480") && Math.abs(Number(big.split("x")[0]) / Number(big.split("x")[1].split(" ")[0]) - 1.5) < 0.05, big);
+await closeDlg();
 
 await c.send("Emulation.clearDeviceMetricsOverride");
 writeFileSync(`${OUT}/ผลเทส.json`, JSON.stringify(results, null, 2) + "\n");

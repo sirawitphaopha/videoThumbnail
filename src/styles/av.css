@@ -164,3 +164,47 @@
 .ruler2 { margin-left: 138px; position: relative; height: 18px; font-size: 11px; color: var(--txt3); font-variant-numeric: tabular-nums; }
 .ruler2 span { position: absolute; transform: translateX(-50%); white-space: nowrap; }
 .match { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
+
+/* ---------- ตัวดูซับ (มอคอัป audio-merge.html บรรทัด 141–152 · 308–337) ---------- */
+.aegtop { display: grid; grid-template-columns: 360px 1fr; gap: 14px; align-items: start; }
+.vframe { position: relative; width: 360px; height: 203px; border-radius: 8px; overflow: hidden; background: #0d0b1e; }
+.vframe img { width: 100%; height: 100%; object-fit: contain; display: block; }
+.vnone { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #e8dff0; font-size: 12.5px; }
+.vsub { position: absolute; left: 10px; right: 10px; bottom: 14px; text-align: center; color: #fff; font-weight: 600; font-size: 14px; line-height: 1.4; white-space: pre-line; text-shadow: 0 0 3px #000, 0 0 3px #000, 0 1px 2px #000; }
+.vtime { position: absolute; top: 6px; right: 8px; font-size: 11px; color: #e8dff0; background: rgba(0, 0, 0, .45); border-radius: 5px; padding: 0 6px; font-variant-numeric: tabular-nums; }
+.aud { width: 100%; height: 150px; display: block; border-radius: 6px; border: 1px solid var(--line); }
+.sgrid { border: 1px solid var(--line); border-radius: 10px; overflow: auto; background: #fff; max-height: 300px; overscroll-behavior: contain; }
+.sgrid table { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.sgrid th { position: sticky; top: 0; background: #fbf3f6; color: var(--txt2); font-size: 12px; font-weight: 600; padding: 6px 10px; text-align: left; border-bottom: 1px solid var(--line); }
+.sgrid td { padding: 5px 10px; border-bottom: 1px solid #f8e3eb; line-height: 1.5; cursor: pointer; }
+.sgrid tr:last-child td { border-bottom: 0; }
+.sgrid tbody tr:hover td { background-color: #fdf4f8; }
+.sgrid tr.on td { background-color: #fbd7e5; color: #5f1d39; }
+.sgrid .num { text-align: right; font-variant-numeric: tabular-nums; white-space: nowrap; width: 1%; }
+.sgrid td.bad { background-color: #fde5e5; color: #b04545; font-weight: 600; }
+.sgrid tr.on td.bad { background-color: #f8c9c9; }
+.sgrid mark, .subtext mark, .np mark { background: #fde7a6; color: inherit; border-radius: 3px; padding: 0 1px; }
+.lg { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--txt2); }
+.lg .ln { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: #ec8f8f; margin-right: 6px; vertical-align: -1px; }
+.subtext { background: #fff; border: 1px solid var(--line); border-radius: 10px; max-height: 420px; overflow: auto; font-size: 14px; overscroll-behavior: contain; }
+.cue { display: grid; grid-template-columns: 44px 210px 1fr; gap: 10px; padding: 7px 14px; border-bottom: 1px solid #f8e3eb; line-height: 1.55; }
+.cue:last-child { border-bottom: 0; }
+.cue.cur { background: #fdf1f5; }
+.cue .n { color: var(--txt3); font-variant-numeric: tabular-nums; text-align: right; }
+.cue .t { color: var(--txt2); font-variant-numeric: tabular-nums; font-size: 13px; }
+/* แบบ notepad · ตัวอักษรไทยใช้ Sarabun เพราะ Consolas ไม่มีตัวไทย */
+.np { background: #fff; border: 1px solid var(--line); border-radius: 8px; max-height: 420px; overflow: auto; padding: 6px 0; font-family: Consolas, "Cascadia Mono", Sarabun, monospace; font-size: 13px; line-height: 1.6; overscroll-behavior: contain; }
+.npl { display: grid; grid-template-columns: 52px minmax(0, 1fr); gap: 12px; padding-right: 12px; }
+.npl .ln { color: #c9a9b6; text-align: right; user-select: none; font-size: 12px; }
+.npl .tx { white-space: pre-wrap; overflow-wrap: anywhere; color: var(--txt); }
+.npl.cur { background: #fdf1f5; }
+.npst { display: flex; justify-content: flex-end; gap: 18px; font-size: 12px; color: var(--txt2); background: #fbeef3; border-radius: 6px; padding: 4px 12px; }
+/* ซับรูป · พื้นตารางหมากรุกคือส่วนโปร่งใส */
+.subimgs { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+.simg { background-color: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 8px; display: flex; flex-direction: column; gap: 6px; cursor: zoom-in; font: inherit; text-align: left; transition: border-color .15s, background-color .15s; }
+.simg:hover { border: 1px solid #e79ab8; background-color: #fdf4f8; }
+.simg .pic { height: 74px; border-radius: 6px; background: repeating-conic-gradient(#ece3e7 0% 25%, #f8f3f5 0% 50%) 50% / 14px 14px; display: flex; align-items: center; justify-content: center; padding: 4px; overflow: hidden; }
+.simg .pic img { max-width: 100%; max-height: 100%; object-fit: contain; }
+.simg .t { font-size: 12px; color: var(--txt2); font-variant-numeric: tabular-nums; display: flex; justify-content: space-between; }
+.bigsub { position: relative; width: 100%; border-radius: 8px; overflow: hidden; background: repeating-conic-gradient(#ece3e7 0% 25%, #f8f3f5 0% 50%) 50% / 18px 18px; }
+.bigsub img { position: absolute; }

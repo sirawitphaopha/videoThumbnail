@@ -149,6 +149,17 @@ export type MergeReq = { movie: string; tracks: MergeTrack[]; covers: { portrait
 export type MergeResult = { mode: "mkv" | "mp4"; output: string; counts: Counts; verified: boolean; original: "kept" | "trash" | "none"; originalTo: string | null; notes: string[] };
 export type CoverPreview = { preview: string; width: number; height: number; bytes: number };
 
+/* ตัวดูซับ (แผนเสียงและซับ ขั้น 6 · subs.rs) · เวลาเป็นวินาทีตามไฟล์ ยังไม่บวกดีเลย์ */
+export type Cue = { n: number; start: number; end: number; text: string };
+export type SubText = { raw: string; kind: "srt" | "ass" | "vtt"; charset: string; cues: Cue[] };
+export type SubImg = { n: number; start: number; end: number | null; w: number; h: number; canvas: [number, number]; at: [number, number]; png: string };
+export const subApi = {
+  text: (path: string, inMovie: boolean, tid: number, ff: number) => call<SubText>("sub_text", { path, inMovie, tid, ff }),
+  frame: (movie: string, t: number, h?: number) => call<string>("sub_frame", { movie, t, h: h ?? null }),
+  wave: (movie: string, stream: number, t0: number, t1: number, cols: number) => call<number[]>("sub_wave", { movie, stream, t0, t1, cols }),
+  images: (path: string, ff: number, page: number, per: number) => call<{ total: number; items: SubImg[] }>("sub_images", { path, ff, page, per }),
+};
+
 /* ตัวช่วยหาดีเลย์ (แผนเสียงและซับ ขั้น 5 · delay.rs) · ดีเลย์เป็น ms ค่าที่ใส่ให้เสียงใหม่ ติดลบ = มาเร็วขึ้น */
 export type DelayWin = { at: number; delay: number; score: number };
 export type DelayFound = { delay: number; score: number; windows: DelayWin[]; speed: [number, number] | null; direct: number; uneven: boolean };

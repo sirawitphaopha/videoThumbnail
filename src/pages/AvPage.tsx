@@ -11,6 +11,7 @@ import CropDialog, { type CropChoice } from "../components/CropDialog";
 import LangPicker from "../components/LangPicker";
 import CodecPanel from "../components/CodecPanel";
 import DelayDialog from "../components/DelayDialog";
+import SubViewer from "../components/SubViewer";
 import { convertLabel } from "../lib/codecs";
 import ThaiInput from "../components/ThaiInput";
 import { CardIcon, Phr, Seg } from "../components/ui";
@@ -100,6 +101,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
   /** ความเร็วเสียงที่ตัวช่วยหาดีเลย์เสนอ ส่งต่อให้แผงตั้งค่าเสียง */
   const [codecSpeed, setCodecSpeed] = useState<string | null>(null);
   const [delayFor, setDelayFor] = useState<string | null>(null);
+  const [subFor, setSubFor] = useState<string | null>(null);
   const [encs, setEncs] = useState<EncoderInfo[] | null>(null);
   const openCodec = (key: string) => { setCodecFor(key); if (!encs) encodeApi.status().then(setEncs, () => setEncs([])); };
   const output = (av.once.output ?? settings?.outputFormat ?? "mkv") as "mkv" | "mp4";
@@ -420,6 +422,9 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
                     </button>
                   ) : <span className="small">{t.kind === "subtitle" ? "ซับไม่ต้องแปลง" : "—"}</span>}
                   <div className="avacts" onClick={(e) => e.stopPropagation()}>
+                    {t.kind === "subtitle" && (
+                      <button type="button" className="ib" aria-label={`ดูซับ ${title}`} title="ดูซับ" onClick={() => setSubFor(t.key)} data-subview>
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></svg></button>)}
                     {t.kind === "video" ? null : !t.inMovie ? (
                       <button type="button" className="ib bad" aria-label={`เอาไฟล์ ${baseName(t.src)} ออก`} title={off ?? "เอาไฟล์นี้ออก"} aria-disabled={!!off || undefined} onClick={() => { if (!off) removeAdded(t.src); }} data-remove>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
@@ -548,6 +553,9 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
       {codecFor && (() => { const ct = tracks.find((t) => t.key === codecFor); return ct ? (
         <CodecPanel track={ct} encoders={encs} speed={codecSpeed} onClose={() => { setCodecFor(null); setCodecSpeed(null); }}
           onApply={(convert, pair, convName) => { patch(ct.key, { convert, pair, convName }); setCodecFor(null); setCodecSpeed(null); }} />) : null; })()}
+      {subFor && (() => { const st = tracks.find((t) => t.key === subFor); return st ? (
+        <SubViewer track={st} movie={movie.path} refStream={refAudio ? refAudio.ff ?? refAudio.tid : null}
+          refIdx={refAudio ? tracks.filter((x) => x.inMovie && x.kind === "audio" && (x.ff ?? x.tid) < (refAudio.ff ?? refAudio.tid)).length : null} onClose={() => setSubFor(null)} />) : null; })()}
       {delayFor && refAudio && (() => { const dt = tracks.find((t) => t.key === delayFor); return dt ? (
         <DelayDialog movie={{ path: movie.path, duration: movie.duration ?? null }} refTrack={refAudio} track={dt} onClose={() => setDelayFor(null)}
           onApply={(d) => { setDelay(dt.key, d); setDelayFor(null); }}

@@ -46,7 +46,7 @@ pub struct Found {
 }
 
 /// ถอดเสียงช่วงหนึ่งเป็นช่องเดียว 8 kHz
-fn decode(tools: &Path, path: &Path, stream: u64, start: f64, len: f64) -> Result<Vec<f32>, String> {
+pub(crate) fn decode(tools: &Path, path: &Path, stream: u64, start: f64, len: f64) -> Result<Vec<f32>, String> {
     let args: Vec<OsString> = vec![
         "-v".into(), "error".into(), "-nostdin".into(), "-ss".into(), format!("{:.3}", start.max(0.0)).into(), "-t".into(), format!("{:.3}", len.max(0.1)).into(),
         "-i".into(), path.into(), "-map".into(), format!("0:{stream}").into(), "-vn".into(), "-ac".into(), "1".into(), "-ar".into(), "8000".into(), "-f".into(), "f32le".into(), "-".into(),
@@ -206,7 +206,7 @@ pub struct View {
     pub margin: f64,
 }
 
-fn peaks(x: &[f32], per: usize) -> Vec<f32> {
+pub(crate) fn peaks(x: &[f32], per: usize) -> Vec<f32> {
     let v: Vec<f32> = x.chunks(per.max(1)).map(|c| c.iter().fold(0f32, |m, &s| m.max(s.abs()))).collect();
     let top = v.iter().cloned().fold(1e-6f32, f32::max);
     v.iter().map(|&p| (p / top * 1000.0).round() / 1000.0).collect()

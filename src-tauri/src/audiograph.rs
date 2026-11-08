@@ -235,7 +235,7 @@ fn q8(d: f32) -> u8 {
     (((d + 120.0) / 120.0) * 255.0).round().clamp(0.0, 255.0) as u8
 }
 
-fn b64(data: &[u8]) -> String {
+pub(crate) fn b64(data: &[u8]) -> String {
     const T: &[u8; 64] = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/";
     let mut s = String::with_capacity(data.len().div_ceil(3) * 4);
     for c in data.chunks(3) {
