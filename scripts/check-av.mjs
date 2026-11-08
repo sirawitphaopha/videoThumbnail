@@ -125,6 +125,67 @@ await waitFor("return document.querySelectorAll('.trk:not(.head)').length > 0");
 const back = await q("return [...document.querySelectorAll('.trk:not(.head) .ft')].map(f => f.innerText).join(' ') + ' · ' + document.querySelector('[data-slot=cover]').innerText.includes('เพิ่มใหม่') + ' · ' + document.querySelectorAll('.trk:not(.head)')[3].querySelector('.avnum').value");
 check("ไปหน้าตั้งค่าแล้วกลับมา แทร็ก ลำดับ ดีเลย์ ปกใหม่ ยังอยู่ครบ", back === "H.264 AC-3 AAC SRT SRT VTT · true · +500", back);
 
+// ---------- ตัวช่วยหาดีเลย์ (ขั้น 5) · พากย์ไทยที่เลื่อนจริง 120 ms · เสียง PAL 25 fps ----------
+const clickTextAny = (sel, text) => c.evaluate(`[...document.querySelectorAll(${JSON.stringify(sel)})].find(b => b.innerText.trim() === ${JSON.stringify(text)}).click()`);
+const findRow = (text) => `[...document.querySelectorAll('.trk:not(.head)')].find(r => r.innerText.includes(${JSON.stringify(text)}))`;
+await c.evaluate(`${findRow("พากย์ไทย DELAY")}.click()`);
+await waitFor("return !!document.querySelector('[data-find-delay]')", 8000);
+await c.evaluate("document.querySelector('[data-find-delay]').click()");
+await waitFor("return !!document.querySelector('[data-delay-dialog]')", 8000);
+const gotRes = await waitFor("const r = document.querySelector('[data-delay-res]')?.dataset.delayRes; return r && r !== 'finding'", 60000);
+await waitFor("return !!document.querySelector('[data-lane=b]')", 20000);
+await sleep(400);
+const dres = await q("return document.querySelector('[data-delay-res]')?.dataset.delayRes + ' · ' + document.querySelector('[data-delay-res]')?.innerText.replace(/\\s+/g, ' ')");
+const dnum = Number((dres.match(/โปรแกรมหาให้ ([−+]?[\d,]+) ms/) || [])[1]?.replace("−", "-").replace(",", ""));
+check("กดหาค่าดีเลย์ของพากย์ไทย (เลื่อนจริง 120 ms ชื่อไฟล์ DELAY -120ms) โปรแกรมหาได้ −120 ±10 ms ตรงกับค่าในชื่อไฟล์ เทียบ 3 ช่วงได้ค่าเดียวกัน ไม่ต้องตั้งความเร็ว",
+  gotRes && dres.startsWith("ok") && Math.abs(dnum + 120) <= 10 && dres.includes("ตรงกับค่าในชื่อไฟล์") && dres.includes("ไม่ต้องตั้งความเร็วเสียง"), dres.slice(0, 200));
+const lanes = await q("return [...document.querySelectorAll('[data-lane]')].map(cv => { const g = cv.getContext('2d'), d = g.getImageData(0, 0, cv.width, cv.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i + 2] > d[i] + 40 || d[i] < 230) n++; return n; })");
+check("คลื่นเสียงเดิมกับเสียงใหม่วาดซ้อนกันสองเลน มีคลื่นจริงทั้งคู่", lanes.length === 2 && lanes.every((n) => n > 2000), lanes.join(","));
+// ปุ่ม + สามครั้ง ดีเลย์บนจอเลื่อนตาม บอกว่าต่างจากที่โปรแกรมหาได้ · พิมพ์กลับ
+for (let i = 0; i < 3; i++) await c.evaluate("document.querySelector('[data-delay-dialog] [aria-label=\"เพิ่มดีเลย์ 10 ms\"]').click()");
+await sleep(250);
+const moved = await q("return document.querySelector('[data-dv]').innerText + ' · ' + (document.querySelector('[data-delay-moved]')?.innerText ?? '')");
+check("กดปุ่ม + สามครั้ง ดีเลย์บนเลนเสียงใหม่เปลี่ยนตาม บอกว่าต่างจากค่าที่โปรแกรมหาได้", moved.startsWith(String(dnum + 30).replace("-", "−")) && moved.includes("ต่างจากที่โปรแกรมหาได้"), moved.slice(0, 120));
+await c.evaluate(`(() => { const i = document.querySelector('[data-delay-num]'); i.focus(); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(i, ${JSON.stringify(String(dnum))}); i.dispatchEvent(new Event('input', { bubbles: true })); })()`);
+await sleep(80);
+await c.evaluate("document.querySelector('[data-delay-num]').dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true }))");
+await sleep(250);
+await shot("15-ตัวช่วยหาดีเลย์.png", "[role=dialog]", 8);
+// ลองฟัง 20 วินาที · รุ่นทดสอบทำไฟล์แต่ไม่เปิดโปรแกรมเล่น (ไม่ให้เด้งขึ้นจอ)
+await c.evaluate("window.__delayDry = true; document.querySelector('[data-delay-play]').click()");
+await waitFor("return !!document.querySelector('[data-delay-preview]')", 60000);
+const pfile = await q("return document.querySelector('[data-delay-preview]')?.dataset.file ?? ''");
+const pj = pfile ? ident(pfile) : {};
+const pt = (pj.tracks ?? []).map((t) => t.type + ":" + t.codec).join(",");
+const pdur = (pj.container?.properties?.duration ?? 0) / 1e9;
+check("ลองฟัง 20 วินาที ทำไฟล์ชั่วคราวในโฟลเดอร์ของโปรแกรม ภาพจากหนัง เสียงพากย์ไทยใส่ดีเลย์ ยาวราว 20 วินาที · ไฟล์หนังไม่ถูกแก้", pfile.includes("delay-preview-") && pt.startsWith("video:") && pt.includes("audio:AC-3") && !pt.includes("AAC") && pdur > 18 && pdur < 23 && sha(MOVIE) === h0, `${pt} · ${pdur.toFixed(1)} วินาที`);
+await c.evaluate("document.querySelector('[data-delay-use]').click()");
+await sleep(300);
+const rowDelay = await q(`return ${findRow("พากย์ไทย DELAY")}.querySelector('.avnum').value`);
+check("กดใช้ค่านี้ ช่องดีเลย์ของแถวพากย์ไทยเป็นค่าที่หาได้", rowDelay === String(dnum).replace("−", "-") || Number(rowDelay.replace("−", "-")) === dnum, rowDelay);
+// เสียง PAL 25 fps · เทียบตรง ๆ ไม่ติด ยืดแล้วตรง เสนอคู่ 25 → 23.976 · ปุ่มไปตั้งในแผงตั้งค่าเสียง
+await drop([join(AV, "ดาวตก (2024) PAL 25fps.ac3")]);
+await waitFor(`return !!${findRow("PAL 25fps")}`, 20000);
+await c.evaluate(`${findRow("PAL 25fps")}.click()`);
+await waitFor("return !!document.querySelector('[data-find-delay]')", 8000);
+await c.evaluate("document.querySelector('[data-find-delay]').click()");
+const gotPal = await waitFor("const r = document.querySelector('[data-delay-res]')?.dataset.delayRes; return r && r !== 'finding'", 60000);
+await waitFor("return !!document.querySelector('[data-lane=b]')", 20000);
+await sleep(400);
+const pres = await q("return document.querySelector('[data-delay-res]')?.dataset.delayRes + ' · ' + document.querySelector('[data-delay-res]')?.innerText.replace(/\\s+/g, ' ')");
+check("เสียง PAL 25 fps โปรแกรมบอกว่าเร็วไม่เท่าหนัง เสนอคู่ความเร็ว 25 → 23.976 บอกว่าเทียบตรง ๆ ตรงกันน้อย", gotPal && pres.startsWith("speed") && pres.includes("25 → 23.976") && pres.includes("แผ่นยุโรป PAL"), pres.slice(0, 200));
+await shot("16-ตัวช่วยหาดีเลย์-PAL.png", "[role=dialog]", 8);
+await c.evaluate("document.querySelector('[data-delay-speed]').click()");
+await waitFor("return !!document.querySelector('[data-codec-panel]')", 15000);
+await sleep(400);
+const spd = await q("return [...document.querySelectorAll('[data-codec-panel] [data-extra] .dd')].map(d => d.innerText).join('|')");
+check("กดปุ่มตั้งความเร็วในตัวช่วยหาดีเลย์ แผงตั้งค่าเสียงเปิดพร้อมความเร็ว 25 → 23.976", spd.includes("25 → 23.976"), spd);
+await clickTextAny("[role=dialog] button", "ยกเลิก");
+await sleep(300);
+await c.evaluate(`${findRow("PAL 25fps")}.querySelector('[data-remove]').click()`);
+await sleep(300);
+check("เอาไฟล์ PAL ที่ลากมาทดสอบออกแล้ว แถวกลับเป็นเหมือนเดิม", !(await q(`return !!${findRow("PAL 25fps")}`)) && !(await q("return !!document.querySelector('[data-codec-panel]')")));
+
 // ---------- แผงตั้งค่าเสียงแบบง่าย (ขั้น 4) · เสียงอังกฤษ AAC ในหนัง แปลงเป็น Opus เพิ่มคู่ ----------
 await c.evaluate(`${row(2)}.querySelector('[data-conv]').click()`);
 await waitFor("return !!document.querySelector('[data-codec-panel]') && document.querySelector('[data-cmd]').innerText.includes('opusenc')", 15000);

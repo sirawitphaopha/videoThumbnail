@@ -10,6 +10,7 @@ import Dialog from "../components/Dialog";
 import CropDialog, { type CropChoice } from "../components/CropDialog";
 import LangPicker from "../components/LangPicker";
 import CodecPanel from "../components/CodecPanel";
+import DelayDialog from "../components/DelayDialog";
 import { convertLabel } from "../lib/codecs";
 import ThaiInput from "../components/ThaiInput";
 import { CardIcon, Phr, Seg } from "../components/ui";
@@ -96,6 +97,9 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
   const [askStop, setAskStop] = useState(false);
   /** แถวที่เปิดแผงตั้งค่าเสียง · ตัวแปลงที่มี (อ่านครั้งแรกที่เปิดแผง) */
   const [codecFor, setCodecFor] = useState<string | null>(null);
+  /** ความเร็วเสียงที่ตัวช่วยหาดีเลย์เสนอ ส่งต่อให้แผงตั้งค่าเสียง */
+  const [codecSpeed, setCodecSpeed] = useState<string | null>(null);
+  const [delayFor, setDelayFor] = useState<string | null>(null);
   const [encs, setEncs] = useState<EncoderInfo[] | null>(null);
   const openCodec = (key: string) => { setCodecFor(key); if (!encs) encodeApi.status().then(setEncs, () => setEncs([])); };
   const output = (av.once.output ?? settings?.outputFormat ?? "mkv") as "mkv" | "mp4";
@@ -318,6 +322,8 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
   const pct = working && run.progress ? Math.round(run.progress.percent) : 0;
   const inLib = movie ? movies.find((m) => m.path.toLowerCase() === movie.path.toLowerCase()) : undefined;
   const selected = tracks.find((t) => t.key === sel) ?? null;
+  /** เสียงเดิมในหนังที่ใช้เทียบตอนหาดีเลย์ · เสียงแรกในหนังที่ยังเก็บไว้ */
+  const refAudio = tracks.find((t) => t.inMovie && t.kind === "audio" && t.keep) ?? tracks.find((t) => t.inMovie && t.kind === "audio") ?? null;
   const nth = (t: AvTrack) => tracks.filter((x) => x.inMovie && x.kind === t.kind && x.tid <= t.tid).length;
 
   // ---------- หน้าว่าง ----------
@@ -474,8 +480,11 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
               )}
               {selected.kind !== "video" && (
                 <div className="avfield"><span className="avlbl">ดีเลย์</span>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6 }}><DelayBox value={selected.delay} onChange={(v) => setDelay(selected.key, v)} label="แทร็กที่เลือก" wide off={working ? BUSY : undefined} />
-                    <span className="small">ms · ติดลบ = {KIND_WORD[selected.kind]}มาเร็วขึ้น</span></div>
+                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}><DelayBox value={selected.delay} onChange={(v) => setDelay(selected.key, v)} label="แทร็กที่เลือก" wide off={working ? BUSY : undefined} />
+                    <span className="small">ms · ติดลบ = {KIND_WORD[selected.kind]}มาเร็วขึ้น</span>
+                    {selected.kind === "audio" && !selected.inMovie && refAudio && (
+                      <button type="button" className={"btn btn-sm " + (working ? "btn-wait" : "btn-ghost")} aria-disabled={working || undefined} title={working ? BUSY : "เทียบคลื่นเสียงกับเสียงเดิมในหนัง"}
+                        onClick={() => { if (!working) setDelayFor(selected.key); }} data-find-delay>หาค่าดีเลย์</button>)}</div>
                   <span className="small">{selected.delayFromName != null ? <Phr>{`อ่านจากชื่อไฟล์ (คำว่า DELAY ${selected.delayFromName}ms) · แก้เองได้`}</Phr> : <Phr>ปุ่ม − + ทีละ 100 ms · กด Shift ค้างไว้ทีละ 10 ms · ใส่ได้ถึง ±600,000 ms (10 นาที)</Phr>}</span></div>
               )}
               {!selected.inMovie && (
@@ -521,7 +530,8 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
         {vtts.length > 0 && <div className="stat info" data-vttnote><CardIcon kind="info" /><div><b>ซับ VTT จะแปลงเป็น SRT ก่อนรวม</b><Phr>{`${vtts.map((t) => baseName(t.src)).join(" · ")} · โปรแกรมเล่นหลายตัวยังไม่รู้จัก VTT ที่อยู่ใน MKV · ข้อความกับเวลาเหมือนเดิม`}</Phr></div></div>}
         {longer.map((t) => (
           <div key={t.key} className="stat warn" data-longer><CardIcon kind="warn" /><div><b>{baseName(t.src)} {t.longerBy! > 0 ? "ยาวกว่า" : "สั้นกว่า"}หนัง {fmtDuration(Math.abs(t.longerBy!))}</b>
-            <Phr>อาจเป็นเสียงของหนังคนละรุ่น ลองตั้งความเร็วเสียง หรือตรวจว่าเลือกไฟล์ถูก · ไม่ห้าม แค่บอก</Phr></div></div>
+            <Phr>อาจเป็นเสียงของหนังคนละรุ่น ลองตั้งความเร็วเสียง หรือตรวจว่าเลือกไฟล์ถูก · ไม่ห้าม แค่บอก</Phr>
+            {t.kind === "audio" && refAudio && <div style={{ marginTop: 6 }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => { if (!working) setDelayFor(t.key); }} data-longer-check>ให้โปรแกรมเทียบเสียงกับหนัง</button></div>}</div></div>
         ))}
 
         {/* สถานะงาน */}
@@ -536,8 +546,12 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
       </div>
 
       {codecFor && (() => { const ct = tracks.find((t) => t.key === codecFor); return ct ? (
-        <CodecPanel track={ct} encoders={encs} onClose={() => setCodecFor(null)}
-          onApply={(convert, pair, convName) => { patch(ct.key, { convert, pair, convName }); setCodecFor(null); }} />) : null; })()}
+        <CodecPanel track={ct} encoders={encs} speed={codecSpeed} onClose={() => { setCodecFor(null); setCodecSpeed(null); }}
+          onApply={(convert, pair, convName) => { patch(ct.key, { convert, pair, convName }); setCodecFor(null); setCodecSpeed(null); }} />) : null; })()}
+      {delayFor && refAudio && (() => { const dt = tracks.find((t) => t.key === delayFor); return dt ? (
+        <DelayDialog movie={{ path: movie.path, duration: movie.duration ?? null }} refTrack={refAudio} track={dt} onClose={() => setDelayFor(null)}
+          onApply={(d) => { setDelay(dt.key, d); setDelayFor(null); }}
+          onSpeed={(pair) => { setDelayFor(null); setCodecSpeed(pair.join(">")); openCodec(dt.key); }} />) : null; })()}
       {crop && (
         <CropDialog info={crop.info} start={crop.start} target={crop.slot} defaultFormat={(settings?.posterFormat ?? "jpg") as "jpg" | "png"} defaultQuality={settings?.jpgQuality ?? 90}
           onCancel={() => setCrop(null)}

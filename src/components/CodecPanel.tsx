@@ -103,6 +103,8 @@ export default function CodecPanel(p: {
   encoders: EncoderInfo[] | null;
   onApply: (convert: EncodeSpec | null, pair: boolean, convName: string) => void;
   onClose: () => void;
+  /** ความเร็วเสียงตั้งต้น เช่น 25>23.976 จากตัวช่วยหาดีเลย์ · ไม่ส่ง = ตามค่าที่ตั้งไว้ของแทร็ก */
+  speed?: string | null;
 }) {
   const t = p.track;
   const srcCh = t.channels;
@@ -132,7 +134,7 @@ export default function CodecPanel(p: {
   /** ใช้กับทุกชนิด (มอคอัป GAIN LOUD กับความเร็วเสียง) */
   const [gain, setGain] = useState<number>(t.convert?.gain ?? 0);
   const [loud, setLoud] = useState<boolean>(t.convert?.loudnorm ?? false);
-  const [speed, setSpeed] = useState<string>(t.convert?.speed ? t.convert.speed.join(">") : "");
+  const [speed, setSpeed] = useState<string>(p.speed ?? (t.convert?.speed ? t.convert.speed.join(">") : ""));
 
   // เปลี่ยนชนิด · ค่าของชนิดเดิมไม่ติดมา (form-input สลับประเภทต้องล้างค่าเก่าจริง) · ใช้ค่าที่จำไว้ของชนิดนั้นถ้ามี
   const pickCodec = (id: Codec["id"]) => {

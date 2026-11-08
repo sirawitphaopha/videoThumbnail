@@ -763,6 +763,19 @@ fn pick_player(file: &Path) -> Option<PathBuf> {
     crate::winutil::default_app_for(&ext).filter(|p| seek_args(p, file, 0.0).is_some()).or_else(find_player)
 }
 
+/// โปรแกรมเล่นที่จะใช้เปิดไฟล์ · ตั้งไว้ในหน้าตั้งค่าใช้ตัวนั้น ไม่ได้ตั้งหาเองในเครื่อง (pick_player) · None = ใช้โปรแกรมหลักของ Windows
+/// ใช้ร่วมกับปุ่มลองฟัง 20 วินาทีของตัวช่วยหาดีเลย์ (delay.rs)
+pub fn player_for(app: &AppHandle, file: &Path) -> Result<Option<PathBuf>, String> {
+    let set = app.state::<SettingsStore>().current.lock().unwrap().player_path.clone();
+    if set.trim().is_empty() {
+        Ok(pick_player(file))
+    } else if Path::new(&set).exists() {
+        Ok(Some(PathBuf::from(&set)))
+    } else {
+        Err(format!("หาโปรแกรมเล่นหนัง {set} ไม่เจอ · ตั้งใหม่ได้ที่หน้าตั้งค่า"))
+    }
+}
+
 /// เปิดเล่นที่นาทีที่เสีย · ใช้โปรแกรมที่ตั้งไว้ ไม่ได้ตั้งหาเองในเครื่อง (pick_player) ไม่เจอเปิดด้วยโปรแกรมหลักของ Windows (เปิดตรงนาทีไม่ได้)
 #[tauri::command]
 pub fn play_at(app: AppHandle, path: String, secs: f64) -> Result<PlayResult, String> {
@@ -770,14 +783,7 @@ pub fn play_at(app: AppHandle, path: String, secs: f64) -> Result<PlayResult, St
     if !file.exists() {
         return Err("หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่".into());
     }
-    let set = app.state::<SettingsStore>().current.lock().unwrap().player_path.clone();
-    let player = if set.trim().is_empty() {
-        pick_player(file)
-    } else if Path::new(&set).exists() {
-        Some(PathBuf::from(&set))
-    } else {
-        return Err(format!("หาโปรแกรมเล่นหนัง {set} ไม่เจอ · ตั้งใหม่ได้ที่หน้าตั้งค่า"));
-    };
+    let player = player_for(&app, file)?;
     let Some(exe) = player else {
         use tauri_plugin_opener::OpenerExt;
         app.opener().open_path(path, None::<&str>).map_err(|e| format!("เปิดเล่นไม่ได้: {e}"))?;

@@ -149,6 +149,19 @@ export type MergeReq = { movie: string; tracks: MergeTrack[]; covers: { portrait
 export type MergeResult = { mode: "mkv" | "mp4"; output: string; counts: Counts; verified: boolean; original: "kept" | "trash" | "none"; originalTo: string | null; notes: string[] };
 export type CoverPreview = { preview: string; width: number; height: number; bytes: number };
 
+/* ตัวช่วยหาดีเลย์ (แผนเสียงและซับ ขั้น 5 · delay.rs) · ดีเลย์เป็น ms ค่าที่ใส่ให้เสียงใหม่ ติดลบ = มาเร็วขึ้น */
+export type DelayWin = { at: number; delay: number; score: number };
+export type DelayFound = { delay: number; score: number; windows: DelayWin[]; speed: [number, number] | null; direct: number; uneven: boolean };
+export type DelayView = { a: number[]; b: number[]; cps: number; at: number; len: number; margin: number };
+export type DelayPreview = { file: string; player: string; cmd: string; opened: boolean };
+export const delayApi = {
+  find: (movie: string, movieStream: number, file: string, fileStream: number) => call<DelayFound>("delay_find", { movie, movieStream, file, fileStream }),
+  view: (movie: string, movieStream: number, file: string, fileStream: number, at: number, len: number, margin: number, speed: [number, number] | null, cols: number) =>
+    call<DelayView>("delay_view", { movie, movieStream, file, fileStream, at, len, margin, speed, cols }),
+  /** dry มีผลเฉพาะรุ่นทดสอบ ทำไฟล์แต่ไม่เปิดโปรแกรมเล่น */
+  preview: (movie: string, file: string, tid: number, delay: number, at: number, dry?: boolean) => call<DelayPreview>("delay_preview", { movie, file, tid, delay, at, dry: dry ?? null }),
+};
+
 export const mergeApi = {
   inspect: (path: string) => call<MergeMovie>("merge_inspect", { path }),
   addFile: (path: string, movieDuration: number | null) => call<AddedFile>("merge_add_file", { path, movieDuration }),
