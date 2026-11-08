@@ -116,6 +116,63 @@ tr.none td{background:#fff7f7}
 .mvrow.done{background:var(--ok-soft);border-color:#bfe6cf}
 .ghost{position:absolute;pointer-events:none;opacity:.9;transform:rotate(-4deg)}
 .search{display:flex;align-items:center;gap:8px;background:#fff;border:1px solid var(--line);border-radius:9px;height:36px;padding:0 12px;color:var(--txt3);font-size:14px}
+/* ที่อยู่โฟลเดอร์บนหัวแผง กับปุ่มสลับมุมมอง (พี่กันสั่ง 8 พ.ย. 2569) */
+.pathline{display:flex;align-items:center;gap:7px;background:#fff;border:1px solid var(--line);border-radius:8px;padding:6px 10px;margin:-2px 0 10px;font-size:13px;color:var(--txt2);min-width:0}
+.pathline svg{flex:none;color:var(--accent-ink)}
+.pathline b{font-family:Consolas,monospace;font-weight:600;color:var(--txt);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;min-width:0}
+.pathline .small{margin-left:auto;white-space:nowrap;padding-left:8px}
+/* เพิ่มโฟลเดอร์ได้เรื่อย ๆ แถวยาวลงมาตามจำนวน (พี่กันสั่ง 8 พ.ย. 2569) */
+.folders{display:flex;flex-direction:column;gap:6px;margin:-2px 0 10px}
+.folders .pathline{margin:0}
+.pathline .x{margin-left:10px;color:var(--txt3);font-size:16px;line-height:1;cursor:pointer}
+.addfolder{display:flex;align-items:center;gap:8px;border:1.5px dashed #eeb3c8;border-radius:8px;padding:5px 10px;font-size:13px;font-weight:600;color:var(--accent-ink);background:#fff8fb}
+.addfolder span{font-weight:400;color:var(--txt3)}
+.seg.view span{cursor:pointer;padding:4px 11px;font-size:13px;font-weight:400}
+.seg.view span.on{font-weight:600}
+.card.only .ic{padding:5px;background:transparent;border-color:transparent}
+.card.only .ic.sel{border-color:var(--accent)}
+.card.only .ic .fn{display:none}
+.card.only .ic .pp.tall{width:100%;height:auto;aspect-ratio:2/3}
+.card.only .ic .pp.wide{width:100%;height:auto;aspect-ratio:16/9;margin:auto 0}
+.mvgrid{display:none;grid-template-columns:repeat(4,1fr);gap:10px}
+.card.only .mvlist{display:none}
+.card.only .mvgrid{display:grid}
+.mt{position:relative}
+.mt .slot{width:100%;aspect-ratio:2/3;border-radius:8px;box-sizing:border-box;display:flex;flex-direction:column;justify-content:flex-end;padding:8px}
+.mt .slot.none{background:repeating-linear-gradient(135deg,#fff 0 8px,#fdf0f5 8px 16px);border:2px dashed #eeb3c8;justify-content:center;align-items:center;text-align:center;gap:2px}
+.mt .slot.none b{font-size:13px;line-height:1.3;color:var(--txt)}
+.mt .slot.none span{font-size:12px;color:var(--txt3)}
+.mt .slot em{font-style:normal;font-size:11.5px;line-height:1.35;color:var(--accent-ink);margin-top:4px}
+.mt.target .slot{border:2px dashed var(--accent);background:#fdeaf1}
+.mt.done .slot{outline:3px solid #9fd8b8;outline-offset:2px}
+.mt .undo{position:absolute;top:6px;right:6px}
+/* จับคู่บนกระดานแล้วยังไม่บันทึก ส่งไปรอยืนยันที่ตารางตรวจผล (พี่กันสั่ง 8 พ.ย. 2569) */
+.mvrow.sent{background:var(--info-soft);border-color:#bcd3f0}
+.mt.sent .slot{outline:3px solid #a9c6ec;outline-offset:2px}
+.flow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;margin-top:14px;background:#fff;border:1px solid var(--line);border-radius:12px;padding:14px 18px;font-size:14px}
+.flow .fx{display:flex;flex-direction:column;gap:5px}
+.flow .fx span{background:#fdeaf1;border-radius:8px;padding:3px 10px;font-size:13px;color:var(--txt2);white-space:nowrap}
+.flow .to{color:var(--txt3);font-size:22px}
+.flow .hub{background:#f6b3cb;color:#7a2346;font-weight:700;border-radius:10px;padding:8px 16px;text-align:center;line-height:1.45}
+.flow .hub small{display:block;font-weight:400;font-size:12.5px}
+.flow .end{background:var(--ok-soft);color:var(--ok-ink);font-weight:600;border-radius:10px;padding:8px 14px;line-height:1.45;text-align:center}
+.flow .end small{display:block;font-weight:400;font-size:12.5px}
+/* ลากรูปจาก Explorer มาวางบนหนัง */
+.desk{position:relative;display:grid;grid-template-columns:400px 1fr;gap:28px;align-items:start;background:linear-gradient(135deg,#eef3f8,#f7eef3);border-radius:14px;padding:22px}
+.exp{background:#fff;border:1px solid #d6dbe1;border-radius:8px;box-shadow:0 10px 26px rgba(60,80,110,.16);overflow:hidden;color:#1f1f1f}
+.exp .xbar{height:32px;display:flex;align-items:center;justify-content:space-between;padding-left:12px;background:#f3f3f3;font-size:12.5px}
+.exp .xbar .ctl{display:flex}
+.exp .xbar .ctl span{width:40px;text-align:center}
+.exp .addr{margin:8px 10px 4px;border:1px solid #d6dbe1;border-radius:5px;padding:4px 10px;font-size:12.5px;font-family:Consolas,monospace;background:#fafafa}
+.exp .files{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;padding:8px 12px 14px}
+.ef{display:flex;flex-direction:column;align-items:center;gap:5px;padding:6px 4px;border-radius:4px;font-size:11.5px;text-align:center;overflow-wrap:anywhere;color:#1f1f1f}
+.ef .pp.tall{width:58px;height:86px}
+.ef .pp.wide{width:92px;height:52px;margin:17px 0}
+.ef.sel{background:#cce8ff;outline:1px solid #99d1ff}
+.ef.drag .pp{opacity:.5}
+.dragx{position:absolute;pointer-events:none;z-index:6;display:flex;flex-direction:column;align-items:flex-start;gap:4px}
+.dragx .pp{transform:rotate(-4deg);opacity:.92}
+.dragx .badge{background:#fff;border:1px solid #c8c8c8;border-radius:3px;font-size:11.5px;padding:1px 6px;color:#1f1f1f;box-shadow:0 2px 4px rgba(0,0,0,.12);white-space:nowrap}
 /* ครอป */
 .crop{display:grid;grid-template-columns:1fr 300px;gap:18px}
 .stage{background:#2b1d24;border-radius:12px;height:430px;position:relative;overflow:hidden;display:flex;align-items:center;justify-content:center}
@@ -137,7 +194,8 @@ tr.none td{background:#fff7f7}
 .cover{width:100px;height:150px;border-radius:6px;position:relative;overflow:hidden;box-shadow:0 6px 12px rgba(150,70,100,.25);display:flex;flex-direction:column;justify-content:flex-end;padding:9px;color:#fff}
 .cover .t{font-weight:700;font-size:14px;line-height:1.35;text-shadow:0 1px 4px rgba(0,0,0,.45)}
 .book.sel .cover{outline:3px solid var(--accent);outline-offset:3px}
-.linkb{position:absolute;top:6px;left:6px;width:22px;height:22px;border-radius:50%;background:#fff;display:flex;align-items:center;justify-content:center;box-shadow:0 1px 4px rgba(0,0,0,.2)}
+.linkb{display:inline-flex;align-items:center;justify-content:center;width:18px;height:18px;border-radius:50%;background:#fdeaf1;vertical-align:-4px;margin-right:4px}
+.linkb svg{width:11px;height:11px}
 .bname{font-size:12px;color:var(--txt2);margin-top:22px;line-height:1.5;min-height:36px}
 .detail{width:300px;flex:none;background:var(--win2);border-left:1px solid var(--line);padding:18px;display:flex;flex-direction:column;gap:12px}
 .dposter{width:140px;height:210px;border-radius:8px;margin:0 auto;box-shadow:0 8px 18px rgba(150,70,100,.3);display:flex;flex-direction:column;justify-content:flex-end;padding:12px;color:#fff;position:relative}
@@ -166,21 +224,30 @@ tr.none td{background:#fff7f7}
   <p class="lead">มอคอัป 8 พ.ย. 2569 · พี่กันสั่ง <i>"แม้โปสเตอร์และวิดีโอจะอยู่คนละที่ แต่โปรแกรมจะจับคู่กันได้ โดยไม่ต้อง merge · ภาพที่เอามาจับคู่ดัดแปลง ครอป บิด ได้หมดเหมือนที่จะรวมกับรูป · อยากได้วิธีกดที่ง่าย สมมุติมีหนัง 100 เรื่องกับรูป 100 รูป"</i></p>
   <p class="lead">ไฟล์หนังไม่ถูกแตะเลย ไม่ต้องรอครอบ ไม่ใช้ที่ว่างเพิ่ม ใช้ได้กับไฟล์ทุกชนิด รวมถึง MP4 AVI ที่ใส่ปกในไฟล์ยาก · วันไหนอยากรวมเข้าไฟล์จริง กดรวมจากรูปที่จับคู่ไว้ได้เลย</p>
   <p class="lead"><b>พี่กันเคาะครบ 5 ข้อแล้ว 8 พ.ย. 2569</b> · มอคอัปแก้ตามคำเคาะแล้ว (หน้า 2 ตาราง · หน้ากันเผลอปิด · หน้า 5 ชั้นวาง · หน้าตั้งค่า · หน้าสรุป)</p>
+  <p class="lead"><b>พี่กันสั่งเพิ่มหลังเปิดดูในโครม 8 พ.ย. 2569</b> · ทุกวิธีจับคู่มาจบที่ตารางตรวจผล ครอป เปลี่ยนรูป ยืนยันที่นั่นที่เดียว และมีปุ่มยืนยันทั้งหมด · ลากรูปจากโฟลเดอร์ข้างนอก (Explorer) มาวางบนหนังได้ตรง ๆ · กระดานขึ้นที่อยู่โฟลเดอร์ และสลับดูแบบรายการกับแค่รูป</p>
 
   <!-- ===================== ข้อเสนอ 3 ทาง ===================== -->
   <section class="sec" id="ways">
-    <h2><span class="tag">ข้อเสนอ</span>จับคู่ได้ 3 ทาง เรียงจากเร็วที่สุด</h2>
-    <p class="note">หนัง 100 เรื่องกับรูป 100 รูป ส่วนใหญ่จบที่ทางที่ 1 ภายในกดปุ่มเดียว · ที่เหลือไม่กี่เรื่องจบที่ทางที่ 2 · ทางที่ 3 ไว้เปลี่ยนรูปทีละเรื่องตอนดูชั้นวาง</p>
+    <h2><span class="tag">ข้อเสนอ</span>จับคู่ได้ 3 ทาง ทุกทางมาจบที่ตารางตรวจผล</h2>
+    <p class="note">หนัง 100 เรื่องกับรูป 100 รูป ส่วนใหญ่จบที่ทางที่ 1 ภายในกดปุ่มเดียว · ที่เหลือไม่กี่เรื่องจบที่ทางที่ 2 · ทางที่ 3 ไว้เปลี่ยนรูปทีละเรื่องตอนดูชั้นวาง · จับคู่ด้วยทางไหนก็ยังไม่บันทึก ทุกคู่ไปรอที่ตารางตรวจผล ครอป เปลี่ยนรูป ยืนยันที่นั่น (พี่กันสั่ง)</p>
     <div class="ways">
       <div class="way"><h4><span class="step">1</span>ลากรูปทั้งโฟลเดอร์มา โปรแกรมจับคู่ให้</h4>
         <div class="when">หนังหลายเรื่อง รูปหลายรูปพร้อมกัน</div>
-        <div class="small" style="font-size:13.5px;color:var(--txt2)">ลากโฟลเดอร์รูปมาวาง โปรแกรมเทียบชื่อรูปกับชื่อหนังบนชั้นวาง (ตัดปี ความละเอียด ชื่อทีมทำไฟล์ ออกก่อนเทียบ) แล้วขึ้นตารางให้ตรวจ · คู่ที่ชื่อกับปีตรงกันติ๊กไว้ให้ ยืนยันทีละเรื่องหรือทีเดียวหลายเรื่อง</div></div>
+        <div class="small" style="font-size:13.5px;color:var(--txt2)">ลากโฟลเดอร์รูปมาวาง โปรแกรมเทียบชื่อรูปกับชื่อหนังบนชั้นวาง (ตัดปี ความละเอียด ชื่อทีมทำไฟล์ ออกก่อนเทียบ) แล้วขึ้นตารางให้ตรวจ · คู่ที่ชื่อกับปีตรงกันติ๊กไว้ให้</div></div>
       <div class="way"><h4><span class="step">2</span>กระดานจับคู่ ลากรูปไปวางบนหนัง</h4>
         <div class="when">คู่ที่โปรแกรมไม่แน่ใจหรือหาไม่เจอ</div>
-        <div class="small" style="font-size:13.5px;color:var(--txt2)">รูปที่เหลืออยู่ซ้าย หนังที่ยังไม่มีปกอยู่ขวา · ลากรูปไปวางบนหนัง หรือกดรูปแล้วกดหนัง สองคลิกจบ · ค้นชื่อหนังได้ จับคู่แล้วแถวหายไปจากกระดาน เหลือแต่ที่ยังไม่เสร็จ</div></div>
+        <div class="small" style="font-size:13.5px;color:var(--txt2)">รูปที่เหลืออยู่ซ้าย หนังที่ยังไม่มีปกอยู่ขวา · ลากรูปไปวางบนหนัง หรือกดรูปแล้วกดหนัง สองคลิกจบ · ลากรูปจาก Explorer มาวางบนหนังตรง ๆ ก็ได้ · จับคู่แล้วส่งไปรอยืนยันที่ตาราง</div></div>
       <div class="way"><h4><span class="step">3</span>ทีละเรื่องจากชั้นวาง</h4>
         <div class="when">เปลี่ยนปกเรื่องเดียว</div>
-        <div class="small" style="font-size:13.5px;color:var(--txt2)">แผงขวาของชั้นวางมีปุ่ม จับคู่รูปปก ลากรูปมาวางหรือเลือกรูป แล้วเปิดหน้าครอปเดิม · เรื่องที่จับคู่ไว้แล้ว กดครอปใหม่หรือเปลี่ยนรูปได้ตลอด</div></div>
+        <div class="small" style="font-size:13.5px;color:var(--txt2)">แผงขวาของชั้นวางมีปุ่ม จับคู่รูปปก ครอปใหม่ เปลี่ยนรูป · กดแล้วเปิดตารางตรวจผลที่แถวของเรื่องนั้น ลากรูปมาวางบนแถวหรือเลือกรูป ครอป แล้วยืนยัน</div></div>
+    </div>
+    <div class="flow">
+      <div class="fx"><span>1 ลากโฟลเดอร์ โปรแกรมจับคู่ให้</span><span>2 กระดาน · ลากจาก Explorer</span><span>3 ปุ่มบนชั้นวาง</span></div>
+      <span class="to">→</span>
+      <div class="hub">ตารางตรวจผล<small>เปลี่ยนรูป · ครอป · ยืนยัน</small><small>ทีละเรื่อง · ที่ติ๊กไว้ · ทั้งหมด</small></div>
+      <span class="to">→</span>
+      <div class="end">ขึ้นชั้นวาง<small>ยืนยันแล้วเท่านั้น</small></div>
+      <span class="small" style="flex:1;min-width:220px">ก่อนยืนยันยังไม่มีอะไรถูกบันทึก ไม่มีไฟล์ถูกคัดลอก · คู่ที่รอยืนยันโปรแกรมจำไว้ ปิดแล้วเปิดมาทำต่อได้</span>
     </div>
   </section>
 
@@ -221,12 +288,12 @@ tr.none td{background:#fff7f7}
 
   <!-- ===================== หน้า 2 ตารางตรวจผล ===================== -->
   <section class="sec" id="s2">
-    <h2><span class="tag">หน้า 2</span>ตารางตรวจผลจับคู่ · ยืนยันทีละเรื่อง หรือทีเดียวหลายเรื่อง</h2>
-    <p class="note">ต้องกดยืนยันก่อนเสมอ (พี่กันเคาะข้อ 3) · กดยืนยันในแถวทีละเรื่อง หรือติ๊กไว้หลายเรื่องแล้วกดยืนยันทีเดียวท้ายตาราง · คู่ที่ติ๊กไว้แต่ยังไม่ยืนยันโปรแกรมจำไว้ ปิดแล้วเปิดมาทำต่อได้ · คู่ที่ไม่แน่ใจขึ้นสีเหลือง มีรูปใกล้เคียง 3 รูปให้กด · หาไม่เจอขึ้นสีแดง ไปต่อที่กระดาน</p>
+    <h2><span class="tag">หน้า 2</span>ตารางตรวจผลจับคู่ · ทุกวิธีจับคู่มาจบที่นี่ · ยืนยันทีละเรื่อง ที่ติ๊กไว้ หรือทั้งหมด</h2>
+    <p class="note">ต้องกดยืนยันก่อนเสมอ (พี่กันเคาะข้อ 3) · คู่จากทุกวิธีมารอที่นี่ จับคู่อัตโนมัติ กระดาน ลากจาก Explorer ปุ่มบนชั้นวาง ช่องเหตุที่จับคู่บอกว่ามาจากทางไหน <span style="white-space:nowrap">(พี่กันสั่ง)</span> · ครอป เปลี่ยนรูป ยืนยัน ทำที่นี่ · ยืนยันในแถวทีละเรื่อง ติ๊กไว้แล้วยืนยันที่ติ๊ก หรือยืนยันทั้งหมดทีเดียว · คู่ที่ยังไม่ยืนยันโปรแกรมจำไว้ ปิดแล้วเปิดมาทำต่อได้ · ไม่แน่ใจขึ้นสีเหลือง มีรูปใกล้เคียง 3 รูปให้กด · หาไม่เจอขึ้นสีแดง ไปต่อที่กระดาน · ลากรูปจาก Explorer มาวางบนแถวไหน ใช้แทนรูปของแถวนั้น</p>
     <div class="win">
       <div class="titlebar"><span>ชั้นหนัง · จับคู่ปก</span><span class="ctl"><span>–</span><span>□</span><span>×</span></span></div>
       <div class="wrapin">
-        <div class="foot"><div class="tabs"><span class="on">ทั้งหมด 104</span><span>จับคู่ได้แน่ 92</span><span>ไม่แน่ใจ 7</span><span>หาคู่ไม่เจอ 5</span></div>
+        <div class="foot"><div class="tabs"><span class="on">ทั้งหมด 104</span><span>จับคู่ได้แน่ 92</span><span>จับคู่เอง 3</span><span>ไม่แน่ใจ 7</span><span>หาคู่ไม่เจอ 2</span></div>
           <div class="search" style="width:240px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>ค้นชื่อหนังหรือชื่อรูป</div></div>
         <div class="tblwrap"><table>
           <thead><tr><th style="width:36px"></th><th>หนังบนชั้นวาง</th><th style="width:30px"></th><th>รูปที่โปรแกรมเลือกให้</th><th style="width:170px">เหตุที่จับคู่</th><th style="width:236px"></th></tr></thead>
@@ -249,11 +316,23 @@ tr.none td{background:#fff7f7}
               <td><div class="pick"><span class="pp tall g3"><span class="t">ฝนสุดท้าย</span></span><div><span class="fn">folder.jpg (อยู่ในโฟลเดอร์เดียวกับหนัง)</span><br><span class="small">680 × 1000 · ปกตั้ง</span></div></div></td>
               <td><span class="pill p-ok">รูปอยู่ข้างไฟล์หนัง</span></td>
               <td class="acts"><span class="btn btn-ghost btn-xs">ครอป</span> <span class="btn btn-ghost btn-xs">เปลี่ยนรูป</span> <span class="btn btn-ok btn-xs">ยืนยัน</span></td></tr>
-            <tr><td><span class="cbx on"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></td>
+            <tr><td><span class="cbx off"></span></td>
               <td><div class="pick"><span class="pp tall none">ไม่มีปก</span><div class="mv"><b>Silent Orbit (2018)</b><span class="fn">Silent.Orbit.2018.mkv</span></div></div></td>
               <td class="arrow">→</td>
               <td><div class="pick"><span class="pp wide g5"><span class="t">Silent Orbit</span></span><div><span class="fn">silent-orbit-backdrop.jpg</span><br><span class="small">1920 × 1080 · ปกนอน</span><br><span class="small">ครอปเป็นปกตั้งให้แล้ว</span></div></div></td>
               <td><span class="pill p-ok">ชื่อตรง ไม่มีปีในชื่อรูป</span></td>
+              <td class="acts"><span class="btn btn-ghost btn-xs">ครอป</span> <span class="btn btn-ghost btn-xs">เปลี่ยนรูป</span> <span class="btn btn-ok btn-xs">ยืนยัน</span></td></tr>
+            <tr><td><span class="cbx on"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></td>
+              <td><div class="pick"><span class="pp tall none">ไม่มีปก</span><div class="mv"><b>Copper Sky (2014)</b><span class="fn">Copper.Sky.2014.mp4</span></div></div></td>
+              <td class="arrow">→</td>
+              <td><div class="pick"><span class="pp tall g4"><span class="t">Copper</span></span><div><span class="fn">IMG_2031.jpg</span><br><span class="small">D:\โปสเตอร์ · 1200 × 1800 · ปกตั้ง</span></div></div></td>
+              <td><span class="pill p-info">จับคู่เองบนกระดาน</span></td>
+              <td class="acts"><span class="btn btn-ghost btn-xs">ครอป</span> <span class="btn btn-ghost btn-xs">เปลี่ยนรูป</span> <span class="btn btn-ok btn-xs">ยืนยัน</span></td></tr>
+            <tr><td><span class="cbx on"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span></td>
+              <td><div class="pick"><span class="pp tall none">ไม่มีปก</span><div class="mv"><b>Ember (2022)</b><span class="fn">Ember.2022.WEB.mkv</span></div></div></td>
+              <td class="arrow">→</td>
+              <td><div class="pick"><span class="pp tall g5"><span class="t">Ember</span></span><div><span class="fn">ember-poster-hd.jpg</span><br><span class="small">D:\ดาวน์โหลด · 2000 × 3000 · ปกตั้ง</span></div></div></td>
+              <td><span class="pill p-info">ลากจาก Explorer</span></td>
               <td class="acts"><span class="btn btn-ghost btn-xs">ครอป</span> <span class="btn btn-ghost btn-xs">เปลี่ยนรูป</span> <span class="btn btn-ok btn-xs">ยืนยัน</span></td></tr>
             <tr class="unsure"><td><span class="cbx off"></span></td>
               <td><div class="pick"><span class="pp tall none">ไม่มีปก</span><div class="mv"><b>เมืองในหมอก (2015)</b><span class="fn">Mueang.Nai.Mok.2015.mkv</span></div></div></td>
@@ -270,8 +349,8 @@ tr.none td{background:#fff7f7}
               <td><span class="btn btn-ghost btn-xs">ไปกระดาน</span></td></tr>
           </tbody>
         </table></div>
-        <div class="foot"><span class="small">บันทึกแล้ว 1 คู่ · ติ๊กไว้ยังไม่ยืนยัน 91 คู่ (โปรแกรมจำไว้ ปิดแล้วเปิดมาทำต่อได้) · รูปต้นฉบับไม่ถูกแก้ ไฟล์หนังไม่ถูกแตะ · ยืนยันแล้วยังเปลี่ยนหรือเอาออกได้</span>
-          <span class="row"><span class="btn btn-ghost">ไปกระดานจับคู่ (12 ที่เหลือ)</span><span class="btn btn-main">ยืนยัน 91 คู่ที่ติ๊กไว้</span></span></div>
+        <div class="foot"><span class="small">บันทึกแล้ว 1 คู่ · รอยืนยัน 94 คู่ ติ๊กไว้ 93 คู่ (โปรแกรมจำไว้ ปิดแล้วเปิดมาทำต่อได้) · ยืนยันทั้งหมด ไม่รวมแถวไม่แน่ใจที่ยังไม่ได้กดเลือกรูป กับแถวที่หาคู่ไม่เจอ · รูปต้นฉบับไม่ถูกแก้ ไฟล์หนังไม่ถูกแตะ</span>
+          <span class="row" style="flex-wrap:nowrap"><span class="btn btn-ghost">ไปกระดาน (9 ที่เหลือ)</span><span class="btn btn-ghost">ยืนยัน 93 คู่ที่ติ๊กไว้</span><span class="btn btn-main">ยืนยันทั้งหมด 94 คู่</span></span></div>
       </div>
     </div>
     <div class="explain" style="margin-top:14px"><b>โปรแกรมเทียบชื่อยังไง</b>
@@ -288,13 +367,18 @@ tr.none td{background:#fff7f7}
   <!-- ===================== หน้า 3 กระดานจับคู่ ===================== -->
   <section class="sec" id="s3">
     <h2><span class="tag">หน้า 3</span>กระดานจับคู่ · ลากรูปไปวางบนหนัง หรือกดรูปแล้วกดหนัง</h2>
-    <p class="note">เหลือแต่คู่ที่ยังไม่เสร็จ · กดรูปซ้ายหนึ่งครั้ง (กรอบชมพู) แล้วกดหนังขวา จบใน 2 คลิก · หรือลากรูปไปวางบนหนัง · จับคู่แล้วแถวเขียวสักครู่แล้วหายจากกระดาน · กดย้อนได้</p>
+    <p class="note">เหลือแต่คู่ที่ยังไม่เสร็จ · กดรูปซ้ายหนึ่งครั้ง (กรอบชมพู) แล้วกดหนังขวา จบใน 2 คลิก · หรือลากรูปไปวางบนหนัง · จับคู่แล้วยังไม่บันทึก แถวขึ้นสีฟ้าว่าส่งไปรอยืนยันที่ตารางตรวจผล สักครู่แล้วหายจากกระดาน กดย้อนได้ · ลากรูปจาก Explorer มาวางบนหนังตรง ๆ ก็ได้ (หน้าถัดไป) · หัวแผงเป็นรายการโฟลเดอร์ที่เลือกมา เพิ่มได้เรื่อย ๆ แถวยาวลงมาตามจำนวน กดกากบาทเอาออก · แถวหนังบอกว่าอยู่โฟลเดอร์ไหน เพราะหนังกระจายหลายไดรฟ์ · สลับดูแบบรายการกับแค่รูปได้ทั้งสองฝั่ง ชี้ที่รูปเห็นชื่อไฟล์ (พี่กันสั่ง · ในมอคอัปนี้กดสลับได้จริง) · เพิ่มโฟลเดอร์หนังตรงนี้ หนังในโฟลเดอร์นั้นขึ้นชั้นวางด้วย (แคลร์ตั้ง)</p>
     <div class="win">
       <div class="titlebar"><span>ชั้นหนัง · จับคู่ปก · กระดาน</span><span class="ctl"><span>–</span><span>□</span><span>×</span></span></div>
       <div class="wrapin">
         <div class="board">
           <div class="card" style="position:relative">
-            <h3 style="justify-content:space-between"><span>รูปที่ยังไม่ได้ใช้ · 12 รูป</span><span class="small" style="font-weight:400">เรียงตามชื่อ · ลากรูปเพิ่มมาวางได้</span></h3>
+            <h3 style="justify-content:space-between"><span>รูปที่ยังไม่ได้ใช้ · 12 รูป</span><span class="seg view"><span class="on" data-v="list">มีชื่อไฟล์</span><span data-v="only">แค่รูป</span></span></h3>
+            <div class="folders">
+              <div class="pathline"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><b>D:\โปสเตอร์</b><span class="small">104 รูป</span><span class="x" title="เอาโฟลเดอร์นี้ออกจากกระดาน">×</span></div>
+              <div class="pathline"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><b>D:\ดาวน์โหลด\ปกหนัง</b><span class="small">9 รูป</span><span class="x" title="เอาโฟลเดอร์นี้ออกจากกระดาน">×</span></div>
+              <div class="addfolder">+ เพิ่มโฟลเดอร์รูป <span>หรือลากโฟลเดอร์หรือรูปมาวาง</span></div>
+            </div>
             <div class="imgs">
               <div class="ic sel"><span class="pp tall g7"><span class="t">Paper Kites</span></span><span class="fn">pk_poster_final.jpg</span></div>
               <div class="ic"><span class="pp tall g9"><span class="t">ทะเลสาบ</span></span><span class="fn">lake2016.jpg</span></div>
@@ -307,20 +391,92 @@ tr.none td{background:#fff7f7}
             </div>
             <div class="ghost" style="left:556px;top:160px;z-index:5"><span class="pp tall g4" style="width:60px;height:88px"><span class="t">Copper</span></span></div>
           </div>
-          <div class="card">
-            <h3 style="justify-content:space-between"><span>หนังที่ยังไม่มีปก · 12 เรื่อง</span></h3>
+          <div class="card mv">
+            <h3 style="justify-content:space-between"><span>หนังที่ยังไม่มีปก · 12 เรื่อง</span><span class="seg view"><span class="on" data-v="list">รายการ</span><span data-v="only">แค่รูป</span></span></h3>
+            <div class="folders">
+              <div class="pathline"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><b>D:\หนัง</b><span class="small">86 เรื่อง</span><span class="x" title="เอาโฟลเดอร์นี้ออกจากกระดาน">×</span></div>
+              <div class="pathline"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><b>E:\หนังเก่า</b><span class="small">31 เรื่อง</span><span class="x" title="เอาโฟลเดอร์นี้ออกจากกระดาน">×</span></div>
+              <div class="pathline"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><b>F:\ดาวน์โหลด\หนังใหม่</b><span class="small">11 เรื่อง</span><span class="x" title="เอาโฟลเดอร์นี้ออกจากกระดาน">×</span></div>
+              <div class="addfolder">+ เพิ่มโฟลเดอร์หนัง <span>หรือลากโฟลเดอร์มาวาง</span></div>
+            </div>
             <div class="search" style="margin-bottom:8px"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>ค้นชื่อหนัง</div>
             <div class="mvlist">
-              <div class="mvrow"><span class="pp tall none">ไม่มีปก</span><div class="nm"><b>Paper Kites (2012)</b><span class="fn">PK.2012.mkv</span></div><span class="small" style="color:var(--accent-ink)">กดเพื่อใช้รูปที่เลือก</span></div>
-              <div class="mvrow target"><span class="pp tall none">ไม่มีปก</span><div class="nm"><b>Copper Sky (2014)</b><span class="fn">Copper.Sky.2014.mp4</span></div><span class="small" style="color:var(--accent-ink)">ปล่อยเมาส์เพื่อใช้รูปนี้</span></div>
-              <div class="mvrow done"><span class="pp tall g9"><span class="t">ทะเลสาบ</span></span><div class="nm"><b>ทะเลสาบสีเงิน (2016)</b><span class="fn">จับคู่แล้ว · lake2016.jpg</span></div><span class="btn btn-ghost btn-xs">ย้อน</span></div>
-              <div class="mvrow"><span class="pp tall none">ไม่มีปก</span><div class="nm"><b>Night Bus (2020)</b><span class="fn">night_bus_2020.avi</span></div></div>
-              <div class="mvrow"><span class="pp tall none">ไม่มีปก</span><div class="nm"><b>Ember (2022)</b><span class="fn">Ember.2022.WEB.mkv</span></div></div>
+              <div class="mvrow"><span class="pp tall none">ไม่มีปก</span><div class="nm"><b>Paper Kites (2012)</b><span class="fn">PK.2012.mkv · E:\หนังเก่า</span></div><span class="small" style="color:var(--accent-ink)">กดเพื่อใช้รูปที่เลือก</span></div>
+              <div class="mvrow target"><span class="pp tall none">ไม่มีปก</span><div class="nm"><b>Copper Sky (2014)</b><span class="fn">Copper.Sky.2014.mp4 · F:\ดาวน์โหลด\หนังใหม่</span></div><span class="small" style="color:var(--accent-ink)">ปล่อยเมาส์เพื่อใช้รูปนี้</span></div>
+              <div class="mvrow sent"><span class="pp tall g9"><span class="t">ทะเลสาบ</span></span><div class="nm"><b>ทะเลสาบสีเงิน (2016)</b><span class="fn">ส่งไปรอยืนยันที่ตารางแล้ว · lake2016.jpg</span></div><span class="btn btn-ghost btn-xs">ย้อน</span></div>
+              <div class="mvrow"><span class="pp tall none">ไม่มีปก</span><div class="nm"><b>Night Bus (2020)</b><span class="fn">night_bus_2020.avi · D:\หนัง</span></div></div>
+              <div class="mvrow"><span class="pp tall none">ไม่มีปก</span><div class="nm"><b>Ember (2022)</b><span class="fn">Ember.2022.WEB.mkv · D:\หนัง</span></div></div>
+            </div>
+            <div class="mvgrid">
+              <div class="mt" title="PK.2012.mkv"><span class="slot none"><b>Paper Kites</b><span>2012</span></span></div>
+              <div class="mt target" title="Copper.Sky.2014.mp4"><span class="slot none"><b>Copper Sky</b><span>2014</span><em>ปล่อยเมาส์<br>เพื่อใช้รูปนี้</em></span></div>
+              <div class="mt sent" title="ส่งไปรอยืนยันที่ตารางแล้ว · lake2016.jpg"><span class="slot pp g9"><span class="t">ทะเลสาบสีเงิน</span></span><span class="btn btn-ghost btn-xs undo">ย้อน</span></div>
+              <div class="mt" title="night_bus_2020.avi"><span class="slot none"><b>Night Bus</b><span>2020</span></span></div>
+              <div class="mt" title="Ember.2022.WEB.mkv"><span class="slot none"><b>Ember</b><span>2022</span></span></div>
+              <div class="mt" title="เมืองหมอก.2018.mkv"><span class="slot none"><b>เมืองหมอก</b><span>2018</span></span></div>
+              <div class="mt" title="Pandan.Forest.2019.mkv"><span class="slot none"><b>ป่าใบเตย</b><span>2019</span></span></div>
+              <div class="mt" title="Tidal.2021.1080p.mkv"><span class="slot none"><b>Tidal</b><span>2021</span></span></div>
             </div>
           </div>
         </div>
-        <div class="foot"><span class="small">คีย์บอร์ด ลูกศรเลือกรูป · Tab ไปฝั่งหนัง · Enter จับคู่ · Ctrl+Z ย้อน</span><span class="btn btn-main">เสร็จ กลับไปชั้นวาง</span></div>
+        <div class="foot"><span class="small">คีย์บอร์ด ลูกศรเลือกรูป · Tab ไปฝั่งหนัง · Enter จับคู่ · Ctrl+Z ย้อน · คู่ที่จับบนกระดานยังไม่บันทึก ไปรอยืนยันที่ตาราง</span><span class="btn btn-main">กลับตารางตรวจผล · จับคู่ไว้ 3 คู่</span></div>
       </div>
+    </div>
+  </section>
+
+  <!-- ===================== ลากรูปจาก Explorer ===================== -->
+  <section class="sec" id="s3x">
+    <h2><span class="tag">หน้า 3 ต่อ</span>ลากรูปจากโฟลเดอร์ข้างนอก (Explorer) มาวางบนหนังตรง ๆ</h2>
+    <p class="note">พี่กันสั่ง <i>"เราอยากให้ลากแบบวิธีนี้ด้วย นั่นคือ ลากจากโฟลเดอร์ข้างนอกเลย"</i> · ไม่ต้องเอารูปเข้ากระดานก่อน ลากจาก Explorer มาวางบนหนังได้เลย ทั้งแบบรายการและแบบแค่รูป · วางแล้วคู่นั้นไปรอยืนยันที่ตารางตรวจผลเหมือนทุกวิธี</p>
+    <div class="desk">
+      <div class="exp">
+        <div class="xbar"><span>ดาวน์โหลด</span><span class="ctl"><span>–</span><span>□</span><span>×</span></span></div>
+        <div class="addr">D:\ดาวน์โหลด</div>
+        <div class="files">
+          <div class="ef sel drag"><span class="pp tall g5"><span class="t">Ember</span></span>ember-poster-hd.jpg</div>
+          <div class="ef"><span class="pp tall g1"><span class="t">หมอก</span></span>IMG_5521.jpg</div>
+          <div class="ef"><span class="pp tall g6"><span class="t">Tidal</span></span>tidal-official.jpg</div>
+          <div class="ef"><span class="pp wide g2"><span class="t">Night Bus</span></span>nightbus-4k.png</div>
+          <div class="ef"><span class="pp tall g3"><span class="t">ใบเตย</span></span>ป่าใบเตย-alt.jpg</div>
+          <div class="ef"><span class="pp wide g8"><span class="t">Screenshot</span></span>Screenshot (3).png</div>
+        </div>
+      </div>
+      <div class="win">
+        <div class="titlebar"><span>ชั้นหนัง · จับคู่ปก · กระดาน</span><span class="ctl"><span>–</span><span>□</span><span>×</span></span></div>
+        <div class="wrapin">
+          <div class="card mv">
+            <h3 style="justify-content:space-between"><span>หนังที่ยังไม่มีปก · 12 เรื่อง</span><span class="seg view"><span class="on" data-v="list">รายการ</span><span data-v="only">แค่รูป</span></span></h3>
+            <div class="folders">
+              <div class="pathline"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><b>D:\หนัง</b><span class="small">86 เรื่อง</span><span class="x" title="เอาโฟลเดอร์นี้ออกจากกระดาน">×</span></div>
+              <div class="pathline"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><b>E:\หนังเก่า</b><span class="small">31 เรื่อง</span><span class="x" title="เอาโฟลเดอร์นี้ออกจากกระดาน">×</span></div>
+              <div class="pathline"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg><b>F:\ดาวน์โหลด\หนังใหม่</b><span class="small">11 เรื่อง</span><span class="x" title="เอาโฟลเดอร์นี้ออกจากกระดาน">×</span></div>
+              <div class="addfolder">+ เพิ่มโฟลเดอร์หนัง <span>หรือลากโฟลเดอร์มาวาง</span></div>
+            </div>
+            <div class="mvlist">
+              <div class="mvrow"><span class="pp tall none">ไม่มีปก</span><div class="nm"><b>Paper Kites (2012)</b><span class="fn">PK.2012.mkv · E:\หนังเก่า</span></div></div>
+              <div class="mvrow target"><span class="pp tall none">ไม่มีปก</span><div class="nm"><b>Ember (2022)</b><span class="fn">Ember.2022.WEB.mkv · D:\หนัง</span></div><span class="small" style="color:var(--accent-ink);text-align:right">ปล่อยเมาส์เพื่อใช้รูปนี้<br>ember-poster-hd.jpg จาก D:\ดาวน์โหลด</span></div>
+              <div class="mvrow"><span class="pp tall none">ไม่มีปก</span><div class="nm"><b>Night Bus (2020)</b><span class="fn">night_bus_2020.avi · D:\หนัง</span></div></div>
+              <div class="mvrow"><span class="pp tall none">ไม่มีปก</span><div class="nm"><b>Tidal (2021)</b><span class="fn">Tidal.2021.1080p.mkv · E:\หนังเก่า</span></div></div>
+            </div>
+            <div class="mvgrid">
+              <div class="mt" title="PK.2012.mkv"><span class="slot none"><b>Paper Kites</b><span>2012</span></span></div>
+              <div class="mt target" title="Ember.2022.WEB.mkv"><span class="slot none"><b>Ember</b><span>2022</span><em>ปล่อยเมาส์<br>เพื่อใช้รูปนี้</em></span></div>
+              <div class="mt" title="night_bus_2020.avi"><span class="slot none"><b>Night Bus</b><span>2020</span></span></div>
+              <div class="mt" title="Tidal.2021.1080p.mkv"><span class="slot none"><b>Tidal</b><span>2021</span></span></div>
+            </div>
+          </div>
+        </div>
+      </div>
+      <div class="dragx"><span class="pp tall g5" style="width:60px;height:88px"><span class="t">Ember</span></span><span class="badge">+ คัดลอก</span></div>
+    </div>
+    <div class="explain" style="margin-top:14px"><b>ลากจาก Explorer ทำอะไรได้บ้าง</b>
+      <ol>
+        <li>ลากรูปมาวางบนหนังในกระดาน (แบบรายการหรือแบบแค่รูป) · หรือวางบนแถวในตารางตรวจผล ใช้แทนรูปของแถวนั้น</li>
+        <li>วางแล้วยังไม่บันทึก คู่นั้นไปรอที่ตารางตรวจผล ช่องเหตุที่จับคู่ขึ้นว่า ลากจาก Explorer พร้อมที่อยู่โฟลเดอร์ของรูป · เปลี่ยนรูป ครอป ยืนยันที่นั่น</li>
+        <li>รูปต้นฉบับอยู่ที่เดิม · ตอนยืนยัน โปรแกรมคัดลอกรูปที่ครอปแล้วไปไว้ข้างไฟล์หนังตามหน้าตั้งค่า (ค่าตั้งต้น ชื่อหนังต่อด้วย -poster หรือ -landscape)</li>
+        <li>ลากหลายรูปมาวางบนหนังเรื่องเดียว รูปแนวตั้งเป็นปกตั้ง รูปแนวนอนเป็นปกนอน (พี่กันเคาะ)</li>
+        <li>วางบนแผงรูปซ้ายของกระดาน คือเพิ่มรูปเข้ากระดาน ยังไม่จับคู่ · ไฟล์ที่ไม่ใช่รูป ช่องที่ชี้อยู่ขึ้นสีแดงว่าใช้ไม่ได้ ปล่อยแล้วไม่รับ</li>
+      </ol>
     </div>
   </section>
 
@@ -332,11 +488,11 @@ tr.none td{background:#fff7f7}
       <div class="titlebar"><span>ชั้นหนัง · จับคู่ปก</span><span class="ctl"><span>–</span><span>□</span><span>×</span></span></div>
       <div style="background:rgba(110,55,80,.22);padding:40px;display:flex;justify-content:center">
         <div style="background:#fff;border-radius:14px;box-shadow:0 18px 40px rgba(120,50,80,.25);padding:22px 24px;width:560px;display:flex;flex-direction:column;gap:10px">
-          <div style="font-size:17px;font-weight:700">ยังไม่ได้ยืนยัน 91 คู่</div>
-          <div style="font-size:14px;color:var(--txt2)">ติ๊กไว้ 91 คู่ในหน้าจับคู่ปกแต่ยังไม่ได้กดยืนยัน ปกยังไม่ขึ้นชั้นวาง</div>
+          <div style="font-size:17px;font-weight:700">ยังไม่ได้ยืนยัน 94 คู่</div>
+          <div style="font-size:14px;color:var(--txt2)">รอยืนยันอยู่ในตารางตรวจผล 94 คู่ ติ๊กไว้ 93 คู่ ปกยังไม่ขึ้นชั้นวาง</div>
           <div class="stat info"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 8v5M12 16h.01"/></svg>
-            <div>ปิดโดยไม่ยืนยันก็ไม่หาย โปรแกรมจำคู่ที่ติ๊กไว้ เปิดมาครั้งหน้ามีแถบ<br><b style="display:inline;white-space:nowrap">ทำต่อ 91 คู่ที่ค้างไว้</b></div></div>
-          <div class="row" style="justify-content:flex-end;margin-top:6px"><span class="btn btn-ghost">ปิดโดยไม่ยืนยัน</span><span class="btn btn-ghost">กลับไปดูก่อน</span><span class="btn btn-main">ยืนยัน 91 คู่แล้วปิด</span></div>
+            <div>ปิดโดยไม่ยืนยันก็ไม่หาย โปรแกรมจำคู่ที่ติ๊กไว้ เปิดมาครั้งหน้ามีแถบ<br><b style="display:inline;white-space:nowrap">ทำต่อ 94 คู่ที่ค้างไว้</b></div></div>
+          <div class="row" style="justify-content:flex-end;margin-top:6px"><span class="btn btn-ghost">ปิดโดยไม่ยืนยัน</span><span class="btn btn-ghost">กลับไปดูก่อน</span><span class="btn btn-main">ยืนยัน 93 คู่ที่ติ๊กแล้วปิด</span></div>
         </div>
       </div>
     </div>
@@ -368,7 +524,7 @@ tr.none td{background:#fff7f7}
   <!-- ===================== หน้า 5 ชั้นวาง ===================== -->
   <section class="sec" id="s5">
     <h2><span class="tag">หน้า 5</span>บนชั้นวาง · กรองได้ว่าปกมาจากการรวมหรือการจับคู่ · สลับปกตั้งกับปกนอนทั้งชั้น</h2>
-    <p class="note">พี่กันเคาะข้อ 2 ให้กรองได้ว่าเรื่องไหนมาจากการรวม (ปกในไฟล์) หรือจับคู่ · ข้อ 5 ปุ่มสลับดูปกตั้งกับปกนอนทั้งชั้นทำพร้อมกัน เรื่องที่มีแบบเดียวใช้แบบที่มี · ปกที่จับคู่มีป้ายโซ่ · แผงขวามีครอปใหม่ เปลี่ยนรูป เอาออก และรวมเข้าไฟล์</p>
+    <p class="note">พี่กันเคาะข้อ 2 ให้กรองได้ว่าเรื่องไหนมาจากการรวม (ปกในไฟล์) หรือจับคู่ · ข้อ 5 ปุ่มสลับดูปกตั้งกับปกนอนทั้งชั้นทำพร้อมกัน เรื่องที่มีแบบเดียวใช้แบบที่มี · ปกที่จับคู่มีป้ายโซ่หน้าชื่อหนังใต้ปก ไม่ทับรูป (พี่กันสั่ง) · แผงขวามีครอปใหม่ เปลี่ยนรูป เอาออก และรวมเข้าไฟล์ · ครอปใหม่กับเปลี่ยนรูปพาไปตารางตรวจผลที่แถวของเรื่องนั้น แก้แล้วยืนยันอีกครั้งถึงเปลี่ยนบนชั้น (พี่กันสั่ง ทุกวิธีมาจบที่ตาราง)</p>
     <div class="win">
       <div class="titlebar"><span>ชั้นหนัง</span><span class="ctl"><span>–</span><span>□</span><span>×</span></span></div>
       <div class="shelfbox">
@@ -377,10 +533,10 @@ tr.none td{background:#fff7f7}
             <span class="row"><span class="small">ดูปก</span><span class="seg"><span class="on">ปกตั้ง</span><span>ปกนอน</span></span></span></div>
           <div class="tabs" style="margin-top:8px"><span class="on">ทั้งหมด 128</span><span>ปกในไฟล์ (รวมแล้ว) 28</span><span>ปกจับคู่ 92</span><span>ยังไม่มีปก 8</span></div>
           <div class="shelf">
-            <div class="book"><div class="cover g2"><span class="t">ดาวเหนือ</span><span class="linkb"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#c2547f" stroke-width="2.4"><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1"/><path d="M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1"/></svg></span></div><div class="bname">ดาวเหนือ (2023)</div></div>
-            <div class="book sel"><div class="cover g6"><span class="t">Harbor Lights</span><span class="linkb"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#c2547f" stroke-width="2.4"><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1"/><path d="M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1"/></svg></span></div><div class="bname">Harbor Lights (2021)</div></div>
+            <div class="book"><div class="cover g2"><span class="t">ดาวเหนือ</span></div><div class="bname"><span class="linkb"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#c2547f" stroke-width="2.4"><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1"/><path d="M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1"/></svg></span>ดาวเหนือ (2023)</div></div>
+            <div class="book sel"><div class="cover g6"><span class="t">Harbor Lights</span></div><div class="bname"><span class="linkb"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#c2547f" stroke-width="2.4"><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1"/><path d="M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1"/></svg></span>Harbor Lights (2021)</div></div>
             <div class="book"><div class="cover g4"><span class="t">สายลมเดือนเมษา</span></div><div class="bname">สายลมเดือนเมษา (2017) · ปกในไฟล์</div></div>
-            <div class="book"><div class="cover g3"><span class="t">ฝนสุดท้าย</span><span class="linkb"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#c2547f" stroke-width="2.4"><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1"/><path d="M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1"/></svg></span></div><div class="bname">ฝนสุดท้ายของฤดู (2019)</div></div>
+            <div class="book"><div class="cover g3"><span class="t">ฝนสุดท้าย</span></div><div class="bname"><span class="linkb"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#c2547f" stroke-width="2.4"><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1"/><path d="M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1"/></svg></span>ฝนสุดท้ายของฤดู (2019)</div></div>
             <div class="book"><div class="cover" style="background:repeating-linear-gradient(135deg,#fff 0 10px,#fdf0f5 10px 20px);border:2px dashed #eeb3c8;box-shadow:none;color:var(--txt3);align-items:center;justify-content:center;text-align:center;font-size:12.5px">ยังไม่มีปก</div><div class="bname">Paper Kites (2012)</div></div>
           </div>
         </div>
@@ -403,7 +559,7 @@ tr.none td{background:#fff7f7}
       <div class="mode on"><h4><span style="width:18px;height:18px;border-radius:50%;border:2px solid var(--accent);display:inline-flex;align-items:center;justify-content:center;flex:none"><span style="width:8px;height:8px;border-radius:50%;background:var(--accent)"></span></span>คัดลอกไปไว้ข้างไฟล์หนัง <span class="rec">ค่าตั้งต้น</span></h4>
         <div class="small" style="font-size:13.5px;color:var(--txt2)">คัดลอกรูปที่ครอปแล้วไปไว้โฟลเดอร์เดียวกับหนัง ชื่อเหมือนไฟล์หนัง · รูปต้นฉบับอยู่ที่เดิม ไม่ถูกแก้ กลับมาครอปใหม่ได้
           <div style="background:#fff;border:1px solid var(--line);border-radius:8px;padding:8px 10px;margin:8px 0;font-family:Consolas,monospace;font-size:12.5px;line-height:1.7;color:var(--txt)">D:\หนัง\ดาวเหนือ (2023).mkv<br>D:\หนัง\ดาวเหนือ (2023)-poster.jpg <span style="color:var(--txt3)">แนวตั้ง</span><br>D:\หนัง\ดาวเหนือ (2023)-landscape.jpg <span style="color:var(--txt3)">แนวนอน</span></div>
-          ชื่อลงท้ายแบบที่ Kodi อ่านได้ (แคลร์ตั้ง) · เปลี่ยนรูปทีหลัง ไฟล์นี้เปลี่ยนตาม · เปลี่ยนชื่อหนังในชั้นหนัง รูปเปลี่ยนชื่อตาม · มีไฟล์ชื่อนี้อยู่แล้วที่โปรแกรมไม่ได้ทำ ไม่เขียนทับ ถามก่อน</div></div>
+          ชื่อลงท้ายแบบที่ Kodi อ่านได้ (พี่กันเคาะ) · เปลี่ยนรูปทีหลัง ไฟล์นี้เปลี่ยนตาม · เปลี่ยนชื่อหนังในชั้นหนัง รูปเปลี่ยนชื่อตาม · มีไฟล์ชื่อนี้อยู่แล้วที่โปรแกรมไม่ได้ทำ ไม่เขียนทับ ถามก่อน</div></div>
       <div class="mode"><h4><span style="width:18px;height:18px;border-radius:50%;border:2px solid #e5b7c8;background:#fff;display:inline-flex;flex:none"></span>เก็บสำเนาไว้ในโปรแกรม</h4>
         <div class="small" style="font-size:13.5px;color:var(--txt2)">คัดลอกรูปที่ครอปแล้วไปไว้โฟลเดอร์ข้อมูลของโปรแกรม (AppData\Local\ชั้นหนัง) ไม่มีไฟล์เพิ่มในโฟลเดอร์หนัง · ลบหรือย้ายรูปต้นฉบับแล้วปกไม่หาย · มีแต่ชั้นหนังที่เห็น โปรแกรมอื่นไม่เห็น</div></div>
       <div class="mode"><h4><span style="width:18px;height:18px;border-radius:50%;border:2px solid #e5b7c8;background:#fff;display:inline-flex;flex:none"></span>จับคู่อย่างเดียว</h4>
@@ -423,9 +579,50 @@ tr.none td{background:#fff7f7}
         <li><b>ไม่มีปรับสี</b> · ครอป หมุน 90° พลิก ปรับเอียง</li>
         <li><b>ปุ่มสลับดูปกตั้งกับปกนอนทั้งชั้น ทำพร้อมกัน</b></li>
       </ol>
-      <div class="small" style="margin-top:8px">แคลร์ตั้งเอง ชื่อลงท้าย -poster กับ -landscape แบบที่ Kodi อ่านได้ · ข้อจำกัด ไอคอนไฟล์ใน Windows ไม่เปลี่ยน (Icaros อ่านปกจากในไฟล์) โปรแกรมเล่นหนังไม่เห็นปกที่จับคู่ อยากให้เห็นทุกที่ใช้ปุ่มรวมเข้าไฟล์</div>
+      <b>พี่กันสั่งเพิ่มหลังเปิดดูในโครม</b>
+      <ul>
+        <li><b>ทุกวิธีจับคู่มาจบที่ตารางตรวจผล</b> · จับคู่อัตโนมัติ กระดาน ลากจาก Explorer ปุ่มบนชั้นวาง · เปลี่ยนรูป ครอป ยืนยันที่ตาราง · มีปุ่มยืนยันทั้งหมด</li>
+        <li><b>ลากรูปจาก Explorer มาวางบนหนังตรง ๆ</b> · บนกระดานหรือบนแถวในตาราง</li>
+        <li><b>กระดานขึ้นที่อยู่โฟลเดอร์ที่เลือกมา เพิ่มโฟลเดอร์ได้เรื่อย ๆ</b> · แถวโฟลเดอร์ยาวลงมาตามจำนวน · สลับดูแบบรายการกับแค่รูปได้ทั้งแผงรูปและแผงหนัง</li>
+        <li><b>ป้ายโซ่บนชั้นวางไม่ทับรูป</b> · อยู่หน้าชื่อหนังใต้ปก</li>
+        <li><b>เคาะข้อที่แคลร์เสนอ</b> · ยืนยันทั้งหมดไม่รวมแถวไม่แน่ใจกับแถวหาคู่ไม่เจอ · ลากหลายรูปมาวางบนหนังเรื่องเดียว แนวตั้งเป็นปกตั้ง แนวนอนเป็นปกนอน · ไฟล์ที่ไม่ใช่รูปไม่รับ</li>
+      </ul>
+      <div class="small" style="margin-top:8px">ชื่อลงท้าย -poster กับ -landscape แบบที่ Kodi อ่านได้ แคลร์เสนอ พี่กันเคาะ · ข้อจำกัด ไอคอนไฟล์ใน Windows ไม่เปลี่ยน (Icaros อ่านปกจากในไฟล์) โปรแกรมเล่นหนังไม่เห็นปกที่จับคู่ อยากให้เห็นทุกที่ใช้ปุ่มรวมเข้าไฟล์</div>
     </div>
   </section>
 </div>
+<script>
+// ปุ่มสลับมุมมองของกระดานจับคู่ · แผงรูปกับแผงหนังสลับแยกกัน
+// รูปที่กำลังลากวางตามหนังที่จะวาง คิดจากตำแหน่งจริงทุกครั้ง เพราะแถวโฟลเดอร์เพิ่มได้ ความสูงหัวแผงเปลี่ยน
+// แบบรายการ ทับรูปไม่มีปกของแถว · แบบแค่รูป มุมล่างซ้ายของช่อง ไม่ทับชื่อหนังกลางช่อง
+function placeGhost(board) {
+  const g = board.querySelector(".ghost");
+  if (!g) return placeDragx(board);
+  const only = !!board.querySelector(".card.mv.only");
+  const t = board.querySelector(only ? ".card.mv .mt.target" : ".card.mv .mvrow.target");
+  const c = g.parentElement.getBoundingClientRect(), r = t.getBoundingClientRect();
+  g.style.left = Math.round(r.left - c.left - (only ? 30 : 34)) + "px";
+  g.style.top = Math.round(r.top - c.top + (only ? r.height - 46 : -10)) + "px";
+}
+// หน้าลากจาก Explorer · วางรูปที่ลากกับป้าย คัดลอก ไว้ข้างซ้ายของหนังที่จะวาง ตามมุมมองที่เลือก
+function placeDragx(desk) {
+  const d = desk.querySelector(".dragx");
+  const t = desk.querySelector(".card.mv.only .mt.target") || desk.querySelector(".mvrow.target");
+  const c = desk.getBoundingClientRect(), r = t.getBoundingClientRect();
+  const only = t.classList.contains("mt");
+  d.style.left = Math.round(r.left - c.left - (only ? 30 : 34)) + "px";
+  d.style.top = Math.round(r.top - c.top + (only ? r.height - 46 : -6)) + "px";
+}
+document.querySelectorAll(".seg.view").forEach((seg) => seg.addEventListener("click", (e) => {
+  const s = e.target.closest("span[data-v]");
+  if (!s) return;
+  seg.querySelectorAll("span[data-v]").forEach((x) => x.classList.toggle("on", x === s));
+  seg.closest(".card").classList.toggle("only", s.dataset.v === "only");
+  placeGhost(seg.closest(".board, .desk"));
+}));
+const placeAll = () => document.querySelectorAll(".board, .desk").forEach(placeGhost);
+document.fonts.ready.then(placeAll);
+addEventListener("resize", placeAll);
+</script>
 </body>
 </html>
