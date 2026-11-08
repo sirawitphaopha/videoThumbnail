@@ -92,12 +92,13 @@ export default function LinkBoard() {
     catch (e) { toast({ kind: "bad", title: "มีไฟล์ที่ไม่รับ", detail: String(e) }); setReply(await linkApi.state()); }
     await after();
   }, [toast]);
-  const addMovieFolder = useCallback(async (dir: string) => {
+  const addMovieFolders = useCallback(async (dirs: string[]) => {
     if (!settings) return;
-    if (settings.folders.some((x) => x.toLowerCase() === dir.toLowerCase())) { toast({ kind: "info", title: "โฟลเดอร์นี้อยู่บนชั้นแล้ว", detail: dir }); return; }
-    await update({ folders: [...settings.folders, dir] });
+    const fresh = dirs.filter((d, i) => !settings.folders.some((x) => x.toLowerCase() === d.toLowerCase()) && dirs.findIndex((o) => o.toLowerCase() === d.toLowerCase()) === i);
+    if (!fresh.length) { toast({ kind: "info", title: "โฟลเดอร์นี้อยู่บนชั้นวางแล้ว", detail: dirs.join(" · ") }); return; }
+    await update({ folders: [...settings.folders, ...fresh] });
     scan();
-    toast({ kind: "ok", title: "เพิ่มโฟลเดอร์หนังแล้ว กำลังอ่านขึ้นชั้น", detail: dir });
+    toast({ kind: "ok", title: "เพิ่มโฟลเดอร์หนังแล้ว กำลังอ่านขึ้นชั้น", detail: fresh.join(" · ") });
   }, [settings, update, scan, toast]);
   const removeMovieFolder = async (dir: string) => {
     if (!settings) return;
@@ -126,18 +127,24 @@ export default function LinkBoard() {
     if (!paths.length) return;
     const el = elAt(x, y);
     const id = el?.closest<HTMLElement>("[data-board-movie]")?.dataset.boardMovie;
-    if (id) { await pair(id, paths, "explorer"); return; }
+    if (id) {
+      // รูปปนไฟล์อื่น รับเฉพาะรูป บอกว่าข้ามอะไร · เดิมบนจอขึ้นกรอบปกติ แต่ปล่อยแล้วโดนปฏิเสธทั้งชุด
+      const imgs = paths.filter(isImage);
+      await pair(id, imgs.length ? imgs : paths, "explorer");
+      if (imgs.length && imgs.length < paths.length) toast({ kind: "info", title: "ข้ามไฟล์ที่ไม่ใช่รูป", detail: paths.filter((p) => !isImage(p)).map(baseName).join(" · ") });
+      return;
+    }
     const pane = el?.closest<HTMLElement>("[data-board-pane]")?.dataset.boardPane;
     if (pane === "movies") {
       // แผงหนัง · โฟลเดอร์เพิ่มเข้าชั้นวาง รูปต้องวางบนหนังเรื่องใดเรื่องหนึ่ง
       const flags = await linkApi.isDir(paths);
       const dirs = paths.filter((_, i) => flags[i]);
       if (!dirs.length) { toast({ kind: "info", title: "วางรูปบนหนังเรื่องที่ต้องการ", detail: "หรือลากโฟลเดอร์หนังมาวางเพื่อเพิ่มเข้าชั้น" }); return; }
-      for (const d of dirs) await addMovieFolder(d);
+      await addMovieFolders(dirs);
       return;
     }
     await addImages(paths);
-  }, [pair, addImages, addMovieFolder, toast]);
+  }, [pair, addImages, addMovieFolders, toast]);
   useEffect(() => {
     if (!inApp) return;
     let off: (() => void) | undefined;
@@ -249,7 +256,7 @@ export default function LinkBoard() {
               <div key={f} className="pathline"><FolderIcon /><b title={f}>{f}</b><span className="small">{COUNT(folderCount(f))} เรื่อง</span>
                 <button type="button" className="x" aria-label={"เอาโฟลเดอร์ " + f + " ออกจากชั้น"} title="เอาออกจากชั้นวาง ไฟล์ในเครื่องไม่ถูกแตะ" data-board-rm-folder={f} onClick={() => setRemoving(f)}>×</button></div>
             ))}
-            <div className="addfolder"><button type="button" className="addbtn" data-board-add-movies onClick={async () => { const d = await pickFolder("เลือกโฟลเดอร์หนัง"); if (d) addMovieFolder(d); }}>+ เพิ่มโฟลเดอร์หนัง</button><span>หรือลากโฟลเดอร์มาวาง · หนังขึ้นชั้นวางด้วย{scanning ? " · กำลังอ่านโฟลเดอร์…" : ""}</span></div>
+            <div className="addfolder"><button type="button" className="addbtn" data-board-add-movies onClick={async () => { const d = await pickFolder("เลือกโฟลเดอร์หนัง"); if (d) addMovieFolders([d]); }}>+ เพิ่มโฟลเดอร์หนัง</button><span>หรือลากโฟลเดอร์มาวาง · หนังขึ้นชั้นวางด้วย{scanning ? " · กำลังอ่านโฟลเดอร์…" : ""}</span></div>
           </div>
           <div style={{ marginBottom: 8 }}><SearchBox value={query} onChange={setQuery} placeholder="ค้นชื่อหนัง" label="ค้นชื่อหนังบนกระดาน" swapLabel={found.swapped ? found.used : ""} width="100%" /></div>
           <div className="bscroll">

@@ -24,12 +24,14 @@ export type LinkJob = {
   focus: string | null;
   /** พาไปแล้วเปิดหน้าครอปของแถวนั้นเลย (ปุ่มครอปใหม่) */
   focusCrop: boolean;
+  /** ลากไฟล์จาก Explorer เหนือแถวในตาราง · ขึ้นกรอบปล่อยเมาส์พร้อมชื่อรูป ไฟล์ที่ไม่ใช่รูปขึ้นแดง */
+  overRow: { id: string; names: string; bad: boolean } | null;
   /** เปิดโปรแกรมมาแล้วมีคู่ค้างจากรอบก่อน ชั้นวางขึ้นแถบทำต่อ · กดทำต่อ ไว้ทีหลัง หรือเข้าหน้าจับคู่ปกแล้วเลิกขึ้น */
   resume: boolean;
 };
 
 const EMPTY: LinkReplyData = { rows: [], imageFolders: [], loose: [], scope: "nocover", waiting: 0 };
-let job: LinkJob = { reply: EMPTY, images: [], thumbs: {}, run: { state: "idle" }, view: "start", focus: null, focusCrop: false, resume: false };
+let job: LinkJob = { reply: EMPTY, images: [], thumbs: {}, run: { state: "idle" }, view: "start", focus: null, focusCrop: false, overRow: null, resume: false };
 const subs = new Set<() => void>();
 
 export function setLinkJob(patch: Partial<LinkJob>) {

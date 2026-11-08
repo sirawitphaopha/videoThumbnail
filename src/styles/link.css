@@ -97,6 +97,7 @@
 .bghost img { width: 60px; height: 88px; object-fit: cover; border-radius: 6px; box-shadow: 0 8px 18px rgba(120, 50, 80, .35); display: block; }
 
 /* ชั้นวาง · ป้ายโซ่อยู่หน้าชื่อหนัง ไม่ทับรูป (พี่กันสั่ง) · ตัวกรองที่มาของปก (ขั้น 6) */
+.lkrow.over.bad { box-shadow: inset 0 0 0 2px var(--bad); }
 .linkb { display: inline-flex; vertical-align: -2px; margin-right: 4px; }
 .shelftabs { margin: 0 0 12px; }
 

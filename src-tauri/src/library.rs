@@ -89,11 +89,24 @@ pub struct FolderState {
 struct LibraryFile {
     version: u32,
     movies: Vec<Movie>,
+    parked: Vec<ParkedCovers>,
+}
+
+/// ปกจับคู่ของหนังที่หายจากชั้นวาง · เอาโฟลเดอร์ออกแล้วใส่กลับ โฟลเดอร์ย่อยอ่านไม่ได้ชั่วคราว ปกต้องกลับมาเอง
+/// เดิมตัวอ่านลบภาพเล็กกับสำเนาในโปรแกรมถาวร ขัดกฎของแผนที่ลบได้ลงถังขยะเท่านั้น (ผู้ช่วยตรวจขั้น 8)
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+#[serde(default, rename_all = "camelCase")]
+pub struct ParkedCovers {
+    pub id: String,
+    pub path: String,
+    pub linked: Vec<crate::link::LinkedCover>,
+    pub cover_pick: String,
 }
 
 pub struct LibraryStore {
     path: PathBuf,
     pub movies: Mutex<Vec<Movie>>,
+    pub parked: Mutex<Vec<ParkedCovers>>,
     pub folders: Mutex<Vec<FolderState>>,
     scanning: AtomicBool,
     /// บันทึกทีละทาง · ตรวจทั้งชุด (ทุก 2 วินาที) อ่านโฟลเดอร์ hash เปลี่ยนชื่อ บันทึกพร้อมกันได้
@@ -117,14 +130,15 @@ impl LibraryStore {
     /// อ่านคลัง · ไฟล์เสียใช้สำรอง · สำรองเสียเริ่มคลังว่าง (หนังกลับมาเมื่ออ่านโฟลเดอร์ใหม่ แต่ประวัติตรวจหาย)
     pub fn load(path: PathBuf) -> Self {
         let lib = read_library(&path).or_else(|| read_library(&path.with_extension("json.bak"))).unwrap_or_default();
-        Self { path, movies: Mutex::new(lib.movies), folders: Mutex::new(vec![]), scanning: AtomicBool::new(false), save_lock: Mutex::new(()), rescan: AtomicBool::new(false) }
+        Self { path, movies: Mutex::new(lib.movies), parked: Mutex::new(lib.parked), folders: Mutex::new(vec![]), scanning: AtomicBool::new(false), save_lock: Mutex::new(()), rescan: AtomicBool::new(false) }
     }
 
     pub fn save(&self) -> Result<(), String> {
         // ถ่ายสำเนาในล็อกเดียวกับที่เขียน · ทางที่เขียนทีหลังถือสำเนาที่ใหม่กว่าเสมอ
         let _one_at_a_time = self.save_lock.lock().unwrap_or_else(|e| e.into_inner());
         let movies = self.movies.lock().unwrap().clone();
-        let bytes = serde_json::to_vec(&LibraryFile { version: 1, movies }).map_err(|e| e.to_string())?;
+        let parked = self.parked.lock().unwrap().clone();
+        let bytes = serde_json::to_vec(&LibraryFile { version: 1, movies, parked }).map_err(|e| e.to_string())?;
         let current_ok = read_library(&self.path).is_some();
         write_atomic(&self.path, &bytes, current_ok).map_err(|e| format!("บันทึกคลังหนังไม่สำเร็จ: {e}"))
     }
@@ -213,7 +227,27 @@ pub struct ScanEnv<'a> {
 pub struct ScanResult {
     pub movies: Vec<Movie>,
     pub folders: Vec<FolderState>,
+    /// ปกจับคู่ของหนังที่หายรอบนี้ เก็บไว้คืนให้เมื่อเรื่องนั้นกลับมา
+    pub parked: Vec<ParkedCovers>,
+}
 
+/// ที่อยู่ไฟล์ไม่รวมนามสกุล ตัวเล็ก · ไฟล์ปกข้างหนังตั้งชื่อตามนี้
+fn stem_key(p: &str) -> String {
+    Path::new(p).with_extension("").to_string_lossy().to_lowercase()
+}
+
+/// คืนปกจับคู่ให้เรื่องที่กลับมา ตามเลขประจำไฟล์หรือที่อยู่ · คืนรายการเรื่องที่ได้คืน
+pub fn restore_parked(movies: &mut [Movie], parked: &mut Vec<ParkedCovers>) -> Vec<String> {
+    let mut back = vec![];
+    for m in movies.iter_mut().filter(|m| m.linked.is_empty()) {
+        if let Some(i) = parked.iter().position(|p| p.id == m.id || p.path.eq_ignore_ascii_case(&m.path)) {
+            let p = parked.remove(i);
+            m.linked = p.linked;
+            m.cover_pick = p.cover_pick;
+            back.push(m.id.clone());
+        }
+    }
+    back
 }
 
 /// อ่านทุกโฟลเดอร์ เทียบกับคลังเดิม คืนคลังใหม่ · `on_movie` ถูกเรียกทุกครั้งที่หนังเรื่องหนึ่งอ่านเสร็จ (ปกขึ้นทีละเรื่อง)
@@ -291,6 +325,13 @@ pub fn scan_core(env: &ScanEnv, existing: Vec<Movie>, on_movie: &(dyn Fn(&Movie,
     let mut movies = keep;
     movies.extend(fresh.into_inner().unwrap());
     let present: HashSet<String> = movies.iter().map(|m| m.id.clone()).collect();
+    let old_ids: HashSet<String> = existing.iter().map(|m| m.id.clone()).collect();
+    // ของที่คลังใหม่ยังชี้อยู่ ห้ามลบ · เลขประจำไฟล์เปลี่ยนแต่เป็นเรื่องเดิม (รวมเสียงเข้าไฟล์ ได้ไฟล์ใหม่ชื่อเดิม) รายการเก่าจะดูเหมือนหนังหาย (ผู้ช่วยตรวจขั้น 8)
+    let in_use: HashSet<String> = movies.iter()
+        .flat_map(|m| [m.thumb.clone(), m.thumb2.clone()].into_iter().flatten().chain(m.linked.iter().map(|c| c.thumb.clone())))
+        .map(|t| t.to_lowercase()).collect();
+    let paths_now: HashSet<String> = movies.iter().map(|m| m.path.to_lowercase()).collect();
+    let mut parked: Vec<ParkedCovers> = vec![];
 
     // หนังในคลังที่ไม่เจอรอบนี้
     // หนังที่หายจากคลังรอบนี้ ภาพเล็กของมันลบทิ้ง
@@ -304,21 +345,25 @@ pub fn scan_core(env: &ScanEnv, existing: Vec<Movie>, on_movie: &(dyn Fn(&Movie,
         } else {
             // ไฟล์ถูกลบหรือย้ายออกไป หรือโฟลเดอร์ถูกเอาออกจากชั้น
             for t in [&m.thumb, &m.thumb2].into_iter().flatten() {
-                let _ = fs::remove_file(t);
+                if !in_use.contains(&t.to_lowercase()) { let _ = fs::remove_file(t); }
             }
-            // ภาพเล็กของปกจับคู่กับสำเนาในโปรแกรมตามไปด้วย · สำเนาข้างไฟล์หนังกับรูปต้นฉบับไม่แตะ
-            for c in &m.linked {
-                let _ = fs::remove_file(&c.thumb);
-                if c.store == "app" {
-                    if let Some(f) = &c.file { let _ = fs::remove_file(f); }
-                }
+            // เรื่องเดิมที่อยู่เดิม เลขเปลี่ยน คลังใหม่รับปกไปแล้ว ไม่ต้องทำอะไร
+            if m.linked.is_empty() || paths_now.contains(&m.path.to_lowercase()) { continue; }
+            // ชื่อเดิมคนละนามสกุล (รวมเข้าไฟล์จาก MP4 ได้ MKV) ปกตามเรื่องใหม่ · ไฟล์ปกข้างหนังตั้งชื่อตามนี้อยู่แล้ว
+            let key = stem_key(&m.path);
+            if let Some(n) = movies.iter_mut().find(|n| n.linked.is_empty() && !old_ids.contains(&n.id) && stem_key(&n.path) == key) {
+                n.linked = m.linked;
+                n.cover_pick = m.cover_pick;
+            } else {
+                // หายจริง · ไม่ลบอะไร เก็บไว้คืนให้เมื่อเรื่องนั้นกลับมา
+                parked.push(ParkedCovers { id: m.id, path: m.path, linked: m.linked, cover_pick: m.cover_pick });
             }
         }
     }
     for f in folders.iter_mut().filter(|f| !f.ok) {
         f.count = movies.iter().filter(|m| m.root == f.path).count();
     }
-    ScanResult { movies, folders }
+    ScanResult { movies, folders, parked }
 }
 
 /// อ่านข้อมูลไฟล์หนึ่งไฟล์ และดึงปก
@@ -506,6 +551,11 @@ pub fn scan_library(app: AppHandle, lib: State<'_, Arc<LibraryStore>>) -> Result
         });
         let mut movies = r.movies;
         {
+            let mut p = lib.parked.lock().unwrap();
+            for x in r.parked { p.retain(|o| o.id != x.id); p.push(x); }
+            restore_parked(&mut movies, &mut p);
+        }
+        {
             // ตรวจไฟล์เสร็จระหว่างอ่านโฟลเดอร์ (ขั้น 6) ผลตรวจในคลังใหม่กว่าสำเนาตอนเริ่มอ่าน ห้ามโดนรายการที่อ่านเสร็จทับ
             let mut cur = lib.movies.lock().unwrap();
             keep_newer_checks(&mut movies, &before, &cur);
@@ -529,6 +579,14 @@ pub fn scan_library(app: AppHandle, lib: State<'_, Arc<LibraryStore>>) -> Result
 /// เวลาที่ตรวจครั้งล่าสุด · ไม่เคยตรวจ = 0
 fn check_at(m: &Movie) -> i64 {
     m.check.as_ref().and_then(|c| c.get("at")).and_then(|v| v.as_i64()).unwrap_or(0)
+}
+
+/// ล้างปกที่จำไว้ของหนังที่หาย มีเฉพาะตอนทดสอบ · ตัวตรวจลบชุดทดสอบแล้วลอกกลับที่อยู่เดิม ปกรอบก่อนต้องไม่กลับมา
+#[cfg(debug_assertions)]
+#[tauri::command]
+pub fn dev_clear_parked(lib: State<'_, Arc<LibraryStore>>) -> Result<(), String> {
+    lib.parked.lock().unwrap().clear();
+    lib.save()
 }
 
 /// ผลตรวจที่เสร็จระหว่างอ่านโฟลเดอร์ · เรื่องที่ผลตรวจในคลังตอนนี้ใหม่กว่าสำเนาตอนเริ่มอ่าน ใช้สถานะ ผลตรวจ และค่า hash ในคลัง
@@ -577,6 +635,31 @@ pub fn reveal_movie(app: AppHandle, path: String) -> Result<(), String> {
     }
     use tauri_plugin_opener::OpenerExt;
     app.opener().reveal_item_in_dir(p).map_err(|e| format!("เปิดโฟลเดอร์ไม่ได้: {e}"))
+}
+
+#[cfg(test)]
+mod park_tests {
+    use super::*;
+    use crate::link::LinkedCover;
+
+    fn cover() -> LinkedCover { LinkedCover { orient: "tall".into(), source: "D:\\รูป.jpg".into(), thumb: "D:\\t.jpg".into(), ..Default::default() } }
+
+    /// เอาโฟลเดอร์ออกแล้วใส่กลับ ปกกลับมาเอง ตามเลขประจำไฟล์หรือที่อยู่
+    #[test]
+    fn parked_covers_come_back() {
+        let mut parked = vec![ParkedCovers { id: "9".into(), path: "D:\\A.mkv".into(), linked: vec![cover()], cover_pick: "file".into() }];
+        let mut movies = vec![Movie { id: "1".into(), path: "D:\\b.mkv".into(), ..Default::default() }, Movie { id: "9".into(), path: "E:\\a.mkv".into(), ..Default::default() }];
+        assert_eq!(restore_parked(&mut movies, &mut parked), vec!["9".to_string()]);
+        assert!(parked.is_empty());
+        assert!(movies[0].linked.is_empty());
+        assert_eq!(movies[1].linked.len(), 1);
+        assert_eq!(movies[1].cover_pick, "file");
+        // เลขเปลี่ยน หาจากที่อยู่
+        let mut parked = vec![ParkedCovers { id: "9".into(), path: "D:\\A.mkv".into(), linked: vec![cover()], ..Default::default() }];
+        let mut movies = vec![Movie { id: "7".into(), path: "d:\\a.MKV".into(), ..Default::default() }];
+        restore_parked(&mut movies, &mut parked);
+        assert_eq!(movies[0].linked.len(), 1);
+    }
 }
 
 #[cfg(test)]

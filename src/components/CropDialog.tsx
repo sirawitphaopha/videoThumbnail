@@ -42,7 +42,8 @@ export default function CropDialog(p: {
   link?: { movie: string; orient: "tall" | "wide"; onOrient: (o: "tall" | "wide", keep: CropChoice | null) => void };
 }) {
   const { info } = p;
-  const wideSlot = p.link?.orient === "wide";
+  // รวมเข้าไฟล์จากปกนอน แล้วกดครอปต่อที่หน้าใส่โปสเตอร์ ค่า 16 : 9 ต้องไม่หาย
+  const wideSlot = p.link ? p.link.orient === "wide" : p.start?.geo.aspect === "wide";
   const ar = wideSlot ? WIDE : TALL;
   const [view, setView] = useState<View>(() => p.start ? fromGeo(p.start.geo, info, ar) : START);
   const [mode, setMode] = useState<"crop" | "pad" | "original">(p.start?.geo.mode ?? (info.twoThree ? "crop" : "crop"));

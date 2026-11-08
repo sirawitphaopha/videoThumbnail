@@ -30,6 +30,8 @@ pub struct Title {
     pub pretty: String,
     pub year: Option<u32>,
     pub imdb: Option<String>,
+    /// เลขปีลอยท้ายชื่อ คั่นด้วยช่องว่าง ไม่มีวงเล็บ เช่น Wonder Woman 1984 · อาจเป็นส่วนของชื่อเรื่อง ตัดสินจากชื่ออย่างเดียวไม่ได้
+    pub loose_year: bool,
 }
 
 /// ความละเอียด แหล่ง ตัวแปลง · เจอคำนี้แปลว่าชื่อเรื่องจบแล้ว ที่ตามมาเป็นชื่อทีมทำไฟล์
@@ -37,6 +39,9 @@ const JUNK_START: [&str; 40] = [
     "2160p", "1080p", "1080i", "720p", "576p", "480p", "4k", "8k", "uhd", "hd", "fhd", "bluray", "blu", "bdrip", "brrip", "bdremux", "remux", "web", "webdl", "webrip",
     "hdtv", "dvdrip", "dvd", "hdrip", "hdr", "sdr", "dv", "x264", "x265", "h264", "h265", "hevc", "avc", "av1", "xvid", "aac", "ac3", "dts", "ddp", "atmos",
 ];
+/// คำบอกแหล่งที่เป็นคำธรรมดาได้ด้วย (The Web · Atmos) · ตัดเมื่อมีคำบอกแหล่งตามหลัง หรือตามคำบอกชนิดรูป
+const JUNK_WEAK: [&str; 13] = ["web", "hd", "dv", "dvd", "blu", "uhd", "hdr", "sdr", "4k", "8k", "avc", "dts", "atmos"];
+const JUNK_FOLLOW: [&str; 4] = ["dl", "rip", "ray", "rc"];
 /// คำที่บอกว่าเป็นรูป ไม่ใช่ชื่อเรื่อง
 const ART_WORDS: [&str; 17] = ["poster", "cover", "folder", "fanart", "backdrop", "landscape", "thumb", "banner", "keyart", "clearart", "logo", "art", "alt", "final", "ปก", "โปสเตอร์", "ภาพปก"];
 /// ชื่อไฟล์หนังแบบทั่วไปที่ไม่ได้บอกว่าเรื่องอะไร ใช้ชื่อโฟลเดอร์แทน
@@ -47,7 +52,7 @@ const GENERIC_ART: [&str; 6] = ["folder", "poster", "cover", "movie", "default",
 const UNSURE_MIN: f64 = 0.6;
 
 fn is_sep(c: char) -> bool {
-    c.is_whitespace() || matches!(c, '.' | '_' | '-' | '(' | ')' | '[' | ']' | '{' | '}' | ',' | '+' | '\'' | '!' | ':' | ';' | '&' | '~' | '#')
+    c.is_whitespace() || matches!(c, '.' | '_' | '-' | '(' | ')' | '[' | ']' | '{' | '}' | ',' | '+' | '!' | ':' | ';' | '&' | '~' | '#')
 }
 
 /// หาเลข IMDb เช่น tt1234567 · หน้าเลขต้องไม่ติดตัวอักษรอื่น
@@ -67,12 +72,23 @@ pub fn find_imdb(s: &str) -> Option<String> {
     None
 }
 
-/// แยกชื่อจากชื่อไฟล์ (ไม่รวมนามสกุล)
-/// ① ตัดเลขสำเนาของ Windows เช่น ember (1) ② ดึงเลข IMDb ③ ปีตัวสุดท้ายที่ไม่ใช่คำแรก ที่ตามหลังปีตัดทิ้ง
-/// ④ ไม่มีปี ตัดตั้งแต่คำบอกความละเอียดหรือแหล่งเป็นต้นไป ⑤ ตัดคำว่า poster cover folder
+/// ปีปัจจุบันโดยประมาณ · เลขเกินปีหน้าไม่ใช่ปีฉาย เช่น Blade Runner 2049
+fn year_limit() -> u32 {
+    let secs = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_secs()).unwrap_or(0);
+    1970 + (secs / 31_556_952) as u32 + 1
+}
+
+/// ชื่อรูป · แยกชื่อเรื่องออกจากชื่อไฟล์ (ไม่รวมนามสกุล)
 pub fn parse_title(stem: &str) -> Title {
+    parse_name(stem, true)
+}
+
+/// ① รูปตัดเลขสำเนาของ Windows เช่น ember (1) · หนังไม่ตัด เพราะ Rocky (2) คือชื่อเรื่อง ② ดึงเลข IMDb ③ ปีตัวสุดท้ายที่ไม่ใช่คำแรก ที่ตามหลังปีตัดทิ้ง
+/// ④ ไม่มีปี ตัดตั้งแต่คำบอกความละเอียดหรือแหล่งเป็นต้นไป · มีปีไม่ต้องดู ชื่อเรื่องคือที่อยู่หน้าปี (The Web (2013))
+/// ⑤ รูปตัดคำว่า poster cover folder เฉพาะหัวกับท้ายชื่อ · หนังไม่ตัด (The Final Cut · Cover)
+fn parse_name(stem: &str, image: bool) -> Title {
     let mut s = stem.trim().to_string();
-    if s.ends_with(')') {
+    if image && s.ends_with(')') {
         if let Some(open) = s.rfind('(') {
             let inner = &s[open + 1..s.len() - 1];
             if !inner.is_empty() && inner.len() <= 2 && inner.bytes().all(|c| c.is_ascii_digit()) {
@@ -86,23 +102,35 @@ pub fn parse_title(stem: &str) -> Title {
         s = s.split(is_sep).filter(|w| !w.eq_ignore_ascii_case(id)).collect::<Vec<_>>().join(" ");
     }
     let mut words: Vec<&str> = s.split(is_sep).filter(|w| !w.is_empty()).collect();
-    let is_year = |w: &str| w.len() == 4 && w.bytes().all(|c| c.is_ascii_digit()) && w.parse::<u32>().is_ok_and(|y| (1900..=2100).contains(&y));
+    let limit = year_limit();
+    let is_year = |w: &str| w.len() == 4 && w.bytes().all(|c| c.is_ascii_digit()) && w.parse::<u32>().is_ok_and(|y| (1900..=limit).contains(&y));
     let year_at = words.iter().enumerate().skip(1).filter(|(_, w)| is_year(w)).map(|(i, _)| i).last();
     let year = year_at.and_then(|i| words[i].parse::<u32>().ok());
+    // เลขปีเป็นคำสุดท้าย ไม่มีวงเล็บ คั่นด้วยช่องว่างล้วน · แบบ Silent.Orbit.2018 กับ iron-tide-2024 เป็นปีแน่ ไม่นับ
+    let loose_year = year_at.is_some_and(|i| i + 1 == words.len()) && !s.contains(['(', '[', '.', '_', '-']);
     if let Some(i) = year_at {
         words.truncate(i);
+    } else {
+        let low: Vec<String> = words.iter().map(|w| w.to_lowercase()).collect();
+        let cut = low.iter().enumerate().skip(1).find(|(i, w)| {
+            if !JUNK_START.contains(&w.as_str()) { return false; }
+            if !JUNK_WEAK.contains(&w.as_str()) { return true; }
+            let next = low.get(i + 1).map(String::as_str).unwrap_or("");
+            JUNK_START.contains(&next) || JUNK_FOLLOW.contains(&next) || ART_WORDS.contains(&low[i - 1].as_str())
+        }).map(|(i, _)| i);
+        if let Some(i) = cut { words.truncate(i); }
     }
-    if let Some(i) = words.iter().enumerate().skip(1).find(|(_, w)| JUNK_START.contains(&w.to_lowercase().as_str())).map(|(i, _)| i) {
-        words.truncate(i);
+    if image {
+        while words.first().is_some_and(|w| ART_WORDS.contains(&w.to_lowercase().as_str())) { words.remove(0); }
+        while words.last().is_some_and(|w| ART_WORDS.contains(&w.to_lowercase().as_str())) { words.pop(); }
     }
-    words.retain(|w| !ART_WORDS.contains(&w.to_lowercase().as_str()));
-    let key: String = words.iter().map(|w| w.to_lowercase()).collect();
+    let key: String = words.iter().map(|w| w.to_lowercase().replace(['\'', '’'], "")).collect();
     let name = words.join(" ");
     let pretty = match year {
         Some(y) if !name.is_empty() => format!("{name} ({y})"),
         _ => name,
     };
-    Title { key, pretty, year, imdb }
+    Title { key, pretty, year, imdb, loose_year }
 }
 
 /// ชื่อเรื่องของไฟล์หนัง · ไฟล์ชื่อทั่วไป (movie.mkv) ใช้ชื่อโฟลเดอร์แทน
@@ -110,10 +138,10 @@ pub fn movie_title(path: &Path) -> Title {
     let stem = path.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
     if GENERIC_STEMS.contains(&stem.to_lowercase().as_str()) {
         if let Some(dir) = path.parent().and_then(|p| p.file_name()) {
-            return parse_title(&dir.to_string_lossy());
+            return parse_name(&dir.to_string_lossy(), false);
         }
     }
-    parse_title(&stem)
+    parse_name(&stem, false)
 }
 
 fn levenshtein(a: &[char], b: &[char]) -> usize {
@@ -234,6 +262,8 @@ pub struct Row {
     pub conflict: Option<String>,
     /// แถวนี้เก็บแบบอื่นแทนค่าในหน้าตั้งค่า (กดเก็บในโปรแกรมแทนตอนชื่อชน)
     pub store_override: Option<String>,
+    /// ผู้ใช้แตะแถวนี้แล้ว (ครอป ติ๊ก เลือกรูป) · จับคู่อัตโนมัติรอบใหม่ห้ามทับ · แถวจากชั้นวางที่ยังไม่แตะไม่นับว่ารอยืนยัน
+    pub touched: bool,
 }
 
 impl Row {
@@ -337,7 +367,7 @@ pub fn match_core(movies: &[MovieIn], shelf: &[Title], images: &[ImgIn], taken: 
     let dup = |key: &str| shelf.iter().filter(|t| t.key == key).count() > 1;
 
     // ใส่รูป · ช่องนั้นมีรูปจริงแล้วไม่ทับ รูปนั้นเหลือไว้บนกระดาน · เหตุผลใช้ของรูปแรก
-    fn give(row: &mut Row, img: &ImgIn, reason: &str, used: &mut HashSet<String>) -> bool {
+    fn give(row: &mut Row, img: &ImgIn, reason: &str, tick: bool, used: &mut HashSet<String>) -> bool {
         let wide = img.width > img.height;
         if (wide && row.wide.is_some()) || (!wide && row.tall.is_some() && !row.derived_tall) {
             return false;
@@ -348,7 +378,7 @@ pub fn match_core(movies: &[MovieIn], shelf: &[Title], images: &[ImgIn], taken: 
             row.status = "sure".into();
             row.reason = reason.to_string();
             row.score = 100;
-            row.ticked = true;
+            row.ticked = tick;
         }
         true
     }
@@ -357,7 +387,7 @@ pub fn match_core(movies: &[MovieIn], shelf: &[Title], images: &[ImgIn], taken: 
     for (r, m) in rows.iter_mut().zip(movies) {
         for img in &m.beside {
             if !used.contains(&lower(&img.path)) && is_beside_art(&img.stem(), m) {
-                give(r, img, "รูปอยู่ข้างไฟล์หนัง", &mut used);
+                give(r, img, "รูปอยู่ข้างไฟล์หนัง", true, &mut used);
             }
         }
     }
@@ -366,7 +396,7 @@ pub fn match_core(movies: &[MovieIn], shelf: &[Title], images: &[ImgIn], taken: 
         let Some(id) = &m.imdb else { continue };
         for (img, t) in images.iter().zip(&titles) {
             if t.imdb.as_ref() == Some(id) && !used.contains(&lower(&img.path)) {
-                give(r, img, "เลข IMDb ตรงกัน", &mut used);
+                give(r, img, "เลข IMDb ตรงกัน", true, &mut used);
             }
         }
     }
@@ -375,26 +405,33 @@ pub fn match_core(movies: &[MovieIn], shelf: &[Title], images: &[ImgIn], taken: 
         if m.title.key.is_empty() || m.title.year.is_none() { continue; }
         for (img, t) in images.iter().zip(&titles) {
             if t.key == m.title.key && t.year == m.title.year && !used.contains(&lower(&img.path)) {
-                give(r, img, "ชื่อกับปีตรง", &mut used);
+                give(r, img, "ชื่อกับปีตรง", true, &mut used);
             }
         }
     }
-    // ④ ชื่อตรง ฝั่งใดฝั่งหนึ่งไม่มีปี · ชื่อซ้ำกับเรื่องอื่นบนชั้นไม่กล้าตัดสิน
+    // ④ ชื่อตรง ฝั่งใดฝั่งหนึ่งไม่มีปี · ใส่รูปให้แต่ไม่ติ๊ก (มอคอัป คู่ที่ชื่อกับปีตรงกันเท่านั้นที่ติ๊กไว้ให้)
+    // ไม่กล้าตัดสิน เป็นไม่แน่ใจพร้อมรูปให้เลือก · ชื่อซ้ำกับเรื่องอื่นบนชั้น · หนังไม่มีปีแต่รูปชื่อนี้มีหลายปี · เลขท้ายชื่ออาจเป็นส่วนของชื่อเรื่อง
     for (r, m) in rows.iter_mut().zip(movies) {
         if m.title.key.is_empty() { continue; }
+        let years: HashSet<Option<u32>> = images.iter().zip(&titles).filter(|(img, t)| t.key == m.title.key && !used.contains(&lower(&img.path))).map(|(_, t)| t.year).collect();
+        let many_years = m.title.year.is_none() && years.len() > 1;
         for (img, t) in images.iter().zip(&titles) {
             let no_year = t.year.is_none() || m.title.year.is_none();
             if t.key != m.title.key || !no_year || used.contains(&lower(&img.path)) { continue; }
-            if dup(&m.title.key) {
+            let why_unsure = if dup(&m.title.key) { Some("ชื่อซ้ำกับเรื่องอื่น รูปไม่มีปี") }
+                else if many_years { Some("รูปชื่อนี้มีหลายปี เลือกเอง") }
+                else if t.loose_year || m.title.loose_year { Some("เลขท้ายชื่ออาจเป็นส่วนของชื่อเรื่อง เลือกเอง") }
+                else { None };
+            if let Some(why) = why_unsure {
                 if !r.has_image() && !r.candidates.iter().any(|c| c.path == img.path) {
                     r.candidates.push(img.pick());
                     r.status = "unsure".into();
-                    r.reason = "ชื่อซ้ำกับเรื่องอื่น รูปไม่มีปี".into();
+                    r.reason = why.into();
                     r.score = 100;
                 }
             } else {
                 let why = if t.year.is_none() { "ชื่อตรง ไม่มีปีในชื่อรูป" } else { "ชื่อตรง ไม่มีปีในชื่อไฟล์หนัง" };
-                give(r, img, why, &mut used);
+                give(r, img, why, false, &mut used);
             }
         }
     }
@@ -440,6 +477,25 @@ pub struct LinkStore {
     rethumb: AtomicBool,
     /// กดหยุดงานยืนยัน
     pub stop: AtomicBool,
+    /// กำลังยืนยันหรือย้ายที่เก็บ · ระหว่างนี้ห้ามแก้แถวหรือเริ่มงานซ้อน ข้อมูลเก่าจะทับข้อมูลใหม่ (ผู้ช่วยตรวจขั้น 8)
+    busy: AtomicBool,
+}
+
+const BUSY_MSG: &str = "กำลังยืนยันหรือย้ายที่เก็บรูปอยู่ รอให้เสร็จก่อน";
+
+/// ถือไว้ตลอดงาน หลุดจากขอบเขตเมื่อไหร่ก็ปลดเอง รวมตอนงานล้ม
+pub struct BusyGuard(Arc<LinkStore>);
+impl Drop for BusyGuard {
+    fn drop(&mut self) { self.0.busy.store(false, Ordering::SeqCst); }
+}
+fn begin_busy(store: &Arc<LinkStore>) -> Result<BusyGuard, String> {
+    if store.busy.swap(true, Ordering::SeqCst) { return Err(BUSY_MSG.to_string()); }
+    Ok(BusyGuard(store.clone()))
+}
+
+/// คู่ที่นับว่ารอยืนยัน · แถวที่เปิดจากชั้นวางแล้วยังไม่ได้แก้อะไร ไม่นับ กดเข้ามาดูแล้วออกต้องไม่ขึ้นเลข ไม่ถามตอนปิด
+fn is_waiting(r: &Row) -> bool {
+    r.status != "saved" && r.has_image() && !(r.via == "shelf" && !r.touched)
 }
 
 fn read_file(path: &Path) -> Option<LinkFile> {
@@ -452,7 +508,7 @@ impl LinkStore {
         let mut data = read_file(&path).or_else(|| read_file(&path.with_extension("json.bak"))).unwrap_or_default();
         data.rows.retain(|r| r.status != "saved");
         if data.scope.is_empty() { data.scope = "nocover".into(); }
-        Self { path, data: Mutex::new(data), save_lock: Mutex::new(()), thumbing: AtomicBool::new(false), rethumb: AtomicBool::new(false), stop: AtomicBool::new(false) }
+        Self { path, data: Mutex::new(data), save_lock: Mutex::new(()), thumbing: AtomicBool::new(false), rethumb: AtomicBool::new(false), stop: AtomicBool::new(false), busy: AtomicBool::new(false) }
     }
 
     pub fn save(&self) -> Result<(), String> {
@@ -465,7 +521,13 @@ impl LinkStore {
 
     /// คู่ที่รอยืนยัน ไว้ขึ้นเลขในเมนูกับถามตอนปิดโปรแกรม
     pub fn waiting(&self) -> usize {
-        self.data.lock().unwrap().rows.iter().filter(|r| r.status != "saved" && r.has_image()).count()
+        self.data.lock().unwrap().rows.iter().filter(|r| is_waiting(r)).count()
+    }
+    pub fn is_busy(&self) -> bool {
+        self.busy.load(Ordering::SeqCst)
+    }
+    fn idle(&self) -> Result<(), String> {
+        if self.is_busy() { Err(BUSY_MSG.to_string()) } else { Ok(()) }
     }
 }
 
@@ -586,15 +648,18 @@ pub fn list_images(folders: &[String], loose: &[String], thumbs: &Path) -> Vec<I
 }
 
 /// ข้อมูลหนังสำหรับตัวจับคู่ · อ่านรูปข้างไฟล์กับไฟล์ .nfo
-pub fn movie_in(id: &str, path: &str, has_cover: bool, all_dirs: &HashMap<String, usize>, thumbs: &Path) -> MovieIn {
+pub fn movie_in(id: &str, path: &str, has_cover: bool, all_dirs: &HashMap<String, usize>, thumbs: &Path, own: &HashSet<String>) -> MovieIn {
     let p = Path::new(path);
     let stem = p.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
     let dir = p.parent().unwrap_or(Path::new(""));
     let dir_key = dir.to_string_lossy().to_lowercase();
     let title = movie_title(p);
     let mut imdb = title.imdb.clone();
+    let alone = all_dirs.get(&dir_key).copied().unwrap_or(1) <= 1;
     if imdb.is_none() {
-        for nfo in [dir.join(format!("{stem}.nfo")), dir.join("movie.nfo")] {
+        // movie.nfo ใช้เฉพาะโฟลเดอร์ที่มีเรื่องเดียว · โฟลเดอร์รวมหลายเรื่องทุกเรื่องจะได้เลขเดียวกัน
+        let nfos = if alone { vec![dir.join(format!("{stem}.nfo")), dir.join("movie.nfo")] } else { vec![dir.join(format!("{stem}.nfo"))] };
+        for nfo in nfos {
             if let Ok(b) = fs::read(&nfo) {
                 let text = String::from_utf8_lossy(&b[..b.len().min(65536)]).to_string();
                 imdb = text.split(|c: char| !c.is_ascii_alphanumeric()).find_map(find_imdb);
@@ -607,7 +672,8 @@ pub fn movie_in(id: &str, path: &str, has_cover: bool, all_dirs: &HashMap<String
     if let Ok(rd) = fs::read_dir(dir) {
         for e in rd.flatten() {
             let f = e.path();
-            if f.is_file() && pi::ACCEPTED.contains(&pi::ext_of(&f).as_str()) {
+            // ไฟล์ปกที่โปรแกรมทำเองไม่ใช่รูปต้นทาง · ถ้านับ ปกที่ครอปไว้จะกลายเป็นไฟล์ของคนอื่นตอนจับคู่ทุกเรื่องซ้ำ
+            if f.is_file() && pi::ACCEPTED.contains(&pi::ext_of(&f).as_str()) && !own.contains(&f.to_string_lossy().to_lowercase()) {
                 let hit = cache.get(&thumb_key(&f));
                 let (width, height) = hit.map(|h| (h.1, h.2)).unwrap_or_else(|| header_size(&f));
                 beside.push(ImgIn {
@@ -618,7 +684,7 @@ pub fn movie_in(id: &str, path: &str, has_cover: bool, all_dirs: &HashMap<String
         }
     }
     beside.sort_by_key(|i| i.name.to_lowercase());
-    MovieIn { id: id.to_string(), path: path.to_string(), stem, title, has_cover, imdb, beside, alone: all_dirs.get(&dir_key).copied().unwrap_or(1) <= 1 }
+    MovieIn { id: id.to_string(), path: path.to_string(), stem, title, has_cover, imdb, beside, alone }
 }
 
 pub fn dir_counts<'a>(paths: impl Iterator<Item = &'a str>) -> HashMap<String, usize> {
@@ -651,9 +717,15 @@ pub struct LinkReply {
 
 /// หนังที่ถูกเปลี่ยนชื่อหรือย้าย แถวตามชื่อใหม่ · หนังที่หายจากคลังแล้ว แถวหายด้วย
 fn refresh_rows(data: &mut LinkFile, movies: &[Movie]) {
-    data.rows.retain_mut(|r| match movies.iter().find(|m| m.id == r.id) {
+    // เลขประจำไฟล์เปลี่ยนได้โดยที่เป็นเรื่องเดิม (รวมเสียงเข้าไฟล์ได้ไฟล์ใหม่ชื่อเดิม) หาจากที่อยู่ก่อนทิ้งแถว
+    data.rows.retain_mut(|r| match movies.iter().find(|m| m.id == r.id).or_else(|| movies.iter().find(|m| m.path.eq_ignore_ascii_case(&r.movie))) {
         Some(m) => {
-            r.movie = m.path.clone();
+            r.id = m.id.clone();
+            if r.movie != m.path {
+                let t = movie_title(Path::new(&m.path));
+                if !t.pretty.is_empty() { r.title = t.pretty; }
+                r.movie = m.path.clone();
+            }
             r.has_cover = m.has_cover;
             true
         }
@@ -664,7 +736,7 @@ fn refresh_rows(data: &mut LinkFile, movies: &[Movie]) {
 fn reply(store: &LinkStore, movies: &[Movie]) -> LinkReply {
     let mut d = store.data.lock().unwrap();
     refresh_rows(&mut d, movies);
-    let waiting = d.rows.iter().filter(|r| r.status != "saved" && r.has_image()).count();
+    let waiting = d.rows.iter().filter(|r| is_waiting(r)).count();
     LinkReply { rows: d.rows.clone(), image_folders: d.image_folders.clone(), loose: d.loose.clone(), scope: d.scope.clone(), waiting }
 }
 
@@ -733,11 +805,20 @@ fn start_thumbs(app: &AppHandle) {
     });
 }
 
+/// ไฟล์ปกที่โปรแกรมทำเอง ตัวเล็กทั้งหมด
+fn own_files(movies: &[Movie]) -> HashSet<String> {
+    movies.iter().flat_map(|m| &m.linked).filter(|c| c.owned).filter_map(|c| c.file.as_ref()).map(|f| f.to_lowercase()).collect()
+}
+
 fn images_now(app: &AppHandle, store: &LinkStore) -> Result<Vec<LinkImage>, String> {
     let d = dirs(app)?;
     let (folders, loose, rows) = { let x = store.data.lock().unwrap(); (x.image_folders.clone(), x.loose.clone(), x.rows.clone()) };
-    let taken: HashSet<String> = rows.iter().flat_map(|r| [&r.tall, &r.wide]).flatten().map(|p| p.path.to_lowercase()).collect();
-    Ok(list_images(&folders, &loose, &d.thumbs).into_iter().map(|i| LinkImage {
+    let mut taken: HashSet<String> = rows.iter().flat_map(|r| [&r.tall, &r.wide]).flatten().map(|p| p.path.to_lowercase()).collect();
+    // รูปที่ยืนยันไปรอบก่อนนับว่าใช้แล้ว เปิดโปรแกรมใหม่แล้วไม่กลับมาบนกระดาน · ไฟล์ปกที่โปรแกรมทำเองไม่ขึ้นเลย ไม่ใช่รูปต้นทาง
+    let movies = movies_of(&app.state::<Arc<LibraryStore>>());
+    taken.extend(movies.iter().flat_map(|m| &m.linked).map(|c| c.source.to_lowercase()));
+    let own = own_files(&movies);
+    Ok(list_images(&folders, &loose, &d.thumbs).into_iter().filter(|i| !own.contains(&i.path.to_lowercase())).map(|i| LinkImage {
         used: taken.contains(&i.path.to_lowercase()), path: i.path, name: i.name, folder: i.folder, width: i.width, height: i.height, thumb: i.thumb, error: None,
     }).collect())
 }
@@ -756,6 +837,7 @@ pub async fn link_images(app: AppHandle) -> Result<Vec<LinkImage>, String> {
 /// เพิ่มโฟลเดอร์รูปหรือรูปทีละรูป · ลากมาหลายอย่างปนกันได้ · ไฟล์ที่ไม่ใช่รูปไม่รับ บอกกลับ
 #[tauri::command]
 pub fn link_add_images(app: AppHandle, store: State<'_, Arc<LinkStore>>, lib: State<'_, Arc<LibraryStore>>, paths: Vec<String>) -> Result<LinkReply, String> {
+    store.idle()?;
     let mut bad = vec![];
     {
         let mut d = store.data.lock().unwrap();
@@ -809,14 +891,17 @@ pub async fn link_auto(app: AppHandle, scope: String) -> Result<AutoSummary, Str
     tauri::async_runtime::spawn_blocking(move || {
         let d = dirs(&app)?;
         let store = app.state::<Arc<LinkStore>>().inner().clone();
+        store.idle()?;
         let movies = movies_of(&app.state::<Arc<LibraryStore>>());
         let scope = if scope == "all" { "all".to_string() } else { "nocover".to_string() };
         let (folders, loose, keep) = {
             let mut x = store.data.lock().unwrap();
             x.scope = scope.clone();
-            (x.image_folders.clone(), x.loose.clone(), x.rows.iter().filter(|r| r.status == "saved" || r.via != "auto").cloned().collect::<Vec<_>>())
+            (x.image_folders.clone(), x.loose.clone(), x.rows.iter().filter(|r| r.status == "saved" || r.via != "auto" || r.touched).cloned().collect::<Vec<_>>())
         };
+        let own = own_files(&movies);
         let mut images = list_images(&folders, &loose, &d.thumbs);
+        images.retain(|i| !own.contains(&i.path.to_lowercase()));
         // HEIC อ่านขนาดจากหัวไฟล์ไม่ได้ ถอดเลย ไม่งั้นบอกแนวไม่ได้
         for i in images.iter_mut().filter(|i| i.width == 0) {
             if let Ok((t, w, h)) = make_src_thumb(&d.tools, &d.work, &d.thumbs, Path::new(&i.path)) {
@@ -828,8 +913,10 @@ pub async fn link_auto(app: AppHandle, scope: String) -> Result<AutoSummary, Str
         let shelf: Vec<Title> = movies.iter().map(|m| movie_title(Path::new(&m.path))).collect();
         let targets: Vec<MovieIn> = movies.iter()
             .filter(|m| !m.missing && !kept.contains(m.id.as_str()) && (scope == "all" || (!m.has_cover && m.linked.is_empty())))
-            .map(|m| movie_in(&m.id, &m.path, m.has_cover, &counts, &d.thumbs)).collect();
-        let taken: HashSet<String> = keep.iter().flat_map(|r| [&r.tall, &r.wide]).flatten().map(|p| p.path.clone()).collect();
+            .map(|m| movie_in(&m.id, &m.path, m.has_cover, &counts, &d.thumbs, &own)).collect();
+        let mut taken: HashSet<String> = keep.iter().flat_map(|r| [&r.tall, &r.wide]).flatten().map(|p| p.path.clone()).collect();
+        // เฉพาะเรื่องที่ยังไม่มีปก รูปที่ยืนยันไปแล้วไม่ไปซ้ำเรื่องอื่น · ทุกเรื่องตั้งใจจับคู่ใหม่หมด จึงไม่กัน
+        if scope != "all" { taken.extend(movies.iter().flat_map(|m| &m.linked).map(|c| c.source.clone())); }
         let fresh = match_core(&targets, &shelf, &images, &taken);
         let mut sum = (0, 0, 0);
         for r in &fresh {
@@ -893,7 +980,10 @@ pub fn pair_row(row: &mut Row, picks: Vec<Pick>, via: &str) {
     row.candidates.clear();
     row.score = 0;
     row.ticked = true;
+    row.touched = true;
     row.error = None;
+    row.conflict = None;
+    row.store_override = None;
     row.prev = Some(Box::new(before));
 }
 
@@ -902,6 +992,7 @@ pub async fn link_pair(app: AppHandle, id: String, paths: Vec<String>, via: Stri
     tauri::async_runtime::spawn_blocking(move || {
         let d = dirs(&app)?;
         let store = app.state::<Arc<LinkStore>>().inner().clone();
+        store.idle()?;
         let movies = movies_of(&app.state::<Arc<LibraryStore>>());
         let m = movies.iter().find(|m| m.id == id).ok_or("หาหนังในคลังไม่เจอ")?;
         if paths.is_empty() { return Err("ยังไม่ได้เลือกรูป".to_string()); }
@@ -920,6 +1011,7 @@ pub async fn link_pair(app: AppHandle, id: String, paths: Vec<String>, via: Stri
 /// ย้อนการจับคู่เองล่าสุดของแถว
 #[tauri::command]
 pub fn link_undo(store: State<'_, Arc<LinkStore>>, lib: State<'_, Arc<LibraryStore>>, id: String) -> Result<LinkReply, String> {
+    store.idle()?;
     {
         let mut x = store.data.lock().unwrap();
         let i = x.rows.iter().position(|r| r.id == id).ok_or("ไม่เจอแถวนี้")?;
@@ -950,6 +1042,7 @@ pub async fn link_set_crop(app: AppHandle, id: String, orient: String, geo: Geom
     tauri::async_runtime::spawn_blocking(move || {
         let d = dirs(&app)?;
         let store = app.state::<Arc<LinkStore>>().inner().clone();
+        store.idle()?;
         let movies = movies_of(&app.state::<Arc<LibraryStore>>());
         let wide = orient == "wide";
         let base = {
@@ -974,6 +1067,8 @@ pub async fn link_set_crop(app: AppHandle, id: String, orient: String, geo: Geom
             if wide { r.wide = Some(pick); } else { r.tall = Some(pick); r.derived_tall = false; }
             r.error = None;
             r.conflict = None;
+            r.touched = true;
+            r.ticked = true;
         }
         store.save()?;
         Ok(reply(&store, &movies))
@@ -983,14 +1078,20 @@ pub async fn link_set_crop(app: AppHandle, id: String, orient: String, geo: Geom
 /// แก้แถว · ติ๊ก เลือกรูปใกล้เคียง ค่าครอป ข้าม
 #[tauri::command]
 pub fn link_row_update(store: State<'_, Arc<LinkStore>>, lib: State<'_, Arc<LibraryStore>>, id: String, patch: RowPatch) -> Result<LinkReply, String> {
+    store.idle()?;
     {
         let mut x = store.data.lock().unwrap();
         if patch.skip == Some(true) {
             x.rows.retain(|r| r.id != id);
         } else {
             let r = x.rows.iter_mut().find(|r| r.id == id).ok_or("ไม่เจอแถวนี้")?;
+            r.touched = true;
             if let Some(t) = patch.ticked { r.ticked = t && r.has_image(); }
             if let Some(path) = &patch.choose {
+                // เปลี่ยนรูปแล้ว เหตุผลเดิมกับที่เก็บแบบเฉพาะแถวไม่เกี่ยวแล้ว · ติ๊กอย่างเดียวต้องไม่ล้างเหตุผล
+                r.error = None;
+                r.conflict = None;
+                r.store_override = None;
                 let pick = r.candidates.iter().find(|c| &c.path == path).cloned().ok_or("ไม่เจอรูปนี้ในรูปใกล้เคียง")?;
                 r.tall = None; r.wide = None; r.derived_tall = false;
                 assign(r, pick);
@@ -1002,7 +1103,6 @@ pub fn link_row_update(store: State<'_, Arc<LinkStore>>, lib: State<'_, Arc<Libr
                 p.geo = Some(g);
                 if o != "wide" { r.derived_tall = false; }
             }
-            r.error = None;
         }
     }
     store.save()?;
@@ -1106,6 +1206,55 @@ fn replace_own(target: &Path, bytes: &[u8]) -> Result<(), String> {
     Ok(())
 }
 
+/// รูปต้นทางคือไฟล์ชื่อนั้นข้างหนังอยู่แล้ว (ชื่อหนัง-poster.jpg จากที่อื่น) แนวตรงช่อง และไม่ได้ครอป ใช้ไฟล์นั้นเลย ไม่คัดลอก ไม่นับเป็นของโปรแกรม
+fn is_existing_art(movie: &Path, orient: &str, pick: &Pick, target: &Path, w: u32, h: u32) -> bool {
+    let src = Path::new(&pick.path);
+    pick.geo.is_none() && (w == 0 || (w > h) == (orient == "wide"))
+        && same_file(src.parent().unwrap_or(Path::new("")), movie.parent().unwrap_or(Path::new("")))
+        && same_file(Path::new(src.file_stem().unwrap_or_default()), Path::new(target.file_stem().unwrap_or_default()))
+}
+
+/// ไฟล์ปลายทางมีอยู่แล้วและไม่ใช่ของโปรแกรม · เช็กทุกช่องก่อนเขียนช่องแรก แถวจะได้ไม่ครึ่ง ๆ กลาง ๆ
+fn conflict_of(env: &WriteEnv, movie: &Path, orient: &str, pick: &Pick, store: &str, old: Option<&LinkedCover>) -> Option<CoverProblem> {
+    if store != "beside" && store != "" { return None; }
+    let target = beside_target(movie, orient, env.format);
+    if !target.exists() || is_existing_art(movie, orient, pick, &target, pick.width, pick.height) { return None; }
+    let mine = old.is_some_and(|o| o.owned && o.file.as_deref().is_some_and(|f| same_file(Path::new(f), &target)) && o.sha256 == file_sha(&target));
+    if mine { return None; }
+    let name = target.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+    Some(CoverProblem { msg: format!("มีไฟล์ {name} อยู่แล้ว ไม่ใช่ของโปรแกรม ไม่เขียนทับ"), conflict: Some(target.to_string_lossy().to_string()) })
+}
+
+/// วางไบต์รูปตามแบบที่เก็บ คืนไฟล์ที่ได้กับว่าเป็นของโปรแกรมไหม
+fn place_bytes(env: &WriteEnv, id: &str, movie: &Path, orient: &str, ext: &str, bytes: &[u8], sha: &str, store: &str, old: Option<&LinkedCover>) -> Result<(Option<PathBuf>, bool), CoverProblem> {
+    match store {
+        "link" => Ok((None, false)),
+        "app" => {
+            fs::create_dir_all(env.covers).map_err(|e| fail(e.to_string()))?;
+            let f = env.covers.join(format!("{}-{orient}-{}.{ext}", safe_id(id), &sha[..12]));
+            if !f.exists() {
+                write_new(&f, bytes).map_err(|e| fail(format!("เก็บรูปในโปรแกรมไม่ได้: {e}")))?;
+            }
+            Ok((Some(f), true))
+        }
+        _ => {
+            let target = beside_target(movie, orient, ext);
+            if target.exists() {
+                // เป็นไฟล์ที่โปรแกรมทำเองและยังไม่ถูกแก้ ถึงจะแทนได้
+                let mine = old.is_some_and(|o| o.owned && o.file.as_deref().is_some_and(|f| same_file(Path::new(f), &target)) && o.sha256 == file_sha(&target));
+                if !mine {
+                    let name = target.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+                    return Err(CoverProblem { msg: format!("มีไฟล์ {name} อยู่แล้ว ไม่ใช่ของโปรแกรม ไม่เขียนทับ"), conflict: Some(target.to_string_lossy().to_string()) });
+                }
+                replace_own(&target, bytes).map_err(|e| fail(format!("เขียนรูปข้างไฟล์หนังไม่ได้: {e}")))?;
+            } else {
+                write_new(&target, bytes).map_err(|e| fail(format!("เขียนรูปข้างไฟล์หนังไม่ได้: {e}")))?;
+            }
+            Ok((Some(target), true))
+        }
+    }
+}
+
 /// เก็บรูปหนึ่งช่องตามแบบที่ตั้ง · รูปต้นฉบับไม่ถูกแก้ · ไฟล์หนังไม่ถูกแตะ
 /// `old` ปกเดิมของช่องนี้ ไว้ดูว่าไฟล์ปลายทางเป็นของโปรแกรมเองไหม
 pub fn write_cover(env: &WriteEnv, id: &str, movie: &Path, orient: &str, pick: &Pick, store: &str, old: Option<&LinkedCover>) -> Result<LinkedCover, CoverProblem> {
@@ -1117,11 +1266,8 @@ pub fn write_cover(env: &WriteEnv, id: &str, movie: &Path, orient: &str, pick: &
     let dec = pi::decode(env.tools, env.work, src).map_err(fail)?;
     let (w, h) = dec.img.dimensions();
     let target = beside_target(movie, orient, env.format);
-    // รูปต้นทางคือไฟล์ชื่อนั้นข้างหนังอยู่แล้ว (ชื่อหนัง-poster.jpg จากที่อื่น) และไม่ได้ครอป ใช้ไฟล์นั้นเลย ไม่คัดลอก ไม่นับเป็นของโปรแกรม
-    let already = store == "beside" && same_file(src.parent().unwrap_or(Path::new("")), movie.parent().unwrap_or(Path::new("")))
-        && same_file(Path::new(src.file_stem().unwrap_or_default()), Path::new(target.file_stem().unwrap_or_default()));
-    if already && pick.geo.is_none() {
-        let sha = file_sha(src).unwrap_or_default();
+    if store == "beside" && is_existing_art(movie, orient, pick, &target, w, h) {
+        let sha = file_sha(src).ok_or_else(|| fail(format!("อ่าน {} ไม่ได้", pick.name)))?;
         let (thumb, aspect) = write_thumb(env, id, orient, &dec.img, &sha).map_err(fail)?;
         return Ok(LinkedCover { orient: orient.into(), source: pick.path.clone(), cropped: false, geo: None, store: "beside".into(), file: Some(pick.path.clone()), owned: false, sha256: Some(sha), thumb: thumb.to_string_lossy().to_string(), aspect, at: now });
     }
@@ -1129,37 +1275,13 @@ pub fn write_cover(env: &WriteEnv, id: &str, movie: &Path, orient: &str, pick: &
     let (img, _) = pi::render(&dec.img, &geo, env.shrink);
     let bytes = pi::encode(&img, env.format, env.quality).map_err(fail)?;
     let sha = sha_of(&bytes);
-    let (file, owned) = match store {
-        "link" => (None, false),
-        "app" => {
-            fs::create_dir_all(env.covers).map_err(|e| fail(e.to_string()))?;
-            let f = env.covers.join(format!("{}-{orient}-{}.{}", safe_id(id), &sha[..12], env.format));
-            if !f.exists() {
-                fs::write(&f, &bytes).map_err(|e| fail(format!("เก็บรูปในโปรแกรมไม่ได้: {e}")))?;
-            }
-            (Some(f), true)
-        }
-        _ => {
-            if target.exists() {
-                // เป็นไฟล์ที่โปรแกรมทำเองและยังไม่ถูกแก้ ถึงจะแทนได้
-                let mine = old.is_some_and(|o| o.owned && o.file.as_deref().is_some_and(|f| same_file(Path::new(f), &target)) && o.sha256 == file_sha(&target));
-                if !mine {
-                    let name = target.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-                    return Err(CoverProblem { msg: format!("มีไฟล์ {name} อยู่แล้ว ไม่ใช่ของโปรแกรม ไม่เขียนทับ"), conflict: Some(target.to_string_lossy().to_string()) });
-                }
-                replace_own(&target, &bytes).map_err(|e| fail(format!("เขียนรูปข้างไฟล์หนังไม่ได้: {e}")))?;
-            } else {
-                write_new(&target, &bytes).map_err(|e| fail(format!("เขียนรูปข้างไฟล์หนังไม่ได้: {e}")))?;
-            }
-            (Some(target), true)
-        }
-    };
+    let (file, owned) = place_bytes(env, id, movie, orient, env.format, &bytes, &sha, store, old)?;
     let (thumb, aspect) = write_thumb(env, id, orient, &img, &sha).map_err(fail)?;
     Ok(LinkedCover { orient: orient.into(), source: pick.path.clone(), cropped: pick.geo.is_some(), geo: Some(geo), store: store.into(), file: file.map(|f| f.to_string_lossy().to_string()), owned, sha256: Some(sha), thumb: thumb.to_string_lossy().to_string(), aspect, at: now })
 }
 
-/// เอาปกหนึ่งช่องออก · ลบได้เฉพาะไฟล์ที่โปรแกรมทำเองและยังไม่ถูกแก้ ลงถังขยะเท่านั้น (พี่กันตอบตอนทำแผน)
-/// สำเนาในโปรแกรมลบเลย ผู้ใช้ไม่เคยเห็นไฟล์นั้น · คืนข้อความเมื่อมีไฟล์ที่ไม่ลบ
+/// เอาปกหนึ่งช่องออก · ลบได้เฉพาะไฟล์ที่โปรแกรมทำเองและยังไม่ถูกแก้ ลงถังขยะเท่านั้น ทุกแบบที่เก็บ (พี่กันตอบตอนทำแผน)
+/// ไดรฟ์ที่ไม่มีถังขยะไม่ลบ · คืนข้อความเมื่อมีไฟล์ที่ไม่ลบ
 pub fn remove_cover(c: &LinkedCover) -> Option<String> {
     let _ = fs::remove_file(&c.thumb);
     let f = Path::new(c.file.as_deref()?);
@@ -1169,9 +1291,8 @@ pub fn remove_cover(c: &LinkedCover) -> Option<String> {
     if file_sha(f) != c.sha256 {
         return Some(format!("{} ถูกแก้หลังโปรแกรมทำไว้ ไม่ลบให้", f.file_name().unwrap_or_default().to_string_lossy()));
     }
-    if c.store == "app" {
-        let _ = fs::remove_file(f);
-        return None;
+    if !crate::outfile::drive_is_fixed(f.parent().unwrap_or(Path::new(""))) {
+        return Some(format!("{} อยู่บนไดรฟ์ที่ไม่มีถังขยะ ไม่ลบให้ ลบเองได้", f.file_name().unwrap_or_default().to_string_lossy()));
     }
     crate::outfile::to_trash(f).err().map(|e| format!("{} {e}", f.file_name().unwrap_or_default().to_string_lossy()))
 }
@@ -1180,6 +1301,12 @@ pub fn remove_cover(c: &LinkedCover) -> Option<String> {
 pub fn apply_row(env: &WriteEnv, m: &Movie, row: &Row, store: &str) -> Result<Vec<LinkedCover>, CoverProblem> {
     let movie = Path::new(&m.path);
     let mut out: Vec<LinkedCover> = vec![];
+    // ชื่อชนเช็กทุกช่องก่อน · เดิมช่องปกตั้งแทนไฟล์เดิมไปแล้ว ช่องปกนอนชนทีหลัง แถวครึ่ง ๆ กลาง ๆ (ผู้ช่วยตรวจขั้น 8)
+    for (orient, pick) in [("tall", &row.tall), ("wide", &row.wide)] {
+        if let Some(pick) = pick {
+            if let Some(p) = conflict_of(env, movie, orient, pick, store, m.linked.iter().find(|c| c.orient == orient)) { return Err(p); }
+        }
+    }
     for (orient, pick) in [("tall", &row.tall), ("wide", &row.wide)] {
         let Some(pick) = pick else { continue };
         let old = m.linked.iter().find(|c| c.orient == orient);
@@ -1187,11 +1314,11 @@ pub fn apply_row(env: &WriteEnv, m: &Movie, row: &Row, store: &str) -> Result<Ve
             Ok(c) => out.push(c),
             Err(e) => {
                 for c in &out {
-                    let same_as_old = m.linked.iter().any(|o| o.file == c.file);
-                    if c.owned && !same_as_old {
+                    let in_old = |p: &str| m.linked.iter().any(|o| o.file.as_deref().is_some_and(|f| same_file(Path::new(f), Path::new(p))));
+                    if c.owned && !c.file.as_deref().is_some_and(in_old) {
                         if let Some(f) = &c.file { let _ = fs::remove_file(f); }
                     }
-                    if !m.linked.iter().any(|o| o.thumb == c.thumb) { let _ = fs::remove_file(&c.thumb); }
+                    if !m.linked.iter().any(|o| same_file(Path::new(&o.thumb), Path::new(&c.thumb))) { let _ = fs::remove_file(&c.thumb); }
                 }
                 return Err(e);
             }
@@ -1210,11 +1337,12 @@ pub fn merge_covers(m: &mut Movie, covers: Vec<LinkedCover>) -> Vec<LinkedCover>
             m.linked.push(c);
         }
     }
-    let now: Vec<(Option<String>, String)> = m.linked.iter().map(|c| (c.file.clone(), c.thumb.clone())).collect();
-    // ปกเก่าที่ไฟล์หรือภาพเล็กยังถูกปกใหม่ใช้อยู่ ห้ามเอาออก
+    let now = m.linked.clone();
+    // ปกเก่าที่ไฟล์หรือภาพเล็กยังถูกปกที่เหลือใช้อยู่ ห้ามเอาออก · ดูทั้งไฟล์ที่เก็บและรูปต้นทาง และไม่สนตัวพิมพ์ใหญ่เล็ก
     gone.into_iter().map(|mut g| {
-        if now.iter().any(|(f, _)| f.is_some() && *f == g.file) { g.file = None; }
-        if now.iter().any(|(_, t)| *t == g.thumb) { g.thumb.clear(); }
+        let used = g.file.as_deref().is_some_and(|f| now.iter().any(|c| same_file(Path::new(&c.source), Path::new(f)) || c.file.as_deref().is_some_and(|x| same_file(Path::new(x), Path::new(f)))));
+        if used { g.file = None; }
+        if now.iter().any(|c| same_file(Path::new(&c.thumb), Path::new(&g.thumb))) { g.thumb.clear(); }
         g
     }).collect()
 }
@@ -1226,7 +1354,8 @@ pub fn rename_beside(m: &mut Movie, new_movie: &Path) {
         let old = PathBuf::from(old);
         let ext = old.extension().map(|e| e.to_string_lossy().to_string()).unwrap_or_else(|| "jpg".into());
         let new = beside_target(new_movie, &c.orient, &ext);
-        if !same_file(&old, &new) && crate::rename::move_no_replace(&old, &new).is_ok() {
+        // ไฟล์ที่ผู้ใช้แก้เองแล้วไม่ใช่ของโปรแกรมอีกต่อไป ไม่เปลี่ยนชื่อให้
+        if !same_file(&old, &new) && file_sha(&old) == c.sha256 && crate::rename::move_no_replace(&old, &new).is_ok() {
             c.file = Some(new.to_string_lossy().to_string());
         }
     }
@@ -1260,8 +1389,8 @@ pub struct ConfirmResult {
 /// แถวที่จะยืนยัน · ticked ที่ติ๊กไว้ · all ทุกแถวที่มีรูป (แถวไม่แน่ใจที่ยังไม่เลือกรูป กับแถวหาคู่ไม่เจอ ไม่มีรูป จึงไม่นับ · พี่กันเคาะ *"เอาตามนี้"*) · ไม่งั้นเป็นเลขแถว
 pub fn select_rows(rows: &[Row], which: &str) -> Vec<String> {
     rows.iter().filter(|r| r.status != "saved" && r.has_image() && match which {
-        "ticked" => r.ticked,
-        "all" => true,
+        "ticked" => r.ticked && is_waiting(r),
+        "all" => is_waiting(r),
         id => r.id == id,
     }).map(|r| r.id.clone()).collect()
 }
@@ -1273,6 +1402,7 @@ pub async fn link_confirm(app: AppHandle, which: String) -> Result<ConfirmResult
         let jobs = app.state::<Arc<crate::jobs::Jobs>>().inner().clone();
         let _guard = jobs.start();
         let store = app.state::<Arc<LinkStore>>().inner().clone();
+        let _busy = begin_busy(&store)?;
         let lib = app.state::<Arc<LibraryStore>>().inner().clone();
         let (tools, work, thumbs, covers) = write_env_dirs(&app)?;
         let (mode, shrink, format, quality) = {
@@ -1305,11 +1435,12 @@ pub async fn link_confirm(app: AppHandle, which: String) -> Result<ConfirmResult
                     drop(d);
                     let mut gone = vec![];
                     let up = lib.update_movie(id, |x| gone = merge_covers(x, covers));
+                    if let Some(up) = up { let _ = app.emit("movie-updated", &up); }
+                    // จดคลังก่อนเอาของเก่าออก ไฟดับตรงกลางคลังจะไม่ชี้ไฟล์ที่ลงถังขยะไปแล้ว
+                    lib.save()?;
                     for g in &gone {
                         if let Some(n) = remove_cover(g) { notes.push(n); }
                     }
-                    if let Some(up) = up { let _ = app.emit("movie-updated", &up); }
-                    lib.save()?;
                     done += 1;
                 }
                 Err(e) => {
@@ -1340,6 +1471,7 @@ pub async fn link_resolve(app: AppHandle, id: String, how: String) -> Result<Lin
     tauri::async_runtime::spawn_blocking(move || {
         let d = dirs(&app)?;
         let store = app.state::<Arc<LinkStore>>().inner().clone();
+        store.idle()?;
         let movies = movies_of(&app.state::<Arc<LibraryStore>>());
         let conflict = store.data.lock().unwrap().rows.iter().find(|r| r.id == id).and_then(|r| r.conflict.clone()).ok_or("แถวนี้ไม่มีชื่อชน")?;
         let existing = if how == "use" { Some(pick_of(&d, &conflict)?) } else { None };
@@ -1360,12 +1492,24 @@ pub async fn link_resolve(app: AppHandle, id: String, how: String) -> Result<Lin
     }).await.map_err(|e| e.to_string())?
 }
 
-fn drop_covers(lib: &LibraryStore, id: &str) -> Vec<String> {
+/// เอาปกออกตามช่องที่ระบุ · จดคลังก่อน แล้วค่อยเอาไฟล์ออก · ไม่ระบุคือทุกช่อง
+fn drop_covers(lib: &LibraryStore, id: &str, only: Option<&[&str]>) -> Result<Vec<String>, String> {
     let mut gone = vec![];
-    let up = lib.update_movie(id, |m| { gone = std::mem::take(&mut m.linked); m.cover_pick.clear(); });
-    let notes = gone.iter().filter_map(remove_cover).collect();
-    drop(up);
-    notes
+    lib.update_movie(id, |m| {
+        let (out, keep): (Vec<_>, Vec<_>) = std::mem::take(&mut m.linked).into_iter().partition(|c| only.is_none_or(|o| o.contains(&c.orient.as_str())));
+        gone = out;
+        m.linked = keep;
+        if m.linked.is_empty() { m.cover_pick.clear(); }
+    });
+    lib.save()?;
+    Ok(gone.iter().filter_map(remove_cover).collect())
+}
+
+/// ภาพหลังครอปในแถวที่ชี้ภาพเล็กที่เพิ่งลบ · ไม่ล้างจะเป็นภาพแตก
+fn clear_dead_crops(r: &mut Row) {
+    for p in [&mut r.tall, &mut r.wide].into_iter().flatten() {
+        if p.crop_thumb.as_deref().is_some_and(|t| !Path::new(t).exists()) { p.crop_thumb = None; }
+    }
 }
 
 #[derive(Serialize, Clone)]
@@ -1378,12 +1522,19 @@ pub struct RemoveResult {
 /// ปุ่มยกเลิกในแถวที่ยืนยันแล้ว · เอาปกออก แถวกลับไปรอยืนยันพร้อมรูปเดิม
 #[tauri::command]
 pub fn link_unsave(app: AppHandle, store: State<'_, Arc<LinkStore>>, lib: State<'_, Arc<LibraryStore>>, id: String) -> Result<RemoveResult, String> {
-    let notes = drop_covers(&lib, &id);
+    store.idle()?;
+    // เอาออกเฉพาะช่องที่แถวนี้เขียน · ปกช่องที่ไม่ได้แตะต้องอยู่ (ผู้ช่วยตรวจขั้น 8)
+    let slots: Vec<&str> = {
+        let x = store.data.lock().unwrap();
+        x.rows.iter().find(|r| r.id == id).map(|r| { let mut v = vec![]; if r.tall.is_some() { v.push("tall"); } if r.wide.is_some() { v.push("wide"); } v }).unwrap_or_default()
+    };
+    let notes = drop_covers(&lib, &id, Some(&slots))?;
     {
         let mut x = store.data.lock().unwrap();
         if let Some(r) = x.rows.iter_mut().find(|r| r.id == id) {
-            r.status = if r.via == "auto" { "sure".into() } else { "manual".into() };
+            r.status = if r.via != "auto" { "manual".into() } else if r.candidates.is_empty() { "sure".into() } else { "unsure".into() };
             r.ticked = true;
+            clear_dead_crops(r);
         }
     }
     store.save()?;
@@ -1395,8 +1546,13 @@ pub fn link_unsave(app: AppHandle, store: State<'_, Arc<LinkStore>>, lib: State<
 /// ปุ่มเอาปกออกบนชั้นวาง
 #[tauri::command]
 pub fn link_remove(app: AppHandle, store: State<'_, Arc<LinkStore>>, lib: State<'_, Arc<LibraryStore>>, id: String) -> Result<RemoveResult, String> {
-    let notes = drop_covers(&lib, &id);
-    store.data.lock().unwrap().rows.retain(|r| !(r.id == id && r.status == "saved"));
+    store.idle()?;
+    let notes = drop_covers(&lib, &id, None)?;
+    {
+        let mut x = store.data.lock().unwrap();
+        x.rows.retain(|r| !(r.id == id && r.status == "saved"));
+        if let Some(r) = x.rows.iter_mut().find(|r| r.id == id) { clear_dead_crops(r); }
+    }
     store.save()?;
     lib.save()?;
     if let Some(m) = lib.movies.lock().unwrap().iter().find(|m| m.id == id) { let _ = app.emit("movie-updated", m); }
@@ -1409,6 +1565,7 @@ pub async fn link_open_row(app: AppHandle, id: String) -> Result<LinkReply, Stri
     tauri::async_runtime::spawn_blocking(move || {
         let d = dirs(&app)?;
         let store = app.state::<Arc<LinkStore>>().inner().clone();
+        store.idle()?;
         let lib = app.state::<Arc<LibraryStore>>().inner().clone();
         let movies = movies_of(&lib);
         let m = movies.iter().find(|m| m.id == id).ok_or("หาหนังในคลังไม่เจอ")?;
@@ -1430,7 +1587,7 @@ pub async fn link_open_row(app: AppHandle, id: String) -> Result<LinkReply, Stri
                 if r.has_image() {
                     r.status = "manual".into();
                     r.reason = "เลือกจากชั้นวาง".into();
-                    r.ticked = true;
+                    r.ticked = false;
                 } else if !m.linked.is_empty() {
                     r.reason = "หารูปต้นทางไม่เจอ เลือกรูปใหม่".into();
                 }
@@ -1465,6 +1622,8 @@ pub async fn link_migrate(app: AppHandle, to: String) -> Result<MigrateResult, S
     tauri::async_runtime::spawn_blocking(move || {
         let jobs = app.state::<Arc<crate::jobs::Jobs>>().inner().clone();
         let _guard = jobs.start();
+        let store = app.state::<Arc<LinkStore>>().inner().clone();
+        let _busy = begin_busy(&store)?;
         let lib = app.state::<Arc<LibraryStore>>().inner().clone();
         let (tools, work, thumbs, covers) = write_env_dirs(&app)?;
         let (shrink, format, quality) = {
@@ -1478,6 +1637,7 @@ pub async fn link_migrate(app: AppHandle, to: String) -> Result<MigrateResult, S
         let total = todo.len();
         let (mut done, mut failed, mut notes) = (0, 0, vec![]);
         for (i, m) in todo.into_iter().enumerate() {
+            if jobs.cancelled() { notes.push("โปรแกรมกำลังปิด ย้ายไม่ครบ เรื่องที่เหลือคงแบบเดิม".to_string()); break; }
             let _ = app.emit("link-progress", LinkProgress { done: i, total, title: m.name.clone() });
             let mut fresh = vec![];
             let mut bad = false;
@@ -1486,7 +1646,21 @@ pub async fn link_migrate(app: AppHandle, to: String) -> Result<MigrateResult, S
                     // ส่งค่าครอปเฉพาะที่ผู้ใช้ครอปเอง · ค่ากลางรูปที่โปรแกรมตั้งให้ส่งไปด้วย รูปข้างหนังชื่อถูกอยู่แล้วจะกลายเป็นต้องทำไฟล์ใหม่ แล้วชนตัวเอง
                     (c.source.clone(), if c.cropped { c.geo.clone() } else { None })
                 } else if let Some(f) = c.file.clone().filter(|f| Path::new(f).is_file()) {
-                    (f, Some(Geometry { mode: "original".into(), pad: "#f6dbe5".into(), w: 1.0, h: 1.0, ..Default::default() }))
+                    // รูปต้นฉบับหาย เหลือสำเนานี้รูปเดียว · จับคู่อย่างเดียวไม่มีไฟล์ใหม่ ย้ายแล้วสำเนาจะหาย ห้ามย้าย
+                    if to == "link" {
+                        notes.push(format!("{} รูปต้นฉบับหาย ย้ายเป็นจับคู่อย่างเดียวไม่ได้ คงแบบเดิม", m.name));
+                        bad = true;
+                        continue;
+                    }
+                    // แบบอื่นคัดลอกไบต์เดิมตรง ๆ ไม่ทำรูปใหม่ ขนาดกับคุณภาพเท่าเดิม
+                    let bytes = match fs::read(&f) { Ok(b) => b, Err(e) => { notes.push(format!("{} อ่านสำเนาไม่ได้: {e}", m.name)); bad = true; continue; } };
+                    let sha = sha_of(&bytes);
+                    let ext = Path::new(&f).extension().map(|e| e.to_string_lossy().to_string()).unwrap_or_else(|| "jpg".into());
+                    match place_bytes(&env, &m.id, Path::new(&m.path), &c.orient, &ext, &bytes, &sha, &to, Some(c)) {
+                        Ok((file, owned)) => fresh.push(LinkedCover { store: to.clone(), file: file.map(|x| x.to_string_lossy().to_string()), owned, sha256: Some(sha), ..c.clone() }),
+                        Err(e) => { notes.push(format!("{} {}", m.name, e.msg)); bad = true; }
+                    }
+                    continue;
                 } else {
                     notes.push(format!("{} หารูปต้นทางไม่เจอ ย้ายไม่ได้", m.name));
                     bad = true;
@@ -1549,6 +1723,24 @@ mod tests {
         assert_eq!(parse_title("poster_tt7654321").key, "");
         assert_eq!(find_imdb("ไม่มีเลข att1234567 tt12"), None);
         assert_eq!(parse_title("ดาวเหนือ.2023.1080p").pretty, "ดาวเหนือ (2023)");
+        // ผู้ช่วยตรวจขั้น 8 · ตัดคำผิดที่ · เลขปีที่เป็นชื่อเรื่อง · เลขในวงเล็บของหนังเป็นชื่อเรื่อง
+        let mv = |s: &str| movie_title(Path::new(&format!("D:\\หนัง\\{s}.mkv")));
+        assert_eq!(mv("The Final Cut").key, "thefinalcut", "คำว่า final ในชื่อหนังต้องอยู่");
+        assert_eq!(mv("Final Destination (2000)").pretty, "Final Destination (2000)");
+        assert_eq!(mv("The Web (2013)").pretty, "The Web (2013)");
+        assert_eq!(mv("Charlotte's Web (2006)").pretty, "Charlotte's Web (2006)");
+        assert_eq!(mv("Ocean's Eleven").pretty, "Ocean's Eleven");
+        assert_eq!(mv("Ocean's Eleven").key, "oceanseleven");
+        assert_eq!(mv("The Web").key, "theweb", "web คำเดียวท้ายชื่อคือชื่อเรื่อง");
+        assert_eq!(mv("Cover").key, "cover");
+        assert_eq!(mv("Rocky (2)").key, "rocky2", "หนังไม่ตัดเลขในวงเล็บ");
+        assert_eq!(mv("Harbor.Lights.WEB-DL.1080p").key, "harborlights");
+        assert_eq!(mv("Blade Runner 2049").key, "bladerunner2049", "เลขเกินปีหน้าไม่ใช่ปี");
+        assert_eq!(mv("Blade Runner 2049").year, None);
+        assert!(mv("Wonder Woman 1984").loose_year);
+        assert!(!mv("Silent.Orbit.2018").loose_year);
+        assert!(!mv("ดาวเหนือ (2023)").loose_year);
+        assert_eq!(t("Final Cover Dune"), ("dune".into(), None));
         assert_eq!(movie_title(Path::new(r"D:\หนัง\ฝนสุดท้ายของฤดู (2019)\movie.mkv")).pretty, "ฝนสุดท้ายของฤดู (2019)");
     }
 
@@ -1639,7 +1831,7 @@ mod tests {
         let paths: Vec<String> = files.iter().map(|p| p.to_string_lossy().to_string()).collect();
         let counts = dir_counts(paths.iter().map(String::as_str));
         let thumbs = root.join("__ไม่มี");
-        let all: Vec<MovieIn> = paths.iter().map(|p| movie_in(p, p, p.contains("มีปกแล้ว"), &counts, &thumbs)).collect();
+        let all: Vec<MovieIn> = paths.iter().map(|p| movie_in(p, p, p.contains("มีปกแล้ว"), &counts, &thumbs, &HashSet::new())).collect();
         let shelf: Vec<Title> = all.iter().map(|m| m.title.clone()).collect();
         let imgs = list_images(&[root.join("รูป").to_string_lossy().to_string()], &[], &thumbs);
         assert_eq!(imgs.len(), 15, "รูปในโฟลเดอร์ย่อยต้องอ่านด้วย");
@@ -1812,6 +2004,85 @@ mod tests {
         let e = apply_row(&l.env(), &m, &r, "beside").unwrap_err();
         assert!(e.conflict.is_some());
         assert_eq!(fs::read(&poster).unwrap(), b"edited");
+    }
+
+    /// ผู้ช่วยตรวจขั้น 8 · ปกที่เหลือใช้ไฟล์นี้เป็นรูปต้นทาง ต้องไม่เอาออก · ชื่อต่างแค่ตัวพิมพ์คือไฟล์เดียวกัน
+    #[test]
+    fn merge_keeps_files_still_in_use() {
+        let cover = |file: &str, source: &str| LinkedCover { orient: "tall".into(), file: Some(file.into()), source: source.into(), owned: true, store: "beside".into(), thumb: "D:\\t\\a.jpg".into(), ..Default::default() };
+        // ย้ายเป็นจับคู่อย่างเดียว ปกใหม่ใช้สำเนาเก่าเป็นรูปต้นทาง
+        let mut m = Movie { linked: vec![cover("D:\\x-poster.jpg", "D:\\รูป.jpg")], ..Default::default() };
+        let gone = merge_covers(&mut m, vec![LinkedCover { file: None, source: "D:\\x-poster.jpg".into(), store: "link".into(), thumb: "D:\\t\\b.jpg".into(), ..cover("", "") }]);
+        assert_eq!(gone[0].file, None, "ไฟล์ที่ปกใหม่ใช้เป็นต้นทาง ห้ามลงถังขยะ");
+        // เปลี่ยนแค่ตัวพิมพ์ของชื่อหนัง ไฟล์เดียวกันบน Windows
+        let mut m = Movie { linked: vec![cover("D:\\iron tide-poster.jpg", "D:\\รูป.jpg")], ..Default::default() };
+        let gone = merge_covers(&mut m, vec![cover("D:\\Iron Tide-poster.jpg", "D:\\รูป.jpg")]);
+        assert_eq!(gone[0].file, None, "ชื่อต่างแค่ตัวพิมพ์ ห้ามลงถังขยะ");
+        assert!(gone[0].thumb.is_empty(), "ภาพเล็กเดียวกันห้ามลบ");
+    }
+
+    /// ผู้ช่วยตรวจขั้น 8 · ช่องปกนอนชนไฟล์คนอื่น ต้องล้มก่อนแตะไฟล์ปกตั้ง
+    #[test]
+    fn conflict_checked_before_any_write() {
+        let Some(l) = lab("ชนก่อนเขียน") else { return };
+        let mut m = l.mv();
+        let covers = apply_row(&l.env(), &m, &Row { wide: None, ..l.row() }, "beside").unwrap();
+        merge_covers(&mut m, covers);
+        let poster = l.root.join("หนัง").join("ดาวตก (2024)-poster.jpg");
+        let sha = file_sha(&poster);
+        fs::write(l.root.join("หนัง").join("ดาวตก (2024)-landscape.jpg"), "ของคนอื่น").unwrap();
+        let mut p = l.pick(&l.tall);
+        p.geo = Some(Geometry { tilt: 5.0, ..default_geo("tall", p.width, p.height) });
+        let e = apply_row(&l.env(), &m, &Row { tall: Some(p), ..l.row() }, "beside").unwrap_err();
+        assert!(e.conflict.is_some());
+        assert_eq!(file_sha(&poster), sha, "ปกตั้งต้องไม่ถูกแทน");
+    }
+
+    /// ผู้ช่วยตรวจขั้น 8 · ยืนยันกับย้ายที่เก็บห้ามซ้อนกัน ระหว่างนั้นห้ามแก้แถว · งานจบหรือล้มต้องปลดเอง
+    #[test]
+    fn busy_guard_blocks_overlap() {
+        let store = Arc::new(LinkStore::load(std::env::temp_dir().join(format!("ชั้นหนัง-กันซ้อน-{}.json", std::process::id()))));
+        assert!(store.idle().is_ok());
+        let g = begin_busy(&store).unwrap();
+        assert!(store.is_busy() && store.idle().is_err());
+        assert!(begin_busy(&store).is_err(), "งานที่สองต้องไม่เริ่ม");
+        drop(g);
+        assert!(store.idle().is_ok(), "งานจบแล้วต้องปลด");
+    }
+
+    /// ผู้ช่วยตรวจขั้น 8 · หนังไม่มีปีกับรูปหลายปี · เลขท้ายชื่อที่อาจเป็นชื่อเรื่อง · ไม่ติ๊กให้ถ้าไม่มีปี
+    #[test]
+    fn matcher_does_not_guess() {
+        let m = |stem: &str| MovieIn { id: stem.into(), path: format!("D:\\หนัง\\{stem}.mkv"), stem: stem.into(), title: movie_title(Path::new(&format!("D:\\หนัง\\{stem}.mkv"))), ..Default::default() };
+        let img = |n: &str| ImgIn { path: format!("D:\\รูป\\{n}"), name: n.into(), width: 1000, height: 1500, ..Default::default() };
+        let go = |stem: &str, imgs: &[&str]| { let mv = m(stem); let shelf = vec![mv.title.clone()]; let list: Vec<ImgIn> = imgs.iter().map(|n| img(n)).collect(); match_core(&[mv], &shelf, &list, &HashSet::new()).remove(0) };
+        let r = go("Dune", &["Dune (1984).jpg", "Dune (2021).jpg"]);
+        assert_eq!(r.status, "unsure");
+        assert_eq!(r.candidates.len(), 2);
+        assert!(!r.has_image(), "รูปหลายปีห้ามเลือกให้");
+        let r = go("Wonder Woman 1984", &["wonder-woman.jpg"]);
+        assert_eq!(r.status, "unsure", "เลขท้ายชื่ออาจเป็นชื่อเรื่อง");
+        let r = go("Blade Runner 2049", &["blade-runner.jpg"]);
+        assert_ne!(r.status, "sure", "ภาคต่อห้ามได้ปกภาคแรกแบบแน่");
+        let r = go("The Final Cut", &["The Cut (2014).jpg"]);
+        assert_ne!(r.status, "sure", "คนละเรื่อง");
+        let r = go("Silent.Orbit.2018", &["silent-orbit-backdrop.jpg"]);
+        assert_eq!(r.status, "sure");
+        assert!(!r.ticked, "ไม่มีปีในชื่อรูป ไม่ติ๊กให้");
+        let r = go("Tidal.2021.1080p", &["tidal_2021.jpg"]);
+        assert!(r.ticked, "ชื่อกับปีตรง ติ๊กให้");
+    }
+
+    /// ผู้ช่วยตรวจขั้น 8 · แถวจากชั้นวางที่ยังไม่แตะไม่นับว่ารอ · แตะแล้วนับ
+    #[test]
+    fn shelf_rows_count_only_after_touch() {
+        let pick = Pick { path: "D:\\a.jpg".into(), width: 1000, height: 1500, ..Default::default() };
+        let mut r = Row { id: "1".into(), status: "manual".into(), via: "shelf".into(), ticked: true, tall: Some(pick), ..Default::default() };
+        assert!(!is_waiting(&r));
+        assert!(select_rows(std::slice::from_ref(&r), "all").is_empty());
+        assert_eq!(select_rows(std::slice::from_ref(&r), "1"), vec!["1".to_string()], "กดยืนยันที่แถวตรง ๆ ยังใช้ได้");
+        r.touched = true;
+        assert!(is_waiting(&r));
     }
 
     /// รูปต้นทางคือไฟล์ชื่อนั้นข้างหนังอยู่แล้ว ไม่ได้ครอป ใช้ไฟล์นั้นเลย · ครอปแล้วจะทับต้นฉบับ ต้องไม่เขียน

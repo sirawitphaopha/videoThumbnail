@@ -605,7 +605,7 @@ function LinkCard({ m, onPage, onMerge }: { m: Movie; onPage: (pg: Page) => void
         </>}>
         <div className="small" style={{ fontSize: 14, color: "var(--txt2)" }}>
           {trash.length > 0 && <div style={{ overflowWrap: "anywhere" }}>รูปที่โปรแกรมคัดลอกไว้ {trash.join(" · ")} ย้ายลงถังขยะ กู้คืนได้</div>}
-          {hasApp && <div>สำเนาในโปรแกรมถูกลบ</div>}
+          {hasApp && <div>สำเนาในโปรแกรมย้ายลงถังขยะ กู้คืนได้</div>}
           <div>รูปต้นฉบับกับไฟล์หนังไม่ถูกแตะ · ไฟล์ที่โปรแกรมไม่ได้ทำไม่ถูกลบ</div>
         </div>
       </Dialog>

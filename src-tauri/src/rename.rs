@@ -10,7 +10,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 
 use serde::Serialize;
-use tauri::{AppHandle, Emitter, State};
+use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::library::{LibraryStore, Movie};
 use crate::probe;
@@ -169,6 +169,10 @@ pub fn rename_in_library(lib: &LibraryStore, id: &str, stem: &str) -> Result<(Mo
 
 #[tauri::command]
 pub fn rename_movie(app: AppHandle, lib: State<'_, Arc<LibraryStore>>, id: String, stem: String) -> Result<Movie, RenameProblem> {
+    // ระหว่างยืนยันปกหรือย้ายที่เก็บ เปลี่ยนชื่อแล้วรูปจะออกมาเป็นชื่อเก่า (ผู้ช่วยตรวจขั้น 8)
+    if app.try_state::<Arc<crate::link::LinkStore>>().is_some_and(|s| s.is_busy()) {
+        return Err(problem("inuse", "กำลังยืนยันปกจับคู่อยู่ รอให้เสร็จก่อน", None));
+    }
     let (mut m, changed) = rename_in_library(&lib, &id, &stem)?;
     if changed {
         // รูปที่โปรแกรมคัดลอกไว้ข้างไฟล์หนัง เปลี่ยนชื่อตาม (แผนจับคู่รูปปก)

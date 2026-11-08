@@ -118,6 +118,11 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
   // มาจากปุ่มเปลี่ยนโปสเตอร์บนชั้นวาง · ไฟล์หนังใส่ให้แล้ว
   useEffect(() => {
     if (!p.initialPath) return;
+    if (getPosterJob().run.state === "working") {
+      toast({ kind: "info", title: "กำลังใส่โปสเตอร์อีกเรื่องอยู่", detail: "รอให้เสร็จก่อน แล้วค่อยกดใหม่" });
+      p.onConsumed();
+      return;
+    }
     loadMovie(p.initialPath);
     if (p.initialImage) void loadChosen(p.initialImage);
     p.onConsumed();

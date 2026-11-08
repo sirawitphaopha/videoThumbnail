@@ -27,6 +27,7 @@ const scanOut = async () => {
   }
 };
 await scanOut();
+await c.evaluate(`window.__TAURI_INTERNALS__.invoke("dev_clear_parked")`);
 rmSync(DIR, { recursive: true, force: true });
 mkdirSync(DIR, { recursive: true });
 mkdirSync(OUT, { recursive: true });
@@ -111,7 +112,7 @@ await c.evaluate(`${rowSel("ฝนสุดท้ายของฤดู (2019)
 await waitFor(`return ${rowSel("ฝนสุดท้ายของฤดู (2019)")}.querySelector('[data-link-chosen] img')?.naturalWidth > 0`, 20000);
 check("ภาพเล็กของรูปข้างไฟล์หนังขึ้นด้วย", await q(`return ${rowSel("ฝนสุดท้ายของฤดู (2019)")}.querySelector('[data-link-chosen] img')?.naturalWidth > 0`));
 const countText = () => q("return document.querySelector('[data-link-count]')?.innerText ?? ''");
-check("ท้ายตาราง รอยืนยัน 9 ติ๊กไว้ 9", /รอยืนยัน 9 คู่ ติ๊กไว้ 9 คู่/.test(await countText()), await countText());
+check("ท้ายตาราง รอยืนยัน 9 ติ๊กไว้ 8 แถวที่ไม่มีปีไม่ติ๊กให้", /รอยืนยัน 9 คู่ ติ๊กไว้ 8 คู่/.test(await countText()), await countText());
 check("ปุ่มยืนยันทั้งหมดบอกจำนวน", await q("return document.querySelector('[data-link-confirm-all]').innerText === 'ยืนยันทั้งหมด 9 คู่'"));
 check("เมนูซ้ายขึ้นเลขคู่ที่รอ", await q("return [...document.querySelectorAll('.side .nav')].find(b => b.innerText.includes('จับคู่ปก')).innerText.includes('9')"));
 
@@ -553,6 +554,7 @@ const tidalFile = moviePoster("Tidal.2021.1080p"), tidalSha = sha(tidalFile);
 await c.evaluate("document.querySelector('[data-link-rechange]').click()");
 await waitFor(`return ${rowSel("Tidal (2021)")}?.dataset.linkStatus === 'manual'`, 15000);
 check("เปลี่ยนรูป พาไปแถวของเรื่องนั้น รูปเดิมมาตั้งรอไว้ เหตุที่จับคู่บอกว่ามาจากชั้นวาง", (await reasonOf("Tidal (2021)")) === "เลือกจากชั้นวาง");
+check("เปิดแถวจากชั้นวางแล้วยังไม่แก้อะไร ไม่นับว่ารอยืนยัน", (await stateNow()).waiting === 0);
 await clickIn("Tidal (2021)", "[data-link-skip]");
 await waitFor(`return !${rowSel("Tidal (2021)")}`);
 check("กดเลิกแก้ แถวหาย ปกกับไฟล์ยังอยู่เหมือนเดิม", sha(tidalFile) === tidalSha && (await mvOf("Tidal.2021")).linked.length === 1);
@@ -731,6 +733,55 @@ await c.evaluate("window.__closeDry = false");
 const after = Object.keys(movieHash0).filter((p) => !p.includes("Night.Bus") && !p.includes("Silent.Orbit") && sha(p) !== movieHash0[p]);
 check("จบขั้น 6 ไฟล์หนังทุกเรื่องเท่าเดิม ยกเว้นสองเรื่องที่กดรวมเข้าไฟล์เอง", after.length === 0, after.join(" "));
 check("จบขั้น 6 รูปต้นฉบับทุกรูปเท่าเดิม", JSON.stringify(hashes(IMG)) === JSON.stringify(imgHash0));
+
+/* ---------- ขั้น 8 แก้ตามผู้ช่วยตรวจ ---------- */
+const scanNow = async () => { await inv("scan_library"); await sleep(300); for (let i = 0; i < 150; i++) { if (!(await inv("get_library")).scanning) break; await sleep(200); } await sleep(200); };
+// ข้อ 6 ปุ่มเพิ่มรูป
+await nav("ชั้นวางหนัง");
+await waitFor("return !!document.querySelector('[data-shelf-filter]')");
+await nav("จับคู่ปก");
+await waitFor("return !!document.querySelector('[data-link-table]')");
+await c.evaluate("document.querySelector('[data-link-addmore]').click()");
+await sleep(500);
+check("กดเพิ่มรูป ไปหน้าแรกจริง ไม่เด้งกลับตาราง เลือกขอบเขตได้", await q("return !document.querySelector('[data-link-table]') && !!document.querySelector('[data-link-open]')"));
+await c.evaluate("document.querySelector('[data-link-open]').click()");
+await waitFor("return !!document.querySelector('[data-link-table]')");
+// ข้อ 29 ลากเหนือแถว
+const hoverOn = async (title, paths) => { const b = await q(`const r = ${rowSel(title)}; r.scrollIntoView({ block: 'center' }); const b = r.getBoundingClientRect(); return { x: (b.left + 200) * devicePixelRatio, y: (b.top + b.height / 2) * devicePixelRatio };`); await sleep(120); await c.evaluate(`window.__linkHover(${JSON.stringify(paths)}, ${b.x}, ${b.y})`); await sleep(150); };
+await hoverOn("ดาวเหนือ (2023)", [join(IMG, "tidal_alt.jpg")]);
+check("ลากรูปเหนือแถว ขึ้นกรอบปล่อยเมาส์พร้อมชื่อรูป", await q(`const r = ${rowSel("ดาวเหนือ (2023)")}; return r.classList.contains('over') && r.querySelector('[data-link-over]').textContent.includes('tidal_alt.jpg')`));
+await hoverOn("ดาวเหนือ (2023)", [join(IMG, "notes.txt")]);
+check("ลากไฟล์ที่ไม่ใช่รูปเหนือแถว ขึ้นแดงว่าไม่รับ", await q(`const r = ${rowSel("ดาวเหนือ (2023)")}; return r.classList.contains('bad') && r.querySelector('[data-link-over]').textContent.includes('ไม่รับ')`));
+await c.evaluate("window.__linkHover([], -5, -5)");
+await sleep(120);
+check("ลากออกนอกแถว กรอบหาย", await q("return !document.querySelector('.lkrow.over')"));
+// ข้อ 1 ทาง ก รวมเสียงเข้าไฟล์ ได้ไฟล์ใหม่ชื่อเดิม เลขประจำไฟล์เปลี่ยน · ปกเดิมต้องอยู่
+const tidalMkv = join(MOV, "Tidal.2021.1080p.mkv");
+const tBefore = await mvOf("Tidal.2021");
+cpSync(tidalMkv, tidalMkv + ".ใหม่");
+rmSync(tidalMkv);
+renameSync(tidalMkv + ".ใหม่", tidalMkv);
+await scanNow();
+const tAfter = await mvOf("Tidal.2021");
+check("ไฟล์ใหม่ชื่อเดิม เลขประจำไฟล์เปลี่ยน ปกจับคู่ยังอยู่ ภาพเล็กไม่โดนลบ", tAfter.id !== tBefore.id && tAfter.linked.length === 1 && existsSync(tAfter.linked[0].thumb) && existsSync(tidalFile), `เลข ${tBefore.id} เป็น ${tAfter.id}`);
+// ข้อ 1 ทาง ข MP4 รวมเป็น MKV ชื่อเดิมคนละนามสกุล · ปกตามเรื่องใหม่
+const cs4 = join(MOV, "Copper.Sky.2014.mp4"), csLinked = (await mvOf("Copper.Sky")).linked.length;
+cpSync(cs4, join(MOV, "Copper.Sky.2014.mkv"));
+rmSync(cs4);
+await scanNow();
+const csNew = await mvOf("Copper.Sky");
+check("MP4 กลายเป็น MKV ชื่อเดิม ปกจับคู่ตามเรื่องใหม่ครบทุกช่อง", csNew.ext === "mkv" && csNew.linked.length === csLinked && csLinked > 0 && csNew.linked.every((x) => existsSync(x.thumb)), `${csLinked} ช่อง`);
+// ข้อ 3 เอาโฟลเดอร์ออกจากชั้นแล้วใส่กลับ · ปกกลับมาเอง ไม่มีอะไรถูกลบ
+const coverList = async () => JSON.stringify((await lib()).filter((m) => m.linked?.length).map((m) => [m.path.toLowerCase(), m.linked.length]).sort());
+const coversBefore = await coverList();
+const thumbsBefore = (await lib()).flatMap((m) => (m.linked ?? []).map((x) => x.thumb));
+await inv("set_settings", { patch: { folders: [] } });
+await scanNow();
+check("เอาโฟลเดอร์ออก หนังหายจากชั้น ภาพเล็กปกจับคู่ยังอยู่", (await lib()).length === 0 && thumbsBefore.every((t) => existsSync(t)), `${thumbsBefore.length} ภาพ`);
+await inv("set_settings", { patch: { folders: [MOV] } });
+await scanNow();
+const coversAfter = await coverList();
+check("ใส่โฟลเดอร์กลับ ปกจับคู่กลับมาครบทุกเรื่อง", coversAfter === coversBefore && coversBefore.length > 2, `${JSON.parse(coversAfter).length} เรื่อง`);
 
 const pass = results.filter((r) => r.pass).length;
 console.log(`\nผ่าน ${pass} จาก ${results.length} ข้อ`);

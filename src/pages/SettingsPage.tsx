@@ -4,6 +4,8 @@
 import { useEffect, useRef, useState } from "react";
 import { api, encodeApi, graphApi, linkApi, pickExe, pickFolder, type EncoderInfo, type LatestInfo, type Settings, type ToolCheck } from "../lib/api";
 import { kb } from "../lib/popup";
+import { listen } from "@tauri-apps/api/event";
+import { inApp } from "../lib/api";
 import { useSettings } from "../lib/settings";
 import { useLibrary } from "../lib/library";
 import { useToast } from "../components/Toasts";
@@ -64,6 +66,14 @@ export default function SettingsPage() {
   /** ย้ายปกจับคู่เดิมไปเก็บแบบใหม่ทีเดียว (มอคอัป *"เรื่องเดิมกดย้ายให้ทีเดียวได้"*) */
   const [askMigrate, setAskMigrate] = useState(false);
   const [migrating, setMigrating] = useState(false);
+  const [migrateProg, setMigrateProg] = useState<{ done: number; total: number } | null>(null);
+  useEffect(() => {
+    if (!migrating || !inApp) return;
+    let off: (() => void) | undefined;
+    let live = true;
+    listen<{ done: number; total: number }>("link-progress", (e) => setMigrateProg(e.payload)).then((u) => { if (live) off = u; else u(); });
+    return () => { live = false; off?.(); setMigrateProg(null); };
+  }, [migrating]);
   const migrate = async () => {
     if (migrating || !settings) return;
     setMigrating(true);
@@ -161,11 +171,12 @@ export default function SettingsPage() {
       <Dialog open={askMigrate} onClose={() => { if (!migrating) setAskMigrate(false); }} kind="work" confirm title={<>ย้าย <span className="nw">{migrateCount} เรื่อง</span>ไปแบบ {modeName}</>}
         actions={<>
           <button type="button" className="btn btn-ghost" onClick={() => { if (!migrating) setAskMigrate(false); }}>ยังไม่ย้าย</button>
-          <button type="button" className={"btn " + (migrating ? "btn-wait" : "btn-main")} aria-disabled={migrating || undefined} data-link-migrate-ok onClick={migrate}>{migrating ? "กำลังย้าย…" : "ย้ายเลย"}</button>
+          <button type="button" className={"btn " + (migrating ? "btn-wait" : "btn-main")} aria-disabled={migrating || undefined} data-link-migrate-ok onClick={migrate}>{migrating ? (migrateProg ? `กำลังย้าย ${migrateProg.done} จาก ${migrateProg.total} เรื่อง…` : "กำลังย้าย…") : "ย้ายเลย"}</button>
         </>}>
         <div className="small" style={{ fontSize: 14, color: "var(--txt2)" }}>
           <div>ทำไฟล์ใหม่ก่อน สำเร็จแล้วค่อยเอาของเก่าออก</div>
-          <div>รูปที่โปรแกรมคัดลอกไว้ข้างไฟล์หนังย้ายลงถังขยะ · ไฟล์ที่โปรแกรมไม่ได้ทำไม่ถูกลบ</div>
+          <div>ของเก่าที่โปรแกรมคัดลอกไว้ย้ายลงถังขยะ · ไฟล์ที่โปรแกรมไม่ได้ทำไม่ถูกลบ</div>
+          <div>เรื่องที่รูปต้นฉบับหายแล้ว ย้ายเป็นจับคู่อย่างเดียวไม่ได้ คงแบบเดิมแล้วบอกให้รู้</div>
           <div>ไฟล์หนังกับรูปต้นฉบับไม่ถูกแตะ</div>
         </div>
       </Dialog>
@@ -232,7 +243,7 @@ export default function SettingsPage() {
         {migrateCount > 0 && (
           <div className="minirow" style={{ marginTop: 10 }} data-link-migrate>
             <span className="small" style={{ alignSelf: "center" }}>มี <span className="nw">{migrateCount} เรื่อง</span>ที่จับคู่ไว้แบบอื่น</span>
-            <button type="button" className={"btn btn-sm " + (migrating ? "btn-wait" : "btn-ghost")} aria-disabled={migrating || undefined} data-link-migrate-go onClick={() => { if (!migrating) setAskMigrate(true); }}>{migrating ? "กำลังย้าย…" : "ย้ายมาแบบนี้ทีเดียว"}</button>
+            <button type="button" className={"btn btn-sm " + (migrating ? "btn-wait" : "btn-ghost")} aria-disabled={migrating || undefined} data-link-migrate-go onClick={() => { if (!migrating) setAskMigrate(true); }}>{migrating ? (migrateProg ? `กำลังย้าย ${migrateProg.done} จาก ${migrateProg.total} เรื่อง…` : "กำลังย้าย…") : "ย้ายมาแบบนี้ทีเดียว"}</button>
           </div>
         )}
       </div>

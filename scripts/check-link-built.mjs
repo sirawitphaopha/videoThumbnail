@@ -43,6 +43,7 @@ check("ตัวจริงไม่มีตัวรับลากจำล�
 await inv("set_settings", { patch: { folders: [], linkStore: "beside" } });
 await inv("scan_library");
 for (let i = 0; i < 100; i++) { await sleep(200); const l = await inv("get_library"); if (!l.scanning && l.movies.length === 0) break; }
+await inv("dev_clear_parked");
 rmSync(DIR, { recursive: true, force: true });
 mkdirSync(DIR, { recursive: true });
 mkdirSync(OUT, { recursive: true });
@@ -98,7 +99,8 @@ await shot("4-แผงขวา.png", "[data-detail]", 1100);
 
 // แถบทำต่อกับหน้าต่างถาม · กดปุ่มปิดจริง แล้วกลับไปดูก่อน ไม่ปิดโปรแกรม
 const mv = (await inv("get_library")).movies.find((m) => m.name.startsWith("Tidal"));
-await inv("link_open_row", { id: mv.id });
+// แถวจากชั้นวางที่ยังไม่แตะไม่นับว่ารอ · ใช้จับคู่เองแทน
+await inv("link_pair", { id: mv.id, paths: [join(IMG, "tidal_alt.jpg")], via: "board" });
 await reload();
 check("เปิดใหม่มีคู่ค้าง ขึ้นแถบทำต่อ", await waitFor("return !!document.querySelector('[data-link-resume]')", 8000));
 await c.click(".titlebar .ctl button.close");

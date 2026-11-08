@@ -215,7 +215,7 @@ export type LinkStatus = "sure" | "unsure" | "none" | "manual" | "saved";
 export type LinkRow = {
   id: string; movie: string; title: string; hasCover: boolean; status: LinkStatus; reason: string; via: "auto" | "board" | "explorer" | "shelf";
   tall: LinkPick | null; wide: LinkPick | null; derivedTall: boolean; candidates: LinkPick[]; score: number; ticked: boolean;
-  error: string | null; prev: unknown | null; conflict: string | null; storeOverride: string | null;
+  error: string | null; prev: unknown | null; conflict: string | null; storeOverride: string | null; touched?: boolean;
 };
 export type LinkReplyData = { rows: LinkRow[]; imageFolders: string[]; loose: string[]; scope: "nocover" | "all"; waiting: number };
 export type LinkImage = { path: string; name: string; folder: string; width: number; height: number; thumb: string | null; used: boolean; error: string | null };

@@ -95,7 +95,7 @@ pub fn run() {
     #[cfg(debug_assertions)]
     let builder = builder.invoke_handler(tauri::generate_handler![
         tools::check_tools, tools::check_icaros, tools::open_icaros_page, store::get_settings, store::set_settings,
-        jobs::running_jobs, jobs::force_close, jobs::dev_fake_job, poster::dev_fake_free, library::dev_set_check,
+        jobs::running_jobs, jobs::force_close, jobs::dev_fake_job, poster::dev_fake_free, library::dev_set_check, library::dev_clear_parked,
         library::get_library, library::scan_library, library::play_movie, library::reveal_movie,
         rename::check_rename, rename::rename_movie,
         poster::poster_open, poster::poster_render, poster::poster_clear, poster::poster_folder_images,

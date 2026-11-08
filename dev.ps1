@@ -18,6 +18,8 @@ $env:TMP  = 'D:\dev\tmp'
 # เครื่องนี้แรม 8 GB มี SSD ลูกเดียว C กับ D ใช้ร่วมกัน · พี่กันบอก 8 พ.ย. 2569 "เธอรันเเล้วคอมเรากระตุก"
 # งานสร้างโปรแกรมใช้ไม่เกิน 6 จาก 12 เธรด และยอมให้โปรแกรมที่คนกำลังใช้ก่อน · โปรแกรมลูกทุกตัวรับค่าความสำคัญนี้ต่อ
 $env:CARGO_BUILD_JOBS = '6'
+# เทส Rust เปิด ffmpeg กับตัวแปลงเสียงพร้อมกัน ค่าตั้งต้น 12 ตัว CPU พุ่ง 98% แรมเหลือ 0.2 GB (วัด 8 พ.ย. 2569)
+$env:RUST_TEST_THREADS = '4'
 try { [System.Diagnostics.Process]::GetCurrentProcess().PriorityClass = 'BelowNormal' } catch { }
 
 Set-Location 'D:\movie-shelf'

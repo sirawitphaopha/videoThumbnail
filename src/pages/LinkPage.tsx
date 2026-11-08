@@ -3,7 +3,7 @@
    ตารางตรวจผล ที่เดียวที่เปลี่ยนรูป ครอป ยืนยัน · ทุกวิธีจับคู่มาจบที่นี่ (พี่กันสั่ง 8 พ.ย. 2569 *"ถ้าจับคู่ เเล้ว เเม้จะช้วิธีไหนก็ตาม มันจะมาหน้านี้"*)
    ยืนยันทีละเรื่อง ที่ติ๊กไว้ หรือทั้งหมด · ยังไม่ยืนยันไม่มีอะไรถูกบันทึก คู่ที่รออยู่โปรแกรมจำไว้
    แถววาดด้วย content-visibility แถวนอกจอไม่กินเวลาวาด ร้อยแถวเลื่อนลื่น */
-import { useCallback, useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { CardIcon, Phr, Seg } from "../components/ui";
 import SearchBox from "../components/SearchBox";
 import LinkBoard from "../components/LinkBoard";
@@ -16,6 +16,7 @@ import { searchByName } from "../lib/thaiSearch";
 import { getLinkJob, reloadImages, runConfirm, setLinkJob, setReply, thumbOf, useLinkJob } from "../lib/linkJob";
 import "../styles/link.css";
 
+const isImagePath = (p: string) => /\.(jpe?g|png|webp|bmp|tiff?|heic|heif)$/i.test(p);
 const baseName = (p: string) => p.split(/[\\/]/).pop() ?? p;
 const COUNT = (n: number) => n.toLocaleString("en-US");
 
@@ -30,6 +31,9 @@ export default function LinkPage() {
   const { reply, view } = job;
   const [summary, setSummary] = useState<AutoSummary | null>(null);
   const [reading, setReading] = useState(false);
+  const [summarySec, setSummarySec] = useState(0);
+  const { movies } = useLibrary();
+  const nocover = movies.filter((m) => !m.hasCover && !m.linked?.length).length;
   const [over, setOver] = useState(false);
   const [badDrop, setBadDrop] = useState<string | null>(null);
 
@@ -37,15 +41,18 @@ export default function LinkPage() {
 
   // มีคู่ค้างอยู่แล้ว เปิดหน้ามาเจอตารางเลย ไม่ต้องลากรูปใหม่
   useEffect(() => {
-    if (view === "start" && reply.rows.length > 0 && !summary) setLinkJob({ view: "table" });
-  }, [view, reply.rows.length, summary]);
+    const j = getLinkJob();
+    if (j.view === "start" && j.reply.rows.length > 0) setLinkJob({ view: "table" });
+  }, []);
 
   const runAuto = useCallback(async (scope: "nocover" | "all") => {
     setReading(true);
+    const t0 = performance.now();
     try {
       const s = await linkApi.auto(scope);
       setReply(s.reply);
       setSummary(s);
+      setSummarySec(Math.max(1, Math.round((performance.now() - t0) / 1000)));
       await reloadImages();
     } catch (e) {
       toast({ kind: "bad", title: "จับคู่ไม่สำเร็จ", detail: String(e) });
@@ -69,13 +76,27 @@ export default function LinkPage() {
   // ---------- ลากจาก Explorer ----------
   // ตำแหน่งเมาส์ที่ได้เป็นพิกเซลจริงของจอ หารด้วยอัตราขยายของจอก่อนหาช่องใต้เมาส์ (TECH-REVIEW ข้อ 11)
   const rowAt = (x: number, y: number) => document.elementFromPoint(x / devicePixelRatio, y / devicePixelRatio)?.closest<HTMLElement>("[data-link-row]")?.dataset.linkRow ?? null;
+  const dragPaths = useRef<string[]>([]);
+  const hoverRow = useCallback((x: number, y: number) => {
+    const id = rowAt(x, y);
+    const imgs = dragPaths.current.filter(isImagePath);
+    const next = id ? { id, names: imgs.map(baseName).join(" · "), bad: dragPaths.current.length > 0 && imgs.length === 0 } : null;
+    const cur = getLinkJob().overRow;
+    if (cur?.id !== next?.id || cur?.names !== next?.names || cur?.bad !== next?.bad) setLinkJob({ overRow: next });
+  }, []);
   const handleDrop = useCallback(async (paths: string[], x: number, y: number) => {
     setOver(false);
+    setLinkJob({ overRow: null });
+    dragPaths.current = [];
     if (!paths.length) return;
     const id = rowAt(x, y);
     if (id) {
-      try { setReply(await linkApi.pair(id, paths, "explorer")); }
-      catch (e) { toast({ kind: "bad", title: "ใช้ไฟล์นี้ไม่ได้", detail: String(e) }); }
+      // รูปปนไฟล์อื่น รับเฉพาะรูป บอกว่าข้ามอะไร · ไฟล์ที่ไม่ใช่รูปล้วน ส่งไปให้ฝั่ง Rust ปฏิเสธพร้อมเหตุผล
+      const imgs = paths.filter(isImagePath);
+      try {
+        setReply(await linkApi.pair(id, imgs.length ? imgs : paths, "explorer"));
+        if (imgs.length && imgs.length < paths.length) toast({ kind: "info", title: "ข้ามไฟล์ที่ไม่ใช่รูป", detail: paths.filter((p) => !isImagePath(p)).map(baseName).join(" · ") });
+      } catch (e) { toast({ kind: "bad", title: "ใช้ไฟล์นี้ไม่ได้", detail: String(e) }); }
       return;
     }
     addPaths(paths);
@@ -88,19 +109,23 @@ export default function LinkPage() {
       // กระดานฟังการลากของตัวเอง หาว่าวางบนหนังเรื่องไหน
       if (getLinkJob().view === "board") return;
       const t = e.payload.type;
-      if (t === "over" || t === "enter") setOver(true);
-      else if (t === "drop") handleDrop(e.payload.paths, e.payload.position.x, e.payload.position.y);
-      else setOver(false);
+      if (t === "over" || t === "enter") {
+        setOver(true);
+        if (t === "enter") dragPaths.current = e.payload.paths;
+        hoverRow(e.payload.position.x, e.payload.position.y);
+      } else if (t === "drop") handleDrop(e.payload.paths, e.payload.position.x, e.payload.position.y);
+      else { setOver(false); setLinkJob({ overRow: null }); }
     })).then((u) => { if (live) off = u; else u(); });
     return () => { live = false; off?.(); };
-  }, [handleDrop]);
+  }, [handleDrop, hoverRow]);
   // ตัวเทสหน้าจอเรียกตรงนี้แทนการลากจริง (มีเฉพาะตอนทดสอบ) · ลากจริงจาก Explorer ต้องให้คนลองเอง
   useEffect(() => {
     if (!import.meta.env.DEV) return;
     const w = window as unknown as Record<string, unknown>;
     w.__linkDrop = handleDrop;
-    return () => { delete w.__linkDrop; };
-  }, [handleDrop]);
+    w.__linkHover = (paths: string[], x: number, y: number) => { dragPaths.current = paths; hoverRow(x, y); };
+    return () => { delete w.__linkDrop; delete w.__linkHover; };
+  }, [handleDrop, hoverRow]);
 
   if (view === "board") return <LinkBoard />;
   if (view === "table") return <ReviewTable />;
@@ -130,8 +155,8 @@ export default function LinkPage() {
         <div className="card">
           <h3><span className="step">2</span>จับคู่กับหนังเรื่องไหน</h3>
           <div className="row8">
-            <Seg small label="ขอบเขต" value={reply.scope} onChange={(v) => { setReply({ ...reply, scope: v }); if (reply.imageFolders.length + reply.loose.length) runAuto(v); }}
-              options={[{ value: "nocover", label: "เฉพาะเรื่องที่ยังไม่มีปก" }, { value: "all", label: "ทุกเรื่องบนชั้นวาง" }]} />
+            <Seg small label="ขอบเขต" value={reply.scope} disabledReason={reading ? "กำลังอ่านรูปอยู่ รอให้เสร็จก่อน" : undefined} onChange={(v) => { setReply({ ...reply, scope: v }); if (reply.imageFolders.length + reply.loose.length) runAuto(v); }}
+              options={[{ value: "nocover", label: `เฉพาะเรื่องที่ยังไม่มีปก ${COUNT(nocover)}` }, { value: "all", label: `ทุกเรื่องบนชั้นวาง ${COUNT(movies.length)}` }]} />
             <span className="small">เรื่องที่มีปกในไฟล์อยู่แล้ว ข้ามให้ · เปลี่ยนเป็นทุกเรื่องถ้าจะเปลี่ยนปกด้วย</span>
           </div>
         </div>
@@ -139,7 +164,7 @@ export default function LinkPage() {
         {summary && !reading && (
           <div className="stat ok" data-link-summary><CardIcon kind="ok" /><div>
             <b>อ่านรูป <span className="nw">{COUNT(summary.images)} รูป</span> · จับคู่ได้แน่ <span className="nw">{COUNT(summary.sure)} คู่</span> · ไม่แน่ใจ <span className="nw">{COUNT(summary.unsure)}</span> · หาคู่ไม่เจอ <span className="nw">{COUNT(summary.none)}</span></b>
-            รูปแนวตั้ง <span className="nw">{COUNT(summary.tall)} รูป</span> ใช้เป็นปกตั้ง · รูปแนวนอน <span className="nw">{COUNT(summary.wide)} รูป</span> ใช้เป็นปกนอน และครอปเป็นปกตั้งได้
+            รูปแนวตั้ง <span className="nw">{COUNT(summary.tall)} รูป</span> ใช้เป็นปกตั้ง · รูปแนวนอน <span className="nw">{COUNT(summary.wide)} รูป</span> ใช้เป็นปกนอน และครอปเป็นปกตั้งได้ · ใช้เวลา <span className="nw">{summarySec} วินาที</span>
           </div></div>
         )}
         <div className="linkfoot">
@@ -184,14 +209,15 @@ function ReviewTable() {
     for (const r of rows) c[r.status]++;
     return c;
   }, [rows]);
-  const waitingRows = rows.filter((r) => r.status !== "saved" && (r.tall || r.wide));
+  // แถวจากชั้นวางที่ยังไม่แตะไม่นับ เหมือนฝั่ง Rust (is_waiting)
+  const waitingRows = rows.filter((r) => r.status !== "saved" && (r.tall || r.wide) && !(r.via === "shelf" && !r.touched));
   const ticked = waitingRows.filter((r) => r.ticked).length;
   const left = rows.filter((r) => r.status !== "saved" && !r.tall && !r.wide).length;
   // คู่ที่มีรูปแล้วขึ้นก่อน แถวไม่แน่ใจกับหาไม่เจอตามหลัง แบบในมอคอัป · ในกลุ่มเรียงชื่อ ยืนยันแล้วแถวไม่กระโดดที่
   const shown = useMemo(() => {
     const rank = (r: LinkRow) => (r.status === "unsure" ? 1 : r.status === "none" ? 2 : 0);
     const sorted = rows.filter((r) => inTab(r, tab)).sort((a, b) => rank(a) - rank(b) || a.title.localeCompare(b.title, "th"));
-    return searchByName(sorted, query, (r) => `${r.title} ${baseName(r.movie)}`);
+    return searchByName(sorted, query, (r) => `${r.title} ${baseName(r.movie)} ${r.tall?.name ?? ""} ${r.wide?.name ?? ""}`);
   }, [rows, tab, query]);
 
   // มาจากปุ่มบนชั้นวาง เลื่อนไปแถวนั้น
@@ -219,7 +245,13 @@ function ReviewTable() {
   };
   const confirm = async (which: string) => {
     const r = await runConfirm(which);
-    if (!r) return;
+    if (!r) {
+      // ล้มทั้งงาน เช่น ดิสก์เต็ม · เดิมแถบหายเงียบ ไม่มีอะไรบอก (ผู้ช่วยตรวจขั้น 8)
+      const st = getLinkJob().run;
+      toast({ kind: "bad", title: "ยืนยันไม่สำเร็จ", detail: st.state === "failed" ? st.error : "ลองใหม่อีกครั้ง" });
+      setReply(await linkApi.state().catch(() => getLinkJob().reply));
+      return;
+    }
     await reloadImages();
     if (r.failed) toast({ kind: "warn", title: `ยืนยันแล้ว ${COUNT(r.done)} คู่ · ไม่สำเร็จ ${COUNT(r.failed)} คู่`, detail: "แถวที่ไม่สำเร็จยังอยู่ในตารางพร้อมเหตุผล" });
     else if (r.stopped) toast({ kind: "info", title: `หยุดแล้ว · ยืนยันไป ${COUNT(r.done)} คู่`, detail: "คู่ที่เหลือยังรอยืนยันอยู่" });
@@ -253,7 +285,7 @@ function ReviewTable() {
         {shown.items.length === 0 ? (
           <div className="empty-search"><div style={{ fontSize: 14 }}>{rows.length === 0 ? "ยังไม่มีคู่ให้ตรวจ ลากโฟลเดอร์รูปมาวางก่อน" : "ไม่มีแถวตามที่เลือก"}</div></div>
         ) : shown.items.map((r) => (
-          <RowView key={r.id} r={r} coverThumb={movies.find((m) => m.id === r.id)?.thumb ?? null} busy={working}
+          <RowView key={r.id} r={r} coverThumb={(() => { const m = movies.find((x) => x.id === r.id); return m?.thumb ?? m?.linked?.find((c) => c.orient === "tall")?.thumb ?? m?.linked?.[0]?.thumb ?? null; })()} busy={working} over={job.overRow?.id === r.id ? job.overRow : null} onBoard={() => setLinkJob({ view: "board" })}
             onTick={(v) => act(() => linkApi.update(r.id, { ticked: v }), "ติ๊กไม่สำเร็จ")}
             onChoose={(p) => act(() => linkApi.update(r.id, { choose: p }), "เลือกรูปไม่สำเร็จ")}
             onCrop={() => openCrop(r.id, r.tall ? "tall" : "wide")}
@@ -295,9 +327,9 @@ function ReviewTable() {
             if (keep) await act(() => linkApi.setCrop(crop.id, crop.orient, keep.geo), "จำค่าครอปไม่สำเร็จ");
             await openCrop(crop.id, o);
           } }}
-          onCancel={() => setCrop(null)}
-          onChangeImage={async () => { const id = crop.id; setCrop(null); const f = await pickFile("image"); if (f) act(() => linkApi.pair(id, [f], "board"), "ใช้รูปนี้ไม่ได้"); }}
-          onUse={(c) => { const { id, orient } = crop; setCrop(null); act(() => linkApi.setCrop(id, orient, c.geo), "จำค่าครอปไม่สำเร็จ"); }} />
+          onCancel={() => { setCrop(null); posterApi.clear("link").catch(() => {}); }}
+          onChangeImage={async () => { const id = crop.id; setCrop(null); posterApi.clear("link").catch(() => {}); const f = await pickFile("image"); if (f) act(() => linkApi.pair(id, [f], "board"), "ใช้รูปนี้ไม่ได้"); }}
+          onUse={(c) => { const { id, orient } = crop; setCrop(null); posterApi.clear("link").catch(() => {}); act(() => linkApi.setCrop(id, orient, c.geo), "จำค่าครอปไม่สำเร็จ"); }} />
       )}
     </div>
   );
@@ -309,7 +341,7 @@ function Thumb({ p, wide }: { p: LinkPick | null; wide?: boolean }) {
 }
 
 function RowView(p: {
-  r: LinkRow; coverThumb: string | null; busy: boolean;
+  r: LinkRow; coverThumb: string | null; busy: boolean; over: { names: string; bad: boolean } | null; onBoard: () => void;
   onTick: (v: boolean) => void; onChoose: (path: string) => void; onCrop: () => void; onChange: () => void; onConfirm: () => void; onSkip: () => void; onUndo: () => void; onUnsave: () => void; onResolve: (how: "use" | "app") => void;
 }) {
   const { r } = p;
@@ -318,26 +350,30 @@ function RowView(p: {
   const second = r.wide && r.tall && (r.wide.path !== r.tall.path || r.wide.geo) ? r.wide : null;
   const saved = r.status === "saved";
   const pillText = saved ? r.reason : r.reason;
+  /** ระหว่างยืนยัน ห้ามแก้แถว ฝั่ง Rust กันอยู่แล้ว ปุ่มต้องบอกตั้งแต่บนจอ */
+  const g = (f: () => void) => () => { if (!p.busy) f(); };
+  const dis = { "aria-disabled": p.busy || undefined, title: p.busy ? "กำลังยืนยันอยู่ รอให้เสร็จก่อน" : undefined };
+  const ghost = "btn btn-sm " + (p.busy ? "btn-wait" : "btn-ghost");
   return (
-    <div className={"lkrow " + r.status} data-link-row={r.id} data-link-status={r.status}>
+    <div className={"lkrow " + r.status + (p.over ? " over" + (p.over.bad ? " bad" : "") : "")} data-link-row={r.id} data-link-status={r.status}>
       <div>
         {saved ? <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#2f7a52" strokeWidth="2.6" aria-label="บันทึกแล้ว"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
-          : <button type="button" role="checkbox" aria-checked={r.ticked} aria-label={"ติ๊กเลือก " + r.title} aria-disabled={!has || undefined} className={"cbx " + (r.ticked ? "on" : "off")} data-link-tick
-              onClick={() => { if (has) p.onTick(!r.ticked); }}>{r.ticked && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="4"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>}</button>}
+          : <button type="button" role="checkbox" aria-checked={r.ticked} aria-label={"ติ๊กเลือก " + r.title} aria-disabled={!has || p.busy || undefined} className={"cbx " + (r.ticked ? "on" : "off")} data-link-tick
+              onClick={() => { if (has && !p.busy) p.onTick(!r.ticked); }}>{r.ticked && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="4"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>}</button>}
       </div>
       <div className="lpick">
-        {p.coverThumb ? <img className="lthumb" src={thumbUrl(p.coverThumb) ?? undefined} alt="ปกในไฟล์" loading="lazy" draggable={false} /> : <span className="lthumb none">ไม่มีปก</span>}
+        {p.coverThumb ? <img className="lthumb" src={thumbUrl(p.coverThumb) ?? undefined} alt="ปกที่เรื่องนี้มีอยู่" loading="lazy" draggable={false} /> : <span className="lthumb none">ไม่มีปก</span>}
         <div className="lname"><b>{r.title}</b><span className="fn" title={r.movie}>{baseName(r.movie)}</span></div>
       </div>
       <div className="larrow" aria-hidden="true">→</div>
       <div>
         {has ? (
           <div className="lpick" data-link-chosen>
-            <Thumb p={main} wide={!!main && main.width > main.height && !r.derivedTall} />
+            <Thumb p={main} wide={!r.tall} />
             {second && <Thumb p={second} wide />}
             <div className="lname">
               <span className="fn" title={main!.path}>{main!.name}</span>
-              <span className="small">{main!.folder ? <span title={main!.folder}>{main!.folder} · </span> : null}<span className="nw">{main!.width} × {main!.height}</span> · {main!.width > main!.height ? "ปกนอน" : "ปกตั้ง"}{second ? " · มีปกนอนด้วย" : ""}</span>
+              <span className="small">{main!.folder ? <span title={main!.folder}>{main!.folder} · </span> : null}<span className="nw">{main!.width} × {main!.height}</span> · {r.tall && !r.derivedTall ? "ปกตั้ง" : "ปกนอน"}{second ? " · มีปกนอนด้วย" : ""}</span>
               {r.derivedTall && <span className="small">ครอปเป็นปกตั้งให้แล้ว</span>}
               {(r.tall?.geo || r.wide?.geo) && !r.derivedTall && <span className="small" data-link-cropped>ครอปแล้ว</span>}
             </div>
@@ -353,12 +389,13 @@ function RowView(p: {
             </div>
           </>
         )}
-        {!has && r.candidates.length === 0 && <span className="small" style={{ color: "var(--bad-ink)" }}>ไม่มีรูปชื่อใกล้เคียง · ไปจับคู่เองที่กระดาน หรือลากรูปมาวางบนแถวนี้</span>}
+        {!has && r.candidates.length === 0 && <span className="small" style={{ color: "var(--bad-ink)" }}>ไม่มีรูปชื่อใกล้เคียง · <button type="button" className="addbtn" style={{ color: "inherit" }} data-link-row-board onClick={g(p.onBoard)}>ไปจับคู่เองที่กระดาน</button> หรือลากรูปมาวางบนแถวนี้</span>}
+        {p.over && <div className={"hint" + (p.over.bad ? " e" : "")} style={{ marginTop: 6 }} data-link-over>{p.over.bad ? "ไฟล์นี้ไม่ใช่รูป ไม่รับ" : `ปล่อยเมาส์ ใช้รูป ${p.over.names}`}</div>}
         {r.error && (
           <div className="hint e" role="alert" style={{ marginTop: 6 }} data-link-error>{r.error}
             {r.conflict && <span className="row8" style={{ marginTop: 6 }}>
-              <button type="button" className="btn btn-ghost btn-sm" data-link-use onClick={() => p.onResolve("use")}>ใช้ไฟล์ที่มีอยู่</button>
-              <button type="button" className="btn btn-ghost btn-sm" data-link-toapp onClick={() => p.onResolve("app")}>เก็บในโปรแกรมแทน</button>
+              <button type="button" className={ghost} {...dis} data-link-use onClick={g(() => p.onResolve("use"))}>ใช้ไฟล์ที่มีอยู่</button>
+              <button type="button" className={ghost} {...dis} data-link-toapp onClick={g(() => p.onResolve("app"))}>เก็บในโปรแกรมแทน</button>
             </span>}
           </div>
         )}
@@ -366,15 +403,15 @@ function RowView(p: {
       <div><span className={"pill " + PILL[r.status]} data-link-reason style={{ whiteSpace: "normal" }}>{pillText}</span></div>
       <div className="lacts">
         {saved ? (
-          <><span className="pill p-ok">บันทึกแล้ว</span><button type="button" className="btn btn-ghost btn-sm" data-link-unsave onClick={p.onUnsave}>ยกเลิก</button></>
+          <><span className="pill p-ok">บันทึกแล้ว</span><button type="button" className={ghost} {...dis} data-link-unsave onClick={g(p.onUnsave)}>ยกเลิก</button></>
         ) : (
           <>
-            {has && <button type="button" className="btn btn-ghost btn-sm" data-link-crop onClick={p.onCrop}>ครอป</button>}
-            {has && <button type="button" className="btn btn-ghost btn-sm" data-link-change onClick={p.onChange}>เปลี่ยนรูป</button>}
-            {!has && <button type="button" className="btn btn-ghost btn-sm" data-link-change onClick={p.onChange}>เลือกรูป</button>}
-            {!!r.prev && <button type="button" className="btn btn-ghost btn-sm" data-link-undo onClick={p.onUndo}>ย้อน</button>}
-            {r.status === "unsure" && !has && <button type="button" className="btn btn-ghost btn-sm" data-link-skip onClick={p.onSkip}>ข้ามเรื่องนี้</button>}
-            {r.via === "shelf" && <button type="button" className="btn btn-ghost btn-sm" data-link-skip title="ปกบนชั้นวางคงเดิม ไม่มีอะไรถูกเขียน" onClick={p.onSkip}>เลิกแก้</button>}
+            {has && <button type="button" className={ghost} {...dis} data-link-crop onClick={g(p.onCrop)}>ครอป</button>}
+            {has && <button type="button" className={ghost} {...dis} data-link-change onClick={g(p.onChange)}>เปลี่ยนรูป</button>}
+            {!has && <button type="button" className={ghost} {...dis} data-link-change onClick={g(p.onChange)}>เลือกรูป</button>}
+            {!!r.prev && <button type="button" className={ghost} {...dis} data-link-undo onClick={g(p.onUndo)}>ย้อน</button>}
+            {r.status === "unsure" && !has && <button type="button" className={ghost} {...dis} data-link-skip onClick={g(p.onSkip)}>ข้ามเรื่องนี้</button>}
+            {r.via === "shelf" && <button type="button" className={ghost} aria-disabled={p.busy || undefined} data-link-skip title={p.busy ? dis.title : "ปกบนชั้นวางคงเดิม ไม่มีอะไรถูกเขียน"} onClick={g(p.onSkip)}>เลิกแก้</button>}
             {has && <button type="button" className={"btn btn-sm " + (p.busy ? "btn-wait" : "btn-ok")} aria-disabled={p.busy || undefined} data-link-confirm onClick={() => { if (!p.busy) p.onConfirm(); }}>{r.status === "unsure" ? "ยืนยันรูปที่เลือก" : "ยืนยัน"}</button>}
           </>
         )}
