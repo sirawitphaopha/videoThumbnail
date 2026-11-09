@@ -375,7 +375,7 @@ await closeToasts();
 await clickIn("Paper Kites (2012)", "[data-link-crop]");
 await waitFor("return !!document.querySelector('[data-crop] .cropbox')");
 check("หน้าครอปมีปรับเอียงกับช่องปก ไม่มีปรับสี ไม่มีเลือกชนิดไฟล์", await q("const d = document.querySelector('[data-crop]'); const t = d.closest('.dlg').textContent; return !!d.querySelector('[data-tilt]') && t.includes('ปกนอน 16 : 9') && !t.includes('ไฟล์รูปที่ได้') && !t.includes('ความสว่าง')"));
-check("หัวหน้าต่างบอกชื่อหนัง ปุ่มเขียนว่าใช้ค่านี้ เพราะยังไม่เขียนไฟล์", await q("const d = document.querySelector('[data-crop]').closest('.dlg'); return d.textContent.includes('ครอปรูปปก · Paper Kites (2012)') && document.querySelector('[data-use]').textContent === 'ใช้ค่านี้'"));
+check("หัวหน้าต่างบอกชื่อหนัง ปุ่มเขียนว่าใช้ค่านี้ เพราะยังไม่เขียนไฟล์", await q("const d = document.querySelector('[data-crop]').closest('.dlg'); return d.textContent.includes('ครอปรูปปก · Paper Kites (2012)') && document.querySelector('[data-use]').innerText.trim() === 'ใช้ค่านี้'"));
 check("ไม่มีตารางคุณภาพ ไม่มีตัวอย่างไอคอน Windows เพราะปกจับคู่ไม่เปลี่ยนไอคอนไฟล์", await q("const d = document.querySelector('[data-crop]'); return !d.querySelector('[data-qtable]') && d.querySelectorAll('[data-previews] .pv').length === 2 && !d.textContent.includes('ไอคอน Windows')"));
 // มุมจับต้องหน้าตาเดียวกันทั้ง 4 มุม · เดิมมุมซ้ายล่างเป็นวงกลมขาว ชื่อคลาส sw ชนปุ่มเลือกธีมหน้ากราฟเสียง
 const handlesSame = "const h = [...document.querySelectorAll('[data-crop] .hd')].map((e) => { const r = e.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height), getComputedStyle(e).borderRadius].join(); }); return h.length === 4 && new Set(h).size === 1 && h[0].endsWith('3px')";
@@ -483,7 +483,8 @@ const tabN = (v) => q(`return Number(document.querySelector('[data-shelf-tab="${
 const tabClick = async (v) => { await c.evaluate(`document.querySelector('[data-shelf-tab="${v}"]').click()`); await sleep(150); };
 const BOOK = (s) => `document.querySelector(${JSON.stringify(`[data-movie^="${s}"]`)})`;
 const pickBook = async (s) => {
-  await c.evaluate(`${BOOK(s)}.click()`);
+  // กดปกที่เลือกอยู่แล้วแผงจะปิด
+  if (!(await q(`return ${BOOK(s)}.classList.contains('sel') && !!document.querySelector('[data-detail]')`))) await c.evaluate(`${BOOK(s)}.click()`);
   await waitFor(`return document.querySelector('[data-detail] .nm')?.textContent.startsWith(${JSON.stringify(s)})`);
   await sleep(300);
 };
@@ -610,6 +611,7 @@ const runMigrate = async () => {
 await closeToasts();
 await nav("ตั้งค่า");
 await waitFor("return !!document.querySelector('[data-setcard=\"link\"]')");
+await c.setNav("link");
 check("การ์ดเก็บรูป 3 แบบ ค่าตั้งต้นข้างไฟล์หนัง", await q("const m = [...document.querySelectorAll('[data-link-mode]')]; return m.length === 3 && m.find((x) => x.classList.contains('on')).dataset.linkMode === 'beside' && m[0].textContent.includes('-poster.jpg') && m[0].textContent.includes('-landscape.jpg')"));
 check("การ์ดเก็บรูปไม่ล้นหน้าต่าง ตัวเลือกเรียงลงมาในคอลัมน์", await q("const c = document.querySelector('[data-setcard=\"link\"]').getBoundingClientRect(), w = document.querySelector('[data-settings]').getBoundingClientRect(), m = [...document.querySelectorAll('[data-link-mode]')].map((x) => x.getBoundingClientRect()); return c.right <= w.right && m[0].top < m[1].top && m[1].top < m[2].top"));
 await sleep(200);

@@ -430,7 +430,7 @@ check("ตั้งลบไฟล์เดิมระหว่างการ�
 
 // มาจากปุ่มเปลี่ยนโปสเตอร์บนชั้นวาง · MKV ที่มีปกแล้ว
 await c.evaluate(`[...document.querySelectorAll('[data-navbar] button')].find(b => b.innerText.includes('ชั้นวางหนัง')).click()`); await sleep(500);
-await c.click('.book[data-movie="Harbor Lights (2021)"]'); await sleep(300);
+await c.book("Harbor Lights (2021)"); await sleep(300);
 await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.innerText === 'เปลี่ยนโปสเตอร์').click()"); await sleep(1500);
 s = await page();
 check("กดเปลี่ยนโปสเตอร์บนชั้นวาง ไปหน้าใส่โปสเตอร์พร้อมไฟล์หนังเรื่องนั้น", s.movie.includes("Harbor Lights (2021).mkv"), s.movie.split("\n")[1]);

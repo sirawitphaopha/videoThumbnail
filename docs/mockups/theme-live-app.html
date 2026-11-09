@@ -116,6 +116,9 @@
     ...GRAPH,
     merge_inspect: (a) => mergeMovie(a.path),
     merge_cover_drop: () => null,
+    convert_cover: () => null,
+    convert_one: (a) => ({ out: String(a.req.path).replace(/\.[^.]+$/, ".opus"), size: 5200000, srcSize: 31000000, tags: 1, cover: false, notes: [], tool: "opusenc", cmd: "opusenc --bitrate 160 เพลงตัวอย่าง.flac เพลงตัวอย่าง.opus", secs: 3.2 }),
+    merge_cover_preview: (a) => { const hit = T.find(([t, y, c]) => c && String(a.path).includes(slug(t, y))) ?? T[0]; const [t, y, c1, c2, c3] = hit; const land = a.slot === "cover_land"; const w = land ? 1920 : 1000, h = land ? 1080 : 1500; return { preview: poster(t, y, c1, c2, c3, w, h), width: w, height: h, bytes: 412000 }; },
     convert_probe: (a) => ({ path: a.path, name: String(a.path).split("\\").pop(), size: 31000000, duration: 248, audioOnly: true, stream: 0, codec: "flac", profile: "", layout: "stereo", channels: 2, rate: 44100, bits: 16, bitrate: 980000, tags: [{ key: "TITLE", value: "เพลงตัวอย่าง" }], tagsInStream: false, cover: null }),
     media_info: (x) => { const m = movieOf(x.path); const sections = [
       { title: "ข้อมูลทั่วไป", kind: "general", ext: null, lang: null, rows: [["ชื่อไฟล์", String(x.path).split("\\").pop()], ["รูปแบบ", "Matroska"], ["ขนาด", ((m?.size ?? 8e9) / 1073741824).toFixed(2) + " GB"], ["ความยาว", "1 ชม. 30 นาที"], ["บิตเรตรวม", "8 420 kb/s"]] },

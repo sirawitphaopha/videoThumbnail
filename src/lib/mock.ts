@@ -19,6 +19,7 @@ const defaults: Settings = {
   coverSize: "m",
   showNames: true,
   showDots: true,
+  showFrames: false,
   playerPath: "",
   sidebarCollapsed: false,
   viewMode: "grid",

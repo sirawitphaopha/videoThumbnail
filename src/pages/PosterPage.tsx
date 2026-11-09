@@ -7,7 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Page } from "../components/Sidebar";
 import Dialog from "../components/Dialog";
 import CropDialog, { type CropChoice } from "../components/CropDialog";
-import { CardIcon, Phr, Seg } from "../components/ui";
+import { CardIcon, Keep, Phr, Seg } from "../components/ui";
 import { inApp, pickFile, posterApi, thumbUrl, type Geometry, type ApplyProblem, type ApplyResult, type FolderImage, type MovieInfo, type PosterInfo, type StreamInfo } from "../lib/api";
 import { useSettings } from "../lib/settings";
 import { useLibrary } from "../lib/library";
@@ -444,8 +444,8 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
           <div className="pact-msg">{blocked && !working && <div className="hint" style={{ color: "#94680f", margin: 0 }} data-blocked>{blocked}</div>}</div>
           <div className="pact-btns">
           <button type="button" className={"btn " + (working ? "btn-wait" : "btn-ghost")} style={{ height: 44 }} aria-disabled={working || undefined} title={working ? "รอให้งานที่ทำอยู่เสร็จก่อน" : undefined} onClick={clearAll}><IbTrash size={15} />ล้างทั้งหมด</button>
-          <button type="button" className={"btn " + (blocked || working ? "btn-wait" : "btn-main")} style={{ height: 44, padding: "0 14px", fontSize: 15, flex: 1 }}
-            aria-disabled={!!blocked || working || undefined} title={blocked ?? undefined} onClick={() => pressStart()} data-start><IcPoster size={15} />{working ? "กำลังทำ…" : startLabel}</button>
+          <button type="button" className={"btn " + (blocked || working ? "btn-wait" : "btn-main")} style={{ height: 44, padding: "0 9px", fontSize: 14, flex: 1 }}
+            aria-disabled={!!blocked || working || undefined} title={blocked ?? undefined} onClick={() => pressStart()} data-start><Keep icon={<IcPoster size={15} />} all={["กำลังทำ…", startLabel]}>{working ? "กำลังทำ…" : startLabel}</Keep></button>
           </div>
         </div>
       </div>

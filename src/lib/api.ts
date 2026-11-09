@@ -21,6 +21,7 @@ export type Settings = {
   coverSize: "s" | "m" | "l";
   showNames: boolean;
   showDots: boolean;
+  showFrames: boolean;
   playerPath: string;
   sidebarCollapsed: boolean;
   viewMode: "grid" | "table";
@@ -257,6 +258,11 @@ export const linkApi = {
 export type Cue = { n: number; start: number; end: number; text: string };
 export type SubText = { raw: string; kind: "srt" | "ass" | "vtt"; charset: string; cues: Cue[] };
 export type SubImg = { n: number; start: number; end: number | null; w: number; h: number; canvas: [number, number]; at: [number, number]; png: string };
+/** ภาพสุ่มจากหนัง แสดงแทนแถบทะแยงในเรื่องที่ยังไม่มีปก · null = ดึงไม่ได้ */
+export const frameApi = {
+  movie: (path: string, duration: number) => call<string | null>("movie_frame", { path, duration }),
+};
+
 export const subApi = {
   text: (path: string, inMovie: boolean, tid: number, ff: number) => call<SubText>("sub_text", { path, inMovie, tid, ff }),
   frame: (movie: string, t: number, h?: number) => call<string>("sub_frame", { movie, t, h: h ?? null }),

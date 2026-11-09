@@ -23,7 +23,12 @@ try {
     Write-Host 'เปิดโปรแกรมที่สร้างจริง src-tauri\target\debug\movie-shelf.exe'
     & (Join-Path $root 'src-tauri\target\debug\movie-shelf.exe')
   } else {
-    npm run tauri dev
+    # เซิร์ฟเวอร์หน้าจอ 1420 เปิดค้างอยู่แล้ว ใช้ตัวนั้น ไม่เปิดซ้ำจนพอร์ตชนกัน
+    if (Get-NetTCPConnection -LocalPort 1420 -State Listen -ErrorAction SilentlyContinue) {
+      npm run tauri dev -- --config (Join-Path $root 'scripts\tauri-dev-noserver.json')
+    } else {
+      npm run tauri dev
+    }
   }
 } finally {
   Remove-Item Env:WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS -ErrorAction SilentlyContinue

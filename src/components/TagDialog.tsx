@@ -3,7 +3,7 @@
    ไฟล์ที่ไม่มีข้อมูลเพลงขึ้นว่าไม่มี พร้อมบอกเหตุ · ปุ่มคัดลอกข้อมูลเป็นข้อความ แบบหน้าข้อมูลไฟล์ */
 import { useEffect, useState } from "react";
 import Dialog from "./Dialog";
-import { CardIcon, Phr, Skel } from "./ui";
+import { CardIcon, Keep, Phr, Skel } from "./ui";
 import { convertApi, type AudioFile, type CoverData } from "../lib/api";
 import { ftName } from "../lib/ftypes";
 import { fmtSize } from "../lib/format";
@@ -67,7 +67,7 @@ export default function TagDialog({ path, onClose }: { path: string; onClose: ()
     <Dialog open onClose={onClose} kind="menu" width={620} title={<span>ข้อมูลเพลง · <span style={{ overflowWrap: "anywhere" }}>{name}</span></span>}
       actions={<>
         <span className="small" style={{ marginRight: "auto", alignSelf: "center" }}>ดูอย่างเดียว · การแก้ข้อมูลเพลงอยู่ในโรดแมป</span>
-        {hasTags && <button type="button" className="btn btn-ghost btn-sm" onClick={copy} data-tagcopy><IcCopy size={14} />{copied ? "คัดลอกแล้ว" : "คัดลอกเป็นข้อความ"}</button>}
+        {hasTags && <button type="button" className="btn btn-ghost btn-sm" onClick={copy} data-tagcopy><Keep icon={<IcCopy size={14} />} all={["คัดลอกแล้ว", "คัดลอกเป็นข้อความ"]}>{copied ? "คัดลอกแล้ว" : "คัดลอกเป็นข้อความ"}</Keep></button>}
         <button type="button" className="btn btn-main btn-sm" onClick={onClose}>ปิด</button>
       </>}>
       <div className="tagview" data-tagview>

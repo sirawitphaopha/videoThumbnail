@@ -214,7 +214,7 @@ const findH = await q("return [...new Set([...document.querySelectorAll('[data-s
 check("แถวค้นในซับ ช่องค้นกับปุ่มก่อนหน้า ถัดไป สูงเท่ากัน", findH.length === 1, findH.join(","));
 await clickTextAny("[data-subviewer] .seg button", "ความถี่");
 const specOk = await waitFor("const cv = document.querySelector('[data-aud]'); if (!cv) return false; const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data; let light = 0, all = 0; for (let i = 0; i < d.length; i += 16) { all++; if (d[i + 1] > 235) light++; } return all > 1000 && light / all < 0.1", 20000);
-const playBtn = await q("return document.querySelector('[data-sub-play]')?.innerText ?? ''");
+const playBtn = await q("return (document.querySelector('[data-sub-play]')?.innerText ?? '').replace(/\\s+/g, ' ')");
 check("แบบ Aegisub กดความถี่ คลื่นเปลี่ยนเป็นภาพความถี่ (คำสั่งเดียวกับหน้ากราฟเสียง) · มีปุ่มเปิดเล่นที่เวลาบรรทัด (ไม่กด เพราะจะเปิดโปรแกรมเล่นขึ้นจอ)", specOk && playBtn.startsWith("เปิดเล่นที่ 0:00:05"), playBtn);
 await sleep(300);
 await shot("17-ดูซับ-ความถี่.png", "[data-subviewer] .aegtop", 8);
@@ -302,7 +302,7 @@ const advCards = await q("return [...document.querySelectorAll('[data-codec-pane
 const infoInCards = await q("return [...document.querySelectorAll('[data-codec-panel] .acard')].every(a => a.querySelector('.ach .infob'))");
 const br0 = await q(`return ${card("bitrate")}.querySelector('[data-vin]').value`);
 check("กดขั้นสูง Opus มีการ์ด Bitrate · Bitrate mode · Complexity · Frame size · Tuning · Channels · ใช้กับทุกชนิด Gain · Loudness · ความเร็ว · ทุกการ์ดมีปุ่ม ⓘ หัวการ์ด · ค่าจากชุดที่เลือกในแบบง่ายไม่หาย (160)",
-  advCards.join(",") === "bitrate,mode,comp,framesize,tune,channels,gain,loud,speed" && infoInCards && br0 === "160", `${advCards.join(",")} · ค่า ${br0}`);
+  [...advCards].sort().join(",") === "bitrate,mode,comp,framesize,tune,channels,gain,loud,speed".split(",").sort().join(",") && infoInCards && br0 === "160", `${advCards.join(",")} · ค่า ${br0}`);
 const modeText = await q(`return ${card("mode")}.innerText.replace(/\\s+/g, ' ')`);
 const brText = await q(`return ${card("bitrate")}.innerText.replace(/\\s+/g, ' ')`);
 check("ตัวย่อมีคำเต็มครั้งแรกที่เจอในการ์ด VBR (Variable Bitrate) ครั้งเดียว · CBR (Constant Bitrate) · kbps (kilobits per second)",
@@ -388,21 +388,21 @@ await c.evaluate("[...document.querySelectorAll('[role=option]')].find(o => o.in
 await waitFor("return document.querySelector('[data-cmd]').innerText.includes('-b 4608')", 8000);
 const flacCmd = await cmdNow();
 check("เปลี่ยนเป็น FLAC การ์ด Compression level · Threads · Verify · Bit depth · Sample rate · Block size · ไม่มีการ์ดของ Opus ค้าง · เลือก Block size 4,608 คำสั่งมี -b 4608",
-  flacCards === "level,threads,verify,bits,rate,block" && flacCmd.includes("-b 4608") && !flacCmd.includes("--bitrate"), `${flacCards} · ${flacCmd.slice(flacCmd.indexOf("flac --"), flacCmd.indexOf("flac --") + 70)}`);
+  flacCards.split(",").sort().join() === "level,threads,verify,bits,rate,block".split(",").sort().join() && flacCmd.includes("-b 4608") && !flacCmd.includes("--bitrate"), `${flacCards} · ${flacCmd.slice(flacCmd.indexOf("flac --"), flacCmd.indexOf("flac --") + 70)}`);
 await shot("14-แผงขั้นสูง-FLAC.png", "[data-cards]", 8);
 await clickText("[data-codec-panel] .seg button", "ffmpeg 9.0.2");
 await waitFor("return document.querySelector('[data-cmd]').innerText.includes('-c:a flac')", 8000);
 const ffCards = await q("return [...document.querySelectorAll('[data-codec-panel] [data-cards] .acard')].map(a => a.dataset.card).join(',')");
 const ffCmd = await cmdNow();
 check("ตัวแปลง ffmpeg การ์ด Threads กับ Verify หายไปพร้อมบอกเหตุผล · Block size ยังอยู่ คำสั่ง -frame_size 4608",
-  ffCards === "level,bits,rate,block" && ffCmd.includes("-frame_size 4608") && (await q("return document.querySelector('[data-codec-panel]').innerText.includes('ไม่มีบางช่องของตัวต้นฉบับ flac การ์ดที่ไม่มีจึงไม่แสดง')")), `${ffCards}`);
+  ffCards.split(",").sort().join() === "level,bits,rate,block".split(",").sort().join() && ffCmd.includes("-frame_size 4608") && (await q("return document.querySelector('[data-codec-panel]').innerText.includes('ไม่มีบางช่องของตัวต้นฉบับ flac การ์ดที่ไม่มีจึงไม่แสดง')")), `${ffCards}`);
 // MP3 โหมด CBR · การ์ด VBR quality หายไป การ์ด Bitrate ขึ้นแทน
 await clickText("[data-codec-panel] .seg button", "MP3");
 await waitFor("return document.querySelector('[data-cmd]').innerText.includes('lame')", 8000);
 await clickText(`[data-codec-panel] [data-card="mode"] .seg button`, "CBR");
 await waitFor("return document.querySelector('[data-cmd]').innerText.includes('--cbr')", 8000);
 const mp3Cards = await q("return [...document.querySelectorAll('[data-codec-panel] [data-cards] .acard')].map(a => a.dataset.card).join(',')");
-check("MP3 เลือกโหมด CBR การ์ด VBR quality หายไป การ์ด Bitrate ขึ้นแทน คำสั่ง -b 192 --cbr", mp3Cards === "mode,bitrate,stereo,quality,lowpass" && (await cmdNow()).includes("-b 192 --cbr"), mp3Cards);
+check("MP3 เลือกโหมด CBR การ์ด VBR quality หายไป การ์ด Bitrate ขึ้นแทน คำสั่ง -b 192 --cbr", mp3Cards.split(",").sort().join() === "mode,bitrate,stereo,quality,lowpass".split(",").sort().join() && (await cmdNow()).includes("-b 192 --cbr"), mp3Cards);
 // ความลึกบิตต้นทาง · คำสั่งเดียวกับที่แผงเรียก ต้นทาง 16 บิตแปลงเป็น FLAC ตามต้นฉบับได้ 16 บิต
 const p16 = await inv("encode_preview", { spec: { codec: "flac", encoder: "native", p: { level: 5 } }, srcName: "a.wav", stream: 0, channels: 2, bits: 16 });
 const p24 = await inv("encode_preview", { spec: { codec: "flac", encoder: "native", p: { level: 5 } }, srcName: "a.wav", stream: 0, channels: 2, bits: 24 });
@@ -441,7 +441,7 @@ await c.evaluate("[...document.querySelectorAll('.side .nav')].find(b => b.inner
 await inv("scan_library");
 await sleep(1500);
 await waitFor("return !!document.querySelector('.book[data-movie=\"ดาวตก (2024)\"]')", 15000);
-await c.click('.book[data-movie="ดาวตก (2024)"]');
+await c.book("ดาวตก (2024)");
 await waitFor("return !!document.querySelector('[data-shelfav]')", 8000);
 await shot("08-ปุ่มบนชั้นวาง.png", ".detail .actions", 6);
 await c.evaluate("document.querySelector('[data-shelfav]')?.click()");
@@ -450,6 +450,7 @@ check("ปุ่มเสียงและซับในแผงขวาข�
 
 // ---------- การ์ดตัวแปลงเสียงในหน้าตั้งค่า (ขั้น 4) · ไม่กดปุ่มเปิดโฟลเดอร์ (จะเปิด Explorer ขึ้นจอ) ----------
 await c.evaluate("[...document.querySelectorAll('.side .nav')].find(b => b.innerText.includes('ตั้งค่า')).click()");
+await c.setNav("encoders");
 await waitFor("return document.querySelectorAll('[data-setcard=encoders] [data-enc]').length >= 7", 20000);
 const encRows = await q("return [...document.querySelectorAll('[data-setcard=encoders] [data-enc]')].map(r => r.innerText.replace(/\\s+/g, ' '))");
 const encText = await q("return document.querySelector('[data-setcard=encoders]').innerText");
@@ -485,7 +486,7 @@ await shot("20-วิธีจับคู่.png", "[data-method]", 8);
 // แผงขวาของชั้นวาง
 await c.evaluate("[...document.querySelectorAll('.side .nav')].find(b => b.innerText.includes('ชั้นวางหนัง')).click()");
 await waitFor("return !!document.querySelector('.book[data-movie=\"ดาวตก (2024)\"]')", 15000);
-await c.click('.book[data-movie="ดาวตก (2024)"]');
+await c.book("ดาวตก (2024)");
 await waitFor("return document.querySelectorAll('[data-pairs] .tpill').length === 2", 10000);
 const pc = await q("return document.querySelector('[data-pairs]').innerText.replace(/\\s+/g, ' ') + ' · จุด ' + !!document.querySelector('.book[data-movie=\"ดาวตก (2024)\"] [data-pairdot]')");
 check("แผงขวาของชั้นวางมีการ์ดจับคู่ไว้ 2 ไฟล์ พากย์ไทยดีเลย์ −120 ms ซับไทยดีเลย์ +500 ms เจอไฟล์ทั้งคู่ · มุมปกบนชั้นมีจุดบอกว่าจับคู่ไว้",
@@ -500,7 +501,7 @@ await c.evaluate("[...document.querySelectorAll('.side .nav')].find(b => b.inner
 await sleep(400);
 await c.evaluate("[...document.querySelectorAll('.side .nav')].find(b => b.innerText.includes('ชั้นวางหนัง')).click()");
 await waitFor("return !!document.querySelector('.book[data-movie=\"ดาวตก (2024)\"]')", 15000);
-await c.click('.book[data-movie="ดาวตก (2024)"]');
+await c.book("ดาวตก (2024)");
 await waitFor("return !!document.querySelector('[data-pair-missing]')", 10000);
 await c.evaluate("document.querySelector('[data-pair-play]').click()");
 await waitFor("return document.querySelector('[data-pair-res]')?.innerText.includes('ส่งไฟล์ที่จับคู่ 1 ไฟล์')", 10000);

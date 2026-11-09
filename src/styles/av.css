@@ -300,3 +300,7 @@
 /* ตรึงไฟล์หนังบนสุดกับปุ่มรวมล่างสุดของหน้าเสียงและซับ · ปุ่มแปลงล่างสุดของหน้าแปลงเสียง */
 .avtop { position: sticky; top: 0; z-index: var(--z-bar); background: var(--win); padding-block: 10px; }
 .avfoot, .cqfoot { position: sticky; bottom: 0; z-index: var(--z-bar); background: var(--win); padding-block: 12px; border-top: 1px solid var(--line); }
+/* ไม่เว้นที่ใต้แถบปุ่ม เลื่อนสุดแล้วแถบยังชิดล่างเท่าเดิม ไม่ขยับขึ้น */
+.avwrap:has(> .avfoot) { padding-bottom: 0; }
+/* แถวความเร็ว Gain ความดังมาตรฐาน ปุ่มคู่สูงเท่าช่องเลือกกับปุ่มลบบวก */
+[data-extra] .seg.sm button { height: 32px; }

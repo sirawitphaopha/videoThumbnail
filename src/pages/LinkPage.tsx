@@ -4,7 +4,7 @@
    ยืนยันทีละเรื่อง ที่ติ๊กไว้ หรือทั้งหมด · ยังไม่ยืนยันไม่มีอะไรถูกบันทึก คู่ที่รออยู่โปรแกรมจำไว้
    แถววาดด้วย content-visibility แถวนอกจอไม่กินเวลาวาด ร้อยแถวเลื่อนลื่น */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CardIcon, Phr, Seg } from "../components/ui";
+import { CardIcon, Keep, Phr, Seg } from "../components/ui";
 import SearchBox from "../components/SearchBox";
 import LinkBoard from "../components/LinkBoard";
 import CropDialog, { type CropChoice } from "../components/CropDialog";
@@ -276,7 +276,7 @@ function ReviewTable() {
       <div className="linkbar">
         <div className="tabs" role="tablist" aria-label="กรองแถว">
           {tabs.map((t) => (
-            <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={"tabchip" + (tab === t.id ? " on" : "")} data-link-tab={t.id} onClick={() => setTab(t.id)}>{t.label} {COUNT(t.n)}</button>
+            <button key={t.id} type="button" role="tab" aria-selected={tab === t.id} className={"tabchip" + (tab === t.id ? " on" : "")} data-link-tab={t.id} onClick={() => setTab(t.id)}><Keep all={[`${t.label} 000`]}>{t.label} {COUNT(t.n)}</Keep></button>
           ))}
         </div>
         <span style={{ flex: 1 }} />
@@ -316,9 +316,9 @@ function ReviewTable() {
             <button type="button" className="btn btn-ghost" data-link-stop onClick={() => linkApi.cancel()}><IbStop size={15} />หยุด</button>
           ) : (
             <>
-              <button type="button" className="btn btn-ghost" data-link-goboard onClick={() => setLinkJob({ view: "board" })}><IcLink size={15} />ไปกระดาน ({COUNT(left)} ที่เหลือ)</button>
-              <button type="button" className={"btn " + (ticked ? "btn-ghost" : "btn-wait")} aria-disabled={!ticked || undefined} data-link-confirm-ticked onClick={() => { if (ticked) confirm("ticked"); }}><IbTick size={15} />ยืนยัน {COUNT(ticked)} คู่ที่ติ๊กไว้</button>
-              <button type="button" className={"btn " + (waitingRows.length ? "btn-main" : "btn-wait")} aria-disabled={!waitingRows.length || undefined} data-link-confirm-all onClick={() => { if (waitingRows.length) confirm("all"); }}><IbTick size={15} />ยืนยันทั้งหมด {COUNT(waitingRows.length)} คู่</button>
+              <button type="button" className="btn btn-ghost" data-link-goboard onClick={() => setLinkJob({ view: "board" })}><Keep icon={<IcLink size={15} />} all={["ไปกระดาน (000 ที่เหลือ)"]}>ไปกระดาน ({COUNT(left)} ที่เหลือ)</Keep></button>
+              <button type="button" className={"btn " + (ticked ? "btn-ghost" : "btn-wait")} aria-disabled={!ticked || undefined} data-link-confirm-ticked onClick={() => { if (ticked) confirm("ticked"); }}><Keep icon={<IbTick size={15} />} all={["ยืนยัน 000 คู่ที่ติ๊กไว้"]}>ยืนยัน {COUNT(ticked)} คู่ที่ติ๊กไว้</Keep></button>
+              <button type="button" className={"btn " + (waitingRows.length ? "btn-main" : "btn-wait")} aria-disabled={!waitingRows.length || undefined} data-link-confirm-all onClick={() => { if (waitingRows.length) confirm("all"); }}><Keep icon={<IbTick size={15} />} all={["ยืนยันทั้งหมด 000 คู่"]}>ยืนยันทั้งหมด {COUNT(waitingRows.length)} คู่</Keep></button>
             </>
           )}
         </span>

@@ -68,17 +68,25 @@ function walk(rules: CSSRuleList) {
   }
 }
 const collect = () => { for (const sh of Array.from(document.styleSheets)) { try { walk(sh.cssRules); } catch { /* ข้ามชุดที่อ่านไม่ได้ */ } } };
-const inlineOrig = new WeakMap<Element, { style: string | null; stroke: string | null; fill: string | null }>();
+const inlineOrig = new WeakMap<Element, { style: string | null; stroke: string | null; fill: string | null; wrote: { stroke: string | null; fill: string | null } }>();
 function paintInline() {
   document.querySelectorAll("#root [style], #root svg[stroke], #root svg [stroke], #root svg[fill], #root svg [fill]").forEach((e) => {
     if (e.closest(".cover, .dposter, [data-keepcolor]")) return;
     let o = inlineOrig.get(e);
-    if (!o) { o = { style: e.getAttribute("style"), stroke: e.getAttribute("stroke"), fill: e.getAttribute("fill") }; inlineOrig.set(e, o); }
-    for (const a of ["stroke", "fill"] as const) { const c = o[a]; if (c && c[0] === "#" && c.length === 7) e.setAttribute(a, mapColors(c)); }
+    if (!o) { o = { style: e.getAttribute("style"), stroke: e.getAttribute("stroke"), fill: e.getAttribute("fill"), wrote: { stroke: null, fill: null } }; o.wrote = { stroke: o.stroke, fill: o.fill }; inlineOrig.set(e, o); }
+    // หน้าจอเปลี่ยนสีเอง (เช่นลำโพงที่ปิดเป็นสีขาว) ถือค่าใหม่เป็นต้นฉบับ ไม่เอาสีเก่าทับ
+    for (const a of ["stroke", "fill"] as const) {
+      const cur = e.getAttribute(a);
+      if (cur !== o.wrote[a]) o[a] = cur;
+      const c = o[a], next = c && c[0] === "#" && c.length === 7 ? mapColors(c) : cur;
+      if (next !== cur && next !== null) e.setAttribute(a, next);
+      o.wrote[a] = next;
+    }
     if (o.style && /rgb|#[0-9a-f]{6}/i.test(o.style)) {
       const cur = e.getAttribute("style") ?? "";
       const next = mapColors(cur);
-      if (next !== cur) e.setAttribute("style", next);
+      // ตัวจริงมีกติกาความปลอดภัย (CSP) ห้ามเขียนแอตทริบิวต์ style ชิ้นจะเสียสไตล์ ต้องเขียนผ่าน cssText
+      if (next !== cur) (e as HTMLElement).style.cssText = next;
     }
   });
 }

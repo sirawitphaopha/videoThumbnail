@@ -157,4 +157,13 @@ export const SortArrow = ({ dir }: { dir: 1 | -1 | 0 }) => (
   <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden="true" style={{ marginLeft: 4, flex: "none", opacity: dir ? 1 : 0.4 }}>
     <path d={dir === 1 ? "M6 15l6-6 6 6" : dir === -1 ? "M6 9l6 6 6-6" : "M8 10l4-4 4 4M8 14l4 4 4-4"} /></svg>
 );
+/** ข้อความบนปุ่มที่เปลี่ยนตามสถานะ กันที่ไว้เท่าข้อความยาวสุดใน all ปุ่มไม่หดขยาย */
+export const Keep = ({ all, icon, children }: { all: string[]; icon?: React.ReactNode; children: React.ReactNode }) => (
+  <span className="tfix keep">{all.map((x) => <i key={x} aria-hidden="true">{icon}{x}</i>)}<span>{icon}{children}</span></span>
+);
+/** เวลาบนปุ่ม กันที่ไว้เท่าเวลายาวสุดของไฟล์ ปุ่มไม่หดขยายตามตัวเลข · longest คือเวลายาวสุด ไม่ส่งใช้แบบ ชม:นาที:วินาที */
+export const FixedTime = ({ t, longest = "0:00:00" }: { t: string; longest?: string }) => {
+  const ghost = (longest.length >= t.length ? longest : t).replace(/\d/g, "0");
+  return <span className="tfix"><i aria-hidden="true">{ghost}</i><span>{t}</span></span>;
+};
 export const Phr = ({ children, tail }: { children: string; tail?: React.ReactNode }) => <Phrases parts={[{ text: children }]} tail={tail} />;

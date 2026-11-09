@@ -26,6 +26,7 @@ const rows = () => q("return Object.fromEntries([...document.querySelectorAll('[
 const bar = () => q("return document.querySelector('[data-latest-bar]').innerText.replace(/\\s+/g, ' ')");
 
 await c.evaluate("[...document.querySelectorAll('.side .nav')].find(b => b.innerText.includes('ตั้งค่า')).click()");
+await c.setNav("encoders");
 await waitFor("return document.querySelectorAll('[data-setcard=encoders] [data-enc]').length >= 9", 30000);
 await c.evaluate("delete window.__latestSample; document.querySelector('[data-setcard=encoders]').scrollIntoView({ block: 'center' })");
 await sleep(300);

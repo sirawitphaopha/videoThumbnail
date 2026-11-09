@@ -6,7 +6,7 @@
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import Dialog from "./Dialog";
 import SearchBox from "./SearchBox";
-import { Seg } from "./ui";
+import { Keep, Seg } from "./ui";
 import { useToast } from "./Toasts";
 import { useLibrary } from "../lib/library";
 import { useSettings } from "../lib/settings";
@@ -274,7 +274,7 @@ export default function LinkBoard() {
       </div>
       <div className="linkfoot">
         <span className="small" style={{ flex: 1, minWidth: 0 }}>คีย์บอร์ด ลูกศรเลือกรูป · Enter เลือก · Tab ไปฝั่งหนัง · Enter จับคู่ · Ctrl+Z ย้อน · คู่ที่จับบนกระดานยังไม่บันทึก ไปรอยืนยันที่ตาราง</span>
-        <button type="button" className="btn btn-main" data-board-back onClick={() => setLinkJob({ view: "table" })}><IbBack size={15} />กลับตารางตรวจผล{waitingManual ? ` · จับคู่ไว้ ${COUNT(waitingManual)} คู่` : ""}</button>
+        <button type="button" className="btn btn-main" data-board-back onClick={() => setLinkJob({ view: "table" })}><Keep icon={<IbBack size={15} />} all={["กลับตารางตรวจผล · จับคู่ไว้ 000 คู่"]}>กลับตารางตรวจผล{waitingManual ? ` · จับคู่ไว้ ${COUNT(waitingManual)} คู่` : ""}</Keep></button>
       </div>
       {dragImg && drag && (
         <div className="bghost" style={{ left: drag.x + 10, top: drag.y + 10 }} data-board-ghost>

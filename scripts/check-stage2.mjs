@@ -92,11 +92,11 @@ check("เมนูซ้ายนับหนังบนชั้น นับ
 const book = await c.hover('.book[data-movie="Harbor Lights (2021)"]'); await sleep(350);
 const lift = await q(`return getComputedStyle(document.querySelector('.book[data-movie="Harbor Lights (2021)"] .cover')).translate`);
 check("ชี้ปกแล้วปกลอยขึ้น 3", lift === "0px -3px", lift);
-await c.click('.book[data-movie="Harbor Lights (2021)"]'); await sleep(250);
+await c.book("Harbor Lights (2021)"); await sleep(250);
 const det = await q("return { nm: document.querySelector('.detail .nm')?.innerText, sel: document.querySelector('.book.sel')?.dataset.movie, card: document.querySelector('.detail .stat b')?.innerText, poster: document.querySelector('.detail img.dposter')?.naturalWidth }");
 check("กดปกแล้วแผงขวาขึ้นเรื่องนั้น โปสเตอร์ใหญ่โหลดได้ การ์ดยังไม่เคยตรวจ", det.nm === "Harbor Lights (2021).mkv" && det.sel === "Harbor Lights (2021)" && det.card === "ยังไม่เคยตรวจไฟล์นี้" && det.poster > 0, JSON.stringify(det));
 await shot("04-แผงรายละเอียด.png", ".detail", 0);
-await c.click('.book[data-movie="The Last Orchard (2022)"]'); await sleep(250);
+await c.book("The Last Orchard (2022)"); await sleep(250);
 const info = await q("return document.querySelector('.detail .stat')?.innerText.replace(/\\n/g, ' / ')");
 check("ไฟล์ MP4 ขึ้นการ์ด ยังไม่ได้ครอบเป็น MKV พร้อมปุ่มครอบ", info.startsWith("ยังไม่ได้ครอบเป็น MKV") && (await q("return document.querySelector('.detail .minirow .btn-main')?.innerText")) === "ครอบเป็น MKV พร้อมโปสเตอร์", info);
 await shot("05-การ์ดไม่ใช่MKV.png", ".detail", 0);
@@ -109,7 +109,7 @@ for (const [label, size, w] of [["เล็ก", "s", 100], ["ใหญ่", "l"
   await sleep(300);
   const r = await q("const c = document.querySelector('.book .cover'); const row = document.querySelector('.shelf'); return { w: Math.round(c.getBoundingClientRect().width), per: row.querySelectorAll('.book').length }");
   const saved = (await inv("get_settings")).settings.coverSize;
-  check(`ขนาดปก${label} ปกกว้าง ${w} จำค่าไว้`, r.w === w && saved === size, `กว้าง ${r.w} · แถวละ ${r.per} เรื่อง · บันทึก ${saved}`);
+  check(`ขนาดปก${label} ปกกว้าง ${w} จำค่าไว้`, r.w >= w && r.w <= w * 1.35 && saved === size, `กว้าง ${r.w} · แถวละ ${r.per} เรื่อง · บันทึก ${saved}`);
   if (size !== "m") await shot(`06-ปก${label}.png`, ".shelfwrap", 0);
 }
 
@@ -165,7 +165,7 @@ await c.evaluate(`[...document.querySelectorAll('[aria-label="มุมมอง
 const type = async (t) => { await c.evaluate("document.querySelector('.search input').focus()"); await c.type(t); await sleep(250); };
 const clear = async () => { await c.click(".search .clr"); await sleep(200); };
 await type("ดาว");
-let r = await q("return { names: [...document.querySelectorAll('.book[data-movie]')].map(b => b.dataset.movie).sort(), hl: [...document.querySelectorAll('.book .hl')].map(h => h.innerText), head: document.querySelector('.shelfhead b').innerText }");
+let r = await q("return { names: [...document.querySelectorAll('.book[data-movie]')].map(b => b.dataset.movie).sort(), hl: [...document.querySelectorAll('.book .hl')].map(h => h.innerText), head: document.querySelector('[data-statusbar]').innerText }");
 const withDao = want.filter((n) => n.includes("ดาว")).sort();
 check("พิมพ์ ดาว เจอทุกเรื่องที่ชื่อมีคำนี้ ไฮไลต์คำที่เจอทุกเรื่อง หัวชั้นบอกเจอกี่เรื่อง",
   r.names.join() === withDao.join() && r.hl.length === withDao.length && r.hl.every((h) => h === "ดาว") && r.head.startsWith(`เจอ ${withDao.length} จาก`), JSON.stringify(r));

@@ -47,6 +47,9 @@ export async function connect() {
       const el = document.querySelector(${JSON.stringify(selector)});
       if (!el) return null;
       el.scrollIntoView({ block: "nearest", inline: "nearest" });
+      // ปุ่มที่อยู่ใต้แถบตรึงกดไม่โดน เลื่อนมากลางกล่องก่อน เหมือนคนใช้จริง
+      const c0 = el.getBoundingClientRect(), hit = document.elementFromPoint(c0.left + c0.width / 2, c0.top + c0.height / 2);
+      if (hit && !(el === hit || el.contains(hit) || hit.contains(el))) el.scrollIntoView({ block: "center", inline: "nearest" });
       const r = el.getBoundingClientRect();
       return { x: r.left + r.width / 2, y: r.top + r.height / 2, w: r.width, h: r.height, left: r.left, top: r.top, right: r.right, bottom: r.bottom };
     })()`);
@@ -62,6 +65,15 @@ export async function connect() {
     await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: b.x, y: b.y, button: "left", clickCount: 1 });
     return b;
   };
+
+  /** เลือกเรื่องบนชั้นวาง กดปกที่เลือกอยู่แล้วแผงจะปิด จึงกดเฉพาะตอนยังไม่ได้เลือก */
+  const book = async (name) => {
+    const sel = `.book[data-movie="${name}"]`;
+    if (await evaluate(`!!document.querySelector(${JSON.stringify(sel + ".sel")}) && !!document.querySelector('[data-detail]')`)) return;
+    return click(sel);
+  };
+  /** หน้าตั้งค่าแบ่งเป็นหัวข้อ หัวข้ออื่นซ่อนอยู่ กดไม่ได้จนกว่าจะเลือกหัวข้อนั้น */
+  const setNav = async (id) => { await click(`[data-setnav="${id}"]`); await sleep(150); };
 
   // Enter กับ Space ต้องส่งตัวอักษรไปด้วย ไม่งั้นเกิดแค่ keydown ปุ่มที่โฟกัสอยู่ไม่ถูกกด (ผลตรวจขั้น 0 โค้ดข้อ 8)
   const KEYS = {
@@ -100,5 +112,5 @@ export async function connect() {
     return out;
   };
 
-  return { send, evaluate, box, move, hover, click, key, type, shot, shotRect, close: () => ws.close() };
+  return { send, evaluate, box, move, hover, click, book, setNav, key, type, shot, shotRect, close: () => ws.close() };
 }

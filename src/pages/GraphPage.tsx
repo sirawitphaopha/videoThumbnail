@@ -11,7 +11,7 @@ import { addFiles } from "../lib/convertJob";
 import { useLibrary } from "../lib/library";
 import { useToast } from "../components/Toasts";
 import Dropdown from "../components/Dropdown";
-import { CardIcon, Phr, Switch } from "../components/ui";
+import { CardIcon, FixedTime, Keep, Phr, Switch } from "../components/ui";
 import { fmtSize } from "../lib/format";
 import { IcExpand, IcFile, IcMix } from "../components/icons";
 import { IcSearch, IbStop, IcRefresh, IcGraph, IbSave, IcClose, IbTable, IbPlay } from "../components/icons";
@@ -198,7 +198,7 @@ function axisY(g: CanvasRenderingContext2D, x0: number, w: number, h: number, pa
 function Speakers({ names, th, levels, hidden, onToggle }: { names: string[]; th: Theme; levels: number[]; hidden: string[]; onToggle: (c: string) => void }) {
   const has = (c: string) => names.includes(c);
   const surround = names.length >= 5;
-  const VH = surround ? 184 : names.length === 2 ? 124 : names.length === 1 ? 62 : 150;
+  const VH = surround ? 184 : names.length === 1 ? 62 : 150;
   const pos = (c: string, i: number): [number, number] => {
     if (names.length === 2) return c === "FL" ? [52, 38] : [148, 38];
     if (names.length === 1) return [100, 31];
@@ -226,7 +226,7 @@ function Speakers({ names, th, levels, hidden, onToggle }: { names: string[]; th
         const R = lfe ? 11 : 15, half = lfe ? 0.8 : 0.62;
         return (
           <g key={c} className="s" tabIndex={0} role="button" aria-label={(off ? "แสดง" : "ซ่อน") + "ช่อง " + d} onClick={toggle} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } }}>
-            <title>{(off ? "กดเพื่อแสดง" : "กดเพื่อซ่อน") + "ช่อง " + d}</title>
+            <title>{(off ? "กดเพื่อเปิดช่อง " : "กดเพื่อปิดช่อง ") + d}</title>
             {Array.from({ length: waves }, (_, k) => {
               const r = R + 4 + k * 4, x1 = x + r * Math.cos(dir - half), y1 = y + r * Math.sin(dir - half), x2 = x + r * Math.cos(dir + half), y2 = y + r * Math.sin(dir + half);
               return <path key={k} d={`M${x1.toFixed(1)} ${y1.toFixed(1)} A${r} ${r} 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)}`} fill="none" stroke={th.rms} strokeWidth="2" strokeLinecap="round" strokeOpacity={0.85 - k * 0.25} />;
@@ -252,6 +252,15 @@ function Lane({ code, th: thai, peak, height, draw, deps, ruler }: { code: strin
       <div className="lab"><b>{code}</b><span>{thai}</span><em>{peak}</em></div>
       {ruler && <RulerCv height={height} draw={ruler} deps={deps} />}
       <canvas className="cv" style={{ height }} ref={ref} />
+    </div>
+  );
+}
+/** ช่องที่ปิดลำโพง แถบยังอยู่ที่เดิมสูงเท่าเดิม กราฟช่องอื่นไม่ขยับ */
+function LaneOff({ code, th: thai, peak, height }: { code: string; th: string; peak: string; height: number }) {
+  return (
+    <div className="lane" data-lane={code} data-off>
+      <div className="lab"><b>{code}</b><span>{thai}</span><em>{peak}</em></div>
+      <div className="laneoff" style={{ height }}>ปิดลำโพง</div>
     </div>
   );
 }
@@ -633,7 +642,7 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
   /* ---------- หัวหน้า แทร็ก ปุ่มแบบ ---------- */
   const thumb = info?.audioOnly
     ? <div className="fnote" style={{ background: th.lane, color: th.rms, border: `1px solid ${th.peak}` }}><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M9 18V5l11-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" /></svg></div>
-    : movie?.thumb ? <img className="fthumb" src={thumbUrl(movie.thumb) ?? ""} alt="" /> : <div className="fthumb" style={{ background: "linear-gradient(160deg,#f2b8c6,#c25d7f)" }} />;
+    : movie?.thumb ? <img className="fthumb" src={thumbUrl(movie.thumb) ?? ""} alt="" /> : <div className="fthumb none" />;
   const head = (
     <div className="agtop">
       {/* กลับหน้ารวมกราฟเสียง (คิว 7 · เดิมมีแค่ เปิดไฟล์อื่น ที่เปิดหน้าต่างเลือกไฟล์ กลับหน้ารวมไม่ได้) */}
@@ -669,13 +678,18 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
   const scroller = (left: number, right: number) => (
     <TimeScroll dur={dur} t0={t0} t1={t1} left={left} right={right} onPan={panTo} />
   );
+  // ปุ่มเลือกแบบและสีของกราฟอยู่ในกรอบกราฟ เหมือนปุ่มควบคุมอื่นของกราฟ (พี่กันสั่ง 9 พ.ย. 2569 "ย้ายลงไปอยู่ในการ์ดกราฟเสียงนะ ให้มันเหมือนกับตัวอื่น")
+  const styleTools = (
+    <div className="plottools" data-plottools>
+      {view === "wave" && seg<WaveStyle>([["fine", <><WaveIc d="M2 12h3l2-6 3 12 3-14 3 16 2-8h4" />เส้นละเอียด</>], ["bars", <><WaveIc d="M5 9v6M10 5v14M15 8v8M20 10v4" />แท่ง</>], ["aud", <><WaveIc d="M3 12c2-7 3-7 5 0s3 7 5 0 3-7 5 0 2 4 3 0" />แบบ Audacity</>]], prefs.style, (v) => setPref("style", v), "data-style")}
+      {view === "spec" && seg<"theme" | "rainbow">([["theme", <><Swatch ramp={th.ramp} />สีตามชุด</>], ["rainbow", <><Swatch ramp={RAINBOW} />สีรุ้ง</>]], prefs.cmap, (v) => setPref("cmap", v), "data-cmap")}
+      {view === "spek" && seg<Prefs["scmap"]>([["heat", <><Swatch ramp={HEAT} />สีความร้อน</>], ["rainbow", <><Swatch ramp={RAINBOW} />สีรุ้ง</>], ["mono", <><Swatch ramp={MONO} />ขาวดำ</>], ["theme", <><Swatch ramp={th.ramp} />สีตามชุด</>]], prefs.scmap, (v) => setPref("scmap", v), "data-scmap")}
+    </div>
+  );
   const ctl = (
     <div className="agctl">
       <div className="seg agviews">{VIEWS.map(([k, l]) => <button key={k} type="button" className={view === k ? "on" : ""} onClick={() => setPref("view", k)} data-view={k}
         disabled={k === "cmp" && !names.includes("FL")} title={k === "cmp" && !names.includes("FL") ? "ซ้อนเทียบใช้กับแทร็กที่มีช่องซ้ายขวา" : undefined}>{VIEW_ICON[k]}{l}</button>)}</div>
-      {view === "wave" && seg<WaveStyle>([["fine", <><WaveIc d="M2 12h3l2-6 3 12 3-14 3 16 2-8h4" />เส้นละเอียด</>], ["bars", <><WaveIc d="M5 9v6M10 5v14M15 8v8M20 10v4" />แท่ง</>], ["aud", <><WaveIc d="M3 12c2-7 3-7 5 0s3 7 5 0 3-7 5 0 2 4 3 0" />แบบ Audacity</>]], prefs.style, (v) => setPref("style", v), "data-style")}
-      {view === "spec" && seg<"theme" | "rainbow">([["theme", <><Swatch ramp={th.ramp} />สีตามชุด</>], ["rainbow", <><Swatch ramp={RAINBOW} />สีรุ้ง</>]], prefs.cmap, (v) => setPref("cmap", v), "data-cmap")}
-      {view === "spek" && seg<Prefs["scmap"]>([["heat", <><Swatch ramp={HEAT} />สีความร้อน</>], ["rainbow", <><Swatch ramp={RAINBOW} />สีรุ้ง</>], ["mono", <><Swatch ramp={MONO} />ขาวดำ</>], ["theme", <><Swatch ramp={th.ramp} />สีตามชุด</>]], prefs.scmap, (v) => setPref("scmap", v), "data-scmap")}
       <div className="sws" style={{ marginLeft: "auto" }} role="group" aria-label="ชุดสี">{THEME_ORDER.map((n) => <button key={n} type="button" className={"sw" + (prefs.theme === n ? " on" : "")} aria-label={"ชุดสี" + n} title={"ชุดสี" + n} onClick={() => setPref("theme", n)} data-theme={n}
         style={{ background: `linear-gradient(135deg,${THEMES[n].ramp[2]},${THEMES[n].ramp[5]} 60%,${THEMES[n].ramp[7]})` }} />)}</div>
       {/* ขยายกราฟเต็มจอ พับแผงลำโพงซ้าย กดอีกครั้งกางคืน จำไว้ (พี่กันสั่ง 8 พ.ย. 2569) */}
@@ -695,10 +709,10 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
     <div className="apanel">
       <div className="card"><h3><span>ช่องเสียง {t?.layout ?? ""}</span><span className="small" style={{ color: "var(--txt3)" }}>{hidden.length ? `แสดง ${vis.length} จาก ${names.length} ช่อง` : `${names.length} ช่อง`}</span></h3>
         {names.length > 0 && <Speakers names={names} th={th} levels={levels} hidden={hidden} onToggle={toggleCh} />}
-        <div className="small" style={{ textAlign: "center", marginTop: 4 }}>{names.length > 1 ? "กดลำโพงเพื่อซ่อนหรือแสดงช่องนั้น" : "ไฟล์นี้มีเสียงช่องเดียว"}</div></div>
+        <div className="small" style={{ textAlign: "center", marginTop: 4 }}>{names.length > 1 ? "กดลำโพงเพื่อปิดหรือเปิดช่องนั้น" : "ไฟล์นี้มีเสียงช่องเดียว"}</div></div>
       {t && <div className="card"><h3>ข้อมูลเสียง</h3><dl className="kv" data-graphinfo>{infoRows.map(([k, v]) => <FragmentKV key={k} k={k} v={v} />)}</dl></div>}
       {firstMark && <div className="stat warn">{WARN}<div><b>{movie?.check?.spans?.length ? "ผลตรวจล่าสุด" : "ช่วงเงียบผิดปกติ"}</b><span className="nw">{firstMark.text.replace(" · ผลตรวจ", "")}</span> <span className="nw">ที่ {tfmt(firstMark.from)}</span>
-        <div style={{ marginTop: 6 }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => { setCenter(firstMark.from + 1); setTip(firstMark.from); setZoom(30); if (view !== "wave" && view !== "spec") setPref("view", "wave"); }} data-goto><IcSearch size={15} />ซูมไปที่ {tfmt(firstMark.from)}</button></div></div></div>}
+        <div style={{ marginTop: 6 }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => { setCenter(firstMark.from + 1); setTip(firstMark.from); setZoom(30); if (view !== "wave" && view !== "spec") setPref("view", "wave"); }} data-goto><IcSearch size={15} /><span>ซูมไปที่ <FixedTime t={tfmt(firstMark.from)} longest={tfmt(dur)} /></span></button></div></div></div>}
     </div>
   );
 
@@ -754,22 +768,24 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
   const lanesView = view === "wave" || view === "spec";
   if (lanesView) {
     // แถบสูงขึ้นจากเดิม (พี่กัน 7 พ.ย. 2569 *"ใ้ห้ระบบมันขยายกราฟลงมาได้มากกว่านี้ ตอนนี้มันเเค่สองเเถบที่โคตรจะชิดกัน"*) · ลากที่จับใต้กราฟขยายต่อได้ถึง 4 เท่า
-    const minH = vis.length > 6 ? 52 : vis.length > 2 ? 72 : 120;
-    // 250 คือหัวกราฟ แถบเลื่อน แถวปุ่มท้าย ระยะขอบรวมกัน
-    const baseH = Math.max(minH, Math.floor((paneH - 250 - (vis.length - 1) * 6) / Math.max(1, vis.length)));
+    const minH = names.length > 6 ? 52 : names.length > 2 ? 72 : 120;
+    // 290 คือหัวกราฟ แถวปุ่มเลือกแบบ แถบเลื่อน แถวปุ่มท้าย ระยะขอบรวมกัน
+    const baseH = Math.max(minH, Math.floor((paneH - 290 - (names.length - 1) * 6) / Math.max(1, names.length)));
     const laneH = Math.round(Math.max(30, baseH * prefs.laneK));
     const colors = lut(prefs.cmap === "rainbow" ? RAINBOW : th.ramp);
     plot = (
       <div className="plot" data-plot ref={plotRef}>
         <div className="plotstick">
         <div className="plothead"><span><b>{view === "wave" ? "รูปคลื่นทุกช่อง" : "ความถี่ทุกช่อง"}</b> · {tfmt(t0)} ถึง {tfmt(t1)}</span>{zoomBox(ZOOMS, "ซูม")}</div>
+        {styleTools}
         <Overview ov={ov} th={th} t0={t0} t1={t1} onPick={(x) => { setCenter(x); setTip(x); if (zoom === "all") setZoom(240); }} left={LW} right={VZ_W} />
         <Ruler left={LW} right={VZ_W} />
         </div>
         <div className="lanewrap" style={{ marginTop: marks.some((m) => m.to > t0 && m.from < t1) ? 28 : 6 }}>
         <div className="lanes" ref={setBoxEl} style={{ marginTop: 0 }} onPointerMove={onMove(LW, 0)} onPointerLeave={() => setHover(null)} data-lanes>
-          {vis.map((c) => {
+          {names.map((c) => {
             const i = names.indexOf(c), l = label(names, c);
+            if (hidden.includes(c)) return <LaneOff key={c + "off"} code={l.code} th={l.th} peak={peakTxt(c)} height={view === "wave" && prefs.style === "aud" ? Math.max(laneH, 60) : laneH} />;
             return view === "wave"
               ? <Lane key={c + view} code={l.code} th={l.th} peak={peakTxt(c)} height={prefs.style === "aud" ? Math.max(laneH, 60) : laneH} deps={[src, t0, t1, th, prefs.style, i, vz, laneH]}
                   draw={(g, w, h) => drawWave(g, w, h, sample(src, i, t0, t1, w), th, prefs.style, prefs.style === "bars" ? 1 : vz)}
@@ -783,7 +799,7 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
         </div>
         {VZ_W > 0 && <VZoom value={vz} onChange={setVz} />}
         </div>
-        <LaneGrip k={prefs.laneK} total={vis.length * baseH} left={LW} right={VZ_W} onChange={(k) => setPref("laneK", k)} />
+        <LaneGrip k={prefs.laneK} total={names.length * baseH} left={LW} right={VZ_W} onChange={(k) => setPref("laneK", k)} />
         {scroller(LW, VZ_W)}
         <div className="agfoot">
           {view === "wave"
@@ -792,7 +808,7 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {/* ขยายแนวตั้งอยู่แถวล่าง (เดิมอยู่แถวปุ่มบน ชุดสีตกบรรทัดที่สอง เจอตอนตรวจภาพ) */}
             {VZ_W > 0 && <><span className="lbl">ขยายแนวตั้ง</span>{seg<number>([[1, "1×"], [2, "2×"], [4, "4×"]], vz, setVz, "data-vz")}<span className="vzval" data-vzval title="ลากแถบแนวตั้งขวามือรูปคลื่น ขึ้นยืด ลงบีบ">{vzTxt(vz)}</span></>}
-            <button type="button" className="btn btn-ghost btn-sm" onClick={play} data-graphplay><IbPlay size={15} />เปิดเล่นที่ {tfmt(at)}</button><button type="button" className="btn btn-ghost btn-sm" onClick={saveImage}><IbSave size={15} />บันทึกเป็นรูป</button></div>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={play} data-graphplay><IbPlay size={15} /><span>เปิดเล่นที่ <FixedTime t={tfmt(at)} longest={tfmt(dur)} /></span></button><button type="button" className="btn btn-ghost btn-sm" onClick={saveImage}><IbSave size={15} />บันทึกเป็นรูป</button></div>
         </div>
       </div>
     );
@@ -801,9 +817,9 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
     plot = <LoudView scroller={scroller} ov={ov} th={th} t0={t0} t1={t1} names={names} marks={marks} zoomBox={zoomBox(ZOOMS, "ซูม")} at={at} live={hover != null} setHover={setHover} showTable={showTable} setShowTable={setShowTable} save={saveImage} exportRef={exportRef} plotRef={plotRef} />;
   } else if (view === "cmp") {
     const cc = ["FL", "FR", "FC"].filter((c) => names.includes(c));
-    plot = <CmpView scroller={scroller} src={src} names={names} cc={cc} t0={t0} t1={t1} marks={marks} zoomBox={zoomBox(ZOOMS, "ซูม")} at={at} live={hover != null} setHover={setHover} play={play} save={saveImage} exportRef={exportRef} plotRef={plotRef} />;
+    plot = <CmpView scroller={scroller} dur={dur} src={src} names={names} cc={cc} t0={t0} t1={t1} marks={marks} zoomBox={zoomBox(ZOOMS, "ซูม")} at={at} live={hover != null} setHover={setHover} play={play} save={saveImage} exportRef={exportRef} plotRef={plotRef} />;
   } else if (view === "spek") {
-    plot = <SpekView scroller={scroller} ov={ov} win={winOk ? win : null} track={t} fileName={fileName} names={names} t0={t0} t1={t1} zoomBox={zoomBox(ZOOMS, "ซูม")} scmap={prefs.scmap} setScmap={(v) => setPref("scmap", v)} th={th} audioOnly={!!info?.audioOnly} play={play} save={saveImage} exportRef={exportRef} plotRef={plotRef} at={at} />;
+    plot = <SpekView tools={styleTools} scroller={scroller} ov={ov} win={winOk ? win : null} track={t} fileName={fileName} names={names} t0={t0} t1={t1} zoomBox={zoomBox(ZOOMS, "ซูม")} scmap={prefs.scmap} setScmap={(v) => setPref("scmap", v)} th={th} audioOnly={!!info?.audioOnly} play={play} save={saveImage} exportRef={exportRef} plotRef={plotRef} at={at} />;
   } else {
     plot = <PsdView scroller={scroller} psd={psd && psd.db.length === psdSeries.length + (psdMs ? 2 : 0) ? psd : null} names={names} psdCh={psdCh} setPsdCh={setPsdCh} psdLog={psdLog} setPsdLog={setPsdLog} psdSize={psdSize} setPsdSize={setPsdSize} th={th} ov={ov} t0={t0} t1={t1}
       zoomBox={zoomBox(PSD_SPANS, "ช่วงที่เลือก")} onPick={(x) => { setCenter(x); if (zoom === "all") setZoom(30); }} f={psdF} setF={setPsdF} fileName={fileName} save={saveImage} exportRef={exportRef} plotRef={plotRef} toast={toast} />;
@@ -1003,6 +1019,7 @@ function composeLanes(box: HTMLDivElement | null): HTMLCanvasElement | null {
     g.fillStyle = "#4a2b38"; g.font = "700 13px Sarabun, sans-serif"; g.textBaseline = "middle"; g.fillText(l.dataset.lane ?? "", 6, y + l.clientHeight / 2);
     // รูปคลื่นกับไม้บรรทัดตัวเลข (แบบ Audacity) วางตามตำแหน่งจริงบนจอ
     for (const cv of l.querySelectorAll<HTMLCanvasElement>("canvas.vrul, canvas.cv")) g.drawImage(cv, cv.offsetLeft, y, cv.clientWidth, cv.clientHeight);
+    if (l.dataset.off !== undefined) { g.fillStyle = "#8a6474"; g.font = "600 13px Sarabun, sans-serif"; g.textAlign = "center"; g.fillText("ปิดลำโพง", W / 2, y + l.clientHeight / 2); g.textAlign = "left"; }
     y += l.clientHeight + 6;
   }
   return out;
@@ -1048,7 +1065,7 @@ function LoudView({ scroller, ov, th, t0, t1, names, marks, zoomBox, at, live, s
       <div className="sub">ยอดเสียงแต่ละช่อง</div>
       <div className="pbars">{names.map((c, i) => <FragmentBar key={c} code={label(names, c).code} th={label(names, c).th} w={Math.max(ov.peaks[i] <= -119 ? 0 : 2, (ov.peaks[i] + 48) / 48 * 100)} color={th.rms} v={pkTxt(ov.peaks[i])} />)}</div>
       <div className="agfoot"><div className="lg"><span><i style={{ background: th.peak }} />ความดัง</span><span><span className="ln" style={{ background: th.rms }} />เส้นความดัง</span><span><span className="ln" style={{ background: "#8a6474" }} />เส้นอ้างอิง</span></div>
-        <div style={{ display: "flex", gap: 8 }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowTable(!showTable)} data-table><IbTable size={15} />{showTable ? "ซ่อนตาราง" : "ดูเป็นตาราง"}</button><button type="button" className="btn btn-ghost btn-sm" onClick={save}><IbSave size={15} />บันทึกเป็นรูป</button></div></div>
+        <div style={{ display: "flex", gap: 8 }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowTable(!showTable)} data-table><Keep icon={<IbTable size={15} />} all={["ซ่อนตาราง", "ดูเป็นตาราง"]}>{showTable ? "ซ่อนตาราง" : "ดูเป็นตาราง"}</Keep></button><button type="button" className="btn btn-ghost btn-sm" onClick={save}><IbSave size={15} />บันทึกเป็นรูป</button></div></div>
       {showTable && <table className="fmt" style={{ marginTop: 10 }} data-graphtable><thead><tr><th>ช่อง</th><th className="num">ยอดเสียง</th><th className="num">ความดังเฉลี่ย</th><th className="num">เสียงแตก</th></tr></thead>
         <tbody>{names.map((c, i) => <tr key={c}><td><b>{label(names, c).code}</b> {label(names, c).th}</td><td className="num">{pkTxt(ov.peaks[i])}</td><td className="num">{pkTxt(ov.rms[i])}</td><td className="num">{ov.clips[i] ? `${ov.clips[i]} จุด` : "ไม่พบ"}</td></tr>)}</tbody></table>}
     </div>
@@ -1059,7 +1076,7 @@ function FragmentBar({ code, th, w, color, v }: { code: string; th: string; w: n
 }
 
 /* ---------- ซ้อนเทียบ ---------- */
-function CmpView({ scroller, src, names, cc, t0, t1, marks, zoomBox, at, live, setHover, play, save, exportRef, plotRef }: CommonProps & { src: Src; names: string[]; cc: string[]; t0: number; t1: number; marks: Mark[]; zoomBox: React.ReactNode; at: number; live: boolean; setHover: (t: number | null) => void; play: () => void }) {
+function CmpView({ scroller, dur, src, names, cc, t0, t1, marks, zoomBox, at, live, setHover, play, save, exportRef, plotRef }: CommonProps & { dur: number; src: Src; names: string[]; cc: string[]; t0: number; t1: number; marks: Mark[]; zoomBox: React.ReactNode; at: number; live: boolean; setHover: (t: number | null) => void; play: () => void }) {
   // ที่ว่างป้ายชื่อเส้นทางขวา พอสำหรับคำที่ยาวสุด "ซ้ายหน้า" (60 ตัดตัวสุดท้าย เจอตอนเทส 7 พ.ย. 2569)
   const X0 = 44, RW = 80;
   const ref = useCanvas((g, w, h) => {
@@ -1097,7 +1114,7 @@ function CmpView({ scroller, src, names, cc, t0, t1, marks, zoomBox, at, live, s
       </div>
       {scroller?.(X0, RW)}
       <div className="agfoot"><div className="lg">{cc.map((c) => <span key={c}><span className="ln" style={{ background: CMP[c] }} />{label(names, c).code} {label(names, c).th}</span>)}<span className="small">ซ้อนได้ไม่เกิน 3 ช่อง</span></div>
-        <div style={{ display: "flex", gap: 8 }}><button type="button" className="btn btn-ghost btn-sm" onClick={play}><IbPlay size={15} />เปิดเล่นที่ {tfmt(at)}</button><button type="button" className="btn btn-ghost btn-sm" onClick={save}><IbSave size={15} />บันทึกเป็นรูป</button></div></div>
+        <div style={{ display: "flex", gap: 8 }}><button type="button" className="btn btn-ghost btn-sm" onClick={play}><IbPlay size={15} /><span>เปิดเล่นที่ <FixedTime t={tfmt(at)} longest={tfmt(dur)} /></span></button><button type="button" className="btn btn-ghost btn-sm" onClick={save}><IbSave size={15} />บันทึกเป็นรูป</button></div></div>
     </div>
   );
 }
@@ -1143,7 +1160,7 @@ function spekVerdict(codec: string, rate: number, e: { top: number; cliff: numbe
   if (LIMIT[codec] && e.top < LIMIT[codec]) return { warn: false, b, d: "เสียงสูงค่อย ๆ เบาลงเอง ไม่ได้ตัดเป็นเส้นตรงแบบไฟล์ที่แปลงมาจาก MP3 น่าจะเป็นลักษณะของเสียงต้นฉบับ เช่น เพลงหรือหนังเก่า" };
   return { warn: false, b, d: `${NORM[codec] ?? "ไฟล์ไม่บีบอัดของจริงมีเสียงถึงราว 20 kHz ขึ้นไป"} · ไฟล์นี้ไม่มีร่องรอยการตัดเสียงสูง` };
 }
-function SpekView({ scroller, ov, win, track, fileName, names, t0, t1, zoomBox, scmap, th, audioOnly, play, save, exportRef, plotRef, at }: CommonProps & { ov: GOverview; win: GWindow | null; track: GTrack | undefined; fileName: string; names: string[]; t0: number; t1: number; zoomBox: React.ReactNode; scmap: Prefs["scmap"]; setScmap: (v: Prefs["scmap"]) => void; th: Theme; audioOnly: boolean; play: () => void; at: number }) {
+function SpekView({ tools, scroller, ov, win, track, fileName, names, t0, t1, zoomBox, scmap, th, audioOnly, play, save, exportRef, plotRef, at }: CommonProps & { tools?: React.ReactNode; ov: GOverview; win: GWindow | null; track: GTrack | undefined; fileName: string; names: string[]; t0: number; t1: number; zoomBox: React.ReactNode; scmap: Prefs["scmap"]; setScmap: (v: Prefs["scmap"]) => void; th: Theme; audioOnly: boolean; play: () => void; at: number }) {
   const [ch, setCh] = useState(-1);
   const rate = track?.rate ?? 48000, nyq = rate / 2;
   const ramp = { heat: HEAT, rainbow: RAINBOW, mono: MONO, theme: th.ramp }[scmap];
@@ -1182,17 +1199,17 @@ function SpekView({ scroller, ov, win, track, fileName, names, t0, t1, zoomBox, 
   const verdict = spekVerdict(track?.codec ?? "", rate, edge);
   return (
     <div className="plot" data-plot ref={plotRef as React.RefObject<HTMLDivElement>}>
-      <div className="plothead"><span style={{ display: "flex", alignItems: "center", gap: 8 }}><b>วิเคราะห์ความถี่</b>
+      <div className="plotstick"><div className="plothead"><span style={{ display: "flex", alignItems: "center", gap: 8 }}><b>วิเคราะห์ความถี่</b>
         <span data-spekch><Dropdown label="ช่องที่ดู" value={String(ch)} onChange={(v) => setCh(Number(v))}
-          options={[{ value: "-1", label: "รวมทุกช่อง" }, ...names.map((c, i) => ({ value: String(i), label: `${label(names, c).code} ${label(names, c).th}` }))]} /></span></span>{zoomBox}</div>
-      <div style={{ position: "relative", flex: "1 0 300px" }}><canvas className="cv fillcv" style={{ borderRadius: 8 }} ref={ref} data-spek /></div>
+          options={[{ value: "-1", label: "รวมทุกช่อง" }, ...names.map((c, i) => ({ value: String(i), label: `${label(names, c).code} ${label(names, c).th}` }))]} /></span></span>{zoomBox}</div>{tools}</div>
+      <div style={{ position: "relative", flex: "1 0 240px", marginTop: 8 }}><canvas className="cv fillcv" style={{ borderRadius: 8 }} ref={ref} data-spek /></div>
       {scroller?.(0, 0)}
       <div className="agfoot">
         {verdict.warn
         ? <div className="stat warn" title={verdict.b + " · " + verdict.d} data-spekverdict data-cliff={Math.round(edge.cliff)}>{WARN}<div><b><Phr>{verdict.b}</Phr></b>{lines(verdict.d)}</div></div>
         : <div className="stat info" title={verdict.b + " · " + verdict.d} data-spekverdict data-cliff={Math.round(edge.cliff)}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5v.5" /></svg><div><b><Phr>{verdict.b}</Phr></b>{lines(verdict.d)}</div></div>}
         
-        <div style={{ display: "flex", gap: 8 }}>{!audioOnly && <button type="button" className="btn btn-ghost btn-sm" onClick={play}><IbPlay size={15} />เปิดเล่นที่ {tfmt(at)}</button>}<button type="button" className="btn btn-ghost btn-sm" onClick={save}><IbSave size={15} />บันทึกเป็นรูป</button></div></div>
+        <div style={{ display: "flex", gap: 8 }}>{!audioOnly && <button type="button" className="btn btn-ghost btn-sm" onClick={play}><IbPlay size={15} /><span>เปิดเล่นที่ <FixedTime t={tfmt(at)} longest={tfmt(ov.duration)} /></span></button>}<button type="button" className="btn btn-ghost btn-sm" onClick={save}><IbSave size={15} />บันทึกเป็นรูป</button></div></div>
     </div>
   );
 }
@@ -1423,8 +1440,8 @@ function PsdView({ scroller, psd, names, psdCh, setPsdCh, psdLog, setPsdLog, psd
         <div className="seg sm"><button type="button" className={psdLog ? "on" : ""} onClick={() => setPsdLog(true)} data-psdaxis="log">แบบล็อก</button><button type="button" className={!psdLog ? "on" : ""} onClick={() => setPsdLog(false)} data-psdaxis="lin">เส้นตรง</button></div>
         <span data-psdsize title="ยิ่งมากยิ่งแยกความถี่ละเอียด แต่ช้าลง"><Dropdown label="ความละเอียด" value={String(psdSize)} onChange={(v) => setPsdSize(Number(v))}
           options={[1024, 4096, 16384].map((n) => ({ value: String(n), label: `ความละเอียด ${n.toLocaleString("en-US")}` }))} /></span>
-        <span className="lbl">ช่วง</span>
-        <div className="seg sm">{[60, 90, 120].map((r) => <button key={r} type="button" className={range === r ? "on" : ""} onClick={() => setRange(r)} data-psdrange={r}>{r} dB</button>)}</div>
+        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><span className="lbl">ช่วง</span>
+        <div className="seg sm">{[60, 90, 120].map((r) => <button key={r} type="button" className={range === r ? "on" : ""} onClick={() => setRange(r)} data-psdrange={r}>{r} dB</button>)}</div></span>
         <span className="lbl">เส้นตาราง</span><span data-psdgrid style={{ display: "inline-flex" }}><Switch on={grids} onChange={setGrids} label="เส้นตาราง" /></span></div>
         <div style={{ display: "flex", gap: 8 }}><button type="button" className="btn btn-ghost btn-sm" onClick={exportCsv}><IbSave size={15} />ส่งออกเป็นตาราง</button><button type="button" className="btn btn-ghost btn-sm" onClick={save}><IbSave size={15} />บันทึกเป็นรูป</button></div></div>
     </div>
@@ -1474,7 +1491,9 @@ function drawSpekCmp(g: CanvasRenderingContext2D, w: number, h: number, ov: GOve
   });
   g.strokeStyle = "rgba(255,255,255,.85)"; g.lineWidth = 1; g.strokeRect(L - 0.5, T - 0.5, pw + 1, ph + 1);
   g.fillStyle = "#fff"; g.font = "600 11px Sarabun, sans-serif"; g.textAlign = "right"; g.textBaseline = "middle";
-  const kStep = maxNyq > 30000 ? 8000 : maxNyq > 15000 ? 4000 : 2000;
+  // กราฟเตี้ยเว้นป้ายสเกลให้ห่างกันอย่างน้อย 14 จุด ไม่ซ้อนกัน
+  let kStep = maxNyq > 30000 ? 8000 : maxNyq > 15000 ? 4000 : 2000;
+  while (ph * kStep / maxNyq < 14) kStep *= 2;
   for (let f = 0; f <= maxNyq + 1; f += kStep) { const y = T + ph * (1 - f / maxNyq); g.fillText(`${f / 1000} kHz`, L - 8, y); g.fillRect(L - 4, Math.round(y), 4, 1); }
   g.textAlign = "center"; g.textBaseline = "top";
   const st = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600].find((s) => (t1 - t0) / s <= 8) ?? 7200;
@@ -1483,7 +1502,9 @@ function drawSpekCmp(g: CanvasRenderingContext2D, w: number, h: number, ov: GOve
   ramp.slice().reverse().forEach((c, i, a) => grd.addColorStop(i / (a.length - 1), c));
   g.fillStyle = grd; g.fillRect(bx, T, 12, ph);
   g.fillStyle = "#fff"; g.textAlign = "left"; g.textBaseline = "middle";
-  for (let d = 0; d <= 120; d += 20) { const y = T + ph * d / 120; g.fillText(`${d ? "−" + d : 0} dB`, bx + 18, y); g.fillRect(bx + 12, Math.round(y), 4, 1); }
+  let dStep = 20;
+  while (ph * dStep / 120 < 14) dStep += 20;
+  for (let d = 0; d <= 120; d += dStep) { const y = T + ph * d / 120; g.fillText(`${d ? "−" + d : 0} dB`, bx + 18, y); g.fillRect(bx + 12, Math.round(y), 4, 1); }
   g.textBaseline = "alphabetic"; g.font = "700 13px Sarabun, sans-serif"; g.fillText(title, L, 18);
   g.font = "11.5px Sarabun, sans-serif"; g.fillStyle = "#d9d0d4"; g.fillText(sub, L, 35);
   g.textAlign = "right"; g.fillText("ชั้นหนัง", w - 10, 18);
@@ -1520,7 +1541,7 @@ const sgn = (v: number) => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFi
 const khz = (f: number) => (f / 1000).toLocaleString("en-US", { maximumFractionDigits: 1 });
 
 function Stat({ kind, b, d }: { kind: "info" | "warn"; b: string; d: string }) {
-  return <div className={"stat " + kind} data-cmpstat><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">{kind === "warn" ? <><path d="M12 3l9 16H3z" /><path d="M12 10v4M12 17v.5" /></> : <><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5v.5" /></>}</svg><div><b>{b}</b><Phr>{d}</Phr></div></div>;
+  return <div className={"stat " + kind} title={b + " · " + d} data-cmpstat data-psdverdict><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">{kind === "warn" ? <><path d="M12 3l9 16H3z" /><path d="M12 10v4M12 17v.5" /></> : <><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5v.5" /></>}</svg><div><b>{b}</b><Phr>{d}</Phr></div></div>;
 }
 
 /** รูปทุกกราฟในหน้าต่างเทียบรวมเป็นรูปเดียว ไว้บันทึก */
@@ -1552,7 +1573,16 @@ export function CompareView({ a, b, note, onBack, onClose }: { a: string; b: str
   const [psdSpan, setPsdSpan] = useState<number | "all">("all");
   const [psd, setPsd] = useState<{ key: string; a: GPsd; b: GPsd } | null>(null);
   const [psdF, setPsdF] = useState<number | null>(null);
+  const [wide, setWide] = useState(false);
   const plotRef = useRef<HTMLDivElement>(null);
+  const [paneH, setPaneH] = useState(0);
+  useEffect(() => {
+    const el = plotRef.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setPaneH(el.clientHeight));
+    ro.observe(el);
+    return () => ro.disconnect();
+  });
 
   // อ่านทีละไฟล์ ต้นฉบับก่อน
   useEffect(() => {
@@ -1658,6 +1688,7 @@ export function CompareView({ a, b, note, onBack, onClose }: { a: string; b: str
       <div className="seg agviews">{VIEWS.map(([k, l]) => <button key={k} type="button" className={tab === k ? "on" : ""} onClick={() => setTab(k)} data-cmptab={k} disabled={k === "cmp" && !common.length}
         title={k === "cmp" && !common.length ? "สองไฟล์ไม่มีช่องเสียงที่ตรงกัน" : undefined}>{VIEW_ICON[k]}{l}</button>)}</div>
       <div className="lg" style={{ marginLeft: "auto" }}>{fileLg}</div>
+      <button type="button" className={"btn btn-ghost btn-sm" + (wide ? " pressed" : "")} style={{ width: 32, padding: 0, flex: "none" }} aria-pressed={wide} title={wide ? "แสดงแผงลำโพง" : "ขยายเต็มจอ"} aria-label={wide ? "แสดงแผงลำโพง" : "ขยายเต็มจอ"} onClick={() => setWide(!wide)} data-graphwide><IcExpand size={14} /></button>
     </div>
   );
   const infoRow = (t: GTrack | undefined, info: GInfo | null) => t && info ? [t.codec, `${t.layout}`, `${khz(t.rate)} kHz`, t.bits ? `${t.bits}-bit` : "—", t.bitrate ? `${Math.round(t.bitrate / 1000).toLocaleString("en-US")} kb/s` : "—", fmtSize(info.size), tfmt(info.duration)] : null;
@@ -1666,7 +1697,7 @@ export function CompareView({ a, b, note, onBack, onClose }: { a: string; b: str
     <div className="apanel">
       <div className="card"><h3><span>ช่องเสียง {ta?.layout ?? ""}</span><span className="small" style={{ color: "var(--txt3)" }}>{union.length} ช่อง</span></h3>
         {na.length > 0 && <Speakers names={union} th={TH_A} levels={union.map(() => 0.3)} hidden={hidden} onToggle={toggleCh} />}
-        <div className="small" style={{ textAlign: "center", marginTop: 4 }}>{union.length > 1 ? "กดลำโพงเพื่อซ่อนหรือแสดงช่องนั้น ทั้งสองไฟล์พร้อมกัน" : "ไฟล์นี้มีเสียงช่องเดียว"}</div>
+        <div className="small" style={{ textAlign: "center", marginTop: 4 }}>{union.length > 1 ? "กดลำโพงเพื่อปิดหรือเปิดช่องนั้น ทั้งสองไฟล์พร้อมกัน" : "ไฟล์นี้มีเสียงช่องเดียว"}</div>
         {ta && tb && na.join() !== nb.join() && <div className="small" style={{ marginTop: 4 }}>ช่องเสียงไม่เท่ากัน · ต้นฉบับ {ta.layout} หลังแปลง {tb.layout}</div>}</div>
       <div className="card"><h3>ข้อมูลเสียง</h3>
         <div className="ginfo" data-cmpinfo><span /><span className="h" style={{ color: INK_A }}>ต้นฉบับ</span><span className="h" style={{ color: INK_B }}>หลังแปลง</span>
@@ -1697,7 +1728,7 @@ export function CompareView({ a, b, note, onBack, onClose }: { a: string; b: str
     );
     const foot = (lg: React.ReactNode) => (
       <div className="agfoot"><div className="lg">{lg}</div>
-        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => play(a)}><IbPlay size={15} />เปิดต้นฉบับที่ {tfmt(mid)}</button><button type="button" className="btn btn-ghost btn-sm" onClick={() => play(b)}><IbPlay size={15} />เปิดหลังแปลงที่ {tfmt(mid)}</button><button type="button" className="btn btn-ghost btn-sm" onClick={saveImage}><IbSave size={15} />บันทึกเป็นรูป</button></div></div>
+        <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => play(a)}><IbPlay size={15} /><span>เปิดต้นฉบับที่ <FixedTime t={tfmt(mid)} longest={tfmt(dur)} /></span></button><button type="button" className="btn btn-ghost btn-sm" onClick={() => play(b)}><IbPlay size={15} /><span>เปิดหลังแปลงที่ <FixedTime t={tfmt(mid)} longest={tfmt(dur)} /></span></button><button type="button" className="btn btn-ghost btn-sm" onClick={saveImage}><IbSave size={15} />บันทึกเป็นรูป</button></div></div>
     );
     const Ruler = () => (
       <div className="ruler" style={{ marginLeft: 96 }}>{(() => { const steps = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600]; const st = steps.find((s) => (t1 - t0) / s <= 9) ?? 7200; const out: number[] = []; for (let x = Math.ceil(t0 / st) * st; x <= t1; x += st) out.push(x); return out; })().map((x) => { const p = (x - t0) / (t1 - t0 || 1) * 100; return p < 2 || p > 98 ? null : <span key={x} style={{ left: p + "%" }}>{tfmt(x)}</span>; })}</div>
@@ -1706,14 +1737,17 @@ export function CompareView({ a, b, note, onBack, onClose }: { a: string; b: str
     const cutNote = eb.top < ea.top - 1500 && !eb.full
       ? { kind: "info" as const, b: `หลังแปลงไม่มีเสียงเหนือ ${khz(eb.top)} kHz`, d: `ต้นฉบับมีเสียงถึงราว ${khz(ea.top)} kHz${ea.top > 20000 ? " ซึ่งหูคนไม่ได้ยิน (หูได้ยินถึงราว 20 kHz)" : ""} · ช่วงต่ำกว่านั้นภาพแทบเหมือนกัน` }
       : { kind: "info" as const, b: "ช่วงความถี่ของสองไฟล์ใกล้เคียงกัน", d: `ต้นฉบับมีเสียงถึงราว ${khz(ea.top)} kHz · หลังแปลงราว ${khz(eb.top)} kHz` };
-    const laneH = vis.length > 4 ? 46 : vis.length > 2 ? 60 : 84;
+    const nLanes = union.reduce((n, c) => n + (na.includes(c) ? 1 : 0) + (nb.includes(c) ? 1 : 0), 0);
+    // 205 คือหัวกราฟ แถวเวลา แถบเลื่อน ผลสรุป แถวปุ่มท้าย ระยะขอบรวมกัน (วัดจากหน้าจริง)
+    const laneH = Math.max(union.length > 4 ? 40 : 46, Math.floor((paneH - 205 - (nLanes - 1) * 6) / Math.max(1, nLanes)));
     const colors = lut(THEMES["ชมพู"].ramp);
     if (tab === "wave" || tab === "spec") {
-      const lanes = vis.flatMap((c) => (["a", "b"] as const).flatMap((k) => {
+      const lanes = union.flatMap((c) => (["a", "b"] as const).flatMap((k) => {
         const names = k === "a" ? na : nb, ov = k === "a" ? oa : ob, i = names.indexOf(c);
         if (i < 0) return [];
         const l = label(names, c), pk = ov.peaks[i];
         const peak = pk == null ? "" : pk <= -119 ? "เงียบทั้งเรื่อง" : "ยอด " + pkTxt(pk);
+        if (hidden.includes(c)) return [<LaneOff key={c + k + "off"} code={l.code} th={`${l.th} · ${k === "a" ? "ต้นฉบับ" : "หลังแปลง"}`} peak={peak} height={laneH} />];
         return [tab === "wave"
           ? <Lane key={c + k} code={l.code} th={`${l.th} · ${k === "a" ? "ต้นฉบับ" : "หลังแปลง"}`} peak={peak} height={laneH} deps={[ov, t0, t1, i, laneH]}
               draw={(g, w, h) => drawWave(g, w, h, sample({ env: ov.env, cols: ov.cols, t0: 0, t1: ov.duration }, i, t0, t1, w), k === "a" ? TH_A : TH_B, "fine")} />
@@ -1723,18 +1757,19 @@ export function CompareView({ a, b, note, onBack, onClose }: { a: string; b: str
       const pkA = Math.max(...oa.peaks), pkB = Math.max(...ob.peaks);
       body = (
         <div className="plot cmpplot" data-plot ref={plotRef} data-cmpview={tab}>
-          <div className="plothead"><span><b>{tab === "wave" ? "รูปคลื่นทุกช่อง" : "ความถี่ทุกช่อง"}</b> · {tfmt(t0)} ถึง {tfmt(t1)} · {tab === "wave" ? "ไฟล์ละแถว ช่องเดียวกันอยู่ติดกัน" : `แกนตั้ง 0 ถึง ${khz(maxNyq)} kHz เท่ากันทั้งสองไฟล์`}</span>{zoomBar}</div>
+          <div className="plotstick"><div className="plothead"><span><b>{tab === "wave" ? "รูปคลื่นทุกช่อง" : "ความถี่ทุกช่อง"}</b> · {tfmt(t0)} ถึง {tfmt(t1)} · {tab === "wave" ? "ไฟล์ละแถว ช่องเดียวกันอยู่ติดกัน" : `แกนตั้ง 0 ถึง ${khz(maxNyq)} kHz เท่ากันทั้งสองไฟล์`}</span>{zoomBar}</div>
           <Ruler />
+          </div>
           <div className="lanes cmplanes" data-lanes>{lanes}</div>
           <TimeScroll dur={dur} t0={t0} t1={t1} left={96} right={0} onPan={(c) => setCenter(Math.max(span / 2, Math.min(dur - span / 2, c)))} />
-          {foot(tab === "wave" ? <><span><i style={{ background: TH_A.peak }} /><i style={{ background: TH_B.peak }} />ยอดเสียง</span><span><i style={{ background: INK_A }} /><i style={{ background: INK_B }} />ความดังเฉลี่ย</span>{fileLg}</>
-            : <><span className="nw">−120 dB</span><span className="rampbar" style={{ background: `linear-gradient(90deg,${THEMES["ชมพู"].ramp.join(",")})` }} /><span className="nw">0 dB</span>{fileLg}</>)}
           {tab === "wave"
             ? (pkB > -0.05 && pkB > pkA + 0.05
               ? <Stat kind="warn" b={`ยอดเสียงหลังแปลงขึ้นเป็น ${pkTxt(pkB)}`} d={`ต้นฉบับ ${pkTxt(pkA)} · การแปลงแบบเสียคุณภาพทำให้ยอดคลื่นขยับเล็กน้อย · ดูแท็บความดังว่าเกิน 0 ช่วงไหน`} />
               : <Stat kind="info" b="รูปคลื่นของสองไฟล์" d={`ยอดเสียงสูงสุด ต้นฉบับ ${pkTxt(pkA)} · หลังแปลง ${pkTxt(pkB)}`} />)
             : <Stat {...cutNote} />}
-        </div>
+        {foot(tab === "wave" ? <><span><i style={{ background: TH_A.peak }} /><i style={{ background: TH_B.peak }} />ยอดเสียง</span><span><i style={{ background: INK_A }} /><i style={{ background: INK_B }} />ความดังเฉลี่ย</span>{fileLg}</>
+            : <><span className="nw">−120 dB</span><span className="rampbar" style={{ background: `linear-gradient(90deg,${THEMES["ชมพู"].ramp.join(",")})` }} /><span className="nw">0 dB</span>{fileLg}</>)}
+          </div>
       );
     } else if (tab === "loud") {
       const T: [string, string, string, string, boolean][] = [
@@ -1745,17 +1780,17 @@ export function CompareView({ a, b, note, onBack, onClose }: { a: string; b: str
       ];
       body = (
         <div className="plot cmpplot" data-plot ref={plotRef} data-cmpview="loud">
-          <div className="tiles" data-cmptiles>{T.map(([k, x, y, n, bad]) => (
+          <div className="plotstick"><div className="tiles" data-cmptiles>{T.map(([k, x, y, n, bad]) => (
             <div className="tile cmptile" key={k}><span>{k}</span><div className="tv"><Who k="a" /><b>{x}</b></div><div className="tv"><Who k="b" /><b style={bad ? { color: "var(--bad-ink)" } : undefined}>{y}</b></div><em>{n}</em></div>))}</div>
-          <div className="plothead"><span><b>ความดังตลอดเรื่อง</b> · {tfmt(t0)} ถึง {tfmt(t1)}</span>{zoomBar}</div>
-          <CmpChart height={220} deps={[oa, ob, t0, t1]} lo={-60} hi={0} step={10} unit="LUFS" ref23
+          <div className="plothead"><span><b>ความดังตลอดเรื่อง</b> · {tfmt(t0)} ถึง {tfmt(t1)}</span>{zoomBar}</div></div>
+          <CmpChart fill height={110} deps={[oa, ob, t0, t1]} lo={-60} hi={0} step={10} unit="LUFS" ref23
             series={(n) => [[loudPts(oa, t0, t1, n), CA], [loudPts(ob, t0, t1, n), CB]]} />
           <TimeScroll dur={dur} t0={t0} t1={t1} left={44} right={4} onPan={(c) => setCenter(Math.max(span / 2, Math.min(dur - span / 2, c)))} />
-          {foot(<>{fileLg}<span><span className="ln" style={{ background: "#8a6474" }} />เส้นอ้างอิง −23 LUFS</span></>)}
           {(ob.truePeak ?? -99) >= 0
             ? <Stat kind="warn" b={`ยอดเสียงหลังแปลง ${(ob.truePeak ?? 0) > 0 ? "+" : ""}${f1(ob.truePeak)} dBTP ถึงหรือเกิน 0`} d="เครื่องเล่นบางตัวเสียงแตกช่วงที่ดังสุด · ตั้ง Gain −1 dB ในแผงตั้งค่าเสียงแล้วแปลงใหม่" />
             : <Stat kind="info" b={`ความดังรวมต่างกัน ${Math.abs((ob.integrated ?? 0) - (oa.integrated ?? 0)).toFixed(1)} LU`} d="สองเส้นแทบทับกันแปลว่าความดังไม่เปลี่ยน · ต่างกันไม่ถึง 1 LU หูแยกไม่ออก" />}
-        </div>
+        {foot(<>{fileLg}<span><span className="ln" style={{ background: "#8a6474" }} />เส้นอ้างอิง −23 LUFS</span></>)}
+          </div>
       );
     } else if (tab === "cmp") {
       const ia2 = na.indexOf(cmpUse), ib2 = nb.indexOf(cmpUse), l = label(na, cmpUse);
@@ -1767,14 +1802,14 @@ export function CompareView({ a, b, note, onBack, onClose }: { a: string; b: str
         <div className="plot cmpplot" data-plot ref={plotRef} data-cmpview="cmp">
           <div className="plothead"><span style={{ display: "flex", alignItems: "center", gap: 10 }}><b>ซ้อนเทียบช่องเดียวกันของสองไฟล์</b>
             <div className="seg sm">{common.map((c) => <button key={c} type="button" className={cmpUse === c ? "on" : ""} onClick={() => setCmpCh(c)} data-cmpch={c}>{label(na, c).code} {label(na, c).th.split(" ")[0]}</button>)}</div></span>{zoomBar}</div>
-          <CmpChart height={220} deps={[oa, ob, t0, t1, cmpUse]} lo={-48} hi={0} step={12} unit="dB" series={(n) => [[rmsDb(oa, ia2, t0, t1, n), CA], [rmsDb(ob, ib2, t0, t1, n), CB]]} />
+          <CmpChart fill height={120} deps={[oa, ob, t0, t1, cmpUse]} lo={-48} hi={0} step={12} unit="dB" series={(n) => [[rmsDb(oa, ia2, t0, t1, n), CA], [rmsDb(ob, ib2, t0, t1, n), CB]]} />
           <div className="small" style={{ margin: "6px 0 2px" }}><b style={{ color: "var(--txt)" }}>ผลต่าง หลังแปลง ลบ ต้นฉบับ</b> · กราฟแยก แกน ±2 dB</div>
           <CmpChart height={80} deps={[oa, ob, t0, t1, cmpUse]} lo={-2} hi={2} step={1} unit="dB" diff series={(n) => { const x = rmsDb(oa, ia2, t0, t1, n), y = rmsDb(ob, ib2, t0, t1, n); const d = new Float32Array(n); for (let i = 0; i < n; i++) d[i] = x[i] < -60 || y[i] < -60 ? 0 : y[i] - x[i]; return [[d, "#7a4fb0"]]; }} />
           <TimeScroll dur={dur} t0={t0} t1={t1} left={44} right={4} onPan={(c) => setCenter(Math.max(span / 2, Math.min(dur - span / 2, c)))} />
-          {foot(<><span><span className="ln" style={{ background: CA }} />{l.code} ต้นฉบับ</span><span><span className="ln" style={{ background: CB }} />{l.code} หลังแปลง</span><span><span className="ln" style={{ background: "#7a4fb0" }} />ผลต่าง</span></>)}
           <Stat kind={Math.abs(mx) >= 1 ? "warn" : "info"} b={`ช่อง ${l.code} ต่างกันเฉลี่ย ${avg.toFixed(1)} dB มากสุด ${sgn(mx)} dB ที่ ${tfmt(mxAt)}`}
             d={Math.abs(mx) >= 1 ? "ต่างเกินราว 1 dB ที่หูเริ่มแยกได้ ลองเปิดฟังช่วงนั้นเทียบกัน" : "ต่ำกว่าที่หูแยกได้ (ราว 1 dB) · ไม่นับช่วงที่เบากว่า −60 dB"} />
-        </div>
+        {foot(<><span><span className="ln" style={{ background: CA }} />{l.code} ต้นฉบับ</span><span><span className="ln" style={{ background: CB }} />{l.code} หลังแปลง</span><span><span className="ln" style={{ background: "#7a4fb0" }} />ผลต่าง</span></>)}
+          </div>
       );
     } else if (tab === "spek") {
       const heat = lut(HEAT);
@@ -1784,8 +1819,8 @@ export function CompareView({ a, b, note, onBack, onClose }: { a: string; b: str
           <div className="plothead"><span><b>วิเคราะห์ความถี่</b> · รวมทุกช่อง · แกนตั้งเท่ากันทั้งสองไฟล์</span>{zoomBar}</div>
           <SpekCv deps={[oa, t0, t1, maxNyq]} draw={(g, w, h) => drawSpekCmp(g, w, h, oa, na, nyqA, maxNyq, t0, t1, nameOf(a), sub(ta!, A.info!, na), ea.full ? null : ea.top, heat, HEAT)} data="a" />
           <SpekCv deps={[ob, t0, t1, maxNyq]} draw={(g, w, h) => drawSpekCmp(g, w, h, ob, nb, nyqB, maxNyq, t0, t1, nameOf(b), sub(tb!, Bs.info!, nb), eb.full ? null : eb.top, heat, HEAT)} data="b" />
-          {foot(fileLg)}
           <Stat {...cutNote} />
+          {foot(fileLg)}
         </div>
       );
     } else {
@@ -1805,9 +1840,9 @@ export function CompareView({ a, b, note, onBack, onClose }: { a: string; b: str
   }
 
   return (
-    <div className="ag" data-graph data-compare>
+    <div className="ag" data-graph data-compare data-graphview={tab}>
       <div className="agstick">{head}{ctl}</div>
-      <div className="agb">{panel}{body}</div>
+      <div className={"agb" + (wide ? " wide" : "")}>{wide ? null : panel}{body}</div>
     </div>
   );
 }
@@ -1818,11 +1853,11 @@ function FragmentInfo({ k, a, b }: { k: string; a: string; b: string }) {
 
 function SpekCv({ deps, draw, data }: { deps: unknown[]; draw: Draw; data: string }) {
   const ref = useCanvas((g, w, h) => draw(g, w, h), deps);
-  return <canvas className="cv" style={{ height: 250, borderRadius: 6, marginTop: 8 }} ref={ref} data-cmpspek={data} />;
+  return <div style={{ position: "relative", flex: "1 0 118px", marginTop: 8 }}><canvas className="cv fillcv" style={{ borderRadius: 6 }} ref={ref} data-cmpspek={data} /></div>;
 }
 
 /** กราฟเส้นของสองไฟล์บนแกนเดียว · series(n) คืนเส้นละชุด n จุด · ref23 เส้นอ้างอิง −23 LUFS · diff เส้นศูนย์เข้ม */
-function CmpChart({ height, deps, lo, hi, step, unit, series, ref23, diff }: { height: number; deps: unknown[]; lo: number; hi: number; step: number; unit: string; series: (n: number) => [Float32Array, string][]; ref23?: boolean; diff?: boolean }) {
+function CmpChart({ height, deps, lo, hi, step, unit, series, ref23, diff, fill }: { fill?: boolean; height: number; deps: unknown[]; lo: number; hi: number; step: number; unit: string; series: (n: number) => [Float32Array, string][]; ref23?: boolean; diff?: boolean }) {
   const X0 = 44;
   const ref = useCanvas((g, w, h) => {
     g.fillStyle = "#fff"; g.fillRect(0, 0, w, h);
@@ -1838,7 +1873,7 @@ function CmpChart({ height, deps, lo, hi, step, unit, series, ref23, diff }: { h
       g.font = "600 11.5px Sarabun, sans-serif"; g.textAlign = "right"; g.textBaseline = "bottom"; g.fillStyle = "#6b4a58"; g.fillText("อ้างอิง −23 LUFS", X0 + N - 4, Y(-23) - 3);
     }
   }, deps);
-  return <canvas className="cv" style={{ height }} ref={ref} data-cmpchart />;
+  return fill ? <div style={{ position: "relative", flex: `1 0 ${height}px` }}><canvas className="cv fillcv" ref={ref} data-cmpchart /></div> : <canvas className="cv" style={{ height }} ref={ref} data-cmpchart />;
 }
 
 /** ความถี่เฉลี่ยของสองไฟล์ · แกนนอนแบบล็อก 20 Hz ถึงครึ่งอัตราสุ่มที่สูงกว่า · ชี้แล้วบอกค่าของทั้งสองไฟล์กับผลต่าง */
@@ -1871,8 +1906,8 @@ function PsdCmp({ a, b, maxNyq, f, setF }: { a: GPsd; b: GPsd; maxNyq: number; f
   for (let fr = 20; fr <= Math.min(15000, a.rate / 2, b.rate / 2); fr *= 1.01) { const va = at(a, fr), vb = at(b, fr); if (va < -100 && vb < -100) continue; low = Math.max(low, Math.abs(vb - va)); }
   const fTxt = (fr: number) => (fr >= 1000 ? `${(fr / 1000).toFixed(1)} kHz` : `${Math.round(fr)} Hz`);
   return (<>
-    <div style={{ position: "relative" }} onPointerMove={(e) => { const r = e.currentTarget.getBoundingClientRect(), PW = r.width - L - R, x = e.clientX - r.left - L; if (x >= 0 && x <= PW) setF(20 * Math.pow(fmax / 20, x / PW)); }} onPointerLeave={() => setF(null)} data-cmppsd>
-      <canvas className="cv" style={{ height: 300 }} ref={ref} />
+    <div style={{ position: "relative", flex: "1 0 180px" }} onPointerMove={(e) => { const r = e.currentTarget.getBoundingClientRect(), PW = r.width - L - R, x = e.clientX - r.left - L; if (x >= 0 && x <= PW) setF(20 * Math.pow(fmax / 20, x / PW)); }} onPointerLeave={() => setF(null)} data-cmppsd>
+      <canvas className="cv fillcv" ref={ref} />
     </div>
     <div className="psdread" data-cmppsdread>
       <span className="lbl">ตำแหน่งชี้</span><span className="psdbox" style={{ whiteSpace: "normal" }}>{f == null ? "ชี้บนกราฟเพื่อดูค่า" : `${fTxt(f)} (${noteOf(f)}) = ต้นฉบับ ${minus(at(a, f).toFixed(0))} dB · หลังแปลง ${minus(at(b, f).toFixed(0))} dB · ต่าง ${Math.abs(at(b, f) - at(a, f)).toFixed(1)} dB`}</span>

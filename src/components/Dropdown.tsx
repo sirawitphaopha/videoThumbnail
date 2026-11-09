@@ -71,7 +71,7 @@ export default function Dropdown<T extends string>(p: {
         style={{ width: p.stretch ? "100%" : undefined }}
       >
         {p.stretch ? (
-          <span>{text}</span>
+          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, flex: "1 1 auto" }}>{text}</span>
         ) : (
           <span style={{ display: "grid", minWidth: 0 }}>
             {shown.map((s) => (

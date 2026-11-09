@@ -72,7 +72,7 @@ check("ไม่มีของโดนกติกาความปลอด�
 // ขั้น 5 · กดปุ่มคัดลอกบนหน้าจอจริง ① หน้าต่างไม่ได้โฟกัส คัดลอกไม่ได้ ต้องขึ้นแถบบอกเหตุผล ไม่เงียบ ② ได้โฟกัส ต้องขึ้นว่าคัดลอกแล้ว
 {
   const toastNow = () => q("return [...document.querySelectorAll('.toast')].map((t) => t.innerText.replace(/\\n/g, ' / ')).join(' || ')");
-  await c.click('.book[data-movie="Harbor Lights (2021)"]'); await sleep(300);
+  await c.book("Harbor Lights (2021)"); await sleep(300);
   await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.innerText.includes('ข้อมูลไฟล์')).click()");
   for (let i = 0; i < 60 && !(await q("return !!document.querySelector('[data-mi]')")); i++) await sleep(150);
   const copyBtn = "[...document.querySelectorAll('button')].find(b => b.innerText === 'คัดลอกข้อมูลเป็นข้อความ').click()";

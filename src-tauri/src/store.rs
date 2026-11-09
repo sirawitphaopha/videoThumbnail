@@ -45,6 +45,8 @@ pub struct Settings {
     pub cover_size: String,
     pub show_names: bool,
     pub show_dots: bool,
+    /// เรื่องที่ยังไม่มีปก แสดงภาพสุ่มจากหนังแทนแถบทะแยง · ค่าตั้งต้นปิด (แคลร์ตั้ง)
+    pub show_frames: bool,
     // การ์ดเปิดเล่นหนัง · ว่าง = โปรแกรมหลักของ Windows
     pub player_path: String,
     // ค่าหน้าตาที่จำไว้
@@ -86,6 +88,7 @@ impl Default for Settings {
             cover_size: "m".into(),
             show_names: true,
             show_dots: true,
+            show_frames: false,
             player_path: String::new(),
             sidebar_collapsed: false,
             view_mode: "grid".into(),

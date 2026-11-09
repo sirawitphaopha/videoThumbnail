@@ -8,7 +8,7 @@
    ใส่ดีเลย์ไว้ เวลาที่แสดงเลื่อนตามดีเลย์ (ยกเว้นแบบ notepad) */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import Dialog from "./Dialog";
-import { CardIcon, Phr, Seg, Skel } from "./ui";
+import { CardIcon, FixedTime, Phr, Seg, Skel } from "./ui";
 import { checkApi, graphApi, subApi, type GWindow, type SubImg, type SubText } from "../lib/api";
 import type { AvTrack } from "../lib/avJob";
 import { ftName } from "../lib/ftypes";
@@ -162,7 +162,7 @@ function TextView(p: { track: AvTrack; movie: string; refStream: number | null; 
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
           <button type="button" className={"btn btn-sm " + (sel > 0 ? "btn-ghost" : "btn-wait")} aria-disabled={sel === 0 || undefined} onClick={() => sel > 0 && setSel(sel - 1)} data-sub-prev><IbBack size={15} />บรรทัดก่อน</button>
           <button type="button" className={"btn btn-sm " + (sel < cues.length - 1 ? "btn-ghost" : "btn-wait")} aria-disabled={sel >= cues.length - 1 || undefined} onClick={() => sel < cues.length - 1 && setSel(sel + 1)} data-sub-nextline><IbNext size={15} />บรรทัดถัดไป</button>
-          {c && <button type="button" className="btn btn-ghost btn-sm" title="เปิดหนังด้วยโปรแกรมเล่นที่ตั้งไว้ ตรงเวลาของบรรทัดนี้" onClick={() => { setPlayErr(null); checkApi.playAt(p.movie, Math.max(0, c.start + d - 1)).catch((e) => setPlayErr(String(e))); }} data-sub-play><IbPlay size={15} />เปิดเล่นที่ {ts(c.start + d).slice(0, 7)}</button>}
+          {c && <button type="button" className="btn btn-ghost btn-sm" title="เปิดหนังด้วยโปรแกรมเล่นที่ตั้งไว้ ตรงเวลาของบรรทัดนี้" onClick={() => { setPlayErr(null); checkApi.playAt(p.movie, Math.max(0, c.start + d - 1)).catch((e) => setPlayErr(String(e))); }} data-sub-play><IbPlay size={15} /><span>เปิดเล่นที่ <FixedTime t={ts(c.start + d).slice(0, 7)} /></span></button>}
           {p.refIdx != null && <span style={{ marginLeft: "auto" }}><Seg small label="แบบคลื่นเสียง" value={look} onChange={setLook} options={[{ value: "wave", label: <><IcGraph size={14} />รูปคลื่น</> }, { value: "spec", label: <><IbEye size={14} />ความถี่</> }]} /></span>}
         </div>
         {playErr && <div className="small" style={{ color: "var(--bad-ink)" }}>{playErr}</div>}

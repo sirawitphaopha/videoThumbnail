@@ -222,7 +222,7 @@ check("ป้ายสีบนชั้นเปลี่ยนตามผล 
   /b-bad/.test(badges["เสียกลางเรื่อง (2022)"] ?? "") && /b-bad/.test(badges["ขาดท้าย (2022)"] ?? "") && /b-warn/.test(badges["แก้หนึ่งไบต์ (2023)"] ?? "") && /b-ok/.test(badges["ดาวเหนือ (2023)"] ?? ""),
   `${JSON.stringify(badges)} · เมนู ${sideCount}`);
 // การ์ดสถานะไฟล์ถูกเปลี่ยน กดตรวจละเอียด ไปหน้าตรวจไฟล์แล้วเริ่มตรวจเรื่องนั้น
-await c.click('.book[data-movie="แก้หนึ่งไบต์ (2023)"]'); await sleep(300);
+await c.book("แก้หนึ่งไบต์ (2023)"); await sleep(300);
 const card = await q("return document.querySelector('.detail .stat')?.innerText.replace(/\\s+/g, ' ') ?? ''");
 await shot("10-การ์ดสถานะถูกเปลี่ยน.png", ".detail");
 await clickText(".detail .btn", "ตรวจละเอียด");
@@ -236,7 +236,7 @@ check("การ์ดสถานะบนชั้น ไฟล์ถูกเ
 await closeToasts();
 // การ์ดสถานะเสียหาย ดูรายละเอียดผลตรวจ เปิดหน้าต่างผลตรวจ
 await clickText("button.nav", "ชั้นวางหนัง"); await sleep(500);
-await c.click('.book[data-movie="เสียกลางเรื่อง (2022)"]'); await sleep(300);
+await c.book("เสียกลางเรื่อง (2022)"); await sleep(300);
 await clickText(".detail .btn", "ดูรายละเอียดผลตรวจ");
 const opened = await waitFor("return document.querySelector('.dlg')?.innerText.includes('ผลตรวจ เสียกลางเรื่อง') ?? false", 5000);
 check("การ์ดสถานะเสียหาย กดดูรายละเอียดผลตรวจ เปิดหน้าต่างผลตรวจของเรื่องนั้น", opened);

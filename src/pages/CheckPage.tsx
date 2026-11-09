@@ -12,7 +12,7 @@ import { fmtDateTime, fmtDuration, fmtRoughMinutes, fmtSize } from "../lib/forma
 import { FULL_SPEED, reminderDue } from "../lib/status";
 import type { Page } from "../components/Sidebar";
 import Dialog from "../components/Dialog";
-import { Skel, SortArrow, StatIcon } from "../components/ui";
+import { FixedTime, Keep, Skel, SortArrow, StatIcon } from "../components/ui";
 import type { GraphReq } from "./GraphPage";
 import { IbStop, IcGraph, IbTick, IcCheck } from "../components/icons";
 
@@ -169,7 +169,7 @@ export default function CheckPage(p: { req: CheckReq | null; onConsumed: () => v
           <div className="ckacts">
             {s.running ? (
               <button type="button" className={"btn " + (stopping ? "btn-wait" : "btn-ghost")} onClick={() => { if (!stopping) stop(); }}
-                aria-disabled={stopping || undefined} title={stopping ? "รอให้เรื่องที่กำลังตรวจหยุดก่อน" : undefined} data-ckstop><IbStop size={15} />{stopping ? "กำลังหยุด…" : "หยุดตรวจทั้งชุด"}</button>
+                aria-disabled={stopping || undefined} title={stopping ? "รอให้เรื่องที่กำลังตรวจหยุดก่อน" : undefined} data-ckstop><Keep icon={<IbStop size={15} />} all={["กำลังหยุด…", "หยุดตรวจทั้งชุด"]}>{stopping ? "กำลังหยุด…" : "หยุดตรวจทั้งชุด"}</Keep></button>
             ) : (
               <>
                 <button type="button" className="btn btn-ghost" onClick={onlyUnchecked}><IbTick size={15} />เลือกเฉพาะที่ยังไม่เคยตรวจ</button>
@@ -197,7 +197,7 @@ export default function CheckPage(p: { req: CheckReq | null; onConsumed: () => v
             {(batchProblems.length > 0 || onlyProblems) && (
               <div className="minirow" style={{ margin: 0 }}>
                 <button type="button" className={"btn btn-ghost btn-sm" + (onlyProblems ? " pressed" : "")} aria-pressed={onlyProblems} onClick={() => setOnlyProblems((v) => !v)}>
-                  {onlyProblems ? "ดูทุกเรื่อง" : "ดูเฉพาะที่มีปัญหา"}
+                  <Keep all={["ดูทุกเรื่อง", "ดูเฉพาะที่มีปัญหา"]}>{onlyProblems ? "ดูทุกเรื่อง" : "ดูเฉพาะที่มีปัญหา"}</Keep>
                 </button>
                 {batchProblems.length > 0 && (
                   <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setMode("full"); start(batchProblems.map((m) => m.id), "full"); }}><IcCheck size={15} />ตรวจละเอียดเรื่องที่มีปัญหา</button>
@@ -310,7 +310,7 @@ function ResultDialog(p: { m: Movie; onClose: () => void; onDeep: () => void; on
     <Dialog open onClose={p.onClose} kind="menu" width={520} title={<>ผลตรวจ {m.name}.{m.ext}</>}
       actions={<>
         {sound && <button type="button" className="btn btn-ghost btn-sm" onClick={() => p.onGraph({ path: m.path, t: sound.from })} data-ckgraph><IcGraph size={15} />ดูกราฟเสียงช่วงนี้</button>}
-        {first && <button type="button" className="btn btn-ghost btn-sm" onClick={play} data-ckplay>เปิดเล่นที่ <span className="nw">{fmtT(first.from)}</span></button>}
+        {first && <button type="button" className="btn btn-ghost btn-sm" onClick={play} data-ckplay><span>เปิดเล่นที่ <FixedTime t={fmtT(first.from)} /></span></button>}
         {c.result === "changed" && <button type="button" className={"btn btn-sm " + (p.running ? "btn-wait" : "btn-ghost")} onClick={() => { if (!p.running) p.onDeep(); }}
           aria-disabled={p.running || undefined} title={p.running ? "รอให้ชุดที่กำลังตรวจเสร็จก่อน" : undefined}><IcCheck size={15} />ตรวจละเอียดเรื่องนี้</button>}
         <button type="button" className="btn btn-main btn-sm" onClick={p.onClose}>ปิด</button>

@@ -78,9 +78,11 @@ await pressText("shelf", "ปกนอน");
 await pressSwitch("ชื่อไฟล์ใต้ปก");
 await pressSwitch("จุดสีบอกสภาพไฟล์");
 // คุณภาพ JPG ลูกศรซ้ายสามครั้ง 90 → 87 · เก็บตอนหยุด 0.3 วินาที
+await c.setNav("poster");
 await c.evaluate("document.querySelector('[role=slider][aria-label=\"คุณภาพ JPG\"]').focus()");
 for (let i = 0; i < 3; i++) await c.key("ArrowLeft");
 // เตือนให้ตรวจซ้ำ ทุก 7 วัน (รายการกางแล้วเลือก)
+await c.setNav("check");
 await c.click("[data-recheck] button"); await sleep(300);
 await c.evaluate("[...document.querySelectorAll('[role=option]')].find((o) => o.innerText.includes('7 วัน'))?.click()");
 await sleep(900);
@@ -122,6 +124,7 @@ check("เอาโฟลเดอร์ออกแล้ว หนังใน
 
 /* ---------- 4 โครงจางค้างไว้ กลับเป็นปิดหลังโหลดใหม่ ---------- */
 await nav("ตั้งค่า"); await waitFor("return !!document.querySelector('[data-skelpreview]')", 10000);
+await c.setNav("shelf");
 await c.click("[data-skelpreview] [role=switch]"); await sleep(300);
 await nav("ชั้นวางหนัง"); await sleep(600);
 const skelOn = await q("return { skel: document.querySelectorAll('[data-shelf] .skel, [aria-label=\"กำลังอ่านโฟลเดอร์\"] .skel').length, books: document.querySelectorAll('.book[data-movie]').length }");
@@ -138,13 +141,13 @@ if (BUILT && existsSync(mi)) {
   renameSync(mi, miHidden); hidOk = true;
   try {
     await nav("ตั้งค่า"); await waitFor("return !!document.querySelector('[data-retools]')", 10000);
-    await c.click("[data-retools]"); await sleep(300);
+    await c.setNav("tools"); await c.click("[data-retools]"); await sleep(300);
     await waitFor("return document.querySelector('[data-retools]')?.innerText.includes('ตรวจเครื่องมือใหม่')", 30000);
     const miRow = await text('[data-tool="MediaInfo"]');
     check("ซ่อน MediaInfo ไปหนึ่งตัว กดตรวจเครื่องมือใหม่ ป้ายเปลี่ยนเป็นไม่พร้อม", miRow.includes("ไม่พร้อม"), miRow);
     await shot("06-เครื่องมือไม่พร้อม.png", card("tools"));
   } finally { renameSync(miHidden, mi); }
-  await c.click("[data-retools]"); await sleep(300);
+  await c.setNav("tools"); await c.click("[data-retools]"); await sleep(300);
   await waitFor("return document.querySelector('[data-retools]')?.innerText.includes('ตรวจเครื่องมือใหม่')", 30000);
   check("คืนไฟล์แล้วกดตรวจใหม่ กลับเป็นพร้อมใช้งาน", (await text('[data-tool="MediaInfo"]')).includes("พร้อมใช้งาน"), await text('[data-tool="MediaInfo"]'));
 } else console.log("ข้าม ซ่อนเครื่องมือ · ใช้กับตัวที่สร้างจริงเท่านั้น (--built)");
@@ -154,7 +157,7 @@ await nav("ตั้งค่า"); await waitFor("return !!document.querySelect
 // รอผลเช็ก Icaros ก่อน (ระหว่างเช็กป้ายเป็นโครงจาง ไม่มีทั้งปุ่มวิธีลงและคำว่าลงแล้ว · รอบเทสรวม 8 พ.ย. 2569 อ่านตอนยังเช็กไม่เสร็จ ข้อล้มผิด)
 await waitFor("const t = document.querySelector('[data-tool=\"Icaros\"]')?.innerText ?? ''; return t.includes('ลงแล้ว') || t.includes('ยังไม่ได้ลง')", 30000);
 if (await q("return !!document.querySelector('[data-icaroshelp]')")) {
-  await c.click("[data-icaroshelp]"); await waitFor("return !!document.querySelector('[data-openicaros]')", 5000);
+  await c.setNav("tools"); await c.click("[data-icaroshelp]"); await waitFor("return !!document.querySelector('[data-openicaros]')", 5000);
   const help = await q("return { steps: document.querySelectorAll('.dlg ol.steps li').length, btns: [...document.querySelectorAll('.dlg .acts button')].map((b) => b.innerText.trim()) }");
   check("Icaros ยังไม่ได้ลง กดวิธีลง ขึ้น 4 ขั้น ปุ่ม ปิด กับ เปิดหน้าเว็บ Icaros", help.steps === 4 && help.btns.join(" ") === "ปิด เปิดหน้าเว็บ Icaros", JSON.stringify(help));
   await shot("07-วิธีลง-Icaros.png", ".dlg");
@@ -168,9 +171,10 @@ await waitFor("return document.querySelectorAll('.book[data-movie]').length >= 1
 await nav("ตั้งค่า"); await waitFor("return !!document.querySelector('[data-player]')", 10000);
 const playerRow = await text("[data-player]"), playerSeg = await q("return [...document.querySelectorAll('[data-setcard=\"player\"] .seg button.on')].map((b) => b.innerText.trim()).join(' ')");
 check("เลือกโปรแกรมเล่นเอง การ์ดขึ้นปุ่ม เลือกเอง พร้อมที่อยู่โปรแกรมและปุ่มเปลี่ยน", playerSeg === "เลือกเอง" && playerRow.includes("vlc.exe") && playerRow.includes("เปลี่ยน"), `${playerSeg} · ${playerRow}`);
+await c.setNav("player");
 await shot("08-โปรแกรมเล่นเลือกเอง.png", card("player"));
 await nav("ชั้นวางหนัง"); await sleep(500);
-await c.click('.book[data-movie="Harbor Lights (2021)"]'); await sleep(400);
+await c.book("Harbor Lights (2021)"); await sleep(400);
 await c.evaluate("[...document.querySelectorAll('.detail .btn')].find((b) => b.innerText.includes('เปิดเล่น')).click()");
 const back = await waitFor("return !!document.querySelector('[data-settings]')", 8000);
 const toastTxt = await text(".toast");
@@ -179,7 +183,7 @@ await inv("set_settings", { patch: { playerPath: "" } });
 
 /* ---------- 8 ผลอ่านคลื่นที่เก็บไว้ ล้างได้ ---------- */
 await nav("ตั้งค่า"); await waitFor("return !!document.querySelector('[data-clearcache]')", 10000);
-await c.click("[data-clearcache]"); await sleep(600);
+await c.setNav("graph"); await c.click("[data-clearcache]"); await sleep(600);
 const cache = await text("[data-graphcache]");
 check("การ์ดกราฟเสียง กดล้าง ผลอ่านคลื่นที่เก็บไว้เหลือ 0 ไฟล์", cache.startsWith("0 ไฟล์"), cache);
 

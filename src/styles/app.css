@@ -356,7 +356,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .lv tbody tr.sel:hover td { background: #f7e4ea; }
 .lv tr.missing td { opacity: .5; }
 .lv .th { width: 30px; height: 45px; border-radius: 3px; display: block; object-fit: cover; }
-.lv .th.none { border: 1.5px dashed #e2bfcb; background: #fff; }
+.lv .th.none { border: 1.5px dashed #e2bfcb; background: repeating-linear-gradient(135deg, #fff 0 5px, #fbf2f5 5px 10px); }
 .thsort { all: unset; cursor: pointer; display: inline-flex; align-items: center; border-radius: 5px; padding: 1px 4px; margin: -1px -4px; transition: background-color .15s, color .15s; }
 .thsort:hover { background-color: #f6e2e9; color: var(--accent-ink); }
 .thsort:focus-visible { outline: 2px solid var(--accent-d); outline-offset: 2px; }
@@ -448,7 +448,7 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .pact-msg { grid-column: 1 / 3; padding-right: 22px; display: flex; justify-content: flex-end; min-width: 0; }
 .pact-btns { grid-column: 3; padding-left: 23px; display: flex; flex-wrap: nowrap; gap: 8px; min-width: 0; }
 .pact-btns .btn { padding-inline: 10px !important; min-width: 0; }
-.pact-btns .btn:last-child { font-size: 14px !important; }
+.pact-btns .btn:last-child { font-size: 13px !important; }
 .card { padding: 0; }
 .card h3 { margin: 0 0 10px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
 .step { width: 22px; height: 22px; border-radius: 50%; background: #e5c4cf; color: #8f2a4f; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; flex: none; }
@@ -466,7 +466,7 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .extag.ok { background: var(--ok-soft); color: var(--ok-ink); }
 .extag.cv { background: var(--warn-soft); color: var(--warn-ink); }
 .mc { width: 72px; height: 108px; border-radius: 5px; flex: none; box-shadow: 0 4px 8px rgba(60,25,40,.22); object-fit: cover; display: block; background: #fbf0f4; }
-.mc.none { border: 1.5px dashed #eeb3c8; box-shadow: none; }
+.mc.none { border: 1.5px dashed #eeb3c8; box-shadow: none; background: repeating-linear-gradient(135deg, #fff 0 8px, #fbf2f5 8px 16px); }
 .workbox { display: flex; flex-direction: column; gap: 10px; scroll-margin: 16px; }
 .fmt { width: 100%; border-collapse: collapse; font-size: 14px; background: #fff; border-radius: 10px; overflow: hidden; }
 .fmt th { background: var(--win2); color: var(--txt2); font-size: 13px; padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--line); }
@@ -576,7 +576,7 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .sws { display: flex; align-items: center; gap: 6px; }
 /* ปุ่มเลือกธีมหน้ากราฟเสียง · ต้องอยู่ใต้ .sws เท่านั้น ชื่อ sw ชนมุมจับซ้ายล่างของกรอบครอป (.hd.sw) เดิมมุมนั้นกลายเป็นวงกลมขาว */
 .sws .sw { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #e7c8d2; cursor: pointer; padding: 0; transition: box-shadow .15s, transform .15s; }
-.sws .sw:hover { box-shadow: 0 0 0 2px var(--accent); transform: scale(1.08); }
+.sws .sw:hover { box-shadow: 0 0 0 2px var(--accent); }
 .sws .sw.on { box-shadow: 0 0 0 2px var(--accent-d); }
 .ag .seg button:disabled { color: #c9aab4; cursor: not-allowed; background-color: #f7f7f7; }
 .agb { display: grid; grid-template-columns: 232px 1fr; gap: 14px; align-items: start; }
@@ -779,7 +779,7 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .plothead .zbtns { flex: none; display: flex; align-items: center; }
 .plothead .hzoom { flex: none; width: 200px; }
 /* แถวคำอธิบายกับปุ่มท้ายกราฟตรึงล่างสุดทุกมุมมอง (พี่กันสั่ง 8 พ.ย. 2569 "ตรึงไว้ล่างสุดให้หมด พวกนี้") */
-.ag[data-graphview] .agb > .plot .agfoot { position: sticky; bottom: -12px; z-index: 5; background: #fff; margin: 10px -18px -12px -12px; padding: 8px 18px 12px 12px; border-top: 1px solid var(--line); }
+.ag[data-graphview] .agb > .plot .agfoot { position: sticky; bottom: -12px; z-index: 5; background: #fff; margin: auto -18px -12px -12px; padding: 8px 18px 12px 12px; border-top: 1px solid var(--line); }
 /* ผลตรวจในกราฟบรรทัดเดียว ชี้ดูข้อความเต็ม กราฟได้ที่เพิ่ม */
 [data-spekverdict], [data-psdverdict] { margin-top: 0 !important; flex: 0 1 auto; min-width: 0; padding: 4px 9px; gap: 6px; align-items: center; border-radius: 7px; font-size: 12.5px; line-height: 1.4; }
 [data-psdverdict] { margin-top: 8px !important; }
@@ -790,3 +790,47 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 [data-spekverdict] br, [data-psdverdict] br { display: none; }
 .agfoot { flex-wrap: nowrap; }
 .agfoot > :last-child { flex: none; }
+/* เวลาบนปุ่ม กันที่ไว้เท่าเวลายาวสุด ปุ่มไม่หดขยาย (พี่กันสั่ง 9 พ.ย. 2569) */
+.tfix { display: inline-grid; font-variant-numeric: tabular-nums; text-align: left; }
+.tfix > * { grid-area: 1 / 1; font-style: normal; }
+.tfix > i { visibility: hidden; }
+.keep { justify-items: center; text-align: center; white-space: nowrap; }
+.keep > * { display: inline-flex; align-items: center; gap: 8px; }
+/* แถบของช่องที่ปิดลำโพง ที่เดิม ขนาดเดิม ไม่มีกราฟ (พี่กันเสนอ 9 พ.ย. 2569) */
+.laneoff { display: flex; align-items: center; justify-content: center; border-radius: 6px; border: 1px dashed var(--line); color: var(--txt3); font-size: 13px; font-weight: 600; }
+.lane[data-off] .lab { opacity: .6; }
+/* ช่องไฟล์ไม่มีปกบนหน้ากราฟเป็นแถบเอียงเหมือนทุกที่ */
+.fthumb.none { background: repeating-linear-gradient(135deg, #fff 0 5px, #fbf2f5 5px 10px); border: 1.5px dashed #eeb3c8; box-shadow: none; }
+/* แถวปุ่มอยู่ล่างสุดเสมอ เนื้อหาสั้นก็ไม่ลอยขึ้นมา (พี่กันสั่ง 8 พ.ย. 2569 "ตรึงไว้ล่างสุดให้หมด") */
+.ag[data-graphview] .agb > .plot > :nth-last-child(2):not(.agfoot) { margin-bottom: 10px; }
+.ag[data-graphmode="convert"] { padding-bottom: 0; }
+.ag[data-graphmode="convert"] > .cq { flex: 1 0 auto; }
+.cqfoot { margin-top: auto; }
+[data-poster-page] { display: flex; flex-direction: column; }
+[data-poster-page] > .wrapin { flex: 1 0 auto; padding-bottom: 0; }
+[data-poster-page] .three.pactions { margin-top: auto; }
+/* ช่องไฟล์ไม่มีปกในหน้าเสียงและซับเป็นแถบเอียง */
+div.avthumb { background: repeating-linear-gradient(135deg, #fff 0 5px, #fbf2f5 5px 10px); border: 1.5px dashed #eeb3c8; box-shadow: none; }
+/* พื้นแถบตรึงคลุมเลยขอบซ้ายขวา ปลายตัวหนังสือที่เลื่อนลอดข้างใต้ไม่โผล่ข้างแถบ */
+.avfoot, .avtop, .cqfoot, [data-poster-page] .three.pactions { box-shadow: -18px 0 0 var(--win), 18px 0 0 var(--win); }
+/* ขยายให้เต็มพื้นที่ ไม่ทิ้งที่ว่างเหนือแถบปุ่ม (พี่กันสั่ง 9 พ.ย. 2569 "ลองขยายให้เต็ม") · ช่องลากไฟล์ยืด เนื้อหาอื่นสูงเท่าเดิม */
+[data-poster-page] .three:has(> [data-card="movie"]) { flex: 1 0 auto; }
+[data-poster-page] .three:has(> [data-card="movie"]) > .card { display: flex; flex-direction: column; }
+[data-poster-page] .three:has(> [data-card="movie"]) > .card > .drop { flex: 1 0 auto; }
+[data-card="result"] .mc { width: clamp(80px, calc((100vh - 470px) * 2 / 3), 210px); height: auto; aspect-ratio: 2 / 3; max-width: 100%; }
+.ag[data-graphmode="convert"] > .cq > .card:first-child { flex: 1 0 auto; display: flex; flex-direction: column; }
+.ag[data-graphmode="convert"] > .cq > .card:first-child > .drop { flex: 1 0 auto; }
+[data-link-page] { display: flex; flex-direction: column; }
+[data-link-page] > .wrapin { flex: 1 0 auto; padding-bottom: 0; }
+[data-link-page] > .wrapin > .card:first-child { flex: 1 0 auto; display: flex; flex-direction: column; }
+[data-link-page] > .wrapin > .card:first-child > .drop { flex: 1 0 auto; }
+[data-link-page] .linkfoot { position: sticky; bottom: 0; z-index: var(--z-bar); background: var(--win); padding-block: 12px; border-top: 1px solid var(--line); box-shadow: -22px 0 0 var(--win), 22px 0 0 var(--win); }
+.avwrap:has(> .card > .drop) { min-height: 100%; }
+.avwrap > .card:has(> .drop) { flex: 1 0 auto; display: flex; flex-direction: column; }
+.avwrap > .card:has(> .drop) > .drop { flex: 1 0 auto; }
+/* ปุ่มเลือกแบบและสีของกราฟในกรอบกราฟ */
+.plottools { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
+.plottools .seg button { height: 30px; font-size: 13px; padding: 0 8px; gap: 5px; white-space: nowrap; }
+/* ปุ่มเลือกไฟล์กว้างตามตัวหนังสือ ไม่ยืดตามคอลัมน์ · ปุ่มเริ่มในหน้าใส่โปสเตอร์ได้ที่พอ */
+[data-poster-page] .three:has(> [data-card="movie"]) > .card > .btn { align-self: flex-start; }
+.pact-btns .btn:first-child { padding: 0 10px; }

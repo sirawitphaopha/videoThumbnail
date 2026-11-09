@@ -6,7 +6,7 @@
    หมุนแล้วพลิก ลำดับเดียวกับฝั่ง Rust (poster_image.rs render) กรอบเป็นสัดส่วนของรูปหลังหมุนและพลิก */
 import { useEffect, useMemo, useRef, useState } from "react";
 import Dialog from "./Dialog";
-import { Range, Seg, CardIcon, Phr } from "./ui";
+import { Keep, Range, Seg, CardIcon, Phr } from "./ui";
 import { posterApi, thumbUrl, type CropTarget, type Geometry, type PosterInfo, type RenderInfo } from "../lib/api";
 import { fmtSize } from "../lib/format";
 import { IcRefresh, IbTick, IcPoster, IbRotL, IbRotR, IbFlip } from "./icons";
@@ -160,7 +160,7 @@ export default function CropDialog(p: {
     } actions={<>
       {useErr && <div className="hint e" role="alert" style={{ margin: "0 auto 0 0", maxWidth: 520 }} data-use-err>{useErr}</div>}
       <button type="button" className={"btn btn-sm " + (using ? "btn-wait" : "btn-ghost")} aria-disabled={using || undefined} onClick={() => { if (!using) p.onCancel(); }}>ยกเลิก</button>
-      <button type="button" className={"btn btn-sm " + (using ? "btn-wait" : "btn-main")} aria-disabled={using || undefined} onClick={use} data-use><IbTick size={15} />{using ? "กำลังทำรูป…" : p.link ? "ใช้ค่านี้" : "ใช้รูปนี้"}</button>
+      <button type="button" className={"btn btn-sm " + (using ? "btn-wait" : "btn-main")} aria-disabled={using || undefined} onClick={use} data-use><Keep icon={<IbTick size={15} />} all={["กำลังทำรูป…", "ใช้ค่านี้", "ใช้รูปนี้"]}>{using ? "กำลังทำรูป…" : p.link ? "ใช้ค่านี้" : "ใช้รูปนี้"}</Keep></button>
     </>}>
       <div style={{ display: "flex", gap: 24, alignItems: "flex-start" }} data-crop>
         <div style={{ display: "flex", flexDirection: "column", gap: 12 }}>

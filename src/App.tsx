@@ -84,7 +84,7 @@ function Frame() {
         <div className="body">
           <Sidebar
             page={page}
-            onPage={(p) => { setPage(p); if (parts) location.hash = ""; }}
+            onPage={(p) => { setPage(p); if (p === "shelf") setInfoId(null); if (parts) location.hash = ""; }}
             collapsed={collapsed}
             onToggle={() => update({ sidebarCollapsed: !collapsed })}
             shelfCount={movies.length}

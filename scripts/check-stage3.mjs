@@ -39,7 +39,7 @@ async function waitScan() {
   throw new Error("รออ่านโฟลเดอร์เกินเวลา");
 }
 const idOf = async (name) => (await inv("get_library")).movies.find((m) => m.name === name)?.id;
-const pick = async (name) => { await c.click(`.book[data-movie="${name}"]`); await sleep(250); };
+const pick = async (name) => { await c.book(name); await sleep(250); };
 const field = () => q("const i = document.querySelector('.rename input'); return i ? { value: i.value, focus: document.activeElement === i, ext: document.querySelector('.rename .inp .ext')?.innerText } : null");
 const state = () => q(`const r = document.querySelector('.rename');
   return { open: !!r, err: !!r?.querySelector('.inp.err'), hint: r?.querySelector('#rename-hint')?.innerText ?? '', card: r?.querySelector('.stat.bad')?.innerText ?? '',

@@ -71,7 +71,7 @@ check("กดหยุดหลังกลับมา ถามยืนยั
 
 // ③ เปลี่ยนหน้าระหว่างคิด hash กลับมาเห็นว่างานยังทำอยู่
 await nav("ชั้นวางหนัง"); await sleep(500);
-await c.click('.book[data-movie="หนังยาว (2020)"]'); await sleep(300);
+await c.book("หนังยาว (2020)"); await sleep(300);
 await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.innerText.includes('ข้อมูลไฟล์')).click()");
 await waitFor("return !!document.querySelector('[data-hash-start]')");
 await c.evaluate("document.querySelector('[data-hash-start]').click()"); await sleep(300);
@@ -97,7 +97,7 @@ check("กดทำงานต่อ โปรแกรมยังอยู่
 // ⑤ การ์ดชื่อชนตอนแยกไฟล์บอกชื่อไฟล์ที่มีอยู่แล้ว (สเปกข้อ 10) · หน้าข้อมูลไฟล์ของข้อ ③ ยังเปิดอยู่ กดกลับไปชั้นวางก่อน
 await nav("ชั้นวางหนัง"); await sleep(400);
 await c.evaluate("[...document.querySelectorAll('[data-info-page] button')].find(b => b.innerText === 'กลับไปชั้นวาง')?.click()"); await sleep(400);
-await c.click('.book[data-movie="ดาวเหนือ (2023)"]'); await sleep(300);
+await c.book("ดาวเหนือ (2023)"); await sleep(300);
 await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.innerText.includes('ข้อมูลไฟล์')).click()");
 await waitFor("return !!document.querySelector('[data-mi]')");
 for (const t of ["Audio #2", "Text #1"]) await c.evaluate(`[...document.querySelectorAll('[data-mi] .mih.pick')].find(h => h.innerText.includes(${JSON.stringify(t)})).click()`);
@@ -113,7 +113,7 @@ await c.evaluate("[...document.querySelectorAll('[data-extract] button')].find(b
 
 // ⑥ มาจากปุ่มเปลี่ยนโปสเตอร์ · การ์ดรูปไม่ใช่ 2:3 · รูปที่ต้องแปลงก่อนแนบ (สเปกข้อ 17 18 19 20)
 await c.evaluate("[...document.querySelectorAll('[data-info-page] button')].find(b => b.innerText === 'กลับไปชั้นวาง').click()"); await sleep(300);
-await c.click('.book[data-movie="ดาวเหนือ (2023)"]'); await sleep(300);
+await c.book("ดาวเหนือ (2023)"); await sleep(300);
 await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.innerText.includes('โปสเตอร์')).click()");
 await waitFor("return (document.querySelector('[data-card=movie]')?.innerText ?? '').includes('ดาวเหนือ')");
 const first = await q("return { poster: document.querySelector('[data-card=poster]')?.innerText ?? '', result: document.querySelector('[data-card=result]')?.innerText ?? '', bold: [...document.querySelectorAll('[data-card=result] b')].map(b => b.innerText) }");

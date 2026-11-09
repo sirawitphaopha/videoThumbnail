@@ -8,7 +8,7 @@ import { useEffect, useMemo, useState } from "react";
 import Dialog from "./Dialog";
 import Dropdown from "./Dropdown";
 import InfoTip, { abbrer } from "./InfoTip";
-import { CardIcon, Phr, Range, Seg } from "./ui";
+import { CardIcon, Keep, Phr, Range, Seg } from "./ui";
 import { encodeApi, type EncodePlan, type EncodeSpec, type EncoderInfo, type MergeTrack } from "../lib/api";
 import { CODECS, codecOf, type Codec } from "../lib/codecs";
 import { ADV, TIPS, advSize, aacKbps, cardDefaults, cardValue, cardsFor, optLabel, optVal, type Card, type SizeCtx, type Vals } from "../lib/codecAdv";
@@ -385,7 +385,7 @@ export default function CodecPanel(p: {
         <div style={{ display: "flex", flexDirection: "column", flex: "1 1 auto" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
             <span className="small ilbl"><b style={{ color: "var(--txt2)" }}>คำสั่งที่จะรัน</b>&nbsp;· Command line<InfoTip title="Command line" tip={TIPS.cmd} /></span>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { if (plan) navigator.clipboard?.writeText(plan.text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }).catch(() => {}); }} data-copy><IcCopy size={14} />{copied ? "คัดลอกแล้ว" : "คัดลอก"}</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { if (plan) navigator.clipboard?.writeText(plan.text).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }).catch(() => {}); }} data-copy><Keep icon={<IcCopy size={14} />} all={["คัดลอกแล้ว", "คัดลอก"]}>{copied ? "คัดลอกแล้ว" : "คัดลอก"}</Keep></button>
           </div>
           <pre data-cmd style={{ flex: 1, minHeight: 40, margin: 0, whiteSpace: "pre-wrap", overflowWrap: "break-word", fontFamily: "var(--mono)", fontSize: 12, lineHeight: 1.55, background: "#fff", border: "1px solid var(--line)", borderRadius: 8, padding: "8px 10px", userSelect: "text", color: "var(--txt)" }}>
             {planErr ?? (plan

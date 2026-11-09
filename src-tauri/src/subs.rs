@@ -234,11 +234,58 @@ pub fn text_of(tools: &Path, work: &Path, path: &Path, in_movie: bool, tid: u64,
 
 /// ภาพหนังหนึ่งภาพที่เวลา t สูง h จุด เป็น data URL (JPEG)
 pub fn frame(tools: &Path, movie: &Path, t: f64, h: u32) -> Result<String, String> {
+    Ok(format!("data:image/jpeg;base64,{}", crate::audiograph::b64(&frame_jpg(tools, movie, t, h)?)))
+}
+
+/// ภาพหนังหนึ่งภาพ เป็นไบต์ JPEG
+fn frame_jpg(tools: &Path, movie: &Path, t: f64, h: u32) -> Result<Vec<u8>, String> {
     let args: Vec<OsString> = vec!["-v".into(), "error".into(), "-nostdin".into(), "-ss".into(), format!("{:.3}", t.max(0.0)).into(), "-i".into(), movie.into(),
         "-frames:v".into(), "1".into(), "-vf".into(), format!("scale=-2:{h}").into(), "-f".into(), "image2pipe".into(), "-c:v".into(), "mjpeg".into(), "-q:v".into(), "4".into(), "-".into()];
     let o = run_tool_timeout(tools, "ffmpeg", &args, Duration::from_secs(60))?;
     if !tool_succeeded("ffmpeg", &o.status) || o.stdout.is_empty() { return Err("ดึงภาพหนังไม่ได้".into()); }
-    Ok(format!("data:image/jpeg;base64,{}", crate::audiograph::b64(&o.stdout)))
+    Ok(o.stdout)
+}
+
+/// เวลาที่จะดึงภาพ · อยู่ช่วง 12% ถึง 87% ของเรื่อง เลี่ยงโลโก้ต้นเรื่องกับเครดิตท้ายเรื่อง · ลองรอบใหม่ได้เวลาใหม่
+fn frame_time(duration: f64, seed: u64, attempt: u64) -> f64 {
+    if duration <= 0.0 { return 1.0; }
+    let n = seed.wrapping_add(attempt.wrapping_mul(37)) % 76;
+    duration * (0.12 + n as f64 / 100.0)
+}
+
+/// ภาพมืดหรือภาพเรียบมาก JPEG จะเล็กผิดปกติ ลองเวลาใหม่ได้ภาพที่ดูรู้เรื่องกว่า
+const FRAME_MIN_BYTES: usize = 9000;
+
+/// ภาพสุ่มจากหนัง แสดงแทนแถบทะแยงในเรื่องที่ยังไม่มีปก (พี่กันสั่ง 9 พ.ย. 2569)
+/// เก็บในโฟลเดอร์ frames ของโปรแกรม ไม่แตะไฟล์หนัง · ไฟล์เดิมได้ภาพเดิม ไฟล์เปลี่ยนจึงสุ่มใหม่ · ไม่ใช่ปก ไม่นับในตัวกรอง
+#[tauri::command]
+pub async fn movie_frame(app: AppHandle, path: String, duration: f64) -> Result<Option<String>, String> {
+    use std::hash::{Hash, Hasher};
+    let tools = tools_dir(&app)?;
+    let dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?.join("frames");
+    tauri::async_runtime::spawn_blocking(move || {
+        let movie = need(&path)?;
+        let meta = std::fs::metadata(&movie).map_err(|e| e.to_string())?;
+        let mut h = std::collections::hash_map::DefaultHasher::new();
+        path.hash(&mut h);
+        meta.len().hash(&mut h);
+        meta.modified().ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_secs()).hash(&mut h);
+        let key = h.finish();
+        let out = dir.join(format!("{key:016x}.jpg"));
+        if out.exists() { return Ok(Some(out.to_string_lossy().to_string())); }
+        std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+        let mut best: Option<Vec<u8>> = None;
+        for attempt in 0..3 {
+            let Ok(jpg) = frame_jpg(&tools, &movie, frame_time(duration, key, attempt), 540) else { continue };
+            let enough = jpg.len() >= FRAME_MIN_BYTES;
+            if best.as_ref().map(|b| jpg.len() > b.len()).unwrap_or(true) { best = Some(jpg); }
+            if enough { break; }
+        }
+        // ดึงภาพไม่ได้ (ไฟล์ไม่มีภาพ หรือเสีย) ยังเป็นแถบทะแยงตามเดิม ไม่ถือว่าผิดพลาด
+        let Some(jpg) = best else { return Ok(None) };
+        crate::store::write_atomic(&out, &jpg, false).map_err(|e| e.to_string())?;
+        Ok(Some(out.to_string_lossy().to_string()))
+    }).await.map_err(|e| e.to_string())?
 }
 
 // ---------------------------------------------------------------- ซับรูป
@@ -414,6 +461,18 @@ pub async fn sub_images(app: AppHandle, path: String, ff: u64, page: usize, per:
 
 #[cfg(test)]
 mod tests {
+    #[test]
+    fn frame_time_stays_inside_the_movie() {
+        for seed in [0u64, 1, 75, 76, 12345, u64::MAX] {
+            for attempt in 0..3 {
+                let t = super::frame_time(1000.0, seed, attempt);
+                assert!((120.0..=870.0).contains(&t), "seed {seed} รอบ {attempt} ได้ {t}");
+            }
+        }
+        assert_ne!(super::frame_time(1000.0, 5, 0), super::frame_time(1000.0, 5, 1), "ลองรอบใหม่ต้องได้เวลาใหม่");
+        assert_eq!(super::frame_time(0.0, 5, 0), 1.0, "ไม่รู้ความยาวเรื่อง ใช้วินาทีแรก");
+    }
+
     use super::*;
 
     /// เดาชุดอักษร · ไทย TIS-620 จริง · ฝรั่งเศส Windows-1252 ไม่โดนเดาเป็นไทย · UTF-8 ที่ขาดกลางตัวอักษรท้ายบัฟเฟอร์ยังเป็น UTF-8 (ผู้ช่วยตรวจขั้น 10 ข้อ 4)

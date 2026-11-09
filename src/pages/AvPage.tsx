@@ -14,7 +14,7 @@ import DelayDialog from "../components/DelayDialog";
 import SubViewer from "../components/SubViewer";
 import { convertLabel } from "../lib/codecs";
 import ThaiInput from "../components/ThaiInput";
-import { CardIcon, Phr, Seg } from "../components/ui";
+import { CardIcon, Keep, Phr, Seg } from "../components/ui";
 import { useToast } from "../components/Toasts";
 import { ADD_EXT, FONT_EXT, encodeApi, inApp, mergeApi, pickAddFiles, pickFile, pickFonts, posterApi, thumbUrl, type ApplyProblem, type CoverTarget, type EncoderInfo, type FontHit, type MergeResult, type PosterInfo, pairApi } from "../lib/api";
 import { useSettings } from "../lib/settings";
@@ -456,7 +456,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
         {movieErr && <div className="stat bad" role="alert"><CardIcon kind="bad" /><div><b>{movieErr}</b></div></div>}
 
         {/* ตารางแทร็ก */}
-        <div className="card" style={{ padding: 12 }}>
+        <div className="card">
           <h3 style={{ justifyContent: "space-between" }}><span>แทร็กในไฟล์ใหม่ · เรียงตามลำดับ</span>
             <span className="small" style={{ fontWeight: 400 }} data-counts>ภาพ {counts.video} · เสียง {counts.audio} · ซับ {counts.subs}{counts.out ? ` · เอาออก ${counts.out}` : ""}</span></h3>
           <div className="tracks" role="list" aria-label="แทร็กในไฟล์ใหม่">
@@ -686,7 +686,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
           {blocked && !working && <div className="hint" style={{ color: "#94680f", margin: 0 }} data-blocked>{blocked}</div>}
           <button type="button" className={"btn " + (working ? "btn-wait" : "btn-ghost")} style={{ height: 44 }} aria-disabled={working || undefined} title={working ? BUSY : undefined} onClick={clearAll}><IbTrash size={15} />ล้างทั้งหมด</button>
           <button type="button" className={"btn " + (blocked || working ? "btn-wait" : "btn-main")} style={{ height: 44, padding: "0 26px", fontSize: 15 }}
-            aria-disabled={!!blocked || working || undefined} title={blocked ?? undefined} onClick={() => pressStart()} data-start><IcMix size={15} />{working ? "กำลังรวม…" : output === "mp4" ? "รวมเป็น MP4" : "รวมเข้าไฟล์หนัง"}</button>
+            aria-disabled={!!blocked || working || undefined} title={blocked ?? undefined} onClick={() => pressStart()} data-start><Keep icon={<IcMix size={15} />} all={["กำลังรวม…", "รวมเป็น MP4", "รวมเข้าไฟล์หนัง"]}>{working ? "กำลังรวม…" : output === "mp4" ? "รวมเป็น MP4" : "รวมเข้าไฟล์หนัง"}</Keep></button>
           </>)}
         </div>
       </div>

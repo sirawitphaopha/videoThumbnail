@@ -101,7 +101,7 @@ await waitFor("return !![...document.querySelectorAll('[data-qrow=\"เพลง
 const names = await q("return [...document.querySelectorAll('[data-qrow]')].map(r => r.dataset.qrow)");
 check(`ลาก ${ORDER.length} ไฟล์พร้อมกัน เข้าคิวครบ เรียงตามที่ลาก`, JSON.stringify(names) === JSON.stringify(ORDER), names.join(" · "));
 const flacRow = await rowText("เพลงทดสอบ 96k.flac");
-check("แถว FLAC บอกชนิด ช่อง บิต อัตราสุ่ม ขนาด มีรูปปกจากไฟล์ · ปลายทางตั้งต้น FLAC Level 5", flacRow.includes("FLAC 2.0") && flacRow.includes("24 บิต 96 kHz") && flacRow.includes("FLAC Level 5"), flacRow.slice(0, 160));
+check("แถว FLAC บอกชนิด ช่อง บิต อัตราสุ่ม ขนาด มีรูปปกจากไฟล์ · ปลายทางตั้งต้น FLAC Level 5", flacRow.includes("FLAC 2.0") && flacRow.includes("24 บิต 96 kHz") && /FLAC.*Level 5/.test(flacRow), flacRow.slice(0, 160));
 const bad = await rowText("ไม่มีเสียง.mp4");
 check("ไฟล์ที่ไม่มีแทร็กเสียง ขึ้นว่าอ่านไฟล์ไม่ได้ ไม่นับในคิว", bad.includes("อ่านไฟล์ไม่ได้") && bad.includes("ไม่มีแทร็กเสียง"), bad.slice(0, 140));
 await drop([F("เพลงทดสอบ 96k.flac")]);
@@ -121,8 +121,8 @@ await c.click('[data-preset="1"]');
 await sleep(300);
 await c.click("[data-conv-use]");
 await sleep(400);
-const afterAll = await q("return [...document.querySelectorAll('[data-qrow]')].filter(r => r.dataset.qstate === 'wait').map(r => r.querySelector('[data-qto]').innerText.trim())");
-check("เลือก Opus เพลงคุณภาพดี ใช้กับทุกไฟล์ที่ยังไม่เริ่ม", afterAll.length === ORDER.length - 1 && afterAll.every((t) => t.startsWith("Opus 160 kbps")), afterAll.join(" · "));
+const afterAll = await q("return [...document.querySelectorAll('[data-qrow]')].filter(r => r.dataset.qstate === 'wait').map(r => r.querySelector('.dd').innerText.trim())");
+check("เลือก Opus เพลงคุณภาพดี ใช้กับทุกไฟล์ที่ยังไม่เริ่ม", afterAll.length === ORDER.length - 1 && afterAll.every((t) => /^Opus.*160 kbps/.test(t)), afterAll.join(" · "));
 
 // เปิดแผงของแถวที่ตั้งด้วยชุดค่าแบบง่ายซ้ำ ต้องได้แท็บแบบง่ายกับชุดเดิม (เดิมเด้งไปขั้นสูง เพราะเทียบช่อง Bit depth ที่ Opus ไม่มี)
 await c.click('[data-qrow="เพลงทดสอบ.mp3"] [data-qto]');
@@ -152,7 +152,7 @@ const pickCodec = async (name, preset) => {
 };
 await setRow("ยาว 30 นาที.wav", async () => { await pickCodec("Monkey's Audio", 3); await clickText("[data-codec-panel] .seg button", "ขั้นสูง"); await sleep(300); await clickText("[data-card=level] .seg button", "Insane"); });
 const wavRow = await setRow("เพลงทดสอบ.wav", () => pickCodec("Monkey's Audio", 2));
-check("ตั้งไฟล์เดียว WAV เป็น Monkey's Audio High แถวอื่นไม่เปลี่ยน", wavRow.includes("Monkey's Audio High") && (await rowText("เพลงทดสอบ.mp3")).includes("Opus 160"), wavRow.slice(0, 120));
+check("ตั้งไฟล์เดียว WAV เป็น Monkey's Audio High แถวอื่นไม่เปลี่ยน", /Monkey's Audio.*High/.test(wavRow) && /Opus.*160/.test(await rowText("เพลงทดสอบ.mp3")), wavRow.slice(0, 120));
 // TAK แตก Takc.exe จากชุดที่แนบมาเอง (8 พ.ย. 2569 · เดิมต้องวางเอง ข้อนี้เคยเช็กว่าปุ่มกดไม่ได้)
 await c.click('[data-qrow="เพลงทดสอบ.mp3"] [data-qto]');
 await waitFor("return !!document.querySelector('[data-codec-panel]')", 10000);
@@ -170,9 +170,9 @@ await setRow("เพลงทดสอบ.mp3", () => pickCodec("FLAC", 2));
 await setRow("พากย์ไทย 5.1.ac3", () => pickCodec("WavPack", 1));
 await setRow("เพลงทดสอบ 96k สำเนา.flac", () => pickCodec("Monkey's Audio", 1));
 await setRow("เพลงทดสอบ 96k TAK.flac", () => pickCodec("TAK", 3));
-const targets = await q("return Object.fromEntries([...document.querySelectorAll('[data-qrow]')].map(r => [r.dataset.qrow, r.querySelector('[data-qto]').innerText.trim()]))");
-check("ปลายทางรายแถว Monkey's Audio · Opus · Monkey's Audio · FLAC · WavPack · Monkey's Audio · TAK",targets["ยาว 30 นาที.wav"] === "Monkey's Audio Insane" && targets["เพลงทดสอบ 96k.flac"].startsWith("Opus 160") && targets["เพลงทดสอบ.wav"] === "Monkey's Audio High"
-  && targets["เพลงทดสอบ.mp3"] === "FLAC Level 8" && targets["พากย์ไทย 5.1.ac3"] === "WavPack Normal" && targets["เพลงทดสอบ 96k สำเนา.flac"] === "Monkey's Audio Normal" && targets["เพลงทดสอบ 96k TAK.flac"] === "TAK -p4m", JSON.stringify(targets));
+const targets = await q("return Object.fromEntries([...document.querySelectorAll('[data-qrow]')].map(r => [r.dataset.qrow, r.querySelector('.dd').innerText.trim()]))");
+check("ปลายทางรายแถว Monkey's Audio · Opus · Monkey's Audio · FLAC · WavPack · Monkey's Audio · TAK",/Monkey's Audio.*Insane/.test(targets["ยาว 30 นาที.wav"]) && /^Opus.*160/.test(targets["เพลงทดสอบ 96k.flac"]) && /Monkey's Audio.*High/.test(targets["เพลงทดสอบ.wav"])
+  && /FLAC.*Level 8/.test(targets["เพลงทดสอบ.mp3"]) && /WavPack.*Normal/.test(targets["พากย์ไทย 5.1.ac3"]) && /Monkey's Audio.*Normal/.test(targets["เพลงทดสอบ 96k สำเนา.flac"]) && /TAK.*-p4m/.test(targets["เพลงทดสอบ 96k TAK.flac"]), JSON.stringify(targets));
 await shot("23-คิวแปลงก่อนเริ่ม.png", "[data-convert]", 4);
 
 /* ---------- 5 ที่ว่างไม่พอ ไม่เริ่ม ---------- */
@@ -309,7 +309,7 @@ const lanes0 = await q("return document.querySelectorAll('[data-cmpview] .lane')
 await c.click(".apanel svg.spk g.s");
 await sleep(400);
 const lanes1 = await q("return document.querySelectorAll('[data-cmpview] .lane').length");
-check("กดลำโพงซ่อนช่อง ซ่อนทั้งสองไฟล์พร้อมกัน แถบลด 2 แถบ", lanes0 === 4 && lanes1 === 2, `${lanes0} → ${lanes1}`);
+check("กดลำโพงปิดช่อง ปิดทั้งสองไฟล์พร้อมกัน แถบอยู่ครบ ขึ้นปิดลำโพง 2 แถบ", lanes0 === 4 && (await q("return document.querySelectorAll('[data-cmpview] .lane[data-off]').length")) === 2 && lanes1 === 4, `${lanes0} → ${lanes1}`);
 await c.click('[data-cmpzoom="30"]');
 await sleep(500);
 const head = await q("return document.querySelector('[data-cmpview] .plothead').innerText");
@@ -320,6 +320,7 @@ check("กดคิวแปลง กลับหน้าคิว แถว�
 
 /* ---------- 10 เปลี่ยนหน้าแล้วคิวไม่หาย · ตั้งค่าตัวแปลง ---------- */
 await clickText(".side .nav", "ตั้งค่า");
+await c.setNav("encoders");
 await waitFor("return !!document.querySelector('[data-setcard=encoders] [data-enc]')", 20000);
 await waitFor("return [...document.querySelectorAll('[data-setcard=encoders] [data-enc]')].length >= 9", 20000);
 const enc = await q("return [...document.querySelectorAll('[data-setcard=encoders] [data-enc]')].map(r => r.innerText.replace(/\\s+/g, ' ')).join(' | ')");

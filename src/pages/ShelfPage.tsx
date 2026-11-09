@@ -8,12 +8,13 @@ import type { Page } from "../components/Sidebar";
 import SearchBox from "../components/SearchBox";
 import RenameBox from "../components/RenameBox";
 import Dropdown from "../components/Dropdown";
-import { Badge, CardIcon, Phr, Phrases, Seg, Skel, SortArrow, Switch } from "../components/ui";
+import { Badge, CardIcon, Keep, Phr, Phrases, Seg, Skel, SortArrow, Switch } from "../components/ui";
 import Dialog from "../components/Dialog";
 import { IcLink, IcCoverL, IcCoverM, IcCoverS, IcTall, IcWide } from "../components/icons";
 import { openLinkRow, setLinkJob, setReply, useLinkJob } from "../lib/linkJob";
 import type { PosterStart } from "./PosterPage";
 import { useToast } from "../components/Toasts";
+import { useMovieFrame } from "../lib/frames";
 import { api, linkApi, thumbUrl, type Geometry, type LinkedCover, type Movie, pairApi, pickAddFiles, type Pair, type PairPlay } from "../lib/api";
 import { langName } from "../lib/langs";
 import { useLibrary } from "../lib/library";
@@ -192,15 +193,15 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
             <SkeletonShelf size={size} />
           ) : view === "grid" ? (
             <ShelfGrid list={list} size={size} selId={selected?.id ?? null} onSel={(id) => setSel(selected?.id === id ? null : id)} used={found.used} reminder={reminder}
-              showNames={settings?.showNames ?? true} showDots={settings?.showDots ?? true}
+              showNames={settings?.showNames ?? true} showDots={settings?.showDots ?? true} showFrames={settings?.showFrames ?? false}
               pending={scanning && !query && progress ? Math.max(0, progress.total - movies.length) : 0} />
           ) : (
-            <ShelfTable list={list} selId={selected?.id ?? null} onSel={(id) => setSel(selected?.id === id ? null : id)} used={found.used} reminder={reminder} />
+            <ShelfTable list={list} selId={selected?.id ?? null} onSel={(id) => setSel(selected?.id === id ? null : id)} used={found.used} reminder={reminder} showFrames={settings?.showFrames ?? false} />
           )}
         </div>
         {/* key ต่อเรื่อง สลับเรื่องแล้วสร้างแผงกับปุ่มใหม่ ไม่ใช้ปุ่มเดิมซ้ำ (เดิมปุ่มชมพูค่อย ๆ เปลี่ยนเป็นเขียวตอนสลับเรื่อง) */}
         {selected && (
-          <Detail key={selected.id} m={selected} scanning={scanning} reminder={reminder} onPage={onPage} onCheck={onCheck} onGraph={onGraph} onAv={onAv} onPoster={onPoster} onMerge={onMerge} onInfo={() => onInfo(selected.id)} onClose={() => setSel(null)}
+          <Detail key={selected.id} m={selected} showFrames={settings?.showFrames ?? false} scanning={scanning} reminder={reminder} onPage={onPage} onCheck={onCheck} onGraph={onGraph} onAv={onAv} onPoster={onPoster} onMerge={onMerge} onInfo={() => onInfo(selected.id)} onClose={() => setSel(null)}
             onPlay={() => api.playMovie(selected.path).catch((e) => {
               toast({ kind: "bad", title: "เปิดเล่นไม่ได้", detail: String(e) });
               // โปรแกรมเล่นที่เลือกเองหาไม่เจอ พากลับไปตั้งที่หน้าตั้งค่า (สเปกข้อ 9 *"หาไม่เจอวันหลัง กดเปิดเล่นแล้วบอก และพากลับมาตั้ง"*)
@@ -238,8 +239,9 @@ function DisplayMenu() {
       </button>
       {open && settings && (
         <div ref={panel} className="menu pop-in" role="dialog" aria-label="การแสดงผล"
-          style={{ position: "absolute", right: 0, width: 250, padding: "6px 14px", zIndex: "var(--z-menu)" as unknown as number, ...dropStyle(place) }}>
+          style={{ position: "absolute", right: 0, width: 320, padding: "6px 14px", zIndex: "var(--z-menu)" as unknown as number, ...dropStyle(place) }}>
           <div className="setrow" style={{ borderTop: 0 }}><div className="lbl">ชื่อไฟล์ใต้ปก</div><Switch on={settings.showNames} onChange={(v) => update({ showNames: v })} label="ชื่อไฟล์ใต้ปก" /></div>
+          <div className="setrow"><div className="lbl">ภาพจากหนังในเรื่องที่ยังไม่มีปก<span className="small">เปิด เห็นภาพสุ่มจากหนัง · ปิด เห็นแถบทะแยง · ไม่เขียนลงไฟล์หนัง</span></div><span data-showframes style={{ display: "inline-flex" }}><Switch on={settings.showFrames} onChange={(v) => update({ showFrames: v })} label="ภาพจากหนังในเรื่องที่ยังไม่มีปก" /></span></div>
           <div className="setrow"><div className="lbl">จุดสีบอกสภาพไฟล์</div><Switch on={settings.showDots} onChange={(v) => update({ showDots: v })} label="จุดสีบอกสภาพไฟล์" /></div>
         </div>
       )}
@@ -300,7 +302,7 @@ function packRows(items: (Movie | null)[], avail: number, bw: number, gap: numbe
 }
 
 /** pending = เรื่องที่เจอในโฟลเดอร์แต่ยังอ่านไม่เสร็จ · ขึ้นเป็นโครงจางต่อท้ายชั้น เต็มแถวที่ค้างกับอีกหนึ่งแถว (ไม่วาดครบทุกเรื่อง ชั้น 500 เรื่องจะหนัก) */
-function ShelfGrid(p: { list: Movie[]; size: "s" | "m" | "l"; selId: string | null; onSel: (id: string) => void; used: string; reminder: number; showNames: boolean; showDots: boolean; pending: number }) {
+function ShelfGrid(p: { list: Movie[]; size: "s" | "m" | "l"; selId: string | null; onSel: (id: string) => void; used: string; reminder: number; showNames: boolean; showDots: boolean; showFrames: boolean; pending: number }) {
   const { ref, w, perRow } = usePerRow(p.size);
   const { w: base, gap } = SIZES[p.size];
   const skel = Math.min(p.pending, ((perRow - (p.list.length % perRow)) % perRow) + perRow);
@@ -317,7 +319,7 @@ function ShelfGrid(p: { list: Movie[]; size: "s" | "m" | "l"; selId: string | nu
       {rows.map((row, i) => (
         <div key={i} className="shelf" style={i < rows.length - 1 ? { justifyContent: "space-between" } : undefined}>
           {row.map((m, j) => m
-            ? <Book key={m.id} m={m} width={bookWidth(m, bw)} sel={m.id === p.selId} onSel={p.onSel} used={p.used} reminder={p.reminder} showNames={p.showNames} showDots={p.showDots} />
+            ? <Book key={m.id} m={m} width={bookWidth(m, bw)} sel={m.id === p.selId} onSel={p.onSel} used={p.used} reminder={p.reminder} showNames={p.showNames} showDots={p.showDots} showFrames={p.showFrames} />
             : <SkelBook key={"skel" + j} size={p.size} i={j} />)}
         </div>
       ))}
@@ -335,12 +337,13 @@ function SkelBook({ size, i }: { size: "s" | "m" | "l"; i: number }) {
   );
 }
 
-function Book(p: { m: Movie; width: number; sel: boolean; onSel: (id: string) => void; used: string; reminder: number; showNames: boolean; showDots: boolean }) {
+function Book(p: { m: Movie; width: number; sel: boolean; onSel: (id: string) => void; used: string; reminder: number; showNames: boolean; showDots: boolean; showFrames: boolean }) {
   const { m } = p;
   const k = kindOf(m, p.reminder);
   const src = thumbUrl(m.thumb);
   const full = m.name + (m.ext === "mkv" ? "" : "." + m.ext);
   const wide = src != null && (m.coverAspect ?? 0) >= 1;
+  const frame = useMovieFrame(m, p.showFrames && !src);
   return (
     <div
       className={"book" + (wide ? " wide" : "") + (p.sel ? " sel" : "") + (m.missing ? " missing" : "")}
@@ -354,8 +357,10 @@ function Book(p: { m: Movie; width: number; sel: boolean; onSel: (id: string) =>
       {(m.pairs?.length ?? 0) > 0 && <span className="pairdot" title="จับคู่เสียงหรือซับไว้" aria-label="จับคู่เสียงหรือซับไว้" data-pairdot />}
       {src ? (
         <div className="cover has-img"><img src={src} alt="" loading="lazy" draggable={false} /></div>
+      ) : frame.url ? (
+        <div className="cover has-img" title="ภาพจากหนัง ยังไม่ใช่ปก" data-frame><img src={thumbUrl(frame.url) ?? undefined} alt="" draggable={false} /></div>
       ) : (
-        <div className="cover none">
+        <div ref={frame.ref} className="cover none">
           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#c99aad" strokeWidth="2" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 15l3-3 2 2 3-3 2 2" /></svg>
           ยังไม่มีโปสเตอร์
         </div>
@@ -386,7 +391,13 @@ function SkeletonShelf({ size }: { size: "s" | "m" | "l" }) {
 
 /* ---------- มุมมองตาราง (ต้นแบบบรรทัด 510–557) ---------- */
 type Col = "name" | "size" | "video" | "audio" | "status";
-function ShelfTable(p: { list: Movie[]; selId: string | null; onSel: (id: string) => void; used: string; reminder: number }) {
+/** รูปย่อในตาราง เรื่องที่ไม่มีปกเป็นแถบทะแยง หรือภาพจากหนังเมื่อเปิดไว้ */
+function NoCoverTh({ m, on }: { m: Movie; on: boolean }) {
+  const frame = useMovieFrame(m, on);
+  return frame.url ? <img className="th" src={thumbUrl(frame.url) ?? undefined} alt="" title="ภาพจากหนัง ยังไม่ใช่ปก" data-frame /> : <span ref={frame.ref} className="th none" />;
+}
+
+function ShelfTable(p: { list: Movie[]; selId: string | null; onSel: (id: string) => void; used: string; reminder: number; showFrames: boolean }) {
   const [sort, setSort] = useState<{ col: Col; dir: 1 | -1 } | null>(null);
   const rows = useMemo(() => {
     if (!sort) return p.list;
@@ -422,7 +433,7 @@ function ShelfTable(p: { list: Movie[]; selId: string | null; onSel: (id: string
             const src = thumbUrl(m.thumb);
             return (
               <tr key={m.id} className={(m.id === p.selId ? "sel" : "") + (m.missing ? " missing" : "")} {...kb(() => p.onSel(m.id))} aria-selected={m.id === p.selId}>
-                <td>{src ? <img className={"th" + ((m.coverAspect ?? 0) >= 1 ? " wide" : "")} src={src} alt="" loading="lazy" /> : <span className="th none" />}</td>
+                <td>{src ? <img className={"th" + ((m.coverAspect ?? 0) >= 1 ? " wide" : "")} src={src} alt="" loading="lazy" /> : <NoCoverTh m={m} on={p.showFrames} />}</td>
                 <td><Hl text={m.name + "." + m.ext} used={p.used} head={m.shownLink ? <LinkMark /> : undefined} /></td>
                 <td><span className="nw">{fmtSize(m.size)}</span></td>
                 <td>{m.videoShort ?? "—"}</td>
@@ -438,11 +449,12 @@ function ShelfTable(p: { list: Movie[]; selId: string | null; onSel: (id: string
 }
 
 /* ---------- แผงรายละเอียด (ต้นแบบบรรทัด 388–426) ---------- */
-function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg: Page) => void; onCheck: (r: CheckReq) => void; onGraph: (path: string) => void; onAv: (path: string) => void; onPoster: (path: string) => void; onMerge: (path: string, image: PosterStart) => void; onInfo: () => void; onPlay: () => void; onReveal: () => void; onClose: () => void }) {
+function Detail(p: { m: Movie; showFrames: boolean; scanning: boolean; reminder: number; onPage: (pg: Page) => void; onCheck: (r: CheckReq) => void; onGraph: (path: string) => void; onAv: (path: string) => void; onPoster: (path: string) => void; onMerge: (path: string, image: PosterStart) => void; onInfo: () => void; onPlay: () => void; onReveal: () => void; onClose: () => void }) {
   const { m } = p;
   const src = thumbUrl(m.thumb);
   const [imgOk, setImgOk] = useState(true);
   useEffect(() => setImgOk(true), [src]);
+  const frame = useMovieFrame(m, p.showFrames && !src);
   // เปลี่ยนชื่อ (สเปกข้อ 2) · ⑤ สำเร็จ การ์ดเขียวหายเองใน 3 วินาที
   const [editing, setEditing] = useState(false);
   const [renamed, setRenamed] = useState(false);
@@ -461,8 +473,10 @@ function Detail(p: { m: Movie; scanning: boolean; reminder: number; onPage: (pg:
       </div>
       {src && imgOk ? (
         <HoverBig noPop className="dpbig" src={src} name={m.name} view={linkedView}><img className={"dposter" + ((m.coverAspect ?? 0) >= 1 ? " wide" : "")} src={src} alt={"โปสเตอร์ " + m.name} onError={() => setImgOk(false)} /></HoverBig>
+      ) : frame.url ? (
+        <div data-frame><img className="dposter wide" src={thumbUrl(frame.url) ?? undefined} alt="" /><div className="small" style={{ textAlign: "center", marginTop: 6 }}>ภาพจากหนัง ยังไม่ใช่ปก</div></div>
       ) : (
-        <div className="dposter none">
+        <div ref={frame.ref} className="dposter none">
           <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#c99aad" strokeWidth="2" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 15l3-3 2 2 3-3 2 2" /></svg>
           ยังไม่มีโปสเตอร์
         </div>
@@ -615,7 +629,7 @@ function LinkCard({ m, onPage, onMerge }: { m: Movie; onPage: (pg: Page) => void
       <Dialog open={ask} onClose={() => { if (!busy) setAsk(false); }} kind="work" confirm title={<>เอาปกจับคู่ของ {m.name} ออก</>}
         actions={<>
           <button type="button" className="btn btn-ghost" onClick={() => { if (!busy) setAsk(false); }}>ไม่เอาออก</button>
-          <button type="button" className={"btn " + (busy ? "btn-wait" : "btn-bad")} aria-disabled={busy || undefined} data-link-remove-ok onClick={remove}><IbTrash size={15} />{busy ? "กำลังเอาออก…" : "เอาปกออก"}</button>
+          <button type="button" className={"btn " + (busy ? "btn-wait" : "btn-bad")} aria-disabled={busy || undefined} data-link-remove-ok onClick={remove}><Keep icon={<IbTrash size={15} />} all={["กำลังเอาออก…", "เอาปกออก"]}>{busy ? "กำลังเอาออก…" : "เอาปกออก"}</Keep></button>
         </>}>
         <div className="small" style={{ fontSize: 14, color: "var(--txt2)" }}>
           {trash.length > 0 && <div style={{ overflowWrap: "anywhere" }}>รูปที่โปรแกรมคัดลอกไว้ {trash.join(" · ")} ย้ายลงถังขยะ กู้คืนได้</div>}

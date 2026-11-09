@@ -7,7 +7,7 @@ import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { api, inApp } from "../lib/api";
 import { runConfirm, useLinkJob } from "../lib/linkJob";
-import { CardIcon } from "./ui";
+import { CardIcon, Keep } from "./ui";
 import Dialog from "./Dialog";
 import { IbStop } from "./icons";
 
@@ -84,12 +84,12 @@ export default function CloseGuard({ onGoLink }: { onGoLink: () => void }) {
         width={560}
         title={<span data-closepairs>ยังไม่ได้ยืนยัน <span className="nw">{waiting} คู่</span></span>}
         actions={saving ? (
-          <button type="button" className="btn btn-wait" aria-disabled="true" data-closepairs-saving>{prog ? `กำลังยืนยัน ${prog.done} จาก ${prog.total} คู่…` : "กำลังยืนยัน…"}</button>
+          <button type="button" className="btn btn-wait" aria-disabled="true" data-closepairs-saving><Keep all={["กำลังยืนยัน 000 จาก 000 คู่…", "ยืนยัน 000 คู่ที่ติ๊กแล้วปิด"]}>{prog ? `กำลังยืนยัน ${prog.done} จาก ${prog.total} คู่…` : "กำลังยืนยัน…"}</Keep></button>
         ) : (
           <>
             <button type="button" className="btn btn-ghost" data-closepairs-skip onClick={() => { setPairs(false); closeNow(); }}>ปิดโดยไม่ยืนยัน</button>
             <button type="button" className="btn btn-ghost" data-closepairs-back onClick={() => { setPairs(false); onGoLink(); }}>กลับไปดูก่อน</button>
-            <button type="button" className={"btn " + (ticked ? "btn-main" : "btn-wait")} aria-disabled={!ticked || undefined} title={ticked ? undefined : "ยังไม่ได้ติ๊กคู่ไหน"} data-closepairs-ok onClick={confirmAndClose}>{`ยืนยัน ${ticked} คู่ที่ติ๊กแล้วปิด`}</button>
+            <button type="button" className={"btn " + (ticked ? "btn-main" : "btn-wait")} aria-disabled={!ticked || undefined} title={ticked ? undefined : "ยังไม่ได้ติ๊กคู่ไหน"} data-closepairs-ok onClick={confirmAndClose}><Keep all={["กำลังยืนยัน 000 จาก 000 คู่…", "ยืนยัน 000 คู่ที่ติ๊กแล้วปิด"]}>{`ยืนยัน ${ticked} คู่ที่ติ๊กแล้วปิด`}</Keep></button>
           </>
         )}
       >

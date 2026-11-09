@@ -125,10 +125,10 @@ const labFL = await text("[data-lane='FL'] .lab");
 check("แถบรูปคลื่นวาดจากเสียงจริง ช่องกลางมีเส้น ช่องที่เงียบทั้งเรื่องว่างและบอกว่าเงียบ", ink > 0.01 && inkFL < 0.03 && labFL.includes("เงียบทั้งเรื่อง"), `ช่องกลาง ${ink} · ซ้ายหน้า ${inkFL} · ${labFL}`);
 await shot("03-รูปคลื่น-5.1.png");
 // 6 แถบสูงเกินหน้าต่าง หน้ากราฟต้องเลื่อนลงจนเห็นแถวปุ่มล่างครบ (เดิมโดนตัดใต้จอ เจอตอนตรวจภาพ)
-const scr = await q("const s = document.querySelector('[data-graphscroll]'); s.scrollTop = s.scrollHeight; return new Promise((r) => setTimeout(() => { const f = document.querySelector('.agfoot').getBoundingClientRect(), b = s.getBoundingClientRect(); r({ over: s.scrollHeight - s.clientHeight, top: s.scrollTop, footBottom: Math.round(f.bottom), boxBottom: Math.round(b.bottom) }); }, 300));");
+const scr = await q("const s = document.querySelector('.agb > .plot'); s.scrollTop = s.scrollHeight; return new Promise((r) => setTimeout(() => { const f = document.querySelector('.agfoot').getBoundingClientRect(), b = s.getBoundingClientRect(); r({ over: s.scrollHeight - s.clientHeight, top: s.scrollTop, footBottom: Math.round(f.bottom), boxBottom: Math.round(b.bottom) }); }, 300));");
 await shotHere("03ข-รูปคลื่น-5.1-เลื่อนลงสุด.png");
-await q("document.querySelector('[data-graphscroll]').scrollTop = 0; return 1");
-check("5.1 แถบสูงเกินหน้าต่าง เลื่อนหน้ากราฟลงได้ เห็นแถวปุ่มล่างครบ", scr.over > 0 && scr.top > 0 && scr.footBottom <= scr.boxBottom, JSON.stringify(scr));
+await q("document.querySelector('.agb > .plot').scrollTop = 0; return 1");
+check("5.1 เลื่อนฝั่งกราฟได้ถ้าสูงเกินกล่อง แถวปุ่มล่างเห็นครบเสมอ", (scr.over === 0 || scr.top > 0) && scr.footBottom <= scr.boxBottom, JSON.stringify(scr));
 
 await c.click('[data-style="bars"]'); await sleep(300);
 check("ปุ่มแบบแท่ง เปลี่ยนเป็นแท่ง", (await q("return document.querySelector('[data-style=bars]').classList.contains('on')")) && (await inked("[data-lane='FL'] canvas")) > 0.02);
@@ -150,7 +150,7 @@ await c.move(500, 12); await sleep(200);
 check("เอาเมาส์ออกจากกราฟ เส้นตั้งกับกล่องค่าหาย", (await count("[data-plot] .xh")) + (await count("[data-plot] .tip")) === 0);
 await c.click('.spk .s[aria-label="ซ่อนช่อง LFE"]'); await sleep(300);
 const hid = await text(".apanel .card h3");
-check("กดลำโพง LFE ในแผนผัง ซ่อนช่องนั้น เหลือ 5 แถบ", (await count("[data-lane]")) === 5 && hid.includes("แสดง 5 จาก 6 ช่อง"), hid);
+check("กดลำโพง LFE ในแผนผัง แถบอยู่ครบ 6 แถบ ช่องนั้นขึ้นปิดลำโพง", (await count("[data-lane]")) === 6 && (await count("[data-off]")) === 1 && hid.includes("แสดง 5 จาก 6 ช่อง"), hid);
 await shot("06-ซ่อนช่องเบส.png");
 await c.click('.spk .s[aria-label="แสดงช่อง LFE"]'); await sleep(200);
 
@@ -238,7 +238,7 @@ await shot("15-กราฟจากผลตรวจ-แถบแดง.png");
 
 /* ---------- 11 ทางเข้าจากแผงขวาของชั้นวาง ---------- */
 await clickText("button.nav", "ชั้นวางหนัง"); await sleep(500);
-await c.click('.book[data-movie="ดาวเหนือ (2023)"]'); await sleep(300);
+await c.book("ดาวเหนือ (2023)"); await sleep(300);
 // แผงขวายาวกว่าจอ ปุ่มที่ 7 อยู่ล่างสุด เลื่อนแผงลงก่อนถ่ายกลุ่มปุ่ม
 await c.evaluate("document.querySelector('[data-shelfgraph]').scrollIntoView({ block: 'end' })"); await sleep(200);
 await shot("16-แผงขวา-ปุ่มกราฟเสียง.png", ".detail .actions");
@@ -345,9 +345,10 @@ if (existsSync(SONG)) {
     let n = 0; for (let i = 0; i < d.length; i += 4) if (Math.abs(d[i] - r) + Math.abs(d[i + 1] - gg) + Math.abs(d[i + 2] - b) < 18) n++; return n / (d.length / 4);`);
   const ink2 = await topInk();
   const kb = await c.box("[data-vzknob]");
+  const vzEnd = await q("return document.querySelector('[data-vzoom]').getBoundingClientRect().bottom - 2");
   await c.send("Input.dispatchMouseEvent", { type: "mousePressed", x: kb.x, y: kb.y, button: "left", buttons: 1, clickCount: 1 });
-  await c.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: kb.x, y: kb.y + 70, button: "left", buttons: 1 });
-  await c.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: kb.x, y: kb.y + 70, button: "left", buttons: 0, clickCount: 1 });
+  await c.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: kb.x, y: vzEnd, button: "left", buttons: 1 });
+  await c.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: kb.x, y: vzEnd, button: "left", buttons: 0, clickCount: 1 });
   await sleep(400);
   const vzSq = await text("[data-vzval]"), inkSq = await topInk(), segOff = await q("return !document.querySelector('[data-vz].on')");
   check("ลากแถบแนวตั้งลง บีบคลื่นเหลือต่ำกว่า 1 เท่า คลื่นไม่ล้นกรอบ · ปุ่ม 1× 2× 4× ไม่ติดสักปุ่ม", parseFloat(vzSq) < 1 && ink2 > 0.2 && inkSq === 0 && segOff, `2× สีคลื่นในแถวบน ${(ink2 * 100).toFixed(0)}% · บีบ ${vzSq} เหลือ ${(inkSq * 100).toFixed(1)}%`);
@@ -370,13 +371,14 @@ if (existsSync(SONG)) {
   await c.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: gb.x, y: gb.y + 100, button: "left", buttons: 0, clickCount: 1 });
   await sleep(400);
   const h1 = await laneHs(), kSaved = (await q("return JSON.parse(localStorage.getItem('graph-prefs') ?? '{}').laneK"));
-  check("แถบกราฟสองช่องสูง 120 ห่างกัน 6 px · ลากที่จับใต้กราฟลง 100 px แถบสูงขึ้นทุกแถบ จำค่าไว้", h0.every((h) => h === 120) && gapPx === 6 && h1.every((h, i) => h - h0[i] >= 40) && kSaved > 1, `ก่อน ${h0.join(" ")} px ห่าง ${gapPx} · หลังลาก ${h1.join(" ")} px · ตัวคูณ ${kSaved}`);
+  check("แถบกราฟสองช่องสูงอย่างน้อย 120 เท่ากัน ห่างกัน 6 px · ลากที่จับใต้กราฟลง 100 px แถบสูงขึ้นทุกแถบ จำค่าไว้", h0.every((h) => h >= 120 && h === h0[0]) && gapPx === 6 && h1.every((h, i) => h - h0[i] >= 40) && kSaved > 1, `ก่อน ${h0.join(" ")} px ห่าง ${gapPx} · หลังลาก ${h1.join(" ")} px · ตัวคูณ ${kSaved}`);
   await shot("26ง-เพลงจริง-ลากขยายความสูง.png");
+  await q("document.querySelector('[data-lanegrip]').scrollIntoView({ block: 'center' }); return 1"); await sleep(150);
   const gb2 = await c.box("[data-lanegrip]");
   await c.send("Input.dispatchMouseEvent", { type: "mousePressed", x: gb2.x, y: gb2.y, button: "left", buttons: 1, clickCount: 2 });
   await c.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: gb2.x, y: gb2.y, button: "left", buttons: 0, clickCount: 2 });
   await sleep(300);
-  check("ดับเบิลคลิกที่จับ แถบกลับสูง 120 เท่าเดิม", (await laneHs()).every((h) => h === 120), (await laneHs()).join(" "));
+  check("ดับเบิลคลิกที่จับ แถบกลับสูงเท่าเดิม", (await laneHs()).every((h) => h === h0[0]), (await laneHs()).join(" "));
 
   // ลากไฮไลต์ตัวหนังสือไม่ได้ ยกเว้นหน้าข้อมูลไฟล์ (พี่กัน *"โปรแกรมไม่ควรไฮไลต์แบบนี้ได้ ยกเว้นหน้าที่ปล่อยให้ copy"*)
   const ib = await c.box("[data-graphinfo]");

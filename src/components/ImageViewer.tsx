@@ -4,6 +4,7 @@
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { useEscClose } from "../lib/popup";
+import { Keep } from "./ui";
 
 type IconProps = { size?: number; style?: React.CSSProperties };
 const mk = (body: React.ReactNode) => ({ size = 16, style }: IconProps) => (
@@ -558,7 +559,7 @@ export default function ImageViewer({
             style={vertical
               ? { ...bar, fontSize: '11px', fontWeight: 800, letterSpacing: '-0.3px' }
               : { ...bar, width: 'auto', padding: '0 12px', fontSize: '13px', fontWeight: 700, gap: '6px' }}>
-            {vertical ? `${pct}%` : <>{pct}% <ChevronDown size={12} /></>}
+            {vertical ? <Keep all={["000%"]}>{pct}%</Keep> : <><Keep all={["000%"]}>{pct}%</Keep> <ChevronDown size={12} /></>}
           </button>
           {zoomMenu && (
             <div style={{ position: 'absolute', ...menuAnchor, background: C.panel, borderRadius: '10px', padding: '6px', boxShadow: '0 10px 30px rgba(0,0,0,0.5)', display: 'flex', flexDirection: 'column', minWidth: '92px' }}>

@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import "../styles/av.css";
 import CodecPanel, { presetSpec } from "./CodecPanel";
 import Dropdown from "./Dropdown";
-import { CardIcon, Phr, Seg, Skel } from "./ui";
+import { CardIcon, Keep, Phr, Seg, Skel } from "./ui";
 import { encodeApi, pickAudioFiles, pickFolder, type AudioFile, type EncodeSpec, type EncoderInfo, type MergeTrack } from "../lib/api";
 import { addFiles, clearDone, removeItem, retry, setAll, setItemSpec, setOutDir, startQueue, stopQueue, useConvQueue, type QItem } from "../lib/convertJob";
 import { CODECS, codecOf } from "../lib/codecs";
@@ -165,11 +165,11 @@ export default function ConvertPane(p: { onCompare: (a: string, b: string, note:
       <div className="cqfoot">
         <div className="cqfoot-l">{done > 0 && !q.running && <button type="button" className="btn btn-ghost" onClick={clearDone} data-qclear><IbTrash size={15} />เอาไฟล์ที่เสร็จออกจากคิว</button>}</div>
         <div className="cqfoot-r">
-        {q.running && <button type="button" className="btn btn-bad" onClick={stopQueue} aria-disabled={q.stopping || undefined} data-qstop><IbStop size={15} />{q.stopping ? "กำลังหยุด…" : "หยุดทั้งคิว"}</button>}
+        {q.running && <button type="button" className="btn btn-bad" onClick={stopQueue} aria-disabled={q.stopping || undefined} data-qstop><Keep icon={<IbStop size={15} />} all={["กำลังหยุด…", "หยุดทั้งคิว"]}>{q.stopping ? "กำลังหยุด…" : "หยุดทั้งคิว"}</Keep></button>}
         {q.running
-          ? <button type="button" className="btn btn-wait" style={{ padding: "0 26px" }} aria-disabled data-qstart>กำลังแปลง {done + 1} จาก {done + work + wait}…</button>
+          ? <button type="button" className="btn btn-wait" style={{ padding: "0 26px" }} aria-disabled data-qstart><Keep icon={<IcMix size={15} />} all={["กำลังแปลง 000 จาก 000…", "แปลง 000 ไฟล์"]}>กำลังแปลง {done + 1} จาก {done + work + wait}…</Keep></button>
           : <button type="button" className={"btn " + (wait ? "btn-main" : "btn-wait")} style={{ padding: "0 26px" }} aria-disabled={!wait || undefined}
-              title={wait ? undefined : n ? "ไม่มีไฟล์ที่รอแปลง" : "ลากไฟล์เสียงมาวางก่อน"} onClick={() => wait && startQueue()} data-qstart><IcMix size={15} />{wait ? `แปลง ${wait} ไฟล์` : "แปลง"}</button>}
+              title={wait ? undefined : n ? "ไม่มีไฟล์ที่รอแปลง" : "ลากไฟล์เสียงมาวางก่อน"} onClick={() => wait && startQueue()} data-qstart><Keep icon={<IcMix size={15} />} all={["กำลังแปลง 000 จาก 000…", "แปลง 000 ไฟล์"]}>{wait ? `แปลง ${wait} ไฟล์` : "แปลง"}</Keep></button>}
         </div>
       </div>
       {panel && (

@@ -4,7 +4,7 @@
    ลองฟัง 20 วินาที ทำไฟล์ชั่วคราวช่วงที่เห็น ภาพจากหนัง เสียงใหม่ใส่ดีเลย์แล้ว เปิดด้วยโปรแกรมเล่นที่ตั้งไว้ · ไฟล์หนังไม่ถูกแก้ */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import Dialog from "./Dialog";
-import { CardIcon, Phr, Range } from "./ui";
+import { CardIcon, Keep, Phr, Range } from "./ui";
 import { delayApi, type DelayFound, type DelayPreview, type DelayView } from "../lib/api";
 import type { AvTrack } from "../lib/avJob";
 import { IcSearch, IbTick, IbPlay } from "./icons";
@@ -136,7 +136,7 @@ export default function DelayDialog(p: {
               setPrev({ busy: true });
               delayApi.preview(p.movie.path, t.src, t.tid, delay, view.at, (window as unknown as { __delayDry?: boolean }).__delayDry)
                 .then((r) => setPrev({ busy: false, r }), (e) => setPrev({ busy: false, err: String(e) }));
-            }} data-delay-play><IbPlay size={15} />{prev.busy ? "กำลังทำไฟล์ลองฟัง…" : "ลองฟัง 20 วินาที"}</button>
+            }} data-delay-play><Keep icon={<IbPlay size={15} />} all={["กำลังทำไฟล์ลองฟัง…", "ลองฟัง 20 วินาที"]}>{prev.busy ? "กำลังทำไฟล์ลองฟัง…" : "ลองฟัง 20 วินาที"}</Keep></button>
         </div>
         <button type="button" className="btn btn-ghost btn-sm" onClick={p.onClose}>ยกเลิก</button>
         <button type="button" className="btn btn-main btn-sm" onClick={() => p.onApply(delay)} data-delay-use><IbTick size={15} />ใช้ค่านี้</button>
