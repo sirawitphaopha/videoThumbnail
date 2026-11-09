@@ -766,6 +766,21 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 /* พี่กันสั่ง 9 พ.ย. 2569 "เอามาต่อกัน icon สองอันนี้" ไอคอนหรือปกกับป้ายนามสกุลติดกันเป็นก้อนเดียว สูงเท่ากัน */
 .rtype { flex: none; display: inline-flex; align-items: stretch; height: 27px; }
 .rtype > .rnote, .rtype > img { border-radius: 3px 0 0 3px !important; }
+/* หน้าขอบคุณ การ์ดเรียงเป็นตาราง พี่กันสั่ง 9 พ.ย. 2569 "ใส่ icon ด้วย และทำเป็นการ์ดหน่อย" */
+.thanksgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; margin: 8px 0 18px; }
+.thankcard { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.thankhead { display: flex; align-items: center; gap: 9px; min-width: 0; font-size: 14px; }
+.thankhead b { font-weight: 600; overflow-wrap: anywhere; }
+.thankicon { flex: none; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; background: color-mix(in srgb, var(--accent) 12%, white); color: var(--accent-ink); }
+.thankicon b { font-size: 16px; }
+.thankicon img { width: 26px; height: 26px; object-fit: contain; display: block; }
+.thankwhat { flex: 1; font-size: 12.5px; line-height: 1.5; color: var(--txt2); }
+.thankfoot { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; min-width: 0; font-size: 11.5px; color: var(--txt3); }
+.thankurl { min-width: 0; overflow-wrap: anywhere; display: flex; flex-wrap: wrap; gap: 0 8px; }
+.thanklink { padding: 0; border: 0; background: none; font: inherit; color: var(--accent-ink); text-align: left; cursor: pointer; overflow-wrap: anywhere; min-width: 0; }
+.thanklink:hover { text-decoration: underline; }
+.thanklink:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+.thanktag { flex: none; max-width: 50%; padding: 1px 7px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 10%, white); color: var(--accent-ink); white-space: nowrap; }
 /* ตั้งค่ารูปกราฟ */
 .imghead { margin: 14px 0 2px; font-size: 14px; font-weight: 700; color: var(--accent-ink); }
 .imgctl { display: inline-flex; align-items: center; gap: 8px; flex: none; }

@@ -257,14 +257,18 @@ enum Scale {
     Log,
 }
 
+/// เท่ากับค่าเดิมตอนอ่าน 16 bit · เสียงแตกที่ 32767/32768 · เงียบต่ำกว่า 10/32768 ราว −70 dBFS
+const CLIP_LEVEL: f32 = 32767.0 / 32768.0;
+const SILENCE_LEVEL: f32 = 10.0 / 32768.0;
+
 struct Analyzer {
     ch: usize,
     rate: u32,
     total: f64,
     frame: u64,
     cols: usize,
-    env_max: Vec<i16>,
-    env_min: Vec<i16>,
+    env_max: Vec<f32>,
+    env_min: Vec<f32>,
     env_sq: Vec<f64>,
     env_n: Vec<u32>,
     // ความถี่
@@ -279,13 +283,13 @@ struct Analyzer {
     spectrum: Spectrum,
     tmp: Vec<f32>,
     // สรุปทั้งเรื่อง
-    peak: Vec<i32>,
+    peak: Vec<f32>,
     sq: Vec<f64>,
     clips: Vec<u32>,
     clip_run: Vec<u32>,
     block: usize,
     block_n: usize,
-    block_max: i32,
+    block_max: f32,
     sil_start: Option<u64>,
     silences: Vec<(u64, u64)>,
 }
@@ -301,36 +305,39 @@ impl Analyzer {
         }
         Analyzer {
             ch, rate, total, frame: 0, cols,
-            env_max: vec![i16::MIN; ch * cols], env_min: vec![i16::MAX; ch * cols], env_sq: vec![0.0; ch * cols], env_n: vec![0; cols],
+            env_max: vec![f32::NEG_INFINITY; ch * cols], env_min: vec![f32::INFINITY; ch * cols], env_sq: vec![0.0; ch * cols], env_n: vec![0; cols],
             n_fft, spec_cols, caps, cap_i: 0,
             ring: vec![vec![0.0; n_fft]; ch], ring_pos: 0,
             acc: vec![vec![0.0; spec_cols * (n_fft / 2)]; ch], acc_n: vec![0; spec_cols],
             spectrum: Spectrum::new(n_fft), tmp: vec![0.0; n_fft],
-            peak: vec![0; ch], sq: vec![0.0; ch], clips: vec![0; ch], clip_run: vec![0; ch],
-            block: (rate as usize / 10).max(1), block_n: 0, block_max: 0, sil_start: None, silences: Vec::new(),
+            peak: vec![0.0; ch], sq: vec![0.0; ch], clips: vec![0; ch], clip_run: vec![0; ch],
+            block: (rate as usize / 10).max(1), block_n: 0, block_max: 0.0, sil_start: None, silences: Vec::new(),
         }
     }
 
-    fn push(&mut self, f: &[i16]) {
+    /// รับเสียงทศนิยมช่วง ±1 · รูปคลื่น ยอด กับนับเสียงแตก ตัดที่ ±1 เหมือนเดิม · ความถี่ใช้ค่าจริง เสียงเบามากในไฟล์ 24 bit จึงไม่หาย (พี่กันสั่ง 9 พ.ย. 2569)
+    fn push(&mut self, f: &[f32]) {
         let c = ((self.frame as f64 * self.cols as f64 / self.total.max(1.0)) as usize).min(self.cols - 1);
-        let mut fmax = 0i32;
-        for (i, &s) in f.iter().enumerate().take(self.ch) {
+        let mut fmax = 0.0f32;
+        for (i, &raw) in f.iter().enumerate().take(self.ch) {
+            let raw = if raw.is_finite() { raw } else { 0.0 };
+            let s = raw.clamp(-1.0, 1.0);
             let k = i * self.cols + c;
             if s > self.env_max[k] { self.env_max[k] = s; }
             if s < self.env_min[k] { self.env_min[k] = s; }
             let x = s as f64;
             self.env_sq[k] += x * x;
             self.sq[i] += x * x;
-            let a = (s as i32).abs();
+            let a = s.abs();
             if a > self.peak[i] { self.peak[i] = a; }
             if a > fmax { fmax = a; }
-            if a >= 32767 {
+            if a >= CLIP_LEVEL {
                 self.clip_run[i] += 1;
                 if self.clip_run[i] == 3 { self.clips[i] += 1; }
             } else {
                 self.clip_run[i] = 0;
             }
-            self.ring[i][self.ring_pos] = s as f32 / 32768.0;
+            self.ring[i][self.ring_pos] = raw;
         }
         self.env_n[c] += 1;
         self.ring_pos = (self.ring_pos + 1) % self.n_fft;
@@ -339,13 +346,13 @@ impl Analyzer {
         self.block_n += 1;
         if self.block_n == self.block {
             let start = self.frame + 1 - self.block as u64;
-            if self.block_max < 10 {
+            if self.block_max < SILENCE_LEVEL {
                 if self.sil_start.is_none() { self.sil_start = Some(start); }
             } else if let Some(s) = self.sil_start.take() {
                 self.silences.push((s, start));
             }
             self.block_n = 0;
-            self.block_max = 0;
+            self.block_max = 0.0;
         }
         self.frame += 1;
         while self.cap_i < self.caps.len() && self.frame >= self.caps[self.cap_i].0 {
@@ -375,9 +382,9 @@ impl Analyzer {
                 if n == 0 {
                     v.extend([0.0, 0.0, 0.0]);
                 } else {
-                    v.push(self.env_max[k] as f32 / 32768.0);
-                    v.push(self.env_min[k] as f32 / 32768.0);
-                    v.push(((self.env_sq[k] / n as f64).sqrt() / 32768.0) as f32);
+                    v.push(self.env_max[k]);
+                    v.push(self.env_min[k]);
+                    v.push((self.env_sq[k] / n as f64).sqrt() as f32);
                 }
             }
             v
@@ -452,7 +459,7 @@ fn after_num(l: &str, key: &str) -> Option<f64> {
 /// เปิด ffmpeg ถอดแทร็ก แล้วป้อนตัวเลขทีละเฟรม (ทุกช่องของเวลาเดียวกัน) · stop คืน true = หยุด · คืน None ถ้าโดนหยุด
 #[allow(clippy::too_many_arguments)]
 fn decode(tools: &Path, path: &Path, track: usize, ch: usize, start: Option<f64>, len: Option<f64>, loudness: bool,
-          feed: &mut dyn FnMut(&[i16]), stop: &dyn Fn() -> bool) -> Result<Option<Run>, String> {
+          feed: &mut dyn FnMut(&[f32]), stop: &dyn Fn() -> bool) -> Result<Option<Run>, String> {
     let mut args: Vec<OsString> = vec!["-nostdin".into(), "-hide_banner".into(), "-nostats".into(), "-v".into(), (if loudness { "info" } else { "error" }).into()];
     if let Some(s) = start { args.extend(["-ss".into(), format!("{s:.3}").into()]); }
     args.extend(["-i".into(), path.into()]);
@@ -460,11 +467,11 @@ fn decode(tools: &Path, path: &Path, track: usize, ch: usize, start: Option<f64>
     if loudness {
         args.extend([
             "-filter_complex".into(), format!("[0:a:{track}]asplit=2[p][l];[l]ebur128=peak=true[e]").into(),
-            "-map".into(), "[p]".into(), "-f".into(), "s16le".into(), "-c:a".into(), "pcm_s16le".into(), "pipe:1".into(),
+            "-map".into(), "[p]".into(), "-f".into(), "f32le".into(), "-c:a".into(), "pcm_f32le".into(), "pipe:1".into(),
             "-map".into(), "[e]".into(), "-f".into(), "null".into(), "-".into(),
         ]);
     } else {
-        args.extend(["-map".into(), format!("0:a:{track}").into(), "-f".into(), "s16le".into(), "-c:a".into(), "pcm_s16le".into(), "pipe:1".into()]);
+        args.extend(["-map".into(), format!("0:a:{track}").into(), "-f".into(), "f32le".into(), "-c:a".into(), "pcm_f32le".into(), "pipe:1".into()]);
     }
     let mut child = crate::tools::tool_command(tools, "ffmpeg", &args).stdout(Stdio::piped()).stderr(Stdio::piped())
         .spawn().map_err(|e| format!("เรียก ffmpeg ไม่ได้: {e}"))?;
@@ -497,8 +504,8 @@ fn decode(tools: &Path, path: &Path, track: usize, ch: usize, start: Option<f64>
     let mut out = child.stdout.take().unwrap();
     let mut buf = vec![0u8; 1 << 16];
     let mut carry: Vec<u8> = Vec::new();
-    let frame_bytes = ch * 2;
-    let mut frame = vec![0i16; ch];
+    let frame_bytes = ch * 4;
+    let mut frame = vec![0f32; ch];
     let mut stopped = false;
     loop {
         if stop() { stopped = true; let _ = child.kill(); break; }
@@ -506,7 +513,7 @@ fn decode(tools: &Path, path: &Path, track: usize, ch: usize, start: Option<f64>
         carry.extend_from_slice(&buf[..n]);
         let whole = carry.len() / frame_bytes * frame_bytes;
         for fb in carry[..whole].chunks_exact(frame_bytes) {
-            for (i, s) in frame.iter_mut().enumerate() { *s = i16::from_le_bytes([fb[i * 2], fb[i * 2 + 1]]); }
+            for (i, s) in frame.iter_mut().enumerate() { *s = f32::from_le_bytes([fb[i * 4], fb[i * 4 + 1], fb[i * 4 + 2], fb[i * 4 + 3]]); }
             feed(&frame);
         }
         carry.drain(..whole);
@@ -584,7 +591,7 @@ fn cache_key(path: &Path, track: usize) -> String {
    เดิมจำไว้ในหน่วยความจำอย่างเดียว ปิดโปรแกรมแล้วต้องอ่านใหม่ (หนัง 20 นาที 5.1 ราว 14 วินาที)
    ไฟล์ละหนึ่งไฟล์ในโฟลเดอร์ graphcache ของโปรแกรม ชื่อจาก hash ของที่อยู่ แทร็ก ขนาด เวลาแก้ไฟล์ · ไฟล์หนังเปลี่ยนแล้วชื่อไม่ตรง ไม่ใช้ผลเก่า
    รวมกันเกิน 300 MB ลบอันที่ไม่ได้ใช้นานที่สุดก่อน · หน้าตั้งค่าบอกขนาดและล้างได้ */
-const CACHE_VER: u32 = 1;
+const CACHE_VER: u32 = 2;
 const CACHE_LIMIT: u64 = 300 * 1024 * 1024;
 
 #[derive(Serialize, Deserialize)]
@@ -682,7 +689,7 @@ pub fn graph_dev_forget() {
 }
 
 fn rms_db(sq: f64, n: u64) -> f32 {
-    if n == 0 || sq <= 0.0 { -120.0 } else { (20.0 * ((sq / n as f64).sqrt() / 32768.0).log10()) as f32 }
+    if n == 0 || sq <= 0.0 { -120.0 } else { (20.0 * (sq / n as f64).sqrt().log10()) as f32 }
 }
 
 /// อ่านทั้งไฟล์ครั้งเดียว · on ได้ 0–100
@@ -692,7 +699,7 @@ pub fn overview(tools: &Path, path: &Path, track: &GTrack, duration: f64, on: &d
     let (cols, spec_cols, spec_bins) = (1200usize, 800usize, 256usize);
     let mut an = Analyzer::new(ch, track.rate, total, cols, 1024, spec_cols, 4);
     let mut last = Instant::now();
-    let mut feed = |f: &[i16]| {
+    let mut feed = |f: &[f32]| {
         an.push(f);
         if an.frame % 4096 == 0 && last.elapsed() >= Duration::from_millis(100) {
             on((an.frame as f64 / total * 100.0).min(99.0));
@@ -729,7 +736,7 @@ pub fn overview(tools: &Path, path: &Path, track: &GTrack, duration: f64, on: &d
         integrated: run.integrated,
         lra: run.lra,
         true_peak: run.true_peak,
-        peaks: an.peak.iter().map(|&p| if p == 0 { -120.0 } else { (20.0 * (p as f64 / 32768.0).log10()) as f32 }).collect(),
+        peaks: an.peak.iter().map(|&p| if p <= 0.0 { -120.0 } else { (20.0 * (p as f64).log10()) as f32 }).collect(),
         rms: an.sq.iter().map(|&s| rms_db(s, an.frame)).collect(),
         clips: an.clips.clone(),
         silences: an.silences(0.0),
@@ -752,7 +759,7 @@ pub fn window_read(tools: &Path, path: &Path, track: &GTrack, t0: f64, t1: f64, 
     // ครอบทุกช่วงเมื่อคอลัมน์ยาวกว่าหน้าต่าง FFT · เพดาน 64 กันไฟล์ยาวหลายชั่วโมงกินเวลาเกิน
     let per_col = if full { ((total / spec_cols as f64 / n_fft as f64).ceil() as usize).clamp(3, 64) } else { 3 };
     let mut an = Analyzer::new(ch, track.rate, total, cols, n_fft, spec_cols, per_col);
-    let mut feed = |f: &[i16]| an.push(f);
+    let mut feed = |f: &[f32]| an.push(f);
     let Some(_) = decode(tools, path, track.index, ch, Some(t0.max(0.0)), Some(len), false, &mut feed, stop)? else { return Ok(None) };
     Ok(Some(Window { t0, t1, cols, env: an.env(), bins, spec: an.spec(if log { Scale::Log } else { Scale::Lin }, bins, None) }))
 }
@@ -780,8 +787,8 @@ pub fn psd(tools: &Path, path: &Path, track: &GTrack, t0: f64, t1: f64, series: 
     let mut acc = vec![vec![0.0f32; size / 2]; series.len() + if ms.is_some() { 2 } else { 0 }];
     let mut count = 0u32;
     let mut hop_i = 0u64;
-    let mut feed = |f: &[i16]| {
-        for i in 0..ch { ring[i][pos] = f[i] as f32 / 32768.0; }
+    let mut feed = |f: &[f32]| {
+        for i in 0..ch { ring[i][pos] = if f[i].is_finite() { f[i] } else { 0.0 }; }
         pos = (pos + 1) % size;
         frame += 1;
         if frame as usize >= size && frame % hop as u64 == 0 {
@@ -1078,6 +1085,25 @@ mod tests {
         let df = 48000.0 / 4096.0;
         let (imax, _) = p.db[0].iter().enumerate().fold((0, -999.0f32), |m, (i, &v)| if v > m.1 { (i, v) } else { m });
         assert!(((imax as f64 * df) - 1000.0).abs() < df * 1.5, "ยอดอยู่ที่ {} Hz", imax as f64 * df);
+    }
+
+    /// ไฟล์ 24 bit เสียงเบามาก −110 dB ต้องเห็นยอดที่ความถี่นั้น · ตอนอ่าน 16 bit ค่านี้ถูกปัดเป็นศูนย์จนหาย
+    #[test]
+    fn quiet_24bit_tone_is_not_lost() {
+        let dir = std::env::temp_dir().join(format!("ชั้นหนังกราฟ24-{}", std::process::id()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let f = dir.join("เบามาก.flac");
+        let out = crate::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "aevalsrc=3.16e-6*sin(2*PI*1000*t):s=48000:d=3", "-c:a", "flac", "-sample_fmt", "s32", "-bits_per_raw_sample", "24", f.to_str().unwrap()]).unwrap();
+        assert!(out.status.success());
+        let g = info(&tools(), &f).unwrap();
+        let p = psd(&tools(), &f, &g.tracks[0], 0.5, 2.5, &[vec![0]], None, 4096, &|| false).unwrap().unwrap();
+        let o = overview(&tools(), &f, &g.tracks[0], g.duration, &|_| {}, &|| false).unwrap().unwrap();
+        let _ = std::fs::remove_dir_all(&dir);
+        let df = 48000.0 / 4096.0;
+        let (imax, vmax) = p.db[0].iter().enumerate().fold((0, -999.0f32), |m, (i, &v)| if v > m.1 { (i, v) } else { m });
+        assert!(((imax as f64 * df) - 1000.0).abs() < df * 1.5, "ยอดอยู่ที่ {} Hz", imax as f64 * df);
+        assert!(vmax > -135.0, "ยอด {vmax} dB");
+        assert!(o.peaks[0] > -115.0 && o.peaks[0] < -105.0, "ยอดรวม {:?}", o.peaks);
     }
 
     /// เก็บผลลงเครื่องแล้วอ่านกลับได้ตรง · ชื่อไม่ตรง (ไฟล์เปลี่ยน) ไม่ใช้ผลเก่า · รวมเกินขนาด ลบอันเก่าสุดก่อน

@@ -185,6 +185,7 @@ export const encodeApi = {
   latest: () => call<LatestInfo[]>("encoders_latest"),
   /** เปิดหน้าโหลดของตัวแปลง · ที่อยู่ตายตัวฝั่ง Rust */
   openPage: (name: string) => call<void>("encoders_open_page", { name }),
+  thanksOpen: (link: string) => call<void>("thanks_open", { link }),
 };
 /** ผลเช็กรุ่นล่าสุด · state ok ตรงกับล่าสุด · new มีรุ่นใหม่ · ahead ที่ใช้อยู่ใหม่กว่าหน้าเว็บ · missing ยังไม่ได้ใส่ · error เช็กไม่ได้ */
 export type LatestInfo = { name: string; installed: string | null; latest: string | null; state: "ok" | "new" | "ahead" | "missing" | "error"; from: string; error: string | null };
@@ -390,6 +391,13 @@ export type GProgress = { path: string; track: number; percent: number };
 export type GraphImg = { width: number; format: "png" | "jpg" | "webp" | "heic" | "tiff"; bits: 8 | 16; gray: boolean; dpi: number; quality: number; subsampling: "444" | "420"; compress: "fast" | "default" | "best"; title: boolean; nameGraph: boolean; dirMode: "beside" | "folder"; dir: string; ask: boolean };
 export const GRAPH_IMG_DEFAULT: GraphImg = { width: 2560, format: "png", bits: 8, gray: false, dpi: 300, quality: 92, subsampling: "444", compress: "default", title: true, nameGraph: true, dirMode: "beside", dir: "", ask: true };
 export type SavedImg = { path: string; size: number; width: number; height: number };
+/** หน้าบิตเรตวิดีโอ แบบ Bitrate Viewer */
+export type BrInfo = { run: number; duration: number; size: number; codec: string; tag: string; profile: string; width: number; height: number; fps: number; video: number; audio: number };
+export const bitrateApi = {
+  start: (path: string) => call<BrInfo>("bitrate_start", { path }),
+  stop: () => call<void>("bitrate_stop"),
+};
+
 export const graphApi = {
   saveImage: (path: string, b64: string, opt: GraphImg) => call<SavedImg>("graph_save_image", { path, b64, opt }),
   info: (path: string) => call<GInfo>("graph_info", { path }),

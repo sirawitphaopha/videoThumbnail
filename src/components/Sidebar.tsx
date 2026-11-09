@@ -3,9 +3,9 @@
    ค่าย่อกางจำไว้ในการตั้งค่า (sidebarCollapsed) เปิดครั้งหน้ายังเหมือนเดิม */
 import { useState } from "react";
 import { version } from "../../package.json";
-import { IcBrand, IcCheck, IcCollapse, IcGraph, IcLink, IcMix, IcPoster, IcSettings, IcShelf } from "./icons";
+import { IcBitrate, IcBrand, IcCheck, IcCollapse, IcGraph, IcLink, IcMix, IcPoster, IcSettings, IcShelf } from "./icons";
 
-export type Page = "shelf" | "poster" | "link" | "av" | "check" | "graph" | "settings";
+export type Page = "shelf" | "poster" | "link" | "av" | "check" | "graph" | "bitrate" | "settings";
 
 type Item = { id: Page; label: string; icon: React.ReactNode; count?: number; tip?: string };
 
@@ -40,6 +40,8 @@ export default function Sidebar({ page, onPage, collapsed, onToggle, shelfCount,
       tip: checkCount ? `ตรวจไฟล์ · มี ${checkCount} เรื่องที่ควรตรวจ` : undefined,
     },
     { id: "graph", label: "กราฟเสียง", icon: <IcGraph /> },
+    // หน้าบิตเรตวิดีโอแบบ Bitrate Viewer (พี่กันสั่ง 9 พ.ย. 2569 "เอาใส่สักหน้านึงในโปรแกรมก่อน ค่อยย้าย")
+    { id: "bitrate", label: "บิตเรตวิดีโอ", icon: <IcBitrate /> },
     { id: "settings", label: "ตั้งค่า", icon: <IcSettings /> },
   ];
 

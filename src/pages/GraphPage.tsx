@@ -1088,7 +1088,7 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
   }
 
   /* ---------- กราฟ ---------- */
-  const peakTxt = (c: string) => { const i = names.indexOf(c); return ov.peaks[i] == null ? "" : ov.peaks[i] <= -119 ? "เงียบทั้งไฟล์" : "ยอด " + pkTxt(ov.peaks[i]); };
+  const peakTxt = (c: string) => { const i = names.indexOf(c); return ov.peaks[i] == null ? "" : ov.peaks[i] <= -119 ? "เงียบทั้งไฟล์" : ov.peaks[i] < -96 ? "แทบเงียบทั้งไฟล์ " + pkTxt(ov.peaks[i]) : "ยอด " + pkTxt(ov.peaks[i]); };
   const rulerTicks = (a: number, b: number) => { const steps = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600]; const st = steps.find((s) => (b - a) / s <= 9) ?? 7200; const out: number[] = []; for (let x = Math.ceil(a / st) * st; x <= b; x += st) out.push(x); return out; };
   const Ruler = ({ left, right }: { left: number; right: number }) => (
     <div className="ruler" style={{ marginLeft: left, marginRight: right }}>{rulerTicks(t0, t1).map((x) => { const p = (x - t0) / (t1 - t0 || 1) * 100; return p < 2 || p > 98 ? null : <span key={x} style={{ left: p + "%" }}>{tfmt(x)}</span>; })}</div>

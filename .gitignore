@@ -27,6 +27,8 @@ vendor/**/*.tar.xz
 vendor/**/*.sig
 vendor/**/*.exe
 vendor/**/*.conda
+vendor/เทียบ-ffmpeg/
+vendor/bitrate-viewer-ภาพอ้างอิง/
 
 # ภาพหน้าจอที่มีรูปส่วนตัวของพี่กัน (รูป HEIC จากไอโฟน) เก็บไว้ในเครื่องเท่านั้น ห้ามขึ้น git · ที่เก็บบน GitHub เป็นแบบสาธารณะ
 docs/report-*/**/*HEIC*.png

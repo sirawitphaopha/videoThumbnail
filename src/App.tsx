@@ -12,6 +12,7 @@ import { LibraryHost, useLibrary } from "./lib/library";
 import { kindOf } from "./lib/status";
 import { fmtSize } from "./lib/format";
 import SettingsPage from "./pages/SettingsPage";
+import BitratePage from "./pages/BitratePage";
 import DevParts from "./pages/DevParts";
 import ShelfPage from "./pages/ShelfPage";
 import PosterPage, { type PosterStart } from "./pages/PosterPage";
@@ -105,6 +106,7 @@ function Frame() {
                 {page === "check" && <CheckPage req={checkReq} onConsumed={() => setCheckReq(null)} onGraph={openGraph} onPage={setPage} />}
                 {/* หน้ากราฟอยู่ในกล่องเลื่อน แถบสูงขึ้นหรือลากขยายจนยาวกว่าหน้าต่างแล้วเลื่อนลงไปถึงแถวปุ่มล่างได้ (เดิมแถวปุ่มล่างโดนตัดใต้จอ เจอตอนตรวจภาพ) */}
                 {page === "graph" && <div className="pagewrap" data-graphscroll><GraphBoundary><GraphPage req={graphReq} onConsumed={() => setGraphReq(null)} /></GraphBoundary></div>}
+                {page === "bitrate" && <BitratePage />}
                 {page === "settings" && <div className="pagewrap" data-settingsscroll><SettingsPage /></div>}
               </>
             )}

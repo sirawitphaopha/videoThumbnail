@@ -19,9 +19,49 @@ import "../styles/av.css";
 import ToneCard from "../components/ToneCard";
 import { DEFAULT_TONE, TONES } from "../lib/tones";
 import { IbTrash, IcRefresh } from "../components/icons";
-import { IbTick, IcClose, IcPlus } from "../components/icons";
+import { IbTick, IcClose, IcPlus, IbTable, IbPlay, IbEye, IbCrop, IcFile } from "../components/icons";
 
 const FolderIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b0355f" strokeWidth="2" aria-hidden="true"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>;
+
+const IcHeart = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 20s-7.5-4.6-9.2-9.1C1.7 7.8 3.6 5 6.6 5c2.1 0 3.9 1.1 5.4 3 1.5-1.9 3.3-3 5.4-3 3 0 4.9 2.8 3.8 5.9C19.5 15.4 12 20 12 20z" /></svg>;
+
+/* พี่กันสั่ง 9 พ.ย. 2569 "อยากให้เมนูนึงในตั้งค่า นั่นคือเขียนว่าบางหน้าเราเอาไอเดีย เอาซอสโค้ดมาจากเจ้าไหน เขียนขอบคุณเขาหน่อย"
+   ข้อความเช็กกับของจริง · ที่อยู่เว็บกดเปิดในเบราว์เซอร์หลัก รายการตายตัวอยู่ฝั่ง Rust โปรแกรมไม่ออกเน็ตเอง */
+/* พี่กันบอก 9 พ.ย. 2569 "เราหมายถึง icon โปรแกรมนั้น ๆ ของจริงนะ" · ใช้แบบเวกเตอร์จากคลังเปิดก่อน (SVG Logos กับ Simple Icons CC0 · Wikimedia Commons) ไม่มีค่อยใช้จากเว็บทางการหรือไฟล์โปรแกรม เก็บในโปรแกรม เปิดหน้านี้ไม่ออกเน็ต · ตัวที่หาไม่ได้ใช้ไอคอนกลาง */
+const THANK_FILES = import.meta.glob("../assets/thanks/*", { eager: true, query: "?url", import: "default" }) as Record<string, string>;
+const THANK_ICON: Record<string, string> = { "Spek": "spek.png", "Audacity": "audacity.svg", "Aegisub": "aegisub.svg", "Kodi": "kodi.svg", "Claude": "claude.svg", "FFmpeg": "ffmpeg.png", "MKVToolNix": "mkvtoolnix.png", "MediaInfo": "mediainfo.svg", "FLAC": "flac.png", "LAME กับ libmpg123": "lame.png", "opus-tools": "opus.png", "WavPack": "wavpack.png", "Monkey's Audio": "monkeys.png", "TAK": "tak.png", "libheif กับ libde265": "libheif.png", "Microsoft Visual C++ Runtime": "microsoft.svg", "Tauri": "tauri.svg", "React": "react.svg", "image (Rust)": "image-rs.png" };
+const thankImg = (name: string) => { const f = THANK_ICON[name]; return f ? THANK_FILES["../assets/thanks/" + f] : undefined; };
+
+const THANKS: { title: string; note: string; rows: { name: string; what: string; tag: string; url: string; icon: React.ReactNode }[] }[] = [
+  { title: "ไอเดียและหน้าตา", note: "ดูเป็นแบบแล้วเขียนเอง ไม่ได้ใช้โค้ดของโปรแกรมเหล่านี้", rows: [
+    { icon: <IcGraph />, name: "Spek", what: "หน้าวิเคราะห์ในกราฟเสียง หน้าตากราฟกับการบันทึกเป็นรูป", tag: "ไอเดีย", url: "github.com/alexkay/spek" },
+    { icon: <IcMix />, name: "Audacity", what: "รูปคลื่นแบบ Audacity ในกราฟเสียง", tag: "ไอเดีย", url: "audacityteam.org" },
+    { icon: <IbTable />, name: "Aegisub", what: "ตัวดูซับแบบตารางบรรทัด", tag: "ไอเดีย", url: "aegisub.org" },
+    { icon: <IcPoster />, name: "Kodi", what: "ชื่อไฟล์รูปลงท้าย -poster กับ -landscape ในหน้าจับคู่ปก", tag: "ไอเดีย", url: "kodi.tv" },
+    { icon: <IcSettings />, name: "Claude", what: "รูปแบบเมนูหัวข้อของหน้าตั้งค่า", tag: "ไอเดีย", url: "claude.ai" },
+  ] },
+  { title: "เครื่องมือที่แนบมาทำงานจริง", note: "ใช้ตามสัญญาอนุญาตของแต่ละตัว ข้อความเต็มอยู่ในโฟลเดอร์ tools\\licenses", rows: [
+    { icon: <IbPlay />, name: "FFmpeg", what: "ถอด แปลง ตรวจไฟล์เสีย อ่านเสียงมาวาดกราฟ และอ่านบิตเรตวิดีโอ · ชุดจาก gyan.dev · ไอคอนจาก Icons8", tag: "GPLv3", url: "ffmpeg.org" },
+    { icon: <IcFile />, name: "MKVToolNix", what: "ครอบ MKV แนบปก แยกแทร็ก", tag: "GPLv2", url: "mkvtoolnix.download" },
+    { icon: <IbEye />, name: "MediaInfo", what: "รายละเอียดไฟล์", tag: "BSD-2", url: "mediaarea.net" },
+    { icon: <IcMix />, name: "FLAC", what: "แปลงเสียง FLAC", tag: "GPLv2 · BSD", url: "xiph.org/flac" },
+    { icon: <IcMix />, name: "LAME กับ libmpg123", what: "แปลงเสียง MP3 · ชุดจาก RareWares", tag: "LGPL", url: "lame.sourceforge.io" },
+    { icon: <IcMix />, name: "opus-tools", what: "แปลงเสียง Opus · ชุดจาก RareWares", tag: "BSD-2", url: "opus-codec.org" },
+    { icon: <IcMix />, name: "WavPack", what: "แปลงเสียง WavPack", tag: "BSD-3", url: "wavpack.com" },
+    { icon: <IcMix />, name: "Monkey's Audio", what: "แปลงเสียง APE", tag: "BSD-3", url: "monkeysaudio.com" },
+    { icon: <IcMix />, name: "TAK", what: "แปลงเสียง TAK · แนบไฟล์เดิมทั้งชุด", tag: "ฟรีใช้ส่วนตัว", url: "thbeck.de/Tak" },
+    { icon: <IcPoster />, name: "libheif กับ libde265", what: "บันทึกรูปกราฟเป็น HEIC · ชุดจาก conda-forge", tag: "LGPLv3", url: "github.com/strukturag/libheif" },
+    { icon: <IcPoster />, name: "x265", what: "เข้ารหัสภาพใน HEIC", tag: "GPLv2", url: "bitbucket.org/multicoreware/x265_git" },
+    { icon: <IcPoster />, name: "aom · dav1d · libsharpyuv", what: "ไฟล์ที่ libheif ต้องใช้", tag: "BSD", url: "aomedia.org · videolan.org · chromium.googlesource.com/webm/libwebp" },
+    { icon: <IcSettings />, name: "Microsoft Visual C++ Runtime", what: "ไฟล์ที่ libheif ต้องใช้", tag: "ข้อตกลง Microsoft", url: "microsoft.com" },
+  ] },
+  { title: "ใช้สร้างโปรแกรม", note: "ซอร์สโค้ดของห้องสมุดเหล่านี้รวมอยู่ในตัวโปรแกรมตอนสร้าง", rows: [
+    { icon: <IcShelf />, name: "Tauri", what: "โครงโปรแกรมบน Windows", tag: "MIT · Apache-2.0", url: "tauri.app" },
+    { icon: <IbTable />, name: "React", what: "หน้าจอทั้งหมด", tag: "MIT", url: "react.dev" },
+    { icon: <IbCrop />, name: "image (Rust)", what: "อ่าน ครอป และเข้ารหัสรูป", tag: "MIT · Apache-2.0", url: "github.com/image-rs/image" },
+    { icon: <b>ก</b>, name: "ฟอนต์ Sarabun", what: "ตัวหนังสือทั้งโปรแกรม · Cadson Demak", tag: "OFL", url: "fonts.google.com/specimen/Sarabun" },
+  ] },
+];
 
 const IcPlayBox = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M10 9l5 3-5 3z" fill="currentColor" /></svg>;
 
@@ -45,6 +85,9 @@ const SET_GROUPS: { title: string; items: { id: string; label: string; icon: Rea
   { title: "เครื่องมือ", items: [
     { id: "tools", label: "เครื่องมือเบื้องหลัง", icon: <IcSettings /> },
     { id: "encoders", label: "ตัวแปลงเสียง", icon: <IcMix /> },
+  ] },
+  { title: "เกี่ยวกับ", items: [
+    { id: "thanks", label: "ขอบคุณ", icon: <IcHeart /> },
   ] },
 ];
 /** จำหัวข้อล่าสุดไว้ ออกไปหน้าอื่นแล้วกลับมายังอยู่หัวข้อเดิม */
@@ -425,6 +468,22 @@ export default function SettingsPage() {
         <div className="setrow"><div className="lbl">ผลอ่านคลื่นที่เก็บไว้ในเครื่อง<span className="small">เปิดไฟล์เดิมซ้ำไม่ต้องอ่านใหม่ · ไฟล์หนังเปลี่ยนแล้วอ่านใหม่เอง · รวมไม่เกิน 300 MB</span>
           <span className="small" data-graphcache>{cache ? `${cache.files} ไฟล์ · ${fmtSize(cache.bytes)}` : "—"}</span></div>
           <button type="button" className="btn btn-ghost btn-sm" onClick={clearCache} data-clearcache><IbTrash size={15} />ล้าง</button></div>
+      </div>
+
+      {/* ---------- ขอบคุณ ---------- */}
+      <div className="setcard" data-setcard="thanks" hidden={sec !== "thanks"}><h3>ขอบคุณ</h3>
+        <div className="small" style={{ marginBottom: 6 }}>ชั้นหนังพัฒนาขึ้นได้ด้วยผลงานของโครงการและผู้พัฒนาต่อไปนี้ ขอขอบคุณทุกท่าน</div>
+        {THANKS.map((g) => <div key={g.title} data-thanks-group>
+          <h4 className="imghead">{g.title}</h4>
+          <div className="small" style={{ marginBottom: 4 }}>{g.note}</div>
+          <div className="thanksgrid">
+            {g.rows.map((r) => <div key={r.name} className="thankcard" data-thanks-row>
+              <div className="thankhead"><span className="thankicon">{thankImg(r.name) ? <img src={thankImg(r.name)} alt="" draggable={false} /> : r.icon}</span><b>{r.name}</b></div>
+              <div className="thankwhat">{r.what}</div>
+              <div className="thankfoot"><span className="thankurl">{r.url.split(" · ").map((u) => <button key={u} type="button" className="thanklink" title={"เปิด " + u} data-thanks-link={u} onClick={() => { encodeApi.thanksOpen(u).catch((e: unknown) => toast({ kind: "bad", title: "เปิดหน้าเว็บไม่ได้", detail: String(e) })); }}>{u}</button>)}</span><span className="thanktag" data-thanks-tag>{r.tag}</span></div>
+            </div>)}
+          </div>
+        </div>)}
       </div>
 
       <Dialog open={removing != null} onClose={() => setRemoving(null)} kind="work" confirm title={<>เอา <span style={{ wordBreak: "break-all" }}>{removing}</span> <span className="nw">ออกจากชั้น</span></>}

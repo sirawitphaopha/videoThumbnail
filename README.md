@@ -46,6 +46,53 @@ cd src-tauri; cargo test
 - ตัวแปลงเสียง flac opusenc LAME WavPack Monkey's Audio TAK
 - libheif (heif.dll) กับ x265 libde265 aom dav1d libsharpyuv สำหรับบันทึกรูปกราฟเป็น HEIC · LGPL GPL BSD ตามแต่ละตัว · โปรแกรมเรียก DLL นี้ตรง
 
+## ขอบคุณ
+
+ชั้นหนังพัฒนาขึ้นได้ด้วยผลงานของโครงการและผู้พัฒนาต่อไปนี้ ขอขอบคุณทุกท่าน รายการเดียวกันนี้อยู่ในหน้าตั้งค่า หัวข้อขอบคุณ
+
+### ไอเดียและหน้าตา
+
+ดูเป็นแบบแล้วเขียนเอง ไม่ได้ใช้โค้ดของโปรแกรมเหล่านี้
+
+| โครงการ | ใช้ทำอะไรในชั้นหนัง | สัญญา | เว็บไซต์ |
+|---|---|---|---|
+| Spek | หน้าวิเคราะห์ในกราฟเสียง หน้าตากราฟกับการบันทึกเป็นรูป | ไอเดีย | [github.com/alexkay/spek](https://github.com/alexkay/spek) |
+| Audacity | รูปคลื่นแบบ Audacity ในกราฟเสียง | ไอเดีย | [audacityteam.org](https://audacityteam.org) |
+| Aegisub | ตัวดูซับแบบตารางบรรทัด | ไอเดีย | [aegisub.org](https://aegisub.org) |
+| Kodi | ชื่อไฟล์รูปลงท้าย -poster กับ -landscape ในหน้าจับคู่ปก | ไอเดีย | [kodi.tv](https://kodi.tv) |
+| Claude | รูปแบบเมนูหัวข้อของหน้าตั้งค่า | ไอเดีย | [claude.ai](https://claude.ai) |
+
+### เครื่องมือที่แนบมาทำงานจริง
+
+ใช้ตามสัญญาอนุญาตของแต่ละตัว ข้อความเต็มอยู่ในโฟลเดอร์ tools\licenses
+
+| โครงการ | ใช้ทำอะไรในชั้นหนัง | สัญญา | เว็บไซต์ |
+|---|---|---|---|
+| FFmpeg | ถอด แปลง ตรวจไฟล์เสีย อ่านเสียงมาวาดกราฟ และอ่านบิตเรตวิดีโอ · ชุดจาก gyan.dev · ไอคอนจาก Icons8 | GPLv3 | [ffmpeg.org](https://ffmpeg.org) |
+| MKVToolNix | ครอบ MKV แนบปก แยกแทร็ก | GPLv2 | [mkvtoolnix.download](https://mkvtoolnix.download) |
+| MediaInfo | รายละเอียดไฟล์ | BSD-2 | [mediaarea.net](https://mediaarea.net) |
+| FLAC | แปลงเสียง FLAC | GPLv2 · BSD | [xiph.org/flac](https://xiph.org/flac) |
+| LAME กับ libmpg123 | แปลงเสียง MP3 · ชุดจาก RareWares | LGPL | [lame.sourceforge.io](https://lame.sourceforge.io) |
+| opus-tools | แปลงเสียง Opus · ชุดจาก RareWares | BSD-2 | [opus-codec.org](https://opus-codec.org) |
+| WavPack | แปลงเสียง WavPack | BSD-3 | [wavpack.com](https://wavpack.com) |
+| Monkey's Audio | แปลงเสียง APE | BSD-3 | [monkeysaudio.com](https://monkeysaudio.com) |
+| TAK | แปลงเสียง TAK · แนบไฟล์เดิมทั้งชุด | ฟรีใช้ส่วนตัว | [thbeck.de/Tak](https://thbeck.de/Tak) |
+| libheif กับ libde265 | บันทึกรูปกราฟเป็น HEIC · ชุดจาก conda-forge | LGPLv3 | [github.com/strukturag/libheif](https://github.com/strukturag/libheif) |
+| x265 | เข้ารหัสภาพใน HEIC | GPLv2 | [bitbucket.org/multicoreware/x265_git](https://bitbucket.org/multicoreware/x265_git) |
+| aom · dav1d · libsharpyuv | ไฟล์ที่ libheif ต้องใช้ | BSD | [aomedia.org](https://aomedia.org) · [videolan.org](https://videolan.org) · [chromium.googlesource.com/webm/libwebp](https://chromium.googlesource.com/webm/libwebp) |
+| Microsoft Visual C++ Runtime | ไฟล์ที่ libheif ต้องใช้ | ข้อตกลง Microsoft | [microsoft.com](https://microsoft.com) |
+
+### ใช้สร้างโปรแกรม
+
+ซอร์สโค้ดของห้องสมุดเหล่านี้รวมอยู่ในตัวโปรแกรมตอนสร้าง
+
+| โครงการ | ใช้ทำอะไรในชั้นหนัง | สัญญา | เว็บไซต์ |
+|---|---|---|---|
+| Tauri | โครงโปรแกรมบน Windows | MIT · Apache-2.0 | [tauri.app](https://tauri.app) |
+| React | หน้าจอทั้งหมด | MIT | [react.dev](https://react.dev) |
+| image (Rust) | อ่าน ครอป และเข้ารหัสรูป | MIT · Apache-2.0 | [github.com/image-rs/image](https://github.com/image-rs/image) |
+| ฟอนต์ Sarabun | ตัวหนังสือทั้งโปรแกรม · Cadson Demak | OFL | [fonts.google.com/specimen/Sarabun](https://fonts.google.com/specimen/Sarabun) |
+
 ## เอกสาร
 
 - สเปกหน้าจอ [docs/MOCKUP-SPEC.md](docs/MOCKUP-SPEC.md) · ต้นแบบ [docs/mockups/](docs/mockups/)

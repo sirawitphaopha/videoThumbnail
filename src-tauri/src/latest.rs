@@ -159,6 +159,46 @@ pub fn encoders_open_page(app: tauri::AppHandle, name: String) -> Result<(), Str
     app.opener().open_url(src.page, None::<&str>).map_err(|e| format!("เปิดหน้าเว็บไม่ได้: {e}"))
 }
 
+/// ลิงก์ในหน้าขอบคุณ ข้อความบนการ์ดกับที่อยู่จริง · รับเฉพาะรายการนี้ หน้าจอส่งที่อยู่อื่นมาเปิดไม่ได้ (พี่กันสั่ง 9 พ.ย. 2569 "ลิงก์ที่ใส่ในการ์ดขอบคุณ ขอให้มันกดเปิดได้ที")
+const THANK_LINKS: &[(&str, &str)] = &[
+    ("github.com/alexkay/spek", "https://github.com/alexkay/spek"),
+    ("audacityteam.org", "https://www.audacityteam.org/"),
+    ("aegisub.org", "https://aegisub.org/"),
+    ("kodi.tv", "https://kodi.tv/"),
+    ("claude.ai", "https://claude.ai/"),
+    ("ffmpeg.org", "https://ffmpeg.org/"),
+    ("mkvtoolnix.download", "https://mkvtoolnix.download/"),
+    ("mediaarea.net", "https://mediaarea.net/en/MediaInfo"),
+    ("xiph.org/flac", "https://xiph.org/flac/"),
+    ("lame.sourceforge.io", "https://lame.sourceforge.io/"),
+    ("opus-codec.org", "https://opus-codec.org/"),
+    ("wavpack.com", "https://www.wavpack.com/"),
+    ("monkeysaudio.com", "https://www.monkeysaudio.com/"),
+    ("thbeck.de/Tak", "http://www.thbeck.de/Tak/Tak.html"),
+    ("github.com/strukturag/libheif", "https://github.com/strukturag/libheif"),
+    ("bitbucket.org/multicoreware/x265_git", "https://bitbucket.org/multicoreware/x265_git"),
+    ("aomedia.org", "https://aomedia.org/"),
+    ("videolan.org", "https://www.videolan.org/projects/dav1d.html"),
+    ("chromium.googlesource.com/webm/libwebp", "https://chromium.googlesource.com/webm/libwebp"),
+    ("microsoft.com", "https://www.microsoft.com/"),
+    ("tauri.app", "https://tauri.app/"),
+    ("react.dev", "https://react.dev/"),
+    ("github.com/image-rs/image", "https://github.com/image-rs/image"),
+    ("fonts.google.com/specimen/Sarabun", "https://fonts.google.com/specimen/Sarabun"),
+];
+
+fn thank_url(link: &str) -> Option<&'static str> {
+    THANK_LINKS.iter().find(|(k, _)| *k == link).map(|(_, u)| *u)
+}
+
+/// เปิดลิงก์จากหน้าขอบคุณในเบราว์เซอร์หลัก
+#[tauri::command]
+pub fn thanks_open(app: tauri::AppHandle, link: String) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    let url = thank_url(&link).ok_or("ไม่รู้จักลิงก์นี้")?;
+    app.opener().open_url(url, None::<&str>).map_err(|e| format!("เปิดหน้าเว็บไม่ได้: {e}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -193,6 +233,13 @@ mod tests {
     }
 
     /// ทุกตัวแปลงในทะเบียนมีที่เช็กรุ่น
+    #[test]
+    fn thanks_links_only_open_the_fixed_list() {
+        assert_eq!(thank_url("ffmpeg.org"), Some("https://ffmpeg.org/"));
+        for bad in ["https://evil.example/", "ffmpeg.org/../x", "", "file:///C:/Windows"] { assert_eq!(thank_url(bad), None, "{bad}"); }
+        assert!(THANK_LINKS.iter().all(|(_, u)| u.starts_with("https://") || u.starts_with("http://")));
+    }
+
     #[test]
     fn every_encoder_has_a_source() {
         for (n, ..) in crate::encode::ENCODERS { assert!(SOURCES.iter().any(|s| s.name == n), "ไม่มีที่เช็กรุ่นของ {n}"); }

@@ -58,6 +58,9 @@ export const IcMix = ({ size = 18, stroke = "currentColor" }: P) =>
 /** กราฟเสียง (มอคอัป docs/mockups/audio-graph.html) */
 export const IcGraph = ({ size = 18, stroke = "currentColor" }: P) =>
   svg(size, 2, stroke, <path d="M3 12h2M7 7v10M11 4v16M15 8v8M19 10v4" />);
+/** แท่งบิตเรตกับเส้นค่าเฉลี่ย หน้าบิตเรตวิดีโอ */
+export const IcBitrate = ({ size = 18, stroke = "currentColor" }: P) =>
+  svg(size, 2, stroke, <><path d="M4 20V13M8 20V9M12 20v-6M16 20V6M20 20v-9" /><path d="M3 11l5-3 4 3 4-5 5 3" strokeWidth={1.4} /></>);
 export const IcSettings = ({ size = 18, stroke = "currentColor" }: P) =>
   svg(size, 2, stroke, <><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" /></>);
 export const IcCollapse = ({ size = 18, stroke = "currentColor" }: P) =>
