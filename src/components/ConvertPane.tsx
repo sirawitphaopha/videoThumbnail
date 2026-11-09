@@ -6,15 +6,15 @@ import { useEffect, useMemo, useState } from "react";
 import "../styles/av.css";
 import CodecPanel, { presetSpec } from "./CodecPanel";
 import Dropdown from "./Dropdown";
-import { CardIcon, Keep, Phr, Seg, Skel } from "./ui";
-import { encodeApi, pickAudioFiles, pickFolder, type AudioFile, type EncodeSpec, type EncoderInfo, type MergeTrack } from "../lib/api";
-import { addFiles, clearDone, removeItem, retry, setAll, setItemSpec, setOutDir, startQueue, stopQueue, useConvQueue, type QItem } from "../lib/convertJob";
+import { CardIcon, Keep, Phr, Seg, Skel, dropClick } from "./ui";
+import { checkApi, encodeApi, pickAudioFiles, pickFolder, type AudioFile, type EncodeSpec, type EncoderInfo, type MergeTrack } from "../lib/api";
+import { addFiles, clearDone, removeItem, retry, setAll, setItemSpec, setOutDir, setPicked, setPickedAll, startQueue, stopQueue, useConvQueue, type QItem } from "../lib/convertJob";
 import { CODECS, codecOf } from "../lib/codecs";
 import { ftName } from "../lib/ftypes";
 import { fmtSize } from "../lib/format";
-import { useToast } from "./Toasts";
 import { IcFile, IcFolder, IcPlus } from "./icons";
-import { IbTrash, IbStop, IcRefresh, IcGraph, IcMix, IcSettings } from "./icons";
+import { IbPlay, IbTrash, IbStop, IcRefresh, IcGraph, IcMix, IcSettings } from "./icons";
+import { useToast } from "./Toasts";
 
 const baseName = (p: string) => p.split(/[\\/]/).pop() ?? p;
 const dirOf = (p: string) => p.replace(/[\\/][^\\/]*$/, "");
@@ -44,6 +44,13 @@ export function specLabel(s: EncodeSpec): string {
 
 const etaTxt = (s: number | null) => (s == null ? "" : s < 60 ? `เหลือราว ${Math.max(1, Math.round(s))} วินาที` : `เหลือราว ${Math.round(s / 60)} นาที`);
 const NOTE = <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M9 18V5l11-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" /></svg>;
+/** ช่องติ๊ก · some คือติ๊กบางแถว (หัวตาราง) */
+function Tick({ on, some, off, label, onChange, data }: { on: boolean; some?: boolean; off?: boolean; label: string; onChange: (v: boolean) => void; data: string }) {
+  return <button type="button" role="checkbox" className={"cqtick" + (on ? " on" : "") + (some ? " some" : "")} aria-checked={some ? "mixed" : on} aria-label={label} aria-disabled={off || undefined} title={off ? "ติ๊กได้เฉพาะไฟล์ที่รอแปลง" : label} onClick={() => { if (!off) onChange(!on); }} {...{ [data]: "" }}>
+    {on && !some && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7" /></svg>}
+    {some && <i aria-hidden="true" />}
+  </button>;
+}
 const X = <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>;
 
 export function Cover({ thumb, size = 40 }: { thumb: string | null | undefined; size?: number }) {
@@ -80,6 +87,11 @@ function Status({ it }: { it: QItem }) {
 export default function ConvertPane(p: { onCompare: (a: string, b: string, note: string) => void; onTags: (path: string) => void }) {
   const q = useConvQueue();
   const toast = useToast();
+  // กดเล่นจากคิวได้เลย แปลงเสร็จเปิดไฟล์ใหม่ ยังไม่แปลงเปิดไฟล์เดิม เริ่มจากต้นไฟล์ (พี่กันสั่ง 9 พ.ย. 2569 "อยากให้กดเล่นจากคิวนี้ได้เลย ทำเป็น icon มา")
+  const playFile = async (p: string) => {
+    try { const r = await checkApi.playAt(p, 0); toast({ kind: "ok", title: r.player ? `เปิดด้วย ${r.player}` : "เปิดด้วยโปรแกรมหลักของ Windows แล้ว" }); }
+    catch (e) { toast({ kind: "bad", title: "เปิดเล่นไม่ได้", detail: String(e) }); }
+  };
   const [encs, setEncs] = useState<EncoderInfo[] | null>(null);
   /** แผงตั้งค่าที่เปิดอยู่ · all = ตั้งทีเดียวทั้งคิว · เลขแถว = ตั้งไฟล์นั้น */
   const [panel, setPanel] = useState<string | null>(null);
@@ -94,11 +106,13 @@ export default function ConvertPane(p: { onCompare: (a: string, b: string, note:
   const done = q.items.filter((x) => x.state === "done").length;
   const work = q.items.filter((x) => x.state === "work").length;
   const wait = q.items.filter((x) => x.state === "wait").length;
+  // ปุ่มท้ายหน้าทำเฉพาะแถวที่ติ๊ก (พี่กันสั่ง 9 พ.ย. 2569 "เราขอปุ่มกดแปลง ทีละไฟล์ และปุ่มติ๊กเลือกด้วย")
+  const waiting = q.items.filter((x) => x.state === "wait" && !x.bad), ticked = waiting.filter((x) => x.picked).length;
   const fail = q.items.filter((x) => x.state === "fail" || x.state === "stop").length;
   // ไฟล์ที่ยังไม่เริ่ม ไม่นับไฟล์ที่อ่านไม่ได้ (แปลงไม่ได้อยู่แล้ว · เดิมหัวแผงนับรวม เจอตอนเทส)
   const pending = q.items.filter((x) => x.state !== "done" && x.state !== "work" && !x.bad);
   const allSame = pending.length > 0 && pending.every((x) => JSON.stringify(x.spec) === JSON.stringify(pending[0].spec));
-  const pick = async () => { const f = await pickAudioFiles(); if (f.length) { const s = addFiles(f); if (s) toast({ kind: "info", title: `ข้าม ${s} ไฟล์ที่อยู่ในคิวแล้ว` }); } };
+  const pick = async () => { const f = await pickAudioFiles(); if (f.length) addFiles(f); };
   const pickDir = async () => { const d = await pickFolder("เลือกโฟลเดอร์เก็บไฟล์ใหม่"); if (d) setOutDir(d); };
 
   const panelItem = panel && panel !== "all" ? q.items.find((x) => x.id === panel) : null;
@@ -109,11 +123,12 @@ export default function ConvertPane(p: { onCompare: (a: string, b: string, note:
       <div className="card">
         <h3><span>คิวแปลง · {n} ไฟล์</span><span className="small" style={{ fontWeight: 400 }} data-qsum>{n ? [`เสร็จ ${done}`, `กำลังทำ ${work}`, `รอ ${wait}`, fail ? `ไม่สำเร็จ ${fail}` : ""].filter(Boolean).join(" · ") + " · ทีละไฟล์ตามลำดับ" : "ยังไม่มีไฟล์"}</span></h3>
         {n > 0 && <div className="cqlist" data-qlist>
-          <div className="cqrow head"><span></span><span>ไฟล์</span><span></span><span>แปลงเป็น</span><span>สถานะ</span><span></span></div>
+          <div className="cqrow head"><Tick on={ticked > 0 && ticked === waiting.length} some={ticked > 0 && ticked < waiting.length} off={!waiting.length} label="เลือกทุกไฟล์ที่รอแปลง" onChange={(v) => setPickedAll(ticked < waiting.length ? true : v)} data="data-qtickall" /><span></span><span>ไฟล์</span><span></span><span>แปลงเป็น</span><span>สถานะ</span><span></span></div>
           {q.items.map((it) => {
             const locked = it.state === "work" || it.state === "done" || !!it.bad;
             return (
               <div key={it.id} className={"cqrow " + it.state} data-qrow={baseName(it.path)} data-qstate={it.state}>
+                <Tick on={it.state === "wait" && !it.bad && it.picked} off={it.state !== "wait" || !!it.bad} label={`เลือก ${baseName(it.path)}`} onChange={(v) => setPicked(it.id, v)} data="data-qtick" />
                 <Cover thumb={it.bad ? null : it.thumb} />
                 <div style={{ minWidth: 0 }}>
                   <button type="button" className="nm linklike" onClick={() => p.onTags(it.path)} title={`${it.path}\nกดเพื่อดูข้อมูลเพลงกับรูปปก`} data-qname>{baseName(it.path)}</button>
@@ -128,6 +143,8 @@ export default function ConvertPane(p: { onCompare: (a: string, b: string, note:
                 )}
                 <Status it={it} />
                 <div className="cqbtns">
+                  {!it.bad && <button type="button" className="ib" onClick={() => playFile(it.state === "done" && it.result ? it.result.out : it.path)} aria-label={`เปิดเล่น ${baseName(it.state === "done" && it.result ? it.result.out : it.path)}`} title={it.state === "done" && it.result ? `เปิดเล่นไฟล์ที่แปลงแล้ว ${baseName(it.result.out)}` : `เปิดเล่นไฟล์เดิม ${baseName(it.path)}`} data-qplay><IbPlay size={15} /></button>}
+                  {it.state === "wait" && !it.bad && <button type="button" className="btn btn-ghost btn-xs" aria-disabled={q.runIds.includes(it.id) || undefined} title={q.runIds.includes(it.id) ? "ไฟล์นี้อยู่ในรอบที่กำลังแปลงแล้ว" : q.running ? "ต่อท้ายรอบที่กำลังแปลง" : "แปลงเฉพาะไฟล์นี้"} onClick={() => { if (!q.runIds.includes(it.id)) startQueue([it.id]); }} data-qone><IcMix size={15} />แปลง</button>}
                   {it.state === "done" && it.result && <button type="button" className="btn btn-ghost btn-xs" onClick={() => p.onCompare(it.path, it.result!.out, `แปลงด้วย ${it.result!.tool} · ${specLabel(it.spec)}`)} data-qcmp><IcGraph size={15} />เทียบความถี่</button>}
                   {(it.state === "fail" || it.state === "stop") && !it.bad && !q.running && <button type="button" className="btn btn-ghost btn-xs" onClick={() => retry(it.id)} data-qretry><IcRefresh size={15} />ลองใหม่</button>}
                   <button type="button" className="ib bad" onClick={() => it.state !== "work" && removeItem(it.id)} aria-disabled={it.state === "work" || undefined}
@@ -144,7 +161,7 @@ export default function ConvertPane(p: { onCompare: (a: string, b: string, note:
             );
           })}
         </div>}
-        <div className="drop" style={{ marginTop: n ? 8 : 0, minHeight: n ? 0 : 120 }} data-qdrop>
+        <div className="drop" style={{ marginTop: n ? 8 : 0, minHeight: n ? 0 : 120 }} data-qdrop onClick={dropClick(pick)}>
           <button type="button" className="btn btn-ghost btn-sm" onClick={pick} data-qadd><IcPlus />เพิ่มไฟล์</button>
           <span><b style={{ color: "var(--txt2)" }}>{n ? "ลากไฟล์เสียงมาวางเพิ่ม" : "ลากไฟล์เสียงมาวางตรงนี้ ได้หลายไฟล์"}</b> · <Phr>MP3 FLAC WAV M4A AAC AC3 E-AC3 DTS OGG OPUS WV APE TAK และเสียงในไฟล์หนัง</Phr></span>
         </div>
@@ -167,9 +184,9 @@ export default function ConvertPane(p: { onCompare: (a: string, b: string, note:
         <div className="cqfoot-r">
         {q.running && <button type="button" className="btn btn-bad" onClick={stopQueue} aria-disabled={q.stopping || undefined} data-qstop><Keep icon={<IbStop size={15} />} all={["กำลังหยุด…", "หยุดทั้งคิว"]}>{q.stopping ? "กำลังหยุด…" : "หยุดทั้งคิว"}</Keep></button>}
         {q.running
-          ? <button type="button" className="btn btn-wait" style={{ padding: "0 26px" }} aria-disabled data-qstart><Keep icon={<IcMix size={15} />} all={["กำลังแปลง 000 จาก 000…", "แปลง 000 ไฟล์"]}>กำลังแปลง {done + 1} จาก {done + work + wait}…</Keep></button>
-          : <button type="button" className={"btn " + (wait ? "btn-main" : "btn-wait")} style={{ padding: "0 26px" }} aria-disabled={!wait || undefined}
-              title={wait ? undefined : n ? "ไม่มีไฟล์ที่รอแปลง" : "ลากไฟล์เสียงมาวางก่อน"} onClick={() => wait && startQueue()} data-qstart><Keep icon={<IcMix size={15} />} all={["กำลังแปลง 000 จาก 000…", "แปลง 000 ไฟล์"]}>{wait ? `แปลง ${wait} ไฟล์` : "แปลง"}</Keep></button>}
+          ? <button type="button" className="btn btn-wait" style={{ padding: "0 26px" }} aria-disabled data-qstart><Keep icon={<IcMix size={15} />} all={["กำลังแปลง 000 จาก 000…", "แปลง 000 ไฟล์"]}>กำลังแปลง {Math.min(q.runDone + 1, q.runIds.length)} จาก {q.runIds.length}…</Keep></button>
+          : <button type="button" className={"btn " + (ticked ? "btn-main" : "btn-wait")} style={{ padding: "0 26px" }} aria-disabled={!ticked || undefined}
+              title={ticked ? undefined : wait ? "ติ๊กไฟล์ที่จะแปลงก่อน" : n ? "ไม่มีไฟล์ที่รอแปลง" : "ลากไฟล์เสียงมาวางก่อน"} onClick={() => ticked && startQueue()} data-qstart><Keep icon={<IcMix size={15} />} all={["กำลังแปลง 000 จาก 000…", "แปลง 000 ไฟล์"]}>{ticked ? `แปลง ${ticked} ไฟล์` : "แปลง"}</Keep></button>}
         </div>
       </div>
       {panel && (

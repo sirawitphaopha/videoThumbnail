@@ -63,9 +63,28 @@
 - เว็บ TAK เปิดได้แค่ http (https ต่อไม่ได้) ไม่มี hash ให้เทียบ · ยืนยันความถูกต้องด้วย Takc.exe ที่ตรงกับตัวในตัวติดตั้ง Monkey's Audio ที่มีลายเซ็น
 - ปลั๊กอิน foo_input_tak ของ foobar2000 (0.5.9 ออก 5 พ.ย. 2568) กับตัวถอด TAK ใน FFmpeg (`libavcodec/tak.h`) อ่านได้อย่างเดียว สร้างไฟล์ TAK ไม่ได้ · ffmpeg ที่แนบมามีตัวถอดนี้ จึงตรวจและวาดกราฟไฟล์ TAK ได้
 
+## libheif สำหรับบันทึกรูปกราฟเป็น HEIC · แคลร์โหลด 9 พ.ย. 2569
+
+พี่กันบอก *"ไม่เอาแบบนี้จิ ขอแบบของจริง"* แล้วเลือกใช้ `heif.dll` · โปรแกรมเรียก DLL ตรงจาก Rust (`graphimg.rs` โมดูล `heif`) · เก็บที่ `vendor/heif/` · แตกด้วย `scripts/fetch-heif.ps1` ที่ `fetch-tools.ps1` เรียกตอนท้าย
+
+| ไฟล์ | ได้อะไร | สัญญา | ขนาด (ไบต์) | ค่า SHA-256 |
+|---|---|---|--:|---|
+| `libheif-1.23.7-gpl_h67fb079_103.conda` | `heif.dll` | LGPL 3 ขึ้นไป | 680,430 | `687983f329527d15ec4048b2ec3f7cbb66f6c7bddad589327aa2a13d3560d056` |
+| `x265-3.5-h3ee6617_4.conda` | `libx265.dll` | GPL 2 ขึ้นไป | 3,099,189 | `684d28d37d808e4cefbcc87e8039f8f0cc3a6ed16c91d05731f6e1f0bf79a3eb` |
+| `libde265-1.1.3-h477610d_1.conda` | `libde265.dll` | LGPL 3 ขึ้นไป | 227,750 | `1ad6ce985e8306ce74026a110898a7c91b41b927d1bfa57f3935270f5e199d5d` |
+| `aom-3.15.3-pl5321h06fc181_0.conda` | `aom.dll` | BSD 2 ข้อ | 2,226,803 | `302f726d93ad4c113a8f7b8d72b5d1bcf1ad3ff10950ee6161b99787025458da` |
+| `libdav1d7-1.5.4-h6a83c73_4.conda` | `dav1d.dll` | BSD 2 ข้อ | 712,414 | `8c4514f16f22eabec86afaf737285efded4b09633e0e4fb50d58e51830b3471e` |
+| `libwebp-base-1.6.0-h4d5522a_1.conda` | `libsharpyuv.dll` | BSD 3 ข้อ | 278,886 | `4470d98d3178b0d45492eed4808afe421d2e7808352b8d06c2dc29166b75d94d` |
+| `vc14_runtime-14.51.36247-habf1de7_42.conda` | `msvcp140.dll` `vcruntime140.dll` `vcruntime140_1.dll` | ข้อตกลงของ Microsoft | 767,099 | `8dfbfd68ebf53249d11e528cbb80ad5a2460b0c5b4636eed82ee0d3950827a3d` |
+
+- มาจาก https://conda.anaconda.org/conda-forge/win-64/ · libheif ทางการมีแต่ซอร์สโค้ด ไม่มีตัวสำหรับ Windows · ค่า SHA-256 ตรงกับที่ conda-forge แจ้งทุกไฟล์ตอนโหลด
+- รายการ DLL ไล่จากตาราง import ของ `heif.dll` จริง · ต้องมี aom กับ dav1d ถึงแม้ HEIC ใช้แค่ x265 เพราะ `heif.dll` ชุดนี้ผูกกับสองตัวนั้นตอนเปิด เปิดไฟล์ไม่ได้ถ้าขาด
+- runtime สามไฟล์แนบเพราะเครื่องที่ไม่มี Visual C++ Redistributable เปิด `heif.dll` ไม่ได้ · ลายเซ็น Microsoft Windows Software Compatibility Publisher ถูกต้อง · `fetch-heif.ps1` เช็กลายเซ็นทุกครั้ง
+- รวม 9 ไฟล์ราว 31 MB ก่อนบีบ เปิดเฉพาะตอนบันทึก HEIC ครั้งแรก แล้วค้างในหน่วยความจำจนปิดโปรแกรม
+
 ## ไฟล์ที่แตกแล้ว · `src-tauri/tools/` (ไม่ขึ้น git · 6 พ.ย. 2569 · ตัวแปลงเสียงเพิ่ม 7 พ.ย. 2569)
 
-`scripts/fetch-tools.ps1` เช็ก SHA-256 ของไฟล์บีบอัดก่อนแตก แล้วคัดเฉพาะ 15 ไฟล์นี้กับไฟล์สัญญาอนุญาตลง `src-tauri/tools/`
+`scripts/fetch-tools.ps1` เช็ก SHA-256 ของไฟล์บีบอัดก่อนแตก แล้วคัดเฉพาะ 24 ไฟล์นี้กับไฟล์สัญญาอนุญาตลง `src-tauri/tools/`
 ค่าข้างล่างไว้เทียบตอนเช็กสถานะเครื่องมือ (ขั้น 7) และตอนตรวจตัวติดตั้ง (ขั้น 8) ว่าเครื่องมือที่แนบไปไม่เพี้ยน
 
 | ไฟล์ | ขนาด (ไบต์) | ค่า SHA-256 |
@@ -85,6 +104,15 @@
 | `wavpack.exe` | 321,536 | `e26ad2ed3c8e417bd62e0b8eb4ee9b9e2f261a859c9cc18c99026e2b7f8fc661` |
 | `MACDll64.dll` | 764,728 | `281a72e6e27a49c03a41b02542490f296f235fd2fec30e62c1b0783f653c3a6c` (13.46 จากตัวติดตั้ง · เดิม 12.36 จากชุด SDK `da666525…39302` 719,872 ไบต์) |
 | `TAK_2.3.3.zip` | 1,765,343 | `40d26992266f1377d576b88b84b88d2ab256dc321e47f90314402a80692aba6a` (ไฟล์เดิมทั้งไฟล์) |
+| `heif.dll` | 1,543,680 | `b5209e57d768bd471cecfffbde44f9e0fc2a31d962627fd804b853b7f7dc2950` |
+| `libx265.dll` | 16,844,288 | `14a2f662ab38132e4ea934521ca446964c4fe1de75e4bcea9a6a18493e7bce1f` |
+| `libde265.dll` | 377,344 | `fd49725f382097cb89c73b3d682ffbd19c95aef80e02a7f42bd08898c3002fa2` |
+| `aom.dll` | 10,182,144 | `8c9dbaeb1f0b9ad951fab804cc40b0915ba502b6023bdd752f12b3f1e98505f0` |
+| `dav1d.dll` | 1,850,368 | `d54f5ce3f48cce2f7ed340e16bbaacc48601ac4a7d41a1410d35a0da1049b362` |
+| `libsharpyuv.dll` | 25,600 | `09e089c9ad5da983f04e98ccc8f41de1750b0a351370a4d42b9080c3e68eac50` |
+| `msvcp140.dll` | 643,512 | `7c26614e1d733892c2deac7e245ce115504b1d80592dd0a01b08e3e5a55f89ca` |
+| `vcruntime140.dll` | 178,616 | `d1f4225df2cd877dbf130d5668a021dce3f94118455ff5ec952061c30afc9ce7` |
+| `vcruntime140_1.dll` | 50,112 | `a7146c08f89fe5b04541ab507cdb59ff7b44534d4ba3c668a426c6450a03434e` |
 
 ## รายการเครื่องมือของโปรแกรมชั้นหนัง
 

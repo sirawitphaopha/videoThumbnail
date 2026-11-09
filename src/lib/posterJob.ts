@@ -22,9 +22,11 @@ export type PosterJob = {
   /** รูปโปสเตอร์ที่งานนี้ใช้ (ข้อมูลรูปกับแบบที่เลือกจากหน้าต่างครอป) · กลับมาหน้านี้แล้วการ์ดรูปไม่ว่าง (เดิมว่าง เจอตอนตรวจภาพ) */
   poster: PosterInfo | null;
   choice: unknown;
+  /** ชื่อไฟล์ใหม่ที่พิมพ์ไว้ · กลับมาหน้านี้ระหว่างครอบแล้วช่องชื่อตรงกับงานที่ทำอยู่ */
+  name: string | null;
 };
 
-let job: PosterJob = { run: { state: "idle" }, path: null, movie: null, mode: "wrap", poster: null, choice: null };
+let job: PosterJob = { run: { state: "idle" }, path: null, movie: null, mode: "wrap", poster: null, choice: null, name: null };
 const subs = new Set<() => void>();
 
 export function setPosterJob(patch: Partial<PosterJob>) {

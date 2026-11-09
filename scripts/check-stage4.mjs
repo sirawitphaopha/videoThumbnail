@@ -224,9 +224,9 @@ await inv("set_settings", { patch: { outputFormat: "mkv", originalAfter: "keep" 
 await inv("poster_clear");
 await c.evaluate("location.reload()"); await sleep(1500); await waitScan();
 await c.evaluate(`[...document.querySelectorAll('[data-navbar] button')].find(b => b.innerText.includes('ใส่โปสเตอร์')).click()`); await sleep(500);
-const page = () => q(`return { blocked: document.querySelector('[data-blocked]')?.innerText ?? '', start: document.querySelector('[data-start]')?.innerText, startWait: document.querySelector('[data-start]')?.classList.contains('btn-wait'),
-  movie: document.querySelector('[data-card=movie]')?.innerText ?? '', poster: document.querySelector('[data-card=poster]')?.innerText ?? '', result: document.querySelector('[data-card=result]')?.innerText ?? '',
-  run: document.querySelector('[data-run]')?.innerText ?? '', crop: !!document.querySelector('[data-crop]') }`);
+const page = () => q(`return { blocked: document.querySelector('[data-start]')?.title ?? '', start: document.querySelector('[data-start]')?.innerText, startWait: document.querySelector('[data-start]')?.classList.contains('btn-wait'),
+  movie: document.querySelector('[data-card=movie]')?.innerText ?? '', poster: document.querySelector('[data-card=poster]')?.innerText ?? '', result: document.querySelector('[data-card=result]')?.innerText ?? '', newName: (document.querySelector('[data-newname] input')?.value ?? '') + (document.querySelector('[data-newname] .ext')?.textContent ?? ''),
+  run: ((document.querySelector('[data-run]')?.innerText ?? '') + ' ' + (document.querySelector('[data-run] .runtxt')?.title ?? '')).trim(), crop: !!document.querySelector('[data-crop]') }`);
 let s = await page();
 await shot("01-ยังไม่มีอะไร.png", ".main");
 check("ยังไม่ได้ใส่อะไร ปุ่มกดไม่ได้ บอกว่าขาดไฟล์หนัง", s.startWait && s.blocked === "ยังกดไม่ได้ ใส่ไฟล์หนังก่อน", s.blocked);
@@ -317,13 +317,13 @@ await c.key("End"); await c.key("ArrowLeft"); await c.key("ArrowLeft"); await sl
 await c.evaluate("document.querySelector('[data-use]').click()"); await sleep(1200);
 s = await page();
 await shot("10-ใส่รูปแล้ว.png", ".main");
-check("กดใช้รูปนี้ การ์ด 2 ขึ้นรูปที่จะแนบ 1000 × 1500 · บอกว่ารูปไม่ใช่ 2 : 3 · การ์ด 3 ขึ้นชื่อไฟล์ใหม่ · ปุ่มกดได้", !s.crop && s.poster.includes("1000 × 1500 px") && s.poster.includes("ภาพแนวนอน 16 : 9") && s.result.includes("The Last Orchard (2022).mkv") && !s.startWait && s.start === "ครอบเป็น MKV พร้อมโปสเตอร์", s.start);
+check("กดใช้รูปนี้ การ์ด 2 ขึ้นรูปที่จะแนบ 1000 × 1500 · บอกว่ารูปไม่ใช่ 2 : 3 · การ์ด 3 ขึ้นชื่อไฟล์ใหม่ · ปุ่มกดได้", !s.crop && s.poster.includes("1000 × 1500 px") && s.poster.includes("ภาพแนวนอน 16 : 9") && s.newName === "The Last Orchard (2022).mkv" && !s.startWait && s.start === "ครอบเป็น MKV พร้อมโปสเตอร์", s.start);
 
 // รูปเล็กเกิน
 await drop(join(IMG, "small.jpg"), "poster"); await sleep(1800);
 d = await dlg();
 await shot("11-รูปเล็กเกิน.png", ".dlg");
-check("รูปเล็กเกิน บอกขนาดส่วนที่ครอปจริง ปกจะดูเบลอ ปุ่มใช้ต่อ เปลี่ยนรูป", d.small.includes("ส่วนที่ครอปเหลือแค่ 300 × 450 px") && d.small.includes("ใช้ต่อ") && d.small.includes("เปลี่ยนรูป"), d.small.split("\n")[0]);
+check("รูปเล็กเกิน บอกขนาดส่วนที่ครอปจริง ปกอาจเบลอ ปุ่มใช้ต่อ เปลี่ยนรูป", d.small.includes("ครอปเหลือ 300 × 450 px") && d.small.includes("ปกอาจเบลอ") && d.small.includes("ใช้ต่อ") && d.small.includes("เปลี่ยนรูป"), d.small.split("\n")[0]);
 await c.evaluate("[...document.querySelectorAll('[data-small] button')].find(b => b.innerText === 'ใช้ต่อ').click()"); await sleep(200);
 check("กดใช้ต่อ คำเตือนรูปเล็กหาย", !(await dlg()).small);
 await c.evaluate("[...document.querySelectorAll('.dlg button')].find(b => b.innerText === 'ยกเลิก').click()"); await sleep(300);
@@ -396,7 +396,7 @@ await c.evaluate("document.querySelector('[data-start]').click()");
 for (let i = 0; i < 100; i++) { if ((await q("return document.querySelector('[data-run=working] .bar i')?.style.width ?? ''")) !== "0%" && (await q("return !!document.querySelector('[data-run=working]')"))) break; await sleep(50); }
 await sleep(400);
 await shot("17-กำลังครอบ.png", "[data-run]", 8);
-const prog = await q("return document.querySelector('[data-run]')?.innerText ?? ''");
+const prog = await q("return ((document.querySelector('[data-run]')?.innerText ?? '') + ' ' + (document.querySelector('[data-run] .runtxt')?.title ?? '')).trim()");
 await c.evaluate("[...document.querySelectorAll('[data-run] button')].find(b => b.innerText === 'หยุด').click()"); await sleep(300);
 const ask = await q("return document.querySelector('.dlg')?.innerText ?? ''");
 await shot("18-ยืนยันหยุด.png", ".dlg");

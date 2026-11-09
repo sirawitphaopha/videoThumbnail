@@ -717,35 +717,6 @@ pub fn seek_args(player: &Path, file: &Path, secs: f64) -> Option<Vec<OsString>>
     }
 }
 
-/// หาโปรแกรมเล่นที่เปิดตรงนาทีได้ ที่ลงไว้ในเครื่อง
-fn find_player() -> Option<PathBuf> {
-    let mut roots: Vec<PathBuf> = ["ProgramFiles", "ProgramFiles(x86)", "ProgramW6432"].iter().filter_map(|k| std::env::var_os(k).map(PathBuf::from)).collect();
-    if let Some(l) = std::env::var_os("LOCALAPPDATA") {
-        roots.push(PathBuf::from(l).join("Programs"));
-    }
-    // K-Lite Codec Pack วาง MPC-HC ไว้ในโฟลเดอร์ของตัวเอง (เจอบนเครื่องพี่กัน 7 พ.ย. 2569 · Program Files (x86)\K-Lite Codec Pack\MPC-HC64)
-    let rel = ["VideoLAN/VLC/vlc.exe", "MPC-HC/mpc-hc64.exe", "MPC-HC/mpc-hc.exe", "K-Lite Codec Pack/MPC-HC64/mpc-hc64.exe", "K-Lite Codec Pack/MPC-HC/mpc-hc.exe",
-        "MPC-BE x64/mpc-be64.exe", "MPC-BE/mpc-be.exe", "DAUM/PotPlayer/PotPlayerMini64.exe", "DAUM/PotPlayer/PotPlayerMini.exe", "mpv/mpv.exe"];
-    for r in &roots {
-        for p in rel {
-            let c = r.join(p);
-            if c.exists() {
-                return Some(c);
-            }
-        }
-    }
-    let path = std::env::var_os("PATH")?;
-    for d in std::env::split_paths(&path) {
-        for n in ["vlc.exe", "mpv.exe"] {
-            let c = d.join(n);
-            if c.exists() {
-                return Some(c);
-            }
-        }
-    }
-    None
-}
-
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlayResult {
@@ -755,20 +726,24 @@ pub struct PlayResult {
     seeked: bool,
 }
 
-/// โปรแกรมเล่นที่เปิดตรงนาทีได้ ตอนไม่ได้ตั้งไว้ในหน้าตั้งค่า
-/// ① โปรแกรมหลักที่เครื่องใช้เปิดไฟล์ชนิดนี้ ถ้าเป็นโปรแกรมที่สั่งกระโดดนาทีได้ (ลงไว้ที่ไหนก็เจอ รวมแบบพกพา · TECH-REVIEW ข้อ 14)
-/// ② หาในโฟลเดอร์ติดตั้งมาตรฐานกับ PATH
-fn pick_player(file: &Path) -> Option<PathBuf> {
+/// โปรแกรมเล่นตอนไม่ได้ตั้งไว้ในหน้าตั้งค่า (พี่กันสั่ง 9 พ.ย. 2569 ค่าตั้งต้นคือ MPC-HC)
+/// ① MPC-HC ② โปรแกรมหลักที่เครื่องใช้เปิดไฟล์ชนิดนี้ ถ้าสั่งกระโดดนาทีได้ (ลงไว้ที่ไหนก็เจอ รวมแบบพกพา · TECH-REVIEW ข้อ 14) ③ ตัวอื่นที่หาเจอและกระโดดนาทีได้
+/// None = เครื่องนี้ไม่มี ใช้โปรแกรมหลักของ Windows
+pub fn auto_player(found: &[PathBuf], file: &Path) -> Option<PathBuf> {
     let ext = file.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default();
-    crate::winutil::default_app_for(&ext).filter(|p| seek_args(p, file, 0.0).is_some()).or_else(find_player)
+    crate::players::mpc_hc(found)
+        .or_else(|| crate::winutil::default_app_for(&ext).filter(|p| seek_args(p, file, 0.0).is_some()))
+        .or_else(|| found.iter().find(|p| seek_args(p, file, 0.0).is_some()).cloned())
 }
 
-/// โปรแกรมเล่นที่จะใช้เปิดไฟล์ · ตั้งไว้ในหน้าตั้งค่าใช้ตัวนั้น ไม่ได้ตั้งหาเองในเครื่อง (pick_player) · None = ใช้โปรแกรมหลักของ Windows
-/// ใช้ร่วมกับปุ่มลองฟัง 20 วินาทีของตัวช่วยหาดีเลย์ (delay.rs)
+/// โปรแกรมเล่นที่จะใช้เปิดไฟล์ · ตั้งไว้ในหน้าตั้งค่าใช้ตัวนั้น ไม่ได้ตั้งเลือกเอง (auto_player) · None = ใช้โปรแกรมหลักของ Windows
+/// ใช้ร่วมกับปุ่มเปิดเล่นบนชั้นวาง (library.rs) และปุ่มลองฟัง 20 วินาทีของตัวช่วยหาดีเลย์ (delay.rs)
 pub fn player_for(app: &AppHandle, file: &Path) -> Result<Option<PathBuf>, String> {
     let set = app.state::<SettingsStore>().current.lock().unwrap().player_path.clone();
-    if set.trim().is_empty() {
-        Ok(pick_player(file))
+    if set.trim() == crate::players::SYSTEM {
+        Ok(None)
+    } else if set.trim().is_empty() {
+        Ok(auto_player(&crate::players::scan(), file))
     } else if Path::new(&set).exists() {
         Ok(Some(PathBuf::from(&set)))
     } else {
@@ -776,7 +751,7 @@ pub fn player_for(app: &AppHandle, file: &Path) -> Result<Option<PathBuf>, Strin
     }
 }
 
-/// เปิดเล่นที่นาทีที่เสีย · ใช้โปรแกรมที่ตั้งไว้ ไม่ได้ตั้งหาเองในเครื่อง (pick_player) ไม่เจอเปิดด้วยโปรแกรมหลักของ Windows (เปิดตรงนาทีไม่ได้)
+/// เปิดเล่นที่นาทีที่เสีย · ใช้โปรแกรมที่ตั้งไว้ ไม่ได้ตั้งเลือกเอง (auto_player) ไม่เจอเปิดด้วยโปรแกรมหลักของ Windows (เปิดตรงนาทีไม่ได้)
 #[tauri::command]
 pub fn play_at(app: AppHandle, path: String, secs: f64) -> Result<PlayResult, String> {
     let file = Path::new(&path);

@@ -58,7 +58,7 @@ await waitFor("return document.querySelector('[data-run]')?.dataset.run === 'wor
 await nav("ชั้นวางหนัง"); await sleep(800);
 const away = await q("return !document.querySelector('[data-run]')");
 await nav("ใส่โปสเตอร์"); await sleep(400);
-const back = await q("return { run: document.querySelector('[data-run]')?.dataset.run, text: document.querySelector('[data-run]')?.innerText ?? '', movie: document.querySelector('[data-card=movie]')?.innerText ?? '', stop: [...document.querySelectorAll('[data-run] button')].some(b => b.innerText === 'หยุด'), poster: (document.querySelector('[data-card=poster]')?.innerText ?? '').includes('1000 × 1500') }");
+const back = await q("return { run: document.querySelector('[data-run]')?.dataset.run, text: ((document.querySelector('[data-run]')?.innerText ?? '') + ' ' + (document.querySelector('[data-run] .runtxt')?.title ?? '')).trim(), movie: document.querySelector('[data-card=movie]')?.innerText ?? '', stop: [...document.querySelectorAll('[data-run] button')].some(b => b.innerText === 'หยุด'), poster: (document.querySelector('[data-card=poster]')?.innerText ?? '').includes('1000 × 1500') }");
 await shot("02-กลับมาเห็นงานเดิม.png", ".main");
 check("เปลี่ยนไปชั้นวางระหว่างครอบ แล้วกลับมา เห็นงานเดิม เปอร์เซ็นต์ ปุ่มหยุด ไฟล์หนังกับรูปโปสเตอร์ของงานนั้น", away && back.run === "working" && /กำลังครอบเป็น MKV/.test(back.text) && /\d+%/.test(back.text) && back.stop && back.movie.includes("หนังยาว (2020)") && back.poster, back.text.split("\n").join(" / "));
 // ปุ่มหยุดยังใช้ได้ หน้าต่างยืนยันใช้โหมดของงานจริง
@@ -66,17 +66,17 @@ await c.evaluate("[...document.querySelectorAll('[data-run] button')].find(b => 
 const ask = await q("return document.querySelector('.dlg')?.innerText ?? ''");
 await c.evaluate("[...document.querySelectorAll('.dlg button')].find(b => b.innerText === 'หยุด').click()");
 await waitFor("return document.querySelector('[data-run]')?.dataset.run !== 'working'", 20000); await sleep(400);
-const stopped = await q("return document.querySelector('[data-run]')?.innerText ?? ''");
+const stopped = await q("return ((document.querySelector('[data-run]')?.innerText ?? '') + ' ' + (document.querySelector('[data-run] .runtxt')?.title ?? '')).trim()");
 check("กดหยุดหลังกลับมา ถามยืนยันหยุดครอบไฟล์ แล้วหยุดจริง ไฟล์ที่ทำค้างถูกลบ", ask.includes("ยืนยันหยุดครอบไฟล์") && stopped.includes("หยุดแล้ว") && partials().length === 0, stopped.split("\n").join(" / "));
 
 // ③ เปลี่ยนหน้าระหว่างคิด hash กลับมาเห็นว่างานยังทำอยู่
 await nav("ชั้นวางหนัง"); await sleep(500);
 await c.book("หนังยาว (2020)"); await sleep(300);
-await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.innerText.includes('ข้อมูลไฟล์')).click()");
+await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.innerText.includes('MediaInfo')).click()");
 await waitFor("return !!document.querySelector('[data-hash-start]')");
 await c.evaluate("document.querySelector('[data-hash-start]').click()"); await sleep(300);
 await c.evaluate("[...document.querySelectorAll('[data-info-page] button')].find(b => b.innerText === 'กลับไปชั้นวาง').click()"); await sleep(300);
-await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.innerText.includes('ข้อมูลไฟล์')).click()");
+await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.innerText.includes('MediaInfo')).click()");
 const seen = await waitFor("return !!document.querySelector('[data-hash-elsewhere]')", 4000);
 await shot("03-hashที่เริ่มไว้ยังทำอยู่.png", "[data-hash]", 8);
 const twice = await c.evaluate(`window.__TAURI_INTERNALS__.invoke('hash_file', { path: ${JSON.stringify(big)}, algos: ['md5'] }).then(() => 'ทำได้', (e) => String(e))`);
@@ -98,7 +98,7 @@ check("กดทำงานต่อ โปรแกรมยังอยู่
 await nav("ชั้นวางหนัง"); await sleep(400);
 await c.evaluate("[...document.querySelectorAll('[data-info-page] button')].find(b => b.innerText === 'กลับไปชั้นวาง')?.click()"); await sleep(400);
 await c.book("ดาวเหนือ (2023)"); await sleep(300);
-await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.innerText.includes('ข้อมูลไฟล์')).click()");
+await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.innerText.includes('MediaInfo')).click()");
 await waitFor("return !!document.querySelector('[data-mi]')");
 for (const t of ["Audio #2", "Text #1"]) await c.evaluate(`[...document.querySelectorAll('[data-mi] .mih.pick')].find(h => h.innerText.includes(${JSON.stringify(t)})).click()`);
 await c.evaluate("document.querySelector('[data-extract-start]').click()");
@@ -118,18 +118,18 @@ await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.inn
 await waitFor("return (document.querySelector('[data-card=movie]')?.innerText ?? '').includes('ดาวเหนือ')");
 const first = await q("return { poster: document.querySelector('[data-card=poster]')?.innerText ?? '', result: document.querySelector('[data-card=result]')?.innerText ?? '', bold: [...document.querySelectorAll('[data-card=result] b')].map(b => b.innerText) }");
 await shot("06-มาจากปุ่มเปลี่ยนโปสเตอร์.png", ".cards, .main", 0);
-check("มาจากปุ่มเปลี่ยนโปสเตอร์ ช่องวางรูปบอก ไฟล์หนังใส่ให้แล้ว เหลือแค่ลากรูปใหม่มาวาง · รับ JPG PNG WebP BMP TIFF HEIC · การ์ด 3 ตัวหนา ไฟล์เป็น MKV อยู่แล้ว เปลี่ยนแค่รูปแนบ ไม่ต้องครอบใหม่",
-  first.poster.includes("ไฟล์หนังใส่ให้แล้ว เหลือแค่ลากรูปใหม่มาวาง") && first.poster.includes("JPG PNG WebP BMP TIFF HEIC") && first.bold.includes("ไฟล์เป็น MKV อยู่แล้ว เปลี่ยนแค่รูปแนบ ไม่ต้องครอบใหม่"), first.poster.split("\n").slice(0, 3).join(" / "));
+check("มาจากปุ่มเปลี่ยนโปสเตอร์ ช่องวางรูปบอก ไฟล์หนังใส่ให้แล้ว เหลือรูปโปสเตอร์ · รับ JPG PNG WebP BMP TIFF HEIC · การ์ด 3 ตัวหนา ไฟล์เป็น MKV อยู่แล้ว เปลี่ยนแค่รูปแนบ ไม่ต้องครอบใหม่",
+  first.poster.includes("ไฟล์หนังใส่ให้แล้ว เหลือรูปโปสเตอร์") && first.poster.includes("JPG PNG WebP BMP TIFF HEIC") && (await q("return document.querySelector('[data-opt=original] .opts')?.title ?? ''")).includes("ไฟล์เป็น MKV อยู่แล้ว"), first.poster.split("\n").slice(0, 3).join(" / "));
 await drop(join(IMG, "wide.jpg"), "poster"); await waitFor("return !!document.querySelector('[data-use]')"); await sleep(800);
 await c.evaluate("document.querySelector('[data-use]').click()"); await sleep(1200);
 const wide = await q("return { text: document.querySelector('[data-card=poster]')?.innerText ?? '', seg: [...document.querySelectorAll('[data-card=poster] .seg button')].map(b => b.innerText) }");
 await shot("07-รูปไม่ใช่2ต่อ3.png", "[data-card=poster]", 8);
-check("รูปแนวนอน การ์ดรูปบอก ภาพแนวนอน 16 : 9 · เลือก ตัดให้พอดีปก เติมขอบให้เต็ม ตามรูปเดิม · ปุ่ม ครอปเองพร้อมดูตัวอย่าง",
-  wide.text.includes("ภาพแนวนอน 16 : 9") && ["ตัดให้พอดีปก", "เติมขอบให้เต็ม", "ตามรูปเดิม"].every((s) => wide.seg.includes(s)) && wide.text.includes("ครอปเองพร้อมดูตัวอย่าง"), wide.seg.join(" | "));
-await c.evaluate("[...document.querySelectorAll('[data-card=poster] .seg button')].find(b => b.innerText === 'เติมขอบให้เต็ม').click()");
+check("รูปแนวนอน การ์ดรูปบอก ภาพแนวนอน 16 : 9 · เลือก ตัดพอดี เติมขอบ ตามรูปเดิม · ปุ่ม ครอปภาพ",
+  wide.text.includes("ภาพแนวนอน 16 : 9") && ["ตัดพอดี", "เติมขอบ", "ตามรูปเดิม"].every((s) => wide.seg.includes(s)) && wide.text.includes("ครอปภาพ"), wide.seg.join(" | "));
+await c.evaluate("[...document.querySelectorAll('[data-card=poster] .seg button')].find(b => b.innerText === 'เติมขอบ').click()");
 await waitFor("return (document.querySelector('[data-card=poster]')?.innerText ?? '').includes('เติมขอบให้เต็มปก')", 8000);
 const padded = await q("return document.querySelector('[data-card=poster]')?.innerText ?? ''");
-check("กด เติมขอบให้เต็ม ทำรูปใหม่ทันที การ์ดบอก เติมขอบให้เต็มปก 1000 × 1500", padded.includes("เติมขอบให้เต็มปก") && padded.includes("1000 × 1500"), padded.split("\n").slice(0, 4).join(" / "));
+check("กด เติมขอบ ทำรูปใหม่ทันที การ์ดบอก เติมขอบให้เต็มปก 1000 × 1500", padded.includes("เติมขอบให้เต็มปก") && padded.includes("1000 × 1500"), padded.split("\n").slice(0, 4).join(" / "));
 await drop(join(IMG, "poster.webp"), "poster"); await waitFor("return !!document.querySelector('[data-use]')"); await sleep(800);
 await c.evaluate("document.querySelector('[data-use]').click()"); await sleep(1200);
 const conv = await q("return document.querySelector('[data-convert]')?.innerText ?? ''");

@@ -3,6 +3,7 @@
    ไฟล์ที่ไม่มีข้อมูลเพลงขึ้นว่าไม่มี พร้อมบอกเหตุ · ปุ่มคัดลอกข้อมูลเป็นข้อความ แบบหน้าข้อมูลไฟล์ */
 import { useEffect, useState } from "react";
 import Dialog from "./Dialog";
+import ImageViewer from "./ImageViewer";
 import { CardIcon, Keep, Phr, Skel } from "./ui";
 import { convertApi, type AudioFile, type CoverData } from "../lib/api";
 import { ftName } from "../lib/ftypes";
@@ -33,9 +34,9 @@ export function tagRows(f: AudioFile, cover: CoverData | null): [string, string]
 }
 
 /** เหตุที่ไม่มีข้อมูลเพลง ตามชนิดไฟล์ */
-function whyNone(f: AudioFile): string {
+export function whyNone(f: AudioFile): string {
   const ft = ftName("audio", f.codec, f.profile);
-  if (!f.audioOnly) return "ไฟล์หนังเก็บชื่อเรื่องแทนข้อมูลเพลง ดูข้อมูลหนังได้ที่หน้าข้อมูลไฟล์";
+  if (!f.audioOnly) return "ไฟล์หนังเก็บชื่อเรื่องแทนข้อมูลเพลง ดูข้อมูลหนังได้ที่หน้า MediaInfo";
   if (ft === "PCM") return "ไฟล์ WAV ส่วนใหญ่ไม่เก็บชื่อเพลงกับรูปปก · แปลงเป็น FLAC แล้วก็ยังไม่มีข้อมูล เพราะต้นฉบับไม่มี";
   if (["AC-3", "E-AC-3", "DTS", "TrueHD"].includes(ft)) return `ไฟล์ ${ft} แยกเดี่ยวไม่มีที่เก็บข้อมูลเพลงกับรูปปก`;
   return "ไฟล์นี้ไม่ได้ใส่ชื่อเพลงกับรูปปกไว้";
@@ -46,6 +47,7 @@ export default function TagDialog({ path, onClose }: { path: string; onClose: ()
   const [cover, setCover] = useState<CoverData | null | undefined>(undefined);
   const [err, setErr] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [big, setBig] = useState<DOMRect | null>(null);
   useEffect(() => {
     let live = true;
     convertApi.probe(path).then((x) => {
@@ -72,7 +74,7 @@ export default function TagDialog({ path, onClose }: { path: string; onClose: ()
       </>}>
       <div className="tagview" data-tagview>
         {err ? null : cover === undefined ? <Skel w={150} h={150} r={10} />
-          : cover ? <img className="art" src={cover.url} alt="รูปปก" data-tagart />
+          : cover ? <button type="button" className="artbtn" onClick={(e) => setBig(e.currentTarget.getBoundingClientRect())} title="ดูภาพใหญ่" aria-label="ดูรูปปกภาพใหญ่" data-tagartbtn><img className="art" src={cover.url} alt="รูปปก" data-tagart /></button>
           : <div className="art none" data-tagart="none">ไม่มีรูปปก</div>}
         {err ? <div className="stat bad"><CardIcon kind="bad" /><div><b>อ่านไฟล์ไม่ได้</b><Phr>{err}</Phr></div></div>
           : !f ? <div style={{ display: "flex", flexDirection: "column", gap: 8, flex: 1 }}>{[0, 1, 2, 3, 4].map((i) => <Skel key={i} w="100%" h={16} />)}</div>
@@ -80,6 +82,7 @@ export default function TagDialog({ path, onClose }: { path: string; onClose: ()
           : <div className="stat info" data-tagnone><CardIcon kind="info" /><div><b>ไฟล์นี้ไม่มีข้อมูลเพลง</b><Phr>{whyNone(f)}</Phr></div></div>}
       </div>
       {f && !hasTags && f.cover && <div className="small" style={{ marginTop: 8 }}>มีแต่รูปปก ไม่มีชื่อเพลง</div>}
+      {big && cover && <ImageViewer src={cover.url} thumb={cover.url} originRect={big} info={{ name, sizeBytes: cover.bytes }} onClose={() => setBig(null)} />}
     </Dialog>
   );
 }

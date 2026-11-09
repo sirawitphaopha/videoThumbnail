@@ -76,7 +76,7 @@ await c.click('.spk .s[aria-label^="แสดงช่อง"]'); await sleep(30
 /* ---------- เมนูชั้นวางจากหน้าข้อมูลไฟล์ ---------- */
 await nav("ชั้นวางหนัง");
 await c.book("ดาวเหนือ (2023)"); await sleep(400);
-await q("[...document.querySelectorAll('[data-detail] button')].find((b) => b.textContent.includes('ข้อมูลไฟล์')).click();");
+await q("[...document.querySelectorAll('[data-detail] button')].find((b) => b.textContent.includes('MediaInfo')).click();");
 await waitFor("return !!document.querySelector('[data-info-page]');", 15000);
 await c.click("button.nav:first-of-type"); await sleep(500);
 const back = await q("return { info: !!document.querySelector('[data-info-page]'), books: document.querySelectorAll('.book[data-movie]').length };");

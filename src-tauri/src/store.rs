@@ -47,8 +47,14 @@ pub struct Settings {
     pub show_dots: bool,
     /// เรื่องที่ยังไม่มีปก แสดงภาพสุ่มจากหนังแทนแถบทะแยง · ค่าตั้งต้นปิด (แคลร์ตั้ง)
     pub show_frames: bool,
-    // การ์ดเปิดเล่นหนัง · ว่าง = โปรแกรมหลักของ Windows
+    /// หน้ากราฟเสียง ซูมเหมือนกันทุกกราฟ · ปิด = ซูมเฉพาะกราฟที่ดูอยู่
+    pub graph_zoom_all: bool,
+    /// รูปกราฟที่บันทึก ขนาด ชนิด bit DPI
+    pub graph_img: crate::graphimg::GraphImg,
+    // การ์ดเปิดเล่นหนัง · ว่าง = โปรแกรมเลือกเอง MPC-HC ก่อน (players.rs) · "system" = โปรแกรมหลักของ Windows · นอกนั้นคือที่อยู่โปรแกรม
     pub player_path: String,
+    /// โปรแกรมเล่นที่พี่กันเพิ่มเอง
+    pub players: Vec<String>,
     // ค่าหน้าตาที่จำไว้
     pub sidebar_collapsed: bool,
     /// "grid" | "table"
@@ -89,7 +95,10 @@ impl Default for Settings {
             show_names: true,
             show_dots: true,
             show_frames: false,
+            graph_zoom_all: false,
+            graph_img: Default::default(),
             player_path: String::new(),
+            players: vec![],
             sidebar_collapsed: false,
             view_mode: "grid".into(),
             sort: "name-asc".into(),

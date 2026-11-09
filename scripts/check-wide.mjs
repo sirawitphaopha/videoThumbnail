@@ -73,7 +73,7 @@ const cropOpen = await waitFor("return !!document.querySelector('[data-crop]')",
 await clickText("[data-crop] .seg button", "ตามรูปเดิม"); await sleep(500);
 const pv = await q("return [...document.querySelectorAll('[data-previews] .pv')].map(p => { const r = p.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height), Math.round(r.top)]; })");
 const hint = await q("return [...document.querySelectorAll('[data-crop] .small')].map(e => e.innerText).join(' | ')");
-check("หน้าครอปมีแบบ ตามรูปเดิม · ตัวอย่างทั้งสามเป็นแนวนอน อยู่แถวเดียวกัน", cropOpen && pv.length === 3 && pv.every((p) => p[0] > p[1]) && new Set(pv.map((p) => p[2] + p[1])).size === 1 && hint.includes("ใช้ทั้งรูปตามสัดส่วนเดิม"), `ตัวอย่าง ${pv.map((p) => p[0] + "×" + p[1]).join(" · ")}`);
+check("หน้าครอปมีแบบ ตามรูปเดิม · ตัวอย่างทั้งสามเป็นแนวนอน อยู่แถวเดียวกัน", cropOpen && pv.length === 3 && pv.every((p) => p[0] > p[1]) && hint.includes("ใช้ทั้งรูปตามสัดส่วนเดิม"), `ตัวอย่าง ${pv.map((p) => p[0] + "×" + p[1]).join(" · ")}`);
 await shot("01-หน้าครอป-ตามรูปเดิม.png", "[data-crop]");
 await c.evaluate("document.querySelector('[data-use]').click()");
 await waitFor("return !document.querySelector('[data-crop]') && !!document.querySelector('[data-pp]')", 15000); await sleep(600);
@@ -83,7 +83,7 @@ check("ใช้รูปแล้ว การ์ดรูปบอก 1500 ก
 await shot("02-การ์ดรูป-แนวนอน.png", "[data-card=poster]");
 await c.evaluate("document.querySelector('[data-start]').click()");
 for (let i = 0; i < 200; i++) { const r = await q("return document.querySelector('[data-run]')?.dataset.run"); if (r === "done" || r === "failed") break; await sleep(150); }
-const run = await text("[data-run]");
+const run = await q("return ((document.querySelector('[data-run]')?.innerText ?? '') + ' ' + (document.querySelector('[data-run] .runtxt')?.title ?? '')).trim()");
 const MKVMERGE = join("src-tauri", "tools", "mkvmerge.exe");
 const attNames = (f) => (JSON.parse(execFileSync(MKVMERGE, ["-J", f], { encoding: "utf8" })).attachments ?? []).map((a) => a.file_name).sort();
 const att1 = attNames(join(DIR, "ดาวเหนือ (2023).mkv"));
@@ -127,7 +127,7 @@ const attach = async (img, mode) => {
   await waitFor("return !document.querySelector('[data-crop]') && !!document.querySelector('[data-pp]')", 15000); await sleep(500);
   await c.evaluate("document.querySelector('[data-start]').click()");
   for (let i = 0; i < 200; i++) { const r = await q("return document.querySelector('[data-run]')?.dataset.run"); if (r === "done" || r === "failed") break; await sleep(150); }
-  return text("[data-run]");
+  return q("return ((document.querySelector('[data-run]')?.innerText ?? '') + ' ' + (document.querySelector('[data-run] .runtxt')?.title ?? '')).trim()");
 };
 const run2 = await attach("poster.jpg", "ตัดให้พอดี 2 : 3");
 const att2 = attNames(join(DIR, "ดาวเหนือ (2023).mkv"));

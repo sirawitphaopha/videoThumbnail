@@ -2,7 +2,7 @@
    ตั้งแล้วมีผลทันที ไม่ต้องกดบันทึก · สวิตช์ชมพู = เปิด · ค่าเก็บในไฟล์ค่าตั้งของโปรแกรมผ่าน set_settings (store.rs เขียนแบบปลอดภัยมีสำรอง)
    ค่าที่นี่คือค่าตั้งต้น ทุกครั้งที่ใส่โปสเตอร์หรือตรวจไฟล์ยังเปลี่ยนเฉพาะครั้งนั้นได้ */
 import { useEffect, useRef, useState } from "react";
-import { api, encodeApi, graphApi, linkApi, pickExe, pickFolder, type EncoderInfo, type LatestInfo, type Settings, type ToolCheck } from "../lib/api";
+import { GRAPH_IMG_DEFAULT, api, encodeApi, graphApi, linkApi, pickExe, pickFolder, playerApi, type EncoderInfo, type LatestInfo, type GraphImg, type PlayerList, type Settings, type ToolCheck } from "../lib/api";
 import { kb } from "../lib/popup";
 import { listen } from "@tauri-apps/api/event";
 import { inApp } from "../lib/api";
@@ -15,13 +15,13 @@ import { IcPalette, IcCheck, IcCoverL, IcCoverM, IcCoverS, IcTall, IcWide, IcFol
 import { Keep, Phr, Range, Seg, Skel, Switch } from "../components/ui";
 import { setSkelPreview, useSkelPreview } from "../lib/skelPreview";
 import { fmtSize } from "../lib/format";
+import "../styles/av.css";
 import ToneCard from "../components/ToneCard";
 import { DEFAULT_TONE, TONES } from "../lib/tones";
 import { IbTrash, IcRefresh } from "../components/icons";
-import { IbTick, IbPlay } from "../components/icons";
+import { IbTick, IcClose, IcPlus } from "../components/icons";
 
 const FolderIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b0355f" strokeWidth="2" aria-hidden="true"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>;
-const PlayIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b0355f" strokeWidth="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M10 9l5 3-5 3z" fill="#b0355f" /></svg>;
 
 const IcPlayBox = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M10 9l5 3-5 3z" fill="currentColor" /></svg>;
 
@@ -57,7 +57,7 @@ const TOOL_ROLE: Record<string, string> = {
   mkvpropedit: "ใช้เปลี่ยนรูปแนบใน MKV",
   ffmpeg: "ใช้ส่งออก MP4 ตรวจละเอียด และกราฟเสียง",
   ffprobe: "ใช้อ่านข้อมูลไฟล์หนัง",
-  MediaInfo: "ใช้หน้าข้อมูลไฟล์",
+  MediaInfo: "ใช้หน้า MediaInfo",
 };
 
 /** เก็บรูปที่จับคู่ไว้ที่ไหน 3 แบบ (พี่กันเคาะข้อ 1 · มอคอัปจับคู่ปกหัวข้อหน้าตั้งค่า) */
@@ -93,6 +93,7 @@ export default function SettingsPage() {
   const skel = useSkelPreview();
   const [removing, setRemoving] = useState<string | null>(null);
   const [icarosHelp, setIcarosHelp] = useState(false);
+  const [players, setPlayers] = useState<PlayerList | null>(null);
   const [tools, setTools] = useState<ToolCheck[] | null>(null);
   const [icaros, setIcaros] = useState<boolean | null>(null);
   const [checking, setChecking] = useState(false);
@@ -155,6 +156,12 @@ export default function SettingsPage() {
       toast({ kind: "bad", title: "ตรวจเครื่องมือไม่ได้", detail: String(e) });
     } finally { setChecking(false); }
   };
+  // โปรแกรมเล่นในเครื่อง หาใหม่ทุกครั้งที่เปิดหัวข้อนี้ เผื่อเพิ่งลงโปรแกรม · หาไม่สำเร็จยังเลือกโปรแกรมหลักของ Windows ได้
+  useEffect(() => {
+    if (sec !== "player") return;
+    playerApi.list().then(setPlayers, () => setPlayers({ players: [], systemDefault: !settings?.playerPath }));
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, [sec, settings?.playerPath, settings?.players]);
   useEffect(() => { void recheckEnc(); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
   useEffect(() => { void recheck(); graphApi.cacheInfo().then(setCache, () => setCache(null)); /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, []);
 
@@ -182,10 +189,14 @@ export default function SettingsPage() {
     const f = await pickFolder("เลือกโฟลเดอร์เก็บไฟล์เดิม");
     if (f) await set({ originalsFolder: f });
   };
-  const choosePlayer = async () => {
+  const addPlayer = async () => {
     const f = await pickExe();
-    if (f) await set({ playerPath: f });
+    if (!f) return;
+    const list = settings.players ?? [];
+    if (!list.some((x) => x.toLowerCase() === f.toLowerCase())) await set({ players: [...list, f] });
   };
+  const removePlayer = (path: string, wasDefault: boolean) =>
+    set({ players: (settings.players ?? []).filter((x) => x.toLowerCase() !== path.toLowerCase()), ...(wasDefault ? { playerPath: "" } : {}) });
   const jpgNow = jpg ?? settings.jpgQuality;
   const onJpg = (v: number) => {
     setJpg(v);
@@ -257,7 +268,7 @@ export default function SettingsPage() {
           <Switch on={settings.checkSourceBefore} onChange={(v) => set({ checkSourceBefore: v })} label="ตรวจไฟล์ต้นทางก่อนครอบ" /></div>
         <div className="setrow"><div className="lbl">ตรวจไฟล์ใหม่หลังครอบเสร็จ<span className="small">เทียบว่าภาพ เสียง ซับ ครบเท่าต้นทาง</span></div>
           <Switch on={settings.checkOutputAfter} onChange={(v) => set({ checkOutputAfter: v })} label="ตรวจไฟล์ใหม่หลังครอบเสร็จ" /></div>
-        <div className="setrow"><div className="lbl">ไฟล์ที่ได้</div>
+        <div className="setrow" data-seg165><div className="lbl">ไฟล์ที่ได้</div>
           <Seg label="ไฟล์ที่ได้" value={settings.outputFormat} onChange={(v) => set({ outputFormat: v })} options={[{ value: "mkv", label: "MKV" }, { value: "mp4", label: "MP4" }]} /></div>
         <div className="setrow"><div className="lbl">ไฟล์เดิมหลังครอบ</div>
           <Seg label="ไฟล์เดิมหลังครอบ" value={settings.originalAfter} onChange={(v) => set({ originalAfter: v })} options={[{ value: "keep", label: <><IbTick size={14} />เก็บไว้</> }, { value: "trash", label: <><IbTrash size={14} />ลบเมื่อตรวจผ่าน</> }]} /></div>
@@ -266,8 +277,8 @@ export default function SettingsPage() {
           <span className="small">ต้องอยู่ไดรฟ์เดียวกับไฟล์หนัง คนละไดรฟ์ใช้โฟลเดอร์ ไฟล์เดิม ข้างไฟล์หนังแทน</span></div>
           <div style={{ display: "flex", gap: 6 }}>
             {settings.originalsFolder && <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ originalsFolder: "" })}>ใช้ข้างไฟล์หนัง</button>}
-            <button type="button" className="btn btn-ghost btn-sm" onClick={changeOriginals}><IcFolder size={15} />เปลี่ยน</button></div></div>
-        <div className="setrow"><div className="lbl">รูปโปสเตอร์ที่แนบ<span className="small">ใช้กับรูปที่ต้องแปลง และรูปที่ครอป</span></div>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={changeOriginals} data-orig-change><IcFolder size={15} />เปลี่ยน</button></div></div>
+        <div className="setrow" data-seg165><div className="lbl">รูปโปสเตอร์ที่แนบ<span className="small">ใช้กับรูปที่ต้องแปลง และรูปที่ครอป</span></div>
           <Seg label="รูปโปสเตอร์ที่แนบ" value={settings.posterFormat} onChange={(v) => set({ posterFormat: v })} options={[{ value: "jpg", label: "JPG" }, { value: "png", label: "PNG" }]} /></div>
         <div className="setrow" style={{ display: "block" }}><div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ fontSize: 14, whiteSpace: "nowrap" }}>คุณภาพ JPG</span>
@@ -322,26 +333,47 @@ export default function SettingsPage() {
       </div>
 
       <div className="setcard" data-setcard="shelf" hidden={sec !== "shelf"}><h3>ชั้นวาง</h3>
-        <div className="setrow"><div className="lbl">ขนาดปก</div>
+        <div className="setrow" data-seg-cover><div className="lbl">ขนาดปก</div>
           <Seg label="ขนาดปก" value={settings.coverSize} onChange={(v) => set({ coverSize: v })} options={[{ value: "s", label: <><IcCoverS />เล็ก</> }, { value: "m", label: <><IcCoverM />กลาง</> }, { value: "l", label: <><IcCoverL />ใหญ่</> }]} /></div>
-        <div className="setrow"><div className="lbl">ดูปก<span className="small">เรื่องที่แนบทั้งปกตั้งและปกนอน · เรื่องที่มีแบบเดียวขึ้นแบบนั้น</span></div>
+        <div className="setrow" data-seg-cover><div className="lbl">ดูปก<span className="small">เรื่องที่แนบทั้งปกตั้งและปกนอน · เรื่องที่มีแบบเดียวขึ้นแบบนั้น</span></div>
           <Seg label="ดูปก" value={settings.coverOrient} onChange={(v) => set({ coverOrient: v })} options={[{ value: "tall", label: <><IcTall />ปกตั้ง</> }, { value: "wide", label: <><IcWide />ปกนอน</> }]} /></div>
         <div className="setrow"><div className="lbl">ชื่อไฟล์ใต้ปก</div><Switch on={settings.showNames} onChange={(v) => set({ showNames: v })} label="ชื่อไฟล์ใต้ปก" /></div>
-        <div className="setrow"><div className="lbl">ภาพจากหนังในเรื่องที่ยังไม่มีปก<span className="small">เปิด เห็นภาพสุ่มจากหนัง · ปิด เห็นแถบทะแยง · ไม่เขียนลงไฟล์หนัง</span></div><Switch on={settings.showFrames} onChange={(v) => set({ showFrames: v })} label="ภาพจากหนังในเรื่องที่ยังไม่มีปก" /></div>
+        <div className="setrow"><div className="lbl">ภาพจากหนังในเรื่องที่ยังไม่มีปก<span className="small">เปิดแล้วเรื่องที่ยังไม่มีปกขึ้นภาพหนึ่งภาพที่สุ่มจากในหนัง แทนแถบทะแยง ทั้งบนชั้นวาง ในตาราง และแผงขวา · ปิดแล้วกลับเป็นแถบทะแยงตามเดิม · ภาพเก็บในโฟลเดอร์ของโปรแกรม ไม่เขียนลงไฟล์หนัง · ไม่นับเป็นปก ตัวกรองยังนับเรื่องนั้นว่ายังไม่มีปก · ปุ่มเดียวกันอยู่ที่ปุ่มการแสดงผลบนชั้นวาง</span></div><Switch on={settings.showFrames} onChange={(v) => set({ showFrames: v })} label="ภาพจากหนังในเรื่องที่ยังไม่มีปก" /></div>
         <div className="setrow"><div className="lbl">จุดสีบอกสภาพไฟล์</div><Switch on={settings.showDots} onChange={(v) => set({ showDots: v })} label="จุดสีบอกสภาพไฟล์" /></div>
         <div className="setrow"><div className="lbl">แสดงโครงจางค้างไว้<span className="small">ไว้ดูหน้าตาตอนรออ่านโฟลเดอร์ · ปิดโปรแกรมแล้วกลับเป็นปิดเอง</span></div>
           <span data-skelpreview style={{ display: "inline-flex" }}><Switch on={skel} onChange={setSkelPreview} label="แสดงโครงจางค้างไว้" /></span></div>
       </div>
 
       {/* ---------- เปิดเล่นหนัง ---------- */}
+      {/* พี่กันสั่ง 9 พ.ย. 2569 ค่าตั้งต้นคือ MPC-HC · ดูในเครื่องว่ามีโปรแกรมเล่นตัวไหน · มีปุ่มเปลี่ยนค่าตั้งต้น · มีปุ่มเพิ่มโปรแกรม */}
       <div className="setcard" data-setcard="player" hidden={sec !== "player"}><h3>เปิดเล่นหนัง</h3>
-        <div className="setrow"><div className="lbl">โปรแกรมที่ใช้เล่น<span className="small">กดปุ่มเปิดเล่นแล้วส่งไฟล์ไปโปรแกรมนี้</span></div>
-          <Seg label="โปรแกรมที่ใช้เล่น" value={settings.playerPath ? "custom" : "default"} onChange={(v) => (v === "default" ? set({ playerPath: "" }) : choosePlayer())}
-            options={[{ value: "default", label: <><IbPlay size={14} />โปรแกรมหลักของ Windows</> }, { value: "custom", label: <><IcFolder size={14} />เลือกเอง</> }]} /></div>
-        {settings.playerPath && <>
-          <div className="folder" style={{ background: "#fdeef4" }} data-player><PlayIcon /><div className="grow" style={{ wordBreak: "break-all" }}>{settings.playerPath}</div>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={choosePlayer}><IcFolder size={15} />เปลี่ยน</button></div>
-          <div className="hint" style={{ margin: "8px 0 0" }}>ถ้าวันหลังหาโปรแกรมนี้ไม่เจอ กดเปิดเล่นแล้วจะบอก และพากลับมาตั้งที่นี่</div></>}
+        <div className="hint" style={{ margin: "0 0 10px" }}>กดปุ่มเปิดเล่นแล้วส่งไฟล์ไปโปรแกรมที่เป็นค่าตั้งต้น · ยังไม่ได้เลือก ใช้ MPC-HC ถ้าเครื่องไม่มี ใช้ตัวอื่นที่หาเจอ แล้วค่อยโปรแกรมหลักของ Windows</div>
+        {players == null
+          ? [0, 1, 2].map((i) => <div key={i} className="folder plrow" aria-busy="true"><Skel w={18} h={18} r={4} /><div className="grow"><Skel w="30%" h={13} /><div style={{ height: 6 }} /><Skel w="70%" h={11} /></div><Skel w={150} h={32} r={9} /></div>)
+          : <>
+            {players.players.map((p) => (
+              <div key={p.path} className="folder plrow" data-player={p.path} data-player-default={p.isDefault || undefined}>
+                {p.icon ? <img className="plicon" src={p.icon} alt="" /> : <IcPlayBox />}
+                <div className="grow"><b>{p.name}</b><div className="small">{p.path}</div>
+                  {!p.exists && <div className="plmiss" data-player-missing>หาไฟล์ไม่เจอ อาจถูกย้ายหรือถอนไปแล้ว</div>}</div>
+                {p.isDefault
+                  ? <span className="pldef"><IbTick size={14} />ค่าตั้งต้น</span>
+                  : <button type="button" className={"btn btn-sm plset " + (p.exists ? "btn-ghost" : "btn-wait")} aria-disabled={!p.exists || undefined} title={p.exists ? undefined : "หาไฟล์ไม่เจอ"} data-player-set onClick={() => { if (p.exists) void set({ playerPath: p.path }); }}>ตั้งเป็นค่าตั้งต้น</button>}
+                {p.added
+                  ? <button type="button" className="icon-btn" aria-label={"เอา " + p.name + " ออกจากรายการ"} title="เอาออกจากรายการ ไฟล์โปรแกรมไม่ถูกลบ" data-player-remove onClick={() => void removePlayer(p.path, p.isDefault)}><IcClose size={14} /></button>
+                  : <span className="plgap" />}
+              </div>
+            ))}
+            <div className="folder plrow" data-player="system" data-player-default={players.systemDefault || undefined}>
+              {players.systemIcon ? <img className="plicon" src={players.systemIcon} alt="" /> : <IcPlayBox />}
+              <div className="grow"><b>โปรแกรมหลักของ Windows</b><div className="small">โปรแกรมที่ Windows ตั้งไว้เปิดไฟล์ชนิดนั้น · เปิดตรงนาทีไม่ได้ · ส่งเสียงกับซับที่จับคู่ไม่ได้</div></div>
+              {players.systemDefault
+                ? <span className="pldef"><IbTick size={14} />ค่าตั้งต้น</span>
+                : <button type="button" className="btn btn-ghost btn-sm plset" data-player-set onClick={() => void set({ playerPath: "system" })}>ตั้งเป็นค่าตั้งต้น</button>}
+              <span className="plgap" />
+            </div>
+          </>}
+        <div className="minirow" style={{ marginTop: 12 }}><button type="button" className="btn btn-ghost" data-player-add onClick={() => void addPlayer()}><IcPlus size={15} />เพิ่มโปรแกรม</button></div>
       </div>
 
       {/* ---------- เครื่องมือเบื้องหลัง ---------- */}
@@ -387,6 +419,9 @@ export default function SettingsPage() {
 
       {/* ---------- กราฟเสียง (แคลร์เพิ่ม · ผลอ่านคลื่นที่เก็บลงเครื่อง คิว 8) ---------- */}
       <div className="setcard" data-setcard="graph" hidden={sec !== "graph"}><h3>กราฟเสียง</h3>
+        <div className="setrow"><div className="lbl">ซูมเหมือนกันทุกกราฟ<span className="small">เปิดแล้วทุกกราฟใช้ช่วงเวลาซูมเดียวกัน · ปิดแล้วซูมเฉพาะกราฟที่ดูอยู่ กราฟอื่นเริ่มทั้งไฟล์</span></div>
+          <Switch on={settings.graphZoomAll} onChange={(v) => set({ graphZoomAll: v })} label="ซูมเหมือนกันทุกกราฟ" /></div>
+        <GraphImgRows value={settings.graphImg ?? GRAPH_IMG_DEFAULT} onChange={(graphImg) => set({ graphImg })} />
         <div className="setrow"><div className="lbl">ผลอ่านคลื่นที่เก็บไว้ในเครื่อง<span className="small">เปิดไฟล์เดิมซ้ำไม่ต้องอ่านใหม่ · ไฟล์หนังเปลี่ยนแล้วอ่านใหม่เอง · รวมไม่เกิน 300 MB</span>
           <span className="small" data-graphcache>{cache ? `${cache.files} ไฟล์ · ${fmtSize(cache.bytes)}` : "—"}</span></div>
           <button type="button" className="btn btn-ghost btn-sm" onClick={clearCache} data-clearcache><IbTrash size={15} />ล้าง</button></div>
@@ -411,4 +446,89 @@ export default function SettingsPage() {
     </div>
     </div>
   );
+}
+
+/** ตั้งค่ารูปกราฟที่บันทึก (พี่กันสั่ง 9 พ.ย. 2569 "bit dpi เลือกได้ เราขอละเอียดแบบเนิร์ดไปเลย") · ค่าตั้งต้นแคลร์ตั้ง กว้าง 2560 PNG 8 bit 300 dpi */
+const IMG_WIDTHS = [0, 1920, 2560, 3840, 7680], IMG_DPIS = [72, 96, 150, 300, 600];
+const WIDTH_STOPS = [320, 640, 1280, 1920, 2560, 3200, 3840, 5120, 6400, 7680, 8192], DPI_STOPS = [72, 96, 150, 200, 300, 400, 600, 800, 1200], QUALITY_STOPS = [1, 25, 50, 60, 70, 75, 80, 85, 90, 92, 95, 98, 100];
+function NumField({ value, min, max, label, unit, onCommit, data, off }: { value: number; min: number; max: number; label: string; unit: string; onCommit: (v: number) => void; data: string; off?: boolean }) {
+  const [txt, setTxt] = useState<string | null>(null);
+  const done = () => { if (txt == null) return; const v = parseInt(txt, 10); if (!Number.isNaN(v)) onCommit(Math.max(min, Math.min(max, v))); setTxt(null); };
+  return <label className={"imgnum" + (off ? " off" : "")}><input value={txt ?? String(value)} inputMode="numeric" readOnly={off} tabIndex={off ? -1 : undefined} aria-label={label} onChange={(e) => setTxt(e.target.value.replace(/[^0-9]/g, ""))} onBlur={done} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} {...{ [data]: "" }} /><span>{unit}</span></label>;
+}
+/** แถบเลื่อนเป็นขั้น ขีดกับป้ายตามระดับแบบแผงตั้งค่าเสียง · ลากแล้วเลขในช่องขยับตาม บันทึกเมื่อหยุดลาก ไม่เขียนไฟล์ตั้งค่าทุกเฟรม
+    (พี่กันสั่ง 9 พ.ย. 2569 "ขอเส้นยาว ๆ ที และแบ่งตามช่อง แบ่งตามระดับได้" · "ตอนเลื่อนบาร์ เลขมันจะขยับด้วย") */
+function ImgSlide({ value, stops, major, fineMarks, label, onDrag, onCommit, off, data }: { value: number; stops: number[]; major?: number[]; fineMarks: number[]; label: string; onDrag: (v: number) => void; onCommit: (v: number) => void; off?: boolean; data: string }) {
+  const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
+  // ติ๊กแล้วเลื่อนละเอียดทีละ 1 ไม่ติดขั้น (พี่กันสั่ง 9 พ.ย. 2569 "เราขอทุกบาร์ มีติ๊กแล้วมันจะเปลี่ยนเป็นเลื่อนละเอียด") · จำแยกแต่ละแถบในเครื่องนี้
+  const key = "ms.imgFine." + data;
+  const [fine, setFine] = useState(() => { try { return localStorage.getItem(key) === "1"; } catch { return false; } });
+  const toggle = () => { const v = !fine; setFine(v); try { localStorage.setItem(key, v ? "1" : "0"); } catch { /* จำไม่ได้ก็ใช้ค่านี้ไปก่อน */ } };
+  const push = (v: number) => { onDrag(v); if (timer.current) clearTimeout(timer.current); timer.current = setTimeout(() => onCommit(v), 250); };
+  const n = stops.length, lo = stops[0], hi = stops[n - 1], marks = major ?? stops;
+  const stepPct = (i: number) => (i / (n - 1)) * 100 + "%", finePct = (x: number) => ((x - lo) / (hi - lo)) * 100 + "%";
+  const at = stops.reduce((best, x, i) => (Math.abs(x - value) < Math.abs(stops[best] - value) ? i : best), 0);
+  return <div className={"imgslidebox" + (off ? " off" : "")} aria-hidden={off || undefined}>
+    <button type="button" role="checkbox" aria-checked={fine} className={"imgfine" + (fine ? " on" : "")} tabIndex={off ? -1 : undefined} title="ติ๊กแล้วเลื่อนละเอียดทีละ 1 ไม่ติดขั้น" onClick={toggle} {...{ [data + "-fine"]: "" }}>
+      <i aria-hidden="true">{fine && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7" /></svg>}</i>ละเอียด</button>
+    <div className="stepw imgslide" {...{ [data]: "" }}>
+      {fine
+        ? <Range label={label + " แบบละเอียด"} min={lo} max={hi} value={Math.max(lo, Math.min(hi, value))} format={(v) => String(v)} onChange={push} />
+        : <Range label={label} min={0} max={n - 1} value={at} format={(i) => String(stops[i])} onChange={(i) => push(stops[i])} />}
+      <div className="ticks" aria-hidden="true">{fine ? fineMarks.map((x) => <i key={x} className="mj" style={{ left: finePct(x) }} />) : stops.map((x, i) => <i key={x} style={{ left: stepPct(i) }} className={marks.includes(x) ? "mj" : undefined} />)}</div>
+      <div className="tlabels" aria-hidden="true">{fine ? fineMarks.map((x) => <span key={x} style={{ left: finePct(x) }}>{x}</span>) : marks.map((x) => <span key={x} style={{ left: stepPct(stops.indexOf(x)) }}>{x}</span>)}</div>
+    </div>
+  </div>;
+}
+function GraphImgRows({ value: saved, onChange }: { value: GraphImg; onChange: (v: GraphImg) => void }) {
+  // ค่าระหว่างลากแถบ ยังไม่บันทึก ช่องตัวเลข ปุ่ม และขนาดพิมพ์อ่านจากค่านี้ เลขจึงขยับตาม
+  const [draft, setDraft] = useState<Partial<GraphImg>>({});
+  useEffect(() => { setDraft({}); }, [saved]);
+  const o: GraphImg = { ...saved, ...draft };
+  const up = (p: Partial<GraphImg>) => onChange({ ...saved, ...p });
+  const pickDir = async () => { const d = await pickFolder("เลือกโฟลเดอร์เก็บรูปกราฟ"); if (d) up({ dirMode: "folder", dir: d }); };
+  // ทุกแถวอยู่ตลอด เปลี่ยนชนิดไฟล์แล้วเพจไม่เลื่อน อันที่ใช้ไม่ได้จางไว้ เหตุผลขึ้นตอนชี้ (พี่กันสั่ง 9 พ.ย. 2569 "ตอนเราเลือกแต่ละนามสกุล ตัวเพจมันเลื่อน เราอยากให้มัน fix และอันไหนปรับไม่ได้จะจางไว้")
+  const f = o.format, deepOk = f === "png" || f === "tiff", dpiOk = f === "png" || f === "jpg" || f === "tiff", qualOk = f === "jpg" || f === "heic", subOk = f === "jpg", packOk = f === "png";
+  const name = f === "webp" ? "WebP" : f === "heic" ? "HEIC" : f.toUpperCase();
+  const cm = o.width && dpiOk ? ` · พิมพ์ได้กว้าง ${(o.width / o.dpi * 2.54).toFixed(1)} ซม.` : "";
+  return <>
+    <h4 className="imghead">รูปกราฟที่บันทึก</h4>
+    <div className="setrow" data-img-row="width"><div className="lbl">ความกว้างรูป<span className="small">ความสูงตามสัดส่วนกราฟ · ตอนบันทึกโปรแกรมอ่านเสียงใหม่ที่ความละเอียดนี้ ไม่ต้องซูมก่อน รูปใหญ่ใช้เวลานานขึ้น{cm}</span></div>
+      <span className="imgstack"><span className="imgctl"><Seg small label="ความกว้างรูป" value={String(IMG_WIDTHS.includes(o.width) ? o.width : "own")} onChange={(v) => { if (v !== "own") up({ width: Number(v) }); }}
+        options={[{ value: "0", label: "ตามจอ" }, { value: "1920", label: "1920" }, { value: "2560", label: "2560" }, { value: "3840", label: "3840" }, { value: "7680", label: "7680" }]} />
+        <NumField value={o.width} min={0} max={8192} label="พิมพ์ความกว้างเอง" unit="px" onCommit={(width) => up({ width: width && width < 320 ? 320 : width })} data="data-img-width" /></span>
+        <ImgSlide value={o.width || 320} stops={WIDTH_STOPS} major={[320, 1280, 2560, 3840, 6400, 8192]} fineMarks={[320, 1920, 3840, 5760, 8192]} label="ความกว้างรูป" onDrag={(width) => setDraft({ width })} onCommit={(width) => up({ width })} data="data-img-slide-width" /></span></div>
+    <div className="setrow" data-img-row="format"><div className="lbl">ชนิดไฟล์<span className="small">PNG TIFF WebP ไม่เสียคุณภาพ · JPG กับ HEIC ไฟล์เล็ก แต่ขอบตัวหนังสือกับเส้นอาจฟุ้ง</span></div>
+      <Seg small label="ชนิดไฟล์" value={o.format} onChange={(format) => up({ format })} options={[{ value: "png", label: "PNG" }, { value: "jpg", label: "JPG" }, { value: "webp", label: "WebP" }, { value: "heic", label: "HEIC" }, { value: "tiff", label: "TIFF" }]} /></div>
+    <div className="setrow" data-img-row="bits"><div className="lbl">ความลึกสี<span className="small">ใช้ได้กับ PNG และ TIFF · กราฟวาดจาก 8 bit ต่อช่องสี 16 bit ไฟล์ใหญ่ขึ้น รายละเอียดสีไม่ได้เพิ่ม</span></div>
+      <Seg small label="ความลึกสี" value={String(deepOk ? o.bits : 8)} onChange={(v) => up({ bits: Number(v) as 8 | 16 })} disabledReason={deepOk ? undefined : `${name} เก็บได้ 8 bit`} options={[{ value: "8", label: "8 bit" }, { value: "16", label: "16 bit" }]} /></div>
+    <div className="setrow" data-img-row="gray"><div className="lbl">ชุดสี<span className="small">ขาวดำเก็บช่องสีเดียว เส้นของแต่ละไฟล์จะแยกกันด้วยสีไม่ได้</span></div>
+      <Seg small label="ชุดสี" value={o.gray ? "gray" : "rgb"} onChange={(v) => up({ gray: v === "gray" })} options={[{ value: "rgb", label: "RGB" }, { value: "gray", label: "ขาวดำ" }]} /></div>
+    <div className="setrow" data-img-row="dpi"><div className="lbl">DPI<span className="small">ใช้ได้กับ PNG JPG TIFF · ไม่เปลี่ยนจำนวนพิกเซล เป็นค่าบอกขนาดตอนพิมพ์ เก็บในไฟล์จริง</span></div>
+      <span className="imgstack"><span className="imgctl"><Seg small label="DPI" value={String(IMG_DPIS.includes(o.dpi) ? o.dpi : "own")} disabledReason={dpiOk ? undefined : `ไฟล์ ${name} ไม่มีที่เก็บค่า DPI`} onChange={(v) => { if (v !== "own") up({ dpi: Number(v) }); }}
+        options={IMG_DPIS.map((d) => ({ value: String(d), label: String(d) }))} />
+        <NumField off={!dpiOk} value={o.dpi} min={1} max={9600} label="พิมพ์ DPI เอง" unit="dpi" onCommit={(dpi) => up({ dpi })} data="data-img-dpi" /></span>
+        <ImgSlide off={!dpiOk} value={o.dpi} stops={DPI_STOPS} fineMarks={[72, 300, 600, 900, 1200]} label="DPI" onDrag={(dpi) => setDraft({ dpi })} onCommit={(dpi) => up({ dpi })} data="data-img-slide-dpi" /></span></div>
+    <div className="setrow" data-img-row="quality"><div className="lbl">คุณภาพ<span className="small">ใช้ได้กับ JPG และ HEIC · 1 ถึง 100 · 92 เป็นค่าตั้งต้น เห็นต่างจากต้นฉบับยากแล้ว</span></div>
+      <span className="imgstack"><NumField off={!qualOk} value={o.quality} min={1} max={100} label="คุณภาพ" unit="/ 100" onCommit={(quality) => up({ quality })} data="data-img-quality" />
+        <ImgSlide off={!qualOk} value={o.quality} stops={QUALITY_STOPS} major={[1, 25, 50, 70, 80, 90, 100]} fineMarks={[1, 25, 50, 75, 100]} label="คุณภาพ" onDrag={(quality) => setDraft({ quality })} onCommit={(quality) => up({ quality })} data="data-img-slide-quality" /></span></div>
+    <div className="setrow" data-img-row="sub"><div className="lbl">การย่อสี<span className="small">ใช้ได้กับ JPG · 4:4:4 เก็บสีครบ เส้นสีบนกราฟคมกว่า · 4:2:0 ไฟล์เล็กลง · HEIC ใช้ 4:2:0 เปิดได้ทุกโปรแกรม</span></div>
+      <Seg small label="การย่อสี" value={f === "heic" ? "420" : o.subsampling} disabledReason={subOk ? undefined : "ใช้ได้กับ JPG"} onChange={(subsampling) => up({ subsampling })} options={[{ value: "444", label: "4:4:4" }, { value: "420", label: "4:2:0" }]} /></div>
+    <div className="setrow" data-img-row="compress"><div className="lbl">การบีบอัด PNG<span className="small">ใช้ได้กับ PNG · ภาพเหมือนกันทุกระดับ ต่างกันที่ขนาดไฟล์กับเวลาบันทึก</span></div>
+      <Seg small label="การบีบอัด PNG" value={o.compress} disabledReason={packOk ? undefined : "ใช้ได้กับ PNG"} onChange={(compress) => up({ compress })} options={[{ value: "fast", label: "เร็ว" }, { value: "default", label: "ปกติ" }, { value: "best", label: "เล็กสุด" }]} /></div>
+    {/* พี่กันสั่ง 9 พ.ย. 2569 "เอาที่อยู่ไฟล์เป็นค่าตั้งต้นด้วย" · "เราหมายถึงตั้งค่านี้ ที่อยู่ตรงนี้" */}
+    <div className="setrow" data-img-row="dir"><div className="lbl">ที่เก็บรูป<span className="small" style={{ overflowWrap: "anywhere" }}>{o.dirMode === "folder" && o.dir ? o.dir : "โฟลเดอร์เดียวกับไฟล์ที่ดูอยู่ · หน้าเทียบใช้โฟลเดอร์ของไฟล์ 1"}</span></div>
+      <span className="imgctl"><Seg small label="ที่เก็บรูป" value={o.dirMode === "folder" && o.dir ? "folder" : "beside"} onChange={(v) => { if (v === "beside") up({ dirMode: "beside" }); else void pickDir(); }}
+        options={[{ value: "beside", label: "ข้างไฟล์ที่ดูอยู่" }, { value: "folder", label: "โฟลเดอร์ที่เลือก" }]} />
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => void pickDir()} data-img-dir><IcFolder size={15} />เปลี่ยน</button></span></div>
+    <div className="setrow" data-img-row="ask"><div className="lbl">ถามที่เก็บทุกครั้ง<span className="small">เปิด เปิดกล่องเลือกที่เก็บ แก้ชื่อได้ · ปิด กดบันทึกแล้วเก็บเลย ชื่อซ้ำต่อท้าย (2) ไม่เขียนทับ</span></div>
+      <Switch on={o.ask} onChange={(ask) => up({ ask })} label="ถามที่เก็บทุกครั้ง" /></div>
+    <div className="setrow" data-img-row="title"><div className="lbl">แถบหัวรูป<span className="small">ชื่อไฟล์กับช่วงเวลาบนรูป · หน้าเทียบบอกสีของแต่ละไฟล์ · กราฟวิเคราะห์มีชื่อในตัวอยู่แล้ว</span></div>
+      <Switch on={o.title} onChange={(title) => up({ title })} label="แถบหัวรูป" /></div>
+    <div className="setrow" data-img-row="name"><div className="lbl">ใส่ชื่อกราฟในชื่อไฟล์<span className="small">เช่น เพลง รูปคลื่น.png · ชื่อซ้ำต่อท้าย (2) ไม่เขียนทับ</span></div>
+      <Switch on={o.nameGraph} onChange={(nameGraph) => up({ nameGraph })} label="ใส่ชื่อกราฟในชื่อไฟล์" /></div>
+    <div className="setrow"><div className="lbl">กลับค่าตั้งต้น<span className="small">กว้าง 2560 · PNG · 8 bit · RGB · 300 dpi · เก็บข้างไฟล์ · ถามทุกครั้ง</span></div>
+      <button type="button" className="btn btn-ghost btn-sm" onClick={() => onChange(GRAPH_IMG_DEFAULT)} data-img-reset><IcRefresh size={15} />กลับค่าตั้งต้น</button></div>
+  </>;
 }

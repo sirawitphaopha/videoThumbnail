@@ -73,7 +73,7 @@ check("ไม่มีของโดนกติกาความปลอด�
 {
   const toastNow = () => q("return [...document.querySelectorAll('.toast')].map((t) => t.innerText.replace(/\\n/g, ' / ')).join(' || ')");
   await c.book("Harbor Lights (2021)"); await sleep(300);
-  await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.innerText.includes('ข้อมูลไฟล์')).click()");
+  await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.innerText.includes('MediaInfo')).click()");
   for (let i = 0; i < 60 && !(await q("return !!document.querySelector('[data-mi]')")); i++) await sleep(150);
   const copyBtn = "[...document.querySelectorAll('button')].find(b => b.innerText === 'คัดลอกข้อมูลเป็นข้อความ').click()";
   // โฟกัสขึ้นกับว่าหน้าต่างอยู่หน้าหรือหลัง คุมไม่ได้ทุกรอบ จึงจำลองว่าระบบไม่ให้คัดลอก ด้วยข้อผิดพลาดแบบเดียวกับที่เจอจริง

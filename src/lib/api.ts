@@ -22,7 +22,13 @@ export type Settings = {
   showNames: boolean;
   showDots: boolean;
   showFrames: boolean;
+  /** หน้ากราฟเสียง ซูมเหมือนกันทุกกราฟ */
+  graphZoomAll: boolean;
+  graphImg: GraphImg;
+  /** ว่าง = โปรแกรมเลือกเอง MPC-HC ก่อน · "system" = โปรแกรมหลักของ Windows · นอกนั้นคือที่อยู่โปรแกรม */
   playerPath: string;
+  /** โปรแกรมเล่นที่เพิ่มเอง */
+  players: string[];
   sidebarCollapsed: boolean;
   viewMode: "grid" | "table";
   sort: string;
@@ -62,6 +68,8 @@ export type Movie = {
   linked?: LinkedCover[];
   /** เรื่องที่มีสองปก "file" แสดงปกในไฟล์ · ว่าง แสดงปกจับคู่ */
   coverPick?: string;
+  /** คะแนนดาว 0 ถึง 5 · 0 ยังไม่ให้ */
+  rating?: number;
   /** ชั้นวางคำนวณเอง ไม่ได้มาจากคลัง · ปกจับคู่ที่กำลังแสดง ไม่มีคือแสดงปกในไฟล์หรือไม่มีปก */
   shownLink?: LinkedCover | null;
   /** ชั้นวางคำนวณเอง · มีปกในไฟล์ไหม */
@@ -99,6 +107,8 @@ export const api = {
   scanLibrary: () => call<void>("scan_library"),
   playMovie: (path: string) => call<void>("play_movie", { path }),
   revealMovie: (path: string) => call<void>("reveal_movie", { path }),
+  /** ให้คะแนนดาว · 0 ล้างคะแนน */
+  setRating: (id: string, stars: number) => call<Movie>("set_rating", { id, stars }),
   /** เช็กชื่อใหม่ตอนพิมพ์ (ไม่รวมนามสกุล) · null = ใช้ได้ หรือชื่อเหมือนเดิม · ตัวเช็กอยู่ฝั่ง Rust ที่เดียว (rename.rs) */
   checkRename: (id: string, stem: string) => call<RenameProblem | null>("check_rename", { id, stem }),
   /** เปลี่ยนชื่อไฟล์จริงแบบไม่เขียนทับ · ไม่สำเร็จ promise ล้มพร้อม RenameProblem */
@@ -118,7 +128,7 @@ export type FolderImage = { path: string; name: string; ext: string; width: numb
 export type StreamInfo = { index: number; kind: "video" | "audio" | "subtitle"; codec: string; lang: string | null; mp4: "ok" | "style" | "no"; why: string | null };
 export type Counts = { video: number; audio: number; subs: number };
 export type MovieInfo = { path: string; name: string; ext: string; size: number; duration: number | null; width: number; height: number; streams: StreamInfo[]; counts: Counts; free: number; drive: string };
-export type ApplyReq = { path: string; output: "mkv" | "mp4"; checkSource: boolean; checkOutput: boolean; original: "keep" | "trash"; drop: number[] };
+export type ApplyReq = { path: string; output: "mkv" | "mp4"; checkSource: boolean; checkOutput: boolean; original: "keep" | "trash"; drop: number[]; name?: string };
 export type ApplyProblem = { kind: string; title: string; detail: string[] };
 export type ApplyResult = { mode: "cover" | "wrap" | "mp4"; output: string; counts: Counts; verified: boolean; original: "kept" | "trash" | "none"; originalTo: string | null; notes: string[] };
 export type PosterProgress = { phase: string; percent: number; eta: number | null; next: string | null };
@@ -139,6 +149,8 @@ export const posterApi = {
   /** ไม่สำเร็จ promise ล้มพร้อม ApplyProblem */
   apply: (req: ApplyReq) => call<ApplyResult>("poster_apply", { req }),
   cancel: () => call<void>("poster_cancel"),
+  /** เช็กชื่อไฟล์ใหม่ตอนพิมพ์ · ไม่มีปัญหาคืนค่าว่าง */
+  checkName: (path: string, output: "mkv" | "mp4", name: string) => call<RenameProblem | null>("poster_check_name", { path, output, name }),
 };
 
 /* ---------- หน้าเสียงและซับ (merge.rs · แผนเสียงและซับ) ---------- */
@@ -374,10 +386,17 @@ export type GWindow = { t0: number; t1: number; cols: number; env: number[][]; b
 export type GPsd = { size: number; rate: number; db: number[][] };
 export type GProgress = { path: string; track: number; percent: number };
 
+/** รูปกราฟที่บันทึก ตั้งในหน้าตั้งค่า · ค่าตั้งต้นตรงกับ graphimg.rs */
+export type GraphImg = { width: number; format: "png" | "jpg" | "webp" | "heic" | "tiff"; bits: 8 | 16; gray: boolean; dpi: number; quality: number; subsampling: "444" | "420"; compress: "fast" | "default" | "best"; title: boolean; nameGraph: boolean; dirMode: "beside" | "folder"; dir: string; ask: boolean };
+export const GRAPH_IMG_DEFAULT: GraphImg = { width: 2560, format: "png", bits: 8, gray: false, dpi: 300, quality: 92, subsampling: "444", compress: "default", title: true, nameGraph: true, dirMode: "beside", dir: "", ask: true };
+export type SavedImg = { path: string; size: number; width: number; height: number };
 export const graphApi = {
+  saveImage: (path: string, b64: string, opt: GraphImg) => call<SavedImg>("graph_save_image", { path, b64, opt }),
   info: (path: string) => call<GInfo>("graph_info", { path }),
+  /** ไฟล์ยังอยู่ไหม เรียงตามรายการที่ส่งไป · ใช้บอกในรายการเปิดล่าสุดก่อนกด */
+  exist: (paths: string[]) => call<boolean[]>("graph_exist", { paths }),
   overview: (path: string, track: number) => call<GOverview | null>("graph_overview", { path, track }),
-  window: (path: string, track: number, t0: number, t1: number, cols: number, bins: number, log: boolean) => call<GWindow | null>("graph_window", { path, track, t0, t1, cols, bins, log }),
+  window: (path: string, track: number, t0: number, t1: number, cols: number, bins: number, log: boolean, full = false) => call<GWindow | null>("graph_window", { path, track, t0, t1, cols, bins, log, full }),
   /** ผลอ่านคลื่นที่เก็บไว้ในเครื่อง จำนวนไฟล์กับขนาดรวม · ล้างได้จากหน้าตั้งค่า */
   cacheInfo: () => call<{ files: number; bytes: number }>("graph_cache_info"),
   cacheClear: () => call<{ files: number; bytes: number }>("graph_cache_clear"),
@@ -431,6 +450,13 @@ export type CheckProgress = { id: string; percent: number; index: number; total:
 export type CheckItem = { id: string; error: string | null };
 export type CheckFinished = { mode: CheckMode; total: number; done: number; ok: number; bad: number; changed: number; failed: number; cancelled: boolean; seconds: number; at: number };
 export type PlayResult = { player: string; seeked: boolean };
+export type PlayerInfo = { path: string; name: string; exists: boolean; added: boolean; isDefault: boolean; icon?: string | null };
+export type PlayerList = { players: PlayerInfo[]; systemDefault: boolean; systemIcon?: string | null };
+
+/** โปรแกรมเล่นในเครื่อง (players.rs) */
+export const playerApi = {
+  list: () => call<PlayerList>("list_players"),
+};
 
 export const checkApi = {
   /** เริ่มตรวจเรื่องที่เลือกเบื้องหลัง · ผลมาทางเหตุการณ์ check-started check-progress movie-updated check-item check-finished */

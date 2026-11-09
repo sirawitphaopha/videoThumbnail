@@ -7,11 +7,13 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import type { Page } from "../components/Sidebar";
 import Dialog from "../components/Dialog";
 import CropDialog, { type CropChoice } from "../components/CropDialog";
-import { CardIcon, Keep, Phr, Seg } from "../components/ui";
-import { inApp, pickFile, posterApi, thumbUrl, type Geometry, type ApplyProblem, type ApplyResult, type FolderImage, type MovieInfo, type PosterInfo, type StreamInfo } from "../lib/api";
+import { CardIcon, Keep, LoadPill, Phr, Seg, dropClick } from "../components/ui";
+import ThaiInput from "../components/ThaiInput";
+import { frameApi, inApp, pickFile, posterApi, thumbUrl, type Geometry, type ApplyProblem, type ApplyResult, type FolderImage, type MovieInfo, type PosterInfo, type RenameProblem, type StreamInfo } from "../lib/api";
 import { useSettings } from "../lib/settings";
 import { useLibrary } from "../lib/library";
 import { fmtDuration, fmtSize } from "../lib/format";
+import { ftName } from "../lib/ftypes";
 import { kb } from "../lib/popup";
 import { useToast } from "../components/Toasts";
 import { getPosterJob, setPosterJob, usePosterJob, type Run } from "../lib/posterJob";
@@ -48,9 +50,12 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
   const setRun = (r: Run) => setPosterJob({ run: r });
   const [askDelete, setAskDelete] = useState<0 | 1 | 2>(0);
   const [askStop, setAskStop] = useState(false);
+  const [runMore, setRunMore] = useState<{ title: string; lines: string[] } | null>(null);
   const [drop, setDrop] = useState<number[]>([]);
   /** ซับ ASS ที่กดทำต่อแล้ว (ใส่ MP4 ได้แต่สีกับฟอนต์หาย) */
   const [ack, setAck] = useState<number[]>([]);
+  /** ชื่อไฟล์ใหม่ที่พิมพ์ (พี่กันสั่ง 9 พ.ย. 2569 "ให้ตั้งชื่อไฟล์ด้วยสิ") · ยังไม่พิมพ์ใช้ชื่อไฟล์ต้นทาง · เปลี่ยนไฟล์หนังแล้วล้าง */
+  const [typed, setTyped] = useState<string | null>(null);
   /* ตัวเลือกบนหน้านี้เปลี่ยนเฉพาะครั้งนี้ ไม่เขียนทับค่าตั้งต้นในหน้าตั้งค่า (ต้นแบบหน้าตั้งค่า *"ค่าที่ตั้งตรงนี้คือค่าตั้งต้น ทุกครั้งที่ใส่โปสเตอร์หรือตรวจไฟล์ยังเปลี่ยนเฉพาะครั้งนั้นได้"*)
      เดิมกดบนหน้านี้แล้วค่าตั้งต้นเปลี่ยนถาวร เลือกลบไฟล์เดิมครั้งเดียว ไฟล์ถัดไปเริ่มที่ลบ (ผู้ช่วยตรวจสเปกเจอ) · ยังไม่ได้แตะ ใช้ค่าตั้งต้น · ล้างทั้งหมดกลับเป็นค่าตั้งต้น */
   const [once, setOnce] = useState<{ outputFormat?: "mkv" | "mp4"; originalAfter?: "keep" | "trash"; checkSourceBefore?: boolean; checkOutputAfter?: boolean }>({});
@@ -62,6 +67,7 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
 
   // ---------- ไฟล์หนัง ----------
   const loadMovie = useCallback(async (path: string) => {
+    setTyped(null);
     setMovieErr(null);
     setRun({ state: "idle" });
     setDrop([]);
@@ -94,6 +100,7 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
       setChoice(null);
       setCropOpen(true); // วางรูปแล้วหน้าต่างครอปขึ้นเองทุกครั้ง (สเปกข้อ 7)
     } catch (e) {
+      setCropOpen(false); // เลือกรูปใหม่จากหน้าต่างครอปแล้วเปิดไม่ได้ ปิดให้เห็นเหตุผลบนการ์ดรูป
       setPosterErr(String(e));
     } finally {
       setLoading(null);
@@ -180,7 +187,7 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
   // กลับมาหน้านี้ระหว่างงานหรือหลังงานจบ · ใส่ไฟล์หนังของงานนั้นกลับให้
   useEffect(() => {
     const j = getPosterJob();
-    if (j.run.state !== "idle" && !p.initialPath) { setMoviePath(j.path); setMovie(j.movie); setPoster(j.poster); setChoice(j.choice as CropChoice | null); }
+    if (j.run.state !== "idle" && !p.initialPath) { setMoviePath(j.path); setMovie(j.movie); setPoster(j.poster); setChoice(j.choice as CropChoice | null); setTyped(j.name); }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, []);
 
@@ -190,23 +197,47 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
   const mp4Bad: StreamInfo[] = output === "mp4" && movie ? movie.streams.filter((s) => (s.mp4 === "no" && !drop.includes(s.index)) || (s.mp4 === "style" && !ack.includes(s.index) && !drop.includes(s.index))) : [];
   const mp4VideoBad = mp4Bad.some((s) => s.kind === "video" && s.mp4 === "no");
   const inLib = movies.find((m) => moviePath && m.path.toLowerCase() === moviePath.toLowerCase());
+  // รูปตัวอย่างหนัง เรื่องที่ยังไม่มีปกใช้ภาพจริงจากในหนัง ดึงไม่ได้เป็นพื้นสีตามเดิม (พี่กันสั่ง 9 พ.ย. 2569 "ขยายรูตัวอย่างกนังด้วย")
+  const [frameUrl, setFrameUrl] = useState<string | null>(null);
+  const hasCover = !!inLib?.thumb, framePath = movie?.path ?? null, frameDur = movie?.duration ?? 0;
+  useEffect(() => {
+    setFrameUrl(null);
+    if (!framePath || hasCover) return;
+    let live = true;
+    frameApi.movie(framePath, frameDur).then((p) => { if (live) setFrameUrl(p); }, () => { /* ดึงไม่ได้ ใช้พื้นสี */ });
+    return () => { live = false; };
+  }, [framePath, frameDur, hasCover]);
+  const newStem = typed ?? movie?.name ?? "";
+  const [nameProblem, setNameProblem] = useState<RenameProblem | null>(null);
+  const nameSeq = useRef(0);
+  // เช็กชื่อตอนพิมพ์ ตัวเช็กเดียวกับปุ่มเปลี่ยนชื่อบนชั้นวาง · ผลที่มาช้ากว่าตัวที่พิมพ์ล่าสุดทิ้ง · ชื่อไฟล์ต้นทางก็ชนได้ จึงเช็กตั้งแต่ใส่ไฟล์
+  useEffect(() => {
+    const n = ++nameSeq.current;
+    if (!moviePath || mode === "cover" || run.state === "working") { setNameProblem(null); return; }
+    const t = setTimeout(() => {
+      posterApi.checkName(moviePath, output, newStem).then((r) => { if (n === nameSeq.current) setNameProblem(r ?? null); }).catch(() => {});
+    }, 120);
+    return () => clearTimeout(t);
+  }, [moviePath, mode, output, newStem, run.state]);
   const startLabel = output === "mp4" ? "ส่งออกเป็น MP4 พร้อมโปสเตอร์" : isMkv ? (inLib?.hasCover ? "เปลี่ยนโปสเตอร์" : "ใส่โปสเตอร์ลงไฟล์นี้") : "ครอบเป็น MKV พร้อมโปสเตอร์";
   const blocked = !movie ? "ยังกดไม่ได้ ใส่ไฟล์หนังก่อน"
     : !choice ? "ยังกดไม่ได้ ใส่รูปโปสเตอร์ก่อน"
     : mp4VideoBad ? "ไฟล์นี้ส่งออกเป็น MP4 ไม่ได้ ใช้ MKV แทน"
     : mp4Bad.length ? "เลือกก่อนว่าจะทิ้งแทร็กที่ใส่ใน MP4 ไม่ได้ หรือกลับไปใช้ MKV"
+    : nameProblem ? nameProblem.title
     : null;
 
   const start = async (dropNow: number[] = drop) => {
     if (!movie || !moviePath || !choice) return;
-    setPosterJob({ run: { state: "working", progress: null }, path: moviePath, movie, mode, poster, choice });
+    setPosterJob({ run: { state: "working", progress: null }, path: moviePath, movie, mode, poster, choice, name: mode === "cover" ? null : newStem });
     try {
       const result = await posterApi.apply({
         path: moviePath, output, checkSource, checkOutput,
         original: mode === "cover" ? "keep" : original, drop: dropNow,
+        name: mode === "cover" ? undefined : newStem,
       });
       setRun({ state: "done", result });
-      if (result.mode !== "cover") { setMovie(null); setMoviePath(null); setPosterJob({ path: null, movie: null }); }
+      if (result.mode !== "cover") { setMovie(null); setMoviePath(null); setTyped(null); setPosterJob({ path: null, movie: null, name: null }); }
       else posterApi.inspect(moviePath).then((m) => { setMovie(m); setPosterJob({ movie: m }); }).catch(() => {});
     } catch (e) {
       const problem = e && typeof e === "object" && "title" in e ? (e as ApplyProblem) : { kind: "other", title: "ใส่โปสเตอร์ไม่สำเร็จ", detail: [String(e)] };
@@ -242,7 +273,7 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
   };
   const clearAll = () => {
     if (run.state === "working") return;
-    setMovie(null); setMoviePath(null); setMovieErr(null); setPoster(null); setPosterErr(null); setChoice(null); setDrop([]); setOnce({}); setRun({ state: "idle" });
+    setMovie(null); setMoviePath(null); setMovieErr(null); setPoster(null); setPosterErr(null); setChoice(null); setDrop([]); setOnce({}); setTyped(null); setRun({ state: "idle" });
     posterApi.clear().catch(() => {});
   };
 
@@ -252,7 +283,10 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
   const runBox = useRef<HTMLDivElement>(null);
   useEffect(() => { runBox.current?.scrollIntoView({ block: "nearest", behavior: "smooth" }); }, [run.state]);
   const pct = working && run.progress ? Math.round(run.progress.percent) : 0;
-  const newName = movie ? `${movie.name}.${output === "mp4" ? "mp4" : "mkv"}` : "";
+  /** สัดส่วนปกใหม่ ไม่เกิน 16 : 9 แบบเดียวกับที่ชั้นวางวาง */
+  const newAr = choice ? Math.min(choice.render.width / choice.render.height, 16 / 9) : 2 / 3;
+  const newExt = output === "mp4" ? ".mp4" : ".mkv";
+  const newName = movie ? movie.name + newExt : "";
 
   return (
     <div className="pagewrap" data-poster-page>
@@ -264,26 +298,26 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
             {movie && !movieErr && over !== "movie" ? (
               <>
                 <div className="vfile" data-drop="movie">
-                  {inLib?.thumb ? <img className="vthumb" src={thumbUrl(inLib.thumb) ?? undefined} alt="" style={{ width: 42, height: 63 }} /> : <div className="vthumb" />}
+                  {inLib?.thumb ? <img className="vthumb cover" src={thumbUrl(inLib.thumb) ?? undefined} alt="" data-moviethumb /> : frameUrl ? <img className="vthumb" src={thumbUrl(frameUrl) ?? undefined} alt="ภาพจากหนัง" data-moviethumb /> : <div className="vthumb" data-moviethumb />}
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontWeight: 600, fontSize: 14, lineHeight: 1.5, wordBreak: "break-word" }}><Phr>{baseName(movie.path)}</Phr></div>
-                    <div className="small"><span className="nw">{fmtSize(movie.size)}</span>{movie.duration ? <> · <span className="nw">{fmtDuration(movie.duration)}</span></> : null}<br />{movie.width} × {movie.height}</div>
+                    <div className="small"><span className="nw">{fmtSize(movie.size)}</span>{movie.duration ? <> · <span className="nw">{fmtDuration(movie.duration)}</span></> : null}<br />{movie.width} × {movie.height}{movie.streams.find((x) => x.kind === "video") && <> · <span data-moviecodec>{ftName("video", movie.streams.find((x) => x.kind === "video")!.codec)}</span></>}{movie.streams.some((x) => x.kind === "audio") && <><br />เสียง <span data-movieaudio>{[...new Set(movie.streams.filter((x) => x.kind === "audio").map((x) => ftName("audio", x.codec)))].join(" · ")}</span></>}</div>
+                    <div className="small">ลากไฟล์อื่นมาวางทับเพื่อเปลี่ยนได้</div>
                   </div>
-                </div>
-                <div className="small" style={{ marginTop: 10 }}>ลากไฟล์อื่นมาวางทับเพื่อเปลี่ยน หรือ</div>
-                <Btn off={working && BUSY} style={{ marginTop: 6 }} onClick={async () => { const f = await pickFile("movie"); if (f) loadMovie(f); }}><IcFile size={15} />เลือกไฟล์จากเครื่อง</Btn>
-              </>
-            ) : (
-              <>
-                <div className={"drop" + (over === "movie" ? " over" : movieErr ? " bad" : "")} data-drop="movie">
-                  {over === "movie" ? <b>ปล่อยเมาส์เพื่อใส่ไฟล์นี้</b>
-                    : movieErr ? <><b>{movieErr}</b><div><Phr>ไฟล์หนังรองรับ MKV MP4 M4V MOV AVI WebM TS M2TS MPG MPEG VOB FLV</Phr></div></>
-                    : loading === "movie" ? "กำลังอ่านไฟล์หนัง…" : <>ลากไฟล์หนังมาวางตรงนี้<br />MKV MP4 และอีก 10 ชนิด</>}
                 </div>
                 <Btn off={working && BUSY} style={{ marginTop: 10 }} onClick={async () => { const f = await pickFile("movie"); if (f) loadMovie(f); }}><IcFile size={15} />เลือกไฟล์จากเครื่อง</Btn>
               </>
+            ) : (
+              <>
+                <div className={"drop" + (over === "movie" ? " over" : movieErr ? " bad" : "")} data-drop="movie" onClick={dropClick(async () => { if (working) return; const f = await pickFile("movie"); if (f) loadMovie(f); })}>
+                  {over === "movie" ? <b>ปล่อยเมาส์เพื่อใส่ไฟล์นี้</b>
+                    : movieErr ? <><b>{movieErr}</b><div><Phr>ไฟล์หนังรองรับ MKV MP4 M4V MOV AVI WebM TS M2TS MPG MPEG VOB FLV</Phr></div></>
+                    : loading === "movie" ? "กำลังอ่านไฟล์หนัง…" : <>ลากไฟล์หนังมาวางตรงนี้<br />MKV MP4 และอีก 10 ชนิด</>}
+                  <Btn off={working && BUSY} onClick={async () => { const f = await pickFile("movie"); if (f) loadMovie(f); }}><IcFile size={15} />เลือกไฟล์จากเครื่อง</Btn>
+                </div>
+              </>
             )}
-            <div className="small" style={{ marginTop: 10 }}>รองรับ MKV · MP4 · M4V · MOV<br />AVI · WebM · TS · M2TS · MPG · MPEG · VOB · FLV</div>
+            <div className="small pcap" style={{ marginTop: 10 }}><div>รองรับ MKV · MP4 · M4V · MOV<br />AVI · WebM · TS · M2TS · MPG · MPEG · VOB · FLV</div></div>
           </div>
 
           {/* ② รูปโปสเตอร์ */}
@@ -291,41 +325,42 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
             <h3><span className="step">2</span>รูปโปสเตอร์</h3>
             {poster && choice && !posterErr && over !== "poster" ? (
               <div className="pprev" data-drop="poster">
-                <img className="pp" src={thumbUrl(choice.render.preview) ?? undefined} alt="รูปโปสเตอร์ที่จะแนบ"
-                  style={choice.render.width > choice.render.height ? { width: Math.round(144 * Math.min(choice.render.width / choice.render.height, 16 / 9)) } : undefined} data-pp />
-                <div className="small" style={{ minWidth: 0 }}>
+                <img className="pp" src={thumbUrl(choice.render.preview) ?? undefined} alt="รูปโปสเตอร์ที่จะแนบ" data-pp />
+                <div className="ppinfo">
+                <div className="small" style={{ minWidth: 0, flex: 1 }}>
                   <span style={{ wordBreak: "break-all" }}>{poster.name}</span><br />
                   {poster.attachable ? <><span className="extag ok">.{poster.ext}</span> แนบได้เลย</> : <><span className="extag cv">.{poster.ext}→.{choice.format}</span> แปลงให้ก่อนแนบ</>}<br />
                   <span className="nw">{choice.render.width} × {choice.render.height} px</span> · <span className="nw">{fmtSize(choice.render.bytes)}</span><br />
-                  {poster.twoThree ? "สัดส่วน 2 : 3 พอดีปก" : choice.geo.mode === "pad" ? "เติมขอบให้เต็มปก" : choice.geo.mode === "original" ? "ใช้ตามรูปเดิม ไม่ตัด" : "ครอปให้พอดีปกแล้ว"}
-                  <span style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
-                    <Btn off={working && BUSY} onClick={() => setListOpen(true)}>เปลี่ยนรูป</Btn>
-                    <Btn off={working && BUSY} onClick={() => setCropOpen(true)}>ครอปภาพ</Btn>
-                  </span>
+                  <span className="ppmode">{poster.twoThree ? "สัดส่วน 2 : 3 พอดีปก" : choice.geo.mode === "pad" ? "เติมขอบให้เต็มปก" : choice.geo.mode === "original" ? "ใช้ตามรูปเดิม ไม่ตัด" : "ครอปให้พอดีปกแล้ว"}<br /></span>
+                  {/* กติกาเดียวกับ poster.rs กว้างมากกว่าสูงเป็นปกนอน นอกนั้นปกตั้ง · MP4 ไม่มีชื่อไฟล์แนบ ฝังเป็นรูปปกของไฟล์ */}
+                  <span data-attach-name><b style={{ color: "var(--txt)" }}>{choice.render.width > choice.render.height ? "ปกนอน" : "ปกตั้ง"}</b> {output === "mp4" ? "ฝังเป็นรูปปกของ MP4" : <>แนบเป็น <span className="nw">{choice.render.width > choice.render.height ? "cover_land" : "cover"}.{choice.format}</span></>}</span>
+                </div>
+                <span className="ppbtns">
+                  <Btn off={working && BUSY} onClick={() => setListOpen(true)}><IcPoster size={15} />เปลี่ยนรูป</Btn>
+                  <Btn off={working && BUSY} onClick={() => setCropOpen(true)}><IbCrop size={15} />ครอปภาพ</Btn>
+                </span>
                 </div>
               </div>
             ) : (
               <>
-                {movie && !poster && !posterErr && over !== "poster" && <div className="small" style={{ marginBottom: 8 }} data-moviefirst>ไฟล์หนังใส่ให้แล้ว เหลือแค่ลากรูปใหม่มาวาง</div>}
-                <div className={"drop" + (over === "poster" ? " over" : posterErr ? " bad" : "")} data-drop="poster">
+                <div className={"drop" + (over === "poster" ? " over" : posterErr ? " bad" : "")} data-drop="poster" onClick={dropClick(async () => { if (working) return; const f = await pickFile("image"); if (f) loadPoster(f); })}>
                   {over === "poster" ? <b>ปล่อยเมาส์เพื่อใส่รูปนี้</b>
                     : posterErr ? <><b>{posterErr.split(" · ")[0]}</b><div><Phr>รูปที่รับ JPG PNG WebP BMP TIFF HEIC</Phr></div></>
-                    : loading === "poster" ? "กำลังอ่านรูป…" : <>ลากรูปโปสเตอร์มาวางตรงนี้<br />JPG PNG WebP BMP TIFF HEIC</>}
+                    : loading === "poster" ? "กำลังอ่านรูป…" : <>{movie && !poster && <b data-moviefirst>ไฟล์หนังใส่ให้แล้ว เหลือรูปโปสเตอร์</b>}ลากรูปโปสเตอร์มาวางตรงนี้<br />JPG PNG WebP BMP TIFF HEIC</>}
+                  <span style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" }}>
+                    <Btn off={working && BUSY} onClick={async () => { const f = await pickFile("image"); if (f) loadPoster(f); }}><IcPoster size={15} />เลือกรูปจากเครื่อง</Btn>
+                    {moviePath && <Btn off={working && BUSY} onClick={() => setListOpen(true)}><IcFolder size={15} />รูปในโฟลเดอร์หนัง</Btn>}
+                  </span>
                 </div>
-                <span style={{ display: "flex", gap: 6, marginTop: 10, flexWrap: "wrap" }}>
-                  <Btn off={working && BUSY} onClick={async () => { const f = await pickFile("image"); if (f) loadPoster(f); }}><IcPoster size={15} />เลือกรูปจากเครื่อง</Btn>
-                  {moviePath && <Btn off={working && BUSY} onClick={() => setListOpen(true)}><IcFolder size={15} />รูปในโฟลเดอร์หนัง</Btn>}
-                </span>
               </>
             )}
             {/* รูปไม่ใช่ 2:3 เลือกแบบปกบนการ์ดได้เลย (สเปกข้อ 7 · เดิมบอกแค่แบบที่เลือกไว้ ต้องเปิดหน้าต่างครอปถึงเปลี่ยนได้ ผู้ช่วยตรวจสเปกเจอ) · ตามรูปเดิม พี่กันสั่งเพิ่ม */}
             {poster && !poster.twoThree && choice && (
-              <div className="stat warn" style={{ marginTop: 12 }} data-not23><CardIcon kind="warn" /><div style={{ minWidth: 0 }}><b>รูปนี้เป็น{poster.aspect}</b><div>เลือกว่าจะทำให้เป็นปกแบบไหน</div>
-                <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 8, marginTop: 8 }}>
+              <div className="stat warn" style={{ marginTop: 12, flexWrap: "wrap" }} data-not23><CardIcon kind="warn" /><div style={{ flex: 1, minWidth: 0 }}><b>รูปนี้เป็น{poster.aspect}</b></div>
+                <div className="not23seg">
                   <Seg small label="แบบปก" value={choice.geo.mode} onChange={(v) => { if (!working && !rendering) rechoose({ mode: v }); }} disabledReason={working ? "รอให้งานที่ทำอยู่เสร็จก่อน" : undefined}
-                    options={[{ value: "crop", label: <><IbCrop size={14} />ตัดให้พอดีปก</> }, { value: "pad", label: <><IcPoster size={14} />เติมขอบให้เต็ม</> }, { value: "original", label: <><IcFile size={14} />ตามรูปเดิม</> }]} />
-                  <Btn off={working && BUSY} onClick={() => setCropOpen(true)}>ครอปเองพร้อมดูตัวอย่าง</Btn>
-                </div></div></div>
+                    options={[{ value: "crop", label: <><IbCrop size={14} />ตัดพอดี</> }, { value: "pad", label: <><IcPoster size={14} />เติมขอบ</> }, { value: "original", label: <><IcFile size={14} />ตามรูปเดิม</> }]} />
+                </div></div>
             )}
             {/* รูปที่แนบใน MKV ตรง ๆ ไม่ได้ (สเปกข้อ 7 ส่วนแปลงชนิดรูป) */}
             {poster && !poster.attachable && choice && (
@@ -337,28 +372,32 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
                     options={[{ value: "jpg", label: "JPG" }, { value: "png", label: "PNG" }]} /></div>
                 <div className="small">ค่าตั้งต้นมาจากหน้าตั้งค่า · รูปเดิมในเครื่องไม่ถูกแก้</div></div></div>
             )}
-            <div className="small" style={{ marginTop: 10 }}>รองรับ JPG · PNG แนบได้เลย<br />WebP BMP TIFF HEIC แปลงให้ก่อนแนบ</div>
+            <div className="small pcap" style={{ marginTop: 10 }}><div>รองรับ JPG · PNG แนบได้เลย<br />WebP BMP TIFF HEIC แปลงให้ก่อนแนบ</div></div>
           </div>
 
           {/* ③ หน้าตาที่จะได้ */}
           <div className="card" data-card="result">
             <h3><span className="step">3</span>หน้าตาที่จะได้</h3>
-            <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-start", gap: 10 }}>
-              <div style={{ display: "flex", gap: 14, alignItems: "flex-end" }}>
+            <div className="resbox">
+              <div className={"resmain" + (mode === "cover" && inLib?.thumb && choice ? " two" : "")} style={{ "--sum": 2 / 3 + newAr } as React.CSSProperties}>
               {mode === "cover" && inLib?.thumb && choice && (
                 <div style={{ textAlign: "center" }}><img className="mc" src={thumbUrl(inLib.thumb) ?? undefined} alt="ปกเดิม" /><div className="small" style={{ marginTop: 6 }}>ปกเดิม</div></div>
               )}
               <div style={{ textAlign: "center" }}>
-                {choice ? <img className="mc" src={thumbUrl(choice.render.preview) ?? undefined} alt="ปกใหม่" /> : <div className="mc none" />}
+                {choice ? <img className="mc" style={{ "--ar": newAr } as React.CSSProperties} src={thumbUrl(choice.render.preview) ?? undefined} alt="ปกใหม่" data-newcover /> : <div className="mc none" />}
                 {mode === "cover" && inLib?.thumb && choice && <div className="small" style={{ marginTop: 6 }}>ปกใหม่</div>}
               </div>
               </div>
-              <div className="small" style={{ minWidth: 0 }}>
+              <div className="small rescap pcap" style={{ minWidth: 0 }}><div>
                 บนชั้นวางของโปรแกรมนี้<br />
                 {movie ? (mode === "cover" ? <>ไฟล์เดิม<br /><b style={{ color: "var(--txt)", wordBreak: "break-word" }}><Phr>{newName}</Phr></b><br /><b style={{ color: "var(--txt)" }}><Phr>ไฟล์เป็น MKV อยู่แล้ว เปลี่ยนแค่รูปแนบ ไม่ต้องครอบใหม่</Phr></b></>
-                  : <>ไฟล์ใหม่<br /><b style={{ color: "var(--txt)", wordBreak: "break-word" }}><Phr>{newName}</Phr></b><br />ขนาดราว <span className="nw">{fmtSize(movie.size + (choice?.render.bytes ?? 0))}</span> เท่าเดิม</>)
+                  : <>ไฟล์ใหม่ ตั้งชื่อได้
+                    <div data-newname><ThaiInput value={newStem} onChange={setTyped} label={"ชื่อไฟล์ใหม่ ไม่รวมนามสกุล " + newExt} suffix={newExt} err={!!nameProblem} readOnly={working} describedBy="newname-hint" /></div>
+                    {nameProblem
+                      ? <div id="newname-hint" className="pnerr" role="alert" data-newname-err><Phr>{nameProblem.title}</Phr></div>
+                      : <div id="newname-hint">ขนาดราว <span className="nw">{fmtSize(movie.size + (choice?.render.bytes ?? 0))}</span> เท่าเดิม</div>}</>)
                   : choice ? "ใส่ไฟล์หนังก่อน" : "ใส่ไฟล์หนังกับรูปโปสเตอร์ก่อน"}
-              </div>
+              </div></div>
             </div>
           </div>
         </div>
@@ -378,8 +417,7 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
               <Radio on={original === "keep"} onChange={() => setOne({ originalAfter: "keep" })} disabled={working || mode === "cover"}
                 title={`เก็บไฟล์เดิมไว้ ย้ายไปโฟลเดอร์ "ไฟล์เดิม"`} note={movie ? `ปลอดภัยที่สุด แต่ใช้พื้นที่เพิ่ม ${fmtSize(movie.size)}` : "ปลอดภัยที่สุด แต่ใช้พื้นที่เพิ่มเท่าไฟล์หนัง"} />
               <Radio on={original === "trash"} onChange={() => setOne({ originalAfter: "trash" })} disabled={working || mode === "cover"}
-                title="ลบไฟล์เดิมหลังตรวจไฟล์ใหม่ผ่านแล้ว" note="ไม่ลบถ้าไฟล์ใหม่ตรวจไม่ผ่าน" />
-              {mode === "cover" && <div className="small">ไฟล์เป็น MKV อยู่แล้ว เปลี่ยนแค่รูปแนบ ไม่มีไฟล์เดิมแยก</div>}
+                title="ลบไฟล์เดิมหลังตรวจไฟล์ใหม่ผ่านแล้ว" note={mode === "cover" ? "ไฟล์เป็น MKV อยู่แล้ว ไม่มีไฟล์เดิมแยก" : "ไม่ลบถ้าไฟล์ใหม่ตรวจไม่ผ่าน"} />
             </div>
           </div>
           <div className="card" data-opt="output">
@@ -413,35 +451,40 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
           </div>
         </div>
 
-        {/* สถานะงาน */}
-        {run.state !== "idle" && (
-          <div ref={runBox} className="card workbox" data-run={run.state}>
-            {run.state === "working" && (
-              <>
-                <div style={{ fontSize: 14 }}>{run.progress?.phase ?? "กำลังเริ่ม…"}</div>
-                <div className="bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}><i style={{ width: `${pct}%` }} /></div>
-                <div className="small">{pct}%{run.progress?.eta != null && run.progress.eta > 0 ? <> · เหลือราว <span className="nw">{fmtEta(run.progress.eta)}</span></> : null}
-                  {run.progress?.next ? <><br />ขั้นถัดไป {run.progress.next}</> : null}</div>
-                {/* เปลี่ยนรูปแนบแก้ไฟล์เดิมตรง ๆ หยุดได้เฉพาะช่วงตรวจไฟล์ต้นทาง (ยังไม่แตะไฟล์) · ช่วงแก้ไฟล์ใช้ไม่กี่วินาที หยุดกลางทางไม่ได้
-                    (เดิมปุ่มหยุดขึ้นตลอด หน้าต่างยืนยันบอกว่าไฟล์ใหม่จะถูกลบ ซึ่งโหมดนี้ไม่มีไฟล์ใหม่ ผู้ช่วยตรวจสเปกเจอ) */}
-                {runMode === "cover" && !(run.progress?.phase ?? "กำลังตรวจไฟล์ต้นทาง").startsWith("กำลังตรวจไฟล์ต้นทาง")
-                  ? <div className="small" data-nostop>กำลังแก้ไฟล์เดิม ใช้เวลาไม่กี่วินาที หยุดกลางทางไม่ได้</div>
-                  : <button type="button" className="btn btn-bad btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => setAskStop(true)}><IbStop size={15} />หยุด</button>}
-              </>
+        <div className="three pactions">
+          <div className="pact-msg">
+            {/* สถานะงานอยู่ในแถบนี้ ไม่เพิ่มความสูงหน้า · รายละเอียดยาวเปิดดูจากปุ่ม · ยังไม่เริ่มก็แสดงแถบเปล่าไว้ ไม่มีอะไรโผล่ทีหลัง */}
+            {run.state === "idle" && (
+              <div className="runline idle" data-run-idle>
+                <div className="runtxt">
+                  <div className="runl1">ยังไม่เริ่ม · 0%</div>
+                  <div className="bar" role="progressbar" aria-label="ความคืบหน้า" aria-valuenow={0} aria-valuemin={0} aria-valuemax={100}><i style={{ width: 0 }} /></div>
+                </div>
+              </div>
             )}
-            {run.state === "done" && <DoneCard r={run.result} onShelf={() => p.onPage("shelf")} />}
+            {run.state === "working" && (
+              <div ref={runBox} className="runline" data-run="working">
+                <div className="runtxt">
+                  <div className="runl1">{run.progress?.phase ?? "กำลังเริ่ม…"} · {pct}%{run.progress?.eta != null && run.progress.eta > 0 ? <> · เหลือราว <span className="nw">{fmtEta(run.progress.eta)}</span></> : null}{run.progress?.next ? <> · ขั้นถัดไป {run.progress.next}</> : null}</div>
+                  <div className="bar" role="progressbar" aria-valuenow={pct} aria-valuemin={0} aria-valuemax={100}><i style={{ width: `${pct}%` }} /></div>
+                </div>
+                {/* เปลี่ยนรูปแนบแก้ไฟล์เดิมตรง ๆ หยุดได้เฉพาะช่วงตรวจไฟล์ต้นทาง (ยังไม่แตะไฟล์) · ช่วงแก้ไฟล์ใช้ไม่กี่วินาที หยุดกลางทางไม่ได้ */}
+                {runMode === "cover" && !(run.progress?.phase ?? "กำลังตรวจไฟล์ต้นทาง").startsWith("กำลังตรวจไฟล์ต้นทาง")
+                  ? <div className="small" data-nostop>หยุดกลางทางไม่ได้</div>
+                  : <button type="button" className="btn btn-bad btn-sm" onClick={() => setAskStop(true)}><IbStop size={15} />หยุด</button>}
+              </div>
+            )}
+            {run.state === "done" && <div ref={runBox} className="runline ok" data-run="done" role="status"><DoneCard r={run.result} onShelf={() => p.onPage("shelf")} onClose={() => setRun({ state: "idle" })} onMore={setRunMore} /></div>}
             {run.state === "failed" && (
-              <>
-                <div className={"stat " + (run.problem.kind === "cancelled" ? "warn" : "bad")} role="alert"><CardIcon kind={run.problem.kind === "cancelled" ? "warn" : "bad"} />
-                  <div><b>{run.problem.title}</b>{run.problem.detail.map((d, i) => <div key={i}><Phr>{d}</Phr></div>)}</div></div>
-                <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => pressStart()}><IcRefresh size={15} />ลองใหม่</button>
-              </>
+              <div ref={runBox} className={"runline " + (run.problem.kind === "cancelled" ? "warn" : "bad")} data-run="failed" role="alert">
+                <CardIcon kind={run.problem.kind === "cancelled" ? "warn" : "bad"} />
+                <div className="runtxt" title={run.problem.detail.join(" · ")}><b>{run.problem.title}</b><div className="runl2">{run.problem.detail[0]}</div></div>
+                {run.problem.detail.length > 1 && <button type="button" className="btn btn-ghost btn-sm" data-run-more onClick={() => setRunMore({ title: run.problem.title, lines: run.problem.detail })}>รายละเอียด</button>}
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => pressStart()}><IcRefresh size={15} />ลองใหม่</button>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setRun({ state: "idle" })} data-run-close>ปิด</button>
+              </div>
             )}
           </div>
-        )}
-
-        <div className="three pactions">
-          <div className="pact-msg">{blocked && !working && <div className="hint" style={{ color: "#94680f", margin: 0 }} data-blocked>{blocked}</div>}</div>
           <div className="pact-btns">
           <button type="button" className={"btn " + (working ? "btn-wait" : "btn-ghost")} style={{ height: 44 }} aria-disabled={working || undefined} title={working ? "รอให้งานที่ทำอยู่เสร็จก่อน" : undefined} onClick={clearAll}><IbTrash size={15} />ล้างทั้งหมด</button>
           <button type="button" className={"btn " + (blocked || working ? "btn-wait" : "btn-main")} style={{ height: 44, padding: "0 9px", fontSize: 14, flex: 1 }}
@@ -450,11 +493,19 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
         </div>
       </div>
 
+      {loading === "poster" && <LoadPill text="กำลังอ่านรูป…" />}
+      {loading === "movie" && <LoadPill text="กำลังอ่านไฟล์หนัง…" />}
+      {rendering && <LoadPill text="กำลังทำรูป…" />}
+      {runMore && (
+        <Dialog open onClose={() => setRunMore(null)} width={520} title={runMore.title} actions={<button type="button" className="btn btn-ghost btn-sm" onClick={() => setRunMore(null)}>ปิด</button>}>
+          <div data-run-detail style={{ display: "flex", flexDirection: "column", gap: 6, fontSize: 14, overflowWrap: "anywhere" }}>{runMore.lines.map((l, i) => <div key={i}><Phr>{l}</Phr></div>)}</div>
+        </Dialog>
+      )}
       {cropOpen && poster && (
-        <CropDialog info={poster} start={choice} defaultFormat={(settings?.posterFormat ?? "jpg") as "jpg" | "png"} defaultQuality={settings?.jpgQuality ?? 90}
+        <CropDialog key={poster.path} info={poster} start={choice} defaultFormat={(settings?.posterFormat ?? "jpg") as "jpg" | "png"} defaultQuality={settings?.jpgQuality ?? 90}
           onCancel={() => { setCropOpen(false); if (!choice) { setPoster(null); posterApi.clear().catch(() => {}); } }}
           onUse={(c) => { setChoice(c); setCropOpen(false); }}
-          onChangeImage={() => { setCropOpen(false); setListOpen(true); }} />
+          onPickImage={loadPoster} />
       )}
       <FolderImages open={listOpen} movie={moviePath} format={(settings?.posterFormat ?? "jpg") as "jpg" | "png"} onClose={() => setListOpen(false)}
         onPick={(f) => { setListOpen(false); loadPoster(f); }} />
@@ -505,20 +556,22 @@ function trackTitle(s: StreamInfo) {
 }
 function fmtEta(s: number) { return s < 60 ? `${Math.max(1, Math.round(s))} วินาที` : `${Math.round(s / 60)} นาที`; }
 
-function DoneCard({ r, onShelf }: { r: ApplyResult; onShelf: () => void }) {
+function DoneCard({ r, onShelf, onClose, onMore }: { r: ApplyResult; onShelf: () => void; onClose: () => void; onMore: (m: { title: string; lines: string[] }) => void }) {
   const c = r.counts;
   const title = r.mode === "cover" ? (r.verified ? "เปลี่ยนโปสเตอร์เสร็จ ไฟล์ตรวจผ่าน" : "เปลี่ยนโปสเตอร์เสร็จ")
     : r.mode === "mp4" ? (r.verified ? "ส่งออก MP4 เสร็จ ไฟล์ใหม่ตรวจผ่าน" : "ส่งออก MP4 เสร็จ")
     : r.verified ? "ครอบเสร็จ ไฟล์ใหม่ตรวจผ่าน" : "ครอบเสร็จ";
   const line2 = r.mode === "cover" ? (r.verified ? "ปกในไฟล์ตรงกับรูปที่ทำทุกไบต์ ภาพ เสียง ซับ เท่าเดิม" : "ไม่ได้ตรวจรูปแนบ") : r.verified ? "ครบเท่าต้นทาง" : "ไม่ได้ตรวจเทียบต้นทาง";
   const where = r.original === "kept" && r.originalTo ? r.originalTo.replace(/[\\/][^\\/]+$/, "") : null;
+  const counts = `ภาพ ${c.video} · เสียง ${c.audio} · ซับ ${c.subs}`;
+  const lines = [counts, line2, where ? "ไฟล์เดิมย้ายไปที่ " + where : "", r.original === "trash" ? "ไฟล์เดิมอยู่ในถังขยะของ Windows กู้คืนได้จนกว่าจะล้างถังขยะ" : "", ...r.notes].filter(Boolean);
   return (
     <>
-      <div className="stat ok" role="status"><CardIcon kind="done" /><div><b>{title}</b>ภาพ {c.video} · เสียง {c.audio} · ซับ {c.subs}<br /><Phr>{line2}</Phr></div></div>
-      {where && <div className="small">ไฟล์เดิมย้ายไปที่ {where}</div>}
-      {r.original === "trash" && <div className="small">ไฟล์เดิมอยู่ในถังขยะของ Windows กู้คืนได้จนกว่าจะล้างถังขยะ</div>}
-      {r.notes.map((n, i) => <div key={i} className="small"><Phr>{n}</Phr></div>)}
-      <button type="button" className="btn btn-ok btn-sm" style={{ alignSelf: "flex-start" }} onClick={onShelf}><IcShelf size={15} />ไปดูบนชั้นวาง</button>
+      <CardIcon kind="done" />
+      <div className="runtxt" title={lines.join(" · ")}><b>{title}</b><div className="runl2">{counts} · {line2}</div></div>
+      {lines.length > 2 && <button type="button" className="btn btn-ghost btn-sm" data-run-more onClick={() => onMore({ title, lines })}>รายละเอียด</button>}
+      <button type="button" className="btn btn-ok btn-sm" onClick={onShelf}><IcShelf size={15} />ไปดูบนชั้นวาง</button>
+      <button type="button" className="btn btn-ghost btn-sm" onClick={onClose} data-run-close>ปิด</button>
     </>
   );
 }
@@ -547,6 +600,7 @@ function Radio(p: { on: boolean; onChange: () => void; title: string; note: stri
 function FolderImages(p: { open: boolean; movie: string | null; format: "jpg" | "png"; onClose: () => void; onPick: (path: string) => void }) {
   const [items, setItems] = useState<FolderImage[] | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [picking, setPicking] = useState(false);
   const live = useRef(0);
   useEffect(() => {
     if (!p.open || !p.movie) return;
@@ -559,11 +613,11 @@ function FolderImages(p: { open: boolean; movie: string | null; format: "jpg" | 
     <Dialog open={p.open} onClose={p.onClose} kind="menu" width={520} title="เลือกรูปโปสเตอร์"
       actions={<>
         <button type="button" className="btn btn-ghost btn-sm" onClick={p.onClose}>ปิด</button>
-        <button type="button" className="btn btn-main btn-sm" onClick={async () => { const f = await pickFile("image"); if (f) p.onPick(f); }}><IcPoster size={15} />เลือกรูปจากเครื่อง</button>
+        <button type="button" className={"btn btn-sm " + (picking ? "btn-wait" : "btn-main")} aria-disabled={picking || undefined} onClick={async () => { if (picking) return; setPicking(true); try { const f = await pickFile("image"); if (f) p.onPick(f); } finally { setPicking(false); } }}>{picking ? <span className="spinner" aria-hidden="true" /> : <IcPoster size={15} />}<Keep all={["กำลังเปิดหน้าต่างเลือกไฟล์…", "เลือกรูปจากเครื่อง"]}>{picking ? "กำลังเปิดหน้าต่างเลือกไฟล์…" : "เลือกรูปจากเครื่อง"}</Keep></button>
       </>}>
       <div className="small">{p.movie ? <>รูปในโฟลเดอร์เดียวกับไฟล์หนัง · บอกว่ารูปไหนต้องแปลงก่อน</> : "ยังไม่ได้ใส่ไฟล์หนัง เลือกรูปจากเครื่องแทน"}</div>
       <div data-folder-images style={{ maxHeight: 360, overflowY: "auto" }}>
-        {!p.movie ? null : err ? <div className="hint e">{err}</div> : items === null ? <div className="small">กำลังอ่านรูปในโฟลเดอร์…</div>
+        {!p.movie ? null : err ? <div className="hint e">{err}</div> : items === null ? <div className="small" style={{ display: "flex", alignItems: "center", gap: 8 }} data-folder-wait><span className="spinner" aria-hidden="true" />กำลังอ่านรูปในโฟลเดอร์…</div>
           : list.length === 0 ? <div className="small">ไม่มีรูปในโฟลเดอร์นี้</div>
           : list.map((f) => (
             <div key={f.path} className="imgrow" {...kb(() => p.onPick(f.path))} aria-label={"ใช้รูป " + f.name}>

@@ -2,6 +2,7 @@
    ย่ออยู่ ชี้ไอคอนแล้วขึ้นกล่องชื่อเมนูข้างไอคอนทางขวา ไม่บังเมนูอื่น · เลขนับกลายเป็นจุดชมพูที่มุมไอคอน
    ค่าย่อกางจำไว้ในการตั้งค่า (sidebarCollapsed) เปิดครั้งหน้ายังเหมือนเดิม */
 import { useState } from "react";
+import { version } from "../../package.json";
 import { IcBrand, IcCheck, IcCollapse, IcGraph, IcLink, IcMix, IcPoster, IcSettings, IcShelf } from "./icons";
 
 export type Page = "shelf" | "poster" | "link" | "av" | "check" | "graph" | "settings";
@@ -50,6 +51,8 @@ export default function Sidebar({ page, onPage, collapsed, onToggle, shelfCount,
   const hideTip = () => setTip(null);
 
   return (
+    /* กรอบนอกเปลี่ยนความกว้างทันที เนื้อหาจัดแถวครั้งเดียวตอนกด · แถบเมนูข้างในค่อย ๆ เลื่อนทับ */
+    <div className={"sidewrap" + (collapsed ? " mini" : "")}>
     <aside className={"side" + (collapsed ? " mini-nav" : "")} data-navbar role="navigation" aria-label="เมนูหลัก">
       <div className="brand"><IcBrand /><span className="navtxt">ชั้นหนัง</span></div>
       {items.map((it) => (
@@ -87,11 +90,13 @@ export default function Sidebar({ page, onPage, collapsed, onToggle, shelfCount,
         <IcCollapse />
         <span className="navtxt">{collapsed ? "ขยายเมนู" : "ย่อเมนู"}</span>
       </button>
+      <div className="navver" title={"ชั้นหนัง รุ่น " + version} data-version>v{version}</div>
       {tip && (
         <div className="navtip" role="tooltip" style={{ left: tip.x, top: tip.y, translate: "0 -50%" }}>
           {tip.text}
         </div>
       )}
     </aside>
+    </div>
   );
 }

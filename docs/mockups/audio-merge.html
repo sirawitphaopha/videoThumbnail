@@ -338,7 +338,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
 
 /* ---------- หน้าแปลงเสียง ---------- */
 .queue{display:flex;flex-direction:column;gap:6px}
-.qrow{display:grid;grid-template-columns:40px minmax(0,1.4fr) 24px minmax(0,1fr) 200px 112px;gap:10px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px}
+.qrow{display:grid;grid-template-columns:18px 40px minmax(0,1.4fr) 24px minmax(0,1fr) 200px 112px;gap:10px;align-items:center;background:#fff;border:1px solid var(--line);border-radius:10px;padding:8px 10px;font-size:13px}
 .qrow.head{background:transparent;border:0;padding:0 10px;color:var(--txt2);font-size:12px;font-weight:600}
 .qrow .nm{font-weight:600;white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.35}
 .qrow .dt{font-size:12px;color:var(--txt3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;line-height:1.35}
@@ -399,6 +399,8 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
 .pair .p{font-size:12px;color:var(--txt3);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
 .enc{display:grid;grid-template-columns:150px 120px 1fr 110px;gap:10px;align-items:center;padding:8px 0;border-bottom:1px solid #f8e3eb;font-size:13.5px}
 .enc:last-child{border-bottom:0}
+.qtick { width: 18px; height: 18px; display: inline-flex; align-items: center; justify-content: center; border: 1.5px solid #c9a9b6; border-radius: 5px; background: #fff; }
+.qtick.on { background: var(--accent, #a8406a); border-color: var(--accent, #a8406a); }
 </style>
 </head>
 <body>
@@ -536,7 +538,7 @@ input[type=range]::-webkit-slider-thumb{-webkit-appearance:none;width:18px;heigh
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <button class="btn btn-main btn-sm">เปิดเล่น</button><button class="btn btn-ghost btn-sm">เปลี่ยนชื่อ</button>
         <button class="btn btn-ghost btn-sm">เปลี่ยนโปสเตอร์</button><button class="btn btn-ghost btn-sm">ตรวจไฟล์</button>
-        <button class="btn btn-ghost btn-sm">ข้อมูลไฟล์</button><button class="btn btn-ghost btn-sm">เปิดโฟลเดอร์</button>
+        <button class="btn btn-ghost btn-sm">MediaInfo</button><button class="btn btn-ghost btn-sm">เปิดโฟลเดอร์</button>
         <button class="btn btn-ghost btn-sm">กราฟเสียง</button>
         <button class="btn btn-ghost btn-sm" style="border:1px solid var(--accent);background:#fdeaf1;color:var(--accent-ink)">เสียงและซับ</button>
       </div>
@@ -1510,12 +1512,13 @@ function buildConvert(root){
     ["linear-gradient(150deg,#e9e2f8,#a98bd8 55%,#5a3c96)","เพลง ค.ape","Monkey's Audio 2.0 · 38 MB","FLAC Level 5","wait","รอคิว",""],
   ];
   const row = ([bg, nm, dt, to, st, s2, out]) => `<div class="qrow">
+    <span class="qtick${st === "wait" ? " on" : ""}">${st === "wait" ? '<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg>' : ""}</span>
     <div class="cov" style="background:${bg}"></div>
     <div style="min-width:0"><div class="nm">${nm}</div><div class="dt">${dt}</div></div>
     <span style="color:var(--txt3)">→</span>
     <button class="dd"><span>${to}</span>${I.chev}</button>
     <div>${st === "work" ? `<div class="bar"><i style="width:62%"></i></div><div class="small" style="margin-top:3px">${s2}</div>` : st === "done" ? `<span class="pill ok">${s2}</span><div class="small" style="margin-top:3px">${out} · เล็กลง 96%</div>` : `<span class="small">${s2}</span>`}</div>
-    <div style="display:flex;gap:4px;justify-content:flex-end">${st === "done" ? `<button class="btn btn-ghost btn-xs">เทียบความถี่</button>` : ""}<button class="ib bad" aria-label="เอาออกจากคิว">${I.x}</button></div>
+    <div style="display:flex;gap:4px;justify-content:flex-end">${st === "done" ? `<button class="btn btn-ghost btn-xs">เทียบความถี่</button>` : ""}${st === "wait" ? `<button class="btn btn-ghost btn-xs">แปลง</button>` : ""}<button class="ib bad" aria-label="เอาออกจากคิว">${I.x}</button></div>
   </div>`;
   root.innerHTML = TITLE + `<div class="body">${NAV("graph")}<div class="main"><div class="mx">
     <div class="mtop">
@@ -1526,7 +1529,7 @@ function buildConvert(root){
     <div class="card" style="padding:12px">
       <h3><span>คิวแปลง · 4 ไฟล์</span><span class="small" style="font-weight:400">เสร็จ 1 · กำลังทำ 1 · รอ 2 · ทีละไฟล์ตามลำดับ</span></h3>
       <div class="queue">
-        <div class="qrow head"><span></span><span>ไฟล์</span><span></span><span>แปลงเป็น</span><span>สถานะ</span><span></span></div>
+        <div class="qrow head"><span class="qtick on"><svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="3.4" stroke-linecap="round" stroke-linejoin="round"><path d="M5 12.5l4.5 4.5L19 7"/></svg></span><span></span><span>ไฟล์</span><span></span><span>แปลงเป็น</span><span>สถานะ</span><span></span></div>
         ${Q.map(row).join("")}
       </div>
       <div class="drop" style="margin-top:8px"><svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e5a3bd" stroke-width="1.9"><path d="M12 5v14M5 12h14"/></svg><span><b style="color:var(--txt2)">ลากไฟล์เสียงมาวางเพิ่ม</b> · MP3 FLAC WAV M4A AAC AC3 E-AC3 DTS OGG OPUS WV APE TAK และเสียงในไฟล์หนัง</span></div>
@@ -1690,25 +1693,25 @@ function cmpPane(){
   const fileLg = `<span><i class="ln" style="background:${CA}"></i>ต้นฉบับ</span><span><i class="ln" style="background:${CB}"></i>หลังแปลง</span>`;
   if (cmpTab === "wave") return `<div class="ghead"><div><b>รูปคลื่นทุกช่อง</b> <span class="small">· 0:00 ถึง 4:12 · ไฟล์ละแถว ช่องเดียวกันอยู่ติดกัน</span></div>${ZOOMBAR}</div>
     <div class="glane"><span></span>${RULER}</div>${lanes("wv")}
-    ${foot(`<span><i class="sq" style="background:#a9cdf2"></i><i class="sq" style="background:#f6c2a8"></i>ยอดเสียง</span><span><i class="sq" style="background:#1d5fae"></i><i class="sq" style="background:#b4461a"></i>ความดังเฉลี่ย</span>${fileLg}`)}
+    ${foot(`<span><i class="sq" style="background:#a9cdf2"></i><i class="sq" style="background:#f6c2a8"></i>ยอดเสียง</span><span><i class="sq" style="background:#1d5fae"></i><i class="sq" style="background:#b4461a"></i>ความดังเฉลี่ย</span>`)}
     ${statBox("info", "รูปคลื่นแทบเหมือนกันทุกช่วง", "ยอดเสียงหลังแปลงขึ้นเป็น +0.3 dB เพราะการแปลงแบบ Lossy ทำให้ยอดคลื่นขยับเล็กน้อย · ดูแท็บความดังว่าเกิน 0 ช่วงไหน")}`;
   if (cmpTab === "freq") return `<div class="ghead"><div><b>ความถี่ทุกช่อง</b> <span class="small">· 0:00 ถึง 4:12 · แกนตั้ง 0 ถึง 48 kHz เท่ากันทั้งสองไฟล์</span></div>${ZOOMBAR}</div>
     <div class="glane"><span></span>${RULER}</div>${lanes("fq")}
-    ${foot(fileLg)}
+    ${foot("")}
     ${statBox("info", "หลังแปลงไม่มีเสียงเหนือ 20.2 kHz ทุกช่อง", "ช่วงล่างกว่านั้นสีแทบเหมือนเดิม · สีตามชุดสีที่เลือกในหน้ากราฟเสียง")}`;
   if (cmpTab === "loud") {
     const T = [["ความดังรวม", "−10.7 LUFS", "−10.8 LUFS", "ทั้งเรื่อง ตามมาตรฐาน EBU R128"], ["ยอดเสียงสูงสุด", "−0.2 dBTP", "+0.3 dBTP", "หลังแปลงเกิน 0"], ["ช่วงความดัง", "14.6 LU", "14.6 LU", "ห่างระหว่างช่วงเบากับช่วงดัง"], ["ช่วงเงียบผิดปกติ", "ไม่พบ", "ไม่พบ", "เงียบทุกช่องเกิน 1 วินาที"]];
     return `<div class="tiles">${T.map(([k, a, b, n]) => `<div class="tile"><span class="small" style="margin:0">${k}</span><div class="tv">${who("a")}<b>${a}</b></div><div class="tv">${who("b")}<b${b.startsWith("+") ? ' style="color:var(--bad-ink)"' : ""}>${b}</b></div><span class="small" style="margin:0">${n}</span></div>`).join("")}</div>
     <div class="ghead"><div><b>ความดังตลอดเรื่อง</b> <span class="small">· 0:00 ถึง 4:12</span></div>${ZOOMBAR}</div>
     <canvas class="gcv" style="height:220px" data-ld></canvas>
-    ${foot(`${fileLg}<span><i class="ln" style="background:#4a2b38"></i>เส้นอ้างอิง</span><span class="small" style="margin:0">สองเส้นแทบทับกัน</span>`)}
+    ${foot(`<span><i class="ln" style="background:#4a2b38"></i>เส้นอ้างอิง</span><span class="small" style="margin:0">สองเส้นแทบทับกัน</span>`)}
     ${statBox("warn", "ยอดเสียงหลังแปลง +0.3 dBTP เกิน 0", "เครื่องเล่นบางตัวเสียงแตกช่วงที่ดังสุด · ตั้ง Gain −1 dB ในแผงตั้งค่าเสียงแล้วแปลงใหม่")}`;
   }
   if (cmpTab === "over") return `<div class="ghead"><div style="display:flex;align-items:center;gap:10px"><b>ซ้อนเทียบช่องเดียวกันของสองไฟล์</b><div class="seg sm"><button class="on">L ซ้าย</button><button>R ขวา</button></div></div>${ZOOMBAR}</div>
     <canvas class="gcv" style="height:220px" data-ov></canvas>
     <div class="small" style="margin:0"><b style="color:var(--txt)">ผลต่าง หลังแปลง ลบ ต้นฉบับ</b> · กราฟแยก แกน ±2 dB</div>
     <canvas class="gcv" style="height:70px" data-df></canvas>
-    ${foot(`<span><i class="ln" style="background:${CA}"></i>L ต้นฉบับ</span><span><i class="ln" style="background:${CB}"></i>L หลังแปลง</span>`)}
+    ${foot(``)}
     ${statBox("info", "ช่อง L ต่างกันเฉลี่ย 0.1 dB มากสุด 0.4 dB ที่ 3:12", "ต่ำกว่าที่หูแยกได้ (ราว 1 dB) · เลือกช่อง R ได้ที่ปุ่มบน")}`;
   if (cmpTab === "spek") return `<div class="ghead"><div style="display:flex;align-items:center;gap:10px"><b>วิเคราะห์ความถี่</b><button class="dd" style="width:130px"><span>รวมทุกช่อง</span>${I.chev}</button></div>${ZOOMBAR}</div>
     <canvas class="gcv" style="height:250px;border-radius:6px" data-sk="a"></canvas>
@@ -1742,6 +1745,7 @@ function buildCompare(root){
             <svg class="seat" width="30" height="26" viewBox="0 0 30 26" fill="#f2b8cc"><circle cx="15" cy="7" r="6"/><path d="M3 26c0-7 5.5-11 12-11s12 4 12 11z"/></svg><span class="seatl">ที่นั่งฟัง</span></div>
           <div class="small" style="text-align:center;margin:0">กดลำโพงเพื่อซ่อนหรือแสดงช่องนั้น ทั้งสองไฟล์พร้อมกัน</div></div>
         <div class="gcard"><div class="gch"><b>ข้อมูลเสียง</b></div>
+          <div style="margin-bottom:12px"><div style="display:flex;justify-content:space-between;font-weight:700;margin-bottom:4px"><span>ต่างกันกี่ %</span><span>1.6%</span></div><div class="small">รูปคลื่น 0.8% · ความถี่ 3.1% · ความดัง 0.6% · ซ้อนเทียบ 0.7% · ความถี่เฉลี่ย 2.7%</div></div>
           <div class="ginfo"><span></span><span class="h" style="color:#1d5fae">ต้นฉบับ</span><span class="h" style="color:#b4461a">หลังแปลง</span>
             ${info.map(([k, a, b]) => `<span class="k">${k}</span><span class="v">${a}</span><span class="v">${b}</span>`).join("")}</div>
           <div class="small" style="margin:8px 0 0">แปลงด้วย opusenc · libopus 1.6.1 · VBR 160 kbps</div></div>

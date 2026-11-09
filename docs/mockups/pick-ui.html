@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>เลือกแบบชั้นหนัง</title>
+<!-- หน้าเลือกแบบบนหน้าจอจริงของโปรแกรม · เปิดผ่าน npm run dev ที่ http://127.0.0.1:1420/docs/mockups/pick-ui.html · พี่กันสั่ง 9 พ.ย. 2569 "ทำมอคอัปในเว็บให้เลือก" -->
+<style>
+:root { --accent: #a8436a; --ink: #3a1d29; --ink2: #6c4a57; --line: #e2cad1; --soft: #f7e4ea; --bg: #fdf8f8; }
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { font-family: Sarabun, "Noto Sans Thai", Tahoma, sans-serif; font-size: 15px; line-height: 1.55; color: var(--ink); background: var(--bg); }
+button { font: inherit; color: inherit; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.page { max-width: 1340px; margin: 0 auto; padding: 20px 28px 48px; }
+h1 { font-size: 23px; margin: 0 0 2px; }
+.lead { color: var(--ink2); margin: 0 0 14px; }
+.tabs { display: flex; gap: 8px; margin-bottom: 12px; flex-wrap: wrap; }
+.tabs button, .go button { height: 36px; padding: 0 14px; border: 1px solid var(--line); border-radius: 9px; background: #fff; cursor: pointer; font-weight: 600; transition: background-color .15s, border-color .15s; }
+.tabs button:hover, .go button:hover { background: var(--soft); border-color: var(--accent); }
+.tabs button.on, .go button.on { background: var(--soft); border-color: var(--accent); color: var(--accent); }
+.cards { display: grid; grid-template-columns: repeat(auto-fit, minmax(210px, 1fr)); gap: 10px; margin-bottom: 12px; }
+.card { text-align: left; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 10px 12px; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
+.card:hover { border-color: var(--accent); }
+.card.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.stick { position: sticky; top: 0; z-index: 5; background: var(--bg); padding-top: 8px; }
+.cards.many { grid-template-columns: repeat(auto-fit, minmax(128px, 1fr)); gap: 8px; }
+.cards.many .card { padding: 8px 10px; display: flex; flex-direction: column; justify-content: flex-start; }
+.cards.many .card b { font-size: 13.5px; line-height: 1.35; font-weight: 600; }
+.cards.many .card span { display: none; }
+.csl { display: block; width: 100%; height: 3px; border-radius: 2px; margin: 6px 0 8px; }
+.cpv { display: flex; gap: 3px; margin: 3px 0 7px; }
+.cpv i { font: 700 10.5px/16px Consolas, monospace; height: 16px; padding: 0 5px; border-radius: 4px; }
+.csw { display: block; width: 32px; height: 32px; border-radius: 50%; margin-bottom: 5px; }
+.card b { display: block; font-size: 15px; }
+.card span { display: block; font-size: 13px; color: var(--ink2); }
+.rec { display: inline-block !important; background: var(--accent); color: #fff !important; font-size: 11.5px !important; font-weight: 600; padding: 0 7px; border-radius: 5px; margin-left: 6px; }
+.go { display: flex; gap: 6px; flex-wrap: wrap; align-items: center; margin-bottom: 12px; font-size: 13.5px; color: var(--ink2); }
+.go button { height: 32px; padding: 0 12px; font-size: 13.5px; }
+.frame { overflow-x: auto; padding-bottom: 6px; }
+#app { display: block; width: 1280px; height: min(800px, calc(100vh - 8px)); margin: 0 auto; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 14px 40px rgba(60,20,35,.16); background: #fff; }
+.note { font-size: 13.5px; color: var(--ink2); margin-top: 10px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>เลือกแบบหน้าตาชั้นหนัง</h1>
+  <p class="lead">กดการ์ดแล้วหน้าจอจริงข้างล่างเปลี่ยนตาม · ยังไม่แก้ของจริงในโปรแกรม</p>
+  <div class="stick">
+  <div class="tabs" id="tabs" role="tablist"></div>
+  <div class="cards" id="cards" role="radiogroup"></div>
+  <div class="go" id="go"></div>
+  </div>
+  <div class="frame"><iframe id="app" title="หน้าจอจริงของโปรแกรมชั้นหนัง" src="theme-live-app.html"></iframe></div>
+  <p class="note">กรอบบนคือหน้าจอจริงของโปรแกรม โค้ดชุดเดียวกับตัวโปรแกรม ขนาด 1280 × 800 กดได้ทุกเมนู ข้อมูลหนังเป็นตัวอย่าง</p>
+</div>
+<script type="module">
+// เซิร์ฟเวอร์ไม่ได้เฝ้าไฟล์ใน docs จำไฟล์แบบเก่าไว้ · ขอที่อยู่ใหม่ทุกครั้งที่เปิดหน้า ได้ไฟล์สดเสมอ
+const { BNAME, DROP, GRAD, LINE, PICK, apply, wire } = await import("./pick-variants.mjs?r=" + Date.now());
+const $ = (s) => document.querySelector(s);
+const frame = $("#app");
+const state = { tab: "bname", drop: "now", grad: "g8", pick: "now", shelf: "now", bname: "now", over: false };
+const TABS = { drop: ["1 จุดลากไฟล์", DROP], grad: ["2 ไล่โทนวงลูกศร", GRAD], pick: ["3 ปุ่มเลือกสี", PICK], shelf: ["4 เส้นแบ่งชั้นวาง", LINE], bname: ["5 แถบใต้ปก", BNAME] };
+const doc = () => frame.contentDocument;
+const wait = (ms) => new Promise((r) => setTimeout(r, ms));
+const until = async (fn, ms = 8000) => { const t = Date.now(); while (Date.now() - t < ms) { const v = fn(); if (v) return v; await wait(100); } return null; };
+const nav = async (label) => { const b = await until(() => [...doc().querySelectorAll(".nav")].find((n) => n.textContent.includes(label))); b?.click(); await wait(200); };
+const home = () => doc().querySelector("[data-graphhome]")?.click();
+const PAGES = {
+  drop: [["ใส่โปสเตอร์", () => nav("ใส่โปสเตอร์")], ["จับคู่ปก", () => nav("จับคู่ปก")], ["เสียงและซับ", () => nav("เสียงและซับ")],
+    ["หน้ารวมกราฟเสียง", async () => { await nav("กราฟเสียง"); home(); }],
+    ["แปลงเสียง", async () => { await nav("กราฟเสียง"); home(); (await until(() => [...doc().querySelectorAll(".gmodebar button")].find((b) => b.textContent.includes("แปลงเสียง"))))?.click(); }]],
+  pick: [["วิเคราะห์ความถี่", () => view("spek")]],
+};
+PAGES.shelf = [["ชั้นวางหนัง", () => nav("ชั้นวางหนัง")]];
+PAGES.bname = PAGES.shelf;
+PAGES.grad = [PAGES.drop[3], PAGES.drop[0], PAGES.drop[1], PAGES.drop[2], PAGES.drop[4]];
+async function view(v) {
+  await nav("กราฟเสียง");
+  if (!doc().querySelector("[data-view]")) { (await until(() => doc().querySelector("[data-graphpick]")))?.click(); }
+  (await until(() => doc().querySelector(`[data-view="${v}"]`)))?.click();
+}
+function paint() {
+  $("#tabs").innerHTML = Object.entries(TABS).map(([k, [n]]) => `<button type="button" role="tab" aria-selected="${k === state.tab}" class="${k === state.tab ? "on" : ""}" data-tab="${k}">${n}</button>`).join("");
+  $("#cards").className = "cards" + (state.tab === "grad" || state.tab === "shelf" || state.tab === "bname" ? " many" : "");
+  $("#cards").innerHTML = TABS[state.tab][1].map((v) => `<button type="button" role="radio" aria-checked="${v.id === state[state.tab]}" class="card${v.id === state[state.tab] ? " on" : ""}" title="${v.note}" data-v="${v.id}">${v.swatch ? `<i class="csw" style="background:${v.swatch}"></i>` : ""}${v.sample ? `<i class="csl" style="background:${v.sample}"></i>` : ""}${v.prev ? `<i class="cpv">${v.prev.map(([t, bg, fg, ln]) => `<i style="background:${bg};color:${fg}${ln ? `;box-shadow:inset 0 0 0 1px ${ln}` : ""}">${t}</i>`).join("")}</i>` : ""}<b>${v.name}${v.rec ? '<span class="rec">แนะนำ</span>' : ""}</b><span>${v.note}</span></button>`).join("");
+  $("#go").innerHTML = "ดูหน้า " + PAGES[state.tab].map(([n], i) => `<button type="button" data-go="${i}">${n}</button>`).join("") + (state.tab === "drop" || state.tab === "grad" ? `<button type="button" data-over class="${state.over ? "on" : ""}">ตอนลากไฟล์มาค้าง</button>` : "");
+}
+function push() {
+  if (!doc()) return;
+  wire(doc());
+  apply(doc(), "drop", state.tab === "grad" ? GRAD.find((v) => v.id === state.grad) : DROP.find((v) => v.id === state.drop));
+  apply(doc(), "pick", PICK.find((v) => v.id === state.pick));
+  apply(doc(), "line", LINE.find((v) => v.id === state.shelf));
+  apply(doc(), "bname", BNAME.find((v) => v.id === state.bname));
+  doc().documentElement.toggleAttribute("data-sim-over", state.over);
+}
+document.addEventListener("click", (e) => {
+  const t = e.target.closest("[data-tab]"), c = e.target.closest("[data-v]"), g = e.target.closest("[data-go]"), o = e.target.closest("[data-over]");
+  if (t) { state.tab = t.dataset.tab; paint(); push(); void PAGES[state.tab][0][1](); }
+  if (c) { state[state.tab] = c.dataset.v; paint(); push(); }
+  if (g) void PAGES[state.tab][+g.dataset.go][1]();
+  if (o) { state.over = !state.over; paint(); push(); }
+});
+frame.addEventListener("load", async () => { push(); await until(() => doc().querySelector(".nav")); void PAGES[state.tab][0][1](); });
+paint();
+window.__pick = { state, push, view, nav, DROP, GRAD, LINE, PICK, BNAME };
+</script>
+</body>
+</html>

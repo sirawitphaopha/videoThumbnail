@@ -9,7 +9,7 @@ const q = (js) => c.evaluate(`(() => { ${js} })()`);
 await c.evaluate(`window.__TAURI_INTERNALS__.invoke("set_settings", { patch: { folders: [${JSON.stringify(DIR)}] } })`);
 await c.evaluate("location.reload()"); await sleep(2500);
 await c.click('.book[data-movie="Harbor Lights (2021)"]'); await sleep(300);
-await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.innerText.includes('ข้อมูลไฟล์')).click()");
+await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.innerText.includes('MediaInfo')).click()");
 for (let i = 0; i < 60 && !(await q("return !!document.querySelector('[data-mi]')")); i++) await sleep(150);
 // หัวข้อ Attachment กับแถวข้างใต้จนถึงหัวข้อถัดไป
 const r = await q(`

@@ -17,11 +17,13 @@
 .tabchip.on { background-color: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
 .tabchip.on:hover { background-color: #f8dde7; color: var(--accent-d); }
 
-.linkhead, .lkrow { display: grid; grid-template-columns: 30px minmax(140px, 1fr) 18px minmax(160px, 1.25fr) minmax(96px, 150px) 262px; column-gap: 10px; align-items: center; }
+.linkhead, .lkrow { display: grid; grid-template-columns: 30px minmax(140px, 1fr) 18px minmax(160px, 1.25fr) minmax(96px, 150px) 282px; column-gap: 10px; align-items: center; }
+/* หน้าต่างเล็กสุด 1024 ผลรวมขั้นต่ำเกินกรอบ ปุ่มท้ายแถวล้นขอบ · ปุ่มสามช่องต้องคงกว้างเท่ากัน จึงลดขั้นต่ำของช่องชื่อแทน (เจอจาก check-link 9 พ.ย. 2569) */
+@media (max-width: 1100px) { .linkhead, .lkrow { grid-template-columns: 30px minmax(110px, 1fr) 18px minmax(120px, 1.25fr) minmax(80px, 150px) 282px; } }
 .linkhead { flex: none; padding: 9px 12px; margin-bottom: -10px; font-size: 14px; font-weight: 700; color: var(--accent-ink); background: var(--accent-soft); border: 1px solid var(--line); border-bottom: 1px solid var(--line); border-radius: 12px 12px 0 0; }
 .linkrows { flex: 1; min-height: 0; overflow-y: auto; border: 1px solid var(--line); border-radius: 0 0 12px 12px; background: #fff; }
 /* แถวนอกจอไม่กินเวลาวาด ร้อยแถวเลื่อนลื่น · ความสูงประมาณไว้ แถบเลื่อนไม่กระโดด */
-.lkrow { padding: 8px 12px; border-top: 1px solid #f7e4ea; content-visibility: auto; contain-intrinsic-size: auto 98px; }
+.lkrow { min-height: 97px; box-sizing: border-box; padding: 8px 12px; border-top: 1px solid #f7e4ea; content-visibility: auto; contain-intrinsic-size: auto 98px; }
 .lkrow:first-child { border-top: 0; }
 .lkrow.saved { background: #f6fbf8; }
 .lkrow.over { outline: 2px dashed var(--accent); outline-offset: -2px; background: #faedf1; }
@@ -51,12 +53,18 @@
 /* ช่องไม่มีปกเป็นแถบเอียงแบบเดิม พี่กันสั่ง 8 พ.ย. 2569 "เรื่องที่ไม่มีปก เราอยากได้อันเดิม คือเเถบเอียง" · ตอนปรับหน้าตาอย่าเปลี่ยน */
 .lthumb.none { background: repeating-linear-gradient(135deg, #fff 0 8px, #fbf2f5 8px 16px); border: 2px dashed #eeb3c8; box-shadow: none; color: var(--txt3); font-size: 11px; display: flex; align-items: center; justify-content: center; text-align: center; box-sizing: border-box; }
 .larrow { color: var(--txt3); font-size: 18px; text-align: center; }
-.lsugg { display: flex; gap: 8px; margin-top: 4px; flex-wrap: wrap; }
+.lsugg { display: flex; gap: 8px; flex: none; }
+/* มีรูปที่เลือกอยู่แล้ว รูปใกล้เคียงย่อลงในคอลัมน์ชื่อ แถวไม่สูงขึ้น */
+.lsugg.mini { gap: 5px; margin-top: 2px; }
+.lsugg.mini .lthumb { width: 19px; height: 28px; border-radius: 3px; }
+.lsugg.mini .bigbtn { display: none; }
 .lcand { border: 0; background: none; padding: 0; cursor: pointer; border-radius: 7px; outline: 3px solid transparent; outline-offset: 2px; transition: outline-color .15s; }
 .lcand:hover { outline-color: #ead0d9; }
 .lcand.sel { outline-color: var(--accent); }
-.lacts { display: flex; gap: 6px; flex-wrap: wrap; justify-content: flex-end; align-items: center; }
-.lacts .btn { gap: 4px; padding-inline: 9px; }
+/* ปุ่มสามช่องกว้างเท่ากัน ทุกแถวตรงแนว · ปุ่มเสริม ย้อน เลิกแก้ ต่อแถวล่างในช่องเดียวกัน */
+.lacts { display: grid; grid-template-columns: repeat(3, 90px); gap: 6px; justify-content: end; align-items: center; }
+.lacts .btn { width: 100%; justify-content: center; gap: 4px; padding-inline: 4px; }
+.lacts .pill { justify-self: center; }
 .lacts .btn svg { width: 13px; height: 13px; }
 .linkfoot { display: flex; justify-content: space-between; align-items: center; gap: 12px; flex: none; }
 

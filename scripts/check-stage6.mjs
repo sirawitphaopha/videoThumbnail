@@ -234,12 +234,12 @@ const fromShelf = await rowText("แก้หนึ่งไบต์ (2023)");
 check("การ์ดสถานะบนชั้น ไฟล์ถูกเปลี่ยน กดตรวจละเอียด พาไปหน้าตรวจไฟล์แล้วตรวจเรื่องนั้นเลย",
   card.includes("ไฟล์ถูกเปลี่ยนตั้งแต่ตรวจครั้งก่อน") && /ไฟล์สมบูรณ์|ไฟล์เสียหาย/.test(fromShelf) && !fromShelf.includes("ไฟล์ถูกเปลี่ยน"), `${card} → ${fromShelf}`);
 await closeToasts();
-// การ์ดสถานะเสียหาย ดูรายละเอียดผลตรวจ เปิดหน้าต่างผลตรวจ
+// การ์ดสถานะเสียหาย ดูผลตรวจ เปิดหน้าต่างผลตรวจ
 await clickText("button.nav", "ชั้นวางหนัง"); await sleep(500);
 await c.book("เสียกลางเรื่อง (2022)"); await sleep(300);
-await clickText(".detail .btn", "ดูรายละเอียดผลตรวจ");
+await clickText(".detail .btn", "ดูผลตรวจ");
 const opened = await waitFor("return document.querySelector('.dlg')?.innerText.includes('ผลตรวจ เสียกลางเรื่อง') ?? false", 5000);
-check("การ์ดสถานะเสียหาย กดดูรายละเอียดผลตรวจ เปิดหน้าต่างผลตรวจของเรื่องนั้น", opened);
+check("การ์ดสถานะเสียหาย กดดูผลตรวจ เปิดหน้าต่างผลตรวจของเรื่องนั้น", opened);
 await c.evaluate("[...document.querySelectorAll('.dlg .btn')].find(b => b.innerText === 'ปิด')?.click()"); await sleep(200);
 
 if (BUILT) {

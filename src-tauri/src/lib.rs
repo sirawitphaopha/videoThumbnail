@@ -6,6 +6,7 @@ mod check;
 mod convert;
 mod delay;
 mod encode;
+mod graphimg;
 mod extract;
 mod fileinfo;
 mod fonts;
@@ -17,6 +18,7 @@ mod link;
 mod merge;
 mod outfile;
 mod pairs;
+mod players;
 mod poster;
 mod poster_image;
 mod probe;
@@ -96,10 +98,10 @@ pub fn run() {
     let builder = builder.invoke_handler(tauri::generate_handler![
         tools::check_tools, tools::check_icaros, tools::open_icaros_page, store::get_settings, store::set_settings,
         jobs::running_jobs, jobs::force_close, jobs::dev_fake_job, poster::dev_fake_free, library::dev_set_check, library::dev_clear_parked,
-        library::get_library, library::scan_library, library::play_movie, library::reveal_movie,
+        library::get_library, library::scan_library, library::play_movie, library::reveal_movie, library::set_rating,
         rename::check_rename, rename::rename_movie,
         poster::poster_open, poster::poster_view, poster::poster_render, poster::poster_clear, poster::poster_folder_images,
-        poster::poster_inspect, poster::poster_apply, poster::poster_cancel,
+        poster::poster_inspect, poster::poster_apply, poster::poster_cancel, poster::poster_check_name,
         merge::merge_inspect, merge::merge_add_file, merge::merge_apply, merge::merge_cancel, merge::merge_cover_preview, merge::merge_cover_drop, encode::encode_preview, encode::encoders_status, encode::encoders_open_dir, encode::encoders_user_dir, latest::encoders_latest, latest::encoders_open_page, fonts::font_info,
         delay::delay_find, delay::delay_view, delay::delay_preview,
         subs::movie_frame, subs::sub_text, subs::sub_frame, subs::sub_wave, subs::sub_images,
@@ -108,18 +110,18 @@ pub fn run() {
         convert::convert_probe, convert::convert_cover, convert::convert_one, convert::convert_cancel,
         fileinfo::media_info, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_running, fileinfo::hash_compare, fileinfo::hash_save,
         extract::extract_start, extract::extract_cancel, extract::extract_running, extract::extract_default_folder,
-        check::check_start, check::check_cancel, check::check_running, check::play_at,
-        audiograph::graph_info, audiograph::graph_overview, audiograph::graph_window, audiograph::graph_psd, audiograph::graph_cancel, audiograph::graph_save,
+        check::check_start, check::check_cancel, check::check_running, check::play_at, players::list_players,
+        audiograph::graph_info, audiograph::graph_exist, audiograph::graph_overview, audiograph::graph_window, audiograph::graph_psd, audiograph::graph_cancel, audiograph::graph_save, graphimg::graph_save_image,
         audiograph::graph_cache_info, audiograph::graph_cache_clear, audiograph::graph_dev_forget,
     ]);
     #[cfg(not(debug_assertions))]
     let builder = builder.invoke_handler(tauri::generate_handler![
         tools::check_tools, tools::check_icaros, tools::open_icaros_page, store::get_settings, store::set_settings,
         jobs::running_jobs, jobs::force_close,
-        library::get_library, library::scan_library, library::play_movie, library::reveal_movie,
+        library::get_library, library::scan_library, library::play_movie, library::reveal_movie, library::set_rating,
         rename::check_rename, rename::rename_movie,
         poster::poster_open, poster::poster_view, poster::poster_render, poster::poster_clear, poster::poster_folder_images,
-        poster::poster_inspect, poster::poster_apply, poster::poster_cancel,
+        poster::poster_inspect, poster::poster_apply, poster::poster_cancel, poster::poster_check_name,
         merge::merge_inspect, merge::merge_add_file, merge::merge_apply, merge::merge_cancel, merge::merge_cover_preview, merge::merge_cover_drop, encode::encode_preview, encode::encoders_status, encode::encoders_open_dir, encode::encoders_user_dir, latest::encoders_latest, latest::encoders_open_page, fonts::font_info,
         delay::delay_find, delay::delay_view, delay::delay_preview,
         subs::movie_frame, subs::sub_text, subs::sub_frame, subs::sub_wave, subs::sub_images,
@@ -128,8 +130,8 @@ pub fn run() {
         convert::convert_probe, convert::convert_cover, convert::convert_one, convert::convert_cancel,
         fileinfo::media_info, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_running, fileinfo::hash_compare, fileinfo::hash_save,
         extract::extract_start, extract::extract_cancel, extract::extract_running, extract::extract_default_folder,
-        check::check_start, check::check_cancel, check::check_running, check::play_at,
-        audiograph::graph_info, audiograph::graph_overview, audiograph::graph_window, audiograph::graph_psd, audiograph::graph_cancel, audiograph::graph_save,
+        check::check_start, check::check_cancel, check::check_running, check::play_at, players::list_players,
+        audiograph::graph_info, audiograph::graph_exist, audiograph::graph_overview, audiograph::graph_window, audiograph::graph_psd, audiograph::graph_cancel, audiograph::graph_save, graphimg::graph_save_image,
         audiograph::graph_cache_info, audiograph::graph_cache_clear,
     ]);
 

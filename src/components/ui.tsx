@@ -89,9 +89,14 @@ export function Skel(p: { w: number | string; h: number; r?: number; style?: Rea
 
 /* ---------- ไอคอนเส้นในการ์ดสถานะของแผงรายละเอียด (ต้นแบบบรรทัด 400 418 421 424) ----------
    done = เครื่องหมายถูกเปล่า ใช้กับการ์ดบอกว่าทำสำเร็จ (ต้นแบบเปลี่ยนชื่อสำเร็จ บรรทัด 452) · ok = โล่ ใช้กับไฟล์สมบูรณ์ */
+/** ป้ายกำลังโหลดลอยกลางจอ อยู่เหนือหน้าต่างทุกชั้น ไม่ดันเนื้อหา · งานรอทุกอย่างที่ไม่มีแถบความคืบหน้าใช้ตัวนี้ */
+export function LoadPill({ text }: { text: string }) {
+  return <div className="loadpill" role="status" aria-live="polite" data-load-pill><span className="spinner" aria-hidden="true" />{text}</div>;
+}
+
 export function CardIcon({ kind }: { kind: "ok" | "bad" | "warn" | "info" | "done" }) {
   return (
-    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" aria-hidden="true">
+    <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
       {kind === "ok" && <><path d="M12 3l8 3v6c0 4.5-3.4 8-8 9-4.6-1-8-4.5-8-9V6z" /><path d="M8.5 12l2.5 2.5 4.5-5" /></>}
       {kind === "bad" && <><path d="M12 3l9.5 17h-19z" /><path d="M12 10v4.5M12 17.5h.01" /></>}
       {kind === "warn" && <><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5h.01" /></>}
@@ -167,3 +172,9 @@ export const FixedTime = ({ t, longest = "0:00:00" }: { t: string; longest?: str
   return <span className="tfix"><i aria-hidden="true">{ghost}</i><span>{t}</span></span>;
 };
 export const Phr = ({ children, tail }: { children: string; tail?: React.ReactNode }) => <Phrases parts={[{ text: children }]} tail={tail} />;
+
+/** กดช่องลากไฟล์แล้วเปิดกล่องเลือกไฟล์ · กดปุ่มที่อยู่ในช่องไม่ทำซ้ำ (พี่กันสั่ง 9 พ.ย. 2569 "เรานึกว่าพอกดตรงนี้ มันจะเด้องให้อัปเลย") */
+export const dropClick = (fn: () => void) => (e: React.MouseEvent) => {
+  if ((e.target as HTMLElement).closest("button, a, input")) return;
+  fn();
+};

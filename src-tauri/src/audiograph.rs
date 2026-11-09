@@ -739,14 +739,19 @@ pub fn overview(tools: &Path, path: &Path, track: &GTrack, duration: f64, on: &d
 
 /// อ่านเฉพาะช่วง t0–t1 · cols คอลัมน์ · ความถี่แบบล็อก (แถบทุกช่อง) หรือเส้นตรง (แบบวิเคราะห์)
 #[allow(clippy::too_many_arguments)]
-pub fn window(tools: &Path, path: &Path, track: &GTrack, t0: f64, t1: f64, cols: usize, bins: usize, log: bool, stop: &dyn Fn() -> bool) -> Result<Option<Window>, String> {
+/// full = ตอนบันทึกรูป อ่านความถี่ต่อเนื่องครบทุกช่วงไม่สุ่มข้าม คอลัมน์ถึง 8,192 (พี่กันเคาะ 9 พ.ย. 2569 "เอาเท่านี้")
+/// ดูบนจอยังสุ่มคอลัมน์ละ 3 ครั้ง ซูมจะได้ไม่ช้าลง
+#[allow(clippy::too_many_arguments)]
+pub fn window_read(tools: &Path, path: &Path, track: &GTrack, t0: f64, t1: f64, cols: usize, bins: usize, log: bool, full: bool, stop: &dyn Fn() -> bool) -> Result<Option<Window>, String> {
     let ch = track.names.len();
     let len = (t1 - t0).max(0.05);
     let total = (len * track.rate as f64).max(1.0);
     let n_fft = if log { 2048 } else { 1024 };
-    let cols = cols.clamp(16, 4000);
-    let spec_cols = cols.min(1200);
-    let mut an = Analyzer::new(ch, track.rate, total, cols, n_fft, spec_cols, 3);
+    let cols = cols.clamp(16, 8192);
+    let spec_cols = if full { cols } else { cols.min(1200) };
+    // ครอบทุกช่วงเมื่อคอลัมน์ยาวกว่าหน้าต่าง FFT · เพดาน 64 กันไฟล์ยาวหลายชั่วโมงกินเวลาเกิน
+    let per_col = if full { ((total / spec_cols as f64 / n_fft as f64).ceil() as usize).clamp(3, 64) } else { 3 };
+    let mut an = Analyzer::new(ch, track.rate, total, cols, n_fft, spec_cols, per_col);
     let mut feed = |f: &[i16]| an.push(f);
     let Some(_) = decode(tools, path, track.index, ch, Some(t0.max(0.0)), Some(len), false, &mut feed, stop)? else { return Ok(None) };
     Ok(Some(Window { t0, t1, cols, env: an.env(), bins, spec: an.spec(if log { Scale::Log } else { Scale::Lin }, bins, None) }))
@@ -823,6 +828,17 @@ pub async fn graph_info(app: AppHandle, path: String) -> Result<GInfo, String> {
     }).await.map_err(|e| e.to_string())?
 }
 
+fn exist_list(paths: &[String]) -> Vec<bool> {
+    paths.iter().map(|p| Path::new(p).exists()).collect()
+}
+
+/// รายการเปิดล่าสุดถามว่าไฟล์ยังอยู่ไหม บอกคนใช้ได้ตั้งแต่ก่อนกด (พี่กันเคาะ 9 พ.ย. 2569)
+/// ไฟล์บนไดรฟ์ที่ถอดออกหรือไดรฟ์เครือข่ายตอบช้าได้ จึงทำนอกเธรดหลัก
+#[tauri::command]
+pub async fn graph_exist(paths: Vec<String>) -> Result<Vec<bool>, String> {
+    tauri::async_runtime::spawn_blocking(move || exist_list(&paths)).await.map_err(|e| e.to_string())
+}
+
 /// ภาพรวมทั้งเรื่อง · ส่งความคืบหน้าทางเหตุการณ์ graph-progress · None = กดหยุด
 #[tauri::command]
 pub async fn graph_overview(app: AppHandle, path: String, track: usize) -> Result<Option<Overview>, String> {
@@ -871,7 +887,7 @@ pub fn graph_cancel() {
 
 /// ช่วงที่ซูม · คำขอใหม่ทำให้คำขอเก่าที่ยังอ่านอยู่หยุดเอง (เลื่อนซูมเร็ว ๆ ไม่ค้าง) · None = มีคำขอใหม่แทน
 #[tauri::command]
-pub async fn graph_window(app: AppHandle, path: String, track: usize, t0: f64, t1: f64, cols: usize, bins: usize, log: bool) -> Result<Option<Window>, String> {
+pub async fn graph_window(app: AppHandle, path: String, track: usize, t0: f64, t1: f64, cols: usize, bins: usize, log: bool, full: Option<bool>) -> Result<Option<Window>, String> {
     let tools = tools_dir(&app)?;
     let my_gen = WINDOW_GEN.fetch_add(1, Ordering::SeqCst) + 1;
     tauri::async_runtime::spawn_blocking(move || {
@@ -879,7 +895,7 @@ pub async fn graph_window(app: AppHandle, path: String, track: usize, t0: f64, t
         let g = info(&tools, p)?;
         let t = track_of(&g, track)?;
         let stop = || WINDOW_GEN.load(Ordering::SeqCst) != my_gen;
-        window(&tools, p, &t, t0, t1, cols, bins.clamp(16, 512), log, &stop)
+        window_read(&tools, p, &t, t0, t1, cols, bins.clamp(16, 512), log, full.unwrap_or(false), &stop)
     }).await.map_err(|e| e.to_string())?
 }
 
@@ -899,7 +915,7 @@ pub async fn graph_psd(app: AppHandle, path: String, track: usize, t0: f64, t1: 
     }).await.map_err(|e| e.to_string())?
 }
 
-fn unb64(s: &str) -> Result<Vec<u8>, String> {
+pub(crate) fn unb64(s: &str) -> Result<Vec<u8>, String> {
     let val = |c: u8| -> Option<u32> {
         match c { b'A'..=b'Z' => Some((c - b'A') as u32), b'a'..=b'z' => Some((c - b'a' + 26) as u32), b'0'..=b'9' => Some((c - b'0' + 52) as u32), b'+' => Some(62), b'/' => Some(63), _ => None }
     };
@@ -918,12 +934,16 @@ fn unb64(s: &str) -> Result<Vec<u8>, String> {
 /// บันทึกรูปกราฟ (PNG แบบ base64) หรือตาราง (ข้อความ) · ชื่อซ้ำไม่เขียนทับ ต่อท้าย (2) (3) · คืนที่อยู่ที่บันทึกจริง
 #[tauri::command]
 pub fn graph_save(path: String, b64: Option<String>, text: Option<String>) -> Result<String, String> {
-    let want = Path::new(&path);
     let data = match (b64, text) {
         (Some(b), _) => unb64(b.split(',').next_back().unwrap_or(""))?,
         (None, Some(t)) => format!("\u{feff}{t}").into_bytes(), // BOM ให้ Excel อ่านภาษาไทยถูก
         _ => return Err("ไม่มีข้อมูลที่จะบันทึก".into()),
     };
+    write_unique(Path::new(&path), &data)
+}
+
+/// เขียนไฟล์ใหม่ ชื่อชนต่อท้าย (2) ไม่เขียนทับ · คืนที่อยู่จริง
+pub(crate) fn write_unique(want: &Path, data: &[u8]) -> Result<String, String> {
     let stem = want.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "กราฟเสียง".into());
     let ext = want.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default();
     let dir = want.parent().map(|p| p.to_path_buf()).unwrap_or_default();
@@ -934,7 +954,7 @@ pub fn graph_save(path: String, b64: Option<String>, text: Option<String>) -> Re
         i += 1;
     }
     let mut f = std::fs::OpenOptions::new().write(true).create_new(true).open(&target).map_err(|e| format!("บันทึกไม่ได้: {e}"))?;
-    std::io::Write::write_all(&mut f, &data).map_err(|e| format!("บันทึกไม่ได้: {e}"))?;
+    std::io::Write::write_all(&mut f, data).map_err(|e| format!("บันทึกไม่ได้: {e}"))?;
     Ok(target.display().to_string())
 }
 
@@ -942,6 +962,15 @@ pub fn graph_save(path: String, b64: Option<String>, text: Option<String>) -> Re
 mod tests {
     use super::*;
     use std::path::PathBuf;
+
+    #[test]
+    fn exist_list_keeps_order_and_marks_missing() {
+        let here = concat!(env!("CARGO_MANIFEST_DIR"), "/Cargo.toml").to_string();
+        let lost = concat!(env!("CARGO_MANIFEST_DIR"), "/ไม่มีไฟล์นี้.mkv").to_string();
+        assert_eq!(exist_list(&[here.clone(), lost.clone(), here]), vec![true, false, true]);
+        assert!(exist_list(&[]).is_empty());
+    }
+
 
     fn tools() -> PathBuf { PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tools") }
     fn media(name: &str) -> Option<PathBuf> {

@@ -11,7 +11,10 @@ import { connect, sleep } from "./lib/cdp-client.mjs";
 const OUT = "docs/report-2026-11-07/ขั้น8-ตัวติดตั้ง";
 mkdirSync(OUT, { recursive: true });
 const NSIS = resolve("src-tauri", "target", "release", "bundle", "nsis");
-const installer = readdirSync(NSIS).filter((f) => f.endsWith("-setup.exe")).map((f) => join(NSIS, f))[0];
+// ในโฟลเดอร์มีตัวติดตั้งรุ่นเก่าค้างได้ · 9 พ.ย. 2569 หยิบไฟล์แรกแล้วได้รุ่น 0.1.0 ตรวจผิดตัว
+const VERSION = JSON.parse(readFileSync("package.json", "utf8")).version;
+const installer = readdirSync(NSIS).filter((f) => f.endsWith(`_${VERSION}_x64-setup.exe`)).map((f) => join(NSIS, f))[0];
+if (!installer) { console.error(`ไม่มีตัวติดตั้งรุ่น ${VERSION} สั่ง npm run tauri build ก่อน`); process.exit(1); }
 const TMP = "D:\\dev\\tmp";
 for (const d of readdirSync(TMP)) if (d.startsWith("ชั้นหนังติดตั้งเทส") || d.startsWith("ชั้นหนังโฟลเดอร์เทส")) rmSync(join(TMP, d), { recursive: true, force: true });
 const DEST = join(TMP, `ชั้นหนังติดตั้งเทส-${Date.now()}`);
@@ -41,7 +44,9 @@ const exe = existsSync(DEST) ? readdirSync(DEST).find((f) => f.toLowerCase().end
 check("ติดตั้งแบบเงียบลงโฟลเดอร์ที่เลือกได้ ไม่มีหน้าต่าง", ins.status === 0 && exe, `ตัวติดตั้ง ${installer.split("\\").pop()} ${(size / 1048576).toFixed(0)} MB · ใช้ ${secs} วินาที · ได้ ${exe ?? "ไม่มีไฟล์โปรแกรม"} · รหัส ${ins.status}`);
 // เครื่องมือแผนเดิม 7 ไฟล์ กับตัวแปลงเสียงของแผนเสียงและซับ 8 ไฟล์ (flac กับ DLL ประกอบ lame กับ DLL ประกอบ opusenc wavpack MACDll64 13.46 ชุด TAK ทั้ง zip)
 const toolNames = ["mkvmerge.exe", "mkvextract.exe", "mkvpropedit.exe", "ffmpeg.exe", "ffprobe.exe", "MediaInfo.exe", "LIBCURL.DLL",
-  "flac.exe", "libFLAC.dll", "lame.exe", "libmpg123-0.dll", "opusenc.exe", "wavpack.exe", "MACDll64.dll", "TAK_2.3.3.zip"];
+  "flac.exe", "libFLAC.dll", "lame.exe", "libmpg123-0.dll", "opusenc.exe", "wavpack.exe", "MACDll64.dll", "TAK_2.3.3.zip",
+  // libheif ตัวจริงกับไฟล์ที่มันต้องใช้ บันทึกรูปกราฟเป็น HEIC (9 ไฟล์)
+  "heif.dll", "libx265.dll", "libde265.dll", "aom.dll", "dav1d.dll", "libsharpyuv.dll", "msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll"];
 const toolDiff = toolNames.filter((t) => !existsSync(join(DEST, "tools", t)) || fileSha(join(DEST, "tools", t)) !== fileSha(resolve("src-tauri", "tools", t)));
 const lic = existsSync(join(DEST, "tools", "licenses")) ? readdirSync(join(DEST, "tools", "licenses")).length : 0;
 check(`เครื่องมือ ${toolNames.length} ไฟล์ลงครบ (รวมตัวแปลงเสียง) ค่า hash ตรงกับที่โหลดมา (vendor/README.md) · มีไฟล์สัญญาอนุญาต`, toolDiff.length === 0 && lic > 0, toolDiff.length ? `ไม่ตรง ${toolDiff.join(" ")}` : `ครบ ${toolNames.length} ไฟล์ · สัญญาอนุญาต ${lic} ไฟล์`);

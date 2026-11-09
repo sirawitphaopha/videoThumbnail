@@ -169,9 +169,10 @@ await inv("set_settings", { patch: { playerPath: "C:\\ไม่มีโปร�
 await c.evaluate("location.reload()"); await sleep(2500);
 await waitFor("return document.querySelectorAll('.book[data-movie]').length >= 1", 60000);
 await nav("ตั้งค่า"); await waitFor("return !!document.querySelector('[data-player]')", 10000);
-const playerRow = await text("[data-player]"), playerSeg = await q("return [...document.querySelectorAll('[data-setcard=\"player\"] .seg button.on')].map((b) => b.innerText.trim()).join(' ')");
-check("เลือกโปรแกรมเล่นเอง การ์ดขึ้นปุ่ม เลือกเอง พร้อมที่อยู่โปรแกรมและปุ่มเปลี่ยน", playerSeg === "เลือกเอง" && playerRow.includes("vlc.exe") && playerRow.includes("เปลี่ยน"), `${playerSeg} · ${playerRow}`);
 await c.setNav("player");
+await waitFor("return !!document.querySelector('[data-player-default][data-player*=\"vlc.exe\"]')", 10000);
+const playerRow = await text('[data-player-default][data-player*="vlc.exe"]');
+check("โปรแกรมเล่นที่ตั้งไว้หาไม่เจอ ยังขึ้นในรายการเป็นค่าตั้งต้น พร้อมบอกว่าหาไฟล์ไม่เจอ", playerRow.includes("vlc.exe") && playerRow.includes("ค่าตั้งต้น") && playerRow.includes("หาไฟล์ไม่เจอ"), playerRow);
 await shot("08-โปรแกรมเล่นเลือกเอง.png", card("player"));
 await nav("ชั้นวางหนัง"); await sleep(500);
 await c.book("Harbor Lights (2021)"); await sleep(400);

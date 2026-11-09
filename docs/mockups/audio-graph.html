@@ -189,7 +189,7 @@ button:focus-visible{outline:2px solid var(--accent-d);outline-offset:2px}
 <!-- ==================== 1 หน้ากราฟเสียง 7.1 รูปคลื่น ==================== -->
 <div class="sec">
   <h2><span class="tag">หน้าใหม่</span>กราฟเสียง · หนัง 7.1 · แบบรูปคลื่น</h2>
-  <p class="note">เมนูซ้ายมีหน้าใหม่ <b>กราฟเสียง</b> ต่อจากตรวจไฟล์ · แต่ละช่องเสียงมีแถบของตัวเอง สีอ่อนคือยอดเสียง สีเข้มคือความดังเฉลี่ย · แถบบนสุดคือทั้งเรื่อง กรอบชมพูคือช่วงที่ซูมอยู่ · ผลตรวจไฟล์ที่เจอเสียงเงียบหายไปขึ้นเป็นแถบแดงตรงเวลานั้น<br>
+  <p class="note">เมนูซ้ายมีหน้าใหม่ <b>กราฟเสียง</b> ต่อจากตรวจไฟล์ · แต่ละช่องเสียงมีแถบของตัวเอง สีอ่อนคือยอดเสียง สีเข้มคือความดังเฉลี่ย · แถบบนสุดคือทั้งไฟล์ กรอบชมพูคือช่วงที่ซูมอยู่ · ผลตรวจไฟล์ที่เจอเสียงเงียบหายไปขึ้นเป็นแถบแดงตรงเวลานั้น<br>
   <b>กรอบนี้กดได้จริง</b> เปลี่ยนแบบ เปลี่ยนชุดสี ซูม กดลำโพงในแผนผังเพื่อซ่อนช่อง และชี้บนกราฟเพื่ออ่านค่าทุกช่องที่เวลานั้น</p>
   <div class="win"><div data-win="main"></div></div>
 </div>
@@ -211,8 +211,8 @@ button:focus-visible{outline:2px solid var(--accent-d);outline-offset:2px}
 
 <!-- ==================== 3 ความดัง ==================== -->
 <div class="sec">
-  <h2><span class="tag">แบบที่ 3</span>ความดัง · ภาพรวมทั้งเรื่อง · ชุดสีฟ้า</h2>
-  <p class="note">ตัวเลขสรุปทั้งเรื่องตามมาตรฐานวัดความดัง EBU R128 · กราฟความดังตลอดเรื่อง พร้อมเส้นอ้างอิง · ยอดเสียงแต่ละช่อง · มีปุ่มดูเป็นตาราง สำหรับอ่านตัวเลขโดยไม่ต้องชี้กราฟ</p>
+  <h2><span class="tag">แบบที่ 3</span>ความดัง · ภาพรวมทั้งไฟล์ · ชุดสีฟ้า</h2>
+  <p class="note">ตัวเลขสรุปทั้งไฟล์ตามมาตรฐานวัดความดัง EBU R128 · กราฟความดังตลอดเรื่อง พร้อมเส้นอ้างอิง · ยอดเสียงแต่ละช่อง · มีปุ่มดูเป็นตาราง สำหรับอ่านตัวเลขโดยไม่ต้องชี้กราฟ</p>
   <div class="win"><div data-win="loud"></div></div>
 </div>
 
@@ -305,7 +305,7 @@ button:focus-visible{outline:2px solid var(--accent-d);outline-offset:2px}
       <div style="display:grid;grid-template-columns:1fr 1fr;gap:8px">
         <button class="btn btn-main">เปิดเล่น</button><button class="btn btn-ghost">เปลี่ยนชื่อ</button>
         <button class="btn btn-ghost">เปลี่ยนโปสเตอร์</button><button class="btn btn-ghost">ตรวจไฟล์</button>
-        <button class="btn btn-ghost">ข้อมูลไฟล์</button><button class="btn btn-ghost">เปิดโฟลเดอร์</button>
+        <button class="btn btn-ghost">MediaInfo</button><button class="btn btn-ghost">เปิดโฟลเดอร์</button>
         <button class="btn btn-ghost" style="grid-column:1/-1;border:1px solid var(--accent);background:#fdeaf1;color:var(--accent-ink)"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 12h2M7 7v10M11 4v16M15 8v8M19 10v4"/></svg>กราฟเสียง</button>
       </div>
       <div class="small">เพิ่มปุ่มที่ 7 เต็มแถว ใต้ปุ่มเดิม 6 ปุ่ม</div>
@@ -578,7 +578,7 @@ function drawPlotSpec(cv, series, th, logAxis, nyq){
   return { X, Y };
 }
 function loudAt(kind, chans, t){ let s = 0; for (const c of chans) { const v = level(kind, c, t); s += v * v * (c === "LFE" ? 0 : (c[0] === "S" || c[0] === "B") ? 1.41 : 1); } return s <= 1e-6 ? -70 : -0.691 + 10 * Math.log10(s) - 23; }
-/* ตัวเลขสรุปทั้งเรื่อง คิดจากข้อมูลชุดเดียวกับกราฟ ตัวเลขกับกราฟจึงตรงกัน */
+/* ตัวเลขสรุปทั้งไฟล์ คิดจากข้อมูลชุดเดียวกับกราฟ ตัวเลขกับกราฟจึงตรงกัน */
 function summary(kind, chans, total){
   const N = 2400, st = []; let e = 0, pk = 0;
   for (let i = 0; i < N; i++) { const t = total * (i + 0.5) / N, l = loudAt(kind, chans, t); st.push(l); e += Math.pow(10, l / 10); for (const c of chans) pk = Math.max(pk, Math.min(0.98, level(kind, c, t))); }
@@ -595,7 +595,7 @@ function drawLoud(cv, kind, chans, t0, t1, th){
   const pad = 12, lo = -60, hi = 0, Y = (v) => pad + (hi - Math.max(lo, Math.min(hi, v))) / (hi - lo) * (h - pad * 2), X0 = 44, PW = w - X0 - 4;
   axisY(g, w, h, pad, lo, hi, 10, "LUFS");
   const pts = []; const N = PW;
-  // เฉลี่ยพลังงานในแต่ละจุดภาพ เส้นจึงไม่หยักถี่ตอนดูทั้งเรื่อง
+  // เฉลี่ยพลังงานในแต่ละจุดภาพ เส้นจึงไม่หยักถี่ตอนดูทั้งไฟล์
   for (let x = 0; x < N; x++) { let e = 0; for (let k = 0; k < 8; k++) e += Math.pow(10, loudAt(kind, chans, t0 + (t1 - t0) * (x + k / 8) / N) / 10); pts.push(10 * Math.log10(e / 8)); }
   g.fillStyle = th.peak; g.globalAlpha = 0.35; g.beginPath(); g.moveTo(X0, Y(lo)); pts.forEach((v, x) => g.lineTo(X0 + x, Y(v))); g.lineTo(X0 + N, Y(lo)); g.closePath(); g.fill(); g.globalAlpha = 1;
   g.strokeStyle = th.rms; g.lineWidth = 2; g.lineJoin = "round"; g.beginPath(); pts.forEach((v, x) => x ? g.lineTo(X0 + x, Y(v)) : g.moveTo(X0, Y(v))); g.stroke();
@@ -675,8 +675,8 @@ const ICON = {
 };
 ICON.psd = '<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M3 20h18"/><path d="M4 17c2-1 3-9 5-9s2 6 4 6 3-4 5-4 2 3 3 3"/></svg>';
 const VIEWS = [["wave","รูปคลื่น"],["spec","ความถี่"],["loud","ความดัง"],["cmp","ซ้อนเทียบ"],["spek","วิเคราะห์"],["psd","ความถี่เฉลี่ย"]];
-const PSD_SPANS = [[10, "10 วินาที"], [30, "30 วินาที"], [120, "2 นาที"], ["all", "ทั้งเรื่อง"]];
-const ZOOMS = [["all","ทั้งเรื่อง"],[600,"10 นาที"],[240,"4 นาที"],[30,"30 วินาที"]];
+const PSD_SPANS = [[10, "10 วินาที"], [30, "30 วินาที"], [120, "2 นาที"], ["all", "ทั้งไฟล์"]];
+const ZOOMS = [["all","ทั้งไฟล์"],[600,"10 นาที"],[240,"4 นาที"],[30,"30 วินาที"]];
 const WARN_ICON = '<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.6"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></svg>';
 
 function mount(root, p){
@@ -706,7 +706,7 @@ function mount(root, p){
     plot = `<div class="plot" data-plot>
       <div class="plothead"><span><b>${p.view === "wave" ? "รูปคลื่นทุกช่อง" : "ความถี่ทุกช่อง"}</b> · ${tfmt(t0)} ถึง ${tfmt(t1)}</span>${zoomBox}</div>
       <div class="ovw"><canvas data-ovw></canvas></div>
-      <div class="ovrul"><span>0:00</span><span style="left:50%">ทั้งเรื่อง ${tfmt(p.total)}</span><span style="left:100%">${tfmt(p.total)}</span></div>
+      <div class="ovrul"><span>0:00</span><span style="left:50%">ทั้งไฟล์ ${tfmt(p.total)}</span><span style="left:100%">${tfmt(p.total)}</span></div>
       <div class="ruler" data-ruler></div>
       <div class="lanes" data-lanes style="margin-top:${hasCheck ? 28 : 6}px">
         ${chans.map((c) => { const lab = LAY[p.lay].find((x) => x[0] === c)[1], off = p.hidden.includes(c); return off ? "" : `<div class="lane" data-lane="${c}"><div class="lab"><b>${DISP(p.lay, c)}</b><span>${lab}</span><em data-pk="${c}"></em></div><canvas class="cv" style="height:${laneH}px" data-cv="${c}"></canvas></div>`; }).join("")}
@@ -751,7 +751,7 @@ function mount(root, p){
     const S = summary(p.kind, chans, p.total), L = [S.I, S.TP, S.LRA];
     plot = `<div class="plot" data-plot>
       <div class="tiles">
-        <div class="tile"><span>ความดังรวม</span><b>${L[0]} LUFS</b><em>ทั้งเรื่อง ตามมาตรฐาน EBU R128</em></div>
+        <div class="tile"><span>ความดังรวม</span><b>${L[0]} LUFS</b><em>ทั้งไฟล์ ตามมาตรฐาน EBU R128</em></div>
         <div class="tile"><span>ยอดเสียงสูงสุด</span><b>${L[1]} dBTP</b><em>ไม่ถึง 0 · ไม่มีเสียงแตก</em></div>
         <div class="tile"><span>ช่วงความดัง</span><b>${L[2]} LU</b><em>ห่างระหว่างช่วงเบากับช่วงดัง</em></div>
         <div class="tile"><span>ช่วงเงียบผิดปกติ</span><b>${hasCheck ? "1 ช่วง" : "ไม่พบ"}</b><em>${hasCheck ? "ที่ 1:58:02 นาน 2 วินาที" : "เงียบทุกช่องเกิน 1 วินาที"}</em></div>
@@ -771,7 +771,7 @@ function mount(root, p){
       <div class="plothead"><span><b>ซ้อนเทียบความดังเฉลี่ย</b> · ${tfmt(t0)} ถึง ${tfmt(t1)}</span>${zoomBox}</div>
       <div style="position:relative" data-cmpbox><canvas class="cv" style="height:250px" data-cmp></canvas></div>
       <div class="ruler" data-ruler style="margin-left:44px;margin-right:60px"></div>
-      <div class="stat info" style="margin-top:10px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg><div><b>ช่องขวาเบากว่าช่องซ้ายราว 7 dB ช่วง 1:57:00 ถึง 1:57:40</b>ถ้าตั้งใจให้เสียงอยู่ซ้าย (เช่นตัวละครยืนซ้ายจอ) ถือว่าปกติ ถ้าทั้งเรื่องเป็นแบบนี้ ช่องขวาอาจเสีย</div></div>
+      <div class="stat info" style="margin-top:10px"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5v.5"/></svg><div><b>ช่องขวาเบากว่าช่องซ้ายราว 7 dB ช่วง 1:57:00 ถึง 1:57:40</b>ถ้าตั้งใจให้เสียงอยู่ซ้าย (เช่นตัวละครยืนซ้ายจอ) ถือว่าปกติ ถ้าทั้งไฟล์เป็นแบบนี้ ช่องขวาอาจเสีย</div></div>
       <div class="agfoot"><div class="lg">${cc.map((c) => `<span><span class="ln" style="background:${CMP[c]}"></span>${DISP(p.lay, c)} ${({ FL:"ซ้าย", FR:"ขวา", FC:"กลาง" })[c]}</span>`).join("")}<span class="small">ซ้อนได้ไม่เกิน 3 ช่อง</span></div><div style="display:flex;gap:8px"><button class="btn btn-ghost btn-sm" data-play>เปิดเล่นที่ ${tfmt(p.tip)}</button><button class="btn btn-ghost btn-sm">บันทึกเป็นรูป</button></div></div>
     </div>`;
   }
@@ -781,6 +781,7 @@ function mount(root, p){
       <div class="fchip">${thumb}<div style="min-width:0"><div class="nm">${file.name}<span class="ext">${file.ext}</span></div><div class="meta">${file.meta}</div></div></div>
       ${file.tracks ? `<button class="dd" style="width:250px"><span>${file.tracks}</span><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M6 9l6 6 6-6"/></svg></button>` : ""}
       <button class="btn btn-ghost"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z"/></svg>เปิดไฟล์อื่น</button>
+      <button class="btn btn-ghost"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 3v18M4 7h4v10H4zM16 7h4v10h-4z"/></svg>เทียบ</button>
     </div>
     <div class="agctl">
       <div class="seg">${viewSeg}</div>
@@ -792,6 +793,7 @@ function mount(root, p){
       <div class="apanel">
         <div class="card"><h3><span>ช่องเสียง ${p.lay}</span><span class="small" style="color:var(--txt3)">${p.hidden.length ? `แสดง ${vis.length} จาก ${chans.length} ช่อง` : `${chans.length} ช่อง`}</span></h3>${speakers(p.lay, th, levels, p.hidden)}<div class="small" style="text-align:center;margin-top:4px">${chans.length > 1 ? "กดลำโพงเพื่อซ่อนหรือแสดงช่องนั้น" : "ไฟล์นี้มีเสียงช่องเดียว"}</div></div>
         <div class="card"><h3>ข้อมูลเสียง</h3><dl class="kv">${file.info.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join("")}</dl></div>
+        <div class="card"><h3>ข้อมูลเพลง</h3><div style="height:120px;margin-bottom:8px;display:flex;align-items:center;justify-content:center;font-size:13px;color:#8a6474;background:repeating-linear-gradient(135deg,#fff 0 8px,#fbeef3 8px 16px);border:1px dashed #eccdd9">ปกจากไฟล์</div><dl class="kv"><dt>ชื่อเพลง</dt><dd>ชื่อเพลงตัวอย่าง</dd><dt>ศิลปิน</dt><dd>ชื่อศิลปิน</dd><dt>อัลบั้ม</dt><dd>ชื่ออัลบั้ม</dd></dl></div>
         ${hasCheck ? `<div class="stat warn"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M12 3l10 18H2z"/><path d="M12 10v5M12 18v.5"/></svg><div><b>ผลตรวจล่าสุด</b><span class="nw">เสียงเงียบหายไป 2 วินาที</span> <span class="nw">ที่ 1:58:02</span><br><span class="nw" style="opacity:.8">ตรวจละเอียด 6 พ.ย. 2569</span><div style="margin-top:6px"><button class="btn btn-ghost btn-sm" data-goto>ซูมไปที่ 1:58:02</button></div></div></div>` : ""}
       </div>
       ${plot}

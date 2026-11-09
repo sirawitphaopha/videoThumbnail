@@ -122,7 +122,7 @@ check("ดรอปดาวน์แทร็กเสียง เลือก
 // ไฟล์ทดสอบนี้ แทร็ก 5.1 มีเสียงโทนแค่ช่องกลาง ช่องอื่นเงียบทั้งเรื่อง
 const ink = await inked("[data-lane='FC'] canvas"), inkFL = await inked("[data-lane='FL'] canvas");
 const labFL = await text("[data-lane='FL'] .lab");
-check("แถบรูปคลื่นวาดจากเสียงจริง ช่องกลางมีเส้น ช่องที่เงียบทั้งเรื่องว่างและบอกว่าเงียบ", ink > 0.01 && inkFL < 0.03 && labFL.includes("เงียบทั้งเรื่อง"), `ช่องกลาง ${ink} · ซ้ายหน้า ${inkFL} · ${labFL}`);
+check("แถบรูปคลื่นวาดจากเสียงจริง ช่องกลางมีเส้น ช่องที่เงียบทั้งเรื่องว่างและบอกว่าเงียบ", ink > 0.01 && inkFL < 0.03 && labFL.includes("เงียบทั้งไฟล์"), `ช่องกลาง ${ink} · ซ้ายหน้า ${inkFL} · ${labFL}`);
 await shot("03-รูปคลื่น-5.1.png");
 // 6 แถบสูงเกินหน้าต่าง หน้ากราฟต้องเลื่อนลงจนเห็นแถวปุ่มล่างครบ (เดิมโดนตัดใต้จอ เจอตอนตรวจภาพ)
 const scr = await q("const s = document.querySelector('.agb > .plot'); s.scrollTop = s.scrollHeight; return new Promise((r) => setTimeout(() => { const f = document.querySelector('.agfoot').getBoundingClientRect(), b = s.getBoundingClientRect(); r({ over: s.scrollHeight - s.clientHeight, top: s.scrollTop, footBottom: Math.round(f.bottom), boxBottom: Math.round(b.bottom) }); }, 300));");
@@ -308,20 +308,20 @@ if (existsSync(SONG)) {
 
   // ---------- รูปคลื่นแบบ Audacity ตัวซูม ตัวเลื่อน (พี่กัน *"พวกตัวซูม พวกตัวขยาย ตัวเลื่อนซ้ายขวา เอามาได้เลย"*) ----------
   const range = async () => { const m = (await text(".plothead span")).match(/(\d+):(\d\d) ถึง (\d+):(\d\d)/); return m ? [+m[1] * 60 + +m[2], +m[3] * 60 + +m[4]] : [NaN, NaN]; };
+  const rangeAfter = async (prev) => { const t = Date.now(); let r = await range(); while (Date.now() - t < 15000 && r[0] === prev[0] && r[1] === prev[1]) { await sleep(150); r = await range(); } await sleep(200); return r; };
   await c.click('[data-style="aud"]'); await sleep(500);
   const audInk = await inked("[data-lane] canvas");
   const r0 = await range();
-  await c.click("[data-zoomin]"); await sleep(700);
-  const r1 = await range();
+  await c.click("[data-zoomin]");
+  const r1 = await rangeAfter(r0);
   const lb = await c.box("[data-lanes]");
-  await c.send("Input.dispatchMouseEvent", { type: "mouseWheel", x: lb.left + 96 + (lb.w - 96) * 0.25, y: lb.top + 30, deltaX: 0, deltaY: -120, modifiers: 2 }); await sleep(700);
-  const r2 = await range();
+  await c.send("Input.dispatchMouseEvent", { type: "mouseWheel", x: lb.left + 96 + (lb.w - 96) * 0.25, y: lb.top + 30, deltaX: 0, deltaY: -120, modifiers: 2 });
+  const r2 = await rangeAfter(r1);
   const tb = await c.box("[data-tscroll] .thumb");
   await c.send("Input.dispatchMouseEvent", { type: "mousePressed", x: tb.x, y: tb.y, button: "left", buttons: 1, clickCount: 1 });
   await c.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: tb.x + 120, y: tb.y, button: "left", buttons: 1 });
   await c.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: tb.x + 120, y: tb.y, button: "left", buttons: 0, clickCount: 1 });
-  await sleep(700);
-  const r3 = await range();
+  const r3 = await rangeAfter(r2);
   await c.click('[data-vz="2"]'); await sleep(400);
   const sp = (r) => r[1] - r[0];
   check("รูปคลื่นแบบ Audacity วาดได้ · ปุ่มซูมเข้าเหลือครึ่งช่วง", audInk > 0.05 && Math.abs(sp(r1) - sp(r0) / 2) <= 2, `${r0.join("–")} → ${r1.join("–")} วิ`);
@@ -365,20 +365,8 @@ if (existsSync(SONG)) {
   // ที่จับใต้กราฟ ลากลงขยายความสูง (พี่กัน *"ใ้ห้ระบบมันขยายกราฟลงมาได้มากกว่านี้ ตอนนี้มันเเค่สองเเถบที่โคตรจะชิดกัน"*)
   const laneHs = () => q("return [...document.querySelectorAll('[data-lane] canvas.cv')].map((c) => Math.round(c.getBoundingClientRect().height))");
   const gapPx = await q("const l = [...document.querySelectorAll('[data-lane]')]; return Math.round(l[1].getBoundingClientRect().top - l[0].getBoundingClientRect().bottom)");
-  const h0 = await laneHs(), gb = await c.box("[data-lanegrip]");
-  await c.send("Input.dispatchMouseEvent", { type: "mousePressed", x: gb.x, y: gb.y, button: "left", buttons: 1, clickCount: 1 });
-  await c.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: gb.x, y: gb.y + 100, button: "left", buttons: 1 });
-  await c.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: gb.x, y: gb.y + 100, button: "left", buttons: 0, clickCount: 1 });
-  await sleep(400);
-  const h1 = await laneHs(), kSaved = (await q("return JSON.parse(localStorage.getItem('graph-prefs') ?? '{}').laneK"));
-  check("แถบกราฟสองช่องสูงอย่างน้อย 120 เท่ากัน ห่างกัน 6 px · ลากที่จับใต้กราฟลง 100 px แถบสูงขึ้นทุกแถบ จำค่าไว้", h0.every((h) => h >= 120 && h === h0[0]) && gapPx === 6 && h1.every((h, i) => h - h0[i] >= 40) && kSaved > 1, `ก่อน ${h0.join(" ")} px ห่าง ${gapPx} · หลังลาก ${h1.join(" ")} px · ตัวคูณ ${kSaved}`);
-  await shot("26ง-เพลงจริง-ลากขยายความสูง.png");
-  await q("document.querySelector('[data-lanegrip]').scrollIntoView({ block: 'center' }); return 1"); await sleep(150);
-  const gb2 = await c.box("[data-lanegrip]");
-  await c.send("Input.dispatchMouseEvent", { type: "mousePressed", x: gb2.x, y: gb2.y, button: "left", buttons: 1, clickCount: 2 });
-  await c.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: gb2.x, y: gb2.y, button: "left", buttons: 0, clickCount: 2 });
-  await sleep(300);
-  check("ดับเบิลคลิกที่จับ แถบกลับสูงเท่าเดิม", (await laneHs()).every((h) => h === h0[0]), (await laneHs()).join(" "));
+  const h0 = await laneHs();
+  check("แถบกราฟสองช่องสูงอย่างน้อย 120 เท่ากัน ห่างกัน 6 px · ไม่มีที่จับลากปรับความสูง (พี่กันสั่งเอาออก 9 พ.ย. 2569)", h0.length === 2 && h0[0] >= 120 && h0[0] === h0[1] && gapPx === 6 && !(await q("return !!document.querySelector('[data-lanegrip]')")), h0.join(" · "));
 
   // ลากไฮไลต์ตัวหนังสือไม่ได้ ยกเว้นหน้าข้อมูลไฟล์ (พี่กัน *"โปรแกรมไม่ควรไฮไลต์แบบนี้ได้ ยกเว้นหน้าที่ปล่อยให้ copy"*)
   const ib = await c.box("[data-graphinfo]");
@@ -398,11 +386,11 @@ if (existsSync(SONG)) {
   };
   const rh0 = await range(), hk = await c.box("[data-hzknob]");
   await drag(hk.x, hk.y, hk.x + 18);
-  const rh1 = await range(), mid = (r) => (r[0] + r[1]) / 2;
+  const rh1 = await rangeAfter(rh0), mid = (r) => (r[0] + r[1]) / 2;
   await shot("26จ-เพลงจริง-แถบซูมเวลา.png");
   const hk1 = await c.box("[data-hzknob]"), htr = await c.box("[data-hzoom] .track");
   await drag(hk1.x, hk1.y, htr.left - 40);
-  const rh2 = await range(), allOn = await q("return document.querySelector('[data-zoom=\"all\"]').classList.contains('on')");
+  const rh2 = await rangeAfter(rh1), allOn = await q("return document.querySelector('[data-zoom=\"all\"]').classList.contains('on')");
   const kxAll = (await c.box("[data-hzknob]")).x;
   await c.click("[data-zoomin]"); await sleep(500);
   const kxIn = (await c.box("[data-hzknob]")).x;

@@ -1,0 +1,67 @@
+[
+ {
+  "name": "หน้าใส่โปสเตอร์ ช่องหนังกับช่องรูป พื้นไล่โทน เส้นประ วงกลม",
+  "ok": true,
+  "note": "{\"bg\":\"linear-gradient\",\"bs\":\"dashed\",\"bc\":\"rgb(168, 67, 106)\",\"circle\":\"58px\",\"display\":\"block\",\"oldIcon\":\"ไม่มี\",\"over\":false}"
+ },
+ {
+  "name": "ตอนลากค้าง เส้นทึบ พื้นเข้มกว่า ไม่มีไล่โทน ช่องอื่นไม่เปลี่ยน",
+  "ok": true,
+  "note": "{\"solid\":\"solid\",\"bg\":\"rgb(239, 218, 226)\",\"img\":\"none\",\"other\":\"dashed\"}"
+ },
+ {
+  "name": "ไฟล์ผิดชนิด ช่องแดงไม่มีไล่โทน วงแดงตาม",
+  "ok": true,
+  "note": "{\"bg\":\"rgb(253, 229, 229)\",\"img\":\"none\",\"color\":\"rgb(176, 69, 69)\",\"circle\":\"rgb(176, 69, 69)\"}"
+ },
+ {
+  "name": "หน้าจับคู่ปก",
+  "ok": true,
+  "note": "{\"bg\":\"linear-gradient\",\"bs\":\"dashed\",\"bc\":\"rgb(168, 67, 106)\",\"circle\":\"58px\",\"display\":\"block\",\"oldIcon\":\"ไม่มี\",\"over\":false}"
+ },
+ {
+  "name": "หน้าเสียงและซับ ไอคอนเดิมถูกแทน",
+  "ok": true,
+  "note": "{\"bg\":\"linear-gradient\",\"bs\":\"dashed\",\"bc\":\"rgb(168, 67, 106)\",\"circle\":\"58px\",\"display\":\"block\",\"oldIcon\":\"none\",\"over\":false}"
+ },
+ {
+  "name": "หน้ารวมกราฟเสียง ไอคอนเดิมถูกแทน",
+  "ok": true,
+  "note": "{\"bg\":\"linear-gradient\",\"bs\":\"dashed\",\"bc\":\"rgb(168, 67, 106)\",\"circle\":\"58px\",\"display\":\"block\",\"oldIcon\":\"none\",\"over\":false}"
+ },
+ {
+  "name": "หัวข้อในช่องใช้สีเน้น",
+  "ok": true,
+  "note": "{\"color\":\"rgb(143, 53, 88)\",\"ink\":\"rgb(143, 53, 88)\"}"
+ },
+ {
+  "name": "หน้าแปลงเสียงคิวว่าง มีวงกลม",
+  "ok": true,
+  "note": "{\"bg\":\"linear-gradient\",\"bs\":\"dashed\",\"bc\":\"rgb(168, 67, 106)\",\"circle\":\"58px\",\"display\":\"block\",\"oldIcon\":\"ไม่มี\",\"over\":false}"
+ },
+ {
+  "name": "แถวลากเพิ่มใต้คิว ไม่มีวงใหญ่",
+  "ok": true,
+  "note": "{\"bg\":\"linear-gradient\",\"bs\":\"dashed\",\"bc\":\"rgb(168, 67, 106)\",\"circle\":\"58px\",\"display\":\"none\",\"oldIcon\":\"ไม่มี\",\"over\":false}"
+ },
+ {
+  "name": "โทน wine วงตามสีเน้นของโทน",
+  "ok": true,
+  "note": "{\"img\":\"linear-gradient\",\"circle\":\"rgb(125, 36, 69)\",\"accent\":\"#7d2445\"}"
+ },
+ {
+  "name": "โทน night วงตามสีเน้นของโทน",
+  "ok": true,
+  "note": "{\"img\":\"linear-gradient\",\"circle\":\"rgb(235, 143, 176)\",\"accent\":\"#eb8fb0\"}"
+ },
+ {
+  "name": "โทน sage วงตามสีเน้นของโทน",
+  "ok": true,
+  "note": "{\"img\":\"linear-gradient\",\"circle\":\"rgb(178, 74, 108)\",\"accent\":\"#b24a6c\"}"
+ },
+ {
+  "name": "โทน mauve วงตามสีเน้นของโทน",
+  "ok": true,
+  "note": "{\"img\":\"linear-gradient\",\"circle\":\"rgb(140, 63, 115)\",\"accent\":\"#8c3f73\"}"
+ }
+]

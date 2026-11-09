@@ -70,7 +70,9 @@ function Frame() {
   }, []);
 
   const parts = import.meta.env.DEV && hash === "#parts";
-  const collapsed = settings?.sidebarCollapsed ?? false;
+  // กดแล้วเมนูขยับทันที ไม่รอบันทึกลงไฟล์ · บันทึกไม่สำเร็จ แถบแจ้งขึ้นแล้วกลับค่าเดิม
+  const [navNow, setNavNow] = useState<boolean | null>(null);
+  const collapsed = navNow ?? settings?.sidebarCollapsed ?? false;
   const reminder = settings?.recheckReminderDays ?? 30;
   const checkCount = useMemo(() => movies.filter((m) => { const k = kindOf(m, reminder); return k === "warn" || k === "bad"; }).length, [movies, reminder]);
   const totalSize = useMemo(() => movies.filter((m) => !m.missing).reduce((s, m) => s + m.size, 0), [movies]);
@@ -86,7 +88,7 @@ function Frame() {
             page={page}
             onPage={(p) => { setPage(p); if (p === "shelf") setInfoId(null); if (parts) location.hash = ""; }}
             collapsed={collapsed}
-            onToggle={() => update({ sidebarCollapsed: !collapsed })}
+            onToggle={() => { const next = !collapsed; setNavNow(next); void update({ sidebarCollapsed: next }).finally(() => setNavNow(null)); }}
             shelfCount={movies.length}
             checkCount={checkCount}
             linkCount={linkWaiting}

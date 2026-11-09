@@ -20,7 +20,7 @@ use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::poster_image::{self as pi, Geometry};
-use crate::rename::MAX_PATH_LEN;
+use crate::rename::{self, RenameProblem, MAX_PATH_LEN};
 use crate::outfile::{
     cancelled, fail, finish_output, ApplyProblem, count, drive_letter, duration_of, eta, ffprobe_json, fmt_gb, free_space, has_attached_pic, kind_word,
     mkv_attachments, not_in_use, run_live, scopeguard, streams_of, Counts, Run, StreamInfo,
@@ -377,6 +377,9 @@ pub struct ApplyReq {
     /// เลขแทร็ก (ffprobe) ที่ยอมทิ้งตอนส่งออก MP4
     #[serde(default)]
     drop: Vec<u64>,
+    /// ชื่อไฟล์ใหม่ไม่รวมนามสกุล · ไม่ส่งมาใช้ชื่อไฟล์ต้นทาง · เปลี่ยนรูปแนบในไฟล์เดิมไม่ใช้ค่านี้
+    #[serde(default)]
+    name: Option<String>,
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -400,6 +403,39 @@ struct Progress {
     percent: f64,
     eta: Option<f64>,
     next: Option<String>,
+}
+
+/// ที่อยู่ไฟล์ใหม่ · ไม่ได้พิมพ์ชื่อหรือพิมพ์เท่าเดิมใช้ชื่อไฟล์ต้นทาง · ชื่อที่พิมพ์ผ่านตัวเช็กตัวเดียวกับปุ่มเปลี่ยนชื่อบนชั้นวาง
+fn new_target(src: &Path, output: &str, name: Option<&str>) -> Result<PathBuf, RenameProblem> {
+    let stem = src.file_stem().unwrap_or_default().to_string_lossy().to_string();
+    let plain = src.with_file_name(format!("{stem}.{}", if output == "mp4" { "mp4" } else { "mkv" }));
+    match name {
+        Some(n) if n != stem => rename::check_name(&plain, n),
+        _ => Ok(plain),
+    }
+}
+
+/// เช็กไฟล์ปลายทางก่อนลงมือ · ปลายทางชื่อเดียวกับไฟล์ต้นทางไม่นับว่าซ้ำ เพราะไฟล์ต้นทางย้ายออกตอนจบ
+fn target_problem(src: &Path, target: &Path) -> Option<RenameProblem> {
+    let same = target.to_string_lossy().to_lowercase() == src.to_string_lossy().to_lowercase();
+    if !same && target.exists() {
+        return Some(RenameProblem { kind: "duplicate", title: "ในโฟลเดอร์นี้มีไฟล์ชื่อนี้อยู่แล้ว ตั้งชื่ออื่น".into(), detail: None });
+    }
+    // ระหว่างทำไฟล์ต่อท้าย .partial (8 ตัว)
+    if target.to_string_lossy().encode_utf16().count() + 8 > MAX_PATH_LEN {
+        return Some(RenameProblem { kind: "long", title: "ชื่อยาวเกินไป".into(), detail: Some("ที่อยู่ไฟล์ยาวเกินที่ Windows รับได้ ตั้งชื่อให้สั้นลง".into()) });
+    }
+    None
+}
+
+/// เช็กชื่อไฟล์ใหม่ตอนพิมพ์ในหน้าใส่โปสเตอร์ · ไม่มีปัญหาคืนค่าว่าง · ตอนกดเริ่มเช็กซ้ำอีกรอบใน apply
+#[tauri::command]
+pub fn poster_check_name(path: String, output: String, name: String) -> Option<RenameProblem> {
+    let src = PathBuf::from(&path);
+    match new_target(&src, &output, Some(&name)) {
+        Err(p) => Some(p),
+        Ok(target) => target_problem(&src, &target),
+    }
 }
 
 #[tauri::command]
@@ -453,7 +489,11 @@ fn apply(app: &AppHandle, req: &ApplyReq, jobs: &Arc<crate::jobs::Jobs>) -> Resu
     // ที่อยู่ไฟล์ใหม่ · ชื่อซ้ำไม่เขียนทับ
     let target = match mode {
         "cover" => src.clone(),
-        m => dir.join(format!("{}.{}", src.file_stem().unwrap_or_default().to_string_lossy(), if m == "mp4" { "mp4" } else { "mkv" })),
+        _ => new_target(&src, &req.output, req.name.as_deref()).map_err(|p| {
+            let mut detail: Vec<String> = p.detail.into_iter().collect();
+            detail.push(untouched.clone());
+            fail("name", p.title, detail)
+        })?,
     };
     let same_name = target.to_string_lossy().to_lowercase() == src.to_string_lossy().to_lowercase();
     if mode != "cover" && !same_name && target.exists() {
@@ -774,3 +814,80 @@ fn verify_cover(d: &Dirs, file: &Path, name: &str, mime: &str, sha: &str) -> Res
     Ok(())
 }
 
+#[cfg(test)]
+mod name_tests {
+    use super::*;
+    use std::fs;
+
+    fn folder(tag: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!("movie-shelf-newname-{tag}-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&d);
+        fs::create_dir_all(&d).unwrap();
+        d
+    }
+
+    #[test]
+    fn no_name_uses_source_stem() {
+        let src = Path::new("D:/หนัง/UX2gc.mp4");
+        assert_eq!(new_target(src, "mkv", None).unwrap(), Path::new("D:/หนัง/UX2gc.mkv"));
+        assert_eq!(new_target(src, "mp4", Some("UX2gc")).unwrap(), Path::new("D:/หนัง/UX2gc.mp4"));
+    }
+
+    #[test]
+    fn typed_name_keeps_folder_and_output_extension() {
+        let d = folder("typed");
+        let src = d.join("UX2gc.mp4");
+        fs::write(&src, b"x").unwrap();
+        assert_eq!(new_target(&src, "mkv", Some("ดาวเหนือ (2023)")).unwrap(), d.join("ดาวเหนือ (2023).mkv"));
+        assert_eq!(poster_check_name(src.to_string_lossy().into(), "mkv".into(), "ดาวเหนือ (2023)".into()), None);
+    }
+
+    #[test]
+    fn bad_names_refused() {
+        let d = folder("bad");
+        let src = d.join("a.mp4");
+        fs::write(&src, b"x").unwrap();
+        let kind = |n: &str| poster_check_name(src.to_string_lossy().into(), "mkv".into(), n.into()).map(|p| p.kind);
+        assert_eq!(kind(""), Some("empty"));
+        assert_eq!(kind("a/b"), Some("chars"));
+        assert_eq!(kind("..\\ออกนอกโฟลเดอร์"), Some("chars"));
+        assert_eq!(kind("CON"), Some("reserved"));
+        assert_eq!(kind("ท้ายจุด."), Some("trailing"));
+    }
+
+    #[test]
+    fn existing_file_is_duplicate_and_untouched() {
+        let d = folder("dup");
+        let src = d.join("a.mp4");
+        fs::write(&src, b"x").unwrap();
+        fs::write(d.join("ชื่อซ้ำ.mkv"), b"keep").unwrap();
+        fs::write(d.join("a.mkv"), b"keep").unwrap();
+        let kind = |n: &str| poster_check_name(src.to_string_lossy().into(), "mkv".into(), n.into()).map(|p| p.kind);
+        assert_eq!(kind("ชื่อซ้ำ"), Some("duplicate"));
+        // ชื่อเดิมก็ชนได้ ต้องบอกตั้งแต่ก่อนกดเริ่ม
+        assert_eq!(kind("a"), Some("duplicate"));
+        assert_eq!(kind("A"), Some("duplicate"));
+        assert_eq!(fs::read(d.join("ชื่อซ้ำ.mkv")).unwrap(), b"keep");
+    }
+
+    #[test]
+    fn same_file_as_source_is_not_duplicate() {
+        let d = folder("same");
+        let src = d.join("a.mp4");
+        fs::write(&src, b"x").unwrap();
+        assert_eq!(poster_check_name(src.to_string_lossy().into(), "mp4".into(), "a".into()), None);
+    }
+
+    #[test]
+    fn path_too_long_for_partial_refused() {
+        let d = folder("long");
+        let src = d.join("a.mp4");
+        let used = d.to_string_lossy().encode_utf16().count() + 1 + ".mkv".len();
+        // เหลือที่ก่อนถึงขีดสุด 3 ตัว ต่อ .partial 8 ตัวแล้วเกิน
+        let over = d.join(format!("{}.mkv", "ก".repeat(MAX_PATH_LEN - used - 3)));
+        assert_eq!(target_problem(&src, &over).map(|p| p.kind), Some("long"));
+        // เหลือ 8 ตัวพอดี ผ่าน
+        let fit = d.join(format!("{}.mkv", "ก".repeat(MAX_PATH_LEN - used - 8)));
+        assert_eq!(target_problem(&src, &fit), None);
+    }
+}

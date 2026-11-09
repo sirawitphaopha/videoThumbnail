@@ -276,7 +276,7 @@ await shot("14-ใส่โปสเตอร์");
 await nav("ชั้นวางหนัง");
 if (!(await q("return !!document.querySelector('[data-detail]');"))) await c.click('.book[data-movie="ดาวเหนือ (2023)"]');
 await sleep(400);
-await q("[...document.querySelectorAll('[data-detail] button')].find((b) => b.textContent.includes('ข้อมูลไฟล์')).click();");
+await q("[...document.querySelectorAll('[data-detail] button')].find((b) => b.textContent.includes('MediaInfo')).click();");
 const infoOpen = await waitFor("return !!document.querySelector('[data-info-page]');", 15000);
 check("เปิดหน้าข้อมูลไฟล์จากแผงขวาได้", infoOpen);
 await c.click("button.nav:first-of-type"); await sleep(600);

@@ -240,7 +240,7 @@
 .cq { display: flex; flex-direction: column; gap: 12px; }
 .cqtop { display: flex; align-items: center; gap: 10px; }
 .cqlist { display: flex; flex-direction: column; gap: 6px; }
-.cqrow { display: grid; grid-template-columns: 40px minmax(0, 1.4fr) 18px minmax(0, 1fr) 200px 132px; gap: 10px; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font-size: 13px; }
+.cqrow { display: grid; grid-template-columns: 18px 40px minmax(0, 1.4fr) 18px minmax(0, 1fr) 190px 180px; gap: 10px; align-items: center; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 8px 10px; font-size: 13px; }
 .cqrow.head { background: transparent; border: 0; padding: 0 10px; color: var(--txt2); font-size: 12px; font-weight: 600; }
 .cqrow.work { border-color: #d8a9b9; box-shadow: 0 0 0 2px #f8e6ec; }
 .cqrow.fail { border-color: #efb4b4; }
@@ -250,7 +250,15 @@
 .cqrow .dd.locked { cursor: default; background: var(--win2); color: var(--txt2); }
 .cqrow .dd.locked:hover { background: var(--win2); border: 1px solid var(--line); }
 .cqbtns { display: flex; gap: 4px; justify-content: flex-end; align-items: center; }
-.cqmore { grid-column: 2 / -1; font-size: 12px; color: var(--txt2); line-height: 1.5; margin-top: -2px; }
+/* พี่กันบอก 9 พ.ย. 2569 "เท่ากันที" ปุ่มหลักกว้างเท่ากันทุกแถว สูงเท่าปุ่มกากบาท ปุ่มกากบาทจึงตรงแนวเดียวกัน */
+.cqbtns .btn { width: 112px; height: 30px; padding: 0 6px; justify-content: center; flex: none; }
+.cqbtns .ib { width: 30px; height: 30px; flex: none; }
+.cqtick { width: 18px; height: 18px; flex: none; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1.5px solid var(--line-strong, #c9a9b6); border-radius: 5px; background: #fff; color: #fff; cursor: pointer; transition: background-color .15s, border-color .15s; }
+.cqtick:hover { border-color: var(--accent); }
+.cqtick.on, .cqtick.some { background: var(--accent); border-color: var(--accent); }
+.cqtick > i { display: block; width: 9px; height: 2px; border-radius: 1px; background: #fff; }
+.cqtick[aria-disabled="true"] { background: var(--win2); border-color: var(--line); cursor: not-allowed; }
+.cqmore { grid-column: 3 / -1; font-size: 12px; color: var(--txt2); line-height: 1.5; margin-top: -2px; }
 .cqmore.bad { color: var(--bad-ink); }
 .cqmore .warnline { display: flex; align-items: center; gap: 6px; color: var(--warn-ink); }
 .cqmore .warnline svg { flex: none; width: 13px; height: 13px; }
@@ -269,11 +277,35 @@
 .cqfoot-l { display: flex; padding-right: 22px; min-width: 0; }
 .cqfoot-r { display: flex; justify-content: flex-end; gap: 10px; min-width: 0; }
 .cqcards .card h3 { margin-bottom: 8px; }
-@media (max-width: 1100px) { .cqrow { grid-template-columns: 40px minmax(0, 1fr) 14px minmax(0, 1fr) 150px 112px; } }
+@media (max-width: 1100px) { .cqrow { grid-template-columns: 18px 40px minmax(0, 1fr) 14px minmax(0, 1fr) 140px 180px; } }
 /* เทียบสองไฟล์ · ต้นฉบับสีฟ้า หลังแปลงสีส้ม */
+.cmpchip { cursor: pointer; transition: border-color .15s, background-color .15s; }
+.cmpchip:hover { border-color: var(--accent); }
+.cmpchip:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* การ์ดต่างกันกี่ % ในแผงซ้ายหน้าเทียบ */
+.gdiff h3 > b { font-size: 18px; color: var(--accent-ink); font-variant-numeric: tabular-nums; }
+.gdiff .row { display: grid; grid-template-columns: 76px 1fr 44px; gap: 8px; align-items: center; padding: 2px 4px; border-radius: 5px; font-size: 12.5px; color: var(--txt2); }
+.gdiff .row.on { background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+.gdiff .row > i { display: block; height: 6px; border-radius: 3px; background: var(--win2); overflow: hidden; }
+.gdiff .row > i > u { display: block; height: 100%; background: var(--accent); }
+.gdiff .row > em { font-style: normal; text-align: right; font-variant-numeric: tabular-nums; }
+.gdiff .sizerow { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; padding: 5px 4px 2px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--txt2); }
+.gdiff .sizerow > em { font-style: normal; font-weight: 600; color: var(--txt); text-align: right; font-variant-numeric: tabular-nums; }
+.gdiffnote { margin-top: 6px; font-size: 11px; line-height: 1.4; color: var(--txt3); white-space: nowrap; }
+.gdiffgrid { display: grid; gap: 3px 10px; align-items: baseline; font-size: 12.5px; color: var(--txt2); }
+.gdiffgrid .h { font-size: 12px; font-weight: 700; text-align: right; white-space: nowrap; }
+.gdiffgrid .all { font-weight: 700; color: var(--txt); }
+.gdiffgrid b { color: var(--accent-ink); font-size: 14px; text-align: right; font-variant-numeric: tabular-nums; }
+.gdiffgrid em { font-style: normal; text-align: right; font-variant-numeric: tabular-nums; }
+.gdiffgrid .on { color: var(--accent-ink); font-weight: 700; }
+.cmpchip .meta { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cmpchip .rmx { flex: none; }
 .who { display: inline-flex; align-items: center; gap: 5px; font-size: 12px; font-weight: 700; white-space: nowrap; vertical-align: 1px; }
 .who i { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
-.cmpchip .nm .who { margin-left: 6px; }
+.cmpchip .nm { display: flex; align-items: center; gap: 8px; }
+.cmpchip .nm .nmtx { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.cmpchip .nm .extcard { flex: none; padding: 2px 10px; border-radius: 6px; color: white; font-size: 13.5px; font-weight: 700; line-height: 1.45; letter-spacing: .02em; }
+.cmpchip .nm .who { flex: none; }
 /* ค่าไม่ตัดบรรทัด (บิตเรต 2,612 kb/s เคยตกเป็นสองบรรทัดในคอลัมน์ 1fr ที่แคบ เจอตอนตรวจภาพ) */
 .ginfo { display: grid; grid-template-columns: auto auto auto; justify-content: start; gap: 4px 10px; font-size: 13px; align-items: baseline; }
 .ginfo .h { font-size: 12px; font-weight: 700; }
@@ -286,6 +318,7 @@
 .tagview { display: flex; gap: 16px; align-items: flex-start; }
 .tagview .art { width: 150px; height: 150px; flex: none; border-radius: 6px; object-fit: cover; box-shadow: 0 4px 12px rgba(60,25,40,.22); }
 .tagview .art.none { display: flex; align-items: center; justify-content: center; color: var(--txt3); font-size: 13px; background: repeating-linear-gradient(45deg, #fbe7ef 0 8px, #fff 8px 16px); border: 1px dashed #eeb3c8; box-shadow: none; }
+.tagview .artbtn { flex: none; padding: 0; border: 0; background: none; cursor: zoom-in; line-height: 0; }
 .tagview .kv { flex: 1; grid-template-columns: 100px 1fr; }
 .tagview .stat { flex: 1; }
 /* การ์ดฟอนต์ของซับ ASS (fonts.rs) · ชื่อฟอนต์กับช่องติ๊กซ้าย ที่มาของไฟล์ขวา */

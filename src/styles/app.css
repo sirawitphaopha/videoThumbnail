@@ -69,38 +69,42 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
 .titlebar .ctl button.close:hover { background-color: #f6c3c3; color: #8a2a2a; }
 
 .body { flex: 1; min-height: 0; display: flex; }
+/* ย่อขยายเมนู กรอบนอกเปลี่ยนทันที เนื้อหาคิดแถวครั้งเดียว แถบข้างในเลื่อนทับ ไม่ให้ปกเปลี่ยนขนาดทุกเฟรม (สกิล sidebar-slide) */
+.sidewrap { flex: none; display: flex; width: 200px; background: var(--win); }
+.sidewrap.mini { width: 64px; }
 .side {
+  position: relative; z-index: var(--z-float);
   width: 200px; flex: none; background: var(--win); border-right: 1px solid var(--line);
   padding: 16px 10px; display: flex; flex-direction: column; gap: 4px;
-  transition: width .2s ease, padding .2s ease; overflow: hidden;
+  transition: width .2s ease, padding .2s ease; overflow: clip;
 }
-.brand { display: flex; align-items: center; gap: 10px; padding: 2px 8px 16px; font-weight: 700; font-size: 17px; color: var(--accent-ink); white-space: nowrap; }
+.brand { display: flex; align-items: center; gap: 10px; padding: 2px 8px 16px; font-weight: 700; font-size: 17px; color: var(--accent-ink); white-space: nowrap; transition: padding .2s ease; }
 .nav {
   display: flex; align-items: center; gap: 10px; padding: 9px 10px; border-radius: 9px; color: var(--txt2);
   cursor: pointer; border: 0; background-color: transparent; font: inherit; text-align: left; width: 100%;
-  position: relative; white-space: nowrap; transition: background-color .15s, color .15s;
+  position: relative; white-space: nowrap; transition: background-color .15s, color .15s, padding .2s ease;
 }
 .nav svg { flex: none; }
 .nav:hover { background-color: #f6e0e7; color: var(--accent-ink); }
 .nav.on { background-color: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
 .nav.on:hover { background-color: #ebd1da; color: #96305a; }
-.nav .count { margin-left: auto; font-size: 11px; font-weight: 700; line-height: 18px; min-width: 18px; text-align: center; background: var(--accent); border-radius: 9px; padding: 0 5px; color: #fff; }
+.nav .count { position: absolute; top: 50%; right: 10px; translate: 0 -50%; font-size: 11px; font-weight: 700; line-height: 18px; min-width: 18px; text-align: center; background: var(--accent); border-radius: 9px; padding: 0 5px; color: #fff; transition: top .2s ease, right .2s ease, translate .2s ease; }
+.brand svg { flex: none; }
 .navtxt { white-space: nowrap; transition: opacity .15s ease; }
-.side .foot { margin-top: auto; font-size: 12px; color: var(--txt3); padding: 8px; white-space: nowrap; }
+.side .foot { margin-top: auto; font-size: 12px; color: var(--txt3); padding: 8px; white-space: nowrap; transition: opacity .15s ease; }
 .navtoggle { margin-top: 8px; }
 .side:not(:has(.foot)) .navtoggle { margin-top: auto; }
 .side.mini-nav { width: 64px; padding: 16px 8px; }
-.side.mini-nav .navtxt { opacity: 0; width: 0; overflow: hidden; }
-.side.mini-nav .brand { justify-content: center; padding: 2px 0 16px; gap: 0; }
-.side.mini-nav .nav { justify-content: center; gap: 0; padding: 9px 0; }
-.side.mini-nav .nav .count {
-  position: absolute; top: -3px; right: -2px; margin: 0; min-width: 16px; height: 16px; padding: 0 4px;
-  border-radius: 8px; font-size: 10px; line-height: 16px; background: var(--accent); color: #fff; text-align: center;
-}
-.side.mini-nav .foot { display: none; }
-/* ปุ่มย่อขยายเมนูอยู่ล่างสุดทั้งตอนกางและตอนย่อ · ตอนย่อ .foot ถูกซ่อนแต่ยังอยู่ กฎ :not(:has(.foot)) จึงไม่ทำงาน (พี่กันถาม 8 พ.ย. 2569) */
-.side.mini-nav .navtoggle { margin-top: auto; }
+/* ไอคอนอยู่ตำแหน่งเดิมตอนย่อ ไม่สลับไปจัดกลางทีเดียว เดิมกระโดด 70 จุด · ตัวหนังสือแค่จางลง ถูกขอบแถบตัดเอง · เลื่อนไอคอนเล็กน้อยด้วยระยะข้างให้อยู่กลางแถบ */
+.side.mini-nav .navtxt { opacity: 0; }
+.side.mini-nav .brand { padding-inline: 11.5px; }
+.side.mini-nav .nav { padding-inline: 14.5px; }
+.side.mini-nav .nav .count { top: -3px; right: -2px; translate: 0 0; min-width: 16px; height: 16px; padding: 0 4px; border-radius: 8px; font-size: 10px; line-height: 16px; }
+/* ท้ายแถบยังอยู่ในผัง แค่จางลง ปุ่มย่อขยายจึงอยู่ที่เดิมทั้งสองสถานะ */
+.side.mini-nav .foot { opacity: 0; visibility: hidden; }
 .side.mini-nav .navtoggle svg { transform: scaleX(-1); }
+/* เลขรุ่นใต้ปุ่มย่อเมนู (พี่กันสั่ง 9 พ.ย. 2569) ระยะเดียวกันทั้งตอนกางและตอนย่อ ตอนย่อพอดีกลางแถบ */
+.navver { flex: none; padding: 2px 10px 0; font-size: 11px; line-height: 16px; color: var(--txt3); white-space: nowrap; }
 /* กล่องชื่อเมนูตอนย่อ ขึ้นข้างไอคอนทางขวา ไม่บังเมนูอื่น (ต้นแบบบรรทัด 460–489) */
 .navtip {
   position: fixed; z-index: var(--z-menu); background: #472e36; color: #fff; font-size: 12.5px; line-height: 1.5;
@@ -117,6 +121,10 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
 .topbar > .btn { padding: 0 8px; gap: 6px; }
 .topbar .seg { width: 100%; min-width: 0; }
 .topbar .seg button { flex: 1 1 0; min-width: 0; padding: 0 4px; justify-content: center; white-space: nowrap; }
+/* ช่องโฟลเดอร์แบ่งที่ให้ตัวกรองดาว (แคลร์วางตรงนี้ เพราะเป็นช่องที่กว้างสุดของแถบบน) */
+.tbleft { display: flex; gap: 8px; min-width: 0; align-items: center; }
+.tbstar { flex: none; width: 138px; }
+.tbleft .path svg { flex: none; }
 .tborient { display: flex; gap: 8px; min-width: 0; }
 .tborient .seg { width: auto; flex: 1 1 0; }
 @media (max-width: 1120px) {
@@ -126,6 +134,14 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
 /* แถบสถานะล่างแบบโปรแกรม */
 .statusbar { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 28px; padding: 0 18px; border-top: 1px solid var(--line); background: var(--win); font-size: 12.5px; color: var(--txt2); white-space: nowrap; overflow: hidden; }
 .statusbar .legend { margin: 0; font-size: 12.5px; flex-wrap: nowrap; }
+.statusbar .legend > span { display: inline-flex; align-items: center; gap: 5px; }
+.statusbar .legend .badge { position: static; flex: none; width: 15px; height: 15px; box-shadow: none; }
+.statusbar .legend .badge svg { width: 10px; height: 10px; }
+.statusbar .legend .linkb { margin-right: 0; }
+.shelffilter button svg { flex: none; }
+/* ปุ่มกรองแคบ เปิดแผงขวาหรือหน้าต่างเล็ก เก็บที่ให้ตัวเลขก่อน */
+.topbar .shelffilter { container-type: inline-size; }
+@container (max-width: 340px) { .topbar .shelffilter button svg { display: none; } }
 .path { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 9px; height: 38px; padding: 0 12px; color: var(--txt2); font-size: 14px; flex: 1; min-width: 0; }
 .path span { white-space: nowrap; }
 .pagewrap { flex: 1; min-height: 0; overflow-y: auto; }
@@ -168,7 +184,8 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
 .seg button { display: inline-flex; align-items: center; justify-content: center; gap: 6px; }
 .seg button svg { flex: none; display: block; }
 .seg button:hover { background-color: #faedf1; color: var(--accent-ink); }
-.seg button.on { background-color: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+/* ตัวหนาด้วยเงา ไม่เปลี่ยนน้ำหนักฟอนต์ ปุ่มจึงกว้างเท่าเดิมตอนสลับ ไม่ดันของข้าง ๆ */
+.seg button.on { background-color: var(--accent-soft); color: var(--accent-ink); text-shadow: .35px 0 0 currentColor; }
 .seg button.on:hover { background-color: #f8dde7; color: var(--accent-d); }
 .seg.sm button { height: 30px; padding: 0 10px; font-size: 13px; display: inline-flex; align-items: center; gap: 6px; }
 .seg-off button { color: #c9aab4; cursor: not-allowed; background-color: #f7f7f7; }
@@ -266,19 +283,24 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
 
 /* ---------- แถบแจ้งผล ลอยกลางล่าง (save-status ข้อ 3) ---------- */
 .toasts { position: fixed; left: 50%; bottom: 20px; translate: -50% 0; z-index: var(--z-toast); display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
-.toast { pointer-events: auto; display: flex; align-items: flex-start; gap: 10px; min-width: 320px; max-width: 560px; border-radius: 12px; padding: 12px 12px 12px 14px; font-size: 13.5px; line-height: 1.55; box-shadow: 0 12px 26px rgba(60,25,40,.22); animation: pop-in .14s ease-out; }
-.toast.ok { background: var(--ok-soft); color: var(--ok-ink); border: 1px solid #a9dcc0; }
+/* พี่กันบอก 9 พ.ย. 2569 "สีไม่เข้า แถมไม่อยู่กึ่งกลาง และอ้วน" · บางลง ไอคอน ข้อความ ปุ่มปิด อยู่กลางแนวเดียวกัน กว้างตามข้อความ · สำเร็จกับแจ้งทั่วไปใช้สีโทนของโปรแกรม ผิดพลาดกับเตือนยังคงสีสถานะ */
+.toast { pointer-events: auto; display: flex; align-items: center; gap: 8px; max-width: 560px; border-radius: 10px; padding: 5px 6px 5px 12px; font-size: 13.5px; line-height: 1.4; box-shadow: 0 6px 16px rgba(60,25,40,.16); animation: pop-in .14s ease-out; }
+.toast.ok, .toast.info { background: var(--accent-soft); color: var(--accent-ink); border: 1px solid var(--line); }
+.toast.ok svg circle, .toast.info svg circle { fill: var(--accent); }
+.toast > svg { flex: none; }
 .toast.bad { background: var(--bad-soft); color: var(--bad-ink); border: 1px solid #f1b7b7; }
-.toast.info { background: var(--info-soft); color: var(--info-ink); border: 1px solid var(--line); }
 .toast.warn { background: var(--warn-soft); color: var(--warn-ink); border: 1px solid #f0d9a2; }
 .toast .grow { flex: 1; min-width: 0; }
-.toast b { display: block; }
-.toast .x { width: 28px; height: 28px; flex: none; border-radius: 7px; border: 0; background-color: transparent; color: inherit; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background-color .15s; }
-.toast.ok .x:hover { background-color: #cdeedb; }
+.toast b { display: block; font-weight: 600; }
+.toast .x { width: 24px; height: 24px; flex: none; border-radius: 7px; border: 0; background-color: transparent; color: inherit; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background-color .15s; }
+.toast.ok .x:hover, .toast.info .x:hover { background-color: color-mix(in srgb, var(--accent) 14%, transparent); }
 .toast.bad .x:hover { background-color: #f9cccc; }
-.toast.info .x:hover { background-color: #cfe2f6; }
 .toast.warn .x:hover { background-color: #fbecc5; }
 
+/* ---------- ตัวบอกกำลังโหลด ---------- */
+.spinner { flex: none; display: inline-block; width: 15px; height: 15px; box-sizing: border-box; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--accent) 25%, transparent); border-top-color: var(--accent); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loadpill { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: calc(var(--z-confirm) + 1); display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-radius: 12px; background: var(--win); border: 1px solid var(--line); box-shadow: 0 10px 28px rgba(60,25,40,.28); font-size: 14px; color: var(--txt); pointer-events: none; }
 /* ---------- โครงจาง (loading-skeleton) ---------- */
 .skel { background: linear-gradient(90deg, #f7e2e9 0%, #f7f7f7 42%, #f7e2e9 84%); background-size: 260% 100%; animation: skel-wave 1.4s ease-in-out infinite; border-radius: 6px; }
 @keyframes skel-wave { 0% { background-position: 130% 0; } 100% { background-position: -30% 0; } }
@@ -308,10 +330,10 @@ tbody tr:last-child td { border-bottom: 0; }
 
 /* ---------- ชั้นวาง (ต้นแบบบรรทัด 72–105 249–270) ---------- */
 .content { display: flex; flex: 1; min-height: 0; }
-.shelfwrap { flex: 1; padding: 14px 18px 24px; min-width: 0; overflow-y: auto; background: var(--bg); }
+.shelfwrap { flex: 1; padding: 18px 18px 24px; min-width: 0; overflow-y: auto; background: var(--bg); }
 .legend { display: flex; align-items: center; gap: 14px; font-size: 13px; color: var(--txt2); margin: 6px 0 16px; flex-wrap: wrap; }
 .legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
-[data-shelf], .size-s, .size-m, .size-l { padding-top: 14px; }
+[data-shelf], .size-s, .size-m, .size-l { padding-top: 0; }
 /* ต่างจากต้นแบบ: ต้นแบบจัดขอบล่างตรงกัน (flex-end) ชื่อยาวสามบรรทัดดันปกขึ้นไม่ตรงแถว · ของจริงจัดขอบบนปกให้ตรงกัน */
 .shelf { position: relative; display: flex; gap: 18px; margin-bottom: 26px; align-items: flex-start; }
 .book { width: 140px; flex: none; cursor: pointer; position: relative; z-index: 1; border-radius: 6px; }
@@ -327,11 +349,36 @@ tbody tr:last-child td { border-bottom: 0; }
 .book.missing { opacity: .45; }
 .badge { position: absolute; top: 7px; right: 7px; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2px #fff; }
 .b-ok { background: var(--ok); } .b-bad { background: var(--bad); } .b-warn { background: var(--warn); } .b-info { background: var(--info); }
-.bname { font-size: 12.5px; color: var(--txt2); margin-top: 8px; line-height: 1.5; word-break: break-word; min-height: 38px; }
+.bname { font-size: 12.5px; color: var(--txt2); margin-top: 8px; line-height: 1.5; word-break: break-word; }
+/* แถบใต้ปก บรรทัด 1 ชื่อ · 2 เครื่องหมาย · 3 ป้าย แบบ ค ที่พี่กันเลือก ไฟล์สีหลัก เสียงเขียว ซับเหลือง */
+.bn1 { color: var(--txt); font-weight: 600; line-height: 1.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.bn2 { display: flex; align-items: center; gap: 5px; height: 18px; margin-top: 2px; }
+.book .bn2 .badge { margin-right: 0; }
+.book .bn2 .linkb { margin-right: 0; }
+/* ดาวเป็นสีเนื้อหา ไม่เปลี่ยนตามโทน เขียนด้วยชื่อสี ตัวแปลงโทนไม่แตะ */
+.stars { display: inline-flex; margin-left: auto; flex: none; }
+.star { width: 14px; height: 18px; padding: 0; border: 0; background: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.size-s .star { width: 12px; }
+.size-s .star svg { width: 11px; height: 11px; }
+.star svg { display: block; fill: none; stroke: goldenrod; transition: fill .1s; }
+.star.on svg { fill: goldenrod; }
+/* ดาวในแผงขวา ใต้ชื่อเรื่อง ใหญ่กว่าบนชั้น */
+.fstars { margin-top: -6px; }
+.fstars .stars { margin-left: -2px; }
+.fstars .star { width: 22px; height: 24px; }
+.fstars .star svg { width: 18px; height: 18px; }
+.star:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 3px; }
+.bn3 { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+.bn3 .bt { height: 16px; padding: 0 5px; border-radius: 4px; font-family: Consolas, "Cascadia Mono", monospace; font-size: 10.5px; font-weight: 700; line-height: 16px; white-space: nowrap; }
+.bn3 .bt.f { background: var(--accent); color: white; }
+.bn3 .bt.a { background: var(--ok-soft); color: var(--ok-ink); }
+.bn3 .bt.s { background: var(--warn-soft); color: var(--warn-ink); }
+.bn3 .btmore { padding: 0 3px; color: var(--txt2); }
+.bn3.nochan .ch { display: none; }
 .book .bname .badge { position: static; display: inline-flex; vertical-align: -2px; width: 15px; height: 15px; margin-right: 5px; box-shadow: none; }
 .book .bname .badge svg { width: 10px; height: 10px; }
 .ext { color: var(--txt3); font-weight: 400; }
-.size-s .book { width: 100px; } .size-s .cover { width: 100px; height: 150px; padding: 7px; } .size-s .cover.has-img { padding: 0; } .size-s .bname { font-size: 11.5px; margin-top: 20px; } .size-s .cover.none { font-size: 11px; }
+.size-s .book { width: 100px; } .size-s .cover { width: 100px; height: 150px; padding: 7px; } .size-s .cover.has-img { padding: 0; } .size-s .bname { font-size: 11.5px; } .size-s .cover.none { font-size: 11px; }
 .size-l .book { width: 180px; } .size-l .cover { width: 180px; height: 270px; padding: 12px; } .size-l .cover.has-img { padding: 0; } .size-l .bname { font-size: 13.5px; }
 .size-s .shelf { gap: 14px; } .size-l .shelf { gap: 20px; }
 /* ความกว้างปกคิดจากหน้าจอ ให้เต็มแถวพอดี (ShelfGrid ตั้ง --bw) */
@@ -344,9 +391,9 @@ tbody tr:last-child td { border-bottom: 0; }
 /* ตาราง (ต้นแบบบรรทัด 257–264) */
 .lv { width: 100%; border-collapse: collapse; font-size: 13.5px; }
 .lv th { text-align: left; color: var(--txt2); font-weight: 600; font-size: 12.5px; padding: 9px 10px; background: var(--win2); white-space: nowrap; }
-/* หัวตารางตรึง · top ติดลบเท่าระยะขอบในบนของ .shelfwrap (14) หัวจึงชิดขอบบนพอดี ไม่มีร่องให้แถวลอด
+/* หัวตารางตรึง · top ติดลบเท่าระยะขอบในบนของ .shelfwrap (18) หัวจึงชิดขอบบนพอดี ไม่มีร่องให้แถวลอด
    เส้นใต้หัววาดด้วย box-shadow ตารางแบบ collapse วาดเส้นที่ตัวตาราง ตรึงแล้วเส้นไม่ลอยตาม (web-craft 6.2.1) */
-.lv thead th { position: sticky; top: -14px; z-index: 2; box-shadow: inset 0 -1px 0 var(--line); }
+.lv thead th { position: sticky; top: -18px; z-index: 2; box-shadow: inset 0 -1px 0 var(--line); }
 /* หัวคอลัมน์เด่นแบบเดียวกับตารางจับคู่ปก (พี่กันสั่ง 8 พ.ย. 2569) */
 .lv thead th, .ck thead th { background: var(--accent-soft); color: var(--accent-ink); font-size: 14px; font-weight: 700; }
 .lv td { padding: 7px 10px; border-bottom: 1px solid #f7e4ea; vertical-align: middle; }
@@ -355,6 +402,33 @@ tbody tr:last-child td { border-bottom: 0; }
 .lv tbody tr:hover td { background: #fbf2f5; }
 .lv tbody tr.sel:hover td { background: #f7e4ea; }
 .lv tr.missing td { opacity: .5; }
+/* คอลัมน์กว้างตายตัวตามขนาดกรอบ ชื่อไฟล์ได้ที่เหลือ · เปิดแผงขวาหรือหน้าต่างแคบ คอลัมน์ขวาสุดไม่ตกขอบ */
+.tblwrap { container-type: inline-size; }
+[data-table] .lv { table-layout: fixed; }
+[data-table] .lv th { overflow: hidden; }
+.lv .c-size { width: 84px; } .lv .c-video { width: 130px; } .lv .c-a { width: 256px; } .lv .c-s { width: 170px; } .lv .c-st { width: 128px; }
+/* ปุ่มเล็ก กลาง ใหญ่ ปรับรูปในตาราง (พี่กันสั่ง 9 พ.ย. 2569 "ตารางก็ปรับขนาดโปสเตอร์ได้นะ") · เล็กเท่าเดิม */
+.lv td:first-child { padding-inline: 6px; text-align: center; }
+.lv td:first-child .hoverbig { vertical-align: middle; }
+.lv .th { max-width: 100%; }
+.tb-s .lv .c-th { width: 58px; } .tb-m .lv .c-th { width: 76px; } .tb-l .lv .c-th { width: 104px; }
+.tb-m .lv .th { width: 40px; height: 60px; } .tb-m .lv .th.wide { width: 62px; height: 35px; margin-block: 12px; }
+.tb-l .lv .th { width: 64px; height: 96px; } .tb-l .lv .th.wide { width: 90px; height: 51px; margin-block: 22px; }
+@container (max-width: 900px) { .lv .c-size { width: 72px; } .lv .c-video { width: 84px; } .lv .c-a { width: 150px; } .lv .c-s { width: 100px; } .lv .c-st { width: 118px; } .tb-m .lv .c-th { width: 66px; } .tb-l .lv .c-th { width: 76px; } }
+@container (max-width: 720px) { .tblwrap .lv .c-th { width: 42px; } .lv .c-size { width: 62px; } .lv .c-video { width: 56px; } .lv .c-a { width: 104px; } .lv .c-s { width: 64px; } .lv .c-st { width: 40px; } .tblwrap[class] .lv .th { width: 30px; height: 45px; } .tblwrap[class] .lv .th.wide { height: 20px; margin-block: 12px; } .lv td, .lv th { padding-inline: 5px; } .lv .lvword { display: none; } }
+.lvchips { display: flex; gap: 4px; overflow: hidden; }
+/* สีมาจาก .ft ใน av.css ตัวเดียวกับหน้าเสียงและซับ ที่นี่ปรับแค่ขนาด */
+.lvchips .ft { display: block; flex: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; height: 20px; padding: 0 6px; border-radius: 5px; font-size: 11.5px; letter-spacing: 0; line-height: 18px; }
+.lvchips.tight .lvchip { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.lvchips .lvmore { flex: none; height: 20px; padding: 0 3px; color: var(--txt2); font-size: 11.5px; font-weight: 700; line-height: 20px; white-space: nowrap; }
+/* นามสกุลไฟล์ตัวหนาในตาราง (พี่กันสั่ง 9 พ.ย. 2569 "ทำตัวหนานามสกุลที") */
+.lv .lvext { font-weight: 700; }
+/* ดาวใต้ชื่อหนังในตาราง ชิดแนวเดียวกับชื่อ */
+.lvstars { margin: 1px 0 -3px -1px; line-height: 0; }
+.lvstars .stars { margin-left: 0; }
+.lv .lvstat { display: inline-flex; align-items: center; gap: 6px; }
+.lv .lvstat .badge { position: static; flex: none; width: 15px; height: 15px; box-shadow: none; }
+.lv .lvstat .badge svg { width: 10px; height: 10px; }
 .lv .th { width: 30px; height: 45px; border-radius: 3px; display: block; object-fit: cover; }
 .lv .th.none { border: 1.5px dashed #e2bfcb; background: repeating-linear-gradient(135deg, #fff 0 5px, #fbf2f5 5px 10px); }
 .thsort { all: unset; cursor: pointer; display: inline-flex; align-items: center; border-radius: 5px; padding: 1px 4px; margin: -1px -4px; transition: background-color .15s, color .15s; }
@@ -365,7 +439,7 @@ tbody tr:last-child td { border-bottom: 0; }
 .detail { width: 320px; flex: none; background: var(--win); border-left: 1px solid var(--line); padding: 18px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
 /* หัวแผงขวา ปุ่มปิด (คิว 6 แผงขึ้นเฉพาะตอนกดเลือกเรื่อง) */
 .dhead { display: flex; align-items: center; justify-content: space-between; margin: -6px -4px -4px 0; font-size: 13px; font-weight: 600; color: var(--txt3); }
-.dclose { width: 30px; height: 30px; border-radius: 8px; border: 1px solid #e8cdd6; background-color: #fff; color: var(--txt2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; transition: background-color .15s, color .15s; }
+.dclose { width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e8cdd6; background-color: #fff; color: var(--txt2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; transition: background-color .15s, color .15s; }
 .dclose:hover { background-color: #faedf1; color: var(--accent-ink); }
 .dclose:focus-visible { outline: none; box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent-d); }
 .dposter { width: 200px; height: 300px; border-radius: 0; margin: 0 auto; box-shadow: 0 2px 4px rgba(60,25,40,.2), 0 8px 20px rgba(60,25,40,.16); object-fit: cover; display: block; flex: none; }
@@ -375,6 +449,17 @@ tbody tr:last-child td { border-bottom: 0; }
 .kv { display: grid; grid-template-columns: 90px 1fr; gap: 4px 10px; font-size: 13.5px; margin: 0; }
 .kv dt { color: var(--txt3); } .kv dd { margin: 0; color: var(--txt); }
 .actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+/* ปุ่มแผงขวาสองคอลัมน์เท่ากันทุกแถว ไอคอนกับตัวหนังสือตรงแนว (พี่กันสั่ง 9 พ.ย. 2569 "ขอ icon ให้ตรงกันที" · "เรียงตรงกันห่น่อย") */
+.detail .actions, .detail .minirow.half { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.detail .actions .btn, .detail .minirow.half .btn { justify-content: flex-start; gap: 7px; padding-inline: 9px; }
+.detail .actions .btn svg, .detail .minirow.half .btn svg { width: 15px; height: 15px; flex: none; }
+.detail .minirow.half .btn.wide { grid-column: 1 / -1; }
+/* การ์ดที่กดแล้วไปหน้าตรวจไฟล์ */
+.statgo { width: 100%; border: 0; font: inherit; font-size: 13.5px; text-align: left; align-items: center; cursor: pointer; transition: background-color .15s; }
+.statgo > div { flex: 1; min-width: 0; }
+.statgo svg { margin-top: 0; }
+.statgo:hover { background: color-mix(in srgb, var(--warn-soft) 93%, var(--warn-ink)); }
+.statgo:focus-visible { outline: 2px solid var(--warn-ink); outline-offset: 2px; }
 
 /* แถวสวิตช์ (ต้นแบบบรรทัด 298–301) */
 .setrow { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 11px 0; border-top: 1px solid #f7e4ea; }
@@ -402,6 +487,17 @@ tbody tr:last-child td { border-bottom: 0; }
 .folder { display: flex; align-items: center; gap: 10px; background: var(--win2); border-radius: 9px; padding: 9px 12px; font-size: 14px; margin-top: 6px; }
 .setwrap .folder { background: transparent; border-radius: 0; padding: 9px 0; margin-top: 0; border-top: 1px solid #f7e4ea; }
 .folder .grow { flex: 1; min-width: 0; }
+/* แถวโปรแกรมเล่นในหน้าตั้งค่า · ปุ่มกับป้ายกว้างเท่ากัน สลับค่าตั้งต้นแล้วแถวไม่ขยับ */
+.plrow > svg { flex: none; color: var(--accent); }
+/* ไอคอนจริงของโปรแกรม ไม่ตัดมุมไม่ใส่กรอบ */
+.plrow .plicon { flex: none; width: 24px; height: 24px; object-fit: contain; }
+.plrow b { display: block; font-weight: 600; line-height: 1.5; }
+.plrow .small { overflow-wrap: anywhere; }
+.plrow .plset, .plrow .pldef { flex: none; width: 150px; }
+.plrow .pldef { height: 32px; display: inline-flex; align-items: center; justify-content: center; position: relative; border-radius: 9px; background: var(--accent-soft); color: var(--accent-ink); font-size: 13px; font-weight: 600; }
+.plrow .pldef svg { position: absolute; left: 24px; top: 50%; translate: 0 -50%; }
+.plrow .plgap { flex: none; width: 32px; }
+.plmiss { margin-top: 2px; font-size: 12.5px; line-height: 1.5; color: var(--bad-ink); }
 .toolok, .toolwarn, .toolbad { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; border-radius: 20px; padding: 1px 10px; font-weight: 600; white-space: nowrap; }
 .toolok { color: var(--ok-ink); background: var(--ok-soft); }
 /* บรรทัดรุ่นล่าสุดใต้ตัวแปลงในหน้าตั้งค่า (latest.rs) */
@@ -452,10 +548,20 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .card { padding: 0; }
 .card h3 { margin: 0 0 10px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
 .step { width: 22px; height: 22px; border-radius: 50%; background: #e5c4cf; color: #8f2a4f; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; flex: none; }
-.drop { border: 2px dashed #e2bfcb; border-radius: 12px; background: #fff; display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--txt3); font-size: 13.5px; text-align: center; padding: 14px; min-height: 120px; transition: background-color .15s, border-color .15s; }
-.drop b { color: inherit; }
-.drop.over { border: 2px dashed var(--accent); background: #faedf1; color: var(--accent-ink); }
+/* กดช่องแล้วเลือกไฟล์ได้ด้วย */
+.drop, .avdrop { cursor: pointer; }
+/* จุดลากไฟล์ พี่กันเลือกจากมอคอัป pick-ui.html 9 พ.ย. 2569 ("จุดลากไฟล์…มันขาวไปหมด" · "สรุป เอาอันนี้") · พื้นชมพูจางบนลงขาวล่าง เส้นประเข้ม วงสีเดียวลูกศรขาว */
+.drop { border: 2px dashed var(--accent); border-radius: 12px; background: linear-gradient(180deg, color-mix(in srgb, var(--accent-soft) 70%, var(--win)), var(--win)); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; color: var(--accent-ink); font-size: 13.5px; text-align: center; padding: 14px; min-height: 120px; }
+.drop b { color: inherit !important; font-size: 15px; font-weight: 700; }
+.drop span, .drop .small { color: var(--txt2); }
+.drop > svg { display: none; }
+.drop::before { content: ""; flex: none; width: 58px; height: 58px; border-radius: 50%; margin-bottom: 8px; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 16V5M7.5 9.5L12 5l4.5 4.5M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3'/%3E%3C/svg%3E") center / 29px no-repeat, var(--accent); }
+/* แถวลากเพิ่มใต้คิวแปลงเสียงเป็นแถวเตี้ย ไม่มีที่ให้วงใหญ่ */
+.drop[data-qdrop][style*="min-height: 0"]::before { display: none; }
+.drop.over { border: 2px solid var(--accent); background: #f6d3df; color: var(--accent-ink); }
 .drop.bad { border: 2px dashed var(--bad); background: var(--bad-soft); color: var(--bad-ink); }
+.drop.bad span, .drop.bad .small { color: inherit; }
+.drop.bad::before { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 16V5M7.5 9.5L12 5l4.5 4.5M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3'/%3E%3C/svg%3E") center / 29px no-repeat, var(--bad-ink); }
 .vfile { display: flex; gap: 12px; align-items: center; background: #fff; border-radius: 10px; padding: 12px; }
 .vthumb { width: 72px; height: 42px; border-radius: 5px; background: linear-gradient(135deg, #9fc3e0, #5f86a8); flex: none; object-fit: cover; }
 .pprev { display: flex; gap: 14px; align-items: flex-start; }
@@ -468,11 +574,22 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .mc { width: 72px; height: 108px; border-radius: 5px; flex: none; box-shadow: 0 4px 8px rgba(60,25,40,.22); object-fit: cover; display: block; background: #fbf0f4; }
 .mc.none { border: 1.5px dashed #eeb3c8; box-shadow: none; background: repeating-linear-gradient(135deg, #fff 0 8px, #fbf2f5 8px 16px); }
 .workbox { display: flex; flex-direction: column; gap: 10px; scroll-margin: 16px; }
-.fmt { width: 100%; border-collapse: collapse; font-size: 14px; background: #fff; border-radius: 10px; overflow: hidden; }
+/* สถานะงานในแถบปุ่มล่างหน้าใส่โปสเตอร์ สูงไม่เกินปุ่ม ข้อความยาวตัดด้วยจุดไข่ปลา */
+.runline { width: 100%; min-width: 0; height: 44px; display: flex; align-items: center; gap: 8px; font-size: 13px; }
+.runline .runtxt { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 3px; line-height: 1.4; }
+.runline .runtxt b { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-weight: 600; }
+.runline .runl1, .runline .runl2 { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; color: var(--txt2); font-size: 12.5px; }
+.runline .bar { margin: 0; }
+.runline .btn { flex: none; white-space: nowrap; }
+.runline > svg { flex: none; }
+.runline.ok > svg, .runline.ok b { color: var(--ok-ink); }
+.runline.warn > svg, .runline.warn b { color: var(--warn-ink); }
+.runline.bad > svg, .runline.bad b { color: var(--bad-ink); }
+.fmt { width: 100%; border-collapse: separate; border-spacing: 0; border: 1px solid var(--line); font-size: 14px; background: #fff; border-radius: 10px; overflow: hidden; }
 .fmt th { background: var(--win2); color: var(--txt2); font-size: 13px; padding: 9px 12px; text-align: left; border-bottom: 1px solid var(--line); }
 .fmt td { padding: 9px 12px; border-bottom: 1px solid #f7e4ea; vertical-align: top; line-height: 1.55; }
 .fmt tr:last-child td { border-bottom: 0; }
-.fmt tr.on td { background: #faedf1; }
+.fmt tr.on td { background: color-mix(in srgb, var(--accent) 16%, white); color: var(--accent-ink); }
 /* หน้าต่างครอป · ภาพอยู่ในกรอบ 520 × 293 แบบไม่ตัด กรอบครอปล็อก 2 : 3 นอกกรอบมืด */
 .stage { position: relative; width: 520px; height: 293px; border-radius: 6px; overflow: hidden; flex: none; background: #f7e3ea; touch-action: none; user-select: none; }
 .stage img, .pv img { position: absolute; max-width: none; pointer-events: none; }
@@ -620,7 +737,7 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .lg i { display: inline-block; width: 12px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
 .lg .ln { display: inline-block; width: 14px; height: 2px; border-radius: 1px; margin-right: 5px; vertical-align: 3px; }
 .speclegend { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--txt2); flex-wrap: wrap; }
-.speclegend .rampbar { width: 140px; height: 10px; border-radius: 3px; }
+.speclegend .rampbar { width: 90px; height: 10px; border-radius: 3px; }
 .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 10px; }
 .tile { background: var(--win2); border-radius: 10px; padding: 10px 12px; }
 .tile b { display: block; font-size: 20px; line-height: 1.3; color: var(--txt); font-variant-numeric: tabular-nums; }
@@ -641,6 +758,50 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .recentrow .dd { width: 100%; min-width: 0; padding-right: 38px; }
 .recentrow > button:last-child { position: absolute; right: 6px; top: 50%; translate: 0 -50%; width: 26px; height: 26px; min-height: 0; padding: 0; border: 0; border-radius: 7px; background: transparent; display: flex; align-items: center; justify-content: center; }
 .recentrow > button:last-child:hover { background: var(--accent-soft); }
+/* ไฟล์หาย บอกตั้งแต่ก่อนกด กดไม่ได้ เหลือปุ่มกากบาทเอาออกจากรายการ */
+.recentrow.lost .dd { cursor: not-allowed; background: var(--bad-soft); border-color: #f1b7b7; color: var(--txt3); }
+.recentrow.lost .dd:hover { background: var(--bad-soft); border-color: #f1b7b7; color: var(--txt3); }
+.recentrow.lost .dd img, .recentrow.lost .dd i { opacity: .5; }
+.recentrow.lost .lostmark { color: var(--bad-ink); font-weight: 600; }
+/* พี่กันสั่ง 9 พ.ย. 2569 "เอามาต่อกัน icon สองอันนี้" ไอคอนหรือปกกับป้ายนามสกุลติดกันเป็นก้อนเดียว สูงเท่ากัน */
+.rtype { flex: none; display: inline-flex; align-items: stretch; height: 27px; }
+.rtype > .rnote, .rtype > img { border-radius: 3px 0 0 3px !important; }
+/* ตั้งค่ารูปกราฟ */
+.imghead { margin: 14px 0 2px; font-size: 14px; font-weight: 700; color: var(--accent-ink); }
+.imgctl { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+/* พี่กันบอก 9 พ.ย. 2569 "แนวเดียวกัน" ช่องตัวเลข ปุ่มเปลี่ยน แถบสองกับสามตัวเลือกกว้าง 165 จุด ขอบซ้ายขวาตรงกัน · ช่องตัวเลขกับปุ่มเปลี่ยนกว้าง 96 จุด (พี่กันบอก "ไม่ต้องยาวขนาดนั้น") · ทุกอย่างขอบขวาตรงกัน */
+/* พี่กันบอก 9 พ.ย. 2569 "ช่องเท่ากัน" ทุกช่องในแถบเลือกของชุดนี้กว้างเท่าช่องที่ยาวสุด */
+[data-img-row] .seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
+[data-img-row] .seg > * { white-space: nowrap; }
+[data-img-row="bits"] .seg, [data-img-row="gray"] .seg, [data-img-row="sub"] .seg, [data-img-row="compress"] .seg { width: 165px; box-sizing: border-box; }
+[data-img-row="bits"] .seg > *, [data-img-row="gray"] .seg > *, [data-img-row="sub"] .seg > *, [data-img-row="compress"] .seg > * { flex: 1 1 0; min-width: 0; padding-left: 0; padding-right: 0; white-space: nowrap; }
+.imgctl > .btn { width: 82.5px; padding-left: 0; padding-right: 0; justify-content: center; flex: none; }
+/* พี่กันบอก 9 พ.ย. 2569 "ยังไม่เรียงตามปุ่มอื่น" ปุ่มกลับค่าตั้งต้นกับล้าง กว้างเท่าแถบสองตัวเลือก 165 จุด ขอบซ้ายขวาตรงกัน */
+.btn[data-img-reset], .btn[data-clearcache] { width: 165px; padding-left: 0; padding-right: 0; justify-content: center; flex: none; }
+/* พี่กันบอก 9 พ.ย. 2569 "แนวเดียวกัน" หัวข้อใส่โปสเตอร์ แถบสองตัวเลือกกว้าง 165 ปุ่มเปลี่ยนกว้าง 82.5 ขอบซ้ายตรงช่องขวาของแถบ */
+[data-seg165] .seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; width: 165px; box-sizing: border-box; }
+[data-seg165] .seg > * { min-width: 0; padding-left: 0; padding-right: 0; white-space: nowrap; }
+.btn[data-orig-change] { width: 82.5px; padding-left: 0; padding-right: 0; justify-content: center; flex: none; }
+/* พี่กันบอก 9 พ.ย. 2569 "แนวตรงกัน" หัวข้อชั้นวาง แถบขนาดปกกับแถบดูปกกว้างเท่ากัน ขอบซ้ายขวาตรงกัน */
+[data-seg-cover] .seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; width: 225px; box-sizing: border-box; }
+[data-seg-cover] .seg > * { min-width: 0; padding-left: 0; padding-right: 0; justify-content: center; white-space: nowrap; }
+.imgnum { display: inline-flex; align-items: center; justify-content: flex-end; width: 82.5px; box-sizing: border-box; gap: 5px; height: 30px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font-size: 12.5px; color: var(--txt3); flex: none; }
+.imgnum:focus-within { border-color: var(--accent); }
+.imgnum.off { opacity: .45; pointer-events: none; }
+.imgstack { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 8px; flex: none; }
+/* แถบเลื่อนยาวเท่าแถวปุ่ม 216 + 8 + 96 · แถบห้าตัวเลือกกับแถวที่เก็บกว้าง 216 เท่าแถบ DPI (พี่กันบอก "เอายาวเท่า DPI") */
+.imgslide { display: block; width: 320px; flex: none; padding-top: 2px; }
+.imgslidebox { display: inline-flex; align-items: flex-start; gap: 10px; flex: none; }
+.imgslidebox.off { opacity: .45; pointer-events: none; }
+.imgfine { display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; padding: 0; border: 0; background: none; font: inherit; font-size: 12.5px; color: var(--txt2); cursor: pointer; white-space: nowrap; }
+.imgfine > i { width: 16px; height: 16px; flex: none; display: inline-flex; align-items: center; justify-content: center; border: 1.5px solid var(--line-strong, #c9a9b6); border-radius: 4px; background: #fff; color: #fff; }
+.imgfine.on > i { background: var(--accent); border-color: var(--accent); }
+/* พี่กันบอก 9 พ.ย. 2569 "กรอบที่กรอก ขอเรียงแนวนี้" กรอบกรอกกับปุ่มเปลี่ยนกว้างเท่าช่องขวาของแถบสองตัวเลือก ขอบซ้ายตรงกัน แถวรวมยังยาว 320 */
+[data-img-row="width"] .seg, [data-img-row="dpi"] .seg, [data-img-row="dir"] .seg { width: 229.5px; box-sizing: border-box; }
+[data-img-row="format"] .seg { width: 320px; box-sizing: border-box; }
+[data-img-row="width"] .seg > *, [data-img-row="format"] .seg > *, [data-img-row="dpi"] .seg > *, [data-img-row="dir"] .seg > * { min-width: 0; padding-left: 0; padding-right: 0; }
+.imgnum input { flex: 1; min-width: 0; width: 44px; border: 0; outline: 0; background: transparent; font: inherit; font-size: 13px; color: var(--txt); text-align: right; font-variant-numeric: tabular-nums; }
+.rext { display: inline-flex; align-items: center; padding: 0 7px 0 3px; border-radius: 0 3px 3px 0; background: #f8e6ec; color: var(--accent-ink); font-size: 12px; font-weight: 700; letter-spacing: .02em; }
 .rnote { width: 18px; height: 27px; border-radius: 3px; background: #f8e6ec; color: var(--accent-ink); display: inline-flex; align-items: center; justify-content: center; flex: none; }
 .rmx { width: 32px; flex: none; border-radius: 10px; border: 1px solid #e8cdd6; background-color: #fff; color: var(--txt3); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; transition: background-color .15s, color .15s; }
 .rmx:hover { background-color: #faedf1; color: var(--bad, #c0392b); }
@@ -695,11 +856,6 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .psdk[aria-disabled] { cursor: not-allowed; }
 .psdk i { width: 12px; height: 12px; border-radius: 3px; border: 2px solid; box-sizing: border-box; }
 /* ที่จับใต้แถบกราฟ ลากลงขยายความสูง */
-.lanegrip { height: 14px; margin-top: 2px; display: flex; align-items: center; justify-content: center; border-radius: 6px; cursor: ns-resize; touch-action: none; outline: none; transition: background-color .15s; }
-.lanegrip i { width: 46px; height: 4px; border-radius: 2px; background: #e2c0cb; transition: background-color .15s; }
-.lanegrip:hover { background: #faeef2; }
-.lanegrip:hover i { background: var(--accent); }
-.lanegrip:focus-visible { box-shadow: 0 0 0 2px var(--accent-d); }
 /* ตาราง ภาพเล็กอยู่กลางช่องทั้งปกตั้งและปกแนวนอน (พี่กัน 7 พ.ย. 2569 *"ตอนปรับเป็นมุมมองตารา เราอยากห้รู้มันอยู่เเนวกลาง"*) */
 .lv td .th { margin-left: auto; margin-right: auto; }
 
@@ -737,12 +893,14 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .ag[data-graphview] { height: 100%; overflow: hidden; padding-bottom: 0; }
 .ag[data-graphview] .agb { flex: 1 1 0; min-height: 0; margin: -12px -18px 0; gap: 0; grid-template-columns: 250px minmax(0, 1fr); grid-template-rows: minmax(0, 1fr); }
 .ag[data-graphview] .agb.wide { grid-template-columns: minmax(0, 1fr); }
+/* เทียบ 3 ไฟล์ขึ้นไป ตารางข้อมูลเสียงมีคอลัมน์เพิ่ม แผงซ้ายกว้างขึ้น */
+.ag[data-graphview] .agb.many { grid-template-columns: 360px minmax(0, 1fr); }
 /* แถบเลื่อนชิดเส้นแบ่งกับชิดขอบหน้าต่าง ระยะขอบอยู่ข้างในกล่อง */
 .ag[data-graphview] .apanel, .ag[data-graphview] .agb > .plot { height: 100%; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
 .ag[data-graphview] .apanel { padding: 12px 14px; border-right: 1px solid var(--line); gap: 0; }
 .ag[data-graphview] .apanel > .card { padding: 0; }
 .ag[data-graphview] .apanel > .card, .ag[data-graphview] .apanel > .stat { margin: 0; }
-.ag[data-graphview] .apanel > * + * { margin-top: 12px; padding-top: 12px; border-top: 1px solid var(--line); }
+.ag[data-graphview] .apanel > * + * { margin-top: 14px; padding-top: 18px; border-top: 1px solid var(--line); }
 .ag[data-graphview] .apanel > .stat { border-top: 0; padding: 10px; }
 .ag[data-graphview] .agb > .plot { border: 0; border-radius: 0; padding: 10px 18px 12px 12px; display: flex; flex-direction: column; }
 .ag[data-graphview] .agb > .plot > * { flex-shrink: 0; }
@@ -756,7 +914,7 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .tndesc .tnli + .tnli { margin-top: 3px; }
 .tnrgb { display: flex; flex-direction: column; gap: 1px; font-size: 11px; line-height: 1.5; font-variant-numeric: tabular-nums; }
 .tnrgb > span { display: flex; align-items: center; gap: 5px; white-space: nowrap; }
-.tnrgb i { width: 10px; height: 10px; flex: none; border-radius: 3px; border: 1px solid var(--t-line); }
+.tnrgb i { width: 12px; height: 12px; flex: none; border-radius: 50%; }
 .tnrgb b { font-weight: 600; min-width: 24px; }
 /* กล่องนี้ไม่เลื่อนแล้ว แถบบนไม่ต้องตรึง · ตรึงในกล่องที่มีระยะขอบ แถบถูกดันลง 16 จุด กล่องสองฝั่งลอดเข้าไปข้างใต้ แถบเลื่อนกับแถวซูมเลยโดนบัง */
 .ag[data-graphview] > .agstick { position: relative; }
@@ -765,7 +923,7 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .agstick { background: var(--win); }
 
 /* ตรึงแถบควบคุมทุกหน้าที่เลื่อนได้ แคลร์ไล่เอง (พี่กันถาม 8 พ.ย. 2569 "ให้ดกูบอกทุกอันเลยเหรอ") */
-.dhead { position: sticky; top: -18px; z-index: 3; flex: none; background: var(--win); margin: -18px -18px -4px; padding: 12px 14px 8px 18px; border-bottom: 1px solid var(--line); }
+.dhead { position: sticky; top: -18px; z-index: 3; flex: none; background: var(--win); margin: -18px -18px -4px; padding: 12px 18px 8px 18px; border-bottom: 1px solid var(--line); }
 [data-info-page] > .wrapin > :first-child { position: sticky; top: 0; z-index: var(--z-bar); background: var(--win); margin: -22px -22px 0; padding: 12px 22px; border-bottom: 1px solid var(--line); }
 .gmodebar { position: sticky; top: 0; z-index: var(--z-bar); background: var(--win); margin: -16px -18px 0; padding: 12px 18px; border-bottom: 1px solid var(--line); }
 [data-poster-page] .three.pactions { position: sticky; bottom: 0; z-index: var(--z-bar); background: var(--win); padding-bottom: 12px; }
@@ -774,10 +932,22 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .agfoot > :last-child { margin-left: auto; }
 /* แถวหัวกราฟบรรทัดเดียว ปุ่มเวลาชิดขวาทุกมุมมอง แถบซูมหดตามที่เหลือ (พี่กันถาม 8 พ.ย. 2569 "ปุ่มเวลา จะอยู่ซ้ายหรือขวา") */
 .plothead { flex-wrap: nowrap; }
-.plothead > :first-child { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-.plothead > :last-child { margin-left: auto; flex: none; }
-.plothead .zbtns { flex: none; display: flex; align-items: center; }
-.plothead .hzoom { flex: none; width: 200px; }
+.plothead > :first-child { flex: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plothead > :last-child { margin-left: auto; flex: 0 1 auto; min-width: 0; }
+/* หัวกราฟที่มีดรอปดาวน์ไม่ตัด แถบซูมเวลาหดแทน ไม่ทับกัน */
+.plothead > :first-child:has(.dd) { flex: none; overflow: visible; }
+.plothead .seg { flex: none; }
+.plothead .zbtns { flex: 0 1 auto; min-width: 0; display: flex; align-items: center; }
+.plothead .zbtns .zb { flex: none; }
+.plothead .hzoom { flex: 0 1 200px; width: 200px; min-width: 60px; }
+/* หน้าต่างแคบ ไม่พอวางแถบซูมเวลา เหลือปุ่มแว่นขยายกับรีเซ็ต ชื่อกราฟหดแทน ไม่ทับกัน */
+@media (max-width: 1100px) {
+  .plothead .hzoom { display: none; }
+  .plothead > :last-child > .lbl { display: none; }
+  .plothead > :first-child { flex: 0 1 auto; }
+  .plothead > :first-child:has(.dd) > b { display: none; }
+  .plothead .seg button { padding-inline: 8px; }
+}
 /* แถวคำอธิบายกับปุ่มท้ายกราฟตรึงล่างสุดทุกมุมมอง (พี่กันสั่ง 8 พ.ย. 2569 "ตรึงไว้ล่างสุดให้หมด พวกนี้") */
 .ag[data-graphview] .agb > .plot .agfoot { position: sticky; bottom: -12px; z-index: 5; background: #fff; margin: auto -18px -12px -12px; padding: 8px 18px 12px 12px; border-top: 1px solid var(--line); }
 /* ผลตรวจในกราฟบรรทัดเดียว ชี้ดูข้อความเต็ม กราฟได้ที่เพิ่ม */
@@ -814,10 +984,132 @@ div.avthumb { background: repeating-linear-gradient(135deg, #fff 0 5px, #fbf2f5 
 /* พื้นแถบตรึงคลุมเลยขอบซ้ายขวา ปลายตัวหนังสือที่เลื่อนลอดข้างใต้ไม่โผล่ข้างแถบ */
 .avfoot, .avtop, .cqfoot, [data-poster-page] .three.pactions { box-shadow: -18px 0 0 var(--win), 18px 0 0 var(--win); }
 /* ขยายให้เต็มพื้นที่ ไม่ทิ้งที่ว่างเหนือแถบปุ่ม (พี่กันสั่ง 9 พ.ย. 2569 "ลองขยายให้เต็ม") · ช่องลากไฟล์ยืด เนื้อหาอื่นสูงเท่าเดิม */
-[data-poster-page] .three:has(> [data-card="movie"]) { flex: 1 0 auto; }
+/* แถวบนใช้ที่ที่เหลือพอดี ไม่ยืดตามเนื้อหา แถวล่างจึงอยู่ที่เดิมก่อนและหลังใส่ไฟล์ */
+[data-poster-page] .three:has(> [data-card="movie"]) { flex: 1 1 0; }
 [data-poster-page] .three:has(> [data-card="movie"]) > .card { display: flex; flex-direction: column; }
 [data-poster-page] .three:has(> [data-card="movie"]) > .card > .drop { flex: 1 0 auto; }
-[data-card="result"] .mc { width: clamp(80px, calc((100vh - 470px) * 2 / 3), 210px); height: auto; aspect-ratio: 2 / 3; max-width: 100%; }
+/* ช่องตัวอย่างสูงเท่าช่องลากไฟล์ กึ่งกลางคอลัมน์ ความกว้างตามสัดส่วนปก · ใต้ช่องลากมีปุ่มกับคำอธิบายสูงรวม 91 จุด ใต้ตัวอย่างจึงเว้นเท่ากัน */
+.resbox { flex: 1 0 auto; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.resmain { flex: 1 1 0; min-height: 120px; container-type: size; display: flex; justify-content: center; align-items: center; gap: 14px; }
+.resmain > div { text-align: center; }
+/* สูงกว้างตามสัดส่วนรูปจริง --ar ไม่ส่งมาคือ 2 : 3 */
+[data-card="result"] .resmain .mc { --h: min(100cqh, 100cqw / var(--ar, .6667)); height: var(--h); width: calc(var(--h) * var(--ar, .6667)); }
+[data-card="result"] .resmain.two .mc { --h: min(100cqh - 26px, (100cqw - 14px) / var(--sum, 1.3333)); }
+/* ใต้ช่องทั้งสามคอลัมน์จองที่เท่ากัน 5 บรรทัด พอชื่อไฟล์ยาวสองบรรทัด ขอบล่างช่องตรงกันทั้งแถว (พี่กันสั่ง 9 พ.ย. 2569 "เธอลืมเรื่อองเเนวเดียวกันอีกละ" · "งั้นก็เว้น กรอบไฟล์ฟนัง กับโปสเเต้อด้วย") */
+.rescap { min-height: 98px; text-align: center; }
+/* ช่องตั้งชื่อไฟล์ใหม่ อยู่ในที่จอง 98 จุดของแถวข้อความ แถวล่างไม่ขยับ */
+[data-newname] { margin: 2px 0; text-align: left; }
+[data-newname] .inp { height: 32px; }
+.pnerr { color: var(--bad-ink); }
+/* การ์ดเตือนในหน้าต่างครอป ไอคอนกลางการ์ดทุกใบ */
+[data-crop] .stat { align-items: center; }
+[data-crop] .stat svg { margin-top: 0; }
+/* สองปุ่มท้ายของแถวแบบปกกับแถวชนิดไฟล์กว้างเท่ากัน ตรงแนวบนล่าง */
+[data-crop] .setrow .seg button:nth-last-child(-n+2) { width: 104px; justify-content: center; }
+/* ตารางคุณภาพ สองคอลัมน์แรกกว้างเท่ากัน คอลัมน์ท้ายพอดีข้อความ ไม่เหลือที่ว่างขวา */
+[data-qtable] { table-layout: fixed; }
+[data-qtable] th:nth-child(-n+2) { width: 36%; }
+[data-qtable] td:last-child, [data-qtable] th:last-child { white-space: nowrap; }
+[data-crop-acts] .btn { justify-content: center; }
+/* เส้นตั้งกลางหน้าต่างครอป หยุดก่อนถึงเส้นนอน 18 จุด เหมือนหน้าใส่โปสเตอร์ ไม่ตัดเป็นกากบาท */
+[data-crop] .cropright::before, [data-crop] .cropright::after { content: ""; position: absolute; left: 0; width: 1px; background: var(--line); }
+[data-crop] .cropright::before { top: 0; height: 307px; }
+[data-crop] .cropright::after { top: 343px; bottom: 0; }
+/* ปุ่มขยายมุมรูป กับหน้าครอปเต็มจอ */
+.stageroom { position: relative; width: 520px; height: 293px; flex: none; }
+.stagehold { position: relative; width: 100%; height: 100%; }
+.stagebig { width: 26px; height: 26px; right: 6px; bottom: 6px; border-radius: 7px; z-index: 2; }
+.cropfull { position: fixed; inset: 0; z-index: 30; padding-bottom: 56px; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, black 88%, var(--accent)); }
+.cropfullbar { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 31; width: min(520px, calc(100vw - 32px)); display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 10px; background: var(--win); font-size: 14px; color: var(--txt); }
+.stage .hd { transform: scale(var(--hs, 1)); }
+.stage .cropbox { border-width: calc(2px * var(--hs, 1)); }
+/* แผงเลือกสีขอบเอง */
+[data-crop] .padchip { display: inline-block; width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--line); flex: none; }
+[data-crop] .padchip.big { width: 26px; height: 26px; border-radius: 7px; }
+[data-crop] .padrgb { z-index: 5; box-sizing: border-box; padding: 12px; background: var(--win); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 22px rgba(60,25,40,.2); }
+[data-crop] .padbody { display: flex; gap: 14px; }
+[data-crop] .padtabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+[data-crop] .padtabs button { padding: 4px 10px; border: 0; background: transparent; font: inherit; font-size: 13px; color: var(--txt2); border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; }
+[data-crop] .padtabs button:hover { color: var(--txt); }
+[data-crop] .padtabs button.on { color: var(--accent-ink); border-bottom-color: var(--accent); font-weight: 600; }
+[data-crop] .padarea { width: 226px; height: 168px; }
+[data-crop] .honey { zoom: .9; }
+[data-crop] .padmix { display: flex; gap: 10px; height: 100%; }
+/* สีในกล่องเป็นเนื้อหา ไม่เปลี่ยนตามโทน เขียนด้วยชื่อสี */
+[data-crop] .padbox { position: relative; flex: 1; border-radius: 6px; cursor: crosshair; touch-action: none; background: linear-gradient(to bottom, transparent, gray), linear-gradient(to right, red, yellow, lime, cyan, blue, magenta, red); }
+[data-crop] .padmark { position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 0 1px black; pointer-events: none; }
+[data-crop] .padlight { position: relative; flex: none; width: 16px; border-radius: 4px; border: 1px solid var(--line); cursor: ns-resize; touch-action: none; }
+[data-crop] .padarrow { position: absolute; left: -3px; right: -3px; height: 4px; margin-top: -2px; background: white; border: 1px solid black; border-radius: 2px; pointer-events: none; }
+[data-crop] .honey { display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: center; }
+[data-crop] .honeyrow { display: flex; margin-top: -3px; }
+[data-crop] .honeyrow.gray { margin-top: 8px; }
+[data-crop] .honeyrow button { width: 14px; height: 15px; padding: 0; border: 0; cursor: pointer; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
+[data-crop] .honeyrow button:hover { filter: brightness(.82); }
+[data-crop] .honeyrow button.on { filter: brightness(.6); }
+[data-crop] .padside { flex: none; width: 178px; border-left: 1px solid var(--line); padding-left: 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; }
+[data-crop] .padfields { display: flex; flex-direction: column; gap: 6px; }
+[data-crop] .padfields label { display: flex; align-items: center; justify-content: flex-end; gap: 8px; font-size: 13px; color: var(--txt2); }
+[data-crop] .padfields label span { flex: none; width: 44px; }
+[data-crop] .padfields input { flex: 1; min-width: 0; width: 0; height: 28px; box-sizing: border-box; padding: 0 6px; text-align: right; border: 1px solid var(--line); border-radius: 7px; background: var(--win); color: var(--txt); font: inherit; outline: 0; }
+[data-crop] .padcopy { flex: none; width: 20px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 0; background: transparent; color: var(--txt2); cursor: pointer; transition: color .15s; }
+[data-crop] .padcopy:hover { color: var(--accent-ink); }
+[data-crop] .padfoot { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; }
+[data-crop] .padcmp { display: flex; gap: 6px; font-size: 12px; color: var(--txt2); text-align: center; }
+[data-crop] .padcmp i { display: block; width: 46px; height: 42px; border: 1px solid var(--line); border-radius: 5px; }
+[data-crop] .padbtns { display: flex; flex-direction: column; gap: 6px; width: 72px; }
+[data-crop] .padbtns .btn { justify-content: center; padding-inline: 4px; }
+/* หน้าต่างเตี้ย ย่อกล่องสีกับรังผึ้ง แผงไม่ล้นกรอบ · ช่องสองแถว */
+[data-crop] .padrgb.short .padarea { height: 112px; }
+[data-crop] .padrgb.short .honey { zoom: .62; }
+[data-crop] .padrgb.short .padfields { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; }
+[data-crop] .padrgb.short .padcmp i { height: 24px; width: 34px; }
+[data-crop] .padfields input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+/* ช่องพิมพ์คุณภาพ JPG */
+[data-crop] .qnum { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--txt2); }
+[data-crop] .qnum input { width: 42px; height: 28px; padding: 0 6px; text-align: right; border: 1px solid var(--line); border-radius: 7px; background: var(--win); color: var(--txt); font: inherit; outline: 0; }
+[data-crop] .qnum input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+[data-crop-tools] .btn { flex: 1 1 auto; justify-content: center; white-space: nowrap; }
+[data-poster-page] .three:has(> [data-card="movie"]) > .card > .small { min-height: 98px; }
+/* ข้อความชิดล่างสุดของพื้นที่จอง ตรงแนวกันทั้งสามคอลัมน์ */
+[data-poster-page] .pcap { display: flex; flex-direction: column; justify-content: flex-end; }
+/* ปุ่มเลือกรูปสองปุ่มอยู่แถวเดียว ความสูงใต้ช่องลากจะคงที่ แนวตรงกับช่องตัวอย่าง */
+[data-card="poster"] .drop span .btn { padding-inline: 10px; }
+/* รูปตัวอย่างหนังเต็มคอลัมน์ ขอบล่างของส่วนนี้ตรงกับช่องลากรูปข้าง ๆ */
+[data-poster-page] [data-card="movie"] .vfile { flex: 1 1 0; min-height: 0; flex-direction: column; align-items: stretch; gap: 10px; padding: 0; background: none; border-radius: 0; }
+/* รูปตัวอย่างหดตามที่ว่าง เห็นทั้งภาพไม่ครอป */
+[data-poster-page] [data-card="movie"] .vthumb { width: 100%; height: 0; flex: 1 1 0; min-height: 72px; object-fit: contain; background: var(--win2); border-radius: 8px; }
+[data-poster-page] [data-card="movie"] .vthumb.cover { object-fit: contain; background: var(--win2); }
+/* รูปเต็มความกว้าง ยืดตามที่ว่าง เห็นทั้งภาพ แบบเดียวกับการ์ดไฟล์หนัง · ข้อความซ้าย ปุ่มขวา อยู่ใต้รูป */
+[data-poster-page] [data-card="poster"] .pprev { flex: 1 1 0; min-height: 0; flex-direction: column; align-items: stretch; gap: 10px; }
+[data-poster-page] [data-card="poster"] .pp { width: 100%; height: 0; flex: 1 1 0; min-height: 72px; object-fit: contain; background: var(--win2); box-shadow: none; }
+[data-card="poster"] .ppinfo { flex: none; display: flex; gap: 10px; align-items: center; }
+[data-card="poster"] .ppbtns { flex: none; width: 106px; display: flex; flex-direction: column; gap: 6px; }
+[data-card="poster"] .ppbtns .btn { width: 100%; padding-inline: 6px; justify-content: center; white-space: nowrap; }
+/* ปุ่มแบบปกเต็มความกว้างการ์ด กว้างเท่ากันสามปุ่ม ไม่ตัดคำ */
+[data-not23] .not23seg { flex: 0 0 100%; }
+[data-not23] .seg { width: 100%; }
+[data-not23] .seg button { flex: 1 1 0; min-width: 0; padding: 0 4px; gap: 4px; white-space: nowrap; }
+/* มีไฟล์หรือรูปแล้ว ไม่ต้องจองที่ให้ตรงกับช่องลาก คำอธิบายยังชิดล่าง ที่เหลือให้รูป */
+[data-poster-page] [data-card="poster"]:has(.pprev) > .small.pcap, [data-poster-page] [data-card="movie"]:has(.vfile) > .small.pcap { min-height: 0; }
+/* หน้าต่างเตี้ยหรือแคบ ซ่อนคำอธิบายรอง หน้านี้ต้องไม่เลื่อน */
+@media (max-height: 700px), (max-width: 1100px) {
+  [data-poster-page] .small.pcap:not(.rescap) { display: none; }
+  [data-poster-page] [data-opt] .chk .small { display: none; }
+  [data-poster-page] [data-opt] .chk br { display: none; }
+  [data-poster-page] [data-opt="output"] > div > .small, [data-poster-page] [data-opt="output"] > .small { display: none; }
+  [data-poster-page] [data-card="movie"] .vfile .small:last-child { display: none; }
+  [data-poster-page] .rescap { min-height: 0; }
+  [data-poster-page] .wrapin { gap: 12px; padding-top: 14px; }
+  [data-not23] > div:not(.not23seg) > div { display: none; }
+  [data-not23] { row-gap: 6px; }
+  [data-card="poster"] .ppmode { display: none; }
+}
+@media (max-width: 1100px) {
+  [data-not23] .seg svg { display: none; }
+  [data-poster-page] .pact-msg { grid-column: 1 / 2; padding-right: 0; }
+  [data-poster-page] .pact-btns { grid-column: 2 / 4; padding-left: 0; justify-content: flex-end; }
+  [data-poster-page] .pact-btns .btn { flex: none; white-space: nowrap; }
+}
 .ag[data-graphmode="convert"] > .cq > .card:first-child { flex: 1 0 auto; display: flex; flex-direction: column; }
 .ag[data-graphmode="convert"] > .cq > .card:first-child > .drop { flex: 1 0 auto; }
 [data-link-page] { display: flex; flex-direction: column; }
@@ -829,8 +1121,40 @@ div.avthumb { background: repeating-linear-gradient(135deg, #fff 0 5px, #fbf2f5 
 .avwrap > .card:has(> .drop) { flex: 1 0 auto; display: flex; flex-direction: column; }
 .avwrap > .card:has(> .drop) > .drop { flex: 1 0 auto; }
 /* ปุ่มเลือกแบบและสีของกราฟในกรอบกราฟ */
-.plottools { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; flex-wrap: wrap; }
-.plottools .seg button { height: 30px; font-size: 13px; padding: 0 8px; gap: 5px; white-space: nowrap; }
+/* ปุ่มสีหน้าวิเคราะห์ มุมขวาบนของกราฟ (พี่กันเลือก 9 พ.ย. 2569) · สีกราฟเป็นเนื้อหาไม่เปลี่ยนตามโทน จึงเขียนด้วยชื่อสีกับ color-mix ตัวแปลงโทนไม่แตะ */
+/* ขอบขวาตรงเส้นขาวกรอบกราฟ ส่งระยะมาจาก SPK.R (พี่กันสั่ง 9 พ.ย. 2569 "มันต้องตรงเเนวกับเส้นขาวนะ") */
+.spektools { position: absolute; top: 15px; z-index: 6; }
+/* กราฟกับแถบซูมแนวตั้งแบบเดียวกับหน้ารูปคลื่น · แถบเลื่อนขึ้นลงอยู่ในช่องระหว่างกรอบกับแถบสี */
+.spekarea { display: flex; gap: 8px; align-items: stretch; flex: 1 0 240px; margin-top: 8px; min-height: 0; }
+.spekbox { position: relative; flex: 1; min-width: 0; }
+.fzval { font-size: 10.5px; font-weight: 600; color: var(--txt2); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.spekvs { position: absolute; width: 10px; z-index: 5; border-radius: 5px; background: color-mix(in srgb, black 72%, white); cursor: pointer; touch-action: none; }
+.spekvs.light { background: gainsboro; }
+.spekvs i { position: absolute; left: 0; right: 0; min-height: 16px; border-radius: 5px; background: gainsboro; }
+.spekvs.light i { background: color-mix(in srgb, black 55%, white); }
+.plottools.onspek { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; --sk-bg: color-mix(in srgb, black 92%, white); --sk-line: color-mix(in srgb, black 68%, white); --sk-txt: gainsboro; --sk-hover: color-mix(in srgb, black 80%, white); --sk-on: color-mix(in srgb, black 76%, white); --sk-ontxt: white; }
+.plottools.onspek.light { --sk-bg: white; --sk-line: lightgray; --sk-txt: color-mix(in srgb, black 72%, white); --sk-hover: whitesmoke; --sk-on: gainsboro; --sk-ontxt: black; }
+.plottools.onspek .seg { border-color: var(--sk-line); background: var(--sk-bg); }
+.plottools.onspek .seg button { height: 26px; font-size: 12px; padding: 0 8px; gap: 5px; white-space: nowrap; background: var(--sk-bg); color: var(--sk-txt); border-color: var(--sk-line); }
+.plottools.onspek .seg button:hover { background: var(--sk-hover); color: var(--sk-ontxt); }
+.plottools.onspek .seg button.on, .plottools.onspek .seg button.on:hover { background: var(--sk-on); color: var(--sk-ontxt); }
+.sptick { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 9px; border-radius: 9px; border: 1px solid var(--sk-line); background: var(--sk-bg); color: var(--sk-txt); font: inherit; font-size: 12px; white-space: nowrap; cursor: pointer; transition: background-color .15s, color .15s; }
+.sptick:hover { background: var(--sk-hover); color: var(--sk-ontxt); }
+.sptick i { width: 14px; height: 14px; flex: none; border-radius: 4px; border: 1.5px solid currentColor; display: inline-flex; align-items: center; justify-content: center; font-style: normal; }
+.sptick.on { color: var(--sk-ontxt); }
+canvas.spekcv-light { outline: 1px solid var(--line); outline-offset: -1px; }
+/* กราฟที่ซูมอยู่ กดเมาส์ลากได้ */
+.grabok { user-select: none; touch-action: none; }
+.grabok canvas { cursor: grab; }
+.grabok.grabbing, .grabok.grabbing canvas { cursor: grabbing; }
+/* การ์ดข้อมูลเพลงแผงซ้าย ปกยืดตามที่เหลือในแผง อย่างน้อยเห็นชัด */
+.ag[data-graphview] .apanel > .gtag { flex: 1 0 auto; display: flex; flex-direction: column; min-height: 0; }
+.gtag .gcover { position: relative; flex: 1 0 120px; max-height: 230px; margin-bottom: 8px; }
+.gtag .gcover > button { position: absolute; inset: 0; padding: 0; border: 0; background: none; cursor: pointer; }
+.gtag .gcover img { display: block; width: 100%; height: 100%; object-fit: contain; }
+.gtag .gcover > .none { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; font-size: 13px; color: var(--txt3); background: repeating-linear-gradient(135deg, var(--win) 0 8px, var(--win2) 8px 16px); border: 1px dashed var(--line); }
+canvas.spekpan { cursor: grab; touch-action: none; }
+canvas.spekpan.dragging { cursor: grabbing; }
 /* ปุ่มเลือกไฟล์กว้างตามตัวหนังสือ ไม่ยืดตามคอลัมน์ · ปุ่มเริ่มในหน้าใส่โปสเตอร์ได้ที่พอ */
 [data-poster-page] .three:has(> [data-card="movie"]) > .card > .btn { align-self: flex-start; }
 .pact-btns .btn:first-child { padding: 0 10px; }

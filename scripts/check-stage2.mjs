@@ -145,7 +145,8 @@ const tblNames = await q("return [...document.querySelectorAll('.lv tbody tr td:
 const tblSizes = tblNames.map((n) => lib1[n].size);
 const sizeOk = tblSizes.every((s, i) => i === 0 || tblSizes[i - 1] >= s);
 const arrow = await q("return !!document.querySelector('th[aria-sort=descending] svg')");
-check("ตารางขึ้นครบ ปุ่มขนาดปกกดไม่ได้ กดหัวคอลัมน์ขนาดแล้วเรียงใหญ่ไปเล็ก มีลูกศรบอก", rows === got.length && segOff && sizeOk && arrow, `${rows} แถว · ${sizes.slice(0, 3).join(" ")}…`);
+// พี่กันสั่ง 9 พ.ย. 2569 "ตารางก็ปรับขนาดโปสเตอร์ได้นะ" ปุ่มขนาดปกจึงต้องกดได้ในตาราง
+check("ตารางขึ้นครบ ปุ่มขนาดปกกดได้ กดหัวคอลัมน์ขนาดแล้วเรียงใหญ่ไปเล็ก มีลูกศรบอก", rows === got.length && !segOff && sizeOk && arrow, `${rows} แถว · ${sizes.slice(0, 3).join(" ")}…`);
 const top0 = await q("return document.querySelector('.shelfwrap').scrollTop");
 check("สลับเป็นตารางแล้วเลื่อนกลับบนสุด หัวชั้นไม่โดนตัด", top0 === 0, `เลื่อนอยู่ ${top0}`);
 await shot("09-ตาราง.png");
@@ -198,7 +199,8 @@ const rules = {
   status: (a, b) => kind(a) <= kind(b),
 };
 for (const [key, ok] of Object.entries(rules)) {
-  await c.click(".topbar .dd"); await sleep(150);
+  await c.evaluate("[...document.querySelectorAll('.topbar .dd')].find((d) => d.innerText.includes('เรียงตาม')).setAttribute('data-sortdd', '1')");
+  await c.click("[data-sortdd]"); await sleep(150);
   const idx = Object.keys(rules).indexOf(key);
   await c.click(`.topbar .menu [role=option]:nth-child(${idx + 1})`); await sleep(250);
   const order = (await names()).map((n) => lib[n]);

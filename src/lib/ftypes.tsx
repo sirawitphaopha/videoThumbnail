@@ -49,9 +49,16 @@ export function isLossless(name: string): boolean {
   return ["FLAC", "PCM", "ALAC", "WavPack", "TTA", "APE", "TAK", "TrueHD", "DTS-HD MA"].includes(name);
 }
 
+/** ชื่อที่คลังหนังใช้ ไม่ตรงกับชื่อป้าย · ให้ได้สีเดียวกับหน้าเสียงและซับ */
+const FT_ALIAS: Record<string, string> = { AVC: "H.264", HEVC: "H.265", SSA: "ASS", WebVTT: "VTT" };
+
+/** คลาสกับสีของป้ายชนิด ใช้ร่วมกันทุกที่ที่ป้ายสีตามชนิด */
+export function ftLook(name: string): { className: string; style?: React.CSSProperties } {
+  const key = FT_ALIAS[name] ?? name, h = HUE[key];
+  if (h == null) return { className: "ft unk" };
+  return { className: "ft" + (FT_LINE.has(key) ? " line" : ""), style: { ["--h" as string]: h } as React.CSSProperties };
+}
+
 export function FtChip({ name }: { name: string }) {
-  const h = HUE[name];
-  const full = FT_FULL[name] ?? name;
-  if (h == null) return <span className="ft unk" title={full}>{name}</span>;
-  return <span className={"ft" + (FT_LINE.has(name) ? " line" : "")} style={{ ["--h" as string]: h } as React.CSSProperties} title={full}>{name}</span>;
+  return <span {...ftLook(name)} title={FT_FULL[name] ?? name}>{name}</span>;
 }

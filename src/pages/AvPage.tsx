@@ -14,7 +14,7 @@ import DelayDialog from "../components/DelayDialog";
 import SubViewer from "../components/SubViewer";
 import { convertLabel } from "../lib/codecs";
 import ThaiInput from "../components/ThaiInput";
-import { CardIcon, Keep, Phr, Seg } from "../components/ui";
+import { CardIcon, Keep, Phr, Seg, dropClick, LoadPill } from "../components/ui";
 import { useToast } from "../components/Toasts";
 import { ADD_EXT, FONT_EXT, encodeApi, inApp, mergeApi, pickAddFiles, pickFile, pickFonts, posterApi, thumbUrl, type ApplyProblem, type CoverTarget, type EncoderInfo, type FontHit, type MergeResult, type PosterInfo, pairApi } from "../lib/api";
 import { useSettings } from "../lib/settings";
@@ -217,6 +217,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
       const s: CoverTarget = slot ?? (info.width > info.height ? "cover_land" : "cover");
       setCrop({ slot: s, info, start: null });
     } catch (e) {
+      setCrop(null); // เลือกรูปใหม่จากหน้าต่างครอปแล้วเปิดไม่ได้ ปิดให้เห็นเหตุผลบนช่องปก
       setSlotErr({ slot: slot ?? "cover", text: String(e) });
     } finally {
       setLoading(null);
@@ -419,7 +420,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
           {run.state !== "idle" && <div ref={runBox} className="card workbox" data-run={run.state}><RunCard run={run} pct={pct} runMovie={av.runMovie} onStop={() => setAskStop(true)} onShelf={() => p.onPage("shelf")} onGraph={p.onGraph} onRetry={() => setAv({ run: { state: "idle" } })} /></div>}
           <div className="card">
             <h3>เสียงและซับ</h3>
-            <div className={"drop" + (over && over !== null ? " over" : movieErr ? " bad" : "")} data-drop="movie" style={{ minHeight: 190 }}>
+            <div className={"drop" + (over && over !== null ? " over" : movieErr ? " bad" : "")} data-drop="movie" style={{ minHeight: 190 }} onClick={dropClick(async () => { if (working) return; const f = await pickFile("movie"); if (f) loadMovie(f); })}>
               <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#e5a3bd" strokeWidth="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M10 9l5 3-5 3z" /></svg>
               {over ? <b>ปล่อยเมาส์เพื่อใส่ไฟล์นี้</b>
                 : movieErr ? <><b>{movieErr}</b><div><Phr>ไฟล์หนังรองรับ MKV MP4 M4V MOV AVI WebM TS M2TS MPG MPEG VOB FLV</Phr></div></>
@@ -523,7 +524,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
               );
             })}
           </div>
-          <div className={"avdrop" + (over === "add" ? " over" : "")} data-drop="add">
+          <div className={"avdrop" + (over === "add" ? " over" : "")} data-drop="add" onClick={dropClick(async () => { if (working) return; const f = await pickAddFiles(); if (f.length) addFiles(f); })}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e5a3bd" strokeWidth="1.9" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
             <span>{over === "add" ? <b>ปล่อยเมาส์เพื่อเพิ่มไฟล์</b> : loading === "add" ? "กำลังอ่านไฟล์…" : <><b style={{ color: "var(--txt2)" }}>ลากไฟล์เสียงหรือซับมาวางเพิ่ม</b> · <Phr>เสียง AC-3 E-AC-3 DTS AAC FLAC WAV MP3 Opus · ซับ SRT ASS VTT SUP IDX · ฟอนต์ของซับ TTF OTF</Phr></>}</span>
             <button type="button" className={"btn btn-sm " + (working ? "btn-wait" : "btn-ghost")} aria-disabled={working || undefined} title={working ? BUSY : undefined}
@@ -701,11 +702,12 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
         <DelayDialog movie={{ path: movie.path, duration: movie.duration ?? null }} refTrack={refAudio} track={dt} onClose={() => setDelayFor(null)}
           onApply={(d) => { setDelay(dt.key, d); setDelayFor(null); }}
           onSpeed={(pair, d) => { setDelay(dt.key, d); setDelayFor(null); setCodecSpeed(pair.join(">")); openCodec(dt.key); }} />) : null; })()}
+      {loading === "cover" && <LoadPill text="กำลังอ่านรูป…" />}
       {crop && (
-        <CropDialog info={crop.info} start={crop.start} target={crop.slot} defaultFormat={(settings?.posterFormat ?? "jpg") as "jpg" | "png"} defaultQuality={settings?.jpgQuality ?? 90}
+        <CropDialog key={crop.slot + crop.info.path} info={crop.info} start={crop.start} target={crop.slot} defaultFormat={(settings?.posterFormat ?? "jpg") as "jpg" | "png"} defaultQuality={settings?.jpgQuality ?? 90}
           onCancel={() => setCrop(null)}
           onUse={(c) => { setSlot(crop.slot, { mode: "new", neu: { info: crop.info, choice: c } }); setCrop(null); }}
-          onChangeImage={async () => { const slot = crop.slot; setCrop(null); const f = await pickFile("image"); if (f) openCover(f, slot); }} />
+          onPickImage={(f) => openCover(f, crop.slot)} />
       )}
 
       {/* ก่อนรวม บอกว่าซับ VTT จะแปลงเป็น SRT (พี่กันสั่ง 7 พ.ย. 2569 *"ระบบจะต้องบอกด้วยนะ ว่าก่อนจะรวม ระบบจะ แปลง vtt เป็น srt เป็น popup ขึ้นก็ได้"*) */}

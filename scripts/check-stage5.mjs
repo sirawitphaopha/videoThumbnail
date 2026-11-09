@@ -27,7 +27,7 @@ const shot = async (f, sel) => { await c.move(100, 600); await sleep(250); retur
 await inv("set_settings", { patch: { folders: [DIR] } });
 await c.evaluate("location.hash = ''; location.reload()"); await sleep(2500);
 await c.book("ดาวเหนือ (2023)"); await sleep(300);
-await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.innerText.includes('ข้อมูลไฟล์')).click()");
+await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.innerText.includes('MediaInfo')).click()");
 for (let i = 0; i < 40 && !(await q("return !!document.querySelector('[data-mi]')")); i++) await sleep(150);
 const heads = await q("return [...document.querySelectorAll('[data-mi] .mih')].map(h => h.innerText.replace(/\\n/g, ' '))");
 await shot("01-ข้อมูลไฟล์.png", ".main");
@@ -130,7 +130,7 @@ check("ไฟล์ MP4 แยกเสียงเป็น .aac ด้วย f
   for (let i = 0; i < 100 && (await inv("get_library")).scanning; i++) await sleep(200);
   await c.evaluate("[...document.querySelectorAll('button')].find(b => b.innerText === 'กลับไปชั้นวาง')?.click()"); await sleep(500);
   await c.book("หนังยาว (2020)"); await sleep(300);
-  await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.innerText.includes('ข้อมูลไฟล์')).click()");
+  await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.innerText.includes('MediaInfo')).click()");
   for (let i = 0; i < 60 && !(await q("return !!document.querySelector('[data-mi]')")); i++) await sleep(150);
   await c.evaluate("document.querySelector('[data-kinds]').scrollIntoView()"); await sleep(200);
   await shot("06-ชื่อชนิดที่เจอบ่อย.png", "[data-kinds]");

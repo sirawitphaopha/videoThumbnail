@@ -21,11 +21,12 @@ import { useLibrary } from "../lib/library";
 import { useSettings } from "../lib/settings";
 import { searchByName, highlightParts } from "../lib/thaiSearch";
 import { fmtDateTime, fmtDuration, fmtSize } from "../lib/format";
-import { kindOf, KIND_ORDER, SHELF_LABEL, TABLE_LABEL, quickEstimate, fullEstimate, type Kind } from "../lib/status";
+import { kindOf, KIND_ORDER, SHELF_LABEL, TABLE_LABEL, type Kind } from "../lib/status";
 import { dropStyle, useDropPlacement } from "../lib/popupFit";
 import { useClickOutside, useEscClose, kb } from "../lib/popup";
 import { useSkelPreview } from "../lib/skelPreview";
 import HoverBig from "../components/HoverBig";
+import { ftLook } from "../lib/ftypes";
 import { IcSearch, IbTrash, IbNext, IcRefresh, IcCheck, IbPencil, IcMix, IcClose, IbEye, IbPlay, IcPoster, IbCrop, IcSettings } from "../components/icons";
 
 const SORTS = [
@@ -35,6 +36,7 @@ const SORTS = [
   { value: "added", label: "เพิ่มเข้าชั้นล่าสุด" },
   { value: "size", label: "ขนาดไฟล์ ใหญ่ไปเล็ก" },
   { value: "status", label: "สภาพไฟล์ ที่เสียขึ้นก่อน" },
+  { value: "rating", label: "ดาวมากไปน้อย" },
 ];
 const SIZES = { s: { w: 100, gap: 14 }, m: { w: 140, gap: 18 }, l: { w: 180, gap: 20 } } as const;
 const byName = (a: Movie, b: Movie) => a.name.localeCompare(b.name, "th");
@@ -45,6 +47,13 @@ type CoverFilter = "all" | "file" | "linked" | "none";
 let filterMemo: CoverFilter = "all";
 /** นับตามปกที่กำลังแสดง เรื่องหนึ่งอยู่หมวดเดียว ยอดสามหมวดรวมกันเท่าทั้งหมด */
 const coverFrom = (m: Movie): Exclude<CoverFilter, "all"> => (m.shownLink ? "linked" : m.thumb ? "file" : "none");
+/** ตัวกรองคะแนนดาว · จำไว้ระหว่างเปลี่ยนหน้าแบบเดียวกับตัวกรองปก */
+type StarFilter = "all" | "5" | "4" | "3" | "2" | "1" | "none";
+const STAR_FILTERS: { value: StarFilter; label: string }[] = [
+  { value: "all", label: "ทุกดาว" }, { value: "5", label: "5 ดาว" }, { value: "4", label: "4 ดาวขึ้นไป" }, { value: "3", label: "3 ดาวขึ้นไป" }, { value: "2", label: "2 ดาวขึ้นไป" }, { value: "1", label: "1 ดาวขึ้นไป" }, { value: "none", label: "ยังไม่ให้ดาว" },
+];
+let starMemo: StarFilter = "all";
+const passStars = (m: Movie, f: StarFilter) => (f === "all" ? true : f === "none" ? !m.rating : (m.rating ?? 0) >= Number(f));
 const LinkMark = () => <span className="linkb" title="ปกจับคู่ไว้ ไม่ได้อยู่ในไฟล์" data-linkb><IcLink size={13} stroke="#b0355f" /></span>;
 
 export function sortMovies(list: Movie[], key: string, reminder: number): Movie[] {
@@ -54,6 +63,7 @@ export function sortMovies(list: Movie[], key: string, reminder: number): Movie[
     case "year": return l.sort((a, b) => (b.year ?? -1) - (a.year ?? -1) || byName(a, b));
     case "added": return l.sort((a, b) => b.added - a.added || byName(a, b));
     case "size": return l.sort((a, b) => b.size - a.size || byName(a, b));
+    case "rating": return l.sort((a, b) => (b.rating ?? 0) - (a.rating ?? 0) || byName(a, b));
     case "status": return l.sort((a, b) => KIND_ORDER[kindOf(a, reminder)] - KIND_ORDER[kindOf(b, reminder)] || byName(a, b));
     default: return l.sort(byName);
   }
@@ -87,12 +97,16 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
   const covered = useMemo(() => sortMovies(found.items, sort, reminder).map((m) => withCover(m, orient)), [found.items, sort, reminder, orient]);
   const [filter, setFilterNow] = useState<CoverFilter>(filterMemo);
   const setFilter = (v: CoverFilter) => { filterMemo = v; setFilterNow(v); };
+  const [star, setStarNow] = useState<StarFilter>(starMemo);
+  const setStar = (v: StarFilter) => { starMemo = v; setStarNow(v); };
+  // กรองดาวก่อน เลขบนปุ่มกรองปกจึงตรงกับที่เห็นบนชั้น
+  const starred = useMemo(() => (star === "all" ? covered : covered.filter((m) => passStars(m, star))), [covered, star]);
   const counts = useMemo(() => {
-    const c = { all: covered.length, file: 0, linked: 0, none: 0 };
-    for (const m of covered) c[coverFrom(m)]++;
+    const c = { all: starred.length, file: 0, linked: 0, none: 0 };
+    for (const m of starred) c[coverFrom(m)]++;
     return c;
-  }, [covered]);
-  const list = useMemo(() => (filter === "all" ? covered : covered.filter((m) => coverFrom(m) === filter)), [covered, filter]);
+  }, [starred]);
+  const list = useMemo(() => (filter === "all" ? starred : starred.filter((m) => coverFrom(m) === filter)), [starred, filter]);
   const linkJob = useLinkJob();
   const resume = linkJob.resume ? linkJob.reply.waiting : 0;
   // แผงขวาขึ้นเฉพาะตอนกดเลือกเรื่อง ปิดได้ ชั้นวางกว้างขึ้น (พี่กัน 7 พ.ย. 2569 *"แถบนี้ เราอยากให้มันขึ้นตอนที่กดหนังนั้นๆ เเละมีปุ่มปิดได้ เราอยากห้มันเเสดงชั้นวางมากกว่า"*)
@@ -108,9 +122,12 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
   return (
     <>
       <div className="topbar">
-        <div className="path" title={settings?.folders.join("\n")}>
-          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
-          <span>{pathText}</span>
+        <div className="tbleft">
+          <div className="path" title={settings?.folders.join("\n")}>
+            <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>
+            <span>{pathText}</span>
+          </div>
+          {movies.length > 0 && <div className="tbstar" data-star-filter><Dropdown label="กรองคะแนนดาว" value={star} options={STAR_FILTERS} onChange={setStar} stretch /></div>}
         </div>
         <SearchBox value={query} onChange={setQuery} placeholder="ค้นหาชื่อหนัง" label="ค้นหาชื่อหนัง" swapLabel={found.swapped ? found.used : ""} width="100%" />
         <Dropdown label="เรียง" value={sort} options={SORTS} onChange={(v) => update({ sort: v })} display={(o) => `เรียงตาม${o?.label ?? ""}`} />
@@ -127,7 +144,7 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
         {movies.length > 0 ? (
           <div className="seg sm shelffilter" role="tablist" aria-label="กรองตามที่มาของปก" data-shelf-filter>
             {([["all", "ทั้งหมด"], ["file", "ปกในไฟล์"], ["linked", "ปกจับคู่"], ["none", "ยังไม่มีปก"]] as const).map(([v, label]) => (
-              <button key={v} type="button" role="tab" aria-selected={filter === v} className={filter === v ? "on" : ""} data-shelf-tab={v} onClick={() => setFilter(v)}>{label} {counts[v]}</button>
+              <button key={v} type="button" role="tab" aria-selected={filter === v} className={filter === v ? "on" : ""} data-shelf-tab={v} onClick={() => setFilter(v)}>{v === "linked" && <IcLink size={13} />}{label} {counts[v]}</button>
             ))}
           </div>
         ) : <div />}
@@ -136,7 +153,6 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
           { value: "table", label: <><ListIcon />ตาราง</> },
         ]} />
         <Seg small label="ขนาดปก" value={size} onChange={(v) => update({ coverSize: v })}
-          disabledReason={view === "table" ? "ขนาดปกใช้ได้ตอนดูแบบภาพปก" : undefined}
           options={[{ value: "s", label: <><IcCoverS />เล็ก</> }, { value: "m", label: <><IcCoverM />กลาง</> }, { value: "l", label: <><IcCoverL />ใหญ่</> }]} />
         <div className="tborient">
           <Seg small label="ดูปก" value={orient} onChange={(v) => update({ coverOrient: v })}
@@ -183,6 +199,11 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
               <div style={{ fontSize: 14 }}>ไม่มีเรื่องในหมวดนี้</div>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setFilter("all")}><IbEye size={15} />ดูทั้งหมด</button>
             </div>
+          ) : star !== "all" && list.length === 0 && !query ? (
+            <div className="empty-search" data-star-empty>
+              <div style={{ fontSize: 14 }}>ไม่มีหนังที่ตรงกับ <b>{STAR_FILTERS.find((x) => x.value === star)?.label}</b></div>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => setStar("all")}><IbEye size={15} />ดูทุกดาว</button>
+            </div>
           ) : query && list.length === 0 ? (
             <div className="empty-search">
               <svg width="34" height="34" viewBox="0 0 24 24" fill="none" stroke="#c99aad" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M20 20l-3.5-3.5M8.5 8.5l5 5M13.5 8.5l-5 5" /></svg>
@@ -196,7 +217,7 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
               showNames={settings?.showNames ?? true} showDots={settings?.showDots ?? true} showFrames={settings?.showFrames ?? false}
               pending={scanning && !query && progress ? Math.max(0, progress.total - movies.length) : 0} />
           ) : (
-            <ShelfTable list={list} selId={selected?.id ?? null} onSel={(id) => setSel(selected?.id === id ? null : id)} used={found.used} reminder={reminder} showFrames={settings?.showFrames ?? false} />
+            <ShelfTable size={size} list={list} selId={selected?.id ?? null} onSel={(id) => setSel(selected?.id === id ? null : id)} used={found.used} reminder={reminder} showFrames={settings?.showFrames ?? false} />
           )}
         </div>
         {/* key ต่อเรื่อง สลับเรื่องแล้วสร้างแผงกับปุ่มใหม่ ไม่ใช้ปุ่มเดิมซ้ำ (เดิมปุ่มชมพูค่อย ๆ เปลี่ยนเป็นเขียวตอนสลับเรื่อง) */}
@@ -210,12 +231,13 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
             onReveal={() => api.revealMovie(selected.path).catch((e) => toast({ kind: "bad", title: "เปิดโฟลเดอร์ไม่ได้", detail: String(e) }))} />
         )}
       </div>
-      {/* แถบสถานะล่างแบบโปรแกรม บอกจำนวนเรื่องกับความหมายจุดสี ไม่กินที่ด้านบน */}
+      {/* แถบสถานะล่างแบบโปรแกรม บอกจำนวนเรื่องกับความหมายเครื่องหมาย ไม่กินที่ด้านบน · ใช้รูปเดียวกับบนชั้น (พี่กันสั่ง 9 พ.ย. 2569 "มันมีเเค่สี มันควรเป้นรูปเดียวกัน") */}
       <div className="statusbar" data-statusbar>
-        <span>{query || filter !== "all" ? <>เจอ {list.length} จาก <span className="nw">{movies.length} เรื่อง</span></> : <>หนังทั้งหมด <span className="nw">{movies.length} เรื่อง</span></>}</span>
+        <span>{query || filter !== "all" || star !== "all" ? <>เจอ {list.length} จาก <span className="nw">{movies.length} เรื่อง</span></> : <>หนังทั้งหมด <span className="nw">{movies.length} เรื่อง</span></>}</span>
         {settings?.showDots && view === "grid" && list.length > 0 && (
           <div className="legend">
-            {(["ok", "warn", "bad", "info"] as Kind[]).map((k) => <span key={k}><i style={{ background: `var(--${k})` }} />{SHELF_LABEL[k]}</span>)}
+            {(["ok", "warn", "bad", "info"] as Kind[]).map((k) => <span key={k} data-legend={k}><Badge kind={k} title={SHELF_LABEL[k]} />{SHELF_LABEL[k]}</span>)}
+            <span data-legend="link"><LinkMark />ปกจับคู่</span>
           </div>
         )}
       </div>
@@ -241,7 +263,7 @@ function DisplayMenu() {
         <div ref={panel} className="menu pop-in" role="dialog" aria-label="การแสดงผล"
           style={{ position: "absolute", right: 0, width: 320, padding: "6px 14px", zIndex: "var(--z-menu)" as unknown as number, ...dropStyle(place) }}>
           <div className="setrow" style={{ borderTop: 0 }}><div className="lbl">ชื่อไฟล์ใต้ปก</div><Switch on={settings.showNames} onChange={(v) => update({ showNames: v })} label="ชื่อไฟล์ใต้ปก" /></div>
-          <div className="setrow"><div className="lbl">ภาพจากหนังในเรื่องที่ยังไม่มีปก<span className="small">เปิด เห็นภาพสุ่มจากหนัง · ปิด เห็นแถบทะแยง · ไม่เขียนลงไฟล์หนัง</span></div><span data-showframes style={{ display: "inline-flex" }}><Switch on={settings.showFrames} onChange={(v) => update({ showFrames: v })} label="ภาพจากหนังในเรื่องที่ยังไม่มีปก" /></span></div>
+          <div className="setrow"><div className="lbl">ภาพจากหนังในเรื่องที่ยังไม่มีปก</div><span data-showframes style={{ display: "inline-flex" }}><Switch on={settings.showFrames} onChange={(v) => update({ showFrames: v })} label="ภาพจากหนังในเรื่องที่ยังไม่มีปก" /></span></div>
           <div className="setrow"><div className="lbl">จุดสีบอกสภาพไฟล์</div><Switch on={settings.showDots} onChange={(v) => update({ showDots: v })} label="จุดสีบอกสภาพไฟล์" /></div>
         </div>
       )}
@@ -337,6 +359,85 @@ function SkelBook({ size, i }: { size: "s" | "m" | "l"; i: number }) {
   );
 }
 
+/** ป้ายใต้ปก ไฟล์ เสียง ซับ · สูงสุด 2 บรรทัด ล้นตัดแชนแนลเฉพาะเรื่องนี้ ยังล้นซ่อนป้ายท้ายขึ้น +จำนวน
+    (พี่กันสั่ง 9 พ.ย. 2569 "เเต่มันจะเป็นตัวหนาเหมือน tag" · "เสียง ใส่เเชเเนลที" · "ทำให้มันเหลือสูสุดเเค่ 2 บรรทัดได้มั้ย เช่น ถ้าแบบนี้ เฉพาะจุดนี้ เอาเเชเเนลออก" · ข้อ +จำนวนแคลร์ตั้ง) */
+function BookTags({ m }: { m: Movie }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const audio = [...new Map(m.audio.map((a) => [a.codec + "|" + (a.layout ?? ""), a])).values()];
+  const subs = [...new Set(m.subs.map((x) => x.codec).filter(Boolean))];
+  const key = audio.map((a) => a.codec + a.layout).join() + "|" + subs.join() + "|" + m.ext;
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    let touched = false, lastW = -1;
+    const fit = () => {
+      const w = el.clientWidth;
+      if (w === lastW) return;
+      lastW = w;
+      const tags = [...el.querySelectorAll<HTMLElement>(":scope > .bt")];
+      const more = el.querySelector<HTMLElement>(":scope > .btmore");
+      if (!more) return;
+      if (touched) {
+        el.classList.remove("nochan");
+        tags.forEach((t) => { t.style.display = ""; });
+        more.style.display = "none";
+        touched = false;
+      }
+      const lines = () => new Set([...el.children].filter((x) => (x as HTMLElement).style.display !== "none").map((x) => (x as HTMLElement).offsetTop)).size;
+      if (lines() <= 2) return;
+      touched = true;
+      el.classList.add("nochan");
+      // ตัดแชนแนลแล้วชื่อซ้ำ เช่น AAC 2.0 กับ AAC 5.1 เหลือป้ายเดียว
+      const seen = new Set<string>();
+      tags.forEach((t) => { const b = t.dataset.base; if (b && seen.has(b)) t.style.display = "none"; if (b) seen.add(b); });
+      if (lines() <= 2) return;
+      more.style.display = "";
+      const on = tags.filter((t) => t.style.display !== "none");
+      for (let i = on.length - 1; i > 0 && lines() > 2; i--) {
+        on[i].style.display = "none";
+        more.textContent = "+" + (on.length - i);
+      }
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [key]);
+  const title = [`ไฟล์ ${m.ext.toUpperCase()}`, audio.length ? "เสียง " + tracks(m.audio, true) : "ไม่มีเสียง", m.subs.length ? "ซับ " + tracks(m.subs, false) : "ไม่มีซับ"].join("\n");
+  return (
+    <div ref={ref} className="bn3" title={title} data-booktags>
+      <span className="bt f">{m.ext.toUpperCase()}</span>
+      {audio.map((a) => <span key={a.codec + a.layout} className="bt a" data-base={"a" + a.codec}>{a.codec}{a.layout && <span className="ch"> {a.layout}</span>}</span>)}
+      {subs.map((c) => <span key={c} className="bt s">{c}</span>)}
+      <span className="bt btmore" style={{ display: "none" }} />
+    </div>
+  );
+}
+
+/** ดาวห้าดวงให้คะแนน (พี่กันเลือก 9 พ.ย. 2569 "ดวงเเบบนี้" แบบ ช จากมอคอัป) · กดดวงเดิมซ้ำล้างคะแนน (แคลร์ตั้ง) · ไม่เลือกเรื่องตอนกดดาว */
+function Stars({ m }: { m: Movie }) {
+  const toast = useToast();
+  const [val, setVal] = useState(m.rating ?? 0);
+  const [hover, setHover] = useState(0);
+  useEffect(() => setVal(m.rating ?? 0), [m.rating]);
+  const pick = (e: React.MouseEvent, n: number) => {
+    e.stopPropagation();
+    const old = val, next = val === n ? 0 : n;
+    setVal(next);
+    api.setRating(m.id, next).catch((err) => { setVal(old); toast({ kind: "bad", title: "ให้คะแนนไม่สำเร็จ", detail: String(err) }); });
+  };
+  const show = hover || val;
+  return (
+    <span className="stars" role="group" aria-label={`คะแนน ${val} จาก 5 ดาว`} data-stars={val} onMouseLeave={() => setHover(0)} onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button key={n} type="button" className={"star" + (n <= show ? " on" : "")} title={val === n ? "กดอีกครั้งเพื่อล้างคะแนน" : `ให้ ${n} ดาว`} aria-label={`ให้ ${n} ดาว`} aria-pressed={val === n} data-star={n} onMouseEnter={() => setHover(n)} onClick={(e) => pick(e, n)}>
+          <svg width="12" height="12" viewBox="0 0 24 24" strokeWidth="2" strokeLinejoin="round" aria-hidden="true"><path d="M12 3l2.8 5.8 6.2.9-4.5 4.4 1.1 6.3L12 17.4l-5.6 3 1.1-6.3L3 9.7l6.2-.9z" /></svg>
+        </button>
+      ))}
+    </span>
+  );
+}
+
 function Book(p: { m: Movie; width: number; sel: boolean; onSel: (id: string) => void; used: string; reminder: number; showNames: boolean; showDots: boolean; showFrames: boolean }) {
   const { m } = p;
   const k = kindOf(m, p.reminder);
@@ -348,7 +449,7 @@ function Book(p: { m: Movie; width: number; sel: boolean; onSel: (id: string) =>
     <div
       className={"book" + (wide ? " wide" : "") + (p.sel ? " sel" : "") + (m.missing ? " missing" : "")}
       style={wide ? { width: p.width } : undefined}
-      title={[p.showNames ? "" : full, m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : ""].filter(Boolean).join("\n") || undefined}
+      title={[full, m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : ""].filter(Boolean).join("\n") || undefined}
       aria-label={full + " · " + SHELF_LABEL[k] + (m.shownLink ? " · ปกจับคู่" : "") + (m.missing ? " · หาไฟล์ไม่เจอ" : "")}
       aria-pressed={p.sel}
       data-movie={m.name}
@@ -366,10 +467,11 @@ function Book(p: { m: Movie; width: number; sel: boolean; onSel: (id: string) =>
         </div>
       )}
       {(p.showNames || p.showDots || m.shownLink) && (
-        <div className="bname" style={p.showNames ? undefined : { minHeight: 0 }}>
-          {p.showNames
-            ? <><Hl text={m.name} used={p.used} head={<>{p.showDots && <Badge kind={k} title={SHELF_LABEL[k]} />}{m.shownLink && <LinkMark />}</>} />{m.ext !== "mkv" && <> <span className="ext">.{m.ext}</span></>}</>
-            : <><Badge kind={k} title={SHELF_LABEL[k]} />{m.shownLink && <LinkMark />}</>}
+        <div className="bname">
+          {/* สามบรรทัด ชื่อ · เครื่องหมาย · ป้าย ตรงแนวกันทุกเรื่อง (พี่กันสั่ง 9 พ.ย. 2569 "ให้มันเป้นระเบีบย" · เลือกแบบ ค จากมอคอัป pick-ui แท็บ 5) · ชื่อยาวตัดท้าย ชี้ดูชื่อเต็ม */}
+          {p.showNames && <div className="bn1"><Hl text={m.name} used={p.used} /></div>}
+          {(p.showNames || p.showDots || m.shownLink) && <div className="bn2">{p.showDots && <Badge kind={k} title={SHELF_LABEL[k]} />}{m.shownLink && <LinkMark />}{p.showNames && <Stars m={m} />}</div>}
+          {p.showNames && <BookTags m={m} />}
         </div>
       )}
     </div>
@@ -390,19 +492,74 @@ function SkeletonShelf({ size }: { size: "s" | "m" | "l" }) {
 }
 
 /* ---------- มุมมองตาราง (ต้นแบบบรรทัด 510–557) ---------- */
-type Col = "name" | "size" | "video" | "audio" | "status";
+type Col = "name" | "size" | "video" | "audio" | "subs" | "status";
 /** รูปย่อในตาราง เรื่องที่ไม่มีปกเป็นแถบทะแยง หรือภาพจากหนังเมื่อเปิดไว้ */
 function NoCoverTh({ m, on }: { m: Movie; on: boolean }) {
   const frame = useMovieFrame(m, on);
-  return frame.url ? <img className="th" src={thumbUrl(frame.url) ?? undefined} alt="" title="ภาพจากหนัง ยังไม่ใช่ปก" data-frame /> : <span ref={frame.ref} className="th none" />;
+  const url = frame.url ? thumbUrl(frame.url) : null;
+  return url ? <HoverBig src={url} ratio={16 / 9} name={m.name + " · ภาพจากหนัง ยังไม่ใช่ปก"}><img className="th" src={url} alt="" title="ภาพจากหนัง ยังไม่ใช่ปก" data-frame /></HoverBig> : <span ref={frame.ref} className="th none" />;
 }
 
-function ShelfTable(p: { list: Movie[]; selId: string | null; onSel: (id: string) => void; used: string; reminder: number; showFrames: boolean }) {
+/** ป้าย ภาษา ชนิด แชนแนล · สีตามชนิด */
+type Chip = { text: string; ft: string };
+const trackChips = (t: Movie["audio"], withLayout: boolean): Chip[] => t.map((x) => ({ text: [x.lang, x.codec, withLayout ? x.layout : null].filter(Boolean).join(" "), ft: x.codec }));
+/** ป้าย Video เช่น HEVC 2160p HDR สีจากคำแรก */
+const videoChips = (v: string | null | undefined): Chip[] => (v ? [{ text: v, ft: v.split(" ")[0] }] : []);
+
+/** ป้ายแถวเดียวในตาราง ไม่พอช่องซ่อนตัวท้ายแล้วบอก +จำนวน ชี้ที่ช่องดูครบ · คอลัมน์กว้างตายตัว การซ่อนจึงไม่ย้อนมาเปลี่ยนความกว้างช่อง
+    (พี่กันสั่ง 9 พ.ย. 2569 "เสียง มันสองเเถวอ่ะ" · "ต้องบอกภาษษด้วย" · "เปลี่ยนเป็นการ์ดที") */
+function ChipRow({ items }: { items: Chip[] }) {
+  const ref = useRef<HTMLDivElement>(null);
+  const key = items.map((c) => c.text).join("|");
+  useLayoutEffect(() => {
+    const el = ref.current;
+    if (!el) return;
+    const fit = () => {
+      const chips = [...el.querySelectorAll<HTMLElement>(":scope > .lvchip")];
+      const more = el.querySelector<HTMLElement>(":scope > .lvmore");
+      if (!more) return;
+      el.classList.remove("tight");
+      chips.forEach((c) => { c.style.display = ""; });
+      more.style.display = "none";
+      const GAP = 4, room = el.clientWidth, w = chips.map((c) => c.offsetWidth);
+      if (w.reduce((a, b) => a + b, 0) + GAP * (w.length - 1) <= room) return;
+      more.textContent = "+" + chips.length;
+      more.style.display = "";
+      const mw = more.offsetWidth;
+      let used = 0, n = 0;
+      for (let i = 0; i < w.length; i++) {
+        const next = used + w[i] + (i ? GAP : 0);
+        if (next + GAP + mw > room) break;
+        used = next;
+        n = i + 1;
+      }
+      n = Math.max(1, n);
+      chips.forEach((c, i) => { c.style.display = i < n ? "" : "none"; });
+      more.textContent = "+" + (chips.length - n);
+      // ป้ายเดียวยาวเกินช่อง ไม่มีอะไรซ่อน ไม่ขึ้น +0 ตัดท้ายป้ายแทน
+      if (n === chips.length) more.style.display = "none";
+      el.classList.toggle("tight", n === 1);
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [key]);
+  if (!items.length) return <>—</>;
+  return (
+    <div ref={ref} className="lvchips">
+      {items.map((c, i) => { const look = ftLook(c.ft); return <span key={i} className={look.className + " lvchip"} style={look.style}>{c.text}</span>; })}
+      <span className="lvmore" style={{ display: "none" }} />
+    </div>
+  );
+}
+
+function ShelfTable(p: { size: "s" | "m" | "l"; list: Movie[]; selId: string | null; onSel: (id: string) => void; used: string; reminder: number; showFrames: boolean }) {
   const [sort, setSort] = useState<{ col: Col; dir: 1 | -1 } | null>(null);
   const rows = useMemo(() => {
     if (!sort) return p.list;
     const key = (m: Movie): string | number => ({
-      name: m.name, size: m.size, video: m.videoShort ?? "", audio: tracks(m.audio, true), status: KIND_ORDER[kindOf(m, p.reminder)],
+      name: m.name, size: m.size, video: m.videoShort ?? "", audio: tracks(m.audio, true), subs: tracks(m.subs, false), status: KIND_ORDER[kindOf(m, p.reminder)],
     })[sort.col];
     return p.list.slice().sort((a, b) => {
       const x = key(a), y = key(b);
@@ -410,10 +567,10 @@ function ShelfTable(p: { list: Movie[]; selId: string | null; onSel: (id: string
       return c * sort.dir || byName(a, b);
     });
   }, [p.list, sort, p.reminder]);
-  const head = (col: Col, label: string, w?: number) => {
+  const head = (col: Col, label: string, cls: string) => {
     const on = sort?.col === col;
     return (
-      <th style={w ? { width: w } : undefined} aria-sort={on ? (sort!.dir === 1 ? "ascending" : "descending") : "none"}>
+      <th className={cls} aria-sort={on ? (sort!.dir === 1 ? "ascending" : "descending") : "none"}>
         <button type="button" className="thsort" onClick={() => setSort(on ? { col, dir: sort!.dir === 1 ? -1 : 1 } : { col, dir: col === "size" ? -1 : 1 })}>
           {label}
           <SortArrow dir={on ? sort!.dir : 0} />
@@ -422,10 +579,10 @@ function ShelfTable(p: { list: Movie[]; selId: string | null; onSel: (id: string
     );
   };
   return (
-    <div className="tblwrap" data-table>
+    <div className={"tblwrap tb-" + p.size} data-table>
       <table className="lv">
         <thead><tr>
-          <th style={{ width: 50, textAlign: "center" }}>ปก</th>{head("name", "ชื่อไฟล์")}{head("size", "ขนาด", 80)}{head("video", "Video", 120)}{head("audio", "Audio", 150)}{head("status", "สภาพไฟล์", 120)}
+          <th className="c-th" style={{ textAlign: "center" }}>ปก</th>{head("name", "ชื่อไฟล์", "c-name")}{head("size", "ขนาด", "c-size")}{head("video", "Video", "c-video")}{head("audio", "Audio", "c-a")}{head("subs", "Subtitle", "c-s")}{head("status", "สภาพไฟล์", "c-st")}
         </tr></thead>
         <tbody>
           {rows.map((m) => {
@@ -433,12 +590,14 @@ function ShelfTable(p: { list: Movie[]; selId: string | null; onSel: (id: string
             const src = thumbUrl(m.thumb);
             return (
               <tr key={m.id} className={(m.id === p.selId ? "sel" : "") + (m.missing ? " missing" : "")} {...kb(() => p.onSel(m.id))} aria-selected={m.id === p.selId}>
-                <td>{src ? <img className={"th" + ((m.coverAspect ?? 0) >= 1 ? " wide" : "")} src={src} alt="" loading="lazy" /> : <NoCoverTh m={m} on={p.showFrames} />}</td>
-                <td><Hl text={m.name + "." + m.ext} used={p.used} head={m.shownLink ? <LinkMark /> : undefined} /></td>
+                {/* ชี้รูปขึ้นภาพใหญ่ ตัวเดียวกับหน้าจับคู่ปก (พี่กันสั่ง 9 พ.ย. 2569 "เอาเมาส์ชี้ที่รูป จะ popup ภาพขึ้นมาดู") */}
+                <td>{src ? <HoverBig src={src} ratio={m.coverAspect || 2 / 3} name={m.name}><img className={"th" + ((m.coverAspect ?? 0) >= 1 ? " wide" : "")} src={src} alt="" loading="lazy" /></HoverBig> : <NoCoverTh m={m} on={p.showFrames} />}</td>
+                <td><Hl text={m.name} used={p.used} head={m.shownLink ? <LinkMark /> : undefined} tail={<b className="lvext">.{m.ext}</b>} /><div className="lvstars"><Stars m={m} /></div></td>
                 <td><span className="nw">{fmtSize(m.size)}</span></td>
-                <td>{m.videoShort ?? "—"}</td>
-                <td>{m.audio.map((a) => [a.codec, a.layout].filter(Boolean).join(" ")).join(" · ") || "—"}</td>
-                <td style={{ whiteSpace: "nowrap" }}><span className="dot" style={{ background: `var(--${k})` }} />{TABLE_LABEL[k]}</td>
+                <td className="lv-v" title={m.videoShort ?? undefined}><ChipRow items={videoChips(m.videoShort)} /></td>
+                <td className="lv-a" title={tracks(m.audio, true) || undefined}><ChipRow items={trackChips(m.audio, true)} /></td>
+                <td className="lv-s" title={tracks(m.subs, false) || undefined}><ChipRow items={trackChips(m.subs, false)} /></td>
+                <td style={{ whiteSpace: "nowrap" }}><span className="lvstat"><Badge kind={k} title={TABLE_LABEL[k]} /><span className="lvword">{TABLE_LABEL[k]}</span></span></td>
               </tr>
             );
           })}
@@ -492,18 +651,19 @@ function Detail(p: { m: Movie; showFrames: boolean; scanning: boolean; reminder:
           </button>
         </div>
       )}
+      {!editing && <div className="fstars"><Stars m={m} /></div>}
       {renamed && !editing && (
         <div className="stat ok" style={{ marginTop: 0, marginBottom: 12 }} role="status" data-renamed>
           <CardIcon kind="done" /><div><b>เปลี่ยนชื่อไฟล์แล้ว</b><Phr>ชื่อในเครื่องเปลี่ยนตามแล้ว แถบนี้หายเองใน 3 วินาที</Phr></div>
         </div>
       )}
       <dl className="kv">
-        <dt>ขนาดไฟล์</dt><dd><span className="nw">{fmtSize(m.size)}</span></dd>
-        <dt>ความยาว</dt><dd><span className="nw">{fmtDuration(m.duration)}</span></dd>
-        <dt>ภาพ</dt><dd>{m.video ?? "—"}</dd>
-        <dt>เสียง</dt><dd>{tracks(m.audio, true) || "ไม่มี"}</dd>
-        <dt>ซับไตเติล</dt><dd>{tracks(m.subs, false) || "ไม่มี"}</dd>
-        <dt>ไฟล์แนบ</dt><dd>{m.images ? `${m.hasCover ? "โปสเตอร์" : "รูป"} ${m.images} รูป` : "ไม่มี"}</dd>
+        <dt>File size</dt><dd><span className="nw">{fmtSize(m.size)}</span></dd>
+        <dt>Duration</dt><dd><span className="nw">{fmtDuration(m.duration)}</span></dd>
+        <dt>Video</dt><dd>{m.video ?? "—"}</dd>
+        <dt>Audio</dt><dd>{tracks(m.audio, true) || "ไม่มี"}</dd>
+        <dt>Subtitle</dt><dd>{tracks(m.subs, false) || "ไม่มี"}</dd>
+        <dt>Attachment</dt><dd>{m.images ? `${m.hasCover ? "โปสเตอร์" : "รูป"} ${m.images} รูป` : "ไม่มี"}</dd>
       </dl>
       <StatusCard m={m} reminder={p.reminder} onCheck={p.onCheck} onPoster={() => p.onPoster(m.path)} />
       {(m.pairs?.length ?? 0) > 0 && <PairCard m={m} onEdit={() => p.onAv(m.path)} />}
@@ -520,7 +680,7 @@ function Detail(p: { m: Movie; showFrames: boolean; scanning: boolean; reminder:
           title={m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : undefined} onClick={() => { if (!m.missing) p.onPoster(m.path); }}><IcPoster size={15} />เปลี่ยนโปสเตอร์</button>
         <button type="button" className="btn btn-ghost" onClick={() => p.onCheck({ ids: [m.id] })}><IcCheck size={15} />ตรวจไฟล์</button>
         <button type="button" onClick={() => { if (!m.missing) p.onInfo(); }} className={"btn " + (m.missing ? "btn-wait" : "btn-ghost")} aria-disabled={m.missing || undefined} title={m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : undefined}>
-          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5h.01" /></svg>ข้อมูลไฟล์
+          <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5h.01" /></svg>MediaInfo
         </button>
         <button type="button" className="btn btn-ghost" onClick={p.onReveal}>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>เปิดโฟลเดอร์
@@ -699,8 +859,8 @@ function StatusCard({ m, reminder, onCheck, onPoster }: { m: Movie; reminder: nu
     return (
       <>
         <div className="stat bad"><CardIcon kind="bad" /><div><b>ไฟล์เสียหาย</b>{m.check?.summary ?? (span ? "พบที่เสียในไฟล์" : "ตรวจแล้วพบที่เสีย")}<br /><Phr>ไฟล์น่าจะโหลดมาไม่ครบ ควรโหลดใหม่</Phr></div></div>
-        <div className="minirow" style={{ marginTop: -4 }}>
-          <button type="button" className="btn btn-ghost" onClick={() => onCheck({ ids: [m.id], open: m.id })}><IcCheck size={15} />ดูรายละเอียดผลตรวจ</button>
+        <div className="minirow half" style={{ marginTop: -4 }}>
+          <button type="button" className="btn btn-ghost" onClick={() => onCheck({ ids: [m.id], open: m.id })}><IcCheck size={15} />ดูผลตรวจ</button>
           <button type="button" className="btn btn-ghost" onClick={() => onCheck({ ids: [m.id], mode: "full" })}><IcCheck size={15} />ตรวจซ้ำ</button>
         </div>
       </>
@@ -710,7 +870,7 @@ function StatusCard({ m, reminder, onCheck, onPoster }: { m: Movie; reminder: nu
     return (
       <>
         <div className="stat info"><CardIcon kind="info" /><div><b>ยังไม่ได้ครอบเป็น MKV</b><Phr>{`ไฟล์นี้เป็น ${m.ext.toUpperCase()} ใส่โปสเตอร์ได้หลังครอบเป็น MKV`}</Phr><br /><Phr>ภาพและเสียงไม่ถูกแปลงใหม่ คุณภาพเท่าเดิม</Phr></div></div>
-        <div className="minirow" style={{ marginTop: -4 }}><button type="button" className="btn btn-main" onClick={onPoster}><IcPoster size={15} />ครอบเป็น MKV พร้อมโปสเตอร์</button></div>
+        <div className="minirow half" style={{ marginTop: -4 }}><button type="button" className="btn btn-main wide" onClick={onPoster}><IcPoster size={15} />ครอบเป็น MKV พร้อมโปสเตอร์</button></div>
       </>
     );
   }
@@ -718,8 +878,9 @@ function StatusCard({ m, reminder, onCheck, onPoster }: { m: Movie; reminder: nu
     const title = m.status === "changed" ? "ไฟล์ถูกเปลี่ยนตั้งแต่ตรวจครั้งก่อน" : m.status === "unchecked" ? "ยังไม่เคยตรวจไฟล์นี้" : "ถึงเวลาตรวจซ้ำ";
     return (
       <>
-        <div className="stat warn"><CardIcon kind="warn" /><div><b>{title}</b>ตรวจแบบเร็วใช้เวลา{quickEstimate(m)}<br />ตรวจละเอียด<span className="nw">{fullEstimate(m)}</span></div></div>
-        <div className="minirow" style={{ marginTop: -4 }}>
+        {/* กดการ์ดแล้วไปหน้าตรวจไฟล์พร้อมเลือกเรื่องนี้ (พี่กันสั่ง 9 พ.ย. 2569 "ใส่การ์ด ที่กดเเล้วไปหน้าตรวจเลย") */}
+        <button type="button" className="stat warn statgo" title="ไปหน้าตรวจไฟล์" data-statgo onClick={() => onCheck({ ids: [m.id] })}><CardIcon kind="warn" /><div><b>{title}</b></div><IbNext size={15} /></button>
+        <div className="minirow half" style={{ marginTop: -4 }}>
           <button type="button" className="btn btn-ok" onClick={() => onCheck({ ids: [m.id], mode: "quick" })}><IcCheck size={15} />ตรวจแบบเร็ว</button>
           <button type="button" className="btn btn-ghost" onClick={() => onCheck({ ids: [m.id], mode: "full" })}><IcCheck size={15} />ตรวจละเอียด</button>
         </div>

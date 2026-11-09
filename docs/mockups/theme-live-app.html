@@ -27,8 +27,8 @@
     const url = a ? poster(t, y, a, b, c) : null, linked = !!url && LINKED.has(i), file = !!url && !linked;
     const st = STATUS[i];
     return {
-      id: `m${i}`, path: `D:\\หนัง\\${t} (${y}).mkv`, root: "D:\\หนัง", name: `${t} (${y})`, ext: "mkv", size: 6e9 + i * 1.1e9, mtime: now - i * 86400, added: now - i * 86400, year: y, duration: 5400 + i * 420,
-      video: i % 3 ? "HEVC 3840x2160" : "AVC 1920x1080", videoShort: i % 3 ? "H.265" : "H.264", audio: [{ lang: "tha", codec: "E-AC-3", layout: "5.1" }, { lang: "eng", codec: "TrueHD", layout: "7.1" }], subs: [{ lang: "tha", codec: "SRT", layout: null }, { lang: "eng", codec: "PGS", layout: null }],
+      id: `m${i}`, rating: (i * 3) % 6, path: `D:\\หนัง\\${t} (${y}).mkv`, root: "D:\\หนัง", name: `${t} (${y})`, ext: "mkv", size: 6e9 + i * 1.1e9, mtime: now - i * 86400, added: now - i * 86400, year: y, duration: 5400 + i * 420,
+      video: i % 3 ? "HEVC 3840x2160" : "AVC 1920x1080", videoShort: i % 3 ? "H.265" : "H.264", audio: [{ lang: "ไทย", codec: "E-AC-3", layout: "5.1" }, { lang: "อังกฤษ", codec: "TrueHD", layout: "7.1" }], subs: [{ lang: "ไทย", codec: "SRT", layout: null }, { lang: "อังกฤษ", codec: "PGS", layout: null }],
       images: file ? 1 : 0, hasCover: file, coverName: file ? "cover.jpg" : null, coverSha256: file ? "ตัวอย่าง" : null, thumb: file ? url : null, coverAspect: file ? 0.6667 : null,
       status: st, check: st === "unchecked" ? null : { at: now - 86400 * 3, mode: "quick", result: st, summary: SUMMARY[st], spans: [] }, sha256: null, missing: false, error: null, pairs: [], linked: linked ? linkedOf(t, y, url) : [],
     };
@@ -117,6 +117,10 @@
     merge_inspect: (a) => mergeMovie(a.path),
     merge_cover_drop: () => null,
     convert_cover: () => null,
+    graph_exist: (a) => a.paths.map(() => true),
+    set_rating: (a) => { const m = movies.find((x) => x.id === a.id); if (m) m.rating = a.stars; return m; },
+    list_players: () => ({ players: [{ path: "C:\\Program Files (x86)\\K-Lite Codec Pack\\MPC-HC64\\mpc-hc64.exe", name: "MPC-HC", exists: true, added: false, isDefault: true }, { path: "C:\\Program Files\\VideoLAN\\VLC\\vlc.exe", name: "VLC", exists: true, added: false, isDefault: false }], systemDefault: false }),
+    movie_frame: (a) => { const hit = T.find(([t, y, c]) => c && String(a.path).includes(slug(t, y))) ?? T[0]; const [t, y, c1, c2, c3] = hit; return poster(t, y, c1, c2, c3, 1280, 720); },
     convert_one: (a) => ({ out: String(a.req.path).replace(/\.[^.]+$/, ".opus"), size: 5200000, srcSize: 31000000, tags: 1, cover: false, notes: [], tool: "opusenc", cmd: "opusenc --bitrate 160 เพลงตัวอย่าง.flac เพลงตัวอย่าง.opus", secs: 3.2 }),
     merge_cover_preview: (a) => { const hit = T.find(([t, y, c]) => c && String(a.path).includes(slug(t, y))) ?? T[0]; const [t, y, c1, c2, c3] = hit; const land = a.slot === "cover_land"; const w = land ? 1920 : 1000, h = land ? 1080 : 1500; return { preview: poster(t, y, c1, c2, c3, w, h), width: w, height: h, bytes: 412000 }; },
     convert_probe: (a) => ({ path: a.path, name: String(a.path).split("\\").pop(), size: 31000000, duration: 248, audioOnly: true, stream: 0, codec: "flac", profile: "", layout: "stereo", channels: 2, rate: 44100, bits: 16, bitrate: 980000, tags: [{ key: "TITLE", value: "เพลงตัวอย่าง" }], tagsInStream: false, cover: null }),

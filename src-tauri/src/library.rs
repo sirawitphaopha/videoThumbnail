@@ -73,6 +73,8 @@ pub struct Movie {
     pub linked: Vec<crate::link::LinkedCover>,
     /// เรื่องที่มีทั้งปกในไฟล์และปกจับคู่ เลือกปกที่แสดง "file" ปกในไฟล์ · ว่าง = ปกจับคู่ (พี่กันตอบตอนทำแผน *"เลือกได้"*)
     pub cover_pick: String,
+    /// คะแนนดาวที่พี่กันให้ 0 ถึง 5 · 0 = ยังไม่ให้ · เก็บในคลังของโปรแกรม ไม่แตะไฟล์หนัง
+    pub rating: u8,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize, PartialEq)]
@@ -101,6 +103,7 @@ pub struct ParkedCovers {
     pub path: String,
     pub linked: Vec<crate::link::LinkedCover>,
     pub cover_pick: String,
+    pub rating: u8,
 }
 
 pub struct LibraryStore {
@@ -244,6 +247,7 @@ pub fn restore_parked(movies: &mut [Movie], parked: &mut Vec<ParkedCovers>) -> V
             let p = parked.remove(i);
             m.linked = p.linked;
             m.cover_pick = p.cover_pick;
+            if m.rating == 0 { m.rating = p.rating; }
             back.push(m.id.clone());
         }
     }
@@ -348,15 +352,21 @@ pub fn scan_core(env: &ScanEnv, existing: Vec<Movie>, on_movie: &(dyn Fn(&Movie,
                 if !in_use.contains(&t.to_lowercase()) { let _ = fs::remove_file(t); }
             }
             // เรื่องเดิมที่อยู่เดิม เลขเปลี่ยน คลังใหม่รับปกไปแล้ว ไม่ต้องทำอะไร
-            if m.linked.is_empty() || paths_now.contains(&m.path.to_lowercase()) { continue; }
+            if paths_now.contains(&m.path.to_lowercase()) {
+                // รวมเข้าไฟล์แล้วเลขประจำไฟล์เปลี่ยน ที่อยู่เดิม คะแนนตามเรื่องใหม่
+                if let Some(n) = movies.iter_mut().find(|n| n.rating == 0 && n.path.eq_ignore_ascii_case(&m.path)) { n.rating = m.rating; }
+                continue;
+            }
+            if m.linked.is_empty() && m.rating == 0 { continue; }
             // ชื่อเดิมคนละนามสกุล (รวมเข้าไฟล์จาก MP4 ได้ MKV) ปกตามเรื่องใหม่ · ไฟล์ปกข้างหนังตั้งชื่อตามนี้อยู่แล้ว
             let key = stem_key(&m.path);
             if let Some(n) = movies.iter_mut().find(|n| n.linked.is_empty() && !old_ids.contains(&n.id) && stem_key(&n.path) == key) {
                 n.linked = m.linked;
                 n.cover_pick = m.cover_pick;
+                if n.rating == 0 { n.rating = m.rating; }
             } else {
                 // หายจริง · ไม่ลบอะไร เก็บไว้คืนให้เมื่อเรื่องนั้นกลับมา
-                parked.push(ParkedCovers { id: m.id, path: m.path, linked: m.linked, cover_pick: m.cover_pick });
+                parked.push(ParkedCovers { id: m.id, path: m.path, linked: m.linked, cover_pick: m.cover_pick, rating: m.rating });
             }
         }
     }
@@ -608,22 +618,30 @@ pub fn keep_newer_checks(scanned: &mut [Movie], before: &[Movie], now: &[Movie])
     }
 }
 
-/// เปิดเล่นด้วยโปรแกรมที่ตั้งไว้ หรือโปรแกรมหลักของ Windows
-#[tauri::command]
+/// เปิดเล่นด้วยโปรแกรมที่ตั้งไว้ ไม่ได้ตั้งใช้ MPC-HC ไม่มีใช้ตัวอื่นที่หาเจอ แล้วค่อยโปรแกรมหลักของ Windows (check::player_for)
+#[tauri::command(async)]
 pub fn play_movie(app: AppHandle, path: String) -> Result<(), String> {
     let p = Path::new(&path);
     if !p.exists() {
         return Err("หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่".into());
     }
-    let player = app.state::<SettingsStore>().current.lock().unwrap().player_path.clone();
-    if player.trim().is_empty() {
-        use tauri_plugin_opener::OpenerExt;
-        app.opener().open_path(path, None::<&str>).map_err(|e| format!("เปิดเล่นไม่ได้: {e}"))
-    } else if !Path::new(&player).exists() {
-        Err(format!("หาโปรแกรมเล่นหนัง {player} ไม่เจอ · ตั้งใหม่ได้ที่หน้าตั้งค่า"))
-    } else {
-        std::process::Command::new(&player).arg(p).spawn().map(|_| ()).map_err(|e| format!("เปิดโปรแกรมเล่นหนังไม่ได้: {e}"))
+    match crate::check::player_for(&app, p)? {
+        Some(exe) => std::process::Command::new(&exe).arg(p).spawn().map(|_| ()).map_err(|e| format!("เปิดโปรแกรมเล่นหนังไม่ได้: {e}")),
+        None => {
+            use tauri_plugin_opener::OpenerExt;
+            app.opener().open_path(path, None::<&str>).map_err(|e| format!("เปิดเล่นไม่ได้: {e}"))
+        }
     }
+}
+
+/// ให้คะแนนดาว 0 ถึง 5 · 0 = ล้างคะแนน
+#[tauri::command]
+pub fn set_rating(app: AppHandle, lib: State<'_, Arc<LibraryStore>>, id: String, stars: u8) -> Result<Movie, String> {
+    if stars > 5 { return Err("คะแนนต้องอยู่ระหว่าง 0 ถึง 5 ดาว".into()); }
+    let m = lib.update_movie(&id, |m| m.rating = stars).ok_or("หาหนังในคลังไม่เจอ")?;
+    lib.save()?;
+    let _ = app.emit("movie-updated", &m);
+    Ok(m)
 }
 
 /// เปิดโฟลเดอร์ที่เก็บไฟล์ แล้วเลือกไฟล์นั้นไว้
@@ -644,10 +662,27 @@ mod park_tests {
 
     fn cover() -> LinkedCover { LinkedCover { orient: "tall".into(), source: "D:\\รูป.jpg".into(), thumb: "D:\\t.jpg".into(), ..Default::default() } }
 
+    /// หนังหายแล้วกลับมา คะแนนคืนเอง · เรื่องที่ให้คะแนนใหม่ไปแล้ว ไม่โดนทับ
+    #[test]
+    fn parked_rating_comes_back() {
+        let mut parked = vec![ParkedCovers { id: "9".into(), path: "D:\\A.mkv".into(), rating: 4, ..Default::default() }];
+        let mut movies = vec![Movie { id: "9".into(), path: "D:\\A.mkv".into(), ..Default::default() }];
+        restore_parked(&mut movies, &mut parked);
+        assert_eq!(movies[0].rating, 4);
+        assert!(parked.is_empty());
+        let mut parked = vec![ParkedCovers { id: "9".into(), path: "D:\\A.mkv".into(), rating: 4, ..Default::default() }];
+        let mut movies = vec![Movie { id: "9".into(), path: "D:\\A.mkv".into(), rating: 2, ..Default::default() }];
+        restore_parked(&mut movies, &mut parked);
+        assert_eq!(movies[0].rating, 2);
+        // คลังเก่าที่ยังไม่มีช่องคะแนน อ่านได้เป็น 0
+        let old: Movie = serde_json::from_str(r#"{"id":"1","path":"D:\\x.mkv"}"#).unwrap();
+        assert_eq!(old.rating, 0);
+    }
+
     /// เอาโฟลเดอร์ออกแล้วใส่กลับ ปกกลับมาเอง ตามเลขประจำไฟล์หรือที่อยู่
     #[test]
     fn parked_covers_come_back() {
-        let mut parked = vec![ParkedCovers { id: "9".into(), path: "D:\\A.mkv".into(), linked: vec![cover()], cover_pick: "file".into() }];
+        let mut parked = vec![ParkedCovers { id: "9".into(), path: "D:\\A.mkv".into(), linked: vec![cover()], cover_pick: "file".into(), rating: 0 }];
         let mut movies = vec![Movie { id: "1".into(), path: "D:\\b.mkv".into(), ..Default::default() }, Movie { id: "9".into(), path: "E:\\a.mkv".into(), ..Default::default() }];
         assert_eq!(restore_parked(&mut movies, &mut parked), vec!["9".to_string()]);
         assert!(parked.is_empty());

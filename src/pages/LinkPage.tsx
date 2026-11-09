@@ -4,7 +4,7 @@
    ยืนยันทีละเรื่อง ที่ติ๊กไว้ หรือทั้งหมด · ยังไม่ยืนยันไม่มีอะไรถูกบันทึก คู่ที่รออยู่โปรแกรมจำไว้
    แถววาดด้วย content-visibility แถวนอกจอไม่กินเวลาวาด ร้อยแถวเลื่อนลื่น */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { CardIcon, Keep, Phr, Seg } from "../components/ui";
+import { CardIcon, Keep, Phr, Seg, dropClick } from "../components/ui";
 import SearchBox from "../components/SearchBox";
 import LinkBoard from "../components/LinkBoard";
 import CropDialog, { type CropChoice } from "../components/CropDialog";
@@ -137,14 +137,14 @@ export default function LinkPage() {
       <div className="wrapin">
         <div className="card">
           <h3><span className="step">1</span>รูปที่จะเอามาจับคู่</h3>
-          <div className={"drop" + (over ? " over" : badDrop ? " bad" : "")} style={{ minHeight: 130 }} data-link-drop>
+          <div className={"drop" + (over ? " over" : badDrop ? " bad" : "")} style={{ minHeight: 130 }} data-link-drop onClick={dropClick(async () => { const d = await pickFolder("เลือกโฟลเดอร์รูป"); if (d) addPaths([d]); })}>
             {over ? <b>ปล่อยเมาส์เพื่อเพิ่มรูป</b>
               : badDrop ? <><b><Phr>{badDrop}</Phr></b></>
               : <><b style={{ color: "var(--txt2)" }}>ลากโฟลเดอร์รูป หรือรูปหลายรูปมาวางตรงนี้</b><div>JPG PNG WebP BMP TIFF HEIC · รูปในโฟลเดอร์ย่อยอ่านด้วย · รูปต้นฉบับไม่ถูกแก้</div></>}
-          </div>
-          <div className="row8" style={{ marginTop: 10 }}>
-            <button type="button" className="btn btn-ghost btn-sm" data-link-pick onClick={async () => { const d = await pickFolder("เลือกโฟลเดอร์รูป"); if (d) addPaths([d]); }}><IcFolder size={15} />เลือกโฟลเดอร์</button>
-            <button type="button" className="btn btn-ghost btn-sm" onClick={async () => { const f = await pickFile("image"); if (f) addPaths([f]); }}><IcPoster size={15} />เลือกรูป</button>
+            <div className="row8" style={{ justifyContent: "center" }}>
+              <button type="button" className="btn btn-ghost btn-sm" data-link-pick onClick={async () => { const d = await pickFolder("เลือกโฟลเดอร์รูป"); if (d) addPaths([d]); }}><IcFolder size={15} />เลือกโฟลเดอร์</button>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={async () => { const f = await pickFile("image"); if (f) addPaths([f]); }}><IcPoster size={15} />เลือกรูป</button>
+            </div>
           </div>
           {reply.imageFolders.length + reply.loose.length > 0 && (
             <div className="folders" style={{ marginTop: 10 }} data-link-folders>
@@ -163,8 +163,9 @@ export default function LinkPage() {
             <span className="small">เรื่องที่มีปกในไฟล์อยู่แล้ว ข้ามให้ · เปลี่ยนเป็นทุกเรื่องถ้าจะเปลี่ยนปกด้วย</span>
           </div>
         </div>
-        {reading && <div className="stat info" data-link-reading><CardIcon kind="info" /><div><b>กำลังอ่านรูปและเทียบชื่อ…</b></div></div>}
-        {summary && !reading && (
+        {/* การ์ดสรุปอยู่ที่เดิมระหว่างอ่านใหม่ ไม่หายแล้วกลับมา หน้าจึงไม่ขยับ · ขึ้นการ์ดกำลังอ่านเฉพาะรอบแรก */}
+        {reading && !summary && <div className="stat info" data-link-reading><CardIcon kind="info" /><div><b>กำลังอ่านรูปและเทียบชื่อ…</b></div></div>}
+        {summary && (
           <div className="stat ok" data-link-summary><CardIcon kind="ok" /><div>
             <b>อ่านรูป <span className="nw">{COUNT(summary.images)} รูป</span> · จับคู่ได้แน่ <span className="nw">{COUNT(summary.sure)} คู่</span> · ไม่แน่ใจ <span className="nw">{COUNT(summary.unsure)}</span> · หาคู่ไม่เจอ <span className="nw">{COUNT(summary.none)}</span></b>
             รูปแนวตั้ง <span className="nw">{COUNT(summary.tall)} รูป</span> ใช้เป็นปกตั้ง · รูปแนวนอน <span className="nw">{COUNT(summary.wide)} รูป</span> ใช้เป็นปกนอน และครอปเป็นปกตั้งได้ · ใช้เวลา <span className="nw">{summarySec} วินาที</span>
@@ -307,8 +308,8 @@ function ReviewTable() {
             <div className="bar"><i style={{ width: `${run.progress ? (run.progress.done / Math.max(1, run.progress.total)) * 100 : 0}%` }} /></div>
           </div>
         ) : (
-          <span className="small" style={{ flex: 1, minWidth: 0 }} data-link-count>
-            บันทึกแล้ว <span className="nw">{COUNT(counts.saved)} คู่</span> · รอยืนยัน <span className="nw">{COUNT(waitingRows.length)} คู่</span> ติ๊กไว้ <span className="nw">{COUNT(ticked)} คู่</span> (โปรแกรมจำไว้ ปิดแล้วเปิดมาทำต่อได้) · ยืนยันทั้งหมด ไม่รวมแถวไม่แน่ใจที่ยังไม่ได้กดเลือกรูป กับแถวที่หาคู่ไม่เจอ · รูปต้นฉบับไม่ถูกแก้ ไฟล์หนังไม่ถูกแตะ
+          <span className="small" style={{ flex: 1, minWidth: 0 }} title="รูปต้นฉบับไม่ถูกแก้ ไฟล์หนังไม่ถูกแตะ" data-link-count>
+            บันทึกแล้ว <span className="nw">{COUNT(counts.saved)} คู่</span> · รอยืนยัน <span className="nw">{COUNT(waitingRows.length)} คู่</span> ติ๊กไว้ <span className="nw">{COUNT(ticked)} คู่</span> · ปิดแล้วมาทำต่อได้
           </span>
         )}
         <span className="row8" style={{ flexWrap: "nowrap" }}>
@@ -318,7 +319,7 @@ function ReviewTable() {
             <>
               <button type="button" className="btn btn-ghost" data-link-goboard onClick={() => setLinkJob({ view: "board" })}><Keep icon={<IcLink size={15} />} all={["ไปกระดาน (000 ที่เหลือ)"]}>ไปกระดาน ({COUNT(left)} ที่เหลือ)</Keep></button>
               <button type="button" className={"btn " + (ticked ? "btn-ghost" : "btn-wait")} aria-disabled={!ticked || undefined} data-link-confirm-ticked onClick={() => { if (ticked) confirm("ticked"); }}><Keep icon={<IbTick size={15} />} all={["ยืนยัน 000 คู่ที่ติ๊กไว้"]}>ยืนยัน {COUNT(ticked)} คู่ที่ติ๊กไว้</Keep></button>
-              <button type="button" className={"btn " + (waitingRows.length ? "btn-main" : "btn-wait")} aria-disabled={!waitingRows.length || undefined} data-link-confirm-all onClick={() => { if (waitingRows.length) confirm("all"); }}><Keep icon={<IbTick size={15} />} all={["ยืนยันทั้งหมด 000 คู่"]}>ยืนยันทั้งหมด {COUNT(waitingRows.length)} คู่</Keep></button>
+              <button type="button" className={"btn " + (waitingRows.length ? "btn-main" : "btn-wait")} aria-disabled={!waitingRows.length || undefined} title="ไม่รวมแถวไม่แน่ใจที่ยังไม่ได้เลือกรูป กับแถวที่หาคู่ไม่เจอ" data-link-confirm-all onClick={() => { if (waitingRows.length) confirm("all"); }}><Keep icon={<IbTick size={15} />} all={["ยืนยันทั้งหมด 000 คู่"]}>ยืนยันทั้งหมด {COUNT(waitingRows.length)} คู่</Keep></button>
             </>
           )}
         </span>
@@ -331,7 +332,7 @@ function ReviewTable() {
             await openCrop(crop.id, o);
           } }}
           onCancel={() => { setCrop(null); posterApi.clear("link").catch(() => {}); }}
-          onChangeImage={async () => { const id = crop.id; setCrop(null); posterApi.clear("link").catch(() => {}); const f = await pickFile("image"); if (f) act(() => linkApi.pair(id, [f], "board"), "ใช้รูปนี้ไม่ได้"); }}
+          onPickImage={async (f) => { const { id, orient } = crop; setCrop(null); posterApi.clear("link").catch(() => {}); await act(() => linkApi.pair(id, [f], "board"), "ใช้รูปนี้ไม่ได้"); openCrop(id, orient); }}
           onUse={(c) => { const { id, orient } = crop; setCrop(null); posterApi.clear("link").catch(() => {}); act(() => linkApi.setCrop(id, orient, c.geo), "จำค่าครอปไม่สำเร็จ"); }} />
       )}
     </div>
@@ -369,6 +370,13 @@ function RowView(p: {
   const g = (f: () => void) => () => { if (!p.busy) f(); };
   const dis = { "aria-disabled": p.busy || undefined, title: p.busy ? "กำลังยืนยันอยู่ รอให้เสร็จก่อน" : undefined };
   const ghost = "btn btn-sm " + (p.busy ? "btn-wait" : "btn-ghost");
+  const candThumbs = (
+    <div className={"lsugg" + (has ? " mini" : "")} data-link-cands>
+      {r.candidates.map((c) => (
+        <BigOf key={c.path} p={c}><button type="button" className={"lcand" + (main?.path === c.path ? " sel" : "")} title={c.name} aria-label={"ใช้รูป " + c.name} aria-pressed={main?.path === c.path} data-link-cand={c.name} onClick={() => p.onChoose(c.path)}><ThumbImg p={c} /></button></BigOf>
+      ))}
+    </div>
+  );
   return (
     <div className={"lkrow " + r.status + (p.over ? " over" + (p.over.bad ? " bad" : "") : "")} data-link-row={r.id} data-link-status={r.status}>
       <div>
@@ -391,18 +399,12 @@ function RowView(p: {
               <span className="small">{main!.folder ? <span title={main!.folder}>{main!.folder} · </span> : null}<span className="nw">{main!.width} × {main!.height}</span> · {r.tall && !r.derivedTall ? "ปกตั้ง" : "ปกนอน"}{second ? " · มีปกนอนด้วย" : ""}</span>
               {r.derivedTall && <span className="small">ครอปเป็นปกตั้งให้แล้ว</span>}
               {(r.tall?.geo || r.wide?.geo) && !r.derivedTall && <span className="small" data-link-cropped>ครอปแล้ว</span>}
+              {r.candidates.length > 0 && !saved && candThumbs}
             </div>
           </div>
         ) : null}
-        {r.candidates.length > 0 && !saved && (
-          <>
-            {!has && <div className="small" style={{ color: "var(--warn-ink)" }}>ชื่อใกล้เคียง {r.candidates.length} รูป กดรูปที่ใช่</div>}
-            <div className="lsugg" data-link-cands style={has ? { marginTop: 6 } : undefined}>
-              {r.candidates.map((c) => (
-                <BigOf key={c.path} p={c}><button type="button" className={"lcand" + (main?.path === c.path ? " sel" : "")} title={c.name} aria-label={"ใช้รูป " + c.name} aria-pressed={main?.path === c.path} data-link-cand={c.name} onClick={() => p.onChoose(c.path)}><ThumbImg p={c} /></button></BigOf>
-              ))}
-            </div>
-          </>
+        {!has && r.candidates.length > 0 && !saved && (
+          <div className="lpick">{candThumbs}<div className="small" style={{ color: "var(--warn-ink)" }}>ชื่อใกล้เคียง {r.candidates.length} รูป กดรูปที่ใช่</div></div>
         )}
         {!has && r.candidates.length === 0 && <span className="small" style={{ color: "var(--bad-ink)" }}>ไม่มีรูปชื่อใกล้เคียง · <button type="button" className="addbtn" style={{ color: "inherit" }} data-link-row-board onClick={g(p.onBoard)}>ไปจับคู่เองที่กระดาน</button> หรือลากรูปมาวางบนแถวนี้</span>}
         {p.over && <div className={"hint" + (p.over.bad ? " e" : "")} style={{ marginTop: 6 }} data-link-over>{p.over.bad ? "ไฟล์นี้ไม่ใช่รูป ไม่รับ" : `ปล่อยเมาส์ ใช้รูป ${p.over.names}`}</div>}
@@ -418,14 +420,13 @@ function RowView(p: {
       <div><span className={"pill " + PILL[r.status]} data-link-reason style={{ whiteSpace: "normal" }}>{pillText}</span></div>
       <div className="lacts">
         {saved ? (
-          <><span className="pill p-ok">บันทึกแล้ว</span><button type="button" className={ghost} {...dis} data-link-unsave onClick={g(p.onUnsave)}>ยกเลิก</button></>
+          <><span /><span className="pill p-ok">บันทึกแล้ว</span><button type="button" className={ghost} {...dis} data-link-unsave onClick={g(p.onUnsave)}>ยกเลิก</button></>
         ) : (
           <>
-            {has && <button type="button" className={ghost} {...dis} data-link-crop onClick={g(p.onCrop)}><IbCrop size={15} />ครอป</button>}
-            {has && <button type="button" className={ghost} {...dis} data-link-change onClick={g(p.onChange)}><IcPoster size={15} />เปลี่ยนรูป</button>}
-            {!has && <button type="button" className={ghost} {...dis} data-link-change onClick={g(p.onChange)}><IcPoster size={15} />เลือกรูป</button>}
-            {r.status === "unsure" && !has && <button type="button" className={ghost} {...dis} data-link-skip onClick={g(p.onSkip)}>ข้ามเรื่องนี้</button>}
-            {has && <button type="button" className={"btn btn-sm " + (p.busy ? "btn-wait" : "btn-ok")} aria-disabled={p.busy || undefined} data-link-confirm onClick={() => { if (!p.busy) p.onConfirm(); }}><IbTick size={15} />ยืนยัน</button>}
+            {has ? <button type="button" className={ghost} {...dis} data-link-crop onClick={g(p.onCrop)}><IbCrop size={15} />ครอป</button> : <span />}
+            <button type="button" className={ghost} {...dis} data-link-change onClick={g(p.onChange)}><IcPoster size={15} />{has ? "เปลี่ยนรูป" : "เลือกรูป"}</button>
+            {has ? <button type="button" className={"btn btn-sm " + (p.busy ? "btn-wait" : "btn-ok")} aria-disabled={p.busy || undefined} data-link-confirm onClick={() => { if (!p.busy) p.onConfirm(); }}><IbTick size={15} />ยืนยัน</button>
+              : r.status === "unsure" ? <button type="button" className={ghost} {...dis} data-link-skip onClick={g(p.onSkip)}>ข้ามเรื่อง</button> : <span />}
             {!!r.prev && <button type="button" className={ghost} {...dis} data-link-undo onClick={g(p.onUndo)}><IbBack size={15} />ย้อน</button>}
             {r.via === "shelf" && <button type="button" className={ghost} aria-disabled={p.busy || undefined} data-link-skip title={p.busy ? dis.title : "ปกบนชั้นวางคงเดิม ไม่มีอะไรถูกเขียน"} onClick={g(p.onSkip)}>เลิกแก้</button>}
           </>

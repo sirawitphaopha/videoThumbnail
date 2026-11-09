@@ -107,7 +107,9 @@ check("ไฟล์ที่ไม่มีแทร็กเสียง ขึ
 await drop([F("เพลงทดสอบ 96k.flac")]);
 await sleep(600);
 const dup = await q("return document.querySelectorAll('[data-qrow]').length + ' · ' + ([...document.querySelectorAll('.toast')].map(t => t.innerText).join(' ') || 'ไม่มีแจ้ง')");
-check("ลากไฟล์ที่อยู่ในคิวแล้วซ้ำ ไม่เพิ่มซ้ำ บอกว่าข้ามไฟล์ที่อยู่ในคิวแล้ว", dup.startsWith(`${ORDER.length} ·`) && dup.includes("ข้าม 1 ไฟล์ที่อยู่ในคิวแล้ว"), dup.slice(0, 120));
+check("ลากไฟล์เดิมซ้ำได้ เพิ่มอีกแถว ไม่มีข้อความข้ามไฟล์", dup.startsWith(`${ORDER.length + 1} ·`) && !dup.includes("ข้าม"), dup.slice(0, 120));
+await q("[...document.querySelectorAll('[data-qrow]')].at(-1).querySelector('[data-qremove]').click();");
+await sleep(200);
 
 /* ---------- 3 ตั้งทีเดียวทั้งคิว ---------- */
 await c.click("[data-qall]");
@@ -266,7 +268,7 @@ await sleep(300);
 await c.click('[data-qrow="เพลงทดสอบ 96k.flac"] [data-qcmp]');
 await waitFor("return !!document.querySelector('[data-compare]') && !document.querySelector('[data-cmploading]')", 120000);
 const chips = await q("return [...document.querySelectorAll('[data-cmpfile]')].map(x => x.innerText.replace(/\\s+/g, ' ')).join(' | ')");
-check("กดเทียบความถี่ เปิดหน้ากราฟเสียงแบบสองไฟล์ ต้นฉบับกับหลังแปลง", chips.includes("เพลงทดสอบ 96k.flac ต้นฉบับ") && chips.includes("เพลงทดสอบ 96k.opus หลังแปลง"), chips.slice(0, 200));
+check("กดเทียบความถี่ เปิดหน้ากราฟเสียงแบบสองไฟล์ ต้นฉบับกับหลังแปลง", chips.includes("เพลงทดสอบ 96k FLAC ต้นฉบับ") && chips.includes("เพลงทดสอบ 96k OPUS หลังแปลง"), chips.slice(0, 200));
 const info = await q("return document.querySelector('[data-cmpinfo]').innerText.replace(/\\s+/g, ' ')");
 check("ข้อมูลเสียงสองคอลัมน์ FLAC 96 kHz 24-bit เทียบ Opus 48 kHz · บอกตัวแปลงที่ใช้", info.includes("FLAC") && info.includes("Opus") && info.includes("96 kHz") && info.includes("48 kHz") && info.includes("24-bit") && (await q("return document.querySelector('.apanel').innerText")).includes("แปลงด้วย opusenc"), info.slice(0, 200));
 const tabs = [["wave", "รูปคลื่น"], ["spec", "ความถี่"], ["loud", "ความดัง"], ["cmp", "ซ้อนเทียบ"], ["spek", "วิเคราะห์"], ["psd", "ความถี่เฉลี่ย"]];

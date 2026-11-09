@@ -20,7 +20,10 @@ const defaults: Settings = {
   showNames: true,
   showDots: true,
   showFrames: false,
+  graphZoomAll: false,
+  graphImg: { width: 2560, format: "png", bits: 8, gray: false, dpi: 300, quality: 92, subsampling: "444", compress: "default", title: true, nameGraph: true, dirMode: "beside", dir: "", ask: true },
   playerPath: "",
+  players: [],
   sidebarCollapsed: false,
   viewMode: "grid",
   sort: "name-asc",
@@ -58,6 +61,10 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
       return { rows: [], imageFolders: [], loose: [], scope: "nocover", waiting: 0 } as T;
     case "link_images":
       return [] as T;
+    case "set_rating":
+      return undefined as T;
+    case "list_players":
+      return { players: [{ path: "C:\\Program Files (x86)\\K-Lite Codec Pack\\MPC-HC64\\mpc-hc64.exe", name: "MPC-HC", exists: true, added: false, isDefault: true }, { path: "C:\\Program Files\\VideoLAN\\VLC\\vlc.exe", name: "VLC", exists: true, added: false, isDefault: false }], systemDefault: false } as T;
     case "check_running":
     case "extract_running":
     case "hash_running":
