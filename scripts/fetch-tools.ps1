@@ -23,9 +23,12 @@ $mai = @{ path = 'vendor\monkeys-audio\MAC_1346_x64.exe';               sha = '6
 $macDllSha = '281a72e6e27a49c03a41b02542490f296f235fd2fec30e62c1b0783f653c3a6c'
 # TAK 2.3.3 ฟรีสำหรับใช้ส่วนตัว แจกต่อได้เฉพาะไฟล์ zip เดิมทั้งไฟล์ไม่ดัดแปลง · แนบ zip ทั้งไฟล์ โปรแกรมแตก Takc.exe เอง (encode.rs ensure_tak)
 # พี่กันสั่ง 7 พ.ย. 2569 "ลิง และ TAK เอามาด้วยนะ" · เว็บผู้ทำมีแต่ http · Takc.exe ในนี้ตรงทุกไบต์กับตัวที่ตัวติดตั้ง Monkey's Audio ที่มีลายเซ็นแนบมา
+# qaac 3.07 (qaac64 refalac64 libsoxr64) Public Domain · ALAC ข้างในเป็น Apache 2.0 · แนบแบบ foobar2000 encoder pack · ไฟล์ของ Apple ไม่แนบ ผู้ใช้ติดตั้ง iTunes เอง
+# พี่กันสั่ง 10 พ.ย. 2569 "อันไหนฟรี ทำได้ เอาเข้าหมด โดยไม่ต้องถาม ส่วน qaac เอาเข้าได้ แต่ต้องบอกผู้ใช้ให้โหลด itune เอง"
+$qa  = @{ path = 'vendor\qaac\qaac_3.07.zip';                          sha = '1fb3ab4aa81725e2607ac1b31afa0e13d2617ee6eb5900f5070c092f5271cbb3' }
 $tk  = @{ path = 'vendor\tak\TAK_2.3.3.zip';                            sha = '40d26992266f1377d576b88b84b88d2ab256dc321e47f90314402a80692aba6a' }
 
-foreach ($a in @($mkv, $ff, $mi, $fl, $op, $lm, $wv, $ma, $mai, $tk)) {
+foreach ($a in @($mkv, $ff, $mi, $fl, $op, $lm, $wv, $ma, $mai, $tk, $qa)) {
   $full = Join-Path $root $a.path
   $h = (Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash.ToLower()
   if ($h -ne $a.sha) { throw "ค่า SHA-256 ไม่ตรงกับที่จดไว้: $($a.path)" }
@@ -62,6 +65,9 @@ if ($LASTEXITCODE -ne 0) { throw 'แตก LAME ไม่สำเร็จ' }
 
 & $tar -xf (Join-Path $root $wv.path) -C (Join-Path $work 'wavpack') 'wavpack.exe' 'license.txt'
 if ($LASTEXITCODE -ne 0) { throw 'แตก WavPack ไม่สำเร็จ' }
+
+& $tar -xf (Join-Path $root $qa.path) -C $work 'qaac_3.07/x64/qaac64.exe' 'qaac_3.07/x64/refalac64.exe' 'qaac_3.07/x64/libsoxr64.dll'
+if ($LASTEXITCODE -ne 0) { throw 'แตก qaac ไม่สำเร็จ' }
 
 # Monkey's Audio โปรแกรมเรียก MACDll64.dll ตรงจาก Rust (c_APECompress_StartW AddData Finish)
 # ข้อความสัญญาอนุญาตเอาจากชุด SDK · ตัว DLL ดึงจากตัวติดตั้งด้วย scripts\nsis-extract.py (ถอดในเครื่อง ไม่รันตัวติดตั้ง ไม่มีหน้าต่าง)
@@ -101,6 +107,9 @@ $copies = @(
   @('lame\libmpg123-0.dll',                        'libmpg123-0.dll'),
   @('wavpack\wavpack.exe',                         'wavpack.exe'),
   @('Shared\64\MACDll64.dll',                      'MACDll64.dll'),
+  @('qaac_3.07\x64\qaac64.exe',                   'qaac64.exe'),
+  @('qaac_3.07\x64\refalac64.exe',                'refalac64.exe'),
+  @('qaac_3.07\x64\libsoxr64.dll',                'libsoxr64.dll'),
   @('flac-1.5.0-win\COPYING.GPL',                  'licenses\FLAC-tool-GPL-2.0.txt'),
   @('flac-1.5.0-win\COPYING.Xiph',                 'licenses\FLAC-libFLAC-Xiph-BSD.txt'),
   @('flac-1.5.0-win\COPYING.LGPL',                 'licenses\LAME-libmpg123-LGPL-2.1.txt'),
@@ -110,6 +119,8 @@ $copies = @(
 foreach ($c in $copies) {
   Copy-Item -LiteralPath (Join-Path $work $c[0]) -Destination (Join-Path $dest $c[1]) -Force
 }
+# ไฟล์ zip ของ qaac ไม่มีข้อความสัญญา ใช้ COPYING จากที่เก็บของผู้ทำ (เก็บสำเนาไว้ที่ vendor\qaac\COPYING.txt)
+Copy-Item -LiteralPath (Join-Path $root 'vendor\qaac\COPYING.txt') -Destination (Join-Path $lic 'qaac-COPYING.txt') -Force
 # TAK แนบไฟล์ zip เดิมทั้งไฟล์ ตามเงื่อนไขการแจกของผู้ทำ (สัญญาอยู่ใน Readme.html ของแต่ละโฟลเดอร์ใน zip)
 Copy-Item -LiteralPath (Join-Path $root $tk.path) -Destination (Join-Path $dest 'TAK_2.3.3.zip') -Force
 
@@ -126,6 +137,7 @@ $sources = @"
 - LAME 4.0 (lame.exe libmpg123-0.dll) · ชุดที่ทำโดย RareWares https://www.rarewares.org/files/mp3/ · LAME สัญญา LGPL รุ่น 2 หรือใหม่กว่า libmpg123 สัญญา LGPL 2.1 (ใช้ข้อความ LGPL 2.1 จากชุด FLAC เพราะไฟล์บีบอัดไม่มีข้อความสัญญาแนบ) · ซอร์สโค้ด https://lame.sourceforge.io/ และ https://www.mpg123.de/
 - WavPack 5.9.0 (wavpack.exe) จาก https://github.com/dbry/WavPack/releases · สัญญา BSD 3 ข้อ
 - Monkey's Audio 13.46 (MACDll64.dll จากตัวติดตั้ง MAC_1346_x64.exe มีลายเซ็นของผู้ทำ ข้อความสัญญาจากชุด SDK) จาก https://www.monkeysaudio.com/ · สัญญา BSD 3 ข้อ
+- qaac 3.07 (qaac64.exe refalac64.exe libsoxr64.dll) จาก https://github.com/nu774/qaac/releases · ตัว qaac เป็น Public Domain · ตัวเข้ารหัส ALAC ของ Apple ข้างในสัญญา Apache 2.0 (https://www.apache.org/licenses/LICENSE-2.0) · ส่วนอื่นข้างใน (TagLib libsoxr FDK mmtisobmff และอื่น ๆ) ดู licenses\qaac-COPYING.txt · ซอร์สโค้ด https://github.com/nu774/qaac · qaac ใช้ตัวเข้ารหัส AAC ของ Apple ที่มากับ iTunes ไฟล์ของ Apple ไม่ได้แนบ ผู้ใช้ติดตั้ง iTunes เอง
 - TAK 2.3.3 (TAK_2.3.3.zip ไฟล์เดิมทั้งไฟล์ โปรแกรมแตก Takc.exe ไปใช้เอง) จาก http://www.thbeck.de/Tak/Tak.html · ฟรีสำหรับใช้ส่วนตัวที่ไม่ใช่การค้า แจกต่อได้เฉพาะไฟล์ zip เดิมทั้งไฟล์ ไม่คิดเงิน
 - libheif 1.23.7 (heif.dll ใช้บันทึกรูปกราฟเป็น HEIC) พร้อม libx265 3.5 libde265 1.1.3 aom 3.15.3 dav1d 1.5.4 libsharpyuv จาก libwebp 1.6.0 · ตัวที่ conda-forge สร้าง https://conda-forge.org/ · libheif กับ libde265 สัญญา LGPL รุ่น 3 หรือใหม่กว่า · x265 สัญญา GPL รุ่น 2 หรือใหม่กว่า · aom dav1d libsharpyuv สัญญา BSD · ซอร์สโค้ด https://github.com/strukturag/libheif https://bitbucket.org/multicoreware/x265_git https://github.com/strukturag/libde265 https://aomedia.googlesource.com/aom https://code.videolan.org/videolan/dav1d https://chromium.googlesource.com/webm/libwebp และสูตรสร้าง https://github.com/conda-forge
 - Microsoft Visual C++ runtime 14.51 (msvcp140.dll vcruntime140.dll vcruntime140_1.dll มีลายเซ็น Microsoft) แนบให้ heif.dll เปิดได้บนเครื่องที่ไม่มี Visual C++ Redistributable · เงื่อนไขอยู่ใน licenses\MSVC-Runtime-LICENSE.txt

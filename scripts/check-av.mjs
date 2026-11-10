@@ -257,7 +257,7 @@ await c.evaluate("document.querySelector('[data-preset=\"1\"]').click()");
 await waitFor("return document.querySelector('[data-cmd]').innerText.includes('--bitrate 160')", 8000);
 const panelText = await q("return document.querySelector('[data-codec-panel]').innerText");
 check("เลือกชุดเพลงคุณภาพดี คำสั่งเปลี่ยนเป็น 160 kbps · บอกขนาดทั้งแทร็ก · เตือนแปลงเสียคุณภาพซ้อน · เพิ่มคู่เป็นค่าตั้งต้น",
-  panelText.includes("ทั้งแทร็กราว") && panelText.includes("แปลงแบบเสียคุณภาพซ้อน AAC เป็น Opus") && panelText.includes("แทร็กใหม่ชื่อ English Opus ต่อท้ายแทร็กเดิม"), panelText.replace(/\s+/g, " ").slice(0, 200));
+  panelText.includes("ทั้งแทร็กราว") && panelText.includes("ต้นทาง AAC เป็นแบบเสียคุณภาพ การแปลงเป็น Opus เป็นการเสียคุณภาพซ้อน") && panelText.includes("แทร็กใหม่ชื่อ English Opus ต่อท้ายแทร็กเดิม"), panelText.replace(/\s+/g, " ").slice(0, 200));
 // ความเร็วเสียง Gain ความดังมาตรฐาน · คำสั่งต้องมีตัวกรองตามที่ตั้ง แล้วตั้งกลับ ไม่ให้กระทบการรวมข้างล่าง
 const pickDd = async (label, text) => {
   await c.evaluate(`[...document.querySelectorAll('[data-codec-panel] .dd')].find(b => b.getAttribute('aria-label').startsWith(${JSON.stringify(label)})).click()`);
@@ -454,9 +454,9 @@ await c.setNav("encoders");
 await waitFor("return document.querySelectorAll('[data-setcard=encoders] [data-enc]').length >= 7", 20000);
 const encRows = await q("return [...document.querySelectorAll('[data-setcard=encoders] [data-enc]')].map(r => r.innerText.replace(/\\s+/g, ' '))");
 const encText = await q("return document.querySelector('[data-setcard=encoders]').innerText");
-check("หน้าตั้งค่ามีการ์ดตัวแปลงเสียง flac 1.5.0 · libopus 1.6.1 · LAME 4.0 · wavpack 5.9.0 แนบมากับโปรแกรม พร้อมใช้งาน · qaac fdkaac ยังไม่ได้ใส่ · บอกโฟลเดอร์ตัวแปลง",
+check("หน้าตั้งค่ามีการ์ดตัวแปลงเสียง flac 1.5.0 · libopus 1.6.1 · LAME 4.0 · wavpack 5.9.0 แนบมากับโปรแกรม พร้อมใช้งาน · qaac refalac แนบมา · fdkaac ยังไม่ได้ใส่ · บอกโฟลเดอร์ตัวแปลง",
   encRows.some((r) => r.includes("flac") && r.includes("1.5.0") && r.includes("แนบมากับโปรแกรม") && r.includes("พร้อมใช้งาน")) && encRows.some((r) => r.includes("libopus 1.6.1")) && encRows.some((r) => r.startsWith("lame") && r.includes("4.0"))
-  && encRows.some((r) => r.includes("wavpack") && r.includes("5.9.0")) && encRows.some((r) => r.includes("qaac64") && r.includes("ยังไม่ได้ใส่")) && encText.includes(String.raw`ชั้นหนัง\ตัวแปลง`), encRows.join(" | "));
+  && encRows.some((r) => r.includes("wavpack") && r.includes("5.9.0")) && encRows.some((r) => r.includes("refalac64") && r.includes("3.07")) && encRows.some((r) => r.includes("fdkaac") && r.includes("ยังไม่ได้ใส่")) && encText.includes(String.raw`ชั้นหนัง\ตัวแปลง`), encRows.join(" | "));
 await c.evaluate("document.querySelector('[data-setcard=encoders]').scrollIntoView({ block: 'center' })");
 await shot("09-การ์ดตัวแปลงเสียง.png", "[data-setcard=encoders]", 6);
 

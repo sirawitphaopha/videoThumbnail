@@ -47,11 +47,12 @@ const secs = ((Date.now() - t0) / 1000).toFixed(1);
 check("กดแล้วปุ่มขึ้นกำลังเช็ก กดซ้ำไม่ได้ ระหว่างรอ", busy === "กำลังเช็ก · true", busy);
 const r1 = await rows();
 const b1 = await bar();
-const bundled = ["flac", "opusenc", "lame", "wavpack", "MACDll64", "Takc", "ffmpeg"];
-check(`เช็กเสร็จใน ${secs} วินาที · ตัวที่แนบมาทั้ง 7 ตัวเป็นรุ่นล่าสุดตามหน้าเว็บผู้ทำ (flac opusenc lame wavpack Monkey's Audio TAK ffmpeg)`,
+// qaac กับ refalac แนบมาแล้ว (10 พ.ย. 2569) · qaac ในเครื่องพี่กันใช้ได้เพราะมีไฟล์ของ Apple เครื่องที่ไม่มี iTunes qaac จะขึ้นยังไม่ได้ใส่
+const bundled = ["flac", "opusenc", "lame", "wavpack", "MACDll64", "qaac64", "refalac64", "Takc", "ffmpeg"];
+check(`เช็กเสร็จใน ${secs} วินาที · ตัวที่แนบมาทั้ง 9 ตัวเป็นรุ่นล่าสุดตามหน้าเว็บผู้ทำ (flac opusenc lame wavpack Monkey's Audio qaac refalac TAK ffmpeg)`,
   got && bundled.every((n) => r1[n]?.startsWith("ok | ล่าสุดแล้ว")), bundled.map((n) => `${n} ${r1[n]}`).join(" · "));
-check("qaac fdkaac ที่ยังไม่ได้ใส่ บอกรุ่นล่าสุดบนเว็บพร้อมปุ่มเปิดหน้าโหลด", ["qaac64", "fdkaac"].every((n) => r1[n]?.startsWith("missing | รุ่นล่าสุดบนเว็บ") && r1[n].endsWith("| true")), `qaac64 ${r1.qaac64} · fdkaac ${r1.fdkaac}`);
-check("แถบบนสรุปเวลาที่เช็ก ล่าสุดแล้ว 7 มีรุ่นใหม่ 0 ยังไม่ได้ใส่ 2 เช็กไม่ได้ 0", b1.includes("ล่าสุดแล้ว 7") && b1.includes("มีรุ่นใหม่ 0") && b1.includes("ยังไม่ได้ใส่ 2") && b1.includes("เช็กไม่ได้ 0"), b1);
+check("fdkaac ที่ยังไม่ได้ใส่ บอกรุ่นล่าสุดบนเว็บพร้อมปุ่มเปิดหน้าโหลด", ["fdkaac"].every((n) => r1[n]?.startsWith("missing | รุ่นล่าสุดบนเว็บ") && r1[n].endsWith("| true")), `qaac64 ${r1.qaac64} · fdkaac ${r1.fdkaac}`);
+check("แถบบนสรุปเวลาที่เช็ก ล่าสุดแล้ว 9 มีรุ่นใหม่ 0 ยังไม่ได้ใส่ 1 เช็กไม่ได้ 0", b1.includes("ล่าสุดแล้ว 9") && b1.includes("มีรุ่นใหม่ 0") && b1.includes("ยังไม่ได้ใส่ 1") && b1.includes("เช็กไม่ได้ 0"), b1);
 await c.evaluate("document.querySelector('[data-setcard=encoders]').scrollIntoView({ block: 'center' })");
 await shot("34-เช็กรุ่นล่าสุด.png", "[data-setcard=encoders]");
 
@@ -89,7 +90,7 @@ await shot("35-เช็กรุ่นล่าสุด-ทุกสถาน�
 await c.evaluate("delete window.__latestSample");
 await c.click("[data-enclatest]");
 await waitFor("return document.querySelector('[data-enclatest]').innerText === 'เช็กรุ่นล่าสุด' && document.querySelector('[data-latest-bar]').innerText.includes('มีรุ่นใหม่ 0')", 90000);
-check("ลบผลจำลองแล้วกดเช็กใหม่ กลับเป็นผลจริงจากเว็บผู้ทำ", (await bar()).includes("ล่าสุดแล้ว 7"), await bar());
+check("ลบผลจำลองแล้วกดเช็กใหม่ กลับเป็นผลจริงจากเว็บผู้ทำ", (await bar()).includes("ล่าสุดแล้ว 9"), await bar());
 
 const pass = results.filter((r) => r.pass).length;
 writeFileSync(`${OUT}/ผลเทส-เช็กรุ่นล่าสุด.json`, JSON.stringify(results, null, 2));

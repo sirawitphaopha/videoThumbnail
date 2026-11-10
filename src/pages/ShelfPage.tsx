@@ -10,7 +10,7 @@ import RenameBox from "../components/RenameBox";
 import Dropdown from "../components/Dropdown";
 import { Badge, CardIcon, Keep, Phr, Phrases, Seg, Skel, SortArrow, Switch } from "../components/ui";
 import Dialog from "../components/Dialog";
-import { IcLink, IcCoverL, IcCoverM, IcCoverS, IcTall, IcWide } from "../components/icons";
+import { IcBitrate, IcLink, IcCoverL, IcCoverM, IcCoverS, IcTall, IcWide } from "../components/icons";
 import { openLinkRow, setLinkJob, setReply, useLinkJob } from "../lib/linkJob";
 import type { PosterStart } from "./PosterPage";
 import { useToast } from "../components/Toasts";
@@ -78,7 +78,7 @@ function Hl({ text, used, head, tail }: { text: string; used: string; head?: Rea
 }
 
 /** sel เก็บที่ตัวโปรแกรม (App) ไม่ใช่ในหน้านี้ · ไปหน้าข้อมูลไฟล์หรือใส่โปสเตอร์แล้วกลับมา ต้องยังเลือกเรื่องเดิมอยู่ */
-export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, onGraph, onAv, sel, setSel }: { onPage: (p: Page) => void; onPoster: (path: string) => void; onMerge: (path: string, image: PosterStart) => void; onInfo: (id: string) => void; onCheck: (r: CheckReq) => void; onGraph: (path: string) => void; onAv: (path: string) => void; sel: string | null; setSel: (id: string | null) => void }) {
+export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, onGraph, onBitrate, onAv, sel, setSel }: { onPage: (p: Page) => void; onPoster: (path: string) => void; onMerge: (path: string, image: PosterStart) => void; onInfo: (id: string) => void; onCheck: (r: CheckReq) => void; onGraph: (path: string) => void; onBitrate: (path: string) => void; onAv: (path: string) => void; sel: string | null; setSel: (id: string | null) => void }) {
   const { settings, update } = useSettings();
   const { movies, folders, scanning, progress, scan } = useLibrary();
   const toast = useToast();
@@ -222,7 +222,7 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
         </div>
         {/* key ต่อเรื่อง สลับเรื่องแล้วสร้างแผงกับปุ่มใหม่ ไม่ใช้ปุ่มเดิมซ้ำ (เดิมปุ่มชมพูค่อย ๆ เปลี่ยนเป็นเขียวตอนสลับเรื่อง) */}
         {selected && (
-          <Detail key={selected.id} m={selected} showFrames={settings?.showFrames ?? false} scanning={scanning} reminder={reminder} onPage={onPage} onCheck={onCheck} onGraph={onGraph} onAv={onAv} onPoster={onPoster} onMerge={onMerge} onInfo={() => onInfo(selected.id)} onClose={() => setSel(null)}
+          <Detail key={selected.id} m={selected} showFrames={settings?.showFrames ?? false} scanning={scanning} reminder={reminder} onPage={onPage} onCheck={onCheck} onGraph={onGraph} onBitrate={onBitrate} onAv={onAv} onPoster={onPoster} onMerge={onMerge} onInfo={() => onInfo(selected.id)} onClose={() => setSel(null)}
             onPlay={() => api.playMovie(selected.path).catch((e) => {
               toast({ kind: "bad", title: "เปิดเล่นไม่ได้", detail: String(e) });
               // โปรแกรมเล่นที่เลือกเองหาไม่เจอ พากลับไปตั้งที่หน้าตั้งค่า (สเปกข้อ 9 *"หาไม่เจอวันหลัง กดเปิดเล่นแล้วบอก และพากลับมาตั้ง"*)
@@ -608,7 +608,7 @@ function ShelfTable(p: { size: "s" | "m" | "l"; list: Movie[]; selId: string | n
 }
 
 /* ---------- แผงรายละเอียด (ต้นแบบบรรทัด 388–426) ---------- */
-function Detail(p: { m: Movie; showFrames: boolean; scanning: boolean; reminder: number; onPage: (pg: Page) => void; onCheck: (r: CheckReq) => void; onGraph: (path: string) => void; onAv: (path: string) => void; onPoster: (path: string) => void; onMerge: (path: string, image: PosterStart) => void; onInfo: () => void; onPlay: () => void; onReveal: () => void; onClose: () => void }) {
+function Detail(p: { m: Movie; showFrames: boolean; scanning: boolean; reminder: number; onPage: (pg: Page) => void; onCheck: (r: CheckReq) => void; onGraph: (path: string) => void; onBitrate: (path: string) => void; onAv: (path: string) => void; onPoster: (path: string) => void; onMerge: (path: string, image: PosterStart) => void; onInfo: () => void; onPlay: () => void; onReveal: () => void; onClose: () => void }) {
   const { m } = p;
   const src = thumbUrl(m.thumb);
   const [imgOk, setImgOk] = useState(true);
@@ -696,6 +696,12 @@ function Detail(p: { m: Movie; showFrames: boolean; scanning: boolean; reminder:
           onClick={() => { if (!m.missing) p.onAv(m.path); }} data-shelfav>
           <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 21v-7M4 10V3M12 21v-9M12 8V3M20 21v-5M20 12V3M1 14h6M9 8h6M17 16h6" /></svg>เสียงและซับ
         </button>
+        {/* ปุ่ม Bitrate (พี่กันสั่ง 10 พ.ย. 2569 "บิตเรต ภาษาอังกฤษ") เปิดหน้าบิตเรตพร้อมไฟล์นี้ ไฟล์มีหลายแทร็กหน้าบิตเรตถามก่อน · ไม่มีวิดีโอก็ดูบิตเรตเสียงได้ (พี่กันสั่ง 10 พ.ย. 2569 "เพิ่ม สามารถกดดูบิตเรตได้จาก ชั้นหนัง หน้าโปรไฟล์") */}
+        {(() => { const block = m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : null; return (
+          <button type="button" className={"btn " + (block ? "btn-wait" : "btn-ghost")} aria-disabled={!!block || undefined} title={block ?? undefined}
+            onClick={() => { if (!block) p.onBitrate(m.path); }} data-shelfbitrate>
+            <IcBitrate size={15} />Bitrate
+          </button>); })()}
       </div>
     </aside>
   );
@@ -722,6 +728,9 @@ const whereAll = (c: LinkedCover) => whereText(c) + (c.appCopy ? " และเ�
 const whereText = (c: LinkedCover) => c.store === "app" ? "เก็บสำเนาไว้ในโปรแกรม"
   : c.store === "link" ? "จับคู่อย่างเดียว ใช้รูปต้นฉบับ"
   : c.owned ? `คัดลอกไว้ข้างไฟล์หนัง ${baseName(c.file ?? "")}` : `ใช้ไฟล์ ${baseName(c.file ?? "")} ที่อยู่ข้างหนัง`;
+
+/** ที่เก็บปกแบบสั้น บรรทัดเดียวในการ์ด */
+const whereShort = (c: LinkedCover) => c.store === "app" ? "เก็บในโปรแกรม" : c.store === "link" ? `ใช้รูป ${baseName(c.source)}` : baseName(c.file ?? c.source);
 
 /** ปกที่จับคู่ไว้ (มอคอัปหน้า 5) · บอกที่มา ไม่ได้อยู่ในไฟล์ ไอคอนใน Windows ไม่เปลี่ยน · ครอปใหม่กับเปลี่ยนรูปพาไปตาราง แก้แล้วยืนยันอีกครั้งถึงเปลี่ยนบนชั้น
     เอาปกออก รูปที่โปรแกรมคัดลอกเองลงถังขยะ (พี่กันตอบตอนทำแผน) · รวมเข้าไฟล์พาไปหน้าใส่โปสเตอร์พร้อมรูปกับค่าครอป · เรื่องที่มีสองปก เลือกปกที่แสดงได้ */
@@ -764,10 +773,11 @@ function LinkCard({ m, onPage, onMerge }: { m: Movie; onPage: (pg: Page) => void
   return (
     <div data-link-card style={{ marginBottom: 12 }}>
       <div className="stat info" style={{ marginTop: 0 }}><span style={{ flex: "none", marginTop: 1 }}><IcLink size={16} /></span><div>
-        <b>{m.shownLink ? "ปกจับคู่ไว้ ไม่ได้อยู่ในไฟล์" : "มีปกจับคู่ไว้ด้วย ตอนนี้แสดงปกในไฟล์"}</b>
-        <div style={{ overflowWrap: "anywhere" }}>จากรูป {baseName(c.source)}{c.cropped ? " · ครอปแล้ว" : ""}</div>
-        <div style={{ overflowWrap: "anywhere" }} data-link-where>{whereAll(c)}</div>
-        <Phr>ไอคอนไฟล์ใน Windows ยังไม่เปลี่ยน เพราะ Icaros อ่านปกจากในไฟล์</Phr>
+        {/* สั้นสองบรรทัด รายละเอียดเต็มอยู่ตอนชี้ (พี่กันทัก 10 พ.ย. 2569 "ต้องเขียนอธิบายเยอะขนาดนี้เลยเหรอ") */}
+        <b>{m.shownLink ? "ปกจับคู่ ไม่ได้อยู่ในไฟล์" : "มีปกจับคู่ด้วย ตอนนี้แสดงปกในไฟล์"}</b>
+        <div style={{ overflowWrap: "anywhere" }} data-link-where title={`จากรูป ${baseName(c.source)}${c.cropped ? " · ครอปแล้ว" : ""}
+${whereAll(c)}
+ไอคอนไฟล์ใน Windows ไม่เปลี่ยน เพราะ Icaros อ่านปกจากในไฟล์`}>{whereShort(c)}</div>
       </div></div>
       {lost && (
         <div className="stat warn" style={{ marginTop: 8 }} data-link-lost><CardIcon kind="warn" /><div><b>หารูปไม่เจอ</b><Phr>รูปถูกย้ายหรือลบไปแล้ว ปกที่เห็นเป็นภาพเล็กที่โปรแกรมจำไว้ กดเปลี่ยนรูปเพื่อจับคู่ใหม่</Phr></div></div>

@@ -192,6 +192,9 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
 .seg-off button:hover { background-color: #f9e9ee; color: #b8919e; }
 .seg-off button.on { color: #c9aab4; background-color: #f8e6ec; font-weight: 600; }
 .seg-off button.on:hover { background-color: #f6e0e7; color: #b8919e; }
+/* ปิดเฉพาะตัวเลือก สีเดียวกับทั้งแถวที่ปิด */
+.seg button.off { color: #c9aab4; cursor: not-allowed; background-color: #f7f7f7; }
+.seg button.off:hover { background-color: #f9e9ee; color: #b8919e; }
 
 /* สวิตช์ */
 .switch { width: 44px; height: 26px; border-radius: 13px; flex: none; position: relative; cursor: pointer; border: 0; padding: 0; transition: background-color .15s; }
@@ -414,6 +417,8 @@ tbody tr:last-child td { border-bottom: 0; }
 .tb-s .lv .c-th { width: 58px; } .tb-m .lv .c-th { width: 76px; } .tb-l .lv .c-th { width: 104px; }
 .tb-m .lv .th { width: 40px; height: 60px; } .tb-m .lv .th.wide { width: 62px; height: 35px; margin-block: 12px; }
 .tb-l .lv .th { width: 64px; height: 96px; } .tb-l .lv .th.wide { width: 90px; height: 51px; margin-block: 22px; }
+/* ขั้นกลาง กรอบ 900 ถึง 1,100 (หน้าต่าง 1024 ตอนย่อเมนู) คอลัมน์ใหญ่กิน 844 เหลือชื่อไฟล์ 78 ชื่อตัดสามบรรทัด ดาวล้นช่อง (เจอ 10 พ.ย. 2569 ตอนรันตัวตรวจทั้งชุด) */
+@container (max-width: 1100px) { .lv .c-video { width: 110px; } .lv .c-a { width: 200px; } .lv .c-s { width: 130px; } }
 @container (max-width: 900px) { .lv .c-size { width: 72px; } .lv .c-video { width: 84px; } .lv .c-a { width: 150px; } .lv .c-s { width: 100px; } .lv .c-st { width: 118px; } .tb-m .lv .c-th { width: 66px; } .tb-l .lv .c-th { width: 76px; } }
 @container (max-width: 720px) { .tblwrap .lv .c-th { width: 42px; } .lv .c-size { width: 62px; } .lv .c-video { width: 56px; } .lv .c-a { width: 104px; } .lv .c-s { width: 64px; } .lv .c-st { width: 40px; } .tblwrap[class] .lv .th { width: 30px; height: 45px; } .tblwrap[class] .lv .th.wide { height: 20px; margin-block: 12px; } .lv td, .lv th { padding-inline: 5px; } .lv .lvword { display: none; } }
 .lvchips { display: flex; gap: 4px; overflow: hidden; }
@@ -701,9 +706,11 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .apanel { display: flex; flex-direction: column; gap: 12px; }
 .ag .card { padding: 14px; }
 .ag .card h3 { margin: 0 0 8px; font-size: 14.5px; justify-content: space-between; color: var(--accent-ink); }
-.ag .kv { grid-template-columns: 1fr auto; gap: 5px 10px; }
-.ag .kv dt { color: var(--txt2); }
-.ag .kv dd { font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; }
+/* คอลัมน์ค่ากว้างได้ไม่เกินแผง ค่ายาว (ชื่อศิลปิน) ตัดบรรทัดในแผง ไม่ดันแผงจนเลื่อนแนวนอน (พี่กันทัก 10 พ.ย. 2569 "แถบเลื่อนมันทับ") */
+.ag .kv { grid-template-columns: auto minmax(0, 1fr); gap: 5px 10px; }
+.ag .kv dt { color: var(--txt2); white-space: nowrap; }
+.ag .kv .nw { white-space: nowrap; }
+.ag .kv dd { font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; min-width: 0; overflow-wrap: anywhere; }
 .plot { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px 12px; min-width: 0; position: relative; }
 .plothead { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--txt2); margin-bottom: 8px; min-height: 32px; flex-wrap: wrap; }
 .plothead b { color: var(--txt); font-size: 14px; }
@@ -769,18 +776,30 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 /* หน้าขอบคุณ การ์ดเรียงเป็นตาราง พี่กันสั่ง 9 พ.ย. 2569 "ใส่ icon ด้วย และทำเป็นการ์ดหน่อย" */
 .thanksgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; margin: 8px 0 18px; }
 .thankcard { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
-.thankhead { display: flex; align-items: center; gap: 9px; min-width: 0; font-size: 14px; }
+.thankhead { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 9px; min-width: 0; font-size: 14px; }
 .thankhead b { font-weight: 600; overflow-wrap: anywhere; }
-.thankicon { flex: none; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; background: color-mix(in srgb, var(--accent) 12%, white); color: var(--accent-ink); }
+/* พื้นหลังขาวทุกไอคอน (พี่กันสั่ง 10 พ.ย. 2569 "พื้นหลังขาวให้หมด") */
+.thankicon { flex: none; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; background: white; box-shadow: inset 0 0 0 1px var(--line); color: var(--accent-ink); }
 .thankicon b { font-size: 16px; }
-.thankicon img { width: 26px; height: 26px; object-fit: contain; display: block; }
+.thankicon img { width: 28px; height: 28px; object-fit: contain; display: block; }
+.thankicon.white img { width: 28px; height: 28px; }
+/* เลขรุ่นต่อท้ายชื่อ (พี่กันสั่ง 10 พ.ย. 2569 "ทุกตัว เธอใส่เวอร์ชั่นด้วยนะ ถ้ามี") */
+/* ชื่อการ์ดอยู่บรรทัดเดียวเสมอ ป้ายสัญญาหดแทน (พี่กันทัก 10 พ.ย. 2569 "ตกบรรทัด" ห้องสมุด Rust อื่น ๆ ตัด ๆ ลงบรรทัดใหม่) */
+.thankname { display: flex; flex-direction: column; flex: 1 0 auto; max-width: calc(100% - 41px); line-height: 1.3; }
+.thankname b { white-space: nowrap; }
+/* แถวเดียวไม่พอ ป้ายสัญญาลงบรรทัดถัดไปทั้งป้าย ชิดขวา · ชื่อสัญญาไม่ถูกตัดกลาง (เดิม 2.0 ตกบรรทัดเดียว) */
+.thanktag > span { white-space: nowrap; }
+.thankver { font-size: 12px; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
+.thankicon.two { width: auto; gap: 4px; padding: 0 3px; }
 .thankwhat { flex: 1; font-size: 12.5px; line-height: 1.5; color: var(--txt2); }
-.thankfoot { display: flex; align-items: flex-end; justify-content: space-between; gap: 8px; min-width: 0; font-size: 11.5px; color: var(--txt3); }
-.thankurl { min-width: 0; overflow-wrap: anywhere; display: flex; flex-wrap: wrap; gap: 0 8px; }
-.thanklink { padding: 0; border: 0; background: none; font: inherit; color: var(--accent-ink); text-align: left; cursor: pointer; overflow-wrap: anywhere; min-width: 0; }
+/* แถวล่างมีแต่ลิงก์ ยาวได้เต็มความกว้าง ไม่ตัดกลางคำ · ยาวเกินการ์ดค่อยตัดท้ายเป็นสามจุด ชี้แล้วเห็นเต็ม (พี่กันสั่ง 10 พ.ย. 2569 "ให้ลิงก์มันยาวได้") */
+.thankfoot { display: flex; align-items: flex-end; gap: 8px; min-width: 0; font-size: 11.5px; color: var(--txt3); }
+.thankurl { min-width: 0; flex: 1; display: flex; flex-wrap: wrap; gap: 0 10px; }
+.thanklink { padding: 0; border: 0; background: none; font: inherit; color: var(--accent-ink); text-align: left; cursor: pointer; min-width: 0; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .thanklink:hover { text-decoration: underline; }
 .thanklink:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
-.thanktag { flex: none; max-width: 50%; padding: 1px 7px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 10%, white); color: var(--accent-ink); white-space: nowrap; }
+/* ป้ายสัญญาอยู่มุมขวาบน ข้างชื่อ (พี่กันสั่ง 10 พ.ย. 2569 "ย้ายไฮไลต์ไปบนขวา") */
+.thanktag { flex: 0 0 auto; margin-left: auto; align-self: flex-start; max-width: 100%; text-align: right; font-size: 11.5px; line-height: 1.6; padding: 1px 7px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 10%, white); color: var(--accent-ink); white-space: normal; }
 /* ตั้งค่ารูปกราฟ */
 .imghead { margin: 14px 0 2px; font-size: 14px; font-weight: 700; color: var(--accent-ink); }
 .imgctl { display: inline-flex; align-items: center; gap: 8px; flex: none; }
@@ -788,8 +807,9 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 /* พี่กันบอก 9 พ.ย. 2569 "ช่องเท่ากัน" ทุกช่องในแถบเลือกของชุดนี้กว้างเท่าช่องที่ยาวสุด */
 [data-img-row] .seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
 [data-img-row] .seg > * { white-space: nowrap; }
-[data-img-row="bits"] .seg, [data-img-row="gray"] .seg, [data-img-row="sub"] .seg, [data-img-row="compress"] .seg { width: 165px; box-sizing: border-box; }
-[data-img-row="bits"] .seg > *, [data-img-row="gray"] .seg > *, [data-img-row="sub"] .seg > *, [data-img-row="compress"] .seg > * { flex: 1 1 0; min-width: 0; padding-left: 0; padding-right: 0; white-space: nowrap; }
+/* แถวพื้นหลังกว้างเท่าแถวสองปุ่มอื่น ขอบซ้ายตรงแนว (พี่กันทัก 10 พ.ย. 2569 "แนวเดียวกันด้วยสิ อย่าลืม") */
+[data-img-row="bits"] .seg, [data-img-row="gray"] .seg, [data-img-row="sub"] .seg, [data-img-row="compress"] .seg, [data-img-row="bg"] .seg { width: 165px; box-sizing: border-box; }
+[data-img-row="bits"] .seg > *, [data-img-row="gray"] .seg > *, [data-img-row="sub"] .seg > *, [data-img-row="compress"] .seg > *, [data-img-row="bg"] .seg > * { flex: 1 1 0; min-width: 0; padding-left: 0; padding-right: 0; white-space: nowrap; }
 .imgctl > .btn { width: 82.5px; padding-left: 0; padding-right: 0; justify-content: center; flex: none; }
 /* พี่กันบอก 9 พ.ย. 2569 "ยังไม่เรียงตามปุ่มอื่น" ปุ่มกลับค่าตั้งต้นกับล้าง กว้างเท่าแถบสองตัวเลือก 165 จุด ขอบซ้ายขวาตรงกัน */
 .btn[data-img-reset], .btn[data-clearcache] { width: 165px; padding-left: 0; padding-right: 0; justify-content: center; flex: none; }
@@ -912,7 +932,8 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .ag[data-graphview] .agb.many { grid-template-columns: 360px minmax(0, 1fr); }
 /* แถบเลื่อนชิดเส้นแบ่งกับชิดขอบหน้าต่าง ระยะขอบอยู่ข้างในกล่อง */
 .ag[data-graphview] .apanel, .ag[data-graphview] .agb > .plot { height: 100%; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
-.ag[data-graphview] .apanel { padding: 12px 14px; border-right: 1px solid var(--line); gap: 0; }
+/* เว้นขวาให้แถบเลื่อนลอย (หนา 7) ไม่ทับข้อความ · ไม่เลื่อนแนวนอน */
+.ag[data-graphview] .apanel { padding: 12px 20px 12px 14px; border-right: 1px solid var(--line); gap: 0; overflow-x: hidden; }
 .ag[data-graphview] .apanel > .card { padding: 0; }
 .ag[data-graphview] .apanel > .card, .ag[data-graphview] .apanel > .stat { margin: 0; }
 .ag[data-graphview] .apanel > * + * { margin-top: 14px; padding-top: 18px; border-top: 1px solid var(--line); }

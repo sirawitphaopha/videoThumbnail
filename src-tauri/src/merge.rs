@@ -549,7 +549,7 @@ pub fn conv_estimate(t: &Track) -> Option<u64> {
     let rate = spec.rate.map(|r| r as u64).or(t.rate).unwrap_or(48000) as f64;
     let secs = match spec.speed { Some([a, b]) if a > 0.0 && b > 0.0 => secs * a / b, _ => secs };
     let bytes = match spec.codec.as_str() {
-        "flac" | "wv" => secs * rate * ch * 3.0 * 0.6,
+        "flac" | "alac" | "wv" => secs * rate * ch * 3.0 * 0.6,
         _ => {
             let kbps = spec.p.get("bitrate").and_then(|v| v.as_f64().or_else(|| v.as_str().and_then(|s| s.parse().ok()))).unwrap_or(320.0);
             secs * kbps * 1000.0 / 8.0

@@ -35,12 +35,14 @@ pub struct GraphImg {
     pub dir: String,
     /// เปิดกล่องเลือกที่เก็บทุกครั้ง
     pub ask: bool,
+    /// พื้นหลังโปร่งใส · เก็บช่องโปร่งใสใน PNG WebP TIFF · JPG กับ HEIC ไม่มีที่เก็บ (พี่กันสั่ง 10 พ.ย. 2569)
+    pub transparent: bool,
 }
 
 impl Default for GraphImg {
     // แคลร์ตั้ง · ใหญ่พอดูบนจอ 2K คมทั้งตัวหนังสือและเส้น พิมพ์ได้ที่ 300 dpi
     fn default() -> Self {
-        Self { width: 2560, format: "png".into(), bits: 8, gray: false, dpi: 300, quality: 92, subsampling: "444".into(), compress: "default".into(), title: true, name_graph: true, dir_mode: "beside".into(), dir: String::new(), ask: true }
+        Self { width: 2560, format: "png".into(), bits: 8, gray: false, dpi: 300, quality: 92, subsampling: "444".into(), compress: "default".into(), title: true, name_graph: true, dir_mode: "beside".into(), dir: String::new(), ask: true, transparent: false }
     }
 }
 
@@ -115,11 +117,17 @@ pub fn encode_image(png: &[u8], o: &GraphImg) -> Result<(Vec<u8>, u32, u32), Str
     let (w, h) = (src.width(), src.height());
     let dpi = o.dpi.clamp(1, 9600);
     let deep = o.bits == 16;
-    let img = match (o.gray, deep) {
-        (true, true) => DynamicImage::ImageLuma16(src.to_luma16()),
-        (true, false) => DynamicImage::ImageLuma8(src.to_luma8()),
-        (false, true) => DynamicImage::ImageRgb16(src.to_rgb16()),
-        (false, false) => DynamicImage::ImageRgb8(src.to_rgb8()),
+    // พื้นโปร่งใส หน้าจอทำช่องโปร่งใสมาแล้ว ที่นี่เก็บไว้ ไม่ทิ้ง
+    let alpha = o.transparent && matches!(o.format.as_str(), "png" | "webp" | "tiff");
+    let img = match (o.gray, deep, alpha) {
+        (true, true, true) => DynamicImage::ImageLumaA16(src.to_luma_alpha16()),
+        (true, false, true) => DynamicImage::ImageLumaA8(src.to_luma_alpha8()),
+        (false, true, true) => DynamicImage::ImageRgba16(src.to_rgba16()),
+        (false, false, true) => DynamicImage::ImageRgba8(src.to_rgba8()),
+        (true, true, false) => DynamicImage::ImageLuma16(src.to_luma16()),
+        (true, false, false) => DynamicImage::ImageLuma8(src.to_luma8()),
+        (false, true, false) => DynamicImage::ImageRgb16(src.to_rgb16()),
+        (false, false, false) => DynamicImage::ImageRgb8(src.to_rgb8()),
     };
     let mut buf = Vec::new();
     match o.format.as_str() {
@@ -138,7 +146,12 @@ pub fn encode_image(png: &[u8], o: &GraphImg) -> Result<(Vec<u8>, u32, u32), Str
         }
         "webp" => {
             // WebP ในตัวเป็นแบบไม่เสียคุณภาพ 8 bit เท่านั้น
-            let eight = if o.gray { DynamicImage::ImageLuma8(src.to_luma8()) } else { DynamicImage::ImageRgb8(src.to_rgb8()) };
+            let eight = match (o.gray, alpha) {
+                (true, true) => DynamicImage::ImageLumaA8(src.to_luma_alpha8()),
+                (false, true) => DynamicImage::ImageRgba8(src.to_rgba8()),
+                (true, false) => DynamicImage::ImageLuma8(src.to_luma8()),
+                (false, false) => DynamicImage::ImageRgb8(src.to_rgb8()),
+            };
             eight.write_with_encoder(image::codecs::webp::WebPEncoder::new_lossless(&mut buf)).map_err(|e| format!("เข้ารหัส WebP ไม่สำเร็จ: {e}"))?;
         }
         "tiff" => {
@@ -316,6 +329,25 @@ mod tests {
             assert_eq!(&d[37..41], b"pHYs");
             assert_eq!(u32::from_be_bytes([d[41], d[42], d[43], d[44]]), 11811); // 300 dpi
         }
+    }
+
+    /// พื้นโปร่งใส · PNG WebP TIFF เก็บช่องโปร่งใส จุดที่โปร่งใสยังโปร่งใส · ปิดไว้ได้รูปไม่มีช่องโปร่งใสเหมือนเดิม · JPG ไม่พัง
+    #[test]
+    fn transparent_keeps_alpha() {
+        let img = image::RgbaImage::from_fn(8, 4, |x, _| image::Rgba([200, 50, 90, if x < 4 { 0 } else { 255 }]));
+        let mut png = Vec::new();
+        DynamicImage::ImageRgba8(img).write_with_encoder(image::codecs::png::PngEncoder::new(&mut png)).unwrap();
+        for (f, bits, gray, want) in [("png", 8u8, false, image::ColorType::Rgba8), ("png", 16, false, image::ColorType::Rgba16), ("png", 8, true, image::ColorType::La8), ("webp", 8, false, image::ColorType::Rgba8), ("tiff", 8, false, image::ColorType::Rgba8)] {
+            let o = GraphImg { transparent: true, ..opt(f, bits, gray) };
+            let (d, ..) = encode_image(&png, &o).unwrap();
+            let back = image::load_from_memory(&d).unwrap();
+            assert_eq!(back.color(), want, "{f} {bits} {gray}");
+            let px = back.to_rgba8();
+            assert_eq!((px.get_pixel(0, 0)[3], px.get_pixel(7, 0)[3]), (0, 255), "{f}");
+        }
+        let (d, ..) = encode_image(&png, &opt("png", 8, false)).unwrap();
+        assert_eq!(image::load_from_memory(&d).unwrap().color(), image::ColorType::Rgb8);
+        assert!(encode_image(&png, &GraphImg { transparent: true, ..opt("jpg", 8, false) }).is_ok());
     }
 
     #[test]

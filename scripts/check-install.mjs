@@ -44,7 +44,7 @@ const exe = existsSync(DEST) ? readdirSync(DEST).find((f) => f.toLowerCase().end
 check("ติดตั้งแบบเงียบลงโฟลเดอร์ที่เลือกได้ ไม่มีหน้าต่าง", ins.status === 0 && exe, `ตัวติดตั้ง ${installer.split("\\").pop()} ${(size / 1048576).toFixed(0)} MB · ใช้ ${secs} วินาที · ได้ ${exe ?? "ไม่มีไฟล์โปรแกรม"} · รหัส ${ins.status}`);
 // เครื่องมือแผนเดิม 7 ไฟล์ กับตัวแปลงเสียงของแผนเสียงและซับ 8 ไฟล์ (flac กับ DLL ประกอบ lame กับ DLL ประกอบ opusenc wavpack MACDll64 13.46 ชุด TAK ทั้ง zip)
 const toolNames = ["mkvmerge.exe", "mkvextract.exe", "mkvpropedit.exe", "ffmpeg.exe", "ffprobe.exe", "MediaInfo.exe", "LIBCURL.DLL",
-  "flac.exe", "libFLAC.dll", "lame.exe", "libmpg123-0.dll", "opusenc.exe", "wavpack.exe", "MACDll64.dll", "TAK_2.3.3.zip",
+  "flac.exe", "libFLAC.dll", "lame.exe", "libmpg123-0.dll", "opusenc.exe", "wavpack.exe", "MACDll64.dll", "TAK_2.3.3.zip", "qaac64.exe", "refalac64.exe", "libsoxr64.dll",
   // libheif ตัวจริงกับไฟล์ที่มันต้องใช้ บันทึกรูปกราฟเป็น HEIC (9 ไฟล์)
   "heif.dll", "libx265.dll", "libde265.dll", "aom.dll", "dav1d.dll", "libsharpyuv.dll", "msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll"];
 const toolDiff = toolNames.filter((t) => !existsSync(join(DEST, "tools", t)) || fileSha(join(DEST, "tools", t)) !== fileSha(resolve("src-tauri", "tools", t)));
@@ -73,7 +73,7 @@ if (c) {
   check("ตัวที่ติดตั้งเรียกเครื่องมือทั้ง 6 ตัวได้ พร้อมเลขรุ่น", tools.length === 6 && tools.every((t) => t.ok), tools.map((t) => `${t.name} ${t.ok ? "พร้อม" : "ไม่พร้อม"}`).join(" · "));
   // ตัวแปลงเสียง (แผนเสียงและซับ ขั้น 9) · ตัวที่แนบมาเรียกได้ทุกตัว Monkey's Audio ถามรุ่นจาก DLL ได้ · คำสั่งหน้าแปลงเสียงมีในตัวจริง
   const encs = await inv("encoders_status");
-  const encOk = ["flac", "opusenc", "lame", "wavpack", "MACDll64", "Takc", "ffmpeg"].every((n) => encs.find((e) => e.name === n)?.ok);
+  const encOk = ["flac", "opusenc", "lame", "wavpack", "MACDll64", "Takc", "refalac64", "ffmpeg"].every((n) => encs.find((e) => e.name === n)?.ok);
   const ver = (n) => encs.find((e) => e.name === n)?.version;
   const takcSha = existsSync(join(TAK_DIR, "Takc.exe")) ? fileSha(join(TAK_DIR, "Takc.exe")) : "ไม่มีไฟล์";
   check("ตัวที่ติดตั้งเรียกตัวแปลงเสียงที่แนบมาได้ครบ flac opusenc lame wavpack Monkey's Audio 13.46 TAK 2.3.3 ffmpeg พร้อมเลขรุ่น · Takc.exe แตกจาก zip ที่แนบมาใหม่ hash ตรง พร้อมสัญญาอนุญาต",

@@ -5,7 +5,7 @@ import type { EncodeSpec } from "./api";
 
 export type Preset = { label: string; detail: string; mbPerHour?: number; pctWav?: number; p: EncodeSpec["p"]; channels?: number };
 export type Codec = {
-  id: "opus" | "aac" | "mp3" | "ac3" | "flac" | "wv" | "ape" | "tak";
+  id: "opus" | "aac" | "mp3" | "ac3" | "flac" | "alac" | "wv" | "ape" | "tak";
   name: string;
   full: string;
   lossless: boolean;
@@ -30,7 +30,7 @@ export const CODECS: Codec[] = [
       { label: "หนัง 5.1 ดีมาก", detail: "VBR 384 kbps · 5.1", mbPerHour: 173, p: { bitrate: 384, mode: "VBR" } },
     ], preset: 3 },
   { id: "aac", name: "AAC", full: "Advanced Audio Coding", lossless: false, native: "qaac64", mp4: true, ch: "7.1 ได้",
-    why: "เล่นได้แทบทุกเครื่อง · ตัวที่ดี (qaac fdkaac) ต้องวางเองในโฟลเดอร์ตัวแปลง ตัวของ ffmpeg ด้อยกว่าที่บิตเรตต่ำ",
+    why: "เล่นได้แทบทุกเครื่อง · qaac (ตัวของ Apple) แนบมากับโปรแกรม ต้องติดตั้ง iTunes ก่อน · fdkaac ต้องวางเองในโฟลเดอร์ตัวแปลง · ตัวของ ffmpeg ด้อยกว่าที่บิตเรตต่ำ",
     presets: [
       { label: "เสียงพูด", detail: "96 kbps · 2.0", mbPerHour: 43, p: { mode: "CVBR", bitrate: 96, tvbr: 45 }, channels: 2 },
       { label: "เพลงคุณภาพดี", detail: "TVBR 91 ราว 190 kbps · 2.0", mbPerHour: 85, p: { mode: "TVBR", tvbr: 91, bitrate: 192 }, channels: 2 },
@@ -61,6 +61,13 @@ export const CODECS: Codec[] = [
       { label: "เล็กสุด", detail: "Level 8", pctWav: 53, p: { level: 8 } },
       { label: "เก็บถาวร", detail: "Level 8 · Verify", pctWav: 53, p: { level: 8, verify: "On" } },
     ], preset: 1 },
+  // ALAC ด้วย refalac ที่มากับชุด qaac (พี่กันสั่ง 10 พ.ย. 2569 "เอาใส่เลย") · ไม่มีตัวต้นฉบับใช้ ffmpeg
+  { id: "alac", name: "ALAC", full: "Apple Lossless Audio Codec", lossless: true, native: "refalac64", mp4: true, ch: "สูงสุด 8 ช่อง",
+    why: "Lossless ของ Apple · เล่นบน iPhone iPad Mac และ Apple Music ได้เลย · ไฟล์ใหญ่กว่า FLAC เล็กน้อย",
+    presets: [
+      { label: "มาตรฐาน", detail: "ค่าตั้งต้น", pctWav: 56, p: { speed: "Normal" } },
+      { label: "แปลงเร็ว", detail: "Fast", pctWav: 69, p: { speed: "Fast" } },
+    ], preset: 0 },
   { id: "wv", name: "WavPack", full: "WavPack Hybrid Lossless", lossless: true, native: "wavpack", mp4: false, ch: "หลายช่องได้",
     why: "โหมดสูงบีบได้เล็กกว่า FLAC เล็กน้อย · ใส่ MP4 ไม่ได้",
     presets: [
@@ -94,7 +101,7 @@ export function convertLabel(spec: EncodeSpec): string {
   const c = codecOf(spec.codec);
   const p = spec.p;
   const v = c.id === "mp3" ? (p.mode === "CBR" ? `CBR ${p.bitrate}` : `V${p.vbrq ?? 2}`)
-    : c.id === "flac" ? `L${p.level ?? 5}` : c.id === "wv" ? String(p.mode ?? "Normal") : c.id === "ape" ? String(p.level ?? "Normal")
+    : c.id === "flac" ? `L${p.level ?? 5}` : c.id === "alac" ? (p.speed === "Fast" ? "Fast" : "") : c.id === "wv" ? String(p.mode ?? "Normal") : c.id === "ape" ? String(p.level ?? "Normal")
     : c.id === "tak" ? `-p${p.preset ?? 2}${p.eval === "Max" ? "m" : p.eval === "Extra" ? "e" : ""}`
     : c.id === "aac" && spec.encoder === "qaac" && p.mode === "TVBR" ? `TVBR ${p.tvbr}` : String(p.bitrate ?? "");
   return `${c.name} ${v}`.trim();

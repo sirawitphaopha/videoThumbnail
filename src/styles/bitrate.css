@@ -1,0 +1,117 @@
+/* มอคอัป · หน้าบิตเรตวิดีโอแบบใหม่ · สีทุกจุดมาจากตัวแปรของโทน (โทนเปลี่ยน หน้าเปลี่ยนตาม) · ชื่อคลาสขึ้นต้น brn- ไม่ชนหน้าอื่น */
+.brn { height: 100%; min-height: 0; overflow: hidden; }
+/* หน้านี้ไม่เลื่อน แถบบนจึงไม่ต้องติดขอบ (แบบหน้ากราฟเสียงที่อยู่ในกล่องเลื่อน ถ้าติดขอบจะโดนดันลงมาทับจุดลากไฟล์) */
+.brn .gmodebar { position: relative; }
+.brn-fnote { background: var(--accent-soft); color: var(--accent-ink); border: 1px solid var(--line); }
+.brn .fchip { background: var(--win); }
+
+/* แถวตัวเลือก */
+.brn-ctl { flex-wrap: nowrap; min-width: 0; }
+.brn-ctl .lbl { flex: none; }
+.brn-sep { width: 1px; height: 22px; background: var(--line); flex: none; margin: 0 2px; }
+.brn-classic { margin-left: auto; flex: none; white-space: nowrap; }
+.brn-multi button { display: inline-flex; align-items: center; gap: 6px; }
+/* ขีดสีในปุ่มเส้น ใหญ่พอแยกสีออก ลายตรงกับเส้นในกราฟ ค่าเฉลี่ยเส้นทึบ สูงสุดกับต่ำสุดเส้นประ (พี่กันทัก 10 พ.ย. 2569 "เส้นตัวอย่างเล็กไปนะ แทบแยกสีไม่ออก")
+   ต่ำสุดใช้ชื่อสี steelblue ตัวแปลงโทนไม่แปลง เดิมใช้ --info-ink ที่โทนแปลงเป็นชมพูเหมือนอีกสองเส้น */
+.brn-dot { width: 18px; height: 4px; border-radius: 2px; display: inline-block; flex: none; }
+.brn-dot.avg { background: var(--accent-d); }
+.brn-dot.max { background: repeating-linear-gradient(90deg, var(--bad-ink) 0 4px, transparent 4px 7px); }
+.brn-dot.min { background: repeating-linear-gradient(90deg, steelblue 0 4px, transparent 4px 7px); }
+
+/* แผงซ้ายกับกราฟ */
+.brn-body { flex: 1; min-height: 0; grid-template-columns: 236px minmax(0, 1fr); align-items: stretch; }
+.brn-side { display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow-y: auto; }
+.brn-side .card { padding: 12px 14px; }
+.brn-side h3 { margin: 0 0 6px; font-size: 14px; color: var(--accent-ink); }
+.brn-kv { display: grid; grid-template-columns: 66px 1fr; gap: 3px 8px; margin: 0; font-size: 13px; line-height: 1.5; }
+.brn-kv dt { color: var(--txt3); white-space: nowrap; }
+.brn-kv dd { margin: 0; color: var(--txt); font-variant-numeric: tabular-nums; min-width: 0; }
+/* เวลาที่เกิดค่าสูงสุดต่ำสุด เป็นบรรทัดเล็กใต้ค่า กดแล้วปักจุดตรงนั้น */
+/* เวลาอยู่บรรทัดเดียวกับค่า (พี่กันทัก 10 พ.ย. 2569 "มันตกสองบรรทัด") */
+.brn-at { display: inline; white-space: nowrap; font-size: 12px; padding: 0 3px; margin-left: 2px; border-radius: 4px; }
+.brn-kv dd { white-space: nowrap; }
+.brn-at:hover { background: var(--accent-soft); }
+.brn-hint { margin: 6px 0 0; }
+.brn-types { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
+.brn-tbar { display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 1px; background: var(--line); margin-bottom: 4px; }
+.brn-tbar i.tI { background: var(--accent-d); } .brn-tbar i.tP { background: var(--accent); opacity: .6; } .brn-tbar i.tB { background: var(--accent); opacity: .28; }
+.brn-trow { display: grid; grid-template-columns: 26px 1fr auto; align-items: center; gap: 6px; font-variant-numeric: tabular-nums; }
+.brn-ft { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 18px; border-radius: 4px; font-size: 11.5px; font-weight: 700; }
+.brn-ft.tI { background: var(--accent-d); color: var(--win); }
+.brn-ft.tP { background: var(--accent-soft); color: var(--accent-ink); box-shadow: inset 0 0 0 1px var(--accent); }
+.brn-ft.tB { background: var(--win); color: var(--txt2); box-shadow: inset 0 0 0 1px var(--line); }
+
+.brn-main { display: flex; flex-direction: column; min-height: 0; padding: 12px 14px 10px; gap: 8px; position: relative; }
+.brn-head { display: flex; align-items: center; gap: 12px; min-width: 0; }
+.brn-head > div:first-child { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 14px; }
+.brn-zoom { display: flex; align-items: center; gap: 6px; flex: none; }
+.brn-zoom .icon-btn { width: 30px; height: 30px; }
+.brn-zoom .icon-btn:disabled { opacity: .4; cursor: default; }
+.brn-prog { position: relative; height: 22px; border-radius: 6px; background: var(--accent-soft); overflow: hidden; font-size: 12.5px; color: var(--accent-ink); display: flex; align-items: center; padding: 0 10px; }
+.brn-prog i { position: absolute; left: 0; top: 0; bottom: 0; background: color-mix(in srgb, var(--accent) 22%, transparent); transition: width .12s linear; }
+.brn-prog span { position: relative; font-weight: 600; }
+.brn-ov { position: relative; height: 44px; flex: none; border-bottom: 1px solid var(--line); cursor: pointer; }
+.brn-win { position: absolute; top: 0; bottom: 0; border: 2px solid var(--accent-d); border-radius: 4px; background: color-mix(in srgb, var(--accent) 10%, transparent); pointer-events: none; }
+.brn-plot { position: relative; flex: 1; min-height: 160px; cursor: crosshair; user-select: none; }
+.brn-sel { position: absolute; background: color-mix(in srgb, var(--accent) 14%, transparent); border-left: 1.5px solid var(--accent-d); border-right: 1.5px solid var(--accent-d); pointer-events: none; display: flex; justify-content: center; }
+.brn-sel span { margin-top: 6px; height: 20px; padding: 0 8px; border-radius: 10px; background: var(--accent-d); color: var(--win); font-size: 12px; font-weight: 600; line-height: 20px; white-space: nowrap; }
+.brn-tip { position: absolute; width: 196px; pointer-events: none; background: var(--win); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 18px color-mix(in srgb, var(--txt) 16%, transparent); padding: 8px 11px; display: flex; flex-direction: column; gap: 1px; font-size: 13px; z-index: var(--z-float); }
+.brn-tip b { font-size: 17px; color: var(--txt); font-variant-numeric: tabular-nums; }
+.brn-tip .up { color: var(--accent-ink); } .brn-tip .down { color: var(--txt3); }
+.brn-tipft { display: inline-flex; align-items: center; gap: 6px; font-size: 12.5px; color: var(--txt2); margin-top: 3px; }
+.brn-empty { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 6px; align-items: center; justify-content: center; color: var(--txt3); text-align: center; }
+.brn-empty b { color: var(--bad-ink); font-size: 15px; }
+.brn-err { color: var(--bad-ink); font-weight: 600; }
+.brn-foot { display: flex; align-items: center; gap: 14px; flex-wrap: wrap; font-size: 12.5px; color: var(--txt2); padding-top: 2px; }
+.brn-leg { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.brn-leg i { width: 14px; height: 10px; border-radius: 3px; display: inline-block; }
+.brn-leg i.lo { background: color-mix(in srgb, var(--accent) 32%, transparent); }
+.brn-leg i.hi { background: color-mix(in srgb, var(--accent) 78%, transparent); }
+.brn-leg i.over { background: var(--bad); }
+.brn-leg i.cum { height: 2px; background: var(--txt2); opacity: .6; }
+.brn-leg i.key { width: 2px; height: 10px; background: var(--txt3); }
+.brn-howto { margin-left: auto; color: var(--txt3); }
+.brn-pin { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 7px 10px; border-radius: 9px; background: var(--accent-soft); font-size: 13px; color: var(--txt); }
+.brn-pin b { font-variant-numeric: tabular-nums; }
+.brn-pinmark { width: 3px; height: 18px; border-radius: 2px; background: var(--accent-d); }
+@media (max-width: 1180px) { .brn-howto { display: none; } .brn-ctl .lbl { display: none; } }
+
+/* เส้นแบ่งแบบหน้ากราฟเสียง (พี่กันบอก 10 พ.ย. 2569 "เส้นแบ่ง") · เส้นนอนใต้แถบบน เส้นตั้งคั่นแผงซ้ายกับกราฟ เส้นคั่นระหว่างหัวข้อในแผงซ้าย */
+.brn[data-brnfile] { padding-bottom: 0; gap: 0; }
+.brn-top { display: flex; flex-direction: column; gap: 12px; margin: -16px -18px 0; padding: 12px 18px; border-bottom: 1px solid var(--line); background: var(--win); flex: none; }
+.brn[data-brnfile] .brn-body { margin: 0 -18px; gap: 0; grid-template-columns: 250px minmax(0, 1fr); }
+.brn[data-brnfile] .brn-side { padding: 12px 14px; border-right: 1px solid var(--line); gap: 0; }
+.brn[data-brnfile] .brn-side > .card { padding: 0; border: 0; border-radius: 0; background: transparent; box-shadow: none; }
+.brn[data-brnfile] .brn-side > .card + .card { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--line); }
+.brn[data-brnfile] .brn-main { border: 0; border-radius: 0; box-shadow: none; background: transparent; padding: 10px 18px 12px 12px; }
+
+/* แถบซูมแนวนอนกับแนวตั้ง ปุ่มรีเซ็ต แบบหน้ากราฟเสียง (พี่กันสั่ง 10 พ.ย. 2569 "ขอเส้นซูมด้วย ทั้งแบบแนวตั้ง กับแนวนอน … และปุ่มรีเซ็ตด้วย") */
+.brn-zoom .zbtns { align-items: center; }
+.brn-zoom .hzoom { width: 170px; }
+.brn-plotrow { flex: 1; min-height: 160px; display: flex; gap: 6px; }
+.brn-plotrow .brn-plot { flex: 1; min-width: 0; min-height: 0; }
+.brn-vzoom { align-self: stretch; }
+.brn-vz { display: inline-flex; align-items: center; gap: 6px; flex: none; }
+.brn-vzval { min-width: 30px; font-size: 12.5px; color: var(--txt2); font-variant-numeric: tabular-nums; }
+
+/* แถบปักจุดสูงเท่ากันทั้งตอนว่างและตอนปัก (มีปุ่ม) กราฟไม่ขยับ */
+.brn-pin { height: 46px; flex: none; box-sizing: border-box; padding-block: 0; overflow: hidden; }
+.brn-pin.empty { background: transparent; box-shadow: inset 0 0 0 1px var(--line); color: var(--txt3); font-size: 12.5px; justify-content: center; }
+
+/* ปุ่มสลับแบบกว้างเท่าปุ่มซูมข้างล่าง ขอบซ้ายขวาตรงกัน (พี่กันสั่ง 10 พ.ย. 2569 "ยาวเท่ากัน") */
+.brn-classic { width: 181px; justify-content: center; }
+.brn-zoom .seg { width: 181px; }
+.brn-zoom .seg button { flex: 1; justify-content: center; padding-inline: 0; }
+
+/* ขยายแนวตั้งชิดขวา ใต้แถบซูมแนวตั้ง · ตัวเลขจองที่กว้างคงที่ เปลี่ยนค่าแล้วไม่ขยับ (พี่กันสั่ง 10 พ.ย. 2569 "เอาอันนี้ไปอยู่ฝั่งขวา ข้างเส้นซูม และกันที่ไว้ด้วย") */
+.brn-vz { order: 9; margin-left: auto; }
+.brn-vzval { min-width: 46px; text-align: right; }
+
+/* I P B บรรทัดเดียว (ประหยัดที่ให้ข้อมูลวิดีโอ 10 พ.ย. 2569) */
+.brn-tline { display: flex; gap: 12px; align-items: center; font-variant-numeric: tabular-nums; }
+.brn-tchip { display: inline-flex; align-items: center; gap: 5px; }
+.brn-kv { grid-template-columns: 76px 1fr; }
+
+/* หน้าเลือกแทร็กก่อนเปิด (10 พ.ย. 2569) */
+.brn-choose { max-width: 640px; width: 100%; align-self: center; margin-top: 24px; display: flex; flex-direction: column; gap: 10px; }
+.brn-choose h3 { margin: 0; }

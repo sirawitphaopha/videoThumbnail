@@ -29,13 +29,15 @@ enum How {
 /// ตัวแปลง · ที่อ่านรุ่น · หน้าโหลดที่ให้กดเปิด · วิธีอ่าน · บอกผู้ใช้ว่าอ่านจากไหน
 struct Source { name: &'static str, check: &'static str, page: &'static str, how: How, from: &'static str }
 
-const SOURCES: [Source; 9] = [
+const SOURCES: [Source; 10] = [
     Source { name: "flac", check: "https://api.github.com/repos/xiph/flac/releases/latest", page: "https://xiph.org/flac/download.html", how: How::GithubLatest, from: "Xiph" },
     Source { name: "opusenc", check: "https://www.rarewares.org/files/opus/", page: "https://www.rarewares.org/files/opus/", how: How::After("using libopus ", ""), from: "RareWares (รุ่น libopus ในชุด)" },
     Source { name: "lame", check: "https://www.rarewares.org/files/mp3/", page: "https://www.rarewares.org/files/mp3/", how: How::After("lame-", "-x64.zip"), from: "RareWares" },
     Source { name: "wavpack", check: "https://api.github.com/repos/dbry/WavPack/releases/latest", page: "https://github.com/dbry/WavPack/releases", how: How::GithubLatest, from: "WavPack (GitHub)" },
     Source { name: "MACDll64", check: "https://www.monkeysaudio.com/download.html", page: "https://www.monkeysaudio.com/download.html", how: How::After("Monkey's Audio ", ""), from: "Monkey's Audio" },
     Source { name: "qaac64", check: "https://api.github.com/repos/nu774/qaac/releases/latest", page: "https://github.com/nu774/qaac/releases", how: How::GithubLatest, from: "qaac (GitHub)" },
+    // refalac มากับชุด qaac รุ่นเดียวกัน
+    Source { name: "refalac64", check: "https://api.github.com/repos/nu774/qaac/releases/latest", page: "https://github.com/nu774/qaac/releases", how: How::GithubLatest, from: "qaac (GitHub)" },
     Source { name: "fdkaac", check: "https://api.github.com/repos/nu774/fdkaac/tags", page: "https://github.com/nu774/fdkaac", how: How::GithubTags, from: "fdkaac (GitHub)" },
     // เว็บ TAK มีแต่ http (https ต่อไม่ได้ · ลอง 8 พ.ย. 2569) · อ่านอย่างเดียว ไม่โหลดไฟล์
     Source { name: "Takc", check: "http://www.thbeck.de/Tak/Tak.html", page: "http://www.thbeck.de/Tak/Tak.html", how: How::After("TAK_", ".zip"), from: "TAK (Thomas Becker)" },
@@ -159,9 +161,17 @@ pub fn encoders_open_page(app: tauri::AppHandle, name: String) -> Result<(), Str
     app.opener().open_url(src.page, None::<&str>).map_err(|e| format!("เปิดหน้าเว็บไม่ได้: {e}"))
 }
 
+/// เปิดหน้าโหลด iTunes ของ Apple หน้าภาษาไทย (พี่กันส่งลิงก์ 10 พ.ย. 2569 "ลิ้งโหลดนี้ ให้มันเด้งไปโหลดได้") · qaac ต้องใช้ไฟล์ของ Apple ที่มากับ iTunes · ที่อยู่ตายตัว (หน้านี้มีปุ่มโหลดสำหรับ Windows · เช็ก 10 พ.ย. 2569)
+#[tauri::command]
+pub fn open_itunes_page(app: tauri::AppHandle) -> Result<(), String> {
+    use tauri_plugin_opener::OpenerExt;
+    app.opener().open_url("https://www.apple.com/th/itunes/", None::<&str>).map_err(|e| format!("เปิดหน้าเว็บไม่ได้: {e}"))
+}
+
 /// ลิงก์ในหน้าขอบคุณ ข้อความบนการ์ดกับที่อยู่จริง · รับเฉพาะรายการนี้ หน้าจอส่งที่อยู่อื่นมาเปิดไม่ได้ (พี่กันสั่ง 9 พ.ย. 2569 "ลิงก์ที่ใส่ในการ์ดขอบคุณ ขอให้มันกดเปิดได้ที")
 const THANK_LINKS: &[(&str, &str)] = &[
     ("github.com/alexkay/spek", "https://github.com/alexkay/spek"),
+    ("videohelp.com/software/Bitrate-Viewer", "https://www.videohelp.com/software/Bitrate-Viewer"),
     ("audacityteam.org", "https://www.audacityteam.org/"),
     ("aegisub.org", "https://aegisub.org/"),
     ("kodi.tv", "https://kodi.tv/"),
@@ -173,6 +183,7 @@ const THANK_LINKS: &[(&str, &str)] = &[
     ("lame.sourceforge.io", "https://lame.sourceforge.io/"),
     ("opus-codec.org", "https://opus-codec.org/"),
     ("wavpack.com", "https://www.wavpack.com/"),
+    ("github.com/nu774/qaac", "https://github.com/nu774/qaac"),
     ("monkeysaudio.com", "https://www.monkeysaudio.com/"),
     ("thbeck.de/Tak", "http://www.thbeck.de/Tak/Tak.html"),
     ("github.com/strukturag/libheif", "https://github.com/strukturag/libheif"),
@@ -181,6 +192,15 @@ const THANK_LINKS: &[(&str, &str)] = &[
     ("videolan.org", "https://www.videolan.org/projects/dav1d.html"),
     ("chromium.googlesource.com/webm/libwebp", "https://chromium.googlesource.com/webm/libwebp"),
     ("microsoft.com", "https://www.microsoft.com/"),
+    ("rust-lang.org", "https://www.rust-lang.org/"),
+    ("github.com/fifonik/FFBitrateViewer", "https://github.com/fifonik/FFBitrateViewer"),
+    ("claude.com/claude-code", "https://claude.com/claude-code"),
+    ("typescriptlang.org", "https://www.typescriptlang.org/"),
+    ("vite.dev", "https://vite.dev/"),
+    ("crates.io", "https://crates.io/"),
+    ("simpleicons.org", "https://simpleicons.org/"),
+    ("icons8.com", "https://icons8.com/"),
+    ("commons.wikimedia.org", "https://commons.wikimedia.org/"),
     ("tauri.app", "https://tauri.app/"),
     ("react.dev", "https://react.dev/"),
     ("github.com/image-rs/image", "https://github.com/image-rs/image"),
@@ -236,6 +256,7 @@ mod tests {
     #[test]
     fn thanks_links_only_open_the_fixed_list() {
         assert_eq!(thank_url("ffmpeg.org"), Some("https://ffmpeg.org/"));
+        assert_eq!(thank_url("videohelp.com/software/Bitrate-Viewer"), Some("https://www.videohelp.com/software/Bitrate-Viewer"));
         for bad in ["https://evil.example/", "ffmpeg.org/../x", "", "file:///C:/Windows"] { assert_eq!(thank_url(bad), None, "{bad}"); }
         assert!(THANK_LINKS.iter().all(|(_, u)| u.starts_with("https://") || u.starts_with("http://")));
     }

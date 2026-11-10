@@ -62,6 +62,10 @@ function Frame() {
   /** มาจากปุ่มกราฟเสียงในแผงขวาของชั้นวาง หรือปุ่มดูกราฟเสียงช่วงนี้ในหน้าต่างผลตรวจ */
   const [graphReq, setGraphReq] = useState<GraphReq | null>(null);
   const openGraph = (r: GraphReq) => { setGraphReq(r); setPage("graph"); };
+  /** มาจากปุ่มบิตเรตวิดีโอในแผงขวาของชั้นวาง · หน้าบิตเรตเปิดไฟล์นี้ให้เลย */
+  const [bitratePath, setBitratePath] = useState<string | null>(null);
+  /** แทร็กที่ส่งมาด้วย (หน้ากราฟเสียงส่งแทร็กเสียงที่ดูอยู่) · ไม่ส่ง หน้าบิตเรตถามเองถ้ามีหลายแทร็ก */
+  const [bitrateTrack, setBitrateTrack] = useState<string | null>(null);
   const [hash, setHash] = useState(location.hash);
 
   useEffect(() => {
@@ -99,14 +103,14 @@ function Frame() {
             {parts ? <DevParts /> : (
               <>
                 {page === "shelf" && (infoMovie ? <FileInfoPage m={infoMovie} onBack={() => setInfoId(null)} onAv={(path) => { setInfoId(null); setAvPath(path); setPage("av"); }} />
-                  : <ShelfPage onPage={setPage} onPoster={(path) => { setPosterPath(path); setPosterImage(null); setPage("poster"); }} onMerge={(path, image) => { setPosterPath(path); setPosterImage(image); setPage("poster"); }} onInfo={setInfoId} onCheck={(r) => { setCheckReq(r); setPage("check"); }} onGraph={(path) => openGraph({ path })} onAv={(path) => { setAvPath(path); setPage("av"); }} sel={shelfSel} setSel={setShelfSel} />)}
+                  : <ShelfPage onPage={setPage} onPoster={(path) => { setPosterPath(path); setPosterImage(null); setPage("poster"); }} onMerge={(path, image) => { setPosterPath(path); setPosterImage(image); setPage("poster"); }} onInfo={setInfoId} onCheck={(r) => { setCheckReq(r); setPage("check"); }} onGraph={(path) => openGraph({ path })} onBitrate={(path) => { setBitratePath(path); setBitrateTrack(null); setPage("bitrate"); }} onAv={(path) => { setAvPath(path); setPage("av"); }} sel={shelfSel} setSel={setShelfSel} />)}
                 {page === "poster" && <PosterPage initialPath={posterPath} initialImage={posterImage} onPage={setPage} onConsumed={() => { setPosterPath(null); setPosterImage(null); }} />}
                 {page === "link" && <LinkPage />}
                 {page === "av" && <AvPage initialPath={avPath} onConsumed={() => setAvPath(null)} onPage={setPage} onGraph={(path) => openGraph({ path })} />}
                 {page === "check" && <CheckPage req={checkReq} onConsumed={() => setCheckReq(null)} onGraph={openGraph} onPage={setPage} />}
                 {/* หน้ากราฟอยู่ในกล่องเลื่อน แถบสูงขึ้นหรือลากขยายจนยาวกว่าหน้าต่างแล้วเลื่อนลงไปถึงแถวปุ่มล่างได้ (เดิมแถวปุ่มล่างโดนตัดใต้จอ เจอตอนตรวจภาพ) */}
-                {page === "graph" && <div className="pagewrap" data-graphscroll><GraphBoundary><GraphPage req={graphReq} onConsumed={() => setGraphReq(null)} /></GraphBoundary></div>}
-                {page === "bitrate" && <BitratePage />}
+                {page === "graph" && <div className="pagewrap" data-graphscroll><GraphBoundary><GraphPage req={graphReq} onConsumed={() => setGraphReq(null)} onBitrate={(path, track) => { setBitratePath(path); setBitrateTrack(track ?? null); setPage("bitrate"); }} /></GraphBoundary></div>}
+                {page === "bitrate" && <BitratePage initialPath={bitratePath} initialTrack={bitrateTrack} onConsumed={() => { setBitratePath(null); setBitrateTrack(null); }} />}
                 {page === "settings" && <div className="pagewrap" data-settingsscroll><SettingsPage /></div>}
               </>
             )}

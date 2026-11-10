@@ -2,7 +2,8 @@
 import { useRef } from "react";
 
 /* ---------- ปุ่มคู่ ปุ่มสาม ---------- */
-type SegOpt<T extends string> = { value: T; label: React.ReactNode; aria?: string };
+/** off = ปิดเฉพาะตัวเลือกนี้ พร้อมเหตุผลตอนชี้ (10 พ.ย. 2569 ปิด CBR ของ qaac) */
+type SegOpt<T extends string> = { value: T; label: React.ReactNode; aria?: string; off?: string };
 export function Seg<T extends string>(p: {
   options: SegOpt<T>[];
   value: T;
@@ -19,11 +20,12 @@ export function Seg<T extends string>(p: {
         <button
           key={o.value}
           type="button"
-          className={p.value === o.value ? "on" : ""}
+          className={(p.value === o.value ? "on" : "") + (o.off ? " off" : "")}
           aria-pressed={p.value === o.value}
-          aria-disabled={off || undefined}
+          aria-disabled={off || !!o.off || undefined}
           aria-label={o.aria}
-          onClick={() => { if (!off) p.onChange(o.value); }}
+          title={o.off}
+          onClick={() => { if (!off && !o.off) p.onChange(o.value); }}
         >
           {o.label}
         </button>

@@ -211,9 +211,68 @@ pub fn hash_save(path: String, sha256: String) -> Result<String, String> {
     hashes::save_sha256(Path::new(&path), &sha256).map(|p| p.to_string_lossy().to_string())
 }
 
+/// ชื่อตัวเข้ารหัส เช่น LAME4.0 เป็น LAME 4.0 · Lavf63.1.102 เป็น Lavf 63.1.102
+fn split_lib(lib: &str) -> String {
+    let t = lib.trim().trim_end_matches('.'); // บางไฟล์เขียนจุดค้างท้าย เช่น Lavc63.1.
+    match t.find(|c: char| c.is_ascii_digit()) {
+        Some(i) if i > 0 && !t[..i].ends_with(' ') => format!("{} {}", &t[..i], &t[i..]),
+        _ => t.to_string(),
+    }
+}
+
+/// รายละเอียด codec หนึ่งแทร็กจากข้อมูล JSON ของ MediaInfo · MPEG Audio เป็น MPEG-1 Layer 3 · อื่น ๆ เป็นชื่อรูปแบบกับโปรไฟล์ เช่น AAC LC
+/// มีชื่อตัวเข้ารหัสต่อท้ายในวงเล็บ เช่น (LAME 3.99r)
+pub fn codec_detail(t: &Value) -> Option<String> {
+    let g = |k: &str| t[k].as_str().map(str::trim).filter(|v| !v.is_empty());
+    let fmt = g("Format")?;
+    let mut s = if fmt == "MPEG Audio" {
+        match (g("Format_Version"), g("Format_Profile")) {
+            (Some(v), Some(p)) => format!("MPEG-{} {}", v.trim_start_matches("Version ").trim(), p),
+            (None, Some(p)) => format!("MPEG {}", p),
+            _ => fmt.to_string(),
+        }
+    } else {
+        match g("Format_Profile").or(g("Format_AdditionalFeatures")) { Some(p) => format!("{} {}", fmt, p), None => fmt.to_string() }
+    };
+    let lib = match (g("Encoded_Library_Name"), g("Encoded_Library_Version")) {
+        (Some(n), Some(v)) => Some(format!("{} {}", n, v)),
+        _ => g("Encoded_Library").map(split_lib),
+    };
+    if let Some(l) = lib { s = format!("{} ({})", s, l); }
+    Some(s)
+}
+
+/// รายละเอียด codec ของแทร็กเสียงทุกแทร็ก เรียงตามลำดับแทร็กเสียงในไฟล์ · อ่านไม่ได้คืนรายการว่าง หน้าจอใช้ชื่อสั้นจาก ffprobe แทน
+#[tauri::command]
+pub async fn audio_codec_detail(app: AppHandle, path: String) -> Result<Vec<Option<String>>, String> {
+    let tools = crate::tools::tools_dir(&app)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let p = PathBuf::from(&path);
+        let out = run_tool_timeout(&tools, "MediaInfo", [OsStr::new("--Output=JSON"), p.as_os_str()], Duration::from_secs(60))?;
+        let j: Value = serde_json::from_slice(&out.stdout).map_err(|_| "อ่านผลของ MediaInfo ไม่ได้".to_string())?;
+        let tracks = j["media"]["track"].as_array().cloned().unwrap_or_default();
+        Ok(tracks.iter().filter(|t| t["@type"] == "Audio").map(codec_detail).collect())
+    }).await.map_err(|e| e.to_string())?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn codec_detail_reads_mediainfo_fields() {
+        let mp3 = serde_json::json!({ "Format": "MPEG Audio", "Format_Version": "1", "Format_Profile": "Layer 3", "Encoded_Library": "LAME3.99r" });
+        assert_eq!(codec_detail(&mp3).as_deref(), Some("MPEG-1 Layer 3 (LAME 3.99r)"));
+        let lame4 = serde_json::json!({ "Format": "MPEG Audio", "Format_Version": "1", "Format_Profile": "Layer 3", "Encoded_Library": "LAME4.0 " });
+        assert_eq!(codec_detail(&lame4).as_deref(), Some("MPEG-1 Layer 3 (LAME 4.0)"));
+        let flac = serde_json::json!({ "Format": "FLAC", "Encoded_Library": "Lavf63.1.102" });
+        assert_eq!(codec_detail(&flac).as_deref(), Some("FLAC (Lavf 63.1.102)"));
+        let dot = serde_json::json!({ "Format": "MPEG Audio", "Format_Version": "1", "Format_Profile": "Layer 3", "Encoded_Library": "Lavc63.1." });
+        assert_eq!(codec_detail(&dot).as_deref(), Some("MPEG-1 Layer 3 (Lavc 63.1)"));
+        let aac = serde_json::json!({ "Format": "AAC", "Format_AdditionalFeatures": "LC" });
+        assert_eq!(codec_detail(&aac).as_deref(), Some("AAC LC"));
+        assert_eq!(codec_detail(&serde_json::json!({})), None);
+    }
 
     #[test]
     fn mediainfo_text_splits_into_sections() {

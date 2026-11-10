@@ -286,13 +286,12 @@ pub fn link_is_dir(paths: Vec<String>) -> Vec<bool> {
     paths.iter().map(|p| Path::new(p).is_dir()).collect()
 }
 
-/// ใส่รูปลงช่องตามแนวของรูป · รูปแนวนอนเป็นปกนอน และครอปกลางเป็นปกตั้งให้ก่อน ถ้ายังไม่มีปกตั้งของจริง
+/// ใส่รูปลงช่องตามแนวของรูป · รูปแนวนอนเป็นปกนอนอย่างเดียว ไม่ครอปกลางเป็นปกตั้งให้เอง
+/// (พี่กันเคาะ 10 พ.ย. 2569 *"ไม่ได้ ๆ ถ้ารูปไหนแนวนอน ก็ต้องแสดงแนวนอน"* · เดิมครอปกลางให้ หน้านักแสดงหลุดได้)
+/// ปกตั้งที่ครอปให้เองจากรอบก่อนถูกเอาออกตอนใส่รูปแนวนอนใหม่
 pub fn assign(row: &mut Row, pick: Pick) {
     if pick.width > pick.height {
-        if row.tall.is_none() || row.derived_tall {
-            row.tall = Some(Pick { geo: None, crop_thumb: None, ..pick.clone() });
-            row.derived_tall = true;
-        }
+        if row.derived_tall { row.tall = None; row.derived_tall = false; }
         row.wide = Some(pick);
     } else {
         row.tall = Some(pick);
@@ -509,6 +508,8 @@ impl LinkStore {
     pub fn load(path: PathBuf) -> Self {
         let mut data = read_file(&path).or_else(|| read_file(&path.with_extension("json.bak"))).unwrap_or_default();
         data.rows.retain(|r| r.status != "saved");
+        // คู่ที่ค้างจากรุ่นก่อน ปกตั้งที่ครอปกลางจากรูปแนวนอนให้เอง เอาออก เหลือปกนอนอย่างเดียว (พี่กันเคาะ 10 พ.ย. 2569)
+        for r in data.rows.iter_mut().filter(|r| r.derived_tall) { r.tall = None; r.derived_tall = false; }
         if data.scope.is_empty() { data.scope = "nocover".into(); }
         Self { path, data: Mutex::new(data), save_lock: Mutex::new(()), thumbing: AtomicBool::new(false), rethumb: AtomicBool::new(false), stop: AtomicBool::new(false), busy: AtomicBool::new(false) }
     }
@@ -1843,8 +1844,7 @@ mod tests {
         assert_eq!(r[1].candidates[0].name, "iron tide.jpg");
         assert!(!r[1].ticked && !r[1].has_image());
         assert_eq!(r[2].wide.as_ref().unwrap().name, "silent-orbit.jpg");
-        assert_eq!(r[2].tall.as_ref().unwrap().name, "silent-orbit.jpg");
-        assert!(r[2].derived_tall);
+        assert!(r[2].tall.is_none() && !r[2].derived_tall, "รูปแนวนอนต้องเป็นปกนอนอย่างเดียว ไม่ครอปเป็นปกตั้ง");
         assert_eq!(r[2].reason, "ชื่อตรง ไม่มีปีในชื่อรูป");
         assert_eq!(r[3].tall.as_ref().unwrap().name, "tidal_2021.jpg", "รูปมีปีตรงต้องชนะรูปไม่มีปี");
         assert_eq!(r[4].status, "none");
@@ -1868,8 +1868,8 @@ mod tests {
         assert_eq!(prev.status, "none");
         assert!(prev.prev.is_none(), "ย้อนได้ขั้นเดียว ไม่สะสม");
         pair_row(&mut r, vec![pick("w2.jpg", 1920, 1080)], "board");
-        assert!(r.derived_tall, "รูปแนวนอนรูปเดียวต้องครอปเป็นปกตั้งให้");
-        assert_eq!(r.tall.as_ref().unwrap().name, "w2.jpg");
+        assert!(!r.derived_tall && r.tall.is_none(), "รูปแนวนอนรูปเดียวเป็นปกนอนอย่างเดียว ไม่ครอปเป็นปกตั้ง");
+        assert_eq!(r.wide.as_ref().unwrap().name, "w2.jpg");
     }
 
     fn jm() -> Option<PathBuf> {
@@ -1914,8 +1914,7 @@ mod tests {
         assert_eq!(got("ดาวเหนือ (2023)"), ("sure".into(), "ดาวเหนือ (2023) poster.jpg".into(), "ชื่อกับปีตรง".into()));
         assert_eq!(got("Harbor Lights (2021)"), ("sure".into(), "harbor_lights_2021.png".into(), "ชื่อกับปีตรง".into()));
         assert_eq!(got("ฝนสุดท้ายของฤดู (2019)"), ("sure".into(), "folder.jpg".into(), "รูปอยู่ข้างไฟล์หนัง".into()));
-        assert_eq!(got("Silent Orbit (2018)"), ("sure".into(), "silent-orbit-backdrop.jpg".into(), "ชื่อตรง ไม่มีปีในชื่อรูป".into()));
-        assert!(row("Silent Orbit (2018)").derived_tall && row("Silent Orbit (2018)").wide.is_some());
+        { let r = row("Silent Orbit (2018)"); assert_eq!((r.status.as_str(), r.reason.as_str()), ("sure", "ชื่อตรง ไม่มีปีในชื่อรูป")); assert!(r.tall.is_none() && !r.derived_tall); assert_eq!(r.wide.as_ref().unwrap().name, "silent-orbit-backdrop.jpg"); }
         assert_eq!(got("Iron Tide (2024)"), ("sure".into(), "iron-tide-2024.jpg".into(), "ชื่อกับปีตรง".into()));
         assert_eq!(got("Night Bus (2020)"), ("sure".into(), "poster_tt7654321.jpg".into(), "เลข IMDb ตรงกัน".into()));
         assert_eq!(got("Ember (2022)"), ("sure".into(), "Ember (2022)-poster.jpg".into(), "รูปอยู่ข้างไฟล์หนัง".into()));

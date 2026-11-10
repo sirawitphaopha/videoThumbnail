@@ -1,0 +1,98 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>หน้าบิตเรตแบบใหม่</title>
+<!-- มอคอัปหน้าบิตเรตวิดีโอแบบใหม่ · เปิดผ่าน npm run dev ที่ http://127.0.0.1:1420/docs/mockups/bitrate-redesign.html
+     พี่กันสั่ง 10 พ.ย. 2569 "หน้า bitrate viewers เราเอาแบบเดิมไว้ และเราให้เธอ re-designed ใหม่หมด ให้เข้ากับเว็บ และโทนสี
+     และบางการตั้งค่าการเลือก ให้ภาษาไทย และคงคำศัพเฉพาะไว้ ทำมอคอัปมาเลย เปิดในโครมได้" · "อย่าลืมว่า เรามี 4 โทนสีนะ"
+     กรอบข้างล่างคือหน้าจอจริงของโปรแกรม (bitrate-redesign-app.html) กว้าง 1280 สูง 800 เท่าหน้าต่างโปรแกรม · โทนสีมาจาก src/lib/tones.ts ตัวเดียวกับหน้าตั้งค่า -->
+<style>
+* { box-sizing: border-box; }
+html, body { margin: 0; }
+body { font-family: Sarabun, "Noto Sans Thai", Tahoma, sans-serif; font-size: 15px; line-height: 1.6; color: var(--txt, #3a1d29); background: var(--canvas, #fdf8f8); transition: background-color .2s; }
+button { font: inherit; color: inherit; }
+button:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.page { max-width: 1340px; margin: 0 auto; padding: 22px 24px 40px; }
+h1 { font-size: 24px; margin: 0 0 2px; line-height: 1.4; }
+.lead { color: var(--txt2); margin: 0 0 14px; max-width: 1000px; font-size: 14.5px; }
+.bar { display: flex; align-items: flex-start; gap: 18px; flex-wrap: wrap; margin-bottom: 14px; }
+.grp { display: flex; flex-direction: column; gap: 6px; }
+.grp > span { font-size: 13px; color: var(--txt2); font-weight: 600; }
+.seg { display: inline-flex; border: 1px solid var(--line-s); border-radius: 9px; overflow: hidden; background: var(--surface); }
+.seg button { border: 0; background: transparent; padding: 7px 16px; cursor: pointer; font-size: 14px; color: var(--txt2); transition: background-color .12s, color .12s; }
+.seg button + button { border-left: 1px solid var(--line-s); }
+.seg button:hover { background: var(--panel); color: var(--txt); }
+.seg button.on { background: var(--soft); color: var(--soft-ink); font-weight: 600; }
+.tones { display: flex; gap: 8px; flex-wrap: wrap; }
+.tone { display: flex; align-items: center; gap: 8px; border-radius: 9px; border: 1px solid var(--t-line); background: var(--t-surface); color: var(--t-txt); padding: 6px 12px 6px 8px; cursor: pointer; transition: box-shadow .15s, translate .15s; font-size: 14px; }
+.tone:hover { translate: 0 -1px; box-shadow: 0 4px 12px rgba(60,20,35,.14); }
+.tone.on { box-shadow: 0 0 0 2px var(--t-accent); border-color: var(--t-accent); font-weight: 600; }
+.tone .dots { display: inline-flex; }
+.tone .dots i { width: 14px; height: 14px; border-radius: 50%; border: 2px solid var(--t-surface); box-shadow: 0 0 0 1px var(--t-line-s); margin-left: -3px; }
+.tone .dots i:first-child { margin-left: 0; }
+.frame { position: relative; width: 1280px; height: 800px; border: 1px solid var(--line-s); border-radius: 10px; overflow: hidden; box-shadow: 0 10px 34px rgba(60,20,35,.16); transform-origin: top left; background: #fff; }
+.frame iframe { width: 1280px; height: 800px; border: 0; display: block; }
+.wrap { position: relative; }
+.notes { margin-top: 16px; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; font-size: 13.5px; color: var(--txt2); }
+.notes b { display: block; color: var(--txt); font-size: 14.5px; margin-bottom: 2px; }
+.notes ul { margin: 0; padding-left: 18px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>หน้าบิตเรตวิดีโอ แบบใหม่</h1>
+  <p class="lead">หน้าจอจริงของโปรแกรมทั้งหน้า ลองกดได้ทุกปุ่ม · ข้อมูลมาจากคลิปตัวอย่าง 2 นาทีครึ่งที่อ่านด้วย ffprobe จริง กราฟจึงค่อย ๆ ขึ้นจากซ้ายไปขวาเหมือนตอนใช้งาน · แบบเดิมเก็บไว้ครบ สลับได้จากปุ่มข้างล่าง หรือปุ่ม "แบบ Bitrate Viewer" ในหน้า</p>
+  <div class="bar">
+    <div class="grp"><span>แบบหน้า</span><div class="seg" id="variant"><button type="button" data-v="new" class="on">แบบใหม่ (ชั้นหนัง)</button><button type="button" data-v="old">แบบเดิม (Bitrate Viewer)</button></div></div>
+    <div class="grp"><span>โทนสี · เลือกได้ในหน้าตั้งค่าของโปรแกรม</span><div class="tones" id="tones"></div></div>
+    <div class="grp"><span>เปิดไฟล์</span><div class="seg"><button type="button" id="sample">เปิดคลิปตัวอย่าง</button><button type="button" id="home">หน้าว่าง</button></div></div>
+  </div>
+  <div class="wrap" id="wrap"><div class="frame" id="frame"><iframe id="app" title="หน้าจอจริงของโปรแกรมชั้นหนัง" src="bitrate-redesign-app.html"></iframe></div></div>
+  <div class="notes">
+    <div><b>ที่เปลี่ยนจากแบบเดิม</b><ul><li>โครงหน้าเหมือนหน้ากราฟเสียง การ์ดชื่อไฟล์ แผงข้อมูลซ้าย หัวกราฟพร้อมปุ่มซูม</li><li>ตัวเลือกเป็นภาษาไทย คำเฉพาะคงไว้ GOP · I P B · kbps · Mbps · fps · Codec</li><li>สีกราฟตามโทนที่เลือก ความหมายสีเหมือนเดิม อ่อนใต้ค่าเฉลี่ย เข้มเหนือค่าเฉลี่ย แดงเกินเพดาน</li></ul></div>
+    <div><b>ลองกดดู</b><ul><li>ลากในกราฟเพื่อซูม หมุนล้อซูมเข้าออก ดับเบิลคลิกดูทั้งไฟล์</li><li>คลิกในกราฟเพื่อปักจุด · ต่อเฟรม มีปุ่มไป I เฟรมก่อนหรือถัดไป</li><li>แถบภาพรวมเหนือกราฟ ลากกรอบเลื่อนช่วงที่ดูตอนซูมอยู่</li></ul></div>
+    <div><b>ยังเป็นมอคอัป</b><ul><li>ยังไม่ได้ลงโปรแกรม หน้าบิตเรตในโปรแกรมตอนนี้ยังเป็นแบบเดิม</li><li>ไฟล์ทุกไฟล์ในมอคอัปใช้ข้อมูลคลิปตัวอย่างชุดเดียวกัน</li><li>เลือกแบบแล้ว แคลร์ย้ายลงโปรแกรม แบบเดิมเก็บไว้เป็นปุ่มสลับ</li></ul></div>
+  </div>
+</div>
+<script type="module">
+import { TONES } from "/src/lib/tones.ts";
+const frame = document.getElementById("app");
+const box = document.getElementById("frame"), wrap = document.getElementById("wrap");
+// ย่อกรอบให้พอดีความกว้างหน้าต่างโครม ไม่เลื่อนซ้ายขวา
+// ย่อให้เห็นหน้าจอโปรแกรมทั้งกรอบ ทั้งความกว้างและความสูงของหน้าต่างโครม ไม่ต้องเลื่อน
+const fit = () => { const top = wrap.getBoundingClientRect().top + scrollY; const k = Math.min(1, wrap.clientWidth / 1282, (innerHeight - top - 12) / 802); box.style.transform = `scale(${Math.max(0.4, k)})`; wrap.style.height = `${802 * Math.max(0.4, k)}px`; };
+addEventListener("resize", fit); fit();
+const KEY = "ms.tone";
+const current = () => { try { return localStorage.getItem(KEY) || "quartz"; } catch { return "quartz"; } };
+const paint = (t) => {
+  const v = t.v, r = document.documentElement.style;
+  const m = { "--canvas": v.canvas, "--surface": v.surface, "--panel": v.panel, "--line": v.line, "--line-s": v["line-s"], "--txt": v.txt, "--txt2": v.txt2, "--accent": v.accent, "--soft": v.soft, "--soft-ink": v["soft-ink"] };
+  for (const [k, c] of Object.entries(m)) r.setProperty(k, c);
+};
+const tones = document.getElementById("tones");
+for (const t of TONES) {
+  const b = document.createElement("button");
+  b.type = "button"; b.className = "tone"; b.dataset.tone = t.id;
+  for (const [k, c] of Object.entries({ "--t-line": t.v.line, "--t-line-s": t.v["line-s"], "--t-surface": t.v.surface, "--t-txt": t.v.txt, "--t-accent": t.v.accent })) b.style.setProperty(k, c);
+  b.innerHTML = `<span class="dots"><i style="background:${t.v.canvas}"></i><i style="background:${t.v.side}"></i><i style="background:${t.v.accent}"></i></span>${t.name}`;
+  b.onclick = () => pick(t.id);
+  tones.append(b);
+}
+const pick = (id) => {
+  const t = TONES.find((x) => x.id === id) ?? TONES[0];
+  document.querySelectorAll(".tone").forEach((x) => x.classList.toggle("on", x.dataset.tone === t.id));
+  paint(t);
+  try { localStorage.setItem(KEY, t.id); localStorage.setItem("theme-pink", t.id); } catch {}
+  frame.contentWindow?.__applyTone?.(t.id);
+};
+frame.addEventListener("load", () => { pick(current()); setTimeout(() => pick(current()), 500); });
+pick(current());
+document.querySelectorAll("#variant button").forEach((b) => b.onclick = () => frame.contentWindow?.__setVariant?.(b.dataset.v));
+addEventListener("message", (e) => { if (e.data?.variant) document.querySelectorAll("#variant button").forEach((b) => b.classList.toggle("on", b.dataset.v === e.data.variant)); });
+document.getElementById("sample").onclick = () => { frame.contentWindow?.__setVariant?.("new"); setTimeout(() => frame.contentWindow?.__brnOpen?.("D:\\หนัง\\ตัวอย่างหนัง (2026).mkv"), 50); };
+document.getElementById("home").onclick = () => frame.contentWindow?.document.querySelector("[data-brnhome]")?.click();
+</script>
+</body>
+</html>

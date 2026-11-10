@@ -37,7 +37,7 @@ export function specLabel(s: EncodeSpec): string {
     : c.id === "aac" ? (s.encoder === "qaac" && (p.mode ?? "TVBR") === "TVBR" ? `TVBR ${p.tvbr ?? 91}` : s.encoder === "fdkaac" && (p.mode ?? "VBR") === "VBR" ? `VBR ${p.vbr ?? 5}` : `${p.bitrate ?? 256} kbps`)
     : c.id === "mp3" ? ((p.mode ?? "VBR") === "VBR" ? `V${p.vbrq ?? 2}` : `${p.mode} ${p.bitrate ?? 192} kbps`)
     : c.id === "ac3" ? `${p.bitrate ?? 640} kbps`
-    : c.id === "flac" ? `Level ${p.level ?? 5}` : c.id === "wv" ? String(p.mode ?? "Normal") : c.id === "ape" ? String(p.level ?? "Normal")
+    : c.id === "flac" ? `Level ${p.level ?? 5}` : c.id === "alac" ? (p.speed === "Fast" ? "Fast" : "Normal") : c.id === "wv" ? String(p.mode ?? "Normal") : c.id === "ape" ? String(p.level ?? "Normal")
     : c.id === "tak" ? `-p${p.preset ?? 2}${p.eval === "Max" ? "m" : p.eval === "Extra" ? "e" : ""}` : "";
   return `${c.name} ${v}${ch}`.trim();
 }

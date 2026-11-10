@@ -1,0 +1,69 @@
+All files are distributed as Public Domain, except for the followings:
+
+Files under ALAC, include/ALAC*.h:
+These are part of Apple Lossless Audio Codec Project distribution
+(http://alac.macosforge.org/). Slightly modified.
+
+Files under taglib:
+These are part of TagLib (https://github.com/taglib/taglib/),
+(tfile.cpp is modified to remove undesired dependencies)
+
+getopt.[ch]:
+These are from FreeBSD CVS repositry
+(http://www.freebsd.org/cgi/cvsweb.cgi/),
+and modified to use wchar_t instead of char.
+
+Files under include/FLAC:
+These are header files of FLAC (http://flac.sourceforge.net/),
+version 1.2.1
+
+include/sndfile.h:
+This is a header file of libsndfile (http://www.mega-nerd.com/libsndfile/),
+version 1.0.24
+
+include/wavpack.h:
+This is a header file of WavPack (http://www.wavpack.com/)
+
+include/tak_deco_lib.h:
+This is a header file of TAK (http://www.thbeck.de/Tak/Tak.html),
+version 2.2.0
+
+include/soxr.h:
+This is a header file of libsoxr (https://sourceforge.net/projects/soxr/).
+
+include/opus:
+These are header files of Opus (https://opus-codec.org/).
+
+include/vorbis/codec.h:
+This is a header file of libvorbis (https://xiph.org/vorbis/),
+distributed under a BSD-style license.
+
+Files under uchardet:
+These are part of uchardet (https://gitlab.freedesktop.org/uchardet/uchardet/),
+derived from Mozilla's universal charset detector code, distributed under
+MPL 1.1/GPL 2.0/LGPL 2.1.
+
+Files under ogg:
+These are part of libogg (https://xiph.org/ogg/).
+
+include/vorbis/codec.h:
+This is a header file of libvorbis (https://xiph.org/vorbis/),
+distributed under a BSD-style license.
+
+Files under libsoundio:
+This is libsoundio (http://libsound.io/), Copyright (c) 2015 Andrew Kelley,
+distributed under the MIT license.
+
+include/utf8, include/utf8.h:
+These are part of utfcpp (https://github.com/nemtrif/utfcpp).
+
+fft4g/fft4g.c:
+General purpose FFT package by Takuya Ooura
+(http://www.kurims.kyoto-u.ac.jp/~ooura/fft.html).
+"You may use, copy, modify and distribute this code for any purpose
+(include commercial use) and without fee."
+
+Files under mmtisobmff:
+These are part of the Fraunhofer FDK MPEG-H Software's ISOBMFF library
+(mmtisobmff), Copyright (c) 2016-2023 Fraunhofer-Gesellschaft, distributed
+under the Fraunhofer FDK MPEG-H Software License.

@@ -109,7 +109,8 @@ check("เหตุผล ชื่อกับปีตรง", (await reasonOf
 check("เหตุผล รูปอยู่ข้างไฟล์หนัง", (await reasonOf("ฝนสุดท้ายของฤดู (2019)")) === "รูปอยู่ข้างไฟล์หนัง");
 check("เหตุผล เลข IMDb", (await reasonOf("Night Bus (2020)")) === "เลข IMDb ตรงกัน");
 check("แถวไม่แน่ใจมีรูปใกล้เคียง 3 รูป ชื่อคล้าย 82%", await q(`const r = ${rowSel("เมืองในหมอก (2015)")}; return r.querySelectorAll('[data-link-cand]').length === 3 && r.querySelector('[data-link-reason]').textContent.includes('82%')`));
-check("รูปแนวนอนบอกว่าครอปเป็นปกตั้งให้แล้ว", await q(`return ${rowSel("Silent Orbit (2018)")}.textContent.includes('ครอปเป็นปกตั้งให้แล้ว')`));
+// พี่กันเคาะ 10 พ.ย. 2569 รูปแนวนอนเป็นปกนอนอย่างเดียว ไม่ครอปกลางเป็นปกตั้งให้เอง
+check("รูปแนวนอนเป็นปกนอนอย่างเดียว ไม่ครอปเป็นปกตั้ง", await q(`const t = ${rowSel("Silent Orbit (2018)")}.textContent; return t.includes('ปกนอน') && !t.includes('ครอปเป็นปกตั้ง')`));
 await c.evaluate(`${rowSel("ดาวเหนือ (2023)")}.scrollIntoView({ block: 'center' })`);
 await waitFor(`return ${rowSel("ดาวเหนือ (2023)")}.querySelector('[data-link-chosen] img')?.naturalWidth > 0`, 20000);
 check("ภาพเล็กของรูปขึ้นในแถว", await q(`return ${rowSel("ดาวเหนือ (2023)")}.querySelector('[data-link-chosen] img')?.naturalWidth > 0`));
@@ -194,7 +195,8 @@ const by = (s) => st.rows.filter((r) => r.status === s).map((r) => r.title);
 check("ยืนยันทั้งหมด แถวที่มีรูปบันทึกหมด เหลือแถวไม่แน่ใจกับหาไม่เจอ", by("unsure").join() === "Iron Tide (2010)" && by("none").join() === "Paper Kites (2012)", JSON.stringify({ saved: by("saved").length, unsure: by("unsure"), none: by("none") }));
 check("ที่ติ๊กออกก็ถูกยืนยัน เพราะกดยืนยันทั้งหมด", by("saved").includes("Tidal (2021)"));
 check("ได้ไฟล์ -poster ข้างหนังหลายเรื่อง", ["ดาวเหนือ.2023.1080p.BluRay.x265", "Iron Tide (2024)", "Tidal.2021.1080p", "Night.Bus.2020"].every((s) => existsSync(moviePoster(s))));
-check("รูปแนวนอน ได้ทั้ง -poster และ -landscape", existsSync(moviePoster("Silent.Orbit.2018")) && existsSync(join(MOV, "Silent.Orbit.2018-landscape.jpg")));
+// พี่กันเคาะ 10 พ.ย. 2569 รูปแนวนอนเป็นปกนอนอย่างเดียว ไม่ครอปเป็นปกตั้ง
+check("รูปแนวนอน ได้แค่ -landscape ไม่มี -poster", !existsSync(moviePoster("Silent.Orbit.2018")) && existsSync(join(MOV, "Silent.Orbit.2018-landscape.jpg")));
 check("ลากสองรูป ได้ทั้ง -poster และ -landscape", existsSync(moviePoster("Copper.Sky.2014")) && existsSync(join(MOV, "Copper.Sky.2014-landscape.jpg")));
 check("รูปข้างหนังชื่อถูกอยู่แล้ว ไม่คัดลอกซ้ำ", !existsSync(join(MOV, "Ember (2022)-poster (2).jpg")) && sha(join(MOV, "Ember (2022)-poster.jpg")) === sha(join(SRC, "หนัง", "Ember (2022)-poster.jpg")));
 const em = (await inv("get_library")).movies.find((m) => m.path.includes("Ember (2022)"));
@@ -514,13 +516,14 @@ await tabClick("all");
 await segClick(".shelfhead", "ปกนอน");
 check("สลับปกนอนทั้งชั้น เรื่องที่มีปกนอนเป็นแนวนอน เรื่องที่มีแบบเดียวใช้แบบที่มี", await q(`return ${BOOK("Silent.Orbit")}.classList.contains('wide') && !${BOOK("Tidal")}.classList.contains('wide')`));
 await segClick(".shelfhead", "ปกตั้ง");
-check("สลับกลับปกตั้ง", await q(`return !${BOOK("Silent.Orbit")}.classList.contains('wide')`));
+check("สลับกลับปกตั้ง เรื่องที่มีสองปกเป็นปกตั้ง เรื่องที่มีแต่ปกนอนยังแนวนอน", await q(`return !${BOOK("Copper.Sky")}.classList.contains('wide') && ${BOOK("Silent.Orbit")}.classList.contains('wide')`));
 await segClick(".shelfhead", "ตาราง");
 check("มุมมองตาราง ป้ายโซ่หน้าชื่อหนังครบ", await q(`return document.querySelectorAll('[data-table] tbody [data-linkb]').length === ${t0.linked}`));
 await segClick(".shelfhead", "ภาพปก");
 
 await pickBook("Harbor.Lights");
-check("แผงขวาบอกว่าไม่ได้อยู่ในไฟล์ ไอคอนไฟล์ไม่เปลี่ยน เก็บในโปรแกรม", await q("const t = document.querySelector('[data-link-card]').textContent; return t.includes('ปกจับคู่ไว้ ไม่ได้อยู่ในไฟล์') && t.includes('ไอคอนไฟล์ใน Windows ยังไม่เปลี่ยน') && t.includes('harbor_lights_2021.png') && t.includes('เก็บสำเนาไว้ในโปรแกรม')"));
+// การ์ดสั้นสองบรรทัด รายละเอียดอยู่ตอนชี้ (พี่กันทัก 10 พ.ย. 2569 "ต้องเขียนอธิบายเยอะขนาดนี้เลยเหรอ")
+check("แผงขวาบอกว่าไม่ได้อยู่ในไฟล์ เก็บในโปรแกรม รายละเอียดอยู่ตอนชี้", await q("const t = document.querySelector('[data-link-card]').textContent, w = document.querySelector('[data-link-where]').title; return t.includes('ปกจับคู่ ไม่ได้อยู่ในไฟล์') && w.includes('ไอคอนไฟล์ใน Windows ไม่เปลี่ยน') && w.includes('harbor_lights_2021.png') && w.includes('เก็บสำเนาไว้ในโปรแกรม')"));
 await pickBook("Tidal.2021");
 check("เรื่องที่เก็บข้างไฟล์ บอกชื่อไฟล์ -poster", await q("return document.querySelector('[data-link-where]').textContent.includes('Tidal.2021.1080p-poster.jpg')"));
 await shot("12-แผงขวา-ปกจับคู่.png", "[data-detail]", 1100);

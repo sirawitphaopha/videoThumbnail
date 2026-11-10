@@ -29,37 +29,51 @@ const IcHeart = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none
    ข้อความเช็กกับของจริง · ที่อยู่เว็บกดเปิดในเบราว์เซอร์หลัก รายการตายตัวอยู่ฝั่ง Rust โปรแกรมไม่ออกเน็ตเอง */
 /* พี่กันบอก 9 พ.ย. 2569 "เราหมายถึง icon โปรแกรมนั้น ๆ ของจริงนะ" · ใช้แบบเวกเตอร์จากคลังเปิดก่อน (SVG Logos กับ Simple Icons CC0 · Wikimedia Commons) ไม่มีค่อยใช้จากเว็บทางการหรือไฟล์โปรแกรม เก็บในโปรแกรม เปิดหน้านี้ไม่ออกเน็ต · ตัวที่หาไม่ได้ใช้ไอคอนกลาง */
 const THANK_FILES = import.meta.glob("../assets/thanks/*", { eager: true, query: "?url", import: "default" }) as Record<string, string>;
-const THANK_ICON: Record<string, string> = { "Spek": "spek.png", "Audacity": "audacity.svg", "Aegisub": "aegisub.svg", "Kodi": "kodi.svg", "Claude": "claude.svg", "FFmpeg": "ffmpeg.png", "MKVToolNix": "mkvtoolnix.png", "MediaInfo": "mediainfo.svg", "FLAC": "flac.png", "LAME กับ libmpg123": "lame.png", "opus-tools": "opus.png", "WavPack": "wavpack.png", "Monkey's Audio": "monkeys.png", "TAK": "tak.png", "libheif กับ libde265": "libheif.png", "Microsoft Visual C++ Runtime": "microsoft.svg", "Tauri": "tauri.svg", "React": "react.svg", "image (Rust)": "image-rs.png" };
+const THANK_ICON: Record<string, string> = { "Spek": "spek.png", "FFBitrateViewer": "ffbitrateviewer.ico", "Claude": "claude.svg", "TypeScript": "typescript.svg", "Vite": "vite.svg", "ห้องสมุด Rust อื่น ๆ": "rust.svg", "ไอคอนในหน้านี้": "simpleicons.svg", "Bitrate Viewer": "bitrateviewer.ico", "Audacity": "audacity.svg", "Aegisub": "aegisub.svg", "Kodi": "kodi.svg", "Claude Desktop": "claude.svg", "FFmpeg": "ffmpeg.png", "MKVToolNix": "mkvtoolnix.png", "MediaInfo": "mediainfo.svg", "FLAC": "flac.svg", "LAME กับ libmpg123": "lame.ico", "opus-tools": "opus.svg", "WavPack": "wavpack.svg", "Monkey's Audio": "monkeys.ico", "TAK": "tak.png", "libheif กับ libde265": "libheif.png", "Visual C++ Runtime": "microsoft.svg", "Rust": "rust.svg", "Tauri": "tauri.svg", "React": "react.svg", "image (Rust)": "image-rs.png" };
+/** MKVToolNix ใช้สองไอคอน พื้นหลังขาว (พี่กันสั่ง 10 พ.ย. 2569 "เอาใส่ทั้งสอง icon แต่ขอพื้นหลังขาว" · ยืนยันว่าเป็นของ MKVToolNix ทั้งคู่) */
+const WHITE_ICON = new Set(["MKVToolNix"]);
+const THANK_ICON2: Record<string, string> = { "MKVToolNix": "mkvtoolnix-2.png" };
+const thankImg2 = (name: string) => { const f = THANK_ICON2[name]; return f ? THANK_FILES["../assets/thanks/" + f] : undefined; };
 const thankImg = (name: string) => { const f = THANK_ICON[name]; return f ? THANK_FILES["../assets/thanks/" + f] : undefined; };
 
-const THANKS: { title: string; note: string; rows: { name: string; what: string; tag: string; url: string; icon: React.ReactNode }[] }[] = [
+const THANKS: { title: string; note: string; rows: { name: string; ver?: string; what: string; tag: string; url: string; icon: React.ReactNode }[] }[] = [
   { title: "ไอเดียและหน้าตา", note: "ดูเป็นแบบแล้วเขียนเอง ไม่ได้ใช้โค้ดของโปรแกรมเหล่านี้", rows: [
-    { icon: <IcGraph />, name: "Spek", what: "หน้าวิเคราะห์ในกราฟเสียง หน้าตากราฟกับการบันทึกเป็นรูป", tag: "ไอเดีย", url: "github.com/alexkay/spek" },
-    { icon: <IcMix />, name: "Audacity", what: "รูปคลื่นแบบ Audacity ในกราฟเสียง", tag: "ไอเดีย", url: "audacityteam.org" },
-    { icon: <IbTable />, name: "Aegisub", what: "ตัวดูซับแบบตารางบรรทัด", tag: "ไอเดีย", url: "aegisub.org" },
-    { icon: <IcPoster />, name: "Kodi", what: "ชื่อไฟล์รูปลงท้าย -poster กับ -landscape ในหน้าจับคู่ปก", tag: "ไอเดีย", url: "kodi.tv" },
-    { icon: <IcSettings />, name: "Claude", what: "รูปแบบเมนูหัวข้อของหน้าตั้งค่า", tag: "ไอเดีย", url: "claude.ai" },
+    { icon: <IcGraph />, name: "Spek", ver: "0.8.5", what: "หน้าวิเคราะห์ในกราฟเสียง หน้าตากราฟกับการบันทึกเป็นรูป", tag: "ไอเดีย", url: "github.com/alexkay/spek" },
+    { icon: <IcGraph />, name: "Bitrate Viewer", ver: "2.3", what: "หน้าบิตเรตวิดีโอ หน้าตา สี วิธีคิด 4 แบบ ซูม เส้นค่าเฉลี่ย", tag: "ไอเดีย", url: "videohelp.com/software/Bitrate-Viewer" },
+    { icon: <IcGraph />, name: "FFBitrateViewer", ver: "0.9.7.2", what: "วิธีอ่านบิตเรตด้วย ffprobe ทีละแพ็กเก็ต ในหน้าบิตเรต", tag: "ไอเดีย · MIT", url: "github.com/fifonik/FFBitrateViewer" },
+    { icon: <IcMix />, name: "Audacity", ver: "4.0.2", what: "รูปคลื่นแบบ Audacity ในกราฟเสียง", tag: "ไอเดีย", url: "audacityteam.org" },
+    { icon: <IbTable />, name: "Aegisub", ver: "3.5.1", what: "ตัวดูซับแบบตารางบรรทัด", tag: "ไอเดีย", url: "aegisub.org" },
+    { icon: <IcPoster />, name: "Kodi", ver: "21.3", what: "ชื่อไฟล์รูปลงท้าย -poster กับ -landscape ในหน้าจับคู่ปก", tag: "ไอเดีย", url: "kodi.tv" },
+    { icon: <IcSettings />, name: "Claude Desktop", ver: "4.23118.0", what: "รูปแบบเมนูหัวข้อของหน้าตั้งค่า", tag: "ไอเดีย", url: "claude.ai" },
   ] },
   { title: "เครื่องมือที่แนบมาทำงานจริง", note: "ใช้ตามสัญญาอนุญาตของแต่ละตัว ข้อความเต็มอยู่ในโฟลเดอร์ tools\\licenses", rows: [
-    { icon: <IbPlay />, name: "FFmpeg", what: "ถอด แปลง ตรวจไฟล์เสีย อ่านเสียงมาวาดกราฟ และอ่านบิตเรตวิดีโอ · ชุดจาก gyan.dev · ไอคอนจาก Icons8", tag: "GPLv3", url: "ffmpeg.org" },
-    { icon: <IcFile />, name: "MKVToolNix", what: "ครอบ MKV แนบปก แยกแทร็ก", tag: "GPLv2", url: "mkvtoolnix.download" },
-    { icon: <IbEye />, name: "MediaInfo", what: "รายละเอียดไฟล์", tag: "BSD-2", url: "mediaarea.net" },
-    { icon: <IcMix />, name: "FLAC", what: "แปลงเสียง FLAC", tag: "GPLv2 · BSD", url: "xiph.org/flac" },
-    { icon: <IcMix />, name: "LAME กับ libmpg123", what: "แปลงเสียง MP3 · ชุดจาก RareWares", tag: "LGPL", url: "lame.sourceforge.io" },
-    { icon: <IcMix />, name: "opus-tools", what: "แปลงเสียง Opus · ชุดจาก RareWares", tag: "BSD-2", url: "opus-codec.org" },
-    { icon: <IcMix />, name: "WavPack", what: "แปลงเสียง WavPack", tag: "BSD-3", url: "wavpack.com" },
-    { icon: <IcMix />, name: "Monkey's Audio", what: "แปลงเสียง APE", tag: "BSD-3", url: "monkeysaudio.com" },
-    { icon: <IcMix />, name: "TAK", what: "แปลงเสียง TAK · แนบไฟล์เดิมทั้งชุด", tag: "ฟรีใช้ส่วนตัว", url: "thbeck.de/Tak" },
-    { icon: <IcPoster />, name: "libheif กับ libde265", what: "บันทึกรูปกราฟเป็น HEIC · ชุดจาก conda-forge", tag: "LGPLv3", url: "github.com/strukturag/libheif" },
-    { icon: <IcPoster />, name: "x265", what: "เข้ารหัสภาพใน HEIC", tag: "GPLv2", url: "bitbucket.org/multicoreware/x265_git" },
-    { icon: <IcPoster />, name: "aom · dav1d · libsharpyuv", what: "ไฟล์ที่ libheif ต้องใช้", tag: "BSD", url: "aomedia.org · videolan.org · chromium.googlesource.com/webm/libwebp" },
-    { icon: <IcSettings />, name: "Microsoft Visual C++ Runtime", what: "ไฟล์ที่ libheif ต้องใช้", tag: "ข้อตกลง Microsoft", url: "microsoft.com" },
+    { icon: <IbPlay />, name: "FFmpeg", ver: "9.0.2", what: "ถอด แปลง ตรวจไฟล์เสีย อ่านเสียงมาวาดกราฟ และอ่านบิตเรตวิดีโอ · ชุดจาก gyan.dev · ไอคอนจาก Icons8", tag: "GPLv3", url: "ffmpeg.org" },
+    { icon: <IcFile />, name: "MKVToolNix", ver: "103.0", what: "ครอบ MKV แนบปก แยกแทร็ก", tag: "GPLv2", url: "mkvtoolnix.download" },
+    { icon: <IbEye />, name: "MediaInfo", ver: "26.10", what: "รายละเอียดไฟล์", tag: "BSD-2", url: "mediaarea.net" },
+    { icon: <IcMix />, name: "FLAC", ver: "1.5.0", what: "แปลงเสียง FLAC", tag: "GPLv2 · BSD", url: "xiph.org/flac" },
+    { icon: <IcMix />, name: "LAME กับ libmpg123", ver: "4.0", what: "แปลงเสียง MP3 · ชุดจาก RareWares", tag: "LGPL", url: "lame.sourceforge.io" },
+    { icon: <IcMix />, name: "opus-tools", ver: "0.2 · libopus 1.6.1", what: "แปลงเสียง Opus · ชุดจาก RareWares", tag: "BSD-2", url: "opus-codec.org" },
+    { icon: <IcMix />, name: "WavPack", ver: "5.9.0", what: "แปลงเสียง WavPack", tag: "BSD-3", url: "wavpack.com" },
+    // qaac เป็น Public Domain · ตัวเข้ารหัส ALAC ข้างในเป็นของ Apple (Apache 2.0) · ไม่แนบ ผู้ใช้วางเอง (อ่าน COPYING ของ qaac 10 พ.ย. 2569)
+    { icon: <IcMix />, name: "qaac กับ refalac", ver: "3.07", what: "แปลงเสียง AAC ด้วยตัวของ Apple (ต้องติดตั้ง iTunes เอง) กับ ALAC · แนบมากับโปรแกรม", tag: "Public Domain · ALAC Apache 2.0", url: "github.com/nu774/qaac" },
+    { icon: <IcMix />, name: "Monkey's Audio", ver: "13.46", what: "แปลงเสียง APE", tag: "BSD-3", url: "monkeysaudio.com" },
+    { icon: <IcMix />, name: "TAK", ver: "2.3.3", what: "แปลงเสียง TAK · แนบไฟล์เดิมทั้งชุด", tag: "ฟรีใช้ส่วนตัว", url: "thbeck.de/Tak" },
+    { icon: <IcPoster />, name: "libheif กับ libde265", ver: "1.23.7 · 1.1.3", what: "บันทึกรูปกราฟเป็น HEIC · ชุดจาก conda-forge", tag: "LGPLv3", url: "github.com/strukturag/libheif" },
+    { icon: <IcPoster />, name: "x265", ver: "3.5", what: "เข้ารหัสภาพใน HEIC", tag: "GPLv2", url: "bitbucket.org/multicoreware/x265_git" },
+    { icon: <IcPoster />, name: "aom · dav1d · libsharpyuv", ver: "3.15.3 · 1.5.4 · 1.6.0", what: "ไฟล์ที่ libheif ต้องใช้", tag: "BSD", url: "aomedia.org · videolan.org · chromium.googlesource.com/webm/libwebp" },
+    { icon: <IcSettings />, name: "Visual C++ Runtime", ver: "14.51", what: "ไฟล์ที่ libheif ต้องใช้ · ของ Microsoft", tag: "ข้อตกลง MS", url: "microsoft.com" },
   ] },
   { title: "ใช้สร้างโปรแกรม", note: "ซอร์สโค้ดของห้องสมุดเหล่านี้รวมอยู่ในตัวโปรแกรมตอนสร้าง", rows: [
-    { icon: <IcShelf />, name: "Tauri", what: "โครงโปรแกรมบน Windows", tag: "MIT · Apache-2.0", url: "tauri.app" },
-    { icon: <IbTable />, name: "React", what: "หน้าจอทั้งหมด", tag: "MIT", url: "react.dev" },
-    { icon: <IbCrop />, name: "image (Rust)", what: "อ่าน ครอป และเข้ารหัสรูป", tag: "MIT · Apache-2.0", url: "github.com/image-rs/image" },
-    { icon: <b>ก</b>, name: "ฟอนต์ Sarabun", what: "ตัวหนังสือทั้งโปรแกรม · Cadson Demak", tag: "OFL", url: "fonts.google.com/specimen/Sarabun" },
+    { icon: <IcSettings />, name: "Claude", what: "ตัวช่วยเขียนโปรแกรม · Claude Code กับโมเดล Claude Opus 5.5 ของ Anthropic", tag: "Anthropic", url: "claude.com/claude-code" },
+    { icon: <IcSettings />, name: "Rust", ver: "1.99.1", what: "ฝั่งหลังบ้านทั้งหมด อ่านไฟล์ เรียกเครื่องมือ เขียนไฟล์ · รุ่นที่ใช้สร้างโปรแกรม", tag: "MIT · Apache-2.0", url: "rust-lang.org" },
+    { icon: <IcShelf />, name: "Tauri", ver: "2.12.5", what: "โครงโปรแกรมบน Windows", tag: "MIT · Apache-2.0", url: "tauri.app" },
+    { icon: <IbTable />, name: "TypeScript", ver: "7.0.2", what: "ภาษาที่เขียนหน้าจอทั้งหมด", tag: "Apache-2.0", url: "typescriptlang.org" },
+    { icon: <IbTable />, name: "Vite", ver: "8.3.6", what: "ตัวสร้างหน้าจอ รวมไฟล์ตอนสร้างโปรแกรม", tag: "MIT", url: "vite.dev" },
+    { icon: <IbTable />, name: "React", ver: "19.3.1", what: "หน้าจอทั้งหมด", tag: "MIT", url: "react.dev" },
+    { icon: <IbCrop />, name: "image (Rust)", ver: "0.25.10", what: "อ่าน ครอป และเข้ารหัสรูป", tag: "MIT · Apache-2.0", url: "github.com/image-rs/image" },
+    { icon: <IcSettings />, name: "ห้องสมุด Rust อื่น ๆ", what: "serde อ่านเขียนข้อมูล · qcms แปลงสีรูป · jpeg-encoder · sha2 md-5 sha1 crc32fast คิดค่า hash · windows-sys", tag: "MIT · Apache-2.0", url: "crates.io" },
+    { icon: <b>ก</b>, name: "ฟอนต์ Sarabun", what: "ตัวหนังสือทั้งโปรแกรม · Cadson Demak · ชุดจาก Fontsource", tag: "OFL", url: "fonts.google.com/specimen/Sarabun" },
+    { icon: <IcPalette />, name: "ไอคอนในหน้านี้", what: "Simple Icons กับ SVG Logos (CC0) · Icons8 · Wikimedia Commons · ไอคอนจากตัวโปรแกรมของแต่ละโครงการ", tag: "ตามแต่ละรูป", url: "simpleicons.org · icons8.com · commons.wikimedia.org" },
   ] },
 ];
 
@@ -454,10 +468,10 @@ export default function SettingsPage() {
         {encs == null
           ? [0, 1, 2, 3, 4].map((i) => <div key={i} className="setrow" aria-busy="true"><Skel w="45%" h={12} /><Skel w={90} h={20} r={10} /></div>)
           : encs.map((e) => (
-            <div key={e.name} className="setrow" data-enc={e.name}><div className="lbl">{e.name}<span className="small">{e.codecs} · {e.ok ? `${e.version ?? "ไม่ทราบรุ่น"} · ${e.source === "user" ? "โฟลเดอร์ตัวแปลง" : "แนบมากับโปรแกรม"}` : e.problem ? e.problem : "ไม่เจอในโฟลเดอร์ตัวแปลง"}</span>
+            <div key={e.name} className="setrow" data-enc={e.name}><div className="lbl">{e.name}<span className="small">{e.codecs} · {e.ok ? `${e.version ?? "ไม่ทราบรุ่น"}${e.coreAudio ? ` · CoreAudioToolbox ${e.coreAudio}` : ""} · ${e.source === "user" ? "โฟลเดอร์ตัวแปลง" : "แนบมากับโปรแกรม"}` : e.problem ? e.problem : "ไม่เจอในโฟลเดอร์ตัวแปลง"}</span>
               {(() => { const l = latest?.list.find((x) => x.name === e.name); return l ? <LatestLine l={l} onOpen={openPage} /> : null; })()}</div>
-              {e.ok ? <span className="toolok">พร้อมใช้งาน</span> : e.problem ? <span className="toolwarn">ขาดไฟล์ประกอบ</span> : <span className="toolwarn">ยังไม่ได้ใส่</span>}</div>))}
-        <div className="small" style={{ marginTop: 6 }}><Phr>{"qaac (AAC ของ Apple) กับ fdkaac (AAC ของ Fraunhofer) สัญญาอนุญาตไม่ให้แจกไปกับตัวติดตั้ง โหลดเองแล้ววางทุกไฟล์ที่มากับชุดไว้ในโฟลเดอร์ตัวแปลง แล้วกดตรวจตัวแปลงใหม่ · TAK แนบชุดเดิมของผู้ทำมาทั้งไฟล์ตามเงื่อนไขการแจก โปรแกรมแตก Takc.exe ไปใช้เอง ใช้เฉพาะหน้าแปลงเสียง · รายชื่อ รุ่น และสัญญาอนุญาตอยู่ docs/research/codec-เสียง.md"}</Phr></div>
+              {e.ok ? <span className="toolok">พร้อมใช้งาน</span> : e.problem ? <span className="toolwarn">{e.problem.startsWith("ต้องติดตั้ง iTunes") ? "ต้องติดตั้ง iTunes" : "ขาดไฟล์ประกอบ"}</span> : <span className="toolwarn">ยังไม่ได้ใส่</span>}</div>))}
+        <div className="small" style={{ marginTop: 6 }}><Phr>{"qaac (AAC ของ Apple) กับ fdkaac (AAC ของ Fraunhofer) สัญญาอนุญาตไม่ให้แจกไปกับตัวติดตั้ง โหลดเองแล้ววางทุกไฟล์ที่มากับชุดไว้ในโฟลเดอร์ตัวแปลง แล้วกดตรวจตัวแปลงใหม่ · qaac กับ refalac (ALAC) แนบมากับโปรแกรมแล้ว · qaac ต้องติดตั้ง iTunes ก่อน เพราะใช้ตัวเข้ารหัส AAC ของ Apple ที่มากับ iTunes · refalac ไม่ต้องมี iTunes · TAK แนบชุดเดิมของผู้ทำมาทั้งไฟล์ตามเงื่อนไขการแจก โปรแกรมแตก Takc.exe ไปใช้เอง ใช้เฉพาะหน้าแปลงเสียง · รายชื่อ รุ่น และสัญญาอนุญาตอยู่ docs/research/codec-เสียง.md"}</Phr></div>
       </div>
 
       {/* ---------- กราฟเสียง (แคลร์เพิ่ม · ผลอ่านคลื่นที่เก็บลงเครื่อง คิว 8) ---------- */}
@@ -478,9 +492,9 @@ export default function SettingsPage() {
           <div className="small" style={{ marginBottom: 4 }}>{g.note}</div>
           <div className="thanksgrid">
             {g.rows.map((r) => <div key={r.name} className="thankcard" data-thanks-row>
-              <div className="thankhead"><span className="thankicon">{thankImg(r.name) ? <img src={thankImg(r.name)} alt="" draggable={false} /> : r.icon}</span><b>{r.name}</b></div>
+              <div className="thankhead"><span className={"thankicon" + (WHITE_ICON.has(r.name) ? " white" : "") + (thankImg2(r.name) ? " two" : "")}>{thankImg(r.name) ? <img src={thankImg(r.name)} alt="" draggable={false} /> : r.icon}{thankImg2(r.name) && <img src={thankImg2(r.name)} alt="" draggable={false} />}</span><span className="thankname"><b>{r.name}</b>{r.ver && <span className="thankver" data-thankver>v{r.ver}</span>}</span><span className="thanktag" title={r.tag} data-thanks-tag>{r.tag.split(" · ").map((t, i, a) => <span key={t}>{t}{i < a.length - 1 ? " ·" : ""}{i < a.length - 1 ? " " : ""}</span>)}</span></div>
               <div className="thankwhat">{r.what}</div>
-              <div className="thankfoot"><span className="thankurl">{r.url.split(" · ").map((u) => <button key={u} type="button" className="thanklink" title={"เปิด " + u} data-thanks-link={u} onClick={() => { encodeApi.thanksOpen(u).catch((e: unknown) => toast({ kind: "bad", title: "เปิดหน้าเว็บไม่ได้", detail: String(e) })); }}>{u}</button>)}</span><span className="thanktag" data-thanks-tag>{r.tag}</span></div>
+              <div className="thankfoot"><span className="thankurl">{r.url.split(" · ").map((u) => <button key={u} type="button" className="thanklink" title={"เปิด " + u} data-thanks-link={u} onClick={() => { encodeApi.thanksOpen(u).catch((e: unknown) => toast({ kind: "bad", title: "เปิดหน้าเว็บไม่ได้", detail: String(e) })); }}>{u}</button>)}</span></div>
             </div>)}
           </div>
         </div>)}
@@ -564,6 +578,9 @@ function GraphImgRows({ value: saved, onChange }: { value: GraphImg; onChange: (
       <Seg small label="ความลึกสี" value={String(deepOk ? o.bits : 8)} onChange={(v) => up({ bits: Number(v) as 8 | 16 })} disabledReason={deepOk ? undefined : `${name} เก็บได้ 8 bit`} options={[{ value: "8", label: "8 bit" }, { value: "16", label: "16 bit" }]} /></div>
     <div className="setrow" data-img-row="gray"><div className="lbl">ชุดสี<span className="small">ขาวดำเก็บช่องสีเดียว เส้นของแต่ละไฟล์จะแยกกันด้วยสีไม่ได้</span></div>
       <Seg small label="ชุดสี" value={o.gray ? "gray" : "rgb"} onChange={(v) => up({ gray: v === "gray" })} options={[{ value: "rgb", label: "RGB" }, { value: "gray", label: "ขาวดำ" }]} /></div>
+    {/* พื้นหลังโปร่งใส (พี่กันสั่ง 10 พ.ย. 2569 "เราชอบตอนบันทึกแล้วพื้นหลังโปร่งใสจัง เอาไปที่ตั้งค่าหน่อย") */}
+    <div className="setrow" data-img-row="bg"><div className="lbl">พื้นหลัง<span className="small">โปร่งใส ใช้ได้กับ PNG WebP TIFF · วางบนสไลด์หรือเอกสารสีอื่นแล้วไม่มีกรอบขาว · กราฟสเปกตรัมพื้นดำยังทึบ</span></div>
+      <Seg small label="พื้นหลัง" value={o.transparent && o.format !== "jpg" && o.format !== "heic" ? "clear" : "solid"} onChange={(v) => up({ transparent: v === "clear" })} disabledReason={o.format === "jpg" || o.format === "heic" ? `${name} เก็บพื้นโปร่งใสไม่ได้ ใช้ PNG WebP หรือ TIFF` : undefined} options={[{ value: "solid", label: "ทึบ" }, { value: "clear", label: "โปร่งใส" }]} /></div>
     <div className="setrow" data-img-row="dpi"><div className="lbl">DPI<span className="small">ใช้ได้กับ PNG JPG TIFF · ไม่เปลี่ยนจำนวนพิกเซล เป็นค่าบอกขนาดตอนพิมพ์ เก็บในไฟล์จริง</span></div>
       <span className="imgstack"><span className="imgctl"><Seg small label="DPI" value={String(IMG_DPIS.includes(o.dpi) ? o.dpi : "own")} disabledReason={dpiOk ? undefined : `ไฟล์ ${name} ไม่มีที่เก็บค่า DPI`} onChange={(v) => { if (v !== "own") up({ dpi: Number(v) }); }}
         options={IMG_DPIS.map((d) => ({ value: String(d), label: String(d) }))} />

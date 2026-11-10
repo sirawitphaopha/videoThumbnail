@@ -1,0 +1,208 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ชั้นหนัง</title>
+<!-- มอคอัปหน้าบิตเรตแบบใหม่ (สร้างจาก theme-live-app.html · พี่กันสั่ง 10 พ.ย. 2569) · หน้าจอจริงของโปรแกรมทั้งหน้า ต่างที่หน้าบิตเรตสลับแบบใหม่กับแบบเดิมได้
+     ข้อมูลบิตเรตมาจากคลิปตัวอย่างที่อ่านด้วย ffprobe จริง (bitrate/data-ตัวอย่างหนัง.json) · ส่งทีละช่วงเหมือนโปรแกรมจริง กราฟจึงขึ้นจากซ้ายไปขวา
+     หน้าจอจริงของโปรแกรม (src/main.tsx) รันในเบราว์เซอร์ผ่าน npm run dev · ไม่แก้โค้ดโปรแกรม
+     สคริปต์ข้างล่างแทนฝั่ง Rust ด้วยข้อมูลตัวอย่าง และเปลี่ยนสีตามโทนที่เลือกจาก theme-live.html
+     พี่กันสั่ง 8 พ.ย. 2569 "อย่าทำมอคอัปมักง่าย เราจะตีความว่าเธอยังไม่ใส่สิ่งๆนั้นในโปรแกรมเรา ควรเหมือน 100%" -->
+<script>
+(() => {
+  const poster = (t, y, a, b, c, w = 600, h = 900) => "data:image/svg+xml," + encodeURIComponent(`<svg xmlns="http://www.w3.org/2000/svg" width="${w}" height="${h}" viewBox="0 0 ${w} ${h}"><defs><linearGradient id="g" x1="0" y1="0" x2=".25" y2="1"><stop offset="0" stop-color="${a}"/><stop offset=".6" stop-color="${b}"/><stop offset="1" stop-color="${c}"/></linearGradient></defs><rect width="100%" height="100%" fill="url(#g)"/><text x="44" y="${h - 118}" font-family="Georgia,serif" font-size="${w > h ? 72 : 62}" font-weight="700" fill="#fff">${t}</text><text x="44" y="${h - 62}" font-family="Tahoma,sans-serif" font-size="32" fill="#fff" opacity=".85">${y}</text></svg>`);
+  const T = [
+    ["ดาวเหนือ", 2023, "#0f2747", "#1e5a7a", "#7fc1c4"], ["Harbor Lights", 2021, "#0b3a42", "#147a78", "#e0b44c"], ["สายลมเดือนเมษา", 2017, "#7a1f2b", "#c9503a", "#f3b96a"],
+    ["Paper Kites", 2012, null], ["ฝนสุดท้ายของฤดู", 2019, "#1f3d2b", "#3f7a54", "#bcd9a5"], ["Iron Tide", 2024, "#16181f", "#3d4452", "#a8adb8"],
+    ["Silent Orbit", 2018, "#1b0f45", "#5a2aa8", "#d58be0"], ["เมืองในหมอก", 2015, "#23303b", "#51707f", "#d9e2e2"], ["Night Bus", 2020, "#0a1230", "#22358a", "#f0a640"],
+    ["Ember", 2022, "#2a0a06", "#a3320f", "#f2a23a"], ["Glass Harbor", 2016, null], ["ลมหนาว", 2020, "#0d3550", "#2f8fc0", "#d5eef5"],
+    ["Copper Sky", 2014, "#3a1c0b", "#a85b1f", "#f0c070"], ["The Long Tide", 2011, "#102a2e", "#2d6e6a", "#c7e0c4"],
+  ];
+  const SUMMARY = { ok: "ตรวจแบบเร็ว โครงไฟล์ครบ ค่า hash ตรงกับครั้งก่อน", changed: "ค่า hash ไม่ตรงกับตอนตรวจครั้งก่อน ไฟล์อาจเสียระหว่างย้ายไดรฟ์ ควรตรวจละเอียด", bad: "ไฟล์ขาดท้าย เล่นได้ถึง 1:12:08 จากความยาว 1:36:00" };
+  const STATUS = ["ok", "ok", "unchecked", "ok", "changed", "ok", "ok", "ok", "bad", "ok", "unchecked", "ok", "ok", "ok"];
+  const LINKED = new Set([1, 4, 6, 8, 9, 11]);
+  const now = Date.now() / 1000;
+  const slug = (t, y) => `${t.toLowerCase().replace(/ /g, "_")}_${y}`;
+  const linkedOf = (t, y, url) => [{ orient: "tall", source: `D:\\รูปปก\\${slug(t, y)}.jpg`, geo: null, store: "beside", file: `D:\\หนัง\\${t} (${y})-poster.jpg`, owned: true, sha256: "ตัวอย่าง", thumb: url, aspect: 0.6667, at: now, cropped: false }];
+  const movies = T.map(([t, y, a, b, c], i) => {
+    const url = a ? poster(t, y, a, b, c) : null, linked = !!url && LINKED.has(i), file = !!url && !linked;
+    const st = STATUS[i];
+    return {
+      id: `m${i}`, rating: (i * 3) % 6, path: `D:\\หนัง\\${t} (${y}).mkv`, root: "D:\\หนัง", name: `${t} (${y})`, ext: "mkv", size: 6e9 + i * 1.1e9, mtime: now - i * 86400, added: now - i * 86400, year: y, duration: 5400 + i * 420,
+      video: i % 3 ? "HEVC 3840x2160" : "AVC 1920x1080", videoShort: i % 3 ? "H.265" : "H.264", audio: [{ lang: "ไทย", codec: "E-AC-3", layout: "5.1" }, { lang: "อังกฤษ", codec: "TrueHD", layout: "7.1" }], subs: [{ lang: "ไทย", codec: "SRT", layout: null }, { lang: "อังกฤษ", codec: "PGS", layout: null }],
+      images: file ? 1 : 0, hasCover: file, coverName: file ? "cover.jpg" : null, coverSha256: file ? "ตัวอย่าง" : null, thumb: file ? url : null, coverAspect: file ? 0.6667 : null,
+      status: st, check: st === "unchecked" ? null : { at: now - 86400 * 3, mode: "quick", result: st, summary: SUMMARY[st], spans: [] }, sha256: null, missing: false, error: null, pairs: [], linked: linked ? linkedOf(t, y, url) : [],
+    };
+  });
+  const pick = (t, y, url) => ({ path: `D:\\รูปปก\\${slug(t, y)}.jpg`, name: `${slug(t, y)}.jpg`, folder: "D:\\รูปปก", width: 1000, height: 1500, thumb: url, geo: null });
+  const REASON = ["ชื่อกับปีตรง", "ชื่อกับปีตรง", "รูปอยู่ข้างไฟล์หนัง", "เลข IMDb ตรงกัน", "ชื่อตรง ไม่มีปีในชื่อรูป"];
+  const rows = T.filter((x) => x[2]).map(([t, y, a, b, c], i) => {
+    const url = poster(t, y, a, b, c), status = i === 4 || i === 8 ? "unsure" : "sure";
+    return { id: `r${i}`, movie: `D:\\หนัง\\${t} (${y}).mkv`, title: `${t} (${y})`, hasCover: false, status, reason: status === "unsure" ? REASON[4] : REASON[i % 4], via: "auto", tall: pick(t, y, url), wide: null, derivedTall: false, candidates: status === "unsure" ? [pick(t, y, url)] : [], score: status === "unsure" ? 70 : 100, ticked: status === "sure", error: null, prev: null, conflict: null, storeOverride: null };
+  });
+  rows.push({ id: "rn", movie: "D:\\หนัง\\Paper Kites (2012).mkv", title: "Paper Kites (2012)", hasCover: false, status: "none", reason: "หาคู่ไม่เจอ", via: "auto", tall: null, wide: null, derivedTall: false, candidates: [], score: 0, ticked: false, error: null, prev: null, conflict: null, storeOverride: null });
+  const reply = () => ({ rows, imageFolders: ["D:\\รูปปก"], loose: [], scope: "nocover", waiting: rows.filter((r) => r.tall).length });
+  const images = T.filter((x) => x[2]).map(([t, y, a, b, c]) => ({ ...pick(t, y, poster(t, y, a, b, c)), used: false, error: null }));
+  const savedTone = (() => { try { return localStorage.getItem("theme-pink") || "quartz"; } catch { return "quartz"; } })();
+  const settings = { tone: savedTone, linkStores: ["beside"], folders: ["D:\\หนัง", "E:\\หนังเก่า"], rescanOnStart: false, checkSourceBefore: true, checkOutputAfter: true, outputFormat: "mkv", originalAfter: "keep", originalsFolder: "", posterFormat: "jpg", jpgQuality: 90, shrinkLargePosters: true, defaultCheck: "quick", quickCheckOnStart: false, recheckReminderDays: 30, coverSize: "m", showNames: true, showDots: true, playerPath: "", sidebarCollapsed: false, viewMode: "grid", sort: "name-asc", coverOrient: "tall", linkStore: "beside", linkBoardImages: "list", linkBoardMovies: "list" };
+  /* ---------- หน้ากราฟเสียง · คิดจากเวลา เปิดซ้ำได้รูปเดิม ซูมแล้วตรงกับภาพรวม ---------- */
+  const hash1 = (n) => { const x = Math.sin(n * 127.1 + 311.7) * 43758.5453; return x - Math.floor(x); };
+  const vnoise = (x, seed) => { const i = Math.floor(x), t = x - i, u = t * t * (3 - 2 * t); return hash1(i + seed * 57) * (1 - u) + hash1(i + 1 + seed * 57) * u; };
+  const CH = { FL: [0.72, 1], FR: [0.7, 2], FC: [0.92, 3], LFE: [0.5, 4], SL: [0.34, 5], SR: [0.33, 6], BL: [0.26, 7], BR: [0.25, 8] };
+  const TRACKS = [
+    { index: 0, codec: "E-AC-3", layout: "5.1", names: ["FL", "FR", "FC", "LFE", "SL", "SR"], lang: "tha", title: "พากย์ไทย", rate: 48000, bits: null, bitrate: 640000 },
+    { index: 1, codec: "TrueHD", layout: "7.1", names: ["FL", "FR", "FC", "LFE", "BL", "BR", "SL", "SR"], lang: "eng", title: "เสียงต้นฉบับ", rate: 48000, bits: 24, bitrate: 3800000 },
+  ];
+  const STEREO = [{ index: 0, codec: "FLAC", layout: "stereo", names: ["FL", "FR"], lang: null, title: null, rate: 44100, bits: 16, bitrate: 980000 }];
+  const movieOf = (p) => movies.find((m) => m.path === p);
+  const infoOf = (p) => { const m = movieOf(p); return { duration: m ? m.duration : 248, size: m ? m.size : 31000000, audioOnly: !m, tracks: m ? TRACKS : STEREO }; };
+  const SILENT = [2412, 2416];
+  const level = (t, name) => {
+    if (t > SILENT[0] && t < SILENT[1]) return 0;
+    const [g, sd] = CH[name] ?? CH.FL;
+    const scene = 0.22 + 0.78 * Math.pow(vnoise(t / 210, 11), 1.5), beat = 0.35 + 0.65 * vnoise(t / 7, sd), fine = 0.72 + 0.28 * vnoise(t * 1.7, sd + 20), hit = 0.82 + 0.18 * vnoise(t * 40, sd + 40);
+    return Math.min(0.99, g * scene * beat * fine * hit);
+  };
+  const envOf = (names, t0, t1, cols) => names.map((n) => {
+    const e = new Array(cols * 3);
+    for (let c = 0; c < cols; c++) { const t = t0 + (t1 - t0) * (c + 0.5) / cols, a = level(t, n); e[c * 3] = a; e[c * 3 + 1] = -a * (0.9 + 0.1 * vnoise(t * 2.3, 31)); e[c * 3 + 2] = a * 0.36; }
+    return e;
+  });
+  const toB64 = (u8) => { let o = ""; for (let i = 0; i < u8.length; i += 8192) o += String.fromCharCode.apply(null, u8.subarray(i, i + 8192)); return btoa(o); };
+  const specOf = (names, t0, t1, cols, bins, nyq, log) => names.map((n) => {
+    const sd = (CH[n] ?? CH.FL)[1], top = n === "LFE" ? 120 : 18000, out = new Uint8Array(cols * bins);
+    for (let c = 0; c < cols; c++) {
+      const t = t0 + (t1 - t0) * (c + 0.5) / cols, a = level(t, n);
+      if (a <= 0) continue;
+      const db0 = 20 * Math.log10(a) - 6;
+      for (let b = 0; b < bins; b++) {
+        const hz = log ? 20 * Math.pow(nyq / 20, (b + 0.5) / bins) : nyq * (b + 0.5) / bins;
+        if (hz > top) continue;
+        const db = db0 - 4.2 * Math.log2(Math.max(hz, 60) / 60) + (vnoise(c * 0.7 + b * 0.31, sd) - 0.5) * 16;
+        out[c * bins + b] = Math.max(0, Math.min(255, (db + 120) / 120 * 255));
+      }
+    }
+    return toB64(out);
+  });
+  const ovCache = new Map();
+  const overviewOf = (path, track) => {
+    const k = path + "|" + track;
+    if (ovCache.has(k)) return ovCache.get(k);
+    const inf = infoOf(path), tk = inf.tracks[track] ?? inf.tracks[0], names = tk.names, duration = inf.duration, cols = 2400, specCols = 640, specBins = 128;
+    const loud = Array.from({ length: cols }, (_, c) => { const a = level(duration * (c + 0.5) / cols, "FC"); return a <= 0 ? -70 : Math.max(-70, 20 * Math.log10(a) - 8); });
+    const ov = { duration, cols, env: envOf(names, 0, duration, cols), specCols, specBins, spec: specOf(names, 0, duration, specCols, specBins, tk.rate / 2, false), loud, integrated: -24.3, lra: 14.8, truePeak: -0.6,
+      peaks: names.map((n) => 20 * Math.log10((CH[n] ?? CH.FL)[0] * 0.94)), rms: names.map((n) => 20 * Math.log10((CH[n] ?? CH.FL)[0] * 0.11)), clips: names.map(() => 0), silences: duration > SILENT[1] ? [SILENT] : [], readTo: duration };
+    ovCache.set(k, ov);
+    return ov;
+  };
+  const GRAPH = {
+    graph_info: (a) => infoOf(a.path),
+    graph_overview: (a) => overviewOf(a.path, a.track),
+    graph_window: (a) => { const tk = infoOf(a.path).tracks[a.track] ?? infoOf(a.path).tracks[0]; return { t0: a.t0, t1: a.t1, cols: a.cols, env: envOf(tk.names, a.t0, a.t1, a.cols), bins: a.bins, spec: specOf(tk.names, a.t0, a.t1, a.cols, a.bins, tk.rate / 2, a.log) }; },
+    graph_psd: (a) => { const rate = (infoOf(a.path).tracks[a.track] ?? infoOf(a.path).tracks[0]).rate, N = a.size / 2 + 1, count = a.series.length + (a.ms ? 2 : 0); return { size: a.size, rate, db: Array.from({ length: count }, (_, k) => Array.from({ length: N }, (_, i) => { const hz = i * rate / a.size; return hz > 18000 ? -118 + hash1(i + k) * 2 : -22 - k * 2.5 - 5.2 * Math.log2(Math.max(hz, 45) / 45) + (vnoise(i * 0.05, k + 2) - 0.5) * 7; })) }; },
+    graph_cancel: () => null,
+  };
+  const enc = (name, codecs, version, source = "bundled") => ({ name, codecs, source, version, ok: source !== "missing", problem: null, dir: "" });
+  const CMDS = { opus: "opusenc --bitrate 256 --vbr เสียง.wav เสียง.opus", aac: "qaac64 --tvbr 91 --quality 2 เสียง.wav -o เสียง.m4a", mp3: "lame -V 2 --vbr-new เสียง.wav เสียง.mp3", ac3: "ffmpeg -i เสียง.wav -c:a ac3 -b:a 640k เสียง.ac3", flac: "flac -5 --threads=4 --verify -o เสียง.flac เสียง.wav", wv: "wavpack -h -x4 เสียง.wav -o เสียง.wv", ape: "MACDll64 เสียง.wav เสียง.ape ระดับ Normal", tak: "Takc -e -p2 -v เสียง.wav เสียง.tak" };
+  /* หน้าเสียงและซับ ข้อมูลตัวอย่างหนังที่เปิด */
+  const trackOf = (src, ff, kind, codec, lang, name, extra) => ({ src, tid: ff, ff, kind, codec, profile: null, lang, name, default: ff <= 1, forced: false, channels: null, layout: null, rate: null, bits: null, bitrate: null, width: null, height: null, fps: null, duration: 5400, bytes: null, frames: null, mp4: "ok", why: null, charset: null, delay: 0, keep: true, inMovie: true, ...extra });
+  const mergeMovie = (p) => { const m = movieOf(p) ?? movies[0]; return { path: m.path, name: m.name, ext: "mkv", size: m.size, duration: m.duration, free: 512e9, drive: "D:", mp4Ok: true, attachments: m.hasCover ? [{ id: 1, name: "cover.jpg", mime: "image/jpeg", size: 412000 }] : [], tracks: [
+    trackOf(m.path, 0, "video", "hevc", "und", "", { width: 3840, height: 2160, fps: 23.976, frames: 129000, bitrate: 6900000 }),
+    trackOf(m.path, 1, "audio", "eac3", "tha", "พากย์ไทย", { channels: 6, layout: "5.1", rate: 48000, bitrate: 640000 }),
+    trackOf(m.path, 2, "audio", "truehd", "eng", "เสียงต้นฉบับ", { channels: 8, layout: "7.1", rate: 48000, bits: 24, bitrate: 3800000, mp4: "no", why: "MP4 ใส่ TrueHD ไม่ได้" }),
+    trackOf(m.path, 3, "subtitle", "subrip", "tha", "ซับไทย", { mp4: "style", why: "ซับข้อความแปลงเป็นแบบ MP4", charset: "UTF-8" }),
+    trackOf(m.path, 4, "subtitle", "subrip", "eng", "English", { mp4: "style", why: "ซับข้อความแปลงเป็นแบบ MP4", charset: "UTF-8" }),
+  ] }; };
+  const FX = {
+    ...GRAPH,
+    merge_inspect: (a) => mergeMovie(a.path),
+    merge_cover_drop: () => null,
+    convert_cover: () => null,
+    graph_exist: (a) => a.paths.map(() => true),
+    set_rating: (a) => { const m = movies.find((x) => x.id === a.id); if (m) m.rating = a.stars; return m; },
+    list_players: () => ({ players: [{ path: "C:\\Program Files (x86)\\K-Lite Codec Pack\\MPC-HC64\\mpc-hc64.exe", name: "MPC-HC", exists: true, added: false, isDefault: true }, { path: "C:\\Program Files\\VideoLAN\\VLC\\vlc.exe", name: "VLC", exists: true, added: false, isDefault: false }], systemDefault: false }),
+    movie_frame: (a) => { const hit = T.find(([t, y, c]) => c && String(a.path).includes(slug(t, y))) ?? T[0]; const [t, y, c1, c2, c3] = hit; return poster(t, y, c1, c2, c3, 1280, 720); },
+    convert_one: (a) => ({ out: String(a.req.path).replace(/\.[^.]+$/, ".opus"), size: 5200000, srcSize: 31000000, tags: 1, cover: false, notes: [], tool: "opusenc", cmd: "opusenc --bitrate 160 เพลงตัวอย่าง.flac เพลงตัวอย่าง.opus", secs: 3.2 }),
+    merge_cover_preview: (a) => { const hit = T.find(([t, y, c]) => c && String(a.path).includes(slug(t, y))) ?? T[0]; const [t, y, c1, c2, c3] = hit; const land = a.slot === "cover_land"; const w = land ? 1920 : 1000, h = land ? 1080 : 1500; return { preview: poster(t, y, c1, c2, c3, w, h), width: w, height: h, bytes: 412000 }; },
+    convert_probe: (a) => ({ path: a.path, name: String(a.path).split("\\").pop(), size: 31000000, duration: 248, audioOnly: true, stream: 0, codec: "flac", profile: "", layout: "stereo", channels: 2, rate: 44100, bits: 16, bitrate: 980000, tags: [{ key: "TITLE", value: "เพลงตัวอย่าง" }], tagsInStream: false, cover: null }),
+    media_info: (x) => { const m = movieOf(x.path); const sections = [
+      { title: "ข้อมูลทั่วไป", kind: "general", ext: null, lang: null, rows: [["ชื่อไฟล์", String(x.path).split("\\").pop()], ["รูปแบบ", "Matroska"], ["ขนาด", ((m?.size ?? 8e9) / 1073741824).toFixed(2) + " GB"], ["ความยาว", "1 ชม. 30 นาที"], ["บิตเรตรวม", "8 420 kb/s"]] },
+      { title: "ภาพ", kind: "video", ext: "hevc", lang: null, rows: [["รูปแบบ", "HEVC Main 10"], ["ขนาดภาพ", "3840 × 2160"], ["เฟรมเรต", "23.976 FPS"], ["บิตเรต", "6 900 kb/s"], ["HDR", "HDR10"]] },
+      { title: "เสียง 1", kind: "audio", ext: "eac3", lang: "tha", rows: [["รูปแบบ", "E-AC-3"], ["ช่องเสียง", "5.1"], ["อัตราสุ่ม", "48 kHz"], ["บิตเรต", "640 kb/s"], ["ภาษา", "ไทย"]] },
+      { title: "เสียง 2", kind: "audio", ext: "thd", lang: "eng", rows: [["รูปแบบ", "TrueHD"], ["ช่องเสียง", "7.1"], ["อัตราสุ่ม", "48 kHz"], ["บิตเรต", "3 800 kb/s"], ["ภาษา", "อังกฤษ"]] },
+      { title: "ซับ 1", kind: "text", ext: "srt", lang: "tha", rows: [["รูปแบบ", "UTF-8"], ["ภาษา", "ไทย"]] },
+    ]; return { text: sections.map((c) => c.title + "\n" + c.rows.map((r) => r.join(": ")).join("\n")).join("\n\n"), sections }; },
+    encode_preview: (a) => ({ steps: [], piped: false, text: CMDS[a.spec?.codec] ?? CMDS.flac, note: "" }),
+    poster_view: (a) => { const hit = T.find(([t, y, c]) => c && String(a.path).includes(slug(t, y))) ?? T[0]; const [t, y, c1, c2, c3] = hit; return { preview: poster(t, y, c1, c2, c3, 2000, 3000), width: 2000, height: 3000, fileSize: 1840000, ext: "jpg" }; },
+    get_settings: () => ({ settings, loadedFrom: "file" }),
+    set_settings: (a) => { if (a.patch.tone) { try { localStorage.setItem("theme-pink", a.patch.tone); } catch { /* ไม่จำก็ได้ */ } } return Object.assign(settings, a.patch); },
+    get_library: () => ({ movies, folders: [{ path: "D:\\หนัง", ok: true, count: 12, error: null }, { path: "E:\\หนังเก่า", ok: true, count: 2, error: null }], scanning: false }),
+    check_tools: () => [["mkvmerge", "mkvmerge v103.0 ('The Darkness') 64-bit"], ["mkvextract", "mkvextract v103.0 ('The Darkness') 64-bit"], ["mkvpropedit", "mkvpropedit v103.0 ('The Darkness') 64-bit"], ["ffmpeg", "ffmpeg version 9.0.2-full_build-www.gyan.dev Copyright (c) 2000-2026 the FFmpeg developers"], ["ffprobe", "ffprobe version 9.0.2-full_build-www.gyan.dev Copyright (c) 2007-2026 the FFmpeg developers"], ["MediaInfo", "MediaInfo Command line, MediaInfoLib - v26.10"]].map(([name, version]) => ({ name, ok: true, version })),
+    check_icaros: () => false, running_jobs: () => 0, check_running: () => false, extract_running: () => false, hash_running: () => false, convert_running: () => false,
+    encoders_status: () => [enc("flac", "FLAC", "1.5.0"), enc("opusenc", "Opus", "0.2-52 (libopus 1.6.1)"), enc("lame", "MP3", "4.0"), enc("wavpack", "WavPack", "5.9.0"), enc("MACDll64", "Monkey's Audio · หน้าแปลงเสียง", "13.46"), enc("Takc", "TAK · หน้าแปลงเสียง", "2.3.3"), enc("qaac", "AAC ของ Apple", null, "missing"), enc("fdkaac", "AAC ของ Fraunhofer", null, "missing")],
+    encoders_user_dir: () => "C:\\Users\\ชื่อผู้ใช้\\AppData\\Local\\ชั้นหนัง\\ตัวแปลงที่ใส่เอง",
+    graph_cache_info: () => ({ files: 12, bytes: 88080384 }),
+    link_state: reply, link_images: () => images, link_add_images: reply, link_auto: () => ({ images: images.length, sure: 9, unsure: 2, none: 1, tall: 11, wide: 0, reply: reply() }), link_row_update: reply, link_set_crop: reply, link_undo: reply, link_pair: reply, link_open_row: reply, link_remove_images: reply, link_titles: (a) => (a.paths ?? []).map((p) => p.split("\\").pop()), link_is_dir: (a) => (a.paths ?? []).map(() => false), scan_library: () => null,
+    extract_default_folder: () => "D:\\หนัง",
+    poster_open: (a) => { const u = poster("ตัวอย่าง", 2023, "#0b3a42", "#147a78", "#e0b44c", 1000, 1500); return { path: a.path, name: String(a.path).split("\\").pop(), ext: "jpg", attachable: true, width: 1000, height: 1500, aspect: "แนวตั้ง 2 : 3", twoThree: true, preview: u, fileSize: 412000, exif: 1, icc: false, crop: [0, 0, 1000, 1500] }; },
+    poster_render: () => { const u = poster("ตัวอย่าง", 2023, "#0b3a42", "#147a78", "#e0b44c", 1000, 1500); return { bytes: 412000, width: 1000, height: 1500, cropW: 1000, cropH: 1500, small: false, preview: u, sizes: [[1000, 1500]] }; },
+    poster_clear: () => null,
+    poster_folder_images: () => [],
+    poster_inspect: (a) => ({ path: a.path, name: String(a.path).split("\\").pop(), ext: "mkv", size: 8e9, duration: 6600, width: 3840, height: 2160, streams: [{ index: 0, kind: "video", codec: "hevc", lang: null, mp4: "ok", why: null }, { index: 1, kind: "audio", codec: "eac3", lang: "tha", mp4: "ok", why: null }, { index: 2, kind: "subtitle", codec: "subrip", lang: "tha", mp4: "style", why: "ซับข้อความแปลงเป็นแบบ MP4" }], counts: { video: 1, audio: 1, subs: 1 }, free: 5e11, drive: "D:" }),
+  };
+  /* ---------- หน้าบิตเรต · ตัวแทน bitrate.rs ---------- */
+  const SAMPLE = "D:\\หนัง\\ตัวอย่างหนัง (2026).mkv";
+  const BR = { data: null, run: 0, handlers: {} };
+  const brData = fetch(encodeURI("bitrate/data-ตัวอย่างหนัง.json")).then((r) => r.json()).then((d) => (BR.data = d));
+  try { if (!localStorage.getItem("bv-recent")) localStorage.setItem("bv-recent", JSON.stringify([SAMPLE, "D:\\หนัง\\Harbor Lights (2021).mkv", "E:\\หนังเก่า\\Night Bus (2020).mkv"])); } catch {}
+  const emit = (event, payload) => (BR.handlers[event] || []).forEach((h) => window["_" + h]?.({ event, id: 0, payload }));
+  const brStart = async ({ mode, run: want }) => {
+    const d = BR.data ?? (await brData);
+    const run = want ?? BR.run + 1; BR.run = run;
+    const src = mode === "frm" ? d.frm : d.pkt, n = src.t.length;
+    // แพ็กเก็ตอ่านเร็ว ถอดภาพช้ากว่า · ช้าพอให้เห็นกราฟค่อย ๆ ขึ้นจากซ้ายไปขวา
+    const ms = mode === "frm" ? 5200 : 2600, steps = Math.ceil(ms / 120), per = Math.ceil(n / steps);
+    let from = 0, readTo = 0;
+    const tick = () => {
+      if (BR.run !== run) { emit("bitrate-done", { run, ok: false, stopped: true }); return; }
+      const to = Math.min(n, from + per);
+      const t = src.t.slice(from, to).map((x) => x / 1000);
+      for (const x of t) if (x > readTo) readTo = x;
+      emit("bitrate-progress", { run, from, t, s: src.s.slice(from, to), k: src.k.slice(from, to), readTo });
+      from = to;
+      if (from < n) setTimeout(tick, 120); else emit("bitrate-done", { run, ok: true, frames: n });
+    };
+    setTimeout(tick, 200);
+    return { run, kind: "video", track: "v", tracks: [{ id: "v", label: "วิดีโอ" }], sample_rate: 0, channels: 0, layout: "", lang: "", ...d.info };
+  };
+  const missing = (window.__missing = new Set());
+  let nextId = 1;
+  window.isTauri = true;
+  window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} };
+  window.__TAURI_INTERNALS__ = {
+    metadata: { currentWindow: { label: "main" }, currentWebview: { windowLabel: "main", label: "main" } },
+    convertFileSrc: (p) => p,
+    transformCallback: (cb, once) => { const id = nextId++; window[`_${id}`] = (x) => { if (once) delete window[`_${id}`]; cb?.(x); }; return id; },
+    unregisterCallback: (id) => { delete window[`_${id}`]; },
+    invoke: async (cmd, args) => {
+      if (cmd === "bitrate_start") return brStart(args ?? {});
+      if (cmd === "bitrate_stop") { BR.run++; return null; }
+      if (cmd === "bitrate_tracks") return [{ id: "v", label: "วิดีโอ" }];
+      if (cmd === "plugin:event|listen") { (BR.handlers[args.event] ||= []).push(args.handler); return nextId++; }
+      if (cmd === "plugin:dialog|open") return SAMPLE;
+      if (FX[cmd]) return structuredClone(FX[cmd](args ?? {}));
+      if (cmd.startsWith("plugin:event|")) return nextId++;
+      if (cmd.startsWith("plugin:window|")) return cmd.includes("is_") ? false : null;
+      if (cmd.startsWith("plugin:")) return null;
+      missing.add(cmd);
+      return null;
+    },
+  };
+
+})();
+</script>
+<script type="module" src="/src/mockups/bitrate/main.tsx"></script>
+</head>
+<body><div id="root"></div></body>
+</html>

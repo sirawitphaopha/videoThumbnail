@@ -293,7 +293,7 @@ fn insert_before(args: &mut Vec<String>, before: &str, add: Vec<String>) {
 
 /// เมื่อไหร่ต้องให้ ffmpeg ใส่ข้อมูลเพลงกับปกหลังแปลง (ชนิดที่ ffmpeg เขียนปกได้)
 fn remux_kind(codec: &str) -> bool {
-    matches!(codec, "flac" | "mp3" | "aac")
+    matches!(codec, "flac" | "mp3" | "aac" | "alac")
 }
 
 /// คำสั่ง ffmpeg ใส่ข้อมูลเพลงกับปกจากไฟล์เดิมลงไฟล์ที่แปลงแล้ว · ไม่แปลงเสียงซ้ำ (-c copy)
@@ -339,7 +339,7 @@ fn convert(app: &AppHandle, req: &ConvReq, jobs: &Arc<crate::jobs::Jobs>) -> Res
     if codec == "mp3" { ch = ch.min(2); }
     if codec == "ac3" || codec == "eac3" { ch = ch.min(6); }
     let rate = spec.rate.unwrap_or(f.rate).max(8000);
-    let lossless = matches!(codec, "flac" | "wv" | "ape" | "tak");
+    let lossless = matches!(codec, "flac" | "alac" | "wv" | "ape" | "tak");
     let need = if lossless { secs * rate as f64 * ch as f64 * 3.0 } else { secs * 1_000_000.0 / 8.0 } as u64 + 16 * 1024 * 1024;
     let free = free_space(&dir);
     if free < need {

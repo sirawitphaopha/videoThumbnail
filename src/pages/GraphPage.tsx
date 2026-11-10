@@ -18,7 +18,7 @@ import { diffOf, type DiffResult } from "../lib/graphDiff";
 import { useSettings } from "../lib/settings";
 import { dropStyle, useDropPlacement } from "../lib/popupFit";
 import { useClickOutside, useEscClose } from "../lib/popup";
-import { IcExpand, IcFile, IcFolder, IcMix, IcPlus } from "../components/icons";
+import { IcExpand, IcFile, IcFolder, IcMix, IcPlus, IcBitrate } from "../components/icons";
 import { IcSearch, IbStop, IcRefresh, IcGraph, IbSave, IcClose, IbTable, IbPlay } from "../components/icons";
 
 export type GraphReq = { path: string; t?: number };
@@ -125,6 +125,25 @@ async function imgTarget(file: string, name: string, o: GraphImg): Promise<strin
 }
 const waitPaint = () => new Promise((r) => setTimeout(r, 40));
 /** แถบหัวรูป ชื่อไฟล์ ช่วงเวลา สีของแต่ละไฟล์ · ปิดได้ในหน้าตั้งค่า */
+/** พื้นหลังโปร่งใสตอนบันทึก (พี่กันสั่ง 10 พ.ย. 2569 ตั้งในหน้าตั้งค่า) · พื้นขาวกับพื้นอ่อนของกราฟ (ทุกช่องสีตั้งแต่ 245) โปร่งใสหมด
+    สีอ่อนรอบเส้นกับขอบตัวหนังสือ (ตั้งแต่ 200) ถอดสีขาวออกเป็นความโปร่งใสบางส่วน ขอบจึงเนียน · สีที่เข้มกว่านั้นทึบเหมือนเดิม
+    JPG กับ HEIC เก็บความโปร่งใสไม่ได้ ส่งรูปเดิม */
+function alphaOf(cv: HTMLCanvasElement, o: GraphImg): HTMLCanvasElement {
+  if (!o.transparent || o.format === "jpg" || o.format === "heic") return cv;
+  const g = cv.getContext("2d"); if (!g) return cv;
+  const im = g.getImageData(0, 0, cv.width, cv.height), d = im.data;
+  for (let i = 0; i < d.length; i += 4) {
+    const lo = Math.min(d[i], d[i + 1], d[i + 2]);
+    if (lo >= 245) { d[i + 3] = 0; continue; }
+    if (lo < 200) continue;
+    const a = Math.max(255 - d[i], 255 - d[i + 1], 255 - d[i + 2]) / 255;
+    for (let c = 0; c < 3; c++) d[i + c] = Math.round(255 - (255 - d[i + c]) / a);
+    d[i + 3] = Math.round(a * d[i + 3]);
+  }
+  const out = document.createElement("canvas"); out.width = cv.width; out.height = cv.height;
+  out.getContext("2d")?.putImageData(im, 0, 0);
+  return out;
+}
 function withHeader(cv: HTMLCanvasElement, title: string, sub: string, legend: [string, string][] = []): HTMLCanvasElement {
   const k = Math.max(1, cv.width / 1000), band = Math.round(50 * k), out = document.createElement("canvas");
   out.width = cv.width; out.height = cv.height + band;
@@ -546,7 +565,7 @@ let lastCmp: CmpState = null;
 /** การเทียบที่ออกมาดูกราฟเดี่ยว ใช้ปุ่มกลับไปเทียบ */
 let lastBack: CmpState = null;
 
-export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; onConsumed: () => void }) {
+export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphReq | null; onConsumed: () => void; onBitrate?: (path: string, track?: string) => void }) {
   const [mode, setModeRaw] = useState<"graph" | "convert">(lastMode);
   const setMode = (m: "graph" | "convert") => { lastMode = m; setModeRaw(m); };
   const [cmp, setCmpRaw] = useState(lastCmp);
@@ -563,6 +582,8 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
   toastRef.current = toast;
   const [path, setPath] = useState<string | null>(null);
   const [info, setInfo] = useState<GInfo | null>(null);
+  /** รายละเอียด codec ของแต่ละแทร็กเสียง (MediaInfo) เช่น MPEG-1 Layer 3 (LAME 3.99r) · พี่กันถาม 10 พ.ย. 2569 */
+  const [codecDetail, setCodecDetail] = useState<(string | null)[]>([]);
   const [track, setTrack] = useState(0);
   /** ภาพรวมพร้อมไฟล์และแทร็กที่อ่านมา · เปลี่ยนแทร็กแล้วหน้าจอวาดหนึ่งรอบก่อนล้างค่า ช่องของแทร็กใหม่ต้องไม่ไปหยิบข้อมูลแทร็กเก่า (เจอตอนเทส 7 พ.ย. 2569 หน้าว่างทั้งโปรแกรม) */
   const [ovRaw, setOvRaw] = useState<{ key: string; o: GOverview } | null>(null);
@@ -647,6 +668,9 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
     let live = true;
     setInfo(null); setOvRaw(null); setWin(null); setPsd(null); setError(null); setHidden([]); setTrack(0); zoomOf.current = {};
     graphApi.info(path).then((g) => { if (live) { setInfo(g); remember(path, g); } }, (e) => { if (live) setError(String(e)); });
+    // รายละเอียด codec จาก MediaInfo อ่านไม่ได้ก็ใช้ชื่อสั้นจาก ffprobe ตามเดิม
+    setCodecDetail([]);
+    graphApi.codecDetail(path).then((d) => { if (live) setCodecDetail(d); }, () => {});
     return () => { live = false; };
   }, [path, nonce]);
 
@@ -885,7 +909,7 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
       if (!cv) throw new Error("ยังไม่มีกราฟให้บันทึก");
       if (o.title && view !== "spek") cv = withHeader(cv, fileName + " · " + vName, tfmt(t0) + " ถึง " + tfmt(t1));
       await waitPaint();
-      const saved = await graphApi.saveImage(where, cv.toDataURL("image/png"), o);
+      const saved = await graphApi.saveImage(where, alphaOf(cv, o).toDataURL("image/png"), o);
       toast({ kind: "ok", title: `บันทึกรูปแล้ว ${saved.width.toLocaleString("en-US")} × ${saved.height.toLocaleString("en-US")} · ${fmtSize(saved.size)}`, detail: saved.path });
     } catch (e) { toast({ kind: "bad", title: "บันทึกรูปไม่ได้", detail: e instanceof Error ? e.message : String(e) }); }
     finally { setHiWin(null); setSaving(false); }
@@ -984,6 +1008,8 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
       <button type="button" className="btn btn-ghost" onClick={compareOther} title="เลือกไฟล์อื่นมาเทียบกับไฟล์นี้" data-graphcompare><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3v18M4 7h4v10H4zM16 7h4v10h-4z" /></svg>เทียบ</button>
       {/* หน้าแปลงเสียงอยู่ข้างปุ่มเปิดไฟล์อื่น (มอคอัปหัวข้อ 7) · กดจากหน้ากราฟ ไฟล์ที่ดูอยู่เข้าคิวเลย ไม่ต้องเลือกใหม่ (พี่กันบอก 9 พ.ย. 2569 "มันต้องใช้ไฟล์นั้นเลยสิ") · รอแปลงอยู่แล้วไม่เพิ่มแถว กันกดซ้ำโดยไม่ตั้งใจ */}
       <button type="button" className="btn btn-ghost" onClick={() => { if (path) addFiles([path], true); setMode("convert"); }} title="แปลงไฟล์นี้ · ใส่เข้าคิวแปลงเสียง" data-graphconvert><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 7h13l-3-3M20 17H7l3 3" /></svg>แปลงเสียง</button>
+      {/* ดูบิตเรตของแทร็กเสียงที่ดูอยู่ ไปหน้าบิตเรตพร้อมไฟล์และแทร็กนี้ · ไฟล์เสียงล้วนก็กดได้ (พี่กันสั่ง 10 พ.ย. 2569 "เพิ่มดูบิตเรต จากดูกราฟเสียงได้" · "ทำไมเราดูบิตเรตของเสียงไม่ได้") */}
+      {onBitrate && path && info && <button type="button" className="btn btn-ghost" onClick={() => onBitrate(path, `a${track}`)} title="ดูบิตเรตของแทร็กเสียงนี้ · ในหน้าบิตเรตสลับไปดูวิดีโอหรือแทร็กอื่นได้" data-graphbitrate><IcBitrate size={16} />Bitrate</button>}
     </div>
   );
   const seg = <T extends string | number>(opts: [T, React.ReactNode][], cur: T, set: (v: T) => void, attr: string) => (
@@ -1030,7 +1056,7 @@ export default function GraphPage({ req, onConsumed }: { req: GraphReq | null; o
 
   /* ---------- แผงซ้าย ---------- */
   const infoRows: [string, string][] = t ? [
-    ["Codec", t.codec], ["Channels", `${t.layout} · ${names.length} ${names.length === 1 ? "channel" : "channels"}`], ["Sample rate", `${(t.rate / 1000).toLocaleString("en-US", { maximumFractionDigits: 1 })} kHz`],
+    ["Codec", codecDetail[t.index] ?? t.codec], ["Channels", `${t.layout} · ${names.length} ${names.length === 1 ? "channel" : "channels"}`], ["Sample rate", `${(t.rate / 1000).toLocaleString("en-US", { maximumFractionDigits: 1 })} kHz`],
     ...(t.bits ? [["Bit depth", `${t.bits}-bit`] as [string, string]] : []), ...(t.bitrate ? [["Bitrate", `${Math.round(t.bitrate / 1000).toLocaleString("en-US")} kb/s`] as [string, string]] : []),
     ...(t.lang ? [["Language", t.lang] as [string, string]] : []),
   ] : [];
@@ -1192,7 +1218,11 @@ export class GraphBoundary extends Component<{ children: React.ReactNode }, { er
   }
 }
 
-function FragmentKV({ k, v }: { k: string; v: string }) { return <><dt>{k}</dt><dd>{v}</dd></>; }
+/** แถวข้อมูล · ค่าที่มีวงเล็บท้าย เช่น MPEG-1 Layer 3 (LAME 4.0) ตัดบรรทัดได้เฉพาะหน้าวงเล็บ ไม่ตัดกลางวงเล็บ (พี่กันทัก 10 พ.ย. 2569 "แบ่งบรรทัดดี ๆ") */
+function FragmentKV({ k, v }: { k: string; v: string }) {
+  const at = v.lastIndexOf(" (");
+  return <><dt>{k}</dt><dd>{at > 0 && v.endsWith(")") ? <><span className="nw">{v.slice(0, at)}</span> <span className="nw">{v.slice(at + 1)}</span></> : v}</dd></>;
+}
 
 /** แถบทั้งไฟล์ · กดเพื่อกระโดด */
 function Overview({ ov, th, t0, t1, onPick, left, right = 0 }: { ov: GOverview; th: Theme; t0: number; t1: number; onPick: (t: number) => void; left: number; right?: number }) {
@@ -2258,7 +2288,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
       if (!cv) throw new Error("ยังไม่มีกราฟให้บันทึก");
       if (o.title) cv = withHeader(cv, vName + " · เทียบ " + n + " ไฟล์", files.map((p, i) => LABELS[i] + " " + nameOf(p)).join(" · "), files.map((_, i) => [LABELS[i], FILE_C[i]] as [string, string]));
       await waitPaint();
-      const saved = await graphApi.saveImage(where, cv.toDataURL("image/png"), o);
+      const saved = await graphApi.saveImage(where, alphaOf(cv, o).toDataURL("image/png"), o);
       toast({ kind: "ok", title: "บันทึกรูปแล้ว " + saved.width.toLocaleString("en-US") + " × " + saved.height.toLocaleString("en-US") + " · " + fmtSize(saved.size), detail: saved.path });
     } catch (e) { toast({ kind: "bad", title: "บันทึกรูปไม่ได้", detail: e instanceof Error ? e.message : String(e) }); }
     finally { setHiC({}); setSaving(false); }

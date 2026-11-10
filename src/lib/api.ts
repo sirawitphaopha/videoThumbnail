@@ -175,7 +175,7 @@ export type EncodeSpec = {
 export type EncodeStep = { tool: string; args: string[] };
 /** คำสั่งที่จะรันจริง · text แบบพิมพ์ใน Command Prompt ได้ */
 export type EncodePlan = { steps: EncodeStep[]; piped: boolean; text: string; note: string };
-export type EncoderInfo = { name: string; codecs: string; source: "bundled" | "user" | "missing"; version: string | null; ok: boolean; problem: string | null; dir: string };
+export type EncoderInfo = { name: string; codecs: string; source: "bundled" | "user" | "missing"; version: string | null; ok: boolean; problem: string | null; dir: string; coreAudio: string | null };
 export const encodeApi = {
   preview: (spec: EncodeSpec, srcName: string, stream: number, channels: number | null, bits: number | null, rate: number | null) => call<EncodePlan>("encode_preview", { spec, srcName, stream, channels, bits, rate }),
   status: () => call<EncoderInfo[]>("encoders_status"),
@@ -185,6 +185,8 @@ export const encodeApi = {
   latest: () => call<LatestInfo[]>("encoders_latest"),
   /** เปิดหน้าโหลดของตัวแปลง · ที่อยู่ตายตัวฝั่ง Rust */
   openPage: (name: string) => call<void>("encoders_open_page", { name }),
+  /** เปิดหน้าโหลด iTunes (qaac ต้องใช้ไฟล์ของ Apple) · ที่อยู่ตายตัวฝั่ง Rust */
+  openItunes: () => call<void>("open_itunes_page"),
   thanksOpen: (link: string) => call<void>("thanks_open", { link }),
 };
 /** ผลเช็กรุ่นล่าสุด · state ok ตรงกับล่าสุด · new มีรุ่นใหม่ · ahead ที่ใช้อยู่ใหม่กว่าหน้าเว็บ · missing ยังไม่ได้ใส่ · error เช็กไม่ได้ */
@@ -388,19 +390,30 @@ export type GPsd = { size: number; rate: number; db: number[][] };
 export type GProgress = { path: string; track: number; percent: number };
 
 /** รูปกราฟที่บันทึก ตั้งในหน้าตั้งค่า · ค่าตั้งต้นตรงกับ graphimg.rs */
-export type GraphImg = { width: number; format: "png" | "jpg" | "webp" | "heic" | "tiff"; bits: 8 | 16; gray: boolean; dpi: number; quality: number; subsampling: "444" | "420"; compress: "fast" | "default" | "best"; title: boolean; nameGraph: boolean; dirMode: "beside" | "folder"; dir: string; ask: boolean };
-export const GRAPH_IMG_DEFAULT: GraphImg = { width: 2560, format: "png", bits: 8, gray: false, dpi: 300, quality: 92, subsampling: "444", compress: "default", title: true, nameGraph: true, dirMode: "beside", dir: "", ask: true };
+export type GraphImg = { width: number; format: "png" | "jpg" | "webp" | "heic" | "tiff"; bits: 8 | 16; gray: boolean; dpi: number; quality: number; subsampling: "444" | "420"; compress: "fast" | "default" | "best"; title: boolean; nameGraph: boolean; dirMode: "beside" | "folder"; dir: string; ask: boolean; transparent: boolean };
+export const GRAPH_IMG_DEFAULT: GraphImg = { width: 2560, format: "png", bits: 8, gray: false, dpi: 300, quality: 92, subsampling: "444", compress: "default", title: true, nameGraph: true, dirMode: "beside", dir: "", ask: true, transparent: false };
 export type SavedImg = { path: string; size: number; width: number; height: number };
 /** หน้าบิตเรตวิดีโอ แบบ Bitrate Viewer */
-export type BrInfo = { run: number; duration: number; size: number; codec: string; tag: string; profile: string; width: number; height: number; fps: number; video: number; audio: number };
+/** แทร็กที่ดูบิตเรตได้ · id เป็น v หรือ a0 a1 … */
+export type BrTrack = { id: string; label: string };
+export type BrInfo = { run: number; kind: "video" | "audio"; track: string; tracks: BrTrack[]; sample_rate: number; channels: number; layout: string; lang: string; duration: number; size: number; codec: string; tag: string; profile: string; format: string; width: number; height: number; fps: number; video: number; audio: number; pix_fmt: string; bit_depth: number; primaries: string; transfer: string; field_order: string; stream_bitrate: number };
 export const bitrateApi = {
-  start: (path: string) => call<BrInfo>("bitrate_start", { path }),
+  /** mode pkt อ่านแพ็กเก็ต (เร็ว รู้แค่คีย์เฟรม) · frm ถอดภาพเอาชนิดเฟรม I P B */
+  /** run เลขรอบที่หน้าจอกำหนดเอง ตั้งก่อนเรียก ข้อมูลที่มาก่อนคำสั่งตอบกลับจะไม่ถูกทิ้ง */
+  /** track v หรือ a0 a1 … · ไม่ส่ง = วิดีโอถ้ามี ไม่มีใช้เสียงแทร็กแรก */
+  start: (path: string, mode: "pkt" | "frm" = "pkt", run?: number, track?: string) => call<BrInfo>("bitrate_start", { path, mode, run, track }),
+  /** รายชื่อแทร็กที่ดูได้ · มีมากกว่าหนึ่ง หน้าจอถามก่อนเปิด */
+  tracks: (path: string) => call<BrTrack[]>("bitrate_tracks", { path }),
+  /** เลขรอบใหม่ ไม่ซ้ำกับรอบก่อน */
+  nextRun: (() => { let n = 0; return () => Date.now() * 100 + (n = (n + 1) % 100); })(),
   stop: () => call<void>("bitrate_stop"),
 };
 
 export const graphApi = {
   saveImage: (path: string, b64: string, opt: GraphImg) => call<SavedImg>("graph_save_image", { path, b64, opt }),
   info: (path: string) => call<GInfo>("graph_info", { path }),
+  /** รายละเอียด codec ของแทร็กเสียงจาก MediaInfo เช่น MPEG-1 Layer 3 (LAME 3.99r) เรียงตามแทร็กเสียง */
+  codecDetail: (path: string) => call<(string | null)[]>("audio_codec_detail", { path }),
   /** ไฟล์ยังอยู่ไหม เรียงตามรายการที่ส่งไป · ใช้บอกในรายการเปิดล่าสุดก่อนกด */
   exist: (paths: string[]) => call<boolean[]>("graph_exist", { paths }),
   overview: (path: string, track: number) => call<GOverview | null>("graph_overview", { path, track }),

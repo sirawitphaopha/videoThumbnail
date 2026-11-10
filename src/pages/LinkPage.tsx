@@ -397,7 +397,6 @@ function RowView(p: {
             <div className="lname">
               <span className="fn" title={main!.path}>{main!.name}</span>
               <span className="small">{main!.folder ? <span title={main!.folder}>{main!.folder} · </span> : null}<span className="nw">{main!.width} × {main!.height}</span> · {r.tall && !r.derivedTall ? "ปกตั้ง" : "ปกนอน"}{second ? " · มีปกนอนด้วย" : ""}</span>
-              {r.derivedTall && <span className="small">ครอปเป็นปกตั้งให้แล้ว</span>}
               {(r.tall?.geo || r.wide?.geo) && !r.derivedTall && <span className="small" data-link-cropped>ครอปแล้ว</span>}
               {r.candidates.length > 0 && !saved && candThumbs}
             </div>

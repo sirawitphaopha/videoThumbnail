@@ -22,15 +22,18 @@ const SPEC_KEYS = ["channels", "bits", "rate"];
 const LAST_KEY = "ms.codecLast";
 type Last = { eng: string | null; vals: Vals; tab: "easy" | "adv" };
 
-function engines(c: Codec, encs: EncoderInfo[] | null): { value: string; label: string; ok: boolean }[] {
+function engines(c: Codec, encs: EncoderInfo[] | null): { value: string; label: string; ok: boolean; miss?: string }[] {
   const has = (n: string) => !!encs?.find((e) => e.name === n && e.ok);
   const ver = (n: string) => encs?.find((e) => e.name === n)?.version ?? "";
   const ff = { value: "ffmpeg", label: `ffmpeg ${ver("ffmpeg")}`.trim(), ok: true };
   // Monkey's Audio กับ TAK ffmpeg อ่านได้อย่างเดียว เขียนไม่ได้ · มีแต่ตัวต้นฉบับ
   if (c.only && c.native) return [{ value: "native", label: c.id === "ape" ? `Monkey's Audio ${ver(c.native)} (MACDll64.dll)`.trim() : `${c.native} ${ver(c.native)}`.trim(), ok: has(c.native) }];
-  if (c.id === "aac") return [{ value: "qaac", label: "qaac (Apple)", ok: has("qaac64") }, { value: "fdkaac", label: "fdkaac", ok: has("fdkaac") }, ff];
+  // วาง qaac แล้วแต่ไม่มีไฟล์ของ Apple บอกว่าต้องติดตั้ง iTunes ไม่ใช่ยังไม่ได้ใส่ (ข้อ 28 ลอง 10 พ.ย. 2569)
+  const qmiss = encs?.find((e) => e.name === "qaac64")?.problem?.startsWith("ต้องติดตั้ง iTunes") ? "ต้องติดตั้ง iTunes" : undefined;
+  if (c.id === "aac") return [{ value: "qaac", label: "qaac (Apple)", ok: has("qaac64"), miss: qmiss }, { value: "fdkaac", label: "fdkaac", ok: has("fdkaac") }, ff];
   if (!c.native) return [ff];
-  return [{ value: "native", label: `${c.native} ${ver(c.native)}`.trim(), ok: has(c.native) }, ff];
+  // refalac ใช้ตัวเข้ารหัส ALAC ของ Apple บอกในวงเล็บแบบ qaac (Apple) (พี่กันถาม 10 พ.ย. 2569 "วงเล็บ apple ดีมะ")
+  return [{ value: "native", label: `${c.native} ${ver(c.native)}${c.id === "alac" ? " (Apple)" : ""}`.replace(/\s+/g, " ").trim(), ok: has(c.native) }, ff];
 }
 
 /** ค่าในการ์ดของชุดค่าแบบง่าย · ช่องลดลงเฉพาะเมื่อต้นทางมีช่องมากกว่า */
@@ -154,6 +157,8 @@ export default function CodecPanel(p: {
   const firstOk = engs.find((e) => e.ok)?.value ?? "ffmpeg";
   /** ตัวแปลงที่กดเลือกเอง · ยังไม่ได้เลือก = ใช้ตัวต้นฉบับถ้ามี ไม่มีใช้ ffmpeg (คิดใหม่ทุกครั้ง รายชื่อตัวแปลงมาทีหลังแผงเปิดได้) */
   const [eng, setEng] = useState<string | null>(init.eng);
+  /** ตัวแปลงที่กดแล้วยังใช้ไม่ได้ · ขึ้นหน้าต่างบอกเหตุ */
+  const [noEng, setNoEng] = useState<string | null>(null);
   const [vals, setVals] = useState<Vals>(init.vals);
   const [pi, setPi] = useState<number>(init.pi);
   const [tab, setTab] = useState<"easy" | "adv">(init.tab);
@@ -187,7 +192,11 @@ export default function CodecPanel(p: {
   const blocked = planErr ?? missingNative;
 
   /** ตัวเลือกของการ์ดที่ขึ้นกับแทร็ก · ช่องลดได้ต่ำกว่าต้นทางเท่านั้น (AC-3 ได้สูงสุด 5.1) · อัตราสุ่มที่ต่างจากต้นทาง */
-  const optsOf = (k: Card): { value: string; label: string }[] => {
+  // qaac กับ CoreAudioToolbox 7.9.8 ขึ้นไป AAC แบบ CBR เสียงผิดเพี้ยน (README ของ qaac · เทสกับเพลงของพี่กัน 10 พ.ย. 2569 เจอจริง) · ปิดตัวเลือก CBR
+  const coreAudio = p.encoders?.find((e) => e.name === "qaac64")?.coreAudio ?? null;
+  const caBad = (() => { if (!coreAudio) return false; const n = coreAudio.split(".").map(Number); return (n[0] ?? 0) > 7 || ((n[0] ?? 0) === 7 && ((n[1] ?? 0) > 9 || ((n[1] ?? 0) === 9 && (n[2] ?? 0) >= 8))); })();
+  const qaacCbrOff = c.id === "aac" && engUse === "qaac" && caBad ? `ปิดไว้ · CoreAudioToolbox ${coreAudio} ทำให้ AAC แบบ CBR เสียงผิดเพี้ยน` : null;
+  const optsOf = (k: Card): { value: string; label: string; off?: string }[] => {
     if (k.key === "channels") {
       const s = srcCh ?? 2, cap = c.id === "ac3" ? 6 : 8;
       const first = { value: "src", label: s > cap ? `ตามต้นฉบับ (${chName(s)} ลดเป็น ${chName(cap)})` : `ตามต้นฉบับ (${chName(s)})` };
@@ -197,13 +206,13 @@ export default function CodecPanel(p: {
       const r = t.rate ?? 48000;
       return [{ value: "src", label: `ตามต้นฉบับ (${r / 1000} kHz)` }, ...[48000, 44100].filter((x) => x !== r).map((x) => ({ value: String(x), label: `${x / 1000} kHz` }))];
     }
-    return (k.opts ?? []).map((o) => ({ value: optVal(o), label: optLabel(o) }));
+    return (k.opts ?? []).map((o) => ({ value: optVal(o), label: optLabel(o), off: k.key === "mode" && optVal(o) === "CBR" ? qaacCbrOff ?? undefined : undefined }));
   };
 
   const shown = cardsFor(c.id, engUse, vals);
   /** ค่าที่ใช้จริงของการ์ดที่แสดงอยู่ · ค่าที่ไม่อยู่ในตัวเลือกกลับเป็นค่าตั้งต้น · การ์ดที่ตัวแปลงนี้ไม่มี ไม่ส่งไปฝั่ง Rust */
   const live: Vals = {};
-  for (const k of shown) live[k.key] = cardValue(k, vals, k.kind === "step" ? undefined : optsOf(k).map((o) => [o.value, o.label] as [string, string]));
+  for (const k of shown) live[k.key] = cardValue(k, vals, k.kind === "step" ? undefined : optsOf(k).filter((o) => !o.off).map((o) => [o.value, o.label] as [string, string]));
   const has = (key: string) => shown.some((k) => k.key === key);
   const numOr = (key: string) => (has(key) && live[key] !== "src" && live[key] != null ? Number(live[key]) : null);
   const liveKey = JSON.stringify(live);
@@ -239,8 +248,8 @@ export default function CodecPanel(p: {
 
   const srcFt = ftName("audio", t.codec, t.profile);
   const srcLossless = isLossless(srcFt);
-  const warn = !t.codec ? null : !srcLossless && !c.lossless ? `แปลงแบบเสียคุณภาพซ้อน ${srcFt} เป็น ${c.name} เสียงต่างจากต้นฉบับมากขึ้นอีกนิด`
-    : !srcLossless && c.lossless ? `${srcFt} เป็นแบบเสียคุณภาพอยู่แล้ว แปลงเป็น ${c.name} ไฟล์ใหญ่ขึ้น คุณภาพไม่กลับมา` : null;
+  const warn = !t.codec ? null : !srcLossless && !c.lossless ? `ต้นทาง ${srcFt} เป็นแบบเสียคุณภาพ การแปลงเป็น ${c.name} เป็นการเสียคุณภาพซ้อน เสียงจะต่างจากต้นฉบับมากขึ้น`
+    : !srcLossless && c.lossless ? `ต้นทาง ${srcFt} เป็นแบบเสียคุณภาพ การแปลงเป็น ${c.name} ทำให้ไฟล์ใหญ่ขึ้น แต่คุณภาพเสียงไม่ดีขึ้น` : null;
   const name = `${t.name || ""} ${c.name}`.trim();
   const apply = () => {
     if (blocked) return;
@@ -294,6 +303,36 @@ export default function CodecPanel(p: {
   const exTop = abbrer();
 
   return (
+    <>
+    {noEng && (() => {
+      // กดตัวแปลงที่ยังใช้ไม่ได้ ขึ้นหน้าต่างบอกเหตุกับทางแก้ (เดิมกดแล้วเงียบ)
+      const reg = noEng === "qaac" ? "qaac64" : noEng === "native" ? (c.native ?? "") : noEng;
+      const info = p.encoders?.find((e) => e.name === reg);
+      const itunes = noEng === "qaac" && !!info?.problem?.startsWith("ต้องติดตั้ง iTunes");
+      const label = engs.find((e) => e.value === noEng)?.label ?? reg;
+      const close = () => setNoEng(null);
+      return (
+        <Dialog open onClose={close} confirm width={520} title={itunes ? "AAC ของ Apple ต้องติดตั้ง iTunes ก่อน" : `ยังไม่ได้ใส่ ${label}`}
+          // ปุ่มสามปุ่มกว้างเท่ากัน ยึดปุ่มที่ยาวสุด (พี่กันสั่ง 10 พ.ย. 2569 "เท่ากันที")
+          actions={<div style={{ display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }} data-noeng-acts>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={close}>ปิด</button>
+            <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setEng("ffmpeg"); close(); }} data-noeng-ffmpeg>ใช้ ffmpeg แทน</button>
+            <button type="button" className="btn btn-main btn-sm" onClick={() => { void (itunes ? encodeApi.openItunes() : encodeApi.openPage(reg)).catch(() => {}); }} data-noeng-open>{itunes ? "เปิดหน้าโหลด iTunes" : `เปิดหน้าโหลด ${reg}`}</button>
+          </div>}>
+          <div style={{ display: "flex", flexDirection: "column", gap: 8, fontSize: 13.5 }} data-noeng={noEng}>
+            {itunes ? <>
+              <p style={{ margin: 0 }}><Phr>{"qaac ไม่มีตัวเข้ารหัสอยู่ในตัว ต้องเรียกใช้ตัวเข้ารหัส AAC ของ Apple ที่มากับ iTunes · เครื่องนี้ยังไม่มี iTunes จึงแปลงด้วย qaac ไม่ได้"}</Phr></p>
+              <p style={{ margin: 0 }}><Phr>{"กดเปิดหน้าโหลด เลือกโหลด iTunes สำหรับ Windows ติดตั้งให้เสร็จ แล้วเปิดหน้าต่างนี้ใหม่ โปรแกรมจะหาเจอเอง ไม่ต้องตั้งค่าเพิ่ม"}</Phr></p>
+              <p className="small" style={{ margin: 0 }}><Phr>{"ระหว่างนี้ใช้ ffmpeg แปลง AAC แทนได้ · เสียงด้อยกว่าตัวของ Apple ที่บิตเรตต่ำ · ALAC ใช้ refalac ได้โดยไม่ต้องมี iTunes"}</Phr></p>
+            </> : <>
+              <p style={{ margin: 0 }}><Phr>{info?.problem ?? `ยังไม่เจอ ${reg}.exe ในโฟลเดอร์ตัวแปลง · โหลดชุดของผู้ทำ แล้ววางทุกไฟล์ที่มากับชุดไว้ในโฟลเดอร์ตัวแปลง (หน้าตั้งค่า หัวข้อตัวแปลง มีปุ่มเปิดโฟลเดอร์)`}</Phr></p>
+              {noEng === "qaac" && <p className="small" style={{ margin: 0 }}><Phr>{"qaac ต้องติดตั้ง iTunes ด้วย"}</Phr></p>}
+              <p className="small" style={{ margin: 0 }}><Phr>{"ระหว่างนี้ใช้ ffmpeg แทนได้"}</Phr></p>
+            </>}
+          </div>
+        </Dialog>
+      );
+    })()}
     <Dialog open onClose={p.onClose} width={900} height="min(680px, calc(100vh - 48px))" title={<span>ตั้งค่าแปลงเสียง · <span style={{ overflowWrap: "anywhere" }}>{p.title ?? (t.inMovie ? (t.name || "เสียงในหนัง") : baseName(t.src))}</span></span>}
       actions={<>
         <span className="small" style={{ marginRight: "auto", alignSelf: "center" }}>ค่าที่กดใช้จำไว้เป็นค่าตั้งต้นของชนิดนี้ครั้งหน้า · ขนาดเป็นค่าประมาณ ของจริงขึ้นกับเสียงในแทร็ก</span>
@@ -312,8 +351,8 @@ export default function CodecPanel(p: {
         <div className="small ilbl" style={{ display: "block" }}><b style={{ color: "var(--txt)" }}>{c.name}</b> <span className="ab">({c.full})</span><InfoTip title={c.name} tip={ADV[c.id].tip} /> · <Phr>{`${c.why} · ${c.ch}${c.only ? " · ใส่ไฟล์หนังไม่ได้ ใช้เฉพาะหน้าแปลงเสียง" : c.mp4 ? "" : " · ใส่ MP4 ไม่ได้"}`}</Phr></div>
         <div className="cp2">
           <div><div className="small ilbl" style={{ marginBottom: 4 }}><b style={{ color: "var(--txt2)" }}>Encoder</b>&nbsp;(ตัวแปลง)<InfoTip title="Encoder" tip={TIPS.engine} /></div>
-            <Seg small label="ตัวแปลง" value={engUse} onChange={(v) => { if (engs.find((e) => e.value === v)?.ok) setEng(v); }}
-              options={engs.map((e) => ({ value: e.value, label: e.ok ? e.label : `${e.label} (ยังไม่ได้ใส่)` }))} /></div>
+            <Seg small label="ตัวแปลง" value={engUse} onChange={(v) => { if (engs.find((e) => e.value === v)?.ok) setEng(v); else setNoEng(v); }}
+              options={engs.map((e) => ({ value: e.value, label: e.ok ? e.label : `${e.label} (${e.miss ?? "ยังไม่ได้ใส่"})` }))} /></div>
           <div><div className="cphead"><span className="small ilbl"><b style={{ color: "var(--txt2)" }}>แบบตั้งค่า</b><InfoTip title="แบบง่ายกับขั้นสูง" tip={TIPS.mode} /></span>
               <span className="small" data-headsz>ขนาดที่คาดของแทร็กนี้ <b style={{ color: "var(--txt)" }}>{headBytes ? `ราว ${fmtSize(headBytes)}` : "ไม่รู้ความยาวแทร็ก"}</b>
                 {c.id === "aac" && ctx ? ` · เฉลี่ยราว ${Math.round(aacKbps(live, engUse, ctx.ch))} kbps` : ""}</span></div>
@@ -380,7 +419,9 @@ export default function CodecPanel(p: {
             <div className="small" style={{ marginTop: 4 }}>{pair ? `แทร็กใหม่ชื่อ ${name} ต่อท้ายแทร็กเดิม แทร็กเดิมอยู่ครบ` : "แทร็กเดิมถูกแทนที่ด้วยแทร็กที่แปลง"}</div></div>
         )}
         {missingNative && <div className="stat warn" data-native-missing><CardIcon kind="warn" /><div><b>{c.name} ยังใช้ไม่ได้</b><Phr>{missingNative}</Phr></div></div>}
-        {warn && <div className="stat warn"><CardIcon kind="warn" /><div><Phr>{warn}</Phr> · <Phr>ไม่ห้าม แค่บอก</Phr></div></div>}
+        {/* qaac แบบ CBR กับ CoreAudioToolbox 7.9.8 ขึ้นไป เสียงผิดเพี้ยน (README ของ qaac ประกาศ 21 ธ.ค. 2567 · พี่กันสั่ง 10 พ.ย. 2569 "ต้อง note ของเราด้วย") */}
+        {qaacCbrOff && tab === "adv" && <div className="stat info" data-qaac-cbr><CardIcon kind="info" /><div><b>ปิดโหมด CBR ของ qaac ไว้</b><Phr>{`เครื่องนี้ใช้ CoreAudioToolbox ${coreAudio} · ผู้ทำ qaac แจ้งว่ารุ่น 7.9.8 ขึ้นไปทำให้ AAC แบบ CBR มีเสียงผิดเพี้ยนเป็นช่วง ๆ และทดสอบกับเพลงจริงแล้วพบจริง · ใช้ TVBR CVBR หรือ ABR แทน`}</Phr></div></div>}
+        {warn && <div className="stat warn"><CardIcon kind="warn" /><div><Phr>{warn}</Phr> · <Phr>ยังแปลงต่อได้ตามปกติ</Phr></div></div>}
         {/* กล่องคำสั่งยืดรับที่เหลือของหน้าต่าง ไม่ให้เหลือที่ว่างล่าง */}
         <div style={{ display: "flex", flexDirection: "column", flex: "1 1 auto" }}>
           <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center", marginBottom: 4 }}>
@@ -396,5 +437,6 @@ export default function CodecPanel(p: {
         </div>
       </div>
     </Dialog>
+    </>
   );
 }

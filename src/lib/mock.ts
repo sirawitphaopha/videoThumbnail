@@ -21,7 +21,7 @@ const defaults: Settings = {
   showDots: true,
   showFrames: false,
   graphZoomAll: false,
-  graphImg: { width: 2560, format: "png", bits: 8, gray: false, dpi: 300, quality: 92, subsampling: "444", compress: "default", title: true, nameGraph: true, dirMode: "beside", dir: "", ask: true },
+  graphImg: { width: 2560, format: "png", bits: 8, gray: false, dpi: 300, quality: 92, subsampling: "444", compress: "default", title: true, nameGraph: true, dirMode: "beside", dir: "", ask: true, transparent: false },
   playerPath: "",
   players: [],
   sidebarCollapsed: false,

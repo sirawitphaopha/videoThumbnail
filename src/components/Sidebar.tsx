@@ -41,7 +41,7 @@ export default function Sidebar({ page, onPage, collapsed, onToggle, shelfCount,
     },
     { id: "graph", label: "กราฟเสียง", icon: <IcGraph /> },
     // หน้าบิตเรตวิดีโอแบบ Bitrate Viewer (พี่กันสั่ง 9 พ.ย. 2569 "เอาใส่สักหน้านึงในโปรแกรมก่อน ค่อยย้าย")
-    { id: "bitrate", label: "บิตเรตวิดีโอ", icon: <IcBitrate /> },
+    { id: "bitrate", label: "บิตเรต", icon: <IcBitrate /> }, // ดูได้ทั้งวิดีโอและเสียงแล้ว (พี่กันสั่ง 10 พ.ย. 2569 เปลี่ยนชื่อ)
     { id: "settings", label: "ตั้งค่า", icon: <IcSettings /> },
   ];
 

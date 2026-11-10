@@ -79,6 +79,7 @@ impl EncodeSpec {
             "ac3" => "ac3",
             "eac3" => "eac3",
             "flac" => "flac",
+            "alac" => "m4a",
             "wv" => "wv",
             "ape" => "ape",
             "tak" => "tak",
@@ -94,6 +95,7 @@ impl EncodeSpec {
             "ac3" => "ac3",
             "eac3" => "eac3",
             "flac" => "flac",
+            "alac" => "alac",
             "wv" => "wavpack",
             "ape" => "ape",
             "tak" => "tak",
@@ -196,7 +198,7 @@ pub fn build(spec: &EncodeSpec, src: &str, stream: u64, out: &str, src_channels:
     // TAK เก็บได้สูงสุด 6 ช่อง (ข้อ 30)
     if capped.codec == "tak" && capped.channels.unwrap_or(src_channels.unwrap_or(2)) > 6 { capped.channels = Some(6); }
     let spec = &capped;
-    let lossless = matches!(spec.codec.as_str(), "flac" | "wv" | "ape" | "tak");
+    let lossless = matches!(spec.codec.as_str(), "flac" | "alac" | "wv" | "ape" | "tak");
     let src16 = src_bits.is_some_and(|b| b > 0 && b <= 16);
     // ใส่ dither เฉพาะตอนลดบิตจริง · ต้นทาง 16 บิตอยู่แล้วตัดศูนย์ที่เติมไว้ทิ้งได้ตรงทุกตัวอย่าง
     let dither16 = lossless && spec.bits == Some(16) && !src16;
@@ -276,6 +278,24 @@ pub fn build(spec: &EncodeSpec, src: &str, stream: u64, out: &str, src_channels:
             if pcm16 { ff.extend(["-sample_fmt".into(), "s16".into()]); }
             ff.extend(["-n".into(), out.into()]);
             (vec![Step { tool: "ffmpeg".into(), args: ff }], false, "FLAC ของ ffmpeg ไม่มีช่อง Threads กับ Verify".into())
+        }
+        // ALAC ด้วย refalac (ชุดเดียวกับ qaac ไม่ต้องใช้ไฟล์ของ Apple) · ไม่มีระดับการบีบ มีแค่โหมดเร็ว (พี่กันสั่ง 10 พ.ย. 2569)
+        ("alac", true, _) => {
+            let mut ff = ff_head(src, stream, spec, dither16, None);
+            ff_pipe_tail(&mut ff, pcm16);
+            let mut e = vec!["--silent".to_string(), "--ignorelength".into()];
+            if spec.s("speed", "Normal") == "Fast" { e.push("--fast".into()); }
+            e.extend(["-".into(), "-o".into(), out.into()]);
+            (vec![Step { tool: "ffmpeg".into(), args: ff }, Step { tool: "refalac64".into(), args: e }], true,
+             if dither16 { "ลดเป็น 16 บิตที่ ffmpeg ก่อน ใส่ dither แล้วส่งให้ refalac".into() } else { "ffmpeg ถอดเสียงส่งทางท่อให้ refalac บีบเป็น ALAC".into() })
+        }
+        ("alac", false, _) => {
+            let mut ff = ff_head(src, stream, spec, dither16, None);
+            ff.extend(["-c:a".into(), "alac".into()]);
+            if spec.s("speed", "Normal") == "Fast" { ff.extend(["-compression_level".into(), "1".into()]); }
+            if pcm16 { ff.extend(["-sample_fmt".into(), "s16p".into()]); }
+            ff.extend(["-n".into(), out.into()]);
+            (vec![Step { tool: "ffmpeg".into(), args: ff }], false, "ALAC ของ ffmpeg ผลเหมือนกัน ไฟล์ใหญ่กว่าเล็กน้อย".into())
         }
         ("wv", true, _) => {
             let mut ff = ff_head(src, stream, spec, dither16, None);
@@ -466,12 +486,16 @@ pub fn run(dir_of: &dyn Fn(&str) -> PathBuf, plan: &Plan, total_secs: Option<f64
 // ---------------------------------------------------------------- ทะเบียนตัวแปลง
 
 /// ตัวแปลงที่โปรแกรมรู้จัก (ชื่อไฟล์ ชนิด คำสั่งถามรุ่น แนบมากับโปรแกรมไหม) · ตัวที่สัญญาอนุญาตไม่ให้แจก ผู้ใช้วางเองในโฟลเดอร์ตัวแปลง
-pub const ENCODERS: [(&str, &str, &str, bool); 8] = [
+pub const ENCODERS: [(&str, &str, &str, bool); 9] = [
     ("flac", "FLAC", "--version", true),
     ("opusenc", "Opus", "--version", true),
     ("lame", "MP3", "--version", true),
     ("wavpack", "WavPack", "--version", true),
-    ("qaac64", "AAC · ALAC", "--check", false),
+    // qaac กับ refalac แนบมากับโปรแกรมแล้ว (10 พ.ย. 2569 แบบ foobar2000) · qaac ยังต้องใช้ไฟล์ของ Apple จาก iTunes ที่ผู้ใช้ติดตั้งเอง
+    // ตัวที่แนบมาใช้ไม่ได้ (ไม่มี iTunes) แต่โฟลเดอร์ตัวแปลงมีตัวที่ใช้ได้ (มี QTfiles64) cli_status เลือกตัวที่ใช้ได้
+    ("qaac64", "AAC", "--check", true),
+    // refalac มากับชุด qaac ไม่ต้องใช้ไฟล์ของ Apple · ตอบรุ่นทาง --check "refalac 3.07" (ลอง 10 พ.ย. 2569)
+    ("refalac64", "ALAC", "--check", true),
     ("fdkaac", "AAC · HE-AAC", "--help", false),
     // TAK ฟรีสำหรับใช้ส่วนตัว แจกต่อได้เฉพาะไฟล์ zip เดิมทั้งไฟล์ · แนบ zip มาทั้งไฟล์ แตก Takc.exe ตอนใช้ (ensure_tak) · ใช้เฉพาะหน้าแปลงเสียง
     // ถามรุ่นด้วย -version ได้ "TAKC 2.3.3" (-h ไม่มีในคู่มือ Takc ตอบ invalid mode ไม่บอกรุ่น · ลอง 8 พ.ย. 2569)
@@ -555,6 +579,17 @@ pub struct EncoderInfo {
     pub ok: bool,
     pub problem: Option<String>,
     pub dir: String,
+    /// รุ่นไฟล์ของ Apple ที่ qaac ใช้ (จาก qaac --check "qaac 3.07, CoreAudioToolbox 7.10.9.0") · ตัวอื่นเป็น None
+    /// รุ่น 7.9.8 ขึ้นไป AAC แบบ CBR เสียงผิดเพี้ยน (ประกาศใน README ของ qaac 21 ธ.ค. 2567) หน้าจอเตือนตอนเลือก CBR
+    pub core_audio: Option<String>,
+}
+
+/// รุ่น CoreAudioToolbox จากข้อความที่ qaac ตอบ
+pub fn core_audio_of(text: &str) -> Option<String> {
+    let rest = &text[text.find("CoreAudioToolbox ")? + "CoreAudioToolbox ".len()..];
+    let v: String = rest.chars().take_while(|c| c.is_ascii_digit() || *c == '.').collect();
+    let v = v.trim_end_matches('.');
+    if v.is_empty() { None } else { Some(v.to_string()) }
 }
 
 fn probe_one(dir: &Path, name: &str, arg: &str) -> Result<String, String> {
@@ -565,6 +600,8 @@ fn probe_one(dir: &Path, name: &str, arg: &str) -> Result<String, String> {
     t.push_str(&String::from_utf8_lossy(&out.stderr));
     // Windows ตอบ 0xC0000135 = หา DLL ที่ต้องใช้ไม่เจอ (ลองแล้วกับ flac ที่ไม่มี libFLAC.dll)
     if out.status.code() == Some(-1073741515) { return Err("ขาดไฟล์ประกอบ (DLL) วางทุกไฟล์ที่มากับชุดไว้ในโฟลเดอร์เดียวกัน".into()); }
+    // qaac หาไฟล์ของ Apple ไม่เจอ ตอบเองว่า ERROR: CoreAudioToolbox.dll แล้วจบด้วยรหัส 2 · เดิมนับว่าพร้อมใช้ (ข้อ 28 ลองจริง 10 พ.ย. 2569 qaac 3.07)
+    if !out.status.success() && t.contains("CoreAudioToolbox") { return Err("ต้องติดตั้ง iTunes ก่อน · qaac ใช้ไฟล์ของ Apple (CoreAudioToolbox.dll) ที่มากับ iTunes · หรือวางโฟลเดอร์ QTfiles64 ไว้ข้าง qaac64.exe".into()); }
     Ok(t)
 }
 
@@ -580,6 +617,7 @@ pub fn status(tools: &Path, user: &Path) -> Vec<EncoderInfo> {
         version: mac.as_ref().ok().filter(|v| !v.is_empty()).cloned(), ok: mac.is_ok(),
         problem: mac.as_ref().err().filter(|e| !e.starts_with("ไม่มี")).cloned(),
         dir: if mac.is_ok() { tools.to_string_lossy().to_string() } else { String::new() },
+        core_audio: None,
     });
     list
 }
@@ -588,12 +626,12 @@ fn cli_status(tools: &Path, user: &Path) -> Vec<EncoderInfo> {
     ENCODERS.iter().map(|(name, codecs, arg, bundled)| {
         // TAK ที่แนบมาอยู่ในโฟลเดอร์ที่แตกจาก zip ไม่ได้อยู่ในโฟลเดอร์เครื่องมือ
         let bdir = if *name == "Takc" { let d = tak_dir(user); let _ = ensure_tak(tools, &d); d } else { tools.to_path_buf() };
-        let b = if *bundled { probe_one(&bdir, name, arg).ok().map(|t| (version_of(name, &t), bdir.clone())) } else { None };
+        let b = if *bundled { probe_one(&bdir, name, arg).ok().map(|t| (version_of(name, &t), bdir.clone(), core_audio_of(&t))) } else { None };
         let u = probe_one(user, name, arg);
-        let u_ok = u.as_ref().ok().map(|t| (version_of(name, t), user.to_path_buf()));
+        let u_ok = u.as_ref().ok().map(|t| (version_of(name, t), user.to_path_buf(), core_audio_of(t)));
         let use_user = match (&b, &u_ok) {
             (None, Some(_)) => true,
-            (Some((bv, _)), Some((uv, _))) => ver_key(uv.as_deref().unwrap_or("0")) > ver_key(bv.as_deref().unwrap_or("0")),
+            (Some((bv, _, _)), Some((uv, _, _))) => ver_key(uv.as_deref().unwrap_or("0")) > ver_key(bv.as_deref().unwrap_or("0")),
             _ => false,
         };
         let pick = if use_user { u_ok.clone() } else { b.clone() };
@@ -602,6 +640,7 @@ fn cli_status(tools: &Path, user: &Path) -> Vec<EncoderInfo> {
             name: name.to_string(), codecs: codecs.to_string(),
             source: match (&pick, use_user) { (None, _) => "missing".into(), (Some(_), true) => "user".into(), _ => "bundled".into() },
             version: pick.as_ref().and_then(|p| p.0.clone()), ok: pick.is_some(), problem,
+            core_audio: pick.as_ref().and_then(|p| p.2.clone()),
             dir: pick.map(|p| p.1.to_string_lossy().to_string()).unwrap_or_default(),
         }
     }).collect()
@@ -699,6 +738,13 @@ mod tests {
         assert!(s.contains("-c:a ac3 -b:a 640k -dialnorm -31 -center_mixlev 0.707 -surround_mixlev 0.000 -mixing_level 105 -room_type large -n O.ac3"), "{s}");
         assert!(ap.text.starts_with("ffmpeg -hide_banner"), "{}", ap.text);
         // WavPack โหมด High extra 4 verify
+        let al = build(&spec("alac", "native", json!({"speed": "Fast"})), "M.mkv", 1, "O.m4a", Some(2), Some(16)).unwrap();
+        assert_eq!(al.steps[1].tool, "refalac64");
+        assert_eq!(al.steps[1].args, ["--silent", "--ignorelength", "--fast", "-", "-o", "O.m4a"]);
+        assert!(al.steps[0].args.contains(&"pcm_s16le".to_string()), "ต้นทาง 16 บิต ส่ง 16 บิตครบ {:?}", al.steps[0].args);
+        let af = build(&spec("alac", "ffmpeg", json!({})), "M.mkv", 1, "O.m4a", Some(2), None).unwrap();
+        assert!(af.steps.len() == 1 && af.steps[0].args.windows(2).any(|w| w == ["-c:a", "alac"]) && !af.steps[0].args.contains(&"-compression_level".to_string()), "{:?}", af.steps[0].args);
+        assert_eq!(spec("alac", "native", json!({})).ext(), "m4a");
         let w = build(&spec("wv", "native", json!({"mode": "High", "extra": 4, "verify": "On"})), "M.mkv", 1, "O.wv", Some(2), None).unwrap();
         assert_eq!(w.steps[1].args.join(" "), "-q -i -h -x4 -v - -o O.wv");
         // คำสั่งที่แสดงใส่เครื่องหมายคำพูดให้ชื่อที่มีเว้นวรรค
@@ -763,6 +809,9 @@ mod tests {
         assert_eq!(version_of("lame", "LAME 64bits version 4.0 (https://lame.sourceforge.io)").as_deref(), Some("4.0"));
         assert_eq!(version_of("opusenc", "opusenc opus-tools 0.2-52-g5f894e9 (using libopus 1.6.1-11-g788cc89)").as_deref(), Some("libopus 1.6.1"));
         assert_eq!(version_of("wavpack", "wavpack 5.9.0\nlibwavpack 5.9.0").as_deref(), Some("5.9.0"));
+        assert_eq!(core_audio_of("qaac 3.07, CoreAudioToolbox 7.10.9.0\r\nlibsoxr-0.1.3").as_deref(), Some("7.10.9.0"));
+        assert_eq!(version_of("qaac64", "qaac 3.07, CoreAudioToolbox 7.10.9.0").as_deref(), Some("3.07"));
+        assert_eq!(core_audio_of("refalac 3.07"), None);
         assert_eq!(version_of("ffmpeg", "ffmpeg version 9.0.2-full_build-www.gyan.dev Copyright (c) 2000-2026").as_deref(), Some("9.0.2"));
         // โฟลเดอร์ที่ใส่เองว่าง ใช้ตัวที่แนบมา · qaac fdkaac ไม่เจอ
         let empty = std::env::temp_dir().join(format!("movie-shelf-enc-empty-{}", std::process::id()));

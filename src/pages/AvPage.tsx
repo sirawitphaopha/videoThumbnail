@@ -671,7 +671,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
         {vtts.length > 0 && <div className="stat info" data-vttnote><CardIcon kind="info" /><div><b>ซับ VTT จะแปลงเป็น SRT ก่อนรวม</b><Phr>{`${vtts.map((t) => baseName(t.src)).join(" · ")} · โปรแกรมเล่นหลายตัวยังไม่รู้จัก VTT ที่อยู่ใน MKV · ข้อความกับเวลาเหมือนเดิม`}</Phr></div></div>}
         {longer.map((t) => (
           <div key={t.key} className="stat warn" data-longer><CardIcon kind="warn" /><div><b>{baseName(t.src)} {t.longerBy! > 0 ? "ยาวกว่า" : "สั้นกว่า"}หนัง {fmtDuration(Math.abs(t.longerBy!))}</b>
-            <Phr>อาจเป็นเสียงของหนังคนละรุ่น ลองตั้งความเร็วเสียง หรือตรวจว่าเลือกไฟล์ถูก · ไม่ห้าม แค่บอก</Phr>
+            <Phr>อาจเป็นเสียงจากหนังต่างฉบับ โปรดตั้งความเร็วเสียง หรือตรวจสอบว่าเลือกไฟล์ถูกต้อง · ยังรวมไฟล์ต่อได้ตามปกติ</Phr>
             {t.kind === "audio" && refAudio && <div style={{ marginTop: 6 }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => { if (!working) setDelayFor(t.key); }} data-longer-check><IcGraph size={15} />ให้โปรแกรมเทียบเสียงกับหนัง</button></div>}</div></div>
         ))}
 
