@@ -4,6 +4,7 @@
    หัวแผงเป็นรายการโฟลเดอร์ เพิ่มได้เรื่อย ๆ แถวยาวลงมาตามจำนวน (พี่กันสั่ง *"เลือกโฟลเดอร์เพิ่มได้เรื่อยๆ"*) · โฟลเดอร์หนังคือโฟลเดอร์ของชั้นวาง (พี่กันตอบตอนทำแผน)
    สลับดูรายการกับแค่รูปได้ทั้งสองแผง จำค่าไว้ · ชี้ที่รูปเห็นชื่อไฟล์ */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePageActiveRef } from "../lib/pageActive";
 import Dialog from "./Dialog";
 import SearchBox from "./SearchBox";
 import { Keep, Seg } from "./ui";
@@ -148,11 +149,13 @@ export default function LinkBoard() {
     }
     await addImages(paths);
   }, [pair, addImages, addMovieFolders, toast]);
+  const pageOn = usePageActiveRef();
   useEffect(() => {
     if (!inApp) return;
     let off: (() => void) | undefined;
     let live = true;
     import("@tauri-apps/api/webview").then(({ getCurrentWebview }) => getCurrentWebview().onDragDropEvent((e) => {
+      if (!pageOn.current) return; // หน้านี้ซ่อนอยู่ (ไปเมนูอื่นแล้ว) ไม่รับไฟล์ที่ลากมา (BUGS ข้อ 9)
       const t = e.payload.type;
       if (t === "enter") { dragPaths.current = e.payload.paths; hover(e.payload.position.x, e.payload.position.y, e.payload.paths); }
       else if (t === "over") hover(e.payload.position.x, e.payload.position.y, dragPaths.current);
@@ -212,6 +215,7 @@ export default function LinkBoard() {
   };
   useEffect(() => {
     const f = (e: KeyboardEvent) => {
+      if (!pageOn.current) return; // หน้านี้ซ่อนอยู่ (ไปเมนูอื่นแล้ว) ไม่รับปุ่มลัด (BUGS ข้อ 9)
       if ((e.ctrlKey || e.metaKey) && e.key.toLowerCase() === "z" && sent.length && !(e.target as HTMLElement)?.closest("input,textarea")) {
         e.preventDefault();
         undo(sent[sent.length - 1]);

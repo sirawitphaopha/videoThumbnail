@@ -4,6 +4,7 @@
    ยืนยันทีละเรื่อง ที่ติ๊กไว้ หรือทั้งหมด · ยังไม่ยืนยันไม่มีอะไรถูกบันทึก คู่ที่รออยู่โปรแกรมจำไว้
    แถววาดด้วย content-visibility แถวนอกจอไม่กินเวลาวาด ร้อยแถวเลื่อนลื่น */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePageActiveRef } from "../lib/pageActive";
 import { CardIcon, Keep, Phr, Seg, dropClick } from "../components/ui";
 import SearchBox from "../components/SearchBox";
 import LinkBoard from "../components/LinkBoard";
@@ -104,11 +105,13 @@ export default function LinkPage() {
     }
     addPaths(paths);
   }, [addPaths, toast]);
+  const pageOn = usePageActiveRef();
   useEffect(() => {
     if (!inApp) return;
     let off: (() => void) | undefined;
     let live = true;
     import("@tauri-apps/api/webview").then(({ getCurrentWebview }) => getCurrentWebview().onDragDropEvent((e) => {
+      if (!pageOn.current) return; // หน้านี้ซ่อนอยู่ (ไปเมนูอื่นแล้ว) ไม่รับไฟล์ที่ลากมา (BUGS ข้อ 9)
       // กระดานฟังการลากของตัวเอง หาว่าวางบนหนังเรื่องไหน
       if (getLinkJob().view === "board") return;
       const t = e.payload.type;

@@ -4,6 +4,7 @@
    ลากไฟล์จาก Explorer มาวางที่ไหนก็ได้ในหน้า โปรแกรมแยกเองว่าไฟล์ไหนเป็นหนัง เสียง ซับ หรือรูป
    ทุกอย่างเก็บใน lib/avJob.ts ไปหน้าอื่นแล้วกลับมายังอยู่ · งานรวมทำเป็นไฟล์ชั่วคราว ตรวจแล้วค่อยเป็นไฟล์จริง แบบหน้าใส่โปสเตอร์ */
 import { useCallback, useEffect, useRef, useState } from "react";
+import { usePageActiveRef } from "../lib/pageActive";
 import "../styles/av.css";
 import type { Page } from "../components/Sidebar";
 import Dialog from "../components/Dialog";
@@ -254,11 +255,13 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
     if (other.length) toast({ kind: "warn", title: `ใช้ไม่ได้ ${other.length} ไฟล์`, detail: other.map(baseName).join(" · ") });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadMovie, addFiles, addFonts, openCover, toast]);
+  const pageOn = usePageActiveRef();
   useEffect(() => {
     if (!inApp) return;
     let off: (() => void) | undefined;
     let live = true;
     import("@tauri-apps/api/webview").then(({ getCurrentWebview }) => getCurrentWebview().onDragDropEvent((e) => {
+      if (!pageOn.current) return; // หน้านี้ซ่อนอยู่ (ไปเมนูอื่นแล้ว) ไม่รับไฟล์ที่ลากมา (BUGS ข้อ 9)
       const t = e.payload.type;
       if (t === "over" || t === "enter") setOver(zoneAt(e.payload.position.x, e.payload.position.y) ?? "page");
       else if (t === "drop") handleDrop(e.payload.paths, e.payload.position.x, e.payload.position.y);

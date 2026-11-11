@@ -7,6 +7,7 @@
    โครงหน้ายึดหน้ากราฟเสียง การ์ดชื่อไฟล์ด้านบน แผงข้อมูลซ้าย หัวกราฟพร้อมปุ่มซูม แถบภาพรวมทั้งไฟล์ คำอธิบายสีด้านล่าง
    สีกราฟอ่านจากตัวแปรสีของโทนที่เลือก เปลี่ยนโทนแล้ววาดใหม่ทันที */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { usePageActiveRef } from "../lib/pageActive";
 import { listen } from "@tauri-apps/api/event";
 import { bitrateApi, inApp, pickFile, thumbUrl, type BrInfo, type BrTrack } from "../lib/api";
 import Dropdown from "../components/Dropdown";
@@ -269,8 +270,10 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
   const forget = (p: string) => { const l = recentList().filter((x) => x !== p); store.set("bv-recent", JSON.stringify(l)); setRecent(l); };
 
   // คีย์ลัดแบบเดียวกับ Bitrate Viewer · F5 อ่านใหม่ · Esc เอาจุดที่ปักออก
+  const pageOn = usePageActiveRef();
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
+      if (!pageOn.current) return; // หน้านี้ซ่อนอยู่ (ไปเมนูอื่นแล้ว) ไม่รับปุ่มลัด (BUGS ข้อ 9)
       const el = e.target as HTMLElement | null;
       if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA")) return;
       if (e.key === "F5" && path) { e.preventDefault(); void open(path, modeSel, true); return; }
@@ -290,6 +293,7 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
     if (!inApp) return;
     let off: (() => void) | undefined, live = true;
     import("@tauri-apps/api/webview").then(({ getCurrentWebview }) => getCurrentWebview().onDragDropEvent((e) => {
+      if (!pageOn.current) return; // หน้านี้ซ่อนอยู่ (ไปเมนูอื่นแล้ว) ไม่รับไฟล์ที่ลากมา (BUGS ข้อ 9)
       if (e.payload.type === "drop" && e.payload.paths[0] && document.querySelector("[data-brn]")) void openRef.current(e.payload.paths[0], modeRef.current);
     })).then((u) => { if (live) off = u; else u(); });
     return () => { live = false; off?.(); };

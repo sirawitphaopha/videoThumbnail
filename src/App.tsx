@@ -25,6 +25,7 @@ import CheckPage, { type CheckReq } from "./pages/CheckPage";
 import GraphPage, { GraphBoundary, type GraphReq } from "./pages/GraphPage";
 import { CheckHost } from "./lib/check";
 import { applyTone } from "./lib/tones";
+import { PageActiveCtx } from "./lib/pageActive";
 
 export default function App() {
   return (
@@ -67,6 +68,15 @@ function Frame() {
   /** แทร็กที่ส่งมาด้วย (หน้ากราฟเสียงส่งแทร็กเสียงที่ดูอยู่) · ไม่ส่ง หน้าบิตเรตถามเองถ้ามีหลายแทร็ก */
   const [bitrateTrack, setBitrateTrack] = useState<string | null>(null);
   const [hash, setHash] = useState(location.hash);
+  // หน้าที่เคยเปิดแล้วเก็บไว้ ซ่อนตอนไปเมนูอื่น ไฟล์ รูป ค่าที่ปรับ งานที่ค้าง อยู่ครบเมื่อกลับมา (BUGS ข้อ 9 · lib/pageActive.ts)
+  // ซ่อนด้วย display none แทนการถอดหน้าออก · ตอนเปิดใช้ display contents กรอบหน้าเหมือนเดิมทุกจุด
+  const [visited, setVisited] = useState<Set<Page>>(() => new Set<Page>(["shelf"]));
+  useEffect(() => { setVisited((v) => (v.has(page) ? v : new Set(v).add(page))); }, [page]);
+  const slot = (id: Page, node: React.ReactNode) => (visited.has(id) || page === id) ? (
+    <PageActiveCtx.Provider key={id} value={page === id}>
+      <div style={{ display: page === id ? "contents" : "none" }} data-pageslot={id}>{node}</div>
+    </PageActiveCtx.Provider>
+  ) : null;
 
   useEffect(() => {
     const f = () => setHash(location.hash);
@@ -102,16 +112,16 @@ function Frame() {
           <main className="main">
             {parts ? <DevParts /> : (
               <>
-                {page === "shelf" && (infoMovie ? <FileInfoPage m={infoMovie} onBack={() => setInfoId(null)} onAv={(path) => { setInfoId(null); setAvPath(path); setPage("av"); }} />
+                {slot("shelf", infoMovie ? <FileInfoPage m={infoMovie} onBack={() => setInfoId(null)} onAv={(path) => { setInfoId(null); setAvPath(path); setPage("av"); }} />
                   : <ShelfPage onPage={setPage} onPoster={(path) => { setPosterPath(path); setPosterImage(null); setPage("poster"); }} onMerge={(path, image) => { setPosterPath(path); setPosterImage(image); setPage("poster"); }} onInfo={setInfoId} onCheck={(r) => { setCheckReq(r); setPage("check"); }} onGraph={(path) => openGraph({ path })} onBitrate={(path) => { setBitratePath(path); setBitrateTrack(null); setPage("bitrate"); }} onAv={(path) => { setAvPath(path); setPage("av"); }} sel={shelfSel} setSel={setShelfSel} />)}
-                {page === "poster" && <PosterPage initialPath={posterPath} initialImage={posterImage} onPage={setPage} onConsumed={() => { setPosterPath(null); setPosterImage(null); }} />}
-                {page === "link" && <LinkPage />}
-                {page === "av" && <AvPage initialPath={avPath} onConsumed={() => setAvPath(null)} onPage={setPage} onGraph={(path) => openGraph({ path })} />}
-                {page === "check" && <CheckPage req={checkReq} onConsumed={() => setCheckReq(null)} onGraph={openGraph} onPage={setPage} />}
+                {slot("poster", <PosterPage initialPath={posterPath} initialImage={posterImage} onPage={setPage} onConsumed={() => { setPosterPath(null); setPosterImage(null); }} />)}
+                {slot("link", <LinkPage />)}
+                {slot("av", <AvPage initialPath={avPath} onConsumed={() => setAvPath(null)} onPage={setPage} onGraph={(path) => openGraph({ path })} />)}
+                {slot("check", <CheckPage req={checkReq} onConsumed={() => setCheckReq(null)} onGraph={openGraph} onPage={setPage} />)}
                 {/* หน้ากราฟอยู่ในกล่องเลื่อน แถบสูงขึ้นหรือลากขยายจนยาวกว่าหน้าต่างแล้วเลื่อนลงไปถึงแถวปุ่มล่างได้ (เดิมแถวปุ่มล่างโดนตัดใต้จอ เจอตอนตรวจภาพ) */}
-                {page === "graph" && <div className="pagewrap" data-graphscroll><GraphBoundary><GraphPage req={graphReq} onConsumed={() => setGraphReq(null)} onBitrate={(path, track) => { setBitratePath(path); setBitrateTrack(track ?? null); setPage("bitrate"); }} /></GraphBoundary></div>}
-                {page === "bitrate" && <BitratePage initialPath={bitratePath} initialTrack={bitrateTrack} onConsumed={() => { setBitratePath(null); setBitrateTrack(null); }} />}
-                {page === "settings" && <div className="pagewrap" data-settingsscroll><SettingsPage /></div>}
+                {slot("graph", <div className="pagewrap" data-graphscroll><GraphBoundary><GraphPage req={graphReq} onConsumed={() => setGraphReq(null)} onBitrate={(path, track) => { setBitratePath(path); setBitrateTrack(track ?? null); setPage("bitrate"); }} /></GraphBoundary></div>)}
+                {slot("bitrate", <BitratePage initialPath={bitratePath} initialTrack={bitrateTrack} onConsumed={() => { setBitratePath(null); setBitrateTrack(null); }} />)}
+                {slot("settings", <div className="pagewrap" data-settingsscroll><SettingsPage /></div>)}
               </>
             )}
           </main>

@@ -122,7 +122,7 @@ await q(`document.querySelector('[data-style=fine]')?.click()`);
 await nav("บิตเรต"); await q(`window.__bitrateView('new')`); await sleep(500);
 await q(`window.__brnOpen(${JSON.stringify(VID)})`); await sleep(1500);
 await q(`document.querySelector('[data-brnpick="v"]')?.click()`);
-await waitFor(`return !document.querySelector('[data-brnprog]') && /เฉลี่ย \\d/.test(document.querySelector('.brn-side')?.innerText ?? '')`, 90000);
+await waitFor(`return !document.querySelector('[data-brnprog]') && /เฉลี่ย\\s+\\d/.test(document.querySelector('.brn-side')?.innerText ?? '')`, 90000);
 await q(`const b = document.querySelector('[data-brnline=min]'); if (b && b.getAttribute('aria-pressed') !== 'true') b.click()`); await sleep(500);
 const pl = await c.box("[data-brnplot]");
 await c.shotRect(`${OUT}/01-ป้ายต่ำสุดไม่โดนตัด.png`, Math.round(pl.right - 420), Math.round(pl.bottom - 110), 430, 130);

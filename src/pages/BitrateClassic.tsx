@@ -13,6 +13,7 @@
    ปรับเป็นของเรา · เส้นแดง Max คิดจากบิตเรตเฉลี่ยของไฟล์ ไม่ตายตัว 10,000 kbps แบบแผ่น DVD (ไฟล์ HEVC บิตเรตต่ำกว่านั้นมาก)
    สีวัดจากภาพหน้าจอตัวจริง · สีเป็นเนื้อหา ไม่เปลี่ยนตามโทน จึงเขียนในไฟล์นี้ ไม่ใส่ในไฟล์สไตล์ */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { usePageActiveRef } from "../lib/pageActive";
 import { listen } from "@tauri-apps/api/event";
 import { bitrateApi, inApp, pickFile, type BrInfo, type BrTrack } from "../lib/api";
 import { useClickOutside, useEscClose } from "../lib/popup";
@@ -241,10 +242,12 @@ export default function BitrateClassic({ initialPath = null, initialTrack = null
   // ลากไฟล์มาวาง
   const openRef = useRef(open); openRef.current = open;
   const modeRef = useRef(modeSel); modeRef.current = modeSel;
+  const pageOn = usePageActiveRef();
   useEffect(() => {
     if (!inApp) return;
     let off: (() => void) | undefined, live = true;
     import("@tauri-apps/api/webview").then(({ getCurrentWebview }) => getCurrentWebview().onDragDropEvent((e) => {
+      if (!pageOn.current) return; // หน้านี้ซ่อนอยู่ (ไปเมนูอื่นแล้ว) ไม่รับไฟล์ที่ลากมา (BUGS ข้อ 9)
       if (e.payload.type === "drop" && e.payload.paths[0] && document.querySelector("[data-bitrate]")) void openRef.current(e.payload.paths[0], modeRef.current);
     })).then((u) => { if (live) off = u; else u(); });
     return () => { live = false; off?.(); };
@@ -253,6 +256,7 @@ export default function BitrateClassic({ initialPath = null, initialTrack = null
   // คีย์ลัดแบบตัวจริง
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
+      if (!pageOn.current) return; // หน้านี้ซ่อนอยู่ (ไปเมนูอื่นแล้ว) ไม่รับปุ่มลัด (BUGS ข้อ 9)
       const el = e.target as HTMLElement | null;
       if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
       if (e.key === "F5") { e.preventDefault(); if (path) void open(path, modeSel, true); return; }

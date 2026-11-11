@@ -20,6 +20,19 @@ document.addEventListener("focusin", (e) => {
   const t = e.target;
   if (t instanceof HTMLInputElement && (t.inputMode === "numeric" || t.dataset.selectAll != null) && !t.readOnly) setTimeout(() => { if (document.activeElement === t) t.select(); }, 0);
 });
+// ตัวจริงไม่มีเมนูคลิกขวาของเบราว์เซอร์ (ย้อนกลับ รีเฟรช บันทึกเป็น พิมพ์ เครื่องมือเพิ่มเติม) · รีเฟรชแล้วของที่เลือกไว้หาย บันทึกเป็น html ได้ทั้งหน้า (BUGS ข้อ 28)
+// ช่องพิมพ์ยังคลิกขวาคัดลอกวางได้ · ปุ่ม F5 Ctrl+R Ctrl+P Ctrl+S ไม่รีเฟรช ไม่พิมพ์ ไม่บันทึกหน้า (F5 ของหน้าแบบ Bitrate Viewer ยังทำงาน ตัวดักของหน้ายังได้รับ)
+// โหมดพัฒนาเก็บไว้ใช้ตรวจ
+if (!import.meta.env.DEV) {
+  window.addEventListener("contextmenu", (e) => {
+    if ((e.target as HTMLElement | null)?.closest?.("input, textarea, [contenteditable='true']")) return;
+    e.preventDefault();
+  });
+  window.addEventListener("keydown", (e) => {
+    const k = e.key.toLowerCase();
+    if (e.key === "F5" || e.key === "BrowserRefresh" || ((e.ctrlKey || e.metaKey) && !e.altKey && ["r", "p", "s"].includes(k))) e.preventDefault();
+  }, true);
+}
 createRoot(document.getElementById("root")!).render(
   <StrictMode>
     <App />

@@ -4,6 +4,7 @@
    วางรูปแล้วหน้าต่างครอปขึ้นเองทุกครั้ง · MKV อยู่แล้วเปลี่ยนแค่รูปแนบ · ไฟล์อื่นครอบเป็น MKV ไม่แปลงภาพเสียงใหม่
    กำลังทำ บอกเปอร์เซ็นต์ เวลาที่เหลือ ขั้นถัดไป ปุ่มหยุด (ถามก่อน) · เลือกลบไฟล์เดิม ยืนยัน 2 ขั้นตอนกดเริ่ม */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import { usePageActiveRef } from "../lib/pageActive";
 import type { Page } from "../components/Sidebar";
 import Dialog from "../components/Dialog";
 import CropDialog, { type CropChoice } from "../components/CropDialog";
@@ -155,11 +156,13 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
     if (zone === "poster") loadPoster(f); else loadMovie(f);
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadMovie, loadPoster]);
+  const pageOn = usePageActiveRef();
   useEffect(() => {
     if (!inApp) return;
     let off: (() => void) | undefined;
     let live = true;
     import("@tauri-apps/api/webview").then(({ getCurrentWebview }) => getCurrentWebview().onDragDropEvent((e) => {
+      if (!pageOn.current) return; // หน้านี้ซ่อนอยู่ (ไปเมนูอื่นแล้ว) ไม่รับไฟล์ที่ลากมา (BUGS ข้อ 9)
       const t = e.payload.type;
       if (t === "over" || t === "enter") {
         const pos = e.payload.position;
