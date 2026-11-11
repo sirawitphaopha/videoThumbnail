@@ -1,7 +1,8 @@
 // แผงเลือกสีใช้ร่วม แยกจากหน้าครอป (สีขอบเอง) ไปใช้กับสีกำหนดเองของหน้ากราฟเสียงด้วย (BUGS ข้อ 41 พี่กัน "เราก็ทำระบบสีแบบกำหนดเองไว้เลเล้วนี่นะ ที่ตอนครอปรูป")
 import { useEffect, useRef, useState } from "react";
 import { useEscClose } from "../lib/popup";
-import { IbTick, IcCopy } from "./icons";
+import { IbTick, IcCopy, IcPaste, IcPlus } from "./icons";
+import { infoApi } from "../lib/api";
 
 /** แป้นไทยกดแป้นเลขแล้วได้ตัวอักษรไทย ช่องเลขทิ้งหมดจนเหมือนพิมพ์ไม่ได้ · ดูจากตำแหน่งแป้นแทน ใส่เลขให้ */
 export function digitKey(e: React.KeyboardEvent<HTMLInputElement>, apply: (text: string) => void, max = 3, hexLetters = false) {
@@ -42,6 +43,11 @@ const GRAYS = Array.from({ length: 11 }, (_, i) => toHex(Array(3).fill(255 - i *
 
 /** ปุ่มเลือกสีขอบเอง กางแผงเลือกสี · เลือกแล้วตัวอย่างเปลี่ยนทันที · ยกเลิกกับ Esc คืนสีเดิม
     กางลงใต้แถวสีขอบ กว้างเท่าฝั่งซ้าย ทับปุ่มหมุนกับตาราง ไม่บังรูป (พี่กันห้าม) · ความสูงกำหนดให้พอดีกรอบหน้าต่างครอป ไม่ใช้ตัววัดขอบจอ เพราะขอบที่ห้ามเกินคือกรอบหน้าต่าง กรอบต้องไม่มีแถบเลื่อน */
+/** จานสีที่บันทึกไว้ เก็บในเครื่อง ใช้ร่วมหน้าครอปกับหน้ากราฟ · สีใหม่อยู่หน้า เกิน 16 สีตัวเก่าสุดหลุด */
+const SAVED_KEY = "color-saved", SAVED_MAX = 16;
+function loadSaved(): string[] { try { const v = JSON.parse(localStorage.getItem(SAVED_KEY) ?? "[]"); return Array.isArray(v) ? v.filter((x) => typeof x === "string" && /^#[\da-f]{6}$/.test(x)).slice(0, SAVED_MAX) : []; } catch { return []; } }
+function keepSaved(v: string[]) { try { localStorage.setItem(SAVED_KEY, JSON.stringify(v)); } catch { /* เก็บไม่ได้ ใช้ในหน้าไปก่อน */ } }
+
 export function PadCustom(p: { pad: string; onPad: (c: string) => void; custom: boolean; short: boolean; what?: string; trigger?: (open: boolean, toggle: () => void) => React.ReactNode; panelStyle?: React.CSSProperties }) {
   const { short } = p, what = p.what ?? "สีขอบ";
   const [open, setOpen] = useState(false);
@@ -51,9 +57,13 @@ export function PadCustom(p: { pad: string; onPad: (c: string) => void; custom: 
   const [hsl, setHsl] = useState(() => rgbHsl(hexRgb(p.pad)));
   const [hexText, setHexText] = useState<string | null>(null);
   const [copied, setCopied] = useState(false);
+  const [pasteBad, setPasteBad] = useState(false);
+  const [saved, setSaved] = useState<string[]>(loadSaved);
+  const saveColor = (c: string) => { const n = [c.toLowerCase(), ...saved.filter((x) => x !== c.toLowerCase())].slice(0, SAVED_MAX); setSaved(n); keepSaved(n); };
+  const dropColor = (c: string) => { const n = saved.filter((x) => x !== c); setSaved(n); keepSaved(n); };
   const wrap = useRef<HTMLSpanElement>(null), panel = useRef<HTMLDivElement>(null);
   const cancel = () => { p.onPad(old); setOpen(false); };
-  const toggle = () => { if (open) { setOpen(false); return; } setOld(p.pad); setHsl(rgbHsl(hexRgb(p.pad))); setHexText(null); setOpen(true); };
+  const toggle = () => { if (open) { setOpen(false); return; } setOld(p.pad); setHsl(rgbHsl(hexRgb(p.pad))); setHexText(null); setSaved(loadSaved()); setOpen(true); };
   useEscClose(open, cancel);
   useEffect(() => {
     if (!open) return;
@@ -90,13 +100,11 @@ export function PadCustom(p: { pad: string; onPad: (c: string) => void; custom: 
                 <button type="button" className={tab === "own" ? "on" : ""} onClick={() => setTab("own")} data-pad-tab="own">กำหนดเอง</button>
               </div>
               <div className="padarea">
-                {tab === "std" ? (
-                  <div className="honey">
+                <div className="honey" hidden={tab !== "std"}>
                     {HONEY.map((row, i) => <div key={i} className="honeyrow">{row.map((c) => <button type="button" key={c + i} className={p.pad === c ? "on" : ""} style={{ background: c }} aria-label={"สี " + c} onClick={() => setRgbAll(hexRgb(c))} />)}</div>)}
                     <div className="honeyrow gray">{GRAYS.map((c) => <button type="button" key={c} className={p.pad === c ? "on" : ""} style={{ background: c }} aria-label={"สี " + c} onClick={() => setRgbAll(hexRgb(c))} />)}</div>
                   </div>
-                ) : (
-                  <div className="padmix">
+                  <div className="padmix" hidden={tab !== "own"}>
                     <div className="padbox" onPointerDown={drag((x, y) => setHslAll({ ...hsl, h: x * 360, s: 1 - y, l: hsl.l === 0 || hsl.l === 1 ? 0.5 : hsl.l }))} data-pad-box>
                       <span className="padmark" style={{ left: (hsl.h / 360) * 100 + "%", top: (1 - hsl.s) * 100 + "%" }} />
                     </div>
@@ -104,7 +112,6 @@ export function PadCustom(p: { pad: string; onPad: (c: string) => void; custom: 
                       <span className="padarrow" style={{ top: (1 - hsl.l) * 100 + "%" }} />
                     </div>
                   </div>
-                )}
               </div>
             </div>
             <div className="padside">
@@ -115,6 +122,11 @@ export function PadCustom(p: { pad: string; onPad: (c: string) => void; custom: 
                       onFocus={(e) => e.currentTarget.select()}
                       onKeyDown={(e) => digitKey(e, (t) => setCh(i, Number(t) || 0))}
                       onChange={(e) => setCh(i, Number(e.target.value.replace(/\D/g, "")) || 0)} />
+                    {/* ปุ่ม − กับ + ทุกแถว กดทีละ 1 Shift ทีละ 10 · สองปุ่มเท่าแถว Hex ช่องตัวเลขจบตรงกัน (พี่กันสั่ง "เพิ่มสักปุ่มตรงนี้ที" · "+- งี้ หรือเสนอมา") */}
+                    <button type="button" className="padcopy padstep" aria-label={"ลด" + ch} title={"ลด" + ch + " ทีละ 1 · Shift ทีละ 10"} disabled={rgb[i] <= 0} data-pad-dec={i}
+                      onClick={(e) => { e.preventDefault(); setCh(i, rgb[i] - (e.shiftKey ? 10 : 1)); }}>−</button>
+                    <button type="button" className="padcopy padstep" aria-label={"เพิ่ม" + ch} title={"เพิ่ม" + ch + " ทีละ 1 · Shift ทีละ 10"} disabled={rgb[i] >= 255} data-pad-inc={i}
+                      onClick={(e) => { e.preventDefault(); setCh(i, rgb[i] + (e.shiftKey ? 10 : 1)); }}>+</button>
                   </label>
                 ))}
                 <label><span>Hex</span>
@@ -126,7 +138,20 @@ export function PadCustom(p: { pad: string; onPad: (c: string) => void; custom: 
                     onClick={(e) => { e.preventDefault(); navigator.clipboard?.writeText(p.pad.toUpperCase()).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }).catch(() => {}); }}>
                     {copied ? <IbTick size={14} /> : <IcCopy size={14} />}
                   </button>
+                  {/* วางรหัสสีจากคลิปบอร์ด รับทั้งมีและไม่มี # (พี่กันสั่ง "ขอปุ่มวางค่าสีด้วย") · อ่านผ่านฝั่ง Rust ตัวเดียวกับช่องค่า hash */}
+                  <button type="button" className="padcopy" aria-label="วางรหัสสี" title={pasteBad ? "คลิปบอร์ดไม่มีรหัสสี" : "วางรหัสสี"} data-pad-paste
+                    onClick={async (e) => { e.preventDefault(); try { const t = (await infoApi.clipboardText()).trim(), m = /#?([\da-fA-F]{6})\b/.exec(t); if (m) typeHex("#" + m[1]); else { setPasteBad(true); setTimeout(() => setPasteBad(false), 1800); } } catch { setPasteBad(true); setTimeout(() => setPasteBad(false), 1800); } }}>
+                    <IcPaste size={14} />
+                  </button>
                 </label>
+              </div>
+              <div className="padsaved" data-pad-saved>
+                <div className="padsaved-head"><span>สีที่บันทึกไว้</span>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={(e) => { e.preventDefault(); saveColor(p.pad); }} disabled={saved.includes(p.pad.toLowerCase())} title={saved.includes(p.pad.toLowerCase()) ? "สีนี้บันทึกไว้แล้ว" : "เก็บสีนี้ไว้ในจานสี เรียกใช้ทีหลังได้ทุกหน้า"} data-pad-save><IcPlus size={13} />บันทึกสีนี้</button></div>
+                <div className="padsaved-grid">{Array.from({ length: SAVED_MAX }, (_, i) => saved[i]
+                  ? <button key={i} type="button" className={p.pad.toLowerCase() === saved[i] ? "on" : ""} style={{ background: saved[i] }} title={`${saved[i].toUpperCase()} · คลิกขวาเพื่อเอาออก`} aria-label={"สีที่บันทึก " + saved[i]} data-pad-savedc={saved[i]}
+                      onClick={(e) => { e.preventDefault(); setRgbAll(hexRgb(saved[i])); }} onContextMenu={(e) => { e.preventDefault(); dropColor(saved[i]); }} />
+                  : <i key={i} />)}</div>
               </div>
               <div className="padfoot">
                 <div className="padcmp"><span><i style={{ background: p.pad }} data-pad-new />สีใหม่</span><span><i style={{ background: old }} />สีเดิม</span></div>

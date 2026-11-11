@@ -36,6 +36,36 @@ await q(`document.querySelector('${G} [data-sw-custom]')?.click()`); await sleep
 const panel = await q(`const p = document.querySelector('${G} [data-pad-rgb]'); if (!p) return null; const r = p.getBoundingClientRect(); return { right: Math.round(r.right), bottom: Math.round(r.bottom), w: innerWidth, h: innerHeight }`);
 check("ข้อ 41 กดวงกลมที่ห้า กางแผงเลือกสีตัวเดียวกับหน้าครอป ไม่ล้นขอบจอ", !!panel && panel.right <= panel.w && panel.bottom <= panel.h, JSON.stringify(panel));
 await c.shot(`${OUT}/41-แผงเลือกสีกำหนดเอง.png`, null).catch(() => {});
+// ปุ่มวางรหัสสี · เก็บคลิปบอร์ดเดิมไว้แล้วคืนตอนจบ (เคยทับคลิปบอร์ดของพี่กันมาแล้ว)
+const clipOld = await c.evaluate(`window.__TAURI_INTERNALS__.invoke('clipboard_text').catch(() => null)`);
+try {
+  await c.evaluate(`navigator.clipboard.writeText('สีที่ชอบ #1A73E8 นะ')`).catch(() => {});
+  await q(`document.querySelector('${G} [data-pad-paste]')?.click()`); await sleep(600);
+  const pasted = await q(`return document.querySelector('${G} [data-pad-hex]')?.value`);
+  check("ข้อ 41 ปุ่มวางรหัสสี ดึงรหัสจากคลิปบอร์ดได้แม้มีคำอื่นปน", /1A73E8/i.test(pasted ?? ""), pasted);
+} finally {
+  if (typeof clipOld === "string") await c.evaluate(`navigator.clipboard.writeText(${JSON.stringify(clipOld)})`).catch(() => {});
+}
+// จานสีที่บันทึกไว้ · เก็บค่าเดิมไว้แล้วคืนตอนจบ
+const savedOld = await q(`return localStorage.getItem('color-saved')`);
+await q(`document.querySelector('${G} [data-pad-save]')?.click()`); await sleep(400);
+const sv = await q(`return { mem: JSON.parse(localStorage.getItem('color-saved') ?? '[]'), cells: document.querySelectorAll('${G} [data-pad-savedc]').length, slots: document.querySelectorAll('${G} .padsaved-grid > *').length, dis: document.querySelector('${G} [data-pad-save]')?.disabled }`);
+check("ข้อ 41 กดบันทึกสีนี้ สีเข้าจานสี จำในเครื่อง ปุ่มบันทึกจางเพราะสีนี้บันทึกแล้ว · จานสีมี 16 ช่อง", sv.mem[0] === "#1a73e8" && sv.cells >= 1 && sv.slots === 16 && sv.dis, JSON.stringify(sv));
+const lab = await q(`return [...document.querySelectorAll('${G} .padfields label > span')].map((s) => Math.round(s.getBoundingClientRect().left))`);
+check("ข้อ 41 ป้าย แดง เขียว น้ำเงิน Hex ชิดซ้ายตรงกัน", new Set(lab).size === 1, JSON.stringify(lab));
+// รังผึ้งใหญ่เต็มช่อง · ชี้แล้วสีไม่เปลี่ยน
+await q(`document.querySelector('${G} [data-pad-tab=std]')?.click()`); await sleep(400);
+const hc = await q(`const a = document.querySelector('${G} .padarea').getBoundingClientRect(), rows = [...document.querySelectorAll('${G} .honeyrow')].map((r) => r.getBoundingClientRect()), h = { width: Math.max(...rows.map((r) => r.width)), height: rows[rows.length - 1].bottom - rows[0].top }; return { aw: Math.round(a.width), hw: Math.round(h.width), ah: Math.round(a.height), hh: Math.round(h.height) }`);
+check("ข้อ 41 รังผึ้งกว้างอย่างน้อย 85% ของช่อง ไม่ล้นช่อง", hc.hw >= hc.aw * 0.85 && hc.hw <= hc.aw + 1 && hc.hh <= hc.ah + 1, JSON.stringify(hc));
+const hb = await q(`const b = document.querySelector('${G} .honeyrow button'); const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + r.height / 2, f0: getComputedStyle(b).filter }`);
+await c.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: hb.x, y: hb.y }); await sleep(200);
+const f1 = await q(`return getComputedStyle(document.querySelector('${G} .honeyrow button')).filter`);
+check("ข้อ 41 ชี้ช่องรังผึ้งแล้วสีไม่เปลี่ยน (ไม่มีตัวกรองความสว่าง)", f1 === "none", f1);
+await c.shot(`${OUT}/41-รังผึ้งเต็มช่อง.png`, `${G} [data-pad-rgb]`, 6).catch(() => {});
+await q(`document.querySelector('${G} [data-pad-tab=own]')?.click()`); await sleep(300);
+await c.shot(`${OUT}/41-ปุ่มวางรหัสสี.png`, `${G} [data-pad-rgb]`, 6).catch(() => {});
+await c.shot(`${OUT}/41-จานสีที่บันทึกไว้.png`, `${G} [data-pad-rgb]`, 6).catch(() => {});
+await q(`if (${JSON.stringify(savedOld)} === null) localStorage.removeItem('color-saved'); else localStorage.setItem('color-saved', ${JSON.stringify(savedOld ?? "")});`);
 // พิมพ์รหัสสีเขียว แล้วกดตกลง
 await q(`const i = document.querySelector('${G} [data-pad-hex]'); i.focus(); i.select();`);
 await c.type("2E9E5B"); await sleep(400);

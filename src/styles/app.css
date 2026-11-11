@@ -1280,5 +1280,48 @@ canvas.spekpan.dragging { cursor: grabbing; }
 /* เต็มจอ (BUGS ข้อ 39) ซ่อนแถบชื่อหน้าต่าง เมนูซ้าย หัวหน้ากราฟ เหลือกราฟกับแถบเครื่องมือ */
 html[data-full] .titlebar, html[data-full] .sidewrap, html[data-full] aside.side, html[data-full] [data-pageslot=graph] .agtop { display: none !important; }
 /* แผงเลือกสีที่ใช้นอกหน้าครอป (ชุดสีกำหนดเองของหน้ากราฟ BUGS ข้อ 41) กว้างพอให้รังผึ้งกับช่องตัวเลขอยู่แถวเดียว */
-[data-colorpick] .padrgb { width: 470px; z-index: 30; }
+[data-colorpick] .padrgb { width: max-content; z-index: 30; }
+[data-colorpick] .padside { width: 236px; flex: none; }
 [data-colorpick] .padarea { height: 230px; }
+/* แถว Hex มีปุ่มคัดลอกกับวาง ช่องรหัสต้องกว้างพอให้เห็นครบ 7 ตัว (เจอตอนตรวจภาพ ตัดเหลือ #1A73E) */
+:is([data-crop], [data-colorpick]) .padfields label:has(.hex) { gap: 3px; }
+:is([data-crop], [data-colorpick]) .padfields label:has(.hex) span { margin-right: 5px; }
+:is([data-crop], [data-colorpick]) .padfields input.hex { min-width: 78px; padding: 0 5px; }
+/* สองแท็บอยู่ค้าง ซ่อนแท็บที่ไม่ได้ดู */
+:is([data-crop], [data-colorpick]) .padarea > [hidden] { display: none !important; }
+/* ป้ายช่องตัวเลขชิดซ้ายตรงกันทุกแถว รวมแถว Hex (พี่กันทัก "ยังมีที่ว่างอยุ่เลย") */
+:is([data-crop], [data-colorpick]) .padfields label { justify-content: flex-start; }
+:is([data-crop], [data-colorpick]) .padfields label:has(.hex) span { margin-right: 5px; }
+/* จานสีที่บันทึกไว้ ใต้ช่องตัวเลข ช่องว่างเป็นเส้นประ */
+:is([data-crop], [data-colorpick]) .padsaved { margin-top: 10px; }
+:is([data-crop], [data-colorpick]) .padsaved-head { display: flex; align-items: center; justify-content: space-between; gap: 6px; font-size: 12.5px; color: var(--txt2); margin-bottom: 5px; }
+:is([data-crop], [data-colorpick]) .padsaved-head .btn { height: 24px; padding: 0 8px; font-size: 12px; }
+:is([data-crop], [data-colorpick]) .padsaved-grid { display: grid; grid-template-columns: repeat(8, 1fr); gap: 4px; }
+:is([data-crop], [data-colorpick]) .padsaved-grid > * { aspect-ratio: 1; border-radius: 4px; }
+:is([data-crop], [data-colorpick]) .padsaved-grid i { border: 1px dashed var(--line); }
+:is([data-crop], [data-colorpick]) .padsaved-grid button { padding: 0; border: 1px solid color-mix(in srgb, black 12%, transparent); cursor: pointer; }
+:is([data-crop], [data-colorpick]) .padsaved-grid button:hover { filter: brightness(.88); }
+:is([data-crop], [data-colorpick]) .padsaved-grid button.on { outline: 2px solid var(--accent-d); outline-offset: 1px; }
+/* วงกลมสีกำหนดเอง ขอบสีรุ้งตลอด รู้ว่าวงนี้ปรับสีได้ (พี่กันทัก "แบบนี้เราไม่รู้นะว่าปุ่มไหนปรับสีได้") */
+.sws .sw.sw-custom { border: 3px solid transparent !important; background-origin: border-box; }
+/* ชี้หรือเลือกช่องสีแล้วสีไม่เปลี่ยน ใช้ขอบขาวกับเส้นเข้มด้านในแทน (พี่กันสั่ง "ห้ามเอาเมาส์ไปชี้เเล้วสีเปลี่ยน ไม่งั้นเพี้ยนนน" · เดิมมืดลงด้วย brightness ช่องใต้เมาส์ตอนสลับแท็บจึงเหมือนกะพริบ) */
+:is([data-crop], [data-colorpick]) .honeyrow button:hover, :is([data-crop], [data-colorpick]) .padsaved-grid button:hover { filter: none; box-shadow: inset 0 0 0 2px white; }
+:is([data-crop], [data-colorpick]) .honeyrow button.on { filter: none; box-shadow: inset 0 0 0 2px white, inset 0 0 0 3.5px color-mix(in srgb, black 60%, transparent); }
+:is([data-crop], [data-colorpick]) .padsaved-head .btn { flex: none; white-space: nowrap; }
+/* ปุ่มบันทึกสีมีไอคอน (พี่กันสั่ง "เพิ่ม icon") · รังผึ้งในแผงนอกหน้าครอปใหญ่เต็มช่อง (พี่กันสั่ง "ขยายรังผึ้งให้เต็มจอกว่านี้") */
+:is([data-crop], [data-colorpick]) .padsaved-head .btn { display: inline-flex; align-items: center; gap: 4px; }
+[data-colorpick] .honey { zoom: 1.18; }
+[data-colorpick] .padarea { height: 250px; }
+/* ที่ว่างท้ายแถวเขียวน้ำเงิน เท่าปุ่มคัดลอกกับวางสองปุ่ม ช่องตัวเลขจบตรงกันทุกแถว */
+:is([data-crop], [data-colorpick]) .padfields label .padgap { flex: none; width: 43px; }
+:is([data-crop], [data-colorpick]) .padfields label { gap: 3px; }
+:is([data-crop], [data-colorpick]) .padfields label > span:first-child { margin-right: 5px; }
+:is([data-crop], [data-colorpick]) .padstep { font-size: 16px; font-weight: 600; line-height: 1; border-radius: 5px; }
+:is([data-crop], [data-colorpick]) .padstep:hover:not(:disabled) { background: color-mix(in srgb, var(--accent) 12%, var(--win)); }
+:is([data-crop], [data-colorpick]) .padstep:disabled { opacity: .35; cursor: default; }
+/* สีใหม่ สีเดิม ขยายเต็มที่ว่างข้างปุ่ม สูงเท่าปุ่มตกลงกับยกเลิก (พี่กันสั่ง "ขยายสีเดิม สีใหม่ ให้เต็มเนื้อที่") */
+[data-colorpick] .padfoot { align-items: stretch; }
+[data-colorpick] .padcmp { flex: 1; min-width: 0; }
+[data-colorpick] .padcmp > span { flex: 1; display: flex; flex-direction: column; gap: 3px; }
+[data-colorpick] .padcmp i { width: 100%; height: auto; flex: 1; min-height: 40px; }
+:is([data-crop], [data-colorpick]) .padsaved-head .btn { padding: 0 7px 0 5px; gap: 3px; }
