@@ -12,7 +12,7 @@ import { fmtDateTime, fmtDuration, fmtRoughMinutes, fmtSize } from "../lib/forma
 import { FULL_SPEED, reminderDue } from "../lib/status";
 import type { Page } from "../components/Sidebar";
 import Dialog from "../components/Dialog";
-import { FixedTime, Keep, Skel, SortArrow, StatIcon } from "../components/ui";
+import { FixedTime, J, Keep, Phr, Skel, SortArrow, StatIcon } from "../components/ui";
 import type { GraphReq } from "./GraphPage";
 import { IbStop, IcGraph, IbTick, IcCheck } from "../components/icons";
 
@@ -40,7 +40,7 @@ function rough(minLow: number, minHigh?: number): string {
   const hi = minHigh ?? minLow;
   if (hi < 90) return fmtRoughMinutes(minLow, minHigh);
   const a = Math.max(1, Math.round(minLow / 60)), b = Math.max(a, Math.round(hi / 60));
-  return a === b ? `ราว ${a} ชั่วโมง` : `ราว ${a}–${b} ชั่วโมง`;
+  return a === b ? `ราว ${a} ชั่วโมง` : `ราว ${a} ถึง ${b} ชั่วโมง`;
 }
 
 /** ตรวจแบบเร็ว = อ่านทั้งไฟล์คิด SHA-256 · ฮาร์ดดิสก์ราว 120 MB ต่อวินาที (TECH-REVIEW · status.ts quickEstimate) */
@@ -69,7 +69,7 @@ const fmtT = (sec: number) => {
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
   return h ? `${h}:${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}` : `${m}:${String(r).padStart(2, "0")}`;
 };
-const spanTime = (sp: CheckSpan) => (fmtT(sp.from) === fmtT(sp.to) ? fmtT(sp.from) : `${fmtT(sp.from)} – ${fmtT(sp.to)}`);
+const spanTime = (sp: CheckSpan) => (fmtT(sp.from) === fmtT(sp.to) ? fmtT(sp.from) : `${fmtT(sp.from)} ถึง ${fmtT(sp.to)}`);
 
 export default function CheckPage(p: { req: CheckReq | null; onConsumed: () => void; onGraph: (r: GraphReq) => void; onPage: (pg: Page) => void }) {
   const { movies, loaded } = useLibrary();
@@ -151,25 +151,25 @@ export default function CheckPage(p: { req: CheckReq | null; onConsumed: () => v
       <div className="wrapin">
         <div className="modes" role="radiogroup" aria-label="แบบตรวจ">
           <div className={"mode" + (mode === "quick" ? " on" : "") + (s.running ? " off" : "")} {...kb(() => { if (!s.running) setMode("quick"); })} role="radio" aria-checked={mode === "quick"} aria-disabled={s.running} title={s.running ? "รอให้ตรวจชุดนี้เสร็จก่อน" : undefined}>
-            <h4><span className={"radio" + (mode === "quick" ? " on" : "")} />ตรวจแบบเร็ว · {selected.length ? quickTotal(selected) : "ไม่กี่วินาทีต่อเรื่อง"}</h4>
-            <div className="small" style={{ paddingLeft: 28 }}>เช็คว่าโครงไฟล์ครบ ไม่ขาดท้าย และเทียบค่า hash ของไฟล์กับที่บันทึกไว้ตอนตรวจครั้งก่อน ว่าไฟล์ถูกเปลี่ยนหรือเสียไปหรือเปล่า</div>
+            <h4><span className={"radio" + (mode === "quick" ? " on" : "")} />ตรวจแบบเร็ว <span className="small" style={{ fontWeight: 400 }}>{selected.length ? quickTotal(selected) : "ไม่กี่วินาทีต่อเรื่อง"}</span></h4>
+            <div className="small" style={{ paddingLeft: 28 }}><Phr>{"เช็กว่าโครงไฟล์ครบไม่ขาดท้าย และเทียบค่า hash กับที่บันทึกไว้ตอนตรวจครั้งก่อน เพื่อดูว่าไฟล์" + J + "ถูกเปลี่ยนหรือเสีย"}</Phr></div>
           </div>
           <div className={"mode" + (mode === "full" ? " on" : "") + (s.running ? " off" : "")} {...kb(() => { if (!s.running) setMode("full"); })} role="radio" aria-checked={mode === "full"} aria-disabled={s.running} title={s.running ? "รอให้ตรวจชุดนี้เสร็จก่อน" : undefined}>
-            <h4><span className={"radio" + (mode === "full" ? " on" : "")} />ตรวจละเอียด · {selected.length ? fullTotal(selected) : <span className="nw">ราว 3–6 นาทีต่อเรื่อง</span>}</h4>
-            <div className="small" style={{ paddingLeft: 28 }}>อ่านภาพและเสียงทุกช่วงตั้งแต่ต้นจนจบ บอกได้ว่าเสียที่นาทีไหน</div>
+            <h4><span className={"radio" + (mode === "full" ? " on" : "")} />ตรวจละเอียด <span className="small" style={{ fontWeight: 400 }}>{selected.length ? fullTotal(selected) : <span className="nw">ราว 3 ถึง 6 นาทีต่อเรื่อง</span>}</span></h4>
+            <div className="small" style={{ paddingLeft: 28 }}><Phr>อ่านภาพและเสียงทุกช่วงตั้งแต่ต้นจนจบ และบอกได้ว่าเสียที่นาทีไหน</Phr></div>
           </div>
         </div>
 
         <div className="ckbar">
           <div className="ckcount" data-ckcount>
             {s.running
-              ? <>กำลังตรวจ{s.mode === "full" ? "ละเอียด" : "แบบเร็ว"} <span className="nw">เรื่องที่ {Math.min(s.done.length + 1, s.queue.length || 1)} จาก {s.queue.length || "…"}</span></>
+              ? <>กำลังตรวจ{s.mode === "full" ? "ละเอียด" : "แบบเร็ว"} <span className="nw">เรื่องที่ {Math.min(s.done.length + 1, s.queue.length || 1)} จาก {s.queue.length || 1}</span></>
               : <>เลือกไว้ <span className="nw">{selected.length} เรื่อง</span></>}
           </div>
           <div className="ckacts">
             {s.running ? (
               <button type="button" className={"btn " + (stopping ? "btn-wait" : "btn-ghost")} onClick={() => { if (!stopping) stop(); }}
-                aria-disabled={stopping || undefined} title={stopping ? "รอให้เรื่องที่กำลังตรวจหยุดก่อน" : undefined} data-ckstop><Keep icon={<IbStop size={15} />} all={["กำลังหยุด…", "หยุดตรวจทั้งชุด"]}>{stopping ? "กำลังหยุด…" : "หยุดตรวจทั้งชุด"}</Keep></button>
+                aria-disabled={stopping || undefined} title={stopping ? "รอให้เรื่องที่กำลังตรวจหยุดก่อน" : undefined} data-ckstop><Keep icon={<IbStop size={15} />} all={["กำลังหยุด", "หยุดตรวจทั้งชุด"]}>{stopping ? "กำลังหยุด" : "หยุดตรวจทั้งชุด"}</Keep></button>
             ) : (
               <>
                 <button type="button" className="btn btn-ghost" onClick={onlyUnchecked}><IbTick size={15} />เลือกเฉพาะที่ยังไม่เคยตรวจ</button>
@@ -189,10 +189,10 @@ export default function CheckPage(p: { req: CheckReq | null; onConsumed: () => v
             </div>
             <div className="small">
               {s.last.cancelled
-                ? <>หยุดกลางทาง ตรวจไป <span className="nw">{s.last.done} จาก {s.last.total} เรื่อง</span> · หยุดเมื่อ </>
+                ? <>หยุดกลางทาง ตรวจไป <span className="nw">{s.last.done} จาก {s.last.total} เรื่อง</span> แล้วหยุดเมื่อ </>
                 : <>ตรวจ <span className="nw">{s.last.total} เรื่อง</span>เสร็จเมื่อ </>}
-              <span className="nw">{fmtDateTime(s.last.at)}</span> · ใช้เวลา <span className="nw">{elapsed(s.last.seconds)}</span>
-              {s.last.failed > 0 && <> · ตรวจไม่ได้ <span className="nw">{s.last.failed} เรื่อง</span></>}
+              <span className="nw">{fmtDateTime(s.last.at)}</span> ใช้เวลา <span className="nw">{elapsed(s.last.seconds)}</span>
+              {s.last.failed > 0 && <> และตรวจไม่ได้ <span className="nw">{s.last.failed} เรื่อง</span></>}
             </div>
             {(batchProblems.length > 0 || onlyProblems) && (
               <div className="minirow" style={{ margin: 0 }}>
@@ -263,7 +263,7 @@ function Row(p: { m: Movie; on: boolean; running: boolean; reminder: number; cur
   const detail = p.current != null ? <div className="bar" style={{ maxWidth: 220 }}><i style={{ width: `${Math.max(2, p.current)}%` }} /></div>
     : m.missing ? "ไดรฟ์อาจถอดออกอยู่"
     : p.error ? p.error
-    : c ? <>{c.summary ?? ""}{due && <span className="ckdue"> · ตรวจครั้งล่าสุดเกิน {p.reminder} วัน ถึงเวลาตรวจซ้ำ</span>}</>
+    : c ? <>{c.summary ?? ""}{due && <span className="ckdue"> ตรวจครั้งล่าสุดเกิน {p.reminder} วันแล้ว ถึงเวลาตรวจซ้ำ</span>}</>
     : "ยังไม่เคยตรวจ";
   const [d, t] = c ? dateParts(c.at) : ["", ""];
   const canOpen = !!c && p.current == null;
@@ -278,7 +278,7 @@ function Row(p: { m: Movie; on: boolean; running: boolean; reminder: number; cur
       </td>
       <td className="ckname">{m.name}.{m.ext}</td>
       <td><span className="nw">{fmtSize(m.size)}</span></td>
-      <td>{c ? <><span className="nw">{d}</span> {t}</> : "—"}</td>
+      <td>{c ? <><span className="nw">{d}</span> {t}</> : "ยังไม่ตรวจ"}</td>
       <td>{pill}</td>
       <td className="small ckdetail">{detail}</td>
     </tr>
@@ -298,8 +298,8 @@ function ResultDialog(p: { m: Movie; onClose: () => void; onDeep: () => void; on
     try {
       const r = await checkApi.playAt(m.path, first.from);
       if (r.seeked) toast({ kind: "ok", title: `เปิดด้วย ${r.player} ที่ ${fmtT(first.from)}` });
-      else if (r.player) toast({ kind: "warn", title: `เปิดด้วย ${r.player} แล้ว แต่เปิดตรงนาทีไม่ได้`, detail: `เลื่อนไปที่ ${fmtT(first.from)} เอง · โปรแกรมที่เปิดตรงนาทีได้ VLC MPC-HC PotPlayer mpv` });
-      else toast({ kind: "warn", title: "เปิดด้วยโปรแกรมหลักของ Windows แล้ว แต่เปิดตรงนาทีไม่ได้", detail: `เลื่อนไปที่ ${fmtT(first.from)} เอง · ลง VLC MPC-HC PotPlayer หรือ mpv แล้วกดอีกครั้ง หรือเลือกโปรแกรมเล่นในหน้าตั้งค่า` });
+      else if (r.player) toast({ kind: "warn", title: `เปิดด้วย ${r.player} แล้ว แต่เปิดตรงนาทีไม่ได้`, detail: `เลื่อนไปที่ ${fmtT(first.from)} เอง โปรแกรมที่เปิดตรงนาทีได้คือ VLC MPC-HC PotPlayer และ mpv` });
+      else toast({ kind: "warn", title: "เปิดด้วยโปรแกรมหลักของ Windows แล้ว แต่เปิดตรงนาทีไม่ได้", detail: `เลื่อนไปที่ ${fmtT(first.from)} เอง หรือลง VLC MPC-HC PotPlayer หรือ mpv แล้วกดอีกครั้ง หรือเลือกโปรแกรมเล่นในหน้าตั้งค่า` });
     } catch (e) {
       toast({ kind: "bad", title: "เปิดเล่นไม่ได้", detail: String(e) });
       // โปรแกรมเล่นที่เลือกเองหาไม่เจอ พากลับไปตั้งที่หน้าตั้งค่า (สเปกข้อ 9) · เดิมขึ้นแถบอย่างเดียว ผู้ช่วยตรวจสเปกเจอ
@@ -315,7 +315,7 @@ function ResultDialog(p: { m: Movie; onClose: () => void; onDeep: () => void; on
           aria-disabled={p.running || undefined} title={p.running ? "รอให้ชุดที่กำลังตรวจเสร็จก่อน" : undefined}><IcCheck size={15} />ตรวจละเอียดเรื่องนี้</button>}
         <button type="button" className="btn btn-main btn-sm" onClick={p.onClose}>ปิด</button>
       </>}>
-      <div className="small">{c.mode === "full" ? "ตรวจละเอียด" : "ตรวจแบบเร็ว"} · <span className="nw">{d}</span> {t} · ความยาว <span className="nw">{fmtDuration(m.duration)}</span></div>
+      <div className="small">{c.mode === "full" ? "ตรวจละเอียด" : "ตรวจแบบเร็ว"} เมื่อ <span className="nw">{d}</span> {t} ความยาว <span className="nw">{fmtDuration(m.duration)}</span></div>
       {spans.length > 0 ? (
         <table className="fmt" data-ckspans>
           <thead><tr><th>ช่วงเวลา</th><th>เสียอะไร</th></tr></thead>
@@ -324,7 +324,7 @@ function ResultDialog(p: { m: Movie; onClose: () => void; onDeep: () => void; on
       ) : (
         <div className="ckres"><StatIcon kind={c.result === "ok" ? "ok" : c.result === "bad" ? "bad" : "warn"} /><span>{c.summary}</span></div>
       )}
-      {c.result === "bad" && <div className="small">ต้นเหตุที่พบบ่อย ไฟล์โหลดมาไม่ครบ หรือไดรฟ์มีจุดเสีย · แนะนำให้โหลดใหม่</div>}
+      {c.result === "bad" && <div className="small">ต้นเหตุที่พบบ่อยคือไฟล์โหลดมาไม่ครบหรือไดรฟ์มีจุดเสีย แนะนำให้โหลดใหม่</div>}
     </Dialog>
   );
 }

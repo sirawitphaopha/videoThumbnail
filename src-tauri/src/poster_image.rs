@@ -75,7 +75,7 @@ fn flatten(img: DynamicImage) -> RgbImage {
 pub fn decode(tools: &Path, work: &Path, path: &Path) -> Result<Decoded, String> {
     let ext = ext_of(path);
     if !ACCEPTED.contains(&ext.as_str()) {
-        return Err(format!("ไฟล์ .{ext} ใช้ไม่ได้ · รูปที่รับ JPG PNG WebP BMP TIFF HEIC"));
+        return Err(format!("ไฟล์ .{ext} ใช้ไม่ได้  รับรูป JPG PNG WebP BMP TIFF และ HEIC"));
     }
     if ext == "heic" || ext == "heif" {
         let icc = std::fs::read(path).ok().and_then(|b| heic_icc(&b));

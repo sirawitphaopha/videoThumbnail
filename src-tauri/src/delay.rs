@@ -53,7 +53,7 @@ pub(crate) fn decode(tools: &Path, path: &Path, stream: u64, start: f64, len: f6
     ];
     let o = run_tool_timeout(tools, "ffmpeg", args, Duration::from_secs(180))?;
     if !tool_succeeded("ffmpeg", &o.status) {
-        return Err(format!("ถอดเสียงไม่ได้ · {}", String::from_utf8_lossy(&o.stderr).lines().last().unwrap_or("")));
+        return Err(format!("ถอดเสียงไม่ได้  {}", String::from_utf8_lossy(&o.stderr).lines().last().unwrap_or("")));
     }
     Ok(o.stdout.chunks_exact(4).map(|c| f32::from_le_bytes([c[0], c[1], c[2], c[3]])).collect())
 }
@@ -269,7 +269,7 @@ fn make_preview(app: &AppHandle, movie: &Path, file: &Path, tid: u64, delay_ms: 
     let args = preview_args(movie, file, tid, delay_ms, at, 20.0, &base);
     let o = run_tool_timeout(&tools, "mkvmerge", &args, Duration::from_secs(120))?;
     if !tool_succeeded("mkvmerge", &o.status) {
-        return Err(format!("ทำไฟล์ลองฟังไม่ได้ · {}", String::from_utf8_lossy(&o.stdout).lines().filter(|l| l.contains("Error")).last().unwrap_or("")));
+        return Err(format!("ทำไฟล์ลองฟังไม่ได้  {}", String::from_utf8_lossy(&o.stdout).lines().filter(|l| l.contains("Error")).last().unwrap_or("")));
     }
     // mkvmerge ตอนตัดช่วงเติมเลขลำดับท้ายชื่อ (-001)
     let stem = base.file_stem().unwrap().to_string_lossy().to_string();

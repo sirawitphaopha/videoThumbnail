@@ -100,7 +100,7 @@ pub fn parse(j: &Value) -> Probe {
                 let (w, h) = (st["width"].as_u64().unwrap_or(0), st["height"].as_u64().unwrap_or(0));
                 let (long, short) = video_names(codec);
                 let hdr = matches!(s(st, "color_transfer"), "smpte2084" | "arib-std-b67");
-                p.video = Some(format!("{w} × {h} · {long}"));
+                p.video = Some(format!("{w} × {h} {long}"));
                 p.video_short = Some(format!("{short} {}{}", res_label(w, h), if hdr { " HDR" } else { "" }));
             }
             "audio" => p.audio.push(Track {

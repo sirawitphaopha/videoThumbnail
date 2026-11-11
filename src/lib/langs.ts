@@ -1032,5 +1032,5 @@ export function langName(code: string | null | undefined): string {
 }
 /** ป้ายรหัส แบบ th · tha */
 export function langCode(l: Lang): string {
-  return l[3] ? `${l[3]} · ${l[2]}` : l[2];
+  return l[3] ? `${l[3]}, ${l[2]}` : l[2];
 }

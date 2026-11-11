@@ -525,7 +525,7 @@ fn decode(tools: &Path, path: &Path, track: usize, ch: usize, start: Option<f64>
     if stopped { return Ok(None); }
     let run = std::mem::replace(&mut *state.lock().unwrap(), Run { tail: Vec::new(), loud: Vec::new(), integrated: None, lra: None, true_peak: None });
     if !tool_succeeded("ffmpeg", &status) && run.loud.is_empty() {
-        return Err(format!("ffmpeg อ่านเสียงไม่ได้ · {}", run.tail.last().cloned().unwrap_or_else(|| format!("รหัส {}", exit_text(&status)))));
+        return Err(format!("ffmpeg อ่านเสียงไม่ได้  {}", run.tail.last().cloned().unwrap_or_else(|| format!("รหัส {}", exit_text(&status)))));
     }
     Ok(Some(run))
 }
@@ -710,7 +710,7 @@ pub fn overview(tools: &Path, path: &Path, track: &GTrack, duration: f64, on: &d
     };
     let Some(run) = decode(tools, path, track.index, ch, None, None, true, &mut feed, stop)? else { return Ok(None) };
     if an.frame == 0 {
-        return Err(format!("อ่านเสียงไม่ได้ · {}", run.tail.last().cloned().unwrap_or_default()));
+        return Err(format!("อ่านเสียงไม่ได้  {}", run.tail.last().cloned().unwrap_or_default()));
     }
     // ความดังต่อคอลัมน์ เฉลี่ยพลังงานของค่า Momentary ที่ตกในคอลัมน์นั้น
     let mut e = vec![0.0f64; cols];
@@ -833,7 +833,7 @@ pub async fn graph_info(app: AppHandle, path: String) -> Result<GInfo, String> {
     let tools = tools_dir(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
         let p = Path::new(&path);
-        if !p.exists() { return Err("หาไฟล์ไม่เจอ · ไดรฟ์อาจถอดออกอยู่".to_string()); }
+        if !p.exists() { return Err("หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่".to_string()); }
         info(&tools, p)
     }).await.map_err(|e| e.to_string())?
 }

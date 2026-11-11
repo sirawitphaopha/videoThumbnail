@@ -99,34 +99,34 @@ export default function DelayDialog(p: {
   const showDelay = text ?? sign(delay);
   const sameAsName = found && t.delayFromName != null && Math.abs(found.delay - t.delayFromName) <= 20;
   const ws = found?.windows ?? [];
-  const wText = ws.length === 3 ? `ต้นเรื่อง ${sign(ws[0].delay)} · กลางเรื่อง ${sign(ws[1].delay)} · ท้ายเรื่อง ${sign(ws[2].delay)} ms` : "";
+  const wText = ws.length === 3 ? `ต้นเรื่อง ${sign(ws[0].delay)} ms กลางเรื่อง ${sign(ws[1].delay)} ms และท้ายเรื่อง ${sign(ws[2].delay)} ms` : "";
   const moved = found && found.score >= 0.3 && Math.abs(delay - found.delay) > 20;
-  const pairText = found?.speed ? `${found.speed[0]} → ${found.speed[1]}` : "";
+  const pairText = found?.speed ? `จาก ${found.speed[0]} เป็น ${found.speed[1]}` : "";
 
   // ไฟล์ลองฟังใส่ได้แค่ดีเลย์ · เสียงที่ต้องยืดความเร็ว ช่วงกลางเรื่องจะเป็นคนละฉากกับภาพ (หนัง 2 ชั่วโมงเหลื่อมราว 147 วินาที)
   // ปิดปุ่มลองฟังพร้อมบอกเหตุ ให้ดูจากคลื่นที่ยืดแล้วแทน (ผู้ช่วยตรวจขั้น 10 ข้อ 7)
   const speedOn = !!found?.speed || !!t.convert?.speed;
-  const noPlay = speedOn ? "ลองฟังยังใส่ความเร็วเสียงไม่ได้ เสียงที่ต้องยืดจะไม่ตรงภาพ · ดูจากคลื่นเสียงที่ยืดแล้วข้างบน" : null;
+  const noPlay = speedOn ? "ลองฟังยังใส่ความเร็วเสียงไม่ได้ เสียงที่ต้องยืดจะไม่ตรงภาพ ให้ดูจากคลื่นเสียงที่ยืดแล้วข้างบนแทน" : null;
   let res: React.ReactNode = null;
-  if (finding) res = <div className="stat info" data-delay-res="finding"><CardIcon kind="info" /><div><b>กำลังเทียบเสียง 3 ช่วง ต้นเรื่อง กลางเรื่อง ท้ายเรื่อง…</b><Phr>ถอดเสียงทั้งสองแทร็กแล้วเทียบคลื่นเสียงกัน ไม่แตะไฟล์</Phr></div></div>;
+  if (finding) res = <div className="stat info" data-delay-res="finding"><CardIcon kind="info" /><div><b>กำลังเทียบเสียง 3 ช่วง คือต้นเรื่อง กลางเรื่อง และท้ายเรื่อง</b><Phr>ถอดเสียงทั้งสองแทร็กแล้วเทียบคลื่นเสียงกัน โดยไม่แตะไฟล์</Phr></div></div>;
   else if (findErr) res = <div className="stat bad" data-delay-res="error"><CardIcon kind="bad" /><div><b>หาค่าดีเลย์ไม่ได้</b><Phr>{findErr}</Phr></div></div>;
   else if (found && found.speed) res = (
     <div className="stat warn" data-delay-res="speed"><CardIcon kind="warn" /><div>
-      <b>{`เสียงเร็วไม่เท่าหนัง · ยืดตามคู่ ${pairText} แล้วตรงกัน ${pct(found.score)}`}</b>
-      <Phr>{`เทียบตรง ๆ ตรงกันแค่ ${pct(found.direct)} เสียงเหลื่อมเพิ่มขึ้นเรื่อย ๆ · ${found.speed[0] === 25 ? "น่าจะเป็นเสียงของหนังรุ่น 25 ภาพต่อวินาที (แผ่นยุโรป PAL) · " : ""}ปุ่มข้างล่างตั้งความเร็วเสียง ${pairText} ในแผงตั้งค่าเสียง และใส่ดีเลย์ ${sign(found.delay)} ms ให้ด้วย`}</Phr>
+      <b>{`เสียงเร็วไม่เท่าหนัง เมื่อยืด${pairText} แล้วตรงกัน ${pct(found.score)}`}</b>
+      <Phr>{`เทียบตรง ๆ ตรงกันแค่ ${pct(found.direct)} เพราะเสียงเหลื่อมเพิ่มขึ้นเรื่อย ๆ  ${found.speed[0] === 25 ? "น่าจะเป็นเสียงของหนังรุ่น 25 ภาพต่อวินาที (แผ่นยุโรป PAL)  " : ""}ปุ่มข้างล่างจะตั้งความเร็วเสียง${pairText} ในแผงตั้งค่าเสียง และใส่ดีเลย์ ${sign(found.delay)} ms ให้ด้วย`}</Phr>
       <div style={{ marginTop: 6 }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => p.onSpeed(found.speed!, delay)} data-delay-speed>{`ตั้งความเร็ว ${pairText} ในแผงตั้งค่าเสียง`}</button></div></div></div>);
   else if (found && found.score < 0.3) res = (
     <div className="stat warn" data-delay-res="none"><CardIcon kind="warn" /><div><b>{`หาไม่เจอ ตรงกันสูงสุด ${pct(found.score)}`}</b>
-      <Phr>เสียงอาจเป็นคนละรุ่น หรือไม่มีเสียงประกอบร่วมกันเลย (เช่น เสียงบรรยายล้วน) · ลากแถบเลื่อนเทียบยอดเสียงเอง แล้วลองฟัง</Phr></div></div>);
+      <Phr>เสียงอาจเป็นคนละรุ่น หรือไม่มีเสียงประกอบร่วมกันเลย (เช่น เสียงบรรยายล้วน) ให้ลากแถบเลื่อนเทียบยอดเสียงเองแล้วลองฟัง</Phr></div></div>);
   else if (found && found.uneven) res = (
-    <div className="stat warn" data-delay-res="uneven"><CardIcon kind="warn" /><div><b>{`ค่าสามช่วงไม่เท่ากัน · ${wText}`}</b>
-      <Phr>{`ตั้งไว้ที่ค่ากลาง ${sign(found.delay)} ms · เสียงอาจถูกตัดต่อไม่เหมือนหนัง หรือเป็นหนังคนละรุ่น ลองฟังหลายช่วงก่อนใช้`}</Phr></div></div>);
+    <div className="stat warn" data-delay-res="uneven"><CardIcon kind="warn" /><div><b>{`ค่าสามช่วงไม่เท่ากัน โดย${wText}`}</b>
+      <Phr>{`ตั้งไว้ที่ค่ากลาง ${sign(found.delay)} ms  เสียงอาจถูกตัดต่อไม่เหมือนหนังหรือเป็นหนังคนละรุ่น ควรลองฟังหลายช่วงก่อนใช้`}</Phr></div></div>);
   else if (found) res = (
-    <div className="stat ok" data-delay-res="ok"><CardIcon kind="ok" /><div><b>{`โปรแกรมหาให้ ${sign(found.delay)} ms · ตรงกัน ${pct(found.score)}`}</b>
-      <Phr>{`${sameAsName ? "ตรงกับค่าในชื่อไฟล์ · " : ""}เทียบ 3 ช่วง ${wText} ได้ค่าเดียวกัน แปลว่าไม่ต้องตั้งความเร็วเสียง`}</Phr></div></div>);
+    <div className="stat ok" data-delay-res="ok"><CardIcon kind="ok" /><div><b>{`โปรแกรมหาให้ได้ ${sign(found.delay)} ms และตรงกัน ${pct(found.score)}`}</b>
+      <Phr>{`${sameAsName ? "ตรงกับค่าในชื่อไฟล์ และ" : ""}เทียบ 3 ช่วงได้ค่าเดียวกัน โดย${wText} แปลว่าไม่ต้องตั้งความเร็วเสียง`}</Phr></div></div>);
 
   return (
-    <Dialog open onClose={p.onClose} width={900} title={<span>หาค่าดีเลย์ · <span style={{ overflowWrap: "anywhere" }}>{baseName(t.src)}</span></span>}
+    <Dialog open onClose={p.onClose} width={900} title={<span>หาค่าดีเลย์ของ <span style={{ overflowWrap: "anywhere" }}>{baseName(t.src)}</span></span>}
       actions={<>
         <div style={{ display: "flex", gap: 8, marginRight: "auto" }}>
           <button type="button" className={"btn btn-sm " + (finding ? "btn-wait" : "btn-ghost")} aria-disabled={finding || undefined} title={finding ? "กำลังหาอยู่" : undefined} onClick={() => { if (!finding) find(); }} data-delay-find><IcSearch size={15} />ให้โปรแกรมหาให้</button>
@@ -136,14 +136,14 @@ export default function DelayDialog(p: {
               setPrev({ busy: true });
               delayApi.preview(p.movie.path, t.src, t.tid, delay, view.at, (window as unknown as { __delayDry?: boolean }).__delayDry)
                 .then((r) => setPrev({ busy: false, r }), (e) => setPrev({ busy: false, err: String(e) }));
-            }} data-delay-play><Keep icon={<IbPlay size={15} />} all={["กำลังทำไฟล์ลองฟัง…", "ลองฟัง 20 วินาที"]}>{prev.busy ? "กำลังทำไฟล์ลองฟัง…" : "ลองฟัง 20 วินาที"}</Keep></button>
+            }} data-delay-play><Keep icon={<IbPlay size={15} />} all={["กำลังทำไฟล์ลองฟัง", "ลองฟัง 20 วินาที"]}>{prev.busy ? "กำลังทำไฟล์ลองฟัง" : "ลองฟัง 20 วินาที"}</Keep></button>
         </div>
         <button type="button" className="btn btn-ghost btn-sm" onClick={p.onClose}>ยกเลิก</button>
         <button type="button" className="btn btn-main btn-sm" onClick={() => p.onApply(delay)} data-delay-use><IbTick size={15} />ใช้ค่านี้</button>
       </>}>
       <div style={{ display: "flex", flexDirection: "column", gap: 12 }} data-delay-dialog>
         <div className="small" style={{ marginTop: -6 }}>
-          <Phr>{`เทียบกับ ${p.refTrack.name || "เสียงเดิมในหนัง"} · ${view ? `ช่วงนาที ${mmss(view.at)}–${mmss(view.at + view.len)}` : "กำลังโหลดคลื่นเสียง…"}${found?.speed ? ` · เสียงใหม่ยืดตามคู่ ${pairText} แล้ว` : ""}`}</Phr></div>
+          <Phr>{`เทียบกับ ${p.refTrack.name || "เสียงเดิมในหนัง"}  ${view ? `ช่วงนาที ${mmss(view.at)} ถึง ${mmss(view.at + view.len)}` : "กำลังโหลดคลื่นเสียง"}${found?.speed ? `  โดยเสียงใหม่ยืด${pairText} แล้ว` : ""}`}</Phr></div>
         <div className="lanes2">
           <div className="lane2"><div className="dlab"><b>เสียงเดิมในหนัง</b>{p.refTrack.name || "เสียงในหนัง"}</div>
             {view ? <canvas ref={la} aria-label="คลื่นเสียงเดิมในหนัง" data-lane="a" /> : <div className="skel" style={{ height: 64, borderRadius: 6 }} />}</div>
@@ -161,11 +161,11 @@ export default function DelayDialog(p: {
               onChange={(e) => setText(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === "Enter") { commit(); (e.target as HTMLInputElement).blur(); } }} />
             <button type="button" aria-label="เพิ่มดีเลย์ 10 ms" onClick={() => setDelay((d) => d + 10)}>+</button>
           </div>
-          <span className="small">ms · ติดลบ = เสียงใหม่มาเร็วขึ้น</span>
+          <span className="small">ms ค่าติดลบแปลว่าเสียงใหม่มาเร็วขึ้น</span>
         </div>
         {res}
-        {moved && <div className="small" data-delay-moved><Phr>{`ตอนนี้ตั้ง ${sign(delay)} ms ต่างจากที่โปรแกรมหาได้ (${sign(found!.delay)} ms) · ดูยอดเสียงในคลื่นว่าตรงกันไหม หรือกดลองฟัง`}</Phr></div>}
-        {prev.r && <div className="small" data-delay-preview data-file={prev.r.file}><Phr>{prev.r.opened ? `เปิดไฟล์ลองฟังด้วย ${prev.r.player || "โปรแกรมหลักของ Windows"} แล้ว · ช่วง ${mmss(view?.at ?? 0)} ยาว 20 วินาที ภาพจากหนัง เสียงใหม่ใส่ดีเลย์ ${sign(delay)} ms · ไฟล์ลองฟังอยู่ในโฟลเดอร์ชั่วคราว ไฟล์หนังไม่ถูกแก้` : "ทำไฟล์ลองฟังแล้ว (รุ่นทดสอบไม่เปิดโปรแกรมเล่น)"}</Phr>{t.convert?.speed ? <><br /><Phr>ลองฟังใส่แค่ดีเลย์ ความเร็วเสียงที่ตั้งไว้มีผลตอนรวมจริง</Phr></> : null}</div>}
+        {moved && <div className="small" data-delay-moved><Phr>{`ตอนนี้ตั้ง ${sign(delay)} ms ต่างจากที่โปรแกรมหาได้ (${sign(found!.delay)} ms)  ให้ดูยอดเสียงในคลื่นว่าตรงกันไหม หรือกดลองฟัง`}</Phr></div>}
+        {prev.r && <div className="small" data-delay-preview data-file={prev.r.file}><Phr>{prev.r.opened ? `เปิดไฟล์ลองฟังด้วย ${prev.r.player || "โปรแกรมหลักของ Windows"} แล้ว  เป็นช่วง ${mmss(view?.at ?? 0)} ยาว 20 วินาที ใช้ภาพจากหนังกับเสียงใหม่ที่ใส่ดีเลย์ ${sign(delay)} ms  ไฟล์ลองฟังอยู่ในโฟลเดอร์ชั่วคราว และไฟล์หนังไม่ถูกแก้` : "ทำไฟล์ลองฟังแล้ว (รุ่นทดสอบไม่เปิดโปรแกรมเล่น)"}</Phr>{t.convert?.speed ? <><br /><Phr>ลองฟังใส่แค่ดีเลย์ ความเร็วเสียงที่ตั้งไว้มีผลตอนรวมจริง</Phr></> : null}</div>}
         {noPlay && <div className="small" data-delay-noplay><Phr>{noPlay}</Phr></div>}
         {prev.err && <div className="stat bad"><CardIcon kind="bad" /><div><b>ลองฟังไม่ได้</b><Phr>{prev.err}</Phr></div></div>}
       </div>

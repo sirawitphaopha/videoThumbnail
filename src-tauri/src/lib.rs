@@ -90,6 +90,8 @@ pub fn run() {
             // ตอนเทสผ่าน scripts/dev-app.ps1 เปิดแบบไม่แย่งโฟกัส อยู่หลังหน้าต่างอื่น · เปิดปกติขึ้นหน้าตามปกติ
             // รุ่นจริงที่ติดตั้งแล้วก็ใช้ได้เมื่อคนเปิดตั้งตัวแปรนี้เอง ใช้เทสตัวติดตั้งตอนพี่กันลงเวร ไม่ให้หน้าต่างเด้งขึ้นหน้าจอคนอื่น (ขั้น 8)
             // ตัวแปรนี้แค่วางหน้าต่างไว้หลังสุด ไม่เปิดสิทธิ์หรือคำสั่งอะไรเพิ่ม
+            // หน้าต่างใหญ่กว่าจอ (จอเล็ก หรือจำขนาดจากจอใหญ่) ย่อให้พอดีก่อนแสดง
+            if let Some(w) = app.get_webview_window("main") { winutil::fit_monitor(&w); }
             match app.get_webview_window("main") {
                 Some(w) if std::env::var("MOVIE_SHELF_BACKGROUND").as_deref() == Ok("1") => {
                     winutil::show_behind(&w);
@@ -105,6 +107,17 @@ pub fn run() {
         })
         // กันปิดตอนมีงาน ทางที่ 1 กดปิดหน้าต่าง (ปุ่มปิดของแถบชื่อ · Alt+F4 · ปิดจากแถบงาน) · มีคู่รูปปกที่ยังไม่ยืนยันก็ถามที่นี่
         .on_window_event(|window, event| {
+            // ลากหน้าต่างไปจอที่เล็กกว่า ย่อให้พอดีพื้นที่ใช้ได้ของจอนั้น · รอหยุดลาก 0.4 วินาทีก่อน ไม่สู้มือคนที่ลากอยู่
+            if let WindowEvent::Moved(_) = event {
+                static MOVES: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+                let n = MOVES.fetch_add(1, std::sync::atomic::Ordering::SeqCst) + 1;
+                if let Some(w) = window.app_handle().get_webview_window(window.label()) {
+                    std::thread::spawn(move || {
+                        std::thread::sleep(std::time::Duration::from_millis(400));
+                        if MOVES.load(std::sync::atomic::Ordering::SeqCst) == n { winutil::fit_monitor(&w); }
+                    });
+                }
+            }
             if let WindowEvent::CloseRequested { api, .. } = event {
                 if jobs::guard_close(window.app_handle()) {
                     api.prevent_close();

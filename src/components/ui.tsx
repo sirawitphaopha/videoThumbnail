@@ -141,23 +141,99 @@ export function StatIcon({ kind }: { kind: "ok" | "bad" | "warn" | "info" }) {
    วลีที่ยาวกว่าช่องเองค่อยตัดในวลีตามพจนานุกรม · ไม้ยมก ๆ ติดกับวลีหน้าเสมอ ห้ามขึ้นต้นบรรทัด
    head = ของที่นำหน้าวลีแรก (จุดสีบนชั้น) ไม่ให้ค้างอยู่บรรทัดเดียวโดด ๆ · tail = ของที่ต่อท้ายวลีสุดท้าย (นามสกุลไฟล์) */
 type Part = { text: string; hit?: boolean };
-export function Phrases({ parts, head, tail }: { parts: Part[]; head?: React.ReactNode; tail?: React.ReactNode }) {
+/** ข้อความที่มีเว้นวรรคผูก (ตัวเลขกับคำ ไม้ยมก) ล็อกเฉพาะคำที่ติดเว้นวรรคนั้น ไม่ล็อกทั้งวลีไทยที่ติดกัน
+ *  เช่น "ผู้ทำแนะนำราว 256" ล็อกแค่ "ราว 256" ส่วน "ผู้ทำแนะนำ" ตัดที่ขอบคำได้ บรรทัดเต็ม กระจายแบบไทยไม่ถ่าง (พี่กันทัก 11 พ.ย. 2569 "ระยะห่างมึงไปแหกตาด้วย") */
+const thaiWords = typeof Intl !== "undefined" && "Segmenter" in Intl ? new Intl.Segmenter("th", { granularity: "word" }) : null;
+export function keepNodes(text: string, next: () => number): React.ReactNode[] {
+  const parts = text.split(" ");
+  if (parts.length < 2 || !thaiWords) return [<span key={next()} className="keep">{text}</span>];
+  const seg = (p: string) => [...thaiWords.segment(p)].map((x) => x.segment);
   const out: React.ReactNode[] = [];
+  let keep = "";
+  parts.forEach((p, i) => {
+    const w = seg(p);
+    if (i === 0) { out.push(w.slice(0, -1).join("")); keep = w[w.length - 1] ?? ""; return; }
+    keep += " " + (w[0] ?? "");
+    if (w.length > 1) { out.push(<span key={next()} className="keep">{keep}</span>, w.slice(1, -1).join("")); keep = w[w.length - 1]; }
+  });
+  out.push(<span key={next()} className="keep">{keep}</span>);
+  return out.filter((x) => x !== "");
+}
+
+/** คำประสมที่ตัวตัดคำของระบบแยกเป็นสองคำ แต่ห้ามตัดบรรทัดกลางคำ (เจอ "ตัว|แปลง" "ติด|ตั้ง" ตอนตรวจภาพ 11 พ.ย. 2569) · เจอคำใหม่เพิ่มที่นี่ */
+const COMPOUNDS = ["ตัวแปลง", "ติดตั้ง", "เครื่องเล่น", "ไฟล์หนัง", "ไฟล์เสียง", "โปรแกรม", "โฟลเดอร์", "บิตเรต", "ความถี่", "ความดัง", "ความยาว", "ความเร็ว", "แปลงเสียง", "ถังขยะ", "ต้นฉบับ", "ชั้นวาง", "โปสเตอร์", "หน้าตั้งค่า", "ค่าตั้งต้น", "ช่องเสียง", "ลำโพง", "เสียงพูด", "เสียงร้อง", "ปกจับคู่", "จับคู่", "ไม่เสียคุณภาพ", "เสียคุณภาพ"];
+const COMPOUND_RE = new RegExp(`(${[...COMPOUNDS].sort((a, b) => b.length - a.length).join("|")})`);
+/** คำท้ายวลีที่ห้ามตกไปขึ้นต้นบรรทัด ผูกกับคำหน้าเสมอ (เจอ "แนบมากับโปรแกรม|แล้ว" ตอนตรวจภาพหน้าตั้งค่า 11 พ.ย. 2569) */
+const GLUE = new Set(["แล้ว", "ด้วย", "เอง", "ก่อน", "ไว้", "อยู่", "ได้", "นั้น", "นี้", "กัน", "ไหม"]);
+/** คำนำที่ห้ามค้างท้ายบรรทัด ผูกกับคำถัดไปเสมอ (เจอ "ไม่|นับเป็นปก" 11 พ.ย. 2569) */
+const PREFIX = new Set(["ไม่", "การ", "ความ", "และ", "แต่", "หรือ", "ถ้า", "จะ", "ที่", "ซึ่ง", "ของ", "เมื่อ", "เพื่อ"]);
+/** ตัวเชื่อมคำ (U+2060) ใส่ระหว่างคำที่ห้ามตัดบรรทัดตรงนั้น ตัวอักษรยังกระจายได้ ไม่เป็นกล่อง · ใช้ตอนอ่านภาพแล้วเจอวลีขาดกลาง */
+export const J = "⁠";
+export function thaiKeep(text: string, next: () => number): React.ReactNode[] {
+  // แบ่งเป็นหน่วย คำประสมเป็นหน่วยล็อก คำอื่นแยกตามพจนานุกรม แล้วผูกคำท้ายวลีเข้ากับหน่วยหน้า
+  const units: { t: string; lock: boolean; pre?: boolean }[] = [];
+  for (const part of text.split(COMPOUND_RE).filter(Boolean)) {
+    const prev0 = units[units.length - 1];
+    if (COMPOUNDS.includes(part)) {
+      if (prev0?.pre) { prev0.t += part; prev0.lock = true; prev0.pre = false; } else units.push({ t: part, lock: true });
+      continue;
+    }
+    for (const w of thaiWords ? [...thaiWords.segment(part)].map((x) => x.segment) : [part]) {
+      const prev = units[units.length - 1];
+      if (prev && (GLUE.has(w) || prev.pre)) { prev.t += w; prev.lock = true; prev.pre = PREFIX.has(w); } else units.push({ t: w, lock: false, pre: PREFIX.has(w) });
+    }
+  }
+  const out: React.ReactNode[] = [];
+  let plain = "";
+  for (const u of units) {
+    if (!u.lock) { plain += u.t; continue; }
+    if (plain) { out.push(plain); plain = ""; }
+    out.push(<span key={next()} className="kw">{u.t}</span>);
+  }
+  if (plain) out.push(plain);
+  return out;
+}
+
+export function Phrases({ parts, head, tail }: { parts: Part[]; head?: React.ReactNode; tail?: React.ReactNode }) {
+  let out: React.ReactNode[] = [];
   let k = 0;
   let cur: React.ReactNode[] = head ? [<span key={k++}>{head}</span>] : [];
-  const flush = () => { if (cur.length) out.push(<span key={k++} className="phr">{cur}</span>); cur = []; };
+  // ล็อกเฉพาะก้อนที่ผูกหลายคำ (ตัวเลขกับคำ ไม้ยมก) คำเดี่ยวตัดที่ขอบคำไทยได้ตามปกติ ให้กระจายแบบไทยเติมระยะน้อย
+  const flush = () => {
+    if (!cur.length) return;
+    const bound = cur.length > 1 || cur.some((x) => typeof x === "string" && x.includes(" "));
+    if (bound && cur.every((x) => typeof x === "string")) out.push(<span key={k++} className="phr">{keepNodes((cur as string[]).join(""), () => k++)}</span>);
+    // คำที่ไม่มีตัวไทย (ตัวอังกฤษ ตัวเลข) เป็นกล่อง ไม่ถูกถ่างตอนกระจายแบบไทย
+    else if (!bound && cur.length === 1 && typeof cur[0] === "string" && /[฀-๿]/.test(cur[0])) out.push(<span key={k++} className="phr">{thaiKeep(cur[0], () => k++)}</span>);
+    else out.push(<span key={k++} className={bound || cur.every((x) => typeof x === "string" && !/[฀-๿]/.test(x)) ? "phr keep" : "phr"}>{cur}</span>);
+    cur = [];
+  };
+  // เว้นวรรคสองช่อง = รอยต่อประโยค แต่ละประโยคเป็นก้อน ไม่พอที่ย้ายลงทั้งก้อน ตัดบรรทัดตามความหมาย (CLAUDE.md · พี่กันสั่ง 11 พ.ย. 2569)
+  // ข้อความที่มีประโยคเดียวไม่ห่อ หน้าอื่นหน้าตาเหมือนเดิม
+  const clauses: React.ReactNode[][] = [];
+  const endClause = () => { flush(); clauses.push(out); out = []; };
   let numOnly = false; // วลีที่เพิ่งจบเป็นตัวเลขล้วน · เลขกับคำถัดไป (3 วินาที · 19 เรื่อง) ห้ามแยกบรรทัด
   for (const p of parts) {
-    for (const s of p.text.split(/( +)(?!ๆ)/)) {
-      if (!s) continue;
-      if (!s.trim()) { if (numOnly) { cur.push(s); numOnly = false; continue; } flush(); out.push(s); continue; }
+    // ขึ้นบรรทัดใหม่ในข้อความแสดงเป็นบรรทัดจริง (แทนจุดคั่น · ที่ห้ามใช้บนจอ · สกิล web-craft)
+    // ไม้ยมกติดกับคำหน้าและคำหลัง "พอ ๆ กัน" "ค่อย ๆ เหลื่อม" ไม่แยกบรรทัด
+    const toks = p.text.split(/(\n| {2,}|(?<!ๆ)(?: +)(?!ๆ))/).filter(Boolean);
+    for (let ti = 0; ti < toks.length; ti++) {
+      const s = toks[ti];
+      if (s === "\n") { flush(); out.push(<br key={k++} />); numOnly = false; continue; }
+      if (/^ {2,}$/.test(s)) { endClause(); numOnly = false; continue; }
+      // คำกับตัวเลขที่ตามมาอยู่ด้วยกัน "เสียง 5.1" "ราว 256" (CLAUDE.md ตัดบรรทัดตามความหมาย)
+      // ก้อนที่มีตัวเลขอยู่แล้วไม่ผูกตัวเลขตัวถัดไปเพิ่ม กันต่อกันยาว "ระดับ 0 ถึง 127 ระดับ 91"
+      const nextNum = /^[−+≈-]?\d/.test(toks[ti + 1] ?? "") && !cur.some((x) => typeof x === "string" && /\d/.test(x));
+      if (!s.trim()) { if (numOnly || nextNum) { cur.push(s); numOnly = false; continue; } flush(); out.push(s); continue; }
       numOnly = /^[\d.,:]+$/.test(s);
       cur.push(p.hit ? <span key={k++} className="hl">{s}</span> : s);
     }
   }
   if (tail) cur.push(<span key={k++}>{tail}</span>);
   flush();
-  return <>{out}</>;
+  if (!clauses.length) return <>{out}</>;
+  clauses.push(out);
+  return <>{clauses.map((c, i) => <span key={`c${i}`}>{i > 0 && " "}<span className="clause">{c}</span></span>)}</>;
 }
 /** ลูกศรหัวตาราง · เรียงอยู่บอกทิศจริง · คอลัมน์ที่กดเรียงได้แต่ยังไม่ได้เรียง ขึ้นลูกศรคู่จาง ๆ ให้รู้ว่ากดได้ */
 export const SortArrow = ({ dir }: { dir: 1 | -1 | 0 }) => (

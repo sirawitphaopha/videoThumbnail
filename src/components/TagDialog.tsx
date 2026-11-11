@@ -24,12 +24,12 @@ export function tagRows(f: AudioFile, cover: CoverData | null): [string, string]
   const tr = get("track"), disc = get("disc");
   if (tr || disc) {
     const [n, of] = (tr ?? "").split("/");
-    rows.push(["แทร็ก", [tr ? (of ? `${n} จาก ${of}` : n) : "", disc ? `แผ่น ${disc.split("/")[0]}` : ""].filter(Boolean).join(" · ")]);
+    rows.push(["แทร็ก", [tr ? (of ? `${n} จาก ${of}` : n) : "", disc ? `แผ่นที่ ${disc.split("/")[0]}` : ""].filter(Boolean).join(", ")]);
   }
   for (const k of ["genre", "composer", "comment"]) { const v = get(k); if (v) rows.push([LABEL[k], v]); }
-  if (f.cover) rows.push(["รูปปก", `${f.cover.codec === "mjpeg" ? "JPG" : f.cover.codec.toUpperCase()} ${f.cover.width.toLocaleString("en-US")} × ${f.cover.height.toLocaleString("en-US")}${cover ? ` · ${fmtSize(cover.bytes)}` : ""}`]);
+  if (f.cover) rows.push(["รูปปก", `${f.cover.codec === "mjpeg" ? "JPG" : f.cover.codec.toUpperCase()} ${f.cover.width.toLocaleString("en-US")} × ${f.cover.height.toLocaleString("en-US")}${cover ? ` ขนาด ${fmtSize(cover.bytes)}` : ""}`]);
   const ag = get("replaygain_album_gain"), tg = get("replaygain_track_gain");
-  if (ag || tg) rows.push(["ค่าความดัง", [ag ? `อัลบั้ม ${minus(ag)}` : "", tg ? `เพลง ${minus(tg)}` : ""].filter(Boolean).join(" · ")]);
+  if (ag || tg) rows.push(["ค่าความดัง", [ag ? `อัลบั้ม ${minus(ag)}` : "", tg ? `เพลง ${minus(tg)}` : ""].filter(Boolean).join(", ")]);
   return rows;
 }
 
@@ -37,7 +37,7 @@ export function tagRows(f: AudioFile, cover: CoverData | null): [string, string]
 export function whyNone(f: AudioFile): string {
   const ft = ftName("audio", f.codec, f.profile);
   if (!f.audioOnly) return "ไฟล์หนังเก็บชื่อเรื่องแทนข้อมูลเพลง ดูข้อมูลหนังได้ที่หน้า MediaInfo";
-  if (ft === "PCM") return "ไฟล์ WAV ส่วนใหญ่ไม่เก็บชื่อเพลงกับรูปปก · แปลงเป็น FLAC แล้วก็ยังไม่มีข้อมูล เพราะต้นฉบับไม่มี";
+  if (ft === "PCM") return "ไฟล์ WAV ส่วนใหญ่ไม่เก็บชื่อเพลงกับรูปปก ถึงแปลงเป็น FLAC แล้วก็ยังไม่มีข้อมูล เพราะต้นฉบับไม่มี";
   if (["AC-3", "E-AC-3", "DTS", "TrueHD"].includes(ft)) return `ไฟล์ ${ft} แยกเดี่ยวไม่มีที่เก็บข้อมูลเพลงกับรูปปก`;
   return "ไฟล์นี้ไม่ได้ใส่ชื่อเพลงกับรูปปกไว้";
 }
@@ -66,9 +66,9 @@ export default function TagDialog({ path, onClose }: { path: string; onClose: ()
     navigator.clipboard?.writeText(txt).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }).catch(() => {});
   };
   return (
-    <Dialog open onClose={onClose} kind="menu" width={620} title={<span>ข้อมูลเพลง · <span style={{ overflowWrap: "anywhere" }}>{name}</span></span>}
+    <Dialog open onClose={onClose} kind="menu" width={620} title={<span>ข้อมูลเพลงของ <span style={{ overflowWrap: "anywhere" }}>{name}</span></span>}
       actions={<>
-        <span className="small" style={{ marginRight: "auto", alignSelf: "center" }}>ดูอย่างเดียว · การแก้ข้อมูลเพลงอยู่ในโรดแมป</span>
+        <span className="small" style={{ marginRight: "auto", alignSelf: "center" }}>ดูได้อย่างเดียว ยังแก้ข้อมูลเพลงไม่ได้</span>
         {hasTags && <button type="button" className="btn btn-ghost btn-sm" onClick={copy} data-tagcopy><Keep icon={<IcCopy size={14} />} all={["คัดลอกแล้ว", "คัดลอกเป็นข้อความ"]}>{copied ? "คัดลอกแล้ว" : "คัดลอกเป็นข้อความ"}</Keep></button>}
         <button type="button" className="btn btn-main btn-sm" onClick={onClose}>ปิด</button>
       </>}>

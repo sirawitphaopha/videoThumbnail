@@ -33,7 +33,7 @@ export function ToastHost({ children }: { children: React.ReactNode }) {
             <StatIcon kind={t.kind} />
             <div className="grow">
               <b>{t.title}</b>
-              {t.detail?.split(" · ").map((line) => <div key={line}><Phr>{line}</Phr></div>)}
+              {t.detail?.split(/ · |  /).map((line) => <div key={line}><Phr>{line}</Phr></div>)}
             </div>
             <button type="button" className="x" aria-label="ปิดแถบนี้" title="ปิดแถบนี้" onClick={() => remove(t.id)}>
               <IcClose />

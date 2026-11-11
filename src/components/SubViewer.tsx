@@ -42,7 +42,7 @@ function Find(p: { q: string; setQ: (v: string) => void; n: number; at: number; 
     <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
       <input className="inp" style={{ flex: 1, height: 32, fontSize: 13.5 }} value={p.q} placeholder="ค้นในซับ" aria-label="ค้นในซับ" onChange={(e) => p.setQ(e.target.value)} data-sub-q
         onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); p.go(e.shiftKey ? -1 : 1); } }} />
-      <span className="small nw" data-sub-hits>{p.q ? (p.n ? `เจอ ${p.n} ที่ · ที่ ${p.at + 1} จาก ${p.n}` : "ไม่เจอ") : ""}</span>
+      <span className="small nw" data-sub-hits>{p.q ? (p.n ? `เจอ ${p.n} ที่ อยู่ที่ ${p.at + 1} จาก ${p.n}` : "ไม่เจอ") : ""}</span>
       <button type="button" className={"btn btn-sm " + (p.n ? "btn-ghost" : "btn-wait")} aria-disabled={!p.n || undefined} title={p.n ? undefined : p.q ? "ไม่เจอคำที่ค้น" : "พิมพ์คำที่จะค้นก่อน"} onClick={() => p.n && p.go(-1)}><IbBack size={15} />ก่อนหน้า</button>
       <button type="button" className={"btn btn-sm " + (p.n ? "btn-ghost" : "btn-wait")} aria-disabled={!p.n || undefined} title={p.n ? undefined : p.q ? "ไม่เจอคำที่ค้น" : "พิมพ์คำที่จะค้นก่อน"} onClick={() => p.n && p.go(1)} data-sub-next><IbNext size={15} />ถัดไป</button>
     </div>
@@ -137,16 +137,16 @@ function TextView(p: { track: AvTrack; movie: string; refStream: number | null; 
         {lines.map((l, i) => <div key={i} className={"npl" + (hits[hit] === i ? " cur" : "")} data-i={i}><span className="ln">{i + 1}</span><span className="tx"><Hi text={l} q={q.trim()} /></span></div>)}
       </div>
       <div className="npst"><span>{lines.length.toLocaleString("en-US")} บรรทัด</span><span>{data.kind.toUpperCase()}</span><span>{data.charset}</span></div>
-      <div className="small"><Phr>เปิดไฟล์จริงทุกตัวอักษร เหมือนเปิดใน notepad · เวลาตามไฟล์ ยังไม่บวกดีเลย์ · ดูอย่างเดียว</Phr></div>
+      <div className="small"><Phr>เปิดไฟล์จริงทุกตัวอักษรเหมือนเปิดใน Notepad เวลาเป็นไปตามไฟล์โดยยังไม่บวกดีเลย์ และดูได้อย่างเดียว</Phr></div>
     </>);
   }
   if (tab === "long") {
     return (<>
       <Find q={q} setQ={setQ} n={hits.length} at={hit} go={go} />
       <div className="subtext" ref={list} data-long-view>
-        {cues.map((x, i) => <div key={i} className={"cue" + (i === sel && k ? " cur" : "")} data-i={i}><span className="n">{x.n}</span><span className="t">{ts(x.start + d)} → {ts(x.end + d)}</span><span style={{ whiteSpace: "pre-line" }}><Hi text={x.text} q={q.trim()} /></span></div>)}
+        {cues.map((x, i) => <div key={i} className={"cue" + (i === sel && k ? " cur" : "")} data-i={i}><span className="n">{x.n}</span><span className="t">{ts(x.start + d)} ถึง {ts(x.end + d)}</span><span style={{ whiteSpace: "pre-line" }}><Hi text={x.text} q={q.trim()} /></span></div>)}
       </div>
-      <div className="small"><Phr>{`ดูอย่างเดียว แก้ไม่ได้${data.kind === "ass" ? " · ซับ ASS แสดงเฉพาะข้อความ ไม่แสดงสีกับตำแหน่ง" : ""}${data.charset === "TIS-620" ? " · ภาษาไทยที่เข้ารหัสแบบเก่า (TIS-620) โปรแกรมแปลงให้อ่านได้" : ""}`}</Phr></div>
+      <div className="small"><Phr>{`ดูได้อย่างเดียวและแก้ไม่ได้${data.kind === "ass" ? " ส่วนซับ ASS แสดงเฉพาะข้อความ ไม่แสดงสีกับตำแหน่ง" : ""}${data.charset === "TIS-620" ? " และภาษาไทยที่เข้ารหัสแบบเก่า (TIS-620) โปรแกรมแปลงให้อ่านได้แล้ว" : ""}`}</Phr></div>
     </>);
   }
   return (<>
@@ -166,12 +166,12 @@ function TextView(p: { track: AvTrack; movie: string; refStream: number | null; 
           {p.refIdx != null && <span style={{ marginLeft: "auto" }}><Seg small label="แบบคลื่นเสียง" value={look} onChange={setLook} options={[{ value: "wave", label: <><IcGraph size={14} />รูปคลื่น</> }, { value: "spec", label: <><IbEye size={14} />ความถี่</> }]} /></span>}
         </div>
         {playErr && <div className="small" style={{ color: "var(--bad-ink)" }}>{playErr}</div>}
-        <div className="small"><Phr>{`กรอบชมพูคือเวลาของแต่ละบรรทัด กรอบเข้มคือบรรทัดที่เลือก · เส้นตั้งคือเวลาเริ่มกับจบ${look === "spec" ? " · ความถี่ต่ำอยู่ล่าง สูงอยู่บน สว่างคือดัง" : ""}`}</Phr></div>
+        <div className="small"><Phr>{`กรอบสีจางคือเวลาของแต่ละบรรทัด กรอบเข้มคือบรรทัดที่เลือก และเส้นตั้งคือเวลาเริ่มกับจบ${look === "spec" ? "  ความถี่ต่ำอยู่ล่าง ความถี่สูงอยู่บน และส่วนที่สว่างคือเสียงดัง" : ""}`}</Phr></div>
       </div>
     </div>
     <Find q={q} setQ={setQ} n={hits.length} at={hit} go={go} />
     <div className="sgrid" ref={list} data-sub-table>
-      <table><thead><tr><th className="num">#</th><th className="num">เริ่ม</th><th className="num">จบ</th><th className="num">ยาว (วิ)</th><th className="num">ตัว/วิ</th><th>ข้อความ</th></tr></thead>
+      <table><thead><tr><th className="num">ลำดับ</th><th className="num">เริ่ม</th><th className="num">จบ</th><th className="num">ยาว (วินาที)</th><th className="num">ตัวต่อวินาที</th><th>ข้อความ</th></tr></thead>
         <tbody>{cues.map((x, i) => {
           const dur = Math.max(0.01, x.end - x.start), cps = x.text.replace(/\s/g, "").length / dur, prev = cues[i - 1];
           const overlap = !!prev && x.start < prev.end, fast = cps > 20;
@@ -183,7 +183,7 @@ function TextView(p: { track: AvTrack; movie: string; refStream: number | null; 
         })}</tbody></table>
     </div>
     <div className="lg"><span><i className="ln" />ตัวอักษรต่อวินาทีเกิน 20 อ่านไม่ทัน</span><span><i className="ln" />เวลาเริ่มซ้อนกับบรรทัดก่อน</span></div>
-    <div className="small"><Phr>{`ดูอย่างเดียว แก้ไม่ได้ · ภาพหนังโปรแกรมถอดจากไฟล์ตรงเวลานั้นทีละภาพ · หน้าตาแบบ Aegisub ไม่ได้ใช้โค้ดของ Aegisub${data.kind === "ass" ? " · ซับ ASS แสดงเฉพาะข้อความ" : ""}`}</Phr></div>
+    <div className="small"><Phr>{`ดูได้อย่างเดียวและแก้ไม่ได้  ภาพหนังโปรแกรมถอดจากไฟล์ตรงเวลานั้นทีละภาพ  หน้าตาทำแบบ Aegisub แต่ไม่ได้ใช้โค้ดของ Aegisub${data.kind === "ass" ? "  ซับ ASS แสดงเฉพาะข้อความ" : ""}`}</Phr></div>
   </>);
 }
 
@@ -203,14 +203,14 @@ function ImageView(p: { track: AvTrack; path: string; ff: number }) {
   if (err) return <div className="stat bad"><CardIcon kind="bad" /><div><b>ถอดซับรูปไม่ได้</b><Phr>{err}</Phr></div></div>;
   if (!data) return (<>
     <div className="subimgs">{Array.from({ length: PER }, (_, i) => <div key={i} className="simg"><Skel w="100%" h={66} /><Skel w="60%" h={12} /></div>)}</div>
-    <div className="small"><Phr>กำลังถอดซับรูปเป็นภาพ · ครั้งแรกต้องอ่านทั้งไฟล์ หนังยาวใช้เวลาสักครู่ · ครั้งต่อไปเปิดทันที</Phr></div>
+    <div className="small"><Phr>กำลังถอดซับรูปเป็นภาพ ครั้งแรกต้องอ่านทั้งไฟล์ หนังยาวจึงใช้เวลาสักครู่ แต่ครั้งต่อไปจะเปิดได้ทันที</Phr></div>
   </>);
   if (big) return (<>
     <div className="bigsub" style={{ aspectRatio: `${big.canvas[0]} / ${big.canvas[1]}` }} data-bigsub>
       <img src={big.png} alt={`ซับภาพ ${big.n}`} style={{ left: `${(big.at[0] / big.canvas[0]) * 100}%`, top: `${(big.at[1] / big.canvas[1]) * 100}%`, width: `${(big.w / big.canvas[0]) * 100}%` }} />
     </div>
     <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-      <span className="small">{`ภาพ ${big.n} · ${short(big.start + d)}${big.end != null ? ` ถึง ${short(big.end + d)}` : ""} · วางตรงตำแหน่งจริงบนจอ ${big.canvas[0]} × ${big.canvas[1]}`}</span>
+      <span className="small">{`ภาพที่ ${big.n} เวลา ${short(big.start + d)}${big.end != null ? ` ถึง ${short(big.end + d)}` : ""} วางตรงตำแหน่งจริงบนจอขนาด ${big.canvas[0]} × ${big.canvas[1]}`}</span>
       <button type="button" className="btn btn-ghost btn-sm" onClick={() => setBig(null)} data-bigsub-back><IbBack size={15} />กลับไปดูทีละหน้า</button></div>
   </>);
   return (<>
@@ -224,13 +224,13 @@ function ImageView(p: { track: AvTrack; path: string; ff: number }) {
           <div className="t"><span>ภาพ {x.n}</span><span>{short(x.start + d)}</span></div>
         </button>))}</div>)}
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-      <span className="small" data-simg-count>{data.total ? `ภาพที่ ${page * PER + 1}–${Math.min(data.total, (page + 1) * PER)} จาก ${data.total.toLocaleString("en-US")} · กดภาพเพื่อดูเต็ม` : ""}</span>
+      <span className="small" data-simg-count>{data.total ? `ภาพที่ ${page * PER + 1} ถึง ${Math.min(data.total, (page + 1) * PER)} จาก ${data.total.toLocaleString("en-US")} ภาพ กดภาพเพื่อดูเต็ม` : ""}</span>
       <div style={{ display: "flex", gap: 6 }}>
         <button type="button" className={"btn btn-sm " + (page > 0 ? "btn-ghost" : "btn-wait")} aria-disabled={page === 0 || undefined} onClick={() => page > 0 && setPage(page - 1)}><IbBack size={15} />หน้าก่อน</button>
         <button type="button" className={"btn btn-sm " + (page < pages - 1 ? "btn-ghost" : "btn-wait")} aria-disabled={page >= pages - 1 || undefined} onClick={() => page < pages - 1 && setPage(page + 1)} data-simg-next><IbNext size={15} />หน้าถัดไป</button>
       </div>
     </div>
-    <div className="small"><Phr>พื้นตารางหมากรุกคือส่วนโปร่งใสของรูปซับ · ซับแบบรูปค้นคำไม่ได้</Phr></div>
+    <div className="small"><Phr>พื้นตารางหมากรุกคือส่วนโปร่งใสของรูปซับ และซับแบบรูปค้นคำไม่ได้</Phr></div>
   </>);
 }
 
@@ -246,8 +246,8 @@ export default function SubViewer(p: { track: AvTrack; movie: string; refStream:
     if (image) return;
     subApi.text(t.inMovie ? p.movie : t.src, t.inMovie, t.tid, ff).then(setData, (e) => setErr(String(e)));
   }, [image, t.inMovie, t.src, t.tid, ff, p.movie]);
-  const name = t.inMovie ? `${t.name || "ซับในหนัง"} · ${ft}` : baseName(t.src);
-  const sub = [t.inMovie ? "ซับในหนัง" : "ซับที่เพิ่ม", image ? `ซับรูป ${ft}` : `ตัวหนังสือ ${ft}`, data ? `${data.cues.length.toLocaleString("en-US")} บรรทัด` : "", t.delay ? `ดีเลย์ ${sign(t.delay)} ms เวลาที่แสดงเลื่อนแล้ว` : ""].filter(Boolean).join(" · ");
+  const name = t.inMovie ? `${t.name || "ซับในหนัง"} (${ft})` : baseName(t.src);
+  const sub = [t.inMovie ? "ซับในหนัง" : "ซับที่เพิ่ม", image ? `ซับรูป ${ft}` : `ตัวหนังสือ ${ft}`, data ? `${data.cues.length.toLocaleString("en-US")} บรรทัด` : "", t.delay ? `ดีเลย์ ${sign(t.delay)} ms เวลาที่แสดงเลื่อนแล้ว` : ""].filter(Boolean).join(", ");
   return (
     <Dialog open onClose={p.onClose} width={980} title={<span style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
       <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>ซับ {name}</span>

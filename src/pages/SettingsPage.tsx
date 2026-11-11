@@ -12,7 +12,7 @@ import { useToast } from "../components/Toasts";
 import Dialog from "../components/Dialog";
 import Dropdown from "../components/Dropdown";
 import { IcPalette, IcCheck, IcCoverL, IcCoverM, IcCoverS, IcTall, IcWide, IcFolder, IcGraph, IcLink, IcMix, IcPoster, IcSettings, IcShelf } from "../components/icons";
-import { Keep, Phr, Range, Seg, Skel, Switch } from "../components/ui";
+import { J, Keep, Phr, Range, Seg, Skel, Switch } from "../components/ui";
 import { setSkelPreview, useSkelPreview } from "../lib/skelPreview";
 import { fmtSize } from "../lib/format";
 import "../styles/av.css";
@@ -40,40 +40,40 @@ const THANKS: { title: string; note: string; rows: { name: string; ver?: string;
   { title: "ไอเดียและหน้าตา", note: "ดูเป็นแบบแล้วเขียนเอง ไม่ได้ใช้โค้ดของโปรแกรมเหล่านี้", rows: [
     { icon: <IcGraph />, name: "Spek", ver: "0.8.5", what: "หน้าความถี่ในกราฟเสียง หน้าตากราฟกับการบันทึกเป็นรูป", tag: "ไอเดีย", url: "github.com/alexkay/spek" },
     { icon: <IcGraph />, name: "Bitrate Viewer", ver: "2.3", what: "หน้าบิตเรตวิดีโอ หน้าตา สี วิธีคิด 4 แบบ ซูม เส้นค่าเฉลี่ย", tag: "ไอเดีย", url: "videohelp.com/software/Bitrate-Viewer" },
-    { icon: <IcGraph />, name: "FFBitrateViewer", ver: "0.9.7.2", what: "วิธีอ่านบิตเรตด้วย ffprobe ทีละแพ็กเก็ต ในหน้าบิตเรต", tag: "ไอเดีย · MIT", url: "github.com/fifonik/FFBitrateViewer" },
+    { icon: <IcGraph />, name: "FFBitrateViewer", ver: "0.9.7.2", what: "วิธีอ่านบิตเรตด้วย ffprobe ทีละแพ็กเก็ต ในหน้าบิตเรต", tag: "ไอเดีย, MIT", url: "github.com/fifonik/FFBitrateViewer" },
     { icon: <IcMix />, name: "Audacity", ver: "4.0.2", what: "รูปคลื่นแบบ Audacity ในกราฟเสียง", tag: "ไอเดีย", url: "audacityteam.org" },
     { icon: <IbTable />, name: "Aegisub", ver: "3.5.1", what: "ตัวดูซับแบบตารางบรรทัด", tag: "ไอเดีย", url: "aegisub.org" },
     { icon: <IcPoster />, name: "Kodi", ver: "21.3", what: "ชื่อไฟล์รูปลงท้าย -poster กับ -landscape ในหน้าจับคู่ปก", tag: "ไอเดีย", url: "kodi.tv" },
     { icon: <IcSettings />, name: "Claude Desktop", ver: "4.23118.0", what: "รูปแบบเมนูหัวข้อของหน้าตั้งค่า", tag: "ไอเดีย", url: "claude.ai" },
   ] },
   { title: "เครื่องมือที่แนบมาทำงานจริง", note: "ใช้ตามสัญญาอนุญาตของแต่ละตัว ข้อความเต็มอยู่ในโฟลเดอร์ tools\\licenses", rows: [
-    { icon: <IbPlay />, name: "FFmpeg", ver: "9.0.2", what: "ถอด แปลง ตรวจไฟล์เสีย อ่านเสียงมาวาดกราฟ และอ่านบิตเรตวิดีโอ · ชุดจาก gyan.dev · ไอคอนจาก Icons8", tag: "GPLv3", url: "ffmpeg.org" },
+    { icon: <IbPlay />, name: "FFmpeg", ver: "9.0.2", what: "ถอด แปลง ตรวจไฟล์เสีย อ่านเสียงมาวาดกราฟ และอ่านบิตเรตวิดีโอ ใช้ชุดจาก gyan.dev และไอคอนจาก Icons8", tag: "GPLv3", url: "ffmpeg.org" },
     { icon: <IcFile />, name: "MKVToolNix", ver: "103.0", what: "ครอบ MKV แนบปก แยกแทร็ก", tag: "GPLv2", url: "mkvtoolnix.download" },
     { icon: <IbEye />, name: "MediaInfo", ver: "26.10", what: "รายละเอียดไฟล์", tag: "BSD-2", url: "mediaarea.net" },
-    { icon: <IcMix />, name: "FLAC", ver: "1.5.0", what: "แปลงเสียง FLAC", tag: "GPLv2 · BSD", url: "xiph.org/flac" },
-    { icon: <IcMix />, name: "LAME กับ libmpg123", ver: "4.0", what: "แปลงเสียง MP3 · ชุดจาก RareWares", tag: "LGPL", url: "lame.sourceforge.io" },
-    { icon: <IcMix />, name: "opus-tools", ver: "0.2 · libopus 1.6.1", what: "แปลงเสียง Opus · ชุดจาก RareWares", tag: "BSD-2", url: "opus-codec.org" },
+    { icon: <IcMix />, name: "FLAC", ver: "1.5.0", what: "แปลงเสียง FLAC", tag: "GPLv2, BSD", url: "xiph.org/flac" },
+    { icon: <IcMix />, name: "LAME กับ libmpg123", ver: "4.0", what: "แปลงเสียง MP3 ใช้ชุดจาก RareWares", tag: "LGPL", url: "lame.sourceforge.io" },
+    { icon: <IcMix />, name: "opus-tools", ver: "0.2, libopus 1.6.1", what: "แปลงเสียง Opus ใช้ชุดจาก RareWares", tag: "BSD-2", url: "opus-codec.org" },
     { icon: <IcMix />, name: "WavPack", ver: "5.9.0", what: "แปลงเสียง WavPack", tag: "BSD-3", url: "wavpack.com" },
     // qaac เป็น Public Domain · ตัวเข้ารหัส ALAC ข้างในเป็นของ Apple (Apache 2.0) · ไม่แนบ ผู้ใช้วางเอง (อ่าน COPYING ของ qaac 10 พ.ย. 2569)
-    { icon: <IcMix />, name: "qaac กับ refalac", ver: "3.07", what: "แปลงเสียง AAC ด้วยตัวของ Apple (ต้องติดตั้ง iTunes เอง) กับ ALAC · แนบมากับโปรแกรม", tag: "Public Domain · ALAC Apache 2.0", url: "github.com/nu774/qaac" },
+    { icon: <IcMix />, name: "qaac กับ refalac", ver: "3.07", what: "แปลงเสียง AAC ด้วยตัวของ Apple (ต้องติดตั้ง iTunes เอง) และ ALAC แนบมากับโปรแกรม", tag: "Public Domain, ALAC Apache 2.0", url: "github.com/nu774/qaac" },
     { icon: <IcMix />, name: "Monkey's Audio", ver: "13.46", what: "แปลงเสียง APE", tag: "BSD-3", url: "monkeysaudio.com" },
-    { icon: <IcMix />, name: "TAK", ver: "2.3.3", what: "แปลงเสียง TAK · แนบไฟล์เดิมทั้งชุด", tag: "ฟรีใช้ส่วนตัว", url: "thbeck.de/Tak" },
-    { icon: <IcPoster />, name: "libheif กับ libde265", ver: "1.23.7 · 1.1.3", what: "บันทึกรูปกราฟเป็น HEIC · ชุดจาก conda-forge", tag: "LGPLv3", url: "github.com/strukturag/libheif" },
+    { icon: <IcMix />, name: "TAK", ver: "2.3.3", what: "แปลงเสียง TAK แนบไฟล์เดิมทั้งชุด", tag: "ฟรีใช้ส่วนตัว", url: "thbeck.de/Tak" },
+    { icon: <IcPoster />, name: "libheif กับ libde265", ver: "1.23.7, 1.1.3", what: "บันทึกรูปกราฟเป็น HEIC ใช้ชุดจาก conda-forge", tag: "LGPLv3", url: "github.com/strukturag/libheif" },
     { icon: <IcPoster />, name: "x265", ver: "3.5", what: "เข้ารหัสภาพใน HEIC", tag: "GPLv2", url: "bitbucket.org/multicoreware/x265_git" },
-    { icon: <IcPoster />, name: "aom · dav1d · libsharpyuv", ver: "3.15.3 · 1.5.4 · 1.6.0", what: "ไฟล์ที่ libheif ต้องใช้", tag: "BSD", url: "aomedia.org · videolan.org · chromium.googlesource.com/webm/libwebp" },
-    { icon: <IcSettings />, name: "Visual C++ Runtime", ver: "14.51", what: "ไฟล์ที่ libheif ต้องใช้ · ของ Microsoft", tag: "ข้อตกลง MS", url: "microsoft.com" },
+    { icon: <IcPoster />, name: "aom, dav1d, libsharpyuv", ver: "3.15.3, 1.5.4, 1.6.0", what: "ไฟล์ที่ libheif ต้องใช้", tag: "BSD", url: "aomedia.org, videolan.org, chromium.googlesource.com/webm/libwebp" },
+    { icon: <IcSettings />, name: "Visual C++ Runtime", ver: "14.51", what: "ไฟล์ของ Microsoft ที่ libheif ต้องใช้", tag: "ข้อตกลง MS", url: "microsoft.com" },
   ] },
   { title: "ใช้สร้างโปรแกรม", note: "ซอร์สโค้ดของห้องสมุดเหล่านี้รวมอยู่ในตัวโปรแกรมตอนสร้าง", rows: [
-    { icon: <IcSettings />, name: "Claude", what: "ตัวช่วยเขียนโปรแกรม · Claude Code กับโมเดล Claude Opus 5.5 ของ Anthropic", tag: "Anthropic", url: "claude.com/claude-code" },
-    { icon: <IcSettings />, name: "Rust", ver: "1.99.1", what: "ฝั่งหลังบ้านทั้งหมด อ่านไฟล์ เรียกเครื่องมือ เขียนไฟล์ · รุ่นที่ใช้สร้างโปรแกรม", tag: "MIT · Apache-2.0", url: "rust-lang.org" },
-    { icon: <IcShelf />, name: "Tauri", ver: "2.12.5", what: "โครงโปรแกรมบน Windows", tag: "MIT · Apache-2.0", url: "tauri.app" },
+    { icon: <IcSettings />, name: "Claude", what: "ตัวช่วยเขียนโปรแกรม คือ Claude Code กับโมเดล Claude Opus 5.5 ของ Anthropic", tag: "Anthropic", url: "claude.com/claude-code" },
+    { icon: <IcSettings />, name: "Rust", ver: "1.99.1", what: "ฝั่งหลังบ้านทั้งหมด ทั้งอ่านไฟล์ เรียกเครื่องมือ และเขียนไฟล์ (รุ่นที่ใช้สร้างโปรแกรม)", tag: "MIT, Apache-2.0", url: "rust-lang.org" },
+    { icon: <IcShelf />, name: "Tauri", ver: "2.12.5", what: "โครงโปรแกรมบน Windows", tag: "MIT, Apache-2.0", url: "tauri.app" },
     { icon: <IbTable />, name: "TypeScript", ver: "7.0.2", what: "ภาษาที่เขียนหน้าจอทั้งหมด", tag: "Apache-2.0", url: "typescriptlang.org" },
     { icon: <IbTable />, name: "Vite", ver: "8.3.6", what: "ตัวสร้างหน้าจอ รวมไฟล์ตอนสร้างโปรแกรม", tag: "MIT", url: "vite.dev" },
     { icon: <IbTable />, name: "React", ver: "19.3.1", what: "หน้าจอทั้งหมด", tag: "MIT", url: "react.dev" },
-    { icon: <IbCrop />, name: "image (Rust)", ver: "0.25.10", what: "อ่าน ครอป และเข้ารหัสรูป", tag: "MIT · Apache-2.0", url: "github.com/image-rs/image" },
-    { icon: <IcSettings />, name: "ห้องสมุด Rust อื่น ๆ", what: "serde อ่านเขียนข้อมูล · qcms แปลงสีรูป · jpeg-encoder · sha2 md-5 sha1 crc32fast คิดค่า hash · windows-sys", tag: "MIT · Apache-2.0", url: "crates.io" },
-    { icon: <b>ก</b>, name: "ฟอนต์ Sarabun", what: "ตัวหนังสือทั้งโปรแกรม · Cadson Demak · ชุดจาก Fontsource", tag: "OFL", url: "fonts.google.com/specimen/Sarabun" },
-    { icon: <IcPalette />, name: "ไอคอนในหน้านี้", what: "Simple Icons กับ SVG Logos (CC0) · Icons8 · Wikimedia Commons · ไอคอนจากตัวโปรแกรมของแต่ละโครงการ", tag: "ตามแต่ละรูป", url: "simpleicons.org · icons8.com · commons.wikimedia.org" },
+    { icon: <IbCrop />, name: "image (Rust)", ver: "0.25.10", what: "อ่าน ครอป และเข้ารหัสรูป", tag: "MIT, Apache-2.0", url: "github.com/image-rs/image" },
+    { icon: <IcSettings />, name: "ห้องสมุด Rust อื่น ๆ", what: "serde อ่านเขียนข้อมูล qcms แปลงสีรูป jpeg-encoder เข้ารหัสรูป sha2 md-5 sha1 crc32fast คิดค่า hash และ windows-sys", tag: "MIT, Apache-2.0", url: "crates.io" },
+    { icon: <b>ก</b>, name: "ฟอนต์ Sarabun", what: "ตัวหนังสือทั้งโปรแกรม ออกแบบโดย Cadson Demak ใช้ชุดจาก Fontsource", tag: "OFL", url: "fonts.google.com/specimen/Sarabun" },
+    { icon: <IcPalette />, name: "ไอคอนในหน้านี้", what: "Simple Icons กับ SVG Logos (CC0) Icons8 Wikimedia Commons และไอคอนจากตัวโปรแกรมของแต่ละโครงการ", tag: "ตามแต่ละรูป", url: "simpleicons.org, icons8.com, commons.wikimedia.org" },
   ] },
 ];
 
@@ -112,20 +112,20 @@ const TOOL_ROLE: Record<string, string> = {
   mkvmerge: "ใช้ครอบ MKV และแนบโปสเตอร์",
   mkvextract: "ใช้ดึงปกออกมาโชว์และแยกไฟล์",
   mkvpropedit: "ใช้เปลี่ยนรูปแนบใน MKV",
-  ffmpeg: "ใช้ส่งออก MP4 ตรวจละเอียด และกราฟเสียง",
+  ffmpeg: "ใช้ส่งออก MP4 ตรวจละเอียด และวาดกราฟเสียง",
   ffprobe: "ใช้อ่านข้อมูลไฟล์หนัง",
-  MediaInfo: "ใช้หน้า MediaInfo",
+  MediaInfo: "ใช้อ่านข้อมูลไฟล์ในหน้า MediaInfo",
 };
 
 /** เก็บรูปที่จับคู่ไว้ที่ไหน 3 แบบ (พี่กันเคาะข้อ 1 · มอคอัปจับคู่ปกหัวข้อหน้าตั้งค่า) */
 const LINK_MODES: { v: Settings["linkStore"]; title: string; rec?: string; lines: string[]; sample?: string[] }[] = [
   { v: "beside", title: "คัดลอกไปไว้ข้างไฟล์หนัง", rec: "ค่าตั้งต้น",
-    lines: ["คัดลอกรูปที่ครอปแล้วไปไว้โฟลเดอร์เดียวกับหนัง ชื่อเหมือนไฟล์หนัง · รูปต้นฉบับอยู่ที่เดิม ไม่ถูกแก้ กลับมาครอปใหม่ได้", "ชื่อลงท้ายแบบที่ Kodi อ่านได้ · เปลี่ยนรูปทีหลัง ไฟล์นี้เปลี่ยนตาม · เปลี่ยนชื่อหนังในชั้นหนัง รูปเปลี่ยนชื่อตาม · มีไฟล์ชื่อนี้อยู่แล้วที่โปรแกรมไม่ได้ทำ ไม่เขียนทับ ถามก่อน"],
+    lines: ["คัดลอกรูปที่ครอปแล้วไปไว้โฟลเดอร์เดียวกับหนัง ใช้ชื่อเหมือนไฟล์หนัง ส่วนรูปต้นฉบับอยู่ที่เดิมไม่ถูกแก้ กลับมาครอปใหม่ได้", "ชื่อลงท้ายแบบที่ Kodi อ่านได้ เปลี่ยนรูปทีหลังไฟล์นี้ก็เปลี่ยนตาม เปลี่ยนชื่อหนังในชั้นหนังรูปก็เปลี่ยนชื่อตาม และถ้ามีไฟล์ชื่อนี้อยู่แล้วที่โปรแกรมไม่ได้สร้าง จะถามก่อนโดยไม่เขียนทับ"],
     sample: ["ดาวเหนือ (2023).mkv", "ดาวเหนือ (2023)-poster.jpg", "ดาวเหนือ (2023)-landscape.jpg"] },
   { v: "app", title: "เก็บสำเนาไว้ในโปรแกรม",
-    lines: ["คัดลอกรูปที่ครอปแล้วไปไว้โฟลเดอร์ข้อมูลของโปรแกรม ไม่มีไฟล์เพิ่มในโฟลเดอร์หนัง · ลบหรือย้ายรูปต้นฉบับแล้วปกไม่หาย · มีแต่ชั้นหนังที่เห็น โปรแกรมอื่นไม่เห็น"] },
+    lines: ["คัดลอกรูปที่ครอปแล้วไปไว้โฟลเดอร์ข้อมูลของโปรแกรม ไม่มีไฟล์เพิ่มในโฟลเดอร์หนัง ลบหรือย้ายรูปต้นฉบับแล้วปกก็ไม่หาย แต่มีแต่ชั้นหนังที่เห็น โปรแกรมอื่นไม่เห็น"] },
   { v: "link", title: "จับคู่อย่างเดียว",
-    lines: ["ไม่คัดลอก รูปอยู่ชื่อเดิมที่เดิม โปรแกรมจำแค่ที่อยู่รูปแล้วดึงมาแสดง · ไม่ใช้ที่เพิ่มเลย · ย้ายหรือลบรูปต้นฉบับ ชั้นวางขึ้นว่าหารูปไม่เจอ ต้องจับคู่ใหม่"] },
+    lines: ["ไม่คัดลอก รูปอยู่ชื่อเดิมที่เดิม โปรแกรมจำแค่ที่อยู่รูปแล้วดึงมาแสดง จึงไม่ใช้ที่เพิ่มเลย แต่ถ้าย้ายหรือลบรูปต้นฉบับ ชั้นวางจะขึ้นว่าหารูปไม่เจอและต้องจับคู่ใหม่"] },
 ];
 
 /** ผลเช็กรุ่นล่าสุดครั้งล่าสุด จำไว้นอกหน้า (เปลี่ยนหน้าแล้วไม่หาย ไม่ออกเน็ตซ้ำเอง) */
@@ -134,11 +134,11 @@ let latestMemo: { at: Date; list: LatestInfo[] } | null = null;
 /** บรรทัดรุ่นล่าสุดใต้ตัวแปลงแต่ละตัว */
 function LatestLine({ l, onOpen }: { l: LatestInfo; onOpen: (name: string) => void }) {
   const page = <button type="button" className="latlink" onClick={() => onOpen(l.name)} data-latest-page>เปิดหน้าโหลด</button>;
-  if (l.state === "ok") return <span className="small" data-latest="ok"><b className="latok">ล่าสุดแล้ว</b> · เว็บ {l.from} รุ่น {l.latest}</span>;
-  if (l.state === "new") return <span className="small" data-latest="new"><b className="latnew">มีรุ่นใหม่ {l.latest}</b> · ใช้อยู่ {l.installed} · {page}</span>;
-  if (l.state === "ahead") return <span className="small" data-latest="ahead"><b className="latok">ใหม่กว่าหน้าเว็บ</b> · เว็บ {l.from} ยังเป็น {l.latest}</span>;
-  if (l.state === "missing") return <span className="small" data-latest="missing">รุ่นล่าสุดบนเว็บ {l.latest} · {page}</span>;
-  return <span className="small" data-latest="error"><b className="latbad">เช็กไม่ได้</b> · {l.error}</span>;
+  if (l.state === "ok") return <span className="small" data-latest="ok"><b className="latok">ล่าสุดแล้ว</b> เว็บ {l.from} ก็เป็นรุ่น {l.latest}</span>;
+  if (l.state === "new") return <span className="small" data-latest="new"><b className="latnew">มีรุ่นใหม่ {l.latest}</b> ที่ใช้อยู่คือ {l.installed} {page}</span>;
+  if (l.state === "ahead") return <span className="small" data-latest="ahead"><b className="latok">ใหม่กว่าหน้าเว็บ</b> เว็บ {l.from} ยังเป็น {l.latest}</span>;
+  if (l.state === "missing") return <span className="small" data-latest="missing">รุ่นล่าสุดบนเว็บคือ {l.latest} {page}</span>;
+  return <span className="small" data-latest="error"><b className="latbad">เช็กไม่ได้</b> {l.error}</span>;
 }
 
 /** ความละเอียดตั้งต้นของกราฟความถี่ เก็บในเครื่อง (graph-spek-res ตัวเดียวกับ SPEK_RES_KEY ใน GraphPage.tsx) · กดสลับในหน้ากราฟใช้เฉพาะตอนนั้น
@@ -147,7 +147,7 @@ function SpekResRow() {
   const [v, setV] = useState<"fine" | "coarse">(() => { try { return localStorage.getItem("graph-spek-res") === "coarse" ? "coarse" : "fine"; } catch { return "fine"; } });
   const pick = (n: "fine" | "coarse") => { setV(n); try { localStorage.setItem("graph-spek-res", n); } catch { /* เก็บไม่ได้ ใช้ค่าในหน้าไปก่อน */ } };
   return (
-    <div className="setrow" data-spekres-default><div className="lbl">กราฟความถี่เปิดมาแบบ<span className="small">ละเอียด อ่านเสียงช่วงที่ดูใหม่ทุกครั้งที่ซูม เห็นรายละเอียดคม · ภาพรวม ใช้ข้อมูลชุดเดียวกับรูปคลื่น ขึ้นทันทีแต่หยาบกว่าเมื่อซูมลึก · สลับได้ที่ใต้กราฟความถี่ ค่านี้ใช้ตอนเปิดหน้ากราฟ</span></div>
+    <div className="setrow" data-spekres-default><div className="lbl">กราฟความถี่เปิดมาแบบ<span className="small">แบบละเอียดอ่านเสียงช่วงที่ดูใหม่ทุกครั้งที่ซูม เห็นรายละเอียดคม ส่วนแบบภาพรวมใช้ข้อมูลชุดเดียวกับรูปคลื่น ขึ้นทันทีแต่หยาบกว่าเมื่อซูมลึก ค่านี้ใช้ตอนเปิดหน้ากราฟ และสลับได้ที่ใต้กราฟความถี่</span></div>
       <Seg label="กราฟความถี่เปิดมาแบบ" value={v} onChange={pick} options={[{ value: "fine", label: "ละเอียด" }, { value: "coarse", label: "ภาพรวม" }]} /></div>
   );
 }
@@ -183,7 +183,7 @@ export default function SettingsPage() {
     try {
       const r = await linkApi.migrate(settings.linkStore);
       setAskMigrate(false);
-      toast({ kind: r.failed ? "warn" : "ok", title: r.failed ? `ย้ายแล้ว ${r.done} เรื่อง · ไม่สำเร็จ ${r.failed} เรื่อง` : `ย้ายแล้ว ${r.done} เรื่อง`, detail: "ไฟล์หนังกับรูปต้นฉบับไม่ถูกแตะ" });
+      toast({ kind: r.failed ? "warn" : "ok", title: r.failed ? `ย้ายแล้ว ${r.done} เรื่อง และไม่สำเร็จ ${r.failed} เรื่อง` : `ย้ายแล้ว ${r.done} เรื่อง`, detail: "ไฟล์หนังกับรูปต้นฉบับไม่ถูกแตะ" });
       r.notes.forEach((n) => toast({ kind: "warn", title: "มีเรื่องที่ต้องดู", detail: n }));
     } catch (e) {
       toast({ kind: "bad", title: "ย้ายไม่สำเร็จ", detail: String(e) });
@@ -251,7 +251,7 @@ export default function SettingsPage() {
     setRemoving(null);
     await set({ folders: settings.folders.filter((x) => x !== f) });
     scan();
-    toast({ kind: "ok", title: "เอาออกจากชั้นแล้ว", detail: `${f} · ไฟล์ในเครื่องยังอยู่ครบ ไม่ถูกลบ` });
+    toast({ kind: "ok", title: "เอาออกจากชั้นแล้ว", detail: `${f} ไฟล์ในเครื่องยังอยู่ครบ ไม่ถูกลบ` });
   };
   const changeOriginals = async () => {
     const f = await pickFolder("เลือกโฟลเดอร์เก็บไฟล์เดิม");
@@ -272,7 +272,7 @@ export default function SettingsPage() {
     jpgTimer.current = window.setTimeout(() => { void set({ jpgQuality: v }); }, 300);
   };
   const clearCache = async () => {
-    try { setCache(await graphApi.cacheClear()); toast({ kind: "ok", title: "ล้างผลอ่านคลื่นที่เก็บไว้แล้ว", detail: "เปิดกราฟเสียงครั้งหน้าจะอ่านไฟล์ใหม่ · ไฟล์หนังไม่ถูกแตะ" }); }
+    try { setCache(await graphApi.cacheClear()); toast({ kind: "ok", title: "ล้างผลอ่านคลื่นที่เก็บไว้แล้ว", detail: "เปิดกราฟเสียงครั้งหน้าจะอ่านไฟล์ใหม่ และไฟล์หนังไม่ถูกแตะ" }); }
     catch (e) { toast({ kind: "bad", title: "ล้างไม่ได้", detail: String(e) }); }
   };
   const countOf = (f: string) => folders.find((x) => x.path.toLowerCase() === f.toLowerCase());
@@ -304,18 +304,18 @@ export default function SettingsPage() {
       <Dialog open={askMigrate} onClose={() => { if (!migrating) setAskMigrate(false); }} kind="work" confirm title={<>ย้าย <span className="nw">{migrateCount} เรื่อง</span>ไปแบบ {modeName}</>}
         actions={<>
           <button type="button" className="btn btn-ghost" onClick={() => { if (!migrating) setAskMigrate(false); }}>ยังไม่ย้าย</button>
-          <button type="button" className={"btn " + (migrating ? "btn-wait" : "btn-main")} aria-disabled={migrating || undefined} data-link-migrate-ok onClick={migrate}><Keep all={["กำลังย้าย 000 จาก 000 เรื่อง…", "ย้ายเลย"]}>{migrating ? (migrateProg ? `กำลังย้าย ${migrateProg.done} จาก ${migrateProg.total} เรื่อง…` : "กำลังย้าย…") : "ย้ายเลย"}</Keep></button>
+          <button type="button" className={"btn " + (migrating ? "btn-wait" : "btn-main")} aria-disabled={migrating || undefined} data-link-migrate-ok onClick={migrate}><Keep all={["กำลังย้าย 000 จาก 000 เรื่อง", "ย้ายเลย"]}>{migrating ? (migrateProg ? `กำลังย้าย ${migrateProg.done} จาก ${migrateProg.total} เรื่อง` : "กำลังย้าย") : "ย้ายเลย"}</Keep></button>
         </>}>
         <div className="small" style={{ fontSize: 14, color: "var(--txt2)" }}>
-          <div>ทำไฟล์ใหม่ก่อน สำเร็จแล้วค่อยเอาของเก่าออก</div>
-          <div>ของเก่าที่โปรแกรมคัดลอกไว้ย้ายลงถังขยะ · ไฟล์ที่โปรแกรมไม่ได้ทำไม่ถูกลบ</div>
-          <div>เรื่องที่รูปต้นฉบับหายแล้ว ย้ายเป็นจับคู่อย่างเดียวไม่ได้ คงแบบเดิมแล้วบอกให้รู้</div>
+          <div><Phr>โปรแกรมทำไฟล์ใหม่ก่อน เมื่อสำเร็จแล้วจึงเอาของเก่าออก</Phr></div>
+          <div><Phr>ของเก่าที่โปรแกรมคัดลอกไว้ย้ายลงถังขยะ ส่วนไฟล์ที่โปรแกรมไม่ได้สร้างจะไม่ถูกลบ</Phr></div>
+          <div><Phr>เรื่องที่รูปต้นฉบับหายไปแล้วย้ายเป็นแบบจับคู่อย่างเดียวไม่ได้ จึงคงแบบเดิมไว้แล้วบอกให้รู้</Phr></div>
           <div>ไฟล์หนังกับรูปต้นฉบับไม่ถูกแตะ</div>
         </div>
       </Dialog>
       {/* ---------- โฟลเดอร์หนัง ---------- */}
       <div className="setcard" data-setcard="folders" hidden={sec !== "folders"}><h3>โฟลเดอร์หนัง</h3>
-        <div className="small">โปรแกรมอ่านหนังจากโฟลเดอร์ในรายการนี้ขึ้นชั้น</div>
+        <div className="small"><Phr>โปรแกรมอ่านหนังจากโฟลเดอร์ในรายการนี้มาขึ้นชั้น</Phr></div>
         {settings.folders.map((f) => {
           const st = countOf(f);
           return (
@@ -324,41 +324,41 @@ export default function SettingsPage() {
               <button type="button" className="btn btn-bad btn-sm" onClick={() => setRemoving(f)} data-removefolder><IbTrash size={15} />เอาออกจากชั้น</button></div>
           );
         })}
-        <div className="small" style={{ margin: "8px 0 10px" }}>เอาออกจากชั้นแล้ว ไฟล์ในเครื่องยังอยู่ครบ ไม่ถูกลบ</div>
+        <div className="small" style={{ margin: "8px 0 10px" }}><Phr>เอาออกจากชั้นแล้วไฟล์ในเครื่องยังอยู่ครบ ไม่ถูกลบ</Phr></div>
         <button type="button" className="btn btn-ghost btn-sm" onClick={addFolder} data-addfolder><IcFolder size={15} />เพิ่มโฟลเดอร์</button>
-        <div className="setrow" style={{ marginTop: 10, borderTop: "1px solid var(--line)" }}><div className="lbl">อ่านโฟลเดอร์ใหม่ทุกครั้งที่เปิดโปรแกรม<span className="small">หนังที่โหลดมาเพิ่มจะขึ้นชั้นเอง</span></div>
+        <div className="setrow" style={{ marginTop: 10, borderTop: "1px solid var(--line)" }}><div className="lbl">อ่านโฟลเดอร์ใหม่ทุกครั้งที่เปิดโปรแกรม<span className="small"><Phr>หนังที่โหลดมาเพิ่มจะขึ้นชั้นเอง</Phr></span></div>
           <Switch on={settings.rescanOnStart} onChange={(v) => set({ rescanOnStart: v })} label="อ่านโฟลเดอร์ใหม่ทุกครั้งที่เปิดโปรแกรม" /></div>
       </div>
 
       {/* ---------- ใส่โปสเตอร์ ---------- */}
       <div className="setcard" data-setcard="poster" hidden={sec !== "poster"}><h3>ใส่โปสเตอร์</h3>
-        <div className="setrow"><div className="lbl">ตรวจไฟล์ต้นทางก่อนครอบ<span className="small">ไฟล์เสียอยู่แล้ว จะบอกก่อนลงมือ</span></div>
+        <div className="setrow"><div className="lbl">ตรวจไฟล์ต้นทางก่อนครอบ<span className="small"><Phr>ถ้าไฟล์เสียอยู่แล้วจะบอกก่อนลงมือ</Phr></span></div>
           <Switch on={settings.checkSourceBefore} onChange={(v) => set({ checkSourceBefore: v })} label="ตรวจไฟล์ต้นทางก่อนครอบ" /></div>
-        <div className="setrow"><div className="lbl">ตรวจไฟล์ใหม่หลังครอบเสร็จ<span className="small">เทียบว่าภาพ เสียง ซับ ครบเท่าต้นทาง</span></div>
+        <div className="setrow"><div className="lbl">ตรวจไฟล์ใหม่หลังครอบเสร็จ<span className="small"><Phr>เทียบว่าภาพ เสียง และซับครบเท่าต้นทาง</Phr></span></div>
           <Switch on={settings.checkOutputAfter} onChange={(v) => set({ checkOutputAfter: v })} label="ตรวจไฟล์ใหม่หลังครอบเสร็จ" /></div>
         <div className="setrow" data-seg165><div className="lbl">ไฟล์ที่ได้</div>
           <Seg label="ไฟล์ที่ได้" value={settings.outputFormat} onChange={(v) => set({ outputFormat: v })} options={[{ value: "mkv", label: "MKV" }, { value: "mp4", label: "MP4" }]} /></div>
         <div className="setrow"><div className="lbl">ไฟล์เดิมหลังครอบ</div>
           <Seg label="ไฟล์เดิมหลังครอบ" value={settings.originalAfter} onChange={(v) => set({ originalAfter: v })} options={[{ value: "keep", label: <><IbTick size={14} />เก็บไว้</> }, { value: "trash", label: <><IbTrash size={14} />ลบเมื่อตรวจผ่าน</> }]} /></div>
         <div className="setrow"><div className="lbl">โฟลเดอร์เก็บไฟล์เดิม
-          <span className="small" style={{ wordBreak: "break-all" }} data-originals>{settings.originalsFolder || "ข้างไฟล์หนัง ในโฟลเดอร์ชื่อ ไฟล์เดิม"}</span>
-          <span className="small">ต้องอยู่ไดรฟ์เดียวกับไฟล์หนัง คนละไดรฟ์ใช้โฟลเดอร์ ไฟล์เดิม ข้างไฟล์หนังแทน</span></div>
+          <span className="small" style={{ wordBreak: "break-all" }} data-originals>{settings.originalsFolder || <Phr>ข้างไฟล์หนังในโฟลเดอร์ชื่อ “ไฟล์เดิม”</Phr>}</span>
+          <span className="small"><Phr>โฟลเดอร์นี้ต้องอยู่ไดรฟ์เดียวกับไฟล์หนัง ถ้าอยู่คนละไดรฟ์จะใช้โฟลเดอร์ “ไฟล์เดิม” ข้างไฟล์หนังแทน</Phr></span></div>
           <div style={{ display: "flex", gap: 6 }}>
             {settings.originalsFolder && <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ originalsFolder: "" })}>ใช้ข้างไฟล์หนัง</button>}
             <button type="button" className="btn btn-ghost btn-sm" onClick={changeOriginals} data-orig-change><IcFolder size={15} />เปลี่ยน</button></div></div>
-        <div className="setrow" data-seg165><div className="lbl">รูปโปสเตอร์ที่แนบ<span className="small">ใช้กับรูปที่ต้องแปลง และรูปที่ครอป</span></div>
+        <div className="setrow" data-seg165><div className="lbl">รูปโปสเตอร์ที่แนบ<span className="small"><Phr>ใช้กับรูปที่ต้องแปลงและรูปที่ครอป</Phr></span></div>
           <Seg label="รูปโปสเตอร์ที่แนบ" value={settings.posterFormat} onChange={(v) => set({ posterFormat: v })} options={[{ value: "jpg", label: "JPG" }, { value: "png", label: "PNG" }]} /></div>
         <div className="setrow" style={{ display: "block" }}><div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ fontSize: 14, whiteSpace: "nowrap" }}>คุณภาพ JPG</span>
           <Range value={jpgNow} min={50} max={100} onChange={onJpg} label="คุณภาพ JPG" format={(v) => `${v}%`} />
           <span className="small" style={{ whiteSpace: "nowrap", minWidth: 36, textAlign: "right" }} data-jpgq>{jpgNow}%</span></div></div>
-        <div className="setrow"><div className="lbl">ย่อรูปโปสเตอร์ที่ใหญ่เกิน<span className="small">ย่อเหลือ <span className="nw">1000 × 1500 px</span> ไฟล์หนังไม่บวม</span></div>
+        <div className="setrow"><div className="lbl">ย่อรูปโปสเตอร์ที่ใหญ่เกิน<span className="small">ย่อเหลือ <span className="nw">1000 × 1500 px</span> เพื่อไม่ให้ไฟล์หนังบวม</span></div>
           <Switch on={settings.shrinkLargePosters} onChange={(v) => set({ shrinkLargePosters: v })} label="ย่อรูปโปสเตอร์ที่ใหญ่เกิน" /></div>
       </div>
 
       {/* ---------- เก็บรูปที่จับคู่ไว้ที่ไหน 3 แบบ ---------- */}
       <div className="setcard" data-setcard="link" hidden={sec !== "link"}><h3>เก็บรูปที่จับคู่ไว้ที่ไหน</h3>
-        <div className="small" style={{ marginBottom: 10 }}>ใช้ตอนกดยืนยันในหน้าจับคู่ปก · ติ๊กได้หลายแบบพร้อมกัน · ทุกแบบ ไฟล์หนังไม่ถูกแตะ · โปรแกรมจำที่อยู่รูปต้นฉบับไว้เสมอ ติ๊กจับคู่อย่างเดียวคู่กับแบบอื่น ก็คัดลอกตามแบบนั้น</div>
+        <div className="small" style={{ marginBottom: 10 }}><Phr>ใช้ตอนกดยืนยันในหน้าจับคู่ปก ติ๊กได้หลายแบบพร้อมกัน และทุกแบบไม่แตะไฟล์หนัง โปรแกรมจำที่อยู่รูปต้นฉบับไว้เสมอ ถ้าติ๊กจับคู่อย่างเดียวคู่กับแบบอื่น ก็จะคัดลอกตามแบบนั้นด้วย</Phr></div>
         <div className="modes three" role="group" aria-label="เก็บรูปที่จับคู่ไว้ที่ไหน">
           {LINK_MODES.map((x) => {
             const on = stores.includes(x.v);
@@ -372,11 +372,11 @@ export default function SettingsPage() {
             );
           })}
         </div>
-        <div className="small" style={{ marginTop: 10 }}>ย้ายหรือเปลี่ยนชื่อไฟล์หนังผ่านชั้นหนัง ปกตามไป · ย้ายด้วย Explorer ในไดรฟ์เดียวกัน โปรแกรมยังตามเจอ ย้ายข้ามไดรฟ์ต้องจับคู่ใหม่ · เปลี่ยนแบบทีหลัง มีผลกับเรื่องที่จับคู่ใหม่</div>
+        <div className="small" style={{ marginTop: 10 }}><Phr>ย้ายหรือเปลี่ยนชื่อไฟล์หนังผ่านชั้นหนัง ปกจะตามไปด้วย ถ้าย้ายด้วย Explorer ในไดรฟ์เดียวกัน โปรแกรมยังตามเจอ แต่ย้ายข้ามไดรฟ์ต้องจับคู่ใหม่ และการเปลี่ยนแบบทีหลังมีผลเฉพาะเรื่องที่จับคู่ใหม่</Phr></div>
         {migrateCount > 0 && (
           <div className="minirow" style={{ marginTop: 10 }} data-link-migrate>
             <span className="small" style={{ alignSelf: "center" }}>มี <span className="nw">{migrateCount} เรื่อง</span>ที่จับคู่ไว้แบบอื่น</span>
-            <button type="button" className={"btn btn-sm " + (migrating ? "btn-wait" : "btn-ghost")} aria-disabled={migrating || undefined} data-link-migrate-go onClick={() => { if (!migrating) setAskMigrate(true); }}><Keep all={["กำลังย้าย 000 จาก 000 เรื่อง…", "ย้ายมาแบบนี้ทีเดียว"]}>{migrating ? (migrateProg ? `กำลังย้าย ${migrateProg.done} จาก ${migrateProg.total} เรื่อง…` : "กำลังย้าย…") : "ย้ายมาแบบนี้ทีเดียว"}</Keep></button>
+            <button type="button" className={"btn btn-sm " + (migrating ? "btn-wait" : "btn-ghost")} aria-disabled={migrating || undefined} data-link-migrate-go onClick={() => { if (!migrating) setAskMigrate(true); }}><Keep all={["กำลังย้าย 000 จาก 000 เรื่อง", "ย้ายมาแบบนี้ทีเดียว"]}>{migrating ? (migrateProg ? `กำลังย้าย ${migrateProg.done} จาก ${migrateProg.total} เรื่อง` : "กำลังย้าย") : "ย้ายมาแบบนี้ทีเดียว"}</Keep></button>
           </div>
         )}
       </div>
@@ -385,16 +385,16 @@ export default function SettingsPage() {
       <div className="setcard" data-setcard="check" hidden={sec !== "check"}><h3>ตรวจไฟล์</h3>
         <div className="setrow"><div className="lbl">แบบตรวจตั้งต้น</div>
           <Seg label="แบบตรวจตั้งต้น" value={settings.defaultCheck} onChange={(v) => set({ defaultCheck: v })} options={[{ value: "quick", label: <><IcCheck size={14} />ตรวจแบบเร็ว</> }, { value: "full", label: <><IcCheck size={14} />ตรวจละเอียด</> }]} /></div>
-        <div className="setrow"><div className="lbl">ตรวจแบบเร็วทุกเรื่องตอนเปิดโปรแกรม<span className="small">ช่วยจับไฟล์ที่เสียระหว่างย้ายไดรฟ์</span></div>
+        <div className="setrow"><div className="lbl">ตรวจแบบเร็วทุกเรื่องตอนเปิดโปรแกรม<span className="small"><Phr>ช่วยจับไฟล์ที่เสียระหว่างย้ายไดรฟ์</Phr></span></div>
           <Switch on={settings.quickCheckOnStart} onChange={(v) => set({ quickCheckOnStart: v })} label="ตรวจแบบเร็วทุกเรื่องตอนเปิดโปรแกรม" /></div>
-        <div className="setrow"><div className="lbl">เตือนให้ตรวจซ้ำ<span className="small">จุดบนปกเปลี่ยนเป็นสีเหลืองเมื่อถึงเวลา</span></div>
+        <div className="setrow"><div className="lbl">เตือนให้ตรวจซ้ำ<span className="small"><Phr>จุดบนปกเปลี่ยนเป็นสีเหลืองเมื่อถึงเวลา</Phr></span></div>
           <span data-recheck><Dropdown label="เตือนให้ตรวจซ้ำ" value={String(settings.recheckReminderDays)} onChange={(v) => set({ recheckReminderDays: Number(v) as Settings["recheckReminderDays"] })}
             options={[{ value: "0", label: "ไม่ต้องเตือน" }, { value: "7", label: "ทุก 7 วัน" }, { value: "30", label: "ทุก 30 วัน" }, { value: "90", label: "ทุก 90 วัน" }]} /></span></div>
       </div>
 
       {/* ---------- ชั้นวาง ---------- */}
       <div className="setcard" data-setcard="tone" hidden={sec !== "tone"}><h3>โทนสี</h3>
-        <div className="small" style={{ marginBottom: 12 }}>กดแล้วเปลี่ยนทั้งโปรแกรมทันที โปรแกรมจำไว้ · รูปโปสเตอร์กับสีกราฟเสียงไม่เปลี่ยนตาม</div>
+        <div className="small" style={{ marginBottom: 12 }}><Phr>กดแล้วเปลี่ยนทั้งโปรแกรมทันทีและโปรแกรมจำไว้ ส่วนรูปโปสเตอร์กับสีกราฟเสียงไม่เปลี่ยนตาม</Phr></div>
         <div className="tncards" role="radiogroup" aria-label="โทนสี">
           {TONES.map((t) => <ToneCard key={t.id} t={t} on={(settings.tone || DEFAULT_TONE) === t.id} onPick={() => void set({ tone: t.id })} />)}
         </div>
@@ -403,19 +403,19 @@ export default function SettingsPage() {
       <div className="setcard" data-setcard="shelf" hidden={sec !== "shelf"}><h3>ชั้นวาง</h3>
         <div className="setrow" data-seg-cover><div className="lbl">ขนาดปก</div>
           <Seg label="ขนาดปก" value={settings.coverSize} onChange={(v) => set({ coverSize: v })} options={[{ value: "s", label: <><IcCoverS />เล็ก</> }, { value: "m", label: <><IcCoverM />กลาง</> }, { value: "l", label: <><IcCoverL />ใหญ่</> }]} /></div>
-        <div className="setrow" data-seg-cover><div className="lbl">ดูปก<span className="small">เรื่องที่แนบทั้งปกตั้งและปกนอน · เรื่องที่มีแบบเดียวขึ้นแบบนั้น</span></div>
+        <div className="setrow" data-seg-cover><div className="lbl">ดูปก<span className="small"><Phr>เรื่องที่แนบทั้งปกตั้งและปกนอนจะขึ้นแบบที่เลือก ส่วนเรื่องที่มีแบบเดียวขึ้นแบบนั้น</Phr></span></div>
           <Seg label="ดูปก" value={settings.coverOrient} onChange={(v) => set({ coverOrient: v })} options={[{ value: "tall", label: <><IcTall />ปกตั้ง</> }, { value: "wide", label: <><IcWide />ปกนอน</> }]} /></div>
         <div className="setrow"><div className="lbl">ชื่อไฟล์ใต้ปก</div><Switch on={settings.showNames} onChange={(v) => set({ showNames: v })} label="ชื่อไฟล์ใต้ปก" /></div>
-        <div className="setrow"><div className="lbl">ภาพจากหนังในเรื่องที่ยังไม่มีปก<span className="small">เปิดแล้วเรื่องที่ยังไม่มีปกขึ้นภาพหนึ่งภาพที่สุ่มจากในหนัง แทนแถบทะแยง ทั้งบนชั้นวาง ในตาราง และแผงขวา · ปิดแล้วกลับเป็นแถบทะแยงตามเดิม · ภาพเก็บในโฟลเดอร์ของโปรแกรม ไม่เขียนลงไฟล์หนัง · ไม่นับเป็นปก ตัวกรองยังนับเรื่องนั้นว่ายังไม่มีปก · ปุ่มเดียวกันอยู่ที่ปุ่มการแสดงผลบนชั้นวาง</span></div><Switch on={settings.showFrames} onChange={(v) => set({ showFrames: v })} label="ภาพจากหนังในเรื่องที่ยังไม่มีปก" /></div>
+        <div className="setrow"><div className="lbl">ภาพจากหนังในเรื่องที่ยังไม่มีปก<span className="small"><Phr>{"เปิดแล้วเรื่องที่ยังไม่มีปกจะขึ้นภาพหนึ่งภาพที่สุ่มจากในหนังแทนแถบทะแยง ทั้งบนชั้นวาง ในตาราง และแผงขวา ปิดแล้วกลับเป็นแถบทะแยงตามเดิม ภาพเก็บในโฟลเดอร์ของโปรแกรมโดยไม่เขียนลงไฟล์หนัง และไม่นับ" + J + "เป็นปก ตัวกรองจึงยังนับเรื่องนั้นว่ายังไม่มีปก ปุ่มเดียวกันนี้อยู่ที่ปุ่มการแสดงผลบนชั้นวางด้วย"}</Phr></span></div><Switch on={settings.showFrames} onChange={(v) => set({ showFrames: v })} label="ภาพจากหนังในเรื่องที่ยังไม่มีปก" /></div>
         <div className="setrow"><div className="lbl">จุดสีบอกสภาพไฟล์</div><Switch on={settings.showDots} onChange={(v) => set({ showDots: v })} label="จุดสีบอกสภาพไฟล์" /></div>
-        <div className="setrow"><div className="lbl">แสดงโครงจางค้างไว้<span className="small">ไว้ดูหน้าตาตอนรออ่านโฟลเดอร์ · ปิดโปรแกรมแล้วกลับเป็นปิดเอง</span></div>
+        <div className="setrow"><div className="lbl">แสดงโครงจางค้างไว้<span className="small"><Phr>ไว้ดูหน้าตาตอนรออ่านโฟลเดอร์ และกลับเป็นปิดเองเมื่อปิดโปรแกรม</Phr></span></div>
           <span data-skelpreview style={{ display: "inline-flex" }}><Switch on={skel} onChange={setSkelPreview} label="แสดงโครงจางค้างไว้" /></span></div>
       </div>
 
       {/* ---------- เปิดเล่นหนัง ---------- */}
       {/* พี่กันสั่ง 9 พ.ย. 2569 ค่าตั้งต้นคือ MPC-HC · ดูในเครื่องว่ามีโปรแกรมเล่นตัวไหน · มีปุ่มเปลี่ยนค่าตั้งต้น · มีปุ่มเพิ่มโปรแกรม */}
       <div className="setcard" data-setcard="player" hidden={sec !== "player"}><h3>เปิดเล่นหนัง</h3>
-        <div className="hint" style={{ margin: "0 0 10px" }}>กดปุ่มเปิดเล่นแล้วส่งไฟล์ไปโปรแกรมที่เป็นค่าตั้งต้น · ยังไม่ได้เลือก ใช้ MPC-HC ถ้าเครื่องไม่มี ใช้ตัวอื่นที่หาเจอ แล้วค่อยโปรแกรมหลักของ Windows</div>
+        <div className="hint" style={{ margin: "0 0 10px" }}><Phr>กดปุ่มเปิดเล่นแล้วโปรแกรมจะส่งไฟล์ไปโปรแกรมที่เป็นค่าตั้งต้น ถ้ายังไม่ได้เลือกจะใช้ MPC-HC ถ้าเครื่องไม่มีจะใช้ตัวอื่นที่หาเจอ แล้วจึงใช้โปรแกรมหลักของ Windows</Phr></div>
         {players == null
           ? [0, 1, 2].map((i) => <div key={i} className="folder plrow" aria-busy="true"><Skel w={18} h={18} r={4} /><div className="grow"><Skel w="30%" h={13} /><div style={{ height: 6 }} /><Skel w="70%" h={11} /></div><Skel w={150} h={32} r={9} /></div>)
           : <>
@@ -434,7 +434,7 @@ export default function SettingsPage() {
             ))}
             <div className="folder plrow" data-player="system" data-player-default={players.systemDefault || undefined}>
               {players.systemIcon ? <img className="plicon" src={players.systemIcon} alt="" /> : <IcPlayBox />}
-              <div className="grow"><b>โปรแกรมหลักของ Windows</b><div className="small">โปรแกรมที่ Windows ตั้งไว้เปิดไฟล์ชนิดนั้น · เปิดตรงนาทีไม่ได้ · ส่งเสียงกับซับที่จับคู่ไม่ได้</div></div>
+              <div className="grow"><b>โปรแกรมหลักของ Windows</b><div className="small"><Phr>โปรแกรมที่ Windows ตั้งไว้เปิดไฟล์ชนิดนั้น แต่เปิดตรงนาทีไม่ได้ และส่งเสียงกับซับที่จับคู่ไม่ได้</Phr></div></div>
               {players.systemDefault
                 ? <span className="pldef"><IbTick size={14} />ค่าตั้งต้น</span>
                 : <button type="button" className="btn btn-ghost btn-sm plset" data-player-set onClick={() => void set({ playerPath: "system" })}>ตั้งเป็นค่าตั้งต้น</button>}
@@ -449,13 +449,13 @@ export default function SettingsPage() {
         {tools == null
           ? [0, 1, 2, 3, 4, 5].map((i) => <div key={i} className="setrow" aria-busy="true"><Skel w="45%" h={12} /><Skel w={90} h={20} r={10} /></div>)
           : tools.map((t) => (
-            <div key={t.name} className="setrow" data-tool={t.name}><div className="lbl">{t.name}{t.ok && verOf(t.version) && <span className="setver" data-toolver>รุ่น {verOf(t.version)}</span>}<span className="small">{TOOL_ROLE[t.name] ?? ""}{t.ok ? "" : ` · ${t.version}`}</span></div>
+            <div key={t.name} className="setrow" data-tool={t.name}><div className="lbl">{t.name}{t.ok && verOf(t.version) && <span className="setver" data-toolver>รุ่น {verOf(t.version)}</span>}<span className="small">{TOOL_ROLE[t.name] ?? ""}{t.ok ? "" : ` ${t.version}`}</span></div>
               {t.ok ? <span className="toolok">พร้อมใช้งาน</span> : <span className="toolbad">ไม่พร้อม</span>}</div>))}
-        <div className="setrow" data-tool="Icaros"><div className="lbl">Icaros<span className="small">ให้ Windows โชว์โปสเตอร์เป็นไอคอนไฟล์ ไม่ลงก็ใช้โปรแกรมนี้ได้ครบ</span></div>
+        <div className="setrow" data-tool="Icaros"><div className="lbl">Icaros<span className="small"><Phr>ให้ Windows โชว์โปสเตอร์เป็นไอคอนไฟล์ ถ้าไม่ลงก็ยังใช้โปรแกรมนี้ได้ครบ</Phr></span></div>
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {icaros == null ? <Skel w={80} h={20} r={10} /> : icaros ? <span className="toolok">ลงแล้ว</span> : <span className="toolwarn">ยังไม่ได้ลง</span>}
             {icaros === false && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setIcarosHelp(true)} data-icaroshelp>วิธีลง</button>}</div></div>
-        <div className="setrow"><div className="lbl small" style={{ margin: 0 }}>ซ่อนหรือย้ายเครื่องมือแล้ว กดตรวจใหม่เพื่อดูสถานะล่าสุด</div>
+        <div className="setrow"><div className="lbl small" style={{ margin: 0 }}><Phr>ถ้าซ่อนหรือย้ายเครื่องมือ กดตรวจใหม่เพื่อดูสถานะล่าสุด</Phr></div>
           <button type="button" className={"btn btn-sm " + (checking ? "btn-wait" : "btn-ghost")} aria-disabled={checking || undefined} onClick={() => { if (!checking) void recheck(); }} data-retools><Keep icon={<IcRefresh size={15} />} all={["กำลังตรวจ", "ตรวจเครื่องมือใหม่"]}>{checking ? "กำลังตรวจ" : "ตรวจเครื่องมือใหม่"}</Keep></button></div>
       </div>
 
@@ -466,33 +466,33 @@ export default function SettingsPage() {
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => encodeApi.openDir().catch((e) => toast({ kind: "bad", title: "เปิดโฟลเดอร์ตัวแปลงไม่ได้", detail: String(e) }))} data-encdir><IcFolder size={15} />เปิดโฟลเดอร์ตัวแปลง</button>
             <button type="button" className={"btn btn-sm " + (encChecking ? "btn-wait" : "btn-ghost")} aria-disabled={encChecking || undefined} onClick={() => { if (!encChecking) void recheckEnc(); }} data-reenc><Keep icon={<IcRefresh size={15} />} all={["กำลังตรวจ", "ตรวจตัวแปลงใหม่"]}>{encChecking ? "กำลังตรวจ" : "ตรวจตัวแปลงใหม่"}</Keep></button>
           </span></h3>
-        <div className="small" style={{ marginBottom: 6 }}>โฟลเดอร์ตัวแปลงที่ใส่เอง <span className="nw" style={{ fontFamily: "var(--mono)", overflowWrap: "anywhere" }}>{encDir || "…"}</span> · <Phr>{"ตอนแปลงใช้ตัวต้นฉบับเป็นค่าตั้งต้น ffmpeg เป็นตัวรอง · วางรุ่นใหม่กว่าตัวที่แนบมา โปรแกรมใช้ตัวที่ใหม่กว่า"}</Phr></div>
+        <div className="small" style={{ marginBottom: 6 }}>โฟลเดอร์ตัวแปลงที่ใส่เองอยู่ที่ <span className="nw" style={{ fontFamily: "var(--mono)", overflowWrap: "anywhere" }}>{encDir || "กำลังอ่านที่อยู่"}</span> <Phr>{"ตอนแปลงใช้ตัวต้นฉบับเป็นค่าตั้งต้นและใช้ ffmpeg เป็นตัวรอง ถ้าวางรุ่นที่ใหม่กว่าตัวที่แนบมา โปรแกรมจะใช้ตัวที่ใหม่กว่า"}</Phr></div>
         <div className="setrow" data-latest-bar><div className="lbl small" style={{ margin: 0 }}>
           {/* Phr กันคำขาดกลางวลี (เดิม "ล่าสุดแล้ว 5" ขาดเป็น ล่าสุด กับ แล้ว 5) */}
           <Phr>{latest ? (() => {
             const n = (s: string) => latest.list.filter((l) => l.state === s).length;
             // ช่องว่างแบบไม่ตัดบรรทัด ( ) ผูกคำกับเลขของมัน ไม่ให้เลขหลุดไปขึ้นบรรทัดใหม่
             const nb = " ";
-            return `เช็กรุ่นล่าสุดกับเว็บผู้ทำเมื่อ ${latest.at.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}${nb}น. · ล่าสุดแล้ว${nb}${n("ok") + n("ahead")} · มีรุ่นใหม่${nb}${n("new")} · ยังไม่ได้ใส่${nb}${n("missing")} · เช็กไม่ได้${nb}${n("error")}`;
-          })() : "เช็กว่าตัวแปลงแต่ละตัวเป็นรุ่นล่าสุดไหม · ออกเน็ตไปดูหน้าเว็บผู้ทำเฉพาะตอนกด ไม่โหลดอะไรมาเปลี่ยนเอง"}</Phr></div>
+            return `เช็กรุ่นล่าสุดกับเว็บผู้ทำเมื่อ ${latest.at.toLocaleTimeString("th-TH", { hour: "2-digit", minute: "2-digit" })}${nb}นาฬิกา  ล่าสุดแล้ว${nb}${n("ok") + n("ahead")}${nb}ตัว มีรุ่นใหม่${nb}${n("new")}${nb}ตัว ยังไม่ได้ใส่${nb}${n("missing")}${nb}ตัว และเช็กไม่ได้${nb}${n("error")}${nb}ตัว`;
+          })() : "เช็กว่าตัวแปลงแต่ละตัวเป็นรุ่นล่าสุดหรือยัง โดยออกเน็ตไปดูหน้าเว็บผู้ทำเฉพาะตอนกด และไม่โหลดอะไรมาเปลี่ยนเอง"}</Phr></div>
           <button type="button" className={"btn btn-sm " + (latestChecking ? "btn-wait" : "btn-ghost")} aria-disabled={latestChecking || undefined} onClick={() => { if (!latestChecking) void checkLatest(); }} data-enclatest><Keep icon={<IcRefresh size={15} />} all={["กำลังเช็ก", "เช็กรุ่นล่าสุด"]}>{latestChecking ? "กำลังเช็ก" : "เช็กรุ่นล่าสุด"}</Keep></button></div>
         {encs == null
           ? [0, 1, 2, 3, 4].map((i) => <div key={i} className="setrow" aria-busy="true"><Skel w="45%" h={12} /><Skel w={90} h={20} r={10} /></div>)
           : encs.map((e) => (
-            <div key={e.name} className="setrow" data-enc={e.name}><div className="lbl">{e.name}<span className="small">{e.codecs} · {e.ok ? `${e.version ?? "ไม่ทราบรุ่น"}${e.coreAudio ? ` · CoreAudioToolbox ${e.coreAudio}` : ""} · ${e.source === "user" ? "โฟลเดอร์ตัวแปลง" : "แนบมากับโปรแกรม"}` : e.problem ? e.problem : "ไม่เจอในโฟลเดอร์ตัวแปลง"}</span>
+            <div key={e.name} className="setrow" data-enc={e.name}><div className="lbl">{e.name}<span className="small">{e.ok ? `${e.codecs} รุ่น ${e.version ?? "ไม่ทราบ"}${e.coreAudio ? ` ใช้ CoreAudioToolbox ${e.coreAudio}` : ""} ${e.source === "user" ? "จากโฟลเดอร์ตัวแปลง" : "แนบมากับโปรแกรม"}` : `ตัวแปลง ${e.codecs} ${e.problem ? e.problem : "ยังไม่เจอในโฟลเดอร์ตัวแปลง"}`}</span>
               {(() => { const l = latest?.list.find((x) => x.name === e.name); return l ? <LatestLine l={l} onOpen={openPage} /> : null; })()}</div>
               {e.ok ? <span className="toolok">พร้อมใช้งาน</span> : e.problem ? <span className="toolwarn">{e.problem.startsWith("ต้องติดตั้ง iTunes") ? "ต้องติดตั้ง iTunes" : "ขาดไฟล์ประกอบ"}</span> : <span className="toolwarn">ยังไม่ได้ใส่</span>}</div>))}
-        <div className="small" style={{ marginTop: 6 }}><Phr>{"qaac (AAC ของ Apple) กับ fdkaac (AAC ของ Fraunhofer) สัญญาอนุญาตไม่ให้แจกไปกับตัวติดตั้ง โหลดเองแล้ววางทุกไฟล์ที่มากับชุดไว้ในโฟลเดอร์ตัวแปลง แล้วกดตรวจตัวแปลงใหม่ · qaac กับ refalac (ALAC) แนบมากับโปรแกรมแล้ว · qaac ต้องติดตั้ง iTunes ก่อน เพราะใช้ตัวเข้ารหัส AAC ของ Apple ที่มากับ iTunes · refalac ไม่ต้องมี iTunes · TAK แนบชุดเดิมของผู้ทำมาทั้งไฟล์ตามเงื่อนไขการแจก โปรแกรมแตก Takc.exe ไปใช้เอง ใช้เฉพาะหน้าแปลงเสียง · รายชื่อ รุ่น และสัญญาอนุญาตอยู่ docs/research/codec-เสียง.md"}</Phr></div>
+        <div className="small" style={{ marginTop: 6 }}><Phr>{"fdkaac (AAC ของ Fraunhofer) สัญญาอนุญาตไม่ให้แจกไปกับตัวติดตั้ง จึงต้องโหลดเองแล้ววางทุกไฟล์ที่มากับชุดไว้ในโฟลเดอร์ตัวแปลง แล้วกดตรวจตัวแปลงใหม่  ส่วน qaac (AAC ของ Apple) กับ refalac (ALAC) แนบมากับโปรแกรมแล้ว แต่ qaac ต้องติดตั้ง iTunes ก่อน เพราะใช้ตัวเข้ารหัสของ Apple ที่มากับ iTunes ซึ่งแจกไปกับโปรแกรมไม่ได้ ขณะที่ refalac ไม่ต้องมี iTunes  สำหรับ TAK แนบชุดเดิมของผู้ทำมาทั้งไฟล์ตามเงื่อนไขการแจก แล้วโปรแกรมแตกออกมาใช้เอง และใช้ได้เฉพาะหน้าแปลงเสียง  ดูรายชื่อ รุ่น และสัญญาอนุญาตของตัวแปลงทุกตัวได้ในไฟล์ docs/research/codec-เสียง.md"}</Phr></div>
       </div>
 
       {/* ---------- กราฟเสียง (แคลร์เพิ่ม · ผลอ่านคลื่นที่เก็บลงเครื่อง คิว 8) ---------- */}
       <div className="setcard" data-setcard="graph" hidden={sec !== "graph"}><h3>กราฟเสียง</h3>
-        <div className="setrow"><div className="lbl">ซูมเหมือนกันทุกกราฟ<span className="small">เปิดแล้วทุกกราฟใช้ช่วงเวลาซูมเดียวกัน · ปิดแล้วซูมเฉพาะกราฟที่ดูอยู่ กราฟอื่นเริ่มทั้งไฟล์</span></div>
+        <div className="setrow"><div className="lbl">ซูมเหมือนกันทุกกราฟ<span className="small"><Phr>เปิดแล้วทุกกราฟใช้ช่วงเวลาซูมเดียวกัน ส่วนเมื่อปิดจะซูมเฉพาะกราฟที่ดูอยู่ และกราฟอื่นเริ่มที่ทั้งไฟล์</Phr></span></div>
           <Switch on={settings.graphZoomAll} onChange={(v) => set({ graphZoomAll: v })} label="ซูมเหมือนกันทุกกราฟ" /></div>
         <SpekResRow />
         <GraphImgRows value={settings.graphImg ?? GRAPH_IMG_DEFAULT} onChange={(graphImg) => set({ graphImg })} />
-        <div className="setrow"><div className="lbl">ผลอ่านคลื่นที่เก็บไว้ในเครื่อง<span className="small">เปิดไฟล์เดิมซ้ำไม่ต้องอ่านใหม่ · ไฟล์หนังเปลี่ยนแล้วอ่านใหม่เอง · รวมไม่เกิน 300 MB</span>
-          <span className="small" data-graphcache>{cache ? `${cache.files} ไฟล์ · ${fmtSize(cache.bytes)}` : "—"}</span></div>
+        <div className="setrow"><div className="lbl">ผลอ่านคลื่นที่เก็บไว้ในเครื่อง<span className="small"><Phr>เปิดไฟล์เดิมซ้ำไม่ต้องอ่านใหม่ ถ้าไฟล์ถูกแก้จะอ่านใหม่เอง และเก็บรวมไม่เกิน 300 MB</Phr></span>
+          <span className="small" data-graphcache>{cache ? `ตอนนี้เก็บไว้ ${cache.files} ไฟล์ ขนาดรวม ${fmtSize(cache.bytes)}` : "กำลังนับ"}</span></div>
           <button type="button" className="btn btn-ghost btn-sm" onClick={clearCache} data-clearcache><IbTrash size={15} />ล้าง</button></div>
       </div>
 
@@ -504,10 +504,10 @@ export default function SettingsPage() {
           <div className="small" style={{ marginBottom: 4 }}>{g.note}</div>
           <div className="thanksgrid">
             {g.rows.map((r) => <div key={r.name} className="thankcard" data-thanks-row>
-              <div className="thankhead"><span className={"thankicon" + (WHITE_ICON.has(r.name) ? " white" : "") + (thankImg2(r.name) ? " two" : "")}>{thankImg(r.name) ? <img src={thankImg(r.name)} alt="" draggable={false} /> : r.icon}{thankImg2(r.name) && <img src={thankImg2(r.name)} alt="" draggable={false} />}</span><span className="thankname"><b>{r.name}</b>{r.ver && <span className="thankver" data-thankver>v{r.ver}</span>}</span>{/* ป้ายยาวแยกบรรทัดตรง · ป้ายสั้นอยู่บรรทัดเดียว ทุกป้ายอยู่มุมขวาบนแถวเดียวกับชื่อ (BUGS ข้อ 3) */}<span className={"thanktag" + (r.tag.length > 18 ? " lines" : "")} title={r.tag} data-thanks-tag>{r.tag.split(" · ").map((t, i, a) => <span key={t}>{t}{i < a.length - 1 ? " ·" : ""}{i < a.length - 1 ? " " : ""}</span>)}</span></div>
+              <div className="thankhead"><span className={"thankicon" + (WHITE_ICON.has(r.name) ? " white" : "") + (thankImg2(r.name) ? " two" : "")}>{thankImg(r.name) ? <img src={thankImg(r.name)} alt="" draggable={false} /> : r.icon}{thankImg2(r.name) && <img src={thankImg2(r.name)} alt="" draggable={false} />}</span><span className="thankname"><b>{r.name}</b>{r.ver && <span className="thankver" data-thankver>v{r.ver}</span>}</span>{/* ป้ายยาวแยกบรรทัดตรง · ป้ายสั้นอยู่บรรทัดเดียว ทุกป้ายอยู่มุมขวาบนแถวเดียวกับชื่อ (BUGS ข้อ 3) */}<span className={"thanktag" + (r.tag.length > 18 ? " lines" : "")} title={r.tag} data-thanks-tag>{r.tag.split(", ").map((t, i, a) => <span key={t}>{t}{i < a.length - 1 ? "," : ""}{i < a.length - 1 ? " " : ""}</span>)}</span></div>
               {/* ตัดบรรทัดตรงเว้นวรรคเท่านั้น ขยายเต็มจอแล้วไม่ตัดกลางคำ อ่า|น (BUGS ข้อ 4) */}
               <div className="thankwhat"><Phr>{r.what}</Phr></div>
-              <div className="thankfoot"><span className="thankurl">{r.url.split(" · ").map((u) => <button key={u} type="button" className="thanklink" title={"เปิด " + u} data-thanks-link={u} onClick={() => { encodeApi.thanksOpen(u).catch((e: unknown) => toast({ kind: "bad", title: "เปิดหน้าเว็บไม่ได้", detail: String(e) })); }}>{u}</button>)}</span></div>
+              <div className="thankfoot"><span className="thankurl">{r.url.split(", ").map((u) => <button key={u} type="button" className="thanklink" title={"เปิด " + u} data-thanks-link={u} onClick={() => { encodeApi.thanksOpen(u).catch((e: unknown) => toast({ kind: "bad", title: "เปิดหน้าเว็บไม่ได้", detail: String(e) })); }}>{u}</button>)}</span></div>
             </div>)}
           </div>
         </div>)}
@@ -521,7 +521,7 @@ export default function SettingsPage() {
       <Dialog open={icarosHelp} onClose={() => setIcarosHelp(false)} kind="menu" title="วิธีลง Icaros"
         actions={<><button type="button" className="btn btn-ghost btn-sm" onClick={() => setIcarosHelp(false)}>ปิด</button>
           <button type="button" className="btn btn-main btn-sm" onClick={() => api.openIcarosPage().catch((e) => toast({ kind: "bad", title: "เปิดหน้าเว็บไม่ได้", detail: String(e) }))} data-openicaros>เปิดหน้าเว็บ Icaros</button></>}>
-        <div className="small">ลงครั้งเดียว ไอคอนไฟล์ MKV ในหน้าต่างโฟลเดอร์จะเป็นโปสเตอร์ · ไม่ลงก็ใช้โปรแกรมชั้นหนังได้ครบ</div>
+        <div className="small"><Phr>ลงครั้งเดียวแล้วไอคอนไฟล์ MKV ในหน้าต่างโฟลเดอร์จะเป็นโปสเตอร์ ถ้าไม่ลงก็ยังใช้โปรแกรมชั้นหนังได้ครบ</Phr></div>
         <ol className="steps">
           <li>กดปุ่มข้างล่าง เปิดหน้าเว็บของผู้พัฒนา Icaros แล้วโหลดตัวติดตั้ง</li>
           <li>ติดตั้ง แล้วเปิดโปรแกรม Icaros Config</li>
@@ -577,47 +577,47 @@ function GraphImgRows({ value: saved, onChange }: { value: GraphImg; onChange: (
   // ทุกแถวอยู่ตลอด เปลี่ยนชนิดไฟล์แล้วเพจไม่เลื่อน อันที่ใช้ไม่ได้จางไว้ เหตุผลขึ้นตอนชี้ (พี่กันสั่ง 9 พ.ย. 2569 "ตอนเราเลือกแต่ละนามสกุล ตัวเพจมันเลื่อน เราอยากให้มัน fix และอันไหนปรับไม่ได้จะจางไว้")
   const f = o.format, deepOk = f === "png" || f === "tiff", dpiOk = f === "png" || f === "jpg" || f === "tiff", qualOk = f === "jpg" || f === "heic", subOk = f === "jpg", packOk = f === "png";
   const name = f === "webp" ? "WebP" : f === "heic" ? "HEIC" : f.toUpperCase();
-  const cm = o.width && dpiOk ? ` · พิมพ์ได้กว้าง ${(o.width / o.dpi * 2.54).toFixed(1)} ซม.` : "";
+  const cm = o.width && dpiOk ? ` เมื่อ${J}พิมพ์จะ${J}กว้าง ${(o.width / o.dpi * 2.54).toFixed(1)} เซนติเมตร` : "";
   return <>
     <h4 className="imghead">รูปกราฟที่บันทึก</h4>
-    <div className="setrow" data-img-row="width"><div className="lbl">ความกว้างรูป<span className="small">ความสูงตามสัดส่วนกราฟ · ตอนบันทึกโปรแกรมอ่านเสียงใหม่ที่ความละเอียดนี้ ไม่ต้องซูมก่อน รูปใหญ่ใช้เวลานานขึ้น{cm}</span></div>
+    <div className="setrow" data-img-row="width"><div className="lbl">ความกว้างรูป<span className="small"><Phr>{"ความสูงตามสัดส่วนกราฟ ตอนบันทึกโปรแกรมจะอ่านเสียงใหม่ที่ความละเอียดนี้โดยไม่ต้องซูมก่อน แต่รูปใหญ่ใช้เวลานานขึ้น" + cm}</Phr></span></div>
       <span className="imgstack"><span className="imgctl"><Seg small label="ความกว้างรูป" value={String(IMG_WIDTHS.includes(o.width) ? o.width : "own")} onChange={(v) => { if (v !== "own") up({ width: Number(v) }); }}
         options={[{ value: "0", label: "ตามจอ" }, { value: "1920", label: "1920" }, { value: "2560", label: "2560" }, { value: "3840", label: "3840" }, { value: "7680", label: "7680" }]} />
         <NumField value={o.width} min={0} max={8192} label="พิมพ์ความกว้างเอง" unit="px" onCommit={(width) => up({ width: width && width < 320 ? 320 : width })} data="data-img-width" /></span>
         <ImgSlide value={o.width || 320} stops={WIDTH_STOPS} major={[320, 1280, 2560, 3840, 6400, 8192]} fineMarks={[320, 1920, 3840, 5760, 8192]} label="ความกว้างรูป" onDrag={(width) => setDraft({ width })} onCommit={(width) => up({ width })} data="data-img-slide-width" /></span></div>
-    <div className="setrow" data-img-row="format"><div className="lbl">ชนิดไฟล์<span className="small">PNG TIFF WebP ไม่เสียคุณภาพ · JPG กับ HEIC ไฟล์เล็ก แต่ขอบตัวหนังสือกับเส้นอาจฟุ้ง</span></div>
+    <div className="setrow" data-img-row="format"><div className="lbl">ชนิดไฟล์<span className="small"><Phr>PNG TIFF และ WebP ไม่เสียคุณภาพ ส่วน JPG กับ HEIC ไฟล์เล็กกว่า แต่ขอบตัวหนังสือกับเส้นอาจฟุ้ง</Phr></span></div>
       <Seg small label="ชนิดไฟล์" value={o.format} onChange={(format) => up({ format })} options={[{ value: "png", label: "PNG" }, { value: "jpg", label: "JPG" }, { value: "webp", label: "WebP" }, { value: "heic", label: "HEIC" }, { value: "tiff", label: "TIFF" }]} /></div>
-    <div className="setrow" data-img-row="bits"><div className="lbl">ความลึกสี<span className="small">ใช้ได้กับ PNG และ TIFF · กราฟวาดจาก 8 bit ต่อช่องสี 16 bit ไฟล์ใหญ่ขึ้น รายละเอียดสีไม่ได้เพิ่ม</span></div>
+    <div className="setrow" data-img-row="bits"><div className="lbl">ความลึกสี<span className="small"><Phr>ใช้ได้กับ PNG และ TIFF กราฟวาดจาก 8 bit ต่อช่องสี ถ้าเลือก 16 bit ไฟล์จะใหญ่ขึ้นแต่รายละเอียดสีไม่ได้เพิ่ม</Phr></span></div>
       <Seg small label="ความลึกสี" value={String(deepOk ? o.bits : 8)} onChange={(v) => up({ bits: Number(v) as 8 | 16 })} disabledReason={deepOk ? undefined : `${name} เก็บได้ 8 bit`} options={[{ value: "8", label: "8 bit" }, { value: "16", label: "16 bit" }]} /></div>
-    <div className="setrow" data-img-row="gray"><div className="lbl">ชุดสี<span className="small">ขาวดำเก็บช่องสีเดียว เส้นของแต่ละไฟล์จะแยกกันด้วยสีไม่ได้</span></div>
+    <div className="setrow" data-img-row="gray"><div className="lbl">ชุดสี<span className="small"><Phr>ขาวดำเก็บช่องสีเดียว เส้นของแต่ละไฟล์จะแยกกันด้วยสีไม่ได้</Phr></span></div>
       <Seg small label="ชุดสี" value={o.gray ? "gray" : "rgb"} onChange={(v) => up({ gray: v === "gray" })} options={[{ value: "rgb", label: "RGB" }, { value: "gray", label: "ขาวดำ" }]} /></div>
     {/* พื้นหลังโปร่งใส (พี่กันสั่ง 10 พ.ย. 2569 "เราชอบตอนบันทึกแล้วพื้นหลังโปร่งใสจัง เอาไปที่ตั้งค่าหน่อย") */}
-    <div className="setrow" data-img-row="bg"><div className="lbl">พื้นหลัง<span className="small">โปร่งใส ใช้ได้กับ PNG WebP TIFF · วางบนสไลด์หรือเอกสารสีอื่นแล้วไม่มีกรอบขาว · กราฟสเปกตรัมพื้นดำยังทึบ</span></div>
-      <Seg small label="พื้นหลัง" value={o.transparent && o.format !== "jpg" && o.format !== "heic" ? "clear" : "solid"} onChange={(v) => up({ transparent: v === "clear" })} disabledReason={o.format === "jpg" || o.format === "heic" ? `${name} เก็บพื้นโปร่งใสไม่ได้ ใช้ PNG WebP หรือ TIFF` : undefined} options={[{ value: "solid", label: "ทึบ" }, { value: "clear", label: "โปร่งใส" }]} /></div>
-    <div className="setrow" data-img-row="dpi"><div className="lbl">DPI<span className="small">ใช้ได้กับ PNG JPG TIFF · ไม่เปลี่ยนจำนวนพิกเซล เป็นค่าบอกขนาดตอนพิมพ์ เก็บในไฟล์จริง</span></div>
+    <div className="setrow" data-img-row="bg"><div className="lbl">พื้นหลัง<span className="small"><Phr>พื้นโปร่งใสใช้ได้กับ PNG WebP และ TIFF วางบนสไลด์หรือเอกสารสีอื่นแล้วไม่มีกรอบขาว แต่กราฟสเปกตรัมที่พื้นดำยังทึบ</Phr></span></div>
+      <Seg small label="พื้นหลัง" value={o.transparent && o.format !== "jpg" && o.format !== "heic" ? "clear" : "solid"} onChange={(v) => up({ transparent: v === "clear" })} disabledReason={o.format === "jpg" || o.format === "heic" ? `${name} เก็บพื้นโปร่งใสไม่ได้ ให้ใช้ PNG WebP หรือ TIFF` : undefined} options={[{ value: "solid", label: "ทึบ" }, { value: "clear", label: "โปร่งใส" }]} /></div>
+    <div className="setrow" data-img-row="dpi"><div className="lbl">DPI<span className="small"><Phr>ใช้ได้กับ PNG JPG และ TIFF โดยไม่เปลี่ยนจำนวนพิกเซล เป็นค่าบอกขนาดตอนพิมพ์ที่เก็บในไฟล์จริง</Phr></span></div>
       <span className="imgstack"><span className="imgctl"><Seg small label="DPI" value={String(IMG_DPIS.includes(o.dpi) ? o.dpi : "own")} disabledReason={dpiOk ? undefined : `ไฟล์ ${name} ไม่มีที่เก็บค่า DPI`} onChange={(v) => { if (v !== "own") up({ dpi: Number(v) }); }}
         options={IMG_DPIS.map((d) => ({ value: String(d), label: String(d) }))} />
         <NumField off={!dpiOk} value={o.dpi} min={1} max={9600} label="พิมพ์ DPI เอง" unit="dpi" onCommit={(dpi) => up({ dpi })} data="data-img-dpi" /></span>
         <ImgSlide off={!dpiOk} value={o.dpi} stops={DPI_STOPS} fineMarks={[72, 300, 600, 900, 1200]} label="DPI" onDrag={(dpi) => setDraft({ dpi })} onCommit={(dpi) => up({ dpi })} data="data-img-slide-dpi" /></span></div>
-    <div className="setrow" data-img-row="quality"><div className="lbl">คุณภาพ<span className="small">ใช้ได้กับ JPG และ HEIC · 1 ถึง 100 · 92 เป็นค่าตั้งต้น เห็นต่างจากต้นฉบับยากแล้ว</span></div>
+    <div className="setrow" data-img-row="quality"><div className="lbl">คุณภาพ<span className="small"><Phr>ใช้ได้กับ JPG และ HEIC ตั้งได้ตั้งแต่ 1 ถึง 100 ค่าตั้งต้นคือ 92 ซึ่งเห็นต่างจากต้นฉบับยากแล้ว</Phr></span></div>
       <span className="imgstack"><NumField off={!qualOk} value={o.quality} min={1} max={100} label="คุณภาพ" unit="/ 100" onCommit={(quality) => up({ quality })} data="data-img-quality" />
         <ImgSlide off={!qualOk} value={o.quality} stops={QUALITY_STOPS} major={[1, 25, 50, 70, 80, 90, 100]} fineMarks={[1, 25, 50, 75, 100]} label="คุณภาพ" onDrag={(quality) => setDraft({ quality })} onCommit={(quality) => up({ quality })} data="data-img-slide-quality" /></span></div>
-    <div className="setrow" data-img-row="sub"><div className="lbl">Chroma subsampling<span className="small">ใช้ได้กับ JPG · 4:4:4 เก็บสีครบ เส้นสีบนกราฟคมกว่า · 4:2:0 ไฟล์เล็กลง · HEIC ใช้ 4:2:0 เปิดได้ทุกโปรแกรม</span></div>
+    <div className="setrow" data-img-row="sub"><div className="lbl">Chroma subsampling<span className="small"><Phr>ใช้ได้กับ JPG แบบ 4:4:4 เก็บสีครบ เส้นสีบนกราฟคมกว่า แบบ 4:2:0 ไฟล์เล็กลง ส่วน HEIC ใช้ 4:2:0 เพื่อให้เปิดได้ทุกโปรแกรม</Phr></span></div>
       <Seg small label="Chroma subsampling" value={f === "heic" ? "420" : o.subsampling} disabledReason={subOk ? undefined : "ใช้ได้กับ JPG"} onChange={(subsampling) => up({ subsampling })} options={[{ value: "444", label: "4:4:4" }, { value: "420", label: "4:2:0" }]} /></div>
-    <div className="setrow" data-img-row="compress"><div className="lbl">การบีบอัด PNG<span className="small">ใช้ได้กับ PNG · ภาพเหมือนกันทุกระดับ ต่างกันที่ขนาดไฟล์กับเวลาบันทึก</span></div>
+    <div className="setrow" data-img-row="compress"><div className="lbl">การบีบอัด PNG<span className="small"><Phr>ใช้ได้กับ PNG ภาพเหมือนกันทุกระดับ ต่างกันแค่ขนาดไฟล์กับเวลาบันทึก</Phr></span></div>
       <Seg small label="การบีบอัด PNG" value={o.compress} disabledReason={packOk ? undefined : "ใช้ได้กับ PNG"} onChange={(compress) => up({ compress })} options={[{ value: "fast", label: "เร็ว" }, { value: "default", label: "ปกติ" }, { value: "best", label: "เล็กสุด" }]} /></div>
     {/* พี่กันสั่ง 9 พ.ย. 2569 "เอาที่อยู่ไฟล์เป็นค่าตั้งต้นด้วย" · "เราหมายถึงตั้งค่านี้ ที่อยู่ตรงนี้" */}
-    <div className="setrow" data-img-row="dir"><div className="lbl">ที่เก็บรูป<span className="small" style={{ overflowWrap: "anywhere" }}>{o.dirMode === "folder" && o.dir ? o.dir : "โฟลเดอร์เดียวกับไฟล์ที่ดูอยู่ · หน้าเทียบใช้โฟลเดอร์ของไฟล์ 1"}</span></div>
+    <div className="setrow" data-img-row="dir"><div className="lbl">ที่เก็บรูป<span className="small" style={{ overflowWrap: "anywhere" }}>{o.dirMode === "folder" && o.dir ? o.dir : <Phr>โฟลเดอร์เดียวกับไฟล์ที่ดูอยู่ ส่วนหน้าเทียบใช้โฟลเดอร์ของไฟล์ที่ 1</Phr>}</span></div>
       <span className="imgctl"><Seg small label="ที่เก็บรูป" value={o.dirMode === "folder" && o.dir ? "folder" : "beside"} onChange={(v) => { if (v === "beside") up({ dirMode: "beside" }); else void pickDir(); }}
         options={[{ value: "beside", label: "ข้างไฟล์ที่ดูอยู่" }, { value: "folder", label: "โฟลเดอร์ที่เลือก" }]} />
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => void pickDir()} data-img-dir><IcFolder size={15} />เปลี่ยน</button></span></div>
-    <div className="setrow" data-img-row="ask"><div className="lbl">ถามที่เก็บทุกครั้ง<span className="small">เปิด เปิดกล่องเลือกที่เก็บ แก้ชื่อได้ · ปิด กดบันทึกแล้วเก็บเลย ชื่อซ้ำต่อท้าย (2) ไม่เขียนทับ</span></div>
+    <div className="setrow" data-img-row="ask"><div className="lbl">ถามที่เก็บทุกครั้ง<span className="small"><Phr>เปิดไว้จะขึ้นกล่องเลือกที่เก็บและแก้ชื่อได้ ส่วนเมื่อปิด กดบันทึกแล้วเก็บเลย ถ้าชื่อซ้ำจะต่อท้ายด้วย (2) ไม่เขียนทับ</Phr></span></div>
       <Switch on={o.ask} onChange={(ask) => up({ ask })} label="ถามที่เก็บทุกครั้ง" /></div>
-    <div className="setrow" data-img-row="title"><div className="lbl">แถบหัวรูป<span className="small">ชื่อไฟล์กับช่วงเวลาบนรูป · หน้าเทียบบอกสีของแต่ละไฟล์ · กราฟความถี่มีชื่อในตัวอยู่แล้ว</span></div>
+    <div className="setrow" data-img-row="title"><div className="lbl">แถบหัวรูป<span className="small"><Phr>ชื่อไฟล์กับช่วงเวลาบนรูป หน้าเทียบจะบอกสีของแต่ละไฟล์ด้วย ส่วนกราฟความถี่มีชื่อในตัวอยู่แล้ว</Phr></span></div>
       <Switch on={o.title} onChange={(title) => up({ title })} label="แถบหัวรูป" /></div>
-    <div className="setrow" data-img-row="name"><div className="lbl">ใส่ชื่อกราฟในชื่อไฟล์<span className="small">เช่น เพลง รูปคลื่น.png · ชื่อซ้ำต่อท้าย (2) ไม่เขียนทับ</span></div>
+    <div className="setrow" data-img-row="name"><div className="lbl">ใส่ชื่อกราฟในชื่อไฟล์<span className="small"><Phr>ชื่อไฟล์จะเป็นแบบ เพลง รูปคลื่น.png ถ้าชื่อซ้ำจะต่อท้ายด้วย (2) ไม่เขียนทับ</Phr></span></div>
       <Switch on={o.nameGraph} onChange={(nameGraph) => up({ nameGraph })} label="ใส่ชื่อกราฟในชื่อไฟล์" /></div>
-    <div className="setrow"><div className="lbl">กลับค่าตั้งต้น<span className="small">กว้าง 2560 · PNG · 8 bit · RGB · 300 dpi · เก็บข้างไฟล์ · ถามทุกครั้ง</span></div>
+    <div className="setrow"><div className="lbl">กลับค่าตั้งต้น<span className="small"><Phr>กลับเป็นกว้าง 2560 px, PNG, 8 bit, RGB, 300 dpi, เก็บข้างไฟล์ และถามที่เก็บทุกครั้ง</Phr></span></div>
       <button type="button" className="btn btn-ghost btn-sm" onClick={() => onChange(GRAPH_IMG_DEFAULT)} data-img-reset><IcRefresh size={15} />กลับค่าตั้งต้น</button></div>
   </>;
 }

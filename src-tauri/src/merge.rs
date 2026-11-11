@@ -726,7 +726,7 @@ pub fn verify_mkv(tools: &Path, work: &Path, file: &Path, tracks: &[Track], att_
     let got_k: Vec<(String, String)> = got.iter().map(|s| (s.kind.clone(), s.codec.clone())).collect();
     if want_k != got_k {
         let show = |v: &[(String, String)]| v.iter().map(|(k, c)| format!("{}{c}", kind_word(k))).collect::<Vec<_>>().join(" ");
-        why.push(format!("แทร็กไม่ตรงที่สั่ง ที่สั่ง {} · ไฟล์ใหม่ {}", show(&want_k), show(&got_k)));
+        why.push(format!("แทร็กไม่ตรงที่สั่ง ที่สั่ง {} แต่ไฟล์ใหม่ {}", show(&want_k), show(&got_k)));
     }
     let empty = vec![];
     let mt: Vec<&Value> = mk["tracks"].as_array().unwrap_or(&empty).iter().collect();
@@ -750,7 +750,7 @@ pub fn verify_mkv(tools: &Path, work: &Path, file: &Path, tracks: &[Track], att_
     let mut got_atts: Vec<String> = attachments_of(&mk).iter().map(|a| a.name.to_lowercase()).collect();
     got_atts.sort();
     if want_atts != got_atts {
-        why.push(format!("ไฟล์แนบไม่ตรง ที่สั่ง {want_atts:?} · ไฟล์ใหม่ {got_atts:?}"));
+        why.push(format!("ไฟล์แนบไม่ตรง ที่สั่ง {want_atts:?} แต่ไฟล์ใหม่ {got_atts:?}"));
     } else {
         for c in covers {
             if let Err(e) = cover_matches(tools, work, file, &mk, c) {
@@ -795,7 +795,7 @@ pub fn verify_mp4(tools: &Path, file: &Path, tracks: &[Track], want_cover: bool,
     let got_k: Vec<(String, String)> = got.iter().map(|s| (s.kind.clone(), s.codec.clone())).collect();
     if want_k != got_k {
         let show = |v: &[(String, String)]| v.iter().map(|(k, c)| format!("{}{c}", kind_word(k))).collect::<Vec<_>>().join(" ");
-        why.push(format!("แทร็กไม่ตรงที่สั่ง ที่สั่ง {} · ไฟล์ใหม่ {}", show(&want_k), show(&got_k)));
+        why.push(format!("แทร็กไม่ตรงที่สั่ง ที่สั่ง {} แต่ไฟล์ใหม่ {}", show(&want_k), show(&got_k)));
     }
     let empty = vec![];
     let fs: Vec<&Value> = ff["streams"].as_array().unwrap_or(&empty).iter()
@@ -1199,7 +1199,7 @@ fn apply(app: &AppHandle, req: &MergeReq, jobs: &Arc<crate::jobs::Jobs>) -> Resu
     // MP4 · แทร็กที่ใส่ไม่ได้ต้องเอาออกก่อน (หน้าจอถามแล้วเอาออกให้)
     if mp4 {
         let bad: Vec<String> = kept.iter().filter(|t| mp4_unfit(t))
-            .map(|t| format!("{} {} · {}", kind_word(&t.kind), t.codec, t.why.clone().unwrap_or_else(|| "ใส่ใน MP4 ไม่ได้".into()))).collect();
+            .map(|t| format!("{} {} {}", kind_word(&t.kind), t.codec, t.why.clone().unwrap_or_else(|| "ใส่ใน MP4 ไม่ได้".into()))).collect();
         if !bad.is_empty() {
             let mut d = bad;
             d.push(untouched);
@@ -1282,7 +1282,7 @@ fn apply(app: &AppHandle, req: &MergeReq, jobs: &Arc<crate::jobs::Jobs>) -> Resu
     // เช็กซ้ำก่อนย้ายไฟล์เดิม · ระหว่างรวมผู้ใช้อาจเปิดหนังเรื่องนี้ดู
     let (original, original_to) = finish_output(app, &src, &target, &partial, &req.original, made.verified, &untouched, &mut notes)?;
     if old_pairs > 0 && !target.to_string_lossy().eq_ignore_ascii_case(&src.to_string_lossy()) {
-        notes.push(format!("เรื่องเดิมจับคู่เสียงหรือซับไว้ {old_pairs} ไฟล์ · ไฟล์ใหม่ชื่อนามสกุลต่างจากเดิม การจับคู่ไม่ตามไป จับคู่ใหม่ได้ที่หน้านี้"));
+        notes.push(format!("เรื่องเดิมจับคู่เสียงหรือซับไว้ {old_pairs} ไฟล์  ไฟล์ใหม่ชื่อนามสกุลต่างจากเดิม การจับคู่จึงไม่ตามไป แต่จับคู่ใหม่ได้ที่หน้านี้"));
     }
     // ไฟล์ใหม่ชื่อเดิม จดขนาดกับค่า hash ใหม่เป็นงานของโปรแกรมเอง ไม่ให้ชั้นวางขึ้นว่าไฟล์ถูกเปลี่ยนหลังตรวจ (ข้อ 14 · แบบหน้าใส่โปสเตอร์)
     if target.to_string_lossy().eq_ignore_ascii_case(&src.to_string_lossy()) {

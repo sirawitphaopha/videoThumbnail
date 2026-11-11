@@ -45,6 +45,9 @@ pub struct EncodeSpec {
     pub p: serde_json::Map<String, Value>,
     /// อัตราสุ่มของต้นทาง คนเรียกตั้งก่อนสร้างคำสั่ง (หน้าจอไม่ต้องส่ง) · ใช้คืนอัตราสุ่มหลัง loudnorm
     pub src_rate: Option<u32>,
+    /// ALAC 8 ช่อง ติดป้ายช่องเป็น 7.1(wide) ก่อนส่ง (build ตั้งเอง หน้าจอไม่ส่ง)
+    #[serde(skip)]
+    pub wide71: bool,
 }
 
 impl EncodeSpec {
@@ -127,6 +130,13 @@ pub struct Plan {
 /// ตัวกรองเสียงของ ffmpeg ตามลำดับ ความเร็ว ความดัง ความดังมาตรฐาน ลดบิต
 fn filters(spec: &EncodeSpec, dither16: bool) -> Vec<String> {
     let mut f = vec![];
+    // ALAC เก็บ 8 ช่องได้แบบเดียวคือ 7.1 ลำโพงหน้าคู่กลาง (MPEG 7.1 B ของ Apple) · 7.1 ลำโพงข้างที่หนังใช้ refalac ล้ม ffmpeg ตัดเหลือ 6.1 เงียบ ๆ
+    // ติดป้ายใหม่ตามลำดับเดิม ไม่ผสมเสียง ตัวอย่างเสียงทั้ง 8 ช่องตรงกับต้นทางทุกตัว (ลองจริง 11 พ.ย. 2569 · พี่กันสั่ง "แก้ด้วย อะไรที่เจอต้องแก้หมด")
+    if spec.wide71 {
+        // ต้นทางเกิน 8 ช่อง ผสมลงเป็น 7.1 ก่อน (-ac ทำงานหลังตัวกรอง ตัวติดป้ายจะได้ช่องเกิน)
+        if spec.channels.is_some() { f.push("aformat=channel_layouts=7.1".into()); }
+        f.push("channelmap=channel_layout=7.1(wide)".into());
+    }
     if let Some([from, to]) = spec.speed {
         if from > 0.0 && to > 0.0 && (from - to).abs() > 1e-6 {
             // เสียงจาก 25 fps เร็วกว่าหนัง 23.976 · ยืดให้ช้าลง tempo = 23.976 / 25
@@ -197,6 +207,13 @@ pub fn build(spec: &EncodeSpec, src: &str, stream: u64, out: &str, src_channels:
     if let (Some(c), Some(sc)) = (capped.channels, src_channels) { if c >= sc { capped.channels = None; } }
     // TAK เก็บได้สูงสุด 6 ช่อง (ข้อ 30)
     if capped.codec == "tak" && capped.channels.unwrap_or(src_channels.unwrap_or(2)) > 6 { capped.channels = Some(6); }
+    // qaac แบบ HE-AAC รับเสียงเกิน 48 kHz ไม่ได้ ได้ไฟล์ว่าง 0 ไบต์ (ลองจริง 11 พ.ย. 2569 ต้นทาง 96 กับ 88.2 kHz ฟ้อง AudioSampleEntry: 32 bit sample rate is not supported)
+    // แบบ AAC-LC ลดเป็น 48 kHz เองอยู่แล้ว · ให้ ffmpeg ลดเป็น 48 kHz ก่อนส่ง ได้ผลเท่ากับ AAC-LC (--rate auto ยังล้มที่ 80 kbps ขึ้นไป และลดอัตราสุ่มเองตามบิตเรต)
+    let he = capped.codec == "aac" && capped.encoder == "qaac" && capped.s("profile", "AAC-LC") != "AAC-LC" && capped.s("mode", "TVBR") != "TVBR";
+    if he && capped.rate.or(capped.src_rate).is_some_and(|r| r > 48000) { capped.rate = Some(48000); }
+    // ALAC สูงสุด 8 ช่อง · 8 ช่องติดป้าย 7.1(wide)
+    if capped.codec == "alac" && capped.channels.unwrap_or(src_channels.unwrap_or(2)) > 8 { capped.channels = Some(8); }
+    capped.wide71 = capped.codec == "alac" && capped.channels.unwrap_or(src_channels.unwrap_or(2)) == 8;
     let spec = &capped;
     let lossless = matches!(spec.codec.as_str(), "flac" | "alac" | "wv" | "ape" | "tak");
     let src16 = src_bits.is_some_and(|b| b > 0 && b <= 16);
@@ -323,7 +340,7 @@ pub fn build(spec: &EncodeSpec, src: &str, stream: u64, out: &str, src_channels:
             let threads = std::thread::available_parallelism().map(|n| n.get().min(8)).unwrap_or(2);
             let e = vec!["--level".to_string(), crate::ape::level_of(&spec.s("level", "Normal")).to_string(), "--threads".into(), threads.to_string(), out.into()];
             (vec![Step { tool: "ffmpeg".into(), args: ff }, Step { tool: "MACDll64".into(), args: e }], true,
-             "ffmpeg ถอดเสียงส่งทางท่อให้ MACDll64.dll (Monkey's Audio) บีบในโปรแกรม · ชุดของผู้ทำไม่มีตัวแปลงแบบคำสั่ง".into())
+             "ffmpeg ถอดเสียงส่งทางท่อให้ MACDll64.dll (Monkey's Audio) บีบในโปรแกรม  ชุดของผู้ทำไม่มีตัวแปลงแบบคำสั่ง".into())
         }
         ("tak", _, _) => {
             let mut ff = ff_head(src, stream, spec, dither16, None);
@@ -331,7 +348,7 @@ pub fn build(spec: &EncodeSpec, src: &str, stream: u64, out: &str, src_channels:
             let ev = match spec.s("eval", "Normal").as_str() { "Extra" => "e", "Max" => "m", _ => "" };
             let e = vec!["-e".to_string(), format!("-p{}{ev}", fmt_num(spec.n("preset", 2.0))), "-ihs".into(), "-".into(), out.into()];
             (vec![Step { tool: "ffmpeg".into(), args: ff }, Step { tool: "Takc".into(), args: e }], true,
-             "ffmpeg ถอดเสียงส่งทางท่อให้ Takc บีบ · Takc แตกจากชุด TAK 2.3.3 ที่แนบมา".into())
+             "ffmpeg ถอดเสียงส่งทางท่อให้ Takc บีบ  Takc แตกจากชุด TAK 2.3.3 ที่แนบมา".into())
         }
         ("ac3" | "eac3", _, _) => {
             let mut ff = ff_head(src, stream, spec, false, Some(6.min(src_channels.unwrap_or(6).max(1))));
@@ -496,10 +513,10 @@ pub const ENCODERS: [(&str, &str, &str, bool); 9] = [
     ("qaac64", "AAC", "--check", true),
     // refalac มากับชุด qaac ไม่ต้องใช้ไฟล์ของ Apple · ตอบรุ่นทาง --check "refalac 3.07" (ลอง 10 พ.ย. 2569)
     ("refalac64", "ALAC", "--check", true),
-    ("fdkaac", "AAC · HE-AAC", "--help", false),
+    ("fdkaac", "AAC และ HE-AAC", "--help", false),
     // TAK ฟรีสำหรับใช้ส่วนตัว แจกต่อได้เฉพาะไฟล์ zip เดิมทั้งไฟล์ · แนบ zip มาทั้งไฟล์ แตก Takc.exe ตอนใช้ (ensure_tak) · ใช้เฉพาะหน้าแปลงเสียง
     // ถามรุ่นด้วย -version ได้ "TAKC 2.3.3" (-h ไม่มีในคู่มือ Takc ตอบ invalid mode ไม่บอกรุ่น · ลอง 8 พ.ย. 2569)
-    ("Takc", "TAK · หน้าแปลงเสียง", "-version", true),
+    ("Takc", "TAK (ใช้เฉพาะหน้าแปลงเสียง)", "-version", true),
     ("ffmpeg", "ทุกชนิดที่แปลงได้ (ตัวรอง)", "-version", true),
 ];
 
@@ -601,7 +618,7 @@ fn probe_one(dir: &Path, name: &str, arg: &str) -> Result<String, String> {
     // Windows ตอบ 0xC0000135 = หา DLL ที่ต้องใช้ไม่เจอ (ลองแล้วกับ flac ที่ไม่มี libFLAC.dll)
     if out.status.code() == Some(-1073741515) { return Err("ขาดไฟล์ประกอบ (DLL) วางทุกไฟล์ที่มากับชุดไว้ในโฟลเดอร์เดียวกัน".into()); }
     // qaac หาไฟล์ของ Apple ไม่เจอ ตอบเองว่า ERROR: CoreAudioToolbox.dll แล้วจบด้วยรหัส 2 · เดิมนับว่าพร้อมใช้ (ข้อ 28 ลองจริง 10 พ.ย. 2569 qaac 3.07)
-    if !out.status.success() && t.contains("CoreAudioToolbox") { return Err("ต้องติดตั้ง iTunes ก่อน · qaac ใช้ไฟล์ของ Apple (CoreAudioToolbox.dll) ที่มากับ iTunes · หรือวางโฟลเดอร์ QTfiles64 ไว้ข้าง qaac64.exe".into()); }
+    if !out.status.success() && t.contains("CoreAudioToolbox") { return Err("ต้องติดตั้ง iTunes ก่อน  qaac ใช้ไฟล์ของ Apple (CoreAudioToolbox.dll) ที่มากับ iTunes หรือวางโฟลเดอร์ QTfiles64 ไว้ข้าง qaac64.exe".into()); }
     Ok(t)
 }
 
@@ -612,7 +629,7 @@ pub fn status(tools: &Path, user: &Path) -> Vec<EncoderInfo> {
     let mac = crate::ape::version(tools);
     let at = list.iter().position(|e| e.name == "wavpack").map(|i| i + 1).unwrap_or(list.len());
     list.insert(at, EncoderInfo {
-        name: "MACDll64".into(), codecs: "Monkey's Audio · หน้าแปลงเสียง".into(),
+        name: "MACDll64".into(), codecs: "Monkey's Audio (ใช้เฉพาะหน้าแปลงเสียง)".into(),
         source: if mac.is_ok() { "bundled".into() } else { "missing".into() },
         version: mac.as_ref().ok().filter(|v| !v.is_empty()).cloned(), ok: mac.is_ok(),
         problem: mac.as_ref().err().filter(|e| !e.starts_with("ไม่มี")).cloned(),
@@ -800,6 +817,16 @@ mod tests {
         assert_eq!(q.steps[1].args.join(" "), "--silent --ignorelength --cvbr 96 --he --quality 2 --lowpass 16000 - -o O.m4a");
         let qt = build(&spec("aac", "qaac", json!({"mode": "TVBR", "tvbr": 91, "profile": "HE-AAC"})), "M.mkv", 1, "O.m4a", Some(2), None).unwrap();
         assert!(!qt.steps[1].args.contains(&"--he".to_string()), "TVBR ส่ง --he ไม่ได้ qaac ฟ้อง");
+        // HE-AAC ต้นทาง 96 kHz ลดเป็น 48 kHz ที่ ffmpeg ก่อน (qaac รับเกิน 48 kHz ไม่ได้) · 44.1 kHz กับ AAC-LC ไม่แตะ
+        let he96 = |profile: &str, rate: u32| { let mut s = spec("aac", "qaac", json!({"mode": "CVBR", "bitrate": 64, "profile": profile})); s.src_rate = Some(rate); build(&s, "M.flac", 0, "O.m4a", Some(2), None).unwrap().steps[0].args.join(" ") };
+        assert!(he96("HE-AAC", 96000).contains("-af aresample=48000"), "{}", he96("HE-AAC", 96000));
+        assert!(!he96("HE-AAC", 44100).contains("aresample"));
+        assert!(!he96("AAC-LC", 96000).contains("aresample"));
+        // ALAC 7.1 ติดป้าย 7.1(wide) ทั้งสองตัวแปลง · 5.1 ไม่แตะ
+        for e in ["native", "ffmpeg"] {
+            assert!(build(&spec("alac", e, json!({})), "M.mkv", 1, "O.m4a", Some(8), Some(24)).unwrap().steps[0].args.join(" ").contains("channelmap=channel_layout=7.1(wide)"), "{e}");
+            assert!(!build(&spec("alac", e, json!({})), "M.mkv", 1, "O.m4a", Some(6), Some(24)).unwrap().steps[0].args.join(" ").contains("channelmap"), "{e}");
+        }
         assert!(!build(&spec("aac", "ffmpeg", json!({"bitrate": 192, "lowpass": "Auto"})), "M.mkv", 1, "O.m4a", Some(2), None).unwrap().steps[0].args.contains(&"-cutoff".to_string()));
     }
 

@@ -34,9 +34,9 @@ const TIP_MODE: Tip = {
     ["ต่อวินาที", "รวมขนาดของทุกเฟรมในหนึ่งวินาที เป็นค่าตั้งต้น อ่านง่ายที่สุด", "", ""],
     ["ต่อ GOP", "รวมทีละกลุ่มภาพ (GOP) ตั้งแต่คีย์เฟรมหนึ่งถึงคีย์เฟรมถัดไป ปกติยาวราวครึ่งถึงสองวินาที", "", "ตัดฉากบ่อย GOP สั้น ค่าพุ่งสูงเกินจริงได้"],
     ["GOP แบบถ่วง", "เหมือนต่อ GOP แต่ GOP ที่สั้นกว่าครึ่งของปกติ เอาไปรวมกับรอบถัดไป ค่าเรียบกว่า", "", ""],
-    ["ต่อเฟรม", "ดูทีละเฟรม บอกชนิดเฟรม I P B · I เฟรมใหญ่ที่สุด B เฟรมเล็กที่สุด", "", "ต้องถอดภาพ อ่านนานกว่าแบบอื่น ครั้งแรกอ่านไฟล์อีกรอบ"],
+    ["ต่อเฟรม", "ดูทีละเฟรมและบอกชนิดเฟรม I P B โดย I เป็นเฟรมที่ใหญ่ที่สุด ส่วน B เล็กที่สุด", "", "ต้องถอดภาพจึงอ่านนานกว่าแบบอื่น และครั้งแรกจะอ่านไฟล์อีกรอบ"],
   ],
-  r: "ดูภาพรวมใช้ต่อวินาที · อยากรู้ว่าเฟรมไหนกินข้อมูลมากใช้ต่อเฟรม",
+  r: "ถ้าดูภาพรวมให้ใช้ต่อวินาที แต่ถ้าอยากรู้ว่าเฟรมไหนกินข้อมูลมากให้ใช้ต่อเฟรม",
 };
 const TIP_SCALE: Tip = {
   w: "ความสูงของกราฟ",
@@ -137,7 +137,7 @@ const scanTxt = (f: string) => (!f || f === "unknown" ? "" : f === "progressive"
 const colorTxt = (i: BrInfo) => {
   const p = i.primaries && i.primaries !== "unknown" ? i.primaries.replace(/^bt/, "BT.").replace("BT.2020", "BT.2020") : "";
   const hdr = i.transfer === "smpte2084" ? "HDR10 (PQ)" : i.transfer === "arib-std-b67" ? "HLG" : "";
-  return [p || (hdr ? "" : "ไม่ระบุ"), hdr || (p ? "SDR" : "")].filter(Boolean).join(" · ");
+  return [p || (hdr ? "" : "ไม่ระบุ"), hdr || (p ? "SDR" : "")].filter(Boolean).join(" ");
 };
 /** อ่านสีจากตัวแปรของโทนที่ใช้อยู่ */
 const cssv = (n: string, d: string) => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || d;
@@ -532,14 +532,14 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
       <div className="ag brn" data-brn>
         <div className="gmodebar">
           <div className="seg" role="group" aria-label="แบบหน้า"><button type="button" className="on" aria-pressed>แบบชั้นหนัง</button><button type="button" onClick={() => onClassic?.(null)} data-brnclassic style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><img src={bvIcon} alt="" width={16} height={16} style={{ display: "block", flex: "none" }} />แบบ Bitrate Viewer</button></div>
-          <span className="small">ดูว่าแต่ละช่วงของวิดีโอหรือเสียงใช้ข้อมูลมากแค่ไหน · อ่านอย่างเดียว ไฟล์ไม่ถูกแตะ</span>
+          <span className="small">ดูว่าแต่ละช่วงของวิดีโอหรือเสียงใช้ข้อมูลมากแค่ไหน โดยอ่านอย่างเดียว ไฟล์จึงไม่ถูกแตะ</span>
         </div>
         <div className="drop" style={{ minHeight: 180 }} onClick={dropClick(pick)} data-brndrop>
           <b style={{ color: "var(--txt2)" }}>ลากไฟล์หนังหรือไฟล์เสียงมาวางตรงนี้</b><span>หรือ</span>
           <button type="button" className="btn btn-ghost btn-sm" onClick={pick}><IcFile size={15} />เลือกไฟล์จากเครื่อง</button>
-          <span className="small">อ่านบิตเรตด้วย ffprobe · ไฟล์มีหลายแทร็ก ขึ้นให้เลือกว่าจะดูวิดีโอหรือเสียงแทร็กไหน</span>
+          <span className="small">อ่านบิตเรตด้วย ffprobe ถ้าไฟล์มีหลายแทร็กจะขึ้นให้เลือกว่าจะดูวิดีโอหรือเสียงแทร็กไหน</span>
         </div>
-        {recent.length > 0 && <><div className="small">เปิดล่าสุด · กดเพื่อดูอีกครั้ง ปุ่มกากบาทเอาออกจากรายการ ไฟล์ในเครื่องไม่ถูกแตะ</div>
+        {recent.length > 0 && <><div className="small">ไฟล์ที่เปิดล่าสุด กดเพื่อดูอีกครั้ง ส่วนปุ่มกากบาทเอาออกจากรายการโดยไฟล์ในเครื่องไม่ถูกแตะ</div>
           <div className="graph-recent">{recent.map((p) => {
             const nm = p.split(/[\\/]/).pop() ?? p, th = thumbOf(p);
             return (
@@ -548,7 +548,7 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
                   <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: "1 1 auto", overflow: "hidden" }}>
                     <span className="rtype">{th ? <img src={thumbUrl(th) ?? ""} alt="" style={{ width: 18, height: 27, borderRadius: 3, objectFit: "cover" }} /> : <i className="rnote">{film}</i>}{extCard(nm)}</span>
                     <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{nm.replace(/\.[^.]+$/, "")}</span></span>
-                  {infoOf(p) && <span className="small" style={{ flex: "none" }}>{codecName(infoOf(p)!.codec)} · {clock(infoOf(p)!.duration)}</span>}
+                  {infoOf(p) && <span className="small" style={{ flex: "none" }}>{codecName(infoOf(p)!.codec)} ยาว {clock(infoOf(p)!.duration)}</span>}
                 </button>
                 <button type="button" className="rmx" onClick={() => forget(p)} aria-label={`เอา ${nm} ออกจากรายการเปิดล่าสุด`} title="เอาออกจากรายการ ไฟล์ในเครื่องไม่ถูกแตะ">
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
@@ -578,7 +578,7 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
             {thc ? <img className="fthumb" src={thumbUrl(thc) ?? ""} alt="" /> : <div className="fnote brn-fnote"><IcBitrate size={22} /></div>}
             <div style={{ minWidth: 0 }}>
               <div className="nm" title={path}>{name.replace(/\.[^.]+$/, "")}<span className="ext">{name.match(/\.[^.]+$/)?.[0] ?? ""}</span></div>
-              <div className="meta">{choose.tracks.length} แทร็ก · เลือกแทร็กที่จะดูบิตเรต</div>
+              <div className="meta">มี {choose.tracks.length} แทร็ก เลือกแทร็กที่จะดูบิตเรต</div>
             </div>
           </div>
           <button type="button" className="btn btn-ghost" onClick={pick} data-brnopen><IcFile size={16} />เปิดไฟล์อื่น</button>
@@ -588,7 +588,7 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
           <div className="graph-recent">{choose.tracks.map((t) => (
             <button key={t.id} type="button" className="dd" onClick={() => void open(path, modeSel, false, t.id)} data-brnpick={t.id}>
               <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: "1 1 auto", overflow: "hidden" }}><i className="rnote">{t.id === "v" ? film : audioIcon}</i><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{t.label}</span></span>
-              <span className="small">{t.id === "v" ? "ภาพ · คิดได้ 4 วิธี" : "เสียง · ต่อวินาที"}</span>
+              <span className="small">{t.id === "v" ? "ภาพ คิดได้ 4 วิธี" : "เสียง คิดต่อวินาที"}</span>
             </button>))}</div>
           <p className="small">เปลี่ยนแทร็กทีหลังได้ที่ปุ่มแทร็กด้านบนของกราฟ</p>
         </section>
@@ -602,7 +602,7 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
   const tipLeft = hover ? (hover.x > box.w - 220 ? hover.x - 210 : hover.x + 14) : 0;
   const hv = hi >= 0 ? kbps(S.b[hi], S.t1[hi] - S.t0[hi]) : hb?.v ?? 0;
   const pct = (v: number) => (st.avg ? Math.round((v / st.avg - 1) * 100) : 0);
-  const typeName: Record<string, string> = { I: "I เฟรม · ภาพเต็ม", P: "P เฟรม · อ้างภาพก่อน", B: "B เฟรม · อ้างก่อนและหลัง" };
+  const typeName: Record<string, string> = { I: "I เฟรม (ภาพเต็ม)", P: "P เฟรม (อ้างภาพก่อนหน้า)", B: "B เฟรม (อ้างทั้งก่อนและหลัง)" };
   const tTotal = st.types.I + st.types.P + st.types.B;
   return (
     <div className="ag brn" data-brn data-brnfile>
@@ -615,7 +615,7 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
           {th ? <img className="fthumb" src={thumbUrl(th) ?? ""} alt="" /> : <div className="fnote brn-fnote"><IcBitrate size={22} /></div>}
           <div style={{ minWidth: 0 }}>
             <div className="nm" title={path}>{name.replace(/\.[^.]+$/, "")}<span className="ext">{name.match(/\.[^.]+$/)?.[0] ?? ""}</span></div>
-            <div className="meta">{info ? (audio ? [codecName(info.codec), chTxt(info.channels), `${+(info.sample_rate / 1000).toFixed(1)} kHz`, fmtName(info.format), mb(info.size), `ยาว ${clock(info.duration)}`] : [codecName(info.codec), `${info.width} × ${info.height}`, `${+info.fps.toFixed(3)} fps`, fmtName(info.format), mb(info.size), `ยาว ${clock(info.duration)}`]).join(" · ") : err ? <span className="brn-err">อ่านไฟล์นี้ไม่ได้</span> : "กำลังอ่านข้อมูลไฟล์…"}</div>
+            <div className="meta">{info ? (audio ? [codecName(info.codec), chTxt(info.channels), `${+(info.sample_rate / 1000).toFixed(1)} kHz`, fmtName(info.format), mb(info.size), `ยาว ${clock(info.duration)}`] : [codecName(info.codec), `${info.width} × ${info.height}`, `${+info.fps.toFixed(3)} fps`, fmtName(info.format), mb(info.size), `ยาว ${clock(info.duration)}`]).join(", ") : err ? <span className="brn-err">อ่านไฟล์นี้ไม่ได้</span> : "กำลังอ่านข้อมูลไฟล์"}</div>
           </div>
         </div>
         {/* สลับแทร็กแบบหน้ากราฟเสียง (พี่กันสั่ง 10 พ.ย. 2569 "ไฟล์ที่มีหลายเสียง สามารถกดเลือกดูข้อมูลอื่นได้") */}
@@ -651,21 +651,21 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
           <section className="card">
             <h3>Bitrate</h3>
             <dl className="brn-kv">
-              <dt>เฉลี่ย</dt><dd><b>{S.n ? rate(st.avg) : "–"}</b></dd>
-              <dt>สูงสุด</dt><dd>{S.n ? <>{rate(st.peak)} <button type="button" className="linklike brn-at" onClick={() => { const t = (S.t0[st.pAt] + S.t1[st.pAt]) / 2; setPin(t); }} title="ปักจุดตรงนี้">ที่ {clock(S.t0[st.pAt])}</button></> : "–"}</dd>
-              <dt>ต่ำสุด</dt><dd>{S.n ? <>{rate(st.min)} <button type="button" className="linklike brn-at" onClick={() => { const t = (S.t0[st.mAt] + S.t1[st.mAt]) / 2; setPin(t); }} title="ปักจุดตรงนี้">ที่ {clock(S.t0[st.mAt])}</button></> : "–"}</dd>
-              <dt>เพดาน</dt><dd>{S.n ? <>{rate(ceil)}<span className="small"> · เฉลี่ย × 2</span></> : "–"}</dd>
-              <dt>เกินเพดาน</dt><dd>{S.n ? <>{overSec >= 1 ? clock(overSec) : `${overSec.toFixed(1)} วินาที`}<span className="small"> · {Math.round((overSec / Math.max(0.001, total)) * 100)}% ของไฟล์</span></> : "–"}</dd>
-              <dt>ความแกว่ง</dt><dd title="ส่วนเบี่ยงเบนมาตรฐานของบิตเรตเทียบกับค่าเฉลี่ย ยิ่งน้อยยิ่งนิ่ง">{S.n ? <>±{Math.round(st.cv * 100)}%<span className="small"> · {st.cv < 0.15 ? "นิ่ง" : st.cv < 0.45 ? "ขึ้นลงพอควร" : "ขึ้นลงมาก"}</span></> : "–"}</dd>
+              <dt>เฉลี่ย</dt><dd><b>{S.n ? rate(st.avg) : "ยังไม่มี"}</b></dd>
+              <dt>สูงสุด</dt><dd>{S.n ? <>{rate(st.peak)} <button type="button" className="linklike brn-at" onClick={() => { const t = (S.t0[st.pAt] + S.t1[st.pAt]) / 2; setPin(t); }} title="ปักจุดตรงนี้">ที่ {clock(S.t0[st.pAt])}</button></> : "ยังไม่มี"}</dd>
+              <dt>ต่ำสุด</dt><dd>{S.n ? <>{rate(st.min)} <button type="button" className="linklike brn-at" onClick={() => { const t = (S.t0[st.mAt] + S.t1[st.mAt]) / 2; setPin(t); }} title="ปักจุดตรงนี้">ที่ {clock(S.t0[st.mAt])}</button></> : "ยังไม่มี"}</dd>
+              <dt>เพดาน</dt><dd>{S.n ? <>{rate(ceil)}<span className="small"> <span className="nw">(สองเท่าของค่าเฉลี่ย)</span></span></> : "ยังไม่มี"}</dd>
+              <dt>เกินเพดาน</dt><dd>{S.n ? <>{overSec >= 1 ? clock(overSec) : `${overSec.toFixed(1)} วินาที`}<span className="small"> <span className="nw">หรือ {Math.round((overSec / Math.max(0.001, total)) * 100)}% ของไฟล์</span></span></> : "ยังไม่มี"}</dd>
+              <dt>ความแกว่ง</dt><dd title="ส่วนเบี่ยงเบนมาตรฐานของบิตเรตเทียบกับค่าเฉลี่ย ยิ่งน้อยยิ่งนิ่ง">{S.n ? <>±{Math.round(st.cv * 100)}%<span className="small"> {st.cv < 0.15 ? "นิ่ง" : st.cv < 0.45 ? "ขึ้นลงพอควร" : "ขึ้นลงมาก"}</span></> : "ยังไม่มี"}</dd>
             </dl>
           </section>
           <section className="card">
             <h3>Frames</h3>
             <dl className="brn-kv">
-              <dt>ทั้งหมด</dt><dd>{r ? r.t.length.toLocaleString() : "–"}{running ? <span className="small"> · กำลังนับ</span> : null}</dd>
+              <dt>ทั้งหมด</dt><dd>{r ? r.t.length.toLocaleString() : "ยังไม่มี"}{running ? <span className="small"> กำลังนับ</span> : null}</dd>
               {audio
-                ? <><dt>ต่อเฟรม</dt><dd>{r && r.t.length > 1 ? `${+((dur / r.t.length) * 1000).toFixed(1)} ms` : "–"}</dd></>
-                : <><dt>คีย์เฟรม</dt><dd>{r ? S.keys.length.toLocaleString() : "–"}{gopAvg ? <span className="small"> · ทุก {gopAvg.toFixed(1)} วินาที</span> : null}</dd></>}
+                ? <><dt>ต่อเฟรม</dt><dd>{r && r.t.length > 1 ? `${+((dur / r.t.length) * 1000).toFixed(1)} ms` : "ยังไม่มี"}</dd></>
+                : <><dt>คีย์เฟรม</dt><dd>{r ? S.keys.length.toLocaleString() : "ยังไม่มี"}{gopAvg ? <span className="small"> มีทุก {gopAvg.toFixed(1)} วินาที</span> : null}</dd></>}
             </dl>
             {audio ? <p className="small brn-hint" data-brntypes>เสียงไม่มีคีย์เฟรมกับชนิดเฟรม I P B</p> : <>
             {/* แถว I P B อยู่ครบเสมอ ยังไม่ได้นับขึ้น – · บอกวิธีดูไว้ใต้แถว */}
@@ -673,7 +673,7 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
               <div className="brn-tbar">{(["I", "P", "B"] as const).map((k) => <i key={k} className={"t" + k} style={{ flex: (mode === "frm" && tTotal > 0 ? st.types[k] : 0) || 0.0001 }} title={`${k} ${st.types[k]} เฟรม`} />)}</div>
               {/* I P B บรรทัดเดียว ขนาดเฉลี่ยอยู่ตอนชี้ · ประหยัดที่ให้ข้อมูลวิดีโอ */}
               <div className="brn-tline">{(["I", "P", "B"] as const).map((k) => { const on = mode === "frm" && tTotal > 0; return (
-                <span key={k} className="brn-tchip" title={on ? `${k} เฟรม ${st.types[k].toLocaleString()} เฟรม · เฉลี่ย ${st.types[k] ? Math.round(st.types[`s${k}`] / st.types[k] / 1024).toLocaleString() : 0} KB` : undefined}><span className={"brn-ft t" + k}>{k}</span>{on ? st.types[k].toLocaleString() : "–"}</span>); })}</div>
+                <span key={k} className="brn-tchip" title={on ? `${k} เฟรม มี ${st.types[k].toLocaleString()} เฟรม เฉลี่ยเฟรมละ ${st.types[k] ? Math.round(st.types[`s${k}`] / st.types[k] / 1024).toLocaleString() : 0} KB` : undefined}><span className={"brn-ft t" + k}>{k}</span>{on ? st.types[k].toLocaleString() : "ไม่มี"}</span>); })}</div>
               {mode !== "frm" && <p className="small brn-hint">เลือกวิธีคิดต่อเฟรม เพื่อนับเฟรม I P B</p>}
             </div></>}
           </section>
@@ -681,25 +681,25 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
             <h3>{audio ? "ข้อมูลเสียง" : "ข้อมูลวิดีโอ"}</h3>
             {/* ชื่อแถวอยู่ครบเสมอ ยังไม่มีข้อมูลหรืออ่านไม่ได้ขึ้น – · แทร็กเสียงใช้ชื่อแถวแบบหน้ากราฟเสียง */}
             {audio && info ? <dl className="brn-kv" data-brnaudioinfo>
-              <dt>Codec</dt><dd>{codecName(info.codec)}{info.profile ? <span className="small"> · {info.profile}</span> : null}</dd>
-              <dt>Channels</dt><dd>{chTxt(info.channels)}<span className="small"> · {info.channels} {info.channels === 1 ? "channel" : "channels"}</span></dd>
-              <dt>Sample rate</dt><dd>{info.sample_rate ? `${+(info.sample_rate / 1000).toFixed(1)} kHz` : "–"}</dd>
-              <dt>Bit depth</dt><dd>{info.bit_depth ? `${info.bit_depth}-bit` : "–"}</dd>
+              <dt>Codec</dt><dd>{codecName(info.codec)}{info.profile ? <span className="small"> {info.profile}</span> : null}</dd>
+              <dt>Channels</dt><dd>{chTxt(info.channels)}<span className="small"> ({info.channels} {info.channels === 1 ? "channel" : "channels"})</span></dd>
+              <dt>Sample rate</dt><dd>{info.sample_rate ? `${+(info.sample_rate / 1000).toFixed(1)} kHz` : "ไม่ทราบ"}</dd>
+              <dt>Bit depth</dt><dd>{info.bit_depth ? `${info.bit_depth}-bit` : "ไม่ทราบ"}</dd>
               <dt>ภาษา</dt><dd>{info.lang || "ไม่ระบุ"}</dd>
               <dt>ชนิดไฟล์</dt><dd>{fmtName(info.format)}</dd>
               <dt>ขนาดไฟล์</dt><dd>{mb(info.size)}</dd>
-              <dt>บิตเรตในไฟล์</dt><dd title="บิตเรตที่ไฟล์เขียนไว้ เทียบกับค่าเฉลี่ยที่วัดได้จริงข้างบน">{info.stream_bitrate ? rate(info.stream_bitrate / 1000) : "–"}</dd>
-              <dt>แทร็ก</dt><dd>{`เสียง ${Number(info.track.slice(1)) + 1} จาก ${info.audio}`}{info.video ? <span className="small"> · มีวิดีโอ</span> : null}</dd>
+              <dt>บิตเรตในไฟล์</dt><dd title="บิตเรตที่ไฟล์เขียนไว้ เทียบกับค่าเฉลี่ยที่วัดได้จริงข้างบน">{info.stream_bitrate ? rate(info.stream_bitrate / 1000) : "ไม่ทราบ"}</dd>
+              <dt>แทร็ก</dt><dd>{`เสียง ${Number(info.track.slice(1)) + 1} จาก ${info.audio}`}{info.video ? <span className="small"> และมีวิดีโอด้วย</span> : null}</dd>
             </dl> : <dl className="brn-kv">
-              <dt>Codec</dt><dd>{info ? <>{codecName(info.codec)}{info.profile ? <span className="small"> · {info.profile}</span> : null}</> : "–"}</dd>
-              <dt>ขนาดภาพ</dt><dd>{info ? <>{info.width} × {info.height}{scanTxt(info.field_order) ? <span className="small"> · {scanTxt(info.field_order)}</span> : null}</> : "–"}</dd>
-              <dt>ความลึกสี</dt><dd>{info && info.bit_depth ? <>{info.bit_depth} บิต<span className="small"> · {info.pix_fmt}</span></> : "–"}</dd>
-              <dt>มาตรฐานสี</dt><dd>{info ? colorTxt(info) : "–"}</dd>
-              <dt>Frame rate</dt><dd>{info ? `${+info.fps.toFixed(3)} fps` : "–"}</dd>
-              <dt>ชนิดไฟล์</dt><dd>{info ? fmtName(info.format) : "–"}</dd>
-              <dt>ขนาดไฟล์</dt><dd>{info ? mb(info.size) : "–"}</dd>
-              <dt>บิตเรตในไฟล์</dt><dd title="บิตเรตที่ไฟล์เขียนไว้ เทียบกับค่าเฉลี่ยที่วัดได้จริงข้างบน">{info && info.stream_bitrate ? rate(info.stream_bitrate / 1000) : "–"}</dd>
-              <dt>แทร็ก</dt><dd>{info ? `วิดีโอ ${info.video} · เสียง ${info.audio}` : "–"}</dd>
+              <dt>Codec</dt><dd>{info ? <>{codecName(info.codec)}{info.profile ? <span className="small"> {info.profile}</span> : null}</> : "ไม่ทราบ"}</dd>
+              <dt>ขนาดภาพ</dt><dd>{info ? <>{info.width} × {info.height}{scanTxt(info.field_order) ? <span className="small"> {scanTxt(info.field_order)}</span> : null}</> : "ไม่ทราบ"}</dd>
+              <dt>ความลึกสี</dt><dd>{info && info.bit_depth ? <>{info.bit_depth} บิต<span className="small"> ({info.pix_fmt})</span></> : "ไม่ทราบ"}</dd>
+              <dt>มาตรฐานสี</dt><dd>{info ? colorTxt(info) : "ไม่ทราบ"}</dd>
+              <dt>Frame rate</dt><dd>{info ? `${+info.fps.toFixed(3)} fps` : "ไม่ทราบ"}</dd>
+              <dt>ชนิดไฟล์</dt><dd>{info ? fmtName(info.format) : "ไม่ทราบ"}</dd>
+              <dt>ขนาดไฟล์</dt><dd>{info ? mb(info.size) : "ไม่ทราบ"}</dd>
+              <dt>บิตเรตในไฟล์</dt><dd title="บิตเรตที่ไฟล์เขียนไว้ เทียบกับค่าเฉลี่ยที่วัดได้จริงข้างบน">{info && info.stream_bitrate ? rate(info.stream_bitrate / 1000) : "ไม่ทราบ"}</dd>
+              <dt>แทร็ก</dt><dd>{info ? `วิดีโอ ${info.video} เสียง ${info.audio}` : "ไม่ทราบ"}</dd>
             </dl>}
           </section>
         </aside>
@@ -707,14 +707,14 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
         <section className="card brn-main">
           <div className="brn-head">
             <div style={{ minWidth: 0 }}>
-              <b>{audio ? "Audio Bitrate" : "Video Bitrate"}</b><span className="small"> · {md.label}{S.n ? ` · ${clock(z0)} ถึง ${clock(z1)}${group > 1 ? ` · แท่งละ ${group} ช่วง` : ""}` : ""}</span>
+              <b>{audio ? "Audio Bitrate" : "Video Bitrate"}</b><span className="small"> {md.label}{S.n ? ` ช่วง ${clock(z0)} ถึง ${clock(z1)}${group > 1 ? ` แท่งละ ${group} ช่วง` : ""}` : ""}</span>
             </div>
             <div className="brn-zoom">
               <span className="zbtns">
-                <button type="button" className="zb" onClick={() => zoomBy(2)} disabled={!zoom.length} aria-label="ซูมออก" title="ซูมออก · หมุนล้อเมาส์ลงในกราฟ" data-brnzoomout>
+                <button type="button" className="zb" onClick={() => zoomBy(2)} disabled={!zoom.length} aria-label="ซูมออก" title="ซูมออก (หมุนล้อเมาส์ลงในกราฟ)" data-brnzoomout>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M8 11h6M20 20l-4-4" /></svg></button>
                 <BrHZoom total={total} span={span} onSpan={setSpan} off={!S.n} />
-                <button type="button" className="zb" onClick={() => zoomBy(0.5)} disabled={!S.n || span <= HZ_MIN * 1.01} aria-label="ซูมเข้า" title="ซูมเข้า · หมุนล้อเมาส์ขึ้นในกราฟ" data-brnzoomin>
+                <button type="button" className="zb" onClick={() => zoomBy(0.5)} disabled={!S.n || span <= HZ_MIN * 1.01} aria-label="ซูมเข้า" title="ซูมเข้า (หมุนล้อเมาส์ขึ้นในกราฟ)" data-brnzoomin>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M8 11h6M11 8v6M20 20l-4-4" /></svg></button>
                 <button type="button" className="zb" onClick={resetZoom} disabled={!zoom.length && vz === 1} aria-label="รีเซ็ตซูม" title="รีเซ็ต กลับทั้งไฟล์ ขยายแนวตั้ง 1 เท่า" data-brnzoomreset><IcRefresh size={15} /></button>
               </span>
@@ -732,7 +732,7 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
           <div ref={plotRef} className="brn-plot" onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={() => { setHover(null); drag.current = null; setSel(null); }} onWheel={onWheel}
             onDoubleClick={resetZoom} data-brnplot>
             <canvas ref={cvRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
-            {sel && <div className="brn-sel" style={{ left: xOf(sel[0]), width: Math.max(1, xOf(sel[1]) - xOf(sel[0])), top: T, height: ph }}><span>{clock(sel[0])} – {clock(sel[1])}</span></div>}
+            {sel && <div className="brn-sel" style={{ left: xOf(sel[0]), width: Math.max(1, xOf(sel[1]) - xOf(sel[0])), top: T, height: ph }}><span>{clock(sel[0])} ถึง {clock(sel[1])}</span></div>}
             {hover && !sel && hv > 0 && (
               <div className="brn-tip" style={{ left: tipLeft, top: Math.max(T, Math.min(hover.y - 30, box.h - 120)) }} data-brntip>
                 <div className="small">{clockMs(hover.t)}</div>
@@ -757,7 +757,7 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
             {!audio && <span className="brn-leg"><i className="key" />คีย์เฟรม</span>}
           </div>
           {/* แถบปักจุดจองที่ไว้ตลอด ยังไม่ปักขึ้นคำแนะนำจาง ๆ กราฟไม่ถูกดัน */}
-          {!(pin != null && pi >= 0) && <div className="brn-pin empty" data-brnpinslot>ลากในกราฟเพื่อซูม · หมุนล้อซูมเข้าออก · ดับเบิลคลิกดูทั้งไฟล์ · คลิกในกราฟเพื่อปักจุด ดูค่าตรงนั้น</div>}
+          {!(pin != null && pi >= 0) && <div className="brn-pin empty" data-brnpinslot>ลากในกราฟเพื่อซูม หมุนล้อเมาส์เพื่อซูมเข้าออก ดับเบิลคลิกเพื่อดูทั้งไฟล์ และคลิกในกราฟเพื่อปักจุดดูค่าตรงนั้น</div>}
           {pin != null && pi >= 0 && (
             <div className="brn-pin" data-brnpin>
               <span className="brn-pinmark" />
@@ -809,7 +809,7 @@ function BrHZoom({ total, span, onSpan, off }: { total: number; span: number; on
         onPointerUp={() => { drag.current = false; }} onPointerCancel={() => { drag.current = false; }}>
         <span className="fill" style={{ width: pos * 100 + "%" }} />
         <span className="knob" role="slider" aria-orientation="horizontal" aria-label="ซูมเวลา" aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pos * 100)} aria-valuetext={txt}
-          tabIndex={ok ? 0 : -1} title={`${txt} · ลากขวาซูมเข้า ลากซ้ายซูมออก`} style={{ left: pos * 100 + "%" }} onKeyDown={key} data-brnhknob />
+          tabIndex={ok ? 0 : -1} title={`${txt} ลากไปขวาเพื่อซูมเข้า ลากไปซ้ายเพื่อซูมออก`} style={{ left: pos * 100 + "%" }} onKeyDown={key} data-brnhknob />
       </span>
     </span>
   );
@@ -845,7 +845,7 @@ function BrVZoom({ value, onChange, top, bottom }: { value: number; onChange: (v
         onPointerMove={(e) => { if (drag.current) onChange(fromY(e.clientY)); }}
         onPointerUp={() => { drag.current = false; }} onPointerCancel={() => { drag.current = false; }}>
         <div className="knob" role="slider" aria-orientation="vertical" aria-label="ขยายแนวตั้ง" aria-valuemin={1} aria-valuemax={VZ_MAX} aria-valuenow={value} aria-valuetext={vzTxt(value)} tabIndex={0}
-          title={`ขยายแนวตั้ง ${vzTxt(value)} · ลากขึ้นขยาย ลากลงกลับ · ดับเบิลคลิกกลับ 1×`} style={{ bottom: pos(value) + "%" }} onKeyDown={key} data-brnvknob />
+          title={`ขยายแนวตั้ง ${vzTxt(value)} ลากขึ้นเพื่อขยาย ลากลงเพื่อกลับ หรือดับเบิลคลิกเพื่อกลับเป็น 1 เท่า`} style={{ bottom: pos(value) + "%" }} onKeyDown={key} data-brnvknob />
       </div>
       <span className="ic" title="ลากลง กลับ 1 เท่า">{ic("M4 12h16")}</span>
     </div>

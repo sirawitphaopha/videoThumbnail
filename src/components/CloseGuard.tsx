@@ -64,7 +64,7 @@ export default function CloseGuard({ onGoLink }: { onGoLink: () => void }) {
           <>
             {!closing && <button type="button" className="btn btn-main" onClick={() => setJobs(0)}>ทำงานต่อ</button>}
             {closing
-              ? <button type="button" className="btn btn-wait" aria-disabled="true" data-closing>กำลังหยุดงานและลบไฟล์ที่ทำค้าง…</button>
+              ? <button type="button" className="btn btn-wait" aria-disabled="true" data-closing>กำลังหยุดงานและลบไฟล์ที่ทำค้าง</button>
               : <button type="button" className="btn btn-danger" onClick={() => { setClosing(true); api.forceClose(); }}><IbStop size={15} />หยุดงานแล้วปิดโปรแกรม</button>}
           </>
         }
@@ -84,12 +84,12 @@ export default function CloseGuard({ onGoLink }: { onGoLink: () => void }) {
         width={560}
         title={<span data-closepairs>ยังไม่ได้ยืนยัน <span className="nw">{waiting} คู่</span></span>}
         actions={saving ? (
-          <button type="button" className="btn btn-wait" aria-disabled="true" data-closepairs-saving><Keep all={["กำลังยืนยัน 000 จาก 000 คู่…", "ยืนยัน 000 คู่ที่ติ๊กแล้วปิด"]}>{prog ? `กำลังยืนยัน ${prog.done} จาก ${prog.total} คู่…` : "กำลังยืนยัน…"}</Keep></button>
+          <button type="button" className="btn btn-wait" aria-disabled="true" data-closepairs-saving><Keep all={["กำลังยืนยัน 000 จาก 000 คู่", "ยืนยัน 000 คู่ที่ติ๊กแล้วปิด"]}>{prog ? `กำลังยืนยัน ${prog.done} จาก ${prog.total} คู่` : "กำลังยืนยัน"}</Keep></button>
         ) : (
           <>
             <button type="button" className="btn btn-ghost" data-closepairs-skip onClick={() => { setPairs(false); closeNow(); }}>ปิดโดยไม่ยืนยัน</button>
             <button type="button" className="btn btn-ghost" data-closepairs-back onClick={() => { setPairs(false); onGoLink(); }}>กลับไปดูก่อน</button>
-            <button type="button" className={"btn " + (ticked ? "btn-main" : "btn-wait")} aria-disabled={!ticked || undefined} title={ticked ? undefined : "ยังไม่ได้ติ๊กคู่ไหน"} data-closepairs-ok onClick={confirmAndClose}><Keep all={["กำลังยืนยัน 000 จาก 000 คู่…", "ยืนยัน 000 คู่ที่ติ๊กแล้วปิด"]}>{`ยืนยัน ${ticked} คู่ที่ติ๊กแล้วปิด`}</Keep></button>
+            <button type="button" className={"btn " + (ticked ? "btn-main" : "btn-wait")} aria-disabled={!ticked || undefined} title={ticked ? undefined : "ยังไม่ได้ติ๊กคู่ไหน"} data-closepairs-ok onClick={confirmAndClose}><Keep all={["กำลังยืนยัน 000 จาก 000 คู่", "ยืนยัน 000 คู่ที่ติ๊กแล้วปิด"]}>{`ยืนยัน ${ticked} คู่ที่ติ๊กแล้วปิด`}</Keep></button>
           </>
         )}
       >

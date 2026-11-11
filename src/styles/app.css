@@ -48,8 +48,21 @@ button:focus { outline: none; }
 button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--accent-d); outline-offset: 2px; }
 .nw { white-space: nowrap; }
 /* วลีไทยหนึ่งวลี ขึ้นบรรทัดใหม่ได้เฉพาะตรงเว้นวรรค (ui.tsx Phrases) · วลีที่ยาวกว่าช่องค่อยตัดข้างใน */
-.phr { display: inline-block; max-width: 100%; }
-.stat div, .hint, .small, .dlg div, li, .bname, .fmt td { text-wrap: balance; }
+/* ตัดบรรทัดที่ขอบคำไทยได้ตามปกติแบบ Word บรรทัดเกือบเต็ม ระยะที่กระจายแบบไทยเติมจึงน้อย
+   เดิมล็อกทั้งวลี บรรทัดตัดเร็ว พอกระจายแล้วตัวอักษรถ่างมาก (พี่กันทัก 11 พ.ย. 2569 "ระยะห่างมึงไปแหกตาด้วย")
+   ล็อกเฉพาะ .keep ของที่ต้องอยู่ด้วยกันจริง ตัวเลขกับหน่วย "พอ ๆ กัน" ตัวย่อกับวงเล็บคำเต็ม */
+/* เป็นกล่องเล็กไม่ถูกถ่างข้างใน ตัวเลขกับตัวอังกฤษ "512 kbps" ไม่กลายเป็น "5 1 2  k b p s" ตอนกระจายแบบไทย */
+.keep { white-space: nowrap; display: inline-block; }
+/* คำประสมที่ห้ามตัดกลาง "ตัวแปลง" "ติดตั้ง" · ไม่เป็นกล่อง ตัวอักษรยังกระจายได้ */
+.kw { white-space: nowrap; }
+/* ข้อความย่อหน้าทั้งโปรแกรมจัดแบบกระจายแบบไทย (Thai Distributed) เต็มบรรทัดเสมอกันซ้ายขวา กระจายระหว่างตัวอักษร บรรทัดสุดท้ายชิดซ้าย
+   :where ไม่เพิ่มน้ำหนัก ที่ตั้งกึ่งกลางหรือชิดขวาไว้เองยังชนะ (พี่กันสั่ง 11 พ.ย. 2569 "ไปไล่ดูทั้งเว็บ กระจายแบบไทย เท่านั้น") */
+:where(p, li, .small, .hint, .stat div, .dlg div, .infotip, .warnline, .note) { text-align: justify; text-justify: inter-character; }
+/* ประโยคหนึ่งเป็นก้อน ไม่พอที่ย้ายลงบรรทัดใหม่ทั้งก้อน ยาวกว่าบรรทัดตัดตรงเว้นวรรคข้างใน (รอยต่อประโยคคือเว้นวรรคสองช่อง · แทนจุดคั่น ·) */
+/* เลิกจับประโยคเป็นก้อน ก้อนทำให้บรรทัดตัดเร็ว กระจายแบบไทยแล้วถ่าง */
+.clause { display: inline; }
+/* เติมบรรทัดให้เต็มก่อน กันแค่คำเดียวตกท้าย · เดิม balance เฉลี่ยความยาวบรรทัด บรรทัดแรกตัดเร็วทั้งที่ยังเหลือที่ ข้อความแตกหลายบรรทัด (พี่กันทัก 11 พ.ย. 2569 "แบ่งเหี้ยไรเนี่ย") */
+.stat div, .hint, .small, .dlg div, li, .bname, .fmt td { text-wrap: pretty; }
 
 /* ---------- โครงหน้าต่าง ---------- */
 .app { height: 100%; display: flex; flex-direction: column; background: var(--win); color: var(--txt); }
@@ -1004,18 +1017,23 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .agfoot > :last-child { margin-left: auto; }
 /* แถวหัวกราฟบรรทัดเดียว ปุ่มเวลาชิดขวาทุกมุมมอง แถบซูมหดตามที่เหลือ (พี่กันถาม 8 พ.ย. 2569 "ปุ่มเวลา จะอยู่ซ้ายหรือขวา") */
 .plothead { flex-wrap: nowrap; }
-.plothead > :first-child { flex: none; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.plothead > :first-child { flex: none; min-width: 0; overflow: hidden; text-overflow: clip; white-space: nowrap; }
+/* ช่วงเวลาบนหัวกราฟ ที่ไม่พอให้หลบลงบรรทัดที่สองซึ่งถูกซ่อนไว้ทั้งก้อน ไม่ขึ้นจุดสามจุด (เครื่องหมายที่ห้ามใช้บนจอ 11 พ.ย. 2569)
+   ชื่อกราฟอยู่เสมอ แถบซูมยังหดตามที่เหลือ */
+.plothead > :first-child:has(> .prange) { flex: 0 0.05 auto; display: flex; flex-wrap: wrap; align-items: baseline; column-gap: 5px; height: 22px; line-height: 22px; }
+.plothead > :first-child > b { flex: none; }
+.plothead .prange { flex: none; }
 .plothead > :last-child { margin-left: auto; flex: 0 1 auto; min-width: 0; }
 /* หัวกราฟที่มีดรอปดาวน์ไม่ตัด แถบซูมเวลาหดแทน ไม่ทับกัน */
 .plothead > :first-child:has(.dd) { flex: none; overflow: visible; }
 .plothead .seg { flex: none; }
-/* หัวการ์ดแน่น (มีปุ่มแบบรูปคลื่น) กล่องซูมไม่หด ไม่ให้คำว่า ซูม ทับปุ่มแว่นขยาย · หัวการ์ดแคบกว่า 1,040 จุด ปุ่มแบบกราฟเป็นดรอปดาวน์ แถบซูม 130 จุด · ที่ยังขาด ชื่อการ์ดหดตัดท้าย (เจอตอนตรวจภาพ BUGS ข้อ 12) */
+/* หัวการ์ดแน่น (มีปุ่มแบบรูปคลื่น) กล่องซูมไม่หด ไม่ให้คำว่า ซูม ทับปุ่มแว่นขยาย · หัวการ์ดแคบกว่า 1,120 จุด ปุ่มแบบกราฟเป็นดรอปดาวน์ แถบซูม 130 จุด (เดิม 1,040 หน้าต่างกว้าง 1280 ช่วงเวลาบนหัวโดนตัดเป็นจุดสามจุด 11 พ.ย. 2569) */
 .plothead > :first-child:not(:has(.dd)) { flex: 0 1 auto; min-width: 84px; }
 .plothead { container-type: inline-size; }
 .plothead > :last-child:has(.zbtns) { flex: none; }
 .plothead .wstyle-seg { display: flex; flex: none; }
 .plothead .wstyle-dd { display: none; flex: none; }
-@container (max-width: 1040px) { .plothead .wstyle-seg { display: none; } .plothead .wstyle-dd { display: flex; } .plothead .zbtns .hzoom { flex: none; width: 130px; min-width: 130px; } }
+@container (max-width: 1120px) { .plothead .wstyle-seg { display: none; } .plothead .wstyle-dd { display: flex; } .plothead .zbtns .hzoom { flex: none; width: 130px; min-width: 130px; } }
 .plothead .zbtns { flex: 0 1 auto; min-width: 0; display: flex; align-items: center; }
 /* กลุ่มปุ่มซูมไม่หดต่ำกว่าปุ่มครบสามปุ่มกับแถบซูม 64 จุด ไม่งั้นปุ่มรีเซ็ตมุดใต้คำว่า ซูม (เจอตอนตรวจภาพ BUGS ข้อ 12) */
 .plothead .zbtns .zb { flex: none; }
@@ -1030,12 +1048,12 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 }
 /* แถวคำอธิบายกับปุ่มท้ายกราฟตรึงล่างสุดทุกมุมมอง (พี่กันสั่ง 8 พ.ย. 2569 "ตรึงไว้ล่างสุดให้หมด พวกนี้") */
 .ag[data-graphview] .agb > .plot .agfoot { position: sticky; bottom: -12px; z-index: 5; background: #fff; margin: auto -18px -12px -12px; padding: 8px 18px 12px 12px; border-top: 1px solid var(--line); }
-/* ผลตรวจในกราฟบรรทัดเดียว ชี้ดูข้อความเต็ม กราฟได้ที่เพิ่ม */
+/* ผลตรวจในกราฟเป็นแถบเล็ก ข้อความยาวตัดบรรทัดได้ ไม่ตัดท้ายเป็นจุดสามจุด (เครื่องหมายที่ห้ามใช้บนจอ 11 พ.ย. 2569 เดิมบรรทัดเดียวแล้วตัดท้าย) */
 [data-spekverdict], [data-psdverdict] { margin-top: 0 !important; flex: 0 1 auto; min-width: 0; padding: 4px 9px; gap: 6px; align-items: center; border-radius: 7px; font-size: 12.5px; line-height: 1.4; }
 [data-psdverdict] { margin-top: 8px !important; }
 [data-spekverdict] svg, [data-psdverdict] svg { width: 14px; height: 14px; flex: none; }
-[data-spekverdict] > div, [data-psdverdict] > div { display: block; min-width: 0; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; }
-[data-spekverdict] > div *, [data-psdverdict] > div * { display: inline; white-space: nowrap; }
+[data-spekverdict] > div, [data-psdverdict] > div { display: block; min-width: 0; }
+[data-spekverdict] > div *, [data-psdverdict] > div * { display: inline; }
 [data-spekverdict] > div b, [data-psdverdict] > div b { margin-right: 6px; }
 [data-spekverdict] br, [data-psdverdict] br { display: none; }
 .agfoot { flex-wrap: nowrap; }
@@ -1358,3 +1376,24 @@ html[data-full] .titlebar, html[data-full] .sidewrap, html[data-full] aside.side
 .menu .ddsub { font-size: 13px; color: var(--accent-ink); }
 /* หัวกลุ่มใหญ่ยังเด่นกว่าหัวย่อย */
 .menu .ddgroup { font-size: 13.5px; }
+
+/* หน้าต่างตั้งค่าแปลงเสียง · เส้นแบ่งระหว่างส่วน (พี่กันสั่ง "เส้นเเบ่งหน่อย") */
+/* หน้าต่างตั้งค่าแปลงเสียง ขอบบนล่าง 16 จุดคงที่ทุกขนาดจอ หน้าต่างสูงตามจอ กล่องคำสั่งยืดรับที่เหลือ (พี่กันสั่ง "ขอบบนล่าง ลดกว่านี้ที เเละให้มัน fix ไว้") */
+.dlg-back:has([data-codec-panel]) { padding: 16px; }
+.dlg:has([data-codec-panel]) { max-height: calc(100vh - 32px); }
+/* ชื่อไฟล์บนหัวหน้าต่าง สีหลักของโทน (พี่กันสั่ง "เปลี่ยนสีชื่อไฟล์") */
+.dlg h4 .cpfile { color: var(--accent-ink); }
+/* ใต้การ์ดเทียบถึงส่วนถัดไปเท่าจุดอื่น (พี่กันสั่ง "ลดช่อว่างให้เหมือนจุดอื่น") */
+[data-codec-panel] .cpcmp { margin-bottom: -4px; }
+/* ระยะเหนือใต้เส้น 7 จุด ครึ่งหนึ่งของเดิม 14 (ช่องห่างของแผง 12 ลบ 5) · พี่กันสั่ง "ลดระยะห่างครึ่งนึง" */
+[data-codec-panel] .cpsep { height: 1px; background: var(--line); margin: -5px 0; flex: none; }
+/* การ์ดเทียบต้นฉบับกับไฟล์ที่จะได้ แทนบรรทัดต้นทาง ไม่ขยายหน้าต่าง · ช่องที่เปลี่ยนเน้นสี */
+.cpcmp { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--accent) 4%, var(--win)); }
+.cpcmp-grid { flex: 1; min-width: 0; display: grid; column-gap: 10px; row-gap: 3px; align-items: center; font-size: 12.5px; }
+.cpcmp-grid .h { font-size: 11.5px; color: var(--txt3); white-space: nowrap; }
+.cpcmp-grid .rl { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--txt2); white-space: nowrap; }
+.cpcmp-grid .a { color: var(--txt2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cpcmp-grid .b { color: var(--txt2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cpcmp-grid .b.on { color: var(--accent-ink); font-weight: 700; }
+.cpcmp-sum { flex: none; padding: 4px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 700; background: color-mix(in srgb, seagreen 14%, var(--win)); color: var(--txt); white-space: nowrap; }
+.cpcmp-sum.up { background: color-mix(in srgb, goldenrod 18%, var(--win)); }

@@ -98,7 +98,7 @@ export default function DevParts() {
         <button type="button" className="btn btn-ghost" onClick={() => setDlg(1)} data-open="dialog">เปิดหน้าต่างถาม</button>
         <button type="button" className="btn btn-ghost" onClick={() => setDlg(2)} data-open="delete2">เปิดหน้าต่างลบขั้นที่ 2</button>
         <button type="button" className="btn btn-ghost" data-open="toast-ok" onClick={() => toast({ kind: "ok", title: "เปลี่ยนชื่อไฟล์แล้ว", detail: "ชื่อในเครื่องเปลี่ยนตามแล้ว แถบนี้หายเองใน 3 วินาที" })}>แถบสำเร็จ</button>
-        <button type="button" className="btn btn-ghost" data-open="toast-bad" onClick={() => toast({ kind: "bad", title: "ไฟล์ถูกเปิดอยู่ในโปรแกรมอื่น", detail: "ปิดโปรแกรมเล่นหนังก่อน แล้วกดลองใหม่ · แถบนี้ไม่หายเอง" })}>แถบผิดพลาด</button>
+        <button type="button" className="btn btn-ghost" data-open="toast-bad" onClick={() => toast({ kind: "bad", title: "ไฟล์ถูกเปิดอยู่ในโปรแกรมอื่น", detail: "ปิดโปรแกรมเล่นหนังก่อน แล้วกดลองใหม่  แถบนี้ไม่หายเอง" })}>แถบผิดพลาด</button>
         {inApp && <button type="button" className="btn btn-ghost" data-open="fake-job" onClick={() => invoke("dev_fake_job", { seconds: 120 })}>งานปลอม 2 นาที</button>}
       </section>
 
@@ -111,7 +111,7 @@ export default function DevParts() {
         open={dlg === 1}
         onClose={() => setDlg(0)}
         kind="work"
-        title="ลบไฟล์เดิมหลังตรวจผ่าน · ขั้นที่ 1 จาก 2"
+        title="ลบไฟล์เดิมหลังตรวจผ่าน (ขั้นที่ 1 จาก 2)"
         actions={<><button type="button" className="btn btn-ghost" onClick={() => setDlg(0)}>ยกเลิก</button><button type="button" className="btn btn-main" onClick={() => setDlg(2)}>ถัดไป</button></>}
       >
         <div className="small" style={{ fontSize: 14, color: "var(--txt2)" }}>ไฟล์เดิมจะไปอยู่ในถังขยะของ Windows หลังไฟล์ใหม่ตรวจผ่านแล้วเท่านั้น</div>
@@ -122,7 +122,7 @@ export default function DevParts() {
         kind="work"
         confirm
         splitActions
-        title="ยืนยันอีกครั้ง · ขั้นที่ 2 จาก 2"
+        title="ยืนยันอีกครั้ง (ขั้นที่ 2 จาก 2)"
         actions={<><button type="button" className="btn btn-danger" onClick={() => setDlg(0)}>ยืนยันลบ</button><button type="button" className="btn btn-ghost" onClick={() => setDlg(1)}>ย้อนกลับ</button></>}
       >
         <div className="small" style={{ fontSize: 14, color: "var(--txt2)" }}>กู้คืนได้จากถังขยะของ Windows จนกว่าจะล้างถังขยะ</div>

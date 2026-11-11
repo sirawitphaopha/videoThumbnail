@@ -14,6 +14,8 @@ export type Codec = {
   mp4: boolean;
   ch: string;
   why: string;
+  /** แถบสั้นบรรทัดเดียวใต้ชื่อชนิดในหน้าต่างตั้งค่า · รายละเอียดครบอยู่ในกล่อง ⓘ (ADV ใน codecAdv.ts) */
+  brief: string;
   presets: Preset[];
   preset: number;
   /** ใช้ได้เฉพาะหน้าแปลงเสียง (ใส่ในไฟล์หนังไม่ได้) */
@@ -21,71 +23,71 @@ export type Codec = {
 };
 
 export const CODECS: Codec[] = [
-  { id: "opus", name: "Opus", full: "Opus Interactive Audio Codec", lossless: false, native: "opusenc", mp4: true, ch: "สูงสุด 255 ช่อง · 7.1 ได้",
-    why: "บิตเรตเท่ากัน เสียงดีสุดในกลุ่ม Lossy เกือบทุกช่วง · ทีวีกับเครื่องเล่นรุ่นเก่าบางรุ่นเล่นไม่ได้",
+  { id: "opus", brief: "เสียงดีที่สุดในกลุ่ม Lossy เมื่อบิตเรตเท่ากัน", name: "Opus", full: "Opus Interactive Audio Codec", lossless: false, native: "opusenc", mp4: true, ch: "เก็บได้สูงสุด 255 ช่อง รวมถึงเสียง 7.1",
+    why: "บิตเรตเท่ากันเสียงดีที่สุดในกลุ่ม Lossy แต่ทีวีและเครื่องเล่นรุ่นเก่าบางรุ่นเล่นไม่ได้",
     presets: [
-      { label: "เสียงพูด", detail: "VBR 64 kbps · 2.0", mbPerHour: 29, p: { bitrate: 64, mode: "VBR" }, channels: 2 },
-      { label: "เพลงคุณภาพดี", detail: "VBR 160 kbps · 2.0", mbPerHour: 72, p: { bitrate: 160, mode: "VBR" }, channels: 2 },
-      { label: "หนัง 5.1 ดี", detail: "VBR 256 kbps · 5.1", mbPerHour: 115, p: { bitrate: 256, mode: "VBR" } },
-      { label: "หนัง 5.1 ดีมาก", detail: "VBR 384 kbps · 5.1", mbPerHour: 173, p: { bitrate: 384, mode: "VBR" } },
+      { label: "เสียงพูด", detail: "VBR 64 kbps เสียง 2.0", mbPerHour: 29, p: { bitrate: 64, mode: "VBR" }, channels: 2 },
+      { label: "เพลงคุณภาพดี", detail: "VBR 160 kbps เสียง 2.0", mbPerHour: 72, p: { bitrate: 160, mode: "VBR" }, channels: 2 },
+      { label: "หนัง 5.1 ดี", detail: "VBR 256 kbps เสียง 5.1", mbPerHour: 115, p: { bitrate: 256, mode: "VBR" } },
+      { label: "หนัง 5.1 ดีมาก", detail: "VBR 384 kbps เสียง 5.1", mbPerHour: 173, p: { bitrate: 384, mode: "VBR" } },
     ], preset: 3 },
-  { id: "aac", name: "AAC", full: "Advanced Audio Coding", lossless: false, native: "qaac64", mp4: true, ch: "7.1 ได้",
-    why: "เล่นได้แทบทุกเครื่อง · qaac (ตัวของ Apple) แนบมากับโปรแกรม ต้องติดตั้ง iTunes ก่อน · fdkaac ต้องวางเองในโฟลเดอร์ตัวแปลง · ตัวของ ffmpeg ด้อยกว่าที่บิตเรตต่ำ",
+  { id: "aac", brief: "เล่นได้แทบทุกเครื่อง ทั้งทีวี มือถือ และเครื่องของ Apple", name: "AAC", full: "Advanced Audio Coding", lossless: false, native: "qaac64", mp4: true, ch: "เก็บเสียง 7.1 ได้",
+    why: "เล่นได้แทบทุกเครื่อง qaac ของ Apple ต้องติดตั้ง iTunes ก่อน fdkaac ต้องวางเอง ส่วน ffmpeg เสียงด้อยกว่าเมื่อบิตเรตต่ำ",
     presets: [
-      { label: "เสียงพูด", detail: "96 kbps · 2.0", mbPerHour: 43, p: { mode: "CVBR", bitrate: 96, tvbr: 45 }, channels: 2 },
-      { label: "เพลงคุณภาพดี", detail: "TVBR 91 ราว 190 kbps · 2.0", mbPerHour: 85, p: { mode: "TVBR", tvbr: 91, bitrate: 192 }, channels: 2 },
-      { label: "หนัง 5.1 ดี", detail: "TVBR 91 ราว 355 kbps · 5.1", mbPerHour: 160, p: { mode: "TVBR", tvbr: 91, bitrate: 355 } },
-      { label: "หนัง 5.1 ดีมาก", detail: "TVBR 109 ราว 465 kbps · 5.1", mbPerHour: 210, p: { mode: "TVBR", tvbr: 109, bitrate: 465 } },
+      { label: "เสียงพูด", detail: "96 kbps เสียง 2.0", mbPerHour: 43, p: { mode: "CVBR", bitrate: 96, tvbr: 45 }, channels: 2 },
+      { label: "เพลงคุณภาพดี", detail: "TVBR 91 ราว 190 kbps เสียง 2.0", mbPerHour: 85, p: { mode: "TVBR", tvbr: 91, bitrate: 192 }, channels: 2 },
+      { label: "หนัง 5.1 ดี", detail: "TVBR 91 ราว 355 kbps เสียง 5.1", mbPerHour: 160, p: { mode: "TVBR", tvbr: 91, bitrate: 355 } },
+      { label: "หนัง 5.1 ดีมาก", detail: "TVBR 109 ราว 465 kbps เสียง 5.1", mbPerHour: 210, p: { mode: "TVBR", tvbr: 109, bitrate: 465 } },
     ], preset: 2 },
-  { id: "mp3", name: "MP3", full: "MPEG-1 Audio Layer III", lossless: false, native: "lame", mp4: true, ch: "สูงสุด 2 ช่อง",
-    why: "เล่นได้ทุกเครื่องบนโลก · สูงสุด 2 ช่อง เสียง 5.1 จะรวมเป็น 2 ช่อง",
+  { id: "mp3", brief: "เล่นได้ทุกเครื่องบนโลก แต่เก็บได้แค่ 2 ช่อง", name: "MP3", full: "MPEG-1 Audio Layer III", lossless: false, native: "lame", mp4: true, ch: "แต่เก็บได้สูงสุด 2 ช่อง เสียง 5.1 จะถูกรวมเป็น 2 ช่อง",
+    why: "เล่นได้ทุกเครื่องบนโลก",
     presets: [
-      { label: "เสียงพูด", detail: "V7 · ราว 100 kbps", mbPerHour: 45, p: { mode: "VBR", vbrq: 7 } },
-      { label: "ทั่วไป", detail: "V2 · ราว 190 kbps", mbPerHour: 85, p: { mode: "VBR", vbrq: 2 } },
-      { label: "ดีมาก", detail: "V0 · ราว 245 kbps", mbPerHour: 110, p: { mode: "VBR", vbrq: 0 } },
+      { label: "เสียงพูด", detail: "V7 ราว 100 kbps", mbPerHour: 45, p: { mode: "VBR", vbrq: 7 } },
+      { label: "ทั่วไป", detail: "V2 ราว 190 kbps", mbPerHour: 85, p: { mode: "VBR", vbrq: 2 } },
+      { label: "ดีมาก", detail: "V0 ราว 245 kbps", mbPerHour: 110, p: { mode: "VBR", vbrq: 0 } },
       { label: "สูงสุด", detail: "CBR 320 kbps", mbPerHour: 144, p: { mode: "CBR", bitrate: 320 } },
     ], preset: 1 },
-  { id: "ac3", name: "AC-3", full: "Dolby Digital", lossless: false, native: null, mp4: true, ch: "สูงสุด 5.1",
-    why: "ทีวี ซาวด์บาร์ เครื่องเสียงรับได้แทบทุกตัว · ไม่มีตัวต้นฉบับ ใช้ ffmpeg",
+  { id: "ac3", brief: "เสียงมาตรฐานของดีวีดี ทีวีและเครื่องเสียงรับได้แทบทุกตัว", name: "AC-3", full: "Dolby Digital", lossless: false, native: null, mp4: true, ch: "เก็บได้สูงสุดเสียง 5.1",
+    why: "ทีวี ซาวด์บาร์ และเครื่องเสียงรับได้แทบทุกตัว แปลงด้วย ffmpeg เพราะไม่มีตัวแปลงต้นฉบับ",
     presets: [
-      { label: "2.0 ทั่วไป", detail: "192 kbps · 2.0", mbPerHour: 86, p: { bitrate: 192 }, channels: 2 },
-      { label: "5.1 แบบดีวีดี", detail: "448 kbps · 5.1", mbPerHour: 200, p: { bitrate: 448 } },
-      { label: "5.1 สูงสุด", detail: "640 kbps · 5.1", mbPerHour: 288, p: { bitrate: 640 } },
-      { label: "5.1 ทีวีบางรุ่น", detail: "384 kbps · 5.1", mbPerHour: 173, p: { bitrate: 384 } },
+      { label: "เสียง 2.0 ทั่วไป", detail: "192 kbps เสียง 2.0", mbPerHour: 86, p: { bitrate: 192 }, channels: 2 },
+      { label: "เสียง 5.1 แบบดีวีดี", detail: "448 kbps เสียง 5.1", mbPerHour: 200, p: { bitrate: 448 } },
+      { label: "เสียง 5.1 สูงสุด", detail: "640 kbps เสียง 5.1", mbPerHour: 288, p: { bitrate: 640 } },
+      { label: "เสียง 5.1 ทีวีบางรุ่น", detail: "384 kbps เสียง 5.1", mbPerHour: 173, p: { bitrate: 384 } },
     ], preset: 2 },
-  { id: "flac", name: "FLAC", full: "Free Lossless Audio Codec", lossless: true, native: "flac", mp4: true, ch: "สูงสุด 8 ช่อง",
-    why: "ไม่เสียคุณภาพ ถอดเร็ว เล่นได้เกือบทุกโปรแกรม · ไฟล์ใหญ่ ราวครึ่งหนึ่งของ WAV",
+  { id: "flac", brief: "ไม่เสียคุณภาพ เล่นได้เกือบทุกโปรแกรม และนิยมที่สุด", name: "FLAC", full: "Free Lossless Audio Codec", lossless: true, native: "flac", mp4: true, ch: "และเก็บได้สูงสุด 8 ช่อง",
+    why: "ไม่เสียคุณภาพ ถอดเร็ว และเล่นได้เกือบทุกโปรแกรม แต่ไฟล์ใหญ่ราวครึ่งหนึ่งของ WAV",
     presets: [
       { label: "เร็ว", detail: "Level 0", pctWav: 60, p: { level: 0 } },
       { label: "มาตรฐาน", detail: "Level 5", pctWav: 55, p: { level: 5 } },
       { label: "เล็กสุด", detail: "Level 8", pctWav: 53, p: { level: 8 } },
-      { label: "เก็บถาวร", detail: "Level 8 · Verify", pctWav: 53, p: { level: 8, verify: "On" } },
+      { label: "เก็บถาวร", detail: "Level 8 พร้อม Verify", pctWav: 53, p: { level: 8, verify: "On" } },
     ], preset: 1 },
   // ALAC ด้วย refalac ที่มากับชุด qaac (พี่กันสั่ง 10 พ.ย. 2569 "เอาใส่เลย") · ไม่มีตัวต้นฉบับใช้ ffmpeg
-  { id: "alac", name: "ALAC", full: "Apple Lossless Audio Codec", lossless: true, native: "refalac64", mp4: true, ch: "สูงสุด 8 ช่อง",
-    why: "Lossless ของ Apple · เล่นบน iPhone iPad Mac และ Apple Music ได้เลย · ไฟล์ใหญ่กว่า FLAC เล็กน้อย",
+  { id: "alac", brief: "ไม่เสียคุณภาพ และเล่นบนเครื่องของ Apple ได้เลย", name: "ALAC", full: "Apple Lossless Audio Codec", lossless: true, native: "refalac64", mp4: true, ch: "และเก็บได้สูงสุด 8 ช่อง",
+    why: "Lossless ของ Apple เล่นบน iPhone iPad Mac และ Apple Music ได้เลย แต่ไฟล์ใหญ่กว่า FLAC เล็กน้อย",
     presets: [
       { label: "มาตรฐาน", detail: "ค่าตั้งต้น", pctWav: 56, p: { speed: "Normal" } },
       { label: "แปลงเร็ว", detail: "Fast", pctWav: 69, p: { speed: "Fast" } },
     ], preset: 0 },
-  { id: "wv", name: "WavPack", full: "WavPack Hybrid Lossless", lossless: true, native: "wavpack", mp4: false, ch: "หลายช่องได้",
-    why: "โหมดสูงบีบได้เล็กกว่า FLAC เล็กน้อย · ใส่ MP4 ไม่ได้",
+  { id: "wv", brief: "ไม่เสียคุณภาพ และบีบได้เล็กกว่า FLAC เล็กน้อย", name: "WavPack", full: "WavPack Hybrid Lossless", lossless: true, native: "wavpack", mp4: false, ch: "เก็บได้หลายช่อง",
+    why: "โหมดสูงบีบได้เล็กกว่า FLAC เล็กน้อย",
     presets: [
-      { label: "เร็ว", detail: "Fast · -f", pctWav: 58, p: { mode: "Fast" } },
+      { label: "เร็ว", detail: "Fast (-f)", pctWav: 58, p: { mode: "Fast" } },
       { label: "มาตรฐาน", detail: "Normal", pctWav: 55, p: { mode: "Normal" } },
-      { label: "เล็ก", detail: "High · -h", pctWav: 54, p: { mode: "High" } },
-      { label: "เล็กสุด", detail: "Very High · -hh -x6", pctWav: 53, p: { mode: "Very High", extra: 6 } },
+      { label: "เล็ก", detail: "High (-h)", pctWav: 54, p: { mode: "High" } },
+      { label: "เล็กสุด", detail: "Very High (-hh -x6)", pctWav: 53, p: { mode: "Very High", extra: 6 } },
     ], preset: 1 },
-  { id: "ape", name: "Monkey's Audio", full: "Monkey's Audio Lossless (APE)", lossless: true, native: "MACDll64", mp4: false, ch: "หลายช่องได้", only: true,
-    why: "บีบแน่นกว่า FLAC เล็กน้อย · เครื่องเล่นรองรับน้อย ตอนเล่นถอดหนักกว่า FLAC",
+  { id: "ape", brief: "ไม่เสียคุณภาพ บีบแน่นกว่า FLAC และใช้ได้เฉพาะหน้าแปลงเสียง", name: "Monkey's Audio", full: "Monkey's Audio Lossless (APE)", lossless: true, native: "MACDll64", mp4: false, ch: "เก็บได้หลายช่อง", only: true,
+    why: "บีบแน่นกว่า FLAC เล็กน้อย แต่ตอนเล่นใช้แรงเครื่องมากกว่าและเครื่องเล่นที่รองรับมีน้อย",
     presets: [
       { label: "เร็ว", detail: "Fast", pctWav: 57, p: { level: "Fast" } },
       { label: "มาตรฐาน", detail: "Normal", pctWav: 54, p: { level: "Normal" } },
       { label: "เล็ก", detail: "High", pctWav: 53, p: { level: "High" } },
       { label: "เล็กสุด", detail: "Extra High", pctWav: 52, p: { level: "Extra High" } },
     ], preset: 1 },
-  { id: "tak", name: "TAK", full: "Tom's lossless Audio Kompressor", lossless: true, native: "Takc", mp4: false, ch: "สูงสุด 6 ช่อง", only: true,
-    why: "เล็กพอ ๆ กับ Monkey's Audio แต่ถอดเร็วกว่ามาก · เครื่องเล่นรองรับน้อย",
+  { id: "tak", brief: "ไม่เสียคุณภาพ เล็กเท่า Monkey's Audio แต่ถอดเร็วกว่า", name: "TAK", full: "Tom's lossless Audio Kompressor", lossless: true, native: "Takc", mp4: false, ch: "เก็บได้สูงสุด 6 ช่อง", only: true,
+    why: "เล็กพอ ๆ กับ Monkey's Audio แต่ถอดเร็วกว่ามาก ส่วนเครื่องเล่นที่รองรับมีน้อย",
     presets: [
       { label: "เร็ว", detail: "-p0", pctWav: 56, p: { preset: 0, eval: "Normal" } },
       { label: "มาตรฐาน", detail: "-p2", pctWav: 54, p: { preset: 2, eval: "Normal" } },

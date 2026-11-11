@@ -639,7 +639,7 @@ fn apply(app: &AppHandle, req: &ApplyReq, jobs: &Arc<crate::jobs::Jobs>) -> Resu
             Err((title, why)) => {
                 // ไฟล์ถูกแก้ไปแล้ว จดขนาดกับ hash ใหม่ลงคลังเสมอ ไม่งั้นอ่านโฟลเดอร์ครั้งหน้าขึ้นว่าไฟล์ถูกเปลี่ยน · บอกตรง ๆ ว่าแนบปกใหม่ไปแล้ว
                 crate::library::refresh_own_edit(app, &target, &|pct| emit("กำลังจดค่า hash ใหม่", pct, None, None));
-                return Err(fail("verify", title, vec![why, "แนบปกใหม่ลงไฟล์แล้ว ภาพ เสียง ซับ ไม่ได้ถูกแปลงใหม่ · ควรตรวจละเอียดเรื่องนี้".into()]));
+                return Err(fail("verify", title, vec![why, "แนบปกใหม่ลงไฟล์แล้ว โดยภาพ เสียง และซับไม่ได้ถูกแปลงใหม่  ควรตรวจละเอียดเรื่องนี้".into()]));
             }
         }
     } else {
@@ -741,7 +741,7 @@ fn apply(app: &AppHandle, req: &ApplyReq, jobs: &Arc<crate::jobs::Jobs>) -> Resu
                 let mut why = vec![];
                 if want != got {
                     let show = |v: &[(String, String)]| v.iter().map(|(k, c)| format!("{}{c}", kind_word(k))).collect::<Vec<_>>().join(" ");
-                    why.push(format!("แทร็กไม่ตรงต้นทาง ต้นทาง {} · ไฟล์ใหม่ {}", show(&want), show(&got)));
+                    why.push(format!("แทร็กไม่ตรงต้นทาง ต้นทาง {} แต่ไฟล์ใหม่ {}", show(&want), show(&got)));
                 }
                 if !dur_ok { why.push(format!("ความยาวต่างกัน {:.2} กับ {:.2} วินาที", src_duration.unwrap_or(0.0), duration_of(&new_json).unwrap_or(0.0))); }
                 if !cover_ok { why.push("ไม่เจอปกในไฟล์ใหม่".into()); }

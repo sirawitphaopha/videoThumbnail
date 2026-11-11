@@ -136,3 +136,24 @@ pub fn clipboard_text() -> Result<String, String> {
         out
     }
 }
+
+/// หน้าต่างสูงหรือกว้างกว่าพื้นที่ใช้ได้ของจอที่อยู่ ย่อให้พอดีแล้วเลื่อนเข้าในจอ · หน้าต่างที่พอดีอยู่แล้วไม่แตะ (คนวางเลยขอบเองไม่ดึงกลับ)
+/// จอที่สองของพี่กัน 1366×768 ใช้ได้สูง 720 แต่หน้าต่างตั้งไว้ 800 ส่วนล่างจมใต้แถบงาน (พี่กันส่งภาพ 11 พ.ย. 2569 *"ตกขอบ"*)
+/// ไม่ทำตอนขยายเต็ม เต็มจอ หรือย่อลงแถบงาน · ปรับขนาดผ่าน Tauri
+pub fn fit_monitor(w: &tauri::WebviewWindow) {
+    use tauri::{PhysicalPosition, PhysicalSize};
+    if w.is_maximized().unwrap_or(false) || w.is_fullscreen().unwrap_or(false) || w.is_minimized().unwrap_or(false) { return; }
+    let Ok(Some(m)) = w.current_monitor() else { return };
+    let wa = *m.work_area();
+    let (Ok(outer), Ok(inner), Ok(pos)) = (w.outer_size(), w.inner_size(), w.outer_position()) else { return };
+    let (aw, ah) = (wa.size.width as i32, wa.size.height as i32);
+    let (ow, oh) = (outer.width as i32, outer.height as i32);
+    if ow <= aw && oh <= ah { return; }
+    let (nw, nh) = (ow.min(aw), oh.min(ah));
+    // ขนาดที่ตั้งเป็นขนาดด้านใน หักขอบหน้าต่างออก
+    let (dw, dh) = (ow - inner.width as i32, oh - inner.height as i32);
+    let _ = w.set_size(PhysicalSize::new((nw - dw).max(1) as u32, (nh - dh).max(1) as u32));
+    let nx = pos.x.clamp(wa.position.x, wa.position.x + aw - nw);
+    let ny = pos.y.clamp(wa.position.y, wa.position.y + ah - nh);
+    let _ = w.set_position(PhysicalPosition::new(nx, ny));
+}

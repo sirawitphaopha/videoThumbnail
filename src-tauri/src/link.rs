@@ -858,7 +858,7 @@ pub fn link_add_images(app: AppHandle, store: State<'_, Arc<LinkStore>>, lib: St
     store.save()?;
     start_thumbs(&app);
     if !bad.is_empty() {
-        return Err(format!("ไม่ใช่รูป ไม่รับ: {} · รูปที่รับ JPG PNG WebP BMP TIFF HEIC", bad.join(" · ")));
+        return Err(format!("ไฟล์ {} ไม่ใช่รูปจึงไม่รับ  รับรูป JPG PNG WebP BMP TIFF และ HEIC", bad.join(", ")));
     }
     Ok(reply(&store, &movies_of(&lib)))
 }
@@ -945,7 +945,7 @@ pub async fn link_auto(app: AppHandle, scope: String) -> Result<AutoSummary, Str
 fn pick_of(d: &Dirs, path: &str) -> Result<Pick, String> {
     let p = Path::new(path);
     if !pi::ACCEPTED.contains(&pi::ext_of(p).as_str()) {
-        return Err(format!("{} ไม่ใช่รูป ไม่รับ · รูปที่รับ JPG PNG WebP BMP TIFF HEIC", p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default()));
+        return Err(format!("{} ไม่ใช่รูปจึงไม่รับ  รับรูป JPG PNG WebP BMP TIFF และ HEIC", p.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default()));
     }
     if !p.is_file() {
         return Err(format!("หารูป {path} ไม่เจอ ไฟล์อาจถูกย้ายไปแล้ว"));
@@ -1313,7 +1313,7 @@ pub fn remove_cover(c: &LinkedCover) -> Option<String> {
     let also = c.app_copy.as_deref().and_then(|f| trash_own(Path::new(f), &c.sha256));
     let main = c.file.as_deref().filter(|_| c.owned).and_then(|f| trash_own(Path::new(f), &c.sha256));
     match (main, also) {
-        (Some(a), Some(b)) => Some(format!("{a} · {b}")),
+        (Some(a), Some(b)) => Some(format!("{a}  {b}")),
         (a, b) => a.or(b),
     }
 }

@@ -75,7 +75,7 @@ const VIEWS: [View, string][] = [["wave", "รูปคลื่น"], ["loud", 
 const CMP_VIEWS: [View, string][] = [["wave", "รูปคลื่น"], ["loud", "ความดัง"], ["cmp", "ซ้อนเทียบ"], ["spek", "ความถี่"], ["psd", "ความถี่เฉลี่ย"]];
 const ZOOMS: [number | "all", string][] = [["all", "ทั้งไฟล์"], [600, "10 นาที"], [240, "4 นาที"], [30, "30 วินาที"]];
 const PSD_SPANS: [number | "all", string][] = [["all", "ทั้งไฟล์"], [120, "2 นาที"], [30, "30 วินาที"], [10, "10 วินาที"]];
-const TH: Record<string, string> = { FL: "ซ้ายหน้า", FR: "ขวาหน้า", FC: "กลาง · เสียงพูด", LFE: "เสียงเบส", BL: "ซ้ายหลัง", BR: "ขวาหลัง", SL: "ซ้ายข้าง", SR: "ขวาข้าง", BC: "หลังกลาง", FLC: "หน้าซ้ายกลาง", FRC: "หน้าขวากลาง" };
+const TH: Record<string, string> = { FL: "ซ้ายหน้า", FR: "ขวาหน้า", FC: "กลาง (เสียงพูด)", LFE: "เสียงเบส", BL: "ซ้ายหลัง", BR: "ขวาหลัง", SL: "ซ้ายข้าง", SR: "ขวาข้าง", BC: "หลังกลาง", FLC: "หน้าซ้ายกลาง", FRC: "หน้าขวากลาง" };
 const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const noteOf = (f: number) => { const n = Math.round(12 * Math.log2(f / 440)) + 57; return NOTES[((n % 12) + 12) % 12] + Math.floor(n / 12); };
 const WARN = <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" aria-hidden="true"><path d="M12 3l10 18H2z" /><path d="M12 10v5M12 18v.5" /></svg>;
@@ -239,9 +239,9 @@ function SaveBtn({ onClick }: { onClick: () => void }) {
     if (await update({ graphImg: { ...o, dirMode: "folder", dir: d } })) toast({ kind: "ok", title: "รูปกราฟจะเก็บที่โฟลเดอร์นี้", detail: d });
   };
   return <span style={{ display: "inline-flex", gap: 4 }}>
-    <button type="button" className="btn btn-ghost btn-sm" style={{ width: 32, padding: 0, flex: "none" }} aria-label="เปลี่ยนที่บันทึกรูป" title={(inFolder ? "เก็บรูปที่ " + o.dir : "เก็บรูปข้างไฟล์ที่ดูอยู่") + "\nกดเพื่อเปลี่ยนที่บันทึก · กลับไปเก็บข้างไฟล์ได้ที่หน้าตั้งค่า"} onClick={changeDir} data-graphsavedir><IcFolder size={15} /></button>
+    <button type="button" className="btn btn-ghost btn-sm" style={{ width: 32, padding: 0, flex: "none" }} aria-label="เปลี่ยนที่บันทึกรูป" title={(inFolder ? "เก็บรูปที่ " + o.dir : "เก็บรูปข้างไฟล์ที่ดูอยู่") + "\nกดเพื่อเปลี่ยนที่บันทึก และกลับไปเก็บข้างไฟล์ได้ที่หน้าตั้งค่า"} onClick={changeDir} data-graphsavedir><IcFolder size={15} /></button>
     <button type="button" className={"btn btn-ghost btn-sm" + (busy ? " pressed" : "")} aria-disabled={busy || undefined} aria-busy={busy || undefined} onClick={() => { if (!busy) onClick(); }} data-graphsave>
-    {busy ? <span className="spinner" aria-hidden="true" /> : <IbSave size={15} />}<Keep all={["กำลังบันทึก…", "บันทึกเป็นรูป"]}>{busy ? "กำลังบันทึก…" : "บันทึกเป็นรูป"}</Keep></button></span>;
+    {busy ? <span className="spinner" aria-hidden="true" /> : <IbSave size={15} />}<Keep all={["กำลังบันทึก", "บันทึกเป็นรูป"]}>{busy ? "กำลังบันทึก" : "บันทึกเป็นรูป"}</Keep></button></span>;
 }
 function useCanvas(draw: (g: CanvasRenderingContext2D, w: number, h: number, r: number) => void, deps: unknown[]) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -403,7 +403,7 @@ function VBar({ v, right, top = 12, bottom = 12, dark }: { v: VRange; right: num
   const ref = useRef<HTMLDivElement>(null), drag = useRef(false);
   if (v.z <= 1) return null;
   const to = (y: number) => { const r = ref.current!.getBoundingClientRect(); v.setB(v.clampB(1 - (y - r.top) / r.height - 1 / v.z / 2, v.z)); };
-  return <div ref={ref} className={"spekvs" + (dark ? "" : " light")} style={{ top, bottom, right }} title="ลากเลื่อนช่วงขึ้นลง · หมุนล้อเมาส์บนกราฟก็ได้" data-vbar
+  return <div ref={ref} className={"spekvs" + (dark ? "" : " light")} style={{ top, bottom, right }} title="ลากเพื่อเลื่อนช่วงขึ้นลง หรือหมุนล้อเมาส์บนกราฟก็ได้" data-vbar
     onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); drag.current = true; to(e.clientY); }} onPointerMove={(e) => { if (drag.current) to(e.clientY); }} onPointerUp={() => { drag.current = false; }} onPointerCancel={() => { drag.current = false; }}>
     <i style={{ height: 100 / v.z + "%", bottom: v.b * 100 + "%" }} /></div>;
 }
@@ -619,8 +619,8 @@ function saveRecent(list: Recent[]) {
 /** แถบสีตัวอย่างบนปุ่มเลือกสี ใช้สีชุดเดียวกับที่วาดกราฟจริง */
 const Swatch = ({ ramp }: { ramp: readonly string[] }) => <i className="cswatch" data-keepcolor aria-hidden="true" style={{ background: `linear-gradient(90deg,${ramp.join(",")})` }} />;
 /** คำอธิบายสีของรูปคลื่น (BUGS ข้อ 11 · พี่กัน "ยอดเสียง อ่านเเล้วงง" · "เอาไว้ด้วย") */
-const PEAK_RMS_TIP: Tip = { w: "ดังสุด (Peak) คือจุดที่ดังที่สุดแวบเดียวในช่วงนั้น · ดังเฉลี่ย (RMS) คือความดังเฉลี่ยของช่วงนั้น ใกล้กับที่หูได้ยิน",
-  p: "ดังสุดชนขอบบนล่างคือยอดคลื่นแตะเพดาน เสียงอาจแตก · ดังเฉลี่ยหนาเกือบเท่าดังสุดคือเพลงถูกบีบความดังให้ดังเท่ากันทั้งเพลง · ดังเฉลี่ยบางกว่าดังสุดมากคือเสียงมีช่วงดังเบาเป็นธรรมชาติ" };
+const PEAK_RMS_TIP: Tip = { w: "ดังสุด (Peak) คือจุดที่ดังที่สุดแวบเดียวในช่วงนั้น ส่วนดังเฉลี่ย (RMS) คือความดังเฉลี่ยของช่วงนั้น ซึ่งใกล้กับที่หูได้ยิน",
+  p: "ถ้าดังสุดชนขอบบนล่าง แปลว่ายอดคลื่นแตะเพดานและเสียงอาจแตก ถ้าดังเฉลี่ยหนาเกือบเท่าดังสุด แปลว่าเพลงถูกบีบให้ดังเท่ากันทั้งเพลง และถ้าดังเฉลี่ยบางกว่าดังสุดมาก แปลว่าเสียงมีช่วงดังเบาเป็นธรรมชาติ" };
 const WaveIc = ({ d }: { d: string }) => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>;
 
 type Prefs = { view: View; theme: string; style: WaveStyle; cmap: "theme" | "rainbow"; scmap: "heat" | "rainbow" | "mono" | "theme"; spekLight: boolean; wide: boolean; spekAxis: "lin" | "log"; customColor: string };
@@ -970,7 +970,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
   const vis = names.filter((c) => !hidden.includes(c));
   const levels = useMemo(() => (ov ? ov.rms.map((d) => Math.pow(10, d / 20)) : []), [ov]);
   const marks: Mark[] = useMemo(() => {
-    const m: Mark[] = (movie?.check?.spans ?? []).map((s) => ({ from: s.from, to: Math.max(s.to, s.from + 0.5), text: s.what + " · ผลตรวจ" }));
+    const m: Mark[] = (movie?.check?.spans ?? []).map((s) => ({ from: s.from, to: Math.max(s.to, s.from + 0.5), text: s.what + " (ผลตรวจ)" }));
     for (const [a, b] of ov?.silences ?? []) if (!m.some((x) => Math.abs(x.from - a) < 1.5)) m.push({ from: a, to: b, text: `เงียบทุกช่อง ${(b - a).toFixed(1)} วินาที` });
     return m;
   }, [movie, ov]);
@@ -990,7 +990,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
     try {
       const r = await checkApi.playAt(path, at);
       if (r.seeked) toast({ kind: "ok", title: `เปิดด้วย ${r.player} ที่ ${tfmt(at)}` });
-      else toast({ kind: "warn", title: r.player ? `เปิดด้วย ${r.player} แล้ว แต่เปิดตรงนาทีไม่ได้` : "เปิดด้วยโปรแกรมหลักของ Windows แล้ว แต่เปิดตรงนาทีไม่ได้", detail: `เลื่อนไปที่ ${tfmt(at)} เอง · ตั้งโปรแกรมเล่นได้ที่หน้าตั้งค่า` });
+      else toast({ kind: "warn", title: r.player ? `เปิดด้วย ${r.player} แล้ว แต่เปิดตรงนาทีไม่ได้` : "เปิดด้วยโปรแกรมหลักของ Windows แล้ว แต่เปิดตรงนาทีไม่ได้", detail: `เลื่อนไปที่ ${tfmt(at)} เอง หรือตั้งโปรแกรมเล่นได้ที่หน้าตั้งค่า` });
     } catch (e) { toast({ kind: "bad", title: "เปิดเล่นไม่ได้", detail: String(e) }); }
   };
   const fileName = path ? path.split(/[\\/]/).pop() ?? path : "";
@@ -1015,10 +1015,10 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
       }
       let cv = exportRef.current(o.width);
       if (!cv) throw new Error("ยังไม่มีกราฟให้บันทึก");
-      if (o.title && view !== "spek") cv = withHeader(cv, fileName + " · " + vName, tfmt(t0) + " ถึง " + tfmt(t1));
+      if (o.title && view !== "spek") cv = withHeader(cv, fileName + " " + vName, tfmt(t0) + " ถึง " + tfmt(t1));
       await waitPaint();
       const saved = await graphApi.saveImage(where, alphaOf(cv, o).toDataURL("image/png"), o);
-      toast({ kind: "ok", title: `บันทึกรูปแล้ว ${saved.width.toLocaleString("en-US")} × ${saved.height.toLocaleString("en-US")} · ${fmtSize(saved.size)}`, detail: saved.path });
+      toast({ kind: "ok", title: `บันทึกรูปแล้ว ${saved.width.toLocaleString("en-US")} × ${saved.height.toLocaleString("en-US")} ขนาด ${fmtSize(saved.size)}`, detail: saved.path });
     } catch (e) { toast({ kind: "bad", title: "บันทึกรูปไม่ได้", detail: e instanceof Error ? e.message : String(e) }); }
     finally { setHiWin(null); setSaving(false); }
   };
@@ -1039,7 +1039,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
   if (mode === "convert") {
     return (
       <div className="ag" data-graph data-graphmode="convert">
-        <div className="gmodebar">{modeSeg}<span className="small">แปลงไฟล์เสียงอย่างเดียว ไม่รวมเข้าหนัง · ไฟล์เดิมไม่ถูกแก้</span></div>
+        <div className="gmodebar">{modeSeg}<span className="small">แปลงไฟล์เสียงอย่างเดียว ไม่รวมเข้าหนัง และไฟล์เดิมไม่ถูกแก้</span></div>
         <ConvertPane onCompare={(a, b, note) => setCmp({ files: [a, b], note })} onTags={setTagFor} />
         {tagDlg}
       </div>
@@ -1055,27 +1055,27 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
     const music = <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M9 18V5l11-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" /></svg>;
     return (
       <div className="ag" data-graph>
-        <div className="gmodebar">{modeSeg}<span className="small">ดูกราฟเสียงทีละไฟล์ · แปลงเสียงเป็นคิว แล้วเทียบความถี่ก่อนกับหลังแปลง</span></div>
+        <div className="gmodebar">{modeSeg}<span className="small">ดูกราฟเสียงทีละไฟล์ หรือแปลงเสียงเป็นคิวแล้วเทียบความถี่ก่อนกับหลังแปลง</span></div>
         <div className="drop" style={{ minHeight: 180 }} data-graphdrop onClick={dropClick(openOther)}>
           <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#e5a3bd" strokeWidth="1.8" aria-hidden="true"><path d="M3 12h2M7 7v10M11 4v16M15 8v8M19 10v4" /></svg>
           <b style={{ color: "var(--txt2)" }}>ลากไฟล์หนังหรือไฟล์เสียงมาวางตรงนี้</b><span>หรือ</span>
           <button type="button" className="btn btn-ghost btn-sm" onClick={openOther}><IcFile size={15} />เลือกไฟล์จากเครื่อง</button>
-          <span className="small">รับไฟล์หนังทุกชนิดในชั้นวาง และไฟล์เสียง {AUDIO_EXT.map((e) => e.toUpperCase()).join(" · ")}</span>
+          <span className="small">รับไฟล์หนังทุกชนิดในชั้นวาง และไฟล์เสียง {AUDIO_EXT.map((e) => e.toUpperCase()).join(" ")}</span>
         </div>
-        {recent.length > 0 && <><div className="small">เปิดล่าสุด · กดเพื่อดูกราฟอีกครั้ง ปุ่มกากบาทเอาออกจากรายการ ไฟล์ในเครื่องไม่ถูกแตะ</div>
+        {recent.length > 0 && <><div className="small">เปิดล่าสุด กดเพื่อดูกราฟอีกครั้ง และกดปุ่มกากบาทเพื่อเอาออกจากรายการ ไฟล์ในเครื่องไม่ถูกแตะ</div>
           <div className="graph-recent" data-graphrecent>{recent.map((r) => {
             const mv = movies.find((m) => m.path.toLowerCase() === r.path.toLowerCase());
             const lost = gone.has(r.path);
             return (
               <div key={r.path} className={"recentrow" + (lost ? " lost" : "")}>
-                <button type="button" className="dd" aria-disabled={lost || undefined} onClick={() => { if (!lost) setPath(r.path); }} data-graphrecentpick={r.name} data-lost={lost || undefined} title={lost ? `หาไฟล์ไม่เจอ · ไฟล์ถูกย้ายหรือลบ หรือไดรฟ์ถอดออกอยู่\n${r.path}` : r.path}>
+                <button type="button" className="dd" aria-disabled={lost || undefined} onClick={() => { if (!lost) setPath(r.path); }} data-graphrecentpick={r.name} data-lost={lost || undefined} title={lost ? `หาไฟล์ไม่เจอ ไฟล์อาจถูกย้ายหรือลบ หรือไดรฟ์ถอดออกอยู่\n${r.path}` : r.path}>
                   <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: "1 1 auto", overflow: "hidden" }}>
                     <span className="rtype">{r.audioOnly ? <i className="rnote">{music}</i> : (mv?.thumb ?? mv?.linked?.[0]?.thumb) ? <img src={thumbUrl(mv?.thumb ?? mv?.linked?.[0]?.thumb ?? null) ?? ""} alt="" style={{ width: 18, height: 27, borderRadius: 3, objectFit: "cover" }} /> : <i className="rnote" data-graphfilm>{film}</i>}{extCard(r.name)}</span>
                     <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{r.name.replace(/\.[^.]+$/, "")}</span></span>
                   {/* ข้อความขวาไม่หด ชื่อยาวตัดเป็นสามจุดแทน (เดิมเวลาโดนตัดเหลือ 5:1 เจอตอนตรวจภาพ) */}
                   {lost
                     ? <span className="small lostmark" style={{ flex: "none" }}>หาไฟล์ไม่เจอ</span>
-                    : <span className="small" style={{ flex: "none" }}>{[r.layout ?? "", tfmt(r.duration)].filter(Boolean).join(" · ")}</span>}
+                    : <span className="small" style={{ flex: "none" }}>{(r.layout ? "เสียง " + r.layout + " " : "") + "ยาว " + tfmt(r.duration)}</span>}
                 </button>
                 <button type="button" className="rmx" onClick={() => forget(r.path)} aria-label={`เอา ${r.name} ออกจากรายการเปิดล่าสุด`} title="เอาออกจากรายการ ไฟล์ในเครื่องไม่ถูกแตะ" data-graphforget={r.name}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
@@ -1087,7 +1087,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
           <div className="graph-recent">{shelfPicks.map((m) => (
             <button key={m.id} type="button" className="dd" onClick={() => setPath(m.path)} data-graphpick={m.name}>
               <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: "1 1 auto", overflow: "hidden" }}><span className="rtype">{(m.thumb ?? m.linked?.[0]?.thumb) ? <img src={thumbUrl(m.thumb ?? m.linked?.[0]?.thumb ?? null) ?? ""} alt="" style={{ width: 18, height: 27, borderRadius: 3, objectFit: "cover" }} /> : <i className="rnote" data-graphfilm>{film}</i>}{extCard(m.path)}</span><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{m.name.replace(/\.[^.]+$/, "")}</span></span>
-              <span className="small">{[...new Set(m.audio.map((a) => a.layout))].join(" · ")}</span>
+              <span className="small">{m.audio.length ? "เสียง " + [...new Set(m.audio.map((a) => a.layout))].join(", ") : ""}</span>
             </button>))}</div></>}
       </div>
     );
@@ -1105,19 +1105,19 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
       {cmpBack && path && cmpBack.files.includes(path) && <button type="button" className="btn btn-ghost" onClick={() => { const c = cmpBack; setCmpBack(null); setCmp(c); }} title="กลับไปหน้าเทียบสองไฟล์" data-graphbackcmp><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3v18M4 7h4v10H4zM16 7h4v10h-4z" /></svg>กลับไปเทียบ</button>}
       <div className="fchip">{thumb}<div style={{ minWidth: 0 }}>
         <button type="button" className="nm linklike" onClick={() => path && setTagFor(path)} title="กดเพื่อดูข้อมูลเพลงกับรูปปก" data-graphtags>{fileName.replace(/\.[^.]+$/, "")}<span className="ext">{fileName.match(/\.[^.]+$/)?.[0] ?? ""}</span></button>
-        <div className="meta">{info ? `${info.audioOnly ? "ไฟล์เสียง · " : ""}${fmtSize(info.size)} · ยาว ${tfmt(info.duration)}${info.audioOnly && !movie ? " · ไม่ได้อยู่บนชั้นวาง" : ""}` : error ? "อ่านข้อมูลเสียงไม่ได้" : "กำลังอ่านข้อมูลไฟล์"}</div>
+        <div className="meta">{info ? `${info.audioOnly ? "ไฟล์เสียง " : ""}${fmtSize(info.size)} ยาว ${tfmt(info.duration)}${info.audioOnly && !movie ? " และไม่ได้อยู่บนชั้นวาง" : ""}` : error ? "อ่านข้อมูลเสียงไม่ได้" : "กำลังอ่านข้อมูลไฟล์"}</div>
       </div></div>
       {info && info.tracks.length > 1 && (
         <span data-graphtrack><Dropdown label="แทร็กเสียง" value={String(track)} onChange={(v) => setTrack(Number(v))}
-          options={info.tracks.map((x) => ({ value: String(x.index), label: `เสียง ${x.index + 1} · ${x.lang ?? "ไม่ระบุภาษา"} · ${x.codec} · ${x.layout}` }))} /></span>
+          options={info.tracks.map((x) => ({ value: String(x.index), label: `เสียง ${x.index + 1} ${x.lang ?? "ไม่ระบุภาษา"} ${x.codec} ${x.layout}` }))} /></span>
       )}
       <button type="button" className="btn btn-ghost" onClick={openOther}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>เปิดไฟล์อื่น</button>
       {/* เทียบกับไฟล์อื่นจากกราฟที่เปิดอยู่ ไม่ต้องผ่านคิวแปลง (พี่กันสั่ง 9 พ.ย. 2569 "เราเปิดกราฟอยู่แล้ว เราอยากเปิดเทียบกับไฟล์อื่นเลย") */}
       <button type="button" className="btn btn-ghost" onClick={compareOther} title="เลือกไฟล์อื่นมาเทียบกับไฟล์นี้" data-graphcompare><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3v18M4 7h4v10H4zM16 7h4v10h-4z" /></svg>เทียบ</button>
       {/* หน้าแปลงเสียงอยู่ข้างปุ่มเปิดไฟล์อื่น (มอคอัปหัวข้อ 7) · กดจากหน้ากราฟ ไฟล์ที่ดูอยู่เข้าคิวเลย ไม่ต้องเลือกใหม่ (พี่กันบอก 9 พ.ย. 2569 "มันต้องใช้ไฟล์นั้นเลยสิ") · รอแปลงอยู่แล้วไม่เพิ่มแถว กันกดซ้ำโดยไม่ตั้งใจ */}
-      <button type="button" className="btn btn-ghost" onClick={() => { if (path) addFiles([path], true); setMode("convert"); }} title="แปลงไฟล์นี้ · ใส่เข้าคิวแปลงเสียง" data-graphconvert><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 7h13l-3-3M20 17H7l3 3" /></svg>แปลงเสียง</button>
+      <button type="button" className="btn btn-ghost" onClick={() => { if (path) addFiles([path], true); setMode("convert"); }} title="แปลงไฟล์นี้ โดยใส่เข้าคิวแปลงเสียง" data-graphconvert><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 7h13l-3-3M20 17H7l3 3" /></svg>แปลงเสียง</button>
       {/* ดูบิตเรตของแทร็กเสียงที่ดูอยู่ ไปหน้าบิตเรตพร้อมไฟล์และแทร็กนี้ · ไฟล์เสียงล้วนก็กดได้ (พี่กันสั่ง 10 พ.ย. 2569 "เพิ่มดูบิตเรต จากดูกราฟเสียงได้" · "ทำไมเราดูบิตเรตของเสียงไม่ได้") */}
-      {onBitrate && path && info && <button type="button" className="btn btn-ghost" onClick={() => onBitrate(path, `a${track}`)} title="ดูบิตเรตของแทร็กเสียงนี้ · ในหน้าบิตเรตสลับไปดูวิดีโอหรือแทร็กอื่นได้" data-graphbitrate><IcBitrate size={16} />Bitrate</button>}
+      {onBitrate && path && info && <button type="button" className="btn btn-ghost" onClick={() => onBitrate(path, `a${track}`)} title="ดูบิตเรตของแทร็กเสียงนี้ และสลับไปดูวิดีโอหรือแทร็กอื่นได้ในหน้าบิตเรต" data-graphbitrate><IcBitrate size={16} />Bitrate</button>}
     </div>
   );
   const seg = <T extends string | number>(opts: [T, React.ReactNode][], cur: T, set: (v: T) => void, attr: string) => (
@@ -1126,9 +1126,9 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
   const zoomBox = (opts: [number | "all", string][], lbl: string) => (
     <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
       {lbl === "ซูม" && <span className="zbtns">
-        <button type="button" className="zb" onClick={() => zoomBy(2)} disabled={zoom === "all"} aria-label="ซูมออก" title="ซูมออก · Ctrl หมุนล้อเมาส์ลง" data-zoomout><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6" /></svg></button>
+        <button type="button" className="zb" onClick={() => zoomBy(2)} disabled={zoom === "all"} aria-label="ซูมออก" title="ซูมออก (Ctrl หมุนล้อเมาส์ลง)" data-zoomout><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6" /></svg></button>
         <HZoom dur={dur} span={span} onSpan={setSpan} onBusy={grabBusy} />
-        <button type="button" className="zb" onClick={() => zoomBy(0.5)} disabled={span <= HZ_MIN * 1.01} aria-label="ซูมเข้า" title="ซูมเข้า · Ctrl หมุนล้อเมาส์ขึ้น" data-zoomin><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6M10.5 7.5v6" /></svg></button>
+        <button type="button" className="zb" onClick={() => zoomBy(0.5)} disabled={span <= HZ_MIN * 1.01} aria-label="ซูมเข้า" title="ซูมเข้า (Ctrl หมุนล้อเมาส์ขึ้น)" data-zoomin><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6M10.5 7.5v6" /></svg></button>
         <button type="button" className="zb" aria-label="รีเซ็ตซูม" title="รีเซ็ต กลับทั้งไฟล์ ซูมแนวตั้ง 1 เท่า" data-zoom-reset onClick={() => { setZoom("all"); setWin(null); setVz(1); setSzRaw(1); setSb(0); setResetN((n) => n + 1); }}><IcRefresh size={15} /></button>
       </span>}
       <span className="lbl">{lbl}</span>
@@ -1172,7 +1172,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
 
   /* ---------- แผงซ้าย ---------- */
   const infoRows: [string, string][] = t ? [
-    ["Codec", codecDetail[t.index] ?? t.codec], ["Channels", `${t.layout} · ${names.length} ${names.length === 1 ? "channel" : "channels"}`], ["Sample rate", `${(t.rate / 1000).toLocaleString("en-US", { maximumFractionDigits: 1 })} kHz`],
+    ["Codec", codecDetail[t.index] ?? t.codec], ["Channels", `${t.layout}, ${names.length} ${names.length === 1 ? "channel" : "channels"}`], ["Sample rate", `${(t.rate / 1000).toLocaleString("en-US", { maximumFractionDigits: 1 })} kHz`],
     ...(t.bits ? [["Bit depth", `${t.bits}-bit`] as [string, string]] : []), ...(t.bitrate ? [["Bitrate", `${Math.round(t.bitrate / 1000).toLocaleString("en-US")} kb/s`] as [string, string]] : []),
     ...(t.lang ? [["Language", t.lang] as [string, string]] : []),
   ] : [];
@@ -1191,7 +1191,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
           : <div className="none" data-graphcover="none">ไม่มีรูปปก</div>}</div>
         {tagShow.length > 0 ? <dl className="kv" data-graphtags-kv>{tagShow.map(([k, v]) => <FragmentKV key={k} k={k} v={v} />)}</dl>
           : tagFile && <div className="small" style={{ marginTop: 8 }} data-graphtags-none><Phr>{whyNone(tagFile)}</Phr></div>}</div>}
-      {firstMark && <div className="stat warn">{WARN}<div><b>{movie?.check?.spans?.length ? "ผลตรวจล่าสุด" : "ช่วงเงียบผิดปกติ"}</b><span className="nw">{firstMark.text.replace(" · ผลตรวจ", "")}</span> <span className="nw">ที่ {tfmt(firstMark.from)}</span>
+      {firstMark && <div className="stat warn">{WARN}<div><b>{movie?.check?.spans?.length ? "ผลตรวจล่าสุด" : "ช่วงเงียบผิดปกติ"}</b><span className="nw">{firstMark.text.replace(" (ผลตรวจ)", "")}</span> <span className="nw">ที่ {tfmt(firstMark.from)}</span>
         <div style={{ marginTop: 6 }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => { setCenter(firstMark.from + 1); setTip(firstMark.from); setZoom(30); if (view !== "wave" && view !== "spec") setPref("view", "wave"); }} data-goto><IcSearch size={15} /><span>ซูมไปที่ <FixedTime t={tfmt(firstMark.from)} longest={tfmt(dur)} /></span></button></div></div></div>}
     </div>
   );
@@ -1203,7 +1203,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
       <div className="ag" data-graph>{head}{tagDlg}
         <div className={"stat " + (stopped ? "info" : "bad")} data-grapherror>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
-          <div><b>{error}</b>{stopped ? "ยังไม่ได้วาดกราฟ · กดอ่านใหม่เพื่อเริ่มอีกครั้ง" : error.includes("ไม่มีแทร็กเสียง") ? "วิดีโออัดหน้าจอบางแบบไม่ได้อัดเสียงไว้" : "ลองเปิดไฟล์อื่น หรือตรวจไฟล์นี้ที่หน้าตรวจไฟล์"}
+          <div><b>{error}</b>{stopped ? "ยังไม่ได้วาดกราฟ กดอ่านใหม่เพื่อเริ่มอีกครั้ง" : error.includes("ไม่มีแทร็กเสียง") ? "วิดีโออัดหน้าจอบางแบบไม่ได้อัดเสียงไว้" : "ลองเปิดไฟล์อื่น หรือตรวจไฟล์นี้ที่หน้าตรวจไฟล์"}
             {!error.includes("ไม่มีแทร็กเสียง") && <div style={{ marginTop: 8 }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => setNonce((n) => n + 1)} data-graphretry><IcRefresh size={15} />อ่านใหม่</button></div>}</div>
         </div>
       </div>
@@ -1222,7 +1222,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
             <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 10 }}>
               {(names.length ? names : ["", "", ""]).map((_, i) => <div key={i} style={{ display: "grid", gridTemplateColumns: "84px 1fr", gap: 10, alignItems: "center" }}><div className="skel" style={{ height: 12 }} /><div className="skel" style={{ height: 40 }} /></div>)}
             </div>
-            <div className="small" style={{ marginTop: 8 }}>อ่านเฉพาะเสียง ไม่ถอดภาพ · อ่านครั้งเดียว เปิดซ้ำขึ้นทันที · ไฟล์ไม่ถูกแก้</div>
+            <div className="small" style={{ marginTop: 8 }}>อ่านเฉพาะเสียงโดยไม่ถอดภาพ อ่านครั้งเดียวแล้วเปิดซ้ำขึ้นทันที และไฟล์ไม่ถูกแก้</div>
           </div>
         </div>
       </div>
@@ -1262,7 +1262,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
     plot = (
       <div className="plot" data-plot ref={plotRef}>
         <div className="plotstick">
-        <div className="plothead"><span><b>{view === "wave" ? "รูปคลื่นทุกช่อง" : "ความถี่ทุกช่อง"}</b> · <RangeTime t0={t0} t1={t1} dur={dur} /></span>
+        <div className="plothead"><span><b>{view === "wave" ? "รูปคลื่นทุกช่อง" : "ความถี่ทุกช่อง"}</b> <span className="prange">ช่วง <RangeTime t0={t0} t1={t1} dur={dur} /></span></span>
           {/* หัวการ์ดแคบ (จอเล็ก) ตัวเลือกแบบกราฟเป็นดรอปดาวน์ แถบซูมไม่ถูกบีบ (พี่กันสั่ง 11 พ.ย. 2569 "มันบีบเส้นซูมเกินไป ให้เปลี่ยนรูปแบบกราฟเป็นดรอปดาวน์ ถ้าจอมันเล็ก") · สลับด้วย @container ใน app.css */}
           {view === "wave" && <span className="wstyle-seg">{seg<WaveStyle>([["aud", <><WaveIc d="M3 12c2-7 3-7 5 0s3 7 5 0 3-7 5 0 2 4 3 0" />รูปคลื่น</>], ["bars", <><WaveIc d="M5 9v6M10 5v14M15 8v8M20 10v4" />แท่ง</>], ["real", <><WaveIc d="M3 12h2V6h2v12h2V4h2v16h2V7h2v10h2V9h2v3h2" />เต็มช่อง</>]], prefs.style, (v) => setPref("style", v), "data-style")}</span>}
           {view === "wave" && <span className="wstyle-dd" data-styledd><Dropdown label="แบบกราฟ" value={(prefs.style === "fine" ? "aud" : prefs.style) as "aud" | "bars" | "real"} onChange={(v) => setPref("style", v)}
@@ -1291,7 +1291,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
           {/* เส้นตั้งกับกล่องบอกค่าขึ้นเฉพาะตอนเมาส์ชี้ (พี่กัน 7 พ.ย. 2569 *"ต้องให้เเสดงเฉพาะเมาส์ชี้"*) */}
           {hover != null && <Crosshair box={boxEl} left={LW} right={0} t0={t0} t1={t1} at={at} rows={vis.map((c) => ({ v: dbTxt(valueAt(names.indexOf(c), at)) + " dB", k: `${label(names, c).code} ${label(names, c).th}` }))} />}
         </div>
-        {view === "spec" && sz > 1 && <div ref={svRef} className="spekvs" style={{ top: 0, bottom: 0, right: VZ_W + 4 }} title="ลากเลื่อนย่านความถี่ขึ้นลง · หมุนล้อเมาส์บนกราฟก็ได้" data-specvs
+        {view === "spec" && sz > 1 && <div ref={svRef} className="spekvs" style={{ top: 0, bottom: 0, right: VZ_W + 4 }} title="ลากเพื่อเลื่อนย่านความถี่ขึ้นลง หรือหมุนล้อเมาส์บนกราฟก็ได้" data-specvs
           onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); svDrag.current = true; svTo(e.clientY); }} onPointerMove={(e) => { if (svDrag.current) svTo(e.clientY); }} onPointerUp={() => { svDrag.current = false; }} onPointerCancel={() => { svDrag.current = false; }}>
           <i style={{ height: 100 / sz + "%", bottom: sb * 100 + "%" }} data-specthumb /></div>}
         {view === "spec" ? <FZoom value={sz} onChange={setSz} /> : VZ_W > 0 && <VZoom value={vz} onChange={setVz} />}
@@ -1309,7 +1309,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
                   <InfoTip title="ดังสุดกับดังเฉลี่ย" tip={PEAK_RMS_TIP} />
                   {marks.length > 0 && <span style={{ color: "#b03535" }}><i style={{ background: "rgba(208,59,59,.25)", border: "1px solid rgba(208,59,59,.75)" }} />จุดเสีย</span>}
                 </div>
-                {(() => { const note = prefs.style === "bars" ? "แบบแท่ง · หนึ่งแท่งคือช่วงเวลาสั้น ๆ หนึ่งช่วง · ตัวเลขซ้ายคือความสูงคลื่น 1.0 เต็มสเกล" : `${prefs.style === "real" ? "หน้าตาแบบโปรแกรม Audacity" : "แบบตามโปรแกรม Audacity"} · ตัวเลขซ้ายคือความสูงคลื่น 1.0 เต็มสเกล`; return <div className="small lgnote" title={note} data-audnote>{note}</div>; })()}
+                {(() => { const note = prefs.style === "bars" ? "แบบแท่ง หนึ่งแท่งคือช่วงเวลาสั้น ๆ หนึ่งช่วง และตัวเลขซ้ายคือความสูงคลื่น 1.0 เต็มสเกล" : `${prefs.style === "real" ? "หน้าตาแบบโปรแกรม Audacity" : "แบบตามโปรแกรม Audacity"} ตัวเลขซ้ายคือความสูงคลื่น 1.0 เต็มสเกล`; return <div className="small lgnote" title={note} data-audnote>{note}</div>; })()}
               </div>
             : <div className="speclegend"><span className="nw">−120 dB</span><span className="rampbar" style={{ background: `linear-gradient(90deg,${(prefs.cmap === "rainbow" ? RAINBOW : th.ramp).join(",")})` }} /><span className="nw">0 dB</span><span className="nw" style={{ marginLeft: 6 }}>20 Hz ถึง {Math.round((t?.rate ?? 48000) / 2000)} kHz</span></div>}
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -1339,7 +1339,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
   return (
     <SavingCtx.Provider value={saving}><div className="ag" data-graph data-graphview={view}>
       <div className="agstick">{head}{ctl}</div>
-      <div className={"agb" + (prefs.wide ? " wide" : "")}>{prefs.wide ? null : panel}{plot}{viewSlow && !saving && <LoadPill text="กำลังโหลดกราฟ…" />}</div>
+      <div className={"agb" + (prefs.wide ? " wide" : "")}>{prefs.wide ? null : panel}{plot}{viewSlow && !saving && <LoadPill text="กำลังโหลดกราฟ" />}</div>
       {tagDlg}
     </div></SavingCtx.Provider>
   );
@@ -1355,7 +1355,7 @@ export class GraphBoundary extends Component<{ children: React.ReactNode }, { er
       <div className="ag" data-graph>
         <div className="stat bad" data-graphcrash>
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 7v6M12 16.5v.5" /></svg>
-          <div><b>หน้ากราฟเสียงวาดกราฟของไฟล์นี้ไม่ได้</b>{this.state.err} · ไฟล์ไม่ถูกแก้
+          <div><b>หน้ากราฟเสียงวาดกราฟของไฟล์นี้ไม่ได้</b>{this.state.err} ไฟล์ไม่ถูกแก้
             <div style={{ marginTop: 8 }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => this.setState({ err: null })}><IcGraph size={15} />เปิดหน้ากราฟใหม่</button></div></div>
         </div>
       </div>
@@ -1419,7 +1419,7 @@ function Overview(p: OvProps) {
       {left >= 90 && <button type="button" className="ovtog ovleft" style={{ maxWidth: left - 12 }} aria-expanded={true} title="พับแถบภาพรวมทั้งไฟล์ กราฟได้ที่สูงเพิ่ม" onClick={() => setFold(true)} data-ovtoggle-left>พับภาพรวม<IcChevronDown size={14} stroke="currentColor" /></button>}
       <button type="button" className="ovtog out up" style={togPos} aria-expanded={true} aria-label="พับแถบภาพรวมทั้งไฟล์" title="พับแถบภาพรวมทั้งไฟล์ กราฟได้ที่สูงเพิ่ม" onClick={() => setFold(true)} data-ovtoggle><IcChevronDown size={14} stroke="currentColor" /></button>
     </div>
-    <div className="ovrul" style={{ marginLeft: left, marginRight: right }}><span>0:00</span><span style={{ left: "50%" }}>{p.caption ?? `ทั้งไฟล์ ${tfmt(ov.duration)}`}{ov.readTo < ov.duration - 1 ? ` · อ่านได้ถึง ${tfmt(ov.readTo)}` : ""}</span><span style={{ left: "100%" }}>{tfmt(ov.duration)}</span></div>
+    <div className="ovrul" style={{ marginLeft: left, marginRight: right }}><span>0:00</span><span style={{ left: "50%" }}>{p.caption ?? `ทั้งไฟล์ ${tfmt(ov.duration)}`}{ov.readTo < ov.duration - 1 ? ` อ่านได้ถึง ${tfmt(ov.readTo)}` : ""}</span><span style={{ left: "100%" }}>{tfmt(ov.duration)}</span></div>
   </>);
 }
 
@@ -1455,7 +1455,7 @@ function HZoom({ dur, span, onSpan, name = "ซูมเวลา", text, onBusy
         onPointerUp={() => { if (drag.current) onBusy?.(false); drag.current = false; }} onPointerCancel={() => { if (drag.current) onBusy?.(false); drag.current = false; }}>
         <span className="fill" style={{ width: pos * 100 + "%" }} />
         <span className="knob" role="slider" aria-orientation="horizontal" aria-label={name} aria-valuemin={0} aria-valuemax={100} aria-valuenow={Math.round(pos * 100)}
-          aria-valuetext={text ?? `ช่วงที่ดู ${tfmt(Math.min(dur, span))}`} tabIndex={ok ? 0 : -1} title={`${text ?? `ช่วงที่ดู ${tfmt(Math.min(dur, span))}`} · ลากขวาซูมเข้า ลากซ้ายซูมออก`}
+          aria-valuetext={text ?? `ช่วงที่ดู ${tfmt(Math.min(dur, span))}`} tabIndex={ok ? 0 : -1} title={`${text ?? `ช่วงที่ดู ${tfmt(Math.min(dur, span))}`} ลากขวาเพื่อซูมเข้า ลากซ้ายเพื่อซูมออก`}
           style={{ left: pos * 100 + "%" }} onKeyDown={key} data-hzknob />
       </span>
     </span>
@@ -1498,7 +1498,7 @@ function VZoom({ value, onChange }: { value: number; onChange: (v: number) => vo
         onPointerUp={() => { drag.current = false; }} onPointerCancel={() => { drag.current = false; }}>
         <i className="fit" style={{ bottom: pos(1) + "%" }} title="1 เท่า ยอดเต็มสเกลชนขอบพอดี" />
         <div className="knob" role="slider" aria-orientation="vertical" aria-label="ขยายแนวตั้ง" aria-valuemin={VZ_MIN} aria-valuemax={VZ_MAX} aria-valuenow={value} aria-valuetext={vzTxt(value)} tabIndex={0}
-          title={`ขยายแนวตั้ง ${vzTxt(value)} · ลากขึ้นยืด ลากลงบีบ · ดับเบิลคลิกกลับ 1×`} style={{ bottom: pos(value) + "%" }} onKeyDown={key} data-vzknob />
+          title={`ขยายแนวตั้ง ${vzTxt(value)} ลากขึ้นเพื่อยืด ลากลงเพื่อบีบ และดับเบิลคลิกเพื่อกลับเป็น 1 เท่า`} style={{ bottom: pos(value) + "%" }} onKeyDown={key} data-vzknob />
       </div>
       <span className="ic" title="ลากลง บีบคลื่น">{ic("M4 12h16M12 3v5M9 5.5l3 3 3-3M12 21v-5M9 18.5l3-3 3 3")}</span>
     </div>
@@ -1533,7 +1533,7 @@ function FZoom({ value, onChange }: { value: number; onChange: (v: number) => vo
         onPointerMove={(e) => { if (drag.current) onChange(fromY(e.clientY)); }}
         onPointerUp={() => { drag.current = false; }} onPointerCancel={() => { drag.current = false; }}>
         <div className="knob" role="slider" aria-orientation="vertical" aria-label="ซูมแนวตั้ง" aria-valuemin={1} aria-valuemax={FZ_MAX} aria-valuenow={value} aria-valuetext={vzTxt(value)} tabIndex={0}
-          title={`ซูมแนวตั้ง ${vzTxt(value)} · ลากขึ้นขยาย ลากลงย่อ · ดับเบิลคลิกกลับ 1×`} style={{ bottom: pos(value) + "%" }} onKeyDown={key} data-fzknob />
+          title={`ซูมแนวตั้ง ${vzTxt(value)} ลากขึ้นเพื่อขยาย ลากลงเพื่อย่อ และดับเบิลคลิกเพื่อกลับเป็น 1 เท่า`} style={{ bottom: pos(value) + "%" }} onKeyDown={key} data-fzknob />
       </div>
       <span className="fzval" data-fzval>{vzTxt(value)}</span>
     </div>
@@ -1634,7 +1634,7 @@ function LoudView({ head, onPan, onBusy, resetN, scroller, ov, th, t0, t1, names
   }, [ov, th, t0, t1, vr.z, vr.b]);
   const [box, setBox] = useState<HTMLDivElement | null>(null);
   exportRef.current = (outW) => (ref.current ? hiCopy(ref.current, outW ? outW / ref.current.clientWidth : screenK()) : null);
-  const f1 = (v: number | null) => (v == null ? "—" : minus(v.toFixed(1)));
+  const f1 = (v: number | null) => (v == null ? "ไม่ทราบ" : minus(v.toFixed(1)));
   const sil = ov.silences.length;
   const grab = useGrab({ canX: t1 - t0 < ov.duration - 0.01, canY: vr.z > 1, span: t1 - t0, center: (t0 + t1) / 2, z: vr.z, b: vr.b, left: X0, right: 4, top: 12, bottom: 12, onX: onPan, onY: (b) => vr.setB(vr.clampB(b, vr.z)), onBusy });
   return (
@@ -1642,11 +1642,11 @@ function LoudView({ head, onPan, onBusy, resetN, scroller, ov, th, t0, t1, names
       <div className="plotstick">
       <div className="tiles" data-graphtiles>
         <div className="tile"><span>ความดังรวม</span><b>{f1(ov.integrated)} LUFS</b><em>ทั้งไฟล์ ตามมาตรฐาน EBU R128</em></div>
-        <div className="tile"><span>ดังสุด (True Peak)</span><b>{f1(ov.truePeak)} dBTP</b><em>{(ov.truePeak ?? -99) >= 0 ? "ถึง 0 · อาจมีเสียงแตก" : "ไม่ถึง 0"}{ov.clips.some((c) => c > 0) ? ` · เสียงแตก ${ov.clips.reduce((a, b) => a + b, 0)} จุด` : ""}</em></div>
+        <div className="tile"><span>ดังสุด (True Peak)</span><b>{f1(ov.truePeak)} dBTP</b><em>{(ov.truePeak ?? -99) >= 0 ? "ถึง 0 อาจมีเสียงแตก" : "ไม่ถึง 0"}{ov.clips.some((c) => c > 0) ? ` เสียงแตก ${ov.clips.reduce((a, b) => a + b, 0)} จุด` : ""}</em></div>
         <div className="tile"><span>ช่วงความดัง</span><b>{f1(ov.lra)} LU</b><em>ห่างระหว่างช่วงเบากับช่วงดัง</em></div>
         <div className="tile"><span>ช่วงเงียบผิดปกติ</span><b>{sil ? `${sil} ช่วง` : "ไม่พบ"}</b><em>{sil ? `แรกสุดที่ ${tfmt(ov.silences[0][0])}` : "เงียบทุกช่องเกิน 1 วินาที"}</em></div>
       </div>
-      <div className="plothead"><span><b>ความดัง</b> · <RangeTime t0={t0} t1={t1} dur={ov.duration} /></span>{head}{zoomBox}</div>
+      <div className="plothead"><span><b>ความดัง</b> <span className="prange">ช่วง <RangeTime t0={t0} t1={t1} dur={ov.duration} /></span></span>{head}{zoomBox}</div>
       </div>
       <div style={{ flex: "1 0 200px", display: "flex", gap: 8, minHeight: 0 }}>
       <div className={grab.cls} style={{ position: "relative", flex: 1, minWidth: 0 }} ref={setBox} onWheel={vr.wheel} {...grab.props} onPointerMove={(e) => { if (grab.move(e)) return; const r = e.currentTarget.getBoundingClientRect(), W = r.width - X0 - 4, x = e.clientX - r.left - X0; if (x >= 0 && x <= W) setHover(t0 + x / W * (t1 - t0)); }} onPointerLeave={() => setHover(null)} data-loudbox>
@@ -1706,7 +1706,7 @@ function CmpView({ head, onPan, onBusy, resetN, scroller, dur, src, names, cc, t
   const val = (c: string) => { const e = src.env[names.indexOf(c)], k = Math.max(0, Math.min(src.cols - 1, Math.floor((at - src.t0) / (src.t1 - src.t0 || 1) * src.cols))); return e[k * 3 + 2]; };
   return (
     <div className="plot" data-plot ref={plotRef as React.RefObject<HTMLDivElement>}>
-      <div className="plothead"><span><b>ความดัง</b> · <RangeTime t0={t0} t1={t1} dur={dur} /></span>{head}{zoomBox}</div>
+      <div className="plothead"><span><b>ความดัง</b> <span className="prange">ช่วง <RangeTime t0={t0} t1={t1} dur={dur} /></span></span>{head}{zoomBox}</div>
       <div style={{ flex: "1 0 250px", display: "flex", gap: 8, minHeight: 0 }}>
       <div className={grab.cls} style={{ position: "relative", flex: 1, minWidth: 0 }} ref={setBox} onWheel={vr.wheel} {...grab.props} onPointerMove={(e) => { if (grab.move(e)) return; const r = e.currentTarget.getBoundingClientRect(), W = r.width - X0 - RW, x = e.clientX - r.left - X0; if (x >= 0 && x <= W) setHover(t0 + x / W * (t1 - t0)); }} onPointerLeave={() => setHover(null)} data-cmpbox>
         <canvas className="cv fillcv" ref={ref} />
@@ -1748,27 +1748,27 @@ function spekVerdict(codec: string, rate: number, e: { top: number; cliff: numbe
   const LOSSLESS = ["FLAC", "PCM", "ALAC", "TrueHD", "DTS-HD MA", "WAVPACK"];
   const LIMIT: Record<string, number> = { FLAC: 19500, PCM: 19500, ALAC: 19500, "AC-3": 19000, "E-AC-3": 19000, AAC: 15500 };
   const NORM: Record<string, string> = {
-    FLAC: "FLAC ของจริงมีเสียงถึงราว 20–22 kHz", PCM: "ไฟล์ WAV ของจริงมีเสียงถึงราว 20 kHz ขึ้นไป", ALAC: "ALAC ของจริงมีเสียงถึงราว 20–22 kHz",
+    FLAC: "FLAC ของจริงมีเสียงถึงราว 20 ถึง 22 kHz", PCM: "ไฟล์ WAV ของจริงมีเสียงถึงราว 20 kHz ขึ้นไป", ALAC: "ALAC ของจริงมีเสียงถึงราว 20 ถึง 22 kHz",
     "AC-3": "ปกติของ AC-3 มีเสียงถึงราว 19 kHz ขึ้นไป", "E-AC-3": "ปกติของ E-AC-3 มีเสียงถึงราว 19 kHz ขึ้นไป",
     AAC: "ปกติของ AAC ตัดเสียงสูงตามบิตเรต บิตเรตต่ำตัดราว 16 kHz บิตเรตสูงเกือบเต็มช่วง",
-    MP3: "ปกติของ MP3 ตัวเข้ารหัสตัดเสียงสูงทิ้งเองตามบิตเรต 128 kb/s ตัดราว 17 kHz · 320 kb/s ตัดราว 20 kHz", Opus: "ปกติของ Opus ตัดเสียงสูงที่ราว 20 kHz",
+    MP3: "ปกติตัวเข้ารหัส MP3 ตัดเสียงสูงทิ้งเองตามบิตเรต ที่ 128 kb/s ตัดราว 17 kHz และที่ 320 kb/s ตัดราว 20 kHz", Opus: "ปกติของ Opus ตัดเสียงสูงที่ราว 20 kHz",
   };
   const k = (e.top / 1000).toFixed(1), sharp = e.cliff > 25, lossless = LOSSLESS.includes(codec);
   const how = "ดูได้จากขอบบนที่ตัดเป็นเส้นตรง";
   if (e.top < 10000) return { warn: false, b: `เสียงสูงสุดราว ${k} kHz`, d: "ช่วงนี้แทบไม่มีเสียงสูง เช่น เสียงพูด เสียงทดสอบ หรือช่วงเงียบ จึงดูไม่ได้ว่าไฟล์แปลงมาไหม" };
-  if (sharp && LIMIT[codec] && e.top < LIMIT[codec]) return { warn: true, b: `เป็นไฟล์ ${codec} แต่เสียงหยุดที่ราว ${k} kHz`, d: `${NORM[codec]} · ไฟล์นี้น่าจะ${lossless ? "แปลงมาจาก MP3 หรือ AAC" : "แปลงต่อมาจากไฟล์ที่คุณภาพต่ำกว่า"} คุณภาพไม่ได้ดีกว่าไฟล์ต้นทาง ${how}` };
-  if (sharp && lossless && rate >= 88200 && e.top < 25000) return { warn: true, b: `ไฟล์ ${(rate / 1000).toLocaleString("en-US")} kHz แต่เสียงหยุดที่ราว ${k} kHz`, d: `ไฟล์ความละเอียดสูงที่อัดมาจริงมักมีเสียงเกิน 24 kHz · ไฟล์นี้น่าจะแปลงขึ้นมาจากไฟล์ 44.1 หรือ 48 kHz คุณภาพไม่ได้ดีกว่าไฟล์ต้นทาง ${how}` };
+  if (sharp && LIMIT[codec] && e.top < LIMIT[codec]) return { warn: true, b: `เป็นไฟล์ ${codec} แต่เสียงหยุดที่ราว ${k} kHz`, d: `${NORM[codec]} ไฟล์นี้จึงน่าจะ${lossless ? "แปลงมาจาก MP3 หรือ AAC" : "แปลงต่อมาจากไฟล์ที่คุณภาพต่ำกว่า"} คุณภาพไม่ได้ดีกว่าไฟล์ต้นทาง ${how}` };
+  if (sharp && lossless && rate >= 88200 && e.top < 25000) return { warn: true, b: `ไฟล์ ${(rate / 1000).toLocaleString("en-US")} kHz แต่เสียงหยุดที่ราว ${k} kHz`, d: `ไฟล์ความละเอียดสูงที่อัดมาจริงมักมีเสียงเกิน 24 kHz ไฟล์นี้จึงน่าจะแปลงขึ้นมาจากไฟล์ 44.1 หรือ 48 kHz คุณภาพไม่ได้ดีกว่าไฟล์ต้นทาง ${how}` };
   const b = `เสียงสูงสุดราว ${k} kHz`;
   if (!lossless) return { warn: false, b, d: NORM[codec] ?? (e.full ? "มีเสียงเต็มช่วงถึงขอบบนของไฟล์" : "ดูจากขอบบนของความถี่ที่มีเสียง") };
   if (e.top > 24500) return { warn: false, b, d: "มีเสียงสูงเกิน 24 kHz แบบไฟล์ความละเอียดสูงที่อัดมาจริง ไม่มีร่องรอยการตัดเสียงสูง" };
   if (LIMIT[codec] && e.top < LIMIT[codec]) return { warn: false, b, d: "เสียงสูงค่อย ๆ เบาลงเอง ไม่ได้ตัดเป็นเส้นตรงแบบไฟล์ที่แปลงมาจาก MP3 น่าจะเป็นลักษณะของเสียงต้นฉบับ เช่น เพลงหรือหนังเก่า" };
-  return { warn: false, b, d: `${NORM[codec] ?? "ไฟล์ไม่บีบอัดของจริงมีเสียงถึงราว 20 kHz ขึ้นไป"} · ไฟล์นี้ไม่มีร่องรอยการตัดเสียงสูง` };
+  return { warn: false, b, d: `${NORM[codec] ?? "ไฟล์ไม่บีบอัดของจริงมีเสียงถึงราว 20 kHz ขึ้นไป"} และไฟล์นี้ไม่มีร่องรอยการตัดเสียงสูง` };
 }
 /** ป้ายความถี่บนแกน · ต่ำกว่า 1 kHz เป็น Hz */
 const hzTxt = (f: number) => (f >= 1000 ? `${+(f / 1000).toFixed(f >= 10000 ? 0 : 1)} kHz` : `${Math.round(f)} Hz`);
 const SPEK_LOG_MIN = 20;
-const SPEK_AXIS_TIP: Tip = { w: "เส้นตรง แบ่งความถี่เท่า ๆ กันแบบโปรแกรม Spek เห็นย่านเสียงสูงชัด ใช้ดูว่าไฟล์ถูกตัดเสียงสูงไหม · ล็อก ขยายย่านเสียงต่ำให้กว้างขึ้นแบบหูคน เห็นเส้นเสียงร้องและโน้ตดนตรีชัด" };
-const SPEK_RES_TIP: Tip = { w: "ละเอียด อ่านเสียงช่วงที่ดูใหม่ทุกครั้งที่ซูม เห็นรายละเอียดคม · ภาพรวม ใช้ข้อมูลชุดเดียวกับรูปคลื่นที่อ่านไว้แล้ว ขึ้นทันที แต่หยาบกว่าเมื่อซูมลึก · ตั้งค่าตั้งต้นได้ที่หน้าตั้งค่า" };
+const SPEK_AXIS_TIP: Tip = { w: "แบบเส้นตรงแบ่งความถี่เท่า ๆ กันแบบโปรแกรม Spek เห็นย่านเสียงสูงชัด ใช้ดูว่าไฟล์ถูกตัดเสียงสูงไหม ส่วนแบบล็อกขยายย่านเสียงต่ำให้กว้างขึ้นแบบหูคน เห็นเส้นเสียงร้องและโน้ตดนตรีชัด" };
+const SPEK_RES_TIP: Tip = { w: "แบบละเอียดอ่านเสียงช่วงที่ดูใหม่ทุกครั้งที่ซูม เห็นรายละเอียดคม ส่วนแบบภาพรวมใช้ข้อมูลชุดเดียวกับรูปคลื่นที่อ่านไว้แล้ว จึงขึ้นทันทีแต่หยาบกว่าเมื่อซูมลึก ตั้งค่าตั้งต้นได้ที่หน้าตั้งค่า" };
 
 function SpekView({ onBusy, held, resetN, tools, light, onPanT, scroller, ov, win, track, fileName, names, t0, t1, zoomBox, scmap, th, audioOnly, play, save, exportRef, plotRef, at, axis, setAxis, res, setRes }: CommonProps & { onBusy: (on: boolean) => void; held: GWindow | null; resetN: number; tools?: React.ReactNode; light: boolean; onPanT: (center: number) => void; ov: GOverview; win: GWindow | null; track: GTrack | undefined; fileName: string; names: string[]; t0: number; t1: number; zoomBox: React.ReactNode; scmap: Prefs["scmap"]; setScmap: (v: Prefs["scmap"]) => void; th: Theme; audioOnly: boolean; play: () => void; at: number; axis: "lin" | "log"; setAxis: (v: "lin" | "log") => void; res: "fine" | "coarse"; setRes: (v: "fine" | "coarse") => void }) {
   // ช่องที่ดู −1 รวมทุกช่อง · −2 แสดงทุกช่องเรียงลงมา · ตัวเลขคือช่องเดียว (BUGS ข้อ 14 พี่กัน "ถ้ามันมีหลาย ch ก็เรียงกันลงมาเลย")
@@ -1866,11 +1866,11 @@ function SpekView({ onBusy, held, resetN, tools, light, onPanT, scroller, ov, wi
       }
     });
     const room = full ? Infinity : w - L - R - (toolBox.current?.offsetWidth ?? 450) - 16;
-    const fit = (txt: string) => { if (g.measureText(txt).width <= room) return txt; let n = txt.length; while (n > 1 && g.measureText(txt.slice(0, n) + "…").width > room) n--; return txt.slice(0, n) + "…"; };
+    const fit = (txt: string) => { if (g.measureText(txt).width <= room) return txt; let n = txt.length; while (n > 1 && g.measureText(txt.slice(0, n)).width > room) n--; return txt.slice(0, n); };
     g.textBaseline = "alphabetic"; g.textAlign = "left"; g.fillStyle = ink.title; g.font = "700 13.5px Sarabun, sans-serif"; g.fillText(fit(fileName), L, 22);
     g.fillStyle = ink.sub; g.font = "12px Sarabun, sans-serif";
     const chTxt = ch === -2 ? `${names.length} channels separately` : ch < 0 ? `${mixed.length} channels mixed` : `channel ${label(names, names[ch]).code}`;
-    g.fillText(fit(`${track?.codec ?? ""} · ${rate.toLocaleString("en-US")} Hz${track?.bits ? ` · ${track.bits}-bit` : ""} · ${chTxt} · ${axis === "log" ? "log" : "linear"}`), L, 42);
+    g.fillText(fit(`${track?.codec ?? ""}, ${rate.toLocaleString("en-US")} Hz${track?.bits ? `, ${track.bits}-bit` : ""}, ${chTxt}, ${axis === "log" ? "log" : "linear"}`), L, 42);
     g.fillStyle = ink.tick; g.font = "11.5px Sarabun, sans-serif";
     g.textAlign = "center"; g.textBaseline = "top"; for (const { x, label: lb } of rulerTicks(t0, t1, 10)) { const px = L + (x - t0) / (t1 - t0 || 1) * PW; g.fillRect(Math.round(px), T + PH, 1, 5); g.fillText(lb, px, T + PH + 8); }
     const bx = L + PW + 18, grad = g.createLinearGradient(0, T, 0, T + PH); ramp.slice().reverse().forEach((c, i, a) => grad.addColorStop(i / (a.length - 1), c));
@@ -1919,7 +1919,7 @@ function SpekView({ onBusy, held, resetN, tools, light, onPanT, scroller, ov, wi
               <div className="r"><Fragment2 v={probe.f >= 1000 ? `${(probe.f / 1000).toFixed(2)} kHz` : `${Math.round(probe.f)} Hz`} k={probe.f > 15 ? `โน้ต ${noteOf(probe.f)}` : "ความถี่"} /><Fragment2 v={probe.db <= -119.5 ? "เงียบ" : `${minus(probe.db.toFixed(0))} dB`} k="ความดังตรงนี้" /></div>
             </div>
           </>}
-          {fz > 1 && <div ref={vsRef} className={"spekvs" + (light ? " light" : "")} style={{ top: SPK.T, bottom: SPK.B, right: SPK.R - 14 }} title="ลากเลื่อนย่านความถี่ขึ้นลง · หมุนล้อเมาส์บนกราฟก็ได้" data-spekvs
+          {fz > 1 && <div ref={vsRef} className={"spekvs" + (light ? " light" : "")} style={{ top: SPK.T, bottom: SPK.B, right: SPK.R - 14 }} title="ลากเพื่อเลื่อนย่านความถี่ขึ้นลง หรือหมุนล้อเมาส์บนกราฟก็ได้" data-spekvs
             onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); vsDrag.current = true; vsTo(e.clientY); }} onPointerMove={(e) => { if (vsDrag.current) vsTo(e.clientY); }} onPointerUp={() => { vsDrag.current = false; }} onPointerCancel={() => { vsDrag.current = false; }}>
             <i style={{ height: 100 / fz + "%", bottom: fb * 100 + "%" }} data-spekthumb /></div>}
         </div>
@@ -1928,8 +1928,8 @@ function SpekView({ onBusy, held, resetN, tools, light, onPanT, scroller, ov, wi
       {scroller?.(0, 0)}
       <div className="agfoot">
         {verdict.warn
-        ? <div className="stat warn" title={verdict.b + " · " + verdict.d} data-spekverdict data-cliff={Math.round(edge.cliff)}>{WARN}<div><b><Phr>{verdict.b}</Phr></b>{lines(verdict.d)}</div></div>
-        : <div className="stat info" title={verdict.b + " · " + verdict.d} data-spekverdict data-cliff={Math.round(edge.cliff)}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5v.5" /></svg><div><b><Phr>{verdict.b}</Phr></b>{lines(verdict.d)}</div></div>}
+        ? <div className="stat warn" title={verdict.b + " " + verdict.d} data-spekverdict data-cliff={Math.round(edge.cliff)}>{WARN}<div><b><Phr>{verdict.b}</Phr></b>{lines(verdict.d)}</div></div>
+        : <div className="stat info" title={verdict.b + " " + verdict.d} data-spekverdict data-cliff={Math.round(edge.cliff)}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5v.5" /></svg><div><b><Phr>{verdict.b}</Phr></b>{lines(verdict.d)}</div></div>}
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {/* ละเอียด กับ ภาพรวม · แกนเส้นตรงกับล็อก (BUGS ข้อ 14 พี่กัน "เพิ่มอีกตัวเลือก คือแสดงแบบหยาบ" · "เอ้ย งี้ได้ด้วยเหรอ เอาด้วยสิ") */}
           {segBox<"fine" | "coarse">([["fine", "ละเอียด"], ["coarse", "ภาพรวม"]], res, setRes, "data-spekres")}<InfoTip title="ละเอียด กับ ภาพรวม" tip={SPEK_RES_TIP} />
@@ -1942,10 +1942,10 @@ function SpekView({ onBusy, held, resetN, tools, light, onPanT, scroller, ov, wi
 /* ---------- ความถี่เฉลี่ย (แบบ Plot Spectrum ของ Audacity) ---------- */
 const PSM = { L: 52, R: 18, T: 14, B: 30 };
 /** หน่วยของหน้าความดัง (BUGS ข้อ 24) */
-const LOUD_TIP: Tip = { w: "รวมทุกช่อง ใช้หน่วย LUFS ความดังที่หูได้ยินตามมาตรฐานเดียวกับ Spotify YouTube (ค่าน้อยกว่า 0 ยิ่งติดลบยิ่งเบา) · L R และเทียบซ้ายขวา ใช้ dB ความดังเฉลี่ย (RMS) ของแต่ละช่อง แบบซ้อนเทียบเดิม เห็นว่าข้างไหนดังกว่ากัน" };
+const LOUD_TIP: Tip = { w: "แบบรวมทุกช่องใช้หน่วย LUFS ซึ่งเป็นความดังที่หูได้ยินตามมาตรฐานเดียวกับ Spotify และ YouTube ค่ายิ่งติดลบยิ่งเบา ส่วนแบบ L R และเทียบซ้ายขวาใช้ dB ความดังเฉลี่ย (RMS) ของแต่ละช่อง เห็นว่าข้างไหนดังกว่ากัน" };
 /** คำอธิบาย ⓘ ของหน้าความถี่เฉลี่ย (BUGS ข้อ 21 22) */
-const MS_TIP: Tip = { w: "M (Mid) เสียงกลาง คือซ้ายบวกขวา ส่วนที่สองข้างเหมือนกัน เช่นเสียงร้อง เบส กลอง · S (Side) เสียงข้าง คือซ้ายลบขวา ส่วนที่สองข้างต่างกัน เช่นเสียงก้อง เครื่องดนตรีที่แยกข้าง · อ่านยังไง S ต่ำกว่า M มาก เนื้อเพลงอยู่ตรงกลาง · S เกือบเท่า M เพลงกว้าง · S แทบศูนย์ เกือบเป็นโมโน · เสียงเบสควรอยู่ใน M" };
-const PSD_TIPS: Record<string, Tip> = { axis: { w: "แบบล็อก ให้เสียงต่ำได้ที่กว้าง ตรงกับที่หูได้ยิน เห็นเบสกับเสียงร้องชัด · เส้นตรง แบ่งเท่ากันทุก Hz เหมาะดูเสียงสูงหรือจุดที่ถูกตัด" }, size: { w: "ตัวเลขยิ่งมาก ยิ่งแยกความถี่ที่ใกล้กันได้ (เห็นยอดแคบชัด) แต่เส้นหยักมากขึ้นและคิดนานขึ้น · 4,096 พอสำหรับดูทั่วไป · 16,384 ใช้หาเสียงหึ่งหรือโน้ตที่ชิดกัน" }, range: { w: "ความสูงของแกนตั้ง นับลงจากจุดที่ดังสุด · 60 dB เห็นรายละเอียดส่วนที่ดัง · 120 dB เห็นถึงเสียงเบามาก เช่นเสียงรบกวนพื้นหลัง" }, grid: { w: "เส้นช่วยอ่านค่า แนวนอนทุก 6 dB แนวตั้งตามความถี่ · ปิดแล้วกราฟโล่ง เหมาะบันทึกเป็นรูป" }, fill: { w: "ระบายสีใต้เส้นให้เห็นเป็นพื้น · เส้นเดียวอ่านง่าย · หลายเส้นซ้อนกันสีจะผสมจนขุ่น ปิดไว้อ่านง่ายกว่า" } };
+const MS_TIP: Tip = { w: "M (Mid) คือเสียงกลาง ได้จากซ้ายบวกขวา เป็นส่วนที่สองข้างเหมือนกัน เช่นเสียงร้อง เบส และกลอง ส่วน S (Side) คือเสียงข้าง ได้จากซ้ายลบขวา เป็นส่วนที่สองข้างต่างกัน เช่นเสียงก้องและเครื่องดนตรีที่แยกข้าง วิธีอ่านคือ ถ้า S ต่ำกว่า M มาก เนื้อเพลงอยู่ตรงกลาง ถ้า S เกือบเท่า M เพลงกว้าง ถ้า S แทบเป็นศูนย์ เสียงเกือบเป็นโมโน และเสียงเบสควรอยู่ใน M" };
+const PSD_TIPS: Record<string, Tip> = { axis: { w: "แบบล็อกให้เสียงต่ำได้ที่กว้าง ตรงกับที่หูได้ยิน เห็นเบสกับเสียงร้องชัด ส่วนแบบเส้นตรงแบ่งเท่ากันทุก Hz เหมาะดูเสียงสูงหรือจุดที่ถูกตัด" }, size: { w: "ตัวเลขยิ่งมากยิ่งแยกความถี่ที่ใกล้กันได้ เห็นยอดแคบชัด แต่เส้นหยักมากขึ้นและคิดนานขึ้น ค่า 4,096 พอสำหรับดูทั่วไป และ 16,384 ใช้หาเสียงหึ่งหรือโน้ตที่ชิดกัน" }, range: { w: "ความสูงของแกนตั้ง นับลงจากจุดที่ดังสุด ค่า 60 dB เห็นรายละเอียดส่วนที่ดัง และ 120 dB เห็นถึงเสียงเบามาก เช่นเสียงรบกวนพื้นหลัง" }, grid: { w: "เส้นช่วยอ่านค่า แนวนอนทุก 6 dB และแนวตั้งตามความถี่ ปิดแล้วกราฟโล่ง เหมาะบันทึกเป็นรูป" }, fill: { w: "ระบายสีใต้เส้นให้เห็นเป็นพื้น ถ้ามีเส้นเดียวอ่านง่าย แต่ถ้าหลายเส้นซ้อนกันสีจะผสมจนขุ่น ปิดไว้อ่านง่ายกว่า" } };
 /** ซูมแกนความถี่ได้สูงสุดกี่เท่า */
 const PSD_HZ_MAX = 32;
 /** ค่าบนเส้นโค้งผ่าน 4 จุดที่ตำแหน่ง 0 1 2 3 (พหุนามลากรานจ์ดีกรีสาม) · x คือตำแหน่งระหว่าง 0 ถึง 3 */
@@ -2007,26 +2007,26 @@ function PsdView({ filePath, onReset, resetN, scroller, psd, names, psdCh, setPs
     if (!psd) return out;
     const rate = psd.rate, binHz = psd.rate / psd.size, d = psd.db[0], at = (fr: number) => d[Math.max(0, Math.min(d.length - 1, Math.round(fr / binHz)))];
     const avg = (f0: number, f1: number) => { const i0 = Math.max(0, Math.floor(f0 / binHz)), i1 = Math.min(d.length - 1, Math.ceil(f1 / binHz)); let sum = 0, n = 0; for (let i = i0; i <= i1; i++) { sum += d[i]; n++; } return n ? sum / n : -150; };
-    if (hum.length) out.push({ k: "hum", warn: true, b: `เสียงหึ่งจากไฟบ้าน (hum) ยอดแคบที่ ${[...new Set(hum.map((x) => x[2]))].sort((a, b) => a - b).join(" ")} Hz`, d: "มักมาจากสายไมค์หรือปลั๊กพ่วง · ในหนังอาจเป็นเสียงประกอบที่ตั้งใจใส่", title: "เสียงหึ่งจากไฟบ้าน", tip: "ไฟบ้านในไทยสั่น 50 ครั้งต่อวินาที (50 Hz) ถ้าสายเสียงรับไฟฟ้าเข้ามา จะได้เสียงหึ่งต่ำ ๆ เป็นยอดแคบที่ 50 100 150 Hz · ไฟล์จากอเมริกาญี่ปุ่นบางส่วนเป็น 60 Hz · ไม่ใช่เสียงคนฮัมเพลง" });
+    if (hum.length) out.push({ k: "hum", warn: true, b: `เสียงหึ่งจากไฟบ้าน (hum) ยอดแคบที่ ${[...new Set(hum.map((x) => x[2]))].sort((a, b) => a - b).join(" ")} Hz`, d: "มักมาจากสายไมค์หรือปลั๊กพ่วง แต่ในหนังอาจเป็นเสียงประกอบที่ตั้งใจใส่", title: "เสียงหึ่งจากไฟบ้าน", tip: "ไฟบ้านในไทยสั่น 50 ครั้งต่อวินาที (50 Hz) ถ้าสายเสียงรับไฟฟ้าเข้ามา จะได้เสียงหึ่งต่ำ ๆ เป็นยอดแคบที่ 50 100 และ 150 Hz ไฟล์จากอเมริกาและญี่ปุ่นบางส่วนเป็น 60 Hz และไม่ใช่เสียงคนฮัมเพลง" });
     // ขอบบนของเสียง เสียงสูงหายดิ่งเป็นเส้นตรง
     const top = topF, below = avg(top - 1500, top - 300), above = top + 1500 < nyq ? avg(top + 300, top + 1500) : -150, cliff = top > 1000 && top < nyq * 0.92 && below - above > 25;
     // อัปแซมเปิล ดูว่าเหนือ 25 kHz เงียบสนิทไหม ไม่ดูความดิ่ง เพราะตัวแปลงอัตราสุ่มทำให้เสียงค่อย ๆ จางจาก 20 ถึง 24 kHz (ลองกับไฟล์ที่แปลง 44.1 เป็น 96 kHz ด้วย ffmpeg เหนือ 24 kHz อยู่ที่ −140 dB)
     const hiBand = rate >= 88200 ? avg(25000, Math.min(40000, nyq * 0.9)) : 0, upsampled = rate >= 88200 && hiBand < -125 && avg(8000, 16000) > -105;
-    if (upsampled) out.push({ k: "upsample", warn: true, b: `อาจเป็นไฟล์อัปแซมเปิล ไฟล์ ${(rate / 1000).toFixed(1)} kHz แต่ไม่มีเสียงเหนือ ${(top / 1000).toFixed(1)} kHz`, d: "น่าจะแปลงมาจากไฟล์ 44.1 หรือ 48 kHz ไม่ได้ละเอียดจริงตามตัวเลข", title: "อัปแซมเปิล", tip: "ไฟล์ความละเอียดสูง (88.2 ถึง 192 kHz) ที่ทำมาจริงมีเสียงเหนือ 22 kHz บ้าง · ถ้าเสียงหยุดดิ่งที่ราว 22 ถึง 24 kHz พอดี มักเป็นไฟล์ 44.1 หรือ 48 kHz ที่แปลงตัวเลขให้สูงขึ้น ขนาดไฟล์ใหญ่ขึ้นแต่เสียงไม่ได้ดีขึ้น · เพลงบางเพลงไม่มีเสียงสูงจริงก็ได้ ดูประกอบกับกราฟความถี่" });
-    else if (cliff && top >= 15000 && top <= 20600) out.push({ k: "lossy", warn: true, b: `อาจเคยเป็น MP3 หรือ AAC มาก่อน เสียงสูงถูกตัดเป็นเส้นตรงที่ราว ${(top / 1000).toFixed(1)} kHz`, d: "ไฟล์ไม่ลดคุณภาพที่ทำจากต้นฉบับจริงไม่ควรถูกตัดดิ่งที่ 16 19 หรือ 20 kHz", title: "ไฟล์ไม่ลดคุณภาพปลอม", tip: "MP3 กับ AAC ตัดเสียงสูงทิ้งเป็นเส้นตรงที่ราว 16 kHz (128 kb/s) 19 ถึง 20 kHz (320 kb/s) · ถ้าไฟล์ FLAC WAV หรือไฟล์ไม่ลดคุณภาพแบบอื่นมีรอยตัดแบบนี้ มักแปลงมาจาก MP3 AAC อีกที คุณภาพไม่เกินต้นทาง · เสียงที่ค่อย ๆ จางลงตามธรรมชาติไม่นับ" });
+    if (upsampled) out.push({ k: "upsample", warn: true, b: `อาจเป็นไฟล์อัปแซมเปิล ไฟล์ ${(rate / 1000).toFixed(1)} kHz แต่ไม่มีเสียงเหนือ ${(top / 1000).toFixed(1)} kHz`, d: "น่าจะแปลงมาจากไฟล์ 44.1 หรือ 48 kHz ไม่ได้ละเอียดจริงตามตัวเลข", title: "อัปแซมเปิล", tip: "ไฟล์ความละเอียดสูง (88.2 ถึง 192 kHz) ที่ทำมาจริงมีเสียงเหนือ 22 kHz บ้าง ถ้าเสียงหยุดดิ่งที่ราว 22 ถึง 24 kHz พอดี มักเป็นไฟล์ 44.1 หรือ 48 kHz ที่แปลงตัวเลขให้สูงขึ้น ขนาดไฟล์ใหญ่ขึ้นแต่เสียงไม่ได้ดีขึ้น แต่เพลงบางเพลงก็ไม่มีเสียงสูงจริง จึงควรดูประกอบกับกราฟความถี่" });
+    else if (cliff && top >= 15000 && top <= 20600) out.push({ k: "lossy", warn: true, b: `อาจเคยเป็น MP3 หรือ AAC มาก่อน เสียงสูงถูกตัดเป็นเส้นตรงที่ราว ${(top / 1000).toFixed(1)} kHz`, d: "ไฟล์ไม่ลดคุณภาพที่ทำจากต้นฉบับจริงไม่ควรถูกตัดดิ่งที่ 16 19 หรือ 20 kHz", title: "ไฟล์ไม่ลดคุณภาพปลอม", tip: "MP3 และ AAC ตัดเสียงสูงทิ้งเป็นเส้นตรงที่ราว 16 kHz เมื่อใช้ 128 kb/s และราว 19 ถึง 20 kHz เมื่อใช้ 320 kb/s ถ้าไฟล์ FLAC WAV หรือไฟล์ไม่ลดคุณภาพแบบอื่นมีรอยตัดแบบนี้ มักแปลงมาจาก MP3 หรือ AAC อีกที คุณภาพจึงไม่เกินต้นทาง ส่วนเสียงที่ค่อย ๆ จางลงตามธรรมชาติไม่นับ" });
     // เกือบโมโน ดูได้เมื่อมีเส้น S (โหมดซ้อนทุกช่องของไฟล์สองช่อง)
     const iM = series.findIndex((sr) => sr.key === "M"), iS = series.findIndex((sr) => sr.key === "S");
     if (iM >= 0 && iS >= 0) {
       const m = series[iM].d, sd = series[iS].d; let dm = 0, n = 0;
       for (let i = Math.round(100 / binHz); i < Math.min(m.length, Math.round(10000 / binHz)); i++) { dm += sd[i] - m[i]; n++; }
       const gap = n ? dm / n : 0;
-      if (gap < -30) out.push({ k: "mono", warn: true, b: `เกือบเป็นโมโน เสียงข้าง (S) เบากว่าเสียงกลาง (M) ราว ${Math.round(-gap)} dB`, d: "ซ้ายกับขวาแทบเหมือนกัน อาจเป็นเสียงโมโนที่ทำเป็นสองช่อง", title: "เกือบเป็นโมโน", tip: "S คือส่วนที่ซ้ายกับขวาต่างกัน · ถ้า S เบากว่า M เกิน 30 dB ทั้งย่าน แปลว่าสองช่องแทบเหมือนกัน ฟังแล้วเสียงไม่กว้าง มักเป็นไฟล์โมโนที่คัดลอกเป็นสองช่อง · ดูข้อนี้ได้ในโหมดซ้อนทุกช่อง" });
+      if (gap < -30) out.push({ k: "mono", warn: true, b: `เกือบเป็นโมโน เสียงข้าง (S) เบากว่าเสียงกลาง (M) ราว ${Math.round(-gap)} dB`, d: "ซ้ายกับขวาแทบเหมือนกัน อาจเป็นเสียงโมโนที่ทำเป็นสองช่อง", title: "เกือบเป็นโมโน", tip: "S คือส่วนที่ซ้ายกับขวาต่างกัน ถ้า S เบากว่า M เกิน 30 dB ทั้งย่าน แปลว่าสองช่องแทบเหมือนกัน ฟังแล้วเสียงไม่กว้าง มักเป็นไฟล์โมโนที่คัดลอกเป็นสองช่อง ดูข้อนี้ได้ในโหมดซ้อนทุกช่อง" });
     }
     // DC offset พลังงานกองที่ 0 Hz
     const dc = d[0], low = avg(20, 200);
-    if (dc > -60 && dc - low > 15) out.push({ k: "dc", warn: true, b: `อาจมี DC offset พลังงานกองที่ 0 Hz (${minus(dc.toFixed(0))} dB)`, d: "คลื่นเสียงทั้งเส้นเยื้องจากศูนย์ อาจทำให้มีเสียงป๊อกตอนเริ่มหรือตัดต่อ", title: "DC offset", tip: "คลื่นเสียงปกติแกว่งรอบศูนย์ ถ้าทั้งเส้นเยื้องขึ้นหรือลง (DC offset) จะเห็นพลังงานสูงที่ 0 Hz · มักมาจากอุปกรณ์อัดเสียงที่ปรับไม่ดี · แก้ได้ด้วยตัวกรองตัดความถี่ต่ำมาก" });
+    if (dc > -60 && dc - low > 15) out.push({ k: "dc", warn: true, b: `อาจมี DC offset พลังงานกองที่ 0 Hz (${minus(dc.toFixed(0))} dB)`, d: "คลื่นเสียงทั้งเส้นเยื้องจากศูนย์ อาจทำให้มีเสียงป๊อกตอนเริ่มหรือตัดต่อ", title: "DC offset", tip: "คลื่นเสียงปกติแกว่งรอบศูนย์ ถ้าทั้งเส้นเยื้องขึ้นหรือลง (DC offset) จะเห็นพลังงานสูงที่ 0 Hz มักมาจากอุปกรณ์อัดเสียงที่ปรับไม่ดี และแก้ได้ด้วยตัวกรองตัดความถี่ต่ำมาก" });
     // ไม่พบอะไร เหลือบรรทัดสั้นบรรทัดเดียว รายละเอียดอยู่ใน ⓘ (พี่กันทัก "กินที่จัง ที่บอกไม่มีอะไร่นาสงสัย")
-    if (!out.length) out.push({ k: "ok", warn: false, b: "ไม่พบอะไรน่าสงสัย", title: "สิ่งที่ตรวจ", tip: (iS >= 0 ? "" : "เรื่องเกือบเป็นโมโนดูได้ในโหมดซ้อนทุกช่อง · ") + "ตรวจจากกราฟความถี่เฉลี่ยของช่วงที่เลือก 5 อย่าง เสียงหึ่งจากไฟบ้าน ไฟล์ไม่ลดคุณภาพปลอม อัปแซมเปิล เกือบเป็นโมโน DC offset · ทุกข้อเป็นแค่สิ่งที่น่าสงสัย ไม่ตัดสินเด็ดขาด" });
+    if (!out.length) out.push({ k: "ok", warn: false, b: "ไม่พบอะไรน่าสงสัย", title: "สิ่งที่ตรวจ", tip: (iS >= 0 ? "" : "เรื่องเกือบเป็นโมโนดูได้ในโหมดซ้อนทุกช่อง ") + "ตรวจจากกราฟความถี่เฉลี่ยของช่วงที่เลือก 5 อย่าง ได้แก่ เสียงหึ่งจากไฟบ้าน ไฟล์ไม่ลดคุณภาพปลอม อัปแซมเปิล เกือบเป็นโมโน และ DC offset ทุกข้อเป็นแค่สิ่งที่น่าสงสัย ไม่ได้ตัดสินเด็ดขาด" });
     void at;
     return out;
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -2204,10 +2204,10 @@ function PsdView({ filePath, onReset, resetN, scroller, psd, names, psdCh, setPs
   const khz = (x: number) => (x >= 1000 ? `${+(x / 1000).toFixed(x >= 10000 ? 0 : 1)}k` : `${Math.round(x)}`);
   const hzoomBox = (
     <span className="zbtns" data-psdhzoom>
-      <span className={"lbl" + (hr.z > 1.01 ? "" : " all")} data-psdhzrange title="ช่วงความถี่ที่เห็นอยู่บนแกนนอน">{hr.z > 1.01 ? `${khz(fL)}–${khz(fR)} Hz` : "ทุกความถี่"}</span>
-      <button type="button" className="zb" onClick={() => setHz(hr.z / 2)} disabled={hr.z <= 1} aria-label="ซูมแกนความถี่ออก" title="ซูมออก · Ctrl หมุนล้อเมาส์ลง"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6" /></svg></button>
+      <span className={"lbl" + (hr.z > 1.01 ? "" : " all")} data-psdhzrange title="ช่วงความถี่ที่เห็นอยู่บนแกนนอน">{hr.z > 1.01 ? `${khz(fL)} ถึง ${khz(fR)} Hz` : "ทุกความถี่"}</span>
+      <button type="button" className="zb" onClick={() => setHz(hr.z / 2)} disabled={hr.z <= 1} aria-label="ซูมแกนความถี่ออก" title="ซูมออก (Ctrl หมุนล้อเมาส์ลง)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6" /></svg></button>
       <HZoom dur={hrSpan} span={hrSpan / hr.z} onSpan={(sp) => setHz(hrSpan / sp)} name="ซูมแกนความถี่" text={`ซูมแกนความถี่ ${hr.z.toFixed(1)} เท่า`} />
-      <button type="button" className="zb" onClick={() => setHz(hr.z * 2)} disabled={hr.z >= PSD_HZ_MAX} aria-label="ซูมแกนความถี่เข้า" title="ซูมเข้า · Ctrl หมุนล้อเมาส์ขึ้น"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6M10.5 7.5v6" /></svg></button>
+      <button type="button" className="zb" onClick={() => setHz(hr.z * 2)} disabled={hr.z >= PSD_HZ_MAX} aria-label="ซูมแกนความถี่เข้า" title="ซูมเข้า (Ctrl หมุนล้อเมาส์ขึ้น)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6M10.5 7.5v6" /></svg></button>
       <button type="button" className="zb" aria-label="รีเซ็ตซูม" title="รีเซ็ต กลับทั้งไฟล์ ซูมแนวตั้งกับแนวนอน 1 เท่า" data-zoom-reset onClick={onReset}><IcRefresh size={15} /></button>
     </span>
   );
@@ -2250,15 +2250,15 @@ function PsdView({ filePath, onReset, resetN, scroller, psd, names, psdCh, setPs
             <i style={on ? { background: sr.color, borderColor: sr.color } : { borderColor: sr.color }} />{sr.long}</button>;
         })}{series.some((sr) => sr.key === "M") && <InfoTip title="M กับ S คืออะไร" tip={MS_TIP} />}</span>}
         <span className="lbl">ตำแหน่งชี้</span>
-        <span className="psdbox" data-psdcursor>{psd && f == null ? "ชี้ที่กราฟเพื่อดูค่า" : psd ? `${hzTxt(cur)} (${noteOf(cur)}) = ${shown.map((s) => (series.length > 1 ? s.name + " " : "") + minus(Math.round(valAt(s.d, cur)).toString()) + " dB").join(" · ")}` : "—"}</span>
+        <span className="psdbox" data-psdcursor>{psd && f == null ? "ชี้ที่กราฟเพื่อดูค่า" : psd ? `${hzTxt(cur)} (${noteOf(cur)}) = ${shown.map((s) => (series.length > 1 ? s.name + " " : "") + minus(Math.round(valAt(s.d, cur)).toString()) + " dB").join(", ")}` : "ยังไม่มีข้อมูล"}</span>
         <span className="lbl">ยอดใกล้สุด</span>
-        <span className="psdbox" data-psdpeak>{pk ? `${hzTxt(pk[0])} (${noteOf(pk[0])}) = ${minus(pk[1].toFixed(1))} dB` : "—"}</span>
+        <span className="psdbox" data-psdpeak>{pk ? `${hzTxt(pk[0])} (${noteOf(pk[0])}) = ${minus(pk[1].toFixed(1))} dB` : "ยังไม่มีข้อมูล"}</span>
       </div>
       {/* ผลตรวจ บอกว่าน่าสงสัย ไม่ตัดสินเด็ดขาด ทุกข้อมีปุ่ม ⓘ (BUGS ข้อ 25 พี่กัน "เราคิดว่ามันคือฮัมเพลง ต้อเปลี่ยนคำ" · ตรวจเพิ่ม 4 อย่าง พี่กันเคาะ "ได้") */}
       {psd && <div className="psdchecks" data-psdchecks data-top={Math.round(topF)}>{checks.map((c) => (
         <div key={c.k} className={"stat " + (c.warn ? "warn" : "info") + (c.d ? "" : " slim")} data-psdcheck={c.k}>{c.warn ? WARN : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5v.5" /></svg>}
-          <div className="psdck-txt" title={c.d ? `${c.b} · ${c.d}` : c.b}><b>{c.b}</b>{c.d && <span> · {c.d}</span>}</div><InfoTip title={c.title} tip={{ w: c.tip }} /></div>))}</div>}
-      <div className="small" style={{ marginTop: 6 }}>{psd ? `เสียงสูงสุดที่มีราว ${(topF / 1000).toFixed(1)} kHz · ` : ""}ช่วงที่เลือก {tfmtD(t0, spanDigits(t1 - t0))} ถึง {tfmtD(t1, spanDigits(t1 - t0))} · กดที่แถบบนเพื่อย้ายช่วง</div>
+          <div className="psdck-txt" title={c.d ? `${c.b} ${c.d}` : c.b}><b>{c.b}</b>{c.d && <span> {c.d}</span>}</div><InfoTip title={c.title} tip={{ w: c.tip }} /></div>))}</div>}
+      <div className="small" style={{ marginTop: 6 }}>{psd ? `เสียงสูงสุดที่มีราว ${(topF / 1000).toFixed(1)} kHz ใน` : ""}ช่วงที่เลือก {tfmtD(t0, spanDigits(t1 - t0))} ถึง {tfmtD(t1, spanDigits(t1 - t0))} และกดที่แถบบนเพื่อย้ายช่วงได้</div>
       {/* แต่ละตัวเลือกจับคู่กับปุ่ม ⓘ ของมัน ตกบรรทัดแล้วไม่แยกกัน (เจอตอนตรวจภาพ ⓘ ของเส้นตารางหลุดไปต้นบรรทัดใหม่) */}
       <div className="agfoot"><div className="psdopts" style={{ display: "flex", alignItems: "center", columnGap: 14, rowGap: 6, flexWrap: "wrap" }}>
         <span className="psdopt"><span className="lbl">แกนความถี่</span><InfoTip title="แกนความถี่" tip={PSD_TIPS.axis} />
@@ -2371,12 +2371,12 @@ function loudPts(ov: GOverview, t0: number, t1: number, n: number) {
   }
   return out;
 }
-const f1 = (v: number | null | undefined) => (v == null ? "—" : minus(v.toFixed(1)));
+const f1 = (v: number | null | undefined) => (v == null ? "ไม่ทราบ" : minus(v.toFixed(1)));
 const sgn = (v: number) => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(1);
 const khz = (f: number) => (f / 1000).toLocaleString("en-US", { maximumFractionDigits: 1 });
 
 function Stat({ kind, b, d }: { kind: "info" | "warn"; b: string; d: string }) {
-  return <div className={"stat " + kind} title={b + " · " + d} data-cmpstat data-psdverdict><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">{kind === "warn" ? <><path d="M12 3l9 16H3z" /><path d="M12 10v4M12 17v.5" /></> : <><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5v.5" /></>}</svg><div><b>{b}</b><Phr>{d}</Phr></div></div>;
+  return <div className={"stat " + kind} title={b + " " + d} data-cmpstat data-psdverdict><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true">{kind === "warn" ? <><path d="M12 3l9 16H3z" /><path d="M12 10v4M12 17v.5" /></> : <><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5v.5" /></>}</svg><div><b>{b}</b><Phr>{d}</Phr></div></div>;
 }
 
 /** รูปทุกกราฟในหน้าต่างเทียบรวมเป็นรูปเดียว ไว้บันทึก */
@@ -2595,10 +2595,10 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
       }
       let cv = composeAll(plotRef.current, o.width);
       if (!cv) throw new Error("ยังไม่มีกราฟให้บันทึก");
-      if (o.title) cv = withHeader(cv, vName + " · เทียบ " + n + " ไฟล์", files.map((p, i) => LABELS[i] + " " + nameOf(p)).join(" · "), files.map((_, i) => [LABELS[i], FILE_C[i]] as [string, string]));
+      if (o.title) cv = withHeader(cv, vName + " เทียบ " + n + " ไฟล์", files.map((p, i) => LABELS[i] + " " + nameOf(p)).join("   "), files.map((_, i) => [LABELS[i], FILE_C[i]] as [string, string]));
       await waitPaint();
       const saved = await graphApi.saveImage(where, alphaOf(cv, o).toDataURL("image/png"), o);
-      toast({ kind: "ok", title: "บันทึกรูปแล้ว " + saved.width.toLocaleString("en-US") + " × " + saved.height.toLocaleString("en-US") + " · " + fmtSize(saved.size), detail: saved.path });
+      toast({ kind: "ok", title: "บันทึกรูปแล้ว " + saved.width.toLocaleString("en-US") + " × " + saved.height.toLocaleString("en-US") + " ขนาด " + fmtSize(saved.size), detail: saved.path });
     } catch (e) { toast({ kind: "bad", title: "บันทึกรูปไม่ได้", detail: e instanceof Error ? e.message : String(e) }); }
     finally { setHiC({}); setSaving(false); }
   };
@@ -2616,7 +2616,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
         <div className="fnote" style={{ background: TH_FILE[i].lane, color: FILE_INK[i], border: `1px solid ${TH_FILE[i].peak}` }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M9 18V5l11-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" /></svg></div>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div className="nm"><span className="nmtx">{nm.replace(/\.[^.]+$/, "")}</span>{/\.[^.]+$/.test(nm) && <span className="extcard" style={{ background: FILE_INK[i] }} data-cmpext={k}>{nm.match(/\.([^.]+)$/)?.[1].toUpperCase()}</span>}<Who i={i} /></div>
-          <div className="meta">{s.info ? `${s.info.audioOnly ? "ไฟล์เสียง" : "ไฟล์หนัง"} · ${fmtSize(s.info.size)} · ยาว ${tfmt(s.info.duration)}${i === 1 && note ? " · แปลงเมื่อสักครู่" : ""}` : s.err ? "อ่านไม่ได้" : "กำลังอ่านข้อมูลไฟล์"}</div>
+          <div className="meta">{s.info ? `${s.info.audioOnly ? "ไฟล์เสียง" : "ไฟล์หนัง"} ${fmtSize(s.info.size)} ยาว ${tfmt(s.info.duration)}${i === 1 && note ? " แปลงเมื่อสักครู่" : ""}` : s.err ? "อ่านไม่ได้" : "กำลังอ่านข้อมูลไฟล์"}</div>
         </div>
         {n > 2 && <button type="button" className="rmx" aria-label={`เอา ${nm} ออกจากการเทียบ`} title="เอาออกจากการเทียบ ไฟล์ในเครื่องไม่ถูกแตะ" onClick={(e) => { e.stopPropagation(); onFiles(files.filter((x) => x !== p), true); }} data-cmpremove={k}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button>}
       </div>
@@ -2639,23 +2639,23 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
       <button type="button" className={"btn btn-ghost btn-sm" + (wide ? " pressed" : "")} style={{ width: 32, padding: 0, flex: "none" }} aria-pressed={wide} title={wide ? "แสดงแผงลำโพง" : "ขยายเต็มจอ"} aria-label={wide ? "แสดงแผงลำโพง" : "ขยายเต็มจอ"} onClick={() => setWide(!wide)} data-graphwide><IcExpand size={14} /></button>
     </div>
   );
-  const infoRow = (t: GTrack | undefined, info: GInfo | null) => t && info ? [t.codec, `${t.layout}`, `${khz(t.rate)} kHz`, t.bits ? `${t.bits}-bit` : "—", t.bitrate ? `${Math.round(t.bitrate / 1000).toLocaleString("en-US")} kb/s` : "—", fmtSize(info.size), tfmt(info.duration)] : null;
+  const infoRow = (t: GTrack | undefined, info: GInfo | null) => t && info ? [t.codec, `${t.layout}`, `${khz(t.rate)} kHz`, t.bits ? `${t.bits}-bit` : "ไม่มี", t.bitrate ? `${Math.round(t.bitrate / 1000).toLocaleString("en-US")} kb/s` : "ไม่ทราบ", fmtSize(info.size), tfmt(info.duration)] : null;
   const infos = S.map((s, i) => infoRow(T[i], s.info));
   const diffRows: [string, string, (d: DiffResult) => number, string[]][] = [["wave", "รูปคลื่น", (d) => d.wave, ["wave"]], ["spec", "ความถี่", (d) => d.spec, ["spec", "spek"]], ["loud", "ความดัง", (d) => d.loud, ["loud"]], ["cmp", "ซ้อนเทียบ", (d) => d.cmp, ["cmp"]], ["psd", "ความถี่เฉลี่ย", (d) => d.psd, ["psd"]]];
   const others0 = files.map((_, i) => i).slice(1);
   const sizeTxt = (i: number, long: boolean) => {
     const a = S[0].info?.size ?? 0, b = S[i].info?.size ?? 0;
-    if (!a || !b) return "—";
+    if (!a || !b) return "ไม่ทราบ";
     if (a === b) return "เท่ากัน";
     const pct = Math.abs(b - a) / a * 100, p = pct < 0.1 ? "ไม่ถึง 0.1%" : pct.toFixed(1) + "%";
-    return long ? `${b < a ? "เล็กกว่า" : "ใหญ่กว่า"} ${p} · ${fmtSize(Math.abs(b - a))}` : (b < a ? "−" : "+") + p;
+    return long ? `${b < a ? "เล็กกว่า" : "ใหญ่กว่า"} ${p} หรือ ${fmtSize(Math.abs(b - a))}` : (b < a ? "−" : "+") + p;
   };
   const panel = (
     <div className="apanel">
       <div className="card"><h3><span>ช่องเสียง {T[0]?.layout ?? ""}</span><span className="small" style={{ color: "var(--txt3)" }}>{union.length} ช่อง</span></h3>
         {NM[0].length > 0 && <Speakers names={union} th={TH_A} levels={union.map(() => 0.3)} hidden={hidden} onToggle={toggleCh} />}
         <div className="small" style={{ textAlign: "center", marginTop: 4 }}>{union.length > 1 ? `กดลำโพงเพื่อปิดหรือเปิดช่องนั้น ${allTxt}พร้อมกัน` : "ไฟล์นี้มีเสียงช่องเดียว"}</div>
-        {T.every(Boolean) && NM.some((x) => x.join() !== NM[0].join()) && <div className="small" style={{ marginTop: 4 }}>ช่องเสียงไม่เท่ากัน · {T.map((t, i) => `${LABELS[i]} ${t!.layout}`).join(" ")}</div>}</div>
+        {T.every(Boolean) && NM.some((x) => x.join() !== NM[0].join()) && <div className="small" style={{ marginTop: 4 }}>ช่องเสียงไม่เท่ากัน {T.map((t, i) => `${LABELS[i]} ${t!.layout}`).join(" ")}</div>}</div>
       {diffs && <div className="card gdiff" data-cmpdiff>
         {n === 2
           ? <><h3><span>ต่างกันกี่ %</span><b data-cmpdiffall title="ค่าเฉลี่ยของทุกกราฟ">{diffs[0].overall.toFixed(1)}%</b></h3>
@@ -2668,12 +2668,12 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
               {diffRows.map(([k, l, get, on]) => { const cls = on.includes(tab) ? "on" : ""; return <Fragment3 key={k} cls={cls} k={k} l={l} vals={diffs.map((d) => get(d).toFixed(1) + "%")} />; })}
               <Fragment3 cls="" k="size" l="ขนาดไฟล์" vals={others0.map((i) => sizeTxt(i, false))} />
             </div></>}
-        <div className="gdiffnote" title={`ผลต่าง 60 dB คิดเป็น 100% · 0% ไม่ได้แปลว่าเหมือนทุกบิต เพราะคิดจากข้อมูลภาพรวม${diffs.some((d) => d.lenDiff) ? " · ไฟล์ยาวไม่เท่ากัน เทียบเท่าช่วงที่มีทั้งคู่" : ""}`}>60 dB = 100% · 0% ไม่ใช่เหมือนทุกบิต</div></div>}
+        <div className="gdiffnote" title={`ผลต่าง 60 dB คิดเป็น 100% และ 0% ไม่ได้แปลว่าเหมือนทุกบิต เพราะคิดจากข้อมูลภาพรวม${diffs.some((d) => d.lenDiff) ? " ไฟล์ยาวไม่เท่ากัน จึงเทียบเท่าช่วงที่มีทั้งคู่" : ""}`}>60 dB คิดเป็น 100% และ 0% ไม่ได้แปลว่าเหมือนทุกบิต</div></div>}
       <div className="card"><h3>ข้อมูลเสียง</h3>
         <div className="ginfo" style={{ gridTemplateColumns: `auto repeat(${n}, auto)` }} data-cmpinfo><span />{files.map((p, i) => <span key={p} className="h" style={{ color: FILE_INK[i] }}>{LABELS[i]}</span>)}
-          {["รหัสเสียง", "ช่องเสียง", "อัตราสุ่ม", "ความละเอียด", "บิตเรต", "ขนาด", "ความยาว"].map((k, r) => <FragmentInfo key={k} k={k} vals={infos.map((x) => x?.[r] ?? "…")} />)}</div>
+          {["รหัสเสียง", "ช่องเสียง", "อัตราสุ่ม", "ความละเอียด", "บิตเรต", "ขนาด", "ความยาว"].map((k, r) => <FragmentInfo key={k} k={k} vals={infos.map((x) => x?.[r] ?? "รอ")} />)}</div>
         {note && <div className="small" style={{ marginTop: 8 }}><Phr>{note}</Phr></div>}</div>
-      {lenDiff && <div className="stat warn" data-cmplen><CardIcon kind="warn" /><div><b>{`${allTxt}ยาวไม่เท่ากัน ${lens.map(tfmt).join(" · ")}`}</b><Phr>{CONV ? "น่าจะตั้งความเร็วเสียงตอนแปลง · รูปคลื่น ความดัง ซ้อนเทียบ เทียบตามเวลาตรง ๆ ไม่ได้ ดูความถี่เฉลี่ยกับกราฟความถี่แทน" : "กราฟเรียงจากต้นไฟล์ตามเวลา · ไฟล์ที่สั้นกว่าจบก่อน"}</Phr></div></div>}
+      {lenDiff && <div className="stat warn" data-cmplen><CardIcon kind="warn" /><div><b>{`${allTxt}ยาวไม่เท่ากัน ${lens.map(tfmt).join(" กับ ")}`}</b><Phr>{CONV ? "น่าจะตั้งความเร็วเสียงตอนแปลง จึงเทียบรูปคลื่น ความดัง และซ้อนเทียบตามเวลาตรง ๆ ไม่ได้ ให้ดูความถี่เฉลี่ยกับกราฟความถี่แทน" : "กราฟเรียงจากต้นไฟล์ตามเวลา ไฟล์ที่สั้นกว่าจึงจบก่อน"}</Phr></div></div>}
     </div>
   );
 
@@ -2685,7 +2685,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
     const at = Math.max(0, S.findIndex((s) => !s.ov)), pct = S[at].pct ?? 0;
     body = (
       <div className="plot" data-cmploading>
-        <div style={{ fontSize: 13.5, marginBottom: 8 }}>อ่านเสียง{LABELS[at]} <b>{Math.round(pct)}%</b> · อ่านทีละไฟล์ตามลำดับ</div>
+        <div style={{ fontSize: 13.5, marginBottom: 8 }}>อ่านเสียง{LABELS[at]} <b>{Math.round(pct)}%</b> อ่านทีละไฟล์ตามลำดับ</div>
         <div className="bar"><i style={{ width: `${pct}%` }} /></div>
         <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 10 }}>{[0, 1, 2, 3].map((i) => <div key={i} style={{ display: "grid", gridTemplateColumns: "84px 1fr", gap: 10, alignItems: "center" }}><div className="skel" style={{ height: 12 }} /><div className="skel" style={{ height: 40 }} /></div>)}</div>
       </div>
@@ -2696,9 +2696,9 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
     const zoomBar = (
       <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
         <span className="zbtns">
-          <button type="button" className="zb" onClick={() => setSpan(span * 2)} disabled={zoom === "all"} aria-label="ซูมออก" title="ซูมออก · Ctrl หมุนล้อเมาส์ลง" data-zoomout><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6" /></svg></button>
+          <button type="button" className="zb" onClick={() => setSpan(span * 2)} disabled={zoom === "all"} aria-label="ซูมออก" title="ซูมออก (Ctrl หมุนล้อเมาส์ลง)" data-zoomout><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6" /></svg></button>
           <HZoom dur={dur} span={span} onSpan={setSpan} />
-          <button type="button" className="zb" onClick={() => setSpan(span / 2)} disabled={span <= HZ_MIN} aria-label="ซูมเข้า" title="ซูมเข้า · Ctrl หมุนล้อเมาส์ขึ้น" data-zoomin><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6M10.5 7.5v6" /></svg></button>
+          <button type="button" className="zb" onClick={() => setSpan(span / 2)} disabled={span <= HZ_MIN} aria-label="ซูมเข้า" title="ซูมเข้า (Ctrl หมุนล้อเมาส์ขึ้น)" data-zoomin><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6M10.5 7.5v6" /></svg></button>
           <button type="button" className="zb" onClick={zoomReset} aria-label="รีเซ็ตซูม" title="รีเซ็ต กลับทั้งไฟล์ ซูมแนวตั้ง 1 เท่า" data-zoom-reset><IcRefresh size={15} /></button>
         </span>
         <span className="lbl">ซูม</span>
@@ -2715,9 +2715,9 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
     const ea = edges[0], eb = edges[1];
     const cutNote = n === 2
       ? (eb.top < ea.top - 1500 && !eb.full
-        ? { kind: "info" as const, b: `${LABELS[1]}ไม่มีเสียงเหนือ ${khz(eb.top)} kHz`, d: `${LABELS[0]}มีเสียงถึงราว ${khz(ea.top)} kHz${ea.top > 20000 ? " ซึ่งหูคนไม่ได้ยิน (หูได้ยินถึงราว 20 kHz)" : ""} · ช่วงต่ำกว่านั้นภาพแทบเหมือนกัน` }
-        : { kind: "info" as const, b: "ช่วงความถี่ของสองไฟล์ใกล้เคียงกัน", d: `${LABELS[0]}มีเสียงถึงราว ${khz(ea.top)} kHz · ${LABELS[1]}ราว ${khz(eb.top)} kHz` })
-      : { kind: "info" as const, b: `ช่วงความถี่${allTxt}`, d: edges.map((e, i) => `${LABELS[i]} ราว ${khz(e.top)} kHz`).join(" · ") };
+        ? { kind: "info" as const, b: `${LABELS[1]}ไม่มีเสียงเหนือ ${khz(eb.top)} kHz`, d: `${LABELS[0]}มีเสียงถึงราว ${khz(ea.top)} kHz${ea.top > 20000 ? " ซึ่งหูคนไม่ได้ยิน (หูได้ยินถึงราว 20 kHz)" : ""} ส่วนช่วงที่ต่ำกว่านั้นภาพแทบเหมือนกัน` }
+        : { kind: "info" as const, b: "ช่วงความถี่ของสองไฟล์ใกล้เคียงกัน", d: `${LABELS[0]}มีเสียงถึงราว ${khz(ea.top)} kHz และ${LABELS[1]}ราว ${khz(eb.top)} kHz` })
+      : { kind: "info" as const, b: `ช่วงความถี่${allTxt}`, d: edges.map((e, i) => `${LABELS[i]} ราว ${khz(e.top)} kHz`).join(", ") };
     const nLanes = union.reduce((sum, c) => sum + NM.filter((x) => x.includes(c)).length, 0);
     // 205 คือหัวกราฟ แถวเวลา แถบเลื่อน ผลสรุป แถวปุ่มท้าย ระยะขอบรวมกัน (วัดจากหน้าจริง)
     const laneH = Math.max(union.length > 4 ? 40 : 46, Math.floor((paneH - 205 - (nLanes - 1) * 6) / Math.max(1, nLanes)));
@@ -2728,18 +2728,18 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
         if (i < 0) return [];
         const l = label(names, c), pk = ov.peaks[i], k = "abcd"[f];
         const peak = pk == null ? "" : pk <= -119 ? "เงียบทั้งไฟล์" : "ดังสุด " + pkTxt(pk);
-        if (hidden.includes(c)) return [<LaneOff key={c + k + "off"} code={l.code} th={`${l.th} · ${LABELS[f]}`} peak={peak} height={laneH} />];
+        if (hidden.includes(c)) return [<LaneOff key={c + k + "off"} code={l.code} th={`${l.th} ${LABELS[f]}`} peak={peak} height={laneH} />];
         return [tab === "wave"
-          ? <Lane key={c + k + tab} code={l.code} th={`${l.th} · ${LABELS[f]}`} peak={peak} height={laneH} deps={[ov, t0, t1, i, laneH, vz, f, hiC[files[f]]]}
+          ? <Lane key={c + k + tab} code={l.code} th={`${l.th} ${LABELS[f]}`} peak={peak} height={laneH} deps={[ov, t0, t1, i, laneH, vz, f, hiC[files[f]]]}
               draw={(g, w, h) => { const hi = hiC[files[f]]; drawWave(g, w, h, sample(hi ? { env: hi.env, cols: hi.cols, t0: hi.t0, t1: hi.t1 } : { env: ov.env, cols: ov.cols, t0: 0, t1: ov.duration }, i, t0, t1, w), TH_FILE[f], "fine", vz); }} />
-          : <Lane key={c + k + tab} code={l.code} th={`${l.th} · ${LABELS[f]}`} peak={peak} height={laneH} deps={[ov, t0, t1, i, laneH, maxNyq, vrSpec.z, vrSpec.b, hiC[files[f]]]}
+          : <Lane key={c + k + tab} code={l.code} th={`${l.th} ${LABELS[f]}`} peak={peak} height={laneH} deps={[ov, t0, t1, i, laneH, maxNyq, vrSpec.z, vrSpec.b, hiC[files[f]]]}
               draw={(g, w, h) => drawSpecCmp(g, w, h, i, ov, t0, t1, nyq[f], maxNyq, colors, vrSpec.z, vrSpec.b, hiC[files[f]])} />];
       }));
       const pks = OV.map((ov) => Math.max(...ov.peaks));
       const over = others.find((i) => pks[i] > -0.05 && pks[i] > pks[0] + 0.05);
       body = (
         <div className="plot cmpplot" data-plot ref={plotRef} data-cmpview={tab}>
-          <div className="plotstick"><div className="plothead"><span><b>{tab === "wave" ? "รูปคลื่นทุกช่อง" : "ความถี่ทุกช่อง"}</b> · <RangeTime t0={t0} t1={t1} dur={dur} /></span>{zoomBar}</div>
+          <div className="plotstick"><div className="plothead"><span><b>{tab === "wave" ? "รูปคลื่นทุกช่อง" : "ความถี่ทุกช่อง"}</b> <span className="prange">ช่วง <RangeTime t0={t0} t1={t1} dur={dur} /></span></span>{zoomBar}</div>
           <Ruler />
           </div>
           <div className="lanewrap" style={{ position: "relative" }} onWheel={tab === "spec" ? vrSpec.wheel : undefined}>
@@ -2750,8 +2750,8 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
           <TimeScroll dur={dur} t0={t0} t1={t1} left={96} right={30} onPan={panT} />
           {tab === "wave"
             ? (over != null
-              ? <Stat kind="warn" b={`ดังสุดของ${LABELS[over]}ขึ้นเป็น ${pkTxt(pks[over])}`} d={`${LABELS[0]} ${pkTxt(pks[0])}${CONV ? " · การแปลงแบบเสียคุณภาพทำให้ยอดคลื่นขยับเล็กน้อย" : ""} · ดูแท็บความดังว่าเกิน 0 ช่วงไหน`} />
-              : <Stat kind="info" b={`รูปคลื่นของ${allTxt}`} d={`ดังสุด ${pks.map((p, i) => `${LABELS[i]} ${pkTxt(p)}`).join(" · ")}`} />)
+              ? <Stat kind="warn" b={`ดังสุดของ${LABELS[over]}ขึ้นเป็น ${pkTxt(pks[over])}`} d={`${LABELS[0]} ${pkTxt(pks[0])}${CONV ? " เพราะการแปลงแบบเสียคุณภาพทำให้ยอดคลื่นขยับเล็กน้อย" : ""} ดูแท็บความดังว่าเกิน 0 ช่วงไหน`} />
+              : <Stat kind="info" b={`รูปคลื่นของ${allTxt}`} d={`ดังสุด ${pks.map((p, i) => `${LABELS[i]} ${pkTxt(p)}`).join(", ")}`} />)
             : <Stat {...cutNote} />}
         {foot(tab === "wave" ? <><span>{TH_FILE.slice(0, n).map((x, i) => <i key={i} style={{ background: x.peak }} />)}ดังสุด (Peak)</span><span>{FILE_INK.slice(0, n).map((x, i) => <i key={i} style={{ background: x }} />)}ดังเฉลี่ย (RMS)</span></>
             : <><span className="nw">−120 dB</span><span className="rampbar" style={{ background: `linear-gradient(90deg,${THEMES["ชมพู"].ramp.join(",")})` }} /><span className="nw">0 dB</span></>)}
@@ -2770,7 +2770,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
         <div className="plot cmpplot" data-plot ref={plotRef} data-cmpview="loud">
           <div className="plotstick"><div className="tiles" data-cmptiles>{rows.map((r) => (
             <div className="tile cmptile" key={r.k}><span>{r.k}</span>{r.v.map((x, i) => <div className="tv" key={i}><Who i={i} /><b style={r.bad[i] ? { color: "var(--bad-ink)" } : undefined}>{x}</b></div>)}<em>{r.note}</em></div>))}</div>
-          <div className="plothead"><span><b>ความดังตลอดไฟล์</b> · <RangeTime t0={t0} t1={t1} dur={dur} /></span>{zoomBar}</div></div>
+          <div className="plothead"><span><b>ความดังตลอดไฟล์</b> <span className="prange">ช่วง <RangeTime t0={t0} t1={t1} dur={dur} /></span></span>{zoomBar}</div></div>
           <div style={{ flex: "1 0 110px", display: "flex", gap: 8, minHeight: 0 }} onWheel={vrLoud.wheel}>
             <div style={{ position: "relative", flex: 1, minWidth: 0, display: "flex" }}>
               <CmpChart key="loud" vr={vrLoud} grab={cmpGrab} fill height={110} deps={[filesKey, t0, t1]} lo={-60} hi={0} step={10} unit="LUFS" ref23
@@ -2781,8 +2781,8 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
           </div>
           <TimeScroll dur={dur} t0={t0} t1={t1} left={44} right={34} onPan={panT} />
           {hot != null
-            ? <Stat kind="warn" b={`ดังสุดของ${LABELS[hot]} ${(OV[hot].truePeak ?? 0) > 0 ? "+" : ""}${f1(OV[hot].truePeak)} dBTP ถึงหรือเกิน 0`} d={CONV ? "เครื่องเล่นบางตัวเสียงแตกช่วงที่ดังสุด · ตั้ง Gain −1 dB ในแผงตั้งค่าเสียงแล้วแปลงใหม่" : "เครื่องเล่นบางตัวเสียงแตกช่วงที่ดังสุด"} />
-            : <Stat kind="info" b={n === 2 ? `ความดังรวมต่างกัน ${luDiffs[0].toFixed(1)} LU` : `ความดังรวมต่างจาก${LABELS[0]}มากสุด ${Math.max(...luDiffs).toFixed(1)} LU`} d={`เส้นแทบทับกันแปลว่าความดังไม่เปลี่ยน · ต่างกันไม่ถึง 1 LU หูแยกไม่ออก`} />}
+            ? <Stat kind="warn" b={`ดังสุดของ${LABELS[hot]} ${(OV[hot].truePeak ?? 0) > 0 ? "+" : ""}${f1(OV[hot].truePeak)} dBTP ถึงหรือเกิน 0`} d={CONV ? "เครื่องเล่นบางตัวเสียงแตกช่วงที่ดังสุด ให้ตั้ง Gain −1 dB ในแผงตั้งค่าเสียงแล้วแปลงใหม่" : "เครื่องเล่นบางตัวเสียงแตกช่วงที่ดังสุด"} />
+            : <Stat kind="info" b={n === 2 ? `ความดังรวมต่างกัน ${luDiffs[0].toFixed(1)} LU` : `ความดังรวมต่างจาก${LABELS[0]}มากสุด ${Math.max(...luDiffs).toFixed(1)} LU`} d={`เส้นแทบทับกันแปลว่าความดังไม่เปลี่ยน และต่างกันไม่ถึง 1 LU หูแยกไม่ออก`} />}
         {foot(<span><span className="ln" style={{ background: "#8a6474" }} />เส้นอ้างอิง −23 LUFS</span>)}
           </div>
       );
@@ -2808,20 +2808,20 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
             </div>
             <FZoom value={vrCmp.z} onChange={vrCmp.setZ} />
           </div>
-          <div className="small" style={{ margin: "6px 0 2px" }}><b style={{ color: "var(--txt)" }}>{n === 2 ? `ผลต่าง ${LABELS[1]} ลบ ${LABELS[0]}` : `ผลต่าง แต่ละไฟล์ ลบ ${LABELS[0]}`}</b> · กราฟแยก แกน ±2 dB</div>
+          <div className="small" style={{ margin: "6px 0 2px" }}><b style={{ color: "var(--txt)" }}>{n === 2 ? `ผลต่าง ${LABELS[1]} ลบ ${LABELS[0]}` : `ผลต่าง แต่ละไฟล์ ลบ ${LABELS[0]}`}</b> กราฟแยก แกนบวกลบ 2 dB</div>
           <div style={{ marginRight: 30 }}><CmpChart grab={cmpGrab} height={80} deps={[filesKey, t0, t1, cmpUse]} lo={-2} hi={2} step={1} unit="dB" diff series={(w) => { const x = rmsDb(OV[0], idx[0], t0, t1, w); return others.map((f) => { const y = rmsDb(OV[f], idx[f], t0, t1, w), d = new Float32Array(w); for (let i = 0; i < w; i++) d[i] = x[i] < -60 || y[i] < -60 ? 0 : y[i] - x[i]; return [d, n === 2 ? "#7a4fb0" : FILE_C[f]] as [Float32Array, string]; }); }} /></div>
           <TimeScroll dur={dur} t0={t0} t1={t1} left={44} right={34} onPan={panT} />
           <Stat kind={Math.abs(top.mx) >= 1 ? "warn" : "info"} b={`ช่อง ${l.code}${n > 2 ? ` ${LABELS[top.f]}` : ""} ต่างกันเฉลี่ย ${top.avg.toFixed(1)} dB มากสุด ${sgn(top.mx)} dB ที่ ${tfmt(top.mxAt)}`}
-            d={Math.abs(top.mx) >= 1 ? "ต่างเกินราว 1 dB ที่หูเริ่มแยกได้ ลองเปิดฟังช่วงนั้นเทียบกัน" : "ต่ำกว่าที่หูแยกได้ (ราว 1 dB) · ไม่นับช่วงที่เบากว่า −60 dB"} />
+            d={Math.abs(top.mx) >= 1 ? "ต่างเกินราว 1 dB ที่หูเริ่มแยกได้ ลองเปิดฟังช่วงนั้นเทียบกัน" : "ต่ำกว่าที่หูแยกได้ (ราว 1 dB) และไม่นับช่วงที่เบากว่า −60 dB"} />
         {foot(n === 2 ? <span><span className="ln" style={{ background: "#7a4fb0" }} />ผลต่าง</span> : null)}
           </div>
       );
     } else if (tab === "spek") {
       const heat = lut(HEAT);
-      const sub = (i: number) => { const t = T[i]!; return `${t.codec} · ${t.rate.toLocaleString("en-US")} Hz${t.bits ? ` · ${t.bits}-bit` : ""}${t.bitrate ? ` · ${Math.round(t.bitrate / 1000).toLocaleString("en-US")} kb/s` : ""} · ${NM[i].length} channels mixed${nyq[i] !== maxNyq ? " · แกนตั้งเท่ากันทุกไฟล์" : ""}`; };
+      const sub = (i: number) => { const t = T[i]!; return `${t.codec}, ${t.rate.toLocaleString("en-US")} Hz${t.bits ? `, ${t.bits}-bit` : ""}${t.bitrate ? `, ${Math.round(t.bitrate / 1000).toLocaleString("en-US")} kb/s` : ""}, ${NM[i].length} channels mixed${nyq[i] !== maxNyq ? " แกนตั้งเท่ากันทุกไฟล์" : ""}`; };
       body = (
         <div className="plot cmpplot" data-plot ref={plotRef} data-cmpview="spek">
-          <div className="plothead"><span><b>ความถี่</b> · <RangeTime t0={t0} t1={t1} dur={dur} /></span>{zoomBar}</div>
+          <div className="plothead"><span><b>ความถี่</b> <span className="prange">ช่วง <RangeTime t0={t0} t1={t1} dur={dur} /></span></span>{zoomBar}</div>
           <div style={{ flex: `1 0 ${n * 122}px`, display: "flex", gap: 8, minHeight: 0 }} onWheel={vrSpek.wheel}>
             <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
               {files.map((p, i) => <SpekCv key={p} grab={cmpGrab} deps={[OV[i], t0, t1, maxNyq, vrSpek.z, vrSpek.b, hiC[p]]} draw={(g, w, h) => drawSpekCmp(g, w, h, OV[i], NM[i], nyq[i], maxNyq, t0, t1, nameOf(p), sub(i), edges[i].full ? null : edges[i].top, heat, HEAT, vrSpek.z, vrSpek.b, hiC[p])} data={"abcd"[i]} />)}
@@ -2842,7 +2842,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
             <span style={{ display: "flex", alignItems: "center", gap: 8 }}><span className="lbl">ช่วงที่เลือก</span>
               <div className="seg sm">{PSD_SPANS.map(([k, l2]) => <button key={String(k)} type="button" className={String(psdSpan) === String(k) ? "on" : ""} onClick={() => setPsdSpan(k)} data-cmppsdspan={String(k)}>{l2}</button>)}</div></span></div>
           {ok ? <PsdCmp list={psd.list} maxNyq={maxNyq} f={psdF} setF={setPsdF} vr={vrPsd} hr={hrPsd} grab={cmpGrab} onReset={() => { setPsdSpan("all"); zoomReset(); }} /> : <div className="skel" style={{ height: 300, borderRadius: 8 }} data-cmppsdwait />}
-          <div className="small" style={{ marginTop: 4 }}>{psdSpan === "all" ? `ทั้งไฟล์ ${tfmt(dur)}` : `${tfmt(psdT[0])} ถึง ${tfmt(psdT[1])} รอบกลางช่วงที่ดู`} · คิดทีละไฟล์ตามลำดับ{ok ? ` · ช่องความถี่กว้าง ${(psd.list[0].rate / psd.list[0].size).toFixed(1)} Hz ${allTxt} เทียบกันได้ตรง` : ""}</div>
+          <div className="small" style={{ marginTop: 4 }}>{psdSpan === "all" ? `ทั้งไฟล์ ${tfmt(dur)}` : `${tfmt(psdT[0])} ถึง ${tfmt(psdT[1])} รอบกลางช่วงที่ดู`} คิดทีละไฟล์ตามลำดับ{ok ? ` ช่องความถี่กว้าง ${(psd.list[0].rate / psd.list[0].size).toFixed(1)} Hz ${allTxt} เทียบกันได้ตรง` : ""}</div>
           {foot(null)}
         </div>
       );
@@ -2858,7 +2858,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
 }
 
 function FragmentInfo({ k, vals }: { k: string; vals: string[] }) {
-  return <><span className="k">{k}</span>{vals.map((v, i) => <span key={i} className="v" style={i > 0 && v !== vals[0] && vals[0] !== "…" ? { fontWeight: 700 } : undefined}>{v}</span>)}</>;
+  return <><span className="k">{k}</span>{vals.map((v, i) => <span key={i} className="v" style={i > 0 && v !== vals[0] && vals[0] !== "รอ" ? { fontWeight: 700 } : undefined}>{v}</span>)}</>;
 }
 function Fragment3({ cls, k, l, vals }: { cls: string; k: string; l: string; vals: string[] }) {
   return <><span className={cls} data-cmpdiffrow={k}>{l}</span>{vals.map((v, i) => <em key={i} className={cls}>{v}</em>)}</>;
@@ -2948,13 +2948,13 @@ function PsdCmp({ list, maxNyq, f, setF, vr, hr, grab, onReset }: { list: GPsd[]
     <div style={{ marginRight: 30 }} data-cmppsdhscroll><TimeScroll dur={1} t0={hr.b} t1={hr.b + 1 / hr.z} left={L} right={R} onPan={(c) => hr.setB(hr.clampB(c - 0.5 / hr.z, hr.z))} /></div>
     <div className="psdread" data-cmppsdread>
       <span className="zbtns" style={{ order: 9, marginLeft: "auto" }} data-cmppsdhzoom>
-        <button type="button" className="zb" onClick={() => setHz(hr.z / 2)} disabled={hr.z <= 1} aria-label="ซูมแกนความถี่ออก" title="ซูมออก · Ctrl หมุนล้อเมาส์ลง"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6" /></svg></button>
+        <button type="button" className="zb" onClick={() => setHz(hr.z / 2)} disabled={hr.z <= 1} aria-label="ซูมแกนความถี่ออก" title="ซูมออก (Ctrl หมุนล้อเมาส์ลง)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6" /></svg></button>
         <HZoom dur={hrSpan} span={hrSpan / hr.z} onSpan={(sp) => setHz(hrSpan / sp)} name="ซูมแกนความถี่" text={`ซูมแกนความถี่ ${hr.z.toFixed(1)} เท่า`} />
-        <button type="button" className="zb" onClick={() => setHz(hr.z * 2)} disabled={hr.z >= PSD_HZ_MAX} aria-label="ซูมแกนความถี่เข้า" title="ซูมเข้า · Ctrl หมุนล้อเมาส์ขึ้น"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6M10.5 7.5v6" /></svg></button>
+        <button type="button" className="zb" onClick={() => setHz(hr.z * 2)} disabled={hr.z >= PSD_HZ_MAX} aria-label="ซูมแกนความถี่เข้า" title="ซูมเข้า (Ctrl หมุนล้อเมาส์ขึ้น)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6M10.5 7.5v6" /></svg></button>
         <button type="button" className="zb" onClick={onReset} aria-label="รีเซ็ตซูม" title="รีเซ็ต กลับทั้งไฟล์ ซูมแนวตั้งกับแนวนอน 1 เท่า" data-zoom-reset><IcRefresh size={15} /></button>
       </span>
-      <span className="lbl">ตำแหน่งชี้</span><span className="psdbox" style={{ whiteSpace: "normal" }}>{f == null ? "ชี้บนกราฟเพื่อดูค่า" : `${fTxt(f)} (${noteOf(f)}) = ${list.map((p, i) => `${LABELS[i]} ${minus(at(p, f).toFixed(0))} dB`).join(" · ")}${list.length === 2 ? ` · ต่าง ${Math.abs(at(list[1], f) - at(a, f)).toFixed(1)} dB` : ""}`}</span>
-      <span className="lbl">ต่างมากสุดช่วงที่ได้ยิน</span><span className="psdbox">{fTxt(mxF)} · {LABELS[mxI]}{mx < 0 ? "บางลง" : "หนาขึ้น"} {Math.abs(mx).toFixed(1)} dB</span>
+      <span className="lbl">ตำแหน่งชี้</span><span className="psdbox" style={{ whiteSpace: "normal" }}>{f == null ? "ชี้บนกราฟเพื่อดูค่า" : `${fTxt(f)} (${noteOf(f)}) = ${list.map((p, i) => `${LABELS[i]} ${minus(at(p, f).toFixed(0))} dB`).join(", ")}${list.length === 2 ? ` ต่างกัน ${Math.abs(at(list[1], f) - at(a, f)).toFixed(1)} dB` : ""}`}</span>
+      <span className="lbl">ต่างมากสุดช่วงที่ได้ยิน</span><span className="psdbox">{fTxt(mxF)} {LABELS[mxI]}{mx < 0 ? "บางลง" : "หนาขึ้น"} {Math.abs(mx).toFixed(1)} dB</span>
     </div>
     <Stat kind={low > 3 ? "warn" : "info"} b={`ช่วงที่ได้ยิน 20 Hz ถึง 15 kHz ${list.length === 2 ? "สองเส้น" : `ทุกเส้นจาก${LABELS[0]}`}ต่างกันไม่เกิน ${low.toFixed(1)} dB`} d={`ต่างมากสุดในช่วง 20 Hz ถึง 20 kHz ที่ ${fTxt(mxF)} ${LABELS[mxI]}${mx < 0 ? "บางลง" : "หนาขึ้น"} ${Math.abs(mx).toFixed(1)} dB`} />
   </>);

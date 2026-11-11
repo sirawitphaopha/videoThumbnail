@@ -66,7 +66,7 @@ export default function RenameBox(p: { m: Movie; onDone: (m: Movie, changed: boo
       {fail ? (
         <div className="stat bad" style={{ marginTop: 8 }} role="alert">
           <CardIcon kind="bad" />
-          <div><b>{fail.title}</b>{fail.detail?.split(" · ").map((l, i) => <div key={i}><Phr>{l}</Phr></div>)}</div>
+          <div><b>{fail.title}</b>{fail.detail?.split(/ · |  /).map((l, i) => <div key={i}><Phr>{l}</Phr></div>)}</div>
         </div>
       ) : problem ? (
         <div id="rename-hint" className="hint e" role="alert">
@@ -80,7 +80,7 @@ export default function RenameBox(p: { m: Movie; onDone: (m: Movie, changed: boo
         {fail ? (
           <button ref={retry} type="button" className="btn btn-ghost btn-sm" onClick={save}><IcRefresh size={15} />ลองใหม่</button>
         ) : saving ? (
-          <button type="button" className="btn btn-wait btn-sm" aria-disabled="true">กำลังเปลี่ยนชื่อ…</button>
+          <button type="button" className="btn btn-wait btn-sm" aria-disabled="true">กำลังเปลี่ยนชื่อ</button>
         ) : blocked ? (
           <button type="button" className="btn btn-wait btn-sm" aria-disabled="true" title={problem!.title}><IbTick size={15} />บันทึกชื่อ</button>
         ) : (
@@ -96,5 +96,5 @@ export default function RenameBox(p: { m: Movie; onDone: (m: Movie, changed: boo
 /** ข้อผิดพลาดจากฝั่ง Rust เป็น RenameProblem · ข้อผิดพลาดแบบอื่น (คำสั่งไม่มี ฯลฯ) ห่อเป็น other */
 function toProblem(e: unknown): RenameProblem {
   if (e && typeof e === "object" && "kind" in e && "title" in e) return e as RenameProblem;
-  return { kind: "other", title: "เปลี่ยนชื่อไม่สำเร็จ", detail: String(e) + " · ไฟล์ยังชื่อเดิม" };
+  return { kind: "other", title: "เปลี่ยนชื่อไม่สำเร็จ", detail: String(e) + "  ไฟล์ยังชื่อเดิม" };
 }

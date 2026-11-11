@@ -29,7 +29,7 @@ export default function LangPicker(p: { value: string; onChange: (code: string) 
     const all: Row[] = [
       ...LANG_OFTEN.map((lang) => ({ group: "ใช้บ่อย", lang })),
       { group: "ไม่ระบุ", lang: LANG_UND },
-      ...LANG_ALL.map((lang) => ({ group: "ทุกภาษา · เรียงตามชื่ออังกฤษ แบบ MKVToolNix", lang })),
+      ...LANG_ALL.map((lang) => ({ group: "ทุกภาษา เรียงตามชื่ออังกฤษแบบ MKVToolNix", lang })),
     ];
     if (!q.trim()) return all;
     return searchByName(all, q, (r) => `${r.lang[0]} ${r.lang[1]} ${r.lang[2]} ${r.lang[3]}`).items;
@@ -72,7 +72,7 @@ export default function LangPicker(p: { value: string; onChange: (code: string) 
             <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onKey} placeholder="ค้นชื่อไทย ชื่ออังกฤษ หรือรหัส" aria-label="ค้นภาษา" />
           </div>
           <div className="llist" role="listbox" aria-label="ภาษา" style={{ maxHeight: Math.max(100, place.max - 46) }}>
-            {rows.length === 0 && <div className="lnone">ไม่เจอภาษานี้ · ลองพิมพ์ชื่ออังกฤษหรือรหัส 3 ตัว</div>}
+            {rows.length === 0 && <div className="lnone">ไม่เจอภาษานี้ ลองพิมพ์ชื่ออังกฤษหรือรหัส 3 ตัว</div>}
             {rows.map((r, i) => {
               const head = r.group !== lastGroup ? <div className="lgrp" key={"g" + i}>{r.group}</div> : null;
               lastGroup = r.group;

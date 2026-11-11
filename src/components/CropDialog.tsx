@@ -196,11 +196,11 @@ export default function CropDialog(p: {
   // PNG ไม่ลดคุณภาพเป็นข้อดี ไม่ใช่คำเตือน ใช้สีตามโทนของโปรแกรม (BUGS ข้อ 8 · พี่กันเคาะ "เปลี่ยนเป็นสีตามธีมโปรแกรมละกัน")
   const pngCard = <div className="stat tone" style={short ? { minHeight: FORMAT_ROOM } : undefined} data-pngnote><CardIcon kind="ok" /><div><b style={short ? { display: "inline" } : undefined}>PNG ไม่ลดคุณภาพ</b>{render && jpgBytes ? <>{short ? " " : <div />}{render.bytes / jpgBytes >= 1.5 ? <>ใหญ่กว่า JPG ราว {Math.round(render.bytes / jpgBytes)} เท่า</> : "ไฟล์ใหญ่กว่า JPG"}</> : null}</div></div>;
   const name = info.name;
-  const tag = info.attachable ? null : `.${info.ext}→.${format}`;
+  const tag = info.attachable ? null : `.${info.ext} เป็น .${format}`;
   return (
     <Dialog open onClose={p.onCancel} width={1000} title={
       <span style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
-        <span>{p.link ? `ครอปรูปปก · ${p.link.movie}` : "ครอปรูปโปสเตอร์"}</span>
+        <span>{p.link ? `ครอปรูปปกของ ${p.link.movie}` : "ครอปรูปโปสเตอร์"}</span>
         <span className="small" style={{ fontWeight: 400, display: "flex", gap: 12 }}><span>{name}</span><span className="nw">{info.width} × {info.height} px</span><span>{/* พอดีปก บอกเฉพาะช่องปกตั้ง · ช่องปกนอนรูป 2 : 3 ต้องครอปเป็น 16 : 9 อยู่ดี (เจอตอนตรวจภาพ BUGS ข้อ 32) */}{info.aspect === "2 : 3" ? (wideSlot ? "สัดส่วน 2 : 3" : "สัดส่วน 2 : 3 พอดีปก") : info.aspect}</span></span>
       </span>
     } actions={<>
@@ -209,7 +209,7 @@ export default function CropDialog(p: {
       <div style={{ width: `calc(100% - ${SW + 24}px)`, flex: "none", display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }} data-crop-acts>
       <button type="button" className={"btn btn-sm " + (using ? "btn-wait" : "btn-ghost")} aria-disabled={using || undefined} onClick={pickNew} data-new-image><IcPoster size={15} />เลือกรูปใหม่</button>
       <button type="button" className={"btn btn-sm " + (using ? "btn-wait" : "btn-ghost")} aria-disabled={using || undefined} onClick={() => { if (!using) p.onCancel(); }}>ยกเลิก</button>
-      <button type="button" className={"btn btn-sm " + (using ? "btn-wait" : "btn-main")} aria-disabled={using || undefined} onClick={use} data-use><Keep icon={<IbTick size={15} />} all={["กำลังทำรูป…", "ใช้ค่านี้", "ใช้รูปนี้"]}>{using ? "กำลังทำรูป…" : p.link ? "ใช้ค่านี้" : "ใช้รูปนี้"}</Keep></button>
+      <button type="button" className={"btn btn-sm " + (using ? "btn-wait" : "btn-main")} aria-disabled={using || undefined} onClick={use} data-use><Keep icon={<IbTick size={15} />} all={["กำลังทำรูป", "ใช้ค่านี้", "ใช้รูปนี้"]}>{using ? "กำลังทำรูป" : p.link ? "ใช้ค่านี้" : "ใช้รูปนี้"}</Keep></button>
       </div>
     </>}>
       <div style={{ display: "flex", gap: 12, alignItems: "flex-start", height: p.link ? (short ? 450 : 575) : short ? 458 : 622 }} data-crop>
@@ -341,7 +341,7 @@ export default function CropDialog(p: {
             <Seg small label="ไฟล์รูปที่ได้" value={format} onChange={setFormat} options={[{ value: "jpg", label: "JPG" }, { value: "png", label: "PNG" }]} />
           </div>}
           <div className="small" data-size>
-            {render ? <>ได้รูปขนาด <span className="nw">{render.width} × {render.height} px</span> ไฟล์ {format.toUpperCase()} ราว <span className="nw">{fmtSize(render.bytes)}</span>{busy ? " กำลังคิดใหม่…" : ""}</> : "กำลังคิดขนาดไฟล์…"}
+            {render ? <>ได้รูปขนาด <span className="nw">{render.width} × {render.height} px</span> ไฟล์ {format.toUpperCase()} ราว <span className="nw">{fmtSize(render.bytes)}</span>{busy ? " กำลังคิดใหม่" : ""}</> : "กำลังคิดขนาดไฟล์"}
             {!short && <br />}{short ? null : p.link ? "ยังไม่เขียนไฟล์ จำค่าครอปไว้ ทำรูปจริงตอนยืนยัน รูปเดิมในเครื่องไม่ถูกแก้" : tag ? <Phr>{`แนบใน MKV ตรง ๆ ไม่ได้ โปรแกรมแปลงเป็น ${format.toUpperCase()} ให้ รูปเดิมในเครื่องไม่ถูกแก้`}</Phr> : "รูปเดิมในเครื่องไม่ถูกแก้"}
           </div>
           {p.link ? null : format === "jpg" ? (

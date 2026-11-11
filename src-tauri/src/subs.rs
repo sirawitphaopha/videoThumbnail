@@ -217,7 +217,7 @@ pub fn text_of(tools: &Path, work: &Path, path: &Path, in_movie: bool, tid: u64,
         let b = std::fs::read(&out);
         let _ = std::fs::remove_file(&out);
         if !tool_succeeded("mkvextract", &o.status) || b.is_err() {
-            return Err(format!("ดึงซับจากหนังไม่ได้ · {}", String::from_utf8_lossy(&o.stdout).lines().filter(|l| l.contains("Error")).last().unwrap_or("")));
+            return Err(format!("ดึงซับจากหนังไม่ได้  {}", String::from_utf8_lossy(&o.stdout).lines().filter(|l| l.contains("Error")).last().unwrap_or("")));
         }
         b.unwrap()
     } else {
@@ -371,7 +371,7 @@ pub fn images(tools: &Path, work: &Path, path: &Path, ff: u64) -> Result<Vec<Sub
     }).collect();
     if times.is_empty() {
         let _ = std::fs::remove_dir_all(&dir);
-        return Err(format!("ถอดซับรูปไม่ได้ · {}", log.lines().filter(|l| l.contains("rror")).last().unwrap_or("ffmpeg ไม่ได้ภาพ")));
+        return Err(format!("ถอดซับรูปไม่ได้  {}", log.lines().filter(|l| l.contains("rror")).last().unwrap_or("ffmpeg ไม่ได้ภาพ")));
     }
     let mut out: Vec<SubImg> = Vec::new();
     let mut last_sig: Option<(u32, u32, u32, u32, u64)> = None;

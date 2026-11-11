@@ -101,7 +101,7 @@ fn info(tools: &Path, path: &Path, track: &str) -> Result<(BrInfo, String), Stri
         let lay = match ch { 1 => "1.0".to_string(), 2 => "2.0".to_string(), 6 => "5.1".to_string(), 8 => "7.1".to_string(), 0 => String::new(), n => format!("{n} ch") };
         let lang = a["tags"]["language"].as_str().filter(|l| *l != "und").unwrap_or("");
         let parts: Vec<String> = [acodec(a["codec_name"].as_str().unwrap_or("")), lay, lang.to_string()].into_iter().filter(|x| !x.is_empty()).collect();
-        tracks.push(BrTrack { id: format!("a{i}"), label: format!("เสียง {} · {}", i + 1, parts.join(" ")) });
+        tracks.push(BrTrack { id: format!("a{i}"), label: format!("เสียง {} {}", i + 1, parts.join(" ")) });
     }
     let duration = num(&j["format"]["duration"]).or_else(|| num(&v["duration"])).unwrap_or(0.0);
     let audio = kind == "audio";

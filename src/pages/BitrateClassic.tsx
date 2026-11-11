@@ -478,7 +478,7 @@ export default function BitrateClassic({ initialPath = null, initialTrack = null
             {MODES.map((m) => item(m.label, m.key, () => setMode(m.id), { on: mode === m.id, off: audio && m.id !== "sec" }))}
             <div style={hr} />
             {item("Recalculate current file", "F5", () => path && void open(path, mode, true), { off: !path })}
-            {item(running ? "Stop calculation" : "Load file…", "", () => void load())}
+            {item(running ? "Stop calculation" : "Load file", "", () => void load())}
             <div style={hr} />
             {item("Standard scale mode", "Ctrl+A", () => setAuto((v) => !v), { on: !auto })}
             {item("Use fixed colors", "Ctrl+C", () => setGrad((v) => !v), { on: !grad })}
@@ -496,7 +496,7 @@ export default function BitrateClassic({ initialPath = null, initialTrack = null
         <div style={{ flex: 1, minWidth: 0, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={path ?? undefined} data-bv-title>Bitrate Viewer{name ? ` - ${name}` : ""}</div>
         {onModern && <button type="button" className="bv-btn" onClick={() => onModern(path)} title="สลับไปหน้าตาแบบชั้นหนัง ไฟล์นี้ตามไปด้วย" data-bvmodern style={{ flex: "none", height: 22, padding: "0 10px", borderRadius: 2, fontFamily: FONT, fontSize: 12.5, color: "rgb(0,0,0)" }}>แบบชั้นหนัง</button>}
         {/* กว้างเท่าข้อความยาวสุดของไฟล์นี้เสมอ ไม่ซูมก็จองที่ไว้ ปุ่มแบบชั้นหนังไม่ขยับ (BUGS ข้อ 45) */}
-        {path && <div style={{ flex: "none", fontSize: 12, color: "rgb(70,70,70)", visibility: zoom.length > 0 ? "visible" : "hidden" }} data-bv-zoomstat><FixedTime t={`${visCount} / ${S.n} samples · ${hms(span)}`} longest={`${S.n} / ${S.n} samples · ${hms(totalSec)}`} /></div>}
+        {path && <div style={{ flex: "none", fontSize: 12, color: "rgb(70,70,70)", visibility: zoom.length > 0 ? "visible" : "hidden" }} data-bv-zoomstat><FixedTime t={`${visCount} / ${S.n} samples, ${hms(span)}`} longest={`${S.n} / ${S.n} samples, ${hms(totalSec)}`} /></div>}
       </div>
       <div style={{ flex: 1, minHeight: 160, display: "flex", gap: 10 }}>
         <div style={{ width: 66, position: "relative", flex: "none" }} data-bv-axis>
@@ -518,10 +518,10 @@ export default function BitrateClassic({ initialPath = null, initialTrack = null
             <canvas ref={cvRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%", display: "block" }} />
             {sel && <div data-bv-sel style={{ position: "absolute", top: 0, bottom: 0, left: xOf(sel[0]), width: Math.max(1, xOf(sel[1]) - xOf(sel[0])), background: C.sel, borderLeft: `1px solid ${C.selEdge}`, borderRight: `1px solid ${C.selEdge}`, pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center", color: "rgb(150,80,0)", fontWeight: 700 }}>
               {(((sel[1] - sel[0]) / span) * 100).toFixed(1)}%</div>}
-            {path && <div style={{ position: "absolute", left: 10, top: 6, color: C.sample, fontSize: 12, pointerEvents: "none" }} data-bv-sample>sample: {group}{running ? ` · อ่านแล้ว ${readPct}%${mode === "frm" ? " (ถอดภาพ)" : ""}` : ""}</div>}
+            {path && <div style={{ position: "absolute", left: 10, top: 6, color: C.sample, fontSize: 12, pointerEvents: "none" }} data-bv-sample>sample: {group}{running ? ` อ่านแล้ว ${readPct}%${mode === "frm" ? " (ถอดภาพ)" : ""}` : ""}</div>}
             {!path && <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgb(120,120,120)", fontSize: 14 }}>ลากไฟล์วิดีโอหรือไฟล์เสียงมาวางตรงนี้ หรือกด Load</div>}
             {choose && choose.path === path && <div data-bv-choose onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, background: C.win, cursor: "default" }}>
-              <div style={{ marginBottom: 4, fontSize: 13 }}>Select stream · ไฟล์นี้มี {choose.tracks.length} แทร็ก ดูบิตเรตของแทร็กไหน</div>
+              <div style={{ marginBottom: 4, fontSize: 13 }}>Select stream ไฟล์นี้มี {choose.tracks.length} แทร็ก เลือกแทร็กที่จะดูบิตเรต</div>
               {choose.tracks.map((t) => <button key={t.id} type="button" className="bv-btn" onClick={() => void open(path, modeSel, false, t.id)} data-bv-pick={t.id} style={{ ...btn, width: 240, textAlign: "left", padding: "0 10px" }}>{t.label}</button>)}
             </div>}
             {err && <div style={{ position: "absolute", left: 10, bottom: 14, color: C.red }} data-bv-error>{err}</div>}
@@ -541,7 +541,7 @@ export default function BitrateClassic({ initialPath = null, initialTrack = null
             <div style={{ padding: "8px 8px 0", minHeight: 18 }}>{info ? hms(info.duration) : ""}</div>
             {/* บรรทัด ZOOM กับปุ่มรีเซ็ตจองที่ไว้ตลอด ไม่ซูมก็ซ่อนแต่ไม่ดันของข้างล่าง (BUGS ข้อ 45 46) */}
             <div style={{ padding: "2px 8px 0", display: "flex", alignItems: "center", gap: 6, visibility: zoom.length > 0 ? "visible" : "hidden" }} aria-hidden={zoom.length ? undefined : true}>
-              <span style={{ flex: 1, fontSize: 11.5, color: C.zoom, fontWeight: 700, whiteSpace: "nowrap" }} data-bv-zoomflag>ZOOM {zoom.length} · {zoomPct.toFixed(1)}%</span>
+              <span style={{ flex: 1, fontSize: 11.5, color: C.zoom, fontWeight: 700, whiteSpace: "nowrap" }} data-bv-zoomflag>ZOOM {zoom.length} ({zoomPct.toFixed(1)}%)</span>
               <button type="button" className="bv-btn" onClick={() => { setZoom([]); setSel(null); }} disabled={!zoom.length} tabIndex={zoom.length ? 0 : -1} title="กลับไปดูทั้งไฟล์ แบบเดียวกับเมนู Reset zoom" data-bv-reset
                 style={{ flex: "none", height: 20, padding: "0 6px", borderRadius: 2, fontFamily: FONT, fontSize: 11.5, color: "rgb(0,0,0)" }}>Reset</button>
             </div>
@@ -553,7 +553,7 @@ export default function BitrateClassic({ initialPath = null, initialTrack = null
             <div style={head}>Cursor</div>
             <div style={{ padding: "8px 8px 0", minHeight: 18, display: "flex", alignItems: "center", gap: 6 }} data-bv-curtime>
               <span>{cur != null && path ? hms(cur) : ""}</span>
-              {curType && <button type="button" onClick={(e) => jumpI(e.ctrlKey || e.shiftKey)} title="กดไป I เฟรมถัดไป · Ctrl+กด ย้อนไป I เฟรมก่อน" data-bv-ftype className="bv-ft"
+              {curType && <button type="button" onClick={(e) => jumpI(e.ctrlKey || e.shiftKey)} title="กดเพื่อไป I เฟรมถัดไป หรือกด Ctrl ค้างแล้วกดเพื่อย้อนไป I เฟรมก่อนหน้า" data-bv-ftype className="bv-ft"
                 style={{ borderRadius: 2, background: curType === "I" ? C.over : curType === "P" ? C.head2 : "rgb(255,255,255)", fontWeight: 700, fontSize: 11, padding: "0 5px", cursor: "pointer", fontFamily: FONT }}>{curType}</button>}
             </div>
             <div style={{ padding: "12px 8px 0", minHeight: 18, display: "flex" }} data-bv-curval>

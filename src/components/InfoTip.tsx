@@ -8,26 +8,70 @@ import { createPortal } from "react-dom";
 import { visibleTop } from "../lib/popupFit";
 import { ABBR, ABBR_RE, type Tip } from "../lib/codecAdv";
 import { IcClose } from "./icons";
+import { keepNodes, thaiKeep } from "./ui";
 
 /** ตัวขยายตัวย่อ · หนึ่งตัวต่อหนึ่งการ์ดหรือหนึ่งกล่อง ขยายครั้งแรกที่เจอ คำที่ขยายแล้วไม่ขยายซ้ำ (มอคอัป expander) */
 export function abbrer() {
   const seen = new Set<string>();
   return (raw?: string | null): ReactNode => {
     if (!raw) return null;
-    // จุดคั่นติดคำข้างหน้า ไม่ขึ้นต้นบรรทัดใหม่ (เคยเจอบรรทัดขึ้นต้นด้วย · ในแผงแบบง่าย แก้แบบเดียวกัน)
-    const s = raw.replace(/ · /g, " · ");
-    const out: ReactNode[] = [];
-    let last = 0;
-    for (const m of s.matchAll(ABBR_RE)) {
-      const k = m[1];
-      if (seen.has(k)) continue;
-      seen.add(k);
-      const end = (m.index ?? 0) + k.length;
-      out.push(s.slice(last, end), <span key={end} className="ab"> ({ABBR[k]})</span>);
-      last = end;
-    }
-    out.push(s.slice(last));
-    return out;
+    // ตัดบรรทัดได้เฉพาะตรงเว้นวรรค คำไทยไม่ขาดกลางคำ (พี่กันทัก 11 พ.ย. 2569 "เเบ่งบรรทัดอะไรของเธอ")
+    // เว้นวรรคสองช่องในข้อความ = รอยต่อประโยค (แทนจุดคั่น · ที่ห้ามใช้บนจอ) · แต่ละประโยคเป็นก้อน ไม่พอที่ย้ายลงบรรทัดใหม่ทั้งก้อน
+    // ประโยคสั้นยังต่อกันในบรรทัดเดียว ไม่กินที่ (พี่กันทัก "รวมทุกช่อง เเบ่งลงมาทำไม" · ก่อนหน้านี้ตีตกการแยกทุกประโยคเป็นบรรทัด)
+    let k = 0;
+    // แตกเป็นคำตามเว้นวรรค แล้วรวมคำที่ต้องอยู่ด้วยกันเป็นก้อน (span.phr ไม่ตัดกลางก้อน)
+    // · เว้นวรรคหน้า ๆ ไม่ใช่จุดตัด "เรื่อย ๆ" อยู่ด้วยกัน
+    // · ตัวเลขติดกับคำข้างหน้าและข้างหลัง "เสียง 5.1" "ราว 256" "512 kbps"
+    // · คำแรกของคำเต็มในวงเล็บติดกับตัวย่อ "dB (decibel)" ส่วนคำที่เหลือในวงเล็บไหลต่อตามปกติ
+    // (พี่กันทัก 11 พ.ย. 2569 "เเบ่งบรรทัดอะไรของเธอ" "แบ่งเหี้ยไรเนี่ย" · CLAUDE.md ตัดบรรทัดตามความหมาย)
+    type Tok = { w: string; ab?: boolean; bind?: boolean };
+    const isNum = (w: string) => /^[−+≈-]?\d/.test(w);
+    // หน่วยหลังตัวเลข · คำอื่นหลังตัวเลขตัดบรรทัดได้ ไม่งั้นต่อกันยาวเป็นก้อนเดียว
+    const UNIT = /^(kbps|kHz|Hz|ms|dB|LUFS|KB|MB|GB|%|ช่อง|บิต|วินาที|นาที|fps|เท่า|ระดับ)[),]?$/;
+    const toks = (t: string, ab = false): Tok[] => t.split(/(?<!ๆ) +(?!ๆ)/).filter(Boolean).map((w) => ({ w, ab }));
+    const render = (list: Tok[]): ReactNode[] => {
+      const groups: Tok[][] = [];
+      for (const t of list) {
+        const g = groups[groups.length - 1];
+        const prev = g?.[g.length - 1];
+        if (g && (t.bind || isNum(t.w) || (prev && isNum(prev.w) && UNIT.test(t.w)))) g.push(t);
+        else groups.push([t]);
+      }
+      return groups.flatMap((g, i) => {
+        const inner = g.flatMap((t, j) => [j ? " " : "", t.ab ? <span key={k++} className="ab">{t.w}</span> : t.w]);
+        // ล็อกเฉพาะก้อนที่มีหลายคำ (ตัวเลขกับหน่วย "พอ ๆ กัน" ตัวย่อกับวงเล็บ) คำเดี่ยวตัดที่ขอบคำไทยได้ตามปกติ
+        const keep = g.length > 1 || g[0].w.includes(" ");
+        // ล็อกแค่คำที่ติดตัวเลขหรือไม้ยมก ไม่ล็อกทั้งวลีไทย · ก้อนที่มีวงเล็บคำเต็มล็อกทั้งก้อน (สั้น)
+        // คำที่ไม่มีตัวไทย (ตัวอังกฤษ ตัวเลข) เป็นกล่อง ไม่ถูกถ่างตอนกระจายแบบไทย
+        const node = !keep ? (/[฀-๿]/.test(g[0].w) && !g[0].ab ? <span key={k++} className="phr">{thaiKeep(g[0].w, () => k++)}</span> : <span key={k++} className={/[฀-๿]/.test(g[0].w) ? "phr" : "phr keep"}>{inner}</span>)
+          : g.some((t) => t.ab) ? <span key={k++} className="phr keep">{inner}</span>
+          : <span key={k++} className="phr">{keepNodes(g.map((t) => t.w).join(" "), () => k++)}</span>;
+        return i ? [" ", node] : [node];
+      });
+    };
+    const clause = (s: string, wrap: boolean): ReactNode => {
+      const list: Tok[] = [];
+      let last = 0;
+      for (const m of s.matchAll(ABBR_RE)) {
+        const a = m[1];
+        if (seen.has(a)) continue;
+        seen.add(a);
+        const end = (m.index ?? 0) + a.length;
+        list.push(...toks(s.slice(last, end)));
+        const ex = toks(`(${ABBR[a]})`, true);
+        // ตัดบรรทัดระหว่างตัวย่อกับวงเล็บได้ ผูกไว้แล้วก้อนใหญ่ย้ายลงทั้งก้อน บรรทัดบนเหลือช่อง กระจายแล้วถ่าง (พี่กันส่งภาพกล่อง TAK 11 พ.ย. 2569)
+        list.push(...ex);
+        last = end;
+      }
+      list.push(...toks(s.slice(last)));
+      const out = render(list);
+      // ประโยคเดียวไม่ห่อเป็นก้อน หน้าตาเหมือนเดิม
+      return wrap ? <span key={k++} className="clause">{out}</span> : <span key={k++}>{out}</span>;
+    };
+    return raw.split("\n").flatMap((line, i): ReactNode[] => {
+      const cs = line.split(/ {2,}/);
+      return [...(i ? [<br key={k++} />] : []), ...cs.flatMap((c, j): ReactNode[] => (j ? [" ", clause(c, cs.length > 1)] : [clause(c, cs.length > 1)]))];
+    });
   };
 }
 

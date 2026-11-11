@@ -84,7 +84,7 @@ export default function LinkPage() {
   const hoverRow = useCallback((x: number, y: number) => {
     const id = rowAt(x, y);
     const imgs = dragPaths.current.filter(isImagePath);
-    const next = id ? { id, names: imgs.map(baseName).join(" · "), bad: dragPaths.current.length > 0 && imgs.length === 0 } : null;
+    const next = id ? { id, names: imgs.map(baseName).join(", "), bad: dragPaths.current.length > 0 && imgs.length === 0 } : null;
     const cur = getLinkJob().overRow;
     if (cur?.id !== next?.id || cur?.names !== next?.names || cur?.bad !== next?.bad) setLinkJob({ overRow: next });
   }, []);
@@ -99,7 +99,7 @@ export default function LinkPage() {
       const imgs = paths.filter(isImagePath);
       try {
         setReply(await linkApi.pair(id, imgs.length ? imgs : paths, "explorer"));
-        if (imgs.length && imgs.length < paths.length) toast({ kind: "info", title: "ข้ามไฟล์ที่ไม่ใช่รูป", detail: paths.filter((p) => !isImagePath(p)).map(baseName).join(" · ") });
+        if (imgs.length && imgs.length < paths.length) toast({ kind: "info", title: "ข้ามไฟล์ที่ไม่ใช่รูป", detail: paths.filter((p) => !isImagePath(p)).map(baseName).join(", ") });
       } catch (e) { toast({ kind: "bad", title: "ใช้ไฟล์นี้ไม่ได้", detail: String(e) }); }
       return;
     }
@@ -143,7 +143,7 @@ export default function LinkPage() {
           <div className={"drop" + (over ? " over" : badDrop ? " bad" : "")} style={{ minHeight: 130 }} data-link-drop onClick={dropClick(async () => { const d = await pickFolder("เลือกโฟลเดอร์รูป"); if (d) addPaths([d]); })}>
             {over ? <b>ปล่อยเมาส์เพื่อเพิ่มรูป</b>
               : badDrop ? <><b><Phr>{badDrop}</Phr></b></>
-              : <><b style={{ color: "var(--txt2)" }}>ลากโฟลเดอร์รูป หรือรูปหลายรูปมาวางตรงนี้</b><div>JPG PNG WebP BMP TIFF HEIC · รูปในโฟลเดอร์ย่อยอ่านด้วย · รูปต้นฉบับไม่ถูกแก้</div></>}
+              : <><b style={{ color: "var(--txt2)" }}>ลากโฟลเดอร์รูป หรือรูปหลายรูปมาวางตรงนี้</b><div><Phr>รับ JPG PNG WebP BMP TIFF และ HEIC รวมถึงรูปในโฟลเดอร์ย่อย โดยรูปต้นฉบับไม่ถูกแก้</Phr></div></>}
             <div className="row8" style={{ justifyContent: "center" }}>
               <button type="button" className="btn btn-ghost btn-sm" data-link-pick onClick={async () => { const d = await pickFolder("เลือกโฟลเดอร์รูป"); if (d) addPaths([d]); }}><IcFolder size={15} />เลือกโฟลเดอร์</button>
               <button type="button" className="btn btn-ghost btn-sm" onClick={async () => { const f = await pickFile("image"); if (f) addPaths([f]); }}><IcPoster size={15} />เลือกรูป</button>
@@ -163,15 +163,15 @@ export default function LinkPage() {
           <div className="row8">
             <Seg small label="ขอบเขต" value={reply.scope} disabledReason={reading ? "กำลังอ่านรูปอยู่ รอให้เสร็จก่อน" : undefined} onChange={(v) => { setReply({ ...reply, scope: v }); if (reply.imageFolders.length + reply.loose.length) runAuto(v); }}
               options={[{ value: "nocover", label: `เฉพาะเรื่องที่ยังไม่มีปก ${COUNT(nocover)}` }, { value: "all", label: `ทุกเรื่องบนชั้นวาง ${COUNT(movies.length)}` }]} />
-            <span className="small">เรื่องที่มีปกในไฟล์อยู่แล้ว ข้ามให้ · เปลี่ยนเป็นทุกเรื่องถ้าจะเปลี่ยนปกด้วย</span>
+            <span className="small"><Phr>เรื่องที่มีปกในไฟล์อยู่แล้วจะข้ามให้ ถ้าจะเปลี่ยนปกด้วยให้เลือกทุกเรื่อง</Phr></span>
           </div>
         </div>
         {/* การ์ดสรุปอยู่ที่เดิมระหว่างอ่านใหม่ ไม่หายแล้วกลับมา หน้าจึงไม่ขยับ · ขึ้นการ์ดกำลังอ่านเฉพาะรอบแรก */}
-        {reading && !summary && <div className="stat info" data-link-reading><CardIcon kind="info" /><div><b>กำลังอ่านรูปและเทียบชื่อ…</b></div></div>}
+        {reading && !summary && <div className="stat info" data-link-reading><CardIcon kind="info" /><div><b>กำลังอ่านรูปและเทียบชื่อ</b></div></div>}
         {summary && (
           <div className="stat ok" data-link-summary><CardIcon kind="ok" /><div>
-            <b>อ่านรูป <span className="nw">{COUNT(summary.images)} รูป</span> · จับคู่ได้แน่ <span className="nw">{COUNT(summary.sure)} คู่</span> · ไม่แน่ใจ <span className="nw">{COUNT(summary.unsure)}</span> · หาคู่ไม่เจอ <span className="nw">{COUNT(summary.none)}</span></b>
-            รูปแนวตั้ง <span className="nw">{COUNT(summary.tall)} รูป</span> ใช้เป็นปกตั้ง · รูปแนวนอน <span className="nw">{COUNT(summary.wide)} รูป</span> ใช้เป็นปกนอน และครอปเป็นปกตั้งได้ · ใช้เวลา <span className="nw">{summarySec} วินาที</span>
+            <b>อ่านรูป <span className="nw">{COUNT(summary.images)} รูป</span> จับคู่ได้แน่ <span className="nw">{COUNT(summary.sure)} คู่</span> ไม่แน่ใจ <span className="nw">{COUNT(summary.unsure)} เรื่อง</span> และหาคู่ไม่เจอ <span className="nw">{COUNT(summary.none)} เรื่อง</span></b>
+            รูปแนวตั้ง <span className="nw">{COUNT(summary.tall)} รูป</span> ใช้เป็นปกตั้ง ส่วนรูปแนวนอน <span className="nw">{COUNT(summary.wide)} รูป</span> ใช้เป็นปกนอนและครอปเป็นปกตั้งได้ ใช้เวลา <span className="nw">{summarySec} วินาที</span>
           </div></div>
         )}
         <div className="linkfoot">
@@ -260,9 +260,9 @@ function ReviewTable() {
       return;
     }
     await reloadImages();
-    if (r.failed) toast({ kind: "warn", title: `ยืนยันแล้ว ${COUNT(r.done)} คู่ · ไม่สำเร็จ ${COUNT(r.failed)} คู่`, detail: "แถวที่ไม่สำเร็จยังอยู่ในตารางพร้อมเหตุผล" });
-    else if (r.stopped) toast({ kind: "info", title: `หยุดแล้ว · ยืนยันไป ${COUNT(r.done)} คู่`, detail: "คู่ที่เหลือยังรอยืนยันอยู่" });
-    else if (r.done) toast({ kind: "ok", title: `ยืนยันแล้ว ${COUNT(r.done)} คู่ · ปกขึ้นชั้นวางแล้ว` });
+    if (r.failed) toast({ kind: "warn", title: `ยืนยันแล้ว ${COUNT(r.done)} คู่ และไม่สำเร็จ ${COUNT(r.failed)} คู่`, detail: "แถวที่ไม่สำเร็จยังอยู่ในตารางพร้อมเหตุผล" });
+    else if (r.stopped) toast({ kind: "info", title: `หยุดแล้ว ยืนยันไป ${COUNT(r.done)} คู่`, detail: "คู่ที่เหลือยังรอยืนยันอยู่" });
+    else if (r.done) toast({ kind: "ok", title: `ยืนยันแล้ว ${COUNT(r.done)} คู่ และปกขึ้นชั้นวางแล้ว` });
     r.notes.forEach((n) => toast({ kind: "warn", title: "มีไฟล์ที่ไม่ได้ลบ", detail: n }));
   };
 
@@ -307,12 +307,12 @@ function ReviewTable() {
       <div className="linkfoot" data-link-foot>
         {working ? (
           <div style={{ flex: 1, minWidth: 0 }} data-link-progress>
-            <div className="small" style={{ marginBottom: 4 }}>กำลังยืนยัน{run.progress?.title ? ` · ${run.progress.title}` : ""}{run.progress ? <> · <span className="nw">{COUNT(run.progress.done)} จาก {COUNT(run.progress.total)} คู่</span></> : null}</div>
+            <div className="small" style={{ marginBottom: 4 }}>กำลังยืนยัน{run.progress?.title ? ` ${run.progress.title}` : ""}{run.progress ? <> <span className="nw">({COUNT(run.progress.done)} จาก {COUNT(run.progress.total)} คู่)</span></> : null}</div>
             <div className="bar"><i style={{ width: `${run.progress ? (run.progress.done / Math.max(1, run.progress.total)) * 100 : 0}%` }} /></div>
           </div>
         ) : (
           <span className="small" style={{ flex: 1, minWidth: 0 }} title="รูปต้นฉบับไม่ถูกแก้ ไฟล์หนังไม่ถูกแตะ" data-link-count>
-            บันทึกแล้ว <span className="nw">{COUNT(counts.saved)} คู่</span> · รอยืนยัน <span className="nw">{COUNT(waitingRows.length)} คู่</span> ติ๊กไว้ <span className="nw">{COUNT(ticked)} คู่</span> · ปิดแล้วมาทำต่อได้
+            บันทึกแล้ว <span className="nw">{COUNT(counts.saved)} คู่</span> รอยืนยัน <span className="nw">{COUNT(waitingRows.length)} คู่</span> และติ๊กไว้ <span className="nw">{COUNT(ticked)} คู่</span> ปิดโปรแกรมแล้วกลับมาทำต่อได้
           </span>
         )}
         <span className="row8" style={{ flexWrap: "nowrap" }}>
@@ -388,7 +388,7 @@ function RowView(p: {
               onClick={() => { if (has && !p.busy) p.onTick(!r.ticked); }}>{r.ticked && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="4"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>}</button>}
       </div>
       <div className="lpick">
-        {p.coverThumb ? <HoverBig src={thumbUrl(p.coverThumb)} name={"ปกที่มีอยู่ · " + r.title}><img className="lthumb" src={thumbUrl(p.coverThumb) ?? undefined} alt="ปกที่เรื่องนี้มีอยู่" loading="lazy" draggable={false} /></HoverBig> : <span className="lthumb none">ไม่มีปก</span>}
+        {p.coverThumb ? <HoverBig src={thumbUrl(p.coverThumb)} name={"ปกที่มีอยู่ของ " + r.title}><img className="lthumb" src={thumbUrl(p.coverThumb) ?? undefined} alt="ปกที่เรื่องนี้มีอยู่" loading="lazy" draggable={false} /></HoverBig> : <span className="lthumb none">ไม่มีปก</span>}
         <div className="lname"><b>{r.title}</b><span className="fn" title={r.movie}>{baseName(r.movie)}</span></div>
       </div>
       <div className="larrow" aria-hidden="true">→</div>
@@ -399,7 +399,7 @@ function RowView(p: {
             {second && <Thumb p={second} wide />}
             <div className="lname">
               <span className="fn" title={main!.path}>{main!.name}</span>
-              <span className="small">{main!.folder ? <span title={main!.folder}>{main!.folder} · </span> : null}<span className="nw">{main!.width} × {main!.height}</span> · {r.tall && !r.derivedTall ? "ปกตั้ง" : "ปกนอน"}{second ? " · มีปกนอนด้วย" : ""}</span>
+              <span className="small">{main!.folder ? <span title={main!.folder}>{main!.folder} </span> : null}<span className="nw">{main!.width} × {main!.height}</span> เป็น{r.tall && !r.derivedTall ? "ปกตั้ง" : "ปกนอน"}{second ? " และมีปกนอนด้วย" : ""}</span>
               {(r.tall?.geo || r.wide?.geo) && !r.derivedTall && <span className="small" data-link-cropped>ครอปแล้ว</span>}
               {r.candidates.length > 0 && !saved && candThumbs}
             </div>
@@ -408,7 +408,7 @@ function RowView(p: {
         {!has && r.candidates.length > 0 && !saved && (
           <div className="lpick">{candThumbs}<div className="small" style={{ color: "var(--warn-ink)" }}>ชื่อใกล้เคียง {r.candidates.length} รูป กดรูปที่ใช่</div></div>
         )}
-        {!has && r.candidates.length === 0 && <span className="small" style={{ color: "var(--bad-ink)" }}>ไม่มีรูปชื่อใกล้เคียง · <button type="button" className="addbtn" style={{ color: "inherit" }} data-link-row-board onClick={g(p.onBoard)}>ไปจับคู่เองที่กระดาน</button> หรือลากรูปมาวางบนแถวนี้</span>}
+        {!has && r.candidates.length === 0 && <span className="small" style={{ color: "var(--bad-ink)" }}>ไม่มีรูปชื่อใกล้เคียง <button type="button" className="addbtn" style={{ color: "inherit" }} data-link-row-board onClick={g(p.onBoard)}>ไปจับคู่เองที่กระดาน</button> หรือลากรูปมาวางบนแถวนี้</span>}
         {p.over && <div className={"hint" + (p.over.bad ? " e" : "")} style={{ marginTop: 6 }} data-link-over>{p.over.bad ? "ไฟล์นี้ไม่ใช่รูป ไม่รับ" : `ปล่อยเมาส์ ใช้รูป ${p.over.names}`}</div>}
         {r.error && (
           <div className="hint e" role="alert" style={{ marginTop: 6 }} data-link-error>{r.error}

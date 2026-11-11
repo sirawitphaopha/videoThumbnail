@@ -271,8 +271,8 @@ fn flv(f: &mut File, size: u64) -> std::io::Result<Structure> {
 
 fn truncated_text(missing: Option<u64>) -> String {
     match missing {
-        Some(n) => format!("ไฟล์ขาดท้าย หายไปราว {} จากขนาดที่หัวไฟล์บอก · ไฟล์น่าจะโหลดมาไม่ครบ", human(n)),
-        None => "ไฟล์ขาดท้าย ท้ายไฟล์ไม่ครบ · ไฟล์น่าจะโหลดมาไม่ครบ".into(),
+        Some(n) => format!("ไฟล์ขาดท้าย หายไปราว {} จากขนาดที่หัวไฟล์บอก  ไฟล์น่าจะโหลดมาไม่ครบ", human(n)),
+        None => "ไฟล์ขาดท้ายเพราะท้ายไฟล์ไม่ครบ  ไฟล์น่าจะโหลดมาไม่ครบ".into(),
     }
 }
 
@@ -310,7 +310,7 @@ pub fn quick(path: &Path, stored: Option<&str>, on: &dyn Fn(f64), stop: &dyn Fn(
         _ => {}
     }
     let Some(h) = sha256(path, on, stop)? else { return Ok(None) };
-    let note = if let Structure::Unknown(w) = s { format!(" · {w}") } else { String::new() };
+    let note = if let Structure::Unknown(w) = s { format!("  {w}") } else { String::new() };
     Ok(Some(match stored {
         Some(old) if !old.eq_ignore_ascii_case(&h) => Outcome {
             result: "changed",
@@ -448,7 +448,7 @@ fn rough_pass(tools: &Path, path: &Path, total: Option<f64>, on: &dyn Fn(f64), s
     let (rough, tail) = std::mem::take(&mut *state.lock().unwrap());
     if !rough.progressed || (rough.last <= 0.0 && !crate::tools::tool_succeeded("ffmpeg", &status)) {
         let why = tail.back().cloned().unwrap_or_else(|| format!("รหัส {}", crate::tools::exit_text(&status)));
-        return Err(format!("ffmpeg อ่านภาพเสียงในไฟล์ไม่ได้เลย · {why}"));
+        return Err(format!("ffmpeg อ่านภาพเสียงในไฟล์ไม่ได้เลย  {why}"));
     }
     Ok(Some(rough))
 }
@@ -530,9 +530,9 @@ pub fn deep(tools: &Path, path: &Path, length: Option<f64>, on: &dyn Fn(f64), st
                 } else {
                     format!("{}เสียช่วงนาที {} ถึง {}", spot_kind(sp), fmt_time(sp.start), fmt_time(sp.end))
                 };
-                if t { format!("{at} · และไฟล์ขาดท้าย") } else { at }
+                if t { format!("{at} และไฟล์ขาดท้าย") } else { at }
             }
-            (n, t) => format!("เสีย {n} ช่วง ช่วงแรกที่นาที {}{}", fmt_time(spots[0].start), if t { " · และไฟล์ขาดท้าย" } else { "" }),
+            (n, t) => format!("เสีย {n} ช่วง ช่วงแรกที่นาที {}{}", fmt_time(spots[0].start), if t { " และไฟล์ขาดท้าย" } else { "" }),
         };
         return Ok(Some(bad(summary, spans)));
     }
@@ -747,7 +747,7 @@ pub fn player_for(app: &AppHandle, file: &Path) -> Result<Option<PathBuf>, Strin
     } else if Path::new(&set).exists() {
         Ok(Some(PathBuf::from(&set)))
     } else {
-        Err(format!("หาโปรแกรมเล่นหนัง {set} ไม่เจอ · ตั้งใหม่ได้ที่หน้าตั้งค่า"))
+        Err(format!("หาโปรแกรมเล่นหนัง {set} ไม่เจอ  ตั้งใหม่ได้ที่หน้าตั้งค่า"))
     }
 }
 

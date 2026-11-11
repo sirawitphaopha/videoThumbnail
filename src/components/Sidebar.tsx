@@ -31,13 +31,13 @@ export default function Sidebar({ page, onPage, collapsed, onToggle, shelfCount,
     // หน้าจับคู่ปก ต่อจากใส่โปสเตอร์ (พี่กันเคาะ *"แยกหน้า"* · มอคอัป docs/mockups/poster-link.html)
     {
       id: "link", label: "จับคู่ปก", icon: <IcLink />, count: linkCount || undefined,
-      tip: linkCount ? `จับคู่ปก · รอยืนยัน ${linkCount} คู่` : undefined,
+      tip: linkCount ? `จับคู่ปก มีคู่รอยืนยัน ${linkCount} คู่` : undefined,
     },
     // หน้าเสียงและซับ ต่อจากใส่โปสเตอร์ (มอคอัป docs/mockups/audio-merge.html · แผนเสียงและซับ ขั้น 2)
     { id: "av", label: "เสียงและซับ", icon: <IcMix /> },
     {
       id: "check", label: "ตรวจไฟล์", icon: <IcCheck />, count: checkCount || undefined,
-      tip: checkCount ? `ตรวจไฟล์ · มี ${checkCount} เรื่องที่ควรตรวจ` : undefined,
+      tip: checkCount ? `ตรวจไฟล์ มี ${checkCount} เรื่องที่ควรตรวจ` : undefined,
     },
     { id: "graph", label: "กราฟเสียง", icon: <IcGraph /> },
     // หน้าบิตเรตวิดีโอแบบ Bitrate Viewer (พี่กันสั่ง 9 พ.ย. 2569 "เอาใส่สักหน้านึงในโปรแกรมก่อน ค่อยย้าย")

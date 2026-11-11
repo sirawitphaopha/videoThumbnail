@@ -26,12 +26,13 @@ import { dropStyle, useDropPlacement } from "../lib/popupFit";
 import { useClickOutside, useEscClose, kb } from "../lib/popup";
 import { useSkelPreview } from "../lib/skelPreview";
 import HoverBig from "../components/HoverBig";
+import { usePageActive } from "../lib/pageActive";
 import { ftLook } from "../lib/ftypes";
 import { IcSearch, IbTrash, IbNext, IcRefresh, IcCheck, IbPencil, IcMix, IcClose, IbEye, IbPlay, IcPoster, IbCrop, IcSettings } from "../components/icons";
 
 const SORTS = [
-  { value: "name-asc", label: "ชื่อ ก–ฮ" },
-  { value: "name-desc", label: "ชื่อ ฮ–ก" },
+  { value: "name-asc", label: "ชื่อ ก ถึง ฮ" },
+  { value: "name-desc", label: "ชื่อ ฮ ถึง ก" },
   { value: "year", label: "ปีที่ออกฉาย ใหม่ไปเก่า" },
   { value: "added", label: "เพิ่มเข้าชั้นล่าสุด" },
   { value: "size", label: "ขนาดไฟล์ ใหญ่ไปเล็ก" },
@@ -70,7 +71,7 @@ export function sortMovies(list: Movie[], key: string, reminder: number): Movie[
 }
 
 const tracks = (t: Movie["audio"], withLayout: boolean) =>
-  t.map((x) => [x.lang, x.codec, withLayout ? x.layout : null].filter(Boolean).join(" ")).join(" · ");
+  t.map((x) => [x.lang, x.codec, withLayout ? x.layout : null].filter(Boolean).join(" ")).join(", ");
 
 /** ชื่อหนังพร้อมไฮไลต์คำที่ค้น · ตัดบรรทัดตรงเว้นวรรค (ui.tsx Phrases) · tail ต่อท้ายวลีสุดท้ายไม่แยกบรรทัด */
 function Hl({ text, used, head, tail }: { text: string; used: string; head?: React.ReactNode; tail?: React.ReactNode }) {
@@ -177,8 +178,8 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
           )}
           {scanning && (
             <div className="hint" style={{ marginTop: 2 }}>
-              กำลังอ่าน {pathText} · ปกขึ้นทีละเรื่องเมื่ออ่านเสร็จ
-              {progress && progress.total > 0 && <> · อ่านแล้ว <span className="nw">{progress.done} จาก {progress.total} เรื่อง</span></>}
+              กำลังอ่าน {pathText} ปกจะขึ้นทีละเรื่องเมื่ออ่านเสร็จ
+              {progress && progress.total > 0 && <> อ่านแล้ว <span className="nw">{progress.done} จาก {progress.total} เรื่อง</span></>}
             </div>
           )}
           {missingFolders.map((f) => (
@@ -450,7 +451,7 @@ function Book(p: { m: Movie; width: number; sel: boolean; onSel: (id: string) =>
       className={"book" + (wide ? " wide" : "") + (p.sel ? " sel" : "") + (m.missing ? " missing" : "")}
       style={wide ? { width: p.width } : undefined}
       title={[full, m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : ""].filter(Boolean).join("\n") || undefined}
-      aria-label={full + " · " + SHELF_LABEL[k] + (m.shownLink ? " · ปกจับคู่" : "") + (m.missing ? " · หาไฟล์ไม่เจอ" : "")}
+      aria-label={full + ", " + SHELF_LABEL[k] + (m.shownLink ? ", ปกจับคู่" : "") + (m.missing ? ", หาไฟล์ไม่เจอ" : "")}
       aria-pressed={p.sel}
       data-movie={m.name}
       {...kb(() => p.onSel(m.id))}
@@ -497,7 +498,7 @@ type Col = "name" | "size" | "video" | "audio" | "subs" | "status";
 function NoCoverTh({ m, on }: { m: Movie; on: boolean }) {
   const frame = useMovieFrame(m, on);
   const url = frame.url ? thumbUrl(frame.url) : null;
-  return url ? <HoverBig src={url} ratio={16 / 9} name={m.name + " · ภาพจากหนัง ยังไม่ใช่ปก"}><img className="th" src={url} alt="" title="ภาพจากหนัง ยังไม่ใช่ปก" data-frame /></HoverBig> : <span ref={frame.ref} className="th none" />;
+  return url ? <HoverBig src={url} ratio={16 / 9} name={m.name + " (ภาพจากหนัง ยังไม่ใช่ปก)"}><img className="th" src={url} alt="" title="ภาพจากหนัง ยังไม่ใช่ปก" data-frame /></HoverBig> : <span ref={frame.ref} className="th none" />;
 }
 
 /** ป้าย ภาษา ชนิด แชนแนล · สีตามชนิด */
@@ -545,7 +546,7 @@ function ChipRow({ items }: { items: Chip[] }) {
     ro.observe(el);
     return () => ro.disconnect();
   }, [key]);
-  if (!items.length) return <>—</>;
+  if (!items.length) return <>ไม่มี</>;
   return (
     <div ref={ref} className="lvchips">
       {items.map((c, i) => { const look = ftLook(c.ft); return <span key={i} className={look.className + " lvchip"} style={look.style}>{c.text}</span>; })}
@@ -646,7 +647,7 @@ function Detail(p: { m: Movie; showFrames: boolean; scanning: boolean; reminder:
         <div className="fname">
           <div className="nm"><Hl text={m.name} used="" tail={<span className="ext">.{m.ext}</span>} /></div>
           <button type="button" className={"icon-btn" + (renameBlock ? " off" : "")} aria-label="เปลี่ยนชื่อไฟล์" aria-disabled={!!renameBlock || undefined}
-            title={renameBlock ? "เปลี่ยนชื่อไม่ได้ · " + renameBlock : "เปลี่ยนชื่อไฟล์"} onClick={startRename}>
+            title={renameBlock ? "เปลี่ยนชื่อไม่ได้ " + renameBlock : "เปลี่ยนชื่อไฟล์"} onClick={startRename}>
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><path d="M4 20h4L19 9l-4-4L4 16z" /><path d="M14 6l4 4" /></svg>
           </button>
         </div>
@@ -660,7 +661,7 @@ function Detail(p: { m: Movie; showFrames: boolean; scanning: boolean; reminder:
       <dl className="kv">
         <dt>File size</dt><dd><span className="nw">{fmtSize(m.size)}</span></dd>
         <dt>Duration</dt><dd><span className="nw">{fmtDuration(m.duration)}</span></dd>
-        <dt>Video</dt><dd>{m.video ?? "—"}</dd>
+        <dt>Video</dt><dd>{m.video?.replace(" · ", " ") ?? "ไม่ทราบ"}</dd>{/* คลังที่อ่านก่อน 11 พ.ย. 2569 เก็บแบบมีจุดคั่น */}
         <dt>Audio</dt><dd>{tracks(m.audio, true) || "ไม่มี"}</dd>
         <dt>Subtitle</dt><dd>{tracks(m.subs, false) || "ไม่มี"}</dd>
         <dt>Attachment</dt><dd>{m.images ? `${m.hasCover ? "โปสเตอร์" : "รูป"} ${m.images} รูป` : "ไม่มี"}</dd>
@@ -675,7 +676,7 @@ function Detail(p: { m: Movie; showFrames: boolean; scanning: boolean; reminder:
           <button type="button" className="btn btn-main" onClick={p.onPlay}><PlayIcon />เปิดเล่น</button>
         )}
         <button type="button" className={"btn " + (renameBlock ? "btn-wait" : "btn-ghost")} aria-disabled={!!renameBlock || undefined}
-          title={renameBlock ? "เปลี่ยนชื่อไม่ได้ · " + renameBlock : undefined} onClick={startRename}><IbPencil size={15} />เปลี่ยนชื่อ</button>
+          title={renameBlock ? "เปลี่ยนชื่อไม่ได้ " + renameBlock : undefined} onClick={startRename}><IbPencil size={15} />เปลี่ยนชื่อ</button>
         <button type="button" className={"btn " + (m.missing ? "btn-wait" : "btn-ghost")} aria-disabled={m.missing || undefined}
           title={m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : undefined} onClick={() => { if (!m.missing) p.onPoster(m.path); }}><IcPoster size={15} />เปลี่ยนโปสเตอร์</button>
         <button type="button" className="btn btn-ghost" onClick={() => p.onCheck({ ids: [m.id] })}><IcCheck size={15} />ตรวจไฟล์</button>
@@ -775,7 +776,7 @@ function LinkCard({ m, onPage, onMerge }: { m: Movie; onPage: (pg: Page) => void
       <div className="stat info" style={{ marginTop: 0 }}><span style={{ flex: "none", marginTop: 1 }}><IcLink size={16} /></span><div>
         {/* สั้นสองบรรทัด รายละเอียดเต็มอยู่ตอนชี้ (พี่กันทัก 10 พ.ย. 2569 "ต้องเขียนอธิบายเยอะขนาดนี้เลยเหรอ") */}
         <b>{m.shownLink ? "ปกจับคู่ ไม่ได้อยู่ในไฟล์" : "มีปกจับคู่ด้วย ตอนนี้แสดงปกในไฟล์"}</b>
-        <div style={{ overflowWrap: "anywhere" }} data-link-where title={`จากรูป ${baseName(c.source)}${c.cropped ? " · ครอปแล้ว" : ""}
+        <div style={{ overflowWrap: "anywhere" }} data-link-where title={`จากรูป ${baseName(c.source)}${c.cropped ? " และครอปแล้ว" : ""}
 ${whereAll(c)}
 ไอคอนไฟล์ใน Windows ไม่เปลี่ยน เพราะ Icaros อ่านปกจากในไฟล์`}>{whereShort(c)}</div>
       </div></div>
@@ -799,12 +800,12 @@ ${whereAll(c)}
       <Dialog open={ask} onClose={() => { if (!busy) setAsk(false); }} kind="work" confirm title={<>เอาปกจับคู่ของ {m.name} ออก</>}
         actions={<>
           <button type="button" className="btn btn-ghost" onClick={() => { if (!busy) setAsk(false); }}>ไม่เอาออก</button>
-          <button type="button" className={"btn " + (busy ? "btn-wait" : "btn-bad")} aria-disabled={busy || undefined} data-link-remove-ok onClick={remove}><Keep icon={<IbTrash size={15} />} all={["กำลังเอาออก…", "เอาปกออก"]}>{busy ? "กำลังเอาออก…" : "เอาปกออก"}</Keep></button>
+          <button type="button" className={"btn " + (busy ? "btn-wait" : "btn-bad")} aria-disabled={busy || undefined} data-link-remove-ok onClick={remove}><Keep icon={<IbTrash size={15} />} all={["กำลังเอาออก", "เอาปกออก"]}>{busy ? "กำลังเอาออก" : "เอาปกออก"}</Keep></button>
         </>}>
         <div className="small" style={{ fontSize: 14, color: "var(--txt2)" }}>
-          {trash.length > 0 && <div style={{ overflowWrap: "anywhere" }}>รูปที่โปรแกรมคัดลอกไว้ {trash.join(" · ")} ย้ายลงถังขยะ กู้คืนได้</div>}
+          {trash.length > 0 && <div style={{ overflowWrap: "anywhere" }}>รูปที่โปรแกรมคัดลอกไว้ {trash.join(", ")} ย้ายลงถังขยะแล้ว กู้คืนได้</div>}
           {hasApp && <div>สำเนาในโปรแกรมย้ายลงถังขยะ กู้คืนได้</div>}
-          <div>รูปต้นฉบับกับไฟล์หนังไม่ถูกแตะ · ไฟล์ที่โปรแกรมไม่ได้ทำไม่ถูกลบ</div>
+          <div>รูปต้นฉบับและไฟล์หนังไม่ถูกแตะ ส่วนไฟล์ที่โปรแกรมไม่ได้สร้างจะไม่ถูกลบ</div>
         </div>
       </Dialog>
     </div>
@@ -817,13 +818,19 @@ function PairCard({ m, onEdit }: { m: Movie; onEdit: () => void }) {
   const [found, setFound] = useState<boolean[] | null>(null);
   const [res, setRes] = useState<{ ok?: PairPlay; err?: string } | null>(null);
   const key = pairs.map((x) => x.path).join("|");
-  useEffect(() => { let live = true; setFound(null); pairApi.check(pairs.map((x) => x.path)).then((f) => { if (live) setFound(f); }, () => {}); return () => { live = false; }; }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
+  // เช็กใหม่ทุกครั้งที่กลับมาหน้าชั้นวาง และตอนกลับมาที่หน้าต่างโปรแกรม · ชุด 2 เก็บหน้าไว้ไม่ถอดทิ้ง ผลเช็กเลยค้างค่าเก่า
+  // ย้ายไฟล์ที่จับคู่ออกแล้วการ์ดยังบอกเจอไฟล์ (เจอตอนรัน check-av 11 พ.ย. 2569) · ผลเดิมแสดงไว้ระหว่างเช็ก ไม่ขึ้นโครงจางซ้ำ
+  const active = usePageActive();
+  const [focusTick, setFocusTick] = useState(0);
+  useEffect(() => { const f = () => setFocusTick((n) => n + 1); window.addEventListener("focus", f); return () => window.removeEventListener("focus", f); }, []);
+  useEffect(() => { setFound(null); }, [key]);
+  useEffect(() => { if (!active) return; let live = true; pairApi.check(pairs.map((x) => x.path)).then((f) => { if (live) setFound(f); }, () => {}); return () => { live = false; }; }, [key, active, focusTick]); // eslint-disable-line react-hooks/exhaustive-deps
   const save = (next: Pair[]) => pairApi.set(m.path, next).catch((e) => setRes({ err: String(e) }));
   const relink = async (i: number) => {
     const f = await pickAddFiles();
     if (f[0]) save(pairs.map((x, j) => (j === i ? { ...x, path: f[0] } : x)));
   };
-  const label = (x: Pair) => [x.kind === "audio" ? `เสียง${x.lang ? " " + langName(x.lang) : ""}` : `ซับ${x.lang ? langName(x.lang) : ""}`, x.name, x.delay ? `ดีเลย์ ${x.delay > 0 ? "+" : "−"}${Math.abs(x.delay).toLocaleString("en-US")} ms` : ""].filter(Boolean).join(" · ");
+  const label = (x: Pair) => [x.kind === "audio" ? `เสียง${x.lang ? " " + langName(x.lang) : ""}` : `ซับ${x.lang ? langName(x.lang) : ""}`, x.name, x.delay ? `ดีเลย์ ${x.delay > 0 ? "+" : "−"}${Math.abs(x.delay).toLocaleString("en-US")} ms` : ""].filter(Boolean).join(", ");
   const missing = found ? found.filter((f) => !f).length : 0;
   return (
     <div className="paircard" data-pairs>
@@ -840,17 +847,17 @@ function PairCard({ m, onEdit }: { m: Movie; onEdit: () => void }) {
           {found ? <span className={"tpill " + (found[i] ? "ok" : "warn")}>{found[i] ? "เจอไฟล์" : "หาไม่เจอ"}</span> : <Skel w={56} h={18} r={9} />}
         </div>
       ))}
-      {missing > 0 && <div className="stat warn" data-pair-missing><CardIcon kind="warn" /><div><b>{`หาไฟล์ที่จับคู่ไม่เจอ ${missing} ไฟล์`}</b><Phr>ไดรฟ์อาจถอดออกอยู่ หรือไฟล์ถูกย้าย · เปิดเล่นได้พร้อมไฟล์ที่เหลือ</Phr></div></div>}
+      {missing > 0 && <div className="stat warn" data-pair-missing><CardIcon kind="warn" /><div><b>{`หาไฟล์ที่จับคู่ไม่เจอ ${missing} ไฟล์`}</b><Phr>ไดรฟ์อาจถอดออกอยู่หรือไฟล์ถูกย้าย แต่ยังเปิดเล่นพร้อมไฟล์ที่เหลือได้</Phr></div></div>}
       <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>
         <button type="button" className={"btn btn-sm " + (m.missing ? "btn-wait" : "btn-main")} aria-disabled={m.missing || undefined} title={m.missing ? "หาไฟล์หนังไม่เจอ" : undefined}
           onClick={() => { if (m.missing) return; setRes(null); pairApi.play(m.path, (window as unknown as { __pairDry?: boolean }).__pairDry).then((ok) => setRes({ ok }), (e) => setRes({ err: String(e) })); }} data-pair-play><IbPlay size={15} />เปิดเล่นพร้อมเสียงและซับที่จับคู่</button>
         <button type="button" className="btn btn-ghost btn-sm" onClick={onEdit} title="เปิดหน้าเสียงและซับ ลากไฟล์ใหม่แล้วกดจับคู่อีกครั้ง แทนชุดเดิม"><IcLink size={15} />แก้การจับคู่</button>
       </div>
-      {res?.ok && <div className="small" data-pair-res data-cmd={res.ok.cmd}><Phr>{res.ok.opened ? `เปิดด้วย ${res.ok.player || "โปรแกรมหลักของ Windows"} · ส่งไฟล์ที่จับคู่ ${res.ok.sent} ไฟล์` : `รุ่นทดสอบไม่เปิดโปรแกรมเล่น · ${res.ok.player || "โปรแกรมหลักของ Windows"} ส่งไฟล์ที่จับคู่ ${res.ok.sent} ไฟล์`}</Phr></div>}
+      {res?.ok && <div className="small" data-pair-res data-cmd={res.ok.cmd}><Phr>{res.ok.opened ? `เปิดด้วย ${res.ok.player || "โปรแกรมหลักของ Windows"} และส่งไฟล์ที่จับคู่ ${res.ok.sent} ไฟล์` : `รุ่นทดสอบไม่เปิดโปรแกรมเล่น ถ้าเปิดจริงจะส่งไฟล์ที่จับคู่ ${res.ok.sent} ไฟล์ให้ ${res.ok.player || "โปรแกรมหลักของ Windows"}`}</Phr></div>}
       {/* ไฟล์ที่หาไม่เจอการ์ดบอกอยู่แล้วข้างบน ไม่บอกซ้ำ */}
       {res?.ok?.notes.filter((n) => !n.includes("ที่จับคู่ไม่เจอ")).map((n, i) => <div key={i} className="stat warn" data-pair-note><CardIcon kind="warn" /><div><Phr>{n}</Phr></div></div>)}
       {res?.err && <div className="stat bad"><CardIcon kind="bad" /><div><b>เปิดเล่นไม่ได้</b><Phr>{res.err}</Phr></div></div>}
-      <div className="small"><Phr>ปุ่มเปิดเล่นเดิมยังเปิดเฉพาะไฟล์หนัง · บนชั้นมีจุดเล็กมุมปกบอกว่าเรื่องนี้จับคู่ไว้</Phr></div>
+      <div className="small"><Phr>ปุ่มเปิดเล่นเดิมยังเปิดเฉพาะไฟล์หนัง และจุดเล็กที่มุมปกบนชั้นบอกว่าเรื่องนี้จับคู่ไว้</Phr></div>
     </div>
   );
 }

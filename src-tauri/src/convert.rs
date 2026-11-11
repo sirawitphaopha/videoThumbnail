@@ -381,7 +381,7 @@ fn convert(app: &AppHandle, req: &ConvReq, jobs: &Arc<crate::jobs::Jobs>) -> Res
     let cmd = encode::text_of(&plan.steps);
     let main_tool = plan.steps.get(1).map(|s| s.tool.clone()).unwrap_or_else(|| "ffmpeg".into());
     let tool = match encs.iter().find(|e| e.name == main_tool).and_then(|e| e.version.clone()) {
-        Some(v) if main_tool == "opusenc" => format!("opusenc · {v}"),
+        Some(v) if main_tool == "opusenc" => format!("opusenc {v}"),
         Some(v) if main_tool == "MACDll64" => format!("Monkey's Audio {v} (MACDll64.dll)"),
         Some(v) => format!("{main_tool} {v}"),
         None => main_tool.clone(),
@@ -426,7 +426,7 @@ fn convert(app: &AppHandle, req: &ConvReq, jobs: &Arc<crate::jobs::Jobs>) -> Res
     } else if codec == "opus" {
         tags_n = f.tags.len();
         if opus_native { cover_ok = cover_file.is_some(); }
-        else if f.cover.is_some() { notes.push("Opus ที่แปลงด้วย ffmpeg ใส่รูปปกไม่ได้ · ใช้ตัวต้นฉบับ opusenc ถ้าอยากได้รูปปก".into()); }
+        else if f.cover.is_some() { notes.push("Opus ที่แปลงด้วย ffmpeg ใส่รูปปกไม่ได้  ถ้าอยากได้รูปปกให้ใช้ตัวต้นฉบับ opusenc".into()); }
     } else if own_tag && has_meta {
         if crate::ape::has_ape_tag(&final_tmp) {
             notes.push("ตัวแปลงเขียนข้อมูลเพลงไว้แล้ว ไม่เขียนซ้อน".into());

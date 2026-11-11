@@ -61,7 +61,7 @@ export function CheckHost({ children }: { children: React.ReactNode }) {
       listen<CheckFinished>("check-finished", (e) => {
         const r = e.payload;
         setS((x) => ({ ...x, running: false, current: null, last: r }));
-        const counts = [r.ok && `สมบูรณ์ ${r.ok}`, r.bad && `เสียหาย ${r.bad}`, r.changed && `ถูกเปลี่ยน ${r.changed}`, r.failed && `ตรวจไม่ได้ ${r.failed}`].filter(Boolean).join(" · ");
+        const counts = [r.ok && `สมบูรณ์ ${r.ok}`, r.bad && `เสียหาย ${r.bad}`, r.changed && `ถูกเปลี่ยน ${r.changed}`, r.failed && `ตรวจไม่ได้ ${r.failed}`].filter(Boolean).join(", ");
         if (r.cancelled) {
           toast({ kind: "info", title: `หยุดตรวจแล้ว ตรวจไป ${r.done} จาก ${r.total} เรื่อง`, detail: counts || undefined });
         } else if (r.bad || r.changed || r.failed) {

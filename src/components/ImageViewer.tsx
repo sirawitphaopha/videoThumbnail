@@ -423,13 +423,13 @@ export default function ImageViewer({
 
       {/* ลูกศรเลื่อนรูป */}
       {hasPrev && (
-        <button onClick={(e) => { stop(e); onPrev?.(); }} title="ก่อนหน้า (←)"
+        <button onClick={(e) => { stop(e); onPrev?.(); }} title="ก่อนหน้า (ปุ่มลูกศรซ้าย)"
           style={{ position: 'fixed', top: '50%', left: '16px', transform: 'translateY(-50%)', width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(17,24,39,0.7)', color: '#fff', border: 'none', cursor: 'pointer', opacity: open ? 1 : 0, transition: 'opacity 0.3s', zIndex: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <ChevronLeft size={20} />
         </button>
       )}
       {hasNext && (
-        <button onClick={(e) => { stop(e); onNext?.(); }} title="ถัดไป (→)"
+        <button onClick={(e) => { stop(e); onNext?.(); }} title="ถัดไป (ปุ่มลูกศรขวา)"
           style={{ position: 'fixed', top: '50%', right: '16px', transform: 'translateY(-50%)', width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(17,24,39,0.7)', color: '#fff', border: 'none', cursor: 'pointer', opacity: open ? 1 : 0, transition: 'opacity 0.3s', zIndex: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <ChevronRight size={20} />
         </button>
@@ -438,7 +438,7 @@ export default function ImageViewer({
       {/* ป้ายบอกวิธีใช้ (จางหายเองใน 4 วินาที) */}
       <div style={{ position: 'fixed', top: '18px', left: '50%', transform: 'translateX(-50%)', background: 'rgba(17,24,39,0.82)', color: '#e5e7eb', fontSize: '12px', padding: '7px 14px', borderRadius: '999px', opacity: (open && hintVisible) ? 1 : 0, transition: 'opacity 0.4s', pointerEvents: 'none', zIndex: 8, whiteSpace: 'nowrap', maxWidth: '92vw', overflow: 'hidden', textOverflow: 'ellipsis', display: 'flex', alignItems: 'center', gap: '6px' }}>
         <Info size={14} style={{ color: C.soft }} />
-        เลื่อนล้อ = ซูม · ดับเบิลคลิก = ซูมเข้าออก · ลาก = เลื่อน · กดปุ่ม ? ดูทั้งหมด
+        เลื่อนล้อเมาส์เพื่อซูม ดับเบิลคลิกเพื่อซูมเข้าออก ลากเพื่อเลื่อนรูป และกดปุ่มเครื่องหมายคำถามเพื่อดูวิธีใช้ทั้งหมด
       </div>
 
       {/* มุมขวาบน */}
@@ -461,7 +461,7 @@ export default function ImageViewer({
             )}
           </div>
         )}
-        <button onClick={(e) => { stop(e); toggleMenu('help'); }} title="วิธีใช้ / คีย์ลัด" className="ivw-btn"
+        <button onClick={(e) => { stop(e); toggleMenu('help'); }} title="วิธีใช้และคีย์ลัด" className="ivw-btn"
           style={{ ...bar, background: showHelp ? C.main : 'rgba(255,255,255,0.12)' }}><HelpCircle size={16} /></button>
         <button onClick={(e) => { stop(e); dismissPopups(); setShowInfo((v) => !v); }} title="ข้อมูลรูป" className="ivw-btn"
           style={{ ...bar, background: showInfo ? C.main : 'rgba(255,255,255,0.12)' }}><Info size={16} /></button>
@@ -474,7 +474,7 @@ export default function ImageViewer({
           <p style={{ margin: '0 0 8px', fontWeight: 700, fontSize: '13px', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Keyboard size={14} style={{ color: C.soft }} />วิธีใช้ / คีย์ลัด
           </p>
-          {([['เลื่อนล้อเมาส์', 'ซูมเข้าออก ตามจุดเมาส์'], ['ดับเบิลคลิก', 'ซูมเข้าออก ที่จุดนั้น'], ['ลากเมาส์', 'เลื่อนรูป'], ['สองนิ้ว', 'ซูม (จอสัมผัส)'], ['+ / −', 'ซูมเข้า / ออก'], ['0', 'พอดีหน้าจอ'], ['← / →', 'รูปก่อนหน้า / ถัดไป'], ['Esc', 'ปิด']] as const).map(([k, v]) => (
+          {([['เลื่อนล้อเมาส์', 'ซูมเข้าออกตามจุดเมาส์'], ['ดับเบิลคลิก', 'ซูมเข้าออกที่จุดนั้น'], ['ลากเมาส์', 'เลื่อนรูป'], ['สองนิ้ว', 'ซูม (จอสัมผัส)'], ['+ −', 'ซูมเข้าหรือออก'], ['0', 'พอดีหน้าจอ'], ['← →', 'รูปก่อนหน้าหรือถัดไป'], ['Esc', 'ปิด']] as const).map(([k, v]) => (
             <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '4px 0', fontSize: '12px' }}>
               <span style={{ color: C.soft, fontWeight: 700, flexShrink: 0 }}>{k}</span>
               <span style={{ color: '#cbd5e1', textAlign: 'right' }}>{v}</span>
@@ -540,7 +540,7 @@ export default function ImageViewer({
       >
         <button onClick={(e) => { stop(e); dismissPopups(); setRot((r) => r - 90); }} title="หมุนซ้าย" className="ivw-btn" style={bar}><RotateCcw size={16} /></button>
         <button onClick={(e) => { stop(e); dismissPopups(); setRot((r) => r + 90); }} title="หมุนขวา" className="ivw-btn" style={bar}><RotateCw size={16} /></button>
-        <button onClick={fit} title="พอดีจอ · กด 0" className="ivw-btn" style={bar}><Maximize size={16} /></button>
+        <button onClick={fit} title="พอดีจอ (กด 0)" className="ivw-btn" style={bar}><Maximize size={16} /></button>
         <button onClick={(e) => { stop(e); dismissPopups(); zoomToPct(100); }} title="ขนาดจริง 1:1" className="ivw-btn" style={{ ...bar, width: 'auto', padding: '0 10px', fontSize: '12px', fontWeight: 800 }}>1:1</button>
         <div style={divider} />
         <button onClick={(e) => { stop(e); dismissPopups(); zoomTo(scale * 0.8); }} title="ย่อ (−)" className="ivw-btn" style={bar}><ZoomOut size={16} /></button>
@@ -573,7 +573,7 @@ export default function ImageViewer({
         <div style={divider} />
         {/* โหมดลบรอยหยัก */}
         <div style={{ position: 'relative' }}>
-          <button onClick={(e) => { stop(e); toggleMenu('render'); }} title={'การแสดงผลตอนซูม: ' + curRender.label + ' — ' + curRender.desc} className="ivw-btn"
+          <button onClick={(e) => { stop(e); toggleMenu('render'); }} title={'การแสดงผลตอนซูมแบบ' + curRender.label + ' ' + curRender.desc} className="ivw-btn"
             style={{ ...bar, background: imgRendering !== 'auto' ? C.main : 'rgba(255,255,255,0.12)' }}>
             <curRender.Icon size={16} />
           </button>

@@ -34,7 +34,7 @@ export function SettingsHost({ children }: { children: React.ReactNode }) {
       setSettings(next);
       return true;
     } catch (e) {
-      toast({ kind: "bad", title: "บันทึกการตั้งค่าไม่สำเร็จ", detail: `ค่าเดิมยังอยู่ ลองใหม่อีกครั้ง · ${String(e)}` });
+      toast({ kind: "bad", title: "บันทึกการตั้งค่าไม่สำเร็จ", detail: `ค่าเดิมยังอยู่ ให้ลองใหม่อีกครั้ง  ${String(e)}` });
       return false;
     }
   }, [toast]);
@@ -45,8 +45,8 @@ export function SettingsHost({ children }: { children: React.ReactNode }) {
 /** ไฟล์ตั้งค่าเสียตอนเปิดโปรแกรม ต้องบอกให้รู้ ไม่ใช่เงียบแล้วค่าที่ตั้งไว้หาย */
 function warnLoaded(from: LoadedFrom, toast: ReturnType<typeof useToast>) {
   if (from === "backup") {
-    toast({ kind: "warn", title: "ไฟล์ตั้งค่าเสีย ใช้ชุดที่สำรองไว้แทน", detail: "การตั้งค่าย้อนกลับไปเป็นครั้งก่อนหน้าหนึ่งครั้ง · หนังบนชั้นวางกับไฟล์หนังในเครื่องไม่ได้รับผลกระทบ" });
+    toast({ kind: "warn", title: "ไฟล์ตั้งค่าเสีย ใช้ชุดที่สำรองไว้แทน", detail: "การตั้งค่าย้อนกลับไปเป็นครั้งก่อนหน้าหนึ่งครั้ง ส่วนหนังบนชั้นวางกับไฟล์หนังในเครื่องไม่ได้รับผลกระทบ" });
   } else if (from === "defaults") {
-    toast({ kind: "bad", title: "ไฟล์ตั้งค่าเสียทั้งสองชุด กลับไปใช้ค่าเริ่มต้น", detail: "ตั้งค่าใหม่ได้ที่หน้าตั้งค่า · ไฟล์หนังในเครื่องไม่ได้รับผลกระทบ" });
+    toast({ kind: "bad", title: "ไฟล์ตั้งค่าเสียทั้งสองชุด กลับไปใช้ค่าเริ่มต้น", detail: "ตั้งค่าใหม่ได้ที่หน้าตั้งค่า และไฟล์หนังในเครื่องไม่ได้รับผลกระทบ" });
   }
 }

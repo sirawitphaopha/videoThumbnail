@@ -124,9 +124,9 @@ export function PadCustom(p: { pad: string; onPad: (c: string) => void; custom: 
                       onKeyDown={(e) => digitKey(e, (t) => setCh(i, Number(t) || 0))}
                       onChange={(e) => setCh(i, Number(e.target.value.replace(/\D/g, "")) || 0)} />
                     {/* ปุ่ม − กับ + ทุกแถว กดทีละ 1 Shift ทีละ 10 · สองปุ่มเท่าแถว Hex ช่องตัวเลขจบตรงกัน (พี่กันสั่ง "เพิ่มสักปุ่มตรงนี้ที" · "+- งี้ หรือเสนอมา") */}
-                    <button type="button" className="padcopy padstep" aria-label={"ลด" + ch} title={"ลด" + ch + " ทีละ 1 · Shift ทีละ 10"} disabled={rgb[i] <= 0} data-pad-dec={i}
+                    <button type="button" className="padcopy padstep" aria-label={"ลด" + ch} title={"ลด" + ch + " ทีละ 1 หรือกด Shift ค้างเพื่อปรับทีละ 10"} disabled={rgb[i] <= 0} data-pad-dec={i}
                       onClick={(e) => { e.preventDefault(); setCh(i, rgb[i] - (e.shiftKey ? 10 : 1)); }}>−</button>
-                    <button type="button" className="padcopy padstep" aria-label={"เพิ่ม" + ch} title={"เพิ่ม" + ch + " ทีละ 1 · Shift ทีละ 10"} disabled={rgb[i] >= 255} data-pad-inc={i}
+                    <button type="button" className="padcopy padstep" aria-label={"เพิ่ม" + ch} title={"เพิ่ม" + ch + " ทีละ 1 หรือกด Shift ค้างเพื่อปรับทีละ 10"} disabled={rgb[i] >= 255} data-pad-inc={i}
                       onClick={(e) => { e.preventDefault(); setCh(i, rgb[i] + (e.shiftKey ? 10 : 1)); }}>+</button>
                   </label>
                 ))}
@@ -150,7 +150,7 @@ export function PadCustom(p: { pad: string; onPad: (c: string) => void; custom: 
                 <div className="padsaved-head"><span>สีที่บันทึกไว้</span>
                   <button type="button" className="btn btn-ghost btn-sm" onClick={(e) => { e.preventDefault(); saveColor(p.pad); }} disabled={saved.includes(p.pad.toLowerCase())} title={saved.includes(p.pad.toLowerCase()) ? "สีนี้บันทึกไว้แล้ว" : "เก็บสีนี้ไว้ในจานสี เรียกใช้ทีหลังได้ทุกหน้า"} data-pad-save><IcPlus size={13} />บันทึกสีนี้</button></div>
                 <div className="padsaved-grid">{Array.from({ length: SAVED_MAX }, (_, i) => saved[i]
-                  ? <button key={i} type="button" className={p.pad.toLowerCase() === saved[i] ? "on" : ""} style={{ background: saved[i] }} title={`${saved[i].toUpperCase()} · คลิกขวาเพื่อเอาออก`} aria-label={"สีที่บันทึก " + saved[i]} data-pad-savedc={saved[i]}
+                  ? <button key={i} type="button" className={p.pad.toLowerCase() === saved[i] ? "on" : ""} style={{ background: saved[i] }} title={`${saved[i].toUpperCase()} คลิกขวาเพื่อเอาออก`} aria-label={"สีที่บันทึก " + saved[i]} data-pad-savedc={saved[i]}
                       onClick={(e) => { e.preventDefault(); setRgbAll(hexRgb(saved[i])); }} onContextMenu={(e) => { e.preventDefault(); dropColor(saved[i]); }} />
                   : <i key={i} />)}</div>
               </div>

@@ -95,7 +95,7 @@ pub fn player_args(player: Option<&Path>, movie: &Path, pairs: &[Pair]) -> (Opti
         for p in &subs { a.push("/sub".into()); a.push((&p.path).into()); }
         if pairs.iter().any(|p| p.delay != 0) {
             let who = if name.contains("mpc-be") { "MPC-BE" } else { "MPC-HC" };
-            notes.push(format!("{who} ใส่ดีเลย์จากคำสั่งไม่ได้ ตั้งเองในโปรแกรมเล่น ({})", pairs.iter().filter(|p| p.delay != 0).map(|p| format!("{} {}{} ms", if p.kind == "audio" { "เสียง" } else { "ซับ" }, if p.delay < 0 { "−" } else { "+" }, p.delay.abs())).collect::<Vec<_>>().join(" · ")));
+            notes.push(format!("{who} ใส่ดีเลย์จากคำสั่งไม่ได้ ตั้งเองในโปรแกรมเล่น ({})", pairs.iter().filter(|p| p.delay != 0).map(|p| format!("{} {}{} ms", if p.kind == "audio" { "เสียง" } else { "ซับ" }, if p.delay < 0 { "−" } else { "+" }, p.delay.abs())).collect::<Vec<_>>().join(", ")));
         }
     } else if name.contains("potplayer") {
         if let Some(p) = subs.first() { a.push(format!("/sub={}", p.path).into()); }
@@ -105,10 +105,10 @@ pub fn player_args(player: Option<&Path>, movie: &Path, pairs: &[Pair]) -> (Opti
     } else if player.is_some() {
         // โปรแกรมเล่นที่ตั้งไว้แต่ไม่รู้จัก เปิดหนังด้วยโปรแกรมนั้น ส่งแค่ไฟล์หนัง (ผู้ช่วยตรวจขั้น 10 ข้อ 16 · เดิมเปิดโปรแกรมหลักของ Windows แทน)
         let who = player.and_then(|p| p.file_stem()).map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-        notes.push(format!("โปรแกรมไม่รู้วิธีส่งเสียงกับซับแยกให้ {who} เปิดได้เฉพาะหนัง · เลือก VLC MPC-HC PotPlayer หรือ mpv ในหน้าตั้งค่า ถ้าอยากได้ไฟล์ที่จับคู่"));
+        notes.push(format!("โปรแกรมไม่รู้วิธีส่งเสียงกับซับแยกให้ {who} เปิดได้เฉพาะหนัง  ถ้าอยากได้ไฟล์ที่จับคู่ด้วย ให้เลือก VLC MPC-HC PotPlayer หรือ mpv ในหน้าตั้งค่า"));
         return (Some(a), notes);
     } else {
-        notes.push("โปรแกรมเล่นหลักของ Windows รับไฟล์เสียงกับซับแยกไม่ได้ เปิดได้เฉพาะหนัง · เลือก VLC MPC-HC PotPlayer หรือ mpv ในหน้าตั้งค่า".into());
+        notes.push("โปรแกรมเล่นหลักของ Windows รับไฟล์เสียงกับซับแยกไม่ได้ จึงเปิดได้เฉพาะหนัง  ให้เลือก VLC MPC-HC PotPlayer หรือ mpv ในหน้าตั้งค่า".into());
         return (None, notes);
     }
     (Some(a), notes)
@@ -148,7 +148,7 @@ pub fn pair_play(app: AppHandle, lib: State<'_, Arc<LibraryStore>>, movie: Strin
     let mut notes = Vec::new();
     let found: Vec<Pair> = m.pairs.iter().filter(|p| {
         let ok = Path::new(&p.path).exists();
-        if !ok { notes.push(format!("หา{}ที่จับคู่ไม่เจอ {} · ไดรฟ์อาจถอดออกอยู่ หรือไฟล์ถูกย้าย", if p.kind == "audio" { "เสียง" } else { "ซับ" }, p.path)); }
+        if !ok { notes.push(format!("หา{}ที่จับคู่ไม่เจอ {}  ไดรฟ์อาจถอดออกอยู่ หรือไฟล์ถูกย้าย", if p.kind == "audio" { "เสียง" } else { "ซับ" }, p.path)); }
         ok
     }).cloned().collect();
     let player = crate::check::player_for(&app, &file)?;

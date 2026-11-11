@@ -92,7 +92,7 @@ check("ปุ่ม + ดีเลย์ทีละ 100 ms กด 5 ครั�
 const mains = await q("return [...document.querySelectorAll('.trk:not(.head) [data-main]')].map(r => r.getAttribute('aria-checked'))");
 check("ตั้งพากย์ไทยเป็นเสียงหลัก ซับไทยเป็นซับหลัก · หลักมีแทร็กเดียวต่อชนิด", JSON.stringify(mains) === JSON.stringify(["false", "true", "true", "false", "false"]), mains.join(","));
 const detail = await q("return document.querySelector('[data-track-detail]')?.innerText ?? ''");
-check("การ์ดตั้งค่าแทร็กของแถวที่กด ภาษา ชื่อ ซับหลัก ดีเลย์", detail.includes("ตั้งค่าแทร็ก") && detail.includes("ตั้งเป็นซับหลัก") && detail.includes("ติดลบ = ซับมาเร็วขึ้น"), detail.replace(/\s+/g, " ").slice(0, 80));
+check("การ์ดตั้งค่าแทร็กของแถวที่กด ภาษา ชื่อ ซับหลัก ดีเลย์", detail.includes("ตั้งค่าแทร็ก") && detail.includes("ตั้งเป็นซับหลัก") && detail.includes("ติดลบแปลว่าซับมาเร็วขึ้น"), detail.replace(/\s+/g, " ").slice(0, 80));
 await shot("04-ตั้งค่าแทร็ก.png", "[data-track-detail]", 6);
 
 // ---------- เอาออก เลื่อนลำดับ ----------
@@ -136,7 +136,7 @@ const gotRes = await waitFor("const r = document.querySelector('[data-delay-res]
 await waitFor("return !!document.querySelector('[data-lane=b]')", 20000);
 await sleep(400);
 const dres = await q("return document.querySelector('[data-delay-res]')?.dataset.delayRes + ' · ' + document.querySelector('[data-delay-res]')?.innerText.replace(/\\s+/g, ' ')");
-const dnum = Number((dres.match(/โปรแกรมหาให้ ([−+]?[\d,]+) ms/) || [])[1]?.replace("−", "-").replace(",", ""));
+const dnum = Number((dres.match(/โปรแกรมหาให้(?:ได้)? ([−+]?[\d,]+) ms/) || [])[1]?.replace("−", "-").replace(",", ""));
 check("กดหาค่าดีเลย์ของพากย์ไทย (เลื่อนจริง 120 ms ชื่อไฟล์ DELAY -120ms) โปรแกรมหาได้ −120 ±10 ms ตรงกับค่าในชื่อไฟล์ เทียบ 3 ช่วงได้ค่าเดียวกัน ไม่ต้องตั้งความเร็ว",
   gotRes && dres.startsWith("ok") && Math.abs(dnum + 120) <= 10 && dres.includes("ตรงกับค่าในชื่อไฟล์") && dres.includes("ไม่ต้องตั้งความเร็วเสียง"), dres.slice(0, 200));
 const lanes = await q("return [...document.querySelectorAll('[data-lane]')].map(cv => { const g = cv.getContext('2d'), d = g.getImageData(0, 0, cv.width, cv.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i + 2] > d[i] + 40 || d[i] < 230) n++; return n; })");
@@ -173,7 +173,7 @@ const gotPal = await waitFor("const r = document.querySelector('[data-delay-res]
 await waitFor("return !!document.querySelector('[data-lane=b]')", 20000);
 await sleep(400);
 const pres = await q("return document.querySelector('[data-delay-res]')?.dataset.delayRes + ' · ' + document.querySelector('[data-delay-res]')?.innerText.replace(/\\s+/g, ' ')");
-check("เสียง PAL 25 fps โปรแกรมบอกว่าเร็วไม่เท่าหนัง เสนอคู่ความเร็ว 25 → 23.976 บอกว่าเทียบตรง ๆ ตรงกันน้อย", gotPal && pres.startsWith("speed") && pres.includes("25 → 23.976") && pres.includes("แผ่นยุโรป PAL"), pres.slice(0, 200));
+check("เสียง PAL 25 fps โปรแกรมบอกว่าเร็วไม่เท่าหนัง เสนอคู่ความเร็ว 25 → 23.976 บอกว่าเทียบตรง ๆ ตรงกันน้อย", gotPal && pres.startsWith("speed") && pres.includes("จาก 25 เป็น 23.976") && pres.includes("แผ่นยุโรป PAL"), pres.slice(0, 200));
 // ต้องยืดความเร็ว ไฟล์ลองฟังใส่ได้แค่ดีเลย์ ช่วงกลางเรื่องจะคนละฉาก · ปุ่มลองฟังกดไม่ได้ พร้อมบอกเหตุ (ผู้ช่วยตรวจขั้น 10 ข้อ 7)
 const np = await q("return (document.querySelector('[data-delay-play]')?.getAttribute('aria-disabled') ?? '') + ' · ' + (document.querySelector('[data-delay-noplay]')?.innerText ?? '')");
 check("เสียงต้องยืดความเร็ว ปุ่มลองฟังกดไม่ได้ บอกว่าลองฟังยังใส่ความเร็วไม่ได้", np.startsWith("true · ") && np.includes("ใส่ความเร็วเสียงไม่ได้"), np);
@@ -183,7 +183,7 @@ await c.evaluate("document.querySelector('[data-delay-speed]').click()");
 await waitFor("return !!document.querySelector('[data-codec-panel]')", 15000);
 await sleep(400);
 const spd = await q("return [...document.querySelectorAll('[data-codec-panel] [data-extra] .dd')].map(d => d.innerText).join('|')");
-check("กดปุ่มตั้งความเร็วในตัวช่วยหาดีเลย์ แผงตั้งค่าเสียงเปิดพร้อมความเร็ว 25 → 23.976", spd.includes("25 → 23.976"), spd);
+check("กดปุ่มตั้งความเร็วในตัวช่วยหาดีเลย์ แผงตั้งค่าเสียงเปิดพร้อมความเร็ว 25 → 23.976", spd.includes("จาก 25 เป็น 23.976"), spd);
 await clickTextAny("[role=dialog] button", "ยกเลิก");
 await sleep(300);
 // กดตั้งความเร็วแล้ว ดีเลย์ที่หาได้ต้องใส่ให้แถวด้วย (ข้อ 8 · เดิมค่าหาย)
@@ -265,7 +265,7 @@ const pickDd = async (label, text) => {
   await c.evaluate(`[...document.querySelectorAll('[data-codec-panel] [role=option]')].find(o => o.innerText.startsWith(${JSON.stringify(text)})).click()`);
   await sleep(200);
 };
-await pickDd("ความเร็วเสียง", "25 → 23.976");
+await pickDd("ความเร็วเสียง", "จาก 25 เป็น 23.976");
 for (let i = 0; i < 3; i++) await c.evaluate("document.querySelector('[data-codec-panel] [aria-label=\"ลดความดัง 1 dB\"]').click()");
 await c.evaluate("[...document.querySelectorAll('[data-codec-panel] [data-extra] .seg button')].find(b => b.innerText.startsWith('EBU')).click()");
 await waitFor("return document.querySelector('[data-cmd]').innerText.includes('loudnorm')", 8000);
@@ -274,7 +274,7 @@ const cmd2 = await q("return document.querySelector('[data-cmd]').innerText.repl
 // ค่าตั้งต้นคืนระดับเสียง tempo กับ pitch อัตราเดียวกัน (ผู้ช่วยตรวจขั้น 10 ข้อ 29 · พี่กันเคาะ 8 พ.ย. 2569)
 check("ตั้งความเร็ว 25 → 23.976 Gain −3 dB ความดังมาตรฐาน คำสั่งมี rubberband=tempo=0.959040:pitch=0.959040 (คืนระดับเสียง ค่าตั้งต้น) ,volume=-3dB,loudnorm แล้วคืนอัตราสุ่มเดิม aresample=48000", cmd2.includes('-af "rubberband=tempo=0.959040:pitch=0.959040,volume=-3dB,loudnorm=I=-23:TP=-1,aresample=48000"'), cmd2.slice(0, 220));
 const pitch0 = await q("return [...document.querySelectorAll('[data-pitch-box] .seg button')].map(b => b.innerText + (b.getAttribute('aria-checked') === 'true' || b.classList.contains('on') ? '*' : '')).join(' | ') + ' · ' + document.querySelector('[data-pitch-note]').innerText.replace(/\\s+/g, ' ')");
-check("เลือกความเร็วแล้วขึ้นตัวเลือกระดับเสียง คืนระดับเสียงเดิม (แนะนำ) เลือกไว้ พร้อมคำอธิบาย", pitch0.startsWith("คืนระดับเสียงเดิม (แนะนำ)*") && pitch0.includes("ระดับเสียงกลับเป็นแบบเดิมก่อนทำแผ่น"), pitch0.slice(0, 200));
+check("เลือกความเร็วแล้วขึ้นตัวเลือกระดับเสียง คืนระดับเสียงเดิม (แนะนำ) เลือกไว้ พร้อมคำอธิบาย", pitch0.startsWith("คืนระดับเสียงเดิม (แนะนำ)*") && pitch0.includes("กลับเป็นแบบเดิมก่อนทำแผ่น"), pitch0.slice(0, 200));
 await shot("11-แผงตั้งค่าเสียง-ความเร็ว.png", "[data-extra]", 8);
 await shot("38-ระดับเสียงหลังเปลี่ยนความเร็ว.png", "[data-pitch-box]", 8);
 await c.evaluate("[...document.querySelectorAll('[data-pitch-box] .seg button')].find(b => b.innerText.startsWith('คงระดับเสียง')).click()");
@@ -305,8 +305,8 @@ check("กดขั้นสูง Opus มีการ์ด Bitrate · Bitrate
   [...advCards].sort().join(",") === "bitrate,mode,comp,framesize,tune,channels,gain,loud,speed".split(",").sort().join(",") && infoInCards && br0 === "160", `${advCards.join(",")} · ค่า ${br0}`);
 const modeText = await q(`return ${card("mode")}.innerText.replace(/\\s+/g, ' ')`);
 const brText = await q(`return ${card("bitrate")}.innerText.replace(/\\s+/g, ' ')`);
-check("ตัวย่อมีคำเต็มครั้งแรกที่เจอในการ์ด VBR (Variable Bitrate) ครั้งเดียว · CBR (Constant Bitrate) · kbps (kilobits per second)",
-  (modeText.match(/\(Variable Bitrate\)/g) || []).length === 1 && modeText.includes("CBR (Constant Bitrate)") && brText.includes("kbps (kilobits per second)"), modeText.slice(0, 140));
+check("ตัวย่อมีคำเต็มครั้งแรกที่เจอในการ์ด VBR (Variable Bitrate) ครั้งเดียว · CBR (Constant Bitrate) · หน่วย kbps ไม่วงเล็บ (พี่กันสั่ง 11 พ.ย. 2569)",
+  (modeText.match(/\(Variable Bitrate\)/g) || []).length === 1 && modeText.includes("CBR (Constant Bitrate)") && brText.includes("kbps") && !brText.includes("kilobits per second"), modeText.slice(0, 140));
 // แถบเลื่อน ลูกศรขวาหนึ่งขั้น 160 → 192 · ขนาดที่คาดกับคำสั่งเปลี่ยนตาม
 const sz0 = await q(`return ${card("bitrate")}.querySelector('[data-sz]').innerText`);
 await c.evaluate(`${card("bitrate")}.querySelector('.range').dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowRight', bubbles: true }))`);
@@ -350,7 +350,7 @@ await waitFor("const t = document.querySelector('.infotip'); return t && getComp
 await sleep(200);
 const tb = await q(tipBox);
 check("กด ⓘ ของ Bitrate กล่องคำอธิบายขึ้น มีคืออะไร ปรับสูงปรับต่ำ ข้อดี ข้อเสีย แนะนำ · ตัวย่อในกล่องมีคำเต็ม · อยู่ในจอทั้งสี่ด้าน ใต้แถบบน",
-  tb && tb.text.includes("จำนวนข้อมูลเสียงต่อวินาที") && tb.text.includes("ข้อดี") && tb.text.includes("ข้อเสีย") && tb.text.includes("แนะนำ") && tb.text.includes("kbps (kilobits per second)")
+  tb && tb.text.includes("จำนวนข้อมูลเสียงต่อวินาที") && tb.text.includes("ข้อดี") && tb.text.includes("ข้อเสีย") && tb.text.includes("แนะนำ") && tb.text.includes("kbps") && !tb.text.includes("kilobits per second")
   && tb.top >= tb.head && tb.bottom <= tb.h && tb.left >= 0 && tb.right <= tb.w, tb ? `บน ${tb.top} ล่าง ${tb.bottom} จอ ${tb.h} แถบบน ${tb.head} ฝั่ง ${tb.side}` : "ไม่ขึ้น");
 await c.shot(`${OUT}/13-กล่องคำอธิบาย.png`, ".infotip", 10);
 await c.send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 });
@@ -416,7 +416,7 @@ await waitFor("return document.querySelector('[data-cmd]').innerText.includes('-
 await c.evaluate("document.querySelector('[data-conv-use]').click()");
 await sleep(300);
 const convCell = await q(`return ${row(2)}.querySelector('[data-conv]').innerText + ' · ' + ${row(2)}.innerText.includes('แปลง')`);
-check("กดใช้ค่านี้ ช่องแปลงขึ้น Opus 160 · เพิ่มคู่ แถวมีป้ายแปลง", convCell.startsWith("Opus 160 · เพิ่มคู่") && convCell.endsWith("true"), convCell);
+check("กดใช้ค่านี้ ช่องแปลงขึ้น Opus 160 · เพิ่มคู่ แถวมีป้ายแปลง", convCell.startsWith("Opus 160 เพิ่มคู่") && convCell.endsWith("true"), convCell);
 
 // ---------- หน้าต่างบอกเรื่อง VTT ก่อนรวม แล้วรวมจริง ----------
 await c.evaluate("document.querySelector('[data-start]').click()");
@@ -428,7 +428,7 @@ await c.evaluate("document.querySelector('[data-vtt-ok]').click()");
 const okRun = await waitFor("const r = document.querySelector('[data-run]')?.dataset.run; return r === 'done' || r === 'failed'", 120000);
 await sleep(400);
 const runText = await q("return document.querySelector('[data-run]')?.innerText ?? ''");
-check("รวมเสร็จ ไฟล์ใหม่ตรวจผ่าน ภาพ 1 เสียง 3 (Opus ที่แปลงเพิ่มคู่) ซับ 3 · ไฟล์เดิมย้ายไปไฟล์เดิม", okRun && runText.includes("รวมเสร็จ ไฟล์ใหม่ตรวจผ่าน") && runText.includes("ภาพ 1 · เสียง 3 · ซับ 3") && runText.includes("ไฟล์เดิม"), runText.replace(/\s+/g, " ").slice(0, 220));
+check("รวมเสร็จ ไฟล์ใหม่ตรวจผ่าน ภาพ 1 เสียง 3 (Opus ที่แปลงเพิ่มคู่) ซับ 3 · ไฟล์เดิมย้ายไปไฟล์เดิม", okRun && runText.includes("รวมเสร็จ ไฟล์ใหม่ตรวจผ่าน") && runText.includes("ภาพ 1 เสียง 3 ซับ 3") && runText.includes("ไฟล์เดิม"), runText.replace(/\s+/g, " ").slice(0, 220));
 await shot("07-รวมเสร็จ.png", ".main");
 const j = existsSync(MOVIE) ? ident(MOVIE) : { tracks: [], attachments: [] };
 const got = (j.tracks ?? []).map((t) => `${t.codec}|${t.properties.language}|${t.properties.default_track ? 1 : 0}`);
@@ -543,20 +543,20 @@ await waitFor(`return !!${findRow("PGS")}`, 20000);
 await c.evaluate(`${findRow("PGS")}.querySelector('[data-subview]').click()`);
 await waitFor("return !!document.querySelector('[data-subimgs]') || !!document.querySelector('[data-subviewer] .stat.bad')", 60000);
 const pgs = await q("return (document.querySelector('[data-simg-count]')?.innerText ?? '') + ' · ' + document.querySelectorAll('[data-simg] img').length + ' · ' + (document.querySelector('[data-simg] .t')?.innerText.replace(/\\s+/g, ' ') ?? '')");
-check("ซับรูป PGS ถอดเป็นภาพ 1 ภาพ ขึ้นที่ 0:01.0", pgs.startsWith("ภาพที่ 1–1 จาก 1") && pgs.includes("· 1 ·") && pgs.includes("0:01.0"), pgs);
+check("ซับรูป PGS ถอดเป็นภาพ 1 ภาพ ขึ้นที่ 0:01.0", pgs.startsWith("ภาพที่ 1 ถึง 1 จาก 1") && pgs.includes("· 1 ·") && pgs.includes("0:01.0"), pgs);
 await closeDlg();
 await c.evaluate(`${findRow("VobSub")}.querySelector('[data-subview]').click()`);
 await waitFor("return !!document.querySelector('[data-subimgs]') || !!document.querySelector('[data-subviewer] .stat.bad')", 60000);
 const vob = await q("return (document.querySelector('[data-simg-count]')?.innerText ?? '') + ' · ' + document.querySelectorAll('[data-simg] img').length");
 const imgOk = await waitFor("return [...document.querySelectorAll('[data-simg] img')].every(i => i.complete && i.naturalWidth > 0)", 8000);
-check("ซับรูป VobSub ถอดเป็นภาพ 42 ภาพ หน้าละ 6 ภาพ รูปขึ้นครบ", vob.startsWith("ภาพที่ 1–6 จาก 42") && vob.endsWith("· 6") && imgOk, vob);
+check("ซับรูป VobSub ถอดเป็นภาพ 42 ภาพ หน้าละ 6 ภาพ รูปขึ้นครบ", vob.startsWith("ภาพที่ 1 ถึง 6 จาก 42") && vob.endsWith("· 6") && imgOk, vob);
 await shot("19-ดูซับรูป.png", "[role=dialog]", 8);
 await c.evaluate("document.querySelector('[data-simg-next]').click()");
-await waitFor("return document.querySelector('[data-simg-count]')?.innerText.startsWith('ภาพที่ 7–12') && document.querySelector('[data-simg] img')?.alt === 'ซับภาพ 7'", 15000);
+await waitFor("return document.querySelector('[data-simg-count]')?.innerText.startsWith('ภาพที่ 7 ถึง 12') && document.querySelector('[data-simg] img')?.alt === 'ซับภาพ 7'", 15000);
 await c.evaluate("document.querySelector('[data-simg]').click()");
 await sleep(300);
 const big = await q("const b = document.querySelector('[data-bigsub]'); if (!b) return ''; const r = b.getBoundingClientRect(); return Math.round(r.width) + 'x' + Math.round(r.height) + ' · ' + b.nextElementSibling.innerText");
-check("หน้าถัดไปได้ภาพ 7–12 · กดภาพดูเต็มจอ วางตรงตำแหน่งจริงบนจอ 720 × 480", big.includes("ภาพ 7") && big.includes("720 × 480") && Math.abs(Number(big.split("x")[0]) / Number(big.split("x")[1].split(" ")[0]) - 1.5) < 0.05, big);
+check("หน้าถัดไปได้ภาพ 7–12 · กดภาพดูเต็มจอ วางตรงตำแหน่งจริงบนจอ 720 × 480", big.includes("ภาพที่ 7") && big.includes("720 × 480") && Math.abs(Number(big.split("x")[0]) / Number(big.split("x")[1].split(" ")[0]) - 1.5) < 0.05, big);
 await closeDlg();
 
 await c.send("Emulation.clearDeviceMetricsOverride");
