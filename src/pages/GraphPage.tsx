@@ -19,7 +19,9 @@ import { diffOf, type DiffResult } from "../lib/graphDiff";
 import { useSettings } from "../lib/settings";
 import { dropStyle, useDropPlacement } from "../lib/popupFit";
 import { useClickOutside, useEscClose } from "../lib/popup";
-import { IcExpand, IcFile, IcFolder, IcMix, IcPlus, IcBitrate } from "../components/icons";
+import { IcExpand, IcFile, IcFolder, IcMix, IcPlus, IcBitrate, IcChevronDown } from "../components/icons";
+import InfoTip from "../components/InfoTip";
+import type { Tip } from "../lib/codecAdv";
 import { IcSearch, IbStop, IcRefresh, IcGraph, IbSave, IcClose, IbTable, IbPlay } from "../components/icons";
 
 export type GraphReq = { path: string; t?: number };
@@ -232,6 +234,18 @@ function sample(src: Src, ch: number, a: number, b: number, n: number) {
 function drawWave(g: CanvasRenderingContext2D, w: number, h: number, d: ReturnType<typeof sample>, th: Theme, style: WaveStyle, vz = 1) {
   g.fillStyle = th.lane; g.fillRect(0, 0, w, h);
   const mid = h / 2, A = (h / 2 - 2) * vz;
+  if (style === "real") {
+    // หน้าตาแบบหน้าจอโปรแกรม Audacity จริง (BUGS ข้อ 12 · พี่กันส่งภาพ Audacity "เราอยากได้กราฟแบบนี้มั่ง" · "จะสีอะไรก็ได้ เเค่เอารูปแบบมา")
+    // ต่างจากแบบหลัก คลื่นสีเดียวทึบ ไม่มีแถบดังเฉลี่ย · เส้นแนวตั้งคมทีละจุด ไม่ลากเป็นรูปทรงเรียบ · พื้นขาว ไม่มีเส้นตาราง · ช่องซ้ายขวาติดกัน (data-wstyle ใน app.css)
+    // (11 พ.ย. 2569 พี่กันทัก "เต็มช่อง กับ รูปคลื่น ไม่เห็นต่างกันเลย" รอบแรกต่างกันแค่สีพื้น)
+    g.fillStyle = "white"; g.fillRect(0, 0, w, h);
+    g.fillStyle = th.rms;
+    for (let x = 0; x < w; x++) {
+      const up = Math.min(h / 2, d.mx[x] * A), dn = Math.min(h / 2, d.mn[x] * A);
+      g.fillRect(x, Math.floor(mid - up), 1, Math.max(1, Math.ceil(up + dn)));
+    }
+    return;
+  }
   if (style === "aud") {
     // แบบ Audacity (พี่กันส่งภาพหน้าคลื่นของ Audacity 7 พ.ย. 2569) · คลื่นยอดสีเข้ม ความดังเฉลี่ยสีอ่อนกว่าข้างใน · เส้นศูนย์ เส้นครึ่ง · ตัวเลขความสูงคลื่นทางซ้าย
     // สีตามชุดสีของโปรแกรม ไม่ใช้สีฟ้าของ Audacity (พี่กัน *"ไม่ต้องคล้ายแบบ 100% เเค่ปรับให้เข้ากับธีมเว็บเรา"*)
@@ -536,7 +550,8 @@ function overviewOnce(path: string, track: number) {
   return p;
 }
 
-type WaveStyle = "fine" | "bars" | "aud";
+/** aud รูปคลื่นแบบหลัก (ตามโปรแกรม Audacity) · bars แท่ง · real คลื่นเต็มช่องแบบหน้าจอ Audacity จริง · fine เส้นละเอียดเดิม เลิกให้เลือกแล้ว (BUGS ข้อ 12) */
+type WaveStyle = "fine" | "bars" | "aud" | "real";
 /** ไฟล์ที่เคยเปิดในหน้ากราฟ ขึ้นในหน้ารวมกราฟเสียง รวมไฟล์เสียงที่ไม่ได้อยู่บนชั้นวาง (พี่กัน 7 พ.ย. 2569
     *"หาวิธีที่เราจะกดกลับไปน้าเสียงรวมที ตอนที่เราอยู่หน้านี้ เเละไฟล์เสียงไหนที่เราโหลดเข้ามาเเล้ว ทำไมมันไม่อยู่ในหน้ารวมเสียงเลย"*)
     เก็บในเครื่องนี้ 12 ไฟล์ล่าสุด · เดิมหน้ารวมดึงจากชั้นวางอย่างเดียว ไฟล์ที่เปิดจากเครื่องไม่ถูกจดไว้ */
@@ -551,13 +566,17 @@ function saveRecent(list: Recent[]) {
 
 /** แถบสีตัวอย่างบนปุ่มเลือกสี ใช้สีชุดเดียวกับที่วาดกราฟจริง */
 const Swatch = ({ ramp }: { ramp: readonly string[] }) => <i className="cswatch" data-keepcolor aria-hidden="true" style={{ background: `linear-gradient(90deg,${ramp.join(",")})` }} />;
+/** คำอธิบายสีของรูปคลื่น (BUGS ข้อ 11 · พี่กัน "ยอดเสียง อ่านเเล้วงง" · "เอาไว้ด้วย") */
+const PEAK_RMS_TIP: Tip = { w: "ดังสุด (Peak) คือจุดที่ดังที่สุดแวบเดียวในช่วงนั้น · ดังเฉลี่ย (RMS) คือความดังเฉลี่ยของช่วงนั้น ใกล้กับที่หูได้ยิน",
+  p: "ดังสุดชนขอบบนล่างคือยอดคลื่นแตะเพดาน เสียงอาจแตก · ดังเฉลี่ยหนาเกือบเท่าดังสุดคือเพลงถูกบีบความดังให้ดังเท่ากันทั้งเพลง · ดังเฉลี่ยบางกว่าดังสุดมากคือเสียงมีช่วงดังเบาเป็นธรรมชาติ" };
 const WaveIc = ({ d }: { d: string }) => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>;
 
 type Prefs = { view: View; theme: string; style: WaveStyle; cmap: "theme" | "rainbow"; scmap: "heat" | "rainbow" | "mono" | "theme"; spekLight: boolean; wide: boolean };
 const PREF_KEY = "graph-prefs";
 function loadPrefs(): Prefs {
-  const d: Prefs = { view: "wave", theme: "ชมพู", style: "fine", cmap: "theme", scmap: "heat", spekLight: false, wide: false };
-  try { const p = JSON.parse(localStorage.getItem(PREF_KEY) ?? "{}"); return { ...d, ...p, theme: THEMES[p.theme] ? p.theme : d.theme }; } catch { return d; }
+  const d: Prefs = { view: "wave", theme: "ชมพู", style: "aud", cmap: "theme", scmap: "heat", spekLight: false, wide: false };
+  // ค่าเดิมที่จำเส้นละเอียดไว้ เปิดมาเป็นแบบหลัก (พี่กันเคาะ "เอาของ audacity เป็นอันหลักเลย")
+  try { const p = JSON.parse(localStorage.getItem(PREF_KEY) ?? "{}"); const r: Prefs = { ...d, ...p, theme: THEMES[p.theme] ? p.theme : d.theme }; if (!["aud", "bars", "real"].includes(r.style)) r.style = "aud"; return r; } catch { return d; }
 }
 
 /** โหมดของหน้า กับการเทียบที่เปิดอยู่ · จำระดับโปรแกรม ไปหน้าอื่นแล้วกลับมาอยู่ที่เดิม (คิวแปลงเก็บใน convertJob.ts) */
@@ -596,6 +615,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
   /** เปิดมาพร้อมเวลา (ปุ่มดูกราฟเสียงช่วงนี้) ไม่ต้องย้ายไปกลางเรื่องตอนภาพรวมเสร็จ */
   const jumped = useRef(false);
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
+  const [ovFold] = useOvFold();
   const [zoom, setZoom] = useState<number | "all">("all");
   const [center, setCenter] = useState(0);
   const [tip, setTip] = useState(0);
@@ -1048,7 +1068,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
     <div className="agctl">
       <div className="seg agviews">{VIEWS.map(([k, l]) => <button key={k} type="button" className={view === k ? "on" : ""} onClick={() => switchView(k)} data-view={k}
         disabled={k === "cmp" && !names.includes("FL")} title={k === "cmp" && !names.includes("FL") ? "ซ้อนเทียบใช้กับแทร็กที่มีช่องซ้ายขวา" : undefined}>{VIEW_ICON[k]}{l}</button>)}</div>
-      {view === "wave" && seg<WaveStyle>([["fine", <><WaveIc d="M2 12h3l2-6 3 12 3-14 3 16 2-8h4" />เส้นละเอียด</>], ["bars", <><WaveIc d="M5 9v6M10 5v14M15 8v8M20 10v4" />แท่ง</>], ["aud", <><WaveIc d="M3 12c2-7 3-7 5 0s3 7 5 0 3-7 5 0 2 4 3 0" />แบบ Audacity</>]], prefs.style, (v) => setPref("style", v), "data-style")}
+      {/* ปุ่มแบบรูปคลื่นย้ายลงหัวการ์ดรูปคลื่น (BUGS ข้อ 12 · พี่กัน "พอเราปรับโโยเอา audacity มาเป็นตัวหลัก เจ้ากราฟแท่งมันจะเหลือ 1 อัน เอามันย้ายลงมาในการ์ดเลย") */}
       <div className="sws" style={{ marginLeft: "auto" }} role="group" aria-label="ชุดสี">{THEME_ORDER.map((n) => <button key={n} type="button" className={"sw" + (prefs.theme === n ? " on" : "")} aria-label={"ชุดสี" + n} title={"ชุดสี" + n} onClick={() => setPref("theme", n)} data-theme={n}
         style={{ background: `linear-gradient(135deg,${THEMES[n].ramp[2]},${THEMES[n].ramp[5]} 60%,${THEMES[n].ramp[7]})` }} />)}</div>
       <GraphOptions on={zoomAll} onChange={(v) => updateSettings({ graphZoomAll: v })} />
@@ -1118,7 +1138,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
   }
 
   /* ---------- กราฟ ---------- */
-  const peakTxt = (c: string) => { const i = names.indexOf(c); return ov.peaks[i] == null ? "" : ov.peaks[i] <= -119 ? "เงียบทั้งไฟล์" : ov.peaks[i] < -96 ? "แทบเงียบทั้งไฟล์ " + pkTxt(ov.peaks[i]) : "ยอด " + pkTxt(ov.peaks[i]); };
+  const peakTxt = (c: string) => { const i = names.indexOf(c); return ov.peaks[i] == null ? "" : ov.peaks[i] <= -119 ? "เงียบทั้งไฟล์" : ov.peaks[i] < -96 ? "แทบเงียบทั้งไฟล์ " + pkTxt(ov.peaks[i]) : "ดังสุด " + pkTxt(ov.peaks[i]); };
   const rulerTicks = (a: number, b: number) => { const steps = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600]; const st = steps.find((s) => (b - a) / s <= 9) ?? 7200; const out: number[] = []; for (let x = Math.ceil(a / st) * st; x <= b; x += st) out.push(x); return out; };
   const Ruler = ({ left, right }: { left: number; right: number }) => (
     <div className="ruler" style={{ marginLeft: left, marginRight: right }}>{rulerTicks(t0, t1).map((x) => { const p = (x - t0) / (t1 - t0 || 1) * 100; return p < 2 || p > 98 ? null : <span key={x} style={{ left: p + "%" }}>{tfmt(x)}</span>; })}</div>
@@ -1138,25 +1158,30 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
     // แถบสูงขึ้นจากเดิม (พี่กัน 7 พ.ย. 2569 *"ใ้ห้ระบบมันขยายกราฟลงมาได้มากกว่านี้ ตอนนี้มันเเค่สองเเถบที่โคตรจะชิดกัน"*) · ลากที่จับใต้กราฟขยายต่อได้ถึง 4 เท่า
     const minH = names.length > 6 ? 52 : names.length > 2 ? 72 : 120;
     // 234 คือหัวกราฟ แถบเลื่อน แถวปุ่มท้าย ระยะขอบรวมกัน
-    const laneH = Math.max(minH, Math.floor((paneH - 234 - (names.length - 1) * 6) / Math.max(1, names.length)));
+    const laneH = Math.max(minH, Math.floor((paneH - 234 + (ovFold ? 34 : 0) - (names.length - 1) * 6) / Math.max(1, names.length)));
     const colors = lut(prefs.cmap === "rainbow" ? RAINBOW : th.ramp);
     plot = (
       <div className="plot" data-plot ref={plotRef}>
         <div className="plotstick">
-        <div className="plothead"><span><b>{view === "wave" ? "รูปคลื่นทุกช่อง" : "ความถี่ทุกช่อง"}</b> · {tfmt(t0)} ถึง {tfmt(t1)}</span>{zoomBox(ZOOMS, "ซูม")}</div>
+        <div className="plothead"><span><b>{view === "wave" ? "รูปคลื่นทุกช่อง" : "ความถี่ทุกช่อง"}</b> · {tfmt(t0)} ถึง {tfmt(t1)}</span>
+          {/* หัวการ์ดแคบ (จอเล็ก) ตัวเลือกแบบกราฟเป็นดรอปดาวน์ แถบซูมไม่ถูกบีบ (พี่กันสั่ง 11 พ.ย. 2569 "มันบีบเส้นซูมเกินไป ให้เปลี่ยนรูปแบบกราฟเป็นดรอปดาวน์ ถ้าจอมันเล็ก") · สลับด้วย @container ใน app.css */}
+          {view === "wave" && <span className="wstyle-seg">{seg<WaveStyle>([["aud", <><WaveIc d="M3 12c2-7 3-7 5 0s3 7 5 0 3-7 5 0 2 4 3 0" />รูปคลื่น</>], ["bars", <><WaveIc d="M5 9v6M10 5v14M15 8v8M20 10v4" />แท่ง</>], ["real", <><WaveIc d="M3 12h2V6h2v12h2V4h2v16h2V7h2v10h2V9h2v3h2" />เต็มช่อง</>]], prefs.style, (v) => setPref("style", v), "data-style")}</span>}
+          {view === "wave" && <span className="wstyle-dd" data-styledd><Dropdown label="แบบกราฟ" value={(prefs.style === "fine" ? "aud" : prefs.style) as "aud" | "bars" | "real"} onChange={(v) => setPref("style", v)}
+            options={[{ value: "aud", label: "รูปคลื่น" }, { value: "bars", label: "แท่ง" }, { value: "real", label: "เต็มช่อง" }]} /></span>}
+          {zoomBox(ZOOMS, "ซูม")}</div>
         <Overview ov={ov} th={th} t0={t0} t1={t1} onPick={(x) => { setCenter(x); setTip(x); if (zoom === "all") setZoom(240); }} left={LW} right={VZ_W} />
         <Ruler left={LW} right={VZ_W} />
         </div>
         <div className="lanewrap" style={{ marginTop: marks.some((m) => m.to > t0 && m.from < t1) ? 28 : 6, position: "relative" }}
           onWheel={(e) => { if (view !== "spec" || sz <= 1 || e.ctrlKey) return; e.stopPropagation(); setSb((b) => szClampB(b + (e.deltaY < 0 ? 0.25 : -0.25) / sz, sz)); }}>
-        <div className={"lanes " + lanesGrab.cls} ref={setBoxEl} style={{ marginTop: 0 }} {...lanesGrab.props} onPointerMove={(e) => { if (!lanesGrab.move(e)) onMove(LW, 0)(e); }} onPointerLeave={() => setHover(null)} data-lanes>
+        <div className={"lanes " + lanesGrab.cls} data-wstyle={view === "wave" ? prefs.style : undefined} ref={setBoxEl} style={{ marginTop: 0 }} {...lanesGrab.props} onPointerMove={(e) => { if (!lanesGrab.move(e)) onMove(LW, 0)(e); }} onPointerLeave={() => setHover(null)} data-lanes>
           {names.map((c) => {
             const i = names.indexOf(c), l = label(names, c);
-            if (hidden.includes(c)) return <LaneOff key={c + "off"} code={l.code} th={l.th} peak={peakTxt(c)} height={view === "wave" && prefs.style === "aud" ? Math.max(laneH, 60) : laneH} />;
+            if (hidden.includes(c)) return <LaneOff key={c + "off"} code={l.code} th={l.th} peak={peakTxt(c)} height={view === "wave" && prefs.style !== "bars" ? Math.max(laneH, 60) : laneH} />;
             return view === "wave"
-              ? <Lane key={c + view} room code={l.code} th={l.th} peak={peakTxt(c)} height={prefs.style === "aud" ? Math.max(laneH, 60) : laneH} deps={[src, t0, t1, th, prefs.style, i, vz, laneH]}
+              ? <Lane key={c + view} room code={l.code} th={l.th} peak={peakTxt(c)} height={prefs.style !== "bars" ? Math.max(laneH, 60) : laneH} deps={[src, t0, t1, th, prefs.style, i, vz, laneH]}
                   draw={(g, w, h) => drawWave(g, w, h, sample(src, i, t0, t1, w), th, prefs.style, vz)}
-                  ruler={prefs.style === "aud" ? (g, w, h) => drawAmpRuler(g, w, h, vz) : undefined} />
+                  ruler={prefs.style !== "bars" ? (g, w, h) => drawAmpRuler(g, w, h, vz) : undefined} />
               : <Lane key={c + view} code={l.code} th={l.th} peak={peakTxt(c)} height={laneH} deps={[src, winNow, heldShown, t0, t1, prefs.cmap, th, i, laneH, sz, sb]}
                   draw={(g, w, h) => drawSpecLane(g, w, h, i, winNow, ov, t0, t1, t?.rate ?? 48000, colors, sz, sb, heldShown)} />;
           })}
@@ -1172,7 +1197,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
         {scroller(LW, VZ_W)}
         <div className="agfoot">
           {view === "wave"
-            ? <div className="lg">{prefs.style === "bars" ? <span><svg width="22" height="14" viewBox="0 0 22 14" style={{ verticalAlign: -2, marginRight: 5 }} aria-hidden="true"><rect width="22" height="14" rx="3" fill={th.lane} stroke={th.peak} /><rect x="4" y="5" width="2" height="4" rx="1" fill={th.rms} /><rect x="8" y="2" width="2" height="10" rx="1" fill={th.rms} /><rect x="12" y="4" width="2" height="6" rx="1" fill={th.rms} /><rect x="16" y="3" width="2" height="8" rx="1" fill={th.rms} /></svg>ความสูงแท่ง คือยอดเสียงช่วงนั้น</span> : prefs.style === "aud" ? <><span><i style={{ background: th.rms }} />ยอดเสียง</span><span><i style={{ background: th.ramp[5] }} />ความดังเฉลี่ย</span><span className="small">ตัวเลขซ้ายคือความสูงคลื่น 1.0 เต็มสเกล</span></> : <><span><i style={{ background: th.peak }} />ยอดเสียง</span><span><i style={{ background: th.rms }} />ความดังเฉลี่ย</span></>}{marks.length > 0 && <span style={{ color: "#b03535" }}><i style={{ background: "rgba(208,59,59,.25)", border: "1px solid rgba(208,59,59,.75)" }} />จุดเสีย</span>}</div>
+            ? <div className="lg">{prefs.style === "bars" ? <span><svg width="22" height="14" viewBox="0 0 22 14" style={{ verticalAlign: -2, marginRight: 5 }} aria-hidden="true"><rect width="22" height="14" rx="3" fill={th.lane} stroke={th.peak} /><rect x="4" y="5" width="2" height="4" rx="1" fill={th.rms} /><rect x="8" y="2" width="2" height="10" rx="1" fill={th.rms} /><rect x="12" y="4" width="2" height="6" rx="1" fill={th.rms} /><rect x="16" y="3" width="2" height="8" rx="1" fill={th.rms} /></svg>ความสูงแท่ง คือดังสุดช่วงนั้น</span> : <><span><i style={{ background: th.rms }} />ดังสุด (Peak)</span>{prefs.style !== "real" && <span><i style={{ background: th.ramp[5] }} />ดังเฉลี่ย (RMS)</span>}<InfoTip title="ดังสุดกับดังเฉลี่ย" tip={PEAK_RMS_TIP} /><span className="small" data-audnote>{prefs.style === "real" ? "หน้าตาแบบโปรแกรม Audacity" : "แบบตามโปรแกรม Audacity"} · ตัวเลขซ้ายคือความสูงคลื่น 1.0 เต็มสเกล</span></>}{marks.length > 0 && <span style={{ color: "#b03535" }}><i style={{ background: "rgba(208,59,59,.25)", border: "1px solid rgba(208,59,59,.75)" }} />จุดเสีย</span>}</div>
             : <div className="speclegend"><span className="nw">−120 dB</span><span className="rampbar" style={{ background: `linear-gradient(90deg,${(prefs.cmap === "rainbow" ? RAINBOW : th.ramp).join(",")})` }} /><span className="nw">0 dB</span><span className="nw" style={{ marginLeft: 6 }}>20 Hz ถึง {Math.round((t?.rate ?? 48000) / 2000)} kHz</span></div>}
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {view === "spec" && seg<"theme" | "rainbow">([["theme", <><Swatch ramp={th.ramp} />สีตามชุด</>], ["rainbow", <><Swatch ramp={RAINBOW} />สีรุ้ง</>]], prefs.cmap, (v) => setPref("cmap", v), "data-cmap")}
@@ -1229,6 +1254,15 @@ function FragmentKV({ k, v }: { k: string; v: string }) {
 }
 
 /** แถบทั้งไฟล์ · กดเพื่อกระโดด */
+/** แถบภาพรวมทั้งไฟล์พับเก็บได้ จำค่าไว้ ทุกมุมมองใช้ค่าเดียวกัน (BUGS ข้อ 17 · พี่กัน "เราอยากให้ เจ้ากราฟนี้ มันพับเก็บได้") */
+const OV_FOLD_KEY = "graph-ov-fold";
+let ovFoldNow = (() => { try { return localStorage.getItem(OV_FOLD_KEY) === "1"; } catch { return false; } })();
+const ovFoldSubs = new Set<(v: boolean) => void>();
+function useOvFold(): [boolean, (v: boolean) => void] {
+  const [v, setV] = useState(ovFoldNow);
+  useEffect(() => { ovFoldSubs.add(setV); return () => { ovFoldSubs.delete(setV); }; }, []);
+  return [v, (n) => { ovFoldNow = n; try { localStorage.setItem(OV_FOLD_KEY, n ? "1" : "0"); } catch { /* ไม่มีที่เก็บ ใช้ค่าในหน้าไปก่อน */ } ovFoldSubs.forEach((x) => x(n)); }];
+}
 function Overview({ ov, th, t0, t1, onPick, left, right = 0 }: { ov: GOverview; th: Theme; t0: number; t1: number; onPick: (t: number) => void; left: number; right?: number }) {
   const ref = useCanvas((g, w, h) => {
     g.fillStyle = th.lane; g.fillRect(0, 0, w, h);
@@ -1243,8 +1277,18 @@ function Overview({ ov, th, t0, t1, onPick, left, right = 0 }: { ov: GOverview; 
       g.strokeStyle = "#d9719a"; g.lineWidth = 2; g.strokeRect(a + 1, 1, Math.max(4, b - a - 2), h - 2);
     }
   }, [ov, th, t0, t1]);
+  const [fold, setFold] = useOvFold();
+  // พับแล้วเหลือแถบบางพร้อมปุ่มกาง ไม่วาดรูปคลื่นทั้งไฟล์ (BUGS ข้อ 17)
+  if (fold) return (
+    <div className="ovfold" style={{ marginLeft: left, marginRight: right }} data-ovfold>
+      <button type="button" className="ovtog" aria-expanded={false} onClick={() => setFold(false)} data-ovtoggle><IcChevronDown size={14} stroke="currentColor" />แสดงภาพรวมทั้งไฟล์ {tfmt(ov.duration)}</button>
+    </div>
+  );
   return (<>
-    <div className="ovw" style={{ marginLeft: left, marginRight: right }} onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); onPick((e.clientX - r.left) / r.width * ov.duration); }} title="กดเพื่อไปช่วงนั้น" data-ovw><canvas ref={ref} /></div>
+    <div className="ovwrap" style={{ marginLeft: left, marginRight: right }}>
+      <div className="ovw" onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); onPick((e.clientX - r.left) / r.width * ov.duration); }} title="กดเพื่อไปช่วงนั้น" data-ovw><canvas ref={ref} /></div>
+      <button type="button" className="ovtog up" aria-expanded={true} aria-label="พับแถบภาพรวมทั้งไฟล์" title="พับแถบภาพรวมทั้งไฟล์ กราฟได้ที่สูงเพิ่ม" onClick={() => setFold(true)} data-ovtoggle><IcChevronDown size={14} stroke="currentColor" /></button>
+    </div>
     <div className="ovrul" style={{ marginLeft: left, marginRight: right }}><span>0:00</span><span style={{ left: "50%" }}>ทั้งไฟล์ {tfmt(ov.duration)}{ov.readTo < ov.duration - 1 ? ` · อ่านได้ถึง ${tfmt(ov.readTo)}` : ""}</span><span style={{ left: "100%" }}>{tfmt(ov.duration)}</span></div>
   </>);
 }
@@ -1457,7 +1501,7 @@ function LoudView({ onPan, onBusy, resetN, scroller, ov, th, t0, t1, names, mark
       <div className="plotstick">
       <div className="tiles" data-graphtiles>
         <div className="tile"><span>ความดังรวม</span><b>{f1(ov.integrated)} LUFS</b><em>ทั้งไฟล์ ตามมาตรฐาน EBU R128</em></div>
-        <div className="tile"><span>ยอดเสียงสูงสุด</span><b>{f1(ov.truePeak)} dBTP</b><em>{(ov.truePeak ?? -99) >= 0 ? "ถึง 0 · อาจมีเสียงแตก" : "ไม่ถึง 0"}{ov.clips.some((c) => c > 0) ? ` · เสียงแตก ${ov.clips.reduce((a, b) => a + b, 0)} จุด` : ""}</em></div>
+        <div className="tile"><span>ดังสุด (True Peak)</span><b>{f1(ov.truePeak)} dBTP</b><em>{(ov.truePeak ?? -99) >= 0 ? "ถึง 0 · อาจมีเสียงแตก" : "ไม่ถึง 0"}{ov.clips.some((c) => c > 0) ? ` · เสียงแตก ${ov.clips.reduce((a, b) => a + b, 0)} จุด` : ""}</em></div>
         <div className="tile"><span>ช่วงความดัง</span><b>{f1(ov.lra)} LU</b><em>ห่างระหว่างช่วงเบากับช่วงดัง</em></div>
         <div className="tile"><span>ช่วงเงียบผิดปกติ</span><b>{sil ? `${sil} ช่วง` : "ไม่พบ"}</b><em>{sil ? `แรกสุดที่ ${tfmt(ov.silences[0][0])}` : "เงียบทุกช่องเกิน 1 วินาที"}</em></div>
       </div>
@@ -1473,11 +1517,11 @@ function LoudView({ onPan, onBusy, resetN, scroller, ov, th, t0, t1, names, mark
       <FZoom value={vr.z} onChange={vr.setZ} />
       </div>
       {scroller?.(X0, 34)}
-      <div className="sub">ยอดเสียงแต่ละช่อง</div>
+      <div className="sub">ดังสุดแต่ละช่อง</div>
       <div className="pbars">{names.map((c, i) => <FragmentBar key={c} code={label(names, c).code} th={label(names, c).th} w={Math.max(ov.peaks[i] <= -119 ? 0 : 2, (ov.peaks[i] + 48) / 48 * 100)} color={th.rms} v={pkTxt(ov.peaks[i])} />)}</div>
       <div className="agfoot"><div className="lg"><span><i style={{ background: th.peak }} />ความดัง</span><span><span className="ln" style={{ background: th.rms }} />เส้นความดัง</span><span><span className="ln" style={{ background: "#8a6474" }} />เส้นอ้างอิง</span></div>
         <div style={{ display: "flex", gap: 8 }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowTable(!showTable)} data-table><Keep icon={<IbTable size={15} />} all={["ซ่อนตาราง", "ดูเป็นตาราง"]}>{showTable ? "ซ่อนตาราง" : "ดูเป็นตาราง"}</Keep></button><SaveBtn onClick={save} /></div></div>
-      {showTable && <table className="fmt" style={{ marginTop: 10 }} data-graphtable><thead><tr><th>ช่อง</th><th className="num">ยอดเสียง</th><th className="num">ความดังเฉลี่ย</th><th className="num">เสียงแตก</th></tr></thead>
+      {showTable && <table className="fmt" style={{ marginTop: 10 }} data-graphtable><thead><tr><th>ช่อง</th><th className="num">ดังสุด (Peak)</th><th className="num">ความดังเฉลี่ย</th><th className="num">เสียงแตก</th></tr></thead>
         <tbody>{names.map((c, i) => <tr key={c}><td><b>{label(names, c).code}</b> {label(names, c).th}</td><td className="num">{pkTxt(ov.peaks[i])}</td><td className="num">{pkTxt(ov.rms[i])}</td><td className="num">{ov.clips[i] ? `${ov.clips[i]} จุด` : "ไม่พบ"}</td></tr>)}</tbody></table>}
     </div>
   );
@@ -2422,7 +2466,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
         const names = NM[f], ov = OV[f], i = names.indexOf(c);
         if (i < 0) return [];
         const l = label(names, c), pk = ov.peaks[i], k = "abcd"[f];
-        const peak = pk == null ? "" : pk <= -119 ? "เงียบทั้งไฟล์" : "ยอด " + pkTxt(pk);
+        const peak = pk == null ? "" : pk <= -119 ? "เงียบทั้งไฟล์" : "ดังสุด " + pkTxt(pk);
         if (hidden.includes(c)) return [<LaneOff key={c + k + "off"} code={l.code} th={`${l.th} · ${LABELS[f]}`} peak={peak} height={laneH} />];
         return [tab === "wave"
           ? <Lane key={c + k + tab} code={l.code} th={`${l.th} · ${LABELS[f]}`} peak={peak} height={laneH} deps={[ov, t0, t1, i, laneH, vz, f, hiC[files[f]]]}
@@ -2445,10 +2489,10 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
           <TimeScroll dur={dur} t0={t0} t1={t1} left={96} right={30} onPan={panT} />
           {tab === "wave"
             ? (over != null
-              ? <Stat kind="warn" b={`ยอดเสียง${LABELS[over]}ขึ้นเป็น ${pkTxt(pks[over])}`} d={`${LABELS[0]} ${pkTxt(pks[0])}${CONV ? " · การแปลงแบบเสียคุณภาพทำให้ยอดคลื่นขยับเล็กน้อย" : ""} · ดูแท็บความดังว่าเกิน 0 ช่วงไหน`} />
-              : <Stat kind="info" b={`รูปคลื่นของ${allTxt}`} d={`ยอดเสียงสูงสุด ${pks.map((p, i) => `${LABELS[i]} ${pkTxt(p)}`).join(" · ")}`} />)
+              ? <Stat kind="warn" b={`ดังสุดของ${LABELS[over]}ขึ้นเป็น ${pkTxt(pks[over])}`} d={`${LABELS[0]} ${pkTxt(pks[0])}${CONV ? " · การแปลงแบบเสียคุณภาพทำให้ยอดคลื่นขยับเล็กน้อย" : ""} · ดูแท็บความดังว่าเกิน 0 ช่วงไหน`} />
+              : <Stat kind="info" b={`รูปคลื่นของ${allTxt}`} d={`ดังสุด ${pks.map((p, i) => `${LABELS[i]} ${pkTxt(p)}`).join(" · ")}`} />)
             : <Stat {...cutNote} />}
-        {foot(tab === "wave" ? <><span>{TH_FILE.slice(0, n).map((x, i) => <i key={i} style={{ background: x.peak }} />)}ยอดเสียง</span><span>{FILE_INK.slice(0, n).map((x, i) => <i key={i} style={{ background: x }} />)}ความดังเฉลี่ย</span></>
+        {foot(tab === "wave" ? <><span>{TH_FILE.slice(0, n).map((x, i) => <i key={i} style={{ background: x.peak }} />)}ดังสุด (Peak)</span><span>{FILE_INK.slice(0, n).map((x, i) => <i key={i} style={{ background: x }} />)}ดังเฉลี่ย (RMS)</span></>
             : <><span className="nw">−120 dB</span><span className="rampbar" style={{ background: `linear-gradient(90deg,${THEMES["ชมพู"].ramp.join(",")})` }} /><span className="nw">0 dB</span></>)}
           </div>
       );
@@ -2456,7 +2500,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
       const hot = others.find((i) => (OV[i].truePeak ?? -99) >= 0);
       const rows: { k: string; v: string[]; note: string; bad: boolean[] }[] = [
         { k: "ความดังรวม", v: OV.map((o) => `${f1(o.integrated)} LUFS`), note: "ทั้งไฟล์ ตามมาตรฐาน EBU R128", bad: [] },
-        { k: "ยอดเสียงสูงสุด", v: OV.map((o, i) => `${i && (o.truePeak ?? -99) > 0 ? "+" : ""}${f1(o.truePeak)} dBTP`), note: hot != null ? LABELS[hot] + "ถึงหรือเกิน 0" : `ไม่ถึง 0 ${allTxt}`, bad: OV.map((o, i) => i > 0 && (o.truePeak ?? -99) >= 0) },
+        { k: "ดังสุด (True Peak)", v: OV.map((o, i) => `${i && (o.truePeak ?? -99) > 0 ? "+" : ""}${f1(o.truePeak)} dBTP`), note: hot != null ? LABELS[hot] + "ถึงหรือเกิน 0" : `ไม่ถึง 0 ${allTxt}`, bad: OV.map((o, i) => i > 0 && (o.truePeak ?? -99) >= 0) },
         { k: "ช่วงความดัง", v: OV.map((o) => `${f1(o.lra)} LU`), note: "ห่างระหว่างช่วงเบากับช่วงดัง", bad: [] },
         { k: "ช่วงเงียบผิดปกติ", v: OV.map((o) => (o.silences.length ? `${o.silences.length} ช่วง` : "ไม่พบ")), note: "เงียบทุกช่องเกิน 1 วินาที", bad: OV.map((o, i) => i > 0 && o.silences.length > OV[0].silences.length) },
       ];
@@ -2476,7 +2520,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
           </div>
           <TimeScroll dur={dur} t0={t0} t1={t1} left={44} right={34} onPan={panT} />
           {hot != null
-            ? <Stat kind="warn" b={`ยอดเสียง${LABELS[hot]} ${(OV[hot].truePeak ?? 0) > 0 ? "+" : ""}${f1(OV[hot].truePeak)} dBTP ถึงหรือเกิน 0`} d={CONV ? "เครื่องเล่นบางตัวเสียงแตกช่วงที่ดังสุด · ตั้ง Gain −1 dB ในแผงตั้งค่าเสียงแล้วแปลงใหม่" : "เครื่องเล่นบางตัวเสียงแตกช่วงที่ดังสุด"} />
+            ? <Stat kind="warn" b={`ดังสุดของ${LABELS[hot]} ${(OV[hot].truePeak ?? 0) > 0 ? "+" : ""}${f1(OV[hot].truePeak)} dBTP ถึงหรือเกิน 0`} d={CONV ? "เครื่องเล่นบางตัวเสียงแตกช่วงที่ดังสุด · ตั้ง Gain −1 dB ในแผงตั้งค่าเสียงแล้วแปลงใหม่" : "เครื่องเล่นบางตัวเสียงแตกช่วงที่ดังสุด"} />
             : <Stat kind="info" b={n === 2 ? `ความดังรวมต่างกัน ${luDiffs[0].toFixed(1)} LU` : `ความดังรวมต่างจาก${LABELS[0]}มากสุด ${Math.max(...luDiffs).toFixed(1)} LU`} d={`เส้นแทบทับกันแปลว่าความดังไม่เปลี่ยน · ต่างกันไม่ถึง 1 LU หูแยกไม่ออก`} />}
         {foot(<span><span className="ln" style={{ background: "#8a6474" }} />เส้นอ้างอิง −23 LUFS</span>)}
           </div>

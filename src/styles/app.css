@@ -719,6 +719,14 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .plothead b { color: var(--txt); font-size: 14px; }
 .plothead .dd, .agfoot .dd { height: 30px; font-size: 13px; }
 .ovw { position: relative; height: 38px; border-radius: 6px; overflow: hidden; cursor: pointer; }
+/* ปุ่มพับกางแถบภาพรวม (BUGS ข้อ 17) · ตอนกางอยู่มุมขวาบนของแถบ ตอนพับเหลือแถบบางมีปุ่มกาง */
+.ovwrap { position: relative; }
+.ovtog { display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 6px; background: color-mix(in srgb, var(--win) 88%, transparent); color: var(--txt2); font: inherit; font-size: 12px; cursor: pointer; padding: 2px 8px; transition: background-color .12s, color .12s; }
+.ovtog:hover { background: color-mix(in srgb, var(--accent) 14%, var(--win)); color: var(--accent-ink); }
+.ovtog:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ovtog.up { position: absolute; top: 3px; right: 3px; padding: 2px 3px; }
+.ovtog.up svg { transform: rotate(180deg); }
+.ovfold { display: flex; align-items: center; height: 22px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 6%, var(--win)); }
 .ovw canvas { width: 100%; height: 100%; display: block; }
 .ruler { position: relative; height: 22px; border-bottom: 1px solid #efdbe2; font-size: 11.5px; color: var(--txt3); font-variant-numeric: tabular-nums; }
 .ruler span { position: absolute; bottom: 3px; transform: translateX(-50%); white-space: nowrap; }
@@ -733,6 +741,9 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .lab span { font-size: 11.5px; color: var(--txt2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lab em { font-style: normal; font-size: 11px; color: var(--txt3); font-variant-numeric: tabular-nums; }
 .cv { width: 100%; display: block; border-radius: 4px; }
+/* แบบเต็มช่อง ช่องซ้ายขวาติดกัน มุมเหลี่ยม เส้นคั่นบางระหว่างช่อง แบบหน้าจอ Audacity (BUGS ข้อ 12) */
+.lanes[data-wstyle=real] { gap: 0; }
+.lanes[data-wstyle=real] .cv { border-radius: 0; border-bottom: 1px solid color-mix(in srgb, black 22%, white); }
 .xh { position: absolute; top: 0; bottom: 0; width: 1px; background: #472e36; opacity: .55; pointer-events: none; }
 .tip { position: absolute; top: 6px; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 22px rgba(60,25,40,.18); padding: 8px 10px; font-size: 12px; pointer-events: none; min-width: 150px; z-index: 3; }
 .tip .t { font-weight: 700; color: var(--txt); margin-bottom: 3px; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -862,8 +873,9 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .zb { width: 30px; height: 30px; border-radius: 8px; border: 1px solid #e8cdd6; background-color: #fff; color: var(--txt2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; transition: background-color .15s, color .15s; }
 .zb:hover { background-color: #faedf1; color: var(--accent-ink); }
 .zb:disabled { color: #c9aab4; background-color: #f7f7f7; cursor: not-allowed; }
-.tscroll { position: relative; height: 12px; margin-top: 8px; border-radius: 6px; background: #f7e2e9; cursor: pointer; }
-.tscroll .thumb { position: absolute; top: 1px; bottom: 1px; border-radius: 5px; background: var(--accent); cursor: grab; outline: none; }
+/* แถบเลื่อนเวลาบางลงครึ่งหนึ่ง สีเดิม (BUGS ข้อ 18 · พี่กัน "เเค่ลดความสูงของเส้นลงครึ่งนึง") · ที่กดยังสูง 12 จุดเท่าเดิม วาดร่องกับแท่งแค่ 6 จุดกลาง */
+.tscroll { position: relative; height: 12px; margin-top: 8px; border-radius: 6px; background: linear-gradient(#f7e2e9, #f7e2e9) center / 100% 6px no-repeat; cursor: pointer; }
+.tscroll .thumb { position: absolute; top: 3px; bottom: 3px; border-radius: 3px; background: var(--accent); cursor: grab; outline: none; }
 .tscroll .thumb:hover { background: var(--accent-d); }
 .tscroll .thumb:focus-visible { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent-d); }
 .tscroll .thumb.all { background: #e8cbd5; cursor: default; }
@@ -979,7 +991,15 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 /* หัวกราฟที่มีดรอปดาวน์ไม่ตัด แถบซูมเวลาหดแทน ไม่ทับกัน */
 .plothead > :first-child:has(.dd) { flex: none; overflow: visible; }
 .plothead .seg { flex: none; }
+/* หัวการ์ดแน่น (มีปุ่มแบบรูปคลื่น) กล่องซูมไม่หด ไม่ให้คำว่า ซูม ทับปุ่มแว่นขยาย · หัวการ์ดแคบกว่า 1,040 จุด ปุ่มแบบกราฟเป็นดรอปดาวน์ แถบซูม 130 จุด · ที่ยังขาด ชื่อการ์ดหดตัดท้าย (เจอตอนตรวจภาพ BUGS ข้อ 12) */
+.plothead > :first-child:not(:has(.dd)) { flex: 0 1 auto; min-width: 84px; }
+.plothead { container-type: inline-size; }
+.plothead > :last-child:has(.zbtns) { flex: none; }
+.plothead .wstyle-seg { display: flex; flex: none; }
+.plothead .wstyle-dd { display: none; flex: none; }
+@container (max-width: 1040px) { .plothead .wstyle-seg { display: none; } .plothead .wstyle-dd { display: flex; } .plothead .zbtns .hzoom { flex: none; width: 130px; min-width: 130px; } }
 .plothead .zbtns { flex: 0 1 auto; min-width: 0; display: flex; align-items: center; }
+/* กลุ่มปุ่มซูมไม่หดต่ำกว่าปุ่มครบสามปุ่มกับแถบซูม 64 จุด ไม่งั้นปุ่มรีเซ็ตมุดใต้คำว่า ซูม (เจอตอนตรวจภาพ BUGS ข้อ 12) */
 .plothead .zbtns .zb { flex: none; }
 .plothead .hzoom { flex: 0 1 200px; width: 200px; min-width: 60px; }
 /* หน้าต่างแคบ ไม่พอวางแถบซูมเวลา เหลือปุ่มแว่นขยายกับรีเซ็ต ชื่อกราฟหดแทน ไม่ทับกัน */
