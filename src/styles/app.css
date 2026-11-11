@@ -724,12 +724,25 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .ovtog { display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 6px; background: color-mix(in srgb, var(--win) 88%, transparent); color: var(--txt2); font: inherit; font-size: 12px; cursor: pointer; padding: 2px 8px; transition: background-color .12s, color .12s; }
 .ovtog:hover { background: color-mix(in srgb, var(--accent) 14%, var(--win)); color: var(--accent-ink); }
 .ovtog:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
-.ovtog.up { position: absolute; top: 3px; right: 3px; padding: 2px 3px; }
-.ovtog.up svg { transform: rotate(180deg); }
-.ovfold { display: flex; align-items: center; height: 22px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 6%, var(--win)); }
+.ovtog.out { position: absolute; top: 50%; transform: translateY(-50%); width: 24px; height: 20px; padding: 0; justify-content: center; }
+.ovtog.out.up svg, .ovtog.ovleft svg { transform: rotate(180deg); }
+.ovtog.ovleft { position: absolute; right: calc(100% + 4px); top: 50%; transform: translateY(-50%); gap: 4px; padding: 2px 4px 2px 8px; white-space: nowrap; }
+.ovfold { position: relative; height: 10px; border-radius: 5px; cursor: pointer; background: color-mix(in srgb, var(--accent) 7%, var(--win)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 14%, transparent); }
+.ovfold:hover { background: color-mix(in srgb, var(--accent) 12%, var(--win)); }
+/* ข้อความแสดงภาพรวมทั้งไฟล์ อยู่ช่องว่างซ้ายตรงกับเส้น ชิดขวาเข้าหาเส้น (พี่กันถาม "เเล้วคำยาวๆมันหายไปไหน" ตอนเส้นหนา 10 ใส่ตัวหนังสือในเส้นไม่ได้) */
+.ovfoldtxt { position: absolute; right: calc(100% + 8px); top: 50%; transform: translateY(-50%); text-align: right; font-size: 11.5px; line-height: 14px; color: var(--txt2); }
+.ovfold:hover .ovfoldtxt { color: var(--accent-ink); }
+/* ช่วงที่ดูอยู่บนเส้นตอนพับ สีเดียวกับกรอบช่วงบนแถบตอนกาง (พี่กันสั่ง "แม้จะไม่มีกราฟ เเต่มันก็จะไฮไลต์เวลานั้นๆด้วย") · สีตั้งจากโค้ดตรงกับผืนวาด ตัวแปลงโทนไม่แปลง */
+.ovfoldwin { position: absolute; top: 0; bottom: 0; border-radius: 5px; pointer-events: none; }
+/* ปุ่มพับกับปุ่มกางอยู่ที่เดียวกันนอกแถบ (พี่กันสั่ง "มันควรจะอยู่ฝั่งเดียวกัน" · ทักว่าปุ่มในแถบ "บัง") ตำแหน่งตั้งจากโค้ด togPos · แถบตอนพับเป็นเส้นเดียวหนา 10 พื้นจางขอบจาง (พี่กันสั่ง "เอาเส้นเดียว หนา 10") · ตอนกางขนาดและสีเดิม */
 .ovw canvas { width: 100%; height: 100%; display: block; }
-.ruler { position: relative; height: 22px; border-bottom: 1px solid #efdbe2; font-size: 11.5px; color: var(--txt3); font-variant-numeric: tabular-nums; }
+.ruler { position: relative; height: 26px; border-bottom: 1px solid #efdbe2; font-size: 11.5px; color: var(--txt3); font-variant-numeric: tabular-nums; }
 .ruler span { position: absolute; bottom: 3px; transform: translateX(-50%); white-space: nowrap; }
+/* ขีดแบบไม้บรรทัด ขีดยาวตรงเลข ขีดสั้นระหว่างเลข ตั้งขึ้นจากเส้นล่างของแถบ (พี่กันสั่ง "ขอขีดตั้งเหมือนกับไม้บรรทัดด้วย ตรงเลขเวลา") */
+.ruler .tk { position: absolute; bottom: 0; width: 1px; height: 6px; margin-left: -0.5px; background: #cfa9b7; font-style: normal; }
+.ruler .tk.sm { height: 3px; background: #e2c6d0; }
+/* เลขอยู่กลางระหว่างขอบบนของแถบกับปลายขีด วัดจากตัวอักษรจริง ห่างบนกับล่างเท่ากัน (พี่กันทัก "มันชิดขอบบนมากกว่าขอบล่าง ขอกลางกว่านี้" · เดิมบน 0 ล่าง 12) */
+.ruler .tk span { bottom: 5px; left: 0; }
 .ovrul { position: relative; height: 16px; font-size: 11px; color: var(--txt3); font-variant-numeric: tabular-nums; }
 .ovrul span { position: absolute; top: 1px; transform: translateX(-50%); white-space: nowrap; }
 .ovrul span:first-child { transform: none; }
@@ -741,9 +754,10 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .lab span { font-size: 11.5px; color: var(--txt2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .lab em { font-style: normal; font-size: 11px; color: var(--txt3); font-variant-numeric: tabular-nums; }
 .cv { width: 100%; display: block; border-radius: 4px; }
-/* แบบเต็มช่อง ช่องซ้ายขวาติดกัน มุมเหลี่ยม เส้นคั่นบางระหว่างช่อง แบบหน้าจอ Audacity (BUGS ข้อ 12) */
-.lanes[data-wstyle=real] { gap: 0; }
-.lanes[data-wstyle=real] .cv { border-radius: 0; border-bottom: 1px solid color-mix(in srgb, black 22%, white); }
+/* แบบเต็มช่อง ช่องคั่นกับมุมเท่าแบบอื่น กรอบกราฟอยู่ตำแหน่งเดียวกันทุกแบบ (เดิมช่องติดกัน มุมเหลี่ยม ช่องล่างขึ้นไป 6 จุด พี่กันทัก 11 พ.ย. 2569 "มันไม่เท่ากันเลย") */
+/* เส้นแบ่งช่องกลางช่องคั่น ยาวเท่าตัวกราฟ ไม่กินที่ ช่องอยู่ตำแหน่งเดิม (พี่กันสั่ง "ขอเส้นเเบ้งเสียงซ้ายขวา" · พื้นช่องขาวเท่าพื้นการ์ด ช่องคั่นมองไม่เห็น) */
+.lanes[data-wstyle=real] > .lane + .lane { position: relative; }
+.lanes[data-wstyle=real] > .lane + .lane::before { content: ""; position: absolute; left: calc(96px + 40px); right: 0; top: -3.5px; height: 1px; background: color-mix(in srgb, black 25%, white); pointer-events: none; }
 .xh { position: absolute; top: 0; bottom: 0; width: 1px; background: #472e36; opacity: .55; pointer-events: none; }
 .tip { position: absolute; top: 6px; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 22px rgba(60,25,40,.18); padding: 8px 10px; font-size: 12px; pointer-events: none; min-width: 150px; z-index: 3; }
 .tip .t { font-weight: 700; color: var(--txt); margin-bottom: 3px; font-variant-numeric: tabular-nums; white-space: nowrap; }
@@ -757,6 +771,10 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .lg { display: flex; align-items: center; gap: 14px; font-size: 12.5px; color: var(--txt2); flex-wrap: wrap; }
 .lg i { display: inline-block; width: 12px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
 .lg .ln { display: inline-block; width: 14px; height: 2px; border-radius: 1px; margin-right: 5px; vertical-align: 3px; }
+/* แถบล่างหน้ารูปคลื่น โครงเดียวกันทั้งสามแบบ แถวบนป้ายสี แถวล่างหมายเหตุบรรทัดเดียว ยาวเกินตัดด้วย … ชี้ดูเต็ม · สูงคงที่ สลับแบบแล้วไม่ขยับ (พี่กันสั่ง "ทำห้มันเหมือนกัน เเล้ว fiix") */
+.lg.wavelg { flex-direction: column; align-items: flex-start; gap: 2px; flex-wrap: nowrap; min-width: 0; flex: 1 1 auto; }
+.wavelg .lgrow { display: flex; align-items: center; gap: 14px; height: 22px; white-space: nowrap; }
+.wavelg .lgnote { max-width: 100%; height: 19px; line-height: 19px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .speclegend { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--txt2); flex-wrap: wrap; }
 .speclegend .rampbar { width: 90px; height: 10px; border-radius: 3px; }
 .tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 10px; }

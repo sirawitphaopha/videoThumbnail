@@ -1,7 +1,7 @@
 /* หน้ากราฟเสียง (มอคอัป docs/mockups/audio-graph.html · พี่กันสั่ง "ลงมือทำเลย" 7 พ.ย. 2569)
    6 แบบ รูปคลื่น (เส้นละเอียด หรือ แท่ง) · ความถี่ (สีตามชุด หรือ สีรุ้ง) · ความดัง · ซ้อนเทียบ · วิเคราะห์ (แบบ Spek) · ความถี่เฉลี่ย (แบบ Plot Spectrum ของ Audacity)
    ข้อมูลจริงจาก audiograph.rs · ภาพรวมทั้งไฟล์อ่านครั้งเดียว ช่วงที่ซูมอ่านเฉพาะช่วง ระหว่างรอใช้ภาพรวมวาดไปก่อน ไม่มีจอว่าง */
-import { Component, createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { Component, type CSSProperties, createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { usePageActiveRef } from "../lib/pageActive";
 import { flushSync } from "react-dom";
 import { listen } from "@tauri-apps/api/event";
@@ -69,6 +69,46 @@ const noteOf = (f: number) => { const n = Math.round(12 * Math.log2(f / 440)) + 
 const WARN = <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" aria-hidden="true"><path d="M12 3l10 18H2z" /><path d="M12 10v5M12 18v.5" /></svg>;
 
 function tfmt(t: number) { t = Math.max(0, Math.round(t)); const h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = t % 60; return h ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`; }
+/** เวลามีทศนิยมของวินาที เช่น 2:35.25 · d คือจำนวนหลักทศนิยม 0 ได้แบบ tfmt */
+function tfmtD(t: number, d: number) {
+  if (d <= 0) return tfmt(t);
+  const k = Math.pow(10, d), r = Math.round(Math.max(0, t) * k) / k, whole = Math.floor(r);
+  const h = Math.floor(whole / 3600), m = Math.floor(whole % 3600 / 60), s = (r - h * 3600 - m * 60).toFixed(d).padStart(3 + d, "0");
+  return h ? `${h}:${String(m).padStart(2, "0")}:${s}` : `${m}:${s}`;
+}
+/** หลักทศนิยมที่ต้องใช้ตามความยาวช่วงที่ดู · ช่วงสั้นกว่า 20 วินาทีมีทศนิยมหนึ่งหลัก สั้นกว่า 2 วินาทีสองหลัก สั้นกว่า 0.2 วินาทีสามหลัก */
+const spanDigits = (span: number) => (span < 0.2 ? 3 : span < 2 ? 2 : span < 20 ? 1 : 0);
+/** ขีดเวลาบนแถบเวลา ไม่เกินราว 9 ขีด · ซูมเหลือไม่ถึงวินาทีก็ซอยเป็นเศษวินาที
+    (เดิมละเอียดสุด 1 วินาที ซูมช่วง 1 วินาทีแล้วแถบเวลาว่าง พี่กันทัก 11 พ.ย. 2569 "ซูมขนาดนี้เเล้วไหนเวลา") */
+const TICK_STEPS = [0.001, 0.002, 0.005, 0.01, 0.02, 0.05, 0.1, 0.2, 0.25, 0.5, 1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600];
+function rulerTicks(a: number, b: number, maxN = 9): { x: number; label: string }[] {
+  const st = TICK_STEPS.find((s) => (b - a) / s <= maxN) ?? 7200;
+  const d = st < 0.01 ? 3 : st < 0.1 ? 2 : st < 1 ? (st === 0.25 ? 2 : 1) : 0;
+  const out: { x: number; label: string }[] = [];
+  for (let n = Math.ceil(a / st - 1e-9); n * st <= b + 1e-9; n++) { const x = n * st; out.push({ x, label: tfmtD(x, d) }); }
+  return out;
+}
+/** ช่วงเวลาบนหัวกราฟ กันที่ไว้เท่าข้อความยาวสุดของไฟล์ (ทศนิยม 3 หลัก) ซูมแล้วตัวเลขยาวขึ้นปุ่มข้าง ๆ ไม่ขยับ
+    (พี่กันสั่ง 11 พ.ย. 2569 "fix หน่อยยยย" ตอนหัวกราฟ 0:00 ถึง 5:15 กับ 2:37.158 ถึง 2:37.348 ดันปุ่มแบบกราฟไปคนละที่) */
+function RangeTime({ t0, t1, dur }: { t0: number; t1: number; dur: number }) {
+  const d = spanDigits(t1 - t0), far = tfmtD(Math.max(dur, t1), 3);
+  return <FixedTime t={`${tfmtD(t0, d)} ถึง ${tfmtD(t1, d)}`} longest={`${far} ถึง ${far}`} />;
+}
+/** แถบเวลาแบบไม้บรรทัด ขีดยาวตรงเลข ขีดสั้นแบ่งช่วงละ 5 · เลขชิดขอบไม่แสดงกันล้น แต่ขีดยังอยู่
+    (พี่กันสั่ง 11 พ.ย. 2569 "ขอขีดตั้งเหมือนกับไม้บรรทัดด้วย ตรงเลขเวลา") */
+function TimeRuler({ t0, t1, left, right }: { t0: number; t1: number; left: number; right: number }) {
+  const ticks = rulerTicks(t0, t1), span = t1 - t0 || 1;
+  const st = ticks.length > 1 ? ticks[1].x - ticks[0].x : TICK_STEPS.find((v) => span / v <= 9) ?? 7200, sub = st / 5;
+  const minor: number[] = [];
+  for (let n = Math.ceil(t0 / sub - 1e-9); n * sub <= t1 + 1e-9; n++) if (n % 5 !== 0) minor.push(n * sub);
+  const pc = (x: number) => (x - t0) / span * 100;
+  return (
+    <div className="ruler" style={{ marginLeft: left, marginRight: right }} data-timeruler>
+      {minor.map((x) => <i key={"m" + x} className="tk sm" style={{ left: pc(x) + "%" }} />)}
+      {ticks.map(({ x, label }) => { const p = pc(x); return <i key={label} className="tk" style={{ left: p + "%" }}>{p < 2 || p > 98 ? null : <span>{label}</span>}</i>; })}
+    </div>
+  );
+}
 const minus = (s: string) => s.replace("-", "−");
 /** ข้อความหลายท่อนคั่นด้วย " · " แยกเป็นบรรทัด ตัดคำเฉพาะตรงเว้นวรรค ไม่ตัดกลางวลี (เคยตัด "MP3 | หรือ AAC" เจอตอนตรวจภาพ) */
 const lines = (s: string) => s.split(" · ").map((l) => <div key={l}><Phr>{l}</Phr></div>);
@@ -236,7 +276,7 @@ function drawWave(g: CanvasRenderingContext2D, w: number, h: number, d: ReturnTy
   const mid = h / 2, A = (h / 2 - 2) * vz;
   if (style === "real") {
     // หน้าตาแบบหน้าจอโปรแกรม Audacity จริง (BUGS ข้อ 12 · พี่กันส่งภาพ Audacity "เราอยากได้กราฟแบบนี้มั่ง" · "จะสีอะไรก็ได้ เเค่เอารูปแบบมา")
-    // ต่างจากแบบหลัก คลื่นสีเดียวทึบ ไม่มีแถบดังเฉลี่ย · เส้นแนวตั้งคมทีละจุด ไม่ลากเป็นรูปทรงเรียบ · พื้นขาว ไม่มีเส้นตาราง · ช่องซ้ายขวาติดกัน (data-wstyle ใน app.css)
+    // ต่างจากแบบหลัก คลื่นสีเดียวทึบ ไม่มีแถบดังเฉลี่ย · เส้นแนวตั้งคมทีละจุด ไม่ลากเป็นรูปทรงเรียบ · พื้นขาว ไม่มีเส้นตาราง · ช่องคั่นเท่าแบบอื่น (เดิมติดกัน พี่กันทัก "มันไม่เท่ากันเลย")
     // (11 พ.ย. 2569 พี่กันทัก "เต็มช่อง กับ รูปคลื่น ไม่เห็นต่างกันเลย" รอบแรกต่างกันแค่สีพื้น)
     g.fillStyle = "white"; g.fillRect(0, 0, w, h);
     g.fillStyle = th.rms;
@@ -515,7 +555,7 @@ function Crosshair({ box, left, right, t0, t1, at, rows }: { box: HTMLDivElement
   return (<>
     <div className="xh" style={{ left: x }} />
     <div className="tip" ref={tipRef} style={{ left: tipLeft }}>
-      <div className="t">{tfmt(at)}</div>
+      <div className="t">{tfmtD(at, spanDigits(t1 - t0))}</div>
       <div className="r">{rows.map((r) => <Fragment2 key={r.k} v={r.v} k={r.k} color={r.color} />)}</div>
     </div>
   </>);
@@ -643,8 +683,22 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
     return () => ro.disconnect();
   });
   const exportRef = useRef<(outW: number) => HTMLCanvasElement | null>(() => null);
+  // ความสูงกราฟปรับตามที่ว่างจริงบนจอ ไม่พึ่งตัวเลขประมาณอย่างเดียว · วัดช่องว่างระหว่างแถบเลื่อนกับแถวท้าย แล้วยืดหรือหดช่องกราฟให้พอดี
+  // (พี่กันทัก 11 พ.ย. 2569 "ยัมีที่ว่างอยู่เลย" หน้าต่างบางขนาดเหลือที่ว่างใต้แถบเลื่อนราว 35 จุด) · ปรับเมื่อพอให้ช่องเปลี่ยนได้อย่างน้อย 1 จุด กันวนไม่จบ
+  const [laneAdj, setLaneAdj] = useState(0);
+  useLayoutEffect(() => {
+    const p = plotRef.current;
+    if (!p || !(view === "wave" || view === "spec")) return;
+    const f = p.querySelector<HTMLElement>(".agfoot"), ts = p.querySelector<HTMLElement>("[data-tscroll]");
+    if (!f || !ts) return;
+    const n = Math.max(1, info?.tracks[track]?.names.length ?? 1), over = p.scrollHeight - p.clientHeight;
+    let d = 0;
+    if (over > 0) d = -over;
+    else { const slack = Math.floor(f.getBoundingClientRect().top - ts.getBoundingClientRect().bottom - 10); if (slack >= n) d = slack; }
+    if (d) setLaneAdj((a) => Math.max(-400, Math.min(400, a + d)));
+  });
 
-  const setPref = <K extends keyof Prefs>(k: K, v: Prefs[K]) => setPrefs((p) => { const n = { ...p, [k]: v }; try { localStorage.setItem(PREF_KEY, JSON.stringify(n)); } catch { /* เก็บไม่ได้ก็ใช้ค่านี้ไปก่อน */ } return n; });
+  const setPref =<K extends keyof Prefs>(k: K, v: Prefs[K]) => setPrefs((p) => { const n = { ...p, [k]: v }; try { localStorage.setItem(PREF_KEY, JSON.stringify(n)); } catch { /* เก็บไม่ได้ก็ใช้ค่านี้ไปก่อน */ } return n; });
   const th = THEMES[prefs.theme];
   const movie: Movie | undefined = useMemo(() => movies.find((m) => m.path === path), [movies, path]);
   const t: GTrack | undefined = info?.tracks[track];
@@ -758,7 +812,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
     if (!dur) return;
     let ns = span * f;
     if (ns >= dur * 0.999) { setZoom("all"); setCenter(dur / 2); return; }
-    ns = Math.max(0.5, ns);
+    ns = Math.max(HZ_MIN, ns);
     const anchor = at ?? (rt0 + rt1) / 2, rel = (anchor - rt0) / (span || 1);
     const nt0 = Math.max(0, Math.min(dur - ns, anchor - rel * ns));
     setZoom(ns); setCenter(nt0 + ns / 2);
@@ -876,11 +930,12 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
   const [hiWin, setHiWin] = useState<GWindow | null>(null);
   const t0 = shown.t0, t1 = shown.t1, winNow = hiWin ?? shown.win, heldShown = shown.held;
   const src: Src | null = useMemo(() => (winNow ? { env: winNow.env, cols: winNow.cols, t0: winNow.t0, t1: winNow.t1 } : heldShown && ov ? mixSrc(heldShown, ov, t0, t1, Math.round(plotW)) : ov ? { env: ov.env, cols: ov.cols, t0: 0, t1: ov.duration } : null), [winNow, heldShown, ov, t0, t1, plotW]);
-  // รอเกิน 0.3 วินาทีถึงขึ้นป้าย รอสั้น ๆ ไม่ต้องกะพริบ
+  // รอเกิน 1 วินาทีถึงขึ้นป้าย ระหว่างรอภาพเดิมยังอยู่บนจอ รอสั้น ๆ ไม่ต้องขึ้น
+  // (เดิม 0.3 วินาที เลื่อนหรือซูมทีไรป้ายขึ้นทุกที พี่กันทัก 11 พ.ย. 2569 "มันจะโหลดอะไรกันนักหันหนา")
   const [viewSlow, setViewSlow] = useState(false);
   useEffect(() => {
     if (viewReady || grabbing) { setViewSlow(false); return; }
-    const id = setTimeout(() => setViewSlow(true), 300);
+    const id = setTimeout(() => setViewSlow(true), 1000);
     return () => clearTimeout(id);
   }, [viewReady, grabbing]);
   const vis = names.filter((c) => !hidden.includes(c));
@@ -1139,9 +1194,8 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
 
   /* ---------- กราฟ ---------- */
   const peakTxt = (c: string) => { const i = names.indexOf(c); return ov.peaks[i] == null ? "" : ov.peaks[i] <= -119 ? "เงียบทั้งไฟล์" : ov.peaks[i] < -96 ? "แทบเงียบทั้งไฟล์ " + pkTxt(ov.peaks[i]) : "ดังสุด " + pkTxt(ov.peaks[i]); };
-  const rulerTicks = (a: number, b: number) => { const steps = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600]; const st = steps.find((s) => (b - a) / s <= 9) ?? 7200; const out: number[] = []; for (let x = Math.ceil(a / st) * st; x <= b; x += st) out.push(x); return out; };
   const Ruler = ({ left, right }: { left: number; right: number }) => (
-    <div className="ruler" style={{ marginLeft: left, marginRight: right }}>{rulerTicks(t0, t1).map((x) => { const p = (x - t0) / (t1 - t0 || 1) * 100; return p < 2 || p > 98 ? null : <span key={x} style={{ left: p + "%" }}>{tfmt(x)}</span>; })}</div>
+    <TimeRuler t0={t0} t1={t1} left={left} right={right} />
   );
   const onMove = (left: number, right: number) => (e: React.PointerEvent<HTMLDivElement>) => {
     const r = e.currentTarget.getBoundingClientRect(), W = r.width - left - right, x = e.clientX - r.left - left;
@@ -1158,12 +1212,12 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
     // แถบสูงขึ้นจากเดิม (พี่กัน 7 พ.ย. 2569 *"ใ้ห้ระบบมันขยายกราฟลงมาได้มากกว่านี้ ตอนนี้มันเเค่สองเเถบที่โคตรจะชิดกัน"*) · ลากที่จับใต้กราฟขยายต่อได้ถึง 4 เท่า
     const minH = names.length > 6 ? 52 : names.length > 2 ? 72 : 120;
     // 234 คือหัวกราฟ แถบเลื่อน แถวปุ่มท้าย ระยะขอบรวมกัน
-    const laneH = Math.max(minH, Math.floor((paneH - 234 + (ovFold ? 34 : 0) - (names.length - 1) * 6) / Math.max(1, names.length)));
+    const laneH = Math.max(minH, Math.floor((paneH - 252 + (ovFold ? 44 : 0) + laneAdj - (names.length - 1) * 6) / Math.max(1, names.length)));
     const colors = lut(prefs.cmap === "rainbow" ? RAINBOW : th.ramp);
     plot = (
       <div className="plot" data-plot ref={plotRef}>
         <div className="plotstick">
-        <div className="plothead"><span><b>{view === "wave" ? "รูปคลื่นทุกช่อง" : "ความถี่ทุกช่อง"}</b> · {tfmt(t0)} ถึง {tfmt(t1)}</span>
+        <div className="plothead"><span><b>{view === "wave" ? "รูปคลื่นทุกช่อง" : "ความถี่ทุกช่อง"}</b> · <RangeTime t0={t0} t1={t1} dur={dur} /></span>
           {/* หัวการ์ดแคบ (จอเล็ก) ตัวเลือกแบบกราฟเป็นดรอปดาวน์ แถบซูมไม่ถูกบีบ (พี่กันสั่ง 11 พ.ย. 2569 "มันบีบเส้นซูมเกินไป ให้เปลี่ยนรูปแบบกราฟเป็นดรอปดาวน์ ถ้าจอมันเล็ก") · สลับด้วย @container ใน app.css */}
           {view === "wave" && <span className="wstyle-seg">{seg<WaveStyle>([["aud", <><WaveIc d="M3 12c2-7 3-7 5 0s3 7 5 0 3-7 5 0 2 4 3 0" />รูปคลื่น</>], ["bars", <><WaveIc d="M5 9v6M10 5v14M15 8v8M20 10v4" />แท่ง</>], ["real", <><WaveIc d="M3 12h2V6h2v12h2V4h2v16h2V7h2v10h2V9h2v3h2" />เต็มช่อง</>]], prefs.style, (v) => setPref("style", v), "data-style")}</span>}
           {view === "wave" && <span className="wstyle-dd" data-styledd><Dropdown label="แบบกราฟ" value={(prefs.style === "fine" ? "aud" : prefs.style) as "aud" | "bars" | "real"} onChange={(v) => setPref("style", v)}
@@ -1177,11 +1231,14 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
         <div className={"lanes " + lanesGrab.cls} data-wstyle={view === "wave" ? prefs.style : undefined} ref={setBoxEl} style={{ marginTop: 0 }} {...lanesGrab.props} onPointerMove={(e) => { if (!lanesGrab.move(e)) onMove(LW, 0)(e); }} onPointerLeave={() => setHover(null)} data-lanes>
           {names.map((c) => {
             const i = names.indexOf(c), l = label(names, c);
-            if (hidden.includes(c)) return <LaneOff key={c + "off"} code={l.code} th={l.th} peak={peakTxt(c)} height={view === "wave" && prefs.style !== "bars" ? Math.max(laneH, 60) : laneH} />;
+            // ทั้งสามแบบ (รูปคลื่น แท่ง เต็มช่อง) ช่องสูงเท่ากัน มีแกนตัวเลขซ้ายเหมือนกัน ช่องคั่นเท่ากัน กรอบกราฟอยู่ตำแหน่งเดียวกันทุกแบบ
+            // (พี่กันทัก 11 พ.ย. 2569 "มันไม่เท่ากันเลย" · เดิมแบบแท่งไม่มีแกนตัวเลข แบบเต็มช่องไม่มีช่องคั่น ช่องล่างกับแถบเลื่อนขึ้นไป 6 จุด)
+            // แท่งสูงครึ่งละ ดังสุด × ครึ่งช่อง ตรงกับสเกลของแกนตัวเลขอยู่แล้ว
+            if (hidden.includes(c)) return <LaneOff key={c + "off"} code={l.code} th={l.th} peak={peakTxt(c)} height={view === "wave" ? Math.max(laneH, 60) : laneH} />;
             return view === "wave"
-              ? <Lane key={c + view} room code={l.code} th={l.th} peak={peakTxt(c)} height={prefs.style !== "bars" ? Math.max(laneH, 60) : laneH} deps={[src, t0, t1, th, prefs.style, i, vz, laneH]}
+              ? <Lane key={c + view} room code={l.code} th={l.th} peak={peakTxt(c)} height={Math.max(laneH, 60)} deps={[src, t0, t1, th, prefs.style, i, vz, laneH]}
                   draw={(g, w, h) => drawWave(g, w, h, sample(src, i, t0, t1, w), th, prefs.style, vz)}
-                  ruler={prefs.style !== "bars" ? (g, w, h) => drawAmpRuler(g, w, h, vz) : undefined} />
+                  ruler={(g, w, h) => drawAmpRuler(g, w, h, vz)} />
               : <Lane key={c + view} code={l.code} th={l.th} peak={peakTxt(c)} height={laneH} deps={[src, winNow, heldShown, t0, t1, prefs.cmap, th, i, laneH, sz, sb]}
                   draw={(g, w, h) => drawSpecLane(g, w, h, i, winNow, ov, t0, t1, t?.rate ?? 48000, colors, sz, sb, heldShown)} />;
           })}
@@ -1197,7 +1254,18 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
         {scroller(LW, VZ_W)}
         <div className="agfoot">
           {view === "wave"
-            ? <div className="lg">{prefs.style === "bars" ? <span><svg width="22" height="14" viewBox="0 0 22 14" style={{ verticalAlign: -2, marginRight: 5 }} aria-hidden="true"><rect width="22" height="14" rx="3" fill={th.lane} stroke={th.peak} /><rect x="4" y="5" width="2" height="4" rx="1" fill={th.rms} /><rect x="8" y="2" width="2" height="10" rx="1" fill={th.rms} /><rect x="12" y="4" width="2" height="6" rx="1" fill={th.rms} /><rect x="16" y="3" width="2" height="8" rx="1" fill={th.rms} /></svg>ความสูงแท่ง คือดังสุดช่วงนั้น</span> : <><span><i style={{ background: th.rms }} />ดังสุด (Peak)</span>{prefs.style !== "real" && <span><i style={{ background: th.ramp[5] }} />ดังเฉลี่ย (RMS)</span>}<InfoTip title="ดังสุดกับดังเฉลี่ย" tip={PEAK_RMS_TIP} /><span className="small" data-audnote>{prefs.style === "real" ? "หน้าตาแบบโปรแกรม Audacity" : "แบบตามโปรแกรม Audacity"} · ตัวเลขซ้ายคือความสูงคลื่น 1.0 เต็มสเกล</span></>}{marks.length > 0 && <span style={{ color: "#b03535" }}><i style={{ background: "rgba(208,59,59,.25)", border: "1px solid rgba(208,59,59,.75)" }} />จุดเสีย</span>}</div>
+            // ทั้งสามแบบ (รูปคลื่น แท่ง เต็มช่อง) โครงเดียวกัน แถวบนป้ายสีกับปุ่ม ⓘ แถวล่างหมายเหตุบรรทัดเดียว สูงเท่ากันทุกแบบ สลับแบบแล้วกราฟไม่ขยับ
+            // (พี่กันสั่ง 11 พ.ย. 2569 "เเถบข้างล่างนี้ สามกราฟ ทำห้มันเหมือนกัน เเล้ว fiix" · เดิมแบบแท่งไม่มี ⓘ ไม่มีหมายเหตุ แถบเตี้ยกว่า 49 จุด)
+            ? <div className="lg wavelg" data-wavelg>
+                <div className="lgrow">
+                  {prefs.style === "bars"
+                    ? <span><svg width="22" height="14" viewBox="0 0 22 14" style={{ verticalAlign: -2, marginRight: 5 }} aria-hidden="true"><rect width="22" height="14" rx="3" fill={th.lane} stroke={th.peak} /><rect x="4" y="5" width="2" height="4" rx="1" fill={th.rms} /><rect x="8" y="2" width="2" height="10" rx="1" fill={th.rms} /><rect x="12" y="4" width="2" height="6" rx="1" fill={th.rms} /><rect x="16" y="3" width="2" height="8" rx="1" fill={th.rms} /></svg>ความสูงแท่ง คือดังสุด (Peak)</span>
+                    : <><span><i style={{ background: th.rms }} />ดังสุด (Peak)</span>{prefs.style !== "real" && <span><i style={{ background: th.ramp[5] }} />ดังเฉลี่ย (RMS)</span>}</>}
+                  <InfoTip title="ดังสุดกับดังเฉลี่ย" tip={PEAK_RMS_TIP} />
+                  {marks.length > 0 && <span style={{ color: "#b03535" }}><i style={{ background: "rgba(208,59,59,.25)", border: "1px solid rgba(208,59,59,.75)" }} />จุดเสีย</span>}
+                </div>
+                {(() => { const note = prefs.style === "bars" ? "แบบแท่ง · หนึ่งแท่งคือช่วงเวลาสั้น ๆ หนึ่งช่วง · ตัวเลขซ้ายคือความสูงคลื่น 1.0 เต็มสเกล" : `${prefs.style === "real" ? "หน้าตาแบบโปรแกรม Audacity" : "แบบตามโปรแกรม Audacity"} · ตัวเลขซ้ายคือความสูงคลื่น 1.0 เต็มสเกล`; return <div className="small lgnote" title={note} data-audnote>{note}</div>; })()}
+              </div>
             : <div className="speclegend"><span className="nw">−120 dB</span><span className="rampbar" style={{ background: `linear-gradient(90deg,${(prefs.cmap === "rainbow" ? RAINBOW : th.ramp).join(",")})` }} /><span className="nw">0 dB</span><span className="nw" style={{ marginLeft: 6 }}>20 Hz ถึง {Math.round((t?.rate ?? 48000) / 2000)} kHz</span></div>}
           <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
             {view === "spec" && seg<"theme" | "rainbow">([["theme", <><Swatch ramp={th.ramp} />สีตามชุด</>], ["rainbow", <><Swatch ramp={RAINBOW} />สีรุ้ง</>]], prefs.cmap, (v) => setPref("cmap", v), "data-cmap")}
@@ -1263,7 +1331,10 @@ function useOvFold(): [boolean, (v: boolean) => void] {
   useEffect(() => { ovFoldSubs.add(setV); return () => { ovFoldSubs.delete(setV); }; }, []);
   return [v, (n) => { ovFoldNow = n; try { localStorage.setItem(OV_FOLD_KEY, n ? "1" : "0"); } catch { /* ไม่มีที่เก็บ ใช้ค่าในหน้าไปก่อน */ } ovFoldSubs.forEach((x) => x(n)); }];
 }
-function Overview({ ov, th, t0, t1, onPick, left, right = 0 }: { ov: GOverview; th: Theme; t0: number; t1: number; onPick: (t: number) => void; left: number; right?: number }) {
+type OvProps = { ov: GOverview; th: Theme; t0: number; t1: number; onPick: (t: number) => void; left: number; right?: number };
+/** ผืนวาดแถบภาพรวมแยกเป็นชิ้นของตัวเอง กางทีไรสร้างใหม่ ตัววัดขนาดติดใหม่ วาดใหม่
+    (เดิมอยู่ในชิ้นเดียวกับแถบตอนพับ เปิดหน้ามาตอนพับอยู่ ตัววัดขนาดไม่ได้ติดเพราะยังไม่มีผืนวาด กางแล้วแถบว่าง ไม่มีคลื่น · พี่กันทัก 11 พ.ย. 2569 "กราฟตัวอย่างหายย") */
+function OverviewCanvas({ ov, th, t0, t1, onPick }: OvProps) {
   const ref = useCanvas((g, w, h) => {
     g.fillStyle = th.lane; g.fillRect(0, 0, w, h);
     const all: Src = { env: ov.env, cols: ov.cols, t0: 0, t1: ov.duration };
@@ -1277,17 +1348,28 @@ function Overview({ ov, th, t0, t1, onPick, left, right = 0 }: { ov: GOverview; 
       g.strokeStyle = "#d9719a"; g.lineWidth = 2; g.strokeRect(a + 1, 1, Math.max(4, b - a - 2), h - 2);
     }
   }, [ov, th, t0, t1]);
+  return <div className="ovw" onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); onPick((e.clientX - r.left) / r.width * ov.duration); }} title="กดเพื่อไปช่วงนั้น" data-ovw><canvas ref={ref} /></div>;
+}
+function Overview(p: OvProps) {
+  const { ov, left, right = 0 } = p;
   const [fold, setFold] = useOvFold();
-  // พับแล้วเหลือแถบบางพร้อมปุ่มกาง ไม่วาดรูปคลื่นทั้งไฟล์ (BUGS ข้อ 17)
+  // ปุ่มพับกางอยู่นอกแถบ ในช่องว่างข้างแถบ ไม่ทับคลื่น (พี่กันทัก "บัง" ตอนปุ่มอยู่มุมซ้ายบนในแถบ · ชี้ช่องว่างขวา "ตรงนี้ก็ว่าง")
+  // หน้ากราฟหลักมีช่องว่างขวาเหนือแท่งซูมแนวตั้ง วางกลางช่องนั้น · หน้าเทียบสองไฟล์ไม่มีช่องขวา วางในช่องว่างซ้าย · ที่เดียวกันทั้งตอนพับและตอนกาง
+  const togPos: CSSProperties = right >= 24 ? { right: -(right / 2 + 12) } : { left: -30 };
+  // พับแล้วเหลือเส้นเดียวหนา 10 จุด ไม่มีตัวหนังสือ กดตรงเส้นก็กาง (พี่กันสั่ง "เอาเส้นเดียว หนา 10" · BUGS ข้อ 17)
   if (fold) return (
-    <div className="ovfold" style={{ marginLeft: left, marginRight: right }} data-ovfold>
-      <button type="button" className="ovtog" aria-expanded={false} onClick={() => setFold(false)} data-ovtoggle><IcChevronDown size={14} stroke="currentColor" />แสดงภาพรวมทั้งไฟล์ {tfmt(ov.duration)}</button>
+    <div className="ovfold" style={{ marginLeft: left, marginRight: right }} onClick={() => setFold(false)} title={`กดเพื่อแสดงภาพรวมทั้งไฟล์ ${tfmt(ov.duration)}`} data-ovfold>
+      {p.t1 - p.t0 < ov.duration * 0.999 && <i className="ovfoldwin" style={{ background: "#d9719a", left: `${p.t0 / ov.duration * 100}%`, width: `max(6px, ${(p.t1 - p.t0) / ov.duration * 100}%)` }} title={`ช่วงที่ดูอยู่ ${tfmt(p.t0)} ถึง ${tfmt(p.t1)}`} data-ovfoldwin />}
+      {left >= 90 && <span className="ovfoldtxt" style={{ width: left - 12 }}>แสดงภาพรวมทั้งไฟล์ {tfmt(ov.duration)}</span>}
+      <button type="button" className="ovtog out" style={togPos} aria-expanded={false} aria-label="แสดงภาพรวมทั้งไฟล์" title="แสดงภาพรวมทั้งไฟล์" onClick={(e) => { e.stopPropagation(); setFold(false); }} data-ovtoggle><IcChevronDown size={14} stroke="currentColor" /></button>
     </div>
   );
   return (<>
     <div className="ovwrap" style={{ marginLeft: left, marginRight: right }}>
-      <div className="ovw" onClick={(e) => { const r = e.currentTarget.getBoundingClientRect(); onPick((e.clientX - r.left) / r.width * ov.duration); }} title="กดเพื่อไปช่วงนั้น" data-ovw><canvas ref={ref} /></div>
-      <button type="button" className="ovtog up" aria-expanded={true} aria-label="พับแถบภาพรวมทั้งไฟล์" title="พับแถบภาพรวมทั้งไฟล์ กราฟได้ที่สูงเพิ่ม" onClick={() => setFold(true)} data-ovtoggle><IcChevronDown size={14} stroke="currentColor" /></button>
+      <OverviewCanvas {...p} />
+      {/* ปุ่มพับฝั่งซ้ายอีกปุ่ม อยู่ช่องว่างซ้ายตรงกับข้อความตอนพับ (พี่กันสั่ง "ขอปุ่มยุบฝั่งนี้ด้วย") */}
+      {left >= 90 && <button type="button" className="ovtog ovleft" style={{ maxWidth: left - 12 }} aria-expanded={true} title="พับแถบภาพรวมทั้งไฟล์ กราฟได้ที่สูงเพิ่ม" onClick={() => setFold(true)} data-ovtoggle-left>พับภาพรวม<IcChevronDown size={14} stroke="currentColor" /></button>}
+      <button type="button" className="ovtog out up" style={togPos} aria-expanded={true} aria-label="พับแถบภาพรวมทั้งไฟล์" title="พับแถบภาพรวมทั้งไฟล์ กราฟได้ที่สูงเพิ่ม" onClick={() => setFold(true)} data-ovtoggle><IcChevronDown size={14} stroke="currentColor" /></button>
     </div>
     <div className="ovrul" style={{ marginLeft: left, marginRight: right }}><span>0:00</span><span style={{ left: "50%" }}>ทั้งไฟล์ {tfmt(ov.duration)}{ov.readTo < ov.duration - 1 ? ` · อ่านได้ถึง ${tfmt(ov.readTo)}` : ""}</span><span style={{ left: "100%" }}>{tfmt(ov.duration)}</span></div>
   </>);
@@ -1295,7 +1377,10 @@ function Overview({ ov, th, t0, t1, onPick, left, right = 0 }: { ov: GOverview; 
 
 /** แถบเลื่อนซูมเวลาแนวนอน อยู่ระหว่างปุ่มแว่นขยายซูมออกกับซูมเข้า (พี่กัน 7 พ.ย. 2569 *"เรามีย่อขยายเเนวตั้งเเล้ว ยังเหลือย่อขยายเเนวนอนนะ"* · *"เอาตอนนี้เลย"*)
    ซ้ายสุดเห็นทั้งไฟล์ ขวาสุดครึ่งวินาที สเกลล็อก · ซูมรอบกลางช่วงที่ดูอยู่ · กดที่แถบกระโดด · หมุนล้อเมาส์บนแถบ · ลูกศรซ้ายขวา · Home ทั้งไฟล์ End ครึ่งวินาที */
-const HZ_MIN = 0.5;
+/** ซูมแนวนอนลึกสุด 0.01 วินาที เห็นทีละตัวอย่างเสียง (เดิม 0.5 วินาที พี่กันถาม 11 พ.ย. 2569 "ซูมได้มากกว่านี้ได้มั้ย") */
+const HZ_MIN = 0.01;
+/** หน่วยช่วงของการซูมแกนความถี่ในหน้าความถี่เฉลี่ย คงค่าเดิม ไม่ผูกกับซูมแนวนอน */
+const PSD_HZ_UNIT = 0.5;
 function HZoom({ dur, span, onSpan, name = "ซูมเวลา", text, onBusy }: { dur: number; span: number; onSpan: (s: number) => void; name?: string; text?: string; onBusy?: (on: boolean) => void }) {
   const root = useRef<HTMLSpanElement>(null), track = useRef<HTMLSpanElement>(null), drag = useRef(false);
   const ok = dur > HZ_MIN * 1.01, L = Math.log(Math.max(dur, HZ_MIN * 1.01) / HZ_MIN);
@@ -1329,7 +1414,8 @@ function HZoom({ dur, span, onSpan, name = "ซูมเวลา", text, onBusy
   );
 }
 
-const VZ_MIN = 0.25, VZ_MAX = 8;
+// ช่วงซูมแนวตั้งสมมาตร 1/8 ถึง 8 เท่า ค่า 1 เท่าอยู่กลางแถบพอดี (เดิม 0.25 ถึง 8 เท่า 1 เท่าอยู่ต่ำกว่ากลาง พี่กันทัก 11 พ.ย. 2569 "ซูมเเนวตั้ง มันไม่อยู่กลาง")
+const VZ_MIN = 0.125, VZ_MAX = 8;
 /** ค่าขยายแนวตั้งในช่วงที่รับ · ใกล้ 1 2 4 เท่า (ไม่เกิน 4%) ดูดเข้าหา ปุ่ม 1× 2× 4× จะติดตาม */
 const vzClamp = (v: number) => { const c = Math.max(VZ_MIN, Math.min(VZ_MAX, v)); return [1, 2, 4].find((k) => Math.abs(c / k - 1) < 0.04) ?? Math.round(c * 100) / 100; };
 const vzTxt = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(2).replace(/0$/, "")) + "×";
@@ -1410,6 +1496,13 @@ function FZoom({ value, onChange }: { value: number; onChange: (v: number) => vo
 function TimeScroll({ dur, t0, t1, left, right, onPan, onBusy }: { dur: number; t0: number; t1: number; left: number; right: number; onPan: (center: number) => void; onBusy?: (on: boolean) => void }) {
   const ref = useRef<HTMLDivElement>(null);
   const drag = useRef<{ x: number; c: number } | null>(null);
+  // ลากแล้วขยับกราฟไม่เกินหนึ่งครั้งต่อเฟรมจอ เมาส์ส่งตำแหน่งถี่กว่าเฟรม วาดกราฟใหม่ทุกครั้งแล้วกระตุก (พี่กันทัก 11 พ.ย. 2569 "เเถบเลื่อนนี้โคตรเลล็ก เเละกระตุก")
+  const pend = useRef<{ c: number; raf: number } | null>(null);
+  const panSoon = (c: number) => {
+    if (pend.current) { pend.current.c = c; return; }
+    pend.current = { c, raf: requestAnimationFrame(() => { const p = pend.current; pend.current = null; if (p) onPan(p.c); }) };
+  };
+  const panNow = () => { const p = pend.current; if (!p) return; cancelAnimationFrame(p.raf); pend.current = null; onPan(p.c); };
   const all = !dur || t1 - t0 >= dur * 0.999, span = t1 - t0, mid = (t0 + t1) / 2;
   const toTime = (dx: number) => dx / Math.max(1, ref.current?.clientWidth ?? 1) * dur;
   return (
@@ -1419,8 +1512,8 @@ function TimeScroll({ dur, t0, t1, left, right, onPan, onBusy }: { dur: number; 
         role="scrollbar" aria-orientation="horizontal" aria-label="เลื่อนช่วงที่ดู" aria-valuemin={0} aria-valuemax={Math.round(dur)} aria-valuenow={Math.round(t0)} tabIndex={all ? -1 : 0}
         onKeyDown={(e) => { if (e.key === "ArrowLeft") { e.preventDefault(); onPan(mid - span / 10); } if (e.key === "ArrowRight") { e.preventDefault(); onPan(mid + span / 10); } }}
         onPointerDown={(e) => { if (all) return; e.currentTarget.setPointerCapture(e.pointerId); drag.current = { x: e.clientX, c: mid }; onBusy?.(true); }}
-        onPointerMove={(e) => { if (drag.current) onPan(drag.current.c + toTime(e.clientX - drag.current.x)); }}
-        onPointerUp={() => { if (drag.current) onBusy?.(false); drag.current = null; }} onPointerCancel={() => { if (drag.current) onBusy?.(false); drag.current = null; }} />
+        onPointerMove={(e) => { if (drag.current) panSoon(drag.current.c + toTime(e.clientX - drag.current.x)); }}
+        onPointerUp={() => { panNow(); if (drag.current) onBusy?.(false); drag.current = null; }} onPointerCancel={() => { panNow(); if (drag.current) onBusy?.(false); drag.current = null; }} />
     </div>
   );
 }
@@ -1505,7 +1598,7 @@ function LoudView({ onPan, onBusy, resetN, scroller, ov, th, t0, t1, names, mark
         <div className="tile"><span>ช่วงความดัง</span><b>{f1(ov.lra)} LU</b><em>ห่างระหว่างช่วงเบากับช่วงดัง</em></div>
         <div className="tile"><span>ช่วงเงียบผิดปกติ</span><b>{sil ? `${sil} ช่วง` : "ไม่พบ"}</b><em>{sil ? `แรกสุดที่ ${tfmt(ov.silences[0][0])}` : "เงียบทุกช่องเกิน 1 วินาที"}</em></div>
       </div>
-      <div className="plothead"><span><b>ความดังตลอดไฟล์</b> · {tfmt(t0)} ถึง {tfmt(t1)}</span>{zoomBox}</div>
+      <div className="plothead"><span><b>ความดังตลอดไฟล์</b> · <RangeTime t0={t0} t1={t1} dur={ov.duration} /></span>{zoomBox}</div>
       </div>
       <div style={{ flex: "1 0 200px", display: "flex", gap: 8, minHeight: 0 }}>
       <div className={grab.cls} style={{ position: "relative", flex: 1, minWidth: 0 }} ref={setBox} onWheel={vr.wheel} {...grab.props} onPointerMove={(e) => { if (grab.move(e)) return; const r = e.currentTarget.getBoundingClientRect(), W = r.width - X0 - 4, x = e.clientX - r.left - X0; if (x >= 0 && x <= W) setHover(t0 + x / W * (t1 - t0)); }} onPointerLeave={() => setHover(null)} data-loudbox>
@@ -1565,7 +1658,7 @@ function CmpView({ onPan, onBusy, resetN, scroller, dur, src, names, cc, t0, t1,
   const val = (c: string) => { const e = src.env[names.indexOf(c)], k = Math.max(0, Math.min(src.cols - 1, Math.floor((at - src.t0) / (src.t1 - src.t0 || 1) * src.cols))); return e[k * 3 + 2]; };
   return (
     <div className="plot" data-plot ref={plotRef as React.RefObject<HTMLDivElement>}>
-      <div className="plothead"><span><b>ซ้อนเทียบความดังเฉลี่ย</b> · {tfmt(t0)} ถึง {tfmt(t1)}</span>{zoomBox}</div>
+      <div className="plothead"><span><b>ซ้อนเทียบความดังเฉลี่ย</b> · <RangeTime t0={t0} t1={t1} dur={dur} /></span>{zoomBox}</div>
       <div style={{ flex: "1 0 250px", display: "flex", gap: 8, minHeight: 0 }}>
       <div className={grab.cls} style={{ position: "relative", flex: 1, minWidth: 0 }} ref={setBox} onWheel={vr.wheel} {...grab.props} onPointerMove={(e) => { if (grab.move(e)) return; const r = e.currentTarget.getBoundingClientRect(), W = r.width - X0 - RW, x = e.clientX - r.left - X0; if (x >= 0 && x <= W) setHover(t0 + x / W * (t1 - t0)); }} onPointerLeave={() => setHover(null)} data-cmpbox>
         <canvas className="cv fillcv" ref={ref} />
@@ -1694,8 +1787,7 @@ function SpekView({ onBusy, held, resetN, tools, light, onPanT, scroller, ov, wi
     g.fillStyle = ink.tick; g.font = "11.5px Sarabun, sans-serif"; g.textBaseline = "middle"; g.textAlign = "right";
     const f0 = fb * nyq, fSpan = nyq / fz, fs = [100, 250, 500, 1000, 2000, 4000, 8000, 16000].find((x) => PH * x / fSpan >= 24) ?? 32000;
     for (let f = Math.ceil(f0 / fs) * fs; f <= f0 + fSpan + 1; f += fs) { const y = T + PH * (1 - (f - f0) / fSpan); g.fillRect(L - 5, Math.round(y), 5, 1); g.fillText(`${f / 1000} kHz`, L - 8, y); }
-    g.textAlign = "center"; g.textBaseline = "top"; const st = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600].find((s) => (t1 - t0) / s <= 10) ?? 7200;
-    for (let x = Math.ceil(t0 / st) * st; x <= t1 + 0.01; x += st) { const px = L + (x - t0) / (t1 - t0 || 1) * PW; g.fillRect(Math.round(px), T + PH, 1, 5); g.fillText(tfmt(x), px, T + PH + 8); }
+    g.textAlign = "center"; g.textBaseline = "top"; for (const { x, label } of rulerTicks(t0, t1, 10)) { const px = L + (x - t0) / (t1 - t0 || 1) * PW; g.fillRect(Math.round(px), T + PH, 1, 5); g.fillText(label, px, T + PH + 8); }
     const bx = L + PW + 18, grad = g.createLinearGradient(0, T, 0, T + PH); ramp.slice().reverse().forEach((c, i, a) => grad.addColorStop(i / (a.length - 1), c));
     g.fillStyle = grad; g.fillRect(bx, T, 12, PH); g.strokeStyle = ink.line; if (light) g.strokeRect(bx - 0.5, T - 0.5, 13, PH + 1);
     g.fillStyle = ink.tick; g.textAlign = "left"; g.textBaseline = "middle";
@@ -1934,7 +2026,7 @@ function PsdView({ filePath, onReset, resetN, scroller, psd, names, psdCh, setPs
     box.addEventListener("wheel", fn, { passive: false });
     return () => box.removeEventListener("wheel", fn);
   }, [box]);
-  const hrSpan = PSD_HZ_MAX * HZ_MIN;
+  const hrSpan = PSD_HZ_MAX * PSD_HZ_UNIT;
   const setHz = (k: number) => hr.setZ(Math.max(1, Math.min(PSD_HZ_MAX, k)));
   const W = box?.clientWidth ?? 0, H = box?.clientHeight ?? 0, cx = W ? X(cur, W) : 0;
   // ยอดใกล้ตำแหน่งชี้ที่สุด วัดระยะแบบล็อก (บนแกนล็อกตรงกับที่ตาเห็นกว่าวัดเป็น Hz แบบ Audacity)
@@ -1999,7 +2091,7 @@ function PsdView({ filePath, onReset, resetN, scroller, psd, names, psdCh, setPs
       {psd && (hum.length
         ? <div className="stat warn" style={{ marginTop: 10 }} data-psdverdict>{WARN}<div><b><Phr>{`เจอเสียงฮัมจากไฟบ้าน ยอดแคบที่ ${[...new Set(hum.map((x) => x[2]))].sort((a, b) => a - b).join(" ")} Hz`}</Phr></b>{lines("ไฟบ้านในไทย 50 Hz เสียงฮัมจะเป็นยอดแคบที่ 50 กับเลขคูณ · มักมาจากสายไมค์หรือปลั๊กพ่วง · ในหนังอาจเป็นเสียงประกอบที่ตั้งใจใส่")}</div></div>
         : <div className="stat info" style={{ marginTop: 10 }} data-psdverdict><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5v.5" /></svg><div><b>ไม่พบเสียงฮัม</b>ไม่มียอดแคบที่ 50 Hz กับเลขคูณ</div></div>)}
-      <div className="small" style={{ marginTop: 6 }}>{psd ? `เสียงสูงสุดที่มีราว ${(topF / 1000).toFixed(1)} kHz · ` : ""}ช่วงที่เลือก {tfmt(t0)} ถึง {tfmt(t1)} · กดที่แถบบนเพื่อย้ายช่วง</div>
+      <div className="small" style={{ marginTop: 6 }}>{psd ? `เสียงสูงสุดที่มีราว ${(topF / 1000).toFixed(1)} kHz · ` : ""}ช่วงที่เลือก {tfmtD(t0, spanDigits(t1 - t0))} ถึง {tfmtD(t1, spanDigits(t1 - t0))} · กดที่แถบบนเพื่อย้ายช่วง</div>
       <div className="agfoot"><div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}><span className="lbl">แกนความถี่</span>
         <div className="seg sm"><button type="button" className={psdLog ? "on" : ""} onClick={() => setPsdLog(true)} data-psdaxis="log">แบบล็อก</button><button type="button" className={!psdLog ? "on" : ""} onClick={() => setPsdLog(false)} data-psdaxis="lin">เส้นตรง</button></div>
         <span data-psdsize title="ยิ่งมากยิ่งแยกความถี่ละเอียด แต่ช้าลง"><Dropdown label="ความละเอียด" value={String(psdSize)} onChange={(v) => setPsdSize(Number(v))}
@@ -2071,8 +2163,7 @@ function drawSpekCmp(g: CanvasRenderingContext2D, w: number, h: number, ov: GOve
   while (ph * kStep / fSpan < 14) kStep *= 2;
   for (let f = Math.ceil(f0 / kStep) * kStep; f <= f0 + fSpan + 1; f += kStep) { const y = T + ph * (1 - (f - f0) / fSpan); g.fillText(`${f / 1000} kHz`, L - 8, y); g.fillRect(L - 4, Math.round(y), 4, 1); }
   g.textAlign = "center"; g.textBaseline = "top";
-  const st = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600].find((s) => (t1 - t0) / s <= 8) ?? 7200;
-  for (let s = Math.ceil(t0 / st) * st; s <= t1; s += st) { const x = L + pw * (s - t0) / (t1 - t0 || 1); g.fillText(tfmt(s), x, T + ph + 8); g.fillRect(Math.round(x), T + ph, 1, 4); }
+  for (const { x: s, label } of rulerTicks(t0, t1, 8)) { const x = L + pw * (s - t0) / (t1 - t0 || 1); g.fillText(label, x, T + ph + 8); g.fillRect(Math.round(x), T + ph, 1, 4); }
   const bx = L + pw + 22, grd = g.createLinearGradient(0, T, 0, T + ph);
   ramp.slice().reverse().forEach((c, i, a) => grd.addColorStop(i / (a.length - 1), c));
   g.fillStyle = grd; g.fillRect(bx, T, 12, ph);
@@ -2448,7 +2539,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap" }}>{files.map((p, i) => <button key={p} type="button" className="btn btn-ghost btn-sm" onClick={() => play(p)}><IbPlay size={15} /><span>เปิด{LABELS[i]} {p.match(/\.([^.\\/]+)$/)?.[1].toUpperCase() ?? ""} ที่ <FixedTime t={tfmt(playFrom)} longest={tfmt(dur)} /></span></button>)}<SaveBtn onClick={saveImage} /></div></div>
     );
     const Ruler = () => (
-      <div className="ruler" style={{ marginLeft: 96, marginRight: 30 }}>{(() => { const steps = [1, 2, 5, 10, 15, 30, 60, 120, 300, 600, 900, 1800, 3600]; const st = steps.find((s) => (t1 - t0) / s <= 9) ?? 7200; const out: number[] = []; for (let x = Math.ceil(t0 / st) * st; x <= t1; x += st) out.push(x); return out; })().map((x) => { const p = (x - t0) / (t1 - t0 || 1) * 100; return p < 2 || p > 98 ? null : <span key={x} style={{ left: p + "%" }}>{tfmt(x)}</span>; })}</div>
+      <TimeRuler t0={t0} t1={t1} left={96} right={30} />
     );
     const edges = OV.map((ov, i) => edgeAll(ov, NM[i], nyq[i]));
     const ea = edges[0], eb = edges[1];
@@ -2478,7 +2569,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
       const over = others.find((i) => pks[i] > -0.05 && pks[i] > pks[0] + 0.05);
       body = (
         <div className="plot cmpplot" data-plot ref={plotRef} data-cmpview={tab}>
-          <div className="plotstick"><div className="plothead"><span><b>{tab === "wave" ? "รูปคลื่นทุกช่อง" : "ความถี่ทุกช่อง"}</b> · {tfmt(t0)} ถึง {tfmt(t1)}</span>{zoomBar}</div>
+          <div className="plotstick"><div className="plothead"><span><b>{tab === "wave" ? "รูปคลื่นทุกช่อง" : "ความถี่ทุกช่อง"}</b> · <RangeTime t0={t0} t1={t1} dur={dur} /></span>{zoomBar}</div>
           <Ruler />
           </div>
           <div className="lanewrap" style={{ position: "relative" }} onWheel={tab === "spec" ? vrSpec.wheel : undefined}>
@@ -2509,7 +2600,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
         <div className="plot cmpplot" data-plot ref={plotRef} data-cmpview="loud">
           <div className="plotstick"><div className="tiles" data-cmptiles>{rows.map((r) => (
             <div className="tile cmptile" key={r.k}><span>{r.k}</span>{r.v.map((x, i) => <div className="tv" key={i}><Who i={i} /><b style={r.bad[i] ? { color: "var(--bad-ink)" } : undefined}>{x}</b></div>)}<em>{r.note}</em></div>))}</div>
-          <div className="plothead"><span><b>ความดังตลอดไฟล์</b> · {tfmt(t0)} ถึง {tfmt(t1)}</span>{zoomBar}</div></div>
+          <div className="plothead"><span><b>ความดังตลอดไฟล์</b> · <RangeTime t0={t0} t1={t1} dur={dur} /></span>{zoomBar}</div></div>
           <div style={{ flex: "1 0 110px", display: "flex", gap: 8, minHeight: 0 }} onWheel={vrLoud.wheel}>
             <div style={{ position: "relative", flex: 1, minWidth: 0, display: "flex" }}>
               <CmpChart key="loud" vr={vrLoud} grab={cmpGrab} fill height={110} deps={[filesKey, t0, t1]} lo={-60} hi={0} step={10} unit="LUFS" ref23
@@ -2560,7 +2651,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
       const sub = (i: number) => { const t = T[i]!; return `${t.codec} · ${t.rate.toLocaleString("en-US")} Hz${t.bits ? ` · ${t.bits}-bit` : ""}${t.bitrate ? ` · ${Math.round(t.bitrate / 1000).toLocaleString("en-US")} kb/s` : ""} · ${NM[i].length} channels mixed${nyq[i] !== maxNyq ? " · แกนตั้งเท่ากันทุกไฟล์" : ""}`; };
       body = (
         <div className="plot cmpplot" data-plot ref={plotRef} data-cmpview="spek">
-          <div className="plothead"><span><b>วิเคราะห์ความถี่</b> · {tfmt(t0)} ถึง {tfmt(t1)}</span>{zoomBar}</div>
+          <div className="plothead"><span><b>วิเคราะห์ความถี่</b> · <RangeTime t0={t0} t1={t1} dur={dur} /></span>{zoomBar}</div>
           <div style={{ flex: `1 0 ${n * 122}px`, display: "flex", gap: 8, minHeight: 0 }} onWheel={vrSpek.wheel}>
             <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
               {files.map((p, i) => <SpekCv key={p} grab={cmpGrab} deps={[OV[i], t0, t1, maxNyq, vrSpek.z, vrSpek.b, hiC[p]]} draw={(g, w, h) => drawSpekCmp(g, w, h, OV[i], NM[i], nyq[i], maxNyq, t0, t1, nameOf(p), sub(i), edges[i].full ? null : edges[i].top, heat, HEAT, vrSpek.z, vrSpek.b, hiC[p])} data={"abcd"[i]} />)}
@@ -2640,7 +2731,7 @@ function PsdCmp({ list, maxNyq, f, setF, vr, hr, grab, onReset }: { list: GPsd[]
   const topAll = Math.ceil(Math.max(...list.flatMap((p) => p.db[0].slice(2))) / 6) * 6;
   const { lo: bot, hi: top } = vWindow(topAll - 96, topAll, vr);
   const rise = useRise(list);
-  const hrSpan = PSD_HZ_MAX * HZ_MIN, setHz = (k: number) => hr.setZ(Math.max(1, Math.min(PSD_HZ_MAX, k)));
+  const hrSpan = PSD_HZ_MAX * PSD_HZ_UNIT, setHz = (k: number) => hr.setZ(Math.max(1, Math.min(PSD_HZ_MAX, k)));
   const ref = useCanvas((g, w, h) => {
     g.fillStyle = "#fff"; g.fillRect(0, 0, w, h);
     const PW = w - L - R, PH = h - T - Bm;

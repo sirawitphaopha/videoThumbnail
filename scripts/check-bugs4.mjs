@@ -44,7 +44,7 @@ const realBg = await q(`const cv = [...document.querySelectorAll('${G} [data-lan
 check("ข้อ 12 แบบคลื่นเต็มช่อง พื้นขาวแบบหน้าจอ Audacity", realBg === "255,255,255", realBg);
 // ต่างจากแบบหลักชัด สีเดียวไม่มีดังเฉลี่ย ช่องติดกัน (พี่กันทัก "เต็มช่อง กับ รูปคลื่น ไม่เห็นต่างกันเลย")
 const rl = await q(`const l = document.querySelector('${G} .agfoot .lg')?.innerText ?? ''; const ln = document.querySelector('${G} [data-lanes]'); return { rms: /ดังเฉลี่ย/.test(l), gap: getComputedStyle(ln).rowGap, colors: (() => { const cv = [...ln.querySelectorAll('canvas')].filter(x => x.offsetParent).sort((a, b) => b.width * b.height - a.width * a.height)[0]; const g = cv.getContext('2d'), d = g.getImageData(0, 0, cv.width, cv.height).data, set = new Set(); for (let i = 0; i < d.length; i += 16) set.add(d[i] + ',' + d[i + 1] + ',' + d[i + 2]); return set.size; })() }`);
-check("ข้อ 12 แบบเต็มช่อง คลื่นสีเดียว ไม่มีแถบดังเฉลี่ยในป้าย ช่องซ้ายขวาติดกัน", !rl.rms && rl.gap === "0px" && rl.colors <= 4, JSON.stringify(rl));
+check("ข้อ 12 แบบเต็มช่อง คลื่นสีเดียว ไม่มีแถบดังเฉลี่ยในป้าย ช่องคั่นเท่าแบบอื่น (พี่กันทัก \"มันไม่เท่ากันเลย\")", !rl.rms && rl.gap !== "0px" && rl.colors <= 4, JSON.stringify(rl));
 // หัวการ์ดแคบ ปุ่มแบบกราฟเป็นดรอปดาวน์ แถบซูมไม่ถูกบีบ · หัวการ์ดกว้าง เป็นแถวปุ่ม (พี่กันสั่ง "มันบีบเส้นซูมเกินไป ให้เปลี่ยนรูปแบบกราฟเป็นดรอปดาวน์ ถ้าจอมันเล็ก")
 const hd = () => q(`const h = document.querySelector('${G} .plothead'); return { w: Math.round(h.getBoundingClientRect().width), seg: getComputedStyle(h.querySelector('.wstyle-seg')).display, dd: getComputedStyle(h.querySelector('.wstyle-dd')).display, hz: Math.round(h.querySelector('.hzoom').getBoundingClientRect().width), over: h.scrollWidth > h.clientWidth + 1 }`);
 const narrow = await hd();

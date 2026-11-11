@@ -461,9 +461,11 @@ fn after_num(l: &str, key: &str) -> Option<f64> {
 fn decode(tools: &Path, path: &Path, track: usize, ch: usize, start: Option<f64>, len: Option<f64>, loudness: bool,
           feed: &mut dyn FnMut(&[f32]), stop: &dyn Fn() -> bool) -> Result<Option<Run>, String> {
     let mut args: Vec<OsString> = vec!["-nostdin".into(), "-hide_banner".into(), "-nostats".into(), "-v".into(), (if loudness { "info" } else { "error" }).into()];
-    if let Some(s) = start { args.extend(["-ss".into(), format!("{s:.3}").into()]); }
+    // เวลาเริ่มกับความยาวส่งทศนิยม 6 หลัก (ไมโครวินาที) · เดิม 3 หลัก ซูมลึกแล้วภาพคลาดจากเวลาบนแกนได้ถึงครึ่งมิลลิวินาที
+    // (เทียบกับเสียงที่ถอดแยกด้วย ffmpeg พบเลื่อน 18 ตัวอย่างที่ 44.1 kHz · พี่กันถาม 11 พ.ย. 2569 "มันคือกราฟเสียงจริงไหม ไม่ได้ใช่มโนเนอะ")
+    if let Some(s) = start { args.extend(["-ss".into(), format!("{s:.6}").into()]); }
     args.extend(["-i".into(), path.into()]);
-    if let Some(l) = len { args.extend(["-t".into(), format!("{l:.3}").into()]); }
+    if let Some(l) = len { args.extend(["-t".into(), format!("{l:.6}").into()]); }
     if loudness {
         args.extend([
             "-filter_complex".into(), format!("[0:a:{track}]asplit=2[p][l];[l]ebur128=peak=true[e]").into(),
@@ -751,10 +753,11 @@ pub fn overview(tools: &Path, path: &Path, track: &GTrack, duration: f64, on: &d
 #[allow(clippy::too_many_arguments)]
 pub fn window_read(tools: &Path, path: &Path, track: &GTrack, t0: f64, t1: f64, cols: usize, bins: usize, log: bool, full: bool, stop: &dyn Fn() -> bool) -> Result<Option<Window>, String> {
     let ch = track.names.len();
-    let len = (t1 - t0).max(0.05);
+    let len = (t1 - t0).max(0.002);
     let total = (len * track.rate as f64).max(1.0);
     let n_fft = if log { 2048 } else { 1024 };
-    let cols = cols.clamp(16, 8192);
+    // ซูมลึกจนตัวอย่างเสียงน้อยกว่าจำนวนคอลัมน์ ให้หนึ่งคอลัมน์เท่าหนึ่งตัวอย่าง ไม่มีคอลัมน์ว่างคั่น (หน้าจอยืดเอง · พี่กันถาม 11 พ.ย. 2569 "ซูมได้มากกว่านี้ได้มั้ย")
+    let cols = cols.clamp(16, 8192).min((total.ceil() as usize).max(16));
     let spec_cols = if full { cols } else { cols.min(1200) };
     // ครอบทุกช่วงเมื่อคอลัมน์ยาวกว่าหน้าต่าง FFT · เพดาน 64 กันไฟล์ยาวหลายชั่วโมงกินเวลาเกิน
     let per_col = if full { ((total / spec_cols as f64 / n_fft as f64).ceil() as usize).clamp(3, 64) } else { 3 };
