@@ -192,7 +192,8 @@ export default function CropDialog(p: {
     </div>
   ) : null;
   const smallLeft = format === "png" && !short && !p.link;
-  const pngCard = <div className="stat warn" style={short ? { minHeight: FORMAT_ROOM } : undefined} data-pngnote><CardIcon kind="warn" /><div><b style={short ? { display: "inline" } : undefined}>PNG ไม่ลดคุณภาพ</b>{render && jpgBytes ? <>{short ? " " : <div />}{render.bytes / jpgBytes >= 1.5 ? <>ใหญ่กว่า JPG ราว {Math.round(render.bytes / jpgBytes)} เท่า</> : "ไฟล์ใหญ่กว่า JPG"}</> : null}</div></div>;
+  // PNG ไม่ลดคุณภาพเป็นข้อดี ไม่ใช่คำเตือน ใช้สีตามโทนของโปรแกรม (BUGS ข้อ 8 · พี่กันเคาะ "เปลี่ยนเป็นสีตามธีมโปรแกรมละกัน")
+  const pngCard = <div className="stat tone" style={short ? { minHeight: FORMAT_ROOM } : undefined} data-pngnote><CardIcon kind="ok" /><div><b style={short ? { display: "inline" } : undefined}>PNG ไม่ลดคุณภาพ</b>{render && jpgBytes ? <>{short ? " " : <div />}{render.bytes / jpgBytes >= 1.5 ? <>ใหญ่กว่า JPG ราว {Math.round(render.bytes / jpgBytes)} เท่า</> : "ไฟล์ใหญ่กว่า JPG"}</> : null}</div></div>;
   const name = info.name;
   const tag = info.attachable ? null : `.${info.ext}→.${format}`;
   return (
@@ -332,6 +333,8 @@ export default function CropDialog(p: {
             <div className="lbl">แบบปก</div>
             <Seg small label="แบบปก" value={mode} onChange={setMode} options={[{ value: "crop", label: <><IbCrop size={14} />ตัดให้พอดี 2 : 3</> }, { value: "pad", label: <><IcPoster size={14} />เติมขอบ</> }, { value: "original", label: <><IcFile size={14} />ตามรูปเดิม</> }]} />
           </div>}
+          {/* เลือก ตามรูปเดิม กับรูปที่ไม่ใช่ 2 : 3 เตือนตรงจุดที่กำลังเลือก ไม่ไปขึ้นบนการ์ดหลังเลือกเสร็จ (BUGS ข้อ 8 · พี่กัน "เนี่ย ถ้าเลือกรูปเดิม แบบที่เราเลือก เเล้วระบบมันเตือน") */}
+          {!wideSlot && mode === "original" && !info.twoThree && <div className="stat warn" style={{ marginTop: -6, marginBottom: 6, padding: "6px 10px" }} data-origwarn><CardIcon kind="warn" /><div><b>ปกจะไม่เต็มช่องบนชั้นวาง</b><Phr>{`รูปนี้เป็น${info.aspect} ไม่ใช่ 2 : 3 จะเห็นขอบว่างรอบปก`}</Phr></div></div>}
           {!p.link && <div className="setrow" style={{ borderTop: "1px solid transparent", marginTop: -12, paddingBlock: short ? 11 : 7 }}>
             <div className="lbl">ไฟล์รูปที่ได้ {tag && <span className="extag cv" style={{ marginLeft: 6 }}>{tag}</span>}</div>
             <Seg small label="ไฟล์รูปที่ได้" value={format} onChange={setFormat} options={[{ value: "jpg", label: "JPG" }, { value: "png", label: "PNG" }]} />

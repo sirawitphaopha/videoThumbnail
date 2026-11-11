@@ -256,6 +256,9 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
 .stat.bad { background: var(--bad-soft); color: var(--bad-ink); }
 .stat.warn { background: var(--warn-soft); color: var(--warn-ink); }
 .stat.info { background: var(--info-soft); color: var(--info-ink); }
+/* ข้อความบอกข้อดีในสีตามโทนของโปรแกรม ไม่ใช่สีเตือน (BUGS ข้อ 8 กล่อง PNG ไม่ลดคุณภาพ) */
+.stat.tone { background: color-mix(in srgb, var(--accent) 9%, var(--win)); color: var(--accent-ink); }
+.stat.tone svg circle { fill: var(--accent); }
 .stat b { display: block; color: inherit; }
 .stat svg { flex: none; margin-top: 3px; }
 .pill { display: inline-flex; align-items: center; border-radius: 20px; padding: 1px 10px; font-size: 13px; font-weight: 600; white-space: nowrap; }

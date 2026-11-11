@@ -41,6 +41,8 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
   const [poster, setPoster] = useState<PosterInfo | null>(null);
   const [posterErr, setPosterErr] = useState<string | null>(null);
   const [choice, setChoice] = useState<CropChoice | null>(null);
+  /** ผู้ใช้ครอปเองในหน้าต่างครอปแล้ว · ไม่ขึ้นกล่องเลือกแบบปกบนการ์ด อยากเปลี่ยนก็กดครอปภาพใหม่ (BUGS ข้อ 8 · พี่กันเคาะ "เพราะถ้าผู้ใช้อยากจะแก้ ก็เเค่ไปครอบใหม่") */
+  const [userCrop, setUserCrop] = useState(false);
   const [cropOpen, setCropOpen] = useState(false);
   const [listOpen, setListOpen] = useState(false);
   const [over, setOver] = useState<"movie" | "poster" | null>(null);
@@ -118,6 +120,7 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
       const render = await posterApi.render(img.geo, format, quality, { choose: true });
       setPoster(info);
       setChoice({ geo: img.geo, format, quality, render });
+      setUserCrop(false);
       setCropOpen(false);
     } catch (e) {
       setPosterErr(String(e));
@@ -276,7 +279,7 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
   };
   const clearAll = () => {
     if (run.state === "working") return;
-    setMovie(null); setMoviePath(null); setMovieErr(null); setPoster(null); setPosterErr(null); setChoice(null); setDrop([]); setOnce({}); setTyped(null); setRun({ state: "idle" });
+    setMovie(null); setMoviePath(null); setMovieErr(null); setPoster(null); setPosterErr(null); setChoice(null); setUserCrop(false); setDrop([]); setOnce({}); setTyped(null); setRun({ state: "idle" });
     posterApi.clear().catch(() => {});
   };
 
@@ -358,7 +361,7 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
               </>
             )}
             {/* รูปไม่ใช่ 2:3 เลือกแบบปกบนการ์ดได้เลย (สเปกข้อ 7 · เดิมบอกแค่แบบที่เลือกไว้ ต้องเปิดหน้าต่างครอปถึงเปลี่ยนได้ ผู้ช่วยตรวจสเปกเจอ) · ตามรูปเดิม พี่กันสั่งเพิ่ม */}
-            {poster && !poster.twoThree && choice && (
+            {poster && !poster.twoThree && choice && !userCrop && (
               <div className="stat warn" style={{ marginTop: 12, flexWrap: "wrap" }} data-not23><CardIcon kind="warn" /><div style={{ flex: 1, minWidth: 0 }}><b>รูปนี้เป็น{poster.aspect}</b></div>
                 <div className="not23seg">
                   <Seg small label="แบบปก" value={choice.geo.mode} onChange={(v) => { if (!working && !rendering) rechoose({ mode: v }); }} disabledReason={working ? "รอให้งานที่ทำอยู่เสร็จก่อน" : undefined}
@@ -507,7 +510,7 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
       {cropOpen && poster && (
         <CropDialog key={poster.path} info={poster} start={choice} defaultFormat={(settings?.posterFormat ?? "jpg") as "jpg" | "png"} defaultQuality={settings?.jpgQuality ?? 90}
           onCancel={() => { setCropOpen(false); if (!choice) { setPoster(null); posterApi.clear().catch(() => {}); } }}
-          onUse={(c) => { setChoice(c); setCropOpen(false); }}
+          onUse={(c) => { setChoice(c); setUserCrop(true); setCropOpen(false); }}
           onPickImage={loadPoster} />
       )}
       <FolderImages open={listOpen} movie={moviePath} format={(settings?.posterFormat ?? "jpg") as "jpg" | "png"} onClose={() => setListOpen(false)}
