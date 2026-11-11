@@ -1249,3 +1249,30 @@ canvas.spekpan.dragging { cursor: grabbing; }
 .spekxh.h { width: auto; height: 1px; }
 .spekxh.light { background: color-mix(in srgb, black 55%, transparent); }
 .spektip { min-width: 170px; }
+
+/* หน้าความถี่เฉลี่ย (BUGS ชุด 6) · ปุ่มช่องเป็นแถว แถวบนไม่พอเป็นดรอปดาวน์ ให้มีที่วางแถบซูมแกนความถี่ */
+.plothead .psdch-seg { display: flex; flex: none; }
+.plothead .psdch-dd { display: none; flex: none; }
+@container (max-width: 1240px) { .plothead .psdch-seg { display: none; } .plothead .psdch-dd { display: flex; } }
+/* ป้ายสีเส้นอยู่ในแถวบอกค่า ปุ่มเล็กลง (ข้อ 19) */
+.psdread .psdlg { margin-top: 0; gap: 4px; align-items: center; }
+.psdread .psdk { height: 24px; padding: 0 8px; font-size: 12px; gap: 5px; }
+.psdread .psdk i { width: 10px; height: 10px; }
+/* ผลตรวจหลายข้อเรียงลงมา (ข้อ 25) */
+.psdchecks { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; }
+.psdchecks .stat { align-items: center; }
+.psdchecks .stat > div { flex: 1; min-width: 0; }
+/* ไอคอนกับข้อความในแถบผลตรวจเว้นช่อง (พี่กันทัก "วรรคหน่อย") */
+.psdchecks .stat { gap: 8px; }
+/* หัวการ์ดความถี่เฉลี่ยแคบ ซ่อนป้ายช่วงความถี่ตอนยังไม่ซูม แถบซูมสั้นลง ไม่ล้น */
+@container (max-width: 900px) { .plothead [data-psdhzrange].all { display: none; } .plothead [data-psdhzoom] .hzoom { width: 96px; min-width: 96px; flex: none; } }
+/* ผลตรวจที่ไม่พบอะไร บรรทัดเดียวพอดีข้อความ ไม่เต็มแถว */
+.psdchecks { align-items: flex-start; }
+.psdchecks .stat.slim { padding: 5px 10px; font-size: 13px; }
+.psdchecks .stat.slim > div { flex: none; }
+/* ผลตรวจหนึ่งข้อบรรทัดเดียว (พี่กันทัก "สอบรรทัดทำไม กินที่") */
+.psdchecks .stat { padding: 6px 10px; font-size: 13px; max-width: 100%; }
+.psdchecks .psdck-txt { flex: 0 1 auto; min-width: 0; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.psdchecks .psdck-txt span { font-weight: 400; color: var(--txt2); }
+.psdchecks .psdck-txt b, .psdchecks .psdck-txt span { display: inline; }
+.psdopts .psdopt { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }

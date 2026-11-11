@@ -61,7 +61,10 @@ const VIEW_ICON: Record<View, React.ReactNode> = {
   psd: vi(<><path d="M3 20h18" /><path d="M4 17c2-1 3-9 5-9s2 6 4 6 3-4 5-4 2 3 3 3" /></>),
 };
 // มุมมอง ความถี่ เดิมรวมเข้าหน้าวิเคราะห์ แล้วเปลี่ยนชื่อหน้าวิเคราะห์เป็น ความถี่ (BUGS ข้อ 14 พี่กัน "ใช่ เอา เเถบความกี่ ไปรวมกับวิเคราะก์" · "เปลี่ยนเป็นความกี่เเทน")
-const VIEWS: [View, string][] = [["wave", "รูปคลื่น"], ["loud", "ความดัง"], ["cmp", "ซ้อนเทียบ"], ["spek", "ความถี่"], ["psd", "ความถี่เฉลี่ย"]];
+// ปุ่ม ซ้อนเทียบ รวมเข้า ความดัง เลือกช่องในหน้า (BUGS ข้อ 24 พี่กัน "ตามนั้น เอามารวมกัน เเต่ ซ็อนเทียบก็ยังเเสดงหน่วยเดิม")
+const VIEWS: [View, string][] = [["wave", "รูปคลื่น"], ["loud", "ความดัง"], ["spek", "ความถี่"], ["psd", "ความถี่เฉลี่ย"]];
+/** หน้าเทียบหลายไฟล์ยังไม่ได้รวมความดังกับซ้อนเทียบ คงแท็บซ้อนเทียบไว้ ไม่ให้ใช้งานหาย (งานค้างของ BUGS ข้อ 24) */
+const CMP_VIEWS: [View, string][] = [["wave", "รูปคลื่น"], ["loud", "ความดัง"], ["cmp", "ซ้อนเทียบ"], ["spek", "ความถี่"], ["psd", "ความถี่เฉลี่ย"]];
 const ZOOMS: [number | "all", string][] = [["all", "ทั้งไฟล์"], [600, "10 นาที"], [240, "4 นาที"], [30, "30 วินาที"]];
 const PSD_SPANS: [number | "all", string][] = [["all", "ทั้งไฟล์"], [120, "2 นาที"], [30, "30 วินาที"], [10, "10 วินาที"]];
 const TH: Record<string, string> = { FL: "ซ้ายหน้า", FR: "ขวาหน้า", FC: "กลาง · เสียงพูด", LFE: "เสียงเบส", BL: "ซ้ายหลัง", BR: "ขวาหลัง", SL: "ซ้ายข้าง", SR: "ขวาข้าง", BC: "หลังกลาง", FLC: "หน้าซ้ายกลาง", FRC: "หน้าขวากลาง" };
@@ -619,7 +622,7 @@ export const SPEK_RES_KEY = "graph-spek-res";
 function loadPrefs(): Prefs {
   const d: Prefs = { view: "wave", theme: "ชมพู", style: "aud", cmap: "theme", scmap: "heat", spekLight: false, wide: false, spekAxis: "lin" };
   // ค่าเดิมที่จำเส้นละเอียดไว้ เปิดมาเป็นแบบหลัก (พี่กันเคาะ "เอาของ audacity เป็นอันหลักเลย")
-  try { const p = JSON.parse(localStorage.getItem(PREF_KEY) ?? "{}"); const r: Prefs = { ...d, ...p, theme: THEMES[p.theme] ? p.theme : d.theme }; if (!["aud", "bars", "real"].includes(r.style)) r.style = "aud"; if (r.view === "spec") r.view = "spek"; if (r.spekAxis !== "log") r.spekAxis = "lin"; return r; } catch { return d; }
+  try { const p = JSON.parse(localStorage.getItem(PREF_KEY) ?? "{}"); const r: Prefs = { ...d, ...p, theme: THEMES[p.theme] ? p.theme : d.theme }; if (!["aud", "bars", "real"].includes(r.style)) r.style = "aud"; if (r.view === "spec") r.view = "spek"; if (r.view === "cmp") r.view = "loud"; if (r.spekAxis !== "log") r.spekAxis = "lin"; return r; } catch { return d; }
 }
 
 /** โหมดของหน้า กับการเทียบที่เปิดอยู่ · จำระดับโปรแกรม ไปหน้าอื่นแล้วกลับมาอยู่ที่เดิม (คิวแปลงเก็บใน convertJob.ts) */
@@ -659,6 +662,8 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
   const jumped = useRef(false);
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
   const [ovFold] = useOvFold();
+  // หน้าความดัง รวมทุกช่อง (LUFS) · L · R · เทียบซ้ายขวา (dB แบบซ้อนเทียบเดิม)
+  const [loudMode, setLoudMode] = useState<"mix" | "FL" | "FR" | "lr">("mix");
   const [spekRes, setSpekRes] = useState<"fine" | "coarse">(() => { try { return localStorage.getItem(SPEK_RES_KEY) === "coarse" ? "coarse" : "fine"; } catch { return "fine"; } });
   const [zoom, setZoom] = useState<number | "all">("all");
   const [center, setCenter] = useState(0);
@@ -1222,6 +1227,14 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
   };
 
   let plot: React.ReactNode = null;
+  const hasLR = names.includes("FL") && names.includes("FR");
+  const lrWhy = "ไฟล์นี้ไม่มีช่องซ้ายกับขวาแยกกัน";
+  const loudBox = names.length > 1 ? (
+    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><div className="seg sm" data-loudmode>{([["mix", "รวมทุกช่อง"], ["FL", "L ซ้าย"], ["FR", "R ขวา"], ["lr", "เทียบซ้ายขวา"]] as [typeof loudMode, string][]).map(([k, l]) => {
+      const off = k !== "mix" && !hasLR;
+      return <button key={k} type="button" className={loudMode === k ? "on" : ""} disabled={off} title={off ? lrWhy : k === "mix" ? "ความดังรวมทุกช่อง หน่วย LUFS" : k === "lr" ? "ซ้อนเทียบความดังเฉลี่ยซ้ายกับขวา หน่วย dB" : "ความดังเฉลี่ยของช่องนี้ หน่วย dB"} onClick={() => setLoudMode(k)} data-k={k}>{l}</button>;
+    })}</div><InfoTip title="หน่วยของความดัง" tip={LOUD_TIP} /></span>
+  ) : null;
   const lanesView = view === "wave" || view === "spec";
   if (lanesView) {
     // แถบสูงขึ้นจากเดิม (พี่กัน 7 พ.ย. 2569 *"ใ้ห้ระบบมันขยายกราฟลงมาได้มากกว่านี้ ตอนนี้มันเเค่สองเเถบที่โคตรจะชิดกัน"*) · ลากที่จับใต้กราฟขยายต่อได้ถึง 4 เท่า
@@ -1291,8 +1304,11 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
       </div>
     );
     exportRef.current = (outW) => composeLanes(boxEl, outW);
+  } else if (view === "loud" && loudMode !== "mix") {
+    const cc = loudMode === "lr" ? ["FL", "FR"] : [loudMode];
+    plot = <CmpView head={loudBox} onPan={panTo} onBusy={grabBusy} resetN={resetN} scroller={scroller} dur={dur} src={src} names={names} cc={cc} t0={t0} t1={t1} marks={marks} zoomBox={zoomBox(ZOOMS, "ซูม")} at={at} live={hover != null} setHover={setHover} play={play} save={saveImage} exportRef={exportRef} plotRef={plotRef} />;
   } else if (view === "loud") {
-    plot = <LoudView onPan={panTo} onBusy={grabBusy} resetN={resetN} scroller={scroller} ov={ov} th={th} t0={t0} t1={t1} names={names} marks={marks} zoomBox={zoomBox(ZOOMS, "ซูม")} at={at} live={hover != null} setHover={setHover} showTable={showTable} setShowTable={setShowTable} save={saveImage} exportRef={exportRef} plotRef={plotRef} />;
+    plot = <LoudView head={loudBox} onPan={panTo} onBusy={grabBusy} resetN={resetN} scroller={scroller} ov={ov} th={th} t0={t0} t1={t1} names={names} marks={marks} zoomBox={zoomBox(ZOOMS, "ซูม")} at={at} live={hover != null} setHover={setHover} showTable={showTable} setShowTable={setShowTable} save={saveImage} exportRef={exportRef} plotRef={plotRef} />;
   } else if (view === "cmp") {
     const cc = ["FL", "FR", "FC"].filter((c) => names.includes(c));
     plot = <CmpView onPan={panTo} onBusy={grabBusy} resetN={resetN} scroller={scroller} dur={dur} src={src} names={names} cc={cc} t0={t0} t1={t1} marks={marks} zoomBox={zoomBox(ZOOMS, "ซูม")} at={at} live={hover != null} setHover={setHover} play={play} save={saveImage} exportRef={exportRef} plotRef={plotRef} />;
@@ -1346,7 +1362,7 @@ function useOvFold(): [boolean, (v: boolean) => void] {
   useEffect(() => { ovFoldSubs.add(setV); return () => { ovFoldSubs.delete(setV); }; }, []);
   return [v, (n) => { ovFoldNow = n; try { localStorage.setItem(OV_FOLD_KEY, n ? "1" : "0"); } catch { /* ไม่มีที่เก็บ ใช้ค่าในหน้าไปก่อน */ } ovFoldSubs.forEach((x) => x(n)); }];
 }
-type OvProps = { ov: GOverview; th: Theme; t0: number; t1: number; onPick: (t: number) => void; left: number; right?: number };
+type OvProps = { ov: GOverview; th: Theme; t0: number; t1: number; onPick: (t: number) => void; left: number; right?: number; caption?: string };
 /** ผืนวาดแถบภาพรวมแยกเป็นชิ้นของตัวเอง กางทีไรสร้างใหม่ ตัววัดขนาดติดใหม่ วาดใหม่
     (เดิมอยู่ในชิ้นเดียวกับแถบตอนพับ เปิดหน้ามาตอนพับอยู่ ตัววัดขนาดไม่ได้ติดเพราะยังไม่มีผืนวาด กางแล้วแถบว่าง ไม่มีคลื่น · พี่กันทัก 11 พ.ย. 2569 "กราฟตัวอย่างหายย") */
 function OverviewCanvas({ ov, th, t0, t1, onPick }: OvProps) {
@@ -1386,7 +1402,7 @@ function Overview(p: OvProps) {
       {left >= 90 && <button type="button" className="ovtog ovleft" style={{ maxWidth: left - 12 }} aria-expanded={true} title="พับแถบภาพรวมทั้งไฟล์ กราฟได้ที่สูงเพิ่ม" onClick={() => setFold(true)} data-ovtoggle-left>พับภาพรวม<IcChevronDown size={14} stroke="currentColor" /></button>}
       <button type="button" className="ovtog out up" style={togPos} aria-expanded={true} aria-label="พับแถบภาพรวมทั้งไฟล์" title="พับแถบภาพรวมทั้งไฟล์ กราฟได้ที่สูงเพิ่ม" onClick={() => setFold(true)} data-ovtoggle><IcChevronDown size={14} stroke="currentColor" /></button>
     </div>
-    <div className="ovrul" style={{ marginLeft: left, marginRight: right }}><span>0:00</span><span style={{ left: "50%" }}>ทั้งไฟล์ {tfmt(ov.duration)}{ov.readTo < ov.duration - 1 ? ` · อ่านได้ถึง ${tfmt(ov.readTo)}` : ""}</span><span style={{ left: "100%" }}>{tfmt(ov.duration)}</span></div>
+    <div className="ovrul" style={{ marginLeft: left, marginRight: right }}><span>0:00</span><span style={{ left: "50%" }}>{p.caption ?? `ทั้งไฟล์ ${tfmt(ov.duration)}`}{ov.readTo < ov.duration - 1 ? ` · อ่านได้ถึง ${tfmt(ov.readTo)}` : ""}</span><span style={{ left: "100%" }}>{tfmt(ov.duration)}</span></div>
   </>);
 }
 
@@ -1581,7 +1597,7 @@ function composeLanes(box: HTMLDivElement | null, outW: number): HTMLCanvasEleme
   return out;
 }
 type CommonProps = { scroller?: (left: number, right: number) => React.ReactNode; save: () => void; exportRef: React.MutableRefObject<(outW: number) => HTMLCanvasElement | null>; plotRef: React.RefObject<HTMLDivElement | null> };
-function LoudView({ onPan, onBusy, resetN, scroller, ov, th, t0, t1, names, marks, zoomBox, at, live, setHover, showTable, setShowTable, save, exportRef, plotRef }: CommonProps & { onPan: (c: number) => void; onBusy: (on: boolean) => void; resetN: number; ov: GOverview; th: Theme; t0: number; t1: number; names: string[]; marks: Mark[]; zoomBox: React.ReactNode; at: number; live: boolean; setHover: (t: number | null) => void; showTable: boolean; setShowTable: (b: boolean) => void }) {
+function LoudView({ head, onPan, onBusy, resetN, scroller, ov, th, t0, t1, names, marks, zoomBox, at, live, setHover, showTable, setShowTable, save, exportRef, plotRef }: CommonProps & { head?: React.ReactNode; onPan: (c: number) => void; onBusy: (on: boolean) => void; resetN: number; ov: GOverview; th: Theme; t0: number; t1: number; names: string[]; marks: Mark[]; zoomBox: React.ReactNode; at: number; live: boolean; setHover: (t: number | null) => void; showTable: boolean; setShowTable: (b: boolean) => void }) {
   const X0 = 44;
   const pick = (t: number) => { const c = Math.max(0, Math.min(ov.cols - 1, Math.floor(t / ov.duration * ov.cols))); return ov.loud[c]; };
   const vr = useVRange(resetN);
@@ -1613,7 +1629,7 @@ function LoudView({ onPan, onBusy, resetN, scroller, ov, th, t0, t1, names, mark
         <div className="tile"><span>ช่วงความดัง</span><b>{f1(ov.lra)} LU</b><em>ห่างระหว่างช่วงเบากับช่วงดัง</em></div>
         <div className="tile"><span>ช่วงเงียบผิดปกติ</span><b>{sil ? `${sil} ช่วง` : "ไม่พบ"}</b><em>{sil ? `แรกสุดที่ ${tfmt(ov.silences[0][0])}` : "เงียบทุกช่องเกิน 1 วินาที"}</em></div>
       </div>
-      <div className="plothead"><span><b>ความดังตลอดไฟล์</b> · <RangeTime t0={t0} t1={t1} dur={ov.duration} /></span>{zoomBox}</div>
+      <div className="plothead"><span><b>ความดัง</b> · <RangeTime t0={t0} t1={t1} dur={ov.duration} /></span>{head}{zoomBox}</div>
       </div>
       <div style={{ flex: "1 0 200px", display: "flex", gap: 8, minHeight: 0 }}>
       <div className={grab.cls} style={{ position: "relative", flex: 1, minWidth: 0 }} ref={setBox} onWheel={vr.wheel} {...grab.props} onPointerMove={(e) => { if (grab.move(e)) return; const r = e.currentTarget.getBoundingClientRect(), W = r.width - X0 - 4, x = e.clientX - r.left - X0; if (x >= 0 && x <= W) setHover(t0 + x / W * (t1 - t0)); }} onPointerLeave={() => setHover(null)} data-loudbox>
@@ -1639,7 +1655,7 @@ function FragmentBar({ code, th, w, color, v }: { code: string; th: string; w: n
 }
 
 /* ---------- ซ้อนเทียบ ---------- */
-function CmpView({ onPan, onBusy, resetN, scroller, dur, src, names, cc, t0, t1, marks, zoomBox, at, live, setHover, play, save, exportRef, plotRef }: CommonProps & { onPan: (c: number) => void; onBusy: (on: boolean) => void; resetN: number; dur: number; src: Src; names: string[]; cc: string[]; t0: number; t1: number; marks: Mark[]; zoomBox: React.ReactNode; at: number; live: boolean; setHover: (t: number | null) => void; play: () => void }) {
+function CmpView({ head, onPan, onBusy, resetN, scroller, dur, src, names, cc, t0, t1, marks, zoomBox, at, live, setHover, play, save, exportRef, plotRef }: CommonProps & { head?: React.ReactNode; onPan: (c: number) => void; onBusy: (on: boolean) => void; resetN: number; dur: number; src: Src; names: string[]; cc: string[]; t0: number; t1: number; marks: Mark[]; zoomBox: React.ReactNode; at: number; live: boolean; setHover: (t: number | null) => void; play: () => void }) {
   // ที่ว่างป้ายชื่อเส้นทางขวา พอสำหรับคำที่ยาวสุด "ซ้ายหน้า" (60 ตัดตัวสุดท้าย เจอตอนเทส 7 พ.ย. 2569)
   const X0 = 44, RW = 80;
   const vr = useVRange(resetN);
@@ -1673,7 +1689,7 @@ function CmpView({ onPan, onBusy, resetN, scroller, dur, src, names, cc, t0, t1,
   const val = (c: string) => { const e = src.env[names.indexOf(c)], k = Math.max(0, Math.min(src.cols - 1, Math.floor((at - src.t0) / (src.t1 - src.t0 || 1) * src.cols))); return e[k * 3 + 2]; };
   return (
     <div className="plot" data-plot ref={plotRef as React.RefObject<HTMLDivElement>}>
-      <div className="plothead"><span><b>ซ้อนเทียบความดังเฉลี่ย</b> · <RangeTime t0={t0} t1={t1} dur={dur} /></span>{zoomBox}</div>
+      <div className="plothead"><span><b>ความดัง</b> · <RangeTime t0={t0} t1={t1} dur={dur} /></span>{head}{zoomBox}</div>
       <div style={{ flex: "1 0 250px", display: "flex", gap: 8, minHeight: 0 }}>
       <div className={grab.cls} style={{ position: "relative", flex: 1, minWidth: 0 }} ref={setBox} onWheel={vr.wheel} {...grab.props} onPointerMove={(e) => { if (grab.move(e)) return; const r = e.currentTarget.getBoundingClientRect(), W = r.width - X0 - RW, x = e.clientX - r.left - X0; if (x >= 0 && x <= W) setHover(t0 + x / W * (t1 - t0)); }} onPointerLeave={() => setHover(null)} data-cmpbox>
         <canvas className="cv fillcv" ref={ref} />
@@ -1684,7 +1700,7 @@ function CmpView({ onPan, onBusy, resetN, scroller, dur, src, names, cc, t0, t1,
       <FZoom value={vr.z} onChange={vr.setZ} />
       </div>
       {scroller?.(X0, RW + 30)}
-      <div className="agfoot"><div className="lg">{cc.map((c) => <span key={c}><span className="ln" style={{ background: CMP[c] }} />{label(names, c).code} {label(names, c).th}</span>)}<span className="small">ซ้อนได้ไม่เกิน 3 ช่อง</span></div>
+      <div className="agfoot"><div className="lg">{cc.map((c) => <span key={c}><span className="ln" style={{ background: CMP[c] }} />{label(names, c).code} {label(names, c).th}</span>)}</div>
         <div style={{ display: "flex", gap: 8 }}><button type="button" className="btn btn-ghost btn-sm" onClick={play}><IbPlay size={15} /><span>เปิดเล่นที่ <FixedTime t={tfmt(at)} longest={tfmt(dur)} /></span></button><SaveBtn onClick={save} /></div></div>
     </div>
   );
@@ -1908,6 +1924,11 @@ function SpekView({ onBusy, held, resetN, tools, light, onPanT, scroller, ov, wi
 
 /* ---------- ความถี่เฉลี่ย (แบบ Plot Spectrum ของ Audacity) ---------- */
 const PSM = { L: 52, R: 18, T: 14, B: 30 };
+/** หน่วยของหน้าความดัง (BUGS ข้อ 24) */
+const LOUD_TIP: Tip = { w: "รวมทุกช่อง ใช้หน่วย LUFS ความดังที่หูได้ยินตามมาตรฐานเดียวกับ Spotify YouTube (ค่าน้อยกว่า 0 ยิ่งติดลบยิ่งเบา) · L R และเทียบซ้ายขวา ใช้ dB ความดังเฉลี่ย (RMS) ของแต่ละช่อง แบบซ้อนเทียบเดิม เห็นว่าข้างไหนดังกว่ากัน" };
+/** คำอธิบาย ⓘ ของหน้าความถี่เฉลี่ย (BUGS ข้อ 21 22) */
+const MS_TIP: Tip = { w: "M (Mid) เสียงกลาง คือซ้ายบวกขวา ส่วนที่สองข้างเหมือนกัน เช่นเสียงร้อง เบส กลอง · S (Side) เสียงข้าง คือซ้ายลบขวา ส่วนที่สองข้างต่างกัน เช่นเสียงก้อง เครื่องดนตรีที่แยกข้าง · อ่านยังไง S ต่ำกว่า M มาก เนื้อเพลงอยู่ตรงกลาง · S เกือบเท่า M เพลงกว้าง · S แทบศูนย์ เกือบเป็นโมโน · เสียงเบสควรอยู่ใน M" };
+const PSD_TIPS: Record<string, Tip> = { axis: { w: "แบบล็อก ให้เสียงต่ำได้ที่กว้าง ตรงกับที่หูได้ยิน เห็นเบสกับเสียงร้องชัด · เส้นตรง แบ่งเท่ากันทุก Hz เหมาะดูเสียงสูงหรือจุดที่ถูกตัด" }, size: { w: "ตัวเลขยิ่งมาก ยิ่งแยกความถี่ที่ใกล้กันได้ (เห็นยอดแคบชัด) แต่เส้นหยักมากขึ้นและคิดนานขึ้น · 4,096 พอสำหรับดูทั่วไป · 16,384 ใช้หาเสียงหึ่งหรือโน้ตที่ชิดกัน" }, range: { w: "ความสูงของแกนตั้ง นับลงจากจุดที่ดังสุด · 60 dB เห็นรายละเอียดส่วนที่ดัง · 120 dB เห็นถึงเสียงเบามาก เช่นเสียงรบกวนพื้นหลัง" }, grid: { w: "เส้นช่วยอ่านค่า แนวนอนทุก 6 dB แนวตั้งตามความถี่ · ปิดแล้วกราฟโล่ง เหมาะบันทึกเป็นรูป" }, fill: { w: "ระบายสีใต้เส้นให้เห็นเป็นพื้น · เส้นเดียวอ่านง่าย · หลายเส้นซ้อนกันสีจะผสมจนขุ่น ปิดไว้อ่านง่ายกว่า" } };
 /** ซูมแกนความถี่ได้สูงสุดกี่เท่า */
 const PSD_HZ_MAX = 32;
 /** ค่าบนเส้นโค้งผ่าน 4 จุดที่ตำแหน่ง 0 1 2 3 (พหุนามลากรานจ์ดีกรีสาม) · x คือตำแหน่งระหว่าง 0 ถึง 3 */
@@ -1963,6 +1984,36 @@ function PsdView({ filePath, onReset, resetN, scroller, psd, names, psdCh, setPs
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [peaks]);
   const topF = useMemo(() => { if (!psd) return 0; const d = psd.db[0]; for (let i = d.length - 1; i > 0; i--) if (d[i] > -90) return fOf(i); return 0; /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [psd]);
+  /** ตรวจเพิ่มจากข้อมูลที่กราฟคิดแล้ว ไม่โหลดอะไรใหม่ · ทุกข้อบอกว่าน่าสงสัย */
+  const checks = useMemo(() => {
+    const out: { k: string; warn: boolean; b: string; d?: string; title: string; tip: string }[] = [];
+    if (!psd) return out;
+    const rate = psd.rate, binHz = psd.rate / psd.size, d = psd.db[0], at = (fr: number) => d[Math.max(0, Math.min(d.length - 1, Math.round(fr / binHz)))];
+    const avg = (f0: number, f1: number) => { const i0 = Math.max(0, Math.floor(f0 / binHz)), i1 = Math.min(d.length - 1, Math.ceil(f1 / binHz)); let sum = 0, n = 0; for (let i = i0; i <= i1; i++) { sum += d[i]; n++; } return n ? sum / n : -150; };
+    if (hum.length) out.push({ k: "hum", warn: true, b: `เสียงหึ่งจากไฟบ้าน (hum) ยอดแคบที่ ${[...new Set(hum.map((x) => x[2]))].sort((a, b) => a - b).join(" ")} Hz`, d: "มักมาจากสายไมค์หรือปลั๊กพ่วง · ในหนังอาจเป็นเสียงประกอบที่ตั้งใจใส่", title: "เสียงหึ่งจากไฟบ้าน", tip: "ไฟบ้านในไทยสั่น 50 ครั้งต่อวินาที (50 Hz) ถ้าสายเสียงรับไฟฟ้าเข้ามา จะได้เสียงหึ่งต่ำ ๆ เป็นยอดแคบที่ 50 100 150 Hz · ไฟล์จากอเมริกาญี่ปุ่นบางส่วนเป็น 60 Hz · ไม่ใช่เสียงคนฮัมเพลง" });
+    // ขอบบนของเสียง เสียงสูงหายดิ่งเป็นเส้นตรง
+    const top = topF, below = avg(top - 1500, top - 300), above = top + 1500 < nyq ? avg(top + 300, top + 1500) : -150, cliff = top > 1000 && top < nyq * 0.92 && below - above > 25;
+    // อัปแซมเปิล ดูว่าเหนือ 25 kHz เงียบสนิทไหม ไม่ดูความดิ่ง เพราะตัวแปลงอัตราสุ่มทำให้เสียงค่อย ๆ จางจาก 20 ถึง 24 kHz (ลองกับไฟล์ที่แปลง 44.1 เป็น 96 kHz ด้วย ffmpeg เหนือ 24 kHz อยู่ที่ −140 dB)
+    const hiBand = rate >= 88200 ? avg(25000, Math.min(40000, nyq * 0.9)) : 0, upsampled = rate >= 88200 && hiBand < -125 && avg(8000, 16000) > -105;
+    if (upsampled) out.push({ k: "upsample", warn: true, b: `อาจเป็นไฟล์อัปแซมเปิล ไฟล์ ${(rate / 1000).toFixed(1)} kHz แต่ไม่มีเสียงเหนือ ${(top / 1000).toFixed(1)} kHz`, d: "น่าจะแปลงมาจากไฟล์ 44.1 หรือ 48 kHz ไม่ได้ละเอียดจริงตามตัวเลข", title: "อัปแซมเปิล", tip: "ไฟล์ความละเอียดสูง (88.2 ถึง 192 kHz) ที่ทำมาจริงมีเสียงเหนือ 22 kHz บ้าง · ถ้าเสียงหยุดดิ่งที่ราว 22 ถึง 24 kHz พอดี มักเป็นไฟล์ 44.1 หรือ 48 kHz ที่แปลงตัวเลขให้สูงขึ้น ขนาดไฟล์ใหญ่ขึ้นแต่เสียงไม่ได้ดีขึ้น · เพลงบางเพลงไม่มีเสียงสูงจริงก็ได้ ดูประกอบกับกราฟความถี่" });
+    else if (cliff && top >= 15000 && top <= 20600) out.push({ k: "lossy", warn: true, b: `อาจเคยเป็น MP3 หรือ AAC มาก่อน เสียงสูงถูกตัดเป็นเส้นตรงที่ราว ${(top / 1000).toFixed(1)} kHz`, d: "ไฟล์ไม่ลดคุณภาพที่ทำจากต้นฉบับจริงไม่ควรถูกตัดดิ่งที่ 16 19 หรือ 20 kHz", title: "ไฟล์ไม่ลดคุณภาพปลอม", tip: "MP3 กับ AAC ตัดเสียงสูงทิ้งเป็นเส้นตรงที่ราว 16 kHz (128 kb/s) 19 ถึง 20 kHz (320 kb/s) · ถ้าไฟล์ FLAC WAV หรือไฟล์ไม่ลดคุณภาพแบบอื่นมีรอยตัดแบบนี้ มักแปลงมาจาก MP3 AAC อีกที คุณภาพไม่เกินต้นทาง · เสียงที่ค่อย ๆ จางลงตามธรรมชาติไม่นับ" });
+    // เกือบโมโน ดูได้เมื่อมีเส้น S (โหมดซ้อนทุกช่องของไฟล์สองช่อง)
+    const iM = series.findIndex((sr) => sr.key === "M"), iS = series.findIndex((sr) => sr.key === "S");
+    if (iM >= 0 && iS >= 0) {
+      const m = series[iM].d, sd = series[iS].d; let dm = 0, n = 0;
+      for (let i = Math.round(100 / binHz); i < Math.min(m.length, Math.round(10000 / binHz)); i++) { dm += sd[i] - m[i]; n++; }
+      const gap = n ? dm / n : 0;
+      if (gap < -30) out.push({ k: "mono", warn: true, b: `เกือบเป็นโมโน เสียงข้าง (S) เบากว่าเสียงกลาง (M) ราว ${Math.round(-gap)} dB`, d: "ซ้ายกับขวาแทบเหมือนกัน อาจเป็นเสียงโมโนที่ทำเป็นสองช่อง", title: "เกือบเป็นโมโน", tip: "S คือส่วนที่ซ้ายกับขวาต่างกัน · ถ้า S เบากว่า M เกิน 30 dB ทั้งย่าน แปลว่าสองช่องแทบเหมือนกัน ฟังแล้วเสียงไม่กว้าง มักเป็นไฟล์โมโนที่คัดลอกเป็นสองช่อง · ดูข้อนี้ได้ในโหมดซ้อนทุกช่อง" });
+    }
+    // DC offset พลังงานกองที่ 0 Hz
+    const dc = d[0], low = avg(20, 200);
+    if (dc > -60 && dc - low > 15) out.push({ k: "dc", warn: true, b: `อาจมี DC offset พลังงานกองที่ 0 Hz (${minus(dc.toFixed(0))} dB)`, d: "คลื่นเสียงทั้งเส้นเยื้องจากศูนย์ อาจทำให้มีเสียงป๊อกตอนเริ่มหรือตัดต่อ", title: "DC offset", tip: "คลื่นเสียงปกติแกว่งรอบศูนย์ ถ้าทั้งเส้นเยื้องขึ้นหรือลง (DC offset) จะเห็นพลังงานสูงที่ 0 Hz · มักมาจากอุปกรณ์อัดเสียงที่ปรับไม่ดี · แก้ได้ด้วยตัวกรองตัดความถี่ต่ำมาก" });
+    // ไม่พบอะไร เหลือบรรทัดสั้นบรรทัดเดียว รายละเอียดอยู่ใน ⓘ (พี่กันทัก "กินที่จัง ที่บอกไม่มีอะไร่นาสงสัย")
+    if (!out.length) out.push({ k: "ok", warn: false, b: "ไม่พบอะไรน่าสงสัย", title: "สิ่งที่ตรวจ", tip: (iS >= 0 ? "" : "เรื่องเกือบเป็นโมโนดูได้ในโหมดซ้อนทุกช่อง · ") + "ตรวจจากกราฟความถี่เฉลี่ยของช่วงที่เลือก 5 อย่าง เสียงหึ่งจากไฟบ้าน ไฟล์ไม่ลดคุณภาพปลอม อัปแซมเปิล เกือบเป็นโมโน DC offset · ทุกข้อเป็นแค่สิ่งที่น่าสงสัย ไม่ตัดสินเด็ดขาด" });
+    void at;
+    return out;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [psd, hum, series]);
   // ซูมแกนนอน (แกนความถี่) hr.z เท่า ขอบซ้ายของช่วงที่เห็น hr.b เป็นสัดส่วนบนแกน (พี่กันถาม 9 พ.ย. 2569 "แล้วซูมแนวนอนหายไปไหน")
   const hr = useVRange(resetN);
   const uOf = (fr: number) => (psdLog ? (Math.log10(Math.max(fr, 20)) - Math.log10(20)) / (Math.log10(nyq) - Math.log10(20)) : fr / nyq);
@@ -1971,6 +2022,9 @@ function PsdView({ filePath, onReset, resetN, scroller, psd, names, psdCh, setPs
      ระบายทึบสีเดียวใต้เส้น · แกน dB ปรับตามเสียงจริง ขีดทุก 6 dB · เส้นตารางถี่ทุกหลัก (20 30 40 … 100 200 300 …) เปิดปิดได้
      ช่วง dB เลือกได้ (แทนแถบซูมแนวตั้งของ Audacity) · บอกค่าที่ชี้กับยอดใกล้สุดในช่องใต้กราฟ วงกลมที่ยอด */
   const [grids, setGrids] = useState(true);
+  // สีทึบใต้เส้น ใช้กับทุกโหมด ค่าตั้งต้นปิด (แคลร์ตั้ง หลายเส้นซ้อนแล้วสีขุ่น) · BUGS ข้อ 20 พี่กัน "ให้มีตัวเลือกในนี้เลยว่าจะเเสดงสีทึบไหม"
+  const [fill, setFillRaw] = useState(() => { try { return localStorage.getItem("graph-psd-fill") === "1"; } catch { return false; } });
+  const setFill = (v: boolean) => { setFillRaw(v); try { localStorage.setItem("graph-psd-fill", v ? "1" : "0"); } catch { /* เก็บไม่ได้ ใช้ค่าในหน้าไปก่อน */ } };
   const [range, setRange] = useState(90);
   const start = psdLog ? Math.max(1, Math.ceil(20 / fOf(1))) : 0;
   const vr = useVRange(resetN);
@@ -2064,7 +2118,7 @@ function PsdView({ filePath, onReset, resetN, scroller, psd, names, psdCh, setPs
         return { s, area, line };
       });
       // ความทึบพื้นสีต่อเส้นลดตามจำนวนเส้น ส่วนที่ทุกเส้นซ้อนกันทึบรวมราว 45% (เดิม 20% ทุกเส้น 4 เส้นซ้อนกันเป็นสีหม่นขุ่น เจอตอนตรวจภาพ)
-      g.globalAlpha = 1 - Math.pow(0.55, 1 / Math.max(1, drawn.length)); for (const { s, area } of drawn) { g.fillStyle = s.color; g.fill(area); }
+      if (fill) { g.globalAlpha = 1 - Math.pow(0.55, 1 / Math.max(1, drawn.length)); for (const { s, area } of drawn) { g.fillStyle = s.color; g.fill(area); } }
       g.globalAlpha = 1; g.lineWidth = 1.5; g.lineJoin = "round"; for (const { s, line } of drawn) { g.strokeStyle = s.color; g.stroke(line); }
     } else if (series.length === 1) {
       // ระบายทึบสีเดียวจากเส้นลงถึงพื้นกราฟ แบบ Audacity · สีกลางของชุดสี (ชุดม่วงใกล้สีของ Audacity)
@@ -2072,15 +2126,21 @@ function PsdView({ filePath, onReset, resetN, scroller, psd, names, psdCh, setPs
       const s = series[0], area = new Path2D(); area.moveTo(L, T + PH);
       for (let x = 0; x < PW; x += stp) area.lineTo(L + x + 0.5, Y(valRange(s.d, fAt(x, PW), fAt(x + stp, PW))));
       area.lineTo(L + PW, T + PH); area.closePath();
-      g.fillStyle = th.ramp[4]; g.fill(area);
+      if (fill) g.fillStyle = th.ramp[4], g.fill(area);
+      else { const ln = new Path2D(); for (let x = 0; x < PW; x += stp) { const y = Y(valRange(s.d, fAt(x, PW), fAt(x + stp, PW))); if (x) ln.lineTo(L + x + 0.5, y); else ln.moveTo(L + 0.5, y); } g.strokeStyle = th.ramp[5] ?? th.rms; g.lineWidth = 1.5; g.lineJoin = "round"; g.stroke(ln); }
       // เส้นตารางเส้นเดิมวาดซ้ำเฉพาะในพื้นสี ขาวโปร่ง อ่อนกว่าเส้นบนพื้นขาว
-      if (grids) {
+      if (grids && fill) {
         g.save(); g.clip(area); g.lineWidth = 1;
         for (const [x1, y1, x2, y2, strong] of gl) { g.strokeStyle = strong ? "rgba(255,255,255,.34)" : "rgba(255,255,255,.18)"; g.beginPath(); g.moveTo(x1, y1); g.lineTo(x2, y2); g.stroke(); }
         g.restore();
       }
     } else {
       // เทียบซ้ายขวา (ของเราเพิ่มเอง Audacity ไม่มี) เป็นเส้นสองสีตามช่อง
+      if (fill) for (const s of shown) {
+        const area = new Path2D(); area.moveTo(L, T + PH);
+        for (let x = 0; x < PW; x += stp) area.lineTo(L + x + 0.5, Y(valRange(s.d, fAt(x, PW), fAt(x + stp, PW))));
+        area.lineTo(L + PW, T + PH); area.closePath(); g.globalAlpha = 1 - Math.pow(0.55, 1 / Math.max(1, shown.length)); g.fillStyle = s.color; g.fill(area); g.globalAlpha = 1;
+      }
       for (const s of shown) {
         g.strokeStyle = s.color; g.lineWidth = 2; g.lineJoin = "round"; g.beginPath();
         for (let x = 0; x < PW; x += stp) { const y = Y(valRange(s.d, fAt(x, PW), fAt(x + stp, PW))); if (x) g.lineTo(L + x + 0.5, y); else g.moveTo(L + 0.5, y); }
@@ -2089,7 +2149,7 @@ function PsdView({ filePath, onReset, resetN, scroller, psd, names, psdCh, setPs
     }
     if (rising) g.restore();
     g.strokeStyle = ink; g.lineWidth = 1; g.strokeRect(L + 0.5, T + 0.5, PW - 1, PH - 1);
-  }, [rise, hr.z, hr.b, vr.z, vr.b, psd, psdLog, th, series, off, grids, range, top]);
+  }, [rise, hr.z, hr.b, vr.z, vr.b, psd, psdLog, th, series, off, grids, range, top, fill]);
   exportRef.current = (outW) => (ref.current ? hiCopy(ref.current, outW ? outW / ref.current.clientWidth : screenK()) : null);
   const [box, setBox] = useState<HTMLDivElement | null>(null);
   const cur = f ?? (hum[0]?.[0] ?? 1000);
@@ -2122,13 +2182,28 @@ function PsdView({ filePath, onReset, resetN, scroller, psd, names, psdCh, setPs
     try { const saved = await graphApi.save(where, null, [head, ...rows].join("\r\n")); toast({ kind: "ok", title: "ส่งออกตารางแล้ว", detail: saved }); }
     catch (e) { toast({ kind: "bad", title: "ส่งออกไม่ได้", detail: String(e) }); }
   };
+  // ช่วงความถี่ที่ซูมอยู่ บอกข้างแถบซูม (BUGS ข้อ 16 ซูมแล้วงงว่าซูมอะไร แกนนอนหน้านี้คือความถี่ ไม่ใช่เวลา)
+  const fL = psdLog ? 20 * Math.pow(nyq / 20, hr.b) : hr.b * nyq, fR = psdLog ? 20 * Math.pow(nyq / 20, hr.b + 1 / hr.z) : (hr.b + 1 / hr.z) * nyq;
+  const khz = (x: number) => (x >= 1000 ? `${+(x / 1000).toFixed(x >= 10000 ? 0 : 1)}k` : `${Math.round(x)}`);
+  const hzoomBox = (
+    <span className="zbtns" data-psdhzoom>
+      <span className={"lbl" + (hr.z > 1.01 ? "" : " all")} data-psdhzrange title="ช่วงความถี่ที่เห็นอยู่บนแกนนอน">{hr.z > 1.01 ? `${khz(fL)}–${khz(fR)} Hz` : "ทุกความถี่"}</span>
+      <button type="button" className="zb" onClick={() => setHz(hr.z / 2)} disabled={hr.z <= 1} aria-label="ซูมแกนความถี่ออก" title="ซูมออก · Ctrl หมุนล้อเมาส์ลง"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6" /></svg></button>
+      <HZoom dur={hrSpan} span={hrSpan / hr.z} onSpan={(sp) => setHz(hrSpan / sp)} name="ซูมแกนความถี่" text={`ซูมแกนความถี่ ${hr.z.toFixed(1)} เท่า`} />
+      <button type="button" className="zb" onClick={() => setHz(hr.z * 2)} disabled={hr.z >= PSD_HZ_MAX} aria-label="ซูมแกนความถี่เข้า" title="ซูมเข้า · Ctrl หมุนล้อเมาส์ขึ้น"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6M10.5 7.5v6" /></svg></button>
+      <button type="button" className="zb" aria-label="รีเซ็ตซูม" title="รีเซ็ต กลับทั้งไฟล์ ซูมแนวตั้งกับแนวนอน 1 เท่า" data-zoom-reset onClick={onReset}><IcRefresh size={15} /></button>
+    </span>
+  );
   const opts: [string, string][] = names.length === 1 ? [["mix", label(names, names[0]).code]] : [["mix", "รวมทุกช่อง"], ...(names.includes("FR") ? [["FL", label(names, "FL").code], ["FR", label(names, "FR").code], ["lr", "เทียบซ้ายขวา"]] as [string, string][] : []), ["all", "ซ้อนทุกช่อง"]];
   return (
     <div className="plot" data-plot ref={plotRef as React.RefObject<HTMLDivElement>}>
       <div className="plotstick">
-      <div className="plothead"><span style={{ display: "flex", alignItems: "center", gap: 8 }}><b>ความถี่เฉลี่ย</b>
-        <div className="seg sm">{opts.map(([k, l]) => <button key={k} type="button" className={psdCh === k ? "on" : ""} onClick={() => setPsdCh(k)} data-psdch={k}>{l}</button>)}</div></span>{zoomBox}</div>
-      <Overview ov={ov} th={th} t0={t0} t1={t1} onPick={onPick} left={52} />
+      {/* แถบซูมแกนความถี่อยู่แถวบนเหมือนมุมมองอื่น · แถวไม่พอ ปุ่มช่องเป็นดรอปดาวน์ (BUGS ข้อ 15 พี่กัน "ทำไม … ปุ่มซูมเเนวนอนไปอยุ่ด้านล่าง" · "ถ้าไม่พอ ไปเปลี่ยนตามรูป ให้เป็นดรอปดาว") */}
+      <div className="plothead"><span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}><b>ความถี่เฉลี่ย</b>
+        <span className="psdch-seg"><div className="seg sm">{opts.map(([k, l]) => <button key={k} type="button" className={psdCh === k ? "on" : ""} onClick={() => setPsdCh(k)} data-psdch={k}>{l}</button>)}</div></span>
+        <span className="psdch-dd" data-psdchdd><Dropdown label="ช่องที่ดู" value={psdCh} onChange={setPsdCh} options={opts.map(([value, l]) => ({ value, label: l }))} /></span></span>
+        <span style={{ display: "flex", alignItems: "center", gap: 10, rowGap: 6, flexWrap: "wrap", justifyContent: "flex-end", minWidth: 0 }}>{hzoomBox}{zoomBox}</span></div>
+      <Overview ov={ov} th={th} t0={t0} t1={t1} onPick={onPick} left={52} caption={t1 - t0 >= ov.duration - 0.01 ? `เฉลี่ยทั้งไฟล์ ${tfmt(ov.duration)}` : `ช่วงที่เอามาเฉลี่ย ${tfmtD(t0, spanDigits(t1 - t0))} ถึง ${tfmtD(t1, spanDigits(t1 - t0))}`} />
       {scroller?.(52, 0)}
       </div>
       <div style={{ flex: "1 0 300px", marginTop: 8, display: "flex", gap: 8, minHeight: 0 }}>
@@ -2147,38 +2222,36 @@ function PsdView({ filePath, onReset, resetN, scroller, psd, names, psdCh, setPs
       </div>
       {/* แถบเลื่อนแกนความถี่ตรงกับขอบกราฟ เว้นขวาเท่าแถบซูมแนวตั้ง · ซูมแนวนอนอยู่ท้ายแถวบอกค่า หัวกราฟเต็มแล้ว */}
       <div style={{ marginRight: 30 }} data-psdhscroll><TimeScroll dur={1} t0={hr.b} t1={hr.b + 1 / hr.z} left={PSM.L} right={PSM.R} onPan={(c) => hr.setB(hr.clampB(c - 0.5 / hr.z, hr.z))} /></div>
-      {/* ป้ายบอกสีทุกเส้น กดเพื่อซ่อนหรือแสดงเส้นนั้น (สีอย่างเดียวไม่พอ ชื่อช่องอยู่บนป้ายเสมอ) */}
-      {series.length > 1 && <div className="psdlg" data-psdlegend>{series.map((s) => {
-        const on = !off.includes(s.key), last = on && shown.length === 1;
-        return <button key={s.key} type="button" className={"psdk" + (on ? " on" : "")} aria-pressed={on} aria-disabled={last || undefined}
-          title={last ? "ต้องเหลืออย่างน้อยหนึ่งเส้น" : on ? `กดเพื่อซ่อน ${s.long}` : `กดเพื่อแสดง ${s.long}`} data-psdkey={s.key}
-          onClick={() => { if (!last) setOff((o) => (on ? [...o, s.key] : o.filter((k) => k !== s.key))); }}>
-          <i style={on ? { background: s.color, borderColor: s.color } : { borderColor: s.color }} />{s.long}</button>;
-      })}</div>}
       {/* ช่องบอกค่าใต้กราฟ แบบ Cursor กับ Peak ของ Audacity */}
       <div className="psdread" data-psdreadout>
-        <span className="zbtns" style={{ order: 9, marginLeft: "auto" }} data-psdhzoom>
-          <button type="button" className="zb" onClick={() => setHz(hr.z / 2)} disabled={hr.z <= 1} aria-label="ซูมแกนความถี่ออก" title="ซูมออก · Ctrl หมุนล้อเมาส์ลง"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6" /></svg></button>
-          <HZoom dur={hrSpan} span={hrSpan / hr.z} onSpan={(sp) => setHz(hrSpan / sp)} name="ซูมแกนความถี่" text={`ซูมแกนความถี่ ${hr.z.toFixed(1)} เท่า`} />
-          <button type="button" className="zb" onClick={() => setHz(hr.z * 2)} disabled={hr.z >= PSD_HZ_MAX} aria-label="ซูมแกนความถี่เข้า" title="ซูมเข้า · Ctrl หมุนล้อเมาส์ขึ้น"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6M10.5 7.5v6" /></svg></button>
-          <button type="button" className="zb" aria-label="รีเซ็ตซูม" title="รีเซ็ต กลับทั้งไฟล์ ซูมแนวตั้งกับแนวนอน 1 เท่า" data-zoom-reset onClick={onReset}><IcRefresh size={15} /></button>
-        </span>
+        {/* ป้ายสีเส้นย้ายมาแทนที่แถบซูมเดิม ปุ่มเล็กลง ยังกดซ่อนแสดงเส้นได้ (BUGS ข้อ 19 พี่กัน "งั้นย้ายไปเเทนที่เเถบซูมเเนวนอน" · "อ๋อ มันคือปุ่มกด") · ⓘ อธิบาย M S (ข้อ 21) */}
+        {series.length > 1 && <span className="psdlg" style={{ order: 9, marginLeft: "auto" }} data-psdlegend>{series.map((sr) => {
+          const on = !off.includes(sr.key), last = on && shown.length === 1;
+          return <button key={sr.key} type="button" className={"psdk" + (on ? " on" : "")} aria-pressed={on} aria-disabled={last || undefined}
+            title={last ? "ต้องเหลืออย่างน้อยหนึ่งเส้น" : on ? `กดเพื่อซ่อน ${sr.long}` : `กดเพื่อแสดง ${sr.long}`} data-psdkey={sr.key}
+            onClick={() => { if (!last) setOff((o) => (on ? [...o, sr.key] : o.filter((k) => k !== sr.key))); }}>
+            <i style={on ? { background: sr.color, borderColor: sr.color } : { borderColor: sr.color }} />{sr.long}</button>;
+        })}{series.some((sr) => sr.key === "M") && <InfoTip title="M กับ S คืออะไร" tip={MS_TIP} />}</span>}
         <span className="lbl">ตำแหน่งชี้</span>
-        <span className="psdbox" data-psdcursor>{psd ? `${hzTxt(cur)} (${noteOf(cur)}) = ${shown.map((s) => (series.length > 1 ? s.name + " " : "") + minus(Math.round(valAt(s.d, cur)).toString()) + " dB").join(" · ")}` : "—"}</span>
+        <span className="psdbox" data-psdcursor>{psd && f == null ? "ชี้ที่กราฟเพื่อดูค่า" : psd ? `${hzTxt(cur)} (${noteOf(cur)}) = ${shown.map((s) => (series.length > 1 ? s.name + " " : "") + minus(Math.round(valAt(s.d, cur)).toString()) + " dB").join(" · ")}` : "—"}</span>
         <span className="lbl">ยอดใกล้สุด</span>
         <span className="psdbox" data-psdpeak>{pk ? `${hzTxt(pk[0])} (${noteOf(pk[0])}) = ${minus(pk[1].toFixed(1))} dB` : "—"}</span>
       </div>
-      {psd && (hum.length
-        ? <div className="stat warn" style={{ marginTop: 10 }} data-psdverdict>{WARN}<div><b><Phr>{`เจอเสียงฮัมจากไฟบ้าน ยอดแคบที่ ${[...new Set(hum.map((x) => x[2]))].sort((a, b) => a - b).join(" ")} Hz`}</Phr></b>{lines("ไฟบ้านในไทย 50 Hz เสียงฮัมจะเป็นยอดแคบที่ 50 กับเลขคูณ · มักมาจากสายไมค์หรือปลั๊กพ่วง · ในหนังอาจเป็นเสียงประกอบที่ตั้งใจใส่")}</div></div>
-        : <div className="stat info" style={{ marginTop: 10 }} data-psdverdict><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5v.5" /></svg><div><b>ไม่พบเสียงฮัม</b>ไม่มียอดแคบที่ 50 Hz กับเลขคูณ</div></div>)}
+      {/* ผลตรวจ บอกว่าน่าสงสัย ไม่ตัดสินเด็ดขาด ทุกข้อมีปุ่ม ⓘ (BUGS ข้อ 25 พี่กัน "เราคิดว่ามันคือฮัมเพลง ต้อเปลี่ยนคำ" · ตรวจเพิ่ม 4 อย่าง พี่กันเคาะ "ได้") */}
+      {psd && <div className="psdchecks" data-psdchecks data-top={Math.round(topF)}>{checks.map((c) => (
+        <div key={c.k} className={"stat " + (c.warn ? "warn" : "info") + (c.d ? "" : " slim")} data-psdcheck={c.k}>{c.warn ? WARN : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5v.5" /></svg>}
+          <div className="psdck-txt" title={c.d ? `${c.b} · ${c.d}` : c.b}><b>{c.b}</b>{c.d && <span> · {c.d}</span>}</div><InfoTip title={c.title} tip={{ w: c.tip }} /></div>))}</div>}
       <div className="small" style={{ marginTop: 6 }}>{psd ? `เสียงสูงสุดที่มีราว ${(topF / 1000).toFixed(1)} kHz · ` : ""}ช่วงที่เลือก {tfmtD(t0, spanDigits(t1 - t0))} ถึง {tfmtD(t1, spanDigits(t1 - t0))} · กดที่แถบบนเพื่อย้ายช่วง</div>
-      <div className="agfoot"><div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}><span className="lbl">แกนความถี่</span>
-        <div className="seg sm"><button type="button" className={psdLog ? "on" : ""} onClick={() => setPsdLog(true)} data-psdaxis="log">แบบล็อก</button><button type="button" className={!psdLog ? "on" : ""} onClick={() => setPsdLog(false)} data-psdaxis="lin">เส้นตรง</button></div>
-        <span data-psdsize title="ยิ่งมากยิ่งแยกความถี่ละเอียด แต่ช้าลง"><Dropdown label="ความละเอียด" value={String(psdSize)} onChange={(v) => setPsdSize(Number(v))}
-          options={[1024, 4096, 16384].map((n) => ({ value: String(n), label: `ความละเอียด ${n.toLocaleString("en-US")}` }))} /></span>
-        <span style={{ display: "inline-flex", alignItems: "center", gap: 8 }}><span className="lbl">ช่วง</span>
-        <div className="seg sm">{[60, 90, 120].map((r) => <button key={r} type="button" className={range === r ? "on" : ""} onClick={() => setRange(r)} data-psdrange={r}>{r} dB</button>)}</div></span>
-        <span className="lbl">เส้นตาราง</span><span data-psdgrid style={{ display: "inline-flex" }}><Switch on={grids} onChange={setGrids} label="เส้นตาราง" /></span></div>
+      {/* แต่ละตัวเลือกจับคู่กับปุ่ม ⓘ ของมัน ตกบรรทัดแล้วไม่แยกกัน (เจอตอนตรวจภาพ ⓘ ของเส้นตารางหลุดไปต้นบรรทัดใหม่) */}
+      <div className="agfoot"><div className="psdopts" style={{ display: "flex", alignItems: "center", columnGap: 14, rowGap: 6, flexWrap: "wrap" }}>
+        <span className="psdopt"><span className="lbl">แกนความถี่</span><InfoTip title="แกนความถี่" tip={PSD_TIPS.axis} />
+        <div className="seg sm"><button type="button" className={psdLog ? "on" : ""} onClick={() => setPsdLog(true)} data-psdaxis="log">แบบล็อก</button><button type="button" className={!psdLog ? "on" : ""} onClick={() => setPsdLog(false)} data-psdaxis="lin">เส้นตรง</button></div></span>
+        <span className="psdopt"><span data-psdsize title="ยิ่งมากยิ่งแยกความถี่ละเอียด แต่ช้าลง"><Dropdown label="ความละเอียด" value={String(psdSize)} onChange={(v) => setPsdSize(Number(v))}
+          options={[1024, 4096, 16384].map((n) => ({ value: String(n), label: `ความละเอียด ${n.toLocaleString("en-US")}` }))} /></span><InfoTip title="ความละเอียด" tip={PSD_TIPS.size} /></span>
+        <span className="psdopt"><span className="lbl">ช่วง</span>
+        <div className="seg sm">{[60, 90, 120].map((r) => <button key={r} type="button" className={range === r ? "on" : ""} onClick={() => setRange(r)} data-psdrange={r}>{r} dB</button>)}</div><InfoTip title="ช่วง dB" tip={PSD_TIPS.range} /></span>
+        <span className="psdopt"><span className="lbl">เส้นตาราง</span><span data-psdgrid style={{ display: "inline-flex" }}><Switch on={grids} onChange={setGrids} label="เส้นตาราง" /></span><InfoTip title="เส้นตาราง" tip={PSD_TIPS.grid} /></span>
+        <span className="psdopt"><span className="lbl">สีทึบใต้เส้น</span><span data-psdfill style={{ display: "inline-flex" }}><Switch on={fill} onChange={setFill} label="สีทึบใต้เส้น" /></span><InfoTip title="สีทึบใต้เส้น" tip={PSD_TIPS.fill} /></span></div>
         <div style={{ display: "flex", gap: 8 }}><button type="button" className="btn btn-ghost btn-sm" onClick={exportCsv}><IbSave size={15} />ส่งออกเป็นตาราง</button><SaveBtn onClick={save} /></div></div>
     </div>
   );
@@ -2487,7 +2560,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
   const saveImage = async () => {
     if (saving) return;
     const o = settings?.graphImg ?? GRAPH_IMG_DEFAULT;
-    const base = (p: string) => nameOf(p).replace(/\.[^.]+$/, ""), vName = VIEWS.find(([k]) => k === tab)?.[1] ?? "กราฟเสียง";
+    const base = (p: string) => nameOf(p).replace(/\.[^.]+$/, ""), vName = CMP_VIEWS.find(([k]) => k === tab)?.[1] ?? "กราฟเสียง";
     const where = await imgTarget(files[0], imgName(base(files[0]) + " เทียบ " + base(files[1]) + (n > 2 ? " และอีก " + (n - 2) + " ไฟล์" : ""), vName, o), o); if (!where) return;
     setSaving(true);
     try {
@@ -2543,7 +2616,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
   const fileLg = <>{files.map((p, i) => <span key={p}><span className="ln" style={{ background: FILE_C[i] }} />{LABELS[i]}</span>)}</>;
   const ctl = (
     <div className="agctl">
-      <div className="seg agviews">{VIEWS.map(([k, l]) => <button key={k} type="button" className={tab === k ? "on" : ""} onClick={() => switchTab(k)} data-cmptab={k} disabled={k === "cmp" && !common.length}
+      <div className="seg agviews">{CMP_VIEWS.map(([k, l]) => <button key={k} type="button" className={tab === k ? "on" : ""} onClick={() => switchTab(k)} data-cmptab={k} disabled={k === "cmp" && !common.length}
         title={k === "cmp" && !common.length ? `${allTxt}ไม่มีช่องเสียงที่ตรงกัน` : undefined}>{VIEW_ICON[k]}{l}</button>)}</div>
       <div className="lg" style={{ marginLeft: "auto" }}>{fileLg}</div>
       <button type="button" className={"btn btn-ghost btn-sm" + (wide ? " pressed" : "")} style={{ width: 32, padding: 0, flex: "none" }} aria-pressed={wide} title={wide ? "แสดงแผงลำโพง" : "ขยายเต็มจอ"} aria-label={wide ? "แสดงแผงลำโพง" : "ขยายเต็มจอ"} onClick={() => setWide(!wide)} data-graphwide><IcExpand size={14} /></button>
