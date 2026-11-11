@@ -99,7 +99,7 @@ export default function ConvertPane(p: { onCompare: (a: string, b: string, note:
   useEffect(() => { encodeApi.status().then(setEncs, () => setEncs([])); }, []);
   /** ชุดค่าทุกชนิดเสียงในดรอปดาวน์ · ค่าที่ตั้งเองในแผงไม่ตรงชุดไหน ก็ยังขึ้นชื่อค่าที่ใช้อยู่ */
   // แบ่งสองกลุ่มใหญ่ เสียคุณภาพ กับ ไม่เสียคุณภาพ หัวย่อยตามชนิด (BUGS ข้อ 27 พี่กันหา ALAC ไม่เจอ)
-  const presets = useMemo(() => [false, true].flatMap((ll) => CODECS.filter((c) => !!c.lossless === ll).flatMap((c) => c.presets.map((pr, i) => ({ value: c.id + ":" + i, label: c.name + " · " + pr.label + " · " + pr.detail, group: ll ? "ไม่เสียคุณภาพ" : "เสียคุณภาพ", sub: c.name, spec: presetSpec(c, i, encs) })))), [encs]);
+  const presets = useMemo(() => [false, true].flatMap((ll) => CODECS.filter((c) => !!c.lossless === ll).flatMap((c) => c.presets.map((pr, i) => ({ value: c.id + ":" + i, label: c.name + " · " + pr.label + " · " + pr.detail, group: ll ? "ไม่เสียคุณภาพ (Lossless)" : "เสียคุณภาพ (Lossy)", sub: c.name, spec: presetSpec(c, i, encs) })))), [encs]);
   const presetOf = (sp: EncodeSpec) => presets.find((x) => x.spec.codec === sp.codec && specLabel(x.spec) === specLabel(sp))?.value ?? "";
   const specOf = (v: string) => presets.find((x) => x.value === v)?.spec ?? null;
 

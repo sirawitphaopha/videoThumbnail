@@ -19,14 +19,16 @@ await nav("กราฟเสียง");
 await q(`[...document.querySelectorAll('${G} button')].find((b) => b.innerText.trim() === 'หน้ารวม')?.click()`); await sleep(800);
 await q(`document.querySelector('${G} [data-gmode=convert]')?.click()`); await sleep(800);
 const had = await q(`return document.querySelectorAll('${G} [data-qrow]').length`);
-if (had) { console.log(`คิวมีไฟล์อยู่ ${had} ไฟล์ ไม่ลบคิวเดิม ข้ามข้อ 26`); }
-else {
+// คิวมีไฟล์อยู่ก่อน (ของพี่กัน) ไม่แตะ · ตัวตรวจเพิ่มไฟล์ทดสอบต่อท้าย แล้วเอาออกเฉพาะไฟล์ทดสอบตอนจบ
+if (had) console.log(`คิวมีไฟล์อยู่ก่อน ${had} ไฟล์ ไม่แตะ`);
+{
   const geo = () => q(`const g = (s) => { const e = document.querySelector('${G} ' + s); if (!e) return null; const r = e.getBoundingClientRect(); return [Math.round(r.top), Math.round(r.height)]; }; const l = document.querySelector('${G} [data-qlist]'); return { drop: g('[data-qdrop]'), cards: g('.cqcards'), foot: g('.cqfoot'), list: g('[data-qlist]'), listScroll: l ? l.scrollHeight > l.clientHeight + 1 : false, inner: innerHeight, pageScroll: (() => { const w = document.querySelector('${G} .pagewrap'); return w ? w.scrollHeight > w.clientHeight + 1 : null; })() }`);
   const out = {};
   for (const [n, add] of [[1, FILES.slice(0, 1)], [3, FILES.slice(1, 3)], [7, FILES.slice(3, 7)]]) {
     await drop(add); await sleep(2500);
     out[n] = await geo();
-    await c.shot(`${OUT}/26-คิว-${n}-ไฟล์.png`, `${G} [data-convert]`, 0);
+    // คิวมีไฟล์ของพี่กันอยู่ก่อน ไม่ถ่ายภาพคิว ชื่อไฟล์ส่วนตัวจะติดภาพ (ที่เก็บเป็นสาธารณะ)
+    if (!had) await c.shot(`${OUT}/26-คิว-${n}-ไฟล์.png`, `${G} [data-convert]`, 0);
   }
   const dropH = [out[1].drop[1], out[3].drop[1], out[7].drop[1]];
   check("ข้อ 26 จุดลากสูงเท่ากันทุกจำนวนไฟล์ (1 3 7 ไฟล์)", new Set(dropH).size === 1, JSON.stringify(dropH));
@@ -34,19 +36,27 @@ else {
   check("ข้อ 26 ส่วนตั้งค่ากับปุ่มแปลงอยู่ล่างจอทุกจำนวนไฟล์ ไม่ต้องเลื่อนหน้า", [1, 3, 7].every((k) => footBottom(out[k]) <= out[k].inner && footBottom(out[k]) >= out[k].inner - 40 && out[k].pageScroll === false), JSON.stringify([1, 3, 7].map((k) => [footBottom(out[k]), out[k].inner, out[k].pageScroll])));
   console.log("ขนาด", JSON.stringify(out));
   // ---------- ข้อ 27 ดรอปดาวน์แบ่งกลุ่ม หัวย่อย ช่องค้น ----------
-  await q(`document.querySelector('${G} [data-qrow] .dd')?.click()`); await sleep(500);
-  const dd = await q(`const m = document.querySelector('body > [role=listbox]'); if (!m) return null; const r = m.getBoundingClientRect(); return { groups: [...m.querySelectorAll('.ddgroup')].map((e) => e.innerText), subs: [...m.querySelectorAll('.ddsub')].map((e) => e.innerText), search: !!m.querySelector('[data-ddsearch]'), focus: document.activeElement?.hasAttribute('data-ddsearch'), top: Math.round(r.top), bottom: Math.round(r.bottom), h: innerHeight, hit: m.contains(document.elementFromPoint(r.left + r.width / 2, Math.min(r.bottom - 10, innerHeight - 5))) }`);
-  check("ข้อ 27 ดรอปดาวน์มีหัวกลุ่ม เสียคุณภาพ ไม่เสียคุณภาพ · หัวย่อยตามชนิดรวม ALAC · ช่องค้นบนสุดได้โฟกัส · ไม่ล้นจอ · ไม่โดนกรอบรายการคิวตัด", !!dd && dd.groups.join("|") === "เสียคุณภาพ|ไม่เสียคุณภาพ" && dd.subs.includes("ALAC") && dd.search && dd.focus && dd.bottom <= dd.h && dd.top >= 0 && dd.hit, JSON.stringify(dd));
+  // ใช้แถวไฟล์ทดสอบ ไม่แตะแถวของพี่กัน
+  const ROW = `${G} [data-qrow="เพลงทดสอบ.wav"]`;
+  await q(`document.querySelector('${ROW} .dd')?.click()`); await sleep(500);
+  const dd = await q(`const m = document.querySelector('body > [role=listbox]'); if (!m) return null; const r = m.getBoundingClientRect(); return { groups: [...m.querySelectorAll('.ddgroup')].map((e) => e.innerText), subs: [...m.querySelectorAll('.ddsub')].map((e) => e.innerText), search: !!m.querySelector('[data-ddsearch]'), focus: document.activeElement?.hasAttribute('data-ddsearch'), top: Math.round(r.top), bottom: Math.round(r.bottom), h: innerHeight, hit: m.contains(document.elementFromPoint(r.left + r.width / 2, Math.min(r.bottom - 10, innerHeight - 5))), right: Math.round(r.right), gear: Math.round(document.querySelector('${ROW} [data-qto]').getBoundingClientRect().right), left: Math.round(r.left), btnLeft: Math.round(document.querySelector('${ROW} .dd').getBoundingClientRect().left) }`);
+  check("ข้อ 27 ดรอปดาวน์มีหัวกลุ่ม เสียคุณภาพ ไม่เสียคุณภาพ · หัวย่อยตามชนิดรวม ALAC · ช่องค้นบนสุดได้โฟกัส · ไม่ล้นจอ · ไม่โดนกรอบรายการคิวตัด · ขอบซ้ายตรงปุ่ม ขอบขวาถึงปุ่มตั้งค่า", !!dd && dd.groups.join("|") === "เสียคุณภาพ (Lossy)|ไม่เสียคุณภาพ (Lossless)" && dd.subs.includes("ALAC") && dd.search && dd.focus && dd.bottom <= dd.h && dd.top >= 0 && dd.hit && Math.abs(dd.right - dd.gear) <= 1 && Math.abs(dd.left - dd.btnLeft) <= 1, JSON.stringify(dd));
   await c.shot(`${OUT}/27-ดรอปดาวน์แบ่งกลุ่ม.png`, `body > [role=listbox]`, 4).catch(() => {});
   await c.type("alac"); await sleep(400);
   const found = await q(`return [...document.querySelectorAll('body > [role=listbox] [role=option]')].map((e) => e.innerText.trim())`);
   check("ข้อ 27 พิมพ์ alac เหลือเฉพาะตัวเลือก ALAC", found.length > 0 && found.every((t) => t.startsWith("ALAC")), found.join(" | "));
   await c.shot(`${OUT}/27-ค้น-alac.png`, `body > [role=listbox]`, 4).catch(() => {});
   await c.key("Enter"); await sleep(400);
-  const chosen = await q(`return document.querySelector('${G} [data-qrow] .dd')?.innerText.trim()`);
+  const chosen = await q(`return document.querySelector('${ROW} .dd')?.innerText.trim()`);
   check("ข้อ 27 กด Enter เลือกตัวแรกที่ค้นเจอ ปลายทางเป็น ALAC", /^ALAC/.test(chosen ?? ""), chosen);
-  // เอาไฟล์ทดสอบออกจากคิว คืนคิวว่าง (ไฟล์ในเครื่องไม่ถูกแตะ)
-  for (let i = 0; i < 10; i++) { const r = await q(`const b = document.querySelector('${G} [data-qremove]'); if (b) b.click(); return !!b`); if (!r) break; await sleep(150); }
+  // เอาเฉพาะไฟล์ทดสอบที่ตัวตรวจเพิ่มออกจากคิว ไฟล์ที่อยู่ก่อน (ของพี่กัน) ไม่แตะ · ไฟล์ในเครื่องไม่ถูกแตะ
+  const mine = FILES.map((f) => f.split("/").pop());
+  for (let i = 0; i < 12; i++) {
+    const r = await q(`const names = ${JSON.stringify(mine)}; const row = [...document.querySelectorAll('${G} [data-qrow]')].find((x) => names.includes(x.dataset.qrow)); if (!row) return false; row.querySelector('[data-qremove]')?.click(); return true`);
+    if (!r) break; await sleep(200);
+  }
+  const left = await q(`return [...document.querySelectorAll('${G} [data-qrow]')].map((x) => x.dataset.qrow)`);
+  check("เอาไฟล์ทดสอบออกหมด คิวเหลือเท่าก่อนตรวจ", left.length === had, JSON.stringify(left));
 }
 
 console.log(`\nผ่าน ${pass} จาก ${pass + fail}`);

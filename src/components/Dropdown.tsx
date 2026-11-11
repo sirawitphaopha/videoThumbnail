@@ -29,6 +29,9 @@ export default function Dropdown<T extends string>(p: {
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(-1);
   const [qy, setQy] = useState("");
+  const searchRef = useRef<HTMLInputElement>(null);
+  // โฟกัสช่องค้นโดยไม่ให้หน้าเลื่อน (autoFocus ทำให้หน้าเลื่อนนิดหนึ่ง ตัวปิดเมนูตอนหน้าเลื่อนเลยปิดเมนูทันที เจอตอนตรวจ)
+  useEffect(() => { if (!open || !p.search) return; const id = requestAnimationFrame(() => searchRef.current?.focus({ preventScroll: true })); return () => cancelAnimationFrame(id); }, [open, p.search]);
   const words = qy.trim().toLowerCase().split(/\s+/).filter(Boolean);
   const list = words.length ? p.options.filter((o) => { const t = `${o.label} ${o.group ?? ""} ${o.sub ?? ""}`.toLowerCase(); return words.every((w) => t.includes(w)); }) : p.options;
   const wrap = useRef<HTMLDivElement>(null);
@@ -116,7 +119,7 @@ export default function Dropdown<T extends string>(p: {
           {p.search && (
             <div className="ddsearch" onMouseDown={(e) => e.stopPropagation()}>
               <IcSearch size={14} />
-              <input autoFocus value={qy} onChange={(e) => setQy(e.target.value)} onKeyDown={onKey} placeholder="พิมพ์ค้น เช่น alac 5.1 320" aria-label={"ค้นใน" + p.label} data-ddsearch />
+              <input ref={searchRef} value={qy} onChange={(e) => setQy(e.target.value)} onKeyDown={onKey} placeholder="พิมพ์ค้น เช่น alac 5.1 320" aria-label={"ค้นใน" + p.label} data-ddsearch />
             </div>
           )}
           {p.search && !list.length && <div className="ddempty">ไม่เจอตัวเลือกที่ตรงกับ “{qy}”</div>}
