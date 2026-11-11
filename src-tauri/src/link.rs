@@ -1227,7 +1227,7 @@ fn conflict_of(env: &WriteEnv, movie: &Path, orient: &str, pick: &Pick, store: &
     let mine = old.is_some_and(|o| o.owned && o.file.as_deref().is_some_and(|f| same_file(Path::new(f), &target)) && o.sha256 == file_sha(&target));
     if mine { return None; }
     let name = target.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-    Some(CoverProblem { msg: format!("มีไฟล์ {name} อยู่แล้ว ไม่ใช่ของโปรแกรม ไม่เขียนทับ"), conflict: Some(target.to_string_lossy().to_string()) })
+    Some(CoverProblem { msg: format!("มีไฟล์ {name} อยู่แล้ว และไม่ใช่ไฟล์ที่โปรแกรมทำ จึงไม่เขียนทับ"), conflict: Some(target.to_string_lossy().to_string()) })
 }
 
 /// วางไบต์รูปตามแบบที่เก็บ คืนไฟล์ที่ได้กับว่าเป็นของโปรแกรมไหม
@@ -1249,7 +1249,7 @@ fn place_bytes(env: &WriteEnv, id: &str, movie: &Path, orient: &str, ext: &str, 
                 let mine = old.is_some_and(|o| o.owned && o.file.as_deref().is_some_and(|f| same_file(Path::new(f), &target)) && o.sha256 == file_sha(&target));
                 if !mine {
                     let name = target.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-                    return Err(CoverProblem { msg: format!("มีไฟล์ {name} อยู่แล้ว ไม่ใช่ของโปรแกรม ไม่เขียนทับ"), conflict: Some(target.to_string_lossy().to_string()) });
+                    return Err(CoverProblem { msg: format!("มีไฟล์ {name} อยู่แล้ว และไม่ใช่ไฟล์ที่โปรแกรมทำ จึงไม่เขียนทับ"), conflict: Some(target.to_string_lossy().to_string()) });
                 }
                 replace_own(&target, bytes).map_err(|e| fail(format!("เขียนรูปข้างไฟล์หนังไม่ได้: {e}")))?;
             } else {

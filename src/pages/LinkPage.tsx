@@ -23,6 +23,10 @@ import { IbBack, IbStop, IcLink, IbTick, IbEye, IbCrop } from "../components/ico
 const isImagePath = (p: string) => /\.(jpe?g|png|webp|bmp|tiff?|heic|heif)$/i.test(p);
 const baseName = (p: string) => p.split(/[\\/]/).pop() ?? p;
 const COUNT = (n: number) => n.toLocaleString("en-US");
+/** ที่อยู่โฟลเดอร์ ตัดบรรทัดได้เฉพาะหลังเครื่องหมาย \ ชื่อโฟลเดอร์ไม่ขาดกลางคำ (เจอ "ชั้นจับ|คู่" ตอนอ่านภาพ 11 พ.ย. 2569) · ชื่อยาวกว่า 28 ตัวยอมตัดข้างใน กันล้นช่อง */
+const pathNodes = (p: string) => p.split("\\").map((s, i, a) => (
+  <span key={i}><span className={s.length <= 28 ? "nw" : undefined}>{s}{i < a.length - 1 ? "\\" : ""}</span>{i < a.length - 1 && <wbr />}</span>
+));
 
 type Tab = "all" | "sure" | "manual" | "unsure" | "none" | "saved";
 const inTab = (r: LinkRow, t: Tab) => t === "all" || r.status === t;
@@ -167,7 +171,7 @@ export default function LinkPage() {
           </div>
         </div>
         {/* การ์ดสรุปอยู่ที่เดิมระหว่างอ่านใหม่ ไม่หายแล้วกลับมา หน้าจึงไม่ขยับ · ขึ้นการ์ดกำลังอ่านเฉพาะรอบแรก */}
-        {reading && !summary && <div className="stat info" data-link-reading><CardIcon kind="info" /><div><b>กำลังอ่านรูปและเทียบชื่อ</b></div></div>}
+        {reading && !summary && <div className="stat info" data-link-reading><CardIcon kind="info" /><div><b>กำลังอ่านรูปและเทียบชื่อ…</b></div></div>}
         {summary && (
           <div className="stat ok" data-link-summary><CardIcon kind="ok" /><div>
             <b>อ่านรูป <span className="nw">{COUNT(summary.images)} รูป</span> จับคู่ได้แน่ <span className="nw">{COUNT(summary.sure)} คู่</span> ไม่แน่ใจ <span className="nw">{COUNT(summary.unsure)} เรื่อง</span> และหาคู่ไม่เจอ <span className="nw">{COUNT(summary.none)} เรื่อง</span></b>
@@ -399,7 +403,7 @@ function RowView(p: {
             {second && <Thumb p={second} wide />}
             <div className="lname">
               <span className="fn" title={main!.path}>{main!.name}</span>
-              <span className="small">{main!.folder ? <span title={main!.folder}>{main!.folder} </span> : null}<span className="nw">{main!.width} × {main!.height}</span> เป็น{r.tall && !r.derivedTall ? "ปกตั้ง" : "ปกนอน"}{second ? " และมีปกนอนด้วย" : ""}</span>
+              <span className="small">{main!.folder ? <span className="lfolder" title={main!.folder}>{pathNodes(main!.folder)}</span> : null}<span className="nw">{main!.width} × {main!.height} เป็น{r.tall && !r.derivedTall ? "ปกตั้ง" : "ปกนอน"}</span>{second ? <> <span className="nw">และมีปกนอนด้วย</span></> : null}</span>
               {(r.tall?.geo || r.wide?.geo) && !r.derivedTall && <span className="small" data-link-cropped>ครอปแล้ว</span>}
               {r.candidates.length > 0 && !saved && candThumbs}
             </div>

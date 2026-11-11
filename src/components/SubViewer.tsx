@@ -144,7 +144,7 @@ function TextView(p: { track: AvTrack; movie: string; refStream: number | null; 
     return (<>
       <Find q={q} setQ={setQ} n={hits.length} at={hit} go={go} />
       <div className="subtext" ref={list} data-long-view>
-        {cues.map((x, i) => <div key={i} className={"cue" + (i === sel && k ? " cur" : "")} data-i={i}><span className="n">{x.n}</span><span className="t">{ts(x.start + d)} ถึง {ts(x.end + d)}</span><span style={{ whiteSpace: "pre-line" }}><Hi text={x.text} q={q.trim()} /></span></div>)}
+        {cues.map((x, i) => <div key={i} className={"cue" + (i === sel && k ? " cur" : "")} data-i={i}><span className="n">{x.n}</span><span className="t">{ts(x.start + d)} → {ts(x.end + d)}</span><span style={{ whiteSpace: "pre-line" }}><Hi text={x.text} q={q.trim()} /></span></div>)}
       </div>
       <div className="small"><Phr>{`ดูได้อย่างเดียวและแก้ไม่ได้${data.kind === "ass" ? " ส่วนซับ ASS แสดงเฉพาะข้อความ ไม่แสดงสีกับตำแหน่ง" : ""}${data.charset === "TIS-620" ? " และภาษาไทยที่เข้ารหัสแบบเก่า (TIS-620) โปรแกรมแปลงให้อ่านได้แล้ว" : ""}`}</Phr></div>
     </>);
@@ -171,7 +171,7 @@ function TextView(p: { track: AvTrack; movie: string; refStream: number | null; 
     </div>
     <Find q={q} setQ={setQ} n={hits.length} at={hit} go={go} />
     <div className="sgrid" ref={list} data-sub-table>
-      <table><thead><tr><th className="num">ลำดับ</th><th className="num">เริ่ม</th><th className="num">จบ</th><th className="num">ยาว (วินาที)</th><th className="num">ตัวต่อวินาที</th><th>ข้อความ</th></tr></thead>
+      <table><thead><tr><th className="num">ลำดับ</th><th className="num">เริ่ม</th><th className="num">จบ</th><th className="num">ยาว (วินาที)</th><th className="num">ตัว/วิ</th><th>ข้อความ</th></tr></thead>
         <tbody>{cues.map((x, i) => {
           const dur = Math.max(0.01, x.end - x.start), cps = x.text.replace(/\s/g, "").length / dur, prev = cues[i - 1];
           const overlap = !!prev && x.start < prev.end, fast = cps > 20;
@@ -182,8 +182,8 @@ function TextView(p: { track: AvTrack; movie: string; refStream: number | null; 
               <td style={{ whiteSpace: "pre-line" }}><Hi text={x.text} q={q.trim()} /></td></tr>);
         })}</tbody></table>
     </div>
-    <div className="lg"><span><i className="ln" />ตัวอักษรต่อวินาทีเกิน 20 อ่านไม่ทัน</span><span><i className="ln" />เวลาเริ่มซ้อนกับบรรทัดก่อน</span></div>
-    <div className="small"><Phr>{`ดูได้อย่างเดียวและแก้ไม่ได้  ภาพหนังโปรแกรมถอดจากไฟล์ตรงเวลานั้นทีละภาพ  หน้าตาทำแบบ Aegisub แต่ไม่ได้ใช้โค้ดของ Aegisub${data.kind === "ass" ? "  ซับ ASS แสดงเฉพาะข้อความ" : ""}`}</Phr></div>
+    <div className="lg"><span><i className="ln" />ตัวอักษรเกิน 20 ตัวต่อวินาที จนอ่านไม่ทัน</span><span><i className="ln" />เวลาเริ่มซ้อนกับบรรทัดก่อน</span></div>
+    <div className="small"><Phr>{`ดูได้อย่างเดียวและแก้ไม่ได้  ภาพหนังที่เห็นเป็นภาพที่โปรแกรมถอดจากไฟล์ตรงเวลานั้นทีละภาพ  หน้าตาทำแบบ Aegisub แต่ไม่ได้ใช้โค้ดของ Aegisub${data.kind === "ass" ? "  ซับ ASS แสดงเฉพาะข้อความ" : ""}`}</Phr></div>
   </>);
 }
 
@@ -224,7 +224,7 @@ function ImageView(p: { track: AvTrack; path: string; ff: number }) {
           <div className="t"><span>ภาพ {x.n}</span><span>{short(x.start + d)}</span></div>
         </button>))}</div>)}
     <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8 }}>
-      <span className="small" data-simg-count>{data.total ? `ภาพที่ ${page * PER + 1} ถึง ${Math.min(data.total, (page + 1) * PER)} จาก ${data.total.toLocaleString("en-US")} ภาพ กดภาพเพื่อดูเต็ม` : ""}</span>
+      <span className="small" data-simg-count>{data.total ? `ภาพที่ ${page * PER + 1}–${Math.min(data.total, (page + 1) * PER)} จาก ${data.total.toLocaleString("en-US")} ภาพ กดภาพเพื่อดูเต็ม` : ""}</span>
       <div style={{ display: "flex", gap: 6 }}>
         <button type="button" className={"btn btn-sm " + (page > 0 ? "btn-ghost" : "btn-wait")} aria-disabled={page === 0 || undefined} onClick={() => page > 0 && setPage(page - 1)}><IbBack size={15} />หน้าก่อน</button>
         <button type="button" className={"btn btn-sm " + (page < pages - 1 ? "btn-ghost" : "btn-wait")} aria-disabled={page >= pages - 1 || undefined} onClick={() => page < pages - 1 && setPage(page + 1)} data-simg-next><IbNext size={15} />หน้าถัดไป</button>
@@ -247,14 +247,15 @@ export default function SubViewer(p: { track: AvTrack; movie: string; refStream:
     subApi.text(t.inMovie ? p.movie : t.src, t.inMovie, t.tid, ff).then(setData, (e) => setErr(String(e)));
   }, [image, t.inMovie, t.src, t.tid, ff, p.movie]);
   const name = t.inMovie ? `${t.name || "ซับในหนัง"} (${ft})` : baseName(t.src);
-  const sub = [t.inMovie ? "ซับในหนัง" : "ซับที่เพิ่ม", image ? `ซับรูป ${ft}` : `ตัวหนังสือ ${ft}`, data ? `${data.cues.length.toLocaleString("en-US")} บรรทัด` : "", t.delay ? `ดีเลย์ ${sign(t.delay)} ms เวลาที่แสดงเลื่อนแล้ว` : ""].filter(Boolean).join(", ");
+  // เขียนเป็นประโยค (เดิมเป็นวลีคั่นจุลภาค "ดีเลย์ +500 ms เวลาที่แสดงเลื่อนแล้ว" อ่านกำกวม เจอตอนอ่านภาพ 11 พ.ย. 2569)
+  const sub = `${t.inMovie ? "ซับที่อยู่ในไฟล์หนัง" : "ซับที่เพิ่มเข้ามา"}เป็น${image ? "ซับรูปภาพ" : "ซับตัวหนังสือ"}แบบ ${ft}${data ? ` มี ${data.cues.length.toLocaleString("en-US")} บรรทัด` : ""}${t.delay ? `  ตั้งดีเลย์ ${sign(t.delay)} ms ไว้ เวลาที่แสดงจึงเลื่อนตามดีเลย์แล้ว` : ""}`;
   return (
     <Dialog open onClose={p.onClose} width={980} title={<span style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
       <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>ซับ {name}</span>
       {!image && <Seg small label="แบบการดู" value={tab} onChange={setTab} options={[{ value: "aeg", label: <><IbTable size={14} />แบบ Aegisub</> }, { value: "long", label: <><IcFile size={14} />แบบอ่านยาว</> }, { value: "pad", label: <><IbPencil size={14} />แบบ notepad</> }]} />}</span>}
       actions={<button type="button" className="btn btn-ghost btn-sm" onClick={p.onClose}>ปิด</button>}>
       <div style={{ display: "flex", flexDirection: "column", gap: 10 }} data-subviewer data-mode={image ? "image" : tab}>
-        <div className="small" style={{ marginTop: -6 }}>{sub}</div>
+        <div className="small" style={{ marginTop: -6 }}><Phr>{sub}</Phr></div>
         {image ? <ImageView track={t} path={t.inMovie ? p.movie : t.src} ff={ff} />
           : err ? <div className="stat bad"><CardIcon kind="bad" /><div><b>อ่านซับไม่ได้</b><Phr>{err}</Phr></div></div>
           : !data ? <><Skel w="100%" h={203} /><Skel w="100%" h={220} /></>

@@ -13,7 +13,7 @@ import { addFiles } from "../lib/convertJob";
 import { useLibrary } from "../lib/library";
 import { useToast } from "../components/Toasts";
 import Dropdown from "../components/Dropdown";
-import { CardIcon, FixedTime, Keep, LoadPill, Phr, Skel, Switch, dropClick } from "../components/ui";
+import { CardIcon, FixedTime, Keep, LoadPill, Phr, Skel, Switch, chText, dropClick } from "../components/ui";
 import { fmtSize } from "../lib/format";
 import { diffOf, type DiffResult } from "../lib/graphDiff";
 import { useSettings } from "../lib/settings";
@@ -102,6 +102,8 @@ function rulerTicks(a: number, b: number, maxN = 9): { x: number; label: string 
 }
 /** ช่วงเวลาบนหัวกราฟ กันที่ไว้เท่าข้อความยาวสุดของไฟล์ (ทศนิยม 3 หลัก) ซูมแล้วตัวเลขยาวขึ้นปุ่มข้าง ๆ ไม่ขยับ
     (พี่กันสั่ง 11 พ.ย. 2569 "fix หน่อยยยย" ตอนหัวกราฟ 0:00 ถึง 5:15 กับ 2:37.158 ถึง 2:37.348 ดันปุ่มแบบกราฟไปคนละที่) */
+/** ความสูงแถบต่ำสุดตามจำนวนช่อง · หน้ารูปคลื่นไม่ต่ำกว่า 60 จุด (ตัวคิดความสูงแถบกับตัวปรับให้พอดีจอใช้ค่าเดียวกัน) */
+const laneMinH = (n: number, wave: boolean) => { const m = n > 6 ? 52 : n > 2 ? 72 : 120; return wave ? Math.max(m, 60) : m; };
 function RangeTime({ t0, t1, dur }: { t0: number; t1: number; dur: number }) {
   const d = spanDigits(t1 - t0), far = tfmtD(Math.max(dur, t1), 3);
   return <FixedTime t={`${tfmtD(t0, d)} ถึง ${tfmtD(t1, d)}`} longest={`${far} ถึง ${far}`} />;
@@ -241,7 +243,7 @@ function SaveBtn({ onClick }: { onClick: () => void }) {
   return <span style={{ display: "inline-flex", gap: 4 }}>
     <button type="button" className="btn btn-ghost btn-sm" style={{ width: 32, padding: 0, flex: "none" }} aria-label="เปลี่ยนที่บันทึกรูป" title={(inFolder ? "เก็บรูปที่ " + o.dir : "เก็บรูปข้างไฟล์ที่ดูอยู่") + "\nกดเพื่อเปลี่ยนที่บันทึก และกลับไปเก็บข้างไฟล์ได้ที่หน้าตั้งค่า"} onClick={changeDir} data-graphsavedir><IcFolder size={15} /></button>
     <button type="button" className={"btn btn-ghost btn-sm" + (busy ? " pressed" : "")} aria-disabled={busy || undefined} aria-busy={busy || undefined} onClick={() => { if (!busy) onClick(); }} data-graphsave>
-    {busy ? <span className="spinner" aria-hidden="true" /> : <IbSave size={15} />}<Keep all={["กำลังบันทึก", "บันทึกเป็นรูป"]}>{busy ? "กำลังบันทึก" : "บันทึกเป็นรูป"}</Keep></button></span>;
+    {busy ? <span className="spinner" aria-hidden="true" /> : <IbSave size={15} />}<Keep all={["กำลังบันทึก…", "บันทึกเป็นรูป"]}>{busy ? "กำลังบันทึก…" : "บันทึกเป็นรูป"}</Keep></button></span>;
 }
 function useCanvas(draw: (g: CanvasRenderingContext2D, w: number, h: number, r: number) => void, deps: unknown[]) {
   const ref = useRef<HTMLCanvasElement>(null);
@@ -508,14 +510,17 @@ function Speakers({ names, th, levels, hidden, onToggle }: { names: string[]; th
       {names.map((c, i) => {
         const [x, y] = pos(c, i), off = hidden.includes(c), a = off ? 0 : 0.25 + 0.75 * Math.min(1, (levels[i] ?? 0) * 3) /* ระหว่างอ่านยังไม่มีค่า ขึ้นจาง (ค่าว่างเคยทำให้ทึบทุกตัว) */, d = label(names, c).code;
         const toggle = () => onToggle(c);
+        // ไฟล์ช่องเดียว ซ่อนช่องสุดท้ายไม่ได้ ลำโพงจึงไม่เป็นปุ่ม (เดิมชี้แล้วขึ้นว่ากดเพื่อปิดช่อง แต่กดแล้วไม่เกิดอะไร เจอตอนตรวจ 11 พ.ย. 2569)
+        const solo = names.length === 1;
+        const btn = solo ? {} : { tabIndex: 0, role: "button", "aria-label": (off ? "แสดง" : "ซ่อน") + "ช่อง " + d, onClick: toggle, onKeyDown: (e: React.KeyboardEvent) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } } };
         const lfe = c === "LFE";
         // คลื่นเสียงแผ่ไปทางที่นั่งฟัง ช่องเดียวแผ่ลงล่าง · ดังมากคลื่นมาก ดังน้อยคลื่นน้อย ช่องที่ซ่อนไม่มีคลื่น
         const dir = names.length > 1 ? Math.atan2(hy - y, 100 - x) : Math.PI / 2;
         const waves = off ? 0 : Math.max(1, Math.ceil(a * 3));
         const R = lfe ? 11 : 15, half = lfe ? 0.8 : 0.62;
         return (
-          <g key={c} className="s" tabIndex={0} role="button" aria-label={(off ? "แสดง" : "ซ่อน") + "ช่อง " + d} onClick={toggle} onKeyDown={(e) => { if (e.key === "Enter" || e.key === " ") { e.preventDefault(); toggle(); } }}>
-            <title>{(off ? "กดเพื่อเปิดช่อง " : "กดเพื่อปิดช่อง ") + d}</title>
+          <g key={c} className={solo ? "s solo" : "s"} {...btn}>
+            <title>{solo ? "ช่อง " + d : (off ? "กดเพื่อเปิดช่อง " : "กดเพื่อปิดช่อง ") + d}</title>
             {Array.from({ length: waves }, (_, k) => {
               const r = R + 4 + k * 4, x1 = x + r * Math.cos(dir - half), y1 = y + r * Math.sin(dir - half), x2 = x + r * Math.cos(dir + half), y2 = y + r * Math.sin(dir + half);
               return <path key={k} d={`M${x1.toFixed(1)} ${y1.toFixed(1)} A${r} ${r} 0 0 1 ${x2.toFixed(1)} ${y2.toFixed(1)}`} fill="none" stroke={th.rms} strokeWidth="2" strokeLinecap="round" strokeOpacity={0.85 - k * 0.25} />;
@@ -713,7 +718,10 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
     let d = 0;
     if (over > 0) d = -over;
     else { const slack = Math.floor(f.getBoundingClientRect().top - ts.getBoundingClientRect().bottom - 10); if (slack >= n) d = slack; }
-    if (d) setLaneAdj((a) => Math.max(-400, Math.min(400, a + d)));
+    // แถบเตี้ยถึงขั้นต่ำแล้วยังล้น ลดต่อไม่มีผลกับความสูงจริง ห้ามลดค่าต่ำกว่าจุดที่แถบถึงขั้นต่ำ ไม่งั้นตั้งค่าวนจนหน้าพัง
+    // (เจอ 11 พ.ย. 2569 ไฟล์ 5.1 หกช่อง หน้าต่างสูง 852 หน้ากราฟขึ้น Maximum update depth exceeded) · กรอบเลื่อนแทนตามเดิม
+    const floor = laneMinH(n, view === "wave") * n - (paneH - 252 + (ovFold ? 44 : 0) - (n - 1) * 6);
+    if (d) setLaneAdj((a) => Math.max(-400, Math.min(400, Math.max(floor, a + d))));
   });
 
   const setPref =<K extends keyof Prefs>(k: K, v: Prefs[K]) => setPrefs((p) => { const n = { ...p, [k]: v }; try { localStorage.setItem(PREF_KEY, JSON.stringify(n)); } catch { /* เก็บไม่ได้ก็ใช้ค่านี้ไปก่อน */ } return n; });
@@ -1071,11 +1079,11 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
                 <button type="button" className="dd" aria-disabled={lost || undefined} onClick={() => { if (!lost) setPath(r.path); }} data-graphrecentpick={r.name} data-lost={lost || undefined} title={lost ? `หาไฟล์ไม่เจอ ไฟล์อาจถูกย้ายหรือลบ หรือไดรฟ์ถอดออกอยู่\n${r.path}` : r.path}>
                   <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: "1 1 auto", overflow: "hidden" }}>
                     <span className="rtype">{r.audioOnly ? <i className="rnote">{music}</i> : (mv?.thumb ?? mv?.linked?.[0]?.thumb) ? <img src={thumbUrl(mv?.thumb ?? mv?.linked?.[0]?.thumb ?? null) ?? ""} alt="" style={{ width: 18, height: 27, borderRadius: 3, objectFit: "cover" }} /> : <i className="rnote" data-graphfilm>{film}</i>}{extCard(r.name)}</span>
-                    <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{r.name.replace(/\.[^.]+$/, "")}</span></span>
+                    <span style={{ whiteSpace: "nowrap", minWidth: 0 }}>{r.name.replace(/\.[^.]+$/, "")}</span></span>
                   {/* ข้อความขวาไม่หด ชื่อยาวตัดเป็นสามจุดแทน (เดิมเวลาโดนตัดเหลือ 5:1 เจอตอนตรวจภาพ) */}
                   {lost
                     ? <span className="small lostmark" style={{ flex: "none" }}>หาไฟล์ไม่เจอ</span>
-                    : <span className="small" style={{ flex: "none" }}>{(r.layout ? "เสียง " + r.layout + " " : "") + "ยาว " + tfmt(r.duration)}</span>}
+                    : <span className="small" style={{ flex: "none" }}>{(r.layout ? "เสียง " + chText(r.layout) + " " : "") + "ยาว " + tfmt(r.duration)}</span>}
                 </button>
                 <button type="button" className="rmx" onClick={() => forget(r.path)} aria-label={`เอา ${r.name} ออกจากรายการเปิดล่าสุด`} title="เอาออกจากรายการ ไฟล์ในเครื่องไม่ถูกแตะ" data-graphforget={r.name}>
                   <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg>
@@ -1087,7 +1095,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
           <div className="graph-recent">{shelfPicks.map((m) => (
             <button key={m.id} type="button" className="dd" onClick={() => setPath(m.path)} data-graphpick={m.name}>
               <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: "1 1 auto", overflow: "hidden" }}><span className="rtype">{(m.thumb ?? m.linked?.[0]?.thumb) ? <img src={thumbUrl(m.thumb ?? m.linked?.[0]?.thumb ?? null) ?? ""} alt="" style={{ width: 18, height: 27, borderRadius: 3, objectFit: "cover" }} /> : <i className="rnote" data-graphfilm>{film}</i>}{extCard(m.path)}</span><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{m.name.replace(/\.[^.]+$/, "")}</span></span>
-              <span className="small">{m.audio.length ? "เสียง " + [...new Set(m.audio.map((a) => a.layout))].join(", ") : ""}</span>
+              <span className="small">{m.audio.length ? "เสียง " + [...new Set(m.audio.map((a) => chText(a.layout)))].join(", ") : ""}</span>
             </button>))}</div></>}
       </div>
     );
@@ -1109,7 +1117,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
       </div></div>
       {info && info.tracks.length > 1 && (
         <span data-graphtrack><Dropdown label="แทร็กเสียง" value={String(track)} onChange={(v) => setTrack(Number(v))}
-          options={info.tracks.map((x) => ({ value: String(x.index), label: `เสียง ${x.index + 1} ${x.lang ?? "ไม่ระบุภาษา"} ${x.codec} ${x.layout}` }))} /></span>
+          options={info.tracks.map((x) => ({ value: String(x.index), label: `เสียง ${x.index + 1} ${x.lang ?? "ไม่ระบุภาษา"} ${x.codec} ${chText(x.layout)}` }))} /></span>
       )}
       <button type="button" className="btn btn-ghost" onClick={openOther}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M3 7a2 2 0 0 1 2-2h4l2 2h8a2 2 0 0 1 2 2v8a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2z" /></svg>เปิดไฟล์อื่น</button>
       {/* เทียบกับไฟล์อื่นจากกราฟที่เปิดอยู่ ไม่ต้องผ่านคิวแปลง (พี่กันสั่ง 9 พ.ย. 2569 "เราเปิดกราฟอยู่แล้ว เราอยากเปิดเทียบกับไฟล์อื่นเลย") */}
@@ -1172,7 +1180,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
 
   /* ---------- แผงซ้าย ---------- */
   const infoRows: [string, string][] = t ? [
-    ["Codec", codecDetail[t.index] ?? t.codec], ["Channels", `${t.layout}, ${names.length} ${names.length === 1 ? "channel" : "channels"}`], ["Sample rate", `${(t.rate / 1000).toLocaleString("en-US", { maximumFractionDigits: 1 })} kHz`],
+    ["Codec", codecDetail[t.index] ?? t.codec], ["Channels", `${chText(t.layout)}, ${names.length} ${names.length === 1 ? "channel" : "channels"}`], ["Sample rate", `${(t.rate / 1000).toLocaleString("en-US", { maximumFractionDigits: 1 })} kHz`],
     ...(t.bits ? [["Bit depth", `${t.bits}-bit`] as [string, string]] : []), ...(t.bitrate ? [["Bitrate", `${Math.round(t.bitrate / 1000).toLocaleString("en-US")} kb/s`] as [string, string]] : []),
     ...(t.lang ? [["Language", t.lang] as [string, string]] : []),
   ] : [];
@@ -1181,7 +1189,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
   const tagShow = tagFile ? tagRows(tagFile, null).filter(([k]) => !["รูปปก", "ค่าความดัง", "หมายเหตุ"].includes(k)).map(([k, v]): [string, string] => [k === "ชื่อเพลง" && !tagFile.audioOnly ? "ชื่อเรื่อง" : k, v]) : [];
   const panel = (
     <div className="apanel">
-      <div className="card"><h3><span>ช่องเสียง {t?.layout ?? ""}</span><span className="small" style={{ color: "var(--txt3)" }}>{hidden.length ? `แสดง ${vis.length} จาก ${names.length} ช่อง` : `${names.length} ช่อง`}</span></h3>
+      <div className="card"><h3><span>ช่องเสียง {chText(t?.layout)}</span><span className="small" style={{ color: "var(--txt3)" }}>{hidden.length ? `แสดง ${vis.length} จาก ${names.length} ช่อง` : `${names.length} ช่อง`}</span></h3>
         {names.length > 0 && <Speakers names={names} th={th} levels={levels} hidden={hidden} onToggle={toggleCh} />}
         <div className="small" style={{ textAlign: "center", marginTop: 4 }}>{names.length > 1 ? "กดลำโพงเพื่อปิดหรือเปิดช่องนั้น" : "ไฟล์นี้มีเสียงช่องเดียว"}</div></div>
       {t && <div className="card"><h3>ข้อมูลเสียง</h3><dl className="kv" data-graphinfo>{infoRows.map(([k, v]) => <FragmentKV key={k} k={k} v={v} />)}</dl></div>}
@@ -1255,7 +1263,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
   const lanesView = view === "wave" || view === "spec";
   if (lanesView) {
     // แถบสูงขึ้นจากเดิม (พี่กัน 7 พ.ย. 2569 *"ใ้ห้ระบบมันขยายกราฟลงมาได้มากกว่านี้ ตอนนี้มันเเค่สองเเถบที่โคตรจะชิดกัน"*) · ลากที่จับใต้กราฟขยายต่อได้ถึง 4 เท่า
-    const minH = names.length > 6 ? 52 : names.length > 2 ? 72 : 120;
+    const minH = laneMinH(names.length, false);
     // 234 คือหัวกราฟ แถบเลื่อน แถวปุ่มท้าย ระยะขอบรวมกัน
     const laneH = Math.max(minH, Math.floor((paneH - 252 + (ovFold ? 44 : 0) + laneAdj - (names.length - 1) * 6) / Math.max(1, names.length)));
     const colors = lut(prefs.cmap === "rainbow" ? RAINBOW : th.ramp);
@@ -1339,7 +1347,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
   return (
     <SavingCtx.Provider value={saving}><div className="ag" data-graph data-graphview={view}>
       <div className="agstick">{head}{ctl}</div>
-      <div className={"agb" + (prefs.wide ? " wide" : "")}>{prefs.wide ? null : panel}{plot}{viewSlow && !saving && <LoadPill text="กำลังโหลดกราฟ" />}</div>
+      <div className={"agb" + (prefs.wide ? " wide" : "")}>{prefs.wide ? null : panel}{plot}{viewSlow && !saving && <LoadPill text="กำลังโหลดกราฟ…" />}</div>
       {tagDlg}
     </div></SavingCtx.Provider>
   );
@@ -1634,7 +1642,7 @@ function LoudView({ head, onPan, onBusy, resetN, scroller, ov, th, t0, t1, names
   }, [ov, th, t0, t1, vr.z, vr.b]);
   const [box, setBox] = useState<HTMLDivElement | null>(null);
   exportRef.current = (outW) => (ref.current ? hiCopy(ref.current, outW ? outW / ref.current.clientWidth : screenK()) : null);
-  const f1 = (v: number | null) => (v == null ? "ไม่ทราบ" : minus(v.toFixed(1)));
+  const f1 = (v: number | null) => (v == null ? "—" : minus(v.toFixed(1)));
   const sil = ov.silences.length;
   const grab = useGrab({ canX: t1 - t0 < ov.duration - 0.01, canY: vr.z > 1, span: t1 - t0, center: (t0 + t1) / 2, z: vr.z, b: vr.b, left: X0, right: 4, top: 12, bottom: 12, onX: onPan, onY: (b) => vr.setB(vr.clampB(b, vr.z)), onBusy });
   return (
@@ -1748,7 +1756,7 @@ function spekVerdict(codec: string, rate: number, e: { top: number; cliff: numbe
   const LOSSLESS = ["FLAC", "PCM", "ALAC", "TrueHD", "DTS-HD MA", "WAVPACK"];
   const LIMIT: Record<string, number> = { FLAC: 19500, PCM: 19500, ALAC: 19500, "AC-3": 19000, "E-AC-3": 19000, AAC: 15500 };
   const NORM: Record<string, string> = {
-    FLAC: "FLAC ของจริงมีเสียงถึงราว 20 ถึง 22 kHz", PCM: "ไฟล์ WAV ของจริงมีเสียงถึงราว 20 kHz ขึ้นไป", ALAC: "ALAC ของจริงมีเสียงถึงราว 20 ถึง 22 kHz",
+    FLAC: "FLAC ของจริงมีเสียงถึงราว 20–22 kHz", PCM: "ไฟล์ WAV ของจริงมีเสียงถึงราว 20 kHz ขึ้นไป", ALAC: "ALAC ของจริงมีเสียงถึงราว 20–22 kHz",
     "AC-3": "ปกติของ AC-3 มีเสียงถึงราว 19 kHz ขึ้นไป", "E-AC-3": "ปกติของ E-AC-3 มีเสียงถึงราว 19 kHz ขึ้นไป",
     AAC: "ปกติของ AAC ตัดเสียงสูงตามบิตเรต บิตเรตต่ำตัดราว 16 kHz บิตเรตสูงเกือบเต็มช่วง",
     MP3: "ปกติตัวเข้ารหัส MP3 ตัดเสียงสูงทิ้งเองตามบิตเรต ที่ 128 kb/s ตัดราว 17 kHz และที่ 320 kb/s ตัดราว 20 kHz", Opus: "ปกติของ Opus ตัดเสียงสูงที่ราว 20 kHz",
@@ -1866,7 +1874,7 @@ function SpekView({ onBusy, held, resetN, tools, light, onPanT, scroller, ov, wi
       }
     });
     const room = full ? Infinity : w - L - R - (toolBox.current?.offsetWidth ?? 450) - 16;
-    const fit = (txt: string) => { if (g.measureText(txt).width <= room) return txt; let n = txt.length; while (n > 1 && g.measureText(txt.slice(0, n)).width > room) n--; return txt.slice(0, n); };
+    const fit = (txt: string) => { if (g.measureText(txt).width <= room) return txt; let n = txt.length; while (n > 1 && g.measureText(txt.slice(0, n) + "…").width > room) n--; return txt.slice(0, n) + "…"; };
     g.textBaseline = "alphabetic"; g.textAlign = "left"; g.fillStyle = ink.title; g.font = "700 13.5px Sarabun, sans-serif"; g.fillText(fit(fileName), L, 22);
     g.fillStyle = ink.sub; g.font = "12px Sarabun, sans-serif";
     const chTxt = ch === -2 ? `${names.length} channels separately` : ch < 0 ? `${mixed.length} channels mixed` : `channel ${label(names, names[ch]).code}`;
@@ -2204,7 +2212,7 @@ function PsdView({ filePath, onReset, resetN, scroller, psd, names, psdCh, setPs
   const khz = (x: number) => (x >= 1000 ? `${+(x / 1000).toFixed(x >= 10000 ? 0 : 1)}k` : `${Math.round(x)}`);
   const hzoomBox = (
     <span className="zbtns" data-psdhzoom>
-      <span className={"lbl" + (hr.z > 1.01 ? "" : " all")} data-psdhzrange title="ช่วงความถี่ที่เห็นอยู่บนแกนนอน">{hr.z > 1.01 ? `${khz(fL)} ถึง ${khz(fR)} Hz` : "ทุกความถี่"}</span>
+      <span className={"lbl" + (hr.z > 1.01 ? "" : " all")} data-psdhzrange title="ช่วงความถี่ที่เห็นอยู่บนแกนนอน">{hr.z > 1.01 ? `${khz(fL)}–${khz(fR)} Hz` : "ทุกความถี่"}</span>
       <button type="button" className="zb" onClick={() => setHz(hr.z / 2)} disabled={hr.z <= 1} aria-label="ซูมแกนความถี่ออก" title="ซูมออก (Ctrl หมุนล้อเมาส์ลง)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6" /></svg></button>
       <HZoom dur={hrSpan} span={hrSpan / hr.z} onSpan={(sp) => setHz(hrSpan / sp)} name="ซูมแกนความถี่" text={`ซูมแกนความถี่ ${hr.z.toFixed(1)} เท่า`} />
       <button type="button" className="zb" onClick={() => setHz(hr.z * 2)} disabled={hr.z >= PSD_HZ_MAX} aria-label="ซูมแกนความถี่เข้า" title="ซูมเข้า (Ctrl หมุนล้อเมาส์ขึ้น)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6M10.5 7.5v6" /></svg></button>
@@ -2250,9 +2258,9 @@ function PsdView({ filePath, onReset, resetN, scroller, psd, names, psdCh, setPs
             <i style={on ? { background: sr.color, borderColor: sr.color } : { borderColor: sr.color }} />{sr.long}</button>;
         })}{series.some((sr) => sr.key === "M") && <InfoTip title="M กับ S คืออะไร" tip={MS_TIP} />}</span>}
         <span className="lbl">ตำแหน่งชี้</span>
-        <span className="psdbox" data-psdcursor>{psd && f == null ? "ชี้ที่กราฟเพื่อดูค่า" : psd ? `${hzTxt(cur)} (${noteOf(cur)}) = ${shown.map((s) => (series.length > 1 ? s.name + " " : "") + minus(Math.round(valAt(s.d, cur)).toString()) + " dB").join(", ")}` : "ยังไม่มีข้อมูล"}</span>
+        <span className="psdbox" data-psdcursor>{psd && f == null ? "ชี้ที่กราฟเพื่อดูค่า" : psd ? `${hzTxt(cur)} (${noteOf(cur)}) = ${shown.map((s) => (series.length > 1 ? s.name + " " : "") + minus(Math.round(valAt(s.d, cur)).toString()) + " dB").join(", ")}` : "—"}</span>
         <span className="lbl">ยอดใกล้สุด</span>
-        <span className="psdbox" data-psdpeak>{pk ? `${hzTxt(pk[0])} (${noteOf(pk[0])}) = ${minus(pk[1].toFixed(1))} dB` : "ยังไม่มีข้อมูล"}</span>
+        <span className="psdbox" data-psdpeak>{pk ? `${hzTxt(pk[0])} (${noteOf(pk[0])}) = ${minus(pk[1].toFixed(1))} dB` : "—"}</span>
       </div>
       {/* ผลตรวจ บอกว่าน่าสงสัย ไม่ตัดสินเด็ดขาด ทุกข้อมีปุ่ม ⓘ (BUGS ข้อ 25 พี่กัน "เราคิดว่ามันคือฮัมเพลง ต้อเปลี่ยนคำ" · ตรวจเพิ่ม 4 อย่าง พี่กันเคาะ "ได้") */}
       {psd && <div className="psdchecks" data-psdchecks data-top={Math.round(topF)}>{checks.map((c) => (
@@ -2371,7 +2379,7 @@ function loudPts(ov: GOverview, t0: number, t1: number, n: number) {
   }
   return out;
 }
-const f1 = (v: number | null | undefined) => (v == null ? "ไม่ทราบ" : minus(v.toFixed(1)));
+const f1 = (v: number | null | undefined) => (v == null ? "—" : minus(v.toFixed(1)));
 const sgn = (v: number) => (v > 0 ? "+" : v < 0 ? "−" : "") + Math.abs(v).toFixed(1);
 const khz = (f: number) => (f / 1000).toLocaleString("en-US", { maximumFractionDigits: 1 });
 
@@ -2639,28 +2647,28 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
       <button type="button" className={"btn btn-ghost btn-sm" + (wide ? " pressed" : "")} style={{ width: 32, padding: 0, flex: "none" }} aria-pressed={wide} title={wide ? "แสดงแผงลำโพง" : "ขยายเต็มจอ"} aria-label={wide ? "แสดงแผงลำโพง" : "ขยายเต็มจอ"} onClick={() => setWide(!wide)} data-graphwide><IcExpand size={14} /></button>
     </div>
   );
-  const infoRow = (t: GTrack | undefined, info: GInfo | null) => t && info ? [t.codec, `${t.layout}`, `${khz(t.rate)} kHz`, t.bits ? `${t.bits}-bit` : "ไม่มี", t.bitrate ? `${Math.round(t.bitrate / 1000).toLocaleString("en-US")} kb/s` : "ไม่ทราบ", fmtSize(info.size), tfmt(info.duration)] : null;
+  const infoRow = (t: GTrack | undefined, info: GInfo | null) => t && info ? [t.codec, chText(t.layout), `${khz(t.rate)} kHz`, t.bits ? `${t.bits}-bit` : "—", t.bitrate ? `${Math.round(t.bitrate / 1000).toLocaleString("en-US")} kb/s` : "—", fmtSize(info.size), tfmt(info.duration)] : null;
   const infos = S.map((s, i) => infoRow(T[i], s.info));
   const diffRows: [string, string, (d: DiffResult) => number, string[]][] = [["wave", "รูปคลื่น", (d) => d.wave, ["wave"]], ["spec", "ความถี่", (d) => d.spec, ["spec", "spek"]], ["loud", "ความดัง", (d) => d.loud, ["loud"]], ["cmp", "ซ้อนเทียบ", (d) => d.cmp, ["cmp"]], ["psd", "ความถี่เฉลี่ย", (d) => d.psd, ["psd"]]];
   const others0 = files.map((_, i) => i).slice(1);
   const sizeTxt = (i: number, long: boolean) => {
     const a = S[0].info?.size ?? 0, b = S[i].info?.size ?? 0;
-    if (!a || !b) return "ไม่ทราบ";
+    if (!a || !b) return "—";
     if (a === b) return "เท่ากัน";
     const pct = Math.abs(b - a) / a * 100, p = pct < 0.1 ? "ไม่ถึง 0.1%" : pct.toFixed(1) + "%";
     return long ? `${b < a ? "เล็กกว่า" : "ใหญ่กว่า"} ${p} หรือ ${fmtSize(Math.abs(b - a))}` : (b < a ? "−" : "+") + p;
   };
   const panel = (
     <div className="apanel">
-      <div className="card"><h3><span>ช่องเสียง {T[0]?.layout ?? ""}</span><span className="small" style={{ color: "var(--txt3)" }}>{union.length} ช่อง</span></h3>
+      <div className="card"><h3><span>ช่องเสียง {chText(T[0]?.layout)}</span><span className="small" style={{ color: "var(--txt3)" }}>{union.length} ช่อง</span></h3>
         {NM[0].length > 0 && <Speakers names={union} th={TH_A} levels={union.map(() => 0.3)} hidden={hidden} onToggle={toggleCh} />}
-        <div className="small" style={{ textAlign: "center", marginTop: 4 }}>{union.length > 1 ? `กดลำโพงเพื่อปิดหรือเปิดช่องนั้น ${allTxt}พร้อมกัน` : "ไฟล์นี้มีเสียงช่องเดียว"}</div>
+        <div className="small" style={{ textAlign: "center", marginTop: 4 }}>{union.length > 1 ? <Phr>{`กดลำโพงเพื่อปิดหรือเปิดช่องนั้นของ${n === 2 ? "ทั้งสองไฟล์" : allTxt}พร้อมกัน`}</Phr> : "ไฟล์นี้มีเสียงช่องเดียว"}</div>
         {T.every(Boolean) && NM.some((x) => x.join() !== NM[0].join()) && <div className="small" style={{ marginTop: 4 }}>ช่องเสียงไม่เท่ากัน {T.map((t, i) => `${LABELS[i]} ${t!.layout}`).join(" ")}</div>}</div>
       {diffs && <div className="card gdiff" data-cmpdiff>
         {n === 2
           ? <><h3><span>ต่างกันกี่ %</span><b data-cmpdiffall title="ค่าเฉลี่ยของทุกกราฟ">{diffs[0].overall.toFixed(1)}%</b></h3>
             {diffRows.map(([k, l, get, on]) => { const v = get(diffs[0]); return <div key={k} className={"row" + (on.includes(tab) ? " on" : "")} data-cmpdiffrow={k}><span>{l}</span><i><u style={{ width: Math.max(0, Math.min(100, v)) + "%" }} /></i><em>{v.toFixed(1)}%</em></div>; })}
-            <div className="sizerow" data-cmpdiffsize title={`ขนาด${LABELS[1]}เทียบกับ${LABELS[0]} ไม่นับรวมในเปอร์เซ็นต์ด้านบน`}><span>ขนาดไฟล์</span><em>{sizeTxt(1, true)}</em></div></>
+            <div className="sizerow" data-cmpdiffsize title={`ขนาด${LABELS[1]}เทียบกับ${LABELS[0]} ไม่นับรวมในเปอร์เซ็นต์ด้านบน`}><span>ขนาดไฟล์</span><em><Phr>{sizeTxt(1, true)}</Phr></em></div></>
           : <><h3><span>ต่างจาก{LABELS[0]}กี่ %</span></h3>
             <div className="gdiffgrid" style={{ gridTemplateColumns: `minmax(0, 1fr) repeat(${n - 1}, auto)` }}>
               <span />{diffs.map((_, k) => <span key={k} className="h" style={{ color: FILE_INK[k + 1] }}>{LABELS[k + 1]}</span>)}
@@ -2668,10 +2676,10 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
               {diffRows.map(([k, l, get, on]) => { const cls = on.includes(tab) ? "on" : ""; return <Fragment3 key={k} cls={cls} k={k} l={l} vals={diffs.map((d) => get(d).toFixed(1) + "%")} />; })}
               <Fragment3 cls="" k="size" l="ขนาดไฟล์" vals={others0.map((i) => sizeTxt(i, false))} />
             </div></>}
-        <div className="gdiffnote" title={`ผลต่าง 60 dB คิดเป็น 100% และ 0% ไม่ได้แปลว่าเหมือนทุกบิต เพราะคิดจากข้อมูลภาพรวม${diffs.some((d) => d.lenDiff) ? " ไฟล์ยาวไม่เท่ากัน จึงเทียบเท่าช่วงที่มีทั้งคู่" : ""}`}>60 dB คิดเป็น 100% และ 0% ไม่ได้แปลว่าเหมือนทุกบิต</div></div>}
+        <div className="gdiffnote" title={`ผลต่าง 60 dB คิดเป็น 100% และ 0% ไม่ได้แปลว่าเหมือนทุกบิต เพราะคิดจากข้อมูลภาพรวม${diffs.some((d) => d.lenDiff) ? " ไฟล์ยาวไม่เท่ากัน จึงเทียบเท่าช่วงที่มีทั้งคู่" : ""}`}><Phr>{"ผลต่าง 60 dB คิดเป็น 100%\nและ 0% ไม่ได้แปลว่าเหมือนทุกบิต"}</Phr></div></div>}
       <div className="card"><h3>ข้อมูลเสียง</h3>
         <div className="ginfo" style={{ gridTemplateColumns: `auto repeat(${n}, auto)` }} data-cmpinfo><span />{files.map((p, i) => <span key={p} className="h" style={{ color: FILE_INK[i] }}>{LABELS[i]}</span>)}
-          {["รหัสเสียง", "ช่องเสียง", "อัตราสุ่ม", "ความละเอียด", "บิตเรต", "ขนาด", "ความยาว"].map((k, r) => <FragmentInfo key={k} k={k} vals={infos.map((x) => x?.[r] ?? "รอ")} />)}</div>
+          {["รหัสเสียง", "ช่องเสียง", "อัตราสุ่ม", "ความละเอียด", "บิตเรต", "ขนาด", "ความยาว"].map((k, r) => <FragmentInfo key={k} k={k} vals={infos.map((x) => x?.[r] ?? "…")} />)}</div>
         {note && <div className="small" style={{ marginTop: 8 }}><Phr>{note}</Phr></div>}</div>
       {lenDiff && <div className="stat warn" data-cmplen><CardIcon kind="warn" /><div><b>{`${allTxt}ยาวไม่เท่ากัน ${lens.map(tfmt).join(" กับ ")}`}</b><Phr>{CONV ? "น่าจะตั้งความเร็วเสียงตอนแปลง จึงเทียบรูปคลื่น ความดัง และซ้อนเทียบตามเวลาตรง ๆ ไม่ได้ ให้ดูความถี่เฉลี่ยกับกราฟความถี่แทน" : "กราฟเรียงจากต้นไฟล์ตามเวลา ไฟล์ที่สั้นกว่าจึงจบก่อน"}</Phr></div></div>}
     </div>
@@ -2842,7 +2850,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
             <span style={{ display: "flex", alignItems: "center", gap: 8 }}><span className="lbl">ช่วงที่เลือก</span>
               <div className="seg sm">{PSD_SPANS.map(([k, l2]) => <button key={String(k)} type="button" className={String(psdSpan) === String(k) ? "on" : ""} onClick={() => setPsdSpan(k)} data-cmppsdspan={String(k)}>{l2}</button>)}</div></span></div>
           {ok ? <PsdCmp list={psd.list} maxNyq={maxNyq} f={psdF} setF={setPsdF} vr={vrPsd} hr={hrPsd} grab={cmpGrab} onReset={() => { setPsdSpan("all"); zoomReset(); }} /> : <div className="skel" style={{ height: 300, borderRadius: 8 }} data-cmppsdwait />}
-          <div className="small" style={{ marginTop: 4 }}>{psdSpan === "all" ? `ทั้งไฟล์ ${tfmt(dur)}` : `${tfmt(psdT[0])} ถึง ${tfmt(psdT[1])} รอบกลางช่วงที่ดู`} คิดทีละไฟล์ตามลำดับ{ok ? ` ช่องความถี่กว้าง ${(psd.list[0].rate / psd.list[0].size).toFixed(1)} Hz ${allTxt} เทียบกันได้ตรง` : ""}</div>
+          <div className="small" style={{ marginTop: 4 }}>{psdSpan === "all" ? `ทั้งไฟล์ ${tfmt(dur)}` : `${tfmt(psdT[0])} ถึง ${tfmt(psdT[1])} รอบกลางช่วงที่ดู`} คิดทีละไฟล์ตามลำดับ{ok ? ` และ${n === 2 ? "ทั้งสองไฟล์" : allTxt}ใช้ช่องความถี่กว้าง ${(psd.list[0].rate / psd.list[0].size).toFixed(1)} Hz เท่ากัน จึงเทียบกันได้ตรง` : ""}</div>
           {foot(null)}
         </div>
       );
@@ -2858,7 +2866,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
 }
 
 function FragmentInfo({ k, vals }: { k: string; vals: string[] }) {
-  return <><span className="k">{k}</span>{vals.map((v, i) => <span key={i} className="v" style={i > 0 && v !== vals[0] && vals[0] !== "รอ" ? { fontWeight: 700 } : undefined}>{v}</span>)}</>;
+  return <><span className="k">{k}</span>{vals.map((v, i) => <span key={i} className="v" style={i > 0 && v !== vals[0] && vals[0] !== "…" ? { fontWeight: 700 } : undefined}>{v}</span>)}</>;
 }
 function Fragment3({ cls, k, l, vals }: { cls: string; k: string; l: string; vals: string[] }) {
   return <><span className={cls} data-cmpdiffrow={k}>{l}</span>{vals.map((v, i) => <em key={i} className={cls}>{v}</em>)}</>;

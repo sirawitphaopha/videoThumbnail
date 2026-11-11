@@ -8,7 +8,7 @@ import type { Page } from "../components/Sidebar";
 import SearchBox from "../components/SearchBox";
 import RenameBox from "../components/RenameBox";
 import Dropdown from "../components/Dropdown";
-import { Badge, CardIcon, Keep, Phr, Phrases, Seg, Skel, SortArrow, Switch } from "../components/ui";
+import { Badge, CardIcon, Keep, Phr, Phrases, Seg, Skel, SortArrow, Switch, chText } from "../components/ui";
 import Dialog from "../components/Dialog";
 import { IcBitrate, IcLink, IcCoverL, IcCoverM, IcCoverS, IcTall, IcWide } from "../components/icons";
 import { openLinkRow, setLinkJob, setReply, useLinkJob } from "../lib/linkJob";
@@ -31,8 +31,8 @@ import { ftLook } from "../lib/ftypes";
 import { IcSearch, IbTrash, IbNext, IcRefresh, IcCheck, IbPencil, IcMix, IcClose, IbEye, IbPlay, IcPoster, IbCrop, IcSettings } from "../components/icons";
 
 const SORTS = [
-  { value: "name-asc", label: "ชื่อ ก ถึง ฮ" },
-  { value: "name-desc", label: "ชื่อ ฮ ถึง ก" },
+  { value: "name-asc", label: "ชื่อ ก–ฮ" },
+  { value: "name-desc", label: "ชื่อ ฮ–ก" },
   { value: "year", label: "ปีที่ออกฉาย ใหม่ไปเก่า" },
   { value: "added", label: "เพิ่มเข้าชั้นล่าสุด" },
   { value: "size", label: "ขนาดไฟล์ ใหญ่ไปเล็ก" },
@@ -71,7 +71,7 @@ export function sortMovies(list: Movie[], key: string, reminder: number): Movie[
 }
 
 const tracks = (t: Movie["audio"], withLayout: boolean) =>
-  t.map((x) => [x.lang, x.codec, withLayout ? x.layout : null].filter(Boolean).join(" ")).join(", ");
+  t.map((x) => [x.lang, x.codec, withLayout ? chText(x.layout) : null].filter(Boolean).join(" ")).join(", ");
 
 /** ชื่อหนังพร้อมไฮไลต์คำที่ค้น · ตัดบรรทัดตรงเว้นวรรค (ui.tsx Phrases) · tail ต่อท้ายวลีสุดท้ายไม่แยกบรรทัด */
 function Hl({ text, used, head, tail }: { text: string; used: string; head?: React.ReactNode; tail?: React.ReactNode }) {
@@ -408,7 +408,7 @@ function BookTags({ m }: { m: Movie }) {
   return (
     <div ref={ref} className="bn3" title={title} data-booktags>
       <span className="bt f">{m.ext.toUpperCase()}</span>
-      {audio.map((a) => <span key={a.codec + a.layout} className="bt a" data-base={"a" + a.codec}>{a.codec}{a.layout && <span className="ch"> {a.layout}</span>}</span>)}
+      {audio.map((a) => <span key={a.codec + a.layout} className="bt a" data-base={"a" + a.codec}>{a.codec}{a.layout && <span className="ch"> {chText(a.layout)}</span>}</span>)}
       {subs.map((c) => <span key={c} className="bt s">{c}</span>)}
       <span className="bt btmore" style={{ display: "none" }} />
     </div>
@@ -503,7 +503,7 @@ function NoCoverTh({ m, on }: { m: Movie; on: boolean }) {
 
 /** ป้าย ภาษา ชนิด แชนแนล · สีตามชนิด */
 type Chip = { text: string; ft: string };
-const trackChips = (t: Movie["audio"], withLayout: boolean): Chip[] => t.map((x) => ({ text: [x.lang, x.codec, withLayout ? x.layout : null].filter(Boolean).join(" "), ft: x.codec }));
+const trackChips = (t: Movie["audio"], withLayout: boolean): Chip[] => t.map((x) => ({ text: [x.lang, x.codec, withLayout ? chText(x.layout) : null].filter(Boolean).join(" "), ft: x.codec }));
 /** ป้าย Video เช่น HEVC 2160p HDR สีจากคำแรก */
 const videoChips = (v: string | null | undefined): Chip[] => (v ? [{ text: v, ft: v.split(" ")[0] }] : []);
 
@@ -546,7 +546,7 @@ function ChipRow({ items }: { items: Chip[] }) {
     ro.observe(el);
     return () => ro.disconnect();
   }, [key]);
-  if (!items.length) return <>ไม่มี</>;
+  if (!items.length) return <>—</>;
   return (
     <div ref={ref} className="lvchips">
       {items.map((c, i) => { const look = ftLook(c.ft); return <span key={i} className={look.className + " lvchip"} style={look.style}>{c.text}</span>; })}
@@ -661,7 +661,7 @@ function Detail(p: { m: Movie; showFrames: boolean; scanning: boolean; reminder:
       <dl className="kv">
         <dt>File size</dt><dd><span className="nw">{fmtSize(m.size)}</span></dd>
         <dt>Duration</dt><dd><span className="nw">{fmtDuration(m.duration)}</span></dd>
-        <dt>Video</dt><dd>{m.video?.replace(" · ", " ") ?? "ไม่ทราบ"}</dd>{/* คลังที่อ่านก่อน 11 พ.ย. 2569 เก็บแบบมีจุดคั่น */}
+        <dt>Video</dt><dd>{m.video?.replace(" · ", " ") ?? "—"}</dd>{/* คลังที่อ่านก่อน 11 พ.ย. 2569 เก็บแบบมีจุดคั่น */}
         <dt>Audio</dt><dd>{tracks(m.audio, true) || "ไม่มี"}</dd>
         <dt>Subtitle</dt><dd>{tracks(m.subs, false) || "ไม่มี"}</dd>
         <dt>Attachment</dt><dd>{m.images ? `${m.hasCover ? "โปสเตอร์" : "รูป"} ${m.images} รูป` : "ไม่มี"}</dd>
@@ -800,7 +800,7 @@ ${whereAll(c)}
       <Dialog open={ask} onClose={() => { if (!busy) setAsk(false); }} kind="work" confirm title={<>เอาปกจับคู่ของ {m.name} ออก</>}
         actions={<>
           <button type="button" className="btn btn-ghost" onClick={() => { if (!busy) setAsk(false); }}>ไม่เอาออก</button>
-          <button type="button" className={"btn " + (busy ? "btn-wait" : "btn-bad")} aria-disabled={busy || undefined} data-link-remove-ok onClick={remove}><Keep icon={<IbTrash size={15} />} all={["กำลังเอาออก", "เอาปกออก"]}>{busy ? "กำลังเอาออก" : "เอาปกออก"}</Keep></button>
+          <button type="button" className={"btn " + (busy ? "btn-wait" : "btn-bad")} aria-disabled={busy || undefined} data-link-remove-ok onClick={remove}><Keep icon={<IbTrash size={15} />} all={["กำลังเอาออก…", "เอาปกออก"]}>{busy ? "กำลังเอาออก…" : "เอาปกออก"}</Keep></button>
         </>}>
         <div className="small" style={{ fontSize: 14, color: "var(--txt2)" }}>
           {trash.length > 0 && <div style={{ overflowWrap: "anywhere" }}>รูปที่โปรแกรมคัดลอกไว้ {trash.join(", ")} ย้ายลงถังขยะแล้ว กู้คืนได้</div>}

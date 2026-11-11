@@ -56,7 +56,7 @@ await c.evaluate("document.querySelector('[data-use]').click()"); await sleep(12
 await c.evaluate("document.querySelector('[data-start]').click()");
 await waitFor("return document.querySelector('[data-run]')?.dataset.run === 'working' && parseFloat(document.querySelector('[data-run] .bar i')?.style.width ?? '0') > 0", 15000);
 await nav("ชั้นวางหนัง"); await sleep(800);
-const away = await q("return !document.querySelector('[data-run]')");
+const away = await q("const r = document.querySelector('[data-run]'); return !r || !r.checkVisibility()");
 await nav("ใส่โปสเตอร์"); await sleep(400);
 const back = await q("return { run: document.querySelector('[data-run]')?.dataset.run, text: ((document.querySelector('[data-run]')?.innerText ?? '') + ' ' + (document.querySelector('[data-run] .runtxt')?.title ?? '')).trim(), movie: document.querySelector('[data-card=movie]')?.innerText ?? '', stop: [...document.querySelectorAll('[data-run] button')].some(b => b.innerText === 'หยุด'), poster: (document.querySelector('[data-card=poster]')?.innerText ?? '').includes('1000 × 1500') }");
 await shot("02-กลับมาเห็นงานเดิม.png", ".main");
@@ -119,14 +119,14 @@ await waitFor("return (document.querySelector('[data-card=movie]')?.innerText ??
 const first = await q("return { poster: document.querySelector('[data-card=poster]')?.innerText ?? '', result: document.querySelector('[data-card=result]')?.innerText ?? '', bold: [...document.querySelectorAll('[data-card=result] b')].map(b => b.innerText) }");
 await shot("06-มาจากปุ่มเปลี่ยนโปสเตอร์.png", ".cards, .main", 0);
 check("มาจากปุ่มเปลี่ยนโปสเตอร์ ช่องวางรูปบอก ไฟล์หนังใส่ให้แล้ว เหลือรูปโปสเตอร์ · รับ JPG PNG WebP BMP TIFF HEIC · การ์ด 3 ตัวหนา ไฟล์เป็น MKV อยู่แล้ว เปลี่ยนแค่รูปแนบ ไม่ต้องครอบใหม่",
-  first.poster.includes("ไฟล์หนังใส่ให้แล้ว เหลือรูปโปสเตอร์") && first.poster.includes("JPG PNG WebP BMP TIFF HEIC") && (await q("return document.querySelector('[data-opt=original] .opts')?.title ?? ''")).includes("ไฟล์เป็น MKV อยู่แล้ว"), first.poster.split("\n").slice(0, 3).join(" / "));
+  first.poster.includes("ไฟล์หนังใส่ให้แล้ว เหลือรูปโปสเตอร์") && first.poster.includes("JPG PNG WebP BMP TIFF และ HEIC") && (await q("return document.querySelector('[data-opt=original] .opts')?.title ?? ''")).includes("ไฟล์เป็น MKV อยู่แล้ว"), first.poster.split("\n").slice(0, 3).join(" / "));
 await drop(join(IMG, "wide.jpg"), "poster"); await waitFor("return !!document.querySelector('[data-use]')"); await sleep(800);
+const segIn = await q("return { head: document.querySelector('.dlg')?.innerText ?? '', seg: [...document.querySelectorAll('.dlg .seg button')].map(b => b.innerText) }");
+check("รูปแนวนอน หน้าต่างครอปบอก ภาพแนวนอน 16 : 9 · แบบปกเลือกได้ ตัดให้พอดี เติมขอบ ตามรูปเดิม (ชุด 3 ย้ายมาอยู่หน้าต่างครอป)",
+  segIn.head.includes("ภาพแนวนอน 16 : 9") && ["ตัดให้พอดี 2 : 3", "เติมขอบ", "ตามรูปเดิม"].every((s) => segIn.seg.includes(s)), segIn.seg.join(" | "));
+await c.evaluate("[...document.querySelectorAll('.dlg .seg button')].find(b => b.innerText === 'เติมขอบ').click()"); await sleep(600);
 await c.evaluate("document.querySelector('[data-use]').click()"); await sleep(1200);
-const wide = await q("return { text: document.querySelector('[data-card=poster]')?.innerText ?? '', seg: [...document.querySelectorAll('[data-card=poster] .seg button')].map(b => b.innerText) }");
 await shot("07-รูปไม่ใช่2ต่อ3.png", "[data-card=poster]", 8);
-check("รูปแนวนอน การ์ดรูปบอก ภาพแนวนอน 16 : 9 · เลือก ตัดพอดี เติมขอบ ตามรูปเดิม · ปุ่ม ครอปภาพ",
-  wide.text.includes("ภาพแนวนอน 16 : 9") && ["ตัดพอดี", "เติมขอบ", "ตามรูปเดิม"].every((s) => wide.seg.includes(s)) && wide.text.includes("ครอปภาพ"), wide.seg.join(" | "));
-await c.evaluate("[...document.querySelectorAll('[data-card=poster] .seg button')].find(b => b.innerText === 'เติมขอบ').click()");
 await waitFor("return (document.querySelector('[data-card=poster]')?.innerText ?? '').includes('เติมขอบให้เต็มปก')", 8000);
 const padded = await q("return document.querySelector('[data-card=poster]')?.innerText ?? ''");
 check("กด เติมขอบ ทำรูปใหม่ทันที การ์ดบอก เติมขอบให้เต็มปก 1000 × 1500", padded.includes("เติมขอบให้เต็มปก") && padded.includes("1000 × 1500"), padded.split("\n").slice(0, 4).join(" / "));

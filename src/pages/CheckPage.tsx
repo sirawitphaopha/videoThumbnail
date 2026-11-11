@@ -40,7 +40,7 @@ function rough(minLow: number, minHigh?: number): string {
   const hi = minHigh ?? minLow;
   if (hi < 90) return fmtRoughMinutes(minLow, minHigh);
   const a = Math.max(1, Math.round(minLow / 60)), b = Math.max(a, Math.round(hi / 60));
-  return a === b ? `ราว ${a} ชั่วโมง` : `ราว ${a} ถึง ${b} ชั่วโมง`;
+  return a === b ? `ราว ${a} ชั่วโมง` : `ราว ${a}–${b} ชั่วโมง`;
 }
 
 /** ตรวจแบบเร็ว = อ่านทั้งไฟล์คิด SHA-256 · ฮาร์ดดิสก์ราว 120 MB ต่อวินาที (TECH-REVIEW · status.ts quickEstimate) */
@@ -69,7 +69,7 @@ const fmtT = (sec: number) => {
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
   return h ? `${h}:${String(m).padStart(2, "0")}:${String(r).padStart(2, "0")}` : `${m}:${String(r).padStart(2, "0")}`;
 };
-const spanTime = (sp: CheckSpan) => (fmtT(sp.from) === fmtT(sp.to) ? fmtT(sp.from) : `${fmtT(sp.from)} ถึง ${fmtT(sp.to)}`);
+const spanTime = (sp: CheckSpan) => (fmtT(sp.from) === fmtT(sp.to) ? fmtT(sp.from) : `${fmtT(sp.from)} – ${fmtT(sp.to)}`);
 
 export default function CheckPage(p: { req: CheckReq | null; onConsumed: () => void; onGraph: (r: GraphReq) => void; onPage: (pg: Page) => void }) {
   const { movies, loaded } = useLibrary();
@@ -155,7 +155,7 @@ export default function CheckPage(p: { req: CheckReq | null; onConsumed: () => v
             <div className="small" style={{ paddingLeft: 28 }}><Phr>{"เช็กว่าโครงไฟล์ครบไม่ขาดท้าย และเทียบค่า hash กับที่บันทึกไว้ตอนตรวจครั้งก่อน เพื่อดูว่าไฟล์" + J + "ถูกเปลี่ยนหรือเสีย"}</Phr></div>
           </div>
           <div className={"mode" + (mode === "full" ? " on" : "") + (s.running ? " off" : "")} {...kb(() => { if (!s.running) setMode("full"); })} role="radio" aria-checked={mode === "full"} aria-disabled={s.running} title={s.running ? "รอให้ตรวจชุดนี้เสร็จก่อน" : undefined}>
-            <h4><span className={"radio" + (mode === "full" ? " on" : "")} />ตรวจละเอียด <span className="small" style={{ fontWeight: 400 }}>{selected.length ? fullTotal(selected) : <span className="nw">ราว 3 ถึง 6 นาทีต่อเรื่อง</span>}</span></h4>
+            <h4><span className={"radio" + (mode === "full" ? " on" : "")} />ตรวจละเอียด <span className="small" style={{ fontWeight: 400 }}>{selected.length ? fullTotal(selected) : <span className="nw">ราว 3–6 นาทีต่อเรื่อง</span>}</span></h4>
             <div className="small" style={{ paddingLeft: 28 }}><Phr>อ่านภาพและเสียงทุกช่วงตั้งแต่ต้นจนจบ และบอกได้ว่าเสียที่นาทีไหน</Phr></div>
           </div>
         </div>
@@ -169,7 +169,7 @@ export default function CheckPage(p: { req: CheckReq | null; onConsumed: () => v
           <div className="ckacts">
             {s.running ? (
               <button type="button" className={"btn " + (stopping ? "btn-wait" : "btn-ghost")} onClick={() => { if (!stopping) stop(); }}
-                aria-disabled={stopping || undefined} title={stopping ? "รอให้เรื่องที่กำลังตรวจหยุดก่อน" : undefined} data-ckstop><Keep icon={<IbStop size={15} />} all={["กำลังหยุด", "หยุดตรวจทั้งชุด"]}>{stopping ? "กำลังหยุด" : "หยุดตรวจทั้งชุด"}</Keep></button>
+                aria-disabled={stopping || undefined} title={stopping ? "รอให้เรื่องที่กำลังตรวจหยุดก่อน" : undefined} data-ckstop><Keep icon={<IbStop size={15} />} all={["กำลังหยุด…", "หยุดตรวจทั้งชุด"]}>{stopping ? "กำลังหยุด…" : "หยุดตรวจทั้งชุด"}</Keep></button>
             ) : (
               <>
                 <button type="button" className="btn btn-ghost" onClick={onlyUnchecked}><IbTick size={15} />เลือกเฉพาะที่ยังไม่เคยตรวจ</button>
@@ -278,7 +278,8 @@ function Row(p: { m: Movie; on: boolean; running: boolean; reminder: number; cur
       </td>
       <td className="ckname">{m.name}.{m.ext}</td>
       <td><span className="nw">{fmtSize(m.size)}</span></td>
-      <td>{c ? <><span className="nw">{d}</span> {t}</> : "ยังไม่ตรวจ"}</td>
+      {/* ยังไม่เคยตรวจ ขีดอยู่กึ่งกลางคอลัมน์ (พี่กันสั่ง 11 พ.ย. 2569 "อยู่กึ่งกลาง") */}
+      <td style={c ? undefined : { textAlign: "center" }}>{c ? <><span className="nw">{d}</span> {t}</> : "—"}</td>
       <td>{pill}</td>
       <td className="small ckdetail">{detail}</td>
     </tr>

@@ -478,7 +478,7 @@ export default function BitrateClassic({ initialPath = null, initialTrack = null
             {MODES.map((m) => item(m.label, m.key, () => setMode(m.id), { on: mode === m.id, off: audio && m.id !== "sec" }))}
             <div style={hr} />
             {item("Recalculate current file", "F5", () => path && void open(path, mode, true), { off: !path })}
-            {item(running ? "Stop calculation" : "Load file", "", () => void load())}
+            {item(running ? "Stop calculation" : "Load file…", "", () => void load())}
             <div style={hr} />
             {item("Standard scale mode", "Ctrl+A", () => setAuto((v) => !v), { on: !auto })}
             {item("Use fixed colors", "Ctrl+C", () => setGrad((v) => !v), { on: !grad })}

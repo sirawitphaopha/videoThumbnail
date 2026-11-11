@@ -6,7 +6,7 @@ import { useEffect, useMemo, useState } from "react";
 import "../styles/av.css";
 import CodecPanel, { presetSpec } from "./CodecPanel";
 import Dropdown from "./Dropdown";
-import { CardIcon, Keep, Phr, Seg, Skel, dropClick } from "./ui";
+import { CardIcon, Keep, Phr, Seg, Skel, chText, dropClick } from "./ui";
 import { checkApi, encodeApi, pickAudioFiles, pickFolder, type AudioFile, type EncodeSpec, type EncoderInfo, type MergeTrack } from "../lib/api";
 import { addFiles, clearDone, removeItem, retry, setAll, setItemSpec, setOutDir, setPicked, setPickedAll, startQueue, stopQueue, useConvQueue, type QItem } from "../lib/convertJob";
 import { CODECS, codecOf } from "../lib/codecs";
@@ -32,7 +32,7 @@ export function asTrack(f: AudioFile | null, spec: EncodeSpec | null): MergeTrac
 /** ป้ายปลายทางในแถว เช่น Opus 160 kbps · FLAC Level 8 · Monkey's Audio High */
 export function specLabel(s: EncodeSpec): string {
   const c = codecOf(s.codec), p = s.p;
-  const ch = s.channels ? ` เสียง ${s.channels === 1 ? "ช่องเดียว" : s.channels === 2 ? "2.0" : s.channels === 6 ? "5.1" : s.channels + " ช่อง"}` : "";
+  const ch = s.channels ? ` เสียง ${s.channels === 1 ? "ช่องเดียว" : s.channels === 2 ? "2.0 ch" : s.channels === 6 ? "5.1 ch" : s.channels + " ช่อง"}` : "";
   const v = c.id === "opus" ? `${p.bitrate ?? 160} kbps`
     : c.id === "aac" ? (s.encoder === "qaac" && (p.mode ?? "TVBR") === "TVBR" ? `TVBR ${p.tvbr ?? 91}` : s.encoder === "fdkaac" && (p.mode ?? "VBR") === "VBR" ? `VBR ${p.vbr ?? 5}` : `${p.bitrate ?? 256} kbps`)
     : c.id === "mp3" ? ((p.mode ?? "VBR") === "VBR" ? `V${p.vbrq ?? 2}` : `${p.mode} ${p.bitrate ?? 192} kbps`)
@@ -63,7 +63,7 @@ function detailOf(f: AudioFile): string {
   const ft = ftName("audio", f.codec, f.profile);
   const lossless = ["FLAC", "PCM", "ALAC", "WavPack", "TTA", "APE", "TAK", "TrueHD", "DTS-HD MA"].includes(ft);
   const q = lossless && f.bits ? `${f.bits} บิต ${(f.rate / 1000).toLocaleString("en-US", { maximumFractionDigits: 1 })} kHz` : f.bitrate ? `${Math.round(f.bitrate / 1000).toLocaleString("en-US")} kbps` : `${(f.rate / 1000).toLocaleString("en-US", { maximumFractionDigits: 1 })} kHz`;
-  return [`${ft === "APE" ? "Monkey's Audio" : ft} ${f.layout}`, q, fmtSize(f.size), f.audioOnly ? "" : "เสียงในไฟล์หนัง"].filter(Boolean).join(", ");
+  return [`${ft === "APE" ? "Monkey's Audio" : ft} ${chText(f.layout)}`, q, fmtSize(f.size), f.audioOnly ? "" : "เสียงในไฟล์หนัง"].filter(Boolean).join(", ");
 }
 
 function Status({ it }: { it: QItem }) {
@@ -84,6 +84,13 @@ function Status({ it }: { it: QItem }) {
   return <span className="small" data-qwait>{it.file ? "รอคิว" : "กำลังอ่านไฟล์"}</span>;
 }
 
+/** วงเล็บท้ายตัวเลือกในดรอปดาวน์ชนิดเสียง · ชื่อแบบบอกช่องเสียงอยู่แล้ว (หนัง 5.1 ch ดี) ไม่บอกซ้ำในวงเล็บ ตัวอื่นเหลือ 2.0 ch
+    ทั้งรายการเป็นชนิดเสียง และ ch บอกว่าเป็นช่องเสียงแล้ว (เติม ch แล้วตัวเลือกยาวเกินปุ่มตั้งค่า เจอตอนรันตัวตรวจ 11 พ.ย. 2569) */
+const ddDetail = (label: string, detail: string) => {
+  const ch = label.match(/\d\.\d ch/)?.[0];
+  return ch ? detail.replace(` เสียง ${ch}`, "") : detail.replace(/ เสียง (\d\.\d ch)/, " $1");
+};
+
 export default function ConvertPane(p: { onCompare: (a: string, b: string, note: string) => void; onTags: (path: string) => void }) {
   const q = useConvQueue();
   const toast = useToast();
@@ -99,7 +106,7 @@ export default function ConvertPane(p: { onCompare: (a: string, b: string, note:
   useEffect(() => { encodeApi.status().then(setEncs, () => setEncs([])); }, []);
   /** ชุดค่าทุกชนิดเสียงในดรอปดาวน์ · ค่าที่ตั้งเองในแผงไม่ตรงชุดไหน ก็ยังขึ้นชื่อค่าที่ใช้อยู่ */
   // แบ่งสองกลุ่มใหญ่ เสียคุณภาพ กับ ไม่เสียคุณภาพ หัวย่อยตามชนิด (BUGS ข้อ 27 พี่กันหา ALAC ไม่เจอ)
-  const presets = useMemo(() => [false, true].flatMap((ll) => CODECS.filter((c) => !!c.lossless === ll).flatMap((c) => c.presets.map((pr, i) => ({ value: c.id + ":" + i, label: c.name + " " + pr.label + " (" + pr.detail + ")", group: ll ? "ไม่เสียคุณภาพ (Lossless)" : "เสียคุณภาพ (Lossy)", sub: c.name, spec: presetSpec(c, i, encs) })))), [encs]);
+  const presets = useMemo(() => [false, true].flatMap((ll) => CODECS.filter((c) => !!c.lossless === ll).flatMap((c) => c.presets.map((pr, i) => ({ value: c.id + ":" + i, label: c.name + " " + pr.label + " (" + ddDetail(pr.label, pr.detail) + ")", group: ll ? "ไม่เสียคุณภาพ (Lossless)" : "เสียคุณภาพ (Lossy)", sub: c.name, spec: presetSpec(c, i, encs) })))), [encs]);
   const presetOf = (sp: EncodeSpec) => presets.find((x) => x.spec.codec === sp.codec && specLabel(x.spec) === specLabel(sp))?.value ?? "";
   const specOf = (v: string) => presets.find((x) => x.value === v)?.spec ?? null;
 
@@ -135,8 +142,8 @@ export default function ConvertPane(p: { onCompare: (a: string, b: string, note:
                   <button type="button" className="nm linklike" onClick={() => p.onTags(it.path)} title={`${it.path}\nกดเพื่อดูข้อมูลเพลงกับรูปปก`} data-qname>{baseName(it.path)}</button>
                   <div className="dt">{it.file ? detailOf(it.file) : it.bad ? it.bad : <Skel w={180} h={12} />}</div>
                 </div>
-                <span style={{ color: "var(--txt3)" }}>เป็น</span>
-                {locked ? <span className="dd locked" style={{ flex: 1 }}><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{specLabel(it.spec)}</span></span> : (
+                <span style={{ color: "var(--txt3)" }} aria-hidden="true">→</span>
+                {locked ? <span className="dd locked" style={{ flex: 1 }}><span style={{ whiteSpace: "nowrap", minWidth: 0 }}>{specLabel(it.spec)}</span></span> : (
                   <span style={{ display: "flex", gap: 4, minWidth: 0 }}>
                     <Dropdown stretch search portal label={"ปลายทาง " + baseName(it.path)} value={presetOf(it.spec)} options={presets} display={(o) => o?.label ?? specLabel(it.spec)} onChange={(v) => { const sp = specOf(v); if (sp) setItemSpec(it.id, sp); }} />
                     <button type="button" className="btn btn-ghost btn-sm" style={{ width: 34, padding: 0, flex: "none" }} title="ตั้งละเอียดในแผงตั้งค่าเสียง" aria-label="ตั้งละเอียดในแผงตั้งค่าเสียง" onClick={() => openPanel(it.id)} data-qto><IcSettings size={15} /></button>
@@ -146,14 +153,14 @@ export default function ConvertPane(p: { onCompare: (a: string, b: string, note:
                 <div className="cqbtns">
                   {!it.bad && <button type="button" className="ib" onClick={() => playFile(it.state === "done" && it.result ? it.result.out : it.path)} aria-label={`เปิดเล่น ${baseName(it.state === "done" && it.result ? it.result.out : it.path)}`} title={it.state === "done" && it.result ? `เปิดเล่นไฟล์ที่แปลงแล้ว ${baseName(it.result.out)}` : `เปิดเล่นไฟล์เดิม ${baseName(it.path)}`} data-qplay><IbPlay size={15} /></button>}
                   {it.state === "wait" && !it.bad && <button type="button" className="btn btn-ghost btn-xs" aria-disabled={q.runIds.includes(it.id) || undefined} title={q.runIds.includes(it.id) ? "ไฟล์นี้อยู่ในรอบที่กำลังแปลงแล้ว" : q.running ? "ต่อท้ายรอบที่กำลังแปลง" : "แปลงเฉพาะไฟล์นี้"} onClick={() => { if (!q.runIds.includes(it.id)) startQueue([it.id]); }} data-qone><IcMix size={15} />แปลง</button>}
-                  {it.state === "done" && it.result && <button type="button" className="btn btn-ghost btn-xs" onClick={() => p.onCompare(it.path, it.result!.out, `แปลงด้วย ${it.result!.tool} เป็น ${specLabel(it.spec)}`)} data-qcmp><IcGraph size={15} />เทียบความถี่</button>}
+                  {it.state === "done" && it.result && <button type="button" className="btn btn-ghost btn-xs" onClick={() => p.onCompare(it.path, it.result!.out, `แปลงเป็น ${specLabel(it.spec)}\nด้วย ${it.result!.tool}`)} data-qcmp><IcGraph size={15} />เทียบความถี่</button>}
                   {(it.state === "fail" || it.state === "stop") && !it.bad && !q.running && <button type="button" className="btn btn-ghost btn-xs" onClick={() => retry(it.id)} data-qretry><IcRefresh size={15} />ลองใหม่</button>}
                   <button type="button" className="ib bad" onClick={() => it.state !== "work" && removeItem(it.id)} aria-disabled={it.state === "work" || undefined}
                     aria-label={`เอา ${baseName(it.path)} ออกจากคิว`} title={it.state === "work" ? "กำลังแปลง กดหยุดทั้งคิวก่อน" : "เอาออกจากคิว ไฟล์ในเครื่องไม่ถูกแตะ"} data-qremove>{X}</button>
                 </div>
                 {it.state === "done" && it.result && (
                   <div className="cqmore" data-qresult>
-                    <Phr>{`${it.result.tags ? `ข้อมูลเพลง ${it.result.tags} ช่องติดไปด้วย` : "ไม่มีข้อมูลเพลง"} ${it.result.cover ? "รูปปกติดไปด้วย" : "ไม่มีรูปปก"} แปลงด้วย ${it.result.tool} ใช้เวลา ${it.result.secs < 60 ? `${it.result.secs.toFixed(1)} วินาที` : `${Math.round(it.result.secs / 60)} นาที`}`}</Phr>
+                    <Phr>{`${it.result.tags ? `ข้อมูลเพลง ${it.result.tags} ช่องติดไปด้วย${it.result.cover ? "พร้อมรูปปก" : " แต่ไม่มีรูปปก"}` : it.result.cover ? "ไม่มีข้อมูลเพลง แต่รูปปกติดไปด้วย" : "ไม่มีข้อมูลเพลงและไม่มีรูปปก"}  แปลงด้วย ${it.result.tool} ใช้เวลา ${it.result.secs < 60 ? `${it.result.secs.toFixed(1)} วินาที` : `${Math.round(it.result.secs / 60)} นาที`}`}</Phr>
                     {it.result.notes.map((x) => <div key={x} className="warnline"><CardIcon kind="warn" /><Phr>{x}</Phr></div>)}
                   </div>
                 )}
@@ -178,16 +185,16 @@ export default function ConvertPane(p: { onCompare: (a: string, b: string, note:
         <div className="card"><h3>ที่เก็บไฟล์ใหม่</h3>
           <div className="optline"><Seg small label="ที่เก็บไฟล์ใหม่" value={q.outDir ? "dir" : "beside"} onChange={(v) => (v === "beside" ? setOutDir(null) : pickDir())}
             options={[{ value: "beside", label: <><IcFile size={14} />ข้างไฟล์เดิม</> }, { value: "dir", label: <><IcFolder size={14} />เลือกโฟลเดอร์</> }]} /></div>
-          <div className="small" style={{ marginTop: 6, overflowWrap: "anywhere" }} data-qdir>{q.outDir ? `เก็บที่ ${q.outDir}` : n ? `เช่น ${dirOf(q.items[0].path)}` : ""}{n || q.outDir ? " " : ""}ใช้ชื่อเดิมกับนามสกุลใหม่ ถ้าชื่อชนจะต่อท้ายด้วย (2) ไม่เขียนทับ</div></div>
+          <div className="small" style={{ marginTop: 6, overflowWrap: "anywhere" }} data-qdir>{q.outDir ? `เก็บที่ ${q.outDir}` : n ? `เช่น ${dirOf(q.items[0].path)}` : ""}{n || q.outDir ? " " : ""}ใช้ชื่อเดิมกับนามสกุลใหม่ ถ้าชื่อชนจะต่อท้ายด้วย (2) และไม่เขียนทับ</div></div>
       </div>
       <div className="cqfoot">
         <div className="cqfoot-l">{done > 0 && !q.running && <button type="button" className="btn btn-ghost" onClick={clearDone} data-qclear><IbTrash size={15} />เอาไฟล์ที่เสร็จออกจากคิว</button>}</div>
         <div className="cqfoot-r">
-        {q.running && <button type="button" className="btn btn-bad" onClick={stopQueue} aria-disabled={q.stopping || undefined} data-qstop><Keep icon={<IbStop size={15} />} all={["กำลังหยุด", "หยุดทั้งคิว"]}>{q.stopping ? "กำลังหยุด" : "หยุดทั้งคิว"}</Keep></button>}
+        {q.running && <button type="button" className="btn btn-bad" onClick={stopQueue} aria-disabled={q.stopping || undefined} data-qstop><Keep icon={<IbStop size={15} />} all={["กำลังหยุด…", "หยุดทั้งคิว"]}>{q.stopping ? "กำลังหยุด…" : "หยุดทั้งคิว"}</Keep></button>}
         {q.running
-          ? <button type="button" className="btn btn-wait" style={{ padding: "0 26px" }} aria-disabled data-qstart><Keep icon={<IcMix size={15} />} all={["กำลังแปลง 000 จาก 000", "แปลง 000 ไฟล์"]}>กำลังแปลง {Math.min(q.runDone + 1, q.runIds.length)} จาก {q.runIds.length}</Keep></button>
+          ? <button type="button" className="btn btn-wait" style={{ padding: "0 26px" }} aria-disabled data-qstart><Keep icon={<IcMix size={15} />} all={["กำลังแปลง 000 จาก 000…", "แปลง 000 ไฟล์"]}>กำลังแปลง {Math.min(q.runDone + 1, q.runIds.length)} จาก {q.runIds.length}</Keep></button>
           : <button type="button" className={"btn " + (ticked ? "btn-main" : "btn-wait")} style={{ padding: "0 26px" }} aria-disabled={!ticked || undefined}
-              title={ticked ? undefined : wait ? "ติ๊กไฟล์ที่จะแปลงก่อน" : n ? "ไม่มีไฟล์ที่รอแปลง" : "ลากไฟล์เสียงมาวางก่อน"} onClick={() => ticked && startQueue()} data-qstart><Keep icon={<IcMix size={15} />} all={["กำลังแปลง 000 จาก 000", "แปลง 000 ไฟล์"]}>{ticked ? `แปลง ${ticked} ไฟล์` : "แปลง"}</Keep></button>}
+              title={ticked ? undefined : wait ? "ติ๊กไฟล์ที่จะแปลงก่อน" : n ? "ไม่มีไฟล์ที่รอแปลง" : "ลากไฟล์เสียงมาวางก่อน"} onClick={() => ticked && startQueue()} data-qstart><Keep icon={<IcMix size={15} />} all={["กำลังแปลง 000 จาก 000…", "แปลง 000 ไฟล์"]}>{ticked ? `แปลง ${ticked} ไฟล์` : "แปลง"}</Keep></button>}
         </div>
       </div>
       {panel && (

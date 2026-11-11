@@ -2,6 +2,15 @@
 // พอร์ตดีบัก = ทางที่โปรแกรมเปิดไว้ในเครื่องตัวเอง ให้สคริปต์ต่อเข้าไปสั่งถ่ายภาพ กด พิมพ์ (สกิล testing-proof ข้อ 11.6)
 // โปรแกรมต้องเปิดผ่าน scripts/dev-app.ps1 (ตั้ง WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS=--remote-debugging-port=9222)
 import { writeFileSync } from "node:fs";
+/** เขียนภาพ ลองซ้ำเมื่อไฟล์ถูกโปรแกรมอื่นเปิดค้างชั่วครู่ (เจอ UNKNOWN -4094 กับภาพรายงานที่ git ติดตาม 11 พ.ย. 2569) */
+const saveShot = (out, buf) => {
+  for (let i = 0; ; i++) {
+    try { writeFileSync(out, buf); return; } catch (e) {
+      if (i >= 8 || !["UNKNOWN", "EBUSY", "EPERM"].includes(e.code)) throw e;
+      Atomics.wait(new Int32Array(new SharedArrayBuffer(4)), 0, 0, 400);
+    }
+  }
+};
 
 export const PORT = process.env.CDP_PORT ?? "9222";
 export const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
@@ -101,14 +110,14 @@ export async function connect() {
       params.clip = { x: Math.max(0, b.left - pad), y: Math.max(0, b.top - pad), width: b.w + pad * 2, height: b.h + pad * 2, scale: 1 };
     }
     const r = await send("Page.captureScreenshot", params);
-    writeFileSync(out, Buffer.from(r.data, "base64"));
+    saveShot(out, Buffer.from(r.data, "base64"));
     return out;
   };
   /** ถ่ายภาพตามพิกัด */
   const shotRect = async (out, x, y, width, height) => {
     await evaluate("document.fonts.ready.then(() => true)");
     const r = await send("Page.captureScreenshot", { format: "png", clip: { x, y, width, height, scale: 1 } });
-    writeFileSync(out, Buffer.from(r.data, "base64"));
+    saveShot(out, Buffer.from(r.data, "base64"));
     return out;
   };
 

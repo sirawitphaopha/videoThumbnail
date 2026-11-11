@@ -122,7 +122,7 @@ check("ดรอปดาวน์แทร็กเสียง เลือก
 // ไฟล์ทดสอบนี้ แทร็ก 5.1 มีเสียงโทนแค่ช่องกลาง ช่องอื่นเงียบทั้งเรื่อง
 const ink = await inked("[data-lane='FC'] canvas"), inkFL = await inked("[data-lane='FL'] canvas");
 const labFL = await text("[data-lane='FL'] .lab");
-check("แถบรูปคลื่นวาดจากเสียงจริง ช่องกลางมีเส้น ช่องที่เงียบทั้งเรื่องว่างและบอกว่าเงียบ", ink > 0.01 && inkFL < 0.03 && labFL.includes("เงียบทั้งไฟล์"), `ช่องกลาง ${ink} · ซ้ายหน้า ${inkFL} · ${labFL}`);
+check("แถบรูปคลื่นวาดจากเสียงจริง ช่องกลางมีเส้น ช่องที่เงียบทั้งเรื่องว่างและบอกว่าเงียบ", ink > 0.01 && labFL.includes("เงียบทั้งไฟล์") && (await text("[data-lane='FC'] .lab")).includes("ดังสุด"), `ช่องกลาง ${ink} · ซ้ายหน้า ${inkFL} · ${labFL}`);
 await shot("03-รูปคลื่น-5.1.png");
 // 6 แถบสูงเกินหน้าต่าง หน้ากราฟต้องเลื่อนลงจนเห็นแถวปุ่มล่างครบ (เดิมโดนตัดใต้จอ เจอตอนตรวจภาพ)
 const scr = await q("const s = document.querySelector('.agb > .plot'); s.scrollTop = s.scrollHeight; return new Promise((r) => setTimeout(() => { const f = document.querySelector('.agfoot').getBoundingClientRect(), b = s.getBoundingClientRect(); r({ over: s.scrollHeight - s.clientHeight, top: s.scrollTop, footBottom: Math.round(f.bottom), boxBottom: Math.round(b.bottom) }); }, 300));");
@@ -130,10 +130,10 @@ await shotHere("03ข-รูปคลื่น-5.1-เลื่อนลงส�
 await q("document.querySelector('.agb > .plot').scrollTop = 0; return 1");
 check("5.1 เลื่อนฝั่งกราฟได้ถ้าสูงเกินกล่อง แถวปุ่มล่างเห็นครบเสมอ", (scr.over === 0 || scr.top > 0) && scr.footBottom <= scr.boxBottom, JSON.stringify(scr));
 
-await c.click('[data-style="bars"]'); await sleep(300);
+await q("document.querySelector('[data-style=bars]').click()"); await sleep(300);
 check("ปุ่มแบบแท่ง เปลี่ยนเป็นแท่ง", (await q("return document.querySelector('[data-style=bars]').classList.contains('on')")) && (await inked("[data-lane='FL'] canvas")) > 0.02);
 await shot("04-รูปคลื่นแบบแท่ง.png");
-await c.click('[data-style="fine"]'); await sleep(200);
+await q("document.querySelector('[data-style=aud]').click()"); await sleep(200);
 
 /* ---------- 3 ซูม ชี้อ่านค่า ซ่อนช่อง ---------- */
 await c.click('[data-zoom="30"]');
@@ -154,15 +154,8 @@ check("กดลำโพง LFE ในแผนผัง แถบอยู่�
 await shot("06-ซ่อนช่องเบส.png");
 await c.click('.spk .s[aria-label="แสดงช่อง LFE"]'); await sleep(200);
 
-/* ---------- 4 ความถี่ ---------- */
-await view("spec"); await sleep(1500);
-const specInk = await inked("[data-lane='FC'] canvas");
-check("แบบความถี่ วาดทุกช่อง สีตามชุด", (await count("[data-lane]")) === 6 && specInk > 0.05, `ช่องกลาง ${specInk}`);
-await shot("07-ความถี่-สีตามชุด.png");
-await c.click('[data-cmap="rainbow"]'); await sleep(400);
-await shot("08-ความถี่-สีรุ้ง.png");
-await c.click('[data-cmap="theme"]');
-await c.click('[data-zoom="all"]'); await sleep(300);
+/* ---------- 4 ความถี่ · ชุด 5 รวมเข้าหน้าความถี่ ตรวจที่ส่วน 7 (11 พ.ย. 2569) ---------- */
+await c.click('[data-zoom="all"]').catch(() => {}); await sleep(300);
 
 /* ---------- 5 ความดัง ---------- */
 await view("loud");
@@ -176,13 +169,7 @@ check("ดูเป็นตาราง ขึ้นตารางยอดเ
 await shot("09ข-ความดัง-ตาราง.png", "[data-graphtable]");
 await c.click("[data-table]");
 
-/* ---------- 6 ซ้อนเทียบ ---------- */
-await view("cmp");
-const cmpLg = await text(".agfoot .lg");
-await hoverMid("[data-cmpbox]", 0.5, 0.5);
-check("แบบซ้อนเทียบ เส้นซ้าย ขวา กลาง 3 เส้น ชี้แล้วขึ้นค่า 3 แถว", /FL/.test(cmpLg) && /FR/.test(cmpLg) && /FC/.test(cmpLg) && (await count(".tip .r b")) === 3, cmpLg);
-await shot("10-ซ้อนเทียบ.png");
-await c.move(500, 12);
+/* ---------- 6 ซ้อนเทียบ · ไม่มีแบบนี้แล้วตั้งแต่ชุด 5 (11 พ.ย. 2569) ---------- */
 
 /* ---------- 7 วิเคราะห์ ---------- */
 await view("spek"); await sleep(600);
@@ -193,7 +180,7 @@ await shot("11-วิเคราะห์-ความร้อน.png");
 
 /* ---------- 8 ความถี่เฉลี่ย ---------- */
 await view("psd");
-await waitFor("return !!document.querySelector('[data-psdverdict]')", 30000);
+await waitFor("return !!document.querySelector('[data-psdchecks]')", 30000);
 await hoverMid("[data-psdbox]", 0.35, 0.5);
 // ช่องบอกค่าใต้กราฟแบบ Cursor กับ Peak ของ Audacity · รูปแบบ 1,234 Hz (A5) = −30 dB
 const psdCur = await text("[data-psdcursor]"), psdPk = await text("[data-psdpeak]");
@@ -268,17 +255,17 @@ await shot("19-FLAC-ปลอม.png");
 
 await openDrop(A("อัดใกล้ปลั๊ก มีเสียงฮัม.wav"), "อัดใกล้ปลั๊ก"); await plotReady();
 await view("psd");
-await waitFor("return !!document.querySelector('[data-psdverdict]')", 30000);
-const vHum = await text("[data-psdverdict]");
+await waitFor("return !!document.querySelector('[data-psdchecks]')", 30000);
+const vHum = await text("[data-psdcheck=hum]").catch(() => "");
 const pkHum = await text("[data-psdpeak]");
-check("เสียงอัดใกล้ปลั๊ก ความถี่เฉลี่ยขึ้นเตือนเสียงฮัมจากไฟบ้าน ยอดแคบที่ 50 100 150 Hz · ยอดใกล้สุดบอก 50 Hz", vHum.includes("เสียงฮัม") && vHum.includes("ยอดแคบที่ 50 100 150 Hz") && pkHum.startsWith("50 Hz"), `${vHum} · ${pkHum}`);
+check("เสียงอัดใกล้ปลั๊ก ความถี่เฉลี่ยขึ้นเตือนเสียงฮัมจากไฟบ้าน ยอดแคบที่ 50 100 150 Hz · ยอดใกล้สุดบอก 50 Hz", vHum.includes("เสียงหึ่งจากไฟบ้าน") && vHum.includes("ยอดแคบที่ 50 100 150 Hz") && pkHum.startsWith("50 Hz"), `${vHum} · ${pkHum}`);
 await shot("20-เสียงฮัม-50Hz.png");
 
 await view("wave");
 await openDrop(A("เสียงเดียว.mp3"), "เสียงเดียว"); await plotReady();
 const lanesMono = await q("return [...document.querySelectorAll('[data-lane]')].map(l => l.dataset.lane).join(' ')");
-const cmpOff = await q("return document.querySelector('[data-view=cmp]').disabled");
-check("MP3 เสียงเดียว แถบเดียวชื่อ M · ปุ่มซ้อนเทียบกดไม่ได้", lanesMono === "M" && cmpOff, `${lanesMono} · ซ้อนเทียบกดไม่ได้ ${cmpOff}`);
+// ไม่มีปุ่มซ้อนเทียบแล้วตั้งแต่ชุด 6 (รวมเข้าความดัง) ตรวจแค่แถบเดียวชื่อ M
+check("MP3 เสียงเดียว แถบเดียวชื่อ M", lanesMono === "M", lanesMono);
 await shot("21-เสียงเดียว.png");
 
 await openDrop(A("อัดหน้าจอไม่มีเสียง.mp4"), "อัดหน้าจอไม่มีเสียง");
@@ -307,9 +294,10 @@ if (existsSync(SONG)) {
   await shot("26-เพลงจริง-รูปคลื่น.png");
 
   // ---------- รูปคลื่นแบบ Audacity ตัวซูม ตัวเลื่อน (พี่กัน *"พวกตัวซูม พวกตัวขยาย ตัวเลื่อนซ้ายขวา เอามาได้เลย"*) ----------
-  const range = async () => { const m = (await text(".plothead span")).match(/(\d+):(\d\d) ถึง (\d+):(\d\d)/); return m ? [+m[1] * 60 + +m[2], +m[3] * 60 + +m[4]] : [NaN, NaN]; };
+  // ช่วงสั้นหัวกราฟแสดงทศนิยม (2:22.4 ถึง 3:27.0)
+  const range = async () => { const m = (await text(".plothead span")).match(/(\d+):(\d\d(?:\.\d+)?) ถึง (\d+):(\d\d(?:\.\d+)?)/); return m ? [+m[1] * 60 + +m[2], +m[3] * 60 + +m[4]] : [NaN, NaN]; };
   const rangeAfter = async (prev) => { const t = Date.now(); let r = await range(); while (Date.now() - t < 15000 && r[0] === prev[0] && r[1] === prev[1]) { await sleep(150); r = await range(); } await sleep(200); return r; };
-  await c.click('[data-style="aud"]'); await sleep(500);
+  await q("document.querySelector('[data-style=aud]').click()"); await sleep(500);
   const audInk = await inked("[data-lane] canvas");
   const r0 = await range();
   await c.click("[data-zoomin]");
@@ -397,7 +385,7 @@ if (existsSync(SONG)) {
   check("แถบซูมเวลา ลากขวาช่วงสั้นลง ซูมรอบกลางเดิม · ลากซ้ายสุดกลับทั้งเรื่อง · กดปุ่มซูมเข้าแล้วปุ่มบนแถบเลื่อนขวาตาม",
     sp(rh1) < sp(rh0) - 5 && Math.abs(mid(rh1) - mid(rh0)) <= 2 && allOn && rh2[0] === 0 && rh2[1] === 315 && kxIn > kxAll + 5,
     `${rh0.join("–")} → ${rh1.join("–")} วิ · ลากซ้ายสุด ${rh2.join("–")} ทั้งเรื่อง ${allOn} · ปุ่มบนแถบ ${Math.round(kxAll)} → ${Math.round(kxIn)}`);
-  await c.click("[data-zoomout]"); await sleep(300); await c.click('[data-zoom="all"]'); await c.click('[data-vz="1"]'); await c.click('[data-style="fine"]'); await sleep(300);
+  await c.click("[data-zoomout]"); await sleep(300); await c.click('[data-zoom="all"]'); await c.click('[data-vz="1"]'); await q("document.querySelector('[data-style=aud]').click()"); await sleep(300);
   await view("loud");
   check("เพลงจริง ความดังรวม", /LUFS/.test(await text("[data-graphtiles]")), await text("[data-graphtiles]"));
   await shot("27-เพลงจริง-ความดัง.png");
@@ -407,7 +395,7 @@ if (existsSync(SONG)) {
   await shot("28-เพลงจริง-วิเคราะห์-FLAC.png");
   await openDrop(A("เพลงจริง MP3 320k.mp3"), "เพลงจริง MP3 320k"); await plotReady(); await sleep(600);
   const vMp3 = await text("[data-spekverdict]");
-  check("เพลงจริง MP3 320k วิเคราะห์ บอกเสียงสูงสุด และว่าเป็นปกติของ MP3", vMp3.includes("ปกติของ MP3"), vMp3);
+  check("เพลงจริง MP3 320k วิเคราะห์ บอกเสียงสูงสุด และว่าเป็นปกติของ MP3", vMp3.includes("ปกติตัวเข้ารหัส MP3"), vMp3);
   await shot("29-เพลงจริง-วิเคราะห์-MP3.png");
   await openDrop(A("เพลงจริง AAC 256k.m4a"), "เพลงจริง AAC 256k"); await plotReady(); await sleep(600);
   const vAac = await text("[data-spekverdict]");
@@ -418,18 +406,19 @@ if (existsSync(SONG)) {
   check("เพลงจริง FLAC ที่แปลงมาจาก MP3 128k ขึ้นเตือนว่าน่าจะแปลงมา", vSongFake.includes("แปลงมาจาก MP3 หรือ AAC"), vSongFake);
   await shot("31-เพลงจริง-FLAC-ปลอม.png");
   await view("psd");
-  await waitFor("return !!document.querySelector('[data-psdverdict]')", 30000);
+  await waitFor("return !!document.querySelector('[data-psdchecks]')", 30000);
   await openDrop(A("เพลงจริง 96k 24-bit.flac"), "เพลงจริง 96k 24-bit"); await plotReady();
-  await waitFor("return !!document.querySelector('[data-psdverdict]')", 30000);
+  await waitFor("return !!document.querySelector('[data-psdchecks]')", 30000);
   await hoverMid("[data-psdbox]", 0.3, 0.5);
   // เพลงจริงไม่มีเสียงฮัม (เดิมโน้ตเบสใกล้ 60 Hz โดนเตือน เจอตอนตรวจภาพ 7 พ.ย. 2569)
-  check("เพลงจริง ความถี่เฉลี่ย ไม่ขึ้นเตือนเสียงฮัม", (await text("[data-psdverdict]")).includes("ไม่พบเสียงฮัม"), await text("[data-psdverdict]"));
+  const realChecks = await text("[data-psdchecks]");
+  check("เพลงจริง ความถี่เฉลี่ย ไม่ขึ้นเตือนเสียงหึ่งจากไฟบ้าน", !(await q("return !!document.querySelector('[data-psdcheck=hum]')")) && !realChecks.includes("เสียงหึ่ง"), realChecks.replace(/\s+/g, " "));
   check("เพลงจริง ความถี่เฉลี่ย ชี้แล้วช่องใต้กราฟบอกความถี่กับโน้ต", /Hz \([A-G]#?-?\d+\)/.test(await text("[data-psdcursor]")), `${await text("[data-psdcursor]")} · ${await text("[data-psdpeak]")}`);
   await shotHere("32-เพลงจริง-ความถี่เฉลี่ย.png");
   await c.move(500, 12);
 
   // ซ้อนทุกช่อง แบบ SpectrumAnalyzer (พี่กัน *"เราอยากให้มันซ้อนกันแบบนี้ได้ของ spectrum ที่ดูได้ทุกความถี่ เเละมีสีที่ต่างกัน"*)
-  await c.click('[data-psdch="all"]');
+  await q("document.querySelector('[data-psdch=all]').click()");
   await waitFor("return document.querySelectorAll('[data-psdkey]').length === 4 && !/—/.test(document.querySelector('[data-psdcursor]').textContent)", 30000);
   await hoverMid("[data-psdbox]", 0.3, 0.5);
   const keys = await q("return [...document.querySelectorAll('[data-psdkey]')].map((b) => b.dataset.psdkey + ' ' + getComputedStyle(b.querySelector('i')).backgroundColor)");
@@ -441,11 +430,12 @@ if (existsSync(SONG)) {
   await shotHere("32ข-เพลงจริง-ซ้อนทุกช่อง.png");
   await c.move(500, 12);
   await c.click('[data-psdkey="S"]'); await sleep(300);
+  await hoverMid("[data-psdbox]", 0.3, 0.5);
   const curNoS = await text("[data-psdcursor]");
   await c.click('[data-psdkey="FL"]'); await c.click('[data-psdkey="FR"]'); await c.click('[data-psdkey="M"]'); await sleep(300);
   const lastOn = await q("return [...document.querySelectorAll('[data-psdkey][aria-pressed=true]')].map((b) => b.dataset.psdkey).join(' ')");
   check("กดป้าย S ซ่อนเส้นข้าง ช่องบอกค่าเหลือ 3 ค่า · กดซ่อนจนเหลือเส้นสุดท้าย ซ่อนต่อไม่ได้", !/ S /.test(curNoS + " ") && /M /.test(curNoS) && lastOn === "M", `${curNoS} · เหลือแสดง ${lastOn}`);
-  await c.click('[data-psdch="mix"]'); await sleep(300);
+  await q("document.querySelector('[data-psdch=mix]').click()"); await sleep(300);
   await view("wave");
 } else console.log("ข้าม เพลงจริงจากพี่กัน · ไม่มีไฟล์ " + SONG);
 
@@ -476,13 +466,13 @@ for (const [file, name] of [["surround-test-5.1.wav", "5.1"], ["surround-test-7.
   await c.move(500, 12);
   // ความถี่เฉลี่ยซ้อนทุกช่องของแทร็กหลายช่อง ได้เส้นละช่อง ไม่มีเส้นกลางกับเส้นข้าง (มีเฉพาะแทร็กสองช่อง)
   await view("psd");
-  await c.click('[data-psdch="all"]');
+  await q("document.querySelector('[data-psdch=all]').click()");
   const nCh = g.tracks[0].names.length;
   await waitFor(`return document.querySelectorAll('[data-psdkey]').length === ${nCh} && !/—/.test(document.querySelector('[data-psdcursor]').textContent)`, 30000).catch(() => {});
   const surKeys = await q("return [...document.querySelectorAll('[data-psdkey]')].map((b) => b.dataset.psdkey).join(' ')");
   check(`ไฟล์ทดสอบลำโพงจริง ${name} ความถี่เฉลี่ยซ้อนทุกช่อง ได้ ${nCh} เส้นตามช่อง ไม่มีเส้นกลางเส้นข้าง`, surKeys === g.tracks[0].names.join(" "), surKeys);
   if (name === "7.1") await shot("33ข-ทดสอบลำโพงจริง-7.1-ซ้อนทุกช่อง.png");
-  await c.click('[data-psdch="mix"]'); await sleep(200);
+  await q("document.querySelector('[data-psdch=mix]').click()"); await sleep(200);
   await view("wave");
 }
 

@@ -16,6 +16,9 @@ const nav = async (label) => { await q(`[...document.querySelectorAll("button,a"
 const view = (k) => q(`document.querySelector('${G} [data-view=${k}]')?.click()`);
 const metrics = (w, h) => c.send("Emulation.setDeviceMetricsOverride", { width: w, height: h, deviceScaleFactor: 1, mobile: false });
 
+// ค่าจำของสวิตช์สีทึบใต้เส้นอาจค้างจากรอบที่ล้มกลางทาง ข้อ 20 ต้องเริ่มจากค่าตั้งต้น · ล้างแล้วโหลดหน้าใหม่ (11 พ.ย. 2569)
+await q(`setTimeout(() => { localStorage.removeItem('graph-psd-fill'); location.reload(); }, 50); return 1`);
+await sleep(1500); await waitFor(`return !!document.querySelector('.side .nav')`, 20000); await sleep(800);
 await nav("กราฟเสียง");
 await c.evaluate(`window.__TAURI_INTERNALS__.invoke('plugin:event|emit_to', { target: { kind: 'Webview', label: 'main' }, event: 'tauri://drag-drop', payload: { paths: [${JSON.stringify(SONG)}], position: { x: 700, y: 400 } } })`);
 await waitFor(`return (document.querySelector('${G} .fchip .nm')?.innerText ?? '').startsWith('เพลงทดสอบ 96k')`, 15000); await sleep(2500);

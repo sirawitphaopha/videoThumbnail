@@ -80,7 +80,7 @@ export default function RenameBox(p: { m: Movie; onDone: (m: Movie, changed: boo
         {fail ? (
           <button ref={retry} type="button" className="btn btn-ghost btn-sm" onClick={save}><IcRefresh size={15} />ลองใหม่</button>
         ) : saving ? (
-          <button type="button" className="btn btn-wait btn-sm" aria-disabled="true">กำลังเปลี่ยนชื่อ</button>
+          <button type="button" className="btn btn-wait btn-sm" aria-disabled="true">กำลังเปลี่ยนชื่อ…</button>
         ) : blocked ? (
           <button type="button" className="btn btn-wait btn-sm" aria-disabled="true" title={problem!.title}><IbTick size={15} />บันทึกชื่อ</button>
         ) : (

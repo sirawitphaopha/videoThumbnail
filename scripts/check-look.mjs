@@ -221,9 +221,11 @@ if (done) {
   await c.click("[data-qcmp]");
   const ready = await waitFor("return !!document.querySelector('[data-compare]') && !document.querySelector('[data-cmploading]') && !!document.querySelector('[data-plot]');", 120000);
   check("หน้าเทียบสองไฟล์เปิดจากไฟล์จริง", ready); await sleep(800);
-  const cmp = await q(`${R} const ag = document.querySelector('[data-compare]'), p = document.querySelector('.agb > .plot'), a = document.querySelector('.apanel'), svg = document.querySelector('.spk'); return { agScroll: ag.scrollHeight - ag.clientHeight, border: getComputedStyle(p).borderTopWidth, aRight: getComputedStyle(a).borderRightWidth, svgH: R(svg).h, wide: !!document.querySelector('[data-graphwide]'), stick: !!p.querySelector('.plotstick') };`);
+  const cmp = await q(`${R} const ag = document.querySelector('[data-compare]'), p = document.querySelector('[data-compare] .agb > .plot'), a = document.querySelector('[data-compare] .apanel'), svg = document.querySelector('[data-compare] .spk'); return { agScroll: ag.scrollHeight - ag.clientHeight, border: getComputedStyle(p).borderTopWidth, aRight: getComputedStyle(a).borderRightWidth, svgH: R(svg).h, wide: !!document.querySelector('[data-graphwide]'), stick: !!p.querySelector('.plotstick') };`);
   check("หน้าเทียบ แบ่งสองฝั่ง ไม่มีกรอบซ้อน", cmp.agScroll <= 1 && cmp.border === "0px" && cmp.aRight !== "0px", JSON.stringify(cmp));
-  check("หน้าเทียบ วงที่นั่งฟังไม่โดนตัด", cmp.svgH >= 150, `สูง ${cmp.svgH}`);
+  const nSpk = await q("return document.querySelectorAll('[data-compare] .spk .s').length;");
+  // ไฟล์ช่องเดียว แผนผังมีลำโพงตัวเดียว เตี้ยกว่าแบบหลายช่อง ตรวจว่าขึ้นครบไม่โดนตัด
+  check("หน้าเทียบ วงที่นั่งฟังไม่โดนตัด", nSpk > 1 ? cmp.svgH >= 150 : cmp.svgH >= 50, `ลำโพง ${nSpk} ตัว สูง ${cmp.svgH}`);
   check("หน้าเทียบ มีปุ่มขยาย ตรึงหัวกราฟ", cmp.wide && cmp.stick);
   for (const k of await q("return [...document.querySelectorAll('[data-cmptab]')].map((e) => e.dataset.cmptab);")) {
     await q(`document.querySelector('[data-cmptab="${k}"]').click();`); await sleep(k === "psd" ? 2500 : 900);
@@ -238,9 +240,14 @@ if (done) {
   const cw2 = await q("return [...document.querySelectorAll('.agfoot button')].map((b) => b.getBoundingClientRect().width);");
   check("หน้าเทียบ ปุ่มเปิดเล่นกว้างเท่าเดิมเมื่อเวลาเปลี่ยน", cw.join() === cw2.join(), `${cw.join(", ")} → ${cw2.join(", ")}`);
   await q(`[...document.querySelectorAll('[data-cmpzoom]')][0]?.click();`); await sleep(400);
-  await c.click(`.spk .s[aria-label^="ซ่อนช่อง"]`); await sleep(400);
-  const co = await q("return { off: document.querySelectorAll('[data-lanes] [data-off]').length, all: document.querySelectorAll('[data-lanes] [data-lane]').length };");
-  check("หน้าเทียบ ปิดลำโพงคงแถบทั้งสองไฟล์", co.off === 2 && co.all >= 4, JSON.stringify(co));
+  if (nSpk > 1) {
+    await c.click(`[data-compare] .spk .s[aria-label^="ซ่อนช่อง"]`); await sleep(400);
+    const co = await q("return { off: document.querySelectorAll('[data-compare] [data-lanes] [data-off]').length, all: document.querySelectorAll('[data-compare] [data-lanes] [data-lane]').length };");
+    check("หน้าเทียบ ปิดลำโพงคงแถบทั้งสองไฟล์", co.off === 2 && co.all >= 4, JSON.stringify(co));
+  } else {
+    const one = await q("return document.querySelector('[data-compare] .apanel')?.innerText.includes('ไฟล์นี้มีเสียงช่องเดียว');");
+    check("หน้าเทียบ ไฟล์เสียงช่องเดียว บอกว่ามีช่องเดียว ไม่มีปุ่มปิดลำโพง", one && !(await q("return !!document.querySelector('[data-compare] .spk .s[aria-label^=\"ซ่อนช่อง\"]');")));
+  }
   await shot("12-เทียบ-ปิดลำโพง");
   await q("document.querySelector('[data-cmpback]').click();"); await sleep(400);
 }

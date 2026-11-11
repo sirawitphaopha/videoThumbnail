@@ -208,7 +208,7 @@ mod tests {
         assert!(player_args(Some(Path::new(r"C:\VLC\vlc.exe")), Path::new(M), &hp).1.iter().any(|x| x.contains('#')));
         let (a, n) = player_args(Some(Path::new("C:\\K-Lite\\mpc-hc64.exe")), Path::new(M), &pairs());
         assert_eq!(s(&a), format!("{M} | /dub | D:\\เสียง\\พากย์ไทย DELAY -120ms.ac3 | /sub | E:\\ซับ\\เรื่อง.th.srt"));
-        assert_eq!(n, vec!["MPC-HC ใส่ดีเลย์จากคำสั่งไม่ได้ ตั้งเองในโปรแกรมเล่น (เสียง −120 ms · ซับ +500 ms)".to_string()]);
+        assert_eq!(n, vec!["MPC-HC ใส่ดีเลย์จากคำสั่งไม่ได้ ตั้งเองในโปรแกรมเล่น (เสียง −120 ms, ซับ +500 ms)".to_string()]);
         let (a, n) = player_args(Some(Path::new("C:\\MPC-BE x64\\mpc-be64.exe")), Path::new(M), &pairs()[..1]);
         assert!(s(&a).contains("/dub") && n[0].starts_with("MPC-BE"));
         let (a, n) = player_args(Some(Path::new("C:\\DAUM\\PotPlayer\\PotPlayerMini64.exe")), Path::new(M), &pairs());

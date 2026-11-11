@@ -34,6 +34,10 @@
 .lname { min-width: 0; display: flex; flex-direction: column; gap: 1px; }
 .lname b { font-size: 14px; line-height: 1.4; }
 .lname .fn { font-size: 12.5px; color: var(--txt2); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+/* ที่อยู่โฟลเดอร์ของรูปในตาราง บรรทัดของตัวเอง ชิดซ้าย ตัดได้ทุกตัวอักษร · ไม่จัดกระจาย (กระจายแล้วตัวอักษรถ่าง "D : \ d e v" เจอตอนอ่านภาพ 11 พ.ย. 2569) */
+.lname .lfolder { display: block; text-align: left; overflow-wrap: anywhere; }
+/* บรรทัดข้อมูลรูปในตาราง (ที่อยู่ ขนาด ปกตั้งปกนอน) เป็นข้อมูล ไม่ใช่ย่อหน้า ชิดซ้าย ไม่กระจาย (กระจายแล้ว "1 0 0 0 × 1 5 0 0 เ ป็ น ป ก ตั้ ง" ถ่าง เจอตอนอ่านภาพ 11 พ.ย. 2569) */
+.lname > .small { text-align: left; }
 .lthumb { width: 54px; height: 80px; border-radius: 6px; object-fit: cover; flex: none; box-shadow: 0 3px 8px rgba(60,25,40,.22); display: block; }
 .lthumb.wide { width: 96px; height: 54px; }
 /* ชี้รูปเล็กแล้วขึ้นรูปใหญ่ (components/HoverBig.tsx) */

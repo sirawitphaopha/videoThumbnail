@@ -146,7 +146,7 @@ type Part = { text: string; hit?: boolean };
 const thaiWords = typeof Intl !== "undefined" && "Segmenter" in Intl ? new Intl.Segmenter("th", { granularity: "word" }) : null;
 export function keepNodes(text: string, next: () => number): React.ReactNode[] {
   const parts = text.split(" ");
-  if (parts.length < 2 || !thaiWords) return [<span key={next()} className="keep">{text}</span>];
+  if (parts.length < 2 || !thaiWords) return [<span key={next()} className="nobr">{text}</span>];
   const seg = (p: string) => [...thaiWords.segment(p)].map((x) => x.segment);
   const out: React.ReactNode[] = [];
   let keep = "";
@@ -154,21 +154,23 @@ export function keepNodes(text: string, next: () => number): React.ReactNode[] {
     const w = seg(p);
     if (i === 0) { out.push(w.slice(0, -1).join("")); keep = w[w.length - 1] ?? ""; return; }
     keep += " " + (w[0] ?? "");
-    if (w.length > 1) { out.push(<span key={next()} className="keep">{keep}</span>, w.slice(1, -1).join("")); keep = w[w.length - 1]; }
+    if (w.length > 1) { out.push(<span key={next()} className="nobr">{keep}</span>, w.slice(1, -1).join("")); keep = w[w.length - 1]; }
   });
-  out.push(<span key={next()} className="keep">{keep}</span>);
+  out.push(<span key={next()} className="nobr">{keep}</span>);
   return out.filter((x) => x !== "");
 }
 
 /** คำประสมที่ตัวตัดคำของระบบแยกเป็นสองคำ แต่ห้ามตัดบรรทัดกลางคำ (เจอ "ตัว|แปลง" "ติด|ตั้ง" ตอนตรวจภาพ 11 พ.ย. 2569) · เจอคำใหม่เพิ่มที่นี่ */
-const COMPOUNDS = ["ตัวแปลง", "ติดตั้ง", "เครื่องเล่น", "ไฟล์หนัง", "ไฟล์เสียง", "โปรแกรม", "โฟลเดอร์", "บิตเรต", "ความถี่", "ความดัง", "ความยาว", "ความเร็ว", "แปลงเสียง", "ถังขยะ", "ต้นฉบับ", "ชั้นวาง", "โปสเตอร์", "หน้าตั้งค่า", "ค่าตั้งต้น", "ช่องเสียง", "ลำโพง", "เสียงพูด", "เสียงร้อง", "ปกจับคู่", "จับคู่", "ไม่เสียคุณภาพ", "เสียคุณภาพ"];
+const COMPOUNDS = ["ตัวแปลง", "ติดตั้ง", "เครื่องเล่น", "ไฟล์หนัง", "ไฟล์เสียง", "โปรแกรม", "โฟลเดอร์", "บิตเรต", "ความถี่", "ความดัง", "ความยาว", "ความเร็ว", "แปลงเสียง", "ถังขยะ", "ต้นฉบับ", "ชั้นวาง", "โปสเตอร์", "หน้าตั้งค่า", "ค่าตั้งต้น", "ช่องเสียง", "ลำโพง", "เสียงพูด", "เสียงร้อง", "ปกจับคู่", "จับคู่", "ไม่เสียคุณภาพ", "เสียคุณภาพ", "ขึ้นชั้นวาง", "ขึ้นชั้น", "ปกตั้ง", "ปกนอน", "แปลว่า", "ทั้งสองไฟล์", "รูปเดิมในเครื่อง"];
 const COMPOUND_RE = new RegExp(`(${[...COMPOUNDS].sort((a, b) => b.length - a.length).join("|")})`);
 /** คำท้ายวลีที่ห้ามตกไปขึ้นต้นบรรทัด ผูกกับคำหน้าเสมอ (เจอ "แนบมากับโปรแกรม|แล้ว" ตอนตรวจภาพหน้าตั้งค่า 11 พ.ย. 2569) */
 const GLUE = new Set(["แล้ว", "ด้วย", "เอง", "ก่อน", "ไว้", "อยู่", "ได้", "นั้น", "นี้", "กัน", "ไหม"]);
 /** คำนำที่ห้ามค้างท้ายบรรทัด ผูกกับคำถัดไปเสมอ (เจอ "ไม่|นับเป็นปก" 11 พ.ย. 2569) */
-const PREFIX = new Set(["ไม่", "การ", "ความ", "และ", "แต่", "หรือ", "ถ้า", "จะ", "ที่", "ซึ่ง", "ของ", "เมื่อ", "เพื่อ"]);
+const PREFIX = new Set(["ไม่", "การ", "ความ", "และ", "แต่", "หรือ", "ถ้า", "จะ", "ที่", "ซึ่ง", "ของ", "เมื่อ", "เพื่อ", "โดย"]);
 /** ตัวเชื่อมคำ (U+2060) ใส่ระหว่างคำที่ห้ามตัดบรรทัดตรงนั้น ตัวอักษรยังกระจายได้ ไม่เป็นกล่อง · ใช้ตอนอ่านภาพแล้วเจอวลีขาดกลาง */
-export const J = "⁠";
+export const J = "\u2060";
+/** ป้ายผังช่องเสียงบนจอ "5.1" เป็น "5.1 ch" (พี่กันสั่ง 11 พ.ย. 2569 "เติม ch สิ") · ค่าข้างในยังเป็น "5.1" เพราะฝั่ง Rust ใช้จับคู่ชื่อลำโพง */
+export const chText = (l?: string | null) => (l ? (/^\d\.\d$/.test(l) ? l + " ch" : l) : "");
 export function thaiKeep(text: string, next: () => number): React.ReactNode[] {
   // แบ่งเป็นหน่วย คำประสมเป็นหน่วยล็อก คำอื่นแยกตามพจนานุกรม แล้วผูกคำท้ายวลีเข้ากับหน่วยหน้า
   const units: { t: string; lock: boolean; pre?: boolean }[] = [];
@@ -205,7 +207,7 @@ export function Phrases({ parts, head, tail }: { parts: Part[]; head?: React.Rea
     if (bound && cur.every((x) => typeof x === "string")) out.push(<span key={k++} className="phr">{keepNodes((cur as string[]).join(""), () => k++)}</span>);
     // คำที่ไม่มีตัวไทย (ตัวอังกฤษ ตัวเลข) เป็นกล่อง ไม่ถูกถ่างตอนกระจายแบบไทย
     else if (!bound && cur.length === 1 && typeof cur[0] === "string" && /[฀-๿]/.test(cur[0])) out.push(<span key={k++} className="phr">{thaiKeep(cur[0], () => k++)}</span>);
-    else out.push(<span key={k++} className={bound || cur.every((x) => typeof x === "string" && !/[฀-๿]/.test(x)) ? "phr keep" : "phr"}>{cur}</span>);
+    else out.push(<span key={k++} className={bound || cur.every((x) => typeof x === "string" && !/[฀-๿]/.test(x)) ? "phr nobr" : "phr"}>{cur}</span>);
     cur = [];
   };
   // เว้นวรรคสองช่อง = รอยต่อประโยค แต่ละประโยคเป็นก้อน ไม่พอที่ย้ายลงทั้งก้อน ตัดบรรทัดตามความหมาย (CLAUDE.md · พี่กันสั่ง 11 พ.ย. 2569)

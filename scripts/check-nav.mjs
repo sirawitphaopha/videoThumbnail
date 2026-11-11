@@ -2,6 +2,7 @@
 // เกิดจริง 9 พ.ย. 2569 โลโก้ถูกบีบหายตอนย่อ ตัววัดเดิมดูแค่ตำแหน่ง จึงต้องวัดความกว้างด้วย
 import { mkdirSync } from "node:fs";
 import { connect, sleep } from "./lib/cdp-client.mjs";
+const PKG_VER = "v" + JSON.parse((await import("node:fs")).readFileSync("D:/movie-shelf/package.json", "utf8")).version;
 const OUT = "docs/report-2026-11-09/เมนูย่อขยาย";
 mkdirSync(OUT, { recursive: true });
 const c = await connect();
@@ -31,14 +32,14 @@ try {
   check("ตอนย่อ โลโก้กับไอคอนเมนูอยู่กลางแถบ", Math.abs(mid.โลโก้) <= 2 && Math.abs(mid.เมนู) <= 2, JSON.stringify(mid));
   const ver = () => q("const s = document.querySelector('[data-navbar]').getBoundingClientRect(), e = document.querySelector('[data-version]'), g = document.createRange(); g.selectNodeContents(e); const r = g.getBoundingClientRect(), t = document.querySelector('.navtoggle').getBoundingClientRect(); return { text: e.textContent, ในแถบ: r.left >= s.left && r.right <= s.right, ใต้ปุ่ม: r.top >= t.bottom - 1, ในจอ: r.bottom <= innerHeight, กลางห่าง: Math.round(Math.abs((r.left + r.width / 2) - (s.left + s.width / 2))) };");
   const vMini = await ver();
-  check("ตอนย่อ เลขรุ่น v0.9.0 อยู่ใต้ปุ่ม กลางแถบ ไม่ตกขอบ", vMini.text === "v0.9.0" && vMini.ในแถบ && vMini.ใต้ปุ่ม && vMini.ในจอ && vMini.กลางห่าง <= 2, JSON.stringify(vMini));
+  check("ตอนย่อ เลขรุ่น v0.9.0 อยู่ใต้ปุ่ม กลางแถบ ไม่ตกขอบ", vMini.text === PKG_VER && vMini.ในแถบ && vMini.ใต้ปุ่ม && vMini.ในจอ && vMini.กลางห่าง <= 2, JSON.stringify(vMini));
   await c.shot(`${OUT}/03-ย่อ.png`);
   await q("document.querySelector('.navtoggle').click();");
   await sleep(450);
   const back = await icons();
   check("กางกลับ ไอคอนกลับที่เดิม", back.every((n, k) => n.w === open[k].w && Math.abs(n.x - open[k].x) < 0.6));
   const vOpen = await ver();
-  check("ตอนกาง เลขรุ่นอยู่ใต้ปุ่ม", vOpen.text === "v0.9.0" && vOpen.ในแถบ && vOpen.ใต้ปุ่ม && vOpen.ในจอ, JSON.stringify(vOpen));
+  check("ตอนกาง เลขรุ่นอยู่ใต้ปุ่ม", vOpen.text === PKG_VER && vOpen.ในแถบ && vOpen.ใต้ปุ่ม && vOpen.ในจอ, JSON.stringify(vOpen));
   await c.shot(`${OUT}/01-กาง.png`);
 } finally {
   await inv("set_settings", { patch: { sidebarCollapsed: before.sidebarCollapsed } });

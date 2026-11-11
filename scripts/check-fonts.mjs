@@ -69,12 +69,12 @@ await drop([ASS]);
 await waitFor("return document.querySelectorAll('[data-font]').length >= 4", 30000);
 const r1 = await rows();
 check("เพิ่มซับ ASS ขึ้นการ์ดฟอนต์ 4 ชื่อตามที่ซับเรียก (สไตล์ 2 ตัว กับคำสั่ง \\fn 2 ตัว)", Object.keys(r1).join(",") === "Tahoma,Georgia,Comic Sans MS,ฟอนต์ไม่มีในเครื่อง", Object.keys(r1).join(" · "));
-check("Tahoma มีในไฟล์หนังแล้ว ไม่ฝังซ้ำ ติ๊กไม่ได้", r1.Tahoma?.startsWith("inmovie | Tahoma มีในไฟล์หนังแล้ว ไม่ต้องฝังซ้ำ · tahoma.ttf"), r1.Tahoma);
-check("Georgia เจอในโฟลเดอร์ fonts ข้างไฟล์ซับ แม้ชื่อไฟล์เป็น f01.ttf (อ่านชื่อจากในไฟล์) ติ๊กฝังไว้", r1.Georgia?.startsWith("on | Georgia เจอข้างไฟล์ซับ · f01.ttf"), r1.Georgia);
-check("Comic Sans MS เจอในฟอนต์ของ Windows ติ๊กฝังไว้ บอกขนาด", r1["Comic Sans MS"]?.startsWith("on | Comic Sans MS ฟอนต์ของ Windows · comic.ttf ·") && /KB|MB/.test(r1["Comic Sans MS"]), r1["Comic Sans MS"]);
-check("ฟอนต์ที่ไม่มีในเครื่อง บอกว่าไม่เจอ พร้อมวิธีเพิ่มเอง ติ๊กไม่ได้", r1["ฟอนต์ไม่มีในเครื่อง"]?.startsWith("missing | ฟอนต์ไม่มีในเครื่อง ไม่เจอในเครื่อง · ลากไฟล์ฟอนต์"), r1["ฟอนต์ไม่มีในเครื่อง"]);
+check("Tahoma มีในไฟล์หนังแล้ว ไม่ฝังซ้ำ ติ๊กไม่ได้", r1.Tahoma?.startsWith("inmovie | Tahoma มีในไฟล์หนังแล้ว ไม่ต้องฝังซ้ำ (tahoma.ttf)"), r1.Tahoma);
+check("Georgia เจอในโฟลเดอร์ fonts ข้างไฟล์ซับ แม้ชื่อไฟล์เป็น f01.ttf (อ่านชื่อจากในไฟล์) ติ๊กฝังไว้", r1.Georgia?.startsWith("on | Georgia เจอข้างไฟล์ซับ f01.ttf"), r1.Georgia);
+check("Comic Sans MS เจอในฟอนต์ของ Windows ติ๊กฝังไว้ บอกขนาด", r1["Comic Sans MS"]?.startsWith("on | Comic Sans MS ฟอนต์ของ Windows comic.ttf ขนาด") && /KB|MB/.test(r1["Comic Sans MS"]), r1["Comic Sans MS"]);
+check("ฟอนต์ที่ไม่มีในเครื่อง บอกว่าไม่เจอ พร้อมวิธีเพิ่มเอง ติ๊กไม่ได้", r1["ฟอนต์ไม่มีในเครื่อง"]?.startsWith("missing | ฟอนต์ไม่มีในเครื่อง ไม่เจอในเครื่อง ลากไฟล์ฟอนต์"), r1["ฟอนต์ไม่มีในเครื่อง"]);
 const s1 = await sum();
-check("หัวการ์ดบอกว่าฝังไปด้วย 2 ไฟล์ พร้อมขนาดรวม", s1.startsWith("ฝังไปด้วย 2 ไฟล์ ·"), s1);
+check("หัวการ์ดบอกว่าฝังไปด้วย 2 ไฟล์ พร้อมขนาดรวม", s1.startsWith("ฝังไปด้วย 2 ไฟล์ ขนาด"), s1);
 
 /* ---------- 2 ติ๊กออกแล้วติ๊กกลับ ---------- */
 await clickFont("Comic Sans MS");
@@ -92,7 +92,7 @@ check("กดแถวที่มีในหนังแล้ว ไม่เ
 await drop([EXTRA]);
 await waitFor("return !!document.querySelector('[data-font=\"Consolas\"]')", 10000);
 const r3 = await rows();
-check("ลากไฟล์ฟอนต์ consola.ttf มาวาง ขึ้นแถว Consolas เพิ่มเอง ติ๊กฝังไว้ · รวม 3 ไฟล์", r3.Consolas?.startsWith("on | Consolas เพิ่มเอง · consola.ttf") && (await sum()).startsWith("ฝังไปด้วย 3 ไฟล์"), `${r3.Consolas} · ${await sum()}`);
+check("ลากไฟล์ฟอนต์ consola.ttf มาวาง ขึ้นแถว Consolas เพิ่มเอง ติ๊กฝังไว้ · รวม 3 ไฟล์", r3.Consolas?.startsWith("on | Consolas เพิ่มเอง consola.ttf") && (await sum()).startsWith("ฝังไปด้วย 3 ไฟล์"), `${r3.Consolas} · ${await sum()}`);
 await drop([EXTRA]);
 await sleep(500);
 check("ลากไฟล์ฟอนต์เดิมซ้ำ ไม่เพิ่มแถวซ้ำ", (await q("return document.querySelectorAll('[data-font]').length")) === 5);

@@ -98,7 +98,7 @@ fn info(tools: &Path, path: &Path, track: &str) -> Result<(BrInfo, String), Stri
     let mut tracks: Vec<BrTrack> = vids.first().map(|_| BrTrack { id: "v".into(), label: "วิดีโอ".into() }).into_iter().collect();
     for (i, a) in auds.iter().enumerate() {
         let ch = a["channels"].as_u64().unwrap_or(0);
-        let lay = match ch { 1 => "1.0".to_string(), 2 => "2.0".to_string(), 6 => "5.1".to_string(), 8 => "7.1".to_string(), 0 => String::new(), n => format!("{n} ch") };
+        let lay = match ch { 1 => "1.0 ch".to_string(), 2 => "2.0 ch".to_string(), 6 => "5.1 ch".to_string(), 8 => "7.1 ch".to_string(), 0 => String::new(), n => format!("{n} ch") };
         let lang = a["tags"]["language"].as_str().filter(|l| *l != "und").unwrap_or("");
         let parts: Vec<String> = [acodec(a["codec_name"].as_str().unwrap_or("")), lay, lang.to_string()].into_iter().filter(|x| !x.is_empty()).collect();
         tracks.push(BrTrack { id: format!("a{i}"), label: format!("เสียง {} {}", i + 1, parts.join(" ")) });
@@ -302,7 +302,7 @@ mod tests {
         let (all, _) = info(&tools(), &f, "auto").unwrap();
         let ids: Vec<&str> = all.tracks.iter().map(|t| t.id.as_str()).collect();
         assert_eq!(ids, ["v", "a0", "a1"]);
-        assert_eq!(all.tracks[2].label, "เสียง 2 · FLAC 1.0 tha");
+        assert_eq!(all.tracks[2].label, "เสียง 2 FLAC 1.0 ch tha");
         let (a, sel) = info(&tools(), &f, "a1").unwrap();
         assert_eq!((a.kind.as_str(), a.track.as_str(), sel.as_str(), a.sample_rate, a.channels, a.codec.as_str(), a.lang.as_str()), ("audio", "a1", "a:1", 48000, 1, "flac", "tha"));
         assert_eq!(a.fps, 0.0);

@@ -11,7 +11,7 @@ export function fmtSize(bytes: number): string {
 
 /** ความยาวหนัง เช่น 2 ชั่วโมง 08 นาที · หนังสั้นกว่าชั่วโมง 45 นาที 12 วินาที · สั้นกว่านาที 20 วินาที */
 export function fmtDuration(sec?: number | null): string {
-  if (sec == null || !isFinite(sec)) return "ไม่ทราบ";
+  if (sec == null || !isFinite(sec)) return "—"; // ค่าที่ไม่มีขึ้นขีด ไม่ใช้คำ (พี่กันเลือก 11 พ.ย. 2569)
   const s = Math.round(sec);
   const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), r = s % 60;
   if (h > 0) return `${h} ชั่วโมง ${String(m).padStart(2, "0")} นาที`;

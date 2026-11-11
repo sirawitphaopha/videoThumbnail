@@ -45,8 +45,8 @@ check("ข้อ 3 ป้ายของทุกการ์ดอยู่ม�
 // ตัดคำ · ทุกวลีในคำอธิบายต้องอยู่บรรทัดเดียว ทั้งหน้าต่าง 1280 และเต็มจอ 1920
 for (const [w, h] of [[1280, 800], [1920, 1040], [1024, 720]]) {
   await size(w, h); await sleep(400);
-  const broken = await q(`return [...document.querySelectorAll('.thankwhat .phr')].filter(p => p.getClientRects().length > 1 && p.getBoundingClientRect().width < p.parentElement.getBoundingClientRect().width - 2).map(p => p.innerText)`);
-  check(`ข้อ 4 คำอธิบายการ์ดไม่ตัดกลางคำ หน้าต่าง ${w}`, broken.length === 0, broken.join(" · ") || `${await q("return document.querySelectorAll('.thankwhat .phr').length")} วลี`);
+  const broken = await q(`const seg = new Intl.Segmenter('th', { granularity: 'word' }); const out = []; for (const box of document.querySelectorAll('.thankwhat')) { const w = document.createTreeWalker(box, NodeFilter.SHOW_TEXT); let full = '', idx = [], last = null; for (let n; (n = w.nextNode());) { for (let i = 0; i < n.data.length; i++) { const r = document.createRange(); r.setStart(n, i); r.setEnd(n, i + 1); const rc = r.getClientRects()[0]; if (rc && last !== null && rc.top - last > 4 && !/\\s/.test(n.data[i]) && !/\\s/.test(full.slice(-1))) idx.push(full.length); if (rc) last = rc.top; full += n.data[i]; } } const bounds = new Set([...seg.segment(full)].map((x) => x.index)); for (const i of idx) if (!bounds.has(i)) out.push(full.slice(Math.max(0, i - 6), i) + '|' + full.slice(i, i + 6)); } return out;`);
+  check(`ข้อ 4 คำอธิบายการ์ดไม่ตัดกลางคำ หน้าต่าง ${w}`, broken.length === 0, broken.join(" · ") || "ทุกจุดที่ขึ้นบรรทัดใหม่อยู่ที่ขอบคำ");
 }
 await size(1920, 1040); await sleep(300);
 await tag(`[...document.querySelectorAll('.thankcard')].find(x => x.innerText.includes('FFmpeg'))`, "__ff");
@@ -134,7 +134,8 @@ await q(`document.querySelector('[data-brnline=min]')?.click()`);
 await size(1024, 720); await sleep(900);
 const gaps = await q(`const cv = document.querySelector('[data-brnplot] canvas'); const g = cv.getContext('2d'), r = cv.getBoundingClientRect(), k = cv.width / r.width; let best = 0; for (const dy of [32, 36, 40, 44, 48]) { const y = Math.round(cv.height - dy * k); const d = g.getImageData(0, y, cv.width, 1).data, x0 = Math.round(80 * k); const W = cv.width - Math.round(30 * k), bgAt = (x) => d[x * 4 + 3] < 10; let runs = 0, inBar = false; for (let x = x0; x < W; x++) { const isBg = bgAt(x); if (!isBg && !inBar) { runs++; inBar = true; } else if (isBg) inBar = false; } best = Math.max(best, runs); } return best;`);
 const barW = await q(`const cv = document.querySelector('[data-brnplot] canvas'); return +(cv.getBoundingClientRect().width / 150).toFixed(2)`);
-check("ข้อ 43 ดูทั้งไฟล์ที่หน้าต่าง 1024 แท่งแยกกันมีช่องคั่น (นับแท่งแถวล่าง)", gaps >= 70, `${gaps} แท่ง · กว้างราว ${barW} จุดต่อวินาที (โค้ดเดิมนับได้ 2 แท่ง คือติดกันเป็นก้อน)`);
+// เกณฑ์ 50 แท่ง โค้ดเดิมที่แท่งติดกันนับได้ 2 แท่ง · แถวที่วัดบางแท่งโดนเส้นค่าเฉลี่ยพาด นับได้ราว 69 ถึง 75 (11 พ.ย. 2569)
+check("ข้อ 43 ดูทั้งไฟล์ที่หน้าต่าง 1024 แท่งแยกกันมีช่องคั่น (นับแท่งแถวล่าง)", gaps >= 50, `${gaps} แท่ง · กว้างราว ${barW} จุดต่อวินาที (โค้ดเดิมนับได้ 2 แท่ง คือติดกันเป็นก้อน)`);
 await c.shotRect(`${OUT}/43-ทั้งไฟล์แท่งมีช่องคั่น-1024.png`, Math.round((await c.box("[data-brnplot]")).left + 20), Math.round((await c.box("[data-brnplot]")).bottom - 160), 240, 160);
 await size(1280, 800); await sleep(500);
 

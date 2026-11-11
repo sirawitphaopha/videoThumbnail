@@ -43,8 +43,8 @@ export function abbrer() {
         const keep = g.length > 1 || g[0].w.includes(" ");
         // ล็อกแค่คำที่ติดตัวเลขหรือไม้ยมก ไม่ล็อกทั้งวลีไทย · ก้อนที่มีวงเล็บคำเต็มล็อกทั้งก้อน (สั้น)
         // คำที่ไม่มีตัวไทย (ตัวอังกฤษ ตัวเลข) เป็นกล่อง ไม่ถูกถ่างตอนกระจายแบบไทย
-        const node = !keep ? (/[฀-๿]/.test(g[0].w) && !g[0].ab ? <span key={k++} className="phr">{thaiKeep(g[0].w, () => k++)}</span> : <span key={k++} className={/[฀-๿]/.test(g[0].w) ? "phr" : "phr keep"}>{inner}</span>)
-          : g.some((t) => t.ab) ? <span key={k++} className="phr keep">{inner}</span>
+        const node = !keep ? (/[฀-๿]/.test(g[0].w) && !g[0].ab ? <span key={k++} className="phr">{thaiKeep(g[0].w, () => k++)}</span> : <span key={k++} className={/[฀-๿]/.test(g[0].w) ? "phr" : "phr nobr"}>{inner}</span>)
+          : g.some((t) => t.ab) ? <span key={k++} className="phr nobr">{inner}</span>
           : <span key={k++} className="phr">{keepNodes(g.map((t) => t.w).join(" "), () => k++)}</span>;
         return i ? [" ", node] : [node];
       });

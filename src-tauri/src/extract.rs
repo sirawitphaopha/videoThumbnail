@@ -372,7 +372,7 @@ pub async fn extract_start(app: tauri::AppHandle, req: ExtractReq) -> Result<Ext
             // ไฟล์ที่แยกต้องอยู่ในโฟลเดอร์ที่เลือกเท่านั้น · กันชื่อที่หลุดตัวกรอง
             if target.parent() != Some(dir.as_path()) {
                 r.states[i] = "failed".into();
-                r.error = Some(format!("แยก {} ไม่สำเร็จ ชื่อไฟล์ไม่ปลอดภัย · ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ", title_of(it)));
+                r.error = Some(format!("แยก {} ไม่สำเร็จ ชื่อไฟล์ไม่ปลอดภัย  ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ", title_of(it)));
                 break;
             }
             if target.exists() {
@@ -391,14 +391,14 @@ pub async fn extract_start(app: tauri::AppHandle, req: ExtractReq) -> Result<Ext
                 let drive = dir.to_string_lossy().chars().next().unwrap_or('?').to_ascii_uppercase();
                 let gb = |b: u64| if b >= 1 << 30 { format!("{:.1} GB", b as f64 / 1073741824.0) } else { format!("{:.0} MB", b as f64 / 1048576.0) };
                 r.states[i] = "failed".into();
-                r.error = Some(format!("แยก {title} ไม่สำเร็จ พื้นที่ในไดรฟ์ {drive} ไม่พอ · ต้องการ {} แต่เหลือ {} · ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ", gb(need), gb(free)));
+                r.error = Some(format!("แยก {title} ไม่สำเร็จ พื้นที่ในไดรฟ์ {drive} ไม่พอ  ต้องการ {} แต่เหลือ {}  ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ", gb(need), gb(free)));
                 break;
             }
             let partial = PathBuf::from(format!("{}.partial", target.to_string_lossy()));
             // ที่อยู่ยาวเกินที่ Windows รับ · บอกตรงสาเหตุก่อนเริ่ม (เดิมเครื่องมือหรือตัวย้ายล้มแล้วขึ้นว่าหาไฟล์ไม่เจอ ผู้ช่วยตรวจโค้ดเจอ · TECH-REVIEW ข้อ 16)
             if partial.to_string_lossy().encode_utf16().count() > crate::rename::MAX_PATH_LEN {
                 r.states[i] = "failed".into();
-                r.error = Some(format!("แยก {} ไม่สำเร็จ ที่อยู่ไฟล์ยาวเกินไป · เลือกที่เก็บที่สั้นกว่า หรือเปลี่ยนชื่อไฟล์หนังให้สั้นลง · ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ", title_of(it)));
+                r.error = Some(format!("แยก {} ไม่สำเร็จ ที่อยู่ไฟล์ยาวเกินไป  เลือกที่เก็บที่สั้นกว่า หรือเปลี่ยนชื่อไฟล์หนังให้สั้นลง  ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ", title_of(it)));
                 break;
             }
             let _ = std::fs::remove_file(&partial);
@@ -412,7 +412,7 @@ pub async fn extract_start(app: tauri::AppHandle, req: ExtractReq) -> Result<Ext
                     r.states[i] = "cancelled".into();
                     break;
                 }
-                Err(e) => { r.states[i] = "failed".into(); r.error = Some(format!("แยก {} ไม่สำเร็จ · {e} · ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ", title_of(it))); break; }
+                Err(e) => { r.states[i] = "failed".into(); r.error = Some(format!("แยก {} ไม่สำเร็จ  {e}  ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ", title_of(it))); break; }
             }
         }
         Ok(r)

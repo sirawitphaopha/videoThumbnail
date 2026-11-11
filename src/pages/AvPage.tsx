@@ -40,10 +40,10 @@ const MAX_DELAY = 600_000;
 /** ช่องเสียงแบบที่คนเล่นเสียงเรียก 5.1 · 2.0 · 1.0 */
 function chWord(t: AvTrack): string {
   const l = (t.layout ?? "").toLowerCase();
-  if (l.startsWith("7.1")) return "7.1";
-  if (l.startsWith("5.1")) return "5.1";
-  if (l === "stereo" || t.channels === 2) return "2.0";
-  if (l === "mono" || t.channels === 1) return "1.0";
+  if (l.startsWith("7.1")) return "7.1 ch";
+  if (l.startsWith("5.1")) return "5.1 ch";
+  if (l === "stereo" || t.channels === 2) return "2.0 ch";
+  if (l === "mono" || t.channels === 1) return "1.0 ch";
   return t.channels ? `${t.channels} ช่อง` : "";
 }
 function kbps(b: number | null) { return b ? `${Math.round(b / 1000).toLocaleString("en-US")} kbps` : ""; }
@@ -52,7 +52,7 @@ function kbps(b: number | null) { return b ? `${Math.round(b / 1000).toLocaleStr
 function rowText(t: AvTrack, nth: number): { title: string; parts: string[] } {
   const ft = ftName(t.kind, t.codec, t.profile);
   if (t.kind === "video") {
-    return { title: `ภาพ ${t.width ?? "ไม่ทราบ"} × ${t.height ?? "ไม่ทราบ"}`, parts: [t.fps ? `${t.fps.toFixed(3).replace(/\.?0+$/, "")} ภาพต่อวินาที` : "", t.duration ? fmtDuration(t.duration) : ""] };
+    return { title: `ภาพ${t.width && t.height ? ` ${t.width} × ${t.height}` : ""}`, parts: [t.fps ? `${t.fps.toFixed(3).replace(/\.?0+$/, "")} ภาพต่อวินาที` : "", t.duration ? fmtDuration(t.duration) : ""] };
   }
   const where = t.inMovie ? "" : dirName(t.src);
   if (t.kind === "audio") {
@@ -428,7 +428,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
               <svg width="30" height="30" viewBox="0 0 24 24" fill="none" stroke="#e5a3bd" strokeWidth="1.8" aria-hidden="true"><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M10 9l5 3-5 3z" /></svg>
               {over ? <b>ปล่อยเมาส์เพื่อใส่ไฟล์นี้</b>
                 : movieErr ? <><b>{movieErr}</b><div><Phr>ไฟล์หนังรองรับ MKV MP4 M4V MOV AVI WebM TS M2TS MPG MPEG VOB FLV</Phr></div></>
-                : loading === "movie" ? "กำลังอ่านไฟล์หนัง"
+                : loading === "movie" ? "กำลังอ่านไฟล์หนัง…"
                 : <><b style={{ color: "var(--txt2)" }}>ลากไฟล์หนังมาวางตรงนี้</b><span>แล้วลากไฟล์เสียงหรือซับตามมาวางได้เลย</span></>}
               <button type="button" className={"btn btn-sm " + (working ? "btn-wait" : "btn-ghost")} aria-disabled={working || undefined} title={working ? BUSY : undefined}
                 onClick={async () => { if (working) return; const f = await pickFile("movie"); if (f) loadMovie(f); }}><IcFile size={15} />เลือกไฟล์จากเครื่อง</button>
@@ -465,7 +465,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
           <h3 style={{ justifyContent: "space-between" }}><span>แทร็กในไฟล์ใหม่ เรียงตามลำดับ</span>
             <span className="small" style={{ fontWeight: 400 }} data-counts>ภาพ {counts.video} เสียง {counts.audio} ซับ {counts.subs}{counts.out ? ` เอาออก ${counts.out}` : ""}</span></h3>
           <div className="tracks" role="list" aria-label="แทร็กในไฟล์ใหม่">
-            <div className="trk head" aria-hidden="true"><span></span><span></span><span>ชนิด</span><span>แทร็กและชื่อแทร็ก</span><span>ภาษา</span><span style={{ textAlign: "center" }}>หลัก</span><span>ดีเลย์ (ms)</span><span>แปลง</span><span></span></div>
+            <div className="trk head" aria-hidden="true"><span></span><span></span><span>ชนิด</span><span>แทร็กและชื่อแทร็ก</span><span>ภาษา</span><span style={{ textAlign: "center" }}>หลัก</span><span style={{ textAlign: "center", width: 118 }}>ดีเลย์ (ms)</span><span style={{ textAlign: "center" }}>แปลง</span><span></span></div>
             {tracks.map((t, i) => {
               const { title, parts } = rowText(t, nth(t));
               const ft = ftName(t.kind, t.codec, t.profile);
@@ -495,20 +495,23 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
                   {t.kind === "video" ? <span className="small">{langName(t.lang)}</span>
                     : <LangPicker value={t.lang} label={`ภาษาของ ${title}`} onChange={(v) => patch(t.key, { lang: v })} disabled={off} />}
                   <div style={{ display: "flex", justifyContent: "center" }} onClick={(e) => e.stopPropagation()}>
-                    {t.kind === "video" ? <span className="small">ไม่มี</span>
+                    {t.kind === "video" ? <span className="small">—</span>
                       : <span className={"radio" + (t.default ? " on" : "")} aria-checked={t.default} aria-label={`ตั้ง ${title} เป็น${KIND_WORD[t.kind]}หลัก`}
                         aria-disabled={!!off || !t.keep || undefined} title={off ?? (!t.keep ? "แทร็กที่เอาออกตั้งเป็นหลักไม่ได้" : undefined)}
                         {...kb(() => { if (!off && t.keep) setMain(t.key); })} role="radio" data-main style={{ cursor: off || !t.keep ? "not-allowed" : "pointer", marginTop: 0 }} />}
                   </div>
-                  {t.kind === "video" ? <span className="small">ไม่มี</span> : <DelayBox value={t.delay} onChange={(v) => setDelay(t.key, v)} label={title} off={off} />}
+                  {/* แถวภาพไม่มีดีเลย์ ขีดวางตามโครงช่องดีเลย์ ตรงตำแหน่งเลข 0 ของแถวอื่น (พี่กันสั่ง 11 พ.ย. 2569 "ตรงเลย 0") */}
+                  {t.kind === "video" ? <div className="delay trk-na" aria-label="ไม่มีดีเลย์"><i /><span className="avnum">—</span><i /></div> : <DelayBox value={t.delay} onChange={(v) => setDelay(t.key, v)} label={title} off={off} />}
                   {t.kind === "audio" ? (
                     <button type="button" className={"dd" + (off || !t.keep ? " btn-wait" : "")} aria-disabled={!!off || !t.keep || undefined} title={off ?? (!t.keep ? "แทร็กที่เอาออกไม่ต้องแปลง" : "ตั้งค่าแปลงเสียง")}
                       style={t.convert ? { border: "1px solid #9fc4ea", background: "#f3f8fe", color: "#2f6496" } : undefined}
                       onClick={(e) => { e.stopPropagation(); if (!off && t.keep) openCodec(t.key); }} data-conv>
-                      <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{t.convert ? `${convertLabel(t.convert)}${t.inMovie ? (t.pair ?? true ? " เพิ่มคู่" : " แทนที่") : ""}` : "ไม่แปลง"}</span>
+                      <span style={{ whiteSpace: "nowrap", minWidth: 0 }}>{t.convert ? `${convertLabel(t.convert)}${t.inMovie ? (t.pair ?? true ? " เพิ่มคู่" : " แทนที่") : ""}` : "ไม่แปลง"}</span>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
                     </button>
-                  ) : <span className="small">{t.kind === "subtitle" ? "ซับไม่ต้องแปลง" : "ไม่มี"}</span>}
+                  ) : t.kind === "subtitle" ? <span className="small">ซับไม่ต้องแปลง</span>
+                    /* แถวภาพไม่แปลง ขีดอยู่กึ่งกลางคำว่าไม่แปลงของแถวเสียง (พี่กันสั่ง 11 พ.ย. 2569 "อยู่กึ่งกลางคำว่า ไม่แปลง") */
+                    : <span className="trk-naword" aria-label="ไม่มีการแปลง"><i aria-hidden="true">ไม่แปลง</i><span>—</span></span>}
                   <div className="avacts" onClick={(e) => e.stopPropagation()}>
                     {t.kind === "subtitle" && (
                       <button type="button" className="ib" aria-label={`ดูซับ ${title}`} title="ดูซับ" onClick={() => setSubFor(t.key)} data-subview>
@@ -530,7 +533,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
           </div>
           <div className={"avdrop" + (over === "add" ? " over" : "")} data-drop="add" onClick={dropClick(async () => { if (working) return; const f = await pickAddFiles(); if (f.length) addFiles(f); })}>
             <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#e5a3bd" strokeWidth="1.9" aria-hidden="true"><path d="M12 5v14M5 12h14" /></svg>
-            <span>{over === "add" ? <b>ปล่อยเมาส์เพื่อเพิ่มไฟล์</b> : loading === "add" ? "กำลังอ่านไฟล์" : <><b style={{ color: "var(--txt2)" }}>ลากไฟล์เสียงหรือซับมาวางเพิ่ม</b> <Phr>รับเสียง AC-3 E-AC-3 DTS AAC FLAC WAV MP3 Opus ซับ SRT ASS VTT SUP IDX และฟอนต์ของซับ TTF OTF</Phr></>}</span>
+            <span>{over === "add" ? <b>ปล่อยเมาส์เพื่อเพิ่มไฟล์</b> : loading === "add" ? "กำลังอ่านไฟล์…" : <><b style={{ color: "var(--txt2)" }}>ลากไฟล์เสียงหรือซับมาวางเพิ่ม</b> <Phr>รับเสียง AC-3 E-AC-3 DTS AAC FLAC WAV MP3 Opus ซับ SRT ASS VTT SUP IDX และฟอนต์ของซับ TTF OTF</Phr></>}</span>
             <button type="button" className={"btn btn-sm " + (working ? "btn-wait" : "btn-ghost")} aria-disabled={working || undefined} title={working ? BUSY : undefined}
               onClick={async () => { if (working) return; const f = await pickAddFiles(); if (f.length) addFiles(f); }}><IcFile size={15} />เลือกไฟล์จากเครื่อง</button>
           </div>
@@ -541,7 +544,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
           <h3 style={{ justifyContent: "space-between" }}><span>โปสเตอร์ ใส่ในรอบเดียวกับเสียงและซับ</span><span className="small" style={{ fontWeight: 400 }}>ไม่ต้องไปรวมอีกรอบที่หน้าใส่โปสเตอร์</span></h3>
           <div className="pslots">
             {(["cover", "cover_land"] as CoverTarget[]).map((slot) => (
-              <CoverSlotBox key={slot} slot={slot} s={covers[slot]} over={over === slot} err={slotErr?.slot === slot ? slotErr.text : null} busy={working ? BUSY : loading === "cover" ? "กำลังอ่านรูป" : undefined}
+              <CoverSlotBox key={slot} slot={slot} s={covers[slot]} over={over === slot} err={slotErr?.slot === slot ? slotErr.text : null} busy={working ? BUSY : loading === "cover" ? "กำลังอ่านรูป…" : undefined}
                 onPick={async () => { const f = await pickFile("image"); if (f) openCover(f, slot); }}
                 onRecrop={() => { const n = covers[slot].neu; if (n) posterApi.open(n.info.path, slot).then((info) => setCrop({ slot, info, start: n.choice })).catch((e) => setSlotErr({ slot, text: String(e) })); }}
                 onRemove={() => { if (covers[slot].mode === "new") { mergeApi.coverDrop(slot).catch(() => {}); setSlot(slot, { mode: covers[slot].old ? "keep" : "keep", neu: null }); } else setSlot(slot, { mode: "remove" }); }}
@@ -691,7 +694,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
           {blocked && !working && <div className="hint" style={{ color: "#94680f", margin: 0 }} data-blocked>{blocked}</div>}
           <button type="button" className={"btn " + (working ? "btn-wait" : "btn-ghost")} style={{ height: 44 }} aria-disabled={working || undefined} title={working ? BUSY : undefined} onClick={clearAll}><IbTrash size={15} />ล้างทั้งหมด</button>
           <button type="button" className={"btn " + (blocked || working ? "btn-wait" : "btn-main")} style={{ height: 44, padding: "0 26px", fontSize: 15 }}
-            aria-disabled={!!blocked || working || undefined} title={blocked ?? undefined} onClick={() => pressStart()} data-start><Keep icon={<IcMix size={15} />} all={["กำลังรวม", "รวมเป็น MP4", "รวมเข้าไฟล์หนัง"]}>{working ? "กำลังรวม" : output === "mp4" ? "รวมเป็น MP4" : "รวมเข้าไฟล์หนัง"}</Keep></button>
+            aria-disabled={!!blocked || working || undefined} title={blocked ?? undefined} onClick={() => pressStart()} data-start><Keep icon={<IcMix size={15} />} all={["กำลังรวม…", "รวมเป็น MP4", "รวมเข้าไฟล์หนัง"]}>{working ? "กำลังรวม…" : output === "mp4" ? "รวมเป็น MP4" : "รวมเข้าไฟล์หนัง"}</Keep></button>
           </>)}
         </div>
       </div>
@@ -706,7 +709,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
         <DelayDialog movie={{ path: movie.path, duration: movie.duration ?? null }} refTrack={refAudio} track={dt} onClose={() => setDelayFor(null)}
           onApply={(d) => { setDelay(dt.key, d); setDelayFor(null); }}
           onSpeed={(pair, d) => { setDelay(dt.key, d); setDelayFor(null); setCodecSpeed(pair.join(">")); openCodec(dt.key); }} />) : null; })()}
-      {loading === "cover" && <LoadPill text="กำลังอ่านรูป" />}
+      {loading === "cover" && <LoadPill text="กำลังอ่านรูป…" />}
       {crop && (
         <CropDialog key={crop.slot + crop.info.path} info={crop.info} start={crop.start} target={crop.slot} defaultFormat={(settings?.posterFormat ?? "jpg") as "jpg" | "png"} defaultQuality={settings?.jpgQuality ?? 90}
           onCancel={() => setCrop(null)}
@@ -719,7 +722,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
         actions={<><button type="button" className="btn btn-ghost btn-sm" onClick={() => setAskVtt(false)}><IbBack size={15} />ย้อนกลับ</button>
           <button type="button" className="btn btn-main btn-sm" onClick={() => { setAskVtt(false); pressStart(true); }} data-vtt-ok><IcMix size={15} />แปลงแล้วรวมต่อ</button></>}>
         <div style={{ fontSize: 14, lineHeight: 1.6 }} data-vtt-dialog>
-          {vtts.map((t) => <div key={t.key}><b style={{ overflowWrap: "anywhere" }}>{baseName(t.src)}</b> เป็น SRT</div>)}
+          {vtts.map((t) => <div key={t.key}><b style={{ overflowWrap: "anywhere" }}>{baseName(t.src)}</b> → SRT</div>)}
           <div style={{ marginTop: 6 }}><Phr>MKV เก็บซับ VTT ได้ แต่โปรแกรมเล่นหลายตัว (mpv และตัวที่ใช้ ffmpeg) ยังอ่านไม่ได้ ซับจะไม่ขึ้น</Phr></div>
           <div><Phr>แปลงเป็น SRT แล้วข้อความกับเวลาเหมือนเดิม หายแค่ตำแหน่งบนจอที่ VTT ตั้งไว้ และไฟล์ VTT เดิมในเครื่องไม่ถูกแก้</Phr></div>
         </div>
@@ -796,7 +799,7 @@ function RunCard(p: { run: ReturnType<typeof getAv>["run"]; pct: number; runMovi
   if (run.state === "working") {
     return (
       <>
-        <div style={{ fontSize: 14 }}>{run.progress?.phase ?? "กำลังเริ่ม"}</div>
+        <div style={{ fontSize: 14 }}>{run.progress?.phase ?? "กำลังเริ่ม…"}</div>
         <div className="bar" role="progressbar" aria-valuenow={p.pct} aria-valuemin={0} aria-valuemax={100}><i style={{ width: `${p.pct}%` }} /></div>
         <div className="small">{p.pct}%{run.progress?.eta != null && run.progress.eta > 0 ? <> เหลือราว <span className="nw">{fmtEta(run.progress.eta)}</span></> : null}
           {run.progress?.next ? <><br />ขั้นถัดไป {run.progress.next}</> : null}</div>

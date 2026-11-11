@@ -423,13 +423,13 @@ export default function ImageViewer({
 
       {/* ลูกศรเลื่อนรูป */}
       {hasPrev && (
-        <button onClick={(e) => { stop(e); onPrev?.(); }} title="ก่อนหน้า (ปุ่มลูกศรซ้าย)"
+        <button onClick={(e) => { stop(e); onPrev?.(); }} title="ก่อนหน้า (←)"
           style={{ position: 'fixed', top: '50%', left: '16px', transform: 'translateY(-50%)', width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(17,24,39,0.7)', color: '#fff', border: 'none', cursor: 'pointer', opacity: open ? 1 : 0, transition: 'opacity 0.3s', zIndex: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <ChevronLeft size={20} />
         </button>
       )}
       {hasNext && (
-        <button onClick={(e) => { stop(e); onNext?.(); }} title="ถัดไป (ปุ่มลูกศรขวา)"
+        <button onClick={(e) => { stop(e); onNext?.(); }} title="ถัดไป (→)"
           style={{ position: 'fixed', top: '50%', right: '16px', transform: 'translateY(-50%)', width: '48px', height: '48px', borderRadius: '50%', background: 'rgba(17,24,39,0.7)', color: '#fff', border: 'none', cursor: 'pointer', opacity: open ? 1 : 0, transition: 'opacity 0.3s', zIndex: 8, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
           <ChevronRight size={20} />
         </button>
@@ -461,7 +461,7 @@ export default function ImageViewer({
             )}
           </div>
         )}
-        <button onClick={(e) => { stop(e); toggleMenu('help'); }} title="วิธีใช้และคีย์ลัด" className="ivw-btn"
+        <button onClick={(e) => { stop(e); toggleMenu('help'); }} title="วิธีใช้ / คีย์ลัด" className="ivw-btn"
           style={{ ...bar, background: showHelp ? C.main : 'rgba(255,255,255,0.12)' }}><HelpCircle size={16} /></button>
         <button onClick={(e) => { stop(e); dismissPopups(); setShowInfo((v) => !v); }} title="ข้อมูลรูป" className="ivw-btn"
           style={{ ...bar, background: showInfo ? C.main : 'rgba(255,255,255,0.12)' }}><Info size={16} /></button>
@@ -474,7 +474,7 @@ export default function ImageViewer({
           <p style={{ margin: '0 0 8px', fontWeight: 700, fontSize: '13px', color: '#fff', display: 'flex', alignItems: 'center', gap: '6px' }}>
             <Keyboard size={14} style={{ color: C.soft }} />วิธีใช้ / คีย์ลัด
           </p>
-          {([['เลื่อนล้อเมาส์', 'ซูมเข้าออกตามจุดเมาส์'], ['ดับเบิลคลิก', 'ซูมเข้าออกที่จุดนั้น'], ['ลากเมาส์', 'เลื่อนรูป'], ['สองนิ้ว', 'ซูม (จอสัมผัส)'], ['+ −', 'ซูมเข้าหรือออก'], ['0', 'พอดีหน้าจอ'], ['← →', 'รูปก่อนหน้าหรือถัดไป'], ['Esc', 'ปิด']] as const).map(([k, v]) => (
+          {([['เลื่อนล้อเมาส์', 'ซูมเข้าออกตามจุดเมาส์'], ['ดับเบิลคลิก', 'ซูมเข้าออกที่จุดนั้น'], ['ลากเมาส์', 'เลื่อนรูป'], ['สองนิ้ว', 'ซูม (จอสัมผัส)'], ['+ / −', 'ซูมเข้า / ออก'], ['0', 'พอดีหน้าจอ'], ['← / →', 'รูปก่อนหน้า / ถัดไป'], ['Esc', 'ปิด']] as const).map(([k, v]) => (
             <div key={k} style={{ display: 'flex', justifyContent: 'space-between', gap: '10px', padding: '4px 0', fontSize: '12px' }}>
               <span style={{ color: C.soft, fontWeight: 700, flexShrink: 0 }}>{k}</span>
               <span style={{ color: '#cbd5e1', textAlign: 'right' }}>{v}</span>

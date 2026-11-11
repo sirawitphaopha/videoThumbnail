@@ -317,7 +317,7 @@ await c.key("End"); await c.key("ArrowLeft"); await c.key("ArrowLeft"); await sl
 await c.evaluate("document.querySelector('[data-use]').click()"); await sleep(1200);
 s = await page();
 await shot("10-ใส่รูปแล้ว.png", ".main");
-check("กดใช้รูปนี้ การ์ด 2 ขึ้นรูปที่จะแนบ 1000 × 1500 · บอกว่ารูปไม่ใช่ 2 : 3 · การ์ด 3 ขึ้นชื่อไฟล์ใหม่ · ปุ่มกดได้", !s.crop && s.poster.includes("1000 × 1500 px") && s.poster.includes("ภาพแนวนอน 16 : 9") && s.newName === "The Last Orchard (2022).mkv" && !s.startWait && s.start === "ครอบเป็น MKV พร้อมโปสเตอร์", s.start);
+check("กดใช้รูปนี้ การ์ด 2 ขึ้นรูปที่จะแนบ 1000 × 1500 · บอกว่ารูปไม่ใช่ 2 : 3 · การ์ด 3 ขึ้นชื่อไฟล์ใหม่ · ปุ่มกดได้", !s.crop && s.poster.includes("1000 × 1500 px") && s.poster.includes("ครอป") && !s.poster.includes("รูปนี้เป็นภาพแนวนอน") && s.newName === "The Last Orchard (2022).mkv" && !s.startWait && s.start === "ครอบเป็น MKV พร้อมโปสเตอร์", s.start);
 
 // รูปเล็กเกิน
 await drop(join(IMG, "small.jpg"), "poster"); await sleep(1800);
@@ -366,7 +366,7 @@ s = await page();
 const runVisible = await q("const r = document.querySelector('[data-run]').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight - 8");
 await shot("14-ครอบเสร็จ.png");
 check("ครอบเสร็จแล้วการ์ดผลอยู่ในจอเอง ไม่ต้องเลื่อนหา", runVisible);
-check("กดครอบแล้วขึ้นกำลังทำ แล้วจบด้วย ครอบเสร็จ ไฟล์ใหม่ตรวจผ่าน ภาพ เสียง ซับ ครบเท่าต้นทาง ไฟล์เดิมย้ายไปที่โฟลเดอร์ไฟล์เดิม", sawWorking && s.run.includes("ครอบเสร็จ ไฟล์ใหม่ตรวจผ่าน") && s.run.includes("ภาพ 1 · เสียง 1 · ซับ 1") && s.run.includes("ครบเท่าต้นทาง") && s.run.includes("ไฟล์เดิมย้ายไปที่ " + DIR + "\\ไฟล์เดิม"), s.run.split("\n").join(" / "));
+check("กดครอบแล้วขึ้นกำลังทำ แล้วจบด้วย ครอบเสร็จ ไฟล์ใหม่ตรวจผ่าน ภาพ เสียง ซับ ครบเท่าต้นทาง ไฟล์เดิมย้ายไปที่โฟลเดอร์ไฟล์เดิม", sawWorking && s.run.includes("ครอบเสร็จ ไฟล์ใหม่ตรวจผ่าน") && s.run.includes("ภาพ 1 เสียง 1 ซับ 1") && s.run.includes("ครบเท่าต้นทาง") && s.run.includes("ไฟล์เดิมย้ายไปที่ " + DIR + "\\ไฟล์เดิม"), s.run.split("\n").join(" / "));
 // ครอบเสร็จ ช่องไฟล์หนังว่าง รูปยังอยู่ · การ์ดหน้าตาที่จะได้ต้องบอกเฉพาะของที่ขาด ไม่บอกให้ใส่รูปซ้ำ
 check("ครอบเสร็จแล้ว การ์ดหน้าตาที่จะได้บอก ใส่ไฟล์หนังก่อน ไม่บอกให้ใส่รูปที่ใส่แล้ว", s.result.includes("ใส่ไฟล์หนังก่อน") && !s.result.includes("กับรูปโปสเตอร์"), s.result.split("\n").join(" / "));
 
@@ -381,7 +381,7 @@ await shot("15-ลบไฟล์เดิมขั้นที่1.png", ".dlg"
 await c.evaluate("[...document.querySelectorAll('.dlg button')].find(b => b.innerText === 'ถัดไป').click()"); await sleep(300);
 const step2 = await q("return { h: document.querySelector('.dlg h4')?.innerText ?? '', first: document.querySelector('.dlg .acts button')?.innerText, focus: document.activeElement?.innerText }");
 await shot("16-ลบไฟล์เดิมขั้นที่2.png", ".dlg");
-check("เลือกลบไฟล์เดิมแล้วกดเริ่ม ถามยืนยัน 2 ขั้น ขั้นที่ 2 ปุ่มยืนยันลบอยู่ซ้าย โฟกัสแรกอยู่ที่ย้อนกลับ", step1 === "ลบไฟล์เดิมหลังตรวจผ่าน · ขั้นที่ 1 จาก 2" && step2.h === "ยืนยันอีกครั้ง · ขั้นที่ 2 จาก 2" && step2.first === "ยืนยันลบ" && step2.focus === "ย้อนกลับ", JSON.stringify(step2));
+check("เลือกลบไฟล์เดิมแล้วกดเริ่ม ถามยืนยัน 2 ขั้น ขั้นที่ 2 ปุ่มยืนยันลบอยู่ซ้าย โฟกัสแรกอยู่ที่ย้อนกลับ", step1 === "ลบไฟล์เดิมหลังตรวจผ่าน (ขั้นที่ 1 จาก 2)" && step2.h === "ยืนยันอีกครั้ง (ขั้นที่ 2 จาก 2)" && step2.first === "ยืนยันลบ" && step2.focus === "ย้อนกลับ", JSON.stringify(step2));
 await c.evaluate("[...document.querySelectorAll('.dlg button')].find(b => b.innerText === 'ย้อนกลับ').click()"); await sleep(200);
 await c.evaluate("[...document.querySelectorAll('.dlg button')].find(b => b.innerText === 'ยกเลิก').click()"); await sleep(200);
 check("กดยกเลิกในหน้าต่างยืนยัน ไม่เริ่มงาน ไฟล์ไม่ถูกแตะ", !(await q("return !!document.querySelector('.dlg')")) && (await page()).run === "" && existsSync(join(DIR, "ไฟล์เดิม", "บ้านริมคลอง (2017).ts")));
@@ -406,7 +406,7 @@ await sleep(300);
 const stopped = (await page()).run;
 await shot("19-หยุดแล้ว.png", ".main");
 check("กำลังครอบบอกเปอร์เซ็นต์ เวลาที่เหลือ ขั้นถัดไป ปุ่มหยุด · กดหยุดแล้วถามก่อน · หยุดแล้วบอกไฟล์ที่ทำค้างถูกลบ ไฟล์เดิมไม่ถูกแตะ",
-  /กำลังครอบเป็น MKV/.test(prog) && /\d+%/.test(prog) && prog.includes("ขั้นถัดไป ตรวจไฟล์ใหม่") && ask.includes("ยืนยันหยุดครอบไฟล์") && ask.includes("จะถูกลบทิ้ง") && stopped.includes("หยุดแล้ว") && stopped.includes("ไฟล์ใหม่ที่ทำค้างถูกลบแล้ว") && partials().length === 0,
+  /กำลังครอบเป็น MKV/.test(prog) && /\d+%/.test(prog) && prog.includes("ขั้นถัดไปคือตรวจไฟล์ใหม่") && ask.includes("ยืนยันหยุดครอบไฟล์") && ask.includes("จะถูกลบทิ้ง") && stopped.includes("หยุดแล้ว") && stopped.includes("ไฟล์ใหม่ที่ทำค้างถูกลบแล้ว") && partials().length === 0,
   prog.split("\n").join(" / "));
 await c.evaluate("[...document.querySelectorAll('.chk')].find(e => e.innerText.startsWith('ตรวจไฟล์ต้นทางก่อนครอบ')).click()"); await sleep(300);
 
@@ -426,7 +426,7 @@ const retryAsk = await q("return document.querySelector('.dlg h4')?.innerText ??
 const retryRun = await q("return document.querySelector('[data-run]')?.dataset.run");
 await c.evaluate("[...document.querySelectorAll('.dlg button')].find(b => b.innerText === 'ยกเลิก')?.click()"); await sleep(200);
 await c.evaluate("[...document.querySelectorAll('.chk')].find(e => e.innerText.startsWith('เก็บไฟล์เดิมไว้')).click()"); await sleep(200);
-check("ตั้งลบไฟล์เดิมระหว่างการ์ดแดงค้าง แล้วกดลองใหม่ ถามยืนยันขั้นที่ 1 ก่อน ยังไม่เริ่มงาน", retryAsk === "ลบไฟล์เดิมหลังตรวจผ่าน · ขั้นที่ 1 จาก 2" && retryRun === "failed", `${retryAsk} · ${retryRun}`);
+check("ตั้งลบไฟล์เดิมระหว่างการ์ดแดงค้าง แล้วกดลองใหม่ ถามยืนยันขั้นที่ 1 ก่อน ยังไม่เริ่มงาน", retryAsk === "ลบไฟล์เดิมหลังตรวจผ่าน (ขั้นที่ 1 จาก 2)" && retryRun === "failed", `${retryAsk} · ${retryRun}`);
 
 // มาจากปุ่มเปลี่ยนโปสเตอร์บนชั้นวาง · MKV ที่มีปกแล้ว
 await c.evaluate(`[...document.querySelectorAll('[data-navbar] button')].find(b => b.innerText.includes('ชั้นวางหนัง')).click()`); await sleep(500);

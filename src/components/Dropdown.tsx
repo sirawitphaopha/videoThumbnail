@@ -95,7 +95,8 @@ export default function Dropdown<T extends string>(p: {
         style={{ width: p.stretch ? "100%" : undefined }}
       >
         {p.stretch ? (
-          <span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap", minWidth: 0, flex: "1 1 auto" }}>{text}</span>
+          // ตัดที่ขอบปุ่มที่เดียว ตัวหนังสือห้ามตัดเอง ไม่งั้นหัว ไ ใ โ ที่ยื่นซ้ายโดนเฉือน (สกิล form-input ⑧ · พี่กันทัก 11 พ.ย. 2569 "หัว ไ ขาด")
+          <span style={{ whiteSpace: "nowrap", minWidth: 0, flex: "1 1 auto" }}>{text}</span>
         ) : (
           <span style={{ display: "grid", minWidth: 0 }}>
             {shown.map((s) => (

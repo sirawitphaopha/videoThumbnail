@@ -85,7 +85,8 @@ const st0 = await stateNow();
 for (const r of st0.rows) await inv("link_row_update", { id: r.id, patch: { skip: true } });
 for (const f of [...st0.imageFolders, ...st0.loose]) await inv("link_remove_images", { path: f });
 await c.evaluate("location.reload()");
-await waitFor("return !!document.querySelector('.side .nav')");
+await sleep(1500);
+await waitFor("return [...document.querySelectorAll('.side .nav')].some((b) => b.innerText.includes('จับคู่ปก'))");
 await sleep(600);
 
 /* ---------- หน้า 1 ลากโฟลเดอร์ ---------- */
@@ -118,14 +119,14 @@ await c.evaluate(`${rowSel("ฝนสุดท้ายของฤดู (2019)
 await waitFor(`return ${rowSel("ฝนสุดท้ายของฤดู (2019)")}.querySelector('[data-link-chosen] img')?.naturalWidth > 0`, 20000);
 check("ภาพเล็กของรูปข้างไฟล์หนังขึ้นด้วย", await q(`return ${rowSel("ฝนสุดท้ายของฤดู (2019)")}.querySelector('[data-link-chosen] img')?.naturalWidth > 0`));
 const countText = () => q("return document.querySelector('[data-link-count]')?.innerText ?? ''");
-check("ท้ายตาราง รอยืนยัน 9 ติ๊กไว้ 8 แถวที่ไม่มีปีไม่ติ๊กให้", /รอยืนยัน 9 คู่ ติ๊กไว้ 8 คู่/.test(await countText()), await countText());
+check("ท้ายตาราง รอยืนยัน 9 ติ๊กไว้ 8 แถวที่ไม่มีปีไม่ติ๊กให้", /รอยืนยัน 9 คู่ และติ๊กไว้ 8 คู่/.test(await countText()), await countText());
 check("ปุ่มยืนยันทั้งหมดบอกจำนวน", await q("return document.querySelector('[data-link-confirm-all]').innerText === 'ยืนยันทั้งหมด 9 คู่'"));
 check("เมนูซ้ายขึ้นเลขคู่ที่รอ", await q("return [...document.querySelectorAll('.side .nav')].find(b => b.innerText.includes('จับคู่ปก')).innerText.includes('9')"));
 
 // ติ๊กออก
 await clickIn("Tidal (2021)", "[data-link-tick]");
 await waitFor(`return /ติ๊กไว้ 8 คู่/.test(document.querySelector('[data-link-count]')?.innerText)`);
-check("เอาติ๊กออก ที่ติ๊กไว้เหลือ 8 ทั้งหมดยังนับ 9", /รอยืนยัน 9 คู่ ติ๊กไว้ 8 คู่/.test(await countText()));
+check("เอาติ๊กออก ที่ติ๊กไว้เหลือ 8 ทั้งหมดยังนับ 9", /รอยืนยัน 9 คู่ และติ๊กไว้ 8 คู่/.test(await countText()));
 check("สองปุ่มนับต่างกัน", await q("return document.querySelector('[data-link-confirm-ticked]').innerText.includes('8') && document.querySelector('[data-link-confirm-all]').innerText.includes('9')"));
 
 // แถวไม่แน่ใจ กดเลือกรูป
@@ -267,7 +268,7 @@ await c.evaluate(`${MT("Paper Kites (2012)")}.click()`);
 await waitFor(sentOf("Paper Kites (2012)"));
 const pk1 = await rowNow("Paper Kites (2012)");
 check("กดรูปแล้วกดหนัง 2 คลิก คู่ไปรอที่ตาราง ยังไม่บันทึก", pk1?.status === "manual" && pk1?.tall?.name === "IMG_2031.jpg" && pk1?.reason === "จับคู่เองบนกระดาน" && !existsSync(moviePoster("Paper.Kites.2012")));
-check("แถวสีฟ้าบอกส่งไปรอยืนยัน มีปุ่มย้อน", await q(`const m = ${MT("Paper Kites (2012)")}; return m.textContent.includes('ส่งไปรอยืนยันที่ตารางแล้ว') && !!m.querySelector('[data-board-undo]')`));
+check("แถวสีฟ้าบอกส่งไปรอยืนยัน มีปุ่มย้อน", await q(`const m = ${MT("Paper Kites (2012)")}; return m.textContent.includes('ไปรอยืนยันที่ตารางแล้ว') && !!m.querySelector('[data-board-undo]')`));
 await waitFor(`return !${IM("IMG_2031.jpg")}`);
 check("รูปที่ใช้แล้วหายจากแผงรูป", await q(`return !${IM("IMG_2031.jpg")}`));
 await c.evaluate(`${MT("Paper Kites (2012)")}.querySelector('[data-board-undo]').click()`);
@@ -377,7 +378,7 @@ await closeToasts();
 await clickIn("Paper Kites (2012)", "[data-link-crop]");
 await waitFor("return !!document.querySelector('[data-crop] .cropbox')");
 check("หน้าครอปมีปรับเอียงกับช่องปก ไม่มีปรับสี ไม่มีเลือกชนิดไฟล์", await q("const d = document.querySelector('[data-crop]'); const t = d.closest('.dlg').textContent; return !!d.querySelector('[data-tilt]') && t.includes('ปกนอน 16 : 9') && !t.includes('ไฟล์รูปที่ได้') && !t.includes('ความสว่าง')"));
-check("หัวหน้าต่างบอกชื่อหนัง ปุ่มเขียนว่าใช้ค่านี้ เพราะยังไม่เขียนไฟล์", await q("const d = document.querySelector('[data-crop]').closest('.dlg'); return d.textContent.includes('ครอปรูปปก · Paper Kites (2012)') && document.querySelector('[data-use]').innerText.trim() === 'ใช้ค่านี้'"));
+check("หัวหน้าต่างบอกชื่อหนัง ปุ่มเขียนว่าใช้ค่านี้ เพราะยังไม่เขียนไฟล์", await q("const d = document.querySelector('[data-crop]').closest('.dlg'); return d.textContent.includes('ครอปรูปปกของ Paper Kites (2012)') && document.querySelector('[data-use]').innerText.trim() === 'ใช้ค่านี้'"));
 check("ไม่มีตารางคุณภาพ ไม่มีตัวอย่างไอคอน Windows เพราะปกจับคู่ไม่เปลี่ยนไอคอนไฟล์", await q("const d = document.querySelector('[data-crop]'); return !d.querySelector('[data-qtable]') && d.querySelectorAll('[data-previews] .pv').length === 2 && !d.textContent.includes('ไอคอน Windows')"));
 // มุมจับต้องหน้าตาเดียวกันทั้ง 4 มุม · เดิมมุมซ้ายล่างเป็นวงกลมขาว ชื่อคลาส sw ชนปุ่มเลือกธีมหน้ากราฟเสียง
 const handlesSame = "const h = [...document.querySelectorAll('[data-crop] .hd')].map((e) => { const r = e.getBoundingClientRect(); return [Math.round(r.width), Math.round(r.height), getComputedStyle(e).borderRadius].join(); }); return h.length === 4 && new Set(h).size === 1 && h[0].endsWith('3px')";
@@ -588,7 +589,7 @@ await pickBook("Paper.Kites");
 const pkTall = moviePoster("Paper.Kites.2012"), pkWide = join(MOV, "Paper.Kites.2012-landscape.jpg");
 await c.evaluate("document.querySelector('[data-link-remove]').click()");
 await waitFor("return !!document.querySelector('[data-link-remove-ok]')");
-check("ถามก่อนเอาออก บอกชื่อไฟล์ที่ลงถังขยะ และรูปต้นฉบับไม่โดน", await q("const t = document.querySelector('[data-link-remove-ok]').closest('.dlg').textContent; return t.includes('Paper.Kites.2012-poster.jpg') && t.includes('Paper.Kites.2012-landscape.jpg') && t.includes('ถังขยะ') && t.includes('รูปต้นฉบับกับไฟล์หนังไม่ถูกแตะ')"));
+check("ถามก่อนเอาออก บอกชื่อไฟล์ที่ลงถังขยะ และรูปต้นฉบับไม่โดน", await q("const t = document.querySelector('[data-link-remove-ok]').closest('.dlg').textContent; return t.includes('Paper.Kites.2012-poster.jpg') && t.includes('Paper.Kites.2012-landscape.jpg') && t.includes('ถังขยะ') && t.includes('รูปต้นฉบับและไฟล์หนังไม่ถูกแตะ')"));
 await shot("13-เอาปกออก.png", ".dlg", 900);
 await c.evaluate("document.querySelector('[data-link-remove-ok]').click()");
 await waitFor("return !document.querySelector('[data-link-card]')");

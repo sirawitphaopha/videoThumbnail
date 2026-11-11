@@ -375,7 +375,7 @@ mod tests {
           ]}"#).unwrap();
         let p = parse(&j);
         assert_eq!(p.duration, Some(7680.5));
-        assert_eq!(p.video.as_deref(), Some("3840 × 2160 · H.265"));
+        assert_eq!(p.video.as_deref(), Some("3840 × 2160 H.265"));
         assert_eq!(p.video_short.as_deref(), Some("HEVC 2160p HDR"));
         assert_eq!(p.audio[0], Track { lang: Some("อังกฤษ".into()), codec: "TrueHD".into(), layout: Some("7.1".into()) });
         assert_eq!(p.audio[1].codec, "AC-3");

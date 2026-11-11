@@ -177,8 +177,8 @@ await shot("08-โปรแกรมเล่นเลือกเอง.png", c
 await nav("ชั้นวางหนัง"); await sleep(500);
 await c.book("Harbor Lights (2021)"); await sleep(400);
 await c.evaluate("[...document.querySelectorAll('.detail .btn')].find((b) => b.innerText.includes('เปิดเล่น')).click()");
-const back = await waitFor("return !!document.querySelector('[data-settings]')", 8000);
-const toastTxt = await text(".toast");
+const back = await waitFor("return [...document.querySelectorAll('.toast')].some((t) => t.innerText.includes('หาโปรแกรมเล่นหนัง')) && document.querySelector('[data-settings]')?.offsetParent != null", 8000);
+const toastTxt = await q("return [...document.querySelectorAll('.toast')].map((t) => t.innerText).find((t) => t.includes('หาโปรแกรมเล่นหนัง')) ?? ''");
 check("โปรแกรมเล่นที่เลือกไว้หาไม่เจอ กดเปิดเล่นแล้วบอก และพากลับมาหน้าตั้งค่า", back && toastTxt.includes("หาโปรแกรมเล่นหนัง"), toastTxt);
 await inv("set_settings", { patch: { playerPath: "" } });
 
@@ -186,7 +186,7 @@ await inv("set_settings", { patch: { playerPath: "" } });
 await nav("ตั้งค่า"); await waitFor("return !!document.querySelector('[data-clearcache]')", 10000);
 await c.setNav("graph"); await c.click("[data-clearcache]"); await sleep(600);
 const cache = await text("[data-graphcache]");
-check("การ์ดกราฟเสียง กดล้าง ผลอ่านคลื่นที่เก็บไว้เหลือ 0 ไฟล์", cache.startsWith("0 ไฟล์"), cache);
+check("การ์ดกราฟเสียง กดล้าง ผลอ่านคลื่นที่เก็บไว้เหลือ 0 ไฟล์", cache.includes("เก็บไว้ 0 ไฟล์"), cache);
 
 if (BUILT) {
   const csp = await q("return window.__csp ?? null");

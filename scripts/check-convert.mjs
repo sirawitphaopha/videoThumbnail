@@ -243,7 +243,7 @@ const same = ORDER.every((n) => sha(F(n)) === h0[n]);
 check("ไฟล์เดิมทุกไฟล์ hash เท่าก่อนแปลง · ไม่มีไฟล์ .partial ค้าง", same && leftovers().length === 0, leftovers().join(","));
 const res = await q(`return ${row("เพลงทดสอบ 96k.flac")}.querySelector('[data-qresult]').innerText.replace(/\\s+/g, ' ')`);
 const st = await q(`return ${row("เพลงทดสอบ 96k.flac")}.querySelector('[data-qdone]').innerText.replace(/\\s+/g, ' ')`);
-check("แถวที่เสร็จบอกขนาดใหม่ เล็กลงกี่เปอร์เซ็นต์ ข้อมูลเพลงกี่ช่อง รูปปก ตัวแปลงกับรุ่น", st.includes("เสร็จ ·") && st.includes("เล็กลง") && res.includes("ข้อมูลเพลง 5 ช่องติดไป") && res.includes("รูปปกติดไป") && res.includes("opusenc"), `${st} · ${res}`);
+check("แถวที่เสร็จบอกขนาดใหม่ เล็กลงกี่เปอร์เซ็นต์ ข้อมูลเพลงกี่ช่อง รูปปก ตัวแปลงกับรุ่น", st.startsWith("เสร็จ") && st.includes("เล็กลง") && res.includes("ข้อมูลเพลง 5 ช่องติดไปด้วยพร้อมรูปปก") && res.includes("opusenc"), `${st} · ${res}`);
 const wvRes = await q(`return ${row("พากย์ไทย 5.1.ac3")}.querySelector('[data-qresult]').innerText.replace(/\\s+/g, ' ')`);
 check("ไฟล์ที่ไม่มีข้อมูลเพลง บอกว่าไม่มี ไม่แต่งขึ้นเอง", wvRes.includes("ไม่มีข้อมูลเพลง") && wvRes.includes("ไม่มีรูปปก"), wvRes);
 await shot("25-คิวแปลงเสร็จ.png", "[data-convert]", 4);
@@ -252,7 +252,7 @@ await shot("25-คิวแปลงเสร็จ.png", "[data-convert]", 4);
 await c.click('[data-qrow="เพลงทดสอบ 96k.flac"] [data-qname]');
 await waitFor("return !!document.querySelector('[data-tagkv]') && !!document.querySelector('img[data-tagart]')", 10000);
 const kv = await q("return document.querySelector('[data-tagview]').innerText.replace(/\\s+/g, ' ')");
-check("กดชื่อไฟล์ ดูข้อมูลเพลงกับรูปปก ชื่อเพลง ศิลปิน อัลบั้ม ปี แทร็ก รูปปก JPG ขนาด", kv.includes("ชื่อเพลง เพลงทดสอบ 96k") && kv.includes("ศิลปิน วงทดสอบ") && kv.includes("อัลบั้ม อัลบั้มทดสอบ") && kv.includes("ปี 2024") && kv.includes("แทร็ก 3") && /รูปปก JPG [\d,]+ × [\d,]+ · [\d.]+ (KB|MB)/.test(kv), kv.slice(0, 220));
+check("กดชื่อไฟล์ ดูข้อมูลเพลงกับรูปปก ชื่อเพลง ศิลปิน อัลบั้ม ปี แทร็ก รูปปก JPG ขนาด", kv.includes("ชื่อเพลง เพลงทดสอบ 96k") && kv.includes("ศิลปิน วงทดสอบ") && kv.includes("อัลบั้ม อัลบั้มทดสอบ") && kv.includes("ปี 2024") && kv.includes("แทร็ก 3") && /รูปปก JPG [\d,]+ × [\d,]+ ขนาด [\d.]+ (KB|MB)/.test(kv), kv.slice(0, 220));
 await shot("26-ข้อมูลเพลง.png", ".dlg", 4);
 await clickText(".dlg .acts button", "ปิด");
 await sleep(300);
@@ -270,8 +270,8 @@ await waitFor("return !!document.querySelector('[data-compare]') && !document.qu
 const chips = await q("return [...document.querySelectorAll('[data-cmpfile]')].map(x => x.innerText.replace(/\\s+/g, ' ')).join(' | ')");
 check("กดเทียบความถี่ เปิดหน้ากราฟเสียงแบบสองไฟล์ ต้นฉบับกับหลังแปลง", chips.includes("เพลงทดสอบ 96k FLAC ต้นฉบับ") && chips.includes("เพลงทดสอบ 96k OPUS หลังแปลง"), chips.slice(0, 200));
 const info = await q("return document.querySelector('[data-cmpinfo]').innerText.replace(/\\s+/g, ' ')");
-check("ข้อมูลเสียงสองคอลัมน์ FLAC 96 kHz 24-bit เทียบ Opus 48 kHz · บอกตัวแปลงที่ใช้", info.includes("FLAC") && info.includes("Opus") && info.includes("96 kHz") && info.includes("48 kHz") && info.includes("24-bit") && (await q("return document.querySelector('.apanel').innerText")).includes("แปลงด้วย opusenc"), info.slice(0, 200));
-const tabs = [["wave", "รูปคลื่น"], ["spec", "ความถี่"], ["loud", "ความดัง"], ["cmp", "ซ้อนเทียบ"], ["spek", "วิเคราะห์"], ["psd", "ความถี่เฉลี่ย"]];
+check("ข้อมูลเสียงสองคอลัมน์ FLAC 96 kHz 24-bit เทียบ Opus 48 kHz · บอกตัวแปลงที่ใช้", info.includes("FLAC") && info.includes("Opus") && info.includes("96 kHz") && info.includes("48 kHz") && info.includes("24-bit") && (await q("return document.querySelector('.apanel').innerText")).includes("ด้วย opusenc"), info.slice(0, 200));
+const tabs = [["wave", "รูปคลื่น"], ["loud", "ความดัง"], ["cmp", "ซ้อนเทียบ"], ["spek", "ความถี่"], ["psd", "ความถี่เฉลี่ย"]];
 const ink = {};
 for (const [k] of tabs) {
   await c.click(`[data-cmptab="${k}"]`);
@@ -282,7 +282,7 @@ for (const [k] of tabs) {
   const r = await q(`return [...document.querySelectorAll('[data-cmpview] canvas.cv')].map(cv => { if (!cv.width) return 0; const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data; let n = 0, m = 0; for (let j = 0; j < d.length; j += 4 * 7) { m++; if (Math.abs(d[j] - d[0]) + Math.abs(d[j + 1] - d[1]) + Math.abs(d[j + 2] - d[2]) > 30) n++; } return n / m; })`);
   ink[k] = { n: r.length, worst: Math.round(Math.min(1, ...r) * 1000) / 1000 };
 }
-check("ทั้ง 6 แท็บวาดจากข้อมูลจริงของสองไฟล์ ทุกกราฟมีเส้นหรือสี", tabs.every(([k]) => ink[k].n >= (k === "wave" || k === "spec" ? 4 : 1) && ink[k].worst > 0.01), JSON.stringify(ink));
+check("ทั้ง 5 แท็บวาดจากข้อมูลจริงของสองไฟล์ ทุกกราฟมีเส้นหรือสี", tabs.every(([k]) => ink[k].n >= (k === "wave" ? 4 : 1) && ink[k].worst > 0.01), JSON.stringify(ink));
 await c.click('[data-cmptab="spek"]');
 await sleep(600);
 const spekStat = await q("return document.querySelector('[data-cmpstat]').innerText.replace(/\\s+/g, ' ')");
@@ -326,7 +326,7 @@ await c.setNav("encoders");
 await waitFor("return !!document.querySelector('[data-setcard=encoders] [data-enc]')", 20000);
 await waitFor("return [...document.querySelectorAll('[data-setcard=encoders] [data-enc]')].length >= 9", 20000);
 const enc = await q("return [...document.querySelectorAll('[data-setcard=encoders] [data-enc]')].map(r => r.innerText.replace(/\\s+/g, ' ')).join(' | ')");
-check("หน้าตั้งค่ามีการ์ด Monkey's Audio 13.46 (MACDll64 จากตัวติดตั้งของผู้ทำ) กับ TAK 2.3.3 แนบมากับโปรแกรม พร้อมใช้งาน", /MACDll64[^|]*13\.46/.test(enc) && /Takc[^|]*2\.3\.3 · แนบมากับโปรแกรม[^|]*พร้อมใช้งาน/.test(enc), enc.split(" | ").filter((x) => x.includes("MACDll64") || x.includes("Takc")).join(" | "));
+check("หน้าตั้งค่ามีการ์ด Monkey's Audio 13.46 (MACDll64 จากตัวติดตั้งของผู้ทำ) กับ TAK 2.3.3 แนบมากับโปรแกรม พร้อมใช้งาน", /MACDll64[^|]*13\.46/.test(enc) && /Takc[^|]*2\.3\.3 แนบมากับโปรแกรม[^|]*พร้อมใช้งาน/.test(enc), enc.split(" | ").filter((x) => x.includes("MACDll64") || x.includes("Takc")).join(" | "));
 await clickText(".side .nav", "กราฟเสียง");
 await waitFor("return !!document.querySelector('[data-convert]')", 5000);
 check("ไปหน้าอื่นแล้วกลับมา ยังอยู่โหมดแปลงเสียง คิวกับผลอยู่ครบ", (await q("return document.querySelectorAll('[data-qrow][data-qstate=done]').length")) === 6);

@@ -62,7 +62,7 @@ export default function LangPicker(p: { value: string; onChange: (code: string) 
         aria-disabled={p.disabled ? true : undefined} title={p.disabled}
         style={{ width: p.width ?? "100%" }} onClick={() => { if (!p.disabled) setOpen((o) => !o); }}
         onKeyDown={(e) => { if (!open && !p.disabled && (e.key === "ArrowDown" || e.key === "Enter" || e.key === " ")) { e.preventDefault(); setOpen(true); } }} data-lang-btn>
-        <span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{langName(p.value)}</span>
+        <span style={{ whiteSpace: "nowrap", minWidth: 0 }}>{langName(p.value)}</span>
         <IcChevronDown />
       </button>
       {open && (

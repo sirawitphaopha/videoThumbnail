@@ -25,7 +25,11 @@
 .brn-side h3 { margin: 0 0 6px; font-size: 14px; color: var(--accent-ink); }
 .brn-kv { display: grid; grid-template-columns: 66px 1fr; gap: 3px 8px; margin: 0; font-size: 13px; line-height: 1.5; }
 .brn-kv dt { color: var(--txt3); white-space: nowrap; }
-.brn-kv dd { margin: 0; color: var(--txt); font-variant-numeric: tabular-nums; min-width: 0; }
+/* ค่าชิดขวา ช่องที่ยังไม่มีค่าเป็นขีดสีเดียวกับชื่อแถว (พี่กันสั่ง 11 พ.ย. 2569 "ย้ายขีด ไปฝั่งขวา ตอนนี้ฝั่งขวามันว่างไป") · ค่าจริงชิดขวาด้วย ไม่กระโดดตอนอ่านเสร็จ แบบแผงข้อมูลเสียงของหน้ากราฟเสียง */
+.brn-kv dd { margin: 0; color: var(--txt); font-variant-numeric: tabular-nums; min-width: 0; text-align: right; }
+.brn-na { color: var(--txt3); font-weight: 400; }
+/* ขีดอยู่กึ่งกลางคอลัมน์ค่าฝั่งขวา (พี่กันสั่ง 11 พ.ย. 2569 "ให้มองมันเป็น 2 คอลัมน์ แล้ว ขีด อยู่กึ่งกลางคอลัมน์ฝั่งขวาไง") · ป้าย I P B ไม่อยู่ในคอลัมน์ค่า ไม่โดน */
+.brn-kv dd .brn-na { display: block; text-align: center; }
 /* เวลาที่เกิดค่าสูงสุดต่ำสุด เป็นบรรทัดเล็กใต้ค่า กดแล้วปักจุดตรงนั้น */
 /* เวลาอยู่บรรทัดเดียวกับค่า (พี่กันทัก 10 พ.ย. 2569 "มันตกสองบรรทัด") */
 .brn-at { display: inline; white-space: nowrap; font-size: 12px; padding: 0 3px; margin-left: 2px; border-radius: 4px; }
@@ -74,7 +78,10 @@
 .brn-pin { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 7px 10px; border-radius: 9px; background: var(--accent-soft); font-size: 13px; color: var(--txt); }
 .brn-pin b { font-variant-numeric: tabular-nums; }
 .brn-pinmark { width: 3px; height: 18px; border-radius: 2px; background: var(--accent-d); }
-@media (max-width: 1180px) { .brn-howto { display: none; } .brn-ctl .lbl { display: none; } }
+@media (max-width: 1180px) { .brn-howto { display: none; } }
+/* ป้ายวิธีคิด สเกล เส้น ซ่อนเมื่อแถวไม่พอ ทุกตัวมีปุ่ม ⓘ ข้าง ๆ · เดิมซ่อนที่ 1,180 แต่ชุด 7 เพิ่มปุ่มเต็มจอกับ ⓘ แถวยาวขึ้น
+   หน้าต่างขนาดตั้งต้น 1,280 ปุ่มท้ายแถวตกขอบขวา 45 จุด (เจอตอนรันตัวตรวจ 11 พ.ย. 2569) */
+@media (max-width: 1300px) { .brn-ctl .lbl { display: none; } }
 
 /* เส้นแบ่งแบบหน้ากราฟเสียง (พี่กันบอก 10 พ.ย. 2569 "เส้นแบ่ง") · เส้นนอนใต้แถบบน เส้นตั้งคั่นแผงซ้ายกับกราฟ เส้นคั่นระหว่างหัวข้อในแผงซ้าย */
 .brn[data-brnfile] { padding-bottom: 0; gap: 0; }

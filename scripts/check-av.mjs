@@ -173,7 +173,7 @@ const gotPal = await waitFor("const r = document.querySelector('[data-delay-res]
 await waitFor("return !!document.querySelector('[data-lane=b]')", 20000);
 await sleep(400);
 const pres = await q("return document.querySelector('[data-delay-res]')?.dataset.delayRes + ' · ' + document.querySelector('[data-delay-res]')?.innerText.replace(/\\s+/g, ' ')");
-check("เสียง PAL 25 fps โปรแกรมบอกว่าเร็วไม่เท่าหนัง เสนอคู่ความเร็ว 25 → 23.976 บอกว่าเทียบตรง ๆ ตรงกันน้อย", gotPal && pres.startsWith("speed") && pres.includes("จาก 25 เป็น 23.976") && pres.includes("แผ่นยุโรป PAL"), pres.slice(0, 200));
+check("เสียง PAL 25 fps โปรแกรมบอกว่าเร็วไม่เท่าหนัง เสนอคู่ความเร็ว 25 → 23.976 บอกว่าเทียบตรง ๆ ตรงกันน้อย", gotPal && pres.startsWith("speed") && pres.includes("25 → 23.976") && pres.includes("แผ่นยุโรป PAL"), pres.slice(0, 200));
 // ต้องยืดความเร็ว ไฟล์ลองฟังใส่ได้แค่ดีเลย์ ช่วงกลางเรื่องจะคนละฉาก · ปุ่มลองฟังกดไม่ได้ พร้อมบอกเหตุ (ผู้ช่วยตรวจขั้น 10 ข้อ 7)
 const np = await q("return (document.querySelector('[data-delay-play]')?.getAttribute('aria-disabled') ?? '') + ' · ' + (document.querySelector('[data-delay-noplay]')?.innerText ?? '')");
 check("เสียงต้องยืดความเร็ว ปุ่มลองฟังกดไม่ได้ บอกว่าลองฟังยังใส่ความเร็วไม่ได้", np.startsWith("true · ") && np.includes("ใส่ความเร็วเสียงไม่ได้"), np);
@@ -183,7 +183,7 @@ await c.evaluate("document.querySelector('[data-delay-speed]').click()");
 await waitFor("return !!document.querySelector('[data-codec-panel]')", 15000);
 await sleep(400);
 const spd = await q("return [...document.querySelectorAll('[data-codec-panel] [data-extra] .dd')].map(d => d.innerText).join('|')");
-check("กดปุ่มตั้งความเร็วในตัวช่วยหาดีเลย์ แผงตั้งค่าเสียงเปิดพร้อมความเร็ว 25 → 23.976", spd.includes("จาก 25 เป็น 23.976"), spd);
+check("กดปุ่มตั้งความเร็วในตัวช่วยหาดีเลย์ แผงตั้งค่าเสียงเปิดพร้อมความเร็ว 25 → 23.976", spd.includes("25 → 23.976"), spd);
 await clickTextAny("[role=dialog] button", "ยกเลิก");
 await sleep(300);
 // กดตั้งความเร็วแล้ว ดีเลย์ที่หาได้ต้องใส่ให้แถวด้วย (ข้อ 8 · เดิมค่าหาย)
@@ -265,7 +265,7 @@ const pickDd = async (label, text) => {
   await c.evaluate(`[...document.querySelectorAll('[data-codec-panel] [role=option]')].find(o => o.innerText.startsWith(${JSON.stringify(text)})).click()`);
   await sleep(200);
 };
-await pickDd("ความเร็วเสียง", "จาก 25 เป็น 23.976");
+await pickDd("ความเร็วเสียง", "25 → 23.976");
 for (let i = 0; i < 3; i++) await c.evaluate("document.querySelector('[data-codec-panel] [aria-label=\"ลดความดัง 1 dB\"]').click()");
 await c.evaluate("[...document.querySelectorAll('[data-codec-panel] [data-extra] .seg button')].find(b => b.innerText.startsWith('EBU')).click()");
 await waitFor("return document.querySelector('[data-cmd]').innerText.includes('loudnorm')", 8000);
@@ -543,16 +543,16 @@ await waitFor(`return !!${findRow("PGS")}`, 20000);
 await c.evaluate(`${findRow("PGS")}.querySelector('[data-subview]').click()`);
 await waitFor("return !!document.querySelector('[data-subimgs]') || !!document.querySelector('[data-subviewer] .stat.bad')", 60000);
 const pgs = await q("return (document.querySelector('[data-simg-count]')?.innerText ?? '') + ' · ' + document.querySelectorAll('[data-simg] img').length + ' · ' + (document.querySelector('[data-simg] .t')?.innerText.replace(/\\s+/g, ' ') ?? '')");
-check("ซับรูป PGS ถอดเป็นภาพ 1 ภาพ ขึ้นที่ 0:01.0", pgs.startsWith("ภาพที่ 1 ถึง 1 จาก 1") && pgs.includes("· 1 ·") && pgs.includes("0:01.0"), pgs);
+check("ซับรูป PGS ถอดเป็นภาพ 1 ภาพ ขึ้นที่ 0:01.0", pgs.startsWith("ภาพที่ 1–1 จาก 1") && pgs.includes("· 1 ·") && pgs.includes("0:01.0"), pgs);
 await closeDlg();
 await c.evaluate(`${findRow("VobSub")}.querySelector('[data-subview]').click()`);
 await waitFor("return !!document.querySelector('[data-subimgs]') || !!document.querySelector('[data-subviewer] .stat.bad')", 60000);
 const vob = await q("return (document.querySelector('[data-simg-count]')?.innerText ?? '') + ' · ' + document.querySelectorAll('[data-simg] img').length");
 const imgOk = await waitFor("return [...document.querySelectorAll('[data-simg] img')].every(i => i.complete && i.naturalWidth > 0)", 8000);
-check("ซับรูป VobSub ถอดเป็นภาพ 42 ภาพ หน้าละ 6 ภาพ รูปขึ้นครบ", vob.startsWith("ภาพที่ 1 ถึง 6 จาก 42") && vob.endsWith("· 6") && imgOk, vob);
+check("ซับรูป VobSub ถอดเป็นภาพ 42 ภาพ หน้าละ 6 ภาพ รูปขึ้นครบ", vob.startsWith("ภาพที่ 1–6 จาก 42") && vob.endsWith("· 6") && imgOk, vob);
 await shot("19-ดูซับรูป.png", "[role=dialog]", 8);
 await c.evaluate("document.querySelector('[data-simg-next]').click()");
-await waitFor("return document.querySelector('[data-simg-count]')?.innerText.startsWith('ภาพที่ 7 ถึง 12') && document.querySelector('[data-simg] img')?.alt === 'ซับภาพ 7'", 15000);
+await waitFor("return document.querySelector('[data-simg-count]')?.innerText.startsWith('ภาพที่ 7–12') && document.querySelector('[data-simg] img')?.alt === 'ซับภาพ 7'", 15000);
 await c.evaluate("document.querySelector('[data-simg]').click()");
 await sleep(300);
 const big = await q("const b = document.querySelector('[data-bigsub]'); if (!b) return ''; const r = b.getBoundingClientRect(); return Math.round(r.width) + 'x' + Math.round(r.height) + ' · ' + b.nextElementSibling.innerText");

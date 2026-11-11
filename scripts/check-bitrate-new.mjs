@@ -40,7 +40,7 @@ await c.shotRect(`${P}/22-เลือกแทร็กก่อน.png`, 0, 0,
 await q(`document.querySelector('[data-brnpick="v"]').click()`);
 let s = await waitRead();
 check("ต่อวินาที อ่านจบ ค่าเฉลี่ยราว 2.6 Mbps", /เฉลี่ย 2\.6\d Mbps/.test(s.side ?? ""), s.side?.slice(0, 80));
-check("การ์ดชื่อไฟล์บอก codec ขนาด fps", /H\.264 · 960 × 540 · 24 fps/.test(s.chip ?? ""), s.chip);
+check("การ์ดชื่อไฟล์บอก codec ขนาด fps", /H\.264, 960 × 540, 24 fps/.test(s.chip ?? ""), s.chip);
 const pl = await c.box("[data-brnplot]");
 await c.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: pl.left + pl.w * 0.36, y: pl.top + pl.h * 0.45 }); await sleep(250);
 check("ชี้กราฟขึ้นกล่องบอกค่า", await q(`return /Mbps|kbps/.test(document.querySelector('[data-brntip]')?.innerText ?? '')`));
@@ -54,7 +54,7 @@ await c.send("Input.dispatchMouseEvent", { type: "mousePressed", x: pl.left + pl
 await c.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: pl.left + pl.w * 0.5, y: pl.top + pl.h * 0.5, button: "left", buttons: 0, clickCount: 1 }); await sleep(250);
 check("คลิกปักจุด แถบล่างบอกค่า", /ปักไว้ที่/.test((await st()).pin ?? ""));
 await q(`document.querySelector('[data-brnnexti]')?.click()`); await sleep(250);
-check("ไป I เฟรมถัดไป", /I เฟรม · ภาพเต็ม/.test((await st()).pin ?? ""), (await st()).pin);
+check("ไป I เฟรมถัดไป", /I เฟรม \(ภาพเต็ม\)/.test((await st()).pin ?? ""), (await st()).pin);
 await shot("05-ต่อเฟรม-ปักจุด");
 
 // ลากซูมในกราฟ
@@ -100,7 +100,7 @@ check("กลับแบบชั้นหนัง ไฟล์ตามมา
 // แทร็กเสียงของไฟล์หนัง · แผงซ้ายเป็นข้อมูลเสียง วิธีคิดต่อวินาทีอย่างเดียว · สลับกลับวิดีโอได้จากปุ่มแทร็ก
 await q(`window.__brnOpen(${JSON.stringify(FILE)}, "a0")`);
 s = await waitRead();
-check("แทร็กเสียง หัวกราฟ Audio Bitrate", /Audio Bitrate · ต่อวินาที/.test(s.head ?? ""), s.head);
+check("แทร็กเสียง หัวกราฟ Audio Bitrate", /Audio Bitrate ต่อวินาที/.test(s.head ?? ""), s.head);
 check("แผงซ้ายเป็นข้อมูลเสียง มี Channels Sample rate", /ข้อมูลเสียง/.test(s.side ?? "") && /Channels/.test(s.side ?? "") && /Sample rate \d/.test(s.side ?? "") && !/ขนาดภาพ/.test(s.side ?? ""), s.side?.slice(-200));
 check("แทร็กเสียงไม่มีแถว I P B บอกเหตุแทน", /ไม่มีคีย์เฟรมกับชนิดเฟรม/.test(s.types ?? ""), s.types);
 check("วิธีคิดกดไม่ได้ตอนดูเสียง", await q(`return !!document.querySelector('.brn-ctl .seg.seg-off')`));

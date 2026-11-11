@@ -149,10 +149,12 @@ const s6b = await state();
 check("ปิดโปรแกรมที่เปิดไฟล์แล้วกดลองใหม่ เปลี่ยนชื่อสำเร็จ", existsSync(join(DIR, "เสียกลางเรื่อง (2022) ตัด.mkv")) && !existsSync(heldPath) && s6b.renamed.startsWith("เปลี่ยนชื่อไฟล์แล้ว"), s6b.name);
 
 // กำลังอ่านโฟลเดอร์ เปลี่ยนชื่อไม่ได้ (ผลอ่านโฟลเดอร์จะเขียนทับคลังด้วยชื่อเก่า)
+// ดักในหน้าตั้งแต่ก่อนกด โฟลเดอร์ทดสอบเล็ก อ่านจบเร็วกว่าที่ถามผ่านพอร์ตดีบักทีละครั้งทัน
+await q("window.__pencilSeen = []; const rec = () => { const b = document.querySelector('.fname .icon-btn'); if (b && b.classList.contains('off')) window.__pencilSeen.push(b.title); }; window.__pencilObs = new MutationObserver(rec); window.__pencilObs.observe(document.body, { subtree: true, childList: true, attributes: true, attributeFilter: ['class', 'title'] }); return 1;");
 await c.evaluate("[...document.querySelectorAll('.topbar .btn-ghost')].find((b) => b.innerText.includes('อ่านโฟลเดอร์ใหม่')).click()");
-let busy = { off: false, title: "" };
-for (let i = 0; i < 40 && !busy.off; i++) { busy = await q("const b = document.querySelector('.fname .icon-btn'); return { off: b?.classList.contains('off'), title: b?.title }"); if (!busy.off) await sleep(25); }
 await waitScan();
+const seen = await q("window.__pencilObs.disconnect(); return window.__pencilSeen;");
+const busy = { off: seen.length > 0, title: seen[0] || "ระหว่างอ่านไม่เคยกดไม่ได้" };
 check("ระหว่างอ่านโฟลเดอร์ ปุ่มดินสอกดไม่ได้ บอกเหตุผล", busy.off && busy.title.includes("กำลังอ่านโฟลเดอร์อยู่"), busy.title);
 
 // ไม่มีไฟล์ไหนโดนทับ · hash ทุกไฟล์ก่อนและหลังชุดเดียวกัน

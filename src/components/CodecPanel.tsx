@@ -75,7 +75,7 @@ function valsOf(spec: EncodeSpec): Vals {
 
 const fmtNum = (s: number, signed?: boolean) => (s < 0 ? "−" + Math.abs(s) : (signed && s > 0 ? "+" : "") + s);
 const nearestIdx = (stops: number[], x: number) => stops.reduce((bi, s, i) => (Math.abs(s - x) < Math.abs(stops[bi] - x) ? i : bi), 0);
-const CH_NAME: Record<number, string> = { 1: "ช่องเดียว", 2: "2.0", 3: "2.1", 6: "5.1", 7: "6.1", 8: "7.1" };
+const CH_NAME: Record<number, string> = { 1: "ช่องเดียว", 2: "2.0 ch", 3: "2.1 ch", 6: "5.1 ch", 7: "6.1 ch", 8: "7.1 ch" };
 const chName = (n: number) => CH_NAME[n] ?? `${n} ช่อง`;
 
 /** ช่องพิมพ์ค่าเอง · พิมพ์ค่าที่ไม่อยู่ในขั้น แถบชี้ขั้นที่ใกล้ที่สุด · ช่องที่ตัวแปลงปัดค่าเอง (snap) ปัดให้เห็นเลย */
@@ -303,7 +303,7 @@ export default function CodecPanel(p: {
   const { ch: outCh, rate: outRate, bits: outBits } = outFormat(c.id, engUse, live, { ch: srcCh ?? 2, rate: t.rate ?? null, bits: t.bits ?? null });
   const outSecs = t.duration ? t.duration * (speed ? Number(speed.split(">")[0]) / Number(speed.split(">")[1]) : 1) : null;
   const outKbps = headBytes && outSecs ? headBytes * 8 / outSecs / 1000 : null;
-  const chTxt = (n: number | null | undefined) => (n ? (n === 1 ? "โมโน" : n === 2 ? "2.0" : n === 6 ? "5.1" : n === 8 ? "7.1" : `${n} ช่อง`) : "—");
+  const chTxt = (n: number | null | undefined) => (n ? (n === 1 ? "โมโน" : n === 2 ? "2.0 ch" : n === 6 ? "5.1 ch" : n === 8 ? "7.1 ch" : `${n} ช่อง`) : "—");
   const khz = (r: number | null | undefined) => (r ? `${+(r / 1000).toFixed(1)} kHz` : "—");
   const kbps = (k: number | null | undefined) => (k ? `${Math.round(k).toLocaleString("en-US")} kbps` : "—");
   const mins = (x: number | null | undefined) => (x ? `${Math.floor(x / 60)}:${String(Math.round(x % 60)).padStart(2, "0")}` : "—");
@@ -363,8 +363,8 @@ export default function CodecPanel(p: {
     );
   };
 
-  const speedOpts = [{ value: "", label: "ไม่เปลี่ยน" }, { value: "25>23.976", label: "จาก 25 เป็น 23.976 (แผ่นยุโรป PAL)" }, { value: "24>23.976", label: "จาก 24 เป็น 23.976" },
-    { value: "23.976>25", label: "จาก 23.976 เป็น 25" }, { value: "23.976>24", label: "จาก 23.976 เป็น 24" }];
+  const speedOpts = [{ value: "", label: "ไม่เปลี่ยน" }, { value: "25>23.976", label: "25 → 23.976 (แผ่นยุโรป PAL)" }, { value: "24>23.976", label: "24 → 23.976" },
+    { value: "23.976>25", label: "23.976 → 25" }, { value: "23.976>24", label: "23.976 → 24" }];
   // ระดับเสียงหลังเปลี่ยนความเร็ว (ผู้ช่วยตรวจขั้น 10 ข้อ 29 · พี่กันเคาะ 8 พ.ย. 2569 ให้มีให้เลือก ค่าตั้งต้นคืนระดับเสียง)
   const speedNote = speed && (
     <div data-pitch-box>
@@ -503,7 +503,7 @@ export default function CodecPanel(p: {
         {warn && <div className="stat warn"><CardIcon kind="warn" /><div><Phr>{warn}</Phr> <Phr>ยังแปลงต่อได้ตามปกติ</Phr></div></div>}
         {/* ALAC 8 ช่องติดป้ายเป็น 7.1 ลำโพงหน้าคู่กลาง (encode.rs wide71) · พี่กันถาม 11 พ.ย. 2569 "ต้องมีเตือนบอกไหม" */}
         {c.id === "alac" && outCh === 8 && <div className="stat warn" data-alac71><CardIcon kind="warn" /><div>
-          <b>ALAC เก็บเสียง 8 ช่องได้แบบเดียว คือ 7.1 แบบลำโพงหน้าคู่กลาง</b>
+          <b>ALAC เก็บเสียง 8 ช่องได้แบบเดียว คือ 7.1 ch แบบลำโพงหน้าคู่กลาง</b>
           <Phr>เสียงลำโพงข้างของต้นฉบับจะติดป้ายเป็นลำโพงหน้าคู่กลาง เสียงครบทุกช่องและไม่เสียคุณภาพ แต่เครื่องเล่นจะส่งเสียงข้างไปออกลำโพงหน้า ถ้าจะเล่นกับชุดลำโพง 7.1 เลือก FLAC หรือ WavPack แทน</Phr></div></div>}
         <div className="cpsep" aria-hidden="true" />
         {/* กล่องคำสั่งยืดรับที่เหลือของหน้าต่าง ไม่ให้เหลือที่ว่างล่าง */}
@@ -517,7 +517,7 @@ export default function CodecPanel(p: {
               // ตัดบรรทัดเฉพาะตรงเว้นวรรค · เดิมตัดหลังขีด -i กลายเป็นสองบรรทัด อ่านผิดคำสั่ง (เจอตอนตรวจภาพ) · คัดลอกใช้ plan.text ตรงตัว
               // ตัวเลือกที่ขึ้นต้นด้วยขีดติดกับค่าของมัน "-f wav" ไม่แยกบรรทัด (ตัดบรรทัดตามความหมาย CLAUDE.md)
               ? plan.text.split("\n").map((line, li) => <span key={li}>{li > 0 && <br />}{cmdGroups(line).map((w, wi) => <span key={wi}>{wi > 0 ? " " : ""}<span style={{ whiteSpace: "nowrap" }}>{w}</span></span>)}</span>)
-              : "กำลังสร้างคำสั่ง")}</pre>
+              : "…")}</pre>
           {plan && <div className="small" style={{ marginTop: 4 }}><Phr>{plan.note}</Phr></div>}
         </div>
       </div>

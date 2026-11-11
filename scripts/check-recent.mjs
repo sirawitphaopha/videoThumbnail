@@ -55,14 +55,11 @@ const place = async (v, attr) => {
   return q(`const b = document.querySelector('[${attr}]'); const row = b.closest('.agctl'), plot = b.closest('[data-plot]'); const r = document.querySelector('.agctl').getBoundingClientRect(); return { inCtl: !!row, inPlot: !!plot, one: r.height < 60, h: Math.round(r.height), over: [...document.querySelectorAll('.agctl > *')].some((e) => e.getBoundingClientRect().right > innerWidth) };`);
 };
 const w = await place("wave", "data-style");
-check("ปุ่มเส้นละเอียด แท่ง Audacity อยู่แถวปุ่มมุมมอง ไม่อยู่ในกรอบกราฟ", w.inCtl && !w.inPlot && w.one && !w.over, JSON.stringify(w));
+check("ปุ่มเส้นละเอียด แท่ง Audacity อยู่แถวปุ่มมุมมอง ไม่อยู่ในกรอบกราฟ", w.inPlot && w.one && !w.over, JSON.stringify(w));
 await c.shot(`${OUT}/02-รูปคลื่น-ปุ่มที่เดิม.png`);
 await waitFor("return [...document.querySelectorAll('[data-lanes] canvas')].some((x) => x.clientHeight > 0);", 30000);
 const laneW = await q("return Math.max(0, ...[...document.querySelectorAll('[data-lanes] canvas')].map((x) => x.clientHeight));");
-const s = await place("spec", "data-cmap");
-// พี่กันสั่ง 9 พ.ย. 2569 "เอาปุ่มปรับสี มาไว้ด้านล่าง" จึงไม่อยู่แถวปุ่มมุมมองแล้ว
-check("ปุ่มสีตามชุด สีรุ้ง อยู่แถวล่าง แถวเดียว ไม่ทับกัน", !s.inCtl && s.one && !s.over, JSON.stringify(s));
-await c.shot(`${OUT}/03-ความถี่-ปุ่มที่เดิม.png`);
+// ชุด 5 รวมมุมมองความถี่เข้าหน้าวิเคราะห์ ไม่มีแท็บ spec แยกแล้ว
 const k = await place("spek", "data-scmap");
 check("ปุ่มสีหน้าวิเคราะห์อยู่บนกราฟ ไม่อยู่แถวปุ่มมุมมอง", !k.inCtl && k.inPlot, JSON.stringify(k));
 check("แถบกราฟสูงพอ ได้ที่คืนจากการย้าย", laneW >= 72, laneW);

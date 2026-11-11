@@ -50,9 +50,9 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
 /* วลีไทยหนึ่งวลี ขึ้นบรรทัดใหม่ได้เฉพาะตรงเว้นวรรค (ui.tsx Phrases) · วลีที่ยาวกว่าช่องค่อยตัดข้างใน */
 /* ตัดบรรทัดที่ขอบคำไทยได้ตามปกติแบบ Word บรรทัดเกือบเต็ม ระยะที่กระจายแบบไทยเติมจึงน้อย
    เดิมล็อกทั้งวลี บรรทัดตัดเร็ว พอกระจายแล้วตัวอักษรถ่างมาก (พี่กันทัก 11 พ.ย. 2569 "ระยะห่างมึงไปแหกตาด้วย")
-   ล็อกเฉพาะ .keep ของที่ต้องอยู่ด้วยกันจริง ตัวเลขกับหน่วย "พอ ๆ กัน" ตัวย่อกับวงเล็บคำเต็ม */
+   ล็อกเฉพาะ .nobr ของที่ต้องอยู่ด้วยกันจริง (เดิมชื่อ .keep ชนกับปุ่ม Keep 11 พ.ย. 2569) ตัวเลขกับหน่วย "พอ ๆ กัน" ตัวย่อกับวงเล็บคำเต็ม */
 /* เป็นกล่องเล็กไม่ถูกถ่างข้างใน ตัวเลขกับตัวอังกฤษ "512 kbps" ไม่กลายเป็น "5 1 2  k b p s" ตอนกระจายแบบไทย */
-.keep { white-space: nowrap; display: inline-block; }
+.nobr { white-space: nowrap; display: inline-block; }
 /* คำประสมที่ห้ามตัดกลาง "ตัวแปลง" "ติดตั้ง" · ไม่เป็นกล่อง ตัวอักษรยังกระจายได้ */
 .kw { white-space: nowrap; }
 /* ข้อความย่อหน้าทั้งโปรแกรมจัดแบบกระจายแบบไทย (Thai Distributed) เต็มบรรทัดเสมอกันซ้ายขวา กระจายระหว่างตัวอักษร บรรทัดสุดท้ายชิดซ้าย
@@ -253,6 +253,11 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
 }
 .dd:hover { background-color: #faedf1; border: 1px solid #e2bfcb; }
 .dd span { white-space: nowrap; min-width: 0; }
+/* กล่องชื่อที่ตัดท้ายเป็นจุดสามจุด (ไม่ใช่ปุ่มดรอปดาวน์ ปุ่มดรอปดาวน์ทำตามสกิล form-input ⑧ แล้ว) · หัว ไ ใ โ ของ Sarabun ยื่นเลยขอบซ้ายตัวเองราว 0.8 จุด
+   กล่องตัดส่วนล้นทิ้งเลยตัดหัวหาย · เว้นที่ซ้าย 2 จุดแล้วดึงกลับ ตัวหนังสืออยู่ที่เดิม (พี่กันทัก 11 พ.ย. 2569 "หัว ไ ขาด" · "มึงกดวรรค 1 ทีก็จบแล้วปะ") */
+[style*="text-overflow: ellipsis"], .bn1, .runline .runtxt b, .runline .runl1, .runline .runl2, .fchip .nm, .lab span, .wavelg .lgnote,
+.psdchecks .psdck-txt, .cpcmp-grid .a, .cpcmp-grid .b, .avchip .nm, .lrow .en, .cqrow .nm, .cqrow .dt, .cmpchip .meta, .cmpchip .nm .nmtx,
+.brn-head > div:first-child, .pathline b, .lname .fn { padding-left: 2px; margin-left: -2px; }
 .dd svg { flex: none; transition: transform .15s ease; }
 .dd[aria-expanded="true"] svg { transform: rotate(180deg); }
 .menu { background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 26px rgba(60,25,40,.18); padding: 6px; display: flex; flex-direction: column; gap: 2px; overflow-y: auto; overscroll-behavior: contain; }
@@ -371,6 +376,8 @@ tbody tr:last-child td { border-bottom: 0; }
 .bname { font-size: 12.5px; color: var(--txt2); margin-top: 8px; line-height: 1.5; word-break: break-word; }
 /* แถบใต้ปก บรรทัด 1 ชื่อ · 2 เครื่องหมาย · 3 ป้าย แบบ ค ที่พี่กันเลือก ไฟล์สีหลัก เสียงเขียว ซับเหลือง */
 .bn1 { color: var(--txt); font-weight: 600; line-height: 1.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* ชื่อใต้ปกเป็นบรรทัดเดียวอยู่แล้ว ก้อนวลีไม่ต้องเป็นกล่อง · กล่องตัดท้ายด้วยจุดสามจุดไม่ได้ ชื่อไม่มีตัวไทยเคยโดนตัดเงียบ "Harbor.Lights.2021.2160p" (เจอตอนทดสอบจอ 1366 11 พ.ย. 2569) */
+.bn1 .nobr { display: inline; }
 .bn2 { display: flex; align-items: center; gap: 5px; height: 18px; margin-top: 2px; }
 .book .bn2 .badge { margin-right: 0; }
 .book .bn2 .linkb { margin-right: 0; }
@@ -802,6 +809,7 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .ag .sub { font-size: 13.5px; font-weight: 600; color: var(--txt); margin: 12px 0 2px; }
 .spk { display: block; margin: 0 auto; }
 .spk .s { cursor: pointer; outline: none; }
+.spk .s.solo { cursor: default; }
 .spk .s:focus-visible circle, .spk .s:focus-visible rect { stroke: var(--accent-d); stroke-width: 2.5; }
 .graph-recent { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }
 .graph-recent .dd { height: auto; min-height: 42px; padding: 6px 12px; }

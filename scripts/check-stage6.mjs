@@ -200,7 +200,7 @@ if (hasLong) {
   check("กดหยุดตรวจทั้งชุด หยุดจริง เรื่องที่ตรวจค้างไม่ถูกเขียนผล ขึ้นแถบบอกว่าตรวจไปกี่เรื่อง",
     stopped.includes("ยังไม่เคยตรวจ") && toastStop.includes("หยุดตรวจแล้ว") && afterLib?.status === before?.status && !afterLib?.check, `${stopped} · ${toastStop}`);
   const sumStop = await q("return document.querySelector('[data-cksum]')?.innerText.replace(/\\s+/g, ' ') ?? ''");
-  check("สรุปตอนหยุดกลางทาง บอกว่าตรวจไปกี่เรื่อง แยกจากเวลาที่หยุด อ่านไม่ติดกัน", /ตรวจไป \d+ จาก 2 เรื่อง · หยุดเมื่อ \d/.test(sumStop), sumStop);
+  check("สรุปตอนหยุดกลางทาง บอกว่าตรวจไปกี่เรื่อง แยกจากเวลาที่หยุด อ่านไม่ติดกัน", /ตรวจไป \d+ จาก 2 เรื่อง แล้วหยุดเมื่อ \d/.test(sumStop), sumStop);
   await closeToasts();
 }
 

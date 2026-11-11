@@ -37,7 +37,7 @@ await c.shot(`${OUT}/03-จับคู่ปก.png`);
 
 await nav("เสียงและซับ");
 const av = await look("[data-drop=movie]");
-check("หน้าเสียงและซับ ไอคอนเดิมถูกแทน", good(av) && av.oldIcon === "none", JSON.stringify(av));
+check("หน้าเสียงและซับ ไอคอนเดิมถูกแทน", good(av) && (av.oldIcon === "none" || av.oldIcon === "ไม่มี"), JSON.stringify(av));
 await c.shot(`${OUT}/04-เสียงซับ.png`);
 
 await nav("กราฟเสียง");

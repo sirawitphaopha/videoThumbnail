@@ -51,6 +51,12 @@
 .avnum:focus { border-color: var(--accent); box-shadow: 0 0 0 3px rgba(200,64,111,.25); }
 .delay button { width: 24px; height: 30px; border-radius: 7px; border: 1px solid #e8cdd6; background: #fff; color: var(--txt2); cursor: pointer; font: inherit; font-size: 13px; padding: 0; }
 .delay button:hover { background: #faedf1; color: var(--accent-ink); }
+/* แถวภาพ ขีดแทนช่องที่ไม่มี วางตามโครงช่องของแถวเสียง · ช่องดีเลย์ขีดตรงเลข 0 · ช่องแปลงขีดกลางคำว่าไม่แปลง (พี่กันสั่ง 11 พ.ย. 2569) */
+.trk .trk-na > i { width: 24px; flex: none; }
+.trk .trk-na .avnum { display: block; line-height: 28px; border-color: transparent; background: none; color: var(--txt3); }
+.trk .trk-naword { position: relative; display: inline-block; justify-self: start; padding-left: 13px; font-size: 12.5px; color: var(--txt3); }
+.trk .trk-naword > i { visibility: hidden; font-style: normal; }
+.trk .trk-naword > span { position: absolute; left: 13px; right: 0; top: 0; text-align: center; }
 .avacts { display: flex; gap: 4px; justify-content: flex-end; }
 .ib { width: 30px; height: 30px; border-radius: 8px; border: 1px solid #e8cdd6; background: #fff; color: var(--txt2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; transition: background-color .15s, color .15s; padding: 0; }
 .ib:hover { background: #faedf1; color: var(--accent-ink); }
@@ -293,8 +299,10 @@
 .gdiff .row > i > u { display: block; height: 100%; background: var(--accent); }
 .gdiff .row > em { font-style: normal; text-align: right; font-variant-numeric: tabular-nums; }
 .gdiff .sizerow { display: flex; justify-content: space-between; gap: 8px; margin-top: 4px; padding: 5px 4px 2px; border-top: 1px solid var(--line); font-size: 12.5px; color: var(--txt2); }
+.gdiff .sizerow > span { flex: none; }
 .gdiff .sizerow > em { font-style: normal; font-weight: 600; color: var(--txt); text-align: right; font-variant-numeric: tabular-nums; }
-.gdiffnote { margin-top: 6px; font-size: 11px; line-height: 1.4; color: var(--txt3); white-space: nowrap; }
+/* ตัดบรรทัดได้ (เดิมบรรทัดเดียวห้ามตัด ข้อความยาวขึ้นตอนเขียนเป็นประโยค 11 พ.ย. 2569 แล้วล้นขอบแผงโดนตัด) */
+.gdiffnote { margin-top: 6px; font-size: 11px; line-height: 1.4; color: var(--txt3); }
 .gdiffgrid { display: grid; gap: 3px 10px; align-items: baseline; font-size: 12.5px; color: var(--txt2); }
 .gdiffgrid .h { font-size: 12px; font-weight: 700; text-align: right; white-space: nowrap; }
 .gdiffgrid .all { font-weight: 700; color: var(--txt); }

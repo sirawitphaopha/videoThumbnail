@@ -49,6 +49,7 @@ await inv("set_settings", { patch: { folders: [] } });
 await inv("scan_library"); await waitScan();
 // ยังไม่มีโฟลเดอร์ = ชั้นว่าง ไม่มีเมนู (สเปกข้อ 10)
 await c.evaluate("location.hash = ''; location.reload()"); await sleep(900);
+for (let t = 0; t < 40; t++) { try { if (await q("return !!document.querySelector('.firstrun-card') || !!document.querySelector('[data-navbar]')")) break; } catch { /* หน้ายังโหลด */ } await sleep(250); }
 const first = await q("return { title: document.querySelector('.firstrun-card')?.innerText ?? '', nav: !!document.querySelector('[data-navbar]'), toast: document.querySelectorAll('.toast').length }");
 await shot("01-ชั้นว่าง.png");
 check("ยังไม่เลือกโฟลเดอร์ ขึ้นชั้นว่างพร้อมปุ่มเลือกโฟลเดอร์ ไม่มีเมนูซ้าย", first.title.includes("ชั้นยังว่างอยู่") && first.title.includes("เลือกโฟลเดอร์หนัง") && !first.nav, `เมนูซ้าย ${first.nav ? "มี" : "ไม่มี"} · แถบแจ้งผล ${first.toast}`);
@@ -202,7 +203,7 @@ for (const [key, ok] of Object.entries(rules)) {
   await c.evaluate("[...document.querySelectorAll('.topbar .dd')].find((d) => d.innerText.includes('เรียงตาม')).setAttribute('data-sortdd', '1')");
   await c.click("[data-sortdd]"); await sleep(150);
   const idx = Object.keys(rules).indexOf(key);
-  await c.click(`.topbar .menu [role=option]:nth-child(${idx + 1})`); await sleep(250);
+  await c.click(`.topbar .menu > :nth-child(${idx + 1}) > [role=option]`); await sleep(250);
   const order = (await names()).map((n) => lib[n]);
   const bad = order.findIndex((m, i) => i > 0 && !ok(order[i - 1], m));
   const saved = (await inv("get_settings")).settings.sort;
@@ -215,7 +216,7 @@ await c.click(".topbar .dd"); await sleep(150);
   const x0 = Math.min(d.left, m.left) - 16, x1 = Math.max(d.right, m.right) + 16;
   await c.shotRect(`${OUT}/13-รายการเรียง.png`, x0, d.top - 12, x1 - x0, m.bottom - d.top + 24);
 }
-await c.click(".topbar .menu [role=option]:nth-child(1)"); await sleep(200);
+await c.click(".topbar .menu > :nth-child(1) > [role=option]"); await sleep(200);
 
 // อ่านรอบสอง ไม่มีอะไรเปลี่ยน ต้องเร็ว
 await c.click(".topbar .btn-ghost"); const s2 = await waitScan();

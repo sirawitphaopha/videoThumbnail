@@ -304,7 +304,7 @@ export default function SettingsPage() {
       <Dialog open={askMigrate} onClose={() => { if (!migrating) setAskMigrate(false); }} kind="work" confirm title={<>ย้าย <span className="nw">{migrateCount} เรื่อง</span>ไปแบบ {modeName}</>}
         actions={<>
           <button type="button" className="btn btn-ghost" onClick={() => { if (!migrating) setAskMigrate(false); }}>ยังไม่ย้าย</button>
-          <button type="button" className={"btn " + (migrating ? "btn-wait" : "btn-main")} aria-disabled={migrating || undefined} data-link-migrate-ok onClick={migrate}><Keep all={["กำลังย้าย 000 จาก 000 เรื่อง", "ย้ายเลย"]}>{migrating ? (migrateProg ? `กำลังย้าย ${migrateProg.done} จาก ${migrateProg.total} เรื่อง` : "กำลังย้าย") : "ย้ายเลย"}</Keep></button>
+          <button type="button" className={"btn " + (migrating ? "btn-wait" : "btn-main")} aria-disabled={migrating || undefined} data-link-migrate-ok onClick={migrate}><Keep all={["กำลังย้าย 000 จาก 000 เรื่อง…", "ย้ายเลย"]}>{migrating ? (migrateProg ? `กำลังย้าย ${migrateProg.done} จาก ${migrateProg.total} เรื่อง…` : "กำลังย้าย…") : "ย้ายเลย"}</Keep></button>
         </>}>
         <div className="small" style={{ fontSize: 14, color: "var(--txt2)" }}>
           <div><Phr>โปรแกรมทำไฟล์ใหม่ก่อน เมื่อสำเร็จแล้วจึงเอาของเก่าออก</Phr></div>
@@ -376,7 +376,7 @@ export default function SettingsPage() {
         {migrateCount > 0 && (
           <div className="minirow" style={{ marginTop: 10 }} data-link-migrate>
             <span className="small" style={{ alignSelf: "center" }}>มี <span className="nw">{migrateCount} เรื่อง</span>ที่จับคู่ไว้แบบอื่น</span>
-            <button type="button" className={"btn btn-sm " + (migrating ? "btn-wait" : "btn-ghost")} aria-disabled={migrating || undefined} data-link-migrate-go onClick={() => { if (!migrating) setAskMigrate(true); }}><Keep all={["กำลังย้าย 000 จาก 000 เรื่อง", "ย้ายมาแบบนี้ทีเดียว"]}>{migrating ? (migrateProg ? `กำลังย้าย ${migrateProg.done} จาก ${migrateProg.total} เรื่อง` : "กำลังย้าย") : "ย้ายมาแบบนี้ทีเดียว"}</Keep></button>
+            <button type="button" className={"btn btn-sm " + (migrating ? "btn-wait" : "btn-ghost")} aria-disabled={migrating || undefined} data-link-migrate-go onClick={() => { if (!migrating) setAskMigrate(true); }}><Keep all={["กำลังย้าย 000 จาก 000 เรื่อง…", "ย้ายมาแบบนี้ทีเดียว"]}>{migrating ? (migrateProg ? `กำลังย้าย ${migrateProg.done} จาก ${migrateProg.total} เรื่อง…` : "กำลังย้าย…") : "ย้ายมาแบบนี้ทีเดียว"}</Keep></button>
           </div>
         )}
       </div>
@@ -479,7 +479,7 @@ export default function SettingsPage() {
         {encs == null
           ? [0, 1, 2, 3, 4].map((i) => <div key={i} className="setrow" aria-busy="true"><Skel w="45%" h={12} /><Skel w={90} h={20} r={10} /></div>)
           : encs.map((e) => (
-            <div key={e.name} className="setrow" data-enc={e.name}><div className="lbl">{e.name}<span className="small">{e.ok ? `${e.codecs} รุ่น ${e.version ?? "ไม่ทราบ"}${e.coreAudio ? ` ใช้ CoreAudioToolbox ${e.coreAudio}` : ""} ${e.source === "user" ? "จากโฟลเดอร์ตัวแปลง" : "แนบมากับโปรแกรม"}` : `ตัวแปลง ${e.codecs} ${e.problem ? e.problem : "ยังไม่เจอในโฟลเดอร์ตัวแปลง"}`}</span>
+            <div key={e.name} className="setrow" data-enc={e.name}><div className="lbl">{e.name}<span className="small">{e.ok ? `${e.codecs}${e.version ? ` รุ่น ${e.version}` : ""}${e.coreAudio ? ` ใช้ CoreAudioToolbox ${e.coreAudio}` : ""} ${e.source === "user" ? "จากโฟลเดอร์ตัวแปลง" : "แนบมากับโปรแกรม"}` : `ตัวแปลง ${e.codecs} ${e.problem ? e.problem : "ยังไม่เจอในโฟลเดอร์ตัวแปลง"}`}</span>
               {(() => { const l = latest?.list.find((x) => x.name === e.name); return l ? <LatestLine l={l} onOpen={openPage} /> : null; })()}</div>
               {e.ok ? <span className="toolok">พร้อมใช้งาน</span> : e.problem ? <span className="toolwarn">{e.problem.startsWith("ต้องติดตั้ง iTunes") ? "ต้องติดตั้ง iTunes" : "ขาดไฟล์ประกอบ"}</span> : <span className="toolwarn">ยังไม่ได้ใส่</span>}</div>))}
         <div className="small" style={{ marginTop: 6 }}><Phr>{"fdkaac (AAC ของ Fraunhofer) สัญญาอนุญาตไม่ให้แจกไปกับตัวติดตั้ง จึงต้องโหลดเองแล้ววางทุกไฟล์ที่มากับชุดไว้ในโฟลเดอร์ตัวแปลง แล้วกดตรวจตัวแปลงใหม่  ส่วน qaac (AAC ของ Apple) กับ refalac (ALAC) แนบมากับโปรแกรมแล้ว แต่ qaac ต้องติดตั้ง iTunes ก่อน เพราะใช้ตัวเข้ารหัสของ Apple ที่มากับ iTunes ซึ่งแจกไปกับโปรแกรมไม่ได้ ขณะที่ refalac ไม่ต้องมี iTunes  สำหรับ TAK แนบชุดเดิมของผู้ทำมาทั้งไฟล์ตามเงื่อนไขการแจก แล้วโปรแกรมแตกออกมาใช้เอง และใช้ได้เฉพาะหน้าแปลงเสียง  ดูรายชื่อ รุ่น และสัญญาอนุญาตของตัวแปลงทุกตัวได้ในไฟล์ docs/research/codec-เสียง.md"}</Phr></div>
@@ -492,7 +492,7 @@ export default function SettingsPage() {
         <SpekResRow />
         <GraphImgRows value={settings.graphImg ?? GRAPH_IMG_DEFAULT} onChange={(graphImg) => set({ graphImg })} />
         <div className="setrow"><div className="lbl">ผลอ่านคลื่นที่เก็บไว้ในเครื่อง<span className="small"><Phr>เปิดไฟล์เดิมซ้ำไม่ต้องอ่านใหม่ ถ้าไฟล์ถูกแก้จะอ่านใหม่เอง และเก็บรวมไม่เกิน 300 MB</Phr></span>
-          <span className="small" data-graphcache>{cache ? `ตอนนี้เก็บไว้ ${cache.files} ไฟล์ ขนาดรวม ${fmtSize(cache.bytes)}` : "กำลังนับ"}</span></div>
+          <span className="small" data-graphcache>{cache ? `ตอนนี้เก็บไว้ ${cache.files} ไฟล์ ขนาดรวม ${fmtSize(cache.bytes)}` : "—"}</span></div>
           <button type="button" className="btn btn-ghost btn-sm" onClick={clearCache} data-clearcache><IbTrash size={15} />ล้าง</button></div>
       </div>
 

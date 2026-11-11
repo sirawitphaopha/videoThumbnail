@@ -159,7 +159,7 @@ check("ไฟล์ MP4 แยกเสียงเป็น .aac ด้วย f
   const hp = await q("return document.querySelector('[data-hash]').innerText");
   await shot("09-กำลังคำนวณ.png", "[data-hash]");
   await c.evaluate("[...document.querySelectorAll('[data-hash] button')].find(b => b.innerText === 'หยุด').click()"); await sleep(500);
-  check("กำลังคำนวณ บอกอ่านไฟล์ไปแล้วกี่ GB จากเท่าไหร่ แถบ ปุ่มหยุด · กดหยุดแล้วกลับเป็นปุ่มคำนวณ", /SHA-256 · อ่านไฟล์ไปแล้ว .+ จาก .+GB · \d+%/.test(hp) && hp.includes("หยุด") && (await q("return !!document.querySelector('[data-hash-start]')")), hp.split("\n").join(" / "));
+  check("กำลังคำนวณ บอกอ่านไฟล์ไปแล้วกี่ GB จากเท่าไหร่ แถบ ปุ่มหยุด · กดหยุดแล้วกลับเป็นปุ่มคำนวณ", /SHA-256 อ่านไฟล์ไปแล้ว .+ จาก .+GB หรือ \d+%/.test(hp) && hp.includes("หยุด") && (await q("return !!document.querySelector('[data-hash-start]')")), hp.split("\n").join(" / "));
   await c.evaluate("[...document.querySelectorAll('button')].find(b => b.innerText === 'คัดลอกข้อมูลเป็นข้อความ').click()"); await sleep(400);
   const toast = await q("return document.querySelector('.toast')?.innerText ?? ''");
   await shot("10-คัดลอกข้อมูล.png", ".toast", 6);
