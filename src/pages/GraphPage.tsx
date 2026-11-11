@@ -60,7 +60,8 @@ const VIEW_ICON: Record<View, React.ReactNode> = {
   spek: vi(<><rect x="3" y="3" width="18" height="18" rx="2" /><path d="M7 17V9M10 17V6M13 17v-5M16 17V8" /><path d="M21 7h-2M21 12h-2M21 17h-2" /></>),
   psd: vi(<><path d="M3 20h18" /><path d="M4 17c2-1 3-9 5-9s2 6 4 6 3-4 5-4 2 3 3 3" /></>),
 };
-const VIEWS: [View, string][] = [["wave", "รูปคลื่น"], ["spec", "ความถี่"], ["loud", "ความดัง"], ["cmp", "ซ้อนเทียบ"], ["spek", "วิเคราะห์"], ["psd", "ความถี่เฉลี่ย"]];
+// มุมมอง ความถี่ เดิมรวมเข้าหน้าวิเคราะห์ แล้วเปลี่ยนชื่อหน้าวิเคราะห์เป็น ความถี่ (BUGS ข้อ 14 พี่กัน "ใช่ เอา เเถบความกี่ ไปรวมกับวิเคราะก์" · "เปลี่ยนเป็นความกี่เเทน")
+const VIEWS: [View, string][] = [["wave", "รูปคลื่น"], ["loud", "ความดัง"], ["cmp", "ซ้อนเทียบ"], ["spek", "ความถี่"], ["psd", "ความถี่เฉลี่ย"]];
 const ZOOMS: [number | "all", string][] = [["all", "ทั้งไฟล์"], [600, "10 นาที"], [240, "4 นาที"], [30, "30 วินาที"]];
 const PSD_SPANS: [number | "all", string][] = [["all", "ทั้งไฟล์"], [120, "2 นาที"], [30, "30 วินาที"], [10, "10 วินาที"]];
 const TH: Record<string, string> = { FL: "ซ้ายหน้า", FR: "ขวาหน้า", FC: "กลาง · เสียงพูด", LFE: "เสียงเบส", BL: "ซ้ายหลัง", BR: "ขวาหลัง", SL: "ซ้ายข้าง", SR: "ขวาข้าง", BC: "หลังกลาง", FLC: "หน้าซ้ายกลาง", FRC: "หน้าขวากลาง" };
@@ -611,12 +612,14 @@ const PEAK_RMS_TIP: Tip = { w: "ดังสุด (Peak) คือจุดท�
   p: "ดังสุดชนขอบบนล่างคือยอดคลื่นแตะเพดาน เสียงอาจแตก · ดังเฉลี่ยหนาเกือบเท่าดังสุดคือเพลงถูกบีบความดังให้ดังเท่ากันทั้งเพลง · ดังเฉลี่ยบางกว่าดังสุดมากคือเสียงมีช่วงดังเบาเป็นธรรมชาติ" };
 const WaveIc = ({ d }: { d: string }) => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>;
 
-type Prefs = { view: View; theme: string; style: WaveStyle; cmap: "theme" | "rainbow"; scmap: "heat" | "rainbow" | "mono" | "theme"; spekLight: boolean; wide: boolean };
+type Prefs = { view: View; theme: string; style: WaveStyle; cmap: "theme" | "rainbow"; scmap: "heat" | "rainbow" | "mono" | "theme"; spekLight: boolean; wide: boolean; spekAxis: "lin" | "log" };
 const PREF_KEY = "graph-prefs";
+/** ค่าตั้งต้นของหน้าความถี่ ละเอียดหรือภาพรวม ตั้งที่หน้าตั้งค่า (BUGS ข้อ 14 พี่กัน "อันนี้ตั้งค่าได้ ว่าจะให้เเสดงกราฟไหนตั้งต้น") */
+export const SPEK_RES_KEY = "graph-spek-res";
 function loadPrefs(): Prefs {
-  const d: Prefs = { view: "wave", theme: "ชมพู", style: "aud", cmap: "theme", scmap: "heat", spekLight: false, wide: false };
+  const d: Prefs = { view: "wave", theme: "ชมพู", style: "aud", cmap: "theme", scmap: "heat", spekLight: false, wide: false, spekAxis: "lin" };
   // ค่าเดิมที่จำเส้นละเอียดไว้ เปิดมาเป็นแบบหลัก (พี่กันเคาะ "เอาของ audacity เป็นอันหลักเลย")
-  try { const p = JSON.parse(localStorage.getItem(PREF_KEY) ?? "{}"); const r: Prefs = { ...d, ...p, theme: THEMES[p.theme] ? p.theme : d.theme }; if (!["aud", "bars", "real"].includes(r.style)) r.style = "aud"; return r; } catch { return d; }
+  try { const p = JSON.parse(localStorage.getItem(PREF_KEY) ?? "{}"); const r: Prefs = { ...d, ...p, theme: THEMES[p.theme] ? p.theme : d.theme }; if (!["aud", "bars", "real"].includes(r.style)) r.style = "aud"; if (r.view === "spec") r.view = "spek"; if (r.spekAxis !== "log") r.spekAxis = "lin"; return r; } catch { return d; }
 }
 
 /** โหมดของหน้า กับการเทียบที่เปิดอยู่ · จำระดับโปรแกรม ไปหน้าอื่นแล้วกลับมาอยู่ที่เดิม (คิวแปลงเก็บใน convertJob.ts) */
@@ -656,6 +659,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
   const jumped = useRef(false);
   const [prefs, setPrefs] = useState<Prefs>(loadPrefs);
   const [ovFold] = useOvFold();
+  const [spekRes, setSpekRes] = useState<"fine" | "coarse">(() => { try { return localStorage.getItem(SPEK_RES_KEY) === "coarse" ? "coarse" : "fine"; } catch { return "fine"; } });
   const [zoom, setZoom] = useState<number | "all">("all");
   const [center, setCenter] = useState(0);
   const [tip, setTip] = useState(0);
@@ -844,18 +848,29 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
   // จำผลไว้ สลับกราฟไปมาไม่อ่านซ้ำ (พี่กันถาม 9 พ.ย. 2569 "เรากดเปลี่ยนกราฟไปมา ทำไมมันคำนวนใหม่ทุกครั้งเลย")
   const winMem = useRef(new Map<string, GWindow>()), psdMem = useRef(new Map<string, GPsd>());
   // ระหว่างลากแถบซูม แถบเลื่อน หรือตัวกราฟ ไม่อ่านไฟล์เลย ปล่อยเมาส์แล้วอ่านทีเดียว (พี่กันบอก 9 พ.ย. 2569 "ซูมแนวนอน มันประมวลผลกราฟตลอดเลย")
+  // ช่วงซูมยาวเท่าหรือเกินทั้งไฟล์ (กด 10 นาทีกับไฟล์ 5:15) ใช้ภาพรวมทั้งไฟล์เหมือนกด ทั้งไฟล์ ไม่ขอช่วงซูม
+  // (BUGS ข้อ 38 พี่กัน "เรากด 10 วิ มันค้างเลย" · ต้นเหตุ ช่วงที่ดูยังเป็น 0 ถึงท้ายไฟล์เท่าเดิม ตัวขอข้อมูลไม่ถูกเรียกใหม่ แต่ป้ายโหลดรอข้อมูลช่วงซูมตลอดไป)
+  // คำขอที่ถูกคำขออื่นยกเลิกกลางทาง (ได้ค่าว่างกลับมา) ขอใหม่ไม่เกิน 3 ครั้ง แล้วใช้ภาพรวมแทน ป้ายโหลดไม่ค้าง
+  const wholeSpan = span >= dur * 0.999;
   useEffect(() => {
-    if (grabbing || !path || !ov || zoom === "all" || view === "loud" || view === "psd") return;
-    let live = true;
+    if (grabbing || !path || !ov || zoom === "all" || wholeSpan || view === "loud" || view === "psd") return;
+    let live = true, tries = 0, id = 0;
     const log = view !== "spek";
     const memKey = `${path}|${track}|${rt0}|${rt1}|${Math.round(plotW)}|${log}`, hit = winMem.current.get(memKey);
     if (hit) { setWin(hit); return; }
-    const id = setTimeout(() => {
-      graphApi.window(path, track, rt0, rt1, Math.round(plotW), log ? 96 : 256, log).then((w) => { if (w) memPut(winMem.current, memKey, w, 12); if (live && w) setWin(w); }, (e) => { if (live) { setWinFail(`${rt0}|${rt1}`); toast({ kind: "bad", title: "อ่านช่วงที่ซูมไม่ได้", detail: String(e) }); } });
-    }, 150);
+    const ask = () => {
+      graphApi.window(path, track, rt0, rt1, Math.round(plotW), log ? 96 : 256, log).then((w) => {
+        if (w) memPut(winMem.current, memKey, w, 12);
+        if (!live) return;
+        if (w) setWin(w);
+        else if (++tries < 3) id = window.setTimeout(ask, 200);
+        else setWinFail(`${rt0}|${rt1}`);
+      }, (e) => { if (live) { setWinFail(`${rt0}|${rt1}`); toast({ kind: "bad", title: "อ่านช่วงที่ซูมไม่ได้", detail: String(e) }); } });
+    };
+    id = window.setTimeout(ask, 150);
     return () => { live = false; clearTimeout(id); };
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [grabbing, path, ov, track, rt0, rt1, view, plotW]);
+  }, [grabbing, path, ov, track, rt0, rt1, view, plotW, zoom, wholeSpan]);
 
   // ความถี่เฉลี่ย
   const psdSeries = useMemo(() => {
@@ -913,7 +928,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
 
   // ซูมแล้วคงภาพคมเดิมไว้จนข้อมูลช่วงใหม่มาครบ แล้วสลับทีเดียวทั้งกราฟกับแกนเวลา ไม่ยืดภาพรวมความละเอียดต่ำมาคั่น
   const rawWin = win && zoom !== "all" && win.env.length === names.length && Math.abs(win.t0 - rt0) < 0.01 && Math.abs(win.t1 - rt1) < 0.01 ? win : null;
-  const needWin = zoom !== "all" && view !== "loud" && view !== "psd";
+  const needWin = zoom !== "all" && !wholeSpan && view !== "loud" && view !== "psd";
   const viewReady = !needWin || !!rawWin || winFail === `${rt0}|${rt1}`;
   const viewKey = `${path}|${track}|${names.length}`;
   const lastView = useRef<{ key: string; t0: number; t1: number; win: GWindow | null; held: GWindow | null } | null>(null);
@@ -1099,7 +1114,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
       {lbl === "ซูม" && <span className="zbtns">
         <button type="button" className="zb" onClick={() => zoomBy(2)} disabled={zoom === "all"} aria-label="ซูมออก" title="ซูมออก · Ctrl หมุนล้อเมาส์ลง" data-zoomout><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6" /></svg></button>
         <HZoom dur={dur} span={span} onSpan={setSpan} onBusy={grabBusy} />
-        <button type="button" className="zb" onClick={() => zoomBy(0.5)} disabled={span <= 0.5} aria-label="ซูมเข้า" title="ซูมเข้า · Ctrl หมุนล้อเมาส์ขึ้น" data-zoomin><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6M10.5 7.5v6" /></svg></button>
+        <button type="button" className="zb" onClick={() => zoomBy(0.5)} disabled={span <= HZ_MIN * 1.01} aria-label="ซูมเข้า" title="ซูมเข้า · Ctrl หมุนล้อเมาส์ขึ้น" data-zoomin><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6M10.5 7.5v6" /></svg></button>
         <button type="button" className="zb" aria-label="รีเซ็ตซูม" title="รีเซ็ต กลับทั้งไฟล์ ซูมแนวตั้ง 1 เท่า" data-zoom-reset onClick={() => { setZoom("all"); setWin(null); setVz(1); setSzRaw(1); setSb(0); setResetN((n) => n + 1); }}><IcRefresh size={15} /></button>
       </span>}
       <span className="lbl">{lbl}</span>
@@ -1282,7 +1297,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
     const cc = ["FL", "FR", "FC"].filter((c) => names.includes(c));
     plot = <CmpView onPan={panTo} onBusy={grabBusy} resetN={resetN} scroller={scroller} dur={dur} src={src} names={names} cc={cc} t0={t0} t1={t1} marks={marks} zoomBox={zoomBox(ZOOMS, "ซูม")} at={at} live={hover != null} setHover={setHover} play={play} save={saveImage} exportRef={exportRef} plotRef={plotRef} />;
   } else if (view === "spek") {
-    plot = <SpekView onBusy={grabBusy} held={heldShown} resetN={resetN} tools={styleTools} light={prefs.spekLight} onPanT={panTo} scroller={scroller} ov={ov} win={winNow} track={t} fileName={fileName} names={names} t0={t0} t1={t1} zoomBox={zoomBox(ZOOMS, "ซูม")} scmap={prefs.scmap} setScmap={(v) => setPref("scmap", v)} th={th} audioOnly={!!info?.audioOnly} play={play} save={saveImage} exportRef={exportRef} plotRef={plotRef} at={at} />;
+    plot = <SpekView axis={prefs.spekAxis} setAxis={(v) => setPref("spekAxis", v)} res={spekRes} setRes={setSpekRes} onBusy={grabBusy} held={heldShown} resetN={resetN} tools={styleTools} light={prefs.spekLight} onPanT={panTo} scroller={scroller} ov={ov} win={winNow} track={t} fileName={fileName} names={names} t0={t0} t1={t1} zoomBox={zoomBox(ZOOMS, "ซูม")} scmap={prefs.scmap} setScmap={(v) => setPref("scmap", v)} th={th} audioOnly={!!info?.audioOnly} play={play} save={saveImage} exportRef={exportRef} plotRef={plotRef} at={at} />;
   } else {
     plot = <PsdView filePath={path ?? ""} onReset={() => { setZoom("all"); setWin(null); setResetN((n) => n + 1); }} resetN={resetN} scroller={scroller} psd={psd && psd.db.length === psdSeries.length + (psdMs ? 2 : 0) ? psd : null} names={names} psdCh={psdCh} setPsdCh={setPsdCh} psdLog={psdLog} setPsdLog={setPsdLog} psdSize={psdSize} setPsdSize={setPsdSize} th={th} ov={ov} t0={t0} t1={t1}
       zoomBox={zoomBox(PSD_SPANS, "ช่วงที่เลือก")} onPick={(x) => { setCenter(x); if (zoom === "all") setZoom(30); }} f={psdF} setF={setPsdF} fileName={fileName} save={saveImage} exportRef={exportRef} plotRef={plotRef} toast={toast} />;
@@ -1716,30 +1731,48 @@ function spekVerdict(codec: string, rate: number, e: { top: number; cliff: numbe
   if (LIMIT[codec] && e.top < LIMIT[codec]) return { warn: false, b, d: "เสียงสูงค่อย ๆ เบาลงเอง ไม่ได้ตัดเป็นเส้นตรงแบบไฟล์ที่แปลงมาจาก MP3 น่าจะเป็นลักษณะของเสียงต้นฉบับ เช่น เพลงหรือหนังเก่า" };
   return { warn: false, b, d: `${NORM[codec] ?? "ไฟล์ไม่บีบอัดของจริงมีเสียงถึงราว 20 kHz ขึ้นไป"} · ไฟล์นี้ไม่มีร่องรอยการตัดเสียงสูง` };
 }
-function SpekView({ onBusy, held, resetN, tools, light, onPanT, scroller, ov, win, track, fileName, names, t0, t1, zoomBox, scmap, th, audioOnly, play, save, exportRef, plotRef, at }: CommonProps & { onBusy: (on: boolean) => void; held: GWindow | null; resetN: number; tools?: React.ReactNode; light: boolean; onPanT: (center: number) => void; ov: GOverview; win: GWindow | null; track: GTrack | undefined; fileName: string; names: string[]; t0: number; t1: number; zoomBox: React.ReactNode; scmap: Prefs["scmap"]; setScmap: (v: Prefs["scmap"]) => void; th: Theme; audioOnly: boolean; play: () => void; at: number }) {
+/** ป้ายความถี่บนแกน · ต่ำกว่า 1 kHz เป็น Hz */
+const hzTxt = (f: number) => (f >= 1000 ? `${+(f / 1000).toFixed(f >= 10000 ? 0 : 1)} kHz` : `${Math.round(f)} Hz`);
+const SPEK_LOG_MIN = 20;
+const SPEK_AXIS_TIP: Tip = { w: "เส้นตรง แบ่งความถี่เท่า ๆ กันแบบโปรแกรม Spek เห็นย่านเสียงสูงชัด ใช้ดูว่าไฟล์ถูกตัดเสียงสูงไหม · ล็อก ขยายย่านเสียงต่ำให้กว้างขึ้นแบบหูคน เห็นเส้นเสียงร้องและโน้ตดนตรีชัด" };
+const SPEK_RES_TIP: Tip = { w: "ละเอียด อ่านเสียงช่วงที่ดูใหม่ทุกครั้งที่ซูม เห็นรายละเอียดคม · ภาพรวม ใช้ข้อมูลชุดเดียวกับรูปคลื่นที่อ่านไว้แล้ว ขึ้นทันที แต่หยาบกว่าเมื่อซูมลึก · ตั้งค่าตั้งต้นได้ที่หน้าตั้งค่า" };
+
+function SpekView({ onBusy, held, resetN, tools, light, onPanT, scroller, ov, win, track, fileName, names, t0, t1, zoomBox, scmap, th, audioOnly, play, save, exportRef, plotRef, at, axis, setAxis, res, setRes }: CommonProps & { onBusy: (on: boolean) => void; held: GWindow | null; resetN: number; tools?: React.ReactNode; light: boolean; onPanT: (center: number) => void; ov: GOverview; win: GWindow | null; track: GTrack | undefined; fileName: string; names: string[]; t0: number; t1: number; zoomBox: React.ReactNode; scmap: Prefs["scmap"]; setScmap: (v: Prefs["scmap"]) => void; th: Theme; audioOnly: boolean; play: () => void; at: number; axis: "lin" | "log"; setAxis: (v: "lin" | "log") => void; res: "fine" | "coarse"; setRes: (v: "fine" | "coarse") => void }) {
+  // ช่องที่ดู −1 รวมทุกช่อง · −2 แสดงทุกช่องเรียงลงมา · ตัวเลขคือช่องเดียว (BUGS ข้อ 14 พี่กัน "ถ้ามันมีหลาย ch ก็เรียงกันลงมาเลย")
   const [ch, setCh] = useState(-1);
   const rate = track?.rate ?? 48000, nyq = rate / 2;
   const ramp = spekRamp(scmap, th.ramp, light);
   const toolBox = useRef<HTMLDivElement>(null), areaRef = useRef<HTMLDivElement>(null), vsRef = useRef<HTMLDivElement>(null), vsDrag = useRef(false);
-  // ซูมแนวตั้ง fz เท่า ขอบล่างของช่วงที่เห็น fb เป็นสัดส่วนของย่านความถี่ · ซูมแล้วคงกึ่งกลางเดิม
+  // ซูมแนวตั้ง fz เท่า ขอบล่างของช่วงที่เห็น fb เป็นสัดส่วนของแกน (เส้นตรงหรือล็อก) · ซูมแล้วคงกึ่งกลางเดิม
   const [fz, setFzRaw] = useState(1), [fb, setFb] = useState(0);
   const clampB = (b: number, z: number) => Math.max(0, Math.min(1 - 1 / z, b));
   const fzNow = useRef(1); fzNow.current = fz;
   useEffect(() => { if (resetN) { setFzRaw(1); setFb(0); } }, [resetN]);
   const setFz = useCallback((z: number) => { const old = fzNow.current; if (z === old) return; setFb((b) => clampB(b + 1 / old / 2 - 1 / z / 2, z)); setFzRaw(z); }, []);
-  // ซูมแล้วลากบนกราฟเลื่อนได้ กราฟขยับตามมือ ซ้ายขวาคือเวลา ขึ้นลงคือย่านความถี่ · ไม่ได้ซูมแกนไหน แกนนั้นไม่ขยับ
   const canPan = fz > 1 || t1 - t0 < ov.duration - 0.01;
   const [dragging, setDragging] = useState(false);
   const dragFrom = useRef<{ x: number; y: number; fb: number; c: number; span: number; pw: number; ph: number } | null>(null);
+  // ภาพรวมใช้ข้อมูลทั้งไฟล์ที่อ่านไว้แล้ว ไม่ใช้ช่วงที่อ่านคมตอนซูม
+  const W = res === "fine" ? win : null, H = res === "fine" ? held : null;
+  const all = names.map((_, i) => i).filter((i) => names[i] !== "LFE");
+  const mixed = all.length ? all : [0];
+  const bands: number[][] = ch === -2 ? (names.length ? names.map((_, i) => [i]) : [[0]]) : [ch >= 0 ? [ch] : mixed];
+  const GAP = 14;
+  const bandRect = (h: number) => { const PH = h - SPK.T - SPK.B, n = bands.length, bh = (PH - GAP * (n - 1)) / n; return (k: number) => ({ y: SPK.T + k * (bh + GAP), h: bh }); };
+  // แถวบนจอเป็นความถี่เท่าไหร่ · u คือสัดส่วนจากล่างของแกนทั้งหมด
+  const fAt = (u: number) => (axis === "log" ? SPEK_LOG_MIN * Math.pow(nyq / SPEK_LOG_MIN, u) : u * nyq);
+  const uOf = (f: number) => (axis === "log" ? Math.log(Math.max(SPEK_LOG_MIN, f) / SPEK_LOG_MIN) / Math.log(nyq / SPEK_LOG_MIN) : f / nyq);
   const panDown = (e: React.PointerEvent<HTMLCanvasElement>) => {
     if (!canPan || e.button !== 0) return;
     e.preventDefault(); e.currentTarget.setPointerCapture(e.pointerId);
     const r = e.currentTarget.getBoundingClientRect();
-    dragFrom.current = { x: e.clientX, y: e.clientY, fb, c: (t0 + t1) / 2, span: t1 - t0, pw: Math.max(1, r.width - SPK.L - SPK.R), ph: Math.max(1, r.height - SPK.T - SPK.B) };
-    setDragging(true); onBusy(true);
+    dragFrom.current = { x: e.clientX, y: e.clientY, fb, c: (t0 + t1) / 2, span: t1 - t0, pw: Math.max(1, r.width - SPK.L - SPK.R), ph: Math.max(1, bandRect(r.height)(0).h) };
+    setDragging(true); setHov(null); onBusy(true);
   };
+  const [hov, setHov] = useState<{ x: number; y: number } | null>(null);
   const panMove = (e: React.PointerEvent<HTMLCanvasElement>) => {
-    const d = dragFrom.current; if (!d) return;
+    const d = dragFrom.current;
+    if (!d) { const r = e.currentTarget.getBoundingClientRect(); setHov({ x: e.clientX - r.left, y: e.clientY - r.top }); return; }
     if (fz > 1) setFb(clampB(d.fb + (e.clientY - d.y) / d.ph / fz, fz));
     if (d.span < ov.duration - 0.01) onPanT(d.c - (e.clientX - d.x) / d.pw * d.span);
   };
@@ -1751,49 +1784,68 @@ function SpekView({ onBusy, held, resetN, tools, light, onPanT, scroller, ov, wi
     el.addEventListener("wheel", fn, { passive: false });
     return () => el.removeEventListener("wheel", fn);
   }, [fz]);
-  const all = names.map((_, i) => i).filter((i) => names[i] !== "LFE");
-  const list = ch >= 0 ? [ch] : all.length ? all : [0];
-  // ขอบบนของเสียง จากข้อมูลชุดเดียวกับที่วาด (ช่วงที่เห็นอยู่)
+  // ข้อมูลของชุดช่องหนึ่ง (รวมเป็นค่าสูงสุดของทุกช่องในชุด)
+  const srcOf = (set: number[]) => {
+    const srcs = set.map((i) => (W ? dec(W.spec[i]) : dec(ov.spec[i])));
+    const bins = W ? W.bins : ov.specBins, cols = W ? Math.round(srcs[0].length / bins) : ov.specCols;
+    const c0 = W ? 0 : Math.floor(t0 / ov.duration * cols), c1 = W ? cols : Math.max(c0 + 1, Math.ceil(t1 / ov.duration * cols));
+    return { srcs, bins, cols, c0, c1 };
+  };
+  // ขอบบนของเสียง จากช่องรวมของช่วงที่เห็น
   const edge = useMemo(() => {
-    const srcs = list.map((i) => (win ? dec(win.spec[i]) : dec(ov.spec[i])));
-    const B = win ? win.bins : ov.specBins, cols = win ? Math.round(srcs[0].length / B) : ov.specCols;
-    const c0 = win ? 0 : Math.floor(t0 / ov.duration * cols), c1 = win ? cols : Math.max(c0 + 1, Math.ceil(t1 / ov.duration * cols));
-    return edgeOf(srcs, B, c0, c1, nyq);
+    const { srcs, bins, c0, c1 } = srcOf(ch >= 0 ? [ch] : mixed);
+    return edgeOf(srcs, bins, c0, c1, nyq);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [ov, win, t0, t1, ch]);
-  // สีตัวหนังสือและเส้นตามพื้น · ตอนบันทึกเป็นรูปไม่มีปุ่มบังจึงเขียนชื่อไฟล์เต็ม บนจอตัดชื่อให้จบก่อนถึงปุ่ม
+  }, [ov, W, t0, t1, ch]);
   const ink = light ? { bg: "#ffffff", line: "#333333", title: "#1c1c1c", sub: "#555555", tick: "#333333" } : { bg: "#000000", line: "#ffffff", title: "#ffffff", sub: "#d8d8d8", tick: "#e6e6e6" };
   const drawSpek = (g: CanvasRenderingContext2D, w: number, h: number, full: boolean) => {
     g.fillStyle = ink.bg; g.fillRect(0, 0, w, h);
-    const { L, R, T, B } = SPK, PW = w - L - R, PH = h - T - B, colors = lut([...ramp]);
-    const srcs = list.map((i) => (win ? dec(win.spec[i]) : dec(ov.spec[i])));
-    const bins = win ? win.bins : ov.specBins, cols = win ? Math.round(srcs[0].length / bins) : ov.specCols;
-    const c0 = win ? 0 : Math.floor(t0 / ov.duration * cols), c1 = win ? cols : Math.max(c0 + 1, Math.ceil(t1 / ov.duration * cols));
-    const r0 = Math.min(bins - 1, Math.floor(fb * bins)), nr = Math.max(2, Math.min(bins - r0, Math.ceil(bins / fz)));
-    drawMatrix(g, L, T, PW, PH, c1 - c0, nr, colors, (row, col) => { let m = 0; for (const d of srcs) m = Math.max(m, d[(c0 + col) * bins + row + r0]); return m; });
-    // ระหว่างลาก ส่วนที่เคยอ่านคมแล้ววาดทับตรงตำแหน่งใหม่
-    if (!win && held) {
-      const hs = list.map((i) => dec(held.spec[i])), hb = held.bins, hc = Math.round(hs[0].length / hb), hr0 = Math.min(hb - 1, Math.floor(fb * hb)), hn = Math.max(2, Math.min(hb - hr0, Math.ceil(hb / fz))), k = PW / (t1 - t0 || 1);
-      g.save(); g.beginPath(); g.rect(L, T, PW, PH); g.clip();
-      drawMatrix(g, L + (held.t0 - t0) * k, T, (held.t1 - held.t0) * k, PH, hc, hn, colors, (row, col) => { let m = 0; for (const d of hs) m = Math.max(m, d[col * hb + row + hr0]); return m; });
-      g.restore();
-    }
-    g.strokeStyle = ink.line; g.lineWidth = 1; g.strokeRect(L - 0.5, T - 0.5, PW + 1, PH + 1);
+    const { L, R, T, B } = SPK, PW = w - L - R, PH = h - T - B, colors = lut([...ramp]), band = bandRect(h);
+    bands.forEach((set, k) => {
+      const { y, h: bh } = band(k);
+      const { srcs, bins, c0, c1 } = srcOf(set);
+      const rows = Math.max(32, Math.min(512, Math.round(bh)));
+      const binAt = (row: number, nb: number) => Math.min(nb - 1, Math.max(0, Math.floor(fAt(fb + (row + 0.5) / rows / fz) / nyq * nb)));
+      const map = Array.from({ length: rows }, (_, r) => binAt(r, bins));
+      drawMatrix(g, L, y, PW, bh, c1 - c0, rows, colors, (row, col) => { let m = 0; const b = map[row]; for (const d of srcs) m = Math.max(m, d[(c0 + col) * bins + b]); return m; });
+      // ระหว่างลาก ส่วนที่เคยอ่านคมแล้ววาดทับตรงตำแหน่งใหม่
+      if (!W && H) {
+        const hs = set.map((i) => dec(H.spec[i])), hb = H.bins, hc = Math.round(hs[0].length / hb), hmap = Array.from({ length: rows }, (_, r) => binAt(r, hb)), kx = PW / (t1 - t0 || 1);
+        g.save(); g.beginPath(); g.rect(L, y, PW, bh); g.clip();
+        drawMatrix(g, L + (H.t0 - t0) * kx, y, (H.t1 - H.t0) * kx, bh, hc, rows, colors, (row, col) => { let m = 0; const b = hmap[row]; for (const d of hs) m = Math.max(m, d[col * hb + b]); return m; });
+        g.restore();
+      }
+      g.strokeStyle = ink.line; g.lineWidth = 1; g.strokeRect(L - 0.5, y - 0.5, PW + 1, bh + 1);
+      // แกนความถี่ของแถบนี้
+      g.fillStyle = ink.tick; g.font = "11.5px Sarabun, sans-serif"; g.textBaseline = "middle"; g.textAlign = "right";
+      const u0 = fb, u1 = fb + 1 / fz, yOf = (f: number) => y + bh * (1 - (uOf(f) - u0) / (u1 - u0));
+      let ticks: number[];
+      if (axis === "log") ticks = [20, 50, 100, 200, 500, 1000, 2000, 5000, 10000, 20000, 50000].filter((f) => f <= nyq);
+      else { const f0 = fAt(u0), fSpan = fAt(u1) - f0, fs = [100, 250, 500, 1000, 2000, 4000, 8000, 16000].find((x) => bh * x / fSpan >= 24) ?? 32000; ticks = []; for (let f = Math.ceil(f0 / fs) * fs; f <= f0 + fSpan + 1; f += fs) ticks.push(f); }
+      let lastY = Infinity;
+      for (const f of ticks) { const ty = yOf(f); if (ty < y - 1 || ty > y + bh + 1 || lastY - ty < 16) continue; lastY = ty; g.fillRect(L - 5, Math.round(ty), 5, 1); g.fillText(hzTxt(f), L - 8, ty); }
+      // ชื่อช่องมุมซ้ายบนของแถบ เมื่อแสดงทุกช่อง
+      if (bands.length > 1) {
+        const nm = `${label(names, names[set[0]]).code} ${label(names, names[set[0]]).th}`;
+        g.font = "700 12px Sarabun, sans-serif"; g.textAlign = "left"; g.textBaseline = "top";
+        const tw = g.measureText(nm).width; g.fillStyle = light ? "rgba(255,255,255,.85)" : "rgba(0,0,0,.6)"; g.fillRect(L + 6, y + 6, tw + 12, 20);
+        g.fillStyle = ink.title; g.fillText(nm, L + 12, y + 9);
+      }
+    });
     const room = full ? Infinity : w - L - R - (toolBox.current?.offsetWidth ?? 450) - 16;
     const fit = (txt: string) => { if (g.measureText(txt).width <= room) return txt; let n = txt.length; while (n > 1 && g.measureText(txt.slice(0, n) + "…").width > room) n--; return txt.slice(0, n) + "…"; };
     g.textBaseline = "alphabetic"; g.textAlign = "left"; g.fillStyle = ink.title; g.font = "700 13.5px Sarabun, sans-serif"; g.fillText(fit(fileName), L, 22);
     g.fillStyle = ink.sub; g.font = "12px Sarabun, sans-serif";
-    g.fillText(fit(`${track?.codec ?? ""} · ${rate.toLocaleString("en-US")} Hz${track?.bits ? ` · ${track.bits}-bit` : ""} · ${ch < 0 ? `${list.length} channels mixed` : `channel ${label(names, names[ch]).code}`}`), L, 42);
-    g.fillStyle = ink.tick; g.font = "11.5px Sarabun, sans-serif"; g.textBaseline = "middle"; g.textAlign = "right";
-    const f0 = fb * nyq, fSpan = nyq / fz, fs = [100, 250, 500, 1000, 2000, 4000, 8000, 16000].find((x) => PH * x / fSpan >= 24) ?? 32000;
-    for (let f = Math.ceil(f0 / fs) * fs; f <= f0 + fSpan + 1; f += fs) { const y = T + PH * (1 - (f - f0) / fSpan); g.fillRect(L - 5, Math.round(y), 5, 1); g.fillText(`${f / 1000} kHz`, L - 8, y); }
-    g.textAlign = "center"; g.textBaseline = "top"; for (const { x, label } of rulerTicks(t0, t1, 10)) { const px = L + (x - t0) / (t1 - t0 || 1) * PW; g.fillRect(Math.round(px), T + PH, 1, 5); g.fillText(label, px, T + PH + 8); }
+    const chTxt = ch === -2 ? `${names.length} channels separately` : ch < 0 ? `${mixed.length} channels mixed` : `channel ${label(names, names[ch]).code}`;
+    g.fillText(fit(`${track?.codec ?? ""} · ${rate.toLocaleString("en-US")} Hz${track?.bits ? ` · ${track.bits}-bit` : ""} · ${chTxt} · ${axis === "log" ? "log" : "linear"}`), L, 42);
+    g.fillStyle = ink.tick; g.font = "11.5px Sarabun, sans-serif";
+    g.textAlign = "center"; g.textBaseline = "top"; for (const { x, label: lb } of rulerTicks(t0, t1, 10)) { const px = L + (x - t0) / (t1 - t0 || 1) * PW; g.fillRect(Math.round(px), T + PH, 1, 5); g.fillText(lb, px, T + PH + 8); }
     const bx = L + PW + 18, grad = g.createLinearGradient(0, T, 0, T + PH); ramp.slice().reverse().forEach((c, i, a) => grad.addColorStop(i / (a.length - 1), c));
     g.fillStyle = grad; g.fillRect(bx, T, 12, PH); g.strokeStyle = ink.line; if (light) g.strokeRect(bx - 0.5, T - 0.5, 13, PH + 1);
     g.fillStyle = ink.tick; g.textAlign = "left"; g.textBaseline = "middle";
-    for (let d = 0; d >= -120; d -= 20) { const y = T + PH * (-d / 120); g.fillRect(bx + 12, Math.round(y), 4, 1); g.fillText(`${d === 0 ? "0" : "−" + -d} dB`, bx + 20, y); }
+    for (let d = 0; d >= -120; d -= 20) { const yy = T + PH * (-d / 120); g.fillRect(bx + 12, Math.round(yy), 4, 1); g.fillText(`${d === 0 ? "0" : "−" + -d} dB`, bx + 20, yy); }
   };
-  const ref = useCanvas((g, w, h) => drawSpek(g, w, h, false), [ov, win, held, t0, t1, ch, scmap, th, light, fz, fb]);
+  const ref = useCanvas((g, w, h) => drawSpek(g, w, h, false), [ov, W, H, t0, t1, ch, scmap, th, light, fz, fb, axis, res, names.length]);
   exportRef.current = (outW) => {
     const cv = ref.current; if (!cv) return null;
     const out = document.createElement("canvas"), r = outW ? outW / cv.clientWidth : screenK(); out.width = Math.round(cv.clientWidth * r); out.height = Math.round(cv.clientHeight * r);
@@ -1801,14 +1853,39 @@ function SpekView({ onBusy, held, resetN, tools, light, onPanT, scroller, ov, wi
     g.setTransform(r, 0, 0, r, 0, 0); drawSpek(g, cv.clientWidth, cv.clientHeight, true);
     return out;
   };
+  // เส้นตามเมาส์ เส้นตั้งบอกเวลา เส้นนอนบอกความถี่ กล่องบอก เวลา ความถี่ โน้ต ความดังตรงจุดนั้น (BUGS ข้อ 40 พี่กัน "เอาเมาส์ไปชี้ มันควรมีเส้นอะไรวิ่งด้วยไหม")
+  const probe = (() => {
+    const cv = ref.current; if (!hov || !cv || dragging) return null;
+    const PW = cv.clientWidth - SPK.L - SPK.R, band = bandRect(cv.clientHeight);
+    if (hov.x < SPK.L || hov.x > SPK.L + PW) return null;
+    const k = bands.findIndex((_, i) => { const b = band(i); return hov.y >= b.y && hov.y <= b.y + b.h; });
+    if (k < 0) return null;
+    const b = band(k), t = t0 + (hov.x - SPK.L) / PW * (t1 - t0), u = fb + (1 - (hov.y - b.y) / b.h) / fz, f = fAt(u);
+    const { srcs, bins, c0, c1 } = srcOf(bands[k]);
+    const col = Math.min(c1 - 1, c0 + Math.floor((hov.x - SPK.L) / PW * (c1 - c0))), bin = Math.min(bins - 1, Math.max(0, Math.floor(f / nyq * bins)));
+    let v = 0; for (const d of srcs) v = Math.max(v, d[col * bins + bin] ?? 0);
+    const db = v / 255 * 120 - 120;
+    return { x: hov.x, y: hov.y, top: SPK.T, height: cv.clientHeight - SPK.T - SPK.B, bandTop: b.y, t, f, db, ch: bands.length > 1 ? label(names, names[bands[k][0]]).code : "" };
+  })();
   const verdict = spekVerdict(track?.codec ?? "", rate, edge);
+  const chOpts: [string, string][] = [["-1", "รวมทุกช่อง"], ...names.map((c, i) => [String(i), `${label(names, c).code} ${label(names, c).th}`] as [string, string]), ...(names.length > 1 ? [["-2", "แสดงทุกช่อง"] as [string, string]] : [])];
+  const segBox = <T extends string>(opts: [T, React.ReactNode][], v: T, on: (x: T) => void, data: string) => <div className="seg" {...{ [data]: "" }}>{opts.map(([k, l]) => <button key={k} type="button" className={v === k ? "on" : ""} onClick={() => on(k)} data-k={k}>{l}</button>)}</div>;
   return (
     <div className="plot" data-plot ref={plotRef as React.RefObject<HTMLDivElement>}>
-      <div className="plotstick"><div className="plothead"><span style={{ display: "flex", alignItems: "center", gap: 8 }}><b>วิเคราะห์ความถี่</b>
-        <span data-spekch><Dropdown label="ช่องที่ดู" value={String(ch)} onChange={(v) => setCh(Number(v))}
-          options={[{ value: "-1", label: "รวมทุกช่อง" }, ...names.map((c, i) => ({ value: String(i), label: `${label(names, c).code} ${label(names, c).th}` }))]} /></span></span>{zoomBox}</div></div>
+      <div className="plotstick"><div className="plothead"><span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}><b>ความถี่</b>
+        {/* ปุ่มช่องเป็นแถวเมื่อพอ ไม่พอ (หน้าต่างแคบหรือไฟล์หลายช่อง) เป็นดรอปดาวน์ (พี่กัน "ขอเป็นปุ่มกดเรียงตามยาว ไม่ drop down" · "อันนี้เอาไปปรับใช้ได้") */}
+        {names.length <= 3 && <span className="spekch-seg">{segBox(chOpts, String(ch), (v) => setCh(Number(v)), "data-spekchseg")}</span>}
+        <span className={names.length <= 3 ? "spekch-dd" : "spekch-dd on"} data-spekch><Dropdown label="ช่องที่ดู" value={String(ch)} onChange={(v) => setCh(Number(v))} options={chOpts.map(([value, l]) => ({ value, label: l }))} /></span></span>{zoomBox}</div></div>
       <div className="spekarea">
-        <div ref={areaRef} className="spekbox"><canvas className={"cv fillcv" + (light ? " spekcv-light" : "") + (canPan ? " spekpan" : "") + (dragging ? " dragging" : "")} style={{ borderRadius: 8 }} ref={ref} data-spek onPointerDown={panDown} onPointerMove={panMove} onPointerUp={panEnd} onPointerCancel={panEnd} /><div ref={toolBox} className="spektools" style={{ right: SPK.R }}>{tools}</div>
+        <div ref={areaRef} className="spekbox" onPointerLeave={() => setHov(null)}><canvas className={"cv fillcv" + (light ? " spekcv-light" : "") + (canPan ? " spekpan" : "") + (dragging ? " dragging" : "")} style={{ borderRadius: 8 }} ref={ref} data-spek onPointerDown={panDown} onPointerMove={panMove} onPointerUp={panEnd} onPointerCancel={panEnd} /><div ref={toolBox} className="spektools" style={{ right: SPK.R }}>{tools}</div>
+          {probe && <>
+            <div className={"spekxh" + (light ? " light" : "")} style={{ left: probe.x, top: probe.top, height: probe.height }} data-spekxh />
+            <div className={"spekxh h" + (light ? " light" : "")} style={{ top: probe.y, left: SPK.L, right: SPK.R }} />
+            <div className="tip spektip" style={{ left: probe.x + 14 + 190 > (ref.current?.clientWidth ?? 0) - SPK.R ? probe.x - 14 - 190 : probe.x + 14, top: Math.max(probe.top + 4, probe.y - 70) }} data-spektip>
+              <div className="t">{tfmtD(probe.t, spanDigits(t1 - t0))}{probe.ch && <span style={{ fontWeight: 400, marginLeft: 6 }}>ช่อง {probe.ch}</span>}</div>
+              <div className="r"><Fragment2 v={probe.f >= 1000 ? `${(probe.f / 1000).toFixed(2)} kHz` : `${Math.round(probe.f)} Hz`} k={probe.f > 15 ? `โน้ต ${noteOf(probe.f)}` : "ความถี่"} /><Fragment2 v={probe.db <= -119.5 ? "เงียบ" : `${minus(probe.db.toFixed(0))} dB`} k="ความดังตรงนี้" /></div>
+            </div>
+          </>}
           {fz > 1 && <div ref={vsRef} className={"spekvs" + (light ? " light" : "")} style={{ top: SPK.T, bottom: SPK.B, right: SPK.R - 14 }} title="ลากเลื่อนย่านความถี่ขึ้นลง · หมุนล้อเมาส์บนกราฟก็ได้" data-spekvs
             onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); vsDrag.current = true; vsTo(e.clientY); }} onPointerMove={(e) => { if (vsDrag.current) vsTo(e.clientY); }} onPointerUp={() => { vsDrag.current = false; }} onPointerCancel={() => { vsDrag.current = false; }}>
             <i style={{ height: 100 / fz + "%", bottom: fb * 100 + "%" }} data-spekthumb /></div>}
@@ -1820,8 +1897,11 @@ function SpekView({ onBusy, held, resetN, tools, light, onPanT, scroller, ov, wi
         {verdict.warn
         ? <div className="stat warn" title={verdict.b + " · " + verdict.d} data-spekverdict data-cliff={Math.round(edge.cliff)}>{WARN}<div><b><Phr>{verdict.b}</Phr></b>{lines(verdict.d)}</div></div>
         : <div className="stat info" title={verdict.b + " · " + verdict.d} data-spekverdict data-cliff={Math.round(edge.cliff)}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5v.5" /></svg><div><b><Phr>{verdict.b}</Phr></b>{lines(verdict.d)}</div></div>}
-        
-        <div style={{ display: "flex", gap: 8 }}>{!audioOnly && <button type="button" className="btn btn-ghost btn-sm" onClick={play}><IbPlay size={15} /><span>เปิดเล่นที่ <FixedTime t={tfmt(at)} longest={tfmt(ov.duration)} /></span></button>}<SaveBtn onClick={save} /></div></div>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {/* ละเอียด กับ ภาพรวม · แกนเส้นตรงกับล็อก (BUGS ข้อ 14 พี่กัน "เพิ่มอีกตัวเลือก คือแสดงแบบหยาบ" · "เอ้ย งี้ได้ด้วยเหรอ เอาด้วยสิ") */}
+          {segBox<"fine" | "coarse">([["fine", "ละเอียด"], ["coarse", "ภาพรวม"]], res, setRes, "data-spekres")}<InfoTip title="ละเอียด กับ ภาพรวม" tip={SPEK_RES_TIP} />
+          <span className="lbl">แกน</span>{segBox<"lin" | "log">([["lin", "เส้นตรง"], ["log", "ล็อก"]], axis, setAxis, "data-spekaxis")}<InfoTip title="แกนความถี่" tip={SPEK_AXIS_TIP} />
+          {!audioOnly && <button type="button" className="btn btn-ghost btn-sm" onClick={play}><IbPlay size={15} /><span>เปิดเล่นที่ <FixedTime t={tfmt(at)} longest={tfmt(ov.duration)} /></span></button>}<SaveBtn onClick={save} /></div></div>
     </div>
   );
 }
@@ -2503,7 +2583,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
         <div className="ginfo" style={{ gridTemplateColumns: `auto repeat(${n}, auto)` }} data-cmpinfo><span />{files.map((p, i) => <span key={p} className="h" style={{ color: FILE_INK[i] }}>{LABELS[i]}</span>)}
           {["รหัสเสียง", "ช่องเสียง", "อัตราสุ่ม", "ความละเอียด", "บิตเรต", "ขนาด", "ความยาว"].map((k, r) => <FragmentInfo key={k} k={k} vals={infos.map((x) => x?.[r] ?? "…")} />)}</div>
         {note && <div className="small" style={{ marginTop: 8 }}><Phr>{note}</Phr></div>}</div>
-      {lenDiff && <div className="stat warn" data-cmplen><CardIcon kind="warn" /><div><b>{`${allTxt}ยาวไม่เท่ากัน ${lens.map(tfmt).join(" · ")}`}</b><Phr>{CONV ? "น่าจะตั้งความเร็วเสียงตอนแปลง · รูปคลื่น ความดัง ซ้อนเทียบ เทียบตามเวลาตรง ๆ ไม่ได้ ดูความถี่เฉลี่ยกับวิเคราะห์แทน" : "กราฟเรียงจากต้นไฟล์ตามเวลา · ไฟล์ที่สั้นกว่าจบก่อน"}</Phr></div></div>}
+      {lenDiff && <div className="stat warn" data-cmplen><CardIcon kind="warn" /><div><b>{`${allTxt}ยาวไม่เท่ากัน ${lens.map(tfmt).join(" · ")}`}</b><Phr>{CONV ? "น่าจะตั้งความเร็วเสียงตอนแปลง · รูปคลื่น ความดัง ซ้อนเทียบ เทียบตามเวลาตรง ๆ ไม่ได้ ดูความถี่เฉลี่ยกับกราฟความถี่แทน" : "กราฟเรียงจากต้นไฟล์ตามเวลา · ไฟล์ที่สั้นกว่าจบก่อน"}</Phr></div></div>}
     </div>
   );
 
@@ -2651,7 +2731,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
       const sub = (i: number) => { const t = T[i]!; return `${t.codec} · ${t.rate.toLocaleString("en-US")} Hz${t.bits ? ` · ${t.bits}-bit` : ""}${t.bitrate ? ` · ${Math.round(t.bitrate / 1000).toLocaleString("en-US")} kb/s` : ""} · ${NM[i].length} channels mixed${nyq[i] !== maxNyq ? " · แกนตั้งเท่ากันทุกไฟล์" : ""}`; };
       body = (
         <div className="plot cmpplot" data-plot ref={plotRef} data-cmpview="spek">
-          <div className="plothead"><span><b>วิเคราะห์ความถี่</b> · <RangeTime t0={t0} t1={t1} dur={dur} /></span>{zoomBar}</div>
+          <div className="plothead"><span><b>ความถี่</b> · <RangeTime t0={t0} t1={t1} dur={dur} /></span>{zoomBar}</div>
           <div style={{ flex: `1 0 ${n * 122}px`, display: "flex", gap: 8, minHeight: 0 }} onWheel={vrSpek.wheel}>
             <div style={{ flex: 1, minWidth: 0, display: "flex", flexDirection: "column" }}>
               {files.map((p, i) => <SpekCv key={p} grab={cmpGrab} deps={[OV[i], t0, t1, maxNyq, vrSpek.z, vrSpek.b, hiC[p]]} draw={(g, w, h) => drawSpekCmp(g, w, h, OV[i], NM[i], nyq[i], maxNyq, t0, t1, nameOf(p), sub(i), edges[i].full ? null : edges[i].top, heat, HEAT, vrSpek.z, vrSpek.b, hiC[p])} data={"abcd"[i]} />)}

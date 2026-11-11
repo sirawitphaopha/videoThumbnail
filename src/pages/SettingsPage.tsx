@@ -38,7 +38,7 @@ const thankImg = (name: string) => { const f = THANK_ICON[name]; return f ? THAN
 
 const THANKS: { title: string; note: string; rows: { name: string; ver?: string; what: string; tag: string; url: string; icon: React.ReactNode }[] }[] = [
   { title: "ไอเดียและหน้าตา", note: "ดูเป็นแบบแล้วเขียนเอง ไม่ได้ใช้โค้ดของโปรแกรมเหล่านี้", rows: [
-    { icon: <IcGraph />, name: "Spek", ver: "0.8.5", what: "หน้าวิเคราะห์ในกราฟเสียง หน้าตากราฟกับการบันทึกเป็นรูป", tag: "ไอเดีย", url: "github.com/alexkay/spek" },
+    { icon: <IcGraph />, name: "Spek", ver: "0.8.5", what: "หน้าความถี่ในกราฟเสียง หน้าตากราฟกับการบันทึกเป็นรูป", tag: "ไอเดีย", url: "github.com/alexkay/spek" },
     { icon: <IcGraph />, name: "Bitrate Viewer", ver: "2.3", what: "หน้าบิตเรตวิดีโอ หน้าตา สี วิธีคิด 4 แบบ ซูม เส้นค่าเฉลี่ย", tag: "ไอเดีย", url: "videohelp.com/software/Bitrate-Viewer" },
     { icon: <IcGraph />, name: "FFBitrateViewer", ver: "0.9.7.2", what: "วิธีอ่านบิตเรตด้วย ffprobe ทีละแพ็กเก็ต ในหน้าบิตเรต", tag: "ไอเดีย · MIT", url: "github.com/fifonik/FFBitrateViewer" },
     { icon: <IcMix />, name: "Audacity", ver: "4.0.2", what: "รูปคลื่นแบบ Audacity ในกราฟเสียง", tag: "ไอเดีย", url: "audacityteam.org" },
@@ -139,6 +139,17 @@ function LatestLine({ l, onOpen }: { l: LatestInfo; onOpen: (name: string) => vo
   if (l.state === "ahead") return <span className="small" data-latest="ahead"><b className="latok">ใหม่กว่าหน้าเว็บ</b> · เว็บ {l.from} ยังเป็น {l.latest}</span>;
   if (l.state === "missing") return <span className="small" data-latest="missing">รุ่นล่าสุดบนเว็บ {l.latest} · {page}</span>;
   return <span className="small" data-latest="error"><b className="latbad">เช็กไม่ได้</b> · {l.error}</span>;
+}
+
+/** ความละเอียดตั้งต้นของกราฟความถี่ เก็บในเครื่อง (graph-spek-res ตัวเดียวกับ SPEK_RES_KEY ใน GraphPage.tsx) · กดสลับในหน้ากราฟใช้เฉพาะตอนนั้น
+    (BUGS ข้อ 14 พี่กัน "อันนี้ตั้งค่าได้ ว่าจะให้เเสดงกราฟไหนตั้งต้น" · ค่าตั้งต้นละเอียด แคลร์ตั้ง) */
+function SpekResRow() {
+  const [v, setV] = useState<"fine" | "coarse">(() => { try { return localStorage.getItem("graph-spek-res") === "coarse" ? "coarse" : "fine"; } catch { return "fine"; } });
+  const pick = (n: "fine" | "coarse") => { setV(n); try { localStorage.setItem("graph-spek-res", n); } catch { /* เก็บไม่ได้ ใช้ค่าในหน้าไปก่อน */ } };
+  return (
+    <div className="setrow" data-spekres-default><div className="lbl">กราฟความถี่เปิดมาแบบ<span className="small">ละเอียด อ่านเสียงช่วงที่ดูใหม่ทุกครั้งที่ซูม เห็นรายละเอียดคม · ภาพรวม ใช้ข้อมูลชุดเดียวกับรูปคลื่น ขึ้นทันทีแต่หยาบกว่าเมื่อซูมลึก · สลับได้ที่ใต้กราฟความถี่ ค่านี้ใช้ตอนเปิดหน้ากราฟ</span></div>
+      <Seg label="กราฟความถี่เปิดมาแบบ" value={v} onChange={pick} options={[{ value: "fine", label: "ละเอียด" }, { value: "coarse", label: "ภาพรวม" }]} /></div>
+  );
 }
 
 export default function SettingsPage() {
@@ -478,6 +489,7 @@ export default function SettingsPage() {
       <div className="setcard" data-setcard="graph" hidden={sec !== "graph"}><h3>กราฟเสียง</h3>
         <div className="setrow"><div className="lbl">ซูมเหมือนกันทุกกราฟ<span className="small">เปิดแล้วทุกกราฟใช้ช่วงเวลาซูมเดียวกัน · ปิดแล้วซูมเฉพาะกราฟที่ดูอยู่ กราฟอื่นเริ่มทั้งไฟล์</span></div>
           <Switch on={settings.graphZoomAll} onChange={(v) => set({ graphZoomAll: v })} label="ซูมเหมือนกันทุกกราฟ" /></div>
+        <SpekResRow />
         <GraphImgRows value={settings.graphImg ?? GRAPH_IMG_DEFAULT} onChange={(graphImg) => set({ graphImg })} />
         <div className="setrow"><div className="lbl">ผลอ่านคลื่นที่เก็บไว้ในเครื่อง<span className="small">เปิดไฟล์เดิมซ้ำไม่ต้องอ่านใหม่ · ไฟล์หนังเปลี่ยนแล้วอ่านใหม่เอง · รวมไม่เกิน 300 MB</span>
           <span className="small" data-graphcache>{cache ? `${cache.files} ไฟล์ · ${fmtSize(cache.bytes)}` : "—"}</span></div>
@@ -601,7 +613,7 @@ function GraphImgRows({ value: saved, onChange }: { value: GraphImg; onChange: (
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => void pickDir()} data-img-dir><IcFolder size={15} />เปลี่ยน</button></span></div>
     <div className="setrow" data-img-row="ask"><div className="lbl">ถามที่เก็บทุกครั้ง<span className="small">เปิด เปิดกล่องเลือกที่เก็บ แก้ชื่อได้ · ปิด กดบันทึกแล้วเก็บเลย ชื่อซ้ำต่อท้าย (2) ไม่เขียนทับ</span></div>
       <Switch on={o.ask} onChange={(ask) => up({ ask })} label="ถามที่เก็บทุกครั้ง" /></div>
-    <div className="setrow" data-img-row="title"><div className="lbl">แถบหัวรูป<span className="small">ชื่อไฟล์กับช่วงเวลาบนรูป · หน้าเทียบบอกสีของแต่ละไฟล์ · กราฟวิเคราะห์มีชื่อในตัวอยู่แล้ว</span></div>
+    <div className="setrow" data-img-row="title"><div className="lbl">แถบหัวรูป<span className="small">ชื่อไฟล์กับช่วงเวลาบนรูป · หน้าเทียบบอกสีของแต่ละไฟล์ · กราฟความถี่มีชื่อในตัวอยู่แล้ว</span></div>
       <Switch on={o.title} onChange={(title) => up({ title })} label="แถบหัวรูป" /></div>
     <div className="setrow" data-img-row="name"><div className="lbl">ใส่ชื่อกราฟในชื่อไฟล์<span className="small">เช่น เพลง รูปคลื่น.png · ชื่อซ้ำต่อท้าย (2) ไม่เขียนทับ</span></div>
       <Switch on={o.nameGraph} onChange={(nameGraph) => up({ nameGraph })} label="ใส่ชื่อกราฟในชื่อไฟล์" /></div>

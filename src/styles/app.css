@@ -1238,3 +1238,14 @@ canvas.spekpan.dragging { cursor: grabbing; }
 /* ปุ่มเลือกไฟล์กว้างตามตัวหนังสือ ไม่ยืดตามคอลัมน์ · ปุ่มเริ่มในหน้าใส่โปสเตอร์ได้ที่พอ */
 [data-poster-page] .three:has(> [data-card="movie"]) > .card > .btn { align-self: flex-start; }
 .pact-btns .btn:first-child { padding: 0 10px; }
+
+/* หน้าความถี่ (รวมมุมมองความถี่เดิมเข้าหน้าวิเคราะห์ BUGS ข้อ 14) · ปุ่มช่องเป็นแถว หน้าต่างแคบหรือไฟล์หลายช่องเป็นดรอปดาวน์ */
+.plothead .spekch-seg { display: flex; flex: none; }
+.plothead .spekch-dd { display: none; flex: none; }
+.plothead .spekch-dd.on { display: flex; }
+@container (max-width: 1040px) { .plothead .spekch-seg { display: none; } .plothead .spekch-dd { display: flex; } }
+/* เส้นตามเมาส์บนกราฟความถี่ (BUGS ข้อ 40) · พื้นดำเส้นขาว พื้นสว่างเส้นเข้ม */
+.spekxh { position: absolute; width: 1px; background: color-mix(in srgb, white 70%, transparent); pointer-events: none; z-index: 2; }
+.spekxh.h { width: auto; height: 1px; }
+.spekxh.light { background: color-mix(in srgb, black 55%, transparent); }
+.spektip { min-width: 170px; }
