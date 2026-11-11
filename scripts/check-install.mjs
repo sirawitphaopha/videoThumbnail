@@ -41,6 +41,15 @@ rmSync(TAK_DIR, { recursive: true, force: true });
 const env = { ...process.env, MOVIE_SHELF_BACKGROUND: "1",
   WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: "--remote-debugging-port=9333 --disable-features=CalculateNativeWinOcclusion --disable-backgrounding-occluded-windows --disable-renderer-backgrounding" };
 
+// 🛑 มีชั้นหนังตัวไหนเปิดอยู่ หยุดก่อนแตะอะไร · ตัวกันเปิดซ้อน (single instance) ส่งต่อให้ตัวที่เปิดอยู่แล้วดึงหน้าต่างนั้นขึ้นจอ
+//   ตัวที่ติดตั้งปิดตัวเองทันที ต่อพอร์ตดีบักไม่ได้ และหน้าต่างของคนอื่นเด้ง (เจอ 11 พ.ย. 2569 ตัว debug ที่เปิดค้างไว้ตรวจชุด 2)
+const running0 = spawnSync("powershell", ["-NoProfile", "-Command", "@(Get-CimInstance Win32_Process -Filter \"Name='movie-shelf.exe'\" | ForEach-Object { $_.ExecutablePath }) -join ' | '"], { encoding: "utf8" }).stdout.trim();
+if (running0) {
+  console.log(`🛑 หยุด ไม่ได้ติดตั้ง มีชั้นหนังเปิดอยู่ ${running0}`);
+  console.log("ตัวกันเปิดซ้อนจะดึงหน้าต่างนั้นขึ้นจอ · ตัวทดสอบของแคลร์ปิดเองได้ ตัวที่พี่กันเปิดใช้อยู่ต้องบอกพี่กันแล้วรอ");
+  process.exit(2);
+}
+
 /* ---------- 0 สำรองของตัวที่ติดตั้งไว้ในเครื่อง ---------- */
 const PRODUCT = JSON.parse(readFileSync(resolve("src-tauri", "tauri.conf.json"), "utf8")).productName;
 const REG_KEYS = [`HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${PRODUCT}`, `HKCU\\Software\\pkh\\${PRODUCT}`];
@@ -53,10 +62,26 @@ const CONF = join(process.env.APPDATA, JSON.parse(readFileSync(resolve("src-taur
 const confBak = ["settings.json", "settings.json.bak"].map((n, i) => { const p = join(CONF, n), file = join(BAK, `conf${i}.json`); const had = existsSync(p); if (had) copyFileSync(p, file); return { p, file, had }; });
 const lnkBak = LINKS.map((p, i) => { const file = join(BAK, `lnk${i}.lnk`); const had = existsSync(p); if (had) copyFileSync(p, file); return { p, file, had }; });
 console.log(`สำรองของตัวที่ติดตั้งไว้ · รีจิสทรี ${regBak.filter((r) => r.had).length} จาก ${regBak.length} · ทางลัด ${lnkBak.filter((l) => l.had).length} จาก ${lnkBak.length} · ${BAK}`);
-const restore = () => {
+// ทางลัดคืนและตรวจผ่านโปรเซสนอกแพ็กเกจ · เครื่องมือของแคลร์รันในแพ็กเกจของ Claude (MSIX) เขียนใต้ AppData แล้วไปลงมุมมองของแพ็กเกจ
+// ไม่ใช่ของจริง (เจอ 11 พ.ย. 2569 ทางลัดเมนูเริ่มของพี่กันหาย ตัวตรวจในแพ็กเกจมองไม่เห็นว่าหาย) · สคริปต์ไม่มีภาษาไทย ที่อยู่ส่งผ่านไฟล์ JSON
+const LINK_PS = "param($job)\r\n$j = Get-Content -LiteralPath $job -Raw -Encoding UTF8 | ConvertFrom-Json\r\n$r = @()\r\n" +
+  "foreach ($l in $j.links) {\r\n  if ($j.mode -eq 'restore') { if ($l.had) { Copy-Item -LiteralPath $l.file -Destination $l.p -Force } else { Remove-Item -LiteralPath $l.p -Force -ErrorAction SilentlyContinue } }\r\n" +
+  "  $e = Test-Path -LiteralPath $l.p\r\n  $same = $false; if ($e -and $l.had) { $same = (Get-FileHash -LiteralPath $l.p).Hash -eq (Get-FileHash -LiteralPath $l.file).Hash }\r\n" +
+  "  $r += [pscustomobject]@{ p = $l.p; had = $l.had; exists = $e; same = $same }\r\n}\r\nConvertTo-Json -InputObject @($r) | Out-File -LiteralPath $j.out -Encoding UTF8\r\n";
+const outsideLinks = async (mode) => {
+  const job = join(BAK, `links-${mode}.json`), out = join(BAK, `links-${mode}-out.json`), ps = join(BAK, "links.ps1");
+  writeFileSync(ps, LINK_PS);
+  writeFileSync(job, JSON.stringify({ mode, out, links: lnkBak.map((l) => ({ p: l.p, file: l.file, had: l.had })) }));
+  rmSync(out, { force: true });
+  spawnSync("powershell", ["-NoProfile", "-Command", `Invoke-CimMethod -ClassName Win32_Process -MethodName Create -Arguments @{ CommandLine = 'powershell -NoProfile -WindowStyle Hidden -ExecutionPolicy Bypass -File "${ps}" -job "${job}"' } | Out-Null`]);
+  for (let i = 0; i < 60 && !existsSync(out); i++) await sleep(500);
+  await sleep(300);
+  return existsSync(out) ? JSON.parse(readFileSync(out, "utf8").replace(/^﻿/, "")) : null;
+};
+const restore = async () => {
   for (const r of regBak) { spawnSync("reg", ["delete", r.k, "/f"], { stdio: "ignore" }); if (r.had) spawnSync("reg", ["import", r.file], { stdio: "ignore" }); }
-  for (const l of lnkBak) { if (l.had) copyFileSync(l.file, l.p); else rmSync(l.p, { force: true }); }
   for (const x of confBak) { if (x.had) copyFileSync(x.file, x.p); else rmSync(x.p, { force: true }); }
+  return outsideLinks("restore");
 };
 // ปิดหรือนับเฉพาะโปรแกรมที่รันจากโฟลเดอร์ทดสอบ · ส่งที่อยู่ผ่านตัวแปร ไม่ใส่ภาษาไทยในคำสั่ง
 const testProcs = (kill) => spawnSync("powershell", ["-NoProfile", "-Command",
@@ -154,20 +179,30 @@ if (uninst) {
   spawnSync(join(DEST, uninst), ["/S"], { env, windowsVerbatimArguments: true, timeout: 300000 });
   // ตัวถอนของ NSIS คัดลอกตัวเองไปรันแยก รอจนไฟล์โปรแกรมหาย
   for (let i = 0; i < 120 && existsSync(join(DEST, exe ?? "x")); i++) await sleep(500);
+  // ตัวถอนที่แยกไปรันลบทางลัดตามหลังไฟล์โปรแกรม รอจนตัวถอนจบจริง ไม่งั้นคืนทางลัดแล้วโดนลบซ้ำ (เจอ 11 พ.ย. 2569)
+  for (let i = 0; i < 120; i++) {
+    const n = spawnSync("powershell", ["-NoProfile", "-Command", "@(Get-CimInstance Win32_Process | Where-Object { $_.ExecutablePath -like '*\\~nsu*' }).Count"], { encoding: "utf8" }).stdout.trim();
+    if (n === "0") break;
+    await sleep(500);
+  }
+  await sleep(1500);
   const left = existsSync(DEST) ? readdirSync(DEST) : [];
   check("ถอนการติดตั้งแบบเงียบ ไฟล์โปรแกรมกับเครื่องมือหายหมด", !existsSync(join(DEST, exe ?? "x")) && !existsSync(join(DEST, "tools", "ffmpeg.exe")), left.length ? `เหลือ ${left.join(" ")}` : "โฟลเดอร์ว่างหรือถูกลบ");
   check("ถอนการติดตั้งแล้ว ไฟล์หนังในโฟลเดอร์ชั้นวางยังอยู่ ค่า hash เท่าเดิม", existsSync(join(MOVIES, "Harbor Lights (2021).mkv")) && movieSha() === sha0, sha0.slice(0, 16));
 }
 
 /* ---------- 4 คืนทางลัดกับรายการของตัวที่ติดตั้งไว้ ---------- */
-restore();
+const lnkOut = await restore();
 const regBack = regBak.every((r) => (spawnSync("reg", ["query", r.k], { stdio: "ignore" }).status === 0) === r.had);
 const confBack = confBak.every((x) => existsSync(x.p) === x.had && (!x.had || fileSha(x.p) === fileSha(x.file)));
-const lnkBack = lnkBak.every((l) => existsSync(l.p) === l.had && (!l.had || fileSha(l.p) === fileSha(l.file)));
+// ทางลัดตรวจจากโปรเซสนอกแพ็กเกจ คือของจริงของพี่กัน
+const lnkBack = !!lnkOut && lnkOut.length === lnkBak.length && lnkOut.every((l) => l.exists === l.had && (!l.had || l.same));
 check("คืนทางลัด รายการในหน้าถอนโปรแกรม ค่าที่จำโฟลเดอร์ และไฟล์ตั้งค่า ของตัวที่ติดตั้งไว้ในเครื่องให้เหมือนก่อนเทส", regBack && lnkBack && confBack, `รีจิสทรี ${regBack ? "เหมือนเดิม" : "ไม่เหมือน"} · ทางลัด ${lnkBack ? "เหมือนเดิม" : "ไม่เหมือน"} · ไฟล์ตั้งค่า ${confBack ? "เหมือนเดิม" : "ไม่เหมือน"} · สำรองอยู่ ${BAK}`);
 if (regBack && lnkBack && confBack) rmSync(BAK, { recursive: true, force: true });
 
 const pass = results.filter((r) => r.pass).length;
 console.log(`\nผ่าน ${pass} จาก ${results.length}`);
+// ผ่านครบ ลบโฟลเดอร์หนังเทส (มีไฟล์ 1.6 GB) กับโฟลเดอร์ที่ลง · ไม่ผ่านเก็บไว้ดู (เดิมค้างทุกรอบ ดิสก์ลูกเดียวกับ C เจอ 11 พ.ย. 2569)
+if (pass === results.length) { rmSync(MOVIES, { recursive: true, force: true }); rmSync(DEST, { recursive: true, force: true }); }
 writeFileSync(`${OUT}/ผลเทส.json`, JSON.stringify(results, null, 1));
 process.exit(pass === results.length ? 0 : 1);
