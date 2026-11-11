@@ -1104,46 +1104,46 @@ div.avthumb { background: repeating-linear-gradient(135deg, #fff 0 5px, #fbf2f5 
 .stage .hd { transform: scale(var(--hs, 1)); }
 .stage .cropbox { border-width: calc(2px * var(--hs, 1)); }
 /* แผงเลือกสีขอบเอง */
-[data-crop] .padchip { display: inline-block; width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--line); flex: none; }
-[data-crop] .padchip.big { width: 26px; height: 26px; border-radius: 7px; }
-[data-crop] .padrgb { z-index: 5; box-sizing: border-box; padding: 12px; background: var(--win); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 22px rgba(60,25,40,.2); }
-[data-crop] .padbody { display: flex; gap: 14px; }
-[data-crop] .padtabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
-[data-crop] .padtabs button { padding: 4px 10px; border: 0; background: transparent; font: inherit; font-size: 13px; color: var(--txt2); border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; }
-[data-crop] .padtabs button:hover { color: var(--txt); }
-[data-crop] .padtabs button.on { color: var(--accent-ink); border-bottom-color: var(--accent); font-weight: 600; }
-[data-crop] .padarea { width: 226px; height: 168px; }
-[data-crop] .honey { zoom: .9; }
-[data-crop] .padmix { display: flex; gap: 10px; height: 100%; }
+:is([data-crop], [data-colorpick]) .padchip { display: inline-block; width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--line); flex: none; }
+:is([data-crop], [data-colorpick]) .padchip.big { width: 26px; height: 26px; border-radius: 7px; }
+:is([data-crop], [data-colorpick]) .padrgb { z-index: 5; box-sizing: border-box; padding: 12px; background: var(--win); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 22px rgba(60,25,40,.2); }
+:is([data-crop], [data-colorpick]) .padbody { display: flex; gap: 14px; }
+:is([data-crop], [data-colorpick]) .padtabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+:is([data-crop], [data-colorpick]) .padtabs button { padding: 4px 10px; border: 0; background: transparent; font: inherit; font-size: 13px; color: var(--txt2); border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; }
+:is([data-crop], [data-colorpick]) .padtabs button:hover { color: var(--txt); }
+:is([data-crop], [data-colorpick]) .padtabs button.on { color: var(--accent-ink); border-bottom-color: var(--accent); font-weight: 600; }
+:is([data-crop], [data-colorpick]) .padarea { width: 226px; height: 168px; }
+:is([data-crop], [data-colorpick]) .honey { zoom: .9; }
+:is([data-crop], [data-colorpick]) .padmix { display: flex; gap: 10px; height: 100%; }
 /* สีในกล่องเป็นเนื้อหา ไม่เปลี่ยนตามโทน เขียนด้วยชื่อสี */
-[data-crop] .padbox { position: relative; flex: 1; border-radius: 6px; cursor: crosshair; touch-action: none; background: linear-gradient(to bottom, transparent, gray), linear-gradient(to right, red, yellow, lime, cyan, blue, magenta, red); }
-[data-crop] .padmark { position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 0 1px black; pointer-events: none; }
-[data-crop] .padlight { position: relative; flex: none; width: 16px; border-radius: 4px; border: 1px solid var(--line); cursor: ns-resize; touch-action: none; }
-[data-crop] .padarrow { position: absolute; left: -3px; right: -3px; height: 4px; margin-top: -2px; background: white; border: 1px solid black; border-radius: 2px; pointer-events: none; }
-[data-crop] .honey { display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: center; }
-[data-crop] .honeyrow { display: flex; margin-top: -3px; }
-[data-crop] .honeyrow.gray { margin-top: 8px; }
-[data-crop] .honeyrow button { width: 14px; height: 15px; padding: 0; border: 0; cursor: pointer; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
-[data-crop] .honeyrow button:hover { filter: brightness(.82); }
-[data-crop] .honeyrow button.on { filter: brightness(.6); }
-[data-crop] .padside { flex: none; width: 178px; border-left: 1px solid var(--line); padding-left: 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; }
-[data-crop] .padfields { display: flex; flex-direction: column; gap: 6px; }
-[data-crop] .padfields label { display: flex; align-items: center; justify-content: flex-end; gap: 8px; font-size: 13px; color: var(--txt2); }
-[data-crop] .padfields label span { flex: none; width: 44px; }
-[data-crop] .padfields input { flex: 1; min-width: 0; width: 0; height: 28px; box-sizing: border-box; padding: 0 6px; text-align: right; border: 1px solid var(--line); border-radius: 7px; background: var(--win); color: var(--txt); font: inherit; outline: 0; }
-[data-crop] .padcopy { flex: none; width: 20px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 0; background: transparent; color: var(--txt2); cursor: pointer; transition: color .15s; }
-[data-crop] .padcopy:hover { color: var(--accent-ink); }
-[data-crop] .padfoot { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; }
-[data-crop] .padcmp { display: flex; gap: 6px; font-size: 12px; color: var(--txt2); text-align: center; }
-[data-crop] .padcmp i { display: block; width: 46px; height: 42px; border: 1px solid var(--line); border-radius: 5px; }
-[data-crop] .padbtns { display: flex; flex-direction: column; gap: 6px; width: 72px; }
-[data-crop] .padbtns .btn { justify-content: center; padding-inline: 4px; }
+:is([data-crop], [data-colorpick]) .padbox { position: relative; flex: 1; border-radius: 6px; cursor: crosshair; touch-action: none; background: linear-gradient(to bottom, transparent, gray), linear-gradient(to right, red, yellow, lime, cyan, blue, magenta, red); }
+:is([data-crop], [data-colorpick]) .padmark { position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 0 1px black; pointer-events: none; }
+:is([data-crop], [data-colorpick]) .padlight { position: relative; flex: none; width: 16px; border-radius: 4px; border: 1px solid var(--line); cursor: ns-resize; touch-action: none; }
+:is([data-crop], [data-colorpick]) .padarrow { position: absolute; left: -3px; right: -3px; height: 4px; margin-top: -2px; background: white; border: 1px solid black; border-radius: 2px; pointer-events: none; }
+:is([data-crop], [data-colorpick]) .honey { display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: center; }
+:is([data-crop], [data-colorpick]) .honeyrow { display: flex; margin-top: -3px; }
+:is([data-crop], [data-colorpick]) .honeyrow.gray { margin-top: 8px; }
+:is([data-crop], [data-colorpick]) .honeyrow button { width: 14px; height: 15px; padding: 0; border: 0; cursor: pointer; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
+:is([data-crop], [data-colorpick]) .honeyrow button:hover { filter: brightness(.82); }
+:is([data-crop], [data-colorpick]) .honeyrow button.on { filter: brightness(.6); }
+:is([data-crop], [data-colorpick]) .padside { flex: none; width: 178px; border-left: 1px solid var(--line); padding-left: 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; }
+:is([data-crop], [data-colorpick]) .padfields { display: flex; flex-direction: column; gap: 6px; }
+:is([data-crop], [data-colorpick]) .padfields label { display: flex; align-items: center; justify-content: flex-end; gap: 8px; font-size: 13px; color: var(--txt2); }
+:is([data-crop], [data-colorpick]) .padfields label span { flex: none; width: 44px; }
+:is([data-crop], [data-colorpick]) .padfields input { flex: 1; min-width: 0; width: 0; height: 28px; box-sizing: border-box; padding: 0 6px; text-align: right; border: 1px solid var(--line); border-radius: 7px; background: var(--win); color: var(--txt); font: inherit; outline: 0; }
+:is([data-crop], [data-colorpick]) .padcopy { flex: none; width: 20px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 0; background: transparent; color: var(--txt2); cursor: pointer; transition: color .15s; }
+:is([data-crop], [data-colorpick]) .padcopy:hover { color: var(--accent-ink); }
+:is([data-crop], [data-colorpick]) .padfoot { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; }
+:is([data-crop], [data-colorpick]) .padcmp { display: flex; gap: 6px; font-size: 12px; color: var(--txt2); text-align: center; }
+:is([data-crop], [data-colorpick]) .padcmp i { display: block; width: 46px; height: 42px; border: 1px solid var(--line); border-radius: 5px; }
+:is([data-crop], [data-colorpick]) .padbtns { display: flex; flex-direction: column; gap: 6px; width: 72px; }
+:is([data-crop], [data-colorpick]) .padbtns .btn { justify-content: center; padding-inline: 4px; }
 /* หน้าต่างเตี้ย ย่อกล่องสีกับรังผึ้ง แผงไม่ล้นกรอบ · ช่องสองแถว */
-[data-crop] .padrgb.short .padarea { height: 112px; }
-[data-crop] .padrgb.short .honey { zoom: .62; }
-[data-crop] .padrgb.short .padfields { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; }
-[data-crop] .padrgb.short .padcmp i { height: 24px; width: 34px; }
-[data-crop] .padfields input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+:is([data-crop], [data-colorpick]) .padrgb.short .padarea { height: 112px; }
+:is([data-crop], [data-colorpick]) .padrgb.short .honey { zoom: .62; }
+:is([data-crop], [data-colorpick]) .padrgb.short .padfields { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; }
+:is([data-crop], [data-colorpick]) .padrgb.short .padcmp i { height: 24px; width: 34px; }
+:is([data-crop], [data-colorpick]) .padfields input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
 /* ช่องพิมพ์คุณภาพ JPG */
 [data-crop] .qnum { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--txt2); }
 [data-crop] .qnum input { width: 42px; height: 28px; padding: 0 6px; text-align: right; border: 1px solid var(--line); border-radius: 7px; background: var(--win); color: var(--txt); font: inherit; outline: 0; }
@@ -1276,3 +1276,9 @@ canvas.spekpan.dragging { cursor: grabbing; }
 .psdchecks .psdck-txt span { font-weight: 400; color: var(--txt2); }
 .psdchecks .psdck-txt b, .psdchecks .psdck-txt span { display: inline; }
 .psdopts .psdopt { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+
+/* เต็มจอ (BUGS ข้อ 39) ซ่อนแถบชื่อหน้าต่าง เมนูซ้าย หัวหน้ากราฟ เหลือกราฟกับแถบเครื่องมือ */
+html[data-full] .titlebar, html[data-full] .sidewrap, html[data-full] aside.side, html[data-full] [data-pageslot=graph] .agtop { display: none !important; }
+/* แผงเลือกสีที่ใช้นอกหน้าครอป (ชุดสีกำหนดเองของหน้ากราฟ BUGS ข้อ 41) กว้างพอให้รังผึ้งกับช่องตัวเลขอยู่แถวเดียว */
+[data-colorpick] .padrgb { width: 470px; z-index: 30; }
+[data-colorpick] .padarea { height: 230px; }

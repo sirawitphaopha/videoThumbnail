@@ -21,6 +21,8 @@ import { dropStyle, useDropPlacement } from "../lib/popupFit";
 import { useClickOutside, useEscClose } from "../lib/popup";
 import { IcExpand, IcFile, IcFolder, IcMix, IcPlus, IcBitrate, IcChevronDown } from "../components/icons";
 import InfoTip from "../components/InfoTip";
+import FullBtn from "../components/FullBtn";
+import { PadCustom, hexRgb, hslRgb, rgbHsl, toHex } from "../components/ColorPick";
 import type { Tip } from "../lib/codecAdv";
 import { IcSearch, IbStop, IcRefresh, IcGraph, IbSave, IcClose, IbTable, IbPlay } from "../components/icons";
 
@@ -36,6 +38,12 @@ const THEMES: Record<string, Theme> = {
   "พีช": { lane: "#fef9f7", peak: "#f4b7a7", rms: "#bc4c31", dark: "#24100b", ramp: ["#301812", "#5d1d0e", "#8a2306", "#b13412", "#d05233", "#e4785d", "#eda28e", "#edccc3", "#ffede9"] },
 };
 const THEME_ORDER = ["ชมพู", "ฟ้า", "ม่วง", "พีช"];
+/** ชุดสีจากสีหลักสีเดียว ไล่ความสว่างตามแบบชุดสีสำเร็จรูป (พื้น ดังสุด ดังเฉลี่ย ไล่สีความถี่) · BUGS ข้อ 41 พี่กัน "ขอสีแบบกำหนดเองด้วย" */
+function themeOf(hex: string): Theme {
+  const { h, s } = rgbHsl(hexRgb(hex)), sat = Math.max(0.35, Math.min(0.85, s || 0.5)), at = (l: number, k = 1) => toHex(hslRgb(h, sat * k, l));
+  return { lane: at(0.985, 0.6), peak: at(0.8), rms: at(0.42), dark: at(0.08, 0.5), ramp: [at(0.12, 0.5), at(0.22), at(0.32), at(0.42), at(0.53), at(0.64), at(0.75), at(0.86, 0.6), at(0.96, 0.7)] };
+}
+const CUSTOM = "กำหนดเอง";
 const RAINBOW = ["#00004d", "#0000b4", "#0046ff", "#00aaff", "#00e6d2", "#64ff64", "#e6f000", "#ff9600", "#ff1e1e", "#ff46c8"];
 const HEAT = ["#000000", "#000036", "#180062", "#4f007b", "#81007e", "#ae0068", "#d20040", "#ec000b", "#fc5500", "#ffb000", "#ffec3e", "#ffff9e", "#ffffff"];
 const MONO = ["#000000", "#ffffff"];
@@ -615,14 +623,14 @@ const PEAK_RMS_TIP: Tip = { w: "ดังสุด (Peak) คือจุดท�
   p: "ดังสุดชนขอบบนล่างคือยอดคลื่นแตะเพดาน เสียงอาจแตก · ดังเฉลี่ยหนาเกือบเท่าดังสุดคือเพลงถูกบีบความดังให้ดังเท่ากันทั้งเพลง · ดังเฉลี่ยบางกว่าดังสุดมากคือเสียงมีช่วงดังเบาเป็นธรรมชาติ" };
 const WaveIc = ({ d }: { d: string }) => <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d={d} /></svg>;
 
-type Prefs = { view: View; theme: string; style: WaveStyle; cmap: "theme" | "rainbow"; scmap: "heat" | "rainbow" | "mono" | "theme"; spekLight: boolean; wide: boolean; spekAxis: "lin" | "log" };
+type Prefs = { view: View; theme: string; style: WaveStyle; cmap: "theme" | "rainbow"; scmap: "heat" | "rainbow" | "mono" | "theme"; spekLight: boolean; wide: boolean; spekAxis: "lin" | "log"; customColor: string };
 const PREF_KEY = "graph-prefs";
 /** ค่าตั้งต้นของหน้าความถี่ ละเอียดหรือภาพรวม ตั้งที่หน้าตั้งค่า (BUGS ข้อ 14 พี่กัน "อันนี้ตั้งค่าได้ ว่าจะให้เเสดงกราฟไหนตั้งต้น") */
 export const SPEK_RES_KEY = "graph-spek-res";
 function loadPrefs(): Prefs {
-  const d: Prefs = { view: "wave", theme: "ชมพู", style: "aud", cmap: "theme", scmap: "heat", spekLight: false, wide: false, spekAxis: "lin" };
+  const d: Prefs = { view: "wave", theme: "ชมพู", style: "aud", cmap: "theme", scmap: "heat", spekLight: false, wide: false, spekAxis: "lin", customColor: "#7a4fd0" };
   // ค่าเดิมที่จำเส้นละเอียดไว้ เปิดมาเป็นแบบหลัก (พี่กันเคาะ "เอาของ audacity เป็นอันหลักเลย")
-  try { const p = JSON.parse(localStorage.getItem(PREF_KEY) ?? "{}"); const r: Prefs = { ...d, ...p, theme: THEMES[p.theme] ? p.theme : d.theme }; if (!["aud", "bars", "real"].includes(r.style)) r.style = "aud"; if (r.view === "spec") r.view = "spek"; if (r.view === "cmp") r.view = "loud"; if (r.spekAxis !== "log") r.spekAxis = "lin"; return r; } catch { return d; }
+  try { const p = JSON.parse(localStorage.getItem(PREF_KEY) ?? "{}"); const r: Prefs = { ...d, ...p, theme: THEMES[p.theme] || p.theme === CUSTOM ? p.theme : d.theme }; if (!["aud", "bars", "real"].includes(r.style)) r.style = "aud"; if (r.view === "spec") r.view = "spek"; if (r.view === "cmp") r.view = "loud"; if (r.spekAxis !== "log") r.spekAxis = "lin"; return r; } catch { return d; }
 }
 
 /** โหมดของหน้า กับการเทียบที่เปิดอยู่ · จำระดับโปรแกรม ไปหน้าอื่นแล้วกลับมาอยู่ที่เดิม (คิวแปลงเก็บใน convertJob.ts) */
@@ -708,7 +716,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
   });
 
   const setPref =<K extends keyof Prefs>(k: K, v: Prefs[K]) => setPrefs((p) => { const n = { ...p, [k]: v }; try { localStorage.setItem(PREF_KEY, JSON.stringify(n)); } catch { /* เก็บไม่ได้ก็ใช้ค่านี้ไปก่อน */ } return n; });
-  const th = THEMES[prefs.theme];
+  const th = prefs.theme === CUSTOM ? themeOf(/^#[\da-f]{6}$/i.test(prefs.customColor) ? prefs.customColor : "#7a4fd0") : THEMES[prefs.theme];
   const movie: Movie | undefined = useMemo(() => movies.find((m) => m.path === path), [movies, path]);
   const t: GTrack | undefined = info?.tracks[track];
   const names = t?.names ?? [];
@@ -1145,10 +1153,14 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
         disabled={k === "cmp" && !names.includes("FL")} title={k === "cmp" && !names.includes("FL") ? "ซ้อนเทียบใช้กับแทร็กที่มีช่องซ้ายขวา" : undefined}>{VIEW_ICON[k]}{l}</button>)}</div>
       {/* ปุ่มแบบรูปคลื่นย้ายลงหัวการ์ดรูปคลื่น (BUGS ข้อ 12 · พี่กัน "พอเราปรับโโยเอา audacity มาเป็นตัวหลัก เจ้ากราฟแท่งมันจะเหลือ 1 อัน เอามันย้ายลงมาในการ์ดเลย") */}
       <div className="sws" style={{ marginLeft: "auto" }} role="group" aria-label="ชุดสี">{THEME_ORDER.map((n) => <button key={n} type="button" className={"sw" + (prefs.theme === n ? " on" : "")} aria-label={"ชุดสี" + n} title={"ชุดสี" + n} onClick={() => setPref("theme", n)} data-theme={n}
-        style={{ background: `linear-gradient(135deg,${THEMES[n].ramp[2]},${THEMES[n].ramp[5]} 60%,${THEMES[n].ramp[7]})` }} />)}</div>
+        style={{ background: `linear-gradient(135deg,${THEMES[n].ramp[2]},${THEMES[n].ramp[5]} 60%,${THEMES[n].ramp[7]})` }} />)}<PadCustom pad={prefs.customColor} what="สีกราฟ" custom={prefs.theme === CUSTOM} short={false} panelStyle={{ left: "auto", right: 0, zIndex: 30 }}
+          onPad={(c) => setPrefs((p) => { const n = { ...p, customColor: c, theme: CUSTOM }; try { localStorage.setItem(PREF_KEY, JSON.stringify(n)); } catch { /* เก็บไม่ได้ ใช้ค่าในหน้าไปก่อน */ } return n; })}
+          trigger={(open, toggle) => <button type="button" className={"sw sw-custom" + (prefs.theme === CUSTOM ? " on" : "")} aria-expanded={open} aria-label="ชุดสีกำหนดเอง" title="ชุดสีกำหนดเอง เลือกสีหลักสีเดียว โปรแกรมไล่ชุดสีให้" onClick={toggle} data-sw-custom
+            style={{ background: prefs.theme === CUSTOM ? `linear-gradient(135deg,${th.ramp[2]},${th.ramp[5]} 60%,${th.ramp[7]})` : "conic-gradient(#e0457b,#f0a23b,#e8d23a,#4cc38a,#3b8fe0,#8a5ae0,#e0457b)" }} />} /></div>
       <GraphOptions on={zoomAll} onChange={(v) => updateSettings({ graphZoomAll: v })} />
       {/* ขยายกราฟเต็มจอ พับแผงลำโพงซ้าย กดอีกครั้งกางคืน จำไว้ (พี่กันสั่ง 8 พ.ย. 2569) */}
-      <button type="button" className={"btn btn-ghost btn-sm" + (prefs.wide ? " pressed" : "")} style={{ width: 32, padding: 0, flex: "none" }} aria-pressed={prefs.wide} title={prefs.wide ? "แสดงแผงลำโพง" : "ขยายเต็มจอ"} aria-label={prefs.wide ? "แสดงแผงลำโพง" : "ขยายเต็มจอ"} onClick={() => setPref("wide", !prefs.wide)} data-graphwide><IcExpand size={14} /></button>
+      <button type="button" className={"btn btn-ghost btn-sm" + (prefs.wide ? " pressed" : "")} style={{ width: 32, padding: 0, flex: "none" }} aria-pressed={prefs.wide} title={prefs.wide ? "แสดงแผงลำโพง" : "ซ่อนแผงลำโพง กราฟกว้างขึ้น"} aria-label={prefs.wide ? "แสดงแผงลำโพง" : "ซ่อนแผงลำโพง"} onClick={() => setPref("wide", !prefs.wide)} data-graphwide><IcExpand size={14} /></button>
+      <FullBtn />
       {/* ชื่อชุดสีที่เคยเขียนต่อท้ายเอาออก ปุ่ม แบบ Audacity เพิ่มเข้ามาแล้วชื่อตกบรรทัดสองตัวเดียว · ชุดที่เลือกมีวงกรอบ ชี้แล้วขึ้นชื่อ */}
     </div>
   );

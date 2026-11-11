@@ -19,6 +19,7 @@ import type { Tip } from "../lib/codecAdv";
 import BitrateClassic from "./BitrateClassic";
 import bvIcon from "../assets/thanks/bitrateviewer.ico";
 import "../styles/bitrate.css";
+import FullBtn from "../components/FullBtn";
 
 type Mode = "sec" | "gop" | "gopx" | "frm";
 const MODES: { value: Mode; label: string; letter: string }[] = [
@@ -641,6 +642,7 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
               <i className={"brn-dot " + k} />{l}</button>))}
         </div>
         <button type="button" className="btn btn-ghost btn-sm brn-classic" onClick={() => onClassic?.(path)} title="สลับไปหน้าตาแบบโปรแกรม Bitrate Viewer เดิม ไฟล์นี้ตามไปด้วย" data-brnclassic><img src={bvIcon} alt="" width={16} height={16} style={{ display: "block", flex: "none" }} />แบบ Bitrate Viewer</button>
+        <FullBtn />
       </div>
       </div>
 
