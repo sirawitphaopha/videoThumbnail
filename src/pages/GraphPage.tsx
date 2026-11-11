@@ -672,6 +672,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
   const [ovFold] = useOvFold();
   // หน้าความดัง รวมทุกช่อง (LUFS) · L · R · เทียบซ้ายขวา (dB แบบซ้อนเทียบเดิม)
   const [loudMode, setLoudMode] = useState<"mix" | "FL" | "FR" | "lr">("mix");
+  const [swSnap, setSwSnap] = useState<{ theme: string; color: string; old: string } | null>(null);
   const [spekRes, setSpekRes] = useState<"fine" | "coarse">(() => { try { return localStorage.getItem(SPEK_RES_KEY) === "coarse" ? "coarse" : "fine"; } catch { return "fine"; } });
   const [zoom, setZoom] = useState<number | "all">("all");
   const [center, setCenter] = useState(0);
@@ -1153,7 +1154,11 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
         disabled={k === "cmp" && !names.includes("FL")} title={k === "cmp" && !names.includes("FL") ? "ซ้อนเทียบใช้กับแทร็กที่มีช่องซ้ายขวา" : undefined}>{VIEW_ICON[k]}{l}</button>)}</div>
       {/* ปุ่มแบบรูปคลื่นย้ายลงหัวการ์ดรูปคลื่น (BUGS ข้อ 12 · พี่กัน "พอเราปรับโโยเอา audacity มาเป็นตัวหลัก เจ้ากราฟแท่งมันจะเหลือ 1 อัน เอามันย้ายลงมาในการ์ดเลย") */}
       <div className="sws" style={{ marginLeft: "auto" }} role="group" aria-label="ชุดสี">{THEME_ORDER.map((n) => <button key={n} type="button" className={"sw" + (prefs.theme === n ? " on" : "")} aria-label={"ชุดสี" + n} title={"ชุดสี" + n} onClick={() => setPref("theme", n)} data-theme={n}
-        style={{ background: `linear-gradient(135deg,${THEMES[n].ramp[2]},${THEMES[n].ramp[5]} 60%,${THEMES[n].ramp[7]})` }} />)}<PadCustom pad={prefs.customColor} what="สีกราฟ" custom={prefs.theme === CUSTOM} short={false} panelStyle={{ left: "auto", right: 0, zIndex: 30 }}
+        style={{ background: `linear-gradient(135deg,${THEMES[n].ramp[2]},${THEMES[n].ramp[5]} 60%,${THEMES[n].ramp[7]})` }} />)}{/* เปิดแผงจำชุดสีตอนนั้นไว้ · สีเดิมคือสีที่กราฟใช้อยู่ตอนเปิด · ตกลงใช้สีกำหนดเองแม้ยังไม่ได้แตะสี · ยกเลิกคืนชุดสีเดิมทั้งชุด */}
+        <PadCustom pad={prefs.customColor} what="สีกราฟ" custom={prefs.theme === CUSTOM} short={false} panelStyle={{ left: "auto", right: 0, zIndex: 30 }}
+          oldColor={swSnap?.old} onOpen={() => setSwSnap({ theme: prefs.theme, color: prefs.customColor, old: prefs.theme === CUSTOM ? prefs.customColor : THEMES[prefs.theme].rms })}
+          onOk={() => setPrefs((p) => { const n = { ...p, theme: CUSTOM }; try { localStorage.setItem(PREF_KEY, JSON.stringify(n)); } catch { /* เก็บไม่ได้ ใช้ค่าในหน้าไปก่อน */ } return n; })}
+          onCancel={() => { const sn = swSnap; if (sn) setPrefs((p) => { const n = { ...p, theme: sn.theme, customColor: sn.color }; try { localStorage.setItem(PREF_KEY, JSON.stringify(n)); } catch { /* เก็บไม่ได้ */ } return n; }); }}
           onPad={(c) => setPrefs((p) => { const n = { ...p, customColor: c, theme: CUSTOM }; try { localStorage.setItem(PREF_KEY, JSON.stringify(n)); } catch { /* เก็บไม่ได้ ใช้ค่าในหน้าไปก่อน */ } return n; })}
           trigger={(open, toggle) => <button type="button" className={"sw sw-custom" + (prefs.theme === CUSTOM ? " on" : "")} aria-expanded={open} aria-label="ชุดสีกำหนดเอง" title="ชุดสีกำหนดเอง เลือกสีหลักสีเดียว โปรแกรมไล่ชุดสีให้" onClick={toggle} data-sw-custom
             style={{ background: `${prefs.theme === CUSTOM ? `linear-gradient(135deg,${th.ramp[2]},${th.ramp[5]} 60%,${th.ramp[7]})` : `linear-gradient(135deg,${themeOf(prefs.customColor).ramp[2]},${themeOf(prefs.customColor).ramp[5]} 60%,${themeOf(prefs.customColor).ramp[7]})`} padding-box, conic-gradient(#e0457b,#f0a23b,#e8d23a,#4cc38a,#3b8fe0,#8a5ae0,#e0457b) border-box` }} />} /></div>

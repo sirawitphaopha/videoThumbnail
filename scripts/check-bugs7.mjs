@@ -73,6 +73,19 @@ await q(`document.querySelector('${G} [data-pad-ok]')?.click()`); await sleep(80
 const after = await q(`const p = JSON.parse(localStorage.getItem('graph-prefs') ?? '{}'); return { theme: p.theme, color: p.customColor, on: document.querySelector('${G} [data-sw-custom]')?.classList.contains('on') }`);
 check("ข้อ 41 พิมพ์สี #2E9E5B กดตกลง ชุดสีกลายเป็นกำหนดเอง จำสีไว้ วงกลมที่ห้าติด", after.theme === "กำหนดเอง" && /2e9e5b/i.test(after.color ?? "") && after.on, JSON.stringify(after));
 await c.shot(`${OUT}/41-กราฟสีกำหนดเอง.png`, `${G} [data-plot]`, 0);
+// ใช้ชุดสีสำเร็จรูปอยู่ เปิดแผงแล้วกดตกลงเลย ต้องเปลี่ยนเป็นสีกำหนดเอง · สีเดิมต้องเป็นสีของชุดที่ใช้อยู่ · ยกเลิกคืนชุดเดิม
+await q(`[...document.querySelectorAll('${G} .sws .sw')].find((b) => b.getAttribute('aria-label') === 'ชุดสีชมพู')?.click()`); await sleep(300);
+await q(`document.querySelector('${G} [data-sw-custom]')?.click()`); await sleep(400);
+const oldSw = await q(`return getComputedStyle(document.querySelector('${G} [data-pad-old]')).backgroundColor`);
+await q(`document.querySelector('${G} [data-pad-ok]')?.click()`); await sleep(400);
+const okTheme = await q(`return JSON.parse(localStorage.getItem('graph-prefs') ?? '{}').theme`);
+check("ข้อ 41 ใช้ชุดชมพูอยู่ เปิดแผงแล้วกดตกลงเลย ชุดสีเปลี่ยนเป็นกำหนดเอง · ช่องสีเดิมเป็นสีชมพูที่ใช้อยู่", okTheme === "กำหนดเอง" && /^rgb\(18\d, 7\d, 1[0-2]\d\)$/.test(oldSw), JSON.stringify({ okTheme, oldSw }));
+await q(`[...document.querySelectorAll('${G} .sws .sw')].find((b) => b.getAttribute('aria-label') === 'ชุดสีชมพู')?.click()`); await sleep(300);
+await q(`document.querySelector('${G} [data-sw-custom]')?.click()`); await sleep(400);
+await q(`const i = document.querySelector('${G} [data-pad-hex]'); i.focus(); i.select();`); await c.type("C0392B"); await sleep(300);
+await q(`document.querySelector('${G} [data-pad-cancel]')?.click()`); await sleep(400);
+const cancelTheme = await q(`return JSON.parse(localStorage.getItem('graph-prefs') ?? '{}').theme`);
+check("ข้อ 41 เปลี่ยนสีในแผงแล้วกดยกเลิก กลับเป็นชุดชมพูเดิม", cancelTheme === "ชมพู", cancelTheme);
 // คืนชุดสีเดิม
 await q(`const p = JSON.parse(localStorage.getItem('graph-prefs') ?? '{}'); p.theme = ${JSON.stringify(before ?? "ชมพู")}; localStorage.setItem('graph-prefs', JSON.stringify(p));`);
 await q(`[...document.querySelectorAll('${G} .sws .sw')].find((b) => b.getAttribute('aria-label') === ${JSON.stringify("ชุดสี" + (before ?? "ชมพู"))})?.click()`); await sleep(300);

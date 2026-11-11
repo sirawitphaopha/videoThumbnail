@@ -98,7 +98,8 @@ export default function ConvertPane(p: { onCompare: (a: string, b: string, note:
   const openPanel = (k: string) => setPanel(k);
   useEffect(() => { encodeApi.status().then(setEncs, () => setEncs([])); }, []);
   /** ชุดค่าทุกชนิดเสียงในดรอปดาวน์ · ค่าที่ตั้งเองในแผงไม่ตรงชุดไหน ก็ยังขึ้นชื่อค่าที่ใช้อยู่ */
-  const presets = useMemo(() => CODECS.flatMap((c) => c.presets.map((pr, i) => ({ value: c.id + ":" + i, label: c.name + " · " + pr.label + " · " + pr.detail, spec: presetSpec(c, i, encs) }))), [encs]);
+  // แบ่งสองกลุ่มใหญ่ เสียคุณภาพ กับ ไม่เสียคุณภาพ หัวย่อยตามชนิด (BUGS ข้อ 27 พี่กันหา ALAC ไม่เจอ)
+  const presets = useMemo(() => [false, true].flatMap((ll) => CODECS.filter((c) => !!c.lossless === ll).flatMap((c) => c.presets.map((pr, i) => ({ value: c.id + ":" + i, label: c.name + " · " + pr.label + " · " + pr.detail, group: ll ? "ไม่เสียคุณภาพ" : "เสียคุณภาพ", sub: c.name, spec: presetSpec(c, i, encs) })))), [encs]);
   const presetOf = (sp: EncodeSpec) => presets.find((x) => x.spec.codec === sp.codec && specLabel(x.spec) === specLabel(sp))?.value ?? "";
   const specOf = (v: string) => presets.find((x) => x.value === v)?.spec ?? null;
 
@@ -137,7 +138,7 @@ export default function ConvertPane(p: { onCompare: (a: string, b: string, note:
                 <span style={{ color: "var(--txt3)" }} aria-hidden="true">→</span>
                 {locked ? <span className="dd locked" style={{ flex: 1 }}><span style={{ overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>{specLabel(it.spec)}</span></span> : (
                   <span style={{ display: "flex", gap: 4, minWidth: 0 }}>
-                    <Dropdown stretch label={"ปลายทาง " + baseName(it.path)} value={presetOf(it.spec)} options={presets} display={(o) => o?.label ?? specLabel(it.spec)} onChange={(v) => { const sp = specOf(v); if (sp) setItemSpec(it.id, sp); }} />
+                    <Dropdown stretch search portal label={"ปลายทาง " + baseName(it.path)} value={presetOf(it.spec)} options={presets} display={(o) => o?.label ?? specLabel(it.spec)} onChange={(v) => { const sp = specOf(v); if (sp) setItemSpec(it.id, sp); }} />
                     <button type="button" className="btn btn-ghost btn-sm" style={{ width: 34, padding: 0, flex: "none" }} title="ตั้งละเอียดในแผงตั้งค่าเสียง" aria-label="ตั้งละเอียดในแผงตั้งค่าเสียง" onClick={() => openPanel(it.id)} data-qto><IcSettings size={15} /></button>
                   </span>
                 )}
@@ -169,7 +170,7 @@ export default function ConvertPane(p: { onCompare: (a: string, b: string, note:
       <div className="cqcards">
         <div className="card"><h3>ตั้งทีเดียวทั้งคิว</h3>
           <div className="optline">
-            <Dropdown stretch label="ตั้งทีเดียวทั้งคิว" value={pending.length === 0 ? presetOf(q.all) : allSame ? presetOf(pending[0].spec) : ""} options={presets}
+            <Dropdown stretch search label="ตั้งทีเดียวทั้งคิว" value={pending.length === 0 ? presetOf(q.all) : allSame ? presetOf(pending[0].spec) : ""} options={presets}
               display={(o) => o?.label ?? (pending.length === 0 ? specLabel(q.all) : allSame ? specLabel(pending[0].spec) : "ตั้งทีละไฟล์ (ตามแถว)")} onChange={(v) => { const sp = specOf(v); if (sp) setAll(sp); }} />
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => openPanel("all")} data-qall><IcSettings size={15} />เปิดแผงตั้งค่าเสียง</button>
           </div>

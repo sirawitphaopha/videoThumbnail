@@ -48,7 +48,7 @@ const SAVED_KEY = "color-saved", SAVED_MAX = 16;
 function loadSaved(): string[] { try { const v = JSON.parse(localStorage.getItem(SAVED_KEY) ?? "[]"); return Array.isArray(v) ? v.filter((x) => typeof x === "string" && /^#[\da-f]{6}$/.test(x)).slice(0, SAVED_MAX) : []; } catch { return []; } }
 function keepSaved(v: string[]) { try { localStorage.setItem(SAVED_KEY, JSON.stringify(v)); } catch { /* เก็บไม่ได้ ใช้ในหน้าไปก่อน */ } }
 
-export function PadCustom(p: { pad: string; onPad: (c: string) => void; custom: boolean; short: boolean; what?: string; trigger?: (open: boolean, toggle: () => void) => React.ReactNode; panelStyle?: React.CSSProperties }) {
+export function PadCustom(p: { pad: string; onPad: (c: string) => void; custom: boolean; short: boolean; what?: string; trigger?: (open: boolean, toggle: () => void) => React.ReactNode; panelStyle?: React.CSSProperties; onOpen?: () => void; onOk?: () => void; onCancel?: () => void; oldColor?: string }) {
   const { short } = p, what = p.what ?? "สีขอบ";
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"std" | "own">("own");
@@ -62,8 +62,9 @@ export function PadCustom(p: { pad: string; onPad: (c: string) => void; custom: 
   const saveColor = (c: string) => { const n = [c.toLowerCase(), ...saved.filter((x) => x !== c.toLowerCase())].slice(0, SAVED_MAX); setSaved(n); keepSaved(n); };
   const dropColor = (c: string) => { const n = saved.filter((x) => x !== c); setSaved(n); keepSaved(n); };
   const wrap = useRef<HTMLSpanElement>(null), panel = useRef<HTMLDivElement>(null);
-  const cancel = () => { p.onPad(old); setOpen(false); };
-  const toggle = () => { if (open) { setOpen(false); return; } setOld(p.pad); setHsl(rgbHsl(hexRgb(p.pad))); setHexText(null); setSaved(loadSaved()); setOpen(true); };
+  // หน้ากราฟส่ง onCancel คืนชุดสีเดิมทั้งชุด ไม่ใช่แค่สี · onOk ให้กดตกลงแล้วใช้สีนี้แม้ยังไม่ได้แตะสี (พี่กันทัก "เรายัไม่เลือกสีอะไรเลย เเล้วกดตกลง มันไม่เปลี่ยนสี")
+  const cancel = () => { if (p.onCancel) p.onCancel(); else p.onPad(old); setOpen(false); };
+  const toggle = () => { if (open) { setOpen(false); return; } setOld(p.pad); setHsl(rgbHsl(hexRgb(p.pad))); setHexText(null); setSaved(loadSaved()); p.onOpen?.(); setOpen(true); };
   useEscClose(open, cancel);
   useEffect(() => {
     if (!open) return;
@@ -154,9 +155,9 @@ export function PadCustom(p: { pad: string; onPad: (c: string) => void; custom: 
                   : <i key={i} />)}</div>
               </div>
               <div className="padfoot">
-                <div className="padcmp"><span><i style={{ background: p.pad }} data-pad-new />สีใหม่</span><span><i style={{ background: old }} />สีเดิม</span></div>
+                <div className="padcmp"><span><i style={{ background: p.pad }} data-pad-new />สีใหม่</span><span><i style={{ background: p.oldColor ?? old }} data-pad-old />สีเดิม</span></div>
                 <div className="padbtns">
-                  <button type="button" className="btn btn-main btn-sm" onClick={() => setOpen(false)} data-pad-ok>ตกลง</button>
+                  <button type="button" className="btn btn-main btn-sm" onClick={() => { p.onOk?.(); setOpen(false); }} data-pad-ok>ตกลง</button>
                   <button type="button" className="btn btn-ghost btn-sm" onClick={cancel} data-pad-cancel>ยกเลิก</button>
                 </div>
               </div>
