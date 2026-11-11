@@ -15,6 +15,10 @@ export default function ThaiInput(p: {
   onKeyDown?: (e: React.KeyboardEvent<HTMLInputElement>) => void;
   inputRef?: React.RefObject<HTMLInputElement | null>;
   describedBy?: string;
+  /** ข้อความจางตอนช่องว่าง */
+  placeholder?: string;
+  /** ปุ่มทางขวาในช่อง เช่น วาง ล้าง (BUGS ข้อ 31) */
+  actions?: React.ReactNode;
 }) {
   const draw = useRef<HTMLDivElement>(null);
   const own = useRef<HTMLInputElement>(null);
@@ -27,7 +31,7 @@ export default function ThaiInput(p: {
       onMouseDown={(e) => { if (e.target === e.currentTarget) { e.preventDefault(); input.current?.focus(); } }}
     >
       <div className="sb-field">
-        <div ref={draw} className="sb-draw" aria-hidden="true"><span>{p.value}</span></div>
+        <div ref={draw} className="sb-draw" aria-hidden="true"><span className={p.value || !p.placeholder ? "" : "ph"}>{p.value || p.placeholder}</span></div>
         <input
           ref={input}
           value={p.value}
@@ -47,6 +51,7 @@ export default function ThaiInput(p: {
           onKeyDown={p.onKeyDown}
         />
       </div>
+      {p.actions}
       {p.suffix != null && <span className="ext">{p.suffix}</span>}
     </div>
   );

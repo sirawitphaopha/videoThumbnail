@@ -251,7 +251,8 @@ function drawWave(g: CanvasRenderingContext2D, w: number, h: number, d: ReturnTy
       for (let x = x0; x < x1; x++) m = Math.max(m, d.mx[x], d.mn[x]);
       // ช่วงที่เงียบเหลือจุดจาง ไม่ให้ดูเหมือนมีเสียง (ช่องที่เงียบทั้งไฟล์เคยเป็นจุดเข้มเท่าช่องที่มีเสียง เจอตอนตรวจภาพ)
       g.globalAlpha = m < 0.001 ? 0.3 : 1;
-      const bh = Math.max(BW, m * (h - 8)); g.beginPath(); g.roundRect(i * (BW + GAP) + GAP / 2, mid - bh / 2, BW, bh, BW / 2); g.fill();
+      // ซูมแนวตั้ง vz ขยายแท่งด้วย ไม่เกินกรอบ (BUGS ข้อ 13)
+      const bh = Math.min(h - 4, Math.max(BW, m * (h - 8) * vz)); g.beginPath(); g.roundRect(i * (BW + GAP) + GAP / 2, mid - bh / 2, BW, bh, BW / 2); g.fill();
     }
     g.globalAlpha = 1;
     return;

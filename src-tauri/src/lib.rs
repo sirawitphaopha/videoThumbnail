@@ -59,6 +59,23 @@ pub fn run() {
             app.manage(Arc::new(library::LibraryStore::load(lib)));
             let pending = link::link_path(app.handle())?;
             app.manage(Arc::new(link::LinkStore::load(pending)));
+            // โฟลเดอร์รูปที่หน้าจอเปิดผ่าน asset protocol (thumbs previews frames ใน tauri.conf.json)
+            // เปิดโปรแกรมจากโปรแกรมแบบแพ็กเกจของ Windows (เช่นตอนแคลร์เปิดโหมดพัฒนาจากโปรแกรม Claude) Windows เก็บไฟล์ใหม่ไว้ในโฟลเดอร์ของแพ็กเกจแทน
+            // Tauri เทียบที่อยู่จริงของไฟล์หลังคลี่ (canonicalize) กับกติกา ไม่ตรง รูปขึ้น 403 · เจอ 11 พ.ย. 2569 รูปในหน้าครอปของโหมดพัฒนาเป็นรูปเสีย
+            // ทางแก้ เขียนไฟล์ทดลองในแต่ละโฟลเดอร์ ดูว่าไฟล์ใหม่ไปอยู่ที่ไหนจริง แล้วเพิ่มโฟลเดอร์จริงนั้นเข้ากติกา · เปิดตามปกติได้โฟลเดอร์เดิม ไม่มีอะไรเปลี่ยน
+            if let Ok(local) = app.path().app_local_data_dir() {
+                for sub in ["thumbs", "previews", "frames"] {
+                    let d = local.join(sub);
+                    let _ = std::fs::create_dir_all(&d);
+                    let probe = d.join(".scope-probe");
+                    if std::fs::write(&probe, b"").is_ok() {
+                        if let Some(real) = std::fs::canonicalize(&probe).ok().and_then(|p| p.parent().map(|x| x.to_path_buf())) {
+                            let _ = app.asset_protocol_scope().allow_directory(&real, true);
+                        }
+                        let _ = std::fs::remove_file(&probe);
+                    }
+                }
+            }
             // กวาดไฟล์ชั่วคราวที่ค้างจากงานที่โดนปิดกลางทางหรือไฟดับ (โปรแกรมเปิดได้ทีละตัว ตอนนี้ยังไม่มีงานไหนถือไฟล์)
             // ไดรฟ์ C ที่ว่างน้อย เสียงที่แปลงตอนรวมค้างได้หลาย GB (ผู้ช่วยตรวจขั้น 10 ข้อ 11) · ภาพซับรูป subimg- เป็นของที่เก็บไว้ใช้ซ้ำ ไม่ลบ
             if let Ok(tmp) = app.path().app_local_data_dir().map(|d| d.join("tmp")) {
@@ -109,7 +126,7 @@ pub fn run() {
         pairs::pair_set, pairs::pair_check, pairs::pair_play,
         link::link_state, link::link_titles, link::link_is_dir, link::link_images, link::link_add_images, link::link_remove_images, link::link_auto, link::link_pair, link::link_undo, link::link_row_update, link::link_set_crop, link::link_confirm, link::link_cancel, link::link_resolve, link::link_unsave, link::link_remove, link::link_open_row, link::link_cover_pick, link::link_migrate,
         convert::convert_probe, convert::convert_cover, convert::convert_one, convert::convert_cancel,
-        fileinfo::media_info, fileinfo::audio_codec_detail, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_running, fileinfo::hash_compare, fileinfo::hash_save,
+        fileinfo::media_info, fileinfo::audio_codec_detail, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_running, fileinfo::hash_compare, fileinfo::hash_save, winutil::clipboard_text,
         extract::extract_start, extract::extract_cancel, extract::extract_running, extract::extract_default_folder,
         check::check_start, check::check_cancel, check::check_running, check::play_at, players::list_players,
         audiograph::graph_info, audiograph::graph_exist, audiograph::graph_overview, audiograph::graph_window, audiograph::graph_psd, audiograph::graph_cancel, audiograph::graph_save, graphimg::graph_save_image,
@@ -129,7 +146,7 @@ pub fn run() {
         pairs::pair_set, pairs::pair_check, pairs::pair_play,
         link::link_state, link::link_titles, link::link_is_dir, link::link_images, link::link_add_images, link::link_remove_images, link::link_auto, link::link_pair, link::link_undo, link::link_row_update, link::link_set_crop, link::link_confirm, link::link_cancel, link::link_resolve, link::link_unsave, link::link_remove, link::link_open_row, link::link_cover_pick, link::link_migrate,
         convert::convert_probe, convert::convert_cover, convert::convert_one, convert::convert_cancel,
-        fileinfo::media_info, fileinfo::audio_codec_detail, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_running, fileinfo::hash_compare, fileinfo::hash_save,
+        fileinfo::media_info, fileinfo::audio_codec_detail, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_running, fileinfo::hash_compare, fileinfo::hash_save, winutil::clipboard_text,
         extract::extract_start, extract::extract_cancel, extract::extract_running, extract::extract_default_folder,
         check::check_start, check::check_cancel, check::check_running, check::play_at, players::list_players,
         audiograph::graph_info, audiograph::graph_exist, audiograph::graph_overview, audiograph::graph_window, audiograph::graph_psd, audiograph::graph_cancel, audiograph::graph_save, graphimg::graph_save_image,

@@ -101,3 +101,38 @@ pub fn show_behind(w: &tauri::WebviewWindow) {
     }
     let _ = w.set_focusable(true);
 }
+
+/// ข้อความในคลิปบอร์ดของ Windows · ปุ่มวางในช่องค่า hash (BUGS ข้อ 31)
+/// อ่านฝั่ง Rust เพราะ navigator.clipboard.readText ของ WebView2 ขึ้นหน้าต่างขออนุญาต · คลิปบอร์ดไม่มีข้อความได้ข้อความว่าง
+#[tauri::command]
+pub fn clipboard_text() -> Result<String, String> {
+    use windows_sys::Win32::System::DataExchange::{CloseClipboard, GetClipboardData, OpenClipboard};
+    use windows_sys::Win32::System::Memory::{GlobalLock, GlobalUnlock};
+    const CF_UNICODETEXT: u32 = 13;
+    unsafe {
+        // โปรแกรมอื่นถือคลิปบอร์ดอยู่ชั่วขณะ ลองซ้ำสั้น ๆ ก่อนบอกว่าเปิดไม่ได้
+        let mut opened = false;
+        for _ in 0..5 {
+            if OpenClipboard(std::ptr::null_mut()) != 0 { opened = true; break; }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        if !opened { return Err("เปิดคลิปบอร์ดไม่ได้ ลองกดอีกครั้ง".into()); }
+        let h = GetClipboardData(CF_UNICODETEXT);
+        let out = if h.is_null() {
+            Ok(String::new())
+        } else {
+            let p = GlobalLock(h as _) as *const u16;
+            if p.is_null() {
+                Err("อ่านคลิปบอร์ดไม่ได้".into())
+            } else {
+                let mut n = 0usize;
+                while *p.add(n) != 0 { n += 1; }
+                let s = String::from_utf16_lossy(std::slice::from_raw_parts(p, n));
+                GlobalUnlock(h as _);
+                Ok(s)
+            }
+        };
+        CloseClipboard();
+        out
+    }
+}

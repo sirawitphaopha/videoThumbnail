@@ -1,12 +1,18 @@
 // เทสขั้น 8 ตัวติดตั้ง (แผนขั้น 8) · ลงแล้วเปิดได้ เครื่องมือครบ · ถอนการติดตั้งได้ ไม่ลบไฟล์หนัง
 // ไม่มีหน้าต่างเด้งขึ้นจอ (พี่กันลงเวร คนอื่นใช้คอม) · ติดตั้งแบบเงียบ /S ลงโฟลเดอร์ทดสอบบนไดรฟ์ D · เปิดตัวที่ติดตั้งแบบอยู่หลังสุด (MOVIE_SHELF_BACKGROUND)
 // ถอนการติดตั้งแบบเงียบตอนจบ ไม่ทิ้งโปรแกรมค้างในเครื่อง
+// 🔴 เครื่องที่ติดตั้งตัวจริงไว้แล้ว (เครื่องพี่กัน) ห้ามแตะของพี่กัน (BUGS ข้อ 2 · 10 พ.ย. 2569 พี่กันทัก "เธอมาปิดโปรแกรมเราทำไมม")
+//   ปิดเฉพาะโปรแกรมที่รันจากโฟลเดอร์ทดสอบ ตัวที่พี่กันเปิดใช้อยู่และโหมดพัฒนาไม่โดน
+//   ตัวติดตั้งตัวทดสอบเขียนทับทางลัด รายการในหน้าถอนโปรแกรม และค่าที่จำโฟลเดอร์ที่ลง (ชื่อเดียวกับของพี่กัน)
+//   ตัวถอนตอนจบลบทิ้งทั้งหมด · สำรองไว้ก่อนติดตั้ง แล้วคืนให้เหมือนเดิมหลังถอน
 // ใช้: node scripts/check-install.mjs  (หลัง npm run tauri build)
 import { mkdirSync, rmSync, readdirSync, existsSync, copyFileSync, readFileSync, writeFileSync, statSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { join, resolve } from "node:path";
 import { spawn, spawnSync } from "node:child_process";
-import { connect, sleep } from "./lib/cdp-client.mjs";
+// ตัวที่ติดตั้งเปิดพอร์ตดีบัก 9333 ไม่ชนโปรแกรมโหมดพัฒนาที่เปิดค้างพอร์ต 9222 อยู่ (BUGS ข้อ 2 · เดิมปิดทุกตัวในเครื่องเลยไม่ชน)
+process.env.CDP_PORT = "9333";
+const { connect, sleep } = await import("./lib/cdp-client.mjs");
 
 const OUT = "docs/report-2026-11-07/ขั้น8-ตัวติดตั้ง";
 mkdirSync(OUT, { recursive: true });
@@ -33,7 +39,30 @@ const TAK_DIR = join(process.env.LOCALAPPDATA, "ชั้นหนัง", "TAK 
 const TAKC_SHA = "a78a96a6fb7c0a83dfa6d2ed9156f11a51a5f1deed97187c18b24def82dbc195";
 rmSync(TAK_DIR, { recursive: true, force: true });
 const env = { ...process.env, MOVIE_SHELF_BACKGROUND: "1",
-  WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: "--remote-debugging-port=9222 --disable-features=CalculateNativeWinOcclusion --disable-backgrounding-occluded-windows --disable-renderer-backgrounding" };
+  WEBVIEW2_ADDITIONAL_BROWSER_ARGUMENTS: "--remote-debugging-port=9333 --disable-features=CalculateNativeWinOcclusion --disable-backgrounding-occluded-windows --disable-renderer-backgrounding" };
+
+/* ---------- 0 สำรองของตัวที่ติดตั้งไว้ในเครื่อง ---------- */
+const PRODUCT = JSON.parse(readFileSync(resolve("src-tauri", "tauri.conf.json"), "utf8")).productName;
+const REG_KEYS = [`HKCU\\Software\\Microsoft\\Windows\\CurrentVersion\\Uninstall\\${PRODUCT}`, `HKCU\\Software\\pkh\\${PRODUCT}`];
+const LINKS = [join(process.env.APPDATA, "Microsoft", "Windows", "Start Menu", "Programs", `${PRODUCT}.lnk`), join(process.env.USERPROFILE, "Desktop", `${PRODUCT}.lnk`)];
+const BAK = join(TMP, `ชั้นหนังสำรองก่อนเทส-${Date.now()}`);
+mkdirSync(BAK, { recursive: true });
+const regBak = REG_KEYS.map((k, i) => { const file = join(BAK, `reg${i}.reg`); return { k, file, had: spawnSync("reg", ["export", k, file, "/y"], { stdio: "ignore" }).status === 0 }; });
+// ไฟล์ตั้งค่าของโปรแกรมใช้ร่วมกันทุกตัวที่ติดตั้ง (identifier เดียวกัน) · ตัวตรวจเปลี่ยนโฟลเดอร์หนังเป็นชุดทดสอบ ต้องคืนของเดิม
+const CONF = join(process.env.APPDATA, JSON.parse(readFileSync(resolve("src-tauri", "tauri.conf.json"), "utf8")).identifier);
+const confBak = ["settings.json", "settings.json.bak"].map((n, i) => { const p = join(CONF, n), file = join(BAK, `conf${i}.json`); const had = existsSync(p); if (had) copyFileSync(p, file); return { p, file, had }; });
+const lnkBak = LINKS.map((p, i) => { const file = join(BAK, `lnk${i}.lnk`); const had = existsSync(p); if (had) copyFileSync(p, file); return { p, file, had }; });
+console.log(`สำรองของตัวที่ติดตั้งไว้ · รีจิสทรี ${regBak.filter((r) => r.had).length} จาก ${regBak.length} · ทางลัด ${lnkBak.filter((l) => l.had).length} จาก ${lnkBak.length} · ${BAK}`);
+const restore = () => {
+  for (const r of regBak) { spawnSync("reg", ["delete", r.k, "/f"], { stdio: "ignore" }); if (r.had) spawnSync("reg", ["import", r.file], { stdio: "ignore" }); }
+  for (const l of lnkBak) { if (l.had) copyFileSync(l.file, l.p); else rmSync(l.p, { force: true }); }
+  for (const x of confBak) { if (x.had) copyFileSync(x.file, x.p); else rmSync(x.p, { force: true }); }
+};
+// ปิดหรือนับเฉพาะโปรแกรมที่รันจากโฟลเดอร์ทดสอบ · ส่งที่อยู่ผ่านตัวแปร ไม่ใส่ภาษาไทยในคำสั่ง
+const testProcs = (kill) => spawnSync("powershell", ["-NoProfile", "-Command",
+  "$p = @(Get-CimInstance Win32_Process -Filter \"Name='movie-shelf.exe'\" | Where-Object { $_.ExecutablePath -and $_.ExecutablePath.StartsWith($env:CI_DEST, [StringComparison]::OrdinalIgnoreCase) }); " +
+  (kill ? "$p | ForEach-Object { Stop-Process -Id $_.ProcessId -Force }; " : "") + "$p.Count"],
+  { env: { ...process.env, CI_DEST: DEST }, encoding: "utf8" }).stdout.trim();
 
 /* ---------- 1 ติดตั้งแบบเงียบ ---------- */
 const size = statSync(installer).size;
@@ -55,7 +84,7 @@ check("มีตัวถอนการติดตั้งในโฟลเ�
 
 /* ---------- 2 เปิดตัวที่ติดตั้งแบบอยู่หลังสุด ---------- */
 // ปิดตัวที่เปิดค้างก่อน (ตัวติดตั้งอาจเปิดให้เอง) แล้วเปิดใหม่ด้วยตัวแปรอยู่หลังสุด
-spawnSync("taskkill", ["/F", "/IM", exe ?? "movie-shelf.exe"], { stdio: "ignore" });
+testProcs(true);
 await sleep(800);
 const app = spawn(join(DEST, exe), [], { env, detached: true, stdio: "ignore" });
 app.unref();
@@ -108,7 +137,7 @@ if (c) {
   await sleep(300);
   const tClose = Date.now();
   await c.evaluate("window.__TAURI_INTERNALS__.invoke('force_close')").catch(() => {});
-  const running = () => spawnSync("tasklist", ["/FI", `IMAGENAME eq ${exe}`, "/NH"], { encoding: "utf8" }).stdout.toLowerCase().includes(exe.toLowerCase());
+  const running = () => testProcs(false) !== "0";
   let closed = false;
   for (let i = 0; i < 60 && !closed; i++) { await sleep(500); closed = !running(); }
   const closeSecs = ((Date.now() - tClose) / 1000).toFixed(1);
@@ -117,7 +146,7 @@ if (c) {
     `เห็น .partial ก่อนปิด ${sawPartial} · ปิดเองใน ${closeSecs} วินาที ${closed} · .partial ที่เหลือ ${partials().length}`);
   await c.close?.();
 }
-spawnSync("taskkill", ["/F", "/IM", exe ?? "movie-shelf.exe"], { stdio: "ignore" });
+testProcs(true);
 await sleep(1500);
 
 /* ---------- 3 ถอนการติดตั้งแบบเงียบ ไม่ลบไฟล์หนัง ---------- */
@@ -129,6 +158,14 @@ if (uninst) {
   check("ถอนการติดตั้งแบบเงียบ ไฟล์โปรแกรมกับเครื่องมือหายหมด", !existsSync(join(DEST, exe ?? "x")) && !existsSync(join(DEST, "tools", "ffmpeg.exe")), left.length ? `เหลือ ${left.join(" ")}` : "โฟลเดอร์ว่างหรือถูกลบ");
   check("ถอนการติดตั้งแล้ว ไฟล์หนังในโฟลเดอร์ชั้นวางยังอยู่ ค่า hash เท่าเดิม", existsSync(join(MOVIES, "Harbor Lights (2021).mkv")) && movieSha() === sha0, sha0.slice(0, 16));
 }
+
+/* ---------- 4 คืนทางลัดกับรายการของตัวที่ติดตั้งไว้ ---------- */
+restore();
+const regBack = regBak.every((r) => (spawnSync("reg", ["query", r.k], { stdio: "ignore" }).status === 0) === r.had);
+const confBack = confBak.every((x) => existsSync(x.p) === x.had && (!x.had || fileSha(x.p) === fileSha(x.file)));
+const lnkBack = lnkBak.every((l) => existsSync(l.p) === l.had && (!l.had || fileSha(l.p) === fileSha(l.file)));
+check("คืนทางลัด รายการในหน้าถอนโปรแกรม ค่าที่จำโฟลเดอร์ และไฟล์ตั้งค่า ของตัวที่ติดตั้งไว้ในเครื่องให้เหมือนก่อนเทส", regBack && lnkBack && confBack, `รีจิสทรี ${regBack ? "เหมือนเดิม" : "ไม่เหมือน"} · ทางลัด ${lnkBack ? "เหมือนเดิม" : "ไม่เหมือน"} · ไฟล์ตั้งค่า ${confBack ? "เหมือนเดิม" : "ไม่เหมือน"} · สำรองอยู่ ${BAK}`);
+if (regBack && lnkBack && confBack) rmSync(BAK, { recursive: true, force: true });
 
 const pass = results.filter((r) => r.pass).length;
 console.log(`\nผ่าน ${pass} จาก ${results.length}`);

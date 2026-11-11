@@ -21,7 +21,7 @@ serde = { version = "1", features = ["derive"] }
 serde_json = "1"
 dunce = "1"
 # เรียกคำสั่งของ Windows ตรง ๆ · ส่งหน้าต่างเทสไปอยู่หลังสุด · Job Object ให้เครื่องมือตายตามโปรแกรม (TECH-REVIEW ข้อ 9)
-windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_Security", "Win32_Storage_FileSystem", "Win32_UI_Shell", "Win32_System_LibraryLoader"] }
+windows-sys = { version = "0.61", features = ["Win32_Foundation", "Win32_UI_WindowsAndMessaging", "Win32_System_JobObjects", "Win32_System_Threading", "Win32_Security", "Win32_Storage_FileSystem", "Win32_UI_Shell", "Win32_System_LibraryLoader", "Win32_System_DataExchange", "Win32_System_Memory"] }
 # ค่า hash ของปกและไฟล์หนัง (ขั้น 2 ปก · ขั้น 5 ขั้น 6 ทั้งไฟล์)
 sha2 = "0.10"
 # ค่า hash อีก 3 แบบของหน้าข้อมูลไฟล์ (ขั้น 5 · สเปกข้อ 6) MD5 SHA-1 CRC32 · อ่านไฟล์รอบเดียวคิดพร้อมกันทุกแบบ

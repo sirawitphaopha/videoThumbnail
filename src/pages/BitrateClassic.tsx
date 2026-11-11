@@ -17,6 +17,7 @@ import { listen } from "@tauri-apps/api/event";
 import { bitrateApi, inApp, pickFile, type BrInfo, type BrTrack } from "../lib/api";
 import { useClickOutside, useEscClose } from "../lib/popup";
 import { dropStyle, useDropPlacement } from "../lib/popupFit";
+import { FixedTime } from "../components/ui";
 
 const C = {
   win: "rgb(240,240,240)", plot: "rgb(255,255,255)", frame: "rgb(160,160,160)",
@@ -395,6 +396,21 @@ export default function BitrateClassic({ initialPath = null, initialTrack = null
     const t = tOf(xIn(e).x); const w = span / 2; pushZoom(Math.max(0, Math.min(totalSec - w, t - w / 2)), Math.max(0, Math.min(totalSec - w, t - w / 2)) + w);
   };
 
+  // ลากแถบช่วงที่ซูม · ความกว้างช่วงเท่าเดิม เลื่อนแค่ตำแหน่ง แทนที่ระดับซูมบนสุดของกอง (BUGS ข้อ 47)
+  const barRef = useRef<HTMLDivElement>(null);
+  const onBarDown = (e: React.MouseEvent) => {
+    if (!zoom.length || !barRef.current || e.button !== 0) return;
+    e.preventDefault();
+    const r = barRef.current.getBoundingClientRect(), w = span;
+    const tAt = (x: number) => ((x - r.left) / r.width) * totalSec;
+    const t = tAt(e.clientX), off = t >= z0 && t <= z1 ? t - z0 : w / 2;
+    const move = (cx: number) => { const a = Math.max(0, Math.min(totalSec - w, tAt(cx) - off)); setZoom((z) => (z.length ? [...z.slice(0, -1), [a, a + w]] : z)); };
+    move(e.clientX);
+    const mm = (ev: MouseEvent) => move(ev.clientX);
+    const mu = () => { window.removeEventListener("mousemove", mm); window.removeEventListener("mouseup", mu); };
+    window.addEventListener("mousemove", mm); window.addEventListener("mouseup", mu);
+  };
+
   const ci = cur == null ? -1 : sampleAt(cur);
   const curBar = cur == null ? null : bars.find((b) => cur >= b.t0 && cur < b.t1) ?? null;
   const curType = mode === "frm" && ci >= 0 ? S.typ[ci] : "";
@@ -475,7 +491,8 @@ export default function BitrateClassic({ initialPath = null, initialTrack = null
         </div>
         <div style={{ flex: 1, minWidth: 0, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={path ?? undefined} data-bv-title>Bitrate Viewer{name ? ` - ${name}` : ""}</div>
         {onModern && <button type="button" className="bv-btn" onClick={() => onModern(path)} title="สลับไปหน้าตาแบบชั้นหนัง ไฟล์นี้ตามไปด้วย" data-bvmodern style={{ flex: "none", height: 22, padding: "0 10px", borderRadius: 2, fontFamily: FONT, fontSize: 12.5, color: "rgb(0,0,0)" }}>แบบชั้นหนัง</button>}
-        {path && zoom.length > 0 && <div style={{ flex: "none", fontSize: 12, color: "rgb(70,70,70)" }} data-bv-zoomstat>{visCount} / {S.n} samples · {hms(span)}</div>}
+        {/* กว้างเท่าข้อความยาวสุดของไฟล์นี้เสมอ ไม่ซูมก็จองที่ไว้ ปุ่มแบบชั้นหนังไม่ขยับ (BUGS ข้อ 45) */}
+        {path && <div style={{ flex: "none", fontSize: 12, color: "rgb(70,70,70)", visibility: zoom.length > 0 ? "visible" : "hidden" }} data-bv-zoomstat><FixedTime t={`${visCount} / ${S.n} samples · ${hms(span)}`} longest={`${S.n} / ${S.n} samples · ${hms(totalSec)}`} /></div>}
       </div>
       <div style={{ flex: 1, minHeight: 160, display: "flex", gap: 10 }}>
         <div style={{ width: 66, position: "relative", flex: "none" }} data-bv-axis>
@@ -506,16 +523,24 @@ export default function BitrateClassic({ initialPath = null, initialTrack = null
             {err && <div style={{ position: "absolute", left: 10, bottom: 14, color: C.red }} data-bv-error>{err}</div>}
           </div>
           {/* แถบบอกช่วงที่ซูม · สีส้มคือช่วงที่เห็นอยู่ สีแดงคือช่วงที่ลากเลือก */}
-          <div data-bv-zoombar style={{ height: 6, position: "relative", background: zoom.length || sel ? "rgb(215,215,215)" : "transparent" }}>
+          {/* ลากแถบสีส้มเลื่อนช่วงที่ดู กดร่องข้างแถบกระโดดไปช่วงนั้น · ที่กดได้หนากว่าแถบ หน้าตาเท่าเดิม (BUGS ข้อ 47) */}
+          <div onMouseDown={onBarDown} style={{ padding: "4px 0", margin: "-4px 0", cursor: zoom.length ? "grab" : "default" }} data-bv-zoomhit>
+          <div ref={barRef} data-bv-zoombar style={{ height: 6, position: "relative", background: zoom.length || sel ? "rgb(215,215,215)" : "transparent" }}>
             {zoom.length > 0 && <div style={{ position: "absolute", top: 0, bottom: 0, left: `${(z0 / totalSec) * 100}%`, width: `${Math.max(0.3, zoomPct)}%`, background: C.zoom }} />}
             {sel && <div style={{ position: "absolute", top: 0, bottom: 0, left: `${(sel[0] / totalSec) * 100}%`, width: `${Math.max(0.3, ((sel[1] - sel[0]) / totalSec) * 100)}%`, background: C.red }} />}
+          </div>
           </div>
         </div>
         <div style={{ width: 150, flex: "none", display: "flex", flexDirection: "column", gap: 4 }} data-bv-panel>
           <div style={{ marginBottom: 6 }}>
             <div style={head}>Total Time</div>
             <div style={{ padding: "8px 8px 0", minHeight: 18 }}>{info ? hms(info.duration) : ""}</div>
-            {zoom.length > 0 && <div style={{ padding: "2px 8px 0", fontSize: 11.5, color: C.zoom, fontWeight: 700 }} data-bv-zoomflag>ZOOM {zoom.length} · {zoomPct.toFixed(1)}%</div>}
+            {/* บรรทัด ZOOM กับปุ่มรีเซ็ตจองที่ไว้ตลอด ไม่ซูมก็ซ่อนแต่ไม่ดันของข้างล่าง (BUGS ข้อ 45 46) */}
+            <div style={{ padding: "2px 8px 0", display: "flex", alignItems: "center", gap: 6, visibility: zoom.length > 0 ? "visible" : "hidden" }} aria-hidden={zoom.length ? undefined : true}>
+              <span style={{ flex: 1, fontSize: 11.5, color: C.zoom, fontWeight: 700, whiteSpace: "nowrap" }} data-bv-zoomflag>ZOOM {zoom.length} · {zoomPct.toFixed(1)}%</span>
+              <button type="button" className="bv-btn" onClick={() => { setZoom([]); setSel(null); }} disabled={!zoom.length} tabIndex={zoom.length ? 0 : -1} title="กลับไปดูทั้งไฟล์ แบบเดียวกับเมนู Reset zoom" data-bv-reset
+                style={{ flex: "none", height: 20, padding: "0 6px", borderRadius: 2, fontFamily: FONT, fontSize: 11.5, color: "rgb(0,0,0)" }}>Reset</button>
+            </div>
           </div>
           {([["Average Bitrate", S.n ? kb(stats.avg) : ""], ["Peak", S.n ? kb(stats.peak) : ""]] as const).map(([h, v]) => <div key={h} style={{ marginBottom: 6 }}>
             <div style={head}>{h}</div>

@@ -65,6 +65,8 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
       return undefined as T;
     case "list_players":
       return { players: [{ path: "C:\\Program Files (x86)\\K-Lite Codec Pack\\MPC-HC64\\mpc-hc64.exe", name: "MPC-HC", exists: true, added: false, isDefault: true }, { path: "C:\\Program Files\\VideoLAN\\VLC\\vlc.exe", name: "VLC", exists: true, added: false, isDefault: false }], systemDefault: false } as T;
+    case "clipboard_text":
+      return "" as T;
     case "check_running":
     case "extract_running":
     case "hash_running":

@@ -776,7 +776,7 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 /* หน้าขอบคุณ การ์ดเรียงเป็นตาราง พี่กันสั่ง 9 พ.ย. 2569 "ใส่ icon ด้วย และทำเป็นการ์ดหน่อย" */
 .thanksgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; margin: 8px 0 18px; }
 .thankcard { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
-.thankhead { display: flex; flex-wrap: wrap; align-items: center; gap: 4px 9px; min-width: 0; font-size: 14px; }
+.thankhead { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px 9px; min-width: 0; font-size: 14px; }
 .thankhead b { font-weight: 600; overflow-wrap: anywhere; }
 /* พื้นหลังขาวทุกไอคอน (พี่กันสั่ง 10 พ.ย. 2569 "พื้นหลังขาวให้หมด") */
 .thankicon { flex: none; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; background: white; box-shadow: inset 0 0 0 1px var(--line); color: var(--accent-ink); }
@@ -785,10 +785,12 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .thankicon.white img { width: 28px; height: 28px; }
 /* เลขรุ่นต่อท้ายชื่อ (พี่กันสั่ง 10 พ.ย. 2569 "ทุกตัว เธอใส่เวอร์ชั่นด้วยนะ ถ้ามี") */
 /* ชื่อการ์ดอยู่บรรทัดเดียวเสมอ ป้ายสัญญาหดแทน (พี่กันทัก 10 พ.ย. 2569 "ตกบรรทัด" ห้องสมุด Rust อื่น ๆ ตัด ๆ ลงบรรทัดใหม่) */
-.thankname { display: flex; flex-direction: column; flex: 1 0 auto; max-width: calc(100% - 41px); line-height: 1.3; }
-.thankname b { white-space: nowrap; }
+.thankname { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; line-height: 1.3; }
+.thankname b { white-space: normal; }
 /* แถวเดียวไม่พอ ป้ายสัญญาลงบรรทัดถัดไปทั้งป้าย ชิดขวา · ชื่อสัญญาไม่ถูกตัดกลาง (เดิม 2.0 ตกบรรทัดเดียว) */
 .thanktag > span { white-space: nowrap; }
+/* ป้ายยาวแยกเป็นบรรทัดละส่วน ชิดขวา (BUGS ข้อ 3) */
+.thanktag.lines > span { display: block; }
 .thankver { font-size: 12px; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
 .thankicon.two { width: auto; gap: 4px; padding: 0 3px; }
 .thankwhat { flex: 1; font-size: 12.5px; line-height: 1.5; color: var(--txt2); }
@@ -963,7 +965,8 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 [data-info-page] > .wrapin > :first-child { position: sticky; top: 0; z-index: var(--z-bar); background: var(--win); margin: -22px -22px 0; padding: 12px 22px; border-bottom: 1px solid var(--line); }
 .gmodebar { position: sticky; top: 0; z-index: var(--z-bar); background: var(--win); margin: -16px -18px 0; padding: 12px 18px; border-bottom: 1px solid var(--line); }
 [data-poster-page] .three.pactions { position: sticky; bottom: 0; z-index: var(--z-bar); background: var(--win); padding-bottom: 12px; }
-.setcard > h3 { position: sticky; top: 0; z-index: 2; background: var(--win); margin-top: -20px; padding: 20px 0 8px; }
+/* หัวหัวข้อตั้งค่าตรึงไว้ มีเส้นแบ่งเต็มความกว้างการ์ด ของที่เลื่อนเข้าใต้หัวไม่ดูขาดกลางอากาศ (BUGS ข้อ 5) */
+.setcard > h3 { position: sticky; top: 0; z-index: 2; background: var(--win); margin: -20px -28px 10px; padding: 20px 28px 8px; border-bottom: 1px solid var(--line); }
 /* ปุ่มท้ายกราฟชิดขวาเสมอ แม้แถวตกบรรทัด (พี่กันสั่ง 8 พ.ย. 2569 "ปุ่ม จะขวา ก็ขวาให้หมด") */
 .agfoot > :last-child { margin-left: auto; }
 /* แถวหัวกราฟบรรทัดเดียว ปุ่มเวลาชิดขวาทุกมุมมอง แถบซูมหดตามที่เหลือ (พี่กันถาม 8 พ.ย. 2569 "ปุ่มเวลา จะอยู่ซ้ายหรือขวา") */

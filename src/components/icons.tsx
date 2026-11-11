@@ -10,6 +10,9 @@ const svg = (size: number, w: number, stroke: string, children: React.ReactNode)
 
 export const IcCopy = ({ size = 14, stroke = "currentColor" }: P) =>
   svg(size, 2, stroke, <><rect width="14" height="14" x="8" y="8" rx="2" /><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2" /></>);
+/** วางจากคลิปบอร์ด (BUGS ข้อ 31) */
+export const IcPaste = ({ size = 14, stroke = "currentColor" }: P) =>
+  svg(size, 2, stroke, <><rect width="8" height="4" x="8" y="2" rx="1" /><path d="M16 4h2a2 2 0 012 2v14a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2h2" /></>);
 export const IcPalette = ({ size = 18, stroke = "currentColor" }: P) =>
   svg(size, 2, stroke, <><circle cx="13.5" cy="6.5" r=".5" /><circle cx="17.5" cy="10.5" r=".5" /><circle cx="8.5" cy="7.5" r=".5" /><circle cx="6.5" cy="12.5" r=".5" /><path d="M12 2C6.5 2 2 6.5 2 12s4.5 10 10 10c.926 0 1.648-.746 1.648-1.688 0-.437-.18-.835-.437-1.125-.29-.289-.438-.652-.438-1.125a1.64 1.64 0 0 1 1.668-1.668h1.996c3.051 0 5.555-2.503 5.555-5.554C21.965 6.012 17.461 2 12 2z" /></>);
 export const IbSwap = ({ size = 15, stroke = "currentColor" }: P) =>

@@ -382,7 +382,9 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
     // แท่ง · ใต้ค่าเฉลี่ยสะสมสีอ่อน เหนือค่าเฉลี่ยสีเข้ม เกินเพดานสีแดง (ความหมายเดียวกับ Bitrate Viewer)
     const yc = yOf(ceil);
     for (const b of bars) {
-      const x0 = Math.floor(xOf(b.t0)), x1 = Math.max(x0 + 1, Math.floor(xOf(b.t1)) - (group === 1 && xOf(b.t1) - xOf(b.t0) > 4 ? 1 : 0));
+      const x0 = Math.floor(xOf(b.t0)), x1 = Math.max(x0 + 1, Math.floor(xOf(b.t1)) - (xOf(b.t1) - xOf(b.t0) >= 2.5 ? 1 : 0));
+      // แท่งกว้างตั้งแต่ 2.5 จุดเว้นช่อง 1 จุด ทั้งแท่งเดี่ยวและแท่งที่รวมหลายช่วง (BUGS ข้อ 43 · เดิมเว้นเฉพาะแท่งเดี่ยวที่กว้างเกิน 4 จุด
+      // หน้าต่างแคบโปรแกรมรวมแท่งละ 2 ช่วงขึ้นไป แท่งรวมกว้าง 6 จุดก็ยังติดกัน · เจอตอนตรวจที่หน้าต่าง 1024)
       const yv = yOf(b.v), ya = yOf(Math.min(b.v, b.avg)), base = T + ph;
       g.fillStyle = alpha(c.accent, 0.32); g.fillRect(x0, ya, x1 - x0, base - ya);
       if (b.v > b.avg) { const yt = Math.max(yv, Math.min(ya, yc)); g.fillStyle = alpha(c.accent, 0.78); g.fillRect(x0, yt, x1 - x0, ya - yt); }
@@ -398,11 +400,15 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
     const hl = (v: number, color: string, label: string, dash: number[]) => {
       // เส้นที่สูงเกินกรอบ (ขยายแนวตั้งอยู่) ไม่วาด · yOf บีบค่าไว้ที่ขอบบน ถ้าวาดจะติดขอบ ป้ายโดนตัดครึ่ง
       if (v > top * 1.001) return;
-      const y = Math.round(yOf(v)) + 0.5; if (y < T || y > T + ph) return;
+      // เส้นที่ต่ำจนเกือบศูนย์ (เช่นช่วงจอดำ 5 kbps) ปัดแล้วเลยขอบล่างครึ่งจุด เดิมข้ามไม่วาดทั้งเส้นและป้าย · วาดชิดขอบแทน (BUGS ข้อ 1 เจอตอนตรวจ)
+      const y0 = Math.round(yOf(v)) + 0.5; if (y0 < T - 1 || y0 > T + ph + 1) return;
+      const y = Math.min(T + ph - 0.5, Math.max(T + 0.5, y0));
       g.font = font(600, 11.5); const w = g.measureText(label).width + 14;
       g.setLineDash(dash); g.strokeStyle = color; g.lineWidth = 1.4; g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw - w, y); g.stroke(); g.setLineDash([]);
-      g.fillStyle = cssv("--win", "#fff"); g.globalAlpha = 0.92; g.fillRect(L + pw - w, y - 9, w, 18); g.globalAlpha = 1;
-      g.fillStyle = color; g.textAlign = "right"; g.textBaseline = "middle"; g.fillText(label, L + pw - 4, y);
+      // ป้ายอยู่ในกรอบเสมอ เส้นชิดขอบล่างหรือบน ป้ายขยับเข้ามา เส้นอยู่ที่เดิม (BUGS ข้อ 1)
+      const ly = Math.min(T + ph - 9, Math.max(T + 9, y));
+      g.fillStyle = cssv("--win", "#fff"); g.globalAlpha = 0.92; g.fillRect(L + pw - w, ly - 9, w, 18); g.globalAlpha = 1;
+      g.fillStyle = color; g.textAlign = "right"; g.textBaseline = "middle"; g.fillText(label, L + pw - 4, ly);
     };
     hl(ceil, c.badInk, `เพดาน ${rate(ceil)}`, [6, 4]);
     if (lines.avg) hl(st.avg, c.deep, `เฉลี่ย ${rate(st.avg)}`, []);

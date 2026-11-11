@@ -332,6 +332,8 @@ export const infoApi = {
   hashCancel: () => call<void>("hash_cancel"),
   compare: (pasted: string, hashes: Hashes) => call<HashCompare>("hash_compare", { pasted, hashes }),
   saveSha256: (path: string, sha256: string) => call<string>("hash_save", { path, sha256 }),
+  /** ข้อความในคลิปบอร์ด อ่านฝั่ง Rust ไม่เด้งหน้าต่างขออนุญาตของ WebView2 (BUGS ข้อ 31) */
+  clipboardText: () => call<string>("clipboard_text"),
   defaultFolder: (path: string) => call<string>("extract_default_folder", { path }),
   extract: (path: string, folder: string | null, items: ExtractItem[], policy: string[]) => call<ExtractResult>("extract_start", { req: { path, folder, items, policy } }),
   extractCancel: () => call<void>("extract_cancel"),

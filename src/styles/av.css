@@ -90,8 +90,11 @@
 .avfield { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .avfield .avlbl { font-weight: 600; color: var(--txt); font-size: 13px; }
 .avfield .small { margin: 0; }
-.avdrop { border: 2px dashed #e2bfcb; border-radius: 10px; background: #fff; display: flex; align-items: center; gap: 10px; padding: 10px 12px; color: var(--txt3); font-size: 13px; margin-top: 8px; transition: background-color .15s, border-color .15s; }
-.avdrop.over { border-color: var(--accent); background: #faedf1; color: var(--accent-ink); }
+/* แถบลากไฟล์เพิ่ม หน้าตาเดียวกับจุดลากกลาง .drop ขอบประสีหลัก พื้นไล่โทนจาง ไอคอนในวงกลมสีหลัก เปลี่ยนตามโทน (BUGS ข้อ 10) */
+.avdrop { border: 2px dashed var(--accent); border-radius: 10px; background: linear-gradient(90deg, color-mix(in srgb, var(--accent-soft) 70%, var(--win)), var(--win)); display: flex; align-items: center; gap: 10px; padding: 10px 12px; color: var(--txt2); font-size: 13px; margin-top: 8px; transition: background-color .15s, border-color .15s; }
+.avdrop > svg { display: none; }
+.avdrop::before { content: ""; flex: none; width: 30px; height: 30px; border-radius: 50%; background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.4' stroke-linecap='round'%3E%3Cpath d='M12 6v12M6 12h12'/%3E%3C/svg%3E") center / 17px no-repeat, var(--accent); }
+.avdrop.over { border: 2px solid var(--accent); background: #f6d3df; color: var(--accent-ink); }
 .avdrop > span { flex: 1; min-width: 0; }
 
 /* ช่องเลือกความเร็วเสียงในแผงตั้งค่าเสียง สูงเท่าปุ่มเล็กข้าง ๆ (เดิม 40 กับ 30 แถวไม่เสมอกัน เจอตอนตรวจภาพ) */

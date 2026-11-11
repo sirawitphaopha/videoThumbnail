@@ -9,7 +9,7 @@ import ThaiInput from "../components/ThaiInput";
 import { useToast } from "../components/Toasts";
 import { fmtDateTime, fmtSize } from "../lib/format";
 import { kb } from "../lib/popup";
-import { IcCopy } from "../components/icons";
+import { IcCopy, IcPaste, IcClose } from "../components/icons";
 import { IbBack, IbNext, IbStop, IcRefresh, IcMix, IcFolder, IcFile, IbSave } from "../components/icons";
 
 const ALGOS: [string, string][] = [["md5", "MD5"], ["sha1", "SHA-1"], ["sha256", "SHA-256"], ["crc32", "CRC32"], ["sha512", "SHA-512"]];
@@ -290,7 +290,13 @@ function HashCard({ m }: { m: Movie }) {
               onClick={async () => { if (!h.sha256) return; try { const p = await infoApi.saveSha256(m.path, h.sha256); toast({ kind: "ok", title: "บันทึกไฟล์ .sha256 แล้ว", detail: p.split(/[\\/]/).pop() ?? p }); } catch (e) { toast({ kind: "bad", title: "บันทึกไฟล์ .sha256 ไม่สำเร็จ", detail: String(e) }); } }}><IbSave size={15} />บันทึกเป็นไฟล์ .sha256</button>
           </div>
           <div style={{ marginTop: 12 }}>
-            <ThaiInput value={paste} onChange={setPaste} label="วางค่า hash ที่ได้มาจากเว็บต้นทาง" err={!!cmp && !cmp.same} />
+            {/* ปุ่มวางจากคลิปบอร์ดในช่อง กดแล้วเทียบทันที · มีข้อความแล้วมีปุ่มล้าง (BUGS ข้อ 31) */}
+            <ThaiInput value={paste} onChange={setPaste} label="วางค่า hash ที่ได้มาจากเว็บต้นทาง" err={!!cmp && !cmp.same} placeholder="วางค่า MD5 SHA-1 SHA-256 CRC32 หรือ SHA-512"
+              actions={<>
+                {paste && <button type="button" className="clr" aria-label="ล้างค่าที่วาง" title="ล้างค่าที่วาง" onClick={() => setPaste("")} data-hash-clear><IcClose size={14} /></button>}
+                <button type="button" className="clr" aria-label="วางจากคลิปบอร์ด" title="วางจากคลิปบอร์ด" data-hash-paste
+                  onClick={async () => { try { const t = (await infoApi.clipboardText()).trim(); if (t) setPaste(t); else toast({ kind: "warn", title: "คลิปบอร์ดไม่มีข้อความ", detail: "คัดลอกค่า hash จากเว็บต้นทางก่อน แล้วกดวางอีกครั้ง" }); } catch (e) { toast({ kind: "bad", title: "วางไม่ได้", detail: String(e) }); } }}><IcPaste size={16} /></button>
+              </>} />
             {!paste && <div className="hint">วางค่า hash ที่เว็บต้นทางให้มา เพื่อเทียบว่าไฟล์ครบและตรงกับต้นฉบับทุกไบต์</div>}
             {cmp && (cmp.same
               ? <div className="stat ok" style={{ marginTop: 8 }}><CardIcon kind="done" /><div><b>ตรงกับ {cmp.algo} ของไฟล์นี้</b>ไฟล์ครบและเหมือนต้นฉบับทุกไบต์</div></div>

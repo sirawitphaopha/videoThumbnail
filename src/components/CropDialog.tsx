@@ -54,7 +54,8 @@ export default function CropDialog(p: {
 }) {
   const { info } = p;
   // รวมเข้าไฟล์จากปกนอน แล้วกดครอปต่อที่หน้าใส่โปสเตอร์ ค่า 16 : 9 ต้องไม่หาย
-  const wideSlot = p.link ? p.link.orient === "wide" : p.start?.geo.aspect === "wide";
+  // ช่องปกนอนของหน้าเสียงและซับ (target cover_land) ก็เป็นกรอบ 16 : 9 ตั้งแต่เปิด ไม่ต้องรอค่าครอปเดิม (BUGS ข้อ 32)
+  const wideSlot = p.link ? p.link.orient === "wide" : p.target === "cover_land" || p.start?.geo.aspect === "wide";
   const ar = wideSlot ? WIDE : TALL;
   const [view, setView] = useState<View>(() => p.start ? fromGeo(p.start.geo, info, ar) : START);
   const [mode, setMode] = useState<"crop" | "pad" | "original">(p.start?.geo.mode ?? (info.twoThree ? "crop" : "crop"));
@@ -198,7 +199,7 @@ export default function CropDialog(p: {
     <Dialog open onClose={p.onCancel} width={1000} title={
       <span style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
         <span>{p.link ? `ครอปรูปปก · ${p.link.movie}` : "ครอปรูปโปสเตอร์"}</span>
-        <span className="small" style={{ fontWeight: 400, display: "flex", gap: 12 }}><span>{name}</span><span className="nw">{info.width} × {info.height} px</span><span>{info.aspect === "2 : 3" ? "สัดส่วน 2 : 3 พอดีปก" : info.aspect}</span></span>
+        <span className="small" style={{ fontWeight: 400, display: "flex", gap: 12 }}><span>{name}</span><span className="nw">{info.width} × {info.height} px</span><span>{/* พอดีปก บอกเฉพาะช่องปกตั้ง · ช่องปกนอนรูป 2 : 3 ต้องครอปเป็น 16 : 9 อยู่ดี (เจอตอนตรวจภาพ BUGS ข้อ 32) */}{info.aspect === "2 : 3" ? (wideSlot ? "สัดส่วน 2 : 3" : "สัดส่วน 2 : 3 พอดีปก") : info.aspect}</span></span>
       </span>
     } actions={<>
       {useErr && <div className="hint e" role="alert" style={{ margin: "0 auto 0 0", maxWidth: 520 }} data-use-err>{useErr}</div>}
@@ -307,12 +308,24 @@ export default function CropDialog(p: {
                 ? [{ w: 128, h: 72, cap: "บนชั้นวาง" }, { w: 160, h: 90, cap: "แผงรายละเอียด" }, { w: 64, h: 36, cap: "ไอคอน Windows" }]
                 : [{ w: 72, h: 108, cap: "บนชั้นวาง" }, { w: 110, h: 165, cap: "แผงรายละเอียด" }, { w: 40, h: 60, cap: "ไอคอน Windows" }]).slice(0, p.link ? 2 : 3);
               const pvK = short ? PREVIEW_K_SHORT : wideSlot ? 1 : PREVIEW_K_TALL;
-              return sizes.map((s) => (
+              const cell = (s: { w: number; h: number; cap: string }, k = pvK) => (
                 <div key={s.cap} style={{ display: "flex", flexDirection: "column", alignItems: "center", textAlign: "center" }}>
-                  <Preview info={info} view={view} lay={lay} mode={wideSlot ? "crop" : mode} pad={pad} w={Math.round(s.w * pvK)} h={Math.round(s.h * pvK)} />
+                  <Preview info={info} view={view} lay={lay} mode={wideSlot ? "crop" : mode} pad={pad} w={Math.round(s.w * k)} h={Math.round(s.h * k)} />
                   <div className="small" style={{ marginTop: 6 }}>{s.cap}</div>
                 </div>
-              ));
+              );
+              // ปกนอนวางสามรูปเรียงแถวเดียวแล้วเบียด · แผงรายละเอียดใหญ่ครึ่งบน อีกสองรูปแถวล่าง ในที่ที่จองไว้เท่าเดิม
+              // (พี่กันสั่ง 11 พ.ย. 2569 "ให้รูป แผงรายละเอียดอยู่ครึ่งบน เเสดงอันใหญ่ เเละอีกสองตัวอย่างอยู่ด้านล่าง") · หน้าต่างเตี้ยที่ไม่พอสูงยังเรียงแถวเดียว
+              if (wideSlot && !short) {
+                const big = sizes.find((s) => s.cap === "แผงรายละเอียด")!, rest = sizes.filter((s) => s !== big);
+                return (
+                  <div style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: 8, width: "100%" }} data-previews-wide>
+                    {cell({ ...big, w: 272, h: 153 }, 1)}
+                    <div style={{ display: "flex", gap: 28, alignItems: "flex-end", justifyContent: "center" }}>{rest.map((s) => cell(s))}</div>
+                  </div>
+                );
+              }
+              return sizes.map((s) => cell(s));
             })()}
           </div>
           {!wideSlot && <div className="setrow" style={{ borderTop: "1px solid var(--line)", paddingBlock: short ? 11 : 7, marginTop: short ? 0 : -5, marginLeft: -12, paddingLeft: 12 }}>
