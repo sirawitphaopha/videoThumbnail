@@ -1,5 +1,5 @@
 // แผงเลือกสีใช้ร่วม แยกจากหน้าครอป (สีขอบเอง) ไปใช้กับสีกำหนดเองของหน้ากราฟเสียงด้วย (BUGS ข้อ 41 พี่กัน "เราก็ทำระบบสีแบบกำหนดเองไว้เลเล้วนี่นะ ที่ตอนครอปรูป")
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useEscClose } from "../lib/popup";
 import { IbTick, IcCopy, IcPaste, IcPlus } from "./icons";
 import { infoApi } from "../lib/api";
@@ -48,8 +48,10 @@ const SAVED_KEY = "color-saved", SAVED_MAX = 16;
 function loadSaved(): string[] { try { const v = JSON.parse(localStorage.getItem(SAVED_KEY) ?? "[]"); return Array.isArray(v) ? v.filter((x) => typeof x === "string" && /^#[\da-f]{6}$/.test(x)).slice(0, SAVED_MAX) : []; } catch { return []; } }
 function keepSaved(v: string[]) { try { localStorage.setItem(SAVED_KEY, JSON.stringify(v)); } catch { /* เก็บไม่ได้ ใช้ในหน้าไปก่อน */ } }
 
-export function PadCustom(p: { pad: string; onPad: (c: string) => void; custom: boolean; short: boolean; what?: string; trigger?: (open: boolean, toggle: () => void) => React.ReactNode; panelStyle?: React.CSSProperties; onOpen?: () => void; onOk?: () => void; onCancel?: () => void; oldColor?: string }) {
-  const { short } = p, what = p.what ?? "สีขอบ";
+/* กล่องเลือกสีขนาดเดียวทั้งโปรแกรม แก้ที่เดียวทุกที่เปลี่ยนตาม (พี่กันสั่ง 12 พ.ย. 2569 "ให้ popup เลือกสี มันขนาดเท่ากันทั้งโปรแกรม เเก้ 1 ที ทุกที่เปลี่ยนหมด")
+   เดิมหน้าครอปใช้แบบเล็กและแบบเตี้ย (short) หน้ากราฟใช้แบบใหญ่ · ตอนนี้ทุกที่ใช้ขนาดของ [data-colorpick] ใน app.css */
+export function PadCustom(p: { pad: string; onPad: (c: string) => void; custom: boolean; what?: string; trigger?: (open: boolean, toggle: () => void) => React.ReactNode; panelStyle?: React.CSSProperties; onOpen?: () => void; onOk?: () => void; onCancel?: () => void; oldColor?: string }) {
+  const what = p.what ?? "สีขอบ";
   const [open, setOpen] = useState(false);
   const [tab, setTab] = useState<"std" | "own">("own");
   const [old, setOld] = useState(p.pad);
@@ -66,6 +68,19 @@ export function PadCustom(p: { pad: string; onPad: (c: string) => void; custom: 
   const cancel = () => { if (p.onCancel) p.onCancel(); else p.onPad(old); setOpen(false); };
   const toggle = () => { if (open) { setOpen(false); return; } setOld(p.pad); setHsl(rgbHsl(hexRgb(p.pad))); setHexText(null); setSaved(loadSaved()); p.onOpen?.(); setOpen(true); };
   useEscClose(open, cancel);
+  /* กล่องขนาดเดียวทั้งโปรแกรมแล้ว ในหน้าครอปที่จอเล็กล้นขอบล่างหน้าต่างครอปราว 7 จุด (หน้าต่างครอปเกิดแถบเลื่อน) · วัดจริงตอนกาง ล้นเท่าไหร่ขยับขึ้นเท่านั้น
+     ขอบที่ห้ามเกินคือกรอบหน้าต่างที่กล่องอยู่ (.dlg) ไม่มีก็ขอบจอ */
+  const [lift, setLift] = useState(0);
+  useLayoutEffect(() => {
+    if (!open) { setLift(0); return; }
+    const el = panel.current;
+    if (!el) return;
+    const box = el.closest(".dlg")?.getBoundingClientRect();
+    const limit = (box ? box.bottom : window.innerHeight) - 8;
+    const over = el.getBoundingClientRect().bottom - lift - limit;
+    const next = over > 0 ? -Math.ceil(over) : 0;
+    if (next !== lift) setLift(next);
+  }, [open, tab]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!open) return;
     const out = (e: PointerEvent) => { if (!wrap.current?.contains(e.target as Node)) setOpen(false); };
@@ -88,12 +103,11 @@ export function PadCustom(p: { pad: string; onPad: (c: string) => void; custom: 
     el.addEventListener("pointerup", up);
   };
   return (
-    <span ref={wrap} style={{ display: "inline-flex", ...(p.trigger ? { position: "relative" } : {}) }} data-colorpick={p.trigger ? "" : undefined}>
-      {p.trigger ? p.trigger(open, toggle) : <button type="button" className={"btn btn-ghost btn-sm" + (p.custom ? " pressed" : "")} aria-expanded={open} data-pad-custom onClick={toggle}>
-        {p.custom && <span className="padchip" style={{ background: p.pad }} />}เลือกเอง
-      </button>}
+    <span ref={wrap} style={{ display: "inline-flex", ...(p.trigger ? { position: "relative" } : {}) }} data-colorpick="">
+      {/* ชื่อปุ่ม เลือกสีเอง · สีที่เลือกได้ขึ้นเป็นช่องสีข้าง ๆ แทนจุดสีบนปุ่ม (พี่กันสั่ง "เลือกสีเอง เเละถ้าได้สีใมหม่เเล้ว ก็เเสดงสีนั้นด้วย") */}
+      {p.trigger ? p.trigger(open, toggle) : <button type="button" className={"btn btn-ghost btn-sm" + (open ? " pressed" : "")} aria-expanded={open} data-pad-custom onClick={toggle}>เลือกสีเอง</button>}
       {open && (
-        <div ref={panel} className={"padrgb pop-in" + (short ? " short" : "")} style={{ position: "absolute", left: 0, top: "calc(100% + 6px)", ...p.panelStyle }} data-pad-rgb>
+        <div ref={panel} className="padrgb pop-in" style={{ position: "absolute", left: 0, top: "calc(100% + 6px)", ...p.panelStyle, ...(lift ? { marginTop: lift } : {}) }} data-pad-rgb>
           <div className="padbody">
             <div style={{ minWidth: 0 }}>
               <div className="padtabs">

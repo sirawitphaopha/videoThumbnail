@@ -114,7 +114,7 @@ await c.evaluate("document.querySelector('[data-use]').click()");
 await waitFor("return document.querySelector('[data-slot=cover]').innerText.includes('เพิ่มใหม่')", 20000);
 await sleep(300);
 const slot = await q("return document.querySelector('[data-slot=cover]').innerText.replace(/\\s+/g, ' ')");
-check("ลากรูปแนวตั้งมาวาง หน้าครอปขึ้น กดใช้รูปนี้ ช่องปกตั้งเป็นรูปใหม่", slot.includes("cover.jpg") && slot.includes("เพิ่มใหม่") && slot.includes("ครอปใหม่"), slot);
+check("ลากรูปแนวตั้งมาวาง หน้าครอปขึ้น กดใช้รูปนี้ ช่องปกตั้งเป็นรูปใหม่", slot.includes("cover.jpg") && slot.includes("เพิ่มใหม่") && slot.includes("ครอป/แปลงรูป") && slot.includes("เอารูปออก"), slot);
 await shot("05-ปก.png", "[data-slot=cover]", 6);
 
 // ---------- ไปหน้าอื่นแล้วกลับมา งานยังอยู่ ----------
@@ -474,10 +474,11 @@ await waitFor("return document.querySelector('[data-movie-chip]')?.innerText.inc
 await drop([pairAc3, pairSrt]);
 await waitFor(`return !!${findRow("คู่")} || document.querySelectorAll('.trk:not(.head)').length > 6`, 20000);
 await sleep(500);
-await clickTextAny("[data-method] .seg button", "จับคู่ไว้ ไม่รวม");
+await c.evaluate("document.querySelector('[data-method] [data-mode=pair]').click()");
 await sleep(300);
 await waitFor("return document.querySelectorAll('.toast').length === 0", 8000);
-const pm = await q("return document.querySelector('[data-method]').innerText.replace(/\\s+/g, ' ') + ' · ' + !!document.querySelector('[data-start]') + ' · ' + (document.querySelector('[data-pair-save]')?.innerText ?? '')");
+// แถววิธีย้ายไปตรึงล่างสุด กล่องอธิบายของวิธีอยู่กล่อง data-method-notes ที่เดิมในหน้า (BUGS ข้อ 68)
+const pm = await q("return (document.querySelector('[data-method-notes]')?.innerText ?? '').replace(/\\s+/g, ' ') + ' ' + document.querySelector('[data-method]').innerText.replace(/\\s+/g, ' ') + ' · ' + !!document.querySelector('[data-start]') + ' · ' + (document.querySelector('[data-pair-save]')?.innerText ?? '')");
 check("เลือกวิธีจับคู่ไว้ ไม่รวม บอกว่าไฟล์หนังไม่ถูกแตะ จับคู่ได้เฉพาะเสียงกับซับที่เพิ่ม 2 ไฟล์ · ปุ่มรวมเปลี่ยนเป็นปุ่มจับคู่", pm.includes("ไฟล์หนังไม่ถูกแตะ") && pm.includes("2 ไฟล์") && pm.includes("false · จับคู่ไว้กับหนังเรื่องนี้"), pm.slice(0, 160));
 await c.evaluate("document.querySelector('[data-pair-save]').click()");
 await waitFor("return !!document.querySelector('[data-paired-ok]')", 10000);
@@ -520,7 +521,7 @@ await clickTextAny(".avfoot button", "ล้างทั้งหมด").catch(
 await sleep(400);
 await drop([MOVIE]);
 await waitFor("return document.querySelector('[data-movie-chip]')?.innerText.includes('ดาวตก')", 20000);
-await clickTextAny("[data-method] .seg button", "จับคู่ไว้ ไม่รวม");
+await c.evaluate("document.querySelector('[data-method] [data-mode=pair]').click()");
 await waitFor("return !!document.querySelector('[data-pairs-saved]')", 10000);
 const saved = await q("return document.querySelector('[data-pairs-saved]').innerText.replace(/\\s+/g, ' ')");
 check("เปิดเรื่องที่จับคู่ไว้แล้ว แบบจับคู่ บอกว่าจับคู่ไว้แล้ว 1 ไฟล์ ยังไม่อยู่ในตาราง บันทึกใหม่แทนทั้งชุด", saved.includes("จับคู่ไว้แล้ว 1 ไฟล์") && saved.includes("แทนทั้งชุด"), saved.slice(0, 160));

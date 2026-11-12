@@ -33,6 +33,7 @@ const defaults: Settings = {
   linkStores: ["beside"],
   linkBoardImages: "list",
   linkBoardMovies: "list",
+  hashSaveAsk: true,
 };
 
 let settings: Settings = { ...defaults };

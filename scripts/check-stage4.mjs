@@ -258,7 +258,7 @@ const dlg = () => q(`const d = document.querySelector('[data-crop]'); if (!d) re
 await sleep(600);
 let d = await dlg();
 await shot("05-หน้าต่างครอป.png", ".dlg");
-check("วางรูปแล้วหน้าต่างครอปขึ้นเอง บอกชื่อรูป ขนาด ภาพแนวนอน 16 : 9 · กรอบ 2 : 3 อยู่กลางภาพ", s && d && d.head.includes("wide.jpg") && d.head.includes("1920 × 1080") && d.head.includes("ภาพแนวนอน 16 : 9") && Math.abs(d.box[2] / d.box[3] - 2 / 3) < 0.02 && Math.abs(d.box[0] + d.box[2] / 2 - 260) < 3, JSON.stringify(d?.box));
+check("วางรูปแล้วหน้าต่างครอปขึ้นเอง บอกชื่อรูป ขนาด รูปแนวนอน 16 : 9 · กรอบ 2 : 3 อยู่กลางภาพ", s && d && d.head.includes("wide.jpg") && d.head.includes("1920 × 1080") && d.head.includes("รูปแนวนอน 16 : 9") && Math.abs(d.box[2] / d.box[3] - 2 / 3) < 0.02 && Math.abs(d.box[0] + d.box[2] / 2 - 260) < 3, JSON.stringify(d?.box));
 check("บอกขนาดรูปที่ได้ 1000 × 1500 px กับขนาดไฟล์จริง · ตารางคุณภาพ 100 90 75 50 ยิ่งต่ำยิ่งเล็ก", d.size.includes("1000 × 1500 px") && d.table.length === 4, d.size.split("\n")[0] + " · " + d.table.join(" "));
 
 // ลากกรอบ ลากมุม ล้อเมาส์ แถบซูม
@@ -317,7 +317,7 @@ await c.key("End"); await c.key("ArrowLeft"); await c.key("ArrowLeft"); await sl
 await c.evaluate("document.querySelector('[data-use]').click()"); await sleep(1200);
 s = await page();
 await shot("10-ใส่รูปแล้ว.png", ".main");
-check("กดใช้รูปนี้ การ์ด 2 ขึ้นรูปที่จะแนบ 1000 × 1500 · บอกว่ารูปไม่ใช่ 2 : 3 · การ์ด 3 ขึ้นชื่อไฟล์ใหม่ · ปุ่มกดได้", !s.crop && s.poster.includes("1000 × 1500 px") && s.poster.includes("ครอป") && !s.poster.includes("รูปนี้เป็นภาพแนวนอน") && s.newName === "The Last Orchard (2022).mkv" && !s.startWait && s.start === "ครอบเป็น MKV พร้อมโปสเตอร์", s.start);
+check("กดใช้รูปนี้ การ์ด 2 ขึ้นรูปที่จะแนบ 1000 × 1500 · บอกว่ารูปไม่ใช่ 2 : 3 · การ์ด 3 ขึ้นชื่อไฟล์ใหม่ · ปุ่มกดได้", !s.crop && s.poster.includes("1000 × 1500 px") && s.poster.includes("ครอป") && !s.poster.includes("รูปนี้เป็นแนวนอน") && s.newName === "The Last Orchard (2022).mkv" && !s.startWait && s.start === "ครอบเป็น MKV พร้อมโปสเตอร์", s.start);
 
 // รูปเล็กเกิน
 await drop(join(IMG, "small.jpg"), "poster"); await sleep(1800);
@@ -338,18 +338,23 @@ if (existsSync(heic)) {
   d = await dlg();
   const txt = await q("return document.querySelector('[data-crop]')?.innerText ?? ''");
   await shot("12-HEIC.png", ".dlg");
-  check("รูป HEIC จากไอโฟน ได้ความละเอียดเต็ม 5712 × 4284 แปลงเป็น JPG ให้ก่อนแนบ", d && d.head.includes("5712 × 4284") && txt.includes(".heic→.jpg") && txt.includes("โปรแกรมแปลงเป็น JPG ให้"), d?.head.split("\n").join(" "));
+  check("รูป HEIC จากไอโฟน ได้ความละเอียดเต็ม 5712 × 4284 แปลงเป็น JPG ให้ก่อนแนบ", d && d.head.includes("5712 × 4284") && txt.includes(".heic→.jpg") && txt.includes("แปลงเป็น JPG ตามที่เลือกก่อนแนบ"), d?.head.split("\n").join(" "));
   await c.evaluate("[...document.querySelectorAll('.dlg button')].find(b => b.innerText === 'ยกเลิก').click()"); await sleep(300);
 }
 
 // ส่งออก MP4 มีซับที่ต้องเตือน (ดาวเหนือที่ย้ายไปไฟล์เดิมแล้ว)
 await drop(join(DIR, "ไฟล์เดิม", "ดาวเหนือ (2023).mkv"), "movie"); await sleep(1200);
-await c.evaluate("[...document.querySelectorAll('.seg button')].find(b => b.innerText === 'MP4').click()"); await sleep(400);
-const warn = await q("return document.querySelector('[data-mp4warn]')?.innerText ?? ''");
-await shot("13-MP4มีซับที่ต้องเตือน.png", ".main");
-check("เลือก MP4 แต่มีซับ ASS ขึ้นการ์ดเตือนพร้อมปุ่ม กลับไปใช้ MKV · ปุ่มเริ่มกดไม่ได้จนกว่าจะเลือก", warn.includes("ซับภาษาอังกฤษ 1 อันจะเสียสีกับฟอนต์ใน MP4") && warn.includes("กลับไปใช้ MKV") && (await page()).startWait, warn.split("\n")[0]);
-await c.evaluate("[...document.querySelectorAll('[data-mp4warn] button')].find(b => b.innerText === 'กลับไปใช้ MKV').click()"); await sleep(300);
-check("กดกลับไปใช้ MKV การ์ดเตือนหาย ไฟล์ที่ได้เป็น MKV", !(await q("return !!document.querySelector('[data-mp4warn]')")) && (await q("return [...document.querySelectorAll('.seg button.on')].some(b => b.innerText.startsWith('MKV'))")));
+// คำเตือนอยู่ในหน้าต่างซ้อน หกกรอบขนาดเท่าเดิมทั้งก่อนกับหลังเลือก MP4 (BUGS ข้อ 57 พี่กัน "มัน 6 กรอบ ต้องขนาดเท่ากันตลอด")
+const frames = () => q("return [...document.querySelectorAll('[data-poster-page] .three > .card')].map(c => { const r = c.getBoundingClientRect(); return Math.round(r.width) + 'x' + Math.round(r.height); }).join(' ')");
+const f0 = await frames();
+await c.evaluate("[...document.querySelectorAll('.seg button')].find(b => b.innerText === 'MP4').click()"); await sleep(600);
+const warn = await q("return document.querySelector('.dlg [data-mp4warn]')?.closest('.dlg')?.innerText ?? ''");
+const f1 = await frames();
+await shot("13-MP4มีซับที่ต้องเตือน.png", ".dlg");
+check("เลือก MP4 แต่มีซับ ASS ขึ้นหน้าต่างเตือนพร้อมปุ่ม กลับไปใช้ MKV กับทำต่อด้วย MP4", warn.includes("ซับภาษาอังกฤษ 1 อันจะเสียสีกับฟอนต์ใน MP4") && warn.includes("กลับไปใช้ MKV") && warn.includes("ทำต่อด้วย MP4"), warn.split("\n").slice(0, 3).join(" / "));
+check("หกกรอบขนาดเท่าเดิมทุกกรอบ ก่อนกับหลังเลือก MP4 ไม่มีการ์ดเตือนงอกในกรอบ", f0 === f1 && !(await q("return !!document.querySelector('[data-opt=output] .stat')")), `${f0} → ${f1}`);
+await c.evaluate("document.querySelector('[data-mp4-mkv]').click()"); await sleep(300);
+check("กดกลับไปใช้ MKV หน้าต่างเตือนปิด ไฟล์ที่ได้เป็น MKV", !(await q("return !!document.querySelector('[data-mp4warn]')")) && (await q("return [...document.querySelectorAll('.seg button.on')].some(b => b.innerText.startsWith('MKV'))")));
 
 // ครอบจริงผ่านปุ่ม · กำลังทำ → เสร็จ (ไฟล์ The Last Orchard ที่อยู่ไฟล์เดิม คัดลอกกลับมาครอบใหม่)
 const orchardBack = join(DIR, "สวนผลไม้ (2022).mp4");

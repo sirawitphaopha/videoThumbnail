@@ -1,0 +1,250 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>เลือกแบบ ชุด 9 หน้า MediaInfo ส่วนตั้งค่าแทร็ก และตัวเลือกชนิดไฟล์</title>
+<!--
+  มอคอัปให้พี่กันเลือกแบบ BUGS ข้อ 29 ข้อ 33 และข้อ 63 (ชุด 9 · 12 พ.ย. 2569)
+  ข้อ 63 จำลองไฟล์ที่มีแทร็กเยอะด้วยการคัดลอกแถวเสียงกับซับบนหน้าจริงให้ครบ 14 แถว (แถวที่คัดลอกกดไม่ได้)
+  ทุกกรอบเป็นหน้าจอจริงของโปรแกรม (src/main.tsx) ผ่าน theme-live-app.html ที่แทนฝั่ง Rust ด้วยข้อมูลตัวอย่าง ไม่ได้วาดใหม่
+  ข้อมูล MediaInfo ในกรอบเป็นผลจริงของไฟล์ทดสอบ ดาวเหนือ (2023).mkv ที่ดึงจากโปรแกรม
+  แต่ละแบบจัดของบนหน้าจริงด้วยสคริปต์ท้ายไฟล์ (ย้ายส่วนตั้งค่าแทร็ก แบ่งคอลัมน์ เพิ่มแผงสรุป) ยังไม่ได้แก้โค้ดของโปรแกรม
+  ทุกแบบมีสองกรอบ ไม่ย่อ ไม่คิดจากขนาดจอโครม (พี่กันสั่ง 12 พ.ย. 2569 "ทำมอคอัป ที่มันจอเดิม เเละจอตอนขยาย ไม่ต้องไปสนใจจอโครม")
+    หน้าต่างตั้งต้น 1280 × 800 จาก width height ใน src-tauri/tauri.conf.json
+    กดขยายเต็มจอ 1600 × 852 คือพื้นที่ใช้งานของจอ 1600 × 900 ของพี่กันหักแถบงาน 48 วัดจากภาพ BUGS ข้อ 29 (หน้าต่างที่กดขยายแล้ว กว้าง 1585)
+    กับหน้าต่างโครมที่ขยายเต็มจอเดียวกัน (กว้าง 1600 สูงพื้นที่หน้าเว็บ 765)
+  กรอบที่เลื่อนห่างจากจอเกินหนึ่งจอถูกปลดออกเพื่อไม่ให้กินแรม (เครื่องพี่กันแรม 8 GB) เลื่อนกลับมาแล้วโหลดใหม่เอง
+  เปิดด้วยเซิร์ฟเวอร์ทดสอบ npm run dev แล้วเข้า http://127.0.0.1:1420/docs/mockups/batch9-pick.html
+-->
+<style>
+  :root { --font: Sarabun, "Noto Sans Thai", Tahoma, sans-serif; --ink: #3a252c; --ink2: #7a5a66; --line: #ecd3dc; --acc: #a8456b; }
+  body { margin: 0; background: #fbf5f7; color: var(--ink); font-family: var(--font); }
+  .page { padding: 24px 20px 60px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  .lead { color: var(--ink2); margin: 0 0 22px; font-size: 15px; }
+  h2 { font-size: 19px; margin: 34px 0 4px; padding-top: 18px; border-top: 2px solid var(--line); color: var(--acc); }
+  h2 small { font-weight: 400; color: var(--ink2); font-size: 14px; margin-left: 8px; }
+  .opt { margin: 22px 0 40px; }
+  .opt h3 { font-size: 18px; margin: 0 0 4px; }
+  .opt.now h3::before { content: "ตอนนี้ "; color: #b0606f; }
+  .opt > p { margin: 0 0 12px; color: var(--ink2); font-size: 15px; }
+  .size { margin: 0 0 22px; }
+  .size h4 { font-size: 14.5px; font-weight: 600; margin: 0 0 6px; color: var(--ink2); }
+  .frame { border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 22px rgba(60, 25, 40, .12); background: #fff; display: block; }
+  .state { font-size: 13px; color: #b0303f; margin-top: 6px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>เลือกแบบ ชุด 9</h1>
+  <p class="lead">ทุกกรอบเป็นหน้าจอจริงของโปรแกรม แต่ละแบบมีสองกรอบ คือหน้าต่างตอนเปิดโปรแกรมแล้วยังไม่กดขยาย 1280 × 800 กับตอนกดขยายเต็มจอ 1600 × 852 กรอบแรกของแต่ละเรื่องคือหน้าตาตอนนี้ แบบให้เลือกมีเลข 1 2 3 บอกเลขที่เลือกได้เลย เช่น ข้อ 29 แบบ 2 ในกรอบกดเล่นได้เหมือนโปรแกรมจริง</p>
+  <div id="groups"></div>
+</div>
+
+<script>
+const SIZES = [
+  { label: "หน้าต่างตอนยังไม่กดขยาย 1280 × 800", w: 1280, h: 800 },
+  { label: "กดขยายเต็มจอ 1600 × 852", w: 1600, h: 852 },
+];
+const GROUPS = [
+  {
+    // พี่กันเลือกแล้ว 12 พ.ย. 2569 จอเล็ก 2.1 จอขยาย 3.2 ย่อแผงได้ (ย่อแล้วเป็น 1.1 กับ 1.2) · ลงโปรแกรมแล้ว กรอบข้างล่างคือหน้าจริงไม่ได้จัดทับ
+    kind: "mi", title: "หน้า MediaInfo ด้านขวาว่างเยอะ", note: "BUGS ข้อ 29 พี่กันเลือกแล้ว จอเล็กแบบ 2.1 จอขยายแบบ 3.2 และย่อแผงได้ ลงโปรแกรมแล้ว กรอบข้างล่างคือหน้าจริงของโปรแกรม",
+    opts: [
+      { mode: "open", fixed: true, name: "แผงสรุปกางอยู่", desc: "หน้าต่างตอนยังไม่กดขยายเป็นแบบ 2.1 ข้อความคอลัมน์เดียว ตอนกดขยายเต็มจอเป็นแบบ 3.2 ข้อความสองคอลัมน์ แผงสรุปมีปก ค่าหลัก และรายชื่อหมวดที่กดแล้วเลื่อนไปหมวดนั้น" },
+      { mode: "closed", fixed: true, name: "ย่อแผงสรุป เหลือรายชื่อหมวด", desc: "กดปุ่มมุมบนของแผงสรุป แผงเหลือแค่รายชื่อหมวด ข้อความเป็นสองคอลัมน์ทั้งสองขนาด คือแบบ 1.1 กับ 1.2 กดปุ่มเดิมอีกครั้งกางกลับ โปรแกรมจำไว้ว่าย่อหรือกาง" },
+    ],
+  },
+  {
+    kind: "av", title: "ส่วนตั้งค่าแทร็กอยู่ล่างไกล", note: "BUGS ข้อ 33 พี่กันบอกว่า \"เปลี่ยนเป็น popup น่าจะง่ายกว่าไหม จะได้ไม่ต้องเลื่อนลง\"",
+    opts: [
+      { mode: "now", now: true, name: "ส่วนตั้งค่าแทร็กอยู่ล่างสุดใต้ตาราง", desc: "กดแถวเสียงที่ 2 แล้ว ส่วนตั้งค่าแทร็กไปอยู่ใต้ตารางกับจุดลากไฟล์ เห็นแค่หัวข้อหรือไม่เห็นเลย ต้องเลื่อนลงไปหา" },
+      { mode: "dialog", name: "หน้าต่างซ้อนกลางจอ", desc: "กดแถวแล้วขึ้นหน้าต่างซ้อนกลางจอตามที่พี่กันเสนอ ข้างหลังจางลง แก้เสร็จกดเสร็จหรือ Esc แล้วกลับมาที่ตาราง" },
+      { mode: "under", name: "กางใต้แถวที่กด", desc: "ส่วนตั้งค่ากางออกใต้แถวที่กดเลย แถวอื่นเลื่อนลง ยังเห็นแทร็กข้าง ๆ กับปุ่มในแถวครบ กดแถวเดิมอีกครั้งพับเก็บ แคลร์เอนไปทางแบบนี้" },
+      { mode: "side", name: "แผงด้านขวาเลื่อนออกมา", desc: "กดแถวแล้วแผงตั้งค่าเลื่อนออกมาจากด้านขวา ลอยทับคอลัมน์ทางขวาของตารางไว้ระหว่างเปิด ยังเห็นชื่อแทร็กทุกแถว ปิดแผงแล้วตารางกลับมาครบ" },
+    ],
+  },
+  {
+    // BUGS ข้อ 63 พี่กันส่งภาพการ์ด MKV MP4 "จุดนี้เราเห็นปัญหา คือถ้า 1 ไฟล์มันมีเเทร็คยาวมาก ตัวเลือกชนิดไฟล์ มันจะโดนดันลงล่าสุด"
+    // พี่กันเลือกแบบ 2 12 พ.ย. 2569 "มอคอัป เอาข้อสอง" · ลงโปรแกรมแล้ว กรอบข้างล่างคือหน้าจริงไม่ได้จัดทับ · แบบที่ไม่ได้เลือก ตารางสูงไม่เกินห้าแถว กับ การ์ดไฟล์ที่ได้อยู่เหนือตาราง
+    kind: "out", title: "ตัวเลือกชนิดไฟล์โดนดันลงล่างเมื่อแทร็กเยอะ", note: "BUGS ข้อ 63 พี่กันเลือกแบบ 2 ชนิดไฟล์อยู่ในแถบล่างที่ตรึงไว้ ลงโปรแกรมแล้ว กรอบข้างล่างคือหน้าจริงของโปรแกรม จำลองหนังที่มี 14 แทร็ก",
+    opts: [
+      { mode: "real", fixed: true, name: "ชนิดไฟล์อยู่ในแถบล่างที่ตรึงไว้", desc: "MKV MP4 กับเก็บหรือลบไฟล์เดิมอยู่ในแถบล่างข้างปุ่มรวมเข้าไฟล์หนัง ปุ่ม ⓘ บอกว่า MKV กับ MP4 ต่างกันยังไง ข้างปุ่มรวมบอกขนาดไฟล์ใหม่ที่คาด ตอนกดรวมไม่ได้ เหตุผลขึ้นแทนตรงนั้น" },
+    ],
+  },
+];
+
+/* สร้างหัวข้อ คำบรรยาย และกรอบสองขนาดของทุกแบบ เรียงลงมาในหน้าเดียว */
+const host = document.getElementById("groups");
+for (const g of GROUPS) {
+  const h2 = document.createElement("h2");
+  h2.innerHTML = `${g.title} <small></small>`;
+  h2.querySelector("small").textContent = g.note;
+  host.appendChild(h2);
+  let n = 0; // เลขแบบ 1 2 3 ให้พี่กันเลือกด้วยเลข (พี่กันสั่ง 12 พ.ย. 2569) · หน้าตาตอนนี้ไม่มีเลข
+  for (const o of g.opts) {
+    const box = document.createElement("div");
+    box.className = "opt" + (o.now ? " now" : "");
+    box.innerHTML = `<h3></h3><p></p>`;
+    box.querySelector("h3").textContent = o.now || o.fixed ? o.name : `แบบ ${++n} ${o.name}`;
+    box.querySelector("p").textContent = o.desc;
+    SIZES.forEach((s, si) => {
+      const sz = document.createElement("div");
+      sz.className = "size";
+      sz.innerHTML = `<h4></h4><iframe class="frame" title=""></iframe><div class="state" data-state></div>`;
+      // ข้อย่อยของแต่ละแบบ 1.1 ยังไม่กดขยาย 1.2 กดขยายเต็มจอ (พี่กันสั่ง 12 พ.ย. 2569) · หน้าตาตอนนี้ไม่มีเลข
+      sz.querySelector("h4").textContent = o.now || o.fixed ? s.label : `${n}.${si + 1} ${s.label}`;
+      const f = sz.querySelector("iframe");
+      f.title = `${o.name} ${s.label}`;
+      f.style.width = s.w + "px"; f.style.height = s.h + "px";
+      f.dataset.v = `${g.kind}:${o.mode}`;
+      box.appendChild(sz);
+    });
+    host.appendChild(box);
+  }
+}
+
+/* ขับหน้าจอจริงในแต่ละกรอบ พาไปหน้าที่ต้องดู แล้วจัดของตามแบบ เหมือนกดเองในโปรแกรม */
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function until(fn, ms = 10000) { const t = Date.now(); while (Date.now() - t < ms) { try { const v = fn(); if (v) return v; } catch (e) { /* ยังโหลด */ } await sleep(120); } return null; }
+const navTo = async (d, label) => (await until(() => [...d.querySelectorAll(".side .nav")].find((b) => b.innerText.trim().split(/\s*\n/)[0] === label)))?.click();
+const MOVIE = "ดาวเหนือ (2023)";
+
+async function openMI(d) {
+  await navTo(d, "ชั้นวางหนัง");
+  (await until(() => d.querySelector(`.book[data-movie="${MOVIE}"]`)))?.click();
+  (await until(() => [...d.querySelectorAll(".detail .btn")].find((b) => b.innerText.includes("MediaInfo"))))?.click();
+  return until(() => { const m = d.querySelector("[data-mi]"); return m && m.children.length > 2 ? m : null; });
+}
+function miLayout(d, mode) {
+  const mi = d.querySelector("[data-mi]");
+  const secs = [...mi.children];
+  const title = (s) => (s.querySelector(".mih")?.innerText ?? "").split("\n")[0].trim();
+  const row = (s, k) => { const r = s && [...s.querySelectorAll(".mir")].find((x) => x.children[0].innerText.trim() === k); return r ? r.children[2].innerText.trim() : ""; };
+  if (mode === "cols" || mode === "both") {
+    mi.style.columns = "2"; mi.style.columnGap = "44px";
+    secs.forEach((s) => { s.style.breakInside = "avoid"; s.style.marginBottom = "6px"; });
+  }
+  if (mode === "aside" || mode === "both") {
+    const g = secs.find((s) => title(s) === "General"), v = secs.find((s) => title(s) === "Video");
+    const au = secs.filter((s) => title(s).startsWith("Audio")), tx = secs.filter((s) => title(s).startsWith("Text"));
+    const img = [...d.querySelectorAll("img")].find((i) => i.getBoundingClientRect().top < mi.getBoundingClientRect().top && i.getBoundingClientRect().width > 0);
+    const kv = (k, x) => `<div class="mk-row"><span>${k}</span><b>${x}</b></div>`;
+    const ch = (a) => row(a, "Channel(s)").replace(/ channels?/, " ch");
+    const aside = d.createElement("div");
+    aside.className = "mk-aside";
+    aside.innerHTML = (img ? `<img src="${img.src}" class="mk-cover" alt="">` : "") + `<div class="mk-h">สรุป</div>` +
+      kv("ความยาว", row(g, "Duration")) + kv("ขนาดไฟล์", row(g, "File size")) + kv("ชนิดไฟล์", row(g, "Format")) +
+      kv("ภาพ", `${row(v, "Width").replace(" pixels", "")} × ${row(v, "Height").replace(" pixels", "")} ${row(v, "Format")}`) +
+      kv("เสียง", au.map((a) => `${row(a, "Format")} ${ch(a)}`).join(", ") || "—") +
+      kv("ซับ", tx.map((t) => row(t, "Format")).join(", ") || "—") +
+      `<div class="mk-h" style="margin-top:14px">ไปที่หมวด</div>` + secs.map((s, i) => `<a class="mk-link" data-i="${i}">${title(s)}</a>`).join("");
+    aside.addEventListener("click", (e) => { const i = e.target.dataset?.i; if (i != null) secs[+i].scrollIntoView({ behavior: "smooth", block: "start" }); });
+    const st = d.createElement("style");
+    st.textContent = ".mk-wrap{display:grid;grid-template-columns:minmax(0,1fr) 300px;gap:20px;align-items:start}.mk-aside{position:sticky;top:12px;border:1px solid var(--line);border-radius:10px;background:#fff;padding:14px 16px;font-size:13px}.mk-cover{width:150px;aspect-ratio:2/3;object-fit:cover;display:block;margin:0 auto 12px;box-shadow:0 3px 10px rgba(60,25,40,.2)}.mk-h{font-weight:700;color:var(--accent-ink);margin-bottom:6px}.mk-row{display:flex;justify-content:space-between;gap:10px;padding:4px 0;border-top:1px solid #f7e4ea}.mk-row span{color:var(--txt2)}.mk-row b{font-weight:600;text-align:right}.mk-link{display:inline-block;padding:2px 12px 2px 0;color:var(--accent-ink);text-decoration:underline;cursor:pointer}";
+    d.head.appendChild(st);
+    const wrap = d.createElement("div"); wrap.className = "mk-wrap";
+    mi.parentElement.insertBefore(wrap, mi); wrap.appendChild(mi); wrap.appendChild(aside);
+  }
+}
+
+async function openAV(d) {
+  await navTo(d, "ชั้นวางหนัง");
+  (await until(() => d.querySelector(`.book[data-movie="${MOVIE}"]`)))?.click();
+  (await until(() => [...d.querySelectorAll(".detail .btn")].find((b) => b.innerText.includes("เสียงและซับ"))))?.click();
+  const rows = await until(() => { const r = [...d.querySelectorAll("[data-trk]")]; return r.length > 2 ? r : null; });
+  if (!rows) return null;
+  const audio = rows.filter((r) => /เสียง/.test(r.innerText));
+  (audio[1] ?? audio[0] ?? rows[1]).click();
+  return until(() => d.querySelector("[data-track-detail]"));
+}
+/* ข้อ 63 เปิดหน้าเสียงและซับโดยไม่กดแถวไหน ส่วนตั้งค่าแทร็กไม่ขึ้น (เรื่องนั้นเป็นข้อ 33) */
+async function openAVPlain(d) {
+  await navTo(d, "ชั้นวางหนัง");
+  (await until(() => d.querySelector(`.book[data-movie="${MOVIE}"]`)))?.click();
+  (await until(() => [...d.querySelectorAll(".detail .btn")].find((b) => b.innerText.includes("เสียงและซับ"))))?.click();
+  return until(() => { const r = [...d.querySelectorAll("[data-trk]")]; return r.length > 2 ? r : null; });
+}
+function avLayout(d, w, mode) {
+  const det = d.querySelector("[data-track-detail]"), sel = d.querySelector("[data-trk].sel");
+  const st = d.createElement("style");
+  st.textContent = ".mk-dim{position:fixed;inset:0;background:rgba(40,20,30,.32);z-index:900;display:flex;align-items:center;justify-content:center}.mk-dlg{width:780px;max-height:80vh;overflow:auto;border-radius:14px;background:var(--win);padding:20px 22px;box-shadow:0 18px 50px rgba(40,20,30,.35)}.mk-dlg>.card{margin:0;background:transparent}.mk-dlgfoot{display:flex;justify-content:flex-end;margin-top:14px}.mk-under{margin:4px 0 10px 40px;padding:14px 18px;border-left:3px solid var(--accent);border-radius:10px;background:var(--win);box-shadow:0 4px 14px rgba(60,25,40,.12)}.mk-side{position:fixed;top:34px;right:0;bottom:0;width:400px;overflow:auto;background:var(--win);border-left:1px solid var(--line);box-shadow:-10px 0 30px rgba(40,20,30,.14);z-index:900;padding:18px 20px}.mk-side>.card{margin:0}.mk-side .avdetail{grid-template-columns:1fr !important}";
+  d.head.appendChild(st);
+  let sc = sel; while (sc && !(sc.scrollHeight > sc.clientHeight + 4 && /auto|scroll/.test(w.getComputedStyle(sc).overflowY))) sc = sc.parentElement;
+  const toSel = (gap) => { if (sc) sc.scrollTop = Math.max(0, sel.getBoundingClientRect().top - sc.getBoundingClientRect().top + sc.scrollTop - gap); };
+  if (mode === "dialog") {
+    const dim = d.createElement("div"); dim.className = "mk-dim";
+    const dlg = d.createElement("div"); dlg.className = "mk-dlg";
+    const foot = d.createElement("div"); foot.className = "mk-dlgfoot"; foot.innerHTML = '<button class="btn btn-main btn-sm">เสร็จ</button>';
+    dim.appendChild(dlg); dlg.appendChild(det); dlg.appendChild(foot); d.body.appendChild(dim);
+  } else if (mode === "under") {
+    det.classList.add("mk-under"); sel.after(det); toSel(150);
+  } else if (mode === "side") {
+    const side = d.createElement("div"); side.className = "mk-side";
+    side.appendChild(det); d.body.appendChild(side);
+    // แผงลอยทับด้านขวาของตาราง ตารางไม่ถูกบีบ (บีบแล้วที่ 1280 ชื่อแทร็กเหลือคอลัมน์เดียว)
+    toSel(150);
+  } else {
+    toSel(200);
+  }
+}
+
+/* ข้อ 63 · คัดลอกแถวเสียงกับซับให้ครบ 14 แถว แล้วจัดตามแบบ */
+function outLayout(d, w, mode) {
+  const tracks = d.querySelector("[data-pageslot=av] .tracks");
+  const src = [...tracks.querySelectorAll("[data-trk]")].filter((r) => r.dataset.kind !== "video");
+  const tail = tracks.querySelector("[data-xother]");
+  let n = tracks.querySelectorAll("[data-trk]").length, k = 0;
+  while (n < 14 && src.length) {
+    const c = src[k++ % src.length].cloneNode(true);
+    c.removeAttribute("data-trk"); c.dataset.mkClone = "1"; c.classList.remove("sel"); c.style.pointerEvents = "none";
+    c.querySelectorAll(".radio.on").forEach((x) => x.classList.remove("on")); // แถวจำลองไม่เป็นแทร็กหลัก แต่ละชนิดมีหลักได้อันเดียว
+    const nm = c.querySelector(".nm"); if (nm) nm.textContent = (c.dataset.kind === "audio" ? "เสียงที่ " : "ซับที่ ") + (n + 1) + " (จำลอง)";
+    tracks.insertBefore(c, tail); n++;
+  }
+  const card = (txt) => [...d.querySelectorAll("[data-pageslot=av] .card")].find((c) => c.querySelector("h3")?.innerText.trim().startsWith(txt));
+  const out = card("ไฟล์ที่ได้และไฟล์เดิม"), tcard = tracks.closest(".card");
+  const st = d.createElement("style");
+  st.textContent = ".mk-cap{max-height:322px;overflow-y:auto;overscroll-behavior:contain;padding-right:4px}.mk-foot{margin-right:auto;display:flex;align-items:center;gap:18px}.mk-foot .chk{font-size:13.5px}";
+  d.head.appendChild(st);
+  if (mode === "cap") tracks.classList.add("mk-cap");
+  else if (mode === "foot" && out) {
+    const line = out.querySelector(".optline"), foot = d.querySelector("[data-pageslot=av] .avfoot");
+    const box = d.createElement("div"); box.className = "mk-foot"; box.appendChild(line); foot.prepend(box);
+    out.style.display = "none";
+  } else if (mode === "top" && out) tcard.before(out);
+  const sc = d.querySelector("[data-pageslot=av] .pagewrap"); if (sc) sc.scrollTop = 0;
+}
+
+async function drive(f) {
+  const [kind, mode] = f.dataset.v.split(":");
+  const d = f.contentDocument, w = f.contentWindow, state = f.parentElement.querySelector("[data-state]");
+  if (!w || !String(w.location.href).includes("theme-live-app")) return; // หน้าเปล่าตอนปลดกรอบ
+  try {
+    await until(() => d.querySelector(".side .nav"));
+    if (kind === "mi") {
+      if (!(await openMI(d))) throw new Error("เปิดหน้า MediaInfo ไม่ได้");
+      await sleep(300);
+      // หน้าจริงมีแผงสรุปแล้ว กดย่อหรือกางให้ตรงกับกรอบ (ค่าที่จำไว้ใช้ร่วมทุกกรอบ จึงดูของเดิมก่อนกด)
+      if (mode === "open" || mode === "closed") { const cur = await until(() => d.querySelector("[data-mi-side]")?.dataset.miSide); if (cur && cur !== mode) d.querySelector("[data-mi-side-toggle]").click(); }
+      else miLayout(d, mode);
+    }
+    else if (kind === "out") { if (!(await openAVPlain(d))) throw new Error("เปิดหน้าเสียงและซับไม่ได้"); await sleep(400); outLayout(d, w, mode); }
+    else { if (!(await openAV(d))) throw new Error("เปิดหน้าเสียงและซับไม่ได้"); await sleep(300); avLayout(d, w, mode); }
+    state.textContent = "";
+  } catch (e) { state.textContent = "จัดหน้าไม่สำเร็จ " + e.message; }
+}
+
+/* โหลดกรอบที่อยู่ใกล้จอ ปลดกรอบที่ห่างเกินหนึ่งจอ ไม่ให้กินแรม */
+const io = new IntersectionObserver((ents) => {
+  for (const e of ents) {
+    const f = e.target;
+    if (e.isIntersecting && !f.dataset.on) { f.dataset.on = "1"; f.src = "theme-live-app.html"; }
+    else if (!e.isIntersecting && f.dataset.on) { delete f.dataset.on; f.src = "about:blank"; }
+  }
+}, { rootMargin: "900px 0px" });
+document.querySelectorAll("iframe[data-v]").forEach((f) => { f.addEventListener("load", () => drive(f)); io.observe(f); });
+</script>
+</body>
+</html>

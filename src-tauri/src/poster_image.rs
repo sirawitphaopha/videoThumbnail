@@ -301,14 +301,14 @@ pub fn encode(img: &RgbImage, format: &str, quality: u8) -> Result<Vec<u8>, Stri
     Ok(buf)
 }
 
-/// บอกสัดส่วนรูปเป็นคำ (สเปก รูปนี้เป็นภาพแนวนอน 16 : 9)
+/// บอกสัดส่วนรูปเป็นคำ (สเปก รูปนี้เป็นรูปแนวนอน 16 : 9 · BUGS ข้อ 59 ต่อ ใช้คำว่า รูป คำเดียว เพราะ ภาพ หมายถึงแทร็กวิดีโอ)
 pub fn aspect_label(w: u32, h: u32) -> String {
     let r = w as f64 / h as f64;
     if (r - 2.0 / 3.0).abs() / (2.0 / 3.0) < 0.02 {
         return "2 : 3".into();
     }
     let known: &[(u32, u32)] = if w > h { &[(16, 9), (3, 2), (4, 3), (5, 4), (21, 9), (2, 1)] } else if w < h { &[(9, 16), (3, 4), (4, 5), (1, 2)] } else { &[(1, 1)] };
-    let kind = if w > h { "ภาพแนวนอน" } else if w < h { "ภาพแนวตั้ง" } else { "ภาพจัตุรัส" };
+    let kind = if w > h { "รูปแนวนอน" } else if w < h { "รูปแนวตั้ง" } else { "รูปจัตุรัส" };
     for (a, b) in known {
         let k = *a as f64 / *b as f64;
         if (r - k).abs() / k < 0.03 {
@@ -430,7 +430,7 @@ mod tests {
         let wide = decode(&tools(), &work(), &img_dir().join("wide.jpg")).unwrap().img;
         let (w, h) = wide.dimensions();
         assert!(w > h, "wide.jpg ต้องเป็นภาพแนวนอน");
-        assert!(aspect_label(w, h).starts_with("ภาพแนวนอน"), "{}", aspect_label(w, h));
+        assert!(aspect_label(w, h).starts_with("รูปแนวนอน"), "{}", aspect_label(w, h));
         let (x, y, cw, ch) = default_crop(w, h);
         assert!((x - (1.0 - cw) / 2.0).abs() < 1e-9 && y == 0.0 && ch == 1.0, "กรอบตั้งต้นต้องอยู่กลางภาพ เต็มความสูง");
         let g = Geometry { rotate: 0, flip: false, mode: "crop".into(), x, y, w: cw, h: ch, pad: "#ffffff".into(), ..Default::default() };
@@ -443,7 +443,7 @@ mod tests {
         assert_eq!(padded.get_pixel(5, 5).0, [0xf6, 0xdb, 0xe5], "ขอบต้องเป็นสีที่เลือก");
         assert_eq!(padded.get_pixel(OUT_W - 5, OUT_H - 5).0, [0xf6, 0xdb, 0xe5]);
         assert_eq!(aspect_label(1000, 1500), "2 : 3");
-        assert_eq!(aspect_label(1920, 1080), "ภาพแนวนอน 16 : 9");
+        assert_eq!(aspect_label(1920, 1080), "รูปแนวนอน 16 : 9");
         // ตามรูปเดิม คงสัดส่วนแนวนอน ด้านยาว 1500 ไม่มีขอบเติม
         let go = Geometry { mode: "original".into(), ..g };
         let (orig, (ow, oh)) = render(&wide, &go, true);

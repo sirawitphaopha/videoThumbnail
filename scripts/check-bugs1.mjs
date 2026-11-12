@@ -73,6 +73,15 @@ await waitFor("return document.querySelectorAll('.trk:not(.head)').length > 2 &&
 const ad = await q(`const s = getComputedStyle(document.querySelector('.avdrop')), b = getComputedStyle(document.querySelector('.avdrop'), '::before'); return { bg: s.backgroundImage.slice(0, 15), border: s.borderTopStyle, icon: b.backgroundColor }`);
 check("ข้อ 10 แถบลากไฟล์เพิ่ม พื้นไล่โทน ขอบประ ไอคอนในวงกลมสีหลัก", ad.bg.startsWith("linear-gradient") && ad.border === "dashed" && ad.icon !== "rgba(0, 0, 0, 0)", JSON.stringify(ad));
 await shot("10-แถบลากไฟล์เพิ่มไล่โทน", ".avdrop");
+// การ์ดโปสเตอร์ไม่ขึ้นจนกว่าจะกดแถวรูปปกในตาราง (BUGS ข้อ 67) · กดแถวรูปปกให้การ์ดขึ้นก่อนวัดช่องปกนอน
+// ไฟล์ ดาวตก ไม่มีรูปปกในไฟล์ จึงไม่มีแถวรูปปก · ทางของคนใช้คือลากรูปไปวางแล้วการ์ดขึ้นเอง ลากลงที่ว่างก่อน ปิดหน้าครอป แล้วค่อยลากลงช่องปกนอน
+await c.evaluate("document.querySelector('[data-poster-card]') || document.querySelector('.trk.xrow.xgo')?.click()"); await sleep(900);
+if (!(await q("return !!document.querySelector('[data-slot=cover_land]')"))) {
+  await c.evaluate(`window.__avDrop(${JSON.stringify([POSTER])}, 400, 300)`);
+  await waitFor("return !!document.querySelector('.dlg')", 20000); await sleep(600);
+  await c.key("Escape"); await waitFor("return !document.querySelector('.dlg') && !!document.querySelector('[data-slot=cover_land]')", 10000); await sleep(400);
+}
+await q("document.querySelector('[data-slot=cover_land]')?.scrollIntoView({ block: 'center' })"); await sleep(400);
 const land = await c.box("[data-slot=cover_land]");
 await c.evaluate(`window.__avDrop(${JSON.stringify([POSTER])}, ${Math.round(land.x)}, ${Math.round(land.y)})`);
 await waitFor("return !!document.querySelector('[data-previews-wide]') && [...document.querySelectorAll('.dlg img')].every(i => i.complete && i.naturalWidth > 0)", 20000); await sleep(800);

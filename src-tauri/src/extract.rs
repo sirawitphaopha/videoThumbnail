@@ -60,6 +60,8 @@ fn ff_format(ext: &str) -> Option<&'static str> {
         "mkv" | "mka" | "mks" => "matroska", "aac" => "adts", "ac3" => "ac3", "eac3" => "eac3", "mp3" => "mp3", "dts" => "dts", "flac" => "flac",
         "thd" => "truehd", "wav" => "wav", "ogg" | "opus" => "ogg", "wma" => "asf",
         "srt" => "srt", "ass" | "ssa" => "ass", "sup" => "sup", "vtt" => "webvtt",
+        // ภาพแบบสตรีมล้วน ไม่มีกล่องไฟล์ (BUGS ข้อ 35 ต่อ) · ffmpeg ใส่ตัวแปลงรูปแบบสตรีมจาก MP4 เป็นแบบ Annex B ให้เองตอนเขียน
+        "h264" => "h264", "h265" | "hevc" => "hevc",
         _ => return None,
     })
 }
@@ -104,6 +106,11 @@ fn ff_stream(tools: &Path, file: &Path, kind: &str, nth: usize) -> Result<(u64, 
         .and_then(|x| Some((x["index"].as_u64()?, x["codec_name"].as_str().unwrap_or("").to_string()))).ok_or_else(|| format!("ไม่เจอแทร็กที่ {nth} ในไฟล์"))
 }
 
+/// ภาพแบบสตรีมล้วน ไม่มีกล่องไฟล์ · หน้าเสียงและซับเลือกได้เฉพาะภาพ AVC (H.264) กับ HEVC (H.265)
+pub fn is_raw_video(ext: &str) -> bool {
+    matches!(ext, "h264" | "h265" | "hevc")
+}
+
 pub enum Done {
     Ok,
     Cancelled,
@@ -114,6 +121,13 @@ pub fn extract_one(tools: &Path, file: &Path, it: &Item, partial: &Path, on: &dy
     let mkv = file.extension().map(|e| e.eq_ignore_ascii_case("mkv")).unwrap_or(false);
     let (tool, args): (&str, Vec<OsString>) = if mkv {
         match it.kind.as_str() {
+            // ภาพที่เลือกแบบสตรีมล้วน (.h264 .h265) ใช้ mkvextract แบบเดียวกับเสียงและซับ ได้สตรีมดิบที่ MKVToolNix กับโปรแกรมรวมไฟล์อื่นรับได้ (BUGS ข้อ 35 ต่อ)
+            "video" if is_raw_video(&it.ext) => {
+                let id = mkv_track_id(tools, file, "video", it.nth)?;
+                let mut t = OsString::from(format!("{id}:"));
+                t.push(partial.as_os_str());
+                ("mkvextract", vec!["--gui-mode".into(), file.into(), "tracks".into(), t])
+            }
             "video" => {
                 let id = mkv_track_id(tools, file, "video", it.nth)?;
                 ("mkvmerge", vec!["--gui-mode".into(), "-o".into(), partial.into(), "-A".into(), "-S".into(), "-M".into(), "-B".into(), "--no-chapters".into(), "-d".into(), id.to_string().into(), file.into()])
@@ -220,6 +234,15 @@ mod tests {
     }
 
     /// ไฟล์ที่ไม่ใช่ MKV · นามสกุลที่ ffmpeg เขียนเดี่ยวไม่ได้กลายเป็น mka mks · ที่เขียนได้คงเดิม (ผู้ช่วยตรวจโค้ดข้อ 7)
+    #[test]
+    fn raw_video_names_and_formats() {
+        let it = Item { kind: "video".into(), nth: 1, ext: "h264".into(), lang: None, name: None };
+        assert_eq!(out_name("ดาวเหนือ (2023)", &it), "ดาวเหนือ (2023).Video1.h264");
+        assert!(is_raw_video("h264") && is_raw_video("h265") && !is_raw_video("mkv"));
+        let mut a = it.clone(); fix_ext_for_ffmpeg(&mut a); assert_eq!(a.ext, "h264");
+        let mut b = Item { ext: "h265".into(), ..it }; fix_ext_for_ffmpeg(&mut b); assert_eq!(b.ext, "h265");
+    }
+
     #[test]
     fn ffmpeg_extensions_match_what_is_written() {
         let fx = |kind: &str, ext: &str| { let mut it = Item { kind: kind.into(), nth: 1, ext: ext.into(), lang: None, name: None }; fix_ext_for_ffmpeg(&mut it); it.ext };

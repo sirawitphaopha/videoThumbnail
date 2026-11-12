@@ -1163,7 +1163,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
       {/* ปุ่มแบบรูปคลื่นย้ายลงหัวการ์ดรูปคลื่น (BUGS ข้อ 12 · พี่กัน "พอเราปรับโโยเอา audacity มาเป็นตัวหลัก เจ้ากราฟแท่งมันจะเหลือ 1 อัน เอามันย้ายลงมาในการ์ดเลย") */}
       <div className="sws" style={{ marginLeft: "auto" }} role="group" aria-label="ชุดสี">{THEME_ORDER.map((n) => <button key={n} type="button" className={"sw" + (prefs.theme === n ? " on" : "")} aria-label={"ชุดสี" + n} title={"ชุดสี" + n} onClick={() => setPref("theme", n)} data-theme={n}
         style={{ background: `linear-gradient(135deg,${THEMES[n].ramp[2]},${THEMES[n].ramp[5]} 60%,${THEMES[n].ramp[7]})` }} />)}{/* เปิดแผงจำชุดสีตอนนั้นไว้ · สีเดิมคือสีที่กราฟใช้อยู่ตอนเปิด · ตกลงใช้สีกำหนดเองแม้ยังไม่ได้แตะสี · ยกเลิกคืนชุดสีเดิมทั้งชุด */}
-        <PadCustom pad={prefs.customColor} what="สีกราฟ" custom={prefs.theme === CUSTOM} short={false} panelStyle={{ left: "auto", right: 0, zIndex: 30 }}
+        <PadCustom pad={prefs.customColor} what="สีกราฟ" custom={prefs.theme === CUSTOM} panelStyle={{ left: "auto", right: 0, zIndex: 30 }}
           oldColor={swSnap?.old} onOpen={() => setSwSnap({ theme: prefs.theme, color: prefs.customColor, old: prefs.theme === CUSTOM ? prefs.customColor : THEMES[prefs.theme].rms })}
           onOk={() => setPrefs((p) => { const n = { ...p, theme: CUSTOM }; try { localStorage.setItem(PREF_KEY, JSON.stringify(n)); } catch { /* เก็บไม่ได้ ใช้ค่าในหน้าไปก่อน */ } return n; })}
           onCancel={() => { const sn = swSnap; if (sn) setPrefs((p) => { const n = { ...p, theme: sn.theme, customColor: sn.color }; try { localStorage.setItem(PREF_KEY, JSON.stringify(n)); } catch { /* เก็บไม่ได้ */ } return n; }); }}

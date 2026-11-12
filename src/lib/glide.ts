@@ -7,8 +7,8 @@ const durationOf = (dist: number) => Math.min(620, Math.max(280, Math.abs(dist) 
 const ease = (k: number) => (k < 0.5 ? 2 * k * k : 1 - Math.pow(-2 * k + 2, 2) / 2);
 const runs = new WeakMap<HTMLElement, () => void>();
 
-/** เลื่อนกล่อง el ไปที่ตำแหน่ง to (จุดจากบนสุดของกล่อง) */
-export function glideBox(el: HTMLElement, to: number) {
+/** เลื่อนกล่อง el ไปที่ตำแหน่ง to (จุดจากบนสุดของกล่อง) · onDone เรียกเมื่อถึงปลายทาง ไม่เรียกถ้าคนใช้แย่งเลื่อนเองกลางทาง */
+export function glideBox(el: HTMLElement, to: number, onDone?: () => void) {
   runs.get(el)?.();
   const start = el.scrollTop;
   const max = Math.max(0, el.scrollHeight - el.clientHeight);
@@ -16,6 +16,7 @@ export function glideBox(el: HTMLElement, to: number) {
   const dist = end - start;
   if (Math.abs(dist) < 2 || document.hidden || matchMedia("(prefers-reduced-motion: reduce)").matches) {
     el.scrollTop = end;
+    onDone?.();
     return;
   }
   const dur = durationOf(dist);
@@ -36,7 +37,7 @@ export function glideBox(el: HTMLElement, to: number) {
     const k = Math.min(1, (now - t0) / dur);
     el.scrollTop = start + dist * ease(k);
     if (k < 1) raf = requestAnimationFrame(frame);
-    else release();
+    else { release(); onDone?.(); }
   };
   raf = requestAnimationFrame(frame);
 }

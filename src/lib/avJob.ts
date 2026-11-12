@@ -46,10 +46,16 @@ export type AvState = {
   fontExtra: FontFile[];
   /** ไฟล์ฟอนต์ที่ผู้ใช้เอาติ๊กออก ไม่ฝัง */
   fontOff: string[];
+  /** วิธี รวมเข้าไฟล์หนัง จับคู่ไว้ หรือแยกออกจากหนัง · เก็บที่นี่ เปลี่ยนเมนูแล้วกลับมายังเป็นวิธีเดิม (BUGS ข้อ 9 กับ 35) */
+  method: "merge" | "pair" | "extract";
+  /** ชิ้นที่ติ๊กไว้จะแยก ชื่อแบบ audio:2 text:1 attachment:1 menu:1 (ชนิดกับลำดับในชนิดเดียวกันตาม MediaInfo) · เปิดหนังเรื่องใหม่แล้วล้าง */
+  xPick: string[];
+  /** แทร็กภาพที่เลือกแยกเป็นสตรีมล้วน (.h264 .h265) แทน .mkv ชื่อแบบ video:1 (BUGS ข้อ 35 ต่อ) · เปิดหนังเรื่องใหม่แล้วล้าง */
+  xRaw: string[];
 };
 
 const EMPTY_SLOT: CoverSlot = { mode: "keep", old: null, neu: null };
-const START: AvState = { movie: null, tracks: [], sel: null, covers: { cover: EMPTY_SLOT, cover_land: EMPTY_SLOT }, once: {}, run: { state: "idle" }, runMovie: null, fontExtra: [], fontOff: [] };
+const START: AvState = { movie: null, tracks: [], sel: null, covers: { cover: EMPTY_SLOT, cover_land: EMPTY_SLOT }, once: {}, run: { state: "idle" }, runMovie: null, fontExtra: [], fontOff: [], method: "merge", xPick: [], xRaw: [] };
 
 let st: AvState = START;
 const subs = new Set<() => void>();

@@ -28,7 +28,7 @@ await q(`document.querySelector('[data-use]').click()`); await waitFor(`return !
 // ลากรูปแล้วหน้าต่างครอปเปิดให้เลือกทุกครั้ง กดใช้รูปนี้ = ผู้ใช้เลือกในหน้าต่างครอปแล้ว (พี่กันเคาะ "เเต่ผู้ใช้ก็ปรับ เเละเลือกเเล้วนะ ใน poup")
 check("ข้อ 8 รูปไม่ใช่ 2 : 3 เลือกในหน้าต่างครอปแล้ว (กดใช้รูปทันที) การ์ดไม่ขึ้นกล่องเหลือง", await q(`return !document.querySelector('${S} [data-not23]')`));
 // เปิดหน้าต่างครอป เลือก ตามรูปเดิม · PNG
-await q(`[...document.querySelectorAll('${S} button')].find(b => b.innerText.includes('ครอปภาพ'))?.click()`); await waitFor("return !!document.querySelector('[data-crop]')", 10000); await sleep(800);
+await q(`[...document.querySelectorAll('${S} button')].find(b => b.innerText.includes('ครอป/แปลงรูป'))?.click()`); await waitFor("return !!document.querySelector('[data-crop]')", 10000); await sleep(800);
 await q(`[...document.querySelectorAll('.dlg .seg button')].find(b => b.innerText.includes('ตามรูปเดิม'))?.click()`); await sleep(500);
 const ow = await q(`return document.querySelector('[data-origwarn]')?.innerText.replace(/\\s+/g, ' ')`);
 check("ข้อ 8 หน้าต่างครอป เลือก ตามรูปเดิม กับรูปไม่ใช่ 2 : 3 ขึ้นคำเตือนตรงจุดที่เลือก", /ไม่เต็มช่อง/.test(ow ?? ""), ow);

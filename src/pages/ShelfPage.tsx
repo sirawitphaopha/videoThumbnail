@@ -8,7 +8,7 @@ import type { Page } from "../components/Sidebar";
 import SearchBox from "../components/SearchBox";
 import RenameBox from "../components/RenameBox";
 import Dropdown from "../components/Dropdown";
-import { Badge, CardIcon, Keep, Phr, Phrases, Seg, Skel, SortArrow, Switch, chText } from "../components/ui";
+import { Badge, CardIcon, J, Keep, Phr, Phrases, Seg, Skel, SortArrow, Switch, chText } from "../components/ui";
 import Dialog from "../components/Dialog";
 import { IcBitrate, IcLink, IcCoverL, IcCoverM, IcCoverS, IcTall, IcWide } from "../components/icons";
 import { openLinkRow, setLinkJob, setReply, useLinkJob } from "../lib/linkJob";
@@ -330,7 +330,8 @@ function ShelfGrid(p: { list: Movie[]; size: "s" | "m" | "l"; selId: string | nu
   const { w: base, gap } = SIZES[p.size];
   const skel = Math.min(p.pending, ((perRow - (p.list.length % perRow)) % perRow) + perRow);
   const items: (Movie | null)[] = skel ? [...p.list, ...Array<null>(skel).fill(null)] : p.list;
-  // ขยายปกให้เต็มแถว ไม่เหลือที่ว่างขวา · ปกตั้งได้ความกว้างพอดีจำนวนต่อแถว · ปกนอนขยายตามแถวแรกอีกชั้น · แถวที่ยังเหลือเศษกระจายระยะห่าง แถวสุดท้ายชิดซ้ายให้ตรงคอลัมน์
+  // ขยายปกให้เต็มแถว ไม่เหลือที่ว่างขวา · ปกตั้งได้ความกว้างพอดีจำนวนต่อแถว · ปกนอนขยายตามแถวแรกอีกชั้น
+  // ทุกแถวระยะห่างเท่ากัน ชิดซ้ายตรงคอลัมน์ · แถวที่ปกนอนตกไปแถวถัดไปเหลือที่ว่างท้ายแถว (เดิมกระจายปกที่เหลือเต็มแถว ระยะห่าง 18 กลายเป็น 100 จุดที่จอ 1366 เจอ 11 พ.ย. 2569 พี่กันสั่งแก้ 12 พ.ย.)
   let bw = Math.max(base, (w - (perRow - 1) * gap) / perRow);
   let rows = packRows(items, w, bw, gap);
   if (rows.length > 1) {
@@ -340,7 +341,7 @@ function ShelfGrid(p: { list: Movie[]; size: "s" | "m" | "l"; selId: string | nu
   return (
     <div ref={ref} className={"size-" + p.size} data-shelf style={{ "--bw": `${bw}px` } as React.CSSProperties}>
       {rows.map((row, i) => (
-        <div key={i} className="shelf" style={i < rows.length - 1 ? { justifyContent: "space-between" } : undefined}>
+        <div key={i} className="shelf">
           {row.map((m, j) => m
             ? <Book key={m.id} m={m} width={bookWidth(m, bw)} sel={m.id === p.selId} onSel={p.onSel} used={p.used} reminder={p.reminder} showNames={p.showNames} showDots={p.showDots} showFrames={p.showFrames} />
             : <SkelBook key={"skel" + j} size={p.size} i={j} />)}
@@ -865,7 +866,7 @@ function PairCard({ m, onEdit }: { m: Movie; onEdit: () => void }) {
 /** การ์ดสถานะในแผงรายละเอียด ตามสภาพของไฟล์ (สเปกข้อ 1 การ์ดสถานะแบบอื่น) */
 function StatusCard({ m, reminder, onCheck, onPoster }: { m: Movie; reminder: number; onCheck: (r: CheckReq) => void; onPoster: () => void }) {
   if (m.missing) {
-    return <div className="stat bad"><CardIcon kind="bad" /><div><b>หาไฟล์ไม่เจอ</b><Phr>ไดรฟ์อาจถอดออกอยู่</Phr><br /><Phr>เสียบไดรฟ์แล้วกดอ่านโฟลเดอร์ใหม่</Phr></div></div>;
+    return <div className="stat bad"><CardIcon kind="bad" /><div><b>หาไฟล์ไม่เจอ</b><Phr>{"ไดรฟ์อาจถอดออกอยู่  ให้เสียบไดรฟ์แล้วกดอ่านโฟลเดอร์ใหม่"}</Phr></div></div>;
   }
   if (m.error) {
     return <div className="stat warn"><CardIcon kind="warn" /><div><b>อ่านข้อมูลไฟล์ไม่ได้</b>{m.error}</div></div>;
@@ -875,7 +876,7 @@ function StatusCard({ m, reminder, onCheck, onPoster }: { m: Movie; reminder: nu
     const span = m.check?.spans?.[0];
     return (
       <>
-        <div className="stat bad"><CardIcon kind="bad" /><div><b>ไฟล์เสียหาย</b>{m.check?.summary ?? (span ? "พบที่เสียในไฟล์" : "ตรวจแล้วพบที่เสีย")}<br /><Phr>ไฟล์น่าจะโหลดมาไม่ครบ ควรโหลดใหม่</Phr></div></div>
+        <div className="stat bad"><CardIcon kind="bad" /><div><b>ไฟล์เสียหาย</b><Phr>{`${m.check?.summary ?? (span ? "พบที่เสียในไฟล์" : "ตรวจแล้วพบที่เสีย")}  ไฟล์น่าจะโหลดมาไม่ครบ ควรโหลดใหม่`}</Phr></div></div>
         <div className="minirow half" style={{ marginTop: -4 }}>
           <button type="button" className="btn btn-ghost" onClick={() => onCheck({ ids: [m.id], open: m.id })}><IcCheck size={15} />ดูผลตรวจ</button>
           <button type="button" className="btn btn-ghost" onClick={() => onCheck({ ids: [m.id], mode: "full" })}><IcCheck size={15} />ตรวจซ้ำ</button>
@@ -886,7 +887,7 @@ function StatusCard({ m, reminder, onCheck, onPoster }: { m: Movie; reminder: nu
   if (k === "info") {
     return (
       <>
-        <div className="stat info"><CardIcon kind="info" /><div><b>ยังไม่ได้ครอบเป็น MKV</b><Phr>{`ไฟล์นี้เป็น ${m.ext.toUpperCase()} ใส่โปสเตอร์ได้หลังครอบเป็น MKV`}</Phr><br /><Phr>ภาพและเสียงไม่ถูกแปลงใหม่ คุณภาพเท่าเดิม</Phr></div></div>
+        <div className="stat info"><CardIcon kind="info" /><div><b>ยังไม่ได้ครอบเป็น MKV</b><Phr>{`ไฟล์นี้เป็น ${m.ext.toUpperCase()} ครอบ${J}เป็น MKV ก่อนแล้วจึงใส่โปสเตอร์ได้  ภาพและเสียงไม่ถูก${J}แปลง คุณภาพเท่าเดิม`}</Phr></div></div>
         <div className="minirow half" style={{ marginTop: -4 }}><button type="button" className="btn btn-main wide" onClick={onPoster}><IcPoster size={15} />ครอบเป็น MKV พร้อมโปสเตอร์</button></div>
       </>
     );

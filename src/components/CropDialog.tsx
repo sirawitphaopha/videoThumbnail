@@ -11,8 +11,10 @@ import { Keep, Range, Seg, CardIcon, Phr } from "./ui";
 import { pickFile, posterApi, thumbUrl, type CropTarget, type Geometry, type PosterInfo, type RenderInfo } from "../lib/api";
 import { fmtSize } from "../lib/format";
 import { IcRefresh, IbTick, IcPoster, IbRotL, IbRotR, IbFlip } from "./icons";
-import { IcTall, IcWide, IbCrop, IcFile, IcExpand } from "./icons";
+import { IcTall, IcWide, IbCrop, IcFile, IcExpand, IcCopy } from "./icons";
 import { PadCustom, digitKey } from "./ColorPick";
+import CropSettings from "./CropSettings";
+import { useSettings } from "../lib/settings";
 
 const SW = 520, SH = 293;
 /** เว้นขอบรอบภาพ มุมจับของกรอบครอปที่ซูม 100% ไม่โดนขอบกรอบภาพตัดครึ่ง */
@@ -56,13 +58,22 @@ export default function CropDialog(p: {
   const { info } = p;
   // รวมเข้าไฟล์จากปกนอน แล้วกดครอปต่อที่หน้าใส่โปสเตอร์ ค่า 16 : 9 ต้องไม่หาย
   // ช่องปกนอนของหน้าเสียงและซับ (target cover_land) ก็เป็นกรอบ 16 : 9 ตั้งแต่เปิด ไม่ต้องรอค่าครอปเดิม (BUGS ข้อ 32)
-  const wideSlot = p.link ? p.link.orient === "wide" : p.target === "cover_land" || p.start?.geo.aspect === "wide";
+  /* หน้าใส่โปสเตอร์ (ไม่มี target ไม่ใช่หน้าจับคู่ปก) เลือกได้ว่าเป็นปกตั้งหรือปกนอน · ปกนอนใช้หน้าครอป 16 : 9 ตัวเดียวกับช่องปกนอนของหน้าเสียงและซับ
+     ฝั่ง Rust แนบรูปแนวนอนเป็น cover_land และเก็บปกตั้งเดิมไว้เอง (poster.rs) · ตั้งต้นปกตั้ง หรือตามค่าครอปเดิม (BUGS ข้อ 58 พี่กันสั่ง "เอาส่ก่อนเลือกแบบปก") */
+  const pickOrient = !p.link && !p.target;
+  const [orient, setOrient] = useState<"tall" | "wide">(p.start?.geo.aspect === "wide" ? "wide" : "tall");
+  const wideSlot = p.link ? p.link.orient === "wide" : p.target === "cover_land" || (pickOrient ? orient === "wide" : p.start?.geo.aspect === "wide");
   const ar = wideSlot ? WIDE : TALL;
   const [view, setView] = useState<View>(() => p.start ? fromGeo(p.start.geo, info, ar) : START);
   const [mode, setMode] = useState<"crop" | "pad" | "original">(p.start?.geo.mode ?? (info.twoThree ? "crop" : "crop"));
   const [pad, setPad] = useState(p.start?.geo.pad ?? PADS[0].c);
+  /** สีที่เลือกเองล่าสุด ขึ้นเป็นช่องสีต่อจากสีให้เลือก กดสีอื่นแล้วยังกดกลับมาได้ (BUGS ข้อ 55 ต่อ) */
+  const [own, setOwn] = useState<string | null>(() => (PADS.some((c) => c.c === pad) ? null : pad));
+  const pickPad = (c: string) => { setPad(c); if (!PADS.some((x) => x.c === c)) setOwn(c); };
   const [format, setFormat] = useState<"jpg" | "png">(p.start?.format ?? p.defaultFormat);
   const [quality, setQuality] = useState(p.start?.quality ?? p.defaultQuality);
+  /** สวิตช์ย่อรูปที่ใหญ่เกิน ตั้งจากปุ่มตั้งค่ารูปในหน้านี้ได้ · เปลี่ยนแล้วคิดขนาดรูปใหม่ (ฝั่ง Rust อ่านค่าตั้งตอนทำรูป) */
+  const shrink = useSettings().settings?.shrinkLargePosters;
   /** ตัวเลขที่กำลังพิมพ์ในช่องคุณภาพ · พิมพ์ค้างหรือเกินช่วงไม่ใช้ ออกจากช่องแล้วกลับเป็นค่าล่าสุดที่ใช้ได้ */
   const [qText, setQText] = useState<string | null>(null);
   const [render, setRender] = useState<RenderInfo | null>(null);
@@ -91,7 +102,7 @@ export default function CropDialog(p: {
     }, 250);
     return () => clearTimeout(t);
     // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [geoKey, format, quality]);
+  }, [geoKey, format, quality, shrink]);
 
   useEffect(() => { if (render && !render.small) setSmallOk(false); }, [render]);
 
@@ -180,6 +191,8 @@ export default function CropDialog(p: {
     return () => window.removeEventListener("resize", on);
   }, []);
 
+  /** คัดลอกรหัสสีขอบที่เลือกเองแล้ว ติ๊กขึ้นแทนไอคอนครู่หนึ่งแบบปุ่มคัดลอกในกล่องเลือกสี */
+  const [hexCopied, setHexCopied] = useState(false);
   const typeQ = (text: string) => { const t = text.replace(/\D/g, ""); setQText(t); const n = Number(t); if (n >= 1 && n <= 100) setQuality(n); };
   const pickNew = async () => { if (using) return; const f = await pickFile("image"); if (f) p.onPickImage(f); };
   /** การ์ดเตือนครอปเหลือน้อย · PNG ไม่มีตารางคุณภาพ ไปอยู่ที่ว่างฝั่งซ้าย · JPG อยู่ท้ายฝั่งขวา */
@@ -197,14 +210,20 @@ export default function CropDialog(p: {
   const pngCard = <div className="stat tone" style={short ? { minHeight: FORMAT_ROOM } : undefined} data-pngnote><CardIcon kind="ok" /><div><b style={short ? { display: "inline" } : undefined}>PNG ไม่ลดคุณภาพ</b>{render && jpgBytes ? <>{short ? " " : <div />}{render.bytes / jpgBytes >= 1.5 ? <>ใหญ่กว่า JPG ราว {Math.round(render.bytes / jpgBytes)} เท่า</> : "ไฟล์ใหญ่กว่า JPG"}</> : null}</div></div>;
   const name = info.name;
   const tag = info.attachable ? null : `.${info.ext}→.${format}`;
+  /* หน้าครอปของหน้าใส่โปสเตอร์มีแถว ปก เพิ่ม (ข้อ 58) คอลัมน์ขวาสูงขึ้นจนกล่องเตือนครอปเหลือน้อยโดนแถบปุ่มล่างตัด
+     ระยะระหว่างแถว ปก แบบปก ไฟล์รูปที่ได้ ลดราวครึ่ง จากราว 17 เหลือราว 9 จุด แถวแรกยังห่างเส้นแบ่งเท่าเดิม
+     (BUGS ข้อ 58 ต่อ พี่กันสั่ง 12 พ.ย. 2569 "เเต่ห้ามให้มันเลื่อนขึ้นบนนะ ไปลดระยะห่างเเทน" · "ลดระยะห่าง สักครึ่งนึ") */
+  const edge = short ? 11 : 7, tight = pickOrient ? (short ? 6 : 3) : edge;
   return (
     <Dialog open onClose={p.onCancel} width={1000} title={
       <span style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 12 }}>
         <span>{p.link ? `ครอปรูปปกของ ${p.link.movie}` : "ครอปรูปโปสเตอร์"}</span>
-        <span className="small" style={{ fontWeight: 400, display: "flex", gap: 12 }}><span>{name}</span><span>ขนาด <span className="nw">{info.width} × {info.height} px</span></span><span>{/* พอดีปก บอกเฉพาะช่องปกตั้ง · ช่องปกนอนรูป 2 : 3 ต้องครอปเป็น 16 : 9 อยู่ดี (เจอตอนตรวจภาพ BUGS ข้อ 32) */}{info.aspect === "2 : 3" ? (wideSlot ? "สัดส่วน 2 : 3" : "สัดส่วน 2 : 3 พอดีปก") : /^ภาพ/.test(info.aspect) ? "เป็น" + info.aspect : info.aspect}</span></span>
+        <span className="small" style={{ fontWeight: 400, display: "flex", gap: 12 }}><span>{name}</span><span>ขนาด <span className="nw">{info.width} × {info.height} px</span></span><span>{/* พอดีปก บอกเฉพาะช่องปกตั้ง · ช่องปกนอนรูป 2 : 3 ต้องครอปเป็น 16 : 9 อยู่ดี (เจอตอนตรวจภาพ BUGS ข้อ 32) */}{info.aspect === "2 : 3" ? (wideSlot ? "สัดส่วน 2 : 3" : "สัดส่วน 2 : 3 พอดีปก") : /^รูป/.test(info.aspect) ? "เป็น" + info.aspect : info.aspect}</span></span>
       </span>
     } actions={<>
       {useErr && <div className="hint e" role="alert" style={{ margin: "0 auto 0 0", maxWidth: 520 }} data-use-err>{useErr}</div>}
+      {/* ปุ่มตั้งค่ารูป ชิดซ้ายใต้รูป (BUGS ข้อ 55 ต่อ) · หน้าครอปของหน้าจับคู่ปกไม่ได้ทำรูปตอนนี้ จึงไม่มีปุ่มนี้ */}
+      {!p.link && <div style={{ marginRight: "auto" }}><CropSettings /></div>}
       {/* ซ้ายตรงแนวเนื้อหาฝั่งขวา (รูปใหญ่ 520 บวกระยะกับเส้นแบ่ง 24) */}
       <div style={{ width: `calc(100% - ${SW + 24}px)`, flex: "none", display: "grid", gridTemplateColumns: "repeat(3, 1fr)", gap: 8 }} data-crop-acts>
       <button type="button" className={"btn btn-sm " + (using ? "btn-wait" : "btn-ghost")} aria-disabled={using || undefined} onClick={pickNew} data-new-image><IcPoster size={15} />เลือกรูปใหม่</button>
@@ -246,14 +265,19 @@ export default function CropDialog(p: {
           )}
           </div>
           </div>
-          <div className="small" style={short ? undefined : { marginTop: -6, marginBottom: -5.4, marginRight: -12, paddingRight: 12, paddingBottom: 7.4, borderBottom: "1px solid var(--line)" }} data-crop-line>{cropping ? "ลากกรอบเพื่อเลื่อน ลากมุมเพื่อย่อขยาย และหมุนล้อเมาส์เพื่อซูม" : mode === "pad" ? "ภาพไม่ถูกตัดเลยสักส่วน และที่ว่างเติมด้วยสีขอบที่เลือก" : "ใช้ทั้งรูปตามสัดส่วนเดิมโดยไม่ตัดและไม่เติมขอบ ปกแนวนอนจึงขึ้นชั้นวางเป็นแนวนอน"}</div>
+          <div className="small" style={short ? undefined : { marginTop: -6, marginBottom: -5.4, marginRight: -12, paddingRight: 12, paddingBottom: 7.4, borderBottom: "1px solid var(--line)" }} data-crop-line>{cropping ? "ลากกรอบเพื่อเลื่อน ลากมุมเพื่อย่อขยาย และหมุนล้อเมาส์เพื่อซูม" : mode === "pad" ? "รูปไม่ถูกตัดเลยสักส่วน และที่ว่างเติมด้วยสีขอบที่เลือก" : "ใช้ทั้งรูปตามสัดส่วนเดิมโดยไม่ตัดและไม่เติมขอบ ปกแนวนอนจึงขึ้นชั้นวางเป็นแนวนอน"}</div>
           {/* แถวเดียวกัน แบบเติมขอบใช้ซูมไม่ได้ จึงเป็นสีขอบแทน ไม่มีแถวเพิ่มหรือหาย */}
           {!wideSlot && mode === "pad" ? (
             <div style={{ display: "flex", alignItems: "center", gap: 10, height: 32, position: "relative" }} data-pads>
               <span style={{ fontSize: 14 }}>สีขอบ</span>
               {PADS.map((c) => <button key={c.c} type="button" className={"swatch" + (pad === c.c ? " on" : "")} style={{ background: c.c }} aria-label={"สีขอบ " + c.label} aria-pressed={pad === c.c} title={c.label} onClick={() => setPad(c.c)} />)}
-              <PadCustom pad={pad} onPad={setPad} custom={!PADS.some((c) => c.c === pad)} short={short} />
+              {own && <button type="button" className={"swatch" + (pad === own ? " on" : "")} style={{ background: own }} aria-label={"สีที่เลือกเอง " + own.toUpperCase()} aria-pressed={pad === own} title={"สีที่เลือกเอง " + own.toUpperCase()} onClick={() => setPad(own)} data-own-swatch />}
+              <PadCustom pad={pad} onPad={pickPad} custom={!PADS.some((c) => c.c === pad)} />
               <span className="small">{PADS.find((c) => c.c === pad)?.label ?? pad.toUpperCase()}</span>
+              {/* สีที่เลือกเองมีปุ่มคัดลอกรหัสสีข้างรหัส (BUGS ข้อ 55 ต่อ พี่กันสั่ง 12 พ.ย. 2569 "code เสียง ขอปุ่ม icon copy" หมายถึงรหัสสี) */}
+              {!PADS.some((c) => c.c === pad) && <button type="button" className="padcopy" aria-label={hexCopied ? "คัดลอกรหัสสีแล้ว" : "คัดลอกรหัสสี " + pad.toUpperCase()} title={hexCopied ? "คัดลอกแล้ว" : "คัดลอกรหัสสี"} data-own-copy
+                onClick={() => { navigator.clipboard?.writeText(pad.toUpperCase()).then(() => { setHexCopied(true); setTimeout(() => setHexCopied(false), 1500); }).catch(() => {}); }}>
+                {hexCopied ? <IbTick size={14} /> : <IcCopy size={14} />}</button>}
             </div>
           ) : (
             <div style={{ display: "flex", alignItems: "center", gap: 12, height: 32, opacity: cropping ? 1 : 0.45 }}>
@@ -330,20 +354,22 @@ export default function CropDialog(p: {
               return sizes.map((s) => cell(s));
             })()}
           </div>
-          {!wideSlot && <div className="setrow" style={{ borderTop: "1px solid var(--line)", paddingBlock: short ? 11 : 7, marginTop: short ? 0 : -5, marginLeft: -12, paddingLeft: 12 }}>
+          {pickOrient && <div className="setrow" style={{ borderTop: "1px solid var(--line)", paddingTop: edge, paddingBottom: tight, marginTop: short ? 0 : -5, marginLeft: -12, paddingLeft: 12 }} data-crop-orient>
+            <div className="lbl">ปก</div>
+            <Seg small label="ปก" value={orient} onChange={(o) => { if (o === orient || using) return; setOrient(o); setView(START); }} options={[{ value: "tall", label: <><IcTall size={14} /><span className="nw">ปกตั้ง 2 : 3</span></> }, { value: "wide", label: <><IcWide size={14} /><span className="nw">ปกนอน 16 : 9</span></> }]} />
+          </div>}
+          {!wideSlot && <div className="setrow" style={{ borderTop: pickOrient ? "1px solid transparent" : "1px solid var(--line)", paddingTop: pickOrient ? tight : edge, paddingBottom: tight, marginTop: pickOrient ? -12 : short ? 0 : -5, marginLeft: -12, paddingLeft: 12 }} data-crop-mode>
             <div className="lbl">แบบปก</div>
             <Seg small label="แบบปก" value={mode} onChange={setMode} options={[{ value: "crop", label: <><IbCrop size={14} />ตัดให้พอดี 2 : 3</> }, { value: "pad", label: <><IcPoster size={14} />เติมขอบ</> }, { value: "original", label: <><IcFile size={14} />ตามรูปเดิม</> }]} />
           </div>}
           {/* เลือก ตามรูปเดิม กับรูปที่ไม่ใช่ 2 : 3 เตือนตรงจุดที่กำลังเลือก ไม่ไปขึ้นบนการ์ดหลังเลือกเสร็จ (BUGS ข้อ 8 · พี่กัน "เนี่ย ถ้าเลือกรูปเดิม แบบที่เราเลือก เเล้วระบบมันเตือน") */}
-          {!wideSlot && mode === "original" && !info.twoThree && <div className="stat warn" style={{ marginTop: -6, marginBottom: 6, padding: "6px 10px" }} data-origwarn><CardIcon kind="warn" /><div><b>ปกจะไม่เต็มช่องบนชั้นวาง</b><Phr>{`รูปนี้เป็น${info.aspect} ไม่ใช่ 2 : 3 จะเห็นขอบว่างรอบปก`}</Phr></div></div>}
-          {!p.link && <div className="setrow" style={{ borderTop: "1px solid transparent", marginTop: -12, paddingBlock: short ? 11 : 7 }}>
-            <div className="lbl">ไฟล์รูปที่ได้ {tag && <span className="extag cv" style={{ marginLeft: 6 }}>{tag}</span>}</div>
+          {!wideSlot && mode === "original" && !info.twoThree && <div className="stat warn" style={{ marginTop: -6, marginBottom: 6, padding: "6px 10px" }} data-origwarn><CardIcon kind="warn" /><div><b>ปกจะไม่เต็มช่องบนชั้นวาง</b><Phr>{`รูปนี้เป็น${info.aspect.replace(/^รูป/, "")} ไม่ใช่ 2 : 3 จะเห็นขอบว่างรอบปก`}</Phr></div></div>}
+          {/* แบบปกนอนไม่มีแถวแบบปก เส้นใต้ตัวอย่างย้ายมาอยู่แถวนี้ ให้เส้นแบ่งตรงกับแบบปกตั้ง (BUGS ข้อ 58 พี่กันสั่ง "ครอปเเนวนอน…ใส่เส้นเเบ่งให้เหมือนเพื่อน") */}
+          {!p.link && <div className="setrow" style={wideSlot && !pickOrient ? { borderTop: "1px solid var(--line)", paddingBlock: edge, marginTop: short ? 0 : -5, marginLeft: -12, paddingLeft: 12 } : { borderTop: "1px solid transparent", marginTop: -12, paddingTop: tight, paddingBottom: tight }} data-crop-format>
+            <div className="lbl">ไฟล์รูปที่ได้ {tag && <span className="extag extcv" style={{ marginLeft: 6 }}>{tag}</span>}</div>
             <Seg small label="ไฟล์รูปที่ได้" value={format} onChange={setFormat} options={[{ value: "jpg", label: "JPG" }, { value: "png", label: "PNG" }]} />
           </div>}
-          <div className="small" data-size>
-            {render ? <>ได้รูปขนาด <span className="nw">{render.width} × {render.height} px</span> ไฟล์ {format.toUpperCase()} ราว <span className="nw">{fmtSize(render.bytes)}</span>{busy ? " กำลังคิดใหม่…" : ""}</> : "กำลังคิดขนาดไฟล์…"}
-            {!short && <br />}{short ? null : p.link ? <Phr>{"ตอนนี้ยังไม่เขียนไฟล์ โปรแกรมจำค่าครอปไว้แล้วทำรูปจริงตอนกดยืนยัน และรูปเดิมในเครื่องไม่ถูกแก้"}</Phr> : tag ? <Phr>{`แนบใน MKV ตรง ๆ ไม่ได้ โปรแกรมแปลงเป็น ${format.toUpperCase()} ให้ รูปเดิมในเครื่องไม่ถูกแก้`}</Phr> : "รูปเดิมในเครื่องไม่ถูกแก้"}
-          </div>
+          {/* แถบคุณภาพอยู่ใต้แถว ไฟล์รูปที่ได้ ทันที ตามที่เลือกชนิดไฟล์ (BUGS ข้อ 55 ต่อ พี่กันสั่ง 12 พ.ย. 2569 "ขอเเถบคุณภาพอยู่ใต้ ไฟล์ที่ได้") */}
           {p.link ? null : format === "jpg" ? (
             <div style={{ display: "flex", alignItems: "center", gap: 12, minHeight: FORMAT_ROOM }}>
               <span style={{ fontSize: 14, whiteSpace: "nowrap" }}>คุณภาพ JPG</span>
@@ -357,6 +383,14 @@ export default function CropDialog(p: {
               </span>
             </div>
           ) : pngCard}
+          {/* รูปที่แนบใน MKV ตรง ๆ ไม่ได้ บอกตรงจุดที่เลือกชนิดไฟล์ หน้าหลักแจ้งแค่สั้น ๆ (BUGS ข้อ 55 พี่กันสั่ง 12 พ.ย. 2569 "หน้านั้นก็บอกด้วยสิ ว่าเเนบ mkv ไม่ได้") */}
+          {/* กล่องเตือนสีเหลืองแบบกล่องปกไม่เต็มช่อง (พี่กันถาม "เตือน สีเหลืองไหม") · เนื้อความแถวเดียว กว้าง 300 จาก 368 จุดที่จอเล็ก ไม่ถ่าง (เดิมยาว 427 จุด ตกบรรทัดแล้วบรรทัดบนถ่าง) */}
+          {!p.link && !info.attachable && <div className="stat warn" style={{ marginTop: -6, marginBottom: 6, padding: "6px 10px" }} data-convnote><CardIcon kind="warn" /><div><b>{`รูป .${info.ext} แนบใน MKV ตรง ๆ ไม่ได้`}</b><Phr>{`แปลงเป็น ${format.toUpperCase()} ตามที่เลือกก่อนแนบ  และรูปเดิมไม่ถูกแก้`}</Phr></div></div>}
+          <div className="small" data-size>
+            {render ? <>ได้รูปขนาด <span className="nw">{render.width} × {render.height} px</span> ไฟล์ {format.toUpperCase()} ราว <span className="nw">{fmtSize(render.bytes)}</span>{busy ? " กำลังคิดใหม่…" : ""}</> : "กำลังคิดขนาดไฟล์…"}
+            {/* รูปที่ต้องแปลงมีกล่องเตือนข้างบนบอกแล้ว ไม่พูดซ้ำตรงนี้ (เดิมซ้ำกันสองที่) */}
+            {!short && (p.link || !tag) && <br />}{short ? null : p.link ? <Phr>{"ตอนนี้ยังไม่เขียนไฟล์ โปรแกรมจำค่าครอปไว้แล้วทำรูปจริงตอนกดยืนยัน และรูปเดิมในเครื่องไม่ถูกแก้"}</Phr> : tag ? null : "รูปเดิมในเครื่องไม่ถูกแก้"}
+          </div>
           {!smallLeft && smallCard}
         </div>
       </div>

@@ -1,0 +1,42 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>มอคอัปชั้นหนัง</title>
+<!--
+  หน้ารวมมอคอัปของโปรเจกต์ชั้นหนัง (สกิล testing-proof ข้อ 10 มอคอัปทุกตัวต้องอยู่ในหน้ารวม ทำใหม่ต้องเติมรายชื่อ)
+  เปิดด้วยเซิร์ฟเวอร์ทดสอบ npm run dev แล้วเข้า http://127.0.0.1:1420/docs/mockups/index.html
+  เรียงใหม่ไปเก่า · theme-live-app.html กับ bitrate-redesign-app.html เป็นหน้าจอจริงที่มอคอัปอื่นฝังไว้ ไม่ได้เปิดดูเดี่ยว
+-->
+<style>
+  :root { --ink: #3a252c; --ink2: #7a5a66; --line: #ecd3dc; --acc: #a8456b; }
+  body { margin: 0; background: #fbf5f7; color: var(--ink); font-family: Sarabun, "Noto Sans Thai", Tahoma, sans-serif; }
+  .page { max-width: 900px; margin: 0 auto; padding: 28px 20px 60px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  .lead { color: var(--ink2); margin: 0 0 20px; }
+  a.item { display: block; padding: 14px 16px; margin: 0 0 10px; border: 1px solid var(--line); border-radius: 10px; background: #fff; color: inherit; text-decoration: none; }
+  a.item:hover { border-color: var(--acc); background: #fff7fa; }
+  a.item b { display: block; font-size: 16.5px; color: var(--acc); }
+  a.item span { display: block; color: var(--ink2); font-size: 14.5px; margin-top: 2px; }
+  a.item small { display: block; color: #a08893; font-size: 13px; margin-top: 4px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>มอคอัปชั้นหนัง</h1>
+  <p class="lead">มอคอัปทุกตัวของโปรเจกต์ เรียงจากใหม่ไปเก่า กดเพื่อเปิดดู</p>
+
+  <a class="item" href="batch9-pick.html"><b>เลือกแบบ ชุด 9 หน้า MediaInfo ส่วนตั้งค่าแทร็ก และตัวเลือกชนิดไฟล์</b><span>BUGS ข้อ 29 ที่ว่างด้านขวาหน้า MediaInfo ข้อ 33 ส่วนตั้งค่าแทร็กที่อยู่ล่างไกล และข้อ 63 ตัวเลือกชนิดไฟล์โดนดันลงล่างเมื่อแทร็กเยอะ ทุกแบบมีสองขนาด คือหน้าต่างตอนยังไม่กดขยายกับตอนกดขยายเต็มจอ</span><small>12 พ.ย. 2569 รอพี่กันเลือก</small></a>
+  <a class="item" href="bitrate-redesign.html"><b>หน้าบิตเรตแบบใหม่</b><span>หน้าบิตเรตวิดีโอแบบใหม่ที่ใช้หน้าจอจริง เทียบกับแบบ Bitrate Viewer เดิม</span><small>10 พ.ย. 2569 ลงโปรแกรมแล้ว</small></a>
+  <a class="item" href="graph-panel.html"><b>เลือกแผงกราฟเสียง</b><span>แบบแผงข้างของหน้ากราฟเสียง</span><small>เก็บไว้ดูแบบที่เคยเสนอ</small></a>
+  <a class="item" href="pick-ui.html"><b>เลือกแบบชั้นหนัง</b><span>แบบให้เลือกหลายเรื่องของหน้าตาโปรแกรม พี่กันสั่งเก็บทุกแบบไว้</span><small>9 พ.ย. 2569</small></a>
+  <a class="item" href="theme-live.html"><b>เลือกโทนชั้นหนัง</b><span>หน้าจอจริงของโปรแกรมพร้อมการ์ดกดสลับโทนสี</span><small>8 พ.ย. 2569 โทนสีลงโปรแกรมแล้ว</small></a>
+  <a class="item" href="theme-pink.html"><b>โทนชมพูชั้นหนัง</b><span>โทนชมพูแบบแรกก่อนปรับหน้าตาทั้งโปรแกรม</span><small>8 พ.ย. 2569</small></a>
+  <a class="item" href="poster-link.html"><b>จับคู่รูปปก</b><span>ต้นแบบระบบจับคู่รูปปกกับไฟล์หนังโดยไม่รวมเข้าไฟล์ ทุกหน้าของแผนจับคู่รูปปก</span><small>8 พ.ย. 2569 ลงโปรแกรมแล้ว</small></a>
+  <a class="item" href="audio-graph.html"><b>กราฟเสียง</b><span>ต้นแบบหน้ากราฟเสียง</span><small>ลงโปรแกรมแล้ว</small></a>
+  <a class="item" href="audio-merge.html"><b>เสียงและซับ</b><span>ต้นแบบหน้าเสียงและซับ แปลงเสียง ดูซับ เทียบกราฟ เป็นที่มาของข้อมูลจริงทุกตาราง</span><small>7 พ.ย. 2569 ลงโปรแกรมแล้ว</small></a>
+  <a class="item" href="poster-shelf.html"><b>ชั้นหนัง หน้าตาต้นแบบ</b><span>ต้นแบบทุกหน้าทุกสถานะของแผนแรก ใส่โปสเตอร์ ชั้นวาง ตรวจไฟล์</span><small>6 พ.ย. 2569 ลงโปรแกรมแล้ว</small></a>
+</div>
+</body>
+</html>

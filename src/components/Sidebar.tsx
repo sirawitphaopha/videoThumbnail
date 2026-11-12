@@ -3,9 +3,9 @@
    ค่าย่อกางจำไว้ในการตั้งค่า (sidebarCollapsed) เปิดครั้งหน้ายังเหมือนเดิม */
 import { useState } from "react";
 import { version } from "../../package.json";
-import { IcBitrate, IcBrand, IcCheck, IcCollapse, IcGraph, IcLink, IcMix, IcPoster, IcSettings, IcShelf } from "./icons";
+import { IcBitrate, IcBrand, IcCheck, IcCollapse, IcGraph, IcInfo, IcLink, IcMix, IcPoster, IcSettings, IcShelf } from "./icons";
 
-export type Page = "shelf" | "poster" | "link" | "av" | "check" | "graph" | "bitrate" | "settings";
+export type Page = "shelf" | "poster" | "link" | "av" | "check" | "graph" | "bitrate" | "mediainfo" | "settings";
 
 type Item = { id: Page; label: string; icon: React.ReactNode; count?: number; tip?: string };
 
@@ -42,6 +42,8 @@ export default function Sidebar({ page, onPage, collapsed, onToggle, shelfCount,
     { id: "graph", label: "กราฟเสียง", icon: <IcGraph /> },
     // หน้าบิตเรตวิดีโอแบบ Bitrate Viewer (พี่กันสั่ง 9 พ.ย. 2569 "เอาใส่สักหน้านึงในโปรแกรมก่อน ค่อยย้าย")
     { id: "bitrate", label: "บิตเรต", icon: <IcBitrate /> }, // ดูได้ทั้งวิดีโอและเสียงแล้ว (พี่กันสั่ง 10 พ.ย. 2569 เปลี่ยนชื่อ)
+    // หน้า MediaInfo เปิดไฟล์ไหนก็ได้ ไม่ต้องอยู่ในชั้นวาง (BUGS ข้อ 54 พี่กันแทรก 12 พ.ย. 2569 "สร้างเเถบเมนู media infor")
+    { id: "mediainfo", label: "MediaInfo", icon: <IcInfo /> },
     { id: "settings", label: "ตั้งค่า", icon: <IcSettings /> },
   ];
 

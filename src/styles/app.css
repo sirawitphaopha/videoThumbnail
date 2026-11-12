@@ -598,7 +598,8 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .chk.off { cursor: not-allowed; opacity: .55; }
 .extag { font-family: Consolas, "Cascadia Mono", monospace; font-size: 12px; font-weight: 600; border-radius: 5px; padding: 1px 6px; white-space: nowrap; }
 .extag.ok { background: var(--ok-soft); color: var(--ok-ink); }
-.extag.cv { background: var(--warn-soft); color: var(--warn-ink); }
+/* ป้ายนามสกุลที่ต้องแปลง · เดิมชื่อ .extag.cv ชนกับ .cv ของผืนกราฟหน้ากราฟเสียง (กว้างเต็ม display block) ป้ายเลยตกบรรทัดเต็มการ์ด (BUGS ข้อ 55) */
+.extag.extcv { background: var(--warn-soft); color: var(--warn-ink); }
 .mc { width: 72px; height: 108px; border-radius: 5px; flex: none; box-shadow: 0 4px 8px rgba(60,25,40,.22); object-fit: cover; display: block; background: #fbf0f4; }
 .mc.none { border: 1.5px dashed #eeb3c8; box-shadow: none; background: repeating-linear-gradient(135deg, #fff 0 8px, #fbf2f5 8px 16px); }
 .workbox { display: flex; flex-direction: column; gap: 10px; scroll-margin: 16px; }
@@ -639,17 +640,51 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 
 /* ---------- หน้าข้อมูลไฟล์ แยกไฟล์ ค่า hash (ต้นแบบบรรทัด 189–190 · 224–229 · 275–283 · หน้า 606–722) ---------- */
 .mi { font-family: Consolas, "Cascadia Mono", "Courier New", monospace; font-size: 13px; line-height: 1.6; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 6px 18px 16px; color: #3a252c; }
-.mih { display: flex; align-items: center; gap: 10px; font-weight: 700; margin: 14px 0 4px; padding-top: 10px; border-top: 1px solid #f7e4ea; color: var(--accent-ink); }
-.mih:first-child, .mi > div:first-child > .mih { border-top: 0; padding-top: 4px; margin-top: 4px; }
-.mih.pick { cursor: pointer; }
-.miext { margin-left: auto; font-family: Sarabun, "Noto Sans Thai", Tahoma, sans-serif; font-weight: 500; font-size: 12.5px; color: var(--txt3); }
+.mih { display: flex; align-items: center; gap: 10px; font-weight: 700; margin: 14px 0 4px; padding-top: 10px; border-top: 1px solid var(--line); color: var(--accent-ink); }
+.mi > div[data-colstart] > .mih { border-top-color: transparent; }
+.mi > div[data-flash] { animation: mi-flash 1.2s ease-out; border-radius: 6px; }
+@keyframes mi-flash {
+  0% { background-color: transparent; box-shadow: 0 0 0 8px transparent; }
+  14% { background-color: color-mix(in srgb, var(--accent) 24%, transparent); box-shadow: 0 0 0 8px color-mix(in srgb, var(--accent) 24%, transparent); }
+  100% { background-color: transparent; box-shadow: 0 0 0 8px transparent; }
+}
+.mi > div:first-child > .mih { border-top: 0; padding-top: 4px; margin-top: 4px; }
 .mir { display: grid; grid-template-columns: 270px 18px 1fr; }
-.mir span:last-child { word-break: break-all; }
+.mir span:last-child { overflow-wrap: anywhere; }
+/* หน้า MediaInfo แผงสรุปด้านขวา (BUGS ข้อ 29 · พี่กันเลือก 12 พ.ย. 2569) · ข้อความสองคอลัมน์เมื่อช่องข้อความกว้างพอ
+   จอเล็กแผงกางอยู่ได้คอลัมน์เดียว (แบบ 2.1) ย่อแผงหรือจอขยายได้สองคอลัมน์ (แบบ 1.1 1.2 3.2) */
+.miwrap { display: grid; grid-template-columns: minmax(0, 1fr) 300px; gap: 20px; align-items: start; }
+.miwrap.side-off { grid-template-columns: minmax(0, 1fr) 130px; }
+.micol { container-type: inline-size; min-width: 0; }
+@container (min-width: 840px) {
+  .micol .mi { columns: 2; column-gap: 40px; column-rule: 1px solid var(--line); }
+  .micol .mi > div { break-inside: avoid; }
+  .micol .mir { grid-template-columns: 170px 18px 1fr; }
+}
+.miside { position: sticky; top: var(--mi-top, 12px); max-height: var(--mi-max, none); overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--line); border-radius: 10px; background: #fff; padding: 10px 14px 14px; font-size: 13px; }
+.mis-head { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 8px; }
+.mis-head b { color: var(--accent-ink); font-size: 14px; }
+.mis-cover { display: block; width: 150px; height: auto; aspect-ratio: 2 / 3; object-fit: cover; margin: 0 auto 12px; box-shadow: 0 3px 10px rgba(60, 25, 40, .18); }
+/* ปกที่ฝังในไฟล์ (เพลงมักเป็นสี่เหลี่ยมจัตุรัส) ตามสัดส่วนจริง ไม่ตัด (BUGS ข้อ 54 ต่อ) */
+.mis-cover.free { aspect-ratio: auto; width: auto; max-width: 100%; max-height: 225px; object-fit: contain; }
+.mis-row { display: flex; justify-content: space-between; gap: 10px; padding: 4px 0; border-top: 1px solid #f7e4ea; text-align: left; }
+.mis-row span { color: var(--txt2); flex: none; }
+.mis-row b { font-weight: 600; text-align: right; overflow-wrap: anywhere; }
+.mis-sub { font-weight: 700; color: var(--accent-ink); margin: 14px 0 6px; }
+.mis-links { display: flex; flex-wrap: wrap; gap: 2px 12px; }
+.miside.off .mis-links { flex-direction: column; gap: 2px; }
+.mis-link { background: none; border: 0; padding: 2px 0; color: var(--accent-ink); text-decoration: underline; cursor: pointer; font: inherit; text-align: left; }
+.mis-link:hover { color: var(--accent-d); background: none; }
 .cbx { width: 18px; height: 18px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; vertical-align: -3px; flex: none; transition: background-color .15s, border-color .15s; }
 .cbx.on { background: var(--accent); border: 2px solid var(--accent); } .cbx.off { border: 2px solid #e1bbc8; background: #fff; }
-.mih.pick:hover .cbx.off, .algs label:hover .cbx.off { border-color: var(--accent-d); }
+.algs label:hover .cbx.off { border-color: var(--accent-d); }
 .hrow { display: grid; grid-template-columns: 90px 1fr 32px; align-items: center; gap: 10px; padding: 7px 0; border-top: 1px solid #f7e4ea; }
 .hrow:first-child { border-top: 0; }
+/* บรรทัดใต้ปุ่มบันทึก .sha256 บอกที่อยู่ไฟล์พร้อมปุ่มเปิดโฟลเดอร์ (BUGS ข้อ 30) · ที่อยู่ยาวตัดได้ทุกตัว ชิดซ้ายไม่กระจาย */
+.hashsaved { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; text-align: left; }
+.hashsaved .hs-path { flex: 1 1 260px; min-width: 0; overflow-wrap: anywhere; text-align: left; }
+/* ที่อยู่ไฟล์อยู่ในประโยคเดียวกับเนื้อความ ใช้ span ไม่ใช่ b เพราะ .stat b ขึ้นบรรทัดเอง */
+[data-hash-conflict] .hs-file { font-weight: 600; overflow-wrap: anywhere; }
 .halg { font-weight: 700; font-size: 13px; color: var(--accent-ink); }
 .hval { font-family: Consolas, "Cascadia Mono", monospace; font-size: 13px; color: #3a252c; word-break: break-all; background: #f8f8f8; border-radius: 6px; padding: 4px 8px; }
 .algs { display: flex; gap: 16px; flex-wrap: wrap; font-size: 14px; }
@@ -1164,11 +1199,7 @@ div.avthumb { background: repeating-linear-gradient(135deg, #fff 0 5px, #fbf2f5 
 :is([data-crop], [data-colorpick]) .padcmp i { display: block; width: 46px; height: 42px; border: 1px solid var(--line); border-radius: 5px; }
 :is([data-crop], [data-colorpick]) .padbtns { display: flex; flex-direction: column; gap: 6px; width: 72px; }
 :is([data-crop], [data-colorpick]) .padbtns .btn { justify-content: center; padding-inline: 4px; }
-/* หน้าต่างเตี้ย ย่อกล่องสีกับรังผึ้ง แผงไม่ล้นกรอบ · ช่องสองแถว */
-:is([data-crop], [data-colorpick]) .padrgb.short .padarea { height: 112px; }
-:is([data-crop], [data-colorpick]) .padrgb.short .honey { zoom: .62; }
-:is([data-crop], [data-colorpick]) .padrgb.short .padfields { display: grid; grid-template-columns: 1fr 1fr; gap: 4px 8px; }
-:is([data-crop], [data-colorpick]) .padrgb.short .padcmp i { height: 24px; width: 34px; }
+/* แบบเตี้ยของหน้าครอปเอาออกแล้ว กล่องเลือกสีขนาดเดียวทั้งโปรแกรม (ขนาดอยู่ที่ [data-colorpick] ข้างล่าง) */
 :is([data-crop], [data-colorpick]) .padfields input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
 /* ช่องพิมพ์คุณภาพ JPG */
 [data-crop] .qnum { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--txt2); }
@@ -1189,7 +1220,9 @@ div.avthumb { background: repeating-linear-gradient(135deg, #fff 0 5px, #fbf2f5 
 [data-poster-page] [data-card="poster"] .pprev { flex: 1 1 0; min-height: 0; flex-direction: column; align-items: stretch; gap: 10px; }
 [data-poster-page] [data-card="poster"] .pp { width: 100%; height: 0; flex: 1 1 0; min-height: 72px; object-fit: contain; background: var(--win2); box-shadow: none; }
 [data-card="poster"] .ppinfo { flex: none; display: flex; gap: 10px; align-items: center; }
-[data-card="poster"] .ppbtns { flex: none; width: 106px; display: flex; flex-direction: column; gap: 6px; }
+/* ข้อมูลรูปเป็นรายการทีละบรรทัด ไม่ใช่ย่อหน้า ชิดซ้าย ไม่กระจาย ชื่อไฟล์แนบตกบรรทัดแล้วคำข้างหน้าไม่ถ่าง (ภาพรวมชุด 9) */
+[data-card="poster"] .ppinfo > .small { text-align: start; }
+[data-card="poster"] .ppbtns { flex: none; width: 132px; display: flex; flex-direction: column; gap: 6px; }
 [data-card="poster"] .ppbtns .btn { width: 100%; padding-inline: 6px; justify-content: center; white-space: nowrap; }
 /* ปุ่มแบบปกเต็มความกว้างการ์ด กว้างเท่ากันสามปุ่ม ไม่ตัดคำ */
 [data-not23] .not23seg { flex: 0 0 100%; }
@@ -1405,3 +1438,12 @@ html[data-full] .titlebar, html[data-full] .sidewrap, html[data-full] aside.side
 .cpcmp-grid .b.on { color: var(--accent-ink); font-weight: 700; }
 .cpcmp-sum { flex: none; padding: 4px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 700; background: color-mix(in srgb, seagreen 14%, var(--win)); color: var(--txt); white-space: nowrap; }
 .cpcmp-sum.up { background: color-mix(in srgb, goldenrod 18%, var(--win)); }
+
+/* สวิตช์ย่อรูปที่ใหญ่เกิน มุมซ้ายล่างหน้าครอป (BUGS ข้อ 55 ต่อ) แทนกล่องตั้งค่ารูปที่ซ้ำซ้อน */
+.cropshrink { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--txt2); white-space: nowrap; }
+
+/* ปุ่มขยายดูรูปสามการ์ดหน้าใส่โปสเตอร์ (BUGS ข้อ 56) · กรอบห่อรับขนาดแบบยืดแทนรูป หกกรอบขนาดเท่าเดิม · ปุ่มใช้หน้าตาเดียวกับปุ่มขยายของชั้นวาง */
+[data-poster-page] .pbigwrap { position: relative; display: flex; flex: 1 1 0; min-height: 72px; }
+[data-poster-page] .pbigwrap > .vthumb, [data-poster-page] .pbigwrap > .pp { flex: 1 1 auto; height: auto; min-height: 0; }
+[data-poster-page] .pbigwrap.res { display: inline-flex; flex: none; min-height: 0; }
+[data-poster-page] .pbig { right: 6px; bottom: 6px; width: 26px; height: 26px; border-radius: 7px; }

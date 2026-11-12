@@ -1,0 +1,100 @@
+/* การ์ดแยกไฟล์ออกจากหนัง (BUGS ข้อ 35 · พี่กันเคาะ 10 พ.ย. 2569 "ปุ่มเเยก กับรวม เอาที่เดียวกันในหน้นี้เลย")
+   เดิมอยู่ท้ายหน้า MediaInfo ติ๊กหัวหมวดแล้วกดแยก พี่กันหาไม่เจอ ย้ายมาอยู่หน้าเสียงและซับ ที่เดียวกับงานรวม
+   แยกทีละชิ้น หยุดได้ ชื่อชนถามก่อน ไม่เขียนทับ ไฟล์หนังเดิมไม่ถูกแตะ (extract.rs) · ชิ้นที่ติ๊กส่งมาจากหน้าที่ใช้การ์ดนี้ */
+import { useEffect, useState } from "react";
+import { listen } from "@tauri-apps/api/event";
+import { api, infoApi, inApp, pickFolder, type ExtractItem, type ExtractResult } from "../lib/api";
+import { useElsewhere } from "../lib/elsewhere";
+import { CardIcon, Phr } from "./ui";
+import { IbNext, IbStop, IcExtract, IcFolder, IcRefresh } from "./icons";
+
+/** ชิ้นที่ติ๊กไว้ · label ใช้ในประโยคสรุป · rowLabel ใช้ในแถวกำลังแยก แบบต้นแบบ Audio #1 .ac3 */
+export type ExtractPick = { item: ExtractItem; label: string; rowLabel: string };
+
+export default function ExtractCard({ path, picks, busy }: { path: string; picks: ExtractPick[]; busy?: string }) {
+  const [folder, setFolder] = useState("");
+  /** ชิ้นที่กดแยกรอบนี้ตรึงไว้ · ติ๊กเพิ่มหรือเอาออกระหว่างการ์ดชื่อชนค้าง กดตั้งชื่อใหม่แล้วต้องแยกชิ้นเดิม (ผู้ช่วยตรวจโค้ดเจอ ตอนอยู่หน้า MediaInfo) */
+  const [xRun, setXRun] = useState<{ items: ExtractItem[]; labels: string[]; pct: number[]; result: ExtractResult | null; running: boolean } | null>(null);
+  const elsewhere = useElsewhere(infoApi.extractRunning, !!xRun?.running);
+
+  useEffect(() => {
+    let live = true;
+    setXRun(null);
+    infoApi.defaultFolder(path).then((f) => { if (live) setFolder(f); }).catch(() => {});
+    return () => { live = false; };
+  }, [path]);
+  useEffect(() => {
+    if (!inApp) return;
+    const off = listen<{ index: number; percent: number }>("extract-progress", (e) => setXRun((r) => r ? { ...r, pct: r.pct.map((p, i) => i === e.payload.index ? e.payload.percent : p) } : r));
+    return () => { off.then((f) => f()); };
+  }, []);
+
+  const run = async (items: ExtractItem[], labels: string[], policy: string[]) => {
+    setXRun({ items, labels, pct: items.map(() => 0), result: null, running: true });
+    try {
+      const result = await infoApi.extract(path, folder || null, items, policy);
+      setXRun((r) => r && { ...r, result, running: false });
+    } catch (e) {
+      setXRun((r) => r && { ...r, running: false, result: { folder, states: items.map(() => "failed"), files: items.map(() => null), error: String(e) } });
+    }
+  };
+  const conflicts = xRun?.result ? xRun.result.states.map((s, i) => (s === "conflict" ? i : -1)).filter((i) => i >= 0) : [];
+  const resolve = (how: "skip" | "number") => {
+    if (!xRun) return;
+    run(conflicts.map((i) => xRun.items[i]), conflicts.map((i) => xRun.labels[i]), conflicts.map(() => how));
+  };
+  const done = xRun?.result ? xRun.result.states.filter((s) => s === "done").length : 0;
+  const why = busy ?? (!picks.length ? "ยังกดไม่ได้ ติ๊กอย่างน้อย 1 อย่างก่อน" : elsewhere ? "รองานแยกไฟล์ที่ทำอยู่ให้เสร็จก่อน" : undefined);
+
+  return (
+    <div className="card" data-extract>
+      <h3>แยกออกจากหนัง</h3>
+      {elsewhere && !xRun && (
+        <div className="stat warn" style={{ marginBottom: 12 }} data-extract-elsewhere><CardIcon kind="warn" /><div><b>งานแยกไฟล์ที่เริ่มไว้ก่อนเปลี่ยนหน้ายังทำอยู่</b><Phr>ไฟล์ที่แยกจะลงโฟลเดอร์ที่เลือกไว้ตอนกดแยก ให้รอให้เสร็จก่อนแยกอย่างอื่น หรือกดหยุด</Phr>
+          <div className="minirow" style={{ marginTop: 6 }}><button type="button" className="btn btn-bad btn-sm" onClick={() => infoApi.extractCancel()}><IbStop size={15} />หยุดงานนั้น</button></div></div></div>
+      )}
+      {!xRun || (!xRun.running && !xRun.result) ? (
+        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
+          <div style={{ fontSize: 14 }}>{picks.length ? <><b>เลือกไว้ {picks.length} อย่าง</b> คือ {picks.map((p) => p.label).join(", ")}</> : "ติ๊กแทร็กในตารางข้างบนเพื่อแยกเป็นไฟล์"}</div>
+          <div className="small" style={{ flex: 1, minWidth: 260, overflowWrap: "anywhere" }}>เก็บที่ {folder} <button type="button" className="btn btn-ghost btn-sm" style={{ height: 28 }} onClick={async () => { const f = await pickFolder("เลือกที่เก็บไฟล์ที่แยก"); if (f) setFolder(f); }}><IcFolder size={15} />เปลี่ยนที่เก็บ</button></div>
+          {why && <div className="hint" style={{ color: "#94680f", margin: 0 }}>{why}</div>}
+          <button type="button" className={"btn " + (why ? "btn-wait" : "btn-main")} aria-disabled={!!why || undefined} title={why}
+            onClick={() => { if (!why) run(picks.map((p) => p.item), picks.map((p) => p.rowLabel), picks.map(() => "ask")); }} data-extract-start><IcExtract size={15} />แยกไฟล์ที่เลือก</button>
+        </div>
+      ) : (
+        <div className="workbox">
+          {xRun.labels.map((l, i) => {
+            const st = xRun.result?.states[i] ?? (xRun.pct[i] >= 100 ? "done" : xRun.pct[i] > 0 || i === xRun.pct.findIndex((p) => p < 100) ? "working" : "queued");
+            const word = st === "done" ? "เสร็จแล้ว" : st === "working" ? `กำลังทำ ${Math.round(xRun.pct[i])}%` : st === "conflict" ? "มีไฟล์ชื่อเดียวกันอยู่แล้ว" : st === "skipped" ? "ข้ามแล้ว" : st === "failed" ? "ไม่สำเร็จ" : st === "cancelled" ? "หยุดแล้ว" : "รอคิว";
+            return <div key={i} className="setrow" style={i === 0 ? { borderTop: 0 } : undefined}><div className="lbl">{l}</div><div className="small">{word}</div></div>;
+          })}
+          {xRun.running && <button type="button" className="btn btn-bad btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => infoApi.extractCancel()}><IbStop size={15} />หยุด</button>}
+          {xRun.result && conflicts.length > 0 && (
+            <>
+              <div className="stat warn" data-conflict><CardIcon kind="warn" /><div><b>มีไฟล์ชื่อเดียวกันอยู่แล้ว</b>{conflicts.map((i) => <div key={i} style={{ overflowWrap: "anywhere" }}>ในที่เก็บมีไฟล์ {(xRun.result!.files[i] ?? "").split(/[\\/]/).pop()} อยู่แล้ว</div>)}<div>โปรแกรมไม่เขียนทับไฟล์เดิม</div></div></div>
+              <div className="minirow" style={{ marginTop: 0 }}>
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => resolve("skip")}>{conflicts.length > 1 ? `ข้ามทั้ง ${conflicts.length} ไฟล์` : "ข้ามไฟล์นี้"}</button>
+                <button type="button" className="btn btn-main btn-sm" onClick={() => resolve("number")}>ตั้งชื่อใหม่ต่อท้ายเลข 2</button>
+              </div>
+            </>
+          )}
+          {xRun.result?.error && (
+            <>
+              <div className="stat bad"><CardIcon kind="bad" /><div>{xRun.result.error.split(/ · |  /).map((l, i) => i === 0 ? <b key={i}>{l}</b> : <div key={i}><Phr>{l}</Phr></div>)}</div></div>
+              <button type="button" className="btn btn-ghost btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => run(xRun.items, xRun.labels, xRun.items.map(() => "ask"))}><IcRefresh size={15} />ลองใหม่</button>
+            </>
+          )}
+          {xRun.result && !xRun.result.error && conflicts.length === 0 && (
+            <>
+              {done > 0 && <div className="stat ok"><CardIcon kind="done" /><div><b>แยกครบ {done} ไฟล์</b>{xRun.result.files.filter((f, i) => f && xRun.result!.states[i] === "done").map((f, i) => <div key={i} style={{ overflowWrap: "anywhere" }}>{f!.split(/[\\/]/).pop()}</div>)}</div></div>}
+              <div className="minirow" style={{ marginTop: 0 }}>
+                {done > 0 && <button type="button" className="btn btn-ok btn-sm" onClick={() => { const f = xRun.result!.files.find((f, i) => f && xRun.result!.states[i] === "done"); if (f) api.revealMovie(f).catch(() => {}); }}><IcFolder size={15} />เปิดโฟลเดอร์ที่เก็บ</button>}
+                <button type="button" className="btn btn-ghost btn-sm" onClick={() => setXRun(null)}><IbNext size={15} />แยกอย่างอื่นต่อ</button>
+              </div>
+            </>
+          )}
+        </div>
+      )}
+    </div>
+  );
+}

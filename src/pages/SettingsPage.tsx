@@ -11,6 +11,7 @@ import { useLibrary } from "../lib/library";
 import { useToast } from "../components/Toasts";
 import Dialog from "../components/Dialog";
 import Dropdown from "../components/Dropdown";
+import InfoTip from "../components/InfoTip";
 import { IcPalette, IcCheck, IcCoverL, IcCoverM, IcCoverS, IcTall, IcWide, IcFolder, IcGraph, IcLink, IcMix, IcPoster, IcSettings, IcShelf } from "../components/icons";
 import { J, Keep, Phr, Range, Seg, Skel, Switch } from "../components/ui";
 import { setSkelPreview, useSkelPreview } from "../lib/skelPreview";
@@ -352,7 +353,7 @@ export default function SettingsPage() {
           <span style={{ fontSize: 14, whiteSpace: "nowrap" }}>คุณภาพ JPG</span>
           <Range value={jpgNow} min={50} max={100} onChange={onJpg} label="คุณภาพ JPG" format={(v) => `${v}%`} />
           <span className="small" style={{ whiteSpace: "nowrap", minWidth: 36, textAlign: "right" }} data-jpgq>{jpgNow}%</span></div></div>
-        <div className="setrow"><div className="lbl">ย่อรูปโปสเตอร์ที่ใหญ่เกิน<span className="small">ย่อเหลือ <span className="nw">1000 × 1500 px</span> เพื่อไม่ให้ไฟล์หนังบวม</span></div>
+        <div className="setrow"><div className="lbl">ย่อรูปโปสเตอร์ที่ใหญ่เกิน<span className="small"><Phr>ย่อเหลือ</Phr> <span className="nw">1000 × 1500 px</span> <Phr>เพื่อไม่ให้ไฟล์หนังบวม  และเปิดปิดที่หน้าครอปได้ด้วย</Phr></span></div>
           <Switch on={settings.shrinkLargePosters} onChange={(v) => set({ shrinkLargePosters: v })} label="ย่อรูปโปสเตอร์ที่ใหญ่เกิน" /></div>
       </div>
 
@@ -390,6 +391,10 @@ export default function SettingsPage() {
         <div className="setrow"><div className="lbl">เตือนให้ตรวจซ้ำ<span className="small"><Phr>จุดบนปกเปลี่ยนเป็นสีเหลืองเมื่อถึงเวลา</Phr></span></div>
           <span data-recheck><Dropdown label="เตือนให้ตรวจซ้ำ" value={String(settings.recheckReminderDays)} onChange={(v) => set({ recheckReminderDays: Number(v) as Settings["recheckReminderDays"] })}
             options={[{ value: "0", label: "ไม่ต้องเตือน" }, { value: "7", label: "ทุก 7 วัน" }, { value: "30", label: "ทุก 30 วัน" }, { value: "90", label: "ทุก 90 วัน" }]} /></span></div>
+        {/* BUGS ข้อ 30 พี่กันเคาะ "ตั้งค่าได้ว่าถามหรือบันทึกข้างไฟล์" · ค่าตั้งต้นถาม (แคลร์ตั้ง) */}
+        <div className="setrow" data-hashask><div className="lbl"><span>ถามที่บันทึกไฟล์ .sha256 ทุกครั้ง <InfoTip title="ไฟล์ .sha256 คืออะไร" tip={{ w: "ไฟล์ข้อความเล็ก ๆ ที่จดค่า SHA-256 ของไฟล์หนังไว้ ใช้เทียบภายหลังว่าไฟล์ยังครบทุกไบต์ไหม โปรแกรม 7-Zip และคำสั่ง sha256sum เปิดตรวจได้ บันทึกจากปุ่มในหน้าค่า hash ของหน้าข้อมูลไฟล์" }} /></span>
+          <span className="small"><Phr>{"เปิดไว้ โปรแกรมเปิดหน้าต่างให้เลือกที่บันทึกทุกครั้ง ปิดไว้ บันทึกข้างไฟล์หนังทันที"}</Phr></span></div>
+          <Switch on={settings.hashSaveAsk !== false} onChange={(v) => set({ hashSaveAsk: v })} label="ถามที่บันทึกไฟล์ .sha256 ทุกครั้ง" /></div>
       </div>
 
       {/* ---------- ชั้นวาง ---------- */}

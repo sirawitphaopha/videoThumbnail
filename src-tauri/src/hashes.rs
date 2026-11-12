@@ -118,21 +118,45 @@ pub fn compare(pasted: &str, h: &Hashes) -> Compare {
     Compare { algo: Some(label(algo).into()), same: false, diff: Some(diff) }
 }
 
-/// ไฟล์ .sha256 แบบที่ sha256sum ของ Linux และ 7-Zip อ่านได้ · ข้างไฟล์หนัง ชื่อซ้ำต่อท้าย (2) ไม่เขียนทับ
-pub fn save_sha256(movie: &Path, sha256: &str) -> Result<PathBuf, String> {
+/// ผลบันทึกไฟล์ .sha256 · saved สร้างใหม่ · exists มีไฟล์ชื่อนี้ที่ค่าตรงกันอยู่แล้ว ไม่สร้างซ้ำ · conflict มีไฟล์ชื่อนี้แต่ค่าไม่ตรง ยังไม่เขียน ให้หน้าจอถามก่อน
+#[derive(Debug, serde::Serialize, PartialEq)]
+pub struct HashSaved {
+    pub path: String,
+    pub status: &'static str,
+}
+
+/// ค่า hash ตัวแรกในไฟล์ .sha256 · รูปแบบ "<ค่า> *<ชื่อไฟล์>" หรือค่าเดี่ยว ๆ
+fn first_hash(body: &str) -> Option<String> {
+    body.split_whitespace().next().map(|t| t.trim_start_matches('\u{feff}').to_ascii_lowercase())
+}
+
+/// ไฟล์ .sha256 แบบที่ sha256sum ของ Linux และ 7-Zip อ่านได้ · target ว่าง = ข้างไฟล์หนัง ชื่อ <ไฟล์หนัง>.sha256 · ที่ผู้ใช้เลือกในหน้าต่างบันทึกส่งมาทาง target
+/// มีไฟล์ชื่อนี้อยู่แล้ว ค่าตรงกัน ไม่สร้างซ้ำ (BUGS ข้อ 30 เดิมกดซ้ำได้ไฟล์ (2) เนื้อเหมือนกันทุกไบต์) · ค่าไม่ตรง ไม่เขียน ตอบ conflict ให้ถามก่อน
+/// new_name จริง = ผู้ใช้ตอบแล้วว่าสร้างชื่อใหม่ ต่อท้าย (2) (3) · ไม่เขียนทับไฟล์ที่มีอยู่ทุกกรณี
+pub fn save_sha256(movie: &Path, sha256: &str, target: Option<&Path>, new_name: bool) -> Result<HashSaved, String> {
     let name = movie.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-    let dir = movie.parent().unwrap_or(Path::new(""));
-    let mut out = dir.join(format!("{name}.sha256"));
+    let first = match target {
+        Some(t) => t.to_path_buf(),
+        None => movie.parent().unwrap_or(Path::new("")).join(format!("{name}.sha256")),
+    };
+    if first.exists() && !new_name {
+        let same = std::fs::read_to_string(&first).ok().and_then(|b| first_hash(&b)).is_some_and(|h| h == sha256.to_ascii_lowercase());
+        return Ok(HashSaved { path: first.to_string_lossy().to_string(), status: if same { "exists" } else { "conflict" } });
+    }
+    let dir = first.parent().unwrap_or(Path::new("")).to_path_buf();
+    let file = first.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+    let base = file.strip_suffix(".sha256").unwrap_or(&file).to_string();
+    let mut out = first.clone();
     let mut n = 2;
     while out.exists() {
-        out = dir.join(format!("{name} ({n}).sha256"));
+        out = dir.join(format!("{base} ({n}).sha256"));
         n += 1;
     }
     let body = format!("{sha256} *{name}\n");
     // สร้างใหม่เท่านั้น ถ้ามีไฟล์ชื่อนี้โผล่มาระหว่างทาง Windows ปฏิเสธ ไม่ทับ
     let mut f = std::fs::OpenOptions::new().write(true).create_new(true).open(&out).map_err(|e| format!("บันทึกไฟล์ .sha256 ไม่ได้: {e}"))?;
     std::io::Write::write_all(&mut f, body.as_bytes()).map_err(|e| e.to_string())?;
-    Ok(out)
+    Ok(HashSaved { path: out.to_string_lossy().to_string(), status: "saved" })
 }
 
 #[cfg(test)]
@@ -202,10 +226,27 @@ mod tests {
     #[test]
     fn save_never_overwrites() {
         let p = tmp("หนัง (2020).mkv", b"x");
-        let a = save_sha256(&p, "aa").unwrap();
-        let b = save_sha256(&p, "bb").unwrap();
-        assert_ne!(a, b, "ไฟล์ .sha256 ที่มีอยู่ต้องไม่โดนทับ");
-        assert_eq!(std::fs::read_to_string(&a).unwrap(), "aa *หนัง (2020).mkv\n");
-        assert!(b.to_string_lossy().ends_with("หนัง (2020).mkv (2).sha256"));
+        let a = save_sha256(&p, "aa", None, false).unwrap();
+        assert_eq!(a.status, "saved");
+        assert_eq!(std::fs::read_to_string(&a.path).unwrap(), "aa *หนัง (2020).mkv\n");
+        // ค่าเดิมซ้ำ ไม่สร้างไฟล์ (2) (BUGS ข้อ 30) · ตัวพิมพ์ใหญ่เล็กถือว่าตรงกัน
+        let again = save_sha256(&p, "AA", None, false).unwrap();
+        assert_eq!((again.status, again.path.as_str()), ("exists", a.path.as_str()));
+        // ค่าไม่ตรง ไม่เขียนอะไร ตอบ conflict ให้ถามก่อน
+        let diff = save_sha256(&p, "bb", None, false).unwrap();
+        assert_eq!(diff.status, "conflict");
+        assert_eq!(std::fs::read_to_string(&a.path).unwrap(), "aa *หนัง (2020).mkv\n", "ไฟล์ .sha256 ที่มีอยู่ต้องไม่โดนทับ");
+        // ผู้ใช้ตอบว่าสร้างชื่อใหม่ ได้ (2) ไฟล์เดิมไม่โดนแตะ
+        let b = save_sha256(&p, "bb", None, true).unwrap();
+        assert_eq!(b.status, "saved");
+        assert!(b.path.ends_with("หนัง (2020).mkv (2).sha256"), "{}", b.path);
+        assert_eq!(std::fs::read_to_string(&b.path).unwrap(), "bb *หนัง (2020).mkv\n");
+        // ที่ที่ผู้ใช้เลือกเอง ใช้ชื่อนั้น ในไฟล์ยังเขียนชื่อไฟล์หนัง
+        let pick = p.parent().unwrap().join("เลือกเอง.sha256");
+        let c = save_sha256(&p, "cc", Some(&pick), false).unwrap();
+        assert_eq!((c.status, c.path.as_str()), ("saved", pick.to_string_lossy().as_ref()));
+        assert_eq!(std::fs::read_to_string(&pick).unwrap(), "cc *หนัง (2020).mkv\n");
+        let c2 = save_sha256(&p, "dd", Some(&pick), true).unwrap();
+        assert!(c2.path.ends_with("เลือกเอง (2).sha256"), "{}", c2.path);
     }
 }

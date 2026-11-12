@@ -72,6 +72,8 @@ pub struct Settings {
     /// กระดานจับคู่ แผงรูปกับแผงหนัง "list" รายการ | "only" แค่รูป (พี่กันสั่ง *"เเละเราขอเปลี่ยนมุมมองเป็นทั้งเเบบที่เธอมีตอนนี้ กับเเสดงเเค่รุป"*)
     pub link_board_images: String,
     pub link_board_movies: String,
+    /// บันทึกไฟล์ .sha256 ถามที่บันทึกทุกครั้ง · ปิด = บันทึกข้างไฟล์หนังทันที (BUGS ข้อ 30 พี่กันเคาะ "ตั้งค่าได้ว่าถามหรือบันทึกข้างไฟล์" · ค่าตั้งต้นถาม แคลร์ตั้ง)
+    pub hash_save_ask: bool,
 }
 
 impl Default for Settings {
@@ -109,6 +111,7 @@ impl Default for Settings {
             tone: "quartz".into(),
             link_board_images: "list".into(),
             link_board_movies: "list".into(),
+            hash_save_ask: true,
         }
     }
 }

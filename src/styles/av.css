@@ -3,11 +3,20 @@
 
 .avwrap { display: flex; flex-direction: column; gap: 12px; padding: 16px 18px 18px; min-width: 0; }
 .avtop { display: flex; align-items: center; gap: 12px; }
+/* ช่องลากไฟล์ในแถบชื่อหนัง ชิดขวา ไม่หด (BUGS ข้อ 65 ต่อ) · ชื่อหนังยาวตัดเป็นสามจุดแทน */
+/* ช่องลากไฟล์แบ่งแถวกับแถบชื่อหนังคนละครึ่ง สูงเท่าแถบชื่อ (พี่กัน "ก็บอกว่าให้ขยาย") ชื่อหนังยาวตัดเป็นสามจุด */
+.avtop .avdrop { margin-top: 0; flex: 1 1 0; min-width: 460px; align-self: stretch; padding: 8px 10px 8px 12px; gap: 10px; }
+/* ข้อความไม่หด ไม่ไหลไปใต้ปุ่ม ⓘ (เดิมกฎ .avdrop > span ให้หดได้ ข้อความเลยโดน ⓘ ทับ) */
+.avtop .avdrop > span:first-of-type { white-space: nowrap; flex: none; }
+.avtop > .avoffwrap { flex: 1 1 0; min-width: 460px; align-self: stretch; display: flex; }
+.avtop > .avoffwrap > .avoff { flex: 1; display: flex; }
+.avtop > .avoffwrap > .avoff > .avdrop { flex: 1; }
+.avtop > .avoffwrap > .avoff > .avdrop { margin-top: 0; }
 .avchip { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 6px 12px 6px 6px; }
 .avthumb { width: 30px; height: 44px; border-radius: 4px; flex: none; box-shadow: 0 2px 6px rgba(60,25,40,.25); background: linear-gradient(160deg, #e5c5d0, #a87787); object-fit: cover; }
 .avchip .nm { font-weight: 600; font-size: 14.5px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .avchip .ext { color: var(--txt3); font-weight: 400; }
-.avchip .meta { font-size: 12.5px; color: var(--txt3); line-height: 1.4; }
+.avchip .meta { font-size: 12.5px; color: var(--txt3); line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 
 /* ป้ายชนิดไฟล์ · สีมาจากค่า --h ของแต่ละชนิด (สีโทนเดียวกันคือตระกูลเดียวกัน) · ตัวหนังสือบนพื้นต่ำสุด 5.64:1 (วัดตอนทำมอคอัป) */
 .ft { display: inline-flex; align-items: center; justify-content: center; height: 24px; padding: 0 8px; border-radius: 7px; font-size: 12px; font-weight: 700; letter-spacing: .2px; white-space: nowrap;
@@ -28,7 +37,7 @@
 .trk { display: grid; grid-template-columns: 30px 26px 84px minmax(0, 1fr) 116px 44px 124px 142px 70px; gap: 8px; align-items: center;
   background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 7px 10px; font-size: 13px; cursor: pointer; transition: border-color .15s, box-shadow .15s; }
 .trk:hover { border-color: #e2bfcb; }
-.trk.head { background: transparent; border: 0; padding: 0 10px; color: var(--txt2); font-size: 12px; font-weight: 600; cursor: default; }
+.trk.head { background: transparent; border: 1px solid transparent; padding: 0 10px; color: var(--txt2); font-size: 12px; font-weight: 600; cursor: default; }
 .trk.out { background: #fdf6f8; }
 .trk.out > :not(.avacts):not(.mv) { opacity: .55; }
 .trk.out .nm { text-decoration: line-through; }
@@ -40,10 +49,25 @@
 .mv button { width: 22px; height: 14px; border: 0; background: transparent; color: var(--txt3); cursor: pointer; padding: 0; display: flex; align-items: center; justify-content: center; border-radius: 4px; }
 .mv button:hover { background: #faedf1; color: var(--accent-ink); }
 .mv button[aria-disabled="true"] { opacity: .35; cursor: not-allowed; background: transparent; }
+/* วิธีแยกออกจากหนัง (BUGS ข้อ 35) · ช่องติ๊กแทนปุ่มเลื่อน ชิ้นที่ติ๊กไม่ได้จางพร้อมเหตุผลตอนชี้ · แถวไฟล์ที่เพิ่มจาง ไม่มีอะไรให้แยก */
+.mv.xpick { justify-content: center; }
+.mv.xpick .chk { gap: 0; padding: 4px; margin: 0; border-radius: 6px; cursor: pointer; }
+.mv.xpick .chk.off { cursor: not-allowed; opacity: .45; }
+.mv.xpick .chk:not(.off):hover .cbx.off { border-color: var(--accent-d); }
+.trk.xna > :not(.avacts) { opacity: .5; }
+/* ช่องที่ใช้ตอนแยก (.xkeep ช่องเลือกแยกภาพเป็น · .xnote คำอธิบายแถวไฟล์แนบ) ไม่อยู่ในกฎจาง · เดิมยกเว้นด้วยกฎแยกที่น้ำหนักน้อยกว่า ช่องเลือกเลยจางตลอด (BUGS ข้อ 35 ต่อ พี่กัน "จุดนี้ขางมากกกก") */
+.trk.xmode > :nth-child(n+5):not(.avacts):not(.xkeep):not(.xnote) { opacity: .45; }
 .kind { width: 26px; height: 26px; border-radius: 7px; display: flex; align-items: center; justify-content: center; }
 .kind.v { background: #e4effb; color: #2f6496; }
 .kind.a { background: #f7e4ea; color: #9a6375; }
 .kind.s { background: #efe7fb; color: #6a4aa6; }
+/* ไฟล์แนบกับบทของหนังในตารางแทร็ก (BUGS ข้อ 35 ต่อ) */
+.kind.x { background: #eef0e4; color: #5f6b3c; }
+.trk.xrow > .xnote { align-self: center; }
+/* แถวรูปปกตอนรวม กดแล้วไปที่ช่องปก · ช่องปกวาบตอนถึง (จังหวะเดียวกับกดหมวดในหน้า MediaInfo) */
+.trk.xrow.xgo { cursor: pointer; }
+.trk.xrow.xgo:hover { border-color: var(--accent-soft); background-color: color-mix(in srgb, var(--accent-soft) 35%, var(--win)); }
+.pslot[data-flash] { animation: mi-flash 1.2s ease-out; }
 .delay { display: flex; align-items: center; gap: 3px; }
 .avnum { width: 64px; height: 30px; border-radius: 8px; border: 1px solid #e8cdd6; background: #fff; text-align: right; padding: 0 6px; font: inherit; font-size: 12.5px; color: var(--txt);
   font-variant-numeric: tabular-nums; outline: none; transition: border .15s, box-shadow .15s; }
@@ -92,6 +116,12 @@
 .avrow2 { display: grid; grid-template-columns: 1fr 1fr; gap: 12px; }
 .optline { display: flex; align-items: center; gap: 12px; flex-wrap: wrap; }
 .avfoot { display: flex; align-items: center; justify-content: flex-end; gap: 10px; }
+/* ชนิดไฟล์กับไฟล์เดิมชิดซ้ายของแถบล่าง (BUGS ข้อ 63 แบบ 2) · ขนาดไฟล์ที่คาดหดได้ ยาวเกินตัดเป็นสามจุด ข้อความเต็มอยู่ตอนชี้ */
+.avfoot-out { margin-right: auto; display: flex; align-items: center; gap: 14px; min-width: 0; }
+/* ตัวเลือกไฟล์เดิมคำสั้น ไม่ตัดบรรทัด รายละเอียดอยู่ในปุ่ม ⓘ (เดิมตัดกลางคำในเครื่องหมายคำพูดที่หน้าต่าง 1280) */
+.avfoot-out .chk { white-space: nowrap; }
+.avfoot .hint { white-space: nowrap; }
+.avfoot-sum { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .avdetail { display: grid; grid-template-columns: 1fr 1fr; gap: 14px; }
 .avfield { display: flex; flex-direction: column; gap: 5px; min-width: 0; }
 .avfield .avlbl { font-weight: 600; color: var(--txt); font-size: 13px; }
@@ -346,5 +376,45 @@
 .avfoot, .cqfoot { position: sticky; bottom: 0; z-index: var(--z-bar); background: var(--win); padding-block: 12px; border-top: 1px solid var(--line); }
 /* ไม่เว้นที่ใต้แถบปุ่ม เลื่อนสุดแล้วแถบยังชิดล่างเท่าเดิม ไม่ขยับขึ้น */
 .avwrap:has(> .avfoot) { padding-bottom: 0; }
+/* กรอบตรึงล่างสุด แถววิธีกับแถบปุ่มรวม (BUGS ข้อ 68) · แถบปุ่มข้างในไม่ต้องตรึงซ้ำ */
+.avdock { margin-top: auto; position: sticky; bottom: 0; z-index: var(--z-bar); background: var(--win); border-top: 1px solid var(--line); padding-top: 10px; }
+.avdock > .avfoot { position: static; }
+/* หน้าสูงอย่างน้อยเต็มจอ กรอบตรึงล่างสุดชิดขอบล่างแม้แทร็กน้อย (เดิมลอยกลางหน้า มีที่ว่างข้างใต้) */
+.avwrap:has(> .avdock) { padding-bottom: 0; min-height: 100%; }
 /* แถวความเร็ว Gain ความดังมาตรฐาน ปุ่มคู่สูงเท่าช่องเลือกกับปุ่มลบบวก */
 [data-extra] .seg.sm button { height: 32px; }
+
+/* การ์ดวิธีสามใบ รวม จับคู่ แยก (BUGS ข้อ 35 ต่อ · พี่กันสั่ง 12 พ.ย. 2569 "ขยายการ์ดให้ใหญ่กว่านี้ เเยกสามปุ่ม ให้เด่น") · หัว วิธี อยู่แถวเดียวกัน */
+.avm-row { display: flex; align-items: center; gap: 14px; }
+.avm-cards { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.avm-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid #e8cdd6; border-radius: 10px; background: #fff; color: var(--txt2); font: inherit; text-align: left; cursor: pointer; transition: background-color .15s, border-color .15s, color .15s; min-width: 0; }
+.avm-card:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, #fff); }
+.avm-card.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: color-mix(in srgb, var(--accent) 11%, #fff); color: var(--accent-ink); }
+.avm-card[aria-disabled="true"] { cursor: not-allowed; opacity: .6; }
+.avm-ic { flex: none; width: 38px; height: 38px; border-radius: 9px; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--accent) 10%, #fff); color: var(--accent-ink); }
+.avm-card.on .avm-ic { background: var(--accent); color: #fff; }
+.avm-tx { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.avm-tx b { font-size: 14.5px; white-space: nowrap; }
+.avm-tx b i { font-style: normal; font-weight: 500; color: var(--txt3); }
+.avm-desc { font-size: 12.5px; color: var(--txt3); }
+/* การ์ดแยกไฟล์ตรึงล่างสุดในที่ของแถบปุ่มรวม (BUGS ข้อ 35 ต่อ) · ตอนกำลังแยกหรือชื่อชน การ์ดสูงได้ไม่เกินครึ่งจอ เกินเลื่อนในการ์ด */
+.avxfoot { display: block; padding-block: 8px; }
+.avxfoot > .card { margin: 0; max-height: 50vh; overflow-y: auto; }
+/* วิธีแยก ช่องเลือก .mkv หรือ .h264 ของแถวภาพ ชัดเต็มสี มีหัวบอกว่าแยกภาพเป็น ปุ่มที่เลือกเป็นสีหลัก (BUGS ข้อ 35 ต่อ พี่กันสั่ง 12 พ.ย. 2569 "ขอให้สื่อเเละเด่น") */
+/* หัวกับช่องเลือกรวมกันไม่สูงกว่าเนื้อแถว สลับวิธีรวมกับแยกแล้วแถวภาพสูงเท่าเดิม หน้าไม่ขยับ (เดิมสูงขึ้น 9 px) */
+.xraw { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; justify-self: start; }
+.xraw > .xraw-cap { font-size: 11.5px; font-weight: 600; color: var(--accent-ink); line-height: 1.1; }
+.xraw .seg.sm button { height: 24px; }
+.xraw > .xraw-row { display: inline-flex; align-items: center; gap: 4px; }
+.xraw .seg button.on { background-color: var(--accent); color: white; font-weight: 600; }
+.xraw .seg button.on:hover { background-color: var(--accent-d); color: white; }
+/* ส่วนของงานรวมตอนเลือกวิธีอื่น อยู่ที่เดิมแบบจาง กดไม่ได้ ป้ายเหตุผลกลางส่วน (BUGS ข้อ 35 ต่อ) */
+.avoffwrap { position: relative; }
+.avoffwrap > .avoff { opacity: .4; }
+.avoffwrap::after { content: attr(data-off); position: absolute; left: 50%; top: 50%; translate: -50% -50%; white-space: nowrap; font-size: 13px; font-weight: 600; color: var(--txt2); background: var(--win); border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px; box-shadow: 0 2px 8px rgba(60, 25, 40, .08); pointer-events: none; }
+/* หัวคอลัมน์ แปลง กึ่งกลางตรงกับขีดของแถวภาพ ใช้โครงเดียวกับขีด เงาคำ ไม่แปลง ขนาดตัวอักษรเท่าแถว (BUGS ข้อ 62 พี่กันสั่ง "เอาคำว่า แปลง อยู่ตรงกับ ขีด") */
+.trk.head .trk-hd { font-size: 12px; font-weight: 600; color: var(--txt2); }
+.trk.head .trk-hd > i { font-size: 12.5px; font-weight: 400; }
+/* ปุ่ม ⓘ ข้างคำว่า หลัก ลอยต่อท้ายคำ คำว่า หลัก ยังกึ่งกลางเหนือวงกลม (BUGS ข้อ 66) */
+.trk.head .hd-tip { position: absolute; margin-left: 3px; display: inline-flex; align-items: center; height: 100%; top: 0; }
+.trk.head > span:has(> .hd-tip) { position: relative; }

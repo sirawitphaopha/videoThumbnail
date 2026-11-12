@@ -20,6 +20,7 @@ import LinkPage from "./pages/LinkPage";
 import { setLinkJob, useLinkJob } from "./lib/linkJob";
 import AvPage from "./pages/AvPage";
 import FileInfoPage from "./pages/FileInfoPage";
+import MediaInfoPage from "./pages/MediaInfoPage";
 import FirstRun from "./pages/FirstRun";
 import CheckPage, { type CheckReq } from "./pages/CheckPage";
 import GraphPage, { GraphBoundary, type GraphReq } from "./pages/GraphPage";
@@ -121,6 +122,7 @@ function Frame() {
                 {/* หน้ากราฟอยู่ในกล่องเลื่อน แถบสูงขึ้นหรือลากขยายจนยาวกว่าหน้าต่างแล้วเลื่อนลงไปถึงแถวปุ่มล่างได้ (เดิมแถวปุ่มล่างโดนตัดใต้จอ เจอตอนตรวจภาพ) */}
                 {slot("graph", <div className="pagewrap" data-graphscroll><GraphBoundary><GraphPage req={graphReq} onConsumed={() => setGraphReq(null)} onBitrate={(path, track) => { setBitratePath(path); setBitrateTrack(track ?? null); setPage("bitrate"); }} /></GraphBoundary></div>)}
                 {slot("bitrate", <BitratePage initialPath={bitratePath} initialTrack={bitrateTrack} onConsumed={() => { setBitratePath(null); setBitrateTrack(null); }} />)}
+                {slot("mediainfo", <MediaInfoPage onAv={(path) => { setAvPath(path); setPage("av"); }} onShelf={() => setPage("shelf")} />)}
                 {slot("settings", <div className="pagewrap" data-settingsscroll><SettingsPage /></div>)}
               </>
             )}

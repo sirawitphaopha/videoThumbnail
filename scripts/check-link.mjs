@@ -127,7 +127,10 @@ check("เมนูซ้ายขึ้นเลขคู่ที่รอ", a
 await clickIn("Tidal (2021)", "[data-link-tick]");
 await waitFor(`return /ติ๊กไว้ 8 คู่/.test(document.querySelector('[data-link-count]')?.innerText)`);
 check("เอาติ๊กออก ที่ติ๊กไว้เหลือ 8 ทั้งหมดยังนับ 9", /รอยืนยัน 9 คู่ และติ๊กไว้ 8 คู่/.test(await countText()));
-check("สองปุ่มนับต่างกัน", await q("return document.querySelector('[data-link-confirm-ticked]').innerText.includes('8') && document.querySelector('[data-link-confirm-all]').innerText.includes('9')"));
+// รอปุ่มขึ้นตัวเลขก่อนอ่าน · บอกข้อความบนปุ่มทุกครั้ง (เดิมล้มบางรอบโดยไม่รู้ว่าปุ่มขึ้นอะไร)
+const twoBtn = "const t = document.querySelector('[data-link-confirm-ticked]')?.innerText ?? '', a = document.querySelector('[data-link-confirm-all]')?.innerText ?? ''; return";
+await waitFor(`${twoBtn} t.includes('8') && a.includes('9')`);
+check("สองปุ่มนับต่างกัน", await q(`${twoBtn} t.includes('8') && a.includes('9')`), await q(`${twoBtn} t + ' | ' + a`));
 
 // แถวไม่แน่ใจ กดเลือกรูป
 await c.evaluate(`${rowSel("เมืองในหมอก (2015)")}.querySelector('[data-link-cand="เมืองหมอก.jpg"]').click()`);

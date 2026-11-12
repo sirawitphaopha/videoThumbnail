@@ -68,6 +68,11 @@ export const IcSettings = ({ size = 18, stroke = "currentColor" }: P) =>
   svg(size, 2, stroke, <><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" /></>);
 export const IcCollapse = ({ size = 18, stroke = "currentColor" }: P) =>
   svg(size, 2.2, stroke, <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /><path d="M15.5 9.5L13 12l2.5 2.5" /></>);
+/** ย่อและกางแผงด้านขวา (แผงสรุปหน้า MediaInfo · BUGS ข้อ 29) กรอบเดียวกับปุ่มย่อเมนูซ้าย เส้นแบ่งอยู่ฝั่งขวา */
+export const IcSideHide = ({ size = 16, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M15 4v16" /><path d="M8.5 9.5L11 12l-2.5 2.5" /></>);
+export const IcSideShow = ({ size = 16, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M15 4v16" /><path d="M11 9.5L8.5 12l2.5 2.5" /></>);
 export const IcLink = ({ size = 18, stroke = "currentColor" }: P) =>
   svg(size, 2, stroke, <><path d="M10 13a5 5 0 007 0l3-3a5 5 0 00-7-7l-1 1" /><path d="M14 11a5 5 0 00-7 0l-3 3a5 5 0 007 7l1-1" /></>);
 /* ปุ่มขนาดปกกับทิศปก · กรอบปกโตตามขนาด ตั้งกับนอนตามทิศจริง */
@@ -81,6 +86,12 @@ export const IcTall = ({ size = 15, stroke = "currentColor" }: P) =>
   svg(size, 2.2, stroke, <rect x="6.5" y="3" width="11" height="18" rx="1.5" />);
 export const IcWide = ({ size = 15, stroke = "currentColor" }: P) =>
   svg(size, 2.2, stroke, <rect x="3" y="6.5" width="18" height="11" rx="1.5" />);
+/** เมนู MediaInfo (BUGS ข้อ 54) ตัว i ในวงกลม แบบปุ่มข้อมูลไฟล์ */
+export const IcInfo = ({ size = 18, stroke = "currentColor" }: P) =>
+  svg(size, 2, stroke, <><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.6v.4" /></>);
+/** แยกออกจากหนัง (BUGS ข้อ 35) ลูกศรออกจากกล่อง */
+export const IcExtract = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2, stroke, <><path d="M4 14v5a2 2 0 002 2h12a2 2 0 002-2v-5" /><path d="M12 15V3M7 8l5-5 5 5" /></>);
 export const IcFile = ({ size = 15, stroke = "currentColor" }: P) =>
   svg(size, 2, stroke, <><path d="M6 3h8l5 5v13H6z" /><path d="M14 3v5h5" /></>);
 export const IcPlus = ({ size = 15, stroke = "currentColor", width = 2.4 }: P) =>

@@ -95,12 +95,17 @@ await c.evaluate("[...document.querySelectorAll('.dlg button')].find(b => b.inne
 check("กดทำงานต่อ โปรแกรมยังอยู่", (await c.evaluate("document.title")) === "ชั้นหนัง");
 
 // ⑤ การ์ดชื่อชนตอนแยกไฟล์บอกชื่อไฟล์ที่มีอยู่แล้ว (สเปกข้อ 10) · หน้าข้อมูลไฟล์ของข้อ ③ ยังเปิดอยู่ กดกลับไปชั้นวางก่อน
+// แยกไฟล์ย้ายไปหน้าเสียงและซับแล้ว (BUGS ข้อ 35) เปิดจากปุ่มเสียงและซับในหน้า MediaInfo แล้วเลือกวิธีแยกออกจากหนัง
 await nav("ชั้นวางหนัง"); await sleep(400);
 await c.evaluate("[...document.querySelectorAll('[data-info-page] button')].find(b => b.innerText === 'กลับไปชั้นวาง')?.click()"); await sleep(400);
 await c.book("ดาวเหนือ (2023)"); await sleep(300);
 await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.innerText.includes('MediaInfo')).click()");
 await waitFor("return !!document.querySelector('[data-mi]')");
-for (const t of ["Audio #2", "Text #1"]) await c.evaluate(`[...document.querySelectorAll('[data-mi] .mih.pick')].find(h => h.innerText.includes(${JSON.stringify(t)})).click()`);
+await c.evaluate("document.querySelector('[data-info-av]').click()");
+await waitFor("return (document.querySelector('[data-movie-chip]')?.innerText ?? '').includes('ดาวเหนือ')");
+await c.evaluate("[...document.querySelectorAll('[data-method] .avm-card')].find(b => b.innerText.includes('แยกออกจากหนัง')).click()");
+await waitFor("return document.querySelectorAll('.mv.xpick [data-xpick]').length > 0 && !document.querySelector('.mv.xpick .chk.off')");
+await c.evaluate("['audio:2', 'text:1'].forEach(k => document.querySelector('[data-xpick=\"' + k + '\"]').click())");
 await c.evaluate("document.querySelector('[data-extract-start]').click()");
 await waitFor("return document.querySelector('[data-extract]').innerText.includes('แยกครบ')");
 await c.evaluate("[...document.querySelectorAll('[data-extract] button')].find(b => b.innerText === 'แยกอย่างอื่นต่อ').click()"); await sleep(200);
@@ -111,8 +116,10 @@ await shot("05-ชื่อชนบอกชื่อไฟล์.png", "[data-
 check("แยกซ้ำ 2 ชิ้น การ์ดชื่อชนบอกชื่อไฟล์ที่มีอยู่แล้วทั้ง 2 ไฟล์ · ปุ่มข้ามบอกจำนวน", conflict.includes("ในที่เก็บมีไฟล์ ดาวเหนือ (2023).Audio2.en.ac3 อยู่แล้ว") && conflict.includes("ในที่เก็บมีไฟล์ ดาวเหนือ (2023).Text1.th.srt อยู่แล้ว") && conflict.includes("ข้ามทั้ง 2 ไฟล์"), conflict.split("\n").join(" / "));
 await c.evaluate("[...document.querySelectorAll('[data-extract] button')].find(b => b.innerText.startsWith('ข้ามทั้ง')).click()"); await sleep(400);
 
-// ⑥ มาจากปุ่มเปลี่ยนโปสเตอร์ · การ์ดรูปไม่ใช่ 2:3 · รูปที่ต้องแปลงก่อนแนบ (สเปกข้อ 17 18 19 20)
-await c.evaluate("[...document.querySelectorAll('[data-info-page] button')].find(b => b.innerText === 'กลับไปชั้นวาง').click()"); await sleep(300);
+// ⑥ มาจากปุ่มเปลี่ยนโปสเตอร์ · การ์ดรูปไม่ใช่ 2:3 · รูปที่ต้องแปลงก่อนแนบ (สเปกข้อ 17 18 19 20) · กลับวิธีรวมก่อน (วิธีจำไว้ในโปรแกรม)
+await c.evaluate("[...document.querySelectorAll('[data-method] .avm-card')].find(b => b.innerText.includes('รวมเข้าไฟล์หนัง'))?.click()"); await sleep(200);
+await nav("ชั้นวางหนัง"); await sleep(400);
+await c.evaluate("[...document.querySelectorAll('[data-info-page] button')].find(b => b.innerText === 'กลับไปชั้นวาง')?.click()"); await sleep(300);
 await c.book("ดาวเหนือ (2023)"); await sleep(300);
 await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.innerText.includes('โปสเตอร์')).click()");
 await waitFor("return (document.querySelector('[data-card=movie]')?.innerText ?? '').includes('ดาวเหนือ')");
@@ -122,8 +129,8 @@ check("มาจากปุ่มเปลี่ยนโปสเตอร์ 
   first.poster.includes("ไฟล์หนังใส่ให้แล้ว เหลือรูปโปสเตอร์") && first.poster.includes("JPG PNG WebP BMP TIFF และ HEIC") && (await q("return document.querySelector('[data-opt=original] .opts')?.title ?? ''")).includes("ไฟล์เป็น MKV อยู่แล้ว"), first.poster.split("\n").slice(0, 3).join(" / "));
 await drop(join(IMG, "wide.jpg"), "poster"); await waitFor("return !!document.querySelector('[data-use]')"); await sleep(800);
 const segIn = await q("return { head: document.querySelector('.dlg')?.innerText ?? '', seg: [...document.querySelectorAll('.dlg .seg button')].map(b => b.innerText) }");
-check("รูปแนวนอน หน้าต่างครอปบอก ภาพแนวนอน 16 : 9 · แบบปกเลือกได้ ตัดให้พอดี เติมขอบ ตามรูปเดิม (ชุด 3 ย้ายมาอยู่หน้าต่างครอป)",
-  segIn.head.includes("ภาพแนวนอน 16 : 9") && ["ตัดให้พอดี 2 : 3", "เติมขอบ", "ตามรูปเดิม"].every((s) => segIn.seg.includes(s)), segIn.seg.join(" | "));
+check("รูปแนวนอน หน้าต่างครอปบอก รูปแนวนอน 16 : 9 · แบบปกเลือกได้ ตัดให้พอดี เติมขอบ ตามรูปเดิม (ชุด 3 ย้ายมาอยู่หน้าต่างครอป)",
+  segIn.head.includes("รูปแนวนอน 16 : 9") && ["ตัดให้พอดี 2 : 3", "เติมขอบ", "ตามรูปเดิม"].every((s) => segIn.seg.includes(s)), segIn.seg.join(" | "));
 await c.evaluate("[...document.querySelectorAll('.dlg .seg button')].find(b => b.innerText === 'เติมขอบ').click()"); await sleep(600);
 await c.evaluate("document.querySelector('[data-use]').click()"); await sleep(1200);
 await shot("07-รูปไม่ใช่2ต่อ3.png", "[data-card=poster]", 8);
@@ -131,10 +138,13 @@ await waitFor("return (document.querySelector('[data-card=poster]')?.innerText ?
 const padded = await q("return document.querySelector('[data-card=poster]')?.innerText ?? ''");
 check("กด เติมขอบ ทำรูปใหม่ทันที การ์ดบอก เติมขอบให้เต็มปก 1000 × 1500", padded.includes("เติมขอบให้เต็มปก") && padded.includes("1000 × 1500"), padded.split("\n").slice(0, 4).join(" / "));
 await drop(join(IMG, "poster.webp"), "poster"); await waitFor("return !!document.querySelector('[data-use]')"); await sleep(800);
+// หน้าครอปบอกว่ารูปชนิดนี้แนบใน MKV ไม่ได้ ตรงจุดที่เลือก JPG PNG (BUGS ข้อ 55 ต่อ)
+const note = await q("return document.querySelector('[data-convnote]')?.innerText ?? ''");
+check("หน้าครอปของรูป WebP บอกว่าแนบใน MKV ตรง ๆ ไม่ได้ จะแปลงเป็นชนิดที่เลือกก่อนแนบ", note.includes("รูป .webp แนบใน MKV ตรง ๆ ไม่ได้") && note.includes("แปลงเป็น JPG ตามที่เลือกก่อนแนบ"), note.split("\n").join(" / "));
 await c.evaluate("document.querySelector('[data-use]').click()"); await sleep(1200);
 const conv = await q("return document.querySelector('[data-convert]')?.innerText ?? ''");
 await shot("08-ต้องแปลงก่อนแนบ.png", "[data-card=poster]", 8);
-check("รูป WebP การ์ดรูปบอก poster.webp ต้องแปลงก่อนแนบ · นามสกุลเดิม .webp → .jpg · ปุ่มคู่ แปลงเป็น JPG PNG", conv.includes("poster.webp ต้องแปลงก่อนแนบ") && conv.includes(".webp → .jpg") && conv.includes("แปลงเป็น"), conv.split("\n").join(" / "));
+check("รูป WebP การ์ดรูปแจ้งสั้น ๆ poster.webp ต้องแปลงก่อนแนบ · นามสกุลเดิม .webp → .jpg · ไม่มีปุ่มเลือกซ้ำในการ์ด", conv.includes("poster.webp ต้องแปลงก่อนแนบ") && conv.includes(".webp → .jpg") && !conv.includes("แปลงเป็น") && !(await q("return !!document.querySelector('[data-convert] .seg')")), conv.split("\n").join(" / "));
 
 check("ไม่มีไฟล์ชั่วคราว .partial ค้างในโฟลเดอร์ทดสอบ · ไฟล์ใหญ่ยังอยู่ขนาดเดิม", partials().length === 0 && existsSync(big) && statSync(big).size > 1e9);
 writeFileSync(`${OUT}/ผลเทส.json`, JSON.stringify(results, null, 2) + "\n");

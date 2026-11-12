@@ -7,6 +7,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { usePageActiveRef } from "../lib/pageActive";
 import type { Page } from "../components/Sidebar";
 import Dialog from "../components/Dialog";
+import ImageViewer from "../components/ImageViewer";
 import CropDialog, { type CropChoice } from "../components/CropDialog";
 import { CardIcon, Keep, LoadPill, Phr, Seg, dropClick } from "../components/ui";
 import ThaiInput from "../components/ThaiInput";
@@ -18,7 +19,7 @@ import { ftName } from "../lib/ftypes";
 import { kb } from "../lib/popup";
 import { useToast } from "../components/Toasts";
 import { getPosterJob, setPosterJob, usePosterJob, type Run } from "../lib/posterJob";
-import { IcFile, IcPoster, IcFolder } from "../components/icons";
+import { IcFile, IcPoster, IcFolder, IcExpand, IcClose } from "../components/icons";
 import { IbTrash, IbBack, IbNext, IbStop, IcRefresh, IcShelf } from "../components/icons";
 import { IbCrop } from "../components/icons";
 
@@ -57,6 +58,15 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
   const [drop, setDrop] = useState<number[]>([]);
   /** ซับ ASS ที่กดทำต่อแล้ว (ใส่ MP4 ได้แต่สีกับฟอนต์หาย) */
   const [ack, setAck] = useState<number[]>([]);
+  /** หน้าต่างเตือนแทร็กที่ใส่ใน MP4 ไม่ได้ · เดิมขึ้นในการ์ดไฟล์ที่ได้ กรอบสูงขึ้นจนหกกรอบเปลี่ยนขนาด (BUGS ข้อ 57 พี่กันสั่ง 12 พ.ย. 2569 "ไปหาเตือนที่อื่น ... มัน 6 กรอบ ต้องขนาดเท่ากันตลอด")
+      "pick" ขึ้นตอนกดเลือก MP4 · "start" ขึ้นตอนกดเริ่ม (เปลี่ยนไฟล์หนังทีหลังแล้วเจอแทร็กที่ใส่ไม่ได้) */
+  const [askMp4, setAskMp4] = useState<null | "pick" | "start">(null);
+  /** ดูรูปเต็มจอจากปุ่มมุมรูปของสามการ์ด (BUGS ข้อ 56 พี่กันสั่ง 12 พ.ย. 2569 "ส่ปุ่มขยายดูรูปให้ครบทั้งสามอัน") · ตัวดูรูปเดียวกับชั้นวาง */
+  const [big, setBig] = useState<{ src: string; rect: DOMRect; name: string } | null>(null);
+  const bigBtn = (src: string | null | undefined, name: string) => src ? (
+    <button type="button" className="bigbtn pbig" title="ขยายดูเต็มจอ" aria-label={"ขยายดู " + name + " เต็มจอ"} data-pbig={name}
+      onClick={(e) => { e.stopPropagation(); setBig({ src, rect: (e.currentTarget.parentElement ?? e.currentTarget).getBoundingClientRect(), name }); }}><IcExpand size={13} /></button>
+  ) : null;
   /** ชื่อไฟล์ใหม่ที่พิมพ์ (พี่กันสั่ง 9 พ.ย. 2569 "ให้ตั้งชื่อไฟล์ด้วยสิ") · ยังไม่พิมพ์ใช้ชื่อไฟล์ต้นทาง · เปลี่ยนไฟล์หนังแล้วล้าง */
   const [typed, setTyped] = useState<string | null>(null);
   /* ตัวเลือกบนหน้านี้เปลี่ยนเฉพาะครั้งนี้ ไม่เขียนทับค่าตั้งต้นในหน้าตั้งค่า (ต้นแบบหน้าตั้งค่า *"ค่าที่ตั้งตรงนี้คือค่าตั้งต้น ทุกครั้งที่ใส่โปสเตอร์หรือตรวจไฟล์ยังเปลี่ยนเฉพาะครั้งนั้นได้"*)
@@ -232,7 +242,6 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
   const blocked = !movie ? "ยังกดไม่ได้ ใส่ไฟล์หนังก่อน"
     : !choice ? "ยังกดไม่ได้ ใส่รูปโปสเตอร์ก่อน"
     : mp4VideoBad ? "ไฟล์นี้ส่งออกเป็น MP4 ไม่ได้ ใช้ MKV แทน"
-    : mp4Bad.length ? "เลือกก่อนว่าจะทิ้งแทร็กที่ใส่ใน MP4 ไม่ได้ หรือกลับไปใช้ MKV"
     : nameProblem ? nameProblem.title
     : null;
 
@@ -259,6 +268,7 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
   const pendingDrop = useRef<number[] | null>(null);
   const pressStart = (dropNow: number[] = drop, ready = false) => {
     if ((blocked && !ready) || run.state === "working") return;
+    if (!ready && mp4Bad.length) { setAskMp4("start"); return; }
     if (mode !== "cover" && original === "trash") { pendingDrop.current = dropNow; setAskDelete(1); return; }
     start(dropNow);
   };
@@ -307,10 +317,13 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
             {movie && !movieErr && over !== "movie" ? (
               <>
                 <div className="vfile" data-drop="movie">
-                  {inLib?.thumb ? <img className="vthumb cover" src={thumbUrl(inLib.thumb) ?? undefined} alt="" data-moviethumb /> : frameUrl ? <img className="vthumb" src={thumbUrl(frameUrl) ?? undefined} alt="ภาพจากหนัง" data-moviethumb /> : <div className="vthumb" data-moviethumb />}
+                  <div className="pbigwrap">
+                    {inLib?.thumb ? <img className="vthumb cover" src={thumbUrl(inLib.thumb) ?? undefined} alt="" data-moviethumb /> : frameUrl ? <img className="vthumb" src={thumbUrl(frameUrl) ?? undefined} alt="ภาพจากหนัง" data-moviethumb /> : <div className="vthumb" data-moviethumb />}
+                    {bigBtn(inLib?.thumb ? thumbUrl(inLib.thumb) : frameUrl ? thumbUrl(frameUrl) : null, movie ? baseName(movie.path) : "ไฟล์หนัง")}
+                  </div>
                   <div style={{ minWidth: 0 }}>
                     <div style={{ fontWeight: 600, fontSize: 14, lineHeight: 1.5, wordBreak: "break-word" }}><Phr>{baseName(movie.path)}</Phr></div>
-                    <div className="small"><span className="nw">{fmtSize(movie.size)}</span>{movie.duration ? <> ยาว <span className="nw">{fmtDuration(movie.duration)}</span></> : null}<br />{movie.width} × {movie.height}{movie.streams.find((x) => x.kind === "video") && <> แบบ <span data-moviecodec>{ftName("video", movie.streams.find((x) => x.kind === "video")!.codec)}</span></>}{movie.streams.some((x) => x.kind === "audio") && <><br />เสียง <span data-movieaudio>{[...new Set(movie.streams.filter((x) => x.kind === "audio").map((x) => ftName("audio", x.codec)))].join(", ")}</span></>}</div>
+                    <div className="small"><span className="nw">{fmtSize(movie.size)}</span>{movie.duration ? <> ยาว <span className="nw">{fmtDuration(movie.duration)}</span></> : null}<br />{/* ขนาดภาพกับ codec ใช้คำอังกฤษทั่วไป (BUGS ข้อ 64 พี่กันสั่ง 12 พ.ย. 2569 "ขนาดภาพ เเละ codec ขอภาษษอังกิต ที่คำทั่วไป" · ข้อ 64 ต่อ "เอา res ออก ใส่ px") */}<span className="nw">{movie.width} × {movie.height} px</span>{movie.streams.find((x) => x.kind === "video") && <>, Codec <span data-moviecodec>{ftName("video", movie.streams.find((x) => x.kind === "video")!.codec)}</span></>}{movie.streams.some((x) => x.kind === "audio") && <><br />เสียง <span data-movieaudio>{[...new Set(movie.streams.filter((x) => x.kind === "audio").map((x) => ftName("audio", x.codec)))].join(", ")}</span></>}</div>
                     <div className="small">ลากไฟล์อื่นมาวางทับเพื่อเปลี่ยนได้</div>
                   </div>
                 </div>
@@ -334,19 +347,24 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
             <h3><span className="step">2</span>รูปโปสเตอร์</h3>
             {poster && choice && !posterErr && over !== "poster" ? (
               <div className="pprev" data-drop="poster">
-                <img className="pp" src={thumbUrl(choice.render.preview) ?? undefined} alt="รูปโปสเตอร์ที่จะแนบ" data-pp />
+                <div className="pbigwrap">
+                  <img className="pp" src={thumbUrl(choice.render.preview) ?? undefined} alt="รูปโปสเตอร์ที่จะแนบ" data-pp />
+                  {bigBtn(thumbUrl(choice.render.preview), poster.name)}
+                </div>
                 <div className="ppinfo">
                 <div className="small" style={{ minWidth: 0, flex: 1 }}>
                   <span style={{ wordBreak: "break-all" }}>{poster.name}</span><br />
-                  {poster.attachable ? <><span className="extag ok">.{poster.ext}</span> แนบได้เลย</> : <><span className="extag cv">.{poster.ext}→.{choice.format}</span> แปลงให้ก่อนแนบ</>}<br />
+                  {poster.attachable ? <><span className="extag ok">.{poster.ext}</span> แนบได้เลย</> : <><span className="extag extcv">.{poster.ext}→.{choice.format}</span> แปลงให้ก่อนแนบ</>}<br />
                   <span className="nw">{choice.render.width} × {choice.render.height} px</span> ขนาด <span className="nw">{fmtSize(choice.render.bytes)}</span><br />
                   <span className="ppmode">{poster.twoThree ? "สัดส่วน 2 : 3 พอดีปก" : choice.geo.mode === "pad" ? "เติมขอบให้เต็มปก" : choice.geo.mode === "original" ? "ใช้ตามรูปเดิม ไม่ตัด" : "ครอปให้พอดีปกแล้ว"}<br /></span>
                   {/* กติกาเดียวกับ poster.rs กว้างมากกว่าสูงเป็นปกนอน นอกนั้นปกตั้ง · MP4 ไม่มีชื่อไฟล์แนบ ฝังเป็นรูปปกของไฟล์ */}
                   <span data-attach-name><b style={{ color: "var(--txt)" }}>{choice.render.width > choice.render.height ? "ปกนอน" : "ปกตั้ง"}</b> {output === "mp4" ? "ฝังเป็นรูปปกของ MP4" : <>แนบเป็น <span className="nw">{choice.render.width > choice.render.height ? "cover_land" : "cover"}.{choice.format}</span></>}</span>
                 </div>
                 <span className="ppbtns">
+                  {/* สามปุ่มชุดเดียวกับช่องปกของหน้าเสียงและซับ (BUGS ข้อ 59 พี่กันสั่ง 12 พ.ย. 2569 "เอาสามอัน เปลี่ยนรูป ครอบ/แปลงภาพ เเละ เอาออก เเละใส่ icon ด้วย" · ข้อ 59 ต่อ "เราเอาคำเดียว จะเอารูป หรือ ภาพ" ใช้ รูป) */}
                   <Btn off={working && BUSY} onClick={() => setListOpen(true)}><IcPoster size={15} />เปลี่ยนรูป</Btn>
-                  <Btn off={working && BUSY} onClick={() => setCropOpen(true)}><IbCrop size={15} />ครอปภาพ</Btn>
+                  <Btn off={working && BUSY} onClick={() => setCropOpen(true)}><IbCrop size={15} />ครอป/แปลงรูป</Btn>
+                  <Btn off={working && BUSY} onClick={() => { setPoster(null); setChoice(null); setPosterErr(null); setUserCrop(false); posterApi.clear().catch(() => {}); }}><IcClose size={15} />เอารูปออก</Btn>
                 </span>
                 </div>
               </div>
@@ -365,21 +383,17 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
             )}
             {/* รูปไม่ใช่ 2:3 เลือกแบบปกบนการ์ดได้เลย (สเปกข้อ 7 · เดิมบอกแค่แบบที่เลือกไว้ ต้องเปิดหน้าต่างครอปถึงเปลี่ยนได้ ผู้ช่วยตรวจสเปกเจอ) · ตามรูปเดิม พี่กันสั่งเพิ่ม */}
             {poster && !poster.twoThree && choice && !userCrop && (
-              <div className="stat warn" style={{ marginTop: 12, flexWrap: "wrap" }} data-not23><CardIcon kind="warn" /><div style={{ flex: 1, minWidth: 0 }}><b>รูปนี้เป็น{poster.aspect}</b></div>
+              <div className="stat warn" style={{ marginTop: 12, flexWrap: "wrap" }} data-not23><CardIcon kind="warn" /><div style={{ flex: 1, minWidth: 0 }}><b>รูปนี้เป็น{poster.aspect.replace(/^รูป/, "")}</b></div>
                 <div className="not23seg">
                   <Seg small label="แบบปก" value={choice.geo.mode} onChange={(v) => { if (!working && !rendering) rechoose({ mode: v }); }} disabledReason={working ? "รอให้งานที่ทำอยู่เสร็จก่อน" : undefined}
                     options={[{ value: "crop", label: <><IbCrop size={14} />ตัดพอดี</> }, { value: "pad", label: <><IcPoster size={14} />เติมขอบ</> }, { value: "original", label: <><IcFile size={14} />ตามรูปเดิม</> }]} />
                 </div></div>
             )}
-            {/* รูปที่แนบใน MKV ตรง ๆ ไม่ได้ (สเปกข้อ 7 ส่วนแปลงชนิดรูป) */}
+            {/* รูปที่แนบใน MKV ตรง ๆ ไม่ได้ (สเปกข้อ 7 ส่วนแปลงชนิดรูป) · แจ้งสั้น ๆ ชื่อรูปกับนามสกุลที่จะได้ เหตุผลกับปุ่มเลือก JPG PNG อยู่ในหน้าครอปที่เลือกไปแล้ว
+                เดิมมีปุ่มเลือกซ้ำในการ์ดนี้ (BUGS ข้อ 55 พี่กันสั่ง 12 พ.ย. 2569 "เราเลือกการแปลงเเเล้วเราจะมาให้กดอีกรอบทำไม" · "ถ้าจะเเจ้งที่หน้าหลัก ก็สั้นๆ") */}
             {poster && !poster.attachable && choice && (
-              <div className="stat info" style={{ marginTop: 12 }} data-convert><CardIcon kind="info" /><div style={{ minWidth: 0 }}><b style={{ wordBreak: "break-all" }}>{poster.name} ต้องแปลงก่อนแนบ</b>
-                <div>แนบใน MKV ตรง ๆ ไม่ได้ โปรแกรมแปลงให้</div>
-                <div>นามสกุลเดิม <span className="extag cv">.{poster.ext} → .{choice.format}</span></div>
-                <div style={{ display: "flex", alignItems: "center", gap: 8, marginTop: 6 }}><span>แปลงเป็น</span>
-                  <Seg small label="แปลงเป็น" value={choice.format} onChange={(v) => { if (!working && !rendering) rechoose({ format: v }); }} disabledReason={working ? "รอให้งานที่ทำอยู่เสร็จก่อน" : undefined}
-                    options={[{ value: "jpg", label: "JPG" }, { value: "png", label: "PNG" }]} /></div>
-                <div className="small">ค่าตั้งต้นมาจากหน้าตั้งค่า และรูปเดิมในเครื่องไม่ถูกแก้</div></div></div>
+              <div className="stat warn" style={{ marginTop: 12 }} data-convert><CardIcon kind="warn" /><div style={{ minWidth: 0 }}><b style={{ wordBreak: "break-all" }}>{poster.name} ต้องแปลงก่อนแนบ</b>
+                <div>นามสกุลเดิม <span className="extag extcv">.{poster.ext} → .{choice.format}</span></div></div></div>
             )}
             <div className="small pcap" style={{ marginTop: 10 }}><div>JPG และ PNG แนบได้เลย<br />ส่วน WebP BMP TIFF และ HEIC จะแปลงให้ก่อนแนบ</div></div>
           </div>
@@ -393,7 +407,7 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
                 <div style={{ textAlign: "center" }}><img className="mc" src={thumbUrl(inLib.thumb) ?? undefined} alt="ปกเดิม" /><div className="small" style={{ marginTop: 6 }}>ปกเดิม</div></div>
               )}
               <div style={{ textAlign: "center" }}>
-                {choice ? <img className="mc" style={{ "--ar": newAr } as React.CSSProperties} src={thumbUrl(choice.render.preview) ?? undefined} alt="ปกใหม่" data-newcover /> : <div className="mc none" />}
+                {choice ? <span className="pbigwrap res"><img className="mc" style={{ "--ar": newAr } as React.CSSProperties} src={thumbUrl(choice.render.preview) ?? undefined} alt="ปกใหม่" data-newcover />{bigBtn(thumbUrl(choice.render.preview), "หน้าตาที่จะได้")}</span> : <div className="mc none" />}
                 {mode === "cover" && inLib?.thumb && choice && <div className="small" style={{ marginTop: 6 }}>ปกใหม่</div>}
               </div>
               </div>
@@ -432,31 +446,11 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
           <div className="card" data-opt="output">
           <h3>ไฟล์ที่ได้</h3>
           <div>
-            <Seg label="ไฟล์ที่ได้" value={output} onChange={(v) => { setDrop([]); setAck([]); setOne({ outputFormat: v }); }}
+            <Seg label="ไฟล์ที่ได้" value={output} onChange={(v) => { setDrop([]); setAck([]); setOne({ outputFormat: v }); if (v === "mp4" && movie?.streams.some((x) => x.mp4 === "no" || x.mp4 === "style")) setAskMp4("pick"); }}
               disabledReason={working ? "รอให้งานที่ทำอยู่เสร็จก่อน" : undefined}
               options={[{ value: "mkv", label: "MKV (แนะนำ)" }, { value: "mp4", label: "MP4" }]} />
             <div className="small" style={{ marginTop: 8 }}><Phr>{"MKV ใส่ซับและเสียงได้ทุกแบบ ส่วน MP4 ปกขึ้นเป็นไอคอนใน Windows ได้เลยโดยไม่ต้องลง Icaros แต่ใส่ซับบางแบบไม่ได้"}</Phr></div>
           </div>
-          {mp4Bad.length > 0 && (
-            <div style={{ marginTop: 12, display: "flex", flexDirection: "column", gap: 10 }} data-mp4warn>
-              {mp4Bad.map((s) => (
-                <div key={s.index}>
-                  <div className="stat warn"><CardIcon kind="warn" /><div><b>{trackTitle(s)}</b><Phr>{s.mp4 === "style" ? (s.why ?? "") : `${s.why ?? ""} ถ้าทำต่อ ${kindWord(s.kind)}นี้จะหายจากไฟล์ใหม่`}</Phr></div></div>
-                  <div className="minirow" style={{ marginTop: 6 }}>
-                    <button type="button" className="btn btn-main btn-sm" onClick={() => { setDrop([]); setAck([]); setOne({ outputFormat: "mkv" }); }}><IbBack size={15} />กลับไปใช้ MKV</button>
-                    {s.kind !== "video" && (
-                      <button type="button" className="btn btn-ghost btn-sm" onClick={() => {
-                        // ทำต่อ = ข้อนี้ตกลงแล้ว · ถ้าเป็นข้อสุดท้ายและใส่รูปแล้ว เริ่มงานเลย
-                        const nextDrop = s.mp4 === "no" ? drop.concat([s.index]) : drop;
-                        if (s.mp4 === "no") setDrop(nextDrop); else setAck(ack.concat([s.index]));
-                        if (mp4Bad.length === 1 && choice && run.state !== "working") pressStart(nextDrop, true);
-                      }}>{s.mp4 === "style" ? "ทำต่อ" : `ทิ้ง${kindWord(s.kind)}นี้แล้วทำต่อ`}</button>
-                    )}
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
           </div>
         </div>
 
@@ -518,6 +512,25 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
       )}
       <FolderImages open={listOpen} movie={moviePath} format={(settings?.posterFormat ?? "jpg") as "jpg" | "png"} onClose={() => setListOpen(false)}
         onPick={(f) => { setListOpen(false); loadPoster(f); }} />
+
+      {big && <ImageViewer src={big.src} thumb={big.src} originRect={big.rect} info={{ name: big.name }} onClose={() => setBig(null)} />}
+      {/* แทร็กที่ใส่ใน MP4 ไม่ได้ · ทำต่อแล้วแทร็กที่ใส่ไม่ได้ถูกทิ้ง ซับ ASS เหลือตัวหนังสือล้วน · มาจากปุ่มเริ่มแล้วเริ่มงานต่อเลย (BUGS ข้อ 57) */}
+      <Dialog open={!!askMp4 && mp4Bad.length > 0} onClose={() => setAskMp4(null)} width={520} title="บางแทร็กใส่ใน MP4 ไม่ได้เต็มที่"
+        actions={<>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => {
+            const nextDrop = drop.concat(mp4Bad.filter((x) => x.mp4 === "no").map((x) => x.index));
+            setDrop(nextDrop); setAck(ack.concat(mp4Bad.filter((x) => x.mp4 === "style").map((x) => x.index)));
+            const from = askMp4; setAskMp4(null);
+            if (from === "start" && choice && run.state !== "working") pressStart(nextDrop, true);
+          }} data-mp4-go>{mp4Bad.some((x) => x.mp4 === "no") ? "ทิ้งแทร็กที่ใส่ไม่ได้แล้วทำต่อ" : "ทำต่อด้วย MP4"}</button>
+          <button type="button" className="btn btn-main btn-sm" onClick={() => { setDrop([]); setAck([]); setOne({ outputFormat: "mkv" }); setAskMp4(null); }} data-mp4-mkv><IbBack size={15} />กลับไปใช้ MKV</button>
+        </>}>
+        <div style={{ display: "flex", flexDirection: "column", gap: 8 }} data-mp4warn>
+          {mp4Bad.map((x) => (
+            <div key={x.index} className="stat warn"><CardIcon kind="warn" /><div><b>{trackTitle(x)}</b><Phr>{x.mp4 === "style" ? (x.why ?? "") : `${x.why ?? ""} ถ้าทำต่อ ${kindWord(x.kind)}นี้จะหายจากไฟล์ใหม่`}</Phr></div></div>
+          ))}
+        </div>
+      </Dialog>
 
       {/* ลบไฟล์เดิม ยืนยัน 2 ขั้น (ต้นแบบบรรทัด 917–930) · กดนอกหน้าต่างไม่ปิด */}
       <Dialog open={askDelete === 1} onClose={() => setAskDelete(0)} title="ลบไฟล์เดิมหลังตรวจผ่าน (ขั้นที่ 1 จาก 2)"
@@ -632,7 +645,7 @@ function FolderImages(p: { open: boolean; movie: string | null; format: "jpg" | 
             <div key={f.path} className="imgrow" {...kb(() => p.onPick(f.path))} aria-label={"ใช้รูป " + f.name}>
               {f.thumb ? <img className="imgth" src={thumbUrl(f.thumb) ?? undefined} alt="" /> : <span className="imgth" />}
               <div style={{ minWidth: 0, wordBreak: "break-all" }}>{f.name}<div className="small">{f.error ? f.error : <span className="nw">{f.width} × {f.height} px</span>}</div></div>
-              <div style={{ fontSize: 12.5, whiteSpace: "nowrap" }}>{f.attachable ? <><span className="extag ok">.{f.ext}</span> แนบได้เลย</> : <span className="extag cv">.{f.ext}→.{p.format}</span>}</div>
+              <div style={{ fontSize: 12.5, whiteSpace: "nowrap" }}>{f.attachable ? <><span className="extag ok">.{f.ext}</span> แนบได้เลย</> : <span className="extag extcv">.{f.ext}→.{p.format}</span>}</div>
             </div>
           ))}
       </div>

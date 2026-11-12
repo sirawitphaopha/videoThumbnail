@@ -258,10 +258,11 @@ await nav("เสียงและซับ");
 await q(`await window.__avDrop([${JSON.stringify(join(MOVIES, "ดาวเหนือ (2023).mkv"))}], 400, 300);`);
 const avOk = await waitFor("return !!document.querySelector('.trk:not(.head)');", 30000);
 check("เสียงและซับ เปิดไฟล์จริงแล้วขึ้นแทร็ก", avOk); await sleep(500);
-const av = await q(`${R} const s = document.querySelector('.pagewrap'), top = R(document.querySelector('.avtop')), row = R(document.querySelector('.trk:not(.head)')), f0 = R(document.querySelector('.avfoot')); s.scrollTop = 99999; await new Promise((r) => setTimeout(r, 200)); const f1 = R(document.querySelector('.avfoot')); const t1 = R(document.querySelector('.avtop')); s.scrollTop = 0; return { top, row, f0, f1, t1, sc: R(s) };`);
+// ไฟล์ทดสอบ 6 แทร็กที่ 1280 × 800 หน้าไม่ยาวพอให้เลื่อน (ย้ายการ์ดผลลัพธ์ไปแถบล่างแล้ว BUGS ข้อ 63) · ใส่ที่ว่างชั่วคราวเหนือกรอบตรึงล่างให้หน้าเลื่อนได้ แล้ววัดว่าแถบบนกับแถบล่างตรึงจริง เสร็จแล้วเอาออก
+const av = await q(`${R} const s = document.querySelector('[data-pageslot=av] .pagewrap') || document.querySelector('.pagewrap'), top = R(document.querySelector('.avtop')), row = R(document.querySelector('.trk:not(.head)')), f0 = R(document.querySelector('.avfoot')); const short = s.scrollHeight <= s.clientHeight; let sp = null; if (short) { sp = document.createElement('div'); sp.style.height = '900px'; const dock = document.querySelector('.avdock'); (dock ? dock.parentNode : document.querySelector('.avwrap')).insertBefore(sp, dock); } s.scrollTop = 99999; await new Promise((r) => setTimeout(r, 200)); const f1 = R(document.querySelector('.avfoot')); const t1 = R(document.querySelector('.avtop')); const moved = s.scrollTop; s.scrollTop = 0; sp?.remove(); await new Promise((r) => setTimeout(r, 100)); return { top, row, f0, f1, t1, sc: R(s), short, moved };`);
 check("เสียงและซับ ตารางตรงแนวแถบชื่อไฟล์", av.top.l === av.row.l && av.top.r === av.row.r, `${av.top.l}–${av.top.r} กับ ${av.row.l}–${av.row.r}`);
 check("เสียงและซับ แถบปุ่มล่างไม่ขยับตอนเลื่อนสุด", av.f0.b === av.f1.b && av.f1.b === av.sc.b, `${av.f0.b} → ${av.f1.b} กล่อง ${av.sc.b}`);
-check("เสียงและซับ แถบชื่อไฟล์ตรึงบน", av.t1.t <= av.sc.t + 1, `${av.t1.t} กล่อง ${av.sc.t}`);
+check("เสียงและซับ แถบชื่อไฟล์ตรึงบน", av.moved > 0 && av.t1.t <= av.sc.t + 1, `${av.t1.t} กล่อง ${av.sc.t} เลื่อนไป ${av.moved}${av.short ? " (ใส่ที่ว่างชั่วคราวเพราะหน้าสั้น)" : ""}`);
 await shot("13-เสียงซับ");
 const mw = await q("const b = [...document.querySelectorAll('.avfoot button')].at(-1); return b.getBoundingClientRect().width;");
 const mp4 = await q("const b = [...document.querySelectorAll('.seg button')].find((x) => x.textContent.trim() === 'MP4'); if (!b) return false; b.click(); return true;"); await sleep(500);

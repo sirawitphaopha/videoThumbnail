@@ -43,6 +43,8 @@ export type Settings = {
   /** กระดานจับคู่ list รายการ · only แค่รูป */
   linkBoardImages: "list" | "only";
   linkBoardMovies: "list" | "only";
+  /** บันทึกไฟล์ .sha256 ถามที่บันทึกทุกครั้ง · ปิด = บันทึกข้างไฟล์หนังทันที (BUGS ข้อ 30) */
+  hashSaveAsk: boolean;
 };
 
 export type LoadedFrom = "file" | "backup" | "defaults" | "new";
@@ -331,7 +333,9 @@ export const infoApi = {
   hash: (path: string, algos: string[]) => call<Hashes | null>("hash_file", { path, algos }),
   hashCancel: () => call<void>("hash_cancel"),
   compare: (pasted: string, hashes: Hashes) => call<HashCompare>("hash_compare", { pasted, hashes }),
-  saveSha256: (path: string, sha256: string) => call<string>("hash_save", { path, sha256 }),
+  /** target ว่าง = ข้างไฟล์หนัง · exists มีไฟล์ค่าเดียวกันอยู่แล้ว ไม่สร้างซ้ำ · conflict มีไฟล์ชื่อนี้แต่ค่าไม่ตรง ยังไม่เขียน ถามก่อนแล้วส่ง newName */
+  saveSha256: (path: string, sha256: string, target?: string | null, newName?: boolean) =>
+    call<{ path: string; status: "saved" | "exists" | "conflict" }>("hash_save", { path, sha256, target: target ?? null, newName: !!newName }),
   /** ข้อความในคลิปบอร์ด อ่านฝั่ง Rust ไม่เด้งหน้าต่างขออนุญาตของ WebView2 (BUGS ข้อ 31) */
   clipboardText: () => call<string>("clipboard_text"),
   defaultFolder: (path: string) => call<string>("extract_default_folder", { path }),

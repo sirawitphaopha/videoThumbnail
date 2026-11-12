@@ -207,8 +207,8 @@ pub fn hash_compare(pasted: String, hashes: Hashes) -> hashes::Compare {
 }
 
 #[tauri::command]
-pub fn hash_save(path: String, sha256: String) -> Result<String, String> {
-    hashes::save_sha256(Path::new(&path), &sha256).map(|p| p.to_string_lossy().to_string())
+pub fn hash_save(path: String, sha256: String, target: Option<String>, new_name: Option<bool>) -> Result<hashes::HashSaved, String> {
+    hashes::save_sha256(Path::new(&path), &sha256, target.as_deref().filter(|t| !t.is_empty()).map(Path::new), new_name.unwrap_or(false))
 }
 
 /// ชื่อตัวเข้ารหัส เช่น LAME4.0 เป็น LAME 4.0 · Lavf63.1.102 เป็น Lavf 63.1.102

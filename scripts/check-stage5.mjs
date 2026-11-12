@@ -24,7 +24,8 @@ const inv = (cmd, args = {}) => c.evaluate(`window.__TAURI_INTERNALS__.invoke(${
 const q = (js) => c.evaluate(`(() => { ${js} })()`);
 const shot = async (f, sel) => { await c.move(100, 600); await sleep(250); return c.shot(`${OUT}/${f}`, sel, 0); };
 
-await inv("set_settings", { patch: { folders: [DIR] } });
+const askBefore = (await inv("get_settings")).settings.hashSaveAsk;
+await inv("set_settings", { patch: { folders: [DIR], hashSaveAsk: false } });
 await c.evaluate("location.hash = ''; location.reload()"); await sleep(2500);
 await c.book("ดาวเหนือ (2023)"); await sleep(300);
 await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.innerText.includes('MediaInfo')).click()");
@@ -34,10 +35,31 @@ await shot("01-ข้อมูลไฟล์.png", ".main");
 // ตรงกับรัน MediaInfo เองทุกบรรทัด
 const mine = await q("return [...document.querySelectorAll('[data-mi] .mir')].map(r => r.children[0].innerText + ' : ' + r.children[2].innerText)");
 const theirs = spawnSync(join("src-tauri", "tools", "MediaInfo.exe"), [movie], { encoding: "utf8" }).stdout.split(/\r?\n/).filter((l) => l.includes(" : ")).map((l) => { const i = l.indexOf(" : "); return l.slice(0, i).trim() + " : " + l.slice(i + 3).trim(); });
-check("ข้อความ MediaInfo ตรงกับรัน MediaInfo เองทุกบรรทัด · หัวข้อติ๊กได้บอกนามสกุลที่จะได้", JSON.stringify(mine) === JSON.stringify(theirs) && heads.some((h) => h.includes("Audio #2") && h.includes("แยกเป็น .ac3")), `${mine.length} บรรทัด · ${heads.join(" | ")}`);
+check("ข้อความ MediaInfo ตรงกับรัน MediaInfo เองทุกบรรทัด · หัวหมวดเป็นชื่อหมวดอย่างเดียว", JSON.stringify(mine) === JSON.stringify(theirs) && heads.includes("Audio #2"), `${mine.length} บรรทัด · ${heads.join(" | ")}`);
+const noX = await q("return { cbx: document.querySelectorAll('[data-mi] .cbx').length, ext: document.querySelectorAll('[data-mi] .miext').length, bar: !!document.querySelector('[data-info-page] [data-extract]') }");
+check("หน้า MediaInfo ดูข้อมูลอย่างเดียว ไม่มีช่องติ๊กหัวหมวด ป้ายแยกเป็น และแถบแยกไฟล์ (BUGS ข้อ 35)", noX.cbx === 0 && noX.ext === 0 && !noX.bar, JSON.stringify(noX));
 
-// ติ๊ก Audio #2 Text #1 Menu แล้วแยก
-for (const t of ["Audio #2", "Text #1", "Menu"]) await c.evaluate(`[...document.querySelectorAll('[data-mi] .mih.pick')].find(h => h.innerText.includes(${JSON.stringify(t)})).click()`);
+// แยกไฟล์ย้ายไปหน้าเสียงและซับแล้ว (BUGS ข้อ 35) · กดปุ่มเสียงและซับในหน้า MediaInfo แล้วเลือกวิธีแยกออกจากหนัง รอช่องติ๊กพร้อม
+const toAvExtract = async (name) => {
+  await c.evaluate("document.querySelector('[data-info-av]').click()");
+  for (let i = 0; i < 80 && !(await q(`return (document.querySelector('[data-movie-chip]')?.innerText ?? '').includes(${JSON.stringify(name)})`)); i++) await sleep(150);
+  await c.evaluate("[...document.querySelectorAll('[data-method] .avm-card')].find(b => b.innerText.includes('แยกออกจากหนัง')).click()");
+  for (let i = 0; i < 80 && !(await q("return document.querySelectorAll('.mv.xpick [data-xpick]').length > 0 && !document.querySelector('.mv.xpick .chk.off')")); i++) await sleep(150);
+};
+const tick = (keys) => c.evaluate(`${JSON.stringify(keys)}.forEach(k => document.querySelector('[data-xpick="' + k + '"]').click())`);
+/** กลับวิธีรวม (วิธีจำไว้ในโปรแกรม) แล้วเปิดหน้า MediaInfo ของเรื่องนั้นจากชั้นวาง */
+const backToInfo = async (name) => {
+  await c.evaluate("[...document.querySelectorAll('[data-method] .avm-card')].find(b => b.innerText.includes('รวมเข้าไฟล์หนัง'))?.click()"); await sleep(200);
+  await c.evaluate("[...document.querySelectorAll('.side .nav')].find(b => b.innerText.trim().split(/\\s*\\n/)[0] === 'ชั้นวางหนัง').click()"); await sleep(500);
+  await c.evaluate("[...document.querySelectorAll('[data-info-page] button')].find(b => b.innerText === 'กลับไปชั้นวาง')?.click()"); await sleep(400);
+  await c.book(name); await sleep(300);
+  await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.innerText.includes('MediaInfo')).click()");
+  for (let i = 0; i < 60 && !(await q("return !!document.querySelector('[data-mi]')")); i++) await sleep(150);
+};
+
+// ติ๊กเสียงที่ 2 ซับที่ 1 บทของหนัง ในหน้าเสียงและซับ แล้วแยก
+await toAvExtract("ดาวเหนือ (2023)");
+await tick(["audio:2", "text:1", "menu:1"]);
 await sleep(200);
 const bar = await q("return document.querySelector('[data-extract]').innerText");
 await shot("02-เลือกแยก.png", "[data-extract]");
@@ -47,7 +69,7 @@ const xdone = await q("return document.querySelector('[data-extract]').innerText
 await shot("03-แยกครบ.png", "[data-extract]");
 const xdir = join(DIR, "ดาวเหนือ (2023) แยกไฟล์");
 const files = existsSync(xdir) ? readdirSync(xdir) : [];
-check("ติ๊ก 3 อย่างแล้วแยก ได้ครบ 3 ไฟล์ ชื่อแบบต้นแบบ · ไฟล์หนังเดิม hash เท่าเดิม", bar.includes("เลือกไว้ 3 อย่าง") && xdone.includes("แยกครบ 3 ไฟล์") && files.includes("ดาวเหนือ (2023).Audio2.en.ac3") && files.includes("ดาวเหนือ (2023).Text1.th.srt") && files.includes("ดาวเหนือ (2023).chapters.xml") && sha(movie) === h0, files.join(", "));
+check("หน้าเสียงและซับ ติ๊ก 3 อย่างแล้วแยก ได้ครบ 3 ไฟล์ ชื่อแบบต้นแบบ · ไฟล์หนังเดิม hash เท่าเดิม", bar.includes("เลือกไว้ 3 อย่าง คือ เสียงที่ 2, ซับที่ 1, บทของหนัง") && xdone.includes("แยกครบ 3 ไฟล์") && files.includes("ดาวเหนือ (2023).Audio2.en.ac3") && files.includes("ดาวเหนือ (2023).Text1.th.srt") && files.includes("ดาวเหนือ (2023).chapters.xml") && sha(movie) === h0, files.join(", "));
 
 // แยกซ้ำ ชื่อชน · ไม่เขียนทับ
 await c.evaluate("[...document.querySelectorAll('[data-extract] button')].find(b => b.innerText === 'แยกอย่างอื่นต่อ').click()"); await sleep(200);
@@ -64,7 +86,20 @@ check("แยกซ้ำ ชื่อชน บอกมีไฟล์ชื�
 // การ์ดบอกชื่อไฟล์ที่มีอยู่แล้วทุกไฟล์ · ชน 3 ไฟล์ ปุ่มข้ามบอกจำนวน (ผู้ช่วยตรวจสเปกข้อ 10)
 check("การ์ดชื่อชนบอกชื่อไฟล์ที่มีอยู่แล้วทุกไฟล์ · ชนหลายไฟล์ปุ่มข้ามบอกจำนวน", conflict.includes("ในที่เก็บมีไฟล์ ดาวเหนือ (2023).Audio2.en.ac3 อยู่แล้ว") && conflict.includes("ในที่เก็บมีไฟล์ ดาวเหนือ (2023).Text1.th.srt อยู่แล้ว") && conflict.includes("ข้ามทั้ง 3 ไฟล์"), conflict.split("\n").join(" / "));
 
-// ค่า hash
+// แยกภาพเป็นสตรีมล้วน .h264 แบบ mkvextract (BUGS ข้อ 35 ต่อ พี่กัน "มันสามารถเเยกเป้น h264 เดี่ยวๆได้นี่นา")
+await c.evaluate("[...document.querySelectorAll('[data-extract] button')].find(b => b.innerText === 'แยกอย่างอื่นต่อ')?.click()"); await sleep(200);
+await tick(["audio:2", "text:1", "menu:1"]); // เอาติ๊กเดิมออก
+await tick(["video:1"]);
+await c.evaluate("[...document.querySelectorAll('[data-xraw=\"video:1\"] .seg button')].find(b => b.innerText === '.h264').click()"); await sleep(300);
+const rawBar = await q("return document.querySelector('[data-extract]').innerText");
+await c.evaluate("document.querySelector('[data-extract-start]').click()");
+for (let i = 0; i < 100 && !(await q("return document.querySelector('[data-extract]').innerText.includes('แยกครบ')")); i++) await sleep(150);
+const rawFile = join(xdir, "ดาวเหนือ (2023).Video1.h264");
+const rawProbe = existsSync(rawFile) ? JSON.parse(spawnSync(join("src-tauri", "tools", "ffprobe.exe"), ["-v", "error", "-print_format", "json", "-show_streams", "-show_format", rawFile], { encoding: "utf8" }).stdout || "{}") : {};
+check("แถวภาพเลือก .h264 แล้วแยก ได้สตรีม H.264 ล้วนแบบที่ mkvextract ทำ เปิดอ่านได้ ไฟล์หนังเดิม hash เท่าเดิม", rawBar.includes("เลือกไว้ 1 อย่าง คือ ภาพ") && existsSync(rawFile) && rawProbe.streams?.[0]?.codec_name === "h264" && rawProbe.format?.format_name === "h264" && sha(movie) === h0, `${rawProbe.format?.format_name ?? "ไม่มีไฟล์"} · ${rawProbe.streams?.[0]?.codec_name ?? ""}`);
+
+// ค่า hash (ยังอยู่หน้า MediaInfo)
+await backToInfo("ดาวเหนือ (2023)");
 await c.evaluate("document.querySelector('[data-hash-start]').click()");
 for (let i = 0; i < 100 && !(await q("return !!document.querySelector('[data-hash] .hrow')")); i++) await sleep(150);
 await sleep(300);
@@ -79,11 +114,38 @@ const bad = await q("return document.querySelector('[data-hash]').innerText");
 await shot("05-ค่าhashไม่ตรง.png", "[data-hash]");
 check("วางค่าที่ต่างตัวท้าย บอกไม่ตรงกับ SHA-256 ต่างกันที่ 2 ตัวท้าย", bad.includes("ไม่ตรงกับ SHA-256 ของไฟล์นี้") && bad.includes("ต่างกันที่ 2 ตัวท้าย"));
 
-// บันทึกไฟล์ .sha256 · ไม่เขียนทับ
-await c.evaluate("[...document.querySelectorAll('[data-hash] button')].find(b => b.innerText === 'บันทึกเป็นไฟล์ .sha256').click()"); await sleep(600);
-await c.evaluate("[...document.querySelectorAll('[data-hash] button')].find(b => b.innerText === 'บันทึกเป็นไฟล์ .sha256').click()"); await sleep(600);
+// บันทึกไฟล์ .sha256 (BUGS ข้อ 30) · ปุ่มบอกสถานะ บรรทัดบอกที่อยู่กับปุ่มเปิดโฟลเดอร์ · ค่าเดิมไม่สร้างซ้ำ · ค่าไม่ตรงถามก่อน · ไม่เขียนทับ
 const s1 = join(DIR, "ดาวเหนือ (2023).mkv.sha256"), s2 = join(DIR, "ดาวเหนือ (2023).mkv (2).sha256");
-check("บันทึกไฟล์ .sha256 แบบที่ sha256sum อ่านได้ · กดซ้ำไม่เขียนทับ ได้ไฟล์ (2)", existsSync(s1) && existsSync(s2) && readFileSync(s1, "utf8") === `${vals["SHA-256"]} *ดาวเหนือ (2023).mkv\n`, readdirSync(DIR).filter((f) => f.endsWith(".sha256")).join(", "));
+const body = `${vals["SHA-256"]} *ดาวเหนือ (2023).mkv\n`;
+const shaFiles = () => readdirSync(DIR).filter((f) => f.endsWith(".sha256")).sort().join(", ");
+const saveSt = () => q("const b = document.querySelector('[data-hash-save]'); const l = document.querySelector('[data-hash-saved]'); const k = document.querySelector('[data-hash-conflict]'); return { btn: b?.innerText ?? '', line: l?.innerText ?? '', st: l?.dataset.hashSaved ?? '', conflict: k?.innerText ?? '', reveal: !!document.querySelector('[data-hash-reveal]') }");
+await c.evaluate("document.querySelector('[data-hash-save]').click()"); await sleep(700);
+const sv1 = await saveSt();
+await shot("05ข-บันทึก-sha256-แล้ว.png", "[data-hash]");
+check("ตั้งบันทึกข้างไฟล์หนัง กดบันทึก ได้ไฟล์ .sha256 แบบที่ sha256sum อ่านได้ · ปุ่มขึ้นบันทึกแล้ว บรรทัดใต้ปุ่มบอกที่อยู่เต็ม มีปุ่มเปิดโฟลเดอร์",
+  existsSync(s1) && readFileSync(s1, "utf8") === body && sv1.btn === "บันทึกแล้ว" && sv1.st === "saved" && sv1.line.includes(s1) && sv1.reveal, `${sv1.btn} · ${sv1.line.replace(/\n/g, " ")}`);
+await c.evaluate("document.querySelector('[data-hash-save]').click()"); await sleep(700);
+const sv2 = await saveSt();
+check("กดซ้ำ ค่าเดียวกันมีอยู่แล้ว ไม่สร้างไฟล์ (2) บอกว่ามีอยู่แล้ว", !existsSync(s2) && sv2.st === "exists" && sv2.line.includes("ค่าตรงกันอยู่แล้ว") && shaFiles() === "ดาวเหนือ (2023).mkv.sha256", `${shaFiles()} · ${sv2.line.replace(/\n/g, " ")}`);
+// ไฟล์ชื่อนี้มีอยู่แต่ค่าไม่ตรง · ถามก่อน ไม่เขียนทับ · กดบันทึกเป็นชื่อใหม่ได้ (2)
+const other = "0".repeat(64) + " *ดาวเหนือ (2023).mkv\n";
+writeFileSync(s1, other);
+await c.evaluate("document.querySelector('[data-hash-save]').click()"); await sleep(700);
+const sv3 = await saveSt();
+await shot("05ค-sha256-ค่าไม่ตรง.png", "[data-hash]");
+check("มีไฟล์ชื่อนี้แต่ค่าไม่ตรง ขึ้นการ์ดถามก่อน ไฟล์เดิมไม่ถูกเขียนทับ", sv3.conflict.includes("ค่าในไฟล์ไม่ตรง") && readFileSync(s1, "utf8") === other && !existsSync(s2), sv3.conflict.replace(/\n/g, " / "));
+await c.evaluate("document.querySelector('[data-hash-newname]').click()"); await sleep(700);
+const sv4 = await saveSt();
+check("กดบันทึกเป็นชื่อใหม่ ได้ไฟล์ (2) ค่าถูก ไฟล์เดิมยังเหมือนเดิม", existsSync(s2) && readFileSync(s2, "utf8") === body && readFileSync(s1, "utf8") === other && sv4.st === "saved" && sv4.line.includes(s2), `${shaFiles()} · ${sv4.line.replace(/\n/g, " ")}`);
+// แบบถามที่บันทึก · ตัวตรวจส่งที่อยู่แทนหน้าต่างเลือกที่บันทึก (หน้าต่างจะเด้งขึ้นจอ)
+const pick = join(DIR, "เลือกเอง", "ค่า hash.sha256");
+mkdirSync(join(DIR, "เลือกเอง"), { recursive: true });
+await q(`window.__hashSaveDry = ${JSON.stringify(pick)}; return 1`);
+await c.evaluate("document.querySelector('[data-hash-save]').click()"); await sleep(700);
+const sv5 = await saveSt();
+await q("delete window.__hashSaveDry; return 1");
+check("แบบถามที่บันทึก บันทึกลงที่ที่เลือก ในไฟล์ยังเขียนชื่อไฟล์หนัง", existsSync(pick) && readFileSync(pick, "utf8") === body && sv5.line.includes(pick), sv5.line.replace(/\n/g, " "));
+check("บันทึกทุกแบบ ไฟล์หนังไม่ถูกแตะ hash เท่าเดิม", sha(movie) === h0);
 
 // ไฟล์แนบใน MKV ขึ้นเป็นหัวข้อ แยกปกออกมาได้ · ไฟล์ MP4 แยกเสียงด้วย ffmpeg
 copyFileSync(join(SRC, "Harbor Lights (2021).mkv"), join(DIR, "Harbor Lights (2021).mkv"));
@@ -135,15 +197,15 @@ check("ไฟล์ MP4 แยกเสียงเป็น .aac ด้วย f
   await c.evaluate("document.querySelector('[data-kinds]').scrollIntoView()"); await sleep(200);
   await shot("06-ชื่อชนิดที่เจอบ่อย.png", "[data-kinds]");
   check("การ์ดชื่อชนิดที่เจอบ่อย ภาพ เสียง ซับ ครบ 11 แถวตามต้นแบบ", (await q("return document.querySelectorAll('[data-kinds] .kindrow').length")) === 11);
-  await c.evaluate("[...document.querySelectorAll('[data-mi] .mih.pick')].find(h => h.innerText.includes('Video')).click()");
-  await c.evaluate("[...document.querySelectorAll('[data-mi] .mih.pick')].find(h => h.innerText.includes('Audio')).click()");
+  await toAvExtract("หนังยาว (2020)");
+  await tick(["video:1", "audio:1"]);
   await c.evaluate("document.querySelector('[data-extract-start]').click()");
   for (let i = 0; i < 100 && !(await q("return /กำลังทำ [1-9]/.test(document.querySelector('[data-extract]').innerText)")); i++) await sleep(50);
   const xr = await q("return document.querySelector('[data-extract]').innerText");
   await shot("07-กำลังแยก.png", "[data-extract]");
   await c.evaluate("[...document.querySelectorAll('[data-extract] button')].find(b => b.innerText === 'หยุด').click()");
   for (let i = 0; i < 100 && !(await q("return document.querySelector('[data-extract]').innerText.includes('หยุดแล้ว')")); i++) await sleep(100);
-  check("กำลังแยก แถวละชิ้น Video .mkv กำลังทำ เปอร์เซ็นต์ Audio รอคิว ปุ่มหยุด", /Video #?1? ?\.mkv|Video \.mkv/.test(xr) && /กำลังทำ \d+%/.test(xr) && xr.includes("รอคิว") && xr.includes("หยุด"), xr.split("\n").join(" / "));
+  check("กำลังแยก แถวละชิ้น ภาพ .mkv กำลังทำ เปอร์เซ็นต์ เสียงที่ 1 รอคิว ปุ่มหยุด", /ภาพ \.mkv/.test(xr) && /กำลังทำ \d+%/.test(xr) && xr.includes("รอคิว") && xr.includes("หยุด"), xr.split("\n").join(" / "));
   await c.evaluate("[...document.querySelectorAll('[data-extract] button')].find(b => b.innerText === 'แยกอย่างอื่นต่อ')?.click()"); await sleep(200);
   await inv("dev_fake_free", { bytes: 100 * 1024 * 1024 });
   await c.evaluate("document.querySelector('[data-extract-start]').click()");
@@ -151,6 +213,7 @@ check("ไฟล์ MP4 แยกเสียงเป็น .aac ด้วย f
   const ns = await q("return document.querySelector('[data-extract]').innerText");
   await shot("08-แยกที่ว่างไม่พอ.png", "[data-extract]");
   await inv("dev_fake_free", { bytes: 0 });
+  await backToInfo("หนังยาว (2020)");
   check("แยก Video ไม่สำเร็จ พื้นที่ในไดรฟ์ D ไม่พอ ต้องการเท่าไหร่ เหลือเท่าไหร่ ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ ปุ่มลองใหม่", ns.includes("แยก Video ไม่สำเร็จ พื้นที่ในไดรฟ์ D ไม่พอ") && /ต้องการ .+ แต่เหลือ 100 MB/.test(ns) && ns.includes("ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ") && ns.includes("ลองใหม่"), ns.split("\n").join(" / "));
   await c.evaluate("[...document.querySelectorAll('[data-hash] .algs label')].find(l => l.innerText.includes('SHA-512')).click()");
   await c.evaluate("document.querySelector('[data-hash-start]').click()");
@@ -166,6 +229,7 @@ check("ไฟล์ MP4 แยกเสียงเป็น .aac ด้วย f
   check("คัดลอกข้อมูลเป็นข้อความ ขึ้นแถบ คัดลอกข้อมูลไฟล์แล้ว วางในแชทหรือโน้ตได้เลย แถบนี้หายเองใน 3 วินาที", toast.includes("คัดลอกข้อมูลไฟล์แล้ว") && toast.includes("วางในแชทหรือโน้ตได้เลย"), toast.split("\n").join(" / "));
 }
 
+await inv("set_settings", { patch: { hashSaveAsk: askBefore ?? true } });
 writeFileSync(`${OUT}/ผลเทส.json`, JSON.stringify(results, null, 2) + "\n");
 const failed = results.filter((x) => !x.pass);
 console.log(`\nผ่าน ${results.length - failed.length} จาก ${results.length}`);
