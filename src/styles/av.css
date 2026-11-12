@@ -381,6 +381,18 @@
 .avdock > .avfoot { position: static; }
 /* หน้าสูงอย่างน้อยเต็มจอ กรอบตรึงล่างสุดชิดขอบล่างแม้แทร็กน้อย (เดิมลอยกลางหน้า มีที่ว่างข้างใต้) */
 .avwrap:has(> .avdock) { padding-bottom: 0; min-height: 100%; }
+/* ส่วนตั้งค่าแทร็ก (BUGS ข้อ 33) · แบบกางใต้แถวที่กดเป็นค่าตั้งต้น พี่กันเลือก 12 พ.ย. 2569 · หน้าต่างซ้อนกับแผงขวาเลือกในหน้าตั้งค่า
+   ขนาดกับเงาเท่ามอคอัป batch9-pick ที่พี่กันดูแล้ว */
+.tracks > .trk-under { margin: 4px 0 10px 40px; padding: 14px 18px; border-left: 3px solid var(--accent); border-radius: 10px; background: var(--win); box-shadow: 0 4px 14px rgba(60, 25, 40, .12); }
+.trkdlg-t { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.avside { position: fixed; right: 0; width: 400px; display: flex; flex-direction: column; overflow: hidden; background: var(--win); border-top: 1px solid var(--line); border-left: 1px solid var(--line); border-top-left-radius: 12px; box-shadow: -10px 0 30px rgba(40, 20, 30, .14); z-index: var(--z-panel); }
+.avside-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 18px 20px; }
+.avside-body > .card { margin: 0; }
+.avside .avdetail { grid-template-columns: 1fr; }
+/* หัวข้อแปลงเสียงในส่วนตั้งค่าแทร็ก (BUGS ข้อ 34) · ปุ่มไม่แปลงสูงเท่าปุ่มเลือกชนิดเสียงข้างกัน 38 px (สกิล form-input ⑥) */
+[data-detail-conv] .btn { height: 38px; }
+/* ปุ่มเสร็จสิ้นติดล่างสุดของแผง มีเส้นแบ่ง (พี่กันสั่ง 12 พ.ย. 2569) */
+.avside-foot { flex: none; display: flex; justify-content: flex-end; padding: 12px 20px; border-top: 1px solid var(--line); }
 /* แถวความเร็ว Gain ความดังมาตรฐาน ปุ่มคู่สูงเท่าช่องเลือกกับปุ่มลบบวก */
 [data-extra] .seg.sm button { height: 32px; }
 

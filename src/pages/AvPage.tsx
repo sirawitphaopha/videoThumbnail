@@ -3,7 +3,8 @@
    พี่กัน *"หัวข้อ เสียงและซับ มันก็ใส่ภาพได้นะ ถ้าเธอแยกหัวข้อแบบนี้เราต้อง merge ไฟล์สองรอบเหรอ"* → ปกอยู่ในคำสั่งรวมเดียวกัน
    ลากไฟล์จาก Explorer มาวางที่ไหนก็ได้ในหน้า โปรแกรมแยกเองว่าไฟล์ไหนเป็นหนัง เสียง ซับ หรือรูป
    ทุกอย่างเก็บใน lib/avJob.ts ไปหน้าอื่นแล้วกลับมายังอยู่ · งานรวมทำเป็นไฟล์ชั่วคราว ตรวจแล้วค่อยเป็นไฟล์จริง แบบหน้าใส่โปสเตอร์ */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { Fragment, useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useTrackPanel } from "../lib/trackPanel";
 import { usePageActiveRef } from "../lib/pageActive";
 import "../styles/av.css";
 import type { Page } from "../components/Sidebar";
@@ -17,13 +18,13 @@ import ExtractCard, { type ExtractPick } from "../components/ExtractCard";
 import InfoTip from "../components/InfoTip";
 import { convertLabel } from "../lib/codecs";
 import ThaiInput from "../components/ThaiInput";
-import { CardIcon, Keep, Phr, Seg, dropClick, LoadPill } from "../components/ui";
+import { CardIcon, Keep, Phr, Seg, dropClick, LoadPill, J } from "../components/ui";
 import { useToast } from "../components/Toasts";
 import { ADD_EXT, FONT_EXT, encodeApi, inApp, infoApi, mergeApi, pickAddFiles, pickFile, pickFonts, posterApi, thumbUrl, type ApplyProblem, type CoverTarget, type EncoderInfo, type FontHit, type MergeResult, type MiSection, type PosterInfo, pairApi } from "../lib/api";
 import { useSettings } from "../lib/settings";
 import { useLibrary } from "../lib/library";
 import { fmtDuration, fmtSize } from "../lib/format";
-import { kb } from "../lib/popup";
+import { kb, useEscClose } from "../lib/popup";
 import { FtChip, ftName } from "../lib/ftypes";
 import { langName } from "../lib/langs";
 import { getAv, resetAv, setAv, trackFrom, tracksOfAdded, useAv, type AvTrack, type CoverSlot } from "../lib/avJob";
@@ -484,6 +485,47 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
   const refAudio = tracks.find((t) => t.inMovie && t.kind === "audio" && t.keep) ?? tracks.find((t) => t.inMovie && t.kind === "audio") ?? null;
   const nth = (t: AvTrack) => tracks.filter((x) => x.inMovie && x.kind === t.kind && x.tid <= t.tid).length;
 
+  /* ส่วนตั้งค่าแทร็กขึ้นแบบไหน (BUGS ข้อ 33 พี่กันเลือกแบบ 2 กางใต้แถวที่กด 12 พ.ย. 2569 · แบบ 1 หน้าต่างซ้อนกับแบบ 3 แผงขวาเลือกในหน้าตั้งค่า)
+     เดิมส่วนนี้อยู่ใต้ตาราง โดนแถววิธีที่ตรึงล่างบัง ต้องเลื่อนลงไปหา */
+  const panel = useTrackPanel();
+  const closeSel = useCallback(() => setAv({ sel: null }), []);
+  const pageRef = useRef<HTMLDivElement>(null);
+  const [sideBox, setSideBox] = useState<{ top: number; bottom: number } | null>(null);
+  const sideOn = panel === "side" && !!selected;
+  useEscClose(sideOn, closeSel);
+  // แผงขวาอยู่ระหว่างแถบชื่อหนังกับแถบวิธีที่ตรึงล่าง ไม่บังปุ่มรวม · แถบชื่อหนังขยับตอนเลื่อนจนตรึงบน จึงวัดใหม่ทุกครั้งที่เลื่อนหรือเปลี่ยนขนาด
+  useLayoutEffect(() => {
+    if (!sideOn) return;
+    const root = pageRef.current;
+    if (!root) return;
+    const place = () => {
+      const top = Math.round(root.querySelector<HTMLElement>(".avtop")?.getBoundingClientRect().bottom ?? root.getBoundingClientRect().top);
+      const bottom = Math.round(window.innerHeight - (root.querySelector<HTMLElement>(".avdock")?.getBoundingClientRect().top ?? window.innerHeight));
+      setSideBox((p) => (p && p.top === top && p.bottom === bottom ? p : { top, bottom }));
+    };
+    place();
+    const ro = new ResizeObserver(place);
+    root.querySelectorAll(".avtop, .avdock").forEach((e) => ro.observe(e));
+    root.addEventListener("scroll", place, { passive: true });
+    window.addEventListener("resize", place);
+    return () => { ro.disconnect(); root.removeEventListener("scroll", place); window.removeEventListener("resize", place); };
+  }, [sideOn]);
+  // แบบกางใต้แถว · กางแล้วส่วนล่างมุดใต้แถววิธีที่ตรึงล่าง (ปัญหาเดิมของข้อ 33) ค่อย ๆ เลื่อนขึ้นจนเห็นครบ แต่แถวที่กดยังอยู่ใต้แถบชื่อหนัง
+  useEffect(() => {
+    if (panel !== "under" || !sel) return;
+    const id = requestAnimationFrame(() => {
+      const root = pageRef.current, card = root?.querySelector<HTMLElement>(".trk-under"), row = card?.previousElementSibling as HTMLElement | null;
+      if (!root || !card || !row) return;
+      const top = root.querySelector<HTMLElement>(".avtop")?.getBoundingClientRect().bottom ?? root.getBoundingClientRect().top;
+      const dock = root.querySelector<HTMLElement>(".avdock")?.getBoundingClientRect().top ?? root.getBoundingClientRect().bottom;
+      const need = card.getBoundingClientRect().bottom + 10 - dock;
+      const room = row.getBoundingClientRect().top - top - 8;
+      const by = Math.min(need, room);
+      if (by > 0) glideBox(root, root.scrollTop + by);
+    });
+    return () => cancelAnimationFrame(id);
+  }, [panel, sel]);
+
   // ---------- หน้าว่าง ----------
   if (!movie) {
     return (
@@ -509,8 +551,70 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
     );
   }
 
+  /* เนื้อส่วนตั้งค่าแทร็ก ใช้ร่วมกันทั้งสามแบบ (กางใต้แถวที่กด หน้าต่างซ้อน แผงขวา) */
+  const detailHead = selected ? (
+    <h3 style={{ justifyContent: "space-between" }}><span style={{ minWidth: 0, overflowWrap: "anywhere" }}>ตั้งค่าแทร็ก {rowText(selected, nth(selected)).title}</span>
+      <span className={"tpill " + (selected.inMovie ? "in" : "new")}>{selected.inMovie ? "ในไฟล์" : "เพิ่มใหม่"}</span></h3>
+  ) : null;
+  const detailBody = selected ? (
+    <div className="avdetail">
+      <div className="avfield"><span className="avlbl">ภาษาและชื่อแทร็ก</span>
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+          {selected.kind === "video" ? <span className="small" style={{ width: 130 }}>{langName(selected.lang)}</span>
+            : <LangPicker value={selected.lang} width={130} label="ภาษาของแทร็กที่เลือก" onChange={(v) => patch(selected.key, { lang: v })} disabled={working ? BUSY : undefined} />}
+          <div style={{ flex: 1, minWidth: 0 }}><ThaiInput value={selected.name} onChange={(v) => patch(selected.key, { name: v })} label="ชื่อแทร็ก" readOnly={working} /></div>
+        </div>
+        <span className="small"><Phr>{`ชื่อที่โปรแกรมเล่นแสดงตอนเลือกเสียงหรือซับ ส่วนไฟล์ที่เพิ่มจะตั้งภาษาจากชื่อไฟล์ให้ก่อน (คำ${J}ว่า พากย์${J}ไทย th tha)`}</Phr></span></div>
+      {selected.kind !== "video" && (
+        <div className="avfield"><span className="avlbl">ตั้งเป็น{KIND_WORD[selected.kind]}หลัก</span>
+          <div className={"chk" + (working || !selected.keep ? " off" : "")} aria-checked={selected.default} {...kb(() => { if (!working && selected.keep) setMain(selected.key); })} role="checkbox">
+            <span className={"cbx " + (selected.default ? "on" : "off")}>{selected.default && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="4" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>}</span>
+            <span>{selected.kind === "audio" ? "เปิดหนังแล้วเล่นเสียงนี้ก่อน" : "เปิดหนังแล้วขึ้นซับนี้ก่อน"}</span></div>
+          <span className="small"><Phr>{`${KIND_WORD[selected.kind]}หลักมีได้แทร็กเดียว เลือกอันนี้แล้วอันเดิมจะเลิกเป็นหลัก ${selected.kind === "audio" ? "ซับหลักตั้งแยกกัน" : "ถ้าไม่เลือกซับหลักเลย หนังจะเปิดแบบไม่มีซับ"}`}</Phr></span></div>
+      )}
+      {selected.kind !== "video" && (
+        <div className="avfield"><span className="avlbl">ดีเลย์</span>
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}><DelayBox value={selected.delay} onChange={(v) => setDelay(selected.key, v)} label="แทร็กที่เลือก" wide off={working ? BUSY : undefined} />
+            <span className="small">ms ค่าติดลบแปลว่า{KIND_WORD[selected.kind]}มาเร็วขึ้น</span>
+            {selected.kind === "audio" && !selected.inMovie && refAudio && (
+              <button type="button" className={"btn btn-sm " + (working ? "btn-wait" : "btn-ghost")} aria-disabled={working || undefined} title={working ? BUSY : "เทียบคลื่นเสียงกับเสียงเดิมในหนัง"}
+                onClick={() => { if (!working) setDelayFor(selected.key); }} data-find-delay><IcSearch size={15} />หาค่าดีเลย์</button>)}</div>
+          <span className="small">{selected.delayFromName != null ? <Phr>{`อ่านจากชื่อไฟล์ (คำว่า DELAY ${selected.delayFromName}ms) และแก้เองได้`}</Phr> : <Phr>{`ปุ่มลบและบวกปรับทีละ 100 ms กด Shift ค้างไว้จะปรับทีละ 10 ms ส่วน${J}ค่าที่ใส่ได้อยู่ระหว่างลบและบวก 600,000 ms (10 นาที)`}</Phr>}</span></div>
+      )}
+      {/* แปลงเสียงในส่วนตั้งค่าแทร็ก (BUGS ข้อ 34 พี่กัน "ให้มัน แปลไฟล์ได้ ก็ดีนะ ที่จุดนี้เลย" ยืนยัน 12 พ.ย. 2569 "แปลงไฟล์เสียง เข้าไจถูกละ")
+          ปุ่มเดียวกับปุ่มแปลงในแถว เปิดแผงตั้งค่าเสียงตัวเดียวกัน ค่าตรงกันสองที่ · แทร็กซับกับภาพไม่มีหัวข้อนี้ */}
+      {selected.kind === "audio" && (() => {
+        const why = working ? BUSY : !selected.keep ? "แทร็กที่เอาออกไม่ต้องแปลง" : undefined;
+        const how = selected.inMovie ? (selected.pair ?? true ? " เพิ่มคู่" : " แทนที่") : "";
+        // ป้ายสั้นแบบปุ่มในแถว (Opus 64) ในประโยคเติมหน่วย kbps ให้บิตเรต · TVBR ของ qaac เป็นระดับคุณภาพ ไม่ใช่ kbps
+        const lab = selected.convert ? convertLabel(selected.convert) : "";
+        const labText = lab + (/\s\d+$/.test(lab) && !/TVBR \d+$/.test(lab) ? " kbps" : "");
+        return (
+          <div className="avfield" data-detail-conv><span className="avlbl">แปลงเสียง</span>
+            <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+              <button type="button" className={"dd" + (why ? " btn-wait" : "")} aria-disabled={!!why || undefined} title={why ?? "ตั้งค่าแปลงเสียง"}
+                style={selected.convert ? { border: "1px solid #9fc4ea", background: "#f3f8fe", color: "#2f6496" } : undefined}
+                onClick={() => { if (!why) openCodec(selected.key); }} data-detail-conv-btn>
+                <span style={{ whiteSpace: "nowrap", minWidth: 0 }}>{selected.convert ? convertLabel(selected.convert) + how : "ไม่แปลง"}</span>
+                <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
+              </button>
+              {selected.convert && !why && <button type="button" className="btn btn-ghost btn-sm" onClick={() => patch(selected.key, { convert: null, convName: "" })} data-detail-conv-off>ไม่แปลง</button>}
+            </div>
+            <span className="small"><Phr>{why ?? (selected.convert
+              ? `แปลงเป็น ${labText}${selected.inMovie ? (selected.pair ?? true ? " แล้วเพิ่มคู่กับแทร็กเดิม" : " แล้วแทนที่แทร็กเดิม") : ""}  กดปุ่มเพื่อแก้ค่า`
+              : "คัดลอกเสียงเดิมไปทั้งก้อน คุณภาพเท่าเดิม  กดปุ่มเพื่อเลือกชนิดเสียงที่จะแปลง")}</Phr></span></div>
+        );
+      })()}
+      {!selected.inMovie && (
+        <div className="avfield"><span className="avlbl">ไฟล์</span>
+          <span className="small" style={{ overflowWrap: "anywhere" }}>{selected.src}</span>
+          {selected.notes?.map((n, i) => <span key={i} className="small"><Phr>{n}</Phr></span>)}</div>
+      )}
+    </div>
+  ) : null;
+
   return (
-    <div className="pagewrap" data-av-page>
+    <div className="pagewrap" data-av-page ref={pageRef}>
       <div className="avwrap">
         {/* ไฟล์หนัง */}
         <div className="avtop" data-drop="movie">
@@ -561,8 +665,10 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
               ].filter(Boolean);
               /* ตอนแยก ค่าของงานรวม (ภาษา หลัก ดีเลย์ แปลง เอาออก) ไม่มีผล โปรแกรมแยกตามค่าเดิมในหนัง จึงปิดไว้พร้อมเหตุผล */
               const off = working ? BUSY : xMode ? "ตอนแยกใช้ค่าเดิมในหนัง ค่านี้ใช้ตอนรวมเข้าไฟล์หนัง" : undefined;
+              /* กดแถวเดิมอีกครั้งพับเก็บส่วนตั้งค่าแทร็ก (BUGS ข้อ 33) */
               return (
-                <div key={t.key} role="listitem" className={"trk" + (t.keep ? "" : " out") + (t.key === sel ? " sel" : "") + (xMode ? " xmode" : "") + (xMode && !t.inMovie ? " xna" : "")} onClick={() => { setAv({ sel: t.key }); if (!coverDirty) setPosterFor(null); }} data-trk={t.key} data-kind={t.kind}>
+                <Fragment key={t.key}>
+                <div role="listitem" className={"trk" + (t.keep ? "" : " out") + (t.key === sel ? " sel" : "") + (xMode ? " xmode" : "") + (xMode && !t.inMovie ? " xna" : "")} onClick={() => { setAv({ sel: sel === t.key ? null : t.key }); if (!coverDirty) setPosterFor(null); }} data-trk={t.key} data-kind={t.kind} aria-expanded={panel === "under" ? t.key === sel : undefined}>
                   {xMode ? (
                   <div className="mv xpick" onClick={(e) => e.stopPropagation()}>
                     {t.inMovie && <span className={"chk" + (xWhy ? " off" : "")} aria-checked={xOn} aria-disabled={!!xWhy || undefined} aria-label={`เลือก ${title} เพื่อแยกเป็นไฟล์`} title={xWhy}
@@ -625,6 +731,9 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
                     )}
                   </div>
                 </div>
+                {/* แบบกางใต้แถวที่กด ค่าตั้งต้น (พี่กันเลือกแบบ 2) แถวอื่นเลื่อนลง ยังเห็นแทร็กข้าง ๆ */}
+                {panel === "under" && t.key === sel && <div className="card trk-under" role="group" aria-label="ตั้งค่าแทร็ก" data-track-detail>{detailHead}{detailBody}</div>}
+                </Fragment>
               );
             })}
             {/* ไฟล์แนบกับบทของหนังเป็นแถวในตาราง ติ๊กแยกจากแถวนั้นได้ (BUGS ข้อ 35 ต่อ พี่กันสั่ง 12 พ.ย. 2569 "เราอยากให้เเถว cover มันเเสดงที่เเทร็กเลย เเละ extrack ออกจากจุดนั้นได้เลย")
@@ -694,43 +803,19 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
           </>
         </div>)}
 
-        {/* ตั้งค่าแทร็ก */}
-        {selected && (
-          <div className="card" data-track-detail>
-            <h3 style={{ justifyContent: "space-between" }}><span style={{ minWidth: 0, overflowWrap: "anywhere" }}>ตั้งค่าแทร็ก {rowText(selected, nth(selected)).title}</span>
-              <span className={"tpill " + (selected.inMovie ? "in" : "new")}>{selected.inMovie ? "ในไฟล์" : "เพิ่มใหม่"}</span></h3>
-            <div className="avdetail">
-              <div className="avfield"><span className="avlbl">ภาษาและชื่อแทร็ก</span>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-                  {selected.kind === "video" ? <span className="small" style={{ width: 130 }}>{langName(selected.lang)}</span>
-                    : <LangPicker value={selected.lang} width={130} label="ภาษาของแทร็กที่เลือก" onChange={(v) => patch(selected.key, { lang: v })} disabled={working ? BUSY : undefined} />}
-                  <div style={{ flex: 1, minWidth: 0 }}><ThaiInput value={selected.name} onChange={(v) => patch(selected.key, { name: v })} label="ชื่อแทร็ก" readOnly={working} /></div>
-                </div>
-                <span className="small"><Phr>ชื่อที่โปรแกรมเล่นแสดงตอนเลือกเสียงหรือซับ ส่วนไฟล์ที่เพิ่มจะตั้งภาษาจากชื่อไฟล์ให้ก่อน (คำว่า พากย์ไทย th tha)</Phr></span></div>
-              {selected.kind !== "video" && (
-                <div className="avfield"><span className="avlbl">ตั้งเป็น{KIND_WORD[selected.kind]}หลัก</span>
-                  <div className={"chk" + (working || !selected.keep ? " off" : "")} aria-checked={selected.default} {...kb(() => { if (!working && selected.keep) setMain(selected.key); })} role="checkbox">
-                    <span className={"cbx " + (selected.default ? "on" : "off")}>{selected.default && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="4" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>}</span>
-                    <span>{selected.kind === "audio" ? "เปิดหนังแล้วเล่นเสียงนี้ก่อน" : "เปิดหนังแล้วขึ้นซับนี้ก่อน"}</span></div>
-                  <span className="small"><Phr>{`${KIND_WORD[selected.kind]}หลักมีได้แทร็กเดียว เลือกอันนี้แล้วอันเดิมจะเลิกเป็นหลัก ${selected.kind === "audio" ? "ซับหลักตั้งแยกกัน" : "ถ้าไม่เลือกซับหลักเลย หนังจะเปิดแบบไม่มีซับ"}`}</Phr></span></div>
-              )}
-              {selected.kind !== "video" && (
-                <div className="avfield"><span className="avlbl">ดีเลย์</span>
-                  <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}><DelayBox value={selected.delay} onChange={(v) => setDelay(selected.key, v)} label="แทร็กที่เลือก" wide off={working ? BUSY : undefined} />
-                    <span className="small">ms ค่าติดลบแปลว่า{KIND_WORD[selected.kind]}มาเร็วขึ้น</span>
-                    {selected.kind === "audio" && !selected.inMovie && refAudio && (
-                      <button type="button" className={"btn btn-sm " + (working ? "btn-wait" : "btn-ghost")} aria-disabled={working || undefined} title={working ? BUSY : "เทียบคลื่นเสียงกับเสียงเดิมในหนัง"}
-                        onClick={() => { if (!working) setDelayFor(selected.key); }} data-find-delay><IcSearch size={15} />หาค่าดีเลย์</button>)}</div>
-                  <span className="small">{selected.delayFromName != null ? <Phr>{`อ่านจากชื่อไฟล์ (คำว่า DELAY ${selected.delayFromName}ms) และแก้เองได้`}</Phr> : <Phr>ปุ่มลบและบวกปรับทีละ 100 ms กด Shift ค้างไว้จะปรับทีละ 10 ms และใส่ได้ถึงบวกลบ 600,000 ms (10 นาที)</Phr>}</span></div>
-              )}
-              {!selected.inMovie && (
-                <div className="avfield"><span className="avlbl">ไฟล์</span>
-                  <span className="small" style={{ overflowWrap: "anywhere" }}>{selected.src}</span>
-                  {selected.notes?.map((n, i) => <span key={i} className="small"><Phr>{n}</Phr></span>)}</div>
-              )}
-            </div>
-          </div>
-        )}
+        {/* ตั้งค่าแทร็ก แบบหน้าต่างซ้อนกลางจอ กับแบบแผงขวา (เลือกในหน้าตั้งค่า BUGS ข้อ 33) · แบบกางใต้แถวที่กดอยู่ในตารางข้างบน */}
+        {selected && panel === "dialog" && (
+          <Dialog open kind="menu" onClose={closeSel} width={780}
+            title={<span className="trkdlg-t"><span>ตั้งค่าแทร็ก {rowText(selected, nth(selected)).title}</span><span className={"tpill " + (selected.inMovie ? "in" : "new")}>{selected.inMovie ? "ในไฟล์" : "เพิ่มใหม่"}</span></span>}
+            actions={<button type="button" className="btn btn-main btn-sm" onClick={closeSel} data-track-done>เสร็จสิ้น</button>}>
+            <div data-track-detail>{detailBody}</div>
+          </Dialog>)}
+        {sideOn && (
+          <aside className="avside" data-track-detail aria-label="ตั้งค่าแทร็ก" style={sideBox ? { top: sideBox.top, bottom: sideBox.bottom } : { visibility: "hidden" }}>
+            {/* ปุ่มเสร็จสิ้นติดล่างสุดของแผง มีเส้นแบ่ง เนื้อข้างบนเลื่อนได้ (พี่กันสั่ง 12 พ.ย. 2569 "เอาคำว่า เสร็จสิ้น อยู่ล่างสุดูและเอาขีดแบ่ง") */}
+            <div className="avside-body"><div className="card">{detailHead}{detailBody}</div></div>
+            <div className="avside-foot"><button type="button" className="btn btn-main btn-sm" onClick={closeSel} data-track-done>เสร็จสิ้น</button></div>
+          </aside>)}
 
         {/* ฟอนต์ของซับ ASS (พี่กันสั่ง 8 พ.ย. 2569 "พวกซับ ass มันต้องฝังฟ้อนด้วยนี่นา") · ขึ้นเมื่อเพิ่มซับ ASS ที่เรียกฟอนต์ */}
         {fontRows.length > 0 && offIn(method !== "merge",

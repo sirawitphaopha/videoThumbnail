@@ -128,7 +128,9 @@ check("ไปหน้าตั้งค่าแล้วกลับมา แ
 // ---------- ตัวช่วยหาดีเลย์ (ขั้น 5) · พากย์ไทยที่เลื่อนจริง 120 ms · เสียง PAL 25 fps ----------
 const clickTextAny = (sel, text) => c.evaluate(`[...document.querySelectorAll(${JSON.stringify(sel)})].find(b => b.innerText.trim() === ${JSON.stringify(text)}).click()`);
 const findRow = (text) => `[...document.querySelectorAll('.trk:not(.head)')].find(r => r.innerText.includes(${JSON.stringify(text)}))`;
-await c.evaluate(`${findRow("พากย์ไทย DELAY")}.click()`);
+// กดเลือกเฉพาะแถวที่ยังไม่ได้เลือก · เพิ่มไฟล์แล้วโปรแกรมเลือกแถวนั้นให้เอง และกดแถวเดิมซ้ำเป็นการพับเก็บส่วนตั้งค่าแทร็ก (BUGS ข้อ 33)
+const selectRow = (text) => c.evaluate(`(() => { const r = ${findRow(text)}; if (!r.classList.contains("sel")) r.click(); return true; })()`);
+await selectRow("พากย์ไทย DELAY");
 await waitFor("return !!document.querySelector('[data-find-delay]')", 8000);
 await c.evaluate("document.querySelector('[data-find-delay]').click()");
 await waitFor("return !!document.querySelector('[data-delay-dialog]')", 8000);
@@ -166,7 +168,7 @@ check("กดใช้ค่านี้ ช่องดีเลย์ของ
 // เสียง PAL 25 fps · เทียบตรง ๆ ไม่ติด ยืดแล้วตรง เสนอคู่ 25 → 23.976 · ปุ่มไปตั้งในแผงตั้งค่าเสียง
 await drop([join(AV, "ดาวตก (2024) PAL 25fps.ac3")]);
 await waitFor(`return !!${findRow("PAL 25fps")}`, 20000);
-await c.evaluate(`${findRow("PAL 25fps")}.click()`);
+await selectRow("PAL 25fps");
 await waitFor("return !!document.querySelector('[data-find-delay]')", 8000);
 await c.evaluate("document.querySelector('[data-find-delay]').click()");
 const gotPal = await waitFor("const r = document.querySelector('[data-delay-res]')?.dataset.delayRes; return r && r !== 'finding'", 60000);

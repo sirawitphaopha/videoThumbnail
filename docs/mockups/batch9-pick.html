@@ -57,12 +57,19 @@ const GROUPS = [
     ],
   },
   {
-    kind: "av", title: "ส่วนตั้งค่าแทร็กอยู่ล่างไกล", note: "BUGS ข้อ 33 พี่กันบอกว่า \"เปลี่ยนเป็น popup น่าจะง่ายกว่าไหม จะได้ไม่ต้องเลื่อนลง\"",
+    // พี่กันเลือก 12 พ.ย. 2569 "ชอบแบบ2 แต่ 1 3 เอาไว้ เอาไปใส่ในตั้งค่าละกัน เผื่ออยากเปลี่ยน" · ลงโปรแกรมแล้ว (src/lib/trackPanel.ts) กรอบข้างล่างคือหน้าจริงไม่ได้จัดทับ
+    // กรอบสลับแบบด้วย __setTrackPanel(แบบ, false) ไม่จำค่า เพราะกรอบใช้ที่เก็บเดียวกับโปรแกรมโหมดพัฒนา · แบบที่จัดทับก่อนพี่กันเลือกเก็บไว้ใน old กับ avLayout ไม่ได้แสดง
+    kind: "av", title: "ส่วนตั้งค่าแทร็กอยู่ล่างไกล", note: "BUGS ข้อ 33 พี่กันเลือกแบบ 2 กางใต้แถวที่กดเป็นค่าตั้งต้น แบบหน้าต่างซ้อนกับแผงขวาเลือกได้ในหน้าตั้งค่า หัวข้อเสียงและซับ ลงโปรแกรมแล้ว กรอบข้างล่างคือหน้าจริงของโปรแกรม",
     opts: [
-      { mode: "now", now: true, name: "ส่วนตั้งค่าแทร็กอยู่ล่างสุดใต้ตาราง", desc: "กดแถวเสียงที่ 2 แล้ว ส่วนตั้งค่าแทร็กไปอยู่ใต้ตารางกับจุดลากไฟล์ เห็นแค่หัวข้อหรือไม่เห็นเลย ต้องเลื่อนลงไปหา" },
+      { mode: "under", fixed: true, name: "กางใต้แถวที่กด ค่าตั้งต้น", desc: "กดแถวเสียงหรือซับแล้วส่วนตั้งค่ากางออกใต้แถวนั้น แถวอื่นเลื่อนลง ถ้าส่วนที่กางมุดใต้แถววิธีที่ตรึงล่าง หน้าค่อย ๆ เลื่อนขึ้นจนเห็นครบ โดยแถวที่กดยังอยู่ในจอ กดแถวเดิมอีกครั้งพับเก็บ" },
+      { mode: "dialog", fixed: true, name: "หน้าต่างซ้อนกลางจอ เลือกในหน้าตั้งค่า", desc: "กดแถวแล้วขึ้นหน้าต่างซ้อนกลางจอ ข้างหลังจางลง กดเสร็จสิ้น กด Esc หรือกดข้างนอกหน้าต่างเพื่อปิด" },
+      { mode: "side", fixed: true, name: "แผงด้านขวา เลือกในหน้าตั้งค่า", desc: "กดแถวแล้วแผงตั้งค่าอยู่ด้านขวา ระหว่างแถบชื่อหนังกับแถววิธีที่ตรึงล่าง ทับคอลัมน์ขวาของตารางไว้ระหว่างเปิด ปุ่มรวมยังกดได้ ปุ่มเสร็จสิ้นอยู่ล่างสุดของแผง กดปุ่มนี้หรือ Esc เพื่อปิด" },
+    ],
+    old: [
+      { mode: "now", now: true, name: "ส่วนตั้งค่าแทร็กอยู่ใต้ตาราง โดนแถบล่างบัง", desc: "กดแถวเสียงที่ 2 แล้ว ส่วนตั้งค่าแทร็กขึ้นใต้ตาราง แต่แถววิธีกับแถบปุ่มที่ตรึงล่างบังไว้ หน้าต่าง 1280 เห็นแค่หัวกับช่องภาษา ต้องเลื่อนลงไปหาช่องดีเลย์ ตอนกดขยายเต็มจอเห็นช่องดีเลย์แต่คำอธิบายโดนบัง ไฟล์ทดสอบนี้มี 6 แถว หนังที่แทร็กเยอะส่วนนี้จะอยู่ล่างกว่านี้จนมองไม่เห็นเลย" },
       { mode: "dialog", name: "หน้าต่างซ้อนกลางจอ", desc: "กดแถวแล้วขึ้นหน้าต่างซ้อนกลางจอตามที่พี่กันเสนอ ข้างหลังจางลง แก้เสร็จกดเสร็จหรือ Esc แล้วกลับมาที่ตาราง" },
       { mode: "under", name: "กางใต้แถวที่กด", desc: "ส่วนตั้งค่ากางออกใต้แถวที่กดเลย แถวอื่นเลื่อนลง ยังเห็นแทร็กข้าง ๆ กับปุ่มในแถวครบ กดแถวเดิมอีกครั้งพับเก็บ แคลร์เอนไปทางแบบนี้" },
-      { mode: "side", name: "แผงด้านขวาเลื่อนออกมา", desc: "กดแถวแล้วแผงตั้งค่าเลื่อนออกมาจากด้านขวา ลอยทับคอลัมน์ทางขวาของตารางไว้ระหว่างเปิด ยังเห็นชื่อแทร็กทุกแถว ปิดแผงแล้วตารางกลับมาครบ" },
+      { mode: "side", name: "แผงด้านขวาเลื่อนออกมา", desc: "กดแถวแล้วแผงตั้งค่าเลื่อนออกมาจากด้านขวา อยู่ระหว่างแถบชื่อหนังกับแถบวิธีที่ตรึงล่าง ลอยทับคอลัมน์ทางขวาของตารางไว้ระหว่างเปิด ยังเห็นชื่อแทร็กทุกแถวและปุ่มรวมยังกดได้ กดเสร็จแล้วตารางกลับมาครบ" },
     ],
   },
   {
@@ -149,13 +156,16 @@ function miLayout(d, mode) {
   }
 }
 
-async function openAV(d) {
+async function openAV(d, mode) {
   await navTo(d, "ชั้นวางหนัง");
   (await until(() => d.querySelector(`.book[data-movie="${MOVIE}"]`)))?.click();
   (await until(() => [...d.querySelectorAll(".detail .btn")].find((b) => b.innerText.includes("เสียงและซับ"))))?.click();
   const rows = await until(() => { const r = [...d.querySelectorAll("[data-trk]")]; return r.length > 2 ? r : null; });
   if (!rows) return null;
   const audio = rows.filter((r) => /เสียง/.test(r.innerText));
+  // สลับแบบในกรอบนี้โดยไม่จำค่า ใช้ตัวเดียวกับหน้าตั้งค่า (ข้อ 33 ลงโปรแกรมแล้ว)
+  const w = d.defaultView;
+  if (mode && w.__setTrackPanel) w.__setTrackPanel(mode, false);
   (audio[1] ?? audio[0] ?? rows[1]).click();
   return until(() => d.querySelector("[data-track-detail]"));
 }
@@ -182,9 +192,15 @@ function avLayout(d, w, mode) {
     det.classList.add("mk-under"); sel.after(det); toSel(150);
   } else if (mode === "side") {
     const side = d.createElement("div"); side.className = "mk-side";
-    side.appendChild(det); d.body.appendChild(side);
+    const foot = d.createElement("div"); foot.className = "mk-dlgfoot"; foot.innerHTML = '<button class="btn btn-main btn-sm">เสร็จ</button>';
+    side.appendChild(det); side.appendChild(foot); d.body.appendChild(side);
     // แผงลอยทับด้านขวาของตาราง ตารางไม่ถูกบีบ (บีบแล้วที่ 1280 ชื่อแทร็กเหลือคอลัมน์เดียว)
     toSel(150);
+    // อยู่ระหว่างแถบชื่อหนังกับแถบวิธีที่ตรึงล่าง ไม่บังปุ่มรวม (แถบล่างมาทีหลังมอคอัปรอบแรก BUGS ข้อ 68)
+    const top = d.querySelector("[data-pageslot=av] .avtop"), dock = d.querySelector("[data-pageslot=av] .avdock");
+    if (top) side.style.top = Math.round(top.getBoundingClientRect().bottom) + "px";
+    if (dock) side.style.bottom = Math.round(w.innerHeight - dock.getBoundingClientRect().top) + "px";
+    side.style.borderTop = "1px solid var(--line)"; side.style.borderTopLeftRadius = "12px";
   } else {
     toSel(200);
   }
@@ -231,7 +247,7 @@ async function drive(f) {
       else miLayout(d, mode);
     }
     else if (kind === "out") { if (!(await openAVPlain(d))) throw new Error("เปิดหน้าเสียงและซับไม่ได้"); await sleep(400); outLayout(d, w, mode); }
-    else { if (!(await openAV(d))) throw new Error("เปิดหน้าเสียงและซับไม่ได้"); await sleep(300); avLayout(d, w, mode); }
+    else { if (!(await openAV(d, mode))) throw new Error("เปิดหน้าเสียงและซับไม่ได้"); await sleep(300); }
     state.textContent = "";
   } catch (e) { state.textContent = "จัดหน้าไม่สำเร็จ " + e.message; }
 }

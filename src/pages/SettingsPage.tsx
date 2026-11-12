@@ -19,6 +19,20 @@ import { fmtSize } from "../lib/format";
 import "../styles/av.css";
 import ToneCard from "../components/ToneCard";
 import { DEFAULT_TONE, TONES } from "../lib/tones";
+import { TRACK_PANEL_DEFAULT, setTrackPanel, useTrackPanel, type TrackPanel } from "../lib/trackPanel";
+import ImageViewer from "../components/ImageViewer";
+import { IcExpand } from "../components/icons";
+import tpUnder from "../assets/track-panel/under.png";
+import tpDialog from "../assets/track-panel/dialog.png";
+import tpSide from "../assets/track-panel/side.png";
+
+/** แบบของส่วนตั้งค่าแทร็กในหน้าเสียงและซับ พร้อมรูปจากหน้าจริงที่หน้าต่าง 1280 × 800 ถ่ายสองเท่า (BUGS ข้อ 33) */
+const TP_OPTS: { value: TrackPanel; name: string; desc: string; img: string }[] = [
+  { value: "under", name: "กางใต้แถว", desc: "กางออกใต้แถวที่กด แถวอื่นเลื่อนลง\nกดแถวเดิมอีกครั้งเพื่อพับเก็บ", img: tpUnder },
+  { value: "dialog", name: "หน้าต่างซ้อน", desc: "ขึ้นกลางจอ ข้างหลังจางลง\nกดเสร็จสิ้นหรือ Esc เพื่อปิด", img: tpDialog },
+  { value: "side", name: "แผงขวา", desc: "อยู่ด้านขวาระหว่างแถบชื่อหนังกับแถววิธี\nเห็นชื่อแทร็กทุกแถวและปุ่มรวมยังกดได้", img: tpSide },
+];
+// คำอธิบายการ์ดกว้าง 250 px ที่หน้าต่าง 1280 แต่ละวลีวัดแล้วพอดีบรรทัดเดียว (ยาวสุด 203 px) ขึ้นบรรทัดตรงรอยต่อวลี ไม่ตัดกลางวลี ไม่ถ่าง (เดิมตัด "อีก / ครั้ง" และบรรทัดบนถ่าง)
 import { IbTrash, IcRefresh } from "../components/icons";
 import { IbTick, IcClose, IcPlus, IbTable, IbPlay, IbEye, IbCrop, IcFile } from "../components/icons";
 
@@ -94,6 +108,7 @@ const SET_GROUPS: { title: string; items: { id: string; label: string; icon: Rea
   { title: "งาน", items: [
     { id: "poster", label: "ใส่โปสเตอร์", icon: <IcPoster /> },
     { id: "link", label: "เก็บรูปที่จับคู่", icon: <IcLink /> },
+    { id: "av", label: "เสียงและซับ", icon: <IcMix /> },
     { id: "check", label: "ตรวจไฟล์", icon: <IcCheck /> },
     { id: "graph", label: "กราฟเสียง", icon: <IcGraph /> },
   ] },
@@ -155,6 +170,8 @@ function SpekResRow() {
 
 export default function SettingsPage() {
   const [sec, setSec] = useState(lastSec);
+  const trackPanel = useTrackPanel();
+  const [tpBig, setTpBig] = useState<{ src: string; rect: DOMRect; name: string } | null>(null);
   const goSec = (id: string) => { lastSec = id; setSec(id); document.querySelector("[data-settingsscroll]")?.scrollTo(0, 0); };
   const { settings, update } = useSettings();
   const { folders, scan, movies } = useLibrary();
@@ -380,6 +397,25 @@ export default function SettingsPage() {
             <button type="button" className={"btn btn-sm " + (migrating ? "btn-wait" : "btn-ghost")} aria-disabled={migrating || undefined} data-link-migrate-go onClick={() => { if (!migrating) setAskMigrate(true); }}><Keep all={["กำลังย้าย 000 จาก 000 เรื่อง…", "ย้ายมาแบบนี้ทีเดียว"]}>{migrating ? (migrateProg ? `กำลังย้าย ${migrateProg.done} จาก ${migrateProg.total} เรื่อง…` : "กำลังย้าย…") : "ย้ายมาแบบนี้ทีเดียว"}</Keep></button>
           </div>
         )}
+      </div>
+
+      {/* ---------- เสียงและซับ ----------
+          ส่วนตั้งค่าแทร็กขึ้นแบบไหน (BUGS ข้อ 33 พี่กันเลือกแบบ 2 กางใต้แถวที่กด 12 พ.ย. 2569 "ชอบแบบ2 แต่ 1 3 เอาไว้ เอาไปใส่ในตั้งค่าละกัน เผื่ออยากเปลี่ยน") */}
+      <div className="setcard" data-setcard="av" hidden={sec !== "av"}><h3>เสียงและซับ</h3>
+        {/* การ์ดมีรูปตัวอย่างจากหน้าจริง ความละเอียดสองเท่า กดปุ่มมุมรูปขยายดูเต็มจอ (พี่กันสั่ง 12 พ.ย. 2569 "หน้าตั่งค่า ใส่รูปไว้หน่อยนะ แบบความละเอียดสูง ตอนจะเลือกแบบ 1 3 จะได้เห็นภาพ") */}
+        <div className="setrow" data-track-panel-set style={{ display: "block" }}><div className="lbl">ส่วนตั้งค่าแทร็กขึ้นแบบ
+          <span className="small"><Phr>{"กดแถวเสียงหรือซับในตารางแทร็กแล้ว ส่วนตั้งค่าแทร็กขึ้นตามแบบที่เลือก  กดการ์ดเพื่อเลือก หรือกดปุ่มมุมรูปเพื่อขยายดูเต็มจอ"}</Phr></span></div>
+          <div className="tpcards" role="radiogroup" aria-label="ส่วนตั้งค่าแทร็กขึ้นแบบ">
+            {TP_OPTS.map((o) => { const on = trackPanel === o.value; return (
+              <div key={o.value} className={"tpcard" + (on ? " on" : "")} {...kb(() => setTrackPanel(o.value))} role="radio" aria-checked={on} data-track-panel={o.value}>
+                <span className="tpimg"><img src={o.img} alt={`ตัวอย่างแบบ${o.name}`} draggable={false} />
+                  <button type="button" className="bigbtn tpbig" title="ขยายดูเต็มจอ" aria-label={`ขยายดูรูปแบบ${o.name}เต็มจอ`} data-tp-big={o.value} onKeyDown={(e) => e.stopPropagation()}
+                    onClick={(e) => { e.stopPropagation(); setTpBig({ src: o.img, rect: (e.currentTarget.parentElement ?? e.currentTarget).getBoundingClientRect(), name: `ส่วนตั้งค่าแทร็กแบบ${o.name}` }); }}><IcExpand size={14} /></button></span>
+                <span className="tpname"><span className={"radio" + (on ? " on" : "")} aria-hidden="true" />{o.name}{o.value === TRACK_PANEL_DEFAULT && <span className="tptag">ค่าตั้งต้น</span>}</span>
+                <span className="small"><Phr>{o.desc}</Phr></span>
+              </div>); })}
+          </div></div>
+        {tpBig && <ImageViewer src={tpBig.src} thumb={tpBig.src} originRect={tpBig.rect} info={{ name: tpBig.name }} onClose={() => setTpBig(null)} />}
       </div>
 
       {/* ---------- ตรวจไฟล์ ---------- */}
