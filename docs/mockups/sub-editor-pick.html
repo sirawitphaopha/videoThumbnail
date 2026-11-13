@@ -21,14 +21,16 @@
   .opt { margin: 26px 0 44px; }
   .opt h3 { font-size: 18px; margin: 0 0 4px; }
   .opt > p { margin: 0 0 12px; color: var(--ink2); font-size: 15px; max-width: 1280px; }
-  .frame { width: 1280px; height: 800px; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 22px rgba(60, 25, 40, .12); background: #fff; display: block; }
+  .size { margin: 0 0 22px; }
+  .size h4 { font-size: 14.5px; font-weight: 600; margin: 0 0 6px; color: var(--ink2); }
+  .frame { border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 22px rgba(60, 25, 40, .12); background: #fff; display: block; }
   .state { font-size: 13px; color: #b0303f; margin-top: 6px; }
 </style>
 </head>
 <body>
 <div class="page">
   <h1>เลือกแบบ หน้าแก้ซับ</h1>
-  <p class="lead">ทุกกรอบเป็นหน้าจอจริงของโปรแกรมขนาดหน้าต่างตอนยังไม่กดขยาย 1280 × 800 เปิดไฟล์ ดาวเหนือ (2023).mkv ที่มีซับไทยในตัว กรอบแรกคือหน้าซับไตเติลตอนนี้ ซึ่งดูได้อย่างเดียว ทุกแบบมีแถบเครื่องมือแก้ซับชุดเดียวกันใต้แถวบน คือ เลิกทำ ทำซ้ำ เลื่อนเวลาทั้งไฟล์ ยืดเวลาตามความเร็วหนัง ค้นและแทนที่ และบันทึก ต่างกันที่วิธีจัดภาพหนัง ตาราง และช่องแก้บรรทัด ปุ่มกับช่องที่เพิ่มในแบบ 1 ถึง 3 ยังกดไม่ได้ บอกเลขแบบที่เลือกได้เลย</p>
+  <p class="lead">ทุกกรอบเป็นหน้าจอจริงของโปรแกรม แต่ละแบบมีสองกรอบ คือหน้าต่างตอนยังไม่กดขยาย 1280 × 800 กับตอนกดขยายเต็มจอ 1600 × 852 ไม่ย่อ เปิดไฟล์ ดาวเหนือ (2023).mkv ที่มีซับไทยในตัว กรอบแรกคือหน้าซับไตเติลตอนนี้ ซึ่งดูได้อย่างเดียว ทุกแบบมีแถบเครื่องมือแก้ซับชุดเดียวกันใต้แถวบน คือ เลิกทำ ทำซ้ำ เลื่อนเวลาทั้งไฟล์ ยืดเวลาตามความเร็วหนัง ค้นและแทนที่ และบันทึก ต่างกันที่วิธีจัดภาพหนัง ตาราง และช่องแก้บรรทัด ปุ่มกับช่องที่เพิ่มในแบบ 1 ถึง 3 ยังกดไม่ได้ บอกเลขแบบที่เลือกได้เลย</p>
   <div id="opts"></div>
 </div>
 
@@ -40,15 +42,32 @@ const OPTS = [
   { mode: "pad", name: "แบบ 3 แก้ทั้งไฟล์แบบ notepad ภาพหนังกับรายการปัญหาด้านขวา", desc: "แก้ข้อความทั้งไฟล์ตรง ๆ เหมือนเปิดใน Notepad ด้านขวาแสดงภาพหนังของบรรทัดที่เคอร์เซอร์อยู่ และรายการปัญหาที่โปรแกรมตรวจเจอ เช่น เวลาซ้อนกับบรรทัดก่อน หรือตัวอักษรเยอะจนอ่านไม่ทัน กดรายการแล้วกระโดดไปบรรทัดนั้น เร็วสำหรับแก้คำผิดทีละเยอะ แต่แก้เวลาต้องพิมพ์ตัวเลขเอง" },
 ];
 
+/* สองขนาดแบบมอคอัปชุด 9 (พี่กันสั่ง 13 พ.ย. 2569 "เราขอทั้งสองจอ คือ 1280 กับตอนขยายจอ")
+   หน้าต่างตั้งต้น 1280 × 800 จาก tauri.conf.json · กดขยายเต็มจอ 1600 × 852 พื้นที่ใช้งานของจอ 1600 × 900 หักแถบงาน */
+const SIZES = [
+  { label: "หน้าต่างตอนยังไม่กดขยาย 1280 × 800", w: 1280, h: 800 },
+  { label: "กดขยายเต็มจอ 1600 × 852", w: 1600, h: 852 },
+];
 const host = document.getElementById("opts");
+let n = 0;
 for (const o of OPTS) {
   const box = document.createElement("div");
   box.className = "opt";
-  box.innerHTML = `<h3></h3><p></p><iframe class="frame" title=""></iframe><div class="state" data-state></div>`;
+  box.innerHTML = `<h3></h3><p></p>`;
   box.querySelector("h3").textContent = o.name;
   box.querySelector("p").textContent = o.desc;
-  const f = box.querySelector("iframe");
-  f.title = o.name; f.dataset.v = o.mode;
+  const num = o.mode === "now" ? null : ++n;
+  SIZES.forEach((s, si) => {
+    const sz = document.createElement("div");
+    sz.className = "size";
+    sz.innerHTML = `<h4></h4><iframe class="frame" title=""></iframe><div class="state" data-state></div>`;
+    // ข้อย่อย 1.1 ยังไม่กดขยาย 1.2 กดขยายเต็มจอ แบบมอคอัปชุด 9 · หน้าตาตอนนี้ไม่มีเลข
+    sz.querySelector("h4").textContent = num ? `${num}.${si + 1} ${s.label}` : s.label;
+    const f = sz.querySelector("iframe");
+    f.title = `${o.name} ${s.label}`; f.dataset.v = o.mode;
+    f.style.width = s.w + "px"; f.style.height = s.h + "px";
+    box.appendChild(sz);
+  });
   host.appendChild(box);
 }
 
@@ -95,6 +114,12 @@ const CSS = `
 .mk-side .sgrid{max-height:600px;overflow:auto}
 .mk-side .vframe{width:100%}
 .mk-side canvas[data-aud]{height:84px}
+.mk-side .mk-edit{gap:6px;padding:8px 10px}
+.mk-side .mk-erow{gap:6px}
+.mk-side .mk-erow input{width:92px}
+.mk-side .mk-erow .btn{padding:0 8px;font-size:12.5px;height:30px}
+.mk-side .mk-hint{display:none}
+.mk-side .mk-text{min-height:48px}
 .mk-col{display:flex;flex-direction:column;gap:10px}
 .mk-pad{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;align-items:start}
 .mk-pad .np{max-height:600px;overflow:auto;outline:none;border:1px solid var(--accent);box-shadow:0 0 0 3px rgba(200,64,111,.14)}

@@ -325,6 +325,59 @@ if (ff("จับคู่/ฐานหนัง 2 วินาที", ["-f", "
   writeFileSync(join(JM_DL, "ไม่ใช่รูป.txt"), "ไฟล์นี้ไม่ใช่รูป\n");
 }
 
+// ---------- หน้าแก้ซับ (แผนหน้าแก้ซับ ขั้น 0) ----------
+// แยกโฟลเดอร์ แก้ซับ ไม่ให้ยอดเรื่องของตัวตรวจเดิมเพี้ยน · ผลที่ถูกของแต่ละไฟล์อยู่ test-media/README.md
+// หนังฉากตัด 20 วินาที 5 ฉาก ฉากละ 4 วินาที (96 เฟรมที่ 24 fps) ความสว่างพื้นต่างกันทีละฉาก ตัวตรวจหาฉาก (scdet) ต้องเจอ 4 8 12 16
+// keyframe บังคับที่ 0 4 8 10 12 16 · ที่ 10 วินาทีเป็น keyframe ที่ไม่ใช่จุดตัดฉาก ไว้เทสว่าเส้น keyframe กับจุดเปลี่ยนฉากจริงต่างกัน
+// กล่องกลางภาพสว่างเท่า (เลขเฟรม × 8) หาร 256 เหลือเศษ ไว้เทสว่าภาพที่ดึงตรงเฟรมที่ขอ · มุมซ้ายบนเขียนเลขเฟรมให้ตาเห็น
+// เสียงเป็นโทน 440 Hz เฉพาะช่วงที่มีบรรทัดซับใน full.ass ช่วงอื่นเงียบ ไว้เทสลากเวลาบนคลื่นเสียง
+const SE = join(OUT, "แก้ซับ");
+rmSync(SE, { recursive: true, force: true });
+mkdirSync(SE, { recursive: true });
+{
+  const cues = [[0.5, 3.4], [4.1, 7.2], [8.3, 11.8], [12, 15.9], [16.1, 19.5]];
+  const gate = cues.map(([a, b]) => `between(t,${a},${b})`).join("+");
+  const box = "between(X,280,359)*between(Y,140,219)";
+  let vf = `geq=lum='if(${box},mod(N*8,256),40+36*floor(N/96)+X/32)':cb='128+24*sin(floor(N/96)*2.1)':cr='128+24*cos(floor(N/96)*1.7)'`;
+  if (existsSync(tahoma)) vf += `,drawtext=fontfile='C\\:/Windows/Fonts/tahoma.ttf':text='%{frame_num}':x=16:y=12:fontsize=30:fontcolor=white`;
+  const movie = join(SE, "ฉากตัด (2025).mkv");
+  ff("แก้ซับ/ฉากตัด (2025).mkv  5 ฉาก keyframe 0 4 8 10 12 16 ซับ ASS กับ SRT", [
+    "-f", "lavfi", "-i", "color=c=black:s=640x360:r=24:d=20",
+    "-f", "lavfi", "-i", `aevalsrc='0.4*sin(2*PI*440*t)*(${gate})':s=48000:d=20`,
+    "-i", join(SRC, "full.ass"), "-i", join(SRC, "tags.srt"),
+    "-map", "0:v", "-map", "1:a", "-map", "2:s", "-map", "3:s",
+    "-vf", vf, ...x264, "-g", "9999", "-sc_threshold", "0", "-force_key_frames", "0,4,8,10,12,16",
+    "-c:a", "aac", "-ac", "2", "-c:s:0", "ass", "-c:s:1", "srt",
+    "-metadata:s:s:0", "language=tha", "-metadata:s:s:0", "title=ครบทุกช่อง",
+    "-metadata:s:s:1", "language=tha", "-metadata:s:s:1", "title=แท็ก SRT",
+    movie,
+  ]);
+  // ซับข้างหนัง · ASS ต้นฉบับ (UTF-8 ไม่มี BOM ตัวจบบรรทัดตามที่ git ดึงมา) · แบบมี BOM กับ CRLF · SRT แท็ก · SRT แบบ UTF-16 · SRT แบบ TIS-620
+  const ass = readFileSync(join(SRC, "full.ass"), "utf8").replace(/^﻿/, "").replace(/\r\n/g, "\n");
+  const srt = readFileSync(join(SRC, "tags.srt"), "utf8").replace(/^﻿/, "").replace(/\r\n/g, "\n");
+  writeFileSync(join(SE, "ฉากตัด (2025).th.ass"), ass);
+  writeFileSync(join(SE, "ฉากตัด (2025).bom-crlf.th.ass"), "﻿" + ass.replace(/\n/g, "\r\n"));
+  writeFileSync(join(SE, "ฉากตัด (2025).th.srt"), srt.replace(/\n/g, "\r\n"));
+  writeFileSync(join(SE, "ฉากตัด (2025).utf16.th.srt"), Buffer.concat([Buffer.from([0xff, 0xfe]), Buffer.from(srt.replace(/\n/g, "\r\n"), "utf16le")]));
+  writeFileSync(join(SE, "ฉากตัด (2025).tis620.th.srt"), Buffer.from([...srt.replace(/\n/g, "\r\n")].map((ch) => {
+    const c = ch.codePointAt(0);
+    return c < 0x80 ? c : c >= 0x0e01 && c <= 0x0e5b ? c - 0x0d60 : 0x3f;
+  })));
+  console.log("สร้างแล้ว  แก้ซับ/ฉากตัด (2025).th.ass · .bom-crlf.th.ass · .th.srt · .utf16.th.srt · .tis620.th.srt");
+  // SRT 2,000 บรรทัด ไว้เทสตารางที่วาดเฉพาะแถวที่เห็นกับความเร็ว · ทุก 50 บรรทัดมีบรรทัดเวลาซ้อน ทุก 37 บรรทัดข้อความยาวจนอ่านไม่ทัน
+  const words = ["ดาว", "เหนือ", "กลับมาแล้ว", "ไปไหนมา", "ฝนตก", "รอก่อนนะ", "ขอบคุณมาก", "ไม่เป็นไร", "เดี๋ยวก่อน", "จริงเหรอ"];
+  const two = (n, w = 2) => String(n).padStart(w, "0");
+  const ts = (s) => `${two(Math.floor(s / 3600))}:${two(Math.floor(s / 60) % 60)}:${two(Math.floor(s) % 60)},${two(Math.round((s % 1) * 1000) % 1000, 3)}`;
+  const out = [];
+  for (let i = 0; i < 2000; i++) {
+    const a = i * 3.2 + 0.5 - (i % 50 === 49 ? 1.6 : 0), b = a + (i % 37 === 36 ? 0.6 : 2.4);
+    const text = i % 37 === 36 ? "บรรทัดยาวมากจนอ่านไม่ทันในเวลาที่ให้ไว้สั้นนิดเดียว" : `${words[i % 10]} ${words[(i * 7) % 10]}${i % 9 === 0 ? `\n${words[(i * 3) % 10]}` : ""}`;
+    out.push(`${i + 1}\n${ts(a)} --> ${ts(b)}\n${text}\n`);
+  }
+  writeFileSync(join(SE, "ยาว 2000 บรรทัด.th.srt"), out.join("\n"));
+  console.log("สร้างแล้ว  แก้ซับ/ยาว 2000 บรรทัด.th.srt");
+}
+
 // ไฟล์ของพี่กัน
 const fromGun = join(root, "test-media", "จากพี่กัน");
 if (existsSync(join(fromGun, "IMG_4149.HEIC"))) copyFileSync(join(fromGun, "IMG_4149.HEIC"), join(IMG, "IMG_4149.HEIC"));

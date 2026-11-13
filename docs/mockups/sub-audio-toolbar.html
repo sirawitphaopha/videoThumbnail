@@ -1,0 +1,315 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>แถบปุ่มเสียง หน้าแก้ซับ</title>
+<!--
+  มอคอัปแถวปุ่มใต้คลื่นเสียงของหน้าแก้ซับ แบบ 1 ที่พี่กันเลือก BUGS ข้อ 109 (13 พ.ย. 2569)
+  พี่กันสั่ง "เราขอปุ่มเหมือนกันเลย เธอไปวาดใหม่มา เเละเรียงเหมือนกัน" กับ "ปล เอาหมดที่เธอเสนอเเหละ ทำมาก่อนเเหละ"
+  ปุ่มเรียงตาม src/libresrc/default_toolbar.json ของ Aegisub ส่วน audio ไม่เอาคาราโอเกะ ไอคอนวาดใหม่เส้น 2 มุมมนแบบ src/components/icons.tsx ไม่ได้ลอกภาพของ Aegisub
+  แถบเลื่อนตั้งสามอันทางขวาของคลื่นเสียงกับขอบลากปรับความสูง ตาม src/audio_box.cpp
+  ทุกกรอบเป็นหน้าจอจริงของโปรแกรมผ่าน theme-live-app.html ปุ่มกับแถบที่เพิ่มยังไม่ทำงาน ยังไม่ได้แก้โค้ดของโปรแกรม
+  เปิดด้วยเซิร์ฟเวอร์ทดสอบ npm run dev แล้วเข้า http://127.0.0.1:1420/docs/mockups/sub-audio-toolbar.html
+-->
+<style>
+  :root { --font: Sarabun, "Noto Sans Thai", Tahoma, sans-serif; --ink: #3a252c; --ink2: #7a5a66; --line: #ecd3dc; --acc: #a8456b; }
+  body { margin: 0; background: #fbf5f7; color: var(--ink); font-family: var(--font); }
+  .page { padding: 24px 20px 60px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  .lead { color: var(--ink2); margin: 0 0 22px; font-size: 15px; max-width: 1280px; }
+  .opt { margin: 26px 0 44px; }
+  .opt h3 { font-size: 18px; margin: 0 0 4px; }
+  .opt > p { margin: 0 0 12px; color: var(--ink2); font-size: 15px; max-width: 1280px; }
+  .size { margin: 0 0 22px; }
+  .size h4 { font-size: 14.5px; font-weight: 600; margin: 0 0 6px; color: var(--ink2); }
+  .frame { border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 22px rgba(60, 25, 40, .12); background: #fff; display: block; }
+  .state { font-size: 13px; color: #b0303f; margin-top: 6px; }
+  .keys { max-width: 1280px; border-collapse: collapse; font-size: 14px; margin: 6px 0 0; background: #fff; }
+  .keys th, .keys td { border: 1px solid var(--line); padding: 6px 10px; text-align: left; vertical-align: top; }
+  .keys th { background: #fbe9ef; color: #b0355f; }
+  .keys td.ic { color: #b0355f; }
+  .keys td.k { white-space: nowrap; font-variant-numeric: tabular-nums; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>แถบปุ่มเสียง หน้าแก้ซับ</h1>
+  <p class="lead">ทุกกรอบเป็นหน้าจอจริงของโปรแกรมตามแบบ 1 ที่พี่กันเลือก แต่ละแบบมีสองกรอบ คือหน้าต่างตอนยังไม่กดขยาย 1280 × 800 กับตอนกดขยายเต็มจอ 1600 × 852 ไม่ย่อ แถวปุ่มมี 19 ปุ่มเรียงเหมือน Aegisub ทุกปุ่ม ยกเว้นคาราโอเกะ ไอคอนแคลร์วาดใหม่ให้เส้นเหมือนไอคอนอื่นของโปรแกรม และใส่สีตามหน้าที่ คือสีเขียวเป็นการเล่นเสียง สีแดงคือหยุด สีส้มเหลืองคือขอบของช่วงที่เลือก สีฟ้าคือไปบรรทัดอื่นหรือเลื่อนภาพ สีเขียวน้ำทะเลคือเผื่อเวลา สีม่วงคือไปที่ช่วงกับคีย์ลัด สีส้มคือภาพความถี่ และตัว A สีชมพูบอกว่าเป็นปุ่มทำงานอัตโนมัติ ทั้งสองแบบมีแถบเลื่อนตั้งสามอันทางขวาของคลื่นเสียง คือซูมแนวนอน ซูมแนวตั้ง และความดัง กับปุ่มโซ่ที่ผูกซูมแนวตั้งกับความดังให้เลื่อนพร้อมกัน และมีขอบใต้คลื่นเสียงให้ลากปรับความสูงกรอบเสียง ปุ่มกับแถบที่เพิ่มยังกดไม่ได้ ตารางท้ายหน้าบอกว่าแต่ละปุ่มทำอะไรและคีย์ลัดอะไร พี่กันเลือกแบบ 2 เป็นหลัก และใช้แบบ 1 ตอนจอเล็กจนวางชื่อใต้ไอคอนไม่พอ (13 พ.ย. 2569)</p>
+  <div id="opts"></div>
+  <h3 style="font-size:18px;margin:30px 0 4px">ปุ่มทั้ง 19 ปุ่ม เรียงซ้ายไปขวาเหมือน Aegisub</h3>
+  <table class="keys" id="keys"><thead><tr><th>ไอคอน</th><th>ชื่อสั้นในแบบ 2</th><th>ทำอะไร</th><th>คีย์ลัดของ Aegisub</th></tr></thead><tbody></tbody></table>
+</div>
+
+<script>
+const OPTS = [
+  { mode: "now", name: "หน้าตาตอนนี้ของแบบ 1 ที่เลือกไว้", desc: "ใต้คลื่นเสียงมีแค่ปุ่มบรรทัดก่อน บรรทัดถัดไป ปุ่มเปิดเล่นด้วยโปรแกรมเล่นที่ตั้งไว้ และปุ่มสลับรูปคลื่นกับความถี่ ยังไม่มีแถบซูมและขอบลากปรับความสูง" },
+  { mode: "ib", name: "แบบ 1 ไอคอนอย่างเดียวใต้คลื่นเสียง ชี้แล้วขึ้นชื่อปุ่ม", desc: "แถวปุ่มอยู่ใต้คลื่นเสียงเหมือน Aegisub เป็นปุ่มไอคอนเล็กเรียงแถวเดียว กินที่น้อยที่สุด ชี้ปุ่มไหนขึ้นชื่อปุ่มกับคีย์ลัด ในกรอบนี้ชี้ปุ่มเล่นช่วงที่เลือกค้างไว้ให้เห็น ปุ่มที่เปิดค้างได้ เช่น เลื่อนตาม มีพื้นสีเข้มตอนเปิด ต้องจำไอคอนเองหรือชี้ดูก่อน" },
+  { mode: "lb", name: "แบบ 2 ไอคอนพร้อมชื่อสั้นใต้ไอคอน เต็มความกว้างใต้ภาพหนังกับคลื่นเสียง", desc: "ปุ่มเดียวกันทั้ง 19 ปุ่ม แต่มีชื่อสั้นใต้ไอคอนทุกปุ่ม อ่านแล้วรู้เลยว่าปุ่มไหนทำอะไร ปุ่มกว้างขึ้นจนวางใต้คลื่นเสียงไม่พอ จึงย้ายลงมาเต็มความกว้างใต้ภาพหนังกับคลื่นเสียง ช่องแก้บรรทัดกับตารางจึงถูกดันลงไปอีกราว 30 จุดเมื่อเทียบกับแบบ 1 ที่หน้าต่าง 1280 × 800 ตารางเหลือที่ให้เห็นราวสองบรรทัด" },
+];
+const SIZES = [
+  { label: "หน้าต่างตอนยังไม่กดขยาย 1280 × 800", w: 1280, h: 800 },
+  { label: "กดขยายเต็มจอ 1600 × 852", w: 1600, h: 852 },
+];
+
+/* ไอคอนเส้นแบบเดียวกับ src/components/icons.tsx (เส้น 2 มุมมน) */
+const ic = (d, s = 15) => `<svg width="${s}" height="${s}" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+/* สีตามหน้าที่ของปุ่ม (พี่กันสั่ง 13 พ.ย. 2569 "ใส่สีหน่อย")
+   เขียว เล่น · แดง หยุด · ส้มเหลือง ขอบช่วงที่เลือก · ฟ้า ไปบรรทัดและเลื่อนภาพ · เขียวน้ำทะเล เผื่อเวลา · ม่วง ไปที่ช่วงและคีย์ลัด · ชมพู ป้าย A ของปุ่มอัตโนมัติ · ส้ม ภาพความถี่
+   ตอนลงโปรแกรมจริงเขียนเป็นชื่อสีกับ color-mix ตามกฎใน CLAUDE.md ไม่งั้นตัวแปลงโทนเปลี่ยนสีให้ */
+const C = { play: "#2e9e5b", stop: "#d64545", edge: "#d98a1c", nav: "#3f74c4", lead: "#16949e", go: "#8a56c9", auto: "#c8406f", spec: "#e0702a" };
+const g = (col, inner) => `<g stroke="${col}">${inner}</g>`;
+const TRI = (x, col = C.play) => `<path d="M${x} 8.5v7l5.5-3.5z" fill="${col}" stroke="${col}"/>`;
+const A = `<text x="16.5" y="9" font-size="8.5" font-weight="700" fill="${C.auto}" stroke="none" font-family="Sarabun, sans-serif">A</text>`;
+const BTN = [
+  { id: "prev", d: g(C.nav, '<path d="M14.5 6l-6 6 6 6"/><path d="M5 5v14"/>'), s: "บรรทัดก่อน", t: "ไปบรรทัดก่อน", k: "Z หรือลูกศรซ้าย" },
+  { id: "next", d: g(C.nav, '<path d="M9.5 6l6 6-6 6"/><path d="M19 5v14"/>'), s: "บรรทัดถัดไป", t: "ไปบรรทัดถัดไป", k: "X หรือลูกศรขวา" },
+  { id: "playsel", d: g(C.edge, '<path d="M7 5H4v14h3M17 5h3v14h-3"/>') + TRI(9.5), s: "เล่นช่วง", t: "เล่นช่วงที่เลือก รวมช่วงที่ลากแล้วแต่ยังไม่ยืนยัน", k: "Space หรือ S" },
+  { id: "playline", d: g(C.play, '<rect x="3" y="5" width="18" height="14" rx="2"/>') + TRI(9.5), s: "เล่นบรรทัด", t: "เล่นทั้งบรรทัดตามเวลาที่ยืนยันแล้ว", k: "R" },
+  { id: "stop", d: `<rect x="6.5" y="6.5" width="11" height="11" rx="1.5" fill="${C.stop}" stroke="${C.stop}"/>`, s: "หยุด", t: "หยุดเสียงและภาพ", k: "H" },
+  { sep: 1 },
+  { id: "before", d: TRI(3) + g(C.edge, '<path d="M17 5h-3v14h3"/><path d="M20 9v6" opacity=".45"/>'), s: "ก่อนช่วง", t: "เล่นครึ่งวินาทีก่อนเวลาเริ่ม ไว้ฟังว่าเสียงต้นประโยคขาดไหม", k: "Q" },
+  { id: "after", d: g(C.edge, '<path d="M7 5h3v14H7"/><path d="M4 9v6" opacity=".45"/>') + TRI(14), s: "หลังช่วง", t: "เล่นครึ่งวินาทีหลังเวลาจบ ไว้ฟังว่าเสียงท้ายประโยคขาดไหม", k: "W" },
+  { id: "begin", d: g(C.edge, '<path d="M8 5H5v14h3"/><path d="M19 9v6" opacity=".45"/>') + TRI(10.5), s: "ต้นช่วง", t: "เล่นครึ่งวินาทีแรกของช่วงที่เลือก", k: "E" },
+  { id: "end", d: g(C.edge, '<path d="M5 9v6" opacity=".45"/><path d="M16 5h3v14h-3"/>') + TRI(8), s: "ท้ายช่วง", t: "เล่นครึ่งวินาทีสุดท้ายของช่วงที่เลือก", k: "D" },
+  { id: "toend", d: g(C.edge, '<path d="M7 5H4v14h3"/>') + g(C.play, '<path d="M10 8l4 4-4 4M15.5 8l4 4-4 4"/>'), s: "จนจบไฟล์", t: "เล่นจากเวลาเริ่มของช่วงไปจนจบไฟล์", k: "T" },
+  { sep: 1 },
+  { id: "leadin", d: g(C.edge, '<path d="M16 5h-3v14h3"/>') + g(C.lead, '<path d="M13 12H3.5M6.5 9l-3 3 3 3"/>'), s: "เผื่อหน้า", t: "ขยับเวลาเริ่มให้เร็วขึ้น 100 ms ให้ซับขึ้นก่อนเสียงนิดหนึ่ง", k: "C" },
+  { id: "leadout", d: g(C.edge, '<path d="M8 5h3v14H8"/>') + g(C.lead, '<path d="M11 12h9.5M17.5 9l3 3-3 3"/>'), s: "เผื่อท้าย", t: "ขยับเวลาจบให้ช้าลง 350 ms ให้ซับค้างหลังเสียงจบนิดหนึ่ง", k: "V" },
+  { sep: 1 },
+  { id: "commit", d: g(C.play, '<path d="M4.5 12.5l5 5 10-11"/>'), s: "ยืนยัน", t: "บันทึกเวลาที่ลากไว้บนคลื่นเสียงลงบรรทัด", k: "Enter หรือ G" },
+  { id: "goto", d: g(C.go, `<circle cx="12" cy="12" r="6.5"/><path d="M12 2.5v4M12 17.5v4M2.5 12h4M17.5 12h4"/><circle cx="12" cy="12" r="1.2" fill="${C.go}"/>`), s: "ไปที่ช่วง", t: "เลื่อนภาพคลื่นเสียงให้ช่วงที่เลือกอยู่กลางกรอบ", k: "ไม่มี" },
+  { sep: 1 },
+  { id: "autocommit", tog: 1, d: g(C.play, '<path d="M3.5 13.5l4.5 4.5 8-9"/>') + A, s: "ยืนยันทันที", t: "เปิดไว้ ลากขอบบนคลื่นเสียงแล้วบันทึกเวลาเลย ไม่ต้องกดยืนยัน", k: "ปุ่มเปิดปิด" },
+  { id: "autonext", tog: 1, d: g(C.play, '<path d="M3 12.5l4 4 6.5-7.5"/>') + g(C.nav, '<path d="M14.5 15h6.5M18 12l3 3-3 3"/>') + A, s: "ไปต่อเอง", t: "เปิดไว้ กดยืนยันแล้วไปบรรทัดถัดไปเอง ตั้งเวลาต่อได้ทันที", k: "ปุ่มเปิดปิด" },
+  { id: "autoscroll", tog: 1, on: 1, d: g(C.nav, '<rect x="2.5" y="8" width="14" height="11" rx="2"/><path d="M5.5 13.5h7M10 11l2.5 2.5L10 16"/>') + A.replace('x="16.5"', 'x="17"'), s: "เลื่อนตาม", t: "เปิดไว้ เลือกบรรทัดในตารางแล้วภาพคลื่นเสียงเลื่อนไปที่บรรทัดนั้นเอง", k: "ปุ่มเปิดปิด" },
+  { id: "spectrum", tog: 1, d: g(C.spec, '<path d="M4 20v-6M8 20V8M12 20v-9M16 20V5M20 20v-7"/>'), s: "ความถี่", t: "สลับภาพคลื่นเสียงระหว่างรูปคลื่นกับภาพความถี่", k: "ปุ่มเปิดปิด" },
+  { id: "medusa", tog: 1, d: '<rect x="2.5" y="6.5" width="19" height="11" rx="2"/>' + g(C.go, '<path d="M6 10h.01M9.5 10h.01M13 10h.01M16.5 10h.01M8 14h8"/>'), s: "คีย์ลัดเดี่ยว", t: "คีย์ลัดตัวอักษรเดียว เช่น S เล่นช่วง Q กับ W ฟังขอบ ใช้ได้แม้เคอร์เซอร์อยู่ในช่องพิมพ์ (Aegisub เรียกว่า Medusa Mode)", k: "ปุ่มเปิดปิด" },
+];
+const SL = {
+  hz: ic('<circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8M7.5 10.5h6"/><path d="M9 8.5l-1.5 2 1.5 2M12 8.5l1.5 2-1.5 2" stroke-width="1.6"/>', 14),
+  vz: ic('<circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8M10.5 7.5v6"/><path d="M8.5 9l2-1.5 2 1.5M8.5 12l2 1.5 2-1.5" stroke-width="1.6"/>', 14),
+  vol: ic('<path d="M4 9.5h3.5L12 5.5v13l-4.5-4H4z"/><path d="M15.5 9a4 4 0 010 6M18 6.5a7.5 7.5 0 010 11"/>', 14),
+  link: ic('<path d="M10 14a4 4 0 005.7 0l3-3a4 4 0 00-5.7-5.7l-1 1"/><path d="M14 10a4 4 0 00-5.7 0l-3 3a4 4 0 005.7 5.7l1-1"/>', 14),
+  info: '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" aria-hidden="true"><circle cx="12" cy="12" r="9"/><path d="M12 11v5M12 7.5v.5"/></svg>',
+};
+
+/* ตารางท้ายหน้า */
+const kb = document.querySelector("#keys tbody");
+for (const b of BTN) if (!b.sep) {
+  const tr = document.createElement("tr");
+  tr.innerHTML = `<td class="ic">${ic(b.d, 18)}</td><td></td><td></td><td class="k"></td>`;
+  tr.children[1].textContent = b.s; tr.children[2].textContent = b.t; tr.children[3].textContent = b.k;
+  kb.appendChild(tr);
+}
+
+const host = document.getElementById("opts");
+let n = 0;
+for (const o of OPTS) {
+  const box = document.createElement("div");
+  box.className = "opt";
+  box.innerHTML = `<h3></h3><p></p>`;
+  box.querySelector("h3").textContent = o.name;
+  box.querySelector("p").textContent = o.desc;
+  const num = o.mode === "now" ? null : ++n;
+  SIZES.forEach((s, si) => {
+    const sz = document.createElement("div");
+    sz.className = "size";
+    sz.innerHTML = `<h4></h4><iframe class="frame" title=""></iframe><div class="state" data-state></div>`;
+    sz.querySelector("h4").textContent = num ? `${num}.${si + 1} ${s.label}` : s.label;
+    const f = sz.querySelector("iframe");
+    f.title = `${o.name} ${s.label}`; f.dataset.v = o.mode;
+    f.style.width = s.w + "px"; f.style.height = s.h + "px";
+    box.appendChild(sz);
+  });
+  host.appendChild(box);
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function until(fn, ms = 12000) { const t = Date.now(); while (Date.now() - t < ms) { try { const v = fn(); if (v) return v; } catch (e) { /* ยังโหลด */ } await sleep(120); } return null; }
+const navTo = async (d, label) => (await until(() => [...d.querySelectorAll(".side .nav")].find((b) => b.innerText.trim().split(/\s*\n/)[0] === label)))?.click();
+const IN_APP = !!window.__TAURI_INTERNALS__;
+const MOVIE = IN_APP ? "D:/movie-shelf/test-media/สร้าง/หนัง/ดาวเหนือ (2023).mkv" : "D:\\หนัง\\ดาวเหนือ (2023).mkv";
+
+/* แถบเครื่องมือกับช่องแก้บรรทัดของแบบ 1 ยกจาก sub-editor-pick.html */
+const I = {
+  undo: ic('<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/>'),
+  redo: ic('<path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 000 12h3"/>'),
+  shift: ic('<path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/>'),
+  stretch: ic('<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>'),
+  find: ic('<circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8"/>'),
+  save: ic('<path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/>'),
+  plus: ic('<path d="M12 5v14M5 12h14"/>'),
+  split: ic('<path d="M12 3v18M5 8l-3 4 3 4M19 8l3 4-3 4"/>'),
+  merge: ic('<path d="M4 12h16M8 7l4 5-4 5M16 7l-4 5 4 5"/>'),
+  del: ic('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
+  play: ic('<path d="M7 5l12 7-12 7z"/>'),
+  back: ic('<path d="M15 18l-6-6 6-6"/>'), next: ic('<path d="M9 18l6-6-6-6"/>'),
+};
+
+const CSS = `
+.mk-tools{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;padding:4px 0 10px;border-bottom:1px solid var(--line)}
+.mk-tools .btn{height:34px;white-space:nowrap}
+.mk-tools .mk-sep{width:1px;height:22px;background:var(--line);flex:none}
+.mk-tools .mk-dirty{font-size:12.5px;color:#94680f;white-space:nowrap}
+.mk-edit{border:1px solid #e8cdd6;border-radius:10px;background:#fff;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.mk-erow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--txt2)}
+.mk-erow label{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.mk-erow input{width:104px;height:32px;box-sizing:border-box;padding:0 8px;border:1px solid #e8cdd6;border-radius:8px;font:inherit;font-size:13.5px;font-variant-numeric:tabular-nums;color:var(--txt);background:#fff}
+.mk-erow b{color:var(--txt);font-weight:600;font-variant-numeric:tabular-nums}
+.mk-erow .btn{height:32px}
+.mk-text{width:100%;box-sizing:border-box;min-height:58px;resize:none;padding:8px 10px;border:1px solid var(--accent);border-radius:8px;font:inherit;font-size:15px;line-height:1.5;color:var(--txt);box-shadow:0 0 0 3px rgba(200,64,111,.18)}
+.mk-hint{font-size:12.5px;color:var(--txt3)}
+[data-sub-table] tr.mk-edited td:first-child{box-shadow:inset 3px 0 0 #e0a43a}
+
+/* คลื่นเสียงกับแถบเลื่อนตั้งสามอันทางขวา (audio_box.cpp) */
+.mk-wave{display:flex;gap:8px;align-items:stretch}
+.mk-wave canvas[data-aud]{flex:1;min-width:0;width:auto}
+.mk-sl{display:flex;gap:4px;align-items:stretch;padding:4px 6px 4px;border:1px solid var(--line);border-radius:8px;background:#fff;position:relative}
+.mk-slc{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--txt2);width:20px}
+.mk-slc input{writing-mode:vertical-lr;direction:rtl;flex:1;width:16px;min-height:0;margin:0;accent-color:var(--accent);cursor:pointer}
+.mk-link{position:absolute;right:5px;bottom:-15px;display:none}
+.mk-slfoot{display:flex;justify-content:space-between;align-items:center;margin-top:2px}
+.mk-ibtn{display:inline-flex;align-items:center;justify-content:center;height:22px;padding:0 4px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--txt2);cursor:pointer}
+.mk-ibtn:hover{background:var(--accent-soft);color:var(--accent-ink)}
+.mk-ibtn[aria-pressed=true]{background:var(--accent-soft);border-color:#e2bfcb;color:var(--accent-ink)}
+.mk-grip{height:10px;margin:-2px 0 0;display:flex;align-items:center;justify-content:center;cursor:ns-resize;border-radius:5px}
+.mk-grip i{display:block;width:42px;height:4px;border-radius:2px;background:#e2bfcb}
+.mk-grip:hover{background:var(--accent-soft)}
+.mk-grip:hover i{background:var(--accent)}
+
+/* แถวปุ่มเสียง */
+.mk-atb{display:flex;align-items:center;gap:3px;flex-wrap:nowrap;position:relative}
+.mk-atb .mk-s{width:1px;height:22px;background:var(--line);flex:none;margin:0 2px}
+.mk-ab{display:inline-flex;align-items:center;justify-content:center;flex-direction:column;gap:1px;height:32px;padding:0 4px;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--txt);cursor:pointer;font:inherit;flex:none}
+.mk-ab:hover{background:var(--accent-soft);border-color:#e2bfcb;color:var(--accent-ink)}
+.mk-ab[aria-pressed=true]{background:#f5dde5;border-color:#d8a9b9;color:var(--accent-ink)}
+.mk-ab.mk-hov{background:var(--accent-soft);border-color:#e2bfcb;color:var(--accent-ink)}
+.mk-atb.lb{gap:2px;padding:2px 0 8px;border-bottom:1px solid var(--line);justify-content:space-between}
+.mk-atb.lb .mk-ab{height:46px;padding:0 3px;min-width:40px}
+.mk-atb.lb .mk-ab span{font-size:11px;line-height:1.15;white-space:nowrap;color:var(--txt2)}
+.mk-atb.lb .mk-ab:hover span,.mk-atb.lb .mk-ab[aria-pressed=true] span{color:var(--accent-ink)}
+.mk-atb.lb .mk-s{height:34px;margin:0 1px}
+.mk-tip{position:absolute;z-index:5;bottom:calc(100% + 6px);transform:translateX(-50%);background:#3a252c;color:#fff;font-size:12.5px;line-height:1.4;padding:6px 10px;border-radius:7px;white-space:nowrap;pointer-events:none;box-shadow:0 4px 14px rgba(60,25,40,.25)}
+.mk-tip b{font-weight:600;color:#f6c9d8;margin-left:6px}
+`;
+
+function tools(d, hint) {
+  const t = d.createElement("div");
+  t.className = "mk-tools";
+  t.innerHTML = `<button class="btn btn-ghost btn-sm" title="เลิกทำ Ctrl+Z">${I.undo}เลิกทำ</button><button class="btn btn-ghost btn-sm" title="ทำซ้ำ Ctrl+Y">${I.redo}ทำซ้ำ</button><span class="mk-sep"></span>
+    <button class="btn btn-ghost btn-sm">${I.shift}เลื่อนเวลาทั้งไฟล์</button><button class="btn btn-ghost btn-sm">${I.stretch}ยืดเวลาตามความเร็วหนัง</button><button class="btn btn-ghost btn-sm">${I.find}ค้นและแทนที่</button>
+    <span style="flex:1"></span><span class="mk-dirty">${hint}</span><button class="btn btn-ghost btn-sm">บันทึกเป็นไฟล์ใหม่</button><button class="btn btn-main btn-sm">${I.save}บันทึก</button>`;
+  return t;
+}
+function editBox(d, c) {
+  const e = d.createElement("div");
+  e.className = "mk-edit";
+  e.innerHTML = `<div class="mk-erow"><label>บรรทัด <b>${c.n}</b></label><label>เริ่ม<input value="${c.s}"></label><label>จบ<input value="${c.e}"></label><label>ยาว <b>${c.len} วินาที</b></label><label>ตัว/วิ <b>${c.cps}</b></label>
+    <span style="flex:1"></span><button class="btn btn-ghost btn-sm">${I.plus}แทรกบรรทัด</button><button class="btn btn-ghost btn-sm">${I.split}แยก</button><button class="btn btn-ghost btn-sm">${I.merge}รวมกับถัดไป</button><button class="btn btn-bad btn-sm">${I.del}ลบ</button></div>
+    <textarea class="mk-text">${c.text}</textarea>
+    <div class="mk-erow"><button class="btn btn-ghost btn-sm">${I.back}บรรทัดก่อน</button><button class="btn btn-ghost btn-sm">${I.next}บรรทัดถัดไป</button><button class="btn btn-ghost btn-sm">${I.play}ตั้งเวลาเริ่มตามภาพที่เห็น</button><span class="mk-hint">กด Enter เพื่อไปบรรทัดถัดไป  ส่วน Shift+Enter ขึ้นบรรทัดใหม่ในซับเดียวกัน</span></div>`;
+  return e;
+}
+function sliders(d) {
+  const s = d.createElement("div");
+  s.className = "mk-sl";
+  const col = (icon, name, val) => `<div class="mk-slc" title="${name}">${icon}<input type="range" min="0" max="100" value="${val}" aria-label="${name}"></div>`;
+  s.innerHTML = col(SL.hz, "ซูมแนวนอน ถ่างหรือหดช่วงเวลาที่เห็น 10% ถึง 850%", 30)
+    + col(SL.vz, "ซูมแนวตั้ง ขยายความสูงของคลื่นเสียง", 50)
+    + col(SL.vol, "ความดังตอนเล่น", 70);
+  return s;
+}
+function slFoot(d) {
+  const f = d.createElement("div");
+  f.className = "mk-slfoot";
+  f.innerHTML = `<button class="mk-ibtn" aria-pressed="true" title="ผูกซูมแนวตั้งกับความดังให้เลื่อนพร้อมกัน">${SL.link}</button><button class="mk-ibtn" title="แถบเลื่อนสามอัน อันแรกถ่างหรือหดช่วงเวลาที่เห็น อันที่สองขยายความสูงของคลื่นให้เห็นเสียงเบาชัดขึ้น อันที่สามคือความดังตอนเล่น ปุ่มโซ่ผูกอันที่สองกับอันที่สามให้เลื่อนพร้อมกัน">${SL.info}</button>`;
+  return f;
+}
+function audioBar(d, labels) {
+  const t = d.createElement("div");
+  t.className = "mk-atb" + (labels ? " lb" : "");
+  t.innerHTML = BTN.map((b) => b.sep ? '<span class="mk-s"></span>'
+    : `<button class="mk-ab" data-ab="${b.id}" title="${b.t}  คีย์ลัด ${b.k}"${b.tog ? ` aria-pressed="${b.on ? "true" : "false"}"` : ""}>${ic(b.d, 17)}${labels ? `<span>${b.s}</span>` : ""}</button>`).join("");
+  return t;
+}
+/* กล่องชื่อปุ่มตอนชี้ ค้างไว้ให้เห็นในภาพ */
+function showTip(d, bar, id) {
+  const b = bar.querySelector(`[data-ab="${id}"]`), x = BTN.find((v) => v.id === id);
+  b.classList.add("mk-hov");
+  const tip = d.createElement("div");
+  tip.className = "mk-tip";
+  tip.innerHTML = `${x.t}<b>${x.k}</b>`;
+  bar.appendChild(tip);
+  const br = bar.getBoundingClientRect(), r = b.getBoundingClientRect();
+  let left = r.left + r.width / 2 - br.left;
+  const half = tip.offsetWidth / 2;
+  left = Math.max(half, Math.min(br.width - half, left));
+  tip.style.left = left + "px";
+}
+
+async function drive(f) {
+  const mode = f.dataset.v;
+  const d = f.contentDocument, w = f.contentWindow, state = f.parentElement.querySelector("[data-state]");
+  if (!w || !String(w.location.href).includes("theme-live-app")) return;
+  try {
+    await until(() => d.querySelector(".side .nav"));
+    await navTo(d, "ซับไตเติล");
+    await until(() => w.__subOpen);
+    w.__subOpen(MOVIE);
+    if (!(await until(() => d.querySelector("[data-subviewer-inline] [data-sub-table]")))) throw new Error("เปิดซับไม่ได้");
+    (await until(() => { const r = d.querySelectorAll("[data-sub-table] tbody tr"); return r.length ? r[Math.min(11, r.length - 1)] : null; }))?.click();
+    await until(() => d.querySelector("[data-vframe] img") && d.querySelector("canvas[data-aud]"));
+    await sleep(500);
+    const st = d.createElement("style"); st.textContent = CSS; d.head.appendChild(st);
+    const tracks = d.querySelector("[data-sub-list]");
+    (tracks ?? d.querySelector("[data-sub-bar]")).after(tools(d, "แก้แล้ว 3 บรรทัด ยังไม่บันทึก"));
+    const rows = [...d.querySelectorAll("[data-sub-table] tbody tr")];
+    [4, 9, 11].forEach((i) => rows[i]?.classList.add("mk-edited"));
+    const on = d.querySelector("[data-sub-table] tbody tr.on") ?? rows[0];
+    const td = [...on.children].map((x) => x.innerText.trim());
+    const cue = { n: td[0], s: td[1], e: td[2], len: td[3], cps: td[4], text: td[5] };
+    const aud = d.querySelector("canvas[data-aud]"), right = aud.parentElement, top = d.querySelector(".aegtop");
+    const search = d.querySelector("[data-sub-q]")?.closest("div"), grid = d.querySelector("[data-sub-table]");
+    if (search) search.replaceWith(editBox(d, cue)); else grid.before(editBox(d, cue));
+    if (mode === "now") { state.textContent = ""; return; }
+
+    // คลื่นเสียงกับแถบเลื่อนตั้ง แล้วไม้บรรทัดเวลากว้างเท่าคลื่น ขอบลากปรับความสูงอยู่ใต้ไม้บรรทัด
+    const wave = d.createElement("div"); wave.className = "mk-wave";
+    aud.before(wave); wave.appendChild(aud);
+    const sl = sliders(d); wave.appendChild(sl);
+    const ruler = right.querySelector(".ruler2");
+    if (ruler) ruler.style.marginRight = (sl.offsetWidth + 8) + "px";
+    const grip = d.createElement("div"); grip.className = "mk-grip"; grip.title = "ลากขึ้นลงเพื่อปรับความสูงกรอบเสียง"; grip.innerHTML = "<i></i>";
+    // ปุ่มโซ่กับ ⓘ ของแถบเลื่อน วางแถวเดียวกับไม้บรรทัด ใต้แถบเลื่อน
+    const rrow = d.createElement("div"); rrow.style.cssText = "display:flex;gap:8px;align-items:flex-start";
+    if (ruler) { ruler.before(rrow); rrow.appendChild(ruler); ruler.style.marginRight = "0"; ruler.style.flex = "1"; }
+    const foot = slFoot(d); foot.style.width = sl.offsetWidth + "px"; foot.style.marginTop = "-2px"; rrow.appendChild(foot);
+    rrow.after(grip);
+
+    const row = right.querySelector("[data-sub-prev]")?.parentElement;
+    // คำอธิบายใต้คลื่นเสียงเดิมยังอยู่ ปุ่มสลับรูปคลื่นกับความถี่ย้ายไปเป็นปุ่มความถี่ในแถวปุ่ม
+    if (mode === "ib") {
+      const bar = audioBar(d, false);
+      row.replaceWith(bar);
+      showTip(d, bar, "playsel");
+    } else {
+      row.remove();
+      const bar = audioBar(d, true);
+      top.after(bar);
+    }
+    state.textContent = "";
+  } catch (e) { state.textContent = "จัดหน้าไม่สำเร็จ " + e.message; }
+}
+
+const io = new IntersectionObserver((ents) => {
+  for (const e of ents) {
+    const f = e.target;
+    if (e.isIntersecting && !f.dataset.on) { f.dataset.on = "1"; f.src = "theme-live-app.html"; }
+    else if (!e.isIntersecting && f.dataset.on) { delete f.dataset.on; f.src = "about:blank"; }
+  }
+}, { rootMargin: "900px 0px" });
+document.querySelectorAll("iframe[data-v]").forEach((f) => { f.addEventListener("load", () => drive(f)); io.observe(f); });
+</script>
+</body>
+</html>
