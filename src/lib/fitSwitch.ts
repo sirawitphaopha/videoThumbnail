@@ -14,7 +14,9 @@ export function needWidth(el: HTMLElement) {
   let w = (parseFloat(cs.paddingLeft) || 0) + (parseFloat(cs.paddingRight) || 0) + gap * Math.max(0, kids.length - 1);
   for (const k of kids) {
     w += k.offsetWidth + Math.max(0, k.scrollWidth - k.clientWidth);
-    k.querySelectorAll<HTMLElement>(".hzoom").forEach((h) => { if (getComputedStyle(h).display !== "none") w += Math.max(0, 200 - h.offsetWidth); });
+    // แถบซูมหดจาก 200 ได้ถึง 130 เท่ากับตอนหัวกราฟแคบ ก่อนนับว่าวางไม่พอ · เดิมนับตั้งแต่ต่ำกว่า 200 หน้าความถี่เฉลี่ยตอนขยายเต็มจอ 1600 × 852
+    // หัวกราฟกว้าง 1,120 ขาด 24 จุดก็เป็นดรอปดาวน์ (BUGS ข้อ 102 พี่กันทัก 13 พ.ย. 2569 "ขยายจอสุดเเเล้วทำไมมันยังเป็นดรอปดาว หน้านี้")
+    k.querySelectorAll<HTMLElement>(".hzoom").forEach((h) => { if (getComputedStyle(h).display !== "none") w += Math.max(0, 130 - h.offsetWidth); });
   }
   return w;
 }

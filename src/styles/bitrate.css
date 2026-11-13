@@ -116,7 +116,14 @@
 .brn[data-brnfile] .brn-main { border: 0; border-radius: 0; box-shadow: none; background: transparent; padding: 10px 18px 12px 12px; }
 
 /* แถบซูมแนวนอนกับแนวตั้ง ปุ่มรีเซ็ต แบบหน้ากราฟเสียง (พี่กันสั่ง 10 พ.ย. 2569 "ขอเส้นซูมด้วย ทั้งแบบแนวตั้ง กับแนวนอน … และปุ่มรีเซ็ตด้วย") */
-.brn-zoom .zbtns { align-items: center; }
+.brn-zoom .zbtns { display: flex; align-items: center; }
+/* แถบซูมเรียงแบบหน้ากราฟเสียง (BUGS ข้อ 103) · หัวกราฟแคบ ตัววัด useFitClass ใส่คลาส narrow ปุ่มช่วงซูมเป็นดรอปดาวน์ */
+.brn-zoom { gap: 8px; }
+.brn-zoom > .lbl, .brn-style > .lbl { flex: none; font-size: 13px; color: var(--txt2); white-space: nowrap; }
+.brn-style > .lbl { margin-right: 4px; }
+.brn-zoom .fsep { width: 1px; height: 22px; background: var(--line); flex: none; align-self: center; }
+.brn-head.narrow .zseg { display: none; }
+.brn-head.narrow .zdd { display: flex; }
 .brn-zoom .hzoom { width: 170px; }
 .brn-plotrow { flex: 1; min-height: 160px; display: flex; gap: 6px; }
 .brn-plotrow .brn-plot { flex: 1; min-width: 0; min-height: 0; }
@@ -145,3 +152,7 @@
 /* หน้าเลือกแทร็กก่อนเปิด (10 พ.ย. 2569) */
 .brn-choose { max-width: 640px; width: 100%; align-self: center; margin-top: 24px; display: flex; flex-direction: column; gap: 10px; }
 .brn-choose h3 { margin: 0; }
+/* ส่วนภาพกับส่วนเสียงแยกกัน มีเส้นคั่น (BUGS ข้อ 106) */
+.brn-pickgrp { display: flex; flex-direction: column; gap: 6px; }
+.brn-pickgrp.sep { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 2px; }
+.brn-pickh { font-weight: 700; color: var(--txt2); }

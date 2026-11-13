@@ -1,0 +1,203 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>เลือกแบบ หน้าแก้ซับ</title>
+<!--
+  มอคอัปให้พี่กันเลือกแบบหน้าแก้ซับ BUGS ข้อ 109 ส่วนที่สอง (13 พ.ย. 2569)
+  พี่กันสั่ง "หน้านี้คือหน้าที่เราจะเอาไว้ edit ซับ มันควรใช้งาน ไม่ใช่เเค่ดู ไปรีดีไซด์ใไม่" แล้วตอบ "ทำมาเลย"
+  ทุกกรอบเป็นหน้าจอจริงของโปรแกรม (src/main.tsx) ผ่าน theme-live-app.html ที่แทนฝั่ง Rust ด้วยข้อมูลตัวอย่าง ซับตัวอย่าง 40 บรรทัดอยู่ใน theme-live-app.html
+  กรอบแรกคือหน้าซับไตเติลตอนนี้ แบบ 1 ถึง 3 จัดของบนหน้าจริงด้วยสคริปต์ท้ายไฟล์ ปุ่มกับช่องที่เพิ่มยังไม่ทำงาน ยังไม่ได้แก้โค้ดของโปรแกรม
+  กรอบเท่าหน้าต่างโปรแกรมตอนยังไม่กดขยาย 1280 × 800 (width height ใน src-tauri/tauri.conf.json) ไม่ย่อ
+  เปิดด้วยเซิร์ฟเวอร์ทดสอบ npm run dev แล้วเข้า http://127.0.0.1:1420/docs/mockups/sub-editor-pick.html
+-->
+<style>
+  :root { --font: Sarabun, "Noto Sans Thai", Tahoma, sans-serif; --ink: #3a252c; --ink2: #7a5a66; --line: #ecd3dc; --acc: #a8456b; }
+  body { margin: 0; background: #fbf5f7; color: var(--ink); font-family: var(--font); }
+  .page { padding: 24px 20px 60px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  .lead { color: var(--ink2); margin: 0 0 22px; font-size: 15px; max-width: 1280px; }
+  .opt { margin: 26px 0 44px; }
+  .opt h3 { font-size: 18px; margin: 0 0 4px; }
+  .opt > p { margin: 0 0 12px; color: var(--ink2); font-size: 15px; max-width: 1280px; }
+  .frame { width: 1280px; height: 800px; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 22px rgba(60, 25, 40, .12); background: #fff; display: block; }
+  .state { font-size: 13px; color: #b0303f; margin-top: 6px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>เลือกแบบ หน้าแก้ซับ</h1>
+  <p class="lead">ทุกกรอบเป็นหน้าจอจริงของโปรแกรมขนาดหน้าต่างตอนยังไม่กดขยาย 1280 × 800 เปิดไฟล์ ดาวเหนือ (2023).mkv ที่มีซับไทยในตัว กรอบแรกคือหน้าซับไตเติลตอนนี้ ซึ่งดูได้อย่างเดียว ทุกแบบมีแถบเครื่องมือแก้ซับชุดเดียวกันใต้แถวบน คือ เลิกทำ ทำซ้ำ เลื่อนเวลาทั้งไฟล์ ยืดเวลาตามความเร็วหนัง ค้นและแทนที่ และบันทึก ต่างกันที่วิธีจัดภาพหนัง ตาราง และช่องแก้บรรทัด ปุ่มกับช่องที่เพิ่มในแบบ 1 ถึง 3 ยังกดไม่ได้ บอกเลขแบบที่เลือกได้เลย</p>
+  <div id="opts"></div>
+</div>
+
+<script>
+const OPTS = [
+  { mode: "now", name: "หน้าซับไตเติลตอนนี้", desc: "ดูซับได้สามแบบ มีภาพหนัง คลื่นเสียง และตารางบรรทัด แต่แก้อะไรไม่ได้ ปุ่ม Export เอาซับออกมาเป็นไฟล์ได้อย่างเดียว" },
+  { mode: "aeg", name: "แบบ 1 ช่องแก้บรรทัดอยู่ระหว่างภาพหนังกับตาราง แบบ Aegisub", desc: "ภาพหนังกับคลื่นเสียงอยู่บน ถัดลงมาเป็นช่องแก้บรรทัดที่เลือก มีเวลาเริ่ม เวลาจบ ความยาว และข้อความ พร้อมปุ่มแทรก แยก รวม และลบบรรทัด ตารางทุกบรรทัดอยู่ล่างสุด บรรทัดที่แก้แล้วมีแถบสีหน้าแถว คนที่เคยใช้ Aegisub คุ้นมือ แต่ตารางเหลือที่น้อยที่หน้าต่าง 1280 × 800" },
+  { mode: "side", name: "แบบ 2 ตารางยาวด้านซ้าย ภาพหนังกับช่องแก้ด้านขวา", desc: "ตารางทุกบรรทัดสูงเต็มหน้าทางซ้าย เห็นได้ทีละราว 14 บรรทัด ด้านขวาเป็นภาพหนัง คลื่นเสียง และช่องแก้บรรทัดที่เลือกเรียงลงมา กดแถวในตารางแล้วภาพกับช่องแก้เปลี่ยนตาม เห็นบรรทัดก่อนหลังเยอะที่สุด แต่ภาพหนังเล็กลง" },
+  { mode: "pad", name: "แบบ 3 แก้ทั้งไฟล์แบบ notepad ภาพหนังกับรายการปัญหาด้านขวา", desc: "แก้ข้อความทั้งไฟล์ตรง ๆ เหมือนเปิดใน Notepad ด้านขวาแสดงภาพหนังของบรรทัดที่เคอร์เซอร์อยู่ และรายการปัญหาที่โปรแกรมตรวจเจอ เช่น เวลาซ้อนกับบรรทัดก่อน หรือตัวอักษรเยอะจนอ่านไม่ทัน กดรายการแล้วกระโดดไปบรรทัดนั้น เร็วสำหรับแก้คำผิดทีละเยอะ แต่แก้เวลาต้องพิมพ์ตัวเลขเอง" },
+];
+
+const host = document.getElementById("opts");
+for (const o of OPTS) {
+  const box = document.createElement("div");
+  box.className = "opt";
+  box.innerHTML = `<h3></h3><p></p><iframe class="frame" title=""></iframe><div class="state" data-state></div>`;
+  box.querySelector("h3").textContent = o.name;
+  box.querySelector("p").textContent = o.desc;
+  const f = box.querySelector("iframe");
+  f.title = o.name; f.dataset.v = o.mode;
+  host.appendChild(box);
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function until(fn, ms = 12000) { const t = Date.now(); while (Date.now() - t < ms) { try { const v = fn(); if (v) return v; } catch (e) { /* ยังโหลด */ } await sleep(120); } return null; }
+const navTo = async (d, label) => (await until(() => [...d.querySelectorAll(".side .nav")].find((b) => b.innerText.trim().split(/\s*\n/)[0] === label)))?.click();
+// เปิดในโครมใช้ข้อมูลตัวอย่างของ theme-live-app · เปิดในหน้าต่างโปรแกรมโหมดพัฒนา ฝั่ง Rust ตัวจริงตอบแทน (แก้ทับไม่ได้) จึงใช้ไฟล์ทดสอบจริง
+const IN_APP = !!window.__TAURI_INTERNALS__;
+const MOVIE = IN_APP ? "D:/movie-shelf/test-media/สร้าง/หนัง/ดาวเหนือ (2023).mkv" : "D:\\หนัง\\ดาวเหนือ (2023).mkv";
+
+/* ไอคอนเส้นแบบเดียวกับ src/components/icons.tsx (เส้น 2 มุมมน) · ตัวที่โปรแกรมยังไม่มีวาดใหม่ในแบบเดียวกัน */
+const ic = (d) => `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
+const I = {
+  undo: ic('<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/>'),
+  redo: ic('<path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 000 12h3"/>'),
+  shift: ic('<path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/>'),
+  stretch: ic('<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>'),
+  find: ic('<circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8"/>'),
+  save: ic('<path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/>'),
+  plus: ic('<path d="M12 5v14M5 12h14"/>'),
+  split: ic('<path d="M12 3v18M5 8l-3 4 3 4M19 8l3 4-3 4"/>'),
+  merge: ic('<path d="M4 12h16M8 7l4 5-4 5M16 7l-4 5 4 5"/>'),
+  del: ic('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
+  play: ic('<path d="M7 5l12 7-12 7z"/>'),
+  warn: ic('<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17v.5"/>'),
+  back: ic('<path d="M15 18l-6-6 6-6"/>'), next: ic('<path d="M9 18l6-6-6-6"/>'),
+};
+
+const CSS = `
+.mk-tools{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;padding:4px 0 10px;border-bottom:1px solid var(--line)}
+.mk-tools .btn{height:34px;white-space:nowrap}
+.mk-tools .mk-sep{width:1px;height:22px;background:var(--line);flex:none}
+.mk-tools .mk-dirty{font-size:12.5px;color:#94680f;white-space:nowrap}
+.mk-edit{border:1px solid #e8cdd6;border-radius:10px;background:#fff;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
+.mk-erow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--txt2)}
+.mk-erow label{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
+.mk-erow input{width:104px;height:32px;box-sizing:border-box;padding:0 8px;border:1px solid #e8cdd6;border-radius:8px;font:inherit;font-size:13.5px;font-variant-numeric:tabular-nums;color:var(--txt);background:#fff}
+.mk-erow b{color:var(--txt);font-weight:600;font-variant-numeric:tabular-nums}
+.mk-erow .btn{height:32px}
+.mk-text{width:100%;box-sizing:border-box;min-height:58px;resize:none;padding:8px 10px;border:1px solid var(--accent);border-radius:8px;font:inherit;font-size:15px;line-height:1.5;color:var(--txt);box-shadow:0 0 0 3px rgba(200,64,111,.18)}
+.mk-hint{font-size:12.5px;color:var(--txt3)}
+[data-sub-table] tr.mk-edited td:first-child{box-shadow:inset 3px 0 0 #e0a43a}
+.mk-side{display:grid;grid-template-columns:minmax(0,1fr) 430px;gap:14px;align-items:start}
+.mk-side .sgrid{max-height:600px;overflow:auto}
+.mk-side .vframe{width:100%}
+.mk-side canvas[data-aud]{height:84px}
+.mk-col{display:flex;flex-direction:column;gap:10px}
+.mk-pad{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;align-items:start}
+.mk-pad .np{max-height:600px;overflow:auto;outline:none;border:1px solid var(--accent);box-shadow:0 0 0 3px rgba(200,64,111,.14)}
+.mk-pad .npl.mk-cur{background:#faedf1}
+.mk-prob{border:1px solid #e8cdd6;border-radius:10px;background:#fff;padding:10px 12px;font-size:13px}
+.mk-prob h4{margin:0 0 6px;font-size:13.5px;color:var(--txt)}
+.mk-prob button{display:flex;gap:8px;align-items:flex-start;width:100%;text-align:left;border:0;background:transparent;padding:6px 4px;border-radius:7px;font:inherit;color:var(--txt);cursor:pointer}
+.mk-prob button:hover{background:#faedf1}
+.mk-prob button span.n{color:#94680f;font-weight:600;white-space:nowrap}
+`;
+
+function tools(d, hint) {
+  const t = d.createElement("div");
+  t.className = "mk-tools";
+  t.innerHTML = `<button class="btn btn-ghost btn-sm" title="เลิกทำ Ctrl+Z">${I.undo}เลิกทำ</button><button class="btn btn-ghost btn-sm" title="ทำซ้ำ Ctrl+Y">${I.redo}ทำซ้ำ</button><span class="mk-sep"></span>
+    <button class="btn btn-ghost btn-sm">${I.shift}เลื่อนเวลาทั้งไฟล์</button><button class="btn btn-ghost btn-sm">${I.stretch}ยืดเวลาตามความเร็วหนัง</button><button class="btn btn-ghost btn-sm">${I.find}ค้นและแทนที่</button>
+    <span style="flex:1"></span><span class="mk-dirty">${hint}</span><button class="btn btn-ghost btn-sm">บันทึกเป็นไฟล์ใหม่</button><button class="btn btn-main btn-sm">${I.save}บันทึก</button>`;
+  return t;
+}
+function editBox(d, c) {
+  const e = d.createElement("div");
+  e.className = "mk-edit";
+  e.innerHTML = `<div class="mk-erow"><label>บรรทัด <b>${c.n}</b></label><label>เริ่ม<input value="${c.s}"></label><label>จบ<input value="${c.e}"></label><label>ยาว <b>${c.len} วินาที</b></label><label>ตัว/วิ <b>${c.cps}</b></label>
+    <span style="flex:1"></span><button class="btn btn-ghost btn-sm">${I.plus}แทรกบรรทัด</button><button class="btn btn-ghost btn-sm">${I.split}แยก</button><button class="btn btn-ghost btn-sm">${I.merge}รวมกับถัดไป</button><button class="btn btn-bad btn-sm">${I.del}ลบ</button></div>
+    <textarea class="mk-text">${c.text}</textarea>
+    <div class="mk-erow"><button class="btn btn-ghost btn-sm">${I.back}บรรทัดก่อน</button><button class="btn btn-ghost btn-sm">${I.next}บรรทัดถัดไป</button><button class="btn btn-ghost btn-sm">${I.play}ตั้งเวลาเริ่มตามภาพที่เห็น</button><span class="mk-hint">กด Enter เพื่อไปบรรทัดถัดไป  ส่วน Shift+Enter ขึ้นบรรทัดใหม่ในซับเดียวกัน</span></div>`;
+  return e;
+}
+
+async function drive(f) {
+  const mode = f.dataset.v;
+  const d = f.contentDocument, w = f.contentWindow, state = f.parentElement.querySelector("[data-state]");
+  if (!w || !String(w.location.href).includes("theme-live-app")) return;
+  try {
+    await until(() => d.querySelector(".side .nav"));
+    await navTo(d, "ซับไตเติล");
+    await until(() => w.__subOpen);
+    w.__subOpen(MOVIE);
+    if (!(await until(() => d.querySelector("[data-subviewer-inline] [data-sub-table]")))) throw new Error("เปิดซับไม่ได้");
+    // เลือกบรรทัด 12 ให้ภาพหนังกับช่องแก้มีของ
+    (await until(() => { const r = d.querySelectorAll("[data-sub-table] tbody tr"); return r.length ? r[Math.min(11, r.length - 1)] : null; }))?.click();
+    await until(() => d.querySelector("[data-vframe] img") && d.querySelector("canvas[data-aud]"));
+    await sleep(500);
+    if (mode === "now") { state.textContent = ""; return; }
+    const st = d.createElement("style"); st.textContent = CSS; d.head.appendChild(st);
+    const view = d.querySelector("[data-subviewer-inline]"), body = view.querySelector("[data-subviewer]");
+    const tracks = d.querySelector("[data-sub-list]");
+    (tracks ?? d.querySelector("[data-sub-bar]")).after(tools(d, "แก้แล้ว 3 บรรทัด ยังไม่บันทึก"));
+    const rows = [...d.querySelectorAll("[data-sub-table] tbody tr")];
+    [4, 9, 11].forEach((i) => rows[i]?.classList.add("mk-edited"));
+    // ช่องแก้บรรทัดใช้แถวที่เลือกอยู่ในตารางจริง เวลากับข้อความตรงกับภาพหนังที่เห็น
+    const on = d.querySelector("[data-sub-table] tbody tr.on") ?? rows[0];
+    const td = [...on.children].map((x) => x.innerText.trim());
+    const cue = { n: td[0], s: td[1], e: td[2], len: td[3], cps: td[4], text: td[5] };
+    const vf = d.querySelector("[data-vframe]"), aud = d.querySelector("canvas[data-aud]");
+    const audCol = aud.parentElement, search = d.querySelector("[data-sub-q]")?.closest("div");
+    const grid = d.querySelector("[data-sub-table]");
+    if (mode === "aeg") {
+      if (search) search.replaceWith(editBox(d, cue)); else grid.before(editBox(d, cue));
+    } else if (mode === "side") {
+      const wrap = d.createElement("div"); wrap.className = "mk-side";
+      const col = d.createElement("div"); col.className = "mk-col";
+      body.innerHTML = ""; body.appendChild(wrap);
+      wrap.appendChild(grid); wrap.appendChild(col);
+      col.appendChild(vf); col.appendChild(audCol); col.appendChild(editBox(d, cue));
+      audCol.querySelectorAll(".small").forEach((x) => x.remove());
+      // ปุ่มบรรทัดก่อนถัดไปซ้ำกับในช่องแก้ เอาออกให้ช่องแก้ไม่ตกขอบล่าง
+      audCol.querySelector("[data-sub-prev]")?.parentElement.remove();
+    } else if (mode === "pad") {
+      const img = vf.querySelector("img")?.src;
+      // แบบ notepad ของจริงในกรอบนี้ แล้วทำให้แก้ได้ ภาพหนังกับรายการปัญหาอยู่ด้านขวา
+      [...d.querySelectorAll("[data-sub-tabs] button")].find((b) => b.innerText.includes("notepad"))?.click();
+      const np = await until(() => d.querySelector("[data-notepad-view]"));
+      await sleep(300);
+      const wrap = d.createElement("div"); wrap.className = "mk-pad";
+      const col = d.createElement("div"); col.className = "mk-col";
+      np.setAttribute("contenteditable", "true");
+      // คำอธิบายแบบดูอย่างเดียวของตัวดูซับ เปลี่ยนเป็นบอกว่าแก้ได้
+      [...view.querySelectorAll(".small")].filter((x) => x.innerText.includes("ดูได้อย่างเดียว")).forEach((x) => { x.textContent = "แก้ข้อความทั้งไฟล์ได้ตรงนี้เลย เลขเวลาแก้ได้แบบพิมพ์ทับ ถ้ารูปแบบผิดโปรแกรมขึ้นในรายการปัญหาทางขวา"; });
+      np.querySelectorAll(".npl")[46]?.classList.add("mk-cur");
+      const nbody = view.querySelector("[data-subviewer]");
+      [...nbody.children].forEach((x) => { if (!x.contains(np) && !x.classList.contains("small")) x.remove(); });
+      nbody.appendChild(wrap); wrap.appendChild(np); wrap.appendChild(col);
+      const fr = d.createElement("div"); fr.className = "vframe"; fr.style.width = "100%";
+      fr.innerHTML = `<img src="${img}" alt=""><div class="vsub">${cue.text}</div><div class="vtime">0:00:31.40</div>`;
+      col.appendChild(fr);
+      const pb = d.createElement("div"); pb.className = "mk-prob";
+      pb.innerHTML = `<h4>ปัญหาที่ตรวจเจอ 2 อย่าง</h4><button>${I.warn}<span class="n">บรรทัด 14</span><span>ตัวอักษร 24 ตัวต่อวินาที อ่านไม่ทัน</span></button><button>${I.warn}<span class="n">บรรทัด 22</span><span>เวลาเริ่มซ้อนกับบรรทัด 21 อยู่ 0.4 วินาที</span></button>`;
+      col.appendChild(pb);
+    }
+    state.textContent = "";
+  } catch (e) { state.textContent = "จัดหน้าไม่สำเร็จ " + e.message; }
+}
+
+/* โหลดกรอบที่อยู่ใกล้จอ ปลดกรอบที่ห่างเกินหนึ่งจอ ไม่ให้กินแรม (เครื่องพี่กันแรม 8 GB) */
+const io = new IntersectionObserver((ents) => {
+  for (const e of ents) {
+    const f = e.target;
+    if (e.isIntersecting && !f.dataset.on) { f.dataset.on = "1"; f.src = "theme-live-app.html"; }
+    else if (!e.isIntersecting && f.dataset.on) { delete f.dataset.on; f.src = "about:blank"; }
+  }
+}, { rootMargin: "900px 0px" });
+document.querySelectorAll("iframe[data-v]").forEach((f) => { f.addEventListener("load", () => drive(f)); io.observe(f); });
+</script>
+</body>
+</html>

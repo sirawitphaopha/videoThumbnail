@@ -10,12 +10,12 @@ import RenameBox from "../components/RenameBox";
 import Dropdown from "../components/Dropdown";
 import { Badge, CardIcon, J, Keep, Phr, Phrases, Seg, Skel, SortArrow, Switch, chText } from "../components/ui";
 import Dialog from "../components/Dialog";
-import { IcBitrate, IcLink, IcCoverL, IcCoverM, IcCoverS, IcTall, IcWide } from "../components/icons";
+import { IcBitrate, IcClock, IcFolder, IcLink, IcCoverL, IcCoverM, IcCoverS, IcTall, IcWide } from "../components/icons";
 import { openLinkRow, setLinkJob, setReply, useLinkJob } from "../lib/linkJob";
 import type { PosterStart } from "./PosterPage";
 import { useToast } from "../components/Toasts";
 import { useMovieFrame } from "../lib/frames";
-import { api, linkApi, thumbUrl, type Geometry, type LinkedCover, type Movie, pairApi, pickAddFiles, type Pair, type PairPlay } from "../lib/api";
+import { api, driveApi, linkApi, thumbUrl, type Geometry, type LinkedCover, type Movie, pairApi, pickAddFiles, type Pair, type PairPlay } from "../lib/api";
 import { langName } from "../lib/langs";
 import { useLibrary } from "../lib/library";
 import { useSettings } from "../lib/settings";
@@ -25,6 +25,7 @@ import { kindOf, KIND_ORDER, SHELF_LABEL, TABLE_LABEL, type Kind } from "../lib/
 import { dropStyle, useDropPlacement } from "../lib/popupFit";
 import { useClickOutside, useEscClose, kb } from "../lib/popup";
 import { useSkelPreview } from "../lib/skelPreview";
+import { driveName, freePct, isLow, requestSettingsSec, sizeNb, useDriveSpace } from "../lib/drives";
 import HoverBig from "../components/HoverBig";
 import { usePageActive } from "../lib/pageActive";
 import { ftLook } from "../lib/ftypes";
@@ -54,6 +55,8 @@ const STAR_FILTERS: { value: StarFilter; label: string }[] = [
   { value: "all", label: "ทุกดาว" }, { value: "5", label: "5 ดาว" }, { value: "4", label: "4 ดาวขึ้นไป" }, { value: "3", label: "3 ดาวขึ้นไป" }, { value: "2", label: "2 ดาวขึ้นไป" }, { value: "1", label: "1 ดาวขึ้นไป" }, { value: "none", label: "ยังไม่ให้ดาว" },
 ];
 let starMemo: StarFilter = "all";
+/** ไดรฟ์ที่กดไว้ทีหลังในคำเตือนไดรฟ์ใกล้เต็ม จำจนปิดโปรแกรม (BUGS ข้อ 88) */
+const driveLater = new Set<string>();
 const passStars = (m: Movie, f: StarFilter) => (f === "all" ? true : f === "none" ? !m.rating : (m.rating ?? 0) >= Number(f));
 const LinkMark = () => <span className="linkb" title="ปกจับคู่ไว้ ไม่ได้อยู่ในไฟล์" data-linkb><IcLink size={13} stroke="#b0355f" /></span>;
 
@@ -115,6 +118,19 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
   const selected = list.find((m) => m.id === sel) ?? null;
 
   const missingFolders = folders.filter((f) => !f.ok);
+  // ไดรฟ์ใกล้เต็ม (BUGS ข้อ 88 ③) · ที่กดไว้ทีหลังจำไว้จนปิดโปรแกรม
+  const drives = useDriveSpace();
+  const [, setLaterN] = useState(0);
+  const lowAll = (drives.list ?? []).filter(isLow);
+  const lowDrives = lowAll.filter((d) => !driveLater.has(d.root));
+  /** ไดรฟ์ที่กดไว้ทีหลังแล้วยังใกล้เต็มอยู่ ขึ้นป้ายจาง ๆ ที่แถบล่าง กดแล้วการ์ดเตือนกลับมา (พี่กันเสนอ 13 พ.ย. 2569 "เตือนจางๆข้างล่างดีมั้ย" หลังถามว่ากดไว้ทีหลังแล้วจะเตือนอีกตอนไหน) */
+  const lowLater = lowAll.filter((d) => driveLater.has(d.root));
+  const openDrive = (root: string) => {
+    // รุ่นทดสอบ ตัวตรวจตั้ง window.__openDry ไว้ จดว่ากดแทนการเปิด Explorer ที่จะเด้งขึ้นจอ · ตัวจริงไม่มีทางนี้
+    const w = window as unknown as { __openDry?: boolean; __openDryLog?: string[] };
+    if (import.meta.env.DEV && w.__openDry) { (w.__openDryLog ??= []).push(root); return; }
+    driveApi.open(root).catch((e) => toast({ kind: "bad", title: `เปิด${driveName(root)}ไม่ได้`, detail: String(e) }));
+  };
   const pathText = settings?.folders.length
     ? settings.folders[0] + (settings.folders.length > 1 ? ` และอีก ${settings.folders.length - 1} โฟลเดอร์` : "")
     : "";
@@ -171,7 +187,24 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
                 <Phr>จับคู่รูปปกไว้แล้วแต่ยังไม่ได้ยืนยัน โปรแกรมจำไว้ให้ ปกยังไม่ขึ้นชั้นวาง</Phr>
                 <div className="minirow">
                   <button type="button" className="btn btn-main btn-sm" data-link-resume-go onClick={() => { setLinkJob({ view: "table" }); onPage("link"); }}><IbNext size={15} />ทำต่อ</button>
-                  <button type="button" className="btn btn-ghost btn-sm" data-link-resume-later onClick={() => setLinkJob({ resume: false })}>ไว้ทีหลัง</button>
+                  <button type="button" className="btn btn-ghost btn-sm" data-link-resume-later onClick={() => setLinkJob({ resume: false })}><IcClock size={15} />ไว้ทีหลัง</button>
+                </div>
+              </div>
+            </div>
+          )}
+          {/* ไดรฟ์ที่เหลือไม่ถึง 10% (BUGS ข้อ 88 ③ พี่กันสั่ง "ถ้าเนื้อที่เหลือ 10% ไปเตือนที่หน้าชั้นวาง หาที่ใส่ให้ที") · วางที่เดียวกับการ์ดทำต่อ ซึ่งเป็นที่ชั้นวางใช้บอกเรื่องที่ต้องทำ (แคลร์เลือก)
+              กดไว้ทีหลังแล้วหายจนปิดโปรแกรม ถ้าไดรฟ์อื่นใกล้เต็มเพิ่มจะขึ้นใหม่ */}
+          {lowDrives.length > 0 && (
+            <div className="stat warn" style={{ margin: "0 0 12px" }} data-drive-low-shelf>
+              <CardIcon kind="warn" />
+              <div style={{ flex: 1 }}>
+                <b>{lowDrives.map((d) => `${driveName(d.root)} เหลือที่ว่าง ${freePct(d)}`).join(" และ ")}</b>
+                <Phr>{`${lowDrives.map((d) => `${driveName(d.root)} ว่าง ${sizeNb(fmtSize(d.free))} จาก ${sizeNb(fmtSize(d.total))}`).join(" และ ")}  ถ้าไดรฟ์เต็ม การใส่โปสเตอร์ รวมไฟล์ แปลงเสียง${lowDrives.some((d) => d.app) ? " และการบันทึกค่าตั้ง" : ""}จะทำไม่สำเร็จ`}</Phr>
+                <div className="minirow">
+                  <button type="button" className="btn btn-ghost btn-sm" data-drive-low-go onClick={() => { requestSettingsSec("folders"); onPage("settings"); }}><IcSettings size={15} />ดูความจุไดรฟ์</button>
+                  {/* ปุ่มที่สาม เปิดไดรฟ์ใน Explorer ไปลบหรือย้ายไฟล์ได้ทันที ไดรฟ์ละปุ่ม (พี่กันสั่ง 13 พ.ย. 2569 "ให้กดเเล้วเปิดโฟลเด้อไดรฟื C เลย" · "เพิ่มปุ่มที่สาม") */}
+                  {lowDrives.map((d) => <button key={d.root} type="button" className="btn btn-ghost btn-sm" data-drive-low-open={d.root} onClick={() => openDrive(d.root)}><IcFolder size={15} />เปิด{driveName(d.root)}</button>)}
+                  <button type="button" className="btn btn-ghost btn-sm" data-drive-low-later onClick={() => { lowDrives.forEach((d) => driveLater.add(d.root)); setLaterN((n) => n + 1); }}><IcClock size={15} />ไว้ทีหลัง</button>
                 </div>
               </div>
             </div>
@@ -234,7 +267,9 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
       </div>
       {/* แถบสถานะล่างแบบโปรแกรม บอกจำนวนเรื่องกับความหมายเครื่องหมาย ไม่กินที่ด้านบน · ใช้รูปเดียวกับบนชั้น (พี่กันสั่ง 9 พ.ย. 2569 "มันมีเเค่สี มันควรเป้นรูปเดียวกัน") */}
       <div className="statusbar" data-statusbar>
-        <span>{query || filter !== "all" || star !== "all" ? <>เจอ {list.length} จาก <span className="nw">{movies.length} เรื่อง</span></> : <>หนังทั้งหมด <span className="nw">{movies.length} เรื่อง</span></>}</span>
+        <span className="sbleft"><span>{query || filter !== "all" || star !== "all" ? <>เจอ {list.length} จาก <span className="nw">{movies.length} เรื่อง</span></> : <>หนังทั้งหมด <span className="nw">{movies.length} เรื่อง</span></>}</span>
+        {lowLater.length > 0 && <button type="button" className="drivechip" title={`${lowLater.map((d) => `${driveName(d.root)} ว่าง ${fmtSize(d.free)} จาก ${fmtSize(d.total)}`).join(" และ ")} กดเพื่อดูคำเตือนอีกครั้ง`} data-drive-low-chip
+          onClick={() => { lowLater.forEach((d) => driveLater.delete(d.root)); setLaterN((n) => n + 1); wrapRef.current?.scrollTo({ top: 0, behavior: "smooth" }); }}><CardIcon kind="warn" />{lowLater.map((d) => `${driveName(d.root)} เหลือ ${freePct(d)}`).join(" และ ")}</button>}</span>
         {settings?.showDots && view === "grid" && list.length > 0 && (
           <div className="legend">
             {(["ok", "warn", "bad", "info"] as Kind[]).map((k) => <span key={k} data-legend={k}><Badge kind={k} title={SHELF_LABEL[k]} />{SHELF_LABEL[k]}</span>)}

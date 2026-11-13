@@ -6,12 +6,24 @@ import { listen } from "@tauri-apps/api/event";
 import { api, infoApi, inApp, pickFolder, type ExtractItem, type ExtractResult } from "../lib/api";
 import { useElsewhere } from "../lib/elsewhere";
 import { CardIcon, Phr } from "./ui";
-import { IbNext, IbStop, IcExtract, IcFolder, IcRefresh } from "./icons";
+import { spaceShort, useFree } from "../lib/drives";
+import { IbNext, IbPencil, IbStop, IcExtract, IcFolder, IcRefresh } from "./icons";
 
 /** ชิ้นที่ติ๊กไว้ · label ใช้ในประโยคสรุป · rowLabel ใช้ในแถวกำลังแยก แบบต้นแบบ Audio #1 .ac3 */
 export type ExtractPick = { item: ExtractItem; label: string; rowLabel: string };
 
-export default function ExtractCard({ path, picks, busy }: { path: string; picks: ExtractPick[]; busy?: string }) {
+/** ที่อยู่ยาวย่อตรงกลาง เก็บไดรฟ์กับสองโฟลเดอร์ท้ายไว้ เช่น D:\…\หนัง\ดาวเหนือ (2023) · สั้นพออยู่แล้วไม่ย่อ (BUGS ข้อ 92) */
+function midPath(p: string, max = 44): string {
+  if (p.length <= max) return p;
+  const sep = p.includes("\\") ? "\\" : "/";
+  const parts = p.split(/[\\/]/).filter(Boolean);
+  const tail = parts.slice(-2).join(sep);
+  const head = parts[0] ?? "";
+  const s = `${head}${sep}…${sep}${tail}`;
+  return s.length <= max + 8 ? s : `…${sep}${parts[parts.length - 1]}`;
+}
+
+export default function ExtractCard({ path, picks, busy, srcSize }: { path: string; picks: ExtractPick[]; busy?: string; srcSize?: number }) {
   const [folder, setFolder] = useState("");
   /** ชิ้นที่กดแยกรอบนี้ตรึงไว้ · ติ๊กเพิ่มหรือเอาออกระหว่างการ์ดชื่อชนค้าง กดตั้งชื่อใหม่แล้วต้องแยกชิ้นเดิม (ผู้ช่วยตรวจโค้ดเจอ ตอนอยู่หน้า MediaInfo) */
   const [xRun, setXRun] = useState<{ items: ExtractItem[]; labels: string[]; pct: number[]; result: ExtractResult | null; running: boolean } | null>(null);
@@ -44,21 +56,34 @@ export default function ExtractCard({ path, picks, busy }: { path: string; picks
     run(conflicts.map((i) => xRun.items[i]), conflicts.map((i) => xRun.labels[i]), conflicts.map(() => how));
   };
   const done = xRun?.result ? xRun.result.states.filter((s) => s === "done").length : 0;
-  const why = busy ?? (!picks.length ? "ยังกดไม่ได้ ติ๊กอย่างน้อย 1 อย่างก่อน" : elsewhere ? "รองานแยกไฟล์ที่ทำอยู่ให้เสร็จก่อน" : undefined);
+  // ที่ว่างในโฟลเดอร์ที่เก็บ · สูตรเดียวกับ extract.rs ภาพใช้ราวขนาดหนัง ชิ้นอื่นหนึ่งในสี่ของหนัง อย่างน้อย 64 MB รวมทุกชิ้นที่ติ๊ก ไม่พอเตือนข้างปุ่มก่อนกด (BUGS ข้อ 94)
+  const free = useFree(folder || null);
+  const src = srcSize ?? 0, MB64 = 64 * 1024 * 1024;
+  const need = src ? picks.reduce((s, p) => s + (p.item.kind === "video" ? src : Math.min(Math.max(src / 4, MB64), src + MB64)), 0) : 0;
+  const short = picks.length ? spaceShort(free, need) : null;
+  const why = busy ?? (!picks.length ? "ยังกดไม่ได้ ติ๊กอย่างน้อย 1 อย่างก่อน" : elsewhere ? "รองานแยกไฟล์ที่ทำอยู่ให้เสร็จก่อน" : short ?? undefined);
 
+  const idle = !xRun || (!xRun.running && !xRun.result);
+  // ตอนยังไม่กดแยก เป็นแถวเดียวสูงเท่าแถบล่างของวิธีรวมกับวิธีจับคู่ ไม่มีหัวข้อซ้ำกับการ์ดวิธี สลับวิธีแล้วแถบล่างไม่ยืดหด
+  // (พี่กันทัก 13 พ.ย. 2569 "ก็บอกว่าให้ fix ไง" · เดิมมีหัวข้อแยกออกจากหนังอีกบรรทัด แถบล่างสูงกว่าวิธีรวม 19 จุด)
+  // งานแยกที่เริ่มไว้จากหน้าอื่นยังทำอยู่ บอกเป็นคำสั้นในแถวเดียวกับปุ่มหยุด ไม่ขึ้นการ์ดเตือนที่ดันแถบให้สูง
   return (
-    <div className="card" data-extract>
-      <h3>แยกออกจากหนัง</h3>
-      {elsewhere && !xRun && (
-        <div className="stat warn" style={{ marginBottom: 12 }} data-extract-elsewhere><CardIcon kind="warn" /><div><b>งานแยกไฟล์ที่เริ่มไว้ก่อนเปลี่ยนหน้ายังทำอยู่</b><Phr>ไฟล์ที่แยกจะลงโฟลเดอร์ที่เลือกไว้ตอนกดแยก ให้รอให้เสร็จก่อนแยกอย่างอื่น หรือกดหยุด</Phr>
-          <div className="minirow" style={{ marginTop: 6 }}><button type="button" className="btn btn-bad btn-sm" onClick={() => infoApi.extractCancel()}><IbStop size={15} />หยุดงานนั้น</button></div></div></div>
-      )}
-      {!xRun || (!xRun.running && !xRun.result) ? (
-        <div style={{ display: "flex", alignItems: "center", gap: 14, flexWrap: "wrap" }}>
-          <div style={{ fontSize: 14 }}>{picks.length ? <><b>เลือกไว้ {picks.length} อย่าง</b> คือ {picks.map((p) => p.label).join(", ")}</> : "ติ๊กแทร็กในตารางข้างบนเพื่อแยกเป็นไฟล์"}</div>
-          <div className="small" style={{ flex: 1, minWidth: 260, overflowWrap: "anywhere" }}>เก็บที่ {folder} <button type="button" className="btn btn-ghost btn-sm" style={{ height: 28 }} onClick={async () => { const f = await pickFolder("เลือกที่เก็บไฟล์ที่แยก"); if (f) setFolder(f); }}><IcFolder size={15} />เปลี่ยนที่เก็บ</button></div>
-          {why && <div className="hint" style={{ color: "#94680f", margin: 0 }}>{why}</div>}
-          <button type="button" className={"btn " + (why ? "btn-wait" : "btn-main")} aria-disabled={!!why || undefined} title={why}
+    <div className={idle ? "xidle" : "card"} data-extract>
+      {!idle && <h3>แยกออกจากหนัง</h3>}
+      {idle ? (
+        <div className="xrow">
+          <div className="xpicks" title={picks.length ? picks.map((p) => p.label).join(", ") : undefined}>
+            {elsewhere ? <b data-extract-elsewhere>งานแยกไฟล์ที่เริ่มไว้ก่อนหน้ายังทำอยู่</b> : picks.length ? <b>เลือกไว้ {picks.length} อย่าง</b> : "ติ๊กแทร็กในตารางข้างบนเพื่อแยกเป็นไฟล์"}
+            {elsewhere ? <div className="hint" style={{ color: "#94680f", margin: 0 }}>รอให้เสร็จก่อน หรือกดหยุด</div> : why && <div className="hint" style={{ color: "#94680f", margin: 0 }}>{why}</div>}</div>
+          {elsewhere && <button type="button" className="btn btn-bad btn-sm" onClick={() => infoApi.extractCancel()}><IbStop size={15} />หยุดงานนั้น</button>}
+          {/* ที่เก็บอยู่ข้างปุ่มแยก กรอบสีโทน ตัวหนา เห็นชัดก่อนกด (BUGS ข้อ 92 พี่กันสั่ง 13 พ.ย. 2569 "ขอที่เก็บ ข้างๆปุ่มเเยก เเละเด่นๆ")
+              บรรทัดเดียวเสมอ ที่อยู่ยาวย่อตรงกลาง เก็บไดรฟ์กับโฟลเดอร์ปลายทางไว้ ชี้แล้วเห็นที่อยู่เต็ม แถบล่างไม่สูงขึ้น */}
+          {/* ที่เก็บกับปุ่มเปลี่ยนรวมเป็นปุ่มเดียว กดตรงไหนก็เลือกโฟลเดอร์ใหม่ ฝั่งขวามีไอคอนดินสอกับคำว่าเปลี่ยน (พี่กันสั่ง 13 พ.ย. 2569 "ใส่ icon หน่อย เเละที่อยู่ อยากให้กดเปลี่ยนได้ เเม้ปุ่มเปลี่ยนที่เก็บจะเเยกไว้ เเต่อยากให้รวมกัน") */}
+          <button type="button" className="xdest" title={folder ? `เก็บที่ ${folder}  กดเพื่อเปลี่ยนที่เก็บ` : "กดเพื่อเลือกที่เก็บ"} onClick={async () => { const f = await pickFolder("เลือกที่เก็บไฟล์ที่แยก"); if (f) setFolder(f); }} data-extract-dest data-extract-folder>
+            <IcFolder size={16} /><span>เก็บที่</span><b>{folder ? midPath(folder) : "—"}</b>
+            <i className="xdest-chg" aria-hidden="true"><IbPencil size={14} />เปลี่ยน</i></button>
+          {/* ขนาดเท่าปุ่มจับคู่กับปุ่มรวมในแถบล่างเดียวกัน (พี่กันสั่ง 13 พ.ย. 2569 "ขอเเยกไฟล์ ใหญ่เท่าปุ่มจับคู่") */}
+          <button type="button" className={"btn " + (why ? "btn-wait" : "btn-main")} style={{ height: 44, padding: "0 26px", fontSize: 15, flex: "none" }} aria-disabled={!!why || undefined} title={why}
             onClick={() => { if (!why) run(picks.map((p) => p.item), picks.map((p) => p.rowLabel), picks.map(() => "ask")); }} data-extract-start><IcExtract size={15} />แยกไฟล์ที่เลือก</button>
         </div>
       ) : (

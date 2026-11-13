@@ -21,7 +21,7 @@ import bvIcon from "../assets/thanks/bitrateviewer.ico";
 import "../styles/bitrate.css";
 import FullBtn from "../components/FullBtn";
 import { PadCustom } from "../components/ColorPick";
-import { useFitSwitch } from "../lib/fitSwitch";
+import { useFitClass, useFitSwitch } from "../lib/fitSwitch";
 
 type Mode = "sec" | "gop" | "gopx" | "frm";
 const MODES: { value: Mode; label: string; letter: string }[] = [
@@ -439,6 +439,8 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
   const ctlCompact = useFitSwitch(ctlRef, `${audio}|${path}|${info?.tracks.length ?? 0}`);
   const headRef = useRef<HTMLDivElement>(null);
   const headCompact = useFitSwitch(headRef, `${audio}|${path}|${Math.round(z0)}|${Math.round(z1)}`);
+  // ซ่อนข้อความช่วงเวลาแล้วยังไม่พอ ปุ่มช่วงซูมเป็นดรอปดาวน์ วัดจากที่ว่างจริงแบบหัวกราฟหน้ากราฟเสียง (BUGS ข้อ 103)
+  useFitClass(".brn-head");
   // ระหว่างอ่าน คิดตัวอย่างใหม่ไม่เกิน 700 ms ละครั้ง · เดิมคิดทั้งก้อนใหม่ทุกก้อนข้อมูล (ทุก 120 ms) ไฟล์ TrueHD ยาวงานโตเป็นกำลังสอง หน้าจอหน่วง (AUDIT ข้อ 119)
   // อ่านจบหรือเปลี่ยนวิธีคิด ความละเอียด คิดใหม่ทันที
   const sMemo = useRef<{ at: number; key: string; r?: Raw; S?: Samples }>({ at: 0, key: "" });
@@ -679,6 +681,9 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
   const zoomBy = (f: number, at?: number) => { const c = at ?? (z0 + z1) / 2; const w = Math.min(total, Math.max(0.2, span * f)); if (w >= total - 1e-6) { setZoom([]); return; } const a = Math.max(0, Math.min(total - w, c - (c - z0) * (w / span))); setZoom((z) => [...z, [a, a + w]]); };
   const setSpan = (w: number) => { const ww = Math.max(HZ_MIN, Math.min(total, w)); if (ww >= total - 1e-6) { setZoom([]); return; } const c = (z0 + z1) / 2; const a = Math.max(0, Math.min(total - ww, c - ww / 2)); setZoom((z) => (z.length ? [...z.slice(0, -1), [a, a + ww]] : [[a, a + ww]])); };
   const resetZoom = () => { setZoom([]); setSel(null); setVz(1); };
+  // ปุ่มช่วงซูมกับดรอปดาวน์ตอนหัวกราฟแคบใช้ค่าเดียวกัน · ช่วงที่ไม่ตรงปุ่มไหน ดรอปดาวน์ขึ้นความยาวช่วงที่ดู (BUGS ข้อ 103)
+  const zKey = !zoom.length ? "all" : span <= 11 ? "10" : span <= 61 ? "60" : "x";
+  const pickZ = (v: string) => preset(v === "all" ? null : Number(v));
   const preset = (w: number | null) => { if (!w || w >= total) { setZoom([]); return; } const c = pin ?? (z0 + z1) / 2; const a = Math.max(0, Math.min(total - w, c - w / 2)); setZoom([[a, a + w]]); };
   const onDown = (e: React.MouseEvent) => { if (e.button !== 0 || !S.n) return; const { x } = pos(e); if (!inPlot(x)) return; drag.current = { x, t: tOf(x), moved: false }; };
   const onMove = (e: React.MouseEvent) => {
@@ -800,11 +805,16 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
         </div></div>
         <section className="card brn-choose">
           <h3>ดูบิตเรตของแทร็กไหน</h3>
-          <div className="graph-recent">{choose.tracks.map((t) => (
-            <button key={t.id} type="button" className="dd" onClick={() => void open(path, modeSel, false, t.id)} data-brnpick={t.id}>
-              <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: "1 1 auto", overflow: "hidden" }}><i className="rnote">{t.id === "v" ? film : audioIcon}</i><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{t.label}</span></span>
-              <span className="small">{t.id === "v" ? "ภาพ คิดได้ 4 วิธี" : "เสียง คิดต่อวินาที"}</span>
-            </button>))}</div>
+          {/* วิดีโออยู่ส่วนบน เส้นขีดคั่น แล้วตามด้วยแทร็กเสียงทั้งหมด (BUGS ข้อ 106 พี่กันสั่ง 13 พ.ย. 2569 "ทำแบ่งเป็นสองส่วเนเลย ภาพอยู่บน ขั้นด้วยขีด เเละก็เสียง") */}
+          {[choose.tracks.filter((t) => t.id === "v"), choose.tracks.filter((t) => t.id !== "v")].filter((g) => g.length).map((g, gi) => (
+            <div key={gi} className={"brn-pickgrp" + (gi ? " sep" : "")} data-brnpickgrp={g[0].id === "v" ? "video" : "audio"}>
+              <div className="small brn-pickh">{g[0].id === "v" ? "ภาพ" : "เสียง"}</div>
+              <div className="graph-recent">{g.map((t) => (
+                <button key={t.id} type="button" className="dd" onClick={() => void open(path, modeSel, false, t.id)} data-brnpick={t.id}>
+                  <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: "1 1 auto", overflow: "hidden" }}><i className="rnote">{t.id === "v" ? film : audioIcon}</i><span style={{ overflow: "hidden", textOverflow: "ellipsis" }}>{t.label}</span></span>
+                  <span className="small">{t.id === "v" ? "คิดได้ 4 วิธี" : "คิดต่อวินาที"}</span>
+                </button>))}</div>
+            </div>))}
           <p className="small">เปลี่ยนแทร็กทีหลังได้ที่ปุ่มแทร็กด้านบนของกราฟ</p>
         </section>
       </div>
@@ -961,19 +971,23 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
               <b>{audio ? "Audio Bitrate" : "Video Bitrate"}</b>{!headCompact && <span className="small" data-brnheadinfo>{S.n ? ` ช่วง ${clock(z0)} ถึง ${clock(z1)}` : ""}</span>}
             </div>
             {/* รูปแบบกราฟ (BUGS ข้อ 42) */}
-            <span className="brn-style" data-brnstyle><Dropdown label="รูปแบบกราฟ" value={bstyle} onChange={setBStyle} options={STYLES} /><InfoTip title="รูปแบบกราฟ" tip={TIP_STYLE} /></span>
-            <div className="brn-zoom">
+            {/* ชื่อหน้าดรอปดาวน์ เดิมเห็นแค่คำว่าแท่ง ไม่รู้ว่าเลือกอะไร (BUGS ข้อ 105 พี่กันสั่ง 13 พ.ย. 2569 "ใส่ชื่อหน่อย แบบ ชนิดกราฟ หรืออะไรก็ได้ ตามที่เธอคิด") */}
+            <span className="brn-style" data-brnstyle><span className="lbl">รูปแบบกราฟ</span><Dropdown label="รูปแบบกราฟ" value={bstyle} onChange={setBStyle} options={STYLES} /><InfoTip title="รูปแบบกราฟ" tip={TIP_STYLE} /></span>
+            {/* แถบซูมเรียงแบบหน้ากราฟเสียง คำว่าซูม ปุ่มแว่นขยายกับเส้นเลื่อน ปุ่มช่วงซูม เส้นแบ่ง ปุ่มรีเซ็ต · หัวกราฟแคบ ปุ่มช่วงซูมเป็นดรอปดาวน์
+                (BUGS ข้อ 103 พี่กันสั่ง 13 พ.ย. 2569 "ที่หน้าบิตเรต เธอยังไม่ปรับเรื่องปุ่มซูมเลยนะ เอาให้มันเหมือนกันสิ" · เดิมรีเซ็ตติดแว่นขยาย คำว่าซูมอยู่กลาง) */}
+            <div className="brn-zoom zoombox">
+              <span className="lbl">ซูม</span>
               <span className="zbtns">
                 <button type="button" className="zb" onClick={() => zoomBy(2)} disabled={!zoom.length} aria-label="ซูมออก" title="ซูมออก (หมุนล้อเมาส์ลงในกราฟ)" data-brnzoomout>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M8 11h6M20 20l-4-4" /></svg></button>
                 <BrHZoom total={total} span={span} onSpan={setSpan} off={!S.n} />
                 <button type="button" className="zb" onClick={() => zoomBy(0.5)} disabled={!S.n || span <= HZ_MIN * 1.01} aria-label="ซูมเข้า" title="ซูมเข้า (หมุนล้อเมาส์ขึ้นในกราฟ)" data-brnzoomin>
                   <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" aria-hidden="true"><circle cx="11" cy="11" r="7" /><path d="M8 11h6M11 8v6M20 20l-4-4" /></svg></button>
-                <button type="button" className="zb" onClick={resetZoom} disabled={!zoom.length && vz === 1} aria-label="รีเซ็ตซูม" title="รีเซ็ต กลับทั้งไฟล์ ขยายแนวตั้ง 1 เท่า" data-brnzoomreset><IcRefresh size={15} /></button>
               </span>
-              <span className="lbl">ซูม</span>
-              <Seg small label="ช่วงที่เห็น" value={!zoom.length ? "all" : span <= 11 ? "10" : span <= 61 ? "60" : "x"} onChange={(v) => preset(v === "all" ? null : Number(v))}
-                options={[{ value: "all", label: "ทั้งไฟล์" }, { value: "60", label: "1 นาที" }, { value: "10", label: "10 วินาที" }]} />
+              <span className="zseg"><Seg small label="ช่วงซูม" value={zKey} onChange={pickZ} options={Z_OPTS} /></span>
+              <span className="zdd" title={`ช่วงที่ดูยาว ${clock(span)}`} data-brnzoomdd><Dropdown label="ช่วงซูม" value={zKey} onChange={pickZ} options={Z_OPTS} display={(o) => o?.label ?? clock(span)} /></span>
+              <span className="fsep" aria-hidden="true" />
+              <button type="button" className="zb" onClick={resetZoom} disabled={!zoom.length && vz === 1} aria-label="รีเซ็ตซูม" title={!zoom.length && vz === 1 ? "ดูทั้งไฟล์และขยายแนวตั้ง 1 เท่าอยู่แล้ว" : "รีเซ็ต กลับทั้งไฟล์ ขยายแนวตั้ง 1 เท่า"} data-brnzoomreset><IcRefresh size={15} /></button>
             </div>
           </div>
           {running && <div className="brn-prog" data-brnprog><i style={{ width: `${readPct}%` }} /><span>{mode === "frm" ? "ถอดภาพเพื่อดูชนิดเฟรม" : "กำลังอ่านไฟล์"} {readPct}%</span></div>}
@@ -1047,6 +1061,9 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
     </div>
   );
 }
+
+/** ปุ่มช่วงซูมบนหัวกราฟ (BUGS ข้อ 103) */
+const Z_OPTS = [{ value: "all", label: "ทั้งไฟล์" }, { value: "60", label: "1 นาที" }, { value: "10", label: "10 วินาที" }];
 
 /** ช่วงสั้นสุดที่ซูมเข้าได้ (วินาที) */
 const HZ_MIN = 0.5;

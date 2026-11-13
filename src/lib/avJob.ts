@@ -3,7 +3,7 @@
    ความคืบหน้าฟังที่นี่ที่เดียว เปลี่ยนหน้าแล้วยังรับต่อ */
 import { useSyncExternalStore } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { inApp, type AddedFile, type ApplyProblem, type CoverPreview, type FontFile, type FontHit, type MergeAttachment, type MergeMovie, type MergeResult, type MergeTrack, type PosterInfo, type PosterProgress } from "./api";
+import { inApp, type AddedFile, type ApplyProblem, type Chapter, type CoverPreview, type FontFile, type FontHit, type MergeAttachment, type MergeMovie, type MergeResult, type MergeTrack, type PosterInfo, type PosterProgress } from "./api";
 import type { CropChoice } from "../components/CropDialog";
 
 /** แถวในตารางแทร็ก · key ไม่ซ้ำตลอดหน้า · base = ค่าตอนเปิดไฟล์ ใช้ดูว่าแก้อะไรไปแล้ว */
@@ -52,10 +52,12 @@ export type AvState = {
   xPick: string[];
   /** แทร็กภาพที่เลือกแยกเป็นสตรีมล้วน (.h264 .h265) แทน .mkv ชื่อแบบ video:1 (BUGS ข้อ 35 ต่อ) · เปิดหนังเรื่องใหม่แล้วล้าง */
   xRaw: string[];
+  /** บทที่แก้ในหน้าต่างดูและแก้บท · null = ไม่ได้แก้ บทเดิมติดไปตามเดิม (BUGS ข้อ 99) */
+  chapters: Chapter[] | null;
 };
 
 const EMPTY_SLOT: CoverSlot = { mode: "keep", old: null, neu: null };
-const START: AvState = { movie: null, tracks: [], sel: null, covers: { cover: EMPTY_SLOT, cover_land: EMPTY_SLOT }, once: {}, run: { state: "idle" }, runMovie: null, fontExtra: [], fontOff: [], method: "merge", xPick: [], xRaw: [] };
+const START: AvState = { movie: null, tracks: [], sel: null, covers: { cover: EMPTY_SLOT, cover_land: EMPTY_SLOT }, once: {}, run: { state: "idle" }, runMovie: null, fontExtra: [], fontOff: [], method: "merge", xPick: [], xRaw: [], chapters: null };
 
 let st: AvState = START;
 const subs = new Set<() => void>();

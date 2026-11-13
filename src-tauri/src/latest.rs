@@ -51,8 +51,11 @@ fn lead_ver(s: &str) -> Option<String> {
     (v.contains('.') && v.starts_with(|c: char| c.is_ascii_digit())).then_some(v)
 }
 
+/// ตัด .0 ท้ายก่อนเทียบ 1.5 กับ 1.5.0 คือรุ่นเดียวกัน (AUDIT ข้อ 131 · เดิมได้ [1,5] กับ [1,5,0] เทียบแล้วขึ้นมีรุ่นใหม่ตลอด)
 fn ver_key(v: &str) -> Vec<u64> {
-    v.trim_start_matches("libopus ").split('.').map(|x| x.parse().unwrap_or(0)).collect()
+    let mut k: Vec<u64> = v.trim_start_matches("libopus ").split('.').map(|x| x.parse().unwrap_or(0)).collect();
+    while k.len() > 1 && k.last() == Some(&0) { k.pop(); }
+    k
 }
 
 /// ค่าแบบข้อความของช่อง key ทุกตัวใน JSON (ไม่ต้องใช้ตัวอ่าน JSON เต็ม · รับทั้งแบบมีและไม่มีช่องว่างหลัง :)
@@ -95,6 +98,8 @@ fn fetch(url: &str) -> Result<String, String> {
         return Err(match out.status.code() {
             Some(6) => "หาเว็บไม่เจอ ไม่ได้ต่อเน็ตหรือเปล่า".into(),
             Some(7) | Some(28) => "ต่อเว็บไม่ได้หรือรอนานเกิน".into(),
+            // GitHub ให้ถามได้ชั่วโมงละ 60 ครั้งต่อเน็ตหนึ่งที่ ถามถี่เกินตอบ 403 หรือ 429 บอกให้รอ ไม่ใช่บอกว่าเว็บผิดปกติ (AUDIT ข้อ 131)
+            Some(22) if url.contains("api.github.com") && (err.ends_with("403") || err.ends_with("429")) => "GitHub ให้เช็กได้ชั่วโมงละ 60 ครั้ง รอราวหนึ่งชั่วโมงแล้วกดใหม่".into(),
             Some(22) => format!("เว็บตอบผิดปกติ {}", err.rsplit(' ').next().unwrap_or("")),
             c => format!("ดึงหน้าเว็บไม่ได้ (curl รหัส {}) {err}", c.unwrap_or(-1)),
         });
@@ -128,15 +133,26 @@ pub fn compare(installed: Option<&str>, latest: Option<&str>) -> &'static str {
     }
 }
 
-/// เช็กทุกตัวพร้อมกัน (ตัวละเธรด) · ใช้เวลาเท่าตัวที่ช้าที่สุด
+/// ที่อยู่ที่ต้องดึงจริง ที่อยู่ซ้ำกันดึงครั้งเดียว (qaac กับ refalac อ่านหน้าเดียวกัน) · คืนลำดับตัวแรกของแต่ละที่อยู่
+fn unique_checks() -> Vec<usize> {
+    (0..SOURCES.len()).filter(|&i| SOURCES[..i].iter().all(|s| s.check != SOURCES[i].check)).collect()
+}
+
+/// เช็กทุกตัวพร้อมกัน (ที่อยู่ละเธรด) · ใช้เวลาเท่าตัวที่ช้าที่สุด
+/// ที่อยู่ซ้ำดึงครั้งเดียวแล้วแบ่งผลให้ทุกตัวที่ใช้ที่อยู่นั้น กด 1 ครั้งถาม GitHub 4 ครั้งแทน 5 (AUDIT ข้อ 131)
 pub fn check_all(status: &[EncoderInfo]) -> Vec<LatestInfo> {
-    let got: Vec<(usize, Result<String, String>)> = std::thread::scope(|s| {
-        let hs: Vec<_> = SOURCES.iter().enumerate().map(|(i, src)| {
-            s.spawn(move || (i, fetch(src.check).and_then(|t| parse(src.how, &t).ok_or_else(|| "หาเลขรุ่นในหน้าเว็บไม่เจอ หน้าเว็บอาจเปลี่ยนแบบ".to_string()))))
+    let pages: Vec<(&'static str, Result<String, String>)> = std::thread::scope(|s| {
+        let hs: Vec<_> = unique_checks().into_iter().map(|i| {
+            let url = SOURCES[i].check;
+            s.spawn(move || (url, fetch(url)))
         }).collect();
         hs.into_iter().filter_map(|h| h.join().ok()).collect()
     });
-    got.into_iter().map(|(i, r)| {
+    let got = SOURCES.iter().enumerate().filter_map(|(i, src)| {
+        let page = pages.iter().find(|(u, _)| *u == src.check)?;
+        Some((i, page.1.clone().and_then(|t| parse(src.how, &t).ok_or_else(|| "หาเลขรุ่นในหน้าเว็บไม่เจอ หน้าเว็บอาจเปลี่ยนแบบ".to_string()))))
+    });
+    got.map(|(i, r)| {
         let src = &SOURCES[i];
         let installed = status.iter().find(|e| e.name == src.name && e.ok).and_then(|e| e.version.clone());
         let (latest, error) = match r { Ok(v) => (Some(v), None), Err(e) => (None, Some(e)) };
@@ -250,6 +266,24 @@ mod tests {
         assert_eq!(compare(Some("1.6.1"), Some("1.5.2")), "ahead");
         assert_eq!(compare(None, Some("3.07")), "missing");
         assert_eq!(compare(Some("4.0"), None), "error");
+        // AUDIT ข้อ 131 ต่างแค่ .0 ท้ายคือรุ่นเดียวกัน แต่ 1.10 กับ 1.1 ไม่ใช่
+        assert_eq!(compare(Some("1.5"), Some("1.5.0")), "ok");
+        assert_eq!(compare(Some("2.3.3.0"), Some("2.3.3")), "ok");
+        assert_eq!(compare(Some("1.1"), Some("1.10")), "new");
+        assert_eq!(compare(Some("1.0"), Some("1.0.1")), "new");
+    }
+
+    /// AUDIT ข้อ 131 ที่อยู่ซ้ำดึงครั้งเดียว แต่ทุกตัวแปลงยังได้ผล
+    #[test]
+    fn duplicate_check_urls_are_fetched_once() {
+        let u = unique_checks();
+        let urls: Vec<&str> = u.iter().map(|&i| SOURCES[i].check).collect();
+        let mut sorted = urls.clone();
+        sorted.sort();
+        sorted.dedup();
+        assert_eq!(urls.len(), sorted.len(), "ยังมีที่อยู่ซ้ำ");
+        assert_eq!(urls.len(), SOURCES.len() - 1, "qaac กับ refalac ใช้ที่อยู่เดียวกัน ต้องเหลือ 9 ที่อยู่");
+        assert!(SOURCES.iter().all(|s| urls.contains(&s.check)), "ทุกตัวแปลงต้องมีที่อยู่ที่ดึง");
     }
 
     /// ทุกตัวแปลงในทะเบียนมีที่เช็กรุ่น

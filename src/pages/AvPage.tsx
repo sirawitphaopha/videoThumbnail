@@ -14,6 +14,7 @@ import LangPicker from "../components/LangPicker";
 import CodecPanel from "../components/CodecPanel";
 import DelayDialog from "../components/DelayDialog";
 import SubViewer from "../components/SubViewer";
+import ChapterDialog from "../components/ChapterDialog";
 import ExtractCard, { type ExtractPick } from "../components/ExtractCard";
 import InfoTip from "../components/InfoTip";
 import { convertLabel } from "../lib/codecs";
@@ -30,6 +31,7 @@ import { langName } from "../lib/langs";
 import { getAv, resetAv, setAv, trackFrom, tracksOfAdded, useAv, type AvTrack, type CoverSlot } from "../lib/avJob";
 import { IcExtract, IcFile, IcPoster, IbCrop, IcClose } from "../components/icons";
 import { glideBox } from "../lib/glide";
+import { spaceShort, useFree } from "../lib/drives";
 import { IbSwap, IcSearch, IbTrash, IbBack, IbNext, IbStop, IcRefresh, IcShelf, IcGraph, IcLink, IcMix } from "../components/icons";
 
 const MOVIE_EXT = ["mkv", "mp4", "m4v", "mov", "avi", "webm", "ts", "m2ts", "mpg", "mpeg", "vob", "flv"];
@@ -38,6 +40,8 @@ const extOf = (p: string) => (p.match(/\.([^.\\/]+)$/)?.[1] ?? "").toLowerCase()
 const baseName = (p: string) => p.split(/[\\/]/).pop() ?? p;
 const dirName = (p: string) => p.replace(/[\\/][^\\/]*$/, "");
 const KIND_WORD = { video: "ภาพ", audio: "เสียง", subtitle: "ซับ" } as const;
+/** ความหมายของแทร็กหลัก ใช้ทั้งหัวคอลัมน์หลักในตารางและส่วนตั้งค่าแทร็ก (BUGS ข้อ 66 · ข้อ 91 พี่กันถาม 13 พ.ย. 2569 "หลักที่เราเข้าใจ คือติ๊กเเล้วตอนเปิดหนัง เสียงนี้มันจะเล่นพร้อมภาพไหม" · "ไม่ก็ใส่เครื่องหมายอธิบาย") */
+const MAIN_TIP = "แทร็กหลักคือเสียงหรือซับที่โปรแกรมเล่นเปิดให้เองเมื่อเปิดหนัง เช่นตั้งเสียงไทยเป็นหลัก เปิดหนังแล้วได้ยินเสียงไทยพร้อมภาพทันที  เสียงมีหลักได้อันเดียว ซับก็มีหลักได้อันเดียว ส่วนแทร็กอื่นยังอยู่ในไฟล์ครบ กดสลับในโปรแกรมเล่นได้ตามเดิม\nโปรแกรมเล่นบางตัวตั้งให้เลือกตามภาษาที่ชอบก่อน เช่นตั้ง MPC-HC ให้เลือกเสียงไทยก่อน แบบนั้นค่าในโปรแกรมเล่นจะชนะแทร็กหลัก";
 const BUSY = "รอให้งานที่ทำอยู่เสร็จก่อน";
 const MAX_DELAY = 600_000;
 
@@ -113,6 +117,8 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
   const [codecSpeed, setCodecSpeed] = useState<string | null>(null);
   const [delayFor, setDelayFor] = useState<string | null>(null);
   const [subFor, setSubFor] = useState<string | null>(null);
+  /** หน้าต่างดูและแก้บท (BUGS ข้อ 99) */
+  const [chapOpen, setChapOpen] = useState(false);
   /** วิธี รวมเข้าไฟล์หนัง จับคู่ไว้ ไม่รวม (มอคอัปหัวข้อ 5) หรือแยกออกจากหนัง (BUGS ข้อ 35) · เก็บใน avJob เปลี่ยนเมนูแล้วไม่หาย */
   const method = av.method;
   const setMethod = (v: "merge" | "pair" | "extract") => setAv({ method: v });
@@ -322,7 +328,8 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
   const origOrder = movie?.tracks.map((t) => t.tid).join(",") ?? "";
   const changed = !!movie && (
     tracks.some((t) => !t.inMovie) || tracks.some((t) => t.lang !== t.base.lang || t.name !== t.base.name || t.default !== t.base.default || t.delay !== t.base.delay || t.keep !== t.base.keep)
-    || tracks.some((t) => t.keep && !!t.convert) || movieOrder !== origOrder || coverChanged || output !== movie.ext.replace("m4v", "mp4") && !(output === "mkv" && movie.ext === "mkv"));
+    || tracks.some((t) => t.keep && !!t.convert) || movieOrder !== origOrder || coverChanged || output !== movie.ext.replace("m4v", "mp4") && !(output === "mkv" && movie.ext === "mkv")
+    || av.chapters != null); // แก้บทแล้วก็นับว่ามีของเปลี่ยน รวมได้ (BUGS ข้อ 99)
   // แทร็กที่ตั้งแปลง ใส่ MP4 ได้ไหมดูชนิดหลังแปลง (WavPack ใส่ไม่ได้) · แทร็กในหนังแบบเพิ่มคู่ แทร็กเดิมยังอยู่ ต้องใส่ได้ด้วย
   // กติกาเดียวกับฝั่ง Rust (merge.rs mp4_unfit · ผู้ช่วยตรวจขั้น 10 ข้อ 2 · เดิมแบบเพิ่มคู่ไม่เตือน แบบแทนที่ฝั่ง Rust ปฏิเสธ)
   const mp4Of = (t: AvTrack) => {
@@ -359,11 +366,14 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
   })();
   const fontFiles = [...new Set(fontRows.filter((r) => r.on).map((r) => r.file!))];
   const fontBytes = fontFiles.reduce((s, f) => s + (fontRows.find((r) => r.file === f)?.size ?? 0), 0);
+  // ไฟล์ใหม่เขียนในโฟลเดอร์ของหนัง · สูตรเดียวกับที่ merge.rs เช็กตอนเริ่ม ขนาดหนังเต็ม บวกไฟล์ที่เพิ่ม บวกฟอนต์ บวกเผื่อ 64 MB ไม่พอขึ้นเตือนข้างปุ่มก่อนกด (BUGS ข้อ 94)
+  const mergeFree = useFree(movie?.path);
+  const mergeShort = movie ? spaceShort(mergeFree, estimate + removedBytes + fontBytes + 64 * 1024 * 1024) : null;
   const blocked = !movie ? "ยังกดไม่ได้ ใส่ไฟล์หนังก่อน"
     : !kept.some((t) => t.kind === "video") ? "ไฟล์ใหม่ต้องมีภาพ เอาแทร็กภาพกลับมาก่อน"
     : mp4Bad.length ? "เลือกก่อนว่าจะเอาแทร็กที่ใส่ใน MP4 ไม่ได้ออก หรือกลับไปใช้ MKV"
     : !changed ? "ยังไม่ได้เปลี่ยนอะไร เพิ่มไฟล์ แก้แทร็ก หรือใส่ปกก่อน"
-    : null;
+    : mergeShort;
 
   const start = async () => {
     const s = getAv();
@@ -376,6 +386,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
         covers: { portrait: s.covers.cover.mode, land: s.covers.cover_land.mode },
         output, original, checkSource: settings?.checkSourceBefore ?? true, checkOutput: settings?.checkOutputAfter ?? true,
         fonts: fontFiles,
+        chapters: s.chapters,
       });
       // ไฟล์เดิมย้ายไปแล้ว หน้าว่าง เหลือการ์ดผล
       resetAv(true);
@@ -449,7 +460,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
       const item = ext ? { kind: s.kind, nth: n, ext, lang: s.lang, name } : null;
       /* ชื่อแบบเดียวกับตารางแทร็ก (เสียงที่ 2 ซับที่ 1) ไม่ใช้ชื่อหมวด MediaInfo (Audio #2) ที่หน้านี้ไม่มีให้เห็น */
       const many = mi.sections.filter((x) => x.kind === s.kind).length > 1;
-      const label = s.kind === "attachment" ? (name ?? s.title) : s.kind === "menu" ? "บทของหนัง"
+      const label = s.kind === "attachment" ? (name ?? s.title) : s.kind === "menu" ? "Chapter ของหนัง"
         : s.kind === "video" ? (many ? `ภาพที่ ${n}` : "ภาพ") : s.kind === "audio" ? `เสียงที่ ${n}` : s.kind === "text" ? `ซับที่ ${n}` : s.title;
       return { key: `${s.kind}:${n}`, s, item, label, raw, rowLabel: s.kind === "attachment" ? label : `${label} .${ext ?? ""}` };
     }).filter((x) => x.s.kind !== "general");
@@ -566,9 +577,10 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
         </div>
         <span className="small"><Phr>{`ชื่อที่โปรแกรมเล่นแสดงตอนเลือกเสียงหรือซับ ส่วนไฟล์ที่เพิ่มจะตั้งภาษาจากชื่อไฟล์ให้ก่อน (คำ${J}ว่า พากย์${J}ไทย th tha)`}</Phr></span></div>
       {selected.kind !== "video" && (
-        <div className="avfield"><span className="avlbl">ตั้งเป็น{KIND_WORD[selected.kind]}หลัก</span>
-          <div className={"chk" + (working || !selected.keep ? " off" : "")} aria-checked={selected.default} {...kb(() => { if (!working && selected.keep) setMain(selected.key); })} role="checkbox">
-            <span className={"cbx " + (selected.default ? "on" : "off")}>{selected.default && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="4" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>}</span>
+        <div className="avfield"><span className="avlbl"><span>ตั้งเป็น{KIND_WORD[selected.kind]}หลัก <InfoTip title={`${KIND_WORD[selected.kind]}หลักคืออะไร`} tip={{ w: MAIN_TIP }} /></span></span>
+          {/* ปุ่มวงกลมแบบเดียวกับคอลัมน์หลักในตาราง หลักมีได้แทร็กเดียวแบบปุ่มเลือกข้อเดียว (BUGS ข้อ 91 พี่กันสั่ง 13 พ.ย. 2569 "เอาปุ่มให้เหมือนกัน ถ้าจะวงกลม ก็วงกลม" · เดิมเป็นช่องติ๊กสี่เหลี่ยม) */}
+          <div className={"chk" + (working || !selected.keep ? " off" : "")} aria-checked={selected.default} {...kb(() => { if (!working && selected.keep) setMain(selected.key); })} role="radio" data-main-panel>
+            <span className={"radio" + (selected.default ? " on" : "")} aria-hidden="true" />
             <span>{selected.kind === "audio" ? "เปิดหนังแล้วเล่นเสียงนี้ก่อน" : "เปิดหนังแล้วขึ้นซับนี้ก่อน"}</span></div>
           <span className="small"><Phr>{`${KIND_WORD[selected.kind]}หลักมีได้แทร็กเดียว เลือกอันนี้แล้วอันเดิมจะเลิกเป็นหลัก ${selected.kind === "audio" ? "ซับหลักตั้งแยกกัน" : "ถ้าไม่เลือกซับหลักเลย หนังจะเปิดแบบไม่มีซับ"}`}</Phr></span></div>
       )}
@@ -645,7 +657,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
           <h3 style={{ justifyContent: "space-between" }}><span>{method === "extract" ? "แทร็กในหนัง ติ๊กชิ้นที่จะแยก" : "แทร็กในไฟล์ใหม่ เรียงตามลำดับ"}</span>
             <span className="small" style={{ fontWeight: 400 }} data-counts>ภาพ {counts.video} เสียง {counts.audio} ซับ {counts.subs}{counts.out ? ` เอาออก ${counts.out}` : ""}</span></h3>
           <div className="tracks" role="list" aria-label="แทร็กในไฟล์ใหม่">
-            <div className="trk head"><span></span><span></span><span>ชนิด</span><span>แทร็กและชื่อแทร็ก</span><span>ภาษา</span><span style={{ textAlign: "center" }}>หลัก<span className="hd-tip">{/* คนอาจเข้าใจว่าวงกลมคือปุ่มติ๊กเลือกแทร็ก (BUGS ข้อ 66 พี่กันสั่ง 12 พ.ย. 2569 "ใส่ ปุ่มรายละเอียดหน่อย เพราะคนน่าจะสับสนกับปุ่มเลือก") */}<InfoTip title="แทร็กหลักคืออะไร" tip={{ w: "แทร็กหลักคือเสียงหรือซับที่โปรแกรมเล่นเปิดให้ก่อนเมื่อเปิดไฟล์ เสียงมีหลักได้อันเดียว ซับก็มีหลักได้อันเดียว กดวงกลมเพื่อตั้งแทร็กนั้นเป็นหลัก วงกลมไม่ใช่การติ๊กเลือกว่าจะเอาแทร็กไหน ทุกแทร็กยังอยู่ในไฟล์ใหม่ครบ ถ้าไม่อยากได้แทร็กไหนให้กดกากบาทท้ายแถวนั้น" }} /></span></span><span style={{ textAlign: "center", width: 118 }}>ดีเลย์ (ms)</span><span className="trk-naword trk-hd" aria-label="แปลง"><i aria-hidden="true">ไม่แปลง</i><span>แปลง</span></span><span></span></div>
+            <div className="trk head"><span></span><span></span><span>ชนิด</span><span>แทร็กและชื่อแทร็ก</span><span>ภาษา</span><span style={{ textAlign: "center" }}>หลัก<span className="hd-tip">{/* คนอาจเข้าใจว่าวงกลมคือปุ่มติ๊กเลือกแทร็ก (BUGS ข้อ 66 พี่กันสั่ง 12 พ.ย. 2569 "ใส่ ปุ่มรายละเอียดหน่อย เพราะคนน่าจะสับสนกับปุ่มเลือก") */}<InfoTip title="แทร็กหลักคืออะไร" tip={{ w: MAIN_TIP + "\nกดวงกลมเพื่อตั้งแทร็กนั้นเป็นหลัก วงกลมไม่ใช่การติ๊กเลือกว่าจะเอาแทร็กไหน ถ้าไม่อยากได้แทร็กไหนให้กดกากบาทท้ายแถวนั้น" }} /></span></span><span style={{ textAlign: "center", width: 118 }}>ดีเลย์ (ms)</span><span className="trk-naword trk-hd" aria-label="แปลง"><i aria-hidden="true">ไม่แปลง</i><span>แปลง</span></span><span></span></div>
             {tracks.map((t, i) => {
               const { title, parts } = rowText(t, nth(t));
               const ft = ftName(t.kind, t.codec, t.profile);
@@ -705,7 +717,10 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
                       <span style={{ whiteSpace: "nowrap", minWidth: 0 }}>{t.convert ? `${convertLabel(t.convert)}${t.inMovie ? (t.pair ?? true ? " เพิ่มคู่" : " แทนที่") : ""}` : "ไม่แปลง"}</span>
                       <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" aria-hidden="true"><path d="M6 9l6 6 6-6" /></svg>
                     </button>
-                  ) : t.kind === "subtitle" ? <span className="small">ซับไม่ต้องแปลง</span>
+                  ) : t.kind === "subtitle" ? (
+                    /* ปุ่มดูซับมีคำ วางในช่องเดียวกับปุ่มตั้งค่าแปลงของแถวเสียง ซับไม่ต้องแปลงอยู่แล้ว (BUGS ข้อ 98 พี่กันถาม 13 พ.ย. 2569 "เราจะดูซํบยังไงงง มันมีหน้าซับ เเต่เราไม่รู้ต้องเปิดจากไหน" · เดิมเป็นไอคอนรูปตาเปล่าท้ายแถว) */
+                    <button type="button" className="btn btn-ghost btn-sm trk-actbtn" aria-label={`ดูซับ ${title}`} title="เปิดตัวดูซับ ดูข้อความกับเวลาทุกบรรทัด" onClick={(e) => { e.stopPropagation(); setSubFor(t.key); }} data-subview>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></svg>ดูซับ</button>)
                     /* แถวภาพไม่แปลง ขีดอยู่กึ่งกลางคำว่าไม่แปลงของแถวเสียง (พี่กันสั่ง 11 พ.ย. 2569 "อยู่กึ่งกลางคำว่า ไม่แปลง") */
                     /* วิธีแยก แถวภาพ AVC HEVC เลือกได้ว่าแยกเป็น .mkv หรือสตรีมล้วน (BUGS ข้อ 35 ต่อ) · ช่องนี้ไม่จางแบบช่องของงานรวม */
                     : xMode && xit?.raw ? <span className="xkeep xraw" onClick={(e) => e.stopPropagation()} data-xraw={xit.key}>
@@ -716,9 +731,6 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
                       </span>
                     : <span className="trk-naword" aria-label="ไม่มีการแปลง"><i aria-hidden="true">ไม่แปลง</i><span>—</span></span>}
                   <div className="avacts" onClick={(e) => e.stopPropagation()}>
-                    {t.kind === "subtitle" && (
-                      <button type="button" className="ib" aria-label={`ดูซับ ${title}`} title="ดูซับ" onClick={() => setSubFor(t.key)} data-subview>
-                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.1" aria-hidden="true"><path d="M2 12s3.6-7 10-7 10 7 10 7-3.6 7-10 7S2 12 2 12z" /><circle cx="12" cy="12" r="3" /></svg></button>)}
                     {t.kind === "video" ? null : !t.inMovie ? (
                       <button type="button" className="ib bad" aria-label={`เอาไฟล์ ${baseName(t.src)} ออก`} title={off ?? "เอาไฟล์นี้ออก"} aria-disabled={!!off || undefined} onClick={() => { if (!off) removeAdded(t.src); }} data-remove>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
@@ -750,9 +762,9 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
               const slotName = land ? "ปกนอน" : "ปกตั้ง";
               const go = !xMode && isCover ? () => goSlot(land ? "cover_land" : "cover") : undefined;
               const chip = isMenu ? "XML" : (x.s.ext ?? "").toUpperCase() || "ไฟล์";
-              const title = isMenu ? "บทของหนัง" : isCover ? `${slotName} ${x.label}` : x.label;
+              const title = isMenu ? "Chapter ของหนัง" : isCover ? `${slotName} ${x.label}` : x.label;
               const what = xMode ? (isMenu ? `แยกเป็นไฟล์ .${x.item?.ext ?? "xml"} ที่เปิดในโปรแกรมทำบทได้` : "ชื่อไฟล์ที่ได้ต่อท้ายชื่อหนัง")
-                : isMenu ? "บทติดไปกับไฟล์ใหม่ตามเดิม" : isCover ? `กดเพื่อไปที่ช่อง${slotName}ของโปสเตอร์ข้างล่าง` : "ติดไปกับไฟล์ใหม่ตามเดิม";
+                : isMenu ? "Chapter ติดไปกับไฟล์ใหม่ตามเดิม" : isCover ? `กดเพื่อไปที่ช่อง${slotName}ของโปสเตอร์ข้างล่าง` : "ติดไปกับไฟล์ใหม่ตามเดิม";
               const dims = row("Dimensions").replace(/ pixels?$/, "");
               const pills = [
                 <span key="a" className="tpill in">ในไฟล์</span>,
@@ -773,10 +785,15 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
                   <div><FtChip name={chip} /></div>
                   <div style={{ minWidth: 0 }}>
                     <div className="nm">{title}</div>
-                    <div className="dt"><DtLine parts={[...pills, isMenu ? "บทของหนัง" : img ? (dims ? `รูป ${dims}` : "รูป") : "ไฟล์แนบ", row("Size")].filter(Boolean)} /></div>
+                    <div className="dt"><DtLine parts={[...pills, isMenu ? "Chapter ของหนัง" : img ? (dims ? `รูป ${dims}` : "รูป") : "ไฟล์แนบ", row("Size")].filter(Boolean)} /></div>
                   </div>
-                  {/* ประโยคอธิบายอยู่ในช่องว่างของคอลัมน์ภาษาถึงแปลง แถวสูงเท่าแถวแทร็ก ไม่ตกบรรทัดที่สาม */}
-                  <span className="small xnote" style={{ gridColumn: "5 / 9" }}>{what}</span><div className="avacts" />
+                  {/* ประโยคอธิบายอยู่ในช่องว่างของคอลัมน์ภาษาถึงแปลง แถวสูงเท่าแถวแทร็ก ไม่ตกบรรทัดที่สาม
+                      แถวบทของหนังตอนรวม มีปุ่มดูและแก้บทในช่องแปลง (BUGS ข้อ 99) */}
+                  {isMenu && method === "merge" ? <>
+                    <span className="small xnote" style={{ gridColumn: "5 / 8" }} data-chapnote>{av.chapters ? (av.chapters.length ? `แก้ Chapter แล้ว ${av.chapters.length} อัน จะลงไฟล์ใหม่ตอนรวม` : "ลบ Chapter หมดแล้ว ไฟล์ใหม่จะไม่มี Chapter") : what}</span>
+                    <button type="button" className="btn btn-ghost btn-sm trk-actbtn" style={{ gridColumn: "8" }} onClick={(e) => { e.stopPropagation(); setChapOpen(true); }} aria-disabled={working || undefined} title={working ? BUSY : "เปิดรายการ Chapter ดูเวลาและชื่อ แก้ เพิ่ม หรือลบ"} data-chapopen>
+                      <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><path d="M8 6h13M8 12h13M8 18h13M3 6h.01M3 12h.01M3 18h.01" /></svg>ดูและแก้ Chapter</button>
+                  </> : <span className="small xnote" style={{ gridColumn: "5 / 9" }}>{what}</span>}<div className="avacts" />
                 </div>
               );
             })}
@@ -908,7 +925,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
                 ))}
               </div></div>
         {/* การ์ดแยกไฟล์ตรึงล่างสุดของจอแบบแถบปุ่มรวม ไม่ต้องเลื่อนหา (BUGS ข้อ 35 ต่อ พี่กันสั่ง 12 พ.ย. 2569 "ตัวนี้ควรอยู่ล่าสุดตลอด") */}
-        {method === "extract" && <div className="avfoot avxfoot"><ExtractCard path={movie.path} picks={xPicks} busy={working ? BUSY : undefined} /></div>}
+        {method === "extract" && <div className="avfoot avxfoot"><ExtractCard path={movie.path} picks={xPicks} busy={working ? BUSY : undefined} srcSize={movie.size} /></div>}
         {method !== "extract" && <div className="avfoot">
           {method === "pair" ? (<>
             {pairBlocked && <div className="hint" style={{ color: "#94680f", margin: 0 }} data-blocked>{pairBlocked}</div>}
@@ -926,7 +943,13 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
               <div className={"chk" + (working ? " off" : "")} aria-checked={original === "trash"} {...kb(() => { if (!working) setAv((s) => ({ once: { ...s.once, original: "trash" } })); })} role="radio">
                 <span className={"radio" + (original === "trash" ? " on" : "")} /><span>ลบไฟล์เดิมหลังตรวจผ่าน</span></div>
             </div>
-            <InfoTip title="ชนิดไฟล์กับไฟล์เดิม" tip={{ w: "MKV ใส่เสียงและซับได้ทุกแบบ เก็บปกได้ทั้งปกตั้งและปกนอน และเก็บฟอนต์ของซับไว้ในไฟล์ได้ ส่วน MP4 ปกขึ้นเป็นไอคอนใน Windows ได้เลยโดยไม่ต้องลง Icaros แต่เก็บปกได้รูปเดียวคือปกตั้ง ใส่ซับบางแบบไม่ได้ และเก็บไฟล์แนบอย่างฟอนต์ไม่ได้ ส่วนไฟล์เดิม ถ้าเลือกเก็บไว้ โปรแกรมย้ายไฟล์เดิมไปโฟลเดอร์ ไฟล์เดิม ข้างไฟล์หนัง ถ้าเลือกลบ โปรแกรมลบเฉพาะเมื่อตรวจไฟล์ใหม่ผ่านแล้ว และย้ายไปถังขยะของ Windows กู้คืนได้" }} />
+            {/* แยกหัวข้อละตัวเลือก (BUGS ข้อ 97 พี่กันถาม 13 พ.ย. 2569 "มันยาวมาก ควรเป็นบูลเล็ตไหม" · เดิมรวมสี่ตัวเลือกเป็นย่อหน้าเดียว) */}
+            <InfoTip title="ชนิดไฟล์กับไฟล์เดิม" tip={{ w: "เลือกชนิดไฟล์ใหม่ และสิ่งที่จะทำกับไฟล์เดิม", o: [
+              ["MKV", "ไฟล์หนังที่ใส่ของได้ครบที่สุด", "ใส่เสียงและซับได้ทุกแบบ เก็บได้ทั้งปกตั้งและปกนอน\nและเก็บฟอนต์ของซับไว้ในไฟล์ได้", "ไอคอนไฟล์จะเป็นรูปปกเมื่อลง Icaros ก่อน"],
+              ["MP4", "ไฟล์หนังที่เปิดได้แทบทุกเครื่อง", "ไอคอนไฟล์เป็นรูปปกได้เลยโดยไม่ต้องลง Icaros", "เก็บปกได้แค่ปกตั้ง และใส่ซับบางแบบไม่ได้\nเก็บฟอนต์ของซับไว้ในไฟล์ไม่ได้"],
+              ["เก็บไฟล์เดิมไว้", "ย้ายไฟล์เดิมไปโฟลเดอร์ชื่อไฟล์เดิมข้างไฟล์หนัง", "ไฟล์เดิมอยู่ครบ ย้อนกลับได้ทุกเมื่อ", "ใช้ที่ว่างเพิ่มราวขนาดหนังหนึ่งเรื่อง"],
+              ["ลบไฟล์เดิมหลังตรวจผ่าน", "ลบเฉพาะเมื่อตรวจไฟล์ใหม่ผ่านแล้ว โดยย้ายไปถังขยะของ Windows", "ไม่ใช้ที่ว่างเพิ่ม และกู้คืนจากถังขยะได้", "ล้างถังขยะแล้วกู้คืนไม่ได้"],
+            ], r: "MKV กับเก็บไฟล์เดิมไว้\nยกเว้นอยากได้ไอคอนเป็นรูปปกโดยไม่ต้องลง Icaros" }} />
           </div>
           {/* ขนาดไฟล์ที่คาดอยู่ข้างปุ่มรวมเมื่อกดได้ ตอนกดไม่ได้เหตุผลขึ้นแทนที่ตรงนี้ */}
           {!blocked && !working && <div className="small avfoot-sum" data-summary title={`ไฟล์ใหม่ ${movie.name}.${output} ขนาดราว ${fmtSize(Math.max(0, estimate))} ${(settings?.checkOutputAfter ?? true) ? "และจะตรวจไฟล์ใหม่หลังรวมเสร็จ" : "และไม่ได้ตั้งให้ตรวจไฟล์ใหม่ ตั้งได้ที่หน้าตั้งค่า"}`}>{`ไฟล์ใหม่ .${output} ราว ${fmtSize(Math.max(0, estimate))}`}</div>}
@@ -942,6 +965,8 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
       {codecFor && (() => { const ct = tracks.find((t) => t.key === codecFor); return ct ? (
         <CodecPanel track={ct} encoders={encs} speed={codecSpeed} onClose={() => { setCodecFor(null); setCodecSpeed(null); }}
           onApply={(convert, pair, convName) => { patch(ct.key, { convert, pair, convName }); setCodecFor(null); setCodecSpeed(null); }} />) : null; })()}
+      {chapOpen && <ChapterDialog open path={movie.path} duration={movie.duration ?? null} edited={av.chapters}
+        onClose={() => setChapOpen(false)} onSave={(chapters) => setAv({ chapters })} />}
       {subFor && (() => { const st = tracks.find((t) => t.key === subFor); return st ? (
         <SubViewer track={st} movie={movie.path} refStream={refAudio ? refAudio.ff ?? refAudio.tid : null}
           refIdx={refAudio ? tracks.filter((x) => x.inMovie && x.kind === "audio" && (x.ff ?? x.tid) < (refAudio.ff ?? refAudio.tid)).length : null} onClose={() => setSubFor(null)} />) : null; })()}

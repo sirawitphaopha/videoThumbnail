@@ -45,9 +45,13 @@ export type Settings = {
   linkBoardMovies: "list" | "only";
   /** บันทึกไฟล์ .sha256 ถามที่บันทึกทุกครั้ง · ปิด = บันทึกข้างไฟล์หนังทันที (BUGS ข้อ 30) */
   hashSaveAsk: boolean;
+  /** ปิดโปรแกรมตอนขยายเต็มจอ เปิดครั้งหน้าขยายเต็มจอ ฝั่ง Rust จำเองตอนกดปิด (BUGS ข้อ 89) */
+  windowMaximized?: boolean;
 };
 
-export type LoadedFrom = "file" | "backup" | "defaults" | "new";
+export type LoadedFrom = "file" | "backup" | "defaults" | "new" | "partial";
+/** ความจุไดรฟ์ที่โฟลเดอร์หนังอยู่ กับไดรฟ์ที่โปรแกรมเก็บข้อมูล (BUGS ข้อ 88) · app = ไดรฟ์นี้เก็บค่าตั้ง คลังหนัง และภาพปกของโปรแกรม */
+export type DriveSpace = { root: string; total: number; free: number; folders: string[]; app: boolean };
 export type ToolCheck = { name: string; ok: boolean; version: string };
 
 export type Track = { lang: string | null; codec: string; layout: string | null };
@@ -93,7 +97,9 @@ async function call<T>(cmd: string, args?: Record<string, unknown>): Promise<T> 
 }
 
 export const api = {
-  getSettings: () => call<{ settings: Settings; loadedFrom: LoadedFrom }>("get_settings"),
+  getSettings: () => call<{ settings: Settings; loadedFrom: LoadedFrom; recoveredFolders?: number }>("get_settings"),
+  /** ความจุไดรฟ์ของโฟลเดอร์หนังกับไดรฟ์ของโปรแกรม อ่านอย่างเดียว (BUGS ข้อ 88) */
+  driveSpace: (folders: string[]) => call<DriveSpace[]>("drive_space", { folders }),
   setSettings: (patch: Partial<Settings>) => call<Settings>("set_settings", { patch }),
   checkTools: () => call<ToolCheck[]>("check_tools"),
   /** ลง Icaros แล้วหรือยัง (หน้าตั้งค่า การ์ดเครื่องมือเบื้องหลัง) */
@@ -180,6 +186,14 @@ export type EncodePlan = { steps: EncodeStep[]; piped: boolean; text: string; no
 export type EncoderInfo = { name: string; codecs: string; source: "bundled" | "user" | "missing"; version: string | null; ok: boolean; problem: string | null; dir: string; coreAudio: string | null };
 /** บันทึกการใช้งาน (actlog.rs) · ไฟล์ข้อความรายเดือนในเครื่อง จดงานที่เขียน ย้าย หรือลบไฟล์ */
 export type LogInfo = { dir: string; monthLines: number };
+/** เปิดรากไดรฟ์ใน Explorer จากคำเตือนไดรฟ์ใกล้เต็ม เปิดได้เฉพาะไดรฟ์ในรายการความจุ (BUGS ข้อ 88) */
+export const driveApi = {
+  open: (root: string) => call<void>("drive_open", { root }),
+  /** ที่ว่างของไดรฟ์ที่ไฟล์หรือโฟลเดอร์นี้อยู่ ตัวเลขเดียวกับที่งานเช็กตอนเริ่ม (BUGS ข้อ 94) */
+  free: (path: string) => call<FreeInfo>("drive_free", { path }),
+};
+export type FreeInfo = { free: number; drive: string };
+
 export const logApi = {
   info: () => call<LogInfo>("actlog_info"),
   openDir: () => call<string>("actlog_open_dir"),
@@ -230,7 +244,9 @@ export type FontFile = { path: string; file: string; names: string[]; size: numb
 export const FONT_EXT = ["ttf", "otf", "ttc", "otc"];
 /** keep ใช้ของเดิม · remove เอาออก · new ใช้รูปที่ครอปไว้ในช่องนั้น */
 export type CoverMode = "keep" | "remove" | "new";
-export type MergeReq = { movie: string; tracks: MergeTrack[]; covers: { portrait: CoverMode; land: CoverMode }; output: "mkv" | "mp4"; original: "keep" | "trash"; checkSource: boolean; checkOutput: boolean; fonts: string[] };
+export type MergeReq = { movie: string; tracks: MergeTrack[]; covers: { portrait: CoverMode; land: CoverMode }; output: "mkv" | "mp4"; original: "keep" | "trash"; checkSource: boolean; checkOutput: boolean; fonts: string[]; chapters?: Chapter[] | null };
+/** บทของหนัง เวลาเริ่มเป็นวินาที (BUGS ข้อ 99) */
+export type Chapter = { start: number; title: string };
 export type MergeResult = { mode: "mkv" | "mp4"; output: string; counts: Counts; verified: boolean; original: "kept" | "trash" | "none"; originalTo: string | null; notes: string[] };
 export type CoverPreview = { preview: string; width: number; height: number; bytes: number };
 
@@ -317,6 +333,8 @@ export const mergeApi = {
   coverDrop: (slot: CoverTarget | null) => call<void>("merge_cover_drop", { slot }),
   /** อ่านชื่อฟอนต์ในไฟล์ฟอนต์ที่ลากมาเพิ่มเอง (fonts.rs) */
   fontInfo: (path: string) => call<FontFile>("font_info", { path }),
+  /** บทของหนังในไฟล์ อ่านด้วย ffprobe (chapters.rs · BUGS ข้อ 99) */
+  chapters: (path: string) => call<Chapter[]>("chapters_read", { path }),
 };
 /** เลือกไฟล์ฟอนต์ของซับ ASS (การ์ดฟอนต์ในหน้าเสียงและซับ) */
 export async function pickFonts(): Promise<string[]> {
@@ -358,14 +376,19 @@ const MOVIE_EXT = ["mkv", "mp4", "m4v", "mov", "avi", "webm", "ts", "m2ts", "mpg
 export const AUDIO_EXT = ["mp3", "flac", "wav", "m4a", "aac", "ac3", "eac3", "dts", "ogg", "opus", "mka", "wma", "wv", "ape", "tak"];
 
 /** เลือกไฟล์จากเครื่อง · kind = movie image หรือ media (หนังหรือไฟล์เสียง ของหน้ากราฟเสียง) */
-export async function pickFile(kind: "movie" | "image" | "media"): Promise<string | null> {
+/** ไฟล์ซับที่หน้าซับไตเติลรับ (BUGS ข้อ 104) */
+export const SUB_EXT = ["srt", "ass", "ssa", "vtt", "sup", "sub", "idx"];
+
+export async function pickFile(kind: "movie" | "image" | "media" | "subtitle"): Promise<string | null> {
   if (!inApp) return null;
   const { open } = await import("@tauri-apps/plugin-dialog");
   const r = await open({
     multiple: false, directory: false,
-    title: kind === "movie" ? "เลือกไฟล์หนัง" : kind === "media" ? "เลือกไฟล์หนังหรือไฟล์เสียง" : "เลือกรูปโปสเตอร์",
+    title: kind === "movie" ? "เลือกไฟล์หนัง" : kind === "media" ? "เลือกไฟล์หนังหรือไฟล์เสียง" : kind === "subtitle" ? "เลือกไฟล์หนังหรือไฟล์ซับ" : "เลือกรูปโปสเตอร์",
     filters: kind === "movie"
       ? [{ name: "ไฟล์หนัง", extensions: MOVIE_EXT }]
+      : kind === "subtitle"
+        ? [{ name: "ไฟล์หนังและไฟล์ซับ", extensions: [...MOVIE_EXT, ...SUB_EXT] }]
       : kind === "media"
         ? [{ name: "ไฟล์หนังและไฟล์เสียง", extensions: [...MOVIE_EXT, ...AUDIO_EXT] }]
         : [{ name: "รูปโปสเตอร์", extensions: ["jpg", "jpeg", "png", "webp", "bmp", "tif", "tiff", "heic", "heif"] }],

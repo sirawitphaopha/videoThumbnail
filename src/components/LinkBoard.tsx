@@ -100,14 +100,15 @@ export default function LinkBoard() {
     if (!settings) return;
     const fresh = dirs.filter((d, i) => !settings.folders.some((x) => x.toLowerCase() === d.toLowerCase()) && dirs.findIndex((o) => o.toLowerCase() === d.toLowerCase()) === i);
     if (!fresh.length) { toast({ kind: "info", title: "โฟลเดอร์นี้อยู่บนชั้นวางแล้ว", detail: dirs.join(", ") }); return; }
-    await update({ folders: [...settings.folders, ...fresh] });
+    // บันทึกไม่สำเร็จ ตัวบันทึกขึ้นแถบแดงเองแล้ว ไม่อ่านโฟลเดอร์ ไม่ขึ้นแถบเขียว (AUDIT ข้อ 135 ต้นเหตุเดียวกับหน้าตั้งค่า)
+    if (!(await update({ folders: [...settings.folders, ...fresh] }))) return;
     scan();
     toast({ kind: "ok", title: "เพิ่มโฟลเดอร์หนังแล้ว กำลังอ่านขึ้นชั้น", detail: fresh.join(", ") });
   }, [settings, update, scan, toast]);
   const removeMovieFolder = async (dir: string) => {
     if (!settings) return;
     setRemoving(null);
-    await update({ folders: settings.folders.filter((x) => x !== dir) });
+    if (!(await update({ folders: settings.folders.filter((x) => x !== dir) }))) return;
     scan();
     toast({ kind: "ok", title: "เอาออกจากชั้นแล้ว", detail: `${dir} ส่วนไฟล์ในเครื่องยังอยู่ครบ ไม่ถูกลบ` });
   };

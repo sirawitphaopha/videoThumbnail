@@ -4,9 +4,11 @@ mod actlog;
 mod ape;
 mod audiograph;
 mod bitrate;
+mod chapters;
 mod check;
 mod convert;
 mod delay;
+mod drives;
 mod encode;
 mod graphimg;
 mod extract;
@@ -60,9 +62,18 @@ pub fn run() {
                 actlog::note("เปิดโปรแกรม", &format!("รุ่น {}", app.package_info().version));
             }
             let path = store::settings_path(app.handle())?;
-            app.manage(SettingsStore::load(path));
+            let settings = SettingsStore::load(path);
+            if settings.loaded_from == store::LoadedFrom::Partial {
+                actlog::note("ไฟล์ตั้งค่าเสียบางช่อง", &format!("กลับเป็นค่าตั้งต้นเฉพาะ {}", settings.reset_fields.join(", ")));
+            }
             let lib = library::library_path(app.handle())?;
-            app.manage(Arc::new(library::LibraryStore::load(lib)));
+            let library = library::LibraryStore::load(lib);
+            // ไฟล์ตั้งค่าเสียทั้งสองชุด รายชื่อโฟลเดอร์คืนจากคลังหนัง ชั้นวางกับประวัติตรวจไม่หาย (AUDIT ข้อ 129)
+            let roots: Vec<String> = library.movies.lock().unwrap().iter().map(|m| m.root.clone()).filter(|r| !r.is_empty()).collect();
+            let n = settings.recover_folders(roots);
+            if n > 0 { actlog::note("ไฟล์ตั้งค่าเสียทั้งสองชุด", &format!("เอารายชื่อโฟลเดอร์หนังคืนจากคลังหนัง {n} โฟลเดอร์")); }
+            app.manage(settings);
+            app.manage(Arc::new(library));
             let pending = link::link_path(app.handle())?;
             app.manage(Arc::new(link::LinkStore::load(pending)));
             // โฟลเดอร์รูปที่หน้าจอเปิดผ่าน asset protocol (thumbs previews frames ใน tauri.conf.json)
@@ -87,7 +98,7 @@ pub fn run() {
             if let Ok(tmp) = app.path().app_local_data_dir().map(|d| d.join("tmp")) {
                 for e in std::fs::read_dir(&tmp).into_iter().flatten().flatten() {
                     let n = e.file_name().to_string_lossy().to_string();
-                    if ["merge-conv-", "merge-vtt-", "merge-oldcover-", "conv-cover-", "sub-"].iter().any(|p| n.starts_with(p)) && e.path().is_file() {
+                    if ["merge-conv-", "merge-vtt-", "merge-chap-", "merge-oldcover-", "conv-cover-", "sub-"].iter().any(|p| n.starts_with(p)) && e.path().is_file() {
                         let _ = std::fs::remove_file(e.path());
                     }
                 }
@@ -104,6 +115,8 @@ pub fn run() {
                     eprintln!("ชั้นหนัง: หน้าต่างเทสเปิดแบบไม่แย่งโฟกัส อยู่หลังสุด");
                 }
                 Some(w) => {
+                    // ปิดครั้งก่อนตอนขยายเต็มจอ เปิดมาขยายเต็มจอเลย (BUGS ข้อ 89) · ตัวเทสที่เปิดอยู่หลังสุดไม่ขยาย ไม่ไปกินทั้งจอของคนที่ใช้คอม
+                    if app.state::<SettingsStore>().current.lock().unwrap().window_maximized { let _ = w.maximize(); }
                     w.show()?;
                     w.set_focus()?;
                 }
@@ -125,6 +138,10 @@ pub fn run() {
                 }
             }
             if let WindowEvent::CloseRequested { api, .. } = event {
+                // จำว่ากดปิดตอนขยายเต็มจอไหม (BUGS ข้อ 89) · ปิดจากแถบงานตอนย่ออยู่ ไม่รู้ว่าก่อนย่อเป็นแบบไหน จึงคงค่าเดิม
+                if !window.is_minimized().unwrap_or(false) {
+                    window.app_handle().state::<SettingsStore>().remember_maximized(window.is_maximized().unwrap_or(false));
+                }
                 if jobs::guard_close(window.app_handle()) {
                     api.prevent_close();
                 }
@@ -137,7 +154,7 @@ pub fn run() {
     #[cfg(debug_assertions)]
     let handler = typed(tauri::generate_handler![
         actlog::actlog_info, actlog::actlog_open_dir,
-        tools::check_tools, tools::check_icaros, tools::open_icaros_page, store::get_settings, store::set_settings,
+        tools::check_tools, tools::check_icaros, tools::open_icaros_page, store::get_settings, store::set_settings, drives::drive_space, drives::drive_open, drives::drive_free, chapters::chapters_read,
         jobs::running_jobs, jobs::force_close, jobs::dev_fake_job, poster::dev_fake_free, library::dev_set_check, library::dev_clear_parked,
         library::get_library, library::scan_library, library::play_movie, library::reveal_movie, library::set_rating,
         rename::check_rename, rename::rename_movie,
@@ -158,7 +175,7 @@ pub fn run() {
     #[cfg(not(debug_assertions))]
     let handler = typed(tauri::generate_handler![
         actlog::actlog_info, actlog::actlog_open_dir,
-        tools::check_tools, tools::check_icaros, tools::open_icaros_page, store::get_settings, store::set_settings,
+        tools::check_tools, tools::check_icaros, tools::open_icaros_page, store::get_settings, store::set_settings, drives::drive_space, drives::drive_open, drives::drive_free, chapters::chapters_read,
         jobs::running_jobs, jobs::force_close,
         library::get_library, library::scan_library, library::play_movie, library::reveal_movie, library::set_rating,
         rename::check_rename, rename::rename_movie,

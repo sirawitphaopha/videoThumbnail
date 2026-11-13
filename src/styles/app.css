@@ -147,6 +147,14 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
 /* แถบสถานะล่างแบบโปรแกรม */
 .statusbar { flex: none; display: flex; align-items: center; justify-content: space-between; gap: 16px; height: 28px; padding: 0 18px; border-top: 1px solid var(--line); background: var(--win); font-size: 12.5px; color: var(--txt2); white-space: nowrap; overflow: hidden; }
 .statusbar .legend { margin: 0; font-size: 12.5px; flex-wrap: nowrap; }
+/* ป้ายไดรฟ์ใกล้เต็มหลังกดไว้ทีหลัง จาง ๆ ต่อจากจำนวนเรื่อง สูงไม่เกินแถบ 28 ชี้แล้วเข้มขึ้นในโทนเตือน (BUGS ข้อ 88 พี่กันเสนอ "เตือนจางๆข้างล่างดีมั้ย") */
+/* ที่อยู่โฟลเดอร์ที่กดเปิดได้ในหน้าตั้งค่า (BUGS ข้อ 96) · ตัวเล็กแบบเดิม ชี้แล้วขีดเส้นใต้สีโทน เคอร์เซอร์รูปมือ */
+.pathlink { display: block; padding: 0; margin-top: 2px; border: 0; background: none; font: inherit; font-family: var(--mono); font-size: 12.5px; color: var(--txt2); text-align: left; overflow-wrap: anywhere; cursor: pointer; transition: color .15s; }
+.pathlink:hover { color: var(--accent-ink); text-decoration: underline; text-underline-offset: 3px; }
+.statusbar .sbleft { display: inline-flex; align-items: center; gap: 12px; min-width: 0; }
+.drivechip { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 8px 0 5px; border: 0; border-radius: 999px; background: color-mix(in srgb, var(--warn-soft) 70%, transparent); color: color-mix(in srgb, var(--warn-ink) 75%, var(--win)); font: inherit; font-size: 12px; cursor: pointer; transition: background-color .15s, color .15s; }
+.drivechip svg { width: 13px; height: 13px; }
+.drivechip:hover { background: var(--warn-soft); color: var(--warn-ink); }
 .statusbar .legend > span { display: inline-flex; align-items: center; gap: 5px; }
 .statusbar .legend .badge { position: static; flex: none; width: 15px; height: 15px; box-shadow: none; }
 .statusbar .legend .badge svg { width: 10px; height: 10px; }
@@ -285,6 +293,8 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
 .stat.tone svg circle { fill: var(--accent); }
 .stat b { display: block; color: inherit; }
 .stat svg { flex: none; margin-top: 3px; }
+/* ไอคอนในปุ่มที่อยู่ในการ์ดแจ้ง ไม่โดนดันลง 3 จุดแบบไอคอนของการ์ด ไม่งั้นไอคอนต่ำกว่าตัวหนังสือ (พี่กันทัก 13 พ.ย. 2569 "icon กับตัวอักษร ไม่เรียงกัน" ที่ปุ่มเปิดไดรฟ์ C · โดนทุกปุ่มในการ์ดแจ้ง เช่นปุ่มทำต่อ) */
+.stat .btn svg { margin-top: 0; }
 .pill { display: inline-flex; align-items: center; border-radius: 20px; padding: 1px 10px; font-size: 13px; font-weight: 600; white-space: nowrap; }
 .p-ok { background: var(--ok-soft); color: var(--ok-ink); } .p-bad { background: var(--bad-soft); color: var(--bad-ink); }
 .p-warn { background: var(--warn-soft); color: var(--warn-ink); } .p-info { background: var(--info-soft); color: var(--info-ink); }
@@ -920,12 +930,34 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 [data-seg-cover] .seg > * { min-width: 0; padding-left: 0; padding-right: 0; justify-content: center; white-space: nowrap; }
 .imgnum { display: inline-flex; align-items: center; justify-content: flex-end; width: 82.5px; box-sizing: border-box; gap: 5px; height: 30px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font-size: 12.5px; color: var(--txt3); flex: none; }
 .imgnum:focus-within { border-color: var(--accent); }
-.imgnum.off { opacity: .45; pointer-events: none; }
+/* ช่องที่ใช้กับชนิดไฟล์นี้ไม่ได้ จางไว้ ชี้แล้วขึ้นเหตุผล เคอร์เซอร์บอกว่ากดไม่ได้ และขอบเข้มขึ้นนิดเดียวให้รู้ว่าเมาส์อยู่ตรงนี้ (AUDIT ข้อ 155 · เดิม pointer-events: none ชี้แล้วเงียบ) */
+.imgnum.off { opacity: .45; cursor: not-allowed; }
+.imgnum.off input { cursor: not-allowed; }
+.imgnum.off:hover { border-color: #e3c3cd; background-color: #fbf3f6; }
 .imgstack { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 8px; flex: none; }
 /* แถบเลื่อนยาวเท่าแถวปุ่ม 216 + 8 + 96 · แถบห้าตัวเลือกกับแถวที่เก็บกว้าง 216 เท่าแถบ DPI (พี่กันบอก "เอายาวเท่า DPI") */
 .imgslide { display: block; width: 320px; flex: none; padding-top: 2px; }
 .imgslidebox { display: inline-flex; align-items: flex-start; gap: 10px; flex: none; }
-.imgslidebox.off { opacity: .45; pointer-events: none; }
+.imgslidebox.off { opacity: .45; cursor: not-allowed; }
+.imgslidebox.off * { cursor: not-allowed !important; }
+.imgslidebox.off:hover { opacity: .55; }
+/* ปุ่มกลับค่าตั้งต้นรูปกราฟ (BUGS ข้อ 7) · กดแล้วไอคอนหมุนครึ่งรอบ ติ๊กถูกเด้งขึ้น ตัวหนังสือสีเขียวแล้วค่อยจาง · เป็นค่าตั้งต้นอยู่แล้ว จางกดไม่ได้ ชี้แล้วเข้มขึ้นนิดเดียว */
+.resetbtn.idle { opacity: .5; cursor: not-allowed; }
+.resetbtn.idle:hover { opacity: .62; background-color: transparent; }
+.resetbtn.done { color: var(--ok-ink); border-color: color-mix(in srgb, var(--ok-ink) 35%, transparent); background-color: var(--ok-soft); animation: resetfade 1.8s ease forwards; cursor: default; }
+.resetbtn.done svg { animation: resettick .5s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes resettick { 0% { scale: .2; rotate: -90deg; opacity: 0; } 60% { scale: 1.25; rotate: 0deg; opacity: 1; } 100% { scale: 1; } }
+@keyframes resetfade { 0%, 55% { opacity: 1; } 100% { opacity: .5; } }
+/* ความจุไดรฟ์ในหัวข้อโฟลเดอร์หนัง (BUGS ข้อ 88) · แถบใช้ไปสีโทน ไดรฟ์ที่เหลือไม่ถึง 10% แถบสีเตือน */
+.drive { padding: 9px 0; border-top: 1px solid #f7e4ea; }
+.drive:first-child { border-top: 0; }
+.drivehead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; font-size: 14px; }
+.drivewarn { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--warn-ink); background: var(--warn-soft); border-radius: 999px; padding: 1px 9px 1px 6px; align-self: center; }
+.drivewarn svg { width: 14px; height: 14px; }
+.drivebar { height: 8px; margin: 7px 0 5px; border-radius: 4px; background: #f7e2e9; overflow: hidden; }
+.drivebar > i { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
+.drive.low .drivebar > i { background: var(--warn); }
+@media (prefers-reduced-motion: reduce) { .resetbtn.done, .resetbtn.done svg { animation: none; } .resetbtn.done { opacity: 1; } }
 .imgfine { display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; padding: 0; border: 0; background: none; font: inherit; font-size: 12.5px; color: var(--txt2); cursor: pointer; white-space: nowrap; }
 .imgfine > i { width: 16px; height: 16px; flex: none; display: inline-flex; align-items: center; justify-content: center; border: 1.5px solid var(--line-strong, #c9a9b6); border-radius: 4px; background: #fff; color: #fff; }
 .imgfine.on > i { background: var(--accent); border-color: var(--accent); }
@@ -955,6 +987,8 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .zb { width: 30px; height: 30px; border-radius: 8px; border: 1px solid #e8cdd6; background-color: #fff; color: var(--txt2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; transition: background-color .15s, color .15s; }
 .zb:hover { background-color: #faedf1; color: var(--accent-ink); }
 .zb:disabled { color: #c9aab4; background-color: #f7f7f7; cursor: not-allowed; }
+/* กดไม่ได้ ชี้แล้วยังเปลี่ยนนิดเดียวแบบปุ่มแถวที่กดไม่ได้ (.seg-off) · เดิม :hover กับ :disabled น้ำหนักเท่ากัน ตัวหลังชนะ ชี้แล้วนิ่ง (AUDIT ข้อ 155) */
+.zb:disabled:hover { background-color: #f9e9ee; color: #b8919e; }
 /* แถบเลื่อนเวลาบางลงครึ่งหนึ่ง สีเดิม (BUGS ข้อ 18 · พี่กัน "เเค่ลดความสูงของเส้นลงครึ่งนึง") · ที่กดยังสูง 12 จุดเท่าเดิม วาดร่องกับแท่งแค่ 6 จุดกลาง */
 .tscroll { position: relative; height: 12px; margin-top: 8px; border-radius: 6px; background: linear-gradient(#f7e2e9, #f7e2e9) center / 100% 6px no-repeat; cursor: pointer; }
 .tscroll .thumb { position: absolute; top: 3px; bottom: 3px; border-radius: 3px; background: var(--accent); cursor: grab; outline: none; }
@@ -1116,6 +1150,9 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .plothead > :first-child:not(:has(.dd)) { flex: 0 1 auto; min-width: 84px; }
 .plothead { container-type: inline-size; }
 .plothead > :last-child:has(.zbtns) { flex: none; }
+/* หน้าความถี่เฉลี่ย แสดงแบบเต็มอยู่ กลุ่มขวาหดได้ให้เส้นซูมหดจาก 200 ถึง 130 ก่อนสลับเป็นดรอปดาวน์ (ตัววัดนับว่าไม่พอเมื่อต่ำกว่า 130)
+   เดิมล็อกไม่หด ขยายเต็มจอ 1600 × 852 หัวกราฟ 1,120 ขาด 24 จุดก็เป็นดรอปดาวน์ (BUGS ข้อ 102 "ขยายจอสุดเเเล้วทำไมมันยังเป็นดรอปดาว หน้านี้") */
+.plothead:not(.narrow) > .psdright { flex: 0 1 auto; }
 .plothead .wstyle-seg { display: flex; flex: none; }
 .plothead .wstyle-dd { display: none; flex: none; }
 /* หัวกราฟแคบ = คลาส narrow ที่ตัววัด (useFitClass ใน lib/fitSwitch.ts) ใส่ให้เมื่อของในหัวกราฟวางไม่พอจริง ไม่ใช้เลขความกว้างตายตัว

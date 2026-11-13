@@ -14,9 +14,11 @@ import Dropdown from "../components/Dropdown";
 import InfoTip from "../components/InfoTip";
 import { SPEK_RES_TIP } from "../lib/graphTips";
 import { IcPalette, IcCheck, IcCoverL, IcCoverM, IcCoverS, IcTall, IcWide, IcFolder, IcGraph, IcLink, IcMix, IcPoster, IcSettings, IcShelf } from "../components/icons";
-import { J, Keep, Phr, Range, Seg, Skel, Switch } from "../components/ui";
+import { CardIcon, J, Keep, Phr, Range, Seg, Skel, Switch } from "../components/ui";
 import { setSkelPreview, useSkelPreview } from "../lib/skelPreview";
 import { fmtSize } from "../lib/format";
+import { driveName, freePct, isLow, takeSettingsSec, useDriveSpace } from "../lib/drives";
+import { folderKey } from "../lib/folders";
 import "../styles/av.css";
 import ToneCard from "../components/ToneCard";
 import { DEFAULT_TONE, TONES } from "../lib/tones";
@@ -171,12 +173,20 @@ function SpekResRow() {
 }
 
 export default function SettingsPage() {
-  const [sec, setSec] = useState(lastSec);
+  const [sec, setSec] = useState(() => { const p = takeSettingsSec(); if (p) lastSec = p; return lastSec; });
   const trackPanel = useTrackPanel();
   const [tpBig, setTpBig] = useState<{ src: string; rect: DOMRect; name: string } | null>(null);
   const goSec = (id: string) => { lastSec = id; setSec(id); document.querySelector("[data-settingsscroll]")?.scrollTo(0, 0); };
+  // ปุ่มจากหน้าอื่นสั่งเปิดหัวข้อ เช่นปุ่มดูความจุไดรฟ์บนชั้นวาง (BUGS ข้อ 88) · หน้านี้เปิดค้างแบบซ่อนอยู่ จึงรับผ่านเหตุการณ์
+  useEffect(() => {
+    const on = (e: Event) => { takeSettingsSec(); goSec((e as CustomEvent<string>).detail); };
+    window.addEventListener("ms-settings-sec", on);
+    return () => window.removeEventListener("ms-settings-sec", on);
+    /* eslint-disable-next-line react-hooks/exhaustive-deps */
+  }, []);
   const { settings, update } = useSettings();
-  const { folders, scan, movies } = useLibrary();
+  const { folders, scan, movies, loaded } = useLibrary();
+  const drives = useDriveSpace();
   const toast = useToast();
   const skel = useSkelPreview();
   const [removing, setRemoving] = useState<string | null>(null);
@@ -258,21 +268,22 @@ export default function SettingsPage() {
 
   if (!settings) return <div className="setwrap" aria-busy="true">{[0, 1, 2, 3].map((i) => <div key={i} className="setcard"><Skel w="40%" h={14} /><Skel w="90%" h={12} style={{ marginTop: 14 }} /><Skel w="70%" h={12} style={{ marginTop: 10 }} /></div>)}</div>;
 
-  /** เก็บค่า · เก็บไม่ได้ต้องบอก ไม่เงียบ (save-status) */
-  const set = async (patch: Partial<Settings>) => {
-    if (!(await update(patch))) toast({ kind: "bad", title: "บันทึกค่าตั้งไม่ได้", detail: "ค่าที่เพิ่งเปลี่ยนยังไม่ได้เก็บลงเครื่อง ลองใหม่อีกครั้ง" });
-  };
+  /** เก็บค่า · เก็บไม่ได้ ตัวบันทึก (lib/settings.tsx) ขึ้นแถบแดงที่เดียว ที่นี่คืนผลให้งานที่ทำต่อรอดู
+      (AUDIT ข้อ 135 · เดิมขึ้นแถบแดงซ้ำอีกแถบ ต้องกดปิดสองครั้ง) */
+  const set = (patch: Partial<Settings>) => update(patch);
   const addFolder = async () => {
     const f = await pickFolder("เลือกโฟลเดอร์หนัง");
     if (!f) return;
-    if (settings.folders.some((x) => x.toLowerCase() === f.toLowerCase())) { toast({ kind: "info", title: "โฟลเดอร์นี้อยู่บนชั้นแล้ว", detail: f }); return; }
-    await set({ folders: [...settings.folders, f] });
+    // D:\หนัง กับ D:\หนัง\ คือโฟลเดอร์เดียวกัน (AUDIT ข้อ 130)
+    if (settings.folders.some((x) => folderKey(x) === folderKey(f))) { toast({ kind: "info", title: "โฟลเดอร์นี้อยู่บนชั้นแล้ว", detail: f }); return; }
+    // บันทึกไม่สำเร็จ ไม่อ่านโฟลเดอร์ ไม่ขึ้นแถบเขียว (AUDIT ข้อ 135 · เดิมขึ้นแถบเขียวว่าเพิ่มแล้วทั้งที่ค่ายังไม่เปลี่ยน)
+    if (!(await set({ folders: [...settings.folders, f] }))) return;
     scan();
     toast({ kind: "ok", title: "เพิ่มโฟลเดอร์แล้ว กำลังอ่านขึ้นชั้น", detail: f });
   };
   const removeFolder = async (f: string) => {
     setRemoving(null);
-    await set({ folders: settings.folders.filter((x) => x !== f) });
+    if (!(await set({ folders: settings.folders.filter((x) => x !== f) }))) return;
     scan();
     toast({ kind: "ok", title: "เอาออกจากชั้นแล้ว", detail: `${f} ไฟล์ในเครื่องยังอยู่ครบ ไม่ถูกลบ` });
   };
@@ -298,10 +309,16 @@ export default function SettingsPage() {
     try { setCache(await graphApi.cacheClear()); toast({ kind: "ok", title: "ล้างผลอ่านคลื่นที่เก็บไว้แล้ว", detail: "เปิดกราฟเสียงครั้งหน้าจะอ่านไฟล์ใหม่ และไฟล์หนังไม่ถูกแตะ" }); }
     catch (e) { toast({ kind: "bad", title: "ล้างไม่ได้", detail: String(e) }); }
   };
-  const countOf = (f: string) => folders.find((x) => x.path.toLowerCase() === f.toLowerCase());
+  const countOf = (f: string) => folders.find((x) => folderKey(x.path) === folderKey(f));
+  /** จำนวนเรื่องใต้โฟลเดอร์ · ยังไม่ได้อ่านโฟลเดอร์รอบนี้ (ปิดสวิตช์อ่านตอนเปิด หรือกำลังอ่านอยู่) นับจากชั้นวางที่จำไว้ · คลังยังโหลดไม่เสร็จขึ้นขีด
+      (AUDIT ข้อ 33 · เดิมขึ้น 0 เรื่องทุกโฟลเดอร์ทั้งที่ชั้นวางมีหนังเต็ม) */
+  const folderCount = (f: string, st: ReturnType<typeof countOf>): number | null =>
+    st ? st.count : loaded ? movies.filter((m) => folderKey(m.root) === folderKey(f)).length : null;
   /** ติ๊กได้หลายแบบพร้อมกัน ต้องเหลืออย่างน้อยหนึ่งแบบ (พี่กันสั่ง 8 พ.ย. 2569 "สามารถเลือกได้ทุกแบบพร้อมกัน") */
   const stores = settings.linkStores?.length ? settings.linkStores : [settings.linkStore];
   const wantCopy = stores.includes("beside") && stores.includes("app");
+  /** ไดรฟ์ที่โปรแกรมเก็บข้อมูล ถ้าเหลือไม่ถึง 10% (BUGS ข้อ 88 ④) */
+  const appLow = drives.list?.find((d) => d.app && isLow(d)) ?? null;
   const toggleStore = (v: Settings["linkStore"]) => {
     const on = stores.includes(v);
     if (on && stores.length === 1) { toast({ kind: "info", title: "ต้องเลือกอย่างน้อยหนึ่งแบบ", detail: "ติ๊กแบบอื่นก่อน แล้วค่อยเอาแบบนี้ออก" }); return; }
@@ -343,12 +360,32 @@ export default function SettingsPage() {
           const st = countOf(f);
           return (
             <div key={f} className="folder" data-folder={f}><FolderIcon /><div className="grow" style={{ wordBreak: "break-all" }}>{f}
-              <span className="small" style={{ display: "block" }}>{st && !st.ok ? <span style={{ color: "var(--bad-ink)" }}>หาโฟลเดอร์ไม่เจอ ไดรฟ์อาจถอดออกอยู่</span> : <span className="nw">{st?.count ?? 0} เรื่อง</span>}</span></div>
+              <span className="small" style={{ display: "block" }} data-folder-count>{st && !st.ok ? <span style={{ color: "var(--bad-ink)" }}>หาโฟลเดอร์ไม่เจอ ไดรฟ์อาจถอดออกอยู่</span> : <span className="nw">{folderCount(f, st) ?? "—"}{folderCount(f, st) != null && " เรื่อง"}</span>}</span></div>
               <button type="button" className="btn btn-bad btn-sm" onClick={() => setRemoving(f)} data-removefolder><IbTrash size={15} />เอาออกจากชั้น</button></div>
           );
         })}
         <div className="small" style={{ margin: "8px 0 10px" }}><Phr>เอาออกจากชั้นแล้วไฟล์ในเครื่องยังอยู่ครบ ไม่ถูกลบ</Phr></div>
         <button type="button" className="btn btn-ghost btn-sm" onClick={addFolder} data-addfolder><IcFolder size={15} />เพิ่มโฟลเดอร์</button>
+        {/* ความจุไดรฟ์ (BUGS ข้อ 88 พี่กันแทรก 13 พ.ย. 2569 "เเสดงความจุของไดรฟ์ที่โฟลเดอร์หนังใช้อยู่ด้วย") · ไดรฟ์ของโปรแกรมรวมด้วย เพราะบันทึกค่าตั้งไม่ได้ตอนไดรฟ์นั้นเต็ม */}
+        {/* คำอธิบายเป็นตัวเล็กใต้หัวข้อแบบแถวอื่นในหน้าตั้งค่า ไม่ซ่อนใน ⓘ (พี่กันทัก 13 พ.ย. 2569 "ปกติ หน้าตั้งค่า พวกคำอธิบาย มันอยู่ใต้หัวข้อนี่นา") */}
+        <h4 className="imghead" style={{ marginTop: 16 }}>ความจุไดรฟ์</h4>
+        <div className="small" style={{ marginBottom: 2 }}><Phr>{"ไดรฟ์ที่โฟลเดอร์หนังอยู่ และไดรฟ์ที่ชั้นหนังเก็บค่าตั้ง คลังหนัง และภาพปก  ถ้าไดรฟ์ไหนเหลือที่ว่างไม่ถึง 10% ชั้นวางจะเตือน"}</Phr></div>
+        <div data-drives>
+          {drives.list == null
+            ? (drives.failed
+              ? <div className="small" data-drives-bad><span style={{ color: "var(--bad-ink)" }}>อ่านความจุไดรฟ์ไม่ได้</span> <button type="button" className="latlink" onClick={drives.refresh}>ลองอีกครั้ง</button></div>
+              : <div aria-busy="true"><Skel w="55%" h={12} style={{ marginTop: 8 }} /><Skel w="100%" h={8} style={{ marginTop: 8 }} /></div>)
+            : drives.list.map((d) => {
+              const low = isLow(d), used = Math.round(((d.total - d.free) / d.total) * 100);
+              return <div key={d.root} className={"drive" + (low ? " low" : "")} data-drive={d.root}>
+                <div className="drivehead"><b>{driveName(d.root)}</b>
+                  <span className="small">ว่าง <span className="nw">{fmtSize(d.free)}</span> จาก <span className="nw">{fmtSize(d.total)}</span>{!low && <> เหลือ <span className="nw" data-drive-pct>{freePct(d)}</span></>}</span>
+                  {low && <span className="drivewarn" data-drive-low title="ไดรฟ์ที่เหลือที่ว่างไม่ถึง 10% จะเตือนที่ชั้นวาง"><CardIcon kind="warn" />เหลือ {freePct(d)}</span>}</div>
+                <div className="drivebar" role="img" aria-label={`ใช้ไป ${used}%`}><i style={{ width: `${used}%` }} /></div>
+                <div className="small"><Phr>{[d.folders.length ? `มีโฟลเดอร์หนัง ${d.folders.length} โฟลเดอร์` : "", d.app ? "ชั้นหนังเก็บค่าตั้ง คลังหนัง และภาพปกไว้ที่ไดรฟ์นี้" : ""].filter(Boolean).join(" และ")}</Phr></div>
+              </div>;
+            })}
+        </div>
         <div className="setrow" style={{ marginTop: 10, borderTop: "1px solid var(--line)" }}><div className="lbl">อ่านโฟลเดอร์ใหม่ทุกครั้งที่เปิดโปรแกรม<span className="small"><Phr>หนังที่โหลดมาเพิ่มจะขึ้นชั้นเอง</Phr></span></div>
           <Switch on={settings.rescanOnStart} onChange={(v) => set({ rescanOnStart: v })} label="อ่านโฟลเดอร์ใหม่ทุกครั้งที่เปิดโปรแกรม" /></div>
       </div>
@@ -391,6 +428,10 @@ export default function SettingsPage() {
                 <div className="small"><Phr>{x.lines[0]}</Phr></div>
                 {x.sample && <div className="pathsample">{x.sample.map((l) => <div key={l}>{l}</div>)}</div>}
                 {x.lines[1] && <div className="small"><Phr>{x.lines[1]}</Phr></div>}
+                {/* ติ๊กเก็บสำเนาไว้ในโปรแกรม แล้วไดรฟ์ของโปรแกรมเหลือไม่ถึง 10% เตือนในการ์ดนี้ (BUGS ข้อ 88 ④ พี่กันสั่ง "ถ้าเก็บไว้ในโปรแกรม เเล้วเนื้อที่ต่ำกว่า10% ต้องเตือนตรงนี้ด้วย") */}
+                {x.v === "app" && on && appLow && <div className="stat warn" style={{ marginTop: 8 }} data-link-app-low><CardIcon kind="warn" /><div>
+                  <b>{driveName(appLow.root)} เหลือที่ว่าง <span className="nw">{fmtSize(appLow.free)}</span> หรือ <span className="nw">{freePct(appLow)}</span></b>
+                  <Phr>สำเนาปกที่เก็บในโปรแกรมอยู่บนไดรฟ์นี้ ถ้าไดรฟ์เต็มจะยืนยันปกไม่ได้ ให้ย้ายไฟล์ที่ไม่ใช้ออกก่อน หรือเลือกคัดลอกไปไว้ข้างไฟล์หนังแทน</Phr></div></div>}
               </div>
             );
           })}
@@ -510,9 +551,13 @@ export default function SettingsPage() {
         <h3 style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}><span>บันทึกการใช้งาน</span>
           <button type="button" className="btn btn-ghost btn-sm" onClick={() => logApi.openDir().catch((e) => toast({ kind: "bad", title: "เปิดโฟลเดอร์บันทึกไม่ได้", detail: String(e) }))} data-actlog-open><IcFolder size={15} />เปิดโฟลเดอร์บันทึก</button></h3>
         <div className="small" style={{ marginBottom: 6 }}><Phr>{"โปรแกรมจดงานที่เขียน ย้าย หรือลบไฟล์ไว้ในเครื่องนี้ ใช้ย้อนดูว่ากดอะไรไปก่อนเจอปัญหา  บันทึกไม่ถูกส่งออกไปที่ไหน และเก็บไว้ 12 เดือนล่าสุด"}</Phr></div>
-        <div className="setrow" data-actlog-count><div className="lbl"><span>เดือนนี้จดไว้ <InfoTip title="บันทึกการใช้งานจดอะไรบ้าง" tip={{ w: "จดวันเวลา ชื่องาน และค่าที่ส่งไป ของงานที่เขียน ย้าย หรือลบไฟล์ เช่น ใส่โปสเตอร์ ยืนยันปกจับคู่ ย้ายที่เก็บรูป รวมไฟล์ แปลงเสียง เปลี่ยนชื่อไฟล์หนัง ค่าตั้งที่เปลี่ยน และทุกไฟล์ที่โปรแกรมส่งลงถังขยะ  การเปิดดู การเล่นหนัง และการเลื่อนหน้าไม่จด\nบันทึกแยกเดือนละไฟล์ เป็นข้อความธรรมดา เปิดด้วย Notepad ได้" }} /></span></div>
-          {logInfo == null ? <Skel w={90} h={20} r={10} /> : logInfo === "bad" ? <span className="toolbad">อ่านบันทึกไม่ได้</span> : <span className="setver" data-actlog-lines>{logInfo.monthLines.toLocaleString("en-US")} รายการ</span>}</div>
-        <div className="setrow"><div className="lbl">ที่เก็บ<span className="small" style={{ fontFamily: "var(--mono)", overflowWrap: "anywhere" }} data-actlog-dir>{logInfo && logInfo !== "bad" ? logInfo.dir : "—"}</span></div></div>
+        {/* คำอธิบายเป็นตัวเล็กใต้หัวข้อแบบแถวอื่นในหน้าตั้งค่า ไม่ซ่อนใน ⓘ (BUGS ข้อ 95 พี่กันทัก 13 พ.ย. 2569 "ปกติ หน้าตั้งค่า พวกคำอธิบาย มันอยู่ใต้หัวข้อนี่นา") */}
+        <div className="setrow" data-actlog-count><div className="lbl">เดือนนี้จดไว้<span className="small" data-actlog-what><Phr>{`จดวันเวลา ชื่องาน และค่าที่ส่งไป ของงานที่เขียน ย้าย หรือลบไฟล์ เช่นใส่โปสเตอร์ รวมไฟล์ แปลงเสียง  รวมทั้งค่า${J}ตั้งที่เปลี่ยนและไฟล์ที่ลงถังขยะ  ส่วน${J}การ${J}เปิดดู การเล่นหนัง และการเลื่อนหน้าไม่จด  บันทึกแยกเดือนละไฟล์ เปิดด้วย Notepad ได้`}</Phr></span></div>
+          {logInfo == null ? <Skel w={90} h={20} r={10} /> : logInfo === "bad" ? <span className="toolbad">อ่านบันทึกไม่ได้</span> : <span className="setver" style={{ whiteSpace: "nowrap", flex: "none" }} data-actlog-lines>{logInfo.monthLines.toLocaleString("en-US")} รายการ</span>}</div>
+        {/* กดที่อยู่แล้วเปิดโฟลเดอร์ใน Explorer (BUGS ข้อ 96 พี่กันทัก 13 พ.ย. 2569 "กดไปไม่ได้อ่ะ" · เดิมเป็นตัวหนังสือธรรมดา ต้องไปกดปุ่มที่หัวการ์ด) */}
+        <div className="setrow"><div className="lbl">ที่เก็บ{logInfo && logInfo !== "bad"
+          ? <button type="button" className="pathlink" title="กดเพื่อเปิดโฟลเดอร์นี้" onClick={() => logApi.openDir().catch((e) => toast({ kind: "bad", title: "เปิดโฟลเดอร์บันทึกไม่ได้", detail: String(e) }))} data-actlog-dir>{logInfo.dir}</button>
+          : <span className="small" data-actlog-dir>—</span>}</div></div>
       </div>
 
       {/* ---------- ตัวแปลงเสียง (มอคอัปเสียงและซับ หัวข้อ 8) · ตัวที่แนบมากับโปรแกรม กับตัวที่วางเองในโฟลเดอร์ตัวแปลง (ตัวที่สัญญาอนุญาตไม่ให้แจก) ---------- */}
@@ -522,7 +567,8 @@ export default function SettingsPage() {
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => encodeApi.openDir().catch((e) => toast({ kind: "bad", title: "เปิดโฟลเดอร์ตัวแปลงไม่ได้", detail: String(e) }))} data-encdir><IcFolder size={15} />เปิดโฟลเดอร์ตัวแปลง</button>
             <button type="button" className={"btn btn-sm " + (encChecking ? "btn-wait" : "btn-ghost")} aria-disabled={encChecking || undefined} onClick={() => { if (!encChecking) void recheckEnc(); }} data-reenc><Keep icon={<IcRefresh size={15} />} all={["กำลังตรวจ", "ตรวจตัวแปลงใหม่"]}>{encChecking ? "กำลังตรวจ" : "ตรวจตัวแปลงใหม่"}</Keep></button>
           </span></h3>
-        <div className="small" style={{ marginBottom: 6 }}>โฟลเดอร์ตัวแปลงที่ใส่เองอยู่ที่ <span className="nw" style={{ fontFamily: "var(--mono)", overflowWrap: "anywhere" }}>{encDir || "กำลังอ่านที่อยู่"}</span> <Phr>{"ตอนแปลงใช้ตัวต้นฉบับเป็นค่าตั้งต้นและใช้ ffmpeg เป็นตัวรอง ถ้าวางรุ่นที่ใหม่กว่าตัวที่แนบมา โปรแกรมจะใช้ตัวที่ใหม่กว่า"}</Phr></div>
+        {/* กดที่อยู่แล้วเปิดโฟลเดอร์ แบบเดียวกับที่เก็บบันทึก (BUGS ข้อ 96 ไล่ที่อยู่ในหน้าตั้งค่า) */}
+        <div className="small" style={{ marginBottom: 6 }}>โฟลเดอร์ตัวแปลงที่ใส่เองอยู่ที่ {encDir ? <button type="button" className="pathlink" style={{ display: "inline", marginTop: 0 }} title="กดเพื่อเปิดโฟลเดอร์นี้" onClick={() => encodeApi.openDir().catch((e) => toast({ kind: "bad", title: "เปิดโฟลเดอร์ตัวแปลงไม่ได้", detail: String(e) }))} data-encdir-path>{encDir}</button> : "กำลังอ่านที่อยู่"} <Phr>{"ตอนแปลงใช้ตัวต้นฉบับเป็นค่าตั้งต้นและใช้ ffmpeg เป็นตัวรอง ถ้าวางรุ่นที่ใหม่กว่าตัวที่แนบมา โปรแกรมจะใช้ตัวที่ใหม่กว่า"}</Phr></div>
         <div className="setrow" data-latest-bar><div className="lbl small" style={{ margin: 0 }}>
           {/* Phr กันคำขาดกลางวลี (เดิม "ล่าสุดแล้ว 5" ขาดเป็น ล่าสุด กับ แล้ว 5) */}
           <Phr>{latest ? (() => {
@@ -538,7 +584,8 @@ export default function SettingsPage() {
             <div key={e.name} className="setrow" data-enc={e.name}><div className="lbl">{e.name}<span className="small">{e.ok ? `${e.codecs}${e.version ? ` รุ่น ${e.version}` : ""}${e.coreAudio ? ` ใช้ CoreAudioToolbox ${e.coreAudio}` : ""} ${e.source === "user" ? "จากโฟลเดอร์ตัวแปลง" : "แนบมากับโปรแกรม"}` : `ตัวแปลง ${e.codecs} ${e.problem ? e.problem : "ยังไม่เจอในโฟลเดอร์ตัวแปลง"}`}</span>
               {(() => { const l = latest?.list.find((x) => x.name === e.name); return l ? <LatestLine l={l} onOpen={openPage} /> : null; })()}</div>
               {e.ok ? <span className="toolok">พร้อมใช้งาน</span> : e.problem ? <span className="toolwarn">{e.problem.startsWith("ต้องติดตั้ง iTunes") ? "ต้องติดตั้ง iTunes" : "ขาดไฟล์ประกอบ"}</span> : <span className="toolwarn">ยังไม่ได้ใส่</span>}</div>))}
-        <div className="small" style={{ marginTop: 6 }}><Phr>{"fdkaac (AAC ของ Fraunhofer) สัญญาอนุญาตไม่ให้แจกไปกับตัวติดตั้ง จึงต้องโหลดเองแล้ววางทุกไฟล์ที่มากับชุดไว้ในโฟลเดอร์ตัวแปลง แล้วกดตรวจตัวแปลงใหม่  ส่วน qaac (AAC ของ Apple) กับ refalac (ALAC) แนบมากับโปรแกรมแล้ว แต่ qaac ต้องติดตั้ง iTunes ก่อน เพราะใช้ตัวเข้ารหัสของ Apple ที่มากับ iTunes ซึ่งแจกไปกับโปรแกรมไม่ได้ ขณะที่ refalac ไม่ต้องมี iTunes  สำหรับ TAK แนบชุดเดิมของผู้ทำมาทั้งไฟล์ตามเงื่อนไขการแจก แล้วโปรแกรมแตกออกมาใช้เอง และใช้ได้เฉพาะหน้าแปลงเสียง  ดูรายชื่อ รุ่น และสัญญาอนุญาตของตัวแปลงทุกตัวได้ในไฟล์ docs/research/codec-เสียง.md"}</Phr></div>
+        <div className="small" style={{ marginTop: 6 }}><Phr>{"fdkaac (AAC ของ Fraunhofer) สัญญาอนุญาตไม่ให้แจกไปกับตัวติดตั้ง จึงต้องโหลดเองแล้ววางทุกไฟล์ที่มากับชุดไว้ในโฟลเดอร์ตัวแปลง แล้วกดตรวจตัวแปลงใหม่  ส่วน qaac (AAC ของ Apple) กับ refalac (ALAC) แนบมากับโปรแกรมแล้ว แต่ qaac ต้องติดตั้ง iTunes ก่อน เพราะใช้ตัวเข้ารหัสของ Apple ที่มากับ iTunes ซึ่งแจกไปกับโปรแกรมไม่ได้ ขณะที่ refalac ไม่ต้องมี iTunes  สำหรับ TAK แนบชุดเดิมของผู้ทำมาทั้งไฟล์ตามเงื่อนไขการแจก แล้วโปรแกรมแตกออกมาใช้เอง และใช้ได้เฉพาะหน้าแปลงเสียง  ดูรายชื่อ รุ่น และสัญญาอนุญาตของตัวแปลงทุกตัวได้ที่หัวข้อขอบคุณของหน้านี้"}</Phr> <button type="button" className="latlink" onClick={() => goSec("thanks")} data-enc-thanks>ไปหัวข้อขอบคุณ</button></div>
+        {/* AUDIT ข้อ 137 · เดิมชี้ไปไฟล์ docs/research/codec-เสียง.md ที่มีเฉพาะในโฟลเดอร์โปรเจกต์ ตัวติดตั้งไม่ได้แนบไปด้วย */}
       </div>
 
       {/* ---------- กราฟเสียง (แคลร์เพิ่ม · ผลอ่านคลื่นที่เก็บลงเครื่อง คิว 8) ---------- */}
@@ -593,14 +640,23 @@ export default function SettingsPage() {
 /** ตั้งค่ารูปกราฟที่บันทึก (พี่กันสั่ง 9 พ.ย. 2569 "bit dpi เลือกได้ เราขอละเอียดแบบเนิร์ดไปเลย") · ค่าตั้งต้นแคลร์ตั้ง กว้าง 2560 PNG 8 bit 300 dpi */
 const IMG_WIDTHS = [0, 1920, 2560, 3840, 7680], IMG_DPIS = [72, 96, 150, 300, 600];
 const WIDTH_STOPS = [320, 640, 1280, 1920, 2560, 3200, 3840, 5120, 6400, 7680, 8192], DPI_STOPS = [72, 96, 150, 200, 300, 400, 600, 800, 1200], QUALITY_STOPS = [1, 25, 50, 60, 70, 75, 80, 85, 90, 92, 95, 98, 100];
-function NumField({ value, min, max, label, unit, onCommit, data, off }: { value: number; min: number; max: number; label: string; unit: string; onCommit: (v: number) => void; data: string; off?: boolean }) {
+/** ช่องที่ใช้กับชนิดไฟล์นี้ไม่ได้ จางไว้ ชี้แล้วขึ้นเหตุผลและเคอร์เซอร์บอกว่ากดไม่ได้ · กันกดในโค้ด ไม่ใช้ pointer-events: none ที่ทำให้ชี้แล้วเงียบ (AUDIT ข้อ 155) */
+const blockOff = (reason?: string) => reason ? {
+  title: reason,
+  onPointerDownCapture: (e: React.PointerEvent) => { e.preventDefault(); e.stopPropagation(); },
+  onClickCapture: (e: React.MouseEvent) => { e.preventDefault(); e.stopPropagation(); },
+  onKeyDownCapture: (e: React.KeyboardEvent) => { if (e.key !== "Tab") { e.preventDefault(); e.stopPropagation(); } },
+} : {};
+function NumField({ value, min, max, label, unit, onCommit, data, reason }: { value: number; min: number; max: number; label: string; unit: string; onCommit: (v: number) => void; data: string; reason?: string }) {
   const [txt, setTxt] = useState<string | null>(null);
+  const off = !!reason;
   const done = () => { if (txt == null) return; const v = parseInt(txt, 10); if (!Number.isNaN(v)) onCommit(Math.max(min, Math.min(max, v))); setTxt(null); };
-  return <label className={"imgnum" + (off ? " off" : "")}><input value={txt ?? String(value)} inputMode="numeric" readOnly={off} tabIndex={off ? -1 : undefined} aria-label={label} onChange={(e) => setTxt(e.target.value.replace(/[^0-9]/g, ""))} onBlur={done} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} {...{ [data]: "" }} /><span>{unit}</span></label>;
+  return <label className={"imgnum" + (off ? " off" : "")} {...blockOff(reason)}><input value={txt ?? String(value)} inputMode="numeric" readOnly={off} tabIndex={off ? -1 : undefined} aria-label={label} aria-disabled={off || undefined} onChange={(e) => setTxt(e.target.value.replace(/[^0-9]/g, ""))} onBlur={done} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} {...{ [data]: "" }} /><span>{unit}</span></label>;
 }
 /** แถบเลื่อนเป็นขั้น ขีดกับป้ายตามระดับแบบแผงตั้งค่าเสียง · ลากแล้วเลขในช่องขยับตาม บันทึกเมื่อหยุดลาก ไม่เขียนไฟล์ตั้งค่าทุกเฟรม
     (พี่กันสั่ง 9 พ.ย. 2569 "ขอเส้นยาว ๆ ที และแบ่งตามช่อง แบ่งตามระดับได้" · "ตอนเลื่อนบาร์ เลขมันจะขยับด้วย") */
-function ImgSlide({ value, stops, major, fineMarks, label, onDrag, onCommit, off, data }: { value: number; stops: number[]; major?: number[]; fineMarks: number[]; label: string; onDrag: (v: number) => void; onCommit: (v: number) => void; off?: boolean; data: string }) {
+function ImgSlide({ value, stops, major, fineMarks, label, onDrag, onCommit, reason, data }: { value: number; stops: number[]; major?: number[]; fineMarks: number[]; label: string; onDrag: (v: number) => void; onCommit: (v: number) => void; reason?: string; data: string }) {
+  const off = !!reason;
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => () => { if (timer.current) clearTimeout(timer.current); }, []);
   // ติ๊กแล้วเลื่อนละเอียดทีละ 1 ไม่ติดขั้น (พี่กันสั่ง 9 พ.ย. 2569 "เราขอทุกบาร์ มีติ๊กแล้วมันจะเปลี่ยนเป็นเลื่อนละเอียด") · จำแยกแต่ละแถบในเครื่องนี้
@@ -611,7 +667,7 @@ function ImgSlide({ value, stops, major, fineMarks, label, onDrag, onCommit, off
   const n = stops.length, lo = stops[0], hi = stops[n - 1], marks = major ?? stops;
   const stepPct = (i: number) => (i / (n - 1)) * 100 + "%", finePct = (x: number) => ((x - lo) / (hi - lo)) * 100 + "%";
   const at = stops.reduce((best, x, i) => (Math.abs(x - value) < Math.abs(stops[best] - value) ? i : best), 0);
-  return <div className={"imgslidebox" + (off ? " off" : "")} aria-hidden={off || undefined}>
+  return <div className={"imgslidebox" + (off ? " off" : "")} aria-hidden={off || undefined} {...blockOff(reason)}>
     <button type="button" role="checkbox" aria-checked={fine} className={"imgfine" + (fine ? " on" : "")} tabIndex={off ? -1 : undefined} title="ติ๊กแล้วเลื่อนละเอียดทีละ 1 ไม่ติดขั้น" onClick={toggle} {...{ [data + "-fine"]: "" }}>
       <i aria-hidden="true">{fine && <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3.6" strokeLinecap="round" strokeLinejoin="round"><path d="M5 12.5l4.5 4.5L19 7" /></svg>}</i>ละเอียด</button>
     <div className="stepw imgslide" {...{ [data]: "" }}>
@@ -623,12 +679,46 @@ function ImgSlide({ value, stops, major, fineMarks, label, onDrag, onCommit, off
     </div>
   </div>;
 }
-function GraphImgRows({ value: saved, onChange }: { value: GraphImg; onChange: (v: GraphImg) => void }) {
+function GraphImgRows({ value: saved, onChange }: { value: GraphImg; onChange: (v: GraphImg) => Promise<boolean> }) {
   // ค่าระหว่างลากแถบ ยังไม่บันทึก ช่องตัวเลข ปุ่ม และขนาดพิมพ์อ่านจากค่านี้ เลขจึงขยับตาม
-  const [draft, setDraft] = useState<Partial<GraphImg>>({});
-  useEffect(() => { setDraft({}); }, [saved]);
-  const o: GraphImg = { ...saved, ...draft };
-  const up = (p: Partial<GraphImg>) => onChange({ ...saved, ...p });
+  const [draft, setDraftNow] = useState<Partial<GraphImg>>({});
+  // ค่าที่ส่งไปแล้วแต่หน้าจอยังไม่ได้ค่าใหม่กลับมา · ทุกการส่งรวมค่าที่ค้างอยู่ด้วย ค่าที่กดก่อนจึงไม่โดนค่าที่ส่งทีหลังทับคืน
+  // (AUDIT ข้อ 136 · เดิมลากแถบคุณภาพแล้วรีบกด JPG ตัวตั้งเวลาของแถบส่งทั้งก้อนจากค่าเก่า ชนิดไฟล์เด้งกลับเป็น PNG)
+  const pending = useRef<Partial<GraphImg>>({});
+  const draftRef = useRef<Partial<GraphImg>>({});
+  const savedRef = useRef(saved);
+  savedRef.current = saved;
+  const setDraft = (p: Partial<GraphImg>) => { draftRef.current = { ...draftRef.current, ...p }; setDraftNow(draftRef.current); };
+  useEffect(() => {
+    // ค่าที่บันทึกแล้วตรงกับที่ค้าง เอาออกจากที่ค้าง · ค่าแถบที่ยังลากค้างอยู่เก็บไว้
+    for (const k of Object.keys(pending.current) as (keyof GraphImg)[]) if (saved[k] === pending.current[k]) delete pending.current[k];
+  }, [saved]);
+  const o: GraphImg = { ...saved, ...pending.current, ...draft };
+  const up = (p: Partial<GraphImg>) => {
+    // ค่าแถบที่ลากค้างไปด้วยในครั้งเดียว ตัวตั้งเวลาของแถบที่ตามมาทีหลังเห็นว่าส่งไปแล้วจะไม่ส่งซ้ำ
+    pending.current = { ...pending.current, ...draftRef.current, ...p };
+    draftRef.current = {};
+    setDraftNow({});
+    void onChange({ ...savedRef.current, ...pending.current }).then((ok) => { if (!ok) pending.current = {}; });
+  };
+  /** ตัวตั้งเวลาของแถบ ส่งเฉพาะเมื่อค่านั้นยังค้างอยู่ ถ้าการกดค่าอื่นส่งไปพร้อมกันแล้วไม่ส่งซ้ำ */
+  const commitSlide = (k: "width" | "dpi" | "quality", v: number) => { if (draftRef.current[k] === v) up({ [k]: v }); };
+  /** ปุ่มกลับค่าตั้งต้น (BUGS ข้อ 7) · ตรงกับค่าตั้งต้นทุกช่อง = กดไม่ได้ จางไว้ */
+  const isDefault = (Object.keys(GRAPH_IMG_DEFAULT) as (keyof GraphImg)[]).every((k) => o[k] === GRAPH_IMG_DEFAULT[k]);
+  const [resetDone, setResetDone] = useState(false);
+  const resetTimer = useRef<number | undefined>(undefined);
+  useEffect(() => () => window.clearTimeout(resetTimer.current), []);
+  const reset = async () => {
+    if (isDefault) return;
+    draftRef.current = {};
+    setDraftNow({});
+    pending.current = { ...GRAPH_IMG_DEFAULT };
+    const ok = await onChange({ ...GRAPH_IMG_DEFAULT });
+    if (!ok) { pending.current = {}; return; }
+    setResetDone(true);
+    window.clearTimeout(resetTimer.current);
+    resetTimer.current = window.setTimeout(() => setResetDone(false), 1800);
+  };
   const pickDir = async () => { const d = await pickFolder("เลือกโฟลเดอร์เก็บรูปกราฟ"); if (d) up({ dirMode: "folder", dir: d }); };
   // ทุกแถวอยู่ตลอด เปลี่ยนชนิดไฟล์แล้วเพจไม่เลื่อน อันที่ใช้ไม่ได้จางไว้ เหตุผลขึ้นตอนชี้ (พี่กันสั่ง 9 พ.ย. 2569 "ตอนเราเลือกแต่ละนามสกุล ตัวเพจมันเลื่อน เราอยากให้มัน fix และอันไหนปรับไม่ได้จะจางไว้")
   const f = o.format, deepOk = f === "png" || f === "tiff", dpiOk = f === "png" || f === "jpg" || f === "tiff", qualOk = f === "jpg" || f === "heic", subOk = f === "jpg", packOk = f === "png";
@@ -640,7 +730,7 @@ function GraphImgRows({ value: saved, onChange }: { value: GraphImg; onChange: (
       <span className="imgstack"><span className="imgctl"><Seg small label="ความกว้างรูป" value={String(IMG_WIDTHS.includes(o.width) ? o.width : "own")} onChange={(v) => { if (v !== "own") up({ width: Number(v) }); }}
         options={[{ value: "0", label: "ตามจอ" }, { value: "1920", label: "1920" }, { value: "2560", label: "2560" }, { value: "3840", label: "3840" }, { value: "7680", label: "7680" }]} />
         <NumField value={o.width} min={0} max={8192} label="พิมพ์ความกว้างเอง" unit="px" onCommit={(width) => up({ width: width && width < 320 ? 320 : width })} data="data-img-width" /></span>
-        <ImgSlide value={o.width || 320} stops={WIDTH_STOPS} major={[320, 1280, 2560, 3840, 6400, 8192]} fineMarks={[320, 1920, 3840, 5760, 8192]} label="ความกว้างรูป" onDrag={(width) => setDraft({ width })} onCommit={(width) => up({ width })} data="data-img-slide-width" /></span></div>
+        <ImgSlide value={o.width || 320} stops={WIDTH_STOPS} major={[320, 1280, 2560, 3840, 6400, 8192]} fineMarks={[320, 1920, 3840, 5760, 8192]} label="ความกว้างรูป" onDrag={(width) => setDraft({ width })} onCommit={(width) => commitSlide("width", width)} data="data-img-slide-width" /></span></div>
     <div className="setrow" data-img-row="format"><div className="lbl">ชนิดไฟล์<span className="small"><Phr>PNG TIFF และ WebP ไม่เสียคุณภาพ ส่วน JPG กับ HEIC ไฟล์เล็กกว่า แต่ขอบตัวหนังสือกับเส้นอาจฟุ้ง</Phr></span></div>
       <Seg small label="ชนิดไฟล์" value={o.format} onChange={(format) => up({ format })} options={[{ value: "png", label: "PNG" }, { value: "jpg", label: "JPG" }, { value: "webp", label: "WebP" }, { value: "heic", label: "HEIC" }, { value: "tiff", label: "TIFF" }]} /></div>
     <div className="setrow" data-img-row="bits"><div className="lbl">ความลึกสี<span className="small"><Phr>ใช้ได้กับ PNG และ TIFF กราฟวาดจาก 8 bit ต่อช่องสี ถ้าเลือก 16 bit ไฟล์จะใหญ่ขึ้นแต่รายละเอียดสีไม่ได้เพิ่ม</Phr></span></div>
@@ -653,11 +743,11 @@ function GraphImgRows({ value: saved, onChange }: { value: GraphImg; onChange: (
     <div className="setrow" data-img-row="dpi"><div className="lbl">DPI<span className="small"><Phr>ใช้ได้กับ PNG JPG และ TIFF โดยไม่เปลี่ยนจำนวนพิกเซล เป็นค่าบอกขนาดตอนพิมพ์ที่เก็บในไฟล์จริง</Phr></span></div>
       <span className="imgstack"><span className="imgctl"><Seg small label="DPI" value={String(IMG_DPIS.includes(o.dpi) ? o.dpi : "own")} disabledReason={dpiOk ? undefined : `ไฟล์ ${name} ไม่มีที่เก็บค่า DPI`} onChange={(v) => { if (v !== "own") up({ dpi: Number(v) }); }}
         options={IMG_DPIS.map((d) => ({ value: String(d), label: String(d) }))} />
-        <NumField off={!dpiOk} value={o.dpi} min={1} max={9600} label="พิมพ์ DPI เอง" unit="dpi" onCommit={(dpi) => up({ dpi })} data="data-img-dpi" /></span>
-        <ImgSlide off={!dpiOk} value={o.dpi} stops={DPI_STOPS} fineMarks={[72, 300, 600, 900, 1200]} label="DPI" onDrag={(dpi) => setDraft({ dpi })} onCommit={(dpi) => up({ dpi })} data="data-img-slide-dpi" /></span></div>
+        <NumField reason={dpiOk ? undefined : `ไฟล์ ${name} ไม่มีที่เก็บค่า DPI`} value={o.dpi} min={1} max={9600} label="พิมพ์ DPI เอง" unit="dpi" onCommit={(dpi) => up({ dpi })} data="data-img-dpi" /></span>
+        <ImgSlide reason={dpiOk ? undefined : `ไฟล์ ${name} ไม่มีที่เก็บค่า DPI`} value={o.dpi} stops={DPI_STOPS} fineMarks={[72, 300, 600, 900, 1200]} label="DPI" onDrag={(dpi) => setDraft({ dpi })} onCommit={(dpi) => commitSlide("dpi", dpi)} data="data-img-slide-dpi" /></span></div>
     <div className="setrow" data-img-row="quality"><div className="lbl">คุณภาพ<span className="small"><Phr>ใช้ได้กับ JPG และ HEIC ตั้งได้ตั้งแต่ 1 ถึง 100 ค่าตั้งต้นคือ 92 ซึ่งเห็นต่างจากต้นฉบับยากแล้ว</Phr></span></div>
-      <span className="imgstack"><NumField off={!qualOk} value={o.quality} min={1} max={100} label="คุณภาพ" unit="/ 100" onCommit={(quality) => up({ quality })} data="data-img-quality" />
-        <ImgSlide off={!qualOk} value={o.quality} stops={QUALITY_STOPS} major={[1, 25, 50, 70, 80, 90, 100]} fineMarks={[1, 25, 50, 75, 100]} label="คุณภาพ" onDrag={(quality) => setDraft({ quality })} onCommit={(quality) => up({ quality })} data="data-img-slide-quality" /></span></div>
+      <span className="imgstack"><NumField reason={qualOk ? undefined : `ไฟล์ ${name} ไม่ลดคุณภาพ ช่องนี้ใช้ได้กับ JPG และ HEIC`} value={o.quality} min={1} max={100} label="คุณภาพ" unit="/ 100" onCommit={(quality) => up({ quality })} data="data-img-quality" />
+        <ImgSlide reason={qualOk ? undefined : `ไฟล์ ${name} ไม่ลดคุณภาพ ช่องนี้ใช้ได้กับ JPG และ HEIC`} value={o.quality} stops={QUALITY_STOPS} major={[1, 25, 50, 70, 80, 90, 100]} fineMarks={[1, 25, 50, 75, 100]} label="คุณภาพ" onDrag={(quality) => setDraft({ quality })} onCommit={(quality) => commitSlide("quality", quality)} data="data-img-slide-quality" /></span></div>
     <div className="setrow" data-img-row="sub"><div className="lbl">Chroma subsampling<span className="small"><Phr>ใช้ได้กับ JPG แบบ 4:4:4 เก็บสีครบ เส้นสีบนกราฟคมกว่า แบบ 4:2:0 ไฟล์เล็กลง ส่วน HEIC ใช้ 4:2:0 เพื่อให้เปิดได้ทุกโปรแกรม</Phr></span></div>
       <Seg small label="Chroma subsampling" value={f === "heic" ? "420" : o.subsampling} disabledReason={subOk ? undefined : "ใช้ได้กับ JPG"} onChange={(subsampling) => up({ subsampling })} options={[{ value: "444", label: "4:4:4" }, { value: "420", label: "4:2:0" }]} /></div>
     <div className="setrow" data-img-row="compress"><div className="lbl">การบีบอัด PNG<span className="small"><Phr>ใช้ได้กับ PNG ภาพเหมือนกันทุกระดับ ต่างกันแค่ขนาดไฟล์กับเวลาบันทึก</Phr></span></div>
@@ -674,6 +764,10 @@ function GraphImgRows({ value: saved, onChange }: { value: GraphImg; onChange: (
     <div className="setrow" data-img-row="name"><div className="lbl">ใส่ชื่อกราฟในชื่อไฟล์<span className="small"><Phr>ชื่อไฟล์จะเป็นแบบ เพลง รูปคลื่น.png ถ้าชื่อซ้ำจะต่อท้ายด้วย (2) ไม่เขียนทับ</Phr></span></div>
       <Switch on={o.nameGraph} onChange={(nameGraph) => up({ nameGraph })} label="ใส่ชื่อกราฟในชื่อไฟล์" /></div>
     <div className="setrow"><div className="lbl">กลับค่าตั้งต้น<span className="small"><Phr>กลับเป็นกว้าง 2560 px, PNG, 8 bit, RGB, 300 dpi, เก็บข้างไฟล์ และถามที่เก็บทุกครั้ง</Phr></span></div>
-      <button type="button" className="btn btn-ghost btn-sm" onClick={() => onChange(GRAPH_IMG_DEFAULT)} data-img-reset><IcRefresh size={15} />กลับค่าตั้งต้น</button></div>
+      {/* BUGS ข้อ 7 พี่กันสั่ง "ตอนกดกลับค่าเดิม มันจะมี animation บอก เเล้วมีเครื่องหมายติ๊กถูก ว่าเสร็จเเล้ว ส่วนถ้าปรับเเล้ว มันจะกดไม่ได้ จางไว้เลย"
+          มีค่าที่ปรับไว้ กดได้ · กดแล้วไอคอนหมุนแล้วติ๊กถูกเด้งขึ้น ขึ้นว่ากลับค่าแล้ว · ค่าเป็นค่าตั้งต้นอยู่แล้ว จางและกดไม่ได้ ข้อความบนปุ่มเป็นเหตุผลในตัว ความกว้างคงที่ทุกสถานะ */}
+      <button type="button" className={"btn btn-ghost btn-sm resetbtn" + (resetDone ? " done" : isDefault ? " idle" : "")} aria-disabled={isDefault || undefined}
+        title={isDefault ? "ทุกช่องเป็นค่าตั้งต้นอยู่แล้ว" : undefined} onClick={() => void reset()} data-img-reset={resetDone ? "done" : isDefault ? "idle" : "ready"}>
+        <Keep icon={resetDone || isDefault ? <IbTick size={15} /> : <IcRefresh size={15} />} all={["กลับค่าตั้งต้น", "กลับค่าแล้ว", "เป็นค่าตั้งต้นแล้ว"]}>{resetDone ? "กลับค่าแล้ว" : isDefault ? "เป็นค่าตั้งต้นแล้ว" : "กลับค่าตั้งต้น"}</Keep></button></div>
   </>;
 }

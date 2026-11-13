@@ -68,6 +68,10 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
       return { players: [{ path: "C:\\Program Files (x86)\\K-Lite Codec Pack\\MPC-HC64\\mpc-hc64.exe", name: "MPC-HC", exists: true, added: false, isDefault: true }, { path: "C:\\Program Files\\VideoLAN\\VLC\\vlc.exe", name: "VLC", exists: true, added: false, isDefault: false }], systemDefault: false } as T;
     case "clipboard_text":
       return "" as T;
+    case "drive_free":
+      return { free: 412e9, drive: "D" } as T;
+    case "drive_space":
+      return [{ root: "C:\\", total: 256e9, free: 18e9, folders: [], app: true }, { root: "D:\\", total: 1e12, free: 412e9, folders: (args?.folders as string[]) ?? [], app: false }] as T;
     case "check_running":
     case "extract_running":
     case "hash_running":

@@ -113,9 +113,23 @@
     trackOf(m.path, 3, "subtitle", "subrip", "tha", "ซับไทย", { mp4: "style", why: "ซับข้อความแปลงเป็นแบบ MP4", charset: "UTF-8" }),
     trackOf(m.path, 4, "subtitle", "subrip", "eng", "English", { mp4: "style", why: "ซับข้อความแปลงเป็นแบบ MP4", charset: "UTF-8" }),
   ] }; };
+  // ซับตัวอย่างของหน้าซับไตเติล 40 บรรทัด เวลาเรียงต่อกัน มีบรรทัดยาวที่อ่านไม่ทันกับบรรทัดเวลาซ้อนให้เห็นป้ายเตือน
+  const SUB_LINES = ["เราต้องออกเดินทางก่อนฟ้าสาง", "ทางเหนือมีพายุเข้ามาแล้ว", "นายแน่ใจเหรอว่าดาวดวงนั้นยังอยู่ที่เดิม", "ไม่มีใครแน่ใจอะไรทั้งนั้นแหละ", "แต่เราไม่มีทางเลือกอื่น", "เก็บของเท่าที่จำเป็นพอ", "ตะเกียงล่ะ", "อยู่ในกระเป๋าใบเล็ก", "ถ้าหลงทางเราจะทำยังไง", "มองหาดาวเหนือ มันไม่เคยหลอกใคร", "พ่อเคยพูดแบบนี้เหมือนกัน", "แล้วพ่อหาทางกลับบ้านเจอไหม", "เจอสิ ทุกครั้งเลย", "ระวังทางลาดข้างหน้า หินมันลื่นมากโดยเฉพาะหลังฝนตกแบบนี้ ค่อย ๆ ก้าวนะ", "เสียงอะไรน่ะ", "แค่ลมพัดผ่านช่องเขา", "เราใกล้ถึงแล้วใช่ไหม", "อีกไม่ไกลแล้ว", "ฉันเหนื่อยมากเลย", "พักตรงนี้สักครู่ก็ได้", "ดูสิ ท้องฟ้าเปิดแล้ว", "นั่นไง ดาวเหนือ", "มันสว่างกว่าที่คิดไว้อีก", "เราต้องเดินตามมันไปทางนั้น", "แล้วหมู่บ้านล่ะ อยู่ตรงไหน", "เลยสันเขานั่นไป", "ถ้าไปถึงก่อนเที่ยงคืนจะดีมาก", "งั้นรีบไปกันเถอะ", "ขอบคุณที่มาด้วยกันนะ", "ไม่ต้องขอบคุณหรอก", "เราเป็นเพื่อนกันนี่", "ไฟข้างหน้านั่นใช่หมู่บ้านไหม", "ใช่ เราถึงแล้ว", "มีคนรอเราอยู่ด้วย", "แม่!", "ลูกกลับมาแล้ว", "แม่รู้ว่าลูกต้องกลับมา", "เพราะดาวดวงนั้นพาเรามา", "มันจะอยู่ตรงนั้นตลอดไป", "จบ"];
+  const SUBS = (() => {
+    let t = 1.0;
+    const cues = SUB_LINES.map((text, i) => { const len = text.length > 60 ? 2.2 : 1.6 + (text.length % 5) * 0.4; const c = { n: i + 1, start: +(i === 21 ? t - 0.4 : t).toFixed(2), end: +(t + len).toFixed(2), text }; t += len + 0.6 + (i % 4) * 0.3; return c; });
+    const ts = (s) => { const h = Math.floor(s / 3600), m = Math.floor(s / 60) % 60, x = s % 60; return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}:${x.toFixed(3).padStart(6, "0").replace(".", ",")}`; };
+    const raw = cues.map((c) => `${c.n}\n${ts(c.start)} --> ${ts(c.end)}\n${c.text}\n`).join("\n");
+    return { raw, kind: "srt", charset: "UTF-8", cues };
+  })();
   const FX = {
     ...GRAPH,
     merge_inspect: (a) => mergeMovie(a.path),
+    // หน้าซับไตเติลกับตัวดูซับ (มอคอัปหน้าแก้ซับ BUGS ข้อ 109) · ซับตัวอย่าง 40 บรรทัด ภาพหนังกับคลื่นเสียงจำลอง
+    merge_add_file: (a) => ({ path: a.path, name: String(a.path).split("\\").pop(), ext: "srt", size: 48000, tracks: [trackOf(a.path, 0, "subtitle", "subrip", "tha", "", { charset: "UTF-8", inMovie: false })], delayFromName: null, langFromName: "tha", longerBy: null, notes: [], fonts: [] }),
+    sub_text: () => SUBS,
+    sub_frame: (a) => { const k = Math.floor(a.t / 20) % 6, P = [["ดาวเหนือ", "#0f2747", "#1e5a7a", "#7fc1c4"], ["Harbor Lights", "#0b3a42", "#147a78", "#e0b44c"], ["เมืองในหมอก", "#23303b", "#51707f", "#d9e2e2"], ["Night Bus", "#0a1230", "#22358a", "#f0a640"], ["Ember", "#2a0a06", "#a3320f", "#f2a23a"], ["ลมหนาว", "#0d3550", "#2f8fc0", "#d5eef5"]][k]; return poster(P[0], "", P[1], P[2], P[3], 1280, 720); },
+    sub_wave: (a) => Array.from({ length: a.cols }, (_, i) => { const t = a.t0 + (a.t1 - a.t0) * i / a.cols; const inCue = SUBS.cues.some((c) => t >= c.start && t <= c.end); return (inCue ? 0.35 + 0.5 * hash1(i * 7 + 3) : 0.04 + 0.08 * hash1(i * 3 + 1)); }),
     merge_cover_drop: () => null,
     convert_cover: () => null,
     graph_exist: (a) => a.paths.map(() => true),

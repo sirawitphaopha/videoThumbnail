@@ -98,6 +98,12 @@ export const IcPlus = ({ size = 15, stroke = "currentColor", width = 2.4 }: P) =
   svg(size, width, stroke, <path d="M12 5v14M5 12h14" />);
 export const IcFolder = ({ size = 18, stroke = "currentColor" }: P) =>
   svg(size, 2, stroke, <path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" />);
+/** ซับไตเติล จอมีบรรทัดซับสองบรรทัดด้านล่าง เมนูซับไตเติล (BUGS ข้อ 101) */
+export const IcSubtitle = ({ size = 18, stroke = "currentColor" }: P) =>
+  svg(size, 2, stroke, <><rect x="3" y="5" width="18" height="14" rx="2" /><path d="M7 12h4M13 12h4M7 15.5h7M16 15.5h1" /></>);
+/** นาฬิกา ปุ่มไว้ทีหลัง (พี่กันสั่ง 13 พ.ย. 2569 "ใส่ icon") */
+export const IcClock = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2, stroke, <><circle cx="12" cy="12" r="9" /><path d="M12 7v5l3 2" /></>);
 export const IcSearch = ({ size = 16, stroke = "currentColor", width = 2.5 }: P) =>
   svg(size, width, stroke, <><circle cx="11" cy="11" r="7" /><path d="M20 20l-4-4" /></>);
 export const IcChevronDown = ({ size = 16, stroke = "#b07a90" }: P) =>

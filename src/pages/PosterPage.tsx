@@ -22,6 +22,7 @@ import { getPosterJob, setPosterJob, usePosterJob, type Run } from "../lib/poste
 import { IcFile, IcPoster, IcFolder, IcExpand, IcClose } from "../components/icons";
 import { IbTrash, IbBack, IbNext, IbStop, IcRefresh, IcShelf } from "../components/icons";
 import { IbCrop } from "../components/icons";
+import { spaceShort, useFree } from "../lib/drives";
 
 const MOVIE_EXT = ["mkv", "mp4", "m4v", "mov", "avi", "webm", "ts", "m2ts", "mpg", "mpeg", "vob", "flv"];
 const IMAGE_EXT = ["jpg", "jpeg", "png", "webp", "bmp", "tif", "tiff", "heic", "heif"];
@@ -238,12 +239,16 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
     }, 120);
     return () => clearTimeout(t);
   }, [moviePath, mode, output, newStem, run.state]);
+  // ที่ว่างในโฟลเดอร์ของหนัง · สูตรเดียวกับ poster.rs เปลี่ยนรูปแนบ MKV ใช้สองเท่าของรูปบวก 16 MB ครอบใหม่ใช้ขนาดหนังบวกรูปบวก 64 MB ไม่พอเตือนข้างปุ่มก่อนกด (BUGS ข้อ 94)
+  const posterFree = useFree(moviePath);
+  const pBytes = choice?.render.bytes ?? 0;
+  const posterShort = movie && choice ? spaceShort(posterFree, mode === "cover" ? pBytes * 2 + 16 * 1024 * 1024 : movie.size + pBytes + 64 * 1024 * 1024) : null;
   const startLabel = output === "mp4" ? "ส่งออกเป็น MP4 พร้อมโปสเตอร์" : isMkv ? (inLib?.hasCover ? "เปลี่ยนโปสเตอร์" : "ใส่โปสเตอร์ลงไฟล์นี้") : "ครอบเป็น MKV พร้อมโปสเตอร์";
   const blocked = !movie ? "ยังกดไม่ได้ ใส่ไฟล์หนังก่อน"
     : !choice ? "ยังกดไม่ได้ ใส่รูปโปสเตอร์ก่อน"
     : mp4VideoBad ? "ไฟล์นี้ส่งออกเป็น MP4 ไม่ได้ ใช้ MKV แทน"
     : nameProblem ? nameProblem.title
-    : null;
+    : posterShort;
 
   const start = async (dropNow: number[] = drop) => {
     if (!movie || !moviePath || !choice) return;
@@ -460,7 +465,8 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
             {run.state === "idle" && (
               <div className="runline idle" data-run-idle>
                 <div className="runtxt">
-                  <div className="runl1">ยังไม่เริ่ม 0%</div>
+                  {/* ที่ว่างไม่พอขึ้นแทนคำว่ายังไม่เริ่ม บรรทัดเดียวเท่าเดิม แถบไม่สูงขึ้น (BUGS ข้อ 94) */}
+                  <div className="runl1" style={posterShort ? { color: "#94680f" } : undefined} data-space-short={posterShort ? "" : undefined}>{posterShort ?? "ยังไม่เริ่ม 0%"}</div>
                   <div className="bar" role="progressbar" aria-label="ความคืบหน้า" aria-valuenow={0} aria-valuemin={0} aria-valuemax={100}><i style={{ width: 0 }} /></div>
                 </div>
               </div>

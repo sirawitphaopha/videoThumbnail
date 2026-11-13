@@ -220,7 +220,7 @@
 .aegtop { display: grid; grid-template-columns: 360px 1fr; gap: 14px; align-items: start; }
 .vframe { position: relative; width: 360px; height: 203px; border-radius: 8px; overflow: hidden; background: #0d0b1e; }
 .vframe img { width: 100%; height: 100%; object-fit: contain; display: block; }
-.vnone { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center; color: #e8dff0; font-size: 12.5px; }
+.vnone { position: absolute; inset: 0; display: flex; flex-direction: column; gap: 8px; align-items: center; justify-content: center; color: #e8dff0; font-size: 12.5px; padding-bottom: 40px; }
 .vsub { position: absolute; left: 10px; right: 10px; bottom: 14px; text-align: center; color: #fff; font-weight: 600; font-size: 14px; line-height: 1.4; white-space: pre-line; text-shadow: 0 0 3px #000, 0 0 3px #000, 0 1px 2px #000; }
 .vtime { position: absolute; top: 6px; right: 8px; font-size: 11px; color: #e8dff0; background: rgba(0, 0, 0, .45); border-radius: 5px; padding: 0 6px; font-variant-numeric: tabular-nums; }
 .aud { width: 100%; height: 150px; display: block; border-radius: 6px; border: 1px solid var(--line); }
@@ -314,7 +314,8 @@
 .cqcards .seg button { flex: 1 1 0; justify-content: center; }
 .cqfoot { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); align-items: center; padding-top: 14px; border-top: 1px solid var(--line); }
 .cqfoot-l { display: flex; padding-right: 22px; min-width: 0; }
-.cqfoot-r { display: flex; justify-content: flex-end; gap: 10px; min-width: 0; }
+/* คำเตือนข้างปุ่มแปลงอยู่กึ่งกลางแนวตั้งของปุ่ม (พี่กันทัก 13 พ.ย. 2569 "ทำไมคำเตือนไม่อยู่ตรงกลาง" · เดิมไม่ได้ตั้ง align-items ของในกล่องชิดบน) */
+.cqfoot-r { display: flex; justify-content: flex-end; align-items: center; gap: 10px; min-width: 0; }
 .cqcards .card h3 { margin-bottom: 8px; }
 @media (max-width: 1100px) { .cqrow { grid-template-columns: 18px 40px minmax(0, 1fr) 14px minmax(0, 1fr) 140px 180px; } }
 /* เทียบสองไฟล์ · ต้นฉบับสีฟ้า หลังแปลงสีส้ม */
@@ -379,6 +380,10 @@
 /* กรอบตรึงล่างสุด แถววิธีกับแถบปุ่มรวม (BUGS ข้อ 68) · แถบปุ่มข้างในไม่ต้องตรึงซ้ำ */
 .avdock { margin-top: auto; position: sticky; bottom: 0; z-index: var(--z-bar); background: var(--win); border-top: 1px solid var(--line); padding-top: 10px; }
 .avdock > .avfoot { position: static; }
+/* แถบล่างสูงเท่ากันทุกวิธี 74 จุด (รวม จับคู่ แยก ยังไม่กดแยก) สลับวิธีแล้วกล่องที่ตรึงล่างไม่ยืดหด (พี่กันทัก 13 พ.ย. 2569 "ก็บอกว่าให้ fix ไง")
+   ตอนกำลังแยกหรือขึ้นผลแยก การ์ดมีรายการไฟล์ สูงตามจำนวนไฟล์ได้ไม่เกินครึ่งจอ */
+.avdock > .avfoot { height: 74px; box-sizing: border-box; }
+.avdock > .avxfoot:has(> .card) { height: auto; }
 /* หน้าสูงอย่างน้อยเต็มจอ กรอบตรึงล่างสุดชิดขอบล่างแม้แทร็กน้อย (เดิมลอยกลางหน้า มีที่ว่างข้างใต้) */
 .avwrap:has(> .avdock) { padding-bottom: 0; min-height: 100%; }
 /* ส่วนตั้งค่าแทร็ก (BUGS ข้อ 33) · แบบกางใต้แถวที่กดเป็นค่าตั้งต้น พี่กันเลือก 12 พ.ย. 2569 · หน้าต่างซ้อนกับแผงขวาเลือกในหน้าตั้งค่า
@@ -398,11 +403,25 @@
 
 /* การ์ดวิธีสามใบ รวม จับคู่ แยก (BUGS ข้อ 35 ต่อ · พี่กันสั่ง 12 พ.ย. 2569 "ขยายการ์ดให้ใหญ่กว่านี้ เเยกสามปุ่ม ให้เด่น") · หัว วิธี อยู่แถวเดียวกัน */
 .avm-row { display: flex; align-items: center; gap: 14px; }
+/* ช่องคำว่าวิธีกว้างคงที่ แถบล่างเว้นซ้ายเท่าช่องนี้บวกช่องห่าง ของชิ้นแรกในแถบล่างตรงขอบซ้ายของการ์ดวิธีทุกวิธี (พี่กันสั่ง 13 พ.ย. 2569 "ขยับ MKV ให้ตรงกับการ์ด") */
+.avdock { --avm-lbl: 20px; }
+.avm-row > h3 { flex: none; min-width: var(--avm-lbl); }
+/* การ์ดวิธีห่างเส้นล่าง (ขอบบนแถบปุ่ม) 10 จุดเท่าเส้นบน (พี่กันทัก 13 พ.ย. 2569 "ฝั่งนึงมีระยะห่างจากเส้น ฝั่งนึงติดกับเส้น" · เดิมบน 10 ล่าง 0) */
+.avdock > .avm-row { margin-bottom: 10px; }
+.avdock > .avfoot { padding-inline-start: calc(var(--avm-lbl) + 14px); }
 .avm-cards { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .avm-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid #e8cdd6; border-radius: 10px; background: #fff; color: var(--txt2); font: inherit; text-align: left; cursor: pointer; transition: background-color .15s, border-color .15s, color .15s; min-width: 0; }
 .avm-card:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, #fff); }
 .avm-card.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: color-mix(in srgb, var(--accent) 11%, #fff); color: var(--accent-ink); }
 .avm-card[aria-disabled="true"] { cursor: not-allowed; opacity: .6; }
+/* วิธีที่ไม่ได้เลือกจางลง เห็นทันทีว่าเลือกอันไหนอยู่ ชี้แล้วกลับมาชัด เพราะยังกดเปลี่ยนวิธีได้ (BUGS ข้อ 93 พี่กันสั่ง 13 พ.ย. 2569 "เลือกอันไหนเเล้ว อีกสออัน จางให้ด้วย") */
+/* ไม่จางทั้งใบ จางทั้งใบดูเหมือนกดไม่ได้ แบบปุ่มที่ยังไม่พร้อมทั้งโปรแกรม (พี่กันทัก "เราจะกดเปลี่ยนยังไง ถ้ามันตั้งให้กดไม่ได้" แล้วเคาะ "เอาตามเธอละกัน")
+   ไอคอนหม่นเป็นเทาอมชมพู ตัวหนังสือสีอ่อนลงหนึ่งขั้น กรอบยังอยู่ ชี้แล้วกลับเป็นสีเต็ม · กดไม่ได้จริงระหว่างมีงานยังใช้จางทั้งใบแบบเดิม */
+.avm-card:not(.on) { color: var(--txt3); border-color: #efdde3; }
+.avm-card:not(.on) .avm-ic { filter: saturate(.25); opacity: .75; transition: filter .15s, opacity .15s; }
+.avm-card:not(.on) .avm-desc { color: var(--txt3); }
+.avm-card:not(.on):hover { color: var(--txt2); border-color: var(--accent); }
+.avm-card:not(.on):hover .avm-ic { filter: none; opacity: 1; }
 .avm-ic { flex: none; width: 38px; height: 38px; border-radius: 9px; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--accent) 10%, #fff); color: var(--accent-ink); }
 .avm-card.on .avm-ic { background: var(--accent); color: #fff; }
 .avm-tx { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
@@ -410,8 +429,41 @@
 .avm-tx b i { font-style: normal; font-weight: 500; color: var(--txt3); }
 .avm-desc { font-size: 12.5px; color: var(--txt3); }
 /* การ์ดแยกไฟล์ตรึงล่างสุดในที่ของแถบปุ่มรวม (BUGS ข้อ 35 ต่อ) · ตอนกำลังแยกหรือชื่อชน การ์ดสูงได้ไม่เกินครึ่งจอ เกินเลื่อนในการ์ด */
-.avxfoot { display: block; padding-block: 8px; }
+/* หน้าต่างดูและแก้บท (BUGS ข้อ 99) · เลขบท เวลาเริ่ม ชื่อบท ปุ่มลบ · เวลาที่ผิดขอบแดง เหตุผลใต้แถว */
+.chaphead, .chaprow { display: grid; grid-template-columns: 34px 132px minmax(0, 1fr) 30px; gap: 8px; align-items: center; }
+.chaphead { font-size: 12.5px; color: var(--txt3); padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.chaprow { padding: 6px 0; border-bottom: 1px solid #f7e4ea; }
+.chapno { font-size: 13px; color: var(--txt3); text-align: center; font-variant-numeric: tabular-nums; }
+/* ช่องเวลากับช่องชื่อบทแถวเดียวกันสูงเท่ากัน ขอบกับมุมแบบเดียวกับ .inp (form-input ⑥) */
+.chaprow .inp { height: 36px; }
+.chaptime { height: 36px; box-sizing: border-box; padding: 0 10px; border: 1px solid #e8cdd6; border-radius: 9px; background: #fff; font: inherit; font-size: 13.5px; font-variant-numeric: tabular-nums; color: var(--txt); transition: border .15s, box-shadow .15s; }
+.chaptime:hover { border-color: #e2bfcb; }
+.chaptime:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(200,64,111,.25); }
+.chaptime.err { border-color: var(--bad); background: var(--bad-soft); box-shadow: 0 0 0 3px rgba(236,143,143,.25); }
+.chaperr { grid-column: 2 / 4; font-size: 12.5px; color: var(--bad-ink); }
+/* ปุ่มในช่องแปลงของแถว ดูซับ ดูและแก้บท (BUGS ข้อ 98 99) */
+.trk-actbtn { justify-self: start; height: 30px; }
+/* ปุ่มดูซับกับดูและแก้ Chapter กว้างเต็มช่องเท่าช่องแปลงเสียงของแถวเสียง สีอ่อนกว่าปุ่มปกติ ชี้แล้วกลับเป็นสีเต็มแบบปุ่มโปร่ง
+   (พี่กันสั่ง 13 พ.ย. 2569 "ยาวเท่าเดิม เเต่สีอ่อนขึ้น" แคลร์อ่านผิดเป็นคงความยาวปุ่ม แล้วพี่กันทัก "เราบอกแล้วไงว่าเท่ากับปุ่มแปลง และสีเข้มกว่า" · รอบก่อนจางเกิน) */
+/* พื้นชมพูอ่อน ขอบกับตัวหนังสือสีโทน ต่างจากช่องแปลงที่พื้นขาว (พี่กันสั่งต่อ "ปุ่มมีสีเข้มกว่านี้ ให้มันเเตกต่างจาก ปุ่มแปลง") */
+.trk-actbtn.btn-ghost { justify-self: stretch; justify-content: center; background-color: #faedf1; border-color: #e2bfcb; color: var(--accent-ink); }
+.trk-actbtn.btn-ghost:hover { background-color: #f5dde5; border-color: #d8a9b9; color: var(--accent-ink); }
+.avxfoot:has(> .card) { display: block; padding-block: 8px; }
 .avxfoot > .card { margin: 0; max-height: 50vh; overflow-y: auto; }
+/* ยังไม่กดแยก แถวเดียวเต็มความกว้างแบบแถบปุ่มรวม */
+.avxfoot > .xidle { flex: 1; min-width: 0; }
+[data-extract] .xpicks .hint { white-space: nowrap; }
+/* แถวกดแยก สรุปที่ติ๊กชิดซ้าย ที่เก็บกับปุ่มชิดขวา (BUGS ข้อ 92) · ที่เก็บกรอบสีโทนตัวหนา บรรทัดเดียว ไม่ดันแถบให้สูง */
+[data-extract] .xrow { display: flex; align-items: center; gap: 10px; }
+[data-extract] .xpicks { flex: 1; min-width: 0; font-size: 14px; }
+[data-extract] .xdest { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; max-width: 440px; min-width: 0; border: 1.5px solid var(--accent); border-radius: 9px; background: color-mix(in srgb, var(--accent) 9%, var(--win)); color: var(--accent-ink); font-size: 13.5px; white-space: nowrap; flex: 0 1 auto; }
+[data-extract] .xdest svg { flex: none; }
+[data-extract] .xdest > span { flex: none; color: var(--txt2); }
+/* ที่เก็บเป็นปุ่ม ชี้แล้วพื้นเข้มขึ้นในโทนเดิม · ส่วนเปลี่ยนท้ายปุ่มคั่นด้วยเส้นบาง (พี่กันสั่งรวมปุ่มเปลี่ยนที่เก็บเข้ากับที่อยู่) */
+[data-extract] button.xdest { font: inherit; font-size: 13.5px; cursor: pointer; text-align: left; transition: background-color .15s, border-color .15s; max-width: 520px; }
+[data-extract] button.xdest:hover { background: color-mix(in srgb, var(--accent) 16%, var(--win)); border-color: var(--accent-d); }
+[data-extract] .xdest-chg { flex: none; display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; padding-left: 10px; border-left: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); font-style: normal; font-weight: 600; }
+[data-extract] .xdest > b { overflow: hidden; text-overflow: ellipsis; min-width: 0; font-weight: 700; }
 /* วิธีแยก ช่องเลือก .mkv หรือ .h264 ของแถวภาพ ชัดเต็มสี มีหัวบอกว่าแยกภาพเป็น ปุ่มที่เลือกเป็นสีหลัก (BUGS ข้อ 35 ต่อ พี่กันสั่ง 12 พ.ย. 2569 "ขอให้สื่อเเละเด่น") */
 /* หัวกับช่องเลือกรวมกันไม่สูงกว่าเนื้อแถว สลับวิธีรวมกับแยกแล้วแถวภาพสูงเท่าเดิม หน้าไม่ขยับ (เดิมสูงขึ้น 9 px) */
 .xraw { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; justify-self: start; }
@@ -430,3 +482,24 @@
 /* ปุ่ม ⓘ ข้างคำว่า หลัก ลอยต่อท้ายคำ คำว่า หลัก ยังกึ่งกลางเหนือวงกลม (BUGS ข้อ 66) */
 .trk.head .hd-tip { position: absolute; margin-left: 3px; display: inline-flex; align-items: center; height: 100%; top: 0; }
 .trk.head > span:has(> .hd-tip) { position: relative; }
+
+/* หน้าซับไตเติล รายการซับกับปุ่ม Export และแถวเพิ่มไฟล์วิดีโอ (BUGS ข้อ 104 107 108) */
+/* แถวละอย่างน้อย 460 จุด ชื่อซับไม่โดนตัด (รอบแรก 320 ได้สามคอลัมน์ ชื่อแถวที่สองตัดเป็น ซับที่ 2 อัง… เจอตอนดูภาพ) */
+.subpage-list { display: grid; grid-template-columns: repeat(auto-fill, minmax(460px, 1fr)); gap: 8px; }
+.subpage-row { display: flex; align-items: center; gap: 8px; min-width: 0; }
+.subpage-row > .dd { flex: 1 1 auto; min-width: 0; }
+.subpage-row > .btn { flex: none; height: 40px; }
+.subpage-video { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; margin-top: 10px; padding-top: 10px; border-top: 1px solid var(--line); }
+.subpage-row > .dd.on { border-color: var(--accent); background-color: #faedf1; }
+/* ตัวดูซับในหน้าซับไตเติลชิดแถวบน ไม่มีขอบในด้านบน · ต้องเป็น .card.subviewer-inline เพราะ .card ใน app.css มาทีหลังแล้วทับ padding 14 (พี่กัน "ระยะห่างเยอะไป") */
+.card.subviewer-inline { margin-top: 0; padding-top: 0; }
+/* หน้าซับไตเติลตอนเปิดไฟล์แล้ว แถวบทแถวเดียว กับแถบเลือกแทร็กซับ (BUGS ข้อ 109) */
+.subpage-bar { gap: 10px; min-width: 0; }
+.subpage-bar .subpage-name { min-width: 0; max-width: 40%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.subpage-tracks { display: flex; flex-wrap: wrap; gap: 8px; }
+.subpage-trk { display: inline-flex; align-items: center; gap: 4px; padding: 3px 3px 3px 4px; border: 1px solid #e8cdd6; border-radius: 9px; background: #fff; }
+.subpage-trk.on { border-color: var(--accent); background: #faedf1; }
+.subpage-trkpick { display: inline-flex; align-items: center; gap: 8px; height: 28px; padding: 0 8px 0 4px; border: 0; background: transparent; font: inherit; font-size: 13.5px; color: var(--txt); cursor: pointer; border-radius: 7px; }
+.subpage-trkpick:hover { background: #faedf1; }
+.subpage-trk .btn { height: 28px; }
+.subpage-seg { display: flex; flex: none; }

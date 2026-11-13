@@ -49,7 +49,7 @@ function Find(p: { q: string; setQ: (v: string) => void; n: number; at: number; 
   );
 }
 
-function TextView(p: { track: AvTrack; movie: string; refStream: number | null; refIdx: number | null; data: SubText; tab: "aeg" | "long" | "pad" }) {
+function TextView(p: { track: AvTrack; movie: string; refStream: number | null; refIdx: number | null; data: SubText; tab: "aeg" | "long" | "pad"; onAddMovie?: () => void }) {
   const { data, tab } = p;
   const d = p.track.delay / 1000;
   const cues = data.cues;
@@ -80,6 +80,8 @@ function TextView(p: { track: AvTrack; movie: string; refStream: number | null; 
   // ภาพหนังกับคลื่นเสียงของบรรทัดที่เลือก (แบบ Aegisub) · รอนิดหนึ่ง กดเลื่อนเร็ว ๆ ไม่ถอดทุกแถว
   useEffect(() => {
     if (tab !== "aeg" || !c) return;
+    // เปิดไฟล์ซับอย่างเดียวจากหน้าซับไตเติล ไม่มีหนังให้ดึงภาพกับคลื่น (BUGS ข้อ 104)
+    if (!p.movie) { setFrame(""); return; }
     let live = true;
     const tm = setTimeout(() => {
       subApi.frame(p.movie, c.start + d + Math.min(0.3, (c.end - c.start) / 2), 360).then((f) => { if (live) setFrame(f); }, () => { if (live) setFrame(""); });
@@ -152,21 +154,24 @@ function TextView(p: { track: AvTrack; movie: string; refStream: number | null; 
   return (<>
     <div className="aegtop">
       <div className="vframe" data-vframe>
-        {frame ? <img src={frame} alt={`ภาพหนังที่ ${c ? ts(c.start + d) : ""}`} /> : frame === "" ? <div className="vnone">ดึงภาพหนังไม่ได้</div> : <Skel w="100%" h={203} r={0} />}
+        {frame ? <img src={frame} alt={`ภาพหนังที่ ${c ? ts(c.start + d) : ""}`} /> : frame === "" ? <div className="vnone">{p.movie ? "ดึงภาพหนังไม่ได้" : <>
+          <span>เปิดไฟล์ซับอย่างเดียว จึงไม่มีภาพหนัง</span>
+          {/* ใส่ไฟล์วิดีโอคู่กับซับ แล้วเห็นภาพหนังกับคลื่นเสียง (BUGS ข้อ 107 พี่กันสั่ง 13 พ.ย. 2569 "ขอปุ่มเพิ่มวิดีโอมาด้วย") */}
+          {p.onAddMovie && <button type="button" className="btn btn-ghost btn-sm" onClick={p.onAddMovie} data-sub-addvideo><IcFile size={15} />เพิ่มไฟล์วิดีโอ</button>}</>}</div> : <Skel w="100%" h={203} r={0} />}
         {c && <div className="vsub">{c.text}</div>}
         {c && <div className="vtime">{ts(c.start + d)}</div>}
       </div>
       <div style={{ minWidth: 0, display: "flex", flexDirection: "column", gap: 6 }}>
-        {p.refStream != null ? (wave ? <canvas ref={cv} className="aud" aria-label="คลื่นเสียงช่วงของบรรทัดที่เลือก" data-aud /> : <Skel w="100%" h={150} />) : <div className="small">ไม่มีเสียงในหนังให้แสดงคลื่น</div>}
+        {p.refStream != null ? (wave ? <canvas ref={cv} className="aud" aria-label="คลื่นเสียงช่วงของบรรทัดที่เลือก" data-aud /> : <Skel w="100%" h={150} />) : <div className="small">{p.movie ? "ไม่มีเสียงในหนังให้แสดงคลื่น" : "เปิดไฟล์ซับอย่างเดียว จึงไม่มีคลื่นเสียง"}</div>}
         {wave && <div className="ruler2" style={{ marginLeft: 0 }}>{[0, 0.25, 0.5, 0.75, 1].map((f, i) => <span key={f} style={{ left: `${f * 100}%`, transform: i === 0 ? "none" : i === 4 ? "translateX(-100%)" : undefined }}>{short(wave.t0 + f * (wave.t1 - wave.t0))}</span>)}</div>}
         <div style={{ display: "flex", gap: 6, flexWrap: "wrap", alignItems: "center" }}>
           <button type="button" className={"btn btn-sm " + (sel > 0 ? "btn-ghost" : "btn-wait")} aria-disabled={sel === 0 || undefined} onClick={() => sel > 0 && setSel(sel - 1)} data-sub-prev><IbBack size={15} />บรรทัดก่อน</button>
           <button type="button" className={"btn btn-sm " + (sel < cues.length - 1 ? "btn-ghost" : "btn-wait")} aria-disabled={sel >= cues.length - 1 || undefined} onClick={() => sel < cues.length - 1 && setSel(sel + 1)} data-sub-nextline><IbNext size={15} />บรรทัดถัดไป</button>
-          {c && <button type="button" className="btn btn-ghost btn-sm" title="เปิดหนังด้วยโปรแกรมเล่นที่ตั้งไว้ ตรงเวลาของบรรทัดนี้" onClick={() => { setPlayErr(null); checkApi.playAt(p.movie, Math.max(0, c.start + d - 1)).catch((e) => setPlayErr(String(e))); }} data-sub-play><IbPlay size={15} /><span>เปิดเล่นที่ <FixedTime t={ts(c.start + d).slice(0, 7)} /></span></button>}
+          {c && p.movie && <button type="button" className="btn btn-ghost btn-sm" title="เปิดหนังด้วยโปรแกรมเล่นที่ตั้งไว้ ตรงเวลาของบรรทัดนี้" onClick={() => { setPlayErr(null); checkApi.playAt(p.movie, Math.max(0, c.start + d - 1)).catch((e) => setPlayErr(String(e))); }} data-sub-play><IbPlay size={15} /><span>เปิดเล่นที่ <FixedTime t={ts(c.start + d).slice(0, 7)} /></span></button>}
           {p.refIdx != null && <span style={{ marginLeft: "auto" }}><Seg small label="แบบคลื่นเสียง" value={look} onChange={setLook} options={[{ value: "wave", label: <><IcGraph size={14} />รูปคลื่น</> }, { value: "spec", label: <><IbEye size={14} />ความถี่</> }]} /></span>}
         </div>
         {playErr && <div className="small" style={{ color: "var(--bad-ink)" }}>{playErr}</div>}
-        <div className="small"><Phr>{`กรอบสีจางคือเวลาของแต่ละบรรทัด กรอบเข้มคือบรรทัดที่เลือก และเส้นตั้งคือเวลาเริ่มกับจบ${look === "spec" ? "  ความถี่ต่ำอยู่ล่าง ความถี่สูงอยู่บน และส่วนที่สว่างคือเสียงดัง" : ""}`}</Phr></div>
+        {p.refStream != null && <div className="small"><Phr>{`กรอบสีจางคือเวลาของแต่ละบรรทัด กรอบเข้มคือบรรทัดที่เลือก และเส้นตั้งคือเวลาเริ่มกับจบ${look === "spec" ? "  ความถี่ต่ำอยู่ล่าง ความถี่สูงอยู่บน และส่วนที่สว่างคือเสียงดัง" : ""}`}</Phr></div>}
       </div>
     </div>
     <Find q={q} setQ={setQ} n={hits.length} at={hit} go={go} />
@@ -234,12 +239,15 @@ function ImageView(p: { track: AvTrack; path: string; ff: number }) {
   </>);
 }
 
-export default function SubViewer(p: { track: AvTrack; movie: string; refStream: number | null; refIdx: number | null; onClose: () => void }) {
+export default function SubViewer(p: { track: AvTrack; movie: string; refStream: number | null; refIdx: number | null; onClose: () => void; onAddMovie?: () => void; inline?: boolean;
+  /** หน้าซับไตเติลคุมแบบการดูเอง ปุ่มเลือกแบบอยู่แถวบนของหน้า (BUGS ข้อ 109 พี่กัน "เอาปุ่มเลือกรูปแบบไปไว้ตรงปุ่มเพิ่มวิดีโอ") */
+  tab?: "aeg" | "long" | "pad" }) {
   const t = p.track;
   const ft = ftName("subtitle", t.codec, t.profile);
   const image = ft === "PGS" || ft === "VobSub";
   const ff = t.ff ?? t.tid;
-  const [tab, setTab] = useState<"aeg" | "long" | "pad">("aeg");
+  const [tabS, setTab] = useState<"aeg" | "long" | "pad">("aeg");
+  const tab = p.tab ?? tabS;
   const [data, setData] = useState<SubText | null>(null);
   const [err, setErr] = useState<string | null>(null);
   useEffect(() => {
@@ -249,18 +257,26 @@ export default function SubViewer(p: { track: AvTrack; movie: string; refStream:
   const name = t.inMovie ? `${t.name || "ซับในหนัง"} (${ft})` : baseName(t.src);
   // เขียนเป็นประโยค (เดิมเป็นวลีคั่นจุลภาค "ดีเลย์ +500 ms เวลาที่แสดงเลื่อนแล้ว" อ่านกำกวม เจอตอนอ่านภาพ 11 พ.ย. 2569)
   const sub = `${t.inMovie ? "ซับที่อยู่ในไฟล์หนัง" : "ซับที่เพิ่มเข้ามา"}เป็น${image ? "ซับรูปภาพ" : "ซับตัวหนังสือ"}แบบ ${ft}${data ? ` มี ${data.cues.length.toLocaleString("en-US")} บรรทัด` : ""}${t.delay ? `  ตั้งดีเลย์ ${sign(t.delay)} ms ไว้ เวลาที่แสดงจึงเลื่อนตามดีเลย์แล้ว` : ""}`;
+  const head = <span style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+    <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>ซับ {name}</span>
+    {!image && <Seg small label="แบบการดู" value={tab} onChange={setTab} options={[{ value: "aeg", label: <><IbTable size={14} />แบบ Aegisub</> }, { value: "long", label: <><IcFile size={14} />แบบอ่านยาว</> }, { value: "pad", label: <><IbPencil size={14} />แบบ notepad</> }]} />}</span>;
+  const body = (
+    <div style={{ display: "flex", flexDirection: "column", gap: 10 }} data-subviewer data-mode={image ? "image" : tab}>
+      <div className="small" style={{ marginTop: p.inline ? 0 : -6 }}><Phr>{sub}</Phr></div>
+      {image ? <ImageView track={t} path={t.inMovie ? p.movie : t.src} ff={ff} />
+        : err ? <div className="stat bad"><CardIcon kind="bad" /><div><b>อ่านซับไม่ได้</b><Phr>{err}</Phr></div></div>
+        : !data ? <><Skel w="100%" h={203} /><Skel w="100%" h={220} /></>
+        : <TextView track={t} movie={p.movie} refStream={p.refStream} refIdx={p.refIdx} data={data} tab={tab} onAddMovie={p.onAddMovie} />}
+    </div>
+  );
+  // หน้าซับไตเติลแสดงในหน้าเลย ไม่เด้งหน้าต่างซ้อน (BUGS ข้อ 104 พี่กันทัก 13 พ.ย. 2569 "ตัวซับจะเปิดได้ที่หน้านี้เลย")
+  // ไม่มีหัวข้อซ้ำ ชื่อไฟล์อยู่แถวบนของหน้า แถบแทร็กบอกว่าดูซับไหน ปุ่มเลือกแบบการดูอยู่แถวบน ไม่มีขอบในด้านบน ตัวดูซับชิดแถวบน (พี่กัน "ระยะห่างเยอะไป")
+  if (p.inline) return <section className="card subviewer-inline" data-subviewer-inline>{body}</section>;
   return (
-    <Dialog open onClose={p.onClose} width={980} title={<span style={{ display: "flex", justifyContent: "space-between", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
-      <span style={{ minWidth: 0, overflowWrap: "anywhere" }}>ซับ {name}</span>
-      {!image && <Seg small label="แบบการดู" value={tab} onChange={setTab} options={[{ value: "aeg", label: <><IbTable size={14} />แบบ Aegisub</> }, { value: "long", label: <><IcFile size={14} />แบบอ่านยาว</> }, { value: "pad", label: <><IbPencil size={14} />แบบ notepad</> }]} />}</span>}
+    // สูงคงที่ทุกแบบ สลับแบบ Aegisub อ่านยาว notepad หรือซับรูปแล้วหน้าต่างไม่ยืดหด เนื้อที่ยาวกว่าเลื่อนในหน้าต่าง (BUGS ข้อ 100 พี่กันสั่ง 13 พ.ย. 2569 "หน้าจอซับทั้งสามแบบ ให้ popup ขนาดเท่ากันตลอด")
+    <Dialog open onClose={p.onClose} width={980} height="min(720px, 88vh)" title={head}
       actions={<button type="button" className="btn btn-ghost btn-sm" onClick={p.onClose}>ปิด</button>}>
-      <div style={{ display: "flex", flexDirection: "column", gap: 10 }} data-subviewer data-mode={image ? "image" : tab}>
-        <div className="small" style={{ marginTop: -6 }}><Phr>{sub}</Phr></div>
-        {image ? <ImageView track={t} path={t.inMovie ? p.movie : t.src} ff={ff} />
-          : err ? <div className="stat bad"><CardIcon kind="bad" /><div><b>อ่านซับไม่ได้</b><Phr>{err}</Phr></div></div>
-          : !data ? <><Skel w="100%" h={203} /><Skel w="100%" h={220} /></>
-          : <TextView track={t} movie={p.movie} refStream={p.refStream} refIdx={p.refIdx} data={data} tab={tab} />}
-      </div>
+      {body}
     </Dialog>
   );
 }

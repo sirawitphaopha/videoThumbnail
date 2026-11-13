@@ -15,6 +15,7 @@ import { fmtSize } from "../lib/format";
 import { IcFile, IcFolder, IcPlus } from "./icons";
 import { IbPlay, IbTrash, IbStop, IcRefresh, IcGraph, IcMix, IcSettings } from "./icons";
 import { useToast } from "./Toasts";
+import { spaceShort, useFree } from "../lib/drives";
 
 const baseName = (p: string) => p.split(/[\\/]/).pop() ?? p;
 const dirOf = (p: string) => p.replace(/[\\/][^\\/]*$/, "");
@@ -116,6 +117,22 @@ export default function ConvertPane(p: { onCompare: (a: string, b: string, note:
   const wait = q.items.filter((x) => x.state === "wait").length;
   // ปุ่มท้ายหน้าทำเฉพาะแถวที่ติ๊ก (พี่กันสั่ง 9 พ.ย. 2569 "เราขอปุ่มกดแปลง ทีละไฟล์ และปุ่มติ๊กเลือกด้วย")
   const waiting = q.items.filter((x) => x.state === "wait" && !x.bad), ticked = waiting.filter((x) => x.picked).length;
+  // ที่ว่างของไดรฟ์ที่จะเก็บไฟล์ใหม่ · สูตรเดียวกับ convert.rs ไม่เสียคุณภาพราวความยาว × อัตราสุ่ม × ช่อง × 3 ไบต์ เสียคุณภาพราว 125 KB ต่อวินาที เผื่อไฟล์ละ 16 MB
+  // รวมทุกไฟล์ที่ติ๊กไว้ซึ่งลงไดรฟ์เดียวกับไฟล์แรก ไม่พอเตือนข้างปุ่มแปลงก่อนกด (BUGS ข้อ 94)
+  const outOf = (it: QItem) => q.outDir ?? dirOf(it.path);
+  const pickedFiles = waiting.filter((x) => x.picked && x.file);
+  const firstOut = pickedFiles.length ? outOf(pickedFiles[0]) : null;
+  const convFree = useFree(firstOut);
+  const convNeed = (it: QItem) => {
+    const f = it.file!, s = it.spec;
+    let ch = s.channels ?? f.channels;
+    if (s.codec === "ac3" || s.codec === "eac3") ch = Math.min(ch, 6);
+    const rate = Math.max(s.rate ?? f.rate, 8000);
+    const lossless = ["flac", "alac", "wv", "ape", "tak"].includes(s.codec);
+    return (lossless ? f.duration * rate * ch * 3 : f.duration * 1_000_000 / 8) + 16 * 1024 * 1024;
+  };
+  const sameDrive = (a: string, b: string) => a.slice(0, 2).toLowerCase() === b.slice(0, 2).toLowerCase();
+  const convShort = firstOut ? spaceShort(convFree, pickedFiles.filter((x) => sameDrive(outOf(x), firstOut)).reduce((s, x) => s + convNeed(x), 0)) : null;
   const fail = q.items.filter((x) => x.state === "fail" || x.state === "stop").length;
   // ไฟล์ที่ยังไม่เริ่ม ไม่นับไฟล์ที่อ่านไม่ได้ (แปลงไม่ได้อยู่แล้ว · เดิมหัวแผงนับรวม เจอตอนเทส)
   const pending = q.items.filter((x) => x.state !== "done" && x.state !== "work" && !x.bad);
@@ -193,8 +210,9 @@ export default function ConvertPane(p: { onCompare: (a: string, b: string, note:
         {q.running && <button type="button" className="btn btn-bad" onClick={stopQueue} aria-disabled={q.stopping || undefined} data-qstop><Keep icon={<IbStop size={15} />} all={["กำลังหยุด…", "หยุดทั้งคิว"]}>{q.stopping ? "กำลังหยุด…" : "หยุดทั้งคิว"}</Keep></button>}
         {q.running
           ? <button type="button" className="btn btn-wait" style={{ padding: "0 26px" }} aria-disabled data-qstart><Keep icon={<IcMix size={15} />} all={["กำลังแปลง 000 จาก 000…", "แปลง 000 ไฟล์"]}>กำลังแปลง {Math.min(q.runDone + 1, q.runIds.length)} จาก {q.runIds.length}</Keep></button>
-          : <button type="button" className={"btn " + (ticked ? "btn-main" : "btn-wait")} style={{ padding: "0 26px" }} aria-disabled={!ticked || undefined}
-              title={ticked ? undefined : wait ? "ติ๊กไฟล์ที่จะแปลงก่อน" : n ? "ไม่มีไฟล์ที่รอแปลง" : "ลากไฟล์เสียงมาวางก่อน"} onClick={() => ticked && startQueue()} data-qstart><Keep icon={<IcMix size={15} />} all={["กำลังแปลง 000 จาก 000…", "แปลง 000 ไฟล์"]}>{ticked ? `แปลง ${ticked} ไฟล์` : "แปลง"}</Keep></button>}
+          : <>{convShort && <div className="hint" style={{ color: "#94680f", margin: 0, whiteSpace: "nowrap" }} data-space-short>{convShort}</div>}
+            <button type="button" className={"btn " + (ticked && !convShort ? "btn-main" : "btn-wait")} style={{ padding: "0 26px" }} aria-disabled={!ticked || !!convShort || undefined}
+              title={convShort ?? (ticked ? undefined : wait ? "ติ๊กไฟล์ที่จะแปลงก่อน" : n ? "ไม่มีไฟล์ที่รอแปลง" : "ลากไฟล์เสียงมาวางก่อน")} onClick={() => ticked && !convShort && startQueue()} data-qstart><Keep icon={<IcMix size={15} />} all={["กำลังแปลง 000 จาก 000…", "แปลง 000 ไฟล์"]}>{ticked ? `แปลง ${ticked} ไฟล์` : "แปลง"}</Keep></button></>}
         </div>
       </div>
       {panel && (

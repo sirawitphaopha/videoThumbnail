@@ -534,6 +534,9 @@ pub struct MergeReq {
     /// ไฟล์ฟอนต์ของซับ ASS ที่จะฝังเป็นไฟล์แนบ (fonts.rs · ผู้ใช้ติ๊กเลือกในการ์ดฟอนต์) · MP4 ใส่ไม่ได้
     #[serde(default)]
     pub fonts: Vec<String>,
+    /// บทที่แก้ในหน้าต่างดูและแก้บท (BUGS ข้อ 99) · ไม่ส่ง = บทของหนังติดไปตามเดิม · รายการว่าง = ไฟล์ใหม่ไม่มีบท
+    #[serde(default)]
+    pub chapters: Option<Vec<crate::chapters::Chapter>>,
 }
 
 fn yes() -> bool {
@@ -584,7 +587,8 @@ fn flag(b: bool) -> &'static str {
 
 /// คำสั่ง mkvmerge ทั้งชุด · movie_atts = เลขไฟล์แนบของหนังที่เก็บไว้ · other_atts = ไฟล์แนบของไฟล์ที่เพิ่มที่เก็บไว้ (ฟอนต์ของซับ ASS)
 /// covers = รูปปกใหม่ · fonts = ไฟล์ฟอนต์ของซับ ASS ที่หาเจอในเครื่อง (fonts.rs) แนบเป็นไฟล์ใหม่
-pub fn mkv_args(movie: &str, tracks: &[Track], movie_atts: &[u64], other_atts: &HashMap<String, Vec<u64>>, covers: &[NewCover], fonts: &[NewCover], out: &Path) -> Vec<OsString> {
+/// chap · None = บทของหนังติดไปตามเดิม · Some(None) = ไฟล์ใหม่ไม่มีบท · Some(Some(ไฟล์)) = ใช้บทจากไฟล์บทที่แก้แทน (BUGS ข้อ 99)
+pub fn mkv_args(movie: &str, tracks: &[Track], movie_atts: &[u64], other_atts: &HashMap<String, Vec<u64>>, covers: &[NewCover], fonts: &[NewCover], chap: Option<Option<&Path>>, out: &Path) -> Vec<OsString> {
     let mut a: Vec<OsString> = ["--gui-mode", "--ui-language", "en", "-o"].iter().map(OsString::from).collect();
     a.push(out.as_os_str().to_owned());
     let inputs = inputs_of(movie, tracks);
@@ -609,6 +613,9 @@ pub fn mkv_args(movie: &str, tracks: &[Track], movie_atts: &[u64], other_atts: &
         if fi > 0 {
             // บทกับป้ายข้อมูลรวมของไฟล์ที่เพิ่มไม่เอามาปนกับของหนัง
             a.extend(["--no-chapters", "--no-global-tags"].iter().map(OsString::from));
+        } else if chap.is_some() {
+            // แก้บทแล้ว ไม่เอาบทเดิมของหนัง ใช้บทจากไฟล์บทแทน หรือไม่มีบทเลย
+            a.push("--no-chapters".into());
         }
         for t in &mine {
             a.push("--language".into());
@@ -633,6 +640,9 @@ pub fn mkv_args(movie: &str, tracks: &[Track], movie_atts: &[u64], other_atts: &
     for c in covers.iter().chain(fonts) {
         a.extend(["--attachment-name".into(), c.name.clone().into(), "--attachment-mime-type".into(), c.mime.clone().into(), "--attach-file".into(), c.file.as_os_str().to_owned()]);
     }
+    if let Some(Some(f)) = chap {
+        a.extend(["--chapter-charset".into(), "UTF-8".into(), "--chapters".into(), f.as_os_str().to_owned()]);
+    }
     let order: Vec<String> = tracks.iter().filter(|t| t.keep)
         .map(|t| format!("{}:{}", inputs.iter().position(|s| s == &t.src).unwrap_or(0), t.tid)).collect();
     if !order.is_empty() {
@@ -650,7 +660,8 @@ pub enum Mp4Cover {
 
 /// คำสั่ง ffmpeg ทำ MP4 · ไฟล์ต้นทางแยกตาม (ไฟล์, ดีเลย์, ชุดอักษร) เพราะ -itsoffset ใช้ได้ทั้งไฟล์
 /// หนังที่ไม่มีดีเลย์อยู่ช่องแรกเสมอ ข้อมูลรวมกับบทของหนังมาจากช่องนี้
-pub fn mp4_args(movie: &str, tracks: &[Track], cover: Option<&Mp4Cover>, out: &Path) -> Vec<OsString> {
+/// chap แบบเดียวกับ mkv_args · ไฟล์บทเป็นไฟล์ข้อมูลของ ffmpeg (FFMETADATA)
+pub fn mp4_args(movie: &str, tracks: &[Track], cover: Option<&Mp4Cover>, chap: Option<Option<&Path>>, out: &Path) -> Vec<OsString> {
     let mut a: Vec<OsString> = ["-hide_banner", "-nostdin", "-n", "-v", "error", "-progress", "pipe:1", "-nostats"].iter().map(OsString::from).collect();
     let mut inputs: Vec<(String, i64, Option<String>)> = vec![(movie.to_string(), 0, None)];
     let key = |t: &Track| (t.src.clone(), t.delay, if t.in_movie { None } else { t.charset.clone().filter(|_| t.kind == "subtitle") });
@@ -677,6 +688,14 @@ pub fn mp4_args(movie: &str, tracks: &[Track], cover: Option<&Mp4Cover>, out: &P
             a.push("-i".into());
             a.push(f.as_os_str().to_owned());
             Some(inputs.len())
+        }
+        _ => None,
+    };
+    // ไฟล์บทที่แก้ต่อท้ายเป็นไฟล์เข้าอีกช่อง แล้วเอาบทจากช่องนั้น (BUGS ข้อ 99)
+    let chap_input = match chap {
+        Some(Some(f)) => {
+            a.extend(["-f".into(), "ffmetadata".into(), "-i".into(), f.as_os_str().to_owned()]);
+            Some(inputs.len() + usize::from(cover_input.is_some()))
         }
         _ => None,
     };
@@ -708,7 +727,8 @@ pub fn mp4_args(movie: &str, tracks: &[Track], cover: Option<&Mp4Cover>, out: &P
         a.push(format!("-disposition:{}", kept.len()).into());
         a.push("attached_pic".into());
     }
-    a.extend(["-map_metadata", "0", "-map_chapters", "0", "-f", "mp4"].iter().map(OsString::from));
+    let map_chapters = match (chap, chap_input) { (None, _) => "0".to_string(), (_, Some(i)) => i.to_string(), _ => "-1".to_string() };
+    a.extend(["-map_metadata".into(), "0".into(), "-map_chapters".into(), OsString::from(map_chapters), "-f".into(), "mp4".into()]);
     a.push(out.as_os_str().to_owned());
     a
 }
@@ -888,6 +908,19 @@ pub fn produce(
 
     std::fs::create_dir_all(work).map_err(|e| fail("other", "สร้างโฟลเดอร์ชั่วคราวไม่ได้", vec![e.to_string()]))?;
     let mut guards = vec![];
+    // บทที่แก้ในหน้าต่างดูและแก้บท เขียนเป็นไฟล์บทในโฟลเดอร์ชั่วคราว ลบเองเมื่อจบงาน (BUGS ข้อ 99)
+    // MKV ใช้ไฟล์บทแบบง่ายของ mkvmerge · MP4 ใช้ไฟล์ข้อมูลของ ffmpeg · รายการว่าง = ไม่มีบท ไม่ต้องเขียนไฟล์
+    let chap_file: Option<PathBuf> = match &req.chapters {
+        Some(chs) if !chs.is_empty() => {
+            let f = work.join(format!("merge-chap-{}.txt", crate::poster_image::unique()));
+            let text = if mp4 { crate::chapters::ffmetadata_text(chs, movie_duration) } else { crate::chapters::ogm_text(chs) };
+            std::fs::write(&f, text).map_err(|e| fail("other", "เขียนไฟล์บทที่แก้ไม่ได้", vec![e.to_string(), untouched.into()]))?;
+            guards.push(scopeguard(f.clone()));
+            Some(f)
+        }
+        _ => None,
+    };
+    let chap: Option<Option<&Path>> = req.chapters.as_ref().map(|_| chap_file.as_deref());
     // ซับ VTT จากไฟล์แยก แปลงเป็น SRT ก่อนใส่ MKV · mkvmerge เก็บ VTT เป็น S_TEXT/WEBVTT ที่ ffmpeg 9 อ่านไม่ได้
     // (ลองแล้ว ffprobe ขึ้น unknown codec · โปรแกรมเล่นที่ใช้ ffmpeg เช่น mpv จะไม่เห็นซับ) · MP4 แปลงเป็น mov_text เองอยู่แล้ว
     if !mp4 {
@@ -1066,11 +1099,11 @@ pub fn produce(
         if tracks.iter().any(|t| t.keep && t.kind == "subtitle") && !tracks.iter().any(|t| t.keep && t.kind == "subtitle" && t.default) {
             notes.push("ไม่ได้เลือกซับหลัก MP4 ตั้งซับแรกเป็นหลักเอง โปรแกรมเล่นบางตัวจะเปิดซับนี้ให้".into());
         }
-        let args = mp4_args(&req.movie, &tracks, cover.as_ref(), partial);
+        let args = mp4_args(&req.movie, &tracks, cover.as_ref(), chap, partial);
         ("ffmpeg", args, cover.is_some())
     } else {
         let ids: Vec<u64> = kept_atts.iter().map(|a| a.id).collect();
-        ("mkvmerge", mkv_args(&req.movie, &tracks, &ids, &other_atts, &covers, &fonts, partial), false)
+        ("mkvmerge", mkv_args(&req.movie, &tracks, &ids, &other_atts, &covers, &fonts, chap, partial), false)
     };
 
     let _ = std::fs::remove_file(partial); // .partial ของรอบก่อนที่ค้าง เป็นของโปรแกรมเอง
@@ -1338,7 +1371,7 @@ mod tests {
     }
 
     fn req(movie: &Path, tracks: Vec<Track>, output: &str) -> MergeReq {
-        MergeReq { movie: movie.to_string_lossy().to_string(), tracks, covers: CoverPlan::default(), output: output.into(), original: "keep".into(), check_source: false, check_output: true, fonts: vec![] }
+        MergeReq { movie: movie.to_string_lossy().to_string(), tracks, covers: CoverPlan::default(), output: output.into(), original: "keep".into(), check_source: false, check_output: true, fonts: vec![], chapters: None }
     }
 
     /// เวลาของแพ็กเก็ตแรกที่มีเนื้อ · ข้ามแพ็กเก็ตว่าง (ซับ mov_text ใน MP4 มีแพ็กเก็ตว่าง 2 ไบต์คั่นช่วงที่ไม่มีซับ เริ่มที่วินาที 0)
@@ -1416,7 +1449,7 @@ mod tests {
         let tracks = vec![v, dub, a1, s_old, sub];
         let cover = NewCover { name: "cover_land.jpg".into(), mime: "image/jpeg".into(), file: PathBuf::from("C.jpg"), sha: String::new() };
         let font = NewCover { name: "f01.ttf".into(), mime: "font/ttf".into(), file: PathBuf::from("F.ttf"), sha: String::new() };
-        let args: Vec<String> = mkv_args("M.mkv", &tracks, &[3], &HashMap::new(), &[cover], &[font], Path::new("OUT.mkv.partial")).iter().map(|a| a.to_string_lossy().to_string()).collect();
+        let args: Vec<String> = mkv_args("M.mkv", &tracks, &[3], &HashMap::new(), &[cover], &[font], None, Path::new("OUT.mkv.partial")).iter().map(|a| a.to_string_lossy().to_string()).collect();
         let s = args.join(" ");
         assert!(s.starts_with("--gui-mode --ui-language en -o OUT.mkv.partial -d 0 -a 1 -S --attachments 3 --language 0:und"), "{s}");
         assert!(s.contains("--track-name 1: --default-track-flag 1:0 --forced-display-flag 1:0 M.mkv"), "ชื่อว่างกับธงของเสียงเดิม {s}");
@@ -1425,8 +1458,28 @@ mod tests {
         assert!(s.contains("--attachment-name cover_land.jpg --attachment-mime-type image/jpeg --attach-file C.jpg --attachment-name f01.ttf --attachment-mime-type font/ttf --attach-file F.ttf"), "ฟอนต์ของซับแนบต่อจากปก {s}");
         assert!(s.ends_with("--track-order 0:0,1:0,0:1,2:0"), "ลำดับ ภาพ พากย์ไทย อังกฤษ ซับ {s}");
         // ไม่มีไฟล์แนบเหลือ → --no-attachments
-        let args2: Vec<String> = mkv_args("M.mkv", &tracks, &[], &HashMap::new(), &[], &[], Path::new("O")).iter().map(|a| a.to_string_lossy().to_string()).collect();
+        let args2: Vec<String> = mkv_args("M.mkv", &tracks, &[], &HashMap::new(), &[], &[], None, Path::new("O")).iter().map(|a| a.to_string_lossy().to_string()).collect();
         assert!(args2.join(" ").contains("-d 0 -a 1 -S --no-attachments --language"));
+    }
+
+    /// BUGS ข้อ 99 บทที่แก้ · ไม่แก้บทติดไปตามเดิม · แก้แล้วใช้ไฟล์บทแทนบทเดิม · ลบหมดไม่มีบท ทั้ง MKV และ MP4
+    #[test]
+    fn edited_chapters_replace_or_drop_movie_chapters() {
+        let mut v = t("M.mkv", 0, "video", "h264");
+        v.in_movie = true;
+        let s = |a: Vec<OsString>| a.iter().map(|x| x.to_string_lossy().to_string()).collect::<Vec<_>>().join(" ");
+        let keep = s(mkv_args("M.mkv", &[v.clone()], &[], &HashMap::new(), &[], &[], None, Path::new("O")));
+        assert!(!keep.contains("--chapters") && !keep.contains("-D -A -S --no-attachments --no-chapters"), "ไม่แก้บท บทเดิมต้องติดไป {keep}");
+        let rep = s(mkv_args("M.mkv", &[v.clone()], &[], &HashMap::new(), &[], &[], Some(Some(Path::new("C.txt"))), Path::new("O")));
+        assert!(rep.contains("--no-attachments --no-chapters") && rep.contains("--chapter-charset UTF-8 --chapters C.txt"), "{rep}");
+        let none = s(mkv_args("M.mkv", &[v.clone()], &[], &HashMap::new(), &[], &[], Some(None), Path::new("O")));
+        assert!(none.contains("--no-chapters") && !none.contains("--chapters "), "{none}");
+        let m_keep = s(mp4_args("M.mkv", &[v.clone()], None, None, Path::new("O.mp4")));
+        assert!(m_keep.contains("-map_chapters 0"), "{m_keep}");
+        let m_rep = s(mp4_args("M.mkv", &[v.clone()], Some(&Mp4Cover::File(PathBuf::from("C.jpg"))), Some(Some(Path::new("C.txt"))), Path::new("O.mp4")));
+        assert!(m_rep.contains("-i C.jpg -f ffmetadata -i C.txt") && m_rep.contains("-map_chapters 2"), "ไฟล์บทเป็นช่องที่สามต่อจากหนังกับรูปปก {m_rep}");
+        let m_none = s(mp4_args("M.mkv", &[v], None, Some(None), Path::new("O.mp4")));
+        assert!(m_none.contains("-map_chapters -1"), "{m_none}");
     }
 
     #[test]
@@ -1442,7 +1495,7 @@ mod tests {
         let mut sub = t("S.srt", 0, "subtitle", "subrip");
         sub.charset = Some("CP874".into());
         sub.lang = "tha".into();
-        let args: Vec<String> = mp4_args("M.mkv", &[v, a1, dub, sub], Some(&Mp4Cover::File(PathBuf::from("C.jpg"))), Path::new("O.mp4.partial"))
+        let args: Vec<String> = mp4_args("M.mkv", &[v, a1, dub, sub], Some(&Mp4Cover::File(PathBuf::from("C.jpg"))), None, Path::new("O.mp4.partial"))
             .iter().map(|a| a.to_string_lossy().to_string()).collect();
         let s = args.join(" ");
         assert!(s.contains("-n -v error"), "ไม่เขียนทับ {s}");
@@ -1541,6 +1594,40 @@ mod tests {
         assert_eq!(atts.iter().map(|a| a.0.as_str()).collect::<Vec<_>>(), ["cover.jpg"]);
         // ไฟล์ต้นทางไม่ถูกแตะ
         assert!(movie.exists());
+    }
+
+    /// BUGS ข้อ 99 รวมไฟล์จริงพร้อมบทที่แก้ แล้วอ่านบทของไฟล์ใหม่กลับมาเทียบ ทั้ง MKV และ MP4 · ลบบทหมดแล้วไฟล์ใหม่ไม่มีบท
+    #[test]
+    fn merge_with_edited_chapters_real_files() {
+        let Some(movie) = av("หนัง/ดาวเหนือ (2023).mkv") else { return };
+        let tl = tools();
+        let before = crate::chapters::read(&tl, &movie).unwrap();
+        assert!(!before.is_empty(), "ไฟล์ทดสอบต้องมีบทเดิม");
+        let m = inspect(&tl, &movie).unwrap();
+        let edited = vec![
+            crate::chapters::Chapter { start: 8.5, title: "ฉากกลาง = ทดสอบ; ชื่อ".into() },
+            crate::chapters::Chapter { start: 0.0, title: "เปิดเรื่อง".into() },
+        ];
+        for out_kind in ["mkv", "mp4"] {
+            let dir = temp_dir(&format!("chap-{out_kind}"));
+            let mut r = req(&movie, m.tracks.clone(), out_kind);
+            r.chapters = Some(edited.clone());
+            let out = dir.0.join(format!("ดาวเหนือ (2023).{out_kind}.partial"));
+            let (res, _) = run(&r, &HashMap::new(), &out, &dir.0);
+            res.unwrap_or_else(|p| panic!("{out_kind} {} {:?}", p.title, p.detail));
+            let got = crate::chapters::read(&tl, &out).unwrap();
+            assert_eq!(got.iter().map(|c| c.title.as_str()).collect::<Vec<_>>(), vec!["เปิดเรื่อง", "ฉากกลาง = ทดสอบ; ชื่อ"], "{out_kind}");
+            assert!((got[1].start - 8.5).abs() < 0.01, "{out_kind} เวลาบทที่สอง {}", got[1].start);
+            // ลบบทหมด
+            let dir2 = temp_dir(&format!("chap0-{out_kind}"));
+            let mut r0 = req(&movie, m.tracks.clone(), out_kind);
+            r0.chapters = Some(vec![]);
+            let out0 = dir2.0.join(format!("ดาวเหนือ (2023).{out_kind}.partial"));
+            let (res0, _) = run(&r0, &HashMap::new(), &out0, &dir2.0);
+            res0.unwrap_or_else(|p| panic!("{out_kind} ลบบท {} {:?}", p.title, p.detail));
+            assert!(crate::chapters::read(&tl, &out0).unwrap().is_empty(), "{out_kind} ลบบทหมดแล้วต้องไม่มีบท");
+        }
+        assert_eq!(crate::chapters::read(&tl, &movie).unwrap(), before, "ไฟล์หนังเดิมไม่ถูกแตะ");
     }
 
     /// MP4 · พากย์ไทย −120 + ซับไทย +500 + ปกตั้งใหม่ · ซับรูปใส่ไม่ได้ต้องถูกกันก่อนเริ่ม (กันที่ apply ทดสอบตัวสร้างคำสั่งแทน)
