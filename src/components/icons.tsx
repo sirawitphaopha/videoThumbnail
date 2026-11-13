@@ -169,5 +169,17 @@ export const IbFrameNext = ({ size = 15, stroke = "currentColor" }: P) =>
 export const IbFilm = ({ size = 15, stroke = "currentColor" }: P) =>
   svg(size, 2.2, stroke, <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4" /></>);
 /** ข้ามไปยังเฟรมหรือเวลา */
+/** เลื่อนเวลา นาฬิกากับลูกศรไปข้างหน้า (แผนหน้าแก้ซับ ขั้น 6) */
+export const IbShiftTime = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M15 5.6A7.5 7.5 0 1 0 15 18.4" /><path d="M9.5 8v4l2.5 1.5" /><path d="M16 12h6" /><path d="m19 9 3 3-3 3" /></>);
+/** ปรับเวลาทั้งไฟล์ ไม้กายสิทธิ์ */
+export const IbWand = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M4 20 15 9" /><path d="m13.5 7.5 3 3" /><path d="M19 3v4M17 5h4" /><path d="M9 3v2M8 4h2" /><path d="M20 12v2M19 13h2" /></>);
+/** เมนูบรรทัด แถวข้อความ */
+export const IbRows = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M4 6h16" /><path d="M4 12h16" /><path d="M4 18h10" /></>);
+/** เลือกบรรทัด ช่องติ๊กกับแถว */
+export const IbSelect = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><rect x="3" y="4" width="7" height="7" rx="1.5" /><path d="m5 7.5 1.5 1.5L9 6" /><path d="M14 7.5h7" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><path d="M14 17.5h7" /></>);
 export const IbJump = ({ size = 15, stroke = "currentColor" }: P) =>
   svg(size, 2.2, stroke, <><path d="M4 12h12" /><path d="m12 7 5 5-5 5" /><path d="M20 5v14" /></>);

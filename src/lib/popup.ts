@@ -36,6 +36,8 @@ export function useClickOutside(open: boolean, ref: RefObject<HTMLElement | null
   useEffect(() => {
     if (!open) return;
     const onDown = (e: MouseEvent) => {
+      // กดในกล่องคำอธิบายที่เปิดจากปุ่ม ⓘ ในเมนู ไม่นับว่ากดข้างนอก (กล่องอยู่นอกเมนูเพราะวาดที่ body) ไม่งั้นเมนูปิดแล้วกล่องหายตาม
+      if ((e.target as Element | null)?.closest?.(".infotip")) return;
       if (ref.current && !ref.current.contains(e.target as Node)) close();
     };
     document.addEventListener("mousedown", onDown);

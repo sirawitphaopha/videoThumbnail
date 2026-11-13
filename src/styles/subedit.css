@@ -146,8 +146,35 @@
 [data-subedit] .se-cps.bad { color: var(--bad-ink); font-weight: 600; }
 
 /* ตาราง · แถวสูงเท่ากัน 30 จุด (SubGrid ROW) */
-[data-subedit] .se-gridbar { display: flex; align-items: center; gap: 8px; }
+[data-subedit] .se-gridbar { display: flex; align-items: center; gap: 8px; min-width: 0; }
 [data-subedit] .se-gridbar .seg.sm button { height: 26px; }
+
+/* คำสั่งของบรรทัด แถบเหนือตาราง (ขั้น 6) · ข้อความผลกินที่ว่างที่เหลือ บรรทัดเดียว ไม่ดันแถบให้สูงขึ้น */
+[data-subedit] .se-cmds { display: flex; align-items: center; gap: 4px; flex: 1 1 auto; min-width: 0; }
+/* สูง 26 เท่าปุ่มแท็ก แถบไม่สูงขึ้น ตารางที่หน้าต่าง 1280 × 800 ยังเห็นสองแถว (ปุ่มปกติ 32 ดันตารางจนเหลือความสูงขั้นต่ำ) */
+[data-subedit] .se-cmds > .btn, [data-subedit] .se-cmds .se-vmenuwrap > .btn { white-space: nowrap; gap: 5px; height: 26px; padding: 0 9px; }
+[data-subedit] .se-cmenu .se-vmpair { gap: 1px 8px; }
+[data-subedit] .se-cnote { flex: 0 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; color: var(--ok-ink); padding-left: 4px; }
+[data-subedit] .se-cnote.bad { color: var(--bad-ink); }
+[data-subedit] .se-gcount { white-space: nowrap; flex: none; font-variant-numeric: tabular-nums; }
+[data-subedit] .se-cmenu .se-vmi { justify-content: space-between; gap: 16px; }
+[data-subedit] .se-cml { min-width: 0; }
+[data-subedit] .se-ckey { color: var(--txt3); font-size: 12px; white-space: nowrap; flex: none; }
+[data-subedit] .se-vmi:hover .se-ckey { color: inherit; opacity: .8; }
+[data-subedit] .se-vmi.off .se-ckey { color: var(--txt3); }
+
+/* หน้าต่างคำสั่ง เลื่อนเวลา ปรับเวลาทั้งไฟล์ เลือกบรรทัด ค้นและแทนที่ วางทับ ไปที่ เรียง */
+[data-subedit] .se-dsw2 { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; color: var(--txt); }
+[data-subedit] .se-dwide { flex: 1; min-width: 0; }
+[data-subedit] .se-dstyles { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; min-width: 0; flex: 1; }
+[data-subedit] .se-dchk { display: inline-flex; align-items: center; gap: 6px; color: var(--txt); white-space: nowrap; cursor: pointer; }
+[data-subedit] .se-dchk input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; cursor: pointer; }
+[data-subedit] .se-pin { color: var(--txt2); }
+[data-subedit] .se-pin input:disabled { opacity: .55; }
+[data-subedit] .se-dlgmsg { color: var(--ok-ink); }
+[data-subedit] .se-dlgmsg.bad { color: var(--bad-ink); }
+[data-subedit] .se-dhist { border-top: 1px solid var(--line); padding-top: 6px; display: flex; flex-direction: column; gap: 1px; max-height: 180px; overflow-y: auto; }
+[data-subedit] .se-dhist > .small { padding: 0 8px 2px; }
 [data-subedit] .se-grid { border: 1px solid var(--line); border-radius: 10px; overflow: auto; background: #fff; overscroll-behavior: contain; outline: none; }
 [data-subedit] .se-grid:focus-visible { box-shadow: 0 0 0 3px rgba(200,64,111,.18); }
 [data-subedit] .se-grid table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 13.5px; }
@@ -197,3 +224,4 @@
 .se-dlgtext { font-size: 14px; color: var(--txt2); line-height: 1.6; }
 [data-subedit] .se-grid .se-tag { color: var(--txt3); font-size: 12.5px; }
 [data-subedit] .se-grid tr.on .se-tag { color: #a07888; }
+[data-subedit] .se-cmh { min-height: 29px; padding: 0 4px 0 8px; }

@@ -7,13 +7,13 @@
      บันทึกเป็น SRT เตือนก่อนว่าอะไรหาย (พี่กัน "ตอน export srt ต้องบอกว่าอะไรจะหายไปมั่ง")
    ปุ่มบันทึกบอกสถานะทุกจังหวะ สำเร็จหายเอง ผิดพลาดค้างไว้ (สกิล save-status)
    คีย์ลัด Ctrl+Z เลิกทำ Ctrl+Y หรือ Ctrl+Shift+Z ทำซ้ำ Ctrl+S บันทึก Ctrl+Shift+S บันทึกเป็นไฟล์ใหม่ (ใช้ได้ตอนพิมพ์ในช่องด้วย) */
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { pickSave, subDocApi, type SubAutosave, type SubDoc, type SubEvent, type SubLost } from "../../lib/api";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { pickSave, subDocApi, type SubAutosave, type SubDoc, type SubLost } from "../../lib/api";
 import type { AvTrack } from "../../lib/avJob";
 import { autosaveNow, blankEvent, deleteEvents, edit, editedCount, getSubEdit, insertEvent, markSaved, openDoc, redo, select, setSaver, undo, useSubEdit } from "../../lib/subEdit";
 import { useHotkeys } from "../../lib/hotkeys";
 import { usePageActiveRef } from "../../lib/pageActive";
-import { fromBox, garbageGet, garbageSet, isAss, plain, snapMs, toBox, type TagMode } from "../../lib/subText";
+import { garbageGet, garbageSet, isAss, snapMs, type TagMode } from "../../lib/subText";
 import { dummyName, getVid, jumpKeyframe, parseDummy, seek, seekTime, setDummy, useVid, vidKeys, vidOpen, vidRate, zoomStep, type DummySpec } from "../../lib/vidFrames";
 import Dialog from "../Dialog";
 import Dropdown from "../Dropdown";
@@ -29,6 +29,7 @@ import { play, stopPlay } from "../../lib/audioPlay";
 import { getTiming, getViewW, msPerPx, rangeOf, scrollIntoView, setLeft, setOpt, setPend, useTiming, type AudSource } from "../../lib/subTiming";
 import FontDialog from "./FontDialog";
 import { DetailsDialog, DummyDialog, JumpDialog } from "./VideoDialogs";
+import { useLineCmds } from "./LineCmds";
 import "../../styles/subedit.css";
 
 const nameOf = (p: string) => p.split(/[\\/]/).pop() ?? p;
@@ -345,34 +346,6 @@ export default function SubEditor(p: SubEditorProps) {
     // บรรทัดสุดท้าย Enter สร้างบรรทัดใหม่ต่อท้าย เริ่มที่เวลาจบ ยาว 3 วินาที (Timing/Default Duration ของ Aegisub)
     insertEvent(at, blankEvent(doc, { start: ev.end, end: ev.end + 3000, style: ev.style }), "เพิ่มบรรทัด");
   };
-  const onInsert = () => { if (doc && ev) insertEvent(at, blankEvent(doc, { start: ev.end, end: ev.end + 3000, style: ev.style, layer: ev.layer }), "แทรกบรรทัด"); };
-  const onSplit = (cur: number) => {
-    if (!doc || !ev) return;
-    const box = toBox(ev.text, doc);
-    const a = box.slice(0, cur).replace(/\n+$/, ""), b = box.slice(cur).replace(/^\n+/, "");
-    if (!a || !b) return;
-    // แบ่งเวลาตามสัดส่วนตัวอักษรที่คนอ่าน (split at cursor estimate times ของ Aegisub)
-    const la = plain(fromBox(a, doc)).length, lb = plain(fromBox(b, doc)).length;
-    const mid = snapMs(ev.start + ((ev.end - ev.start) * la) / Math.max(1, la + lb), doc);
-    const second = { ...blankEvent(doc, {}), ...ev, id: blankEvent(doc, {}).id, start: mid, text: fromBox(b, doc), pre: [], raw: [], ident: null };
-    edit("แยกบรรทัด", (d) => {
-      const events = d.events.slice();
-      const k = events.findIndex((e) => e.id === ev.id);
-      events.splice(k, 1, { ...ev, end: mid, text: fromBox(a, doc) }, second);
-      return { ...d, events };
-    }, { sel: [second.id], active: second.id });
-  };
-  const onJoin = () => {
-    if (!doc || !ev) return;
-    const ids = st.sel.length > 1 ? st.sel : [ev.id, doc.events[at + 1]?.id].filter((x): x is number => x != null);
-    const lines = doc.events.filter((e) => ids.includes(e.id));
-    if (lines.length < 2) return;
-    const first = lines[0];
-    // ต่อข้อความด้วยเว้นวรรค เวลาจบมากสุด (combine_concat ของ Aegisub)
-    const joined: SubEvent = { ...first, text: lines.map((e) => e.text).join(" "), end: Math.max(...lines.map((e) => e.end)) };
-    const drop = new Set(lines.slice(1).map((e) => e.id));
-    edit("รวมบรรทัด", (d) => ({ ...d, events: d.events.filter((e) => !drop.has(e.id)).map((e) => (e.id === first.id ? joined : e)) }), { sel: [first.id], active: first.id });
-  };
   const onDelete = () => { if (st.sel.length) deleteEvents(st.sel, st.sel.length > 1 ? `ลบ ${st.sel.length} บรรทัด` : "ลบบรรทัด"); };
   const onToAss = () => {
     const d = getSubEdit().doc;
@@ -385,7 +358,12 @@ export default function SubEditor(p: SubEditorProps) {
     }, (e) => setSave({ s: "failed", err: String(e) }));
   };
 
+  // ---------------------------------------------------------------- คำสั่งของบรรทัด (ขั้น 6)
+  const textBox = useMemo(() => ({ get current() { return root.current?.querySelector<HTMLElement>("[data-se-text]") ?? null; } }), []);
+  const cmds = useLineCmds({ doc, sel: st.sel, active: st.active, fr, frWhy, pos: vst.pos, keys: vidKeys(vst).list, delay: dl, textBox });
+
   useHotkeys([
+    ...cmds.hotkeys,
     { code: "KeyZ", ctrl: true, field: true, run: () => undo() },
     { code: "KeyY", ctrl: true, field: true, run: () => redo() },
     { code: "KeyZ", ctrl: true, shift: true, field: true, run: () => redo() },
@@ -494,11 +472,11 @@ export default function SubEditor(p: SubEditorProps) {
         </div>
         {tall && <AudioBar opts={tm.opts} noAudio={noAudio} noLine={noLine} onAct={audioAct} onToggle={(k, v) => setOpt(k, v)} />}
         {ev ? <SubEditBox doc={doc} ev={ev} orig={st.orig[ev.id]} savedEv={savedOf(ev.id)} fr={fr} frWhy={frWhy} delayMs={dl} unit={unit} onUnit={setUnit} onPrev={() => goto(at - 1)} onNext={onNext}
-          onInsert={onInsert} onSplit={onSplit} onJoin={onJoin} onDelete={onDelete} onToAss={onToAss} onFont={(apply, current) => setFont({ apply, current })} />
+          onInsert={cmds.insertAfter} onSplit={(k) => cmds.split("estimate", k)} onJoin={() => cmds.join(false)} onDelete={onDelete} onToAss={onToAss} onFont={(apply, current) => setFont({ apply, current })} />
           : <div className="stat info"><CardIcon kind="info" /><div><b>ซับนี้ยังไม่มีบรรทัด</b><div className="minirow"><button type="button" className="btn btn-ghost btn-sm" onClick={() => insertEvent(-1, blankEvent(doc, { start: 0, end: 3000 }), "เพิ่มบรรทัด")} data-se-first>เพิ่มบรรทัดแรก</button></div></div></div>}
         <div className="se-gridbar">
-          <span className="small">{`${doc.events.length.toLocaleString("en-US")} บรรทัด`}{st.sel.length > 1 ? ` เลือกไว้ ${st.sel.length} บรรทัด` : ""}</span>
-          <span style={{ flex: 1 }} />
+          {cmds.bar}
+          {cmds.note ?? <span className="small se-gcount" data-se-count>{`${doc.events.length.toLocaleString("en-US")} บรรทัด`}{st.sel.length > 1 ? ` เลือกไว้ ${st.sel.length.toLocaleString("en-US")}` : ""}</span>}
           <Seg small label="แท็กในตาราง" value={tags} onChange={setTags} options={[{ value: "full", label: "แท็กเต็ม" }, { value: "sym", label: "ย่อเป็น ☀" }, { value: "hide", label: "ซ่อนแท็ก" }]} />
         </div>
         <div ref={gridAt}><SubGrid doc={doc} sel={st.sel} active={st.active} tags={tags} height={gridH} onSelect={(ids, a) => select(ids, a)}
@@ -509,6 +487,7 @@ export default function SubEditor(p: SubEditorProps) {
       ))}</div>}
       {p.tab === "pad" && <PadView doc={doc} />}
 
+      {cmds.dialogs}
       <JumpDialog open={vdlg === "jump"} fr={fr} pos={vst.pos ?? 0} onClose={() => setVdlg(null)} onJump={seek} />
       <DetailsDialog open={vdlg === "details"} onClose={() => setVdlg(null)} name={nameOf(p.video)} table={vst.table} dummy={vst.dummy} fr={fr} keys={vidKeys(vst).list.length} />
       <DummyDialog open={vdlg === "dummy"} onClose={() => setVdlg(null)} onUse={applyDummy} />

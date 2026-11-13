@@ -78,7 +78,8 @@ export default function SubGrid(p: {
     } else p.onSelect([id], id);
   };
   const onKey = (e: React.KeyboardEvent) => {
-    if (!ev.length) return;
+    // Alt กับลูกศรขึ้นลงเป็นคีย์ลัดย้ายบรรทัดของหน้า (grid/move/up down ของ Aegisub) ไม่ใช่เลื่อนแถวที่เลือก
+    if (!ev.length || (e.altKey && (e.key === "ArrowUp" || e.key === "ArrowDown"))) return;
     const page = Math.max(1, Math.floor(p.height / ROW) - 1);
     const go = (i: number) => { e.preventDefault(); const k = Math.max(0, Math.min(ev.length - 1, i)); if (e.shiftKey && at >= 0) pick(k, { shiftKey: true } as React.MouseEvent); else p.onSelect([ev[k].id], ev[k].id); };
     if (e.key === "ArrowDown") go(at + 1);
