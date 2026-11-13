@@ -2,7 +2,7 @@
    ตั้งแล้วมีผลทันที ไม่ต้องกดบันทึก · สวิตช์ชมพู = เปิด · ค่าเก็บในไฟล์ค่าตั้งของโปรแกรมผ่าน set_settings (store.rs เขียนแบบปลอดภัยมีสำรอง)
    ค่าที่นี่คือค่าตั้งต้น ทุกครั้งที่ใส่โปสเตอร์หรือตรวจไฟล์ยังเปลี่ยนเฉพาะครั้งนั้นได้ */
 import { useEffect, useRef, useState } from "react";
-import { GRAPH_IMG_DEFAULT, api, encodeApi, graphApi, linkApi, pickExe, pickFolder, playerApi, type EncoderInfo, type LatestInfo, type GraphImg, type PlayerList, type Settings, type ToolCheck } from "../lib/api";
+import { GRAPH_IMG_DEFAULT, api, encodeApi, graphApi, linkApi, logApi, pickExe, pickFolder, playerApi, type EncoderInfo, type LatestInfo, type GraphImg, type LogInfo, type PlayerList, type Settings, type ToolCheck } from "../lib/api";
 import { kb } from "../lib/popup";
 import { listen } from "@tauri-apps/api/event";
 import { inApp } from "../lib/api";
@@ -12,6 +12,7 @@ import { useToast } from "../components/Toasts";
 import Dialog from "../components/Dialog";
 import Dropdown from "../components/Dropdown";
 import InfoTip from "../components/InfoTip";
+import { SPEK_RES_TIP } from "../lib/graphTips";
 import { IcPalette, IcCheck, IcCoverL, IcCoverM, IcCoverS, IcTall, IcWide, IcFolder, IcGraph, IcLink, IcMix, IcPoster, IcSettings, IcShelf } from "../components/icons";
 import { J, Keep, Phr, Range, Seg, Skel, Switch } from "../components/ui";
 import { setSkelPreview, useSkelPreview } from "../lib/skelPreview";
@@ -115,6 +116,7 @@ const SET_GROUPS: { title: string; items: { id: string; label: string; icon: Rea
   { title: "เครื่องมือ", items: [
     { id: "tools", label: "เครื่องมือเบื้องหลัง", icon: <IcSettings /> },
     { id: "encoders", label: "ตัวแปลงเสียง", icon: <IcMix /> },
+    { id: "log", label: "บันทึกการใช้งาน", icon: <IcFile /> },
   ] },
   { title: "เกี่ยวกับ", items: [
     { id: "thanks", label: "ขอบคุณ", icon: <IcHeart /> },
@@ -163,7 +165,7 @@ function SpekResRow() {
   const [v, setV] = useState<"fine" | "coarse">(() => { try { return localStorage.getItem("graph-spek-res") === "coarse" ? "coarse" : "fine"; } catch { return "fine"; } });
   const pick = (n: "fine" | "coarse") => { setV(n); try { localStorage.setItem("graph-spek-res", n); } catch { /* เก็บไม่ได้ ใช้ค่าในหน้าไปก่อน */ } };
   return (
-    <div className="setrow" data-spekres-default><div className="lbl">กราฟความถี่เปิดมาแบบ<span className="small">แบบละเอียดอ่านเสียงช่วงที่ดูใหม่ทุกครั้งที่ซูม เห็นรายละเอียดคม ส่วนแบบภาพรวมใช้ข้อมูลชุดเดียวกับรูปคลื่น ขึ้นทันทีแต่หยาบกว่าเมื่อซูมลึก ค่านี้ใช้ตอนเปิดหน้ากราฟ และสลับได้ที่ใต้กราฟความถี่</span></div>
+    <div className="setrow" data-spekres-default><div className="lbl"><span>กราฟความถี่เปิดมาแบบ <InfoTip title="ละเอียด กับ ภาพรวม" tip={SPEK_RES_TIP} /></span><span className="small">ค่านี้ใช้ตอนเปิดหน้ากราฟ และสลับได้ที่ใต้กราฟความถี่</span></div>
       <Seg label="กราฟความถี่เปิดมาแบบ" value={v} onChange={pick} options={[{ value: "fine", label: "ละเอียด" }, { value: "coarse", label: "ภาพรวม" }]} /></div>
   );
 }
@@ -207,6 +209,9 @@ export default function SettingsPage() {
       toast({ kind: "bad", title: "ย้ายไม่สำเร็จ", detail: String(e) });
     } finally { setMigrating(false); }
   };
+  /** บันทึกการใช้งาน (พี่กันเสนอ 12 พ.ย. 2569) · อ่านใหม่ทุกครั้งที่เปิดหัวข้อนี้ จำนวนรายการเพิ่มตามงานที่ทำ · bad = อ่านไม่ได้ ต่างจากยังไม่มีรายการ */
+  const [logInfo, setLogInfo] = useState<LogInfo | "bad" | null>(null);
+  useEffect(() => { if (sec === "log") logApi.info().then(setLogInfo, () => setLogInfo("bad")); }, [sec]);
   /** ตัวแปลงเสียง (แผนเสียงและซับ ขั้น 4 · มอคอัปหน้าตั้งค่า การ์ดตัวแปลงเสียง) */
   const [encs, setEncs] = useState<EncoderInfo[] | null>(null);
   const [encDir, setEncDir] = useState("");
@@ -498,6 +503,16 @@ export default function SettingsPage() {
             {icaros === false && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setIcarosHelp(true)} data-icaroshelp>วิธีลง</button>}</div></div>
         <div className="setrow"><div className="lbl small" style={{ margin: 0 }}><Phr>ถ้าซ่อนหรือย้ายเครื่องมือ กดตรวจใหม่เพื่อดูสถานะล่าสุด</Phr></div>
           <button type="button" className={"btn btn-sm " + (checking ? "btn-wait" : "btn-ghost")} aria-disabled={checking || undefined} onClick={() => { if (!checking) void recheck(); }} data-retools><Keep icon={<IcRefresh size={15} />} all={["กำลังตรวจ", "ตรวจเครื่องมือใหม่"]}>{checking ? "กำลังตรวจ" : "ตรวจเครื่องมือใหม่"}</Keep></button></div>
+      </div>
+
+      {/* ---------- บันทึกการใช้งาน (พี่กันเสนอ 12 พ.ย. 2569 "ทำ log ของโปรแกรม ว่าเราทำอะไรในโปรแกรมมั่ง เอาไว้ตรวจทาน") · ไฟล์อยู่ในเครื่อง ไม่ส่งออกเน็ต ---------- */}
+      <div className="setcard" data-setcard="log" hidden={sec !== "log"}>
+        <h3 style={{ display: "flex", justifyContent: "space-between", alignItems: "center", gap: 10 }}><span>บันทึกการใช้งาน</span>
+          <button type="button" className="btn btn-ghost btn-sm" onClick={() => logApi.openDir().catch((e) => toast({ kind: "bad", title: "เปิดโฟลเดอร์บันทึกไม่ได้", detail: String(e) }))} data-actlog-open><IcFolder size={15} />เปิดโฟลเดอร์บันทึก</button></h3>
+        <div className="small" style={{ marginBottom: 6 }}><Phr>{"โปรแกรมจดงานที่เขียน ย้าย หรือลบไฟล์ไว้ในเครื่องนี้ ใช้ย้อนดูว่ากดอะไรไปก่อนเจอปัญหา  บันทึกไม่ถูกส่งออกไปที่ไหน และเก็บไว้ 12 เดือนล่าสุด"}</Phr></div>
+        <div className="setrow" data-actlog-count><div className="lbl"><span>เดือนนี้จดไว้ <InfoTip title="บันทึกการใช้งานจดอะไรบ้าง" tip={{ w: "จดวันเวลา ชื่องาน และค่าที่ส่งไป ของงานที่เขียน ย้าย หรือลบไฟล์ เช่น ใส่โปสเตอร์ ยืนยันปกจับคู่ ย้ายที่เก็บรูป รวมไฟล์ แปลงเสียง เปลี่ยนชื่อไฟล์หนัง ค่าตั้งที่เปลี่ยน และทุกไฟล์ที่โปรแกรมส่งลงถังขยะ  การเปิดดู การเล่นหนัง และการเลื่อนหน้าไม่จด\nบันทึกแยกเดือนละไฟล์ เป็นข้อความธรรมดา เปิดด้วย Notepad ได้" }} /></span></div>
+          {logInfo == null ? <Skel w={90} h={20} r={10} /> : logInfo === "bad" ? <span className="toolbad">อ่านบันทึกไม่ได้</span> : <span className="setver" data-actlog-lines>{logInfo.monthLines.toLocaleString("en-US")} รายการ</span>}</div>
+        <div className="setrow"><div className="lbl">ที่เก็บ<span className="small" style={{ fontFamily: "var(--mono)", overflowWrap: "anywhere" }} data-actlog-dir>{logInfo && logInfo !== "bad" ? logInfo.dir : "—"}</span></div></div>
       </div>
 
       {/* ---------- ตัวแปลงเสียง (มอคอัปเสียงและซับ หัวข้อ 8) · ตัวที่แนบมากับโปรแกรม กับตัวที่วางเองในโฟลเดอร์ตัวแปลง (ตัวที่สัญญาอนุญาตไม่ให้แจก) ---------- */}

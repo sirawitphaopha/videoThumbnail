@@ -1,0 +1,137 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>ขนาดหน้าต่างชั้นหนัง</title>
+<!--
+  ผังขนาดหน้าต่างโปรแกรมเทียบจอจริงของพี่กัน (พี่กันสั่ง 13 พ.ย. 2569 "เธอสร้างมอคอัป แสดงกว้างยาว ของจอโปรแกรมมาที มันต้องทำกี่จอ")
+  วัดจากเครื่องนี้ 13 พ.ย. 2569 ด้วย Screen.AllScreens แบบไม่โดนการขยายหลอก จอหลัก 1600 × 900 จอที่สองอยู่ทางซ้าย 1366 × 768 ขยาย 100% ทั้งคู่
+  ภาพในกรอบเป็นหน้าจริงของโปรแกรม ถ่ายจากหน้าต่างทดสอบที่อยู่หลังสุดผ่าน CDP ด้วยการจำลองขนาด (window-sizes/*.png)
+  ทุกกรอบวาดตามสัดส่วนจริงด้วยมาตราส่วนเดียวกัน S ในสคริปต์ท้ายไฟล์
+-->
+<style>
+  :root { --ink: #3a252c; --ink2: #7a5a66; --line: #ecd3dc; --acc: #a8456b; --ok: #2f7d55; --okbg: #e9f5ee; --bad: #b4532a; --badbg: #fbefe6; --task: #d9c3cb; }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: #fbf5f7; color: var(--ink); font-family: Sarabun, "Noto Sans Thai", Tahoma, sans-serif; font-size: 15px; line-height: 1.6; }
+  .page { max-width: 1200px; margin: 0 auto; padding: 28px 24px 40px; }
+  h1 { font-size: 24px; margin: 0 0 4px; line-height: 1.4; }
+  h2 { font-size: 18px; margin: 28px 0 10px; color: var(--acc); }
+  .lead { color: var(--ink2); margin: 0 0 6px; }
+  .sum { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px 18px; margin: 16px 0 4px; }
+  .sum b { color: var(--acc); }
+  .sum p { margin: 4px 0; }
+  .desk { display: flex; flex-wrap: wrap; align-items: flex-start; gap: 18px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 18px; }
+  .mon { position: relative; flex: none; }
+  .mon .scr { position: absolute; inset: 0; background: #f3e9ed; border: 2px solid #5b4650; border-radius: 4px; overflow: hidden; }
+  .mon .task { position: absolute; left: 0; right: 0; bottom: 0; background: var(--task); }
+  .mon .task span { position: absolute; right: 8px; top: 50%; transform: translateY(-50%); font-size: 12px; color: #5b4650; white-space: nowrap; }
+  .mon .stand { position: absolute; left: 50%; transform: translateX(-50%); bottom: -16px; width: 70px; height: 14px; background: #5b4650; border-radius: 0 0 6px 6px; }
+  .deskcol { flex: none; }
+  .deskcap { font-size: 14.5px; line-height: 1.5; margin-top: 4px; }
+  .deskcap b { font-size: 16px; }
+  .dim { position: absolute; font-size: 12.5px; font-weight: 700; color: #fff; background: var(--acc); padding: 0 7px; border-radius: 99px; line-height: 1.6; white-space: nowrap; }
+  .dim.w { top: 4px; left: 50%; transform: translateX(-50%); }
+  .dim.h { right: 4px; top: 50%; transform: translateY(-50%); }
+  .win { position: absolute; border: 2px solid var(--acc); box-shadow: 0 4px 14px rgba(90, 30, 50, .25); background: #fff; overflow: hidden; }
+  .win img { display: block; width: 100%; height: 100%; }
+  .win.ghost { background: transparent; box-shadow: none; border-style: dashed; }
+  .win.ghost span { position: absolute; left: 8px; bottom: 6px; font-size: 12.5px; color: var(--acc); font-weight: 700; }
+  .half { position: absolute; top: 0; bottom: 0; border-left: 2px dashed #8a6b77; }
+  .half span { position: absolute; top: 4px; left: 6px; font-size: 12px; color: #6b4f5a; white-space: nowrap; }
+  .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(546px, 1fr)); gap: 16px; }
+  .card { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 14px 16px 22px; }
+  .card h3 { margin: 0; font-size: 17px; line-height: 1.45; }
+  .card .size { font-size: 22px; font-weight: 700; color: var(--acc); margin: 2px 0 0; font-variant-numeric: tabular-nums; }
+  .card .when { color: var(--ink2); margin: 0 0 10px; font-size: 14.5px; }
+  .tag { display: inline-block; font-size: 13px; font-weight: 700; padding: 1px 10px; border-radius: 99px; margin: 0 0 10px; }
+  .tag.ok { color: var(--ok); background: var(--okbg); }
+  .tag.bad { color: var(--bad); background: var(--badbg); }
+  .tag.mid { color: #6b5560; background: #f1e9ec; }
+  .card .mon { margin: 0 auto; }
+  .galsize { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 12px 16px 16px; margin: 0 0 14px; }
+  .galsize h3 { margin: 0 0 8px; font-size: 16.5px; }
+  .galgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(210px, 1fr)); gap: 10px; }
+  .galgrid a { display: block; color: var(--ink2); text-decoration: none; font-size: 13.5px; }
+  .galgrid img { display: block; width: 100%; aspect-ratio: 16 / 9; object-fit: cover; object-position: left top; border: 1px solid var(--line); border-radius: 6px; background: #f3e9ed; }
+  .galgrid a:hover img { border-color: var(--acc); }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>ขนาดหน้าต่างชั้นหนัง เทียบกับจอของพี่กัน</h1>
+  <p class="lead">วัดจากเครื่องนี้ 13 พ.ย. 2569 ทั้งสองจอตั้งขยาย 100% ทุกกรอบวาดตามสัดส่วนจริงด้วยมาตราส่วนเดียวกัน และภาพในกรอบเป็นหน้าจริงของโปรแกรมที่ขนาดนั้น</p>
+
+  <div class="sum">
+    <p><b>ที่พี่กันเห็นอยู่มี 2 ขนาด</b> คือแบบ 1 ตอนยังไม่กดขยาย 1280 × 800 และแบบ 2 ตอนกดขยายเต็มจอหลัก 1600 × 852</p>
+    <p><b>ถ้าย้ายไปจอที่สอง เพิ่มอีก 2 ขนาด</b> คือแบบ 3 กับแบบ 4 ซึ่งสูง 720 เท่ากัน</p>
+    <p><b>กว้าง 1024 เกิดเฉพาะแบ่งครึ่งจอหรือลากขอบหน้าต่างเองจนสุด</b> คือแบบ 5 กับแบบ 6 ซึ่งเป็นขนาดที่ข้อ 71 แถบปุ่มล่างล้นขวา และข้อ 74 การ์ดชื่อไฟล์โดนบีบ</p>
+  </div>
+
+  <h2>จอของพี่กันตอนนี้</h2>
+  <div class="desk" id="desk"></div>
+
+  <h2>ขนาดหน้าต่างโปรแกรมที่เกิดได้</h2>
+  <div class="grid" id="grid"></div>
+
+  <h2>ภาพทุกหน้าที่จอ 1080 และ 2K จากตัวตรวจ check-sizes</h2>
+  <p class="lead">ตัวตรวจไล่ทุกหน้าทุกขนาด ไม่มีอะไรล้นหรือซ้อน ภาพจอ 2K ย่อครึ่งหนึ่งไว้ กดภาพเพื่อเปิดเต็ม ส่วนจอ 4K จะทำให้แสดงผลแบบ 2K ตามโรดแมป จึงไม่ตรวจแยก<br>
+    สิ่งที่เห็นจากภาพ จอกว้างตั้งแต่ 1920 ขึ้นไป หน้าตั้งค่ากับตารางหน้าตรวจไฟล์ยืดเต็มความกว้าง สวิตช์กับปุ่มไปอยู่ขวาสุดห่างจากชื่อของมัน</p>
+  <div id="gal"></div>
+</div>
+<script>
+  // มาตราส่วนเดียวกันทุกกรอบ · ขนาดจอกับพื้นที่ใช้ได้วัดจริง แถบงานสูง 48 อยู่ล่างทั้งสองจอ
+  const MON = { main: { w: 1600, h: 900, work: 852, name: "จอหลัก" }, side: { w: 1366, h: 768, work: 720, name: "จอที่สอง" } };
+  const monitor = (m, S, inner) => {
+    const el = document.createElement("div");
+    el.className = "mon";
+    el.style.cssText = `width:${m.w * S}px;height:${m.h * S}px;margin-bottom:18px`;
+    el.innerHTML = `<div class="scr">${inner ?? ""}<div class="task" style="height:${(m.h - m.work) * S}px"><span>แถบงาน ${m.h - m.work}</span></div></div><div class="stand"></div>`;
+    return el;
+  };
+  // กรอบหน้าต่างมีป้ายกว้างด้านบนและป้ายสูงด้านขวา
+  const win = (x, y, w, h, S, img) => `<div class="win" style="left:${x * S}px;top:${y * S}px;width:${w * S}px;height:${h * S}px"><img src="${img}" alt=""><span class="dim w">กว้าง ${w}</span><span class="dim h">สูง ${h}</span></div>`;
+
+  // ภาพรวมโต๊ะ จอที่สองอยู่ทางซ้าย บนตรงกัน ตามตำแหน่งที่ Windows ตั้งไว้ · ชื่อจออยู่ใต้จอ ไม่ทับกรอบหน้าต่าง
+  const SD = 0.335, desk = document.getElementById("desk");
+  const col = (mon, cap) => { const d = document.createElement("div"); d.className = "deskcol"; d.append(mon); d.insertAdjacentHTML("beforeend", `<div class="deskcap">${cap}</div>`); return d; };
+  desk.append(
+    col(monitor(MON.side, SD), `<b>จอที่สอง ทางซ้าย</b> 1366 × 768<br>ใช้ได้ 1366 × 720 หลังหักแถบงาน`),
+    col(monitor(MON.main, SD, `<div class="win ghost" style="left:${160 * SD}px;top:${26 * SD}px;width:${1280 * SD}px;height:${800 * SD}px"><span>หน้าต่างตอนเปิดโปรแกรม 1280 × 800</span></div>`), `<b>จอหลัก</b> 1600 × 900<br>ใช้ได้ 1600 × 852 หลังหักแถบงาน`),
+  );
+
+  // ทุกแบบที่เกิดได้ · ภาพจาก window-sizes/ ถ่ายที่ขนาดเดียวกับกรอบ
+  const S = 0.32;
+  const CASES = [
+    { n: 1, t: "ยังไม่กดขยาย บนจอหลัก", m: MON.main, x: 160, y: 26, w: 1280, h: 800, tag: ["ok", "เห็นบ่อยที่สุด"], when: "เปิดโปรแกรมทุกครั้งได้ขนาดนี้ อยู่กลางจอหลัก โปรแกรมไม่ได้จำขนาดที่ปรับไว้" },
+    { n: 2, t: "กดขยายเต็มจอหลัก", m: MON.main, x: 0, y: 0, w: 1600, h: 852, tag: ["ok", "พี่กันใช้"], when: "กดปุ่มขยายมุมขวาบน เต็มพื้นที่เหนือแถบงาน" },
+    { n: 3, t: "ยังไม่กดขยาย บนจอที่สอง", m: MON.side, x: 43, y: 0, w: 1280, h: 720, tag: ["mid", "เมื่อลากไปจอที่สอง"], when: "หน้าต่างตั้งไว้สูง 800 แต่จอนี้ใช้ได้ 720 โปรแกรมจึงย่อความสูงให้พอดีเอง" },
+    { n: 4, t: "กดขยายเต็มจอที่สอง", m: MON.side, x: 0, y: 0, w: 1366, h: 720, tag: ["mid", "เมื่อลากไปจอที่สอง"], when: "เต็มพื้นที่เหนือแถบงานของจอที่สอง" },
+    { n: 5, t: "แบ่งครึ่งจอหลัก", m: MON.main, x: 0, y: 0, w: 1024, h: 852, half: 800, tag: ["bad", "ข้อ 71 กับข้อ 74 พังที่ขนาดนี้"], when: "ลากหน้าต่างไปชนขอบจอ หรือกดปุ่ม Win กับลูกศร<br>ครึ่งจอกว้าง 800 แต่โปรแกรมแคบสุด 1024 จึงล้ำครึ่งขวาไป 224" },
+    { n: 6, t: "ลากขอบหน้าต่างจนเล็กสุด", m: MON.main, x: 288, y: 106, w: 1024, h: 640, tag: ["bad", "ข้อ 71 กับข้อ 74 พังที่ขนาดนี้"], when: "เกิดเฉพาะตอนลากขอบหน้าต่างเองจนสุด โปรแกรมตั้งไว้ไม่ให้เล็กกว่านี้" },
+  ];
+  const grid = document.getElementById("grid");
+  for (const k of CASES) {
+    const card = document.createElement("div");
+    card.className = "card";
+    card.innerHTML = `<h3>แบบ ${k.n} ${k.t}</h3><p class="size">${k.w} × ${k.h}</p><p class="when">${k.when}</p><span class="tag ${k.tag[0]}">${k.tag[1]}</span>`;
+    const half = k.half ? `<div class="half" style="left:${k.half * S}px"><span>ครึ่งจอ 800</span></div>` : "";
+    card.append(monitor(k.m, S, win(k.x, k.y, k.w, k.h, S, `window-sizes/${k.w}x${k.h}.png`) + half));
+    grid.append(card);
+  }
+
+  // ภาพจากตัวตรวจ scripts/check-sizes.mjs ชื่อไฟล์ <กว้าง>x<สูง>-<หน้า>.png
+  // ไม่มี 3840 × 2112 พี่กันสั่งเอาออก 13 พ.ย. 2569 จอ 4K ให้แสดงผลแบบ 2K เท่านั้น (ROADMAP)
+  const GAL = [[1280, 800, "ยังไม่กดขยาย ทุกจอ"], [1600, 852, "ขยายเต็มจอ จอเครื่องที่ รพ."], [1920, 1032, "ขยายเต็มจอ จอ 1080"], [2560, 1392, "ขยายเต็มจอ จอ 2K และจอ 4K ซึ่งจะแสดงผลแบบ 2K"]];
+  const SHOTS = ["ชั้นวางหนัง", "ใส่โปสเตอร์", "จับคู่ปก", "เสียงและซับ", "ตรวจไฟล์", "กราฟเสียง-wave", "กราฟเสียง-loud", "กราฟเสียง-spek", "กราฟเสียง-psd", "บิตเรต", "MediaInfo", "ตั้งค่า"];
+  const NAMES = { "กราฟเสียง-wave": "กราฟเสียง รูปคลื่น", "กราฟเสียง-loud": "กราฟเสียง ความดัง", "กราฟเสียง-spek": "กราฟเสียง ความถี่", "กราฟเสียง-psd": "กราฟเสียง ความถี่เฉลี่ย" };
+  const gal = document.getElementById("gal");
+  for (const [w, h, t] of GAL) {
+    const box = document.createElement("div");
+    box.className = "galsize";
+    box.innerHTML = `<h3>${w} × ${h} ${t}</h3><div class="galgrid">${SHOTS.map((s) => { const src = `../report-2026-11-13/ขนาดจอ/${w}x${h}-${s}.png`; return `<a href="${src}" target="_blank"><img src="${src}" alt="" loading="lazy">${NAMES[s] ?? s}</a>`; }).join("")}</div>`;
+    gal.append(box);
+  }
+</script>
+</body>
+</html>

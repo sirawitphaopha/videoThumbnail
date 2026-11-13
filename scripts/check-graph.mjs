@@ -34,7 +34,15 @@ ff(["-f", "lavfi", "-i", "anoisesrc=color=pink:sample_rate=96000:amplitude=0.25:
 // FLAC ที่แปลงมาจาก MP3 128k · ตัวเข้ารหัส MP3 ตัดความถี่สูงทิ้ง
 ff(["-f", "lavfi", "-i", "anoisesrc=color=pink:sample_rate=44100:amplitude=0.25:duration=12", "-ac", "2", "-c:a", "libmp3lame", "-b:a", "128k", A("_ต้นทาง.mp3")]);
 ff(["-i", A("_ต้นทาง.mp3"), "-c:a", "flac", A("FLAC แปลงจาก MP3.flac")]);
-rmSync(A("_ต้นทาง.mp3"));
+// AUDIT 12 พ.ย. 2569 ข้อ 2 · ไฟล์ไม่บีบอัดชนิดอื่นที่แปลงจาก MP3 · ตัวเข้ารหัส WavPack รับขนาดก้อนของ MP3 ไม่ได้ ผ่าน WAV ก่อน
+ff(["-i", A("_ต้นทาง.mp3"), "-c:a", "pcm_s16le", A("_กลาง.wav")]);
+ff(["-i", A("_กลาง.wav"), "-c:a", "wavpack", A("WavPack แปลงจาก MP3.wv")]);
+ff(["-i", A("_กลาง.wav"), "-c:a", "tta", A("TTA แปลงจาก MP3.tta")]);
+// MP3 320 kb/s ตัดเสียงสูงเป็นเส้นตรงราว 20 kHz สูงกว่าเกณฑ์ ต้องไม่ขึ้นเตือน และต้องไม่บอกว่าไม่มีร่องรอย
+ff(["-f", "lavfi", "-i", "anoisesrc=color=white:sample_rate=44100:amplitude=0.25:duration=12", "-ac", "2", "-c:a", "libmp3lame", "-b:a", "320k", A("_ต้นทาง320.mp3")]);
+ff(["-i", A("_ต้นทาง320.mp3"), "-c:a", "pcm_s16le", A("_กลาง320.wav")]);
+ff(["-i", A("_กลาง320.wav"), "-c:a", "wavpack", A("WavPack แปลงจาก MP3 320.wv")]);
+for (const f of ["_ต้นทาง.mp3", "_กลาง.wav", "_ต้นทาง320.mp3", "_กลาง320.wav"]) rmSync(A(f));
 // อัดใกล้ปลั๊ก เสียงฮัม 50 Hz กับเลขคูณ 100 150
 ff(["-f", "lavfi", "-i", "aevalsrc=0.05*sin(2*PI*50*t)+0.025*sin(2*PI*100*t)+0.015*sin(2*PI*150*t)+0.004*(random(0)*2-1):s=48000:d=15", "-c:a", "pcm_s16le", A("อัดใกล้ปลั๊ก มีเสียงฮัม.wav")]);
 // MP3 เสียงเดียว
@@ -50,8 +58,11 @@ const results = [];
 const check = (name, pass, detail = "") => { results.push({ name, pass: !!pass, detail: String(detail) }); console.log(`${pass ? "✅" : "❌"} ${name}${detail ? " · " + detail : ""}`); };
 const inv = (cmd, args = {}) => c.evaluate(`window.__TAURI_INTERNALS__.invoke(${JSON.stringify(cmd)}, ${JSON.stringify(args)})`);
 const q = (js) => c.evaluate(`(() => { ${js} })()`);
-const text = (sel) => q(`return document.querySelector(${JSON.stringify(sel)})?.innerText.replace(/\\s+/g, ' ') ?? ''`);
+// ตัดตัวเชื่อมคำ (U+2060 ที่ผูกวลีไม่ให้ตัดบรรทัดกลางวลี) ออกก่อนเทียบข้อความ
+const text = (sel) => q(`return document.querySelector(${JSON.stringify(sel)})?.innerText.replace(/\\u2060/g, '').replace(/\\s+/g, ' ') ?? ''`);
 const count = (sel) => q(`return document.querySelectorAll(${JSON.stringify(sel)}).length`);
+// ผลตรวจหน้าความถี่ บนจอเขียนสั้น ข้อความเต็มอยู่ในปุ่ม ⓘ กับ data-full ของกล่อง (พี่กันสั่ง 13 พ.ย. 2569 "ก็เขียนคำย่อ เเล้วให้กดอ่านเพิ่มเติมเองสิ")
+const vtext = () => q("return (document.querySelector('[data-spekverdict]')?.dataset.full ?? '').replace(/\\s+/g, ' ')");
 const shot = async (f, sel) => { await c.evaluate("document.querySelectorAll('.toast .x').forEach(b => b.click())"); await c.move(500, 12); await sleep(300); return c.shot(`${OUT}/${f}`, sel, 0); };
 /** ถ่ายภาพโดยไม่เลื่อนเมาส์ออก ใช้กับภาพที่ต้องเห็นเส้นชี้ตรงที่ชี้อยู่ */
 const shotHere = async (f, sel) => { await c.evaluate("document.querySelectorAll('.toast .x').forEach(b => b.click())"); await sleep(300); return c.shot(`${OUT}/${f}`, sel, 0); };
@@ -136,7 +147,7 @@ await shot("04-รูปคลื่นแบบแท่ง.png");
 await q("document.querySelector('[data-style=aud]').click()"); await sleep(200);
 
 /* ---------- 3 ซูม ชี้อ่านค่า ซ่อนช่อง ---------- */
-await c.click('[data-zoom="30"]');
+await c.evaluate(`document.querySelector('[data-zoom="30"]').click()`);
 await sleep(1500);
 const head30 = await text(".plothead");
 // เส้นตั้งกับกล่องบอกค่าขึ้นเฉพาะตอนเมาส์ชี้ (พี่กัน 7 พ.ย. 2569 *"ต้องให้เเสดงเฉพาะเมาส์ชี้"*)
@@ -155,7 +166,7 @@ await shot("06-ซ่อนช่องเบส.png");
 await c.click('.spk .s[aria-label="แสดงช่อง LFE"]'); await sleep(200);
 
 /* ---------- 4 ความถี่ · ชุด 5 รวมเข้าหน้าความถี่ ตรวจที่ส่วน 7 (11 พ.ย. 2569) ---------- */
-await c.click('[data-zoom="all"]').catch(() => {}); await sleep(300);
+await c.evaluate(`document.querySelector('[data-zoom="all"]').click()`).catch(() => {}); await sleep(300);
 
 /* ---------- 5 ความดัง ---------- */
 await view("loud");
@@ -174,7 +185,7 @@ await c.click("[data-table]");
 /* ---------- 7 วิเคราะห์ ---------- */
 await view("spek"); await sleep(600);
 const spekInk = await inked("[data-spek]");
-const vTone = await text("[data-spekverdict]");
+const vTone = await vtext();
 check("แบบวิเคราะห์ วาดความถี่พื้นดำ · ไฟล์เสียงโทนล้วน บอกว่าแทบไม่มีเสียงสูง ดูไม่ได้ว่าแปลงมาไหม ไม่หาว่าไฟล์ปลอม", spekInk > 0.02 && vTone.includes("แทบไม่มีเสียงสูง"), `จุดที่มีสี ${spekInk} · ${vTone}`);
 await shot("11-วิเคราะห์-ความร้อน.png");
 
@@ -244,14 +255,24 @@ await shot("17-ไฟล์เสียง-7.1.png");
 await openDrop(A("เพลง 96k 24-bit.flac"), "เพลง 96k 24-bit"); await plotReady();
 const info96 = await text("[data-graphinfo]");
 await view("spek"); await sleep(500);
-const v96 = await text("[data-spekverdict]");
+const v96 = await vtext();
 check("FLAC 96 kHz 24 บิต การ์ดบอก 96 kHz 24-bit · วิเคราะห์ไม่ขึ้นเตือนไฟล์ปลอม", info96.includes("96 kHz") && info96.includes("24-bit") && !v96.includes("แปลงมาจาก"), `${info96} · ${v96}`);
 await shot("18-FLAC-96k-ของจริง.png");
 
 await openDrop(A("FLAC แปลงจาก MP3.flac"), "FLAC แปลงจาก MP3"); await plotReady(); await sleep(500);
-const vFake = await text("[data-spekverdict]");
+const vFake = await vtext();
 check("FLAC ที่แปลงมาจาก MP3 ขึ้นเตือนว่าน่าจะแปลงมา คุณภาพไม่ได้ดีกว่าต้นทาง", vFake.includes("แปลงมาจาก MP3 หรือ AAC"), vFake);
 await shot("19-FLAC-ปลอม.png");
+
+// AUDIT ข้อ 2 · เดิม WavPack ที่แปลงจาก MP3 ขึ้นว่าไม่มีร่องรอยการตัด และ TTA ไม่ถูกตรวจ
+for (const [f, nm] of [["WavPack แปลงจาก MP3.wv", "WavPack"], ["TTA แปลงจาก MP3.tta", "TTA"]]) {
+  await openDrop(A(f), f.replace(/\.[^.]+$/, "")); await plotReady(); await sleep(500);
+  const v = await vtext();
+  check(`${nm} ที่แปลงมาจาก MP3 ขึ้นเตือนว่าน่าจะแปลงมา`, (await count("[data-spekverdict].warn")) === 1 && v.includes(`เป็นไฟล์ ${nm}`) && v.includes("แปลงมาจาก MP3 หรือ AAC") && !v.includes("ไม่มีร่องรอย"), v);
+}
+await openDrop(A("WavPack แปลงจาก MP3 320.wv"), "WavPack แปลงจาก MP3 320"); await plotReady(); await sleep(500);
+const v320 = await vtext();
+check("WavPack ขอบตัดตรงแต่สูงกว่าเกณฑ์ ไม่ขึ้นเตือน และไม่บอกว่าไม่มีร่องรอย", (await count("[data-spekverdict].warn")) === 0 && v320.includes("ขอบบนตัดตรงแต่อยู่สูง") && !v320.includes("ไม่มีร่องรอย"), v320);
 
 await openDrop(A("อัดใกล้ปลั๊ก มีเสียงฮัม.wav"), "อัดใกล้ปลั๊ก"); await plotReady();
 await view("psd");
@@ -385,24 +406,24 @@ if (existsSync(SONG)) {
   check("แถบซูมเวลา ลากขวาช่วงสั้นลง ซูมรอบกลางเดิม · ลากซ้ายสุดกลับทั้งเรื่อง · กดปุ่มซูมเข้าแล้วปุ่มบนแถบเลื่อนขวาตาม",
     sp(rh1) < sp(rh0) - 5 && Math.abs(mid(rh1) - mid(rh0)) <= 2 && allOn && rh2[0] === 0 && rh2[1] === 315 && kxIn > kxAll + 5,
     `${rh0.join("–")} → ${rh1.join("–")} วิ · ลากซ้ายสุด ${rh2.join("–")} ทั้งเรื่อง ${allOn} · ปุ่มบนแถบ ${Math.round(kxAll)} → ${Math.round(kxIn)}`);
-  await c.click("[data-zoomout]"); await sleep(300); await c.click('[data-zoom="all"]'); await c.click('[data-vz="1"]'); await q("document.querySelector('[data-style=aud]').click()"); await sleep(300);
+  await c.click("[data-zoomout]"); await sleep(300); await c.evaluate(`document.querySelector('[data-zoom="all"]').click()`); await c.click('[data-vz="1"]'); await q("document.querySelector('[data-style=aud]').click()"); await sleep(300);
   await view("loud");
   check("เพลงจริง ความดังรวม", /LUFS/.test(await text("[data-graphtiles]")), await text("[data-graphtiles]"));
   await shot("27-เพลงจริง-ความดัง.png");
   await view("spek"); await sleep(600);
-  const vSong = await text("[data-spekverdict]");
+  const vSong = await vtext();
   check("เพลงจริง FLAC วิเคราะห์ ไม่ขึ้นเตือนว่าแปลงมาจาก MP3", !vSong.includes("แปลงมาจาก MP3"), vSong);
   await shot("28-เพลงจริง-วิเคราะห์-FLAC.png");
   await openDrop(A("เพลงจริง MP3 320k.mp3"), "เพลงจริง MP3 320k"); await plotReady(); await sleep(600);
-  const vMp3 = await text("[data-spekverdict]");
+  const vMp3 = await vtext();
   check("เพลงจริง MP3 320k วิเคราะห์ บอกเสียงสูงสุด และว่าเป็นปกติของ MP3", vMp3.includes("ปกติตัวเข้ารหัส MP3"), vMp3);
   await shot("29-เพลงจริง-วิเคราะห์-MP3.png");
   await openDrop(A("เพลงจริง AAC 256k.m4a"), "เพลงจริง AAC 256k"); await plotReady(); await sleep(600);
-  const vAac = await text("[data-spekverdict]");
+  const vAac = await vtext();
   check("เพลงจริง AAC 256k เปิดได้ วิเคราะห์บอกว่าเป็นปกติของ AAC", vAac.includes("ปกติของ AAC") && (await text("[data-graphinfo]")).includes("AAC"), vAac);
   await shot("30-เพลงจริง-วิเคราะห์-AAC.png");
   await openDrop(A("เพลงจริง FLAC แปลงจาก MP3.flac"), "เพลงจริง FLAC แปลงจาก"); await plotReady(); await sleep(600);
-  const vSongFake = await text("[data-spekverdict]");
+  const vSongFake = await vtext();
   check("เพลงจริง FLAC ที่แปลงมาจาก MP3 128k ขึ้นเตือนว่าน่าจะแปลงมา", vSongFake.includes("แปลงมาจาก MP3 หรือ AAC"), vSongFake);
   await shot("31-เพลงจริง-FLAC-ปลอม.png");
   await view("psd");

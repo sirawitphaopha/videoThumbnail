@@ -166,9 +166,12 @@ pub fn to_trash(p: &Path) -> Result<(), String> {
     op.pFrom = from.as_ptr();
     op.fFlags = (FOF_ALLOWUNDO | FOF_NOCONFIRMATION | FOF_SILENT | FOF_NOERRORUI | FOF_WANTNUKEWARNING) as _;
     let r = unsafe { SHFileOperationW(&mut op) };
+    // ทุกไฟล์ที่โปรแกรมส่งลงถังขยะจดลงบันทึกการใช้งาน ทั้งสำเร็จและไม่สำเร็จ · ทางนี้ทางเดียวทั้งโปรแกรม
     if r != 0 || op.fAnyOperationsAborted != 0 || p.exists() {
+        crate::actlog::note("ส่งลงถังขยะไม่สำเร็จ", &format!("{} รหัส {r}", p.display()));
         return Err(format!("ส่งไฟล์เดิมลงถังขยะไม่สำเร็จ (รหัส {r})"));
     }
+    crate::actlog::note("ลงถังขยะ", &p.display().to_string());
     Ok(())
 }
 

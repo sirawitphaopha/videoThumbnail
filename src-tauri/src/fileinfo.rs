@@ -182,8 +182,9 @@ pub async fn hash_file(app: AppHandle, path: String, algos: Vec<String>) -> Resu
             // เดิมจดทับทุกครั้ง ไฟล์ที่เสียแล้วกลายเป็นค่าอ้างอิงใหม่ ตรวจแบบเร็วครั้งหน้าขึ้นสมบูรณ์ (ผู้ช่วยตรวจทั้งสองตัวเจอ)
             let lib = app.state::<Arc<crate::library::LibraryStore>>();
             let id = lib.movies.lock().unwrap().iter().find(|m| m.path.eq_ignore_ascii_case(&path)).map(|m| m.id.clone());
+            // เรื่องที่ตรวจเจอว่าเสียหาย ไม่จดค่า hash ของไฟล์ที่เสียเป็นค่าอ้างอิง (AUDIT 12 พ.ย. 2569 ข้อ 3)
             let remember = |m: &mut crate::library::Movie| match m.sha256.as_deref() {
-                None => m.sha256 = Some(sha.clone()),
+                None => { if m.status != "bad" { m.sha256 = Some(sha.clone()); } }
                 Some(old) if old.eq_ignore_ascii_case(sha) => {}
                 Some(_) => { if m.status != "bad" { m.status = "changed".into(); } }
             };

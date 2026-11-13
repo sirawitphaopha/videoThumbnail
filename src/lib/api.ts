@@ -178,6 +178,13 @@ export type EncodeStep = { tool: string; args: string[] };
 /** คำสั่งที่จะรันจริง · text แบบพิมพ์ใน Command Prompt ได้ */
 export type EncodePlan = { steps: EncodeStep[]; piped: boolean; text: string; note: string };
 export type EncoderInfo = { name: string; codecs: string; source: "bundled" | "user" | "missing"; version: string | null; ok: boolean; problem: string | null; dir: string; coreAudio: string | null };
+/** บันทึกการใช้งาน (actlog.rs) · ไฟล์ข้อความรายเดือนในเครื่อง จดงานที่เขียน ย้าย หรือลบไฟล์ */
+export type LogInfo = { dir: string; monthLines: number };
+export const logApi = {
+  info: () => call<LogInfo>("actlog_info"),
+  openDir: () => call<string>("actlog_open_dir"),
+};
+
 export const encodeApi = {
   preview: (spec: EncodeSpec, srcName: string, stream: number, channels: number | null, bits: number | null, rate: number | null) => call<EncodePlan>("encode_preview", { spec, srcName, stream, channels, bits, rate }),
   status: () => call<EncoderInfo[]>("encoders_status"),

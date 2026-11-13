@@ -46,7 +46,7 @@ await q(`[...document.querySelectorAll('${G} .plothead button')].find((x) => x.i
 await q(`document.querySelector('${G} [data-psdhzoom] [aria-label="ซูมแกนความถี่เข้า"]')?.click()`); await sleep(500);
 const rng = await q(`return document.querySelector('${G} [data-psdhzrange]')?.innerText`);
 check("ข้อ 16 ซูมแกนความถี่แล้วมีป้ายช่วงความถี่ที่เห็นอยู่", /–.+Hz/.test(rng ?? ""), rng);
-await q(`document.querySelector('${G} [data-psdhzoom] [data-zoom-reset]')?.click()`); await sleep(500);
+await q(`document.querySelector('${G} .plothead [data-zoom-reset]')?.click()`); await sleep(500);
 
 // ---------- ข้อ 19 21 ป้ายสีเส้นอยู่แถวบอกค่า ปุ่มเล็ก · ⓘ M S ----------
 await q(`document.querySelector('${G} [data-psdch=all]')?.click()`); await sleep(1800);

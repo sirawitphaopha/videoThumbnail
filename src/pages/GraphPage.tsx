@@ -24,6 +24,7 @@ import InfoTip from "../components/InfoTip";
 import FullBtn from "../components/FullBtn";
 import { PadCustom, hexRgb, hslRgb, rgbHsl, toHex } from "../components/ColorPick";
 import type { Tip } from "../lib/codecAdv";
+import { SPEK_RES_TIP } from "../lib/graphTips";
 import { IcSearch, IbStop, IcRefresh, IcGraph, IbSave, IcClose, IbTable, IbPlay } from "../components/icons";
 
 export type GraphReq = { path: string; t?: number };
@@ -79,6 +80,9 @@ const TH: Record<string, string> = { FL: "ซ้ายหน้า", FR: "ขว
 const NOTES = ["C", "C#", "D", "D#", "E", "F", "F#", "G", "G#", "A", "A#", "B"];
 const noteOf = (f: number) => { const n = Math.round(12 * Math.log2(f / 440)) + 57; return NOTES[((n % 12) + 12) % 12] + Math.floor(n / 12); };
 const WARN = <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" aria-hidden="true"><path d="M12 3l10 18H2z" /><path d="M12 10v5M12 18v.5" /></svg>;
+/** ไอคอนนำหน้ากล่องผลหน้าความถี่ ทุกกล่องมีไอคอนแนวเดียวกัน รูปไม่ซ้ำกับปุ่ม ⓘ (พี่กันทัก 13 พ.ย. 2569 "ขอเเนวเดียวกัน" · ก่อนหน้านี้ "เเล้วมันจะปุ่มเตือนเหมือนกันทำไม") */
+const OKI = <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M4 12.5l5 5L20 6.5" /></svg>;
+const ASK = <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" aria-hidden="true"><path d="M8.5 8.5a3.5 3.5 0 1 1 5.2 3.1c-1 .6-1.7 1.4-1.7 2.6v.8M12 19v.5" /></svg>;
 
 function tfmt(t: number) { t = Math.max(0, Math.round(t)); const h = Math.floor(t / 3600), m = Math.floor(t % 3600 / 60), s = t % 60; return h ? `${h}:${String(m).padStart(2, "0")}:${String(s).padStart(2, "0")}` : `${m}:${String(s).padStart(2, "0")}`; }
 /** เวลามีทศนิยมของวินาที เช่น 2:35.25 · d คือจำนวนหลักทศนิยม 0 ได้แบบ tfmt */
@@ -125,7 +129,6 @@ function TimeRuler({ t0, t1, left, right }: { t0: number; t1: number; left: numb
 }
 const minus = (s: string) => s.replace("-", "−");
 /** ข้อความหลายท่อนคั่นด้วย " · " แยกเป็นบรรทัด ตัดคำเฉพาะตรงเว้นวรรค ไม่ตัดกลางวลี (เคยตัด "MP3 | หรือ AAC" เจอตอนตรวจภาพ) */
-const lines = (s: string) => s.split(" · ").map((l) => <div key={l}><Phr>{l}</Phr></div>);
 /** ยอดหรือความดังเฉลี่ยของช่อง (dB) · ช่องที่เงียบทั้งไฟล์บอกว่าเงียบ ไม่ขึ้น −120.0 dB */
 const pkTxt = (v: number) => (v <= -119 ? "เงียบ" : minus(v.toFixed(1)) + " dB");
 const dbTxt = (v: number) => v <= 0.0001 ? "−∞" : minus((20 * Math.log10(v)).toFixed(1));
@@ -1131,16 +1134,26 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
   const seg = <T extends string | number>(opts: [T, React.ReactNode][], cur: T, set: (v: T) => void, attr: string) => (
     <div className="seg sm">{opts.map(([k, l]) => <button key={String(k)} type="button" className={cur === k ? "on" : ""} onClick={() => set(k)} {...{ [attr]: String(k) }}>{l}</button>)}</div>
   );
+  // เส้นเลื่อนกับปุ่มนาทีเป็นซูมตัวเดียวกัน คำว่าซูมอยู่หน้าสุดคลุมทั้งสองอย่าง เส้นแบ่งกั้นแค่ปุ่มรีเซ็ต
+  // (พี่กันสั่ง 13 พ.ย. 2569 "ขอเส้นแบ่งเหมือนด้านล่าด้วย" แล้วทัก "แบ่งถูกละเหรอ ทำไปเเยำคำว่าซูมออก" · "อันไหนคอือซูมกันเเน่นะ เส้นซูม หรือนาทีที่เห็น" หลังแคลร์วางเส้นแบ่งกั้นระหว่างเส้นเลื่อนกับคำว่าซูม)
+  const pickZoom = (v: string) => { setZoom(v === "all" ? "all" : Number(v)); setWin(null); };
   const zoomBox = (opts: [number | "all", string][], lbl: string) => (
-    <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    <span className="zoombox" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <span className="lbl">{lbl}</span>
       {lbl === "ซูม" && <span className="zbtns">
         <button type="button" className="zb" onClick={() => zoomBy(2)} disabled={zoom === "all"} aria-label="ซูมออก" title="ซูมออก (Ctrl หมุนล้อเมาส์ลง)" data-zoomout><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6" /></svg></button>
         <HZoom dur={dur} span={span} onSpan={setSpan} onBusy={grabBusy} />
         <button type="button" className="zb" onClick={() => zoomBy(0.5)} disabled={span <= HZ_MIN * 1.01} aria-label="ซูมเข้า" title="ซูมเข้า (Ctrl หมุนล้อเมาส์ขึ้น)" data-zoomin><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6M10.5 7.5v6" /></svg></button>
-        <button type="button" className="zb" aria-label="รีเซ็ตซูม" title="รีเซ็ต กลับทั้งไฟล์ ซูมแนวตั้ง 1 เท่า" data-zoom-reset onClick={() => { setZoom("all"); setWin(null); setVz(1); setSzRaw(1); setSb(0); setResetN((n) => n + 1); }}><IcRefresh size={15} /></button>
       </span>}
-      <span className="lbl">{lbl}</span>
-      {seg(opts.map(([k, l]) => [String(k), l] as [string, string]), String(zoom), (v) => { setZoom(v === "all" ? "all" : Number(v)); setWin(null); }, "data-zoom")}</span>
+      {/* หัวกราฟแคบ ปุ่มช่วงซูมเป็นดรอปดาวน์ สลับด้วย @container ใน app.css (พี่กันสั่ง 13 พ.ย. 2569 "ตัวนี้เปลี่ยนเป็นดรอปดาวด้วย ถ้าจอเล็ก")
+          ลากเส้นเลื่อนไปค่าที่ไม่ตรงปุ่มไหน ดรอปดาวน์ขึ้นความยาวช่วงที่ดูแบบเดียวกับเวลาบนหัวกราฟ */}
+      <span className="zseg">{seg(opts.map(([k, l]) => [String(k), l] as [string, string]), String(zoom), pickZoom, "data-zoom")}</span>
+      <span className="zdd" title={`ช่วงที่ดูยาว ${tfmtD(span, spanDigits(span))}`} data-zoomdd><Dropdown label={lbl === "ซูม" ? "ช่วงซูม" : lbl} value={String(zoom)} onChange={pickZoom}
+        options={opts.map(([k, l]) => ({ value: String(k), label: l }))} display={(o) => o?.label ?? tfmtD(span, spanDigits(span))} /></span>
+      {lbl === "ซูม" && <>
+        <span className="fsep" aria-hidden="true" />
+        <button type="button" className="zb" aria-label="รีเซ็ตซูม" title="รีเซ็ต กลับทั้งไฟล์ ซูมแนวตั้ง 1 เท่า" data-zoom-reset onClick={() => { setZoom("all"); setWin(null); setVz(1); setSzRaw(1); setSb(0); setResetN((n) => n + 1); }}><IcRefresh size={15} /></button>
+      </>}</span>
   );
   /** แถบเลื่อนซ้ายขวาใต้กราฟ แบบ Audacity · ก้อนกว้างตามช่วงที่ซูม ลากเพื่อเลื่อน กดที่แถบเพื่อกระโดด */
   const scroller = (left: number, right: number) => (
@@ -1254,11 +1267,25 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
   let plot: React.ReactNode = null;
   const hasLR = names.includes("FL") && names.includes("FR");
   const lrWhy = "ไฟล์นี้ไม่มีช่องซ้ายกับขวาแยกกัน";
+  const loudOpts: [typeof loudMode, string][] = [["mix", "รวมทุกช่อง"], ["FL", "L ซ้าย"], ["FR", "R ขวา"], ["lr", "เทียบซ้ายขวา"]];
+  // สลับช่องแบบค่อย ๆ เปลี่ยนด้วย View Transitions ของเบราว์เซอร์ ภาพเก่าจางออก ภาพใหม่ค่อย ๆ ขึ้น หัวกราฟกับแถบล่างเลื่อนไปที่ใหม่ (ชื่อใน app.css)
+  // ตั้งในเครื่องให้ลดการเคลื่อนไหว หรือเบราว์เซอร์ไม่รองรับ สลับทันทีแบบเดิม
+  // (พี่กันสั่ง 13 พ.ย. 2569 "หน้า ความดัน ตอนเราเปลี่ยนจากดูรวมทุกช่อง ไปดู L R ภาพมันแบบตัดไปอีกอันเลย เราขอ animation transition ลื่นๆที")
+  const switchLoud = (k: typeof loudMode) => {
+    if (k === loudMode) return;
+    const d = document as Document & { startViewTransition?: (cb: () => void) => unknown };
+    if (!d.startViewTransition || matchMedia("(prefers-reduced-motion: reduce)").matches) { setLoudMode(k); return; }
+    d.startViewTransition(() => flushSync(() => setLoudMode(k)));
+  };
+  // หัวกราฟแคบ ปุ่มเลือกช่องสี่ปุ่มเป็นดรอปดาวน์แบบเดียวกับปุ่มแบบกราฟของหน้ารูปคลื่น สลับด้วย @container ใน app.css
+  // (ใส่เส้นแบ่งในแถบซูมแล้วหัวกราฟหน้าความดังต้องการราว 906 จุด แต่ที่หน้าต่าง 1280 มี 800 จุด ปุ่มเลือกช่องไปซ้อนใต้แถบซูม เจอตอนตรวจภาพ 13 พ.ย. 2569)
   const loudBox = names.length > 1 ? (
-    <span style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><div className="seg sm" data-loudmode>{([["mix", "รวมทุกช่อง"], ["FL", "L ซ้าย"], ["FR", "R ขวา"], ["lr", "เทียบซ้ายขวา"]] as [typeof loudMode, string][]).map(([k, l]) => {
+    <span className="loudbox" style={{ display: "inline-flex", alignItems: "center", gap: 6, flex: "none" }}><div className="seg sm loud-seg" data-loudmode>{loudOpts.map(([k, l]) => {
       const off = k !== "mix" && !hasLR;
-      return <button key={k} type="button" className={loudMode === k ? "on" : ""} disabled={off} title={off ? lrWhy : k === "mix" ? "ความดังรวมทุกช่อง หน่วย LUFS" : k === "lr" ? "ซ้อนเทียบความดังเฉลี่ยซ้ายกับขวา หน่วย dB" : "ความดังเฉลี่ยของช่องนี้ หน่วย dB"} onClick={() => setLoudMode(k)} data-k={k}>{l}</button>;
-    })}</div><InfoTip title="หน่วยของความดัง" tip={LOUD_TIP} /></span>
+      return <button key={k} type="button" className={loudMode === k ? "on" : ""} disabled={off} title={off ? lrWhy : k === "mix" ? "ความดังรวมทุกช่อง หน่วย LUFS" : k === "lr" ? "ซ้อนเทียบความดังเฉลี่ยซ้ายกับขวา หน่วย dB" : "ความดังเฉลี่ยของช่องนี้ หน่วย dB"} onClick={() => switchLoud(k)} data-k={k}>{l}</button>;
+    })}</div>
+      <span className="loud-dd" title={hasLR ? undefined : lrWhy} data-loudmodedd><Dropdown label="ช่องที่ดู" value={loudMode} onChange={switchLoud} options={loudOpts.filter(([k]) => k === "mix" || hasLR).map(([value, label]) => ({ value, label }))} /></span>
+      <InfoTip title="หน่วยของความดัง" tip={LOUD_TIP} /></span>
   ) : null;
   const lanesView = view === "wave" || view === "spec";
   if (lanesView) {
@@ -1751,32 +1778,52 @@ function edgeOf(srcs: Uint8Array[], B: number, c0: number, c1: number, nyq: numb
   return { top: (tb + 1) / B * nyq, cliff: tb >= B - 3 ? 0 : avg(tb - w, tb) - avg(tb + 2, tb + 2 + w), full: tb >= B - 3 - w };
 }
 
-/** ตีความขอบบน · เกณฑ์ตามมอคอัปที่พี่กันผ่าน FLAC ต่ำกว่า 19.5 kHz · AC-3 กับ E-AC-3 ต่ำกว่า 19 kHz · AAC ต่ำกว่า 15.5 kHz · เพิ่มเงื่อนไขว่าต้องตัดเป็นหน้าผา */
-function spekVerdict(codec: string, rate: number, e: { top: number; cliff: number; full: boolean }) {
-  const LOSSLESS = ["FLAC", "PCM", "ALAC", "TrueHD", "DTS-HD MA", "WAVPACK"];
-  const LIMIT: Record<string, number> = { FLAC: 19500, PCM: 19500, ALAC: 19500, "AC-3": 19000, "E-AC-3": 19000, AAC: 15500 };
+/** ตีความขอบบน · เกณฑ์ตามมอคอัปที่พี่กันผ่าน FLAC ต่ำกว่า 19.5 kHz · AC-3 กับ E-AC-3 ต่ำกว่า 19 kHz · AAC ต่ำกว่า 15.5 kHz · เพิ่มเงื่อนไขว่าต้องตัดเป็นหน้าผา
+    ไฟล์ไม่บีบอัดทุกชนิดใช้เกณฑ์ 19.5 kHz แบบ FLAC · เดิมรู้จักแค่บางชื่อ WavPack TrueHD DTS-HD MA ที่แปลงจาก MP3 ขึ้นว่าไม่มีร่องรอย APE TAK TTA ไม่ถูกตรวจ (AUDIT 12 พ.ย. 2569 ข้อ 2)
+    ชื่อชนิดเสียงมาจาก probe.rs audio_name ชนิดที่ไม่มีชื่อเฉพาะเป็นชื่อ ffmpeg ตัวพิมพ์ใหญ่ เช่น WAVPACK APE TAK TTA MLP */
+function spekVerdict(codec: string, rate: number, e: { top: number; cliff: number; full: boolean }): { warn: boolean; b: string; d: string; s?: string; c?: string } {
+  const LOSSLESS = ["FLAC", "PCM", "ALAC", "TrueHD", "MLP", "DTS-HD MA", "WAVPACK", "APE", "TAK", "TTA"];
+  const SHOW: Record<string, string> = { WAVPACK: "WavPack", APE: "Monkey's Audio" };
+  const LOSSY_LIMIT: Record<string, number> = { "AC-3": 19000, "E-AC-3": 19000, AAC: 15500 };
+  const lossless = LOSSLESS.includes(codec), nm = SHOW[codec] ?? codec;
+  const limit = lossless ? 19500 : LOSSY_LIMIT[codec];
   const NORM: Record<string, string> = {
     FLAC: "FLAC ของจริงมีเสียงถึงราว 20–22 kHz", PCM: "ไฟล์ WAV ของจริงมีเสียงถึงราว 20 kHz ขึ้นไป", ALAC: "ALAC ของจริงมีเสียงถึงราว 20–22 kHz",
     "AC-3": "ปกติของ AC-3 มีเสียงถึงราว 19 kHz ขึ้นไป", "E-AC-3": "ปกติของ E-AC-3 มีเสียงถึงราว 19 kHz ขึ้นไป",
-    AAC: "ปกติของ AAC ตัดเสียงสูงตามบิตเรต บิตเรตต่ำตัดราว 16 kHz บิตเรตสูงเกือบเต็มช่วง",
-    MP3: "ปกติตัวเข้ารหัส MP3 ตัดเสียงสูงทิ้งเองตามบิตเรต ที่ 128 kb/s ตัดราว 17 kHz และที่ 320 kb/s ตัดราว 20 kHz", Opus: "ปกติของ Opus ตัดเสียงสูงที่ราว 20 kHz",
+    AAC: "ปกติของ AAC ตัดเสียงสูงตามบิตเรต โดยบิตเรตต่ำตัดราว 16 kHz และบิตเรตสูงได้เกือบเต็มช่วง",
+    MP3: "ปกติตัวเข้ารหัส MP3 ตัดเสียงสูงทิ้งเองตามบิตเรต โดยที่ 128 kb/s ตัดราว 17 kHz และที่ 320 kb/s ตัดราว 20 kHz", Opus: "ปกติของ Opus ตัดเสียงสูงที่ราว 20 kHz",
   };
-  const k = (e.top / 1000).toFixed(1), sharp = e.cliff > 25, lossless = LOSSLESS.includes(codec);
-  const how = "ดูได้จากขอบบนที่ตัดเป็นเส้นตรง";
-  if (e.top < 10000) return { warn: false, b: `เสียงสูงสุดราว ${k} kHz`, d: "ช่วงนี้แทบไม่มีเสียงสูง เช่น เสียงพูด เสียงทดสอบ หรือช่วงเงียบ จึงดูไม่ได้ว่าไฟล์แปลงมาไหม" };
-  if (sharp && LIMIT[codec] && e.top < LIMIT[codec]) return { warn: true, b: `เป็นไฟล์ ${codec} แต่เสียงหยุดที่ราว ${k} kHz`, d: `${NORM[codec]} ไฟล์นี้จึงน่าจะ${lossless ? "แปลงมาจาก MP3 หรือ AAC" : "แปลงต่อมาจากไฟล์ที่คุณภาพต่ำกว่า"} คุณภาพไม่ได้ดีกว่าไฟล์ต้นทาง ${how}` };
-  if (sharp && lossless && rate >= 88200 && e.top < 25000) return { warn: true, b: `ไฟล์ ${(rate / 1000).toLocaleString("en-US")} kHz แต่เสียงหยุดที่ราว ${k} kHz`, d: `ไฟล์ความละเอียดสูงที่อัดมาจริงมักมีเสียงเกิน 24 kHz ไฟล์นี้จึงน่าจะแปลงขึ้นมาจากไฟล์ 44.1 หรือ 48 kHz คุณภาพไม่ได้ดีกว่าไฟล์ต้นทาง ${how}` };
-  const b = `เสียงสูงสุดราว ${k} kHz`;
-  if (!lossless) return { warn: false, b, d: NORM[codec] ?? (e.full ? "มีเสียงเต็มช่วงถึงขอบบนของไฟล์" : "ดูจากขอบบนของความถี่ที่มีเสียง") };
-  if (e.top > 24500) return { warn: false, b, d: "มีเสียงสูงเกิน 24 kHz แบบไฟล์ความละเอียดสูงที่อัดมาจริง ไม่มีร่องรอยการตัดเสียงสูง" };
-  if (LIMIT[codec] && e.top < LIMIT[codec]) return { warn: false, b, d: "เสียงสูงค่อย ๆ เบาลงเอง ไม่ได้ตัดเป็นเส้นตรงแบบไฟล์ที่แปลงมาจาก MP3 น่าจะเป็นลักษณะของเสียงต้นฉบับ เช่น เพลงหรือหนังเก่า" };
-  return { warn: false, b, d: `${NORM[codec] ?? "ไฟล์ไม่บีบอัดของจริงมีเสียงถึงราว 20 kHz ขึ้นไป"} และไฟล์นี้ไม่มีร่องรอยการตัดเสียงสูง` };
+  const norm = NORM[codec] ?? (lossless ? `${nm} ของจริงมีเสียงถึงราว 20 kHz ขึ้นไป` : undefined);
+  const k = (e.top / 1000).toFixed(1), sharp = e.cliff > 25;
+  // คำอังกฤษตรงรอยต่อประโยคต้องมีคำเชื่อม ไม่เขียนต่อกันห้วน ๆ (พี่กันทัก 13 พ.ย. 2569 "ที่ ซึ่ง อัน ก็เสริมไป ไม่เอาคำภาษษอังกิดเขียนต่อกันถ้ามันคือวรรค")
+  const how = "ซึ่งดูได้จากขอบบนที่ตัดเป็นเส้นตรง";
+  // s = คำสั้นบนแถบล่าง บอกผลตรง ๆ ไม่มีตัวเลข · b กับ d = คำอธิบายเต็มในปุ่ม ⓘ
+  // (พี่กันทัก 13 พ.ย. 2569 "บอกแบบนี้จะรู้เรื่องไหมว่าปกติหรือไม่ ก็บอกว่าปกติสิ" · "จะเขียนหยุดที่ 16.8 ทำไม เรารู้เรื่องไหน")
+  // c = คำเชื่อมระหว่าง b กับ d ในปุ่ม ⓘ ให้อ่านเป็นประโยคเดียว (พี่กันทัก 13 พ.ย. 2569 "โดย wevpack ต้องเชื่อมแบบนี้สิ" · "ซึ่ง wave pack ใส่คำเชื่อมสิ")
+  if (e.top < 10000) return { warn: false, s: "ตรวจไม่ได้", c: "เพราะ", b: `เสียงสูงสุดราว ${k} kHz`, d: "ช่วงนี้แทบไม่มีเสียงสูง เช่น เสียงพูด เสียงทดสอบ หรือช่วงเงียบ จึงดูไม่ได้ว่าไฟล์แปลงมาไหม" };
+  if (sharp && limit && e.top < limit) return { warn: true, s: lossless ? "น่าจะแปลงมาจาก MP3" : "น่าจะแปลงมาจากไฟล์คุณภาพต่ำ", c: "โดย", b: `เป็นไฟล์ ${nm} แต่เสียงหยุดที่ราว ${k} kHz`, d: `${norm} ดังนั้นไฟล์นี้น่าจะ${lossless ? "แปลงมาจาก MP3 หรือ AAC" : "แปลงต่อมาจากไฟล์ที่คุณภาพต่ำกว่า"} และคุณภาพไม่ได้ดีกว่าไฟล์ต้นทาง ${how}` };
+  if (sharp && lossless && rate >= 88200 && e.top < 25000) return { warn: true, s: "ไม่ใช่ความละเอียดสูงจริง", c: "โดย", b: `ไฟล์ ${(rate / 1000).toLocaleString("en-US")} kHz แต่เสียงหยุดที่ราว ${k} kHz`, d: `ไฟล์ความละเอียดสูงที่อัดมาจริงมักมีเสียงเกิน 24 kHz ดังนั้นไฟล์นี้น่าจะแปลงขึ้นมาจากไฟล์ 44.1 หรือ 48 kHz และคุณภาพไม่ได้ดีกว่าไฟล์ต้นทาง ${how}` };
+  const b = `เสียงสูงสุดราว ${k} kHz`, s = "ปกติ";
+  if (!lossless) return { warn: false, s, c: "ซึ่ง", b, d: norm ?? (e.full ? "มีเสียงเต็มช่วงถึงขอบบนของไฟล์" : "ดูจากขอบบนของความถี่ที่มีเสียง") };
+  if (e.top > 24500) return { warn: false, s, c: "ซึ่ง", b, d: "มีเสียงสูงเกิน 24 kHz แบบไฟล์ความละเอียดสูงที่อัดมาจริง จึงไม่มีร่องรอยการตัดเสียงสูง" };
+  if (e.top < 19500) return { warn: false, s, c: "ซึ่ง", b, d: "เสียงสูงค่อย ๆ เบาลงเอง ไม่ได้ตัดเป็นเส้นตรงแบบไฟล์ที่แปลงมาจาก MP3 จึงน่าจะเป็นลักษณะของเสียงต้นฉบับ เช่น เพลงหรือหนังเก่า" };
+  // ขอบตัดเป็นเส้นตรงแต่สูงพอ ตัวกรองตอนอัดหรือแปลงอัตราสุ่มก็ตัดแบบนี้ MP3 บิตเรตสูงก็ตัดราว 20 kHz จึงห้ามบอกว่าไม่มีร่องรอย
+  if (sharp && !e.full) return { warn: false, s: "บอกแน่ไม่ได้", c: "โดย", b, d: "ขอบบนตัดตรงแต่อยู่สูง อาจเป็นตัวกรองตอนอัดเสียง หรือแปลงมาจาก MP3 บิตเรตสูงก็ได้" };
+  return { warn: false, s, c: "ซึ่ง", b, d: `${norm} และไฟล์นี้ไม่มีร่องรอยการตัดเสียงสูง` };
 }
 /** ป้ายความถี่บนแกน · ต่ำกว่า 1 kHz เป็น Hz */
 const hzTxt = (f: number) => (f >= 1000 ? `${+(f / 1000).toFixed(f >= 10000 ? 0 : 1)} kHz` : `${Math.round(f)} Hz`);
 const SPEK_LOG_MIN = 20;
-const SPEK_AXIS_TIP: Tip = { w: "แบบเส้นตรงแบ่งความถี่เท่า ๆ กันแบบโปรแกรม Spek เห็นย่านเสียงสูงชัด ใช้ดูว่าไฟล์ถูกตัดเสียงสูงไหม ส่วนแบบล็อกขยายย่านเสียงต่ำให้กว้างขึ้นแบบหูคน เห็นเส้นเสียงร้องและโน้ตดนตรีชัด" };
-const SPEK_RES_TIP: Tip = { w: "แบบละเอียดอ่านเสียงช่วงที่ดูใหม่ทุกครั้งที่ซูม เห็นรายละเอียดคม ส่วนแบบภาพรวมใช้ข้อมูลชุดเดียวกับรูปคลื่นที่อ่านไว้แล้ว จึงขึ้นทันทีแต่หยาบกว่าเมื่อซูมลึก ตั้งค่าตั้งต้นได้ที่หน้าตั้งค่า" };
+/** แกนความถี่ บอกความหมายของ Linear กับ Log พร้อมตัวอย่างตัวเลข (พี่กันทัก 13 พ.ย. 2569 "คำอธิบายไม่ได้บอกความหายของ เสนตรง กับ ล็อก เลย" · ปุ่มใช้คำอังกฤษ "อันไหนคำอังกิด ไม่ต้อแปล") */
+const SPEK_AXIS_TIP: Tip = {
+  w: "แกนความถี่คือแกนตั้งของกราฟ เสียงต่ำอยู่ล่างและเสียงสูงอยู่บน ส่วนสองแบบนี้ต่างกันที่การแบ่งระยะบนแกน",
+  o: [
+    ["Linear", "แบ่งระยะเท่ากันทุก Hz เช่น ช่วง 0 ถึง 1 kHz สูงเท่ากับช่วง 20 ถึง 21 kHz แบบเดียวกับโปรแกรม Spek", "เห็นย่านเสียงสูงชัด ใช้ดูว่าไฟล์ถูกตัดเสียงสูงไหม", "เสียงต่ำ เสียงร้อง และเบส เบียดกันอยู่ขอบล่างนิดเดียว"],
+    ["Log", "ย่อมาจาก Logarithm ทุกครั้งที่ความถี่เพิ่มเป็นสองเท่าจะได้ระยะเท่ากัน เช่น ช่วง 100 ถึง 200 Hz สูงเท่ากับช่วง 1 ถึง 2 kHz ซึ่งตรงกับที่หูคนได้ยิน", "เห็นเบส เสียงร้อง และโน้ตดนตรีชัด", "ย่านเสียงสูงถูกบีบ ดูรอยตัดเสียงสูงยากกว่า"],
+  ],
+  r: "ดูว่าไฟล์แปลงมาไหมใช้ Linear ส่วนดูเสียงร้องหรือเบสใช้ Log",
+};
+// SPEK_RES_TIP (ละเอียด กับ ภาพรวม) อยู่ lib/graphTips.ts หน้าตั้งค่าใช้ด้วย
 
 function SpekView({ onBusy, held, resetN, tools, light, onPanT, scroller, ov, win, track, fileName, names, t0, t1, zoomBox, scmap, th, audioOnly, play, save, exportRef, plotRef, at, axis, setAxis, res, setRes }: CommonProps & { onBusy: (on: boolean) => void; held: GWindow | null; resetN: number; tools?: React.ReactNode; light: boolean; onPanT: (center: number) => void; ov: GOverview; win: GWindow | null; track: GTrack | undefined; fileName: string; names: string[]; t0: number; t1: number; zoomBox: React.ReactNode; scmap: Prefs["scmap"]; setScmap: (v: Prefs["scmap"]) => void; th: Theme; audioOnly: boolean; play: () => void; at: number; axis: "lin" | "log"; setAxis: (v: "lin" | "log") => void; res: "fine" | "coarse"; setRes: (v: "fine" | "coarse") => void }) {
   // ช่องที่ดู −1 รวมทุกช่อง · −2 แสดงทุกช่องเรียงลงมา · ตัวเลขคือช่องเดียว (BUGS ข้อ 14 พี่กัน "ถ้ามันมีหลาย ch ก็เรียงกันลงมาเลย")
@@ -1909,6 +1956,34 @@ function SpekView({ onBusy, held, resetN, tools, light, onPanT, scroller, ov, wi
     return { x: hov.x, y: hov.y, top: SPK.T, height: cv.clientHeight - SPK.T - SPK.B, bandTop: b.y, t, f, db, ch: bands.length > 1 ? label(names, names[bands[k][0]]).code : "" };
   })();
   const verdict = spekVerdict(track?.codec ?? "", rate, edge);
+  // คำอธิบายเต็มในปุ่ม ⓘ ต่อหัวเรื่องกับเนื้อความด้วยคำเชื่อม อ่านเป็นประโยคเดียว · หน้าคำอังกฤษเว้นวรรคหนึ่งช่อง
+  const vFull = `${verdict.b} ${verdict.c ?? "โดย"}${/^[A-Za-z]/.test(verdict.d) ? " " : ""}${verdict.d}`;
+  // คำสั้นของผลตรวจแสดงเมื่อแถบล่างมีที่พอ ไม่พอ (เช่นไฟล์หนังที่มีปุ่มเปิดเล่นเพิ่ม) ซ่อนคำ เหลือไอคอนสีกับปุ่ม ⓘ แถบล่างบรรทัดเดียวเสมอ
+  // วัดที่ว่างจริงทุกครั้งที่แถบหรือปุ่มเปลี่ยนขนาด · คำที่ซ่อนยังอยู่ในหน้าแบบมองไม่เห็น จึงวัดความกว้างได้ ไม่สลับไปมา
+  const footRef = useRef<HTMLDivElement>(null);
+  const [tight, setTight] = useState(false);
+  useLayoutEffect(() => {
+    const foot = footRef.current;
+    if (!foot) return;
+    const fit = () => {
+      const chip = foot.querySelector<HTMLElement>("[data-spekverdict]");
+      const word = chip?.querySelector<HTMLElement>(":scope > b");
+      const rest = foot.children[1] as HTMLElement | undefined;
+      if (!chip || !word || !rest) return;
+      const cs = getComputedStyle(foot), chipGap = parseFloat(getComputedStyle(chip).columnGap) || 0;
+      const room = foot.clientWidth - parseFloat(cs.paddingLeft) - parseFloat(cs.paddingRight) - rest.getBoundingClientRect().width - (parseFloat(cs.columnGap) || 0);
+      const wordW = word.getBoundingClientRect().width;
+      const hidden = word.classList.contains("hid");
+      const need = chip.getBoundingClientRect().width + (hidden ? wordW + chipGap : 0);
+      const next = need > room + 0.5;
+      if (next !== hidden) setTight(next);
+    };
+    fit();
+    const ro = new ResizeObserver(fit);
+    ro.observe(foot);
+    if (foot.children[1]) ro.observe(foot.children[1]);
+    return () => ro.disconnect();
+  }, [verdict.s, verdict.b]);
   const chOpts: [string, string][] = [["-1", "รวมทุกช่อง"], ...names.map((c, i) => [String(i), `${label(names, c).code} ${label(names, c).th}`] as [string, string]), ...(names.length > 1 ? [["-2", "แสดงทุกช่อง"] as [string, string]] : [])];
   const segBox = <T extends string>(opts: [T, React.ReactNode][], v: T, on: (x: T) => void, data: string) => <div className="seg" {...{ [data]: "" }}>{opts.map(([k, l]) => <button key={k} type="button" className={v === k ? "on" : ""} onClick={() => on(k)} data-k={k}>{l}</button>)}</div>;
   return (
@@ -1934,14 +2009,23 @@ function SpekView({ onBusy, held, resetN, tools, light, onPanT, scroller, ov, wi
         <FZoom value={fz} onChange={setFz} />
       </div>
       {scroller?.(0, 0)}
-      <div className="agfoot">
-        {verdict.warn
-        ? <div className="stat warn" title={verdict.b + " " + verdict.d} data-spekverdict data-cliff={Math.round(edge.cliff)}>{WARN}<div><b><Phr>{verdict.b}</Phr></b>{lines(verdict.d)}</div></div>
-        : <div className="stat info" title={verdict.b + " " + verdict.d} data-spekverdict data-cliff={Math.round(edge.cliff)}><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5v.5" /></svg><div><b><Phr>{verdict.b}</Phr></b>{lines(verdict.d)}</div></div>}
+      <div className="agfoot" ref={footRef}>
+        {/* ผลตรวจในแถบล่างเขียนสั้นบรรทัดเดียว กดปุ่ม ⓘ อ่านเพิ่มเติม · แถบล่างสูงเท่าเดิมทุกไฟล์
+            เดิมข้อความเต็มตัดบรรทัดในกล่อง กล่องสูงหลายบรรทัดดันแถบล่างให้ใหญ่ (พี่กันทัก 13 พ.ย. 2569 "มาสร้างกรอบคำเตือนที่ทำให้กรอบล่างมันใหญ่ทำไม" · "ก็เขียนคำย่อ เเล้วให้กดอ่านเพิ่มเติมเองสิ") */}
+        {/* สี เตือนสีเหลือง ปกติสีเขียวแบบป้ายสมบูรณ์ ตรวจไม่ได้กับบอกแน่ไม่ได้สีกลาง */}
+        <div className={"stat " + (verdict.warn ? "warn" : verdict.s === "ปกติ" ? "ok" : "info")} title={vFull} data-spekverdict data-full={vFull} data-cliff={Math.round(edge.cliff)}>
+          {/* ทุกกล่องมีไอคอนนำหน้า เตือนสามเหลี่ยม ปกติติ๊กถูก ตรวจไม่ได้กับบอกแน่ไม่ได้เครื่องหมายคำถาม · เดิมผลปกติใช้วงกลม i เหมือนปุ่ม ⓘ เห็นสองอันติดกัน */}
+          {verdict.warn ? WARN : verdict.s === "ปกติ" ? OKI : ASK}
+          <b className={tight ? "hid" : undefined} aria-hidden={tight || undefined}>{verdict.s ?? verdict.b}</b>
+          <InfoTip title={verdict.warn ? "ทำไมน่าจะแปลงมา" : "ผลตรวจขอบบนของเสียง"} tip={{ w: vFull }} />
+        </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {/* ละเอียด กับ ภาพรวม · แกนเส้นตรงกับล็อก (BUGS ข้อ 14 พี่กัน "เพิ่มอีกตัวเลือก คือแสดงแบบหยาบ" · "เอ้ย งี้ได้ด้วยเหรอ เอาด้วยสิ") */}
+          {/* เส้นแบ่งระหว่างกลุ่มปุ่ม (พี่กันสั่ง 13 พ.ย. 2569 "ขอเส้นแบ่งเเยกปุ่มที") */}
           {segBox<"fine" | "coarse">([["fine", "ละเอียด"], ["coarse", "ภาพรวม"]], res, setRes, "data-spekres")}<InfoTip title="ละเอียด กับ ภาพรวม" tip={SPEK_RES_TIP} />
-          <span className="lbl">แกน</span>{segBox<"lin" | "log">([["lin", "เส้นตรง"], ["log", "ล็อก"]], axis, setAxis, "data-spekaxis")}<InfoTip title="แกนความถี่" tip={SPEK_AXIS_TIP} />
+          <span className="fsep" aria-hidden="true" />
+          <span className="lbl">แกน</span>{segBox<"lin" | "log">([["lin", "Linear"], ["log", "Log"]], axis, setAxis, "data-spekaxis")}<InfoTip title="แกนความถี่" tip={SPEK_AXIS_TIP} />
+          <span className="fsep" aria-hidden="true" />
           {!audioOnly && <button type="button" className="btn btn-ghost btn-sm" onClick={play}><IbPlay size={15} /><span>เปิดเล่นที่ <FixedTime t={tfmt(at)} longest={tfmt(ov.duration)} /></span></button>}<SaveBtn onClick={save} /></div></div>
     </div>
   );
@@ -1950,10 +2034,20 @@ function SpekView({ onBusy, held, resetN, tools, light, onPanT, scroller, ov, wi
 /* ---------- ความถี่เฉลี่ย (แบบ Plot Spectrum ของ Audacity) ---------- */
 const PSM = { L: 52, R: 18, T: 14, B: 30 };
 /** หน่วยของหน้าความดัง (BUGS ข้อ 24) */
-const LOUD_TIP: Tip = { w: "แบบรวมทุกช่องใช้หน่วย LUFS ซึ่งเป็นความดังที่หูได้ยินตามมาตรฐานเดียวกับ Spotify และ YouTube ค่ายิ่งติดลบยิ่งเบา ส่วนแบบ L R และเทียบซ้ายขวาใช้ dB ความดังเฉลี่ย (RMS) ของแต่ละช่อง เห็นว่าข้างไหนดังกว่ากัน" };
+/** แยกความหมายเป็นหัวข้อละแบบ (พี่กันทัก 13 พ.ย. 2569 "แบ่งความหมายสองออันนี้ด้วย" ที่กล่องละเอียดกับภาพรวม แคลร์ไล่แก้กล่องแบบเดียวกันในหน้านี้) */
+const LOUD_TIP: Tip = {
+  w: "หน่วยของตัวเลขความดังขึ้นกับแบบที่เลือก",
+  o: [
+    ["รวมทุกช่อง", "ใช้หน่วย LUFS ซึ่งเป็นความดังที่หูได้ยินตามมาตรฐานเดียวกับ Spotify และ YouTube โดยค่ายิ่งติดลบยิ่งเบา", "เทียบความดังกับเพลงหรือหนังเรื่องอื่นได้", ""],
+    ["L R และเทียบซ้ายขวา", "ใช้หน่วย dB ซึ่งเป็นความดังเฉลี่ย (RMS) ของแต่ละช่อง", "เห็นว่าข้างไหนดังกว่ากัน", ""],
+  ],
+};
 /** คำอธิบาย ⓘ ของหน้าความถี่เฉลี่ย (BUGS ข้อ 21 22) */
 const MS_TIP: Tip = { w: "M (Mid) คือเสียงกลาง ได้จากซ้ายบวกขวา เป็นส่วนที่สองข้างเหมือนกัน เช่นเสียงร้อง เบส และกลอง ส่วน S (Side) คือเสียงข้าง ได้จากซ้ายลบขวา เป็นส่วนที่สองข้างต่างกัน เช่นเสียงก้องและเครื่องดนตรีที่แยกข้าง วิธีอ่านคือ ถ้า S ต่ำกว่า M มาก เนื้อเพลงอยู่ตรงกลาง ถ้า S เกือบเท่า M เพลงกว้าง ถ้า S แทบเป็นศูนย์ เสียงเกือบเป็นโมโน และเสียงเบสควรอยู่ใน M" };
-const PSD_TIPS: Record<string, Tip> = { axis: { w: "แบบล็อกให้เสียงต่ำได้ที่กว้าง ตรงกับที่หูได้ยิน เห็นเบสกับเสียงร้องชัด ส่วนแบบเส้นตรงแบ่งเท่ากันทุก Hz เหมาะดูเสียงสูงหรือจุดที่ถูกตัด" }, size: { w: "ตัวเลขยิ่งมากยิ่งแยกความถี่ที่ใกล้กันได้ เห็นยอดแคบชัด แต่เส้นหยักมากขึ้นและคิดนานขึ้น ค่า 4,096 พอสำหรับดูทั่วไป และ 16,384 ใช้หาเสียงหึ่งหรือโน้ตที่ชิดกัน" }, range: { w: "ความสูงของแกนตั้ง นับลงจากจุดที่ดังสุด ค่า 60 dB เห็นรายละเอียดส่วนที่ดัง และ 120 dB เห็นถึงเสียงเบามาก เช่นเสียงรบกวนพื้นหลัง" }, grid: { w: "เส้นช่วยอ่านค่า แนวนอนทุก 6 dB และแนวตั้งตามความถี่ ปิดแล้วกราฟโล่ง เหมาะบันทึกเป็นรูป" }, fill: { w: "ระบายสีใต้เส้นให้เห็นเป็นพื้น ถ้ามีเส้นเดียวอ่านง่าย แต่ถ้าหลายเส้นซ้อนกันสีจะผสมจนขุ่น ปิดไว้อ่านง่ายกว่า" } };
+const PSD_TIPS: Record<string, Tip> = { axis: { w: "แกนความถี่คือแกนนอนของกราฟ เสียงต่ำอยู่ซ้ายและเสียงสูงอยู่ขวา ส่วนสองแบบนี้ต่างกันที่การแบ่งระยะบนแกน", o: [
+    ["Log", "ย่อมาจาก Logarithm ทุกครั้งที่ความถี่เพิ่มเป็นสองเท่าจะได้ระยะเท่ากัน เช่น ช่วง 100 ถึง 200 Hz กว้างเท่ากับช่วง 1 ถึง 2 kHz ซึ่งตรงกับที่หูคนได้ยิน", "เห็นเบสกับเสียงร้องชัด", "ย่านเสียงสูงถูกบีบ"],
+    ["Linear", "แบ่งระยะเท่ากันทุก Hz เช่น ช่วง 0 ถึง 1 kHz กว้างเท่ากับช่วง 20 ถึง 21 kHz", "เหมาะดูเสียงสูงหรือจุดที่ถูกตัด", "เสียงต่ำเบียดอยู่ขอบซ้ายนิดเดียว"],
+  ], r: "ดูทั่วไปใช้ Log ส่วนดูเสียงสูงหรือรอยตัดใช้ Linear" }, size: { w: "ตัวเลขยิ่งมากยิ่งแยกความถี่ที่ใกล้กันได้ เห็นยอดแคบชัด แต่เส้นหยักมากขึ้นและคิดนานขึ้น ค่า 4,096 พอสำหรับดูทั่วไป และ 16,384 ใช้หาเสียงหึ่งหรือโน้ตที่ชิดกัน" }, range: { w: "ความสูงของแกนตั้ง นับลงจากจุดที่ดังสุด ค่า 60 dB เห็นรายละเอียดส่วนที่ดัง และ 120 dB เห็นถึงเสียงเบามาก เช่นเสียงรบกวนพื้นหลัง" }, grid: { w: "เส้นช่วยอ่านค่า แนวนอนทุก 6 dB และแนวตั้งตามความถี่ ปิดแล้วกราฟโล่ง เหมาะบันทึกเป็นรูป" }, fill: { w: "ระบายสีใต้เส้นให้เห็นเป็นพื้น ถ้ามีเส้นเดียวอ่านง่าย แต่ถ้าหลายเส้นซ้อนกันสีจะผสมจนขุ่น ปิดไว้อ่านง่ายกว่า" } };
 /** ซูมแกนความถี่ได้สูงสุดกี่เท่า */
 const PSD_HZ_MAX = 32;
 /** ค่าบนเส้นโค้งผ่าน 4 จุดที่ตำแหน่ง 0 1 2 3 (พหุนามลากรานจ์ดีกรีสาม) · x คือตำแหน่งระหว่าง 0 ถึง 3 */
@@ -2212,13 +2306,16 @@ function PsdView({ filePath, onReset, resetN, scroller, psd, names, psdCh, setPs
   const khz = (x: number) => (x >= 1000 ? `${+(x / 1000).toFixed(x >= 10000 ? 0 : 1)}k` : `${Math.round(x)}`);
   const hzoomBox = (
     <span className="zbtns" data-psdhzoom>
+      <span className="lbl">ซูม</span>
       <span className={"lbl" + (hr.z > 1.01 ? "" : " all")} data-psdhzrange title="ช่วงความถี่ที่เห็นอยู่บนแกนนอน">{hr.z > 1.01 ? `${khz(fL)}–${khz(fR)} Hz` : "ทุกความถี่"}</span>
       <button type="button" className="zb" onClick={() => setHz(hr.z / 2)} disabled={hr.z <= 1} aria-label="ซูมแกนความถี่ออก" title="ซูมออก (Ctrl หมุนล้อเมาส์ลง)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6" /></svg></button>
       <HZoom dur={hrSpan} span={hrSpan / hr.z} onSpan={(sp) => setHz(hrSpan / sp)} name="ซูมแกนความถี่" text={`ซูมแกนความถี่ ${hr.z.toFixed(1)} เท่า`} />
       <button type="button" className="zb" onClick={() => setHz(hr.z * 2)} disabled={hr.z >= PSD_HZ_MAX} aria-label="ซูมแกนความถี่เข้า" title="ซูมเข้า (Ctrl หมุนล้อเมาส์ขึ้น)"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6M10.5 7.5v6" /></svg></button>
-      <button type="button" className="zb" aria-label="รีเซ็ตซูม" title="รีเซ็ต กลับทั้งไฟล์ ซูมแนวตั้งกับแนวนอน 1 เท่า" data-zoom-reset onClick={onReset}><IcRefresh size={15} /></button>
     </span>
   );
+  // แถวขวาของหัวกราฟเรียงแบบเดียวกับมุมมองอื่น คำว่าซูมนำหน้าเส้นเลื่อน เส้นแบ่งกั้นกลุ่ม ปุ่มรีเซ็ตท้ายสุด
+  // (เดิมไม่มีคำว่าซูมและเส้นแบ่ง ปุ่มรีเซ็ตอยู่กลางแถว เจอตอนไล่หัวกราฟทุกมุมมองหลังพี่กันทักเรื่องแบ่งกลุ่ม 13 พ.ย. 2569)
+  const resetBtn = <button type="button" className="zb" aria-label="รีเซ็ตซูม" title="รีเซ็ต กลับทั้งไฟล์ ซูมแนวตั้งกับแนวนอน 1 เท่า" data-zoom-reset onClick={onReset}><IcRefresh size={15} /></button>;
   const opts: [string, string][] = names.length === 1 ? [["mix", label(names, names[0]).code]] : [["mix", "รวมทุกช่อง"], ...(names.includes("FR") ? [["FL", label(names, "FL").code], ["FR", label(names, "FR").code], ["lr", "เทียบซ้ายขวา"]] as [string, string][] : []), ["all", "ซ้อนทุกช่อง"]];
   return (
     <div className="plot" data-plot ref={plotRef as React.RefObject<HTMLDivElement>}>
@@ -2227,7 +2324,7 @@ function PsdView({ filePath, onReset, resetN, scroller, psd, names, psdCh, setPs
       <div className="plothead"><span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}><b>ความถี่เฉลี่ย</b>
         <span className="psdch-seg"><div className="seg sm">{opts.map(([k, l]) => <button key={k} type="button" className={psdCh === k ? "on" : ""} onClick={() => setPsdCh(k)} data-psdch={k}>{l}</button>)}</div></span>
         <span className="psdch-dd" data-psdchdd><Dropdown label="ช่องที่ดู" value={psdCh} onChange={setPsdCh} options={opts.map(([value, l]) => ({ value, label: l }))} /></span></span>
-        <span style={{ display: "flex", alignItems: "center", gap: 10, rowGap: 6, flexWrap: "wrap", justifyContent: "flex-end", minWidth: 0 }}>{hzoomBox}{zoomBox}</span></div>
+        <span style={{ display: "flex", alignItems: "center", gap: 10, rowGap: 6, flexWrap: "wrap", justifyContent: "flex-end", minWidth: 0 }}>{hzoomBox}<span className="fsep" aria-hidden="true" />{zoomBox}<span className="fsep" aria-hidden="true" />{resetBtn}</span></div>
       <Overview ov={ov} th={th} t0={t0} t1={t1} onPick={onPick} left={52} caption={t1 - t0 >= ov.duration - 0.01 ? `เฉลี่ยทั้งไฟล์ ${tfmt(ov.duration)}` : `ช่วงที่เอามาเฉลี่ย ${tfmtD(t0, spanDigits(t1 - t0))} ถึง ${tfmtD(t1, spanDigits(t1 - t0))}`} />
       {scroller?.(52, 0)}
       </div>
@@ -2270,7 +2367,7 @@ function PsdView({ filePath, onReset, resetN, scroller, psd, names, psdCh, setPs
       {/* แต่ละตัวเลือกจับคู่กับปุ่ม ⓘ ของมัน ตกบรรทัดแล้วไม่แยกกัน (เจอตอนตรวจภาพ ⓘ ของเส้นตารางหลุดไปต้นบรรทัดใหม่) */}
       <div className="agfoot"><div className="psdopts" style={{ display: "flex", alignItems: "center", columnGap: 14, rowGap: 6, flexWrap: "wrap" }}>
         <span className="psdopt"><span className="lbl">แกนความถี่</span><InfoTip title="แกนความถี่" tip={PSD_TIPS.axis} />
-        <div className="seg sm"><button type="button" className={psdLog ? "on" : ""} onClick={() => setPsdLog(true)} data-psdaxis="log">แบบล็อก</button><button type="button" className={!psdLog ? "on" : ""} onClick={() => setPsdLog(false)} data-psdaxis="lin">เส้นตรง</button></div></span>
+        <div className="seg sm"><button type="button" className={psdLog ? "on" : ""} onClick={() => setPsdLog(true)} data-psdaxis="log">Log</button><button type="button" className={!psdLog ? "on" : ""} onClick={() => setPsdLog(false)} data-psdaxis="lin">Linear</button></div></span>
         <span className="psdopt"><span data-psdsize title="ยิ่งมากยิ่งแยกความถี่ละเอียด แต่ช้าลง"><Dropdown label="ความละเอียด" value={String(psdSize)} onChange={(v) => setPsdSize(Number(v))}
           options={[1024, 4096, 16384].map((n) => ({ value: String(n), label: `ความละเอียด ${n.toLocaleString("en-US")}` }))} /></span><InfoTip title="ความละเอียด" tip={PSD_TIPS.size} /></span>
         <span className="psdopt"><span className="lbl">ช่วง</span>
@@ -2701,16 +2798,22 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
   } else {
     const OV = S.map((s) => s.ov!);
     const others = files.map((_, i) => i).slice(1);
+    // แถบซูมเรียงแบบเดียวกับหน้าไฟล์เดียว คำว่าซูมนำหน้า เส้นแบ่งกั้นปุ่มรีเซ็ต หัวกราฟแคบปุ่มช่วงซูมเป็นดรอปดาวน์
+    // (พี่กันทัก 13 พ.ย. 2569 "แบ่งถูกละเหรอ ทำไปเเยำคำว่าซูมออก" · "ตัวนี้เปลี่ยนเป็นดรอปดาวด้วย ถ้าจอเล็ก" · หน้าเทียบมีแถบของตัวเองแยก เจอตอนไล่ทุกหน้า)
+    const pickCmpZoom = (v: string) => { const k: number | "all" = v === "all" ? "all" : Number(v); setZoom(k); if (k !== "all" && zoom === "all") setCenter(Math.min(dur / 2, 60)); };
     const zoomBar = (
-      <span style={{ display: "flex", alignItems: "center", gap: 8 }}>
+      <span className="zoombox" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+        <span className="lbl">ซูม</span>
         <span className="zbtns">
           <button type="button" className="zb" onClick={() => setSpan(span * 2)} disabled={zoom === "all"} aria-label="ซูมออก" title="ซูมออก (Ctrl หมุนล้อเมาส์ลง)" data-zoomout><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6" /></svg></button>
           <HZoom dur={dur} span={span} onSpan={setSpan} />
           <button type="button" className="zb" onClick={() => setSpan(span / 2)} disabled={span <= HZ_MIN} aria-label="ซูมเข้า" title="ซูมเข้า (Ctrl หมุนล้อเมาส์ขึ้น)" data-zoomin><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6M10.5 7.5v6" /></svg></button>
-          <button type="button" className="zb" onClick={zoomReset} aria-label="รีเซ็ตซูม" title="รีเซ็ต กลับทั้งไฟล์ ซูมแนวตั้ง 1 เท่า" data-zoom-reset><IcRefresh size={15} /></button>
         </span>
-        <span className="lbl">ซูม</span>
-        <div className="seg sm">{ZOOMS.map(([k, l]) => <button key={String(k)} type="button" className={String(zoom) === String(k) ? "on" : ""} onClick={() => { setZoom(k); if (k !== "all" && zoom === "all") setCenter(Math.min(dur / 2, 60)); }} data-cmpzoom={String(k)}>{l}</button>)}</div></span>
+        <span className="zseg"><div className="seg sm">{ZOOMS.map(([k, l]) => <button key={String(k)} type="button" className={String(zoom) === String(k) ? "on" : ""} onClick={() => pickCmpZoom(String(k))} data-cmpzoom={String(k)}>{l}</button>)}</div></span>
+        <span className="zdd" title={`ช่วงที่ดูยาว ${tfmtD(span, spanDigits(span))}`} data-zoomdd><Dropdown label="ช่วงซูม" value={String(zoom)} onChange={pickCmpZoom}
+          options={ZOOMS.map(([k, l]) => ({ value: String(k), label: l }))} display={(o) => o?.label ?? tfmtD(span, spanDigits(span))} /></span>
+        <span className="fsep" aria-hidden="true" />
+        <button type="button" className="zb" onClick={zoomReset} aria-label="รีเซ็ตซูม" title="รีเซ็ต กลับทั้งไฟล์ ซูมแนวตั้ง 1 เท่า" data-zoom-reset><IcRefresh size={15} /></button></span>
     );
     const foot = (lg: React.ReactNode) => (
       <div className="agfoot"><div className="lg">{lg}</div>
@@ -2808,7 +2911,9 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
       body = (
         <div className="plot cmpplot" data-plot ref={plotRef} data-cmpview="cmp">
           <div className="plothead"><span style={{ display: "flex", alignItems: "center", gap: 10 }}><b>ซ้อนเทียบ</b>
-            <div className="seg sm">{common.map((c) => <button key={c} type="button" className={cmpUse === c ? "on" : ""} onClick={() => setCmpCh(c)} data-cmpch={c}>{label(NM[0], c).code} {label(NM[0], c).th.split(" ")[0]}</button>)}</div></span>{zoomBar}</div>
+            <span className="psdch-seg"><div className="seg sm">{common.map((c) => <button key={c} type="button" className={cmpUse === c ? "on" : ""} onClick={() => setCmpCh(c)} data-cmpch={c}>{label(NM[0], c).code} {label(NM[0], c).th.split(" ")[0]}</button>)}</div></span>
+            {/* หัวกราฟแคบ ปุ่มช่องเป็นดรอปดาวน์ ไฟล์ 5.1 7.1 มีหกถึงแปดปุ่ม (พี่กันสั่ง 13 พ.ย. 2569 "ตัวนี้เปลี่ยนเป็นดรอปดาวด้วย ถ้าจอเล็ก") */}
+            <span className="psdch-dd" data-cmpchdd><Dropdown label="ช่องที่ดู" value={cmpUse} onChange={setCmpCh} options={common.map((c) => ({ value: c, label: `${label(NM[0], c).code} ${label(NM[0], c).th.split(" ")[0]}` }))} /></span></span>{zoomBar}</div>
           <div style={{ flex: "1 0 120px", display: "flex", gap: 8, minHeight: 0 }} onWheel={vrCmp.wheel}>
             <div style={{ position: "relative", flex: 1, minWidth: 0, display: "flex" }}>
               <CmpChart key="cmp" vr={vrCmp} grab={cmpGrab} fill height={120} deps={[filesKey, t0, t1, cmpUse, hiC]} lo={-48} hi={0} step={12} unit="dB" series={(w) => OV.map((o, i) => [rmsDb(o, idx[i], t0, t1, w, hiC[files[i]]), FILE_C[i]] as [Float32Array, string])} />
@@ -2843,12 +2948,16 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
       );
     } else {
       const ok = psd && psd.key === psdKey;
+      const cmpPsdOpts: [string, string][] = [["mix", "รวมทุกช่อง"], ...common.filter((c) => c !== "LFE").slice(0, 6).map((c) => [c, label(NM[0], c).code] as [string, string])];
       body = (
         <div className="plot cmpplot" data-plot ref={plotRef} data-cmpview="psd">
+          {/* หัวกราฟแคบ ปุ่มช่องกับปุ่มช่วงที่เลือกเป็นดรอปดาวน์แบบหน้าความถี่เฉลี่ยของไฟล์เดียว (พี่กันสั่ง 13 พ.ย. 2569 "ตัวนี้เปลี่ยนเป็นดรอปดาวด้วย ถ้าจอเล็ก") */}
           <div className="plothead"><span style={{ display: "flex", alignItems: "center", gap: 10 }}><b>ความถี่เฉลี่ย</b>
-            <div className="seg sm">{[["mix", "รวมทุกช่อง"], ...common.filter((c) => c !== "LFE").slice(0, 6).map((c) => [c, label(NM[0], c).code])].map(([k, l2]) => <button key={k} type="button" className={psdCh === k ? "on" : ""} onClick={() => setPsdCh(k)} data-cmppsdch={k}>{l2}</button>)}</div></span>
-            <span style={{ display: "flex", alignItems: "center", gap: 8 }}><span className="lbl">ช่วงที่เลือก</span>
-              <div className="seg sm">{PSD_SPANS.map(([k, l2]) => <button key={String(k)} type="button" className={String(psdSpan) === String(k) ? "on" : ""} onClick={() => setPsdSpan(k)} data-cmppsdspan={String(k)}>{l2}</button>)}</div></span></div>
+            <span className="psdch-seg"><div className="seg sm">{cmpPsdOpts.map(([k, l2]) => <button key={k} type="button" className={psdCh === k ? "on" : ""} onClick={() => setPsdCh(k)} data-cmppsdch={k}>{l2}</button>)}</div></span>
+            <span className="psdch-dd" data-cmppsdchdd><Dropdown label="ช่องที่ดู" value={psdCh} onChange={setPsdCh} options={cmpPsdOpts.map(([value, label]) => ({ value, label }))} /></span></span>
+            <span className="zoombox" style={{ display: "flex", alignItems: "center", gap: 8 }}><span className="lbl">ช่วงที่เลือก</span>
+              <span className="zseg"><div className="seg sm">{PSD_SPANS.map(([k, l2]) => <button key={String(k)} type="button" className={String(psdSpan) === String(k) ? "on" : ""} onClick={() => setPsdSpan(k)} data-cmppsdspan={String(k)}>{l2}</button>)}</div></span>
+              <span className="zdd" data-cmppsdspandd><Dropdown label="ช่วงที่เลือก" value={String(psdSpan)} onChange={(v) => setPsdSpan(v === "all" ? "all" : Number(v))} options={PSD_SPANS.map(([k, l2]) => ({ value: String(k), label: l2 }))} /></span></span></div>
           {ok ? <PsdCmp list={psd.list} maxNyq={maxNyq} f={psdF} setF={setPsdF} vr={vrPsd} hr={hrPsd} grab={cmpGrab} onReset={() => { setPsdSpan("all"); zoomReset(); }} /> : <div className="skel" style={{ height: 300, borderRadius: 8 }} data-cmppsdwait />}
           <div className="small" style={{ marginTop: 4 }}>{psdSpan === "all" ? `ทั้งไฟล์ ${tfmt(dur)}` : `${tfmt(psdT[0])} ถึง ${tfmt(psdT[1])} รอบกลางช่วงที่ดู`} คิดทีละไฟล์ตามลำดับ{ok ? ` และ${n === 2 ? "ทั้งสองไฟล์" : allTxt}ใช้ช่องความถี่กว้าง ${(psd.list[0].rate / psd.list[0].size).toFixed(1)} Hz เท่ากัน จึงเทียบกันได้ตรง` : ""}</div>
           {foot(null)}

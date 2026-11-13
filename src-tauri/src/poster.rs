@@ -460,6 +460,24 @@ pub async fn poster_apply(app: AppHandle, req: ApplyReq) -> Result<ApplyResult, 
     }).await.map_err(|e| fail("other", "ใส่โปสเตอร์ไม่สำเร็จ", vec![e.to_string()]))?
 }
 
+/// ส่งออกเป็น MP4 ได้ไหม · คืนหัวเรื่องกับรายละเอียดเมื่อไม่ได้ · แทร็กที่ใส่ไม่ได้ต้องได้รับอนุญาตให้ทิ้งก่อน
+/// ทิ้งแทร็กแล้วไฟล์ใหม่ไม่เหลือภาพก็ไม่ได้ · เดิมหน้าต่างเตือนทิ้งแทร็กภาพที่ใส่ MP4 ไม่ได้ไปด้วย ได้ MP4 ที่มีแต่เสียงแต่ขึ้นตรวจผ่าน (AUDIT 12 พ.ย. 2569 ข้อ 7)
+fn mp4_refusal(src: &[StreamInfo], drop: &[u64]) -> Option<(String, Vec<String>)> {
+    if let Some(v) = src.iter().find(|s| s.kind == "video") {
+        if !src.iter().any(|s| s.kind == "video" && !drop.contains(&s.index)) {
+            return Some(("ส่งออกเป็น MP4 ไม่ได้".into(), vec![v.why.clone().unwrap_or_default(), "ไฟล์ใหม่จะไม่มีภาพ ใช้ MKV แทน".into()]));
+        }
+    }
+    let bad: Vec<&StreamInfo> = src.iter().filter(|s| s.mp4 == "no" && !drop.contains(&s.index)).collect();
+    if let Some(v) = bad.iter().find(|s| s.kind == "video") {
+        return Some(("ส่งออกเป็น MP4 ไม่ได้".into(), vec![v.why.clone().unwrap_or_default(), "ใช้ MKV แทน".into()]));
+    }
+    if !bad.is_empty() {
+        return Some((format!("มีแทร็กที่ใส่ใน MP4 ไม่ได้ {} อัน", bad.len()), vec![]));
+    }
+    None
+}
+
 fn apply(app: &AppHandle, req: &ApplyReq, jobs: &Arc<crate::jobs::Jobs>) -> Result<ApplyResult, ApplyProblem> {
     let st = app.state::<PosterState>();
     let d = dirs(app).map_err(|e| fail("other", "ใส่โปสเตอร์ไม่สำเร็จ", vec![e]))?;
@@ -514,12 +532,9 @@ fn apply(app: &AppHandle, req: &ApplyReq, jobs: &Arc<crate::jobs::Jobs>) -> Resu
 
     // MP4 · แทร็กที่ใส่ไม่ได้ต้องได้รับอนุญาตให้ทิ้งก่อน
     if mode == "mp4" {
-        let bad: Vec<&StreamInfo> = src_streams.iter().filter(|s| s.mp4 == "no" && !req.drop.contains(&s.index)).collect();
-        if let Some(v) = bad.iter().find(|s| s.kind == "video") {
-            return Err(fail("mp4", "ส่งออกเป็น MP4 ไม่ได้", vec![v.why.clone().unwrap_or_default(), "ใช้ MKV แทน".into(), untouched]));
-        }
-        if !bad.is_empty() {
-            return Err(fail("mp4", format!("มีแทร็กที่ใส่ใน MP4 ไม่ได้ {} อัน", bad.len()), vec![untouched]));
+        if let Some((title, mut detail)) = mp4_refusal(&src_streams, &req.drop) {
+            detail.push(untouched);
+            return Err(fail("mp4", title, detail));
         }
     }
 
@@ -853,6 +868,22 @@ mod name_tests {
         assert_eq!(kind("..\\ออกนอกโฟลเดอร์"), Some("chars"));
         assert_eq!(kind("CON"), Some("reserved"));
         assert_eq!(kind("ท้ายจุด."), Some("trailing"));
+    }
+
+    /// AUDIT 12 พ.ย. 2569 ข้อ 7 · ทิ้งแทร็กภาพที่ใส่ MP4 ไม่ได้แล้วไฟล์ใหม่ไม่เหลือภาพ ต้องปฏิเสธ · ทิ้งเสียงหรือซับที่ใส่ไม่ได้ยังทำต่อได้
+    #[test]
+    fn mp4_never_drops_all_video() {
+        let st = |index: u64, kind: &str, mp4: &str| StreamInfo { index, kind: kind.into(), codec: "x".into(), lang: None, mp4: mp4.into(), why: Some(format!("แทร็ก {index}")) };
+        let src = vec![st(0, "video", "no"), st(1, "audio", "ok"), st(2, "subtitle", "no")];
+        assert!(mp4_refusal(&src, &[]).is_some_and(|(t, _)| t == "ส่งออกเป็น MP4 ไม่ได้"), "ภาพใส่ไม่ได้ ห้ามส่งออก");
+        let (t, d) = mp4_refusal(&src, &[0, 2]).expect("ทิ้งภาพแล้วไม่เหลือภาพ ต้องปฏิเสธ");
+        assert_eq!(t, "ส่งออกเป็น MP4 ไม่ได้");
+        assert!(d.iter().any(|x| x.contains("ไม่มีภาพ")), "{d:?}");
+        let ok = vec![st(0, "video", "ok"), st(1, "audio", "ok"), st(2, "subtitle", "no")];
+        assert!(mp4_refusal(&ok, &[]).is_some(), "ซับที่ใส่ไม่ได้ต้องได้รับอนุญาตก่อน");
+        assert_eq!(mp4_refusal(&ok, &[2]), None, "ทิ้งซับที่ใส่ไม่ได้แล้วทำต่อได้");
+        let audio_only = vec![st(0, "audio", "ok")];
+        assert_eq!(mp4_refusal(&audio_only, &[]), None, "ไฟล์เสียงล้วนไม่มีภาพมาแต่แรก ไม่เกี่ยว");
     }
 
     #[test]

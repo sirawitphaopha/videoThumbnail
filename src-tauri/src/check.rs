@@ -550,6 +550,25 @@ fn now() -> i64 {
     SystemTime::now().duration_since(UNIX_EPOCH).map(|d| d.as_secs() as i64).unwrap_or(0)
 }
 
+/// ขนาดไฟล์กับเวลาแก้ไฟล์ตอนตรวจ จดลงผลตรวจ ไว้ดูว่าไฟล์ยังเป็นไฟล์เดิมไหม
+fn file_mark(path: &Path) -> (u64, i64) {
+    std::fs::metadata(path).map(|md| (md.len(), md.modified().ok().and_then(|t| t.duration_since(UNIX_EPOCH).ok()).map(|d| d.as_secs() as i64).unwrap_or(0))).unwrap_or((0, 0))
+}
+
+/// ตรวจแบบเร็วรอบนี้ไม่เจอที่เสีย แต่ตรวจละเอียดครั้งก่อนเจอที่เสีย และไฟล์ยังเป็นไฟล์เดิม ต้องคงผลเสียหายไว้
+/// ตรวจแบบเร็วดูแค่โครงไฟล์กับค่า hash มองไม่เห็นภาพแตก · เดิมทับผลเสียหายเป็นสมบูรณ์สีเขียว (AUDIT 12 พ.ย. 2569 ข้อ 3)
+/// ไฟล์เดิม = ขนาดกับเวลาแก้ไฟล์เท่าตอนตรวจละเอียด · ผลตรวจรุ่นเก่าที่ไม่ได้จดไว้ ถือว่าเป็นไฟล์เดิม (คงผลเสียหาย ตรวจละเอียดซ้ำเพื่อล้าง)
+/// ผลเปลี่ยนได้เมื่อไฟล์ถูกแทนด้วยไฟล์ใหม่ หรือตรวจละเอียดแล้วผ่าน
+pub fn keep_deep_bad(prev_status: &str, prev: Option<&Value>, mode: &str, result: &str, mark: (u64, i64)) -> bool {
+    if mode != "quick" || result == "bad" || prev_status != "bad" { return false; }
+    let Some(p) = prev else { return false };
+    if p["mode"].as_str() != Some("full") || p["result"].as_str() != Some("bad") { return false; }
+    match (p["fileSize"].as_u64(), p["fileMtime"].as_i64()) {
+        (Some(size), Some(mtime)) => size == mark.0 && mtime == mark.1,
+        _ => true,
+    }
+}
+
 #[derive(Serialize, Clone)]
 #[serde(rename_all = "camelCase")]
 struct CheckProgress {
@@ -668,18 +687,24 @@ fn run_batch(app: &AppHandle, lib: &LibraryStore, tools: &Path, ids: &[String], 
             }
             Err(e) => fail(&mut r, e),
             Ok(Some(o)) => {
-                let info = json!({ "at": now(), "mode": mode, "result": o.result, "summary": o.summary, "spans": o.spans });
-                let updated = lib.update_movie(id, |x| {
-                    x.status = o.result.into();
-                    x.check = Some(info);
-                    if let Some(h) = &o.sha256 {
-                        x.sha256 = Some(h.clone());
+                let mark = file_mark(&path);
+                // ไฟล์เดิมที่ตรวจละเอียดเจอที่เสียไว้ ตรวจแบบเร็วไม่ทับผลนั้น คงสถานะ ข้อความ และช่วงที่เสียไว้ทั้งหมด
+                let keep = keep_deep_bad(&m.status, m.check.as_ref(), mode, o.result, mark);
+                let result = if keep { "bad" } else { o.result };
+                if !keep {
+                    let info = json!({ "at": now(), "mode": mode, "result": o.result, "summary": o.summary, "spans": o.spans, "fileSize": mark.0, "fileMtime": mark.1 });
+                    let updated = lib.update_movie(id, |x| {
+                        x.status = o.result.into();
+                        x.check = Some(info);
+                        if let Some(h) = &o.sha256 {
+                            x.sha256 = Some(h.clone());
+                        }
+                    });
+                    if let Some(u) = updated {
+                        let _ = app.emit("movie-updated", &u);
                     }
-                });
-                if let Some(u) = updated {
-                    let _ = app.emit("movie-updated", &u);
                 }
-                match o.result { "ok" => r.ok += 1, "bad" => r.bad += 1, _ => r.changed += 1 }
+                match result { "ok" => r.ok += 1, "bad" => r.bad += 1, _ => r.changed += 1 }
                 r.done += 1;
                 dirty = true;
                 let _ = app.emit("check-item", CheckItem { id: id.clone(), error: None });
@@ -782,6 +807,29 @@ mod tests {
 
     fn tools() -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tools")
+    }
+
+    /// AUDIT 12 พ.ย. 2569 ข้อ 3 · ตรวจแบบเร็วห้ามทับผลเสียหายของตรวจละเอียด ถ้าไฟล์ยังเป็นไฟล์เดิม
+    #[test]
+    fn quick_keeps_deep_bad_on_same_file() {
+        let deep_bad = json!({ "mode": "full", "result": "bad", "spans": [[1800, 1802]], "fileSize": 1000, "fileMtime": 50 });
+        // ไฟล์เดิม ตรวจแบบเร็วผ่านหรือขึ้นค่า hash ไม่ตรง ต้องคงผลเสียหาย
+        assert!(keep_deep_bad("bad", Some(&deep_bad), "quick", "ok", (1000, 50)));
+        assert!(keep_deep_bad("bad", Some(&deep_bad), "quick", "changed", (1000, 50)));
+        // ไฟล์ถูกแทนด้วยไฟล์ใหม่ ขนาดหรือเวลาแก้ไฟล์เปลี่ยน ใช้ผลใหม่
+        assert!(!keep_deep_bad("bad", Some(&deep_bad), "quick", "ok", (1001, 50)));
+        assert!(!keep_deep_bad("bad", Some(&deep_bad), "quick", "ok", (1000, 51)));
+        // ตรวจละเอียดซ้ำแล้วผ่าน ใช้ผลใหม่เสมอ
+        assert!(!keep_deep_bad("bad", Some(&deep_bad), "full", "ok", (1000, 50)));
+        // ผลเสียหายจากตรวจแบบเร็ว (โครงไฟล์เสีย) ตรวจแบบเร็วรอบใหม่ทับได้ตามเดิม
+        let quick_bad = json!({ "mode": "quick", "result": "bad", "fileSize": 1000, "fileMtime": 50 });
+        assert!(!keep_deep_bad("bad", Some(&quick_bad), "quick", "ok", (1000, 50)));
+        // เรื่องที่ไม่ได้ขึ้นเสียหายอยู่ ไม่เกี่ยว
+        assert!(!keep_deep_bad("ok", Some(&deep_bad), "quick", "ok", (1000, 50)));
+        // ผลตรวจรุ่นเก่าที่ไม่ได้จดขนาดไฟล์ ถือว่าเป็นไฟล์เดิม คงผลเสียหาย
+        let old = json!({ "mode": "full", "result": "bad", "spans": [] });
+        assert!(keep_deep_bad("bad", Some(&old), "quick", "ok", (1000, 50)));
+        assert!(!keep_deep_bad("bad", None, "quick", "ok", (1000, 50)));
     }
 
     /// ไฟล์ทดสอบ · ไม่มีไฟล์ = เทสล้มพร้อมบอกวิธีสร้าง · ตั้ง MOVIE_SHELF_SKIP_MEDIA=1 ถ้าตั้งใจข้าม

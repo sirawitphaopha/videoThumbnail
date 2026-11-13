@@ -1092,6 +1092,29 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 /* กลุ่มปุ่มซูมไม่หดต่ำกว่าปุ่มครบสามปุ่มกับแถบซูม 64 จุด ไม่งั้นปุ่มรีเซ็ตมุดใต้คำว่า ซูม (เจอตอนตรวจภาพ BUGS ข้อ 12) */
 .plothead .zbtns .zb { flex: none; }
 .plothead .hzoom { flex: 0 1 200px; width: 200px; min-width: 60px; }
+/* หน้าความดังมีปุ่มเลือกช่องอยู่แถวเดียวกับแถบซูม · หัวกราฟแคบกว่า 1,120 จุด ปุ่มสี่ปุ่มเป็นดรอปดาวน์ และแถบเลื่อนซูมสั้นเหลือ 88 จุด
+   (ใส่เส้นแบ่งแล้วหัวกราฟต้องการราว 906 จุด ที่หน้าต่าง 1280 มี 800 จุด ปุ่มเลือกช่องซ้อนใต้แถบซูม เจอตอนตรวจภาพ 13 พ.ย. 2569) */
+.plothead .loud-dd { display: none; flex: none; }
+/* ปุ่มช่วงซูม (ทั้งไฟล์ 10 นาที 4 นาที 30 วินาที) หัวกราฟแคบเป็นดรอปดาวน์เหมือนกัน (พี่กันสั่ง 13 พ.ย. 2569 "ตัวนี้เปลี่ยนเป็นดรอปดาวด้วย ถ้าจอเล็ก") */
+.zseg { display: flex; flex: none; }
+.zdd { display: none; flex: none; }
+@container (max-width: 1120px) {
+  .plothead .loud-seg { display: none; }
+  .plothead .loud-dd { display: flex; }
+  .plothead .zseg { display: none; }
+  .plothead .zdd { display: flex; }
+}
+.plothead .fsep { margin: 0; }
+/* สลับช่องหน้าความดังแบบค่อย ๆ เปลี่ยน (switchLoud ใน GraphPage.tsx ใช้ View Transitions) · หัวกราฟกับแถบล่างมีชื่อ จึงเลื่อนไปที่ใหม่แบบลื่น ส่วนอื่นจางข้ามกัน
+   (พี่กันสั่ง 13 พ.ย. 2569 "ภาพมันแบบตัดไปอีกอันเลย เราขอ animation transition ลื่นๆที") */
+/* ตั้งชื่อชิ้นข้างในหัวกราฟ ไม่ตั้งที่ตัวหัวกราฟ เพราะหัวกราฟสองโหมดสูงไม่เท่ากัน (32 กับ 46) ภาพกลางทางจะซ้อนเหลื่อม · ชิ้นข้างในอยู่แนวซ้ายเดียวกันและกว้างเท่ากัน จึงเลื่อนขึ้นตรง ๆ */
+.ag[data-graphview="loud"]:not([data-compare]) .agb > .plot .plothead > :first-child { view-transition-name: loud-title; }
+.ag[data-graphview="loud"]:not([data-compare]) .agb > .plot .plothead .loudbox { view-transition-name: loud-mode; }
+.ag[data-graphview="loud"]:not([data-compare]) .agb > .plot .plothead .zoombox { view-transition-name: loud-zoom; }
+.ag[data-graphview="loud"]:not([data-compare]) .agb > .plot .agfoot { view-transition-name: loud-foot; }
+::view-transition-group(*), ::view-transition-old(*), ::view-transition-new(*) { animation-duration: .32s; animation-timing-function: cubic-bezier(.2, .7, .2, 1); }
+/* คำว่า ซูม หน้าแถบซูมไม่โดนบีบ (เดิมโดนบีบเหลือ 16 จุดในหน้าความดัง) */
+.plothead .zoombox > .lbl { flex: none; }
 /* หน้าต่างแคบ ไม่พอวางแถบซูมเวลา เหลือปุ่มแว่นขยายกับรีเซ็ต ชื่อกราฟหดแทน ไม่ทับกัน */
 @media (max-width: 1100px) {
   .plothead .hzoom { display: none; }
@@ -1102,8 +1125,19 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 }
 /* แถวคำอธิบายกับปุ่มท้ายกราฟตรึงล่างสุดทุกมุมมอง (พี่กันสั่ง 8 พ.ย. 2569 "ตรึงไว้ล่างสุดให้หมด พวกนี้") */
 .ag[data-graphview] .agb > .plot .agfoot { position: sticky; bottom: -12px; z-index: 5; background: #fff; margin: auto -18px -12px -12px; padding: 8px 18px 12px 12px; border-top: 1px solid var(--line); }
-/* ผลตรวจในกราฟเป็นแถบเล็ก ข้อความยาวตัดบรรทัดได้ ไม่ตัดท้ายเป็นจุดสามจุด (เครื่องหมายที่ห้ามใช้บนจอ 11 พ.ย. 2569 เดิมบรรทัดเดียวแล้วตัดท้าย) */
+/* ผลตรวจในกราฟเป็นแถบเล็ก ไม่ตัดท้ายเป็นจุดสามจุด (เครื่องหมายที่ห้ามใช้บนจอ 11 พ.ย. 2569) */
 [data-spekverdict], [data-psdverdict] { margin-top: 0 !important; flex: 0 1 auto; min-width: 0; padding: 4px 9px; gap: 6px; align-items: center; border-radius: 7px; font-size: 12.5px; line-height: 1.4; }
+/* หน้าความถี่ หัวข้อสั้นบรรทัดเดียวกับปุ่ม ⓘ แถบล่างไม่สูงขึ้นตามข้อความ (พี่กันทัก 13 พ.ย. 2569 "ก็เขียนคำย่อ เเล้วให้กดอ่านเพิ่มเติมเองสิ") */
+[data-spekverdict] { flex: none; white-space: nowrap; position: relative; }
+[data-spekverdict] > b { font-weight: 700; }
+/* ปุ่ม ⓘ ในกล่องอยู่แนวเดียวกับตัวหนังสือ · กล่องจัดกลางตามกรอบบรรทัด แต่ตัวไทยอยู่สูงกว่ากลางกรอบ ปุ่มจึงดูต่ำไปราว 2 px (พี่กันทัก 13 พ.ย. 2569 "ขอเเนวเดียวกัน") */
+[data-spekverdict] > .infob, [data-spekverdict] > svg { position: relative; top: -2px; }
+/* ปุ่ม ⓘ ในกล่องผลใช้สีเดียวกับกล่อง เขียวในกล่องปกติ เหลืองในกล่องเตือน · เดิมเป็นชมพูของปุ่ม ⓘ ทั่วไป ขัดกับกล่องเขียว (พี่กันทัก 13 พ.ย. 2569 "สีมันดูตรงกันข้ามไหม ปุ่มอ่านหมายเหตุ") */
+[data-spekverdict] > .infob { color: currentColor; opacity: .8; }
+[data-spekverdict] > .infob:hover { opacity: 1; color: currentColor; background-color: color-mix(in srgb, currentColor 14%, transparent); }
+[data-spekverdict] > .infob[aria-expanded="true"] { opacity: 1; color: currentColor; background-color: color-mix(in srgb, currentColor 22%, transparent); }
+/* แถบล่างที่ไม่พอ ซ่อนคำ เหลือไอคอนสีกับปุ่ม ⓘ · ยังวางอยู่ในหน้าแบบมองไม่เห็น ตัววัดอ่านความกว้างได้ */
+[data-spekverdict] > b.hid { position: absolute; visibility: hidden; pointer-events: none; }
 [data-psdverdict] { margin-top: 8px !important; }
 [data-spekverdict] svg, [data-psdverdict] svg { width: 14px; height: 14px; flex: none; }
 [data-spekverdict] > div, [data-psdverdict] > div { display: block; min-width: 0; }
@@ -1111,6 +1145,9 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 [data-spekverdict] > div b, [data-psdverdict] > div b { margin-right: 6px; }
 [data-spekverdict] br, [data-psdverdict] br { display: none; }
 .agfoot { flex-wrap: nowrap; }
+/* เส้นแบ่งกลุ่มปุ่มในแถบล่าง (พี่กันสั่ง 13 พ.ย. 2569 "ขอเส้นแบ่งเเยกปุ่มที") */
+/* ใช้ทั้งแถบล่างและแถบซูมด้านบนของหน้ากราฟเสียง (พี่กันสั่ง "ขอเส้นแบ่งเหมือนด้านล่าด้วย") · ชื่อคลาสค้นแล้วไม่ชนหน้าอื่น */
+.ag .fsep { width: 1px; height: 22px; background: var(--line); flex: none; margin: 0 2px; align-self: center; }
 .agfoot > :last-child { flex: none; }
 /* เวลาบนปุ่ม กันที่ไว้เท่าเวลายาวสุด ปุ่มไม่หดขยาย (พี่กันสั่ง 9 พ.ย. 2569) */
 .tfix { display: inline-grid; font-variant-numeric: tabular-nums; text-align: left; }
@@ -1335,7 +1372,10 @@ canvas.spekpan.dragging { cursor: grabbing; }
 /* ไอคอนกับข้อความในแถบผลตรวจเว้นช่อง (พี่กันทัก "วรรคหน่อย") */
 .psdchecks .stat { gap: 8px; }
 /* หัวการ์ดความถี่เฉลี่ยแคบ ซ่อนป้ายช่วงความถี่ตอนยังไม่ซูม แถบซูมสั้นลง ไม่ล้น */
-@container (max-width: 900px) { .plothead [data-psdhzrange].all { display: none; } .plothead [data-psdhzoom] .hzoom { width: 96px; min-width: 96px; flex: none; } }
+/* ปุ่มช่วงที่เลือกเป็นดรอปดาวน์แล้วมีที่พอ แถบซูมยาว 130 จุดเท่ามุมมองอื่น (เดิมบีบเหลือ 96 · 13 พ.ย. 2569) */
+@container (max-width: 900px) { .plothead [data-psdhzrange].all { display: none; } }
+.plothead [data-psdhzoom] { gap: 4px; align-items: center; }
+.plothead [data-psdhzoom] > .lbl { flex: none; margin-right: 4px; }
 /* ผลตรวจที่ไม่พบอะไร บรรทัดเดียวพอดีข้อความ ไม่เต็มแถว */
 .psdchecks { align-items: flex-start; }
 .psdchecks .stat.slim { padding: 5px 10px; font-size: 13px; }

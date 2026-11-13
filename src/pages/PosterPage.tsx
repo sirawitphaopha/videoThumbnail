@@ -515,19 +515,20 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
 
       {big && <ImageViewer src={big.src} thumb={big.src} originRect={big.rect} info={{ name: big.name }} onClose={() => setBig(null)} />}
       {/* แทร็กที่ใส่ใน MP4 ไม่ได้ · ทำต่อแล้วแทร็กที่ใส่ไม่ได้ถูกทิ้ง ซับ ASS เหลือตัวหนังสือล้วน · มาจากปุ่มเริ่มแล้วเริ่มงานต่อเลย (BUGS ข้อ 57) */}
-      <Dialog open={!!askMp4 && mp4Bad.length > 0} onClose={() => setAskMp4(null)} width={520} title="บางแทร็กใส่ใน MP4 ไม่ได้เต็มที่"
+      {/* ภาพใส่ MP4 ไม่ได้ ทิ้งภาพไม่ได้ เหลือปุ่มกลับไปใช้ MKV อย่างเดียว · เดิมปุ่มทิ้งแทร็กทิ้งภาพไปด้วย ได้ MP4 ที่มีแต่เสียงแต่ขึ้นตรวจผ่าน (AUDIT 12 พ.ย. 2569 ข้อ 7) */}
+      <Dialog open={!!askMp4 && mp4Bad.length > 0} onClose={() => setAskMp4(null)} width={520} title={mp4VideoBad ? "ไฟล์นี้ส่งออกเป็น MP4 ไม่ได้" : "บางแทร็กใส่ใน MP4 ไม่ได้เต็มที่"}
         actions={<>
-          <button type="button" className="btn btn-ghost btn-sm" onClick={() => {
-            const nextDrop = drop.concat(mp4Bad.filter((x) => x.mp4 === "no").map((x) => x.index));
+          {!mp4VideoBad && <button type="button" className="btn btn-ghost btn-sm" onClick={() => {
+            const nextDrop = drop.concat(mp4Bad.filter((x) => x.mp4 === "no" && x.kind !== "video").map((x) => x.index));
             setDrop(nextDrop); setAck(ack.concat(mp4Bad.filter((x) => x.mp4 === "style").map((x) => x.index)));
             const from = askMp4; setAskMp4(null);
             if (from === "start" && choice && run.state !== "working") pressStart(nextDrop, true);
-          }} data-mp4-go>{mp4Bad.some((x) => x.mp4 === "no") ? "ทิ้งแทร็กที่ใส่ไม่ได้แล้วทำต่อ" : "ทำต่อด้วย MP4"}</button>
+          }} data-mp4-go>{mp4Bad.some((x) => x.mp4 === "no") ? "ทิ้งแทร็กที่ใส่ไม่ได้แล้วทำต่อ" : "ทำต่อด้วย MP4"}</button>}
           <button type="button" className="btn btn-main btn-sm" onClick={() => { setDrop([]); setAck([]); setOne({ outputFormat: "mkv" }); setAskMp4(null); }} data-mp4-mkv><IbBack size={15} />กลับไปใช้ MKV</button>
         </>}>
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }} data-mp4warn>
           {mp4Bad.map((x) => (
-            <div key={x.index} className="stat warn"><CardIcon kind="warn" /><div><b>{trackTitle(x)}</b><Phr>{x.mp4 === "style" ? (x.why ?? "") : `${x.why ?? ""} ถ้าทำต่อ ${kindWord(x.kind)}นี้จะหายจากไฟล์ใหม่`}</Phr></div></div>
+            <div key={x.index} className="stat warn"><CardIcon kind="warn" /><div><b>{trackTitle(x)}</b><Phr>{x.mp4 === "style" ? (x.why ?? "") : x.kind === "video" ? `ภาพเป็นชนิด ${x.codec} ไฟล์ MP4 ต้องมีภาพ จึงต้องใช้ MKV แทน` : `${x.why ?? ""} ถ้าทำต่อ ${kindWord(x.kind)}นี้จะหายจากไฟล์ใหม่`}</Phr></div></div>
           ))}
         </div>
       </Dialog>
@@ -572,7 +573,7 @@ function Btn(p: { off?: string | false; onClick: () => void; children: React.Rea
 
 function kindWord(k: string) { return k === "audio" ? "เสียง" : k === "video" ? "ภาพ" : "ซับ"; }
 function trackTitle(s: StreamInfo) {
-  if (s.kind === "video") return "ส่งออกเป็น MP4 ไม่ได้";
+  if (s.kind === "video") return "ภาพ 1 อันใส่ใน MP4 ไม่ได้";
   const lang = s.lang ? `ภาษา${s.lang}` : "";
   return s.mp4 === "style" ? `ซับ${lang} 1 อันจะเสียสีกับฟอนต์ใน MP4` : `${kindWord(s.kind)}${lang} 1 อันใส่ใน MP4 ไม่ได้`;
 }

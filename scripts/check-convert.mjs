@@ -312,7 +312,7 @@ await c.click(".apanel svg.spk g.s");
 await sleep(400);
 const lanes1 = await q("return document.querySelectorAll('[data-cmpview] .lane').length");
 check("กดลำโพงปิดช่อง ปิดทั้งสองไฟล์พร้อมกัน แถบอยู่ครบ ขึ้นปิดลำโพง 2 แถบ", lanes0 === 4 && (await q("return document.querySelectorAll('[data-cmpview] .lane[data-off]').length")) === 2 && lanes1 === 4, `${lanes0} → ${lanes1}`);
-await c.click('[data-cmpzoom="30"]');
+await c.evaluate(`document.querySelector('[data-cmpzoom="30"]').click()`);
 await sleep(500);
 const head = await q("return document.querySelector('[data-cmpview] .plothead').innerText");
 check("ซูม 30 วินาที ใช้กับสองไฟล์พร้อมกัน", head.includes("0:15 ถึง 0:30") || /\d:\d\d ถึง \d:\d\d/.test(head), head.slice(0, 80));

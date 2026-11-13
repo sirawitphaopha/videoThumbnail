@@ -105,7 +105,7 @@ const x1 = await tTh();
 check("ซูมเวลาแล้วลากซ้าย เลื่อนไปเวลาถัดไป", x0 != null && x1 > x0, `${x0} ไป ${x1}`);
 const y3 = await thumbPos();
 check("ลากซ้ายขวาล้วน ย่านความถี่ไม่ขยับ", y3 === y2, `${y2} ไป ${y3}`);
-await c.click('[data-zoom="all"]'); await sleep(600);
+await c.evaluate(`document.querySelector('[data-zoom="all"]').click()`); await sleep(600);
 await q("document.querySelector('[data-fzknob]').focus();"); await c.key("Home"); await sleep(600);
 await sleep(100);
 check("ไม่ได้ซูมแกนไหนเลย ลากไม่ได้ เคอร์เซอร์ปกติ", (await q("return document.querySelector('[data-spek]').classList.contains('spekpan');")) === false);

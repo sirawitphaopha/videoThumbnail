@@ -656,6 +656,38 @@ const backNow = await lib();
 check("ย้ายกลับข้างไฟล์หนัง ได้ไฟล์ -poster คืน", existsSync(tidalFile) && backNow.find((m) => m.name.startsWith("Tidal")).linked[0].store === "beside");
 check("ย้ายกลับ เจอไฟล์ชื่อซ้ำของคนอื่น ไม่เขียนทับ เรื่องนั้นคงแบบเดิม แจ้งเตือน", sha(harbor) === harborSha && backNow.find((m) => m.name.startsWith("Harbor")).linked[0].store === "link" && (await q("return [...document.querySelectorAll('.toast')].some((t) => t.textContent.includes('ไม่สำเร็จ 1 เรื่อง'))")));
 
+// AUDIT 12 พ.ย. 2569 ข้อ 1 · ติ๊กข้างไฟล์หนังพร้อมสำเนาในโปรแกรม แล้วเหลือในโปรแกรมอย่างเดียว ไฟล์ปกต้องไม่ลงถังขยะ
+// Tidal ซ่อนรูปต้นฉบับก่อนย้าย ได้ทางคัดลอกไบต์จากไฟล์ข้างหนัง · เรื่องอื่นรูปต้นฉบับอยู่ ได้ทางทำรูปใหม่จากต้นฉบับ
+const pickModes = async (vs) => { await inv("set_settings", { patch: { linkStores: vs } }); await c.evaluate("location.reload()"); await sleep(1500); await nav("ตั้งค่า"); await waitFor("return !!document.querySelector('[data-setcard=\"link\"]')"); await sleep(400); };
+const deadFiles = (list) => list.flatMap((m) => (m.linked ?? []).flatMap((x) => [x.file, x.appCopy].filter(Boolean).filter((f) => !existsSync(f)).map((f) => `${m.name} ${basename(f)}`)));
+await closeToasts();
+await pickModes(["beside", "app"]);
+await runMigrate();
+const withCopy = (await lib()).filter((m) => m.linked?.some((x) => x.store === "beside"));
+check("ติ๊กเพิ่มในโปรแกรม ปกข้างไฟล์หนังได้สำเนาที่สองครบ", withCopy.length > 0 && withCopy.every((m) => m.linked.filter((x) => x.store === "beside").every((x) => x.appCopy && existsSync(x.appCopy))), `${withCopy.length} เรื่อง`);
+const tidalSrc = (await lib()).find((m) => m.name.startsWith("Tidal")).linked[0].source, tidalHid = tidalSrc + ".ซ่อน";
+check("รูปต้นฉบับของ Tidal อยู่ก่อนซ่อน", existsSync(tidalSrc), tidalSrc);
+renameSync(tidalSrc, tidalHid);
+await closeToasts();
+await pickModes(["app"]);
+await runMigrate();
+const inApp = (await lib()).filter((m) => m.linked?.length);
+const dead = deadFiles(inApp);
+check("เอาติ๊กข้างไฟล์หนังออก ย้ายไปในโปรแกรมอย่างเดียว ทุกปกชี้ไฟล์ที่อยู่จริง ทั้งเรื่องที่รูปต้นฉบับอยู่และหาย", dead.length === 0 && inApp.every((m) => m.linked.every((x) => x.store === "app" && !x.appCopy)) && !existsSync(tidalFile), dead.length ? dead.join(", ") : `${inApp.length} เรื่อง`);
+renameSync(tidalHid, tidalSrc);
+await closeToasts();
+await pickModes(["beside"]);
+await runMigrate();
+const deadBack = deadFiles(await lib());
+check("ย้ายกลับข้างไฟล์หนังอีกรอบ ทุกปกชี้ไฟล์ที่อยู่จริง", deadBack.length === 0 && existsSync(tidalFile), deadBack.join(", "));
+
+// บันทึกการใช้งาน (พี่กันเสนอ 12 พ.ย. 2569) · งานย้ายที่เก็บสามรอบข้างบนต้องอยู่ในบันทึก พร้อมบรรทัดสรุป และไฟล์ที่ลงถังขยะ
+const logInfo = await inv("actlog_info");
+const logMonth = `${new Date().getFullYear()}-${String(new Date().getMonth() + 1).padStart(2, "0")}`;
+const logText = existsSync(join(logInfo.dir, `${logMonth}.log`)) ? readFileSync(join(logInfo.dir, `${logMonth}.log`), "utf8") : "";
+const logTail = logText.trim().split("\n").slice(-200);
+check("บันทึกการใช้งานจดงานย้ายที่เก็บ บรรทัดสรุป และไฟล์ที่ลงถังขยะ", logTail.some((l) => /  ย้ายที่เก็บรูปจับคู่  to: app$/.test(l)) && logTail.some((l) => l.includes("ย้ายที่เก็บรูปจับคู่ เสร็จ  ไปแบบในโปรแกรม")) && logTail.some((l) => l.includes("  ลงถังขยะ  ")) && logInfo.monthLines >= logTail.length, `เดือนนี้ ${logInfo.monthLines} รายการ`);
+
 // เรื่องที่มีทั้งปกในไฟล์และปกจับคู่ เลือกได้ทีละเรื่อง
 await toShelf();
 await pickBook("มีปกแล้ว");

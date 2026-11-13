@@ -17,6 +17,20 @@ export function visibleTop(): number {
 
 export type Placement = { up: boolean; max: number };
 
+/** ขอบบนกับขอบล่างที่กล่องที่กางเห็นได้จริง · กล่องที่ตัดของล้น (แผงขวา หน้าต่างซ้อน กล่องเลื่อน) ที่ครอบอยู่ตัดของที่กางแบบวางในกล่องด้วย
+    เดิมวัดถึงขอบหน้าต่างอย่างเดียว รายการภาษาในแผงขวาโดนตัดส่วนล่างราว 200 px (AUDIT 12 พ.ย. 2569 ข้อ 18) */
+function clipEdges(el: HTMLElement): { top: number; bottom: number } {
+  let top = visibleTop(), bottom = window.innerHeight;
+  for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+    const o = getComputedStyle(p).overflowY;
+    if (o === "visible") continue;
+    const r = p.getBoundingClientRect();
+    top = Math.max(top, r.top);
+    bottom = Math.min(bottom, r.bottom);
+  }
+  return { top, bottom };
+}
+
 /** วัดว่ากล่องที่กางควรลงล่างหรือพลิกขึ้น และสูงได้เท่าไหร่ · วัดใหม่เมื่อเนื้อในเปลี่ยนความสูง ย่อหน้าต่าง หรือเลื่อน */
 export function useDropPlacement(
   open: boolean,
@@ -34,8 +48,10 @@ export function useDropPlacement(
       if (!wrap || !panel) return;
       const r = wrap.getBoundingClientRect();
       const need = panel.scrollHeight;
-      const below = window.innerHeight - r.bottom - GAP;
-      const above = r.top - visibleTop() - GAP;
+      // กล่องที่วางแบบลอยบนสุดของหน้า (fixed) ไม่โดนกล่องที่ครอบตัด วัดถึงขอบหน้าต่าง · แบบวางในกล่องวัดถึงขอบกล่องที่ตัดของล้น
+      const edge = getComputedStyle(panel).position === "fixed" ? { top: visibleTop(), bottom: window.innerHeight } : clipEdges(wrap);
+      const below = edge.bottom - r.bottom - GAP;
+      const above = r.top - edge.top - GAP;
       const up = need > below && above > below;
       const max = Math.max(140, up ? above : below);
       if (last.current.up === up && last.current.max === max) return;

@@ -376,7 +376,8 @@ function BookTags({ m }: { m: Movie }) {
       const w = el.clientWidth;
       if (w === lastW) return;
       lastW = w;
-      const tags = [...el.querySelectorAll<HTMLElement>(":scope > .bt")];
+      // ป้าย +จำนวน มีคลาส bt ด้วย ต้องตัดออก เดิมลูปซ่อนจากท้ายซ่อนตัวมันเองก่อน ป้ายนี้จึงไม่เคยขึ้น (AUDIT 12 พ.ย. 2569 ข้อ 4)
+      const tags = [...el.querySelectorAll<HTMLElement>(":scope > .bt:not(.btmore)")];
       const more = el.querySelector<HTMLElement>(":scope > .btmore");
       if (!more) return;
       if (touched) {

@@ -1159,6 +1159,18 @@ fn same_file(a: &Path, b: &Path) -> bool {
     a.to_string_lossy().to_lowercase() == b.to_string_lossy().to_lowercase()
 }
 
+/// ปกนี้ใช้ไฟล์นี้เป็นไฟล์ที่เก็บหรือรูปต้นทางไหม
+fn holds(c: &LinkedCover, f: &str) -> bool {
+    let p = Path::new(f);
+    same_file(Path::new(&c.source), p) || c.file.as_deref().is_some_and(|x| same_file(Path::new(x), p))
+}
+
+/// ปกนี้ใช้ไฟล์นี้อยู่ไหม ช่องไหนก็ได้ ทั้งไฟล์ที่เก็บ รูปต้นทาง และสำเนาในโปรแกรม
+/// ไฟล์ในโปรแกรมตั้งชื่อตามค่า hash รูปเดียวกันจึงเป็นไฟล์เดียวกันข้ามช่องได้ เช่นสำเนาของปกเก่าคือไฟล์หลักของปกใหม่ (AUDIT 12 พ.ย. 2569 ข้อ 1)
+fn uses(c: &LinkedCover, f: &str) -> bool {
+    holds(c, f) || c.app_copy.as_deref().is_some_and(|x| same_file(Path::new(x), Path::new(f)))
+}
+
 fn sha_of(bytes: &[u8]) -> String {
     crate::probe::hex(&Sha256::digest(bytes))
 }
@@ -1230,13 +1242,18 @@ fn conflict_of(env: &WriteEnv, movie: &Path, orient: &str, pick: &Pick, store: &
     Some(CoverProblem { msg: format!("มีไฟล์ {name} อยู่แล้ว และไม่ใช่ไฟล์ที่โปรแกรมทำ จึงไม่เขียนทับ"), conflict: Some(target.to_string_lossy().to_string()) })
 }
 
-/// วางไบต์รูปตามแบบที่เก็บ คืนไฟล์ที่ได้กับว่าเป็นของโปรแกรมไหม
+/// ไฟล์ของปกในโฟลเดอร์ของโปรแกรม ชื่อตามค่า hash ของไบต์รูป
+fn app_file(env: &WriteEnv, id: &str, orient: &str, ext: &str, sha: &str) -> PathBuf {
+    env.covers.join(format!("{}-{orient}-{}.{ext}", safe_id(id), &sha[..12]))
+}
+
+/// วางไบต์รูปตามแบบที่เก็บ คืนไฟล์ที่ได้กับว่าเป็นของโปรแกรมไหม · แบบในโปรแกรมมีไฟล์ชื่อนี้อยู่แล้วใช้ไฟล์นั้น
 fn place_bytes(env: &WriteEnv, id: &str, movie: &Path, orient: &str, ext: &str, bytes: &[u8], sha: &str, store: &str, old: Option<&LinkedCover>) -> Result<(Option<PathBuf>, bool), CoverProblem> {
     match store {
         "link" => Ok((None, false)),
         "app" => {
             fs::create_dir_all(env.covers).map_err(|e| fail(e.to_string()))?;
-            let f = env.covers.join(format!("{}-{orient}-{}.{ext}", safe_id(id), &sha[..12]));
+            let f = app_file(env, id, orient, ext, sha);
             if !f.exists() {
                 write_new(&f, bytes).map_err(|e| fail(format!("เก็บรูปในโปรแกรมไม่ได้: {e}")))?;
             }
@@ -1291,14 +1308,14 @@ pub fn write_cover(env: &WriteEnv, id: &str, movie: &Path, orient: &str, pick: &
     let (img, _) = pi::render(&dec.img, &geo, env.shrink);
     let bytes = pi::encode(&img, env.format, env.quality).map_err(fail)?;
     let sha = sha_of(&bytes);
-    // ทำสำเนาในโปรแกรมก่อน ชื่อไม่มีวันชน · ไฟล์ข้างหนังเขียนไม่ได้ เอาสำเนาที่เพิ่งทำออก ไม่ค้างครึ่ง ๆ กลาง ๆ
+    // ทำสำเนาในโปรแกรมก่อน ชื่อไม่มีวันชน · ไฟล์ข้างหนังเขียนไม่ได้ เอาสำเนาออกเฉพาะที่เพิ่งทำในรอบนี้ ไม่ค้างครึ่ง ๆ กลาง ๆ
+    // ไฟล์ชื่อนี้มีอยู่ก่อนแล้วคือไฟล์ที่ปกเดิมใช้อยู่ เช่นไฟล์หลักของปกแบบในโปรแกรม ห้ามลบ (AUDIT 12 พ.ย. 2569 ข้อ 1)
+    let copy_was_there = env.also_app && store == "beside" && app_file(env, id, orient, env.format, &sha).exists();
     let app_copy = app_copy_of(env, id, movie, orient, env.format, &bytes, &sha, store)?;
     let (file, owned) = match place_bytes(env, id, movie, orient, env.format, &bytes, &sha, store, old) {
         Ok(x) => x,
         Err(e) => {
-            if let Some(f) = &app_copy {
-                if !old.is_some_and(|o| o.app_copy.as_deref() == Some(f.as_str())) { let _ = fs::remove_file(f); }
-            }
+            if let Some(f) = app_copy.as_ref().filter(|_| !copy_was_there) { let _ = fs::remove_file(f); }
             return Err(e);
         }
     };
@@ -1349,13 +1366,12 @@ pub fn apply_row(env: &WriteEnv, m: &Movie, row: &Row, store: &str) -> Result<Ve
             Ok(c) => out.push(c),
             Err(e) => {
                 for c in &out {
-                    let in_old = |p: &str| m.linked.iter().any(|o| o.file.as_deref().is_some_and(|f| same_file(Path::new(f), Path::new(p))));
+                    // ไฟล์ที่ปกเดิมใช้อยู่ช่องไหนก็ตามห้ามลบ · ไฟล์ในโปรแกรมชื่อตามค่า hash ไฟล์หลักใหม่อาจเป็นสำเนาเดิม (AUDIT 12 พ.ย. 2569 ข้อ 1)
+                    let in_old = |p: &str| m.linked.iter().any(|o| uses(o, p));
                     if c.owned && !c.file.as_deref().is_some_and(in_old) {
                         if let Some(f) = &c.file { let _ = fs::remove_file(f); }
                     }
-                    if let Some(f) = &c.app_copy {
-                        if !m.linked.iter().any(|o| o.app_copy.as_deref() == Some(f.as_str())) { let _ = fs::remove_file(f); }
-                    }
+                    if let Some(f) = c.app_copy.as_deref().filter(|f| !in_old(f)) { let _ = fs::remove_file(f); }
                     if !m.linked.iter().any(|o| same_file(Path::new(&o.thumb), Path::new(&c.thumb))) { let _ = fs::remove_file(&c.thumb); }
                 }
                 return Err(e);
@@ -1376,12 +1392,11 @@ pub fn merge_covers(m: &mut Movie, covers: Vec<LinkedCover>) -> Vec<LinkedCover>
         }
     }
     let now = m.linked.clone();
-    // ปกเก่าที่ไฟล์หรือภาพเล็กยังถูกปกที่เหลือใช้อยู่ ห้ามเอาออก · ดูทั้งไฟล์ที่เก็บและรูปต้นทาง และไม่สนตัวพิมพ์ใหญ่เล็ก
+    // ปกเก่าที่ไฟล์หรือภาพเล็กยังถูกปกที่เหลือใช้อยู่ ห้ามเอาออก · เทียบไขว้ทุกช่อง ไฟล์ที่เก็บ รูปต้นทาง สำเนาในโปรแกรม ไม่สนตัวพิมพ์ใหญ่เล็ก
+    // เดิมเทียบสำเนากับสำเนาเท่านั้น ย้ายจากข้างหนังพร้อมสำเนาไปในโปรแกรมอย่างเดียว สำเนาเก่าซึ่งคือไฟล์หลักของปกใหม่ลงถังขยะ (AUDIT 12 พ.ย. 2569 ข้อ 1)
     gone.into_iter().map(|mut g| {
-        let used = g.file.as_deref().is_some_and(|f| now.iter().any(|c| same_file(Path::new(&c.source), Path::new(f)) || c.file.as_deref().is_some_and(|x| same_file(Path::new(x), Path::new(f)))));
-        if used { g.file = None; }
-        // สำเนาในโปรแกรมชื่อตามค่า hash รูปเดิมยืนยันซ้ำได้ชื่อเดิม ยังถูกปกใหม่ใช้อยู่ ห้ามลบ
-        if g.app_copy.as_deref().is_some_and(|f| now.iter().any(|c| c.app_copy.as_deref() == Some(f))) { g.app_copy = None; }
+        if g.file.as_deref().is_some_and(|f| now.iter().any(|c| uses(c, f))) { g.file = None; }
+        if g.app_copy.as_deref().is_some_and(|f| now.iter().any(|c| uses(c, f))) { g.app_copy = None; }
         if now.iter().any(|c| same_file(Path::new(&c.thumb), Path::new(&g.thumb))) { g.thumb.clear(); }
         g
     }).collect()
@@ -1496,6 +1511,7 @@ pub async fn link_confirm(app: AppHandle, which: String) -> Result<ConfirmResult
         }
         let _ = app.emit("link-progress", LinkProgress { done: total, total, title: String::new() });
         let movies = movies_of(&lib);
+        crate::actlog::note("ยืนยันปกจับคู่ เสร็จ", &format!("สำเร็จ {done} เรื่อง ไม่สำเร็จ {failed} เรื่อง{}  {}", if stopped { " หยุดกลางทาง" } else { "" }, notes.join("  ")));
         Ok(ConfirmResult { done, failed, stopped, notes, reply: reply(&store, &movies) })
     }).await.map_err(|e| e.to_string())?
 }
@@ -1681,80 +1697,104 @@ pub async fn link_migrate(app: AppHandle, to: String) -> Result<MigrateResult, S
         for (i, m) in todo.into_iter().enumerate() {
             if jobs.cancelled() { notes.push("โปรแกรมกำลังปิด ย้ายไม่ครบ เรื่องที่เหลือคงแบบเดิม".to_string()); break; }
             let _ = app.emit("link-progress", LinkProgress { done: i, total, title: m.name.clone() });
-            let mut fresh = vec![];
-            let mut bad = false;
-            for c in m.linked.iter().filter(|c| c.store != to) {
-                let (path, geo) = if Path::new(&c.source).is_file() {
-                    // ส่งค่าครอปเฉพาะที่ผู้ใช้ครอปเอง · ค่ากลางรูปที่โปรแกรมตั้งให้ส่งไปด้วย รูปข้างหนังชื่อถูกอยู่แล้วจะกลายเป็นต้องทำไฟล์ใหม่ แล้วชนตัวเอง
-                    (c.source.clone(), if c.cropped { c.geo.clone() } else { None })
-                } else if let Some(f) = c.file.clone().filter(|f| Path::new(f).is_file()) {
-                    // รูปต้นฉบับหาย เหลือสำเนานี้รูปเดียว · จับคู่อย่างเดียวไม่มีไฟล์ใหม่ ย้ายแล้วสำเนาจะหาย ห้ามย้าย
-                    if to == "link" {
-                        notes.push(format!("{} รูปต้นฉบับหาย ย้ายเป็นจับคู่อย่างเดียวไม่ได้ คงแบบเดิม", m.name));
-                        bad = true;
-                        continue;
-                    }
-                    // แบบอื่นคัดลอกไบต์เดิมตรง ๆ ไม่ทำรูปใหม่ ขนาดกับคุณภาพเท่าเดิม
-                    let bytes = match fs::read(&f) { Ok(b) => b, Err(e) => { notes.push(format!("{} อ่านสำเนาไม่ได้: {e}", m.name)); bad = true; continue; } };
-                    let sha = sha_of(&bytes);
-                    let ext = Path::new(&f).extension().map(|e| e.to_string_lossy().to_string()).unwrap_or_else(|| "jpg".into());
-                    match place_bytes(&env, &m.id, Path::new(&m.path), &c.orient, &ext, &bytes, &sha, &to, Some(c)) {
-                        Ok((file, owned)) => fresh.push(LinkedCover { store: to.clone(), file: file.map(|x| x.to_string_lossy().to_string()), owned, sha256: Some(sha), ..c.clone() }),
-                        Err(e) => { notes.push(format!("{} {}", m.name, e.msg)); bad = true; }
-                    }
-                    continue;
-                } else {
-                    notes.push(format!("{} หารูปต้นทางไม่เจอ ย้ายไม่ได้", m.name));
-                    bad = true;
-                    continue;
-                };
-                let (width, height) = header_size(Path::new(&path));
-                let pick = Pick { name: Path::new(&path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(), path, width, height, geo, ..Default::default() };
-                match write_cover(&env, &m.id, Path::new(&m.path), &c.orient, &pick, &to, Some(c)) {
-                    Ok(mut n) => { n.cropped = c.cropped; fresh.push(n); }
-                    Err(e) => { notes.push(format!("{} {}", m.name, e.msg)); bad = true; }
-                }
-            }
-            let had_fresh = !fresh.is_empty();
-            if had_fresh {
-                let mut gone = vec![];
-                let up = lib.update_movie(&m.id, |x| gone = merge_covers(x, fresh));
-                for g in &gone { if let Some(n) = remove_cover(g) { notes.push(n); } }
-                if let Some(up) = up { let _ = app.emit("movie-updated", &up); }
+            let mut edit = |f: &mut dyn FnMut(&mut Movie)| -> Result<Option<Movie>, String> {
+                let up = lib.update_movie(&m.id, |x| f(x));
+                if let Some(up) = &up { let _ = app.emit("movie-updated", up); }
                 lib.save()?;
-            }
-            // สำเนาในโปรแกรมของปกที่อยู่แบบหลักแล้ว เพิ่มหรือเอาออกให้ตรงกับที่ติ๊ก
-            let now = lib.movies.lock().unwrap().iter().find(|x| x.id == m.id).map(|x| x.linked.clone()).unwrap_or_default();
-            let mut copies: Vec<(String, Option<String>)> = vec![];
-            for c in now.iter().filter(|c| c.store == to && c.app_copy.is_some() != want_copy) {
-                if !want_copy {
-                    if let Some(n) = c.app_copy.as_deref().and_then(|f| trash_own(Path::new(f), &c.sha256)) { notes.push(n); }
-                    copies.push((c.orient.clone(), None));
-                    continue;
-                }
-                let from = c.file.clone().unwrap_or_else(|| c.source.clone());
-                let made = fs::read(&from).map_err(|e| format!("อ่านรูปไม่ได้: {e}")).and_then(|bytes| {
-                    let ext = Path::new(&from).extension().map(|e| e.to_string_lossy().to_string()).unwrap_or_else(|| "jpg".into());
-                    place_bytes(&env, &m.id, Path::new(&m.path), &c.orient, &ext, &bytes, &sha_of(&bytes), "app", None).map_err(|e| e.msg)
-                });
-                match made {
-                    Ok((file, _)) => copies.push((c.orient.clone(), file.map(|x| x.to_string_lossy().to_string()))),
-                    Err(e) => { notes.push(format!("{} {e}", m.name)); bad = true; }
-                }
-            }
-            let had_copies = !copies.is_empty();
-            if had_copies {
-                let up = lib.update_movie(&m.id, |x| for (orient, file) in &copies {
-                    if let Some(c) = x.linked.iter_mut().find(|c| &c.orient == orient) { c.app_copy = file.clone(); }
-                });
-                if let Some(up) = up { let _ = app.emit("movie-updated", &up); }
-                lib.save()?;
-            }
-            if bad { failed += 1; } else if had_fresh || had_copies { done += 1; }
+                Ok(up)
+            };
+            let (bad, changed) = migrate_movie(&env, m, &to, want_copy, &mut notes, &mut edit)?;
+            if bad { failed += 1; } else if changed { done += 1; }
         }
         let _ = app.emit("link-progress", LinkProgress { done: total, total, title: String::new() });
+        let to_name = match to.as_str() { "beside" => "ข้างไฟล์หนัง", "app" => "ในโปรแกรม", "link" => "จับคู่อย่างเดียว", x => x };
+        crate::actlog::note("ย้ายที่เก็บรูปจับคู่ เสร็จ", &format!("ไปแบบ{to_name} {} ย้ายแล้ว {done} เรื่อง ไม่สำเร็จ {failed} เรื่อง  {}", if want_copy { "มีสำเนาในโปรแกรม" } else { "ไม่มีสำเนาที่สอง" }, notes.join("  ")));
         Ok(MigrateResult { done, failed, notes })
     }).await.map_err(|e| e.to_string())?
+}
+
+/// ย้ายปกจับคู่ของหนังหนึ่งเรื่องไปแบบที่เก็บใหม่ · แยกจาก link_migrate ให้เทสเรียกได้ตรง ๆ
+/// `edit` แก้หนังในคลังแล้วบันทึก คืนหนังหลังแก้ · ตัวจริงแก้ LibraryStore ตัวเทสแก้หนังในหน่วยความจำ
+/// คืนว่ามีช่องที่ย้ายไม่ได้ไหม กับว่ามีอะไรเปลี่ยนไหม
+fn migrate_movie(env: &WriteEnv, m: &Movie, to: &str, want_copy: bool, notes: &mut Vec<String>, edit: &mut dyn FnMut(&mut dyn FnMut(&mut Movie)) -> Result<Option<Movie>, String>) -> Result<(bool, bool), String> {
+    let mut fresh = vec![];
+    let mut bad = false;
+    for c in m.linked.iter().filter(|c| c.store != to) {
+        let (path, geo) = if Path::new(&c.source).is_file() {
+            // ส่งค่าครอปเฉพาะที่ผู้ใช้ครอปเอง · ค่ากลางรูปที่โปรแกรมตั้งให้ส่งไปด้วย รูปข้างหนังชื่อถูกอยู่แล้วจะกลายเป็นต้องทำไฟล์ใหม่ แล้วชนตัวเอง
+            (c.source.clone(), if c.cropped { c.geo.clone() } else { None })
+        } else if let Some(f) = c.file.clone().filter(|f| Path::new(f).is_file()) {
+            // รูปต้นฉบับหาย เหลือสำเนานี้รูปเดียว · จับคู่อย่างเดียวไม่มีไฟล์ใหม่ ย้ายแล้วสำเนาจะหาย ห้ามย้าย
+            if to == "link" {
+                notes.push(format!("{} รูปต้นฉบับหาย ย้ายเป็นจับคู่อย่างเดียวไม่ได้ คงแบบเดิม", m.name));
+                bad = true;
+                continue;
+            }
+            // แบบอื่นคัดลอกไบต์เดิมตรง ๆ ไม่ทำรูปใหม่ ขนาดกับคุณภาพเท่าเดิม
+            let bytes = match fs::read(&f) { Ok(b) => b, Err(e) => { notes.push(format!("{} อ่านสำเนาไม่ได้: {e}", m.name)); bad = true; continue; } };
+            let sha = sha_of(&bytes);
+            let ext = Path::new(&f).extension().map(|e| e.to_string_lossy().to_string()).unwrap_or_else(|| "jpg".into());
+            // สำเนาในโปรแกรมทำแบบเดียวกับทางทำรูปใหม่ (write_cover) · ห้ามพาสำเนาของปกเก่ามาด้วย
+            // เดิมลอกทุกช่องจากปกเก่า สำเนาเก่าซึ่งชื่อเดียวกับไฟล์หลักใหม่ติดมา แล้วขั้นเอาสำเนาออกส่งไฟล์หลักลงถังขยะ (AUDIT 12 พ.ย. 2569 ข้อ 1)
+            let placed = app_copy_of(env, &m.id, Path::new(&m.path), &c.orient, &ext, &bytes, &sha, to)
+                .and_then(|app_copy| place_bytes(env, &m.id, Path::new(&m.path), &c.orient, &ext, &bytes, &sha, to, Some(c)).map(|x| (x, app_copy)));
+            match placed {
+                Ok(((file, owned), app_copy)) => fresh.push(LinkedCover { store: to.to_string(), file: file.map(|x| x.to_string_lossy().to_string()), owned, sha256: Some(sha), app_copy, ..c.clone() }),
+                Err(e) => { notes.push(format!("{} {}", m.name, e.msg)); bad = true; }
+            }
+            continue;
+        } else {
+            notes.push(format!("{} หารูปต้นทางไม่เจอ ย้ายไม่ได้", m.name));
+            bad = true;
+            continue;
+        };
+        let (width, height) = header_size(Path::new(&path));
+        let pick = Pick { name: Path::new(&path).file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(), path, width, height, geo, ..Default::default() };
+        match write_cover(env, &m.id, Path::new(&m.path), &c.orient, &pick, to, Some(c)) {
+            Ok(mut n) => { n.cropped = c.cropped; fresh.push(n); }
+            Err(e) => { notes.push(format!("{} {}", m.name, e.msg)); bad = true; }
+        }
+    }
+    let had_fresh = !fresh.is_empty();
+    let mut now = m.linked.clone();
+    if had_fresh {
+        // จดคลังก่อน แล้วค่อยเอาไฟล์ของปกเก่าออก
+        let mut gone = vec![];
+        let mut fresh = Some(fresh);
+        let up = edit(&mut |x: &mut Movie| gone = merge_covers(x, fresh.take().unwrap_or_default()))?;
+        for g in &gone { if let Some(n) = remove_cover(g) { notes.push(n); } }
+        now = up.map(|x| x.linked).unwrap_or_default();
+    }
+    // สำเนาในโปรแกรมของปกที่อยู่แบบหลักแล้ว เพิ่มหรือเอาออกให้ตรงกับที่ติ๊ก
+    let mut copies: Vec<(String, Option<String>)> = vec![];
+    for c in now.iter().filter(|c| c.store == to && c.app_copy.is_some() != want_copy) {
+        if !want_copy {
+            // สำเนาที่ยังเป็นไฟล์หลักหรือรูปต้นทางของปกไหนอยู่ หรือเป็นสำเนาของปกอีกช่อง เลิกจดว่าเป็นสำเนา แต่ไม่ลบไฟล์
+            let f = c.app_copy.as_deref().unwrap_or_default();
+            let keep = now.iter().any(|o| if o.orient == c.orient { holds(o, f) } else { uses(o, f) });
+            if !keep {
+                if let Some(n) = trash_own(Path::new(f), &c.sha256) { notes.push(n); }
+            }
+            copies.push((c.orient.clone(), None));
+            continue;
+        }
+        let from = c.file.clone().unwrap_or_else(|| c.source.clone());
+        let made = fs::read(&from).map_err(|e| format!("อ่านรูปไม่ได้: {e}")).and_then(|bytes| {
+            let ext = Path::new(&from).extension().map(|e| e.to_string_lossy().to_string()).unwrap_or_else(|| "jpg".into());
+            place_bytes(env, &m.id, Path::new(&m.path), &c.orient, &ext, &bytes, &sha_of(&bytes), "app", None).map_err(|e| e.msg)
+        });
+        match made {
+            Ok((file, _)) => copies.push((c.orient.clone(), file.map(|x| x.to_string_lossy().to_string()))),
+            Err(e) => { notes.push(format!("{} {e}", m.name)); bad = true; }
+        }
+    }
+    let had_copies = !copies.is_empty();
+    if had_copies {
+        edit(&mut |x: &mut Movie| for (orient, file) in &copies {
+            if let Some(c) = x.linked.iter_mut().find(|c| &c.orient == orient) { c.app_copy = file.clone(); }
+        })?;
+    }
+    Ok((bad, had_fresh || had_copies))
 }
 
 #[cfg(test)]
@@ -2079,6 +2119,107 @@ mod tests {
             assert_eq!(remove_cover(c), None);
             assert!(!Path::new(&f).exists() && !Path::new(&copy).exists(), "เอาออกต้องไปทั้งสองที่");
         }
+    }
+
+    /// ย้ายปกในหน่วยความจำ ผ่านทางเดียวกับคำสั่งย้ายที่เก็บจริง (migrate_movie)
+    fn migrate_mem(env: &WriteEnv, m: &mut Movie, to: &str, want_copy: bool) -> (bool, bool, Vec<String>) {
+        let snap = m.clone();
+        let mut notes = vec![];
+        let mut edit = |f: &mut dyn FnMut(&mut Movie)| -> Result<Option<Movie>, String> { f(m); Ok(Some(m.clone())) };
+        let (bad, changed) = migrate_movie(env, &snap, to, want_copy, &mut notes, &mut edit).unwrap();
+        (bad, changed, notes)
+    }
+
+    /// ทุกปกของเรื่องชี้ไฟล์ที่อยู่จริง ไบต์ตรงค่า hash ทั้งไฟล์หลักและสำเนาในโปรแกรม
+    fn covers_alive(m: &Movie) {
+        for c in &m.linked {
+            for f in [c.file.as_ref(), c.app_copy.as_ref()].into_iter().flatten() {
+                assert!(Path::new(f).is_file(), "ปก {} ชี้ไฟล์ที่ไม่อยู่แล้ว {f}", c.orient);
+                assert_eq!(file_sha(Path::new(f)), c.sha256, "ไฟล์ {f} ไบต์ไม่ตรงค่า hash");
+            }
+        }
+    }
+
+    /// AUDIT 12 พ.ย. 2569 ข้อ 1 · ติ๊กข้างไฟล์หนังพร้อมสำเนาในโปรแกรม แล้วย้ายไปในโปรแกรมอย่างเดียว ไฟล์ปกต้องไม่ลงถังขยะ
+    /// ทั้งตอนรูปต้นฉบับยังอยู่ (ทำรูปใหม่จากต้นฉบับ) และตอนลบรูปต้นฉบับไปแล้ว (คัดลอกไบต์จากไฟล์ข้างหนัง)
+    #[test]
+    fn migrate_beside_copy_to_app_keeps_cover() {
+        for gone_src in [false, true] {
+            let Some(l) = lab(if gone_src { "ย้ายต้นฉบับหาย" } else { "ย้ายต้นฉบับอยู่" }) else { return };
+            let both = WriteEnv { also_app: true, ..l.env() };
+            let mut m = l.mv();
+            let cov = apply_row(&both, &m, &l.row(), "beside").unwrap();
+            merge_covers(&mut m, cov);
+            if gone_src { fs::remove_file(&l.tall).unwrap(); fs::remove_file(&l.wide).unwrap(); }
+            // เอาติ๊กข้างไฟล์หนังออก เหลือในโปรแกรมอย่างเดียว · ค่าตั้งแบบนี้ไม่มีสำเนาที่สอง
+            let (bad, changed, notes) = migrate_mem(&l.env(), &mut m, "app", false);
+            assert!(!bad && changed, "ต้องย้ายสำเร็จ {notes:?}");
+            assert!(m.linked.iter().all(|c| c.store == "app" && c.app_copy.is_none()), "{:?}", m.linked);
+            covers_alive(&m);
+            assert_eq!(l.movie_dir(), vec!["ดาวตก (2024).mkv"], "ไฟล์ข้างหนังที่โปรแกรมทำต้องเอาออก");
+        }
+    }
+
+    /// ทางกลับ ในโปรแกรมอย่างเดียว ไปข้างไฟล์หนังพร้อมสำเนา · ไฟล์เดิมในโปรแกรมกลายเป็นสำเนาที่สอง ต้องไม่ลงถังขยะ
+    #[test]
+    fn migrate_app_to_beside_copy_keeps_cover() {
+        for gone_src in [false, true] {
+            let Some(l) = lab(if gone_src { "ย้ายกลับต้นฉบับหาย" } else { "ย้ายกลับต้นฉบับอยู่" }) else { return };
+            let mut m = l.mv();
+            let cov = apply_row(&l.env(), &m, &l.row(), "app").unwrap();
+            merge_covers(&mut m, cov);
+            let in_app: Vec<String> = m.linked.iter().filter_map(|c| c.file.clone()).collect();
+            if gone_src { fs::remove_file(&l.tall).unwrap(); fs::remove_file(&l.wide).unwrap(); }
+            let both = WriteEnv { also_app: true, ..l.env() };
+            let (bad, changed, notes) = migrate_mem(&both, &mut m, "beside", true);
+            assert!(!bad && changed, "ต้องย้ายสำเร็จ {notes:?}");
+            assert!(m.linked.iter().all(|c| c.store == "beside" && c.app_copy.is_some()), "{:?}", m.linked);
+            covers_alive(&m);
+            let copies: Vec<String> = m.linked.iter().filter_map(|c| c.app_copy.clone()).collect();
+            assert_eq!(copies, in_app, "ไฟล์เดิมในโปรแกรมใช้เป็นสำเนาต่อ ไม่ต้องทิ้งแล้วทำใหม่");
+        }
+    }
+
+    /// ต้นเหตุเดียวกับข้อ 1 ทางที่ลบถาวร · เขียนข้างไฟล์หนังไม่ได้ ห้ามลบไฟล์ในโปรแกรมที่มีอยู่ก่อนแล้ว
+    /// และช่องหลังล้ม การเก็บกวาดห้ามลบไฟล์ที่ปกเดิมใช้เป็นสำเนาในโปรแกรม
+    #[test]
+    fn failed_write_keeps_files_old_covers_use() {
+        let Some(l) = lab("ล้มไม่ลบของเดิม") else { return };
+        let both = WriteEnv { also_app: true, ..l.env() };
+        // ปกเดิมเก็บในโปรแกรมอย่างเดียว · เขียนข้างไฟล์หนังพร้อมสำเนาไม่ได้เพราะชื่อชนไฟล์คนอื่น
+        let mut m = l.mv();
+        let cov = apply_row(&l.env(), &m, &l.row(), "app").unwrap();
+        merge_covers(&mut m, cov);
+        let poster = l.root.join("หนัง").join("ดาวตก (2024)-poster.jpg");
+        fs::write(&poster, b"foreign").unwrap();
+        let old = m.linked.iter().find(|c| c.orient == "tall").unwrap().clone();
+        assert!(write_cover(&both, &m.id, &l.movie, "tall", &l.pick(&l.tall), "beside", Some(&old)).is_err());
+        covers_alive(&m);
+        fs::remove_file(&poster).unwrap();
+
+        // ปกเดิมข้างไฟล์หนังพร้อมสำเนา · ยืนยันใหม่แบบในโปรแกรม ช่องปกตั้งได้ไฟล์เดียวกับสำเนาเดิม ช่องปกนอนล้ม
+        let mut m = l.mv();
+        let cov = apply_row(&both, &m, &l.row(), "beside").unwrap();
+        merge_covers(&mut m, cov);
+        let mut r = l.row();
+        r.wide.as_mut().unwrap().path = l.root.join("รูป").join("ไม่มีไฟล์นี้.jpg").to_string_lossy().to_string();
+        assert!(apply_row(&l.env(), &m, &r, "app").is_err());
+        covers_alive(&m);
+    }
+
+    /// ตัวกันลบตอนแทนปก เทียบไขว้ทุกช่อง · ไฟล์ของปกเก่าที่ปกใหม่ใช้อยู่ในช่องไหนก็ตาม ห้ามอยู่ในรายการลบ
+    #[test]
+    fn merge_checks_every_field() {
+        let cov = |file: &str, copy: Option<&str>| LinkedCover { orient: "tall".into(), file: Some(file.into()), app_copy: copy.map(Into::into), source: "D:\\รูป.jpg".into(), owned: true, thumb: "D:\\t\\a.jpg".into(), ..Default::default() };
+        // สำเนาเก่าเป็นไฟล์หลักของปกใหม่
+        let mut m = Movie { linked: vec![cov("D:\\x-poster.jpg", Some("C:\\covers\\99-tall-abc.jpg"))], ..Default::default() };
+        let gone = merge_covers(&mut m, vec![cov("C:\\covers\\99-tall-abc.jpg", None)]);
+        assert_eq!(gone[0].app_copy, None, "สำเนาเก่าที่เป็นไฟล์หลักของปกใหม่ ห้ามลงถังขยะ");
+        assert!(gone[0].file.is_some(), "ไฟล์ข้างหนังที่ไม่มีใครใช้แล้ว เอาออกได้");
+        // ไฟล์หลักเก่าเป็นสำเนาของปกใหม่
+        let mut m = Movie { linked: vec![cov("C:\\covers\\99-tall-abc.jpg", None)], ..Default::default() };
+        let gone = merge_covers(&mut m, vec![cov("D:\\x-poster.jpg", Some("C:\\COVERS\\99-tall-abc.jpg"))]);
+        assert_eq!(gone[0].file, None, "ไฟล์หลักเก่าที่เป็นสำเนาของปกใหม่ ห้ามลงถังขยะ");
     }
 
     /// ค่าตั้งไฟล์เก่ามีแค่แบบเดียว อ่านแล้วคงแบบเดิม · ติ๊กหลายแบบ แบบหลักข้างไฟล์หนังก่อน

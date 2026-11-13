@@ -1,5 +1,6 @@
 //! ชั้นหนัง · ฝั่งทำงานหนักของโปรแกรม
 
+mod actlog;
 mod ape;
 mod audiograph;
 mod bitrate;
@@ -53,6 +54,11 @@ pub fn run() {
         .manage(merge::MergeState::default())
         .manage(convert::ConvertState::default())
         .setup(|app| {
+            // บันทึกการใช้งาน ตั้งก่อนอย่างอื่น งานที่ตามมาจะได้จดลงไฟล์ได้ (พี่กันเสนอ 12 พ.ย. 2569)
+            if let Ok(local) = app.path().app_local_data_dir() {
+                actlog::init(local.join("logs"));
+                actlog::note("เปิดโปรแกรม", &format!("รุ่น {}", app.package_info().version));
+            }
             let path = store::settings_path(app.handle())?;
             app.manage(SettingsStore::load(path));
             let lib = library::library_path(app.handle())?;
@@ -125,8 +131,12 @@ pub fn run() {
             }
         });
 
+    // ทางเข้ากลางของคำสั่งจากหน้าจอ จดงานที่เขียน ย้าย หรือลบไฟล์ลงบันทึกการใช้งานก่อนส่งต่อ (actlog.rs WATCH)
+    // typed บอกชนิดของรายการคำสั่งตั้งแต่ตอนสร้าง ไม่งั้นตัวคอมไพล์เดาชนิดไม่ได้เมื่อห่อด้วยตัวจด
+    fn typed<F: Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool>(f: F) -> F { f }
     #[cfg(debug_assertions)]
-    let builder = builder.invoke_handler(tauri::generate_handler![
+    let handler = typed(tauri::generate_handler![
+        actlog::actlog_info, actlog::actlog_open_dir,
         tools::check_tools, tools::check_icaros, tools::open_icaros_page, store::get_settings, store::set_settings,
         jobs::running_jobs, jobs::force_close, jobs::dev_fake_job, poster::dev_fake_free, library::dev_set_check, library::dev_clear_parked,
         library::get_library, library::scan_library, library::play_movie, library::reveal_movie, library::set_rating,
@@ -146,7 +156,8 @@ pub fn run() {
         audiograph::graph_cache_info, audiograph::graph_cache_clear, audiograph::graph_dev_forget,
     ]);
     #[cfg(not(debug_assertions))]
-    let builder = builder.invoke_handler(tauri::generate_handler![
+    let handler = typed(tauri::generate_handler![
+        actlog::actlog_info, actlog::actlog_open_dir,
         tools::check_tools, tools::check_icaros, tools::open_icaros_page, store::get_settings, store::set_settings,
         jobs::running_jobs, jobs::force_close,
         library::get_library, library::scan_library, library::play_movie, library::reveal_movie, library::set_rating,
@@ -165,6 +176,10 @@ pub fn run() {
         audiograph::graph_info, audiograph::graph_exist, audiograph::graph_overview, audiograph::graph_window, audiograph::graph_psd, audiograph::graph_cancel, audiograph::graph_save, graphimg::graph_save_image,
         audiograph::graph_cache_info, audiograph::graph_cache_clear,
     ]);
+    let builder = builder.invoke_handler(move |invoke| {
+        actlog::invoke(invoke.message.command(), invoke.message.payload());
+        handler(invoke)
+    });
 
     builder
         .build(tauri::generate_context!())
