@@ -10,15 +10,20 @@
    - Shift+คลิกขวา สลับสีไล่โทน · Ctrl+คลิกขวา หยุดหรือให้เคอร์เซอร์ตามเมาส์ · Alt+คลิกขวา ซ่อนเส้นเคอร์เซอร์ · ดับเบิลคลิก ปรับสเกลตามข้อมูล
    - ขีดล่างสีแดงตรงจุดสูงสุด สีดำตรงจุดต่ำสุด · เมาส์อยู่แถบบนของกราฟ ขึ้นขีดทุก 5% ของความกว้าง
    - ต่อเฟรม ชนิดเฟรมขึ้นข้างเวลาเคอร์เซอร์ กดแล้วกระโดดไป I เฟรมถัดไป Ctrl+กด ย้อนไป I เฟรมก่อน
+   - Ctrl+Alt+Shift+คลิกขวา ซูมให้หนึ่งช่องเท่าหนึ่งจุดภาพตรงตำแหน่งที่คลิก (คู่มือตัวจริง "Enter zoom at 1 sample/display unit at current position")
    ปรับเป็นของเรา · เส้นแดง Max คิดจากบิตเรตเฉลี่ยของไฟล์ ไม่ตายตัว 10,000 kbps แบบแผ่น DVD (ไฟล์ HEVC บิตเรตต่ำกว่านั้นมาก)
-   สีวัดจากภาพหน้าจอตัวจริง · สีเป็นเนื้อหา ไม่เปลี่ยนตามโทน จึงเขียนในไฟล์นี้ ไม่ใส่ในไฟล์สไตล์ */
+   · เว้นช่องระหว่างแท่งเมื่อแท่งกว้างพอ ปิดได้ในเมนู Separate bars (พี่กันสั่ง 10 พ.ย. 2569 "ต้นฉบับ เราขอเเบ่งเเท่งตามวิด้วยหน่อย" BUGS ข้อ 44)
+   · ทุกแถวเมนูมีคำอธิบายภาษาไทยในแถบท้ายเมนู (พี่กันสั่ง 10 พ.ย. 2569 "อยากให้มีคำอธิบายทุกฟังชั่นด้วย" BUGS ข้อ 36)
+   สีวัดจากภาพหน้าจอตัวจริง · สีเป็นเนื้อหา ไม่เปลี่ยนตามโทน · สีที่วาดและ inline อยู่ในไฟล์นี้ รากของหน้าติด data-keepcolor ตัวแปลงโทนไม่แตะ
+   สีของปุ่มกับเมนูอยู่ styles/bitrate-classic.css เขียนด้วย hsl() (แท็ก style ที่สร้างตอนรันโดนกติกาความปลอดภัยของตัวจริงกัน AUDIT ข้อ 27) */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { usePageActiveRef } from "../lib/pageActive";
 import { listen } from "@tauri-apps/api/event";
 import { bitrateApi, inApp, pickFile, type BrInfo, type BrTrack } from "../lib/api";
 import { useClickOutside, useEscClose } from "../lib/popup";
 import { dropStyle, useDropPlacement } from "../lib/popupFit";
-import { FixedTime } from "../components/ui";
+import { FixedTime, Phr } from "../components/ui";
+import "../styles/bitrate-classic.css";
 
 const C = {
   win: "rgb(240,240,240)", plot: "rgb(255,255,255)", frame: "rgb(160,160,160)",
@@ -40,14 +45,14 @@ type Src = "pkt" | "frm";
 const srcOf = (m: Mode): Src => (m === "frm" ? "frm" : "pkt");
 
 /** ผลที่อ่านจากไฟล์ เรียงตามลำดับในไฟล์ · k เป็นชนิดต่อเฟรม K _ (แพ็กเก็ต) หรือ I P B ? (ถอดภาพ) */
-type Raw = { t: number[]; s: number[]; k: string; tmin: number; readTo: number; done: boolean };
+type Raw = { t: number[]; s: number[]; k: string; tmin: number; readTo: number; done: boolean; partial?: boolean };
 type Entry = { info: BrInfo; raw: Partial<Record<Src, Raw>> };
 /** จำผลไว้ตลอดที่โปรแกรมเปิด ไม่เกิน 8 ไฟล์ (ตัวจริงเรียก Bitrate Viewer Cache) */
 const CACHE = new Map<string, Entry>();
 const remember = (p: string, e: Entry) => { CACHE.delete(p); CACHE.set(p, e); while (CACHE.size > 8) CACHE.delete(CACHE.keys().next().value as string); };
 
 type Prog = { run: number; from: number; t: number[]; s: number[]; k: string; readTo: number };
-type Done = { run: number; ok: boolean; stopped?: boolean; error?: string; frames?: number };
+type Done = { run: number; ok: boolean; stopped?: boolean; error?: string; frames?: number; partial?: boolean };
 
 /** ตัวอย่างหนึ่งช่องของวิธีคิดที่เลือก · เวลาเป็นวินาทีนับจากต้นไฟล์ */
 type Samples = { t0: Float64Array; t1: Float64Array; b: Float64Array; typ: string; n: number; keys: number[] };
@@ -116,8 +121,34 @@ const kb = (v: number) => `${Math.round(v)} kbps`;
 const store = { get: (k: string) => { try { return localStorage.getItem(k); } catch { return null; } }, set: (k: string, v: string) => { try { localStorage.setItem(k, v); } catch { /* เก็บไม่ได้ก็ใช้ค่าตั้งต้น */ } } };
 const recentList = (): string[] => { try { return JSON.parse(store.get("bv-recent") || "[]"); } catch { return []; } };
 
+/** คำอธิบายแถวเมนู ขึ้นในแถบท้ายเมนูตอนชี้หรือเลื่อนโฟกัสมาที่แถว · ชื่อแถวคงภาษาอังกฤษตามต้นฉบับ (BUGS ข้อ 36)
+    เว้นวรรคสองช่องคือรอยต่อประโยค ตัวแสดงข้อความตัดบรรทัดตามประโยค */
+const DESC: Record<string, string> = {
+  recent: "เปิดไฟล์นี้อีกครั้ง  ไฟล์ที่อ่านแล้วในรอบนี้ขึ้นทันที ไม่ต้องอ่านใหม่",
+  stream: "ดูบิตเรตของแทร็กนี้ ไฟล์ที่มีหลายแทร็กดูได้ทีละแทร็ก",
+  sec: "คิดบิตเรตเป็น kbps จากข้อมูลทีละหนึ่งวินาที  ดูภาพรวมทั้งไฟล์ได้ง่ายที่สุด และเป็นวิธีตั้งต้น",
+  gop: "รวมทีละ GOP ซึ่งคือกลุ่มภาพตั้งแต่คีย์เฟรมหนึ่งถึงก่อนคีย์เฟรมถัดไป  ใช้ดูว่าตัวเข้ารหัสแบ่งข้อมูลให้แต่ละช่วงภาพอย่างไร",
+  gopx: "คิดแบบเดียวกับ GOP based  แต่ GOP ที่สั้นกว่าครึ่งของปกติจะรวมเข้ากับ GOP ถัดไป  กราฟจึงไม่มีแท่งโดดจาก GOP สั้น ๆ",
+  frm: "แสดงขนาดของทีละเฟรม และบอกชนิดเฟรม I P B ตรงเคอร์เซอร์  ต้องถอดภาพทั้งไฟล์ ครั้งแรกจึงอ่านนานกว่าวิธีอื่น",
+  recalc: "อ่านไฟล์นี้ใหม่ตั้งแต่ต้น ใช้เมื่อไฟล์ถูกแก้ไขหรือผลที่อ่านไว้ไม่ครบ",
+  load: "เลือกไฟล์วิดีโอหรือไฟล์เสียงมาดูบิตเรต  ลากไฟล์มาวางบนกราฟก็ได้",
+  stop: "หยุดอ่านไฟล์ กราฟส่วนที่อ่านได้แล้วยังอยู่",
+  scale: "ติ๊กไว้ สเกลแนวตั้งคงที่ โดยเส้น Max อยู่ราวสองเท่าของบิตเรตเฉลี่ย  เอาติ๊กออกแล้วสเกลปรับตามแท่งสูงสุดที่เห็น  ดับเบิลคลิกบนกราฟก็สลับได้",
+  fixed: "ติ๊กไว้ แท่งเป็นสีทึบ  เอาติ๊กออกแล้วไล่สี  Shift+คลิกขวาบนกราฟก็สลับได้  ตอนลากเลือกข้อความไว้ Ctrl+C จะคัดลอกข้อความแทน",
+  heads: "หัวกล่องทางขวาตั้งแต่ Total Time ถึง Cursor จะไล่สีจากซ้ายไปขวา  เอาติ๊กออกแล้วเป็นสีทึบ",
+  gaps: "เว้นช่องบาง ๆ ระหว่างแท่งเมื่อแท่งกว้างพอ เห็นแต่ละช่วงแยกกัน  เอาติ๊กออกแล้วแท่งติดกันแบบต้นฉบับ",
+  avg: "เส้นสีเขียวที่ระดับบิตเรตเฉลี่ยของทั้งไฟล์  กด Ctrl ค้างแล้วคลิกบนกราฟก็เปิดปิดได้",
+  max: "เส้นสีน้ำตาลที่ระดับบิตเรตสูงสุด (Peak) ของทั้งไฟล์  กด Shift ค้างแล้วคลิกบนกราฟก็เปิดปิดได้",
+  min: "เส้นสีน้ำเงินที่ระดับบิตเรตต่ำสุด  กด Alt ค้างแล้วคลิกบนกราฟก็เปิดปิดได้",
+  track: "เส้นเคอร์เซอร์กับค่าในกล่อง Cursor จะวิ่งตามเมาส์  เอาติ๊กออกแล้วเคอร์เซอร์ค้างอยู่ที่ตำแหน่งล่าสุด",
+  cursor: "แสดงเส้นตั้งสีดำตรงตำแหน่งเคอร์เซอร์บนกราฟ",
+  zoomout: "ถอยออกจากการซูมหนึ่งชั้น  ซูมเข้าได้โดยลากเลือกช่วงแล้วคลิกขวา หรือหมุนล้อลง",
+  reset: "กลับไปดูทั้งไฟล์ในครั้งเดียว ไม่ว่าจะซูมซ้อนไว้กี่ชั้น",
+};
+const DESC_IDLE = "ชี้แถวในเมนูเพื่ออ่านว่าแต่ละคำสั่งทำอะไร";
+
 /** แบบเดิม หน้าตาแบบโปรแกรม Bitrate Viewer · onModern สลับไปแบบชั้นหนัง ไฟล์ที่เปิดอยู่ตามไปด้วย */
-export default function BitrateClassic({ initialPath = null, initialTrack = null, onConsumed, onModern }: { initialPath?: string | null; initialTrack?: string | null; onConsumed?: () => void; onModern?: (path: string | null) => void } = {}) {
+export default function BitrateClassic({ initialPath = null, initialTrack = null, onConsumed, onCurrent }: { initialPath?: string | null; initialTrack?: string | null; onConsumed?: () => void; onCurrent?: (path: string | null, track: string | null) => void } = {}) {
   const [path, setPath] = useState<string | null>(null);
   const [info, setInfo] = useState<BrInfo | null>(null);
   const [modeSel, setModeState] = useState<Mode>(() => (MODES.some((m) => m.id === store.get("bv-mode")) ? store.get("bv-mode") as Mode : "sec"));
@@ -137,6 +168,11 @@ export default function BitrateClassic({ initialPath = null, initialTrack = null
   const [auto, setAuto] = useState(false);
   const [grad, setGrad] = useState(true);
   const [gradHead, setGradHead] = useState(true);
+  /** เว้นช่องระหว่างแท่ง ค่าตั้งต้นเปิด จำค่าไว้ (BUGS ข้อ 44) */
+  const [gaps, setGapsState] = useState(() => store.get("bv-gaps") !== "0");
+  const toggleGaps = () => setGapsState((v) => { store.set("bv-gaps", v ? "0" : "1"); return !v; });
+  /** คำอธิบายของแถวเมนูที่ชี้อยู่ · why คือเหตุผลที่แถวนั้นกดไม่ได้ */
+  const [desc, setDesc] = useState<{ d: string; why?: string } | null>(null);
   const [marks, setMarks] = useState({ avg: false, max: false, min: false });
   const [zoom, setZoom] = useState<[number, number][]>([]);
   const [sel, setSel] = useState<[number, number] | null>(null);
@@ -156,6 +192,19 @@ export default function BitrateClassic({ initialPath = null, initialTrack = null
   const menuPanel = useRef<HTMLDivElement>(null);
   const place = useDropPlacement(menu, menuWrap, menuPanel);
   useEscClose(menu, () => setMenu(false));
+  useEffect(() => { if (!menu) setDesc(null); }, [menu]);
+  // บอกไฟล์กับแทร็กที่เปิดอยู่ให้แถบปุ่มคู่ด้านบน กดแบบชั้นหนังแล้วตามไปด้วย (BUGS ข้อ 83 85)
+  useEffect(() => { onCurrent?.(path, info?.track ?? (stream || null)); }, [path, info, stream]); // eslint-disable-line react-hooks/exhaustive-deps
+  /** ดรอปดาวน์เลือกแทร็กข้างปุ่มแบบชั้นหนัง (BUGS ข้อ 83 · เดิมเลือกได้ในเมนูอย่างเดียว) */
+  const [trkOpen, setTrkOpen] = useState(false);
+  const trkWrap = useRef<HTMLDivElement>(null), trkPanel = useRef<HTMLDivElement>(null);
+  const trkPlace = useDropPlacement(trkOpen, trkWrap, trkPanel);
+  useEscClose(trkOpen, () => setTrkOpen(false));
+  const closeTrk = useCallback(() => setTrkOpen(false), []);
+  useClickOutside(trkOpen, trkWrap, closeTrk);
+  /** กล่องคำอธิบายวางชิดขวาของเมนู · เมนูกว้างตามชื่อไฟล์ล่าสุดที่ยาวสุด จึงวัดจริงตอนกาง */
+  const [descLeft, setDescLeft] = useState(266);
+  useLayoutEffect(() => { if (menu && menuPanel.current) setDescLeft(menuPanel.current.offsetWidth + 6); }, [menu, recent, info]);
   const closeMenu = useCallback(() => setMenu(false), []);
   useClickOutside(menu, menuWrap, closeMenu);
   const [box, setBox] = useState({ w: 600, h: 300 });
@@ -178,7 +227,7 @@ export default function BitrateClassic({ initialPath = null, initialTrack = null
     a.then((u) => (live ? offs.push(u) : u()));
     const b = listen<Done>("bitrate-done", (e) => {
       const d = e.payload; if (d.run !== run.current) return;
-      if (raw.current) raw.current.done = d.ok;
+      if (raw.current) { raw.current.done = d.ok; raw.current.partial = !!d.partial; }
       setRunning(false); if (d.error) setErr(d.error); setVer((v) => v + 1);
     });
     b.then((u) => (live ? offs.push(u) : u()));
@@ -265,7 +314,8 @@ export default function BitrateClassic({ initialPath = null, initialTrack = null
       const m = ({ s: "sec", g: "gop", x: "gopx", f: "frm" } as Record<string, Mode>)[k];
       if (m) { e.preventDefault(); setMode(m); return; }
       if (k === "a") { e.preventDefault(); setAuto((v) => !v); }
-      else if (k === "c") { e.preventDefault(); setGrad((v) => !v); }
+      // มีข้อความที่ลากเลือกไว้ ปล่อย Ctrl+C ให้คัดลอกตามปกติของ Windows (AUDIT ข้อ 123)
+      else if (k === "c") { if (window.getSelection()?.toString()) return; e.preventDefault(); setGrad((v) => !v); }
       else if (k === "d") { e.preventDefault(); setGradHead((v) => !v); }
     };
     window.addEventListener("keydown", on); return () => window.removeEventListener("keydown", on);
@@ -276,8 +326,15 @@ export default function BitrateClassic({ initialPath = null, initialTrack = null
   const fps = info?.fps ?? 0;
   const dur = info?.duration && info.duration > 0 ? info.duration : r && r.t.length ? r.readTo - r.tmin : 0;
   const totalSec = Math.max(1, dur);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const S = useMemo(() => buildSamples(r, mode, fps), [r, mode, fps, ver]);
+  // ระหว่างอ่าน คิดตัวอย่างใหม่ไม่เกิน 700 ms ละครั้ง อ่านจบหรือเปลี่ยนวิธีคิดใหม่ทันที (AUDIT ข้อ 119 · เดิมคิดทั้งก้อนทุก 120 ms)
+  const sMemo = useRef<{ at: number; key: string; r?: Raw; S?: Samples }>({ at: 0, key: "" });
+  const S = useMemo(() => {
+    const m = sMemo.current, now = performance.now(), key = `${mode}|${fps}`;
+    if (r && !r.done && m.r === r && m.key === key && m.S && now - m.at < 700) return m.S;
+    const out = buildSamples(r, mode, fps);
+    sMemo.current = { at: now, key, r, S: out };
+    return out;
+  }, [r, mode, fps, ver]); // eslint-disable-line react-hooks/exhaustive-deps
   const stats = useMemo(() => {
     let peak = 0, min = Infinity, pAt = -1, mAt = -1, sumB = 0, sumT = 0;
     const cum = new Float64Array(S.n);
@@ -333,10 +390,12 @@ export default function BitrateClassic({ initialPath = null, initialTrack = null
       const pink = grad ? g.createLinearGradient(0, H, 0, ym) : null; pink?.addColorStop(0, C.pinkLo); pink?.addColorStop(1, C.pinkHi);
       for (const b of bars) {
         const x0 = Math.floor(xOf(b.t0)), x1 = Math.max(x0 + 1, Math.floor(xOf(b.t1)));
+        // แท่งกว้างตั้งแต่ 3 จุดเว้นช่องขวา 1 จุดเป็นสีพื้นกราฟ แต่ละช่วงแยกกัน · แคบกว่านั้นติดกันเหมือนเดิม หลักเดียวกับแบบชั้นหนัง (BUGS ข้อ 43 44)
+        const w = x1 - x0 - (gaps && x1 - x0 >= 3 ? 1 : 0);
         const yv = yOf(b.v), ya = yOf(Math.min(b.v, b.avg));
-        g.fillStyle = purple ?? C.purpleLo; g.fillRect(x0, ya, x1 - x0, H - ya);
-        if (b.v > b.avg) { const yTop = Math.max(yv, Math.min(ya, ym)); g.fillStyle = pink ?? C.pinkLo; g.fillRect(x0, yTop, x1 - x0, ya - yTop); }
-        if (b.v > maxV) { g.fillStyle = C.over; g.fillRect(x0, yv, x1 - x0, Math.min(ym, ya) - yv); }
+        g.fillStyle = purple ?? C.purpleLo; g.fillRect(x0, ya, w, H - ya);
+        if (b.v > b.avg) { const yTop = Math.max(yv, Math.min(ya, ym)); g.fillStyle = pink ?? C.pinkLo; g.fillRect(x0, yTop, w, ya - yTop); }
+        if (b.v > maxV) { g.fillStyle = C.over; g.fillRect(x0, yv, w, Math.min(ym, ya) - yv); }
       }
       // ค่าเฉลี่ยสะสม
       if (bars.length) {
@@ -388,7 +447,13 @@ export default function BitrateClassic({ initialPath = null, initialTrack = null
   const onContext = (e: React.MouseEvent) => {
     e.preventDefault(); if (!path) return;
     const t = tOf(xIn(e).x);
-    if (e.ctrlKey && e.altKey && e.shiftKey) { const i = sampleAt(t); const w = (i >= 0 ? S.t1[i] - S.t0[i] : 1) * box.w; pushZoom(t - w / 2, t + w / 2); return; }
+    // หนึ่งช่องต่อหนึ่งจุดภาพ ช่วงที่เห็น = ความยาวช่องตรงนั้น × ความกว้างกราฟเป็นจุดภาพ (คู่มือตัวจริง) · ต่อวินาทีบนกราฟกว้าง 600 จุดเห็น 600 วินาที
+    // ซูมละเอียดกว่านั้นอยู่แล้วหรือไฟล์สั้นกว่านั้น ไม่เพิ่มชั้นซูมที่กว้างกว่าเดิม (เดิมกดตอนซูมอยู่กลายเป็นซูมออก AUDIT ข้อ 122) · ชิดขอบไฟล์เลื่อนช่วงเข้ามา ไม่หดช่วง
+    if (e.ctrlKey && e.altKey && e.shiftKey) {
+      const i = sampleAt(t); const w = Math.min(totalSec, (i >= 0 ? S.t1[i] - S.t0[i] : 1) * box.w);
+      if (w >= span - 0.001) return;
+      const a = Math.max(0, Math.min(totalSec - w, t - w / 2)); pushZoom(a, a + w); return;
+    }
     if (e.ctrlKey) { setTrack((v) => !v); return; }
     if (e.altKey) { setShowCur((v) => !v); return; }
     if (e.shiftKey) { setGrad((v) => !v); return; }
@@ -427,6 +492,8 @@ export default function BitrateClassic({ initialPath = null, initialTrack = null
     if (t < z0 || t > z1) { const w = span; const a = Math.max(0, Math.min(totalSec - w, t - w / 2)); setZoom((z) => (z.length ? [...z.slice(0, -1), [a, a + w]] : z)); }
   };
 
+  const cutEnd = r && isFinite(r.tmin) ? r.readTo - r.tmin : 0;
+  const cutAt = r?.done && info && info.duration > 0 && (r.partial || cutEnd < info.duration - Math.max(2, info.duration * 0.02)) ? cutEnd : null;
   const readPct = info && info.duration > 0 && r ? Math.min(100, Math.round(((r.readTo - (isFinite(r.tmin) ? r.tmin : 0)) / info.duration) * 100)) : 0;
   const codec = info ? (info.codec === "h264" ? "H.264" : info.codec === "hevc" ? "HEVC" : info.codec === "mpeg2video" ? "MPEG2" : info.codec === "mpeg1video" ? "MPEG1" : info.codec === "eac3" ? "E-AC3" : info.codec.startsWith("pcm") ? "PCM" : info.codec.toUpperCase()) : "";
   const fmt = info ? ({ matroska: "MKV", mov: "MP4", mpegts: "TS", mpeg: "PS", avi: "AVI", mpegvideo: "ES", webm: "WEBM" } as Record<string, string>)[info.format] ?? info.format.toUpperCase() : "";
@@ -454,47 +521,73 @@ export default function BitrateClassic({ initialPath = null, initialTrack = null
   })();
   const visCount = vis.length;
 
-  const item = (label: string, key: string, onClick: () => void, opt: { on?: boolean; off?: boolean } = {}) => (
-    <button type="button" role="menuitem" disabled={opt.off} onClick={() => { setMenu(false); onClick(); }} className="bv-mi" style={mi(opt.off)} data-bv-item={label}>
-      <span style={{ width: 16, flex: "none" }}>{opt.on ? "✓" : ""}</span><span style={{ flex: 1, textAlign: "left" }}>{label}</span><span style={{ color: "rgb(90,90,90)" }}>{key}</span>
-    </button>
-  );
+  /** แถวเมนู · d คือชื่อคำอธิบายใน DESC · off คือเหตุผลที่กดไม่ได้ (ชี้แล้วขึ้นในแถบคำอธิบาย) · ใช้ aria-disabled เพราะปุ่ม disabled ไม่รับเมาส์ ชี้แล้วอ่านเหตุผลไม่ได้ */
+  const item = (label: string, key: string, onClick: () => void, opt: { d: string; on?: boolean; off?: string | false; k?: string }) => {
+    const off = !!opt.off;
+    // แถวที่กดไม่ได้ขึ้นเหตุผลคู่สองประโยคแรกของคำอธิบาย กล่องสูงสี่บรรทัดพอเสมอ
+    const d = DESC[opt.d] ?? opt.d;
+    const show = () => setDesc(off ? { d: d.split("  ").slice(0, 2).join("  "), why: opt.off as string } : { d });
+    return (
+      <button key={opt.k ?? label} type="button" role="menuitem" aria-disabled={off || undefined} onClick={() => { if (off) return; setMenu(false); onClick(); }} onMouseEnter={show} onFocus={show}
+        className="bv-mi" style={mi(off)} data-bv-item={label}>
+        <span style={{ width: 16, flex: "none" }}>{opt.on ? "✓" : ""}</span><span style={{ flex: 1, textAlign: "left" }}>{label}</span><span style={{ color: off ? "rgb(170,170,170)" : "rgb(90,90,90)" }}>{key}</span>
+      </button>
+    );
+  };
+  const noZoom = !zoom.length && "กดไม่ได้เพราะยังไม่ได้ซูม";
 
   return (
-    <div data-bitrate style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: C.win, color: C.text, fontFamily: FONT, fontSize: 12.5, padding: "12px 14px 12px 6px", gap: 8 }}>
+    <div data-bitrate data-keepcolor style={{ flex: 1, minHeight: 0, display: "flex", flexDirection: "column", background: C.win, color: C.text, fontFamily: FONT, fontSize: 12.5, padding: "12px 14px 12px 6px", gap: 8 }}>
       <div style={{ display: "flex", alignItems: "center", gap: 6, paddingLeft: 4, minHeight: 20 }}>
         <div ref={menuWrap} style={{ position: "relative", flex: "none" }}>
           <button type="button" aria-label="เมนู Bitrate Viewer" aria-haspopup="menu" aria-expanded={menu} onClick={() => setMenu((v) => !v)} data-bv-menu
             className="bv-btn" style={{ width: 22, height: 20, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 2, cursor: "pointer", padding: 0 }}>
             <svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><rect x="1" y="6" width="2" height="5" fill={C.purpleLo} /><rect x="4" y="3" width="2" height="8" fill={C.pinkHi} /><rect x="7" y="5" width="2" height="6" fill={C.purpleLo} /><rect x="10" y="1" width="2" height="10" fill={C.over} /></svg>
           </button>
-          {menu && <div ref={menuPanel} role="menu" className="pop-in" data-bv-menupanel style={{ position: "absolute", left: 0, ...dropStyle(place), overflowY: "auto", zIndex: 40, minWidth: 260, background: "rgb(250,250,250)", border: "1px solid rgb(150,150,150)", boxShadow: "2px 3px 8px rgba(0,0,0,.25)", padding: "3px 0", fontSize: 12.5 }}>
+          {menu && <div ref={menuPanel} role="menu" className="pop-in" data-bv-menupanel onMouseLeave={() => setDesc(null)} style={{ position: "absolute", left: 0, ...dropStyle(place), overflowY: "auto", zIndex: 40, minWidth: 260, background: "rgb(250,250,250)", border: "1px solid rgb(150,150,150)", boxShadow: "2px 3px 8px rgba(0,0,0,.25)", padding: "3px 0", fontSize: 12.5 }}>
             <div style={sep}>Open recent file</div>
-            {recent.length ? recent.map((p) => item(p.split(/[\\/]/).pop() ?? p, "", () => void open(p, mode))) : <div style={{ ...mi(true), cursor: "default" }}><span style={{ width: 16 }} />ยังไม่มีไฟล์</div>}
+            {recent.length ? recent.map((p) => item(p.split(/[\\/]/).pop() ?? p, "", () => void open(p, mode), { d: "recent", k: p })) : <div style={{ ...mi(true), cursor: "default" }}><span style={{ width: 16 }} />ยังไม่มีไฟล์</div>}
             <div style={hr} />
             {info && info.tracks.length > 1 && <><div style={sep}>Stream</div>
-              {info.tracks.map((t) => item(t.label, "", () => path && void open(path, modeSel, false, t.id), { on: info.track === t.id }))}
+              {info.tracks.map((t) => item(t.label, "", () => path && void open(path, modeSel, false, t.id), { d: "stream", on: info.track === t.id, k: "trk" + t.id }))}
               <div style={hr} /></>}
-            {MODES.map((m) => item(m.label, m.key, () => setMode(m.id), { on: mode === m.id, off: audio && m.id !== "sec" }))}
+            {MODES.map((m) => item(m.label, m.key, () => setMode(m.id), { d: m.id, on: mode === m.id, off: audio && m.id !== "sec" && "กดไม่ได้เพราะไฟล์เสียงไม่มีคีย์เฟรมกับชนิดเฟรม" }))}
             <div style={hr} />
-            {item("Recalculate current file", "F5", () => path && void open(path, mode, true), { off: !path })}
-            {item(running ? "Stop calculation" : "Load file…", "", () => void load())}
+            {item("Recalculate current file", "F5", () => path && void open(path, mode, true), { d: "recalc", off: !path && "กดไม่ได้เพราะยังไม่ได้เปิดไฟล์" })}
+            {item(running ? "Stop calculation" : "Load file…", "", () => void load(), { d: running ? "stop" : "load", k: "load" })}
             <div style={hr} />
-            {item("Standard scale mode", "Ctrl+A", () => setAuto((v) => !v), { on: !auto })}
-            {item("Use fixed colors", "Ctrl+C", () => setGrad((v) => !v), { on: !grad })}
-            {item("Draw gradient headers", "Ctrl+D", () => setGradHead((v) => !v), { on: gradHead })}
+            {item("Standard scale mode", "Ctrl+A", () => setAuto((v) => !v), { d: "scale", on: !auto })}
+            {item("Use fixed colors", "Ctrl+C", () => setGrad((v) => !v), { d: "fixed", on: !grad })}
+            {item("Draw gradient headers", "Ctrl+D", () => setGradHead((v) => !v), { d: "heads", on: gradHead })}
+            {item("Separate bars", "", toggleGaps, { d: "gaps", on: gaps })}
             <div style={hr} />
-            {item("Average bitrate line", "Ctrl+Click", () => setMarks((m) => ({ ...m, avg: !m.avg })), { on: marks.avg })}
-            {item("Maximum bitrate line", "Shift+Click", () => setMarks((m) => ({ ...m, max: !m.max })), { on: marks.max })}
-            {item("Minimum bitrate line", "Alt+Click", () => setMarks((m) => ({ ...m, min: !m.min })), { on: marks.min })}
-            {item("Track mouse position", "Ctrl+RightClick", () => setTrack((v) => !v), { on: track })}
-            {item("Show cursor line", "Alt+RightClick", () => setShowCur((v) => !v), { on: showCur })}
-            {item("Zoom out", "Wheel up", () => setZoom((z) => z.slice(0, -1)), { off: !zoom.length })}
-            {item("Reset zoom", "", () => { setZoom([]); setSel(null); }, { off: !zoom.length })}
+            {item("Average bitrate line", "Ctrl+Click", () => setMarks((m) => ({ ...m, avg: !m.avg })), { d: "avg", on: marks.avg })}
+            {item("Maximum bitrate line", "Shift+Click", () => setMarks((m) => ({ ...m, max: !m.max })), { d: "max", on: marks.max })}
+            {item("Minimum bitrate line", "Alt+Click", () => setMarks((m) => ({ ...m, min: !m.min })), { d: "min", on: marks.min })}
+            {item("Track mouse position", "Ctrl+RightClick", () => setTrack((v) => !v), { d: "track", on: track })}
+            {item("Show cursor line", "Alt+RightClick", () => setShowCur((v) => !v), { d: "cursor", on: showCur })}
+            {item("Zoom out", "Wheel up", () => setZoom((z) => z.slice(0, -1)), { d: "zoomout", off: noZoom })}
+            {item("Reset zoom", "", () => { setZoom([]); setSel(null); }, { d: "reset", off: noZoom })}
+          </div>}
+          {/* กล่องคำอธิบายข้างเมนูทางขวา ขอบบนตรงเมนู สูงคงที่ ชี้แถวไหนกล่องก็ไม่ยืด · เดิมวางท้ายเมนู เมนูสูงเกินจอจนต้องเลื่อน (เจอตอนตรวจ 13 พ.ย. 2569)
+              เหตุผลที่กดไม่ได้ขึ้นก่อนคำอธิบาย */}
+          {menu && <div className={"bv-desc" + (desc ? "" : " idle")} aria-live="polite" data-bv-desc style={{ left: descLeft, ...(place.up ? { bottom: "calc(100% + 6px)" } : { top: "calc(100% + 6px)" }) }}>
+            {desc ? <>{desc.why && <span className="why"><Phr>{desc.why + "  "}</Phr></span>}<Phr>{desc.d}</Phr></> : DESC_IDLE}
           </div>}
         </div>
         <div style={{ flex: 1, minWidth: 0, fontSize: 13, overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }} title={path ?? undefined} data-bv-title>Bitrate Viewer{name ? ` - ${name}` : ""}</div>
-        {onModern && <button type="button" className="bv-btn" onClick={() => onModern(path)} title="สลับไปหน้าตาแบบชั้นหนัง ไฟล์นี้ตามไปด้วย" data-bvmodern style={{ flex: "none", height: 22, padding: "0 10px", borderRadius: 2, fontFamily: FONT, fontSize: 12.5, color: "rgb(0,0,0)" }}>แบบชั้นหนัง</button>}
+        {info && info.tracks.length > 1 && <div ref={trkWrap} style={{ position: "relative", flex: "none" }} data-bv-track>
+          <button type="button" className="bv-btn" aria-haspopup="listbox" aria-expanded={trkOpen} onClick={() => setTrkOpen((v) => !v)} title="เลือกแทร็กที่จะดูบิตเรต ภาพหรือเสียง"
+            style={{ height: 22, padding: "0 8px", borderRadius: 2, fontFamily: FONT, fontSize: 12.5, color: "rgb(0,0,0)", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
+            {info.tracks.find((t) => t.id === info.track)?.label ?? "Stream"}<svg width="9" height="6" viewBox="0 0 9 6" aria-hidden="true"><path d="M0.5 0.5L4.5 5L8.5 0.5" fill="none" stroke="rgb(40,40,40)" strokeWidth="1.3" /></svg>
+          </button>
+          {trkOpen && <div ref={trkPanel} role="listbox" className="pop-in" style={{ position: "absolute", right: 0, ...dropStyle(trkPlace), overflowY: "auto", zIndex: 40, minWidth: "100%", background: "rgb(250,250,250)", border: "1px solid rgb(150,150,150)", boxShadow: "2px 3px 8px rgba(0,0,0,.25)", padding: "3px 0" }}>
+            {info.tracks.map((t) => <button key={t.id} type="button" role="option" aria-selected={info.track === t.id} className="bv-mi" style={mi()} data-bv-trackopt={t.id}
+              onClick={() => { setTrkOpen(false); if (path && t.id !== info.track) void open(path, modeSel, false, t.id); }}>
+              <span style={{ width: 16, flex: "none" }}>{info.track === t.id ? "✓" : ""}</span><span style={{ flex: 1, textAlign: "left" }}>{t.label}</span></button>)}
+          </div>}
+        </div>}
+        {/* ปุ่มแบบชั้นหนังย้ายไปแถบปุ่มคู่ด้านบนของหน้า (BitratePage) อยู่ทั้งสองแบบ (BUGS ข้อ 85) */}
         {/* กว้างเท่าข้อความยาวสุดของไฟล์นี้เสมอ ไม่ซูมก็จองที่ไว้ ปุ่มแบบชั้นหนังไม่ขยับ (BUGS ข้อ 45) */}
         {path && <div style={{ flex: "none", fontSize: 12, color: "rgb(70,70,70)", visibility: zoom.length > 0 ? "visible" : "hidden" }} data-bv-zoomstat><FixedTime t={`${visCount} / ${S.n} samples, ${hms(span)}`} longest={`${S.n} / ${S.n} samples, ${hms(totalSec)}`} /></div>}
       </div>
@@ -519,12 +612,20 @@ export default function BitrateClassic({ initialPath = null, initialTrack = null
             {sel && <div data-bv-sel style={{ position: "absolute", top: 0, bottom: 0, left: xOf(sel[0]), width: Math.max(1, xOf(sel[1]) - xOf(sel[0])), background: C.sel, borderLeft: `1px solid ${C.selEdge}`, borderRight: `1px solid ${C.selEdge}`, pointerEvents: "none", display: "flex", alignItems: "center", justifyContent: "center", color: "rgb(150,80,0)", fontWeight: 700 }}>
               {(((sel[1] - sel[0]) / span) * 100).toFixed(1)}%</div>}
             {path && <div style={{ position: "absolute", left: 10, top: 6, color: C.sample, fontSize: 12, pointerEvents: "none" }} data-bv-sample>sample: {group}{running ? ` อ่านแล้ว ${readPct}%${mode === "frm" ? " (ถอดภาพ)" : ""}` : ""}</div>}
-            {!path && <div style={{ position: "absolute", inset: 0, display: "flex", alignItems: "center", justifyContent: "center", color: "rgb(120,120,120)", fontSize: 14 }}>ลากไฟล์วิดีโอหรือไฟล์เสียงมาวางตรงนี้ หรือกด Load</div>}
+            {/* ไอคอนลากไฟล์รูปเดียวกับจุดลากไฟล์ของโปรแกรมหลัก (.drop) สีม่วงฟ้าของหน้านี้ (BUGS ข้อ 86 · พี่กันสั่ง 13 พ.ย. 2569 "ใส่ icon ให้เหมือนโปรแกรมหลััก") */}
+            {!path && <div style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 14, color: "rgb(120,120,120)", fontSize: 14 }} data-bv-empty>
+              <svg width="58" height="58" viewBox="0 0 58 58" aria-hidden="true">
+                {/* ไล่สีแบบเดียวกับหัวกล่องทางขวา ตามเมนู Draw gradient headers (พี่กันสั่ง 13 พ.ย. 2569 "ปุ่มโหลดขอไล่สีเหมือนกัน") */}
+                <defs><linearGradient id="bvDropGrad" x1="0" y1="0" x2="1" y2="0"><stop offset="0" stopColor={C.head1} /><stop offset="1" stopColor={gradHead ? C.head2 : C.head1} /></linearGradient></defs>
+                <circle cx="29" cy="29" r="29" fill="url(#bvDropGrad)" /><g transform="translate(14.5 14.5) scale(1.2)" fill="none" stroke="rgb(255,255,255)" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 16V5M7.5 9.5L12 5l4.5 4.5M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3" /></g></svg>
+              ลากไฟล์วิดีโอหรือไฟล์เสียงมาวางตรงนี้ หรือกด Load</div>}
             {choose && choose.path === path && <div data-bv-choose onMouseDown={(e) => e.stopPropagation()} onClick={(e) => e.stopPropagation()} style={{ position: "absolute", inset: 0, display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center", gap: 6, background: C.win, cursor: "default" }}>
               <div style={{ marginBottom: 4, fontSize: 13 }}>Select stream ไฟล์นี้มี {choose.tracks.length} แทร็ก เลือกแทร็กที่จะดูบิตเรต</div>
               {choose.tracks.map((t) => <button key={t.id} type="button" className="bv-btn" onClick={() => void open(path, modeSel, false, t.id)} data-bv-pick={t.id} style={{ ...btn, width: 240, textAlign: "left", padding: "0 10px" }}>{t.label}</button>)}
             </div>}
             {err && <div style={{ position: "absolute", left: 10, bottom: 14, color: C.red }} data-bv-error>{err}</div>}
+            {/* อ่านไม่ถึงท้ายไฟล์ ลอยมุมล่างซ้าย ไม่ดันกรอบ (AUDIT ข้อ 118) */}
+            {!err && cutAt != null && <div style={{ position: "absolute", left: 10, bottom: 14, color: C.red, background: "rgba(255,255,255,.85)", padding: "0 4px" }} data-bv-cut>อ่านได้ถึง {hms(cutAt)} จากความยาว {hms(info?.duration ?? 0)} ส่วนท้ายไฟล์อาจเสีย</div>}
           </div>
           {/* แถบบอกช่วงที่ซูม · สีส้มคือช่วงที่เห็นอยู่ สีแดงคือช่วงที่ลากเลือก */}
           {/* ลากแถบสีส้มเลื่อนช่วงที่ดู กดร่องข้างแถบกระโดดไปช่วงนั้น · ที่กดได้หนากว่าแถบ หน้าตาเท่าเดิม (BUGS ข้อ 47) */}
@@ -564,16 +665,17 @@ export default function BitrateClassic({ initialPath = null, initialTrack = null
         </div>
       </div>
       <div style={{ display: "flex", alignItems: "flex-end", gap: 12, paddingLeft: 8 }}>
-        <div style={{ flex: 1, minWidth: 0, lineHeight: 1.5 }} data-bv-stats>
+        {/* แถวสถิติลากเลือกแล้ว Ctrl+C คัดลอกได้ (AUDIT ข้อ 123 · ทั้งโปรแกรมตั้งห้ามเลือกข้อความไว้ที่ body เดิมลากเลือกไม่ได้เลย) */}
+        <div style={{ flex: 1, minWidth: 0, lineHeight: 1.5, userSelect: "text", cursor: "text" }} title="ลากเลือกตัวเลขแล้วกด Ctrl+C เพื่อคัดลอก" data-bv-stats>
           <div>{S.n ? `MIN = ${kb(stats.min)}  MAX = ${kb(stats.peak)}  AVG = ${kb(stats.avg)}  FRAMES = ${r?.t.length ?? 0}` : " "}</div>
           <div>{info ? (audio
             ? `${+(info.sample_rate / 1000).toFixed(1)} kHz, ${info.channels} ch${info.bit_depth ? `, ${info.bit_depth} bit` : ""}      (${(info.size / 1048576).toFixed(3)} MiB)`
-            : `${info.width} × ${info.height}, ${info.fps ? info.fps.toFixed(info.fps % 1 ? 3 : 0).replace(/0+$/, "").replace(/\.$/, "") : "n/a"} fps      (${(info.size / 1048576).toFixed(3)} MiB)`) : " "}</div>
+            // ตัดศูนย์ท้ายเฉพาะทศนิยม 29.970 เป็น 29.97 · เดิมตัดศูนย์ของเลขจำนวนเต็มด้วย 30 fps ขึ้นเป็น 3 fps (AUDIT ข้อ 25)
+            : `${info.width} × ${info.height}, ${info.fps ? +info.fps.toFixed(3) : "n/a"} fps      (${(info.size / 1048576).toFixed(3)} MiB)`) : " "}</div>
         </div>
         <button type="button" className="bv-btn" onClick={() => void load()} data-bv-load style={btn}>{running ? "Stop" : "Load"}</button>
         <button type="button" className="bv-btn" onClick={close} disabled={!path} data-bv-close style={btn}>Close</button>
       </div>
-      <style>{HOVER}</style>
       <span hidden>{ver}</span>
     </div>
   );
@@ -583,19 +685,3 @@ const btn: React.CSSProperties = { width: 96, height: 30, flex: "none", borderRa
 const mi = (off?: boolean): React.CSSProperties => ({ display: "flex", alignItems: "center", gap: 6, width: "100%", border: "none", padding: "3px 12px 3px 6px", fontFamily: FONT, fontSize: 12.5, color: off ? "rgb(150,150,150)" : "rgb(0,0,0)", cursor: off ? "default" : "pointer", whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" });
 const hr: React.CSSProperties = { height: 1, background: "rgb(200,200,200)", margin: "3px 6px" };
 const sep: React.CSSProperties = { padding: "3px 12px 3px 28px", color: "rgb(90,90,90)", fontSize: 11.5 };
-
-/** ปุ่มทุกชิ้นของหน้านี้เปลี่ยนตอนชี้ (สกิล button-feedback · พี่กันทัก 10 พ.ย. 2569 "เมาส์ชี้ ก็ต้องเปลี่ยนสีตามสกิลสิ")
-    สีอยู่ในโทนม่วงฟ้าของหน้า · ปุ่มที่กดไม่ได้ไม่เปลี่ยน · เขียนที่นี่ ไม่ใส่ในไฟล์สไตล์ เพราะตัวแปลงโทนจะแปลงรหัสสี */
-const HOVER = `
-[data-bitrate] .bv-btn { border: 1px solid rgb(120,120,120); background: linear-gradient(rgb(253,253,253), rgb(225,225,225)); cursor: pointer; transition: background-color .12s, border-color .12s, box-shadow .12s; }
-[data-bitrate] .bv-btn:hover:not(:disabled), [data-bitrate] .bv-btn[aria-expanded="true"] { border-color: rgb(110,118,240); background: linear-gradient(rgb(240,241,255), rgb(208,212,255)); box-shadow: 0 0 0 1px rgba(140,146,255,.35); }
-[data-bitrate] .bv-btn:active:not(:disabled) { background: linear-gradient(rgb(200,205,255), rgb(225,228,255)); }
-[data-bitrate] .bv-btn:disabled { opacity: .5; cursor: default; }
-[data-bitrate] .bv-btn:focus-visible, [data-bitrate] .bv-mi:focus-visible, [data-bitrate] .bv-ft:focus-visible { outline: 2px solid rgb(110,118,240); outline-offset: 1px; }
-[data-bitrate] .bv-mi { background: transparent; transition: background-color .08s; }
-[data-bitrate] .bv-mi:hover:not(:disabled) { background: rgb(214,217,255); }
-[data-bitrate] .bv-mi:active:not(:disabled) { background: rgb(190,195,255); }
-[data-bitrate] .bv-ft { border: 1px solid rgb(120,120,120); transition: filter .1s, border-color .1s; }
-[data-bitrate] .bv-ft:hover { border-color: rgb(110,118,240); filter: brightness(.92); }
-@media (prefers-reduced-motion: reduce) { [data-bitrate] .bv-btn, [data-bitrate] .bv-mi, [data-bitrate] .bv-ft { transition: none; } }
-`;

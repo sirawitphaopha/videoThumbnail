@@ -22,6 +22,7 @@ import { useClickOutside, useEscClose } from "../lib/popup";
 import { IcExpand, IcFile, IcFolder, IcMix, IcPlus, IcBitrate, IcChevronDown } from "../components/icons";
 import InfoTip from "../components/InfoTip";
 import FullBtn from "../components/FullBtn";
+import { useFitClass } from "../lib/fitSwitch";
 import { PadCustom, hexRgb, hslRgb, rgbHsl, toHex } from "../components/ColorPick";
 import type { Tip } from "../lib/codecAdv";
 import { SPEK_RES_TIP } from "../lib/graphTips";
@@ -625,6 +626,24 @@ function saveRecent(list: Recent[]) {
 }
 
 /** แถบสีตัวอย่างบนปุ่มเลือกสี ใช้สีชุดเดียวกับที่วาดกราฟจริง */
+/** คำอธิบายตารางหน้าความดัง (BUGS ข้อ 78 · พี่กันถาม 13 พ.ย. 2569 "เเล้วตารานี้มันบอกอะไรแฮะ") */
+const TIP_LOUD_TABLE: Tip = {
+  w: "ตัวเลขของทั้งไฟล์ทีละช่อง ใช้เทียบว่าช่องไหนดังกว่ากัน และมีเสียงแตกไหม",
+  o: [
+    ["ดังสุด (Peak)", "จุดที่ดังที่สุดของช่องนั้นเทียบกับเพดาน 0 dB ของไฟล์ดิจิทัล เช่น −0.2 dB คือเกือบชนเพดาน", "", ""],
+    ["ความดังเฉลี่ย", "ความดังโดยรวมของทั้งเพลง (RMS) ตัวเลขใกล้ 0 คือดังมาก ส่วนเพลงที่อัดมาเบาจะติดลบมาก", "", ""],
+    ["เสียงแตก", "จำนวนจุดที่เสียงชนเพดานจนยอดคลื่นถูกตัด ฟังแล้วแตกพร่า ขึ้นว่าไม่พบคือไม่มีเลย", "", ""],
+  ],
+  r: "ดังสุดใกล้ 0 dB แต่เสียงแตกไม่พบ แปลว่าไฟล์ดังเต็มที่แต่ยังไม่แตก",
+};
+/** ขอบซ้ายของแถบสีกราฟความถี่ (เส้นกรอบกราฟ) · รายการที่กางจากหัวกราฟต้องไม่เลยเส้นนี้ ไม่บังแถบสีกับตัวเลข dB (BUGS ข้อ 77 ต่อ · พี่กันยืนยัน 13 พ.ย. 2569 "ใช่ บังแถบสี") · ไม่ได้อยู่หน้าความถี่คืน null */
+const spekEdge = () => { const cv = [...document.querySelectorAll<HTMLElement>(".spekbox canvas[data-spek]")].find((e) => e.offsetParent); return cv ? cv.getBoundingClientRect().right - SPK.R - 4 : null; };
+/** โครงจางตอนอ่านเสียง · แถบละช่อง ชื่อช่องซ้ายกับผืนกราฟขวา สูงเต็มกรอบที่เหลือแบบแถบช่องของกราฟจริง (BUGS ข้อ 75) */
+const LoadLanes = ({ n }: { n: number }) => (
+  <div className="gload-lanes" aria-hidden="true" data-loadlanes>
+    {Array.from({ length: Math.max(1, Math.min(8, n)) }, (_, i) => <div key={i} className="gload-lane"><div className="skel" style={{ height: 12 }} /><div className="skel" /></div>)}
+  </div>
+);
 const Swatch = ({ ramp }: { ramp: readonly string[] }) => <i className="cswatch" data-keepcolor aria-hidden="true" style={{ background: `linear-gradient(90deg,${ramp.join(",")})` }} />;
 /** คำอธิบายสีของรูปคลื่น (BUGS ข้อ 11 · พี่กัน "ยอดเสียง อ่านเเล้วงง" · "เอาไว้ด้วย") */
 const PEAK_RMS_TIP: Tip = { w: "ดังสุด (Peak) คือจุดที่ดังที่สุดแวบเดียวในช่วงนั้น ส่วนดังเฉลี่ย (RMS) คือความดังเฉลี่ยของช่วงนั้น ซึ่งใกล้กับที่หูได้ยิน",
@@ -691,6 +710,8 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
   const [winFail, setWinFail] = useState<string | null>(null);
   /** นับครั้งที่กดรีเซ็ต หน้าวิเคราะห์เก็บซูมแนวตั้งของตัวเอง ใช้ค่านี้สั่งคืน */
   const [resetN, setResetN] = useState(0);
+  // หัวกราฟแคบสลับปุ่มแถวเป็นดรอปดาวน์ตามที่ว่างจริง (BUGS ข้อ 76)
+  useFitClass(".ag[data-graph] .plothead");
   const [psd, setPsd] = useState<GPsd | null>(null);
   const [psdCh, setPsdCh] = useState("mix");
   const [psdLog, setPsdLog] = useState(true);
@@ -828,7 +849,8 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
   const [vz, setVz] = useState(1);
   // ขยายแนวตั้งใช้กับเส้นละเอียดและแบบ Audacity · แบบ Audacity มีไม้บรรทัดตัวเลขนอกกราฟ ขอบซ้ายของกราฟจึงขยับไปอีก RUL_W
   // รูปคลื่นทั้งสามแบบจองแถบซูมขวากับไม้บรรทัดซ้ายเท่ากัน สลับแบบแล้วกราฟเริ่มและจบที่เดิม
-  const VZ_W = view === "wave" || view === "spec" ? 30 : 0;
+  // 38 = แถบซูมแนวตั้งกว้าง 30 (app.css .ag[data-graphview] .vzoom ข้อ 87 ให้ตรงแนวปุ่ม ⓘ) กับช่องห่าง 8
+  const VZ_W = view === "wave" || view === "spec" ? 38 : 0;
   // ซูมแนวตั้งแถบความถี่ sz เท่า ขอบล่างของย่านที่เห็น sb เป็นสัดส่วน แบบเดียวกับหน้าวิเคราะห์ (พี่กันสั่ง 9 พ.ย. 2569 "ขอขยายแบบแนวตั้ง")
   const [sz, setSzRaw] = useState(1), [sb, setSb] = useState(0);
   const szNow = useRef(1); szNow.current = sz;
@@ -1148,7 +1170,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
       {/* หัวกราฟแคบ ปุ่มช่วงซูมเป็นดรอปดาวน์ สลับด้วย @container ใน app.css (พี่กันสั่ง 13 พ.ย. 2569 "ตัวนี้เปลี่ยนเป็นดรอปดาวด้วย ถ้าจอเล็ก")
           ลากเส้นเลื่อนไปค่าที่ไม่ตรงปุ่มไหน ดรอปดาวน์ขึ้นความยาวช่วงที่ดูแบบเดียวกับเวลาบนหัวกราฟ */}
       <span className="zseg">{seg(opts.map(([k, l]) => [String(k), l] as [string, string]), String(zoom), pickZoom, "data-zoom")}</span>
-      <span className="zdd" title={`ช่วงที่ดูยาว ${tfmtD(span, spanDigits(span))}`} data-zoomdd><Dropdown label={lbl === "ซูม" ? "ช่วงซูม" : lbl} value={String(zoom)} onChange={pickZoom}
+      <span className="zdd" title={`ช่วงที่ดูยาว ${tfmtD(span, spanDigits(span))}`} data-zoomdd><Dropdown label={lbl === "ซูม" ? "ช่วงซูม" : lbl} value={String(zoom)} onChange={pickZoom} keepLeftOf={spekEdge}
         options={opts.map(([k, l]) => ({ value: String(k), label: l }))} display={(o) => o?.label ?? tfmtD(span, spanDigits(span))} /></span>
       {lbl === "ซูม" && <>
         <span className="fsep" aria-hidden="true" />
@@ -1182,7 +1204,8 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
           onCancel={() => { const sn = swSnap; if (sn) setPrefs((p) => { const n = { ...p, theme: sn.theme, customColor: sn.color }; try { localStorage.setItem(PREF_KEY, JSON.stringify(n)); } catch { /* เก็บไม่ได้ */ } return n; }); }}
           onPad={(c) => setPrefs((p) => { const n = { ...p, customColor: c, theme: CUSTOM }; try { localStorage.setItem(PREF_KEY, JSON.stringify(n)); } catch { /* เก็บไม่ได้ ใช้ค่าในหน้าไปก่อน */ } return n; })}
           trigger={(open, toggle) => <button type="button" className={"sw sw-custom" + (prefs.theme === CUSTOM ? " on" : "")} aria-expanded={open} aria-label="ชุดสีกำหนดเอง" title="ชุดสีกำหนดเอง เลือกสีหลักสีเดียว โปรแกรมไล่ชุดสีให้" onClick={toggle} data-sw-custom
-            style={{ background: `${prefs.theme === CUSTOM ? `linear-gradient(135deg,${th.ramp[2]},${th.ramp[5]} 60%,${th.ramp[7]})` : `linear-gradient(135deg,${themeOf(prefs.customColor).ramp[2]},${themeOf(prefs.customColor).ramp[5]} 60%,${themeOf(prefs.customColor).ramp[7]})`} padding-box, conic-gradient(#e0457b,#f0a23b,#e8d23a,#4cc38a,#3b8fe0,#8a5ae0,#e0457b) border-box` }} />} /></div>
+            // สีที่เลือกเล็กลง มีขอบขาวคั่นกับขอบรุ้ง (BUGS ข้อ 79 · พี่กันสั่ง 13 พ.ย. 2569 "สีที่เลือกเล็กลงกว่านี้ เเละใส่ขอบขาว")
+            style={{ padding: 2, background: `${prefs.theme === CUSTOM ? `linear-gradient(135deg,${th.ramp[2]},${th.ramp[5]} 60%,${th.ramp[7]})` : `linear-gradient(135deg,${themeOf(prefs.customColor).ramp[2]},${themeOf(prefs.customColor).ramp[5]} 60%,${themeOf(prefs.customColor).ramp[7]})`} content-box, linear-gradient(white, white) padding-box, conic-gradient(#e0457b,#f0a23b,#e8d23a,#4cc38a,#3b8fe0,#8a5ae0,#e0457b) border-box` }} />} /></div>
       <GraphOptions on={zoomAll} onChange={(v) => updateSettings({ graphZoomAll: v })} />
       {/* ขยายกราฟเต็มจอ พับแผงลำโพงซ้าย กดอีกครั้งกางคืน จำไว้ (พี่กันสั่ง 8 พ.ย. 2569) */}
       <button type="button" className={"btn btn-ghost btn-sm" + (prefs.wide ? " pressed" : "")} style={{ width: 32, padding: 0, flex: "none" }} aria-pressed={prefs.wide} title={prefs.wide ? "แสดงแผงลำโพง" : "ซ่อนแผงลำโพง กราฟกว้างขึ้น"} aria-label={prefs.wide ? "แสดงแผงลำโพง" : "ซ่อนแผงลำโพง"} onClick={() => setPref("wide", !prefs.wide)} data-graphwide><IcExpand size={14} /></button>
@@ -1231,18 +1254,18 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
     );
   }
   if (!ov || !src) {
+    // ตอนโหลดใช้โครงเดียวกับหน้าที่มีกราฟ (data-graphview) กรอบสูงเต็มจอ เส้นแบ่งแผงซ้ายอยู่ตลอด โครงจางเต็มความสูงรูปเดียวกับแถบช่อง
+    // (BUGS ข้อ 75 · พี่กันทัก 13 พ.ย. 2569 "ตอนเราให้มันโหลดกราฟ หน้ากระดูดมันควรหญ่กว่านี้ เเล้วเส้นเเย่งข้อมูลฝั่งซ้ายันหายไป")
     return (
-      <div className="ag" data-graph><div className="agstick">{head}{ctl}</div>{tagDlg}
-        <div className="agb">{panel}
+      <div className="ag" data-graph data-graphview={view} data-graphloadview><div className="agstick">{head}{ctl}</div>{tagDlg}
+        <div className={"agb" + (prefs.wide ? " wide" : "")}>{prefs.wide ? null : panel}
           <div className="plot" data-graphloading>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
-              <div style={{ fontSize: 13.5 }}>อ่านเสียง {names.length || ""} ช่อง <b>{Math.round(progress ?? 0)}%</b>{progress != null && progress > 3 && info ? "" : ""}</div>
+              <div style={{ fontSize: 13.5 }}>อ่านเสียง {names.length || ""} ช่อง <b>{Math.round(progress ?? 0)}%</b></div>
               <button type="button" className="btn btn-bad btn-sm" onClick={() => graphApi.cancel()}><IbStop size={15} />หยุด</button>
             </div>
             <div className="bar"><i style={{ width: `${progress ?? 0}%` }} /></div>
-            <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 10 }}>
-              {(names.length ? names : ["", "", ""]).map((_, i) => <div key={i} style={{ display: "grid", gridTemplateColumns: "84px 1fr", gap: 10, alignItems: "center" }}><div className="skel" style={{ height: 12 }} /><div className="skel" style={{ height: 40 }} /></div>)}
-            </div>
+            <LoadLanes n={names.length || 2} />
             <div className="small" style={{ marginTop: 8 }}>อ่านเฉพาะเสียงโดยไม่ถอดภาพ อ่านครั้งเดียวแล้วเปิดซ้ำขึ้นทันที และไฟล์ไม่ถูกแก้</div>
           </div>
         </div>
@@ -1438,7 +1461,8 @@ function Overview(p: OvProps) {
   const [fold, setFold] = useOvFold();
   // ปุ่มพับกางอยู่นอกแถบ ในช่องว่างข้างแถบ ไม่ทับคลื่น (พี่กันทัก "บัง" ตอนปุ่มอยู่มุมซ้ายบนในแถบ · ชี้ช่องว่างขวา "ตรงนี้ก็ว่าง")
   // หน้ากราฟหลักมีช่องว่างขวาเหนือแท่งซูมแนวตั้ง วางกลางช่องนั้น · หน้าเทียบสองไฟล์ไม่มีช่องขวา วางในช่องว่างซ้าย · ที่เดียวกันทั้งตอนพับและตอนกาง
-  const togPos: CSSProperties = right >= 24 ? { right: -(right / 2 + 12) } : { left: -30 };
+  // ลูกศรกว้าง 24 วางกลางแถบซูมแนวตั้งกว้าง 30 ที่ชิดขวาสุดของช่องขวา (ข้อ 87 ตรงแนวปุ่ม ⓘ)
+  const togPos: CSSProperties = right >= 24 ? { right: -(right - 3) } : { left: -30 };
   // พับแล้วเหลือเส้นเดียวหนา 10 จุด ไม่มีตัวหนังสือ กดตรงเส้นก็กาง (พี่กันสั่ง "เอาเส้นเดียว หนา 10" · BUGS ข้อ 17)
   if (fold) return (
     <div className="ovfold" style={{ marginLeft: left, marginRight: right }} onClick={() => setFold(false)} title={`กดเพื่อแสดงภาพรวมทั้งไฟล์ ${tfmt(ov.duration)}`} data-ovfold>
@@ -1696,9 +1720,12 @@ function LoudView({ head, onPan, onBusy, resetN, scroller, ov, th, t0, t1, names
       <div className="sub">ดังสุดแต่ละช่อง</div>
       <div className="pbars">{names.map((c, i) => <FragmentBar key={c} code={label(names, c).code} th={label(names, c).th} w={Math.max(ov.peaks[i] <= -119 ? 0 : 2, (ov.peaks[i] + 48) / 48 * 100)} color={th.rms} v={pkTxt(ov.peaks[i])} />)}</div>
       <div className="agfoot"><div className="lg"><span><i style={{ background: th.peak }} />ความดัง</span><span><span className="ln" style={{ background: th.rms }} />เส้นความดัง</span><span><span className="ln" style={{ background: "#8a6474" }} />เส้นอ้างอิง</span></div>
-        <div style={{ display: "flex", gap: 8 }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowTable(!showTable)} data-table><Keep icon={<IbTable size={15} />} all={["ซ่อนตาราง", "ดูเป็นตาราง"]}>{showTable ? "ซ่อนตาราง" : "ดูเป็นตาราง"}</Keep></button><SaveBtn onClick={save} /></div></div>
-      {showTable && <table className="fmt" style={{ marginTop: 10 }} data-graphtable><thead><tr><th>ช่อง</th><th className="num">ดังสุด (Peak)</th><th className="num">ความดังเฉลี่ย</th><th className="num">เสียงแตก</th></tr></thead>
-        <tbody>{names.map((c, i) => <tr key={c}><td><b>{label(names, c).code}</b> {label(names, c).th}</td><td className="num">{pkTxt(ov.peaks[i])}</td><td className="num">{pkTxt(ov.rms[i])}</td><td className="num">{ov.clips[i] ? `${ov.clips[i]} จุด` : "ไม่พบ"}</td></tr>)}</tbody></table>}
+        <div style={{ display: "flex", gap: 8, alignItems: "center" }}><button type="button" className="btn btn-ghost btn-sm" aria-expanded={showTable} onClick={() => setShowTable(!showTable)} data-table><Keep icon={<IbTable size={15} />} all={["ซ่อนตาราง", "ดูเป็นตาราง"]}>{showTable ? "ซ่อนตาราง" : "ดูเป็นตาราง"}</Keep></button><InfoTip title="ตารางความดังทั้งไฟล์" tip={TIP_LOUD_TABLE} /><SaveBtn onClick={save} /></div></div>
+      {/* ตารางกางลงหุบขึ้นแบบค่อย ๆ เลื่อน เดิมโผล่ทันที (BUGS ข้อ 78 · พี่กันสั่ง 13 พ.ย. 2569 "ตอนตารางมันเด้งมา ขออนิเมชั่นลื่นๆ") · หุบอยู่ไม่ให้กดหรืออ่านจากโปรแกรมอ่านจอ */}
+      <div className={"gtable" + (showTable ? " open" : "")} aria-hidden={!showTable} data-graphtablewrap onTransitionEnd={(e) => { if (showTable && e.propertyName === "grid-template-rows") e.currentTarget.scrollIntoView({ block: "nearest", behavior: "smooth" }); }}>
+        <div><table className="fmt" style={{ marginTop: 10 }} data-graphtable><thead><tr><th>ช่อง</th><th className="num">ดังสุด (Peak)</th><th className="num">ความดังเฉลี่ย</th><th className="num">เสียงแตก</th></tr></thead>
+        <tbody>{names.map((c, i) => <tr key={c}><td><b>{label(names, c).code}</b> {label(names, c).th}</td><td className="num">{pkTxt(ov.peaks[i])}</td><td className="num">{pkTxt(ov.rms[i])}</td><td className="num">{ov.clips[i] ? `${ov.clips[i]} จุด` : "ไม่พบ"}</td></tr>)}</tbody></table></div>
+      </div>
     </div>
   );
 }
@@ -2513,6 +2540,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
   LABELS = files.map((_, i) => (!free && i < 2 ? ["ต้นฉบับ", "หลังแปลง"][i] : `ไฟล์ ${i + 1}`));
   CONV = !free && n === 2;
   const allTxt = n === 2 ? "สองไฟล์" : `ทั้ง ${n} ไฟล์`;
+  useFitClass(".ag[data-graph] .plothead");
   const toast = useToast();
   const [sides, setSides] = useState<Record<string, Side>>({});
   const [tab, setTab] = useState<View>("wave");
@@ -2792,7 +2820,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
       <div className="plot" data-cmploading>
         <div style={{ fontSize: 13.5, marginBottom: 8 }}>อ่านเสียง{LABELS[at]} <b>{Math.round(pct)}%</b> อ่านทีละไฟล์ตามลำดับ</div>
         <div className="bar"><i style={{ width: `${pct}%` }} /></div>
-        <div style={{ display: "flex", flexDirection: "column", gap: 3, marginTop: 10 }}>{[0, 1, 2, 3].map((i) => <div key={i} style={{ display: "grid", gridTemplateColumns: "84px 1fr", gap: 10, alignItems: "center" }}><div className="skel" style={{ height: 12 }} /><div className="skel" style={{ height: 40 }} /></div>)}</div>
+        <LoadLanes n={files.length * 2} />
       </div>
     );
   } else {
@@ -2810,7 +2838,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
           <button type="button" className="zb" onClick={() => setSpan(span / 2)} disabled={span <= HZ_MIN} aria-label="ซูมเข้า" title="ซูมเข้า (Ctrl หมุนล้อเมาส์ขึ้น)" data-zoomin><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6M10.5 7.5v6" /></svg></button>
         </span>
         <span className="zseg"><div className="seg sm">{ZOOMS.map(([k, l]) => <button key={String(k)} type="button" className={String(zoom) === String(k) ? "on" : ""} onClick={() => pickCmpZoom(String(k))} data-cmpzoom={String(k)}>{l}</button>)}</div></span>
-        <span className="zdd" title={`ช่วงที่ดูยาว ${tfmtD(span, spanDigits(span))}`} data-zoomdd><Dropdown label="ช่วงซูม" value={String(zoom)} onChange={pickCmpZoom}
+        <span className="zdd" title={`ช่วงที่ดูยาว ${tfmtD(span, spanDigits(span))}`} data-zoomdd><Dropdown label="ช่วงซูม" value={String(zoom)} onChange={pickCmpZoom} keepLeftOf={spekEdge}
           options={ZOOMS.map(([k, l]) => ({ value: String(k), label: l }))} display={(o) => o?.label ?? tfmtD(span, spanDigits(span))} /></span>
         <span className="fsep" aria-hidden="true" />
         <button type="button" className="zb" onClick={zoomReset} aria-label="รีเซ็ตซูม" title="รีเซ็ต กลับทั้งไฟล์ ซูมแนวตั้ง 1 เท่า" data-zoom-reset><IcRefresh size={15} /></button></span>

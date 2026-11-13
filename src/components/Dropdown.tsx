@@ -3,14 +3,18 @@
    ✓ ลูกศรขึ้นลงเลื่อน Enter เลือก Esc ปิด กดข้างนอกปิด (เมนูเลือกค่า ไม่มีงานค้าง)
    ✓ ตัวหนังสือในปุ่มไม่มีอะไรตัด ตัดที่ขอบปุ่มที่เดียว หัว ไ ใ โ ไม่โดนเฉือน
    ✓ ปุ่มกว้างเท่าตัวเลือกที่ยาวที่สุด ไม่หดกระตุกตอนเปลี่ยนค่า */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { dropStyle, useDropPlacement } from "../lib/popupFit";
 import { useClickOutside, useEscClose } from "../lib/popup";
 import { IcChevronDown, IcSearch } from "./icons";
 
 /** group หัวกลุ่มใหญ่ · sub หัวย่อยในกลุ่ม · ตัวเลือกเรียงตามกลุ่มมาแล้ว หัวขึ้นตอนกลุ่มเปลี่ยน */
-export type DdOption<T extends string> = { value: T; label: string; group?: string; sub?: string };
+export type DdOption<T extends string> = { value: T; label: string; group?: string; sub?: string;
+  /** คำสั้นจาง ๆ ท้ายแถว เช่น ดูภาพรวม (BUGS ข้อ 42 "เน้นเนียน เน้นเนิร์ด") */
+  note?: string;
+  /** เหตุผลที่เลือกแถวนี้ไม่ได้ · แถวจาง ชี้แล้วขึ้นเหตุผล กดไม่เลือก */
+  off?: string };
 
 export default function Dropdown<T extends string>(p: {
   options: DdOption<T>[];
@@ -25,6 +29,12 @@ export default function Dropdown<T extends string>(p: {
   search?: boolean;
   /** รายการลอยบนสุดของหน้า ไม่โดนกรอบที่เลื่อนได้ตัด (ใช้ในแถวของรายการที่เลื่อนในกรอบ เช่นคิวแปลงเสียง) */
   portal?: boolean;
+  /** เหตุผลที่ตอนนี้เปลี่ยนค่าไม่ได้ · ปุ่มจาง ชี้แล้วขึ้นเหตุผล กดไม่กาง (สกิล button-feedback ปุ่มกดไม่ได้ต้องบอกเหตุผล) */
+  disabled?: string;
+  /** ข้อความเพิ่มที่ใช้กันความกว้างปุ่ม เมื่อข้อความบนปุ่มเปลี่ยนได้มากกว่าป้ายตัวเลือก (เช่น อัตโนมัติ 0.5 วินาที) ปุ่มไม่หดขยาย */
+  sizes?: string[];
+  /** ขอบขวาของรายการต้องไม่เลยจุดนี้ (พิกัดบนจอ) · ใช้กันรายการบังของสำคัญทางขวา เช่นแถบสีของกราฟความถี่ (BUGS ข้อ 77 ต่อ) */
+  keepLeftOf?: () => number | null;
 }) {
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(-1);
@@ -55,7 +65,7 @@ export default function Dropdown<T extends string>(p: {
 
   const cur = p.options.find((o) => o.value === p.value);
   const text = p.display ? p.display(cur) : cur?.label ?? "";
-  const shown = p.display ? p.options.map((o) => p.display!(o)) : p.options.map((o) => o.label);
+  const shown = [...new Set([...(p.display ? p.options.map((o) => p.display!(o)) : p.options.map((o) => o.label)), ...(p.sizes ?? [])])];
 
   useEffect(() => {
     if (open) { setQy(""); setHi(Math.max(0, p.options.findIndex((o) => o.value === p.value))); }
@@ -67,10 +77,22 @@ export default function Dropdown<T extends string>(p: {
     panel.current?.querySelectorAll<HTMLElement>("[role=option]")[hi]?.scrollIntoView({ block: "nearest" });
   }, [hi, open]);
 
-  const pick = (v: T) => { p.onChange(v); close(); };
+  // ขยับรายการไปทางซ้ายเมื่อขอบขวาเลยจุดที่ห้ามบัง · วัดหลังวาดก่อนจอติด ไม่เห็นกระโดด
+  const [shift, setShift] = useState(0);
+  useLayoutEffect(() => {
+    if (!open) { if (shift) setShift(0); return; }
+    if (!p.keepLeftOf || !panel.current || p.portal) return;
+    const lim = p.keepLeftOf(); if (lim == null) return;
+    const over = panel.current.getBoundingClientRect().right + shift - lim;
+    const next = Math.max(0, Math.ceil(over));
+    if (next !== shift) setShift(next);
+  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  const pick = (v: T) => { if (p.options.find((o) => o.value === v)?.off) return; p.onChange(v); close(); };
+  useEffect(() => { if (p.disabled) setOpen(false); }, [p.disabled]);
 
   const onKey = (e: React.KeyboardEvent) => {
     const n = list.length;
+    if (p.disabled) return;
     if (!open && (e.key === "ArrowDown" || e.key === "ArrowUp" || e.key === "Enter" || e.key === " ")) {
       e.preventDefault(); setOpen(true); return;
     }
@@ -86,11 +108,13 @@ export default function Dropdown<T extends string>(p: {
       <button
         ref={btn}
         type="button"
-        className="dd"
+        className={"dd" + (p.disabled ? " off" : "")}
         aria-haspopup="listbox"
         aria-expanded={open}
         aria-label={`${p.label}: ${text}`}
-        onClick={() => setOpen((o) => !o)}
+        aria-disabled={p.disabled ? true : undefined}
+        title={p.disabled || undefined}
+        onClick={() => { if (!p.disabled) setOpen((o) => !o); }}
         onKeyDown={onKey}
         style={{ width: p.stretch ? "100%" : undefined }}
       >
@@ -115,7 +139,7 @@ export default function Dropdown<T extends string>(p: {
           aria-label={p.label}
           style={p.portal && fixedPos
             ? { position: "fixed", left: fixedPos.left, minWidth: fixedPos.width, maxWidth: window.innerWidth - fixedPos.left - 8, zIndex: "var(--z-menu)" as unknown as number, maxHeight: place.max, ...(place.up ? { bottom: window.innerHeight - fixedPos.top + 6 } : { top: fixedPos.bottom + 6 }) }
-            : { position: "absolute", right: 0, minWidth: "100%", zIndex: "var(--z-menu)" as unknown as number, ...dropStyle(place) }}
+            : { position: "absolute", right: shift, minWidth: "100%", zIndex: "var(--z-menu)" as unknown as number, ...dropStyle(place) }}
         >
           {p.search && (
             <div className="ddsearch" onMouseDown={(e) => e.stopPropagation()}>
@@ -130,13 +154,16 @@ export default function Dropdown<T extends string>(p: {
             <div
               role="option"
               aria-selected={o.value === p.value}
-              className={"opt" + (o.value === p.value ? " on" : "") + (i === hi ? " hi" : "")}
+              aria-disabled={o.off ? true : undefined}
+              title={o.off || undefined}
+              className={"opt" + (o.value === p.value ? " on" : "") + (i === hi ? " hi" : "") + (o.off ? " off" : "")}
               onMouseEnter={() => setHi(i)}
               onMouseLeave={() => setHi(-1)}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => pick(o.value)}
             >
               <span style={{ whiteSpace: "nowrap" }}>{o.label}</span>
+              {o.note && <span className="note">{o.note}</span>}
               {o.value === p.value && (
                 <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="3" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>
               )}

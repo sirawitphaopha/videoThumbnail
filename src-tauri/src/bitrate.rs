@@ -76,6 +76,10 @@ fn rate(s: &str) -> f64 {
 fn acodec(c: &str) -> String {
     match c { "aac" => "AAC", "mp3" => "MP3", "flac" => "FLAC", "opus" => "Opus", "vorbis" => "Vorbis", "ac3" => "AC-3", "eac3" => "E-AC-3", "dts" => "DTS", "truehd" => "TrueHD", "alac" => "ALAC", "ape" => "APE", "tak" => "TAK", "wavpack" => "WavPack", _ if c.starts_with("pcm") => "PCM", _ => return c.to_uppercase() }.to_string()
 }
+/// ชื่อชนิดวิดีโอแบบที่คนรู้จัก (ชื่อเดียวกับ codecName ในหน้าบิตเรต)
+fn vcodec(c: &str) -> String {
+    match c { "h264" => "H.264", "hevc" => "HEVC", "av1" => "AV1", "vp9" => "VP9", "vp8" => "VP8", "mpeg2video" => "MPEG-2", "mpeg1video" => "MPEG-1", "mpeg4" => "MPEG-4", "vc1" => "VC-1", "" => "", _ => return c.to_uppercase() }.to_string()
+}
 
 /// ข้อมูลไฟล์กับแทร็กที่จะอ่าน · track ว่างหรือ auto = วิดีโอถ้ามี ไม่มีใช้เสียงแทร็กแรก · คืนข้อมูลกับตัวเลือกแทร็กของ ffprobe (V:0 a:1)
 fn info(tools: &Path, path: &Path, track: &str) -> Result<(BrInfo, String), String> {
@@ -95,7 +99,12 @@ fn info(tools: &Path, path: &Path, track: &str) -> Result<(BrInfo, String), Stri
     };
     let want = if kind == "video" { "v".to_string() } else { format!("a{}", sel.trim_start_matches("a:")) };
     let num = |x: &Value| x.as_str().and_then(|s| s.parse::<f64>().ok()).or_else(|| x.as_f64());
-    let mut tracks: Vec<BrTrack> = vids.first().map(|_| BrTrack { id: "v".into(), label: "วิดีโอ".into() }).into_iter().collect();
+    // ป้ายแทร็กวิดีโอบอกชนิดกับขนาดภาพ แบบเดียวกับป้ายเสียงที่บอกชนิดกับช่อง (พี่กันสั่ง 13 พ.ย. 2569 "วิดีโอ เขียนชนิดด้วย")
+    let mut tracks: Vec<BrTrack> = vids.first().map(|x| {
+        let size = match (x["width"].as_u64(), x["height"].as_u64()) { (Some(w), Some(h)) if w > 0 && h > 0 => format!("{w} × {h}"), _ => String::new() };
+        let parts: Vec<String> = [vcodec(x["codec_name"].as_str().unwrap_or("")), size].into_iter().filter(|s| !s.is_empty()).collect();
+        BrTrack { id: "v".into(), label: if parts.is_empty() { "วิดีโอ".into() } else { format!("วิดีโอ {}", parts.join(" ")) } }
+    }).into_iter().collect();
     for (i, a) in auds.iter().enumerate() {
         let ch = a["channels"].as_u64().unwrap_or(0);
         let lay = match ch { 1 => "1.0 ch".to_string(), 2 => "2.0 ch".to_string(), 6 => "5.1 ch".to_string(), 8 => "7.1 ch".to_string(), 0 => String::new(), n => format!("{n} ch") };
@@ -160,17 +169,23 @@ pub fn parse_line(l: &str) -> Option<(f64, u64, char)> {
 }
 
 /// ผลที่อ่าน เรียงตามลำดับในไฟล์
+/// keep = false เก็บเฉพาะก้อนที่ยังไม่ได้ส่ง ส่งแล้วล้างทิ้ง (ใช้ตอนส่งให้หน้าจอ) · total นับทุกเฟรมที่อ่านได้ · first = ลำดับของเฟรมแรกในก้อนนี้
+/// exit_ok = ffprobe จบโดยไม่รายงานผิดพลาด (AUDIT ข้อ 118 ไฟล์เสียกลางทาง ffprobe หยุดส่งบรรทัด เดิมไม่ดูรหัสจบ หน้าจอเข้าใจว่าอ่านครบ)
 #[derive(Default, Debug)]
 pub struct Frames {
     pub t: Vec<f64>,
     pub s: Vec<u64>,
     pub k: String,
     pub read_to: f64,
+    pub total: usize,
+    pub first: usize,
+    pub exit_ok: bool,
 }
 
 /// อ่านทั้งไฟล์ · sel ตัวเลือกแทร็กของ ffprobe (V:0 หรือ a:N) · frames = ถอดภาพเอาชนิดเฟรม (เฉพาะวิดีโอ)
 /// on ถูกเรียกระหว่างอ่าน · stop() จริง = หยุด คืน None · แทร็กเสียงส่งชนิดเป็น _ ทุกแพ็กเก็ต เพราะเสียงไม่มีคีย์เฟรมแบบวิดีโอ
-pub fn read_frames(tools: &Path, path: &Path, sel: &str, frames: bool, stop: &dyn Fn() -> bool, on: &mut dyn FnMut(&Frames)) -> Result<Option<Frames>, String> {
+/// keep = false หลังเรียก on แล้วล้างก้อนที่ส่งไป ไม่เก็บทั้งไฟล์ซ้ำกับหน้าจอ (AUDIT ข้อ 119 · TrueHD หนังสองชั่วโมงราว 8 ล้านแพ็กเก็ต)
+pub fn read_frames(tools: &Path, path: &Path, sel: &str, frames: bool, keep: bool, stop: &dyn Fn() -> bool, on: &mut dyn FnMut(&Frames)) -> Result<Option<Frames>, String> {
     let audio = sel.starts_with('a');
     let frames = frames && !audio;
     let what = if frames { "frame=best_effort_timestamp_time,pkt_dts_time,pkt_size,pict_type" } else { "packet=pts_time,dts_time,size,flags" };
@@ -187,14 +202,21 @@ pub fn read_frames(tools: &Path, path: &Path, sel: &str, frames: bool, stop: &dy
         let Ok(line) = line else { break };
         if let Some((t, s, k)) = parse_line(&line) {
             f.t.push(t); f.s.push(s); f.k.push(if audio { '_' } else { k });
+            f.total += 1;
             if t > f.read_to { f.read_to = t; }
         }
-        if last.elapsed() >= Duration::from_millis(120) { on(&f); last = Instant::now(); }
+        if last.elapsed() >= Duration::from_millis(120) { on(&f); if !keep { drain(&mut f); } last = Instant::now(); }
     }
-    let _ = child.wait();
+    f.exit_ok = child.wait().map(|s| s.success()).unwrap_or(false);
     on(&f);
-    if f.t.is_empty() { return Err(if audio { "อ่านข้อมูลแทร็กเสียงไม่ได้" } else { "อ่านเฟรมวิดีโอไม่ได้" }.into()); }
+    if !keep { drain(&mut f); }
+    if f.total == 0 { return Err(if audio { "อ่านข้อมูลแทร็กเสียงไม่ได้" } else { "อ่านเฟรมวิดีโอไม่ได้" }.into()); }
     Ok(Some(f))
+}
+
+/// ล้างก้อนที่ส่งไปแล้ว · ลำดับของเฟรมแรกในก้อนถัดไปเท่ากับจำนวนที่อ่านแล้วทั้งหมด
+fn drain(f: &mut Frames) {
+    f.t.clear(); f.s.clear(); f.k.clear(); f.first = f.total;
 }
 
 /// เริ่มอ่านไฟล์ · mode `pkt` หรือ `frm` · คืนข้อมูลไฟล์ทันที แล้วส่ง bitrate-progress ระหว่างอ่าน และ bitrate-done ตอนจบ
@@ -213,16 +235,16 @@ pub async fn bitrate_start(app: AppHandle, path: String, mode: Option<String>, r
     inf.run = run;
     let p = std::path::PathBuf::from(&path);
     std::thread::spawn(move || {
-        let mut sent = 0usize;
         let stop = || RUN.load(Ordering::SeqCst) != run;
+        // ส่งเฉพาะก้อนใหม่ · from คือลำดับของเฟรมแรกในก้อน หน้าจอใช้ต่อท้ายข้อมูลเดิม
         let mut on = |f: &Frames| {
-            let n = f.t.len();
-            let _ = app.emit("bitrate-progress", json!({ "run": run, "from": sent, "t": &f.t[sent..], "s": &f.s[sent..], "k": &f.k[sent..], "readTo": f.read_to }));
-            sent = n;
+            if f.t.is_empty() { return; }
+            let _ = app.emit("bitrate-progress", json!({ "run": run, "from": f.first, "t": &f.t, "s": &f.s, "k": &f.k, "readTo": f.read_to }));
         };
-        let r = read_frames(&tools, &p, &sel, frm, &stop, &mut on);
+        let r = read_frames(&tools, &p, &sel, frm, false, &stop, &mut on);
         let _ = match r {
-            Ok(Some(f)) => app.emit("bitrate-done", json!({ "run": run, "ok": true, "frames": f.t.len() })),
+            // partial = ffprobe จบโดยรายงานผิดพลาด หน้าจอขึ้นป้ายอ่านไม่ถึงท้ายไฟล์ (AUDIT ข้อ 118)
+            Ok(Some(f)) => app.emit("bitrate-done", json!({ "run": run, "ok": true, "frames": f.total, "partial": !f.exit_ok, "readTo": f.read_to })),
             Ok(None) => app.emit("bitrate-done", json!({ "run": run, "ok": false, "stopped": true })),
             Err(e) => app.emit("bitrate-done", json!({ "run": run, "ok": false, "error": e })),
         };
@@ -276,8 +298,14 @@ mod tests {
         assert!((inf.fps - 25.0).abs() < 0.01 && (inf.duration - 3.0).abs() < 0.1, "{inf:?}");
         assert_eq!((inf.pix_fmt.as_str(), inf.bit_depth), ("yuv444p", 8), "{inf:?}");
         let mut calls = 0;
-        let p = read_frames(&tools(), &f, "V:0", false, &|| false, &mut |_| calls += 1).unwrap().unwrap();
-        let fr = read_frames(&tools(), &f, "V:0", true, &|| false, &mut |_| {}).unwrap().unwrap();
+        let p = read_frames(&tools(), &f, "V:0", false, true, &|| false, &mut |_| calls += 1).unwrap().unwrap();
+        let fr = read_frames(&tools(), &f, "V:0", true, true, &|| false, &mut |_| {}).unwrap().unwrap();
+        // แบบส่งให้หน้าจอ ไม่เก็บทั้งไฟล์ · รวมทุกก้อนที่ส่งได้ครบ 75 เฟรม ลำดับต่อกันไม่ขาด ขนาดรวมเท่าแบบเก็บ · ffprobe จบปกติ (AUDIT ข้อ 118 119)
+        let (mut got, mut bytes, mut next) = (0usize, 0u64, 0usize);
+        let dr = read_frames(&tools(), &f, "V:0", false, false, &|| false, &mut |c| { if c.t.is_empty() { return; } assert_eq!(c.first, next); next += c.t.len(); got += c.t.len(); bytes += c.s.iter().sum::<u64>(); }).unwrap().unwrap();
+        assert_eq!((got, dr.total, dr.t.len()), (75, 75, 0));
+        assert_eq!(bytes, p.s.iter().sum::<u64>());
+        assert!(dr.exit_ok && p.exit_ok);
         let _ = std::fs::remove_dir_all(&dir);
         assert_eq!(p.t.len(), 75);
         assert_eq!(p.k.chars().filter(|c| *c == 'K').count(), 3, "{}", p.k);
@@ -302,11 +330,12 @@ mod tests {
         let (all, _) = info(&tools(), &f, "auto").unwrap();
         let ids: Vec<&str> = all.tracks.iter().map(|t| t.id.as_str()).collect();
         assert_eq!(ids, ["v", "a0", "a1"]);
+        assert_eq!(all.tracks[0].label, "วิดีโอ H.264 160 × 120");
         assert_eq!(all.tracks[2].label, "เสียง 2 FLAC 1.0 ch tha");
         let (a, sel) = info(&tools(), &f, "a1").unwrap();
         assert_eq!((a.kind.as_str(), a.track.as_str(), sel.as_str(), a.sample_rate, a.channels, a.codec.as_str(), a.lang.as_str()), ("audio", "a1", "a:1", 48000, 1, "flac", "tha"));
         assert_eq!(a.fps, 0.0);
-        let p = read_frames(&tools(), &f, &sel, true, &|| false, &mut |_| {}).unwrap().unwrap();
+        let p = read_frames(&tools(), &f, &sel, true, true, &|| false, &mut |_| {}).unwrap().unwrap();
         assert!(p.t.len() > 10 && p.k.chars().all(|c| c == '_'), "{} {}", p.t.len(), p.k);
         assert!(p.read_to > 2.5);
         assert!(info(&tools(), &f, "a5").is_err());
@@ -326,7 +355,7 @@ mod tests {
         let f = dir.join("หยุด.mkv");
         let out = crate::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "testsrc=duration=2:size=160x120:rate=25", "-c:v", "libx264", f.to_str().unwrap()]).unwrap();
         assert!(out.status.success());
-        let r = read_frames(&tools(), &f, "V:0", false, &|| true, &mut |_| {}).unwrap();
+        let r = read_frames(&tools(), &f, "V:0", false, true, &|| true, &mut |_| {}).unwrap();
         let _ = std::fs::remove_dir_all(&dir);
         assert!(r.is_none());
     }

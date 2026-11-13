@@ -1,0 +1,29 @@
+/* หน้าบิตเรตแบบ Bitrate Viewer · ปุ่ม เมนู และแถบคำอธิบายเมนู
+   เดิมอยู่ในแท็ก style ที่ React สร้างตอนรัน ตัวจริงมีกติกาความปลอดภัย (CSP) ที่ Tauri เติม nonce จึงกันแท็กนั้นทั้งชุด
+   ปุ่มเหลือหน้าตาพื้นฐาน ชี้แถวเมนูแล้วไม่เปลี่ยนสี (BUGS ข้อ 36 · AUDIT ข้อ 27 · พิสูจน์ในตัวจริง 13 พ.ย. 2569 ขอบปุ่ม Load เป็น 2px outset ของเบราว์เซอร์)
+   สีเป็นของหน้าแบบเดิม ไม่เปลี่ยนตามโทน จึงเขียนด้วย hsl() ทั้งไฟล์ ตัวแปลงโทนแปลงเฉพาะ rgb() กับรหัส # (กฎใน CLAUDE.md)
+   ชื่อคลาสขึ้นต้น bv- และอยู่ใต้ [data-bitrate] ไม่ชนหน้าอื่น */
+[data-bitrate] .bv-btn { border: 1px solid hsl(0 0% 47%); background: linear-gradient(hsl(0 0% 99.2%), hsl(0 0% 88.2%)); cursor: pointer; transition: background-color .12s, border-color .12s, box-shadow .12s; }
+[data-bitrate] .bv-btn:hover:not(:disabled), [data-bitrate] .bv-btn[aria-expanded="true"] { border-color: hsl(236 81% 69%); background: linear-gradient(hsl(236 100% 97%), hsl(235 100% 91%)); box-shadow: 0 0 0 1px hsl(237 100% 77% / .35); }
+[data-bitrate] .bv-btn:active:not(:disabled) { background: linear-gradient(hsl(235 100% 89%), hsl(234 100% 94%)); }
+[data-bitrate] .bv-btn:disabled { opacity: .5; cursor: default; }
+[data-bitrate] .bv-btn:focus-visible, [data-bitrate] .bv-mi:focus-visible, [data-bitrate] .bv-ft:focus-visible { outline: 2px solid hsl(236 81% 69%); outline-offset: 1px; }
+
+/* แถวเมนู · ชี้แล้วพื้นฟ้าม่วงแบบเมนูของ Windows · แถวที่กดไม่ได้ไม่เปลี่ยนสี แต่ยังชี้อ่านคำอธิบายกับเหตุผลได้ (ใช้ aria-disabled ไม่ใช้ disabled เพราะปุ่ม disabled ไม่รับเมาส์) */
+[data-bitrate] .bv-mi { background: transparent; transition: background-color .08s; }
+[data-bitrate] .bv-mi:hover:not([aria-disabled="true"]), [data-bitrate] .bv-mi:focus-visible:not([aria-disabled="true"]) { background: hsl(236 100% 90%); }
+[data-bitrate] .bv-mi:active:not([aria-disabled="true"]) { background: hsl(235 100% 85%); }
+[data-bitrate] .bv-mi[aria-disabled="true"]:hover { background: hsl(0 0% 94%); }
+
+/* กล่องคำอธิบายข้างเมนูทางขวา · ขอบบนตรงขอบบนเมนู กว้างคงที่ สูงคงที่สี่บรรทัด ชี้แถวไหนกล่องก็ไม่ยืด
+   วางท้ายเมนูแล้วเมนูสูงเกินจอ ต้องเลื่อนในเมนู (เจอตอนตรวจ 13 พ.ย. 2569) · left วัดจากความกว้างเมนูจริงตอนกาง */
+[data-bitrate] .bv-desc { position: absolute; z-index: 40; width: 370px; box-sizing: border-box; height: 92px; overflow: hidden; padding: 7px 12px; border: 1px solid hsl(0 0% 59%); box-shadow: 2px 3px 8px hsl(0 0% 0% / .2); background: hsl(236 60% 97%); color: hsl(0 0% 20%); font-family: var(--font); font-size: 12.5px; line-height: 1.45; white-space: normal; text-align: justify; text-justify: inter-character; text-wrap: pretty; }
+[data-bitrate] .bv-desc.idle { color: hsl(0 0% 45%); }
+/* ประโยคละบรรทัด ไม่ตัดกลางวลี (เดิม ดับเบิลคลิกบนกราฟ / ก็สลับได้ · กฎตัดบรรทัดตามความหมายใน CLAUDE.md) · กล่องสูงสี่บรรทัดคงที่ ไม่กินที่เพิ่ม
+   ลองจับเป็นก้อนในบรรทัดเดียวกัน (inline-block) แล้วกระจายแบบไทยถ่างช่องระหว่างก้อนและถ่างตัวอักษร จึงใช้ประโยคละบรรทัดแทน */
+[data-bitrate] .bv-desc .clause { display: block; }
+[data-bitrate] .bv-desc .why { color: hsl(18 70% 36%); }
+
+[data-bitrate] .bv-ft { border: 1px solid hsl(0 0% 47%); transition: filter .1s, border-color .1s; }
+[data-bitrate] .bv-ft:hover { border-color: hsl(236 81% 69%); filter: brightness(.92); }
+@media (prefers-reduced-motion: reduce) { [data-bitrate] .bv-btn, [data-bitrate] .bv-mi, [data-bitrate] .bv-ft { transition: none; } }

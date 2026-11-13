@@ -265,6 +265,12 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
 .opt:hover, .opt.hi { background-color: #faedf1; color: var(--accent-ink); }
 .opt.on { background-color: #fbe9ef; color: #8f2a4f; font-weight: 600; }
 .opt.on:hover, .opt.on.hi { background-color: #ead1d9; }
+/* คำสั้นท้ายแถว กับแถวและปุ่มดรอปดาวน์ที่เลือกไม่ได้ (ชี้แล้วขึ้นเหตุผล) · สีเดียวกับปุ่มแถวที่กดไม่ได้ (.seg-off) */
+.opt .note { margin-left: auto; color: var(--txt3); font-weight: 400; font-size: 12.5px; white-space: nowrap; }
+.opt.off { color: #c9aab4; cursor: not-allowed; }
+.opt.off:hover, .opt.off.hi { background-color: #f7f2f4; color: #b8919e; }
+.dd.off { color: #c9aab4; cursor: not-allowed; background-color: #f7f7f7; }
+.dd.off:hover { background-color: #f9e9ee; color: #b8919e; }
 .pop-in { animation: pop-in .12s ease-out; }
 @keyframes pop-in { from { opacity: 0; translate: 0 -4px; } to { opacity: 1; translate: 0 0; } }
 
@@ -762,6 +768,8 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .agb { display: grid; grid-template-columns: 232px 1fr; gap: 14px; align-items: start; }
 .agb.wide { grid-template-columns: minmax(0, 1fr); }
 .apanel { display: flex; flex-direction: column; gap: 12px; }
+/* ชิ้นในแผงไม่หด แผงสูงไม่พอให้เลื่อนในแผง */
+.apanel > * { flex-shrink: 0; }
 .ag .card { padding: 14px; }
 .ag .card h3 { margin: 0 0 8px; font-size: 14.5px; justify-content: space-between; color: var(--accent-ink); }
 /* คอลัมน์ค่ากว้างได้ไม่เกินแผง ค่ายาว (ชื่อศิลปิน) ตัดบรรทัดในแผง ไม่ดันแผงจนเลื่อนแนวนอน (พี่กันทัก 10 พ.ย. 2569 "แถบเลื่อนมันทับ") */
@@ -957,6 +965,10 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .lanewrap { display: flex; gap: 8px; align-items: stretch; }
 .lanewrap > .lanes { flex: 1; min-width: 0; }
 .vzoom { width: 22px; flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; user-select: none; }
+/* หน้ากราฟเสียง ชิ้นขวาสุดเรียงแนวตั้งเดียวกัน ⓘ ของปุ่มเต็มจอ ปุ่มรีเซ็ต ลูกศรพับภาพรวม แถบซูมแนวตั้ง ตรงกลางเดียวกับปุ่มกว้าง 30 จุด
+   เดิมต่างกันราว 4 จุด ⓘ 1,249 ปุ่ม 1,247 แถบซูม 1,251 ที่หน้าต่าง 1280 (พี่กันสั่ง 13 พ.ย. 2569 "ขอเเนวเดียวกัน") */
+.ag[data-graphview] .vzoom { width: 30px; }
+.ag[data-graphview] .agctl [data-fullbtn] + * { margin-right: 2px; }
 .vzoom .ic { color: var(--txt3); line-height: 0; }
 .vzoom .track { position: relative; flex: 1; width: 8px; min-height: 60px; border-radius: 4px; background: #f7e2e9; cursor: pointer; touch-action: none; }
 .vzoom .fit { position: absolute; left: -5px; right: -5px; height: 2px; margin-bottom: -1px; border-radius: 1px; background: #daacbb; }
@@ -1040,12 +1052,31 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .ag[data-graphview] .apanel > .card, .ag[data-graphview] .apanel > .stat { margin: 0; }
 .ag[data-graphview] .apanel > * + * { margin-top: 14px; padding-top: 18px; border-top: 1px solid var(--line); }
 .ag[data-graphview] .apanel > .stat { border-top: 0; padding: 10px; }
+/* ระยะเหนือและใต้เส้นแบ่งของการ์ดถัดไป · กฎ .apanel > .card { padding: 0 } น้ำหนักมากกว่ากฎ * + * ข้างบน หัวข้อเลยชิดเส้นจนเหมือนเส้นทับตัวอักษร (เจอในภาพตอนโหลด BUGS ข้อ 75) */
+.ag[data-graphview] .apanel > * + .card { margin-top: 14px; padding-top: 18px; }
 .ag[data-graphview] .agb > .plot { border: 0; border-radius: 0; padding: 10px 18px 12px 12px; display: flex; flex-direction: column; }
 .ag[data-graphview] .agb > .plot > * { flex-shrink: 0; }
+/* ตารางหน้าความดังกางลงหุบขึ้นแบบค่อย ๆ เลื่อน (BUGS ข้อ 78) · ใช้ grid-template-rows 0fr ถึง 1fr สูงตามตารางจริงโดยไม่ต้องรู้ความสูงก่อน */
+.gtable { display: grid; grid-template-rows: 0fr; opacity: 0; transition: grid-template-rows .3s cubic-bezier(.2,.7,.2,1), opacity .22s ease; }
+.gtable.open { grid-template-rows: 1fr; opacity: 1; }
+.gtable > div { overflow: hidden; min-height: 0; }
+.gtable:not(.open) { visibility: hidden; transition: grid-template-rows .3s cubic-bezier(.2,.7,.2,1), opacity .22s ease, visibility 0s .3s; }
+@media (prefers-reduced-motion: reduce) { .gtable, .gtable:not(.open) { transition: none; } }
+/* โครงจางตอนอ่านเสียง สูงเต็มกรอบที่เหลือ แถบละช่อง (BUGS ข้อ 75) */
+.gload-lanes { display: flex; flex-direction: column; gap: 6px; margin-top: 10px; min-height: 160px; }
+.ag[data-graphview] .agb > .plot > .gload-lanes { flex: 1 1 auto; min-height: 160px; }
+.gload-lane { flex: 1 1 0; min-height: 40px; display: grid; grid-template-columns: 84px 1fr; gap: 10px; align-items: stretch; }
+.gload-lane > .skel:first-child { align-self: center; }
 .fillcv { position: absolute; inset: 0; width: 100%; height: 100%; }
 .plotstick { position: sticky; top: -10px; z-index: 5; margin: -10px -18px 0 -12px; padding: 10px 18px 6px 12px; background: #fff; border-bottom: 1px solid var(--line); }
 .plotstick .plothead { position: static; margin: 0 0 8px; padding: 0; }
-.ag[data-graphview] .plot > .plothead { position: sticky; top: -10px; z-index: 5; margin: -10px -18px 8px -12px; padding: 10px 18px 6px 12px; background: #fff; }
+.ag[data-graphview] .plot > .plothead { position: sticky; top: -10px; z-index: 7; margin: -10px -18px 8px -12px; padding: 10px 18px 6px 12px; background: #fff; }
+/* หัวกราฟอยู่ชั้นบนกว่ากล่องเครื่องมือที่ลอยในกราฟ (ปุ่มสีหน้าความถี่ z 6) · ดรอปดาวน์ในหัวกราฟกางอยู่ ยกทั้งหัวขึ้นชั้นเมนู
+   เดิมหัวกราฟ z 5 รายการช่วงซูมที่กางลงมาโดนกล่องปุ่มสีกับติ๊กพื้นสว่างทับ (BUGS ข้อ 77 · พี่กันส่งภาพ "รูปสอง ทับ") */
+.ag[data-graphview] .plot > .plothead:has([aria-expanded="true"]) { z-index: var(--z-menu); }
+/* หน้าความถี่ห่อหัวกราฟด้วยกล่องตรึง .plotstick (ชั้น 5) กฎข้างบนไม่ถึง รายการที่กางยังโดนติ๊กพื้นสว่างทับ (เจอในภาพข้อ 77 ต่อ) */
+.ag[data-graphview] .plot > .plotstick { z-index: 7; }
+.ag[data-graphview] .plot > .plotstick:has([aria-expanded="true"]) { z-index: var(--z-menu); }
 .cswatch { display: inline-block; width: 22px; height: 10px; border-radius: 3px; flex: none; box-shadow: inset 0 0 0 1px rgba(0,0,0,.12); }
 .tnli { display: block; position: relative; padding-left: 11px; }
 .tnli::before { content: ""; position: absolute; left: 1px; top: .62em; width: 4px; height: 4px; border-radius: 50%; background: currentColor; }
@@ -1087,7 +1118,10 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 .plothead > :last-child:has(.zbtns) { flex: none; }
 .plothead .wstyle-seg { display: flex; flex: none; }
 .plothead .wstyle-dd { display: none; flex: none; }
-@container (max-width: 1120px) { .plothead .wstyle-seg { display: none; } .plothead .wstyle-dd { display: flex; } .plothead .zbtns .hzoom { flex: none; width: 130px; min-width: 130px; } }
+/* หัวกราฟแคบ = คลาส narrow ที่ตัววัด (useFitClass ใน lib/fitSwitch.ts) ใส่ให้เมื่อของในหัวกราฟวางไม่พอจริง ไม่ใช้เลขความกว้างตายตัว
+   เดิม @container 1,040 1,120 1,240 คนละเลข ขยายหน้าต่างแล้วหัวกราฟกว้างราว 1,110 ยังเป็นดรอปดาวน์ทั้งที่วางพอ และปุ่มช่องเป็นแถวแต่ช่วงซูมเป็นดรอปดาวน์ในหัวกราฟเดียวกัน
+   (BUGS ข้อ 76 · พี่กันทัก 13 พ.ย. 2569 "ตอนนี้เราขยายเเล้ว มันเเสดงทั้หมดได้นี่นา" · "อันนี้ดันแสดงปุ่มช่องครบซะงั้น") · ทุกชิ้นในหัวกราฟเดียวกันสลับพร้อมกัน */
+.plothead.narrow .wstyle-seg { display: none; } .plothead.narrow .wstyle-dd { display: flex; } .plothead.narrow .zbtns .hzoom { flex: none; width: 130px; min-width: 130px; }
 .plothead .zbtns { flex: 0 1 auto; min-width: 0; display: flex; align-items: center; }
 /* กลุ่มปุ่มซูมไม่หดต่ำกว่าปุ่มครบสามปุ่มกับแถบซูม 64 จุด ไม่งั้นปุ่มรีเซ็ตมุดใต้คำว่า ซูม (เจอตอนตรวจภาพ BUGS ข้อ 12) */
 .plothead .zbtns .zb { flex: none; }
@@ -1098,12 +1132,10 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 /* ปุ่มช่วงซูม (ทั้งไฟล์ 10 นาที 4 นาที 30 วินาที) หัวกราฟแคบเป็นดรอปดาวน์เหมือนกัน (พี่กันสั่ง 13 พ.ย. 2569 "ตัวนี้เปลี่ยนเป็นดรอปดาวด้วย ถ้าจอเล็ก") */
 .zseg { display: flex; flex: none; }
 .zdd { display: none; flex: none; }
-@container (max-width: 1120px) {
-  .plothead .loud-seg { display: none; }
-  .plothead .loud-dd { display: flex; }
-  .plothead .zseg { display: none; }
-  .plothead .zdd { display: flex; }
-}
+.plothead.narrow .loud-seg { display: none; }
+.plothead.narrow .loud-dd { display: flex; }
+.plothead.narrow .zseg { display: none; }
+.plothead.narrow .zdd { display: flex; }
 .plothead .fsep { margin: 0; }
 /* สลับช่องหน้าความดังแบบค่อย ๆ เปลี่ยน (switchLoud ใน GraphPage.tsx ใช้ View Transitions) · หัวกราฟกับแถบล่างมีชื่อ จึงเลื่อนไปที่ใหม่แบบลื่น ส่วนอื่นจางข้ามกัน
    (พี่กันสั่ง 13 พ.ย. 2569 "ภาพมันแบบตัดไปอีกอันเลย เราขอ animation transition ลื่นๆที") */
@@ -1350,7 +1382,7 @@ canvas.spekpan.dragging { cursor: grabbing; }
 .plothead .spekch-seg { display: flex; flex: none; }
 .plothead .spekch-dd { display: none; flex: none; }
 .plothead .spekch-dd.on { display: flex; }
-@container (max-width: 1040px) { .plothead .spekch-seg { display: none; } .plothead .spekch-dd { display: flex; } }
+.plothead.narrow .spekch-seg { display: none; } .plothead.narrow .spekch-dd { display: flex; }
 /* เส้นตามเมาส์บนกราฟความถี่ (BUGS ข้อ 40) · พื้นดำเส้นขาว พื้นสว่างเส้นเข้ม */
 .spekxh { position: absolute; width: 1px; background: color-mix(in srgb, white 70%, transparent); pointer-events: none; z-index: 2; }
 .spekxh.h { width: auto; height: 1px; }
@@ -1360,7 +1392,7 @@ canvas.spekpan.dragging { cursor: grabbing; }
 /* หน้าความถี่เฉลี่ย (BUGS ชุด 6) · ปุ่มช่องเป็นแถว แถวบนไม่พอเป็นดรอปดาวน์ ให้มีที่วางแถบซูมแกนความถี่ */
 .plothead .psdch-seg { display: flex; flex: none; }
 .plothead .psdch-dd { display: none; flex: none; }
-@container (max-width: 1240px) { .plothead .psdch-seg { display: none; } .plothead .psdch-dd { display: flex; } }
+.plothead.narrow .psdch-seg { display: none; } .plothead.narrow .psdch-dd { display: flex; }
 /* ป้ายสีเส้นอยู่ในแถวบอกค่า ปุ่มเล็กลง (ข้อ 19) */
 .psdread .psdlg { margin-top: 0; gap: 4px; align-items: center; }
 .psdread .psdk { height: 24px; padding: 0 8px; font-size: 12px; gap: 5px; }

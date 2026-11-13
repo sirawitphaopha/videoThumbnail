@@ -20,6 +20,8 @@ import BitrateClassic from "./BitrateClassic";
 import bvIcon from "../assets/thanks/bitrateviewer.ico";
 import "../styles/bitrate.css";
 import FullBtn from "../components/FullBtn";
+import { PadCustom } from "../components/ColorPick";
+import { useFitSwitch } from "../lib/fitSwitch";
 
 type Mode = "sec" | "gop" | "gopx" | "frm";
 const MODES: { value: Mode; label: string; letter: string }[] = [
@@ -47,38 +49,104 @@ const TIP_SCALE: Tip = {
   r: "เพดานคิดจากบิตเรตเฉลี่ยของทั้งไฟล์ ปัดเป็น 1 2 5 (ตัวจริงของ Bitrate Viewer ตั้ง 10 Mbps ตายตัวตามแผ่น DVD)",
 };
 
+/* ความละเอียดแท่งของวิธีคิดต่อวินาที (BUGS ข้อ 42 · พี่กันเคาะ 10 พ.ย. 2569 "งั้นเลือกแบ่งซอยเเท่งได้หลายระดับ เอาเป็นดรอปดาว" · "เน้นเบียน เน้นเนิร์ด")
+   เรียงจากหยาบไปละเอียด · ทีละเฟรมใช้ข้อมูลแพ็กเก็ตที่อ่านอยู่แล้ว ไม่ต้องถอดภาพ · อัตโนมัติเลือกระดับที่ละเอียดสุดที่แท่งยังกว้างพอตามช่วงที่ซูม ("พอดูเส้น 1 วิ เราอยากห้ ดูละเอียดเฉพาะวินั้นได้") */
+type Res = "10" | "5" | "1" | "0.5" | "0.1" | "pkt" | "auto";
+const RES_STEPS: { value: Res; sec: number; label: string; note: string }[] = [
+  { value: "10", sec: 10, label: "10 วินาที", note: "เนียนสุด" },
+  { value: "5", sec: 5, label: "5 วินาที", note: "เนียน" },
+  { value: "1", sec: 1, label: "1 วินาที", note: "ค่าตั้งต้น" },
+  { value: "0.5", sec: 0.5, label: "0.5 วินาที", note: "ละเอียด" },
+  { value: "0.1", sec: 0.1, label: "0.1 วินาที", note: "ละเอียดมาก" },
+];
+/** แพ็กเก็ตเกินนี้ไม่ให้ดูทีละเฟรมทั้งไฟล์ (TrueHD หนังสองชั่วโมงราว 8 ล้านแพ็กเก็ต ใช้แรมหลายร้อย MB) */
+const PKT_MAX = 1_500_000;
+const TIP_RES: Tip = {
+  w: "แต่ละแท่งของกราฟรวมข้อมูลยาวเท่าไหร่ ใช้กับวิธีคิดต่อวินาที",
+  o: [
+    ["10 หรือ 5 วินาที", "แท่งละหลายวินาที กราฟเรียบ เห็นภาพรวมทั้งเรื่อง", "อ่านแนวโน้มง่าย", "ช่วงสั้น ๆ ที่บิตเรตพุ่งจะถูกเฉลี่ยจนหาย"],
+    ["1 วินาที", "แบบ Bitrate Viewer เป็นค่าตั้งต้น", "", ""],
+    ["0.5 หรือ 0.1 วินาที", "ซอยแท่งละเอียดขึ้น เห็นจังหวะที่บิตเรตกระโดด", "เห็นรายละเอียด", "ค่าแกว่งขึ้นลงมากกว่า สูงสุดสูงขึ้นและต่ำสุดต่ำลง"],
+    ["ทีละเฟรม", "แท่งละหนึ่งเฟรม ยาวเท่าที่บอกในวงเล็บ เช่น FLAC 96 kHz เฟรมละราว 42.7 ms", "ละเอียดที่สุด", "ไฟล์ยาวต้องซูมเข้าก่อนจึงเห็นทีละแท่ง"],
+    ["อัตโนมัติ", "เลือกระดับให้ตามช่วงที่ซูม ดูทั้งไฟล์ได้แท่งหยาบ ซูมเข้าแท่งละเอียดขึ้นจนถึงทีละเฟรม", "", "ค่าสูงสุดกับต่ำสุดในแผงซ้ายเปลี่ยนตามระดับที่ใช้อยู่"],
+  ],
+  r: "ดูภาพรวมใช้ 1 วินาที แต่ถ้าอยากเจาะช่วงสั้น ๆ ใช้อัตโนมัติแล้วซูมเข้า",
+};
+
+/* รูปแบบกราฟ (BUGS ข้อ 42 "อยากได้ตัวเลือกเปลี่ยนรูปแบบเเท่งได้") · จำค่าไว้ */
+type BarStyle = "bar" | "line" | "area" | "step" | "dot" | "led";
+const STYLES: { value: BarStyle; label: string }[] = [
+  { value: "bar", label: "แท่ง" }, { value: "line", label: "เส้น" }, { value: "area", label: "พื้นทึบ" },
+  { value: "step", label: "ขั้นบันได" }, { value: "dot", label: "จุด" }, { value: "led", label: "LED" },
+];
+const TIP_STYLE: Tip = {
+  w: "หน้าตาของกราฟบิตเรต ข้อมูลเหมือนกันทุกแบบ",
+  o: [
+    ["แท่ง", "แท่งละช่วง สีอ่อนคือต่ำกว่าค่าเฉลี่ยสะสม สีเข้มคือสูงกว่า สีแดงคือเกินเพดาน แบบ Bitrate Viewer", "", ""],
+    ["เส้น", "ลากเส้นผ่านยอดของทุกช่วง", "เห็นการขึ้นลงต่อเนื่อง", ""],
+    ["พื้นทึบ", "เส้นแบบเดียวกันแต่ระบายพื้นใต้เส้น", "", ""],
+    ["ขั้นบันได", "เส้นแนวนอนเต็มความยาวช่วงแล้วหักขึ้นลงที่รอยต่อ", "บอกขอบของแต่ละช่วงตรงกว่าเส้น", ""],
+    ["จุด", "จุดเดียวที่ยอดของแต่ละช่วง", "ดูกลุ่มค่าได้ง่ายตอนแท่งเยอะ", ""],
+    ["LED", "แท่งตัดเป็นช่องสี่เหลี่ยมเล็กซ้อนกันแบบไฟวัดระดับเสียง", "", ""],
+  ],
+  r: "ส่วนที่เกินเพดานเป็นสีแดงทุกแบบ",
+};
+
+/* ชุดสีกราฟ (BUGS ข้อ 37 · พี่กันสั่ง 10 พ.ย. 2569 "ขอปุ่มเลือกสี ให้เลือกสีเดิมของ bitrate viwiwe ได้" · ข้อ 42 "อยากเลือกสีตามใจได้")
+   สีตามโทนของโปรแกรม · สี Bitrate Viewer (ค่าเดียวกับหน้าแบบเดิม BitrateClassic.tsx) · กำหนดเองสีเดียว · สีวาดลงแคนวาส ตัวแปลงโทนไม่แตะ */
+type Pal = "tone" | "bv" | "custom";
+const BV_LINES = { avg: "rgb(0,160,0)", max: "rgb(150,90,30)", min: "rgb(30,60,220)" };
+const BV = { lo0: "rgb(129,127,255)", lo1: "rgb(170,127,215)", hi0: "rgb(208,138,183)", hi1: "rgb(220,127,166)", over: "rgb(254,127,138)", cum: "rgb(140,140,140)", line: "rgb(100,96,230)" };
+
 type Src = "pkt" | "frm";
 const srcOf = (m: Mode): Src => (m === "frm" ? "frm" : "pkt");
 /** ช่องที่ยังไม่มีค่าในแผงซ้าย ขีดสีเดียวกับชื่อแถว ตัวไม่หนา (พี่กันสั่ง 11 พ.ย. 2569 "สีอักษรเหมือนกับหัวข้อเจ้าของข้อมูล") */
 const NA = <span className="brn-na">–</span>;
-type Raw = { t: number[]; s: number[]; k: string; tmin: number; readTo: number; done: boolean };
+/** partial = ffprobe จบโดยรายงานว่าผิดพลาด (ไฟล์เสียกลางทาง) · ป้ายอ่านไม่ถึงท้ายไฟล์ดูทั้งตัวนี้และ readTo เทียบความยาว (AUDIT ข้อ 118) */
+type Raw = { t: number[]; s: number[]; k: string; tmin: number; readTo: number; done: boolean; partial?: boolean };
 type Entry = { info: BrInfo; raw: Partial<Record<Src, Raw>> };
+/** จำผลไว้ไม่เกิน 8 ไฟล์แบบหน้าแบบเดิม · เดิมไม่จำกัด เปิดหนังหลายสิบเรื่องแรมโตไปเรื่อย ๆ (AUDIT ข้อ 120) */
 const CACHE = new Map<string, Entry>();
+const remember = (k: string, e: Entry) => { CACHE.delete(k); CACHE.set(k, e); while (CACHE.size > 8) CACHE.delete(CACHE.keys().next().value as string); };
 type Prog = { run: number; from: number; t: number[]; s: number[]; k: string; readTo: number };
-type Done = { run: number; ok: boolean; stopped?: boolean; error?: string };
+type Done = { run: number; ok: boolean; stopped?: boolean; error?: string; partial?: boolean };
 type Samples = { t0: Float64Array; t1: Float64Array; b: Float64Array; typ: string; n: number; keys: number[] };
 const kbps = (bytes: number, sec: number) => (bytes * 8) / 1000 / Math.max(sec, 0.001);
 
 /** ตัวอย่างตามวิธีคิด (ตรรกะเดียวกับหน้าเดิม src/pages/BitratePage.tsx) */
-function buildSamples(raw: Raw | undefined, mode: Mode, fps: number): Samples {
+/** ความยาวหนึ่งเฟรม (วินาที) · ไม่มีอัตราเฟรม (แทร็กเสียง) ใช้ความยาวเฉลี่ยของแพ็กเก็ตจริง */
+const frameDur = (raw: Raw | undefined, fps: number) => fps > 0 ? 1 / fps : raw && raw.t.length > 1 && raw.readTo > raw.tmin ? (raw.readTo - raw.tmin) / (raw.t.length - 1) : 1 / 25;
+
+/** bin ความยาวแท่งของวิธีคิดต่อวินาที (วินาที) หรือ pkt ทีละเฟรม (BUGS ข้อ 42) */
+function buildSamples(raw: Raw | undefined, mode: Mode, fps: number, bin: number | "pkt" = 1): Samples {
   const empty = { t0: new Float64Array(0), t1: new Float64Array(0), b: new Float64Array(0), typ: "", n: 0, keys: [] };
   if (!raw || !raw.t.length) return empty;
   const { t, s, k, tmin } = raw;
-  // ไม่มีอัตราเฟรม (แทร็กเสียง) ใช้ความยาวเฉลี่ยของแพ็กเก็ตจริง ช่องวินาทีท้ายไฟล์จะยาวถูก ค่าไม่ต่ำเกินจริง
-  const fd = fps > 0 ? 1 / fps : t.length > 1 && raw.readTo > tmin ? (raw.readTo - tmin) / (t.length - 1) : 1 / 25;
+  // ช่องวินาทีท้ายไฟล์ยาวถูกเมื่อรู้ความยาวเฟรม ค่าไม่ต่ำเกินจริง
+  const fd = frameDur(raw, fps);
   const keys: number[] = [];
   for (let i = 0; i < t.length; i++) if (k[i] === "K" || k[i] === "I") keys.push(t[i] - tmin);
+  if (mode === "sec" && bin === "pkt") {
+    // ทีละเฟรมจากแพ็กเก็ต · วิดีโอเรียงตามลำดับถอด เวลาแสดงไม่เรียง ต้องเรียงตามเวลาก่อน (เสียงเรียงอยู่แล้ว ไม่ต้องเรียง)
+    const n = t.length;
+    let ord: Uint32Array | null = null;
+    for (let i = 1; i < n; i++) if (t[i] < t[i - 1]) { ord = Uint32Array.from({ length: n }, (_, j) => j).sort((a, c) => t[a] - t[c]); break; }
+    const t0 = new Float64Array(n), t1 = new Float64Array(n), b = new Float64Array(n);
+    for (let j = 0; j < n; j++) { const i = ord ? ord[j] : j; t0[j] = t[i] - tmin; t1[j] = t0[j] + fd; b[j] = s[i]; }
+    return { t0, t1, b, typ: "", n, keys };
+  }
   if (mode === "sec") {
+    const W = bin as number;
     const end = raw.readTo - tmin + fd;
-    // จำนวนวินาทีนับจากวินาทีของเฟรมสุดท้ายจริง · ใช้ end ปัดขึ้นไม่ได้ เฟรมสุดท้าย 1.917 บวกหนึ่งเฟรม 0.0833 ได้ 2.0003 กลายเป็น 3 วินาที ช่องท้ายว่าง MIN เป็น 0 (เจอ 10 พ.ย. 2569)
-    const n = Math.max(0, raw.done ? Math.floor(raw.readTo - tmin) + 1 : Math.floor(raw.readTo - tmin));
+    // จำนวนช่องนับจากช่องของเฟรมสุดท้ายจริง · ใช้ end ปัดขึ้นไม่ได้ เฟรมสุดท้าย 1.917 บวกหนึ่งเฟรม 0.0833 ได้ 2.0003 กลายเป็น 3 วินาที ช่องท้ายว่าง MIN เป็น 0 (เจอ 10 พ.ย. 2569)
+    const n = Math.max(0, raw.done ? Math.floor((raw.readTo - tmin) / W) + 1 : Math.floor((raw.readTo - tmin) / W));
     const b = new Float64Array(n);
-    for (let i = 0; i < t.length; i++) { const j = Math.floor(t[i] - tmin); if (j >= 0 && j < n) b[j] += s[i]; }
+    for (let i = 0; i < t.length; i++) { const j = Math.floor((t[i] - tmin) / W); if (j >= 0 && j < n) b[j] += s[i]; }
     const t0 = new Float64Array(n), t1 = new Float64Array(n);
-    for (let j = 0; j < n; j++) { t0[j] = j; t1[j] = raw.done ? Math.min(j + 1, Math.max(end, j + 0.001)) : j + 1; }
-    // ช่องท้ายไฟล์สั้นกว่าครึ่งวินาที รวมเข้าช่องก่อนหน้า · เศษไม่กี่แพ็กเก็ตคิดเป็นต่อวินาทีแล้วค่าเพี้ยน
+    for (let j = 0; j < n; j++) { t0[j] = j * W; t1[j] = raw.done ? Math.min((j + 1) * W, Math.max(end, j * W + 0.001)) : (j + 1) * W; }
+    // ช่องท้ายไฟล์สั้นกว่าครึ่งช่อง รวมเข้าช่องก่อนหน้า · เศษไม่กี่แพ็กเก็ตคิดเป็นต่อวินาทีแล้วค่าเพี้ยน
     // (เจอ 10 พ.ย. 2569 แทร็กเสียง AAC เวลาเริ่มติดลบ ช่องที่ 150 ยาว 0.05 วินาที ต่ำสุดขึ้น 62 kbps ทั้งที่จริงราว 128)
-    if (raw.done && n > 1 && t1[n - 1] - t0[n - 1] < 0.5) { b[n - 2] += b[n - 1]; t1[n - 2] = t1[n - 1]; return { t0: t0.subarray(0, n - 1), t1: t1.subarray(0, n - 1), b: b.subarray(0, n - 1), typ: "", n: n - 1, keys }; }
+    if (raw.done && n > 1 && t1[n - 1] - t0[n - 1] < W / 2) { b[n - 2] += b[n - 1]; t1[n - 2] = t1[n - 1]; return { t0: t0.subarray(0, n - 1), t1: t1.subarray(0, n - 1), b: b.subarray(0, n - 1), typ: "", n: n - 1, keys }; }
     return { t0, t1, b, typ: "", n, keys };
   }
   if (mode === "frm") {
@@ -135,11 +203,12 @@ const audioIcon = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" st
 const fmtName = (f: string) => ({ matroska: "MKV", mov: "MP4", mpegts: "TS", mpeg: "MPEG-PS", avi: "AVI", webm: "WebM" } as Record<string, string>)[f] ?? f.toUpperCase();
 /** แบบภาพ progressive หรือ interlaced จากค่า field_order ของ ffprobe */
 const scanTxt = (f: string) => (!f || f === "unknown" ? "" : f === "progressive" ? "Progressive" : `Interlaced (${f === "tt" || f === "tb" ? "TFF" : "BFF"})`);
-/** มาตรฐานสี กับบอก HDR จากการแปลงแสง (smpte2084 = HDR10 PQ · arib-std-b67 = HLG) */
+/** มาตรฐานสี กับบอก HDR จากการแปลงแสง (smpte2084 = HDR10 PQ · arib-std-b67 = HLG)
+    ไฟล์ไม่บอกเลยคืนข้อความว่าง แผงขึ้นขีดแทนคำว่า ไม่ระบุ (AUDIT ข้อ 121 · กฎ CLAUDE.md ช่องที่ไม่มีค่าขึ้นขีด) */
 const colorTxt = (i: BrInfo) => {
-  const p = i.primaries && i.primaries !== "unknown" ? i.primaries.replace(/^bt/, "BT.").replace("BT.2020", "BT.2020") : "";
+  const p = i.primaries && i.primaries !== "unknown" ? i.primaries.replace(/^bt/, "BT.") : "";
   const hdr = i.transfer === "smpte2084" ? "HDR10 (PQ)" : i.transfer === "arib-std-b67" ? "HLG" : "";
-  return [p || (hdr ? "" : "ไม่ระบุ"), hdr || (p ? "SDR" : "")].filter(Boolean).join(" ");
+  return [p, hdr || (p ? "SDR" : "")].filter(Boolean).join(" ");
 };
 /** อ่านสีจากตัวแปรของโทนที่ใช้อยู่ */
 const cssv = (n: string, d: string) => getComputedStyle(document.documentElement).getPropertyValue(n).trim() || d;
@@ -148,18 +217,33 @@ const alpha = (c: string, a: number) => `color-mix(in srgb, ${c} ${Math.round(a 
 /** หน้าบิตเรต · สลับแบบชั้นหนังกับแบบ Bitrate Viewer ไฟล์ที่เปิดอยู่ตามไปด้วย · จำแบบที่เลือกไว้ในเครื่อง */
 export default function BitratePage({ initialPath = null, initialTrack = null, onConsumed }: { initialPath?: string | null; initialTrack?: string | null; onConsumed?: () => void } = {}) {
   const [view, setView] = useState<"new" | "classic">(() => (store.get("bv-view") === "classic" ? "classic" : "new"));
-  const [carry, setCarry] = useState<string | null>(null);
-  const go = (v: "new" | "classic", p: string | null) => { store.set("bv-view", v); setCarry(p); setView(v); };
+  /** ไฟล์กับแทร็กที่ส่งต่อตอนสลับแบบ · แทร็กตามไปด้วย อีกแบบไม่ถามแทร็กซ้ำ (BUGS ข้อ 83 · เดิมส่งแค่ไฟล์ ดูวิดีโออยู่สลับแล้วขึ้นหน้าเลือกแทร็ก) */
+  const [carry, setCarry] = useState<{ path: string; track: string | null } | null>(null);
+  const go = (v: "new" | "classic", p: string | null, t: string | null = null) => { store.set("bv-view", v); setCarry(p ? { path: p, track: t || null } : null); setView(v); };
   // ตัวตรวจกับหน้ามอคอัปสลับแบบผ่านตัวนี้
   useEffect(() => { (window as unknown as { __bitrateView?: (v: "new" | "classic") => void }).__bitrateView = (v) => go(v, null); });
-  const start = initialPath ?? carry;
+  const start = initialPath ?? carry?.path ?? null;
+  const startTrack = initialPath ? initialTrack : carry?.track ?? null;
   const done = () => { setCarry(null); onConsumed?.(); };
-  return view === "classic"
-    ? <BitrateClassic initialPath={start} initialTrack={initialPath ? initialTrack : null} onConsumed={done} onModern={(p) => go("new", p)} />
-    : <BitrateModern initialPath={start} initialTrack={initialPath ? initialTrack : null} onConsumed={done} onClassic={(p) => go("classic", p)} />;
+  /** ไฟล์กับแทร็กที่แบบ Bitrate Viewer เปิดอยู่ ใช้ตอนกดแบบชั้นหนังในแถบปุ่มคู่ */
+  const classicCur = useRef<{ path: string | null; track: string | null }>({ path: null, track: null });
+  if (view === "classic") return (
+    // แถบปุ่มคู่สลับแบบอยู่ทั้งสองแบบ ตอนเป็นแบบ Bitrate Viewer ปุ่มนั้นกดค้าง (BUGS ข้อ 85 · พี่กันสั่ง 13 พ.ย. 2569 "เราขอปุ่มนี้ค้างไว้ตอนเปลี่ยนไปหน้าแบบ bitrate view")
+    <div style={{ flex: 1, minHeight: 0, height: "100%", display: "flex", flexDirection: "column" }} data-bvwrap>
+      <div className="gmodebar" style={{ position: "static", margin: 0, flex: "none", display: "flex", alignItems: "center", gap: 12 }}>
+        <div className="seg" role="group" aria-label="แบบหน้า">
+          <button type="button" onClick={() => go("new", classicCur.current.path, classicCur.current.track)} title="สลับไปหน้าตาแบบชั้นหนัง ไฟล์กับแทร็กที่เปิดอยู่ตามไปด้วย" data-bvmodern>แบบชั้นหนัง</button>
+          <button type="button" className="on" aria-pressed style={{ display: "inline-flex", alignItems: "center", gap: 6 }}><img src={bvIcon} alt="" width={16} height={16} style={{ display: "block", flex: "none" }} />แบบ Bitrate Viewer</button>
+        </div>
+        <span className="small">หน้าตาแบบโปรแกรม Bitrate Viewer เดิม อ่านอย่างเดียว ไฟล์จึงไม่ถูกแตะ</span>
+      </div>
+      <BitrateClassic initialPath={start} initialTrack={startTrack} onConsumed={done} onCurrent={(p, t) => { classicCur.current = { path: p, track: t }; }} />
+    </div>
+  );
+  return <BitrateModern initialPath={start} initialTrack={startTrack} onConsumed={done} onClassic={(p, t) => go("classic", p, t)} />;
 }
 
-function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onConsumed }: { onClassic?: (path: string | null) => void; initialPath?: string | null; initialTrack?: string | null; onConsumed?: () => void }) {
+function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onConsumed }: { onClassic?: (path: string | null, track?: string | null) => void; initialPath?: string | null; initialTrack?: string | null; onConsumed?: () => void }) {
   const { movies } = useLibrary();
   const [path, setPath] = useState<string | null>(null);
   const [info, setInfo] = useState<BrInfo | null>(null);
@@ -184,6 +268,20 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
   const [sel, setSel] = useState<[number, number] | null>(null);
   const [recent, setRecent] = useState<string[]>(recentList);
   const [toneVer, setToneVer] = useState(0);
+  /** ความละเอียดแท่ง รูปแบบกราฟ ชุดสี จำค่าไว้ในเครื่อง (BUGS ข้อ 42 ข้อ 37) */
+  const [res, setResState] = useState<Res>(() => { const v = store.get("brn-res"); return v === "pkt" || v === "auto" || RES_STEPS.some((x) => x.value === v) ? v as Res : "1"; });
+  const setRes = (v: Res) => { setResState(v); store.set("brn-res", v); };
+  const [bstyle, setStyleState] = useState<BarStyle>(() => (STYLES.some((x) => x.value === store.get("brn-style")) ? store.get("brn-style") as BarStyle : "bar"));
+  const setBStyle = (v: BarStyle) => { setStyleState(v); store.set("brn-style", v); };
+  const [pal, setPalState] = useState<Pal>(() => { const v = store.get("brn-pal"); return v === "bv" || v === "custom" ? v : "tone"; });
+  const setPal = (v: Pal) => { setPalState(v); store.set("brn-pal", v); };
+  const [custom, setCustomState] = useState(() => (/^#[0-9a-f]{6}$/i.test(store.get("brn-custom") ?? "") ? store.get("brn-custom")! : "#3b8fe0"));
+  const setCustom = (c: string) => { setCustomState(c); store.set("brn-custom", c); };
+  /** ตอนเปิดแผงสีกำหนดเอง จำชุดสีเดิมไว้ กดยกเลิกคืนทั้งชุด (แบบหน้ากราฟเสียง) */
+  const [palSnap, setPalSnap] = useState<{ pal: Pal; color: string } | null>(null);
+  /** ไฟล์ที่กำลังถามรายชื่อแทร็ก · ขึ้นหน้าเลือกแทร็กแบบโครงจางระหว่างรอ */
+  const [asking, setAsking] = useState<string | null>(null);
+  const ctlRef = useRef<HTMLDivElement>(null);
   const raw = useRef<Raw | undefined>(undefined);
   const run = useRef(0);
   /** ตัวฟังเหตุการณ์พร้อมแล้ว · เริ่มอ่านหลังจากนี้ ข้อมูลก้อนแรกไม่หลุด */
@@ -223,7 +321,7 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
     a.then((u) => (live ? offs.push(u) : u()));
     const b = listen<Done>("bitrate-done", (e) => {
       const d = e.payload; if (d.run !== run.current) return;
-      if (raw.current) raw.current.done = d.ok;
+      if (raw.current) { raw.current.done = d.ok; raw.current.partial = !!d.partial; }
       setRunning(false); if (d.error) setErr(d.error); setVer((v) => v + 1);
     });
     b.then((u) => (live ? offs.push(u) : u()));
@@ -235,20 +333,37 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
     const src = srcOf(m);
     let tk = trk ?? (p === path ? track : "");
     setErr(""); setSel(null);
-    if (p !== path || tk !== track) { setZoom([]); setPin(null); setHover(null); }
-    setPath(p);
+    const fresh = p !== path || tk !== track;
     // ไฟล์เดียวกันเขียน / กับ  หรือตัวพิมพ์ต่างกัน ถือเป็นไฟล์เดียว ไม่ขึ้นซ้ำ (เจอ 10 พ.ย. 2569)
     const same = (a: string) => a.replace(/\//g, "\\").toLowerCase();
-    const list = [p, ...recentList().filter((x) => same(x) !== same(p))].slice(0, 8); store.set("bv-recent", JSON.stringify(list)); setRecent(list);
+    // จำลงเครื่องอย่างเดียว รายการบนจอเรียงใหม่ตอนกลับหน้ารวม · เดิมเรียงใหม่ทันที ไฟล์ที่กดเด้งขึ้นหน้าสุดให้เห็นก่อนเข้าหน้าไฟล์ (BUGS ข้อ 82)
+    const list = [p, ...recentList().filter((x) => same(x) !== same(p))].slice(0, 8); store.set("bv-recent", JSON.stringify(list));
     // ยังไม่รู้แทร็ก ถามรายชื่อก่อน · มีมากกว่าหนึ่งให้เลือก (พี่กันสั่ง 10 พ.ย. 2569)
+    // ระหว่างรอรายชื่อ หน้าเดิมค้างไว้ ยังไม่ตั้งไฟล์ใหม่ · เดิมตั้งไฟล์ทันที หน้ากราฟเปล่าแวบหนึ่งเฟรมก่อนขึ้นหน้าเลือกแทร็ก (BUGS ข้อ 81)
     const ask = ++askRef.current;
-    if (!tk) {
-      await bitrateApi.stop().catch(() => {}); run.current = -1; raw.current = undefined; setRunning(false); setInfo(null); setChoose(null); setVer((v) => v + 1);
-      let list: BrTrack[] = [];
-      try { list = await bitrateApi.tracks(p); } catch (e) { if (ask === askRef.current) setErr(String(e)); return; }
+    // เคยเปิดไฟล์นี้แล้ว รู้รายชื่อแทร็กอยู่แล้ว ไม่ต้องถามใหม่ เข้าหน้าเลือกแทร็กหรือหน้ากราฟทันที
+    const known = !tk ? infoOf(p)?.tracks : undefined;
+    if (known && known.length === 1) tk = known[0].id;
+    else if (known && known.length > 1) {
+      await bitrateApi.stop().catch(() => {}); run.current = -1; setRunning(false);
       if (ask !== askRef.current) return;
+      if (fresh) { setZoom([]); setPin(null); setHover(null); }
+      setAsking(null); setPath(p); raw.current = undefined; setInfo(null); setChoose({ path: p, tracks: known }); setVer((v) => v + 1); return;
+    }
+    if (!tk) {
+      // ระหว่างรอ ขึ้นแถบไฟล์กับโครงจางของหน้าเลือกแทร็กทันที กดแล้วเข้าหน้าไฟล์เลย ไม่ค้างที่หน้ารวม และไม่ใช่หน้ากราฟเปล่า (BUGS ข้อ 81 82)
+      setAsking(p);
+      await bitrateApi.stop().catch(() => {}); run.current = -1; setRunning(false);
+      let list: BrTrack[] = [];
+      try { list = await bitrateApi.tracks(p); } catch (e) { if (ask === askRef.current) { setAsking(null); setPath(p); raw.current = undefined; setInfo(null); setChoose(null); setErr(String(e)); } return; }
+      if (ask !== askRef.current) return;
+      if (fresh) { setZoom([]); setPin(null); setHover(null); }
+      setAsking(null); setPath(p); raw.current = undefined; setInfo(null); setVer((v) => v + 1);
       if (list.length > 1) { setChoose({ path: p, tracks: list }); return; }
       tk = list[0]?.id ?? "auto";
+    } else {
+      if (fresh) { setZoom([]); setPin(null); setHover(null); }
+      setAsking(null); setPath(p);
     }
     setChoose(null); setTrack(tk);
     const key = p + "#" + tk;
@@ -263,13 +378,13 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
       const i = await bitrateApi.start(p, src, id, tk);
       if (raw.current !== r) return;
       setInfo(i);
-      const e = CACHE.get(key) ?? { info: i, raw: {} }; e.info = i; e.raw[src] = r; CACHE.set(key, e);
+      const e = CACHE.get(key) ?? { info: i, raw: {} }; e.info = i; e.raw[src] = r; remember(key, e);
     } catch (e) { if (raw.current === r) { setRunning(false); setErr(String(e)); } }
   }, [path, track]);
   const setMode = (m: Mode) => { setModeState(m); store.set("brn-mode", m); if (path) void open(path, m); };
   const pick = async () => { const p = await pickFile("media"); if (p) void open(p, modeSel); };
   const stop = () => { void bitrateApi.stop().catch(() => {}); run.current = -1; setRunning(false); };
-  const home = () => { stop(); askRef.current++; raw.current = undefined; setPath(null); setInfo(null); setChoose(null); setTrack(""); setZoom([]); setPin(null); setErr(""); };
+  const home = () => { stop(); askRef.current++; raw.current = undefined; setRecent(recentList()); setAsking(null); setPath(null); setInfo(null); setChoose(null); setTrack(""); setZoom([]); setPin(null); setErr(""); };
   const forget = (p: string) => { const l = recentList().filter((x) => x !== p); store.set("bv-recent", JSON.stringify(l)); setRecent(l); };
 
   // คีย์ลัดแบบเดียวกับ Bitrate Viewer · F5 อ่านใหม่ · Esc เอาจุดที่ปักออก
@@ -309,8 +424,32 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
   const fps = info?.fps ?? 0;
   const dur = info?.duration && info.duration > 0 ? info.duration : r && r.t.length ? r.readTo - r.tmin : 0;
   const total = Math.max(1, dur);
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  const S = useMemo(() => buildSamples(r, mode, fps), [r, mode, fps, ver]);
+  const [z0, z1] = zoom.length ? zoom[zoom.length - 1] : [0, total];
+  const span = Math.max(0.001, z1 - z0);
+  // ขอบกราฟ · ซ้ายมีป้ายบิตเรต ล่างมีป้ายเวลา · บนมีหน่วยกับป้ายแท่งละ
+  const L = 54, R = 14, T = 24, B = 26;
+  const pw = Math.max(10, box.w - L - R), ph = Math.max(10, box.h - T - B);
+  const maxBars = Math.max(10, Math.floor(pw / 3));
+  // ความละเอียดที่ใช้จริง · อัตโนมัติเลือกระดับละเอียดสุดที่แท่งในช่วงที่เห็นยังกว้างอย่างน้อย 3 จุด (BUGS ข้อ 42 ต่อ 2)
+  const fd = frameDur(r, fps);
+  const pktOk = !!r && r.t.length > 0 && r.t.length <= PKT_MAX;
+  const bin: number | "pkt" = mode !== "sec" ? 1 : res === "pkt" ? (pktOk ? "pkt" : 0.1) : res === "auto"
+    ? (pktOk && span / fd <= maxBars ? "pkt" : ([0.1, 0.5, 1, 5, 10].find((w) => span / w <= maxBars) ?? 10)) : Number(res);
+  const binTxt = bin === "pkt" ? "ทีละเฟรม" : `${bin} วินาที`;
+  const ctlCompact = useFitSwitch(ctlRef, `${audio}|${path}|${info?.tracks.length ?? 0}`);
+  const headRef = useRef<HTMLDivElement>(null);
+  const headCompact = useFitSwitch(headRef, `${audio}|${path}|${Math.round(z0)}|${Math.round(z1)}`);
+  // ระหว่างอ่าน คิดตัวอย่างใหม่ไม่เกิน 700 ms ละครั้ง · เดิมคิดทั้งก้อนใหม่ทุกก้อนข้อมูล (ทุก 120 ms) ไฟล์ TrueHD ยาวงานโตเป็นกำลังสอง หน้าจอหน่วง (AUDIT ข้อ 119)
+  // อ่านจบหรือเปลี่ยนวิธีคิด ความละเอียด คิดใหม่ทันที
+  const sMemo = useRef<{ at: number; key: string; r?: Raw; S?: Samples }>({ at: 0, key: "" });
+  const sKey = `${mode}|${fps}|${bin}`;
+  const S = useMemo(() => {
+    const m = sMemo.current, now = performance.now();
+    if (r && !r.done && m.r === r && m.key === sKey && m.S && now - m.at < 700) return m.S;
+    const out = buildSamples(r, mode, fps, bin);
+    sMemo.current = { at: now, key: sKey, r, S: out };
+    return out;
+  }, [r, mode, fps, bin, sKey, ver]); // eslint-disable-line react-hooks/exhaustive-deps
   const st = useMemo(() => {
     let peak = 0, min = Infinity, pAt = -1, mAt = -1, sumB = 0, sumT = 0;
     const cum = new Float64Array(S.n);
@@ -328,26 +467,27 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
     const cv = sumT && avg ? Math.sqrt(vv / sumT) / avg : 0;
     return { peak, min: S.n ? min : 0, pAt, mAt, avg, cum, types, cv };
   }, [S, mode]);
-  const [z0, z1] = zoom.length ? zoom[zoom.length - 1] : [0, total];
-  const span = Math.max(0.001, z1 - z0);
   const est = info && info.duration > 0 && info.kind !== "audio" ? (info.size * 8) / 1000 / info.duration : 0;
   const ceil = niceNear(Math.max(est || st.avg, 1) * 2);
-  // เวลาที่บิตเรตเกินเพดานรวม (วินาที)
-  let overSec = 0; for (let i = 0; i < S.n; i++) if (kbps(S.b[i], S.t1[i] - S.t0[i]) > ceil) overSec += S.t1[i] - S.t0[i];
+  // เวลาที่บิตเรตเกินเพดานรวม (วินาที) · คิดครั้งเดียวต่อชุดตัวอย่าง ไม่วนทุกครั้งที่ขยับเมาส์ (ทีละเฟรมมีได้เป็นล้านช่อง)
+  const overSec = useMemo(() => { let o = 0; for (let i = 0; i < S.n; i++) if (kbps(S.b[i], S.t1[i] - S.t0[i]) > ceil) o += S.t1[i] - S.t0[i]; return o; }, [S, ceil]);
+  // อ่านไม่ถึงท้ายไฟล์ · ffprobe รายงานว่าผิดพลาด หรืออ่านได้สั้นกว่าความยาวไฟล์ชัดเจน (AUDIT ข้อ 118) · ส่วนที่เหลือของกราฟลายจางพร้อมป้าย
+  const readEnd = r && isFinite(r.tmin) ? r.readTo - r.tmin : 0;
+  const cutAt = r?.done && info && info.duration > 0 && (r.partial || readEnd < info.duration - Math.max(2, info.duration * 0.02)) ? readEnd : null;
 
-  // ขอบกราฟ · ซ้ายมีป้ายบิตเรต ล่างมีป้ายเวลา
-  const L = 54, R = 14, T = 24, B = 26;
-  const pw = Math.max(10, box.w - L - R), ph = Math.max(10, box.h - T - B);
-  const maxBars = Math.max(10, Math.floor(pw / 3));
-  const vis: number[] = [];
-  for (let i = 0; i < S.n; i++) if (S.t1[i] > z0 && S.t0[i] < z1) vis.push(i);
-  const group = Math.max(1, Math.ceil(vis.length / maxBars));
-  const bars: { v: number; avg: number; t0: number; t1: number; i0: number; i1: number }[] = [];
-  for (let g = 0; g < vis.length; g += group) {
-    const i0 = vis[g], i1 = vis[Math.min(vis.length, g + group) - 1];
-    let b = 0; for (let i = i0; i <= i1; i++) b += S.b[i];
-    bars.push({ v: kbps(b, S.t1[i1] - S.t0[i0]), avg: st.cum[i1], t0: S.t0[i0], t1: S.t1[i1], i0, i1 });
-  }
+  // แท่งในช่วงที่เห็น · รวมหลายตัวอย่างต่อแท่งตามความกว้าง · คิดเฉพาะตอนข้อมูลหรือช่วงซูมเปลี่ยน
+  const { bars, group } = useMemo(() => {
+    const vis: number[] = [];
+    for (let i = 0; i < S.n; i++) if (S.t1[i] > z0 && S.t0[i] < z1) vis.push(i);
+    const g0 = Math.max(1, Math.ceil(vis.length / maxBars));
+    const out: { v: number; avg: number; t0: number; t1: number; i0: number; i1: number }[] = [];
+    for (let g = 0; g < vis.length; g += g0) {
+      const i0 = vis[g], i1 = vis[Math.min(vis.length, g + g0) - 1];
+      let b = 0; for (let i = i0; i <= i1; i++) b += S.b[i];
+      out.push({ v: kbps(b, S.t1[i1] - S.t0[i0]), avg: st.cum[i1], t0: S.t0[i0], t1: S.t1[i1], i0, i1 });
+    }
+    return { bars: out, group: g0 };
+  }, [S, st, z0, z1, maxBars]);
   const visPeak = bars.reduce((m, b) => Math.max(m, b.v), 0);
   const top = (scale === "data" ? niceUp(Math.max(1, visPeak) * 1.05) : Math.max(ceil * 1.15, stOver(st.peak, ceil))) / vz;
   function stOver(peak: number, c: number) { return peak > c * 1.15 ? peak * 1.05 : 0; }
@@ -370,6 +510,9 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
     const step = niceUp(top / 5);
     const mbps = top >= 2000;
     g.font = font(600, 11.5); g.fillStyle = c.txt3; g.textAlign = "right"; g.textBaseline = "middle"; g.fillText(mbps ? "Mbps" : "kbps", L - 8, 9);
+    // แท่งละเท่าไหร่ เขียนในแถบบนของกรอบ ข้างหน่วย · อัตโนมัติก็รู้ว่าตอนนี้ใช้ระดับไหน (BUGS ข้อ 42 "ป้ายบอกความละเอียดที่ใช้อยู่ตอนนี้")
+    const each = mode === "sec" ? (bin === "pkt" ? `แท่งละหนึ่งเฟรม (${+(fd * 1000).toFixed(1)} ms)` : `แท่งละ ${binTxt}`) : mode === "frm" ? "แท่งละหนึ่งเฟรม" : "แท่งละหนึ่ง GOP";
+    g.font = font(500, 12); g.textAlign = "left"; g.fillText(each + (group > 1 ? ` รวม ${group} ช่วงเป็นหนึ่งแท่งเพราะแท่งแคบเกิน` : "") + (res === "auto" && mode === "sec" ? " เลือกอัตโนมัติตามซูม" : ""), L + 2, 9);
     g.font = font(500, 11.5);
     for (let v = 0; v <= top + 1e-6; v += step) {
       const y = Math.round(yOf(v)) + 0.5;
@@ -384,26 +527,69 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
       g.strokeStyle = c.line; g.beginPath(); g.moveTo(x, T + ph); g.lineTo(x, T + ph + 4); g.stroke();
       g.fillStyle = c.txt3; g.fillText(tStep < 1 ? clockTick(t) : clock(t), x, T + ph + 7);
     }
+    // ส่วนท้ายที่อ่านไม่ถึง ลายเส้นเอียงจาง ๆ (AUDIT ข้อ 118)
+    if (cutAt != null && cutAt < z1) {
+      const xa = Math.max(L, xOf(cutAt)), xb = L + pw;
+      g.save(); g.beginPath(); g.rect(xa, T, xb - xa, ph); g.clip();
+      g.strokeStyle = alpha(c.txt3, 0.28); g.lineWidth = 1;
+      for (let x = xa - ph; x < xb; x += 8) { g.beginPath(); g.moveTo(x, T + ph); g.lineTo(x + ph, T); g.stroke(); }
+      g.restore();
+    }
     if (!bars.length) return;
     g.save(); g.beginPath(); g.rect(L, T, pw, ph); g.clip();
-    // แท่ง · ใต้ค่าเฉลี่ยสะสมสีอ่อน เหนือค่าเฉลี่ยสีเข้ม เกินเพดานสีแดง (ความหมายเดียวกับ Bitrate Viewer)
-    const yc = yOf(ceil);
-    for (const b of bars) {
-      const x0 = Math.floor(xOf(b.t0)), x1 = Math.max(x0 + 1, Math.floor(xOf(b.t1)) - (xOf(b.t1) - xOf(b.t0) >= 2.5 ? 1 : 0));
-      // แท่งกว้างตั้งแต่ 2.5 จุดเว้นช่อง 1 จุด ทั้งแท่งเดี่ยวและแท่งที่รวมหลายช่วง (BUGS ข้อ 43 · เดิมเว้นเฉพาะแท่งเดี่ยวที่กว้างเกิน 4 จุด
-      // หน้าต่างแคบโปรแกรมรวมแท่งละ 2 ช่วงขึ้นไป แท่งรวมกว้าง 6 จุดก็ยังติดกัน · เจอตอนตรวจที่หน้าต่าง 1024)
-      const yv = yOf(b.v), ya = yOf(Math.min(b.v, b.avg)), base = T + ph;
-      g.fillStyle = alpha(c.accent, 0.32); g.fillRect(x0, ya, x1 - x0, base - ya);
-      if (b.v > b.avg) { const yt = Math.max(yv, Math.min(ya, yc)); g.fillStyle = alpha(c.accent, 0.78); g.fillRect(x0, yt, x1 - x0, ya - yt); }
-      if (b.v > ceil) { g.fillStyle = c.bad; g.fillRect(x0, yv, x1 - x0, Math.min(yc, ya) - yv); }
+    // ชุดสี · ใต้ค่าเฉลี่ยสะสมสีอ่อน เหนือค่าเฉลี่ยสีเข้ม เกินเพดานสีแดง (ความหมายเดียวกับ Bitrate Viewer) · สี Bitrate Viewer ไล่สีจากฐานถึงเพดานแบบหน้าแบบเดิม
+    const yc = yOf(ceil), base = T + ph;
+    const grad = (a: string, b: string) => { const gr = g.createLinearGradient(0, base, 0, Math.min(base - 1, yc)); gr.addColorStop(0, a); gr.addColorStop(1, b); return gr; };
+    const pc = pal === "bv"
+      ? { lo: grad(BV.lo0, BV.lo1) as string | CanvasGradient, hi: grad(BV.hi0, BV.hi1) as string | CanvasGradient, loS: BV.lo0, hiS: BV.hi1, over: BV.over, line: BV.line, cum: BV.cum }
+      : pal === "custom"
+        ? { lo: alpha(custom, 0.35), hi: alpha(custom, 0.85), loS: alpha(custom, 0.45), hiS: custom, over: c.bad, line: custom, cum: c.txt2 }
+        : { lo: alpha(c.accent, 0.32), hi: alpha(c.accent, 0.78), loS: alpha(c.accent, 0.45), hiS: c.accent, over: c.bad, line: c.deep, cum: c.txt2 };
+    // แท่งกว้างตั้งแต่ 2.5 จุดเว้นช่อง 1 จุด ทั้งแท่งเดี่ยวและแท่งที่รวมหลายช่วง (BUGS ข้อ 43 · เดิมเว้นเฉพาะแท่งเดี่ยวที่กว้างเกิน 4 จุด
+    // หน้าต่างแคบโปรแกรมรวมแท่งละ 2 ช่วงขึ้นไป แท่งรวมกว้าง 6 จุดก็ยังติดกัน · เจอตอนตรวจที่หน้าต่าง 1024)
+    const xs = (b: { t0: number; t1: number }) => { const x0 = Math.floor(xOf(b.t0)); return [x0, Math.max(x0 + 1, Math.floor(xOf(b.t1)) - (xOf(b.t1) - xOf(b.t0) >= 2.5 ? 1 : 0))]; };
+    if (bstyle === "bar") {
+      for (const b of bars) {
+        const [x0, x1] = xs(b);
+        const yv = yOf(b.v), ya = yOf(Math.min(b.v, b.avg));
+        g.fillStyle = pc.lo; g.fillRect(x0, ya, x1 - x0, base - ya);
+        if (b.v > b.avg) { const yt = Math.max(yv, Math.min(ya, yc)); g.fillStyle = pc.hi; g.fillRect(x0, yt, x1 - x0, ya - yt); }
+        if (b.v > ceil) { g.fillStyle = pc.over; g.fillRect(x0, yv, x1 - x0, Math.min(yc, ya) - yv); }
+      }
+    } else if (bstyle === "led") {
+      // ช่องสูง 4 จุด เว้น 1 จุด สีของช่องตามระดับที่ช่องนั้นอยู่ แบบไฟวัดระดับ
+      for (const b of bars) {
+        const [x0, x1] = xs(b), yv = yOf(b.v), ya = yOf(b.avg);
+        for (let y = base; y - 4 >= yv - 0.5; y -= 5) {
+          const mid = y - 2;
+          g.fillStyle = mid < yc ? pc.over : mid < ya ? pc.hiS : pc.loS;
+          g.fillRect(x0, y - 4, x1 - x0, 4);
+        }
+      }
+    } else {
+      // เส้น พื้นทึบ ขั้นบันได จุด · วาดหนึ่งรอบด้วยสีเส้น แล้ววาดซ้ำเฉพาะส่วนที่สูงเกินเพดานด้วยสีแดง
+      const pts = bars.map((b) => ({ x: xOf((b.t0 + b.t1) / 2), xa: xOf(b.t0), xb: xOf(b.t1), y: yOf(b.v) }));
+      const trace = () => {
+        g.beginPath();
+        if (bstyle === "step") pts.forEach((p, i) => { if (i) g.lineTo(p.xa, p.y); else g.moveTo(p.xa, p.y); g.lineTo(p.xb, p.y); });
+        else pts.forEach((p, i) => (i ? g.lineTo(p.x, p.y) : g.moveTo(p.x, p.y)));
+      };
+      const paint = (col: string | CanvasGradient, fill: string | CanvasGradient) => {
+        if (bstyle === "dot") { const rr = pts.length > pw / 4 ? 1.6 : 2.6; g.fillStyle = col; for (const p of pts) { g.beginPath(); g.arc(p.x, p.y, rr, 0, Math.PI * 2); g.fill(); } return; }
+        if (bstyle === "area") { trace(); const last = pts[pts.length - 1], first = pts[0]; g.lineTo(last.x, base); g.lineTo(first.x, base); g.closePath(); g.fillStyle = fill; g.fill(); }
+        trace(); g.strokeStyle = col; g.lineWidth = 1.6; g.lineJoin = "round"; g.stroke();
+      };
+      paint(pc.line, pc.lo);
+      g.save(); g.beginPath(); g.rect(L, T, pw, Math.max(0, yc - T)); g.clip(); paint(pc.over, alpha(c.bad, 0.5)); g.restore();
     }
     // ค่าเฉลี่ยสะสม
-    g.strokeStyle = c.txt2; g.globalAlpha = 0.55; g.lineWidth = 1.2; g.beginPath();
+    g.strokeStyle = pc.cum; g.globalAlpha = 0.55; g.lineWidth = 1.2; g.beginPath();
     // ช่วงที่ค่าเฉลี่ยสะสมสูงเกินกรอบ (ขยายแนวตั้งอยู่) เส้นขาด ไม่ลากติดขอบบน
     let pen = false;
     bars.forEach((b) => { const x = xOf((b.t0 + b.t1) / 2); if (b.avg > top) { pen = false; return; } const y = yOf(b.avg); if (pen) g.lineTo(x, y); else g.moveTo(x, y); pen = true; });
     g.stroke(); g.globalAlpha = 1;
     // เส้นแนวนอน · เพดาน ค่าเฉลี่ย สูงสุด ต่ำสุด
+    const taken: number[] = [];
     const hl = (v: number, color: string, label: string, dash: number[]) => {
       // เส้นที่สูงเกินกรอบ (ขยายแนวตั้งอยู่) ไม่วาด · yOf บีบค่าไว้ที่ขอบบน ถ้าวาดจะติดขอบ ป้ายโดนตัดครึ่ง
       if (v > top * 1.001) return;
@@ -413,14 +599,18 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
       g.font = font(600, 11.5); const w = g.measureText(label).width + 14;
       g.setLineDash(dash); g.strokeStyle = color; g.lineWidth = 1.4; g.beginPath(); g.moveTo(L, y); g.lineTo(L + pw - w, y); g.stroke(); g.setLineDash([]);
       // ป้ายอยู่ในกรอบเสมอ เส้นชิดขอบล่างหรือบน ป้ายขยับเข้ามา เส้นอยู่ที่เดิม (BUGS ข้อ 1)
-      const ly = Math.min(T + ph - 9, Math.max(T + 9, y));
+      let ly = Math.min(T + ph - 9, Math.max(T + 9, y));
+      // ป้ายสองเส้นที่อยู่ใกล้กัน (เพดาน 2 Mbps กับเฉลี่ย 1.95 Mbps) ไม่ทับกัน ป้ายหลังขยับหลบลงหรือขึ้นทีละแถว เส้นอยู่ที่เดิม (เจอตอนตรวจ 13 พ.ย. 2569)
+      for (let k = 0; k < 6 && taken.some((t) => Math.abs(t - ly) < 19); k++) ly = ly + 19 > T + ph - 9 ? ly - 19 : ly + 19;
+      taken.push(ly);
       g.fillStyle = cssv("--win", "#fff"); g.globalAlpha = 0.92; g.fillRect(L + pw - w, ly - 9, w, 18); g.globalAlpha = 1;
       g.fillStyle = color; g.textAlign = "right"; g.textBaseline = "middle"; g.fillText(label, L + pw - 4, ly);
     };
     hl(ceil, c.badInk, `เพดาน ${rate(ceil)}`, [6, 4]);
-    if (lines.avg) hl(st.avg, c.deep, `เฉลี่ย ${rate(st.avg)}`, []);
-    if (lines.max) hl(st.peak, c.badInk, `สูงสุด ${rate(st.peak)}`, [2, 3]);
-    if (lines.min) hl(st.min, c.info, `ต่ำสุด ${rate(st.min)}`, [2, 3]);
+    // ชุดสี Bitrate Viewer ใช้สีเส้นแบบต้นฉบับ เฉลี่ยเขียว สูงสุดน้ำตาล ต่ำสุดน้ำเงิน (ค่าเดียวกับ BitrateClassic.tsx)
+    if (lines.avg) hl(st.avg, pal === "bv" ? BV_LINES.avg : pal === "custom" ? custom : c.deep, `เฉลี่ย ${rate(st.avg)}`, []);
+    if (lines.max) hl(st.peak, pal === "bv" ? BV_LINES.max : c.badInk, `สูงสุด ${rate(st.peak)}`, [2, 3]);
+    if (lines.min) hl(st.min, pal === "bv" ? BV_LINES.min : c.info, `ต่ำสุด ${rate(st.min)}`, [2, 3]);
     // คีย์เฟรม
     const ks = S.keys.filter((k) => k >= z0 && k <= z1);
     if (ks.length <= 240) { g.strokeStyle = c.txt3; g.globalAlpha = 0.6; for (const k of ks) { const x = Math.round(xOf(k)) + 0.5; g.beginPath(); g.moveTo(x, T + ph); g.lineTo(x, T + ph - 5); g.stroke(); } g.globalAlpha = 1; }
@@ -445,7 +635,8 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
     cv.width = Math.round(w * dpr); cv.height = Math.round(ovH * dpr);
     const g = cv.getContext("2d"); if (!g) return;
     g.setTransform(dpr, 0, 0, dpr, 0, 0); g.clearRect(0, 0, w, ovH);
-    const accent = cssv("--accent", "#c8406f"), bad = cssv("--bad", "#ec8f8f");
+    // ภาพรวมใช้ชุดสีเดียวกับกราฟหลัก (ข้อ 37)
+    const accent = pal === "bv" ? BV.line : pal === "custom" ? custom : cssv("--accent", "#c8406f"), bad = pal === "bv" ? BV.over : cssv("--bad", "#ec8f8f");
     const ow = w - L - R, n = Math.max(1, Math.floor(ow / 2));
     const sum = new Float64Array(n), sec = new Float64Array(n);
     for (let i = 0; i < S.n; i++) { const j = Math.min(n - 1, Math.floor(((S.t0[i] + S.t1[i]) / 2 / total) * n)); sum[j] += S.b[i]; sec[j] += S.t1[i] - S.t0[i]; }
@@ -469,7 +660,8 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
     g.setLineDash([3, 3]); g.strokeStyle = alpha(cssv("--bad-ink", "#b04545"), 0.45); g.lineWidth = 1; g.beginPath(); g.moveTo(L, Math.round(yc) + 0.5); g.lineTo(L + ow, Math.round(yc) + 0.5); g.stroke(); g.setLineDash([]);
     // เส้นขอบบน
     g.beginPath(); curve(true); g.strokeStyle = alpha(accent, 0.9); g.lineWidth = 1.4; g.lineJoin = "round"; g.stroke();
-  });
+    // วาดใหม่เฉพาะตอนข้อมูล ขนาด หรือสีเปลี่ยน · เดิมวาดทุกครั้งที่ขยับเมาส์ วนทุกตัวอย่างทั้งไฟล์ (AUDIT ข้อ 119)
+  }, [S, box.w, ceil, total, pal, custom, toneVer]); // eslint-disable-line react-hooks/exhaustive-deps
   const ovDrag = useRef<number | null>(null);
   const ovMove = (clientX: number, el: HTMLElement) => {
     const rc = el.getBoundingClientRect(); const ow = rc.width - L - R;
@@ -520,12 +712,33 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
     if (t < z0 || t > z1) { const a = Math.max(0, Math.min(total - span, t - span / 2)); setZoom((z) => (z.length ? [...z.slice(0, -1), [a, a + span]] : z)); }
   };
   const readPct = info && info.duration > 0 && r && isFinite(r.tmin) ? Math.min(100, Math.round(((r.readTo - r.tmin) / info.duration) * 100)) : 0;
-  const md = MODES.find((m) => m.value === mode)!;
   const name = path ? path.split(/[\\/]/).pop() ?? "" : "";
   const movieOf = (p: string) => movies.find((m) => m.path.toLowerCase() === p.toLowerCase());
   const film = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 3v18M16 3v18M4 8h4M4 12h4M4 16h4M16 8h4M16 12h4M16 16h4" /></svg>;
   const extCard = (p: string) => { const e = p.match(/\.([^.\\/]+)$/)?.[1]; return e ? <span className="rext">{e.toUpperCase()}</span> : null; };
   const thumbOf = (p: string) => { const m = movieOf(p); return m?.thumb ?? m?.linked?.[0]?.thumb ?? null; };
+
+  /* ---------- กำลังถามว่าไฟล์มีกี่แทร็ก · ขึ้นแถบไฟล์จริงทันทีที่กด (BUGS ข้อ 81 82) ---------- */
+  if (asking) {
+    const nm = asking.split(/[\\/]/).pop() ?? asking, tha = thumbOf(asking);
+    return (
+      <div className="ag brn" data-brn data-brnasking>
+        <div className="brn-top"><div className="agtop">
+          <button type="button" className="btn btn-ghost" onClick={home} title="กลับหน้ารวม ดูไฟล์ที่เปิดล่าสุด" data-brnhome>
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>หน้ารวม</button>
+          <div className="fchip">
+            {tha ? <img className="fthumb" src={thumbUrl(tha) ?? ""} alt="" /> : <div className="fnote brn-fnote"><IcBitrate size={22} /></div>}
+            <div style={{ minWidth: 0 }}>
+              <div className="nm" title={asking}>{nm.replace(/\.[^.]+$/, "")}<span className="ext">{nm.match(/\.[^.]+$/)?.[0] ?? ""}</span></div>
+              <div className="meta">กำลังอ่านรายชื่อแทร็กในไฟล์…</div>
+            </div>
+          </div>
+          <button type="button" className="btn btn-ghost" onClick={pick} data-brnopen><IcFile size={16} />เปิดไฟล์อื่น</button>
+        </div></div>
+        {/* ยังไม่รู้ว่าจะเป็นหน้าเลือกแทร็กหรือหน้ากราฟ ส่วนล่างว่างไว้ ไม่เดาหน้าตาผิด (ราวครึ่งวินาที) */}
+      </div>
+    );
+  }
 
   /* ---------- ยังไม่เปิดไฟล์ ---------- */
   if (!path) {
@@ -599,6 +812,17 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
   }
 
   /* ---------- เปิดไฟล์แล้ว ---------- */
+  const audioWhy = "แทร็กเสียงคิดได้แบบต่อวินาทีอย่างเดียว เพราะเสียงไม่มีคีย์เฟรมกับชนิดเฟรม I P B";
+  // ทีละเฟรมบอกความยาวเฟรมจริงของไฟล์ เช่น FLAC 96 kHz 42.7 ms (BUGS ข้อ 42 ต่อ)
+  const fms = r && r.t.length > 1 ? +(fd * 1000).toFixed(fd * 1000 < 10 ? 2 : 1) : 0;
+  // ปุ่มขึ้นแค่ ทีละเฟรม ความยาวเฟรมอยู่ท้ายแถวในรายการกับป้ายในกรอบกราฟ ปุ่มแคบลง แถวตัวเลือกมีที่วางวงกลมสี
+  const pktLabel = "ทีละเฟรม";
+  const resOpts = [...RES_STEPS.map((x) => ({ value: x.value, label: x.label, note: x.note })),
+    { value: "pkt" as Res, label: pktLabel, note: fms ? `${fms} ms เนิร์ดสุด` : "เนิร์ดสุด", off: r && r.t.length > PKT_MAX ? `ไฟล์นี้มี ${r.t.length.toLocaleString()} เฟรม มากเกินกว่าจะแสดงทีละเฟรมทั้งไฟล์ ใช้อัตโนมัติแล้วซูมเข้าแทน` : undefined },
+    { value: "auto" as Res, label: "อัตโนมัติตามซูม", note: "ซูมเข้าละเอียดขึ้น" }];
+  // ปุ่มขึ้นแค่ อัตโนมัติ ระดับที่ใช้อยู่บอกในหัวกราฟ แท่งละ … (แถวตัวเลือกที่หน้าต่าง 1280 ไม่พอ ปุ่มท้ายแถวตกขอบ เจอตอนตรวจ)
+  const resShow = (o?: { value: Res; label: string }) => (o?.value === "auto" ? "อัตโนมัติ" : o?.label ?? "");
+  const resSizes: string[] = [];
   const th = thumbOf(path);
   const gopAvg = S.keys.length > 1 ? (S.keys[S.keys.length - 1] - S.keys[0]) / (S.keys.length - 1) : 0;
   const tipLeft = hover ? (hover.x > box.w - 220 ? hover.x - 210 : hover.x + 14) : 0;
@@ -628,22 +852,46 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
           : <button type="button" className="btn btn-ghost" onClick={() => void open(path, modeSel, true)} title="อ่านไฟล์ใหม่ทั้งไฟล์ (F5)" data-brnreload><IcRefresh size={16} />อ่านใหม่</button>}
       </div>
 
-      <div className="agctl brn-ctl">
+      {/* แถวไม่พอ ปุ่มแถววิธีคิดกับสเกลเปลี่ยนเป็นดรอปดาวน์ วัดจากที่ว่างจริง ไม่ใช้เลขตายตัว (กฎ CLAUDE.md · บทเรียน BUGS ข้อ 76) */}
+      <div className={"agctl brn-ctl" + (ctlCompact ? " compact" : "")} ref={ctlRef} data-brnctl={ctlCompact ? "compact" : "full"}>
         <span className="lbl">วิธีคิด</span>
-        <Seg label="วิธีคิดบิตเรต" value={mode} onChange={setMode} options={MODES.map((m) => ({ value: m.value, label: m.label }))} disabledReason={audio ? "แทร็กเสียงคิดได้แบบต่อวินาทีอย่างเดียว เพราะเสียงไม่มีคีย์เฟรมกับชนิดเฟรม I P B" : undefined} />
+        {ctlCompact
+          ? <span data-brnmodedd><Dropdown label="วิธีคิดบิตเรต" value={mode} onChange={setMode} options={MODES.map((m) => ({ value: m.value, label: m.label }))} disabled={audio ? audioWhy : undefined} /></span>
+          : <Seg label="วิธีคิดบิตเรต" value={mode} onChange={setMode} options={MODES.map((m) => ({ value: m.value, label: m.label }))} disabledReason={audio ? audioWhy : undefined} />}
         <InfoTip title="วิธีคิดบิตเรต" tip={TIP_MODE} />
         <span className="brn-sep" />
+        <span className="lbl always">แท่งละ</span>
+        <span data-brnres><Dropdown label="ความละเอียดแท่ง" value={res} onChange={setRes} options={resOpts} display={resShow} sizes={resSizes}
+          disabled={mode !== "sec" ? `ความละเอียดใช้กับวิธีคิดต่อวินาทีเท่านั้น วิธีที่เลือกอยู่แบ่งแท่งละหนึ่ง${mode === "frm" ? "เฟรม" : " GOP"}` : undefined} /></span>
+        <InfoTip title="ความละเอียดแท่ง" tip={TIP_RES} />
+        <span className="brn-sep" />
         <span className="lbl">สเกล</span>
-        <Seg label="ความสูงของกราฟ" value={scale} onChange={setScale} options={[{ value: "ceil", label: "ตามเพดาน" }, { value: "data", label: "ตามข้อมูล" }]} />
+        {ctlCompact
+          ? <span data-brnscaledd><Dropdown label="ความสูงของกราฟ" value={scale} onChange={setScale} options={[{ value: "ceil", label: "ตามเพดาน" }, { value: "data", label: "ตามข้อมูล" }]} /></span>
+          : <Seg label="ความสูงของกราฟ" value={scale} onChange={setScale} options={[{ value: "ceil", label: "ตามเพดาน" }, { value: "data", label: "ตามข้อมูล" }]} />}
         <InfoTip title="ความสูงของกราฟ" tip={TIP_SCALE} />
         <span className="brn-sep" />
         <span className="lbl">เส้น</span>
         <div className="seg brn-multi" role="group" aria-label="เส้นแนวนอนบนกราฟ">
           {([["avg", "ค่าเฉลี่ย"], ["max", "สูงสุด"], ["min", "ต่ำสุด"]] as const).map(([k, l]) => (
             <button key={k} type="button" className={lines[k] ? "on" : ""} aria-pressed={lines[k]} onClick={() => setLines((x) => ({ ...x, [k]: !x[k] }))} data-brnline={k}>
-              <i className={"brn-dot " + k} />{l}</button>))}
+              <i className={"brn-dot " + k} data-keepcolor style={pal === "bv" ? { background: k === "avg" ? BV_LINES.avg : `repeating-linear-gradient(90deg, ${BV_LINES[k]} 0 4px, transparent 4px 7px)` } : pal === "custom" && k === "avg" ? { background: custom } : undefined} />{l}</button>))}
         </div>
-        <button type="button" className="btn btn-ghost btn-sm brn-classic" onClick={() => onClassic?.(path)} title="สลับไปหน้าตาแบบโปรแกรม Bitrate Viewer เดิม ไฟล์นี้ตามไปด้วย" data-brnclassic><img src={bvIcon} alt="" width={16} height={16} style={{ display: "block", flex: "none" }} />แบบ Bitrate Viewer</button>
+        {/* ชุดสีกราฟ วงกลมในแถวตัวเลือกฝั่งขวา แบบหน้ากราฟเสียง (BUGS ข้อ 37 ข้อ 42 · พี่กันสั่ง 13 พ.ย. 2569 "เอาวงกลมสี เอาออกไปข้างนอกกราฟ ห้เหมือนจุดอื่น") */}
+        <div className="sws brn-pal" role="group" aria-label="ชุดสีกราฟ" data-keepcolor data-brnpal>
+          <button type="button" className={"sw" + (pal === "tone" ? " on" : "")} aria-pressed={pal === "tone"} aria-label="สีตามโทนของโปรแกรม" title="สีตามโทนของโปรแกรม เปลี่ยนโทนในหน้าตั้งค่าแล้วกราฟเปลี่ยนตาม" onClick={() => setPal("tone")} data-pal="tone"
+            style={{ background: "linear-gradient(135deg, var(--accent-soft), var(--accent) 60%, var(--accent-d))" }} />
+          <button type="button" className={"sw" + (pal === "bv" ? " on" : "")} aria-pressed={pal === "bv"} aria-label="สีแบบ Bitrate Viewer" title="สีแบบโปรแกรม Bitrate Viewer แท่งม่วงฟ้า ส่วนเหนือค่าเฉลี่ยสีชมพู" onClick={() => setPal("bv")} data-pal="bv"
+            style={{ background: `linear-gradient(135deg, ${BV.lo0}, ${BV.lo1} 55%, ${BV.hi1})` }} />
+          <PadCustom pad={custom} what="สีกราฟ" custom={pal === "custom"} panelStyle={{ left: "auto", right: 0, zIndex: 30 }}
+            oldColor={palSnap?.color} onOpen={() => setPalSnap({ pal, color: custom })}
+            onOk={() => setPal("custom")}
+            onCancel={() => { const sn = palSnap; if (sn) { setPal(sn.pal); setCustom(sn.color); } }}
+            onPad={(cl) => { setCustom(cl); setPal("custom"); }}
+            trigger={(open, toggle) => <button type="button" className={"sw sw-custom" + (pal === "custom" ? " on" : "")} aria-expanded={open} aria-label="สีกำหนดเอง" title="สีกำหนดเอง เลือกสีเดียว โปรแกรมใช้สีนั้นทั้งกราฟ" onClick={toggle} data-pal="custom"
+              style={{ padding: 2, background: `linear-gradient(${custom}, ${custom}) content-box, linear-gradient(white, white) padding-box, conic-gradient(#e0457b,#f0a23b,#e8d23a,#4cc38a,#3b8fe0,#8a5ae0,#e0457b) border-box` }} />} />
+        </div>
+        <button type="button" className="btn btn-ghost btn-sm brn-classic" onClick={() => onClassic?.(path, info?.track ?? track)} title="สลับไปหน้าตาแบบโปรแกรม Bitrate Viewer เดิม ไฟล์กับแทร็กนี้ตามไปด้วย" data-brnclassic><img src={bvIcon} alt="" width={16} height={16} style={{ display: "block", flex: "none" }} />แบบ Bitrate Viewer</button>
         <FullBtn />
       </div>
       </div>
@@ -687,7 +935,7 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
               <dt>Channels</dt><dd>{chTxt(info.channels)}<span className="small"> ({info.channels} {info.channels === 1 ? "channel" : "channels"})</span></dd>
               <dt>Sample rate</dt><dd>{info.sample_rate ? `${+(info.sample_rate / 1000).toFixed(1)} kHz` : NA}</dd>
               <dt>Bit depth</dt><dd>{info.bit_depth ? `${info.bit_depth}-bit` : NA}</dd>
-              <dt>ภาษา</dt><dd>{info.lang || "ไม่ระบุ"}</dd>
+              <dt>ภาษา</dt><dd>{info.lang || NA}</dd>
               <dt>ชนิดไฟล์</dt><dd>{fmtName(info.format)}</dd>
               <dt>ขนาดไฟล์</dt><dd>{mb(info.size)}</dd>
               <dt>บิตเรตในไฟล์</dt><dd title="บิตเรตที่ไฟล์เขียนไว้ เทียบกับค่าเฉลี่ยที่วัดได้จริงข้างบน">{info.stream_bitrate ? rate(info.stream_bitrate / 1000) : NA}</dd>
@@ -696,7 +944,7 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
               <dt>Codec</dt><dd>{info ? <>{codecName(info.codec)}{info.profile ? <span className="small"> {info.profile}</span> : null}</> : NA}</dd>
               <dt>ขนาดภาพ</dt><dd>{info ? <>{info.width} × {info.height}{scanTxt(info.field_order) ? <span className="small"> {scanTxt(info.field_order)}</span> : null}</> : NA}</dd>
               <dt>ความลึกสี</dt><dd>{info && info.bit_depth ? <>{info.bit_depth} บิต<span className="small"> ({info.pix_fmt})</span></> : NA}</dd>
-              <dt>มาตรฐานสี</dt><dd>{info ? colorTxt(info) : NA}</dd>
+              <dt>มาตรฐานสี</dt><dd>{info && colorTxt(info) ? colorTxt(info) : NA}</dd>
               <dt>Frame rate</dt><dd>{info ? `${+info.fps.toFixed(3)} fps` : NA}</dd>
               <dt>ชนิดไฟล์</dt><dd>{info ? fmtName(info.format) : NA}</dd>
               <dt>ขนาดไฟล์</dt><dd>{info ? mb(info.size) : NA}</dd>
@@ -707,10 +955,13 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
         </aside>
 
         <section className="card brn-main">
-          <div className="brn-head">
-            <div style={{ minWidth: 0 }}>
-              <b>{audio ? "Audio Bitrate" : "Video Bitrate"}</b><span className="small"> {md.label}{S.n ? ` ช่วง ${clock(z0)} ถึง ${clock(z1)}${group > 1 ? ` แท่งละ ${group} ช่วง` : ""}` : ""}</span>
+          {/* หัวกราฟไม่พอ ซ่อนข้อความช่วงเวลา (แกนเวลาบอกอยู่แล้ว) วัดจากที่ว่างจริง · เดิมข้อความตกสองบรรทัดหัวกราฟสูงขึ้น (เจอตอนตรวจที่ 1280) */}
+          <div className="brn-head" ref={headRef} data-brnhead={headCompact ? "compact" : "full"}>
+            <div>
+              <b>{audio ? "Audio Bitrate" : "Video Bitrate"}</b>{!headCompact && <span className="small" data-brnheadinfo>{S.n ? ` ช่วง ${clock(z0)} ถึง ${clock(z1)}` : ""}</span>}
             </div>
+            {/* รูปแบบกราฟ (BUGS ข้อ 42) */}
+            <span className="brn-style" data-brnstyle><Dropdown label="รูปแบบกราฟ" value={bstyle} onChange={setBStyle} options={STYLES} /><InfoTip title="รูปแบบกราฟ" tip={TIP_STYLE} /></span>
             <div className="brn-zoom">
               <span className="zbtns">
                 <button type="button" className="zb" onClick={() => zoomBy(2)} disabled={!zoom.length} aria-label="ซูมออก" title="ซูมออก (หมุนล้อเมาส์ลงในกราฟ)" data-brnzoomout>
@@ -734,6 +985,11 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
           <div ref={plotRef} className="brn-plot" onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={() => { setHover(null); drag.current = null; setSel(null); }} onWheel={onWheel}
             onDoubleClick={resetZoom} data-brnplot>
             <canvas ref={cvRef} style={{ position: "absolute", inset: 0, width: "100%", height: "100%" }} />
+            {cutAt != null && <div className="brn-cut" style={{ left: Math.max(L + 6, Math.min(xOf(Math.max(cutAt, z0)) + 6, L + pw - 230)), top: T + ph - 34 }} data-brncut
+              onMouseDown={(e) => e.stopPropagation()} onMouseUp={(e) => e.stopPropagation()} onDoubleClick={(e) => e.stopPropagation()}>
+              อ่านได้ถึง {clock(cutAt)} จาก {clock(info?.duration ?? 0)}
+              <InfoTip title="อ่านไม่ถึงท้ายไฟล์" tip={{ w: `โปรแกรมอ่านข้อมูลได้ถึงนาที ${clock(cutAt)} แต่ไฟล์บอกว่ายาว ${clock(info?.duration ?? 0)} ส่วนที่เป็นลายเส้นเอียงคือช่วงที่อ่านไม่ได้ ไม่ใช่ช่วงที่บิตเรตเป็นศูนย์  มักเกิดจากไฟล์ดาวน์โหลดไม่ครบหรือเสียช่วงท้าย  ค่าเฉลี่ยสูงสุดต่ำสุดในแผงซ้ายคิดจากส่วนที่อ่านได้เท่านั้น` }} />
+            </div>}
             {sel && <div className="brn-sel" style={{ left: xOf(sel[0]), width: Math.max(1, xOf(sel[1]) - xOf(sel[0])), top: T, height: ph }}><span>{clock(sel[0])} – {clock(sel[1])}</span></div>}
             {hover && !sel && hv > 0 && (
               <div className="brn-tip" style={{ left: tipLeft, top: Math.max(T, Math.min(hover.y - 30, box.h - 120)) }} data-brntip>
@@ -752,10 +1008,21 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
             <span className="brn-vz"><span className="lbl">ขยายแนวตั้ง</span>
               <Seg small label="ขยายแนวตั้ง" value={vz === 1 || vz === 2 || vz === 4 ? String(vz) : "x"} onChange={(v) => setVz(Number(v))} options={[{ value: "1", label: "1×" }, { value: "2", label: "2×" }, { value: "4", label: "4×" }]} />
               <span className="brn-vzval" data-brnvz>{vzTxt(vz)}</span></span>
-            <span className="brn-leg"><i className="lo" />ต่ำกว่าค่าเฉลี่ยสะสม</span>
-            <span className="brn-leg"><i className="hi" />สูงกว่าค่าเฉลี่ยสะสม</span>
-            <span className="brn-leg"><i className="over" />เกินเพดาน</span>
-            <span className="brn-leg"><i className="cum" />ค่าเฉลี่ยสะสม</span>
+            {/* สีของคำอธิบายตามชุดสีที่เลือก · สีตามโทนใช้คลาสเดิม ชุดอื่นเขียนสีตรง ติด data-keepcolor ตัวแปลงโทนไม่แตะ (ข้อ 37) */}
+            {(() => {
+              const lg = pal === "bv" ? { lo: `linear-gradient(${BV.lo1}, ${BV.lo0})`, hi: `linear-gradient(${BV.hi1}, ${BV.hi0})`, line: BV.line, over: BV.over, cum: BV.cum }
+                : pal === "custom" ? { lo: alpha(custom, 0.35), hi: alpha(custom, 0.85), line: custom, over: "", cum: "" } : null;
+              const st2 = (k: "lo" | "hi" | "line" | "over" | "cum") => (lg && lg[k] ? { background: lg[k] } : undefined);
+              const barLike = bstyle === "bar" || bstyle === "led";
+              return <>
+                {barLike ? <>
+                  <span className="brn-leg" data-keepcolor><i className="lo" style={st2("lo")} />ต่ำกว่าค่าเฉลี่ยสะสม</span>
+                  <span className="brn-leg" data-keepcolor><i className="hi" style={st2("hi")} />สูงกว่าค่าเฉลี่ยสะสม</span>
+                </> : <span className="brn-leg" data-keepcolor><i className={"ln" + (bstyle === "dot" ? " dt" : "")} style={st2("line") ?? { background: "var(--accent-d)" }} />บิตเรต</span>}
+                <span className="brn-leg" data-keepcolor><i className="over" style={st2("over")} />เกินเพดาน</span>
+                <span className="brn-leg" data-keepcolor><i className="cum" style={st2("cum")} />ค่าเฉลี่ยสะสม</span>
+              </>;
+            })()}
             {!audio && <span className="brn-leg"><i className="key" />คีย์เฟรม</span>}
           </div>
           {/* แถบปักจุดจองที่ไว้ตลอด ยังไม่ปักขึ้นคำแนะนำจาง ๆ กราฟไม่ถูกดัน */}

@@ -7,6 +7,12 @@
 
 /* แถวตัวเลือก */
 .brn-ctl { flex-wrap: nowrap; min-width: 0; }
+/* ของในแถวไม่หด ความกว้างที่ล้นวัดได้จริง ตัวสลับปุ่มแถวเป็นดรอปดาวน์ (lib/fitSwitch.ts) ใช้ตัวเลขนี้ */
+.brn-ctl > * { flex: none; }
+/* แถวแคบ (สลับเป็นดรอปดาวน์แล้ว) ไม่มีเส้นคั่นกลุ่ม ปุ่ม ⓘ ท้ายแต่ละกลุ่มแบ่งกลุ่มให้แทน */
+.brn-ctl.compact .brn-sep { display: none; }
+.brn-ctl.compact { gap: 5px; }
+.brn-ctl.compact .brn-pal.sws .sw { width: 20px; height: 20px; }
 .brn-ctl .lbl { flex: none; }
 .brn-sep { width: 1px; height: 22px; background: var(--line); flex: none; margin: 0 2px; }
 .brn-classic { margin-left: auto; flex: none; white-space: nowrap; }
@@ -47,7 +53,11 @@
 
 .brn-main { display: flex; flex-direction: column; min-height: 0; padding: 12px 14px 10px; gap: 8px; position: relative; }
 .brn-head { display: flex; align-items: center; gap: 12px; min-width: 0; }
-.brn-head > div:first-child { flex: 1; overflow: hidden; white-space: nowrap; text-overflow: ellipsis; font-size: 14px; }
+/* ของในหัวกราฟไม่หด ความกว้างที่ล้นวัดได้จริง แล้วตัวสลับ (lib/fitSwitch.ts) ซ่อนข้อความช่วงเวลา · รูปแบบกราฟชิดขวาข้างแถบซูม */
+.brn-head > * { flex: none; }
+.brn-head > div:first-child { white-space: nowrap; font-size: 14px; }
+.brn-head > div:first-child .small { white-space: nowrap; }
+.brn-head .brn-style { margin-left: auto; }
 .brn-zoom { display: flex; align-items: center; gap: 6px; flex: none; }
 .brn-zoom .icon-btn { width: 30px; height: 30px; }
 .brn-zoom .icon-btn:disabled { opacity: .4; cursor: default; }
@@ -74,6 +84,17 @@
 .brn-leg i.over { background: var(--bad); }
 .brn-leg i.cum { height: 2px; background: var(--txt2); opacity: .6; }
 .brn-leg i.key { width: 2px; height: 10px; background: var(--txt3); }
+.brn-leg i.ln { height: 2.5px; border-radius: 2px; }
+.brn-leg i.ln.dt { width: 6px; height: 6px; border-radius: 50%; }
+
+/* รูปแบบกราฟในหัวกราฟ (BUGS ข้อ 42) */
+.brn-style { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+/* วงกลมชุดสีในแถวตัวเลือกฝั่งขวา ก่อนปุ่มแบบ Bitrate Viewer แบบหน้ากราฟเสียง (BUGS ข้อ 37 · พี่กันสั่งเอาออกจากกรอบกราฟ 13 พ.ย. 2569) */
+.brn-ctl .brn-pal { margin-left: auto; gap: 4px; }
+.brn-ctl .brn-pal + .brn-classic { margin-left: 0; }
+.brn-pal.sws .sw { width: 22px; height: 22px; }
+/* ป้ายอ่านไม่ถึงท้ายไฟล์ ลอยในช่วงที่อ่านไม่ได้ ไม่ดันกรอบ (AUDIT ข้อ 118) */
+.brn-cut { position: absolute; z-index: 2; display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 4px 0 10px; border-radius: 13px; background: var(--win); box-shadow: inset 0 0 0 1px var(--line); font-size: 12.5px; color: var(--txt2); white-space: nowrap; }
 .brn-howto { margin-left: auto; color: var(--txt3); }
 .brn-pin { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 7px 10px; border-radius: 9px; background: var(--accent-soft); font-size: 13px; color: var(--txt); }
 .brn-pin b { font-variant-numeric: tabular-nums; }
@@ -82,6 +103,8 @@
 /* ป้ายวิธีคิด สเกล เส้น ซ่อนเมื่อแถวไม่พอ ทุกตัวมีปุ่ม ⓘ ข้าง ๆ · เดิมซ่อนที่ 1,180 แต่ชุด 7 เพิ่มปุ่มเต็มจอกับ ⓘ แถวยาวขึ้น
    หน้าต่างขนาดตั้งต้น 1,280 ปุ่มท้ายแถวตกขอบขวา 45 จุด (เจอตอนรันตัวตรวจ 11 พ.ย. 2569) */
 @media (max-width: 1300px) { .brn-ctl .lbl { display: none; } }
+/* ป้าย แท่งละ อยู่ตลอด ดรอปดาวน์ขึ้นแค่ 1 วินาที ถ้าไม่มีป้ายอ่านไม่รู้ว่าคืออะไร (BUGS ข้อ 42) */
+.brn-ctl .lbl.always { display: inline; }
 
 /* เส้นแบ่งแบบหน้ากราฟเสียง (พี่กันบอก 10 พ.ย. 2569 "เส้นแบ่ง") · เส้นนอนใต้แถบบน เส้นตั้งคั่นแผงซ้ายกับกราฟ เส้นคั่นระหว่างหัวข้อในแผงซ้าย */
 .brn[data-brnfile] { padding-bottom: 0; gap: 0; }

@@ -211,6 +211,8 @@ function HashCard({ m }: { m: Movie }) {
   };
   const rows = h ? ALGOS.filter(([k]) => (h as unknown as Record<string, string | null>)[k]) : [];
   const val = (k: string) => (h as unknown as Record<string, string | null>)[k] ?? "";
+  /** ชนิดที่ติ๊กไว้แต่ยังไม่มีค่า (ติ๊กเพิ่มหลังคำนวณแล้ว) · ชื่อบนจอ */
+  const missing = h ? ALGOS.filter(([k]) => algos.includes(k) && !val(k)).map(([, l]) => l) : [];
   const copy = async (t: string, what: string) => {
     try {
       await navigator.clipboard.writeText(t);
@@ -259,7 +261,9 @@ function HashCard({ m }: { m: Movie }) {
             <div className="stat warn" style={{ marginTop: 8 }} data-hashchanged><CardIcon kind="warn" /><div><b>ค่า SHA-256 ไม่ตรงกับที่จดไว้ตอนตรวจครั้งก่อน</b><Phr>ไฟล์อาจถูกเปลี่ยนหรือเสียระหว่างย้ายไดรฟ์ ค่าที่จดไว้ไม่ถูกเปลี่ยน แต่ชั้นวางจะขึ้นว่าไฟล์ถูกเปลี่ยน ควรตรวจละเอียด</Phr></div></div>
           )}
           <div className="minirow">
-            <button type="button" className="btn btn-ghost btn-sm" onClick={start}><IcRefresh size={15} />คำนวณใหม่</button>
+            {/* ติ๊กชนิดที่ยังไม่มีค่าเพิ่ม ปุ่มเป็นปุ่มหลักสีเข้มแบบตอนยังไม่เคยคำนวณ บอกว่าต้องกด (BUGS ข้อ 84 · พี่กันสั่ง 13 พ.ย. 2569 "ตอนเราติ๊กเพิ่ม อยากให้ปุ่ม คำนวณใหม่มันกลายเป้นสีเข้ม") */}
+            <button type="button" className={"btn btn-sm " + (missing.length && !elsewhere ? "btn-main" : "btn-ghost")} onClick={start} data-hash-redo={missing.length ? "need" : "done"}
+              title={missing.length ? `ติ๊ก ${missing.join(" ")} ไว้แต่ยังไม่ได้คำนวณ กดเพื่อคำนวณ` : undefined}><IcRefresh size={15} />คำนวณใหม่</button>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => copy(rows.map(([k, l]) => `${l}: ${val(k)}`).join("\n"), "ค่า hash ทั้งหมด")}><IcCopy size={14} />คัดลอกทั้งหมด</button>
             <button type="button" className={"btn btn-sm " + (h.sha256 && saveSt !== "saving" ? "btn-ghost" : "btn-wait")} aria-disabled={!h.sha256 || saveSt === "saving" || undefined}
               title={!h.sha256 ? "ติ๊ก SHA-256 แล้วคำนวณใหม่ก่อน" : saveSt === "saving" ? "กำลังบันทึก รอสักครู่" : settings?.hashSaveAsk !== false ? "เลือกที่บันทึก ตั้งให้บันทึกข้างไฟล์หนังทันทีได้ในหน้าตั้งค่า" : "บันทึกข้างไฟล์หนัง ตั้งให้ถามที่บันทึกได้ในหน้าตั้งค่า"}

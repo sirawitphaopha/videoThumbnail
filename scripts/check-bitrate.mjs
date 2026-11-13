@@ -151,8 +151,8 @@ if (big) {
   const t = Date.now(); for (;;) { await sleep(200); s = await st(); if ((s.load === "Load" && (s.stats ?? "").includes("FRAMES")) || s.err || Date.now() - t > 60000) break; }
   check("แทร็กเสียง อ่านจบ ป้าย SEC แถวล่างบอก kHz", s.badge === "SEC" && /44\.1 kHz, 1 ch/.test(s.stats ?? ""), s.stats);
   await q(`document.querySelector('[data-bv-menu]').click()`); await sleep(250);
-  const menu = await q(`return [...document.querySelectorAll('[data-bv-menupanel] [data-bv-item]')].map(b => b.dataset.bvItem + (b.disabled ? '(จาง)' : ''))`);
-  check("เมนูมีรายการแทร็ก วิดีโอกับเสียง", menu.includes("วิดีโอ") && menu.some((x) => x.startsWith("เสียง 1")), menu.join(" | "));
+  const menu = await q(`return [...document.querySelectorAll('[data-bv-menupanel] [data-bv-item]')].map(b => b.dataset.bvItem + (b.getAttribute('aria-disabled') === 'true' ? '(จาง)' : ''))`);
+  check("เมนูมีรายการแทร็ก วิดีโอบอกชนิดกับขนาดภาพ กับเสียง", menu.some((x) => /^วิดีโอ H\.264 \d+ × \d+/.test(x)) && menu.some((x) => x.startsWith("เสียง 1")), menu.join(" | "));
   check("เมนู GOP กับ Frame จางตอนดูเสียง ต่อวินาทียังกดได้", ["GOP based(จาง)", "GOP enhanced(จาง)", "Frame based(จาง)", "Second based"].every((x) => menu.includes(x)), menu.join(" | "));
   await c.shot(`${P}/12-เมนูตอนดูเสียง.png`, "[data-bitrate]");
   await q(`document.querySelector('[data-bv-menu]').click()`); await sleep(200);

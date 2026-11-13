@@ -27,7 +27,11 @@ await q(`window.__bitrateView('new')`); await sleep(400);
 const shot = (n) => c.shotRect(`${P}/${n}.png`, 0, 0, 1280, 800);
 const st = () => q(`const t = (s) => document.querySelector(s)?.innerText.replace(/\\s+/g, ' ').trim(); return { side: t('.brn-side'), head: t('.brn-head'), chip: t('.fchip'), prog: t('[data-brnprog]'), pin: t('[data-brnpin]'), types: t('[data-brntypes]'), err: t('[data-brnerr]'), vz: t('[data-brnvz]') }`);
 const waitRead = async (ms = 60000) => { await sleep(500); const t0 = Date.now(); while (Date.now() - t0 < ms) { const s = await st(); if (!s.prog && /เฉลี่ย \d/.test(s.side ?? "")) return s; if (s.err) return s; await sleep(200); } return st(); };
-const mode = (label) => q(`[...document.querySelectorAll('.brn-ctl .seg button')].find(b => b.innerText.trim() === ${JSON.stringify(label)})?.click()`);
+const modeSeg = (label) => q(`[...document.querySelectorAll('.brn-ctl .seg button')].find(b => b.innerText.trim() === ${JSON.stringify(label)})?.click()`);
+// แถวแคบ วิธีคิดเป็นดรอปดาวน์ (lib/fitSwitch.ts) · กดตัวเลือกในดรอปดาวน์แทน
+const mode = async (label) => { if (await q(`return !!document.querySelector('[data-brnmodedd]')`)) { await q(`document.querySelector('[data-brnmodedd] .dd').click()`); await sleep(150); return q(`[...document.querySelectorAll('[data-brnmodedd] [role=option]')].find(o => o.innerText.trim().startsWith(${JSON.stringify(label)}))?.click()`); } return modeSeg(label); };
+// ดูทั้งไฟล์อยู่ = ไม่มีกรอบช่วงซูมบนภาพรวม (หัวกราฟแคบซ่อนข้อความช่วงเวลา อ่านจากข้อความไม่ได้แล้ว)
+const whole = () => q(`return !document.querySelector('.brn-win')`);
 
 check("หน้าว่าง มีจุดลากไฟล์ ปุ่มสลับแบบ", await q(`return !!document.querySelector('[data-brndrop]') && !!document.querySelector('[data-brnclassic]')`));
 await shot("01-หน้าว่าง");
@@ -61,16 +65,16 @@ await shot("05-ต่อเฟรม-ปักจุด");
 await c.send("Input.dispatchMouseEvent", { type: "mousePressed", x: pl.left + pl.w * 0.28, y: pl.top + pl.h * 0.5, button: "left", buttons: 1, clickCount: 1 });
 for (let i = 1; i <= 8; i++) await c.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: pl.left + pl.w * (0.28 + i * 0.025), y: pl.top + pl.h * 0.5, buttons: 1 });
 await c.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: pl.left + pl.w * 0.48, y: pl.top + pl.h * 0.5, button: "left", buttons: 0, clickCount: 1 }); await sleep(300);
-check("ลากในกราฟแล้วซูม", !/0:00 ถึง 2:30/.test((await st()).head ?? ""), (await st()).head);
+check("ลากในกราฟแล้วซูม", !await whole(), (await st()).head);
 await q(`document.querySelector('[data-brnzoomreset]').click()`); await sleep(200);
-check("รีเซ็ตกลับทั้งไฟล์", /0:00 ถึง 2:30/.test((await st()).head ?? ""));
+check("รีเซ็ตกลับทั้งไฟล์", await whole());
 
 // แถบซูมแนวนอนกับแนวตั้ง
 await mode("ต่อวินาที"); await sleep(300);
 const hb = await c.box("[data-brnhzoom] .track");
 await c.send("Input.dispatchMouseEvent", { type: "mousePressed", x: hb.left + hb.w * 0.6, y: hb.top + hb.h / 2, button: "left", buttons: 1, clickCount: 1 });
 await c.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: hb.left + hb.w * 0.6, y: hb.top + hb.h / 2, button: "left", buttons: 0, clickCount: 1 }); await sleep(250);
-check("แถบซูมแนวนอน กดแล้วช่วงที่เห็นสั้นลง", !/0:00 ถึง 2:30/.test((await st()).head ?? ""), (await st()).head);
+check("แถบซูมแนวนอน กดแล้วช่วงที่เห็นสั้นลง", !await whole(), (await st()).head);
 const vb = await c.box("[data-brnvzoom] .track");
 await c.send("Input.dispatchMouseEvent", { type: "mousePressed", x: vb.left + vb.w / 2, y: vb.top + vb.h * 0.5, button: "left", buttons: 1, clickCount: 1 });
 await c.send("Input.dispatchMouseEvent", { type: "mouseReleased", x: vb.left + vb.w / 2, y: vb.top + vb.h * 0.5, button: "left", buttons: 0, clickCount: 1 }); await sleep(250);
@@ -79,7 +83,7 @@ await c.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 5, y: 5 }); aw
 await shot("11-แถบซูมสองแนว");
 await q(`document.querySelector('[data-brnzoomreset]').click()`); await sleep(200);
 s = await st();
-check("รีเซ็ตกลับทั้งไฟล์และ 1 เท่า ปุ่มรีเซ็ตจาง", /0:00 ถึง 2:30/.test(s.head ?? "") && s.vz === "1×" && await q(`return document.querySelector('[data-brnzoomreset]').disabled`));
+check("รีเซ็ตกลับทั้งไฟล์และ 1 เท่า ปุ่มรีเซ็ตจาง", await whole() && s.vz === "1×" && await q(`return document.querySelector('[data-brnzoomreset]').disabled`));
 
 // 5 โทน ไม่มีอะไรล้น กราฟวาด
 for (const [id, name] of [["quartz", "โรสควอตซ์"], ["wine", "ไวน์กับทอง"], ["night", "กุหลาบกลางคืน"], ["sage", "บลัชกับเสจ"], ["mauve", "มอฟหรู"]]) {
@@ -100,16 +104,16 @@ check("กลับแบบชั้นหนัง ไฟล์ตามมา
 // แทร็กเสียงของไฟล์หนัง · แผงซ้ายเป็นข้อมูลเสียง วิธีคิดต่อวินาทีอย่างเดียว · สลับกลับวิดีโอได้จากปุ่มแทร็ก
 await q(`window.__brnOpen(${JSON.stringify(FILE)}, "a0")`);
 s = await waitRead();
-check("แทร็กเสียง หัวกราฟ Audio Bitrate", /Audio Bitrate ต่อวินาที/.test(s.head ?? ""), s.head);
+check("แทร็กเสียง หัวกราฟ Audio Bitrate", /Audio Bitrate/.test(s.head ?? ""), s.head);
 check("แผงซ้ายเป็นข้อมูลเสียง มี Channels Sample rate", /ข้อมูลเสียง/.test(s.side ?? "") && /Channels/.test(s.side ?? "") && /Sample rate \d/.test(s.side ?? "") && !/ขนาดภาพ/.test(s.side ?? ""), s.side?.slice(-200));
 check("แทร็กเสียงไม่มีแถว I P B บอกเหตุแทน", /ไม่มีคีย์เฟรมกับชนิดเฟรม/.test(s.types ?? ""), s.types);
-check("วิธีคิดกดไม่ได้ตอนดูเสียง", await q(`return !!document.querySelector('.brn-ctl .seg.seg-off')`));
+check("วิธีคิดกดไม่ได้ตอนดูเสียง", await q(`return !!document.querySelector('.brn-ctl .seg.seg-off, [data-brnmodedd] .dd.off')`));
 check("ปุ่มแทร็กอยู่แถบบน เลือกได้สองแทร็ก", await q(`return !!document.querySelector('[data-brntrack]')`));
 await c.send("Input.dispatchMouseEvent", { type: "mouseMoved", x: 5, y: 5 });
 await c.shotRect(`${P}/23-แทร็กเสียงของหนัง.png`, 0, 0, 1280, 800);
 await q(`document.querySelector('[data-brntrack] button').click()`); await sleep(300);
 await c.shotRect(`${P}/24-ปุ่มแทร็ก.png`, 0, 0, 1280, 800);
-await q(`[...document.querySelectorAll('[role=option]')].find(e => e.innerText.trim() === 'วิดีโอ')?.click()`);
+await q(`[...document.querySelectorAll('[role=option]')].find(e => /^วิดีโอ H\\.264 \\d+ × \\d+/.test(e.innerText.trim()))?.click()`);
 s = await waitRead();
 check("เลือกวิดีโอจากปุ่มแทร็ก กลับเป็น Video Bitrate", /Video Bitrate/.test(s.head ?? ""), s.head);
 // ไฟล์เสียงล้วน แทร็กเดียว เปิดเลยไม่ถาม
@@ -118,6 +122,25 @@ s = await waitRead();
 check("ไฟล์เสียงล้วน เปิดเลยไม่ถาม เป็น Audio Bitrate", !(await q(`return !!document.querySelector('[data-brnchoose]')`)) && /Audio Bitrate/.test(s.head ?? ""), s.head);
 check("ไฟล์เสียงล้วน ไม่มีปุ่มแทร็ก", !(await q(`return !!document.querySelector('[data-brntrack]')`)));
 await c.shotRect(`${P}/25-ไฟล์เสียงล้วน.png`, 0, 0, 1280, 800);
+
+// ความละเอียดแท่ง รูปแบบกราฟ ชุดสี (BUGS ข้อ 37 42) · คืนค่าเดิมตอนจบ
+const keep3 = await q(`return ['brn-res','brn-style','brn-pal'].map((k) => localStorage.getItem(k))`);
+await q(`document.querySelector('[data-brnres] .dd').click()`); await sleep(200);
+const ro = await q(`return [...document.querySelectorAll('[data-brnres] [role=option]')].map((o) => o.innerText.replace(/\\n/g, ' '))`);
+check("ความละเอียดแท่งมี 7 ระดับ ทีละเฟรมบอกความยาวเฟรม", ro.length === 7 && /ทีละเฟรม [\d.]+ ms/.test(ro[5]) && /อัตโนมัติ/.test(ro[6]), ro.join(" | "));
+await q(`[...document.querySelectorAll('[data-brnres] [role=option]')][4].click()`); await sleep(400);
+check("เลือก 0.1 วินาที จำค่าไว้ ป้ายปุ่มเปลี่ยน", (await q(`return localStorage.getItem('brn-res')`)) === "0.1" && /0\.1 วินาที/.test(await q(`return document.querySelector('[data-brnres] .dd').innerText`)));
+await q(`document.querySelector('[data-brnstyle] .dd').click()`); await sleep(200);
+const so = await q(`return [...document.querySelectorAll('[data-brnstyle] [role=option]')].map((o) => o.innerText.trim())`);
+check("รูปแบบกราฟ 6 แบบ", so.join(",") === "แท่ง,เส้น,พื้นทึบ,ขั้นบันได,จุด,LED", so.join(","));
+await q(`[...document.querySelectorAll('[data-brnstyle] [role=option]')][1].click()`); await sleep(300);
+check("เลือกแบบเส้น คำอธิบายใต้กราฟเปลี่ยนเป็นบิตเรต", (await q(`return document.querySelector('.brn-foot').innerText`)).includes("บิตเรต") && (await q(`return localStorage.getItem('brn-style')`)) === "line");
+// พี่กันสั่งเอาออกจากกรอบกราฟ ไว้แถวตัวเลือกฝั่งขวาแบบหน้ากราฟเสียง (13 พ.ย. 2569)
+check("วงกลมชุดสี 3 วงอยู่แถวตัวเลือกฝั่งขวา ก่อนปุ่มแบบ Bitrate Viewer", await q(`const row = document.querySelector('[data-brnctl]').getBoundingClientRect(), bv = document.querySelector('[data-brnclassic]').getBoundingClientRect(), s = [...document.querySelectorAll('[data-brnctl] [data-pal]')].map((b) => b.getBoundingClientRect()); return s.length === 3 && s.every((r) => r.top >= row.top && r.bottom <= row.bottom && r.right <= bv.left && r.left > row.left + row.width / 2)`));
+await q(`document.querySelector('[data-pal="bv"]').click()`); await sleep(300);
+check("กดสี Bitrate Viewer จำค่าไว้", (await q(`return localStorage.getItem('brn-pal')`)) === "bv" && await q(`return document.querySelector('[data-pal="bv"]').classList.contains('on')`));
+await shot("26-เส้นสี-bitrate-viewer");
+await q(`const v = ${JSON.stringify(keep3)}; ['brn-res','brn-style','brn-pal'].forEach((k, i) => v[i] == null ? localStorage.removeItem(k) : localStorage.setItem(k, v[i]))`);
 
 // ไฟล์อ่านไม่ได้
 await q(`window.__brnOpen(${JSON.stringify(BAD)})`); await sleep(2500);
