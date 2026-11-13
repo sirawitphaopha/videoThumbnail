@@ -35,7 +35,7 @@ pub struct SubText {
 // ---------------------------------------------------------------- รหัสอักษร
 
 /// CP874 (Windows ไทย) ช่วง 0x80–0x9F ที่ต่างจาก TIS-620 · ที่เหลือ 0xA1–0xFB = U+0E01–U+0E5B
-fn cp874(b: u8) -> char {
+pub(crate) fn cp874(b: u8) -> char {
     match b {
         0x00..=0x7F => b as char,
         0x80 => '€',
@@ -74,7 +74,7 @@ pub fn guess_charset(b: &[u8]) -> &'static str {
 }
 
 /// Windows-1252 ช่วง 0x80–0x9F (นอกนั้นตรงกับ Latin-1)
-fn cp1252(b: u8) -> char {
+pub(crate) fn cp1252(b: u8) -> char {
     const T: [u16; 32] = [0x20AC, 0x81, 0x201A, 0x0192, 0x201E, 0x2026, 0x2020, 0x2021, 0x02C6, 0x2030, 0x0160, 0x2039, 0x0152, 0x8D, 0x017D, 0x8F,
         0x90, 0x2018, 0x2019, 0x201C, 0x201D, 0x2022, 0x2013, 0x2014, 0x02DC, 0x2122, 0x0161, 0x203A, 0x0153, 0x9D, 0x017E, 0x0178];
     if (0x80..=0x9F).contains(&b) { char::from_u32(T[(b - 0x80) as usize] as u32).unwrap_or('�') } else { b as char }
@@ -204,6 +204,15 @@ fn work_dir(app: &AppHandle) -> Result<PathBuf, String> {
 
 /// ข้อความของซับ · ไฟล์ที่เพิ่มอ่านตรง · ซับในหนัง MKV ดึงด้วย mkvextract · MP4 ให้ ffmpeg แปลงเป็น SRT
 pub fn text_of(tools: &Path, work: &Path, path: &Path, in_movie: bool, tid: u64, ff: u64) -> Result<SubText, String> {
+    let (bytes, hint) = bytes_of(tools, work, path, in_movie, tid, ff)?;
+    let (raw, charset) = decode_text(&bytes);
+    let kind = kind_of(&raw, &hint).to_string();
+    let cues = parse(&raw, &kind);
+    Ok(SubText { raw, kind, charset, cues })
+}
+
+/// ไบต์ของซับตามที่อยู่ในไฟล์ กับนามสกุลที่ใช้ช่วยเดาชนิด (ว่าง = ดูจากเนื้อ) · ตัวแก้ซับ (subdoc.rs) ใช้ร่วม
+pub fn bytes_of(tools: &Path, work: &Path, path: &Path, in_movie: bool, tid: u64, ff: u64) -> Result<(Vec<u8>, String), String> {
     let ext = path.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
     // อ่านตรงเฉพาะไฟล์ซับข้อความ · ไฟล์ห่อที่เพิ่ม (MKS MKA MP4) ดึงแทร็กด้วยเครื่องมือแบบซับในหนัง
     // (ผู้ช่วยตรวจขั้น 10 ข้อ 6 · เดิมอ่าน MKS ทั้งไฟล์เป็นข้อความ ได้อักษรขยะ 0 บรรทัด)
@@ -226,10 +235,8 @@ pub fn text_of(tools: &Path, work: &Path, path: &Path, in_movie: bool, tid: u64,
         if !tool_succeeded("ffmpeg", &o.status) { return Err("ดึงซับจากหนังไม่ได้".into()); }
         o.stdout
     };
-    let (raw, charset) = decode_text(&bytes);
-    let kind = kind_of(&raw, if plain && !in_movie { &ext } else if is_mkv(path) { "" } else { "srt" }).to_string();
-    let cues = parse(&raw, &kind);
-    Ok(SubText { raw, kind, charset, cues })
+    let hint = if plain && !in_movie { ext } else if is_mkv(path) { String::new() } else { "srt".into() };
+    Ok((bytes, hint))
 }
 
 /// ภาพหนังหนึ่งภาพที่เวลา t สูง h จุด เป็น data URL (JPEG)

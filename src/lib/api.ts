@@ -310,6 +310,41 @@ export const subApi = {
   images: (path: string, ff: number, page: number, per: number) => call<{ total: number; items: SubImg[] }>("sub_images", { path, ff, page, per }),
 };
 
+/* ตัวอ่านเขียนซับของหน้าแก้ซับ (แผนหน้าแก้ซับ ขั้น 1 · subdoc.rs) · เวลาเป็นมิลลิวินาทีตามไฟล์
+   raw กับ pre คือข้อความเดิมจากไฟล์ ส่งกลับไปตามเดิมห้ามแก้ ฝั่ง Rust ใช้เทียบว่าบรรทัดไหนไม่ได้แก้ แล้วเขียนข้อความเดิมกลับทุกไบต์ */
+export type SubRaw = { t: string; e: string };
+export type SubEnc = { charset: "UTF-8" | "UTF-16LE" | "UTF-16BE" | "TIS-620" | "Windows-1252"; bom: boolean };
+export type SubStyle = { id: number; fields: string[]; pre: SubRaw[]; raw: SubRaw[] };
+export type SubEvent = {
+  id: number; comment: boolean; layer: number; start: number; end: number; style: string; actor: string;
+  marginL: number; marginR: number; marginV: number; effect: string;
+  /** ASS ข้อความพร้อมแท็กและ \N · SRT VTT ข้อความพร้อมแท็ก ขึ้นบรรทัดด้วย \n */
+  text: string;
+  ident: string | null; suffix: string; pre: SubRaw[]; raw: SubRaw[];
+};
+export type SubItem = { k: "line"; t: string; e: string } | { k: "styles" } | { k: "events" };
+export type SubSource = { path: string; inMovie: boolean; size: number; mtime: number };
+export type SubDoc = {
+  kind: "ass" | "ssa" | "srt" | "vtt"; enc: SubEnc; eol: string;
+  /** false = ไฟล์มีอักษรเสีย เข้ารหัสกลับไม่ได้ไบต์เดิม ต้องเตือนก่อนบันทึก */
+  exact: boolean;
+  /** บรรทัดที่อ่านไม่ออก เก็บไว้ตามเดิมแต่ไม่ขึ้นในตาราง */
+  bad: number; renumber: boolean;
+  skeleton: SubItem[]; styleFormat: string[]; eventFormat: string[]; styles: SubStyle[]; events: SubEvent[]; source: SubSource | null;
+};
+/** สิ่งที่หายตอนเปลี่ยน ASS เป็น SRT · key comment actor layer style effect margin tags fonts settings */
+export type SubLost = { key: string; n: number };
+export type SubSaved = { path: string; enc: SubEnc; badChar: string | null; source: SubSource };
+export const subDocApi = {
+  open: (path: string, inMovie: boolean, tid: number, ff: number, charset?: string) => call<SubDoc>("subdoc_open", { path, inMovie, tid, ff, charset: charset ?? null }),
+  /** mode replace เขียนทับไฟล์ที่เปิด (ไฟล์เดิมลงถังขยะ) · new ไฟล์ใหม่ · ข้อผิดพลาด "exists" "changed" "missing" ให้หน้าจอถาม */
+  save: (doc: SubDoc, target: string, mode: "replace" | "new", force?: boolean) => call<SubSaved>("subdoc_save", { doc, target, mode, force: force ?? null }),
+  convert: (doc: SubDoc, to: "srt" | "ass", playRes?: [number, number]) => call<{ doc: SubDoc; lost: SubLost[] }>("subdoc_convert", { doc, to, playRes: playRes ?? null }),
+  freeName: (path: string) => call<string>("subdoc_free_name", { path }),
+  render: (doc: SubDoc) => call<string>("subdoc_render", { doc }),
+  parseText: (text: string, kind: SubDoc["kind"], enc: SubEnc, source: SubSource | null) => call<SubDoc>("subdoc_parse_text", { text, kind, enc, source }),
+};
+
 /* ตัวช่วยหาดีเลย์ (แผนเสียงและซับ ขั้น 5 · delay.rs) · ดีเลย์เป็น ms ค่าที่ใส่ให้เสียงใหม่ ติดลบ = มาเร็วขึ้น */
 export type DelayWin = { at: number; delay: number; score: number };
 export type DelayFound = { delay: number; score: number; windows: DelayWin[]; speed: [number, number] | null; direct: number; uneven: boolean };
