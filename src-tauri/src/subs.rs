@@ -244,13 +244,10 @@ pub fn frame(tools: &Path, movie: &Path, t: f64, h: u32) -> Result<String, Strin
     Ok(format!("data:image/jpeg;base64,{}", crate::audiograph::b64(&frame_jpg(tools, movie, t, h)?)))
 }
 
-/// ภาพหนังหนึ่งภาพ เป็นไบต์ JPEG
+/// ภาพหนังหนึ่งภาพ เป็นไบต์ JPEG · ใช้ตัวดึงภาพตรงเฟรมของหน้าแก้ซับ (vidframes.rs) ตัวเดียวกัน
+/// เลือกภาพแรกที่ไม่ใช่รูปปก เดิมไม่ระบุ ไฟล์ MP4 ที่มีปกใหญ่กว่าภาพหนัง ffmpeg หยิบปกมาแทนภาพหนัง
 fn frame_jpg(tools: &Path, movie: &Path, t: f64, h: u32) -> Result<Vec<u8>, String> {
-    let args: Vec<OsString> = vec!["-v".into(), "error".into(), "-nostdin".into(), "-ss".into(), format!("{:.3}", t.max(0.0)).into(), "-i".into(), movie.into(),
-        "-frames:v".into(), "1".into(), "-vf".into(), format!("scale=-2:{h}").into(), "-f".into(), "image2pipe".into(), "-c:v".into(), "mjpeg".into(), "-q:v".into(), "4".into(), "-".into()];
-    let o = run_tool_timeout(tools, "ffmpeg", &args, Duration::from_secs(60))?;
-    if !tool_succeeded("ffmpeg", &o.status) || o.stdout.is_empty() { return Err("ดึงภาพหนังไม่ได้".into()); }
-    Ok(o.stdout)
+    crate::vidframes::frames_jpg(tools, movie, t, 1, h)?.into_iter().next().ok_or_else(|| "ดึงภาพหนังไม่ได้".into())
 }
 
 /// เวลาที่จะดึงภาพ · อยู่ช่วง 12% ถึง 87% ของเรื่อง เลี่ยงโลโก้ต้นเรื่องกับเครดิตท้ายเรื่อง · ลองรอบใหม่ได้เวลาใหม่

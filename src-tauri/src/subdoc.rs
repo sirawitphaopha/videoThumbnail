@@ -884,7 +884,7 @@ fn stamp(p: &Path) -> (u64, u64) {
 }
 
 /// ไฟล์ชั่วคราวข้างไฟล์ปลายทาง ชื่อไม่ชนใคร
-fn partial_of(target: &Path) -> PathBuf {
+pub(crate) fn partial_of(target: &Path) -> PathBuf {
     let name = target.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
     target.with_file_name(format!("{name}.{}.partial", crate::poster_image::unique()))
 }

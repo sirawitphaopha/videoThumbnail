@@ -104,3 +104,56 @@ export function styleField(d: SubDoc, fields: string[], name: string) {
   const i = d.styleFormat.findIndex((f) => f.toLowerCase() === name.toLowerCase());
   return i >= 0 ? fields[i] ?? "" : "";
 }
+
+/* ---------- ส่วน [Aegisub Project Garbage] ของไฟล์ ASS (แผนหน้าแก้ซับ ขั้น 4) ----------
+   Aegisub จำวิดีโอที่ใช้กับซับไว้ในส่วนนี้ เช่น Video File: ?dummy:23.976:40000:1280:720:47:163:254:
+   โครงเอกสารเก็บบรรทัดหัวไฟล์เป็นแถวข้อความ (k line) แก้ได้ทีละแถว ส่วนอื่นของไฟล์เหมือนเดิมทุกไบต์ */
+const GARBAGE = "[Aegisub Project Garbage]";
+const isHead = (t: string) => /^\s*\[.*\]\s*$/.test(t);
+
+/** ค่าของคีย์ในส่วน Project Garbage · ไม่มี = null */
+export function garbageGet(d: SubDoc, key: string): string | null {
+  const sk = d.skeleton;
+  const h = sk.findIndex((x) => x.k === "line" && x.t.trim() === GARBAGE);
+  if (h < 0) return null;
+  for (let i = h + 1; i < sk.length; i++) {
+    const x = sk[i];
+    if (x.k !== "line" || isHead(x.t)) break;
+    const m = /^([^:]+):\s?(.*)$/.exec(x.t);
+    if (m && m[1].trim() === key) return m[2];
+  }
+  return null;
+}
+
+/** ตั้งค่า (null = ลบ) · ยังไม่มีส่วนนี้ สร้างต่อท้ายส่วน [Script Info] แบบที่ Aegisub เขียน คั่นด้วยบรรทัดว่าง */
+export function garbageSet(d: SubDoc, key: string, value: string | null): SubDoc {
+  const sk = d.skeleton.slice();
+  const eol = d.eol || "\r\n";
+  const h = sk.findIndex((x) => x.k === "line" && x.t.trim() === GARBAGE);
+  if (h >= 0) {
+    let end = h + 1;
+    while (end < sk.length) { const x = sk[end]; if (x.k !== "line" || isHead(x.t)) break; end++; }
+    for (let i = h + 1; i < end; i++) {
+      const x = sk[i];
+      const m = x.k === "line" ? /^([^:]+):/.exec(x.t) : null;
+      if (m && m[1].trim() === key) {
+        if (value == null) sk.splice(i, 1); else sk[i] = { k: "line", t: `${key}: ${value}`, e: x.k === "line" ? x.e : eol };
+        return { ...d, skeleton: sk };
+      }
+    }
+    if (value == null) return d;
+    // ต่อท้ายแถวที่มีข้อความแถวสุดท้ายของส่วน (ก่อนบรรทัดว่างคั่นส่วน)
+    let at = end;
+    while (at > h + 1 && sk[at - 1].k === "line" && !(sk[at - 1] as { t: string }).t.trim()) at--;
+    sk.splice(at, 0, { k: "line", t: `${key}: ${value}`, e: eol });
+    return { ...d, skeleton: sk };
+  }
+  if (value == null) return d;
+  // ส่วนถัดจาก [Script Info] คือที่ Aegisub วาง Project Garbage
+  const si = sk.findIndex((x) => x.k === "line" && x.t.trim().toLowerCase() === "[script info]");
+  let at = si < 0 ? 0 : si + 1;
+  while (at < sk.length && sk[at].k === "line" && !isHead((sk[at] as { t: string }).t)) at++;
+  // บรรทัดว่างที่คั่นอยู่ก่อนส่วนถัดไปยังอยู่ระหว่างสองส่วน ส่วนใหม่จบด้วยบรรทัดว่างของตัวเอง
+  sk.splice(at, 0, { k: "line", t: GARBAGE, e: eol }, { k: "line", t: `${key}: ${value}`, e: eol }, { k: "line", t: "", e: eol });
+  return { ...d, skeleton: sk };
+}

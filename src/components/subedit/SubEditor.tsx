@@ -13,7 +13,8 @@ import type { AvTrack } from "../../lib/avJob";
 import { autosaveNow, blankEvent, deleteEvents, edit, editedCount, getSubEdit, insertEvent, markSaved, openDoc, redo, select, setSaver, undo, useSubEdit } from "../../lib/subEdit";
 import { useHotkeys } from "../../lib/hotkeys";
 import { usePageActiveRef } from "../../lib/pageActive";
-import { fromBox, isAss, plain, snapMs, toBox, type TagMode } from "../../lib/subText";
+import { fromBox, garbageGet, garbageSet, isAss, plain, snapMs, toBox, type TagMode } from "../../lib/subText";
+import { dummyName, getVid, jumpKeyframe, parseDummy, seek, seekTime, setDummy, useVid, vidKeys, vidOpen, vidRate, zoomStep, type DummySpec } from "../../lib/vidFrames";
 import Dialog from "../Dialog";
 import Dropdown from "../Dropdown";
 import InfoTip from "../InfoTip";
@@ -24,6 +25,7 @@ import SubEditBox, { savedOf } from "./SubEditBox";
 import SubVideo, { shownText } from "./SubVideo";
 import SubAudio from "./SubAudio";
 import FontDialog from "./FontDialog";
+import { DetailsDialog, DummyDialog, JumpDialog } from "./VideoDialogs";
 import "../../styles/subedit.css";
 
 const nameOf = (p: string) => p.split(/[\\/]/).pop() ?? p;
@@ -82,6 +84,12 @@ export default function SubEditor(p: SubEditorProps) {
   const [tags, setTags] = useState<TagMode>("full");
   const [font, setFont] = useState<{ apply: (tag: string, reset: string) => void; current: { name: string; size: string } } | null>(null);
   const [gridH, setGridH] = useState(240);
+  const [unit, setUnit] = useState<"time" | "frame">("time");
+  const [vdlg, setVdlg] = useState<"jump" | "details" | "dummy" | null>(null);
+  const vst = useVid();
+  const fr = vidRate(vst);
+  /** เลือกบรรทัดจากคำสั่งไปขอบบรรทัด ไม่ให้ AUTO พาภาพกลับไปเวลาเริ่มทับ */
+  const skipAuto = useRef(false);
   const root = useRef<HTMLElement>(null);
   const gridAt = useRef<HTMLDivElement>(null);
   const pageOn = usePageActiveRef();
@@ -104,6 +112,13 @@ export default function SubEditor(p: SubEditorProps) {
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
   // เพิ่มหรือเปลี่ยนไฟล์วิดีโอทีหลัง เอกสารเดิมยังอยู่
   useEffect(() => { const s = getSubEdit(); if (s.meta && s.meta.key === key && s.meta.movie !== p.video) s.meta.movie = p.video; }, [p.video, key]);
+  // ภาพหนังของเอกสารนี้ · ไม่มีหนังแต่ไฟล์ ASS จำวิดีโอจำลองไว้ (Video File: ?dummy:… แบบ Aegisub) ใช้วิดีโอจำลองนั้น
+  useEffect(() => {
+    if (load.s !== "ok") return;
+    const d = getSubEdit().doc;
+    const v = d && isAss(d) ? garbageGet(d, "Video File") : null;
+    vidOpen(p.video, v ? parseDummy(v) : null);
+  }, [load.s, key, p.video]);
 
   // ตารางสูงเต็มที่ว่างที่เหลือของหน้าต่าง อย่างน้อย 180 จุด
   useLayoutEffect(() => {
@@ -124,6 +139,55 @@ export default function SubEditor(p: SubEditorProps) {
 
   const ev = doc?.events.find((e) => e.id === st.active) ?? null;
   const at = doc && ev ? doc.events.indexOf(ev) : -1;
+  const dl = p.track.delay;
+
+  // AUTO เลือกบรรทัดแล้วภาพไปเฟรมแรกที่ซับขึ้น (Video/Subtitle Sync ของ Aegisub) · ยังไม่มีภาพเลย ไปเฟรมนั้นแม้ปิด AUTO
+  useEffect(() => {
+    if (!ev || !fr) return;
+    if (skipAuto.current) { skipAuto.current = false; return; }
+    if (getVid().auto || getVid().pos == null) seekTime(ev.start + dl, "start");
+  }, [ev?.id, fr]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  /** Ctrl กับลูกศร ไปเวลาเริ่ม เวลาจบ แล้วบรรทัดถัดไป (video/frame/next/boundary ของ Aegisub) */
+  const boundary = (dir: 1 | -1) => {
+    const f = vidRate(), pos = getVid().pos;
+    if (!f || pos == null || !doc || !ev) return;
+    const s = f.frameAt(ev.start + dl, "start"), e = f.frameAt(ev.end + dl, "end");
+    if (dir > 0) {
+      if (s > pos) return seek(s);
+      if (e > pos) return seek(e);
+      const nx = doc.events[at + 1];
+      if (nx) { skipAuto.current = true; select([nx.id], nx.id); seekTime(nx.start + dl, "start"); }
+    } else {
+      if (e < pos) return seek(e);
+      if (s < pos) return seek(s);
+      const pv = doc.events[at - 1];
+      if (pv) { skipAuto.current = true; select([pv.id], pv.id); seekTime(pv.end + dl, "end"); }
+    }
+  };
+  /** ลูกศรซ้ายขวาในกรอบภาพหรือตาราง · Shift ไป keyframe · Ctrl ไปขอบบรรทัด · Alt ทีละ 10 เฟรม (Fast Jump Step ของ Aegisub) */
+  const sideKey = (e: React.KeyboardEvent) => {
+    if (e.key !== "ArrowLeft" && e.key !== "ArrowRight") return;
+    const pos = getVid().pos;
+    if (!vidRate() || pos == null) return;
+    e.preventDefault();
+    const dir = e.key === "ArrowRight" ? 1 : -1;
+    if (e.shiftKey) jumpKeyframe(dir);
+    else if (e.ctrlKey || e.metaKey) boundary(dir);
+    else if (e.altKey) seek(pos + dir * 10);
+    else seek(pos + dir);
+  };
+  /** ใช้วิดีโอจำลอง · ซับ ASS จำไว้ในไฟล์แบบ Aegisub (บันทึกแล้วเปิดครั้งหน้าได้วิดีโอจำลองเดิม) ซับ SRT ไม่มีที่เก็บ ใช้ได้จนปิดหน้า */
+  const applyDummy = (spec: DummySpec) => {
+    setDummy(spec);
+    const d = getSubEdit().doc;
+    if (d && isAss(d) && garbageGet(d, "Video File") !== dummyName(spec)) edit("ใช้วิดีโอจำลอง", (x) => garbageSet(x, "Video File", dummyName(spec)));
+  };
+  const onCloseVideo = () => {
+    const d = getSubEdit().doc;
+    if (d && isAss(d) && garbageGet(d, "Video File")?.startsWith("?dummy")) edit("ปิดวิดีโอจำลอง", (x) => garbageSet(x, "Video File", null));
+  };
+  const frWhy = vst.dummy ? "" : !vst.movie ? "ยังไม่มีไฟล์วิดีโอ จึงไม่รู้เวลาของแต่ละเฟรม" : vst.closed ? "ปิดวิดีโออยู่" : vst.load === "err" ? "อ่านเวลาเฟรมของวิดีโอไม่ได้" : "กำลังอ่านเวลาของทุกเฟรม รอสักครู่";
   const sameKind = (d: SubDoc) => { const s = d.source; return !!s && !s.inMovie && extOf(s.path) === KIND_EXT[d.kind] || (!!s && !s.inMovie && d.kind === "srt" && extOf(s.path) === "txt"); };
 
   /** บันทึก · คืน true เมื่อบันทึกแล้ว · ต้องให้คนเลือกเพิ่ม (หน้าต่างถาม) คืน false */
@@ -247,6 +311,14 @@ export default function SubEditor(p: SubEditorProps) {
     { code: "KeyZ", ctrl: true, shift: true, field: true, run: () => redo() },
     { code: "KeyS", ctrl: true, field: true, run: () => void doSave() },
     { code: "KeyS", ctrl: true, shift: true, field: true, run: () => { const d = getSubEdit().doc; if (d) openSaveAs(d.kind); } },
+    // คีย์ลัดวิดีโอของ Aegisub (default_hotkey.json) ใช้ได้ทั้งหน้า รวมตอนพิมพ์ในช่อง
+    { code: "Numpad6", ctrl: true, field: true, run: () => { const pos = getVid().pos; if (pos != null) seek(pos + 1); } },
+    { code: "Numpad4", ctrl: true, field: true, run: () => { const pos = getVid().pos; if (pos != null) seek(pos - 1); } },
+    { code: "Digit1", ctrl: true, field: true, run: () => { if (ev) seekTime(ev.start + dl, "start"); } },
+    { code: "Digit2", ctrl: true, field: true, run: () => { if (ev) seekTime(ev.end + dl, "end"); } },
+    { code: "KeyG", ctrl: true, field: true, run: () => { if (vidRate()) setVdlg("jump"); } },
+    { code: "NumpadAdd", ctrl: true, field: true, run: () => zoomStep(1) },
+    { code: "NumpadSubtract", ctrl: true, field: true, run: () => zoomStep(-1) },
   ], pageOn);
 
   // ทางลัดให้ตัวตรวจ เฉพาะรุ่นทดสอบ
@@ -295,10 +367,11 @@ export default function SubEditor(p: SubEditorProps) {
 
       {p.tab === "aeg" && <>
         <div className="aegtop se-top">
-          <SubVideo movie={p.video} delayMs={p.track.delay} doc={doc} ev={ev} onAddMovie={p.onAddMovie} />
-          <SubAudio movie={p.video} refStream={p.refStream} refIdx={p.refIdx} delayMs={p.track.delay} doc={doc} ev={ev} />
+          <SubVideo delayMs={dl} doc={doc} ev={ev} name={nameOf(p.video)} onAddMovie={p.onAddMovie} onKey={sideKey}
+            onDummy={() => setVdlg("dummy")} onDetails={() => setVdlg("details")} onJump={() => setVdlg("jump")} onClose={onCloseVideo} />
+          <SubAudio movie={p.video} refStream={p.refStream} refIdx={p.refIdx} delayMs={dl} doc={doc} ev={ev} />
         </div>
-        {ev ? <SubEditBox doc={doc} ev={ev} orig={st.orig[ev.id]} savedEv={savedOf(ev.id)} fps={p.fps} onPrev={() => goto(at - 1)} onNext={onNext}
+        {ev ? <SubEditBox doc={doc} ev={ev} orig={st.orig[ev.id]} savedEv={savedOf(ev.id)} fr={fr} frWhy={frWhy} delayMs={dl} unit={unit} onUnit={setUnit} onPrev={() => goto(at - 1)} onNext={onNext}
           onInsert={onInsert} onSplit={onSplit} onJoin={onJoin} onDelete={onDelete} onToAss={onToAss} onFont={(apply, current) => setFont({ apply, current })} />
           : <div className="stat info"><CardIcon kind="info" /><div><b>ซับนี้ยังไม่มีบรรทัด</b><div className="minirow"><button type="button" className="btn btn-ghost btn-sm" onClick={() => insertEvent(-1, blankEvent(doc, { start: 0, end: 3000 }), "เพิ่มบรรทัด")} data-se-first>เพิ่มบรรทัดแรก</button></div></div></div>}
         <div className="se-gridbar">
@@ -306,13 +379,17 @@ export default function SubEditor(p: SubEditorProps) {
           <span style={{ flex: 1 }} />
           <Seg small label="แท็กในตาราง" value={tags} onChange={setTags} options={[{ value: "full", label: "แท็กเต็ม" }, { value: "sym", label: "ย่อเป็น ☀" }, { value: "hide", label: "ซ่อนแท็ก" }]} />
         </div>
-        <div ref={gridAt}><SubGrid doc={doc} sel={st.sel} active={st.active} tags={tags} height={gridH} onSelect={(ids, a) => select(ids, a)} /></div>
+        <div ref={gridAt}><SubGrid doc={doc} sel={st.sel} active={st.active} tags={tags} height={gridH} onSelect={(ids, a) => select(ids, a)}
+          fr={unit === "frame" ? fr : null} delayMs={dl} onSideKey={sideKey} /></div>
       </>}
       {p.tab === "long" && <div className="subtext se-long" style={{ maxHeight: "none" }} data-long-view>{doc.events.filter((e) => !e.comment).map((e, i) => (
         <div key={e.id} className={"cue" + (e.id === st.active ? " cur" : "")} onClick={() => select([e.id], e.id)}><span className="n">{i + 1}</span><span className="t">{`${(e.start / 1000).toFixed(2)} → ${(e.end / 1000).toFixed(2)}`}</span><div style={{ whiteSpace: "pre-line" }}>{shownText(e, doc)}</div></div>
       ))}</div>}
       {p.tab === "pad" && <PadView doc={doc} />}
 
+      <JumpDialog open={vdlg === "jump"} fr={fr} pos={vst.pos ?? 0} onClose={() => setVdlg(null)} onJump={seek} />
+      <DetailsDialog open={vdlg === "details"} onClose={() => setVdlg(null)} name={nameOf(p.video)} table={vst.table} dummy={vst.dummy} fr={fr} keys={vidKeys(vst).list.length} />
+      <DummyDialog open={vdlg === "dummy"} onClose={() => setVdlg(null)} onUse={applyDummy} />
       <FontDialog open={!!font} current={font?.current ?? { name: "", size: "" }} sample={ev ? shownText(ev, doc).replace(/\n/g, " ") : ""} onClose={() => setFont(null)} onApply={(t, r) => font?.apply(t, r)} />
       <Dialog open={ask?.k === "changed"} onClose={() => setAsk(null)} kind="work" title="ไฟล์ซับถูกแก้จากที่อื่น" width={560}
         actions={<>

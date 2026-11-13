@@ -7,12 +7,13 @@ import { Seg, Skel } from "../ui";
 import InfoTip from "../InfoTip";
 import type { Tip } from "../../lib/codecAdv";
 import { IbEye, IcGraph } from "../icons";
+import { useVid, vidKeys, vidRate } from "../../lib/vidFrames";
 
 /** สีภาพความถี่ เงียบเข้ม ดังสว่าง (โทนเดียวกับหน้ากราฟเสียง) · เป็นเนื้อหาของกราฟ ไม่เปลี่ยนตามโทนสี */
 const RAMP = ["#160c22", "#4a1d5c", "#a8327a", "#ef6f6c", "#fde3a7"];
 const LUT = (() => { const o = new Uint8ClampedArray(256 * 3); for (let i = 0; i < 256; i++) { const q = (i / 255) * (RAMP.length - 1), k = Math.min(RAMP.length - 2, Math.floor(q)), f = q - k; for (let j = 0; j < 3; j++) { const a = parseInt(RAMP[k].slice(1 + j * 2, 3 + j * 2), 16), b = parseInt(RAMP[k + 1].slice(1 + j * 2, 3 + j * 2), 16); o[i * 3 + j] = a * (1 - f) + b * f; } } return o; })();
 const WAVE_TIP: Tip = {
-  w: "แถบสีจางคือเวลาของแต่ละบรรทัด เลขบนแถบคือลำดับบรรทัด แถบเข้มคือบรรทัดที่กำลังแก้ และเส้นตั้งสองเส้นคือเวลาเริ่มกับเวลาจบ",
+  w: "แถบสีจางคือเวลาของแต่ละบรรทัด เลขบนแถบคือลำดับบรรทัด แถบเข้มคือบรรทัดที่กำลังแก้ และเส้นตั้งสีชมพูสองเส้นคือเวลาเริ่มกับเวลาจบ  เส้นประสีม่วงคือ keyframe ซึ่งมักตรงจุดเปลี่ยนฉาก ส่วนเส้นสีเขียวคือตำแหน่งของภาพหนังที่แสดงอยู่",
   o: [
     ["รูปคลื่น", "ความดังของเสียงตามเวลา คลื่นสูงคือเสียงดัง เส้นแบนคือเงียบ", "เห็นจุดที่คนเริ่มพูดกับหยุดพูดชัด", "เสียงพูดกับเสียงดนตรีดูคล้ายกัน"],
     ["ความถี่", "เสียงสูงต่ำตามเวลา ความถี่ต่ำอยู่ล่าง ความถี่สูงอยู่บน ส่วนที่สว่างคือเสียงดัง", "แยกเสียงพูดออกจากเสียงดนตรีได้", "อ่านยากกว่า"],
@@ -27,6 +28,7 @@ export default function SubAudio(p: { movie: string; refStream: number | null; r
   const [look, setLook] = useState<"wave" | "spec">("wave");
   const [spec, setSpec] = useState<{ t0: number; t1: number; w: GWindow } | null>(null);
   const cv = useRef<HTMLCanvasElement>(null);
+  const vs = useVid();
   const d = p.delayMs;
   const t0 = p.ev ? Math.max(0, p.ev.start + d - 3000) : 0, t1 = p.ev ? p.ev.end + d + 3000 : 0;
 
@@ -74,8 +76,20 @@ export default function SubAudio(p: { movie: string; refStream: number | null; r
       g.fillStyle = "#d9719a";
       for (let x = 0; x < w; x++) { const v = wave.v[Math.floor((x / w) * wave.v.length)] ?? 0; const y = v * (mid - 4); g.fillRect(x, mid - y, 1, Math.max(1, y * 2)); }
     }
+    // เส้น keyframe ที่เวลาเริ่มของเฟรม (AudioMarkerProviderKeyframes ของ Aegisub ใช้ START) กับเส้นตำแหน่งภาพหนัง
+    const fr = vidRate(vs);
+    const kl = vs.hideKeys ? [] : vidKeys(vs).list;
+    if (fr && kl.length) {
+      const a = fr.frameAt(wave.t0), b = fr.frameAt(wave.t1) + 1;
+      let i = 0, j = kl.length;
+      while (i < j) { const m = (i + j) >> 1; if (kl[m] < a) i = m + 1; else j = m; }
+      g.strokeStyle = sp ? "#ffffff" : "#6b4fd6"; g.lineWidth = 1.5; g.setLineDash([4, 3]);
+      for (; i < kl.length && kl[i] <= b; i++) { const x = Math.round(X(fr.timeAt(kl[i], "start"))) + 0.5; g.beginPath(); g.moveTo(x, 0); g.lineTo(x, h); g.stroke(); }
+      g.setLineDash([]);
+    }
     g.fillStyle = sp ? "#ffffff" : "#c2547f"; g.fillRect(X(p.ev.start + d) - 1, 0, 2, h); g.fillRect(X(p.ev.end + d) - 1, 0, 2, h);
-  }, [wave, spec, look, p.ev, p.doc.events, d]);
+    if (fr && vs.pos != null) { const x = X(fr.timeAt(vs.pos)); if (x >= 0 && x <= w) { g.fillStyle = sp ? "#9df2c8" : "#1f8a70"; g.fillRect(Math.round(x) - 1, 0, 2, h); } }
+  }, [wave, spec, look, p.ev, p.doc.events, d, vs.pos, vs.hideKeys, vs.keysBy, vs.table, vs.dummy, vs.closed]);
 
   if (p.refStream == null) return <div className="se-audio"><div className="small">{p.movie ? "ไม่มีเสียงในหนังให้แสดงคลื่น" : "เปิดไฟล์ซับอย่างเดียว จึงไม่มีคลื่นเสียง"}</div></div>;
   return (

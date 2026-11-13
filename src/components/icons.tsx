@@ -159,3 +159,15 @@ export const IbEraser = ({ size = 15, stroke = "currentColor" }: P) =>
 /** ข้อความเดิมของบรรทัดก่อนแก้ (แสดงต้นฉบับ) */
 export const IbOriginal = ({ size = 15, stroke = "currentColor" }: P) =>
   svg(size, 2.2, stroke, <><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><path d="M14 3v6h6" /><path d="M8 13h8M8 17h5" /></>);
+/** ถอยหนึ่งเฟรม (เส้นตั้งกับสามเหลี่ยมชี้ซ้าย) · หน้าแก้ซับ ขั้น 4 */
+export const IbFramePrev = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M6 5v14" /><path d="M18 5.5v13L9.5 12z" /></>);
+/** เดินหนึ่งเฟรม */
+export const IbFrameNext = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M18 5v14" /><path d="M6 5.5v13l8.5-6.5z" /></>);
+/** เมนูวิดีโอ (ฟิล์ม) */
+export const IbFilm = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 4v16M17 4v16M3 9h4M3 15h4M17 9h4M17 15h4" /></>);
+/** ข้ามไปยังเฟรมหรือเวลา */
+export const IbJump = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M4 12h12" /><path d="m12 7 5 5-5 5" /><path d="M20 5v14" /></>);

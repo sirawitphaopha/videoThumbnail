@@ -5,9 +5,10 @@
    แถวที่แก้แล้วยังไม่บันทึกมีแถบสีหน้าแถว · บรรทัดความคิดเห็นของ ASS จาง มีป้าย
    เวลาเริ่มซ้อนบรรทัดก่อน กับอ่านไม่ทัน (เกิน 20 ตัวต่อวินาที) ช่องนั้นเป็นสีเตือนแบบตัวดูซับเดิม */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { SubDoc } from "../../lib/api";
+import type { SubDoc, SubEvent } from "../../lib/api";
 import { isEdited } from "../../lib/subEdit";
 import { cps, fmtTime, gridText, isAss, type TagMode } from "../../lib/subText";
+import type { Framerate } from "../../lib/vidFrames";
 
 const ROW = 30;
 /** เผื่อแถวบนล่างนอกกรอบ ราวหนึ่งกรอบ (สกิล sidebar-slide เผื่ออย่างน้อย 400 จุด) */
@@ -29,6 +30,11 @@ export default function SubGrid(p: {
   /** เลือกแถว · ids ทั้งหมดที่เลือก กับแถวที่กำลังแก้ */
   onSelect: (ids: number[], active: number) => void;
   height: number;
+  /** โหมดเฟรมของช่องแก้บรรทัด ตารางแสดงเลขเฟรมด้วยแบบ Aegisub (SetByFrame) · null = แสดงเวลา */
+  fr: Framerate | null;
+  delayMs: number;
+  /** ลูกศรซ้ายขวาในตาราง เดินภาพหนังทีละเฟรม (ตารางของ Aegisub ใช้ปุ่มชุดเดียวกับกรอบวิดีโอ) */
+  onSideKey: (e: React.KeyboardEvent) => void;
 }) {
   const box = useRef<HTMLDivElement>(null);
   const [top, setTop] = useState(0);
@@ -82,7 +88,12 @@ export default function SubGrid(p: {
     else if (e.key === "Home") go(0);
     else if (e.key === "End") go(ev.length - 1);
     else if ((e.ctrlKey || e.metaKey) && e.code === "KeyA") { e.preventDefault(); p.onSelect(ev.map((x) => x.id), p.active ?? ev[0].id); }
+    else if (e.key === "ArrowLeft" || e.key === "ArrowRight") p.onSideKey(e);
   };
+  const fr = p.fr, dl = p.delayMs;
+  const tStart = (x: SubEvent) => (fr ? String(fr.frameAt(x.start + dl, "start")) : fmtTime(x.start, p.doc.kind));
+  const tEnd = (x: SubEvent) => (fr ? String(fr.frameAt(x.end + dl, "end")) : fmtTime(x.end, p.doc.kind));
+  const tDur = (x: SubEvent) => (fr ? String(fr.frameAt(x.end + dl, "end") - fr.frameAt(x.start + dl, "start") + 1) : ((x.end - x.start) / 1000).toFixed(2));
 
   const cols = ass ? 9 : 6;
   return (
@@ -110,9 +121,9 @@ export default function SubGrid(p: {
               <tr key={x.id} className={cls} data-i={i} data-id={x.id} onMouseDown={(e) => { if (e.button === 0) { box.current?.focus({ preventScroll: true }); pick(i, e); } }}>
                 <td className="num">{i + 1}</td>
                 {ass && <td className="num">{x.layer}</td>}
-                <td className={"num" + (overlap ? " bad" : "")} title={overlap ? "เวลาเริ่มซ้อนกับบรรทัดก่อน" : undefined}>{fmtTime(x.start, p.doc.kind)}</td>
-                <td className="num">{fmtTime(x.end, p.doc.kind)}</td>
-                <td className="num">{((x.end - x.start) / 1000).toFixed(2)}</td>
+                <td className={"num" + (overlap ? " bad" : "")} title={overlap ? "เวลาเริ่มซ้อนกับบรรทัดก่อน" : undefined}>{tStart(x)}</td>
+                <td className="num">{tEnd(x)}</td>
+                <td className="num">{tDur(x)}</td>
                 <td className={"num" + (fast ? " bad" : "")} title={fast ? `อ่านไม่ทัน เกิน ${CPS_MAX} ตัวอักษรต่อวินาที` : undefined}>{Math.round(c)}</td>
                 {ass && <><td className="se-cut" title={x.style}>{x.style}</td><td className="se-cut" title={x.actor}>{x.actor}</td></>}
                 <td className="se-cut se-txt">{x.comment && <span className="se-cmtpill">ความคิดเห็น</span>}{tagged(gridText(x.text, p.doc, p.tags), ass)}</td>

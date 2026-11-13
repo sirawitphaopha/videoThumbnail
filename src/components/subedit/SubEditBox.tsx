@@ -11,6 +11,7 @@ import type { Tip } from "../../lib/codecAdv";
 import { getSubEdit, updateEvent, edit } from "../../lib/subEdit";
 import { assToCss, cps, cssToAss, fmtTime, fromBox, insertAss, isAss, lastTag, parseTime, snapMs, styleField, toBox, wrapTag } from "../../lib/subText";
 import { CPS_MAX } from "./SubGrid";
+import type { Framerate } from "../../lib/vidFrames";
 import Dropdown from "../Dropdown";
 import InfoTip from "../InfoTip";
 import { Seg } from "../ui";
@@ -31,7 +32,7 @@ const TIME_TIP: Tip = {
   w: "ช่องเวลาเริ่ม เวลาจบ และความยาว พิมพ์เป็นเวลาหรือเป็นเลขเฟรมของวิดีโอก็ได้ ค่าเดียวกัน แค่แสดงต่างกัน",
   o: [
     ["เวลา", "ชั่วโมง นาที วินาที แบบที่ไฟล์ซับเก็บ ซับ ASS ละเอียดถึงหนึ่งในร้อยวินาที ซับ SRT ถึงหนึ่งในพันวินาที", "ตรงกับที่ไฟล์เก็บจริง", "เทียบกับภาพทีละเฟรมยาก"],
-    ["เฟรม", "ลำดับภาพของวิดีโอ คิดจากอัตราเฟรมของไฟล์วิดีโอ", "ตั้งซับให้ขึ้นตรงเฟรมที่ฉากเปลี่ยนได้พอดี", "ต้องมีไฟล์วิดีโอ"],
+    ["เฟรม", "ลำดับภาพของวิดีโอ คิดจากเวลาจริงของทุกเฟรมในไฟล์วิดีโอ เริ่มคือเฟรมแรกที่ซับขึ้น จบคือเฟรมสุดท้ายที่ซับยังอยู่ ความยาวคือจำนวนเฟรม", "ตั้งซับให้ขึ้นตรงเฟรมที่ฉากเปลี่ยนได้พอดี", "ต้องมีไฟล์วิดีโอหรือวิดีโอจำลอง"],
   ],
   r: "ใช้เวลาเป็นหลัก สลับเป็นเฟรมตอนต้องการให้ซับขึ้นหรือหายตรงภาพพอดี",
 };
@@ -56,7 +57,13 @@ type Props = {
   ev: SubEvent;
   orig: string | undefined;
   savedEv: SubEvent | undefined;
-  fps: number | null;
+  /** ตัวแปลงเวลากับเลขเฟรมของวิดีโอที่เปิด · null = ยังไม่มี (frWhy บอกเหตุผล) */
+  fr: Framerate | null;
+  frWhy: string;
+  /** ดีเลย์ของแทร็ก เวลาบนภาพ = เวลาซับ + ดีเลย์ */
+  delayMs: number;
+  unit: "time" | "frame";
+  onUnit: (u: "time" | "frame") => void;
   onPrev: () => void;
   onNext: (create: boolean) => void;
   onInsert: () => void;
@@ -67,22 +74,25 @@ type Props = {
   onFont: (apply: (tag: string, reset: string) => void, current: { name: string; size: string }) => void;
 };
 
+/** แปลงเวลาของช่องเป็นเลขเฟรมและกลับ (TimeEdit ของ Aegisub) · null = ช่องแสดงเป็นเวลา */
+type FrameIO = { show: (ms: number) => number; set: (f: number) => number };
+
 /** ช่องเวลา · พิมพ์แล้วยืนยันตอน Enter หรือออกจากช่อง · Esc คืนค่าเดิม · อ่านไม่ออกขอบแดง ไม่เปลี่ยนค่า */
-function TimeField(p: { label: string; ms: number; doc: SubDoc; frames: number | null; onSet: (ms: number) => void; dur?: boolean; data: string }) {
-  const show = p.frames ? String(Math.round((p.ms * p.frames) / 1000)) : p.dur ? (p.ms / 1000).toFixed(isAss(p.doc) ? 2 : 3) : fmtTime(p.ms, p.doc.kind);
+function TimeField(p: { label: string; ms: number; doc: SubDoc; fio: FrameIO | null; onSet: (ms: number) => void; dur?: boolean; data: string }) {
+  const show = p.fio ? String(p.fio.show(p.ms)) : p.dur ? (p.ms / 1000).toFixed(isAss(p.doc) ? 2 : 3) : fmtTime(p.ms, p.doc.kind);
   const [text, setText] = useState(show);
   const [bad, setBad] = useState(false);
   useEffect(() => { setText(show); setBad(false); }, [show]);
   const commit = () => {
     const t = text.trim();
-    const v = p.frames ? (/^\d+$/.test(t) ? Math.round((parseInt(t, 10) * 1000) / p.frames) : null) : p.dur ? (/^\d+(\.\d+)?$/.test(t) ? Math.round(parseFloat(t) * 1000) : null) : parseTime(t);
+    const v = p.fio ? (/^\d+$/.test(t) ? p.fio.set(parseInt(t, 10)) : null) : p.dur ? (/^\d+(\.\d+)?$/.test(t) ? Math.round(parseFloat(t) * 1000) : null) : parseTime(t);
     if (v == null) { setBad(true); return; }
     setBad(false);
-    if (v !== p.ms) p.onSet(v); else setText(show);
+    if (t !== show && v !== p.ms) p.onSet(v); else setText(show);
   };
   return (
     <label className="se-f">{p.label}
-      <input className={"inp se-time" + (bad ? " err" : "")} value={text} inputMode="decimal" aria-invalid={bad || undefined} title={bad ? (p.frames ? "พิมพ์เป็นเลขเฟรม" : p.dur ? "พิมพ์เป็นวินาที เช่น 2.50" : "พิมพ์เวลาแบบ 0:01:02.50") : undefined}
+      <input className={"inp se-time" + (bad ? " err" : "")} value={text} inputMode="decimal" aria-invalid={bad || undefined} title={bad ? (p.fio ? "พิมพ์เป็นเลขเฟรม" : p.dur ? "พิมพ์เป็นวินาที เช่น 2.50" : "พิมพ์เวลาแบบ 0:01:02.50") : undefined}
         onChange={(e) => setText(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); commit(); } else if (e.key === "Escape") { setText(show); setBad(false); } }} data-se-time={p.data} />
     </label>
   );
@@ -92,11 +102,19 @@ export default function SubEditBox(p: Props) {
   const { doc, ev } = p;
   const ass = isAss(doc);
   const ta = useRef<HTMLTextAreaElement>(null);
-  const [unit, setUnit] = useState<"time" | "frame">("time");
   const [showOrig, setShowOrig] = useState(false);
   const pick = useRef<HTMLInputElement>(null);
   const colorTag = useRef("1c");
-  const frames = unit === "frame" && p.fps ? p.fps : null;
+  // โหมดเฟรมแบบ Aegisub · เริ่มคือเฟรมแรกที่ซับขึ้น (START) จบคือเฟรมสุดท้ายที่ซับยังอยู่ (END) ความยาวคือจำนวนเฟรม
+  // พิมพ์ความยาว n เฟรม เวลาจบ = เวลาจบของเฟรม (เฟรมเริ่ม + n − 1) แบบ subs_edit_box.cpp
+  const fr = p.unit === "frame" ? p.fr : null;
+  const d = p.delayMs;
+  const fStart: FrameIO | null = fr && { show: (ms) => fr.frameAt(ms + d, "start"), set: (f) => fr.timeAt(f, "start") - d };
+  const fEnd: FrameIO | null = fr && { show: (ms) => fr.frameAt(ms + d, "end"), set: (f) => fr.timeAt(f, "end") - d };
+  const fDur: FrameIO | null = fr && {
+    show: () => fr.frameAt(ev.end + d, "end") - fr.frameAt(ev.start + d, "start") + 1,
+    set: (n) => fr.timeAt(fr.frameAt(ev.start + d, "start") + Math.max(1, n) - 1, "end") - d - ev.start,
+  };
   const box = toBox(ev.text, doc);
   const id = ev.id;
   const noAss = ass ? undefined : "ซับ SRT ไม่มีช่องนี้ เปลี่ยนเป็น ASS ก่อน";
@@ -147,11 +165,11 @@ export default function SubEditBox(p: Props) {
       <div className="se-erow">
         <span className="se-f se-no">บรรทัด <b data-se-no>{doc.events.findIndex((e) => e.id === id) + 1}</b></span>
         {ass && <label className="se-f">ชั้น<input className="inp se-num" type="number" value={ev.layer} min={0} onChange={(e) => set({ layer: Math.max(0, parseInt(e.target.value || "0", 10) || 0) }, "แก้เลเยอร์", `layer:${id}`)} data-se-layer /></label>}
-        <TimeField label="เริ่ม" ms={ev.start} doc={doc} frames={frames} onSet={setStart} data="start" />
-        <TimeField label="จบ" ms={ev.end} doc={doc} frames={frames} onSet={setEnd} data="end" />
-        <TimeField label="ยาว" ms={ev.end - ev.start} doc={doc} frames={frames} onSet={setDur} dur data="dur" />
-        <Seg small label="หน่วยเวลา" value={unit} onChange={setUnit}
-          options={[{ value: "time", label: "เวลา" }, { value: "frame", label: "เฟรม", off: p.fps ? undefined : "ยังไม่มีไฟล์วิดีโอ จึงไม่รู้อัตราเฟรม" }]} />
+        <TimeField label="เริ่ม" ms={ev.start} doc={doc} fio={fStart} onSet={setStart} data="start" />
+        <TimeField label="จบ" ms={ev.end} doc={doc} fio={fEnd} onSet={setEnd} data="end" />
+        <TimeField label="ยาว" ms={ev.end - ev.start} doc={doc} fio={fDur} onSet={setDur} dur data="dur" />
+        <Seg small label="หน่วยเวลา" value={fr ? "frame" : "time"} onChange={p.onUnit}
+          options={[{ value: "time", label: "เวลา" }, { value: "frame", label: "เฟรม", off: p.fr ? undefined : p.frWhy }]} />
         <InfoTip title="เวลากับเฟรม" tip={TIME_TIP} />
       </div>
       <div className={"se-erow" + (ass ? "" : " se-off")} title={noAss}>

@@ -11,9 +11,64 @@
 [data-subedit] .se-enc .dd > button { height: 32px; font-size: 13px; }
 [data-subedit] .se-saveerr, [data-subedit] .se-note { margin: 0; }
 
-[data-subedit] .se-top { grid-template-columns: 320px minmax(0, 1fr); }
-/* ภาพหนัง 320 × 180 (16:9) เล็กกว่าตัวดูซับเดิม ให้ตารางเห็นสองแถวที่หน้าต่าง 1280 × 800 · ขั้น 4 ปรับขนาดภาพได้ */
-[data-subedit] .se-vframe { width: 320px; height: 180px; }
+/* คอลัมน์ภาพกว้างตามขนาดภาพที่เลือก (พอดีกรอบ 320 × 180) ที่เหลือเป็นคลื่นเสียง */
+[data-subedit] .se-top { grid-template-columns: auto minmax(0, 1fr); }
+
+/* กรอบวิดีโอ (ขั้น 4) · กรอบเลื่อนได้เมื่อภาพใหญ่กว่าที่ว่าง · แถบล่างสูง 30 จุดเท่าปุ่มเล็ก */
+[data-subedit] .se-video { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+[data-subedit] .se-vview { overflow: auto; outline: none; flex: none; }
+[data-subedit] .se-vview:focus-visible { box-shadow: 0 0 0 3px rgba(200, 64, 111, .35); }
+[data-subedit] .se-vimg { position: relative; display: flex; align-items: center; justify-content: center; }
+[data-subedit] .se-vimg img { object-fit: fill; }
+[data-subedit] .se-voff { font-variant-numeric: tabular-nums; }
+[data-subedit] .se-vbar { display: flex; align-items: center; gap: 4px; min-width: 0; }
+[data-subedit] .se-vbar .btn-sm { height: 30px; }
+[data-subedit] .se-vstep { width: 30px; padding: 0; justify-content: center; flex: none; position: relative; }
+[data-subedit] .se-vpos { flex: 1; min-width: 0; height: 30px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--txt); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; }
+/* เฟรมที่เป็น keyframe ช่องเวลาเปลี่ยนสี (Aegisub ใช้สีแถวที่เลือก) */
+[data-subedit] .se-vpos.key { background: #fbe0ea; border-color: #d8a9b9; color: var(--accent-ink); font-weight: 700; }
+[data-subedit] .se-auto { flex: none; padding: 0 8px; font-size: 12px; letter-spacing: .03em; }
+[data-subedit] .se-vmenuwrap { position: relative; flex: none; }
+[data-subedit] .se-vbadge { position: absolute; top: -7px; right: -10px; font-size: 10px; line-height: 15px; background: var(--accent); color: #fff; border-radius: 8px; padding: 0 4px; font-variant-numeric: tabular-nums; }
+[data-subedit] .se-vnonebtns { display: inline-flex; gap: 6px; }
+
+/* เมนูวิดีโอ */
+[data-subedit] .se-vmenu { padding: 6px; gap: 1px; }
+[data-subedit] .se-vmrow { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 0 4px; }
+[data-subedit] .se-vmrow button.dd { height: 30px; font-size: 13px; }
+[data-subedit] .se-vmh { font-size: 12.5px; font-weight: 700; color: var(--txt2); white-space: nowrap; }
+[data-subedit] .se-vmsec { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; display: flex; flex-direction: column; gap: 1px; }
+[data-subedit] .se-vmkeys { margin-left: auto; white-space: nowrap; overflow: hidden; min-width: 0; }
+[data-subedit] .se-vmi { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 29px; text-align: left; border: 0; background: transparent; padding: 0 8px; border-radius: 7px; font: inherit; font-size: 13px; color: var(--txt); cursor: pointer; }
+[data-subedit] .se-vmi:hover { background-color: #faedf1; color: var(--accent-ink); }
+[data-subedit] .se-vmi.off { color: var(--txt3); cursor: not-allowed; }
+[data-subedit] .se-vmi.off:hover { background-color: #fdf3dc; color: #a8812e; }
+[data-subedit] .se-vmpair { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; }
+[data-subedit] .se-vmsw { justify-content: space-between; min-height: 29px; padding: 0 8px; font-size: 13px; color: var(--txt); }
+[data-subedit] .se-vprog { flex: 1; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+[data-subedit] .se-vprog > div { height: 100%; background: var(--accent); }
+[data-subedit] .se-vmerr { color: var(--bad-ink); padding: 0 8px; }
+[data-subedit] .se-vmmsg { padding: 4px 8px 0; color: var(--txt2); }
+
+/* หน้าต่างของวิดีโอ ข้ามไปยัง รายละเอียด วิดีโอจำลอง */
+[data-subedit] .dlg .inp { height: 32px; font-size: 13.5px; padding: 0 8px; border-radius: 8px; color: var(--txt); font-family: inherit; }
+[data-subedit] .dlg input.inp:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(200, 64, 111, .18); }
+[data-subedit] .dlg .inp.err { border-color: var(--bad); }
+[data-subedit] .se-dlgform { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--txt2); }
+[data-subedit] .se-details { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; margin: 0; font-size: 13.5px; }
+[data-subedit] .se-details > div { display: contents; }
+[data-subedit] .se-details dt { color: var(--txt2); display: inline-flex; align-items: center; gap: 4px; }
+[data-subedit] .se-details dd { margin: 0; color: var(--txt); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+[data-subedit] .se-dummy { display: flex; flex-direction: column; gap: 8px; }
+[data-subedit] .se-drow { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--txt2); }
+[data-subedit] .se-dlbl { width: 84px; flex: none; }
+[data-subedit] .se-num4 { width: 72px; font-variant-numeric: tabular-nums; }
+[data-subedit] .se-num6 { width: 110px; font-variant-numeric: tabular-nums; }
+[data-subedit] .se-dswatch { position: relative; width: 44px; height: 30px; box-sizing: border-box; border: 1px solid #e8cdd6; border-radius: 8px; overflow: hidden; cursor: pointer; display: inline-block; flex: none; }
+[data-subedit] .se-dswatch:hover { border-color: #d8a9b9; }
+[data-subedit] .se-dswatch span { position: absolute; inset: 3px; border-radius: 5px; }
+[data-subedit] .se-dswatch input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+[data-subedit] .se-dsw { display: inline-flex; align-items: center; gap: 8px; margin-left: 12px; color: var(--txt); }
 [data-subedit] .se-audio { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
 [data-subedit] .se-wavebox { position: relative; }
 [data-subedit] .se-wavebtns { position: absolute; top: 6px; right: 6px; display: inline-flex; align-items: center; gap: 4px; padding: 2px; border-radius: 9px; background: rgba(255, 255, 255, .92); }

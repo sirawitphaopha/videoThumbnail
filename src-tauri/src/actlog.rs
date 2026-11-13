@@ -29,6 +29,7 @@ const WATCH: &[(&str, &str)] = &[
     ("hash_save", "บันทึกไฟล์ .sha256"),
     ("graph_save", "บันทึกกราฟเสียง"),
     ("subdoc_save", "บันทึกไฟล์ซับในหน้าแก้ซับ"),
+    ("vid_keys_save", "บันทึกไฟล์ keyframe ในหน้าแก้ซับ"),
     ("graph_save_image", "บันทึกรูปกราฟ"),
     ("graph_cache_clear", "ล้างกราฟที่เก็บไว้"),
     ("check_start", "ตรวจไฟล์"),

@@ -351,6 +351,30 @@ export const subDocApi = {
   /** ชื่อตระกูลฟอนต์ที่ลงในเครื่อง (ปุ่ม fn) */
   fontFamilies: () => call<string[]>("font_families"),
 };
+/** ตารางเฟรมของหนัง (vidframes.rs) · times เวลาเริ่มของทุกเฟรม ms เฟรม 0 อยู่ที่ 0 · keys เลขเฟรม keyframe
+    base เวลาเฟรมแรกในไฟล์ ms · start start_time ของไฟล์ วินาที · fps อัตราเฉลี่ยแบบ Aegisub · rate อัตราที่ไฟล์บอก เช่น 24000/1001 */
+export type VidTable = { key: string; times: number[]; keys: number[]; base: number; start: number; w: number; h: number; sar: string; dar: string; codec: string; rate: string; fps: number; duration: number; partial: boolean };
+export const vidApi = {
+  /** อ่านครั้งเดียวต่อไฟล์ เก็บไว้ในเครื่อง · ระหว่างอ่านส่ง vid-table-progress · หยุดแล้วตอบ "stopped" */
+  table: (movie: string) => call<VidTable>("vid_table", { movie }),
+  tableStop: () => call<void>("vid_table_stop"),
+  /** ภาพต่อกัน count เฟรมตั้งแต่เวลา ss (คิดจาก seekOf ใน vidFrames.ts) สูง h จุด */
+  frames: (movie: string, ss: number, count: number, h: number) => call<string[]>("vid_frames", { movie, ss, count, h }),
+  /** หาจุดเปลี่ยนฉาก ถอดภาพทั้งเรื่อง · ระหว่างหาส่ง vid-scenes-progress · คืนเลขเฟรมแรกของแต่ละฉาก */
+  scenes: (movie: string, threshold?: number) => call<number[]>("vid_scenes", { movie, threshold: threshold ?? null }),
+  scenesStop: () => call<void>("vid_scenes_stop"),
+  keysLoad: (path: string) => call<number[]>("vid_keys_load", { path }),
+  keysSave: (path: string, keys: number[]) => call<string>("vid_keys_save", { path, keys }),
+};
+
+/** เลือกไฟล์ keyframe (ชนิดที่ Aegisub เปิดได้) · ยกเลิก = null */
+export async function pickKeyframes(): Promise<string | null> {
+  if (!inApp) return null;
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const r = await open({ multiple: false, directory: false, title: "เลือกไฟล์ keyframe", filters: [{ name: "ไฟล์ keyframe", extensions: ["txt", "pass", "stats", "log"] }, { name: "ทุกไฟล์", extensions: ["*"] }] });
+  return typeof r === "string" ? r : null;
+}
+
 /** ฉบับบันทึกอัตโนมัติ · at วันเวลาเครื่อง · seq ลำดับที่บันทึก */
 export type SubAutosave = { path: string; name: string; source: SubSource | null; at: string; events: number; seq: number };
 

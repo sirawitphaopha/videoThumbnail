@@ -31,6 +31,7 @@ mod store;
 mod subdoc;
 mod subs;
 mod tools;
+mod vidframes;
 mod winutil;
 
 use std::sync::Arc;
@@ -166,6 +167,7 @@ pub fn run() {
         subs::movie_frame, subs::sub_text, subs::sub_frame, subs::sub_wave, subs::sub_images,
         subdoc::subdoc_open, subdoc::subdoc_save, subdoc::subdoc_convert, subdoc::subdoc_free_name, subdoc::subdoc_render, subdoc::subdoc_parse_text,
         subdoc::subdoc_set_dirty, subdoc::subdoc_autosave, subdoc::subdoc_autosaves, subdoc::subdoc_open_autosave, fonts::font_families,
+        vidframes::vid_table, vidframes::vid_table_stop, vidframes::vid_frames, vidframes::vid_scenes, vidframes::vid_scenes_stop, vidframes::vid_keys_load, vidframes::vid_keys_save,
         pairs::pair_set, pairs::pair_check, pairs::pair_play,
         link::link_state, link::link_titles, link::link_is_dir, link::link_images, link::link_add_images, link::link_remove_images, link::link_auto, link::link_pair, link::link_undo, link::link_row_update, link::link_set_crop, link::link_confirm, link::link_cancel, link::link_resolve, link::link_unsave, link::link_remove, link::link_open_row, link::link_cover_pick, link::link_migrate,
         convert::convert_probe, convert::convert_cover, convert::convert_one, convert::convert_cancel,
@@ -189,6 +191,7 @@ pub fn run() {
         subs::movie_frame, subs::sub_text, subs::sub_frame, subs::sub_wave, subs::sub_images,
         subdoc::subdoc_open, subdoc::subdoc_save, subdoc::subdoc_convert, subdoc::subdoc_free_name, subdoc::subdoc_render, subdoc::subdoc_parse_text,
         subdoc::subdoc_set_dirty, subdoc::subdoc_autosave, subdoc::subdoc_autosaves, subdoc::subdoc_open_autosave, fonts::font_families,
+        vidframes::vid_table, vidframes::vid_table_stop, vidframes::vid_frames, vidframes::vid_scenes, vidframes::vid_scenes_stop, vidframes::vid_keys_load, vidframes::vid_keys_save,
         pairs::pair_set, pairs::pair_check, pairs::pair_play,
         link::link_state, link::link_titles, link::link_is_dir, link::link_images, link::link_add_images, link::link_remove_images, link::link_auto, link::link_pair, link::link_undo, link::link_row_update, link::link_set_crop, link::link_confirm, link::link_cancel, link::link_resolve, link::link_unsave, link::link_remove, link::link_open_row, link::link_cover_pick, link::link_migrate,
         convert::convert_probe, convert::convert_cover, convert::convert_one, convert::convert_cancel,

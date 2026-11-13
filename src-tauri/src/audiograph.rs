@@ -607,7 +607,7 @@ fn cache_dir(app: &AppHandle) -> Option<std::path::PathBuf> {
     app.path().app_local_data_dir().ok().map(|d| d.join("graphcache"))
 }
 
-fn cache_file(dir: &Path, key: &str) -> std::path::PathBuf {
+pub(crate) fn cache_file(dir: &Path, key: &str) -> std::path::PathBuf {
     let h = Sha256::digest(key.as_bytes());
     dir.join(format!("{}.json", h.iter().take(16).map(|b| format!("{b:02x}")).collect::<String>()))
 }
@@ -634,7 +634,7 @@ fn disk_save(dir: &Path, key: &str, o: &Overview, limit: u64) {
 }
 
 /// รวมเกินขนาด ลบไฟล์ที่ใช้ล่าสุดนานที่สุดก่อน · ลบเฉพาะไฟล์ .json ในโฟลเดอร์ของโปรแกรมเอง
-fn prune(dir: &Path, limit: u64) {
+pub(crate) fn prune(dir: &Path, limit: u64) {
     let Ok(rd) = std::fs::read_dir(dir) else { return };
     let mut files: Vec<(std::time::SystemTime, u64, std::path::PathBuf)> = rd.flatten()
         .filter(|e| e.path().extension().map(|x| x == "json").unwrap_or(false))
