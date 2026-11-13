@@ -129,3 +129,33 @@ export const TbRestore = () => (
 export const TbClose = () => (
   <svg width="10" height="10" viewBox="0 0 10 10" aria-hidden="true"><path d="M0 0l10 10M10 0L0 10" stroke="currentColor" strokeWidth="1.2" /></svg>
 );
+
+/* หน้าแก้ซับ (แผนหน้าแก้ซับ ขั้น 3 · BUGS ข้อ 109) · เส้นแบบเดียวกับไอคอนในปุ่มอื่น ไม่ลอกภาพของ Aegisub */
+export const IbUndo = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M9 14 4 9l5-5" /><path d="M4 9h10.5a5.5 5.5 0 0 1 0 11H11" /></>);
+export const IbRedo = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="m15 14 5-5-5-5" /><path d="M20 9H9.5a5.5 5.5 0 0 0 0 11H13" /></>);
+export const IbBold = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.4, stroke, <><path d="M7 5h6a3.5 3.5 0 0 1 0 7H7z" /><path d="M7 12h7a3.5 3.5 0 0 1 0 7H7z" /></>);
+export const IbItalic = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M10 5h8M6 19h8M14 5l-4 14" /></>);
+export const IbUnderline = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M7 4v7a5 5 0 0 0 10 0V4" /><path d="M5 20h14" /></>);
+export const IbStrike = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M4 12h16" /><path d="M16.5 7A4.5 3 0 0 0 12 5C9.5 5 8 6.3 8 8c0 1.2.7 2.2 2 3" /><path d="M8 17a4.5 3 0 0 0 4 2c2.5 0 4-1.3 4-3 0-.7-.2-1.3-.6-1.8" /></>);
+/** เลือกฟอนต์กับขนาด (ปุ่ม fn) · ตัว T ใหญ่กับตัว T เล็ก */
+export const IbFont = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M3 7V5h11v2M8.5 5v14M6.5 19h4" /><path d="M14 13v-1.5h7V13M17.5 11.5V19M16 19h3" /></>);
+export const IbDrop = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M12 3c-3 4-6 7-6 10.5a6 6 0 0 0 12 0C18 10 15 7 12 3z" /></>);
+export const IbSplit = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M12 3v18" /><path d="M6 8l-4 4 4 4M18 8l4 4-4 4" /></>);
+export const IbMerge = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M3 12h18" /><path d="M8 7l4 5-4 5M16 7l-4 5 4 5" /></>);
+export const IbRevert = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M3 12a9 9 0 1 0 2.6-6.4L3 8" /><path d="M3 3v5h5" /></>);
+export const IbEraser = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M7 20h13" /><path d="m4.5 15.5 9.5-9.5 5 5-8.5 8.5H8z" /><path d="m9.5 10.5 5 5" /></>);
+/** ข้อความเดิมของบรรทัดก่อนแก้ (แสดงต้นฉบับ) */
+export const IbOriginal = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M14 3H6a2 2 0 0 0-2 2v14a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V9z" /><path d="M14 3v6h6" /><path d="M8 13h8M8 17h5" /></>);

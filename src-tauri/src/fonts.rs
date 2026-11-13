@@ -132,6 +132,19 @@ fn system_index() -> &'static (Index, Index) {
     })
 }
 
+/// ชื่อตระกูลฟอนต์ทุกตัวที่ลงในเครื่อง (ลงเฉพาะผู้ใช้กับของ Windows) เรียงตามตัวอักษร ไม่ซ้ำ
+/// หน้าต่างเลือกฟอนต์ของปุ่ม fn ในหน้าแก้ซับใช้ (แผนหน้าแก้ซับ ขั้น 3)
+#[tauri::command]
+pub async fn font_families() -> Vec<String> {
+    tauri::async_runtime::spawn_blocking(|| {
+        let (user, win) = system_index();
+        let mut v: Vec<String> = user.iter().chain(win.iter()).filter_map(|(_, n)| n.first().cloned()).collect();
+        v.sort_by_key(|a| a.to_lowercase());
+        v.dedup_by(|a, b| a.eq_ignore_ascii_case(b));
+        v
+    }).await.unwrap_or_default()
+}
+
 /// โฟลเดอร์ข้างซับ กับโฟลเดอร์ย่อยที่ชุดซับมักใส่ฟอนต์ไว้
 fn folders_of(sub: &Path) -> Vec<PathBuf> {
     let Some(dir) = sub.parent() else { return vec![] };

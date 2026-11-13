@@ -348,6 +348,8 @@ export const subDocApi = {
   autosave: (doc: SubDoc, name: string) => call<SubAutosave>("subdoc_autosave", { doc, name }),
   autosaves: () => call<SubAutosave[]>("subdoc_autosaves"),
   openAutosave: (path: string) => call<SubDoc>("subdoc_open_autosave", { path }),
+  /** ชื่อตระกูลฟอนต์ที่ลงในเครื่อง (ปุ่ม fn) */
+  fontFamilies: () => call<string[]>("font_families"),
 };
 /** ฉบับบันทึกอัตโนมัติ · at วันเวลาเครื่อง · seq ลำดับที่บันทึก */
 export type SubAutosave = { path: string; name: string; source: SubSource | null; at: string; events: number; seq: number };

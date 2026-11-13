@@ -1,0 +1,94 @@
+/* หน้าแก้ซับ (แผนหน้าแก้ซับ ขั้น 3 · BUGS ข้อ 109) · ทุกคลาสขึ้นต้น se- อยู่ใต้ [data-subedit] ไม่ชนกับหน้าอื่น (CLAUDE.md ชื่อคลาสเป็นของรวม)
+   .aegtop .vframe .aud .ruler2 .vsub .vtime .subtext .np ยกจากตัวดูซับเดิม (av.css) */
+.card.se { margin-top: 0; padding-top: 8px; display: flex; flex-direction: column; gap: 8px; }
+[data-subedit] .se-tools { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; padding-bottom: 8px; border-bottom: 1px solid var(--line); min-width: 0; }
+[data-subedit] .se-tools .btn { white-space: nowrap; }
+[data-subedit] .se-sep { width: 1px; height: 22px; background: var(--line); flex: none; }
+[data-subedit] .se-state { font-size: 12.5px; color: var(--txt2); white-space: nowrap; overflow: hidden; text-overflow: clip; min-width: 0; }
+[data-subedit] .se-dirty { color: var(--warn-ink); }
+[data-subedit] .se-ok { display: inline-flex; gap: 4px; align-items: center; color: var(--ok-ink); }
+[data-subedit] .se-enc { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+[data-subedit] .se-enc .dd > button { height: 32px; font-size: 13px; }
+[data-subedit] .se-saveerr, [data-subedit] .se-note { margin: 0; }
+
+[data-subedit] .se-top { grid-template-columns: 320px minmax(0, 1fr); }
+/* ภาพหนัง 320 × 180 (16:9) เล็กกว่าตัวดูซับเดิม ให้ตารางเห็นสองแถวที่หน้าต่าง 1280 × 800 · ขั้น 4 ปรับขนาดภาพได้ */
+[data-subedit] .se-vframe { width: 320px; height: 180px; }
+[data-subedit] .se-audio { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
+[data-subedit] .se-wavebox { position: relative; }
+[data-subedit] .se-wavebtns { position: absolute; top: 6px; right: 6px; display: inline-flex; align-items: center; gap: 4px; padding: 2px; border-radius: 9px; background: rgba(255, 255, 255, .92); }
+
+/* ช่องแก้บรรทัด */
+[data-subedit] .se-edit { border: 1px solid #e8cdd6; border-radius: 10px; background: #fff; padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; }
+[data-subedit] .se-erow { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; font-size: 13px; color: var(--txt2); min-width: 0; }
+[data-subedit] .se-erow.se-off { opacity: .55; }
+[data-subedit] .se-f { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex: none; }
+[data-subedit] .se-no b { color: var(--txt); font-variant-numeric: tabular-nums; min-width: 2.2em; display: inline-block; }
+[data-subedit] .se-edit .inp { height: 32px; font-size: 13.5px; padding: 0 8px; border-radius: 8px; color: var(--txt); font-family: inherit; }
+[data-subedit] .se-edit input.inp:focus, [data-subedit] .se-text:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(200,64,111,.18); }
+[data-subedit] .se-time { width: 104px; font-variant-numeric: tabular-nums; }
+[data-subedit] .se-num { width: 56px; font-variant-numeric: tabular-nums; }
+[data-subedit] .se-actor { width: 120px; }
+[data-subedit] .se-effect { width: 110px; }
+[data-subedit] .se-edit .btn-sm { height: 32px; white-space: nowrap; }
+[data-subedit] .se-ib { padding: 0 8px; position: relative; }
+[data-subedit] .se-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(60, 30, 40, .35); margin-left: 4px; }
+[data-subedit] .se-colorpick { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
+[data-subedit] .se-text { width: 100%; box-sizing: border-box; min-height: 62px; resize: vertical; padding: 8px 10px; border: 1px solid #e8cdd6; border-radius: 8px; font: inherit; font-size: 16px; line-height: 1.6; color: var(--txt); background: #fff; }
+[data-subedit] .se-orig { display: flex; gap: 10px; align-items: baseline; font-size: 13.5px; background: var(--accent-soft); border-radius: 8px; padding: 6px 10px; white-space: pre-line; }
+[data-subedit] .se-orig b { color: var(--accent-ink); flex: none; }
+[data-subedit] .se-foot .small { white-space: nowrap; overflow: hidden; }
+[data-subedit] .se-cps { font-variant-numeric: tabular-nums; white-space: nowrap; }
+[data-subedit] .se-cps.bad { color: var(--bad-ink); font-weight: 600; }
+
+/* ตาราง · แถวสูงเท่ากัน 30 จุด (SubGrid ROW) */
+[data-subedit] .se-gridbar { display: flex; align-items: center; gap: 8px; }
+[data-subedit] .se-grid { border: 1px solid var(--line); border-radius: 10px; overflow: auto; background: #fff; overscroll-behavior: contain; outline: none; }
+[data-subedit] .se-grid:focus-visible { box-shadow: 0 0 0 3px rgba(200,64,111,.18); }
+[data-subedit] .se-grid table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 13.5px; }
+[data-subedit] .se-grid th { position: sticky; top: 0; z-index: 1; background: #f7f7f7; color: var(--txt2); font-size: 12px; font-weight: 600; padding: 0 8px; height: 28px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+[data-subedit] .se-grid td { height: 30px; padding: 0 8px; border-bottom: 1px solid #f7e4ea; cursor: pointer; white-space: nowrap; overflow: hidden; }
+[data-subedit] .se-grid .num { text-align: right; font-variant-numeric: tabular-nums; }
+[data-subedit] .se-grid th.num { text-align: right; }
+[data-subedit] .se-grid .se-cut { text-overflow: ellipsis; }
+[data-subedit] .se-grid tbody tr:hover td { background-color: #fcf5f7; }
+[data-subedit] .se-grid tr.sel td { background-color: #fdf1f5; }
+[data-subedit] .se-grid tr.on td { background-color: #fbe9ef; color: #4c3039; }
+[data-subedit] .se-grid td.bad { background-color: #fde5e5; color: #b04545; font-weight: 600; }
+[data-subedit] .se-grid tr.on td.bad { background-color: #f8c9c9; }
+[data-subedit] .se-grid tr.se-edited td:first-child { box-shadow: inset 3px 0 0 #e0a43a; }
+[data-subedit] .se-grid tr.se-cmt td { color: var(--txt3); font-style: italic; }
+[data-subedit] .se-grid .se-cmtpill { display: inline-block; font-style: normal; font-size: 11.5px; line-height: 18px; padding: 0 6px; margin-right: 6px; border-radius: 5px; background: #eee; color: var(--txt2); }
+[data-subedit] .se-grid tr.se-gap td { padding: 0; border: 0; height: auto; cursor: default; pointer-events: none; }
+[data-subedit] .se-grid tr.se-gap { overflow-anchor: none; }
+
+[data-subedit] .se-long { max-height: 560px; }
+[data-subedit] .se-pad { max-height: 560px; overflow: auto; }
+
+/* หน้าต่างบันทึกเป็นไฟล์ใหม่ ฉบับอัตโนมัติ เลือกฟอนต์ (อยู่ในหน้าต่างซ้อน ไม่อยู่ใต้ data-subedit) */
+.se-saveas { display: flex; flex-direction: column; gap: 12px; font-size: 14px; }
+.se-saveas .se-erow { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.se-saveas .se-f { color: var(--txt2); flex: none; width: 64px; }
+.se-saveas .se-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+.se-lostlist { margin: 4px 0; padding-left: 20px; }
+.se-autos { display: flex; flex-direction: column; gap: 6px; max-height: 420px; overflow: auto; }
+.se-auto { display: flex; align-items: center; gap: 10px; padding: 6px 4px; border-bottom: 1px solid #f3e3e8; }
+.se-auto .se-cut { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.se-autos .se-dirty { color: var(--warn-ink); }
+.se-fontdlg { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 14px; }
+.se-fontcol { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.se-fsearch { display: flex; align-items: center; gap: 6px; color: var(--txt2); }
+.se-fsearch .inp { flex: 1; height: 34px; font-size: 14px; }
+.se-fontlist { height: 300px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: #fff; overscroll-behavior: contain; }
+.se-fontlist button { display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: 5px 10px; font-size: 15px; color: var(--txt); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.se-fontlist button:hover { background: #fcf5f7; }
+.se-fontlist button.on { background: var(--accent-soft); color: var(--accent-ink); }
+.se-fontside { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.se-fontside .se-f { display: inline-flex; align-items: center; gap: 8px; }
+.se-fontside .se-num { width: 80px; height: 34px; }
+.se-fontprev { border: 1px solid var(--line); border-radius: 8px; padding: 12px; min-height: 90px; font-size: 26px; line-height: 1.5; background: #fff; overflow: hidden; word-break: break-word; }
+
+/* ข้อความในหน้าต่างซ้อน ห่อหนึ่งชั้นไม่ให้แต่ละท่อนกลายเป็นแถวของกรอบหน้าต่าง */
+.se-dlgtext { font-size: 14px; color: var(--txt2); line-height: 1.6; }
+[data-subedit] .se-grid .se-tag { color: var(--txt3); font-size: 12.5px; }
+[data-subedit] .se-grid tr.on .se-tag { color: #a07888; }

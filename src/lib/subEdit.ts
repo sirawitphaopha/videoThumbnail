@@ -12,6 +12,10 @@ export type SubEditMeta = {
   name: string;
   /** หนังที่ใช้ดูภาพกับฟังเสียง · ว่าง = ยังไม่มีวิดีโอ */
   movie: string;
+  /** ซับที่เปิดอยู่ (แทร็กในหน้าซับไตเติล) · หน้าแก้ซับใช้รู้ว่าต้องเปิดใหม่ไหม */
+  key?: string;
+  /** ที่เก็บตั้งต้นของปุ่มบันทึกเป็นไฟล์ใหม่ · ชื่อไฟล์ไม่มีนามสกุล เช่น D:\หนัง\เรื่อง.th */
+  base?: string;
 };
 
 type Snap = { doc: SubDoc; sel: number[]; active: number | null; label: string };

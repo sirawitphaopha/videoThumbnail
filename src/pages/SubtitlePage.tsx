@@ -5,14 +5,18 @@
    ข้อ 107 ไฟล์ซับอย่างเดียวเพิ่มไฟล์วิดีโอคู่ได้ เห็นภาพหนังกับคลื่นเสียง (พี่กัน "ขอปุ่มเพิ่มวิดีโอมาด้วย")
    ข้อ 108 ซับในไฟล์หนังมีปุ่ม Export ได้ไฟล์ซับชนิดเดิม ใช้ตัวแยกไฟล์ตัวเดียวกับหน้าเสียงและซับ (extract.rs) เก็บที่โฟลเดอร์ <ชื่อหนัง> แยกไฟล์ ข้างไฟล์หนัง
    ชื่อชนถามก่อน ไม่เขียนทับ (พี่กัน "ขอปุ่ม export ไฟล์ซับด้วย")
-   งานที่เหลือของหน้านี้ (แปลงชนิด แก้ข้อความ เลื่อนเวลา) อยู่ ROADMAP หัวข้อเมนูซ้ายแท็บใหม่ ซับไตเติล */
+   ข้อ 109 ซับตัวหนังสือเปิดเป็นหน้าแก้ซับแบบ Aegisub (แผนหน้าแก้ซับ · components/subedit/SubEditor.tsx) ซับรูปยังเป็นตัวดูเดิม
+   เปลี่ยนแทร็กหรือเปิดไฟล์อื่นตอนซับที่แก้ยังไม่บันทึก ถามก่อน บันทึก ไม่บันทึก (เก็บฉบับอัตโนมัติให้) หรือยกเลิก */
 import { useEffect, useRef, useState } from "react";
+import Dialog from "../components/Dialog";
+import SubEditor from "../components/subedit/SubEditor";
+import { autosaveNow, closeDoc, getSubEdit, requestSave } from "../lib/subEdit";
 import { api, infoApi, inApp, mergeApi, pickFile, SUB_EXT, type ExtractItem, type MergeTrack } from "../lib/api";
 import { trackFrom, type AvTrack } from "../lib/avJob";
 import { usePageActiveRef } from "../lib/pageActive";
 import { ftName } from "../lib/ftypes";
 import { langName } from "../lib/langs";
-import { CardIcon, Keep, Phr, Seg, Skel, dropClick } from "../components/ui";
+import { CardIcon, J, Keep, Phr, Seg, Skel, dropClick } from "../components/ui";
 import { IbPencil, IbTable, IcExtract, IcFile, IcFolder, IcMix } from "../components/icons";
 import SubViewer from "../components/SubViewer";
 
@@ -21,14 +25,22 @@ const extOf = (p: string) => (p.match(/\.([^.\\/]+)$/)?.[1] ?? "").toLowerCase()
 const nameOf = (p: string) => p.split(/[\\/]/).pop() ?? p;
 
 /** path ไฟล์ที่ใส่ · movie ใส่ไฟล์หนัง · video ไฟล์วิดีโอที่เพิ่มคู่กับไฟล์ซับ (ข้อ 107) · ref แทร็กเสียงที่ใช้วาดคลื่น · items ชิ้นที่ Export ได้ เรียงตามซับ (ข้อ 108) */
-type Loaded = { path: string; movie: boolean; subs: AvTrack[]; video: string | null; ref: AvTrack | null; refIdx: number | null; items: (ExtractItem | null)[] | null };
+type Vid = { fps: number | null; res: [number, number] | null };
+type Loaded = { path: string; movie: boolean; subs: AvTrack[]; video: string | null; ref: AvTrack | null; refIdx: number | null; items: (ExtractItem | null)[] | null; vid: Vid | null };
 type Exp = { key: string; label: string; item: ExtractItem } & ({ s: "busy" } | { s: "done"; file: string } | { s: "conflict"; file: string } | { s: "failed"; err: string });
 
 const PLANNED = [
-  "ซับข้อความ แปลงชนิดระหว่าง SRT ASS และ VTT แก้ข้อความ เลื่อนเวลาทั้งไฟล์ และยืดเวลาให้ตรงความเร็วหนัง",
+  "ลากเวลาบนคลื่นเสียง ฟังเสียงเป็นช่วง และเส้นแบ่งฉากแบบ Aegisub",
+  "เลื่อนเวลาทั้งไฟล์ ปรับเวลาทั้งไฟล์ และเครื่องมือของซับ ASS",
+  "ใส่ซับที่แก้กลับเข้าไฟล์หนังจากหน้านี้ได้โดยไม่ต้องไปหน้าเสียงและซับ",
   "ซับรูป PGS กับ VobSub แปลงเป็นข้อความด้วยการอ่านจากภาพ",
-  "ใส่ซับกลับเข้าไฟล์หนังจากหน้านี้ได้โดยไม่ต้องไปหน้าเสียงและซับ",
 ];
+
+/** อัตราเฟรมกับขนาดภาพของวิดีโอแทร็กแรก */
+function vidOf(tracks: MergeTrack[]): Vid | null {
+  const v = tracks.find((t) => t.kind === "video");
+  return v ? { fps: v.fps, res: v.width && v.height ? [v.width, v.height] : null } : null;
+}
 
 
 /** แทร็กเสียงที่ใช้วาดคลื่น · เสียงหลักก่อน ไม่มีใช้เสียงแรก · ลำดับในเสียงด้วยกันใช้กับภาพความถี่ */
@@ -48,8 +60,12 @@ export default function SubtitlePage({ onAv }: { onAv: () => void }) {
   const [exp, setExp] = useState<Exp | null>(null);
   const [subTab, setSubTab] = useState<"aeg" | "long" | "pad">("aeg");
   const pageOn = usePageActiveRef();
+  /** งานที่รอถามก่อน เพราะซับที่แก้ยังไม่บันทึก · busy ระหว่างบันทึก */
+  const [guard, setGuard] = useState<{ go: () => void; busy: boolean; err: string | null } | null>(null);
+  /** ซับที่แก้ยังไม่บันทึก ถามก่อนเปลี่ยนแทร็กหรือเปิดไฟล์อื่น · ไม่มีอะไรค้างทำเลย */
+  const whenSaved = (go: () => void) => { if (getSubEdit().dirty) setGuard({ go, busy: false, err: null }); else go(); };
 
-  const open = async (p: string) => {
+  const openNow = async (p: string) => {
     const ext = extOf(p), movie = MOVIE_EXT.includes(ext);
     if (!movie && !SUB_EXT.includes(ext)) { setErr(`ไฟล์ .${ext || "?"} ไม่ใช่ไฟล์หนังหรือไฟล์ซับ`); return; }
     setErr(null); setView(null); setVideoErr(null); setExp(null); setBusy(p);
@@ -57,7 +73,7 @@ export default function SubtitlePage({ onAv }: { onAv: () => void }) {
       if (movie) {
         const m = await mergeApi.inspect(p);
         const subs = m.tracks.filter((t) => t.kind === "subtitle").map((t) => trackFrom(t));
-        setFile({ path: p, movie: true, subs, video: null, ...refOf(m.tracks), items: null });
+        setFile({ path: p, movie: true, subs, video: null, ...refOf(m.tracks), items: null, vid: vidOf(m.tracks) });
         if (subs.length) setView(subs[0].key); // ตัวดูซับแสดงในหน้าเลย เริ่มที่ซับแรก
         // ชิ้นที่ Export ได้ อ่านจาก MediaInfo แบบหน้าเสียงและซับ · ซับที่ n ในตาราง = Text #n ของ MediaInfo
         infoApi.mediaInfo(p).then((r) => {
@@ -68,14 +84,15 @@ export default function SubtitlePage({ onAv }: { onAv: () => void }) {
       } else {
         const f = await mergeApi.addFile(p, null);
         const subs = f.tracks.filter((t) => t.kind === "subtitle").map((t) => trackFrom(t));
-        setFile({ path: p, movie: false, subs, video: null, ref: null, refIdx: null, items: null });
+        setFile({ path: p, movie: false, subs, video: null, ref: null, refIdx: null, items: null, vid: null });
         if (subs.length) setView(subs[0].key); // ตัวดูซับแสดงในหน้าเลย
       }
     } catch (e) {
       setErr(`อ่านไฟล์ไม่ได้ ${String(e)}`);
     } finally { setBusy(null); }
   };
-  const pick = async () => { const p = await pickFile("subtitle"); if (p) void open(p); };
+  const open = (p: string) => whenSaved(() => void openNow(p));
+  const pick = async () => { const p = await pickFile("subtitle"); if (p) open(p); };
   const openRef = useRef(open); openRef.current = open;
 
   /** เพิ่มไฟล์วิดีโอคู่กับไฟล์ซับ (ข้อ 107) · อ่านแทร็กเสียงไว้วาดคลื่น ไฟล์ไม่ถูกแตะ */
@@ -84,7 +101,7 @@ export default function SubtitlePage({ onAv }: { onAv: () => void }) {
     setVideoErr(null);
     try {
       const m = await mergeApi.inspect(v);
-      setFile((f) => (f && !f.movie ? { ...f, video: v, ...refOf(m.tracks) } : f));
+      setFile((f) => (f && !f.movie ? { ...f, video: v, ...refOf(m.tracks), vid: vidOf(m.tracks) } : f));
     } catch (e) { setVideoErr(`อ่านไฟล์วิดีโอไม่ได้ ${String(e)}`); }
   };
   /** เพิ่มไฟล์ซับคู่กับไฟล์หนังที่ใส่อยู่ ดูพร้อมภาพหนัง · ไฟล์หนังที่ไม่มีซับในตัวก็ดูได้ (พี่กันทัก "ตัวซับจะเปิดได้ที่หน้านี้เลย" กับไฟล์ที่ไม่มีซับ) */
@@ -96,7 +113,7 @@ export default function SubtitlePage({ onAv }: { onAv: () => void }) {
       const add = f.tracks.filter((t) => t.kind === "subtitle").map((t) => trackFrom(t));
       if (!add.length) { setVideoErr("ไฟล์นี้ไม่มีซับ"); return; }
       setFile((x) => (x && x.movie ? { ...x, subs: [...x.subs, ...add], items: x.items ? [...x.items, ...add.map(() => null)] : x.items } : x));
-      setView(add[0].key);
+      whenSaved(() => setView(add[0].key));
     } catch (e) { setVideoErr(`อ่านไฟล์ซับไม่ได้ ${String(e)}`); }
   };
   const addSub = async () => { const sp = await pickFile("subtitle"); if (sp) void addSubFile(sp); };
@@ -138,7 +155,7 @@ export default function SubtitlePage({ onAv }: { onAv: () => void }) {
       if (!pageOn.current) return;
       if (e.payload.type === "over" || e.payload.type === "enter") setOver(true);
       else if (e.payload.type === "leave") setOver(false);
-      else if (e.payload.type === "drop") { setOver(false); if (e.payload.paths[0]) void openRef.current(e.payload.paths[0]); }
+      else if (e.payload.type === "drop") { setOver(false); if (e.payload.paths[0]) openRef.current(e.payload.paths[0]); }
     })).then((u) => { if (live) off = u; else u(); });
     return () => { live = false; off?.(); };
   }, []); // eslint-disable-line react-hooks/exhaustive-deps
@@ -147,8 +164,8 @@ export default function SubtitlePage({ onAv }: { onAv: () => void }) {
     const w = window as unknown as { __subOpen?: (p: string) => void; __subVideo?: (p: string) => void; __subAddSub?: (p: string) => void };
     w.__subAddSub = (p) => void subRef.current(p);
     // ตัวตรวจเริ่มจากหน้าว่างและล้างหน้ากลับตอนจบ ไม่ทิ้งไฟล์ทดสอบค้างให้พี่กันเห็น
-    (w as { __subClear?: () => void }).__subClear = () => { setFile(null); setErr(null); setView(null); setExp(null); setVideoErr(null); };
-    w.__subOpen = (p) => void openRef.current(p);
+    (w as { __subClear?: () => void }).__subClear = () => { closeDoc(); setFile(null); setErr(null); setView(null); setExp(null); setVideoErr(null); };
+    w.__subOpen = (p) => openRef.current(p);
     w.__subVideo = (p) => void videoRef.current(p);
   });
 
@@ -177,7 +194,7 @@ export default function SubtitlePage({ onAv }: { onAv: () => void }) {
               ? <button type="button" className="btn btn-ghost" style={{ height: 36 }} onClick={() => void addSub()} title="เพิ่มไฟล์ซับที่แยกจากหนัง มาดูคู่กับหนังเรื่องนี้" data-sub-addsub><IcFile size={16} />เพิ่มไฟล์ซับ</button>
               : <button type="button" className="btn btn-ghost" style={{ height: 36 }} onClick={() => void addVideo()} title="เพิ่มไฟล์วิดีโอคู่กับซับ แล้วตัวดูซับแสดงภาพหนังกับคลื่นเสียง" data-sub-addvideo-page><IcFile size={16} />{file.video ? "เปลี่ยนไฟล์วิดีโอ" : "เพิ่มไฟล์วิดีโอ"}</button>}
             <button type="button" className="btn btn-ghost" style={{ height: 36 }} onClick={() => void pick()} title="เปิดไฟล์หนังหรือไฟล์ซับอื่น หรือลากไฟล์มาวางที่หน้านี้" data-sub-openother><IcFolder size={16} />เปิดไฟล์อื่น</button>
-          </>) : <span className="small"><Phr>ดูซับในไฟล์หนังหรือไฟล์ซับแบบ Aegisub แบบอ่านยาว และแบบ notepad  ไฟล์ที่ใส่ไม่ถูกแตะ</Phr></span>}
+          </>) : <span className="small"><Phr>แก้ซับในไฟล์หนังหรือไฟล์ซับแบบ Aegisub  ไฟล์ไม่ถูกแตะจนกว่าจะกดบันทึก</Phr></span>}
         </div>
         {showDrop && (
           <div className={"drop" + (over ? " over" : err ? " bad" : "")} style={{ minHeight: file ? 120 : 180 }} onClick={dropClick(pick)} data-drop="subtitle">
@@ -207,7 +224,7 @@ export default function SubtitlePage({ onAv }: { onAv: () => void }) {
             const why = !file.items ? "กำลังอ่านข้อมูลซับ" : !item ? "ซับชนิดนี้ Export ไม่ได้" : exportBusy && !mine ? "รอ Export ที่ทำอยู่ให้เสร็จก่อน" : undefined;
             return (
               <div key={t.key} className={"subpage-trk" + (view === t.key ? " on" : "")}>
-                <button type="button" className="subpage-trkpick" aria-pressed={view === t.key} onClick={() => setView(t.key)} title={view === t.key ? "กำลังดูซับนี้" : "ดูซับนี้"} data-sub-pick={i}>
+                <button type="button" className="subpage-trkpick" aria-pressed={view === t.key} onClick={() => { if (view !== t.key) whenSaved(() => setView(t.key)); }} title={view === t.key ? "กำลังแก้ซับนี้" : "แก้ซับนี้"} data-sub-pick={i}>
                   <span className="rext">{ft}</span><span className="subpage-trkname">{label}{lang ? ` ${lang}` : ""}{t.name ? ` ${t.name}` : ""}</span>
                 </button>
                 {file.movie && t.inMovie && (
@@ -244,9 +261,29 @@ export default function SubtitlePage({ onAv }: { onAv: () => void }) {
             <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.8 }}>{PLANNED.map((t) => <li key={t}><Phr>{t}</Phr></li>)}</ul>
           </div>
         )}
-        {st && file && !busy && <SubViewer inline tab={subTab} key={`${st.key}|${file.video ?? ""}`} track={st} movie={file.movie ? file.path : file.video ?? ""} refStream={refStream} refIdx={file.refIdx}
-          onAddMovie={!file.movie ? () => void addVideo() : undefined} onClose={() => setView(null)} />}
+        {st && file && !busy && (isImage(st)
+          ? <SubViewer inline tab={subTab} key={`${st.key}|${file.video ?? ""}`} track={st} movie={file.movie ? file.path : file.video ?? ""} refStream={refStream} refIdx={file.refIdx}
+            onAddMovie={!file.movie ? () => void addVideo() : undefined} onClose={() => setView(null)} />
+          : <SubEditor key={st.key} track={st} tab={subTab} moviePath={file.path} video={file.movie ? file.path : file.video ?? ""} refStream={refStream} refIdx={file.refIdx}
+            label={st.inMovie ? `${nameOf(file.path)} ซับที่ ${file.subs.indexOf(st) + 1}` : nameOf(st.src)} fps={file.vid?.fps ?? null} playRes={file.vid?.res ?? null}
+            onAddMovie={!file.movie ? () => void addVideo() : undefined} />)}
       </div>
+      <Dialog open={!!guard} onClose={() => { if (!guard?.busy) setGuard(null); }} kind="work" title="ซับที่แก้ยังไม่ได้บันทึก" width={560}
+        actions={guard?.busy ? <button type="button" className="btn btn-wait" aria-disabled="true"><Keep all={["กำลังบันทึก…", "บันทึกแล้วไปต่อ"]}>กำลังบันทึก…</Keep></button> : <>
+          <button type="button" className="btn btn-ghost" onClick={() => setGuard(null)} data-sub-guard-back>กลับไปแก้ต่อ</button>
+          <button type="button" className="btn btn-ghost" onClick={() => { const g = guard; setGuard(null); void autosaveNow().then(() => { closeDoc(); g?.go(); }); }} data-sub-guard-skip>ไม่บันทึก</button>
+          <button type="button" className="btn btn-main" data-sub-guard-save onClick={async () => {
+            const g = guard;
+            if (!g) return;
+            setGuard({ ...g, busy: true });
+            const ok = await requestSave();
+            // บันทึกทับไม่ได้ทันที (ต้องเลือกชื่อไฟล์ใหม่ หรือไฟล์ถูกแก้จากที่อื่น) ปิดหน้าต่างนี้ ให้หน้าต่างของหน้าแก้ซับถามต่อ
+            if (ok) { setGuard(null); closeDoc(); g.go(); } else if (ok === null) setGuard({ ...g, busy: false, err: "ยังไม่มีหน้าแก้ซับให้บันทึก" }); else setGuard(null);
+          }}><Keep all={["กำลังบันทึก…", "บันทึกแล้วไปต่อ"]}>บันทึกแล้วไปต่อ</Keep></button>
+        </>}>
+        <div className="small" style={{ fontSize: 14, color: "var(--txt2)" }}><Phr>{`แก้ ${getSubEdit().meta?.name ?? "ซับ"} ไปแล้ว แต่ยังไม่ได้บันทึกลงไฟล์  ถ้าไม่บันทึก โปรแกรมเก็บ${J}ฉบับ${J}บันทึก${J}อัตโนมัติ${J}ไว้ให้  เปิดคืนได้จากปุ่มฉบับอัตโนมัติ`}</Phr></div>
+        {guard?.err && <div className="hint e" role="alert" style={{ marginTop: 10 }}>{guard.err}</div>}
+      </Dialog>
     </div>
   );
 }

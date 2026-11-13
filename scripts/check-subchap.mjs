@@ -42,18 +42,18 @@ try {
   const pressed = await q("return [...document.querySelectorAll('[data-sub-pick]')].map((b) => b.getAttribute('aria-pressed'));");
   check("ใส่ไฟล์หนังแล้วขึ้นแถบแทร็กซับทุกแทร็ก แทร็กแรกเลือกอยู่", list.length >= 2 && pressed[0] === "true" && pressed.slice(1).every((x) => x === "false"), JSON.stringify({ list, pressed }));
   // เปิดซับแล้วจุดลากไฟล์ใหญ่หายไป ตัวดูซับขึ้นมาใกล้บน (BUGS ข้อ 109 "ย้ายปุ่มอัปซับไปที่อื่น มันโคตรกินที่")
-  const lay = await q("const v = document.querySelector('[data-subviewer-inline]'); return { drop: !!document.querySelector('[data-drop=subtitle]'), other: !!document.querySelector('[data-sub-openother]'), top: v ? Math.round(v.getBoundingClientRect().top) : null };");
-  check("เปิดซับแล้วจุดลากไฟล์ใหญ่หายไป แถวบนมีปุ่มเปิดไฟล์อื่น ตัวดูซับเริ่มที่ครึ่งบนของจอ (BUGS 109)", !lay.drop && lay.other && lay.top != null && lay.top < 260, JSON.stringify(lay));
+  const lay = await q("const v = document.querySelector('[data-subedit]'); return { drop: !!document.querySelector('[data-drop=subtitle]'), other: !!document.querySelector('[data-sub-openother]'), top: v ? Math.round(v.getBoundingClientRect().top) : null };");
+  check("เปิดซับแล้วจุดลากไฟล์ใหญ่หายไป แถวบนมีปุ่มเปิดไฟล์อื่น หน้าแก้ซับเริ่มที่ครึ่งบนของจอ (BUGS 109)", !lay.drop && lay.other && lay.top != null && lay.top < 260, JSON.stringify(lay));
   // ตัวดูซับแสดงในหน้าเลย ไม่ใช่หน้าต่างซ้อน (พี่กันทัก "ตัวซับจะเปิดได้ที่หน้านี้เลย")
-  const inl = await waitFor("return !!document.querySelector('[data-subviewer-inline] [data-sub-table]') && !document.querySelector('[role=dialog]');", 15000);
+  const inl = await waitFor("return !!document.querySelector('[data-subedit] [data-sub-table]') && !document.querySelector('[role=dialog]');", 15000);
   await sleep(1500);
-  const fr = await q("return document.querySelector('[data-subviewer-inline] [data-vframe] img') ? 'มีภาพ' : document.querySelector('[data-vframe]')?.innerText.trim();");
-  check("ตัวดูซับแสดงในหน้าซับไตเติลเลย ไม่มีหน้าต่างซ้อน เห็นภาพหนังตรงบรรทัดที่เลือก (BUGS 104)", inl && fr === "มีภาพ", fr);
+  const fr = await q("return document.querySelector('[data-subedit] [data-vframe] img') ? 'มีภาพ' : document.querySelector('[data-vframe]')?.innerText.trim();");
+  check("ซับแสดงในหน้าซับไตเติลเลย (หน้าแก้ซับ) ไม่มีหน้าต่างซ้อน เห็นภาพหนังตรงบรรทัดที่เลือก (BUGS 104)", inl && fr === "มีภาพ", fr);
   await subTop(); await sleep(150);
   await c.shot(`${OUT}/31-หน้าซับไตเติล-เปิดไฟล์แล้ว.png`, "[data-subtitle-page] .ag", 0);
-  await c.shot(`${OUT}/32-หน้าซับไตเติล-ดูซับในหน้า.png`, "[data-subviewer-inline]", 8);
+  await c.shot(`${OUT}/32-หน้าซับไตเติล-ดูซับในหน้า.png`, "[data-subedit]", 8);
   await c.click("[data-sub-pick='1']"); await sleep(800);
-  check("กดซับแถวที่สอง ตัวดูซับเปลี่ยนเป็นซับนั้น", await q("return /ASS/.test(document.querySelector('[data-subviewer-inline] [data-subviewer] > .small')?.innerText ?? '') && document.querySelector('[data-sub-pick=\"1\"]').getAttribute('aria-pressed') === 'true';"));
+  check("กดซับแถวที่สอง หน้าแก้ซับเปลี่ยนเป็นซับนั้น", await waitFor("return document.querySelector('[data-subedit]')?.getAttribute('data-se-kind') === 'ass' && document.querySelector('[data-sub-pick=\"1\"]').getAttribute('aria-pressed') === 'true';", 8000));
 
   // ---------- 108 Export ----------
   await waitFor("return document.querySelector('[data-sub-export=\"0\"]')?.getAttribute('aria-disabled') !== 'true';", 10000);
@@ -81,24 +81,24 @@ try {
   await q(`window.__subAddSub(${JSON.stringify(SRT)})`);
   await waitFor("return document.querySelectorAll('[data-sub-pick]').length === 3;", 15000);
   await sleep(1200);
-  const added = await q("const b = document.querySelector('[data-sub-pick=\"2\"]'); return { t: b.innerText.replace(/\\s+/g, ' '), on: b.getAttribute('aria-pressed'), exp: !!document.querySelector('[data-sub-export=\"2\"]'), img: !!document.querySelector('[data-subviewer-inline] [data-vframe] img') };");
+  const added = await q("const b = document.querySelector('[data-sub-pick=\"2\"]'); return { t: b.innerText.replace(/\\s+/g, ' '), on: b.getAttribute('aria-pressed'), exp: !!document.querySelector('[data-sub-export=\"2\"]'), img: !!document.querySelector('[data-subedit] [data-vframe] img') };");
   check("เพิ่มไฟล์ซับคู่กับหนัง ขึ้นเป็นแถวใหม่ ดูพร้อมภาพหนัง ไม่มีปุ่ม Export เพราะเป็นไฟล์อยู่แล้ว", added.t.includes("th.srt") && added.on === "true" && !added.exp && added.img, JSON.stringify(added));
 
   // ---------- 107 ไฟล์ซับอย่างเดียว เพิ่มวิดีโอ ----------
   await q(`window.__subOpen(${JSON.stringify(SRT)})`);
-  const auto = await waitFor("return !!document.querySelector('[data-subviewer-inline] [data-sub-table]');", 15000);
+  const auto = await waitFor("return !!document.querySelector('[data-subedit] [data-sub-table]');", 15000);
   await sleep(600);
   const fr2 = await q("const v = document.querySelector('[data-vframe]'); return { t: v?.innerText.trim(), btn: !!v?.querySelector('[data-sub-addvideo]'), play: !!document.querySelector('[data-sub-play]') };");
   check("ใส่ไฟล์ซับอย่างเดียว ตัวดูซับขึ้นในหน้า บอกว่าไม่มีภาพหนัง มีปุ่มเพิ่มไฟล์วิดีโอ ไม่มีปุ่มเปิดเล่น (BUGS 107)", auto && fr2.t.includes("ไม่มีภาพหนัง") && fr2.btn && !fr2.play, JSON.stringify(fr2));
-  await c.shot(`${OUT}/33-หน้าซับไตเติล-ไฟล์ซับ.png`, "[data-subviewer-inline]", 8);
+  await c.shot(`${OUT}/33-หน้าซับไตเติล-ไฟล์ซับ.png`, "[data-subedit]", 8);
   await subTop(); await sleep(150);
   await c.shot(`${OUT}/37-หน้าซับไตเติล-เพิ่มวิดีโอ.png`, "[data-sub-bar]", 8);
   await q(`window.__subVideo(${JSON.stringify(MOVIE)})`);
-  const vid = await waitFor("return !!document.querySelector('[data-subviewer-inline] [data-vframe] img') && !!document.querySelector('[data-subviewer-inline] canvas[data-aud]');", 20000);
+  const vid = await waitFor("return !!document.querySelector('[data-subedit] [data-vframe] img') && !!document.querySelector('[data-subedit] canvas[data-aud]');", 20000);
   const vt = await q("return document.querySelector('[data-sub-bar]')?.innerText.replace(/\\s+/g, ' ');");
   check("เพิ่มไฟล์วิดีโอแล้ว เห็นภาพหนังกับคลื่นเสียงคู่กับซับ บอกชื่อวิดีโอ ปุ่มเปลี่ยนเป็นเปลี่ยนไฟล์วิดีโอ", vid && vt.includes("ดาวเหนือ") && vt.includes("เปลี่ยนไฟล์วิดีโอ"), vt);
   await sleep(600);
-  await c.shot(`${OUT}/38-หน้าซับไตเติล-ซับคู่วิดีโอ.png`, "[data-subviewer-inline]", 8);
+  await c.shot(`${OUT}/38-หน้าซับไตเติล-ซับคู่วิดีโอ.png`, "[data-subedit]", 8);
 
   await q(`window.__subOpen("D:/movie-shelf/test-media/สร้าง/เสียงซับ/เพลงทดสอบ.mp3")`); await sleep(400);
   // เปิดไฟล์อยู่ จุดลากไฟล์ซ่อน คำเตือนขึ้นเป็นการ์ดแดงใต้แถวบน (BUGS ข้อ 109)
