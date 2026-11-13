@@ -13,6 +13,8 @@ export type Hotkey = {
   alt?: boolean;
   /** ใช้ได้ตอนเคอร์เซอร์อยู่ในช่องพิมพ์ */
   field?: boolean;
+  /** ข้ามตอนโฟกัสอยู่ที่ปุ่ม (Enter Space กดปุ่มนั้นตามปกติ) */
+  noButton?: boolean;
   run: (e: KeyboardEvent) => void;
 };
 
@@ -36,6 +38,8 @@ export function useHotkeys(keys: Hotkey[], active: RefObject<boolean>) {
       if (document.body.hasAttribute("data-dialog-open")) return;
       const h = match(ref.current, e, inField(e.target));
       if (!h) return;
+      // Enter กับ Space ตอนโฟกัสอยู่ที่ปุ่ม ให้ปุ่มทำงานตามปกติ ไม่เอาไปเป็นคีย์ลัดของหน้า
+      if (h.noButton && (e.target as HTMLElement | null)?.closest?.("button, a, [role='button'], [role='option']")) return;
       e.preventDefault();
       h.run(e);
     };

@@ -144,9 +144,9 @@ try {
 
   // ---------- ขนาดภาพ ----------
   const sz = async () => q("const b = document.querySelector('[data-vframe]').getBoundingClientRect(); return [Math.round(b.width), Math.round(b.height)];");
-  check("พอดีกรอบ 320 × 180", (await sz()).join("x") === "320x180", (await sz()).join("x"));
+  check("พอดีกรอบ 288 × 162", (await sz()).join("x") === "288x162", (await sz()).join("x"));
   await q(`const v = document.querySelector('[data-vframe]'); const r = v.getBoundingClientRect(); v.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, ctrlKey: true, bubbles: true, cancelable: true, clientX: r.left + 10, clientY: r.top + 10 })); return 1;`); await sleep(150);
-  check("Ctrl หมุนล้อขึ้นบนภาพ ซูมจากพอดีกรอบ 50% เป็น 62.5% ภาพ 400 × 225", (await sz()).join("x") === "400x225", (await sz()).join("x"));
+  check("Ctrl หมุนล้อขึ้นบนภาพ ซูมจากพอดีกรอบ 45% (ขั้นใกล้สุด 50%) เป็น 62.5% ภาพ 400 × 225", (await sz()).join("x") === "400x225", (await sz()).join("x"));
   const openMenu = async () => { if (!(await q("return !!document.querySelector('[data-vmenupanel]');"))) await q("document.querySelector('[data-vmenu]').click(); return 1;"); return waitFor("return !!document.querySelector('[data-vmenupanel]')"); };
   const pickZoom = async (label) => {
     await openMenu();
@@ -160,7 +160,7 @@ try {
   check("ขนาดภาพ 100% ภาพจริง 640 × 360 กรอบเลื่อนดูส่วนเกินได้ คลื่นเสียงยังกว้างอย่างน้อย 360 จุด ไม่ล้นหน้าต่าง", z100.img === "640pxx360px" && z100.wave >= 360 && z100.page <= 1280, JSON.stringify(z100));
   await c.shot(`${SHOT}/4-ขนาดภาพ-100.png`, "[data-subedit] .se-top", 6);
   await pickZoom("พอดีกรอบ");
-  check("กลับเป็นพอดีกรอบ", (await sz()).join("x") === "320x180", (await sz()).join("x"));
+  check("กลับเป็นพอดีกรอบ", (await sz()).join("x") === "288x162", (await sz()).join("x"));
 
   // ---------- เมนูวิดีโอ keyframe ----------
   await openMenu();

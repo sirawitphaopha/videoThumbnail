@@ -24,6 +24,9 @@ import SubGrid from "./SubGrid";
 import SubEditBox, { savedOf } from "./SubEditBox";
 import SubVideo, { shownText } from "./SubVideo";
 import SubAudio from "./SubAudio";
+import AudioBar, { type AudAct } from "./AudioBar";
+import { play, stopPlay } from "../../lib/audioPlay";
+import { getTiming, getViewW, msPerPx, rangeOf, scrollIntoView, setLeft, setOpt, setPend, useTiming, type AudSource } from "../../lib/subTiming";
 import FontDialog from "./FontDialog";
 import { DetailsDialog, DummyDialog, JumpDialog } from "./VideoDialogs";
 import "../../styles/subedit.css";
@@ -32,6 +35,8 @@ const nameOf = (p: string) => p.split(/[\\/]/).pop() ?? p;
 const dirOf = (p: string) => p.replace(/[\\/][^\\/]*$/, "");
 const extOf = (p: string) => (p.match(/\.([^.\\/]+)$/)?.[1] ?? "").toLowerCase();
 const KIND_EXT: Record<SubDoc["kind"], string> = { ass: "ass", ssa: "ssa", srt: "srt", vtt: "vtt" };
+/** เผื่อหน้า เผื่อท้าย ms (Audio/Lead/IN OUT ของ Aegisub) */
+const LEAD_IN = 100, LEAD_OUT = 350;
 const CHARSETS = ["UTF-8", "TIS-620", "Windows-1252", "UTF-16LE", "UTF-16BE"] as const;
 /** สิ่งที่หายตอนบันทึกเป็น SRT เป็นประโยค (subdoc.rs to_srt ส่งคีย์มา) */
 const LOST: Record<string, string> = {
@@ -122,7 +127,24 @@ export default function SubEditor(p: SubEditorProps) {
 
   // ตารางสูงเต็มที่ว่างที่เหลือของหน้าต่าง อย่างน้อย 180 จุด
   useLayoutEffect(() => {
-    const fit = () => { const el = gridAt.current; if (!el) return; setGridH(Math.max(80, Math.floor(window.innerHeight - el.getBoundingClientRect().top - 14))); };
+    // ขอบล่างวัดจากของจริง ขอบในของการ์ดใต้ตารางกับขอบล่างของกรอบหน้าที่เลื่อนได้ (เดิมเผื่อ 14 จุดตายตัว ของจริงราว 31 จุด หน้าเลื่อนได้อีก 17 จุด)
+    // คิดในกรอบหน้าที่เลื่อนได้ · ใต้ตาราง = ขอบในของการ์ดใต้ตาราง บวกขอบล่างของทุกชั้นตั้งแต่การ์ดถึงกรอบหน้า
+    // (ลองใช้ความสูงเนื้อหาทั้งหมดของกรอบหน้าแล้วพลาด ตอนเนื้อหาสั้นกว่าจอความสูงนั้นเท่าจอ ตารางไม่ขยายตาม เจอที่ 1920 × 1032)
+    const fit = () => {
+      const el = gridAt.current, card = root.current;
+      if (!el || !card) return;
+      const sc = card.closest<HTMLElement>(".pagewrap");
+      const r = el.getBoundingClientRect();
+      if (!sc) { setGridH(Math.max(80, Math.floor(window.innerHeight - r.top - 14))); return; }
+      let extra = card.getBoundingClientRect().bottom - r.bottom;
+      for (let e: HTMLElement | null = card; e && e !== sc; e = e.parentElement) {
+        extra += parseFloat(getComputedStyle(e).marginBottom) || 0;
+        const pr = e.parentElement;
+        if (pr) { const ps = getComputedStyle(pr); extra += (parseFloat(ps.paddingBottom) || 0) + (pr === sc ? 0 : parseFloat(ps.borderBottomWidth) || 0); }
+      }
+      const top = r.top - sc.getBoundingClientRect().top - sc.clientTop + sc.scrollTop;
+      setGridH(Math.max(80, Math.floor(sc.clientHeight - top - Math.max(0, extra))));
+    };
     fit();
     const ro = new ResizeObserver(fit);
     if (root.current) ro.observe(root.current);
@@ -187,7 +209,65 @@ export default function SubEditor(p: SubEditorProps) {
     const d = getSubEdit().doc;
     if (d && isAss(d) && garbageGet(d, "Video File")?.startsWith("?dummy")) edit("ปิดวิดีโอจำลอง", (x) => garbageSet(x, "Video File", null));
   };
-  const frWhy = vst.dummy ? "" : !vst.movie ? "ยังไม่มีไฟล์วิดีโอ จึงไม่รู้เวลาของแต่ละเฟรม" : vst.closed ? "ปิดวิดีโออยู่" : vst.load === "err" ? "อ่านเวลาเฟรมของวิดีโอไม่ได้" : "กำลังอ่านเวลาของทุกเฟรม รอสักครู่";
+  // ---------------------------------------------------------------- เสียง (ขั้น 5)
+  const tm = useTiming();
+  // แถวปุ่มเสียง แบบ 2 เต็มความกว้างเมื่อหน้าต่างสูงพอ (จอ 1080 ขึ้นไปตอนกดขยาย) ไม่งั้นแบบ 1 ไอคอนอย่างเดียวใต้คลื่นเสียง
+  // พี่กันเคาะ แบบ 2 เป็นหลัก แบบ 1 ตอนที่ว่างไม่พอ · หน้าต่าง 1280 × 800 กับ 1600 × 852 แบบ 2 ดันตารางจนหน้าต้องเลื่อน เกณฑ์ 950 จุดแคลร์ตั้ง
+  const [tall, setTall] = useState(() => window.innerHeight >= 950);
+  useEffect(() => { const f = () => setTall(window.innerHeight >= 950); window.addEventListener("resize", f); return () => window.removeEventListener("resize", f); }, []);
+  const movieAud: AudSource = p.video && p.refStream != null ? { path: p.video, map: `0:${p.refStream}`, idx: p.refIdx ?? 0, name: nameOf(p.video), own: false } : null;
+  const aud = tm.own ?? movieAud;
+  const noAudio = aud ? undefined : p.video ? "หนังเรื่องนี้ไม่มีเสียง" : "ยังไม่มีเสียง เปิดไฟล์วิดีโอหรือไฟล์เสียงก่อน";
+  const noLine = ev ? undefined : "ยังไม่ได้เลือกบรรทัด";
+  /** ลงเวลาที่ลากไว้บนคลื่นเสียงลงบรรทัด (DoCommit ของ Aegisub) · ยืนยันทันทีรวมการแก้ที่ต่อกันเป็นขั้นเดียว */
+  const commitTiming = (auto = false) => {
+    const pd = getTiming().pend;
+    if (!pd) return false;
+    const by = new Map([[pd.id, pd], ...pd.links.map((l) => [l.id, l] as const)]);
+    edit("ตั้งเวลาบนคลื่นเสียง", (dd) => ({ ...dd, events: dd.events.map((e) => { const x = by.get(e.id); return x ? { ...e, start: snapMs(Math.max(0, x.start), dd), end: snapMs(Math.max(0, x.end), dd) } : e; }) }), auto ? { merge: `timing:${pd.id}` } : {});
+    setPend(null);
+    return true;
+  };
+  /** ขยับขอบที่ใช้อยู่ (ลากไว้หรือของบรรทัด) แล้วยืนยันเองถ้าเปิดยืนยันทันที (SetMarkers ของ Aegisub) */
+  const moveRange = (start: number, end: number) => {
+    if (!ev) return;
+    setPend({ id: ev.id, start: Math.round(Math.min(start, end)), end: Math.round(Math.max(start, end)), links: [] });
+    if (getTiming().opts.autoCommit) commitTiming(true);
+  };
+  const audioAct = (a: AudAct) => {
+    if (!ev && a !== "stop") return;
+    const r = ev ? rangeOf(ev) : { start: 0, end: 0 };
+    const src = aud;
+    const pl = (a0: number, a1: number | null) => { if (src) void play({ path: src.path, map: src.map }, a0 + dl, a1 == null ? null : a1 + dl); };
+    switch (a) {
+      case "prev": goto(at - 1); break;
+      case "next": goto(at + 1); break;
+      case "playsel": pl(r.start, r.end); break;
+      case "playline": if (ev) pl(ev.start, ev.end); break;
+      case "stop": stopPlay(); break;
+      // ครึ่งวินาทีก่อนและหลังช่วง ต้นช่วง ท้ายช่วง (audio/play/selection/before after begin end ของ Aegisub)
+      case "before": pl(r.start - 500, r.start); break;
+      case "after": pl(r.end, r.end + 500); break;
+      case "begin": pl(r.start, Math.min(r.start + 500, r.end)); break;
+      case "end": pl(Math.max(r.start, r.end - 500), r.end); break;
+      case "toend": pl(r.start, null); break;
+      case "leadin": moveRange(r.start - LEAD_IN, r.end); break;
+      case "leadout": moveRange(r.start, r.end + LEAD_OUT); break;
+      // ยืนยันแล้วไปบรรทัดถัดไป บรรทัดสุดท้ายสร้างบรรทัดใหม่ต่อท้าย (audio/commit กับ Next Line on Commit)
+      case "commit": commitTiming(); if (getTiming().opts.autoNext) onNext(true); break;
+      case "goto": scrollIntoView(r.start + dl, r.end + dl, getViewW(), msPerPx(getTiming().opts.hzoom)); break;
+    }
+  };
+  /** ขยับเวลาเริ่มหรือความยาวทีละ 10 ms (ModifyStart ModifyLength ของ Aegisub) */
+  const nudge = (which: "start" | "len", n: number) => {
+    if (!ev) return;
+    const r = rangeOf(ev);
+    if (which === "start") moveRange(Math.min(r.start + n * 10, r.end), r.end);
+    else moveRange(r.start, Math.max(r.end + n * 10, r.start));
+  };
+  const scrollBy = (px: number) => setLeft(Math.max(0, getTiming().left + px * msPerPx(getTiming().opts.hzoom)));
+
+  const frWhy = vst.dummy ? "" :!vst.movie ? "ยังไม่มีไฟล์วิดีโอ จึงไม่รู้เวลาของแต่ละเฟรม" : vst.closed ? "ปิดวิดีโออยู่" : vst.load === "err" ? "อ่านเวลาเฟรมของวิดีโอไม่ได้" : "กำลังอ่านเวลาของทุกเฟรม รอสักครู่";
   const sameKind = (d: SubDoc) => { const s = d.source; return !!s && !s.inMovie && extOf(s.path) === KIND_EXT[d.kind] || (!!s && !s.inMovie && d.kind === "srt" && extOf(s.path) === "txt"); };
 
   /** บันทึก · คืน true เมื่อบันทึกแล้ว · ต้องให้คนเลือกเพิ่ม (หน้าต่างถาม) คืน false */
@@ -317,6 +397,43 @@ export default function SubEditor(p: SubEditorProps) {
     { code: "Digit1", ctrl: true, field: true, run: () => { if (ev) seekTime(ev.start + dl, "start"); } },
     { code: "Digit2", ctrl: true, field: true, run: () => { if (ev) seekTime(ev.end + dl, "end"); } },
     { code: "KeyG", ctrl: true, field: true, run: () => { if (vidRate()) setVdlg("jump"); } },
+    // คีย์ลัดเสียงของ Aegisub (กลุ่ม Audio) ใช้ตอนไม่ได้พิมพ์ในช่อง · Enter กับ Space ตอนโฟกัสอยู่ที่ปุ่ม ให้ปุ่มทำงานตามปกติ
+    { code: "Enter", noButton: true, run: () => audioAct("commit") },
+    { code: "KeyG", run: () => audioAct("commit") },
+    { code: "Space", noButton: true, run: () => audioAct("playsel") },
+    { code: "KeyS", run: () => audioAct("playsel") },
+    { code: "KeyR", run: () => audioAct("playline") },
+    { code: "KeyQ", run: () => audioAct("before") },
+    { code: "KeyW", run: () => audioAct("after") },
+    { code: "KeyE", run: () => audioAct("begin") },
+    { code: "KeyD", run: () => audioAct("end") },
+    { code: "KeyT", run: () => audioAct("toend") },
+    { code: "KeyH", run: () => audioAct("stop") },
+    { code: "KeyA", run: () => scrollBy(-128) },
+    { code: "KeyF", run: () => scrollBy(128) },
+    { code: "KeyZ", run: () => audioAct("prev") },
+    { code: "KeyX", run: () => audioAct("next") },
+    { code: "KeyC", run: () => audioAct("leadin") },
+    { code: "KeyV", run: () => audioAct("leadout") },
+    // + กับ − ของแป้นตัวเลข ยืดหรือหดเวลาจบทีละ 10 ms (time/length/increase decrease) กด Shift ด้วยก็เหมือนกัน
+    { code: "NumpadAdd", run: () => nudge("len", 1) },
+    { code: "NumpadSubtract", run: () => nudge("len", -1) },
+    { code: "NumpadAdd", shift: true, run: () => nudge("len", 1) },
+    { code: "NumpadSubtract", shift: true, run: () => nudge("len", -1) },
+    // แป้นตัวเลข (Medusa Mode) ใช้ได้แม้กำลังพิมพ์ เปิดจากปุ่มแป้นตัวเลขเท่านั้น ปิดอยู่ตัวเลขพิมพ์ลงช่องตามปกติ
+    ...(tm.opts.medusa ? [
+      { code: "Numpad0", field: true, run: () => audioAct("prev") },
+      { code: "Numpad2", field: true, run: () => audioAct("next") },
+      { code: "Numpad5", field: true, run: () => audioAct("playsel") },
+      { code: "Numpad1", field: true, run: () => audioAct("before") },
+      { code: "Numpad3", field: true, run: () => audioAct("after") },
+      { code: "Numpad8", field: true, run: () => audioAct("stop") },
+      { code: "Numpad4", field: true, run: () => nudge("start", -1) },
+      { code: "Numpad6", field: true, run: () => nudge("start", 1) },
+      { code: "Numpad7", field: true, run: () => nudge("len", -1) },
+      { code: "Numpad9", field: true, run: () => nudge("len", 1) },
+      { code: "NumpadEnter", field: true, run: () => audioAct("commit") },
+    ] : []),
     { code: "NumpadAdd", ctrl: true, field: true, run: () => zoomStep(1) },
     { code: "NumpadSubtract", ctrl: true, field: true, run: () => zoomStep(-1) },
   ], pageOn);
@@ -369,8 +486,13 @@ export default function SubEditor(p: SubEditorProps) {
         <div className="aegtop se-top">
           <SubVideo delayMs={dl} doc={doc} ev={ev} name={nameOf(p.video)} onAddMovie={p.onAddMovie} onKey={sideKey}
             onDummy={() => setVdlg("dummy")} onDetails={() => setVdlg("details")} onJump={() => setVdlg("jump")} onClose={onCloseVideo} />
-          <SubAudio movie={p.video} refStream={p.refStream} refIdx={p.refIdx} delayMs={dl} doc={doc} ev={ev} />
+          <div className="se-acol">
+            <SubAudio movie={movieAud} noAudio={noAudio ?? ""} delayMs={dl} doc={doc} ev={ev} sel={st.sel} onAutoCommit={() => commitTiming(true)}
+              onPrev={() => audioAct("prev")} onNext={() => audioAct("next")} onSeekVideo={(ms) => seekTime(ms, "exact")} />
+            {!tall && <AudioBar compact opts={tm.opts} noAudio={noAudio} noLine={noLine} onAct={audioAct} onToggle={(k, v) => setOpt(k, v)} />}
+          </div>
         </div>
+        {tall && <AudioBar opts={tm.opts} noAudio={noAudio} noLine={noLine} onAct={audioAct} onToggle={(k, v) => setOpt(k, v)} />}
         {ev ? <SubEditBox doc={doc} ev={ev} orig={st.orig[ev.id]} savedEv={savedOf(ev.id)} fr={fr} frWhy={frWhy} delayMs={dl} unit={unit} onUnit={setUnit} onPrev={() => goto(at - 1)} onNext={onNext}
           onInsert={onInsert} onSplit={onSplit} onJoin={onJoin} onDelete={onDelete} onToAss={onToAss} onFont={(apply, current) => setFont({ apply, current })} />
           : <div className="stat info"><CardIcon kind="info" /><div><b>ซับนี้ยังไม่มีบรรทัด</b><div className="minirow"><button type="button" className="btn btn-ghost btn-sm" onClick={() => insertEvent(-1, blankEvent(doc, { start: 0, end: 3000 }), "เพิ่มบรรทัด")} data-se-first>เพิ่มบรรทัดแรก</button></div></div></div>}

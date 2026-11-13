@@ -367,6 +367,16 @@ export const vidApi = {
   keysSave: (path: string, keys: number[]) => call<string>("vid_keys_save", { path, keys }),
 };
 
+/** เสียงของหน้าแก้ซับ (subaudio.rs) · pcm ได้ไบต์ s16le สองช่อง 48 kHz ตรง ๆ ไม่ผ่านข้อความ */
+/** map ตัวเลือกแทร็กแบบ ffmpeg · 0:2 คือแทร็กที่ 2 ของทั้งไฟล์ (เสียงในหนัง) · 0:a:0 คือแทร็กเสียงแรก (ไฟล์เสียงแยก) */
+export const audApi = {
+  pcm: (path: string, map: string, t0: number, dur: number) => call<ArrayBuffer>("sub_pcm", { path, map, t0, dur }),
+  /** คลื่นเสียงช่วง t0 ถึง t1 วินาที ได้ cols คอลัมน์พอดี ค่า 0 ถึง 1 */
+  peaks: (path: string, map: string, t0: number, t1: number, cols: number) => call<number[]>("sub_peaks", { path, map, t0, t1, cols }),
+  /** บันทึกเสียงช่วงเป็น WAV · ไฟล์ปลายทางที่มีอยู่แล้วลงถังขยะ */
+  save: (path: string, map: string, t0: number, t1: number, target: string) => call<string>("sub_audio_save", { path, map, t0, t1, target }),
+};
+
 /** เลือกไฟล์ keyframe (ชนิดที่ Aegisub เปิดได้) · ยกเลิก = null */
 export async function pickKeyframes(): Promise<string | null> {
   if (!inApp) return null;

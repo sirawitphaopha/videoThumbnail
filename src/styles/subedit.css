@@ -1,7 +1,7 @@
 /* หน้าแก้ซับ (แผนหน้าแก้ซับ ขั้น 3 · BUGS ข้อ 109) · ทุกคลาสขึ้นต้น se- อยู่ใต้ [data-subedit] ไม่ชนกับหน้าอื่น (CLAUDE.md ชื่อคลาสเป็นของรวม)
    .aegtop .vframe .aud .ruler2 .vsub .vtime .subtext .np ยกจากตัวดูซับเดิม (av.css) */
-.card.se { margin-top: 0; padding-top: 8px; display: flex; flex-direction: column; gap: 8px; }
-[data-subedit] .se-tools { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; padding-bottom: 8px; border-bottom: 1px solid var(--line); min-width: 0; }
+.card.se { margin-top: 0; padding-top: 6px; display: flex; flex-direction: column; gap: 6px; }
+[data-subedit] .se-tools { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; padding-bottom: 5px; border-bottom: 1px solid var(--line); min-width: 0; }
 [data-subedit] .se-tools .btn { white-space: nowrap; }
 [data-subedit] .se-sep { width: 1px; height: 22px; background: var(--line); flex: none; }
 [data-subedit] .se-state { font-size: 12.5px; color: var(--txt2); white-space: nowrap; overflow: hidden; text-overflow: clip; min-width: 0; }
@@ -22,9 +22,9 @@
 [data-subedit] .se-vimg img { object-fit: fill; }
 [data-subedit] .se-voff { font-variant-numeric: tabular-nums; }
 [data-subedit] .se-vbar { display: flex; align-items: center; gap: 4px; min-width: 0; }
-[data-subedit] .se-vbar .btn-sm { height: 30px; }
+[data-subedit] .se-vbar .btn-sm { height: 28px; }
 [data-subedit] .se-vstep { width: 30px; padding: 0; justify-content: center; flex: none; position: relative; }
-[data-subedit] .se-vpos { flex: 1; min-width: 0; height: 30px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--txt); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; }
+[data-subedit] .se-vpos { flex: 1; min-width: 0; height: 28px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--txt); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; }
 /* เฟรมที่เป็น keyframe ช่องเวลาเปลี่ยนสี (Aegisub ใช้สีแถวที่เลือก) */
 [data-subedit] .se-vpos.key { background: #fbe0ea; border-color: #d8a9b9; color: var(--accent-ink); font-weight: 700; }
 [data-subedit] .se-auto { flex: none; padding: 0 8px; font-size: 12px; letter-spacing: .03em; }
@@ -69,12 +69,61 @@
 [data-subedit] .se-dswatch span { position: absolute; inset: 3px; border-radius: 5px; }
 [data-subedit] .se-dswatch input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
 [data-subedit] .se-dsw { display: inline-flex; align-items: center; gap: 8px; margin-left: 12px; color: var(--txt); }
-[data-subedit] .se-audio { min-width: 0; display: flex; flex-direction: column; gap: 6px; }
-[data-subedit] .se-wavebox { position: relative; }
+/* กรอบคลื่นเสียง (ขั้น 5) · ภาพคลื่นเสียง ขีดเวลาใต้ภาพ แถบเลื่อนตั้งสามอันทางขวา ขอบล่างลากปรับความสูง */
+[data-subedit] .se-audio { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+[data-subedit] .se-anone { padding: 8px 2px; }
+[data-subedit] .se-arow { display: flex; gap: 6px; align-items: stretch; min-width: 0; }
+[data-subedit] .se-wavebox { position: relative; flex: 1; min-width: 0; }
+[data-subedit] .se-aud { width: 100%; display: block; border-radius: 6px; border: 1px solid var(--line); box-sizing: border-box; outline: none; user-select: none; }
+[data-subedit] .se-aud:focus-visible { box-shadow: 0 0 0 3px rgba(200, 64, 111, .25); }
 [data-subedit] .se-wavebtns { position: absolute; top: 6px; right: 6px; display: inline-flex; align-items: center; gap: 4px; padding: 2px; border-radius: 9px; background: rgba(255, 255, 255, .92); }
+[data-subedit] .se-amenu { height: 28px; padding: 0 8px; font-size: 12.5px; gap: 4px; }
+[data-subedit] .se-ruler { position: relative; height: 16px; font-size: 11px; color: var(--txt3); font-variant-numeric: tabular-nums; overflow: hidden; }
+[data-subedit] .se-ruler span { position: absolute; top: 1px; transform: translateX(-50%); white-space: nowrap; }
+[data-subedit] .se-sl { display: flex; flex-direction: column; gap: 2px; padding: 4px 3px 2px; border: 1px solid var(--line); border-radius: 8px; background: #fff; flex: none; }
+[data-subedit] .se-slcols { display: flex; gap: 2px; flex: 1; min-height: 0; }
+[data-subedit] .se-slc { display: flex; flex-direction: column; align-items: center; gap: 3px; color: var(--txt2); width: 20px; }
+[data-subedit] .se-slc input { writing-mode: vertical-lr; direction: rtl; flex: 1; width: 16px; min-height: 40px; margin: 0; accent-color: var(--accent); cursor: pointer; }
+[data-subedit] .se-slc input:disabled { cursor: not-allowed; opacity: .55; }
+[data-subedit] .se-slfoot { display: flex; justify-content: center; align-items: center; gap: 0; }
+[data-subedit] .se-slbtn { display: inline-flex; align-items: center; justify-content: center; height: 22px; width: 24px; padding: 0; border: 1px solid transparent; border-radius: 6px; background: transparent; color: var(--txt2); cursor: pointer; }
+[data-subedit] .se-slbtn:hover { background-color: #faedf1; color: var(--accent-ink); }
+[data-subedit] .se-slbtn.on { background-color: #f5dde5; border-color: #d8a9b9; color: var(--accent-ink); }
+[data-subedit] .se-grip { height: 10px; display: flex; align-items: center; justify-content: center; cursor: ns-resize; border-radius: 5px; }
+[data-subedit] .se-grip i { display: block; width: 42px; height: 4px; border-radius: 2px; background: #e2bfcb; }
+[data-subedit] .se-grip:hover { background-color: #faedf1; }
+[data-subedit] .se-grip:hover i { background: var(--accent); }
+
+/* แถวปุ่มเสียง 19 ปุ่ม · แบบ 2 ไอคอนพร้อมชื่อสั้นเต็มความกว้าง · ที่ว่างไม่พอ (narrow) เหลือไอคอนอย่างเดียว */
+[data-subedit] .se-atb { display: flex; align-items: center; gap: 2px; flex-wrap: nowrap; justify-content: space-between; padding: 0 0 6px; border-bottom: 1px solid var(--line); min-width: 0; }
+[data-subedit] .se-as { width: 1px; height: 30px; background: var(--line); flex: none; margin: 0 1px; }
+[data-subedit] .se-ab { display: inline-flex; flex-direction: column; align-items: center; justify-content: center; gap: 1px; height: 42px; min-width: 40px; padding: 0 3px; border: 1px solid transparent; border-radius: 9px; background: transparent; color: var(--txt); cursor: pointer; font: inherit; flex: none; }
+[data-subedit] .se-ab span { font-size: 11px; line-height: 1.15; white-space: nowrap; color: var(--txt2); }
+[data-subedit] .se-ab:hover { background-color: #faedf1; border-color: #e2bfcb; }
+[data-subedit] .se-ab:hover span, [data-subedit] .se-ab[aria-pressed="true"] span { color: var(--accent-ink); }
+[data-subedit] .se-ab[aria-pressed="true"] { background-color: #f5dde5; border-color: #d8a9b9; }
+[data-subedit] .se-ab.off { opacity: .45; cursor: not-allowed; }
+[data-subedit] .se-ab.off:hover { background-color: #fdf3dc; border-color: #f0d9a2; }
+[data-subedit] .se-atb.narrow, [data-subedit] .se-atb.compact { justify-content: flex-start; gap: 1px; }
+[data-subedit] .se-atb.narrow .se-ab, [data-subedit] .se-atb.compact .se-ab { height: 28px; min-width: 29px; }
+[data-subedit] .se-atb.narrow .se-ab span, [data-subedit] .se-atb.compact .se-ab span { display: none; }
+[data-subedit] .se-atb.narrow .se-as, [data-subedit] .se-atb.compact .se-as { height: 22px; }
+/* แบบ 1 อยู่ใต้คลื่นเสียงในคอลัมน์เดียวกัน ไม่มีเส้นใต้ ที่ว่างไม่พอขึ้นแถวที่สอง */
+[data-subedit] .se-atb.compact { border-bottom: 0; padding: 0; flex-wrap: wrap; row-gap: 2px; }
+[data-subedit] .se-acol { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+[data-subedit] .se-atip { display: inline-flex; align-items: center; flex: none; }
+/* สีไอคอนตามหน้าที่ เป็นชื่อสีกับ color-mix (กฎ CLAUDE.md ตัวแปลงโทนแปลงรหัสสีในไฟล์สไตล์) */
+[data-subedit] .se-c-play { color: seagreen; }
+[data-subedit] .se-c-stop { color: color-mix(in srgb, crimson 85%, white); }
+[data-subedit] .se-c-edge { color: color-mix(in srgb, darkorange 75%, sienna); }
+[data-subedit] .se-c-nav { color: color-mix(in srgb, royalblue 80%, navy); }
+[data-subedit] .se-c-lead { color: color-mix(in srgb, darkcyan 70%, lightseagreen); }
+[data-subedit] .se-c-go { color: color-mix(in srgb, mediumpurple 60%, rebeccapurple); }
+[data-subedit] .se-c-auto { color: color-mix(in srgb, mediumvioletred 75%, palevioletred); }
+[data-subedit] .se-c-spec { color: color-mix(in srgb, chocolate 70%, orangered); }
 
 /* ช่องแก้บรรทัด */
-[data-subedit] .se-edit { border: 1px solid #e8cdd6; border-radius: 10px; background: #fff; padding: 8px 12px; display: flex; flex-direction: column; gap: 6px; }
+[data-subedit] .se-edit { border: 1px solid #e8cdd6; border-radius: 10px; background: #fff; padding: 6px 12px; display: flex; flex-direction: column; gap: 5px; }
 [data-subedit] .se-erow { display: flex; align-items: center; gap: 10px; flex-wrap: nowrap; font-size: 13px; color: var(--txt2); min-width: 0; }
 [data-subedit] .se-erow.se-off { opacity: .55; }
 [data-subedit] .se-f { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; flex: none; }
@@ -89,7 +138,7 @@
 [data-subedit] .se-ib { padding: 0 8px; position: relative; }
 [data-subedit] .se-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(60, 30, 40, .35); margin-left: 4px; }
 [data-subedit] .se-colorpick { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
-[data-subedit] .se-text { width: 100%; box-sizing: border-box; min-height: 62px; resize: vertical; padding: 8px 10px; border: 1px solid #e8cdd6; border-radius: 8px; font: inherit; font-size: 16px; line-height: 1.6; color: var(--txt); background: #fff; }
+[data-subedit] .se-text { width: 100%; box-sizing: border-box; min-height: 62px; resize: vertical; padding: 8px 10px; border: 1px solid #e8cdd6; border-radius: 8px; font: inherit; font-size: 16px; line-height: 1.5; color: var(--txt); background: #fff; }
 [data-subedit] .se-orig { display: flex; gap: 10px; align-items: baseline; font-size: 13.5px; background: var(--accent-soft); border-radius: 8px; padding: 6px 10px; white-space: pre-line; }
 [data-subedit] .se-orig b { color: var(--accent-ink); flex: none; }
 [data-subedit] .se-foot .small { white-space: nowrap; overflow: hidden; }
@@ -98,6 +147,7 @@
 
 /* ตาราง · แถวสูงเท่ากัน 30 จุด (SubGrid ROW) */
 [data-subedit] .se-gridbar { display: flex; align-items: center; gap: 8px; }
+[data-subedit] .se-gridbar .seg.sm button { height: 26px; }
 [data-subedit] .se-grid { border: 1px solid var(--line); border-radius: 10px; overflow: auto; background: #fff; overscroll-behavior: contain; outline: none; }
 [data-subedit] .se-grid:focus-visible { box-shadow: 0 0 0 3px rgba(200,64,111,.18); }
 [data-subedit] .se-grid table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 13.5px; }

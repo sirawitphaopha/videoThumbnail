@@ -75,6 +75,17 @@ export async function connect() {
     return b;
   };
 
+  /** ลากเมาส์จริงจาก (x0, y0) ไป (x1, y1) ทีละ steps ขั้น · button left right middle · modifiers Alt 1 Ctrl 2 Shift 8 (หน้าแก้ซับ ขั้น 5) */
+  const drag = async (x0, y0, x1, y1, { button = "left", modifiers = 0, steps = 8 } = {}) => {
+    const buttons = button === "left" ? 1 : button === "right" ? 2 : 4;
+    await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: x0, y: y0, modifiers });
+    await send("Input.dispatchMouseEvent", { type: "mousePressed", x: x0, y: y0, button, buttons, clickCount: 1, modifiers });
+    for (let i = 1; i <= steps; i++) {
+      await send("Input.dispatchMouseEvent", { type: "mouseMoved", x: x0 + ((x1 - x0) * i) / steps, y: y0 + ((y1 - y0) * i) / steps, button, buttons, modifiers });
+    }
+    await send("Input.dispatchMouseEvent", { type: "mouseReleased", x: x1, y: y1, button, buttons: 0, clickCount: 1, modifiers });
+  };
+
   /** เลือกเรื่องบนชั้นวาง กดปกที่เลือกอยู่แล้วแผงจะปิด จึงกดเฉพาะตอนยังไม่ได้เลือก */
   const book = async (name) => {
     const sel = `.book[data-movie="${name}"]`;
@@ -121,5 +132,5 @@ export async function connect() {
     return out;
   };
 
-  return { send, evaluate, box, move, hover, click, book, setNav, key, type, shot, shotRect, close: () => ws.close() };
+  return { send, evaluate, box, move, hover, click, drag, book, setNav, key, type, shot, shotRect, close: () => ws.close() };
 }
