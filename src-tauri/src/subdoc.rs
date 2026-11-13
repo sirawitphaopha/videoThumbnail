@@ -1014,6 +1014,129 @@ pub fn subdoc_parse_text(text: String, kind: String, enc: Enc, source: Option<So
     doc
 }
 
+// ---------------------------------------------------------------- บันทึกอัตโนมัติ กันปิด (แผนหน้าแก้ซับ ขั้น 2)
+
+/// ชื่อซับที่แก้แล้วยังไม่บันทึก · ตัวกันปิด (jobs::guard_close) ถามก่อนปิดโปรแกรม · หน้าจอบอกทุกครั้งที่สถานะเปลี่ยน
+pub static DIRTY: std::sync::Mutex<Option<String>> = std::sync::Mutex::new(None);
+
+#[tauri::command]
+pub fn subdoc_set_dirty(name: Option<String>) {
+    *DIRTY.lock().unwrap() = name;
+}
+
+/// เก็บฉบับบันทึกอัตโนมัติกี่ฉบับต่อไฟล์ (แผนหน้าแก้ซับ แคลร์ตั้ง)
+const KEEP_AUTOSAVES: usize = 10;
+
+fn autosave_dir(app: &AppHandle) -> Result<PathBuf, String> {
+    let d = app.path().app_local_data_dir().map_err(|e| e.to_string())?.join("autosave");
+    std::fs::create_dir_all(&d).map_err(|e| e.to_string())?;
+    Ok(d)
+}
+
+/// ข้อมูลข้างไฟล์บันทึกอัตโนมัติ · ชื่อไฟล์ที่แก้ ที่มา เวลาบันทึก
+#[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
+#[serde(rename_all = "camelCase")]
+pub struct AutoItem {
+    pub path: String,
+    pub name: String,
+    pub source: Option<Source>,
+    /// วันเวลาเครื่อง ปปปป-ดด-วว ชช:นน:วว
+    pub at: String,
+    pub events: usize,
+    /// ลำดับที่บันทึก เพิ่มขึ้นเสมอ ใช้เรียงใหม่เก่า (บันทึกหลายฉบับในวินาทีเดียวกันก็เรียงถูก)
+    #[serde(default)]
+    pub seq: u64,
+}
+
+static AUTO_SEQ: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new(0);
+
+/// เวลาเครื่องเป็นไมโครวินาที ไม่ซ้ำกับครั้งก่อน
+fn next_seq() -> u64 {
+    use std::sync::atomic::Ordering;
+    let now = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_micros() as u64).unwrap_or(0);
+    let mut cur = AUTO_SEQ.load(Ordering::SeqCst);
+    loop {
+        let want = now.max(cur + 1);
+        match AUTO_SEQ.compare_exchange(cur, want, Ordering::SeqCst, Ordering::SeqCst) { Ok(_) => return want, Err(v) => cur = v }
+    }
+}
+
+/// ชื่อที่ใช้เป็นไฟล์ได้ · ตัวที่ Windows ห้ามเปลี่ยนเป็นขีดล่าง
+fn safe_name(s: &str) -> String {
+    s.chars().map(|c| if matches!(c, '<' | '>' | ':' | '"' | '/' | '\\' | '|' | '?' | '*') || (c as u32) < 32 { '_' } else { c }).collect()
+}
+
+/// เขียนฉบับบันทึกอัตโนมัติ ไฟล์ซับจริงที่เปิดด้วยโปรแกรมอื่นได้ กับไฟล์ .json ข้างกัน · เก็บ 10 ฉบับล่าสุดต่อชื่อ
+pub fn autosave_to(dir: &Path, doc: &SubDoc, name: &str) -> Result<AutoItem, String> {
+    let t = crate::actlog::now_local();
+    let ext = match doc.kind.as_str() { "ass" => "ass", "ssa" => "ssa", "vtt" => "vtt", _ => "srt" };
+    let base = safe_name(name);
+    let stamp = format!("{:04}{:02}{:02}-{:02}{:02}{:02}", t.y, t.mo, t.d, t.h, t.mi, t.s);
+    let mut file = dir.join(format!("{base}.{stamp}.{ext}"));
+    let mut n = 2;
+    while file.exists() { file = dir.join(format!("{base}.{stamp}-{n}.{ext}")); n += 1; }
+    let (bytes, _, _) = to_bytes(doc);
+    let item = AutoItem {
+        path: file.display().to_string(), name: name.into(), source: doc.source.clone(),
+        at: format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02}", t.y, t.mo, t.d, t.h, t.mi, t.s), events: doc.events.len(), seq: next_seq(),
+    };
+    std::fs::write(&file, &bytes).map_err(|e| format!("บันทึกอัตโนมัติไม่สำเร็จ {e}"))?;
+    let json = serde_json::to_vec_pretty(&item).map_err(|e| e.to_string())?;
+    std::fs::write(format!("{}.json", file.display()), json).map_err(|e| format!("บันทึกอัตโนมัติไม่สำเร็จ {e}"))?;
+    // เก่ากว่า 10 ฉบับของชื่อเดียวกัน ลบทิ้ง (ไฟล์ของโปรแกรมเอง ไม่ต้องลงถังขยะ)
+    let mut same: Vec<AutoItem> = list_autosaves(dir).into_iter().filter(|a| a.name == name).collect();
+    if same.len() > KEEP_AUTOSAVES {
+        for old in &same[KEEP_AUTOSAVES..] {
+            let _ = std::fs::remove_file(&old.path);
+            let _ = std::fs::remove_file(format!("{}.json", old.path));
+        }
+    }
+    Ok(item)
+}
+
+/// ฉบับบันทึกอัตโนมัติทั้งหมด ใหม่สุดก่อน · อ่านจากไฟล์ .json ข้างไฟล์ซับ
+pub fn list_autosaves(dir: &Path) -> Vec<AutoItem> {
+    let mut out: Vec<AutoItem> = std::fs::read_dir(dir).map(|rd| rd.flatten().filter_map(|e| {
+        let p = e.path();
+        if p.extension()?.to_str()? != "json" { return None; }
+        let item: AutoItem = serde_json::from_slice(&std::fs::read(&p).ok()?).ok()?;
+        Path::new(&item.path).exists().then_some(item)
+    }).collect()).unwrap_or_default();
+    out.sort_by(|a, b| b.seq.cmp(&a.seq));
+    out
+}
+
+#[tauri::command]
+pub fn subdoc_autosave(app: AppHandle, doc: SubDoc, name: String) -> Result<AutoItem, String> {
+    autosave_to(&autosave_dir(&app)?, &doc, &name)
+}
+
+#[tauri::command]
+pub fn subdoc_autosaves(app: AppHandle) -> Result<Vec<AutoItem>, String> {
+    Ok(list_autosaves(&autosave_dir(&app)?))
+}
+
+/// เปิดฉบับบันทึกอัตโนมัติ · ที่มาเป็นไฟล์เดิมที่แก้ (ขนาดกับเวลาแก้ล่าสุด) กดบันทึกแล้วเขียนทับไฟล์เดิม ไม่ใช่ฉบับอัตโนมัติ
+/// ไฟล์เดิมหายไปแล้ว หรือเป็นซับในหนัง ที่มาเป็นแบบซับในหนัง ต้องบันทึกเป็นไฟล์ใหม่
+pub fn open_autosave(dir: &Path, path: &Path) -> Result<SubDoc, String> {
+    if path.parent() != Some(dir) { return Err("เปิดได้เฉพาะไฟล์ในโฟลเดอร์บันทึกอัตโนมัติ".into()); }
+    let item: AutoItem = serde_json::from_slice(&std::fs::read(format!("{}.json", path.display())).map_err(|e| e.to_string())?).map_err(|e| e.to_string())?;
+    let bytes = std::fs::read(path).map_err(|e| format!("อ่านฉบับบันทึกอัตโนมัติไม่ได้ {e}"))?;
+    let ext = path.extension().map(|e| e.to_string_lossy().to_string()).unwrap_or_default();
+    let mut doc = parse_doc(&bytes, &ext, None);
+    doc.source = match item.source {
+        Some(s) if !s.in_movie && Path::new(&s.path).exists() => { let (size, mtime) = stamp(Path::new(&s.path)); Some(Source { size, mtime, ..s }) }
+        Some(s) => Some(Source { in_movie: true, size: 0, mtime: 0, ..s }),
+        None => None,
+    };
+    Ok(doc)
+}
+
+#[tauri::command]
+pub fn subdoc_open_autosave(app: AppHandle, path: String) -> Result<SubDoc, String> {
+    open_autosave(&autosave_dir(&app)?, Path::new(&path))
+}
+
 // ---------------------------------------------------------------- เทส
 
 #[cfg(test)]
@@ -1260,6 +1383,39 @@ mod tests {
         let mut m = d.clone();
         m.source = Some(Source { path: f.display().to_string(), in_movie: true, size: 0, mtime: 0 });
         assert!(save(&m, &f, "replace", false).is_err());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    #[test]
+    fn autosave_keeps_ten_and_reopens_to_the_original() {
+        let dir = std::env::temp_dir().join(format!("ชั้นหนัง-autosave-{}", crate::poster_image::unique()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let orig = dir.join("เดิม.th.srt");
+        std::fs::write(&orig, "1\n00:00:01,000 --> 00:00:02,000\nก\n").unwrap();
+        let mut d = parse_doc(&std::fs::read(&orig).unwrap(), "srt", None);
+        let (size, mtime) = stamp(&orig);
+        d.source = Some(Source { path: orig.display().to_string(), in_movie: false, size, mtime });
+        let auto = dir.join("autosave");
+        std::fs::create_dir_all(&auto).unwrap();
+        for k in 0..12 {
+            d.events[0].text = format!("แก้ครั้งที่ {k}");
+            autosave_to(&auto, &d, "เดิม.th.srt").unwrap();
+        }
+        let other = autosave_to(&auto, &d, "อีกไฟล์.ass").unwrap();
+        let list = list_autosaves(&auto);
+        assert_eq!(list.iter().filter(|a| a.name == "เดิม.th.srt").count(), 10, "เก็บ 10 ฉบับล่าสุดต่อชื่อ");
+        assert_eq!(list[0].path, other.path, "ใหม่สุดก่อน");
+        let newest = list.iter().find(|a| a.name == "เดิม.th.srt").unwrap();
+        // เปิดฉบับใหม่สุด ได้ข้อความล่าสุด ที่มาเป็นไฟล์เดิม
+        let back = open_autosave(&auto, Path::new(&newest.path)).unwrap();
+        assert_eq!(back.events[0].text, "แก้ครั้งที่ 11");
+        assert_eq!(back.source.as_ref().unwrap().path, orig.display().to_string());
+        assert!(!back.source.as_ref().unwrap().in_movie);
+        // ไฟล์นอกโฟลเดอร์บันทึกอัตโนมัติเปิดผ่านทางนี้ไม่ได้
+        assert!(open_autosave(&auto, &orig).is_err());
+        // ไฟล์เดิมหายไป ต้องบันทึกเป็นไฟล์ใหม่
+        std::fs::remove_file(&orig).unwrap();
+        assert!(open_autosave(&auto, Path::new(&newest.path)).unwrap().source.unwrap().in_movie);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

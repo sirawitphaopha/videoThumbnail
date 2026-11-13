@@ -94,6 +94,11 @@ pub fn guard_close(app: &AppHandle) -> bool {
         let _ = app.emit("close-pairs", waiting);
         return true;
     }
+    // ซับที่แก้ในหน้าแก้ซับแล้วยังไม่บันทึก ถาม บันทึก ไม่บันทึก หรือยกเลิก (แผนหน้าแก้ซับ ขั้น 2)
+    if let Some(name) = crate::subdoc::DIRTY.lock().unwrap().clone() {
+        let _ = app.emit("close-subdirty", name);
+        return true;
+    }
     false
 }
 

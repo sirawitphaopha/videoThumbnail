@@ -131,7 +131,7 @@ function Frame() {
           </main>
         </div>
       ))}
-      <CloseGuard onGoLink={() => { setLinkJob({ view: "table" }); setInfoId(null); setPage("link"); }} />
+      <CloseGuard onGoLink={() => { setLinkJob({ view: "table" }); setInfoId(null); setPage("link"); }} onGoSub={() => { setInfoId(null); setPage("subtitle"); }} />
       <OverlayScrollbar />
     </div>
   );

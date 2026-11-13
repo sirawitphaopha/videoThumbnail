@@ -54,7 +54,7 @@ impl Stamp {
     }
 }
 
-fn now_local() -> Stamp {
+pub(crate) fn now_local() -> Stamp {
     use windows_sys::Win32::System::SystemInformation::GetLocalTime;
     let mut t = unsafe { std::mem::zeroed() };
     unsafe { GetLocalTime(&mut t) };

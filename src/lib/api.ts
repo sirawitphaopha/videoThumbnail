@@ -343,7 +343,14 @@ export const subDocApi = {
   freeName: (path: string) => call<string>("subdoc_free_name", { path }),
   render: (doc: SubDoc) => call<string>("subdoc_render", { doc }),
   parseText: (text: string, kind: SubDoc["kind"], enc: SubEnc, source: SubSource | null) => call<SubDoc>("subdoc_parse_text", { text, kind, enc, source }),
+  /** บอกฝั่ง Rust ว่ามีซับที่แก้แล้วยังไม่บันทึก ตัวกันปิดจะถามก่อนปิดโปรแกรม · null = ไม่มี */
+  setDirty: (name: string | null) => call<void>("subdoc_set_dirty", { name }),
+  autosave: (doc: SubDoc, name: string) => call<SubAutosave>("subdoc_autosave", { doc, name }),
+  autosaves: () => call<SubAutosave[]>("subdoc_autosaves"),
+  openAutosave: (path: string) => call<SubDoc>("subdoc_open_autosave", { path }),
 };
+/** ฉบับบันทึกอัตโนมัติ · at วันเวลาเครื่อง · seq ลำดับที่บันทึก */
+export type SubAutosave = { path: string; name: string; source: SubSource | null; at: string; events: number; seq: number };
 
 /* ตัวช่วยหาดีเลย์ (แผนเสียงและซับ ขั้น 5 · delay.rs) · ดีเลย์เป็น ms ค่าที่ใส่ให้เสียงใหม่ ติดลบ = มาเร็วขึ้น */
 export type DelayWin = { at: number; delay: number; score: number };
