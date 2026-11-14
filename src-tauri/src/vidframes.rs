@@ -254,7 +254,7 @@ pub fn vid_table_stop() {
 /// ตัวเลือกของ ffmpeg ที่เปิดไฟล์ตรงเวลา ss แล้วเอา count เฟรมต่อกัน · ใช้ร่วมกับเทสที่อ่านค่าสีจริง
 /// -ss ก่อน -i ffmpeg กระโดดไป keyframe ก่อนหน้าแล้วถอดทิ้งจนถึง ss (เฟรมที่เวลาก่อน ss ไม่ออกมา)
 /// map 0:V:0 คือภาพแรกที่ไม่ใช่รูปปก (MP4 ที่มีปกใหญ่กว่าภาพหนัง ffmpeg เลือกปกเอง) · passthrough ไม่ให้เพิ่มหรือทิ้งเฟรมตามอัตราเฟรม
-fn seek_args(movie: &Path, ss: f64, count: u32) -> Vec<OsString> {
+pub(crate) fn seek_args(movie: &Path, ss: f64, count: u32) -> Vec<OsString> {
     vec!["-v".into(), "error".into(), "-nostdin".into(), "-ss".into(), format!("{:.6}", ss.max(0.0)).into(), "-i".into(), movie.into(),
         "-map".into(), "0:V:0".into(), "-frames:v".into(), count.to_string().into(), "-fps_mode".into(), "passthrough".into()]
 }

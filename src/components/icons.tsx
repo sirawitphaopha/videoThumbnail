@@ -186,3 +186,12 @@ export const IbSelect = ({ size = 15, stroke = "currentColor" }: P) =>
   svg(size, 2.2, stroke, <><rect x="3" y="4" width="7" height="7" rx="1.5" /><path d="m5 7.5 1.5 1.5L9 6" /><path d="M14 7.5h7" /><rect x="3" y="14" width="7" height="7" rx="1.5" /><path d="M14 17.5h7" /></>);
 export const IbJump = ({ size = 15, stroke = "currentColor" }: P) =>
   svg(size, 2.2, stroke, <><path d="M4 12h12" /><path d="m12 7 5 5-5 5" /><path d="M20 5v14" /></>);
+/** เครื่องมือกากบาทบนภาพ (BUGS ข้อ 111 แบบ Aegisub visual_standard) เส้นกากบาทเว้นกลางกับจุด */
+export const IbCross = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M12 3v6M12 15v6M3 12h6M15 12h6" /><circle cx="12" cy="12" r="1" /></>);
+/** เครื่องมือลากจัดตำแหน่ง ลูกศรสี่ทิศ */
+export const IbDrag = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M12 3v18M3 12h18" /><path d="m9 6 3-3 3 3M9 18l3 3 3-3M6 9l-3 3 3 3M18 9l3 3-3 3" /></>);
+/** สลับ \move กับ \pos จุดตั้งต้นสี่เหลี่ยม ลูกศรไปจุดปลายวงกลม */
+export const IbMovePos = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><rect x="3" y="14" width="6" height="6" rx="1" /><circle cx="18" cy="7" r="3" /><path d="M9 15 15 9" /><path d="M11 9h4v4" /></>);

@@ -31,6 +31,7 @@ mod store;
 mod subaudio;
 mod subdoc;
 mod subs;
+mod subshot;
 mod tools;
 mod vidframes;
 mod vidplay;
@@ -168,7 +169,7 @@ pub fn run() {
         latest::thanks_open, bitrate::bitrate_start, bitrate::bitrate_tracks, bitrate::bitrate_stop, merge::merge_inspect, merge::merge_add_file, merge::merge_apply, merge::merge_cancel, merge::merge_cover_preview, merge::merge_cover_drop, encode::encode_preview, encode::encoders_status, encode::encoders_open_dir, encode::encoders_user_dir, latest::encoders_latest, latest::encoders_open_page, latest::open_itunes_page, fonts::font_info,
         delay::delay_find, delay::delay_view, delay::delay_preview,
         subs::movie_frame, subs::sub_text, subs::sub_frame, subs::sub_wave, subs::sub_images,
-        subdoc::subdoc_open, subdoc::subdoc_stamp, subdoc::subdoc_save, subdoc::subdoc_convert, subdoc::subdoc_free_name, subdoc::subdoc_render, subdoc::subdoc_parse_text, subdoc::subdoc_temp,
+        subdoc::subdoc_open, subdoc::subdoc_stamp, subdoc::subdoc_save, subdoc::subdoc_convert, subdoc::subdoc_free_name, subdoc::subdoc_render, subdoc::subdoc_parse_text, subdoc::subdoc_temp, subshot::sub_overlay, subshot::vid_snapshot,
         subdoc::subdoc_set_dirty, subdoc::subdoc_autosave, subdoc::subdoc_autosaves, subdoc::subdoc_open_autosave, fonts::font_families,
         vidframes::vid_table, vidframes::vid_table_stop, vidframes::vid_frames, vidframes::vid_scenes, vidframes::vid_scenes_stop, vidframes::vid_keys_load, vidframes::vid_keys_save, vidplay::vid_play, vidplay::vid_play_stop, mpvplay::mpv_play, mpvplay::mpv_state, mpvplay::mpv_rect, mpvplay::mpv_sub, mpvplay::mpv_volume, mpvplay::mpv_stop, mpvplay::mpv_available, mpvplay::mpv_dev_props, mpvplay::mpv_dev_shot,
         subaudio::sub_pcm, subaudio::sub_audio_save, subaudio::sub_peaks,
@@ -193,7 +194,7 @@ pub fn run() {
         latest::thanks_open, bitrate::bitrate_start, bitrate::bitrate_tracks, bitrate::bitrate_stop, merge::merge_inspect, merge::merge_add_file, merge::merge_apply, merge::merge_cancel, merge::merge_cover_preview, merge::merge_cover_drop, encode::encode_preview, encode::encoders_status, encode::encoders_open_dir, encode::encoders_user_dir, latest::encoders_latest, latest::encoders_open_page, latest::open_itunes_page, fonts::font_info,
         delay::delay_find, delay::delay_view, delay::delay_preview,
         subs::movie_frame, subs::sub_text, subs::sub_frame, subs::sub_wave, subs::sub_images,
-        subdoc::subdoc_open, subdoc::subdoc_stamp, subdoc::subdoc_save, subdoc::subdoc_convert, subdoc::subdoc_free_name, subdoc::subdoc_render, subdoc::subdoc_parse_text, subdoc::subdoc_temp,
+        subdoc::subdoc_open, subdoc::subdoc_stamp, subdoc::subdoc_save, subdoc::subdoc_convert, subdoc::subdoc_free_name, subdoc::subdoc_render, subdoc::subdoc_parse_text, subdoc::subdoc_temp, subshot::sub_overlay, subshot::vid_snapshot,
         subdoc::subdoc_set_dirty, subdoc::subdoc_autosave, subdoc::subdoc_autosaves, subdoc::subdoc_open_autosave, fonts::font_families,
         vidframes::vid_table, vidframes::vid_table_stop, vidframes::vid_frames, vidframes::vid_scenes, vidframes::vid_scenes_stop, vidframes::vid_keys_load, vidframes::vid_keys_save, vidplay::vid_play, vidplay::vid_play_stop, mpvplay::mpv_play, mpvplay::mpv_state, mpvplay::mpv_rect, mpvplay::mpv_sub, mpvplay::mpv_volume, mpvplay::mpv_stop, mpvplay::mpv_available, mpvplay::mpv_dev_props, mpvplay::mpv_dev_shot,
         subaudio::sub_pcm, subaudio::sub_audio_save, subaudio::sub_peaks,

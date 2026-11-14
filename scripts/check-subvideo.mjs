@@ -145,8 +145,8 @@ try {
   // ---------- ขนาดภาพ ----------
   const sz = async () => q("const b = document.querySelector('[data-vframe]').getBoundingClientRect(); return [Math.round(b.width), Math.round(b.height)];");
   check("พอดีกรอบ 288 × 162", (await sz()).join("x") === "288x162", (await sz()).join("x"));
-  await q(`const v = document.querySelector('[data-vframe]'); const r = v.getBoundingClientRect(); v.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, ctrlKey: true, bubbles: true, cancelable: true, clientX: r.left + 10, clientY: r.top + 10 })); return 1;`); await sleep(150);
-  check("Ctrl หมุนล้อขึ้นบนภาพ ซูมจากพอดีกรอบ 45% (ขั้นใกล้สุด 50%) เป็น 62.5% ภาพ 400 × 225", (await sz()).join("x") === "400x225", (await sz()).join("x"));
+  await q(`const v = document.querySelector('[data-vframe]'); const r = v.getBoundingClientRect(); v.dispatchEvent(new WheelEvent('wheel', { deltaY: -100, bubbles: true, cancelable: true, clientX: r.left + 10, clientY: r.top + 10 })); return 1;`); await sleep(150);
+  check("หมุนล้อขึ้นบนภาพ (แบบ Aegisub ไม่ต้องกด Ctrl) ซูมจากพอดีกรอบ 45% (ขั้นใกล้สุด 50%) เป็น 62.5% ภาพ 400 × 225", (await sz()).join("x") === "400x225", (await sz()).join("x"));
   const openMenu = async () => { if (!(await q("return !!document.querySelector('[data-vmenupanel]');"))) await q("document.querySelector('[data-vmenu]').click(); return 1;"); return waitFor("return !!document.querySelector('[data-vmenupanel]')"); };
   const pickZoom = async (label) => {
     await openMenu();

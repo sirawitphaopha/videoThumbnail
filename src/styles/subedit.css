@@ -34,6 +34,32 @@
 [data-subedit] .se-vbadge { position: absolute; top: -7px; right: -10px; font-size: 10px; line-height: 15px; background: var(--accent); color: #fff; border-radius: 8px; padding: 0 4px; font-variant-numeric: tabular-nums; }
 [data-subedit] .se-vnonebtns { display: inline-flex; gap: 6px; }
 
+/* เครื่องมือบนภาพ (BUGS ข้อ 111) · แถบเลือกเครื่องมือซ้ายของภาพแบบ Aegisub กว้าง 30 จุดกับช่องห่าง 4 (TOOLBAR_W ใน SubVideo.tsx)
+   สีที่วาดทับภาพเป็นชื่อสีกับ color-mix ไม่ให้ตัวแปลงโทนเปลี่ยน ภาพหนังเป็นเนื้อหา */
+[data-subedit] .se-vrow { position: relative; display: flex; gap: 4px; align-items: flex-start; min-width: 0; }
+[data-subedit] .se-vtoolbar { flex: none; width: 30px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+[data-subedit] .se-vtoolbar .btn-sm { height: 28px; }
+[data-subedit] .se-vtsep { width: 18px; height: 1px; background: var(--line); margin: 1px 0; }
+[data-subedit] .se-vtinfo { display: inline-flex; margin-top: 2px; }
+[data-subedit] .se-vtools { position: absolute; left: 0; top: 0; display: block; touch-action: none; }
+[data-subedit] .se-vtools.cross { cursor: none; }
+/* เส้นกากบาทขาวมีเงาดำ เห็นทั้งบนภาพสว่างและมืด (Aegisub วาดแบบกลับสี) */
+[data-subedit] .se-vxline path { fill: none; stroke: white; stroke-width: 1; filter: drop-shadow(0 0 1px black); }
+[data-subedit] .se-vxtext { fill: white; font-size: 12px; font-weight: 700; stroke: color-mix(in srgb, black 75%, transparent); stroke-width: 3px; paint-order: stroke; font-variant-numeric: tabular-nums; pointer-events: none; }
+/* ซับที่ libass วาด วางทับภาพหนังพอดี */
+[data-subedit] .se-vsubimg { position: absolute; pointer-events: none; }
+/* แจ้งผลของเมนูคลิกขวา ลอยทับล่างซ้ายของภาพ ไม่ดันกรอบ */
+[data-subedit] .se-vnote { position: absolute; bottom: 6px; display: flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 7px; background: color-mix(in srgb, black 68%, transparent); color: white; font-size: 12px; line-height: 1.45; z-index: 2; }
+[data-subedit] .se-vnote.err { background: color-mix(in srgb, firebrick 90%, black); }
+[data-subedit] .se-vnote .btn-sm { height: 22px; padding: 0 8px; color: white; flex: none; }
+[data-subedit] .se-vnote .btn-sm:hover { background: color-mix(in srgb, white 18%, transparent); color: white; }
+/* เมนูคลิกขวาบนภาพ */
+[data-subedit] .se-vctx { padding: 6px; min-width: 236px; display: flex; flex-direction: column; gap: 1px; }
+[data-subedit] .se-vctx .se-vmi { white-space: nowrap; }
+[data-subedit] .se-vctxsep { height: 1px; background: var(--line); margin: 4px 2px; }
+[data-subedit] .se-vctxrow { display: flex; align-items: center; gap: 2px; }
+[data-subedit] .se-vctxrow .se-vmi { flex: 1; width: auto; font-variant-numeric: tabular-nums; }
+
 /* เมนูวิดีโอ */
 [data-subedit] .se-vmenu { padding: 6px; gap: 1px; }
 [data-subedit] .se-vmrow { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 0 4px; }

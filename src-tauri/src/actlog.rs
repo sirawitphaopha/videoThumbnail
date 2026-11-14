@@ -31,6 +31,7 @@ const WATCH: &[(&str, &str)] = &[
     ("subdoc_save", "บันทึกไฟล์ซับในหน้าแก้ซับ"),
     ("vid_keys_save", "บันทึกไฟล์ keyframe ในหน้าแก้ซับ"),
     ("sub_audio_save", "บันทึกเสียงของบรรทัดซับเป็นไฟล์"),
+    ("vid_snapshot", "บันทึกหรือคัดลอกภาพจากหน้าแก้ซับ"),
     ("graph_save_image", "บันทึกรูปกราฟ"),
     ("graph_cache_clear", "ล้างกราฟที่เก็บไว้"),
     ("check_start", "ตรวจไฟล์"),
@@ -88,12 +89,12 @@ pub fn invoke(cmd: &str, body: &tauri::ipc::InvokeBody) {
     note(what, &detail);
 }
 
-/// ค่าที่ส่งมาของคำสั่ง · เอกสารซับ (doc) ยาวทั้งไฟล์ ตัดออกก่อนจด เหลือที่อยู่ไฟล์กับแบบบันทึก
+/// ค่าที่ส่งมาของคำสั่ง · เอกสารซับ (doc) ยาวทั้งไฟล์ กับภาพวิดีโอจำลอง (bg ของ vid_snapshot) ตัดออกก่อนจด เหลือที่อยู่ไฟล์กับแบบบันทึก
 /// เดิมเนื้อซับยาวจนบรรทัดถูกตัดก่อนถึงที่อยู่ไฟล์ บันทึกที่ล้มไม่มีที่อยู่ไฟล์เลย (ผู้ช่วยตรวจทาน R13)
 fn json_detail(v: &serde_json::Value) -> String {
-    if v.get("doc").is_none() { return brief(v); }
+    if v.get("doc").is_none() && v.get("bg").is_none() { return brief(v); }
     let mut v = v.clone();
-    if let Some(o) = v.as_object_mut() { o.remove("doc"); }
+    if let Some(o) = v.as_object_mut() { o.remove("doc"); o.remove("bg"); }
     brief(&v)
 }
 

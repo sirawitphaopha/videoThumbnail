@@ -137,6 +137,59 @@ pub fn clipboard_text() -> Result<String, String> {
     }
 }
 
+/// ภาพลงคลิปบอร์ดของ Windows สองแบบพร้อมกัน (เมนูคลิกขวาบนภาพหน้าแก้ซับ แบบ Aegisub video/frame/copy · BUGS ข้อ 111)
+/// แบบ PNG เก็บพื้นโปร่งใสของภาพเฉพาะซับ โปรแกรมอย่าง Word เบราว์เซอร์ Photoshop อ่านแบบนี้ · แบบ DIB 32 บิตให้โปรแกรมเก่าอย่าง Paint
+/// hwnd ต้องเป็นหน้าต่างจริง OpenClipboard ด้วยหน้าต่างว่างแล้ว EmptyClipboard ตั้งเจ้าของเป็นว่าง SetClipboardData จะไม่สำเร็จ (เอกสารของ Windows)
+pub fn clipboard_image(hwnd: isize, png: &[u8], rgba: &image::RgbaImage) -> Result<(), String> {
+    use windows_sys::Win32::System::DataExchange::{CloseClipboard, EmptyClipboard, OpenClipboard, RegisterClipboardFormatW, SetClipboardData};
+    use windows_sys::Win32::Foundation::GlobalFree;
+    use windows_sys::Win32::System::Memory::{GlobalAlloc, GlobalLock, GlobalUnlock, GMEM_MOVEABLE};
+    const CF_DIB: u32 = 8;
+    let (w, h) = rgba.dimensions();
+    // หัว BITMAPINFOHEADER 40 ไบต์ ตามด้วยจุดภาพ BGRA เรียงแถวล่างขึ้นบน (ความสูงเป็นบวก)
+    let mut dib = Vec::with_capacity(40 + (w * h * 4) as usize);
+    for v in [40u32, w] { dib.extend_from_slice(&v.to_le_bytes()); }
+    dib.extend_from_slice(&(h as i32).to_le_bytes());
+    dib.extend_from_slice(&1u16.to_le_bytes());
+    dib.extend_from_slice(&32u16.to_le_bytes());
+    for v in [0u32, w * h * 4, 0, 0, 0, 0] { dib.extend_from_slice(&v.to_le_bytes()); }
+    for y in (0..h).rev() {
+        for x in 0..w {
+            let p = rgba.get_pixel(x, y).0;
+            dib.extend_from_slice(&[p[2], p[1], p[0], p[3]]);
+        }
+    }
+    // ข้อมูลที่ส่งให้คลิปบอร์ดแล้วเป็นของระบบ · ส่งไม่สำเร็จต้องคืนหน่วยความจำเอง
+    // เรียกเฉพาะตอนเปิดคลิปบอร์ดอยู่
+    unsafe fn put(fmt: u32, data: &[u8]) -> bool {
+        unsafe {
+            let g = GlobalAlloc(GMEM_MOVEABLE, data.len());
+            if g.is_null() { return false; }
+            let p = GlobalLock(g) as *mut u8;
+            if p.is_null() { GlobalFree(g); return false; }
+            std::ptr::copy_nonoverlapping(data.as_ptr(), p, data.len());
+            GlobalUnlock(g);
+            if SetClipboardData(fmt, g as _).is_null() { GlobalFree(g); return false; }
+            true
+        }
+    }
+    unsafe {
+        let mut opened = false;
+        for _ in 0..5 {
+            if OpenClipboard(hwnd as HWND) != 0 { opened = true; break; }
+            std::thread::sleep(std::time::Duration::from_millis(20));
+        }
+        if !opened { return Err("เปิดคลิปบอร์ดไม่ได้ ลองกดอีกครั้ง".into()); }
+        EmptyClipboard();
+        let name: Vec<u16> = "PNG".encode_utf16().chain(Some(0)).collect();
+        let png_fmt = RegisterClipboardFormatW(name.as_ptr());
+        let a = png_fmt != 0 && put(png_fmt, png);
+        let b = put(CF_DIB, &dib);
+        CloseClipboard();
+        if a || b { Ok(()) } else { Err("ใส่ภาพลงคลิปบอร์ดไม่ได้".into()) }
+    }
+}
+
 /// หน้าต่างสูงหรือกว้างกว่าพื้นที่ใช้ได้ของจอที่อยู่ ย่อให้พอดีแล้วเลื่อนเข้าในจอ · หน้าต่างที่พอดีอยู่แล้วไม่แตะ (คนวางเลยขอบเองไม่ดึงกลับ)
 /// จอที่สองของพี่กัน 1366×768 ใช้ได้สูง 720 แต่หน้าต่างตั้งไว้ 800 ส่วนล่างจมใต้แถบงาน (พี่กันส่งภาพ 11 พ.ย. 2569 *"ตกขอบ"*)
 /// ไม่ทำตอนขยายเต็ม เต็มจอ หรือย่อลงแถบงาน · ปรับขนาดผ่าน Tauri

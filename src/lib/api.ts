@@ -389,6 +389,15 @@ export const vidApi = {
   mpvAvailable: () => call<boolean>("mpv_available"),
   keysLoad: (path: string) => call<number[]>("vid_keys_load", { path }),
   keysSave: (path: string, keys: number[]) => call<string>("vid_keys_save", { path, keys }),
+  /** ภาพเฉพาะซับพื้นโปร่งใสที่วางทับภาพนิ่ง วาดด้วย libass (subshot.rs) · t เวลาของซับ ms · w h ขนาดที่วาด · ow oh ขนาดจริงของภาพหนัง */
+  subOverlay: (doc: SubDoc, t: number, w: number, h: number, ow: number, oh: number, movie: string | null) =>
+    call<string>("sub_overlay", { doc, t, w, h, ow, oh, movie }),
+  /** บันทึกภาพ PNG ข้างหนัง หรือคัดลอกภาพ แบบมีซับ ไม่มีซับ เฉพาะซับ (เมนูคลิกขวาบนภาพ แบบ Aegisub) · bg ภาพวิดีโอจำลองขนาดเต็ม */
+  snapshot: (req: SnapReq, doc: SubDoc | null, bg: string | null) => call<{ path: string | null; w: number; h: number; bytes: number }>("vid_snapshot", { req, doc, bg }),
+};
+export type SnapReq = {
+  movie: string | null; ss: number; t: number; w: number; h: number; ow: number; oh: number;
+  mode: "subs" | "raw" | "only"; frame: number; dest: "save" | "copy"; dir: string | null; dry?: boolean;
 };
 
 /** เสียงของหน้าแก้ซับ (subaudio.rs) · pcm ได้ไบต์ s16le สองช่อง 48 kHz ตรง ๆ ไม่ผ่านข้อความ */
