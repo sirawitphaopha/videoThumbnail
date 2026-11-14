@@ -4,7 +4,7 @@
    ✓ พิมพ์ค้นได้ทั้งชื่อไทย ชื่ออังกฤษ รหัส · ลืมสลับแป้นพิมพ์ก็หาเจอ (ตัวค้นเดียวกับชั้นวาง)
    ✓ วัดที่ว่างก่อนกางด้วยตัววัดกลาง ล่างไม่พอพลิกขึ้น (popup-fit) · ลูกศรขึ้นลง Enter เลือก Esc ปิด กดข้างนอกปิด */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { dropStyle, useDropPlacement } from "../lib/popupFit";
+import { dropStyle, sideStyle, useDropPlacement, useSideFit } from "../lib/popupFit";
 import { useClickOutside, useEscClose } from "../lib/popup";
 import { searchByName } from "../lib/thaiSearch";
 import { LANG_ALL, LANG_OFTEN, LANG_UND, langCode, langName, type Lang } from "../lib/langs";
@@ -21,6 +21,7 @@ export default function LangPicker(p: { value: string; onChange: (code: string) 
   const btn = useRef<HTMLButtonElement>(null);
   const input = useRef<HTMLInputElement>(null);
   const place = useDropPlacement(open, wrap, panel);
+  const side = useSideFit(open, wrap, panel, "left");
   const close = useCallback(() => { setOpen(false); setQ(""); btn.current?.focus(); }, []);
   useEscClose(open, close);
   useClickOutside(open, wrap, () => { setOpen(false); setQ(""); });
@@ -67,7 +68,7 @@ export default function LangPicker(p: { value: string; onChange: (code: string) 
       </button>
       {open && (
         <div ref={panel} className="lpop pop-in" role="dialog" aria-label={p.label}
-          style={{ position: "absolute", left: 0, zIndex: "var(--z-menu)" as unknown as number, ...dropStyle(place) }} data-lang-pop>
+          style={{ position: "absolute", ...sideStyle(side, "left"), zIndex: "var(--z-menu)" as unknown as number, ...dropStyle(place) }} data-lang-pop>
           <div className="lsearch"><IcSearch size={14} />
             <input ref={input} value={q} onChange={(e) => setQ(e.target.value)} onKeyDown={onKey} placeholder="ค้นชื่อไทย ชื่ออังกฤษ หรือรหัส" aria-label="ค้นภาษา" />
           </div>

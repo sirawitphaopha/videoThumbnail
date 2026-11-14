@@ -22,7 +22,7 @@ import { useSettings } from "../lib/settings";
 import { searchByName, highlightParts } from "../lib/thaiSearch";
 import { fmtDateTime, fmtDuration, fmtSize } from "../lib/format";
 import { kindOf, KIND_ORDER, SHELF_LABEL, TABLE_LABEL, type Kind } from "../lib/status";
-import { dropStyle, useDropPlacement } from "../lib/popupFit";
+import { dropStyle, sideStyle, useDropPlacement, useSideFit } from "../lib/popupFit";
 import { useClickOutside, useEscClose, kb } from "../lib/popup";
 import { useSkelPreview } from "../lib/skelPreview";
 import { driveName, freePct, isLow, requestSettingsSec, sizeNb, useDriveSpace } from "../lib/drives";
@@ -288,6 +288,7 @@ function DisplayMenu() {
   const wrap = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const place = useDropPlacement(open, wrap, panel);
+  const side = useSideFit(open, wrap, panel, "right");
   useEscClose(open, () => setOpen(false));
   useClickOutside(open, wrap, () => setOpen(false));
   return (
@@ -297,7 +298,7 @@ function DisplayMenu() {
       </button>
       {open && settings && (
         <div ref={panel} className="menu pop-in" role="dialog" aria-label="การแสดงผล"
-          style={{ position: "absolute", right: 0, width: 320, padding: "6px 14px", zIndex: "var(--z-menu)" as unknown as number, ...dropStyle(place) }}>
+          style={{ position: "absolute", ...sideStyle(side, "right"), width: 320, padding: "6px 14px", zIndex: "var(--z-menu)" as unknown as number, ...dropStyle(place) }}>
           <div className="setrow" style={{ borderTop: 0 }}><div className="lbl">ชื่อไฟล์ใต้ปก</div><Switch on={settings.showNames} onChange={(v) => update({ showNames: v })} label="ชื่อไฟล์ใต้ปก" /></div>
           <div className="setrow"><div className="lbl">ภาพจากหนังในเรื่องที่ยังไม่มีปก</div><span data-showframes style={{ display: "inline-flex" }}><Switch on={settings.showFrames} onChange={(v) => update({ showFrames: v })} label="ภาพจากหนังในเรื่องที่ยังไม่มีปก" /></span></div>
           <div className="setrow"><div className="lbl">จุดสีบอกสภาพไฟล์</div><Switch on={settings.showDots} onChange={(v) => update({ showDots: v })} label="จุดสีบอกสภาพไฟล์" /></div>

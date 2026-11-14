@@ -2,7 +2,7 @@
    เลื่อนเวลา (dialog_shift_times.cpp) · ปรับเวลาทั้งไฟล์ (dialog_timing_processor.cpp) · เลือกบรรทัด (dialog_selection.cpp)
    ค้นและแทนที่ (dialog_search_replace.cpp) · วางทับ (dialog_paste_over.cpp) · ไปที่บรรทัดหรือเวลา · เรียงบรรทัด
    ค่าที่ตั้งล่าสุดจำในเครื่องของผู้ชมแบบที่ Aegisub จำ · ตัวหน้าต่างไม่แก้เอกสารเอง ส่งค่าให้หน้าแก้ซับ */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type RefObject } from "react";
 import type { SubDoc } from "../../lib/api";
 import type { Tip } from "../../lib/codecAdv";
 import { fmtTime, isAss, parseTime } from "../../lib/subText";
@@ -22,6 +22,14 @@ const Row = (p: { label: string; tip?: Tip; children: React.ReactNode }) => (
 const Sw = (p: { on: boolean; set: (v: boolean) => void; label: string; data?: string }) => (
   <span className="se-dsw2" data-sw={p.data}><Switch on={p.on} onChange={p.set} label={p.label} />{p.label}</span>
 );
+/** เปิดหน้าต่างแล้วเคอร์เซอร์อยู่ในช่องแรกที่ต้องพิมพ์ ไม่ใช่ที่ปุ่ม ⓘ · หน้าต่างโฟกัสปุ่มแรกหลังลูก จึงรอหนึ่งจังหวะ */
+function useFocusOpen(open: boolean, ref: RefObject<HTMLInputElement | null>) {
+  useEffect(() => {
+    if (!open) return;
+    const t = setTimeout(() => { ref.current?.focus(); ref.current?.select(); }, 0);
+    return () => clearTimeout(t);
+  }, [open, ref]);
+}
 const Status = (p: { msg: string | null; bad?: boolean }) => p.msg ? <div className={"small se-dlgmsg" + (p.bad ? " bad" : "")} role={p.bad ? "alert" : "status"} data-dlgmsg>{p.msg}</div> : null;
 
 /* ---------------------------------------------------------------- เลื่อนเวลา */
@@ -42,6 +50,8 @@ export function ShiftDialog(p: { open: boolean; onClose: () => void; frames: boo
   const [o, setO] = useState<ShiftOpts>(SH_DEF);
   const [txt, setTxt] = useState("");
   const [hist, setHist] = useState<ShiftHist[]>([]);
+  const first = useRef<HTMLInputElement>(null);
+  useFocusOpen(p.open, first);
   useEffect(() => {
     if (!p.open) return;
     const v = load("se-shift", SH_DEF);
@@ -67,11 +77,11 @@ export function ShiftDialog(p: { open: boolean; onClose: () => void; frames: boo
         <button type="button" className="btn btn-ghost" onClick={p.onClose}>ยกเลิก</button>
         <button type="button" className={"btn " + (why ? "btn-wait" : "btn-main")} aria-disabled={!!why || undefined} title={why ?? undefined} onClick={run} data-shift-run>เลื่อนเวลา</button>
       </>}>
-      <div className="se-dummy" data-shift onKeyDown={(e) => { if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT") { e.preventDefault(); run(); } }}>
+      <div className="se-dummy se-cdlg" data-shift onKeyDown={(e) => { if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT") { e.preventDefault(); run(); } }}>
         <Row label="เลื่อนเป็น" tip={SHIFT_TIP}>
           <Seg small label="เลื่อนเป็น" value={o.byTime ? "t" : "f"} onChange={(v) => { setO({ ...o, byTime: v === "t" }); setTxt(v === "t" ? fmtTime(0, p.kind) : "0"); }}
             options={[{ value: "t", label: "เวลา" }, { value: "f", label: "เฟรม", off: p.frames ? undefined : "ยังไม่มีวิดีโอ จึงไม่รู้เวลาของแต่ละเฟรม" }]} />
-          <input className={"inp se-time" + (amount == null ? " err" : "")} value={txt} onChange={(e) => setTxt(e.target.value)} aria-label="ระยะที่เลื่อน" data-shift-amount />
+          <input className={"inp se-time" + (amount == null ? " err" : "")} value={txt} onChange={(e) => setTxt(e.target.value)} aria-label="ระยะที่เลื่อน" ref={first} data-shift-amount />
           <Seg small label="ทิศ" value={o.back ? "b" : "f"} onChange={(v) => setO({ ...o, back: v === "b" })} options={[{ value: "f", label: "ไปข้างหน้า" }, { value: "b", label: "ถอยหลัง" }]} />
         </Row>
         <Row label="บรรทัด">
@@ -110,11 +120,13 @@ export function PostDialog(p: { open: boolean; onClose: () => void; doc: SubDoc;
   const [s, setS] = useState<PostSt>(PS_DEF);
   const [styles, setStyles] = useState<Set<string>>(new Set());
   const [err, setErr] = useState<string | null>(null);
+  const first = useRef<HTMLInputElement>(null);
+  useFocusOpen(p.open, first);
   const names = isAss(p.doc) ? p.doc.styles.map((x) => x.fields[0]) : [];
   useEffect(() => { if (p.open) { setS(load("se-post", PS_DEF)); setStyles(new Set(names)); setErr(null); } }, [p.open]); // eslint-disable-line react-hooks/exhaustive-deps
   const n = (k: keyof PostSt) => num(String(s[k]));
-  const inp = (k: keyof PostSt, label: string, on: boolean) => (
-    <label className="se-f se-pin">{label}<input className={"inp se-num4" + (on && n(k) == null ? " err" : "")} value={String(s[k])} disabled={!on} onChange={(e) => setS({ ...s, [k]: e.target.value })} data-post={k} /></label>
+  const inp = (k: keyof PostSt, label: string, on: boolean, unit = "ms") => (
+    <label className="se-f se-pin">{label}<input ref={k === "liv" ? first : undefined} className={"inp se-num4" + (on && n(k) == null ? " err" : "")} value={String(s[k])} disabled={!on} onChange={(e) => setS({ ...s, [k]: e.target.value })} aria-label={`${label || "ระยะ"} ${unit}`} data-post={k} />{unit}</label>
   );
   const bad = (s.li && n("liv") == null) || (s.lo && n("lov") == null) || (s.adj && [n("gap"), n("ov"), n("bias")].some((x) => x == null)) || (s.kf && p.keys && [n("sb"), n("sa"), n("eb"), n("ea")].some((x) => x == null));
   const why = bad ? "ตัวเลขบางช่องอ่านไม่ออก" : s.onlySel && !p.selCount ? "ยังไม่ได้เลือกบรรทัด" : !(s.li || s.lo || s.adj || (s.kf && p.keys)) ? "ยังไม่ได้เปิดกติกาสักข้อ" : null;
@@ -130,21 +142,22 @@ export function PostDialog(p: { open: boolean; onClose: () => void; doc: SubDoc;
     if (r) setErr(r); else p.onClose();
   };
   return (
-    <Dialog open={p.open} onClose={p.onClose} kind="work" title="ปรับเวลาทั้งไฟล์" width={640}
+    <Dialog open={p.open} onClose={p.onClose} kind="work" title="ปรับเวลาทั้งไฟล์" width={700}
       actions={<>
         <button type="button" className="btn btn-ghost" onClick={() => { setS(PS_DEF); setStyles(new Set(names)); }} data-post-reset>ค่าตั้งต้นของ Aegisub</button>
         <span style={{ flex: 1 }} />
         <button type="button" className="btn btn-ghost" onClick={p.onClose}>ยกเลิก</button>
         <button type="button" className={"btn " + (why ? "btn-wait" : "btn-main")} aria-disabled={!!why || undefined} title={why ?? undefined} onClick={run} data-post-run>ปรับเวลา</button>
       </>}>
-      <div className="se-dummy" data-post>
-        <Row label="เผื่อหน้า" tip={POST_TIP}><Sw on={s.li} set={(v) => setS({ ...s, li: v })} label="เปิด" data="li" />{inp("liv", "ms", s.li)}</Row>
-        <Row label="เผื่อท้าย"><Sw on={s.lo} set={(v) => setS({ ...s, lo: v })} label="เปิด" data="lo" />{inp("lov", "ms", s.lo)}</Row>
-        <Row label="ต่อบรรทัด"><Sw on={s.adj} set={(v) => setS({ ...s, adj: v })} label="เปิด" data="adj" />{inp("gap", "ห่างไม่เกิน", s.adj)}{inp("ov", "ซ้อนไม่เกิน", s.adj)}{inp("bias", "จุดต่อ %", s.adj)}</Row>
+      <div className="se-dummy se-cdlg" data-post>
+        <Row label="เผื่อหน้า" tip={POST_TIP}><Sw on={s.li} set={(v) => setS({ ...s, li: v })} label="เปิด" data="li" />{inp("liv", "", s.li)}</Row>
+        <Row label="เผื่อท้าย"><Sw on={s.lo} set={(v) => setS({ ...s, lo: v })} label="เปิด" data="lo" />{inp("lov", "", s.lo)}</Row>
+        <Row label="ต่อบรรทัด"><Sw on={s.adj} set={(v) => setS({ ...s, adj: v })} label="เปิด" data="adj" />{inp("gap", "ห่างไม่เกิน", s.adj)}{inp("ov", "ซ้อนไม่เกิน", s.adj)}{inp("bias", "จุดต่อ", s.adj, "%")}</Row>
         <Row label="keyframe">
           <span title={p.keys ? undefined : "ยังไม่มีวิดีโอหรือ keyframe"} style={{ display: "contents" }}><Sw on={s.kf && p.keys} set={(v) => p.keys && setS({ ...s, kf: v })} label="เปิด" data="kf" /></span>
-          {inp("sb", "เริ่มก่อน", s.kf && p.keys)}{inp("sa", "เริ่มหลัง", s.kf && p.keys)}{inp("eb", "จบก่อน", s.kf && p.keys)}{inp("ea", "จบหลัง", s.kf && p.keys)}
         </Row>
+        <Row label="เวลาเริ่ม">{inp("sb", "ก่อน keyframe ไม่เกิน", s.kf && p.keys)}{inp("sa", "หลังไม่เกิน", s.kf && p.keys)}</Row>
+        <Row label="เวลาจบ">{inp("eb", "ก่อน keyframe ไม่เกิน", s.kf && p.keys)}{inp("ea", "หลังไม่เกิน", s.kf && p.keys)}</Row>
         <Row label="บรรทัด"><Sw on={s.onlySel} set={(v) => setS({ ...s, onlySel: v })} label={`เฉพาะที่เลือก (${p.selCount} บรรทัด)`} data="onlySel" /></Row>
         {names.length > 1 && <Row label="สไตล์">
           <span className="se-dstyles">{names.map((nm) => <label key={nm} className="se-dchk"><input type="checkbox" checked={styles.has(nm)} onChange={(e) => { const x = new Set(styles); if (e.target.checked) x.add(nm); else x.delete(nm); setStyles(x); }} />{nm}</label>)}</span>
@@ -175,6 +188,8 @@ export function SelectDialog(p: { open: boolean; onClose: () => void; ass: boole
   const [find, setFind] = useState("");
   const [o, setO] = useState<SelSt>(SEL_DEF);
   const [msg, setMsg] = useState<{ t: string; bad: boolean } | null>(null);
+  const first = useRef<HTMLInputElement>(null);
+  useFocusOpen(p.open, first);
   useEffect(() => { if (p.open) { setO(load("se-select", SEL_DEF)); setMsg(null); } }, [p.open]);
   const run = () => { save("se-select", o); const r = p.onRun({ ...o, find }); setMsg({ t: r, bad: r.startsWith("รูปแบบ") }); };
   return (
@@ -183,8 +198,8 @@ export function SelectDialog(p: { open: boolean; onClose: () => void; ass: boole
         <button type="button" className="btn btn-ghost" onClick={p.onClose}>ปิด</button>
         <button type="button" className="btn btn-main" onClick={run} data-select-run>เลือก</button>
       </>}>
-      <div className="se-dummy" data-select onKeyDown={(e) => { if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT") { e.preventDefault(); run(); } }}>
-        <Row label="คำที่หา"><input className="inp se-dwide" value={find} onChange={(e) => setFind(e.target.value)} aria-label="คำที่หา" data-select-find /></Row>
+      <div className="se-dummy se-cdlg" data-select onKeyDown={(e) => { if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT") { e.preventDefault(); run(); } }}>
+        <Row label="คำที่หา"><input className="inp se-dwide" value={find} onChange={(e) => setFind(e.target.value)} aria-label="คำที่หา" ref={first} data-select-find /></Row>
         <Row label="ในช่อง"><Seg small label="ช่องที่หา" value={o.field} onChange={(v) => setO({ ...o, field: v })} options={FIELDS.map((f) => ({ ...f, off: !p.ass && f.value !== "text" ? "ซับ SRT มีแต่ข้อความ" : undefined }))} /></Row>
         <Row label="เทียบแบบ" tip={MODE_TIP}><Seg small label="เทียบแบบ" value={o.mode} onChange={(v) => setO({ ...o, mode: v as MatchMode })} options={[{ value: "contains", label: "มีคำนี้" }, { value: "exact", label: "ตรงทั้งช่อง" }, { value: "regex", label: "รูปแบบค้นหา" }]} /></Row>
         <Row label="ตัวเลือก">
@@ -220,6 +235,8 @@ export const FIND_DEF: FindSt = { fields: ["text"], caseSens: false, regex: fals
 export function FindDialog(p: { open: boolean; replace: boolean; onClose: () => void; ass: boolean; find: string; repl: string; setFind: (s: string) => void; setRepl: (s: string) => void; opts: FindSt; setOpts: (o: FindSt) => void; msg: { t: string; bad: boolean } | null;
   onNext: () => void; onReplace: () => void; onReplaceAll: () => void }) {
   const o = p.opts, set = p.setOpts;
+  const first = useRef<HTMLInputElement>(null);
+  useFocusOpen(p.open, first);
   const tog = (f: Field, v: boolean) => set({ ...o, fields: v ? [...new Set([...o.fields, f])] : o.fields.filter((x) => x !== f) });
   return (
     <Dialog open={p.open} onClose={p.onClose} kind="menu" title={p.replace ? "ค้นและแทนที่" : "ค้นหา"} width={640}
@@ -230,8 +247,8 @@ export function FindDialog(p: { open: boolean; replace: boolean; onClose: () => 
         {p.replace && <button type="button" className="btn btn-ghost" onClick={p.onReplace} data-find-one>แทนที่</button>}
         <button type="button" className="btn btn-main" onClick={p.onNext} title="ค้นต่อไป (F3)" data-find-next>ค้นต่อไป</button>
       </>}>
-      <div className="se-dummy" data-find onKeyDown={(e) => { if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT") { e.preventDefault(); p.onNext(); } }}>
-        <Row label="คำที่ค้น" tip={FIND_TIP}><input className="inp se-dwide" value={p.find} onChange={(e) => p.setFind(e.target.value)} aria-label="คำที่ค้น" data-find-text /></Row>
+      <div className="se-dummy se-cdlg" data-find onKeyDown={(e) => { if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT") { e.preventDefault(); p.onNext(); } }}>
+        <Row label="คำที่ค้น" tip={FIND_TIP}><input className="inp se-dwide" value={p.find} onChange={(e) => p.setFind(e.target.value)} aria-label="คำที่ค้น" ref={first} data-find-text /></Row>
         {p.replace && <Row label="แทนด้วย"><input className="inp se-dwide" value={p.repl} onChange={(e) => p.setRepl(e.target.value)} aria-label="แทนด้วย" data-find-repl /></Row>}
         <Row label="ในช่อง"><span className="se-dstyles">{FIELDS.filter((f) => p.ass || f.value === "text").map((f) => <label key={f.value} className="se-dchk"><input type="checkbox" checked={o.fields.includes(f.value)} onChange={(e) => tog(f.value, e.target.checked)} />{f.label}</label>)}</span></Row>
         <Row label="ตัวเลือก">
@@ -257,6 +274,8 @@ export function OverDialog(p: { open: boolean; onClose: () => void; ass: boolean
   const [f, setF] = useState<Set<OverField>>(new Set(["text"]));
   useEffect(() => { if (p.open) { try { setF(new Set(JSON.parse(localStorage.getItem("se-over") ?? '["text"]'))); } catch { setF(new Set(["text"])); } } }, [p.open]);
   const list = OVER_FIELDS.filter((x) => p.ass || ["start", "end", "text"].includes(x));
+  const first = useRef<HTMLInputElement>(null);
+  useFocusOpen(p.open, first);
   const why = f.size ? null : "เลือกช่องที่จะวางทับก่อน";
   return (
     <Dialog open={p.open} onClose={p.onClose} kind="work" title="วางทับ" width={560}
@@ -266,9 +285,9 @@ export function OverDialog(p: { open: boolean; onClose: () => void; ass: boolean
         <button type="button" className="btn btn-ghost" onClick={p.onClose}>ยกเลิก</button>
         <button type="button" className={"btn " + (why ? "btn-wait" : "btn-main")} aria-disabled={!!why || undefined} title={why ?? undefined} onClick={() => { if (why) return; try { localStorage.setItem("se-over", JSON.stringify([...f])); } catch { /* ไม่มีที่เก็บ */ } p.onRun(f); p.onClose(); }} data-over-run>วางทับ</button>
       </>}>
-      <div className="se-dummy" data-over>
+      <div className="se-dummy se-cdlg" data-over>
         <div className="small se-dlgtext">บรรทัดที่คัดลอกไว้ทับบรรทัดที่กำลังแก้กับบรรทัดถัดลงไปทีละบรรทัด เฉพาะช่องที่ติ๊ก</div>
-        <span className="se-dstyles">{list.map((x) => <label key={x} className="se-dchk"><input type="checkbox" checked={f.has(x)} onChange={(e) => { const s = new Set(f); if (e.target.checked) s.add(x); else s.delete(x); setF(s); }} data-over-field={x} />{OVER_LABEL[x]}</label>)}</span>
+        <span className="se-dstyles">{list.map((x) => <label key={x} className="se-dchk"><input type="checkbox" checked={f.has(x)} ref={x === list[0] ? first : undefined} onChange={(e) => { const s = new Set(f); if (e.target.checked) s.add(x); else s.delete(x); setF(s); }} data-over-field={x} />{OVER_LABEL[x]}</label>)}</span>
       </div>
     </Dialog>
   );
@@ -279,13 +298,15 @@ export function OverDialog(p: { open: boolean; onClose: () => void; ass: boolean
 export function GotoDialog(p: { open: boolean; onClose: () => void; onGo: (q: string) => boolean }) {
   const [q, setQ] = useState("");
   const [bad, setBad] = useState(false);
+  const first = useRef<HTMLInputElement>(null);
+  useFocusOpen(p.open, first);
   useEffect(() => { if (p.open) { setQ(""); setBad(false); } }, [p.open]);
   const go = () => { if (p.onGo(q)) p.onClose(); else setBad(true); };
   return (
     <Dialog open={p.open} onClose={p.onClose} kind="menu" title="ไปที่บรรทัดหรือเวลา" width={440}
       actions={<><button type="button" className="btn btn-ghost" onClick={p.onClose}>ยกเลิก</button><button type="button" className="btn btn-main" onClick={go} data-goto-go>ไป</button></>}>
-      <div className="se-dummy" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); go(); } }}>
-        <Row label="ไปที่"><input className={"inp se-time" + (bad ? " err" : "")} value={q} onChange={(e) => { setQ(e.target.value); setBad(false); }} aria-label="เลขบรรทัดหรือเวลา" data-goto-q /></Row>
+      <div className="se-dummy se-cdlg" onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); go(); } }}>
+        <Row label="ไปที่"><input className={"inp se-time" + (bad ? " err" : "")} value={q} onChange={(e) => { setQ(e.target.value); setBad(false); }} aria-label="เลขบรรทัดหรือเวลา" ref={first} data-goto-q /></Row>
         <div className="small se-dlgtext">{bad ? "ไม่เจอบรรทัดนั้น พิมพ์เลขบรรทัด เช่น 25 หรือเวลา เช่น 0:01:30.00" : "พิมพ์เลขบรรทัด เช่น 25 หรือเวลา เช่น 0:01:30.00 แล้วกด Enter"}</div>
       </div>
     </Dialog>
@@ -302,7 +323,7 @@ export function SortDialog(p: { open: boolean; onClose: () => void; ass: boolean
     <Dialog open={p.open} onClose={p.onClose} kind="work" title="เรียงบรรทัด" width={600}
       actions={<><button type="button" className="btn btn-ghost" onClick={p.onClose}>ยกเลิก</button>
         <button type="button" className={"btn " + (why ? "btn-wait" : "btn-main")} aria-disabled={!!why || undefined} title={why ?? undefined} onClick={() => { if (!why) { p.onRun(k, only); p.onClose(); } }} data-sort-run>เรียง</button></>}>
-      <div className="se-dummy" data-sort>
+      <div className="se-dummy se-cdlg" data-sort>
         <Row label="เรียงตาม"><Seg small label="เรียงตาม" value={k} onChange={setK} options={[
           { value: "start", label: "เวลาเริ่ม" }, { value: "end", label: "เวลาจบ" },
           ...(p.ass ? [{ value: "style" as SortKey, label: "สไตล์" }, { value: "actor" as SortKey, label: "ตัวละคร" }, { value: "effect" as SortKey, label: "เอฟเฟกต์" }, { value: "layer" as SortKey, label: "ชั้น" }] : []),

@@ -11,7 +11,7 @@ import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { audApi, graphApi, pickFile, pickSave, type GWindow, type SubDoc, type SubEvent } from "../../lib/api";
 import type { Tip } from "../../lib/codecAdv";
 import { playNow, setVolume, usePlay } from "../../lib/audioPlay";
-import { dropStyle, useDropPlacement } from "../../lib/popupFit";
+import { dropStyle, sideStyle, useDropPlacement, useSideFit } from "../../lib/popupFit";
 import { useClickOutside, useEscClose } from "../../lib/popup";
 import { cube, getTiming, msPerPx, rangeOf, scrollIntoView, setLeft, setOpt, setOwnAudio, setPend, setViewW, useTiming, zoomFactor, type AudSource, type Pend } from "../../lib/subTiming";
 import { fmtMs, getVid, useVid, vidKeys, vidRate } from "../../lib/vidFrames";
@@ -469,6 +469,7 @@ function AudioMenu(p: { src: NonNullable<AudSource>; ev: SubEvent | null; delayM
   const wrap = useRef<HTMLSpanElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const place = useDropPlacement(open, wrap, panel);
+  const side = useSideFit(open, wrap, panel, "right");
   useEscClose(open, () => setOpen(false));
   useClickOutside(open, wrap, () => setOpen(false));
   const openFile = async () => {
@@ -497,7 +498,7 @@ function AudioMenu(p: { src: NonNullable<AudSource>; ev: SubEvent | null; delayM
         <IcFile size={14} />เสียง
       </button>
       {open && (
-        <div ref={panel} className="menu pop-in se-vmenu" role="dialog" aria-label="เมนูเสียง" style={{ position: "absolute", right: 0, width: 300, zIndex: "var(--z-menu)" as unknown as number, ...dropStyle(place) }} data-se-amenupanel>
+        <div ref={panel} className="menu pop-in se-vmenu" role="dialog" aria-label="เมนูเสียง" style={{ position: "absolute", ...sideStyle(side, "right"), width: 300, zIndex: "var(--z-menu)" as unknown as number, ...dropStyle(place) }} data-se-amenupanel>
           <div className="se-vmrow"><span className="se-vmh">เสียงจาก</span><span className="small se-vmkeys" data-se-asrc>{p.src.name}</span></div>
           <div className="se-vmsec">
             <button type="button" className="se-vmi" onClick={() => void openFile()} data-se-aopen>เปิดไฟล์เสียงแยก</button>

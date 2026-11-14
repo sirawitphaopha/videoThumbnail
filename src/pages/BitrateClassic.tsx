@@ -21,7 +21,7 @@ import { usePageActiveRef } from "../lib/pageActive";
 import { listen } from "@tauri-apps/api/event";
 import { bitrateApi, inApp, pickFile, type BrInfo, type BrTrack } from "../lib/api";
 import { useClickOutside, useEscClose } from "../lib/popup";
-import { dropStyle, useDropPlacement } from "../lib/popupFit";
+import { dropStyle, sideStyle, useDropPlacement, useSideFit } from "../lib/popupFit";
 import { FixedTime, Phr } from "../components/ui";
 import "../styles/bitrate-classic.css";
 
@@ -191,6 +191,7 @@ export default function BitrateClassic({ initialPath = null, initialTrack = null
   const menuWrap = useRef<HTMLDivElement>(null);
   const menuPanel = useRef<HTMLDivElement>(null);
   const place = useDropPlacement(menu, menuWrap, menuPanel);
+  const side = useSideFit(menu, menuWrap, menuPanel, "left");
   useEscClose(menu, () => setMenu(false));
   useEffect(() => { if (!menu) setDesc(null); }, [menu]);
   // บอกไฟล์กับแทร็กที่เปิดอยู่ให้แถบปุ่มคู่ด้านบน กดแบบชั้นหนังแล้วตามไปด้วย (BUGS ข้อ 83 85)
@@ -199,6 +200,7 @@ export default function BitrateClassic({ initialPath = null, initialTrack = null
   const [trkOpen, setTrkOpen] = useState(false);
   const trkWrap = useRef<HTMLDivElement>(null), trkPanel = useRef<HTMLDivElement>(null);
   const trkPlace = useDropPlacement(trkOpen, trkWrap, trkPanel);
+  const trkSide = useSideFit(trkOpen, trkWrap, trkPanel, "right");
   useEscClose(trkOpen, () => setTrkOpen(false));
   const closeTrk = useCallback(() => setTrkOpen(false), []);
   useClickOutside(trkOpen, trkWrap, closeTrk);
@@ -544,7 +546,7 @@ export default function BitrateClassic({ initialPath = null, initialTrack = null
             className="bv-btn" style={{ width: 22, height: 20, display: "flex", alignItems: "center", justifyContent: "center", borderRadius: 2, cursor: "pointer", padding: 0 }}>
             <svg width="14" height="12" viewBox="0 0 14 12" aria-hidden="true"><rect x="1" y="6" width="2" height="5" fill={C.purpleLo} /><rect x="4" y="3" width="2" height="8" fill={C.pinkHi} /><rect x="7" y="5" width="2" height="6" fill={C.purpleLo} /><rect x="10" y="1" width="2" height="10" fill={C.over} /></svg>
           </button>
-          {menu && <div ref={menuPanel} role="menu" className="pop-in" data-bv-menupanel onMouseLeave={() => setDesc(null)} style={{ position: "absolute", left: 0, ...dropStyle(place), overflowY: "auto", zIndex: 40, minWidth: 260, background: "rgb(250,250,250)", border: "1px solid rgb(150,150,150)", boxShadow: "2px 3px 8px rgba(0,0,0,.25)", padding: "3px 0", fontSize: 12.5 }}>
+          {menu && <div ref={menuPanel} role="menu" className="pop-in" data-bv-menupanel onMouseLeave={() => setDesc(null)} style={{ position: "absolute", ...sideStyle(side, "left"), ...dropStyle(place), overflowY: "auto", zIndex: 40, minWidth: 260, background: "rgb(250,250,250)", border: "1px solid rgb(150,150,150)", boxShadow: "2px 3px 8px rgba(0,0,0,.25)", padding: "3px 0", fontSize: 12.5 }}>
             <div style={sep}>Open recent file</div>
             {recent.length ? recent.map((p) => item(p.split(/[\\/]/).pop() ?? p, "", () => void open(p, mode), { d: "recent", k: p })) : <div style={{ ...mi(true), cursor: "default" }}><span style={{ width: 16 }} />ยังไม่มีไฟล์</div>}
             <div style={hr} />
@@ -581,7 +583,7 @@ export default function BitrateClassic({ initialPath = null, initialTrack = null
             style={{ height: 22, padding: "0 8px", borderRadius: 2, fontFamily: FONT, fontSize: 12.5, color: "rgb(0,0,0)", display: "flex", alignItems: "center", gap: 6, whiteSpace: "nowrap" }}>
             {info.tracks.find((t) => t.id === info.track)?.label ?? "Stream"}<svg width="9" height="6" viewBox="0 0 9 6" aria-hidden="true"><path d="M0.5 0.5L4.5 5L8.5 0.5" fill="none" stroke="rgb(40,40,40)" strokeWidth="1.3" /></svg>
           </button>
-          {trkOpen && <div ref={trkPanel} role="listbox" className="pop-in" style={{ position: "absolute", right: 0, ...dropStyle(trkPlace), overflowY: "auto", zIndex: 40, minWidth: "100%", background: "rgb(250,250,250)", border: "1px solid rgb(150,150,150)", boxShadow: "2px 3px 8px rgba(0,0,0,.25)", padding: "3px 0" }}>
+          {trkOpen && <div ref={trkPanel} role="listbox" className="pop-in" style={{ position: "absolute", ...sideStyle(trkSide, "right"), ...dropStyle(trkPlace), overflowY: "auto", zIndex: 40, minWidth: "100%", background: "rgb(250,250,250)", border: "1px solid rgb(150,150,150)", boxShadow: "2px 3px 8px rgba(0,0,0,.25)", padding: "3px 0" }}>
             {info.tracks.map((t) => <button key={t.id} type="button" role="option" aria-selected={info.track === t.id} className="bv-mi" style={mi()} data-bv-trackopt={t.id}
               onClick={() => { setTrkOpen(false); if (path && t.id !== info.track) void open(path, modeSel, false, t.id); }}>
               <span style={{ width: 16, flex: "none" }}>{info.track === t.id ? "✓" : ""}</span><span style={{ flex: 1, textAlign: "left" }}>{t.label}</span></button>)}

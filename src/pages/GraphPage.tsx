@@ -17,7 +17,7 @@ import { CardIcon, FixedTime, Keep, LoadPill, Phr, Skel, Switch, chText, dropCli
 import { fmtSize } from "../lib/format";
 import { diffOf, type DiffResult } from "../lib/graphDiff";
 import { useSettings } from "../lib/settings";
-import { dropStyle, useDropPlacement } from "../lib/popupFit";
+import { dropStyle, sideStyle, useDropPlacement, useSideFit } from "../lib/popupFit";
 import { useClickOutside, useEscClose } from "../lib/popup";
 import { IcExpand, IcFile, IcFolder, IcMix, IcPlus, IcBitrate, IcChevronDown } from "../components/icons";
 import InfoTip from "../components/InfoTip";
@@ -376,6 +376,7 @@ function GraphOptions({ on, onChange }: { on: boolean; onChange: (v: boolean) =>
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null), panel = useRef<HTMLDivElement>(null);
   const place = useDropPlacement(open, wrap, panel);
+  const side = useSideFit(open, wrap, panel, "right");
   useEscClose(open, () => setOpen(false));
   useClickOutside(open, wrap, () => setOpen(false));
   return (
@@ -384,7 +385,7 @@ function GraphOptions({ on, onChange }: { on: boolean; onChange: (v: boolean) =>
         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><path d="M4 7h10M18 7h2M4 17h4M12 17h8" /><circle cx="16" cy="7" r="2" /><circle cx="10" cy="17" r="2" /></svg>
       </button>
       {open && (
-        <div ref={panel} className="menu pop-in" role="dialog" aria-label="ตัวเลือกกราฟ" style={{ position: "absolute", right: 0, width: 320, padding: "6px 14px", zIndex: "var(--z-menu)" as unknown as number, ...dropStyle(place) }}>
+        <div ref={panel} className="menu pop-in" role="dialog" aria-label="ตัวเลือกกราฟ" style={{ position: "absolute", ...sideStyle(side, "right"), width: 320, padding: "6px 14px", zIndex: "var(--z-menu)" as unknown as number, ...dropStyle(place) }}>
           <div className="setrow" style={{ borderTop: 0 }}><div className="lbl">ซูมเหมือนกันทุกกราฟ</div><span data-zoomall style={{ display: "inline-flex" }}><Switch on={on} onChange={onChange} label="ซูมเหมือนกันทุกกราฟ" /></span></div>
         </div>
       )}

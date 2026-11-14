@@ -80,3 +80,56 @@ export function dropStyle(place: Placement) {
     maxHeight: place.max,
   } as const;
 }
+
+/* ---------------------------------------------------------------- แนวนอน
+   ของที่กางยึดขอบซ้ายหรือขวาของปุ่ม แล้วกว้างกว่าปุ่ม กางเลยขอบพื้นที่เนื้อหาไปทับเมนูซ้ายหรือล้นขวาได้
+   (พี่กันส่งภาพ 14 พ.ย. 2569 "ทับ" เมนูวิดีโอหน้าแก้ซับยึดขวากว้าง 330 จุด กางทับเมนูซ้ายของโปรแกรม)
+   ตัวนี้วัดขอบซ้ายขวาที่เห็นได้จริง (กล่องที่ครอบซึ่งตัดของล้นแนวนอน เช่นกรอบหน้าที่อยู่ขวาของเมนูซ้าย) แล้วขยับกล่องเข้ามา */
+const SIDE_GAP = 8;
+function sideEdges(el: HTMLElement): { left: number; right: number } {
+  let left = 0, right = window.innerWidth;
+  for (let p = el.parentElement; p && p !== document.body; p = p.parentElement) {
+    if (getComputedStyle(p).overflowX === "visible") continue;
+    const r = p.getBoundingClientRect();
+    left = Math.max(left, r.left);
+    right = Math.min(right, r.right);
+  }
+  return { left, right };
+}
+export type Side = { left: number } | null;
+/** ตำแหน่งแนวนอนของกล่องที่กาง (กล่องวางแบบ absolute ในกรอบ position relative ที่ครอบปุ่ม) · anchor ขอบที่ยึดเมื่อที่พอ
+    คืน left เทียบกับกรอบที่ครอบ · วัดหลังวาดก่อนจอติด ไม่เห็นกระโดด · วัดใหม่เมื่อกล่องเปลี่ยนความกว้างหรือย่อหน้าต่าง */
+export function useSideFit(open: boolean, wrapRef: RefObject<HTMLElement | null>, panelRef: RefObject<HTMLElement | null>, anchor: "left" | "right",
+  /** ขอบขวาที่ห้ามเลย (ตำแหน่งบนจอ) เช่นดรอปดาวน์ที่ห้ามบังชิ้นข้างขวา (keepLeftOf ของ Dropdown) */
+  limitRight?: () => number | null | undefined): Side {
+  const [side, setSide] = useState<Side>(null);
+  const last = useRef<Side>(null);
+  const lim = useRef(limitRight);
+  lim.current = limitRight;
+  useLayoutEffect(() => {
+    if (!open) { last.current = null; setSide(null); return; }
+    const measure = () => {
+      const wrap = wrapRef.current, panel = panelRef.current;
+      if (!wrap || !panel) return;
+      const r = wrap.getBoundingClientRect(), w = panel.offsetWidth;
+      const e = sideEdges(wrap);
+      let x = anchor === "left" ? r.left : r.right - w;
+      x = Math.min(x, e.right - SIDE_GAP - w);
+      const l = lim.current?.();
+      if (l != null) x = Math.min(x, l - w);
+      x = Math.max(x, e.left + SIDE_GAP);
+      const next = { left: Math.round(x - r.left) };
+      if (last.current?.left === next.left) return;
+      last.current = next;
+      setSide(next);
+    };
+    measure();
+    const ro = new ResizeObserver(measure);
+    if (panelRef.current) ro.observe(panelRef.current);
+    window.addEventListener("resize", measure);
+    return () => { ro.disconnect(); window.removeEventListener("resize", measure); };
+  }, [open, wrapRef, panelRef, anchor]);
+  return side;
+}
+/** สไตล์แนวนอนคู่กับ useSideFit · ยังไม่ได้วัดใช้ขอบที่ยึด */
+export const sideStyle = (side: Side, anchor: "left" | "right") => (side ? { left: side.left } : anchor === "left" ? { left: 0 } : { right: 0 });

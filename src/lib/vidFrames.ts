@@ -356,3 +356,6 @@ export function zoomStep(dir: 1 | -1) {
   const now = st.zoom || Math.max(12.5, Math.round(fitPctNow / 12.5) * 12.5);
   setZoom(Math.min(300, Math.max(12.5, now + dir * 12.5)));
 }
+
+// ทางลัดให้ตัวตรวจ เฉพาะรุ่นทดสอบ (check-subcmds.mjs สร้างอัตราเฟรมทดสอบ ดูเฟรมที่แสดง เลื่อนภาพไปเฟรมที่ต้องการ)
+if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__vidLib = { Framerate, get: () => st, seek, rate: () => vidRate(), keys: () => vidKeys() };

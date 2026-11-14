@@ -8,7 +8,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { pickKeyframes, pickSave, subApi, vidApi, type SubDoc, type SubEvent } from "../../lib/api";
 import type { Tip } from "../../lib/codecAdv";
-import { dropStyle, useDropPlacement } from "../../lib/popupFit";
+import { dropStyle, sideStyle, useDropPlacement, useSideFit } from "../../lib/popupFit";
 import { useClickOutside, useEscClose } from "../../lib/popup";
 import { isAss } from "../../lib/subText";
 import {
@@ -202,6 +202,7 @@ function VideoMenu(p: Props & { fitPct: number }) {
   const wrap = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const place = useDropPlacement(open, wrap, panel);
+  const side = useSideFit(open, wrap, panel, "right");
   useEscClose(open, () => setOpen(false));
   useClickOutside(open, wrap, () => setOpen(false));
   const movie = src.kind === "movie" ? src.path : "";
@@ -233,7 +234,7 @@ function VideoMenu(p: Props & { fitPct: number }) {
         <IbFilm size={15} />{sc.busy && <span className="se-vbadge">{pct}%</span>}
       </button>
       {open && (
-        <div ref={panel} className="menu pop-in se-vmenu" role="dialog" aria-label="เมนูวิดีโอ" style={{ position: "absolute", right: 0, width: 330, zIndex: "var(--z-menu)" as unknown as number, ...dropStyle(place) }} data-vmenupanel>
+        <div ref={panel} className="menu pop-in se-vmenu" role="dialog" aria-label="เมนูวิดีโอ" style={{ position: "absolute", ...sideStyle(side, "right"), width: 330, zIndex: "var(--z-menu)" as unknown as number, ...dropStyle(place) }} data-vmenupanel>
           <div className="se-vmrow"><span className="se-vmh">ขนาดภาพ</span>
             <Dropdown label="ขนาดภาพ" value={ZOOMS.includes(st.zoom) || st.zoom === 0 ? zoomVal : "own"} display={() => (st.zoom ? `${st.zoom}%` : `พอดีกรอบ ${p.fitPct}%`)} sizes={["พอดีกรอบ 100.0%", "1000%"]}
               options={[{ value: "0", label: "พอดีกรอบ" }, ...ZOOMS.map((v) => ({ value: String(v), label: `${v}%` })), ...(st.zoom && !ZOOMS.includes(st.zoom) ? [{ value: "own", label: `${st.zoom}%` }] : [])]}

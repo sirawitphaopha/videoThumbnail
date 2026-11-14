@@ -15,7 +15,7 @@ import {
 } from "../../lib/subCmds";
 import { fromBox, isAss } from "../../lib/subText";
 import type { Framerate } from "../../lib/vidFrames";
-import { dropStyle, useDropPlacement } from "../../lib/popupFit";
+import { dropStyle, sideStyle, useDropPlacement, useSideFit } from "../../lib/popupFit";
 import { useClickOutside, useEscClose } from "../../lib/popup";
 import { FIND_DEF, FindDialog, GotoDialog, OverDialog, PostDialog, SelectDialog, ShiftDialog, SortDialog, type FindSt } from "./CmdDialogs";
 import type { Tip } from "../../lib/codecAdv";
@@ -88,6 +88,7 @@ function CmdMenu(p: { label: string; icon: React.ReactNode; title: string; head:
   const wrap = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
   const place = useDropPlacement(open, wrap, panel);
+  const side = useSideFit(open, wrap, panel, "left");
   useEscClose(open, () => setOpen(false));
   useClickOutside(open, wrap, () => setOpen(false));
   return (
@@ -96,7 +97,7 @@ function CmdMenu(p: { label: string; icon: React.ReactNode; title: string; head:
         {p.icon}{p.label}<IcChevronDown size={13} />
       </button>
       {open && (
-        <div ref={panel} className="menu pop-in se-vmenu se-cmenu" role="menu" aria-label={p.title} style={{ position: "absolute", left: 0, width: p.width, zIndex: "var(--z-menu)" as unknown as number, overflowY: "auto", ...dropStyle(place) }} data-cmdpanel={p.data}>
+        <div ref={panel} className="menu pop-in se-vmenu se-cmenu" role="menu" aria-label={p.title} style={{ position: "absolute", ...sideStyle(side, "left"), width: p.width, zIndex: "var(--z-menu)" as unknown as number, overflowY: "auto", ...dropStyle(place) }} data-cmdpanel={p.data}>
           <div className="se-vmrow se-cmh"><span className="se-vmh">{p.head}</span><InfoTip title={p.head} tip={p.tip} /></div>
           {p.sections.map((sec, i) => (
             <div key={i} className="se-vmsec">
@@ -199,7 +200,11 @@ export function useLineCmds(c: LineCtx) {
     copy: async (cut: boolean) => {
       if (noSel) return;
       try {
-        await navigator.clipboard.writeText(copyText(cur(), selSet));
+        const text = copyText(cur(), selSet);
+        // ตัวตรวจรับข้อความไว้เอง ไม่เขียนทับคลิปบอร์ดของคนที่ใช้คอมอยู่
+        const w = window as unknown as { __subClipOut?: string[] };
+        if (import.meta.env.DEV && w.__subClipOut) w.__subClipOut.push(text);
+        else await navigator.clipboard.writeText(text);
         if (cut) deleteEvents(c.sel, c.sel.length > 1 ? `ตัด ${c.sel.length} บรรทัด` : "ตัดบรรทัด");
         setNote({ t: `${cut ? "ตัด" : "คัดลอก"} ${n0(c.sel.length)} บรรทัดแล้ว`, bad: false });
       } catch (e) { setNote({ t: `คัดลอกไม่สำเร็จ ${String(e)}`, bad: true }); }

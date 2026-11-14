@@ -3,9 +3,9 @@
    ✓ ลูกศรขึ้นลงเลื่อน Enter เลือก Esc ปิด กดข้างนอกปิด (เมนูเลือกค่า ไม่มีงานค้าง)
    ✓ ตัวหนังสือในปุ่มไม่มีอะไรตัด ตัดที่ขอบปุ่มที่เดียว หัว ไ ใ โ ไม่โดนเฉือน
    ✓ ปุ่มกว้างเท่าตัวเลือกที่ยาวที่สุด ไม่หดกระตุกตอนเปลี่ยนค่า */
-import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import { dropStyle, useDropPlacement } from "../lib/popupFit";
+import { dropStyle, sideStyle, useDropPlacement, useSideFit } from "../lib/popupFit";
 import { useClickOutside, useEscClose } from "../lib/popup";
 import { IcChevronDown, IcSearch } from "./icons";
 
@@ -77,16 +77,8 @@ export default function Dropdown<T extends string>(p: {
     panel.current?.querySelectorAll<HTMLElement>("[role=option]")[hi]?.scrollIntoView({ block: "nearest" });
   }, [hi, open]);
 
-  // ขยับรายการไปทางซ้ายเมื่อขอบขวาเลยจุดที่ห้ามบัง · วัดหลังวาดก่อนจอติด ไม่เห็นกระโดด
-  const [shift, setShift] = useState(0);
-  useLayoutEffect(() => {
-    if (!open) { if (shift) setShift(0); return; }
-    if (!p.keepLeftOf || !panel.current || p.portal) return;
-    const lim = p.keepLeftOf(); if (lim == null) return;
-    const over = panel.current.getBoundingClientRect().right + shift - lim;
-    const next = Math.max(0, Math.ceil(over));
-    if (next !== shift) setShift(next);
-  }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  // แนวนอน ยึดขอบขวาของปุ่ม ขอบขวาเลยจุดที่ห้ามบังขยับไปซ้าย ขอบซ้ายเลยพื้นที่เนื้อหา (ทับเมนูซ้าย) ขยับกลับมา · วัดหลังวาดก่อนจอติด ไม่เห็นกระโดด
+  const side = useSideFit(open && !p.portal, wrap, panel, "right", p.keepLeftOf);
   const pick = (v: T) => { if (p.options.find((o) => o.value === v)?.off) return; p.onChange(v); close(); };
   useEffect(() => { if (p.disabled) setOpen(false); }, [p.disabled]);
 
@@ -139,7 +131,7 @@ export default function Dropdown<T extends string>(p: {
           aria-label={p.label}
           style={p.portal && fixedPos
             ? { position: "fixed", left: fixedPos.left, minWidth: fixedPos.width, maxWidth: window.innerWidth - fixedPos.left - 8, zIndex: "var(--z-menu)" as unknown as number, maxHeight: place.max, ...(place.up ? { bottom: window.innerHeight - fixedPos.top + 6 } : { top: fixedPos.bottom + 6 }) }
-            : { position: "absolute", right: shift, minWidth: "100%", zIndex: "var(--z-menu)" as unknown as number, ...dropStyle(place) }}
+            : { position: "absolute", ...sideStyle(side, "right"), minWidth: "100%", zIndex: "var(--z-menu)" as unknown as number, ...dropStyle(place) }}
         >
           {p.search && (
             <div className="ddsearch" onMouseDown={(e) => e.stopPropagation()}>

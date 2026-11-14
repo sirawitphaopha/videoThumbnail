@@ -225,3 +225,6 @@
 [data-subedit] .se-grid .se-tag { color: var(--txt3); font-size: 12.5px; }
 [data-subedit] .se-grid tr.on .se-tag { color: #a07888; }
 [data-subedit] .se-cmh { min-height: 29px; padding: 0 4px 0 8px; }
+/* หน้าต่างคำสั่ง ช่องป้ายกว้างพอให้ปุ่ม ⓘ อยู่ต่อท้ายคำโดยไม่ทับ · ช่องตัวเลขสามหลัก */
+[data-subedit] .se-cdlg .se-dlbl { width: 104px; display: inline-flex; align-items: center; gap: 4px; }
+[data-subedit] .se-cdlg .se-num4 { width: 60px; }

@@ -488,3 +488,9 @@ export function gotoTarget(d: SubDoc, q: string): number | null {
   const on = d.events.find((e) => !e.comment && e.start <= t && t < e.end) ?? d.events.find((e) => !e.comment && e.start >= t);
   return on ? on.id : null;
 }
+
+// ทางลัดให้ตัวตรวจเรียกตรรกะตรง ๆ เฉพาะรุ่นทดสอบ (check-subcmds.mjs เทียบตัวเลขกับที่คิดจากซอร์ส Aegisub)
+if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__subCmdsLib = {
+  shiftTimes, postProcess, POST_DEFAULT, snapVideo, snapScene, shiftToFrame, adjoin, adjoinable, insertLine, duplicate, splitAt, join,
+  sortLines, moveLines, swapLines, selectLines, visibleAt, copyText, parsePaste, pasteOver, findAll, replaceAll, replaceOne, gotoTarget,
+};
