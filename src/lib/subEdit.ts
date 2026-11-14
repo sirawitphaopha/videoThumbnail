@@ -86,13 +86,13 @@ export function closeDoc() {
 }
 
 /** แก้เอกสาร · label ชื่อการแก้ที่ขึ้นในปุ่มเลิกทำ · merge = คีย์ของการพิมพ์ต่อเนื่อง (เช่น text:12) */
-export function edit(label: string, fn: (d: SubDoc) => SubDoc, opts?: { merge?: string; sel?: number[]; active?: number | null }) {
+export function edit(label: string, fn: (d: SubDoc) => SubDoc, opts?: { merge?: string; sel?: number[]; active?: number | null; /** รวมเป็นขั้นเดียวไม่ว่าห่างกันนานแค่ไหน จนกว่าจะมีการแก้หรือเลือกอื่นคั่น (แบบ notepad ขั้น 8) */ sticky?: boolean }) {
   const prev = st.doc;
   if (!prev) return;
   const next = fn(prev);
   if (next === prev) return;
   const now = Date.now();
-  const same = !!opts?.merge && last?.merge === opts.merge && now - last.at < MERGE_MS && st.undo.length > 0;
+  const same = !!opts?.merge && last?.merge === opts.merge && (opts.sticky || now - last.at < MERGE_MS) && st.undo.length > 0;
   const undo = same ? st.undo : [...st.undo, { doc: prev, sel: st.sel, active: st.active, label }].slice(-LIMIT);
   last = opts?.merge ? { merge: opts.merge, at: now } : null;
   set({ doc: next, undo, redo: [], dirty: next !== st.saved || baseUnsaved, sel: opts?.sel ?? st.sel, active: opts?.active !== undefined ? opts.active : st.active });

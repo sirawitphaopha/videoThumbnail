@@ -195,7 +195,6 @@
 [data-subedit] .se-grid tr.se-gap { overflow-anchor: none; }
 
 [data-subedit] .se-long { max-height: 560px; }
-[data-subedit] .se-pad { max-height: 560px; overflow: auto; }
 
 /* หน้าต่างบันทึกเป็นไฟล์ใหม่ ฉบับอัตโนมัติ เลือกฟอนต์ (อยู่ในหน้าต่างซ้อน ไม่อยู่ใต้ data-subedit) */
 .se-saveas { display: flex; flex-direction: column; gap: 12px; font-size: 14px; }
@@ -267,3 +266,23 @@
 [data-subedit] .se-trbtns { flex-wrap: wrap; }
 [data-subedit] .se-stcolors { display: grid; grid-template-columns: repeat(2, max-content); gap: 6px 18px; }
 [data-subedit] .se-trans .se-dlgmsg { margin-left: auto; }
+
+/* แบบ notepad แก้ได้ (ขั้น 8) · ช่องพิมพ์ไม่ตัดบรรทัด เลขบรรทัดเลื่อนตามช่อง · ด้านขวาภาพหนังกับรายการปัญหา */
+[data-subedit] .se-pad2 { display: flex; gap: 12px; margin-top: 10px; min-height: 300px; }
+[data-subedit] .se-padmain { flex: 1; min-width: 0; display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #fff; }
+[data-subedit] .se-padgut { margin: 0; padding: 10px 8px 10px 10px; min-width: 44px; text-align: right; color: var(--txt3); background: #faf6f8; border-right: 1px solid var(--line); font: 13px/21px ui-monospace, Consolas, monospace; overflow: hidden; user-select: none; flex: none; }
+[data-subedit] .se-padtext { flex: 1; min-width: 0; border: 0; outline: none; resize: none; padding: 10px 12px; font: 13.5px/21px "Sarabun", ui-monospace, Consolas, monospace; color: var(--txt); white-space: pre; overflow: auto; tab-size: 4; background: transparent; }
+[data-subedit] .se-padside { width: 300px; flex: none; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+[data-subedit] .se-padhead { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+[data-subedit] .se-padsum { color: var(--txt2); }
+[data-subedit] .se-padprobs { flex: 1; min-height: 0; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; padding: 4px; display: flex; flex-direction: column; gap: 2px; }
+[data-subedit] .se-padprob { display: flex; gap: 8px; align-items: baseline; text-align: left; border: 0; background: transparent; border-radius: 7px; padding: 4px 8px; font: inherit; font-size: 13px; color: var(--txt); cursor: pointer; }
+[data-subedit] .se-padprob:hover { background-color: #faedf1; }
+[data-subedit] .se-ppl { color: var(--txt2); white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 78px; }
+/* ข้อความปัญหาบรรทัดแรก รายละเอียดบรรทัดที่สอง เวลาแต่ละค่าเป็นก้อนเดียว ไม่ตัดกลางตัวเลข */
+[data-subedit] .se-ppm { display: flex; flex-direction: column; }
+[data-subedit] .se-ppd { color: var(--txt2); font-variant-numeric: tabular-nums; }
+/* ไม่มีปัญหา สองประโยคบรรทัดละประโยค ช่องกว้าง 300 จุดใส่ประโยคเดียวไม่พอ ตัดเองแล้วตกกลางวลี */
+[data-subedit] .se-padnone { display: flex; flex-direction: column; padding: 4px 6px; color: var(--txt2); }
+[data-subedit] .se-pp-time, [data-subedit] .se-pp-order, [data-subedit] .se-pp-cut { color: var(--bad-ink); }
+[data-subedit] .se-pp-overlap { color: #a8812e; }

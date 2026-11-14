@@ -19,7 +19,7 @@ import Dialog from "../Dialog";
 import Dropdown from "../Dropdown";
 import InfoTip from "../InfoTip";
 import { CardIcon, J, Keep, Phr, Seg, Skel } from "../ui";
-import { IbRedo, IbSave, IbTick, IbUndo, IcClock, IcFile, IcFolder } from "../icons";
+import { IbRedo, IbSave, IbTick, IbUndo, IcClock, IcCollapse, IcExpand, IcFile, IcFolder } from "../icons";
 import SubGrid from "./SubGrid";
 import SubEditBox, { savedOf } from "./SubEditBox";
 import SubVideo, { shownText } from "./SubVideo";
@@ -30,6 +30,7 @@ import { getTiming, getViewW, msPerPx, rangeOf, scrollIntoView, setLeft, setOpt,
 import FontDialog from "./FontDialog";
 import { DetailsDialog, DummyDialog, JumpDialog } from "./VideoDialogs";
 import { useLineCmds } from "./LineCmds";
+import PadView, { flushPad } from "./PadView";
 import "../../styles/subedit.css";
 
 const nameOf = (p: string) => p.split(/[\\/]/).pop() ?? p;
@@ -215,6 +216,9 @@ export default function SubEditor(p: SubEditorProps) {
   // แถวปุ่มเสียง แบบ 2 เต็มความกว้างเมื่อหน้าต่างสูงพอ (จอ 1080 ขึ้นไปตอนกดขยาย) ไม่งั้นแบบ 1 ไอคอนอย่างเดียวใต้คลื่นเสียง
   // พี่กันเคาะ แบบ 2 เป็นหลัก แบบ 1 ตอนที่ว่างไม่พอ · หน้าต่าง 1280 × 800 กับ 1600 × 852 แบบ 2 ดันตารางจนหน้าต้องเลื่อน เกณฑ์ 950 จุดแคลร์ตั้ง
   const [tall, setTall] = useState(() => window.innerHeight >= 950);
+  // ยุบภาพหนังกับคลื่นเสียง ตารางยาวเต็มหน้า (ขั้น 8 · แบบ 2 ที่พี่กันเคาะเหลือแค่ปุ่มนี้) จำไว้ในเครื่อง
+  const [fold, setFoldS] = useState(() => { try { return localStorage.getItem("se-fold") === "1"; } catch { return false; } });
+  const setFold = (v: boolean) => { setFoldS(v); try { localStorage.setItem("se-fold", v ? "1" : "0"); } catch { /* ไม่มีที่เก็บ */ } };
   useEffect(() => { const f = () => setTall(window.innerHeight >= 950); window.addEventListener("resize", f); return () => window.removeEventListener("resize", f); }, []);
   const movieAud: AudSource = p.video && p.refStream != null ? { path: p.video, map: `0:${p.refStream}`, idx: p.refIdx ?? 0, name: nameOf(p.video), own: false } : null;
   const aud = tm.own ?? movieAud;
@@ -273,6 +277,7 @@ export default function SubEditor(p: SubEditorProps) {
 
   /** บันทึก · คืน true เมื่อบันทึกแล้ว · ต้องให้คนเลือกเพิ่ม (หน้าต่างถาม) คืน false */
   const doSave = async (force = false, inexactOk = false): Promise<boolean> => {
+    await flushPad();
     const d = getSubEdit().doc;
     if (!d || save.s === "saving") return false;
     if (!sameKind(d)) { openSaveAs(d.kind); return false; }
@@ -308,6 +313,7 @@ export default function SubEditor(p: SubEditorProps) {
   };
   /** บันทึกเป็นไฟล์ใหม่ที่ path · เปลี่ยนชนิดก่อนถ้าต้อง · ชื่อชนถามตั้งชื่อใหม่ */
   const saveNew = async (to: SubDoc["kind"], target: string) => {
+    await flushPad();
     const d = getSubEdit().doc;
     if (!d) return;
     setSave({ s: "saving" });
@@ -429,6 +435,8 @@ export default function SubEditor(p: SubEditorProps) {
   if (load.s === "busy" || !doc) return <section className="card se" aria-busy="true" data-subedit><Skel w="60%" h={30} /><div className="aegtop se-top" style={{ marginTop: 12 }}><Skel w="100%" h={203} r={0} /><Skel w="100%" h={150} /></div><Skel w="100%" h={160} style={{ marginTop: 12 }} /></section>;
 
   const n = editedCount();
+  const videoEl = <SubVideo delayMs={dl} doc={doc} ev={ev} name={nameOf(p.video)} onAddMovie={p.onAddMovie} onKey={sideKey}
+    onDummy={() => setVdlg("dummy")} onDetails={() => setVdlg("details")} onJump={() => setVdlg("jump")} onClose={onCloseVideo} />;
   const undoTop = st.undo.at(-1), redoTop = st.redo.at(-1);
   const saving = save.s === "saving";
   const saveWhy = !st.dirty && sameKind(doc) ? "ยังไม่ได้แก้อะไร" : undefined;
@@ -445,6 +453,9 @@ export default function SubEditor(p: SubEditorProps) {
             options={CHARSETS.map((c) => ({ value: c, label: c }))} onChange={(c) => { if (c !== doc.enc.charset) { if (st.dirty) setSave({ s: "failed", err: "บันทึกหรือเลิกทำการแก้ก่อน แล้วค่อยเปิดด้วยรหัสอื่น ไม่งั้นที่แก้ไว้จะหาย" }); else openAs(c); } }} />
           <InfoTip title="รหัสอักษร" tip={ENC_TIP} />
         </span>
+        {p.tab === "aeg" && <button type="button" className={"btn btn-ghost btn-sm" + (fold ? " pressed" : "")} aria-pressed={fold} onClick={() => setFold(!fold)}
+          title={fold ? "แสดงภาพหนังกับคลื่นเสียงกลับมา" : "ซ่อนภาพหนังกับคลื่นเสียง ตารางยาวเต็มหน้า คีย์ลัดเสียงยังใช้ได้"} data-se-fold>
+          {fold ? <IcExpand size={15} /> : <IcCollapse size={15} />}<Keep all={["ซ่อนภาพและเสียง", "แสดงภาพและเสียง"]}>{fold ? "แสดงภาพและเสียง" : "ซ่อนภาพและเสียง"}</Keep></button>}
         <span style={{ flex: 1 }} />
         <span className="se-state" data-se-state>
           {save.s === "saving" ? "กำลังบันทึก…" : save.s === "done" ? <span className="se-ok"><IbTick size={14} />{save.note ?? "บันทึกแล้ว"}</span>
@@ -462,16 +473,15 @@ export default function SubEditor(p: SubEditorProps) {
       {(!doc.exact || doc.bad > 0) && <div className="stat warn se-note" data-se-inexact><CardIcon kind="warn" /><div><Phr>{[!doc.exact ? `ไฟล์นี้มีตัวอักษรที่รหัส ${doc.enc.charset} อ่านไม่ออก บันทึกแล้วตัวนั้นจะเปลี่ยน ถ้าภาษาไทยขึ้นผิด ลองเปิดด้วยรหัสอื่น` : "", doc.bad > 0 ? `มี ${doc.bad} บรรทัดที่อ่านไม่ออก ไม่ขึ้นในตารางแต่ยังอยู่ในไฟล์ตอนบันทึก` : ""].filter(Boolean).join("  ")}</Phr></div></div>}
 
       {p.tab === "aeg" && <>
-        <div className="aegtop se-top">
-          <SubVideo delayMs={dl} doc={doc} ev={ev} name={nameOf(p.video)} onAddMovie={p.onAddMovie} onKey={sideKey}
-            onDummy={() => setVdlg("dummy")} onDetails={() => setVdlg("details")} onJump={() => setVdlg("jump")} onClose={onCloseVideo} />
+        {!fold && <div className="aegtop se-top">
+          {videoEl}
           <div className="se-acol">
             <SubAudio movie={movieAud} noAudio={noAudio ?? ""} delayMs={dl} doc={doc} ev={ev} sel={st.sel} onAutoCommit={() => commitTiming(true)}
               onPrev={() => audioAct("prev")} onNext={() => audioAct("next")} onSeekVideo={(ms) => seekTime(ms, "exact")} />
             {!tall && <AudioBar compact opts={tm.opts} noAudio={noAudio} noLine={noLine} onAct={audioAct} onToggle={(k, v) => setOpt(k, v)} />}
           </div>
-        </div>
-        {tall && <AudioBar opts={tm.opts} noAudio={noAudio} noLine={noLine} onAct={audioAct} onToggle={(k, v) => setOpt(k, v)} />}
+        </div>}
+        {tall && !fold && <AudioBar opts={tm.opts} noAudio={noAudio} noLine={noLine} onAct={audioAct} onToggle={(k, v) => setOpt(k, v)} />}
         {ev ? <SubEditBox doc={doc} ev={ev} orig={st.orig[ev.id]} savedEv={savedOf(ev.id)} fr={fr} frWhy={frWhy} delayMs={dl} unit={unit} onUnit={setUnit} onPrev={() => goto(at - 1)} onNext={onNext}
           onInsert={cmds.insertAfter} onSplit={(k) => cmds.split("estimate", k)} onJoin={() => cmds.join(false)} onDelete={onDelete} onToAss={onToAss} onFont={(apply, current) => setFont({ apply, current })} />
           : <div className="stat info"><CardIcon kind="info" /><div><b>ซับนี้ยังไม่มีบรรทัด</b><div className="minirow"><button type="button" className="btn btn-ghost btn-sm" onClick={() => insertEvent(-1, blankEvent(doc, { start: 0, end: 3000 }), "เพิ่มบรรทัด")} data-se-first>เพิ่มบรรทัดแรก</button></div></div></div>}
@@ -486,7 +496,7 @@ export default function SubEditor(p: SubEditorProps) {
       {p.tab === "long" && <div className="subtext se-long" style={{ maxHeight: "none" }} data-long-view>{doc.events.filter((e) => !e.comment).map((e, i) => (
         <div key={e.id} className={"cue" + (e.id === st.active ? " cur" : "")} onClick={() => select([e.id], e.id)}><span className="n">{i + 1}</span><span className="t">{`${(e.start / 1000).toFixed(2)} → ${(e.end / 1000).toFixed(2)}`}</span><div style={{ whiteSpace: "pre-line" }}>{shownText(e, doc)}</div></div>
       ))}</div>}
-      {p.tab === "pad" && <PadView doc={doc} />}
+      {p.tab === "pad" && <PadView doc={doc} delay={dl} video={videoEl} onSeek={(ms) => seekTime(ms + dl, "start")} />}
 
       {cmds.dialogs}
       <JumpDialog open={vdlg === "jump"} fr={fr} pos={vst.pos ?? 0} onClose={() => setVdlg(null)} onJump={seek} />
@@ -558,19 +568,5 @@ export default function SubEditor(p: SubEditorProps) {
         </div>}
       </Dialog>
     </section>
-  );
-}
-
-/** แบบ notepad ข้อความทั้งไฟล์ตามที่จะบันทึก (ขั้น 8 ทำให้แก้ได้) */
-function PadView({ doc }: { doc: SubDoc }) {
-  const [text, setText] = useState<string | null>(null);
-  useEffect(() => { let live = true; subDocApi.render(doc).then((t) => { if (live) setText(t); }, () => {}); return () => { live = false; }; }, [doc]);
-  if (text == null) return <Skel w="100%" h={300} />;
-  const lines = text.replace(/\r\n?/g, "\n").split("\n");
-  return (
-    <div className="np se-pad" data-notepad-view>
-      {lines.map((l, i) => <div key={i} className="npl"><span className="ln">{i + 1}</span><span className="tx">{l || " "}</span></div>)}
-      <div className="npst">{`${lines.length.toLocaleString("en-US")} บรรทัด ${doc.kind.toUpperCase()} รหัส ${doc.enc.charset} ข้อความตามที่จะบันทึก ยังแก้ในแบบนี้ไม่ได้`}</div>
-    </div>
   );
 }
