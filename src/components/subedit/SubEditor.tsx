@@ -15,6 +15,7 @@ import { useHotkeys } from "../../lib/hotkeys";
 import { usePageActiveRef } from "../../lib/pageActive";
 import { garbageGet, garbageSet, isAss, snapMs, type TagMode } from "../../lib/subText";
 import { dummyName, getVid, jumpKeyframe, parseDummy, seek, seekTime, setDummy, useVid, vidKeys, vidOpen, vidRate, zoomStep, type DummySpec } from "../../lib/vidFrames";
+import { toggleVidPlay } from "../../lib/vidPlay";
 import Dialog from "../Dialog";
 import Dropdown from "../Dropdown";
 import InfoTip from "../InfoTip";
@@ -378,6 +379,8 @@ export default function SubEditor(p: SubEditorProps) {
     { code: "KeyY", ctrl: true, field: true, run: () => redo() },
     { code: "KeyZ", ctrl: true, shift: true, field: true, run: () => redo() },
     { code: "KeyS", ctrl: true, field: true, run: () => void doSave() },
+    // เล่นหรือหยุดหนังในกรอบวิดีโอ (video/play ของ Aegisub Ctrl+P · vidPlay.ts)
+    { code: "KeyP", ctrl: true, field: true, run: () => toggleVidPlay() },
     { code: "KeyS", ctrl: true, shift: true, field: true, run: () => { const d = getSubEdit().doc; if (d) openSaveAs(d.kind); } },
     // คีย์ลัดวิดีโอของ Aegisub (default_hotkey.json) ใช้ได้ทั้งหน้า รวมตอนพิมพ์ในช่อง
     { code: "Numpad6", ctrl: true, field: true, run: () => { const pos = getVid().pos; if (pos != null) seek(pos + 1); } },
@@ -438,7 +441,7 @@ export default function SubEditor(p: SubEditorProps) {
   if (load.s === "busy" || !doc) return <section className="card se" aria-busy="true" data-subedit><Skel w="60%" h={30} /><div className="aegtop se-top" style={{ marginTop: 12 }}><Skel w="100%" h={203} r={0} /><Skel w="100%" h={150} /></div><Skel w="100%" h={160} style={{ marginTop: 12 }} /></section>;
 
   const n = editedCount();
-  const videoEl = <SubVideo delayMs={dl} doc={doc} ev={ev} name={nameOf(p.video)} onAddMovie={p.onAddMovie} onKey={sideKey}
+  const videoEl = <SubVideo delayMs={dl} doc={doc} ev={ev} audio={aud} name={nameOf(p.video)} onAddMovie={p.onAddMovie} onKey={sideKey}
     onDummy={() => setVdlg("dummy")} onDetails={() => setVdlg("details")} onJump={() => setVdlg("jump")} onClose={onCloseVideo} />;
   const undoTop = st.undo.at(-1), redoTop = st.redo.at(-1);
   const saving = save.s === "saving";

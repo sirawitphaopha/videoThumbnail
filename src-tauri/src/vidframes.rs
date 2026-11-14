@@ -260,7 +260,7 @@ fn seek_args(movie: &Path, ss: f64, count: u32) -> Vec<OsString> {
 }
 
 /// แยกไฟล์ JPEG ที่ต่อกันมาจาก image2pipe ตามโครงของ JPEG (ข้ามข้อมูลภาพหลังส่วน SOS จนเจอเครื่องหมายจริง) ไม่เดาจากไบต์ FFD9
-fn split_jpegs(b: &[u8]) -> Vec<&[u8]> {
+pub(crate) fn split_jpegs(b: &[u8]) -> Vec<&[u8]> {
     let mut out = Vec::new();
     let mut i = 0usize;
     'outer: while i + 1 < b.len() {

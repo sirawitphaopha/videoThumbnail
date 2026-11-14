@@ -17,6 +17,9 @@ let st: St = { playing: false, err: "" };
 const subs = new Set<() => void>();
 const set = (p: Partial<St>) => { st = { ...st, ...p }; subs.forEach((f) => f()); };
 export const usePlay = () => useSyncExternalStore((f) => { subs.add(f); return () => subs.delete(f); }, () => st);
+export const getPlay = () => st;
+/** เลขรอบของการเล่น · เปลี่ยนเมื่อมีการสั่งเล่นใหม่หรือหยุด (ตัวเล่นหนังใช้ดูว่าเสียงที่ตัวเองสั่งยังเล่นอยู่ไหม) */
+export const playRun = () => run;
 
 let ctx: AudioContext | null = null;
 let gain: GainNode | null = null;

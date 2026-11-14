@@ -4,7 +4,7 @@
    ขนาดภาพ พอดีกรอบ หรือ 12.5% ถึง 300% ขั้นละ 12.5% · Ctrl กับล้อเมาส์บนภาพซูมทีละ 12.5% ได้ถึง 1000% (แบบ Aegisub)
    คลิกภาพแล้วลูกศรซ้ายขวาเดินทีละเฟรม Shift ไป keyframe Ctrl ไปขอบบรรทัด Alt ทีละ 10 เฟรม (ตารางก็ใช้ปุ่มชุดเดียวกัน)
    ยังอ่านเวลาเฟรมไม่เสร็จ ขึ้นภาพตามเวลาแบบเดิมก่อน · ไม่มีวิดีโอบอกในกรอบพร้อมปุ่มเพิ่มไฟล์วิดีโอกับวิดีโอจำลอง (BUGS ข้อ 107)
-   เล่นวิดีโอจริงกับเครื่องมือจัดซับบนภาพรอระบบดูวิดีโอในแอป (ROADMAP) */
+   ปุ่มเล่น (Ctrl+P แบบ Aegisub) เล่นหนังในกรอบนี้ เสียงจากไฟล์หนัง ภาพเดินตามเวลาของเสียง (vidPlay.ts) · เครื่องมือจัดซับบนภาพรอระบบดูวิดีโอในแอป (ROADMAP) */
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { pickKeyframes, pickSave, subApi, vidApi, type SubDoc, type SubEvent } from "../../lib/api";
 import type { Tip } from "../../lib/codecAdv";
@@ -12,13 +12,15 @@ import { dropStyle, sideStyle, useDropPlacement, useSideFit } from "../../lib/po
 import { useClickOutside, useEscClose } from "../../lib/popup";
 import { isAss } from "../../lib/subText";
 import {
-  cachedFrame, closeVideo, dummyLight, findScenes, fmtMs, frameImage, isKey, prefetch, reopenVideo, seek, setAuto, setFitPct, setHideKeys, setKeys, setZoom,
+  cachedFrame, closeVideo, dummyLight, findScenes, fmtMs, frameImage, getVid, isKey, prefetch, reopenVideo, seek, setAuto, setFitPct, setHideKeys, setKeys, setZoom,
   signedMs, stopScenes, useVid, vidKeys, vidRate, vidRetry, vidSrc, type DummySpec,
 } from "../../lib/vidFrames";
 import Dropdown from "../Dropdown";
 import InfoTip from "../InfoTip";
 import { Skel, Switch } from "../ui";
-import { IbFilm, IbFrameNext, IbFramePrev, IbJump, IcFile } from "../icons";
+import { IbFilm, IbFrameNext, IbFramePrev, IbJump, IbPlay, IbStop, IcFile } from "../icons";
+import { bindPlayCanvas, getVidPlay, setPlayToggle, startVidPlay, stopVidPlay, useVidPlay } from "../../lib/vidPlay";
+import type { AudSrc } from "../../lib/audioPlay";
 import { KEY_TIP } from "./VideoDialogs";
 
 /** ข้อความที่ตาเห็นบนภาพ ไม่มีแท็ก ขึ้นบรรทัดจริง */
@@ -49,6 +51,8 @@ type Props = {
   onClose: () => void;
   /** Ctrl กับลูกศร ไปขอบบรรทัด ต้องเลือกบรรทัดถัดไปได้ หน้าแก้ซับจึงเป็นคนทำ */
   onKey: (e: React.KeyboardEvent) => void;
+  /** แทร็กเสียงที่หน้าแก้ซับใช้ (คลื่นเสียง) เล่นคู่กับภาพตอนกดเล่น · ไม่มี = เล่นภาพอย่างเดียว */
+  audio: AudSrc | null;
 };
 
 /** วาดวิดีโอจำลอง สีพื้นหรือตารางหมากรุก 8 จุดตามขนาดภาพจริง */
@@ -113,6 +117,21 @@ export default function SubVideo(p: Props) {
 
   const pos = st.pos;
   const movie = src.kind === "movie" ? src.path : "";
+  const vp = useVidPlay();
+  const playing = vp.playing;
+  // เล่นหนัง · ภาพที่ขอสูงไม่เกิน 720 จุด ถอดทันเวลาจริง
+  const togglePlay = () => {
+    if (getVidPlay().playing) { stopVidPlay(); return; }
+    if (!movie || !t || !fr || pos == null) return;
+    void startVidPlay(movie, t, fr, pos, p.audio, Math.min(reqH, 720));
+  };
+  const toggleRef = useRef(togglePlay);
+  toggleRef.current = togglePlay;
+  useEffect(() => { setPlayToggle(() => toggleRef.current()); return () => setPlayToggle(null); }, []);
+  // ระหว่างเล่น ภาพย้ายเพราะอย่างอื่น (เลือกบรรทัดตอนเปิด AUTO ข้ามไปยัง) เล่นต่อจากตำแหน่งใหม่
+  useEffect(() => { if (getVidPlay().playing && movie && t && fr && pos != null) void startVidPlay(movie, t, fr, pos, p.audio, Math.min(reqH, 720)); }, [pos]); // eslint-disable-line react-hooks/exhaustive-deps
+  // เปลี่ยนหนัง ปิดวิดีโอ ออกจากหน้า หยุดเล่น
+  useEffect(() => () => stopVidPlay(), [movie]);
   // ภาพตรงเฟรม · เฟรมที่เก็บไว้แล้วขึ้นทันที ที่เหลือรอนิดหนึ่งก่อนดึง กดเดินเร็ว ๆ ไม่ดึงทุกเฟรม
   useEffect(() => {
     if (!movie) { setImg(null); return; }
@@ -147,17 +166,21 @@ export default function SubVideo(p: Props) {
     return () => el.removeEventListener("wheel", onWheel);
   }, [st.zoom, fitS]);
 
-  const tNow = fr && pos != null ? fr.timeAt(pos) : p.ev ? p.ev.start + d : null;
+  const tNow = fr && playing && vp.frame != null ? fr.timeAt(vp.frame) : fr && pos != null ? fr.timeAt(pos) : p.ev ? p.ev.start + d : null;
   const shown = tNow == null ? "" : p.doc.events.filter((e) => !e.comment && e.start + d <= tNow && tNow < e.end + d).map((e) => shownText(e, p.doc)).join("\n");
   const onKey = isKey(keys.list, pos ?? -1);
   const ready = !!fr && pos != null;
   const noStep = src.kind === "none" ? "ยังไม่มีวิดีโอ" : st.load === "busy" ? "กำลังอ่านเวลาของทุกเฟรม รอสักครู่" : st.load === "err" ? "อ่านเวลาเฟรมไม่ได้" : undefined;
   const fontPx = Math.max(11, Math.min(28, imgH * 0.06));
+  const playWhy = src.kind === "dummy" ? "วิดีโอจำลองไม่มีภาพให้เล่น" : noStep;
 
   let body: React.ReactNode;
   if (src.kind === "dummy") body = <DummyCanvas spec={src.spec} w={imgW} h={imgH} />;
-  else if (src.kind === "movie") body = img ? <img src={img} alt={pos != null ? `ภาพหนังเฟรม ${pos}` : "ภาพหนัง"} style={{ width: imgW, height: imgH }} draggable={false} />
-    : fail ? <div className="vnone">ดึงภาพหนังไม่ได้</div> : <Skel w={imgW} h={imgH} r={0} />;
+  else if (src.kind === "movie") body = <>
+    {img ? <img src={img} alt={pos != null ? `ภาพหนังเฟรม ${pos}` : "ภาพหนัง"} style={{ width: imgW, height: imgH }} draggable={false} />
+      : fail ? <div className="vnone">ดึงภาพหนังไม่ได้</div> : <Skel w={imgW} h={imgH} r={0} />}
+    {playing && <canvas ref={bindPlayCanvas} className="se-vplaycv" style={{ width: imgW, height: imgH }} aria-label="หนังที่กำลังเล่น" data-vplaycv />}
+  </>;
   else body = (
     <div className="vnone">
       <span>{st.closed ? "ปิดวิดีโออยู่" : "เปิดไฟล์ซับอย่างเดียว จึงไม่มีภาพหนัง"}</span>
@@ -179,10 +202,13 @@ export default function SubVideo(p: Props) {
         {p.ev && ready && <div className="vtime se-voff" data-voff>{`${signedMs(tNow! - (p.ev.start + d))}; ${signedMs(tNow! - (p.ev.end + d))}`}</div>}
       </div>
       <div className="se-vbar" data-vbar>
-        <button type="button" className={"btn btn-ghost btn-sm se-vstep" + (ready ? "" : " btn-wait")} aria-disabled={!ready || undefined} title={noStep ?? "ถอยหนึ่งเฟรม (ลูกศรซ้าย)"} aria-label="ถอยหนึ่งเฟรม" onClick={() => ready && seek(pos! - 1)} data-vprev><IbFramePrev size={15} /></button>
-        <button type="button" className={"btn btn-ghost btn-sm se-vstep" + (ready ? "" : " btn-wait")} aria-disabled={!ready || undefined} title={noStep ?? "เดินหนึ่งเฟรม (ลูกศรขวา)"} aria-label="เดินหนึ่งเฟรม" onClick={() => ready && seek(pos! + 1)} data-vnext><IbFrameNext size={15} /></button>
+        <button type="button" className={"btn btn-ghost btn-sm se-vstep" + (ready ? "" : " btn-wait")} aria-disabled={!ready || undefined} title={noStep ?? "ถอยหนึ่งเฟรม (ลูกศรซ้าย)"} aria-label="ถอยหนึ่งเฟรม" onClick={() => { if (!ready) return; const at = getVidPlay().playing ? null : pos!; stopVidPlay(); seek((at ?? getVid().pos ?? 0) - 1); }} data-vprev><IbFramePrev size={15} /></button>
+        <button type="button" className={"btn btn-ghost btn-sm se-vstep" + (ready ? "" : " btn-wait")} aria-disabled={!ready || undefined} title={noStep ?? "เดินหนึ่งเฟรม (ลูกศรขวา)"} aria-label="เดินหนึ่งเฟรม" onClick={() => { if (!ready) return; const at = getVidPlay().playing ? null : pos!; stopVidPlay(); seek((at ?? getVid().pos ?? 0) + 1); }} data-vnext><IbFrameNext size={15} /></button>
+        <button type="button" className={"btn btn-ghost btn-sm se-vstep se-vplay" + (playWhy ? " btn-wait" : "") + (playing ? " pressed" : "")} aria-disabled={!!playWhy || undefined} aria-pressed={playing}
+          title={playWhy ?? (playing ? "หยุด (Ctrl+P)" : "เล่นหนังจากภาพนี้ เสียงจากแทร็กเดียวกับคลื่นเสียง (Ctrl+P)")} aria-label={playing ? "หยุด" : "เล่นหนัง"} onClick={() => { if (!playWhy) togglePlay(); }} data-vplay>
+          {playing ? <IbStop size={15} /> : <IbPlay size={15} />}</button>
         <span className={"se-vpos" + (ready && onKey ? " key" : "")} title={ready ? (onKey ? "เฟรมนี้เป็น keyframe" : "เวลาของภาพ ขีด เลขเฟรม") : undefined} data-vpos data-vkey={ready && onKey ? "1" : undefined}>
-          {ready ? `${fmtMs(tNow!)} - ${pos}` : st.load === "busy" ? `อ่านเวลาเฟรม ${st.dur > 0 ? Math.min(99, Math.round((st.readTo / st.dur) * 100)) : 0}%` : st.load === "err" ? "อ่านเวลาเฟรมไม่ได้" : "—"}
+          {ready ? `${fmtMs(tNow!)} - ${playing && vp.frame != null ? vp.frame : pos}` : st.load === "busy" ? `อ่านเวลาเฟรม ${st.dur > 0 ? Math.min(99, Math.round((st.readTo / st.dur) * 100)) : 0}%` : st.load === "err" ? "อ่านเวลาเฟรมไม่ได้" : "—"}
         </span>
         <button type="button" className={"btn btn-ghost btn-sm se-auto" + (st.auto ? " pressed" : "")} aria-pressed={st.auto} title={st.auto ? "เปิดอยู่ เลือกบรรทัดแล้วภาพไปเวลาเริ่มของบรรทัดเอง กดเพื่อปิด" : "ปิดอยู่ เลือกบรรทัดแล้วภาพอยู่ที่เดิม กดเพื่อเปิด"} onClick={() => setAuto(!st.auto)} data-vauto>AUTO</button>
         <VideoMenu {...p} fitPct={Math.round(fitS * 1000) / 10} />

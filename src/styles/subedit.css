@@ -20,6 +20,8 @@
 [data-subedit] .se-vview:focus-visible { box-shadow: 0 0 0 3px rgba(200, 64, 111, .35); }
 [data-subedit] .se-vimg { position: relative; display: flex; align-items: center; justify-content: center; }
 [data-subedit] .se-vimg img { object-fit: fill; }
+/* ภาพตอนเล่นหนัง (vidPlay.ts) ทับตรงภาพนิ่งพอดี ภาพนิ่งเห็นอยู่ข้างใต้จนเฟรมแรกมาถึง */
+[data-subedit] .se-vplaycv { position: absolute; inset: 0; margin: auto; display: block; }
 [data-subedit] .se-voff { font-variant-numeric: tabular-nums; }
 [data-subedit] .se-vbar { display: flex; align-items: center; gap: 4px; min-width: 0; }
 [data-subedit] .se-vbar .btn-sm { height: 28px; }

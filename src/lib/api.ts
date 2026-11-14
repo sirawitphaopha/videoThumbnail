@@ -365,6 +365,14 @@ export const vidApi = {
   /** หาจุดเปลี่ยนฉาก ถอดภาพทั้งเรื่อง · ระหว่างหาส่ง vid-scenes-progress · คืนเลขเฟรมแรกของแต่ละฉาก */
   scenes: (movie: string, threshold?: number) => call<number[]>("vid_scenes", { movie, threshold: threshold ?? null }),
   scenesStop: () => call<void>("vid_scenes_stop"),
+  /** เล่นภาพต่อเนื่องจากเวลา ss (คิดแบบ seekOf) สูง h จุด · onFrame ได้ไบต์ JPEG ทีละเฟรมตามลำดับ · จบเรื่องหรือหยุดแล้ว promise จบ (vidplay.rs) */
+  play: async (movie: string, ss: number, h: number, onFrame: (b: ArrayBuffer) => void) => {
+    const { Channel } = await import("@tauri-apps/api/core");
+    const ch = new Channel<ArrayBuffer>();
+    ch.onmessage = onFrame;
+    return call<void>("vid_play", { movie, ss, h, out: ch });
+  },
+  playStop: () => call<void>("vid_play_stop"),
   keysLoad: (path: string) => call<number[]>("vid_keys_load", { path }),
   keysSave: (path: string, keys: number[]) => call<string>("vid_keys_save", { path, keys }),
 };
