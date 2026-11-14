@@ -31,6 +31,10 @@
 .brn-side h3 { margin: 0 0 6px; font-size: 14px; color: var(--accent-ink); }
 .brn-kv { display: grid; grid-template-columns: 66px 1fr; gap: 3px 8px; margin: 0; font-size: 13px; line-height: 1.5; }
 .brn-kv dt { color: var(--txt3); white-space: nowrap; }
+/* ป้ายที่มีปุ่ม ⓘ ต่อท้าย (เพดาน BUGS ข้อ 119) */
+.brn-kv dt.brn-dtip { display: inline-flex; align-items: center; gap: 3px; }
+/* ปุ่มไปหน้ากราฟเสียงท้ายการ์ด Bitrate ตอนดูไฟล์เสียง */
+.brn-graph { margin-top: 8px; width: 100%; justify-content: center; }
 /* ค่าชิดขวา ช่องที่ยังไม่มีค่าเป็นขีดสีเดียวกับชื่อแถว (พี่กันสั่ง 11 พ.ย. 2569 "ย้ายขีด ไปฝั่งขวา ตอนนี้ฝั่งขวามันว่างไป") · ค่าจริงชิดขวาด้วย ไม่กระโดดตอนอ่านเสร็จ แบบแผงข้อมูลเสียงของหน้ากราฟเสียง */
 .brn-kv dd { margin: 0; color: var(--txt); font-variant-numeric: tabular-nums; min-width: 0; text-align: right; }
 .brn-na { color: var(--txt3); font-weight: 400; }

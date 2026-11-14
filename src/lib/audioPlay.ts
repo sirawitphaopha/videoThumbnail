@@ -10,7 +10,7 @@ const RATE = 48000;
 const CHUNK_MS = 4000;
 const AHEAD_S = 2;
 
-export type AudSrc = { path: string; map: string };
+export type AudSrc = { path: string; map: string; zero?: number | null };
 type St = { playing: boolean; err: string };
 
 let st: St = { playing: false, err: "" };
@@ -81,7 +81,7 @@ export async function play(src: AudSrc, t0: number, t1: number | null) {
     const want = Math.min(CHUNK_MS, endMs - next);
     if (want <= 0) break;
     let ab: ArrayBuffer;
-    try { ab = await audApi.pcm(src.path, src.map, next / 1000, want / 1000); } catch (e) { if (run === my) set({ playing: false, err: String(e) }); return; }
+    try { ab = await audApi.pcm(src.path, src.map, next / 1000, want / 1000, src.zero ?? null); } catch (e) { if (run === my) set({ playing: false, err: String(e) }); return; }
     if (run !== my) return;
     const b = toBuffer(c, ab);
     if (!b) break;

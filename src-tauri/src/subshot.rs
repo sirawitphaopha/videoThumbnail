@@ -16,7 +16,7 @@ use tauri::{AppHandle, Manager};
 use crate::subdoc::SubDoc;
 use crate::tools::{run_tool_timeout, tool_succeeded, tools_dir};
 
-fn work_dir(app: &AppHandle) -> Result<PathBuf, String> {
+pub(crate) fn work_dir(app: &AppHandle) -> Result<PathBuf, String> {
     let d = app.path().app_local_data_dir().map_err(|e| e.to_string())?.join("tmp");
     std::fs::create_dir_all(&d).map_err(|e| e.to_string())?;
     Ok(d)
@@ -35,7 +35,7 @@ fn at(t_ms: f64) -> String {
 }
 
 /// ตัวกรอง subtitles · original_size ขนาดจริงของภาพหนัง (libass ใช้คิดเส้นขอบและเงาตอน ScaledBorderAndShadow ไม่ใช่ yes)
-fn subs_filter(sub: &Path, fonts: Option<&Path>, ow: u32, oh: u32, alpha: bool) -> String {
+pub(crate) fn subs_filter(sub: &Path, fonts: Option<&Path>, ow: u32, oh: u32, alpha: bool) -> String {
     let mut s = format!("subtitles=f={}", filter_path(sub));
     if ow > 0 && oh > 0 { s.push_str(&format!(":original_size={ow}x{oh}")); }
     if let Some(f) = fonts { s.push_str(&format!(":fontsdir={}", filter_path(f))); }
@@ -44,9 +44,9 @@ fn subs_filter(sub: &Path, fonts: Option<&Path>, ow: u32, oh: u32, alpha: bool) 
 }
 
 /// ซับทั้งไฟล์เป็นไฟล์ชั่วคราว UTF-8 (libass อ่าน UTF-8) · ชื่อขึ้นต้น sub- โปรแกรมกวาดทิ้งเองตอนเปิดครั้งหน้า (lib.rs)
-struct TmpSub(PathBuf);
+pub(crate) struct TmpSub(pub(crate) PathBuf);
 impl TmpSub {
-    fn new(work: &Path, doc: &SubDoc) -> Result<Self, String> {
+    pub(crate) fn new(work: &Path, doc: &SubDoc) -> Result<Self, String> {
         let ext = match doc.kind.as_str() { "ass" => "ass", "ssa" => "ssa", "vtt" => "vtt", _ => "srt" };
         let p = work.join(format!("sub-shot-{}.{ext}", crate::poster_image::unique()));
         std::fs::write(&p, crate::subdoc::render(doc)).map_err(|e| e.to_string())?;
@@ -77,7 +77,7 @@ fn safe_name(n: &str, id: u64) -> String {
 
 /// ฟอนต์ที่ฝังในหนัง MKV ดึงออกมาครั้งเดียวต่อเรื่อง (ที่อยู่ ขนาด เวลาแก้ไฟล์เดิม) · ไม่มีฟอนต์หรือไม่ใช่ MKV ได้ None
 /// เก็บไว้ไม่เกิน 8 เรื่องล่าสุด ที่เก่ากว่านั้นลบทิ้ง
-fn movie_fonts(tools: &Path, work: &Path, movie: &Path) -> Option<PathBuf> {
+pub(crate) fn movie_fonts(tools: &Path, work: &Path, movie: &Path) -> Option<PathBuf> {
     if !is_mkv(movie) { return None; }
     let md = std::fs::metadata(movie).ok()?;
     let mtime = md.modified().ok().and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_secs()).unwrap_or(0);

@@ -27,6 +27,7 @@ import CheckPage, { type CheckReq } from "./pages/CheckPage";
 import GraphPage, { GraphBoundary, type GraphReq } from "./pages/GraphPage";
 import { CheckHost } from "./lib/check";
 import { applyTone } from "./lib/tones";
+import { requestSettingsSec } from "./lib/drives";
 import { PageActiveCtx } from "./lib/pageActive";
 
 export default function App() {
@@ -122,8 +123,8 @@ function Frame() {
                 {slot("check", <CheckPage req={checkReq} onConsumed={() => setCheckReq(null)} onGraph={openGraph} onPage={setPage} />)}
                 {/* หน้ากราฟอยู่ในกล่องเลื่อน แถบสูงขึ้นหรือลากขยายจนยาวกว่าหน้าต่างแล้วเลื่อนลงไปถึงแถวปุ่มล่างได้ (เดิมแถวปุ่มล่างโดนตัดใต้จอ เจอตอนตรวจภาพ) */}
                 {slot("graph", <div className="pagewrap" data-graphscroll><GraphBoundary><GraphPage req={graphReq} onConsumed={() => setGraphReq(null)} onBitrate={(path, track) => { setBitratePath(path); setBitrateTrack(track ?? null); setPage("bitrate"); }} /></GraphBoundary></div>)}
-                {slot("bitrate", <BitratePage initialPath={bitratePath} initialTrack={bitrateTrack} onConsumed={() => { setBitratePath(null); setBitrateTrack(null); }} />)}
-                {slot("subtitle", <SubtitlePage onAv={() => setPage("av")} />)}
+                {slot("bitrate", <BitratePage initialPath={bitratePath} initialTrack={bitrateTrack} onConsumed={() => { setBitratePath(null); setBitrateTrack(null); }} onGraph={(path, track) => openGraph({ path, track })} />)}
+                {slot("subtitle", <SubtitlePage onAv={() => setPage("av")} onSettings={() => { requestSettingsSec("av"); setPage("settings"); }} />)}
                 {slot("mediainfo", <MediaInfoPage onAv={(path) => { setAvPath(path); setPage("av"); }} onShelf={() => setPage("shelf")} />)}
                 {slot("settings", <div className="pagewrap" data-settingsscroll><SettingsPage /></div>)}
               </>

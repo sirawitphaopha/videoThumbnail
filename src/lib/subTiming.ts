@@ -52,7 +52,8 @@ export type Pend = {
   /** บรรทัดอื่นที่ลากตามด้วย Ctrl (ขอบอยู่ที่เดียวกัน) */
   links: { id: number; start: number; end: number }[];
 };
-export type AudSource = { path: string; map: string; idx: number; name: string; own: boolean } | null;
+/** zero เวลาเฟรมแรกของภาพในไฟล์ วินาที · เสียงในหนังเลื่อนให้เวลา 0 ตรงเฟรมแรกของภาพแบบ Aegisub (BUGS ข้อ 115) · ไฟล์เสียงแยกไม่มี */
+export type AudSource = { path: string; map: string; idx: number; name: string; own: boolean; zero?: number | null } | null;
 
 type St = { opts: AudOpts; pend: Pend | null; left: number; own: AudSource };
 

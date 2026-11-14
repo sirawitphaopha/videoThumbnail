@@ -25,6 +25,10 @@ const q = (js) => c.evaluate(`(() => { ${js} })()`);
 const shot = async (f, sel, pad = 0) => { await c.move(5, 700); await sleep(250); return c.shot(`${OUT}/${f}`, sel, pad); };
 const waitFor = async (js, ms = 20000) => { const t0 = Date.now(); while (Date.now() - t0 < ms) { if (await q(js)) return true; await sleep(150); } return false; };
 const drop = (paths) => c.evaluate(`window.__avDrop(${JSON.stringify(paths)}, 400, 300)`);
+// ตัวตรวจนี้ตรวจการ์ดตั้งค่าแทร็กแบบกางใต้แถว (ค่าตั้งต้นที่พี่กันเลือก) ตั้งชั่วคราวไม่จำค่า แล้วคืนค่าเดิมตอนจบ
+// (เดิมใช้แบบที่จำไว้ในเครื่อง ค้างเป็นแบบหน้าต่างซ้อนจากรอบก่อน หัวการ์ดไปอยู่หัวหน้าต่าง ข้อการ์ดตั้งค่าแทร็กไม่ผ่าน เจอตอนตรวจชุด BUGS ข้อ 113 ถึง 121)
+const tpBefore = await q("return localStorage.getItem('ms.trackPanel');");
+await q("window.__setTrackPanel('under', false); return 1;");
 const row = (i) => `document.querySelectorAll('.trk:not(.head)')[${i}]`;
 
 rmSync(DIR, { recursive: true, force: true });
@@ -36,6 +40,7 @@ await inv("dev_fake_free", { bytes: 0 });
 await inv("set_settings", { patch: { folders: [DIR], originalAfter: "keep", outputFormat: "mkv", checkSourceBefore: true, checkOutputAfter: true } });
 await c.evaluate("localStorage.removeItem('ms.codecLast'); location.hash = ''; location.reload()");
 await sleep(1500);
+await q("window.__setTrackPanel?.('under', false); return 1;"); // หลังโหลดหน้าใหม่ ค่าที่ตั้งก่อนโหลดหาย ตั้งซ้ำ
 await c.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
 
 // ---------- เมนูซ้าย · หน้าว่าง ----------
@@ -563,6 +568,7 @@ check("หน้าถัดไปได้ภาพ 7–12 · กดภาพ�
 await closeDlg();
 
 await c.send("Emulation.clearDeviceMetricsOverride");
+if (tpBefore) await q(`window.__setTrackPanel(${JSON.stringify(tpBefore)}, false); return 1;`);
 writeFileSync(`${OUT}/ผลเทส.json`, JSON.stringify(results, null, 2) + "\n");
 const failed = results.filter((x) => !x.pass);
 console.log(`\nผ่าน ${results.length - failed.length} จาก ${results.length}`);

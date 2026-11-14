@@ -9,7 +9,7 @@ import Dialog from "./Dialog";
 import Dropdown from "./Dropdown";
 import InfoTip, { abbrer } from "./InfoTip";
 import { CardIcon, Keep, Phr, Range, Seg } from "./ui";
-import { encodeApi, type EncodePlan, type EncodeSpec, type EncoderInfo, type MergeTrack } from "../lib/api";
+import { convertApi, encodeApi, inApp, type EncodePlan, type EncodeSpec, type EncoderInfo, type MergeTrack } from "../lib/api";
 import { CODECS, codecOf, type Codec } from "../lib/codecs";
 import { ADV, TIPS, advSize, aacKbps, cardDefaults, cardValue, cardsFor, optLabel, optVal, type Card, type SizeCtx, type Vals } from "../lib/codecAdv";
 import { ftName, isLossless } from "../lib/ftypes";
@@ -292,17 +292,44 @@ export default function CodecPanel(p: {
     return { secs: t.duration * (sp ? sp[0] / sp[1] : 1), ch, rate: v.rate && v.rate !== "src" ? Number(v.rate) : t.rate ?? 48000, bits };
   };
   const ctx = ctxOf(live);
-  const headBytes = ctx ? advSize(c.id, engUse, live, ctx) : null;
+  const formulaBytes = ctx ? advSize(c.id, engUse, live, ctx) : null;
+  // ขนาดที่คาดจากการลองแปลงจริง 4 ช่วง ช่วงละ 10 วินาที แล้วคูณขยาย (BUGS ข้อ 120 · เดิมสูตรเสียงดิบคูณเปอร์เซ็นต์ตายตัวคลาดได้ 19 จุด)
+  // รอครึ่งวินาทีหลังเปลี่ยนค่า กดเปลี่ยนรัว ๆ ไม่ลองแปลงทุกครั้ง · ลองแปลงไม่ได้ (ไม่มีตัวแปลง) ใช้ตัวเลขจากสูตรต่อ
+  const probeKey = JSON.stringify([t.src, t.ff ?? t.tid, spec]);
+  const [probe, setProbe] = useState<{ key: string; bytes: number; cover: number } | null>(null);
+  useEffect(() => {
+    if (!inApp || !t.duration || !t.src) return;
+    let alive = true;
+    const tm = setTimeout(() => {
+      convertApi.sizeProbe(t.src, t.ff ?? t.tid, spec, t.channels, t.bits, t.rate, t.duration!, !!p.convertPage)
+        .then((r) => { if (alive) setProbe({ key: probeKey, bytes: r.bytes, cover: r.cover }); }, () => {});
+    }, 500);
+    return () => { alive = false; clearTimeout(tm); };
+  }, [probeKey]); // eslint-disable-line react-hooks/exhaustive-deps
+  const probed = probe && probe.key === probeKey ? probe : null;
+  // ระหว่างรอ ต้นทางกับปลายทางไม่เสียคุณภาพทั้งคู่และรูปแบบเสียงเท่าเดิม คิดจากขนาดเสียงของต้นทางจริงคูณสัดส่วนระดับ (สูตร ① ผลเทสใน ROADMAP)
+  const srcAudio = t.bitrate && t.duration ? (t.bitrate * t.duration) / 8 : t.bytes ?? null;
+  const sameFmt = !!ctx && ctx.ch === (srcCh ?? 2) && ctx.rate === (t.rate ?? ctx.rate) && (!t.bits || ctx.bits === (t.bits <= 16 ? 16 : 24)) && !speed;
+  const rawBytes = ctx ? (ctx.secs * ctx.rate * ctx.bits * ctx.ch) / 8 : 0;
+  const est1 = srcAudio && formulaBytes && rawBytes && c.lossless && isLossless(ftName("audio", t.codec, t.profile)) && sameFmt ? (srcAudio * formulaBytes) / (rawBytes * 0.55) : null;
+  const headAudio = probed ? probed.bytes : est1 ?? formulaBytes;
+  const headBytes = headAudio != null ? headAudio + (probed && p.convertPage ? probed.cover : 0) : null;
+  // การ์ดชุดค่ากับการ์ดขั้นสูงคูณอัตราส่วนของผลลองแปลงจริงต่อสูตร การ์ดของค่าที่เลือกขึ้นเท่าหัวแผง ไม่ขึ้นสองตัวเลขสำหรับค่าตั้งเดียวกัน
+  // ชุดอื่นใช้อัตราส่วนเดียวกัน เพราะบีบยากหรือง่ายมาจากเนื้อเสียงของไฟล์ (เจอตอนประเมินภาพชุด BUGS ข้อ 113 ถึง 121 หัวแผง 3.79 MB การ์ดเล็กสุด 4.01 MB)
+  const sizeFix = headAudio && formulaBytes ? headAudio / formulaBytes : 1;
 
   const srcFt = ftName("audio", t.codec, t.profile);
   const srcLossless = isLossless(srcFt);
+  // ไฟล์ใหญ่ขึ้นกี่เท่า บอกในคำเตือนแปลงจากแบบเสียคุณภาพเป็นแบบไม่เสียคุณภาพ (BUGS ข้อ 120 เพื่อนแคลร์เสนอ "ไฟล์จะใหญ่ขึ้นราว 6 เท่า แต่เสียงไม่ดีขึ้น")
+  // ตัวเลขมีตั้งแต่เปิดแผง (จากสูตร) ผลลองแปลงมาแทนทีหลัง ความยาวข้อความเท่าเดิม กล่องเตือนไม่สูงขึ้น
+  const upTimes = t.bytes && headBytes && headBytes / t.bytes >= 1.5 ? Math.round(headBytes / t.bytes) : null;
   const warn = !t.codec ? null : !srcLossless && !c.lossless ? `ต้นทาง ${srcFt} เป็นแบบเสียคุณภาพ การแปลงเป็น ${c.name} เป็นการเสียคุณภาพซ้อน เสียงจะต่างจากต้นฉบับมากขึ้น`
-    : !srcLossless && c.lossless ? `ต้นทาง ${srcFt} เป็นแบบเสียคุณภาพ การแปลงเป็น ${c.name} ทำให้ไฟล์ใหญ่ขึ้น แต่คุณภาพเสียงไม่ดีขึ้น` : null;
+    : !srcLossless && c.lossless ? `ต้นทาง ${srcFt} เป็นแบบเสียคุณภาพ การแปลงเป็น ${c.name} ทำให้ไฟล์ใหญ่ขึ้น${upTimes ? `ราว ${upTimes} เท่า` : ""} แต่คุณภาพเสียงไม่ดีขึ้น` : null;
   const name = `${t.name || ""} ${c.name}`.trim();
   // การ์ดเทียบต้นฉบับกับไฟล์ที่จะได้ แถวที่เปลี่ยนเน้นสี (พี่กันสั่ง 11 พ.ย. 2569 "อยากให้มันเป้นการ์ด … เทียบต้นฉบับกับตัวที่กำลังจะแปลง ว่าอะไรเปลี่ยน")
   const { ch: outCh, rate: outRate, bits: outBits } = outFormat(c.id, engUse, live, { ch: srcCh ?? 2, rate: t.rate ?? null, bits: t.bits ?? null });
   const outSecs = t.duration ? t.duration * (speed ? Number(speed.split(">")[0]) / Number(speed.split(">")[1]) : 1) : null;
-  const outKbps = headBytes && outSecs ? headBytes * 8 / outSecs / 1000 : null;
+  const outKbps = headAudio && outSecs ? headAudio * 8 / outSecs / 1000 : null;
   const chTxt = (n: number | null | undefined) => (n ? (n === 1 ? "โมโน" : n === 2 ? "2.0 ch" : n === 6 ? "5.1 ch" : n === 8 ? "7.1 ch" : `${n} ช่อง`) : "—");
   const khz = (r: number | null | undefined) => (r ? `${+(r / 1000).toFixed(1)} kHz` : "—");
   const kbps = (k: number | null | undefined) => (k ? `${Math.round(k).toLocaleString("en-US")} kbps` : "—");
@@ -322,10 +349,13 @@ export default function CodecPanel(p: {
       <div className="cpcmp-grid" style={{ gridTemplateColumns: `auto repeat(${cols.length}, minmax(0, 1fr))` }}>
         <span className="h"></span>{cols.map((x) => <span key={x.k} className="h">{x.k}</span>)}
         <span className="rl">ต้นฉบับ</span>{cols.map((x) => <span key={x.k} className="a" data-cmpa={x.k}>{x.a}</span>)}
-        <span className="rl">ไฟล์ที่จะได้<InfoTip title="ต้นฉบับกับไฟล์ที่จะได้" tip={{ w: "เทียบเสียงต้นฉบับกับไฟล์ที่จะได้ตามค่าที่ตั้งอยู่ตอนนี้ ช่องที่เปลี่ยนจะเน้นสี บิตเรตกับขนาดของไฟล์ใหม่เป็นค่าประมาณ ของจริงขึ้นกับเสียงในแทร็ก ส่วนบิตมีเฉพาะแบบไม่เสียคุณภาพ เพราะแบบเสียคุณภาพเก็บเสียงคนละวิธีจึงไม่นับเป็นบิต" }} /></span>
+        <span className="rl">ไฟล์ที่จะได้<InfoTip title="ต้นฉบับกับไฟล์ที่จะได้" tip={{ w: "เทียบเสียงต้นฉบับกับไฟล์ที่จะได้ตามค่าที่ตั้งอยู่ตอนนี้ ช่องที่เปลี่ยนจะเน้นสี", o: [
+          ["บิตเรตกับขนาด", "โปรแกรมลองแปลงจริง 4 ช่วง ช่วงละ 10 วินาที แล้วคูณขยายเป็นทั้งเพลง (เพลงไม่เกิน 1 นาทีแปลงทั้งเพลง) คลาดจากของจริงราวไม่เกิน 3% ระหว่างรอผลเป็นตัวเลขคร่าว ๆ จากสูตร", "", ""],
+          ["บิต", "มีเฉพาะแบบไม่เสียคุณภาพ เพราะแบบเสียคุณภาพเก็บเสียงคนละวิธีจึงไม่นับเป็นบิต", "", ""],
+        ] }} /></span>
         {cols.map((x) => { const on = x.a !== x.b; return <span key={x.k} className={"b" + (on ? " on" : "")} data-cmpb={x.k} data-changed={on || undefined}>{x.approx && x.b !== "—" ? "≈ " : ""}{x.b}</span>; })}
       </div>
-      {sizePct != null && <span className={"cpcmp-sum" + (sizePct > 0 ? " up" : "")} data-cmpsum>{sizePct <= 0 ? `เล็กลงราว ${-sizePct}%` : `ใหญ่ขึ้นราว ${sizePct}%`}</span>}
+      {sizePct != null && <span className={"cpcmp-sum" + (sizePct > 0 ? " up" : "")} title={probed ? "จากการลองแปลงจริง 4 ช่วง ช่วงละ 10 วินาที แล้วคูณขยาย" : "ตัวเลขคร่าว ๆ จากสูตร กำลังลองแปลงจริงให้แม่นขึ้น"} data-cmpsum data-cmpsrc={probed ? "probe" : est1 != null ? "src" : "formula"}>{sizePct <= 0 ? `เล็กลงราว ${-sizePct}%` : `ใหญ่ขึ้นราว ${sizePct}%`}</span>}
     </div>
   );
   const apply = () => {
@@ -349,7 +379,8 @@ export default function CodecPanel(p: {
     }
     let size: React.ReactNode;
     if (typeof k.size === "function") {
-      const bytes = ctx ? k.size(live, ctx) : null;
+      const bytes0 = ctx ? k.size(live, ctx) : null;
+      const bytes = bytes0 ? bytes0 * sizeFix : bytes0;
       const avg = ctx && bytes && ["tvbr", "vbr", "vbrq"].includes(k.key) ? Math.round(bytes * 8 / ctx.secs / 1000) : null;
       size = <div className="asz"><span>ขนาดที่คาด</span><b data-sz={k.key}>{bytes ? `ทั้งแทร็กราว ${fmtSize(bytes)}` : "ไม่รู้ความยาวแทร็ก"}</b>{avg ? <span className="avg">เฉลี่ยราว {avg} kbps</span> : null}</div>;
     } else if (k.size) size = <div className="asz"><span>ขนาดไฟล์</span><div>{ex(k.size)}</div></div>;
@@ -432,7 +463,8 @@ export default function CodecPanel(p: {
             <Seg small label="ตัวแปลง" value={engUse} onChange={(v) => { if (engs.find((e) => e.value === v)?.ok) setEng(v); else setNoEng(v); }}
               options={engs.map((e) => ({ value: e.value, label: e.ok ? e.label : `${e.label} (${e.miss ?? "ยังไม่ได้ใส่"})` }))} /></div>
           <div><div className="cphead"><span className="small ilbl"><b style={{ color: "var(--txt2)" }}>แบบตั้งค่า</b><InfoTip title="แบบง่ายกับขั้นสูง" tip={TIPS.mode} /></span>
-              <span className="small" data-headsz>ขนาดที่คาดของแทร็กนี้ <b style={{ color: "var(--txt)" }}>{headBytes ? `ราว ${fmtSize(headBytes)}` : "ไม่รู้ความยาวแทร็ก"}</b>
+              {/* ขนาดของแทร็กเสียงล้วน เท่ากับการ์ดของชุดที่เลือก ส่วนตารางเทียบด้านบนเป็นขนาดไฟล์ที่รวมรูปปกที่ติดไปด้วย */}
+              <span className="small" data-headsz>ขนาดที่คาดของแทร็กนี้ <b style={{ color: "var(--txt)" }}>{headAudio ? `ราว ${fmtSize(headAudio)}` : "ไม่รู้ความยาวแทร็ก"}</b>
                 {c.id === "aac" && ctx ? `, เฉลี่ยราว ${Math.round(aacKbps(live, engUse, ctx.ch))} kbps` : ""}</span></div>
             <Seg small label="แบบตั้งค่า" value={tab} onChange={setTab} options={[{ value: "easy", label: <><IbTick size={14} />แบบง่าย</> }, { value: "adv", label: <><IcSettings size={14} />ขั้นสูง</> }]} /></div>
         </div>
@@ -440,7 +472,8 @@ export default function CodecPanel(p: {
           <div style={{ display: "grid", gridTemplateColumns: "repeat(4, 1fr)", gap: 8 }} role="radiogroup" aria-label="ชุดค่า">
             {c.presets.map((x, i) => {
               const pv = presetVals(c, i, srcCh), pc = ctxOf(pv);
-              const sz = pc ? advSize(c.id, engUse, pv, pc) : null;
+              const sz0 = pc ? advSize(c.id, engUse, pv, pc) : null;
+              const sz = sz0 ? sz0 * sizeFix : sz0;
               return (
                 <button key={x.label} type="button" role="radio" aria-checked={i === pi} onClick={() => pickPreset(i)} data-preset={i}
                   className={"btn preset" + (i === pi ? " on" : "")} style={{ height: "auto", flexDirection: "column", alignItems: "flex-start", gap: 2, padding: "8px 10px", textAlign: "left" }}>

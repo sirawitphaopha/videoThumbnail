@@ -190,6 +190,59 @@ fn tools_of(app: &AppHandle) -> Result<(PathBuf, PathBuf), String> {
     Ok((crate::tools::tools_dir(app)?, work))
 }
 
+/// ขนาดที่คาดจากการลองแปลงจริง (BUGS ข้อ 120)
+/// เดิมแผงตั้งค่าเสียงคิดจากเสียงดิบคูณเปอร์เซ็นต์ตายตัว ไฟล์ FLAC 96 kHz ที่บีบได้แค่ 66% ขึ้นว่าเล็กลง 20% แต่แปลงจริงเล็กลง 0.9%
+/// วิธีนี้ลองแปลงด้วยขั้นตอนเดียวกับงานแปลงจริง 4 ช่วง ช่วงละ 10 วินาที (กลางแต่ละส่วนสี่ของเพลง) แล้วคูณขยายตามความยาว · เพลงไม่เกิน 60 วินาทีแปลงทั้งเพลง
+/// เทสกับไฟล์ในภาพ คลาดจากของจริงไม่เกิน 3% ใช้เวลาราว 0.4 วินาที (ผลเทสใน ROADMAP) · ไม่เขียนข้อมูลเพลงกับปกลงไฟล์ลอง ปกนับแยก (cover) เฉพาะหน้าแปลงเสียง
+#[derive(Serialize)]
+#[serde(rename_all = "camelCase")]
+pub struct SizeProbe { bytes: f64, cover: u64, whole: bool }
+
+#[tauri::command]
+#[allow(clippy::too_many_arguments)]
+pub async fn convert_size_probe(app: AppHandle, path: String, stream: u64, spec: EncodeSpec, channels: Option<u32>, bits: Option<u32>, rate: Option<u32>, duration: f64, with_cover: bool) -> Result<SizeProbe, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let (tools, work) = tools_of(&app)?;
+        let src = PathBuf::from(&path);
+        if !src.exists() { return Err("หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่".into()); }
+        let user = encode::user_dir(&app).unwrap_or_default();
+        let encs = encode::status(&tools, &user);
+        let (bytes, whole) = size_probe(&work, &|n| encode::dir_for(&encs, &tools, n), &path, stream, &spec, channels, bits, rate, duration)?;
+        let cover = if with_cover {
+            probe(&tools, &src).ok().and_then(|f| f.cover).and_then(|c| cover_bytes(&tools, &src, c.stream).ok()).map(|b| b.len() as u64).unwrap_or(0)
+        } else { 0 };
+        Ok(SizeProbe { bytes, cover, whole })
+    }).await.map_err(|e| e.to_string())?
+}
+
+/// ตัวลองแปลงของ convert_size_probe · แยกไว้ให้เทสเรียกตรง · คืน (ขนาดเสียงที่คาดทั้งเพลง ไบต์, แปลงทั้งเพลงไหม)
+#[allow(clippy::too_many_arguments)]
+pub fn size_probe(work: &Path, dir_of: &dyn Fn(&str) -> PathBuf, path: &str, stream: u64, spec: &EncodeSpec, channels: Option<u32>, bits: Option<u32>, rate: Option<u32>, duration: f64) -> Result<(f64, bool), String> {
+    {
+        let mut spec_r = spec.clone();
+        if spec_r.src_rate.is_none() { spec_r.src_rate = rate; }
+        let whole = duration <= 60.0;
+        let segs: Vec<(f64, f64)> = if whole { vec![(0.0, duration.max(0.1))] } else { (0..4).map(|i| ((duration * (i as f64 + 0.5) / 4.0 - 5.0).max(0.0), 10.0)).collect() };
+        let (mut bytes, mut secs) = (0u64, 0.0f64);
+        for (at, len) in &segs {
+            let out = work.join(format!("sizeprobe-{}.{}", crate::poster_image::unique(), spec.ext()));
+            let _g = scopeguard(out.clone());
+            let mut plan = encode::build(&spec_r, path, stream, &out.to_string_lossy(), channels, bits)?;
+            if !whole { insert_before(&mut plan.steps[0].args, "-i", vec!["-ss".into(), format!("{at:.3}"), "-t".into(), format!("{len:.3}")]); }
+            insert_before(&mut plan.steps[0].args, "-vn", vec!["-map_metadata".into(), "-1".into()]);
+            match encode::run(dir_of, &plan, Some(*len), &|| false, &mut |_| {})? {
+                encode::Done::Ok => {}
+                encode::Done::Cancelled => return Err("หยุดแล้ว".into()),
+                encode::Done::Failed(m) => return Err(m),
+            }
+            bytes += std::fs::metadata(&out).map(|m| m.len()).unwrap_or(0);
+            secs += len;
+        }
+        let est = if whole || secs <= 0.0 { bytes as f64 } else { bytes as f64 * duration / secs };
+        Ok((est, whole))
+    }
+}
+
 #[tauri::command]
 pub async fn convert_probe(app: AppHandle, path: String) -> Result<AudioFile, String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -252,6 +305,9 @@ pub struct ConvResult {
     /// คำสั่งที่รันจริง
     pub cmd: String,
     pub secs: f64,
+    /// เสียงตรงกับต้นฉบับทุกบิตไหม (BUGS ข้อ 121) · None ไม่ได้เทียบ (แปลงแบบเสียคุณภาพ ต้นฉบับเสียคุณภาพ หรือตั้งให้เสียงเปลี่ยน) เหตุผลอยู่ same_note
+    pub same: Option<bool>,
+    pub same_note: String,
 }
 
 #[derive(Serialize, Clone)]
@@ -458,6 +514,9 @@ fn convert(app: &AppHandle, req: &ConvReq, jobs: &Arc<crate::jobs::Jobs>) -> Res
         return Err(fail("verify", "ไฟล์ใหม่ยาวไม่เท่าต้นฉบับ", vec![format!("ได้ {:.1} วินาที ควรได้ {:.1} วินาที", g.duration, want), "ลบไฟล์ใหม่แล้ว".into(), untouched]));
     }
 
+    // เสียงเหมือนต้นฉบับทุกบิตไหม (BUGS ข้อ 121) · แปลงแบบไม่เสียคุณภาพแล้วถอดเสียงทั้งสองไฟล์มาเทียบ MD5
+    let (same, same_note) = if lossless { emit("กำลังเทียบเสียงกับต้นฉบับ", 99.5, None); bit_exact(&tools, &src, &f, &final_tmp, &spec) } else { (None, String::new()) };
+
     // กดหยุดระหว่างใส่ข้อมูลเพลงหรือตรวจ ไม่ตั้งชื่อไฟล์ใหม่ (ผู้ช่วยตรวจขั้น 10 ข้อ 9)
     if stop() { return Err(fail("cancelled", "หยุดแปลงแล้ว", vec!["ไฟล์ที่ทำค้างถูกลบ".into(), untouched])); }
     // ย้ายชื่อแบบไม่เขียนทับ · ระหว่างแปลงมีไฟล์ชื่อนี้โผล่มา ใช้ชื่อถัดไป
@@ -472,7 +531,41 @@ fn convert(app: &AppHandle, req: &ConvReq, jobs: &Arc<crate::jobs::Jobs>) -> Res
     }
     let size = std::fs::metadata(&dest).map(|m| m.len()).unwrap_or(0);
     emit("เสร็จ", 100.0, Some(0.0));
-    Ok(ConvResult { out: dest.to_string_lossy().into(), size, src_size: f.size, tags: tags_n, cover: cover_ok, notes, tool, cmd, secs: t_start.elapsed().as_secs_f64() })
+    Ok(ConvResult { out: dest.to_string_lossy().into(), size, src_size: f.size, tags: tags_n, cover: cover_ok, notes, tool, cmd, secs: t_start.elapsed().as_secs_f64(), same, same_note })
+}
+
+/// MD5 ของเสียงล้วนที่ถอดแล้ว · ถอดเป็นเสียงดิบความลึกบิตเดียวกันทั้งสองไฟล์ (16 หรือ 32 บิต) ไม่นับแท็กกับปก
+fn pcm_md5(tools: &Path, file: &Path, map: &str, wide: bool) -> Result<String, String> {
+    let mut a: Vec<std::ffi::OsString> = ["-v", "error", "-nostdin", "-i"].iter().map(std::ffi::OsString::from).collect();
+    a.push(file.as_os_str().to_owned());
+    a.extend(["-map", map, "-vn", "-sn", "-dn", "-c:a", if wide { "pcm_s32le" } else { "pcm_s16le" }, "-f", "md5", "-"].iter().map(std::ffi::OsString::from));
+    let o = run_tool_timeout(tools, "ffmpeg", &a, Duration::from_secs(1800))?;
+    if !tool_succeeded("ffmpeg", &o.status) {
+        return Err(String::from_utf8_lossy(&o.stderr).lines().rev().find(|l| !l.trim().is_empty()).unwrap_or("ถอดเสียงไม่ได้").trim().to_string());
+    }
+    String::from_utf8_lossy(&o.stdout).trim().strip_prefix("MD5=").map(|s| s.to_lowercase()).ok_or_else(|| "อ่าน MD5 ไม่ได้".into())
+}
+
+/// เทียบเสียงไฟล์ใหม่กับต้นฉบับทุกตัวอย่าง (BUGS ข้อ 121 · เพื่อนแคลร์เสนอ พี่กันสั่ง "เอาเข้าคิวเลยละกัน")
+/// ตัวเลือก Verify ของ flac ตรวจแค่ว่า flac ถอดไฟล์ของตัวเองได้ตรงกับที่ ffmpeg ส่งให้ ไม่ได้เทียบกับไฟล์ต้นฉบับ อันนี้เทียบปลายทางกับต้นทางจริง
+/// คืน Some(true) ตรงทุกบิต · Some(false) ไม่ตรง · None เทียบไม่ได้ พร้อมเหตุผล (ต้นฉบับเสียคุณภาพ หรือตั้งให้เสียงเปลี่ยนโดยตั้งใจ)
+pub fn bit_exact(tools: &Path, src: &Path, f: &AudioFile, out: &Path, spec: &EncodeSpec) -> (Option<bool>, String) {
+    let src_lossless = matches!(f.codec.as_str(), "flac" | "alac" | "wavpack" | "ape" | "tak" | "tta" | "truehd" | "mlp") || f.codec.starts_with("pcm_");
+    if !src_lossless { return (None, "ต้นฉบับเป็นแบบเสียคุณภาพ จึงไม่มีเสียงต้นฉบับก่อนบีบให้เทียบ".into()); }
+    let mut why: Vec<&str> = vec![];
+    if spec.channels.is_some_and(|c| c != f.channels) { why.push("เปลี่ยนจำนวนช่อง"); }
+    if spec.bits.is_some_and(|b| Some(b) != f.bits) { why.push("เปลี่ยนบิต"); }
+    if spec.rate.is_some_and(|r| r != f.rate) { why.push("เปลี่ยนอัตราสุ่ม"); }
+    if spec.gain.abs() > 1e-9 { why.push("ปรับความดัง"); }
+    if spec.loudnorm { why.push("ปรับความดังมาตรฐาน"); }
+    if spec.speed.is_some() { why.push("เปลี่ยนความเร็ว"); }
+    if !why.is_empty() { return (None, format!("ไม่ได้เทียบ เพราะตั้งให้{} เสียงจึงต่างจากต้นฉบับโดยตั้งใจ", why.join(" "))); }
+    let wide = f.bits.unwrap_or(24) > 16;
+    match (pcm_md5(tools, src, &format!("0:{}", f.stream), wide), pcm_md5(tools, out, "0:a:0", wide)) {
+        (Ok(a), Ok(b)) if a == b => (Some(true), format!("MD5 ของเสียง {a}")),
+        (Ok(a), Ok(b)) => (Some(false), format!("MD5 ของเสียงต้นฉบับ {a} ไฟล์ใหม่ {b}")),
+        (Err(e), _) | (_, Err(e)) => (None, format!("เทียบเสียงไม่ได้ {e}")),
+    }
 }
 
 #[cfg(test)]
@@ -559,6 +652,69 @@ mod tests {
             String::from_utf8_lossy(&o.stdout).trim().to_string()
         };
         assert_eq!(md5(&out), md5(&src), "ไม่เสียคุณภาพ");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// BUGS ข้อ 121 แปลงแบบไม่เสียคุณภาพแล้วเทียบ MD5 ของเสียงกับต้นฉบับ · ตรงได้ติ๊ก · ไฟล์อื่นไม่ตรง · ตั้งให้เสียงเปลี่ยนหรือต้นฉบับเสียคุณภาพไม่เทียบพร้อมเหตุผล
+    #[test]
+    fn bit_exact_after_lossless_and_reasons() {
+        let Some(src) = av("เพลงทดสอบ 96k.flac") else { return };
+        let f = probe(&tools(), &src).unwrap();
+        let dir = std::env::temp_dir().join(format!("ms-same-{}", crate::poster_image::unique()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let out = dir.join("same.wv");
+        let spec = EncodeSpec { codec: "wv".into(), p: json!({"mode": "Normal"}).as_object().cloned().unwrap(), ..Default::default() };
+        let plan = encode::build(&spec, &src.to_string_lossy(), f.stream, &out.to_string_lossy(), Some(f.channels), f.bits).unwrap();
+        assert!(matches!(encode::run(&|_| tools(), &plan, Some(f.duration), &|| false, &mut |_| {}).unwrap(), encode::Done::Ok));
+        let (same, note) = bit_exact(&tools(), &src, &f, &out, &spec);
+        assert_eq!(same, Some(true), "FLAC เป็น WavPack เสียงตรงทุกบิต {note}");
+        assert!(note.starts_with("MD5 ของเสียง "), "{note}");
+        // ไฟล์คนละเสียง ต้องขึ้นไม่ตรง
+        let other = dir.join("other.flac");
+        let o = crate::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-f", "lavfi", "-i", "sine=frequency=500:sample_rate=96000:duration=3", "-ac", "2", "-sample_fmt", "s32", "-c:a", "flac"].iter().map(OsStr::new).chain([other.as_os_str()])).unwrap();
+        assert!(o.status.success());
+        assert_eq!(bit_exact(&tools(), &src, &f, &other, &spec).0, Some(false));
+        // ตั้งให้เสียงเปลี่ยน ไม่เทียบ บอกเหตุผล
+        let mut g = spec.clone();
+        g.gain = 1.0;
+        g.bits = Some(16);
+        let (s2, n2) = bit_exact(&tools(), &src, &f, &out, &g);
+        assert!(s2.is_none() && n2.contains("เปลี่ยนบิต") && n2.contains("ปรับความดัง"), "{n2}");
+        let mut lossy = f.clone();
+        lossy.codec = "mp3".into();
+        let (s3, n3) = bit_exact(&tools(), &src, &lossy, &out, &spec);
+        assert!(s3.is_none() && n3.contains("เสียคุณภาพ"), "{n3}");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// BUGS ข้อ 120 ขนาดที่คาดจากการลองแปลง 4 ช่วงต้องใกล้ขนาดจริง (เดิมสูตรเสียงดิบคลาดได้ราว 19 จุด)
+    /// เพลงทดสอบ 150 วินาที เสียงรบกวนสีชมพูที่ดังเบาสลับกัน บีบได้ไม่เท่ากันทั้งเพลงแบบเพลงจริง · ไฟล์สั้นไม่เกิน 60 วินาทีแปลงทั้งเพลง ได้ขนาดตรงเป๊ะ
+    #[test]
+    fn size_probe_close_to_real() {
+        let dir = std::env::temp_dir().join(format!("ms-probe-{}", crate::poster_image::unique()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let src = dir.join("long.flac");
+        let o = crate::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-f", "lavfi", "-i", "anoisesrc=color=pink:amplitude=0.4:duration=150:sample_rate=48000", "-af", "volume=0.25+0.7*abs(sin(2*PI*t/23)):eval=frame", "-ac", "2", "-sample_fmt", "s32", "-c:a", "flac"].iter().map(OsStr::new).chain([src.as_os_str()])).unwrap();
+        assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+        let f = probe(&tools(), &src).unwrap();
+        let spec = EncodeSpec { codec: "flac".into(), p: json!({"level": 8}).as_object().cloned().unwrap(), ..Default::default() };
+        let (est, whole) = size_probe(&dir, &|_| tools(), &src.to_string_lossy(), f.stream, &spec, Some(f.channels), f.bits, Some(f.rate), f.duration).unwrap();
+        assert!(!whole);
+        let out = dir.join("full.flac");
+        let plan = encode::build(&spec, &src.to_string_lossy(), f.stream, &out.to_string_lossy(), Some(f.channels), f.bits).unwrap();
+        assert!(matches!(encode::run(&|_| tools(), &plan, Some(f.duration), &|| false, &mut |_| {}).unwrap(), encode::Done::Ok));
+        let real = std::fs::metadata(&out).unwrap().len() as f64;
+        let err = (est - real) / real;
+        assert!(err.abs() < 0.05, "คาด {est:.0} จริง {real:.0} คลาด {:.1}%", err * 100.0);
+        // เพลงสั้น แปลงทั้งเพลง
+        let short = dir.join("short.flac");
+        let o = crate::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-i"].iter().map(OsStr::new).chain([src.as_os_str()]).chain(["-t", "30", "-c:a", "flac"].iter().map(OsStr::new)).chain([short.as_os_str()])).unwrap();
+        assert!(o.status.success());
+        let fs = probe(&tools(), &short).unwrap();
+        let (est2, whole2) = size_probe(&dir, &|_| tools(), &short.to_string_lossy(), fs.stream, &spec, Some(fs.channels), fs.bits, Some(fs.rate), fs.duration).unwrap();
+        assert!(whole2 && est2 > 0.0);
+        // ไฟล์ลองแปลงถูกลบหมด
+        assert!(std::fs::read_dir(&dir).unwrap().flatten().all(|e| !e.file_name().to_string_lossy().starts_with("sizeprobe-")));
         let _ = std::fs::remove_dir_all(&dir);
     }
 

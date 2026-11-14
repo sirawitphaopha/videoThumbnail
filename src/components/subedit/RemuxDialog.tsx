@@ -21,9 +21,26 @@ const REMUX_TIP: Tip = {
   w: "ซับที่เปิดจากในไฟล์หนัง บันทึกได้สองทาง",
   o: [
     ["บันทึกเป็นไฟล์ซับข้างหนัง", "เขียนซับที่แก้เป็นไฟล์ใหม่ เช่น .ass ไว้ข้างไฟล์หนัง ไฟล์หนังไม่ถูกแตะ", "เร็ว ปลอดภัย โปรแกรมเล่นส่วนใหญ่โหลดซับข้างหนังเอง", "ซับเดิมในหนังยังเป็นของเก่า"],
-    ["ใส่กลับเข้าหนัง", "สร้างไฟล์หนังใหม่ทั้งไฟล์ แทนแทร็กซับนี้ด้วยซับที่แก้ ภาษา ชื่อ ธงหลัก ลำดับแทร็กเหมือนเดิม ภาพ เสียง ซับอื่น บท ปก เหมือนเดิมไม่แปลง ตรวจไฟล์ใหม่ก่อนแทนไฟล์เดิม", "ได้ไฟล์เดียวจบ", "ใช้เวลาตามขนาดหนัง และต้องมีที่ว่างในไดรฟ์ราวขนาดหนังหนึ่งเรื่อง"],
+    ["ใส่กลับเข้าหนัง", "สร้างไฟล์หนังใหม่ทั้งไฟล์ แทนแทร็กซับนี้ด้วยซับที่แก้ ภาษา ภาษาแบบละเอียด ชื่อ ธงหลัก ป้ายพิเศษ และลำดับแทร็กเหมือนเดิม ภาพ เสียง ซับอื่น บท ปก เหมือนเดิมไม่แปลง ไฟล์ MKV ฝังฟอนต์ที่ซับเรียกเพิ่มให้ ตรวจไฟล์ใหม่ก่อนแทนไฟล์เดิม", "ได้ไฟล์เดียวจบ", "ใช้เวลาตามขนาดหนัง และต้องมีที่ว่างในไดรฟ์ราวขนาดหนังหนึ่งเรื่อง"],
   ],
   r: "ยังแก้ซับอยู่ บันทึกข้างหนังไปก่อน แก้เสร็จแล้วค่อยใส่กลับเข้าหนังครั้งเดียว",
+};
+
+const FONT_TIP: Tip = {
+  w: "ฟอนต์ที่ซับเรียกแต่ในไฟล์หนังยังไม่มี โปรแกรมหาไฟล์ฟอนต์ให้ตามลำดับ โฟลเดอร์ของหนัง ฟอนต์ที่ลงเฉพาะผู้ใช้ แล้วฟอนต์ของ Windows",
+  o: [
+    ["ฝังเพิ่ม", "หาไฟล์ฟอนต์เจอ ใส่เป็นไฟล์แนบในหนังไฟล์ใหม่ เครื่องอื่นเปิดแล้วซับขึ้นฟอนต์เดียวกัน", "", ""],
+    ["ไม่เจอในเครื่อง", "หาไฟล์ฟอนต์ไม่เจอ จึงไม่ได้ฝัง ตัวเล่นจะใช้ฟอนต์อื่นแทน หน้าตาซับจะต่างจากที่ตั้งไว้", "", "ลงฟอนต์นั้นในเครื่องหรือวางไฟล์ฟอนต์ไว้ข้างหนัง แล้วเปิดหน้าต่างนี้ใหม่"],
+  ],
+};
+const MP4_TIP: Tip = {
+  w: "ไฟล์ MP4 เก็บข้อมูลของแทร็กได้น้อยกว่า MKV ของที่หนังเดิมมีแต่ MP4 ไม่มีที่เก็บจะหายไปในไฟล์ใหม่ ภาพ เสียง และตัวซับไม่เสีย",
+  o: [
+    ["ภาษาแบบละเอียด", "เช่น zh-Hant จีนตัวเต็ม หรือ es-419 สเปนละตินอเมริกา MP4 เก็บได้แค่รหัสภาษาสามตัว จึงเหลือแค่จีนหรือสเปน", "", ""],
+    ["ป้ายพิเศษ", "ป้ายซับคนหูหนวก คนตาบอด คำบรรยายภาพ ภาษาต้นฉบับ และเสียงบรรยาย MP4 ไม่มีป้ายเหล่านี้", "", ""],
+    ["ธงซับบังคับ", "ซับที่ขึ้นเองเฉพาะตอนพูดภาษาอื่น MP4 ไม่มีธงนี้ ตัวเล่นจะไม่เลือกซับนั้นให้เอง", "", ""],
+  ],
+  r: "อยากเก็บครบ ใช้ปุ่มบันทึกเป็นไฟล์ข้างหนัง หรือรวมเป็น MKV ในหน้าเสียงและซับ",
 };
 
 /** หนังกับเลขแทร็กมาจากที่มาของเอกสาร (เปิดจากแทร็กไหน หรือฉบับบันทึกอัตโนมัติจำไว้) ไม่ใช่แทร็กที่หน้าเลือกอยู่
@@ -71,7 +88,7 @@ export default function RemuxDialog(p: { open: boolean; onClose: () => void; doc
     try {
       const w = window as unknown as { __remuxDry?: boolean };
       if (import.meta.env.DEV && w.__remuxDry) throw new Error("ทดสอบ ไม่รวมไฟล์จริง");
-      const r = await remuxSub(movie, tid, written, orig);
+      const r = await remuxSub(movie, tid, written, orig, (plan?.fonts ?? []).filter((f) => f.file).map((f) => f.file!));
       // ขนาดกับเวลาแก้ของหนังไฟล์ใหม่ ใช้เทียบตอนใส่กลับครั้งถัดไป
       const [size, mtime] = await subDocApi.stamp(r.output).catch((): [number, number] => [0, 0]);
       setRun(null);
@@ -105,6 +122,15 @@ export default function RemuxDialog(p: { open: boolean; onClose: () => void; doc
         <div className="se-drow"><span className="se-dlbl">ไฟล์ใหม่</span>
           <span className="small" data-remux-out>{plan ? (plan.ext === "mp4" && plan.output === "mkv" ? "เป็น MKV เพราะ MP4 ใส่ซับ ASS ไม่ได้ ชื่อเดิมนามสกุลใหม่" : `${plan.output.toUpperCase()} ชื่อเดิม`) : err ? "—" : ""}</span>
         </div>
+        {plan && plan.fonts.length > 0 && <div className="se-drow se-rmtop"><span className="se-dlbl">ฟอนต์<InfoTip title="ฟอนต์ที่ฝังเพิ่ม" tip={FONT_TIP} /></span>
+          <span className="small se-rmlist" data-remux-fonts>
+            {plan.fonts.some((f) => f.file) && <span data-remux-fonts-add>{`ฝังเพิ่ม ${plan.fonts.filter((f) => f.file).map((f) => f.name).join(", ")}`}</span>}
+            {plan.fonts.some((f) => !f.file) && <span className="se-rmwarn" data-remux-fonts-miss>{`ไม่เจอในเครื่อง ${plan.fonts.filter((f) => !f.file).map((f) => f.name).join(", ")}`}</span>}
+          </span>
+        </div>}
+        {plan && plan.lost.length > 0 && <div className="se-drow se-rmtop"><span className="se-dlbl">MP4 เก็บไม่ได้<InfoTip title="ของที่ MP4 เก็บไม่ได้" tip={MP4_TIP} /></span>
+          <span className="small se-rmlist se-rmwarn" data-remux-lost>{plan.lost.map((x) => <span key={x}>{x}</span>)}</span>
+        </div>}
         <div className="se-drow"><span className="se-dlbl">ไฟล์เดิม</span>
           <Seg small label="ไฟล์เดิม" value={orig} onChange={setOrig} disabledReason={busy ? "กำลังใส่ซับกลับเข้าหนัง" : undefined}
             options={[{ value: "keep", label: "เก็บไว้ในโฟลเดอร์ไฟล์เดิม" }, { value: "trash", label: "ลงถังขยะเมื่อตรวจผ่าน" }]} />

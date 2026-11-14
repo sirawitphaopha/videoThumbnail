@@ -16,6 +16,17 @@ import { IcFile, IcFolder, IcPlus } from "./icons";
 import { IbPlay, IbTrash, IbStop, IcRefresh, IcGraph, IcMix, IcSettings } from "./icons";
 import { useToast } from "./Toasts";
 import { spaceShort, useFree } from "../lib/drives";
+import InfoTip from "./InfoTip";
+import type { Tip } from "../lib/codecAdv";
+
+/** ติ๊กเขียวหลังแปลงแบบไม่เสียคุณภาพ (BUGS ข้อ 121) */
+const SAME_TIP: Tip = {
+  w: "หลังแปลงเสร็จ โปรแกรมถอดเสียงของไฟล์เดิมกับไฟล์ใหม่เป็นเสียงดิบแล้วคิดลายนิ้วมือ MD5 ของเสียงล้วนมาเทียบกัน ตรงกันแปลว่าเสียงเหมือนต้นฉบับทุกตัวอย่าง ไม่เสียแม้แต่บิตเดียว",
+  o: [
+    ["ต่างจาก hash ของไฟล์", "hash ของไฟล์คิดจากไฟล์ทั้งก้อนรวมข้อมูลเพลงกับรูปปก แปลงชนิดหรือแก้แท็กแล้วเปลี่ยน ส่วน MD5 ของเสียงคิดจากเสียงล้วน จึงเท่าเดิมถ้าเสียงไม่เปลี่ยน", "", ""],
+    ["ไม่ได้เทียบเมื่อไหร่", "แปลงเป็นแบบเสียคุณภาพ ต้นฉบับเป็นแบบเสียคุณภาพ หรือตั้งให้เปลี่ยนบิต อัตราสุ่ม จำนวนช่อง ความดัง หรือความเร็ว เพราะเสียงต่างจากต้นฉบับโดยตั้งใจ", "", ""],
+  ],
+};
 
 const baseName = (p: string) => p.split(/[\\/]/).pop() ?? p;
 const dirOf = (p: string) => p.replace(/[\\/][^\\/]*$/, "");
@@ -179,6 +190,10 @@ export default function ConvertPane(p: { onCompare: (a: string, b: string, note:
                   <div className="cqmore" data-qresult>
                     <Phr>{`${it.result.tags ? `ข้อมูลเพลง ${it.result.tags} ช่องติดไปด้วย${it.result.cover ? "พร้อมรูปปก" : " แต่ไม่มีรูปปก"}` : it.result.cover ? "ไม่มีข้อมูลเพลง แต่รูปปกติดไปด้วย" : "ไม่มีข้อมูลเพลงและไม่มีรูปปก"}  แปลงด้วย ${it.result.tool} ใช้เวลา ${it.result.secs < 60 ? `${it.result.secs.toFixed(1)} วินาที` : `${Math.round(it.result.secs / 60)} นาที`}`}</Phr>
                     {it.result.notes.map((x) => <div key={x} className="warnline"><CardIcon kind="warn" /><Phr>{x}</Phr></div>)}
+                    {/* เสียงเหมือนต้นฉบับทุกบิตไหม เทียบ MD5 ของเสียงล้วนสองไฟล์ (BUGS ข้อ 121) · ไม่ตรงเป็นสีแดงค้างไว้ · ไม่ได้เทียบบอกเหตุผล */}
+                    {it.result.same === true && <div className="okline" title={it.result.sameNote} data-qsame="yes"><CardIcon kind="ok" /><Phr>เสียงเหมือนต้นฉบับทุกบิต</Phr><InfoTip title="เสียงเหมือนต้นฉบับทุกบิต" tip={SAME_TIP} /></div>}
+                    {it.result.same === false && <div className="warnline badline" role="alert" title={it.result.sameNote} data-qsame="no"><CardIcon kind="bad" /><Phr>เสียงไฟล์ใหม่ไม่ตรงกับต้นฉบับ ควรแปลงใหม่หรือเก็บไฟล์เดิมไว้</Phr></div>}
+                    {it.result.same == null && it.result.sameNote && <div className="small" data-qsame="skip"><Phr>{it.result.sameNote}</Phr></div>}
                   </div>
                 )}
                 {it.state === "fail" && it.problem && <div className="cqmore bad" data-qproblem><b>{it.problem.title}</b> <Phr>{it.problem.detail.join(" ")}</Phr></div>}

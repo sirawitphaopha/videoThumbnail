@@ -178,6 +178,19 @@ export function infoSet(d: SubDoc, key: string, value: string): SubDoc {
   sk.splice(lastText + 1, 0, { k: "line", t: `${key}: ${value}`, e: prev.k === "line" && prev.e ? prev.e : eol });
   return { ...d, skeleton: sk };
 }
+/** ตั้งค่าแบบ AssFile::SetScriptInfo ค่าว่างลบบรรทัดนั้นออก ค่าอื่นแก้หรือเพิ่มบรรทัด (หน้าต่างคุณสมบัติสคริปต์ BUGS ข้อ 113) */
+export function infoPut(d: SubDoc, key: string, value: string): SubDoc {
+  if (value !== "") return infoSet(d, key, value);
+  const h = d.skeleton.findIndex((x) => x.k === "line" && x.t.trim().toLowerCase() === INFO);
+  if (h < 0) return d;
+  for (let i = h + 1; i < d.skeleton.length; i++) {
+    const x = d.skeleton[i];
+    if (x.k !== "line" || isHead(x.t)) break;
+    const m = /^([^:;]+):/.exec(x.t);
+    if (m && m[1].trim().toLowerCase() === key.toLowerCase()) { const sk = d.skeleton.slice(); sk.splice(i, 1); return { ...d, skeleton: sk }; }
+  }
+  return d;
+}
 /** ขนาดภาพของซับ ไม่มีใช้กติกาเดียวกับ Aegisub (AssFile::GetResolution) */
 export function playRes(d: SubDoc): [number, number] {
   let w = parseInt(infoGet(d, "PlayResX") ?? "", 10) || 0, h = parseInt(infoGet(d, "PlayResY") ?? "", 10) || 0;
@@ -186,4 +199,4 @@ export function playRes(d: SubDoc): [number, number] {
 }
 
 // ทางลัดให้ตัวตรวจ เฉพาะรุ่นทดสอบ (check-subtools.mjs)
-if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__subStyleLib = { parseColor, fmtColor, fmtG, readStyle, writeStyle, styleUses, renameUses, uniqueName, playRes, infoGet, infoSet };
+if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__subStyleLib = { parseColor, fmtColor, fmtG, readStyle, writeStyle, styleUses, renameUses, uniqueName, playRes, infoGet, infoSet, infoPut };

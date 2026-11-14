@@ -23,8 +23,9 @@ import { lineMove, shownAt, togglePosMove, vStr, type V2 } from "../../lib/subVi
 import Dropdown from "../Dropdown";
 import InfoTip from "../InfoTip";
 import { Skel, Switch } from "../ui";
-import { IbCross, IbDrag, IbFilm, IbFrameNext, IbFramePrev, IbJump, IbMovePos, IbPlay, IbStop, IcFile } from "../icons";
+import { IbCross, IbDrag, IbFilm, IbFrameNext, IbFramePrev, IbJump, IbMovePos, IbPlay, IbPlayLine, IbStop, IcFile } from "../icons";
 import VideoTools, { type VTool } from "./VideoTools";
+import VideoSlider from "./VideoSlider";
 import { bindMpvBox, bindPlayCanvas, getVidPlay, mpvSubUpdate, setPlayToggle, startVidPlay, stopVidPlay, useVidPlay, type PlayOpts } from "../../lib/vidPlay";
 import type { AudSrc } from "../../lib/audioPlay";
 import { KEY_TIP } from "./VideoDialogs";
@@ -39,6 +40,11 @@ const ZOOMS = Array.from({ length: 24 }, (_, i) => (i + 1) * 12.5);
 const FIT_W = 288, FIT_H = 162;
 /** แถบเลือกเครื่องมือซ้ายของภาพ กว้างรวมช่องห่าง */
 const TOOLBAR_W = 34;
+/** แถบใต้ภาพกว้างอย่างน้อยเท่านี้ ปุ่มห้าปุ่ม ช่องเวลากับเลขเฟรม AUTO และเมนูวางได้ในแถวเดียว (BUGS ข้อ 113)
+    ภาพพอดีกรอบแคบกว่า กรอบกว้างขึ้นมีแถบดำข้างภาพ ขนาดภาพเท่าเดิม */
+const BAR_MIN = 392;
+/** แผงซูมแนวนอน แนวตั้ง ความดังข้างคลื่นเสียงรวมช่องห่าง (SubAudio.tsx) วัดจากหน้าจริง 1280 × 800 */
+const AUD_SIDE = 78;
 // กล่อง ⓘ แยกเป็นหัวข้อละเรื่อง เนื้อความสั้นเป็นประโยคมีคำเชื่อม ไม่ขึ้นบรรทัดเอง (พี่กันตีตก 14 พ.ย. 2569 ที่แตกเป็นบรรทัดละวลีจนเป็นก้อนยาว)
 const VIDEO_TIP: Tip = {
   w: "แถบใต้ภาพมีปุ่มถอยหรือเดินทีละเฟรม\nส่วนช่องกลางบอกเวลากับเลขเฟรม และเป็นสีเข้มเมื่อเป็น keyframe",
@@ -160,11 +166,12 @@ export default function SubVideo(p: Props) {
   const [fail, setFail] = useState(false);
   const lastPos = useRef<number | null>(null);
 
-  // ความกว้างที่ภาพขยายได้ เหลือที่ให้คลื่นเสียงอย่างน้อย 380 จุด กับแถบเครื่องมือซ้ายของภาพ (TOOLBAR_W)
+  // ความกว้างที่ภาพขยายได้ เหลือที่ให้คลื่นเสียงอย่างน้อย 360 จุด แผงซูมกับความดังข้างคลื่น 78 จุด (AUD_SIDE) กับแถบเครื่องมือซ้ายของภาพ (TOOLBAR_W)
+  // เดิมกัน 380 รวมแผงข้างคลื่นที่เพิ่มมาตอนขั้น 5 คลื่นจริงเหลือ 302 จุดตอนเมนูซ้ายกางที่ 1280 × 800 (เจอตอนรันตัวตรวจชุด BUGS ข้อ 113 ถึง 121)
   useLayoutEffect(() => {
     const top = host.current?.parentElement;
     if (!top) return;
-    const fit = () => setAvail(Math.max(160, top.clientWidth - 380 - 14 - TOOLBAR_W));
+    const fit = () => setAvail(Math.max(160, top.clientWidth - 360 - AUD_SIDE - 14 - TOOLBAR_W));
     fit();
     const ro = new ResizeObserver(fit);
     ro.observe(top);
@@ -189,6 +196,9 @@ export default function SubVideo(p: Props) {
   const imgW = Math.max(1, Math.round(baseW * cz));
   const imgH = Math.max(1, Math.round(baseH * cz));
   const boxW = z ? Math.min(Math.max(Math.round(baseW), 160), avail) : FIT_W;
+  // พื้นดำรอบกรอบภาพกว้างพอให้แถบใต้ภาพวางปุ่มครบแถวเดียว กรอบภาพยังเท่าภาพ พิกัดของเครื่องมือบนภาพกับการขยายเนื้อภาพไม่เปลี่ยน
+  // (เดิมขยายตัวกรอบเอง ภาพวางกลางกรอบ ขยายเนื้อภาพนิดเดียวแล้วเลื่อนให้จุดที่ชี้อยู่ใต้เมาส์ไม่ได้ เจอใน check-subvtools)
+  const wrapW = Math.max(boxW, Math.min(avail, BAR_MIN - TOOLBAR_W));
   const boxH = z ? Math.min(Math.max(Math.round(baseH), 90), Math.max(FIT_H, Math.round(window.innerHeight * 0.45))) : FIT_H;
   // ความสูงภาพที่ขอ ปัดเป็นขั้นละ 30 จุด ภาพขนาดใกล้กันใช้ภาพที่เก็บไว้ร่วมกันได้ ไม่เกินขนาดจริง
   const reqH = Math.max(90, Math.min(Math.min(natH, 2160), Math.ceil((imgH * (window.devicePixelRatio || 1)) / 30) * 30));
@@ -207,6 +217,15 @@ export default function SubVideo(p: Props) {
     if (getVidPlay().playing) { stopVidPlay(); return; }
     if (!movie || !t || !fr || pos == null) return;
     void startVidPlay(movie, t, fr, pos, p.audio, Math.min(reqH, 720), opts());
+  };
+  // เล่นเฉพาะบรรทัดที่กำลังแก้ (VideoController::PlayLine) เริ่มที่เฟรมแรกของบรรทัด หยุดก่อนเฟรมถัดจากเฟรมสุดท้ายของบรรทัด เสียงเล่นถึงเวลาจบ
+  // เวลาภาพ = เวลาซับ + ดีเลย์ · ภาพที่เห็นไม่ย้ายก่อนเล่น เล่นจบแล้วภาพค้างที่เฟรมสุดท้ายที่เล่น
+  const playLine = () => {
+    const e = p.ev;
+    if (!e || !movie || !t || !fr) return;
+    const s = fr.frameAt(e.start + d, "start");
+    const endFrame = fr.frameAt(e.end + d, "end") + 1;
+    void startVidPlay(movie, t, fr, s, p.audio, Math.min(reqH, 720), { ...opts(), endFrame, endMs: e.end + d });
   };
   const toggleRef = useRef(togglePlay);
   toggleRef.current = togglePlay;
@@ -460,6 +479,7 @@ export default function SubVideo(p: Props) {
           </>}
           <span className="se-vtinfo"><InfoTip title="เครื่องมือบนภาพ" tip={VISUAL_TIP} /></span>
         </div>
+        <div className="se-vwrap" style={{ width: wrapW, height: boxH }} data-vwrap>
         <div className="se-vview vframe" ref={view} tabIndex={0} style={{ width: boxW, height: boxH }} onKeyDown={keyDown} onMouseDown={onViewDown}
           onContextMenu={(e) => { e.preventDefault(); }} aria-label="ภาพหนัง คลิกแล้วใช้ลูกศรซ้ายขวาเดินทีละเฟรม" data-vframe>
           <div className="se-vimg" style={{ width: layW, height: layH }}>
@@ -470,18 +490,28 @@ export default function SubVideo(p: Props) {
           </div>
           {p.ev && ready && <div className="vtime se-voff" data-voff>{`${signedMs(tNow! - (p.ev.start + d))}; ${signedMs(tNow! - (p.ev.end + d))}`}</div>}
         </div>
-        {note && <div className={"se-vnote" + (note.err ? " err" : "")} style={{ left: TOOLBAR_W + 6, maxWidth: boxW - 12 }} role={note.err ? "alert" : "status"} data-vnote={note.err ? "err" : note.busy ? "busy" : "ok"}>
+        </div>
+        {note && <div className={"se-vnote" + (note.err ? " err" : "")} style={{ left: TOOLBAR_W + 6, maxWidth: wrapW - 12 }} role={note.err ? "alert" : "status"} data-vnote={note.err ? "err" : note.busy ? "busy" : "ok"}>
           <span>{note.text}</span>
           {note.err && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setNote(null)} aria-label="ปิดข้อความ" data-vnote-close>ปิด</button>}
         </div>}
       </div>
       {ctx && <FrameMenu x={ctx.x} y={ctx.y} at={ctx.at} pan={ctx.pan} why={snapWhy} where={src.kind === "dummy" ? "ในโฟลเดอร์ของไฟล์ซับ" : "ในโฟลเดอร์ของหนัง"} onClose={() => setCtx(null)} onSnap={snap} onCoords={copyCoords} onPan={resetPan} />}
+      <VideoSlider pos={playing && vp.frame != null ? vp.frame : pos} max={fr ? (fr.count || t?.times.length || 1) - 1 : 0} keys={src.kind === "movie" ? keys.list : []}
+        why={src.kind === "dummy" ? undefined : noStep} onKey={keyDown} onBeforeSeek={() => { if (getVidPlay().playing) stopVidPlay(false, true); }} />
       <div className="se-vbar" data-vbar>
         <button type="button" className={"btn btn-ghost btn-sm se-vstep" + (ready ? "" : " btn-wait")} aria-disabled={!ready || undefined} title={noStep ?? "ถอยหนึ่งเฟรม (ลูกศรซ้าย)"} aria-label="ถอยหนึ่งเฟรม" onClick={() => { if (!ready) return; const at = getVidPlay().playing ? null : pos!; stopVidPlay(); seek((at ?? getVid().pos ?? 0) - 1); }} data-vprev><IbFramePrev size={15} /></button>
         <button type="button" className={"btn btn-ghost btn-sm se-vstep" + (ready ? "" : " btn-wait")} aria-disabled={!ready || undefined} title={noStep ?? "เดินหนึ่งเฟรม (ลูกศรขวา)"} aria-label="เดินหนึ่งเฟรม" onClick={() => { if (!ready) return; const at = getVidPlay().playing ? null : pos!; stopVidPlay(); seek((at ?? getVid().pos ?? 0) + 1); }} data-vnext><IbFrameNext size={15} /></button>
+        {/* เล่น เล่นเฉพาะบรรทัด หยุด ตามแถบใต้ภาพของ Aegisub (default_toolbar.json ส่วน video) · กดเล่นตอนกำลังเล่นแล้วหยุดแบบ VideoController::Play */}
         <button type="button" className={"btn btn-ghost btn-sm se-vstep se-vplay" + (playWhy ? " btn-wait" : "") + (playing ? " pressed" : "")} aria-disabled={!!playWhy || undefined} aria-pressed={playing}
-          title={playWhy ?? (playing ? (vp.err ? `หยุด (Ctrl+P)  ${vp.err}` : "หยุด (Ctrl+P)") : "เล่นหนังจากภาพนี้ เสียงจากแทร็กเดียวกับคลื่นเสียง (Ctrl+P)")} data-vplayerr={vp.err || undefined} aria-label={playing ? "หยุด" : "เล่นหนัง"} onClick={() => { if (!playWhy) togglePlay(); }} data-vplay>
-          {playing ? <IbStop size={15} /> : <IbPlay size={15} />}</button>
+          title={playWhy ?? (playing ? (vp.err ? `กำลังเล่น กดอีกครั้งเพื่อหยุด (Ctrl+P)  ${vp.err}` : "กำลังเล่น กดอีกครั้งเพื่อหยุด (Ctrl+P)") : "เล่นหนังจากภาพนี้ เสียงจากแทร็กเดียวกับคลื่นเสียง (Ctrl+P)")} data-vplayerr={vp.err || undefined} aria-label="เล่นหนัง" onClick={() => { if (!playWhy) togglePlay(); }} data-vplay>
+          <IbPlay size={15} /></button>
+        <button type="button" className={"btn btn-ghost btn-sm se-vstep" + (playWhy || !p.ev ? " btn-wait" : "")} aria-disabled={!!playWhy || !p.ev || undefined}
+          title={playWhy ?? (p.ev ? "เล่นเฉพาะช่วงของบรรทัดที่กำลังแก้ ตั้งแต่เฟรมแรกถึงเฟรมสุดท้ายของบรรทัด" : "ยังไม่ได้เลือกบรรทัด")} aria-label="เล่นเฉพาะบรรทัด" onClick={() => { if (!playWhy && p.ev) playLine(); }} data-vplayline>
+          <IbPlayLine size={15} /></button>
+        <button type="button" className={"btn btn-ghost btn-sm se-vstep" + (playing ? "" : " btn-wait")} aria-disabled={!playing || undefined}
+          title={playing ? "หยุดเล่น ภาพค้างที่เฟรมที่เห็นอยู่" : "ยังไม่ได้เล่นหนัง"} aria-label="หยุด" onClick={() => { if (playing) stopVidPlay(); }} data-vstop>
+          <IbStop size={15} /></button>
         <span className={"se-vpos" + (ready && onKey ? " key" : "")} title={ready ? (onKey ? "เฟรมนี้เป็น keyframe" : "เวลาของภาพ ขีด เลขเฟรม") : undefined} data-vpos data-vkey={ready && onKey ? "1" : undefined}>
           {ready ? `${fmtMs(tNow!)} - ${playing && vp.frame != null ? vp.frame : pos}` : st.load === "busy" ? `อ่านเวลาเฟรม ${st.dur > 0 ? Math.min(99, Math.round((st.readTo / st.dur) * 100)) : 0}%` : st.load === "err" ? "อ่านเวลาเฟรมไม่ได้" : "—"}
         </span>

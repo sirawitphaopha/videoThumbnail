@@ -33,6 +33,7 @@ const SIZES = process.env.SIZES
 const PAGES = process.env.PAGES ? process.env.PAGES.split(",") : ["ชั้นวางหนัง", "ใส่โปสเตอร์", "จับคู่ปก", "เสียงและซับ", "ซับไตเติล", "ตรวจไฟล์", "กราฟเสียง", "บิตเรต", "MediaInfo", "ตั้งค่า"];
 // หน้าแก้ซับ (แผนหน้าแก้ซับ ขั้น 10) เปิดหนังทดสอบที่มีซับ ASS ตรวจสามสภาพ หน้าหลัก ซ่อนภาพและเสียง แบบ notepad
 const SUBMOVIE = resolve("test-media", "สร้าง", "แก้ซับ", "ฉากตัด (2025).mkv").replace(/\\/g, "/");
+const MOVIE51 = resolve("test-media", "สร้าง", "หนัง", "ดาวเหนือ (2023).mkv").replace(/\\/g, "/");
 const SUBROWS = "[data-subedit] .se-tools, [data-subedit] .se-gridbar, [data-subedit] .se-erow, [data-subedit] .se-atb";
 const VIEWS = ["wave", "loud", "spek", "psd"];
 
@@ -83,11 +84,17 @@ try {
   await c.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
   await nav("กราฟเสียง"); await sleep(800);
   await q("document.querySelector('[data-cmpclose]')?.click(); document.querySelector('[data-gmode=graph]')?.click(); return 1"); await sleep(300);
-  if (!(await q("return !!document.querySelector('[data-view]') && !!document.querySelector('[data-plot]')"))) {
+  // หน้ากราฟเปิดหนังทดสอบเสียง 5.1 ทุกครั้ง หัวกราฟยาวที่สุด (ปุ่มช่องหลายปุ่ม) ไม่ขึ้นกับไฟล์ที่ตัวตรวจตัวก่อนทิ้งไว้
+  // (เดิมใช้ไฟล์ที่เปิดอยู่ ชุด BUGS ข้อ 113 ถึง 121 บังเอิญเจอหนัง 5.1 ค้างอยู่ ปุ่ม 10 วินาทีหน้าความถี่เฉลี่ยทับเส้นแบ่งที่จอ 1600)
+  if (!(await q(`return document.querySelector('.ag[data-graph]')?.innerText.includes('ดาวเหนือ (2023)') && /5\\.1/.test(document.querySelector('[data-graphtrack]')?.innerText ?? '')`))) {
     await q("[...document.querySelectorAll('button')].find((b) => b.innerText.includes('เปิดหน้ากราฟใหม่'))?.click(); return 1"); await sleep(300);
-    await drop(SONG);
+    await drop(MOVIE51);
+    await waitFor("return !!document.querySelector('[data-plot]') && !document.querySelector('[data-graphloading]')", 90000);
+    await q("document.querySelector('[data-graphtrack] button.dd')?.click(); return 1"); await sleep(300);
+    await q("[...document.querySelectorAll('[role=option]')].find((o) => /5\\.1/.test(o.innerText))?.click(); return 1"); await sleep(300);
     await waitFor("return !!document.querySelector('[data-plot]') && !document.querySelector('[data-graphloading]')", 90000);
   }
+  check("หน้ากราฟเปิดหนังทดสอบเสียง 5.1 (หัวกราฟยาวที่สุด)", await q("return /5\\.1/.test(document.querySelector('[data-graphtrack]')?.innerText ?? '')"), await q("return document.querySelector('[data-graphtrack]')?.innerText ?? ''"));
   await nav("บิตเรต"); await sleep(800);
   if (!(await q("return !!document.querySelector('[data-pageslot=bitrate] canvas')"))) {
     await drop(SONG);

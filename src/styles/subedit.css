@@ -8,7 +8,8 @@
 [data-subedit] .se-dirty { color: var(--warn-ink); }
 [data-subedit] .se-ok { display: inline-flex; gap: 4px; align-items: center; color: var(--ok-ink); }
 [data-subedit] .se-enc { display: inline-flex; align-items: center; gap: 4px; flex: none; }
-[data-subedit] .se-enc .dd > button { height: 32px; font-size: 13px; }
+/* ปุ่มรหัสอักษรสูงเท่าปุ่มอื่นในแถว · เดิมตัวเลือกชี้ปุ่มในปุ่ม (.dd > button) ซึ่งไม่มี ปุ่มสูง 38 แถวสูง 44 (เจอตอนทำ BUGS ข้อ 113) */
+[data-subedit] .se-enc .dd { height: 32px; font-size: 13px; }
 [data-subedit] .se-saveerr, [data-subedit] .se-note { margin: 0; }
 
 /* คอลัมน์ภาพกว้างตามขนาดภาพที่เลือก (พอดีกรอบ 320 × 180) ที่เหลือเป็นคลื่นเสียง */
@@ -17,6 +18,8 @@
 /* กรอบวิดีโอ (ขั้น 4) · กรอบเลื่อนได้เมื่อภาพใหญ่กว่าที่ว่าง · แถบล่างสูง 30 จุดเท่าปุ่มเล็ก */
 [data-subedit] .se-video { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
 [data-subedit] .se-vview { overflow: auto; outline: none; flex: none; }
+/* พื้นดำรอบกรอบภาพ กว้างพอให้แถบใต้ภาพวางปุ่มครบแถว (BAR_MIN ใน SubVideo.tsx) สีเดียวกับพื้นกรอบภาพ (.vframe ใน av.css) ดูเป็นกรอบเดียว */
+[data-subedit] .se-vwrap { flex: none; display: flex; align-items: center; justify-content: center; background: #0d0b1e; border-radius: 8px; }
 [data-subedit] .se-vview:focus-visible { box-shadow: 0 0 0 3px rgba(200, 64, 111, .35); }
 [data-subedit] .se-vimg { position: relative; display: flex; align-items: center; justify-content: center; }
 [data-subedit] .se-vimg img { object-fit: fill; }
@@ -24,6 +27,16 @@
 [data-subedit] .se-vplaycv { position: absolute; inset: 0; margin: auto; display: block; }
 [data-subedit] .se-voff { font-variant-numeric: tabular-nums; }
 [data-subedit] .se-vbar { display: flex; align-items: center; gap: 4px; min-width: 0; }
+/* แถบเลื่อนเวลาใต้ภาพ (BUGS ข้อ 113 VideoSlider.tsx) · รางบาง ขีด keyframe ด้านบน ตัวชี้สีเน้น · ขอบซ้ายขวาเว้นข้างละ 5 จุดตามสูตรของ Aegisub
+   ชิดภาพด้านบน กินความสูงน้อยที่สุด หน้าต่าง 1280 × 800 ตารางยังเห็นหัวกับหนึ่งแถวโดยหน้าไม่เลื่อน */
+[data-subedit] .se-vslider { position: relative; height: 14px; margin-top: -3px; cursor: pointer; touch-action: none; outline: none; border-radius: 4px; flex: none; }
+[data-subedit] .se-vslider.off { cursor: default; }
+[data-subedit] .se-vslider:focus-visible { box-shadow: 0 0 0 2px rgba(200, 64, 111, .35); }
+[data-subedit] .se-vstrack { position: absolute; left: 5px; right: 5px; top: 6px; height: 3px; border-radius: 2px; background: #e6cfd8; }
+[data-subedit] .se-vslider:hover .se-vstrack { background: #dcbccb; }
+[data-subedit] .se-vskey { position: absolute; top: 1px; width: 1px; height: 5px; background: #a98593; transform: translateX(-.5px); pointer-events: none; }
+[data-subedit] .se-vsthumb { position: absolute; top: 2px; width: 8px; height: 11px; border-radius: 3px; background: var(--accent); border: 1px solid #fff; box-shadow: 0 0 0 1px rgba(120, 30, 60, .35); transform: translateX(-50%); pointer-events: none; }
+[data-subedit] .se-vslider:focus .se-vsthumb { background: var(--accent-ink); }
 [data-subedit] .se-vbar .btn-sm { height: 28px; }
 [data-subedit] .se-vstep { width: 30px; padding: 0; justify-content: center; flex: none; position: relative; }
 [data-subedit] .se-vpos { flex: 1; min-width: 0; height: 28px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--txt); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; }
@@ -198,7 +211,27 @@
 [data-subedit] .se-gridbar .seg.sm button { height: 26px; }
 
 /* คำสั่งของบรรทัด แถบเหนือตาราง (ขั้น 6) · ข้อความผลกินที่ว่างที่เหลือ บรรทัดเดียว ไม่ดันแถบให้สูงขึ้น */
-[data-subedit] .se-cmds { display: flex; align-items: center; gap: 4px; flex: 1 1 auto; min-width: 0; }
+[data-subedit] .se-cmds { display: flex; align-items: center; gap: 4px; flex: none; min-width: 0; }
+/* แถบที่แคบไม่พอ ปุ่มกับเมนูเหลือไอคอน ชื่ออยู่ในคำอธิบายตอนชี้ (BUGS ข้อ 113 แบบแถวปุ่มเสียงแบบ 1) */
+[data-subedit] .se-cmds.compact .se-cl { display: none; }
+[data-subedit] .se-cmds.compact > .btn { padding: 0 7px; }
+[data-subedit] .se-cmds.compact .se-vmenuwrap > .btn { padding: 0 5px 0 7px; gap: 2px; }
+/* แถบปุ่มย่อแบบ Aegisub กินที่ว่างที่เหลือ ปุ่มที่ไม่พอที่อยู่ในเมนูปุ่มอื่น (MainBar.tsx) · ไม่ตัดของล้น เมนูปุ่มอื่นกางออกนอกแถบได้ */
+[data-subedit] .se-tbar { flex: 1 1 0; min-width: 0; display: flex; align-items: center; gap: 2px; }
+[data-subedit] .se-tbtn { width: 28px; height: 26px; flex: none; display: inline-flex; align-items: center; justify-content: center; padding: 0; border: 1px solid transparent; border-radius: 8px; background: transparent; color: var(--txt); cursor: pointer; font: inherit; }
+[data-subedit] .se-tbtn > span { display: inline-flex; }
+[data-subedit] .se-tbtn:hover { background-color: #faedf1; border-color: #e2bfcb; }
+[data-subedit] .se-tbtn.on { background-color: #f5dde5; border-color: #d8a9b9; }
+[data-subedit] .se-tbtn.off { opacity: .45; cursor: not-allowed; }
+[data-subedit] .se-tbtn.off:hover { background-color: #fdf3dc; border-color: #f0d9a2; }
+[data-subedit] .se-tbsep { width: 1px; height: 18px; background: var(--line); flex: none; margin: 0 3px; }
+[data-subedit] .se-tbmorewrap { flex: none; }
+[data-subedit] .se-cmenu .se-vmi.se-tbmi { justify-content: flex-start; gap: 9px; }
+[data-subedit] .se-tbmi .se-cml { flex: 1; }
+[data-subedit] .se-tbmic { display: inline-flex; flex: none; }
+/* ช่องจำนวนบรรทัดกับผลของคำสั่ง กว้างคงที่ ผลที่ขึ้นแล้วหายไม่ทำให้แถบปุ่มย่อเปลี่ยนจำนวนปุ่ม */
+[data-subedit] .se-gslot { flex: none; width: 180px; display: flex; justify-content: flex-end; overflow: hidden; }
+[data-subedit] .se-gslot .se-cnote { padding-left: 0; }
 /* สูง 26 เท่าปุ่มแท็ก แถบไม่สูงขึ้น ตารางที่หน้าต่าง 1280 × 800 ยังเห็นสองแถว (ปุ่มปกติ 32 ดันตารางจนเหลือความสูงขั้นต่ำ) */
 [data-subedit] .se-cmds > .btn, [data-subedit] .se-cmds .se-vmenuwrap > .btn { white-space: nowrap; gap: 5px; height: 26px; padding: 0 9px; }
 [data-subedit] .se-cmenu .se-vmpair { gap: 1px 8px; }
@@ -275,6 +308,24 @@
 /* หน้าต่างคำสั่ง ช่องป้ายกว้างพอให้ปุ่ม ⓘ อยู่ต่อท้ายคำโดยไม่ทับ · ช่องตัวเลขสามหลัก */
 [data-subedit] .se-cdlg .se-dlbl { width: 104px; display: inline-flex; align-items: center; gap: 4px; }
 [data-subedit] .se-cdlg .se-num4 { width: 60px; }
+
+/* หน้าต่างใส่ซับกลับเข้าหนัง ฟอนต์ที่ฝังเพิ่ม กับของที่ MP4 เก็บไม่ได้ (BUGS ข้อ 114) · รายการยาวเลื่อนในช่อง หน้าต่างไม่สูงเกิน */
+[data-subedit] .se-rmtop { align-items: flex-start; }
+[data-subedit] .se-rmtop .se-dlbl { padding-top: 1px; }
+[data-subedit] .se-rmlist { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; max-height: 96px; overflow-y: auto; }
+[data-subedit] .se-rmwarn { color: var(--warn-ink); }
+
+/* หน้าต่างคุณสมบัติสคริปต์ (BUGS ข้อ 113) · ช่องข้อความสองคอลัมน์ หัวเรื่องกับรายละเอียดการอัปเดตเต็มแถว */
+[data-subedit] .se-props { gap: 7px; }
+[data-subedit] .se-prhead { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; color: var(--txt); margin-top: 4px; }
+[data-subedit] .se-prhead:first-child { margin-top: 0; }
+[data-subedit] .se-prgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 14px; }
+[data-subedit] .se-prf { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--txt2); min-width: 0; }
+[data-subedit] .se-prf.wide { grid-column: 1 / -1; }
+[data-subedit] .se-prf .inp { flex: 1; min-width: 0; }
+/* ป้ายยาวสุด รายละเอียดการอัปเดต 118 จุดที่ 13 จุด ช่อง 104 เดิมตกบรรทัดแล้วโดนกระจายแบบไทยจนตัวอักษรถ่าง · ทุกป้ายในหน้าต่างกว้างเท่ากัน ช่องตรงแนวทุกส่วน */
+[data-subedit] .se-props .se-dlbl { width: 122px; }
+[data-subedit] .se-prerr { color: var(--bad-ink); white-space: nowrap; }
 
 /* ตัวจัดการสไตล์ หน้าต่างแก้สไตล์ ตัวช่วยแปล (ขั้น 7) */
 [data-subedit] .se-stylemgr { display: flex; flex-direction: column; gap: 10px; }

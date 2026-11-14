@@ -7,7 +7,8 @@ import { IcBitrate, IcBrand, IcCheck, IcCollapse, IcGraph, IcInfo, IcLink, IcMix
 
 export type Page = "shelf" | "poster" | "link" | "av" | "subtitle" | "check" | "graph" | "bitrate" | "mediainfo" | "settings";
 
-type Item = { id: Page; label: string; icon: React.ReactNode; count?: number; tip?: string };
+/** en คำอังกฤษคำเดียวใต้ไอคอนตอนเมนูพับ (BUGS ข้อ 116 พี่กันสั่ง "เพิ่มคำภาษษอังกิดตัวเล็กๆ ใต้ icon ที เเค่ 1 คำ") */
+type Item = { id: Page; label: string; en: string; icon: React.ReactNode; count?: number; tip?: string };
 
 type Props = {
   page: Page;
@@ -26,27 +27,27 @@ export default function Sidebar({ page, onPage, collapsed, onToggle, shelfCount,
   const [tip, setTip] = useState<{ text: string; x: number; y: number } | null>(null);
 
   const items: Item[] = [
-    { id: "shelf", label: "ชั้นวางหนัง", icon: <IcShelf />, count: shelfCount },
-    { id: "poster", label: "ใส่โปสเตอร์", icon: <IcPoster /> },
+    { id: "shelf", label: "ชั้นวางหนัง", en: "Shelf", icon: <IcShelf />, count: shelfCount },
+    { id: "poster", label: "ใส่โปสเตอร์", en: "Poster", icon: <IcPoster /> },
     // หน้าจับคู่ปก ต่อจากใส่โปสเตอร์ (พี่กันเคาะ *"แยกหน้า"* · มอคอัป docs/mockups/poster-link.html)
     {
-      id: "link", label: "จับคู่ปก", icon: <IcLink />, count: linkCount || undefined,
+      id: "link", label: "จับคู่ปก", en: "Link", icon: <IcLink />, count: linkCount || undefined,
       tip: linkCount ? `จับคู่ปก มีคู่รอยืนยัน ${linkCount} คู่` : undefined,
     },
     // หน้าเสียงและซับ ต่อจากใส่โปสเตอร์ (มอคอัป docs/mockups/audio-merge.html · แผนเสียงและซับ ขั้น 2)
-    { id: "av", label: "เสียงและซับ", icon: <IcMix /> },
+    { id: "av", label: "เสียงและซับ", en: "Tracks", icon: <IcMix /> },
     // หน้าซับไตเติล ไว้รอ งานเต็มอยู่ ROADMAP (BUGS ข้อ 101 พี่กันสั่ง 13 พ.ย. 2569 "สร้าเมนู ซับไตเติลไว้รอด้วย")
-    { id: "subtitle", label: "ซับไตเติล", icon: <IcSubtitle /> },
+    { id: "subtitle", label: "ซับไตเติล", en: "Subtitle", icon: <IcSubtitle /> },
     {
-      id: "check", label: "ตรวจไฟล์", icon: <IcCheck />, count: checkCount || undefined,
+      id: "check", label: "ตรวจไฟล์", en: "Check", icon: <IcCheck />, count: checkCount || undefined,
       tip: checkCount ? `ตรวจไฟล์ มี ${checkCount} เรื่องที่ควรตรวจ` : undefined,
     },
-    { id: "graph", label: "กราฟเสียง", icon: <IcGraph /> },
+    { id: "graph", label: "กราฟเสียง", en: "Audio", icon: <IcGraph /> },
     // หน้าบิตเรตวิดีโอแบบ Bitrate Viewer (พี่กันสั่ง 9 พ.ย. 2569 "เอาใส่สักหน้านึงในโปรแกรมก่อน ค่อยย้าย")
-    { id: "bitrate", label: "บิตเรต", icon: <IcBitrate /> }, // ดูได้ทั้งวิดีโอและเสียงแล้ว (พี่กันสั่ง 10 พ.ย. 2569 เปลี่ยนชื่อ)
+    { id: "bitrate", label: "บิตเรต", en: "Bitrate", icon: <IcBitrate /> }, // ดูได้ทั้งวิดีโอและเสียงแล้ว (พี่กันสั่ง 10 พ.ย. 2569 เปลี่ยนชื่อ)
     // หน้า MediaInfo เปิดไฟล์ไหนก็ได้ ไม่ต้องอยู่ในชั้นวาง (BUGS ข้อ 54 พี่กันแทรก 12 พ.ย. 2569 "สร้างเเถบเมนู media infor")
-    { id: "mediainfo", label: "MediaInfo", icon: <IcInfo /> },
-    { id: "settings", label: "ตั้งค่า", icon: <IcSettings /> },
+    { id: "mediainfo", label: "MediaInfo", en: "Info", icon: <IcInfo /> },
+    { id: "settings", label: "ตั้งค่า", en: "Settings", icon: <IcSettings /> },
   ];
 
   const showTip = (e: React.SyntheticEvent<HTMLElement>, text: string) => {
@@ -76,6 +77,7 @@ export default function Sidebar({ page, onPage, collapsed, onToggle, shelfCount,
         >
           {it.icon}
           <span className="navtxt">{it.label}</span>
+          <span className="naven" aria-hidden="true">{it.en}</span>
           {it.count != null && <span className="count">{it.count}</span>}
         </button>
       ))}
@@ -95,6 +97,7 @@ export default function Sidebar({ page, onPage, collapsed, onToggle, shelfCount,
       >
         <IcCollapse />
         <span className="navtxt">{collapsed ? "ขยายเมนู" : "ย่อเมนู"}</span>
+        <span className="naven" aria-hidden="true">Expand</span>
       </button>
       <div className="navver" title={"ชั้นหนัง รุ่น " + version} data-version>v{version}</div>
       {tip && (

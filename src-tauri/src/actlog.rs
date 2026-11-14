@@ -31,6 +31,7 @@ const WATCH: &[(&str, &str)] = &[
     ("subdoc_save", "บันทึกไฟล์ซับในหน้าแก้ซับ"),
     ("vid_keys_save", "บันทึกไฟล์ keyframe ในหน้าแก้ซับ"),
     ("sub_audio_save", "บันทึกเสียงของบรรทัดซับเป็นไฟล์"),
+    ("pgs_export", "ส่งออกซับเป็น PGS"),
     ("vid_snapshot", "บันทึกหรือคัดลอกภาพจากหน้าแก้ซับ"),
     ("graph_save_image", "บันทึกรูปกราฟ"),
     ("graph_cache_clear", "ล้างกราฟที่เก็บไว้"),

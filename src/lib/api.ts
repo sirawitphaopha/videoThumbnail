@@ -168,6 +168,10 @@ export const posterApi = {
 export type MergeTrack = {
   src: string; tid: number; ff: number | null; kind: "video" | "audio" | "subtitle"; codec: string; profile: string | null;
   lang: string; name: string; default: boolean; forced: boolean;
+  /** ภาษาแบบละเอียด BCP 47 ที่ไฟล์บอก (zh-Hant es-419) · langWas ภาษาสามตัวตอนอ่าน หน้าจอเปลี่ยนภาษาแล้วใช้ภาษาสามตัวแทน (BUGS ข้อ 114) */
+  langIetf?: string; langWas?: string;
+  /** ป้ายพิเศษของแทร็ก ซับคนหูหนวก คนตาบอด คำบรรยายภาพ ภาษาต้นฉบับ เสียงบรรยาย */
+  hearingImpaired?: boolean; visualImpaired?: boolean; textDescriptions?: boolean; original?: boolean; commentary?: boolean;
   channels: number | null; layout: string | null; rate: number | null; bits: number | null; bitrate: number | null;
   width: number | null; height: number | null; fps: number | null; duration: number | null; bytes: number | null; frames: number | null;
   mp4: "ok" | "style" | "no"; why: string | null; charset: string | null; delay: number; keep: boolean; inMovie: boolean;
@@ -227,10 +231,14 @@ export type AudioFile = {
 };
 export type CoverData = { url: string; bytes: number; codec: string; width: number; height: number };
 export type ConvReq = { id: string; path: string; spec: EncodeSpec; outDir: string | null };
-export type ConvResult = { out: string; size: number; srcSize: number; tags: number; cover: boolean; notes: string[]; tool: string; cmd: string; secs: number };
+/** same เสียงตรงกับต้นฉบับทุกบิตไหม (BUGS ข้อ 121) · null ไม่ได้เทียบ เหตุผลอยู่ sameNote */
+export type ConvResult = { out: string; size: number; srcSize: number; tags: number; cover: boolean; notes: string[]; tool: string; cmd: string; secs: number; same: boolean | null; sameNote: string };
 export type ConvProgress = { id: string; percent: number; eta: number | null; phase: string };
 export const convertApi = {
   probe: (path: string) => call<AudioFile>("convert_probe", { path }),
+  /** ขนาดที่คาดจากการลองแปลงจริง 4 ช่วง ช่วงละ 10 วินาที แล้วคูณขยาย (BUGS ข้อ 120) · bytes เสียงล้วน · cover ขนาดปกเมื่อขอ withCover */
+  sizeProbe: (path: string, stream: number, spec: EncodeSpec, channels: number | null, bits: number | null, rate: number | null, duration: number, withCover: boolean) =>
+    call<{ bytes: number; cover: number; whole: boolean }>("convert_size_probe", { path, stream, spec, channels, bits, rate, duration, withCover }),
   cover: (path: string) => call<CoverData | null>("convert_cover", { path }),
   /** ไม่สำเร็จ promise ล้มพร้อม ApplyProblem */
   one: (req: ConvReq) => call<ConvResult>("convert_one", { req }),
@@ -389,6 +397,8 @@ export const vidApi = {
   mpvAvailable: () => call<boolean>("mpv_available"),
   keysLoad: (path: string) => call<number[]>("vid_keys_load", { path }),
   keysSave: (path: string, keys: number[]) => call<string>("vid_keys_save", { path, keys }),
+  /** ค่า YCbCr Matrix จากชนิดสีของหนัง แบบ Aegisub (TV.709 TV.601 PC.709 PC.601 หรือ None) · หน้าต่างคุณสมบัติสคริปต์ */
+  colorspace: (movie: string) => call<string>("vid_colorspace", { movie }),
   /** ภาพเฉพาะซับพื้นโปร่งใสที่วางทับภาพนิ่ง วาดด้วย libass (subshot.rs) · t เวลาของซับ ms · w h ขนาดที่วาด · ow oh ขนาดจริงของภาพหนัง */
   subOverlay: (doc: SubDoc, t: number, w: number, h: number, ow: number, oh: number, movie: string | null) =>
     call<string>("sub_overlay", { doc, t, w, h, ow, oh, movie }),
@@ -403,11 +413,20 @@ export type SnapReq = {
 /** เสียงของหน้าแก้ซับ (subaudio.rs) · pcm ได้ไบต์ s16le สองช่อง 48 kHz ตรง ๆ ไม่ผ่านข้อความ */
 /** map ตัวเลือกแทร็กแบบ ffmpeg · 0:2 คือแทร็กที่ 2 ของทั้งไฟล์ (เสียงในหนัง) · 0:a:0 คือแทร็กเสียงแรก (ไฟล์เสียงแยก) */
 export const audApi = {
-  pcm: (path: string, map: string, t0: number, dur: number) => call<ArrayBuffer>("sub_pcm", { path, map, t0, dur }),
+  /** zero เวลาเฟรมแรกของภาพในไฟล์ วินาที · เสียงในหนังเลื่อนให้เวลา 0 ตรงเฟรมแรกของภาพ (BUGS ข้อ 115) · null นับจากต้นไฟล์ */
+  pcm: (path: string, map: string, t0: number, dur: number, zero: number | null = null) => call<ArrayBuffer>("sub_pcm", { path, map, t0, dur, zero }),
   /** คลื่นเสียงช่วง t0 ถึง t1 วินาที ได้ cols คอลัมน์พอดี ค่า 0 ถึง 1 */
-  peaks: (path: string, map: string, t0: number, t1: number, cols: number) => call<number[]>("sub_peaks", { path, map, t0, t1, cols }),
+  peaks: (path: string, map: string, t0: number, t1: number, cols: number, zero: number | null = null) => call<number[]>("sub_peaks", { path, map, t0, t1, cols, zero }),
   /** บันทึกเสียงช่วงเป็น WAV · ไฟล์ปลายทางที่มีอยู่แล้วลงถังขยะ */
-  save: (path: string, map: string, t0: number, t1: number, target: string) => call<string>("sub_audio_save", { path, map, t0, t1, target }),
+  save: (path: string, map: string, t0: number, t1: number, target: string, zero: number | null = null) => call<string>("sub_audio_save", { path, map, t0, t1, target, zero }),
+};
+
+/** ส่งออกซับเป็น PGS ไฟล์ .sup (pgs.rs · BUGS ข้อ 118) · ระหว่างทำส่ง pgs-progress { done total } · ไฟล์มีอยู่แล้วตอบ exists · หยุดตอบ stopped */
+export type PgsOut = { path: string; images: number; reduced: number; merged: number; maxColors: number; bytes: number };
+export type PgsReq = { target: string; w: number; h: number; fpsNum: number; fpsDen: number; movie: string | null };
+export const pgsApi = {
+  export: (doc: SubDoc, req: PgsReq) => call<PgsOut>("pgs_export", { doc, req }),
+  cancel: () => call<void>("pgs_cancel"),
 };
 
 /** เลือกไฟล์ keyframe (ชนิดที่ Aegisub เปิดได้) · ยกเลิก = null */
@@ -437,6 +456,8 @@ export const delayApi = {
 export const mergeApi = {
   inspect: (path: string) => call<MergeMovie>("merge_inspect", { path }),
   addFile: (path: string, movieDuration: number | null) => call<AddedFile>("merge_add_file", { path, movieDuration }),
+  /** ฟอนต์ที่ซับเรียกแต่หนังยังไม่มี ทั้งที่หาเจอในเครื่องและหาไม่เจอ (ใส่ซับกลับเข้าหนัง BUGS ข้อ 114) */
+  remuxFonts: (movie: string, text: string) => call<FontHit[]>("remux_fonts", { movie, text }),
   /** ไม่สำเร็จ promise ล้มพร้อม ApplyProblem · ความคืบหน้ามาทางเหตุการณ์ merge-progress */
   apply: (req: MergeReq) => call<MergeResult>("merge_apply", { req }),
   cancel: () => call<void>("merge_cancel"),

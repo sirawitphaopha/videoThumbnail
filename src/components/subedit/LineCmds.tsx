@@ -22,6 +22,7 @@ import type { Tip } from "../../lib/codecAdv";
 import InfoTip from "../InfoTip";
 import { StyleManager } from "./StyleDialogs";
 import { ResampleDialog, TranslateDialog } from "./ToolDialogs";
+import PropsDialog from "./PropsDialog";
 import { IbTools, IbRows, IbSelect, IbShiftTime, IbWand, IcChevronDown, IcClock, IcSearch } from "../icons";
 
 export type LineCtx = {
@@ -43,7 +44,15 @@ export type LineCtx = {
   playLine: () => void;
   /** พาภาพไปเวลาเริ่มของบรรทัด เวลาซับ ms (ตัวช่วยแปล) */
   seekMs: (ms: number) => void;
+  /** ไฟล์หนังที่เปิดอยู่ ใช้อ่านชนิดสีให้ YCbCr Matrix ในหน้าต่างคุณสมบัติสคริปต์ */
+  movie: string | null;
+  /** แถวเหนือตารางแคบ ปุ่มกับเมนูเหลือไอคอน (BUGS ข้อ 113) */
+  compact: boolean;
+  /** เปิดหน้าต่างส่งออกเป็น PGS (BUGS ข้อ 118) */
+  onPgs: () => void;
 };
+/** คำสั่งที่แถบปุ่มย่อใช้ ทำงานกับเหตุผลที่กดไม่ได้ */
+export type ToolCmd = { run: () => void; why?: string };
 type Item = { label: string; key?: string; why?: string; run: () => void; data: string };
 /** แถวในเมนู ปุ่มเดียวหรือคู่ซ้ายขวา (คำสั่งที่เป็นคู่กัน เมนูสั้นลงจนไม่ต้องเลื่อนที่หน้าต่าง 1280 × 800) */
 type MRow = Item | [Item, Item];
@@ -85,8 +94,10 @@ const TOOL_TIP: Tip = {
   w: "เครื่องมือของซับทั้งไฟล์",
   o: [
     ["สไตล์ของซับ", "ดูและแก้สไตล์ในไฟล์ ฟอนต์ ขนาด สี ขอบ เงา ตำแหน่ง เพิ่ม คัดลอก ลบ", "แก้หน้าตาทุกบรรทัดที่ใช้สไตล์นั้นทีเดียว", "ใช้ได้กับซับ ASS"],
+    ["คุณสมบัติสคริปต์", "ข้อมูลในหัวไฟล์ หัวเรื่อง ชื่อคนทำซับ ความละเอียด YCbCr Matrix และวิธีตัดบรรทัด", "", "ใช้ได้กับซับ ASS"],
     ["เปลี่ยนความละเอียดของคำบรรยาย", "เปลี่ยนขนาดภาพของซับ แล้วคูณตัวเลขขนาดและตำแหน่งทุกตัวให้หน้าตาเท่าเดิม", "เอาซับไปใช้กับหนังขนาดภาพอื่น", "ใช้ได้กับซับ ASS"],
     ["ตัวช่วยแปล", "แปลทีละท่อนข้อความ แท็กในบรรทัดอยู่ที่เดิม", "แปลซับทั้งเรื่องได้เร็วด้วยแป้นพิมพ์อย่างเดียว", ""],
+    ["ส่งออกเป็น PGS", "วาดซับทุกบรรทัดเป็นภาพแบบแผ่น Blu-ray ไฟล์ .sup ใส่ในหนังสำหรับเครื่องเล่นที่ไม่รองรับซับ ASS", "หน้าตาเหมือนตอนเล่นทุกเครื่อง", "แก้ข้อความทีหลังไม่ได้ และมีข้อจำกัดเรื่องสีกับเอฟเฟกต์ เตือนในหน้าต่างก่อนส่งออก"],
   ],
 };
 const SEL_TIP: Tip = {
@@ -99,7 +110,7 @@ const SEL_TIP: Tip = {
 };
 
 /** เมนูของแถบเหนือตาราง · กางตามที่ว่างบนจอ (popup-fit) · Esc ปิดเฉพาะเมนู */
-function CmdMenu(p: { label: string; icon: React.ReactNode; title: string; head: string; tip: Tip; sections: MRow[][]; data: string; width: number }) {
+function CmdMenu(p: { label: string; icon: React.ReactNode; title: string; head: string; tip: Tip; sections: MRow[][]; data: string; width: number; compact?: boolean }) {
   const [open, setOpen] = useState(false);
   const wrap = useRef<HTMLDivElement>(null);
   const panel = useRef<HTMLDivElement>(null);
@@ -110,7 +121,7 @@ function CmdMenu(p: { label: string; icon: React.ReactNode; title: string; head:
   return (
     <div ref={wrap} className="se-vmenuwrap">
       <button type="button" className={"btn btn-ghost btn-sm" + (open ? " pressed" : "")} aria-haspopup="true" aria-expanded={open} title={p.title} onClick={() => setOpen((o) => !o)} data-cmdmenu={p.data}>
-        {p.icon}{p.label}<IcChevronDown size={13} />
+        {p.icon}<span className="se-cl">{p.label}</span><IcChevronDown size={13} />
       </button>
       {open && (
         <div ref={panel} className="menu pop-in se-vmenu se-cmenu" role="menu" aria-label={p.title} style={{ position: "absolute", ...sideStyle(side, "left"), width: p.width, zIndex: "var(--z-menu)" as unknown as number, overflowY: "auto", ...dropStyle(place) }} data-cmdpanel={p.data}>
@@ -137,7 +148,7 @@ function CmdMenu(p: { label: string; icon: React.ReactNode; title: string; head:
 /** คำสั่งของบรรทัดทั้งหมด · คืนแถบปุ่ม หน้าต่าง และคีย์ลัดให้หน้าแก้ซับ */
 export function useLineCmds(c: LineCtx) {
   const { fr, pos, delay: dl } = c;
-  const [dlg, setDlg] = useState<"shift" | "post" | "select" | "find" | "replace" | "over" | "goto" | "sort" | "styles" | "resample" | "translate" | null>(null);
+  const [dlg, setDlg] = useState<"shift" | "post" | "select" | "find" | "replace" | "over" | "goto" | "sort" | "styles" | "resample" | "translate" | "props" | null>(null);
   const [note, setNote] = useState<Msg>(null);
   // ค้นและแทนที่ จำคำค้นไว้ตลอดที่เปิดหน้า F3 ค้นต่อด้วยค่าเดิม
   const [find, setFind] = useState("");
@@ -156,7 +167,7 @@ export function useLineCmds(c: LineCtx) {
   });
 
   const doc = c.doc;
-  if (!doc) return { bar: null, note: null, dialogs: null, hotkeys: [] as Hotkey[], split: () => {}, join: () => {}, insertAfter: () => {} };
+  if (!doc) return { bar: null, note: null, dialogs: null, hotkeys: [] as Hotkey[], split: () => {}, join: () => {}, insertAfter: () => {}, tools: null };
   const selSet = new Set(c.sel);
   const ev = doc.events.find((e) => e.id === c.active) ?? null;
   const at = ev ? doc.events.indexOf(ev) : -1;
@@ -360,21 +371,37 @@ export function useLineCmds(c: LineCtx) {
   const noAss = ass ? undefined : "ซับ SRT ไม่มีสไตล์และขนาดภาพ เปลี่ยนเป็น ASS ก่อน (ปุ่มเปลี่ยนเป็น ASS ในช่องแก้บรรทัด)";
   const toolMenu: MRow[][] = [[
     { label: "สไตล์ของซับ…", why: noAss, run: () => setDlg("styles"), data: "styles" },
+    { label: "คุณสมบัติสคริปต์…", why: noAss, run: () => setDlg("props"), data: "props" },
     { label: "เปลี่ยนความละเอียดของคำบรรยาย…", why: noAss, run: () => setDlg("resample"), data: "resample" },
     { label: "ตัวช่วยแปล…", why: noLine, run: () => setDlg("translate"), data: "translate" },
+    { label: "ส่งออกเป็น PGS…", why: doc.events.some((e) => !e.comment && e.end > e.start) ? undefined : "ซับนี้ไม่มีบรรทัดที่ขึ้นบนภาพ", run: c.onPgs, data: "pgs" },
   ]];
 
   const bar = (
-    <div className="se-cmds" data-se-cmds>
-      <button type="button" className="btn btn-ghost btn-sm" title="ค้นหา (Ctrl+F) หรือค้นและแทนที่ (Ctrl+H)" onClick={() => openFind(true)} data-se-find><IcSearch size={15} width={2.2} />ค้นหา</button>
-      <button type="button" className="btn btn-ghost btn-sm" title="เลื่อนเวลาของบรรทัดไปข้างหน้าหรือถอยหลัง (Ctrl+I)" onClick={() => setDlg("shift")} data-se-shift><IbShiftTime size={15} />เลื่อนเวลา</button>
-      <button type="button" className="btn btn-ghost btn-sm" title="ปรับเวลาทุกบรรทัดตามกติกาของ Aegisub เผื่อหน้า เผื่อท้าย ต่อบรรทัดที่ใกล้กัน ดูดเข้า keyframe" onClick={() => setDlg("post")} data-se-post><IbWand size={15} />ปรับเวลา</button>
+    <div className={"se-cmds" + (c.compact ? " compact" : "")} data-se-cmds data-compact={c.compact ? "1" : undefined}>
+      <button type="button" className="btn btn-ghost btn-sm" title="ค้นหา (Ctrl+F) หรือค้นและแทนที่ (Ctrl+H)" aria-label="ค้นหา" onClick={() => openFind(true)} data-se-find><IcSearch size={15} width={2.2} /><span className="se-cl">ค้นหา</span></button>
+      <button type="button" className="btn btn-ghost btn-sm" title="เลื่อนเวลาของบรรทัดไปข้างหน้าหรือถอยหลัง (Ctrl+I)" aria-label="เลื่อนเวลา" onClick={() => setDlg("shift")} data-se-shift><IbShiftTime size={15} /><span className="se-cl">เลื่อนเวลา</span></button>
+      <button type="button" className="btn btn-ghost btn-sm" title="ปรับเวลาทุกบรรทัดตามกติกาของ Aegisub เผื่อหน้า เผื่อท้าย ต่อบรรทัดที่ใกล้กัน ดูดเข้า keyframe" aria-label="ปรับเวลา" onClick={() => setDlg("post")} data-se-post><IbWand size={15} /><span className="se-cl">ปรับเวลา</span></button>
       <CmdMenu label="เวลา" icon={<IcClock size={15} />} title="เมนูเวลา สอดเวลากับภาพ ทำให้เวลาต่อกัน เรียงบรรทัด" head="เมนูเวลา" tip={TIME_TIP} sections={timeMenu} data="time" width={330} />
       <CmdMenu label="บรรทัด" icon={<IbRows size={15} />} title="เมนูบรรทัด แทรก แยก รวม ย้าย คัดลอก วาง" head="เมนูบรรทัด" tip={LINE_TIP} sections={lineMenu} data="line" width={460} />
       <CmdMenu label="เลือก" icon={<IbSelect size={15} />} title="เมนูเลือกบรรทัด และไปที่บรรทัดหรือเวลา" head="เมนูเลือก" tip={SEL_TIP} sections={selMenu} data="sel" width={300} />
-      <CmdMenu label="เครื่องมือ" icon={<IbTools size={15} />} title="สไตล์ของซับ เปลี่ยนความละเอียด ตัวช่วยแปล" head="เครื่องมือ" tip={TOOL_TIP} sections={toolMenu} data="tool" width={320} />
+      <CmdMenu label="เครื่องมือ" icon={<IbTools size={15} />} title="สไตล์ของซับ คุณสมบัติสคริปต์ เปลี่ยนความละเอียด ตัวช่วยแปล" head="เครื่องมือ" tip={TOOL_TIP} sections={toolMenu} data="tool" width={320} />
     </div>
   );
+  /** คำสั่งที่แถบปุ่มย่อใช้ (BUGS ข้อ 113) */
+  const tools: Record<"snapStart" | "snapEnd" | "visible" | "snapScene" | "toFrame" | "styles" | "props" | "shift" | "translate" | "resample" | "post", ToolCmd> = {
+    snapStart: { run: run.snapStart, why: noSel ?? noVid },
+    snapEnd: { run: run.snapEnd, why: noSel ?? noVid },
+    visible: { run: run.visible, why: noVid },
+    snapScene: { run: run.snapScene, why: noSel ?? noKeys },
+    toFrame: { run: run.toFrame, why: noLine ?? noVid },
+    styles: { run: () => setDlg("styles"), why: noAss },
+    props: { run: () => setDlg("props"), why: noAss },
+    shift: { run: () => setDlg("shift") },
+    translate: { run: () => setDlg("translate"), why: noLine },
+    resample: { run: () => setDlg("resample"), why: noAss },
+    post: { run: () => setDlg("post") },
+  };
 
   const dialogs = <>
     <ShiftDialog open={dlg === "shift"} onClose={() => setDlg(null)} frames={!!fr} selCount={c.sel.length} kind={doc.kind}
@@ -413,6 +440,7 @@ export function useLineCmds(c: LineCtx) {
     {ass && <StyleManager open={dlg === "styles"} onClose={() => setDlg(null)} doc={doc} playRes={null} />}
     {ass && <ResampleDialog open={dlg === "resample"} onClose={() => setDlg(null)} doc={doc} video={c.videoRes} onDone={(t) => setNote({ t, bad: false })} />}
     <TranslateDialog open={dlg === "translate"} onClose={() => setDlg(null)} doc={doc} onPlay={c.playLine} onSeek={c.seekMs} onDone={(t) => setNote({ t, bad: false })} />
+    {ass && <PropsDialog open={dlg === "props"} onClose={() => setDlg(null)} doc={doc} video={c.videoRes} movie={c.movie} onDone={(t) => setNote({ t, bad: false })} />}
   </>;
 
   const hotkeys: Hotkey[] = [
@@ -437,5 +465,5 @@ export function useLineCmds(c: LineCtx) {
 
   /** ผลของคำสั่ง ขึ้นแทนที่ตัวนับบรรทัดชั่วคราว แถบไม่แน่นขึ้น */
   const noteEl = note ? <span className={"small se-cnote" + (note.bad ? " bad" : "")} role={note.bad ? "alert" : "status"} title={note.t} data-se-cnote>{note.t}</span> : null;
-  return { bar, note: noteEl, dialogs, hotkeys, split: run.split, join: run.join, insertAfter: () => run.insert(true, false) };
+  return { bar, note: noteEl, dialogs, hotkeys, split: run.split, join: run.join, insertAfter: () => run.insert(true, false), tools };
 }

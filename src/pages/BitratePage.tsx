@@ -14,7 +14,7 @@ import Dropdown from "../components/Dropdown";
 import { useLibrary } from "../lib/library";
 import { Seg, dropClick } from "../components/ui";
 import InfoTip from "../components/InfoTip";
-import { IbStop, IcBitrate, IcFile, IcRefresh } from "../components/icons";
+import { IbStop, IcBitrate, IcFile, IcGraph, IcRefresh } from "../components/icons";
 import type { Tip } from "../lib/codecAdv";
 import BitrateClassic from "./BitrateClassic";
 import bvIcon from "../assets/thanks/bitrateviewer.ico";
@@ -40,13 +40,22 @@ const TIP_MODE: Tip = {
   ],
   r: "ถ้าดูภาพรวมให้ใช้ต่อวินาที แต่ถ้าอยากรู้ว่าเฟรมไหนกินข้อมูลมากให้ใช้ต่อเฟรม",
 };
+/** codec แบบไม่เสียคุณภาพ ใช้เพดานเสียงดิบ (BUGS ข้อ 119) */
+const LOSSLESS = /^(flac|alac|wavpack|ape|tak|tta|truehd|mlp|pcm_)/;
+const TIP_CEIL: Tip = {
+  w: "เส้นประสีแดงบนกราฟ ช่วงที่บิตเรตสูงเกินเส้นนี้เป็นสีแดง",
+  o: [
+    ["เฉลี่ย × 2", "วิดีโอกับเสียงแบบเสียคุณภาพ คิดจากบิตเรตเฉลี่ยของทั้งไฟล์คูณสอง ปัดเป็น 1 2 5", "เห็นช่วงที่บิตเรตพุ่งผิดปกติ", ""],
+    ["เสียงดิบ", "เสียงแบบไม่เสียคุณภาพ เช่น FLAC ALAC WavPack คิดจากบิตเรตของเสียงที่ยังไม่บีบ คืออัตราสุ่ม × บิต × จำนวนช่อง เช่น 96 kHz 24 บิต 2 ช่องได้ 4,608 kbps", "บอกได้ว่าบีบเหลือกี่เปอร์เซ็นต์ ช่วงที่แตะเพดานคือเสียงที่บีบไม่ลง เช่นเสียงอัดแน่นหรือมีเสียงรบกวนเต็มไฟล์", ""],
+  ],
+};
 const TIP_SCALE: Tip = {
   w: "ความสูงของกราฟ",
   o: [
     ["ตามเพดาน", "กราฟสูงพอดีเส้นเพดาน เทียบไฟล์ต่าง ๆ ได้ด้วยสเกลเดียวกัน แท่งที่เกินเพดานเป็นสีแดง", "", ""],
     ["ตามข้อมูล", "กราฟยืดให้แท่งที่สูงที่สุดในช่วงที่เห็นพอดีขอบบน เห็นรายละเอียดช่วงบิตเรตต่ำชัดขึ้น", "", ""],
   ],
-  r: "เพดานคิดจากบิตเรตเฉลี่ยของทั้งไฟล์ ปัดเป็น 1 2 5 (ตัวจริงของ Bitrate Viewer ตั้ง 10 Mbps ตายตัวตามแผ่น DVD)",
+  r: "เพดานคิดจากบิตเรตเฉลี่ยของทั้งไฟล์ ปัดเป็น 1 2 5 (ตัวจริงของ Bitrate Viewer ตั้ง 10 Mbps ตายตัวตามแผ่น DVD) ส่วนเสียงแบบไม่เสียคุณภาพใช้บิตเรตของเสียงดิบ",
 };
 
 /* ความละเอียดแท่งของวิธีคิดต่อวินาที (BUGS ข้อ 42 · พี่กันเคาะ 10 พ.ย. 2569 "งั้นเลือกแบ่งซอยเเท่งได้หลายระดับ เอาเป็นดรอปดาว" · "เน้นเบียน เน้นเนิร์ด")
@@ -215,7 +224,7 @@ const cssv = (n: string, d: string) => getComputedStyle(document.documentElement
 const alpha = (c: string, a: number) => `color-mix(in srgb, ${c} ${Math.round(a * 100)}%, transparent)`;
 
 /** หน้าบิตเรต · สลับแบบชั้นหนังกับแบบ Bitrate Viewer ไฟล์ที่เปิดอยู่ตามไปด้วย · จำแบบที่เลือกไว้ในเครื่อง */
-export default function BitratePage({ initialPath = null, initialTrack = null, onConsumed }: { initialPath?: string | null; initialTrack?: string | null; onConsumed?: () => void } = {}) {
+export default function BitratePage({ initialPath = null, initialTrack = null, onConsumed, onGraph }: { initialPath?: string | null; initialTrack?: string | null; onConsumed?: () => void; onGraph?: (path: string, track: number) => void } = {}) {
   const [view, setView] = useState<"new" | "classic">(() => (store.get("bv-view") === "classic" ? "classic" : "new"));
   /** ไฟล์กับแทร็กที่ส่งต่อตอนสลับแบบ · แทร็กตามไปด้วย อีกแบบไม่ถามแทร็กซ้ำ (BUGS ข้อ 83 · เดิมส่งแค่ไฟล์ ดูวิดีโออยู่สลับแล้วขึ้นหน้าเลือกแทร็ก) */
   const [carry, setCarry] = useState<{ path: string; track: string | null } | null>(null);
@@ -240,10 +249,10 @@ export default function BitratePage({ initialPath = null, initialTrack = null, o
       <BitrateClassic initialPath={start} initialTrack={startTrack} onConsumed={done} onCurrent={(p, t) => { classicCur.current = { path: p, track: t }; }} />
     </div>
   );
-  return <BitrateModern initialPath={start} initialTrack={startTrack} onConsumed={done} onClassic={(p, t) => go("classic", p, t)} />;
+  return <BitrateModern initialPath={start} initialTrack={startTrack} onConsumed={done} onClassic={(p, t) => go("classic", p, t)} onGraph={onGraph} />;
 }
 
-function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onConsumed }: { onClassic?: (path: string | null, track?: string | null) => void; initialPath?: string | null; initialTrack?: string | null; onConsumed?: () => void }) {
+function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onConsumed, onGraph }: { onClassic?: (path: string | null, track?: string | null) => void; initialPath?: string | null; initialTrack?: string | null; onConsumed?: () => void; onGraph?: (path: string, track: number) => void }) {
   const { movies } = useLibrary();
   const [path, setPath] = useState<string | null>(null);
   const [info, setInfo] = useState<BrInfo | null>(null);
@@ -470,7 +479,10 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
     return { peak, min: S.n ? min : 0, pAt, mAt, avg, cum, types, cv };
   }, [S, mode]);
   const est = info && info.duration > 0 && info.kind !== "audio" ? (info.size * 8) / 1000 / info.duration : 0;
-  const ceil = niceNear(Math.max(est || st.avg, 1) * 2);
+  // ไฟล์เสียงแบบไม่เสียคุณภาพ เพดานจริงคือบิตเรตของเสียงดิบที่ยังไม่บีบ อัตราสุ่ม × บิต × จำนวนช่อง (BUGS ข้อ 119 · เช่น 96,000 × 24 × 2 = 4,608 kbps)
+  // เห็นว่าบีบเหลือกี่เปอร์เซ็นต์ของเสียงดิบ ช่วงที่แตะเพดานคือเสียงที่บีบไม่ลง · แบบเสียคุณภาพกับวิดีโอใช้เฉลี่ย × 2 ตามเดิม
+  const rawKbps = audio && info && LOSSLESS.test(info.codec) && info.sample_rate > 0 && info.bit_depth > 0 && info.channels > 0 ? (info.sample_rate * info.bit_depth * info.channels) / 1000 : 0;
+  const ceil = rawKbps || niceNear(Math.max(est || st.avg, 1) * 2);
   // เวลาที่บิตเรตเกินเพดานรวม (วินาที) · คิดครั้งเดียวต่อชุดตัวอย่าง ไม่วนทุกครั้งที่ขยับเมาส์ (ทีละเฟรมมีได้เป็นล้านช่อง)
   const overSec = useMemo(() => { let o = 0; for (let i = 0; i < S.n; i++) if (kbps(S.b[i], S.t1[i] - S.t0[i]) > ceil) o += S.t1[i] - S.t0[i]; return o; }, [S, ceil]);
   // อ่านไม่ถึงท้ายไฟล์ · ffprobe รายงานว่าผิดพลาด หรืออ่านได้สั้นกว่าความยาวไฟล์ชัดเจน (AUDIT ข้อ 118) · ส่วนที่เหลือของกราฟลายจางพร้อมป้าย
@@ -608,7 +620,7 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
       g.fillStyle = cssv("--win", "#fff"); g.globalAlpha = 0.92; g.fillRect(L + pw - w, ly - 9, w, 18); g.globalAlpha = 1;
       g.fillStyle = color; g.textAlign = "right"; g.textBaseline = "middle"; g.fillText(label, L + pw - 4, ly);
     };
-    hl(ceil, c.badInk, `เพดาน ${rate(ceil)}`, [6, 4]);
+    hl(ceil, c.badInk, rawKbps ? `เสียงดิบ ${rate(ceil)}` : `เพดาน ${rate(ceil)}`, [6, 4]);
     // ชุดสี Bitrate Viewer ใช้สีเส้นแบบต้นฉบับ เฉลี่ยเขียว สูงสุดน้ำตาล ต่ำสุดน้ำเงิน (ค่าเดียวกับ BitrateClassic.tsx)
     if (lines.avg) hl(st.avg, pal === "bv" ? BV_LINES.avg : pal === "custom" ? custom : c.deep, `เฉลี่ย ${rate(st.avg)}`, []);
     if (lines.max) hl(st.peak, pal === "bv" ? BV_LINES.max : c.badInk, `สูงสุด ${rate(st.peak)}`, [2, 3]);
@@ -914,10 +926,14 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
               <dt>เฉลี่ย</dt><dd><b>{S.n ? rate(st.avg) : NA}</b></dd>
               <dt>สูงสุด</dt><dd>{S.n ? <>{rate(st.peak)} <button type="button" className="linklike brn-at" onClick={() => { const t = (S.t0[st.pAt] + S.t1[st.pAt]) / 2; setPin(t); }} title="ปักจุดตรงนี้">ที่ {clock(S.t0[st.pAt])}</button></> : NA}</dd>
               <dt>ต่ำสุด</dt><dd>{S.n ? <>{rate(st.min)} <button type="button" className="linklike brn-at" onClick={() => { const t = (S.t0[st.mAt] + S.t1[st.mAt]) / 2; setPin(t); }} title="ปักจุดตรงนี้">ที่ {clock(S.t0[st.mAt])}</button></> : NA}</dd>
-              <dt>เพดาน</dt><dd>{S.n ? <>{rate(ceil)}<span className="small"> <span className="nw">(เฉลี่ย × 2)</span></span></> : NA}</dd>
+              <dt className="brn-dtip">เพดาน<InfoTip title="เส้นเพดาน" tip={TIP_CEIL} /></dt><dd data-brn-ceil={rawKbps ? "raw" : "avg"}>{S.n ? <>{rate(ceil)}<span className="small"> <span className="nw">{rawKbps ? "(เสียงดิบ)" : "(เฉลี่ย × 2)"}</span></span></> : NA}</dd>
+              {rawKbps > 0 && <><dt>บีบเหลือ</dt><dd data-brn-rawpct>{S.n ? <>{Math.round((st.avg / rawKbps) * 100)}%<span className="small"> <span className="nw">ของเสียงดิบ</span></span></> : NA}</dd></>}
               <dt>เกินเพดาน</dt><dd>{S.n ? <>{overSec >= 1 ? clock(overSec) : `${overSec.toFixed(1)} วินาที`}<span className="small"> <span className="nw">หรือ {Math.round((overSec / Math.max(0.001, total)) * 100)}% ของไฟล์</span></span></> : NA}</dd>
               <dt>ความแกว่ง</dt><dd title="ส่วนเบี่ยงเบนมาตรฐานของบิตเรตเทียบกับค่าเฉลี่ย ยิ่งน้อยยิ่งนิ่ง">{S.n ? <>±{Math.round(st.cv * 100)}%<span className="small"> {st.cv < 0.15 ? "นิ่ง" : st.cv < 0.45 ? "ขึ้นลงพอควร" : "ขึ้นลงมาก"}</span></> : NA}</dd>
             </dl>
+            {/* ไฟล์เสียง กดไปดูกราฟเสียงของไฟล์กับแทร็กเดียวกันได้เลย (BUGS ข้อ 119 พี่กันเสริม "อยากให้สามารถกดไปดูกราฟเสียงได้เลย") */}
+            {audio && onGraph && path && <button type="button" className="btn btn-ghost btn-sm brn-graph" onClick={() => onGraph(path, Math.max(0, Number((info?.track ?? track).replace(/^a/, "")) || 0))}
+              title="เปิดไฟล์นี้ในหน้ากราฟเสียง แทร็กเสียงเดียวกัน ดูรูปคลื่น ความถี่ และความดัง" data-brn-graph><IcGraph size={15} />ดูกราฟเสียง</button>}
           </section>
           <section className="card">
             <h3>Frames</h3>

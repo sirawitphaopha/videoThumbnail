@@ -64,8 +64,9 @@ export const IcGraph = ({ size = 18, stroke = "currentColor" }: P) =>
 /** แท่งบิตเรตกับเส้นค่าเฉลี่ย หน้าบิตเรตวิดีโอ */
 export const IcBitrate = ({ size = 18, stroke = "currentColor" }: P) =>
   svg(size, 2, stroke, <><path d="M4 20V13M8 20V9M12 20v-6M16 20V6M20 20v-9" /><path d="M3 11l5-3 4 3 4-5 5 3" strokeWidth={1.4} /></>);
+/** ตั้งค่า ฟันเฟือง 8 ซี่ แบบโปรแกรมทั่วไป (BUGS ข้อ 117 · เดิมวงกลมมีขีดรอบ ดูคล้ายดวงอาทิตย์) · วาดเอง ซี่ละสี่จุด รัศมีใน 7.1 นอก 9.6 */
 export const IcSettings = ({ size = 18, stroke = "currentColor" }: P) =>
-  svg(size, 2, stroke, <><circle cx="12" cy="12" r="3" /><path d="M12 2v3M12 19v3M2 12h3M19 12h3M4.9 4.9l2.1 2.1M17 17l2.1 2.1M4.9 19.1L7 17M17 7l2.1-2.1" /></>);
+  svg(size, 2, stroke, <><path strokeLinejoin="round" d="M18.86 10.16L21.48 10.50L21.48 13.50L18.86 13.84L18.15 15.55L19.77 17.64L17.64 19.77L15.55 18.15L13.84 18.86L13.50 21.48L10.50 21.48L10.16 18.86L8.45 18.15L6.36 19.77L4.23 17.64L5.85 15.55L5.14 13.84L2.52 13.50L2.52 10.50L5.14 10.16L5.85 8.45L4.23 6.36L6.36 4.23L8.45 5.85L10.16 5.14L10.50 2.52L13.50 2.52L13.84 5.14L15.55 5.85L17.64 4.23L19.77 6.36L18.15 8.45Z" /><circle cx="12" cy="12" r="3" /></>);
 export const IcCollapse = ({ size = 18, stroke = "currentColor" }: P) =>
   svg(size, 2.2, stroke, <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M9 4v16" /><path d="M15.5 9.5L13 12l2.5 2.5" /></>);
 /** ย่อและกางแผงด้านขวา (แผงสรุปหน้า MediaInfo · BUGS ข้อ 29) กรอบเดียวกับปุ่มย่อเมนูซ้าย เส้นแบ่งอยู่ฝั่งขวา */
@@ -195,3 +196,52 @@ export const IbDrag = ({ size = 15, stroke = "currentColor" }: P) =>
 /** สลับ \move กับ \pos จุดตั้งต้นสี่เหลี่ยม ลูกศรไปจุดปลายวงกลม */
 export const IbMovePos = ({ size = 15, stroke = "currentColor" }: P) =>
   svg(size, 2.2, stroke, <><rect x="3" y="14" width="6" height="6" rx="1" /><circle cx="18" cy="7" r="3" /><path d="M9 15 15 9" /><path d="M11 9h4v4" /></>);
+/* แถบปุ่มหลักกับแถบใต้ภาพของหน้าแก้ซับ (BUGS ข้อ 113 แบบ default_toolbar.json ของ Aegisub) */
+/** ซูมภาพเข้า แว่นขยายบวก */
+export const IbZoomIn = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><circle cx="10.5" cy="10.5" r="6.5" /><path d="m15.5 15.5 5 5" /><path d="M7.5 10.5h6M10.5 7.5v6" /></>);
+/** ซูมภาพออก แว่นขยายลบ */
+export const IbZoomOut = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><circle cx="10.5" cy="10.5" r="6.5" /><path d="m15.5 15.5 5 5" /><path d="M7.5 10.5h6" /></>);
+/** ภาพไปเวลาเริ่มของบรรทัด วงเล็บเปิดกับลูกศรชี้เข้า */
+export const IbJumpStart = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M8 5H5v14h3" /><path d="M20 12H10" /><path d="m13 9-3 3 3 3" /></>);
+/** ภาพไปเวลาจบของบรรทัด วงเล็บปิดกับลูกศรชี้เข้า */
+export const IbJumpEnd = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M16 5h3v14h-3" /><path d="M4 12h10" /><path d="m11 9 3 3-3 3" /></>);
+/** เวลาเริ่มเป็นเฟรมที่เห็น วงเล็บเปิดคู่กรอบภาพ */
+export const IbSnapStart = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M7 5H4v14h3" /><rect x="10" y="7" width="10" height="10" rx="1.5" /></>);
+/** เวลาจบเป็นเฟรมที่เห็น กรอบภาพคู่วงเล็บปิด */
+export const IbSnapEnd = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M17 5h3v14h-3" /><rect x="4" y="7" width="10" height="10" rx="1.5" /></>);
+/** เลือกบรรทัดที่ขึ้นบนภาพ กรอบภาพมีแถวซับ */
+export const IbSelVisible = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M7 13h10M9 16.5h6" /></>);
+/** สอดเวลาไปยังฉาก วงเล็บกับเพชร keyframe */
+export const IbSnapScene = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M7 5H4v14h3" /><path d="m15 6 5 6-5 6-5-6z" /></>);
+/** เลื่อนบรรทัดไปเฟรมที่เห็น ก้อนบรรทัดกับลูกศรเข้าเส้นภาพ */
+export const IbToFrame = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M14 4v16" /><path d="M3 12h7" /><path d="m7 9 3 3-3 3" /><rect x="15.5" y="9" width="5" height="6" rx="1" /></>);
+/** ตัวจัดการสไตล์ ตัว A กับวงสี */
+export const IbStyles = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="m3 19 5.5-14L14 19" /><path d="M5.2 14h6.6" /><circle cx="18.5" cy="15.5" r="3" /></>);
+/** คุณสมบัติสคริปต์ เอกสารมีแถวข้อมูล */
+export const IbProps = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M6 3h9l4 4v14H6z" /><path d="M15 3v4h4" /><path d="M9 11h7M9 14.5h7M9 18h4" /></>);
+/** ตัวช่วยแปล ตัวอักษรสองภาษา */
+export const IbTranslate = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M3 5h9M7.5 3v2" /><path d="M10 5c-1 4-3.5 7-7 8.5" /><path d="M5.5 8.5c1.5 2.5 3.5 4 6 5" /><path d="m13 21 4-10 4 10" /><path d="M14.5 17.5h5" /></>);
+/** เปลี่ยนความละเอียด กรอบเล็กกับลูกศรขยาย */
+export const IbResample = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><rect x="3" y="12" width="9" height="9" rx="1.5" /><path d="M14 3h7v7" /><path d="m21 3-8 8" /></>);
+/** สลับการแสดงแท็กในตาราง วงเล็บปีกกา */
+export const IbTagCycle = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M8 4c-2 0-3 1-3 3v2c0 1.5-1 3-2.5 3C4 12 5 13.5 5 15v2c0 2 1 3 3 3" /><path d="M16 4c2 0 3 1 3 3v2c0 1.5 1 3 2.5 3-1.5 0-2.5 1.5-2.5 3v2c0 2-1 3-3 3" /><path d="M10 12h4" /></>);
+/** ปุ่มอื่นที่ไม่พอที่ในแถบ จุดสามจุด */
+export const IbMore = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><circle cx="5" cy="12" r="1.3" fill={stroke} /><circle cx="12" cy="12" r="1.3" fill={stroke} /><circle cx="19" cy="12" r="1.3" fill={stroke} /></>);
+/** เล่นเฉพาะบรรทัด วงเล็บแดงคร่อมปุ่มเล่น (Aegisub button_playline) */
+export const IbPlayLine = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M6 4H3v16h3M18 4h3v16h-3" stroke="crimson" /><path d="M9 7.5v9l7.5-4.5z" /></>);

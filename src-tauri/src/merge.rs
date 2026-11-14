@@ -55,9 +55,19 @@ pub struct Track {
     pub profile: Option<String>,
     /// รหัสภาษา ISO 639-2 สามตัว · und = ไม่ระบุ
     pub lang: String,
+    /// ภาษาแบบละเอียด BCP 47 ที่ไฟล์บอก เช่น zh-Hant es-419 (mkvmerge language_ietf) · ว่าง = ไฟล์ไม่ได้บอก (BUGS ข้อ 114)
+    pub lang_ietf: String,
+    /// ภาษาสามตัวตอนอ่านจากไฟล์ · หน้าจอเปลี่ยนภาษาแล้ว lang ไม่เท่าค่านี้ ภาษาแบบละเอียดเดิมใช้ไม่ได้ ส่งภาษาสามตัวแทน
+    pub lang_was: String,
     pub name: String,
     pub default: bool,
     pub forced: bool,
+    /// ป้ายพิเศษของแทร็ก Matroska (mkvmerge flag_*) · ซับหรือเสียงสำหรับคนหูหนวก คนตาบอด คำบรรยายภาพ ภาษาต้นฉบับ เสียงบรรยายของผู้กำกับ
+    pub hearing_impaired: bool,
+    pub visual_impaired: bool,
+    pub text_descriptions: bool,
+    pub original: bool,
+    pub commentary: bool,
     pub channels: Option<u64>,
     pub layout: Option<String>,
     pub rate: Option<u64>,
@@ -163,16 +173,25 @@ pub fn probe_source(tools: &Path, file: &Path, in_movie: bool) -> Result<Vec<Tra
             (b > 0.0 && a > 0.0).then(|| a / b)
         });
         let lang = p["language"].as_str().unwrap_or("und").to_string();
+        let lang = if lang.is_empty() { "und".to_string() } else { lang };
+        let fl = |k: &str| p[k].as_bool().unwrap_or(false);
         Track {
             src: src.clone(),
             tid: m["id"].as_u64().unwrap_or(0),
             ff: paired.then(|| f["index"].as_u64()).flatten(),
             kind,
             profile: f["profile"].as_str().map(String::from),
-            lang: if lang.is_empty() { "und".into() } else { lang },
+            lang_ietf: p["language_ietf"].as_str().unwrap_or("").to_string(),
+            lang_was: lang.clone(),
+            lang,
             name: p["track_name"].as_str().unwrap_or("").to_string(),
             default: p["default_track"].as_bool().unwrap_or(false),
             forced: p["forced_track"].as_bool().unwrap_or(false),
+            hearing_impaired: fl("flag_hearing_impaired"),
+            visual_impaired: fl("flag_visual_impaired"),
+            text_descriptions: fl("flag_text_descriptions"),
+            original: fl("flag_original"),
+            commentary: fl("flag_commentary"),
             channels: p["audio_channels"].as_u64().or_else(|| f["channels"].as_u64()),
             layout: f["channel_layout"].as_str().map(String::from),
             rate: p["audio_sampling_frequency"].as_u64().or_else(|| num(&f["sample_rate"])),
@@ -333,6 +352,33 @@ pub fn inspect(tools: &Path, p: &Path) -> Result<MergeMovie, String> {
         free: free_space(dir),
         drive: drive_letter(dir),
     })
+}
+
+/// ฟอนต์ที่ซับซึ่งจะใส่กลับเข้าหนังเรียก แต่ยังไม่มีในไฟล์แนบของหนัง (BUGS ข้อ 114 · ผู้ช่วยตรวจทาน R6)
+/// ชื่อฟอนต์ในหนังอ่านจากไฟล์ฟอนต์ที่ดึงออกมาจริง (subshot movie_fonts) ไม่ใช่จากชื่อไฟล์แนบ · หาไฟล์ข้างหนังก่อน แล้วฟอนต์ของผู้ใช้ แล้วของ Windows
+/// คืนทุกชื่อที่ยังไม่มี ทั้งที่หาเจอ (file มีค่า) และหาไม่เจอ ให้หน้าจอบอกก่อนกด
+pub fn missing_fonts(tools: &Path, work: &Path, movie: &Path, sub_text: &str) -> Vec<crate::fonts::FontHit> {
+    let wanted = crate::fonts::ass_fonts(sub_text);
+    if wanted.is_empty() { return vec![]; }
+    let mut have: Vec<String> = vec![];
+    if let Some(dir) = crate::subshot::movie_fonts(tools, work, movie) {
+        for e in std::fs::read_dir(&dir).into_iter().flatten().flatten() {
+            if e.file_name() == ".ok" { continue; }
+            have.extend(crate::fonts::font_names(&e.path()).into_iter().map(|n| n.to_lowercase()));
+        }
+    }
+    let missing: Vec<String> = wanted.into_iter().filter(|w| !have.contains(&w.to_lowercase())).collect();
+    if missing.is_empty() { return vec![]; }
+    crate::fonts::find(movie, &missing)
+}
+
+#[tauri::command]
+pub async fn remux_fonts(app: AppHandle, movie: String, text: String) -> Result<Vec<crate::fonts::FontHit>, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let (tools, work) = tools_of(&app)?;
+        std::fs::create_dir_all(&work).map_err(|e| e.to_string())?;
+        Ok(missing_fonts(&tools, &work, Path::new(&movie), &text))
+    }).await.map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
@@ -585,6 +631,12 @@ fn flag(b: bool) -> &'static str {
     if b { "1" } else { "0" }
 }
 
+/// ภาษาที่ส่งให้ mkvmerge · ใช้ภาษาแบบละเอียดของไฟล์ (zh-Hant es-419) ถ้าหน้าจอไม่ได้เปลี่ยนภาษา ไม่งั้นรหัสสามตัว
+/// เดิมส่งรหัสสามตัวทุกแทร็ก ภาษาแบบละเอียดของทุกแทร็กหายตอนรวมไฟล์ (ผู้ช่วยตรวจทาน R6 · BUGS ข้อ 114)
+pub fn mkv_lang(t: &Track) -> &str {
+    if !t.lang_ietf.is_empty() && t.lang_ietf != "und" && t.lang == t.lang_was { &t.lang_ietf } else if t.lang.is_empty() { "und" } else { &t.lang }
+}
+
 /// คำสั่ง mkvmerge ทั้งชุด · movie_atts = เลขไฟล์แนบของหนังที่เก็บไว้ · other_atts = ไฟล์แนบของไฟล์ที่เพิ่มที่เก็บไว้ (ฟอนต์ของซับ ASS)
 /// covers = รูปปกใหม่ · fonts = ไฟล์ฟอนต์ของซับ ASS ที่หาเจอในเครื่อง (fonts.rs) แนบเป็นไฟล์ใหม่
 /// chap · None = บทของหนังติดไปตามเดิม · Some(None) = ไฟล์ใหม่ไม่มีบท · Some(Some(ไฟล์)) = ใช้บทจากไฟล์บทที่แก้แทน (BUGS ข้อ 99)
@@ -619,13 +671,21 @@ pub fn mkv_args(movie: &str, tracks: &[Track], movie_atts: &[u64], other_atts: &
         }
         for t in &mine {
             a.push("--language".into());
-            a.push(format!("{}:{}", t.tid, if t.lang.is_empty() { "und" } else { &t.lang }).into());
+            a.push(format!("{}:{}", t.tid, mkv_lang(t)).into());
             a.push("--track-name".into());
             a.push(format!("{}:{}", t.tid, t.name).into());
             a.push("--default-track-flag".into());
             a.push(format!("{}:{}", t.tid, flag(t.default)).into());
             a.push("--forced-display-flag".into());
             a.push(format!("{}:{}", t.tid, flag(t.forced)).into());
+            // ป้ายพิเศษ ส่งเฉพาะที่เปิด · แทร็กในหนัง mkvmerge คัดลอกป้ายเดิมให้อยู่แล้ว ส่งซ้ำให้แน่ใจ
+            // แทร็กซับที่แก้แล้วใส่กลับมาจากไฟล์ชั่วคราว ไม่มีป้ายเดิม ต้องส่งเอง (BUGS ข้อ 114)
+            for (on, opt) in [(t.hearing_impaired, "--hearing-impaired-flag"), (t.visual_impaired, "--visual-impaired-flag"), (t.text_descriptions, "--text-descriptions-flag"), (t.original, "--original-flag"), (t.commentary, "--commentary-flag")] {
+                if on {
+                    a.push(opt.into());
+                    a.push(format!("{}:1", t.tid).into());
+                }
+            }
             if t.delay != 0 {
                 a.push("--sync".into());
                 a.push(format!("{}:{}", t.tid, t.delay).into());
@@ -754,7 +814,9 @@ pub fn verify_mkv(tools: &Path, work: &Path, file: &Path, tracks: &[Track], att_
         let Some(m) = mt.get(i) else { break };
         let p = &m["properties"];
         let lang = p["language"].as_str().unwrap_or("und");
-        if lang != t.lang && !(t.lang.is_empty() && lang == "und") {
+        // ส่งภาษาแบบละเอียดไป mkvmerge ตั้งรหัสสามตัวให้เองตามภาษานั้น ไฟล์เดิมที่สองช่องไม่ตรงกัน (รหัสสามตัว tha แต่ภาษาแบบละเอียด zh-Hant) รหัสสามตัวจะเปลี่ยน · เช็กภาษาแบบละเอียดข้างล่างแทน
+        let ietf_used = mkv_lang(t) != t.lang;
+        if !ietf_used && lang != t.lang && !(t.lang.is_empty() && lang == "und") {
             why.push(format!("แทร็กที่ {} ภาษา {lang} ที่สั่ง {}", i + 1, t.lang));
         }
         if p["track_name"].as_str().unwrap_or("") != t.name {
@@ -762,6 +824,16 @@ pub fn verify_mkv(tools: &Path, work: &Path, file: &Path, tracks: &[Track], att_
         }
         if p["default_track"].as_bool().unwrap_or(false) != t.default {
             why.push(format!("แทร็กที่ {} ธงหลักไม่ตรงที่สั่ง", i + 1));
+        }
+        // ภาษาแบบละเอียดกับป้ายพิเศษต้องติดมาครบ (BUGS ข้อ 114)
+        let ietf = mkv_lang(t);
+        if ietf != t.lang && ietf != "und" && !p["language_ietf"].as_str().unwrap_or("").eq_ignore_ascii_case(ietf) {
+            why.push(format!("แทร็กที่ {} ภาษาแบบละเอียด {} ที่สั่ง {ietf}", i + 1, p["language_ietf"].as_str().unwrap_or("—")));
+        }
+        for (on, key, word) in [(t.hearing_impaired, "flag_hearing_impaired", "ป้ายคนหูหนวก"), (t.visual_impaired, "flag_visual_impaired", "ป้ายคนตาบอด"), (t.text_descriptions, "flag_text_descriptions", "ป้ายคำบรรยายภาพ"), (t.original, "flag_original", "ป้ายภาษาต้นฉบับ"), (t.commentary, "flag_commentary", "ป้ายเสียงบรรยาย")] {
+            if on && !p[key].as_bool().unwrap_or(false) {
+                why.push(format!("แทร็กที่ {} {word}หาย", i + 1));
+            }
         }
     }
     let mut want_atts: Vec<String> = att_names.iter().map(|n| n.to_lowercase()).collect();
@@ -1436,6 +1508,75 @@ mod tests {
         assert_eq!(got.styles.len(), doc.styles.len(), "สไตล์ครบ");
         assert_eq!(lines(&read(&out, s2[1])), lines(&srt0), "ซับ SRT อีกแทร็กเหมือนเดิม");
         assert!(movie.exists(), "ไฟล์ต้นทางไม่ถูกแตะ");
+    }
+
+    /// BUGS ข้อ 114 ใส่ซับกลับเข้าหนังแล้วภาษาแบบละเอียด ป้ายพิเศษ ครบทุกแทร็ก และฝังฟอนต์ที่ซับเรียกเพิ่ม
+    /// เดิมส่งภาษาสามตัวทุกแทร็ก zh-Hant กลายเป็น chi · ป้ายของแทร็กที่ถูกแทนหาย · ฟอนต์ใหม่ไม่ถูกฝัง (ผู้ช่วยตรวจทาน R6)
+    #[test]
+    fn replace_keeps_ietf_flags_and_new_fonts() {
+        let Some(src) = av("แก้ซับ/ฉากตัด (2025).mkv") else { return };
+        let dir = temp_dir("ietf");
+        let tl = tools();
+        let movie = dir.0.join("ฉากตัด (2025).mkv");
+        std::fs::copy(&src, &movie).unwrap();
+        // ตั้งภาษาแบบละเอียดกับป้ายพิเศษให้ซับสองแทร็กของสำเนา
+        let pe = crate::tools::run_tool(&tl, "mkvpropedit", [movie.as_os_str(), "--edit".as_ref(), "track:s1".as_ref(), "--set".as_ref(), "language-ietf=zh-Hant".as_ref(), "--set".as_ref(), "flag-hearing-impaired=1".as_ref(), "--set".as_ref(), "flag-commentary=1".as_ref(),
+            "--edit".as_ref(), "track:s2".as_ref(), "--set".as_ref(), "language-ietf=es-419".as_ref(), "--set".as_ref(), "flag-original=1".as_ref()]).unwrap();
+        assert!(pe.status.success(), "mkvpropedit {}", String::from_utf8_lossy(&pe.stdout));
+        let m = inspect(&tl, &movie).unwrap();
+        let subs: Vec<usize> = m.tracks.iter().enumerate().filter(|(_, t)| t.kind == "subtitle").map(|(i, _)| i).collect();
+        let (s1, s2) = (&m.tracks[subs[0]], &m.tracks[subs[1]]);
+        assert_eq!((s1.lang_ietf.as_str(), s1.hearing_impaired, s1.commentary), ("zh-Hant", true, true), "อ่านภาษาแบบละเอียดกับป้ายได้");
+        assert_eq!((s2.lang_ietf.as_str(), s2.original), ("es-419", true));
+        assert_eq!(mkv_lang(s1), "zh-Hant");
+        // ซับที่แก้เรียกฟอนต์ Courier New ซึ่งหนังไม่มี (มีใน Windows)
+        let (b, h) = crate::subs::bytes_of(&tl, &dir.0, &movie, true, s1.tid, s1.ff.unwrap_or(s1.tid)).unwrap();
+        let mut doc = crate::subdoc::parse_doc(&b, &h, None);
+        let i = doc.events.iter().position(|e| !e.comment).unwrap();
+        doc.events[i].text = format!("{{\\fnCourier New}}{}", doc.events[i].text);
+        let text = crate::subdoc::render(&doc);
+        let miss = missing_fonts(&tl, &dir.0, &movie, &text);
+        let courier = miss.iter().find(|f| f.name == "Courier New").expect("Courier New อยู่ในรายการที่ต้องฝัง");
+        assert!(courier.file.is_some(), "หาไฟล์ Courier New ใน Windows เจอ");
+        let temp = dir.0.join("sub-ietf-test.ass");
+        std::fs::write(&temp, crate::subdoc::to_bytes(&doc).0).unwrap();
+        // แทร็กใหม่ได้ภาษา ภาษาแบบละเอียด ป้าย จากแทร็กเดิม แบบ subRemux.ts
+        let mut nt = add_file(&tl, &temp, m.duration).unwrap().tracks.remove(0);
+        nt.lang = s1.lang.clone(); nt.lang_ietf = s1.lang_ietf.clone(); nt.lang_was = s1.lang.clone();
+        nt.name = s1.name.clone(); nt.default = s1.default; nt.forced = s1.forced; nt.delay = s1.delay;
+        nt.hearing_impaired = s1.hearing_impaired; nt.visual_impaired = s1.visual_impaired; nt.text_descriptions = s1.text_descriptions; nt.original = s1.original; nt.commentary = s1.commentary;
+        let tracks: Vec<Track> = m.tracks.iter().enumerate().map(|(k, t)| if k == subs[0] { nt.clone() } else { t.clone() }).collect();
+        let mut rq = req(&movie, tracks, "mkv");
+        rq.fonts = vec![courier.file.clone().unwrap()];
+        let out = dir.0.join("ใหม่.mkv.partial");
+        let (res, _) = run(&rq, &HashMap::new(), &out, &dir.0);
+        let made = res.unwrap_or_else(|p| panic!("{} {:?}", p.title, p.detail));
+        assert!(made.verified, "ตัวตรวจไฟล์ใหม่ผ่าน รวมภาษาแบบละเอียดกับป้าย");
+        let out = { let fin = dir.0.join("ใหม่.mkv"); std::fs::rename(&out, &fin).unwrap(); fin };
+        let m2 = inspect(&tl, &out).unwrap();
+        let t2: Vec<&Track> = m2.tracks.iter().filter(|t| t.kind == "subtitle").collect();
+        assert_eq!((t2[0].lang_ietf.as_str(), t2[0].hearing_impaired, t2[0].commentary), ("zh-Hant", true, true), "แทร็กที่แก้ได้ภาษาแบบละเอียดกับป้ายเดิม");
+        assert_eq!((t2[1].lang_ietf.as_str(), t2[1].original), ("es-419", true), "แทร็กอื่นภาษาแบบละเอียดกับป้ายไม่หาย");
+        let j = mkv_json(&tl, &out).unwrap();
+        let names: Vec<String> = j["attachments"].as_array().map(|a| a.iter().map(|x| x["file_name"].as_str().unwrap_or("").to_lowercase()).collect()).unwrap_or_default();
+        let fname = Path::new(courier.file.as_ref().unwrap()).file_name().unwrap().to_string_lossy().to_lowercase();
+        assert!(names.contains(&fname), "ฝังฟอนต์ {fname} แล้ว ไฟล์แนบ {names:?}");
+        // ซ้ำอีกรอบ ฟอนต์ที่ฝังแล้วไม่ขึ้นว่าขาด
+        let again = missing_fonts(&tl, &dir.0, &out, &text);
+        assert!(again.iter().all(|f| f.name != "Courier New"), "{again:?}");
+    }
+
+    #[test]
+    fn mkv_lang_uses_ietf_only_when_language_unchanged() {
+        let mut t = Track { lang: "chi".into(), lang_was: "chi".into(), lang_ietf: "zh-Hant".into(), ..Default::default() };
+        assert_eq!(mkv_lang(&t), "zh-Hant");
+        t.lang = "jpn".into();
+        assert_eq!(mkv_lang(&t), "jpn", "หน้าจอเปลี่ยนภาษาแล้ว ภาษาแบบละเอียดเดิมใช้ไม่ได้");
+        t = Track { lang: "tha".into(), ..Default::default() };
+        assert_eq!(mkv_lang(&t), "tha", "ไฟล์ไม่บอกภาษาแบบละเอียด");
+        let a = mkv_args("M.mkv", &[Track { src: "M.mkv".into(), tid: 2, kind: "subtitle".into(), keep: true, lang: "tha".into(), hearing_impaired: true, commentary: true, ..Default::default() }], &[], &HashMap::new(), &[], &[], None, Path::new("O.mkv"));
+        let s = a.iter().map(|x| x.to_string_lossy().to_string()).collect::<Vec<_>>().join(" ");
+        assert!(s.contains("--hearing-impaired-flag 2:1") && s.contains("--commentary-flag 2:1") && !s.contains("--original-flag"), "{s}");
     }
 
     #[test]

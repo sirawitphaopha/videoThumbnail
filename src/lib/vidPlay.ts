@@ -85,8 +85,9 @@ export function stopVidPlay(keepAudio = false, keepPos = false) {
   if (engine !== "mpv" && at != null && !keepPos) seek(at);
 }
 
-/** ตัวเล่นที่ต้องการกับของที่แบบ mpv ใช้ (ซับที่กำลังแก้ ดีเลย์ของซับ) */
-export type PlayOpts = { engine: Engine; sub: () => Promise<string | null>; delayMs: number };
+/** ตัวเล่นที่ต้องการกับของที่แบบ mpv ใช้ (ซับที่กำลังแก้ ดีเลย์ของซับ)
+    endFrame เล่นถึงเฟรมก่อนเฟรมนี้แล้วหยุด ภาพค้างที่เฟรมสุดท้าย · endMs เวลาจบของเสียง (เล่นเฉพาะบรรทัด แบบ VideoController::PlayLine BUGS ข้อ 113) */
+export type PlayOpts = { engine: Engine; sub: () => Promise<string | null>; delayMs: number; endFrame?: number; endMs?: number };
 
 /** เล่นจากเฟรม n0 · aud แทร็กเสียงที่หน้าแก้ซับใช้ (ไม่มี = เล่นภาพอย่างเดียว) · h ความสูงภาพที่ขอ (แบบ Aegisub) */
 export async function startVidPlay(movie: string, t: VidTable, fr: Framerate, n0: number, aud: AudSrc | null, h: number, o?: PlayOpts) {
@@ -96,14 +97,14 @@ export async function startVidPlay(movie: string, t: VidTable, fr: Framerate, n0
   // เปลี่ยนตัวเล่นระหว่างเล่น ปิดไฟล์ของ mpv ที่ยังเปิดค้าง
   if (was === "mpv" && !restart) void vidApi.mpvStop(true).catch(() => {});
   if (o?.engine === "mpv") return startMpv(movie, t, fr, n0, aud, h, o);
-  return startAegisub(movie, t, fr, n0, aud, h);
+  return startAegisub(movie, t, fr, n0, aud, h, "", o?.endFrame, o?.endMs);
 }
 
-async function startAegisub(movie: string, t: VidTable, fr: Framerate, n0: number, aud: AudSrc | null, h: number, why = "") {
+async function startAegisub(movie: string, t: VidTable, fr: Framerate, n0: number, aud: AudSrc | null, h: number, why = "", endFrame?: number, endMs?: number) {
   const my = ++run;
   engine = "aegisub";
   const last = (fr.count || t.times.length) - 1;
-  if (n0 >= last) return;
+  if (n0 >= last || (endFrame != null && n0 >= endFrame)) return;
   queue = []; shown = n0;
   set({ playing: true, frame: n0, err: why, engine: "aegisub" });
   let k = 0;
@@ -119,7 +120,7 @@ async function startAegisub(movie: string, t: VidTable, fr: Framerate, n0: numbe
   vidApi.play(movie, seekOf(t, n0), h, onFrame).then(() => {}, (e) => { if (run === my) { set({ err: String(e) }); stopVidPlay(); } });
   const t0 = fr.timeAt(n0);
   // play เรียก stopPlay ก่อนรอใด ๆ เลขรอบของเสียงจึงเปลี่ยนทันทีหลังเรียก จดไว้ดูว่ายังเป็นเสียงของเราไหม
-  if (aud) void playAudio(aud, t0, null);
+  if (aud) void playAudio(aud, t0, endMs ?? null);
   const myAud = playRun();
   const wall = performance.now();
   let heard = false;
@@ -137,6 +138,8 @@ async function startAegisub(movie: string, t: VidTable, fr: Framerate, n0: numbe
     } else now = t0 + (performance.now() - wall);
     if (now != null) {
       const want = Math.min(last, fr.frameAt(now));
+      // ถึงเฟรมจบของบรรทัด หยุด ภาพค้างที่เฟรมที่เห็นอยู่ (OnPlayTimer next_frame >= end_frame)
+      if (endFrame != null && want >= endFrame) { stopVidPlay(); return; }
       if (want >= last) { draw(last); stopVidPlay(); return; }
       draw(want);
     } else draw(n0);
@@ -239,7 +242,7 @@ async function startMpv(movie: string, t: VidTable, fr: Framerate, n0: number, a
     if (run !== my) return;
     // เปิด mpv ไม่ได้ เล่นแบบ Aegisub แทน แล้วบอกเหตุผลใต้ภาพ
     set({ playing: false, engine: null });
-    return startAegisub(movie, t, fr, n0, aud, h, `เล่นด้วย mpv ไม่ได้ จึงเล่นแบบ Aegisub แทน (${String(e)})`);
+    return startAegisub(movie, t, fr, n0, aud, h, `เล่นด้วย mpv ไม่ได้ จึงเล่นแบบ Aegisub แทน (${String(e)})`, o.endFrame, o.endMs);
   }
   // รอบนี้ถูกแทนระหว่างรอ mpv · ถ้ารอบใหม่เล่นด้วย mpv อยู่ ห้ามหยุด mpv ทับรอบใหม่ (คำสั่งเล่นของรอบใหม่ต่อคิวอยู่หลังรอบนี้)
   if (run !== my) { if (!(st.playing && engine === "mpv")) void vidApi.mpvStop(true).catch(() => {}); return; }
@@ -257,7 +260,19 @@ async function startMpv(movie: string, t: VidTable, fr: Framerate, n0: number, a
     vidApi.mpvState().then((s) => {
       busy = false;
       if (run !== my) return;
-      if (s.t != null) { const n = mpvFrame(t, fr, s.t); shown = n; if (st.frame !== n) set({ frame: n }); }
+      if (s.t != null) {
+        const n = mpvFrame(t, fr, s.t);
+        // เล่นเฉพาะบรรทัด ถึงเฟรมจบแล้วหยุด ภาพอยู่ที่เฟรมสุดท้ายก่อนเฟรมจบ (ถามสถานะทุก 50 ms จึงเลยไปได้หนึ่งสองเฟรม)
+        if (o.endFrame != null && n >= o.endFrame) {
+          const end = Math.max(n0, o.endFrame - 1);
+          stopVidPlay(false, true);
+          void vidApi.mpvStop(true).catch(() => {});
+          seek(end);
+          return;
+        }
+        shown = n;
+        if (st.frame !== n) set({ frame: n });
+      }
       if (s.eof) stopVidPlay();
     }, () => { busy = false; });
   }, 50);

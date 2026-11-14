@@ -28,7 +28,8 @@ import type { Tip } from "../lib/codecAdv";
 import { SPEK_RES_TIP } from "../lib/graphTips";
 import { IcSearch, IbStop, IcRefresh, IcGraph, IbSave, IcClose, IbTable, IbPlay } from "../components/icons";
 
-export type GraphReq = { path: string; t?: number };
+/** track ลำดับแทร็กเสียงที่จะเปิด (หน้าบิตเรตส่งแทร็กที่ดูอยู่ BUGS ข้อ 119) · ไม่ส่งเปิดแทร็กแรก */
+export type GraphReq = { path: string; t?: number; track?: number };
 type View = "wave" | "spec" | "loud" | "cmp" | "spek" | "psd";
 type Theme = { lane: string; peak: string; rms: string; dark: string; ramp: string[] };
 
@@ -757,11 +758,14 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
   const ov = ovRaw && ovRaw.key === `${path}|${track}` && ovRaw.o.env.length === names.length ? ovRaw.o : null;
   const dur = ov?.duration ?? info?.duration ?? 0;
 
-  // เปิดจากที่อื่น (ชั้นวาง หน้าต่างผลตรวจ)
+  // เปิดจากที่อื่น (ชั้นวาง หน้าต่างผลตรวจ หน้าบิตเรต)
+  const wantTrack = useRef<number | null>(null);
   useEffect(() => {
     if (!req) return;
     setMode("graph"); setCmp(null);
     setPath(req.path);
+    wantTrack.current = req.track ?? null;
+    if (req.track != null && req.path === path && info && req.track < info.tracks.length) { setTrack(req.track); wantTrack.current = null; }
     if (req.path === path && error) setNonce((n) => n + 1);
     if (req.t != null) { jumped.current = true; setCenter(req.t); setTip(req.t); setZoom(30); if (prefs.view !== "wave" && prefs.view !== "spec") setPref("view", "wave"); }
     onConsumed();
@@ -794,7 +798,13 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
     if (!path) return;
     let live = true;
     setInfo(null); setOvRaw(null); setWin(null); setPsd(null); setError(null); setHidden([]); setTrack(0); zoomOf.current = {};
-    graphApi.info(path).then((g) => { if (live) { setInfo(g); remember(path, g); } }, (e) => { if (live) setError(String(e)); });
+    graphApi.info(path).then((g) => {
+      if (!live) return;
+      setInfo(g); remember(path, g);
+      const k = wantTrack.current;
+      wantTrack.current = null;
+      if (k != null && k > 0 && k < g.tracks.length) setTrack(k);
+    }, (e) => { if (live) setError(String(e)); });
     // รายละเอียด codec จาก MediaInfo อ่านไม่ได้ก็ใช้ชื่อสั้นจาก ffprobe ตามเดิม
     setCodecDetail([]);
     graphApi.codecDetail(path).then((d) => { if (live) setCodecDetail(d); }, () => {});
@@ -1161,7 +1171,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
   // (พี่กันสั่ง 13 พ.ย. 2569 "ขอเส้นแบ่งเหมือนด้านล่าด้วย" แล้วทัก "แบ่งถูกละเหรอ ทำไปเเยำคำว่าซูมออก" · "อันไหนคอือซูมกันเเน่นะ เส้นซูม หรือนาทีที่เห็น" หลังแคลร์วางเส้นแบ่งกั้นระหว่างเส้นเลื่อนกับคำว่าซูม)
   const pickZoom = (v: string) => { setZoom(v === "all" ? "all" : Number(v)); setWin(null); };
   const zoomBox = (opts: [number | "all", string][], lbl: string) => (
-    <span className="zoombox" style={{ display: "flex", alignItems: "center", gap: 8 }}>
+    <span className={"zoombox" + (lbl === "ซูม" ? "" : " zfix")} style={{ display: "flex", alignItems: "center", gap: 8 }}>
       <span className="lbl">{lbl}</span>
       {lbl === "ซูม" && <span className="zbtns">
         <button type="button" className="zb" onClick={() => zoomBy(2)} disabled={zoom === "all"} aria-label="ซูมออก" title="ซูมออก (Ctrl หมุนล้อเมาส์ลง)" data-zoomout><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><circle cx="10.5" cy="10.5" r="6.5" /><path d="M20 20l-4.8-4.8M7.5 10.5h6" /></svg></button>
@@ -2984,7 +2994,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
           <div className="plothead"><span style={{ display: "flex", alignItems: "center", gap: 10 }}><b>ความถี่เฉลี่ย</b>
             <span className="psdch-seg"><div className="seg sm">{cmpPsdOpts.map(([k, l2]) => <button key={k} type="button" className={psdCh === k ? "on" : ""} onClick={() => setPsdCh(k)} data-cmppsdch={k}>{l2}</button>)}</div></span>
             <span className="psdch-dd" data-cmppsdchdd><Dropdown label="ช่องที่ดู" value={psdCh} onChange={setPsdCh} options={cmpPsdOpts.map(([value, label]) => ({ value, label }))} /></span></span>
-            <span className="zoombox" style={{ display: "flex", alignItems: "center", gap: 8 }}><span className="lbl">ช่วงที่เลือก</span>
+            <span className="zoombox zfix" style={{ display: "flex", alignItems: "center", gap: 8 }}><span className="lbl">ช่วงที่เลือก</span>
               <span className="zseg"><div className="seg sm">{PSD_SPANS.map(([k, l2]) => <button key={String(k)} type="button" className={String(psdSpan) === String(k) ? "on" : ""} onClick={() => setPsdSpan(k)} data-cmppsdspan={String(k)}>{l2}</button>)}</div></span>
               <span className="zdd" data-cmppsdspandd><Dropdown label="ช่วงที่เลือก" value={String(psdSpan)} onChange={(v) => setPsdSpan(v === "all" ? "all" : Number(v))} options={PSD_SPANS.map(([k, l2]) => ({ value: String(k), label: l2 }))} /></span></span></div>
           {ok ? <PsdCmp list={psd.list} maxNyq={maxNyq} f={psdF} setF={setPsdF} vr={vrPsd} hr={hrPsd} grab={cmpGrab} onReset={() => { setPsdSpan("all"); zoomReset(); }} /> : <div className="skel" style={{ height: 300, borderRadius: 8 }} data-cmppsdwait />}

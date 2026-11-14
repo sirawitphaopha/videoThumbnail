@@ -14,13 +14,17 @@ import { autosaveStrict, blankEvent, deleteEvents, edit, editedCount, getSubEdit
 import { useHotkeys } from "../../lib/hotkeys";
 import { usePageActiveRef } from "../../lib/pageActive";
 import { garbageGet, garbageSet, isAss, snapMs, type TagMode } from "../../lib/subText";
-import { dummyName, getVid, jumpKeyframe, parseDummy, seek, seekTime, setDummy, useVid, vidKeys, vidOpen, vidRate, zoomStep, type DummySpec } from "../../lib/vidFrames";
+import { dummyName, getVid, jumpKeyframe, parseDummy, seek, seekTime, setDummy, useVid, vidKeys, vidOpen, vidRate, vidSrc, zoomStep, type DummySpec } from "../../lib/vidFrames";
+import MainBar, { groupsW, type TbItem } from "./MainBar";
 import { toggleVidPlay } from "../../lib/vidPlay";
 import Dialog from "../Dialog";
 import Dropdown from "../Dropdown";
 import InfoTip from "../InfoTip";
 import { CardIcon, J, Keep, Phr, Seg, Skel } from "../ui";
-import { IbRedo, IbSave, IbTick, IbUndo, IcClock, IcCollapse, IcExpand, IcFile, IcFolder } from "../icons";
+import {
+  IbJump, IbJumpEnd, IbJumpStart, IbProps, IbRedo, IbResample, IbSave, IbSelVisible, IbShiftTime, IbSnapEnd, IbSnapScene, IbSnapStart, IbStyles, IbTagCycle, IbTick,
+  IbToFrame, IbTranslate, IbUndo, IbWand, IbZoomIn, IbZoomOut, IcClock, IcCollapse, IcExpand, IcFile, IcFolder, IcSettings,
+} from "../icons";
 import SubGrid from "./SubGrid";
 import SubEditBox, { savedOf } from "./SubEditBox";
 import SubVideo, { shownText } from "./SubVideo";
@@ -33,6 +37,7 @@ import { DetailsDialog, DummyDialog, JumpDialog } from "./VideoDialogs";
 import { useLineCmds } from "./LineCmds";
 import PadView, { flushPad, padBusy } from "./PadView";
 import RemuxDialog from "./RemuxDialog";
+import PgsDialog from "./PgsDialog";
 import "../../styles/subedit.css";
 
 const nameOf = (p: string) => p.split(/[\\/]/).pop() ?? p;
@@ -82,6 +87,8 @@ export type SubEditorProps = {
   onAddMovie?: () => void;
   /** ใส่ซับกลับเข้าหนังแล้วไฟล์หนังได้ชื่อใหม่ (หนัง MP4 กับซับ ASS ได้ไฟล์ .mkv) หน้าซับไตเติลชี้ไฟล์ใหม่ (ผู้ช่วยตรวจทาน F9) */
   onMovieMoved?: (from: string, to: string) => void;
+  /** ปุ่มตั้งค่าในแถบปุ่มย่อ พาไปหน้าตั้งค่าหัวข้อเสียงและซับ (app/options ของ Aegisub · BUGS ข้อ 113) */
+  onSettings?: () => void;
 };
 
 /** เลขคำขอเปิดซับล่าสุด (F6) · เป็นของโมดูลเพราะที่เก็บเอกสารเป็นของโมดูล หน้าแก้ซับที่ถอดไปแล้วก็ยังเรียก openDoc ได้ */
@@ -97,6 +104,8 @@ export default function SubEditor(p: SubEditorProps) {
   const [autoList, setAutoList] = useState<SubAutosave[] | null>(null);
   /** ซับในหนัง ถามสองทาง บันทึกข้างหนัง หรือใส่กลับเข้าหนัง (ขั้น 9) */
   const [remux, setRemux] = useState(false);
+  /** หน้าต่างส่งออกเป็น PGS (BUGS ข้อ 118) เปิดจากชนิดไฟล์ PGS ในหน้าต่างบันทึกเป็นไฟล์ใหม่ */
+  const [pgs, setPgs] = useState(false);
   const [tags, setTags] = useState<TagMode>("full");
   const [font, setFont] = useState<{ apply: (tag: string, reset: string) => void; current: { name: string; size: string } } | null>(null);
   const [gridH, setGridH] = useState(240);
@@ -108,6 +117,10 @@ export default function SubEditor(p: SubEditorProps) {
   const skipAuto = useRef(false);
   const root = useRef<HTMLElement>(null);
   const gridAt = useRef<HTMLDivElement>(null);
+  /** แถวเหนือตาราง · แคบไม่พอให้แถบปุ่มย่อเห็นสองกลุ่มแรก ปุ่มคำสั่งกับเมนูเหลือไอคอน (BUGS ข้อ 113) */
+  const gbar = useRef<HTMLDivElement>(null);
+  const [compact, setCompact] = useState(false);
+  const labelW = useRef(0);
   const pageOn = usePageActiveRef();
   const path = p.track.inMovie ? p.moviePath : p.track.src;
   const base = (p.track.inMovie ? p.moviePath : p.track.src).replace(/\.[^.\\/]+$/, "") + (p.track.inMovie && p.track.lang ? `.${p.track.lang}` : "");
@@ -140,7 +153,7 @@ export default function SubEditor(p: SubEditorProps) {
     vidOpen(p.video, v ? parseDummy(v) : null);
   }, [load.s, key, p.video]);
 
-  // ตารางสูงเต็มที่ว่างที่เหลือของหน้าต่าง อย่างน้อย 180 จุด
+  // ตารางสูงเต็มที่ว่างที่เหลือของหน้าต่าง อย่างน้อยหัวตารางกับหนึ่งแถว
   useLayoutEffect(() => {
     // ขอบล่างวัดจากของจริง ขอบในของการ์ดใต้ตารางกับขอบล่างของกรอบหน้าที่เลื่อนได้ (เดิมเผื่อ 14 จุดตายตัว ของจริงราว 31 จุด หน้าเลื่อนได้อีก 17 จุด)
     // คิดในกรอบหน้าที่เลื่อนได้ · ใต้ตาราง = ขอบในของการ์ดใต้ตาราง บวกขอบล่างของทุกชั้นตั้งแต่การ์ดถึงกรอบหน้า
@@ -150,7 +163,8 @@ export default function SubEditor(p: SubEditorProps) {
       if (!el || !card) return;
       const sc = card.closest<HTMLElement>(".pagewrap");
       const r = el.getBoundingClientRect();
-      if (!sc) { setGridH(Math.max(80, Math.floor(window.innerHeight - r.top - 14))); return; }
+      // ขั้นต่ำหัวตารางกับหนึ่งแถว (28 + 30) · แถบเลื่อนเวลาใต้ภาพ (BUGS ข้อ 113) กินที่ 14 จุด หน้าต่าง 1280 × 800 ตารางเหลือราวแถวครึ่ง หน้าไม่เลื่อน
+      if (!sc) { setGridH(Math.max(58, Math.floor(window.innerHeight - r.top - 14))); return; }
       let extra = card.getBoundingClientRect().bottom - r.bottom;
       for (let e: HTMLElement | null = card; e && e !== sc; e = e.parentElement) {
         extra += parseFloat(getComputedStyle(e).marginBottom) || 0;
@@ -158,7 +172,7 @@ export default function SubEditor(p: SubEditorProps) {
         if (pr) { const ps = getComputedStyle(pr); extra += (parseFloat(ps.paddingBottom) || 0) + (pr === sc ? 0 : parseFloat(ps.borderBottomWidth) || 0); }
       }
       const top = r.top - sc.getBoundingClientRect().top - sc.clientTop + sc.scrollTop;
-      setGridH(Math.max(80, Math.floor(sc.clientHeight - top - Math.max(0, extra))));
+      setGridH(Math.max(58, Math.floor(sc.clientHeight - top - Math.max(0, extra))));
     };
     fit();
     const ro = new ResizeObserver(fit);
@@ -236,7 +250,10 @@ export default function SubEditor(p: SubEditorProps) {
   const [fold, setFoldS] = useState(() => { try { return localStorage.getItem("se-fold") === "1"; } catch { return false; } });
   const setFold = (v: boolean) => { setFoldS(v); try { localStorage.setItem("se-fold", v ? "1" : "0"); } catch { /* ไม่มีที่เก็บ */ } };
   useEffect(() => { const f = () => setTall(window.innerHeight >= 950); window.addEventListener("resize", f); return () => window.removeEventListener("resize", f); }, []);
-  const movieAud: AudSource = p.video && p.refStream != null ? { path: p.video, map: `0:${p.refStream}`, idx: p.refIdx ?? 0, name: nameOf(p.video), own: false } : null;
+  // เสียงในหนังเลื่อนให้เวลา 0 ตรงเฟรมแรกของภาพ แบบ FFMS_DELAY_FIRST_VIDEO_TRACK ของ Aegisub (BUGS ข้อ 115)
+  // ไฟล์ที่ภาพเริ่มช้ากว่าเสียง (ไฟล์อัดทีวี) เส้น keyframe บนคลื่นเสียงตรงเสียงจริง · ยังอ่านเวลาเฟรมไม่เสร็จ นับจากต้นไฟล์ไปก่อน
+  const zero = vst.table && vst.movie === p.video ? vst.table.base / 1000 : null;
+  const movieAud: AudSource = p.video && p.refStream != null ? { path: p.video, map: `0:${p.refStream}`, idx: p.refIdx ?? 0, name: nameOf(p.video), own: false, zero } : null;
   const aud = tm.own ?? movieAud;
   const noAudio = aud ? undefined : p.video ? "หนังเรื่องนี้ไม่มีเสียง" : "ยังไม่มีเสียง เปิดไฟล์วิดีโอหรือไฟล์เสียงก่อน";
   const noLine = ev ? undefined : "ยังไม่ได้เลือกบรรทัด";
@@ -392,8 +409,67 @@ export default function SubEditor(p: SubEditorProps) {
 
   // ---------------------------------------------------------------- คำสั่งของบรรทัด (ขั้น 6)
   const textBox = useMemo(() => ({ get current() { return root.current?.querySelector<HTMLElement>("[data-se-text]") ?? null; } }), []);
+  const vsrc = vidSrc(vst);
   const cmds = useLineCmds({ doc, sel: st.sel, active: st.active, fr, frWhy, pos: vst.pos, keys: vidKeys(vst).list, delay: dl, textBox,
-    videoRes: p.playRes, playLine: () => audioAct("playline"), seekMs: (ms) => seekTime(ms + dl, "start") });
+    videoRes: p.playRes, playLine: () => audioAct("playline"), seekMs: (ms) => seekTime(ms + dl, "start"), movie: vsrc.kind === "movie" ? vsrc.path : null, compact, onPgs: () => setPgs(true) });
+
+  // ---------------------------------------------------------------- แถบปุ่มย่อ (BUGS ข้อ 113 · default_toolbar.json ส่วน main ของ Aegisub)
+  // ลำดับและกลุ่มตาม Aegisub ข้ามปุ่มที่โปรแกรมนี้ไม่มีหรือมีที่อื่นแล้ว คือ ซับใหม่ เปิด บันทึก (แถวบน) ไฟล์แนบ รวบรวมฟอนต์ ออโตเมชัน ผู้ช่วยสไตล์ คันจิ ตรวจคำผิด
+  const t = cmds.tools;
+  const noPos = !fr ? frWhy || "ยังไม่มีวิดีโอ" : vst.pos == null ? "ยังไม่มีภาพ" : undefined;
+  const noSrc = vsrc.kind === "none" ? (vst.closed ? "ปิดวิดีโออยู่" : "ยังไม่มีวิดีโอ") : undefined;
+  const TAGS: Record<TagMode, string> = { full: "แท็กเต็ม", sym: "ย่อเป็น ☀", hide: "ซ่อนแท็ก" };
+  const nextTag: Record<TagMode, TagMode> = { full: "sym", sym: "hide", hide: "full" };
+  const tb: TbItem[][] = t ? [
+    [
+      { id: "jump", label: "ข้ามไปยัง…", title: "ข้ามไปยังเฟรมหรือเวลา", icon: <IbJump size={15} />, tone: "nav", key: "Ctrl+G", why: noPos, run: () => setVdlg("jump") },
+      { id: "zoomin", label: "ขยายภาพหนัง", title: "ขยายภาพหนังขึ้นหนึ่งขั้น 12.5%", icon: <IbZoomIn size={15} />, tone: "nav", key: "Ctrl+บวกของแป้นตัวเลข", why: noSrc ?? (vst.zoom >= 300 ? "ขยายสุดแล้ว 300%" : undefined), run: () => zoomStep(1) },
+      { id: "zoomout", label: "ย่อภาพหนัง", title: "ย่อภาพหนังลงหนึ่งขั้น 12.5%", icon: <IbZoomOut size={15} />, tone: "nav", key: "Ctrl+ลบของแป้นตัวเลข", why: noSrc ?? (vst.zoom && vst.zoom <= 12.5 ? "ย่อสุดแล้ว 12.5%" : undefined), run: () => zoomStep(-1) },
+      { id: "jumpstart", label: "ภาพไปเวลาเริ่มของบรรทัด", title: "เลื่อนภาพไปเฟรมแรกของบรรทัดที่กำลังแก้", icon: <IbJumpStart size={15} />, tone: "nav", key: "Ctrl+1", why: noPos ?? (ev ? undefined : "ยังไม่ได้เลือกบรรทัด"), run: () => { if (ev) seekTime(ev.start + dl, "start"); } },
+      { id: "jumpend", label: "ภาพไปเวลาจบของบรรทัด", title: "เลื่อนภาพไปเฟรมสุดท้ายของบรรทัดที่กำลังแก้", icon: <IbJumpEnd size={15} />, tone: "nav", key: "Ctrl+2", why: noPos ?? (ev ? undefined : "ยังไม่ได้เลือกบรรทัด"), run: () => { if (ev) seekTime(ev.end + dl, "end"); } },
+    ],
+    [
+      { id: "snapstart", label: "สอดเวลาเริ่มกับภาพ", title: "ตั้งเวลาเริ่มของบรรทัดที่เลือกเป็นเฟรมที่ภาพแสดงอยู่", icon: <IbSnapStart size={15} />, tone: "edge", key: "Ctrl+3", ...t.snapStart },
+      { id: "snapend", label: "สอดเวลาจบกับภาพ", title: "ตั้งเวลาจบของบรรทัดที่เลือกเป็นเฟรมที่ภาพแสดงอยู่", icon: <IbSnapEnd size={15} />, tone: "edge", key: "Ctrl+4", ...t.snapEnd },
+      { id: "visible", label: "เลือกบรรทัดที่ขึ้นบนภาพ", title: "เลือกทุกบรรทัดที่ขึ้นอยู่ในเฟรมที่ภาพแสดง", icon: <IbSelVisible size={15} />, tone: "edge", ...t.visible },
+      { id: "snapscene", label: "สอดเวลาไปยังฉาก", title: "ตั้งเวลาของบรรทัดที่เลือกให้ยาวเต็มฉากที่ภาพแสดงอยู่ ตั้งแต่ keyframe ก่อนหน้าถึง keyframe ถัดไป", icon: <IbSnapScene size={15} />, tone: "edge", key: "Ctrl+5", ...t.snapScene },
+      { id: "toframe", label: "เลื่อนไปยังเฟรมปัจจุบัน", title: "เลื่อนบรรทัดที่เลือกไปพร้อมกัน ให้บรรทัดที่กำลังแก้เริ่มที่เฟรมที่ภาพแสดง", icon: <IbToFrame size={15} />, tone: "edge", key: "Ctrl+6", ...t.toFrame },
+    ],
+    [
+      { id: "styles", label: "สไตล์ของซับ…", title: "จัดการสไตล์ของซับ ฟอนต์ ขนาด สี ขอบ เงา", icon: <IbStyles size={15} />, tone: "go", ...t.styles },
+      { id: "props", label: "คุณสมบัติสคริปต์…", title: "คุณสมบัติสคริปต์ หัวเรื่อง ชื่อคนทำซับ ความละเอียด", icon: <IbProps size={15} />, tone: "go", ...t.props },
+    ],
+    [
+      { id: "shift", label: "เลื่อนเวลา…", title: "เลื่อนเวลาของบรรทัดไปข้างหน้าหรือถอยหลัง", icon: <IbShiftTime size={15} />, tone: "lead", key: "Ctrl+I", ...t.shift },
+      { id: "translate", label: "ตัวช่วยแปล…", title: "ตัวช่วยแปล แปลทีละท่อนข้อความ แท็กอยู่ที่เดิม", icon: <IbTranslate size={15} />, tone: "lead", ...t.translate },
+      { id: "resample", label: "เปลี่ยนความละเอียดของคำบรรยาย…", title: "เปลี่ยนขนาดภาพของซับ แล้วคูณขนาดและตำแหน่งให้หน้าตาเท่าเดิม", icon: <IbResample size={15} />, tone: "lead", ...t.resample },
+      { id: "post", label: "ปรับเวลาทั้งไฟล์…", title: "ปรับเวลาทุกบรรทัดตามกติกาของ Aegisub เผื่อหน้า เผื่อท้าย ต่อบรรทัดที่ใกล้กัน ดูดเข้า keyframe", icon: <IbWand size={15} />, tone: "lead", ...t.post },
+    ],
+    [
+      { id: "options", label: "ตั้งค่า", title: "ตั้งค่าโปรแกรม ไปหัวข้อเสียงและซับ", icon: <IcSettings size={15} />, why: p.onSettings ? undefined : "หน้านี้ไปหน้าตั้งค่าไม่ได้", run: () => p.onSettings?.() },
+      { id: "tagcycle", label: `สลับการแสดงแท็ก ตอนนี้${TAGS[tags]}`, title: `สลับการแสดงแท็กในตาราง ตอนนี้${TAGS[tags]} กดแล้วเป็น${TAGS[nextTag[tags]]}`, icon: <IbTagCycle size={15} />, run: () => setTags(nextTag[tags]) },
+    ],
+  ] : [];
+  // แถวเหนือตารางแคบเกินให้แถบปุ่มย่อเห็นสองกลุ่มแรก ย่อปุ่มคำสั่งกับเมนูเป็นไอคอน · ความกว้างแบบมีชื่อจำไว้ตอนแสดงแบบมีชื่อ คิดจากค่านี้ทุกครั้ง ไม่สลับไปมา
+  useLayoutEffect(() => {
+    const el = gbar.current;
+    if (!el) return;
+    const runFit = () => {
+      const cm = el.querySelector<HTMLElement>("[data-se-cmds]");
+      if (!cm || !el.clientWidth) return;
+      if (!cm.classList.contains("compact")) labelW.current = cm.offsetWidth;
+      const kids = [...el.children] as HTMLElement[];
+      const fixed = kids.filter((k) => k !== cm && !k.hasAttribute("data-mainbar")).reduce((s, k) => s + k.offsetWidth, 0);
+      const gap = parseFloat(getComputedStyle(el).columnGap) || 0;
+      const free = el.clientWidth - labelW.current - fixed - gap * Math.max(0, kids.length - 1);
+      const want = tb.length >= 2 && free < groupsW(tb, 2);
+      setCompact((c) => (c === want ? c : want));
+    };
+    runFit();
+    const ro = new ResizeObserver(runFit);
+    ro.observe(el);
+    return () => ro.disconnect();
+  });
 
   useHotkeys([
     ...cmds.hotkeys,
@@ -458,6 +534,8 @@ export default function SubEditor(p: SubEditorProps) {
     const w = window as unknown as Record<string, unknown>;
     w.__subEditSave = () => saveRef.current();
     w.__subEditSaveNew = (to: SubDoc["kind"], target: string) => saveNew(to, target);
+    // แหล่งเสียงของหนังที่ส่งให้คลื่นเสียงกับตัวเล่น มีเวลาเฟรมแรกของภาพ (BUGS ข้อ 115)
+    w.__audSrc = movieAud;
   });
 
   if (load.s === "failed") return <div className="stat bad" data-se-loaderr><CardIcon kind="bad" /><div><b>เปิดซับไม่ได้</b><Phr>{load.err}</Phr></div></div>;
@@ -520,10 +598,13 @@ export default function SubEditor(p: SubEditorProps) {
             del: st.sel.length ? undefined : "ยังไม่ได้เลือกบรรทัด",
           }} />
           : <div className="stat info"><CardIcon kind="info" /><div><b>ซับนี้ยังไม่มีบรรทัด</b><div className="minirow"><button type="button" className="btn btn-ghost btn-sm" onClick={() => insertEvent(-1, blankEvent(doc, { start: 0, end: 3000 }), "เพิ่มบรรทัด")} data-se-first>เพิ่มบรรทัดแรก</button></div></div></div>}
-        <div className="se-gridbar">
+        <div className="se-gridbar" ref={gbar} data-se-gridbar>
           {cmds.bar}
-          {cmds.note ?? <span className="small se-gcount" data-se-count>{`${doc.events.length.toLocaleString("en-US")} บรรทัด`}{st.sel.length > 1 ? ` เลือกไว้ ${st.sel.length.toLocaleString("en-US")}` : ""}</span>}
-          <Seg small label="แท็กในตาราง" value={tags} onChange={setTags} options={[{ value: "full", label: "แท็กเต็ม" }, { value: "sym", label: "ย่อเป็น ☀" }, { value: "hide", label: "ซ่อนแท็ก" }]} />
+          <MainBar groups={tb} />
+          <span className="se-gslot" data-se-gslot>
+            {cmds.note ?? <span className="small se-gcount" data-se-count>{`${doc.events.length.toLocaleString("en-US")} บรรทัด`}{st.sel.length > 1 ? ` เลือกไว้ ${st.sel.length.toLocaleString("en-US")}` : ""}</span>}
+          </span>
+          <Seg small label="แท็กในตาราง" value={tags} onChange={setTags} options={[{ value: "full", label: TAGS.full }, { value: "sym", label: TAGS.sym }, { value: "hide", label: TAGS.hide }]} />
         </div>
         <div ref={gridAt}><SubGrid doc={doc} sel={st.sel} active={st.active} tags={tags} height={gridH} onSelect={(ids, a) => select(ids, a)}
           fr={unit === "frame" ? fr : null} delayMs={dl} onSideKey={sideKey} /></div>
@@ -538,6 +619,9 @@ export default function SubEditor(p: SubEditorProps) {
       <DetailsDialog open={vdlg === "details"} onClose={() => setVdlg(null)} name={nameOf(p.video)} table={vst.table} dummy={vst.dummy} fr={fr} keys={vidKeys(vst).list.length} />
       <DummyDialog open={vdlg === "dummy"} onClose={() => setVdlg(null)} onUse={applyDummy} />
       <FontDialog open={!!font} current={font?.current ?? { name: "", size: "" }} sample={ev ? shownText(ev, doc).replace(/\n/g, " ") : ""} onClose={() => setFont(null)} onApply={(t, r) => font?.apply(t, r)} />
+      <PgsDialog open={pgs} onClose={() => setPgs(false)} doc={doc} base={getSubEdit().meta?.base ?? base} movie={vsrc.kind === "movie" ? vsrc.path : null}
+        video={vst.table && vsrc.kind === "movie" ? { w: vst.table.w, h: vst.table.h, rate: vst.table.rate, fps: vst.table.fps } : null}
+        onDone={(m) => setSave({ s: "done", note: m })} />
       <RemuxDialog open={remux} onClose={() => setRemux(false)} doc={doc} onSaveAsFile={() => openSaveAs(doc.kind)}
         onFail={(m) => setSave({ s: "failed", err: `ใส่ซับกลับเข้าหนังไม่สำเร็จ  ${m}` })}
         onDone={(r, written, stamp) => {
@@ -576,8 +660,8 @@ export default function SubEditor(p: SubEditorProps) {
         {ask?.k === "saveas" && <div className="se-saveas" data-se-saveas-dlg>
           <div className="se-erow">
             <span className="se-f">ชนิดไฟล์</span>
-            <Seg label="ชนิดไฟล์" value={ask.to} onChange={(to) => openSaveAs(to)}
-              options={[{ value: "ass", label: "ASS" }, { value: "srt", label: "SRT" }, ...(doc.kind === "vtt" ? [{ value: "vtt" as const, label: "VTT" }] : []), ...(doc.kind === "ssa" ? [{ value: "ssa" as const, label: "SSA" }] : [])]} />
+            <Seg<string> label="ชนิดไฟล์" value={ask.to} onChange={(to) => { if (to === "pgs") { setAsk(null); setPgs(true); } else openSaveAs(to as SubDoc["kind"]); }}
+              options={[{ value: "ass", label: "ASS" }, { value: "srt", label: "SRT" }, ...(doc.kind === "vtt" ? [{ value: "vtt", label: "VTT" }] : []), ...(doc.kind === "ssa" ? [{ value: "ssa", label: "SSA" }] : []), { value: "pgs", label: "PGS ภาพ" }]} />
           </div>
           <div className="se-erow"><span className="se-f">ที่เก็บ</span><span className="se-path" title={ask.path} data-se-saveas-path>{ask.path}</span>
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => void browse(ask)} data-se-saveas-browse><IcFolder size={15} />เปลี่ยนที่เก็บ</button></div>

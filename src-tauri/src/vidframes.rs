@@ -465,9 +465,47 @@ pub fn vid_keys_save(path: String, keys: Vec<u32>) -> Result<String, String> {
     Ok(target.display().to_string())
 }
 
+// ---------------------------------------------------------------- ชนิดสีของหนัง (หน้าต่างคุณสมบัติสคริปต์ ปุ่มจากวิดีโอของ YCbCr Matrix · BUGS ข้อ 113)
+
+/// ค่า YCbCr Matrix ของซับจากชนิดสีของหนัง แบบ Aegisub ycbcr::Header::to_best_practice
+/// เฉพาะ BT.709 กับ BT.601 (smpte170m bt470bg) ที่รู้ช่วงสี ได้ TV หรือ PC ตามช่วง · นอกนั้นได้ None
+pub(crate) fn ycbcr_header(space: &str, range: &str) -> String {
+    let r = match range { "tv" | "mpeg" | "limited" => "TV", "pc" | "jpeg" | "full" => "PC", _ => return "None".into() };
+    match space { "bt709" => format!("{r}.709"), "smpte170m" | "bt470bg" => format!("{r}.601"), _ => "None".into() }
+}
+
+/// ชนิดสีของภาพแรกของหนังจาก ffprobe แล้วแปลงเป็นค่า YCbCr Matrix
+#[tauri::command]
+pub async fn vid_colorspace(app: AppHandle, movie: String) -> Result<String, String> {
+    let tools = tools_dir(&app)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let m = need(&movie)?;
+        let args: Vec<OsString> = vec!["-v".into(), "error".into(), "-select_streams".into(), "V:0".into(), "-show_entries".into(), "stream=color_space,color_range".into(),
+            "-of".into(), "default=nw=1".into(), m.into_os_string()];
+        let o = run_tool_timeout(&tools, "ffprobe", &args, Duration::from_secs(30))?;
+        if !tool_succeeded("ffprobe", &o.status) { return Err("อ่านชนิดสีของหนังไม่ได้".into()); }
+        let text = String::from_utf8_lossy(&o.stdout);
+        let val = |k: &str| text.lines().find_map(|l| l.strip_prefix(k)).map(|v| v.trim().to_lowercase()).unwrap_or_default();
+        Ok(ycbcr_header(&val("color_space="), &val("color_range=")))
+    }).await.map_err(|e| e.to_string())?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    #[test]
+    fn ycbcr_header_best_practice_like_aegisub() {
+        assert_eq!(ycbcr_header("bt709", "tv"), "TV.709");
+        assert_eq!(ycbcr_header("bt709", "pc"), "PC.709");
+        assert_eq!(ycbcr_header("smpte170m", "tv"), "TV.601");
+        assert_eq!(ycbcr_header("bt470bg", "tv"), "TV.601");
+        // ไม่รู้ช่วงสี หรือชนิดสีอื่น (FCC 240M BT.2020) ได้ None แบบ to_best_practice
+        assert_eq!(ycbcr_header("bt709", ""), "None");
+        assert_eq!(ycbcr_header("fcc", "tv"), "None");
+        assert_eq!(ycbcr_header("bt2020nc", "tv"), "None");
+        assert_eq!(ycbcr_header("", "unknown"), "None");
+    }
 
     fn tools() -> PathBuf { PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tools") }
 

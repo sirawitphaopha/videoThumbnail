@@ -301,6 +301,10 @@
 .cqmore.bad { color: var(--bad-ink); }
 .cqmore .warnline { display: flex; align-items: center; gap: 6px; color: var(--warn-ink); }
 .cqmore .warnline svg { flex: none; width: 13px; height: 13px; }
+/* ติ๊กเขียวเสียงเหมือนต้นฉบับทุกบิต กับเสียงไม่ตรงสีแดง (BUGS ข้อ 121) */
+.cqmore .okline { display: flex; align-items: center; gap: 6px; color: var(--ok-ink); font-weight: 600; }
+.cqmore .okline svg { flex: none; width: 13px; height: 13px; }
+.cqmore .warnline.badline { color: var(--bad-ink); }
 .cqcov { border-radius: 6px; object-fit: cover; box-shadow: 0 2px 5px rgba(60,25,40,.22); display: block; }
 .cqcov.none { display: flex; align-items: center; justify-content: center; background: #faeff3; color: #a87787; border: 1px solid #e8cdd6; box-shadow: none; }
 /* หน้าแปลงเสียง ซ้ายขวาเท่ากัน ขอบตรงกันทุกแถว (พี่กันสั่ง 8 พ.ย. 2569 "มันควรสวย สมมาตรกว่านี้") */

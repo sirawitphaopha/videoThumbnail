@@ -130,7 +130,8 @@ try {
   await clickSel("[data-cmdmenu=tool]"); await sleep(250);
   await c.shot(`${SHOT}/1-เมนูเครื่องมือ.png`, "[data-cmdpanel=tool]", 6);
   const tp = await q(`const el = document.querySelector('[data-cmdpanel=tool]'); const r = el.getBoundingClientRect(); return { top: r.top, bottom: r.bottom, right: r.right, vw: innerWidth, vh: innerHeight, n: el.querySelectorAll('[data-cmd]').length };`);
-  check("เมนูเครื่องมือ 3 คำสั่ง อยู่ในหน้าต่าง", tp.n === 3 && tp.top >= 0 && tp.bottom <= tp.vh && tp.right <= tp.vw, JSON.stringify(tp));
+  // 5 คำสั่ง สไตล์ เปลี่ยนความละเอียด ตัวช่วยแปล กับคุณสมบัติสคริปต์ ส่งออกเป็น PGS ที่เพิ่มในชุด BUGS ข้อ 113 118
+  check("เมนูเครื่องมือ 5 คำสั่ง อยู่ในหน้าต่าง", tp.n === 5 && tp.top >= 0 && tp.bottom <= tp.vh && tp.right <= tp.vw, JSON.stringify(tp));
   await clickSel("[data-cmdmenu=tool]"); await sleep(150);
   const bar = await q(`const b = document.querySelector('.se-gridbar'); const pw = document.querySelector('.pagewrap'); return { sw: b.scrollWidth, cw: b.clientWidth, over: pw.scrollHeight - pw.clientHeight };`);
   check("แถบเหนือตารางที่มีเมนูที่สี่ ไม่ล้น หน้าไม่เลื่อน", bar.sw <= bar.cw && bar.over <= 0, JSON.stringify(bar));

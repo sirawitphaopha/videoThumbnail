@@ -315,9 +315,12 @@ function usePerRow(size: keyof typeof SIZES) {
   useLayoutEffect(() => {
     const el = ref.current;
     if (!el) return;
-    const ro = new ResizeObserver(() => setW(el.clientWidth));
+    // หน้าถูกซ่อน (เปลี่ยนเมนู) กว้าง 0 ข้ามไป จำผังเดิมไว้ · เดิมจำ 0 ผังตอนซ่อนเป็นแถวละเรื่อง กลับมาหน้าชั้นวางเฟรมแรกการ์ดกว้าง 100 ตารางสูง 4,471
+    // แล้วจัดใหม่เป็นการ์ด 104 สูง 505 ในเฟรมเดียว ขึ้นข้อความเตือน ResizeObserver loop ทุกครั้งที่เข้าหน้าชั้นวาง (เจอใน check-look ชุด BUGS ข้อ 113 ถึง 121)
+    const take = () => { if (el.clientWidth) setW(el.clientWidth); };
+    const ro = new ResizeObserver(take);
     ro.observe(el);
-    setW(el.clientWidth);
+    take();
     return () => ro.disconnect();
   }, []);
   const { w: bw, gap } = SIZES[size];
@@ -410,7 +413,9 @@ function BookTags({ m }: { m: Movie }) {
     let touched = false, lastW = -1;
     const fit = () => {
       const w = el.clientWidth;
-      if (w === lastW) return;
+      // หน้าถูกซ่อน (เปลี่ยนเมนู) กว้าง 0 ข้ามไป แถบที่จัดไว้คงเดิม · เดิมรีเซ็ตทุกแถบตอนซ่อน กลับมาหน้าชั้นวางต้องจัดใหม่ทุกเรื่องในเฟรมเดียว
+      // ความสูงเปลี่ยนซ้ำระหว่างวัด ขึ้นข้อความเตือน ResizeObserver loop ทุกครั้งที่เข้าหน้าชั้นวาง (เจอใน check-look ชุด BUGS ข้อ 113 ถึง 121)
+      if (!w || w === lastW) return;
       lastW = w;
       // ป้าย +จำนวน มีคลาส bt ด้วย ต้องตัดออก เดิมลูปซ่อนจากท้ายซ่อนตัวมันเองก่อน ป้ายนี้จึงไม่เคยขึ้น (AUDIT 12 พ.ย. 2569 ข้อ 4)
       const tags = [...el.querySelectorAll<HTMLElement>(":scope > .bt:not(.btmore)")];
@@ -556,7 +561,7 @@ function ChipRow({ items }: { items: Chip[] }) {
     const fit = () => {
       const chips = [...el.querySelectorAll<HTMLElement>(":scope > .lvchip")];
       const more = el.querySelector<HTMLElement>(":scope > .lvmore");
-      if (!more) return;
+      if (!more || !el.clientWidth) return; // หน้าถูกซ่อน กว้าง 0 ป้ายที่จัดไว้คงเดิม (แบบเดียวกับแถบใต้ปก)
       el.classList.remove("tight");
       chips.forEach((c) => { c.style.display = ""; });
       more.style.display = "none";

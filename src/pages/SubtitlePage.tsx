@@ -51,7 +51,7 @@ function refOf(tracks: MergeTrack[]) {
   return { ref: a ? trackFrom(a) : null, refIdx: a ? auds.indexOf(a) : null };
 }
 
-export default function SubtitlePage({ onAv }: { onAv: () => void }) {
+export default function SubtitlePage({ onAv, onSettings }: { onAv: () => void; onSettings?: () => void }) {
   const [file, setFile] = useState<Loaded | null>(null);
   const [busy, setBusy] = useState<string | null>(null);
   const [err, setErr] = useState<string | null>(null);
@@ -271,7 +271,7 @@ export default function SubtitlePage({ onAv }: { onAv: () => void }) {
             onAddMovie={!file.movie ? () => void addVideo() : undefined} onClose={() => setView(null)} />
           : <SubEditor key={st.key} track={st} tab={subTab} moviePath={file.path} video={file.movie ? file.path : file.video ?? ""} refStream={refStream} refIdx={file.refIdx}
             label={st.inMovie ? `${nameOf(file.path)} ซับที่ ${file.subs.indexOf(st) + 1}` : nameOf(st.src)} fps={file.vid?.fps ?? null} playRes={file.vid?.res ?? null}
-            onAddMovie={!file.movie ? () => void addVideo() : undefined}
+            onAddMovie={!file.movie ? () => void addVideo() : undefined} onSettings={onSettings}
             onMovieMoved={(from, to) => setFile((f) => (f && f.movie && f.path === from ? { ...f, path: to } : f))} />)}
       </div>
       <Dialog open={!!guard} onClose={() => { if (!guard?.busy) setGuard(null); }} kind="work" title="ซับที่แก้ยังไม่ได้บันทึก" width={560}

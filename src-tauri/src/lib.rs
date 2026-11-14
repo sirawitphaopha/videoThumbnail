@@ -29,6 +29,7 @@ mod probe;
 mod rename;
 mod store;
 mod subaudio;
+mod pgs;
 mod subdoc;
 mod subs;
 mod subshot;
@@ -166,16 +167,16 @@ pub fn run() {
         rename::check_rename, rename::rename_movie,
         poster::poster_open, poster::poster_view, poster::poster_render, poster::poster_clear, poster::poster_folder_images,
         poster::poster_inspect, poster::poster_apply, poster::poster_cancel, poster::poster_check_name,
-        latest::thanks_open, bitrate::bitrate_start, bitrate::bitrate_tracks, bitrate::bitrate_stop, merge::merge_inspect, merge::merge_add_file, merge::merge_apply, merge::merge_cancel, merge::merge_cover_preview, merge::merge_cover_drop, encode::encode_preview, encode::encoders_status, encode::encoders_open_dir, encode::encoders_user_dir, latest::encoders_latest, latest::encoders_open_page, latest::open_itunes_page, fonts::font_info,
+        latest::thanks_open, bitrate::bitrate_start, bitrate::bitrate_tracks, bitrate::bitrate_stop, merge::merge_inspect, merge::remux_fonts, merge::merge_add_file, merge::merge_apply, merge::merge_cancel, merge::merge_cover_preview, merge::merge_cover_drop, encode::encode_preview, encode::encoders_status, encode::encoders_open_dir, encode::encoders_user_dir, latest::encoders_latest, latest::encoders_open_page, latest::open_itunes_page, fonts::font_info,
         delay::delay_find, delay::delay_view, delay::delay_preview,
         subs::movie_frame, subs::sub_text, subs::sub_frame, subs::sub_wave, subs::sub_images,
-        subdoc::subdoc_open, subdoc::subdoc_stamp, subdoc::subdoc_save, subdoc::subdoc_convert, subdoc::subdoc_free_name, subdoc::subdoc_render, subdoc::subdoc_parse_text, subdoc::subdoc_temp, subshot::sub_overlay, subshot::vid_snapshot,
+        subdoc::subdoc_open, subdoc::subdoc_stamp, subdoc::subdoc_save, subdoc::subdoc_convert, subdoc::subdoc_free_name, subdoc::subdoc_render, subdoc::subdoc_parse_text, subdoc::subdoc_temp, subshot::sub_overlay, subshot::vid_snapshot, vidframes::vid_colorspace,
         subdoc::subdoc_set_dirty, subdoc::subdoc_autosave, subdoc::subdoc_autosaves, subdoc::subdoc_open_autosave, fonts::font_families,
         vidframes::vid_table, vidframes::vid_table_stop, vidframes::vid_frames, vidframes::vid_scenes, vidframes::vid_scenes_stop, vidframes::vid_keys_load, vidframes::vid_keys_save, vidplay::vid_play, vidplay::vid_play_stop, mpvplay::mpv_play, mpvplay::mpv_state, mpvplay::mpv_rect, mpvplay::mpv_sub, mpvplay::mpv_volume, mpvplay::mpv_stop, mpvplay::mpv_available, mpvplay::mpv_dev_props, mpvplay::mpv_dev_shot,
-        subaudio::sub_pcm, subaudio::sub_audio_save, subaudio::sub_peaks,
+        subaudio::sub_pcm, subaudio::sub_audio_save, subaudio::sub_peaks, pgs::pgs_export, pgs::pgs_cancel,
         pairs::pair_set, pairs::pair_check, pairs::pair_play,
         link::link_state, link::link_titles, link::link_is_dir, link::link_images, link::link_add_images, link::link_remove_images, link::link_auto, link::link_pair, link::link_undo, link::link_row_update, link::link_set_crop, link::link_confirm, link::link_cancel, link::link_resolve, link::link_unsave, link::link_remove, link::link_open_row, link::link_cover_pick, link::link_migrate,
-        convert::convert_probe, convert::convert_cover, convert::convert_one, convert::convert_cancel,
+        convert::convert_probe, convert::convert_size_probe, convert::convert_cover, convert::convert_one, convert::convert_cancel,
         fileinfo::media_info, fileinfo::audio_codec_detail, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_running, fileinfo::hash_compare, fileinfo::hash_save, winutil::clipboard_text,
         extract::extract_start, extract::extract_cancel, extract::extract_running, extract::extract_default_folder,
         check::check_start, check::check_cancel, check::check_running, check::play_at, players::list_players,
@@ -191,16 +192,16 @@ pub fn run() {
         rename::check_rename, rename::rename_movie,
         poster::poster_open, poster::poster_view, poster::poster_render, poster::poster_clear, poster::poster_folder_images,
         poster::poster_inspect, poster::poster_apply, poster::poster_cancel, poster::poster_check_name,
-        latest::thanks_open, bitrate::bitrate_start, bitrate::bitrate_tracks, bitrate::bitrate_stop, merge::merge_inspect, merge::merge_add_file, merge::merge_apply, merge::merge_cancel, merge::merge_cover_preview, merge::merge_cover_drop, encode::encode_preview, encode::encoders_status, encode::encoders_open_dir, encode::encoders_user_dir, latest::encoders_latest, latest::encoders_open_page, latest::open_itunes_page, fonts::font_info,
+        latest::thanks_open, bitrate::bitrate_start, bitrate::bitrate_tracks, bitrate::bitrate_stop, merge::merge_inspect, merge::remux_fonts, merge::merge_add_file, merge::merge_apply, merge::merge_cancel, merge::merge_cover_preview, merge::merge_cover_drop, encode::encode_preview, encode::encoders_status, encode::encoders_open_dir, encode::encoders_user_dir, latest::encoders_latest, latest::encoders_open_page, latest::open_itunes_page, fonts::font_info,
         delay::delay_find, delay::delay_view, delay::delay_preview,
         subs::movie_frame, subs::sub_text, subs::sub_frame, subs::sub_wave, subs::sub_images,
-        subdoc::subdoc_open, subdoc::subdoc_stamp, subdoc::subdoc_save, subdoc::subdoc_convert, subdoc::subdoc_free_name, subdoc::subdoc_render, subdoc::subdoc_parse_text, subdoc::subdoc_temp, subshot::sub_overlay, subshot::vid_snapshot,
+        subdoc::subdoc_open, subdoc::subdoc_stamp, subdoc::subdoc_save, subdoc::subdoc_convert, subdoc::subdoc_free_name, subdoc::subdoc_render, subdoc::subdoc_parse_text, subdoc::subdoc_temp, subshot::sub_overlay, subshot::vid_snapshot, vidframes::vid_colorspace,
         subdoc::subdoc_set_dirty, subdoc::subdoc_autosave, subdoc::subdoc_autosaves, subdoc::subdoc_open_autosave, fonts::font_families,
         vidframes::vid_table, vidframes::vid_table_stop, vidframes::vid_frames, vidframes::vid_scenes, vidframes::vid_scenes_stop, vidframes::vid_keys_load, vidframes::vid_keys_save, vidplay::vid_play, vidplay::vid_play_stop, mpvplay::mpv_play, mpvplay::mpv_state, mpvplay::mpv_rect, mpvplay::mpv_sub, mpvplay::mpv_volume, mpvplay::mpv_stop, mpvplay::mpv_available, mpvplay::mpv_dev_props, mpvplay::mpv_dev_shot,
-        subaudio::sub_pcm, subaudio::sub_audio_save, subaudio::sub_peaks,
+        subaudio::sub_pcm, subaudio::sub_audio_save, subaudio::sub_peaks, pgs::pgs_export, pgs::pgs_cancel,
         pairs::pair_set, pairs::pair_check, pairs::pair_play,
         link::link_state, link::link_titles, link::link_is_dir, link::link_images, link::link_add_images, link::link_remove_images, link::link_auto, link::link_pair, link::link_undo, link::link_row_update, link::link_set_crop, link::link_confirm, link::link_cancel, link::link_resolve, link::link_unsave, link::link_remove, link::link_open_row, link::link_cover_pick, link::link_migrate,
-        convert::convert_probe, convert::convert_cover, convert::convert_one, convert::convert_cancel,
+        convert::convert_probe, convert::convert_size_probe, convert::convert_cover, convert::convert_one, convert::convert_cancel,
         fileinfo::media_info, fileinfo::audio_codec_detail, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_running, fileinfo::hash_compare, fileinfo::hash_save, winutil::clipboard_text,
         extract::extract_start, extract::extract_cancel, extract::extract_running, extract::extract_default_folder,
         check::check_start, check::check_cancel, check::check_running, check::play_at, players::list_players,

@@ -129,10 +129,10 @@ export default function SubAudio(p: Props) {
     if (!src || o.spectrum) return;
     const k0 = Math.floor(left / tileMs) - 1, k1 = Math.floor(right / tileMs) + 1;
     for (let k = Math.max(0, k0); k <= k1; k++) {
-      const key = `${src.path}|${src.map}|${mpp}|${k}`;
+      const key = `${src.path}|${src.map}|${src.zero ?? ""}|${mpp}|${k}`;
       if (tiles.has(key) || inflight.has(key) || inflight.size >= 3) continue;
       inflight.add(key);
-      audApi.peaks(src.path, src.map, (k * tileMs) / 1000, ((k + 1) * tileMs) / 1000, TILE)
+      audApi.peaks(src.path, src.map, (k * tileMs) / 1000, ((k + 1) * tileMs) / 1000, TILE, src.zero ?? null)
         .then((v) => putTile(key, v), () => putTile(key, []))
         .finally(() => { inflight.delete(key); if (alive.current) bump((x) => x + 1); });
     }
@@ -212,7 +212,7 @@ export default function SubAudio(p: Props) {
       for (let x = 0; x < w; x++) {
         const t = left + x * mpp;
         if (t < 0) continue;
-        const k = Math.floor(t / tileMs), v = tiles.get(`${src.path}|${src.map}|${mpp}|${k}`);
+        const k = Math.floor(t / tileMs), v = tiles.get(`${src.path}|${src.map}|${src.zero ?? ""}|${mpp}|${k}`);
         if (!v || !v.length) continue;
         const a = v[Math.min(v.length - 1, Math.floor((t - k * tileMs) / mpp))] ?? 0;
         const y = Math.min(1, a * scale) * (mid - 2);
@@ -497,7 +497,7 @@ function AudioMenu(p: { src: NonNullable<AudSource>; ev: SubEvent | null; delayM
     const base = p.src.path.replace(/\.[^.\\/]+$/, "") + `_บรรทัด_${(r.start / 1000).toFixed(2)}.wav`;
     const f = import.meta.env.DEV && w.__audSave ? w.__audSave : await pickSave(base, "wav", "ไฟล์เสียง WAV");
     if (!f) return;
-    audApi.save(p.src.path, p.src.map, (r.start + p.delayMs) / 1000, (r.end + p.delayMs) / 1000, /\.wav$/i.test(f) ? f : `${f}.wav`)
+    audApi.save(p.src.path, p.src.map, (r.start + p.delayMs) / 1000, (r.end + p.delayMs) / 1000, /\.wav$/i.test(f) ? f : `${f}.wav`, p.src.zero ?? null)
       .then((x) => setMsg(`บันทึกแล้ว ${x.split(/[\\/]/).pop()}`), (e) => setMsg(String(e)));
   };
   return (
