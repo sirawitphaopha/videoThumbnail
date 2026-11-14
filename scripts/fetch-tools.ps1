@@ -26,9 +26,12 @@ $macDllSha = '281a72e6e27a49c03a41b02542490f296f235fd2fec30e62c1b0783f653c3a6c'
 # qaac 3.07 (qaac64 refalac64 libsoxr64) Public Domain · ALAC ข้างในเป็น Apache 2.0 · แนบแบบ foobar2000 encoder pack · ไฟล์ของ Apple ไม่แนบ ผู้ใช้ติดตั้ง iTunes เอง
 # พี่กันสั่ง 10 พ.ย. 2569 "อันไหนฟรี ทำได้ เอาเข้าหมด โดยไม่ต้องถาม ส่วน qaac เอาเข้าได้ แต่ต้องบอกผู้ใช้ให้โหลด itune เอง"
 $qa  = @{ path = 'vendor\qaac\qaac_3.07.zip';                          sha = '1fb3ab4aa81725e2607ac1b31afa0e13d2617ee6eb5900f5070c092f5271cbb3' }
+# libmpv ตัวเล่นหนังในหน้าแก้ซับแบบ Subtitle Edit (BUGS ข้อ 111 พี่กันสั่ง 14 พ.ย. 2569 "ทำตอนนี้เลย") ชุดของ shinchiro ที่หน้าเว็บ mpv แนะนำสำหรับ Windows
+# ค่า SHA-256 ตรงกับที่หน้ารุ่นบน GitHub ให้มา · แบบธรรมดา x86_64 ไม่ใช่แบบ v3 ที่ต้องใช้ซีพียูรุ่นใหม่
+$mpv = @{ path = 'vendor\mpv\mpv-dev-x86_64-20261111-git-bcde6b93cc.7z'; sha = '273c079b11ea5575822f972756f4c9a71149a5c10130353abeb8586738938452' }
 $tk  = @{ path = 'vendor\tak\TAK_2.3.3.zip';                            sha = '40d26992266f1377d576b88b84b88d2ab256dc321e47f90314402a80692aba6a' }
 
-foreach ($a in @($mkv, $ff, $mi, $fl, $op, $lm, $wv, $ma, $mai, $tk, $qa)) {
+foreach ($a in @($mkv, $ff, $mi, $fl, $op, $lm, $wv, $ma, $mai, $tk, $qa, $mpv)) {
   $full = Join-Path $root $a.path
   $h = (Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash.ToLower()
   if ($h -ne $a.sha) { throw "ค่า SHA-256 ไม่ตรงกับที่จดไว้: $($a.path)" }
@@ -68,6 +71,10 @@ if ($LASTEXITCODE -ne 0) { throw 'แตก WavPack ไม่สำเร็จ'
 
 & $tar -xf (Join-Path $root $qa.path) -C $work 'qaac_3.07/x64/qaac64.exe' 'qaac_3.07/x64/refalac64.exe' 'qaac_3.07/x64/libsoxr64.dll'
 if ($LASTEXITCODE -ne 0) { throw 'แตก qaac ไม่สำเร็จ' }
+
+New-Item -ItemType Directory -Force (Join-Path $work 'mpv') | Out-Null
+& $tar -xf (Join-Path $root $mpv.path) -C (Join-Path $work 'mpv') 'libmpv-2.dll'
+if ($LASTEXITCODE -ne 0) { throw 'แตก libmpv ไม่สำเร็จ' }
 
 # Monkey's Audio โปรแกรมเรียก MACDll64.dll ตรงจาก Rust (c_APECompress_StartW AddData Finish)
 # ข้อความสัญญาอนุญาตเอาจากชุด SDK · ตัว DLL ดึงจากตัวติดตั้งด้วย scripts\nsis-extract.py (ถอดในเครื่อง ไม่รันตัวติดตั้ง ไม่มีหน้าต่าง)
@@ -114,7 +121,8 @@ $copies = @(
   @('flac-1.5.0-win\COPYING.Xiph',                 'licenses\FLAC-libFLAC-Xiph-BSD.txt'),
   @('flac-1.5.0-win\COPYING.LGPL',                 'licenses\LAME-libmpg123-LGPL-2.1.txt'),
   @('wavpack\license.txt',                         'licenses\WavPack-BSD.txt'),
-  @('License.txt',                                 'licenses\MonkeysAudio-BSD-3.txt')
+  @('License.txt',                                 'licenses\MonkeysAudio-BSD-3.txt'),
+  @('mpv\libmpv-2.dll',                           'libmpv-2.dll')
 )
 foreach ($c in $copies) {
   Copy-Item -LiteralPath (Join-Path $work $c[0]) -Destination (Join-Path $dest $c[1]) -Force
@@ -123,6 +131,9 @@ foreach ($c in $copies) {
 Copy-Item -LiteralPath (Join-Path $root 'vendor\qaac\COPYING.txt') -Destination (Join-Path $lic 'qaac-COPYING.txt') -Force
 # TAK แนบไฟล์ zip เดิมทั้งไฟล์ ตามเงื่อนไขการแจกของผู้ทำ (สัญญาอยู่ใน Readme.html ของแต่ละโฟลเดอร์ใน zip)
 Copy-Item -LiteralPath (Join-Path $root $tk.path) -Destination (Join-Path $dest 'TAK_2.3.3.zip') -Force
+# ข้อความสัญญาของ mpv ไม่มีในชุด dev เก็บสำเนาจากที่เก็บของ mpv ไว้ที่ vendor\mpv
+Copy-Item -LiteralPath (Join-Path $root 'vendor\mpv\LICENSE.GPL.txt') -Destination (Join-Path $lic 'mpv-GPL-2.0.txt') -Force
+Copy-Item -LiteralPath (Join-Path $root 'vendor\mpv\Copyright.txt') -Destination (Join-Path $lic 'mpv-Copyright.txt') -Force
 
 # libheif ตัวจริงสำหรับบันทึกรูปกราฟเป็น HEIC เช็ก hash กับลายเซ็นในตัวนั้น
 & (Join-Path $PSScriptRoot 'fetch-heif.ps1')
@@ -140,6 +151,7 @@ $sources = @"
 - qaac 3.07 (qaac64.exe refalac64.exe libsoxr64.dll) จาก https://github.com/nu774/qaac/releases · ตัว qaac เป็น Public Domain · ตัวเข้ารหัส ALAC ของ Apple ข้างในสัญญา Apache 2.0 (https://www.apache.org/licenses/LICENSE-2.0) · ส่วนอื่นข้างใน (TagLib libsoxr FDK mmtisobmff และอื่น ๆ) ดู licenses\qaac-COPYING.txt · ซอร์สโค้ด https://github.com/nu774/qaac · qaac ใช้ตัวเข้ารหัส AAC ของ Apple ที่มากับ iTunes ไฟล์ของ Apple ไม่ได้แนบ ผู้ใช้ติดตั้ง iTunes เอง
 - TAK 2.3.3 (TAK_2.3.3.zip ไฟล์เดิมทั้งไฟล์ โปรแกรมแตก Takc.exe ไปใช้เอง) จาก http://www.thbeck.de/Tak/Tak.html · ฟรีสำหรับใช้ส่วนตัวที่ไม่ใช่การค้า แจกต่อได้เฉพาะไฟล์ zip เดิมทั้งไฟล์ ไม่คิดเงิน
 - libheif 1.23.7 (heif.dll ใช้บันทึกรูปกราฟเป็น HEIC) พร้อม libx265 3.5 libde265 1.1.3 aom 3.15.3 dav1d 1.5.4 libsharpyuv จาก libwebp 1.6.0 · ตัวที่ conda-forge สร้าง https://conda-forge.org/ · libheif กับ libde265 สัญญา LGPL รุ่น 3 หรือใหม่กว่า · x265 สัญญา GPL รุ่น 2 หรือใหม่กว่า · aom dav1d libsharpyuv สัญญา BSD · ซอร์สโค้ด https://github.com/strukturag/libheif https://bitbucket.org/multicoreware/x265_git https://github.com/strukturag/libde265 https://aomedia.googlesource.com/aom https://code.videolan.org/videolan/dav1d https://chromium.googlesource.com/webm/libwebp และสูตรสร้าง https://github.com/conda-forge
+- libmpv 2 (libmpv-2.dll ตัวเล่นหนังในหน้าแก้ซับ) ชุด mpv-dev-x86_64-20261111-git-bcde6b93cc จาก https://github.com/shinchiro/mpv-winbuild-cmake/releases · สัญญา GPL รุ่น 2 หรือใหม่กว่า · ซอร์สโค้ด https://github.com/mpv-player/mpv และสูตรสร้าง https://github.com/shinchiro/mpv-winbuild-cmake
 - Microsoft Visual C++ runtime 14.51 (msvcp140.dll vcruntime140.dll vcruntime140_1.dll มีลายเซ็น Microsoft) แนบให้ heif.dll เปิดได้บนเครื่องที่ไม่มี Visual C++ Redistributable · เงื่อนไขอยู่ใน licenses\MSVC-Runtime-LICENSE.txt
 "@
 Set-Content -LiteralPath (Join-Path $lic 'SOURCES.txt') -Value $sources -Encoding UTF8

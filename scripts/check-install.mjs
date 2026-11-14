@@ -100,7 +100,9 @@ check("ติดตั้งแบบเงียบลงโฟลเดอร�
 const toolNames = ["mkvmerge.exe", "mkvextract.exe", "mkvpropedit.exe", "ffmpeg.exe", "ffprobe.exe", "MediaInfo.exe", "LIBCURL.DLL",
   "flac.exe", "libFLAC.dll", "lame.exe", "libmpg123-0.dll", "opusenc.exe", "wavpack.exe", "MACDll64.dll", "TAK_2.3.3.zip", "qaac64.exe", "refalac64.exe", "libsoxr64.dll",
   // libheif ตัวจริงกับไฟล์ที่มันต้องใช้ บันทึกรูปกราฟเป็น HEIC (9 ไฟล์)
-  "heif.dll", "libx265.dll", "libde265.dll", "aom.dll", "dav1d.dll", "libsharpyuv.dll", "msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll"];
+  "heif.dll", "libx265.dll", "libde265.dll", "aom.dll", "dav1d.dll", "libsharpyuv.dll", "msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll",
+  // libmpv ตัวเล่นหนังในหน้าแก้ซับ (BUGS ข้อ 111)
+  "libmpv-2.dll"];
 const toolDiff = toolNames.filter((t) => !existsSync(join(DEST, "tools", t)) || fileSha(join(DEST, "tools", t)) !== fileSha(resolve("src-tauri", "tools", t)));
 const lic = existsSync(join(DEST, "tools", "licenses")) ? readdirSync(join(DEST, "tools", "licenses")).length : 0;
 check(`เครื่องมือ ${toolNames.length} ไฟล์ลงครบ (รวมตัวแปลงเสียง) ค่า hash ตรงกับที่โหลดมา (vendor/README.md) · มีไฟล์สัญญาอนุญาต`, toolDiff.length === 0 && lic > 0, toolDiff.length ? `ไม่ตรง ${toolDiff.join(" ")}` : `ครบ ${toolNames.length} ไฟล์ · สัญญาอนุญาต ${lic} ไฟล์`);

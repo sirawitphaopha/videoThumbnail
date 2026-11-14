@@ -2,7 +2,7 @@
    ตั้งแล้วมีผลทันที ไม่ต้องกดบันทึก · สวิตช์ชมพู = เปิด · ค่าเก็บในไฟล์ค่าตั้งของโปรแกรมผ่าน set_settings (store.rs เขียนแบบปลอดภัยมีสำรอง)
    ค่าที่นี่คือค่าตั้งต้น ทุกครั้งที่ใส่โปสเตอร์หรือตรวจไฟล์ยังเปลี่ยนเฉพาะครั้งนั้นได้ */
 import { useEffect, useRef, useState } from "react";
-import { GRAPH_IMG_DEFAULT, api, encodeApi, graphApi, linkApi, logApi, pickExe, pickFolder, playerApi, type EncoderInfo, type LatestInfo, type GraphImg, type LogInfo, type PlayerList, type Settings, type ToolCheck } from "../lib/api";
+import { GRAPH_IMG_DEFAULT, api, vidApi, encodeApi, graphApi, linkApi, logApi, pickExe, pickFolder, playerApi, type EncoderInfo, type LatestInfo, type GraphImg, type LogInfo, type PlayerList, type Settings, type ToolCheck } from "../lib/api";
 import { kb } from "../lib/popup";
 import { listen } from "@tauri-apps/api/event";
 import { inApp } from "../lib/api";
@@ -172,10 +172,24 @@ function SpekResRow() {
   );
 }
 
+/** คำอธิบายตัวเล่นหนังสองแบบของหน้าแก้ซับ */
+const SUB_PLAYER_TIP = {
+  // ขึ้นบรรทัดใหม่ (\n) ตรงจุดที่บรรทัดตัดอยู่แล้วที่กล่องกว้าง 380 จุด ให้ตัดตรงรอยต่อของความหมาย ไม่ตัดกลางวลี (วัดด้วยตัวอ่านจุดตัดบรรทัด 14 พ.ย. 2569)
+  w: "ตัวที่เล่นหนังเมื่อกดปุ่มเล่นใต้ภาพหนังของหน้าแก้ซับ\nหรือกด Ctrl+P โดยทั้งสองแบบอ่านไฟล์หนังอย่างเดียว\nไม่เขียน ไม่แปลง และไม่แก้ไฟล์หนัง",
+  o: [
+    ["mpv", "ใช้ mpv ตัวเดียวกับที่ Subtitle Edit ฝังไว้ ถอดภาพด้วยการ์ดจอ เล่นเต็มความละเอียด และวาดซับที่กำลังแก้ครบทุกแท็กของ ASS", "ภาพลื่นและคม ซับขึ้นครบทั้งสี ตำแหน่ง และฟอนต์", "ภาพอยู่ในหน้าต่างแยกของ mpv ถ้ามีเมนูเปิดทับกรอบภาพ ภาพจะซ่อนไว้ก่อน"],
+    ["แบบ Aegisub", "ทำแบบ Aegisub คือเสียงจากไฟล์หนังเป็นนาฬิกาหลัก\nแล้วอ่านภาพจากไฟล์ทีละเฟรมให้เดินตามเวลาของเสียง", "ภาพวาดในหน้าจอของโปรแกรมเอง ไม่มีหน้าต่างแยก", "ภาพสูงไม่เกิน 720 จุด และเครื่องช้าอาจข้ามเฟรม\nซับเป็นข้อความธรรมดา ไม่มีสีหรือตำแหน่งตามแท็ก"],
+  ] as [string, string, string, string][],
+  r: "ใช้ mpv เป็นหลัก และถ้าเปิด mpv ไม่ได้\nโปรแกรมจะเล่นแบบ Aegisub แทน",
+};
+
 export default function SettingsPage() {
   const [sec, setSec] = useState(() => { const p = takeSettingsSec(); if (p) lastSec = p; return lastSec; });
   const trackPanel = useTrackPanel();
   const [tpBig, setTpBig] = useState<{ src: string; rect: DOMRect; name: string } | null>(null);
+  // มี libmpv-2.dll ให้ตัวเล่น mpv ไหม (ไม่มี โปรแกรมเล่นแบบ Aegisub แทน)
+  const [mpvOk, setMpvOk] = useState<boolean | null>(null);
+  useEffect(() => { if (inApp) vidApi.mpvAvailable().then(setMpvOk, () => setMpvOk(null)); }, []);
   const goSec = (id: string) => { lastSec = id; setSec(id); document.querySelector("[data-settingsscroll]")?.scrollTo(0, 0); };
   // ปุ่มจากหน้าอื่นสั่งเปิดหัวข้อ เช่นปุ่มดูความจุไดรฟ์บนชั้นวาง (BUGS ข้อ 88) · หน้านี้เปิดค้างแบบซ่อนอยู่ จึงรับผ่านเหตุการณ์
   useEffect(() => {
@@ -462,6 +476,10 @@ export default function SettingsPage() {
               </div>); })}
           </div></div>
         {tpBig && <ImageViewer src={tpBig.src} thumb={tpBig.src} originRect={tpBig.rect} info={{ name: tpBig.name }} onClose={() => setTpBig(null)} />}
+        {/* BUGS ข้อ 111 พี่กันสั่ง 14 พ.ย. 2569 "ทำตอนนี้เลย เเต่ระบบเล่นของ aegi ที่ทำมาไม่ลบ เเต่เอาไว้เปิดตอนตั้งค่าได้" · ค่าตั้งต้น mpv (แคลร์ตั้ง) */}
+        <div className="setrow" data-subplayer-set><div className="lbl"><span>ตัวเล่นหนังในหน้าแก้ซับ <InfoTip title="ตัวเล่นหนังสองแบบ" tip={SUB_PLAYER_TIP} /></span>
+          <span className="small"><Phr>{mpvOk === false ? "ไม่พบไฟล์ libmpv-2.dll ในโฟลเดอร์เครื่องมือ โปรแกรมจึงเล่นแบบ Aegisub แทน" : "กดปุ่มเล่นใต้ภาพหนังหรือกด Ctrl+P แล้วโปรแกรมเล่นด้วยตัวที่เลือก"}</Phr></span></div>
+          <Seg label="ตัวเล่นหนังในหน้าแก้ซับ" value={settings.subPlayer === "aegisub" ? "aegisub" : "mpv"} onChange={(v) => set({ subPlayer: v })} options={[{ value: "mpv", label: "mpv" }, { value: "aegisub", label: "แบบ Aegisub" }]} /></div>
       </div>
 
       {/* ---------- ตรวจไฟล์ ---------- */}

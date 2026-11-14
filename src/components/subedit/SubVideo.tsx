@@ -4,9 +4,10 @@
    ขนาดภาพ พอดีกรอบ หรือ 12.5% ถึง 300% ขั้นละ 12.5% · Ctrl กับล้อเมาส์บนภาพซูมทีละ 12.5% ได้ถึง 1000% (แบบ Aegisub)
    คลิกภาพแล้วลูกศรซ้ายขวาเดินทีละเฟรม Shift ไป keyframe Ctrl ไปขอบบรรทัด Alt ทีละ 10 เฟรม (ตารางก็ใช้ปุ่มชุดเดียวกัน)
    ยังอ่านเวลาเฟรมไม่เสร็จ ขึ้นภาพตามเวลาแบบเดิมก่อน · ไม่มีวิดีโอบอกในกรอบพร้อมปุ่มเพิ่มไฟล์วิดีโอกับวิดีโอจำลอง (BUGS ข้อ 107)
-   ปุ่มเล่น (Ctrl+P แบบ Aegisub) เล่นหนังในกรอบนี้ เสียงจากไฟล์หนัง ภาพเดินตามเวลาของเสียง (vidPlay.ts) · เครื่องมือจัดซับบนภาพรอระบบดูวิดีโอในแอป (ROADMAP) */
+   ปุ่มเล่น (Ctrl+P แบบ Aegisub) เล่นหนังในกรอบนี้ ตัวเล่นตามหน้าตั้งค่า mpv (ค่าตั้งต้น) หรือแบบ Aegisub ที่ภาพเดินตามเวลาของเสียง (vidPlay.ts) · เครื่องมือจัดซับบนภาพรอระบบดูวิดีโอในแอป (ROADMAP) */
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
-import { pickKeyframes, pickSave, subApi, vidApi, type SubDoc, type SubEvent } from "../../lib/api";
+import { pickKeyframes, pickSave, subApi, subDocApi, vidApi, type SubDoc, type SubEvent } from "../../lib/api";
+import { useSettings } from "../../lib/settings";
 import type { Tip } from "../../lib/codecAdv";
 import { dropStyle, sideStyle, useDropPlacement, useSideFit } from "../../lib/popupFit";
 import { useClickOutside, useEscClose } from "../../lib/popup";
@@ -19,7 +20,7 @@ import Dropdown from "../Dropdown";
 import InfoTip from "../InfoTip";
 import { Skel, Switch } from "../ui";
 import { IbFilm, IbFrameNext, IbFramePrev, IbJump, IbPlay, IbStop, IcFile } from "../icons";
-import { bindPlayCanvas, getVidPlay, setPlayToggle, startVidPlay, stopVidPlay, useVidPlay } from "../../lib/vidPlay";
+import { bindMpvBox, bindPlayCanvas, getVidPlay, mpvSubUpdate, setPlayToggle, startVidPlay, stopVidPlay, useVidPlay, type PlayOpts } from "../../lib/vidPlay";
 import type { AudSrc } from "../../lib/audioPlay";
 import { KEY_TIP } from "./VideoDialogs";
 
@@ -119,17 +120,28 @@ export default function SubVideo(p: Props) {
   const movie = src.kind === "movie" ? src.path : "";
   const vp = useVidPlay();
   const playing = vp.playing;
-  // เล่นหนัง · ภาพที่ขอสูงไม่เกิน 720 จุด ถอดทันเวลาจริง
+  const { settings } = useSettings();
+  // ตัวเล่นตามหน้าตั้งค่า · แบบ mpv ส่งซับที่กำลังแก้ทั้งไฟล์ (ฉบับล่าสุดตอนกด) กับดีเลย์ของซับไปด้วย
+  const docRef = useRef(p.doc);
+  docRef.current = p.doc;
+  const opts = (): PlayOpts => ({ engine: settings?.subPlayer === "aegisub" ? "aegisub" : "mpv", sub: () => subDocApi.render(docRef.current), delayMs: d });
+  // เล่นหนัง · แบบ Aegisub ภาพที่ขอสูงไม่เกิน 720 จุด ถอดทันเวลาจริง
   const togglePlay = () => {
     if (getVidPlay().playing) { stopVidPlay(); return; }
     if (!movie || !t || !fr || pos == null) return;
-    void startVidPlay(movie, t, fr, pos, p.audio, Math.min(reqH, 720));
+    void startVidPlay(movie, t, fr, pos, p.audio, Math.min(reqH, 720), opts());
   };
   const toggleRef = useRef(togglePlay);
   toggleRef.current = togglePlay;
   useEffect(() => { setPlayToggle(() => toggleRef.current()); return () => setPlayToggle(null); }, []);
   // ระหว่างเล่น ภาพย้ายเพราะอย่างอื่น (เลือกบรรทัดตอนเปิด AUTO ข้ามไปยัง) เล่นต่อจากตำแหน่งใหม่
-  useEffect(() => { if (getVidPlay().playing && movie && t && fr && pos != null) void startVidPlay(movie, t, fr, pos, p.audio, Math.min(reqH, 720)); }, [pos]); // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => { if (getVidPlay().playing && movie && t && fr && pos != null) void startVidPlay(movie, t, fr, pos, p.audio, Math.min(reqH, 720), opts()); }, [pos]); // eslint-disable-line react-hooks/exhaustive-deps
+  // แก้ซับระหว่างเล่นแบบ mpv ส่งฉบับใหม่ให้ mpv หลังหยุดพิมพ์ครู่หนึ่ง
+  useEffect(() => {
+    if (!playing || vp.engine !== "mpv" || !t) return;
+    const tm = setTimeout(() => { subDocApi.render(p.doc).then((x) => mpvSubUpdate(x, t, d), () => {}); }, 300);
+    return () => clearTimeout(tm);
+  }, [p.doc, d]); // eslint-disable-line react-hooks/exhaustive-deps
   // เปลี่ยนหนัง ปิดวิดีโอ ออกจากหน้า หยุดเล่น
   useEffect(() => () => stopVidPlay(), [movie]);
   // ภาพตรงเฟรม · เฟรมที่เก็บไว้แล้วขึ้นทันที ที่เหลือรอนิดหนึ่งก่อนดึง กดเดินเร็ว ๆ ไม่ดึงทุกเฟรม
@@ -179,7 +191,8 @@ export default function SubVideo(p: Props) {
   else if (src.kind === "movie") body = <>
     {img ? <img src={img} alt={pos != null ? `ภาพหนังเฟรม ${pos}` : "ภาพหนัง"} style={{ width: imgW, height: imgH }} draggable={false} />
       : fail ? <div className="vnone">ดึงภาพหนังไม่ได้</div> : <Skel w={imgW} h={imgH} r={0} />}
-    {playing && <canvas ref={bindPlayCanvas} className="se-vplaycv" style={{ width: imgW, height: imgH }} aria-label="หนังที่กำลังเล่น" data-vplaycv />}
+    {playing && vp.engine === "aegisub" && <canvas ref={bindPlayCanvas} className="se-vplaycv" style={{ width: imgW, height: imgH }} aria-label="หนังที่กำลังเล่น" data-vplaycv />}
+    {playing && vp.engine === "mpv" && <div ref={bindMpvBox} className="se-vplaycv se-vmpv" style={{ width: imgW, height: imgH }} aria-label="หนังที่กำลังเล่นด้วย mpv" data-vmpv />}
   </>;
   else body = (
     <div className="vnone">
@@ -205,7 +218,7 @@ export default function SubVideo(p: Props) {
         <button type="button" className={"btn btn-ghost btn-sm se-vstep" + (ready ? "" : " btn-wait")} aria-disabled={!ready || undefined} title={noStep ?? "ถอยหนึ่งเฟรม (ลูกศรซ้าย)"} aria-label="ถอยหนึ่งเฟรม" onClick={() => { if (!ready) return; const at = getVidPlay().playing ? null : pos!; stopVidPlay(); seek((at ?? getVid().pos ?? 0) - 1); }} data-vprev><IbFramePrev size={15} /></button>
         <button type="button" className={"btn btn-ghost btn-sm se-vstep" + (ready ? "" : " btn-wait")} aria-disabled={!ready || undefined} title={noStep ?? "เดินหนึ่งเฟรม (ลูกศรขวา)"} aria-label="เดินหนึ่งเฟรม" onClick={() => { if (!ready) return; const at = getVidPlay().playing ? null : pos!; stopVidPlay(); seek((at ?? getVid().pos ?? 0) + 1); }} data-vnext><IbFrameNext size={15} /></button>
         <button type="button" className={"btn btn-ghost btn-sm se-vstep se-vplay" + (playWhy ? " btn-wait" : "") + (playing ? " pressed" : "")} aria-disabled={!!playWhy || undefined} aria-pressed={playing}
-          title={playWhy ?? (playing ? "หยุด (Ctrl+P)" : "เล่นหนังจากภาพนี้ เสียงจากแทร็กเดียวกับคลื่นเสียง (Ctrl+P)")} aria-label={playing ? "หยุด" : "เล่นหนัง"} onClick={() => { if (!playWhy) togglePlay(); }} data-vplay>
+          title={playWhy ?? (playing ? (vp.err ? `หยุด (Ctrl+P)  ${vp.err}` : "หยุด (Ctrl+P)") : "เล่นหนังจากภาพนี้ เสียงจากแทร็กเดียวกับคลื่นเสียง (Ctrl+P)")} data-vplayerr={vp.err || undefined} aria-label={playing ? "หยุด" : "เล่นหนัง"} onClick={() => { if (!playWhy) togglePlay(); }} data-vplay>
           {playing ? <IbStop size={15} /> : <IbPlay size={15} />}</button>
         <span className={"se-vpos" + (ready && onKey ? " key" : "")} title={ready ? (onKey ? "เฟรมนี้เป็น keyframe" : "เวลาของภาพ ขีด เลขเฟรม") : undefined} data-vpos data-vkey={ready && onKey ? "1" : undefined}>
           {ready ? `${fmtMs(tNow!)} - ${playing && vp.frame != null ? vp.frame : pos}` : st.load === "busy" ? `อ่านเวลาเฟรม ${st.dur > 0 ? Math.min(99, Math.round((st.readTo / st.dur) * 100)) : 0}%` : st.load === "err" ? "อ่านเวลาเฟรมไม่ได้" : "—"}

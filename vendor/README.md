@@ -113,6 +113,7 @@
 | `msvcp140.dll` | 643,512 | `7c26614e1d733892c2deac7e245ce115504b1d80592dd0a01b08e3e5a55f89ca` |
 | `vcruntime140.dll` | 178,616 | `d1f4225df2cd877dbf130d5668a021dce3f94118455ff5ec952061c30afc9ce7` |
 | `vcruntime140_1.dll` | 50,112 | `a7146c08f89fe5b04541ab507cdb59ff7b44534d4ba3c668a426c6450a03434e` |
+| `libmpv-2.dll` | 121,789,952 | `88504ee5560942a955405e99dfb5971368e4cf851321f36565bf2a667271db1b` (แตกจากชุด mpv-dev 20261111) |
 
 ## รายการเครื่องมือของโปรแกรมชั้นหนัง
 
@@ -153,3 +154,19 @@
 
 - พี่กันสั่ง *"เก็บ exe นั้นไว้ด้วย"* ไว้ดูไอเดียตอนทำหน้า MediaInfo (ROADMAP หัวข้อ MediaInfo แบบหน้าต่างเล็ก) · ไม่ขึ้น git (`vendor/**/*.exe`)
 - แกะดูข้างในแบบอ่านในหน่วยความจำ ไม่เขียนไฟล์ ไม่รัน `py -3 -I -X utf8 scripts/nsis-peek.py <ตัวติดตั้ง.exe>`
+
+## libmpv · ตัวเล่นหนังในหน้าแก้ซับ โหลด 14 พ.ย. 2569
+
+พี่กันสั่ง *"ทำตอนนี้เลย เเต่ระบบเล่นของ aegi ที่ทำมาไม่ลบ เเต่เอาไว้เปิดตอนตั้งค่าได้"* (BUGS ข้อ 111) · แบบเดียวกับ Subtitle Edit ที่ฝัง mpv เล่นหนังในโปรแกรม
+
+| ไฟล์ | มาจาก | ขนาด | ค่า SHA-256 |
+|---|---|---|---|
+| `mpv/mpv-dev-x86_64-20261111-git-bcde6b93cc.7z` | https://github.com/shinchiro/mpv-winbuild-cmake/releases (ชุดที่หน้าโหลดของ mpv.io แนะนำสำหรับ Windows · รุ่น 11 พ.ย. 2569) | 31,776,374 | `273c079b11ea5575822f972756f4c9a71149a5c10130353abeb8586738938452` |
+| `mpv/LICENSE.GPL.txt` | https://github.com/mpv-player/mpv/blob/master/LICENSE.GPL (ชุด dev ไม่มีข้อความสัญญา) | 17,984 | |
+| `mpv/Copyright.txt` | https://github.com/mpv-player/mpv/blob/master/Copyright | 4,096 | |
+
+- ค่า SHA-256 ของไฟล์ 7z ตรงกับที่หน้ารุ่นบน GitHub ให้มา · เลือกแบบ x86_64 ธรรมดา ไม่ใช่ x86_64-v3 ที่ต้องใช้ซีพียูรุ่นใหม่
+- `fetch-tools.ps1` แตกเฉพาะ `libmpv-2.dll` ลง `src-tauri/tools/` · ข้อความสัญญาลง `licenses/mpv-GPL-2.0.txt` กับ `licenses/mpv-Copyright.txt`
+- โปรแกรมโหลด DLL ตอนกดเล่นครั้งแรก (`mpvplay.rs` แบบเดียวกับ `ape.rs`) ไม่มี DLL ก็ยังใช้ตัวเล่นแบบ Aegisub ได้จากหน้าตั้งค่า
+- สัญญา mpv กับชุดนี้เป็น GPL รุ่น 2 หรือใหม่กว่า (ชุดของ shinchiro สร้างแบบ GPL) · ซอร์สเปิดอยู่ที่ https://github.com/mpv-player/mpv สูตรสร้างอยู่ที่ที่เก็บของ shinchiro
+- ไฟล์ 7z ไม่ขึ้น git (`.gitignore` กัน `vendor/**/*.7z`) ขึ้นแค่ข้อความสัญญาสองไฟล์

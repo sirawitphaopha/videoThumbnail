@@ -47,6 +47,8 @@ export type Settings = {
   hashSaveAsk: boolean;
   /** ปิดโปรแกรมตอนขยายเต็มจอ เปิดครั้งหน้าขยายเต็มจอ ฝั่ง Rust จำเองตอนกดปิด (BUGS ข้อ 89) */
   windowMaximized?: boolean;
+  /** ตัวเล่นหนังในหน้าแก้ซับ mpv ฝัง libmpv (ค่าตั้งต้น) · aegisub อ่านภาพทีละเฟรมเดินตามเสียง (BUGS ข้อ 111) */
+  subPlayer?: "mpv" | "aegisub";
 };
 
 export type LoadedFrom = "file" | "backup" | "defaults" | "new" | "partial";
@@ -356,6 +358,8 @@ export const subDocApi = {
 /** ตารางเฟรมของหนัง (vidframes.rs) · times เวลาเริ่มของทุกเฟรม ms เฟรม 0 อยู่ที่ 0 · keys เลขเฟรม keyframe
     base เวลาเฟรมแรกในไฟล์ ms · start start_time ของไฟล์ วินาที · fps อัตราเฉลี่ยแบบ Aegisub · rate อัตราที่ไฟล์บอก เช่น 24000/1001 */
 export type VidTable = { key: string; times: number[]; keys: number[]; base: number; start: number; w: number; h: number; sar: string; dar: string; codec: string; rate: string; fps: number; duration: number; partial: boolean };
+export type MpvRect = { x: number; y: number; w: number; h: number; show: boolean; zoom: number; panX: number; panY: number };
+export type MpvPlayReq = Omit<MpvRect, "show"> & { movie: string; t0: number; audioFf: number | null; audioFile: string | null; sub: string | null; subDelay: number; volume: number };
 export const vidApi = {
   /** อ่านครั้งเดียวต่อไฟล์ เก็บไว้ในเครื่อง · ระหว่างอ่านส่ง vid-table-progress · หยุดแล้วตอบ "stopped" */
   table: (movie: string) => call<VidTable>("vid_table", { movie }),
@@ -373,6 +377,14 @@ export const vidApi = {
     return call<void>("vid_play", { movie, ss, h, out: ch });
   },
   playStop: () => call<void>("vid_play_stop"),
+  /** ตัวเล่น mpv (mpvplay.rs) เวลาเป็นวินาทีแบบ ffmpeg -ss · ตำแหน่งกรอบเป็นจุดจริงของจอ */
+  mpvPlay: (a: MpvPlayReq) => call<void>("mpv_play", a),
+  mpvState: () => call<{ t: number | null; eof: boolean; paused: boolean }>("mpv_state"),
+  mpvRect: (r: MpvRect) => call<void>("mpv_rect", r),
+  mpvSub: (sub: string | null, subDelay: number) => call<void>("mpv_sub", { sub, subDelay }),
+  mpvVolume: (volume: number) => call<void>("mpv_volume", { volume }),
+  mpvStop: (unload: boolean) => call<number | null>("mpv_stop", { unload }),
+  mpvAvailable: () => call<boolean>("mpv_available"),
   keysLoad: (path: string) => call<number[]>("vid_keys_load", { path }),
   keysSave: (path: string, keys: number[]) => call<string>("vid_keys_save", { path, keys }),
 };

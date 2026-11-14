@@ -358,4 +358,4 @@ export function zoomStep(dir: 1 | -1) {
 }
 
 // ทางลัดให้ตัวตรวจ เฉพาะรุ่นทดสอบ (check-subcmds.mjs สร้างอัตราเฟรมทดสอบ ดูเฟรมที่แสดง เลื่อนภาพไปเฟรมที่ต้องการ)
-if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__vidLib = { Framerate, get: () => st, seek, rate: () => vidRate(), keys: () => vidKeys() };
+if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__vidLib = { Framerate, get: () => st, seek, setZoom, rate: () => vidRate(), keys: () => vidKeys() };

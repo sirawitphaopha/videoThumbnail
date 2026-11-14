@@ -4,7 +4,7 @@
 //! วางค่าที่ได้มา บอกว่าตรงกับแบบไหน ต่างตรงไหน · บันทึกไฟล์ .sha256 ข้างไฟล์หนัง ไม่เขียนทับไฟล์ที่มีอยู่
 
 use std::io::Read;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 use std::time::{Duration, Instant};
 
 use md5::Digest as _;

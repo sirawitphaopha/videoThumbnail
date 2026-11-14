@@ -619,8 +619,12 @@ pub fn render(doc: &SubDoc) -> String {
         let same = s.raw.len() == 1 && parse_style_line(s.raw[0].t.trim_start_matches('\u{FEFF}')).as_ref() == Some(&s.fields);
         if same { raws(out, &s.raw); } else { out.push_str(&write_style_line(s)); out.push_str(s.raw.first().map(|r| r.e.as_str()).filter(|x| !x.is_empty()).unwrap_or(eol)); }
     };
+    // บรรทัดก่อนหน้ายังไม่จบบรรทัด (บรรทัดสุดท้ายของไฟล์เดิมที่ไม่มีตัวขึ้นบรรทัด แล้วมีบรรทัดซับตามหลัง เช่นเพิ่มบรรทัดต่อท้าย หรือเรียงใหม่)
+    // ใส่ตัวจบบรรทัดก่อน ไม่งั้นบรรทัดใหม่ไปติดท้ายบรรทัดเดิม (ผู้ช่วยตรวจทานระบบซับ 14 พ.ย. 2569 ข้อ R5) · ไฟล์ที่ไม่ได้แก้ไม่มีบรรทัดซับตามหลังบรรทัดนั้น ได้ไบต์เดิม
+    let end_line = |out: &mut String| if !out.is_empty() && !out.ends_with('\n') && !out.ends_with('\r') { out.push_str(eol); };
     let write_events = |out: &mut String| for (pos, e) in doc.events.iter().enumerate() {
         if ass {
+            end_line(out);
             raws(out, &e.pre);
             if ass_unchanged(e, &doc.event_format) { raws(out, &e.raw); } else {
                 out.push_str(&write_event_line(e, &doc.event_format, ssa));
@@ -629,8 +633,10 @@ pub fn render(doc: &SubDoc) -> String {
         } else {
             // บล็อกแรกของไฟล์ไม่ขึ้นต้นด้วยบรรทัดว่าง · บล็อกถัดไปที่ไม่มีบรรทัดคั่น (เคยเป็นบล็อกแรก หรือบล็อกใหม่) ใส่บรรทัดว่างหนึ่งบรรทัด
             let blank_only = e.pre.iter().all(|r| r.t.trim().is_empty());
+            // จบบรรทัดก่อนหน้าก่อนใส่บรรทัดว่างคั่นบล็อก (เดิมเช็กหลังใส่ บรรทัดว่างคั่นเลยกลายเป็นตัวจบของบรรทัดเดิม ข้อ R5)
+            end_line(out);
             if pos == 0 && blank_only {} else if e.pre.is_empty() && pos > 0 { out.push_str(eol); } else { raws(out, &e.pre); }
-            if pos > 0 && !out.ends_with('\n') && !out.ends_with('\r') { out.push_str(eol); }
+            end_line(out);
             write_block(out, e, pos, &doc.kind, eol, doc.renumber);
         }
     };
@@ -1097,7 +1103,7 @@ pub fn autosave_to(dir: &Path, doc: &SubDoc, name: &str) -> Result<AutoItem, Str
     let json = serde_json::to_vec_pretty(&item).map_err(|e| e.to_string())?;
     std::fs::write(format!("{}.json", file.display()), json).map_err(|e| format!("บันทึกอัตโนมัติไม่สำเร็จ {e}"))?;
     // เก่ากว่า 10 ฉบับของชื่อเดียวกัน ลบทิ้ง (ไฟล์ของโปรแกรมเอง ไม่ต้องลงถังขยะ)
-    let mut same: Vec<AutoItem> = list_autosaves(dir).into_iter().filter(|a| a.name == name).collect();
+    let same: Vec<AutoItem> = list_autosaves(dir).into_iter().filter(|a| a.name == name).collect();
     if same.len() > KEEP_AUTOSAVES {
         for old in &same[KEEP_AUTOSAVES..] {
             let _ = std::fs::remove_file(&old.path);
@@ -1185,6 +1191,31 @@ mod tests {
         assert_eq!(ass_time(4075), "0:00:04.08");
         assert_eq!(srt_time(3_723_004, ','), "01:02:03,004");
         assert_eq!(srt_time(3_723_004, '.'), "01:02:03.004");
+    }
+
+    /// ข้อ R5 ไฟล์ที่บรรทัดสุดท้ายไม่มีตัวขึ้นบรรทัด เพิ่มบรรทัดต่อท้าย หรือย้ายบรรทัดสุดท้ายขึ้นไปก่อน แล้วอ่านกลับต้องได้จำนวนบรรทัดและข้อความครบ
+    #[test]
+    fn no_final_newline_then_add_or_reorder() {
+        let cases: [(&str, &str); 2] = [
+            ("ass", "[Script Info]\nScriptType: v4.00+\n\n[Events]\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\nDialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,สวัสดี\nDialogue: 0,0:00:03.00,0:00:04.00,Default,,0,0,0,,ลาก่อน"),
+            ("srt", "1\n00:00:01,000 --> 00:00:02,000\nสวัสดี\n\n2\n00:00:03,000 --> 00:00:04,000\nลาก่อน"),
+        ];
+        for (kind, text) in cases {
+            let d = parse_doc(text.as_bytes(), kind, None);
+            assert_eq!(render(&d), text, "{kind} ไม่แก้ได้ไบต์เดิม");
+            // เพิ่มบรรทัดต่อท้าย
+            let mut add = d.clone();
+            let mut e = add.events[1].clone();
+            e.id = 99; e.start = 5000; e.end = 6000; e.text = "ใหม่".into(); e.raw = vec![]; e.pre = vec![]; e.ident = None;
+            add.events.push(e);
+            let back = parse_doc(render(&add).as_bytes(), kind, None);
+            assert_eq!(back.events.iter().map(|x| x.text.as_str()).collect::<Vec<_>>(), ["สวัสดี", "ลาก่อน", "ใหม่"], "{kind} เพิ่มท้าย {:?}", render(&add));
+            // ย้ายบรรทัดสุดท้ายขึ้นไปก่อน
+            let mut mv = d.clone();
+            mv.events.swap(0, 1);
+            let back = parse_doc(render(&mv).as_bytes(), kind, None);
+            assert_eq!(back.events.iter().map(|x| x.text.as_str()).collect::<Vec<_>>(), ["ลาก่อน", "สวัสดี"], "{kind} เรียงใหม่ {:?}", render(&mv));
+        }
     }
 
     #[test]

@@ -32,6 +32,8 @@ let endMs = Infinity;
 let vol = 1;
 
 export function setVolume(v: number) { vol = v; if (gain) gain.gain.value = v; }
+/** ความดังตอนนี้ (ตัวคูณแบบเส้นตรง) ตัวเล่น mpv ใช้ค่าเดียวกัน */
+export const getVolume = () => vol;
 
 /** เวลาที่กำลังเล่นตอนนี้ (เวลาของหนัง ms) · ไม่ได้เล่นอยู่ = null */
 export function playNow(): number | null {

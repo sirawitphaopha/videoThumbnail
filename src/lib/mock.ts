@@ -34,6 +34,7 @@ const defaults: Settings = {
   linkBoardImages: "list",
   linkBoardMovies: "list",
   hashSaveAsk: true,
+  subPlayer: "mpv",
 };
 
 let settings: Settings = { ...defaults };

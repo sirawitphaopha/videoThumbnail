@@ -1,4 +1,5 @@
 // เล่นหนังในกรอบวิดีโอของหน้าแก้ซับ แบบ Aegisub (vidPlay.ts vidplay.rs · พี่กันขอ 14 พ.ย. 2569) · ใช้: เปิด scripts/dev-app.ps1 ก่อน แล้ว node scripts/check-vidplay.mjs
+// ตั้งตัวเล่นในหน้าตั้งค่าเป็นแบบ Aegisub ระหว่างตรวจ แล้วคืนค่าเดิมตอนจบ (ค่าตั้งต้นของโปรแกรมคือ mpv ตรวจด้วย check-mpvplay.mjs)
 // กดเล่นแล้ว เสียงเล่นจริง (ความดังศูนย์) ภาพเดินตามเวลาของเสียง ผืนวาดมีภาพ ซับบนภาพเปลี่ยนตามเวลา · กดหยุดแล้วภาพนิ่งอยู่ที่เฟรมที่เห็น
 // Ctrl+P เล่นหยุด · เล่นจนจบเรื่องหยุดเอง · เลือกบรรทัดตอนเล่นกับ AUTO เล่นต่อจากเวลาเริ่มของบรรทัดนั้น · ไม่เขียนไฟล์
 import { mkdirSync } from "node:fs";
@@ -9,6 +10,8 @@ const SHOT = "docs/report-2026-11-14/เล่นวิดีโอ";
 mkdirSync(SHOT, { recursive: true });
 const c = await connect();
 const q = (js) => c.evaluate(`(async () => { ${js} })()`);
+const inv = (cmd, args) => q(`return await window.__TAURI_INTERNALS__.invoke(${JSON.stringify(cmd)}, ${JSON.stringify(args ?? {})});`);
+const before = (await inv("get_settings")).settings.subPlayer ?? "mpv";
 const results = [];
 const check = (name, ok, note = "") => { results.push(!!ok); console.log(`${ok ? "✅" : "❌"} ${name}${note !== "" ? " · " + note : ""}`); };
 const waitFor = async (js, ms = 10000) => { const t = Date.now(); while (Date.now() - t < ms) { if (await q(js)) return true; await sleep(120); } return false; };
@@ -23,6 +26,7 @@ const ink = "const cv = document.querySelector('[data-vplaycv]'); if (!cv || !cv
 
 await c.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
 try {
+  await inv("set_settings", { patch: { subPlayer: "aegisub" } });
   await q(`try { localStorage.setItem('se-aud', JSON.stringify({ link: false, volume: 0 })); localStorage.setItem('se-vauto', '1'); localStorage.setItem('se-fold', '0'); } catch {} return 1;`);
   await q("location.reload(); return 1;").catch(() => {});
   await sleep(2500);
@@ -95,6 +99,7 @@ try {
   await c.click("[data-vplay]");
 } finally {
   await q(`try { window.__vidPlayStop?.(); localStorage.setItem('se-vauto', '1'); } catch {} return 1;`).catch(() => {});
+  await inv("set_settings", { patch: { subPlayer: before } }).catch(() => {});
   await c.send("Emulation.clearDeviceMetricsOverride").catch(() => {});
   c.close();
 }

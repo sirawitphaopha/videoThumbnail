@@ -76,6 +76,9 @@ pub struct Settings {
     pub hash_save_ask: bool,
     /// ปิดโปรแกรมตอนขยายเต็มจออยู่ เปิดครั้งหน้าขยายเต็มจอเลย (BUGS ข้อ 89 พี่กันแทรก 13 พ.ย. 2569 "จำค่าหน้าต่างหน่อย เเบบตอนขยายจอเเล้วปิด ถ้าเปิดมาเเล้วมันก็จะขยายจอเลย")
     pub window_maximized: bool,
+    /// ตัวเล่นหนังในหน้าแก้ซับ "mpv" ฝัง libmpv แบบ Subtitle Edit (ค่าตั้งต้น) | "aegisub" อ่านภาพทีละเฟรมเดินตามเสียงแบบ Aegisub
+    /// (BUGS ข้อ 111 พี่กันสั่ง 14 พ.ย. 2569 "ทำตอนนี้เลย เเต่ระบบเล่นของ aegi ที่ทำมาไม่ลบ เเต่เอาไว้เปิดตอนตั้งค่าได้")
+    pub sub_player: String,
 }
 
 impl Default for Settings {
@@ -115,6 +118,7 @@ impl Default for Settings {
             link_board_movies: "list".into(),
             hash_save_ask: true,
             window_maximized: false,
+            sub_player: "mpv".into(),
         }
     }
 }
@@ -148,6 +152,7 @@ impl Settings {
         self.tone = pick(&self.tone, &["quartz", "wine", "night", "sage", "mauve"], &d.tone);
         self.link_board_images = pick(&self.link_board_images, &["list", "only"], &d.link_board_images);
         self.link_board_movies = pick(&self.link_board_movies, &["list", "only"], &d.link_board_movies);
+        self.sub_player = pick(&self.sub_player, &["mpv", "aegisub"], &d.sub_player);
         if !(50..=100).contains(&self.jpg_quality) { self.jpg_quality = d.jpg_quality; }
         if ![0, 7, 30, 90].contains(&self.recheck_reminder_days) { self.recheck_reminder_days = d.recheck_reminder_days; }
         // ค่ารูปกราฟกรองช่องต่อช่องเหมือนช่องอื่น ค่าผิดหลุดลงไฟล์แล้วบันทึกรูปกราฟพังทุกครั้ง (AUDIT ข้อ 130)
