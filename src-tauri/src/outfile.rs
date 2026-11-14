@@ -175,6 +175,17 @@ pub fn to_trash(p: &Path) -> Result<(), String> {
     Ok(())
 }
 
+/// เอาไฟล์ใหม่ที่เขียนเสร็จแล้ว (partial) มาแทน target · target เดิมลงถังขยะก่อน (กู้คืนได้ด้วยชื่อจริง)
+/// ย้ายไม่สำเร็จหลังไฟล์เดิมลงถังขยะไปแล้ว ห้ามลบไฟล์ใหม่ บอกที่อยู่ของทั้งสองไฟล์ · เดิมลบไฟล์ใหม่ทิ้ง ทั้งเดิมทั้งใหม่หาย (ผู้ช่วยตรวจทาน R10)
+pub fn replace_with(partial: &Path, target: &Path) -> Result<(), String> {
+    let had = target.exists();
+    if had { to_trash(target).map_err(|e| { let _ = std::fs::remove_file(partial); e })?; }
+    crate::rename::move_no_replace(partial, target).map_err(|p| {
+        if had { format!("เอาไฟล์ใหม่มาแทนไม่สำเร็จ {}  ไฟล์เดิมอยู่ในถังขยะ ไฟล์ใหม่อยู่ที่ {}", p.title, partial.display()) }
+        else { let _ = std::fs::remove_file(partial); p.title }
+    })
+}
+
 /// ที่เก็บไฟล์เดิมที่ชื่อไม่ชนใคร · ชื่อซ้ำต่อท้าย (2) (3) ไม่เขียนทับ
 pub fn free_name(dir: &Path, file: &Path) -> PathBuf {
     let stem = file.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();

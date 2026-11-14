@@ -88,7 +88,10 @@ pub async fn sub_audio_save(app: AppHandle, path: String, map: String, t0: f64, 
     tauri::async_runtime::spawn_blocking(move || {
         let src = need(&path)?;
         let target = PathBuf::from(&target);
-        if target == src { return Err("บันทึกทับไฟล์ต้นทางไม่ได้ เลือกชื่ออื่น".into()); }
+        // เทียบแบบไม่สนตัวพิมพ์และเครื่องหมาย / \ (Movie.mkv กับ movie.mkv คือไฟล์เดียวกันบน Windows) · ไฟล์ปลายทางต้องเป็น .wav กันทับไฟล์หนังหรือไฟล์ซับ (R10)
+        let key = |p: &std::path::Path| p.display().to_string().replace('/', "\\").to_lowercase();
+        if key(&target) == key(&src) { return Err("บันทึกทับไฟล์ต้นทางไม่ได้ เลือกชื่ออื่น".into()); }
+        if !target.extension().is_some_and(|e| e.eq_ignore_ascii_case("wav")) { return Err("ไฟล์เสียงที่บันทึกต้องเป็นไฟล์ .wav".into()); }
         let partial = crate::subdoc::partial_of(&target);
         let mut args = cut_args(&src, &map_ok(&map)?, t0, (t1 - t0).max(0.01));
         args.extend(["-c:a".into(), "pcm_s16le".into(), "-f".into(), "wav".into(), partial.clone().into()]);
@@ -97,8 +100,7 @@ pub async fn sub_audio_save(app: AppHandle, path: String, map: String, t0: f64, 
             let _ = std::fs::remove_file(&partial);
             return Err(format!("บันทึกเสียงไม่สำเร็จ  {}", String::from_utf8_lossy(&o.stderr).lines().last().unwrap_or("")));
         }
-        if target.exists() { crate::outfile::to_trash(&target).map_err(|e| { let _ = std::fs::remove_file(&partial); e })?; }
-        crate::rename::move_no_replace(&partial, &target).map_err(|p| { let _ = std::fs::remove_file(&partial); p.title })?;
+        crate::outfile::replace_with(&partial, &target)?;
         crate::actlog::note("บันทึกเสียงของบรรทัดซับ", &format!("{} ({:.2} ถึง {:.2} วินาที)", target.display(), t0, t1));
         Ok(target.display().to_string())
     }).await.map_err(|e| e.to_string())?

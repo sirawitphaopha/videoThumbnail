@@ -100,7 +100,7 @@ try {
   const saved = await inv("subdoc_save", { doc: cur, target: ASS, mode: "replace", force: null });
   const text = readFileSync(ASS, "utf8");
   check("บันทึกทับได้ บรรทัดใหม่อยู่ในไฟล์ บรรทัดที่ไม่ได้แก้เหมือนเดิม ส่วนที่โปรแกรมไม่รู้จักอยู่ครบ", text.includes(",บรรทัดใหม่") && text.includes("Dialogue: 0,0:00:00.50,0:00:03.40,Default,ดาว,0,0,0,,สวัสดีค่ะ นี่คือฉากแรก") && text.includes("[Aegisub Extradata]") && text.includes("Unknown Key: เก็บไว้ตามเดิม") && !text.includes("ฉากที่สอง"), saved.path);
-  await q(`${S}.markSaved({ ...${S}.get().doc, source: ${JSON.stringify(saved.source)} }); return 1;`);
+  await q(`const d = ${S}.get().doc; ${S}.markSaved(d, { source: ${JSON.stringify(saved.source)}, enc: d.enc, exact: true }); return 1;`);
   check("บันทึกแล้วไม่นับว่ายังไม่บันทึก", await q(`return ${S}.get().dirty === false;`));
   const again2 = await invE("subdoc_save", { doc: cur, target: ASS, mode: "replace", force: null });
   check("บันทึกทับด้วยที่มาเก่า (ไฟล์เปลี่ยนไปแล้ว) ตอบ changed ไม่เขียนทับ", again2 === "ERR:changed" && readFileSync(ASS, "utf8") === text, String(again2));

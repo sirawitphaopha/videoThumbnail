@@ -10,7 +10,8 @@
 import { useEffect, useRef, useState } from "react";
 import Dialog from "../components/Dialog";
 import SubEditor from "../components/subedit/SubEditor";
-import { autosaveNow, closeDoc, getSubEdit, requestSave } from "../lib/subEdit";
+import { autosaveStrict, closeDoc, getSubEdit, requestSave } from "../lib/subEdit";
+import { flushPad } from "../components/subedit/PadView";
 import { api, infoApi, inApp, mergeApi, pickFile, SUB_EXT, type ExtractItem, type MergeTrack } from "../lib/api";
 import { trackFrom, type AvTrack } from "../lib/avJob";
 import { usePageActiveRef } from "../lib/pageActive";
@@ -63,7 +64,8 @@ export default function SubtitlePage({ onAv }: { onAv: () => void }) {
   /** งานที่รอถามก่อน เพราะซับที่แก้ยังไม่บันทึก · busy ระหว่างบันทึก */
   const [guard, setGuard] = useState<{ go: () => void; busy: boolean; err: string | null } | null>(null);
   /** ซับที่แก้ยังไม่บันทึก ถามก่อนเปลี่ยนแทร็กหรือเปิดไฟล์อื่น · ไม่มีอะไรค้างทำเลย */
-  const whenSaved = (go: () => void) => { if (getSubEdit().dirty) setGuard({ go, busy: false, err: null }); else go(); };
+  // ใส่ที่พิมพ์ค้างในแบบ notepad ลงเอกสารก่อนเช็ก ที่พิมพ์ภายในครึ่งวินาทีสุดท้ายยังไม่นับว่าแก้ (ผู้ช่วยตรวจทาน F8)
+  const whenSaved = (go: () => void) => { void flushPad().then(() => { if (getSubEdit().dirty) setGuard({ go, busy: false, err: null }); else go(); }); };
 
   const openNow = async (p: string) => {
     const ext = extOf(p), movie = MOVIE_EXT.includes(ext);
@@ -153,6 +155,9 @@ export default function SubtitlePage({ onAv }: { onAv: () => void }) {
     let off: (() => void) | undefined, live = true;
     import("@tauri-apps/api/webview").then(({ getCurrentWebview }) => getCurrentWebview().onDragDropEvent((e) => {
       if (!pageOn.current) return;
+      // มีหน้าต่างซ้อนเปิดอยู่ (ใส่ซับกลับเข้าหนังกำลังรวมไฟล์ หน้าต่างถาม) ไม่รับไฟล์ที่ลากมา
+      // ไม่งั้นเปิดไฟล์อื่นระหว่างรวมไฟล์ได้ แล้วผลรวมไฟล์ไปลงเอกสารใหม่ (ผู้ช่วยตรวจทาน F25)
+      if (document.body.hasAttribute("data-dialog-open")) { setOver(false); return; }
       if (e.payload.type === "over" || e.payload.type === "enter") setOver(true);
       else if (e.payload.type === "leave") setOver(false);
       else if (e.payload.type === "drop") { setOver(false); if (e.payload.paths[0]) openRef.current(e.payload.paths[0]); }
@@ -266,19 +271,20 @@ export default function SubtitlePage({ onAv }: { onAv: () => void }) {
             onAddMovie={!file.movie ? () => void addVideo() : undefined} onClose={() => setView(null)} />
           : <SubEditor key={st.key} track={st} tab={subTab} moviePath={file.path} video={file.movie ? file.path : file.video ?? ""} refStream={refStream} refIdx={file.refIdx}
             label={st.inMovie ? `${nameOf(file.path)} ซับที่ ${file.subs.indexOf(st) + 1}` : nameOf(st.src)} fps={file.vid?.fps ?? null} playRes={file.vid?.res ?? null}
-            onAddMovie={!file.movie ? () => void addVideo() : undefined} />)}
+            onAddMovie={!file.movie ? () => void addVideo() : undefined}
+            onMovieMoved={(from, to) => setFile((f) => (f && f.movie && f.path === from ? { ...f, path: to } : f))} />)}
       </div>
       <Dialog open={!!guard} onClose={() => { if (!guard?.busy) setGuard(null); }} kind="work" title="ซับที่แก้ยังไม่ได้บันทึก" width={560}
         actions={guard?.busy ? <button type="button" className="btn btn-wait" aria-disabled="true"><Keep all={["กำลังบันทึก…", "บันทึกแล้วไปต่อ"]}>กำลังบันทึก…</Keep></button> : <>
           <button type="button" className="btn btn-ghost" onClick={() => setGuard(null)} data-sub-guard-back>กลับไปแก้ต่อ</button>
-          <button type="button" className="btn btn-ghost" onClick={() => { const g = guard; setGuard(null); void autosaveNow().then(() => { closeDoc(); g?.go(); }); }} data-sub-guard-skip>ไม่บันทึก</button>
+          <button type="button" className="btn btn-ghost" onClick={() => { const g = guard; if (!g) return; void autosaveStrict().then(() => { setGuard(null); closeDoc(); g.go(); }, (e) => setGuard({ ...g, busy: false, err: String(e instanceof Error ? e.message : e) })); }} data-sub-guard-skip>ไม่บันทึก</button>
           <button type="button" className="btn btn-main" data-sub-guard-save onClick={async () => {
             const g = guard;
             if (!g) return;
             setGuard({ ...g, busy: true });
             const ok = await requestSave();
             // บันทึกทับไม่ได้ทันที (ต้องเลือกชื่อไฟล์ใหม่ หรือไฟล์ถูกแก้จากที่อื่น) ปิดหน้าต่างนี้ ให้หน้าต่างของหน้าแก้ซับถามต่อ
-            if (ok) { setGuard(null); closeDoc(); g.go(); } else if (ok === null) setGuard({ ...g, busy: false, err: "ยังไม่มีหน้าแก้ซับให้บันทึก" }); else setGuard(null);
+            if (ok === true) { setGuard(null); closeDoc(); g.go(); } else if (ok === null) setGuard({ ...g, busy: false, err: "ยังไม่มีหน้าแก้ซับให้บันทึก" }); else setGuard(null);
           }}><Keep all={["กำลังบันทึก…", "บันทึกแล้วไปต่อ"]}>บันทึกแล้วไปต่อ</Keep></button>
         </>}>
         <div className="small" style={{ fontSize: 14, color: "var(--txt2)" }}><Phr>{`แก้ ${getSubEdit().meta?.name ?? "ซับ"} ไปแล้ว แต่ยังไม่ได้บันทึกลงไฟล์  ถ้าไม่บันทึก โปรแกรมเก็บ${J}ฉบับ${J}บันทึก${J}อัตโนมัติ${J}ไว้ให้  เปิดคืนได้จากปุ่มฉบับอัตโนมัติ`}</Phr></div>

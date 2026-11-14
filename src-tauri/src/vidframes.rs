@@ -452,14 +452,15 @@ pub fn vid_keys_load(path: String) -> Result<Vec<u32>, String> {
 pub fn vid_keys_save(path: String, keys: Vec<u32>) -> Result<String, String> {
     use std::io::Write;
     let target = PathBuf::from(&path);
+    // ไฟล์ keyframe เป็นไฟล์ข้อความ .txt เท่านั้น กันพิมพ์ชื่อหนังหรือไฟล์ซับในกล่องบันทึกแล้วไฟล์นั้นลงถังขยะ (ผู้ช่วยตรวจทาน R10)
+    if !target.extension().is_some_and(|e| e.eq_ignore_ascii_case("txt")) { return Err("ไฟล์ keyframe ต้องเป็นไฟล์ .txt".into()); }
     let bytes = keys_text(&keys).into_bytes();
     let partial = crate::subdoc::partial_of(&target);
     {
         let mut f = std::fs::OpenOptions::new().write(true).create_new(true).open(&partial).map_err(|e| format!("เขียนไฟล์ไม่ได้ {e}"))?;
         f.write_all(&bytes).and_then(|_| f.sync_all()).map_err(|e| { let _ = std::fs::remove_file(&partial); format!("เขียนไฟล์ไม่ได้ {e}") })?;
     }
-    if target.exists() { crate::outfile::to_trash(&target).map_err(|e| { let _ = std::fs::remove_file(&partial); e })?; }
-    crate::rename::move_no_replace(&partial, &target).map_err(|p| { let _ = std::fs::remove_file(&partial); p.title })?;
+    crate::outfile::replace_with(&partial, &target)?;
     crate::actlog::note("บันทึกไฟล์ keyframe", &format!("{} ({} เฟรม)", target.display(), keys.len()));
     Ok(target.display().to_string())
 }

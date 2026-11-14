@@ -72,6 +72,8 @@ type Props = {
   onDelete: () => void;
   onToAss: () => void;
   onFont: (apply: (tag: string, reset: string) => void, current: { name: string; size: string }) => void;
+  /** เหตุผลที่ปุ่มกดไม่ได้ (บรรทัดแรก บรรทัดสุดท้าย ยังไม่ได้เลือกบรรทัด) · ไม่มี = กดได้ (ผู้ช่วยตรวจทาน F21) */
+  why?: { prev?: string; next?: string; join?: string; del?: string };
 };
 
 /** แปลงเวลาของช่องเป็นเลขเฟรมและกลับ (TimeEdit ของ Aegisub) · null = ช่องแสดงเป็นเวลา */
@@ -149,6 +151,17 @@ export default function SubEditBox(p: Props) {
     const tag = colorTag.current === "1c" ? "c" : colorTag.current;
     applyBox(insertAss(box, a, b, `{\\${tag}${cssToAss(hex)}}`, `{\\${tag}}`), "ใส่สี");
   };
+  // ใส่สีตอนเลือกสีเสร็จ (เหตุการณ์ change ของหน้าเว็บ เกิดครั้งเดียวตอนปิดกล่องสี) ไม่ใช้ onChange ของ React ที่ทำงานทุกครั้งที่ลากในกล่องสี
+  // เดิมลากเลือกสีแล้วแท็กสีซ้อนกันหลายชั้นและเลิกทำหลายขั้น (ผู้ช่วยตรวจทาน F20)
+  const colorRef = useRef(onColor);
+  colorRef.current = onColor;
+  useEffect(() => {
+    const el = pick.current;
+    if (!el) return;
+    const h = () => colorRef.current(el.value);
+    el.addEventListener("change", h);
+    return () => el.removeEventListener("change", h);
+  }, []);
   const font = () => {
     const [a, b] = sel();
     p.onFont((tag, reset) => applyBox(insertAss(box, a, b, tag, reset), "เปลี่ยนฟอนต์"), {
@@ -200,7 +213,7 @@ export default function SubEditBox(p: Props) {
             <IbDrop size={15} /><i className="se-swatch" style={{ background: ass ? colorNow(cl) : "transparent" }} />
           </button>
         ))}
-        <input ref={pick} type="color" className="se-colorpick" tabIndex={-1} aria-hidden="true" onChange={(e) => onColor(e.target.value)} />
+        <input ref={pick} type="color" className="se-colorpick" tabIndex={-1} aria-hidden="true" />
         <button type="button" className={"btn btn-ghost btn-sm" + (ass ? "" : " btn-wait")} aria-disabled={!ass || undefined} title={ass ? "เลือกฟอนต์กับขนาดของข้อความที่เลือก" : noAss} onMouseDown={(e) => e.preventDefault()} onClick={() => ass && font()} data-se-fn><IbFont size={15} />fn</button>
         <span style={{ flex: 1 }} />
         <button type="button" className={"btn btn-sm " + (showOrig ? "btn-main" : "btn-ghost")} aria-pressed={showOrig} onClick={() => setShowOrig(!showOrig)} title="แสดงข้อความของบรรทัดนี้ตอนเปิดไฟล์ ไว้เทียบกับที่แก้" data-se-showorig><IbOriginal size={15} />แสดงต้นฉบับ</button>
@@ -217,14 +230,14 @@ export default function SubEditBox(p: Props) {
           if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); p.onNext(true); }
         }} data-se-text />
       <div className="se-erow se-foot">
-        <button type="button" className="btn btn-ghost btn-sm" onClick={p.onPrev} title="บรรทัดก่อน (ลูกศรขึ้นในตาราง)" data-se-prev><IbBack size={15} />บรรทัดก่อน</button>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => p.onNext(false)} title="บรรทัดถัดไป (ลูกศรลงในตาราง)" data-se-next><IbNext size={15} />บรรทัดถัดไป</button>
+        <button type="button" className={"btn btn-sm " + (p.why?.prev ? "btn-wait" : "btn-ghost")} aria-disabled={!!p.why?.prev || undefined} onClick={() => { if (!p.why?.prev) p.onPrev(); }} title={p.why?.prev ?? "บรรทัดก่อน (ลูกศรขึ้นในตาราง)"} data-se-prev><IbBack size={15} />บรรทัดก่อน</button>
+        <button type="button" className={"btn btn-sm " + (p.why?.next ? "btn-wait" : "btn-ghost")} aria-disabled={!!p.why?.next || undefined} onClick={() => { if (!p.why?.next) p.onNext(false); }} title={p.why?.next ?? "บรรทัดถัดไป (ลูกศรลงในตาราง)"} data-se-next><IbNext size={15} />บรรทัดถัดไป</button>
         <InfoTip title="วิธีพิมพ์และคีย์ลัด" tip={TYPE_TIP} />
         <span className="se-sep" />
         <button type="button" className="btn btn-ghost btn-sm" onClick={p.onInsert} title="แทรกบรรทัดว่างต่อจากบรรทัดนี้ เริ่มที่เวลาจบของบรรทัดนี้ ยาว 3 วินาที" data-se-insert><IcPlus size={15} />แทรกบรรทัด</button>
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => p.onSplit(sel()[0])} title="ตัดข้อความตรงเคอร์เซอร์เป็นสองบรรทัด แบ่งเวลาตามสัดส่วนความยาวข้อความ" data-se-split><IbSplit size={15} />แยก</button>
-        <button type="button" className="btn btn-ghost btn-sm" onClick={p.onJoin} title="รวมบรรทัดที่เลือกไว้ (เลือกบรรทัดเดียวรวมกับบรรทัดถัดไป) ต่อข้อความด้วยเว้นวรรคแบบ Aegisub เวลาตั้งแต่เริ่มบรรทัดแรกถึงจบบรรทัดสุดท้าย" data-se-join><IbMerge size={15} />รวมกับถัดไป</button>
-        <button type="button" className="btn btn-bad btn-sm" onClick={p.onDelete} title="ลบบรรทัดที่เลือก เลิกทำได้" data-se-delete><IbTrash size={15} />ลบ</button>
+        <button type="button" className={"btn btn-sm " + (p.why?.join ? "btn-wait" : "btn-ghost")} aria-disabled={!!p.why?.join || undefined} onClick={() => { if (!p.why?.join) p.onJoin(); }} title={p.why?.join ?? "รวมบรรทัดที่เลือกไว้ (เลือกบรรทัดเดียวรวมกับบรรทัดถัดไป) ต่อข้อความด้วยเว้นวรรคแบบ Aegisub เวลาตั้งแต่เริ่มบรรทัดแรกถึงจบบรรทัดสุดท้าย"} data-se-join><IbMerge size={15} />รวมกับถัดไป</button>
+        <button type="button" className={"btn btn-sm " + (p.why?.del ? "btn-wait" : "btn-bad")} aria-disabled={!!p.why?.del || undefined} onClick={() => { if (!p.why?.del) p.onDelete(); }} title={p.why?.del ?? "ลบบรรทัดที่เลือก เลิกทำได้"} data-se-delete><IbTrash size={15} />ลบ</button>
         <span style={{ flex: 1 }} />
         <span className={"se-cps" + (c > CPS_MAX ? " bad" : "")} data-se-cps><span className="nw">{Math.round(c)} ตัวต่อวินาที</span></span>
         <InfoTip title="ตัวอักษรต่อวินาที" tip={CPS_TIP} />

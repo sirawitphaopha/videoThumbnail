@@ -82,10 +82,19 @@ pub fn note(what: &str, detail: &str) {
 pub fn invoke(cmd: &str, body: &tauri::ipc::InvokeBody) {
     let Some((_, what)) = WATCH.iter().find(|(c, _)| *c == cmd) else { return };
     let detail = match body {
-        tauri::ipc::InvokeBody::Json(v) => brief(v),
+        tauri::ipc::InvokeBody::Json(v) => json_detail(v),
         tauri::ipc::InvokeBody::Raw(b) => format!("ข้อมูล {} ไบต์", b.len()),
     };
     note(what, &detail);
+}
+
+/// ค่าที่ส่งมาของคำสั่ง · เอกสารซับ (doc) ยาวทั้งไฟล์ ตัดออกก่อนจด เหลือที่อยู่ไฟล์กับแบบบันทึก
+/// เดิมเนื้อซับยาวจนบรรทัดถูกตัดก่อนถึงที่อยู่ไฟล์ บันทึกที่ล้มไม่มีที่อยู่ไฟล์เลย (ผู้ช่วยตรวจทาน R13)
+fn json_detail(v: &serde_json::Value) -> String {
+    if v.get("doc").is_none() { return brief(v); }
+    let mut v = v.clone();
+    if let Some(o) = v.as_object_mut() { o.remove("doc"); }
+    brief(&v)
 }
 
 fn append(dir: &Path, t: Stamp, what: &str, detail: &str) -> std::io::Result<()> {
@@ -181,6 +190,16 @@ mod tests {
         assert!(s.contains("patch {linkStores: [beside, app]}"), "{s}");
         assert!(s.contains("path: D:\\หนัง\\ดาวตก.mkv"), "{s}");
         assert!(s.contains("n: 3") && s.contains("x: ว่าง"), "{s}");
+    }
+
+    /// บันทึกซับจดที่อยู่ไฟล์กับแบบบันทึก ไม่จดเนื้อซับทั้งก้อน (R13)
+    #[test]
+    fn save_detail_skips_document() {
+        let long: String = "สวัสดีค่ะ ".repeat(500);
+        let v = serde_json::json!({ "doc": { "events": [{ "text": long }] }, "force": null, "mode": "replace", "target": "D:\\หนัง\\ดาวตก.th.srt" });
+        let s = line(Stamp { y: 2026, mo: 11, d: 14, h: 0, mi: 0, s: 0 }, "บันทึกไฟล์ซับ", &json_detail(&v));
+        assert!(s.contains("target: D:\\หนัง\\ดาวตก.th.srt") && s.contains("mode: replace"), "{s}");
+        assert!(!s.contains("สวัสดีค่ะ"), "{s}");
     }
 
     /// เขียนต่อท้ายไฟล์ของเดือน · ลบเฉพาะไฟล์บันทึกที่เกินจำนวนเดือน ไฟล์อื่นในโฟลเดอร์ไม่โดน

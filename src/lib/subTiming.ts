@@ -101,4 +101,4 @@ export function scrollIntoView(a: number, b: number, widthPx: number, mpp: numbe
 }
 
 // ทางลัดให้ตัวตรวจ เฉพาะรุ่นทดสอบ
-if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__subTiming = { get: () => st, setOpt, setLeft, setPend };
+if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__subTiming = { get: () => st, setOpt, setLeft, setPend, setOwnAudio };

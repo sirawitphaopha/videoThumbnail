@@ -162,6 +162,7 @@ pub fn save_sha256(movie: &Path, sha256: &str, target: Option<&Path>, new_name: 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use std::path::PathBuf;
 
     fn tmp(name: &str, body: &[u8]) -> PathBuf {
         let d = std::env::temp_dir().join(format!("ชั้นหนัง-hash-{}", std::process::id()));

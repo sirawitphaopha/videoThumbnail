@@ -174,16 +174,18 @@ pub fn parse_time(text: &str) -> i64 {
     let (mut time, mut current, mut after) = (0i64, 0i64, -1i64);
     for c in text.chars() {
         match c {
-            ':' => { time = time * 60 + current; current = 0; }
-            '.' | ',' => { time = (time * 60 + current) * 1000; current = 0; after = 100; }
+            // คูณบวกแบบไม่ล้น ตัวเลขยาวเกิน 19 หลัก (ไฟล์เสียหรือพิมพ์ผิดในแบบ notepad) รุ่นทดสอบเดิมพังทั้งโปรแกรม ตัวจริงได้เวลาเพี้ยน (ผู้ช่วยตรวจทาน R14)
+            // ค่าที่อ่านได้ถูกบีบไว้ที่เวลาสูงสุดอยู่แล้ว ผลของไฟล์ปกติเหมือนเดิมทุกตัว
+            ':' => { time = time.saturating_mul(60).saturating_add(current); current = 0; }
+            '.' | ',' => { time = time.saturating_mul(60).saturating_add(current).saturating_mul(1000); current = 0; after = 100; }
             '0'..='9' => {
                 let d = c as i64 - '0' as i64;
-                if after < 0 { current = current * 10 + d; } else { time += d * after; after /= 10; }
+                if after < 0 { current = current.saturating_mul(10).saturating_add(d); } else { time = time.saturating_add(d * after); after /= 10; }
             }
             _ => {}
         }
     }
-    if after < 0 { time = (time * 60 + current) * 1000; }
+    if after < 0 { time = time.saturating_mul(60).saturating_add(current).saturating_mul(1000); }
     time.clamp(0, MAX_MS)
 }
 
@@ -274,6 +276,9 @@ pub struct Source {
     pub size: u64,
     #[serde(default)]
     pub mtime: u64,
+    /// เลขแทร็กของซับในหนัง (ไม่มี = ไฟล์ซับ หรือฉบับบันทึกอัตโนมัติรุ่นก่อนที่ยังไม่จำ) · ใส่กลับเข้าหนังใช้เลขนี้ ไม่ใช้แทร็กที่หน้าเลือกอยู่ (ผู้ช่วยตรวจทาน F18)
+    #[serde(default)]
+    pub tid: Option<u64>,
 }
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
@@ -334,7 +339,8 @@ fn parse_event_line(t: &str, format: &[String]) -> Option<Event> {
     for (name, v) in format.iter().zip(parts.iter()) {
         let v = *v;
         match name.to_ascii_lowercase().as_str() {
-            "layer" => e.layer = v.trim().parse().ok()?,
+            // ช่องเลเยอร์ที่เป็น Marked= อ่านเป็นเลเยอร์ 0 แบบ AssDialogue::Parse ของ Aegisub ไม่ดูบรรทัด Format (ผู้ช่วยตรวจทาน R8)
+            "layer" => e.layer = if v.trim().starts_with("Marked=") { 0 } else { v.trim().parse().ok()? },
             "marked" => {}
             "start" => { e.start = parse_time(v.trim()); has_start = true; }
             "end" => e.end = parse_time(v.trim()),
@@ -939,7 +945,7 @@ pub fn save(doc: &SubDoc, target: &Path, mode: &str, force: bool) -> Result<Save
     }
     crate::actlog::note("บันทึกไฟล์ซับ", &format!("{} ({}{})", target.display(), enc.charset, if bad.is_some() { " เปลี่ยนรหัสเพราะมีตัวอักษรที่รหัสเดิมเก็บไม่ได้" } else { "" }));
     let (size, mtime) = stamp(target);
-    Ok(Saved { path: target.display().to_string(), enc, bad_char: bad.map(|c| c.to_string()), source: Source { path: target.display().to_string(), in_movie: false, size, mtime } })
+    Ok(Saved { path: target.display().to_string(), enc, bad_char: bad.map(|c| c.to_string()), source: Source { path: target.display().to_string(), in_movie: false, size, mtime, tid: None } })
 }
 
 // ---------------------------------------------------------------- คำสั่ง
@@ -951,6 +957,12 @@ fn work_dir(app: &AppHandle) -> Result<PathBuf, String> {
 }
 
 /// เปิดซับเป็นเอกสาร · ไฟล์ซับ หรือแทร็กในหนัง (tid ของ mkvmerge ff ของ ffprobe) · charset ว่าง = เดาเอง
+/// ขนาดกับเวลาแก้ของไฟล์ (หน้าแก้ซับเทียบหนังก่อนใส่ซับกลับเข้าหนัง · R3) · หาไฟล์ไม่เจอ = (0, 0)
+#[tauri::command]
+pub fn subdoc_stamp(path: String) -> (u64, u64) {
+    stamp(Path::new(&path))
+}
+
 #[tauri::command]
 pub async fn subdoc_open(app: AppHandle, path: String, in_movie: bool, tid: u64, ff: u64, charset: Option<String>) -> Result<SubDoc, String> {
     let tools = crate::tools::tools_dir(&app)?;
@@ -958,19 +970,26 @@ pub async fn subdoc_open(app: AppHandle, path: String, in_movie: bool, tid: u64,
     tauri::async_runtime::spawn_blocking(move || {
         let p = PathBuf::from(&path);
         if !p.exists() { return Err("หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่".into()); }
+        // จดขนาดกับเวลาแก้ก่อนอ่าน ไฟล์ถูกเขียนระหว่างอ่าน ค่าที่จดเป็นของเก่า เช็กตอนบันทึกจึงเตือน (ผู้ช่วยตรวจทาน R14)
+        // ซับในหนังจดของไฟล์หนังไว้ด้วย ก่อนใส่กลับเข้าหนังเทียบว่าหนังยังเป็นไฟล์เดิม ไม่ถูกรวมไฟล์ใหม่ระหว่างแก้ แทร็กเลขเดิมจึงยังเป็นแทร็กเดิม (R3)
+        let (size, mtime) = stamp(&p);
         let (bytes, hint) = crate::subs::bytes_of(&tools, &work, &p, in_movie, tid, ff)?;
         let mut doc = parse_doc(&bytes, &hint, charset.as_deref());
         let plain = !in_movie && matches!(hint.as_str(), "srt" | "ass" | "ssa" | "vtt" | "txt");
-        let (size, mtime) = if plain { stamp(&p) } else { (0, 0) };
-        doc.source = Some(Source { path, in_movie: !plain, size, mtime });
+        doc.source = Some(Source { path, in_movie: !plain, size, mtime, tid: (!plain).then_some(tid) });
         Ok(doc)
     }).await.map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
 pub async fn subdoc_save(doc: SubDoc, target: String, mode: String, force: Option<bool>) -> Result<Saved, String> {
-    tauri::async_runtime::spawn_blocking(move || save(&doc, Path::new(&target), &mode, force.unwrap_or(false))).await.map_err(|e| e.to_string())?
+    tauri::async_runtime::spawn_blocking(move || {
+        // บันทึกทีละงาน กดบันทึกสองครั้งเร็ว ๆ หรือตัวกันปิดเรียกพร้อมคนกด สองงานผ่านเช็กพร้อมกันแล้วงานหนึ่งส่งไฟล์ที่อีกงานเพิ่งเขียนลงถังขยะได้ (ผู้ช่วยตรวจทาน R14)
+        let _one = SAVE_LOCK.lock().unwrap_or_else(|e| e.into_inner());
+        save(&doc, Path::new(&target), &mode, force.unwrap_or(false))
+    }).await.map_err(|e| e.to_string())?
 }
+static SAVE_LOCK: std::sync::Mutex<()> = std::sync::Mutex::new(());
 
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -1103,9 +1122,11 @@ pub fn autosave_to(dir: &Path, doc: &SubDoc, name: &str) -> Result<AutoItem, Str
     let json = serde_json::to_vec_pretty(&item).map_err(|e| e.to_string())?;
     std::fs::write(format!("{}.json", file.display()), json).map_err(|e| format!("บันทึกอัตโนมัติไม่สำเร็จ {e}"))?;
     // เก่ากว่า 10 ฉบับของชื่อเดียวกัน ลบทิ้ง (ไฟล์ของโปรแกรมเอง ไม่ต้องลงถังขยะ)
-    let same: Vec<AutoItem> = list_autosaves(dir).into_iter().filter(|a| a.name == name).collect();
-    if same.len() > KEEP_AUTOSAVES {
-        for old in &same[KEEP_AUTOSAVES..] {
+    // ฉบับที่เพิ่งเขียนไม่ถูกตัดเสมอ นาฬิกาเครื่องถอยหลัง (ซิงก์เวลา) ลำดับของฉบับใหม่น้อยกว่าฉบับเก่า เดิมถูกลบทันทีหลังเขียน
+    // ทั้งที่ตอบว่าบันทึกอัตโนมัติแล้ว (ผู้ช่วยตรวจทาน R11) · ตัดจากฉบับที่เหลือ เก็บรวม 10 ฉบับ
+    let same: Vec<AutoItem> = list_autosaves(dir).into_iter().filter(|a| a.name == name && a.path != item.path).collect();
+    if same.len() >= KEEP_AUTOSAVES {
+        for old in &same[KEEP_AUTOSAVES - 1..] {
             let _ = std::fs::remove_file(&old.path);
             let _ = std::fs::remove_file(format!("{}.json", old.path));
         }
@@ -1145,7 +1166,11 @@ pub fn open_autosave(dir: &Path, path: &Path) -> Result<SubDoc, String> {
     let mut doc = parse_doc(&bytes, &ext, None);
     doc.source = match item.source {
         Some(s) if !s.in_movie && Path::new(&s.path).exists() => { let (size, mtime) = stamp(Path::new(&s.path)); Some(Source { size, mtime, ..s }) }
-        Some(s) => Some(Source { in_movie: true, size: 0, mtime: 0, ..s }),
+        // ซับในหนังเก็บขนาดกับเวลาแก้ของหนังตอนเปิดไว้ หนังเปลี่ยนไปแล้วใส่กลับเข้าหนังไม่ได้ (R3)
+        Some(s) if s.in_movie => Some(s),
+        // ไฟล์ซับเดิมหายไปแล้ว ยังเป็นไฟล์ซับ ไม่ใช่ซับในหนัง (เดิมตั้งเป็นในหนัง กดบันทึกแล้วไปทางใส่กลับเข้าหนังของหนังที่เปิดอยู่ · ผู้ช่วยตรวจทาน R1)
+        // บันทึกทับได้ "missing" หน้าจอพาไปบันทึกเป็นไฟล์ใหม่
+        Some(s) => Some(Source { size: 0, mtime: 0, ..s }),
         None => None,
     };
     Ok(doc)
@@ -1187,6 +1212,13 @@ mod tests {
         assert_eq!(parse_time("00:00:04,070"), 4070);
         assert_eq!(parse_time("00:00:10,04"), 10040);
         assert_eq!(parse_time("01:02.5"), 62500);
+        // ช่องเลเยอร์ที่เป็น Marked=0 ในไฟล์ ASS อ่านเป็นเลเยอร์ 0 แบบ Aegisub ไม่เป็นบรรทัดอ่านไม่ออก (R8)
+        let fmt: Vec<String> = EVENT_FORMAT.iter().map(|s| s.to_string()).collect();
+        let m = parse_event_line("Dialogue: Marked=0,0:00:01.00,0:00:02.00,Default,,0,0,0,,สวัสดี", &fmt).expect("ต้องอ่านได้");
+        assert_eq!((m.layer, m.start, m.text.as_str()), (0, 1000, "สวัสดี"));
+        // ตัวเลขยาวเกิน 19 หลักไม่ทำให้โปรแกรมพัง ได้เวลาสูงสุด (R14)
+        assert_eq!(parse_time("99999999999999999999999:00:00.00"), MAX_MS);
+        assert_eq!(parse_time("0:00:00.999999999999999999999999"), 999);
         assert_eq!(ass_time(4074), "0:00:04.07");
         assert_eq!(ass_time(4075), "0:00:04.08");
         assert_eq!(srt_time(3_723_004, ','), "01:02:03,004");
@@ -1405,7 +1437,7 @@ mod tests {
         std::fs::write(&other, "ห้ามโดนทับ").unwrap();
         let mut d = parse_doc(&std::fs::read(&f).unwrap(), "srt", None);
         let (size, mtime) = stamp(&f);
-        d.source = Some(Source { path: f.display().to_string(), in_movie: false, size, mtime });
+        d.source = Some(Source { path: f.display().to_string(), in_movie: false, size, mtime, tid: None });
         d.events[0].text = "ใหม่".into();
         // ไฟล์ใหม่ชื่อชน ต้องไม่ทับ
         assert_eq!(save(&d, &other, "new", false).unwrap_err(), "exists");
@@ -1425,7 +1457,7 @@ mod tests {
         assert!(std::fs::read_dir(&dir).unwrap().flatten().all(|e| !e.file_name().to_string_lossy().ends_with(".partial")));
         // ซับในหนังบันทึกทับไม่ได้
         let mut m = d.clone();
-        m.source = Some(Source { path: f.display().to_string(), in_movie: true, size: 0, mtime: 0 });
+        m.source = Some(Source { path: f.display().to_string(), in_movie: true, size: 0, mtime: 0, tid: Some(2) });
         assert!(save(&m, &f, "replace", false).is_err());
         let _ = std::fs::remove_dir_all(&dir);
     }
@@ -1438,7 +1470,7 @@ mod tests {
         std::fs::write(&orig, "1\n00:00:01,000 --> 00:00:02,000\nก\n").unwrap();
         let mut d = parse_doc(&std::fs::read(&orig).unwrap(), "srt", None);
         let (size, mtime) = stamp(&orig);
-        d.source = Some(Source { path: orig.display().to_string(), in_movie: false, size, mtime });
+        d.source = Some(Source { path: orig.display().to_string(), in_movie: false, size, mtime, tid: None });
         let auto = dir.join("autosave");
         std::fs::create_dir_all(&auto).unwrap();
         for k in 0..12 {
@@ -1457,9 +1489,30 @@ mod tests {
         assert!(!back.source.as_ref().unwrap().in_movie);
         // ไฟล์นอกโฟลเดอร์บันทึกอัตโนมัติเปิดผ่านทางนี้ไม่ได้
         assert!(open_autosave(&auto, &orig).is_err());
-        // ไฟล์เดิมหายไป ต้องบันทึกเป็นไฟล์ใหม่
+        // ไฟล์เดิมหายไป ยังเป็นไฟล์ซับ (ไม่ใช่ซับในหนัง) บันทึกทับได้ "missing" หน้าจอพาไปบันทึกเป็นไฟล์ใหม่ (R1)
         std::fs::remove_file(&orig).unwrap();
-        assert!(open_autosave(&auto, Path::new(&newest.path)).unwrap().source.unwrap().in_movie);
+        let gone = open_autosave(&auto, Path::new(&newest.path)).unwrap();
+        let gs = gone.source.clone().unwrap();
+        assert!(!gs.in_movie);
+        assert_eq!((gs.size, gs.mtime), (0, 0));
+        assert_eq!(save(&gone, &orig, "replace", false).unwrap_err(), "missing");
+        // ฉบับบันทึกอัตโนมัติของซับในหนังจำเลขแทร็กไว้ (F18)
+        let mut mv = d.clone();
+        mv.source = Some(Source { path: dir.join("หนัง.mkv").display().to_string(), in_movie: true, size: 0, mtime: 0, tid: Some(3) });
+        let ma = autosave_to(&auto, &mv, "หนัง.mkv แทร็ก 3").unwrap();
+        let back_movie = open_autosave(&auto, Path::new(&ma.path)).unwrap().source.unwrap();
+        assert!(back_movie.in_movie);
+        assert_eq!(back_movie.tid, Some(3));
+        // นาฬิกาเครื่องถอยหลัง ฉบับเก่ามีลำดับมากกว่าฉบับใหม่ ฉบับที่เพิ่งเขียนต้องยังอยู่ และยังเก็บรวม 10 ฉบับ (R11)
+        for a in list_autosaves(&auto) {
+            let j = format!("{}.json", a.path);
+            let mut v: serde_json::Value = serde_json::from_slice(&std::fs::read(&j).unwrap()).unwrap();
+            v["seq"] = serde_json::json!(u64::MAX / 2 + a.seq);
+            std::fs::write(&j, serde_json::to_vec(&v).unwrap()).unwrap();
+        }
+        let back_clock = autosave_to(&auto, &d, "เดิม.th.srt").unwrap();
+        assert!(Path::new(&back_clock.path).exists(), "ฉบับที่เพิ่งเขียนถูกลบ");
+        assert_eq!(list_autosaves(&auto).iter().filter(|a| a.name == "เดิม.th.srt").count(), 10);
         let _ = std::fs::remove_dir_all(&dir);
     }
 }

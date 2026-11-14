@@ -6,7 +6,7 @@
    ด้านขวา ภาพหนังของบรรทัดที่เคอร์เซอร์อยู่ กับรายการปัญหา (เวลาผิดรูปแบบ เวลาจบก่อนเริ่ม เวลาซ้อน อ่านไม่ทัน) กดแล้วไปบรรทัดนั้น */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { subDocApi, type SubDoc, type SubEvent } from "../../lib/api";
-import { edit, getSubEdit } from "../../lib/subEdit";
+import { edit, getSubEdit, setTyping } from "../../lib/subEdit";
 import { isAss, parseTime, plain } from "../../lib/subText";
 import type { Tip } from "../../lib/codecAdv";
 import InfoTip from "../InfoTip";
@@ -14,8 +14,18 @@ import { Skel } from "../ui";
 import { CPS_MAX } from "./SubGrid";
 
 let pending: (() => Promise<void>) | null = null;
-/** ใส่ข้อความที่พิมพ์ค้างลงเอกสารทันที (ก่อนบันทึก) */
-export const flushPad = () => (pending ? pending() : Promise.resolve());
+/** งานแปลงกลับที่กำลังรอฝั่ง Rust อยู่ (ตัวจับเวลาเริ่มไปแล้ว) */
+let inflight: Promise<void> | null = null;
+/** ใส่ข้อความที่พิมพ์ค้างลงเอกสารทันที (ก่อนบันทึก) · รองานแปลงกลับที่กำลังทำอยู่ด้วย
+    ไม่งั้นกดบันทึกตรงจังหวะที่แปลงกลับอยู่ บันทึกเอกสารเก่าแล้วที่พิมพ์หาย (ผู้ช่วยตรวจทาน F5) */
+export const flushPad = async () => {
+  if (pending) await pending();
+  while (inflight) await inflight;
+};
+/** มีที่พิมพ์ใน notepad ยังไม่ลงเอกสาร (รอตัวจับเวลา หรือกำลังแปลงกลับ) · ปุ่มบันทึกยังกดได้แม้เอกสารยังไม่นับว่าแก้แล้ว */
+export const padBusy = () => !!pending || !!inflight;
+/** ต่างกันแค่ที่มาของไฟล์ (หลังบันทึก) เนื้อหาเดิม */
+const sameContent = (a: SubDoc, b: SubDoc) => a.events === b.events && a.styles === b.styles && a.skeleton === b.skeleton && a.kind === b.kind && a.eol === b.eol;
 
 const key = (e: SubEvent) => JSON.stringify([e.comment, e.layer, e.start, e.end, e.style, e.actor, e.marginL, e.marginR, e.marginV, e.effect, e.text, e.ident, e.suffix]);
 /** รหัสบรรทัดเดิม ① บรรทัดที่ทุกช่องไม่เปลี่ยน ไล่ตามลำดับ มองข้างหน้าไม่เกิน 60 บรรทัด
@@ -41,8 +51,14 @@ export function keepIds(base: SubDoc, parsed: SubDoc): SubDoc {
     if (i - pi - 1 > 0 && i - pi - 1 === bNext - bi - 1) for (let k = 1; k < i - pi; k++) to[pi + k] = bi + k;
     pi = i; bi = bNext;
   }
-  const events = parsed.events.map((e, i) => ({ ...e, id: to[i] == null ? ++n : base.events[to[i] as number].id }));
-  const styles = parsed.styles.map((s) => { const o = base.styles.find((x) => x.fields[0] === s.fields[0]); return { ...s, id: o ? o.id : ++n }; });
+  // บรรทัดที่ทุกช่องเหมือนเดิม (รวมข้อความดิบที่ใช้เขียนกลับทุกไบต์ ยกเว้นรหัส) ใช้ตัวบรรทัดเดิม ตัวบอกว่าแก้แล้วเทียบตัวบรรทัด
+  // เดิมสร้างใหม่ทุกบรรทัด แก้ตัวเดียวแล้วทุกแถวขึ้นว่าแก้แล้ว ปุ่มย้อนกดได้ทุกบรรทัด (ผู้ช่วยตรวจทาน F16)
+  const same = <T extends { id: number }>(a: T, b: T) => JSON.stringify({ ...a, id: 0 }) === JSON.stringify({ ...b, id: 0 });
+  const events = parsed.events.map((e, i) => {
+    const b = to[i] == null ? null : base.events[to[i] as number];
+    return !b ? { ...e, id: ++n } : same(b, e) ? b : { ...e, id: b.id };
+  });
+  const styles = parsed.styles.map((s) => { const o = base.styles.find((x) => x.fields[0] === s.fields[0]); return !o ? { ...s, id: ++n } : same(o, s) ? o : { ...s, id: o.id }; });
   return { ...parsed, events, styles };
 }
 
@@ -159,6 +175,8 @@ export default function PadView(p: { doc: SubDoc; delay: number; video: React.Re
   // เข้าแบบนี้ หรือเอกสารเปลี่ยนจากที่อื่น (เลิกทำ ทำซ้ำ) วาดข้อความใหม่ แล้วนับเป็นการแก้รอบใหม่
   useEffect(() => {
     if (p.doc === applied.current) return;
+    // บันทึกแล้วได้แค่ที่มาของไฟล์ใหม่ เนื้อหาเดิม ไม่วาดข้อความใหม่ทับที่กำลังพิมพ์ (F5)
+    if (applied.current && sameContent(p.doc, applied.current)) { applied.current = p.doc; return; }
     let live = true;
     // ช่องพิมพ์ของหน้าเว็บเก็บตัวจบบรรทัดเป็น \n เสมอ (\r\n ถูกแปลงเอง) จึงแสดงแบบ \n แล้วคืนเป็นตัวจบบรรทัดของไฟล์ตอนแปลงกลับ
     subDocApi.render(p.doc).then((r) => { if (!live) return; const t = r.replace(/\r\n?/g, "\n"); applied.current = p.doc; baseText.current = t; latest.current = t; setText(t); session.current++; });
@@ -168,12 +186,28 @@ export default function PadView(p: { doc: SubDoc; delay: number; video: React.Re
   const commit = async () => {
     window.clearTimeout(timer.current);
     pending = null;
-    const t = latest.current, base = getSubEdit().doc;
-    if (t == null || !base || base !== applied.current || t === baseText.current) return;
-    // คืนตัวจบบรรทัดของไฟล์ (เช่น \r\n) ไม่งั้นบันทึกแล้วไฟล์เปลี่ยนตัวจบบรรทัดทั้งไฟล์
-    const parsed = await subDocApi.parseText(base.eol === "\n" ? t : t.replace(/\n/g, base.eol), base.kind, base.enc, base.source);
-    if (getSubEdit().doc !== base) return;
-    const next = keepIds(base, { ...parsed, exact: base.exact });
+    const t = latest.current, base0 = getSubEdit().doc;
+    // ไม่มีอะไรต้องแปลง (พิมพ์แล้วลบกลับเท่าเดิม) เลิกบอกว่ากำลังพิมพ์ด้วย
+    if (t == null || !base0 || base0 !== applied.current || t === baseText.current) { if (!inflight) setTyping(false); return; }
+    let done!: () => void;
+    const job = new Promise<void>((r) => { done = r; });
+    inflight = job;
+    try {
+      // คืนตัวจบบรรทัดของไฟล์ (เช่น \r\n) ไม่งั้นบันทึกแล้วไฟล์เปลี่ยนตัวจบบรรทัดทั้งไฟล์
+      const parsed = await subDocApi.parseText(base0.eol === "\n" ? t : t.replace(/\n/g, base0.eol), base0.kind, base0.enc, base0.source);
+      // ระหว่างแปลง เอกสารเปลี่ยนแค่ที่มาของไฟล์ (บันทึกเสร็จ) ใช้ผลแปลงต่อกับเอกสารล่าสุด · เนื้อหาเปลี่ยนจริง (เลิกทำ) ทิ้งผลแปลง
+      const base = getSubEdit().doc;
+      if (!base || (base !== base0 && !sameContent(base, base0))) return;
+      applyParsed(t, base, { ...parsed, source: base.source, enc: base.enc, exact: base.exact });
+    } finally {
+      if (inflight === job) inflight = null;
+      // ไม่มีที่พิมพ์ค้างแล้ว (ลงเอกสารแล้วหรือทิ้งเพราะเนื้อหาเปลี่ยน) เลิกบอกตัวกันปิดว่ากำลังพิมพ์
+      if (!pending && !inflight) setTyping(false);
+      done();
+    }
+  };
+  const applyParsed = (t: string, base: SubDoc, parsed: SubDoc) => {
+    const next = keepIds(base, parsed);
     applied.current = next;
     baseText.current = t;
     // บรรทัดที่เลือกหายไป เลือกบรรทัดที่อยู่ตำแหน่งเดิม
@@ -188,10 +222,12 @@ export default function PadView(p: { doc: SubDoc; delay: number; video: React.Re
     latest.current = t;
     window.clearTimeout(timer.current);
     pending = commit;
+    // บอกตัวกันปิดโปรแกรมทันทีว่ามีที่พิมพ์ค้าง ไม่รอครึ่งวินาที (F8)
+    setTyping(true);
     timer.current = window.setTimeout(() => void commit(), 500);
   };
   // ออกจากแบบนี้ (สลับแบบ เปลี่ยนหน้า) ใส่ที่พิมพ์ค้างลงเอกสาร
-  useEffect(() => () => { if (pending) void pending(); }, []);
+  useEffect(() => () => { if (pending) void pending().finally(() => { if (!pending && !inflight) setTyping(false); }); else setTyping(false); }, []);
 
   const lines = useMemo(() => (text ?? "").split(/\r\n|\r|\n/), [text]);
   const [probs, setProbs] = useState<Prob[]>([]);

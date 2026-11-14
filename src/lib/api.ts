@@ -325,7 +325,7 @@ export type SubEvent = {
   ident: string | null; suffix: string; pre: SubRaw[]; raw: SubRaw[];
 };
 export type SubItem = { k: "line"; t: string; e: string } | { k: "styles" } | { k: "events" };
-export type SubSource = { path: string; inMovie: boolean; size: number; mtime: number };
+export type SubSource = { path: string; inMovie: boolean; size: number; mtime: number; /** เลขแทร็กของซับในหนัง ใส่กลับเข้าหนังใช้เลขนี้ (F18) · ไม่มี = ไฟล์ซับ หรือฉบับบันทึกอัตโนมัติรุ่นก่อน */ tid?: number | null };
 export type SubDoc = {
   kind: "ass" | "ssa" | "srt" | "vtt"; enc: SubEnc; eol: string;
   /** false = ไฟล์มีอักษรเสีย เข้ารหัสกลับไม่ได้ไบต์เดิม ต้องเตือนก่อนบันทึก */
@@ -344,6 +344,8 @@ export const subDocApi = {
   convert: (doc: SubDoc, to: "srt" | "ass", playRes?: [number, number]) => call<{ doc: SubDoc; lost: SubLost[] }>("subdoc_convert", { doc, to, playRes: playRes ?? null }),
   freeName: (path: string) => call<string>("subdoc_free_name", { path }),
   render: (doc: SubDoc) => call<string>("subdoc_render", { doc }),
+  /** ขนาดกับเวลาแก้ของไฟล์ · หาไม่เจอ [0, 0] (เทียบหนังก่อนใส่ซับกลับ R3) */
+  stamp: (path: string) => call<[number, number]>("subdoc_stamp", { path }),
   /** ซับเป็นไฟล์ชั่วคราวในโฟลเดอร์ tmp ของโปรแกรม ใช้ใส่กลับเข้าหนัง (ขั้น 9) */
   temp: (doc: SubDoc) => call<string>("subdoc_temp", { doc }),
   parseText: (text: string, kind: SubDoc["kind"], enc: SubEnc, source: SubSource | null) => call<SubDoc>("subdoc_parse_text", { text, kind, enc, source }),

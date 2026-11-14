@@ -10,7 +10,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { pickSave, subDocApi, type SubAutosave, type SubDoc, type SubLost } from "../../lib/api";
 import type { AvTrack } from "../../lib/avJob";
-import { autosaveNow, blankEvent, deleteEvents, edit, editedCount, getSubEdit, insertEvent, markSaved, openDoc, redo, select, setSaver, undo, useSubEdit } from "../../lib/subEdit";
+import { autosaveStrict, blankEvent, deleteEvents, edit, editedCount, getSubEdit, insertEvent, markSaved, openDoc, redo, select, setSaver, undo, useSubEdit, type SaveResult } from "../../lib/subEdit";
 import { useHotkeys } from "../../lib/hotkeys";
 import { usePageActiveRef } from "../../lib/pageActive";
 import { garbageGet, garbageSet, isAss, snapMs, type TagMode } from "../../lib/subText";
@@ -31,7 +31,7 @@ import { getTiming, getViewW, msPerPx, rangeOf, scrollIntoView, setLeft, setOpt,
 import FontDialog from "./FontDialog";
 import { DetailsDialog, DummyDialog, JumpDialog } from "./VideoDialogs";
 import { useLineCmds } from "./LineCmds";
-import PadView, { flushPad } from "./PadView";
+import PadView, { flushPad, padBusy } from "./PadView";
 import RemuxDialog from "./RemuxDialog";
 import "../../styles/subedit.css";
 
@@ -80,7 +80,12 @@ export type SubEditorProps = {
   playRes: [number, number] | null;
   tab: "aeg" | "long" | "pad";
   onAddMovie?: () => void;
+  /** ใส่ซับกลับเข้าหนังแล้วไฟล์หนังได้ชื่อใหม่ (หนัง MP4 กับซับ ASS ได้ไฟล์ .mkv) หน้าซับไตเติลชี้ไฟล์ใหม่ (ผู้ช่วยตรวจทาน F9) */
+  onMovieMoved?: (from: string, to: string) => void;
 };
+
+/** เลขคำขอเปิดซับล่าสุด (F6) · เป็นของโมดูลเพราะที่เก็บเอกสารเป็นของโมดูล หน้าแก้ซับที่ถอดไปแล้วก็ยังเรียก openDoc ได้ */
+let openSeq = 0;
 
 export default function SubEditor(p: SubEditorProps) {
   const st = useSubEdit();
@@ -109,16 +114,20 @@ export default function SubEditor(p: SubEditorProps) {
 
   const openAs = (charset?: string) => {
     setLoad({ s: "busy" });
+    // คำขอที่ถูกแทนแล้ว (กดแทร็กอื่นหรือรหัสอักษรอื่นต่อ) ผลมาทีหลังไม่ทับเอกสารของคำขอล่าสุด · ซับในหนังถอดนานหลายวินาที (ผู้ช่วยตรวจทาน F6)
+    const my = ++openSeq;
     subDocApi.open(path, p.track.inMovie, p.track.tid, p.track.ff ?? p.track.tid, charset).then((d) => {
+      if (my !== openSeq) return;
       openDoc(d, { name: p.label, movie: p.video, key, base });
       setLoad({ s: "ok" });
       setSave({ s: "idle" });
-    }, (e) => setLoad({ s: "failed", err: String(e) }));
+    }, (e) => { if (my === openSeq) setLoad({ s: "failed", err: String(e) }); });
   };
   // เปิดซับเมื่อเปลี่ยนแทร็ก · สลับหน้าไปกลับแล้วซับที่แก้อยู่ไม่เปิดใหม่
   useEffect(() => {
     const m = getSubEdit().meta;
-    if (m?.key === key && getSubEdit().doc) { setLoad({ s: "ok" }); return; }
+    // ใช้เอกสารที่เปิดอยู่แล้ว ยกเลิกคำขอเปิดแทร็กอื่นที่ยังค้าง (กดแทร็กอื่นแล้วรีบกดกลับ ผลของแทร็กอื่นต้องไม่ทับ · F6)
+    if (m?.key === key && getSubEdit().doc) { openSeq++; setLoad({ s: "ok" }); return; }
     openAs();
   }, [key]); // eslint-disable-line react-hooks/exhaustive-deps
   // เพิ่มหรือเปลี่ยนไฟล์วิดีโอทีหลัง เอกสารเดิมยังอยู่
@@ -167,6 +176,9 @@ export default function SubEditor(p: SubEditorProps) {
 
   const ev = doc?.events.find((e) => e.id === st.active) ?? null;
   const at = doc && ev ? doc.events.indexOf(ev) : -1;
+  // เปลี่ยนบรรทัดก่อนยืนยัน ทิ้งเวลาที่ลากค้าง (Revert ของ Aegisub) ทุกแบบการดู · เดิมทิ้งเฉพาะตอนกรอบคลื่นเสียงแสดงอยู่
+  // ซ่อนภาพและเสียงหรืออยู่แบบ notepad แล้วคีย์ลัดขยับเวลาไว้ พอยืนยันที่บรรทัดอื่น เวลาไปลงบรรทัดเดิมโดยไม่รู้ตัว (ผู้ช่วยตรวจทาน F14)
+  useEffect(() => { const pd = getTiming().pend; if (pd && pd.id !== ev?.id) setPend(null); }, [ev?.id]);
   const dl = p.track.delay;
 
   // AUTO เลือกบรรทัดแล้วภาพไปเฟรมแรกที่ซับขึ้น (Video/Subtitle Sync ของ Aegisub) · ยังไม่มีภาพเลย ไปเฟรมนั้นแม้ปิด AUTO
@@ -233,7 +245,8 @@ export default function SubEditor(p: SubEditorProps) {
     const pd = getTiming().pend;
     if (!pd) return false;
     const by = new Map([[pd.id, pd], ...pd.links.map((l) => [l.id, l] as const)]);
-    edit("ตั้งเวลาบนคลื่นเสียง", (dd) => ({ ...dd, events: dd.events.map((e) => { const x = by.get(e.id); return x ? { ...e, start: snapMs(Math.max(0, x.start), dd), end: snapMs(Math.max(0, x.end), dd) } : e; }) }), auto ? { merge: `timing:${pd.id}` } : {});
+    // เรียงเวลาเริ่มก่อนเวลาจบทุกบรรทัด รวมบรรทัดที่ลากตามด้วย Ctrl ซึ่งลากข้ามขอบอีกฝั่งได้ (Apply ของ TimeableLine ใน Aegisub ใช้ซ้ายสุดขวาสุด · F13)
+    edit("ตั้งเวลาบนคลื่นเสียง", (dd) => ({ ...dd, events: dd.events.map((e) => { const x = by.get(e.id); return x ? { ...e, start: snapMs(Math.max(0, Math.min(x.start, x.end)), dd), end: snapMs(Math.max(0, x.start, x.end), dd) } : e; }) }), auto ? { merge: `timing:${pd.id}` } : {});
     setPend(null);
     return true;
   };
@@ -279,25 +292,26 @@ export default function SubEditor(p: SubEditorProps) {
   const frWhy = vst.dummy ? "" :!vst.movie ? "ยังไม่มีไฟล์วิดีโอ จึงไม่รู้เวลาของแต่ละเฟรม" : vst.closed ? "ปิดวิดีโออยู่" : vst.load === "err" ? "อ่านเวลาเฟรมของวิดีโอไม่ได้" : "กำลังอ่านเวลาของทุกเฟรม รอสักครู่";
   const sameKind = (d: SubDoc) => { const s = d.source; return !!s && !s.inMovie && extOf(s.path) === KIND_EXT[d.kind] || (!!s && !s.inMovie && d.kind === "srt" && extOf(s.path) === "txt"); };
 
-  /** บันทึก · คืน true เมื่อบันทึกแล้ว · ต้องให้คนเลือกเพิ่ม (หน้าต่างถาม) คืน false */
-  const doSave = async (force = false, inexactOk = false): Promise<boolean> => {
+  /** บันทึก · คืน true เมื่อบันทึกแล้ว · "choose" ต้องให้คนเลือกเพิ่ม (หน้าต่างถามขึ้นในหน้านี้) · false ล้ม
+      ตัวกันปิดโปรแกรมแยกต้องเลือกออกจากล้ม พาไปหน้านี้ให้เห็นหน้าต่างถาม ไม่ขึ้นว่าบันทึกไม่สำเร็จ (ผู้ช่วยตรวจทาน F17) */
+  const doSave = async (force = false, inexactOk = false): Promise<SaveResult> => {
     await flushPad();
     const d = getSubEdit().doc;
     if (!d || save.s === "saving") return false;
-    if (!sameKind(d)) { if (d.source?.inMovie) setRemux(true); else openSaveAs(d.kind); return false; }
-    if (!d.exact && !inexactOk) { setAsk({ k: "inexact" }); return false; }
+    if (!sameKind(d)) { if (d.source?.inMovie) setRemux(true); else openSaveAs(d.kind); return "choose"; }
+    if (!d.exact && !inexactOk) { setAsk({ k: "inexact" }); return "choose"; }
     setSave({ s: "saving" });
     try {
       const r = await subDocApi.save(d, d.source!.path, "replace", force);
-      const now = getSubEdit().doc ?? d;
-      markSaved({ ...now, source: r.source, enc: r.enc, exact: true });
+      // เอกสารที่เขียนคือ d (ตอนกด) · พิมพ์ต่อระหว่างรอยังนับว่ายังไม่บันทึก (F4)
+      markSaved(d, { source: r.source, enc: r.enc, exact: true });
       setSave({ s: "done", note: r.badChar ? `รหัส ${d.enc.charset} เก็บตัว ${r.badChar} ไม่ได้ จึงบันทึกเป็น UTF-8` : null });
       return true;
     } catch (e) {
       const m = String(e);
       setSave({ s: "idle" });
-      if (m === "changed") { setAsk({ k: "changed" }); return false; }
-      if (m === "missing") { openSaveAs(d.kind); return false; }
+      if (m === "changed") { setAsk({ k: "changed" }); return "choose"; }
+      if (m === "missing") { openSaveAs(d.kind); return "choose"; }
       setSave({ s: "failed", err: m });
       return false;
     }
@@ -325,7 +339,7 @@ export default function SubEditor(p: SubEditorProps) {
       const conv = to === d.kind ? d : to === "srt" || to === "ass" ? (await subDocApi.convert(d, to, p.playRes ?? undefined)).doc : d;
       const r = await subDocApi.save(conv, target, "new");
       setAsk(null);
-      if (conv === d) markSaved({ ...(getSubEdit().doc ?? d), source: r.source, enc: r.enc, exact: true }, { ...getSubEdit().meta!, name: nameOf(r.path), base: r.path.replace(/\.[^.\\/]+$/, "") });
+      if (conv === d) markSaved(d, { source: r.source, enc: r.enc, exact: true }, { ...getSubEdit().meta!, name: nameOf(r.path), base: r.path.replace(/\.[^.\\/]+$/, "") });
       else {
         // เปลี่ยนชนิดแล้ว เปิดไฟล์ใหม่ที่บันทึกแทน ประวัติเลิกทำเริ่มใหม่ (คนละชนิดไฟล์)
         const nd = await subDocApi.open(r.path, false, 0, 0);
@@ -349,12 +363,20 @@ export default function SubEditor(p: SubEditorProps) {
 
   // ---------------------------------------------------------------- แก้บรรทัด
   const goto = (i: number) => { if (!doc) return; const k = Math.max(0, Math.min(doc.events.length - 1, i)); const e = doc.events[k]; if (e) select([e.id], e.id); };
+  /** ไปบรรทัดถัดไป · create คือ Enter ในช่องพิมพ์กับปุ่มยืนยันแล้วไปต่อ (grid/line/next/create ของ Aegisub)
+      ยืนยันเวลาที่ลากค้างบนคลื่นเสียงก่อนเปลี่ยนบรรทัด (tc->Commit ใน grid.cpp) ไม่งั้นกรอบคลื่นเสียงทิ้งที่ลากไว้เงียบ ๆ (ผู้ช่วยตรวจทาน F1)
+      อ่านเอกสารล่าสุดจากที่เก็บหลังยืนยัน บรรทัดใหม่จึงเริ่มที่เวลาจบที่เพิ่งยืนยัน ไม่ใช่เวลาจบของรอบวาดก่อนกด (cur->End หลัง Commit · F2) */
   const onNext = (create: boolean) => {
-    if (!doc || !ev) return;
-    if (at < doc.events.length - 1) { goto(at + 1); return; }
+    if (create) commitTiming();
+    const s = getSubEdit();
+    const d = s.doc;
+    const cur = d?.events.find((e) => e.id === s.active);
+    if (!d || !cur) return;
+    const i = d.events.indexOf(cur);
+    if (i < d.events.length - 1) { const nx = d.events[i + 1]; select([nx.id], nx.id); return; }
     if (!create) return;
     // บรรทัดสุดท้าย Enter สร้างบรรทัดใหม่ต่อท้าย เริ่มที่เวลาจบ ยาว 3 วินาที (Timing/Default Duration ของ Aegisub)
-    insertEvent(at, blankEvent(doc, { start: ev.end, end: ev.end + 3000, style: ev.style }), "เพิ่มบรรทัด");
+    insertEvent(i, blankEvent(d, { start: cur.end, end: cur.end + 3000, style: cur.style }), "เพิ่มบรรทัด");
   };
   const onDelete = () => { if (st.sel.length) deleteEvents(st.sel, st.sel.length > 1 ? `ลบ ${st.sel.length} บรรทัด` : "ลบบรรทัด"); };
   const onToAss = () => {
@@ -378,7 +400,8 @@ export default function SubEditor(p: SubEditorProps) {
     { code: "KeyZ", ctrl: true, field: true, run: () => undo() },
     { code: "KeyY", ctrl: true, field: true, run: () => redo() },
     { code: "KeyZ", ctrl: true, shift: true, field: true, run: () => redo() },
-    { code: "KeyS", ctrl: true, field: true, run: () => void doSave() },
+    // ใช้เงื่อนไขเดียวกับปุ่มบันทึก ยังไม่แก้อะไรแล้วไม่เขียนไฟล์ใหม่ ไม่ส่งไฟล์เดิมลงถังขยะ และข้ามการกดค้าง (ผู้ช่วยตรวจทาน F24)
+    { code: "KeyS", ctrl: true, field: true, run: (e) => { const d = getSubEdit().doc; if (e.repeat || !d || (!getSubEdit().dirty && !padBusy() && sameKind(d))) return; void doSave(); } },
     // เล่นหรือหยุดหนังในกรอบวิดีโอ (video/play ของ Aegisub Ctrl+P · vidPlay.ts)
     { code: "KeyP", ctrl: true, field: true, run: () => toggleVidPlay() },
     { code: "KeyS", ctrl: true, shift: true, field: true, run: () => { const d = getSubEdit().doc; if (d) openSaveAs(d.kind); } },
@@ -471,7 +494,7 @@ export default function SubEditor(p: SubEditorProps) {
         <button type="button" className={"btn btn-ghost btn-sm" + (saving ? " btn-wait" : "")} aria-disabled={saving || undefined} onClick={() => !saving && openSaveAs(doc.kind)} title="บันทึกเป็นไฟล์ใหม่ เลือกชนิดไฟล์ได้ (Ctrl+Shift+S)" data-se-saveas><IcFile size={15} />บันทึกเป็นไฟล์ใหม่</button>
         <button type="button" className={"btn btn-sm " + (saving || saveWhy ? "btn-wait" : "btn-main")} aria-disabled={saving || !!saveWhy || undefined}
           title={saveWhy ?? (sameKind(doc) ? `บันทึกทับ ${nameOf(doc.source!.path)} ไฟล์เดิมลงถังขยะ (Ctrl+S)` : "ซับนี้ยังไม่มีไฟล์ของตัวเอง ต้องบันทึกเป็นไฟล์ใหม่")}
-          onClick={() => { if (!saving && !saveWhy) void doSave(); }} data-se-save>
+          onClick={() => { if (!saving && (!saveWhy || padBusy())) void doSave(); }} data-se-save>
           <IbSave size={15} /><Keep all={["บันทึก", "กำลังบันทึก…"]}>{saving ? "กำลังบันทึก…" : "บันทึก"}</Keep>
         </button>
       </div>
@@ -489,7 +512,13 @@ export default function SubEditor(p: SubEditorProps) {
         </div>}
         {tall && !fold && <AudioBar opts={tm.opts} noAudio={noAudio} noLine={noLine} onAct={audioAct} onToggle={(k, v) => setOpt(k, v)} />}
         {ev ? <SubEditBox doc={doc} ev={ev} orig={st.orig[ev.id]} savedEv={savedOf(ev.id)} fr={fr} frWhy={frWhy} delayMs={dl} unit={unit} onUnit={setUnit} onPrev={() => goto(at - 1)} onNext={onNext}
-          onInsert={cmds.insertAfter} onSplit={(k) => cmds.split("estimate", k)} onJoin={() => cmds.join(false)} onDelete={onDelete} onToAss={onToAss} onFont={(apply, current) => setFont({ apply, current })} />
+          onInsert={cmds.insertAfter} onSplit={(k) => cmds.split("estimate", k)} onJoin={() => cmds.join(false)} onDelete={onDelete} onToAss={onToAss} onFont={(apply, current) => setFont({ apply, current })}
+          why={{
+            prev: at <= 0 ? "บรรทัดนี้เป็นบรรทัดแรก" : undefined,
+            next: at >= doc.events.length - 1 ? "บรรทัดนี้เป็นบรรทัดสุดท้าย กด Enter ในช่องพิมพ์เพื่อเพิ่มบรรทัดใหม่ต่อท้าย" : undefined,
+            join: st.sel.length < 2 && at >= doc.events.length - 1 ? "บรรทัดนี้เป็นบรรทัดสุดท้าย ไม่มีบรรทัดถัดไปให้รวม" : undefined,
+            del: st.sel.length ? undefined : "ยังไม่ได้เลือกบรรทัด",
+          }} />
           : <div className="stat info"><CardIcon kind="info" /><div><b>ซับนี้ยังไม่มีบรรทัด</b><div className="minirow"><button type="button" className="btn btn-ghost btn-sm" onClick={() => insertEvent(-1, blankEvent(doc, { start: 0, end: 3000 }), "เพิ่มบรรทัด")} data-se-first>เพิ่มบรรทัดแรก</button></div></div></div>}
         <div className="se-gridbar">
           {cmds.bar}
@@ -509,12 +538,14 @@ export default function SubEditor(p: SubEditorProps) {
       <DetailsDialog open={vdlg === "details"} onClose={() => setVdlg(null)} name={nameOf(p.video)} table={vst.table} dummy={vst.dummy} fr={fr} keys={vidKeys(vst).list.length} />
       <DummyDialog open={vdlg === "dummy"} onClose={() => setVdlg(null)} onUse={applyDummy} />
       <FontDialog open={!!font} current={font?.current ?? { name: "", size: "" }} sample={ev ? shownText(ev, doc).replace(/\n/g, " ") : ""} onClose={() => setFont(null)} onApply={(t, r) => font?.apply(t, r)} />
-      <RemuxDialog open={remux} onClose={() => setRemux(false)} movie={p.moviePath} tid={p.track.tid} doc={doc} onSaveAsFile={() => openSaveAs(doc.kind)}
+      <RemuxDialog open={remux} onClose={() => setRemux(false)} doc={doc} onSaveAsFile={() => openSaveAs(doc.kind)}
         onFail={(m) => setSave({ s: "failed", err: `ใส่ซับกลับเข้าหนังไม่สำเร็จ  ${m}` })}
-        onDone={(r) => {
+        onDone={(r, written, stamp) => {
           if (import.meta.env.DEV) (window as unknown as { __lastRemux?: unknown }).__lastRemux = r;
-          const now = getSubEdit().doc ?? doc;
-          markSaved({ ...now, source: now.source ? { ...now.source, path: r.output } : now.source });
+          // ระหว่างรวมไฟล์มีการเปิดซับอื่นแทนแล้ว ผลนี้ไม่ใช่ของเอกสารที่เปิดอยู่ ไม่นับว่าบันทึก ไม่เปลี่ยนที่มา (F25)
+          if (getSubEdit().meta?.key !== key) return;
+          markSaved(written, { source: written.source ? { ...written.source, path: r.output, ...stamp } : written.source, enc: written.enc, exact: written.exact });
+          if (written.source && r.output !== written.source.path) p.onMovieMoved?.(written.source.path, r.output);
           const orig = r.original === "trash" ? "ไฟล์เดิมลงถังขยะ" : r.original === "kept" ? "ไฟล์เดิมอยู่ในโฟลเดอร์ไฟล์เดิม" : "";
           if (r.same === false) setSave({ s: "failed", err: `ใส่ซับกลับเข้าหนังแล้ว แต่ซับที่อ่านกลับจากไฟล์ใหม่ไม่ตรงกับที่แก้ ตรวจไฟล์ ${nameOf(r.output)} อีกครั้ง  ${orig}` });
           else setSave({ s: "done", note: `ใส่ซับกลับเข้าหนังแล้ว ${orig}` });
@@ -576,8 +607,8 @@ export default function SubEditor(p: SubEditorProps) {
             <div key={a.path} className="se-auto">
               <span className="se-cut"><b>{a.name}</b> <span className="small nw">{`${a.at} ${a.events.toLocaleString("en-US")} บรรทัด`}</span></span>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => {
-                // ที่แก้ค้างในหน้านี้เก็บเป็นฉบับอัตโนมัติก่อน แล้วค่อยเปิดฉบับที่เลือก ไม่มีอะไรหาย
-                void autosaveNow().then(() => subDocApi.openAutosave(a.path)).then((d) => { openDoc(d, { name: a.name, movie: p.video, key, base: (d.source?.path ?? a.path).replace(/\.[^.\\/]+$/, "") }, { dirty: true }); setAutoList(null); }, (e) => setSave({ s: "failed", err: String(e) }));
+                // ที่แก้ค้างในหน้านี้เก็บเป็นฉบับอัตโนมัติก่อน แล้วค่อยเปิดฉบับที่เลือก ไม่มีอะไรหาย · เก็บไม่ได้ ไม่เปิดทับ (F7)
+                void flushPad().then(() => autosaveStrict()).then(() => subDocApi.openAutosave(a.path)).then((d) => { openDoc(d, { name: a.name, movie: p.video, key, base: (d.source?.path ?? a.path).replace(/\.[^.\\/]+$/, "") }, { dirty: true }); setAutoList(null); }, (e) => setSave({ s: "failed", err: String(e) }));
               }} data-se-autoopen>เปิด</button>
             </div>
           ))}

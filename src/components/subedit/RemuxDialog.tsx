@@ -5,7 +5,8 @@
 import { useEffect, useRef, useState } from "react";
 import { langName } from "../../lib/langs";
 import { listen } from "@tauri-apps/api/event";
-import { inApp, mergeApi, type PosterProgress, type SubDoc } from "../../lib/api";
+import { inApp, mergeApi, subDocApi, vidApi, type PosterProgress, type SubDoc } from "../../lib/api";
+import { stopVidPlay } from "../../lib/vidPlay";
 import type { Tip } from "../../lib/codecAdv";
 import { remuxPlan, remuxSub, type RemuxDone, type RemuxPlan } from "../../lib/subRemux";
 import { useSettings } from "../../lib/settings";
@@ -25,8 +26,15 @@ const REMUX_TIP: Tip = {
   r: "ยังแก้ซับอยู่ บันทึกข้างหนังไปก่อน แก้เสร็จแล้วค่อยใส่กลับเข้าหนังครั้งเดียว",
 };
 
-export default function RemuxDialog(p: { open: boolean; onClose: () => void; movie: string; tid: number; doc: SubDoc; onSaveAsFile: () => void; onDone: (r: RemuxDone) => void; onFail: (m: string) => void }) {
+/** หนังกับเลขแทร็กมาจากที่มาของเอกสาร (เปิดจากแทร็กไหน หรือฉบับบันทึกอัตโนมัติจำไว้) ไม่ใช่แทร็กที่หน้าเลือกอยู่
+    กดเปลี่ยนแทร็กเร็ว ๆ หรือเปิดฉบับอัตโนมัติของซับอีกแทร็ก จะได้ไม่แทนแทร็กผิด (ผู้ช่วยตรวจทาน F6 F18)
+    onDone ได้เอกสารที่ใส่กลับจริงด้วย ให้หน้าแก้ซับนับเฉพาะเอกสารนั้นว่าบันทึกแล้ว (F4) */
+export default function RemuxDialog(p: { open: boolean; onClose: () => void; doc: SubDoc; onSaveAsFile: () => void; onDone: (r: RemuxDone, written: SubDoc, stamp: { size: number; mtime: number }) => void; onFail: (m: string) => void }) {
   const { settings } = useSettings();
+  const src = p.doc.source;
+  const movie = src?.inMovie ? src.path : "";
+  const tid = src?.inMovie && src.tid != null ? src.tid : null;
+  const noTrack = !movie ? "ซับนี้ไม่ได้มาจากในไฟล์หนัง" : tid == null ? "ฉบับนี้ไม่รู้ว่ามาจากแทร็กไหนของหนัง จึงใส่กลับเข้าหนังไม่ได้ บันทึกเป็นไฟล์ข้างหนังได้" : null;
   const [plan, setPlan] = useState<RemuxPlan | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [orig, setOrig] = useState<"keep" | "trash">("keep");
@@ -38,7 +46,13 @@ export default function RemuxDialog(p: { open: boolean; onClose: () => void; mov
     if (!p.open) return;
     setPlan(null); setErr(null); setRun(null);
     setOrig((settings?.originalAfter ?? "keep") as "keep" | "trash");
-    remuxPlan(p.movie, p.tid, p.doc).then(setPlan, (e) => setErr(String(e)));
+    if (noTrack || tid == null) { setErr(noTrack); return; }
+    // หนังต้องยังเป็นไฟล์เดิมตอนเปิดซับ (ขนาดกับเวลาแก้เท่าเดิม) · ถูกรวมไฟล์ใหม่ระหว่างแก้ แทร็กเลขเดิมอาจเป็นซับอื่นแล้ว (ผู้ช่วยตรวจทาน R3)
+    const known = !!(src?.size || src?.mtime);
+    (known ? subDocApi.stamp(movie) : Promise.resolve<[number, number]>([0, 0])).then(([size, mtime]) => {
+      if (known && (size !== src!.size || mtime !== src!.mtime)) { setErr("หนังเปลี่ยนไปหลังเปิดซับนี้ แทร็กอาจไม่ใช่แทร็กเดิมแล้ว เปิดซับจากหนังอีกครั้งก่อนใส่กลับ หรือบันทึกเป็นไฟล์ข้างหนัง"); return; }
+      return remuxPlan(movie, tid, p.doc).then(setPlan);
+    }).catch((e) => setErr(String(e)));
   }, [p.open]); // eslint-disable-line react-hooks/exhaustive-deps
   useEffect(() => {
     if (!run || !inApp) return;
@@ -48,14 +62,20 @@ export default function RemuxDialog(p: { open: boolean; onClose: () => void; mov
   const busy = run != null;
   const why = busy ? "กำลังใส่ซับกลับเข้าหนัง" : err ?? plan?.why ?? (plan ? null : "กำลังอ่านแทร็กของหนัง");
   const go = async () => {
-    if (why) return;
+    if (why || tid == null) return;
     setRun("start");
+    const written = p.doc;
+    // งานของหน้าแก้ซับเองที่ถือไฟล์หนังอยู่ หยุดก่อน ไม่งั้นรวมไฟล์ตอบว่าไฟล์ถูกเปิดอยู่ในโปรแกรมอื่น ซึ่งหาไม่เจอ (ผู้ช่วยตรวจทาน R12)
+    stopVidPlay();
+    await Promise.all([vidApi.scenesStop().catch(() => {}), vidApi.tableStop().catch(() => {}), vidApi.playStop().catch(() => {})]);
     try {
       const w = window as unknown as { __remuxDry?: boolean };
       if (import.meta.env.DEV && w.__remuxDry) throw new Error("ทดสอบ ไม่รวมไฟล์จริง");
-      const r = await remuxSub(p.movie, p.tid, p.doc, orig);
+      const r = await remuxSub(movie, tid, written, orig);
+      // ขนาดกับเวลาแก้ของหนังไฟล์ใหม่ ใช้เทียบตอนใส่กลับครั้งถัดไป
+      const [size, mtime] = await subDocApi.stamp(r.output).catch((): [number, number] => [0, 0]);
       setRun(null);
-      p.onDone(r);
+      p.onDone(r, written, { size, mtime });
       p.onClose();
     } catch (e) {
       setRun(null);
@@ -78,12 +98,12 @@ export default function RemuxDialog(p: { open: boolean; onClose: () => void; mov
       </>}>
       <div className="se-dummy se-cdlg" data-remux>
         <div className="se-dlgtext"><Phr>บันทึกได้สองทาง เป็นไฟล์ซับข้างหนัง หรือใส่กลับเข้าไฟล์หนัง</Phr> <InfoTip title="บันทึกซับในหนัง" tip={REMUX_TIP} /></div>
-        <div className="se-drow"><span className="se-dlbl">หนัง</span><span className="small" data-remux-movie>{nameOf(p.movie)}</span></div>
+        <div className="se-drow"><span className="se-dlbl">หนัง</span><span className="small" data-remux-movie>{movie ? nameOf(movie) : "—"}</span></div>
         <div className="se-drow"><span className="se-dlbl">แทร็กซับ</span>
           {plan ? <span className="small" data-remux-track>{t ? `แทร็กที่ ${t.tid} ${t.name || "ไม่มีชื่อ"} ภาษา${langName(t.lang)} แบบ ${codecLabel(t.codec)}` : plan.why}</span> : err ? <span className="small se-dlgmsg bad">{err}</span> : <Skel w={220} h={16} />}
         </div>
         <div className="se-drow"><span className="se-dlbl">ไฟล์ใหม่</span>
-          <span className="small" data-remux-out>{plan ? (plan.ext === "mp4" && plan.output === "mkv" ? "เป็น MKV เพราะ MP4 ใส่ซับ ASS ไม่ได้ ชื่อเดิมนามสกุลใหม่" : `${plan.output.toUpperCase()} ชื่อเดิม`) : ""}</span>
+          <span className="small" data-remux-out>{plan ? (plan.ext === "mp4" && plan.output === "mkv" ? "เป็น MKV เพราะ MP4 ใส่ซับ ASS ไม่ได้ ชื่อเดิมนามสกุลใหม่" : `${plan.output.toUpperCase()} ชื่อเดิม`) : err ? "—" : ""}</span>
         </div>
         <div className="se-drow"><span className="se-dlbl">ไฟล์เดิม</span>
           <Seg small label="ไฟล์เดิม" value={orig} onChange={setOrig} disabledReason={busy ? "กำลังใส่ซับกลับเข้าหนัง" : undefined}

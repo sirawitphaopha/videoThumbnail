@@ -106,11 +106,22 @@ fn wide(p: &Path) -> Vec<u16> {
     p.as_os_str().encode_wide().chain(std::iter::once(0)).collect()
 }
 
+/// ที่อยู่สำหรับคำสั่งของ Windows ที่ต้องรับที่อยู่ยาวเกิน 259 ตัว (MAX_PATH) · ยาวแล้วเติม \\?\ (หรือ \\?\UNC\ ของที่อยู่บนเครือข่าย)
+/// std::fs ของ Rust เติมให้เองอยู่แล้ว แต่ MoveFileExW ที่เรียกตรงไม่เติม · ไฟล์ซับชื่อยาวเขียนไฟล์ชั่วคราวได้แต่ย้ายมาแทนไม่ได้
+/// หลังส่งไฟล์เดิมลงถังขยะไปแล้ว ซับหายจากโฟลเดอร์ (ผู้ช่วยตรวจทาน R2)
+pub(crate) fn wide_long(p: &Path) -> Vec<u16> {
+    let s = p.as_os_str().to_string_lossy();
+    if s.encode_utf16().count() < 248 || !p.is_absolute() || s.starts_with(r"\\?\") { return wide(p); }
+    let b = s.replace('/', "\\");
+    let v = match b.strip_prefix(r"\\") { Some(rest) => format!(r"\\?\UNC\{rest}"), None => format!(r"\\?\{b}") };
+    std::ffi::OsStr::new(&v).encode_wide().chain(std::iter::once(0)).collect()
+}
+
 /// ย้ายชื่อแบบไม่เขียนทับ · ปลายทางมีไฟล์อยู่แล้ว Windows ปฏิเสธเอง (ERROR_ALREADY_EXISTS) ไม่มีจังหวะให้ทับ
 /// แม้ไฟล์ปลายทางโผล่มาหลังเช็กชื่อ
 pub fn move_no_replace(old: &Path, new: &Path) -> Result<(), RenameProblem> {
     use windows_sys::Win32::Storage::FileSystem::MoveFileExW;
-    let ok = unsafe { MoveFileExW(wide(old).as_ptr(), wide(new).as_ptr(), 0) };
+    let ok = unsafe { MoveFileExW(wide_long(old).as_ptr(), wide_long(new).as_ptr(), 0) };
     if ok != 0 {
         return Ok(());
     }
@@ -195,6 +206,26 @@ mod tests {
     use sha2::Digest;
     use std::collections::BTreeMap;
     use std::fs;
+
+    /// ที่อยู่ยาวเกิน 259 ตัว (โฟลเดอร์หนังชื่อยาวแบบไฟล์ที่โหลดมา กับชื่อไฟล์ชั่วคราว .partial) ย้ายได้ ไม่ทับไฟล์ที่มีอยู่ (ผู้ช่วยตรวจทาน R2)
+    #[test]
+    fn move_no_replace_long_paths() {
+        let root = std::env::temp_dir().join(format!("ชั้นหนัง-ที่อยู่ยาว-{}", std::process::id()));
+        let deep = root.join("ชื่อเรื่อง (2024) [1080p BluRay x265 10bit DTS-HD MA 5.1]-กลุ่มที่ปล่อยไฟล์ ชื่อยาวมาก").join("ชื่อเรื่อง (2024) [1080p BluRay x265 10bit DTS-HD MA 5.1]-กลุ่มที่ปล่อยไฟล์ ชื่อยาวมาก อีกชั้น");
+        fs::create_dir_all(&deep).unwrap();
+        let target = deep.join("ชื่อเรื่อง (2024) [1080p BluRay x265 10bit DTS-HD MA 5.1]-กลุ่ม.th.srt");
+        let partial = deep.join("ชื่อเรื่อง (2024) [1080p BluRay x265 10bit DTS-HD MA 5.1]-กลุ่ม.th.srt.1234567890abcdef.partial");
+        assert!(partial.as_os_str().encode_wide().count() > 260, "ที่อยู่ทดสอบต้องยาวเกิน 260 ตัว");
+        fs::write(&partial, b"new").unwrap();
+        move_no_replace(&partial, &target).expect("ที่อยู่ยาวต้องย้ายได้");
+        assert_eq!(fs::read(&target).unwrap(), b"new");
+        assert!(!partial.exists());
+        // ปลายทางมีไฟล์อยู่แล้ว ยังไม่ทับ
+        fs::write(&partial, b"other").unwrap();
+        assert_eq!(move_no_replace(&partial, &target).unwrap_err().kind, "duplicate");
+        assert_eq!(fs::read(&target).unwrap(), b"new");
+        let _ = fs::remove_dir_all(&root);
+    }
 
     struct Tmp(PathBuf);
     impl Drop for Tmp {

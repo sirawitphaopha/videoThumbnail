@@ -88,6 +88,8 @@ export async function play(src: AudSrc, t0: number, t1: number | null) {
     if (!startCtx) { startCtx = c.currentTime + 0.03; startMs = from; schedAt = startCtx; }
     const s = c.createBufferSource();
     s.buffer = b; s.connect(g); s.start(schedAt);
+    // ก้อนที่ดังจบแล้วเอาออกจากรายการ คืนหน่วยความจำ (ก้อนละราว 1.5 MB เล่นจนจบเรื่องสองชั่วโมงเดิมค้างเกิน 2.5 GB · ผู้ช่วยตรวจทาน F10)
+    s.onended = () => { const i = nodes.indexOf(s); if (i >= 0) nodes.splice(i, 1); s.disconnect(); };
     nodes.push(s);
     schedAt += b.duration;
     next += b.duration * 1000;
@@ -99,9 +101,10 @@ export async function play(src: AudSrc, t0: number, t1: number | null) {
   }
   // เล่นจนจบแล้วปิดสถานะเอง
   const last = nodes[nodes.length - 1];
-  if (!last) { set({ playing: false }); return; }
-  last.onended = () => { if (run === my) { nodes = []; startCtx = 0; set({ playing: false }); } };
+  if (!last) { if (run === my) { startCtx = 0; set({ playing: false }); } return; }
+  const drop = last.onended;
+  last.onended = (ev) => { drop?.call(last, ev); if (run === my) { nodes = []; startCtx = 0; set({ playing: false }); } };
 }
 
 // ทางลัดให้ตัวตรวจ เฉพาะรุ่นทดสอบ · อ่านเวลาที่กำลังเล่น
-if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__audioNow = () => ({ playing: st.playing, now: playNow(), err: st.err });
+if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__audioNow = () => ({ playing: st.playing, now: playNow(), err: st.err, nodes: nodes.length });

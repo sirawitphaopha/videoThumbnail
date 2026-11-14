@@ -62,8 +62,9 @@ function DummyCanvas(p: { spec: DummySpec; w: number; h: number }) {
   useLayoutEffect(() => {
     const el = cv.current;
     if (!el) return;
-    const r = window.devicePixelRatio || 1;
-    el.width = Math.round(p.w * r); el.height = Math.round(p.h * r);
+    // ผืนวาดด้านยาวไม่เกิน 4,096 จุด ภาพสีพื้นกับตารางหมากรุกขยายได้ไม่เสียหน้าตา · เดิมวิดีโอจำลอง 4K ซูม 300% ได้ผืนวาดราว 17,280 จุด ใช้หน่วยความจำราว 670 MB (ผู้ช่วยตรวจทาน F22)
+    const r = Math.min(window.devicePixelRatio || 1, 4096 / Math.max(1, p.w, p.h));
+    el.width = Math.max(1, Math.round(p.w * r)); el.height = Math.max(1, Math.round(p.h * r));
     const g = el.getContext("2d")!;
     const { r: R, g: G, b: B } = p.spec;
     g.fillStyle = `rgb(${R},${G},${B})`; g.fillRect(0, 0, el.width, el.height);

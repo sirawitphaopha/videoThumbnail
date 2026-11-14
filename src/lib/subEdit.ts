@@ -6,6 +6,7 @@
    เอกสารไม่แก้ทับของเดิม ทุกการแก้สร้างเอกสารใหม่ บรรทัดที่ไม่ได้แก้คงเป็นตัวเดิม ใช้เทียบได้ว่าบรรทัดไหนแก้แล้ว */
 import { useSyncExternalStore } from "react";
 import { inApp, subDocApi, type SubAutosave, type SubDoc, type SubEvent } from "./api";
+import { setOwnAudio, setPend } from "./subTiming";
 
 export type SubEditMeta = {
   /** ชื่อที่แสดงและใช้ตั้งชื่อฉบับบันทึกอัตโนมัติ เช่น ชื่อไฟล์ซับ หรือ ชื่อหนัง แทร็ก 2 */
@@ -49,10 +50,18 @@ let dirtySent: string | null = null;
 /** เอกสารที่เปิดยังไม่ได้เขียนลงไฟล์เดิม (เปิดจากฉบับบันทึกอัตโนมัติ) · ยังไม่บันทึกแม้เลิกทำกลับไปจุดเปิด */
 let baseUnsaved = false;
 
+/** มีที่พิมพ์ในแบบ notepad ยังไม่ลงเอกสาร · ตัวกันปิดโปรแกรมต้องนับว่ายังไม่บันทึก (ผู้ช่วยตรวจทาน F8) */
+let typing = false;
+export function setTyping(v: boolean) {
+  if (typing === v) return;
+  typing = v;
+  set({});
+}
+
 function set(patch: Partial<SubEditState>) {
   st = { ...st, ...patch };
   subs.forEach((f) => f());
-  const want = st.dirty && st.meta ? st.meta.name : null;
+  const want = (st.dirty || typing) && st.meta ? st.meta.name : null;
   if (want !== dirtySent && inApp) {
     dirtySent = want;
     void subDocApi.setDirty(want).catch(() => {});
@@ -73,6 +82,9 @@ export function openDoc(doc: SubDoc, meta: SubEditMeta, opts?: { dirty?: boolean
   const first = doc.events.find((e) => !e.comment) ?? doc.events[0];
   last = null;
   autosaved = doc;
+  // เวลาที่ลากค้างของเอกสารเดิมไม่ติดมา (รหัสบรรทัดอาจตรงกัน) · ไฟล์เสียงแยกผูกกับซับที่เปิด เปิดซับอื่นแล้วกลับไปใช้เสียงของหนัง (ผู้ช่วยตรวจทาน F14 F12)
+  setPend(null);
+  if (st.meta?.key !== meta.key) setOwnAudio(null);
   // ฉบับบันทึกอัตโนมัติเปิดแล้วนับว่ายังไม่บันทึก (ยังไม่ได้เขียนลงไฟล์เดิม)
   baseUnsaved = !!opts?.dirty;
   set({ ...START, doc, meta, saved: doc, orig, sel: first ? [first.id] : [], active: first?.id ?? null, dirty: baseUnsaved });
@@ -80,6 +92,7 @@ export function openDoc(doc: SubDoc, meta: SubEditMeta, opts?: { dirty?: boolean
 
 export function closeDoc() {
   last = null;
+  setPend(null);
   autosaved = null;
   baseUnsaved = false;
   set({ ...START });
@@ -98,18 +111,32 @@ export function edit(label: string, fn: (d: SubDoc) => SubDoc, opts?: { merge?: 
   set({ doc: next, undo, redo: [], dirty: next !== st.saved || baseUnsaved, sel: opts?.sel ?? st.sel, active: opts?.active !== undefined ? opts.active : st.active });
 }
 
+/** ที่มาของไฟล์ (ที่อยู่ ขนาด เวลาแก้ เลขแทร็ก) รหัสอักษร และเข้ารหัสได้ครบไหม ไม่ใช่การแก้ที่เลิกทำได้
+    เอกสารที่ย้อนคืนจากประวัติใช้ค่าของเอกสารปัจจุบัน ไม่งั้นเลิกทำหลังบันทึกแล้วได้ที่มาของก่อนบันทึกคืน
+    กดบันทึกแล้วเตือนว่าไฟล์ถูกแก้จากที่อื่น หรือเขียนทับไฟล์เดิมหลังบันทึกเป็นไฟล์ใหม่ (ผู้ช่วยตรวจทาน F3) */
+function keepFile(d: SubDoc): SubDoc {
+  const c = st.doc;
+  if (!c || (d.source === c.source && d.enc === c.enc && d.exact === c.exact)) return d;
+  return { ...d, source: c.source, enc: c.enc, exact: c.exact };
+}
+
 export function undo() {
   const top = st.undo.at(-1);
   if (!top || !st.doc) return;
   last = null;
-  set({ doc: top.doc, sel: top.sel, active: top.active, undo: st.undo.slice(0, -1), redo: [...st.redo, { doc: st.doc, sel: st.sel, active: st.active, label: top.label }], dirty: top.doc !== st.saved || baseUnsaved });
+  // เวลาที่ลากค้างทิ้งตอนเลิกทำ ไม่ไปลงทับเอกสารที่ย้อนแล้ว (F14)
+  setPend(null);
+  const doc = keepFile(top.doc);
+  set({ doc, sel: top.sel, active: top.active, undo: st.undo.slice(0, -1), redo: [...st.redo, { doc: st.doc, sel: st.sel, active: st.active, label: top.label }], dirty: doc !== st.saved || baseUnsaved });
 }
 
 export function redo() {
   const top = st.redo.at(-1);
   if (!top || !st.doc) return;
   last = null;
-  set({ doc: top.doc, sel: top.sel, active: top.active, redo: st.redo.slice(0, -1), undo: [...st.undo, { doc: st.doc, sel: st.sel, active: st.active, label: top.label }], dirty: top.doc !== st.saved || baseUnsaved });
+  setPend(null);
+  const doc = keepFile(top.doc);
+  set({ doc, sel: top.sel, active: top.active, redo: st.redo.slice(0, -1), undo: [...st.undo, { doc: st.doc, sel: st.sel, active: st.active, label: top.label }], dirty: doc !== st.saved || baseUnsaved });
 }
 
 export function select(ids: number[], active?: number | null) {
@@ -117,11 +144,16 @@ export function select(ids: number[], active?: number | null) {
   set({ sel: ids, active: active !== undefined ? active : ids.at(-1) ?? null });
 }
 
-/** บันทึกสำเร็จ · เอกสารที่บันทึกแล้ว (ที่มาใหม่ ขนาดกับเวลาแก้ใหม่) เป็นจุดเทียบใหม่ ประวัติเลิกทำยังอยู่ */
-export function markSaved(doc: SubDoc, meta?: SubEditMeta) {
-  autosaved = doc;
+/** บันทึกสำเร็จ · written คือเอกสารที่เขียนลงไฟล์จริง (ตอนกดบันทึก) · file ที่มาใหม่ของไฟล์ รหัสอักษร เข้ารหัสได้ครบ
+    เอกสารที่บันทึกแล้วเป็นจุดเทียบใหม่ ประวัติเลิกทำยังอยู่
+    พิมพ์ต่อระหว่างรอบันทึก เอกสารปัจจุบันได้ที่มาใหม่ด้วย แต่ยังนับว่ายังไม่บันทึก (ไม่งั้นตัวที่พิมพ์ระหว่างรอถูกนับว่าบันทึกแล้วทั้งที่ไม่ได้ลงไฟล์ · F4) */
+export function markSaved(written: SubDoc, file: Pick<SubDoc, "source" | "enc" | "exact">, meta?: SubEditMeta) {
+  const saved: SubDoc = { ...written, ...file };
+  const now = st.doc;
+  const doc = !now || now === written ? saved : { ...now, ...file };
+  autosaved = saved;
   baseUnsaved = false;
-  set({ doc, saved: doc, dirty: false, meta: meta ?? st.meta });
+  set({ doc, saved, dirty: doc !== saved, meta: meta ?? st.meta });
 }
 
 /** รหัสบรรทัดใหม่ที่ไม่ซ้ำกับทุกบรรทัดและสไตล์ในเอกสาร */
@@ -170,7 +202,15 @@ export function deleteEvents(ids: number[], label: string) {
   if (!d || ids.length === 0) return;
   const drop = new Set(ids);
   const firstAt = d.events.findIndex((e) => drop.has(e.id));
-  const events = d.events.filter((e) => !drop.has(e.id));
+  // บรรทัดในไฟล์ที่ตารางไม่แสดง (บรรทัดอ่านไม่ออก ความเห็น ;) เก็บติดหน้าบรรทัดซับถัดไป ลบบรรทัดซับนั้นแล้วย้ายไปติดหน้าบรรทัดที่เหลือถัดไป
+  // ไม่หายไปเงียบ ๆ (ผู้ช่วยตรวจทาน R8) · บรรทัดว่างอย่างเดียวไม่ย้าย
+  const events: SubEvent[] = [];
+  let carry: SubEvent["pre"] = [];
+  for (const e of d.events) {
+    if (drop.has(e.id)) { if (e.pre.some((r) => r.t.trim())) carry = [...carry, ...e.pre]; continue; }
+    events.push(carry.length ? { ...e, pre: [...carry, ...e.pre] } : e);
+    carry = [];
+  }
   const next = events[Math.min(firstAt, events.length - 1)];
   edit(label, (x) => ({ ...x, events }), { sel: next ? [next.id] : [], active: next?.id ?? null });
 }
@@ -194,12 +234,13 @@ export function editedCount() {
 }
 
 /* ตัวบันทึกของหน้าแก้ซับ · หน้าต่างถามตอนปิดโปรแกรมเรียกผ่านทางนี้ (หน้าแก้ซับเป็นคนรู้ว่าบันทึกทับหรือต้องถามชื่อไฟล์ใหม่)
-   คืน true บันทึกแล้ว false ไม่สำเร็จหรือต้องให้คนเลือกเพิ่ม · ยังไม่มีหน้าแก้ซับ = null */
-let saver: (() => Promise<boolean>) | null = null;
-export function setSaver(f: (() => Promise<boolean>) | null) {
+   คืน true บันทึกแล้ว "choose" หน้าแก้ซับขึ้นหน้าต่างให้คนเลือกต่อ false ไม่สำเร็จ · ยังไม่มีหน้าแก้ซับ = null (ผู้ช่วยตรวจทาน F17) */
+export type SaveResult = boolean | "choose";
+let saver: (() => Promise<SaveResult>) | null = null;
+export function setSaver(f: (() => Promise<SaveResult>) | null) {
   saver = f;
 }
-export async function requestSave(): Promise<boolean | null> {
+export async function requestSave(): Promise<SaveResult | null> {
   return saver ? saver() : null;
 }
 
@@ -218,6 +259,21 @@ export async function autosaveNow(): Promise<SubAutosave | null> {
   }
 }
 if (inApp) setInterval(() => { void autosaveNow(); }, AUTOSAVE_MS);
+
+/** เก็บที่แก้เป็นฉบับบันทึกอัตโนมัติก่อนทิ้งเอกสาร (ไม่บันทึก เปิดฉบับอัตโนมัติ ปิดโปรแกรมแบบไม่บันทึก)
+    เก็บไม่ได้โยนข้อผิดพลาด ทางเรียกต้องหยุดและบอกคน ไม่ทิ้งที่แก้ทั้งที่ยังไม่มีฉบับให้เปิดคืน (ผู้ช่วยตรวจทาน F7) */
+export async function autosaveStrict(): Promise<void> {
+  const d = st.doc, m = st.meta;
+  if (!d || !m || !st.dirty || d === autosaved) return;
+  try {
+    const r = await subDocApi.autosave(d, m.name);
+    autosaved = d;
+    set({ autosave: { at: r.at, err: null } });
+  } catch (e) {
+    set({ autosave: { at: st.autosave.at, err: String(e) } });
+    throw new Error(`เก็บฉบับบันทึกอัตโนมัติไม่สำเร็จ ยังไม่ทิ้งที่แก้  ${String(e)}`);
+  }
+}
 
 /* ทางลัดให้ตัวตรวจ เฉพาะรุ่นทดสอบ */
 if (import.meta.env.DEV) {

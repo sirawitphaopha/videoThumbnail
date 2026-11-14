@@ -7,7 +7,7 @@
    ที่ลากไว้ยังไม่ลงบรรทัดจนกดยืนยัน (เปิดยืนยันทันทีแล้วลงเลย) · ล้อเมาส์เลื่อนซ้ายขวา Ctrl กับล้อซูม
    แถบเลื่อนตั้งสามอันทางขวา ซูมแนวนอน ซูมแนวตั้ง ความดัง กับปุ่มโซ่ผูกสองอันหลัง · ลากขอบล่างปรับความสูง จำไว้
    รูปคลื่นขอทีละแผ่น 512 จุด (sub_peaks) เก็บไว้ เลื่อนกลับมาไม่ถอดซ้ำ · ภาพความถี่ขอเฉพาะช่วงที่เห็น (graph_window) */
-import { useEffect, useLayoutEffect, useRef, useState } from "react";
+import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { audApi, graphApi, pickFile, pickSave, type GWindow, type SubDoc, type SubEvent } from "../../lib/api";
 import type { Tip } from "../../lib/codecAdv";
 import { playNow, setVolume, usePlay } from "../../lib/audioPlay";
@@ -161,6 +161,21 @@ export default function SubAudio(p: Props) {
   const X = (t: number) => (t - left) / mpp;
   const fr = vidRate(vs);
 
+  // ภาพความถี่ทำครั้งเดียวต่อข้อมูลชุดหนึ่ง (ถอด base64 ทุกช่องแล้วลงสี) · รอบวาดแค่แปะภาพ
+  // เดิมทำใหม่ทุกรอบวาด ระหว่างเล่นเสียงหรือขยับเมาส์ถอดใหม่ 60 ครั้งต่อวินาที เส้นเล่นสะดุด (ผู้ช่วยตรวจทาน F11)
+  const specImg = useMemo(() => {
+    if (!spec || !spec.w.spec.length) return null;
+    const chs = spec.w.spec.map((b64) => Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0))), cols = spec.w.cols, bins = spec.w.bins;
+    const off = document.createElement("canvas"); off.width = cols; off.height = bins;
+    const og = off.getContext("2d")!, img = og.createImageData(cols, bins);
+    for (let row = 0; row < bins; row++) for (let col = 0; col < cols; col++) {
+      let v = 0; for (const a of chs) v = Math.max(v, a[col * bins + (bins - 1 - row)] ?? 0);
+      const q = (row * cols + col) * 4; img.data[q] = LUT[v * 3]; img.data[q + 1] = LUT[v * 3 + 1]; img.data[q + 2] = LUT[v * 3 + 2]; img.data[q + 3] = 255;
+    }
+    og.putImageData(img, 0, 0);
+    return off;
+  }, [spec]);
+
   // วาดทั้งภาพ
   useLayoutEffect(() => {
     const el = cv.current;
@@ -171,16 +186,9 @@ export default function SubAudio(p: Props) {
     g.setTransform(r, 0, 0, r, 0, 0);
     g.fillStyle = "#ffffff"; g.fillRect(0, 0, w, h);
     const sp = o.spectrum && spec ? spec : null;
-    if (sp && sp.w.spec.length) {
-      const chs = sp.w.spec.map((b64) => Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0))), cols = sp.w.cols, bins = sp.w.bins;
-      const off = document.createElement("canvas"); off.width = cols; off.height = bins;
-      const og = off.getContext("2d")!, img = og.createImageData(cols, bins);
-      for (let row = 0; row < bins; row++) for (let col = 0; col < cols; col++) {
-        let v = 0; for (const a of chs) v = Math.max(v, a[col * bins + (bins - 1 - row)] ?? 0);
-        const q = (row * cols + col) * 4; img.data[q] = LUT[v * 3]; img.data[q + 1] = LUT[v * 3 + 1]; img.data[q + 2] = LUT[v * 3 + 2]; img.data[q + 3] = 255;
-      }
-      og.putImageData(img, 0, 0); g.imageSmoothingEnabled = true;
-      g.drawImage(off, X(sp.t0), 0, (sp.t1 - sp.t0) / mpp, h);
+    if (sp && specImg) {
+      g.imageSmoothingEnabled = true;
+      g.drawImage(specImg, X(sp.t0), 0, (sp.t1 - sp.t0) / mpp, h);
     }
     // ช่วงของบรรทัด · บรรทัดอื่นจาง บรรทัดที่เลือกไว้หลายบรรทัดอีกสี บรรทัดที่กำลังแก้เข้ม
     const sel = new Set(p.sel);

@@ -31,8 +31,10 @@ if (!import.meta.env.DEV) {
   });
   window.addEventListener("keydown", (e) => {
     const k = e.key.toLowerCase();
+    // เทียบรหัสปุ่ม (e.code) ด้วย แป้นเป็นไทย e.key เป็นตัวไทย (Ctrl+R ได้ "พ") แต่เบราว์เซอร์ยังรีเฟรชตามรหัสปุ่ม ที่แก้หาย (ผู้ช่วยตรวจทาน F15)
+    const ctrlKey = (e.ctrlKey || e.metaKey) && !e.altKey && (["KeyR", "KeyP", "KeyS"].includes(e.code) || ["r", "p", "s"].includes(k));
     // จดไว้ว่าตัวนี้กันเพื่อเบราว์เซอร์ คีย์ลัดของโปรแกรมที่ใช้ปุ่มเดียวกันยังทำงาน (browserKeys.ts)
-    if (e.key === "F5" || e.key === "BrowserRefresh" || ((e.ctrlKey || e.metaKey) && !e.altKey && ["r", "p", "s"].includes(k))) { browserBlocked.add(e); e.preventDefault(); }
+    if (e.key === "F5" || e.code === "F5" || e.key === "BrowserRefresh" || ctrlKey) { browserBlocked.add(e); e.preventDefault(); }
   }, true);
 }
 createRoot(document.getElementById("root")!).render(

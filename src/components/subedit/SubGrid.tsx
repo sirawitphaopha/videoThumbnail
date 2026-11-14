@@ -68,12 +68,23 @@ export default function SubGrid(p: {
   const first = Math.max(0, Math.floor(top / ROW) - PAD);
   const last = Math.min(ev.length, Math.ceil((top + p.height) / ROW) + PAD);
 
+  // จุดตั้งต้นของการเลือกช่วงด้วย Shift (extendRow ของ Aegisub base_grid.cpp) ตามแถวที่กำลังแก้ ยกเว้นตอนขยายช่วงด้วย Shift
+  // เดิมนับจากแถวที่กำลังแก้ซึ่งย้ายไปปลายช่วงทุกครั้ง กด Shift ลงห้าครั้งได้แค่สองบรรทัดท้าย (ผู้ช่วยตรวจทาน F19)
+  const anchor = useRef<number | null>(p.active ?? null);
+  const extending = useRef(false);
+  useEffect(() => { if (!extending.current) anchor.current = p.active ?? null; extending.current = false; }, [p.active]);
   const pick = (i: number, e: React.MouseEvent | null) => {
     const id = ev[i].id;
     if (e?.shiftKey && at >= 0) {
-      const [a, b] = at < i ? [at, i] : [i, at];
+      const k = anchor.current == null ? -1 : ev.findIndex((x) => x.id === anchor.current);
+      const s = k >= 0 ? k : at;
+      const [a, b] = s < i ? [s, i] : [i, s];
+      // แถวที่กำลังแก้ไม่เปลี่ยน ตัวดักข้างบนไม่ทำงาน ไม่ต้องตั้งธง ไม่งั้นค้างไปกันการเปลี่ยนครั้งถัดไป
+      extending.current = id !== p.active;
       p.onSelect(ev.slice(a, b + 1).map((x) => x.id), id);
     } else if (e && (e.ctrlKey || e.metaKey)) {
+      // Ctrl คลิกบรรทัดเดียวที่เลือกอยู่ ไม่เอาออก ไม่งั้นไม่มีบรรทัดที่เลือกแต่ช่องแก้ยังแสดงบรรทัดนั้น (base_grid.cpp ของ Aegisub · ผู้ช่วยตรวจทาน F21)
+      if (sel.has(id) && p.sel.length === 1) return;
       p.onSelect(sel.has(id) ? p.sel.filter((x) => x !== id) : [...p.sel, id], id);
     } else p.onSelect([id], id);
   };

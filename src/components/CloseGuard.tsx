@@ -7,7 +7,8 @@ import { useEffect, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { api, inApp } from "../lib/api";
 import { runConfirm, useLinkJob } from "../lib/linkJob";
-import { autosaveNow, requestSave } from "../lib/subEdit";
+import { autosaveStrict, requestSave } from "../lib/subEdit";
+import { flushPad } from "./subedit/PadView";
 import { CardIcon, Keep } from "./ui";
 import Dialog from "./Dialog";
 import { IbSave, IbStop } from "./icons";
@@ -65,14 +66,22 @@ export default function CloseGuard({ onGoLink, onGoSub }: { onGoLink: () => void
     const ok = await requestSave();
     setSubSaving(false);
     // ยังไม่มีหน้าแก้ซับ หรือต้องเลือกชื่อไฟล์ใหม่ (ซับในหนัง) ไปหน้าแก้ซับให้บันทึกเอง
-    if (ok === null) { setSubName(null); onGoSub(); return; }
+    // ต้องเลือกทางต่อ (ซับในหนัง เปลี่ยนชนิด ไฟล์ถูกแก้จากที่อื่น) พาไปหน้าแก้ซับให้เห็นหน้าต่างถาม ไม่ใช่บันทึกล้ม (F17)
+    if (ok === null || ok === "choose") { setSubName(null); onGoSub(); return; }
     if (!ok) { setSubFailed("บันทึกไม่สำเร็จ ยังไม่ปิดโปรแกรม ดูเหตุผลที่หน้าซับไตเติล"); return; }
     setSubName(null);
     closeNow();
   };
   const closeSubWithoutSave = async () => {
-    // เก็บฉบับบันทึกอัตโนมัติล่าสุดก่อนปิด เปิดคืนได้จากหน้าซับไตเติล
-    await autosaveNow();
+    // เก็บฉบับบันทึกอัตโนมัติล่าสุดก่อนปิด เปิดคืนได้จากหน้าซับไตเติล · ที่พิมพ์ค้างใน notepad ลงเอกสารก่อน (F8)
+    // เก็บไม่ได้ ยังไม่ปิด บอกเหตุผล ไม่งั้นที่แก้หายโดยไม่มีฉบับให้เปิดคืน (F7)
+    try {
+      await flushPad();
+      await autosaveStrict();
+    } catch (e) {
+      setSubFailed(`${e instanceof Error ? e.message : String(e)} ยังไม่ปิดโปรแกรม`);
+      return;
+    }
     setSubName(null);
     closeNow();
   };
