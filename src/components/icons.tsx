@@ -175,6 +175,9 @@ export const IbShiftTime = ({ size = 15, stroke = "currentColor" }: P) =>
 /** ปรับเวลาทั้งไฟล์ ไม้กายสิทธิ์ */
 export const IbWand = ({ size = 15, stroke = "currentColor" }: P) =>
   svg(size, 2.2, stroke, <><path d="M4 20 15 9" /><path d="m13.5 7.5 3 3" /><path d="M19 3v4M17 5h4" /><path d="M9 3v2M8 4h2" /><path d="M20 12v2M19 13h2" /></>);
+/** เมนูเครื่องมือ ประแจ (แผนหน้าแก้ซับ ขั้น 7) */
+export const IbTools = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M14.7 6.3a4 4 0 0 0-5.4 5.4L3.5 17.5a1.5 1.5 0 0 0 2.1 2.1l5.8-5.8a4 4 0 0 0 5.4-5.4l-2.5 2.5-2.1-.6-.6-2.1z" /></>);
 /** เมนูบรรทัด แถวข้อความ */
 export const IbRows = ({ size = 15, stroke = "currentColor" }: P) =>
   svg(size, 2.2, stroke, <><path d="M4 6h16" /><path d="M4 12h16" /><path d="M4 18h10" /></>);

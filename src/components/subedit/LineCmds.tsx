@@ -20,7 +20,9 @@ import { useClickOutside, useEscClose } from "../../lib/popup";
 import { FIND_DEF, FindDialog, GotoDialog, OverDialog, PostDialog, SelectDialog, ShiftDialog, SortDialog, type FindSt } from "./CmdDialogs";
 import type { Tip } from "../../lib/codecAdv";
 import InfoTip from "../InfoTip";
-import { IbRows, IbSelect, IbShiftTime, IbWand, IcChevronDown, IcClock, IcSearch } from "../icons";
+import { StyleManager } from "./StyleDialogs";
+import { ResampleDialog, TranslateDialog } from "./ToolDialogs";
+import { IbTools, IbRows, IbSelect, IbShiftTime, IbWand, IcChevronDown, IcClock, IcSearch } from "../icons";
 
 export type LineCtx = {
   doc: SubDoc | null;
@@ -35,6 +37,12 @@ export type LineCtx = {
   delay: number;
   /** ช่องพิมพ์ข้อความของบรรทัด ใช้หาตำแหน่งเคอร์เซอร์ตอนแยกบรรทัด */
   textBox: RefObject<HTMLElement | null>;
+  /** ขนาดภาพของหนัง ใช้เป็นขนาดใหม่ของการเปลี่ยนความละเอียด */
+  videoRes: [number, number] | null;
+  /** ฟังเสียงของบรรทัด (ตัวช่วยแปล) */
+  playLine: () => void;
+  /** พาภาพไปเวลาเริ่มของบรรทัด เวลาซับ ms (ตัวช่วยแปล) */
+  seekMs: (ms: number) => void;
 };
 type Item = { label: string; key?: string; why?: string; run: () => void; data: string };
 /** แถวในเมนู ปุ่มเดียวหรือคู่ซ้ายขวา (คำสั่งที่เป็นคู่กัน เมนูสั้นลงจนไม่ต้องเลื่อนที่หน้าต่าง 1280 × 800) */
@@ -71,6 +79,14 @@ const LINE_TIP: Tip = {
     ["สลับสองบรรทัด", "สลับตำแหน่งในตารางของสองบรรทัดที่เลือก", "", ""],
     ["คัดลอก ตัด วาง", "คัดลอกบรรทัดเป็นข้อความแบบบรรทัด Dialogue ของ ASS วางในหน้านี้หรือใน Aegisub ได้ บรรทัดที่วางแทรกก่อนบรรทัดที่กำลังแก้", "ย้ายบรรทัดข้ามไฟล์ได้ครบทุกช่อง", ""],
     ["วางทับ", "เอาบรรทัดที่คัดลอกไว้ทับบรรทัดที่มีอยู่ทีละบรรทัด เลือกได้ว่าทับช่องไหน", "ยกเวลาจากซับอีกภาษามาใช้ ข้อความเดิมอยู่ครบ", ""],
+  ],
+};
+const TOOL_TIP: Tip = {
+  w: "เครื่องมือของซับทั้งไฟล์",
+  o: [
+    ["สไตล์ของซับ", "ดูและแก้สไตล์ในไฟล์ ฟอนต์ ขนาด สี ขอบ เงา ตำแหน่ง เพิ่ม คัดลอก ลบ", "แก้หน้าตาทุกบรรทัดที่ใช้สไตล์นั้นทีเดียว", "ใช้ได้กับซับ ASS"],
+    ["เปลี่ยนความละเอียดของคำบรรยาย", "เปลี่ยนขนาดภาพของซับ แล้วคูณตัวเลขขนาดและตำแหน่งทุกตัวให้หน้าตาเท่าเดิม", "เอาซับไปใช้กับหนังขนาดภาพอื่น", "ใช้ได้กับซับ ASS"],
+    ["ตัวช่วยแปล", "แปลทีละท่อนข้อความ แท็กในบรรทัดอยู่ที่เดิม", "แปลซับทั้งเรื่องได้เร็วด้วยแป้นพิมพ์อย่างเดียว", ""],
   ],
 };
 const SEL_TIP: Tip = {
@@ -121,7 +137,7 @@ function CmdMenu(p: { label: string; icon: React.ReactNode; title: string; head:
 /** คำสั่งของบรรทัดทั้งหมด · คืนแถบปุ่ม หน้าต่าง และคีย์ลัดให้หน้าแก้ซับ */
 export function useLineCmds(c: LineCtx) {
   const { fr, pos, delay: dl } = c;
-  const [dlg, setDlg] = useState<"shift" | "post" | "select" | "find" | "replace" | "over" | "goto" | "sort" | null>(null);
+  const [dlg, setDlg] = useState<"shift" | "post" | "select" | "find" | "replace" | "over" | "goto" | "sort" | "styles" | "resample" | "translate" | null>(null);
   const [note, setNote] = useState<Msg>(null);
   // ค้นและแทนที่ จำคำค้นไว้ตลอดที่เปิดหน้า F3 ค้นต่อด้วยค่าเดิม
   const [find, setFind] = useState("");
@@ -341,6 +357,12 @@ export function useLineCmds(c: LineCtx) {
     ],
     [{ label: "ไปที่บรรทัดหรือเวลา…", run: () => setDlg("goto"), data: "goto" }],
   ];
+  const noAss = ass ? undefined : "ซับ SRT ไม่มีสไตล์และขนาดภาพ เปลี่ยนเป็น ASS ก่อน (ปุ่มเปลี่ยนเป็น ASS ในช่องแก้บรรทัด)";
+  const toolMenu: MRow[][] = [[
+    { label: "สไตล์ของซับ…", why: noAss, run: () => setDlg("styles"), data: "styles" },
+    { label: "เปลี่ยนความละเอียดของคำบรรยาย…", why: noAss, run: () => setDlg("resample"), data: "resample" },
+    { label: "ตัวช่วยแปล…", why: noLine, run: () => setDlg("translate"), data: "translate" },
+  ]];
 
   const bar = (
     <div className="se-cmds" data-se-cmds>
@@ -350,6 +372,7 @@ export function useLineCmds(c: LineCtx) {
       <CmdMenu label="เวลา" icon={<IcClock size={15} />} title="เมนูเวลา สอดเวลากับภาพ ทำให้เวลาต่อกัน เรียงบรรทัด" head="เมนูเวลา" tip={TIME_TIP} sections={timeMenu} data="time" width={330} />
       <CmdMenu label="บรรทัด" icon={<IbRows size={15} />} title="เมนูบรรทัด แทรก แยก รวม ย้าย คัดลอก วาง" head="เมนูบรรทัด" tip={LINE_TIP} sections={lineMenu} data="line" width={460} />
       <CmdMenu label="เลือก" icon={<IbSelect size={15} />} title="เมนูเลือกบรรทัด และไปที่บรรทัดหรือเวลา" head="เมนูเลือก" tip={SEL_TIP} sections={selMenu} data="sel" width={300} />
+      <CmdMenu label="เครื่องมือ" icon={<IbTools size={15} />} title="สไตล์ของซับ เปลี่ยนความละเอียด ตัวช่วยแปล" head="เครื่องมือ" tip={TOOL_TIP} sections={toolMenu} data="tool" width={320} />
     </div>
   );
 
@@ -387,6 +410,9 @@ export function useLineCmds(c: LineCtx) {
     <GotoDialog open={dlg === "goto"} onClose={() => setDlg(null)} onGo={(q) => { const id = gotoTarget(cur(), q); if (id == null) return false; pick([id], id); return true; }} />
     <SortDialog open={dlg === "sort"} onClose={() => setDlg(null)} ass={ass} selCount={c.sel.length}
       onRun={(k: SortKey, only: boolean) => { edit("เรียงบรรทัด", (d) => sortLines(d, k, only ? new Set(getSubEdit().sel) : null)); }} />
+    {ass && <StyleManager open={dlg === "styles"} onClose={() => setDlg(null)} doc={doc} playRes={null} />}
+    {ass && <ResampleDialog open={dlg === "resample"} onClose={() => setDlg(null)} doc={doc} video={c.videoRes} onDone={(t) => setNote({ t, bad: false })} />}
+    <TranslateDialog open={dlg === "translate"} onClose={() => setDlg(null)} doc={doc} onPlay={c.playLine} onSeek={c.seekMs} onDone={(t) => setNote({ t, bad: false })} />
   </>;
 
   const hotkeys: Hotkey[] = [

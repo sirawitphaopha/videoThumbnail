@@ -360,7 +360,8 @@ export default function SubEditor(p: SubEditorProps) {
 
   // ---------------------------------------------------------------- คำสั่งของบรรทัด (ขั้น 6)
   const textBox = useMemo(() => ({ get current() { return root.current?.querySelector<HTMLElement>("[data-se-text]") ?? null; } }), []);
-  const cmds = useLineCmds({ doc, sel: st.sel, active: st.active, fr, frWhy, pos: vst.pos, keys: vidKeys(vst).list, delay: dl, textBox });
+  const cmds = useLineCmds({ doc, sel: st.sel, active: st.active, fr, frWhy, pos: vst.pos, keys: vidKeys(vst).list, delay: dl, textBox,
+    videoRes: p.playRes, playLine: () => audioAct("playline"), seekMs: (ms) => seekTime(ms + dl, "start") });
 
   useHotkeys([
     ...cmds.hotkeys,

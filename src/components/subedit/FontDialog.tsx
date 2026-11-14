@@ -9,7 +9,7 @@ import { IcSearch } from "../icons";
 
 let cache: string[] | null = null;
 
-export default function FontDialog(p: { open: boolean; current: { name: string; size: string }; sample: string; onClose: () => void; onApply: (tag: string, reset: string) => void }) {
+export default function FontDialog(p: { open: boolean; current: { name: string; size: string }; sample: string; onClose: () => void; onApply: (tag: string, reset: string) => void; /** ใช้กับหน้าต่างแก้สไตล์ รับชื่อกับขนาดแทนแท็ก */ onPick?: (name: string, size: string) => void }) {
   const [list, setList] = useState<string[] | null>(cache);
   const [err, setErr] = useState<string | null>(null);
   const [q, setQ] = useState("");
@@ -29,6 +29,7 @@ export default function FontDialog(p: { open: boolean; current: { name: string; 
   const why = !name ? "เลือกฟอนต์ก่อน" : !sizeOk ? "ขนาดต้องเป็นตัวเลขมากกว่า 0" : !changed ? "ยังเป็นฟอนต์และขนาดเดิม" : undefined;
   const apply = () => {
     if (why) return;
+    if (p.onPick) { p.onPick(name, size.trim()); p.onClose(); return; }
     const tag = `{${name !== p.current.name ? `\\fn${name}` : ""}${size.trim() !== p.current.size ? `\\fs${size.trim()}` : ""}}`;
     const reset = `{${name !== p.current.name ? "\\fn" : ""}${size.trim() !== p.current.size ? "\\fs" : ""}}`;
     p.onApply(tag, reset);
