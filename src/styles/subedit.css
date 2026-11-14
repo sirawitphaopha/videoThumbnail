@@ -167,6 +167,26 @@
 [data-subedit] .se-swatch { display: inline-block; width: 12px; height: 12px; border-radius: 3px; border: 1px solid rgba(60, 30, 40, .35); margin-left: 4px; }
 [data-subedit] .se-colorpick { position: absolute; width: 1px; height: 1px; opacity: 0; pointer-events: none; }
 [data-subedit] .se-text { width: 100%; box-sizing: border-box; min-height: 62px; resize: vertical; padding: 8px 10px; border: 1px solid #e8cdd6; border-radius: 8px; font: inherit; font-size: 16px; line-height: 1.5; color: var(--txt); background: #fff; }
+/* สีอักษรแบบ Aegisub (BUGS ข้อ 112 · subSyntax.ts) ชั้นสีวางใต้ช่องพิมพ์ ระยะใน ขอบ ฟอนต์ ความสูงบรรทัด การตัดบรรทัด ที่เผื่อแถบเลื่อน ต้องเท่าช่องพิมพ์ทุกค่า
+   ไม่งั้นเคอร์เซอร์ไม่ตรงตัวอักษร · ตัวหนาของ Aegisub ทำด้วยเงาตัวอักษร ตัวหนาจริงกว้างกว่าแล้วตัวอักษรเลื่อนจากเคอร์เซอร์
+   สีเขียนเป็น rgb ให้ตัวแปลงโทนปรับในโทนกลางคืน (สีเข้มกลายเป็นสีอ่อน) · สีเครื่องหมายเป็นชื่อสีกับ color-mix เพราะตัวแปลงจะเปลี่ยนสีม่วงชมพูเป็นสีเน้นของโทน */
+[data-subedit] .se-textwrap { position: relative; }
+[data-subedit] .se-textwrap .se-text { display: block; }
+[data-subedit] .se-textwrap.se-hlon { background: #fff; border-radius: 8px; }
+[data-subedit] .se-textwrap.se-hlon .se-text { position: relative; z-index: 1; background: transparent; color: transparent; caret-color: var(--txt); scrollbar-gutter: stable; }
+[data-subedit] .se-textwrap.se-hlon .se-text::selection { color: transparent; background: rgba(200, 64, 111, .28); }
+[data-subedit] .se-texthl { position: absolute; inset: 0; z-index: 0; margin: 0; overflow: hidden; scrollbar-gutter: stable; box-sizing: border-box; padding: 8px 10px; border: 1px solid transparent; border-radius: 8px; font: inherit; font-size: 16px; line-height: 1.5; white-space: pre-wrap; overflow-wrap: break-word; word-break: normal; text-align: start; letter-spacing: normal; tab-size: 8; color: var(--txt); pointer-events: none; }
+[data-subedit] .se-texthl .sx-comment, [data-subedit] .se-texthl .sx-dcmd { color: rgb(0, 0, 0); text-shadow: .45px 0 0 currentColor; }
+[data-subedit] .se-texthl .sx-dx, [data-subedit] .se-texthl .sx-dex { color: rgb(90, 40, 40); }
+[data-subedit] .se-texthl .sx-dy, [data-subedit] .se-texthl .sx-dey { color: rgb(40, 90, 40); }
+[data-subedit] .se-texthl .sx-dex, [data-subedit] .se-texthl .sx-dey { text-decoration: underline; }
+[data-subedit] .se-texthl .sx-brackets { color: rgb(20, 50, 255); }
+[data-subedit] .se-texthl .sx-slashes { color: color-mix(in srgb, magenta 78%, red); }
+[data-subedit] .se-texthl .sx-tags { color: rgb(90, 90, 90); text-shadow: .45px 0 0 currentColor; }
+[data-subedit] .se-texthl .sx-error { color: rgb(200, 0, 0); background: color-mix(in srgb, red 22%, transparent); }
+[data-subedit] .se-texthl .sx-params { color: rgb(40, 90, 40); }
+[data-subedit] .se-texthl .sx-lb { color: rgb(160, 160, 160); text-shadow: .45px 0 0 currentColor; }
+[data-subedit] .se-texthl .sx-ktemplate, [data-subedit] .se-texthl .sx-kvar { color: rgb(128, 0, 192); text-shadow: .45px 0 0 currentColor; }
 [data-subedit] .se-orig { display: flex; gap: 10px; align-items: baseline; font-size: 13.5px; background: var(--accent-soft); border-radius: 8px; padding: 6px 10px; white-space: pre-line; }
 [data-subedit] .se-orig b { color: var(--accent-ink); flex: none; }
 [data-subedit] .se-foot .small { white-space: nowrap; overflow: hidden; }

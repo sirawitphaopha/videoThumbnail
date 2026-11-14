@@ -39,6 +39,8 @@ const VIEWS = ["wave", "loud", "spek", "psd"];
 const c = await connect();
 const q = (js) => c.evaluate(`(() => { ${js} })()`);
 const results = [];
+// ขนาดภาพของหน้าแก้ซับที่จำไว้ก่อนตรวจ คืนตอนจบ
+let zoomKeep;
 const check = (name, pass, detail = "") => { results.push(!!pass); console.log(`${pass ? "✅" : "❌"} ${name}${detail ? " · " + detail : ""}`); };
 const nav = (label) => c.evaluate(`[...document.querySelectorAll('.side .nav')].find((b) => b.innerText.trim().split(String.fromCharCode(10))[0] === ${JSON.stringify(label)})?.click()`);
 const waitFor = async (js, ms = 30000) => { for (let t = 0; t < ms; t += 200) { if (await q(js)) return true; await sleep(200); } return false; };
@@ -95,6 +97,10 @@ try {
   await q(`window.__subClear?.(); window.__subOpen?.(${JSON.stringify(SUBMOVIE)}); return 1`);
   await waitFor("return !!document.querySelector('[data-se-cmds]')", 30000);
   await q("try { localStorage.setItem('se-fold', '0'); } catch {} return 1");
+  // ขนาดภาพที่จำไว้ (หมุนล้อเมาส์บนภาพปรับได้ตั้งแต่ BUGS ข้อ 111) ตั้งเป็นพอดีกรอบระหว่างตรวจ คืนค่าเดิมตอนจบ
+  zoomKeep = await q("try { return localStorage.getItem('se-vzoom'); } catch { return null; }");
+  await q("window.__vidLib?.setZoom(0); return 1");
+  await sleep(300);
   await c.move(2, 2);
 
   for (const [w, h, label] of SIZES) {
@@ -134,6 +140,7 @@ try {
     }
   }
 } finally {
+  if (zoomKeep !== undefined) await q(`window.__vidLib?.setZoom(${Number(zoomKeep) || 0}); return 1`).catch(() => {});
   await c.send("Emulation.clearDeviceMetricsOverride", {}).catch(() => {});
   await nav("ชั้นวางหนัง").catch(() => {});
 }

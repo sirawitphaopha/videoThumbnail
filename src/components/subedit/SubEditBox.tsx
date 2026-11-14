@@ -5,12 +5,13 @@
    ④ ช่องพิมพ์ใหญ่หลายบรรทัด (พี่กัน "ปุ่มพิม ขอหญ่ๆแบบนี้") Enter ยืนยันแล้วไปบรรทัดถัดไป Shift+Enter ขึ้นบรรทัดใหม่
    ความยาวพิมพ์แก้ได้ เปลี่ยนเวลาจบอย่างเดียวแบบ Aegisub (พี่กันเคาะว่าเอาตามที่แคลร์เสนอ)
    พิมพ์ข้อความแล้วบรรทัดในตารางเปลี่ยนตามทันที พิมพ์ต่อกันนับเป็นการแก้ขั้นเดียว เลิกทำทีเดียวได้ทั้งคำ (subEdit.ts) */
-import { useEffect, useRef, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import type { SubDoc, SubEvent } from "../../lib/api";
 import type { Tip } from "../../lib/codecAdv";
 import { getSubEdit, updateEvent, edit } from "../../lib/subEdit";
 import { assToCss, cps, cssToAss, fmtTime, fromBox, insertAss, isAss, lastTag, parseTime, snapMs, styleField, toBox, wrapTag } from "../../lib/subText";
 import { CPS_MAX } from "./SubGrid";
+import { highlight, isTemplateLine } from "../../lib/subSyntax";
 import type { Framerate } from "../../lib/vidFrames";
 import Dropdown from "../Dropdown";
 import InfoTip from "../InfoTip";
@@ -118,6 +119,11 @@ export default function SubEditBox(p: Props) {
     set: (n) => fr.timeAt(fr.frameAt(ev.start + d, "start") + Math.max(1, n) - 1, "end") - d - ev.start,
   };
   const box = toBox(ev.text, doc);
+  // สีอักษรแบบ Aegisub เฉพาะไฟล์ ASS SSA (BUGS ข้อ 112) · ชั้นสีวางใต้ช่องพิมพ์ ตัวอักษรของช่องพิมพ์โปร่งใส เคอร์เซอร์กับการเลือกยังเป็นของช่องพิมพ์
+  const hl = useMemo(() => (ass ? highlight(box, isTemplateLine(ev.comment, ev.effect)) : null), [ass, box, ev.comment, ev.effect]);
+  const hlPre = useRef<HTMLPreElement>(null);
+  const syncHl = () => { const t = ta.current, h = hlPre.current; if (t && h) { h.scrollTop = t.scrollTop; h.scrollLeft = t.scrollLeft; } };
+  useEffect(syncHl);
   const id = ev.id;
   const noAss = ass ? undefined : "ซับ SRT ไม่มีช่องนี้ เปลี่ยนเป็น ASS ก่อน";
 
@@ -224,11 +230,15 @@ export default function SubEditBox(p: Props) {
         <button type="button" className={"btn btn-sm " + (ev.text ? "btn-ghost" : "btn-wait")} aria-disabled={!ev.text || undefined} title={ev.text ? "ลบข้อความของบรรทัดนี้ เวลายังอยู่" : "ไม่มีข้อความให้ลบ"} onClick={() => ev.text && set({ text: "" }, "ลบข้อความ")} data-se-clear><IbEraser size={15} />ลบข้อความ</button>
       </div>
       {showOrig && <div className="se-orig" data-se-orig><b>ต้นฉบับ</b><span>{p.orig != null ? toBox(p.orig, doc) || "บรรทัดนี้ไม่มีข้อความตอนเปิดไฟล์" : "บรรทัดนี้เพิ่มใหม่ ไม่มีต้นฉบับ"}</span></div>}
-      <textarea ref={ta} className="se-text" value={box} spellCheck={false} aria-label="ข้อความของบรรทัด" rows={2}
+      <div className={"se-textwrap" + (hl ? " se-hlon" : "")} data-se-textwrap>
+      {/* ขึ้นบรรทัดท้ายเผื่อไว้ ช่องพิมพ์ที่ข้อความจบด้วยขึ้นบรรทัดสูงกว่าหนึ่งบรรทัด ความสูงของสองชั้นต้องเท่ากันถึงเลื่อนตรงกัน */}
+      {hl && <pre ref={hlPre} className="se-texthl" aria-hidden="true" data-se-texthl>{hl.map((x, i) => <span key={i} className={"sx-" + x.s}>{x.t}</span>)}{"\n"}</pre>}
+      <textarea ref={ta} className="se-text" value={box} spellCheck={false} aria-label="ข้อความของบรรทัด" rows={2} onScroll={syncHl}
         onChange={(e) => set({ text: fromBox(e.target.value, doc) }, "แก้ข้อความ", `text:${id}`)}
         onKeyDown={(e) => {
           if (e.key === "Enter" && !e.shiftKey && !e.nativeEvent.isComposing) { e.preventDefault(); p.onNext(true); }
         }} data-se-text />
+      </div>
       <div className="se-erow se-foot">
         <button type="button" className={"btn btn-sm " + (p.why?.prev ? "btn-wait" : "btn-ghost")} aria-disabled={!!p.why?.prev || undefined} onClick={() => { if (!p.why?.prev) p.onPrev(); }} title={p.why?.prev ?? "บรรทัดก่อน (ลูกศรขึ้นในตาราง)"} data-se-prev><IbBack size={15} />บรรทัดก่อน</button>
         <button type="button" className={"btn btn-sm " + (p.why?.next ? "btn-wait" : "btn-ghost")} aria-disabled={!!p.why?.next || undefined} onClick={() => { if (!p.why?.next) p.onNext(false); }} title={p.why?.next ?? "บรรทัดถัดไป (ลูกศรลงในตาราง)"} data-se-next><IbNext size={15} />บรรทัดถัดไป</button>

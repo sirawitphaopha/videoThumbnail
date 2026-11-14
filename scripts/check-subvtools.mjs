@@ -9,6 +9,7 @@
 import { copyFileSync, existsSync, mkdirSync, readdirSync, rmSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { connect, sleep } from "./lib/cdp-client.mjs";
+import { linesOf } from "./lib/lines.mjs";
 
 const SRC = "D:/movie-shelf/test-media/สร้าง/แก้ซับ/ฉากตัด (2025).mkv";
 const TMP = "D:/dev/tmp/ชั้นแก้ซับเครื่องมือภาพ";
@@ -266,6 +267,30 @@ try {
   await sleep(200);
   const c2 = await imgSz();
   check("เนื้อภาพขยายอยู่ รีเซ็ตการเลื่อนภาพกดได้ กดแล้วเนื้อภาพกลับ 320 × 180", panCz && c2.w === 320 && c2.h === 180, JSON.stringify(c2));
+
+  // กล่อง ⓘ ทั้งสามตัดบรรทัดตรงรอยต่อของความหมายที่หน้าต่าง 1280 × 800 (กฎตัดบรรทัดตามความหมาย · พี่กันตีตกกล่องที่แตกบรรทัดละวลี 14 พ.ย. 2569)
+  // ค่าที่คาดคือจุดตัดที่อ่านแล้วว่าตรงความหมาย ฟอนต์ ความกว้างกล่อง หรือข้อความเปลี่ยน ตัวตรวจแดงให้อ่านจุดตัดใหม่
+  const esc = async () => { await c.send("Input.dispatchKeyEvent", { type: "rawKeyDown", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 }); await c.send("Input.dispatchKeyEvent", { type: "keyUp", key: "Escape", code: "Escape", windowsVirtualKeyCode: 27 }); await sleep(200); };
+  const TIP_VIDEO = ["แถบใต้ภาพมีปุ่มถอยหรือเดินทีละเฟรม ⏎ ส่วนช่องกลางบอกเวลากับเลขเฟรม และเป็นสีเข้มเมื่อเป็น keyframe", "ตัวเลขมุมขวาบน คือระยะห่างจากเวลาเริ่มและเวลาจบของบรรทัดนี้ ⏎ ถ้าเป็น +0ms แปลว่าภาพอยู่ตรงเวลาเริ่มพอดี", "เดินทีละเฟรม คลิกภาพแล้วกดลูกศรซ้ายขวา ⏎ กด Shift ด้วยจะไป keyframe กด Ctrl ด้วยจะไปขอบบรรทัด ⏎ และกด Alt ด้วยจะเดินทีละ 10 เฟรม", "คีย์ลัด กด Ctrl+1 เพื่อไปเวลาเริ่ม กด Ctrl+2 เพื่อไปเวลาจบ ⏎ และกด Ctrl+G เพื่อข้ามไปเฟรมหรือเวลาที่พิมพ์", "ล้อเมาส์ หมุนบนภาพเพื่อปรับขนาด กด Ctrl ด้วยจะขยายเนื้อภาพ ⏎ ส่วนกด Shift ด้วยหรือกดล้อค้างแล้วลากจะเลื่อนภาพ", "AUTO เลือกบรรทัดแล้วภาพไปเวลาเริ่มของบรรทัดนั้นเอง ⏎ ข้อดีไล่ดูบรรทัดได้เร็ว ⏎ ข้อเสียภาพที่ดูค้างไว้จะกระโดดไปเมื่อเลือกบรรทัดใหม่", "แนะนำเปิด AUTO ไว้ ตอนจะดูภาพนานค่อยปิด"];
+  const TIP_TOOLS = ["ใช้ได้ตอนภาพหยุดอยู่ พิกัดนับจากมุมซ้ายบนของภาพ ⏎ ตามความละเอียดของสคริปต์ จึงเป็นตัวเลขชุดเดียวกับใน \\pos", "กากบาท (A) ชี้ภาพแล้วเห็นพิกัด ⏎ ดับเบิลคลิกเพื่อย้ายบรรทัดที่เลือกมาตรงนั้น ⏎ ข้อดีดูพิกัดได้ทันที ⏎ ข้อเสียไม่เห็นจุดจับของซับ", "ลากจัดตำแหน่ง (S) ลากจุดบนภาพแล้วซับย้ายตาม สี่เหลี่ยมคือ \\pos ⏎ ส่วนวงกลมคือปลายของ \\move และสามเหลี่ยมคือ \\org ⏎ ข้อดีลากหลายบรรทัดพร้อมกันได้ ⏎ ข้อเสียเวลาของจุดใน \\move เปลี่ยนตามภาพที่เห็นตอนลาก", "คลิกขวา บันทึกภาพ คัดลอกภาพ หรือคัดลอกพิกัด", "แนะนำจัดตำแหน่งด้วยเครื่องมือลาก ส่วนดูพิกัดใช้กากบาท"];
+  const TIP_COORD = ["เป็นตัวเลขชุดเดียวกับที่ใส่ใน \\pos ของซับ คัดลอกแล้ววางได้เลย"];
+  const tipCheck = async (name, sel, want) => {
+    const got = await linesOf(q, sel);
+    const bad = (got ?? []).filter((l, i) => l !== want[i]);
+    check(`กล่อง ⓘ ${name} ตัดบรรทัดตรงที่คาดทุกย่อหน้า`, !!got && got.length === want.length && !bad.length, bad.join(" | ") || `${got?.length} ย่อหน้า`);
+  };
+  await esc();
+  await c.click("[data-vmenu]"); await sleep(300);
+  await c.click('[data-vmenupanel] [data-info="กรอบวิดีโอ"]'); await sleep(400);
+  await tipCheck("กรอบวิดีโอ", '.infotip[data-tip="กรอบวิดีโอ"]', TIP_VIDEO);
+  await esc(); await esc();
+  await c.click(".se-vtinfo button"); await sleep(400);
+  await tipCheck("เครื่องมือบนภาพ", '.infotip[data-tip="เครื่องมือบนภาพ"]', TIP_TOOLS);
+  await esc();
+  await rclick(150, 100);
+  await c.click('[data-vctxmenu] [data-info="พิกัด"]'); await sleep(400);
+  await tipCheck("พิกัด", '.infotip[data-tip="พิกัด"]', TIP_COORD);
+  await esc(); await esc();
 
   // Esc ปิดเมนู
   await rclick(150, 100);
