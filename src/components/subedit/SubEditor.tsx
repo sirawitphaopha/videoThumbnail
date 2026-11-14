@@ -31,6 +31,7 @@ import FontDialog from "./FontDialog";
 import { DetailsDialog, DummyDialog, JumpDialog } from "./VideoDialogs";
 import { useLineCmds } from "./LineCmds";
 import PadView, { flushPad } from "./PadView";
+import RemuxDialog from "./RemuxDialog";
 import "../../styles/subedit.css";
 
 const nameOf = (p: string) => p.split(/[\\/]/).pop() ?? p;
@@ -88,6 +89,8 @@ export default function SubEditor(p: SubEditorProps) {
   const [save, setSave] = useState<Save>({ s: "idle" });
   const [ask, setAsk] = useState<Ask | null>(null);
   const [autoList, setAutoList] = useState<SubAutosave[] | null>(null);
+  /** ซับในหนัง ถามสองทาง บันทึกข้างหนัง หรือใส่กลับเข้าหนัง (ขั้น 9) */
+  const [remux, setRemux] = useState(false);
   const [tags, setTags] = useState<TagMode>("full");
   const [font, setFont] = useState<{ apply: (tag: string, reset: string) => void; current: { name: string; size: string } } | null>(null);
   const [gridH, setGridH] = useState(240);
@@ -280,7 +283,7 @@ export default function SubEditor(p: SubEditorProps) {
     await flushPad();
     const d = getSubEdit().doc;
     if (!d || save.s === "saving") return false;
-    if (!sameKind(d)) { openSaveAs(d.kind); return false; }
+    if (!sameKind(d)) { if (d.source?.inMovie) setRemux(true); else openSaveAs(d.kind); return false; }
     if (!d.exact && !inexactOk) { setAsk({ k: "inexact" }); return false; }
     setSave({ s: "saving" });
     try {
@@ -503,6 +506,16 @@ export default function SubEditor(p: SubEditorProps) {
       <DetailsDialog open={vdlg === "details"} onClose={() => setVdlg(null)} name={nameOf(p.video)} table={vst.table} dummy={vst.dummy} fr={fr} keys={vidKeys(vst).list.length} />
       <DummyDialog open={vdlg === "dummy"} onClose={() => setVdlg(null)} onUse={applyDummy} />
       <FontDialog open={!!font} current={font?.current ?? { name: "", size: "" }} sample={ev ? shownText(ev, doc).replace(/\n/g, " ") : ""} onClose={() => setFont(null)} onApply={(t, r) => font?.apply(t, r)} />
+      <RemuxDialog open={remux} onClose={() => setRemux(false)} movie={p.moviePath} tid={p.track.tid} doc={doc} onSaveAsFile={() => openSaveAs(doc.kind)}
+        onFail={(m) => setSave({ s: "failed", err: `ใส่ซับกลับเข้าหนังไม่สำเร็จ  ${m}` })}
+        onDone={(r) => {
+          if (import.meta.env.DEV) (window as unknown as { __lastRemux?: unknown }).__lastRemux = r;
+          const now = getSubEdit().doc ?? doc;
+          markSaved({ ...now, source: now.source ? { ...now.source, path: r.output } : now.source });
+          const orig = r.original === "trash" ? "ไฟล์เดิมลงถังขยะ" : r.original === "kept" ? "ไฟล์เดิมอยู่ในโฟลเดอร์ไฟล์เดิม" : "";
+          if (r.same === false) setSave({ s: "failed", err: `ใส่ซับกลับเข้าหนังแล้ว แต่ซับที่อ่านกลับจากไฟล์ใหม่ไม่ตรงกับที่แก้ ตรวจไฟล์ ${nameOf(r.output)} อีกครั้ง  ${orig}` });
+          else setSave({ s: "done", note: `ใส่ซับกลับเข้าหนังแล้ว ${orig}` });
+        }} />
       <Dialog open={ask?.k === "changed"} onClose={() => setAsk(null)} kind="work" title="ไฟล์ซับถูกแก้จากที่อื่น" width={560}
         actions={<>
           <button type="button" className="btn btn-ghost" onClick={() => setAsk(null)}>ยกเลิก</button>

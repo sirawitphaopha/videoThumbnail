@@ -997,6 +997,19 @@ pub fn subdoc_render(doc: SubDoc) -> String {
     render(&doc)
 }
 
+/// ซับที่แก้เป็นไฟล์ชั่วคราวในโฟลเดอร์ tmp ของโปรแกรม ใช้ใส่กลับเข้าหนัง (แผนหน้าแก้ซับ ขั้น 9)
+/// ชื่อขึ้นต้น sub- โปรแกรมกวาดทิ้งเองตอนเปิดครั้งหน้า (lib.rs) · เขียนด้วยรหัสอักษรเดิมของเอกสาร เก็บไม่ได้ใช้ UTF-8 (to_bytes)
+#[tauri::command]
+pub fn subdoc_temp(app: AppHandle, doc: SubDoc) -> Result<String, String> {
+    let dir = work_dir(&app)?;
+    let ext = match doc.kind.as_str() { "ass" => "ass", "ssa" => "ssa", "vtt" => "vtt", _ => "srt" };
+    let stamp = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis()).unwrap_or(0);
+    let path = dir.join(format!("sub-remux-{stamp}.{ext}"));
+    let (bytes, _, _) = to_bytes(&doc);
+    std::fs::write(&path, bytes).map_err(|e| e.to_string())?;
+    Ok(path.display().to_string())
+}
+
 /// ข้อความทั้งไฟล์ที่พิมพ์ในแบบ notepad เป็นเอกสาร · ใช้รหัสอักษร ตัวจบบรรทัด และที่มาเดิม
 #[tauri::command]
 pub fn subdoc_parse_text(text: String, kind: String, enc: Enc, source: Option<Source>) -> SubDoc {

@@ -342,6 +342,8 @@ export const subDocApi = {
   convert: (doc: SubDoc, to: "srt" | "ass", playRes?: [number, number]) => call<{ doc: SubDoc; lost: SubLost[] }>("subdoc_convert", { doc, to, playRes: playRes ?? null }),
   freeName: (path: string) => call<string>("subdoc_free_name", { path }),
   render: (doc: SubDoc) => call<string>("subdoc_render", { doc }),
+  /** ซับเป็นไฟล์ชั่วคราวในโฟลเดอร์ tmp ของโปรแกรม ใช้ใส่กลับเข้าหนัง (ขั้น 9) */
+  temp: (doc: SubDoc) => call<string>("subdoc_temp", { doc }),
   parseText: (text: string, kind: SubDoc["kind"], enc: SubEnc, source: SubSource | null) => call<SubDoc>("subdoc_parse_text", { text, kind, enc, source }),
   /** บอกฝั่ง Rust ว่ามีซับที่แก้แล้วยังไม่บันทึก ตัวกันปิดจะถามก่อนปิดโปรแกรม · null = ไม่มี */
   setDirty: (name: string | null) => call<void>("subdoc_set_dirty", { name }),

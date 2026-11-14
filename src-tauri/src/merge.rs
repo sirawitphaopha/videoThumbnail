@@ -1203,6 +1203,12 @@ pub async fn merge_apply(app: AppHandle, req: MergeReq) -> Result<MergeResult, A
     }).await.map_err(|e| fail("other", "รวมไฟล์ไม่สำเร็จ", vec![e.to_string()]))?
 }
 
+/// ที่อยู่หนังที่หน้าจอส่งมา · แบบ / (เช่นจากหน้าแก้ซับหรือตัวตรวจ) ทำเป็น \ ก่อน ไม่งั้นเทียบกับไฟล์ใหม่ที่ต่อด้วย dir.join ไม่ตรง
+/// (same_name ใน apply และใน finish_output) แล้วงานรวมไฟล์ชื่อเดิมตอบว่ามีไฟล์ชื่อนี้อยู่แล้ว (เจอ 14 พ.ย. 2569 ตอนทำใส่ซับกลับเข้าหนัง แผนหน้าแก้ซับ ขั้น 9)
+fn movie_path(p: &str) -> PathBuf {
+    PathBuf::from(p.replace('/', "\\"))
+}
+
 fn apply(app: &AppHandle, req: &MergeReq, jobs: &Arc<crate::jobs::Jobs>) -> Result<MergeResult, ApplyProblem> {
     let st = app.state::<MergeState>();
     let (tools, work) = tools_of(app).map_err(|e| fail("other", "รวมไฟล์ไม่สำเร็จ", vec![e]))?;
@@ -1210,7 +1216,7 @@ fn apply(app: &AppHandle, req: &MergeReq, jobs: &Arc<crate::jobs::Jobs>) -> Resu
     let emit = |phase: &str, percent: f64, eta: Option<f64>, next: Option<&str>| {
         let _ = app.emit("merge-progress", Progress { phase: phase.into(), percent, eta, next: next.map(String::from) });
     };
-    let src = PathBuf::from(&req.movie);
+    let src = movie_path(&req.movie);
     let src_name = src.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
     let untouched = format!("ไฟล์เดิม {src_name} ไม่ถูกแตะ");
     let dir = src.parent().map(Path::to_path_buf).unwrap_or_default();
@@ -1383,6 +1389,65 @@ mod tests {
             let size: u64 = it.next()?.parse().ok()?;
             (size > 2).then_some(t)
         }).next().unwrap_or(f64::NAN)
+    }
+
+    /// แผนหน้าแก้ซับ ขั้น 9 ใส่ซับที่แก้กลับเข้าหนังแบบที่หน้าแก้ซับทำ (src/lib/subRemux.ts)
+    /// แทนแทร็กซับ ASS ด้วยไฟล์ที่แก้ ภาษา ชื่อ ธงหลักเดิม · ไฟล์ใหม่แทร็กครบตามลำดับเดิม ซับที่แก้อ่านกลับตรงทุกบรรทัด สไตล์ครบ ซับอีกแทร็กเหมือนเดิม
+    #[test]
+    fn replace_edited_sub_track_real_files() {
+        let Some(movie) = av("แก้ซับ/ฉากตัด (2025).mkv") else { return };
+        let dir = temp_dir("remux");
+        let tl = tools();
+        let m = inspect(&tl, &movie).unwrap();
+        let subs: Vec<usize> = m.tracks.iter().enumerate().filter(|(_, t)| t.kind == "subtitle").map(|(i, _)| i).collect();
+        assert_eq!(subs.len(), 2, "หนังทดสอบมีซับ ASS กับ SRT");
+        let read = |file: &Path, t: &Track| {
+            let (b, h) = crate::subs::bytes_of(&tl, &dir.0, file, true, t.tid, t.ff.unwrap_or(t.tid)).unwrap();
+            crate::subdoc::parse_doc(&b, &h, None)
+        };
+        let lines = |d: &crate::subdoc::SubDoc| d.events.iter().map(|e| (e.comment, e.layer, e.start, e.end, e.style.clone(), e.actor.clone(), e.text.clone())).collect::<Vec<_>>();
+        let old = m.tracks[subs[0]].clone();
+        let mut doc = read(&movie, &old);
+        let srt0 = read(&movie, &m.tracks[subs[1]]);
+        let i = doc.events.iter().position(|e| e.start == 500 && !e.comment).expect("บรรทัด 0.50");
+        doc.events[i].text = "ใส่กลับเข้าหนังแล้ว".into();
+        let temp = dir.0.join("sub-remux-test.ass");
+        std::fs::write(&temp, crate::subdoc::to_bytes(&doc).0).unwrap();
+        let mut nt = add_file(&tl, &temp, m.duration).unwrap().tracks.remove(0);
+        nt.lang = old.lang.clone();
+        nt.name = old.name.clone();
+        nt.default = old.default;
+        nt.forced = old.forced;
+        nt.delay = old.delay;
+        let tracks: Vec<Track> = m.tracks.iter().enumerate().map(|(k, t)| if k == subs[0] { nt.clone() } else { t.clone() }).collect();
+        let out = dir.0.join("ฉากตัด (2025).mkv.partial");
+        let (res, _) = run(&req(&movie, tracks, "mkv"), &HashMap::new(), &out, &dir.0);
+        let made = res.unwrap_or_else(|p| panic!("{} {:?}", p.title, p.detail));
+        assert!(made.verified);
+        // ตัวอ่านหนังไม่รับนามสกุล .partial เปลี่ยนเป็นชื่อจริงก่อนอ่าน (งานจริงทำใน finish_output)
+        let out = { let fin = dir.0.join("ฉากตัด (2025).mkv"); std::fs::rename(&out, &fin).unwrap(); fin };
+        let m2 = inspect(&tl, &out).unwrap();
+        let key = |t: &Track| (t.kind.clone(), t.codec.clone(), t.lang.clone(), t.name.clone(), t.default);
+        assert_eq!(m2.tracks.iter().map(key).collect::<Vec<_>>(), m.tracks.iter().map(key).collect::<Vec<_>>(), "แทร็ก ลำดับ ภาษา ชื่อ ธงหลัก เหมือนเดิม");
+        let s2: Vec<&Track> = m2.tracks.iter().filter(|t| t.kind == "subtitle").collect();
+        let got = read(&out, s2[0]);
+        assert_eq!(lines(&got), lines(&doc), "ซับที่แก้อ่านกลับตรงทุกบรรทัด");
+        assert!(got.events.iter().any(|e| e.text == "ใส่กลับเข้าหนังแล้ว"));
+        assert_eq!(got.styles.len(), doc.styles.len(), "สไตล์ครบ");
+        assert_eq!(lines(&read(&out, s2[1])), lines(&srt0), "ซับ SRT อีกแทร็กเหมือนเดิม");
+        assert!(movie.exists(), "ไฟล์ต้นทางไม่ถูกแตะ");
+    }
+
+    #[test]
+    fn movie_path_with_slashes_matches_same_name_output() {
+        // ไฟล์ใหม่ชื่อเดิมต่อด้วย dir.join ต้องเทียบได้ว่าเป็นไฟล์เดิม แม้ที่อยู่ที่ส่งมาใช้ / (ใส่ซับกลับเข้าหนังจากหน้าแก้ซับ)
+        let src = movie_path("D:/dev/tmp/ชั้นแก้ซับใส่กลับ/ฉากตัด (2025).mkv");
+        let target = src.parent().unwrap().join("ฉากตัด (2025).mkv");
+        assert_eq!(target.to_string_lossy().to_lowercase(), src.to_string_lossy().to_lowercase());
+        // ไม่ทำเป็น \ ก่อน ได้ที่อยู่ไม่ตรงกัน งานรวมไฟล์จึงเคยตอบว่ามีไฟล์ชื่อนี้อยู่แล้ว
+        let raw = PathBuf::from("D:/dev/tmp/x/a.mkv");
+        assert_ne!(raw.parent().unwrap().join("a.mkv").to_string_lossy(), raw.to_string_lossy());
+        assert_eq!(movie_path("D:\\หนัง\\a.mkv"), PathBuf::from("D:\\หนัง\\a.mkv"), "ที่อยู่แบบ \\ เหมือนเดิม");
     }
 
     #[test]
