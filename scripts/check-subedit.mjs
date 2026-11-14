@@ -196,8 +196,9 @@ try {
   const n0 = (await docNow()).events.length;
   await q(`document.querySelector('${ED} [data-se-insert]').click(); return 1;`);
   await sleep(150);
-  const ins = await q(`const d = ${S}.get(); const i = d.doc.events.findIndex((e) => e.id === d.active); return { n: d.doc.events.length, start: d.doc.events[i].start, prevEnd: d.doc.events[i - 1].end, len: d.doc.events[i].end - d.doc.events[i].start };`);
-  check("แทรกบรรทัด เริ่มที่เวลาจบของบรรทัดก่อน ยาว 3 วินาที เลือกบรรทัดใหม่", ins.n === n0 + 1 && ins.start === ins.prevEnd && ins.len === 3000, JSON.stringify(ins));
+  // ยาว 3 วินาทีแต่ไม่ล้ำเวลาเริ่มของบรรทัดอื่นทุกบรรทัด รวมบรรทัดความคิดเห็น (insert_after ของ Aegisub ที่ขั้น 6 ลอกมา)
+  const ins = await q(`const d = ${S}.get(); const i = d.doc.events.findIndex((e) => e.id === d.active); const s = d.doc.events[i].start; return { n: d.doc.events.length, start: s, prevEnd: d.doc.events[i - 1].end, len: d.doc.events[i].end - s, want: Math.min(3000, ...d.doc.events.filter((e) => e.id !== d.active && e.start >= s).map((e) => e.start - s)) };`);
+  check("แทรกบรรทัด เริ่มที่เวลาจบของบรรทัดก่อน ยาว 3 วินาทีแต่ไม่ล้ำบรรทัดถัดไป เลือกบรรทัดใหม่", ins.n === n0 + 1 && ins.start === ins.prevEnd && ins.len === ins.want && ins.len > 0, JSON.stringify(ins));
   await q(`document.querySelector('${ED} [data-se-delete]').click(); return 1;`);
   await sleep(150);
   check("ลบบรรทัดที่แทรก จำนวนกลับเท่าเดิม", (await docNow()).events.length === n0);

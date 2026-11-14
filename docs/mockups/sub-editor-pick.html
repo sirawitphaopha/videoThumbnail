@@ -8,7 +8,8 @@
   มอคอัปให้พี่กันเลือกแบบหน้าแก้ซับ BUGS ข้อ 109 ส่วนที่สอง (13 พ.ย. 2569)
   พี่กันสั่ง "หน้านี้คือหน้าที่เราจะเอาไว้ edit ซับ มันควรใช้งาน ไม่ใช่เเค่ดู ไปรีดีไซด์ใไม่" แล้วตอบ "ทำมาเลย"
   ทุกกรอบเป็นหน้าจอจริงของโปรแกรม (src/main.tsx) ผ่าน theme-live-app.html ที่แทนฝั่ง Rust ด้วยข้อมูลตัวอย่าง ซับตัวอย่าง 40 บรรทัดอยู่ใน theme-live-app.html
-  กรอบแรกคือหน้าซับไตเติลตอนนี้ แบบ 1 ถึง 3 จัดของบนหน้าจริงด้วยสคริปต์ท้ายไฟล์ ปุ่มกับช่องที่เพิ่มยังไม่ทำงาน ยังไม่ได้แก้โค้ดของโปรแกรม
+  เดิมกรอบแรกคือหน้าซับไตเติลแบบดูอย่างเดียว แบบ 1 ถึง 3 จัดของบนหน้านั้นด้วยสคริปต์ท้ายไฟล์ · พี่กันเคาะ 13 พ.ย. 2569 แล้วลงโปรแกรมครบตามแผนหน้าแก้ซับ
+  14 พ.ย. 2569 (ขั้น 10) กรอบบนสุดเปลี่ยนเป็นหน้าแก้ซับจริงสามสภาพ หน้าหลัก ซ่อนภาพและเสียง แบบ notepad · แบบ 1 ถึง 3 เหลือชื่อกับคำบรรยาย เพราะหน้าที่เคยวาดทับไม่มีแล้ว
   กรอบเท่าหน้าต่างโปรแกรมตอนยังไม่กดขยาย 1280 × 800 (width height ใน src-tauri/tauri.conf.json) ไม่ย่อ
   เปิดด้วยเซิร์ฟเวอร์ทดสอบ npm run dev แล้วเข้า http://127.0.0.1:1420/docs/mockups/sub-editor-pick.html
 -->
@@ -25,29 +26,35 @@
   .size h4 { font-size: 14.5px; font-weight: 600; margin: 0 0 6px; color: var(--ink2); }
   .frame { border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 22px rgba(60, 25, 40, .12); background: #fff; display: block; }
   .state { font-size: 13px; color: #b0303f; margin-top: 6px; }
+  .done { margin: 0; font-size: 15px; color: var(--acc); font-weight: 600; }
 </style>
 </head>
 <body>
 <div class="page">
   <h1>เลือกแบบ หน้าแก้ซับ</h1>
-  <p class="lead">ทุกกรอบเป็นหน้าจอจริงของโปรแกรม แต่ละแบบมีสองกรอบ คือหน้าต่างตอนยังไม่กดขยาย 1280 × 800 กับตอนกดขยายเต็มจอ 1600 × 852 ไม่ย่อ เปิดไฟล์ ดาวเหนือ (2023).mkv ที่มีซับไทยในตัว กรอบแรกคือหน้าซับไตเติลตอนนี้ ซึ่งดูได้อย่างเดียว ทุกแบบมีแถบเครื่องมือแก้ซับชุดเดียวกันใต้แถวบน คือ เลิกทำ ทำซ้ำ เลื่อนเวลาทั้งไฟล์ ยืดเวลาตามความเร็วหนัง ค้นและแทนที่ และบันทึก ต่างกันที่วิธีจัดภาพหนัง ตาราง และช่องแก้บรรทัด ปุ่มกับช่องที่เพิ่มในแบบ 1 ถึง 3 ยังกดไม่ได้ บอกเลขแบบที่เลือกได้เลย</p>
+  <p class="lead">พี่กันเคาะแล้ว 13 พ.ย. 2569 แบบ 1 เป็นหน้าหลัก แบบ 3 เป็นโหมดแก้ทั้งไฟล์แบบ notepad แบบ 2 เหลือแค่ปุ่มซ่อนภาพและเสียง ลงโปรแกรมครบตามแผนหน้าแก้ซับแล้ว (14 พ.ย. 2569) กรอบบนสุดสามสภาพคือหน้าแก้ซับจริงตอนนี้ หน้าต่างตอนยังไม่กดขยาย 1280 × 800 ไม่ย่อ เปิดไฟล์ตัวอย่าง ฉากตัด (2025).mkv ที่มีซับ ASS ในตัว ภาพหนังกับคลื่นเสียงเป็นภาพจำลอง แบบ 1 ถึง 3 ข้างล่างเก็บคำบรรยายไว้ดูว่าเลือกอะไรไป กรอบเดิมวาดทับหน้าซับไตเติลแบบดูอย่างเดียว ซึ่งไม่มีแล้ว</p>
   <div id="opts"></div>
 </div>
 
 <script>
 const OPTS = [
-  { mode: "now", name: "หน้าซับไตเติลตอนนี้", desc: "ดูซับได้สามแบบ มีภาพหนัง คลื่นเสียง และตารางบรรทัด แต่แก้อะไรไม่ได้ ปุ่ม Export เอาซับออกมาเป็นไฟล์ได้อย่างเดียว" },
+  { mode: "now", name: "หน้าแก้ซับตอนนี้", desc: "ภาพหนังทีละเฟรมกับคลื่นเสียงอยู่บน ถัดลงมาเป็นช่องแก้บรรทัดครบทุกช่องของ ASS แถบคำสั่ง เวลา บรรทัด เลือก เครื่องมือ แล้วตารางทุกบรรทัด กรอบที่สองกดซ่อนภาพและเสียงให้ตารางยาว กรอบที่สามแบบ notepad แก้ทั้งไฟล์พร้อมภาพหนังกับรายการปัญหา",
+    states: [["หน้าหลักแบบ Aegisub", null], ["กดซ่อนภาพและเสียง", "fold"], ["แบบ notepad", "pad"]] },
   { mode: "aeg", name: "แบบ 1 ช่องแก้บรรทัดอยู่ระหว่างภาพหนังกับตาราง แบบ Aegisub", desc: "ภาพหนังกับคลื่นเสียงอยู่บน ถัดลงมาเป็นช่องแก้บรรทัดที่เลือก มีเวลาเริ่ม เวลาจบ ความยาว และข้อความ พร้อมปุ่มแทรก แยก รวม และลบบรรทัด ตารางทุกบรรทัดอยู่ล่างสุด บรรทัดที่แก้แล้วมีแถบสีหน้าแถว คนที่เคยใช้ Aegisub คุ้นมือ แต่ตารางเหลือที่น้อยที่หน้าต่าง 1280 × 800" },
   { mode: "side", name: "แบบ 2 ตารางยาวด้านซ้าย ภาพหนังกับช่องแก้ด้านขวา", desc: "ตารางทุกบรรทัดสูงเต็มหน้าทางซ้าย เห็นได้ทีละราว 14 บรรทัด ด้านขวาเป็นภาพหนัง คลื่นเสียง และช่องแก้บรรทัดที่เลือกเรียงลงมา กดแถวในตารางแล้วภาพกับช่องแก้เปลี่ยนตาม เห็นบรรทัดก่อนหลังเยอะที่สุด แต่ภาพหนังเล็กลง" },
   { mode: "pad", name: "แบบ 3 แก้ทั้งไฟล์แบบ notepad ภาพหนังกับรายการปัญหาด้านขวา", desc: "แก้ข้อความทั้งไฟล์ตรง ๆ เหมือนเปิดใน Notepad ด้านขวาแสดงภาพหนังของบรรทัดที่เคอร์เซอร์อยู่ และรายการปัญหาที่โปรแกรมตรวจเจอ เช่น เวลาซ้อนกับบรรทัดก่อน หรือตัวอักษรเยอะจนอ่านไม่ทัน กดรายการแล้วกระโดดไปบรรทัดนั้น เร็วสำหรับแก้คำผิดทีละเยอะ แต่แก้เวลาต้องพิมพ์ตัวเลขเอง" },
 ];
 
-/* สองขนาดแบบมอคอัปชุด 9 (พี่กันสั่ง 13 พ.ย. 2569 "เราขอทั้งสองจอ คือ 1280 กับตอนขยายจอ")
-   หน้าต่างตั้งต้น 1280 × 800 จาก tauri.conf.json · กดขยายเต็มจอ 1600 × 852 พื้นที่ใช้งานของจอ 1600 × 900 หักแถบงาน */
-const SIZES = [
-  { label: "หน้าต่างตอนยังไม่กดขยาย 1280 × 800", w: 1280, h: 800 },
-  { label: "กดขยายเต็มจอ 1600 × 852", w: 1600, h: 852 },
-];
+/* แผนหน้าแก้ซับ ขั้น 10 อัปเดตมอคอัปให้เหมือนของจริง (14 พ.ย. 2569) · พี่กันเคาะแบบไปแล้ว 13 พ.ย. 2569
+   กรอบบนสุดสามสภาพเป็นหน้าแก้ซับจริงจาก src/main.tsx ผ่าน theme-live-app.html (ข้อมูลตัวอย่างหน้าแก้ซับอยู่ seDoc seMovie ในไฟล์นั้น)
+   แบบ 1 ถึง 3 เดิมวาดทับหน้าซับไตเติลแบบดูอย่างเดียว ซึ่งเปลี่ยนเป็นหน้าแก้ซับแล้ว จึงเก็บแค่ชื่อกับคำบรรยาย บอกว่าลงโปรแกรมเป็นอะไร
+   กรอบเท่าหน้าต่างโปรแกรมตอนยังไม่กดขยาย 1280 × 800 (width height ใน src-tauri/tauri.conf.json) ไม่ย่อ */
+const W = 1280, H = 800;
+const DONE = {
+  aeg: "ลงโปรแกรมแล้วเป็นหน้าหลัก ดูของจริงที่กรอบแรกข้างบน",
+  side: "เหลือแค่ปุ่มซ่อนภาพและเสียงให้ตารางยาวเต็มหน้า ดูของจริงที่กรอบที่สองข้างบน",
+  pad: "ลงโปรแกรมแล้วเป็นแบบ notepad แก้ได้ทั้งไฟล์ ดูของจริงที่กรอบที่สามข้างบน",
+};
 const host = document.getElementById("opts");
 let n = 0;
 for (const o of OPTS) {
@@ -56,160 +63,55 @@ for (const o of OPTS) {
   box.innerHTML = `<h3></h3><p></p>`;
   box.querySelector("h3").textContent = o.name;
   box.querySelector("p").textContent = o.desc;
-  const num = o.mode === "now" ? null : ++n;
-  SIZES.forEach((s, si) => {
+  if (o.mode !== "now") {
+    n++;
+    const done = document.createElement("p");
+    done.className = "done";
+    done.textContent = DONE[o.mode];
+    box.appendChild(done);
+    host.appendChild(box);
+    continue;
+  }
+  o.states.forEach(([label, st], si) => {
     const sz = document.createElement("div");
     sz.className = "size";
     sz.innerHTML = `<h4></h4><iframe class="frame" title=""></iframe><div class="state" data-state></div>`;
-    // ข้อย่อย 1.1 ยังไม่กดขยาย 1.2 กดขยายเต็มจอ แบบมอคอัปชุด 9 · หน้าตาตอนนี้ไม่มีเลข
-    sz.querySelector("h4").textContent = num ? `${num}.${si + 1} ${s.label}` : s.label;
+    sz.querySelector("h4").textContent = `${si + 1}. ${label} หน้าต่างตอนยังไม่กดขยาย ${W} × ${H}`;
     const f = sz.querySelector("iframe");
-    f.title = `${o.name} ${s.label}`; f.dataset.v = o.mode;
-    f.style.width = s.w + "px"; f.style.height = s.h + "px";
+    f.title = `${o.name} ${label}`; f.dataset.v = "now"; f.dataset.st = st ?? "";
+    f.style.width = W + "px"; f.style.height = H + "px";
     box.appendChild(sz);
   });
   host.appendChild(box);
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-async function until(fn, ms = 12000) { const t = Date.now(); while (Date.now() - t < ms) { try { const v = fn(); if (v) return v; } catch (e) { /* ยังโหลด */ } await sleep(120); } return null; }
+async function until(fn, ms = 15000) { const t = Date.now(); while (Date.now() - t < ms) { try { const v = fn(); if (v) return v; } catch (e) { /* ยังโหลด */ } await sleep(120); } return null; }
 const navTo = async (d, label) => (await until(() => [...d.querySelectorAll(".side .nav")].find((b) => b.innerText.trim().split(/\s*\n/)[0] === label)))?.click();
 // เปิดในโครมใช้ข้อมูลตัวอย่างของ theme-live-app · เปิดในหน้าต่างโปรแกรมโหมดพัฒนา ฝั่ง Rust ตัวจริงตอบแทน (แก้ทับไม่ได้) จึงใช้ไฟล์ทดสอบจริง
 const IN_APP = !!window.__TAURI_INTERNALS__;
-const MOVIE = IN_APP ? "D:/movie-shelf/test-media/สร้าง/หนัง/ดาวเหนือ (2023).mkv" : "D:\\หนัง\\ดาวเหนือ (2023).mkv";
-
-/* ไอคอนเส้นแบบเดียวกับ src/components/icons.tsx (เส้น 2 มุมมน) · ตัวที่โปรแกรมยังไม่มีวาดใหม่ในแบบเดียวกัน */
-const ic = (d) => `<svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">${d}</svg>`;
-const I = {
-  undo: ic('<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/>'),
-  redo: ic('<path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 000 12h3"/>'),
-  shift: ic('<path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/>'),
-  stretch: ic('<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>'),
-  find: ic('<circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8"/>'),
-  save: ic('<path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/>'),
-  plus: ic('<path d="M12 5v14M5 12h14"/>'),
-  split: ic('<path d="M12 3v18M5 8l-3 4 3 4M19 8l3 4-3 4"/>'),
-  merge: ic('<path d="M4 12h16M8 7l4 5-4 5M16 7l-4 5 4 5"/>'),
-  del: ic('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
-  play: ic('<path d="M7 5l12 7-12 7z"/>'),
-  warn: ic('<path d="M12 3l9 16H3z"/><path d="M12 10v4M12 17v.5"/>'),
-  back: ic('<path d="M15 18l-6-6 6-6"/>'), next: ic('<path d="M9 18l6-6-6-6"/>'),
-};
-
-const CSS = `
-.mk-tools{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;padding:4px 0 10px;border-bottom:1px solid var(--line)}
-.mk-tools .btn{height:34px;white-space:nowrap}
-.mk-tools .mk-sep{width:1px;height:22px;background:var(--line);flex:none}
-.mk-tools .mk-dirty{font-size:12.5px;color:#94680f;white-space:nowrap}
-.mk-edit{border:1px solid #e8cdd6;border-radius:10px;background:#fff;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
-.mk-erow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--txt2)}
-.mk-erow label{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
-.mk-erow input{width:104px;height:32px;box-sizing:border-box;padding:0 8px;border:1px solid #e8cdd6;border-radius:8px;font:inherit;font-size:13.5px;font-variant-numeric:tabular-nums;color:var(--txt);background:#fff}
-.mk-erow b{color:var(--txt);font-weight:600;font-variant-numeric:tabular-nums}
-.mk-erow .btn{height:32px}
-.mk-text{width:100%;box-sizing:border-box;min-height:58px;resize:none;padding:8px 10px;border:1px solid var(--accent);border-radius:8px;font:inherit;font-size:15px;line-height:1.5;color:var(--txt);box-shadow:0 0 0 3px rgba(200,64,111,.18)}
-.mk-hint{font-size:12.5px;color:var(--txt3)}
-[data-sub-table] tr.mk-edited td:first-child{box-shadow:inset 3px 0 0 #e0a43a}
-.mk-side{display:grid;grid-template-columns:minmax(0,1fr) 430px;gap:14px;align-items:start}
-.mk-side .sgrid{max-height:600px;overflow:auto}
-.mk-side .vframe{width:100%}
-.mk-side canvas[data-aud]{height:84px}
-.mk-side .mk-edit{gap:6px;padding:8px 10px}
-.mk-side .mk-erow{gap:6px}
-.mk-side .mk-erow input{width:92px}
-.mk-side .mk-erow .btn{padding:0 8px;font-size:12.5px;height:30px}
-.mk-side .mk-hint{display:none}
-.mk-side .mk-text{min-height:48px}
-.mk-col{display:flex;flex-direction:column;gap:10px}
-.mk-pad{display:grid;grid-template-columns:minmax(0,1fr) 380px;gap:14px;align-items:start}
-.mk-pad .np{max-height:600px;overflow:auto;outline:none;border:1px solid var(--accent);box-shadow:0 0 0 3px rgba(200,64,111,.14)}
-.mk-pad .npl.mk-cur{background:#faedf1}
-.mk-prob{border:1px solid #e8cdd6;border-radius:10px;background:#fff;padding:10px 12px;font-size:13px}
-.mk-prob h4{margin:0 0 6px;font-size:13.5px;color:var(--txt)}
-.mk-prob button{display:flex;gap:8px;align-items:flex-start;width:100%;text-align:left;border:0;background:transparent;padding:6px 4px;border-radius:7px;font:inherit;color:var(--txt);cursor:pointer}
-.mk-prob button:hover{background:#faedf1}
-.mk-prob button span.n{color:#94680f;font-weight:600;white-space:nowrap}
-`;
-
-function tools(d, hint) {
-  const t = d.createElement("div");
-  t.className = "mk-tools";
-  t.innerHTML = `<button class="btn btn-ghost btn-sm" title="เลิกทำ Ctrl+Z">${I.undo}เลิกทำ</button><button class="btn btn-ghost btn-sm" title="ทำซ้ำ Ctrl+Y">${I.redo}ทำซ้ำ</button><span class="mk-sep"></span>
-    <button class="btn btn-ghost btn-sm">${I.shift}เลื่อนเวลาทั้งไฟล์</button><button class="btn btn-ghost btn-sm">${I.stretch}ยืดเวลาตามความเร็วหนัง</button><button class="btn btn-ghost btn-sm">${I.find}ค้นและแทนที่</button>
-    <span style="flex:1"></span><span class="mk-dirty">${hint}</span><button class="btn btn-ghost btn-sm">บันทึกเป็นไฟล์ใหม่</button><button class="btn btn-main btn-sm">${I.save}บันทึก</button>`;
-  return t;
-}
-function editBox(d, c) {
-  const e = d.createElement("div");
-  e.className = "mk-edit";
-  e.innerHTML = `<div class="mk-erow"><label>บรรทัด <b>${c.n}</b></label><label>เริ่ม<input value="${c.s}"></label><label>จบ<input value="${c.e}"></label><label>ยาว <b>${c.len} วินาที</b></label><label>ตัว/วิ <b>${c.cps}</b></label>
-    <span style="flex:1"></span><button class="btn btn-ghost btn-sm">${I.plus}แทรกบรรทัด</button><button class="btn btn-ghost btn-sm">${I.split}แยก</button><button class="btn btn-ghost btn-sm">${I.merge}รวมกับถัดไป</button><button class="btn btn-bad btn-sm">${I.del}ลบ</button></div>
-    <textarea class="mk-text">${c.text}</textarea>
-    <div class="mk-erow"><button class="btn btn-ghost btn-sm">${I.back}บรรทัดก่อน</button><button class="btn btn-ghost btn-sm">${I.next}บรรทัดถัดไป</button><button class="btn btn-ghost btn-sm">${I.play}ตั้งเวลาเริ่มตามภาพที่เห็น</button><span class="mk-hint">กด Enter เพื่อไปบรรทัดถัดไป  ส่วน Shift+Enter ขึ้นบรรทัดใหม่ในซับเดียวกัน</span></div>`;
-  return e;
-}
+const MOVIE = IN_APP ? "D:/movie-shelf/test-media/สร้าง/แก้ซับ/ฉากตัด (2025).mkv" : "D:\\หนัง\\ฉากตัด (2025).mkv";
 
 async function drive(f) {
-  const mode = f.dataset.v;
+  const st = f.dataset.st;
   const d = f.contentDocument, w = f.contentWindow, state = f.parentElement.querySelector("[data-state]");
   if (!w || !String(w.location.href).includes("theme-live-app")) return;
   try {
+    try { w.localStorage.setItem("se-fold", "0"); w.localStorage.setItem("se-vauto", "1"); } catch (e) { /* ไม่มีที่เก็บ */ }
     await until(() => d.querySelector(".side .nav"));
     await navTo(d, "ซับไตเติล");
     await until(() => w.__subOpen);
     w.__subOpen(MOVIE);
-    if (!(await until(() => d.querySelector("[data-subviewer-inline] [data-sub-table]")))) throw new Error("เปิดซับไม่ได้");
-    // เลือกบรรทัด 12 ให้ภาพหนังกับช่องแก้มีของ
-    (await until(() => { const r = d.querySelectorAll("[data-sub-table] tbody tr"); return r.length ? r[Math.min(11, r.length - 1)] : null; }))?.click();
-    await until(() => d.querySelector("[data-vframe] img") && d.querySelector("canvas[data-aud]"));
-    await sleep(500);
-    if (mode === "now") { state.textContent = ""; return; }
-    const st = d.createElement("style"); st.textContent = CSS; d.head.appendChild(st);
-    const view = d.querySelector("[data-subviewer-inline]"), body = view.querySelector("[data-subviewer]");
-    const tracks = d.querySelector("[data-sub-list]");
-    (tracks ?? d.querySelector("[data-sub-bar]")).after(tools(d, "แก้แล้ว 3 บรรทัด ยังไม่บันทึก"));
-    const rows = [...d.querySelectorAll("[data-sub-table] tbody tr")];
-    [4, 9, 11].forEach((i) => rows[i]?.classList.add("mk-edited"));
-    // ช่องแก้บรรทัดใช้แถวที่เลือกอยู่ในตารางจริง เวลากับข้อความตรงกับภาพหนังที่เห็น
-    const on = d.querySelector("[data-sub-table] tbody tr.on") ?? rows[0];
-    const td = [...on.children].map((x) => x.innerText.trim());
-    const cue = { n: td[0], s: td[1], e: td[2], len: td[3], cps: td[4], text: td[5] };
-    const vf = d.querySelector("[data-vframe]"), aud = d.querySelector("canvas[data-aud]");
-    const audCol = aud.parentElement, search = d.querySelector("[data-sub-q]")?.closest("div");
-    const grid = d.querySelector("[data-sub-table]");
-    if (mode === "aeg") {
-      if (search) search.replaceWith(editBox(d, cue)); else grid.before(editBox(d, cue));
-    } else if (mode === "side") {
-      const wrap = d.createElement("div"); wrap.className = "mk-side";
-      const col = d.createElement("div"); col.className = "mk-col";
-      body.innerHTML = ""; body.appendChild(wrap);
-      wrap.appendChild(grid); wrap.appendChild(col);
-      col.appendChild(vf); col.appendChild(audCol); col.appendChild(editBox(d, cue));
-      audCol.querySelectorAll(".small").forEach((x) => x.remove());
-      // ปุ่มบรรทัดก่อนถัดไปซ้ำกับในช่องแก้ เอาออกให้ช่องแก้ไม่ตกขอบล่าง
-      audCol.querySelector("[data-sub-prev]")?.parentElement.remove();
-    } else if (mode === "pad") {
-      const img = vf.querySelector("img")?.src;
-      // แบบ notepad ของจริงในกรอบนี้ แล้วทำให้แก้ได้ ภาพหนังกับรายการปัญหาอยู่ด้านขวา
-      [...d.querySelectorAll("[data-sub-tabs] button")].find((b) => b.innerText.includes("notepad"))?.click();
-      const np = await until(() => d.querySelector("[data-notepad-view]"));
-      await sleep(300);
-      const wrap = d.createElement("div"); wrap.className = "mk-pad";
-      const col = d.createElement("div"); col.className = "mk-col";
-      np.setAttribute("contenteditable", "true");
-      // คำอธิบายแบบดูอย่างเดียวของตัวดูซับ เปลี่ยนเป็นบอกว่าแก้ได้
-      [...view.querySelectorAll(".small")].filter((x) => x.innerText.includes("ดูได้อย่างเดียว")).forEach((x) => { x.textContent = "แก้ข้อความทั้งไฟล์ได้ตรงนี้เลย เลขเวลาแก้ได้แบบพิมพ์ทับ ถ้ารูปแบบผิดโปรแกรมขึ้นในรายการปัญหาทางขวา"; });
-      np.querySelectorAll(".npl")[46]?.classList.add("mk-cur");
-      const nbody = view.querySelector("[data-subviewer]");
-      [...nbody.children].forEach((x) => { if (!x.contains(np) && !x.classList.contains("small")) x.remove(); });
-      nbody.appendChild(wrap); wrap.appendChild(np); wrap.appendChild(col);
-      const fr = d.createElement("div"); fr.className = "vframe"; fr.style.width = "100%";
-      fr.innerHTML = `<img src="${img}" alt=""><div class="vsub">${cue.text}</div><div class="vtime">0:00:31.40</div>`;
-      col.appendChild(fr);
-      const pb = d.createElement("div"); pb.className = "mk-prob";
-      pb.innerHTML = `<h4>ปัญหาที่ตรวจเจอ 2 อย่าง</h4><button>${I.warn}<span class="n">บรรทัด 14</span><span>ตัวอักษร 24 ตัวต่อวินาที อ่านไม่ทัน</span></button><button>${I.warn}<span class="n">บรรทัด 22</span><span>เวลาเริ่มซ้อนกับบรรทัด 21 อยู่ 0.4 วินาที</span></button>`;
-      col.appendChild(pb);
+    if (!(await until(() => d.querySelector("[data-subedit] [data-se-cmds]"), 20000))) throw new Error("เปิดซับไม่ได้");
+    // เลือกบรรทัดที่ 4 ให้ภาพหนัง คลื่นเสียง และช่องแก้บรรทัดมีของ
+    (await until(() => { const r = [...d.querySelectorAll("[data-sub-table] tbody tr")].filter((x) => x.cells.length > 3); return r.length > 4 ? r[4] : null; }))?.dispatchEvent(new w.MouseEvent("mousedown", { bubbles: true, button: 0 })); // ตารางเลือกแถวตอนกดเมาส์ลง
+    await until(() => d.querySelector("[data-vframe] img"), 8000);
+    if (st === "fold") (await until(() => d.querySelector("[data-se-fold]")))?.click();
+    if (st === "pad") {
+      [...d.querySelectorAll("button")].find((b) => b.innerText.trim() === "แบบ notepad")?.click();
+      if (!(await until(() => d.querySelector("[data-pad-text]")))) throw new Error("เปิดแบบ notepad ไม่ได้");
     }
+    await sleep(400);
     state.textContent = "";
   } catch (e) { state.textContent = "จัดหน้าไม่สำเร็จ " + e.message; }
 }

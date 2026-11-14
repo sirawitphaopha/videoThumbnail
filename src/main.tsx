@@ -10,6 +10,7 @@ import "@fontsource/sarabun/latin-700.css";
 import "./styles/app.css";
 import { StrictMode } from "react";
 import { createRoot } from "react-dom/client";
+import { browserBlocked } from "./lib/browserKeys";
 import App from "./App";
 import { applySavedTone } from "./lib/tones";
 
@@ -30,7 +31,8 @@ if (!import.meta.env.DEV) {
   });
   window.addEventListener("keydown", (e) => {
     const k = e.key.toLowerCase();
-    if (e.key === "F5" || e.key === "BrowserRefresh" || ((e.ctrlKey || e.metaKey) && !e.altKey && ["r", "p", "s"].includes(k))) e.preventDefault();
+    // จดไว้ว่าตัวนี้กันเพื่อเบราว์เซอร์ คีย์ลัดของโปรแกรมที่ใช้ปุ่มเดียวกันยังทำงาน (browserKeys.ts)
+    if (e.key === "F5" || e.key === "BrowserRefresh" || ((e.ctrlKey || e.metaKey) && !e.altKey && ["r", "p", "s"].includes(k))) { browserBlocked.add(e); e.preventDefault(); }
   }, true);
 }
 createRoot(document.getElementById("root")!).render(

@@ -11,8 +11,11 @@ import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { connect, sleep } from "./lib/cdp-client.mjs";
 
-try { execFileSync("powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", resolve("scripts", "fg-gate.ps1")], { stdio: "inherit" }); }
-catch { console.log("หน้าต่างชั้นหนังอยู่หน้าสุดของจอ หยุดตรวจ"); process.exit(2); }
+// ด่านหน้าต่างหน้าสุดใช้เฉพาะตอนพี่กันเลิกงานหรือลงเวร · ตอนพี่กันทำงานอยู่ส่ง NOGATE=1 (CLAUDE.md กฎกันหน้าจอเด้งข้อ ② พี่กันสั่ง 14 พ.ย. 2569)
+if (process.env.NOGATE !== "1") {
+  try { execFileSync("powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", resolve("scripts", "fg-gate.ps1")], { stdio: "inherit" }); }
+  catch { console.log("หน้าต่างชั้นหนังอยู่หน้าสุดของจอ หยุดตรวจ"); process.exit(2); }
+}
 
 const OUT = process.argv[2] ?? "docs/report-2026-11-13/ขนาดจอ";
 mkdirSync(OUT, { recursive: true });
@@ -26,7 +29,11 @@ const SIZES = process.env.SIZES
     [1920, 1032, "ขยาย จอ 1080"],
     [2560, 1392, "ขยาย จอ 2K"],
   ];
-const PAGES = ["ชั้นวางหนัง", "ใส่โปสเตอร์", "จับคู่ปก", "เสียงและซับ", "ตรวจไฟล์", "กราฟเสียง", "บิตเรต", "MediaInfo", "ตั้งค่า"];
+// ส่งหน้าเองได้ทาง PAGES เช่น PAGES=ซับไตเติล ตรวจเฉพาะหน้านั้น (รันซ้ำหลังแก้หน้าเดียว)
+const PAGES = process.env.PAGES ? process.env.PAGES.split(",") : ["ชั้นวางหนัง", "ใส่โปสเตอร์", "จับคู่ปก", "เสียงและซับ", "ซับไตเติล", "ตรวจไฟล์", "กราฟเสียง", "บิตเรต", "MediaInfo", "ตั้งค่า"];
+// หน้าแก้ซับ (แผนหน้าแก้ซับ ขั้น 10) เปิดหนังทดสอบที่มีซับ ASS ตรวจสามสภาพ หน้าหลัก ซ่อนภาพและเสียง แบบ notepad
+const SUBMOVIE = resolve("test-media", "สร้าง", "แก้ซับ", "ฉากตัด (2025).mkv").replace(/\\/g, "/");
+const SUBROWS = "[data-subedit] .se-tools, [data-subedit] .se-gridbar, [data-subedit] .se-erow, [data-subedit] .se-atb";
 const VIEWS = ["wave", "loud", "spek", "psd"];
 
 const c = await connect();
@@ -45,7 +52,8 @@ const EDGE = `
   const inTableScroll = (e) => { for (let p = e.parentElement; p && p !== document.body; p = p.parentElement) if (scrollsX(p) && p.querySelector('table')) return true; return false; };
   const name = (e) => (e.innerText || e.getAttribute('aria-label') || e.className || e.tagName).toString().trim().replace(/\\s+/g, ' ').slice(0, 20);
   const out = [...document.querySelectorAll('button, input, select, textarea, .dd, .seg, .chip')].filter((e) => vis(e) && e.getBoundingClientRect().right > innerWidth + 1 && !inTableScroll(e)).map(name);
-  const boxX = [...document.querySelectorAll('body *')].filter((p) => vis(p) && scrollsX(p) && !p.querySelector('table')).map((p) => (p.className || p.tagName).toString().slice(0, 24) + ' ' + (p.scrollWidth - p.clientWidth));
+  // ช่องพิมพ์แบบ notepad ของหน้าแก้ซับไม่ตัดบรรทัดยาว ตั้งใจให้เลื่อนแนวนอนแบบ Notepad (data-pad-text) ไม่นับว่าล้น
+  const boxX = [...document.querySelectorAll('body *')].filter((p) => vis(p) && scrollsX(p) && !p.querySelector('table') && !p.matches('[data-pad-text]')).map((p) => (p.className || p.tagName).toString().slice(0, 24) + ' ' + (p.scrollWidth - p.clientWidth));
   return JSON.stringify({ pageX: document.documentElement.scrollWidth - innerWidth, out: [...new Set(out)].slice(0, 6), boxX: boxX.slice(0, 4) });
 `;
 /** ปุ่มในแถวเดียวกันซ้อนกัน เทียบกรอบทุกคู่ (ตัวเลข scrollWidth ไม่ล้นพิสูจน์ไม่ได้ ชิ้นที่หดได้ซ้อนกันโดยไม่ล้น · CLAUDE.md 13 พ.ย. 2569) */
@@ -83,6 +91,10 @@ try {
     await drop(SONG);
     await waitFor("return !!document.querySelector('[data-pageslot=bitrate] canvas')", 90000);
   }
+  await nav("ซับไตเติล"); await sleep(600);
+  await q(`window.__subClear?.(); window.__subOpen?.(${JSON.stringify(SUBMOVIE)}); return 1`);
+  await waitFor("return !!document.querySelector('[data-se-cmds]')", 30000);
+  await q("try { localStorage.setItem('se-fold', '0'); } catch {} return 1");
   await c.move(2, 2);
 
   for (const [w, h, label] of SIZES) {
@@ -98,6 +110,22 @@ try {
           await shot(`${w}x${h}-กราฟเสียง-${v}`, w, h);
         }
         await q("document.querySelector('[data-view=wave]')?.click(); return 1"); await sleep(500);
+        continue;
+      }
+      if (page === "ซับไตเติล") {
+        const tab = (t) => q(`[...document.querySelectorAll('button')].find((b) => b.innerText.trim() === ${JSON.stringify(t)})?.click(); return 1`);
+        const states = [["หน้าหลัก", async () => { await tab("แบบ Aegisub"); }],
+          ["ซ่อนภาพและเสียง", async () => { await q("document.querySelector('[data-se-fold]')?.click(); return 1"); }],
+          ["notepad", async () => { await q("if (document.querySelector('[data-se-fold]')?.getAttribute('aria-pressed') === 'true') document.querySelector('[data-se-fold]').click(); return 1"); await tab("แบบ notepad"); }]];
+        for (const [st, go] of states) {
+          await go(); await sleep(1200);
+          // หน้าแก้ซับห้ามเลื่อนทั้งหน้า ตารางและช่อง notepad เลื่อนในกรอบของตัวเอง
+          const e = JSON.parse(await q(EDGE)), o = JSON.parse(await q(OVERLAP(SUBROWS)));
+          const pv = await q("const pw = document.querySelector('[data-pageslot=subtitle] .pagewrap') ?? [...document.querySelectorAll('.pagewrap')].find((x) => x.querySelector('[data-subedit]')); return pw ? pw.scrollHeight - pw.clientHeight : -1");
+          check(`${w}×${h} ${label} หน้าแก้ซับ ${st} ไม่ล้นขวา ปุ่มไม่ซ้อน หน้าไม่เลื่อนแนวตั้ง`, e.pageX <= 0 && !e.out.length && !e.boxX.length && o.rows >= 1 && !o.hits.length && pv <= 0, JSON.stringify({ ...e, ...o, pv }));
+          await shot(`${w}x${h}-หน้าแก้ซับ-${st}`, w, h);
+        }
+        await tab("แบบ Aegisub"); await sleep(300);
         continue;
       }
       const e = JSON.parse(await q(EDGE));

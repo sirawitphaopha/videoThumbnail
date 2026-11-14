@@ -4,6 +4,7 @@
    ตอนพิมพ์ในช่อง ข้ามคีย์ลัดทุกตัว ยกเว้นตัวที่บอกว่าใช้ในช่องได้ (Ctrl+Z ของหน้า คีย์ลัดบนแป้นตัวเลขตอนเปิดโหมด Medusa)
    มีหน้าต่างซ้อนเปิดอยู่ (body[data-dialog-open]) ข้ามทุกตัว ไม่ให้คีย์ลัดของหน้าทำงานทะลุหน้าต่าง */
 import { useEffect, useLayoutEffect, useRef, type RefObject } from "react";
+import { browserBlocked } from "./browserKeys";
 
 export type Hotkey = {
   /** KeyboardEvent.code เช่น KeyS Space Enter Numpad5 NumpadEnter ArrowLeft F3 */
@@ -34,7 +35,8 @@ export function useHotkeys(keys: Hotkey[], active: RefObject<boolean>) {
   useLayoutEffect(() => { ref.current = keys; });
   useEffect(() => {
     const on = (e: KeyboardEvent) => {
-      if (!active.current || e.defaultPrevented || e.repeat && e.code === "Space") return;
+      // ตัวกันคีย์ลัดของเบราว์เซอร์ในตัวจริง (main.tsx) ติดป้าย defaultPrevented ไว้ก่อน ไม่นับว่าตัวดักอื่นใช้แป้นนี้ไปแล้ว (browserKeys.ts)
+      if (!active.current || (e.defaultPrevented && !browserBlocked.has(e)) || e.repeat && e.code === "Space") return;
       if (document.body.hasAttribute("data-dialog-open")) return;
       const h = match(ref.current, e, inField(e.target));
       if (!h) return;

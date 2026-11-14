@@ -9,7 +9,8 @@
   พี่กันสั่ง "เราขอปุ่มเหมือนกันเลย เธอไปวาดใหม่มา เเละเรียงเหมือนกัน" กับ "ปล เอาหมดที่เธอเสนอเเหละ ทำมาก่อนเเหละ"
   ปุ่มเรียงตาม src/libresrc/default_toolbar.json ของ Aegisub ส่วน audio ไม่เอาคาราโอเกะ ไอคอนวาดใหม่เส้น 2 มุมมนแบบ src/components/icons.tsx ไม่ได้ลอกภาพของ Aegisub
   แถบเลื่อนตั้งสามอันทางขวาของคลื่นเสียงกับขอบลากปรับความสูง ตาม src/audio_box.cpp
-  ทุกกรอบเป็นหน้าจอจริงของโปรแกรมผ่าน theme-live-app.html ปุ่มกับแถบที่เพิ่มยังไม่ทำงาน ยังไม่ได้แก้โค้ดของโปรแกรม
+  เดิมวาดแถวปุ่มทับหน้าซับไตเติลแบบดูอย่างเดียว · 14 พ.ย. 2569 (แผนหน้าแก้ซับ ขั้น 10) ทุกกรอบเป็นหน้าแก้ซับจริงผ่าน theme-live-app.html (ข้อมูลตัวอย่าง seDoc seMovie)
+  แบบ 1 กรอบ 1280 × 800 แบบ 2 กรอบสูง 1032 (หน้าต่างสูงตั้งแต่ 950 จุดสลับเป็นแบบ 2) · ข้อมูลปุ่ม BTN กับตารางท้ายหน้าคงเดิม
   เปิดด้วยเซิร์ฟเวอร์ทดสอบ npm run dev แล้วเข้า http://127.0.0.1:1420/docs/mockups/sub-audio-toolbar.html
 -->
 <style>
@@ -35,7 +36,7 @@
 <body>
 <div class="page">
   <h1>แถบปุ่มเสียง หน้าแก้ซับ</h1>
-  <p class="lead">ทุกกรอบเป็นหน้าจอจริงของโปรแกรมตามแบบ 1 ที่พี่กันเลือก แต่ละแบบมีสองกรอบ คือหน้าต่างตอนยังไม่กดขยาย 1280 × 800 กับตอนกดขยายเต็มจอ 1600 × 852 ไม่ย่อ แถวปุ่มมี 19 ปุ่มเรียงเหมือน Aegisub ทุกปุ่ม ยกเว้นคาราโอเกะ ไอคอนแคลร์วาดใหม่ให้เส้นเหมือนไอคอนอื่นของโปรแกรม และใส่สีตามหน้าที่ คือสีเขียวเป็นการเล่นเสียง สีแดงคือหยุด สีส้มเหลืองคือขอบของช่วงที่เลือก สีฟ้าคือไปบรรทัดอื่นหรือเลื่อนภาพ สีเขียวน้ำทะเลคือเผื่อเวลา สีม่วงคือไปที่ช่วงกับคีย์ลัด สีส้มคือภาพความถี่ และตัว A สีชมพูบอกว่าเป็นปุ่มทำงานอัตโนมัติ ทั้งสองแบบมีแถบเลื่อนตั้งสามอันทางขวาของคลื่นเสียง คือซูมแนวนอน ซูมแนวตั้ง และความดัง กับปุ่มโซ่ที่ผูกซูมแนวตั้งกับความดังให้เลื่อนพร้อมกัน และมีขอบใต้คลื่นเสียงให้ลากปรับความสูงกรอบเสียง ปุ่มกับแถบที่เพิ่มยังกดไม่ได้ ตารางท้ายหน้าบอกว่าแต่ละปุ่มทำอะไรและคีย์ลัดอะไร พี่กันเลือกแบบ 2 เป็นหลัก และใช้แบบ 1 ตอนจอเล็กจนวางชื่อใต้ไอคอนไม่พอ (13 พ.ย. 2569)</p>
+  <p class="lead">ลงโปรแกรมแล้วตั้งแต่ขั้น 5 ของแผนหน้าแก้ซับ ทุกกรอบเป็นหน้าแก้ซับจริงตอนนี้ (14 พ.ย. 2569) เปิดไฟล์ตัวอย่าง ฉากตัด (2025).mkv คลื่นเสียงกับภาพหนังเป็นภาพจำลอง แถวปุ่มมี 19 ปุ่มเรียงเหมือน Aegisub ทุกปุ่ม ยกเว้นคาราโอเกะ ไอคอนแคลร์วาดใหม่ให้เส้นเหมือนไอคอนอื่นของโปรแกรม และใส่สีตามหน้าที่ คือสีเขียวเป็นการเล่นเสียง สีแดงคือหยุด สีส้มเหลืองคือขอบของช่วงที่เลือก สีฟ้าคือไปบรรทัดอื่นหรือเลื่อนภาพ สีเขียวน้ำทะเลคือเผื่อเวลา สีม่วงคือไปที่ช่วงกับคีย์ลัด สีส้มคือภาพความถี่ และตัว A สีชมพูบอกว่าเป็นปุ่มทำงานอัตโนมัติ ทั้งสองแบบมีแถบเลื่อนตั้งสามอันทางขวาของคลื่นเสียง คือซูมแนวนอน ซูมแนวตั้ง และความดัง กับปุ่มโซ่ที่ผูกซูมแนวตั้งกับความดังให้เลื่อนพร้อมกัน และมีขอบใต้คลื่นเสียงให้ลากปรับความสูงกรอบเสียง ตารางท้ายหน้าบอกว่าแต่ละปุ่มทำอะไรและคีย์ลัดอะไร พี่กันเลือกแบบ 2 เป็นหลัก และใช้แบบ 1 ตอนที่ว่างไม่พอ (13 พ.ย. 2569) ในโปรแกรมสลับตามความสูงหน้าต่าง ต่ำกว่า 950 จุดเป็นแบบ 1 (เกณฑ์แคลร์ตั้ง)</p>
   <div id="opts"></div>
   <h3 style="font-size:18px;margin:30px 0 4px">ปุ่มทั้ง 19 ปุ่ม เรียงซ้ายไปขวาเหมือน Aegisub</h3>
   <table class="keys" id="keys"><thead><tr><th>ไอคอน</th><th>ชื่อสั้นในแบบ 2</th><th>ทำอะไร</th><th>คีย์ลัดของ Aegisub</th></tr></thead><tbody></tbody></table>
@@ -43,13 +44,10 @@
 
 <script>
 const OPTS = [
-  { mode: "now", name: "หน้าตาตอนนี้ของแบบ 1 ที่เลือกไว้", desc: "ใต้คลื่นเสียงมีแค่ปุ่มบรรทัดก่อน บรรทัดถัดไป ปุ่มเปิดเล่นด้วยโปรแกรมเล่นที่ตั้งไว้ และปุ่มสลับรูปคลื่นกับความถี่ ยังไม่มีแถบซูมและขอบลากปรับความสูง" },
-  { mode: "ib", name: "แบบ 1 ไอคอนอย่างเดียวใต้คลื่นเสียง ชี้แล้วขึ้นชื่อปุ่ม", desc: "แถวปุ่มอยู่ใต้คลื่นเสียงเหมือน Aegisub เป็นปุ่มไอคอนเล็กเรียงแถวเดียว กินที่น้อยที่สุด ชี้ปุ่มไหนขึ้นชื่อปุ่มกับคีย์ลัด ในกรอบนี้ชี้ปุ่มเล่นช่วงที่เลือกค้างไว้ให้เห็น ปุ่มที่เปิดค้างได้ เช่น เลื่อนตาม มีพื้นสีเข้มตอนเปิด ต้องจำไอคอนเองหรือชี้ดูก่อน" },
-  { mode: "lb", name: "แบบ 2 ไอคอนพร้อมชื่อสั้นใต้ไอคอน เต็มความกว้างใต้ภาพหนังกับคลื่นเสียง", desc: "ปุ่มเดียวกันทั้ง 19 ปุ่ม แต่มีชื่อสั้นใต้ไอคอนทุกปุ่ม อ่านแล้วรู้เลยว่าปุ่มไหนทำอะไร ปุ่มกว้างขึ้นจนวางใต้คลื่นเสียงไม่พอ จึงย้ายลงมาเต็มความกว้างใต้ภาพหนังกับคลื่นเสียง ช่องแก้บรรทัดกับตารางจึงถูกดันลงไปอีกราว 30 จุดเมื่อเทียบกับแบบ 1 ที่หน้าต่าง 1280 × 800 ตารางเหลือที่ให้เห็นราวสองบรรทัด" },
-];
-const SIZES = [
-  { label: "หน้าต่างตอนยังไม่กดขยาย 1280 × 800", w: 1280, h: 800 },
-  { label: "กดขยายเต็มจอ 1600 × 852", w: 1600, h: 852 },
+  { mode: "compact", name: "แบบ 1 ไอคอนอย่างเดียวใต้คลื่นเสียง", label: "หน้าต่างตอนยังไม่กดขยาย 1280 × 800 (สูงไม่ถึง 950 จุด ใช้แบบนี้)", w: 1280, h: 800,
+    desc: "หน้าต่างที่สูงไม่ถึง 950 จุด คือตอนยังไม่กดขยายกับจอ 1600 กดขยาย แถวปุ่มเป็นไอคอนเล็กเรียงแถวเดียวใต้คลื่นเสียง ชี้แล้วขึ้นชื่อปุ่มกับคีย์ลัด ตารางยังได้ที่" },
+  { mode: "wide", name: "แบบ 2 ไอคอนพร้อมชื่อสั้นเต็มความกว้าง", label: "หน้าต่างสูง 1032 จุดแบบจอ 1080 กดขยาย (กรอบนี้กว้าง 1440 ให้พอดีจอโครม)", w: 1440, h: 1032,
+    desc: "หน้าต่างที่สูงตั้งแต่ 950 จุด แถวปุ่มอยู่ใต้ภาพหนังกับคลื่นเสียงเต็มความกว้าง มีชื่อสั้นใต้ไอคอนทุกปุ่ม พี่กันเคาะเป็นแบบหลัก" },
 ];
 
 /* ไอคอนเส้นแบบเดียวกับ src/components/icons.tsx (เส้น 2 มุมมน) */
@@ -104,204 +102,44 @@ for (const b of BTN) if (!b.sep) {
 }
 
 const host = document.getElementById("opts");
-let n = 0;
 for (const o of OPTS) {
   const box = document.createElement("div");
   box.className = "opt";
-  box.innerHTML = `<h3></h3><p></p>`;
+  box.innerHTML = `<h3></h3><p></p><div class="size"><h4></h4><iframe class="frame" title=""></iframe><div class="state" data-state></div></div>`;
   box.querySelector("h3").textContent = o.name;
   box.querySelector("p").textContent = o.desc;
-  const num = o.mode === "now" ? null : ++n;
-  SIZES.forEach((s, si) => {
-    const sz = document.createElement("div");
-    sz.className = "size";
-    sz.innerHTML = `<h4></h4><iframe class="frame" title=""></iframe><div class="state" data-state></div>`;
-    sz.querySelector("h4").textContent = num ? `${num}.${si + 1} ${s.label}` : s.label;
-    const f = sz.querySelector("iframe");
-    f.title = `${o.name} ${s.label}`; f.dataset.v = o.mode;
-    f.style.width = s.w + "px"; f.style.height = s.h + "px";
-    box.appendChild(sz);
-  });
+  box.querySelector("h4").textContent = o.label;
+  const f = box.querySelector("iframe");
+  f.title = o.name; f.dataset.v = o.mode;
+  f.style.width = o.w + "px"; f.style.height = o.h + "px";
   host.appendChild(box);
 }
 
 const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
-async function until(fn, ms = 12000) { const t = Date.now(); while (Date.now() - t < ms) { try { const v = fn(); if (v) return v; } catch (e) { /* ยังโหลด */ } await sleep(120); } return null; }
+async function until(fn, ms = 15000) { const t = Date.now(); while (Date.now() - t < ms) { try { const v = fn(); if (v) return v; } catch (e) { /* ยังโหลด */ } await sleep(120); } return null; }
 const navTo = async (d, label) => (await until(() => [...d.querySelectorAll(".side .nav")].find((b) => b.innerText.trim().split(/\s*\n/)[0] === label)))?.click();
+// เปิดในโครมใช้ข้อมูลตัวอย่างของ theme-live-app (seDoc seMovie) · เปิดในหน้าต่างโปรแกรมโหมดพัฒนา ฝั่ง Rust ตัวจริงตอบแทน จึงใช้ไฟล์ทดสอบจริง
 const IN_APP = !!window.__TAURI_INTERNALS__;
-const MOVIE = IN_APP ? "D:/movie-shelf/test-media/สร้าง/หนัง/ดาวเหนือ (2023).mkv" : "D:\\หนัง\\ดาวเหนือ (2023).mkv";
-
-/* แถบเครื่องมือกับช่องแก้บรรทัดของแบบ 1 ยกจาก sub-editor-pick.html */
-const I = {
-  undo: ic('<path d="M9 14L4 9l5-5"/><path d="M4 9h10a6 6 0 010 12h-3"/>'),
-  redo: ic('<path d="M15 14l5-5-5-5"/><path d="M20 9H10a6 6 0 000 12h3"/>'),
-  shift: ic('<path d="M3 12h18M7 8l-4 4 4 4M17 8l4 4-4 4"/>'),
-  stretch: ic('<circle cx="12" cy="12" r="8"/><path d="M12 8v4l3 2"/>'),
-  find: ic('<circle cx="10.5" cy="10.5" r="6.5"/><path d="M20 20l-4.8-4.8"/>'),
-  save: ic('<path d="M5 3h11l3 3v15H5z"/><path d="M8 3v6h8V3M8 21v-7h8v7"/>'),
-  plus: ic('<path d="M12 5v14M5 12h14"/>'),
-  split: ic('<path d="M12 3v18M5 8l-3 4 3 4M19 8l3 4-3 4"/>'),
-  merge: ic('<path d="M4 12h16M8 7l4 5-4 5M16 7l-4 5 4 5"/>'),
-  del: ic('<path d="M4 7h16M10 11v6M14 11v6M6 7l1 13h10l1-13M9 7V4h6v3"/>'),
-  play: ic('<path d="M7 5l12 7-12 7z"/>'),
-  back: ic('<path d="M15 18l-6-6 6-6"/>'), next: ic('<path d="M9 18l6-6-6-6"/>'),
-};
-
-const CSS = `
-.mk-tools{display:flex;align-items:center;gap:8px;flex-wrap:nowrap;padding:4px 0 10px;border-bottom:1px solid var(--line)}
-.mk-tools .btn{height:34px;white-space:nowrap}
-.mk-tools .mk-sep{width:1px;height:22px;background:var(--line);flex:none}
-.mk-tools .mk-dirty{font-size:12.5px;color:#94680f;white-space:nowrap}
-.mk-edit{border:1px solid #e8cdd6;border-radius:10px;background:#fff;padding:10px 12px;display:flex;flex-direction:column;gap:8px}
-.mk-erow{display:flex;align-items:center;gap:12px;flex-wrap:wrap;font-size:13px;color:var(--txt2)}
-.mk-erow label{display:inline-flex;align-items:center;gap:6px;white-space:nowrap}
-.mk-erow input{width:104px;height:32px;box-sizing:border-box;padding:0 8px;border:1px solid #e8cdd6;border-radius:8px;font:inherit;font-size:13.5px;font-variant-numeric:tabular-nums;color:var(--txt);background:#fff}
-.mk-erow b{color:var(--txt);font-weight:600;font-variant-numeric:tabular-nums}
-.mk-erow .btn{height:32px}
-.mk-text{width:100%;box-sizing:border-box;min-height:58px;resize:none;padding:8px 10px;border:1px solid var(--accent);border-radius:8px;font:inherit;font-size:15px;line-height:1.5;color:var(--txt);box-shadow:0 0 0 3px rgba(200,64,111,.18)}
-.mk-hint{font-size:12.5px;color:var(--txt3)}
-[data-sub-table] tr.mk-edited td:first-child{box-shadow:inset 3px 0 0 #e0a43a}
-
-/* คลื่นเสียงกับแถบเลื่อนตั้งสามอันทางขวา (audio_box.cpp) */
-.mk-wave{display:flex;gap:8px;align-items:stretch}
-.mk-wave canvas[data-aud]{flex:1;min-width:0;width:auto}
-.mk-sl{display:flex;gap:4px;align-items:stretch;padding:4px 6px 4px;border:1px solid var(--line);border-radius:8px;background:#fff;position:relative}
-.mk-slc{display:flex;flex-direction:column;align-items:center;gap:3px;color:var(--txt2);width:20px}
-.mk-slc input{writing-mode:vertical-lr;direction:rtl;flex:1;width:16px;min-height:0;margin:0;accent-color:var(--accent);cursor:pointer}
-.mk-link{position:absolute;right:5px;bottom:-15px;display:none}
-.mk-slfoot{display:flex;justify-content:space-between;align-items:center;margin-top:2px}
-.mk-ibtn{display:inline-flex;align-items:center;justify-content:center;height:22px;padding:0 4px;border:1px solid transparent;border-radius:6px;background:transparent;color:var(--txt2);cursor:pointer}
-.mk-ibtn:hover{background:var(--accent-soft);color:var(--accent-ink)}
-.mk-ibtn[aria-pressed=true]{background:var(--accent-soft);border-color:#e2bfcb;color:var(--accent-ink)}
-.mk-grip{height:10px;margin:-2px 0 0;display:flex;align-items:center;justify-content:center;cursor:ns-resize;border-radius:5px}
-.mk-grip i{display:block;width:42px;height:4px;border-radius:2px;background:#e2bfcb}
-.mk-grip:hover{background:var(--accent-soft)}
-.mk-grip:hover i{background:var(--accent)}
-
-/* แถวปุ่มเสียง */
-.mk-atb{display:flex;align-items:center;gap:3px;flex-wrap:nowrap;position:relative}
-.mk-atb .mk-s{width:1px;height:22px;background:var(--line);flex:none;margin:0 2px}
-.mk-ab{display:inline-flex;align-items:center;justify-content:center;flex-direction:column;gap:1px;height:32px;padding:0 4px;border:1px solid transparent;border-radius:9px;background:transparent;color:var(--txt);cursor:pointer;font:inherit;flex:none}
-.mk-ab:hover{background:var(--accent-soft);border-color:#e2bfcb;color:var(--accent-ink)}
-.mk-ab[aria-pressed=true]{background:#f5dde5;border-color:#d8a9b9;color:var(--accent-ink)}
-.mk-ab.mk-hov{background:var(--accent-soft);border-color:#e2bfcb;color:var(--accent-ink)}
-.mk-atb.lb{gap:2px;padding:2px 0 8px;border-bottom:1px solid var(--line);justify-content:space-between}
-.mk-atb.lb .mk-ab{height:46px;padding:0 3px;min-width:40px}
-.mk-atb.lb .mk-ab span{font-size:11px;line-height:1.15;white-space:nowrap;color:var(--txt2)}
-.mk-atb.lb .mk-ab:hover span,.mk-atb.lb .mk-ab[aria-pressed=true] span{color:var(--accent-ink)}
-.mk-atb.lb .mk-s{height:34px;margin:0 1px}
-.mk-tip{position:absolute;z-index:5;bottom:calc(100% + 6px);transform:translateX(-50%);background:#3a252c;color:#fff;font-size:12.5px;line-height:1.4;padding:6px 10px;border-radius:7px;white-space:nowrap;pointer-events:none;box-shadow:0 4px 14px rgba(60,25,40,.25)}
-.mk-tip b{font-weight:600;color:#f6c9d8;margin-left:6px}
-`;
-
-function tools(d, hint) {
-  const t = d.createElement("div");
-  t.className = "mk-tools";
-  t.innerHTML = `<button class="btn btn-ghost btn-sm" title="เลิกทำ Ctrl+Z">${I.undo}เลิกทำ</button><button class="btn btn-ghost btn-sm" title="ทำซ้ำ Ctrl+Y">${I.redo}ทำซ้ำ</button><span class="mk-sep"></span>
-    <button class="btn btn-ghost btn-sm">${I.shift}เลื่อนเวลาทั้งไฟล์</button><button class="btn btn-ghost btn-sm">${I.stretch}ยืดเวลาตามความเร็วหนัง</button><button class="btn btn-ghost btn-sm">${I.find}ค้นและแทนที่</button>
-    <span style="flex:1"></span><span class="mk-dirty">${hint}</span><button class="btn btn-ghost btn-sm">บันทึกเป็นไฟล์ใหม่</button><button class="btn btn-main btn-sm">${I.save}บันทึก</button>`;
-  return t;
-}
-function editBox(d, c) {
-  const e = d.createElement("div");
-  e.className = "mk-edit";
-  e.innerHTML = `<div class="mk-erow"><label>บรรทัด <b>${c.n}</b></label><label>เริ่ม<input value="${c.s}"></label><label>จบ<input value="${c.e}"></label><label>ยาว <b>${c.len} วินาที</b></label><label>ตัว/วิ <b>${c.cps}</b></label>
-    <span style="flex:1"></span><button class="btn btn-ghost btn-sm">${I.plus}แทรกบรรทัด</button><button class="btn btn-ghost btn-sm">${I.split}แยก</button><button class="btn btn-ghost btn-sm">${I.merge}รวมกับถัดไป</button><button class="btn btn-bad btn-sm">${I.del}ลบ</button></div>
-    <textarea class="mk-text">${c.text}</textarea>
-    <div class="mk-erow"><button class="btn btn-ghost btn-sm">${I.back}บรรทัดก่อน</button><button class="btn btn-ghost btn-sm">${I.next}บรรทัดถัดไป</button><button class="btn btn-ghost btn-sm">${I.play}ตั้งเวลาเริ่มตามภาพที่เห็น</button><span class="mk-hint">กด Enter เพื่อไปบรรทัดถัดไป  ส่วน Shift+Enter ขึ้นบรรทัดใหม่ในซับเดียวกัน</span></div>`;
-  return e;
-}
-function sliders(d) {
-  const s = d.createElement("div");
-  s.className = "mk-sl";
-  const col = (icon, name, val) => `<div class="mk-slc" title="${name}">${icon}<input type="range" min="0" max="100" value="${val}" aria-label="${name}"></div>`;
-  s.innerHTML = col(SL.hz, "ซูมแนวนอน ถ่างหรือหดช่วงเวลาที่เห็น 10% ถึง 850%", 30)
-    + col(SL.vz, "ซูมแนวตั้ง ขยายความสูงของคลื่นเสียง", 50)
-    + col(SL.vol, "ความดังตอนเล่น", 70);
-  return s;
-}
-function slFoot(d) {
-  const f = d.createElement("div");
-  f.className = "mk-slfoot";
-  f.innerHTML = `<button class="mk-ibtn" aria-pressed="true" title="ผูกซูมแนวตั้งกับความดังให้เลื่อนพร้อมกัน">${SL.link}</button><button class="mk-ibtn" title="แถบเลื่อนสามอัน อันแรกถ่างหรือหดช่วงเวลาที่เห็น อันที่สองขยายความสูงของคลื่นให้เห็นเสียงเบาชัดขึ้น อันที่สามคือความดังตอนเล่น ปุ่มโซ่ผูกอันที่สองกับอันที่สามให้เลื่อนพร้อมกัน">${SL.info}</button>`;
-  return f;
-}
-function audioBar(d, labels) {
-  const t = d.createElement("div");
-  t.className = "mk-atb" + (labels ? " lb" : "");
-  t.innerHTML = BTN.map((b) => b.sep ? '<span class="mk-s"></span>'
-    : `<button class="mk-ab" data-ab="${b.id}" title="${b.t}  คีย์ลัด ${b.k}"${b.tog ? ` aria-pressed="${b.on ? "true" : "false"}"` : ""}>${ic(b.d, 17)}${labels ? `<span>${b.s}</span>` : ""}</button>`).join("");
-  return t;
-}
-/* กล่องชื่อปุ่มตอนชี้ ค้างไว้ให้เห็นในภาพ */
-function showTip(d, bar, id) {
-  const b = bar.querySelector(`[data-ab="${id}"]`), x = BTN.find((v) => v.id === id);
-  b.classList.add("mk-hov");
-  const tip = d.createElement("div");
-  tip.className = "mk-tip";
-  tip.innerHTML = `${x.t}<b>${x.k}</b>`;
-  bar.appendChild(tip);
-  const br = bar.getBoundingClientRect(), r = b.getBoundingClientRect();
-  let left = r.left + r.width / 2 - br.left;
-  const half = tip.offsetWidth / 2;
-  left = Math.max(half, Math.min(br.width - half, left));
-  tip.style.left = left + "px";
-}
+const MOVIE = IN_APP ? "D:/movie-shelf/test-media/สร้าง/แก้ซับ/ฉากตัด (2025).mkv" : "D:\\หนัง\\ฉากตัด (2025).mkv";
 
 async function drive(f) {
-  const mode = f.dataset.v;
   const d = f.contentDocument, w = f.contentWindow, state = f.parentElement.querySelector("[data-state]");
   if (!w || !String(w.location.href).includes("theme-live-app")) return;
   try {
+    try { w.localStorage.setItem("se-fold", "0"); } catch (e) { /* ไม่มีที่เก็บ */ }
     await until(() => d.querySelector(".side .nav"));
     await navTo(d, "ซับไตเติล");
     await until(() => w.__subOpen);
     w.__subOpen(MOVIE);
-    if (!(await until(() => d.querySelector("[data-subviewer-inline] [data-sub-table]")))) throw new Error("เปิดซับไม่ได้");
-    (await until(() => { const r = d.querySelectorAll("[data-sub-table] tbody tr"); return r.length ? r[Math.min(11, r.length - 1)] : null; }))?.click();
-    await until(() => d.querySelector("[data-vframe] img") && d.querySelector("canvas[data-aud]"));
-    await sleep(500);
-    const st = d.createElement("style"); st.textContent = CSS; d.head.appendChild(st);
-    const tracks = d.querySelector("[data-sub-list]");
-    (tracks ?? d.querySelector("[data-sub-bar]")).after(tools(d, "แก้แล้ว 3 บรรทัด ยังไม่บันทึก"));
-    const rows = [...d.querySelectorAll("[data-sub-table] tbody tr")];
-    [4, 9, 11].forEach((i) => rows[i]?.classList.add("mk-edited"));
-    const on = d.querySelector("[data-sub-table] tbody tr.on") ?? rows[0];
-    const td = [...on.children].map((x) => x.innerText.trim());
-    const cue = { n: td[0], s: td[1], e: td[2], len: td[3], cps: td[4], text: td[5] };
-    const aud = d.querySelector("canvas[data-aud]"), right = aud.parentElement, top = d.querySelector(".aegtop");
-    const search = d.querySelector("[data-sub-q]")?.closest("div"), grid = d.querySelector("[data-sub-table]");
-    if (search) search.replaceWith(editBox(d, cue)); else grid.before(editBox(d, cue));
-    if (mode === "now") { state.textContent = ""; return; }
-
-    // คลื่นเสียงกับแถบเลื่อนตั้ง แล้วไม้บรรทัดเวลากว้างเท่าคลื่น ขอบลากปรับความสูงอยู่ใต้ไม้บรรทัด
-    const wave = d.createElement("div"); wave.className = "mk-wave";
-    aud.before(wave); wave.appendChild(aud);
-    const sl = sliders(d); wave.appendChild(sl);
-    const ruler = right.querySelector(".ruler2");
-    if (ruler) ruler.style.marginRight = (sl.offsetWidth + 8) + "px";
-    const grip = d.createElement("div"); grip.className = "mk-grip"; grip.title = "ลากขึ้นลงเพื่อปรับความสูงกรอบเสียง"; grip.innerHTML = "<i></i>";
-    // ปุ่มโซ่กับ ⓘ ของแถบเลื่อน วางแถวเดียวกับไม้บรรทัด ใต้แถบเลื่อน
-    const rrow = d.createElement("div"); rrow.style.cssText = "display:flex;gap:8px;align-items:flex-start";
-    if (ruler) { ruler.before(rrow); rrow.appendChild(ruler); ruler.style.marginRight = "0"; ruler.style.flex = "1"; }
-    const foot = slFoot(d); foot.style.width = sl.offsetWidth + "px"; foot.style.marginTop = "-2px"; rrow.appendChild(foot);
-    rrow.after(grip);
-
-    const row = right.querySelector("[data-sub-prev]")?.parentElement;
-    // คำอธิบายใต้คลื่นเสียงเดิมยังอยู่ ปุ่มสลับรูปคลื่นกับความถี่ย้ายไปเป็นปุ่มความถี่ในแถวปุ่ม
-    if (mode === "ib") {
-      const bar = audioBar(d, false);
-      row.replaceWith(bar);
-      showTip(d, bar, "playsel");
-    } else {
-      row.remove();
-      const bar = audioBar(d, true);
-      top.after(bar);
-    }
+    if (!(await until(() => d.querySelector("[data-subedit] [data-se-cmds]"), 20000))) throw new Error("เปิดซับไม่ได้");
+    (await until(() => { const r = [...d.querySelectorAll("[data-sub-table] tbody tr")].filter((x) => x.cells.length > 3); return r.length > 4 ? r[4] : null; }))?.dispatchEvent(new w.MouseEvent("mousedown", { bubbles: true, button: 0 })); // ตารางเลือกแถวตอนกดเมาส์ลง
+    if (!(await until(() => d.querySelector(`[data-se-atb=${f.dataset.v}]`)))) throw new Error("ไม่เจอแถวปุ่มเสียงแบบนี้ ความสูงหน้าต่างไม่ตรงเกณฑ์ 950 จุด");
+    await sleep(400);
     state.textContent = "";
   } catch (e) { state.textContent = "จัดหน้าไม่สำเร็จ " + e.message; }
 }
 
+/* โหลดกรอบที่อยู่ใกล้จอ ปลดกรอบที่ห่างเกินหนึ่งจอ ไม่ให้กินแรม (เครื่องพี่กันแรม 8 GB) */
 const io = new IntersectionObserver((ents) => {
   for (const e of ents) {
     const f = e.target;

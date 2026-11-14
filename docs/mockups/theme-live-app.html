@@ -122,9 +122,55 @@
     const raw = cues.map((c) => `${c.n}\n${ts(c.start)} --> ${ts(c.end)}\n${c.text}\n`).join("\n");
     return { raw, kind: "srt", charset: "UTF-8", cues };
   })();
+  /* หน้าแก้ซับ (แผนหน้าแก้ซับ ขั้น 10 อัปเดตมอคอัปให้เหมือนของจริง) · หนังตัวอย่าง ฉากตัด (2025).mkv ยาว 150 วินาที 24 เฟรมต่อวินาที
+     มีซับ ASS ครบทุกช่อง (บรรทัดจาก SUB_LINES สไตล์ 3 ตัว) กับซับ SRT · ภาพทีละเฟรมกับคลื่นเสียงเป็นภาพจำลอง · พิมพ์แก้ในแบบ notepad ไม่ได้ในมอคอัป */
+  const SE_DUR = 150, SE_FPS = 24;
+  const seMovie = (p) => ({ path: p, name: String(p).split("\\").pop(), ext: "mkv", size: 48e6, duration: SE_DUR, free: 512e9, drive: "D:", mp4Ok: true, attachments: [], tracks: [
+    trackOf(p, 0, "video", "h264", "und", "", { width: 1280, height: 720, fps: SE_FPS, frames: SE_DUR * SE_FPS, bitrate: 2400000, duration: SE_DUR }),
+    trackOf(p, 1, "audio", "aac", "tha", "", { channels: 2, layout: "stereo", rate: 48000, bitrate: 160000, duration: SE_DUR }),
+    trackOf(p, 2, "subtitle", "ass", "tha", "ครบทุกช่อง", { mp4: "no", why: "MP4 ใส่ซับ ASS ไม่ได้", charset: "UTF-8", duration: SE_DUR }),
+    trackOf(p, 3, "subtitle", "subrip", "tha", "แท็ก SRT", { default: false, mp4: "style", why: "ซับข้อความแปลงเป็นแบบ MP4", charset: "UTF-8", duration: SE_DUR }),
+  ] });
+  const SE_SFMT = ["Name", "Fontname", "Fontsize", "PrimaryColour", "SecondaryColour", "OutlineColour", "BackColour", "Bold", "Italic", "Underline", "StrikeOut", "ScaleX", "ScaleY", "Spacing", "Angle", "BorderStyle", "Outline", "Shadow", "Alignment", "MarginL", "MarginR", "MarginV", "Encoding"];
+  const SE_EFMT = ["Layer", "Start", "End", "Style", "Name", "MarginL", "MarginR", "MarginV", "Effect", "Text"];
+  const seLine = (t) => ({ k: "line", t, e: "\r\n" });
+  const seDoc = (path, ass) => {
+    const ev = (c, i, extra) => ({ id: 10 + i, comment: false, layer: 0, start: Math.round(c.start * 1000), end: Math.round(c.end * 1000), style: "Default", actor: "", marginL: 0, marginR: 0, marginV: 0, effect: "", text: c.text, ident: ass ? null : String(i + 1), suffix: "", pre: [], raw: [], ...extra });
+    if (!ass) return { kind: "srt", enc: { charset: "UTF-8", bom: true }, eol: "\r\n", exact: true, bad: 0, renumber: false, skeleton: [], styleFormat: [], eventFormat: [], styles: [], source: { path, inMovie: true, size: 0, mtime: 0 },
+      events: SUBS.cues.map((c, i) => ev(c, i, {})) };
+    const styles = [
+      ["Default", "Sarabun", "52", "&H00FFFFFF", "&H000000FF", "&H00000000", "&H80000000", "0", "0", "0", "0", "100", "100", "0", "0", "1", "2.5", "1", "2", "40", "40", "36", "222"],
+      ["ป้ายในฉาก", "Arial", "40", "&H0000E0FF", "&H000000FF", "&H00202020", "&H00000000", "-1", "0", "0", "0", "100", "100", "0", "0", "1", "1.5", "0", "8", "20", "20", "20", "1"],
+      ["Song", "Leelawadee UI", "44", "&H00F0C0FF", "&H00FFFFFF", "&H00400040", "&H64000000", "0", "-1", "0", "0", "95", "100", "0", "0", "3", "1", "0", "2", "60", "60", "50", "222"],
+    ].map((fields, i) => ({ id: i + 1, fields, pre: [], raw: [] }));
+    // ตัวละครสลับสองคน บรรทัดท้ายเป็นเพลง มีป้ายในฉากซ้อนบนเลเยอร์ 1 และบรรทัดความคิดเห็นหนึ่งบรรทัด ให้ตารางมีของครบแบบไฟล์จริง
+    const events = SUBS.cues.map((c, i) => ev(c, i, { actor: i % 2 ? "เหนือ" : "ดาว", style: i >= 36 ? "Song" : "Default", text: i === 3 ? `{\\i1}${c.text}{\\i0}` : c.text }));
+    events.splice(5, 0, { ...ev({ start: 12, end: 16, text: "{\\pos(640,90)}หมู่บ้านดาวเหนือ" }, 90, {}), layer: 1, style: "ป้ายในฉาก" });
+    events.unshift({ ...ev({ start: 0, end: 1, text: "ตรวจคำแปลอีกรอบก่อนส่ง" }, 91, {}), comment: true });
+    const skeleton = ["[Script Info]", "; มอคอัปหน้าแก้ซับ ข้อมูลตัวอย่าง", "Title: ดาวเหนือ", "ScriptType: v4.00+", "WrapStyle: 0", "ScaledBorderAndShadow: yes", "PlayResX: 1280", "PlayResY: 720", "", "[V4+ Styles]", `Format: ${SE_SFMT.join(", ")}`].map(seLine)
+      .concat([{ k: "styles" }], ["", "[Events]", `Format: ${SE_EFMT.join(", ")}`].map(seLine), [{ k: "events" }]);
+    return { kind: "ass", enc: { charset: "UTF-8", bom: true }, eol: "\r\n", exact: true, bad: 0, renumber: false, skeleton, styleFormat: SE_SFMT, eventFormat: SE_EFMT, styles, events, source: { path, inMovie: true, size: 0, mtime: 0 } };
+  };
+  const seTime = (ms) => { const t = Math.max(0, Math.round(ms / 10)); return `${Math.floor(t / 360000)}:${String(Math.floor(t / 6000) % 60).padStart(2, "0")}:${String(Math.floor(t / 100) % 60).padStart(2, "0")}.${String(t % 100).padStart(2, "0")}`; };
+  const seSrtTime = (ms) => seTime(ms).replace(/^(\d+):/, (m, h) => String(h).padStart(2, "0") + ":").replace(/\.(\d\d)$/, ",$10");
+  // ข้อความทั้งไฟล์แบบที่ subdoc_render เขียน (แบบ notepad ของมอคอัป)
+  const seRender = (d) => d.kind === "ass"
+    ? d.skeleton.map((x) => x.k === "line" ? x.t + x.e : x.k === "styles" ? d.styles.map((s) => `Style: ${s.fields.join(",")}\r\n`).join("") : d.events.map((e) => `${e.comment ? "Comment" : "Dialogue"}: ${e.layer},${seTime(e.start)},${seTime(e.end)},${e.style},${e.actor},${e.marginL},${e.marginR},${e.marginV},${e.effect},${e.text}\r\n`).join("")).join("")
+    : d.events.map((e, i) => `${i + 1}\r\n${seSrtTime(e.start)} --> ${seSrtTime(e.end)}\r\n${e.text.replace(/\n/g, "\r\n")}\r\n`).join("\r\n");
+  const seFrame = (ms, h) => { const k = Math.floor(ms / 4000) % 6, P = [["ดาวเหนือ", "#0f2747", "#1e5a7a", "#7fc1c4"], ["ทางขึ้นเขา", "#0b3a42", "#147a78", "#e0b44c"], ["หมอก", "#23303b", "#51707f", "#d9e2e2"], ["ค่ำคืน", "#0a1230", "#22358a", "#f0a640"], ["กองไฟ", "#2a0a06", "#a3320f", "#f2a23a"], ["หมู่บ้าน", "#0d3550", "#2f8fc0", "#d5eef5"]][k]; return poster(P[0], "", P[1], P[2], P[3], Math.round(h * 16 / 9), h); };
+  const SE_PATH = (p) => String(p).includes("ฉากตัด");
+
   const FX = {
     ...GRAPH,
-    merge_inspect: (a) => mergeMovie(a.path),
+    merge_inspect: (a) => (SE_PATH(a.path) ? seMovie(a.path) : mergeMovie(a.path)),
+    subdoc_open: (a) => seDoc(a.path, a.tid === 2),
+    subdoc_render: (a) => seRender(a.doc),
+    subdoc_set_dirty: () => null, subdoc_autosaves: () => [], subdoc_autosave: () => null,
+    font_families: () => ["Sarabun", "Tahoma", "Leelawadee UI", "Arial", "Segoe UI", "Noto Sans Thai", "Cordia New", "Angsana New"],
+    vid_table: (a) => ({ key: "mock", times: Array.from({ length: SE_DUR * SE_FPS }, (_, i) => Math.round(i * 1000 / SE_FPS)), keys: Array.from({ length: Math.ceil(SE_DUR * SE_FPS / 96) }, (_, i) => i * 96), base: 0, start: 0, w: 1280, h: 720, sar: "1:1", dar: "16:9", codec: "h264", rate: "24/1", fps: SE_FPS, duration: SE_DUR, partial: false }),
+    vid_frames: (a) => Array.from({ length: a.count }, (_, i) => seFrame((a.ss + i / SE_FPS) * 1000, a.h)),
+    sub_peaks: (a) => Array.from({ length: a.cols }, (_, i) => { const t = a.t0 + (a.t1 - a.t0) * i / a.cols; const inCue = SUBS.cues.some((c) => t >= c.start && t <= c.end); return inCue ? 0.3 + 0.55 * hash1(i * 7 + Math.floor(t * 10)) : 0.03 + 0.07 * hash1(i * 3 + 1); }),
+    sub_pcm: () => new ArrayBuffer(0),
     // หน้าซับไตเติลกับตัวดูซับ (มอคอัปหน้าแก้ซับ BUGS ข้อ 109) · ซับตัวอย่าง 40 บรรทัด ภาพหนังกับคลื่นเสียงจำลอง
     merge_add_file: (a) => ({ path: a.path, name: String(a.path).split("\\").pop(), ext: "srt", size: 48000, tracks: [trackOf(a.path, 0, "subtitle", "subrip", "tha", "", { charset: "UTF-8", inMovie: false })], delayFromName: null, langFromName: "tha", longerBy: null, notes: [], fonts: [] }),
     sub_text: () => SUBS,
