@@ -17,7 +17,7 @@ import type { GraphReq } from "./GraphPage";
 import { IbStop, IcGraph, IbTick, IcCheck } from "../components/icons";
 
 type CkCol = "name" | "size" | "at" | "status";
-const CK_ORDER: Record<string, number> = { bad: 0, changed: 1, unchecked: 2, ok: 3 };
+const CK_ORDER: Record<string, number> = { bad: 0, changed: 1, partial: 2, unchecked: 3, ok: 4 };
 
 /** คำขอจากปุ่มบนชั้นวาง · ตรวจเรื่องนี้เลย หรือเปิดผลตรวจของเรื่องนี้ */
 export type CheckReq = { ids: string[]; mode?: CheckMode; open?: string };
@@ -131,8 +131,8 @@ export default function CheckPage(p: { req: CheckReq | null; onConsumed: () => v
   const someOn = selected.length > 0 && !allOn;
   const toggle = (id: string) => setSel((x) => { const n = new Set(x ?? []); if (n.has(id)) n.delete(id); else n.add(id); return n; });
   const queued = new Set(s.running ? s.queue.filter((id) => !s.done.includes(id) && s.current?.id !== id) : []);
-  const batchProblems = (s.last ? s.queue : []).map((id) => movies.find((m) => m.id === id)).filter((m): m is Movie => !!m && (m.status === "bad" || m.status === "changed"));
-  const shown = onlyProblems ? list.filter((m) => m.status === "bad" || m.status === "changed" || s.errors[m.id]) : list;
+  const batchProblems = (s.last ? s.queue : []).map((id) => movies.find((m) => m.id === id)).filter((m): m is Movie => !!m && (m.status === "bad" || m.status === "changed" || m.status === "partial"));
+  const shown = onlyProblems ? list.filter((m) => m.status === "bad" || m.status === "changed" || m.status === "partial" || s.errors[m.id]) : list;
   const open = openId ? movies.find((m) => m.id === openId) ?? null : null;
 
   const begin = () => {
@@ -192,6 +192,7 @@ export default function CheckPage(p: { req: CheckReq | null; onConsumed: () => v
                 ? <>หยุดกลางทาง ตรวจไป <span className="nw">{s.last.done} จาก {s.last.total} เรื่อง</span> แล้วหยุดเมื่อ </>
                 : <>ตรวจ <span className="nw">{s.last.total} เรื่อง</span>เสร็จเมื่อ </>}
               <span className="nw">{fmtDateTime(s.last.at)}</span> ใช้เวลา <span className="nw">{elapsed(s.last.seconds)}</span>
+              {s.last.partial > 0 && <> โดยตรวจได้บางส่วน <span className="nw">{s.last.partial} เรื่อง</span>ซึ่งควรตรวจละเอียด</>}
               {s.last.failed > 0 && <> และตรวจไม่ได้ <span className="nw">{s.last.failed} เรื่อง</span></>}
             </div>
             {(batchProblems.length > 0 || onlyProblems) && (
@@ -258,6 +259,7 @@ function Row(p: { m: Movie; on: boolean; running: boolean; reminder: number; cur
     : m.status === "ok" ? <span className="pill p-ok">ไฟล์สมบูรณ์</span>
     : m.status === "bad" ? <span className="pill p-bad">ไฟล์เสียหาย</span>
     : m.status === "changed" ? <span className="pill p-warn">ไฟล์ถูกเปลี่ยน</span>
+    : m.status === "partial" ? <span className="pill p-warn" data-pill-partial>ตรวจได้บางส่วน</span>
     : <span className="pill p-queue">ยังไม่เคยตรวจ</span>;
   const due = m.status === "ok" && reminderDue(m, p.reminder);
   const detail = p.current != null ? <div className="bar" style={{ maxWidth: 220 }}><i style={{ width: `${Math.max(2, p.current)}%` }} /></div>
@@ -312,7 +314,7 @@ function ResultDialog(p: { m: Movie; onClose: () => void; onDeep: () => void; on
       actions={<>
         {sound && <button type="button" className="btn btn-ghost btn-sm" onClick={() => p.onGraph({ path: m.path, t: sound.from })} data-ckgraph><IcGraph size={15} />ดูกราฟเสียงช่วงนี้</button>}
         {first && <button type="button" className="btn btn-ghost btn-sm" onClick={play} data-ckplay><span>เปิดเล่นที่ <FixedTime t={fmtT(first.from)} /></span></button>}
-        {c.result === "changed" && <button type="button" className={"btn btn-sm " + (p.running ? "btn-wait" : "btn-ghost")} onClick={() => { if (!p.running) p.onDeep(); }}
+        {(c.result === "changed" || c.result === "partial") && <button type="button" className={"btn btn-sm " + (p.running ? "btn-wait" : "btn-ghost")} onClick={() => { if (!p.running) p.onDeep(); }}
           aria-disabled={p.running || undefined} title={p.running ? "รอให้ชุดที่กำลังตรวจเสร็จก่อน" : undefined}><IcCheck size={15} />ตรวจละเอียดเรื่องนี้</button>}
         <button type="button" className="btn btn-main btn-sm" onClick={p.onClose}>ปิด</button>
       </>}>

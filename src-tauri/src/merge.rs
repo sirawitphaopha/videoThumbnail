@@ -980,6 +980,9 @@ struct Progress {
     percent: f64,
     eta: Option<f64>,
     next: Option<String>,
+    /// เลยจุดที่หยุดได้แล้ว ไฟล์เดิมกำลังย้ายหรือย้ายไปแล้ว หน้าจอเปลี่ยนปุ่มหยุดเป็นข้อความว่าหยุดไม่ได้ (AUDIT 12 พ.ย. 2569 ข้อ 14)
+    #[serde(rename = "final", skip_serializing_if = "std::ops::Not::not")]
+    fin: bool,
 }
 
 pub struct Produced {
@@ -1340,7 +1343,11 @@ fn apply(app: &AppHandle, req: &MergeReq, jobs: &Arc<crate::jobs::Jobs>) -> Resu
     let (tools, work) = tools_of(app).map_err(|e| fail("other", "รวมไฟล์ไม่สำเร็จ", vec![e]))?;
     let stop = || st.cancel.load(Ordering::SeqCst) || jobs.cancelled();
     let emit = |phase: &str, percent: f64, eta: Option<f64>, next: Option<&str>| {
-        let _ = app.emit("merge-progress", Progress { phase: phase.into(), percent, eta, next: next.map(String::from) });
+        let _ = app.emit("merge-progress", Progress { phase: phase.into(), percent, eta, next: next.map(String::from), fin: false });
+    };
+    // ช่วงท้ายหลังเลยจุดที่หยุดได้ ส่ง final ทุกครั้ง
+    let emit_final = |phase: &str, percent: f64| {
+        let _ = app.emit("merge-progress", Progress { phase: phase.into(), percent, eta: None, next: None, fin: true });
     };
     let src = movie_path(&req.movie);
     let src_name = src.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
@@ -1444,6 +1451,9 @@ fn apply(app: &AppHandle, req: &MergeReq, jobs: &Arc<crate::jobs::Jobs>) -> Resu
     }
     // การจับคู่เก็บไว้กับเรื่องเดิม · ไฟล์ใหม่คนละชื่อ (เช่น MP4 เป็น MKV) การจับคู่ไม่ตามไป บอกในผล (ข้อ 13)
     let old_pairs = { let lib = app.state::<Arc<crate::library::LibraryStore>>(); let k = src.to_string_lossy().to_lowercase(); lib.movies.lock().unwrap().iter().find(|m| m.path.to_lowercase() == k).map(|m| m.pairs.len()).unwrap_or(0) };
+    // จากนี้ไฟล์เดิมจะถูกย้าย หยุดไม่ได้แล้ว บอกหน้าจอก่อนแตะไฟล์เดิม (AUDIT ข้อ 14)
+    // เดิมปุ่มหยุดยังอยู่จนจบ กล่องยืนยันบอกว่าไฟล์เดิมไม่ถูกแตะ ทั้งที่ไฟล์เดิมย้ายไปแล้วและงานไม่หยุด
+    emit_final("กำลังย้ายไฟล์ใหม่เข้าที่", 100.0);
     // เช็กซ้ำก่อนย้ายไฟล์เดิม · ระหว่างรวมผู้ใช้อาจเปิดหนังเรื่องนี้ดู
     let (original, original_to) = finish_output(app, &src, &target, &partial, &req.original, made.verified, &untouched, &mut notes)?;
     if old_pairs > 0 && !target.to_string_lossy().eq_ignore_ascii_case(&src.to_string_lossy()) {
@@ -1451,8 +1461,8 @@ fn apply(app: &AppHandle, req: &MergeReq, jobs: &Arc<crate::jobs::Jobs>) -> Resu
     }
     // ไฟล์ใหม่ชื่อเดิม จดขนาดกับค่า hash ใหม่เป็นงานของโปรแกรมเอง ไม่ให้ชั้นวางขึ้นว่าไฟล์ถูกเปลี่ยนหลังตรวจ (ข้อ 14 · แบบหน้าใส่โปสเตอร์)
     if target.to_string_lossy().eq_ignore_ascii_case(&src.to_string_lossy()) {
-        emit("กำลังจดข้อมูลไฟล์ใหม่", 100.0, None, None);
-        crate::library::refresh_own_edit(app, &target, &|pct| emit("กำลังจดค่า hash ใหม่", pct, None, None));
+        emit_final("กำลังจดข้อมูลไฟล์ใหม่", 100.0);
+        crate::library::refresh_own_edit(app, &target, &|pct| emit_final("กำลังจดค่า hash ใหม่", pct));
     }
     // ใส่รูปปกใหม่เข้าไฟล์แล้ว ล้างช่องรูป ไม่ให้ติดไปเรื่องถัดไป
     st.covers.lock().unwrap().clear();

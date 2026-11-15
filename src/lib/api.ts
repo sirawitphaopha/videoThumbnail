@@ -59,7 +59,8 @@ export type DriveSpace = { root: string; total: number; free: number; folders: s
 export type ToolCheck = { name: string; ok: boolean; version: string };
 
 export type Track = { lang: string | null; codec: string; layout: string | null };
-export type MovieStatus = "unchecked" | "ok" | "bad" | "changed";
+/** partial ตรวจแบบเร็วบอกไม่ได้ว่าไฟล์ครบ จดค่า hash ไว้แล้ว ควรตรวจละเอียด (AUDIT ข้อ 28) */
+export type MovieStatus = "unchecked" | "ok" | "bad" | "changed" | "partial";
 export type Movie = {
   id: string; path: string; root: string; name: string; ext: string;
   size: number; mtime: number; added: number; year: number | null; duration: number | null;
@@ -89,7 +90,7 @@ export type LinkedCover = { orient: "tall" | "wide"; source: string; geo: Geomet
 export type Pair = { path: string; kind: "audio" | "subtitle"; lang: string; name: string; delay: number };
 export type PairPlay = { player: string; cmd: string; notes: string[]; sent: number; opened: boolean };
 /** ผลตรวจครั้งล่าสุด (ขั้น 6) */
-export type CheckInfo = { at: number; mode: "quick" | "full"; result: "ok" | "bad" | "changed"; summary?: string; spans?: CheckSpan[] };
+export type CheckInfo = { at: number; mode: "quick" | "full"; result: "ok" | "bad" | "changed" | "partial"; summary?: string; spans?: CheckSpan[]; basis?: "full" };
 export type FolderState = { path: string; ok: boolean; count: number; error: string | null };
 export type LibraryReply = { movies: Movie[]; folders: FolderState[]; scanning: boolean };
 
@@ -143,7 +144,8 @@ export type MovieInfo = { path: string; name: string; ext: string; size: number;
 export type ApplyReq = { path: string; output: "mkv" | "mp4"; checkSource: boolean; checkOutput: boolean; original: "keep" | "trash"; drop: number[]; name?: string };
 export type ApplyProblem = { kind: string; title: string; detail: string[] };
 export type ApplyResult = { mode: "cover" | "wrap" | "mp4"; output: string; counts: Counts; verified: boolean; original: "kept" | "trash" | "none"; originalTo: string | null; notes: string[] };
-export type PosterProgress = { phase: string; percent: number; eta: number | null; next: string | null };
+/** final = งานรวมไฟล์เลยจุดที่หยุดได้แล้ว ไฟล์เดิมกำลังย้าย (AUDIT ข้อ 14 · มีเฉพาะ merge-progress) */
+export type PosterProgress = { phase: string; percent: number; eta: number | null; next: string | null; final?: boolean };
 
 /** ปลายทางของรูปที่ครอป · ไม่ส่ง = หน้าใส่โปสเตอร์ · cover กับ cover_land = ช่องปกตั้งกับปกนอนของหน้าเสียงและซับ (ที่เก็บรูปแยกกัน ไม่ทับกัน) */
 export type CoverTarget = "cover" | "cover_land";
@@ -701,7 +703,7 @@ export type CheckMode = "quick" | "full";
 export type CheckSpan = { from: number; to: number; what: string; tail?: boolean };
 export type CheckProgress = { id: string; percent: number; index: number; total: number };
 export type CheckItem = { id: string; error: string | null };
-export type CheckFinished = { mode: CheckMode; total: number; done: number; ok: number; bad: number; changed: number; failed: number; cancelled: boolean; seconds: number; at: number };
+export type CheckFinished = { mode: CheckMode; total: number; done: number; ok: number; bad: number; changed: number; partial: number; failed: number; cancelled: boolean; seconds: number; at: number };
 export type PlayResult = { player: string; seeked: boolean };
 export type PlayerInfo = { path: string; name: string; exists: boolean; added: boolean; isDefault: boolean; icon?: string | null };
 export type PlayerList = { players: PlayerInfo[]; systemDefault: boolean; systemIcon?: string | null };

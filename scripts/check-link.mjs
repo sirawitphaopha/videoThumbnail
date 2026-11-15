@@ -7,6 +7,7 @@ import { createHash } from "node:crypto";
 import { basename, dirname, extname, join } from "node:path";
 import { spawnSync } from "node:child_process";
 import { connect, sleep } from "./lib/cdp-client.mjs";
+import { linesOf } from "./lib/lines.mjs";
 
 const SRC = join("test-media", "สร้าง", "จับคู่");
 const OUT = "docs/report-2026-11-08/จับคู่ปก";
@@ -170,9 +171,23 @@ const dao = moviePoster("ดาวเหนือ.2023.1080p.BluRay.x265");
 check("ยืนยันเรื่องเดียว ได้ไฟล์ -poster ข้างหนัง", existsSync(dao));
 const m1 = (await inv("get_library")).movies.find((m) => m.path.includes("ดาวเหนือ.2023"));
 check("คลังจดปกจับคู่ ที่เก็บ beside เป็นของโปรแกรม", m1?.linked?.length === 1 && m1.linked[0].store === "beside" && m1.linked[0].owned && m1.linked[0].orient === "tall");
-check("แถวขึ้นบันทึกแล้วกับปุ่มยกเลิก", await q(`const r = ${rowSel("ดาวเหนือ (2023)")}; return r.textContent.includes('บันทึกแล้ว') && !!r.querySelector('[data-link-unsave]')`));
+check("แถวขึ้นบันทึกแล้วกับปุ่มเอาปกออก (AUDIT ข้อ 13 เดิมชื่อยกเลิก)", await q(`const r = ${rowSel("ดาวเหนือ (2023)")}; const b = r.querySelector('[data-link-unsave]'); return r.textContent.includes('บันทึกแล้ว') && !!b && b.innerText.trim() === 'เอาปกออก'`));
+// AUDIT ข้อ 13 กดแล้วถามก่อน กดไม่เอาออก ปกยังอยู่ · กดเอาปกออกในหน้าต่างถึงเอาออก
 await clickIn("ดาวเหนือ (2023)", "[data-link-unsave]");
+await waitFor("return !!document.querySelector('[data-link-unsave-ok]')", 5000);
+await sleep(600); // รอหน้าต่างค่อย ๆ ขึ้นจนครบ ภาพไม่ซ้อนตารางข้างหลัง
+await c.shot("docs/report-2026-11-15/AUDIT-ชุดแรก/13-หน้าต่างถามเอาปกออก.png", ".dlg", 8);
+const ask13 = await q("return { text: document.querySelector('[data-link-unsave-text]')?.innerText ?? '', title: document.querySelector('[data-link-unsave-ok]')?.closest('.dlg')?.innerText.split('\\n')[0] ?? '' };");
+check("AUDIT 13 กดเอาปกออกแล้วขึ้นหน้าต่างถาม บอกว่าปกหายจากชั้นวางและรูปลงถังขยะ ไฟล์ยังไม่ถูกแตะ", existsSync(dao) && (await statusOf("ดาวเหนือ (2023)")) === "saved" && /หายจากชั้นวาง/.test(ask13.text) && /ถังขยะ/.test(ask13.text) && /ดาวเหนือ/.test(ask13.title), JSON.stringify(ask13));
+const lines13 = await linesOf(q, "[data-link-unsave-text]");
+check("AUDIT 13 ข้อความในหน้าต่างถาม บรรทัดละความหมาย ไม่มีคำตกบรรทัด", JSON.stringify(lines13) === JSON.stringify(["ปกนี้จะหายจากชั้นวาง และรูปที่โปรแกรมทำไว้จะย้ายลงถังขยะซึ่งกู้คืนได้", "รูปต้นฉบับกับไฟล์หนังไม่ถูกแตะ แต่ปกที่เรื่องนี้มีก่อนยืนยันจะไม่กลับมา"]), JSON.stringify(lines13));
+await c.evaluate("[...document.querySelectorAll('.dlg .btn')].find((b) => b.innerText.trim() === 'ไม่เอาออก').click()"); await sleep(300);
+check("AUDIT 13 กดไม่เอาออก หน้าต่างปิด ปกยังอยู่ แถวยังบันทึกแล้ว", !(await q("return !!document.querySelector('[data-link-unsave-ok]')")) && existsSync(dao) && (await statusOf("ดาวเหนือ (2023)")) === "saved");
+await clickIn("ดาวเหนือ (2023)", "[data-link-unsave]");
+await waitFor("return !!document.querySelector('[data-link-unsave-ok]')", 5000);
+await c.evaluate("document.querySelector('[data-link-unsave-ok]').click()");
 await waitFor(`return ${rowSel("ดาวเหนือ (2023)")}?.dataset.linkStatus === 'sure'`);
+check("AUDIT 13 เอาปกออกแล้วแถวนับว่าแตะแล้ว", (await inv("link_state")).rows.find((r) => r.title === "ดาวเหนือ (2023)")?.touched === true);
 check("ยกเลิก ไฟล์ลงถังขยะ แถวกลับไปรอ", !existsSync(dao) && (await statusOf("ดาวเหนือ (2023)")) === "sure");
 check("ยกเลิกแล้วคลังไม่เหลือปกจับคู่", ((await inv("get_library")).movies.find((m) => m.path.includes("ดาวเหนือ.2023")).linked ?? []).length === 0);
 
@@ -394,7 +409,17 @@ await tiltClick("[data-tilt-plus]", 3);
 check("ปรับเอียงทีละครึ่งองศา ขึ้น +1.5°", (await q("return document.querySelector('[data-tilt-val]').textContent")) === "+1.5°");
 check("ภาพบนจอเอียงตาม ไม่ล้นกรอบ", await q("const i = document.querySelector('[data-crop] .stage img'); return i.style.transform.includes('rotate(1.5deg)') && i.parentElement.style.overflow === 'hidden'"));
 await sleep(500);
-await c.evaluate("document.querySelector('[data-use]').click()");
+// AUDIT ข้อ 9 กดใช้ค่านี้แล้ว ระหว่างจำค่าครอป ปุ่มยืนยันของแถวนี้กดไม่ได้และบอกเหตุผล
+// รูปทดสอบเล็ก จำค่าครอปเสร็จในไม่กี่สิบมิลลิวินาที ดักทุกการเปลี่ยนของแถวตั้งแต่ก่อนกด แทนการรอตามเวลา
+const during9 = await c.evaluate(`(async () => {
+  const row = ${rowSel("Paper Kites (2012)")}; const seen = [];
+  const look = () => { const b = row?.querySelector('[data-link-confirm]'); if (b) seen.push({ dis: b.getAttribute('aria-disabled'), why: b.getAttribute('title') ?? '' }); };
+  const mo = new MutationObserver(look); if (row) mo.observe(row, { subtree: true, attributes: true, childList: true });
+  look(); document.querySelector('[data-use]').click();
+  await new Promise((r) => setTimeout(r, 2000)); mo.disconnect();
+  return { before: seen[0] ?? null, hit: seen.find((x) => x.dis === 'true') ?? null, last: seen[seen.length - 1] ?? null };
+})()`);
+check("AUDIT 9 ระหว่างจำค่าครอป ปุ่มยืนยันของแถวกดไม่ได้ บอกว่ากำลังจำค่าครอป แล้วกลับมากดได้", !!during9.hit && /จำค่าครอป/.test(during9.hit.why) && during9.before?.dis !== "true" && during9.last?.dis !== "true", JSON.stringify(during9));
 await waitFor("return !document.querySelector('[data-crop]')");
 await waitFor(`return !!${rowSel("Paper Kites (2012)")}?.querySelector('[data-link-cropped]')`);
 const r5 = await rowNow("Paper Kites (2012)");

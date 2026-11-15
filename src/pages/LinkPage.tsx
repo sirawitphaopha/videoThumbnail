@@ -18,7 +18,8 @@ import { getLinkJob, reloadImages, runConfirm, setLinkJob, setReply, thumbOf, us
 import "../styles/link.css";
 import { IcPoster, IcFolder, IcPlus } from "../components/icons";
 import HoverBig from "../components/HoverBig";
-import { IbBack, IbStop, IcLink, IbTick, IbEye, IbCrop } from "../components/icons";
+import { IbBack, IbStop, IcLink, IbTick, IbEye, IbCrop, IbTrash } from "../components/icons";
+import Dialog from "../components/Dialog";
 
 const isImagePath = (p: string) => /\.(jpe?g|png|webp|bmp|tiff?|heic|heif)$/i.test(p);
 const baseName = (p: string) => p.split(/[\\/]/).pop() ?? p;
@@ -246,6 +247,18 @@ function ReviewTable() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [job.focus]);
 
+  // ปุ่มเอาปกออกในแถวที่บันทึกแล้ว ถามก่อนเสมอ (AUDIT 12 พ.ย. 2569 ข้อ 13 · เดิมปุ่มชื่อยกเลิก กดแล้วเอาปกออกทันทีโดยไม่ถาม)
+  const [askOut, setAskOut] = useState<{ id: string; title: string } | null>(null);
+  /** แถวที่กำลังจำค่าครอป (AUDIT ข้อ 9) */
+  const [cropping, setCropping] = useState<string[]>([]);
+  const [outBusy, setOutBusy] = useState(false);
+  const doOut = async () => {
+    if (!askOut || outBusy) return;
+    setOutBusy(true);
+    await act(async () => { const x = await linkApi.unsave(askOut.id); x.notes.forEach((n) => toast({ kind: "warn", title: "มีไฟล์ที่ไม่ได้ลบ", detail: n })); return x.reply; }, "เอาปกออกไม่สำเร็จ");
+    setOutBusy(false);
+    setAskOut(null);
+  };
   const act = async (fn: () => Promise<{ rows: LinkRow[] } | unknown>, title: string) => {
     try {
       const r = await fn();
@@ -255,6 +268,7 @@ function ReviewTable() {
     }
   };
   const confirm = async (which: string) => {
+    if (cropping.length) { toast({ kind: "info", title: "กำลังจำค่าครอป", detail: "รอให้เสร็จก่อน แล้วค่อยกดยืนยัน" }); return; }
     const r = await runConfirm(which);
     if (!r) {
       // ล้มทั้งงาน เช่น ดิสก์เต็ม · เดิมแถบหายเงียบ ไม่มีอะไรบอก (ผู้ช่วยตรวจขั้น 8)
@@ -296,7 +310,7 @@ function ReviewTable() {
         {shown.items.length === 0 ? (
           <div className="empty-search"><div style={{ fontSize: 14 }}>{rows.length === 0 ? "ยังไม่มีคู่ให้ตรวจ ลากโฟลเดอร์รูปมาวางก่อน" : "ไม่มีแถวตามที่เลือก"}</div></div>
         ) : shown.items.map((r) => (
-          <RowView key={r.id} r={r} coverThumb={(() => { const m = movies.find((x) => x.id === r.id); return m?.thumb ?? m?.linked?.find((c) => c.orient === "tall")?.thumb ?? m?.linked?.[0]?.thumb ?? null; })()} busy={working} over={job.overRow?.id === r.id ? job.overRow : null} onBoard={() => setLinkJob({ view: "board" })}
+          <RowView key={r.id} r={r} coverThumb={(() => { const m = movies.find((x) => x.id === r.id); return m?.thumb ?? m?.linked?.find((c) => c.orient === "tall")?.thumb ?? m?.linked?.[0]?.thumb ?? null; })()} busy={working} cropping={cropping.includes(r.id)} over={job.overRow?.id === r.id ? job.overRow : null} onBoard={() => setLinkJob({ view: "board" })}
             onTick={(v) => act(() => linkApi.update(r.id, { ticked: v }), "ติ๊กไม่สำเร็จ")}
             onChoose={(p) => act(() => linkApi.update(r.id, { choose: p }), "เลือกรูปไม่สำเร็จ")}
             onCrop={() => openCrop(r.id, r.tall ? "tall" : "wide")}
@@ -304,7 +318,7 @@ function ReviewTable() {
             onConfirm={() => confirm(r.id)}
             onSkip={() => act(() => linkApi.update(r.id, { skip: true }), "ข้ามไม่สำเร็จ")}
             onUndo={() => act(() => linkApi.undo(r.id), "ย้อนไม่สำเร็จ")}
-            onUnsave={() => act(async () => { const x = await linkApi.unsave(r.id); x.notes.forEach((n) => toast({ kind: "warn", title: "มีไฟล์ที่ไม่ได้ลบ", detail: n })); return x.reply; }, "ยกเลิกไม่สำเร็จ")}
+            onUnsave={() => setAskOut({ id: r.id, title: r.title })}
             onResolve={(how) => act(() => linkApi.resolve(r.id, how), "แก้ไม่สำเร็จ")} />
         ))}
       </div>
@@ -340,8 +354,24 @@ function ReviewTable() {
           } }}
           onCancel={() => { setCrop(null); posterApi.clear("link").catch(() => {}); }}
           onPickImage={async (f) => { const { id, orient } = crop; setCrop(null); posterApi.clear("link").catch(() => {}); await act(() => linkApi.pair(id, [f], "board"), "ใช้รูปนี้ไม่ได้"); openCrop(id, orient); }}
-          onUse={(c) => { const { id, orient } = crop; setCrop(null); posterApi.clear("link").catch(() => {}); act(() => linkApi.setCrop(id, orient, c.geo), "จำค่าครอปไม่สำเร็จ"); }} />
+          onUse={async (c) => {
+            const { id, orient } = crop; setCrop(null); posterApi.clear("link").catch(() => {});
+            // รอจำค่าครอปให้เสร็จ ระหว่างนั้นปุ่มยืนยันของแถวนี้กดไม่ได้ (AUDIT 12 พ.ย. 2569 ข้อ 9 · เดิมกดยืนยันแซงได้ ปกที่เขียนเป็นแบบก่อนครอป)
+            setCropping((s) => [...s, id]);
+            try { await act(() => linkApi.setCrop(id, orient, c.geo), "จำค่าครอปไม่สำเร็จ"); } finally { setCropping((s) => s.filter((x) => x !== id)); }
+          }} />
       )}
+      <Dialog open={!!askOut} onClose={() => { if (!outBusy) setAskOut(null); }} kind="work" confirm width={540} title={<>เอาปกจับคู่ของ {askOut?.title ?? ""} ออก</>}
+        actions={<>
+          <button type="button" className="btn btn-ghost" onClick={() => { if (!outBusy) setAskOut(null); }}>ไม่เอาออก</button>
+          <button type="button" className={"btn " + (outBusy ? "btn-wait" : "btn-bad")} aria-disabled={outBusy || undefined} data-link-unsave-ok onClick={doOut}><Keep icon={<IbTrash size={15} />} all={["กำลังเอาออก…", "เอาปกออก"]}>{outBusy ? "กำลังเอาออก…" : "เอาปกออก"}</Keep></button>
+        </>}>
+        <div className="small" style={{ fontSize: 14, color: "var(--txt2)" }} data-link-unsave-text>
+          {/* สองประโยค ประโยคละบรรทัด สิ่งที่จะเกิด กับสิ่งที่ไม่ถูกแตะ (พี่กันทัก 15 พ.ย. 2569 "แบ่งแปลกๆ" ตอนเป็นสามบรรทัดยาวไม่เท่ากัน) */}
+          <div>ปกนี้จะหายจากชั้นวาง และรูปที่โปรแกรมทำไว้จะย้ายลงถังขยะซึ่งกู้คืนได้</div>
+          <div>รูปต้นฉบับกับไฟล์หนังไม่ถูกแตะ แต่ปกที่เรื่องนี้มีก่อนยืนยันจะไม่กลับมา</div>
+        </div>
+      </Dialog>
     </div>
   );
 }
@@ -364,7 +394,7 @@ function Thumb({ p, wide }: { p: LinkPick | null; wide?: boolean }) {
 }
 
 function RowView(p: {
-  r: LinkRow; coverThumb: string | null; busy: boolean; over: { names: string; bad: boolean } | null; onBoard: () => void;
+  r: LinkRow; coverThumb: string | null; busy: boolean; cropping?: boolean; over: { names: string; bad: boolean } | null; onBoard: () => void;
   onTick: (v: boolean) => void; onChoose: (path: string) => void; onCrop: () => void; onChange: () => void; onConfirm: () => void; onSkip: () => void; onUndo: () => void; onUnsave: () => void; onResolve: (how: "use" | "app") => void;
 }) {
   const { r } = p;
@@ -426,12 +456,12 @@ function RowView(p: {
       <div><span className={"pill " + PILL[r.status]} data-link-reason style={{ whiteSpace: "normal" }}>{pillText}</span></div>
       <div className="lacts">
         {saved ? (
-          <><span /><span className="pill p-ok">บันทึกแล้ว</span><button type="button" className={ghost} {...dis} data-link-unsave onClick={g(p.onUnsave)}>ยกเลิก</button></>
+          <><span /><span className="pill p-ok">บันทึกแล้ว</span><button type="button" className={ghost} {...dis} data-link-unsave onClick={g(p.onUnsave)}>เอาปกออก</button></>
         ) : (
           <>
             {has ? <button type="button" className={ghost} {...dis} data-link-crop onClick={g(p.onCrop)}><IbCrop size={15} />ครอป</button> : <span />}
             <button type="button" className={ghost} {...dis} data-link-change onClick={g(p.onChange)}><IcPoster size={15} />{has ? "เปลี่ยนรูป" : "เลือกรูป"}</button>
-            {has ? <button type="button" className={"btn btn-sm " + (p.busy ? "btn-wait" : "btn-ok")} aria-disabled={p.busy || undefined} data-link-confirm onClick={() => { if (!p.busy) p.onConfirm(); }}><IbTick size={15} />ยืนยัน</button>
+            {has ? <button type="button" className={"btn btn-sm " + (p.busy || p.cropping ? "btn-wait" : "btn-ok")} aria-disabled={p.busy || p.cropping || undefined} title={p.cropping ? "กำลังจำค่าครอป รอให้เสร็จก่อน" : undefined} data-link-confirm onClick={() => { if (!p.busy && !p.cropping) p.onConfirm(); }}><IbTick size={15} />ยืนยัน</button>
               : r.status === "unsure" ? <button type="button" className={ghost} {...dis} data-link-skip onClick={g(p.onSkip)}>ข้ามเรื่อง</button> : <span />}
             {!!r.prev && <button type="button" className={ghost} {...dis} data-link-undo onClick={g(p.onUndo)}><IbBack size={15} />ย้อน</button>}
             {r.via === "shelf" && <button type="button" className={ghost} aria-disabled={p.busy || undefined} data-link-skip title={p.busy ? dis.title : "ปกบนชั้นวางคงเดิม ไม่มีอะไรถูกเขียน"} onClick={g(p.onSkip)}>เลิกแก้</button>}

@@ -40,6 +40,9 @@ export function usePosterJob() {
   return useSyncExternalStore((cb) => { subs.add(cb); return () => { subs.delete(cb); }; }, () => job);
 }
 
+// ตัวตรวจตั้งสถานะงานจำลองได้ (เฉพาะโหมดพัฒนา) ไว้ลองลากไฟล์ระหว่างงานวิ่ง (AUDIT ข้อ 5 · check-result)
+if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__posterJobLib = { get: getPosterJob, set: setPosterJob };
+
 if (inApp) {
   listen<PosterProgress>("poster-progress", (e) => {
     if (job.run.state === "working") setPosterJob({ run: { state: "working", progress: e.payload } });

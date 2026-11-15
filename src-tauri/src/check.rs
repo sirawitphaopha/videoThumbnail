@@ -114,8 +114,9 @@ pub enum Structure {
     Unknown(&'static str),
 }
 
-const UNKNOWN_TS: &str = "ไฟล์ชนิดนี้บอกความยาวแบบประมาณ ตรวจแบบเร็วบอกไม่ได้ว่าขาดท้าย";
-const UNKNOWN_SIZE: &str = "หัวไฟล์ไม่ได้บอกขนาด ตรวจแบบเร็วบอกไม่ได้ว่าขาดท้าย";
+/// เหตุที่ตรวจแบบเร็วบอกไม่ได้ว่าไฟล์ครบ · ต่อท้ายคำว่า "เพราะ" ในข้อความผล
+const UNKNOWN_TS: &str = "ไฟล์ชนิดนี้ไม่ได้จดขนาดไว้ในหัวไฟล์";
+const UNKNOWN_SIZE: &str = "หัวไฟล์ไม่ได้บอกขนาด";
 
 fn ext_of(path: &Path) -> String {
     path.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default()
@@ -302,7 +303,10 @@ fn sha256(path: &Path, on: &dyn Fn(f64), stop: &dyn Fn() -> bool) -> Result<Opti
 }
 
 /// ตรวจแบบเร็ว · โครงไฟล์ แล้วเทียบ SHA-256 กับที่จดไว้ · None = กดหยุด
-pub fn quick(path: &Path, stored: Option<&str>, on: &dyn Fn(f64), stop: &dyn Fn() -> bool) -> Result<Option<Outcome>, String> {
+/// full_ok = ครั้งก่อนตรวจละเอียดแล้วสมบูรณ์ (หรือผลสมบูรณ์ที่ต่อมาจากครั้งนั้น) · ไฟล์ที่ตรวจโครงไม่ได้ ค่า hash ตรงจึงยังนับว่าสมบูรณ์
+/// ไฟล์ที่ตรวจโครงไม่ได้และไม่เคยตรวจละเอียดว่าสมบูรณ์ ได้ผล partial (ตรวจได้บางส่วน) ไม่ใช่ ok
+/// เดิมได้ ok สีเขียวพร้อมข้อความ "โครงไฟล์ครบ" ทั้งที่ไม่ได้ตรวจโครงเลย (AUDIT 12 พ.ย. 2569 ข้อ 28)
+pub fn quick(path: &Path, stored: Option<&str>, full_ok: bool, on: &dyn Fn(f64), stop: &dyn Fn() -> bool) -> Result<Option<Outcome>, String> {
     let s = structure(path)?;
     match &s {
         Structure::Truncated(m) => return Ok(Some(bad(truncated_text(*m), vec![]))),
@@ -310,17 +314,28 @@ pub fn quick(path: &Path, stored: Option<&str>, on: &dyn Fn(f64), stop: &dyn Fn(
         _ => {}
     }
     let Some(h) = sha256(path, on, stop)? else { return Ok(None) };
-    let note = if let Structure::Unknown(w) = s { format!("  {w}") } else { String::new() };
-    Ok(Some(match stored {
-        Some(old) if !old.eq_ignore_ascii_case(&h) => Outcome {
+    let same = stored.map(|old| old.eq_ignore_ascii_case(&h));
+    if same == Some(false) {
+        return Ok(Some(Outcome {
             result: "changed",
             summary: "ค่า hash ไม่ตรงกับตอนตรวจครั้งก่อน ไฟล์อาจเสียระหว่างย้ายไดรฟ์ ควรตรวจละเอียด".into(),
             spans: vec![],
             sha256: None,
-        },
-        Some(_) => Outcome { result: "ok", summary: format!("ตรวจแบบเร็ว โครงไฟล์ครบ ค่า hash ตรงกับครั้งก่อน{note}"), spans: vec![], sha256: Some(h) },
-        None => Outcome { result: "ok", summary: format!("ตรวจแบบเร็ว โครงไฟล์ครบ จดค่า hash ไว้เทียบครั้งหน้า{note}"), spans: vec![], sha256: Some(h) },
+        }));
+    }
+    Ok(Some(match (&s, same) {
+        (Structure::Unknown(_), Some(true)) if full_ok => Outcome { result: "ok", summary: "ตรวจแบบเร็ว ค่า hash ตรงกับครั้งก่อน ไฟล์จึงเหมือนตอนที่ตรวจละเอียดว่าสมบูรณ์".into(), spans: vec![], sha256: Some(h) },
+        // ข้อความสั้นสองวลี ช่องผลในตารางตัดบรรทัดตรงรอยต่อพอดี (เดิมใส่เหตุผลกับคำว่าจดค่า hash แล้ว ตัดกลางวลีทั้งในตารางและหน้าต่างผลตรวจ)
+        (Structure::Unknown(_), _) => Outcome { result: "partial", summary: "ตรวจแบบเร็วบอกไม่ได้ว่าไฟล์ครบไหม ควรตรวจละเอียด".into(), spans: vec![], sha256: Some(h) },
+        (_, Some(true)) => Outcome { result: "ok", summary: "ตรวจแบบเร็ว โครงไฟล์ครบ ค่า hash ตรงกับครั้งก่อน".into(), spans: vec![], sha256: Some(h) },
+        _ => Outcome { result: "ok", summary: "ตรวจแบบเร็ว โครงไฟล์ครบ จดค่า hash ไว้เทียบครั้งหน้า".into(), spans: vec![], sha256: Some(h) },
     }))
+}
+
+/// ครั้งก่อนสมบูรณ์จากตรวจละเอียด หรือจากตรวจแบบเร็วที่ต่อมาจากตรวจละเอียด (basis full)
+pub fn prev_full_ok(prev: Option<&Value>) -> bool {
+    let Some(p) = prev else { return false };
+    p["result"].as_str() == Some("ok") && (p["mode"].as_str() == Some("full") || p["basis"].as_str() == Some("full"))
 }
 
 /// สิ่งที่อ่านได้จากผล ffprobe หนึ่งบรรทัด · (เป็นบรรทัดของภาพหรือเสียงไหม, เวลา, เป็นภาพไหม, จำนวนข้อความผิดพลาดระดับ error ที่แปะมา)
@@ -594,6 +609,8 @@ pub struct CheckFinished {
     ok: usize,
     bad: usize,
     changed: usize,
+    /// ตรวจได้บางส่วน ไฟล์ที่ตรวจแบบเร็วบอกไม่ได้ว่าครบ (AUDIT ข้อ 28)
+    partial: usize,
     failed: usize,
     cancelled: bool,
     seconds: f64,
@@ -679,7 +696,8 @@ fn run_batch(app: &AppHandle, lib: &LibraryStore, tools: &Path, ids: &[String], 
         };
         on(0.0);
         let stop = || STOP.load(Ordering::SeqCst) || jobs.cancelled();
-        let res = if mode == "quick" { quick(&path, m.sha256.as_deref(), &on, &stop) } else { deep(tools, &path, m.duration, &on, &stop) };
+        let full_ok = prev_full_ok(m.check.as_ref());
+        let res = if mode == "quick" { quick(&path, m.sha256.as_deref(), full_ok, &on, &stop) } else { deep(tools, &path, m.duration, &on, &stop) };
         match res {
             Ok(None) => {
                 r.cancelled = true;
@@ -692,7 +710,9 @@ fn run_batch(app: &AppHandle, lib: &LibraryStore, tools: &Path, ids: &[String], 
                 let keep = keep_deep_bad(&m.status, m.check.as_ref(), mode, o.result, mark);
                 let result = if keep { "bad" } else { o.result };
                 if !keep {
-                    let info = json!({ "at": now(), "mode": mode, "result": o.result, "summary": o.summary, "spans": o.spans, "fileSize": mark.0, "fileMtime": mark.1 });
+                    let mut info = json!({ "at": now(), "mode": mode, "result": o.result, "summary": o.summary, "spans": o.spans, "fileSize": mark.0, "fileMtime": mark.1 });
+                    // ผลสมบูรณ์ที่ต่อมาจากตรวจละเอียด จดไว้ ตรวจแบบเร็วครั้งต่อไปของไฟล์ที่ตรวจโครงไม่ได้จะได้ไม่ตกเป็นตรวจได้บางส่วน
+                    if mode == "quick" && o.result == "ok" && full_ok { info["basis"] = json!("full"); }
                     let updated = lib.update_movie(id, |x| {
                         x.status = o.result.into();
                         x.check = Some(info);
@@ -704,7 +724,7 @@ fn run_batch(app: &AppHandle, lib: &LibraryStore, tools: &Path, ids: &[String], 
                         let _ = app.emit("movie-updated", &u);
                     }
                 }
-                match result { "ok" => r.ok += 1, "bad" => r.bad += 1, _ => r.changed += 1 }
+                match result { "ok" => r.ok += 1, "bad" => r.bad += 1, "partial" => r.partial += 1, _ => r.changed += 1 }
                 r.done += 1;
                 dirty = true;
                 let _ = app.emit("check-item", CheckItem { id: id.clone(), error: None });
@@ -996,26 +1016,56 @@ mod tests {
         let t = copy_of(&p, "quick");
         let no = || false;
         // ครั้งแรกไม่มีค่าเดิม จดค่าใหม่
-        let first = quick(&t.0, None, &|_| {}, &no).unwrap().unwrap();
+        let first = quick(&t.0, None, false, &|_| {}, &no).unwrap().unwrap();
         assert_eq!(first.result, "ok");
         let sha = first.sha256.clone().unwrap();
         // ไม่ได้แก้ ตรงกับค่าเดิม
-        assert_eq!(quick(&t.0, Some(&sha), &|_| {}, &no).unwrap().unwrap().result, "ok");
+        assert_eq!(quick(&t.0, Some(&sha), false, &|_| {}, &no).unwrap().unwrap().result, "ok");
         // แก้ 1 ไบต์กลางไฟล์ ขนาดเท่าเดิม โครงยังครบ ต้องขึ้นว่าไฟล์ถูกเปลี่ยน และไม่ทับค่าเดิม
         let mut b = std::fs::read(&t.0).unwrap();
         let mid = b.len() / 2;
         b[mid] ^= 0xFF;
         std::fs::write(&t.0, &b).unwrap();
-        let changed = quick(&t.0, Some(&sha), &|_| {}, &no).unwrap().unwrap();
+        let changed = quick(&t.0, Some(&sha), false, &|_| {}, &no).unwrap().unwrap();
         assert_eq!(changed.result, "changed");
         assert!(changed.sha256.is_none(), "ไฟล์ถูกเปลี่ยนต้องคงค่า hash เดิมไว้เทียบ");
         // ขาดท้ายจับได้ตั้งแต่ตรวจแบบเร็ว
         let Some(cut) = media("ขาดท้าย (2022).mkv") else { return };
-        let r = quick(&cut, None, &|_| {}, &no).unwrap().unwrap();
+        let r = quick(&cut, None, false, &|_| {}, &no).unwrap().unwrap();
         assert_eq!(r.result, "bad");
         assert!(r.summary.contains("ขาดท้าย"), "{}", r.summary);
         // กดหยุดระหว่างคิด hash คืน None
-        assert!(quick(&t.0, None, &|_| {}, &|| true).unwrap().is_none());
+        assert!(quick(&t.0, None, false, &|_| {}, &|| true).unwrap().is_none());
+    }
+
+    /// AUDIT 12 พ.ย. 2569 ข้อ 28 · ไฟล์ที่ตรวจโครงไม่ได้ (VOB MPEG) ตรวจแบบเร็วต้องไม่ได้ ok สีเขียว และข้อความต้องไม่บอกว่าโครงไฟล์ครบ
+    /// เคยตรวจละเอียดว่าสมบูรณ์แล้วค่า hash ยังตรง ถึงนับว่าสมบูรณ์ · ค่า hash ไม่ตรงยังเป็นไฟล์ถูกเปลี่ยนเหมือนเดิม
+    #[test]
+    fn quick_check_of_unreadable_structure_is_partial() {
+        let no = || false;
+        for name in ["Old Disc (2001).vob", "Night Market (2014).mpeg"] {
+            let Some(p) = media(name) else { return };
+            assert!(matches!(structure(&p).unwrap(), Structure::Unknown(_)), "{name} ต้องตรวจโครงไม่ได้");
+            let first = quick(&p, None, false, &|_| {}, &no).unwrap().unwrap();
+            assert_eq!(first.result, "partial", "{name} {}", first.summary);
+            assert!(!first.summary.contains("โครงไฟล์ครบ"), "{name} ห้ามบอกว่าโครงไฟล์ครบ {}", first.summary);
+            assert!(first.summary.contains("ควรตรวจละเอียด") && first.sha256.is_some(), "{name} {}", first.summary);
+            let sha = first.sha256.clone().unwrap();
+            // ยังไม่เคยตรวจละเอียด ค่า hash ตรงก็ยังตรวจได้บางส่วน
+            assert_eq!(quick(&p, Some(&sha), false, &|_| {}, &no).unwrap().unwrap().result, "partial", "{name}");
+            // เคยตรวจละเอียดว่าสมบูรณ์ ค่า hash ตรง นับว่าสมบูรณ์ และไม่บอกว่าโครงไฟล์ครบ
+            let ok = quick(&p, Some(&sha), true, &|_| {}, &no).unwrap().unwrap();
+            assert_eq!(ok.result, "ok", "{name} {}", ok.summary);
+            assert!(!ok.summary.contains("โครงไฟล์ครบ"), "{name} {}", ok.summary);
+            // ค่า hash ไม่ตรง เป็นไฟล์ถูกเปลี่ยน แม้เคยตรวจละเอียด
+            assert_eq!(quick(&p, Some("00"), true, &|_| {}, &no).unwrap().unwrap().result, "changed", "{name}");
+        }
+        // ครั้งก่อนสมบูรณ์จากตรวจละเอียด หรือจากตรวจแบบเร็วที่ต่อมาจากตรวจละเอียด · ตรวจแบบเร็วธรรมดาไม่นับ
+        assert!(prev_full_ok(Some(&json!({ "mode": "full", "result": "ok" }))));
+        assert!(prev_full_ok(Some(&json!({ "mode": "quick", "result": "ok", "basis": "full" }))));
+        assert!(!prev_full_ok(Some(&json!({ "mode": "quick", "result": "ok" }))));
+        assert!(!prev_full_ok(Some(&json!({ "mode": "full", "result": "bad" }))));
+        assert!(!prev_full_ok(None));
     }
 
     /// เวลาจริงของจุดเสียที่ make-test-media.mjs ทำไว้ อ่านจาก json ข้างไฟล์

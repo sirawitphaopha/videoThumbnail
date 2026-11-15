@@ -61,9 +61,12 @@ export function CheckHost({ children }: { children: React.ReactNode }) {
       listen<CheckFinished>("check-finished", (e) => {
         const r = e.payload;
         setS((x) => ({ ...x, running: false, current: null, last: r }));
-        const counts = [r.ok && `สมบูรณ์ ${r.ok}`, r.bad && `เสียหาย ${r.bad}`, r.changed && `ถูกเปลี่ยน ${r.changed}`, r.failed && `ตรวจไม่ได้ ${r.failed}`].filter(Boolean).join(", ");
+        const counts = [r.ok && `สมบูรณ์ ${r.ok}`, r.bad && `เสียหาย ${r.bad}`, r.changed && `ถูกเปลี่ยน ${r.changed}`, r.partial && `ตรวจได้บางส่วน ${r.partial}`, r.failed && `ตรวจไม่ได้ ${r.failed}`].filter(Boolean).join(", ");
         if (r.cancelled) {
           toast({ kind: "info", title: `หยุดตรวจแล้ว ตรวจไป ${r.done} จาก ${r.total} เรื่อง`, detail: counts || undefined });
+        } else if (r.partial && !r.bad && !r.changed && !r.failed) {
+          // ไฟล์ที่ตรวจแบบเร็วบอกไม่ได้ว่าครบ ไม่ใช่ปัญหา แต่ชวนตรวจละเอียด (AUDIT ข้อ 28) · ไม่หายเอง
+          toast({ kind: "warn", title: `ตรวจ ${r.total} เรื่องเสร็จ มีเรื่องที่ควรตรวจละเอียด`, detail: counts });
         } else if (r.bad || r.changed || r.failed) {
           // มีเรื่องที่ต้องดู แถบไม่หายเอง (save-status ผิดพลาดไม่หาย)
           toast({ kind: r.bad ? "bad" : "warn", title: `ตรวจ ${r.total} เรื่องเสร็จ มีเรื่องที่มีปัญหา`, detail: counts });
@@ -78,12 +81,14 @@ export function CheckHost({ children }: { children: React.ReactNode }) {
   const start = useCallback(async (ids: string[], mode: CheckMode) => {
     if (starting.current || !ids.length) return false;
     starting.current = true;
+    // ตั้งกำลังตรวจก่อนสั่ง ปุ่มกดซ้ำไม่ได้ทันที · หลังคำสั่งตอบกลับไม่ตั้งซ้ำ
+    // เดิมตั้งหลังคำสั่งตอบกลับ ชุดที่จบเร็วมากส่งข่าวตรวจเสร็จมาก่อนคำตอบ หน้าจอตั้งกำลังตรวจทับแล้วค้าง (AUDIT 12 พ.ย. 2569 ข้อ 30)
+    setS((x) => ({ ...x, running: true, mode, queue: ids, done: [], current: null, errors: {} }));
     try {
       await checkApi.start(ids, mode);
-      // ปุ่มกดซ้ำไม่ได้ทันที ไม่ต้องรอเหตุการณ์ check-started
-      setS((x) => ({ ...x, running: true, mode, queue: ids, done: [], current: null, errors: {} }));
       return true;
     } catch (e) {
+      setS((x) => ({ ...x, running: false, current: null }));
       toast({ kind: "bad", title: "เริ่มตรวจไม่ได้", detail: String(e) });
       return false;
     } finally {
@@ -91,7 +96,10 @@ export function CheckHost({ children }: { children: React.ReactNode }) {
     }
   }, [toast]);
 
-  const cancel = useCallback(() => { checkApi.cancel().catch(() => {}); }, []);
+  // กดหยุดแล้วถามฝั่ง Rust ว่ายังตรวจอยู่ไหม ถ้าไม่ได้ตรวจแล้ว (ข่าวตรวจเสร็จหลุดไป) ปลดหน้าจอเอง ไม่ค้าง "กำลังหยุด…" (AUDIT ข้อ 30)
+  const cancel = useCallback(() => {
+    checkApi.cancel().catch(() => {}).then(() => checkApi.running()).then((r) => { if (!r) setS((x) => ({ ...x, running: false, current: null })); }).catch(() => {});
+  }, []);
 
   // ตั้งค่า ตรวจแบบเร็วทุกเรื่องตอนเปิดโปรแกรม (สเปกข้อ 9 · ปิดไว้เป็นค่าตั้งต้น) · รอคลังกับการอ่านโฟลเดอร์เสร็จก่อน
   useEffect(() => {

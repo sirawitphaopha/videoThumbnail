@@ -86,6 +86,38 @@ const ev = await c.evaluate("window.__mergeEvents");
 check("รวมเสร็จ ตรวจผ่าน ภาพ 1 เสียง 2 ซับ 3", r1.ok && r1.r.verified && r1.r.counts.video === 1 && r1.r.counts.audio === 2 && r1.r.counts.subs === 3, r1.ok ? JSON.stringify(r1.r.counts) : JSON.stringify(r1.e));
 const phases = [...new Set(ev.map((e) => e.phase))];
 check("ส่งความคืบหน้า ตรวจไฟล์ต้นทาง → รวมเข้าไฟล์ใหม่ → ตรวจไฟล์ใหม่ ถึง 100%", phases.includes("กำลังตรวจไฟล์ต้นทาง") && phases.includes("กำลังรวมเข้าไฟล์ใหม่") && phases.includes("กำลังตรวจไฟล์ใหม่") && ev.some((e) => e.phase === "กำลังรวมเข้าไฟล์ใหม่" && e.percent === 100), `${phases.join(" → ")} · ${ev.length} ครั้ง`);
+// AUDIT ข้อ 14 ก่อนย้ายไฟล์เดิมส่ง final ทุกครั้งหลังจากนั้น ส่วนก่อนหน้าไม่มี final (หน้าจอใช้เปลี่ยนปุ่มหยุดเป็นหยุดไม่ได้)
+{
+  const fi = ev.findIndex((e) => e.final);
+  const move = ev.findIndex((e) => e.phase === "กำลังย้ายไฟล์ใหม่เข้าที่");
+  check("AUDIT 14 ก่อนย้ายไฟล์เดิมส่งสัญญาณเลยจุดที่หยุดได้ หลังจากนั้นทุกครั้งเป็น final ก่อนหน้านั้นไม่มี", fi >= 0 && fi === move && ev.slice(fi).every((e) => e.final) && ev.slice(0, fi).every((e) => !e.final) && ev.slice(0, fi).some((e) => e.phase === "กำลังตรวจไฟล์ใหม่"), `final แรกที่ ${fi} ย้ายไฟล์ที่ ${move} จาก ${ev.length} · ${ev.slice(Math.max(0, fi - 1)).map((e) => e.phase + (e.final ? "*" : "")).join(" → ")}`);
+}
+// AUDIT ข้อ 14 หน้าจอ งานจำลองที่ได้ final ไม่มีปุ่มหยุด ขึ้นปุ่มหยุดไม่ได้พร้อมเหตุผล · ก่อน final ยังมีปุ่มหยุด
+{
+  await c.evaluate("[...document.querySelectorAll('.side .nav')].find((b) => b.innerText.trim().startsWith('เสียงและซับ')).click()"); await sleep(500);
+  const look = () => c.evaluate("(() => { const box = document.querySelector('[data-pageslot=av] .workbox'); return { box: !!box, stop: !!box && [...box.querySelectorAll('.btn')].some((b) => b.innerText.trim() === 'หยุด'), fin: !!box?.querySelector('[data-stop-final]'), why: box?.querySelector('[data-stop-final]')?.getAttribute('title') ?? '', h: box ? Math.round(box.getBoundingClientRect().height) : 0 }; })()");
+  await c.evaluate("window.__avJobLib.set({ run: { state: 'working', progress: { phase: 'กำลังตรวจไฟล์ใหม่', percent: 90, eta: null, next: null } } })"); await sleep(300);
+  const pre = await look();
+  await c.evaluate("window.__avJobLib.set({ run: { state: 'working', progress: { phase: 'กำลังจดค่า hash ใหม่', percent: 40, eta: null, next: null, final: true } } })"); await sleep(300);
+  const fin = await look();
+  await c.evaluate("window.__avJobLib.set({ run: { state: 'idle' } })"); await sleep(200);
+  check("AUDIT 14 หน้าจอก่อน final มีปุ่มหยุด หลัง final ปุ่มหยุดหาย ขึ้นหยุดไม่ได้พร้อมเหตุผล กรอบสูงเท่าเดิม", pre.box && pre.stop && !pre.fin && fin.box && !fin.stop && fin.fin && /หยุดไม่ได้/.test(fin.why) && pre.h === fin.h, JSON.stringify({ pre, fin }));
+}
+// AUDIT ข้อ 15 ลากไฟล์หนังอีกเรื่องมาวางช่องเพิ่มไฟล์ แทร็กภาพของไฟล์นั้นเริ่มต้นไม่ใส่ และมีปุ่มใส่กับเอาออกท้ายแถว
+{
+  const other = join(DIR, "ซับรูป (2024).mkv");
+  const at = (sel) => c.evaluate(`(() => { const r = document.querySelector(${JSON.stringify(sel)})?.getBoundingClientRect(); return r ? [(r.left + r.width / 2) * devicePixelRatio, (r.top + r.height / 2) * devicePixelRatio] : null; })()`);
+  await c.evaluate(`window.__avDrop([${JSON.stringify(MOVIE)}], 400, 300)`);
+  for (let i = 0; i < 60 && !(await c.evaluate("!!document.querySelector('[data-pageslot=av] [data-drop=add]')")); i++) await sleep(250);
+  const [ax, ay] = await at("[data-pageslot=av] [data-drop=add]");
+  await c.evaluate(`window.__avDrop([${JSON.stringify(other)}], ${ax}, ${ay})`);
+  for (let i = 0; i < 60 && !(await c.evaluate("window.__avJobLib.get().tracks.some((t) => !t.inMovie && t.kind === 'video')")); i++) await sleep(250);
+  const v = await c.evaluate("(() => { const t = window.__avJobLib.get().tracks.find((x) => !x.inMovie && x.kind === 'video'); if (!t) return null; const row = document.querySelector(`[data-pageslot=av] [data-trk='${t.key}']`); return { keep: t.keep, key: t.key, undo: !!row?.querySelector('[data-undo]'), out: row?.classList.contains('out') }; })()");
+  let on = null;
+  if (v?.undo) { await c.evaluate(`document.querySelector("[data-pageslot=av] [data-trk='${v.key}'] [data-undo]").click()`); await sleep(200); on = await c.evaluate(`(() => { const t = window.__avJobLib.get().tracks.find((x) => x.key === '${v.key}'); const row = document.querySelector("[data-pageslot=av] [data-trk='${v.key}']"); return { keep: t.keep, remove: !!row.querySelector('[data-remove]') }; })()`); }
+  check("AUDIT 15 แทร็กภาพของไฟล์ที่ลากมาเพิ่มเริ่มต้นไม่ใส่ แถวจาง มีปุ่มใส่ กดแล้วใส่และมีปุ่มเอาออก", !!v && v.keep === false && v.out && v.undo && on?.keep === true && on?.remove, JSON.stringify({ v, on }));
+  await c.evaluate("window.__avJobLib.set({ tracks: [], movie: null, sel: null })"); await sleep(200);
+}
 if (r1.ok) {
   const out = r1.r.output;
   const j = ident(out);

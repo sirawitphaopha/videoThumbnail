@@ -46,7 +46,7 @@ await nav("ใส่โปสเตอร์"); await sleep(500);
 await drop(join(DIR, "หนังเก่า.wmv"), "movie"); await sleep(500);
 const wmv = await q("return document.querySelector('[data-card=movie]')?.innerText ?? ''");
 await shot("01-วางไฟล์wmv.png", "[data-card=movie]", 8);
-check("วางไฟล์ .wmv ช่องแดงบอก ใช้ไม่ได้ ต้องแปลงเป็น MKV หรือ MP4 ก่อน", wmv.includes("ไฟล์ .wmv ใช้ไม่ได้ ต้องแปลงเป็น MKV หรือ MP4 ก่อน"), wmv.split("\n")[0]);
+check("วางไฟล์ .wmv ช่องแดงบอก ต้องแปลงเป็น MKV หรือ MP4 ก่อน", wmv.includes("ไฟล์ .wmv ต้องแปลงเป็น MKV หรือ MP4 ก่อน"), wmv.split("\n")[0]);
 
 // ② เปลี่ยนหน้าระหว่างครอบ กลับมาเห็นงานเดิม
 await drop(big, "movie"); await waitFor("return (document.querySelector('[data-card=movie]')?.innerText ?? '').includes('หนังยาว')");

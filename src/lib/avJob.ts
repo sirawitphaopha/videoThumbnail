@@ -83,8 +83,16 @@ export function trackFrom(t: MergeTrack, extra: Partial<AvTrack> = {}): AvTrack 
   return { ...t, key: nextKey(), base: { lang: t.lang, name: t.name, default: t.default, delay: t.delay, keep: t.keep }, ...extra };
 }
 export function tracksOfAdded(f: AddedFile): AvTrack[] {
-  return f.tracks.map((t) => trackFrom(t, { delayFromName: f.delayFromName, longerBy: f.longerBy, notes: f.notes, fonts: t.kind === "subtitle" && f.fonts?.length ? f.fonts : undefined }));
+  // แทร็กภาพของไฟล์ที่ลากมาเพิ่ม เริ่มต้นไม่ใส่ เปิดใส่เองได้ที่ปุ่มท้ายแถว
+  // เดิมภาพของไฟล์นั้นติดเข้าไฟล์ใหม่และไม่มีปุ่มเอาออก ไฟล์ใหม่มีภาพสองแทร็ก (AUDIT 12 พ.ย. 2569 ข้อ 15)
+  return f.tracks.map((t) => {
+    const tt = t.kind === "video" ? { ...t, keep: false, default: false } : t;
+    return trackFrom(tt, { delayFromName: f.delayFromName, longerBy: f.longerBy, notes: f.notes, fonts: t.kind === "subtitle" && f.fonts?.length ? f.fonts : undefined });
+  });
 }
+
+// ตัวตรวจตั้งสถานะงานจำลองได้ (เฉพาะโหมดพัฒนา) ไว้ดูปุ่มหยุดตอนเลยจุดที่หยุดได้ (AUDIT ข้อ 14 · check-merge)
+if (import.meta.env.DEV) (window as unknown as Record<string, unknown>).__avJobLib = { get: getAv, set: setAv };
 
 if (inApp) {
   listen<PosterProgress>("merge-progress", (e) => {

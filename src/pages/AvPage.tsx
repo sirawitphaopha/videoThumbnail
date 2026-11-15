@@ -577,7 +577,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
             <div className="small" style={{ marginTop: 10 }}><Phr>{`ลากหนังกับเสียงมาพร้อมกันได้ โปรแกรมแยกให้เองว่าไฟล์ไหนเป็นหนัง และรับไฟล์หนัง ${MOVIE_EXT.map((e) => e.toUpperCase()).join(" ")}`}</Phr></div>
           </div>
         </div>
-        <StopDialog open={askStop} pct={pct} name={av.runMovie} onClose={() => setAskStop(false)} />
+        <StopDialog open={askStop && !(run.state === "working" && run.progress?.final)} pct={pct} name={av.runMovie} onClose={() => setAskStop(false)} />
       </div>
     );
   }
@@ -751,14 +751,15 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
                       </span>
                     : <span className="trk-naword" aria-label="ไม่มีการแปลง"><i aria-hidden="true">ไม่แปลง</i><span>—</span></span>}
                   <div className="avacts" onClick={(e) => e.stopPropagation()}>
-                    {t.kind === "video" ? null : !t.inMovie ? (
+                    {/* แถวภาพของหนังไม่มีปุ่ม · แถวภาพของไฟล์ที่เพิ่มใช้ปุ่มเอาออกและเอากลับแบบแถวในหนัง (AUDIT ข้อ 15) */}
+                    {t.kind === "video" && t.inMovie ? null : !t.inMovie && t.kind !== "video" ? (
                       <button type="button" className="ib bad" aria-label={`เอาไฟล์ ${baseName(t.src)} ออก`} title={off ?? "เอาไฟล์นี้ออก"} aria-disabled={!!off || undefined} onClick={() => { if (!off) removeAdded(t.src); }} data-remove>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
                     ) : t.keep ? (
                       <button type="button" className="ib bad" aria-label={`เอา ${title} ออกจากไฟล์ใหม่`} title={off ?? "เอาแทร็กนี้ออกจากไฟล์ใหม่"} aria-disabled={!!off || undefined} onClick={() => { if (!off) patch(t.key, { keep: false, default: false }); }} data-remove>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button>
                     ) : (
-                      <button type="button" className="ib" aria-label={`เอา ${title} กลับ`} title={off ?? "เอากลับ"} aria-disabled={!!off || undefined} onClick={() => { if (!off) patch(t.key, { keep: true }); }} data-undo>
+                      <button type="button" className="ib" aria-label={t.inMovie ? `เอา ${title} กลับ` : `ใส่ ${title} ในไฟล์ใหม่`} title={off ?? (t.inMovie ? "เอากลับ" : "ใส่แทร็กนี้ในไฟล์ใหม่")} aria-disabled={!!off || undefined} onClick={() => { if (!off) patch(t.key, { keep: true }); }} data-undo>
                         <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><path d="M9 14L4 9l5-5" /><path d="M4 9h10a6 6 0 010 12h-3" /></svg></button>
                     )}
                   </div>
@@ -1040,7 +1041,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
         actions={<><button type="button" className="btn btn-danger btn-sm" onClick={() => { setAskDelete(0); start(); }}>ยืนยันลบ</button><button type="button" className="btn btn-ghost btn-sm" onClick={() => setAskDelete(1)}><IbBack size={15} />ย้อนกลับ</button></>}>
         <div style={{ fontSize: 14, lineHeight: 1.6 }}>ลบไฟล์เดิม <b>{baseName(movie.path)}</b> <Phr>หลังตรวจไฟล์ใหม่ผ่าน</Phr><br /><Phr>กู้คืนได้จากถังขยะของ Windows จนกว่าจะล้างถังขยะ</Phr></div>
       </Dialog>
-      <StopDialog open={askStop} pct={pct} name={av.runMovie} onClose={() => setAskStop(false)} />
+      <StopDialog open={askStop && !(run.state === "working" && run.progress?.final)} pct={pct} name={av.runMovie} onClose={() => setAskStop(false)} />
     </div>
   );
 }
@@ -1111,8 +1112,12 @@ function RunCard(p: { run: ReturnType<typeof getAv>["run"]; pct: number; runMovi
         <div className="bar" role="progressbar" aria-valuenow={p.pct} aria-valuemin={0} aria-valuemax={100}><i style={{ width: `${p.pct}%` }} /></div>
         <div className="small">{p.pct}%{run.progress?.eta != null && run.progress.eta > 0 ? <> เหลือราว <span className="nw">{fmtEta(run.progress.eta)}</span></> : null}
           {run.progress?.next ? <><br />ขั้นถัดไป {run.progress.next}</> : null}</div>
-        <button type="button" className="btn btn-bad btn-sm" style={{ alignSelf: "flex-start" }} onClick={p.onStop}><IbStop size={15} />หยุด</button>
-        <div className="small"><Phr>กดหยุด ไฟล์ที่ทำค้างถูกลบ ไฟล์เดิมไม่ถูกแตะ</Phr></div>
+        {/* เลยจุดที่หยุดได้แล้ว ไม่มีปุ่มหยุด บอกเหตุผล (AUDIT ข้อ 14) · ความสูงสองบรรทัดเท่าเดิม ช่องไม่ยืดหด */}
+        {run.progress?.final
+          ? <><button type="button" className="btn btn-wait btn-sm" style={{ alignSelf: "flex-start" }} aria-disabled="true" title="ไฟล์ใหม่เข้าที่แล้ว จึงหยุดไม่ได้" data-stop-final><IbStop size={15} />หยุดไม่ได้</button>
+            <div className="small"><Phr>ไฟล์ใหม่เข้าที่แล้ว กำลังจดข้อมูลให้เสร็จ จึงหยุดตอนนี้ไม่ได้</Phr></div></>
+          : <><button type="button" className="btn btn-bad btn-sm" style={{ alignSelf: "flex-start" }} onClick={p.onStop}><IbStop size={15} />หยุด</button>
+            <div className="small"><Phr>กดหยุด ไฟล์ที่ทำค้างถูกลบ ไฟล์เดิมไม่ถูกแตะ</Phr></div></>}
       </>
     );
   }

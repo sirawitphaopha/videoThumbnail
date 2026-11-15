@@ -102,18 +102,18 @@ const after = Object.fromEntries(await Promise.all(quickSet.map(async (n) => [n,
 const sum = await q("return document.querySelector('[data-cksum]')?.innerText.replace(/\\s+/g, ' ') ?? ''");
 await shot("02-สรุปตรวจแบบเร็ว.png", ".main");
 check("เลือกเฉพาะที่ยังไม่เคยตรวจ ได้ครบทุกเรื่อง", allUnchecked.includes(`เลือกไว้ ${names.length} เรื่อง`), allUnchecked);
-check("ตรวจแบบเร็ว ไฟล์ดีสมบูรณ์ จดค่า hash · ไฟล์ขาดท้ายเสียหาย บอกว่าหายไปเท่าไหร่ · TS บอกว่าตรวจแบบเร็วบอกไม่ได้ว่าขาดท้าย",
+check("ตรวจแบบเร็ว ไฟล์ดีสมบูรณ์ จดค่า hash · ไฟล์ขาดท้ายเสียหาย บอกว่าหายไปเท่าไหร่ · TS ได้ตรวจได้บางส่วน ไม่บอกว่าโครงไฟล์ครบ (AUDIT ข้อ 28)",
   after["ดาวเหนือ (2023)"].includes("ไฟล์สมบูรณ์") && after["ดาวเหนือ (2023)"].includes("จดค่า hash")
   && after["ขาดท้าย (2022)"].includes("ไฟล์เสียหาย") && after["ขาดท้าย (2022)"].includes("หายไปราว")
-  && after["บ้านริมคลอง (2017)"].includes("บอกไม่ได้ว่าขาดท้าย") && after["The Last Orchard (2022)"].includes("ไฟล์สมบูรณ์"),
-  `ขาดท้าย: ${after["ขาดท้าย (2022)"]}`);
+  && after["บ้านริมคลอง (2017)"].includes("ตรวจได้บางส่วน") && after["บ้านริมคลอง (2017)"].includes("บอกไม่ได้ว่าไฟล์ครบ") && !after["บ้านริมคลอง (2017)"].includes("โครงไฟล์ครบ") && after["The Last Orchard (2022)"].includes("ไฟล์สมบูรณ์"),
+  `ขาดท้าย: ${after["ขาดท้าย (2022)"]} · TS: ${after["บ้านริมคลอง (2017)"]}`);
 check("สรุปหลังตรวจครบ จำนวนตรง ตรวจกี่เรื่อง เสร็จเมื่อไหร่ ใช้เวลา มีปุ่มดูเฉพาะที่มีปัญหา ตรวจละเอียดเรื่องที่มีปัญหา",
-  sum.includes(`${quickSet.length - 1} ไฟล์สมบูรณ์`) && sum.includes("1 ไฟล์เสียหาย") && sum.includes(`ตรวจ ${quickSet.length} เรื่องเสร็จ`) && sum.includes("ใช้เวลา") && sum.includes("ดูเฉพาะที่มีปัญหา") && sum.includes("ตรวจละเอียดเรื่องที่มีปัญหา"), sum);
+  sum.includes(`${quickSet.length - 2} ไฟล์สมบูรณ์`) && sum.includes("ตรวจได้บางส่วน 1 เรื่อง") && sum.includes("1 ไฟล์เสียหาย") && sum.includes(`ตรวจ ${quickSet.length} เรื่องเสร็จ`) && sum.includes("ใช้เวลา") && sum.includes("ดูเฉพาะที่มีปัญหา") && sum.includes("ตรวจละเอียดเรื่องที่มีปัญหา"), sum);
 // ดูเฉพาะที่มีปัญหา
 await clickText("[data-cksum] .btn", "ดูเฉพาะที่มีปัญหา"); await sleep(250);
 const onlyBad = await q("return [...document.querySelectorAll('[data-ckrow]')].map(r => r.dataset.ckrow)");
 await clickText("[data-cksum] .btn", "ดูทุกเรื่อง"); await sleep(200);
-check("ดูเฉพาะที่มีปัญหา เหลือแต่ไฟล์ขาดท้าย กดอีกทีกลับมาทุกเรื่อง", onlyBad.length === 1 && onlyBad[0] === "ขาดท้าย (2022)" && (await q("return document.querySelectorAll('[data-ckrow]').length")) === names.length, onlyBad.join(", "));
+check("ดูเฉพาะที่มีปัญหา เหลือไฟล์ขาดท้ายกับ TS ที่ตรวจได้บางส่วน กดอีกทีกลับมาทุกเรื่อง", onlyBad.length === 2 && onlyBad.includes("ขาดท้าย (2022)") && onlyBad.includes("บ้านริมคลอง (2017)") && (await q("return document.querySelectorAll('[data-ckrow]').length")) === names.length, onlyBad.join(", "));
 // คลังเขียนลงไฟล์แล้ว (เขียนรวมตอนจบชุด)
 await sleep(500);
 const saved = JSON.parse(readFileSync(LIB, "utf8")).movies.filter((m) => m.path.startsWith(DIR));
@@ -241,6 +241,31 @@ await clickText(".detail .btn", "ดูผลตรวจ");
 const opened = await waitFor("return document.querySelector('.dlg')?.innerText.includes('ผลตรวจ เสียกลางเรื่อง') ?? false", 5000);
 check("การ์ดสถานะเสียหาย กดดูผลตรวจ เปิดหน้าต่างผลตรวจของเรื่องนั้น", opened);
 await c.evaluate("[...document.querySelectorAll('.dlg .btn')].find(b => b.innerText === 'ปิด')?.click()"); await sleep(200);
+
+// ---------- AUDIT ข้อ 30 หน้าจอค้างกำลังตรวจทั้งที่ฝั่ง Rust ไม่ได้ตรวจ กดหยุดแล้วต้องปลดเอง ไม่ค้าง "กำลังหยุด…" ----------
+// ส่งข่าวเริ่มตรวจปลอมให้หน้าจอขึ้นกำลังตรวจแบบเดียวกับตอนข่าวตรวจเสร็จหลุด แล้วกดหยุด
+if (!BUILT) {
+  await idle();
+  const anyId = await q("return document.querySelector('[data-ckrow]')?.dataset.ckrow ?? ''");
+  await inv("plugin:event|emit", { event: "check-started", payload: { ids: ["ไม่มีจริง"], mode: "quick" } });
+  await waitFor("return !!document.querySelector('[data-ckstop]')", 5000);
+  const stuck = await q("return !!document.querySelector('[data-ckstop]')");
+  await c.evaluate("document.querySelector('[data-ckstop]').click()");
+  const t30 = Date.now(); let freed = false;
+  while (Date.now() - t30 < 4000) { if (await q("return !document.querySelector('[data-ckstop]') && !!document.querySelector('[data-ckstart]')")) { freed = true; break; } await sleep(150); }
+  check("AUDIT 30 หน้าจอค้างกำลังตรวจทั้งที่ไม่ได้ตรวจ กดหยุดแล้วปลดเองภายใน 4 วินาที ปุ่มเริ่มตรวจกลับมา", stuck && freed, `ค้างก่อนกด ${stuck} ปลดแล้ว ${freed} (${Date.now() - t30} ms) แถว ${anyId}`);
+  // ชุดที่จบเร็วมากกดซ้ำหลายรอบ หน้าจอต้องไม่ค้างกำลังตรวจ
+  let hang = 0;
+  for (let i = 0; i < 5; i++) {
+    await selectOnly(["ดาวเหนือ (2023)"]); await mode("quick");
+    await c.evaluate("document.querySelector('[data-ckstart]').click()");
+    const t = Date.now(); let ok = false;
+    while (Date.now() - t < 15000) { if (await q("return !document.querySelector('[data-ckstop]')")) { ok = true; break; } await sleep(100); }
+    if (!ok) { hang++; await c.evaluate("document.querySelector('[data-ckstop]')?.click()"); await idle(); }
+    await closeToasts();
+  }
+  check("AUDIT 30 ตรวจเรื่องเดียวที่จบเร็วซ้ำ 5 รอบ หน้าจอไม่ค้างกำลังตรวจ", hang === 0, `ค้าง ${hang} รอบ`);
+}
 
 if (BUILT) {
   const csp = await q("return window.__csp ?? null");

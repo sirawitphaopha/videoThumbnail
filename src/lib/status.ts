@@ -13,7 +13,8 @@ export function reminderDue(m: Movie, days: number): boolean {
 export function kindOf(m: Movie, reminderDays: number): Kind {
   if (m.status === "bad") return "bad";
   if (m.ext !== "mkv") return "info";
-  if (m.status === "unchecked" || m.status === "changed" || reminderDue(m, reminderDays)) return "warn";
+  // partial ตรวจแบบเร็วบอกไม่ได้ว่าไฟล์ครบ เป็นเหลืองชวนตรวจละเอียด (AUDIT ข้อ 28)
+  if (m.status === "unchecked" || m.status === "changed" || m.status === "partial" || reminderDue(m, reminderDays)) return "warn";
   return "ok";
 }
 

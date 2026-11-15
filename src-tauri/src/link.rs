@@ -482,7 +482,7 @@ pub struct LinkStore {
     busy: AtomicBool,
 }
 
-const BUSY_MSG: &str = "กำลังยืนยันหรือย้ายที่เก็บรูปอยู่ รอให้เสร็จก่อน";
+const BUSY_MSG: &str = "กำลังยืนยัน ย้ายที่เก็บรูป หรือจำค่าครอปอยู่ รอให้เสร็จก่อน";
 
 /// ถือไว้ตลอดงาน หลุดจากขอบเขตเมื่อไหร่ก็ปลดเอง รวมตอนงานล้ม
 pub struct BusyGuard(Arc<LinkStore>);
@@ -747,6 +747,23 @@ fn movies_of(lib: &LibraryStore) -> Vec<Movie> {
     lib.movies.lock().unwrap().clone()
 }
 
+/// แถวที่จับคู่ได้รูปต้นทางเดียวกับปกจับคู่เดิมช่องเดียวกัน ยกค่าครอปกับภาพหลังครอปเดิมมาใส่
+/// ยืนยันทั้งหมดแล้วได้ปกแบบที่ครอปเองไว้ ไม่กลายเป็นครอปกลางรูป (AUDIT 12 พ.ย. 2569 ข้อ 11)
+fn carry_crops(rows: &mut [Row], movies: &[Movie]) {
+    for r in rows.iter_mut() {
+        let Some(m) = movies.iter().find(|m| m.id == r.id) else { continue };
+        for (orient, slot) in [("tall", &mut r.tall), ("wide", &mut r.wide)] {
+            let Some(p) = slot.as_mut() else { continue };
+            if p.geo.is_some() { continue; }
+            let old = m.linked.iter().find(|c| c.orient == orient && c.geo.is_some() && same_file(Path::new(&c.source), Path::new(&p.path)));
+            if let Some(c) = old {
+                p.geo = c.geo.clone();
+                p.crop_thumb = Some(c.thumb.clone());
+            }
+        }
+    }
+}
+
 #[tauri::command]
 pub fn link_state(store: State<'_, Arc<LinkStore>>, lib: State<'_, Arc<LibraryStore>>) -> LinkReply {
     reply(&store, &movies_of(&lib))
@@ -920,7 +937,9 @@ pub async fn link_auto(app: AppHandle, scope: String) -> Result<AutoSummary, Str
         let mut taken: HashSet<String> = keep.iter().flat_map(|r| [&r.tall, &r.wide]).flatten().map(|p| p.path.clone()).collect();
         // เฉพาะเรื่องที่ยังไม่มีปก รูปที่ยืนยันไปแล้วไม่ไปซ้ำเรื่องอื่น · ทุกเรื่องตั้งใจจับคู่ใหม่หมด จึงไม่กัน
         if scope != "all" { taken.extend(movies.iter().flat_map(|m| &m.linked).map(|c| c.source.clone())); }
-        let fresh = match_core(&targets, &shelf, &images, &taken);
+        let mut fresh = match_core(&targets, &shelf, &images, &taken);
+        // จับคู่ทุกเรื่องรอบใหม่ รูปที่ได้เป็นรูปต้นทางเดิมของปกช่องเดียวกัน ยกค่าครอปกับภาพหลังครอปเดิมมาด้วย (AUDIT 12 พ.ย. 2569 ข้อ 11)
+        if scope == "all" { carry_crops(&mut fresh, &movies); }
         let mut sum = (0, 0, 0);
         for r in &fresh {
             match r.status.as_str() { "sure" => sum.0 += 1, "unsure" => sum.1 += 1, _ => sum.2 += 1 }
@@ -1045,7 +1064,9 @@ pub async fn link_set_crop(app: AppHandle, id: String, orient: String, geo: Geom
     tauri::async_runtime::spawn_blocking(move || {
         let d = dirs(&app)?;
         let store = app.state::<Arc<LinkStore>>().inner().clone();
-        store.idle()?;
+        // ถือตัวกันงานตลอดคำสั่ง การถอดรูปใช้เวลา ยืนยันแซงเข้ามาระหว่างนี้ไม่ได้
+        // เดิมเช็กแค่ตอนเริ่ม ยืนยันแซงแล้วเขียนปกด้วยค่าครอปเก่า แล้วคำสั่งนี้เขียนค่าครอปใหม่ทับแถวที่บันทึกแล้ว (AUDIT 12 พ.ย. 2569 ข้อ 9)
+        let _busy = begin_busy(&store)?;
         let movies = movies_of(&app.state::<Arc<LibraryStore>>());
         let wide = orient == "wide";
         let base = {
@@ -1219,7 +1240,8 @@ fn replace_own(target: &Path, bytes: &[u8]) -> Result<(), String> {
         let _ = fs::remove_file(&temp);
         return Err(p.title);
     }
-    let _ = fs::remove_file(&old);
+    // ไฟล์รุ่นก่อนลงถังขยะ กู้คืนได้ (AUDIT 12 พ.ย. 2569 ข้อ 11 · เดิมลบถาวร ไฟล์ครอปเดิมหายกู้ไม่ได้)
+    if crate::outfile::to_trash(&old).is_err() { let _ = fs::remove_file(&old); }
     Ok(())
 }
 
@@ -1590,6 +1612,8 @@ pub fn link_unsave(app: AppHandle, store: State<'_, Arc<LinkStore>>, lib: State<
         if let Some(r) = x.rows.iter_mut().find(|r| r.id == id) {
             r.status = if r.via != "auto" { "manual".into() } else if r.candidates.is_empty() { "sure".into() } else { "unsure".into() };
             r.ticked = true;
+            // นับว่าแตะแล้ว แถวที่เปิดจากชั้นวางจะเข้ายืนยันทั้งหมด ขึ้นเลขในเมนู และหน้าต่างกันปิดถาม (AUDIT 12 พ.ย. 2569 ข้อ 13)
+            r.touched = true;
             clear_dead_crops(r);
         }
     }
@@ -2470,6 +2494,44 @@ mod tests {
         }
         fs::write(&path, "{ไม่ใช่ JSON").unwrap();
         assert_eq!(LinkStore::load(path).data.lock().unwrap().rows.len(), 2, "ไฟล์เสียต้องอ่านจากสำรอง");
+        let _ = fs::remove_dir_all(&dir);
+    }
+
+    /// AUDIT 12 พ.ย. 2569 ข้อ 11 · จับคู่ทุกเรื่องรอบใหม่ได้รูปต้นทางเดิม ยกค่าครอปเดิมมา · รูปอื่นหรือช่องอื่นไม่ยก · แถวที่ตั้งครอปไว้แล้วไม่ทับ
+    #[test]
+    fn rematch_all_keeps_own_crops() {
+        let geo = Geometry { x: 0.1, y: 0.2, w: 0.5, h: 0.75, ..Default::default() };
+        let cover = |orient: &str, src: &str| LinkedCover { orient: orient.into(), source: src.into(), geo: Some(geo.clone()), thumb: format!("thumb-{orient}.jpg"), ..Default::default() };
+        let movie = Movie { id: "m1".into(), linked: vec![cover("tall", "D:\\รูป\\A.jpg"), cover("wide", "D:\\รูป\\W.jpg")], ..Default::default() };
+        let pick = |p: &str| Some(Pick { path: p.into(), ..Default::default() });
+        let mut rows = vec![
+            Row { id: "m1".into(), tall: pick("d:\\รูป\\a.jpg"), wide: pick("D:\\รูป\\อื่น.jpg"), ..Default::default() },
+            Row { id: "m2".into(), tall: pick("D:\\รูป\\A.jpg"), ..Default::default() },
+        ];
+        carry_crops(&mut rows, &[movie.clone()]);
+        assert_eq!(rows[0].tall.as_ref().unwrap().geo, Some(geo.clone()), "รูปต้นทางเดิม ตัวพิมพ์ต่างกัน ต้องยกค่าครอปมา");
+        assert_eq!(rows[0].tall.as_ref().unwrap().crop_thumb.as_deref(), Some("thumb-tall.jpg"));
+        assert!(rows[0].wide.as_ref().unwrap().geo.is_none(), "รูปอื่นไม่ยกค่าครอป");
+        assert!(rows[1].tall.as_ref().unwrap().geo.is_none(), "เรื่องอื่นไม่ยก");
+        // แถวที่มีค่าครอปของตัวเองแล้วไม่ทับ
+        let mine = Geometry { x: 0.3, ..geo.clone() };
+        let mut rows2 = vec![Row { id: "m1".into(), tall: Some(Pick { path: "D:\\รูป\\A.jpg".into(), geo: Some(mine.clone()), ..Default::default() }), ..Default::default() }];
+        carry_crops(&mut rows2, &[movie]);
+        assert_eq!(rows2[0].tall.as_ref().unwrap().geo, Some(mine));
+    }
+
+    /// AUDIT ข้อ 11 · แทนปกที่โปรแกรมทำไว้ ไฟล์รุ่นก่อนไม่ค้างในโฟลเดอร์ (ไปถังขยะ) และไฟล์ปลายทางเป็นรุ่นใหม่
+    #[test]
+    fn replace_own_moves_old_out_of_folder() {
+        let dir = std::env::temp_dir().join(format!("ชั้นหนัง-แทนปก-{}", std::process::id()));
+        let _ = fs::remove_dir_all(&dir);
+        fs::create_dir_all(&dir).unwrap();
+        let target = dir.join("หนัง-poster.jpg");
+        fs::write(&target, b"old").unwrap();
+        replace_own(&target, b"new").unwrap();
+        assert_eq!(fs::read(&target).unwrap(), b"new");
+        let left: Vec<_> = fs::read_dir(&dir).unwrap().filter_map(|e| e.ok()).map(|e| e.file_name().to_string_lossy().to_string()).collect();
+        assert_eq!(left, vec!["หนัง-poster.jpg".to_string()], "ไม่มีไฟล์ .old หรือ .partial ค้าง");
         let _ = fs::remove_dir_all(&dir);
     }
 }

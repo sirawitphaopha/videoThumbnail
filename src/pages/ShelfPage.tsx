@@ -935,7 +935,7 @@ function StatusCard({ m, reminder, onCheck, onPoster }: { m: Movie; reminder: nu
     );
   }
   if (k === "warn") {
-    const title = m.status === "changed" ? "ไฟล์ถูกเปลี่ยนตั้งแต่ตรวจครั้งก่อน" : m.status === "unchecked" ? "ยังไม่เคยตรวจไฟล์นี้" : "ถึงเวลาตรวจซ้ำ";
+    const title = m.status === "changed" ? "ไฟล์ถูกเปลี่ยนตั้งแต่ตรวจครั้งก่อน" : m.status === "partial" ? "ตรวจแบบเร็วบอกไม่ได้ว่าไฟล์ครบ" : m.status === "unchecked" ? "ยังไม่เคยตรวจไฟล์นี้" : "ถึงเวลาตรวจซ้ำ";
     return (
       <>
         {/* กดการ์ดแล้วไปหน้าตรวจไฟล์พร้อมเลือกเรื่องนี้ (พี่กันสั่ง 9 พ.ย. 2569 "ใส่การ์ด ที่กดเเล้วไปหน้าตรวจเลย") */}

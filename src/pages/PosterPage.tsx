@@ -81,12 +81,18 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
   const loadMovie = useCallback(async (path: string) => {
     setTyped(null);
     setMovieErr(null);
-    setRun({ state: "idle" });
+    // ล้างไฟล์หนังเรื่องก่อนทันที เปิดไฟล์ใหม่ไม่สำเร็จแล้วปุ่มเริ่มกดไม่ได้ ไม่ไปแก้ไฟล์เรื่องก่อน
+    // เดิมไฟล์ใหม่ใช้ไม่ได้แต่โปรแกรมยังจำไฟล์เก่า กดเริ่มแล้วโปสเตอร์ไปลงไฟล์เก่า (AUDIT 12 พ.ย. 2569 ข้อ 6)
+    setMovie(null);
+    setMoviePath(null);
+    // ไม่ทับสถานะงานที่กำลังวิ่ง (AUDIT ข้อ 5)
+    if (getPosterJob().run.state !== "working") setRun({ state: "idle" });
     setDrop([]);
     setAck([]);
     const ext = extOf(path);
     // WMV ต้องแปลงก่อน · ISO ต้องแตกไฟล์ก่อน (สเปกข้อ 10) · เดิมบอกแค่ใช้ไม่ได้ ไม่บอกทางไปต่อ (ผู้ช่วยตรวจสเปกเจอ)
-    if (!MOVIE_EXT.includes(ext)) { setMovieErr(`${ext ? "ไฟล์ ." + ext : "ไฟล์ที่ไม่มีนามสกุล"} ใช้ไม่ได้${ext === "wmv" ? " ต้องแปลงเป็น MKV หรือ MP4 ก่อน" : ext === "iso" ? " ต้องแตกไฟล์หนังออกจากอิมเมจแผ่นก่อน" : ""}`); return; }
+    // ไม่มีคำว่าใช้ไม่ได้ในกรณีที่บอกทางไปต่อ หัวการ์ดสั้นพอไม่ตัดกลางวลี (เดิม "ไฟล์ .wmv ใช้ไม่ได้ ต้องแปลงเป็น MKV หรือ ⏎ MP4 ก่อน" เจอ 15 พ.ย. 2569)
+    if (!MOVIE_EXT.includes(ext)) { const n = ext ? "ไฟล์ ." + ext : "ไฟล์ที่ไม่มีนามสกุล"; setMovieErr(ext === "wmv" ? `${n} ต้องแปลงเป็น MKV หรือ MP4 ก่อน` : ext === "iso" ? `${n} ต้องแตกไฟล์หนังออกจากอิมเมจแผ่นก่อน` : `${n} ใช้ไม่ได้`); return; }
     setLoading("movie");
     try {
       const m = await posterApi.inspect(path);
@@ -102,7 +108,7 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
   // ---------- รูป ----------
   const loadPoster = useCallback(async (path: string) => {
     setPosterErr(null);
-    setRun({ state: "idle" });
+    if (getPosterJob().run.state !== "working") setRun({ state: "idle" });
     const ext = extOf(path);
     if (!IMAGE_EXT.includes(ext)) { setPosterErr(`ไฟล์ .${ext || "?"} ใช้ไม่ได้`); return; }
     setLoading("poster");
@@ -163,10 +169,14 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
     const e = extOf(paths[0] ?? "");
     return IMAGE_EXT.includes(e) ? "poster" : MOVIE_EXT.includes(e) ? "movie" : null;
   };
+  // ระหว่างใส่โปสเตอร์ลากไฟล์มาวางไม่ได้ ช่องลากไม่ขึ้นสีรับไฟล์ และวางแล้วบอกให้รอ
+  // เดิมรับไฟล์แล้วตั้งสถานะงานเป็นยังไม่เริ่ม ปุ่มหยุดหาย ทั้งที่งานยังวิ่งอยู่ (AUDIT 12 พ.ย. 2569 ข้อ 5 · พี่กันสั่ง "ตอนทำงานอยู่ ทำให้มันลากมาไม่ได้")
+  const busyNow = () => getPosterJob().run.state === "working";
   const handleDrop = useCallback((paths: string[], x: number, y: number) => {
     setOver(null);
     const f = paths[0];
     if (!f) return;
+    if (busyNow()) { toast({ kind: "info", title: "กำลังใส่โปสเตอร์อยู่", detail: "รอให้งานนี้เสร็จก่อน แล้วค่อยลากไฟล์มาใหม่" }); return; }
     const zone = zoneAt(x, y, paths) ?? "movie";
     if (zone === "poster") loadPoster(f); else loadMovie(f);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -180,6 +190,7 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
       if (!pageOn.current) return; // หน้านี้ซ่อนอยู่ (ไปเมนูอื่นแล้ว) ไม่รับไฟล์ที่ลากมา (BUGS ข้อ 9)
       const t = e.payload.type;
       if (t === "over" || t === "enter") {
+        if (busyNow()) { setOver(null); return; }
         const pos = e.payload.position;
         const paths = t === "enter" ? e.payload.paths : [];
         setOver((old) => zoneAt(pos.x, pos.y, paths) ?? old);
@@ -591,7 +602,9 @@ function DoneCard({ r, onShelf, onClose, onMore }: { r: ApplyResult; onShelf: ()
   const line2 = r.mode === "cover" ? (r.verified ? "ปกในไฟล์ตรงกับรูปที่ทำทุกไบต์ ภาพ เสียง ซับ เท่าเดิม" : "ไม่ได้ตรวจรูปแนบ") : r.verified ? "ครบเท่าต้นทาง" : "ไม่ได้ตรวจเทียบต้นทาง";
   const where = r.original === "kept" && r.originalTo ? r.originalTo.replace(/[\\/][^\\/]+$/, "") : null;
   const counts = `ภาพ ${c.video} เสียง ${c.audio} ซับ ${c.subs}`;
-  const lines = [counts, line2, where ? "ไฟล์เดิมย้ายไปที่ " + where : "", r.original === "trash" ? "ไฟล์เดิมอยู่ในถังขยะของ Windows กู้คืนได้จนกว่าจะล้างถังขยะ" : "", ...r.notes].filter(Boolean);
+  // ชื่อไฟล์ที่ได้อยู่ในรายละเอียด รู้ว่าไฟล์ไหนถูกแก้ (AUDIT ข้อ 6)
+  const outName = r.output ? r.output.split(/[\\/]/).pop() : "";
+  const lines = [outName ? "ไฟล์ที่ได้คือ " + outName : "", counts, line2, where ? "ไฟล์เดิมย้ายไปที่ " + where : "", r.original === "trash" ? "ไฟล์เดิมอยู่ในถังขยะของ Windows กู้คืนได้จนกว่าจะล้างถังขยะ" : "", ...r.notes].filter(Boolean);
   return (
     <>
       <CardIcon kind="done" />

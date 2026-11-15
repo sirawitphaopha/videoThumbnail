@@ -2,6 +2,7 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 import { resolve } from "node:path";
 import { connect, sleep } from "./lib/cdp-client.mjs";
+import { linesOf } from "./lib/lines.mjs";
 const OUT = "docs/report-2026-11-09/จุดลากไฟล์";
 mkdirSync(OUT, { recursive: true });
 const c = await connect();
@@ -40,6 +41,34 @@ const th = await q("const e = document.querySelector('[data-moviethumb]'), r = e
 check("รูปตัวอย่างหนังเต็มคอลัมน์ ใช้ภาพจริงจากหนัง", th.tag === "IMG" && th.nat > 0 && th.w >= th.cardW - 30, JSON.stringify(th));
 check("ใส่ไฟล์หนังแล้วหน้าไม่เลื่อน", lm.scroll <= 0, `เลื่อนได้ ${lm.scroll}`);
 await c.shot(`${OUT}/09-ช่องตัวอย่าง-ใส่หนังแล้ว.png`);
+/* AUDIT ข้อ 5 ระหว่างใส่โปสเตอร์ลากไฟล์มาวางไม่ได้ สถานะงานไม่ถูกทับ ไฟล์หนังบนการ์ดไม่เปลี่ยน มีกล่องบอกให้รอ
+   ตั้งสถานะงานจำลองผ่าน __posterJobLib (ไม่สั่งงานจริง) แล้วคืนเป็นยังไม่เริ่มตอนจบ */
+{
+  const other = resolve("test-media", "สร้าง", "หนัง", "Harbor Lights (2021).mkv");
+  const before = await q("return document.querySelector('[data-card=movie]')?.innerText ?? '';");
+  // ปิดกล่องแจ้งที่ค้างจากรอบก่อนก่อน ไม่งั้นข้อตรวจกล่องบอกให้รอเขียวเพราะกล่องเก่า (เจอตอนพิสูจน์กับโค้ดเดิม)
+  await q("document.querySelectorAll('.toast .x, .toast button').forEach((b) => b.click()); return 1;"); await sleep(400);
+  await q("window.__posterJobLib.set({ run: { state: 'working', progress: null } }); return 1;"); await sleep(300);
+  const btnBefore = await q("return !![...document.querySelectorAll('[data-poster-page] .btn')].find((b) => b.textContent.includes('หยุด'));");
+  await c.evaluate(`(() => { const r = document.querySelector('[data-drop=movie]').getBoundingClientRect(); window.__posterDrop([${JSON.stringify(other)}], (r.left + 20) * devicePixelRatio, (r.top + 20) * devicePixelRatio); })()`);
+  await sleep(1500);
+  const after = await q("return { run: window.__posterJobLib.get().run.state, card: document.querySelector('[data-card=movie]')?.innerText ?? '', stop: !![...document.querySelectorAll('[data-poster-page] .btn')].find((b) => b.textContent.includes('หยุด')), toast: [...document.querySelectorAll('.toast')].map((t) => t.innerText).join(' ') };");
+  check("AUDIT 5 ลากไฟล์ระหว่างใส่โปสเตอร์ สถานะยังกำลังทำ ปุ่มหยุดยังอยู่ ไฟล์หนังบนการ์ดไม่เปลี่ยน", after.run === "working" && btnBefore && after.stop && after.card === before, JSON.stringify({ ...after, card: after.card.slice(0, 40), btnBefore }));
+  check("AUDIT 5 วางไฟล์ระหว่างงานวิ่ง ขึ้นกล่องบอกให้รอ", /รอให้งานนี้เสร็จก่อน แล้วค่อยลากไฟล์มาใหม่/.test(after.toast), after.toast);
+  await q("window.__posterJobLib.set({ run: { state: 'idle' } }); return 1;"); await sleep(300);
+}
+/* AUDIT ข้อ 6 ใส่หนังเรื่องหนึ่งแล้วลากไฟล์ที่ใช้ไม่ได้มาแทน ปุ่มเริ่มต้องกดไม่ได้และบอกให้ใส่ไฟล์หนังก่อน ไม่ใช้ไฟล์เรื่องก่อน */
+{
+  const bad = resolve("test-media", "สร้าง", "ไฟล์ผิดชนิด.wmv");
+  const had = await q("return !!document.querySelector('[data-moviefirst], [data-moviethumb]') || /Clip/.test(document.querySelector('[data-card=movie]')?.innerText ?? '');");
+  await c.evaluate(`(() => { const r = document.querySelector('[data-drop=movie]').getBoundingClientRect(); window.__posterDrop([${JSON.stringify(bad)}], (r.left + 20) * devicePixelRatio, (r.top + 20) * devicePixelRatio); })()`);
+  await sleep(800);
+  const st = await q("const b = document.querySelector('[data-start]'); return { dis: b.getAttribute('aria-disabled'), why: b.getAttribute('title') ?? '', card: document.querySelector('[data-card=movie]')?.innerText.replace(/\\s+/g, ' ').slice(0, 120) ?? '' };");
+  const wl = (await linesOf(q, "[data-drop=movie] > b")) ?? [];
+  const wmvLine = wl.find((l) => l.includes(".wmv")) ?? "";
+  check("ไฟล์ .wmv หัวการ์ดบอกทางไปต่อ ไม่ตัดบรรทัดกลางวลี", wmvLine.includes("ไฟล์ .wmv ต้องแปลงเป็น MKV หรือ MP4 ก่อน") && !wmvLine.includes("⏎"), wmvLine);
+  check("AUDIT 6 ใส่หนังแล้วลากไฟล์ที่ใช้ไม่ได้มาแทน ปุ่มเริ่มกดไม่ได้ บอกให้ใส่ไฟล์หนังก่อน และการ์ดไม่เหลือไฟล์เรื่องก่อน", had && st.dis === "true" && /ใส่ไฟล์หนังก่อน/.test(st.why) && !/Clip \(2015\)/.test(st.card), JSON.stringify({ had, ...st }));
+}
 await clear();
 /* ชนิดวิดีโอจากไฟล์จริง */
 const kinds = [["ดาวเหนือ (2023).mkv", "H.264", /AAC/], ["HEVC Test (2020).mkv", "H.265", /./], ["ฝนแรก (2025).webm", "VP9", /Opus|Vorbis/i], ["Old Disc (2001).vob", "MPEG-2", /./], ["Vorbis Test (2010).mkv", "", /Vorbis/i]];
