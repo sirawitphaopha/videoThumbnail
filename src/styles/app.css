@@ -534,6 +534,12 @@ tbody tr:last-child td { border-bottom: 0; }
 .setver { margin-left: 8px; font-size: 12.5px; font-weight: 400; color: var(--txt2); }
 .setcard .setrow:first-of-type { border-top: 0; }
 .setrow .lbl .small { display: block; }
+/* ชื่อแถวตั้งค่าตัวหลักสีและตัวหนาแบบหัวข้อย่อย (.imghead) · แถวที่อยู่ใต้หัวข้อย่อยคงสีเดิม คำอธิบายตัวเล็กคงเดิมทุกแถว
+   (BUGS ข้อ 137 พี่กัน "หัวข้อตั้ค่าตัวหลัก ขอสีเเละตัวหนาเหมือนกับ รูปกราฟที่บันทึก เเต่ตัวรองจากตัวหลัก ก็สีเดิม") */
+.setcard .setrow > .lbl { font-weight: 700; color: var(--accent-ink); }
+.setcard .setrow > .lbl .small { font-weight: 400; }
+/* แถวตัวหลักที่วางต่อท้ายกลุ่มย่อย ติด setmain (อ่านโฟลเดอร์ใหม่ทุกครั้ง ผลอ่านคลื่นที่เก็บไว้) */
+.setcard .imghead ~ .setrow:not(.setmain) > .lbl { font-weight: 400; color: var(--txt); }
 .folder { display: flex; align-items: center; gap: 10px; background: var(--win2); border-radius: 9px; padding: 9px 12px; font-size: 14px; margin-top: 6px; }
 .setwrap .folder { background: transparent; border-radius: 0; padding: 9px 0; margin-top: 0; border-top: 1px solid #f7e4ea; }
 .folder .grow { flex: 1; min-width: 0; }
@@ -594,7 +600,8 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 /* แถบปุ่มท้ายหน้าตรงแนวคอลัมน์ที่ 3 (พี่กันสั่ง "เอาให้มันตรงกัน" 8 พ.ย. 2569) */
 [data-poster-page] .three.pactions { padding-top: 16px; border-top: 1px solid var(--line); align-items: center; }
 .pact-msg { grid-column: 1 / 3; padding-right: 22px; display: flex; justify-content: flex-end; min-width: 0; }
-.pact-btns { grid-column: 3; padding-left: 23px; display: flex; flex-wrap: nowrap; gap: 8px; min-width: 0; }
+/* เส้นแบ่งแนวตั้งระหว่างแถบความคืบหน้ากับปุ่มล้างทั้งหมด ตรงแนวเส้นแบ่งคอลัมน์ข้างบน สูงเต็มแถว (BUGS ข้อ 49) · เส้น 1 จุดกับระยะ 22 เท่าการ์ดข้างบน ปุ่มอยู่ที่เดิม */
+.pact-btns { grid-column: 3; padding-left: 22px; border-left: 1px solid var(--line); align-self: stretch; align-items: center; display: flex; flex-wrap: nowrap; gap: 8px; min-width: 0; }
 .pact-btns .btn { padding-inline: 10px !important; min-width: 0; }
 .pact-btns .btn:last-child { font-size: 13px !important; }
 .card { padding: 0; }
@@ -927,8 +934,9 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 [data-img-row="bits"] .seg, [data-img-row="gray"] .seg, [data-img-row="sub"] .seg, [data-img-row="compress"] .seg, [data-img-row="bg"] .seg { width: 165px; box-sizing: border-box; }
 [data-img-row="bits"] .seg > *, [data-img-row="gray"] .seg > *, [data-img-row="sub"] .seg > *, [data-img-row="compress"] .seg > *, [data-img-row="bg"] .seg > * { flex: 1 1 0; min-width: 0; padding-left: 0; padding-right: 0; white-space: nowrap; }
 /* แถวกราฟความถี่เปิดมาแบบ อยู่หัวข้อเดียวกัน กว้าง 165 เท่าปุ่มสองตัวเลือกแถวอื่น (เดิม 148 · พี่กันสั่ง 15 พ.ย. 2569 กรอบในหน้าตั้งค่าขนาดเท่ากัน) */
-[data-spekres-default] .seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; width: 165px; box-sizing: border-box; }
-[data-spekres-default] .seg > * { min-width: 0; padding-left: 0; padding-right: 0; justify-content: center; white-space: nowrap; }
+/* แถวแถบภาพรวมเปิดมาแบบ (BUGS ข้อ 50) กว้างเท่ากัน */
+[data-spekres-default] .seg, [data-ovstart] .seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; width: 165px; box-sizing: border-box; }
+[data-spekres-default] .seg > *, [data-ovstart] .seg > * { min-width: 0; padding-left: 0; padding-right: 0; justify-content: center; white-space: nowrap; }
 .imgctl > .btn { width: 82.5px; padding-left: 0; padding-right: 0; justify-content: center; flex: none; }
 /* พี่กันบอก 9 พ.ย. 2569 "ยังไม่เรียงตามปุ่มอื่น" ปุ่มกลับค่าตั้งต้นกับล้าง กว้างเท่าแถบสองตัวเลือก 165 จุด ขอบซ้ายขวาตรงกัน */
 .btn[data-img-reset], .btn[data-clearcache] { width: 165px; padding-left: 0; padding-right: 0; justify-content: center; flex: none; }
@@ -1383,7 +1391,7 @@ div.avthumb { background: repeating-linear-gradient(135deg, #fff 0 5px, #fbf2f5 
 @media (max-width: 1100px) {
   [data-not23] .seg svg { display: none; }
   [data-poster-page] .pact-msg { grid-column: 1 / 2; padding-right: 0; }
-  [data-poster-page] .pact-btns { grid-column: 2 / 4; padding-left: 0; justify-content: flex-end; }
+  [data-poster-page] .pact-btns { grid-column: 2 / 4; padding-left: 22px; justify-content: flex-end; }
   [data-poster-page] .pact-btns .btn { flex: none; white-space: nowrap; }
 }
 .ag[data-graphmode="convert"] > .cq > .card:first-child { flex: 1 0 auto; display: flex; flex-direction: column; }

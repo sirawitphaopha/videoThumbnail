@@ -278,6 +278,44 @@ try {
     await c.setNav("graph"); await sleep(300);
     const gs = await q(`return [${boxOf("[data-spekres-default] .seg")}, ${boxOf("[data-img-row=bits] .seg")}, ${boxOf("[data-img-row=gray] .seg")}]`);
     check("กราฟเสียง แถวกราฟความถี่เปิดมาแบบกว้าง 165 เท่าแถวความลึกสีกับชุดสี ขอบตรงแนว", gs.every((b) => b && b[2] === 165 && b[0] === gs[0][0]), JSON.stringify(gs));
+    // ---------- BUGS ข้อ 137 ชื่อแถวตัวหลักสีและตัวหนาแบบหัวข้อย่อย แถวใต้หัวข้อย่อยคงสีเดิม ----------
+    const st137 = await q(`const sty = (e) => { const cs = getComputedStyle(e); return [cs.fontWeight, cs.color]; }; const row = (t) => [...document.querySelectorAll('[data-setcard=graph] .setrow > .lbl')].find((l) => l.textContent.startsWith(t)); const head = document.querySelector('[data-setcard=graph] .imghead'); const sm = row('ซูมเหมือนกัน').querySelector('.small'); return { head: sty(head), main: sty(row('ซูมเหมือนกัน')), cache: sty(row('ผลอ่านคลื่น')), sub: sty(row('ความกว้างรูป')), small: sty(sm), txt: getComputedStyle(document.querySelector('[data-setcard=graph]')).color };`);
+    check("ข้อ 137 ชื่อแถวตัวหลักสีและน้ำหนักเท่าหัวข้อย่อย รูปกราฟที่บันทึก รวมแถวหลักที่อยู่ต่อท้ายกลุ่ม", st137.main[0] === "700" && st137.main[1] === st137.head[1] && st137.cache[0] === "700" && st137.cache[1] === st137.head[1], JSON.stringify(st137));
+    check("ข้อ 137 แถวใต้หัวข้อย่อยคงสีและน้ำหนักเดิม คำอธิบายตัวเล็กไม่หนา", st137.sub[0] === "400" && st137.sub[1] === st137.txt && st137.small[0] === "400", JSON.stringify(st137));
+    // ---------- BUGS ข้อ 50 แถบภาพรวมทั้งไฟล์เปิดมาพับหรือกาง ----------
+    const ovBox = await q(`return ${boxOf("[data-ovstart] .seg")}`);
+    check("ข้อ 50 แถวแถบภาพรวมเปิดมาแบบ ปุ่มเลือกกว้าง 165 ขอบตรงแนวแถวกราฟความถี่", !!ovBox && ovBox[2] === 165 && ovBox[0] === gs[0][0], JSON.stringify(ovBox));
+    const ovWas = await q("return localStorage.getItem('graph-ov-start');");
+    const ovPick = async (label) => { await q(`[...document.querySelectorAll('[data-ovstart] .seg button')].find((b) => b.innerText.trim() === ${JSON.stringify(label)}).click(); return 1;`); await sleep(250); return q("return { now: window.__ovFold(), saved: localStorage.getItem('graph-ov-start'), on: document.querySelector('[data-ovstart] .seg [aria-pressed=true], [data-ovstart] .seg [aria-checked=true], [data-ovstart] .seg .on')?.innerText.trim() };"); };
+    const f1 = await ovPick("พับไว้");
+    check("ข้อ 50 เลือกพับไว้ แถบในหน้ากราฟพับทันที และเก็บค่าไว้", f1.now === true && f1.saved === "fold", JSON.stringify(f1));
+    await q("location.reload();"); await sleep(2500);
+    await waitFor("return !!document.querySelector('.side .nav');", 30000);
+    const f2 = await q("return { now: window.__ovFold(), saved: localStorage.getItem('graph-ov-start') };");
+    check("ข้อ 50 เปิดโปรแกรมใหม่หลังเลือกพับไว้ แถบเริ่มที่พับ", f2.now === true, JSON.stringify(f2));
+    await nav("ตั้งค่า"); await sleep(300); await c.setNav("graph"); await sleep(300);
+    const f3 = await ovPick("กางไว้");
+    check("ข้อ 50 เลือกกางไว้ แถบกางทันที และเก็บค่าไว้", f3.now === false && f3.saved === "open", JSON.stringify(f3));
+    const ovSmall = (await linesOf(q, "[data-ovstart] .lbl .small"))?.[0] ?? "";
+    check("ข้อ 50 คำใต้ชื่อแถวอยู่บรรทัดเดียวที่ 1280 กว้าง", ovSmall !== "" && !ovSmall.includes("⏎"), ovSmall);
+    const OV_TIP_WANT = [
+      "แถบเตี้ยใต้หัวกราฟที่ย่อคลื่นเสียงของทั้งไฟล์ไว้ในแถบเดียว ⏎ และกดที่แถบเพื่อเลื่อนกราฟไปยังช่วงนั้นได้",
+      "กางไว้ เห็นคลื่นของทั้งไฟล์ตั้งแต่เปิดหน้ากราฟ ⏎ พร้อมกรอบบอกช่วงที่ซูมดูอยู่ ⏎ ข้อดีรู้ตลอดว่ากำลังดูช่วงไหนของไฟล์ ⏎ ข้อเสียกราฟหลักเตี้ยลงราว 44 จุด",
+      "พับไว้ แถบเหลือเส้นเดียวที่มีขีดบอกช่วงที่ดูอยู่ กดที่เส้นเพื่อกางได้ ⏎ ข้อดีกราฟหลักได้ที่สูงเพิ่ม ⏎ ข้อเสียไม่เห็นคลื่นของทั้งไฟล์",
+      "แนะนำกางไว้เมื่อซูมดูทีละช่วงบ่อย และพับไว้เมื่อจอเตี้ย",
+    ];
+    // ชื่อแถวกับคำใต้ชื่อเป็นภาษาทางการ ไม่ใช้คำว่าเปิดมาแบบ (พี่กันทัก 15 พ.ย. 2569 "มาแบบ ไม่ทางการเลย ไปเกลามาหม่")
+    const formal = await q("return [...document.querySelectorAll('[data-spekres-default] .lbl, [data-ovstart] .lbl')].map((e) => e.innerText);");
+    check("ข้อ 50 ชื่อแถวกราฟความถี่กับแถบภาพรวมไม่ใช้ภาษาพูด (เปิดมาแบบ ค่านี้)", formal.length === 2 && formal.every((t) => !/เปิดมาแบบ|ค่านี้/.test(t)), JSON.stringify(formal));
+    await q("document.querySelector('[data-spekres-default] .lbl button').click(); return 1;"); await sleep(400);
+    const spTip = await linesOf(q, ".infotip");
+    check("ข้อ 50 กล่อง ⓘ ความละเอียดกราฟความถี่ ย่อหน้าแรกตัดบรรทัดตรงคำว่า และ", spTip?.[0] === "ระดับความละเอียดที่กราฟความถี่ใช้อ่านเสียง ⏎ และตั้งค่าตั้งต้นได้ที่หน้าตั้งค่า", JSON.stringify(spTip?.[0]));
+    await q("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); return 1;"); await sleep(300);
+    await q("document.querySelector('[data-ovstart] .lbl button').click(); return 1;"); await sleep(400);
+    const ovTip = await linesOf(q, ".infotip");
+    check("ข้อ 50 กล่อง ⓘ แถบภาพรวม ตัดบรรทัดตรงรอยต่อของความหมายทุกย่อหน้า", JSON.stringify(ovTip) === JSON.stringify(OV_TIP_WANT), JSON.stringify(ovTip));
+    await q("document.dispatchEvent(new KeyboardEvent('keydown', { key: 'Escape', bubbles: true })); return 1;"); await sleep(300);
+    if (ovWas !== "open") await q(`${ovWas == null ? "localStorage.removeItem('graph-ov-start')" : `localStorage.setItem('graph-ov-start', ${JSON.stringify(ovWas)})`}; return 1;`);
     for (const id of ["tools", "encoders"]) {
       await c.setNav(id); await sleep(600);
       const chips = await q(`return [...document.querySelectorAll('[data-setcard=${id}] .toolok, [data-setcard=${id}] .toolwarn, [data-setcard=${id}] .toolbad')].filter((e) => !e.nextElementSibling).map((e) => { const r = e.getBoundingClientRect(); return { t: e.innerText, l: Math.round(r.left), r: Math.round(r.right), w: Math.round(r.width) }; })`);

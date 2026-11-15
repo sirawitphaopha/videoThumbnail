@@ -26,6 +26,7 @@ import { useFitClass } from "../lib/fitSwitch";
 import { PadCustom, hexRgb, hslRgb, rgbHsl, toHex } from "../components/ColorPick";
 import type { Tip } from "../lib/codecAdv";
 import { SPEK_RES_TIP } from "../lib/graphTips";
+import { useOvFold } from "../lib/ovFold";
 import { IcSearch, IbStop, IcRefresh, IcGraph, IbSave, IcClose, IbTable, IbPlay } from "../components/icons";
 
 /** track ลำดับแทร็กเสียงที่จะเปิด (หน้าบิตเรตส่งแทร็กที่ดูอยู่ BUGS ข้อ 119) · ไม่ส่งเปิดแทร็กแรก */
@@ -1439,15 +1440,8 @@ function FragmentKV({ k, v }: { k: string; v: string }) {
 }
 
 /** แถบทั้งไฟล์ · กดเพื่อกระโดด */
-/** แถบภาพรวมทั้งไฟล์พับเก็บได้ จำค่าไว้ ทุกมุมมองใช้ค่าเดียวกัน (BUGS ข้อ 17 · พี่กัน "เราอยากให้ เจ้ากราฟนี้ มันพับเก็บได้") */
-const OV_FOLD_KEY = "graph-ov-fold";
-let ovFoldNow = (() => { try { return localStorage.getItem(OV_FOLD_KEY) === "1"; } catch { return false; } })();
-const ovFoldSubs = new Set<(v: boolean) => void>();
-function useOvFold(): [boolean, (v: boolean) => void] {
-  const [v, setV] = useState(ovFoldNow);
-  useEffect(() => { ovFoldSubs.add(setV); return () => { ovFoldSubs.delete(setV); }; }, []);
-  return [v, (n) => { ovFoldNow = n; try { localStorage.setItem(OV_FOLD_KEY, n ? "1" : "0"); } catch { /* ไม่มีที่เก็บ ใช้ค่าในหน้าไปก่อน */ } ovFoldSubs.forEach((x) => x(n)); }];
-}
+/* แถบภาพรวมทั้งไฟล์พับเก็บได้ ทุกมุมมองใช้ค่าเดียวกัน (BUGS ข้อ 17 · พี่กัน "เราอยากให้ เจ้ากราฟนี้ มันพับเก็บได้")
+   ค่าตอนเปิดโปรแกรมตั้งได้ในหน้าตั้งค่า (BUGS ข้อ 50 · useOvFold ใน lib/ovFold.ts) */
 type OvProps = { ov: GOverview; th: Theme; t0: number; t1: number; onPick: (t: number) => void; left: number; right?: number; caption?: string };
 /** ผืนวาดแถบภาพรวมแยกเป็นชิ้นของตัวเอง กางทีไรสร้างใหม่ ตัววัดขนาดติดใหม่ วาดใหม่
     (เดิมอยู่ในชิ้นเดียวกับแถบตอนพับ เปิดหน้ามาตอนพับอยู่ ตัววัดขนาดไม่ได้ติดเพราะยังไม่มีผืนวาด กางแล้วแถบว่าง ไม่มีคลื่น · พี่กันทัก 11 พ.ย. 2569 "กราฟตัวอย่างหายย") */

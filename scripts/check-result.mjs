@@ -20,6 +20,9 @@ for (const [w, h] of sizes) {
   const m = await look();
   check(`${w} × ${h} ขอบบนตรงช่องลากไฟล์ ขอบล่างกรอบหรือการ์ดตรงช่องลาก`, Math.abs(m.mcTop - m.dropTop) <= 1 && (Math.abs(m.mcBottom - m.dropBottom) <= 1 || (m.mcBottom < m.dropBottom && Math.abs(m.cardBottom - m.dropBottom) <= 1)), `บน ${Math.round(m.mcTop)} กับ ${Math.round(m.dropTop)} · ล่าง ${Math.round(m.mcBottom)} กับ ${Math.round(m.dropBottom)}`);
   check(`${w} × ${h} กึ่งกลางคอลัมน์ สัดส่วน 2:3`, m.centerGap <= 1 && Math.abs(m.ratio - 2 / 3) < 0.01, `ห่าง ${m.centerGap.toFixed(1)} สัดส่วน ${m.ratio.toFixed(3)}`);
+  // BUGS ข้อ 49 เส้นแบ่งระหว่างแถบความคืบหน้ากับปุ่มล้างทั้งหมด มีเส้นจริง ตรงแนวเส้นคอลัมน์ข้างบน สูงเต็มแถว ไม่ทับปุ่ม
+  const dv = await q(`const b = document.querySelector('.pact-btns'), cs = getComputedStyle(b), r = b.getBoundingClientRect(), row = document.querySelector('.pactions'), rr = row.getBoundingClientRect(), rcs = getComputedStyle(row); const cards = [...document.querySelectorAll('[data-poster-page] .three > .card')].filter((k) => !k.closest('.pactions')); const xs = cards.map((k) => k.getBoundingClientRect().left).filter((x) => Math.abs(x - r.left) < 40); const bt = b.querySelector('.btn').getBoundingClientRect(); return { width: parseFloat(cs.borderLeftWidth), style: cs.borderLeftStyle, color: cs.borderLeftColor, lineX: r.left, colX: xs[0] ?? null, top: r.top, bottom: r.bottom, rowTop: rr.top + parseFloat(rcs.borderTopWidth) + parseFloat(rcs.paddingTop), rowBottom: rr.bottom - parseFloat(rcs.paddingBottom), btnGap: bt.left - r.left - 1 };`);
+  check(`${w} × ${h} เส้นแบ่งก่อนปุ่มล้างทั้งหมด ตรงแนวเส้นคอลัมน์ข้างบน สูงเต็มแถว`, dv.width === 1 && dv.style === "solid" && dv.colX != null && Math.abs(dv.lineX - dv.colX) <= 0.5 && dv.top <= dv.rowTop + 0.5 && dv.bottom >= dv.rowBottom - 0.5 && dv.btnGap >= 20, JSON.stringify(dv));
   await c.shot(`${OUT}/08-ช่องตัวอย่าง-${w}.png`);
 }
 await c.send("Emulation.clearDeviceMetricsOverride"); await sleep(400);

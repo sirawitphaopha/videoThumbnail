@@ -12,7 +12,8 @@ import { useToast } from "../components/Toasts";
 import Dialog from "../components/Dialog";
 import Dropdown from "../components/Dropdown";
 import InfoTip from "../components/InfoTip";
-import { SPEK_RES_TIP } from "../lib/graphTips";
+import { OV_START_TIP, SPEK_RES_TIP } from "../lib/graphTips";
+import { ovStart, setOvStart, type OvStart } from "../lib/ovFold";
 import { IcPalette, IcCheck, IcCoverL, IcCoverM, IcCoverS, IcTall, IcWide, IcFolder, IcGraph, IcLink, IcMix, IcPoster, IcSettings, IcShelf, IcExtract } from "../components/icons";
 import { CardIcon, J, Keep, Phr, Range, Seg, Skel, Switch } from "../components/ui";
 import { setSkelPreview, useSkelPreview } from "../lib/skelPreview";
@@ -183,8 +184,18 @@ function SpekResRow() {
   const [v, setV] = useState<"fine" | "coarse">(() => { try { return localStorage.getItem("graph-spek-res") === "coarse" ? "coarse" : "fine"; } catch { return "fine"; } });
   const pick = (n: "fine" | "coarse") => { setV(n); try { localStorage.setItem("graph-spek-res", n); } catch { /* เก็บไม่ได้ ใช้ค่าในหน้าไปก่อน */ } };
   return (
-    <div className="setrow" data-spekres-default><div className="lbl"><span>กราฟความถี่เปิดมาแบบ <InfoTip title="ละเอียด กับ ภาพรวม" tip={SPEK_RES_TIP} /></span><span className="small">ค่านี้ใช้ตอนเปิดหน้ากราฟ และสลับได้ที่ใต้กราฟความถี่</span></div>
-      <Seg label="กราฟความถี่เปิดมาแบบ" value={v} onChange={pick} options={[{ value: "fine", label: "ละเอียด" }, { value: "coarse", label: "ภาพรวม" }]} /></div>
+    <div className="setrow" data-spekres-default><div className="lbl"><span>ความละเอียดตั้งต้นของกราฟความถี่ <InfoTip title="ละเอียด กับ ภาพรวม" tip={SPEK_RES_TIP} /></span><span className="small">ใช้เมื่อเปิดหน้ากราฟเสียง และเปลี่ยนได้ที่แถบใต้กราฟความถี่</span></div>
+      <Seg label="ความละเอียดตั้งต้นของกราฟความถี่" value={v} onChange={pick} options={[{ value: "fine", label: "ละเอียด" }, { value: "coarse", label: "ภาพรวม" }]} /></div>
+  );
+}
+
+/** แถบภาพรวมทั้งไฟล์ของหน้ากราฟเปิดมาพับหรือกาง เก็บในเครื่อง (BUGS ข้อ 50 · ค่าตั้งต้นกางไว้ แคลร์ตั้ง) */
+function OvStartRow() {
+  const [v, setV] = useState<OvStart>(ovStart);
+  const pick = (n: OvStart) => { setV(n); setOvStart(n); };
+  return (
+    <div className="setrow" data-ovstart><div className="lbl"><span>การแสดงแถบภาพรวมทั้งไฟล์ <InfoTip title="แถบภาพรวมทั้งไฟล์" tip={OV_START_TIP} /></span><span className="small">ใช้เมื่อเปิดโปรแกรม และพับหรือกางได้ที่ปุ่มข้างแถบในหน้ากราฟเสียง</span></div>
+      <Seg label="การแสดงแถบภาพรวมทั้งไฟล์" value={v} onChange={pick} options={[{ value: "open", label: "กางไว้" }, { value: "fold", label: "พับไว้" }]} /></div>
   );
 }
 
@@ -416,7 +427,7 @@ export default function SettingsPage() {
               </div>;
             })}
         </div>
-        <div className="setrow" style={{ marginTop: 10, borderTop: "1px solid var(--line)" }}><div className="lbl">อ่านโฟลเดอร์ใหม่ทุกครั้งที่เปิดโปรแกรม<span className="small"><Phr>หนังที่โหลดมาเพิ่มจะขึ้นชั้นเอง</Phr></span></div>
+        <div className="setrow setmain" style={{ marginTop: 10, borderTop: "1px solid var(--line)" }}><div className="lbl">อ่านโฟลเดอร์ใหม่ทุกครั้งที่เปิดโปรแกรม<span className="small"><Phr>หนังที่โหลดมาเพิ่มจะขึ้นชั้นเอง</Phr></span></div>
           <Switch on={settings.rescanOnStart} onChange={(v) => set({ rescanOnStart: v })} label="อ่านโฟลเดอร์ใหม่ทุกครั้งที่เปิดโปรแกรม" /></div>
       </div>
 
@@ -631,8 +642,9 @@ export default function SettingsPage() {
         <div className="setrow"><div className="lbl">ซูมเหมือนกันทุกกราฟ<span className="small"><Phr>เปิดแล้วทุกกราฟใช้ช่วงเวลาซูมเดียวกัน ส่วนเมื่อปิดจะซูมเฉพาะกราฟที่ดูอยู่ และกราฟอื่นเริ่มที่ทั้งไฟล์</Phr></span></div>
           <Switch on={settings.graphZoomAll} onChange={(v) => set({ graphZoomAll: v })} label="ซูมเหมือนกันทุกกราฟ" /></div>
         <SpekResRow />
+        <OvStartRow />
         <GraphImgRows value={settings.graphImg ?? GRAPH_IMG_DEFAULT} onChange={(graphImg) => set({ graphImg })} />
-        <div className="setrow"><div className="lbl">ผลอ่านคลื่นที่เก็บไว้ในเครื่อง<span className="small"><Phr>เปิดไฟล์เดิมซ้ำไม่ต้องอ่านใหม่ ถ้าไฟล์ถูกแก้จะอ่านใหม่เอง และเก็บรวมไม่เกิน 300 MB</Phr></span>
+        <div className="setrow setmain"><div className="lbl">ผลอ่านคลื่นที่เก็บไว้ในเครื่อง<span className="small"><Phr>เปิดไฟล์เดิมซ้ำไม่ต้องอ่านใหม่ ถ้าไฟล์ถูกแก้จะอ่านใหม่เอง และเก็บรวมไม่เกิน 300 MB</Phr></span>
           <span className="small" data-graphcache>{cache ? `ตอนนี้เก็บไว้ ${cache.files} ไฟล์ ขนาดรวม ${fmtSize(cache.bytes)}` : "—"}</span></div>
           <button type="button" className="btn btn-ghost btn-sm" onClick={clearCache} data-clearcache><IbTrash size={15} />ล้าง</button></div>
       </div>
