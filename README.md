@@ -52,7 +52,7 @@ cd src-tauri; cargo test
 
 ## ขอบคุณ
 
-ชั้นหนังพัฒนาขึ้นได้ด้วยผลงานของโครงการและผู้พัฒนาต่อไปนี้ ขอขอบคุณทุกท่าน รายการเดียวกันนี้อยู่ในหน้าตั้งค่า หัวข้อขอบคุณ (แถว Aegisub กับ mpv ในหน้าตั้งค่ายังเป็นของเดิม แก้ตาม BUGS ข้อ 122)
+ชั้นหนังพัฒนาขึ้นได้ด้วยผลงานของโครงการและผู้พัฒนาต่อไปนี้ ขอขอบคุณทุกท่าน รายการเดียวกันนี้อยู่ในหน้าตั้งค่า หัวข้อขอบคุณ
 
 ### ไอเดียและหน้าตา
 
@@ -63,6 +63,7 @@ cd src-tauri; cargo test
 | Bitrate Viewer | 2.3 | หน้าบิตเรตวิดีโอ หน้าตา สี วิธีคิด 4 แบบ ซูม เส้นค่าเฉลี่ย | ไอเดีย | [videohelp.com/software/Bitrate-Viewer](https://www.videohelp.com/software/Bitrate-Viewer) |
 | Spek | 0.8.5 | หน้าวิเคราะห์ในกราฟเสียง หน้าตากราฟกับการบันทึกเป็นรูป | ไอเดีย | [github.com/alexkay/spek](https://github.com/alexkay/spek) |
 | FFBitrateViewer | 0.9.7.2 | วิธีอ่านบิตเรตด้วย ffprobe ทีละแพ็กเก็ต ในหน้าบิตเรต | ไอเดีย · MIT | [github.com/fifonik/FFBitrateViewer](https://github.com/fifonik/FFBitrateViewer) |
+| gMKVExtractGUI | 2.15.0 | วิธีแยกไฟล์ในหน้าเสียงและซับ ทั้งแท็ก Chapter แบบ OGM CUE sheet และเวลาของเฟรม ดีเลย์ในชื่อไฟล์ รูปแบบชื่อไฟล์ และแยกหลายไฟล์ · อ่านซอร์สแล้วเขียนเอง | ไอเดีย · Unlicense | [github.com/Gpower2/gMKVExtractGUI](https://github.com/Gpower2/gMKVExtractGUI) |
 | Audacity | 4.0.2 | รูปคลื่นแบบ Audacity ในกราฟเสียง | ไอเดีย | [audacityteam.org](https://audacityteam.org) |
 | Kodi | 21.3 | ชื่อไฟล์รูปลงท้าย -poster กับ -landscape ในหน้าจับคู่ปก | ไอเดีย | [kodi.tv](https://kodi.tv) |
 | Claude Desktop | 4.23118.0 | รูปแบบเมนูหัวข้อของหน้าตั้งค่า | ไอเดีย | [claude.ai](https://claude.ai) |
@@ -87,7 +88,10 @@ cd src-tauri; cargo test
 | x265 | 3.5 | เข้ารหัสภาพใน HEIC | GPLv2 | [bitbucket.org/multicoreware/x265_git](https://bitbucket.org/multicoreware/x265_git) |
 | aom · dav1d · libsharpyuv | 3.15.3 · 1.5.4 · 1.6.0 | ไฟล์ที่ libheif ต้องใช้ | BSD | [aomedia.org](https://aomedia.org) · [videolan.org](https://videolan.org) · [chromium.googlesource.com/webm/libwebp](https://chromium.googlesource.com/webm/libwebp) |
 | Visual C++ Runtime | 14.51 | ไฟล์ที่ libheif ต้องใช้ · ของ Microsoft | ข้อตกลง MS | [microsoft.com](https://microsoft.com) |
-| mpv (libmpv) | ชุด 20261111 | เล่นหนังในหน้าแก้ซับ ถอดภาพด้วยการ์ดจอ วาดซับ ASS ครบทุกแท็ก · ชุดจาก shinchiro (mpv-winbuild-cmake) | GPLv2 ขึ้นไป | [mpv.io](https://mpv.io) |
+| SUPer | 0.3.0 | ตัวสร้าง PGS แบบมาตรฐาน Blu-ray ที่เลือกได้ในหน้าต่างส่งออก PGS · ข้างในมี libimagequant ช่วยลดสี | GPLv3 | [github.com/cubicibo/SUPer](https://github.com/cubicibo/SUPer) |
+| BDSup2Sub++ | 1.0.5 | แปลงซับภาพเป็นซับภาพในหน้าต่างแปลงซับภาพ ทั้ง PGS VobSub และ BDN XML พร้อมย่อขยาย เปลี่ยนอัตราเฟรม เลื่อนเวลา ย้ายตำแหน่ง และตั้งจานสี · หน้าตาของหน้าต่างยกกลุ่มตัวเลือกมาจาก BDSup2Sub · ข้างในรวม Qt ไว้ในตัว | Apache-2.0 (Qt LGPL) | [github.com/TheGreatMcPain/BDSup2SubPlusPlus](https://github.com/TheGreatMcPain/BDSup2SubPlusPlus) |
+| Subtitle Edit | 5.4.0 | ตัวแปลง SeConv เป็นตัวสร้าง PGS ตัวที่สามในหน้าต่างส่งออก PGS และเป็นตัวสำรองตอนแปลงซับภาพที่ BDSup2Sub++ อ่านไม่ได้ · และเป็นต้นแบบวิธีฝัง mpv ไว้ในหน้าต่างโปรแกรมเพื่อเล่นหนังในหน้าแก้ซับ | MIT | [github.com/SubtitleEdit/subtitleedit](https://github.com/SubtitleEdit/subtitleedit) |
+| mpv (libmpv) | 0.42.0 · ชุด 20261111 | เล่นหนังในหน้าแก้ซับ ถอดภาพด้วยการ์ดจอ วาดซับ ASS ครบทุกแท็ก · ชุดจาก shinchiro (mpv-winbuild-cmake) | GPLv2 ขึ้นไป | [mpv.io](https://mpv.io) |
 
 ### ใช้สร้างโปรแกรม
 

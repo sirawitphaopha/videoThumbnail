@@ -30,8 +30,17 @@ $qa  = @{ path = 'vendor\qaac\qaac_3.07.zip';                          sha = '1f
 # ค่า SHA-256 ตรงกับที่หน้ารุ่นบน GitHub ให้มา · แบบธรรมดา x86_64 ไม่ใช่แบบ v3 ที่ต้องใช้ซีพียูรุ่นใหม่
 $mpv = @{ path = 'vendor\mpv\mpv-dev-x86_64-20261111-git-bcde6b93cc.7z'; sha = '273c079b11ea5575822f972756f4c9a71149a5c10130353abeb8586738938452' }
 $tk  = @{ path = 'vendor\tak\TAK_2.3.3.zip';                            sha = '40d26992266f1377d576b88b84b88d2ab256dc321e47f90314402a80692aba6a' }
+# SUPer ตัวสร้าง PGS แบบมาตรฐาน Blu-ray ในหน้าต่างส่งออก PGS (พี่กันสั่ง 14 พ.ย. 2569 "ใส่ตัวสร้าง PGS ตอนที่ส่งออกด้วย") ชุดของผู้ทำ cubicibo
+# โหลดจาก https://github.com/cubicibo/SUPer/releases รุ่น 0.3.0 · ค่า SHA-256 จดตอนเทียบเครื่องมือ PGS (docs/research/pgs-ส่งออกจาก-ass.md)
+$sup = @{ path = 'vendor\super\win_x64_SUPer_CLI_v0.3.0.7z';            sha = 'f7036fa394f9ff7faa58183c515bf454f1e185c158cd5ac8fa2b9ea1b00754af' }
+# SeConv ตัวแปลงซับแบบบรรทัดคำสั่งของ Subtitle Edit 5.4.0 ตัวสร้าง PGS ตัวที่สาม วาดด้วยตัววาดของมันเอง (พี่กันสั่ง 15 พ.ย. 2569 "เอามาด้วยก็ดีนะ เเต่ใส่หมายเหตุ")
+# โหลดจาก https://github.com/SubtitleEdit/subtitleedit/releases รุ่น 5.4.0 · ค่า SHA-256 จดตอนเทียบเครื่องมือ PGS
+$sec = @{ path = 'vendor\seconv\SeConv-Windows-x64.zip';                 sha = 'aea19664f460fcfb84e8ba8eca72419091818c6005d4e063d9950c41ea81062d' }
+# BDSup2Sub++ ตัวแปลงซับภาพเป็นซับภาพ (BUGS ข้อ 125 พี่กันอนุญาตโหลด 15 พ.ย. 2569) รุ่น C++ ไม่ต้องมี Java
+# โหลดจาก https://github.com/TheGreatMcPain/BDSup2SubPlusPlus/releases รุ่น 1.0.5 · ค่า SHA-256 ตรงกับที่หน้ารุ่นบน GitHub ให้มา
+$bds = @{ path = 'vendor\bdsup2sub\bdsup2subplusplus-1.0.5-mingw-64bit.zip'; sha = 'e54385821c4b81ce6c68ad66d52239a08753ff648bcf743ef5beb1ae1feac955' }
 
-foreach ($a in @($mkv, $ff, $mi, $fl, $op, $lm, $wv, $ma, $mai, $tk, $qa, $mpv)) {
+foreach ($a in @($mkv, $ff, $mi, $fl, $op, $lm, $wv, $ma, $mai, $tk, $qa, $mpv, $sup, $sec, $bds)) {
   $full = Join-Path $root $a.path
   $h = (Get-FileHash -LiteralPath $full -Algorithm SHA256).Hash.ToLower()
   if ($h -ne $a.sha) { throw "ค่า SHA-256 ไม่ตรงกับที่จดไว้: $($a.path)" }
@@ -134,6 +143,36 @@ Copy-Item -LiteralPath (Join-Path $root $tk.path) -Destination (Join-Path $dest 
 # ข้อความสัญญาของ mpv ไม่มีในชุด dev เก็บสำเนาจากที่เก็บของ mpv ไว้ที่ vendor\mpv
 Copy-Item -LiteralPath (Join-Path $root 'vendor\mpv\LICENSE.GPL.txt') -Destination (Join-Path $lic 'mpv-GPL-2.0.txt') -Force
 Copy-Item -LiteralPath (Join-Path $root 'vendor\mpv\Copyright.txt') -Destination (Join-Path $lic 'mpv-Copyright.txt') -Force
+# SUPer แตกทั้งโฟลเดอร์ SUPer_CLI ลง tools\super (โปรแกรม Python ที่รวมทุกอย่างมาแล้ว ราว 300 MB ต้องอยู่ครบทั้งโฟลเดอร์)
+# config.ini กับ lib\libimagequant.dll อ้างจากโฟลเดอร์ของมันเอง โปรแกรมรัน SUPer โดยตั้งโฟลเดอร์ทำงานเป็นโฟลเดอร์นี้ (pgs.rs run_super)
+$supWork = Join-Path $work 'super-x'
+New-Item -ItemType Directory -Force $supWork | Out-Null
+& $tar -xf (Join-Path $root $sup.path) -C $supWork
+if ($LASTEXITCODE -ne 0) { throw 'แตก SUPer ไม่สำเร็จ' }
+$supDest = Join-Path $dest 'super'
+if (Test-Path -LiteralPath $supDest) { Remove-Item -LiteralPath $supDest -Recurse -Force }
+Copy-Item -LiteralPath (Join-Path $supWork 'SUPer_CLI') -Destination $supDest -Recurse -Force
+if (-not (Test-Path -LiteralPath (Join-Path $supDest 'SUPer_CLI.exe'))) { throw 'ไม่เจอ SUPer_CLI.exe หลังแตก' }
+# ปิดการใช้การ์ดจอของ SUPer (use_gpu=0) ใช้ซีพียูเร็วพอกัน 8 กับ 9 วินาทีกับซับทดสอบ ไม่พึ่งไดรเวอร์ OpenCL ของการ์ดจอในตัว (15 พ.ย. 2569 · pgs.rs run_super)
+$supIni = Join-Path $supDest 'config.ini'
+$iniText = [System.IO.File]::ReadAllText($supIni) -replace '(?m)^use_gpu=1', 'use_gpu=0'
+[System.IO.File]::WriteAllText($supIni, $iniText)
+if ($iniText -notmatch '(?m)^use_gpu=0') { throw 'ตั้ง use_gpu=0 ใน config.ini ของ SUPer ไม่สำเร็จ' }
+# SeConv แตกเฉพาะตัวโปรแกรมกับสองไฟล์ที่ตัววาดต้องใช้ลง tools\seconv (libse.xml เป็นคำอธิบายของนักพัฒนา ไม่ต้องใช้)
+$secDest = Join-Path $dest 'seconv'
+New-Item -ItemType Directory -Force $secDest | Out-Null
+& $tar -xf (Join-Path $root $sec.path) -C $secDest 'seconv.exe' 'libSkiaSharp.dll' 'libHarfBuzzSharp.dll'
+if ($LASTEXITCODE -ne 0) { throw 'แตก SeConv ไม่สำเร็จ' }
+Copy-Item -LiteralPath (Join-Path $root 'vendor\seconv\LICENSE.txt') -Destination (Join-Path $lic 'SubtitleEdit-SeConv-MIT.txt') -Force
+# ชุดของผู้ทำไม่มีข้อความสัญญา เก็บสำเนาจากที่เก็บของผู้ทำไว้ที่ vendor\super\LICENSE.txt
+Copy-Item -LiteralPath (Join-Path $root 'vendor\super\LICENSE.txt') -Destination (Join-Path $lic 'SUPer-GPL-3.0.txt') -Force
+# BDSup2Sub++ ไฟล์เดียว (Qt แบบรวมในตัว เป็นโปรแกรมคอนโซล เปิดแบบซ่อนคอนโซลแล้วไม่มีหน้าต่างเด้ง imgconv.rs) ลง tools\bdsup2sub
+$bdsDest = Join-Path $dest 'bdsup2sub'
+New-Item -ItemType Directory -Force $bdsDest | Out-Null
+& $tar -xf (Join-Path $root $bds.path) -C $bdsDest 'bdsup2sub++.exe'
+if ($LASTEXITCODE -ne 0) { throw 'แตก BDSup2Sub++ ไม่สำเร็จ' }
+# ชุดของผู้ทำไม่มีข้อความสัญญา เก็บสำเนา apache_license_2.txt จากที่เก็บของผู้ทำไว้ที่ vendor\bdsup2sub\LICENSE.txt
+Copy-Item -LiteralPath (Join-Path $root 'vendor\bdsup2sub\LICENSE.txt') -Destination (Join-Path $lic 'BDSup2SubPlusPlus-Apache-2.0.txt') -Force
 
 # libheif ตัวจริงสำหรับบันทึกรูปกราฟเป็น HEIC เช็ก hash กับลายเซ็นในตัวนั้น
 & (Join-Path $PSScriptRoot 'fetch-heif.ps1')
@@ -152,6 +191,9 @@ $sources = @"
 - TAK 2.3.3 (TAK_2.3.3.zip ไฟล์เดิมทั้งไฟล์ โปรแกรมแตก Takc.exe ไปใช้เอง) จาก http://www.thbeck.de/Tak/Tak.html · ฟรีสำหรับใช้ส่วนตัวที่ไม่ใช่การค้า แจกต่อได้เฉพาะไฟล์ zip เดิมทั้งไฟล์ ไม่คิดเงิน
 - libheif 1.23.7 (heif.dll ใช้บันทึกรูปกราฟเป็น HEIC) พร้อม libx265 3.5 libde265 1.1.3 aom 3.15.3 dav1d 1.5.4 libsharpyuv จาก libwebp 1.6.0 · ตัวที่ conda-forge สร้าง https://conda-forge.org/ · libheif กับ libde265 สัญญา LGPL รุ่น 3 หรือใหม่กว่า · x265 สัญญา GPL รุ่น 2 หรือใหม่กว่า · aom dav1d libsharpyuv สัญญา BSD · ซอร์สโค้ด https://github.com/strukturag/libheif https://bitbucket.org/multicoreware/x265_git https://github.com/strukturag/libde265 https://aomedia.googlesource.com/aom https://code.videolan.org/videolan/dav1d https://chromium.googlesource.com/webm/libwebp และสูตรสร้าง https://github.com/conda-forge
 - libmpv 2 (libmpv-2.dll ตัวเล่นหนังในหน้าแก้ซับ) ชุด mpv-dev-x86_64-20261111-git-bcde6b93cc จาก https://github.com/shinchiro/mpv-winbuild-cmake/releases · สัญญา GPL รุ่น 2 หรือใหม่กว่า · ซอร์สโค้ด https://github.com/mpv-player/mpv และสูตรสร้าง https://github.com/shinchiro/mpv-winbuild-cmake
+- SUPer 0.3.0 (โฟลเดอร์ super ตัวสร้าง PGS แบบมาตรฐาน Blu-ray) ชุด win_x64_SUPer_CLI_v0.3.0.7z จาก https://github.com/cubicibo/SUPer/releases · สัญญา GPL รุ่น 3 (licenses\SUPer-GPL-3.0.txt) · ข้างในมี Python numpy Pillow และ libimagequant (lib\libimagequant.dll สัญญา GPL รุ่น 3 หรือใหม่กว่า) สัญญาของแต่ละตัวอยู่ในโฟลเดอร์ super\_internal · ซอร์สโค้ด https://github.com/cubicibo/SUPer และ https://github.com/ImageOptim/libimagequant
+- SeConv 5.4.0 (โฟลเดอร์ seconv ตัวแปลงซับแบบบรรทัดคำสั่งของ Subtitle Edit ใช้เป็นตัวสร้าง PGS ตัวที่สาม) ชุด SeConv-Windows-x64.zip จาก https://github.com/SubtitleEdit/subtitleedit/releases · สัญญา MIT (licenses\SubtitleEdit-SeConv-MIT.txt) · ข้างในมี SkiaSharp กับ HarfBuzzSharp (MIT) · ซอร์สโค้ด https://github.com/SubtitleEdit/subtitleedit
+- BDSup2Sub++ 1.0.5 (โฟลเดอร์ bdsup2sub ตัวแปลงซับภาพเป็นซับภาพ VobSub PGS BDN XML) ชุด bdsup2subplusplus-1.0.5-mingw-64bit.zip จาก https://github.com/TheGreatMcPain/BDSup2SubPlusPlus/releases · สัญญา Apache 2.0 (licenses\BDSup2SubPlusPlus-Apache-2.0.txt) · ข้างในรวม Qt ไว้ในตัว (LGPL) · ซอร์สโค้ด https://github.com/TheGreatMcPain/BDSup2SubPlusPlus
 - Microsoft Visual C++ runtime 14.51 (msvcp140.dll vcruntime140.dll vcruntime140_1.dll มีลายเซ็น Microsoft) แนบให้ heif.dll เปิดได้บนเครื่องที่ไม่มี Visual C++ Redistributable · เงื่อนไขอยู่ใน licenses\MSVC-Runtime-LICENSE.txt
 "@
 Set-Content -LiteralPath (Join-Path $lic 'SOURCES.txt') -Value $sources -Encoding UTF8

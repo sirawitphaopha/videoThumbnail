@@ -559,6 +559,8 @@ tbody tr:last-child td { border-bottom: 0; }
 .latlink:focus-visible { outline: 2px solid #d8a9b9; outline-offset: 2px; border-radius: 4px; }
 .toolwarn { color: var(--warn-ink); background: var(--warn-soft); }
 .toolbad { color: var(--bad-ink); background: var(--bad-soft); }
+/* ป้ายสถานะในหน้าตั้งค่า (เครื่องมือเบื้องหลัง ตัวแปลงเสียง) กว้างอย่างน้อยเท่า พร้อมใช้งาน ขอบซ้ายของป้ายตรงแนวเดียวกันทั้งคอลัมน์ (พี่กันสั่ง 15 พ.ย. 2569 กรอบเรียงแนวเดียวกันขนาดเท่ากัน) */
+.setcard .toolok, .setcard .toolwarn, .setcard .toolbad { min-width: 88px; justify-content: center; box-sizing: border-box; }
 ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height: 1.6; }
 
 /* ชั้นว่าง (ต้นแบบบรรทัด 1105–1111) */
@@ -924,13 +926,20 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 /* แถวพื้นหลังกว้างเท่าแถวสองปุ่มอื่น ขอบซ้ายตรงแนว (พี่กันทัก 10 พ.ย. 2569 "แนวเดียวกันด้วยสิ อย่าลืม") */
 [data-img-row="bits"] .seg, [data-img-row="gray"] .seg, [data-img-row="sub"] .seg, [data-img-row="compress"] .seg, [data-img-row="bg"] .seg { width: 165px; box-sizing: border-box; }
 [data-img-row="bits"] .seg > *, [data-img-row="gray"] .seg > *, [data-img-row="sub"] .seg > *, [data-img-row="compress"] .seg > *, [data-img-row="bg"] .seg > * { flex: 1 1 0; min-width: 0; padding-left: 0; padding-right: 0; white-space: nowrap; }
+/* แถวกราฟความถี่เปิดมาแบบ อยู่หัวข้อเดียวกัน กว้าง 165 เท่าปุ่มสองตัวเลือกแถวอื่น (เดิม 148 · พี่กันสั่ง 15 พ.ย. 2569 กรอบในหน้าตั้งค่าขนาดเท่ากัน) */
+[data-spekres-default] .seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; width: 165px; box-sizing: border-box; }
+[data-spekres-default] .seg > * { min-width: 0; padding-left: 0; padding-right: 0; justify-content: center; white-space: nowrap; }
 .imgctl > .btn { width: 82.5px; padding-left: 0; padding-right: 0; justify-content: center; flex: none; }
 /* พี่กันบอก 9 พ.ย. 2569 "ยังไม่เรียงตามปุ่มอื่น" ปุ่มกลับค่าตั้งต้นกับล้าง กว้างเท่าแถบสองตัวเลือก 165 จุด ขอบซ้ายขวาตรงกัน */
 .btn[data-img-reset], .btn[data-clearcache] { width: 165px; padding-left: 0; padding-right: 0; justify-content: center; flex: none; }
 /* พี่กันบอก 9 พ.ย. 2569 "แนวเดียวกัน" หัวข้อใส่โปสเตอร์ แถบสองตัวเลือกกว้าง 165 ปุ่มเปลี่ยนกว้าง 82.5 ขอบซ้ายตรงช่องขวาของแถบ */
-[data-seg165] .seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; width: 165px; box-sizing: border-box; }
-[data-seg165] .seg > * { min-width: 0; padding-left: 0; padding-right: 0; white-space: nowrap; }
-.btn[data-orig-change] { width: 82.5px; padding-left: 0; padding-right: 0; justify-content: center; flex: none; }
+/* หัวข้อใส่โปสเตอร์กับตรวจไฟล์ ปุ่มเลือกและดรอปดาวน์ทุกแถวกว้าง 260 เท่ากัน ขอบซ้ายตรงแนวกัน · ปุ่มเปลี่ยนโฟลเดอร์ยังกว้างครึ่งแถบ (130) ขอบซ้ายตรงช่องขวาตามที่พี่กันเคาะ 9 พ.ย.
+   (พี่กันสั่ง 15 พ.ย. 2569 "ฝากดูหน้าตั้งค่า บางกรอบควรเรียงแนวเดียวกัน ขนาดเท่ากัน" · เดิม MKV MP4 กับ JPG PNG กว้าง 165 แต่ เก็บไว้ ลบเมื่อตรวจผ่าน กว้าง 220 และดรอปดาวน์เตือนตรวจซ้ำกว้าง 117
+   · วัดแล้วคำ ลบเมื่อตรวจผ่าน กว้างราว 112 จุด ที่ 225 ห่างขอบปุ่ม 0 จุด ที่ 240 ห่าง 4 จุด จึงใช้ 260 ห่างราว 9 จุด) */
+[data-seg260] .seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; width: 260px; box-sizing: border-box; }
+[data-seg260] .seg > * { min-width: 0; padding-left: 0; padding-right: 0; justify-content: center; white-space: nowrap; }
+[data-seg260] .dd, [data-seg260].dd, span[data-seg260] > .dd { width: 260px; box-sizing: border-box; }
+.btn[data-orig-change] { width: 130px; padding-left: 0; padding-right: 0; justify-content: center; flex: none; }
 /* พี่กันบอก 9 พ.ย. 2569 "แนวตรงกัน" หัวข้อชั้นวาง แถบขนาดปกกับแถบดูปกกว้างเท่ากัน ขอบซ้ายขวาตรงกัน */
 [data-seg-cover] .seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; width: 225px; box-sizing: border-box; }
 [data-seg-cover] .seg > * { min-width: 0; padding-left: 0; padding-right: 0; justify-content: center; white-space: nowrap; }
@@ -1578,3 +1587,100 @@ html[data-full] .titlebar, html[data-full] .sidewrap, html[data-full] aside.side
 [data-poster-page] .pbigwrap > .vthumb, [data-poster-page] .pbigwrap > .pp { flex: 1 1 auto; height: auto; min-height: 0; }
 [data-poster-page] .pbigwrap.res { display: inline-flex; flex: none; min-height: 0; }
 [data-poster-page] .pbig { right: 6px; bottom: 6px; width: 26px; height: 26px; border-radius: 7px; }
+
+/* ---------- หน้าต่างแปลงซับภาพ (BUGS ข้อ 125 · ImgConvDialog.tsx) ----------
+   สองคอลัมน์แบบหน้าต่าง PGS ซ้ายตัวเลือกตามกลุ่มของ BDSup2Sub ขวาภาพต้นทางกับภาพที่จะได้วางคู่กัน
+   อยู่นอก [data-subedit] เพราะเปิดจากตัวดูซับรูปภาพทั้งในหน้าซับไตเติลและหน้าเสียงและซับ */
+.icv { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+.icv-cols { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 18px; }
+.icv-l, .icv-r { min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 9px; }
+.icv-l > *, .icv-r > * { flex: none; }
+.icv-l { padding-right: 8px; }
+.icv-r { border-left: 1px solid var(--line); padding-left: 18px; }
+.icv-intro { font-size: 13px; color: var(--txt2); display: flex; align-items: center; gap: 4px; }
+.icv-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--txt2); min-height: 30px; }
+.icv-lbl { width: 128px; flex: none; display: inline-flex; align-items: center; gap: 4px; }
+.icv-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; color: var(--txt); }
+.icv-head { display: flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 700; color: var(--txt); min-height: 30px; }
+.icv-l > .icv-head { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 6px; }
+.icv-reset { margin-left: auto; gap: 4px; font-weight: 400; }
+.icv-engs { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+.icv-eng { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 9px 12px; border: 1.5px solid var(--line); border-radius: 10px; background: #fff; cursor: pointer; font: inherit; color: var(--txt); transition: border-color .15s, background-color .15s; }
+.icv-eng:hover { border-color: color-mix(in srgb, var(--accent) 55%, white); background: color-mix(in srgb, var(--accent-soft) 45%, white); }
+.icv-eng.on { border-color: var(--accent); background: var(--accent-soft); }
+.icv-eng.off { cursor: not-allowed; opacity: .6; }
+.icv-eng.off:hover { border-color: var(--line); background: #fff; }
+.icv-eng .small { color: var(--txt2); }
+.icv-engt { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+.icv-badge { font-size: 11.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--ok-soft); color: var(--ok-ink); }
+.icv-f { display: inline-flex; align-items: center; gap: 6px; }
+.icv-row .switch { flex: none; }
+.icv-range { flex: 1; max-width: 220px; display: flex; align-items: center; height: 30px; margin: 0 8px 0 4px; }
+.icv-val { min-width: 36px; color: var(--txt); font-variant-numeric: tabular-nums; }
+.icv-note { color: var(--txt2); }
+.icv-bad { color: var(--bad-ink); }
+.icv-warn { color: var(--warn-ink); display: flex; flex-direction: column; gap: 2px; }
+.icv-rhead { margin-top: 0; }
+.icv-pick { display: flex; align-items: center; gap: 8px; }
+.icv-pick .small { flex: 1; text-align: center; font-variant-numeric: tabular-nums; }
+.icv-fig { margin: 0; display: flex; flex-direction: column; gap: 3px; }
+.icv-fig figcaption { font-size: 12.5px; color: var(--txt2); }
+.icv-info { color: var(--txt2); font-variant-numeric: tabular-nums; }
+.icv-wrap { position: relative; }
+/* จอของซับ สัดส่วนตามขนาดจอของไฟล์ ภาพซับวางตามตำแหน่งจริง · พื้นตารางหมากรุกมืดเป็นเนื้อหา ไม่เปลี่ยนตามโทน (ซับส่วนมากเป็นตัวขาว) */
+.icv-frame { position: relative; width: 100%; border-radius: 8px; border: 1px solid var(--line); overflow: hidden;
+  background: repeating-conic-gradient(color-mix(in srgb, black 80%, white) 0 25%, color-mix(in srgb, black 70%, white) 0 50%) 0 0 / 16px 16px; }
+.icv-frame img { position: absolute; display: block; image-rendering: auto; }
+.icv-wait { position: absolute; right: 8px; top: 6px; padding: 2px 8px; border-radius: 6px; background: color-mix(in srgb, white 88%, transparent); color: var(--txt2); }
+.icv-stat { display: flex; flex-direction: column; gap: 6px; flex: none; }
+.icv-prog { flex: 1; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+.icv-prog > div { height: 100%; background: var(--accent); }
+/* หัวของตัวดูซับรูปภาพ ข้อความสรุปซ้าย ปุ่มแปลงซับภาพขวา */
+.sv-imghead { display: flex; align-items: center; gap: 12px; }
+.sv-imghead > .small { flex: 1; min-width: 0; }
+.sv-imghead > .btn { flex: none; gap: 5px; }
+/* ตัวถอดภาพต้นฉบับอ่านไฟล์ไม่ได้ ข้อความกลางกรอบบนพื้นเดียวกับจอ */
+.icv-frame.icv-none { display: flex; align-items: center; justify-content: center; padding: 12px; text-align: center; }
+.icv-frame.icv-none .small { color: white; background: color-mix(in srgb, black 55%, transparent); padding: 3px 10px; border-radius: 6px; }
+/* มุมมองภาพตัวอย่าง ทั้งจอ ขนาดจริง ขยาย 2 เท่า (พี่กันขอ 15 พ.ย. 2569 ดูความละเอียดของซับที่เปลี่ยน) · ปุ่มชิดขวาของหัวข้อ */
+.icv-viewseg { margin-left: auto; font-weight: 400; }
+/* เฉพาะตัวซับ สูงคงที่ สลับภาพแล้วกรอบไม่ยืดหด · ภาพเล็กกว่ากรอบอยู่กลาง ภาพใหญ่กว่าเลื่อนดูในกรอบ */
+.icv-crop { display: flex; height: 150px; overflow: auto; overscroll-behavior: contain; border-radius: 8px; border: 1px solid var(--line); padding: 8px;
+  background: repeating-conic-gradient(color-mix(in srgb, black 80%, white) 0 25%, color-mix(in srgb, black 70%, white) 0 50%) 0 0 / 16px 16px; }
+.icv-crop.zoom { height: 210px; }
+.icv-cropin { position: relative; flex: none; margin: auto; }
+.icv-cropin img { position: absolute; display: block; }
+.icv-crop.zoom .icv-cropin img { image-rendering: pixelated; }
+.icv-frame.icv-cropskel { height: 150px; }
+/* ทำภาพตัวอย่างไม่ได้ กล่องเหตุผลแทนที่กรอบภาพของผล */
+.icv-preverr { margin: 0; }
+/* ชนิดไฟล์ที่รองรับในหน้าตั้งค่า (BUGS ข้อ 127) · ชื่อกลุ่มซ้าย นามสกุลกับคำอธิบายขวา · นามสกุลเยอะตัดลงบรรทัดใหม่ในช่องขวา */
+.ftrow { display: grid; grid-template-columns: 170px minmax(0, 1fr); gap: 4px 16px; padding: 10px 0; border-top: 1px solid #f7e4ea; align-items: start; }
+.ftname { font-size: 14px; line-height: 1.5; padding-top: 1px; }
+.ftbody { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ftchips { display: flex; flex-wrap: wrap; gap: 4px; }
+.ftchip { font: inherit; font-size: 12px; line-height: 20px; padding: 0 7px; border: 0; border-radius: 6px; background: var(--accent-soft); color: var(--accent-ink); font-weight: 600; letter-spacing: .02em; cursor: pointer; transition: background-color .12s, color .12s; }
+/* กดป้ายแล้วกางกล่องบอกว่านามสกุลนั้นคืออะไร · ชี้แล้วเข้มขึ้นในโทนเดียวกัน · กล่องที่เปิดอยู่ป้ายเข้มค้าง */
+.ftchip:hover { background: color-mix(in srgb, var(--accent) 24%, var(--accent-soft)); }
+.ftchip[aria-expanded="true"] { background: var(--accent); color: white; }
+.ftchip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+/* รูปแบบชื่อไฟล์ที่แยกในหน้าตั้งค่า กับปุ่มแยกหลายไฟล์ในแถบล่างวิธีแยก (BUGS ข้อ 130) */
+.patrow { display: flex; flex-direction: column; gap: 6px; margin-top: 8px; }
+.patline { display: flex; gap: 8px; align-items: center; }
+.patinp { flex: 1; min-width: 0; height: 36px; color: var(--txt); }
+.patinp:focus { outline: none; border: 1px solid var(--accent); box-shadow: 0 0 0 3px rgba(200,64,111,.25); }
+.patsample { color: var(--txt); font-weight: 600; overflow-wrap: anywhere; }
+.xbatch { display: inline-flex; align-items: center; gap: 2px; flex: none; }
+
+/* โครงสร้างไฟล์ MKV ในหน้าข้อมูลไฟล์ (BUGS ข้อ 131) · แถวละชั้น ย่อหน้าตามความลึก ค่าตัวหนาเท่าตัวหนังสือปกติ */
+.mkt { border: 1px solid var(--line); border-radius: 10px; padding: 4px 0; max-height: 560px; overflow: auto; }
+.mkt-row { display: flex; align-items: center; gap: 6px; min-height: 30px; padding-right: 10px; font-size: 13.5px; }
+.mkt-row:hover { background: color-mix(in srgb, var(--accent) 6%, transparent); }
+.mkt-car { width: 22px; height: 22px; flex: none; display: inline-flex; align-items: center; justify-content: center; border: 0; background: none; border-radius: 6px; color: var(--txt3); cursor: pointer; transition: transform .12s, background-color .12s; }
+.mkt-car:hover { background: var(--accent-soft); color: var(--accent-ink); }
+.mkt-car.on svg { transform: rotate(90deg); }
+.mkt-car.none { cursor: default; }
+.mkt-name { flex: none; font-weight: 600; color: var(--txt); }
+.mkt-val { min-width: 0; color: var(--txt2); overflow-wrap: anywhere; }
+.mkt-pos { margin-left: auto; flex: none; padding-left: 10px; }

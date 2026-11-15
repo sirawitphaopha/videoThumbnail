@@ -96,14 +96,22 @@ const ins = spawnSync(installer, ["/S", `/D=${DEST}`], { env, windowsVerbatimArg
 const secs = ((Date.now() - t0) / 1000).toFixed(0);
 const exe = existsSync(DEST) ? readdirSync(DEST).find((f) => f.toLowerCase().endsWith(".exe") && !f.toLowerCase().startsWith("uninstall")) : null;
 check("ติดตั้งแบบเงียบลงโฟลเดอร์ที่เลือกได้ ไม่มีหน้าต่าง", ins.status === 0 && exe, `ตัวติดตั้ง ${installer.split("\\").pop()} ${(size / 1048576).toFixed(0)} MB · ใช้ ${secs} วินาที · ได้ ${exe ?? "ไม่มีไฟล์โปรแกรม"} · รหัส ${ins.status}`);
-// เครื่องมือแผนเดิม 7 ไฟล์ กับตัวแปลงเสียงของแผนเสียงและซับ 8 ไฟล์ (flac กับ DLL ประกอบ lame กับ DLL ประกอบ opusenc wavpack MACDll64 13.46 ชุด TAK ทั้ง zip)
+// เครื่องมือแผนเดิม 7 ไฟล์ กับตัวแปลงเสียงของแผนเสียงและซับ 8 ไฟล์ (flac กับ DLL ประกอบ lame กับ DLL ประกอบ opusenc wavpack MACDll64 13.46 ชุด TAK ทั้ง zip) · รวมตอนนี้ 33 ไฟล์
 const toolNames = ["mkvmerge.exe", "mkvextract.exe", "mkvpropedit.exe", "ffmpeg.exe", "ffprobe.exe", "MediaInfo.exe", "LIBCURL.DLL",
   "flac.exe", "libFLAC.dll", "lame.exe", "libmpg123-0.dll", "opusenc.exe", "wavpack.exe", "MACDll64.dll", "TAK_2.3.3.zip", "qaac64.exe", "refalac64.exe", "libsoxr64.dll",
   // libheif ตัวจริงกับไฟล์ที่มันต้องใช้ บันทึกรูปกราฟเป็น HEIC (9 ไฟล์)
   "heif.dll", "libx265.dll", "libde265.dll", "aom.dll", "dav1d.dll", "libsharpyuv.dll", "msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll",
   // libmpv ตัวเล่นหนังในหน้าแก้ซับ (BUGS ข้อ 111)
-  "libmpv-2.dll"];
+  "libmpv-2.dll",
+  // ตัวสร้าง PGS (BUGS ข้อ 118 ถึง 123) · SUPer ตัวเปิดกับค่าตั้ง use_gpu=0 · SeConv ของ Subtitle Edit 3 ไฟล์
+  "super/SUPer_CLI.exe", "super/config.ini", "seconv/seconv.exe", "seconv/libSkiaSharp.dll", "seconv/libHarfBuzzSharp.dll",
+  // ตัวแปลงซับภาพเป็นซับภาพ (BUGS ข้อ 125) ไฟล์เดียว รวม Qt ไว้ในตัว
+  "bdsup2sub/bdsup2sub++.exe"];
 const toolDiff = toolNames.filter((t) => !existsSync(join(DEST, "tools", t)) || fileSha(join(DEST, "tools", t)) !== fileSha(resolve("src-tauri", "tools", t)));
+// SUPer เป็นโปรแกรม Python ห่อทั้งโฟลเดอร์ (ราว 300 MB) ขาดไฟล์ไหนเปิดไม่ขึ้น นับไฟล์ทั้งโฟลเดอร์เทียบกับต้นฉบับ
+const countFiles = (d) => existsSync(d) ? readdirSync(d, { recursive: true, withFileTypes: true }).filter((e) => e.isFile()).length : 0;
+const supSrc = countFiles(resolve("src-tauri", "tools", "super")), supDst = countFiles(join(DEST, "tools", "super"));
+check("โฟลเดอร์ SUPer ลงครบทุกไฟล์เท่าต้นฉบับ", supSrc > 100 && supDst === supSrc, `ต้นฉบับ ${supSrc} ไฟล์ ลงแล้ว ${supDst} ไฟล์`);
 const lic = existsSync(join(DEST, "tools", "licenses")) ? readdirSync(join(DEST, "tools", "licenses")).length : 0;
 check(`เครื่องมือ ${toolNames.length} ไฟล์ลงครบ (รวมตัวแปลงเสียง) ค่า hash ตรงกับที่โหลดมา (vendor/README.md) · มีไฟล์สัญญาอนุญาต`, toolDiff.length === 0 && lic > 0, toolDiff.length ? `ไม่ตรง ${toolDiff.join(" ")}` : `ครบ ${toolNames.length} ไฟล์ · สัญญาอนุญาต ${lic} ไฟล์`);
 const uninst = existsSync(DEST) ? readdirSync(DEST).find((f) => f.toLowerCase().startsWith("uninstall")) : null;

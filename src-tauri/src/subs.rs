@@ -196,7 +196,7 @@ fn is_mkv(p: &Path) -> bool {
     matches!(p.extension().map(|e| e.to_string_lossy().to_lowercase()).as_deref(), Some("mkv" | "mka" | "mks" | "mk3d" | "webm"))
 }
 
-fn work_dir(app: &AppHandle) -> Result<PathBuf, String> {
+pub(crate) fn work_dir(app: &AppHandle) -> Result<PathBuf, String> {
     let d = app.path().app_local_data_dir().map_err(|e| e.to_string())?.join("tmp");
     std::fs::create_dir_all(&d).map_err(|e| e.to_string())?;
     Ok(d)
@@ -212,11 +212,35 @@ pub fn text_of(tools: &Path, work: &Path, path: &Path, in_movie: bool, tid: u64,
 }
 
 /// ไบต์ของซับตามที่อยู่ในไฟล์ กับนามสกุลที่ใช้ช่วยเดาชนิด (ว่าง = ดูจากเนื้อ) · ตัวแก้ซับ (subdoc.rs) ใช้ร่วม
+/// ซับข้อความชนิดที่ ffmpeg อ่านได้แต่ตัวอ่านของโปรแกรมไม่รู้จัก · เปิดแล้วแปลงเป็น ASS ด้วย ffmpeg สีกับตัวเอียงตามแท็กเดิมไม่หาย
+/// (พี่กันสั่ง 15 พ.ย. 2569 "เราอยากให้มันแปลงจาก text sub ตัวอื่นมา PGS ได้") · .sub ที่เป็นซับภาพของ DVD ไปตัวดูซับภาพ ไม่มาถึงตรงนี้
+pub const FF_TEXT: &[&str] = &["smi", "sami", "lrc", "rt", "jss", "aqt", "pjs", "mpl", "sub", "scc"];
+/// ซับข้อความที่ ffmpeg ไม่มีตัวอ่าน โปรแกรมแปลงเป็น SRT เอง (subconv.rs)
+pub const OWN_TEXT: &[&str] = &["sbv", "ttml", "dfxp"];
+
 pub fn bytes_of(tools: &Path, work: &Path, path: &Path, in_movie: bool, tid: u64, ff: u64) -> Result<(Vec<u8>, String), String> {
     let ext = path.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
     // อ่านตรงเฉพาะไฟล์ซับข้อความ · ไฟล์ห่อที่เพิ่ม (MKS MKA MP4) ดึงแทร็กด้วยเครื่องมือแบบซับในหนัง
     // (ผู้ช่วยตรวจขั้น 10 ข้อ 6 · เดิมอ่าน MKS ทั้งไฟล์เป็นข้อความ ได้อักษรขยะ 0 บรรทัด)
     let plain = matches!(ext.as_str(), "srt" | "ass" | "ssa" | "vtt" | "txt");
+    if !in_movie && OWN_TEXT.contains(&ext.as_str()) {
+        let raw = std::fs::read(path).map_err(|e| format!("อ่านไฟล์ซับไม่ได้ {e}"))?;
+        return Ok((crate::subconv::to_srt(&ext, &decode_text(&raw).0)?.into_bytes(), "srt".into()));
+    }
+    if !in_movie && FF_TEXT.contains(&ext.as_str()) {
+        // ffmpeg อ่านซับข้อความเป็น UTF-8 · ไฟล์ไทยแบบเก่าบอกชุดอักษรที่เดาได้ก่อน
+        let raw = std::fs::read(path).map_err(|e| format!("อ่านไฟล์ซับไม่ได้ {e}"))?;
+        let cs = guess_charset(&raw);
+        let mut args: Vec<OsString> = vec!["-v".into(), "error".into(), "-nostdin".into()];
+        if cs != "UTF-8" && !raw.starts_with(&[0xFF, 0xFE]) && !raw.starts_with(&[0xFE, 0xFF]) { args.push("-sub_charenc".into()); args.push(cs.into()); }
+        args.extend(["-i".into(), path.into(), "-map".into(), "0:s:0".into(), "-c:s".into(), "ass".into(), "-f".into(), "ass".into(), "-".into()]);
+        let o = run_tool_timeout(tools, "ffmpeg", &args, Duration::from_secs(120))?;
+        if !tool_succeeded("ffmpeg", &o.status) || o.stdout.is_empty() {
+            let why = String::from_utf8_lossy(&o.stderr).lines().rev().find(|l| !l.trim().is_empty()).unwrap_or("").trim().to_string();
+            return Err(format!("แปลงซับ .{ext} ไม่สำเร็จ {why}"));
+        }
+        return Ok((o.stdout, "ass".into()));
+    }
     let bytes = if !in_movie && plain {
         std::fs::read(path).map_err(|e| format!("อ่านไฟล์ซับไม่ได้ {e}"))?
     } else if is_mkv(path) {
@@ -326,7 +350,7 @@ pub struct ImgItem {
     pub png: String,
 }
 
-fn cache_key(path: &Path, ff: u64) -> String {
+pub(crate) fn cache_key(path: &Path, ff: u64) -> String {
     let meta = std::fs::metadata(path).ok();
     let mt = meta.as_ref().and_then(|m| m.modified().ok()).and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_secs()).unwrap_or(0);
     let mut h: u64 = 1469598103934665603;
@@ -344,8 +368,12 @@ impl Drop for BusyGuard {
 }
 
 pub fn images(tools: &Path, work: &Path, path: &Path, ff: u64) -> Result<Vec<SubImg>, String> {
+    // ซับ HD DVD ffmpeg อ่านไม่ได้ ถอดจากไฟล์ PGS ที่ BDSup2Sub++ แปลงไว้ในโฟลเดอร์ทำงานแทน (BUGS ข้อ 129)
+    let hd;
+    let (path, ff) = if crate::imgconv::is_hddvd_sup(path) { hd = crate::imgconv::hddvd_pgs(tools, work, path)?.0; (hd.as_path(), 0) } else { (path, ff) };
     let key = cache_key(path, ff);
-    let dir = work.join(format!("subimg-{key}"));
+    // v2 ใส่ -copyts แล้ว ผลที่ถอดไว้ก่อนหน้านี้เวลาเริ่มที่ศูนย์ผิด ใช้ชื่อใหม่ไม่ให้หยิบของเก่า (BUGS ข้อ 125 เจอ 15 พ.ย. 2569)
+    let dir = work.join(format!("subimg-v2-{key}"));
     let idx = dir.join("index.json");
     let cached = || -> Option<Vec<SubImg>> {
         let mut v = serde_json::from_str::<Vec<SubImg>>(&std::fs::read_to_string(&idx).ok()?).ok()?;
@@ -364,7 +392,8 @@ pub fn images(tools: &Path, work: &Path, path: &Path, ff: u64) -> Result<Vec<Sub
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&raw).map_err(|e| e.to_string())?;
     // sub2video ได้ภาพทุกครั้งที่ซับเปลี่ยน · showinfo บอกเวลาของแต่ละภาพ
-    let args: Vec<OsString> = vec!["-v".into(), "info".into(), "-nostdin".into(), "-nostats".into(), "-i".into(), path.into(),
+    // -copyts คงเวลาจริงของไฟล์ เดิมไม่ใส่ ffmpeg เลื่อนภาพแรกให้เริ่มที่ศูนย์ ซับที่ภาพแรกอยู่ 2:12.48 ขึ้นว่า 0:00.0 (เจอตอนทำหน้าต่างแปลงซับภาพ 15 พ.ย. 2569)
+    let args: Vec<OsString> = vec!["-v".into(), "info".into(), "-nostdin".into(), "-nostats".into(), "-copyts".into(), "-i".into(), path.into(),
         "-filter_complex".into(), format!("[0:{ff}]format=rgba,showinfo[v]").into(), "-map".into(), "[v]".into(), "-fps_mode".into(), "passthrough".into(),
         "-f".into(), "image2".into(), raw.join("%06d.png").into()];
     let o = run_tool_timeout(tools, "ffmpeg", &args, Duration::from_secs(1800))?;
@@ -507,6 +536,26 @@ mod tests {
         let d = std::env::temp_dir().join(format!("movie-shelf-subs-{}", std::process::id()));
         std::fs::create_dir_all(&d).unwrap();
         d
+    }
+
+    /// ซับรูป .sup ที่ภาพแรกไม่ได้อยู่ที่ศูนย์ เวลาของภาพต้องเป็นเวลาจริงของไฟล์ · ให้ ffmpeg เลื่อนซับตัวอย่างไปเริ่มที่ 100 วินาที
+    /// (เดิมไม่ใส่ -copyts ffmpeg เลื่อนภาพแรกเป็น 0 วินาที ตัวดูซับรูปกับหน้าต่างแปลงซับภาพบอกเวลาผิดทุกภาพ เจอ 15 พ.ย. 2569
+    ///  ไฟล์ VobSub ตัวอย่างไม่โดนเลื่อนเพราะเวลาเริ่มของไฟล์เป็นศูนย์ ใช้พิสูจน์บั๊กนี้ไม่ได้)
+    #[test]
+    fn image_times_are_real_file_times() {
+        let sup = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("test-media").join("ซับตัวอย่าง-ffmpeg").join("pgs_sub.sup");
+        if !sup.exists() { return; }
+        let w = work().join("imgtime");
+        let _ = std::fs::remove_dir_all(&w);
+        std::fs::create_dir_all(&w).unwrap();
+        let late = w.join("late.sup");
+        let args: Vec<OsString> = vec!["-v".into(), "error".into(), "-y".into(), "-itsoffset".into(), "100".into(), "-i".into(), sup.into(),
+            "-map".into(), "0:s".into(), "-c".into(), "copy".into(), "-f".into(), "sup".into(), late.clone().into()];
+        run_tool_timeout(&tools(), "ffmpeg", &args, Duration::from_secs(60)).unwrap();
+        let v = images(&tools(), &w, &late, 0).unwrap();
+        assert!(!v.is_empty());
+        assert!((v[0].start - 100.0).abs() < 0.1, "ภาพแรก {} ต้องราว 100 วินาที", v[0].start);
+        let _ = std::fs::remove_dir_all(&w);
     }
 
     #[test]

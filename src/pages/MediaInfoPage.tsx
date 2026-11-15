@@ -4,14 +4,13 @@
    หน้านี้ค้างไว้ตอนไปเมนูอื่น ไฟล์ที่เปิดอยู่จึงไม่หาย (BUGS ข้อ 9) · แผนระบบ MediaInfo เต็มอยู่โรดแมป ทำหลังปิดชุด 9
    ข้อ 54 (ต่อ) · เปิดเพลงแล้วขึ้นปกที่ฝังในไฟล์ (พี่กัน "เอ่เพลงเข้า ก็ต้องเเดงปกด้วย") · หน้าว่างมีไฟล์ที่ดูล่าสุด (พี่กัน "ไฟล์ที่ดูล่าสุดเเสดงด้วยสิ") */
 import { useEffect, useRef, useState } from "react";
-import { AUDIO_EXT, convertApi, graphApi, inApp, pickFile, thumbUrl, type Movie } from "../lib/api";
+import { AUDIO_EXT, MOVIE_EXT, convertApi, graphApi, inApp, pickFile, thumbUrl, type Movie } from "../lib/api";
 import { useLibrary } from "../lib/library";
 import { usePageActiveRef } from "../lib/pageActive";
 import { Phr, dropClick } from "../components/ui";
 import { IcFile, IcShelf } from "../components/icons";
 import FileInfoPage from "./FileInfoPage";
 
-const MOVIE_EXT = ["mkv", "mp4", "m4v", "mov", "avi", "webm", "ts", "m2ts", "mpg", "mpeg", "vob", "flv"];
 const OK_EXT = [...MOVIE_EXT, ...AUDIO_EXT];
 const extOf = (p: string) => (p.match(/\.([^.\\/]+)$/)?.[1] ?? "").toLowerCase();
 const nameOf = (p: string) => p.split(/[\\/]/).pop() ?? p;

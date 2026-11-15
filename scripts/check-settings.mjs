@@ -2,8 +2,9 @@
 // ข้อ 7 ปุ่มกลับค่าตั้งต้น · 88 ความจุไดรฟ์ ไดรฟ์เต็ม เตือนชั้นวาง เตือนการ์ดเก็บรูป · 91 ปุ่มเสียงหลักวงกลมกับ ⓘ · 92 ที่เก็บไฟล์แยก · 93 การ์ดวิธีจาง
 // AUDIT 33 จำนวนเรื่องใต้โฟลเดอร์ · 135 แถบแดงที่เดียว · 136 ค่ารูปกราฟไม่เด้งกลับ · 137 ไม่ชี้ไฟล์ docs · 155 ช่องที่ปิดอยู่บอกเหตุผล
 // ไดรฟ์ใกล้เต็มกับไดรฟ์เต็มใช้ทางลัดรุ่นทดสอบ (__driveSample __settingsFail) เพราะทำของจริงไม่ได้ · คืนค่ารูปกราฟกับแบบส่วนตั้งค่าแทร็กเดิมตอนจบ
-import { mkdirSync } from "node:fs";
+import { mkdirSync, readFileSync } from "node:fs";
 import { connect, sleep } from "./lib/cdp-client.mjs";
+import { linesOf } from "./lib/lines.mjs";
 
 const OUT = "docs/report-2026-11-13/ชุด11";
 mkdirSync(OUT, { recursive: true });
@@ -133,6 +134,158 @@ try {
   await c.setNav("encoders").catch(() => null);
   const enc = await q("return document.body.innerText.includes('docs/research') ? 'ยังมี' : (document.querySelector('[data-enc-thanks]') ? 'ok' : 'ไม่เจอปุ่ม');");
   check("หัวข้อตัวแปลงเสียงไม่ชี้ไฟล์ docs แล้ว มีปุ่มไปหัวข้อขอบคุณ (AUDIT 137)", enc === "ok", enc);
+
+  // ---------- BUGS 122 หัวข้อขอบคุณ Aegisub ย้ายไปกลุ่มใช้สร้างโปรแกรม เพิ่ม mpv กับ Subtitle Edit ----------
+  // ลิงก์ของทุกการ์ดอยู่ในรายการตายตัวฝั่ง Rust ตรวจใน cargo test (every_thanks_card_link_is_in_the_fixed_list) · ที่นี่ไม่กดลิงก์ เพราะเบราว์เซอร์จะเด้งขึ้นจอ
+  await c.setNav("thanks"); await sleep(400);
+  await q("const s = document.querySelector('[data-setcard=thanks]'); let p = s; while (p && getComputedStyle(p).overflowY !== 'auto') p = p.parentElement; if (p) p.scrollTop = 0;");
+  await q("await Promise.all([...document.querySelectorAll('[data-setcard=thanks] .thankicon img')].map((i) => i.complete ? 0 : new Promise((r) => { i.onload = i.onerror = r; })));");
+  const thanks = await q("return [...document.querySelectorAll('[data-thanks-group]')].map((g) => ({ g: g.querySelector('h4').innerText.trim(), rows: [...g.querySelectorAll('[data-thanks-row]')].map((k) => ({ n: k.querySelector('.thankname b').innerText.trim(), v: k.querySelector('[data-thankver]')?.innerText.trim() ?? '', t: k.querySelector('[data-thanks-tag]').innerText.replace(/\\s+/g, ' ').trim(), img: [...k.querySelectorAll('.thankicon img')].map((i) => i.naturalWidth), link: [...k.querySelectorAll('[data-thanks-link]')].map((b) => b.getAttribute('data-thanks-link')) })) }));");
+  const where = (n) => thanks.find((g) => g.rows.some((r) => r.n === n));
+  const row = (n) => where(n)?.rows.find((r) => r.n === n);
+  const aeg = row("Aegisub"), se = row("Subtitle Edit"), mpv = row("mpv (libmpv)");
+  check("Aegisub อยู่กลุ่มใช้สร้างโปรแกรม ไม่อยู่กลุ่มไอเดียแล้ว ป้าย BSD กับ ISC (BUGS 122)", where("Aegisub")?.g === "ใช้สร้างโปรแกรม" && thanks.filter((g) => g.rows.some((r) => r.n === "Aegisub")).length === 1 && aeg.t === "BSD, ISC" && aeg.v === "v3.5.1", JSON.stringify({ g: where("Aegisub")?.g, ...aeg }));
+  // BUGS 123 แนบตัวแปลง SeConv ของ Subtitle Edit มาเป็นตัวสร้าง PGS การ์ดจึงย้ายจากกลุ่มไอเดียมากลุ่มเครื่องมือที่แนบมา มีใบเดียว
+  check("มีการ์ด Subtitle Edit ใบเดียวในกลุ่มเครื่องมือที่แนบมาทำงานจริง รุ่น 5.4.0 ป้าย MIT ไอคอนของจริงโหลดขึ้น (BUGS 122 กับ 123)", where("Subtitle Edit")?.g === "เครื่องมือที่แนบมาทำงานจริง" && thanks.filter((g) => g.rows.some((r) => r.n === "Subtitle Edit")).length === 1 && se.v === "v5.4.0" && se.t === "MIT" && se.img.length === 1 && se.img[0] > 0 && se.link[0] === "github.com/SubtitleEdit/subtitleedit", JSON.stringify({ g: where("Subtitle Edit")?.g, ...se }));
+  check("มีการ์ด mpv ในกลุ่มเครื่องมือที่แนบมาทำงานจริง รุ่น 0.42.0 ป้าย GPLv2 ขึ้นไป ไอคอนของจริงโหลดขึ้น (BUGS 122)", where("mpv (libmpv)")?.g === "เครื่องมือที่แนบมาทำงานจริง" && mpv.v === "v0.42.0" && mpv.t === "GPLv2 ขึ้นไป" && mpv.img.length === 1 && mpv.img[0] > 0 && mpv.link[0] === "mpv.io", JSON.stringify({ g: where("mpv (libmpv)")?.g, ...mpv }));
+  const sup = row("SUPer");
+  check("มีการ์ด SUPer ตัวสร้าง PGS ในกลุ่มเครื่องมือที่แนบมาทำงานจริง รุ่น 0.3.0 ป้าย GPLv3 ไอคอนของจริงโหลดขึ้น (พี่กันสั่ง เอาระบบ PGS ตัวไหนมา ใส่หน้าขอบคุณด้วย)", where("SUPer")?.g === "เครื่องมือที่แนบมาทำงานจริง" && sup.v === "v0.3.0" && sup.t === "GPLv3" && sup.img.length === 1 && sup.img[0] > 0 && sup.link[0] === "github.com/cubicibo/SUPer", JSON.stringify({ g: where("SUPer")?.g, ...sup }));
+  const bds = row("BDSup2Sub++");
+  check("มีการ์ด BDSup2Sub++ ตัวแปลงซับภาพในกลุ่มเครื่องมือที่แนบมาทำงานจริง รุ่น 1.0.5 ป้าย Apache-2.0 ไอคอนของจริงโหลดขึ้น (BUGS 125)", where("BDSup2Sub++")?.g === "เครื่องมือที่แนบมาทำงานจริง" && bds?.v === "v1.0.5" && bds?.t === "Apache-2.0" && bds?.img.length === 1 && bds?.img[0] > 0 && bds?.link[0] === "github.com/TheGreatMcPain/BDSup2SubPlusPlus", JSON.stringify({ g: where("BDSup2Sub++")?.g, ...bds }));
+  // การ์ดใหม่ ข้อความในการ์ดไม่ล้นกรอบ และไอคอนพอดีกรอบไอคอน
+  const fit = await q("return ['Aegisub', 'Subtitle Edit', 'mpv (libmpv)', 'SUPer', 'BDSup2Sub++'].map((n) => { const k = [...document.querySelectorAll('[data-thanks-row]')].find((x) => x.querySelector('.thankname b').innerText.trim() === n); const kb = k.getBoundingClientRect(), w = k.querySelector('.thankwhat'), ic = k.querySelector('.thankicon').getBoundingClientRect(), im = k.querySelector('.thankicon img').getBoundingClientRect(); return { n, over: w.scrollWidth - w.clientWidth, inCard: w.getBoundingClientRect().right <= kb.right + 0.5 && w.getBoundingClientRect().bottom <= kb.bottom + 0.5, iconIn: im.left >= ic.left - 0.5 && im.right <= ic.right + 0.5 && im.top >= ic.top - 0.5 && im.bottom <= ic.bottom + 0.5, imW: Math.round(im.width) }; });");
+  check("การ์ดใหม่ห้าใบ ข้อความอยู่ในการ์ด ไม่ล้นแนวนอน และไอคอนอยู่ในกรอบไอคอน", fit.every((f) => f.over <= 0 && f.inCard && f.iconIn && f.imW > 8), JSON.stringify(fit));
+  // จุดตัดบรรทัดตรงรอยต่อความหมาย (CLAUDE.md ตัดบรรทัดตามบริบท) · เดิมตัด เล่นหนัง|ในหน้าแก้ซับ ใช้ชุดจาก|shinchiro เวลา|เฟรม
+  // ช่องข้อความแคบสุด 229 จุดที่หน้าต่าง 2560 บรรทัดยาวสุด 226 จุด (วัด 14 พ.ย. 2569) ทุกขนาดหน้าต่างจึงตัดที่เดิม
+  const WANT122 = {
+    "Subtitle Edit": "ตัวสร้าง PGS ที่เลือกได้ในหน้าต่างส่งออก PGS ⏎ โดยแนบตัวแปลง SeConv มาทำงานจริง ⏎ และเป็นต้นแบบวิธีฝัง mpv ในหน้าแก้ซับ",
+    "SUPer": "ตัวสร้าง PGS แบบมาตรฐาน Blu-ray ⏎ ที่เลือกได้ในหน้าต่างส่งออก PGS ⏎ โดยมี libimagequant ช่วยลดสี",
+    "BDSup2Sub++": "แปลงซับภาพในหน้าต่างแปลงซับภาพ ⏎ เป็น PGS VobSub หรือ BDN XML ⏎ พร้อมย่อขยายและเปลี่ยนอัตราเฟรม",
+    "mpv (libmpv)": "เล่นหนังในหน้าแก้ซับ ถอดภาพด้วยการ์ดจอ ⏎ และวาดซับ ASS ครบทุกแท็ก ⏎ โดยใช้ชุดจาก shinchiro",
+    "Aegisub": "หน้าแก้ซับแปลวิธีจากซอร์สของ Aegisub ⏎ ทั้งอ่านเขียนซับ ตั้งเวลา และเครื่องมือบนภาพ ⏎ โดยใส่ประกาศลิขสิทธิ์เดิมไว้หัวไฟล์",
+  };
+  for (const [n, want] of Object.entries(WANT122)) {
+    await q(`document.querySelectorAll('[data-lines122]').forEach((x) => x.removeAttribute('data-lines122')); [...document.querySelectorAll('[data-thanks-row]')].find((x) => x.querySelector('.thankname b').innerText.trim() === ${JSON.stringify(n)}).setAttribute('data-lines122', '');`);
+    const got = (await linesOf(q, "[data-lines122] .thankwhat"))?.[0];
+    check(`การ์ด ${n} ตัดบรรทัดตรงรอยต่อความหมาย`, got === want, got);
+  }
+  await q("document.querySelectorAll('[data-lines122]').forEach((x) => x.removeAttribute('data-lines122'));");
+  {
+    const OUT122 = "docs/report-2026-11-14/ขอบคุณ";
+    mkdirSync(OUT122, { recursive: true });
+    for (const [n, f] of [["Subtitle Edit", "01-Subtitle-Edit-กลุ่มเครื่องมือที่แนบมา"], ["mpv (libmpv)", "02-mpv-กลุ่มเครื่องมือที่แนบมา"], ["Aegisub", "03-Aegisub-กลุ่มใช้สร้างโปรแกรม"], ["SUPer", "04-SUPer-ตัวสร้าง-PGS"], ["BDSup2Sub++", "05-BDSup2Sub-แปลงซับภาพ"]]) {
+      await q(`const k = [...document.querySelectorAll('[data-thanks-row]')].find((x) => x.querySelector('.thankname b').innerText.trim() === ${JSON.stringify(n)}); document.querySelectorAll('[data-shot122]').forEach((x) => x.removeAttribute('data-shot122')); k.setAttribute('data-shot122', ''); k.scrollIntoView({ block: 'center' });`);
+      await sleep(250);
+      await c.shot(`${OUT122}/${f}.png`, "[data-shot122]", 24);
+    }
+    await q("document.querySelectorAll('[data-shot122]').forEach((x) => x.removeAttribute('data-shot122'));");
+  }
+
+  // ---------- BUGS 127 หัวข้อชนิดไฟล์ที่รองรับ (พี่กันสั่ง 15 พ.ย. 2569 "เขียนชนิดไฟล์ทั้งหมดที่โปรแกรมเรารองรับ เเล้วรายละเอียดคร่าวๆ เพราะเราจำไม่ได้") ----------
+  // ป้ายนามสกุลต้องตรงกับรายการใน api.ts ที่ทุกหน้าใช้ (cargo test file_types_match_frontend ตรวจว่า api.ts ตรงกับฝั่ง Rust) · คำอธิบายบรรทัดเดียวทุกแถว ไม่ถ่าง
+  {
+    const api = readFileSync("src/lib/api.ts", "utf8");
+    const apiList = (name) => { const k = `export const ${name} = [`; const s = api.indexOf(k) + k.length; return api.slice(s, api.indexOf("]", s)).split(",").map((x) => x.trim().replace(/"/g, "")).filter(Boolean).map((x) => x.toUpperCase()); };
+    await c.setNav("types"); await sleep(400);
+    const ft = await q("return [...document.querySelectorAll('[data-ft-group]')].map((g) => ({ g: g.getAttribute('data-ft-group'), t: g.querySelector('h4').innerText.trim(), rows: [...g.querySelectorAll('[data-ft-row]')].map((r) => ({ k: r.getAttribute('data-ft-row'), chips: [...r.querySelectorAll('.ftchip')].map((x) => x.innerText.trim()), over: r.scrollWidth - r.clientWidth })) }));");
+    const row = (k) => ft.flatMap((g) => g.rows).find((r) => r.k === k);
+    check("เมนูตั้งค่ามีหัวข้อชนิดไฟล์ กลุ่มวิดีโอ เสียง รูป ซับ อื่น ๆ ครบ 19 แถว รวมไฟล์ที่แยกจาก MKV (BUGS 130)", JSON.stringify(ft.map((g) => g.t)) === JSON.stringify(["วิดีโอ", "เสียง", "รูป", "ซับ", "อื่น ๆ"]) && ft.flatMap((g) => g.rows).length === 19 && JSON.stringify(row("mkv-extra")?.chips) === JSON.stringify(["XML", "TXT", "CUE"]), JSON.stringify(ft.map((g) => [g.t, g.rows.length])));
+    const same = (a, b) => JSON.stringify(a) === JSON.stringify(b);
+    for (const [k, name] of [["movie", "MOVIE_EXT"], ["audio", "AUDIO_EXT"], ["audio-out", "ENCODE_OUT_EXT"], ["image", "IMAGE_EXT"], ["font", "FONT_EXT"], ["keyframe", "KEYFRAME_EXT"]]) check(`ป้ายแถว ${k} ตรงกับ ${name} ใน api.ts`, same(row(k)?.chips, apiList(name)), JSON.stringify(row(k)?.chips));
+    const subAll = [...row("sub-text").chips, ...row("sub-other").chips, ...row("sub-image").chips];
+    check("ซับสามแถวรวมกันตรงกับ SUB_EXT ไม่ขาดไม่ซ้ำ", same([...subAll].sort(), [...apiList("SUB_EXT")].sort()), JSON.stringify(subAll));
+    const add = apiList("ADD_EXT").filter((e) => !apiList("SUB_EXT").includes(e) && e !== "MKS");
+    check("แถวเสียงที่ใส่เข้าหนังได้ตรงกับ ADD_EXT ที่ไม่ใช่ซับ", same(row("audio-add")?.chips, add), JSON.stringify(row("audio-add")?.chips));
+    check("ไม่มีแถวไหนล้นขวา", ft.flatMap((g) => g.rows).every((r) => r.over <= 1));
+    const cardText = await q("return document.querySelector('[data-setcard=types]').innerText;");
+    check("ข้อความในหัวข้อชนิดไฟล์ไม่มีจุดกลางคั่น", !cardText.includes("·"));
+    const multi = [];
+    for (const r of ft.flatMap((g) => g.rows)) {
+      await q(`document.querySelectorAll('[data-lt127]').forEach((x) => x.removeAttribute('data-lt127')); document.querySelector('[data-ft-row="${r.k}"]').setAttribute('data-lt127', '');`);
+      const d = (await linesOf(q, "[data-lt127] .ftbody .small"))?.[0] ?? "";
+      const n = (await linesOf(q, "[data-lt127] .ftname"))?.[0] ?? "";
+      if (d.includes("⏎") || n.includes("⏎") || !d) multi.push({ k: r.k, n, d });
+    }
+    await q("document.querySelectorAll('[data-lt127]').forEach((x) => x.removeAttribute('data-lt127'));");
+    check("ชื่อแถวกับคำอธิบายทุกแถวอยู่บรรทัดเดียวที่หน้าต่าง 1280 × 800 ไม่ตกบรรทัดจนบรรทัดบนถ่าง", multi.length === 0, JSON.stringify(multi));
+    const chipRows = await q("return [...document.querySelectorAll('[data-ft-row]')].map((r) => ({ k: r.getAttribute('data-ft-row'), lines: new Set([...r.querySelectorAll('.ftchip')].map((x) => Math.round(x.getBoundingClientRect().top))).size, last: (() => { const cs = [...r.querySelectorAll('.ftchip')]; const t = Math.round(cs.at(-1).getBoundingClientRect().top); return cs.filter((x) => Math.round(x.getBoundingClientRect().top) === t).length; })() })).filter((x) => x.lines > 1 && x.last < 2)");
+    check("ป้ายนามสกุลที่ตกบรรทัดไม่เหลือป้ายเดียวโดด ๆ ในแถวล่าง", chipRows.length === 0, JSON.stringify(chipRows));
+    // กดป้ายนามสกุลแล้วกางกล่องบอกว่าคืออะไร (พี่กันสั่ง 15 พ.ย. 2569 "ตอนเอาเมาส์ไปกด มันจะขึ้น popup คล้ายๆดรอปดาวขึ้นมา ว่านามสกุลนี้ คืออะไรยังไง")
+    mkdirSync("docs/report-2026-11-15/ชนิดไฟล์", { recursive: true });
+    const chipInfo = await q("return [...document.querySelectorAll('[data-setcard=types] .ftchip')].map((x) => ({ t: x.innerText.trim(), btn: x.tagName === 'BUTTON', info: x.getAttribute('data-info') }))");
+    check("ป้ายนามสกุลทุกป้ายเป็นปุ่มที่มีคำอธิบาย ไม่มีป้ายไหนกดแล้วไม่มีอะไรขึ้น", chipInfo.length > 70 && chipInfo.every((x) => x.btn && (x.info?.toUpperCase() === x.t || x.info?.startsWith(x.t + " ("))), JSON.stringify(chipInfo.filter((x) => !x.btn || !x.info)));
+    const tipOf = (t) => q(`const b = document.querySelector('.infotip'); if (!b) return null; const r = b.getBoundingClientRect(), top = document.querySelector('[data-setcard=types] h3').closest('.setcard')?.parentElement?.getBoundingClientRect().top ?? 0; return { title: b.querySelector('.tiph b').innerText.trim(), w: b.querySelector('.tw').innerText.trim(), inScreen: r.top >= 0 && r.bottom <= innerHeight && r.left >= 0 && r.right <= innerWidth, side: b.getAttribute('data-side'), chip: document.querySelector('[data-setcard=types] .ftchip[aria-expanded=true]')?.innerText.trim() ?? null };`);
+    const clickChip = async (row, t) => { await q(`document.querySelectorAll('[data-clk127]').forEach((x) => x.removeAttribute('data-clk127')); const x = [...document.querySelectorAll('[data-ft-row="${row}"] .ftchip')].find((b) => b.innerText.trim() === '${t}'); x.setAttribute('data-clk127', ''); x.scrollIntoView({ block: 'nearest' });`); await sleep(150); await c.click('[data-clk127]'); await sleep(250); };
+    await q("const s = document.querySelector('[data-setcard=types]'); let p = s; while (p && getComputedStyle(p).overflowY !== 'auto') p = p.parentElement; if (p) p.scrollTop = 0;"); await sleep(200);
+    await clickChip("movie", "MKV");
+    const mkv = await tipOf("MKV");
+    check("กดป้าย MKV กางกล่องใต้ป้าย หัวกล่องเป็นชื่อเต็ม ป้ายเข้มค้างตอนเปิด", mkv?.title === "MKV (Matroska)" && mkv.w.startsWith("คอนเทนเนอร์แบบเปิด") && mkv.inScreen && mkv.side === "ล่าง" && mkv.chip === "MKV", JSON.stringify(mkv));
+    await c.shot(`docs/report-2026-11-15/ชนิดไฟล์/07-กดป้าย-MKV.png`, "[data-ft-group=video]", 140);
+    await c.key("Escape"); await sleep(200);
+    check("กด Esc ปิดกล่อง หน้าตั้งค่ายังอยู่", !(await tipOf()) && await q("return !!document.querySelector('[data-setcard=types]') && !document.querySelector('[data-setcard=types]').hidden"));
+    // ป้ายล่างสุดของจอ กล่องต้องพลิกขึ้นหรือเลื่อนให้พอดี ไม่จมใต้ขอบล่าง (popup-fit)
+    await q("const s = document.querySelector('[data-setcard=types]'); let p = s; while (p && getComputedStyle(p).overflowY !== 'auto') p = p.parentElement; if (p) p.scrollTop = p.scrollHeight;"); await sleep(250);
+    await clickChip("player", "EXE");
+    const exe = await tipOf();
+    check("ป้ายแถวล่างสุดของหน้า กล่องยังอยู่ในจอทั้งกล่อง", exe?.title === "EXE (โปรแกรมของ Windows)" && exe.inScreen, JSON.stringify(exe));
+    await c.shot(`docs/report-2026-11-15/ชนิดไฟล์/08-กดป้ายล่างสุด-EXE.png`);
+    await c.click("[data-setcard=types] h3"); await sleep(200);
+    check("กดที่อื่นปิดกล่อง", !(await tipOf()));
+    await clickChip("sub-image", "SUB"); const s1 = await tipOf();
+    await clickChip("sub-image", "IDX"); const s2 = await tipOf();
+    check("กดป้ายอื่นตอนกล่องเปิดอยู่ เปิดได้ทีละกล่อง", s1?.title.startsWith("SUB (") && s2?.title.startsWith("IDX (") && (await q("return document.querySelectorAll('.infotip').length")) === 1, JSON.stringify([s1?.title, s2?.title]));
+    await c.key("Escape"); await sleep(150);
+    // อ่านจุดตัดบรรทัดทุกกล่อง · บรรทัดสุดท้ายต้องไม่เหลือคำโดดสั้น ๆ (DUMP=1 พิมพ์ทุกกล่องไว้อ่าน)
+    const orphans = [];
+    for (const r of ft.flatMap((g) => g.rows)) {
+      for (const t of r.chips) {
+        await clickChip(r.k, t);
+        const l = (await linesOf(q, ".infotip .tw"))?.[0] ?? "";
+        const last = l.split(" ⏎ ").at(-1);
+        if (process.env.DUMP) console.log(`   ${r.k} ${t} | ${l}`);
+        if (!l || (l.includes("⏎") && last.length <= 8)) orphans.push(`${t} ${l}`);
+        await c.key("Escape"); await sleep(80);
+      }
+    }
+    check("คำอธิบายนามสกุลทุกกล่องไม่มีบรรทัดสุดท้ายที่เหลือคำโดดสั้น ๆ", orphans.length === 0, JSON.stringify(orphans));
+    const OUT127 = "docs/report-2026-11-15/ชนิดไฟล์";
+    mkdirSync(OUT127, { recursive: true });
+    for (const [i, g] of ["video", "audio", "image", "subtitle", "other"].entries()) {
+      await q(`document.querySelector('[data-ft-group=${g}]').scrollIntoView({ block: 'center' });`); await sleep(250);
+      await c.shot(`${OUT127}/0${i + 2}-${g}.png`, `[data-ft-group=${g}]`, 16);
+    }
+    await q("const s = document.querySelector('[data-setcard=types]'); let p = s; while (p && getComputedStyle(p).overflowY !== 'auto') p = p.parentElement; if (p) p.scrollTop = 0;");
+    await sleep(250);
+    await c.shot(`${OUT127}/01-หัวข้อชนิดไฟล์.png`);
+  }
+
+  // ---------- BUGS 123 กรอบในหัวข้อเดียวกันกว้างเท่ากันและขอบตรงแนว (พี่กันสั่ง 15 พ.ย. 2569 "บางกรอบควรเรียงแนวเดียวกัน ขนาดเท่ากัน ตามที่เคยทำกับทุกส่วนของโปรแกรม") ----------
+  // เดิม ใส่โปสเตอร์ ปุ่มเลือกกว้าง 165 220 165 · ตรวจไฟล์ ปุ่มเลือก 242 ดรอปดาวน์ 117 · กราฟเสียง ละเอียด ภาพรวม 148 ขณะแถวอื่น 165 · ป้ายสถานะกว้างไม่เท่ากัน
+  {
+    const boxOf = (sel) => `(() => { const e = document.querySelector(${JSON.stringify(sel)}); if (!e) return null; const r = e.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.right), Math.round(r.width)]; })()`;
+    await c.setNav("poster"); await sleep(300);
+    const pw = await q(`return [...document.querySelectorAll('[data-setcard=poster] [data-seg260] .seg')].map((s) => { const r = s.getBoundingClientRect(); return [Math.round(r.left), Math.round(r.right), Math.round(r.width)]; })`);
+    check("ใส่โปสเตอร์ ปุ่มเลือกสามแถวกว้าง 260 เท่ากัน ขอบซ้ายขวาตรงแนว", pw.length === 3 && pw.every((b) => b[2] === 260 && b[0] === pw[0][0] && b[1] === pw[0][1]), JSON.stringify(pw));
+    // คำบนปุ่มเลือกห่างขอบปุ่มอย่างน้อย 6 จุดทั้งสองข้าง (คำ ลบเมื่อตรวจผ่าน ห่างขอบ 0 จุดที่กว้าง 225 และ 4 จุดที่กว้าง 240)
+    const tight = await q("return [...document.querySelectorAll('[data-setcard=poster] [data-seg260] .seg button')].map((b) => { const r = b.getBoundingClientRect(); const rg = document.createRange(); rg.selectNodeContents(b); const t = rg.getBoundingClientRect(); return { t: b.innerText.trim(), gap: Math.round(Math.min(t.left - r.left, r.right - t.right)) }; }).filter((x) => x.gap < 6)");
+    check("ใส่โปสเตอร์ คำบนปุ่มเลือกห่างขอบปุ่มอย่างน้อย 6 จุด ไม่เบียด", tight.length === 0, JSON.stringify(tight));
+    // ปุ่มเปลี่ยนโฟลเดอร์กว้างครึ่งแถบ ขอบซ้ายตรงช่องขวาของแถบ (พี่กันเคาะ 9 พ.ย. 2569 "แนวเดียวกัน")
+    const oc = await q(`return ${boxOf("[data-setcard=poster] .btn[data-orig-change]")}`);
+    check("ใส่โปสเตอร์ ปุ่มเปลี่ยนโฟลเดอร์กว้างครึ่งแถบ ขอบซ้ายตรงช่องขวาของแถบ ขอบขวาตรงแถบ", !!oc && oc[2] === 130 && oc[0] === pw[0][0] + 130 && oc[1] === pw[0][1], JSON.stringify(oc));
+    await c.setNav("check"); await sleep(300);
+    const cs = await q(`return [${boxOf("[data-setcard=check] [data-seg260] .seg")}, ${boxOf("[data-setcard=check] [data-recheck] .dd")}]`);
+    check("ตรวจไฟล์ ปุ่มเลือกแบบตรวจกับดรอปดาวน์เตือนตรวจซ้ำกว้าง 260 เท่ากัน ขอบตรงแนว", cs[0] && cs[1] && cs[0][2] === 260 && cs[1][2] === 260 && cs[0][0] === cs[1][0] && cs[0][1] === cs[1][1], JSON.stringify(cs));
+    await c.setNav("graph"); await sleep(300);
+    const gs = await q(`return [${boxOf("[data-spekres-default] .seg")}, ${boxOf("[data-img-row=bits] .seg")}, ${boxOf("[data-img-row=gray] .seg")}]`);
+    check("กราฟเสียง แถวกราฟความถี่เปิดมาแบบกว้าง 165 เท่าแถวความลึกสีกับชุดสี ขอบตรงแนว", gs.every((b) => b && b[2] === 165 && b[0] === gs[0][0]), JSON.stringify(gs));
+    for (const id of ["tools", "encoders"]) {
+      await c.setNav(id); await sleep(600);
+      const chips = await q(`return [...document.querySelectorAll('[data-setcard=${id}] .toolok, [data-setcard=${id}] .toolwarn, [data-setcard=${id}] .toolbad')].filter((e) => !e.nextElementSibling).map((e) => { const r = e.getBoundingClientRect(); return { t: e.innerText, l: Math.round(r.left), r: Math.round(r.right), w: Math.round(r.width) }; })`);
+      const minW = Math.min(...chips.map((x) => x.w));
+      const sameW = chips.filter((x) => x.w === minW);
+      check(`${id === "tools" ? "เครื่องมือเบื้องหลัง" : "ตัวแปลงเสียง"} ป้ายสถานะกว้างอย่างน้อย 88 ป้ายที่คำสั้นกว้างเท่ากัน ขอบซ้ายตรงแนว`, chips.length >= 3 && minW >= 88 && new Set(sameW.map((x) => x.l)).size === 1, JSON.stringify(chips));
+    }
+  }
 
   // ---------- BUGS 91 92 93 หน้าเสียงและซับ ----------
   await nav("เสียงและซับ"); await sleep(500);

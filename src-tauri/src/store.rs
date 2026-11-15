@@ -79,6 +79,8 @@ pub struct Settings {
     /// ตัวเล่นหนังในหน้าแก้ซับ "mpv" ฝัง libmpv แบบ Subtitle Edit (ค่าตั้งต้น) | "aegisub" อ่านภาพทีละเฟรมเดินตามเสียงแบบ Aegisub
     /// (BUGS ข้อ 111 พี่กันสั่ง 14 พ.ย. 2569 "ทำตอนนี้เลย เเต่ระบบเล่นของ aegi ที่ทำมาไม่ลบ เเต่เอาไว้เปิดตอนตั้งค่าได้")
     pub sub_player: String,
+    /// รูปแบบชื่อไฟล์แทร็กที่แยกออกจากหนัง แบบ gMKVExtractGUI (BUGS ข้อ 130) · ตัวแทน {Filename} {Type} {Number} {Language} {Delay} {TrackName}
+    pub extract_pattern: String,
 }
 
 impl Default for Settings {
@@ -119,6 +121,7 @@ impl Default for Settings {
             hash_save_ask: true,
             window_maximized: false,
             sub_player: "mpv".into(),
+            extract_pattern: crate::extract::DEFAULT_PATTERN.into(),
         }
     }
 }
@@ -153,6 +156,7 @@ impl Settings {
         self.link_board_images = pick(&self.link_board_images, &["list", "only"], &d.link_board_images);
         self.link_board_movies = pick(&self.link_board_movies, &["list", "only"], &d.link_board_movies);
         self.sub_player = pick(&self.sub_player, &["mpv", "aegisub"], &d.sub_player);
+        if self.extract_pattern.trim().is_empty() || self.extract_pattern.chars().count() > 200 { self.extract_pattern = d.extract_pattern.clone(); }
         if !(50..=100).contains(&self.jpg_quality) { self.jpg_quality = d.jpg_quality; }
         if ![0, 7, 30, 90].contains(&self.recheck_reminder_days) { self.recheck_reminder_days = d.recheck_reminder_days; }
         // ค่ารูปกราฟกรองช่องต่อช่องเหมือนช่องอื่น ค่าผิดหลุดลงไฟล์แล้วบันทึกรูปกราฟพังทุกครั้ง (AUDIT ข้อ 130)

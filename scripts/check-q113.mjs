@@ -265,11 +265,14 @@ try {
   check("เตือนขนาดที่ไม่ใช่ของ Blu-ray (หนังทดสอบ 640 × 360)", pg.warn.includes("ไม่ใช่ขนาดของ Blu-ray"), pg.warn.replace(/\s+/g, " ").slice(0, 160));
   await sleep(450); // รอหน้าต่างขึ้นจนทึบก่อนถ่าย
   await c.shot(`${SHOT}/07-ส่งออก-PGS.png`, ".dlg", 8);
+  // หน้าต่างจำตัวสร้างที่เลือกครั้งล่าสุด (check-pgs เลือก SUPer ค้างได้ ซึ่งรับแค่ขนาดของ Blu-ray) · เลือกตัวสร้างของชั้นหนังเองก่อนส่งออก
+  await c.click('[data-pgs-engine="shelf"]'); await sleep(300);
   const sup = `${TMP}/ออก.sup`;
   await q(`window.__pgsTarget = ${JSON.stringify(sup)}; return 1;`);
   await c.click("[data-pgs-browse]"); await sleep(200);
   await c.click("[data-pgs-go]");
-  check("ส่งออกเสร็จ ขึ้นจำนวนภาพกับขนาด", await waitFor("return !!document.querySelector('[data-pgs-done]')", 120000), await q("return (document.querySelector('[data-pgs-done]') ?? document.querySelector('[data-pgs-err]'))?.innerText?.replace(/\\s+/g, ' ')"));
+  // แดงแล้วบอกสถานะปุ่มส่งออกกับตัวสร้างที่เลือกไว้ด้วย ไม่งั้นหน้าต่างไม่ขึ้นทั้งผลและกล่องผิดพลาดแล้วไม่รู้ว่าทำไม
+  check("ส่งออกเสร็จ ขึ้นจำนวนภาพกับขนาด", await waitFor("return !!document.querySelector('[data-pgs-done]')", 120000), await q("const g = document.querySelector('[data-pgs-go]'); const e = [...document.querySelectorAll('[data-pgs-engine]')].find((x) => x.getAttribute('aria-checked') === 'true'); return ((document.querySelector('[data-pgs-done]') ?? document.querySelector('[data-pgs-err]'))?.innerText?.replace(/\\s+/g, ' ') ?? '') + ' · ปุ่ม ' + (g?.getAttribute('aria-disabled') ?? 'กดได้') + ' ' + (g?.title ?? '') + ' · ตัวสร้าง ' + (e?.getAttribute('data-pgs-engine') ?? '?') + ' · ' + (document.querySelector('[data-pgs]')?.innerText.replace(/\\s+/g, ' ').slice(-200) ?? '')"));
   // ไฟล์เล็กกว่า 1 MB บอกเป็น KB ไม่ขึ้น 0 MB · ส่วนที่ลดสีต่อด้วยคำเชื่อม โดย
   const doneT = await q("return document.querySelector('[data-pgs-done]')?.innerText?.replace(/\\s+/g, ' ') ?? ''");
   check("ผลส่งออกบอกขนาดเป็น KB ไม่ขึ้น 0 MB และต่อประโยคด้วยคำเชื่อม", /\d+ ภาพ ขนาด [\d,]+ KB/.test(doneT) && !/ 0 MB/.test(doneT) && (!/ลดสี/.test(doneT) || / โดยลดสี/.test(doneT)), doneT);

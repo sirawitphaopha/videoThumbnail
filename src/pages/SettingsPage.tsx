@@ -13,10 +13,13 @@ import Dialog from "../components/Dialog";
 import Dropdown from "../components/Dropdown";
 import InfoTip from "../components/InfoTip";
 import { SPEK_RES_TIP } from "../lib/graphTips";
-import { IcPalette, IcCheck, IcCoverL, IcCoverM, IcCoverS, IcTall, IcWide, IcFolder, IcGraph, IcLink, IcMix, IcPoster, IcSettings, IcShelf } from "../components/icons";
+import { IcPalette, IcCheck, IcCoverL, IcCoverM, IcCoverS, IcTall, IcWide, IcFolder, IcGraph, IcLink, IcMix, IcPoster, IcSettings, IcShelf, IcExtract } from "../components/icons";
 import { CardIcon, J, Keep, Phr, Range, Seg, Skel, Switch } from "../components/ui";
 import { setSkelPreview, useSkelPreview } from "../lib/skelPreview";
 import { fmtSize } from "../lib/format";
+import { EXT_INFO, FILE_TYPES } from "../lib/fileTypes";
+import { DEFAULT_PATTERN, PATTERN_TOKENS, patternName } from "../lib/extractName";
+import type { Tip } from "../lib/codecAdv";
 import { driveName, freePct, isLow, takeSettingsSec, useDriveSpace } from "../lib/drives";
 import { folderKey } from "../lib/folders";
 import "../styles/av.css";
@@ -47,7 +50,7 @@ const IcHeart = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none
    ข้อความเช็กกับของจริง · ที่อยู่เว็บกดเปิดในเบราว์เซอร์หลัก รายการตายตัวอยู่ฝั่ง Rust โปรแกรมไม่ออกเน็ตเอง */
 /* พี่กันบอก 9 พ.ย. 2569 "เราหมายถึง icon โปรแกรมนั้น ๆ ของจริงนะ" · ใช้แบบเวกเตอร์จากคลังเปิดก่อน (SVG Logos กับ Simple Icons CC0 · Wikimedia Commons) ไม่มีค่อยใช้จากเว็บทางการหรือไฟล์โปรแกรม เก็บในโปรแกรม เปิดหน้านี้ไม่ออกเน็ต · ตัวที่หาไม่ได้ใช้ไอคอนกลาง */
 const THANK_FILES = import.meta.glob("../assets/thanks/*", { eager: true, query: "?url", import: "default" }) as Record<string, string>;
-const THANK_ICON: Record<string, string> = { "Spek": "spek.png", "FFBitrateViewer": "ffbitrateviewer.ico", "Claude": "claude.svg", "TypeScript": "typescript.svg", "Vite": "vite.svg", "ห้องสมุด Rust อื่น ๆ": "rust.svg", "ไอคอนในหน้านี้": "simpleicons.svg", "Bitrate Viewer": "bitrateviewer.ico", "Audacity": "audacity.svg", "Aegisub": "aegisub.svg", "Kodi": "kodi.svg", "Claude Desktop": "claude.svg", "FFmpeg": "ffmpeg.png", "MKVToolNix": "mkvtoolnix.png", "MediaInfo": "mediainfo.svg", "FLAC": "flac.svg", "LAME กับ libmpg123": "lame.ico", "opus-tools": "opus.svg", "WavPack": "wavpack.svg", "Monkey's Audio": "monkeys.ico", "TAK": "tak.png", "libheif กับ libde265": "libheif.png", "Visual C++ Runtime": "microsoft.svg", "Rust": "rust.svg", "Tauri": "tauri.svg", "React": "react.svg", "image (Rust)": "image-rs.png" };
+const THANK_ICON: Record<string, string> = { "Spek": "spek.png", "FFBitrateViewer": "ffbitrateviewer.ico", "Claude": "claude.svg", "TypeScript": "typescript.svg", "Vite": "vite.svg", "ห้องสมุด Rust อื่น ๆ": "rust.svg", "ไอคอนในหน้านี้": "simpleicons.svg", "Bitrate Viewer": "bitrateviewer.ico", "Audacity": "audacity.svg", "Aegisub": "aegisub.svg", "Subtitle Edit": "subtitleedit.svg", "mpv (libmpv)": "mpv.svg", "SUPer": "super.png", "BDSup2Sub++": "bdsup2sub.png", "Kodi": "kodi.svg", "Claude Desktop": "claude.svg", "FFmpeg": "ffmpeg.png", "MKVToolNix": "mkvtoolnix.png", "MediaInfo": "mediainfo.svg", "FLAC": "flac.svg", "LAME กับ libmpg123": "lame.ico", "opus-tools": "opus.svg", "WavPack": "wavpack.svg", "Monkey's Audio": "monkeys.ico", "TAK": "tak.png", "libheif กับ libde265": "libheif.png", "Visual C++ Runtime": "microsoft.svg", "Rust": "rust.svg", "Tauri": "tauri.svg", "React": "react.svg", "image (Rust)": "image-rs.png" };
 /** MKVToolNix ใช้สองไอคอน พื้นหลังขาว (พี่กันสั่ง 10 พ.ย. 2569 "เอาใส่ทั้งสอง icon แต่ขอพื้นหลังขาว" · ยืนยันว่าเป็นของ MKVToolNix ทั้งคู่) */
 const WHITE_ICON = new Set(["MKVToolNix"]);
 const THANK_ICON2: Record<string, string> = { "MKVToolNix": "mkvtoolnix-2.png" };
@@ -59,8 +62,8 @@ const THANKS: { title: string; note: string; rows: { name: string; ver?: string;
     { icon: <IcGraph />, name: "Spek", ver: "0.8.5", what: "หน้าความถี่ในกราฟเสียง หน้าตากราฟกับการบันทึกเป็นรูป", tag: "ไอเดีย", url: "github.com/alexkay/spek" },
     { icon: <IcGraph />, name: "Bitrate Viewer", ver: "2.3", what: "หน้าบิตเรตวิดีโอ หน้าตา สี วิธีคิด 4 แบบ ซูม เส้นค่าเฉลี่ย", tag: "ไอเดีย", url: "videohelp.com/software/Bitrate-Viewer" },
     { icon: <IcGraph />, name: "FFBitrateViewer", ver: "0.9.7.2", what: "วิธีอ่านบิตเรตด้วย ffprobe ทีละแพ็กเก็ต ในหน้าบิตเรต", tag: "ไอเดีย, MIT", url: "github.com/fifonik/FFBitrateViewer" },
+    { icon: <IcExtract />, name: "gMKVExtractGUI", ver: "2.15.0", what: "วิธีแยกไฟล์ในหน้าเสียงและซับ\nทั้งแท็ก chapter แบบ OGM CUE sheet และเวลาของเฟรม\nดีเลย์ในชื่อไฟล์ และรูปแบบชื่อไฟล์ที่ตั้งเอง", tag: "ไอเดีย, Unlicense", url: "github.com/Gpower2/gMKVExtractGUI" },
     { icon: <IcMix />, name: "Audacity", ver: "4.0.2", what: "รูปคลื่นแบบ Audacity ในกราฟเสียง", tag: "ไอเดีย", url: "audacityteam.org" },
-    { icon: <IbTable />, name: "Aegisub", ver: "3.5.1", what: "ตัวดูซับแบบตารางบรรทัด", tag: "ไอเดีย", url: "aegisub.org" },
     { icon: <IcPoster />, name: "Kodi", ver: "21.3", what: "ชื่อไฟล์รูปลงท้าย -poster กับ -landscape ในหน้าจับคู่ปก", tag: "ไอเดีย", url: "kodi.tv" },
     { icon: <IcSettings />, name: "Claude Desktop", ver: "4.23118.0", what: "รูปแบบเมนูหัวข้อของหน้าตั้งค่า", tag: "ไอเดีย", url: "claude.ai" },
   ] },
@@ -80,9 +83,21 @@ const THANKS: { title: string; note: string; rows: { name: string; ver?: string;
     { icon: <IcPoster />, name: "x265", ver: "3.5", what: "เข้ารหัสภาพใน HEIC", tag: "GPLv2", url: "bitbucket.org/multicoreware/x265_git" },
     { icon: <IcPoster />, name: "aom, dav1d, libsharpyuv", ver: "3.15.3, 1.5.4, 1.6.0", what: "ไฟล์ที่ libheif ต้องใช้", tag: "BSD", url: "aomedia.org, videolan.org, chromium.googlesource.com/webm/libwebp" },
     { icon: <IcSettings />, name: "Visual C++ Runtime", ver: "14.51", what: "ไฟล์ของ Microsoft ที่ libheif ต้องใช้", tag: "ข้อตกลง MS", url: "microsoft.com" },
+    // BUGS ข้อ 122 · libmpv-2.dll แนบมาตั้งแต่ commit 7e618cb · รุ่นอ่านจากในไฟล์ DLL (mpv v0.42.0-38-gbcde6b93c ชุด mpv-dev 20261111) · สัญญาตาม vendor/README.md หัวข้อ libmpv
+    { icon: <IbPlay />, name: "mpv (libmpv)", ver: "0.42.0", what: "เล่นหนังในหน้าแก้ซับ ถอดภาพด้วยการ์ดจอ\nและวาดซับ ASS ครบทุกแท็ก\nโดยใช้ชุดจาก shinchiro", tag: "GPLv2 ขึ้นไป", url: "mpv.io" },
+    // ตัวสร้าง PGS แบบมาตรฐาน Blu-ray ในหน้าต่างส่งออก PGS (พี่กันสั่ง 14 พ.ย. 2569 "เอาระบบ PGS ตัวไหนมา ใส่หน้าขอบคุณด้วย") · รุ่นจาก SUPer_CLI --version · สัญญา GPL-3.0 จากที่เก็บของผู้ทำ
+    { icon: <IbPlay />, name: "SUPer", ver: "0.3.0", what: "ตัวสร้าง PGS แบบมาตรฐาน Blu-ray\nที่เลือกได้ในหน้าต่างส่งออก PGS\nโดยมี libimagequant ช่วยลดสี", tag: "GPLv3", url: "github.com/cubicibo/SUPer" },
+    // แปลงซับภาพเป็นซับภาพ (BUGS ข้อ 125 พี่กันสั่ง 15 พ.ย. 2569 "เอามาก็ดีนะ ตอนระบบแปลงจากซับภาพเป็นซับภาพ") · รุ่น 1.0.5 ชุด mingw 64 บิตของ TheGreatMcPain
+    // สัญญา Apache-2.0 จากที่เก็บของผู้ทำ สำเนาอยู่ tools\licenses\BDSup2SubPlusPlus-Apache-2.0.txt · ไอคอนดึงจากในไฟล์ bdsup2sub++.exe
+    { icon: <IbPlay />, name: "BDSup2Sub++", ver: "1.0.5", what: "แปลงซับภาพในหน้าต่างแปลงซับภาพ\nเป็น PGS VobSub หรือ BDN XML\nพร้อมย่อขยายและเปลี่ยนอัตราเฟรม", tag: "Apache-2.0", url: "github.com/TheGreatMcPain/BDSup2SubPlusPlus" },
+    // BUGS ข้อ 122 เดิมอยู่กลุ่มไอเดีย (วิธีฝัง libmpv ในหน้าต่างโปรแกรม ไม่ได้ใช้โค้ด) · BUGS ข้อ 123 แนบตัวแปลง SeConv มาเป็นตัวสร้าง PGS ตัวที่สาม จึงย้ายมากลุ่มนี้ (15 พ.ย. 2569)
+    // รุ่นกับสัญญาเช็กจากหน้ารุ่นบน GitHub 14 พ.ย. 2569 (v5.4.0 สัญญา MIT) · สัญญาเต็มอยู่ tools\licenses\SubtitleEdit-SeConv-MIT.txt
+    { icon: <IbPlay />, name: "Subtitle Edit", ver: "5.4.0", what: "ตัวสร้าง PGS ที่เลือกได้ในหน้าต่างส่งออก PGS\nโดยแนบตัวแปลง SeConv มาทำงานจริง\nและเป็นต้นแบบวิธีฝัง mpv ในหน้าแก้ซับ", tag: "MIT", url: "github.com/SubtitleEdit/subtitleedit" },
   ] },
   { title: "ใช้สร้างโปรแกรม", note: "ซอร์สโค้ดของห้องสมุดเหล่านี้รวมอยู่ในตัวโปรแกรมตอนสร้าง", rows: [
     { icon: <IcSettings />, name: "Claude", what: "ตัวช่วยเขียนโปรแกรม คือ Claude Code กับโมเดล Claude Opus 5.5 ของ Anthropic", tag: "Anthropic", url: "claude.com/claude-code" },
+    // BUGS ข้อ 122 · เดิมอยู่กลุ่มไอเดียว่า ตัวดูซับแบบตารางบรรทัด แต่หน้าแก้ซับแปลวิธีจากซอร์ส Aegisub มาใช้จริง ใส่ประกาศลิขสิทธิ์เดิมไว้หัวไฟล์ (subdoc.rs vidframes.rs และไฟล์หน้าแก้ซับ)
+    { icon: <IbTable />, name: "Aegisub", ver: "3.5.1", what: "หน้าแก้ซับแปลวิธีจากซอร์สของ Aegisub\nทั้งอ่านเขียนซับ ตั้งเวลา และเครื่องมือบนภาพ\nโดยใส่ประกาศลิขสิทธิ์เดิมไว้หัวไฟล์", tag: "BSD, ISC", url: "aegisub.org" },
     { icon: <IcSettings />, name: "Rust", ver: "1.99.1", what: "ฝั่งหลังบ้านทั้งหมด ทั้งอ่านไฟล์ เรียกเครื่องมือ และเขียนไฟล์ (รุ่นที่ใช้สร้างโปรแกรม)", tag: "MIT, Apache-2.0", url: "rust-lang.org" },
     { icon: <IcShelf />, name: "Tauri", ver: "2.12.5", what: "โครงโปรแกรมบน Windows", tag: "MIT, Apache-2.0", url: "tauri.app" },
     { icon: <IbTable />, name: "TypeScript", ver: "7.0.2", what: "ภาษาที่เขียนหน้าจอทั้งหมด", tag: "Apache-2.0", url: "typescriptlang.org" },
@@ -121,6 +136,7 @@ const SET_GROUPS: { title: string; items: { id: string; label: string; icon: Rea
     { id: "log", label: "บันทึกการใช้งาน", icon: <IcFile /> },
   ] },
   { title: "เกี่ยวกับ", items: [
+    { id: "types", label: "ชนิดไฟล์", icon: <IcFile /> },
     { id: "thanks", label: "ขอบคุณ", icon: <IcHeart /> },
   ] },
 ];
@@ -410,9 +426,9 @@ export default function SettingsPage() {
           <Switch on={settings.checkSourceBefore} onChange={(v) => set({ checkSourceBefore: v })} label="ตรวจไฟล์ต้นทางก่อนครอบ" /></div>
         <div className="setrow"><div className="lbl">ตรวจไฟล์ใหม่หลังครอบเสร็จ<span className="small"><Phr>เทียบว่าภาพ เสียง และซับครบเท่าต้นทาง</Phr></span></div>
           <Switch on={settings.checkOutputAfter} onChange={(v) => set({ checkOutputAfter: v })} label="ตรวจไฟล์ใหม่หลังครอบเสร็จ" /></div>
-        <div className="setrow" data-seg165><div className="lbl">ไฟล์ที่ได้</div>
+        <div className="setrow" data-seg260><div className="lbl">ไฟล์ที่ได้</div>
           <Seg label="ไฟล์ที่ได้" value={settings.outputFormat} onChange={(v) => set({ outputFormat: v })} options={[{ value: "mkv", label: "MKV" }, { value: "mp4", label: "MP4" }]} /></div>
-        <div className="setrow"><div className="lbl">ไฟล์เดิมหลังครอบ</div>
+        <div className="setrow" data-seg260><div className="lbl">ไฟล์เดิมหลังครอบ</div>
           <Seg label="ไฟล์เดิมหลังครอบ" value={settings.originalAfter} onChange={(v) => set({ originalAfter: v })} options={[{ value: "keep", label: <><IbTick size={14} />เก็บไว้</> }, { value: "trash", label: <><IbTrash size={14} />ลบเมื่อตรวจผ่าน</> }]} /></div>
         <div className="setrow"><div className="lbl">โฟลเดอร์เก็บไฟล์เดิม
           <span className="small" style={{ wordBreak: "break-all" }} data-originals>{settings.originalsFolder || <Phr>ข้างไฟล์หนังในโฟลเดอร์ชื่อ “ไฟล์เดิม”</Phr>}</span>
@@ -420,7 +436,7 @@ export default function SettingsPage() {
           <div style={{ display: "flex", gap: 6 }}>
             {settings.originalsFolder && <button type="button" className="btn btn-ghost btn-sm" onClick={() => set({ originalsFolder: "" })}>ใช้ข้างไฟล์หนัง</button>}
             <button type="button" className="btn btn-ghost btn-sm" onClick={changeOriginals} data-orig-change><IcFolder size={15} />เปลี่ยน</button></div></div>
-        <div className="setrow" data-seg165><div className="lbl">รูปโปสเตอร์ที่แนบ<span className="small"><Phr>ใช้กับรูปที่ต้องแปลงและรูปที่ครอป</Phr></span></div>
+        <div className="setrow" data-seg260><div className="lbl">รูปโปสเตอร์ที่แนบ<span className="small"><Phr>ใช้กับรูปที่ต้องแปลงและรูปที่ครอป</Phr></span></div>
           <Seg label="รูปโปสเตอร์ที่แนบ" value={settings.posterFormat} onChange={(v) => set({ posterFormat: v })} options={[{ value: "jpg", label: "JPG" }, { value: "png", label: "PNG" }]} /></div>
         <div className="setrow" style={{ display: "block" }}><div style={{ display: "flex", alignItems: "center", gap: 12 }}>
           <span style={{ fontSize: 14, whiteSpace: "nowrap" }}>คุณภาพ JPG</span>
@@ -480,16 +496,20 @@ export default function SettingsPage() {
         <div className="setrow" data-subplayer-set><div className="lbl"><span>ตัวเล่นหนังในหน้าแก้ซับ <InfoTip title="ตัวเล่นหนังสองแบบ" tip={SUB_PLAYER_TIP} /></span>
           <span className="small"><Phr>{mpvOk === false ? "ไม่พบไฟล์ libmpv-2.dll ในโฟลเดอร์เครื่องมือ โปรแกรมจึงเล่นแบบ Aegisub แทน" : "กดปุ่มเล่นใต้ภาพหนังหรือกด Ctrl+P แล้วโปรแกรมเล่นด้วยตัวที่เลือก"}</Phr></span></div>
           <Seg label="ตัวเล่นหนังในหน้าแก้ซับ" value={settings.subPlayer === "aegisub" ? "aegisub" : "mpv"} onChange={(v) => set({ subPlayer: v })} options={[{ value: "mpv", label: "mpv" }, { value: "aegisub", label: "แบบ Aegisub" }]} /></div>
+        {/* รูปแบบชื่อไฟล์ที่แยก แบบ gMKVExtractGUI (BUGS ข้อ 130 พี่กันสั่ง "เอาเข้าคิว") · ค่าตั้งต้นได้ชื่อแบบเดิม (แคลร์ตั้ง) */}
+        <div className="setrow" data-extract-pattern-set style={{ display: "block" }}><div className="lbl"><span>รูปแบบชื่อไฟล์ที่แยก <InfoTip title="รูปแบบชื่อไฟล์ที่แยก" tip={PATTERN_TIP} /></span>
+          <span className="small"><Phr>ใช้ตั้งชื่อไฟล์แทร็กภาพ เสียง และซับ ตอนแยกออกจากหนังในหน้าเสียงและซับ</Phr></span></div>
+          <PatternRow value={settings.extractPattern || DEFAULT_PATTERN} onChange={(v) => set({ extractPattern: v })} /></div>
       </div>
 
       {/* ---------- ตรวจไฟล์ ---------- */}
       <div className="setcard" data-setcard="check" hidden={sec !== "check"}><h3>ตรวจไฟล์</h3>
-        <div className="setrow"><div className="lbl">แบบตรวจตั้งต้น</div>
+        <div className="setrow" data-seg260><div className="lbl">แบบตรวจตั้งต้น</div>
           <Seg label="แบบตรวจตั้งต้น" value={settings.defaultCheck} onChange={(v) => set({ defaultCheck: v })} options={[{ value: "quick", label: <><IcCheck size={14} />ตรวจแบบเร็ว</> }, { value: "full", label: <><IcCheck size={14} />ตรวจละเอียด</> }]} /></div>
         <div className="setrow"><div className="lbl">ตรวจแบบเร็วทุกเรื่องตอนเปิดโปรแกรม<span className="small"><Phr>ช่วยจับไฟล์ที่เสียระหว่างย้ายไดรฟ์</Phr></span></div>
           <Switch on={settings.quickCheckOnStart} onChange={(v) => set({ quickCheckOnStart: v })} label="ตรวจแบบเร็วทุกเรื่องตอนเปิดโปรแกรม" /></div>
         <div className="setrow"><div className="lbl">เตือนให้ตรวจซ้ำ<span className="small"><Phr>จุดบนปกเปลี่ยนเป็นสีเหลืองเมื่อถึงเวลา</Phr></span></div>
-          <span data-recheck><Dropdown label="เตือนให้ตรวจซ้ำ" value={String(settings.recheckReminderDays)} onChange={(v) => set({ recheckReminderDays: Number(v) as Settings["recheckReminderDays"] })}
+          <span data-recheck data-seg260><Dropdown label="เตือนให้ตรวจซ้ำ" value={String(settings.recheckReminderDays)} onChange={(v) => set({ recheckReminderDays: Number(v) as Settings["recheckReminderDays"] })}
             options={[{ value: "0", label: "ไม่ต้องเตือน" }, { value: "7", label: "ทุก 7 วัน" }, { value: "30", label: "ทุก 30 วัน" }, { value: "90", label: "ทุก 90 วัน" }]} /></span></div>
         {/* BUGS ข้อ 30 พี่กันเคาะ "ตั้งค่าได้ว่าถามหรือบันทึกข้างไฟล์" · ค่าตั้งต้นถาม (แคลร์ตั้ง) */}
         <div className="setrow" data-hashask><div className="lbl"><span>ถามที่บันทึกไฟล์ .sha256 ทุกครั้ง <InfoTip title="ไฟล์ .sha256 คืออะไร" tip={{ w: "ไฟล์ข้อความเล็ก ๆ ที่จดค่า SHA-256 ของไฟล์หนังไว้ ใช้เทียบภายหลังว่าไฟล์ยังครบทุกไบต์ไหม โปรแกรม 7-Zip และคำสั่ง sha256sum เปิดตรวจได้ บันทึกจากปุ่มในหน้าค่า hash ของหน้าข้อมูลไฟล์" }} /></span>
@@ -615,6 +635,20 @@ export default function SettingsPage() {
         <div className="setrow"><div className="lbl">ผลอ่านคลื่นที่เก็บไว้ในเครื่อง<span className="small"><Phr>เปิดไฟล์เดิมซ้ำไม่ต้องอ่านใหม่ ถ้าไฟล์ถูกแก้จะอ่านใหม่เอง และเก็บรวมไม่เกิน 300 MB</Phr></span>
           <span className="small" data-graphcache>{cache ? `ตอนนี้เก็บไว้ ${cache.files} ไฟล์ ขนาดรวม ${fmtSize(cache.bytes)}` : "—"}</span></div>
           <button type="button" className="btn btn-ghost btn-sm" onClick={clearCache} data-clearcache><IbTrash size={15} />ล้าง</button></div>
+      </div>
+
+      {/* ---------- ชนิดไฟล์ที่รองรับ (BUGS ข้อ 127 พี่กันสั่ง 15 พ.ย. 2569 "เขียนชนิดไฟล์ทั้งหมดที่โปรแกรมเรารองรับ เเล้วรายละเอียดคร่าวๆ เพราะเราจำไม่ได้")
+          รายการนามสกุลมาจากที่เดียวกับที่ทุกหน้าใช้จริง (lib/fileTypes.ts นำเข้าจาก api.ts) ---------- */}
+      <div className="setcard" data-setcard="types" hidden={sec !== "types"}><h3>ชนิดไฟล์ที่รองรับ</h3>
+        <div className="small" style={{ marginBottom: 6 }}><Phr>รวมนามสกุลไฟล์ที่โปรแกรมเปิดได้และทำออกมาได้ แยกตามชนิด โดยอ่านจากรายการเดียวกับที่ทุกหน้าใช้จริง</Phr></div>
+        {FILE_TYPES.map((g) => <div key={g.key} data-ft-group={g.key}>
+          <h4 className="imghead">{g.title}</h4>
+          {g.rows.map((r) => <div key={r.data} className="ftrow" data-ft-row={r.data}>
+            <div className="ftname">{r.name}</div>
+            <div className="ftbody"><div className="ftchips">{r.exts.map((e) => { const x = EXT_INFO[e]; const up = e.toUpperCase(); return x ? <InfoTip key={e} title={x.t.toUpperCase() === up ? x.t : `${up} (${x.t})`} tip={{ w: x.w }} btnClass="ftchip" noAbbr>{up}</InfoTip> : <span key={e} className="ftchip">{up}</span>; })}</div>
+              <div className="small"><Phr>{r.what}</Phr></div></div>
+          </div>)}
+        </div>)}
       </div>
 
       {/* ---------- ขอบคุณ ---------- */}
@@ -788,4 +822,30 @@ function GraphImgRows({ value: saved, onChange }: { value: GraphImg; onChange: (
         title={isDefault ? "ทุกช่องเป็นค่าตั้งต้นอยู่แล้ว" : undefined} onClick={() => void reset()} data-img-reset={resetDone ? "done" : isDefault ? "idle" : "ready"}>
         <Keep icon={resetDone || isDefault ? <IbTick size={15} /> : <IcRefresh size={15} />} all={["กลับค่าตั้งต้น", "กลับค่าแล้ว", "เป็นค่าตั้งต้นแล้ว"]}>{resetDone ? "กลับค่าแล้ว" : isDefault ? "เป็นค่าตั้งต้นแล้ว" : "กลับค่าตั้งต้น"}</Keep></button></div>
   </>;
+}
+
+/* ---------- รูปแบบชื่อไฟล์ที่แยก (BUGS ข้อ 130) ---------- */
+const PATTERN_TIP: Tip = {
+  w: "ตัวแทนในวงเล็บปีกกาเปลี่ยนเป็นค่าของแต่ละแทร็ก แล้วโปรแกรมต่อนามสกุลให้เอง\nโดยพิมพ์ข้อความอื่นปนได้ ส่วนตัวแทนที่ไม่มีค่าเว้นไว้และไม่ทิ้งจุดซ้อน",
+  o: PATTERN_TOKENS.map(([k, v]) => [k, v, "", ""] as [string, string, string, string]),
+  r: "ค่าตั้งต้น ได้ชื่อแบบเดิมและต่อท้ายดีเลย์ของเสียงให้หน้าเสียงและซับอ่านกลับได้",
+};
+
+/** ช่องพิมพ์รูปแบบ บันทึกตอนกดออกหรือ Enter · ตัวอย่างชื่อที่จะได้เปลี่ยนตามที่พิมพ์ */
+function PatternRow({ value, onChange }: { value: string; onChange: (v: string) => void }) {
+  const [txt, setTxt] = useState(value);
+  useEffect(() => setTxt(value), [value]);
+  const commit = () => { const v = txt.trim() || DEFAULT_PATTERN; setTxt(v); if (v !== value) onChange(v); };
+  const sample = patternName(txt, "ดาวเหนือ (2023)", { type: "Audio", nth: 1, lang: "th", ext: "ac3", delay: -120, name: "พากย์ไทย" });
+  const isDefault = value === DEFAULT_PATTERN && txt === DEFAULT_PATTERN;
+  return (
+    <div className="patrow">
+      <div className="patline">
+        <input className="inp patinp" value={txt} spellCheck={false} aria-label="รูปแบบชื่อไฟล์ที่แยก" onChange={(e) => setTxt(e.target.value)} onBlur={commit} onKeyDown={(e) => { if (e.key === "Enter") e.currentTarget.blur(); }} data-pattern-input />
+        <button type="button" className={"btn btn-ghost btn-sm" + (isDefault ? " btn-wait" : "")} aria-disabled={isDefault || undefined} title={isDefault ? "ใช้ค่าตั้งต้นอยู่แล้ว" : "กลับไปใช้รูปแบบตั้งต้น"}
+          onClick={() => { if (!isDefault) { setTxt(DEFAULT_PATTERN); onChange(DEFAULT_PATTERN); } }} data-pattern-reset>ค่าตั้งต้น</button>
+      </div>
+      <div className="small" data-pattern-preview><Phr>{`ตัวอย่าง เสียงที่ 1 ภาษาไทยดีเลย์ -120 มิลลิวินาที ได้ชื่อ`}</Phr> <b className="patsample">{sample}</b></div>
+    </div>
+  );
 }

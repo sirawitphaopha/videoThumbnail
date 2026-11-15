@@ -190,6 +190,12 @@ const THANK_LINKS: &[(&str, &str)] = &[
     ("videohelp.com/software/Bitrate-Viewer", "https://www.videohelp.com/software/Bitrate-Viewer"),
     ("audacityteam.org", "https://www.audacityteam.org/"),
     ("aegisub.org", "https://aegisub.org/"),
+    ("github.com/SubtitleEdit/subtitleedit", "https://github.com/SubtitleEdit/subtitleedit"),
+    ("mpv.io", "https://mpv.io/"),
+    ("github.com/cubicibo/SUPer", "https://github.com/cubicibo/SUPer"),
+    ("github.com/TheGreatMcPain/BDSup2SubPlusPlus", "https://github.com/TheGreatMcPain/BDSup2SubPlusPlus"),
+    // วิธีแยกไฟล์แบบ gMKVExtractGUI (BUGS ข้อ 130 พี่กันสั่ง "เอาอันนี้เข้าขอบคุณด้วยนะ")
+    ("github.com/Gpower2/gMKVExtractGUI", "https://github.com/Gpower2/gMKVExtractGUI"),
     ("kodi.tv", "https://kodi.tv/"),
     ("claude.ai", "https://claude.ai/"),
     ("ffmpeg.org", "https://ffmpeg.org/"),
@@ -293,6 +299,49 @@ mod tests {
         assert_eq!(thank_url("videohelp.com/software/Bitrate-Viewer"), Some("https://www.videohelp.com/software/Bitrate-Viewer"));
         for bad in ["https://evil.example/", "ffmpeg.org/../x", "", "file:///C:/Windows"] { assert_eq!(thank_url(bad), None, "{bad}"); }
         assert!(THANK_LINKS.iter().all(|(_, u)| u.starts_with("https://") || u.starts_with("http://")));
+    }
+
+    /// หัวข้อชนิดไฟล์ในหน้าตั้งค่าอ่านรายการนามสกุลจาก api.ts (lib/fileTypes.ts) · รายการใน api.ts ต้องตรงกับที่ฝั่ง Rust รับจริง
+    /// ไม่งั้นหน้าตั้งค่าบอกว่ารองรับทั้งที่โปรแกรมไม่รับ หรือกลับกัน (BUGS ข้อ 127)
+    #[test]
+    fn file_types_match_frontend() {
+        let api = include_str!("../../src/lib/api.ts");
+        let list = |name: &str| -> Vec<String> {
+            let key = format!("export const {name} = [");
+            let start = api.find(&key).unwrap_or_else(|| panic!("หา {name} ใน api.ts ไม่เจอ")) + key.len();
+            let end = start + api[start..].find(']').expect("หาท้ายรายการไม่เจอ");
+            api[start..end].split(',').map(|s| s.trim().trim_matches('"').to_string()).filter(|s| !s.is_empty()).collect()
+        };
+        let sorted = |mut v: Vec<String>| { v.sort(); v.dedup(); v };
+        let own = |v: &[&str]| sorted(v.iter().map(|s| s.to_string()).collect());
+        assert_eq!(sorted(list("MOVIE_EXT")), own(&crate::library::ACCEPTED), "ไฟล์หนังที่ชั้นวางรับ");
+        assert_eq!(sorted(list("IMAGE_EXT")), own(&crate::poster_image::ACCEPTED), "รูปโปสเตอร์ที่รับ");
+        let codecs = ["opus", "aac", "mp3", "ac3", "eac3", "flac", "alac", "wv", "ape", "tak"];
+        let outs: Vec<&str> = codecs.iter().map(|c| crate::encode::EncodeSpec { codec: c.to_string(), ..Default::default() }.ext()).collect();
+        assert_eq!(sorted(list("ENCODE_OUT_EXT")), own(&outs), "นามสกุลไฟล์ที่ได้จากการแปลงเสียง");
+        let sub = list("SUB_EXT");
+        for e in crate::subs::FF_TEXT.iter().chain(crate::subs::OWN_TEXT) { assert!(sub.iter().any(|s| s == e), "ซับ .{e} ที่ฝั่ง Rust แปลงได้ ต้องอยู่ใน SUB_EXT"); }
+        for e in ["srt", "ass", "ssa", "vtt", "sup", "idx", "sub"] { assert!(sub.iter().any(|s| s == e), "SUB_EXT ขาด .{e}"); }
+        let known: Vec<&str> = ["srt", "ass", "ssa", "vtt", "sup", "idx", "sub"].into_iter().chain(crate::subs::FF_TEXT.iter().copied()).chain(crate::subs::OWN_TEXT.iter().copied()).collect();
+        for e in &sub { assert!(known.contains(&e.as_str()), "SUB_EXT มี .{e} ที่ฝั่ง Rust ไม่รู้จัก"); }
+    }
+
+    /// ทุกลิงก์บนการ์ดขอบคุณในหน้าตั้งค่ากดเปิดได้ · เพิ่มการ์ดแล้วลืมเพิ่มที่อยู่ในรายการตายตัว ปุ่มบนการ์ดจะขึ้นว่าไม่รู้จักลิงก์นี้ (BUGS ข้อ 122 เพิ่ม mpv กับ Subtitle Edit)
+    #[test]
+    fn every_thanks_card_link_is_in_the_fixed_list() {
+        let src = include_str!("../../src/pages/SettingsPage.tsx");
+        let start = src.find("const THANKS:").expect("หารายการ THANKS ในหน้าตั้งค่าไม่เจอ");
+        let end = start + src[start..].find("\n];").expect("หาท้ายรายการ THANKS ไม่เจอ");
+        let mut links = Vec::new();
+        for part in src[start..end].split("url: \"").skip(1) {
+            let u = &part[..part.find('"').expect("ที่อยู่ไม่มีเครื่องหมายปิด")];
+            links.extend(u.split(", "));
+        }
+        // ขั้นต่ำไว้บอกว่าตัวอ่านยังเจอรายการ (14 พ.ย. 2569 การ์ดมี 37 ลิงก์)
+        assert!(links.len() >= 30, "อ่านลิงก์ได้แค่ {} ลิงก์", links.len());
+        let miss: Vec<&str> = links.iter().copied().filter(|l| thank_url(l).is_none()).collect();
+        assert!(miss.is_empty(), "การ์ดขอบคุณมีลิงก์ที่ไม่อยู่ในรายการตายตัว: {miss:?}");
+        for l in ["mpv.io", "github.com/SubtitleEdit/subtitleedit", "aegisub.org", "github.com/cubicibo/SUPer", "github.com/TheGreatMcPain/BDSup2SubPlusPlus", "github.com/Gpower2/gMKVExtractGUI"] { assert!(links.contains(&l), "ไม่มีการ์ดของ {l}"); }
     }
 
     #[test]

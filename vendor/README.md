@@ -170,3 +170,49 @@
 - โปรแกรมโหลด DLL ตอนกดเล่นครั้งแรก (`mpvplay.rs` แบบเดียวกับ `ape.rs`) ไม่มี DLL ก็ยังใช้ตัวเล่นแบบ Aegisub ได้จากหน้าตั้งค่า
 - สัญญา mpv กับชุดนี้เป็น GPL รุ่น 2 หรือใหม่กว่า (ชุดของ shinchiro สร้างแบบ GPL) · ซอร์สเปิดอยู่ที่ https://github.com/mpv-player/mpv สูตรสร้างอยู่ที่ที่เก็บของ shinchiro
 - ไฟล์ 7z ไม่ขึ้น git (`.gitignore` กัน `vendor/**/*.7z`) ขึ้นแค่ข้อความสัญญาสองไฟล์
+
+## SUPer · ตัวสร้าง PGS แบบมาตรฐาน Blu-ray โหลด 14 พ.ย. 2569
+
+พี่กันสั่ง *"ใส่ตัวสร้าง PGS ตอนที่ส่งออกด้วย ว่ามีกี่ตัว แนะนำตัวไหนที่ดีที่สุด"* (BUGS ข้อ 123) · รายงานรวม docs/REPORT-2026-11-15-ระบบ-PGS.md
+
+| ไฟล์ | มาจาก | ขนาด | ค่า SHA-256 |
+|---|---|---|---|
+| `super/win_x64_SUPer_CLI_v0.3.0.7z` | https://github.com/cubicibo/SUPer/releases (v0.3.0) | 80,302,198 | `f7036fa394f9ff7faa58183c515bf454f1e185c158cd5ac8fa2b9ea1b00754af` |
+| `super/LICENSE.txt` | ไฟล์ LICENSE ในที่เก็บ https://github.com/cubicibo/SUPer (GPL-3.0) | 35,149 | |
+
+- `fetch-tools.ps1` แตกทั้งโฟลเดอร์ลง `src-tauri/tools/super/` (แตกแล้วราว 300 MB) แล้วแก้ `config.ini` เป็น `use_gpu=0` · สัญญาลง `licenses/SUPer-GPL-3.0.txt`
+- ทั้งโฟลเดอร์จำเป็น SUPer เป็นโปรแกรม Python ห่อด้วย PyInstaller ไฟล์ใหญ่สุดคือ llvmlite 115 MB กับ OpenCV 112 MB ที่ SUPer เรียกใช้ทั้งคู่
+- 🔴 โปรแกรมตั้ง `PYOPENCL_NO_CACHE=1` ทุกครั้งที่เรียก SUPer ไม่งั้นไฟล์ล็อกแคชของ pyopencl ที่ค้างจากรอบที่ถูกปิดกลางทาง ทำให้รอ 60 ถึง 190 วินาทีแล้วล้ม "Encoder died: Empty@get"
+- ไม่ขึ้น git ทั้ง 7z และโฟลเดอร์ที่แตก (`.gitignore` กัน `src-tauri/tools/super/`)
+
+## SeConv · ตัวแปลงของ Subtitle Edit โหลด 14 พ.ย. 2569 แนบ 15 พ.ย. 2569
+
+พี่กันสั่ง 15 พ.ย. 2569 *"แต่ก็เอามาด้วยก็ดีนะ เเต่ใส่หมายเหตุ เเละภาพตัวอย่างอยู่เเล้วว่ามันจะหายหมด เเต่ถ้าเอามาแปลงเเค่ srt ก็ใช้ได้"* (BUGS ข้อ 123)
+
+| ไฟล์ | มาจาก | ขนาด | ค่า SHA-256 |
+|---|---|---|---|
+| `seconv/SeConv-Windows-x64.zip` | https://github.com/SubtitleEdit/subtitleedit/releases (Subtitle Edit 5.4.0) | 43,026,089 | `aea19664f460fcfb84e8ba8eca72419091818c6005d4e063d9950c41ea81062d` |
+| `seconv/LICENSE.txt` | ไฟล์ LICENSE.txt ในที่เก็บ https://github.com/SubtitleEdit/subtitleedit (MIT) | 1,092 | |
+
+- `fetch-tools.ps1` แตกเฉพาะ `seconv.exe` `libSkiaSharp.dll` `libHarfBuzzSharp.dll` ลง `src-tauri/tools/seconv/` · สัญญาลง `licenses/SubtitleEdit-SeConv-MIT.txt`
+- คำสั่งที่โปรแกรมใช้ `seconv <ไฟล์ซับ> bluraysup --resolution:กว้างxสูง --fps:อัตราเฟรม --output-folder --output-filename --overwrite --quiet` ต่อด้วยตัวเลือกหน้าตา (`pgs.rs` `seconv_style_args`) · ตัวเลือกทั้งหมดดูได้จาก `seconv.exe --help`
+- SeConv ใช้สีเบอร์ 0 ของจานสีเป็นสีตัวอักษรทึบ ตัวถอด .sup ของโปรแกรมต้องไม่ข้ามเบอร์ 0
+- ไม่ขึ้น git ทั้ง zip และโฟลเดอร์ที่แตก (`.gitignore` กัน `src-tauri/tools/seconv/`)
+- ใช้เป็นตัวสำรองในหน้าต่างแปลงซับภาพด้วย (BUGS ข้อ 125) · แปลงซับภาพเป็นซับภาพใส่ชื่อผลตามชนิด VobSub ต้องส่งชื่อ `.sub` แล้ว SeConv เขียน `.idx` คู่กันเอง (ส่งชื่อ `.idx` มันเขียนไฟล์ .sub ลงชื่อนั้นแล้วล้มว่าไฟล์ถูกใช้อยู่) · BDN XML ส่งชื่อไม่มีนามสกุล ได้โฟลเดอร์ชื่อนั้นที่มี `index.xml` กับภาพ PNG แล้ว `imgconv.rs` `seconv_settle` ย้ายขึ้นมาตั้งชื่อแบบผลของ BDSup2Sub++ (ลองจริง 15 พ.ย. 2569) · SeConv ไม่ย่อขยายภาพ เลื่อนเวลาได้ทางเดียวคือให้ช้าลง
+
+## BDSup2Sub++ · ตัวแปลงซับภาพเป็นซับภาพ โหลด 15 พ.ย. 2569
+
+พี่กันสั่ง 15 พ.ย. 2569 *"เอามาก็ดีนะ ตอนระบบแปลงจากซับภาพเป็นซับภาพ"* แล้วตอบ *"อนุญาตโหลด"* (BUGS ข้อ 125) · รุ่น C++ ของ BDSup2Sub ไม่ต้องลง Java
+
+| ไฟล์ | มาจาก | ขนาด | ค่า SHA-256 |
+|---|---|---|---|
+| `bdsup2sub/bdsup2subplusplus-1.0.5-mingw-64bit.zip` | https://github.com/TheGreatMcPain/BDSup2SubPlusPlus/releases (1.0.5) | 8,428,379 | `e54385821c4b81ce6c68ad66d52239a08753ff648bcf743ef5beb1ae1feac955` |
+| `bdsup2sub/LICENSE.txt` | ไฟล์ apache_license_2.txt ในที่เก็บของผู้ทำ (Apache-2.0) ชุดที่โหลดไม่มีข้อความสัญญามาด้วย | 10,319 | |
+
+- `fetch-tools.ps1` แตกเฉพาะ `bdsup2sub++.exe` ลง `src-tauri/tools/bdsup2sub/` (ค่า SHA-256 ของไฟล์ที่แตก `ecb7252001c4e4e9800413e2a5c85765b8a0b442a5ef7dec41b993457419b66c`) · สัญญาลง `licenses/BDSup2SubPlusPlus-Apache-2.0.txt` · ข้างในรวม Qt แบบลิงก์ในตัว (LGPL) ซอร์สของ Qt อยู่ที่ qt.io
+- เป็นโปรแกรมคอนโซล เปิดแบบซ่อนคอนโซล (`CREATE_NO_WINDOW`) ไม่มีหน้าต่างเด้ง · 🔴 ต้องส่ง `--output <ไฟล์ผล>` ทุกครั้ง ไม่ส่งจะเปิดหน้าต่าง GUI ขึ้นจอ (`imgconv.rs` `bdsup_args` ใส่ท้ายเสมอ มีเทส)
+- ค่าตั้งของมันเขียนลง `%APPDATA%\bdsup2sub++` โปรแกรมตั้ง APPDATA ของตัวที่เรียกเป็นโฟลเดอร์ `bdsup2sub-cfg` ในโฟลเดอร์ทำงาน ไม่แตะของผู้ใช้
+- 🔴 `--minimum-time` เปิดการแก้ภาพที่ขึ้นสั้นไปให้เองด้วย ส่งเฉพาะตอนสวิตช์แก้ภาพที่ขึ้นสั้นไปเปิด (มีเทส)
+- อ่านซับ VobSub ตัวอย่างของ ffmpeg (`test-media/ซับตัวอย่าง-ffmpeg/vobsub.idx`) ไม่ได้ ตัวโปรแกรมล้ม 0xC0000005 ที่ภาพที่ 5 · โปรแกรมปิดกล่องรายงานข้อผิดพลาดของ Windows ด้วย `SetErrorMode` ตอนเรียก แล้วบอกให้เลือก Subtitle Edit แทน
+- คำสั่งทั้งหมดดูได้จาก `bdsup2sub++.exe --help` ที่ใช้คือ `--resolution` `--fps-source` `--fps-target` `--delay` `--filter` `--palette-mode` `--minimum-time` `--move-in-ratio` `--move-out-ratio` `--move-y-offset` `--move-y-origin` `--move-x` `--move-x-offset` `--scale-x` `--scale-y` `--forced-only` `--exclude-forced` `--force-all` `--fix-invisible` `--alpha-thr` `--med-low-thr` `--med-hi-thr` `--language`
+- ไม่ขึ้น git ทั้ง zip และไฟล์ที่แตก (`.gitignore` กัน `vendor/**/*.zip` กับ `src-tauri/tools/bdsup2sub/`)

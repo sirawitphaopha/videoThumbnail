@@ -26,6 +26,10 @@ export const FT_FULL: Record<string, string> = {
 const FT_LINE = new Set(["APE", "TAK"]);
 
 /** ชื่อชนิดที่แสดงบนป้าย จากชื่อ codec ของ ffprobe กับ profile */
+/** ซับภาพที่ตัวดูซับรูปภาพเปิดได้และแปลงด้วยหน้าต่างแปลงซับภาพได้ · ใช้ที่เดียว หน้าซับไตเติลกับตัวดูซับเคยเขียนซ้ำกัน (BUGS ข้อ 129 เพิ่ม HD DVD) */
+export const IMAGE_SUBS = ["PGS", "VobSub", "HD DVD"];
+export const isImageSub = (codec: string, profile?: string | null) => IMAGE_SUBS.includes(ftName("subtitle", codec, profile));
+
 export function ftName(kind: string, codec: string, profile?: string | null): string {
   const c = codec.toLowerCase();
   if (kind === "video") {
@@ -41,7 +45,12 @@ export function ftName(kind: string, codec: string, profile?: string | null): st
     return ({ ac3: "AC-3", eac3: "E-AC-3", truehd: "TrueHD", mlp: "TrueHD", aac: "AAC", opus: "Opus", mp3: "MP3", mp2: "MP2", vorbis: "Vorbis",
       flac: "FLAC", alac: "ALAC", wavpack: "WavPack", tta: "TTA", ape: "APE", tak: "TAK" } as Record<string, string>)[c] ?? codec.toUpperCase();
   }
-  return ({ subrip: "SRT", srt: "SRT", ass: "ASS", ssa: "ASS", webvtt: "VTT", hdmv_pgs_subtitle: "PGS", dvd_subtitle: "VobSub", mov_text: "mov_text" } as Record<string, string>)[c] ?? codec;
+  return ({ subrip: "SRT", srt: "SRT", ass: "ASS", ssa: "ASS", webvtt: "VTT", hdmv_pgs_subtitle: "PGS", dvd_subtitle: "VobSub", mov_text: "mov_text",
+    // ซับภาพของแผ่น HD DVD ที่ ffmpeg กับ mkvmerge อ่านไม่ได้ (merge.rs add_file_view · BUGS ข้อ 129)
+    hddvd_sup: "HD DVD",
+    // ซับข้อความแบบอื่นที่หน้าซับไตเติลเปิดได้ ชื่อตามที่ ffprobe บอก (BUGS ข้อ 123)
+    sami: "SAMI", microdvd: "MicroDVD", lrc: "LRC", aqtitle: "AQTitle", realtext: "RealText", jacosub: "JACOsub", pjs: "PJS", mpl2: "MPL2", eia_608: "SCC", subviewer: "SubViewer", subviewer1: "SubViewer", vplayer: "VPlayer",
+    sbv: "SBV", ttml: "TTML", dfxp: "DFXP" } as Record<string, string>)[c] ?? codec;
 }
 
 /** แบบไม่เสียคุณภาพไหม · ใช้เตือนเรื่องแปลงซ้อน */

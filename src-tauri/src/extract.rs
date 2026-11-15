@@ -27,18 +27,97 @@ pub struct Item {
     pub lang: Option<String>,
     /// ไฟล์แนบใช้ชื่อเดิมของมัน
     pub name: Option<String>,
+    /// ชิ้นเวลาของแต่ละเฟรม (timestamps) บอกว่าเป็นของแทร็กชนิดไหน video audio text (BUGS ข้อ 130)
+    #[serde(default)]
+    pub of: Option<String>,
 }
 
-/// ชื่อไฟล์ที่แยกออกมา · ดาวเหนือ (2023).Audio1.th.ac3 · ดาวเหนือ (2023).cover.jpg · ดาวเหนือ (2023).chapters.xml
+/// รูปแบบชื่อตั้งต้น ได้ชื่อเหมือนเดิม ดาวเหนือ (2023).Audio1.th.ac3 และเติม DELAY 120ms เมื่อเสียงมีดีเลย์
+pub const DEFAULT_PATTERN: &str = "{Filename}.{Type}{Number}.{Language}{Delay}";
+
+/// ชื่อแทร็กตามรูปแบบแบบ gMKVExtractGUI (BUGS ข้อ 130 พี่กันสั่ง "เอาเข้าคิว" · README ของที่เก็บ Gpower2/gMKVExtractGUI)
+/// ตัวแทนว่างไม่ทิ้งจุดซ้อน อักษรที่ Windows ห้ามเปลี่ยนเป็นขีดล่าง · ดีเลย์เขียนแบบ DELAY -120ms ที่หน้าเสียงและซับอ่านกลับได้ (merge::delay_from_name)
+pub fn pattern_name(pattern: &str, stem: &str, it: &Item, delay: Option<i64>, track_name: Option<&str>) -> String {
+    let kind = if it.kind == "timestamps" { it.of.as_deref().unwrap_or("video") } else { it.kind.as_str() };
+    let ty = match kind { "video" => "Video", "audio" => "Audio", _ => "Text" };
+    let lang = it.lang.clone().unwrap_or_default();
+    let d = match delay { Some(v) if v != 0 => format!(" DELAY {v}ms"), _ => String::new() };
+    let tn: String = track_name.unwrap_or("").chars().map(|c| if c.is_control() || "<>:\"/\\|?*".contains(c) { '_' } else { c }).collect();
+    let p = if pattern.trim().is_empty() { DEFAULT_PATTERN } else { pattern };
+    let mut s = p.replace("{Filename}", stem).replace("{Type}", ty).replace("{Number}", &it.nth.to_string()).replace("{Language}", &lang).replace("{Delay}", &d).replace("{TrackName}", tn.trim());
+    s = s.chars().map(|c| if c.is_control() || "<>:\"/\\|?*".contains(c) { '_' } else { c }).collect();
+    while s.contains("..") { s = s.replace("..", "."); }
+    while s.contains(". ") { s = s.replace(". ", " "); }
+    // ตัวแทนว่างระหว่างเว้นวรรค เช่น " - {Language} - " ไม่ทิ้งเว้นวรรคซ้อน
+    while s.contains("  ") { s = s.replace("  ", " "); }
+    let s = s.trim().trim_matches('.').trim().to_string();
+    let s = if s.is_empty() { format!("{stem}.{ty}{}", it.nth) } else { s };
+    if it.kind == "timestamps" { format!("{s}.timestamps.txt") } else { format!("{s}.{}", it.ext) }
+}
+
+/// ชื่อไฟล์ที่แยกออกมาด้วยรูปแบบตั้งต้น · ดาวเหนือ (2023).Audio1.th.ac3 · ดาวเหนือ (2023).cover.jpg · ดาวเหนือ (2023).chapters.xml (เทสใช้)
+#[cfg(test)]
 pub fn out_name(stem: &str, it: &Item) -> String {
-    let lang = it.lang.as_ref().map(|l| format!(".{l}")).unwrap_or_default();
+    out_name_with(stem, it, DEFAULT_PATTERN, None, None)
+}
+
+pub fn out_name_with(stem: &str, it: &Item, pattern: &str, delay: Option<i64>, track_name: Option<&str>) -> String {
     match it.kind.as_str() {
-        "video" => format!("{stem}.Video{}.{}", it.nth, it.ext),
-        "audio" => format!("{stem}.Audio{}{lang}.{}", it.nth, it.ext),
-        "text" => format!("{stem}.Text{}{lang}.{}", it.nth, it.ext),
+        "video" | "audio" | "text" | "timestamps" => pattern_name(pattern, stem, it, delay, track_name),
         "menu" => format!("{stem}.chapters.xml"),
+        // แท็กเป็น XML · chapter แบบ OGM เป็นข้อความ CHAPTER01=… · CUE sheet ของไฟล์เพลงที่มี chapter (BUGS ข้อ 130)
+        "tags" => format!("{stem}.tags.xml"),
+        "ogm" => format!("{stem}.chapters.txt"),
+        "cue" => format!("{stem}.cue"),
         _ => format!("{stem}.{}", safe_att_name(it)),
     }
+}
+
+/// ข้อมูลของไฟล์ MKV ที่หน้าเสียงและซับใช้บอกว่าแยกอะไรได้บ้าง (BUGS ข้อ 130)
+#[derive(Serialize, Clone, Default, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct ExtractInfo {
+    pub mkv: bool,
+    pub tags: bool,
+    pub chapters: bool,
+    /// ดีเลย์ของแทร็กเสียงลำดับที่ n (เริ่ม 1) เทียบกับภาพ มิลลิวินาที แบบ gMKVExtractGUI FindAndSetDelays
+    pub delays: Vec<i64>,
+}
+
+fn mkv_json(tools: &Path, file: &Path) -> Result<Value, String> {
+    let out = run_tool_timeout(tools, "mkvmerge", [OsStr::new("-J"), file.as_os_str()], Duration::from_secs(60))?;
+    serde_json::from_slice(&out.stdout).map_err(|e| e.to_string())
+}
+
+/// แท็ก chapter และดีเลย์จาก mkvmerge -J · ดีเลย์ = เวลาแรกของเสียงลบเวลาแรกของภาพ (minimum_timestamp หน่วยนาโนวินาที) · ไม่มีภาพนับจากศูนย์
+pub fn info_of(j: &Value) -> ExtractInfo {
+    let count = |k: &str| j[k].as_array().map(|a| a.iter().map(|x| x["num_entries"].as_u64().unwrap_or(1)).sum::<u64>()).unwrap_or(0);
+    let tracks = j["tracks"].as_array().cloned().unwrap_or_default();
+    let ms = |t: &Value| t["properties"]["minimum_timestamp"].as_i64().map(|ns| ns / 1_000_000);
+    let video = tracks.iter().find(|t| t["type"] == "video").and_then(ms).unwrap_or(0);
+    let delays = tracks.iter().filter(|t| t["type"] == "audio").map(|t| ms(t).map(|a| a - video).unwrap_or(0)).collect();
+    ExtractInfo { mkv: true, tags: count("global_tags") + count("track_tags") > 0, chapters: count("chapters") > 0, delays }
+}
+
+/// รหัสภาษาสามตัวของ mkvmerge เป็นสองตัวแบบที่หน้า MediaInfo ส่งมา · und ไม่ใส่
+fn short_lang(l: &str) -> Option<String> {
+    let l = l.to_lowercase();
+    let s = match l.as_str() { "" | "und" => return None, "tha" => "th", "eng" => "en", "jpn" => "ja", "kor" => "ko", "chi" | "zho" => "zh", "fre" | "fra" => "fr", "ger" | "deu" => "de", "spa" => "es", "ita" => "it", "rus" => "ru", "por" => "pt", "vie" => "vi", _ => return Some(l) };
+    Some(s.into())
+}
+
+/// นามสกุลของแทร็กตาม codec id ของ Matroska · ใช้ตอนแยกหลายไฟล์ แต่ละไฟล์อาจเป็นเสียงคนละชนิด
+fn ext_of_codec(kind: &str, codec_id: &str, raw_video: Option<&str>) -> String {
+    let c = codec_id.to_uppercase();
+    if kind == "video" {
+        return match raw_video { Some(_) if c.starts_with("V_MPEG4/ISO/AVC") => "h264".into(), Some(_) if c.starts_with("V_MPEGH/ISO/HEVC") => "h265".into(), _ => "mkv".into() };
+    }
+    let e = if c.starts_with("A_AC3") { "ac3" } else if c.starts_with("A_EAC3") { "eac3" } else if c.starts_with("A_DTS") { "dts" } else if c.starts_with("A_TRUEHD") { "thd" }
+        else if c.starts_with("A_MLP") { "mlp" } else if c.starts_with("A_FLAC") { "flac" } else if c.starts_with("A_AAC") { "aac" } else if c.starts_with("A_OPUS") { "opus" }
+        else if c.starts_with("A_VORBIS") { "ogg" } else if c == "A_MPEG/L3" { "mp3" } else if c == "A_MPEG/L2" { "mp2" } else if c.starts_with("A_PCM") { "wav" } else if c.starts_with("A_WAVPACK") { "wv" } else if c.starts_with("A_TTA") { "tta" }
+        else if c == "S_TEXT/UTF8" || c == "S_TEXT/ASCII" { "srt" } else if c == "S_TEXT/ASS" { "ass" } else if c == "S_TEXT/SSA" { "ssa" } else if c == "S_TEXT/WEBVTT" { "vtt" }
+        else if c == "S_HDMV/PGS" { "sup" } else if c == "S_VOBSUB" { "sub" } else if kind == "audio" { "mka" } else { "mks" };
+    e.into()
 }
 
 /// ชื่อไฟล์แนบใน MKV เป็นข้อความอะไรก็ได้ (เช่น `x\..\..\Startup\a.cmd`) · เอาเฉพาะชื่อส่วนท้าย ตัดอักษรที่ Windows ห้ามในชื่อไฟล์และอักษรควบคุม
@@ -133,6 +212,16 @@ pub fn extract_one(tools: &Path, file: &Path, it: &Item, partial: &Path, on: &dy
                 ("mkvmerge", vec!["--gui-mode".into(), "-o".into(), partial.into(), "-A".into(), "-S".into(), "-M".into(), "-B".into(), "--no-chapters".into(), "-d".into(), id.to_string().into(), file.into()])
             }
             "menu" => ("mkvextract", vec!["--gui-mode".into(), file.into(), "chapters".into(), partial.into()]),
+            // แท็ก chapter แบบ OGM CUE sheet และเวลาของแต่ละเฟรม แบบ gMKVExtractGUI (BUGS ข้อ 130 · ชื่อโหมดตามซอร์ส MkvExtractModes.cs)
+            "tags" => ("mkvextract", vec!["--gui-mode".into(), file.into(), "tags".into(), partial.into()]),
+            "ogm" => ("mkvextract", vec!["--gui-mode".into(), file.into(), "chapters".into(), "--simple".into(), partial.into()]),
+            "cue" => ("mkvextract", vec!["--gui-mode".into(), file.into(), "cuesheet".into(), partial.into()]),
+            "timestamps" => {
+                let id = mkv_track_id(tools, file, it.of.as_deref().unwrap_or("video"), it.nth)?;
+                let mut t = OsString::from(format!("{id}:"));
+                t.push(partial.as_os_str());
+                ("mkvextract", vec!["--gui-mode".into(), file.into(), "timestamps_v2".into(), t])
+            }
             "attachment" => {
                 let id = mkv_attachment_id(tools, file, it.nth)?;
                 let mut t = OsString::from(format!("{id}:"));
@@ -146,6 +235,8 @@ pub fn extract_one(tools: &Path, file: &Path, it: &Item, partial: &Path, on: &dy
                 ("mkvextract", vec!["--gui-mode".into(), file.into(), "tracks".into(), t])
             }
         }
+    } else if matches!(it.kind.as_str(), "tags" | "ogm" | "cue" | "timestamps") {
+        return Err("แยกชิ้นนี้ได้เฉพาะไฟล์ MKV".into());
     } else {
         let (idx, codec) = ff_stream(tools, file, &it.kind, it.nth)?;
         let fmt = ff_format(&it.ext).unwrap_or("matroska");
@@ -209,17 +300,81 @@ mod tests {
 
     #[test]
     fn names_follow_the_mockup() {
-        let it = |kind: &str, nth, ext: &str, lang: Option<&str>, name: Option<&str>| Item { kind: kind.into(), nth, ext: ext.into(), lang: lang.map(String::from), name: name.map(String::from) };
+        let it = |kind: &str, nth, ext: &str, lang: Option<&str>, name: Option<&str>| Item { kind: kind.into(), nth, ext: ext.into(), lang: lang.map(String::from), name: name.map(String::from), of: None };
         assert_eq!(out_name("ดาวเหนือ (2023)", &it("audio", 1, "ac3", Some("th"), None)), "ดาวเหนือ (2023).Audio1.th.ac3");
         assert_eq!(out_name("ดาวเหนือ (2023)", &it("text", 1, "srt", Some("th"), None)), "ดาวเหนือ (2023).Text1.th.srt");
         assert_eq!(out_name("ดาวเหนือ (2023)", &it("attachment", 1, "jpg", None, Some("cover.jpg"))), "ดาวเหนือ (2023).cover.jpg");
         assert_eq!(out_name("ดาวเหนือ (2023)", &it("video", 1, "mkv", None, None)), "ดาวเหนือ (2023).Video1.mkv");
     }
 
+    /// รูปแบบชื่อแบบ gMKVExtractGUI (BUGS ข้อ 130) · ค่าตั้งต้นได้ชื่อเดิม ดีเลย์ต่อท้ายแบบที่หน้าเสียงและซับอ่านกลับได้ ตัวแทนว่างไม่ทิ้งจุดซ้อน
+    #[test]
+    fn pattern_names() {
+        let it = |kind: &str, nth, ext: &str, lang: Option<&str>| Item { kind: kind.into(), nth, ext: ext.into(), lang: lang.map(String::from), name: None, of: None };
+        let s = "ดาวเหนือ (2023)";
+        assert_eq!(pattern_name(DEFAULT_PATTERN, s, &it("audio", 1, "ac3", Some("th")), None, None), "ดาวเหนือ (2023).Audio1.th.ac3");
+        assert_eq!(pattern_name(DEFAULT_PATTERN, s, &it("audio", 2, "ac3", None), Some(0), None), "ดาวเหนือ (2023).Audio2.ac3");
+        let d = pattern_name(DEFAULT_PATTERN, s, &it("audio", 1, "ac3", Some("th")), Some(-120), None);
+        assert_eq!(d, "ดาวเหนือ (2023).Audio1.th DELAY -120ms.ac3");
+        assert_eq!(crate::merge::delay_from_name(&d), Some(-120), "หน้าเสียงและซับต้องอ่านดีเลย์จากชื่อกลับได้");
+        assert_eq!(pattern_name("{Type}{Number} - {Language} - {Filename}", s, &it("text", 3, "srt", Some("en")), None, None), "Text3 - en - ดาวเหนือ (2023).srt");
+        assert_eq!(pattern_name("{Filename} [{TrackName}]", s, &it("audio", 1, "aac", None), None, Some("พากย์ไทย: 5.1/ใหม่")), "ดาวเหนือ (2023) [พากย์ไทย_ 5.1_ใหม่].aac");
+        assert_eq!(pattern_name("", s, &it("video", 1, "mkv", None), None, None), "ดาวเหนือ (2023).Video1.mkv", "รูปแบบว่างใช้แบบตั้งต้น");
+        assert_eq!(pattern_name("{Language}", s, &it("video", 1, "mkv", None), None, None), "ดาวเหนือ (2023).Video1.mkv", "รูปแบบที่ได้ชื่อว่างใช้ชื่อหนังกับชนิดแทน");
+        assert_eq!(pattern_name("{Type}{Number}  - {Language} - {Filename}", s, &it("audio", 1, "ogg", None), None, None), "Audio1 - - ดาวเหนือ (2023).ogg", "เว้นวรรคซ้อนยุบเหลือช่องเดียว");
+        let ts = Item { kind: "timestamps".into(), of: Some("audio".into()), ..it("timestamps", 2, "txt", Some("en")) };
+        assert_eq!(out_name_with(s, &ts, DEFAULT_PATTERN, None, None), "ดาวเหนือ (2023).Audio2.en.timestamps.txt");
+        assert_eq!(out_name(s, &it("tags", 1, "xml", None)), "ดาวเหนือ (2023).tags.xml");
+        assert_eq!(out_name(s, &it("ogm", 1, "txt", None)), "ดาวเหนือ (2023).chapters.txt");
+        assert_eq!(out_name(s, &it("cue", 1, "cue", None)), "ดาวเหนือ (2023).cue");
+    }
+
+    /// แยกแท็ก chapter แบบ OGM CUE sheet และเวลาของแต่ละเฟรมจากหนังทดสอบได้ไฟล์จริง · ดีเลย์ของเสียงจาก minimum_timestamp · ปรับชิ้นตอนแยกหลายไฟล์ (BUGS ข้อ 130)
+    #[test]
+    fn gmkv_style_extras() {
+        let src = movie();
+        let before = sha(&src);
+        let d = std::env::temp_dir().join(format!("ชั้นหนัง-แยกแบบ-gmkv-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        let j = mkv_json(&tools(), &src).unwrap();
+        let info = info_of(&j);
+        assert!(info.mkv && info.tags && info.chapters, "{info:?}");
+        assert_eq!(info.delays, vec![0, 0]);
+        let x = |kind: &str, ext: &str, of: Option<&str>| Item { kind: kind.into(), nth: 1, ext: ext.into(), lang: None, name: None, of: of.map(String::from) };
+        for (it, want) in [(x("tags", "xml", None), "<Tags>"), (x("ogm", "txt", None), "CHAPTER01="), (x("cue", "cue", None), "TRACK 01"), (x("timestamps", "txt", Some("audio")), "format v2")] {
+            let out = d.join(out_name("t", &it));
+            assert!(matches!(extract_one(&tools(), &src, &it, &out, &|_| {}, &|| false).unwrap(), Done::Ok), "{}", it.kind);
+            let t = std::fs::read_to_string(&out).unwrap();
+            assert!(t.contains(want), "{} ต้องมี {want}: {}", it.kind, t.chars().take(200).collect::<String>());
+        }
+        // ไฟล์ที่ไม่ใช่ MKV ไม่มีชิ้นพวกนี้
+        let mp4 = src.parent().unwrap().join("The Last Orchard (2022).mp4");
+        assert!(extract_one(&tools(), &mp4, &x("tags", "xml", None), &d.join("x.xml"), &|_| {}, &|| false).is_err());
+        // เสียงเลื่อนไป 120 ms (mkvmerge --sync) ได้ดีเลย์ 120 แล้วชื่อไฟล์ต่อท้าย DELAY 120ms
+        let late = d.join("เสียงช้า.mkv");
+        crate::tools::run_tool(&tools(), "mkvmerge", [OsStr::new("-o"), late.as_os_str(), OsStr::new("--sync"), OsStr::new("1:120"), src.as_os_str()]).unwrap();
+        let li = info_of(&mkv_json(&tools(), &late).unwrap());
+        assert_eq!(li.delays[0], 120, "{li:?}");
+        let a1 = Item { kind: "audio".into(), nth: 1, ext: "aac".into(), lang: Some("th".into()), name: None, of: None };
+        assert_eq!(out_name_with("เสียงช้า", &a1, DEFAULT_PATTERN, li.delays.first().copied(), None), "เสียงช้า.Audio1.th DELAY 120ms.aac");
+        // แยกหลายไฟล์ หาเลขแทร็ก นามสกุล และภาษาของไฟล์นั้นใหม่ · ชิ้นที่ไฟล์นั้นไม่มีได้ None
+        let other = src.parent().unwrap().join("Vorbis Test (2010).mkv");
+        let oj = mkv_json(&tools(), &other).unwrap();
+        let oi = info_of(&oj);
+        let fa = fit_item(&oj, &oi, &Item { kind: "audio".into(), nth: 1, ext: "ac3".into(), lang: Some("th".into()), name: None, of: None }).unwrap();
+        assert_eq!(fa.ext, "ogg", "เสียงของไฟล์นั้นเป็น Vorbis");
+        assert!(fit_item(&oj, &oi, &Item { kind: "audio".into(), nth: 9, ext: "ac3".into(), lang: None, name: None, of: None }).is_none());
+        assert_eq!(fit_item(&j, &info, &Item { kind: "text".into(), nth: 2, ext: "srt".into(), lang: None, name: None, of: None }).unwrap().ext, "ass");
+        assert_eq!(fit_item(&j, &info, &Item { kind: "audio".into(), nth: 1, ext: "x".into(), lang: None, name: None, of: None }).unwrap().lang.as_deref(), Some("th"));
+        assert_eq!(sha(&src), before, "ไฟล์หนังเดิมต้องไม่ถูกแตะ");
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
     /// ชื่อไฟล์แนบที่ตั้งใจทำมาให้หลุดโฟลเดอร์ เหลือแค่ชื่อส่วนท้ายที่ปลอดภัย (ผู้ช่วยตรวจโค้ดข้อ 5)
     #[test]
     fn attachment_names_cannot_escape_the_folder() {
-        let att = |name: &str| Item { kind: "attachment".into(), nth: 3, ext: "bin".into(), lang: None, name: Some(name.into()) };
+        let att = |name: &str| Item { kind: "attachment".into(), nth: 3, ext: "bin".into(), lang: None, name: Some(name.into()), of: None };
         let stem = "ดาวเหนือ (2023)";
         assert_eq!(out_name(stem, &att(r"x\..\..\..\AppData\Roaming\Microsoft\Windows\Start Menu\Programs\Startup\a.cmd")), "ดาวเหนือ (2023).a.cmd");
         assert_eq!(out_name(stem, &att("../../evil.ttf")), "ดาวเหนือ (2023).evil.ttf");
@@ -236,7 +391,7 @@ mod tests {
     /// ไฟล์ที่ไม่ใช่ MKV · นามสกุลที่ ffmpeg เขียนเดี่ยวไม่ได้กลายเป็น mka mks · ที่เขียนได้คงเดิม (ผู้ช่วยตรวจโค้ดข้อ 7)
     #[test]
     fn raw_video_names_and_formats() {
-        let it = Item { kind: "video".into(), nth: 1, ext: "h264".into(), lang: None, name: None };
+        let it = Item { kind: "video".into(), nth: 1, ext: "h264".into(), lang: None, name: None, of: None };
         assert_eq!(out_name("ดาวเหนือ (2023)", &it), "ดาวเหนือ (2023).Video1.h264");
         assert!(is_raw_video("h264") && is_raw_video("h265") && !is_raw_video("mkv"));
         let mut a = it.clone(); fix_ext_for_ffmpeg(&mut a); assert_eq!(a.ext, "h264");
@@ -245,7 +400,7 @@ mod tests {
 
     #[test]
     fn ffmpeg_extensions_match_what_is_written() {
-        let fx = |kind: &str, ext: &str| { let mut it = Item { kind: kind.into(), nth: 1, ext: ext.into(), lang: None, name: None }; fix_ext_for_ffmpeg(&mut it); it.ext };
+        let fx = |kind: &str, ext: &str| { let mut it = Item { kind: kind.into(), nth: 1, ext: ext.into(), lang: None, name: None, of: None }; fix_ext_for_ffmpeg(&mut it); it.ext };
         assert_eq!(fx("text", "sub"), "mks");
         assert_eq!(fx("audio", "weird"), "mka");
         for (k, e) in [("text", "sup"), ("audio", "thd"), ("text", "vtt"), ("text", "ssa"), ("audio", "wma"), ("audio", "ac3"), ("text", "srt")] {
@@ -264,7 +419,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&d);
         std::fs::create_dir_all(&d).unwrap();
         let out = d.join("sub.srt");
-        let it = Item { kind: "text".into(), nth: 1, ext: "srt".into(), lang: None, name: None };
+        let it = Item { kind: "text".into(), nth: 1, ext: "srt".into(), lang: None, name: None, of: None };
         assert!(matches!(extract_one(&tools(), &src, &it, &out, &|_| {}, &|| false).unwrap(), Done::Ok));
         let t = std::fs::read_to_string(&out).unwrap();
         assert!(t.contains("-->") && t.trim_start().starts_with('1'), "ต้องได้ SRT จริง: {}", t.chars().take(80).collect::<String>());
@@ -279,7 +434,7 @@ mod tests {
         let src = movie();
         let before = sha(&src);
         for (kind, nth, ext) in [("audio", 2, "ac3"), ("text", 1, "srt"), ("text", 2, "ass")] {
-            let it = Item { kind: kind.into(), nth, ext: ext.into(), lang: None, name: None };
+            let it = Item { kind: kind.into(), nth, ext: ext.into(), lang: None, name: None, of: None };
             let mine = d.join(format!("mine-{kind}{nth}.{ext}"));
             assert!(matches!(extract_one(&tools(), &src, &it, &mine, &|_| {}, &|| false).unwrap(), Done::Ok));
             // ดึงเองด้วย mkvextract เลขแทร็ก mkvmerge (วิดีโอ 0 · เสียง 1 2 · ซับ 3 4)
@@ -291,10 +446,10 @@ mod tests {
             assert_eq!(sha(&mine), sha(&theirs), "{kind}{nth} ไม่ตรงกับที่ดึงด้วย mkvextract เอง");
         }
         let ch = d.join("chapters.xml");
-        assert!(matches!(extract_one(&tools(), &src, &Item { kind: "menu".into(), nth: 1, ext: "xml".into(), lang: None, name: None }, &ch, &|_| {}, &|| false).unwrap(), Done::Ok));
+        assert!(matches!(extract_one(&tools(), &src, &Item { kind: "menu".into(), nth: 1, ext: "xml".into(), lang: None, name: None, of: None }, &ch, &|_| {}, &|| false).unwrap(), Done::Ok));
         assert!(std::fs::read_to_string(&ch).unwrap().contains("<Chapters>"), "บทต้องออกมาเป็น XML");
         let v = d.join("video.mkv");
-        assert!(matches!(extract_one(&tools(), &src, &Item { kind: "video".into(), nth: 1, ext: "mkv".into(), lang: None, name: None }, &v, &|_| {}, &|| false).unwrap(), Done::Ok));
+        assert!(matches!(extract_one(&tools(), &src, &Item { kind: "video".into(), nth: 1, ext: "mkv".into(), lang: None, name: None, of: None }, &v, &|_| {}, &|| false).unwrap(), Done::Ok));
         let j: Value = serde_json::from_slice(&crate::tools::run_tool(&tools(), "mkvmerge", [OsStr::new("-J"), v.as_os_str()]).unwrap().stdout).unwrap();
         assert_eq!(j["tracks"].as_array().unwrap().len(), 1, "แยกภาพต้องได้แทร็กภาพอย่างเดียว");
         assert_eq!(sha(&src), before, "ไฟล์หนังเดิมต้องไม่ถูกแตะ");
@@ -324,6 +479,22 @@ pub struct ExtractReq {
     items: Vec<Item>,
     /// ต่อชิ้น ask = ชื่อชนให้ถาม · skip = ข้ามไฟล์นี้ · number = ตั้งชื่อใหม่ต่อท้ายเลข 2
     policy: Vec<String>,
+    /// รูปแบบชื่อแทร็ก (ค่าตั้ง extractPattern) · ว่าง = แบบตั้งต้น
+    #[serde(default)]
+    pattern: Option<String>,
+    /// แยกแบบเดียวกันจากไฟล์อื่น · หาเลขแทร็ก นามสกุล และภาษาของไฟล์นี้ใหม่ ชิ้นที่ไฟล์นี้ไม่มีขึ้นว่าไม่มี (BUGS ข้อ 130)
+    #[serde(default)]
+    batch: bool,
+}
+
+#[tauri::command]
+pub async fn extract_info(app: tauri::AppHandle, path: String) -> Result<ExtractInfo, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let tools = crate::tools::tools_dir(&app)?;
+        let p = PathBuf::from(&path);
+        if !p.extension().is_some_and(|e| e.eq_ignore_ascii_case("mkv")) { return Ok(ExtractInfo::default()); }
+        Ok(info_of(&mkv_json(&tools, &p)?))
+    }).await.map_err(|e| e.to_string())?
 }
 
 #[derive(Serialize, Clone, Default)]
@@ -345,7 +516,31 @@ struct ExtractProgress {
 
 /// ชื่อชิ้นแบบหัวข้อ MediaInfo บนจอ · Audio #2 · ไฟล์แนบใช้ชื่อของมัน · เดิมข้อความผิดพลาดบอกชนิดภาษาอังกฤษตัวเล็ก (audio) ไม่ตรงกับหัวข้อบนจอ (ผู้ช่วยตรวจสเปกเจอ)
 fn title_of(it: &Item) -> String {
-    match it.kind.as_str() { "video" => "Video".to_string(), "audio" => format!("Audio #{}", it.nth), "text" => format!("Text #{}", it.nth), "menu" => "Menu".into(), _ => it.name.clone().unwrap_or_default() }
+    match it.kind.as_str() {
+        "video" => "Video".to_string(), "audio" => format!("Audio #{}", it.nth), "text" => format!("Text #{}", it.nth), "menu" => "Menu".into(),
+        "tags" => "แท็ก".into(), "ogm" => "Chapter แบบ OGM".into(), "cue" => "CUE sheet".into(), "timestamps" => format!("เวลาของแต่ละเฟรม {}", title_of(&Item { kind: it.of.clone().unwrap_or_default(), ..it.clone() })),
+        _ => it.name.clone().unwrap_or_default(),
+    }
+}
+
+/// ปรับชิ้นให้ตรงกับไฟล์นี้ตอนแยกหลายไฟล์ · คืน None เมื่อไฟล์นี้ไม่มีชิ้นนั้น
+fn fit_item(j: &Value, info: &ExtractInfo, it: &Item) -> Option<Item> {
+    let mut x = it.clone();
+    let track_kind = if it.kind == "timestamps" { it.of.clone().unwrap_or_default() } else { it.kind.clone() };
+    match it.kind.as_str() {
+        "menu" | "ogm" | "cue" => return info.chapters.then_some(x),
+        "tags" => return info.tags.then_some(x),
+        "video" | "audio" | "text" | "timestamps" => {}
+        _ => return None,
+    }
+    let want = match track_kind.as_str() { "video" => "video", "audio" => "audio", _ => "subtitles" };
+    let t = j["tracks"].as_array()?.iter().filter(|t| t["type"] == want).nth(it.nth.checked_sub(1)?)?;
+    x.lang = short_lang(t["properties"]["language_ietf"].as_str().or(t["properties"]["language"].as_str()).unwrap_or(""));
+    if it.kind != "timestamps" {
+        let raw = if is_raw_video(&it.ext) { Some(it.ext.as_str()) } else { None };
+        x.ext = ext_of_codec(&track_kind, t["properties"]["codec_id"].as_str().unwrap_or(""), raw);
+    }
+    Some(x)
 }
 
 pub fn default_folder(movie: &Path) -> PathBuf {
@@ -387,11 +582,25 @@ pub async fn extract_start(app: tauri::AppHandle, req: ExtractReq) -> Result<Ext
         let mut r = ExtractResult { folder: dir.to_string_lossy().to_string(), states: vec!["queued".into(); n], files: vec![None; n], error: None };
         let src_size = std::fs::metadata(&src).map(|m| m.len()).unwrap_or(0);
         let src_mkv = src.extension().map(|e| e.eq_ignore_ascii_case("mkv")).unwrap_or(false);
+        // ข้อมูลแทร็กของไฟล์นี้ ใช้ทำดีเลย์ในชื่อเสียง ชื่อแทร็ก และแยกหลายไฟล์ (BUGS ข้อ 130)
+        let j = if src_mkv { mkv_json(&tools, &src).ok() } else { None };
+        let info = j.as_ref().map(info_of).unwrap_or_default();
+        if req.batch && !src_mkv { return Err("แยกหลายไฟล์ทำได้เฉพาะไฟล์ MKV".into()); }
+        let pattern = req.pattern.clone().unwrap_or_default();
         for (i, it0) in req.items.iter().enumerate() {
             let mut it_fixed = it0.clone();
+            if req.batch {
+                match j.as_ref().and_then(|j| fit_item(j, &info, it0)) { Some(x) => it_fixed = x, None => { r.states[i] = "missing".into(); continue; } }
+            }
             if !src_mkv { fix_ext_for_ffmpeg(&mut it_fixed); }
             let it = &it_fixed;
-            let mut target = dir.join(out_name(&stem, it));
+            let delay = if it.kind == "audio" { info.delays.get(it.nth.saturating_sub(1)).copied() } else { None };
+            let track_name = j.as_ref().and_then(|j| {
+                let k = if it.kind == "timestamps" { it.of.as_deref().unwrap_or("") } else { it.kind.as_str() };
+                let want = match k { "video" => "video", "audio" => "audio", "text" => "subtitles", _ => return None };
+                j["tracks"].as_array()?.iter().filter(|t| t["type"] == want).nth(it.nth.checked_sub(1)?)?["properties"]["track_name"].as_str().map(String::from)
+            });
+            let mut target = dir.join(out_name_with(&stem, it, &pattern, delay, track_name.as_deref()));
             // ไฟล์ที่แยกต้องอยู่ในโฟลเดอร์ที่เลือกเท่านั้น · กันชื่อที่หลุดตัวกรอง
             if target.parent() != Some(dir.as_path()) {
                 r.states[i] = "failed".into();

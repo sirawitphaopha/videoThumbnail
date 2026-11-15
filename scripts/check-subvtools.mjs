@@ -208,6 +208,11 @@ try {
     const y1 = scan(f1), y2 = scan(f2), y3 = scan(f3);
     const corner = px(f3, 5, 5), corner1 = px(f1, 5, 5);
     check("มีซับเห็นป้ายเหลือง ไม่มีซับไม่เห็น เฉพาะซับเห็นป้ายบนพื้นโปร่งใส มุมภาพของแบบมีซับทึบ", y1 > 2 && y2 === 0 && y3 > 2 && corner[3] === 0 && corner1[3] === 255, `เหลือง ${y1} ${y2} ${y3} มุม ${corner} ${corner1}`);
+    // BUGS ข้อ 124 · สีป้าย (สไตล์ ป้ายในฉาก &H0000E0FF คือ 255,224,0) ต้องตรงสไตล์ เดิมตัวกรองของ ffmpeg บีบสีเหลือ 235,208,16 แบบที่เจอตอนทำ PGS
+    const topYellow = (f) => { const raw = [...execFileSync(FF, ["-v", "error", "-i", f, "-vf", "crop=140:20:250:44", "-f", "rawvideo", "-pix_fmt", "rgba", "-"])]; const m = new Map(); for (let i = 0; i < raw.length; i += 4) if (raw[i + 3] === 255 && raw[i] > 200 && raw[i + 2] < 90) { const k = `${raw[i]},${raw[i + 1]},${raw[i + 2]}`; m.set(k, (m.get(k) ?? 0) + 1); } return [...m].sort((a, b) => b[1] - a[1])[0]?.[0] ?? ""; };
+    const near2 = (s) => { const v = s.split(",").map(Number); return v.length === 3 && Math.abs(v[0] - 255) <= 2 && Math.abs(v[1] - 224) <= 2 && v[2] <= 2; };
+    const c1 = topYellow(f1), c3 = topYellow(f3);
+    check("ป้ายเหลืองในภาพที่บันทึกแบบมีซับและเฉพาะซับได้สีตรงสไตล์ 255,224,0 ต่างไม่เกินสองหน่วย (เดิม 235,208,16)", near2(c1) && near2(c3), `มีซับ ${c1} เฉพาะซับ ${c3}`);
   }
   await q("window.__snapDry = true; return 1;");
   for (const mode of ["copy", "copy-raw", "copy-only"]) {

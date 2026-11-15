@@ -61,7 +61,9 @@ const backToInfo = async (name) => {
 await toAvExtract("ดาวเหนือ (2023)");
 await tick(["audio:2", "text:1", "menu:1"]);
 await sleep(200);
+// แถบล่างบอกจำนวน รายชื่อชิ้นอยู่ในข้อความตอนชี้ (แถบล่างแถวเดียวตั้งแต่ BUGS ข้อ 92 · บทของหนังเปลี่ยนชื่อเป็น Chapter ของหนัง)
 const bar = await q("return document.querySelector('[data-extract]').innerText");
+const barTitle = await q("return document.querySelector('[data-extract] .xpicks')?.title ?? ''");
 await shot("02-เลือกแยก.png", "[data-extract]");
 await c.evaluate("document.querySelector('[data-extract-start]').click()");
 for (let i = 0; i < 100 && !(await q("return document.querySelector('[data-extract]').innerText.includes('แยกครบ')")); i++) await sleep(150);
@@ -69,7 +71,7 @@ const xdone = await q("return document.querySelector('[data-extract]').innerText
 await shot("03-แยกครบ.png", "[data-extract]");
 const xdir = join(DIR, "ดาวเหนือ (2023) แยกไฟล์");
 const files = existsSync(xdir) ? readdirSync(xdir) : [];
-check("หน้าเสียงและซับ ติ๊ก 3 อย่างแล้วแยก ได้ครบ 3 ไฟล์ ชื่อแบบต้นแบบ · ไฟล์หนังเดิม hash เท่าเดิม", bar.includes("เลือกไว้ 3 อย่าง คือ เสียงที่ 2, ซับที่ 1, บทของหนัง") && xdone.includes("แยกครบ 3 ไฟล์") && files.includes("ดาวเหนือ (2023).Audio2.en.ac3") && files.includes("ดาวเหนือ (2023).Text1.th.srt") && files.includes("ดาวเหนือ (2023).chapters.xml") && sha(movie) === h0, files.join(", "));
+check("หน้าเสียงและซับ ติ๊ก 3 อย่างแล้วแยก ได้ครบ 3 ไฟล์ ชื่อแบบต้นแบบ · ไฟล์หนังเดิม hash เท่าเดิม", bar.includes("เลือกไว้ 3 อย่าง") && barTitle === "เสียงที่ 2, ซับที่ 1, Chapter ของหนัง" && xdone.includes("แยกครบ 3 ไฟล์") && files.includes("ดาวเหนือ (2023).Audio2.en.ac3") && files.includes("ดาวเหนือ (2023).Text1.th.srt") && files.includes("ดาวเหนือ (2023).chapters.xml") && sha(movie) === h0, files.join(", "));
 
 // แยกซ้ำ ชื่อชน · ไม่เขียนทับ
 await c.evaluate("[...document.querySelectorAll('[data-extract] button')].find(b => b.innerText === 'แยกอย่างอื่นต่อ').click()"); await sleep(200);
@@ -92,11 +94,12 @@ await tick(["audio:2", "text:1", "menu:1"]); // เอาติ๊กเดิ�
 await tick(["video:1"]);
 await c.evaluate("[...document.querySelectorAll('[data-xraw=\"video:1\"] .seg button')].find(b => b.innerText === '.h264').click()"); await sleep(300);
 const rawBar = await q("return document.querySelector('[data-extract]').innerText");
+const rawTitle = await q("return document.querySelector('[data-extract] .xpicks')?.title ?? ''");
 await c.evaluate("document.querySelector('[data-extract-start]').click()");
 for (let i = 0; i < 100 && !(await q("return document.querySelector('[data-extract]').innerText.includes('แยกครบ')")); i++) await sleep(150);
 const rawFile = join(xdir, "ดาวเหนือ (2023).Video1.h264");
 const rawProbe = existsSync(rawFile) ? JSON.parse(spawnSync(join("src-tauri", "tools", "ffprobe.exe"), ["-v", "error", "-print_format", "json", "-show_streams", "-show_format", rawFile], { encoding: "utf8" }).stdout || "{}") : {};
-check("แถวภาพเลือก .h264 แล้วแยก ได้สตรีม H.264 ล้วนแบบที่ mkvextract ทำ เปิดอ่านได้ ไฟล์หนังเดิม hash เท่าเดิม", rawBar.includes("เลือกไว้ 1 อย่าง คือ ภาพ") && existsSync(rawFile) && rawProbe.streams?.[0]?.codec_name === "h264" && rawProbe.format?.format_name === "h264" && sha(movie) === h0, `${rawProbe.format?.format_name ?? "ไม่มีไฟล์"} · ${rawProbe.streams?.[0]?.codec_name ?? ""}`);
+check("แถวภาพเลือก .h264 แล้วแยก ได้สตรีม H.264 ล้วนแบบที่ mkvextract ทำ เปิดอ่านได้ ไฟล์หนังเดิม hash เท่าเดิม", rawBar.includes("เลือกไว้ 1 อย่าง") && rawTitle === "ภาพ" && existsSync(rawFile) && rawProbe.streams?.[0]?.codec_name === "h264" && rawProbe.format?.format_name === "h264" && sha(movie) === h0, `${rawProbe.format?.format_name ?? "ไม่มีไฟล์"} · ${rawProbe.streams?.[0]?.codec_name ?? ""}`);
 
 // ค่า hash (ยังอยู่หน้า MediaInfo)
 await backToInfo("ดาวเหนือ (2023)");

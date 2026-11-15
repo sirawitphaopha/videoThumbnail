@@ -396,7 +396,8 @@ pub struct AddedFile {
     name: String,
     ext: String,
     size: u64,
-    tracks: Vec<Track>,
+    /// เปิดให้เทสในโปรแกรมอ่านได้ (pgs.rs other_text_formats_open)
+    pub(crate) tracks: Vec<Track>,
     /// ดีเลย์ที่อ่านจากชื่อไฟล์
     delay_from_name: Option<i64>,
     /// ภาษาที่เดาจากชื่อไฟล์
@@ -406,6 +407,11 @@ pub struct AddedFile {
     notes: Vec<String>,
     /// ซับ ASS SSA · ฟอนต์ที่ซับใช้กับไฟล์ฟอนต์ที่หาเจอ (fonts.rs)
     fonts: Vec<crate::fonts::FontHit>,
+}
+
+/// ชื่อชนิดซับตามที่ ffprobe เรียก ของนามสกุลใน subs::FF_TEXT · หน้าจอแปลงเป็นป้าย SAMI MicroDVD ฯลฯ (ftypes.tsx ftName)
+fn ff_text_codec(ext: &str) -> &'static str {
+    match ext { "smi" | "sami" => "sami", "sub" => "microdvd", "lrc" => "lrc", "rt" => "realtext", "jss" => "jacosub", "aqt" => "aqtitle", "pjs" => "pjs", "mpl" => "mpl2", "scc" => "eia_608", _ => "text" }
 }
 
 pub fn add_file(tools: &Path, path: &Path, movie_duration: Option<f64>) -> Result<AddedFile, String> {
@@ -425,7 +431,32 @@ pub fn add_file(tools: &Path, path: &Path, movie_duration: Option<f64>) -> Resul
         return Err(format!("ไฟล์ .{ext} ใส่ในไฟล์หนังไม่ได้ ต้องแปลงเป็นชนิดอื่นก่อน (ตั้งค่าแปลงในแถวเสียง)"));
     }
     let size = std::fs::metadata(&p).map_err(|_| "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่".to_string())?.len();
-    let mut tracks = probe_source(tools, &p, false)?;
+    // ซับ HD DVD mkvmerge อ่านไม่ได้ จึงรวมเข้าหนังไม่ได้ · เดิมขึ้นข้อความผิดพลาดของ mkvmerge (BUGS ข้อ 129)
+    if crate::imgconv::is_hddvd_sup(&p) { return Err(HD_DVD_MERGE.into()); }
+    // SBV กับ TTML ffprobe อ่านไม่ได้ ทำแทร็กซับขึ้นเองหนึ่งแทร็ก นับบรรทัดจากที่แปลงเป็น SRT (subconv.rs) · ใส่ในหนังตรง ๆ ไม่ได้
+    let mut tracks = if crate::subs::OWN_TEXT.contains(&ext.as_str()) {
+        let raw = std::fs::read(&p).map_err(|e| format!("อ่านไฟล์ไม่ได้ {e}"))?;
+        let srt = crate::subconv::to_srt(&ext, &crate::subs::decode_text(&raw).0)?;
+        let lines = srt.split("\r\n\r\n").filter(|b| b.contains("-->")).count() as u64;
+        vec![Track {
+            src: p.to_string_lossy().to_string(), tid: 0, ff: Some(0), kind: "subtitle".into(), codec: ext.clone(), lang: "und".into(), frames: Some(lines),
+            mp4: "no".into(), why: Some("ไฟล์ชนิดนี้ใส่ในหนังตรง ๆ ไม่ได้ เปิดในหน้าซับไตเติลแล้วบันทึกเป็น SRT หรือ ASS ก่อน".into()), keep: true, ..Default::default()
+        }]
+    } else if crate::subs::FF_TEXT.contains(&ext.as_str()) {
+        // SAMI MicroDVD LRC และพวก mkvmerge ไม่รู้จัก แต่ ffmpeg อ่านได้ (หน้าซับไตเติลแปลงเป็น ASS ตอนเปิด subs.rs bytes_of) · ทำแทร็กซับเองหนึ่งแทร็ก จำนวนบรรทัดให้ ffprobe นับข้างล่าง
+        // เดิมส่งให้ mkvmerge อย่างเดียว เปิดซับ SAMI ไม่ได้ว่า mkvmerge อ่านไม่ได้ (BUGS ข้อ 123 เจอจากตัวตรวจ check-pgs 15 พ.ย. 2569)
+        // จำนวนบรรทัดนับจากซับที่แปลงแล้ว เพราะ ffprobe นับบรรทัดว่างที่ใช้ปิดซับ (SAMI &nbsp;) เป็นบรรทัดด้วย ได้เกินจริงเท่าตัว
+        match probe_source(tools, &p, false) {
+            Ok(t) if t.iter().any(|x| x.kind == "subtitle") => t,
+            _ => vec![Track {
+                src: p.to_string_lossy().to_string(), tid: 0, ff: Some(0), kind: "subtitle".into(), codec: ff_text_codec(&ext).into(), lang: "und".into(),
+                frames: crate::subs::bytes_of(tools, &std::env::temp_dir(), &p, false, 0, 0).ok().map(|(b, _)| String::from_utf8_lossy(&b).lines().filter(|l| l.starts_with("Dialogue:")).count() as u64),
+                mp4: "no".into(), why: Some("ไฟล์ชนิดนี้ใส่ในหนังตรง ๆ ไม่ได้ เปิดในหน้าซับไตเติลแล้วบันทึกเป็น SRT หรือ ASS ก่อน".into()), keep: true, ..Default::default()
+            }],
+        }
+    } else {
+        probe_source(tools, &p, false)?
+    };
     if tracks.is_empty() {
         return Err("ไฟล์นี้ไม่มีเสียงหรือซับ".into());
     }
@@ -475,10 +506,33 @@ pub fn add_file(tools: &Path, path: &Path, movie_duration: Option<f64>) -> Resul
     })
 }
 
+const HD_DVD_MERGE: &str = "ไฟล์นี้เป็นซับภาพของแผ่น HD DVD ซึ่งใส่ในหนังตรง ๆ ไม่ได้ เปิดในหน้าซับไตเติลแล้วแปลงเป็น PGS ก่อน";
+
+/// หน้าซับไตเติลเปิดไฟล์ซับเพื่อดูและแปลง ไม่ใช่รวมไฟล์ · รับซับ HD DVD ที่ mkvmerge อ่านไม่ได้เพิ่ม (BUGS ข้อ 129 ย้ายจาก ROADMAP พี่กันสั่ง "ทำเลย เอาไปใส่คิว")
+/// ตัวดูซับรูปถอดภาพจาก PGS ที่ BDSup2Sub++ แปลงไว้ (imgconv::hddvd_pgs) และหน้าต่างแปลงซับภาพส่งไฟล์ต้นฉบับให้ BDSup2Sub++ ตรง ๆ
+pub fn add_file_view(tools: &Path, work: &Path, path: &Path) -> Result<AddedFile, String> {
+    if !crate::imgconv::is_hddvd_sup(path) { return add_file(tools, path, None); }
+    let size = std::fs::metadata(path).map_err(|_| "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่".to_string())?.len();
+    let (_, n) = crate::imgconv::hddvd_pgs(tools, work, path)?;
+    let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+    let stem = path.file_stem().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+    let lang = lang_from_name(&stem);
+    let track = Track {
+        src: path.to_string_lossy().to_string(), tid: 0, ff: Some(0), kind: "subtitle".into(), codec: "hddvd_sup".into(), lang: lang.unwrap_or("und").into(),
+        frames: Some(n as u64), mp4: "no".into(), why: Some(HD_DVD_MERGE.into()), keep: true, ..Default::default()
+    };
+    Ok(AddedFile {
+        path: path.to_string_lossy().to_string(), name, ext: "sup".into(), size, tracks: vec![track], delay_from_name: None, lang_from_name: lang.map(String::from), longer_by: None,
+        notes: vec!["ซับภาพของแผ่น HD DVD โปรแกรมแปลงเป็น PGS ไว้ดูภาพ ไฟล์ต้นฉบับไม่ถูกแตะ".into()], fonts: vec![],
+    })
+}
+
+/// view เป็นจริงเมื่อหน้าซับไตเติลเปิด (add_file_view) · หน้าเสียงและซับกับงานใส่ซับกลับเข้าหนังไม่ส่ง
 #[tauri::command]
-pub async fn merge_add_file(app: AppHandle, path: String, movie_duration: Option<f64>) -> Result<AddedFile, String> {
+pub async fn merge_add_file(app: AppHandle, path: String, movie_duration: Option<f64>, view: Option<bool>) -> Result<AddedFile, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let (tools, _) = tools_of(&app)?;
+        if view == Some(true) { return add_file_view(&tools, &crate::subs::work_dir(&app)?, Path::new(&path)); }
         add_file(&tools, Path::new(&path), movie_duration)
     }).await.map_err(|e| e.to_string())?
 }

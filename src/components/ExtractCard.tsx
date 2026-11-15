@@ -1,13 +1,18 @@
 /* การ์ดแยกไฟล์ออกจากหนัง (BUGS ข้อ 35 · พี่กันเคาะ 10 พ.ย. 2569 "ปุ่มเเยก กับรวม เอาที่เดียวกันในหน้นี้เลย")
    เดิมอยู่ท้ายหน้า MediaInfo ติ๊กหัวหมวดแล้วกดแยก พี่กันหาไม่เจอ ย้ายมาอยู่หน้าเสียงและซับ ที่เดียวกับงานรวม
    แยกทีละชิ้น หยุดได้ ชื่อชนถามก่อน ไม่เขียนทับ ไฟล์หนังเดิมไม่ถูกแตะ (extract.rs) · ชิ้นที่ติ๊กส่งมาจากหน้าที่ใช้การ์ดนี้ */
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { api, infoApi, inApp, pickFolder, type ExtractItem, type ExtractResult } from "../lib/api";
+import { api, infoApi, inApp, pickFolder, pickMkvFiles, type ExtractItem, type ExtractResult } from "../lib/api";
 import { useElsewhere } from "../lib/elsewhere";
 import { CardIcon, Phr } from "./ui";
 import { spaceShort, useFree } from "../lib/drives";
 import { IbNext, IbPencil, IbStop, IcExtract, IcFolder, IcRefresh } from "./icons";
+import InfoTip from "./InfoTip";
+
+/** แยกหลายไฟล์ (BUGS ข้อ 130 แบบ gMKVExtractGUI) */
+const BATCH_TIP = { w: "แยกชิ้นที่ติ๊กไว้แบบเดียวกันจากไฟล์ MKV อื่นหลายไฟล์ทีละไฟล์\nโดยไฟล์ที่ได้ของแต่ละเรื่องอยู่ในโฟลเดอร์แยกไฟล์ข้างไฟล์นั้น",
+  o: [["ลำดับแทร็ก", "ใช้ลำดับเดียวกับหนังเรื่องนี้ เช่น เสียงที่ 2 ส่วนนามสกุลกับภาษาอ่านจากไฟล์นั้นใหม่", "", ""], ["ชิ้นที่ไม่มี", "ไฟล์ที่ไม่มีแทร็กหรือ Chapter ตามที่ติ๊ก ข้ามชิ้นนั้นแล้วบอกในผล", "", ""], ["ชื่อซ้ำ", "ไม่เขียนทับไฟล์เดิม ตั้งชื่อใหม่ต่อท้ายเลขให้เอง และไฟล์แนบไม่แยก เพราะแต่ละไฟล์มีไฟล์แนบไม่เหมือนกัน", "", ""]] as [string, string, string, string][] };
 
 /** ชิ้นที่ติ๊กไว้ · label ใช้ในประโยคสรุป · rowLabel ใช้ในแถวกำลังแยก แบบต้นแบบ Audio #1 .ac3 */
 export type ExtractPick = { item: ExtractItem; label: string; rowLabel: string };
@@ -23,11 +28,14 @@ function midPath(p: string, max = 44): string {
   return s.length <= max + 8 ? s : `…${sep}${parts[parts.length - 1]}`;
 }
 
-export default function ExtractCard({ path, picks, busy, srcSize }: { path: string; picks: ExtractPick[]; busy?: string; srcSize?: number }) {
+export default function ExtractCard({ path, picks, busy, srcSize, pattern, batchable }: { path: string; picks: ExtractPick[]; busy?: string; srcSize?: number; pattern?: string; batchable?: boolean }) {
   const [folder, setFolder] = useState("");
   /** ชิ้นที่กดแยกรอบนี้ตรึงไว้ · ติ๊กเพิ่มหรือเอาออกระหว่างการ์ดชื่อชนค้าง กดตั้งชื่อใหม่แล้วต้องแยกชิ้นเดิม (ผู้ช่วยตรวจโค้ดเจอ ตอนอยู่หน้า MediaInfo) */
   const [xRun, setXRun] = useState<{ items: ExtractItem[]; labels: string[]; pct: number[]; result: ExtractResult | null; running: boolean } | null>(null);
   const elsewhere = useElsewhere(infoApi.extractRunning, !!xRun?.running);
+  /** แยกหลายไฟล์ ทีละไฟล์ตามลำดับที่เลือก · stop กดหยุดแล้วไม่เริ่มไฟล์ถัดไป */
+  const [batch, setBatch] = useState<{ files: string[]; rows: { file: string; text: string; ok: boolean }[]; running: boolean } | null>(null);
+  const stopBatch = useRef(false);
 
   useEffect(() => {
     let live = true;
@@ -44,7 +52,7 @@ export default function ExtractCard({ path, picks, busy, srcSize }: { path: stri
   const run = async (items: ExtractItem[], labels: string[], policy: string[]) => {
     setXRun({ items, labels, pct: items.map(() => 0), result: null, running: true });
     try {
-      const result = await infoApi.extract(path, folder || null, items, policy);
+      const result = await infoApi.extract(path, folder || null, items, policy, pattern);
       setXRun((r) => r && { ...r, result, running: false });
     } catch (e) {
       setXRun((r) => r && { ...r, running: false, result: { folder, states: items.map(() => "failed"), files: items.map(() => null), error: String(e) } });
@@ -63,6 +71,45 @@ export default function ExtractCard({ path, picks, busy, srcSize }: { path: stri
   const short = picks.length ? spaceShort(free, need) : null;
   const why = busy ?? (!picks.length ? "ยังกดไม่ได้ ติ๊กอย่างน้อย 1 อย่างก่อน" : elsewhere ? "รองานแยกไฟล์ที่ทำอยู่ให้เสร็จก่อน" : short ?? undefined);
 
+  const batchItems = picks.map((p) => p.item).filter((i) => i.kind !== "attachment");
+  const batchWhy = why ?? (!batchItems.length ? "ไฟล์แนบแยกหลายไฟล์ไม่ได้ ติ๊กแทร็กหรือ Chapter ก่อน" : undefined);
+  const startBatch = async () => {
+    const files = (await pickMkvFiles()).filter((f) => f.toLowerCase() !== path.toLowerCase());
+    if (!files.length) return;
+    stopBatch.current = false;
+    setBatch({ files, rows: [], running: true });
+    for (const f of files) {
+      if (stopBatch.current) break;
+      let row: { file: string; text: string; ok: boolean };
+      try {
+        const r = await infoApi.extract(f, null, batchItems, batchItems.map(() => "number"), pattern, true);
+        const ok = r.states.filter((s) => s === "done").length, miss = r.states.filter((s) => s === "missing").length;
+        if (r.states.includes("cancelled")) { stopBatch.current = true; row = { file: f, text: "หยุดแล้ว", ok: false }; }
+        else if (r.error) row = { file: f, text: r.error.split("  ")[0], ok: false };
+        else row = { file: f, text: `แยกแล้ว ${ok} ไฟล์${miss ? ` และไฟล์นี้ไม่มี ${miss} อย่าง` : ""}`, ok: true };
+      } catch (e) { row = { file: f, text: String(e), ok: false }; }
+      setBatch((b) => b && { ...b, rows: [...b.rows, row] });
+    }
+    setBatch((b) => b && { ...b, running: false });
+  };
+
+  if (batch) return (
+    <div className="card" data-extract data-extract-batchrun>
+      <h3>แยกแบบเดียวกันจากหลายไฟล์</h3>
+      <div className="workbox">
+        {batch.files.map((f, i) => {
+          const r = batch.rows[i];
+          const word = r ? r.text : batch.running && i === batch.rows.length ? "กำลังแยก…" : batch.running ? "รอคิว" : "ไม่ได้แยก";
+          return <div key={f} className="setrow" style={i === 0 ? { borderTop: 0 } : undefined} data-batch-row={i}><div className="lbl" style={{ overflowWrap: "anywhere" }}>{f.split(/[\\/]/).pop()}</div><div className={"small" + (r && !r.ok ? " bad" : "")}>{word}</div></div>;
+        })}
+        <div className="minirow" style={{ marginTop: 0 }}>
+          {batch.running ? <button type="button" className="btn btn-bad btn-sm" onClick={() => { stopBatch.current = true; void infoApi.extractCancel(); }} data-batch-stop><IbStop size={15} />หยุด</button>
+            : <button type="button" className="btn btn-ghost btn-sm" onClick={() => setBatch(null)} data-batch-close><IbNext size={15} />เสร็จแล้ว</button>}
+        </div>
+      </div>
+    </div>
+  );
+
   const idle = !xRun || (!xRun.running && !xRun.result);
   // ตอนยังไม่กดแยก เป็นแถวเดียวสูงเท่าแถบล่างของวิธีรวมกับวิธีจับคู่ ไม่มีหัวข้อซ้ำกับการ์ดวิธี สลับวิธีแล้วแถบล่างไม่ยืดหด
   // (พี่กันทัก 13 พ.ย. 2569 "ก็บอกว่าให้ fix ไง" · เดิมมีหัวข้อแยกออกจากหนังอีกบรรทัด แถบล่างสูงกว่าวิธีรวม 19 จุด)
@@ -79,6 +126,8 @@ export default function ExtractCard({ path, picks, busy, srcSize }: { path: stri
           {/* ที่เก็บอยู่ข้างปุ่มแยก กรอบสีโทน ตัวหนา เห็นชัดก่อนกด (BUGS ข้อ 92 พี่กันสั่ง 13 พ.ย. 2569 "ขอที่เก็บ ข้างๆปุ่มเเยก เเละเด่นๆ")
               บรรทัดเดียวเสมอ ที่อยู่ยาวย่อตรงกลาง เก็บไดรฟ์กับโฟลเดอร์ปลายทางไว้ ชี้แล้วเห็นที่อยู่เต็ม แถบล่างไม่สูงขึ้น */}
           {/* ที่เก็บกับปุ่มเปลี่ยนรวมเป็นปุ่มเดียว กดตรงไหนก็เลือกโฟลเดอร์ใหม่ ฝั่งขวามีไอคอนดินสอกับคำว่าเปลี่ยน (พี่กันสั่ง 13 พ.ย. 2569 "ใส่ icon หน่อย เเละที่อยู่ อยากให้กดเปลี่ยนได้ เเม้ปุ่มเปลี่ยนที่เก็บจะเเยกไว้ เเต่อยากให้รวมกัน") */}
+          {batchable && <span className="xbatch"><button type="button" className={"btn btn-ghost btn-sm" + (batchWhy ? " btn-wait" : "")} aria-disabled={!!batchWhy || undefined} title={batchWhy ?? "แยกชิ้นที่ติ๊กแบบเดียวกันจากไฟล์ MKV อื่นหลายไฟล์"}
+            onClick={() => { if (!batchWhy) void startBatch(); }} data-extract-batch>หลายไฟล์</button><InfoTip title="แยกหลายไฟล์" tip={BATCH_TIP} /></span>}
           <button type="button" className="xdest" title={folder ? `เก็บที่ ${folder}  กดเพื่อเปลี่ยนที่เก็บ` : "กดเพื่อเลือกที่เก็บ"} onClick={async () => { const f = await pickFolder("เลือกที่เก็บไฟล์ที่แยก"); if (f) setFolder(f); }} data-extract-dest data-extract-folder>
             <IcFolder size={16} /><span>เก็บที่</span><b>{folder ? midPath(folder) : "—"}</b>
             <i className="xdest-chg" aria-hidden="true"><IbPencil size={14} />เปลี่ยน</i></button>
@@ -90,7 +139,7 @@ export default function ExtractCard({ path, picks, busy, srcSize }: { path: stri
         <div className="workbox">
           {xRun.labels.map((l, i) => {
             const st = xRun.result?.states[i] ?? (xRun.pct[i] >= 100 ? "done" : xRun.pct[i] > 0 || i === xRun.pct.findIndex((p) => p < 100) ? "working" : "queued");
-            const word = st === "done" ? "เสร็จแล้ว" : st === "working" ? `กำลังทำ ${Math.round(xRun.pct[i])}%` : st === "conflict" ? "มีไฟล์ชื่อเดียวกันอยู่แล้ว" : st === "skipped" ? "ข้ามแล้ว" : st === "failed" ? "ไม่สำเร็จ" : st === "cancelled" ? "หยุดแล้ว" : "รอคิว";
+            const word = st === "done" ? "เสร็จแล้ว" : st === "working" ? `กำลังทำ ${Math.round(xRun.pct[i])}%` : st === "conflict" ? "มีไฟล์ชื่อเดียวกันอยู่แล้ว" : st === "skipped" ? "ข้ามแล้ว" : st === "failed" ? "ไม่สำเร็จ" : st === "cancelled" ? "หยุดแล้ว" : st === "missing" ? "ไฟล์นี้ไม่มี" : "รอคิว";
             return <div key={i} className="setrow" style={i === 0 ? { borderTop: 0 } : undefined}><div className="lbl">{l}</div><div className="small">{word}</div></div>;
           })}
           {xRun.running && <button type="button" className="btn btn-bad btn-sm" style={{ alignSelf: "flex-start" }} onClick={() => infoApi.extractCancel()}><IbStop size={15} />หยุด</button>}

@@ -11,14 +11,13 @@ import { Keep, Phr, Seg } from "./ui";
 import { useToast } from "./Toasts";
 import { useLibrary } from "../lib/library";
 import { useSettings } from "../lib/settings";
-import { inApp, linkApi, pickFile, pickFolder, thumbUrl, type LinkImage, type Movie } from "../lib/api";
+import { IMAGE_EXT, inApp, linkApi, pickFile, pickFolder, thumbUrl, type LinkImage, type Movie } from "../lib/api";
 import { searchByName } from "../lib/thaiSearch";
 import { reloadImages, setLinkJob, setReply, thumbOf, useLinkJob } from "../lib/linkJob";
 import { IcPoster } from "./icons";
 import { IbTrash, IbBack } from "./icons";
 import { IbTable } from "./icons";
 
-const IMAGE_EXT = ["jpg", "jpeg", "png", "webp", "bmp", "tif", "tiff", "heic", "heif"];
 const extOf = (p: string) => (p.match(/\.([^.\\/]+)$/)?.[1] ?? "").toLowerCase();
 const baseName = (p: string) => p.split(/[\\/]/).pop() ?? p;
 const isImage = (p: string) => IMAGE_EXT.includes(extOf(p));

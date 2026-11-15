@@ -11,7 +11,7 @@ import ImageViewer from "../components/ImageViewer";
 import CropDialog, { type CropChoice } from "../components/CropDialog";
 import { CardIcon, Keep, LoadPill, Phr, Seg, dropClick } from "../components/ui";
 import ThaiInput from "../components/ThaiInput";
-import { frameApi, inApp, pickFile, posterApi, thumbUrl, type Geometry, type ApplyProblem, type ApplyResult, type FolderImage, type MovieInfo, type PosterInfo, type RenameProblem, type StreamInfo } from "../lib/api";
+import { IMAGE_EXT, MOVIE_EXT, frameApi, inApp, pickFile, posterApi, thumbUrl, type Geometry, type ApplyProblem, type ApplyResult, type FolderImage, type MovieInfo, type PosterInfo, type RenameProblem, type StreamInfo } from "../lib/api";
 import { useSettings } from "../lib/settings";
 import { useLibrary } from "../lib/library";
 import { fmtDuration, fmtSize } from "../lib/format";
@@ -24,8 +24,6 @@ import { IbTrash, IbBack, IbNext, IbStop, IcRefresh, IcShelf } from "../componen
 import { IbCrop } from "../components/icons";
 import { spaceShort, useFree } from "../lib/drives";
 
-const MOVIE_EXT = ["mkv", "mp4", "m4v", "mov", "avi", "webm", "ts", "m2ts", "mpg", "mpeg", "vob", "flv"];
-const IMAGE_EXT = ["jpg", "jpeg", "png", "webp", "bmp", "tif", "tiff", "heic", "heif"];
 const extOf = (p: string) => (p.match(/\.([^.\\/]+)$/)?.[1] ?? "").toLowerCase();
 const baseName = (p: string) => p.split(/[\\/]/).pop() ?? p;
 

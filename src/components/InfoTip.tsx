@@ -11,8 +11,9 @@ import { IcClose } from "./icons";
 import { keepNodes, thaiKeep } from "./ui";
 
 /** ตัวขยายตัวย่อ · หนึ่งตัวต่อหนึ่งการ์ดหรือหนึ่งกล่อง ขยายครั้งแรกที่เจอ คำที่ขยายแล้วไม่ขยายซ้ำ (มอคอัป expander) */
-export function abbrer() {
-  const seen = new Set<string>();
+export function abbrer(expand = true) {
+  // expand เป็นเท็จ ไม่ขยายตัวย่อเลย ใช้กับกล่องที่หัวกล่องบอกชื่อเต็มอยู่แล้ว เช่นป้ายนามสกุล (BUGS ข้อ 127)
+  const seen = new Set<string>(expand ? [] : Object.keys(ABBR));
   return (raw?: string | null): ReactNode => {
     if (!raw) return null;
     // ตัดบรรทัดได้เฉพาะตรงเว้นวรรค คำไทยไม่ขาดกลางคำ (พี่กันทัก 11 พ.ย. 2569 "เเบ่งบรรทัดอะไรของเธอ")
@@ -86,7 +87,8 @@ function scrollParent(el: HTMLElement | null): HTMLElement | null {
   return null;
 }
 
-export default function InfoTip({ title, tip }: { title: string; tip: Tip }) {
+/** children กับ btnClass ใช้ของอื่นเป็นปุ่มเปิดแทนไอคอน ⓘ เช่นป้ายนามสกุลในหัวข้อชนิดไฟล์ · noAbbr ไม่ขยายตัวย่อ (BUGS ข้อ 127) */
+export default function InfoTip({ title, tip, children, btnClass, noAbbr }: { title: string; tip: Tip; children?: ReactNode; btnClass?: string; noAbbr?: boolean }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number; max: number; up: boolean } | null>(null);
   const btn = useRef<HTMLButtonElement>(null);
@@ -153,11 +155,11 @@ export default function InfoTip({ title, tip }: { title: string; tip: Tip }) {
     };
   }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
 
-  const ex = abbrer();
+  const ex = abbrer(!noAbbr);
   return (
     <>
-      <button ref={btn} type="button" className="infob" aria-label={`${title} คืออะไร`} title={`${title} คืออะไร`} aria-expanded={open} data-info={title}
-        onClick={(e) => { e.stopPropagation(); if (open) { close(); return; } closeOpen?.(); setPos(null); setOpen(true); }}>{INFO}</button>
+      <button ref={btn} type="button" className={btnClass ?? "infob"} aria-label={`${title} คืออะไร`} title={`${title} คืออะไร`} aria-expanded={open} data-info={title}
+        onClick={(e) => { e.stopPropagation(); if (open) { close(); return; } closeOpen?.(); setPos(null); setOpen(true); }}>{children ?? INFO}</button>
       {open && createPortal(
         <div ref={box} className="infotip pop-in" role="dialog" aria-label={`คำอธิบาย ${title}`} data-tip={title} data-side={pos?.up ? "บน" : "ล่าง"}
           style={pos ? { top: pos.top, left: pos.left, maxHeight: pos.max } : { top: 0, left: 0, visibility: "hidden" }}>

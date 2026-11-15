@@ -16,12 +16,13 @@ import DelayDialog from "../components/DelayDialog";
 import SubViewer from "../components/SubViewer";
 import ChapterDialog from "../components/ChapterDialog";
 import ExtractCard, { type ExtractPick } from "../components/ExtractCard";
+import type { Tip } from "../lib/codecAdv";
 import InfoTip from "../components/InfoTip";
 import { convertLabel } from "../lib/codecs";
 import ThaiInput from "../components/ThaiInput";
 import { CardIcon, Keep, Phr, Seg, dropClick, LoadPill, J } from "../components/ui";
 import { useToast } from "../components/Toasts";
-import { ADD_EXT, FONT_EXT, encodeApi, inApp, infoApi, mergeApi, pickAddFiles, pickFile, pickFonts, posterApi, thumbUrl, type ApplyProblem, type CoverTarget, type EncoderInfo, type FontHit, type MergeResult, type MiSection, type PosterInfo, pairApi } from "../lib/api";
+import { ADD_EXT, FONT_EXT, IMAGE_EXT, MOVIE_EXT, encodeApi, inApp, infoApi, mergeApi, pickAddFiles, pickFile, pickFonts, posterApi, thumbUrl, type ApplyProblem, type CoverTarget, type EncoderInfo, type FontHit, type MergeResult, type MiSection, type PosterInfo, type ExtractInfo, type ExtractItem, pairApi } from "../lib/api";
 import { useSettings } from "../lib/settings";
 import { useLibrary } from "../lib/library";
 import { fmtDuration, fmtSize } from "../lib/format";
@@ -34,8 +35,12 @@ import { glideBox } from "../lib/glide";
 import { spaceShort, useFree } from "../lib/drives";
 import { IbSwap, IcSearch, IbTrash, IbBack, IbNext, IbStop, IcRefresh, IcShelf, IcGraph, IcLink, IcMix } from "../components/icons";
 
-const MOVIE_EXT = ["mkv", "mp4", "m4v", "mov", "avi", "webm", "ts", "m2ts", "mpg", "mpeg", "vob", "flv"];
-const IMAGE_EXT = ["jpg", "jpeg", "png", "webp", "bmp", "tif", "tiff", "heic", "heif"];
+/* คำอธิบายแถวแยกแบบ gMKVExtractGUI (BUGS ข้อ 130) */
+const TAGS_TIP: Tip = { w: "แท็กคือข้อมูลที่ฝังไว้ในไฟล์ MKV เช่นชื่อเรื่อง ปี ผู้กำกับ หรือข้อมูลของแต่ละแทร็ก\nโดยไฟล์ XML ที่ได้เปิดดูด้วยโปรแกรมแก้ข้อความได้ และใส่กลับเข้าหนังด้วย MKVToolNix ได้" };
+const OGM_TIP: Tip = { w: "Chapter แบบ OGM เป็นข้อความธรรมดาบรรทัดละสองแถว คือ CHAPTER01=เวลา กับ CHAPTER01NAME=ชื่อ\nซึ่งโปรแกรมรุ่นเก่าและโปรแกรมทำแผ่นอ่านได้ ส่วนแบบ XML เก็บภาษาและ Chapter ซ้อนกันได้ครบกว่า" };
+const CUE_TIP: Tip = { w: "CUE sheet เป็นรายการเพลงตาม Chapter ใช้กับไฟล์เพลงทั้งอัลบั้มที่เป็นไฟล์เดียว\nโดยไฟล์ที่รวมมาจาก CUE sheet เดิมได้เวลาครบ ส่วนไฟล์อื่นอาจได้แค่รายชื่อเพลงไม่มีเวลา" };
+const TS_TIP: Tip = { w: "ไฟล์ข้อความบอกเวลาของทุกเฟรมในแทร็ก หน่วยมิลลิวินาที แบบ timestamps v2\nใช้ตอนรวมไฟล์ใหม่ให้เวลาตรงเดิม เช่นหนังที่อัตราเฟรมไม่คงที่ หรือใช้หา keyframe" };
+
 const extOf = (p: string) => (p.match(/\.([^.\\/]+)$/)?.[1] ?? "").toLowerCase();
 const baseName = (p: string) => p.split(/[\\/]/).pop() ?? p;
 const dirName = (p: string) => p.replace(/[\\/][^\\/]*$/, "");
@@ -125,6 +130,8 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
   /** หัวข้อ MediaInfo ของหนังที่เปิดอยู่ อ่านตอนเลือกวิธีแยก · ชนิด ลำดับ นามสกุล ภาษาของแต่ละชิ้น ใช้ตัวแยกเดิมของหน้า MediaInfo (extract.rs) */
   const [mi, setMi] = useState<{ path: string; sections: MiSection[] } | null>(null);
   const [miErr, setMiErr] = useState<string | null>(null);
+  /** ไฟล์ MKV มีแท็กกับ chapter ไหม ดีเลย์ของเสียง ไว้แสดงแถวแยกแบบ gMKVExtractGUI (BUGS ข้อ 130) */
+  const [xInfo, setXInfo] = useState<{ path: string; info: ExtractInfo } | null>(null);
   const [paired, setPaired] = useState<{ n: number; err?: string } | null>(null);
   const [encs, setEncs] = useState<EncoderInfo[] | null>(null);
   const openCodec = (key: string) => { setCodecFor(key); if (!encs) encodeApi.status().then(setEncs, () => setEncs([])); };
@@ -443,6 +450,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
     let live = true;
     setMiErr(null);
     infoApi.mediaInfo(movie.path).then((r) => { if (live) setMi({ path: movie.path, sections: r.sections }); }).catch((e) => { if (live) setMiErr(String(e)); });
+    infoApi.extractInfo(movie.path).then((info) => { if (live) setXInfo({ path: movie.path, info }); }).catch(() => { if (live) setXInfo(null); });
     return () => { live = false; };
   }, [movie?.path]); // eslint-disable-line react-hooks/exhaustive-deps
   /** ชิ้นที่แยกได้ เรียงตาม MediaInfo · นับลำดับในชนิดเดียวกัน (Audio #2 = แทร็กเสียงที่ 2) แบบหน้า MediaInfo เดิม */
@@ -466,7 +474,19 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
     }).filter((x) => x.s.kind !== "general");
   })();
   const xKeyOf = (t: AvTrack) => `${t.kind === "subtitle" ? "text" : t.kind}:${nth(t)}`;
-  const xPicks: ExtractPick[] = xItems.filter((x) => x.item && av.xPick.includes(x.key)).map((x) => ({ item: x.item!, label: x.label, rowLabel: x.rowLabel }));
+  /* แถวแยกแบบ gMKVExtractGUI เฉพาะไฟล์ MKV (BUGS ข้อ 130 พี่กันสั่ง "เอา" "เอาเข้าคิว") · แท็ก chapter แบบ OGM CUE sheet และเวลาของแต่ละเฟรมของแทร็กที่ติ๊ก */
+  const xi = movie && xInfo?.path === movie.path && xInfo.info.mkv ? xInfo.info : null;
+  const trackPicks = xItems.filter((x) => x.item && av.xPick.includes(x.key) && ["video", "audio", "text"].includes(x.s.kind));
+  const xExtra = !xi ? [] : ([
+    xi.tags && { key: "tags:1", kind: "tags", ext: "xml", chip: "XML", title: "แท็กของไฟล์", what: "แยกเป็นไฟล์ XML ที่ใส่กลับเข้าหนังด้วย MKVToolNix ได้", tip: TAGS_TIP },
+    xi.chapters && { key: "ogm:1", kind: "ogm", ext: "txt", chip: "TXT", title: "Chapter แบบ OGM", what: "ข้อความ CHAPTER01= ที่โปรแกรมรุ่นเก่าอ่านได้", tip: OGM_TIP },
+    xi.chapters && { key: "cue:1", kind: "cue", ext: "cue", chip: "CUE", title: "CUE sheet", what: "รายการเพลงตาม Chapter ที่โปรแกรมเล่นเพลงอ่านได้", tip: CUE_TIP },
+    { key: "ts:1", kind: "timestamps", ext: "txt", chip: "TXT", title: "เวลาของแต่ละเฟรม", what: trackPicks.length ? `ของแทร็กที่ติ๊ก ${trackPicks.length} แทร็ก ไฟล์ละแทร็ก` : "ติ๊กแทร็กภาพ เสียง หรือซับก่อน", tip: TS_TIP },
+  ].filter(Boolean) as { key: string; kind: string; ext: string; chip: string; title: string; what: string; tip: Tip }[]);
+  const extraPicks: ExtractPick[] = xExtra.filter((x) => av.xPick.includes(x.key)).flatMap((x): ExtractPick[] => x.kind === "timestamps"
+    ? trackPicks.map((t) => ({ item: { kind: "timestamps", nth: t.item!.nth, ext: "txt", lang: t.item!.lang, name: null, of: t.s.kind } as ExtractItem, label: `เวลาของเฟรม${t.label}`, rowLabel: `เวลาของเฟรม${t.label} .txt` }))
+    : [{ item: { kind: x.kind, nth: 1, ext: x.ext, lang: null, name: null }, label: x.title, rowLabel: `${x.title} .${x.ext}` }]);
+  const xPicks: ExtractPick[] = [...xItems.filter((x) => x.item && av.xPick.includes(x.key)).map((x) => ({ item: x.item!, label: x.label, rowLabel: x.rowLabel })), ...extraPicks];
   const xToggle = (key: string) => setAv((s) => ({ xPick: s.xPick.includes(key) ? s.xPick.filter((k) => k !== key) : [...s.xPick, key] }));
   const xOthers = xItems.filter((x) => x.s.kind === "attachment" || x.s.kind === "menu");
   /** กดแถวรูปปกในตาราง เลื่อนไปที่ช่องปกนั้นในการ์ดโปสเตอร์ ถึงแล้ววาบหนึ่งทีแบบกดหมวดในหน้า MediaInfo (BUGS ข้อ 35 ต่อ พี่กัน "กดเเล้ว มันจะไปวาบที่ปกตั้งที่เอาไว้ครอป") */
@@ -797,6 +817,25 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
                 </div>
               );
             })}
+            {method === "extract" && xExtra.map((x) => {
+              const on = av.xPick.includes(x.key);
+              const why = x.kind === "timestamps" && !trackPicks.length ? "ติ๊กแทร็กภาพ เสียง หรือซับก่อน" : undefined;
+              return (
+                <div key={x.key} role="listitem" className="trk xrow xmode" data-xextra={x.key} data-kind="menu">
+                  <div className="mv xpick" onClick={(e) => e.stopPropagation()}>
+                    <span className={"chk" + (why ? " off" : "")} aria-checked={on} aria-disabled={!!why || undefined} aria-label={`เลือก ${x.title} เพื่อแยกเป็นไฟล์`} title={why}
+                      {...kb(() => { if (!why) xToggle(x.key); })} role="checkbox" data-xpick={x.key}><span className={"cbx " + (on ? "on" : "off")}>{on && <svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="4" aria-hidden="true"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>}</span></span>
+                  </div>
+                  <span className="kind x" aria-hidden="true"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2"><path d="M14 3H6a2 2 0 00-2 2v14a2 2 0 002 2h12a2 2 0 002-2V9z" /><path d="M14 3v6h6" /></svg></span>
+                  <div><FtChip name={x.chip} /></div>
+                  <div style={{ minWidth: 0 }}>
+                    <div className="nm">{x.title} <InfoTip title={x.title} tip={x.tip} /></div>
+                    <div className="dt"><DtLine parts={[<span key="a" className="tpill in">ในไฟล์</span>, <span key="x" className="tpill conv">{`แยกเป็น .${x.ext}`}</span>]} /></div>
+                  </div>
+                  <span className="small xnote" style={{ gridColumn: "5 / 9" }}>{x.what}</span><div className="avacts" />
+                </div>
+              );
+            })}
           </div>
         </div>
 
@@ -925,7 +964,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
                 ))}
               </div></div>
         {/* การ์ดแยกไฟล์ตรึงล่างสุดของจอแบบแถบปุ่มรวม ไม่ต้องเลื่อนหา (BUGS ข้อ 35 ต่อ พี่กันสั่ง 12 พ.ย. 2569 "ตัวนี้ควรอยู่ล่าสุดตลอด") */}
-        {method === "extract" && <div className="avfoot avxfoot"><ExtractCard path={movie.path} picks={xPicks} busy={working ? BUSY : undefined} srcSize={movie.size} /></div>}
+        {method === "extract" && <div className="avfoot avxfoot"><ExtractCard path={movie.path} picks={xPicks} busy={working ? BUSY : undefined} srcSize={movie.size} pattern={settings?.extractPattern} batchable={!!xi} /></div>}
         {method !== "extract" && <div className="avfoot">
           {method === "pair" ? (<>
             {pairBlocked && <div className="hint" style={{ color: "#94680f", margin: 0 }} data-blocked>{pairBlocked}</div>}

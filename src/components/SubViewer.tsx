@@ -7,13 +7,15 @@
    ซับรูป (PGS VobSub) ถอดเป็นรูปทีละภาพ หน้าละ 6 ภาพ พื้นตารางหมากรุกคือส่วนโปร่งใส กดภาพดูเต็มจอที่ตำแหน่งจริง
    ใส่ดีเลย์ไว้ เวลาที่แสดงเลื่อนตามดีเลย์ (ยกเว้นแบบ notepad) */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
+import { createPortal } from "react-dom";
 import Dialog from "./Dialog";
 import { CardIcon, FixedTime, Phr, Seg, Skel } from "./ui";
 import { checkApi, graphApi, subApi, type GWindow, type SubImg, type SubText } from "../lib/api";
 import type { AvTrack } from "../lib/avJob";
-import { ftName } from "../lib/ftypes";
+import { ftName, isImageSub } from "../lib/ftypes";
 import { IbBack, IbNext, IbPlay } from "./icons";
-import { IcGraph, IbEye, IbTable, IcFile, IbPencil } from "./icons";
+import { IcGraph, IbEye, IbTable, IcFile, IbPencil, IbResample } from "./icons";
+import ImgConvDialog from "./ImgConvDialog";
 
 const baseName = (p: string) => p.split(/[\\/]/).pop() ?? p;
 const ts = (t: number) => { const s = Math.max(0, t); const h = Math.floor(s / 3600), m = Math.floor((s % 3600) / 60), x = s % 60; return `${h}:${String(m).padStart(2, "0")}:${x.toFixed(2).padStart(5, "0")}`; };
@@ -244,12 +246,13 @@ export default function SubViewer(p: { track: AvTrack; movie: string; refStream:
   tab?: "aeg" | "long" | "pad" }) {
   const t = p.track;
   const ft = ftName("subtitle", t.codec, t.profile);
-  const image = ft === "PGS" || ft === "VobSub";
+  const image = isImageSub(t.codec, t.profile);
   const ff = t.ff ?? t.tid;
   const [tabS, setTab] = useState<"aeg" | "long" | "pad">("aeg");
   const tab = p.tab ?? tabS;
   const [data, setData] = useState<SubText | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  const [conv, setConv] = useState(false);
   useEffect(() => {
     if (image) return;
     subApi.text(t.inMovie ? p.movie : t.src, t.inMovie, t.tid, ff).then(setData, (e) => setErr(String(e)));
@@ -262,7 +265,12 @@ export default function SubViewer(p: { track: AvTrack; movie: string; refStream:
     {!image && <Seg small label="แบบการดู" value={tab} onChange={setTab} options={[{ value: "aeg", label: <><IbTable size={14} />แบบ Aegisub</> }, { value: "long", label: <><IcFile size={14} />แบบอ่านยาว</> }, { value: "pad", label: <><IbPencil size={14} />แบบ notepad</> }]} />}</span>;
   const body = (
     <div style={{ display: "flex", flexDirection: "column", gap: 10 }} data-subviewer data-mode={image ? "image" : tab}>
-      <div className="small" style={{ marginTop: p.inline ? 0 : -6 }}><Phr>{sub}</Phr></div>
+      {image ? <div className="sv-imghead" style={{ marginTop: p.inline ? 0 : -6 }}>
+        <div className="small"><Phr>{sub}</Phr></div>
+        {/* แปลงซับภาพเป็นซับภาพชนิดอื่น (BUGS ข้อ 125 · ImgConvDialog.tsx) */}
+        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConv(true)} title="แปลงเป็น PGS VobSub หรือ BDN XML และย่อขยายภาพ เปลี่ยนอัตราเฟรม หรือเลื่อนเวลาได้" data-imgconv-open><IbResample size={14} />แปลงซับภาพ</button>
+      </div> : <div className="small" style={{ marginTop: p.inline ? 0 : -6 }}><Phr>{sub}</Phr></div>}
+      {image && conv && createPortal(<ImgConvDialog open onClose={() => setConv(false)} track={t} movie={p.movie} />, document.body)}
       {image ? <ImageView track={t} path={t.inMovie ? p.movie : t.src} ff={ff} />
         : err ? <div className="stat bad"><CardIcon kind="bad" /><div><b>อ่านซับไม่ได้</b><Phr>{err}</Phr></div></div>
         : !data ? <><Skel w="100%" h={203} /><Skel w="100%" h={220} /></>

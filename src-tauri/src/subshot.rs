@@ -29,11 +29,6 @@ fn filter_path(p: &Path) -> String {
     format!("'{}'", l1.replace('\'', "'\\''"))
 }
 
-/// เวลา ms ของซับเป็นค่าที่ใส่ใน setpts · หน่วยเวลาไมโครวินาที (AVTB) ไม่งั้นแหล่งภาพ 1 ภาพต่อวินาทีปัด 4.5 วินาทีเป็น 4 บรรทัดที่เริ่ม 4.1 หาย
-fn at(t_ms: f64) -> String {
-    format!("settb=AVTB,setpts={:.6}/TB", (t_ms.max(0.0)) / 1000.0)
-}
-
 /// ตัวกรอง subtitles · original_size ขนาดจริงของภาพหนัง (libass ใช้คิดเส้นขอบและเงาตอน ScaledBorderAndShadow ไม่ใช่ yes)
 pub(crate) fn subs_filter(sub: &Path, fonts: Option<&Path>, ow: u32, oh: u32, alpha: bool) -> String {
     let mut s = format!("subtitles=f={}", filter_path(sub));
@@ -138,15 +133,35 @@ fn ffmpeg_png(tools: &Path, args: &[OsString]) -> Result<Vec<u8>, String> {
 
 const PNG_OUT: [&str; 6] = ["-frames:v", "1", "-f", "image2pipe", "-c:v", "png"];
 
-/// เฉพาะซับบนพื้นโปร่งใสขนาด w × h ณ เวลา t_ms ของซับ
-fn only_subs(tools: &Path, sub: &Path, fonts: Option<&Path>, t_ms: f64, w: u32, h: u32, ow: u32, oh: u32) -> Result<Vec<u8>, String> {
-    let mut a: Vec<OsString> = ["-v", "error", "-nostdin", "-f", "lavfi", "-i"].iter().map(OsString::from).collect();
-    a.push(format!("color=c=black@0:s={w}x{h}:r=1,format=rgba").into());
-    a.push("-vf".into());
-    a.push(format!("{},{},format=rgba", at(t_ms), subs_filter(sub, fonts, ow, oh, true)).into());
-    a.extend(PNG_OUT.iter().map(OsString::from));
-    a.push("-".into());
-    ffmpeg_png(tools, &a)
+/// เอกสารที่ส่งให้ libass วาดภาพนิ่ง กับว่าต้องคิดสีแบบตัวเล่นไหม (BUGS ข้อ 124 ยกวิธีจาก pgs.rs prepare)
+/// ASS SSA ตั้ง YCbCr Matrix เป็น None ให้สีตรงสไตล์ ไม่งั้นตัวกรอง subtitles บีบสีเหลือช่วง 16 ถึง 235 (เหลือง 255,215,0 ได้ 235,201,16)
+/// แล้วคิดสีแบบ VSFilter เมื่อซับเป็น TV.601 (หรือไม่บอก) บนหนัง HD สูงเกิน 576 จุด แบบที่ mpv แสดง · SRT VTT ffmpeg ใส่ None ให้เองอยู่แล้ว
+fn prep(doc: &SubDoc, oh: u32) -> (SubDoc, bool) {
+    if doc.kind == "ass" || doc.kind == "ssa" {
+        let tv601 = crate::pgs::script_tv601(doc);
+        let mut d = doc.clone();
+        crate::pgs::set_matrix_none(&mut d);
+        return (d, tv601 && oh > 576);
+    }
+    (doc.clone(), false)
+}
+
+/// ซับ ณ เวลา t_ms ขนาด w × h เป็น RGBA แบบไม่คูณความโปร่งใส (แบบ PNG) · ow oh ขนาดจริงของหนัง
+/// วาดบนพื้นดำทึบกับพื้นขาวทึบแล้วคิดความทึบเอง (pgs.rs spawn_pair pair_to_rgba) ไม่ใช้โหมด alpha=1 ที่คิดความทึบของสีโปร่งแสงผิด (เงาครึ่งหนึ่ง 128 ได้ 63)
+#[allow(clippy::too_many_arguments)]
+fn subs_rgba(tools: &Path, work: &Path, doc: &SubDoc, fonts: Option<&Path>, t_ms: f64, w: u32, h: u32, ow: u32, oh: u32) -> Result<Vec<u8>, String> {
+    let (ow, oh) = if ow > 0 && oh > 0 { (ow, oh) } else { (w, h) };
+    let (d, mangle) = prep(doc, oh);
+    let sub = TmpSub::new(work, &d)?;
+    let buf = crate::pgs::render_pair(tools, &sub.0, fonts, w, h, ow, oh, (t_ms.max(0.0) * 1000.0).round() as i64)?;
+    Ok(crate::pgs::straight_px(&buf, mangle, 0.0))
+}
+
+fn png_rgba(px: Vec<u8>, w: u32, h: u32) -> Result<Vec<u8>, String> {
+    let img = image::RgbaImage::from_raw(w, h, px).ok_or("ทำภาพไม่ได้")?;
+    let mut v = std::io::Cursor::new(Vec::new());
+    img.write_to(&mut v, image::ImageFormat::Png).map_err(|e| e.to_string())?;
+    Ok(v.into_inner())
 }
 
 /// ภาพเฉพาะซับที่วางทับภาพหนังบนจอ · ได้ PNG เป็น data URL
@@ -156,9 +171,8 @@ pub async fn sub_overlay(app: AppHandle, doc: SubDoc, t: f64, w: u32, h: u32, ow
     let tools = tools_dir(&app)?;
     let work = work_dir(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
-        let sub = TmpSub::new(&work, &doc)?;
         let fonts = movie.as_deref().filter(|m| !m.is_empty()).and_then(|m| movie_fonts(&tools, &work, Path::new(m)));
-        let png = only_subs(&tools, &sub.0, fonts.as_deref(), t, w.clamp(16, 4096), h.clamp(16, 4096), ow, oh)?;
+        let png = overlay_png(&tools, &work, &doc, fonts.as_deref(), t, w.clamp(16, 4096), h.clamp(16, 4096), ow, oh)?;
         Ok(format!("data:image/png;base64,{}", crate::audiograph::b64(&png)))
     }).await.map_err(|e| e.to_string())?
 }
@@ -231,57 +245,43 @@ pub async fn vid_snapshot(app: AppHandle, req: SnapReq, doc: Option<SubDoc>, bg:
         let h = req.h.clamp(16, 8192);
         let movie = req.movie.as_deref().filter(|m| !m.is_empty()).map(PathBuf::from);
         if let Some(m) = &movie { if !m.exists() { return Err("หาไฟล์หนังไม่เจอ ไดรฟ์อาจถอดออกอยู่".to_string()); } }
-        let with_subs = req.mode != "raw";
-        let sub = match (&doc, with_subs) {
-            (Some(d), true) => Some(TmpSub::new(&work, d)?),
+        // ซับวาดแยกด้วยตัววาดแบบ PGS แล้ววางบนภาพเอง (BUGS ข้อ 124) · เดิมให้ ffmpeg วาดลงภาพ สีหม่นและความทึบเพี้ยน
+        let sub_doc = match (&doc, req.mode != "raw") {
+            (Some(d), true) => Some(d),
             (None, true) => return Err("ไม่มีซับให้วาด".into()),
             _ => None,
         };
         let fonts = movie.as_deref().and_then(|m| movie_fonts(&tools, &work, m));
         let png = if req.mode == "only" {
-            only_subs(&tools, &sub.as_ref().unwrap().0, fonts.as_deref(), req.t, w, h, req.ow, req.oh)?
+            overlay_png(&tools, &work, sub_doc.ok_or("ไม่มีซับให้วาด")?, fonts.as_deref(), req.t, w, h, req.ow, req.oh)?
         } else {
-            match &movie {
+            let base = match &movie {
                 Some(m) => {
                     let mut a = crate::vidframes::seek_args(m, req.ss, 1);
                     a.push("-vf".into());
-                    a.push(frame_filter(w, h, req.t, sub.as_ref().map(|s| s.0.as_path()), fonts.as_deref(), req.ow, req.oh).into());
+                    a.push(frame_filter(w, h).into());
                     a.extend(PNG_OUT.iter().map(OsString::from));
                     a.push("-".into());
                     ffmpeg_png(&tools, &a)?
                 }
-                // วิดีโอจำลอง ภาพพื้นที่หน้าจอวาดขนาดเต็มส่งมา · ไม่มีซับใช้ภาพนั้นเลย
+                // วิดีโอจำลอง ภาพพื้นที่หน้าจอวาดขนาดเต็มส่งมา
                 None => {
                     let data = bg.as_deref().and_then(|s| s.split_once(',').map(|x| x.1)).ok_or("ไม่มีภาพของวิดีโอจำลอง")?;
-                    let bytes = crate::audiograph::unb64(data)?;
-                    match &sub {
-                        None => bytes,
-                        Some(s) => {
-                            let p = work.join(format!("sub-shot-bg-{}.png", crate::poster_image::unique()));
-                            std::fs::write(&p, &bytes).map_err(|e| e.to_string())?;
-                            let mut a: Vec<OsString> = ["-v", "error", "-nostdin", "-i"].iter().map(OsString::from).collect();
-                            a.push(p.clone().into_os_string());
-                            a.push("-vf".into());
-                            a.push(frame_filter(w, h, req.t, Some(&s.0), None, req.ow, req.oh).into());
-                            a.extend(PNG_OUT.iter().map(OsString::from));
-                            a.push("-".into());
-                            let r = ffmpeg_png(&tools, &a);
-                            let _ = std::fs::remove_file(&p);
-                            r?
-                        }
-                    }
+                    crate::audiograph::unb64(data)?
                 }
+            };
+            match sub_doc {
+                Some(d) => subs_on_png(&tools, &work, d, &base, fonts.as_deref(), req.t, w, h, req.ow, req.oh)?,
+                None => base,
             }
         };
         bytes_out(png, &req, hwnd, &movie)
     }).await.map_err(|e| e.to_string())?
 }
 
-/// ภาพหนังย่อขยายเป็นขนาดแสดงผล (จุดภาพสี่เหลี่ยมจัตุรัส) แล้ววาดซับทับ ณ เวลาของซับ
-fn frame_filter(w: u32, h: u32, t_ms: f64, sub: Option<&Path>, fonts: Option<&Path>, ow: u32, oh: u32) -> String {
-    let mut vf = format!("scale={w}:{h},setsar=1");
-    if let Some(s) = sub { vf.push_str(&format!(",{},{}", at(t_ms), subs_filter(s, fonts, ow, oh, false))); }
-    vf
+/// ภาพหนังย่อขยายเป็นขนาดแสดงผล (จุดภาพสี่เหลี่ยมจัตุรัส) · ซับวางทับทีหลังด้วย subs_on_png
+fn frame_filter(w: u32, h: u32) -> String {
+    format!("scale={w}:{h},setsar=1")
 }
 
 /// ภาพที่ได้ บันทึกเป็นไฟล์ใหม่ หรือใส่คลิปบอร์ด
@@ -305,9 +305,98 @@ fn bytes_out(png: Vec<u8>, req: &SnapReq, hwnd: isize, movie: &Option<PathBuf>) 
     Ok(SnapOut { path: Some(p.display().to_string()), w: iw, h: ih, bytes: png.len() })
 }
 
+/// เฉพาะซับพื้นโปร่งใสเป็น PNG (ภาพที่วางทับภาพหนังบนจอ และบันทึกแบบเฉพาะซับ)
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn overlay_png(tools: &Path, work: &Path, doc: &SubDoc, fonts: Option<&Path>, t_ms: f64, w: u32, h: u32, ow: u32, oh: u32) -> Result<Vec<u8>, String> {
+    png_rgba(subs_rgba(tools, work, doc, fonts, t_ms, w, h, ow, oh)?, w, h)
+}
+
+/// ซับวางบนภาพพื้น base (PNG ภาพหนังหรือวิดีโอจำลอง) ได้ PNG ขนาด w × h · ภาพพื้นที่ขนาดไม่ตรงย่อขยายก่อน
+/// ผสมแบบเดียวกับตัวเล่น สีซับคูณความทึบบวกพื้นคูณส่วนที่เหลือ
+#[allow(clippy::too_many_arguments)]
+pub(crate) fn subs_on_png(tools: &Path, work: &Path, doc: &SubDoc, base: &[u8], fonts: Option<&Path>, t_ms: f64, w: u32, h: u32, ow: u32, oh: u32) -> Result<Vec<u8>, String> {
+    let mut bg = image::load_from_memory(base).map_err(|e| format!("อ่านภาพพื้นไม่ได้ {e}"))?.to_rgb8();
+    if bg.width() != w || bg.height() != h { bg = image::imageops::resize(&bg, w, h, image::imageops::FilterType::Triangle); }
+    let sub = subs_rgba(tools, work, doc, fonts, t_ms, w, h, ow, oh)?;
+    for (p, s) in bg.pixels_mut().zip(sub.chunks_exact(4)) {
+        let a = s[3] as u32;
+        if a == 0 { continue; }
+        for k in 0..3 { p.0[k] = ((s[k] as u32 * a + p.0[k] as u32 * (255 - a) + 127) / 255) as u8; }
+    }
+    let mut v = std::io::Cursor::new(Vec::new());
+    bg.write_to(&mut v, image::ImageFormat::Png).map_err(|e| e.to_string())?;
+    Ok(v.into_inner())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn tools() -> PathBuf { PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tools") }
+    fn tmpd(name: &str) -> PathBuf {
+        let d = std::env::temp_dir().join(format!("movie-shelf-subshot-{name}-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        d
+    }
+    /// ซับตัวหนังสือเหลือง &H0000D7FF (255,215,0) ไม่มีขอบ เงาดำโปร่งครึ่งหนึ่ง (&H80) ระยะ 12 · matrix ว่างคือไม่มีบรรทัด YCbCr Matrix
+    fn yellow(matrix: &str) -> SubDoc {
+        let m = if matrix.is_empty() { String::new() } else { format!("YCbCr Matrix: {matrix}\r\n") };
+        let ass = format!("[Script Info]\r\nScriptType: v4.00+\r\nPlayResX: 1280\r\nPlayResY: 720\r\n{m}ScaledBorderAndShadow: yes\r\n\r\n[V4+ Styles]\r\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\r\nStyle: Default,Arial,120,&H0000D7FF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,0,12,5,20,20,40,1\r\n\r\n[Events]\r\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\r\nDialogue: 0,0:00:00.50,0:00:02.00,Default,,0,0,0,,MMMM\r\n");
+        crate::subdoc::parse_doc(ass.as_bytes(), "ass", None)
+    }
+    fn rgba(png: &[u8]) -> Vec<u8> { image::load_from_memory(png).unwrap().to_rgba8().into_raw() }
+    /// สีที่เจอมากที่สุดของจุดที่ทึบเต็มที่และไม่ใช่สีพื้นหรือเงา
+    fn top(px: &[u8], skip: [u8; 3]) -> [u8; 3] {
+        let mut m: std::collections::HashMap<[u8; 3], u32> = std::collections::HashMap::new();
+        for p in px.chunks_exact(4) { let c = [p[0], p[1], p[2]]; if p[3] == 255 && c != skip && c.iter().map(|&v| v as u32).sum::<u32>() > 200 { *m.entry(c).or_insert(0) += 1; } }
+        m.into_iter().max_by_key(|x| x.1).map(|x| x.0).unwrap_or([0, 0, 0])
+    }
+    fn near(a: [u8; 3], b: [u8; 3], tol: i32) -> bool { (0..3).all(|k| (a[k] as i32 - b[k] as i32).abs() <= tol) }
+
+    /// BUGS ข้อ 124 · ภาพซับที่วางทับภาพหนังบนจอ (กับบันทึกแบบเฉพาะซับ) เดิมใช้โหมดพื้นโปร่งใส alpha=1 ของตัวกรอง subtitles
+    /// สีเหลือง 255,215,0 ออกมา 235,201,16 (บีบสีเหลือ 16 ถึง 235) และเงาโปร่งครึ่งหนึ่งได้ความทึบราว 63 แทน 128 แบบที่เจอตอนทำ PGS
+    #[test]
+    fn overlay_exact_color_and_half_alpha() {
+        let dir = tmpd("ov");
+        let px = rgba(&overlay_png(&tools(), &dir, &yellow("TV.709"), None, 1000.0, 1280, 720, 1280, 720).unwrap());
+        let got = top(&px, [0, 0, 0]);
+        assert!(near(got, [255, 215, 0], 2), "สีตัวหนังสือได้ {got:?} ต้อง 255,215,0");
+        let mut m: std::collections::HashMap<u8, u32> = std::collections::HashMap::new();
+        for p in px.chunks_exact(4) { if p[3] > 0 && p[3] < 255 && p[0] < 8 && p[1] < 8 && p[2] < 8 { *m.entry(p[3]).or_insert(0) += 1; } }
+        let (a, n) = m.into_iter().max_by_key(|x| x.1).unwrap_or((0, 0));
+        assert!((124..=132).contains(&a) && n > 1000, "เงาความทึบ {a} ({n} จุด) ต้องราว 128");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// ซับ TV.601 (หรือไม่บอก) บนหนัง HD · ตัวเล่นอย่าง mpv คิดสีแบบ VSFilter ภาพนิ่งต้องได้สีเดียวกับตอนเล่น
+    #[test]
+    fn overlay_tv601_on_hd_like_player() {
+        let dir = tmpd("ov601");
+        let want = crate::pgs::mangle601([255, 215, 0]);
+        for m in ["TV.601", ""] {
+            let px = rgba(&overlay_png(&tools(), &dir, &yellow(m), None, 1000.0, 1280, 720, 1280, 720).unwrap());
+            let got = top(&px, [0, 0, 0]);
+            assert!(near(got, want, 2), "ซับ {m:?} บนหนัง 720 ได้ {got:?} ต้อง {want:?} แบบตัวเล่น");
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// บันทึกภาพแบบมีซับ (ภาพหนังหรือวิดีโอจำลอง) · เดิมให้ ffmpeg วาดซับลงภาพ สีหม่นแบบเดียวกัน · พื้นเทา 90 เงาดำครึ่งหนึ่งต้องได้ราว 45
+    #[test]
+    fn subs_on_image_exact_color() {
+        let dir = tmpd("img");
+        let mut base = std::io::Cursor::new(Vec::new());
+        image::RgbImage::from_pixel(1280, 720, image::Rgb([90, 90, 90])).write_to(&mut base, image::ImageFormat::Png).unwrap();
+        let px = rgba(&subs_on_png(&tools(), &dir, &yellow("TV.709"), base.get_ref(), None, 1000.0, 1280, 720, 1280, 720).unwrap());
+        let got = top(&px, [90, 90, 90]);
+        assert!(near(got, [255, 215, 0], 2), "สีตัวหนังสือบนภาพได้ {got:?} ต้อง 255,215,0");
+        let mut m: std::collections::HashMap<u8, u32> = std::collections::HashMap::new();
+        for p in px.chunks_exact(4) { if p[0] == p[1] && p[1] == p[2] && p[0] > 20 && p[0] < 80 { *m.entry(p[0]).or_insert(0) += 1; } }
+        let (v, n) = m.into_iter().max_by_key(|x| x.1).unwrap_or((0, 0));
+        assert!((42..=48).contains(&v) && n > 1000, "เงาบนพื้นเทาได้ {v} ({n} จุด) ต้องราว 45");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
 
     #[test]
     fn filter_path_escapes_colon_and_quote() {
@@ -315,10 +404,16 @@ mod tests {
         assert_eq!(filter_path(Path::new(r"C:\it's\a.ass")), r"'C\:/it\'\''s/a.ass'");
     }
 
+    /// เวลาของภาพนิ่งละเอียดถึงมิลลิวินาที (หน่วยเวลาไมโครวินาทีใน pgs.rs spawn_pair) · บรรทัด 0.50 ถึง 2.00 วินาที
+    /// ที่ 1,990 ms ต้องมีซับ ถ้าปัดเป็นวินาทีเต็มจะเป็น 2 วินาทีซึ่งบรรทัดจบแล้ว · ที่ 490 ms ต้องว่าง ถ้าปัดเป็น 0.5 จะมีซับ
     #[test]
     fn time_uses_microsecond_base() {
-        assert_eq!(at(4500.0), "settb=AVTB,setpts=4.500000/TB");
-        assert_eq!(at(-20.0), "settb=AVTB,setpts=0.000000/TB");
+        let dir = tmpd("time");
+        let has = |t: f64| rgba(&overlay_png(&tools(), &dir, &yellow("TV.709"), None, t, 640, 360, 1280, 720).unwrap()).chunks_exact(4).any(|p| p[3] > 0);
+        assert!(has(1990.0), "1,990 ms ต้องมีซับ");
+        assert!(!has(490.0), "490 ms ต้องยังไม่มีซับ");
+        assert!(!has(2010.0), "2,010 ms ต้องจบแล้ว");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     #[test]

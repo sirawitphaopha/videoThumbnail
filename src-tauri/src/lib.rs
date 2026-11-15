@@ -20,6 +20,7 @@ mod latest;
 mod library;
 mod link;
 mod merge;
+mod mkvtree;
 mod outfile;
 mod pairs;
 mod players;
@@ -29,6 +30,8 @@ mod probe;
 mod rename;
 mod store;
 mod subaudio;
+mod subconv;
+mod imgconv;
 mod pgs;
 mod subdoc;
 mod subs;
@@ -173,12 +176,12 @@ pub fn run() {
         subdoc::subdoc_open, subdoc::subdoc_stamp, subdoc::subdoc_save, subdoc::subdoc_convert, subdoc::subdoc_free_name, subdoc::subdoc_render, subdoc::subdoc_parse_text, subdoc::subdoc_temp, subshot::sub_overlay, subshot::vid_snapshot, vidframes::vid_colorspace,
         subdoc::subdoc_set_dirty, subdoc::subdoc_autosave, subdoc::subdoc_autosaves, subdoc::subdoc_open_autosave, fonts::font_families,
         vidframes::vid_table, vidframes::vid_table_stop, vidframes::vid_frames, vidframes::vid_scenes, vidframes::vid_scenes_stop, vidframes::vid_keys_load, vidframes::vid_keys_save, vidplay::vid_play, vidplay::vid_play_stop, mpvplay::mpv_play, mpvplay::mpv_state, mpvplay::mpv_rect, mpvplay::mpv_sub, mpvplay::mpv_volume, mpvplay::mpv_stop, mpvplay::mpv_available, mpvplay::mpv_dev_props, mpvplay::mpv_dev_shot,
-        subaudio::sub_pcm, subaudio::sub_audio_save, subaudio::sub_peaks, pgs::pgs_export, pgs::pgs_cancel,
+        subaudio::sub_pcm, subaudio::sub_audio_save, subaudio::sub_peaks, pgs::pgs_export, pgs::pgs_cancel, pgs::pgs_preview, pgs::pgs_engines, pgs::pgs_estimate, imgconv::imgsub_convert, imgconv::imgsub_cancel, imgconv::imgsub_tools, imgconv::imgsub_preview,
         pairs::pair_set, pairs::pair_check, pairs::pair_play,
         link::link_state, link::link_titles, link::link_is_dir, link::link_images, link::link_add_images, link::link_remove_images, link::link_auto, link::link_pair, link::link_undo, link::link_row_update, link::link_set_crop, link::link_confirm, link::link_cancel, link::link_resolve, link::link_unsave, link::link_remove, link::link_open_row, link::link_cover_pick, link::link_migrate,
         convert::convert_probe, convert::convert_size_probe, convert::convert_cover, convert::convert_one, convert::convert_cancel,
-        fileinfo::media_info, fileinfo::audio_codec_detail, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_running, fileinfo::hash_compare, fileinfo::hash_save, winutil::clipboard_text,
-        extract::extract_start, extract::extract_cancel, extract::extract_running, extract::extract_default_folder,
+        fileinfo::media_info, mkvtree::mkv_tree, fileinfo::audio_codec_detail, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_running, fileinfo::hash_compare, fileinfo::hash_save, winutil::clipboard_text,
+        extract::extract_start, extract::extract_info, extract::extract_cancel, extract::extract_running, extract::extract_default_folder,
         check::check_start, check::check_cancel, check::check_running, check::play_at, players::list_players,
         audiograph::graph_info, audiograph::graph_exist, audiograph::graph_overview, audiograph::graph_window, audiograph::graph_psd, audiograph::graph_cancel, audiograph::graph_save, graphimg::graph_save_image,
         audiograph::graph_cache_info, audiograph::graph_cache_clear, audiograph::graph_dev_forget,
@@ -198,12 +201,12 @@ pub fn run() {
         subdoc::subdoc_open, subdoc::subdoc_stamp, subdoc::subdoc_save, subdoc::subdoc_convert, subdoc::subdoc_free_name, subdoc::subdoc_render, subdoc::subdoc_parse_text, subdoc::subdoc_temp, subshot::sub_overlay, subshot::vid_snapshot, vidframes::vid_colorspace,
         subdoc::subdoc_set_dirty, subdoc::subdoc_autosave, subdoc::subdoc_autosaves, subdoc::subdoc_open_autosave, fonts::font_families,
         vidframes::vid_table, vidframes::vid_table_stop, vidframes::vid_frames, vidframes::vid_scenes, vidframes::vid_scenes_stop, vidframes::vid_keys_load, vidframes::vid_keys_save, vidplay::vid_play, vidplay::vid_play_stop, mpvplay::mpv_play, mpvplay::mpv_state, mpvplay::mpv_rect, mpvplay::mpv_sub, mpvplay::mpv_volume, mpvplay::mpv_stop, mpvplay::mpv_available, mpvplay::mpv_dev_props, mpvplay::mpv_dev_shot,
-        subaudio::sub_pcm, subaudio::sub_audio_save, subaudio::sub_peaks, pgs::pgs_export, pgs::pgs_cancel,
+        subaudio::sub_pcm, subaudio::sub_audio_save, subaudio::sub_peaks, pgs::pgs_export, pgs::pgs_cancel, pgs::pgs_preview, pgs::pgs_engines, pgs::pgs_estimate, imgconv::imgsub_convert, imgconv::imgsub_cancel, imgconv::imgsub_tools, imgconv::imgsub_preview,
         pairs::pair_set, pairs::pair_check, pairs::pair_play,
         link::link_state, link::link_titles, link::link_is_dir, link::link_images, link::link_add_images, link::link_remove_images, link::link_auto, link::link_pair, link::link_undo, link::link_row_update, link::link_set_crop, link::link_confirm, link::link_cancel, link::link_resolve, link::link_unsave, link::link_remove, link::link_open_row, link::link_cover_pick, link::link_migrate,
         convert::convert_probe, convert::convert_size_probe, convert::convert_cover, convert::convert_one, convert::convert_cancel,
-        fileinfo::media_info, fileinfo::audio_codec_detail, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_running, fileinfo::hash_compare, fileinfo::hash_save, winutil::clipboard_text,
-        extract::extract_start, extract::extract_cancel, extract::extract_running, extract::extract_default_folder,
+        fileinfo::media_info, mkvtree::mkv_tree, fileinfo::audio_codec_detail, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_running, fileinfo::hash_compare, fileinfo::hash_save, winutil::clipboard_text,
+        extract::extract_start, extract::extract_info, extract::extract_cancel, extract::extract_running, extract::extract_default_folder,
         check::check_start, check::check_cancel, check::check_running, check::play_at, players::list_players,
         audiograph::graph_info, audiograph::graph_exist, audiograph::graph_overview, audiograph::graph_window, audiograph::graph_psd, audiograph::graph_cancel, audiograph::graph_save, graphimg::graph_save_image,
         audiograph::graph_cache_info, audiograph::graph_cache_clear,

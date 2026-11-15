@@ -619,7 +619,7 @@ export default function SubEditor(p: SubEditorProps) {
       <DetailsDialog open={vdlg === "details"} onClose={() => setVdlg(null)} name={nameOf(p.video)} table={vst.table} dummy={vst.dummy} fr={fr} keys={vidKeys(vst).list.length} />
       <DummyDialog open={vdlg === "dummy"} onClose={() => setVdlg(null)} onUse={applyDummy} />
       <FontDialog open={!!font} current={font?.current ?? { name: "", size: "" }} sample={ev ? shownText(ev, doc).replace(/\n/g, " ") : ""} onClose={() => setFont(null)} onApply={(t, r) => font?.apply(t, r)} />
-      <PgsDialog open={pgs} onClose={() => setPgs(false)} doc={doc} base={getSubEdit().meta?.base ?? base} movie={vsrc.kind === "movie" ? vsrc.path : null}
+      <PgsDialog open={pgs} onClose={() => setPgs(false)} doc={doc} base={getSubEdit().meta?.base ?? base} movie={vsrc.kind === "movie" ? vsrc.path : null} cur={ev?.id ?? null}
         video={vst.table && vsrc.kind === "movie" ? { w: vst.table.w, h: vst.table.h, rate: vst.table.rate, fps: vst.table.fps } : null}
         onDone={(m) => setSave({ s: "done", note: m })} />
       <RemuxDialog open={remux} onClose={() => setRemux(false)} doc={doc} onSaveAsFile={() => openSaveAs(doc.kind)}

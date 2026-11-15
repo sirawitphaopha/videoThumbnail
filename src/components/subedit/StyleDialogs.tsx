@@ -252,7 +252,7 @@ export function StyleEditor(p: { open: boolean; init: { id: number | null; v: St
 }
 
 /** ช่องตัวเลข พิมพ์ได้อิสระ ค่าเข้าเมื่ออ่านออก · ออกจากช่องแล้วกลับเป็นค่าล่าสุดที่ใช้ได้ */
-function NumBox(p: { value: number; onChange: (v: number) => void; width: number; data: string }) {
+export function NumBox(p: { value: number; onChange: (v: number) => void; width: number; data: string }) {
   const [t, setT] = useState(fmtG(p.value));
   const [bad, setBad] = useState(false);
   useEffect(() => { if (parseFloat(t) !== p.value) setT(fmtG(p.value)); }, [p.value]); // eslint-disable-line react-hooks/exhaustive-deps

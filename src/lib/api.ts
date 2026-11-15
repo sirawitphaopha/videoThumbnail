@@ -49,6 +49,8 @@ export type Settings = {
   windowMaximized?: boolean;
   /** ตัวเล่นหนังในหน้าแก้ซับ mpv ฝัง libmpv (ค่าตั้งต้น) · aegisub อ่านภาพทีละเฟรมเดินตามเสียง (BUGS ข้อ 111) */
   subPlayer?: "mpv" | "aegisub";
+  /** รูปแบบชื่อไฟล์แทร็กที่แยกออกจากหนัง แบบ gMKVExtractGUI (BUGS ข้อ 130 · lib/extractName.ts) */
+  extractPattern?: string;
 };
 
 export type LoadedFrom = "file" | "backup" | "defaults" | "new" | "partial";
@@ -422,18 +424,54 @@ export const audApi = {
 };
 
 /** ส่งออกซับเป็น PGS ไฟล์ .sup (pgs.rs · BUGS ข้อ 118) · ระหว่างทำส่ง pgs-progress { done total } · ไฟล์มีอยู่แล้วตอบ exists · หยุดตอบ stopped */
-export type PgsOut = { path: string; images: number; reduced: number; merged: number; maxColors: number; bytes: number };
-export type PgsReq = { target: string; w: number; h: number; fpsNum: number; fpsDen: number; movie: string | null };
+export type PgsOut = { path: string; images: number; reduced: number; merged: number; maxColors: number; bytes: number; palUpdates: number; reused: number; late: number };
+/** ส่วนปรับแต่ง PGS (pgs.rs PgsOpts) · ตัวในโปรแกรมใช้ colors ถึง windows · SUPer ใช้ compression ถึง ahead */
+export type PgsOpts = { colors: number; matrix: "auto" | "709" | "601"; vsfilter: boolean; vivid: number; dither: boolean; windows: number; compression: number; quantizer: number; layout: number; redraw: number; maxKbps: number; allowNormal: boolean; ahead: boolean };
+/** หน้าตาซับ SRT ตอนทำเป็นภาพ (pgs.rs SrtStyle) · ขนาด ขอบ เงา ระยะ คิดที่ภาพสูง 1080 · สี #RRGGBB
+    align แป้นตัวเลข 1 ถึง 9 · lineSpacing contentAlign box* มีเฉพาะ Subtitle Edit (SeConv) */
+export type SrtStyle = { font: string; size: number; bold: boolean; italic: boolean; color: string; outlineColor: string; outline: number; shadow: number; shadowColor: string; shadowOpacity: number; marginV: number;
+  align: number; marginH: number; lineSpacing: number; contentAlign: "left" | "center" | "right" | "from-alignment"; boxType: "none" | "one-box" | "box-per-line"; boxColor: string; boxOpacity: number; boxPadding: number; boxRadius: number };
+/** shelf ตัวในโปรแกรม · super SUPer · seconv Subtitle Edit */
+export type PgsEngine = "shelf" | "super" | "seconv";
+export type PgsReq = { target: string; w: number; h: number; fpsNum: number; fpsDen: number; movie: string | null; engine?: PgsEngine; opts?: PgsOpts; style?: SrtStyle | null };
+/** ขนาดไฟล์ที่คาด (pgs.rs estimate) */
+export type PgsEstimate = { images: number; bytes: number; sampled: number };
+/** สีหลักสีหนึ่งของ ASS กับสีเดียวกันใน PGS · de ความต่างแบบ ΔE · share สัดส่วนของจุดทึบในซับ % */
+export type PgsColorPair = { ass: string; pgs: string; de: number; share: number };
+export type PgsPreview = { ass: string | null; pgs: string; pgsAlpha: string; w: number; h: number; colors: PgsColorPair[]; mean: number; max: number; before: number; after: number; bg: "movie" | "plain"; empty: boolean; mangled: boolean };
 export const pgsApi = {
   export: (doc: SubDoc, req: PgsReq) => call<PgsOut>("pgs_export", { doc, req }),
   cancel: () => call<void>("pgs_cancel"),
+  /** ภาพตัวอย่างที่เวลา at ms · sample ประโยคตัวอย่างของ SRT */
+  preview: (doc: SubDoc, req: PgsReq, at: number, sample: string | null) => call<PgsPreview>("pgs_preview", { doc, req, at, sample }),
+  engines: () => call<{ superOk: boolean; seconvOk: boolean }>("pgs_engines"),
+  estimate: (doc: SubDoc, req: PgsReq) => call<PgsEstimate>("pgs_estimate", { doc, req }),
+};
+
+/* ---------- แปลงซับภาพเป็นซับภาพ (imgconv.rs · BUGS ข้อ 125) ---------- */
+/** ตัวเลือกตรงกับ ImgReq ใน imgconv.rs · ชื่อตัวเลือกของ BDSup2Sub++ อยู่ในคอมเมนต์ฝั่ง Rust */
+export type ImgReq = {
+  src: string; inMovie: boolean; tid: number; ff: number; kind: "pgs" | "vobsub"; target: string; engine: "bdsup" | "seconv";
+  resolution: "keep" | "1080" | "1440x1080" | "720" | "576" | "480"; fpsSource: string; fpsTarget: string; delay: number;
+  filter: string; palette: "keep" | "create" | "dither"; fixShort: boolean; minTime: number;
+  moveY: "none" | "inside" | "outside" | "up" | "down"; ratio: number; moveYOffset: number; moveX: "none" | "left" | "right" | "center" | "origin"; moveXOffset: number; cropY: number;
+  alphaThr: number; lumLow: number; lumHi: number; forced: "all" | "only" | "exclude"; forceAll: "" | "set" | "clear"; language: string; scaleX: number; scaleY: number; fixInvisible: boolean;
+};
+export type ImgOut = { files: string[]; images: number; w: number; h: number; bytes: number; warnings: string[] };
+export type ImgPreview = { total: number; index: number; w: number; h: number; start: number; end: number; forced: boolean; graphics: { png: string; x: number; y: number; w: number; h: number }[]; warnings: string[] };
+export const imgApi = {
+  convert: (req: ImgReq) => call<ImgOut>("imgsub_convert", { req }),
+  cancel: () => call<void>("imgsub_cancel"),
+  tools: () => call<{ bdsupOk: boolean; seconvOk: boolean }>("imgsub_tools"),
+  /** ภาพตัวอย่างของผลที่จะได้ ภาพที่ index (เริ่ม 0) */
+  preview: (req: ImgReq, index: number) => call<ImgPreview>("imgsub_preview", { req, index }),
 };
 
 /** เลือกไฟล์ keyframe (ชนิดที่ Aegisub เปิดได้) · ยกเลิก = null */
 export async function pickKeyframes(): Promise<string | null> {
   if (!inApp) return null;
   const { open } = await import("@tauri-apps/plugin-dialog");
-  const r = await open({ multiple: false, directory: false, title: "เลือกไฟล์ keyframe", filters: [{ name: "ไฟล์ keyframe", extensions: ["txt", "pass", "stats", "log"] }, { name: "ทุกไฟล์", extensions: ["*"] }] });
+  const r = await open({ multiple: false, directory: false, title: "เลือกไฟล์ keyframe", filters: [{ name: "ไฟล์ keyframe", extensions: KEYFRAME_EXT }, { name: "ทุกไฟล์", extensions: ["*"] }] });
   return typeof r === "string" ? r : null;
 }
 
@@ -455,7 +493,8 @@ export const delayApi = {
 
 export const mergeApi = {
   inspect: (path: string) => call<MergeMovie>("merge_inspect", { path }),
-  addFile: (path: string, movieDuration: number | null) => call<AddedFile>("merge_add_file", { path, movieDuration }),
+  /** view หน้าซับไตเติลเปิดเพื่อดูและแปลง รับซับ HD DVD ที่ใส่ในหนังไม่ได้เพิ่ม (BUGS ข้อ 129) */
+  addFile: (path: string, movieDuration: number | null, view?: boolean) => call<AddedFile>("merge_add_file", { path, movieDuration, view: view ?? null }),
   /** ฟอนต์ที่ซับเรียกแต่หนังยังไม่มี ทั้งที่หาเจอในเครื่องและหาไม่เจอ (ใส่ซับกลับเข้าหนัง BUGS ข้อ 114) */
   remuxFonts: (movie: string, text: string) => call<FontHit[]>("remux_fonts", { movie, text }),
   /** ไม่สำเร็จ promise ล้มพร้อม ApplyProblem · ความคืบหน้ามาทางเหตุการณ์ merge-progress */
@@ -483,8 +522,13 @@ export const ADD_EXT = ["ac3", "eac3", "ec3", "dts", "dtshd", "thd", "truehd", "
 export type MiSection = { title: string; kind: "general" | "video" | "audio" | "text" | "menu" | "attachment" | string; rows: [string, string][]; ext: string | null; lang: string | null };
 export type Hashes = { md5: string | null; sha1: string | null; sha256: string | null; crc32: string | null; sha512: string | null; bytes: number; seconds: number };
 export type HashCompare = { algo: string | null; same: boolean; diff: string | null };
-export type ExtractItem = { kind: string; nth: number; ext: string; lang: string | null; name: string | null };
+/** of ใช้กับชิ้นเวลาของแต่ละเฟรม (kind timestamps) บอกว่าเป็นของแทร็กชนิดไหน (BUGS ข้อ 130) */
+export type ExtractItem = { kind: string; nth: number; ext: string; lang: string | null; name: string | null; of?: string | null };
+/** ไฟล์ MKV มีแท็กกับ chapter ไหม และดีเลย์ของแทร็กเสียงแต่ละแทร็ก มิลลิวินาที (extract.rs info_of) */
+export type ExtractInfo = { mkv: boolean; tags: boolean; chapters: boolean; delays: number[] };
 export type ExtractResult = { folder: string; states: string[]; files: (string | null)[]; error: string | null };
+/** หนึ่งชั้นในโครงสร้างไฟล์ MKV (mkvtree.rs · BUGS ข้อ 131) · แถวสรุปไม่มี id */
+export type MkvNode = { name: string; id: string; pos: number; size: number | null; value: string | null; kids: MkvNode[] };
 export const infoApi = {
   mediaInfo: (path: string) => call<{ text: string; sections: MiSection[] }>("media_info", { path }),
   hash: (path: string, algos: string[]) => call<Hashes | null>("hash_file", { path, algos }),
@@ -496,20 +540,30 @@ export const infoApi = {
   /** ข้อความในคลิปบอร์ด อ่านฝั่ง Rust ไม่เด้งหน้าต่างขออนุญาตของ WebView2 (BUGS ข้อ 31) */
   clipboardText: () => call<string>("clipboard_text"),
   defaultFolder: (path: string) => call<string>("extract_default_folder", { path }),
-  extract: (path: string, folder: string | null, items: ExtractItem[], policy: string[]) => call<ExtractResult>("extract_start", { req: { path, folder, items, policy } }),
+  /** pattern รูปแบบชื่อแทร็ก · batch แยกแบบเดียวกันจากไฟล์อื่น ฝั่ง Rust หาเลขแทร็ก นามสกุล และภาษาของไฟล์นั้นใหม่ (BUGS ข้อ 130) */
+  extract: (path: string, folder: string | null, items: ExtractItem[], policy: string[], pattern?: string, batch?: boolean) => call<ExtractResult>("extract_start", { req: { path, folder, items, policy, pattern: pattern ?? null, batch: !!batch } }),
+  extractInfo: (path: string) => call<ExtractInfo>("extract_info", { path }),
+  mkvTree: (path: string) => call<MkvNode>("mkv_tree", { path }),
   extractCancel: () => call<void>("extract_cancel"),
   /** งานแยกไฟล์หรือ hash ที่เริ่มไว้ก่อนเปลี่ยนหน้ายังทำอยู่ไหม · ฝั่ง Rust ไม่ให้เริ่มซ้อน */
   extractRunning: () => call<boolean>("extract_running"),
   hashRunning: () => call<boolean>("hash_running"),
 };
 
-const MOVIE_EXT = ["mkv", "mp4", "m4v", "mov", "avi", "webm", "ts", "m2ts", "mpg", "mpeg", "vob", "flv"];
+/** ไฟล์หนังที่ทุกหน้ารับ · ตรงกับ library.rs ACCEPTED (cargo test ตรวจว่าตรงกัน) · ที่เดียวของรายการนี้ หน้าอื่นนำเข้าจากที่นี่ (BUGS ข้อ 127) */
+export const MOVIE_EXT = ["mkv", "mp4", "m4v", "mov", "avi", "webm", "ts", "m2ts", "mpg", "mpeg", "vob", "flv"];
+/** รูปโปสเตอร์ที่รับ · ตรงกับ poster_image.rs ACCEPTED */
+export const IMAGE_EXT = ["jpg", "jpeg", "png", "webp", "bmp", "tif", "tiff", "heic", "heif"];
+/** ไฟล์ที่ตัวแปลงเสียงทำได้ · ตรงกับ encode.rs ext */
+export const ENCODE_OUT_EXT = ["opus", "m4a", "mp3", "ac3", "eac3", "flac", "wv", "ape", "tak"];
+/** ไฟล์ keyframe ที่หน้าแก้ซับเปิดได้ (แบบ Aegisub) */
+export const KEYFRAME_EXT = ["txt", "pass", "stats", "log"];
 /** ไฟล์เสียงที่หน้ากราฟเสียงเปิดได้ (มอคอัปกราฟเสียง) */
 export const AUDIO_EXT = ["mp3", "flac", "wav", "m4a", "aac", "ac3", "eac3", "dts", "ogg", "opus", "mka", "wma", "wv", "ape", "tak"];
 
 /** เลือกไฟล์จากเครื่อง · kind = movie image หรือ media (หนังหรือไฟล์เสียง ของหน้ากราฟเสียง) */
-/** ไฟล์ซับที่หน้าซับไตเติลรับ (BUGS ข้อ 104) */
-export const SUB_EXT = ["srt", "ass", "ssa", "vtt", "sup", "sub", "idx"];
+/** ไฟล์ซับที่หน้าซับไตเติลรับ (BUGS ข้อ 104) · ซับข้อความแบบอื่นเปิดแล้วแปลงเป็น ASS หรือ SRT ฝั่ง Rust (subs.rs FF_TEXT OWN_TEXT · BUGS ข้อ 123) */
+export const SUB_EXT = ["srt", "ass", "ssa", "vtt", "sup", "sub", "idx", "smi", "sami", "lrc", "rt", "jss", "aqt", "pjs", "mpl", "sbv", "ttml", "dfxp", "scc"];
 
 export async function pickFile(kind: "movie" | "image" | "media" | "subtitle"): Promise<string | null> {
   if (!inApp) return null;
@@ -523,7 +577,7 @@ export async function pickFile(kind: "movie" | "image" | "media" | "subtitle"): 
         ? [{ name: "ไฟล์หนังและไฟล์ซับ", extensions: [...MOVIE_EXT, ...SUB_EXT] }]
       : kind === "media"
         ? [{ name: "ไฟล์หนังและไฟล์เสียง", extensions: [...MOVIE_EXT, ...AUDIO_EXT] }]
-        : [{ name: "รูปโปสเตอร์", extensions: ["jpg", "jpeg", "png", "webp", "bmp", "tif", "tiff", "heic", "heif"] }],
+        : [{ name: "รูปโปสเตอร์", extensions: IMAGE_EXT }],
   });
   return typeof r === "string" ? r : null;
 }
@@ -533,6 +587,16 @@ export async function pickAudioFiles(): Promise<string[]> {
   if (!inApp) return [];
   const { open } = await import("@tauri-apps/plugin-dialog");
   const r = await open({ multiple: true, directory: false, title: "เลือกไฟล์เสียงเข้าคิวแปลง", filters: [{ name: "ไฟล์เสียงและไฟล์หนัง", extensions: [...AUDIO_EXT, ...MOVIE_EXT] }] });
+  return Array.isArray(r) ? r : typeof r === "string" ? [r] : [];
+}
+
+/** เลือกไฟล์ MKV หลายไฟล์ไว้แยกแบบเดียวกัน (BUGS ข้อ 130) · ตัวตรวจส่งรายการผ่าน window.__extractFiles ไม่เปิดกล่องเลือกไฟล์ */
+export async function pickMkvFiles(): Promise<string[]> {
+  const w = window as unknown as { __extractFiles?: string[] };
+  if (import.meta.env.DEV && w.__extractFiles) return w.__extractFiles;
+  if (!inApp) return [];
+  const { open } = await import("@tauri-apps/plugin-dialog");
+  const r = await open({ multiple: true, directory: false, title: "เลือกไฟล์ MKV ที่จะแยกแบบเดียวกัน", filters: [{ name: "ไฟล์ MKV", extensions: ["mkv"] }] });
   return Array.isArray(r) ? r : typeof r === "string" ? [r] : [];
 }
 

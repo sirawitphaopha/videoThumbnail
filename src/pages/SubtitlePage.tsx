@@ -15,7 +15,7 @@ import { flushPad } from "../components/subedit/PadView";
 import { api, infoApi, inApp, mergeApi, pickFile, SUB_EXT, type ExtractItem, type MergeTrack } from "../lib/api";
 import { trackFrom, type AvTrack } from "../lib/avJob";
 import { usePageActiveRef } from "../lib/pageActive";
-import { ftName } from "../lib/ftypes";
+import { ftName, isImageSub } from "../lib/ftypes";
 import { langName } from "../lib/langs";
 import { CardIcon, J, Keep, Phr, Seg, Skel, dropClick } from "../components/ui";
 import { IbPencil, IbTable, IcExtract, IcFile, IcFolder, IcMix } from "../components/icons";
@@ -84,7 +84,7 @@ export default function SubtitlePage({ onAv, onSettings }: { onAv: () => void; o
           setFile((f) => (f && f.path === p ? { ...f, items } : f));
         }, () => setFile((f) => (f && f.path === p ? { ...f, items: subs.map(() => null) } : f)));
       } else {
-        const f = await mergeApi.addFile(p, null);
+        const f = await mergeApi.addFile(p, null, true);
         const subs = f.tracks.filter((t) => t.kind === "subtitle").map((t) => trackFrom(t));
         setFile({ path: p, movie: false, subs, video: null, ref: null, refIdx: null, items: null, vid: null });
         if (subs.length) setView(subs[0].key); // ตัวดูซับแสดงในหน้าเลย
@@ -111,7 +111,7 @@ export default function SubtitlePage({ onAv, onSettings }: { onAv: () => void; o
     if (!SUB_EXT.includes(extOf(sp))) { setVideoErr(`ไฟล์ .${extOf(sp) || "?"} ไม่ใช่ไฟล์ซับ`); return; }
     setVideoErr(null);
     try {
-      const f = await mergeApi.addFile(sp, null);
+      const f = await mergeApi.addFile(sp, null, true);
       const add = f.tracks.filter((t) => t.kind === "subtitle").map((t) => trackFrom(t));
       if (!add.length) { setVideoErr("ไฟล์นี้ไม่มีซับ"); return; }
       setFile((x) => (x && x.movie ? { ...x, subs: [...x.subs, ...add], items: x.items ? [...x.items, ...add.map(() => null)] : x.items } : x));
@@ -180,7 +180,7 @@ export default function SubtitlePage({ onAv, onSettings }: { onAv: () => void; o
 
   // เปิดซับแล้ว จุดลากไฟล์ใหญ่หายไป เหลือแถวบนแถวเดียว ตัวดูซับขึ้นมาอยู่บน · ลากไฟล์มาวางที่หน้ายังได้ จุดลากไฟล์ขึ้นตอนลากผ่าน
   // (BUGS ข้อ 109 พี่กันสั่ง 13 พ.ย. 2569 "เราเปิดซับเเล้ว ย้่ายปุ่มอัปซับไปที่อื่น มันโคตรกินที่")
-  const isImage = (t: AvTrack) => { const f = ftName("subtitle", t.codec, t.profile); return f === "PGS" || f === "VobSub"; };
+  const isImage = (t: AvTrack) => isImageSub(t.codec, t.profile);
   const showDrop = !file || over;
   const many = !!file && (file.movie || file.subs.length > 1);
   return (
@@ -207,7 +207,8 @@ export default function SubtitlePage({ onAv, onSettings }: { onAv: () => void; o
               : err ? <b>{err}</b>
               : <><b style={{ color: "var(--txt2)" }}>ลากไฟล์หนังหรือไฟล์ซับมาวางตรงนี้</b><span>หรือ</span></>}
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => void pick()}><IcFile size={15} />เลือกไฟล์จากเครื่อง</button>
-            <span className="small">{`รับไฟล์หนัง ${MOVIE_EXT.map((e) => e.toUpperCase()).join(" ")} และไฟล์ซับ ${SUB_EXT.map((e) => e.toUpperCase()).join(" ")}`}</span>
+            {/* ไฟล์ซับรับเพิ่มเป็นราว 20 ชนิด (BUGS ข้อ 123) แยกบรรทัดตรงรอยต่อระหว่างไฟล์หนังกับไฟล์ซับ */}
+            <span className="small" style={{ whiteSpace: "pre-line", textAlign: "center" }} data-sub-accept>{`รับไฟล์หนัง ${MOVIE_EXT.map((e) => e.toUpperCase()).join(" ")}\nและไฟล์ซับ ${SUB_EXT.map((e) => e.toUpperCase()).join(" ")}`}</span>
           </div>
         )}
         {file && !over && err && <div className="stat bad" data-sub-err><CardIcon kind="bad" /><div style={{ flex: 1 }}><b>{err}</b><div className="minirow"><button type="button" className="btn btn-ghost btn-sm" onClick={() => setErr(null)}>ปิด</button></div></div></div>}

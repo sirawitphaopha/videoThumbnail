@@ -14,6 +14,7 @@ import { IcCopy, IcPaste, IcClose } from "../components/icons";
 import { IbBack, IbStop, IcRefresh, IcMix, IcFolder, IbSave, IbTick, IcSideHide, IcSideShow } from "../components/icons";
 import { useElsewhere } from "../lib/elsewhere";
 import { glideBox } from "../lib/glide";
+import MkvTree from "../components/MkvTree";
 
 const ALGOS: [string, string][] = [["md5", "MD5"], ["sha1", "SHA-1"], ["sha256", "SHA-256"], ["crc32", "CRC32"], ["sha512", "SHA-512"]];
 
@@ -135,6 +136,8 @@ export default function FileInfoPage({ m, onBack, onAv, backLabel = "กลั�
           </div>
         )}
 
+        {/* โครงสร้างไฟล์ MKV แบบ mkvinfo ต่อจากข้อมูลไฟล์ (BUGS ข้อ 131 · ตำแหน่งแคลร์ตั้ง) */}
+        {!m.missing && ["mkv", "mka", "mks", "webm"].includes(m.ext.toLowerCase()) && <MkvTree key={m.path} path={m.path} />}
         <HashCard m={m} />
         <Kinds />
       </div>

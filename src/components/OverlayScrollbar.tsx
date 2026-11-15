@@ -80,6 +80,16 @@ export default function OverlayScrollbar() {
       t._el = undefined;
     };
 
+    // เฝ้าขนาดของกล่องที่แถบเกาะอยู่ กล่องสูงหรือกว้างขึ้นโดยไม่ได้เลื่อน แถบต้องตามไปที่ขอบใหม่
+    // (เจอ 15 พ.ย. 2569 หน้าต่างแปลงซับภาพ สลับมุมมองขนาดจริงเป็นขยาย 2 เท่า กรอบสูง 150 เป็น 210 แถบแนวนอนค้างกลางกรอบทับตัวซับ)
+    const elRo = new ResizeObserver(() => follow());
+    const watch = (t: Thumb, el: HTMLElement) => {
+      if (t._el === el) return;
+      const other = t === vt ? ht : vt;
+      if (t._el && t._el !== other._el) elRo.unobserve(t._el);
+      elRo.observe(el);
+    };
+
     const posV = (el: HTMLElement) => {
       const r = el.getBoundingClientRect();
       const head = stickyHead(el);
@@ -93,6 +103,7 @@ export default function OverlayScrollbar() {
       vt.style.height = `${len}px`;
       vt.style.top = `${top}px`;
       vt.style.left = `${left}px`;
+      watch(vt, el);
       vt._el = el;
       return true;
     };
@@ -111,6 +122,7 @@ export default function OverlayScrollbar() {
       ht.style.width = `${len}px`;
       ht.style.left = `${left}px`;
       ht.style.top = `${top}px`;
+      watch(ht, el);
       ht._el = el;
       return true;
     };
@@ -204,10 +216,12 @@ export default function OverlayScrollbar() {
       if (queued) return;
       queued = requestAnimationFrame(() => {
         queued = 0;
-        if (document.querySelector("[role=dialog]")) { hideNow(ht); hideNow(vt); return; }
+        // มีหน้าต่างซ้อนอยู่ ซ่อนแถบของกล่องที่อยู่หลังหน้าต่าง ส่วนกล่องในหน้าต่างจัดตำแหน่งตามปกติ
+        const dlgs = [...document.querySelectorAll<HTMLElement>("[role=dialog]")];
         for (const t of [vt, ht]) {
           if (t._drag) continue;
           if (!t._el || !t._el.isConnected) { hideNow(t); continue; }
+          if (dlgs.length && !dlgs.some((d) => d.contains(t._el!))) { hideNow(t); continue; }
           if (t === vt) posV(t._el); else posH(t._el);
         }
       });
@@ -232,6 +246,7 @@ export default function OverlayScrollbar() {
       document.removeEventListener("mousemove", onMove);
       window.removeEventListener("resize", follow);
       bodyRo.disconnect();
+      elRo.disconnect();
       navRo?.disconnect();
       gone.disconnect();
       if (queued) cancelAnimationFrame(queued);
