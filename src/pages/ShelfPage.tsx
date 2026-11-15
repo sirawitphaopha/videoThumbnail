@@ -29,6 +29,7 @@ import { driveName, freePct, isLow, requestSettingsSec, sizeNb, useDriveSpace } 
 import HoverBig from "../components/HoverBig";
 import { usePageActive } from "../lib/pageActive";
 import { ftLook } from "../lib/ftypes";
+import { useLongName } from "../lib/longName";
 import { IcSearch, IbTrash, IbNext, IcRefresh, IcCheck, IbPencil, IcMix, IcClose, IbEye, IbPlay, IcPoster, IbCrop, IcSettings } from "../components/icons";
 
 const SORTS = [
@@ -485,6 +486,9 @@ function Stars({ m }: { m: Movie }) {
 function Book(p: { m: Movie; width: number; sel: boolean; onSel: (id: string) => void; used: string; reminder: number; showNames: boolean; showDots: boolean; showFrames: boolean }) {
   const { m } = p;
   const k = kindOf(m, p.reminder);
+  // แบบเก็บปีไว้ท้าย แยกชื่อเรื่องกับปีในวงเล็บ ส่วนชื่อจางตรงที่ล้น ปีอยู่ท้ายเสมอ (BUGS ข้อ 51 · lib/longName.ts)
+  const ln = useLongName();
+  const ym = ln === "year" ? m.name.match(/^(.*?)\s*(\(\d{4}\))$/) : null;
   const src = thumbUrl(m.thumb);
   const full = m.name + (m.ext === "mkv" ? "" : "." + m.ext);
   const wide = src != null && (m.coverAspect ?? 0) >= 1;
@@ -513,7 +517,7 @@ function Book(p: { m: Movie; width: number; sel: boolean; onSel: (id: string) =>
       {(p.showNames || p.showDots || m.shownLink) && (
         <div className="bname">
           {/* สามบรรทัด ชื่อ · เครื่องหมาย · ป้าย ตรงแนวกันทุกเรื่อง (พี่กันสั่ง 9 พ.ย. 2569 "ให้มันเป้นระเบีบย" · เลือกแบบ ค จากมอคอัป pick-ui แท็บ 5) · ชื่อยาวตัดท้าย ชี้ดูชื่อเต็ม */}
-          {p.showNames && <div className="bn1"><Hl text={m.name} used={p.used} /></div>}
+          {p.showNames && <div className="bn1">{ym ? <><span className="bn1-t"><Hl text={ym[1]} used={p.used} /></span><span className="bn1-y">{ym[2]}</span></> : <Hl text={m.name} used={p.used} />}</div>}
           {(p.showNames || p.showDots || m.shownLink) && <div className="bn2">{p.showDots && <Badge kind={k} title={SHELF_LABEL[k]} />}{m.shownLink && <LinkMark />}{p.showNames && <Stars m={m} />}</div>}
           {p.showNames && <BookTags m={m} />}
         </div>

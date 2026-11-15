@@ -75,7 +75,9 @@ function detailOf(f: AudioFile): string {
   const ft = ftName("audio", f.codec, f.profile);
   const lossless = ["FLAC", "PCM", "ALAC", "WavPack", "TTA", "APE", "TAK", "TrueHD", "DTS-HD MA"].includes(ft);
   const q = lossless && f.bits ? `${f.bits} บิต ${(f.rate / 1000).toLocaleString("en-US", { maximumFractionDigits: 1 })} kHz` : f.bitrate ? `${Math.round(f.bitrate / 1000).toLocaleString("en-US")} kbps` : `${(f.rate / 1000).toLocaleString("en-US", { maximumFractionDigits: 1 })} kHz`;
-  return [`${ft === "APE" ? "Monkey's Audio" : ft} ${chText(f.layout)}`, q, fmtSize(f.size), f.audioOnly ? "" : "เสียงในไฟล์หนัง"].filter(Boolean).join(", ");
+  // ไฟล์มีเสียงหลายแทร็ก บอกต่อจากชนิดเสียงว่าแปลงแทร็กไหน ไม่ไว้ท้ายแถวที่โดนจางหายเมื่อช่องแคบ (AUDIT ข้อ 22)
+  const where = f.tracks > 1 ? `แทร็กเสียงที่ ${f.track + 1} จาก ${f.tracks}${f.audioOnly ? "" : " ในไฟล์หนัง"}` : f.audioOnly ? "" : "เสียงในไฟล์หนัง";
+  return [`${ft === "APE" ? "Monkey's Audio" : ft} ${chText(f.layout)}`, where, q, fmtSize(f.size)].filter(Boolean).join(", ");
 }
 
 function Status({ it }: { it: QItem }) {
@@ -103,7 +105,7 @@ const ddDetail = (label: string, detail: string) => {
   return ch ? detail.replace(` เสียง ${ch}`, "") : detail.replace(/ เสียง (\d\.\d ch)/, " $1");
 };
 
-export default function ConvertPane(p: { onCompare: (a: string, b: string, note: string) => void; onTags: (path: string) => void }) {
+export default function ConvertPane(p: { onCompare: (a: string, b: string, note: string, track: number) => void; onTags: (path: string) => void }) {
   const q = useConvQueue();
   const toast = useToast();
   // กดเล่นจากคิวได้เลย แปลงเสร็จเปิดไฟล์ใหม่ ยังไม่แปลงเปิดไฟล์เดิม เริ่มจากต้นไฟล์ (พี่กันสั่ง 9 พ.ย. 2569 "อยากให้กดเล่นจากคิวนี้ได้เลย ทำเป็น icon มา")
@@ -181,7 +183,7 @@ export default function ConvertPane(p: { onCompare: (a: string, b: string, note:
                 <div className="cqbtns">
                   {!it.bad && <button type="button" className="ib" onClick={() => playFile(it.state === "done" && it.result ? it.result.out : it.path)} aria-label={`เปิดเล่น ${baseName(it.state === "done" && it.result ? it.result.out : it.path)}`} title={it.state === "done" && it.result ? `เปิดเล่นไฟล์ที่แปลงแล้ว ${baseName(it.result.out)}` : `เปิดเล่นไฟล์เดิม ${baseName(it.path)}`} data-qplay><IbPlay size={15} /></button>}
                   {it.state === "wait" && !it.bad && <button type="button" className="btn btn-ghost btn-xs" aria-disabled={q.runIds.includes(it.id) || undefined} title={q.runIds.includes(it.id) ? "ไฟล์นี้อยู่ในรอบที่กำลังแปลงแล้ว" : q.running ? "ต่อท้ายรอบที่กำลังแปลง" : "แปลงเฉพาะไฟล์นี้"} onClick={() => { if (!q.runIds.includes(it.id)) startQueue([it.id]); }} data-qone><IcMix size={15} />แปลง</button>}
-                  {it.state === "done" && it.result && <button type="button" className="btn btn-ghost btn-xs" onClick={() => p.onCompare(it.path, it.result!.out, `แปลงเป็น ${specLabel(it.spec)}\nด้วย ${it.result!.tool}`)} data-qcmp><IcGraph size={15} />เทียบความถี่</button>}
+                  {it.state === "done" && it.result && <button type="button" className="btn btn-ghost btn-xs" onClick={() => p.onCompare(it.path, it.result!.out, `แปลงเป็น ${specLabel(it.spec)}\nด้วย ${it.result!.tool}`, it.track)} data-qcmp><IcGraph size={15} />เทียบความถี่</button>}
                   {(it.state === "fail" || it.state === "stop") && !it.bad && !q.running && <button type="button" className="btn btn-ghost btn-xs" onClick={() => retry(it.id)} data-qretry><IcRefresh size={15} />ลองใหม่</button>}
                   <button type="button" className="ib bad" onClick={() => it.state !== "work" && removeItem(it.id)} aria-disabled={it.state === "work" || undefined}
                     aria-label={`เอา ${baseName(it.path)} ออกจากคิว`} title={it.state === "work" ? "กำลังแปลง กดหยุดทั้งคิวก่อน" : "เอาออกจากคิว ไฟล์ในเครื่องไม่ถูกแตะ"} data-qremove>{X}</button>

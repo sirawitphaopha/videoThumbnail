@@ -26,7 +26,8 @@ for (const [w, h] of sizes) {
   check(`${w} × ${h} เส้นแบ่งก่อนปุ่มล้างทั้งหมด ตรงแนวเส้นคอลัมน์ข้างบน สูงเต็มแถว`, dv.width === 1 && dv.style === "solid" && dv.colX != null && Math.abs(dv.lineX - dv.colX) <= 0.5 && dv.top <= dv.rowTop + 0.5 && dv.bottom >= dv.rowBottom - 0.5 && dv.btnGap >= 20, JSON.stringify(dv));
   await c.shot(`${OUT}/08-ช่องตัวอย่าง-${w}.png`);
 }
-await c.send("Emulation.clearDeviceMetricsOverride"); await sleep(400);
+// ส่วนถัดไปตรวจที่ 1280 × 800 เสมอ ขนาดที่ที่ว่างน้อยสุดของหน้าต่างไม่กดขยาย (เดิมคืนเป็นขนาดหน้าต่างจริง ผลขึ้นกับว่าหน้าต่างทดสอบเปิดใหญ่แค่ไหน)
+await c.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false }); await sleep(400);
 /* ใส่ไฟล์หนังแล้ว ยังไม่มีรูป */
 const movie = resolve("test-media", "สร้าง", "หนัง", "Clip (2015).flv");
 await c.evaluate(`(() => { const r = document.querySelector('[data-drop=movie]').getBoundingClientRect(); window.__posterDrop([${JSON.stringify(movie)}], (r.left + 20) * devicePixelRatio, (r.top + 20) * devicePixelRatio); })()`);
@@ -87,5 +88,6 @@ await q("[...document.querySelectorAll('.nav')].find((b) => b.textContent.includ
 const pass = results.filter((r) => r.ok).length;
 console.log(`\nผ่าน ${pass} จาก ${results.length}`);
 writeFileSync(`${OUT}/ผลเทส-ช่องตัวอย่าง.json`, JSON.stringify(results, null, 1));
+await c.send("Emulation.clearDeviceMetricsOverride").catch(() => null);
 c.close();
 process.exitCode = pass === results.length ? 0 : 1;

@@ -28,10 +28,12 @@ export type LinkJob = {
   overRow: { id: string; names: string; bad: boolean } | null;
   /** เปิดโปรแกรมมาแล้วมีคู่ค้างจากรอบก่อน ชั้นวางขึ้นแถบทำต่อ · กดทำต่อ ไว้ทีหลัง หรือเข้าหน้าจับคู่ปกแล้วเลิกขึ้น */
   resume: boolean;
+  /** กำลังอ่านรูปเพื่อจับคู่อัตโนมัติ · ตารางตรวจผลกับหน้าแรกปิดการแก้และการวางรูประหว่างนี้ (AUDIT 12 พ.ย. 2569 ข้อ 10) */
+  reading: boolean;
 };
 
 const EMPTY: LinkReplyData = { rows: [], imageFolders: [], loose: [], scope: "nocover", waiting: 0 };
-let job: LinkJob = { reply: EMPTY, images: [], thumbs: {}, run: { state: "idle" }, view: "start", focus: null, focusCrop: false, overRow: null, resume: false };
+let job: LinkJob = { reply: EMPTY, images: [], thumbs: {}, run: { state: "idle" }, view: "start", focus: null, focusCrop: false, overRow: null, resume: false, reading: false };
 const subs = new Set<() => void>();
 
 export function setLinkJob(patch: Partial<LinkJob>) {

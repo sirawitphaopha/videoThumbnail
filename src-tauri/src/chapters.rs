@@ -70,6 +70,26 @@ pub fn ffmetadata_text(chs: &[Chapter], duration: Option<f64>) -> String {
     s
 }
 
+/// ไฟล์บทแบบ Matroska XML รูปเดียวกับที่ mkvextract chapters เขียน ให้ MKVToolNix และโปรแกรมอื่นอ่านได้
+/// ใช้แยกบทของไฟล์ที่ไม่ใช่ MKV (MP4) · เดิมทางนี้ดึงซับแทร็กแรกมาตั้งชื่อเป็น .chapters.xml (AUDIT 12 พ.ย. 2569 ข้อ 17)
+pub fn xml_text(chs: &[Chapter], duration: Option<f64>) -> String {
+    let list = sorted(chs);
+    let esc = |s: &str| s.replace('&', "&amp;").replace('<', "&lt;").replace('>', "&gt;").replace('"', "&quot;");
+    let t = |sec: f64| { let ns = (sec.max(0.0) * 1e9).round() as u64; format!("{:02}:{:02}:{:02}.{:09}", ns / 3_600_000_000_000, ns / 60_000_000_000 % 60, ns / 1_000_000_000 % 60, ns % 1_000_000_000) };
+    let mut s = String::from("<?xml version=\"1.0\"?>\n<!-- <!DOCTYPE Chapters SYSTEM \"matroskachapters.dtd\"> -->\n<Chapters>\n  <EditionEntry>\n");
+    for (i, c) in list.iter().enumerate() {
+        s.push_str("    <ChapterAtom>\n");
+        s.push_str(&format!("      <ChapterTimeStart>{}</ChapterTimeStart>\n", t(c.start)));
+        if let Some(end) = list.get(i + 1).map(|n| n.start).or(duration).filter(|e| *e > c.start) {
+            s.push_str(&format!("      <ChapterTimeEnd>{}</ChapterTimeEnd>\n", t(end)));
+        }
+        s.push_str(&format!("      <ChapterDisplay>\n        <ChapterString>{}</ChapterString>\n        <ChapterLanguage>und</ChapterLanguage>\n      </ChapterDisplay>\n", esc(&one_line(&c.title))));
+        s.push_str("    </ChapterAtom>\n");
+    }
+    s.push_str("  </EditionEntry>\n</Chapters>\n");
+    s
+}
+
 fn sorted(chs: &[Chapter]) -> Vec<Chapter> {
     let mut v = chs.to_vec();
     v.sort_by(|a, b| a.start.partial_cmp(&b.start).unwrap_or(std::cmp::Ordering::Equal));
@@ -104,6 +124,16 @@ mod tests {
     fn writes_ogm_for_mkvmerge() {
         let t = ogm_text(&[Chapter { start: 3725.25, title: "ท้าย\nเรื่อง".into() }, Chapter { start: 0.0, title: "เปิด".into() }]);
         assert_eq!(t, "CHAPTER01=00:00:00.000\nCHAPTER01NAME=เปิด\nCHAPTER02=01:02:05.250\nCHAPTER02NAME=ท้าย เรื่อง\n");
+    }
+
+    #[test]
+    fn writes_matroska_xml() {
+        let t = xml_text(&[Chapter { start: 60.5, title: "ท้าย <จบ> & \"ลา\"".into() }, Chapter { start: 0.0, title: "เปิด".into() }], Some(125.0));
+        assert!(t.starts_with("<?xml version=\"1.0\"?>\n"), "{t}");
+        assert_eq!(t.matches("<ChapterAtom>").count(), 2);
+        assert!(t.contains("<ChapterTimeStart>00:00:00.000000000</ChapterTimeStart>\n      <ChapterTimeEnd>00:01:00.500000000</ChapterTimeEnd>"), "{t}");
+        assert!(t.contains("<ChapterTimeStart>00:01:00.500000000</ChapterTimeStart>\n      <ChapterTimeEnd>00:02:05.000000000</ChapterTimeEnd>"), "{t}");
+        assert!(t.contains("<ChapterString>ท้าย &lt;จบ&gt; &amp; &quot;ลา&quot;</ChapterString>"), "{t}");
     }
 
     #[test]

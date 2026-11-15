@@ -389,13 +389,25 @@ fn error_kind(line: &str) -> Option<(bool, bool)> {
     Some((!audio, audio))
 }
 
-/// ผลรอบแรก · จุดเสียแบบคร่าว (เวลาตามความคืบหน้าล่าสุด) · ภาพเสียงถอดได้ถึงวินาทีไหน · ffmpeg ส่งความคืบหน้ามาไหม
+/// ข้อความที่บอกว่าอ่านไฟล์จากดิสก์ไม่ได้ (ไดรฟ์หลุด สายหลวม ไฟล์ถูกย้าย) ไม่ใช่ภาพแตกหรือเสียงหาย
+/// เดิมนับเป็นจุดเสียทั้งภาพและเสียง ไฟล์ดีขึ้นว่าเสียหาย (AUDIT 12 พ.ย. 2569 ข้อ 29)
+fn io_error(line: &str) -> bool {
+    let l = line.to_ascii_lowercase();
+    ["input/output error", "i/o error", "error number -5", "permission denied", "no such file or directory", "device not ready", "the device is not ready", "network path was not found"]
+        .iter().any(|k| l.contains(k))
+}
+
+/// ผลรอบแรก · จุดเสียแบบคร่าว (เวลาตามความคืบหน้าล่าสุด) · ภาพเสียงถอดได้ถึงวินาทีไหน · ffmpeg ส่งความคืบหน้ามาไหม · อ่านดิสก์ไม่ได้ (ข้อความแรก)
 #[derive(Default)]
 struct Rough {
     hits: Vec<Hit>,
     last: f64,
     progressed: bool,
+    io: Option<String>,
 }
+
+/// อ่านไฟล์ไม่จบเพราะดิสก์หรือไฟล์ ไม่ใช่ไฟล์เสีย · ขึ้นว่าตรวจไม่ได้ ผลเดิมของเรื่องนั้นคงไว้
+const IO_FAIL: &str = "อ่านไฟล์ไม่จบระหว่างตรวจ ไดรฟ์อาจหลุดหรือไฟล์ถูกย้าย ไฟล์อาจยังดีอยู่ เสียบไดรฟ์ให้แน่นแล้วตรวจใหม่";
 
 /// รอบแรก ffmpeg ถอดทุกภาพแบบหลายเส้นทำงาน (เร็ว) · ความคืบหน้ากับข้อความผิดพลาดออกช่องเดียวกันตามลำดับ (-progress pipe:2)
 /// เวลาของจุดเสียคือความคืบหน้าล่าสุดก่อนข้อความนั้น คลาดได้ไม่กี่วินาที รอบสองค่อยหาเวลาแม่น
@@ -427,6 +439,10 @@ fn rough_pass(tools: &Path, path: &Path, total: Option<f64>, on: &dyn Fn(f64), s
             if let Some(us) = l.strip_prefix("out_time_us=").and_then(|v| v.trim().parse::<f64>().ok()) {
                 r.last = r.last.max(us / 1_000_000.0);
                 r.progressed = true;
+                continue;
+            }
+            if io_error(&l) {
+                if r.io.is_none() { r.io = Some(l.trim().chars().take(160).collect()); }
                 continue;
             }
             if let Some((video, audio)) = error_kind(&l) {
@@ -476,6 +492,10 @@ fn exact_pass(tools: &Path, path: &Path, from: f64, to: f64) -> Result<Vec<Hit>,
         "-of".into(), "compact=p=0".into(), path.into(),
     ];
     let out = crate::tools::run_tool_timeout(tools, "ffprobe", &args, Duration::from_secs(600))?;
+    // ffprobe เปิดไฟล์ไม่ได้ (ไดรฟ์หลุด) ได้ผลว่าง เดิมถือว่าไม่เจอแล้วใช้จุดคร่าวจากรอบแรกแทน (AUDIT ข้อ 29)
+    if out.stdout.is_empty() && !crate::tools::tool_succeeded("ffprobe", &out.status) {
+        return Err(IO_FAIL.into());
+    }
     let mut hits = Vec::new();
     let (mut last_t, mut last_video) = (from, true);
     for l in String::from_utf8_lossy(&out.stdout).lines() {
@@ -496,7 +516,12 @@ fn exact_pass(tools: &Path, path: &Path, from: f64, to: f64) -> Result<Vec<Hit>,
 pub fn deep(tools: &Path, path: &Path, length: Option<f64>, on: &dyn Fn(f64), stop: &dyn Fn() -> bool) -> Result<Option<Outcome>, String> {
     let s = structure(path)?;
     let total = length.filter(|d| d.is_finite() && *d > 0.0);
+    let mark0 = file_mark(path);
     let Some(rough) = rough_pass(tools, path, total, &|p| on(p * 0.85), stop)? else { return Ok(None) };
+    // อ่านดิสก์ไม่ได้ระหว่างรอบแรก หรือไฟล์หายหรือเปลี่ยนหลังรอบแรก เป็นตรวจไม่ได้ ไม่ใช่ไฟล์เสีย (AUDIT ข้อ 29)
+    if rough.io.is_some() || !path.is_file() || file_mark(path) != mark0 {
+        return Err(IO_FAIL.into());
+    }
     let short_tail = RELIABLE_LENGTH.contains(&ext_of(path).as_str())
         && total.map(|d| rough.last < d - TAIL_TOLERANCE).unwrap_or(false);
     let truncated = short_tail || matches!(s, Structure::Truncated(_));
@@ -1036,6 +1061,19 @@ mod tests {
         assert!(r.summary.contains("ขาดท้าย"), "{}", r.summary);
         // กดหยุดระหว่างคิด hash คืน None
         assert!(quick(&t.0, None, false, &|_| {}, &|| true).unwrap().is_none());
+    }
+
+    /// AUDIT 12 พ.ย. 2569 ข้อ 29 · ข้อความอ่านดิสก์ไม่ได้ไม่ใช่จุดเสีย · รอบสองกับไฟล์ที่เปิดไม่ได้เป็นข้อผิดพลาด ไม่ใช่ผลว่าง
+    #[test]
+    fn disk_errors_are_not_damage() {
+        for l in ["[in#0/matroska,webm @ 000001] Error during demuxing: Input/output error", "Error reading file: I/O error", "av_read_frame(): Error number -5 occurred", "[file @ 0x1] Permission denied"] {
+            assert!(io_error(l), "{l} ต้องนับเป็นอ่านดิสก์ไม่ได้");
+        }
+        for l in ["[h264 @ 0x1] corrupt decoded frame", "[aac @ 0x2] Number of bands exceeds limit", "[in#0/matroska,webm @ 0x3] 0x00 at pos 123 invalid as first byte of an EBML number"] {
+            assert!(!io_error(l), "{l} เป็นไฟล์เสีย ไม่ใช่อ่านดิสก์ไม่ได้");
+        }
+        let gone = std::env::temp_dir().join(format!("movie-shelf-ไม่มีไฟล์นี้-{}.mkv", std::process::id()));
+        assert_eq!(exact_pass(&tools(), &gone, 0.0, 10.0).err().as_deref(), Some(IO_FAIL), "เปิดไฟล์ไม่ได้ต้องเป็นตรวจไม่ได้");
     }
 
     /// AUDIT 12 พ.ย. 2569 ข้อ 28 · ไฟล์ที่ตรวจโครงไม่ได้ (VOB MPEG) ตรวจแบบเร็วต้องไม่ได้ ok สีเขียว และข้อความต้องไม่บอกว่าโครงไฟล์ครบ

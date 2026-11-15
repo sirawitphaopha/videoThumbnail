@@ -124,14 +124,15 @@ check("ท้ายตาราง รอยืนยัน 9 ติ๊กไว
 check("ปุ่มยืนยันทั้งหมดบอกจำนวน", await q("return document.querySelector('[data-link-confirm-all]').innerText === 'ยืนยันทั้งหมด 9 คู่'"));
 check("เมนูซ้ายขึ้นเลขคู่ที่รอ", await q("return [...document.querySelectorAll('.side .nav')].find(b => b.innerText.includes('จับคู่ปก')).innerText.includes('9')"));
 
-// ติ๊กออก
+// ติ๊กออก · เริ่มที่ติ๊กไว้ 8 (แถวที่ไม่มีปีไม่ติ๊กให้) เอาติ๊ก Tidal ออกเหลือ 7
+// เดิมคาดว่าเหลือ 8 ตามตัวเลขรุ่นแรกที่เริ่มที่ 9 ข้อตรวจผ่านเฉพาะรอบที่อ่านก่อนเลขเปลี่ยน ผลไม่นิ่ง (เจอ 15 พ.ย. 2569)
 await clickIn("Tidal (2021)", "[data-link-tick]");
-await waitFor(`return /ติ๊กไว้ 8 คู่/.test(document.querySelector('[data-link-count]')?.innerText)`);
-check("เอาติ๊กออก ที่ติ๊กไว้เหลือ 8 ทั้งหมดยังนับ 9", /รอยืนยัน 9 คู่ และติ๊กไว้ 8 คู่/.test(await countText()));
+await waitFor(`return /ติ๊กไว้ 7 คู่/.test(document.querySelector('[data-link-count]')?.innerText)`, 10000);
+check("เอาติ๊กออก ที่ติ๊กไว้เหลือ 7 ทั้งหมดยังนับ 9", /รอยืนยัน 9 คู่ และติ๊กไว้ 7 คู่/.test(await countText()), await countText());
 // รอปุ่มขึ้นตัวเลขก่อนอ่าน · บอกข้อความบนปุ่มทุกครั้ง (เดิมล้มบางรอบโดยไม่รู้ว่าปุ่มขึ้นอะไร)
 const twoBtn = "const t = document.querySelector('[data-link-confirm-ticked]')?.innerText ?? '', a = document.querySelector('[data-link-confirm-all]')?.innerText ?? ''; return";
-await waitFor(`${twoBtn} t.includes('8') && a.includes('9')`);
-check("สองปุ่มนับต่างกัน", await q(`${twoBtn} t.includes('8') && a.includes('9')`), await q(`${twoBtn} t + ' | ' + a`));
+await waitFor(`${twoBtn} t.includes('7') && a.includes('9')`, 10000);
+check("สองปุ่มนับต่างกัน", await q(`${twoBtn} t.includes('7') && a.includes('9')`), await q(`${twoBtn} t + ' | ' + a`));
 
 // แถวไม่แน่ใจ กดเลือกรูป
 await c.evaluate(`${rowSel("เมืองในหมอก (2015)")}.querySelector('[data-link-cand="เมืองหมอก.jpg"]').click()`);
@@ -224,7 +225,9 @@ const movieNow = Object.fromEntries(Object.keys(movieHash0).map((p) => [p, sha(p
 check("ไฟล์หนังทุกเรื่องเท่าเดิมทุกไบต์", JSON.stringify(movieNow) === JSON.stringify(movieHash0));
 check("รูปต้นฉบับทุกรูปเท่าเดิมทุกไบต์", JSON.stringify(hashes(IMG)) === JSON.stringify(imgHash0));
 check("ไม่มีไฟล์ชั่วคราวค้างข้างหนัง", !readdirSync(MOV).some((n) => /partial|\.old$/.test(n)));
-check("เมนูซ้ายไม่มีเลขรอแล้ว", await q("return /^\\s*จับคู่ปก\\s*$/.test([...document.querySelectorAll('.side .nav')].find(b => b.innerText.includes('จับคู่ปก')).innerText)"));
+// ดูแค่ว่าไม่มีตัวเลข · เมนูพับอยู่มีคำอังกฤษใต้ไอคอนด้วย (BUGS ข้อ 116) เทียบคำตรงตัวแล้วตกทั้งที่ไม่มีเลข (เจอ 15 พ.ย. 2569 หลัง check-stage1 ทิ้งเมนูพับไว้)
+const navText = await q("return [...document.querySelectorAll('.side .nav')].find(b => b.innerText.includes('จับคู่ปก'))?.innerText ?? ''");
+check("เมนูซ้ายไม่มีเลขรอแล้ว", !!navText && !/\d/.test(navText), JSON.stringify(navText));
 await shot("4-ยืนยันแล้ว.png", "[data-link-table]", 1100);
 
 /* ---------- ปิดเปิดหน้าใหม่ แถวที่รอยังอยู่ ---------- */
@@ -754,6 +757,10 @@ await pickBook("Silent.Orbit");
 await c.evaluate("document.querySelector('[data-link-merge]').click()");
 await waitFor("return !!document.querySelector('[data-poster-page]') && document.querySelector('[data-card=\"movie\"]').textContent.includes('Silent.Orbit') && document.querySelector('[data-card=\"poster\"]').textContent.includes('silent-orbit') && document.querySelector('[data-start]').getAttribute('aria-disabled') !== 'true'", 15000);
 check("รวมเข้าไฟล์จากปกนอน ใช้รูปปกนอน ปุ่มเริ่มกดได้ ไม่ขึ้นหน้าครอป", await q("return !document.querySelector('[data-crop]') && document.querySelector('[data-card=\"poster\"]').textContent.includes('silent-orbit')"));
+// AUDIT 12 พ.ย. 2569 ข้อ 8 ปกนอนครอปไว้แล้ว ไม่ขึ้นการ์ดเลือกแบบปก (ตัดพอดี เติมขอบ ตามรูปเดิม) · เดิมขึ้น กดแล้วรูปบีบหรือกลายเป็นปกตั้ง
+const so8 = await q("const i = document.querySelector('[data-card=\"poster\"] img'); return { card: !!document.querySelector('[data-not23]'), w: i?.naturalWidth ?? 0, h: i?.naturalHeight ?? 0 }");
+check("AUDIT ข้อ 8 รวมปกนอนเข้าไฟล์ ไม่ขึ้นการ์ดเลือกแบบปกที่ทำให้รูปเพี้ยน รูปที่จะได้เป็นแนวนอน", !so8.card && so8.w > so8.h, JSON.stringify(so8));
+await shot("../../report-2026-11-15/AUDIT-กลุ่ม2/8-รวมปกนอนไม่มีการ์ดเลือกแบบ.png", "[data-card=\"poster\"]", 1000).catch(() => {});
 await c.evaluate("document.querySelector('[data-start]').click()");
 for (let i = 0; i < 300; i++) { const n = await mvOf("Silent.Orbit"); if (n.thumb && (await inv("running_jobs")) === 0) break; await sleep(200); }
 const so = await mvOf("Silent.Orbit");
@@ -853,6 +860,62 @@ await inv("set_settings", { patch: { folders: [MOV] } });
 await scanNow();
 const coversAfter = await coverList();
 check("ใส่โฟลเดอร์กลับ ปกจับคู่กลับมาครบทุกเรื่อง", coversAfter === coversBefore && coversBefore.length > 2, `${JSON.parse(coversAfter).length} เรื่อง`);
+
+// AUDIT 12 พ.ย. 2569 ข้อ 10 จับคู่อัตโนมัติถือตัวกันงานตลอดงาน · ระหว่างนั้นแก้แถวหรือเริ่มจับคู่ซ้อนไม่ได้ บอกว่ารอให้เสร็จ
+// เดิมเช็กว่างแค่ตอนเริ่ม ทั้งสามคำสั่งสำเร็จ แล้วรายการตอนเริ่มเขียนทับสิ่งที่แก้ระหว่างกลาง
+{
+  await nav("จับคู่ปก");
+  await waitFor("return !!document.querySelector('[data-link-table], [data-link-page]')");
+  const st10 = await stateNow();
+  const r10 = st10.rows.find((r) => r.status !== "saved" && (r.tall || r.wide)) ?? st10.rows[0];
+  let got10 = null;
+  // ชุดรูปทดสอบเล็ก งานจับคู่บางรอบจบก่อนคำสั่งที่ตามไปถึง ลองซ้ำได้ห้ารอบ ไม่เว้นเวลา (พลาดหนึ่งรอบ 15 พ.ย. 2569)
+  for (let i = 0; i < 5 && r10; i++) {
+    got10 = await c.evaluate(`(async () => { const I = window.__TAURI_INTERNALS__.invoke; const a = I('link_auto', { scope: ${JSON.stringify(st10.scope)} }); const u = I('link_row_update', { id: ${JSON.stringify(r10.id)}, patch: { ticked: ${!!r10.ticked} } }); const b = I('link_auto', { scope: ${JSON.stringify(st10.scope)} }); const s = await Promise.allSettled([a, u, b]); return s.map((x) => x.status + ':' + String(x.reason ?? '')); })()`);
+    if (!got10[0].startsWith("fulfilled") || got10[1].includes("กำลังอ่านรูป")) break;
+  }
+  check("AUDIT ข้อ 10 ระหว่างจับคู่อัตโนมัติ แก้แถวกับเริ่มจับคู่ซ้อนไม่ได้ ขึ้นว่ากำลังอ่านรูปรอให้เสร็จ", !!got10 && got10[0].startsWith("fulfilled") && got10[1].startsWith("rejected") && got10[1].includes("กำลังอ่านรูป") && got10[2].startsWith("rejected"), JSON.stringify(got10));
+  // หน้าจอระหว่างอ่าน ตารางบอกว่ากำลังอ่าน ปุ่มยืนยันกดไม่ได้พร้อมเหตุผล ปุ่มในแถวบอกเหตุผล
+  await c.evaluate("window.__linkReading(true)"); await sleep(250);
+  const t10 = await q(`const f = document.querySelector('[data-link-foot]'), all = document.querySelector('[data-link-confirm-all]'), brd = document.querySelector('[data-link-goboard]'), ok = document.querySelector('[data-link-row] .btn-wait[title], [data-link-row] [aria-disabled][title]'); return { text: document.querySelector('[data-link-reading-table]')?.innerText ?? '', h: Math.round(f.getBoundingClientRect().height), dis: all?.getAttribute('aria-disabled'), why: all?.title ?? '', board: brd?.getAttribute('aria-disabled'), row: ok?.title ?? '' }`);
+  await shot("../../report-2026-11-15/AUDIT-กลุ่ม2/10-ตารางระหว่างอ่านรูป.png", "[data-link-foot]", 900).catch(() => {});
+  await c.evaluate("window.__linkReading(false)"); await sleep(250);
+  const h10 = await q("return Math.round(document.querySelector('[data-link-foot]').getBoundingClientRect().height)");
+  check("AUDIT ข้อ 10 ตารางระหว่างอ่านรูป แถบล่างบอกกำลังอ่าน ปุ่มยืนยันทั้งหมดกดไม่ได้พร้อมเหตุผล ปุ่มในแถวบอกเหตุผล แถบล่างสูงเท่าเดิม", t10.text.includes("กำลังอ่านรูปเพื่อจับคู่") && t10.dis === "true" && t10.board === "true" && t10.why.includes("กำลังอ่านรูป") && t10.row.includes("กำลังอ่านรูป") && t10.h === h10, JSON.stringify({ ...t10, h10 }));
+  // ข้อ 12 ในตาราง วางรูปนอกแถว ไม่เพิ่มเป็นแหล่งรูป ไม่จับคู่ใหม่ ขึ้นแถบบอกให้วางบนแถว
+  const before12 = await stateNow();
+  const loose12 = readdirSync(IMG).find((f) => /\.(jpe?g|png)$/i.test(f));
+  await drop([join(IMG, loose12)], 5, 5); await sleep(800);
+  const after12 = await stateNow();
+  const toast12 = await q("return [...document.querySelectorAll('.toast')].map((t) => t.innerText).join(' | ')");
+  check("AUDIT ข้อ 12 ในตารางวางรูปนอกแถว ไม่เพิ่มแหล่งรูปและไม่จับคู่ใหม่ ขึ้นแถบบอกให้วางบนแถวของเรื่องที่ต้องการ", JSON.stringify(after12.loose) === JSON.stringify(before12.loose) && JSON.stringify(after12.imageFolders) === JSON.stringify(before12.imageFolders) && toast12.includes("วางรูปบนแถวของเรื่องที่ต้องการ"), toast12);
+  await shot("../../report-2026-11-15/AUDIT-กลุ่ม2/12-วางนอกแถว.png", ".toast", 900).catch(() => {});
+  // ไฟล์ที่ไม่ใช่รูปวางนอกแถว ขึ้นแถบบอกว่าไม่ใช่รูปในตาราง ไม่ไปค้างที่หน้าแรก
+  const txt12 = join(DIR, "ไม่ใช่รูป.txt"); writeFileSync(txt12, "x");
+  await drop([txt12], 5, 5); await sleep(500);
+  const toast12b = await q("return [...document.querySelectorAll('.toast')].map((t) => t.innerText).join(' | ')");
+  check("AUDIT ข้อ 12 ในตารางวางไฟล์ที่ไม่ใช่รูป ขึ้นแถบบอกว่าไม่ใช่รูปในตาราง", toast12b.includes("ไฟล์ที่ลากมาไม่ใช่รูป") && JSON.stringify((await stateNow()).loose) === JSON.stringify(before12.loose), toast12b);
+  // แถบผลการลากวางแทนแถบเดิม ไม่ซ้อนกันหลายแถบ (พี่กันทัก 15 พ.ย. 2569 "มันจะค้างไปถึงไหน")
+  check("แถบผลการลากวางแถบใหม่แทนแถบเดิม ไม่ซ้อนกัน", !toast12b.includes("วางรูปบนแถวของเรื่องที่ต้องการ"), toast12b);
+  rmSync(txt12, { force: true });
+  // หน้าแรกระหว่างอ่าน ช่องวางกับปุ่มเลือกโฟลเดอร์ไม่รับ บอกเหตุผล
+  await c.evaluate("document.querySelector('[data-link-addmore]')?.click()"); await waitFor("return !!document.querySelector('[data-link-drop]')", 5000);
+  await c.evaluate("window.__linkReading(true)"); await sleep(250);
+  const s10 = await q(`const d = document.querySelector('[data-link-drop]'), p = document.querySelector('[data-link-pick]'); return { cls: d.className, dis: d.getAttribute('aria-disabled'), text: d.innerText, pick: p.getAttribute('aria-disabled'), why: p.title }`);
+  const srcBefore = JSON.stringify((await stateNow()).imageFolders);
+  await drop([IMG], 400, 300); await sleep(500);
+  const srcAfter = JSON.stringify((await stateNow()).imageFolders);
+  const toast10 = await q("return [...document.querySelectorAll('.toast')].map((t) => t.innerText).join(' | ')");
+  await shot("../../report-2026-11-15/AUDIT-กลุ่ม2/10-หน้าแรกระหว่างอ่านรูป.png", "[data-link-drop]", 900).catch(() => {});
+  await c.evaluate("window.__linkReading(false)"); await sleep(200);
+  check("AUDIT ข้อ 10 หน้าแรกระหว่างอ่านรูป ช่องวางกับปุ่มเลือกโฟลเดอร์กดไม่ได้บอกเหตุผล ลากมาวางไม่เพิ่มรูป", s10.cls.includes("wait") && s10.dis === "true" && s10.text.includes("กำลังอ่านรูปเพื่อจับคู่") && s10.pick === "true" && s10.why.includes("กำลังอ่านรูป") && srcAfter === srcBefore && toast10.includes("กำลังอ่านรูปเพื่อจับคู่"), JSON.stringify({ ...s10, toast10 }));
+  // แถบผลการลากวางหายเองใน 6 วินาที ไม่ค้างในหน้าต่าง
+  await sleep(6500);
+  const left10 = await q("return [...document.querySelectorAll('.toast')].map((t) => t.innerText).join(' | ')");
+  check("แถบผลการลากวางหายเองใน 6 วินาที ไม่ค้าง", !/กำลังอ่านรูปเพื่อจับคู่อยู่|ไฟล์ที่ลากมาไม่ใช่รูป|วางรูปบนแถว/.test(left10), left10);
+  await q("document.querySelectorAll('.toast .x').forEach((b) => b.click()); return 1");
+  await c.evaluate("document.querySelector('[data-link-open]')?.click()");
+}
 
 const pass = results.filter((r) => r.pass).length;
 console.log(`\nผ่าน ${pass} จาก ${results.length} ข้อ`);

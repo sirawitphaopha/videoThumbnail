@@ -177,16 +177,16 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
   // ---------- เพิ่มไฟล์เสียงซับ ----------
   const addFiles = useCallback(async (paths: string[]) => {
     const m = getAv().movie;
-    if (!m) { toast({ kind: "warn", title: "ใส่ไฟล์หนังก่อน", detail: "ลากไฟล์หนังมาวาง แล้วค่อยลากเสียงหรือซับตามมา" }); return; }
+    if (!m) { toast({ kind: "warn", ms: 6000, key: "av-add", title: "ใส่ไฟล์หนังก่อน", detail: "ลากไฟล์หนังมาวาง แล้วค่อยลากเสียงหรือซับตามมา" }); return; }
     for (const path of paths) {
       // เปลี่ยนหนังระหว่างอ่านไฟล์ที่ลากมาหลายไฟล์ ไฟล์ที่เหลือไม่เพิ่มเข้าหนังเรื่องใหม่ (ข้อ 20)
       if (getAv().movie?.path !== m.path) break;
       if (path.toLowerCase() === m.path.toLowerCase()) {
-        toast({ kind: "warn", title: "ไฟล์นี้คือไฟล์หนังที่เปิดอยู่", detail: "แทร็กของหนังอยู่ในตารางแล้ว ไม่ต้องเพิ่มซ้ำ" });
+        toast({ kind: "warn", ms: 6000, key: "av-add", title: "ไฟล์นี้คือไฟล์หนังที่เปิดอยู่", detail: "แทร็กของหนังอยู่ในตารางแล้ว ไม่ต้องเพิ่มซ้ำ" });
         continue;
       }
       if (getAv().tracks.some((t) => !t.inMovie && t.src.toLowerCase() === path.toLowerCase())) {
-        toast({ kind: "warn", title: "ไฟล์นี้เพิ่มไว้แล้ว", detail: baseName(path) });
+        toast({ kind: "warn", ms: 6000, key: "av-add", title: "ไฟล์นี้เพิ่มไว้แล้ว", detail: baseName(path) });
         continue;
       }
       setLoading("add");
@@ -216,7 +216,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
 
   // ---------- ฟอนต์ของซับ ASS ที่ลากมาเพิ่มเอง (พี่กันสั่ง 8 พ.ย. 2569) ----------
   const addFonts = useCallback(async (paths: string[]) => {
-    if (!getAv().movie) { toast({ kind: "warn", title: "ใส่ไฟล์หนังก่อน", detail: "ฟอนต์ใช้ฝังไปกับซับ ASS ตอนรวม" }); return; }
+    if (!getAv().movie) { toast({ kind: "warn", ms: 6000, key: "av-add", title: "ใส่ไฟล์หนังก่อน", detail: "ฟอนต์ใช้ฝังไปกับซับ ASS ตอนรวม" }); return; }
     for (const path of paths) {
       if (getAv().fontExtra.some((f) => f.path.toLowerCase() === path.toLowerCase())) continue;
       try {
@@ -281,7 +281,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
     else if (movies.length && !(await loadMovie(movies[0]))) return;
     if (adds.length) await addFiles(adds);
     if (fontFiles.length) await addFonts(fontFiles);
-    if (other.length) toast({ kind: "warn", title: `ใช้ไม่ได้ ${other.length} ไฟล์`, detail: other.map(baseName).join(", ") });
+    if (other.length) toast({ kind: "warn", ms: 6000, key: "av-add", title: `ใช้ไม่ได้ ${other.length} ไฟล์`, detail: other.map(baseName).join(", ") });
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [loadMovie, addFiles, addFonts, openCover, toast]);
   const pageOn = usePageActiveRef();

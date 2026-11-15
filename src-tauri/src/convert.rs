@@ -44,7 +44,7 @@ pub struct CoverInfo {
     pub stream: u64,
 }
 
-/// ข้อมูลไฟล์เสียงหนึ่งไฟล์ในคิว · แทร็กเสียงแรกของไฟล์
+/// ข้อมูลไฟล์เสียงหนึ่งไฟล์ในคิว · แทร็กเสียงที่เลือก (ค่าตั้งต้นแทร็กแรก)
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct AudioFile {
@@ -67,6 +67,9 @@ pub struct AudioFile {
     /// ข้อมูลเพลงอยู่ในแทร็กเสียง (Ogg Opus Vorbis) ไม่ใช่ระดับไฟล์
     pub tags_in_stream: bool,
     pub cover: Option<CoverInfo>,
+    /// ลำดับแทร็กเสียงที่แปลง นับจาก 0 · tracks จำนวนแทร็กเสียงทั้งไฟล์ ให้หน้าจอบอกว่าแปลงแทร็กไหน (AUDIT 12 พ.ย. 2569 ข้อ 22)
+    pub track: usize,
+    pub tracks: usize,
 }
 
 /// ชื่อกลางของข้อมูลเพลง กับชื่อที่ ffprobe อาจใช้ (ID3 MP4 Vorbis comment APE เรียกไม่เหมือนกัน)
@@ -116,11 +119,14 @@ pub fn vorbis_key(canon: &str) -> String {
     }
 }
 
-pub fn parse_file(path: &Path, j: &Value) -> Result<AudioFile, String> {
+/// track ลำดับแทร็กเสียงนับจาก 0 · เดิมเลือกแทร็กเสียงแรกเสมอ ดูเสียง 2 ในหน้ากราฟแล้วกดแปลงเสียง ได้เสียง 1 (AUDIT 12 พ.ย. 2569 ข้อ 22)
+pub fn parse_file(path: &Path, j: &Value, track: usize) -> Result<AudioFile, String> {
     let g = crate::audiograph::parse_info(j);
     let streams = j["streams"].as_array().cloned().unwrap_or_default();
-    let st = streams.iter().find(|s| s["codec_type"] == "audio").ok_or("ไฟล์นี้ไม่มีแทร็กเสียง")?;
-    let t = g.tracks.first().ok_or("ไฟล์นี้ไม่มีแทร็กเสียง")?;
+    let audio: Vec<&Value> = streams.iter().filter(|s| s["codec_type"] == "audio").collect();
+    if audio.is_empty() { return Err("ไฟล์นี้ไม่มีแทร็กเสียง".into()); }
+    let st = *audio.get(track).ok_or_else(|| format!("ไฟล์นี้มีแทร็กเสียง {} แทร็ก ไม่มีแทร็กที่ {}", audio.len(), track + 1))?;
+    let t = g.tracks.get(track).ok_or("ไฟล์นี้ไม่มีแทร็กเสียง")?;
     let mut tags = canon_tags(&j["format"]["tags"]);
     let mut in_stream = false;
     if tags.is_empty() {
@@ -150,10 +156,17 @@ pub fn parse_file(path: &Path, j: &Value) -> Result<AudioFile, String> {
         tags,
         tags_in_stream: in_stream,
         cover,
+        track,
+        tracks: audio.len(),
     })
 }
 
 pub fn probe(tools: &Path, path: &Path) -> Result<AudioFile, String> {
+    probe_track(tools, path, 0)
+}
+
+/// อ่านไฟล์โดยเลือกแทร็กเสียงลำดับ track (นับจาก 0)
+pub fn probe_track(tools: &Path, path: &Path, track: usize) -> Result<AudioFile, String> {
     let out = run_tool_timeout(tools, "ffprobe", [
         OsStr::new("-v"), OsStr::new("error"), OsStr::new("-print_format"), OsStr::new("json"),
         OsStr::new("-show_format"), OsStr::new("-show_streams"), path.as_os_str(),
@@ -163,7 +176,7 @@ pub fn probe(tools: &Path, path: &Path) -> Result<AudioFile, String> {
         return Err(format!("อ่านไฟล์ไม่ได้ {}", msg.lines().last().unwrap_or("").trim()));
     }
     let j: Value = serde_json::from_slice(&out.stdout).map_err(|e| format!("อ่านผลของ ffprobe ไม่ได้: {e}"))?;
-    parse_file(path, &j)
+    parse_file(path, &j, track)
 }
 
 /// ไบต์ของรูปปก (ดึงด้วย ffmpeg ไม่แปลง)
@@ -244,12 +257,12 @@ pub fn size_probe(work: &Path, dir_of: &dyn Fn(&str) -> PathBuf, path: &str, str
 }
 
 #[tauri::command]
-pub async fn convert_probe(app: AppHandle, path: String) -> Result<AudioFile, String> {
+pub async fn convert_probe(app: AppHandle, path: String, track: Option<usize>) -> Result<AudioFile, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let (tools, _) = tools_of(&app)?;
         let p = PathBuf::from(&path);
         if !p.exists() { return Err("หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่ หรือไฟล์ถูกย้ายไปแล้ว".into()); }
-        probe(&tools, &p)
+        probe_track(&tools, &p, track.unwrap_or(0))
     }).await.map_err(|e| e.to_string())?
 }
 
@@ -288,6 +301,9 @@ pub struct ConvReq {
     pub spec: EncodeSpec,
     /// โฟลเดอร์ที่เลือก · ไม่มี = ข้างไฟล์เดิม
     pub out_dir: Option<String>,
+    /// ลำดับแทร็กเสียงที่แปลง นับจาก 0 · ไม่ส่ง = แทร็กแรก (AUDIT ข้อ 22)
+    #[serde(default)]
+    pub track: usize,
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -379,7 +395,7 @@ fn convert(app: &AppHandle, req: &ConvReq, jobs: &Arc<crate::jobs::Jobs>) -> Res
     if !src.exists() {
         return Err(fail("missing", "หาไฟล์ไม่เจอ", vec!["ไดรฟ์อาจถอดออกอยู่ หรือไฟล์ถูกย้ายไปแล้ว".into()]));
     }
-    let f = probe(&tools, &src).map_err(|e| fail("badsource", "อ่านไฟล์เสียงไม่ได้", vec![e, untouched.clone()]))?;
+    let f = probe_track(&tools, &src, req.track).map_err(|e| fail("badsource", "อ่านไฟล์เสียงไม่ได้", vec![e, untouched.clone()]))?;
     let spec = &req.spec;
     let codec = spec.codec.as_str();
     let dir = match &req.out_dir { Some(d) if !d.is_empty() => PathBuf::from(d), _ => src.parent().map(Path::to_path_buf).unwrap_or_default() };
@@ -594,7 +610,7 @@ mod tests {
         let f = AudioFile {
             path: "a.flac".into(), name: "a.flac".into(), size: 1, duration: 1.0, audio_only: true, stream: 0, codec: "flac".into(), profile: String::new(),
             layout: "2.0".into(), channels: 2, rate: 48000, bits: Some(24), bitrate: None, tags: vec![], tags_in_stream: false,
-            cover: Some(CoverInfo { codec: "mjpeg".into(), width: 10, height: 10, stream: 1 }),
+            cover: Some(CoverInfo { codec: "mjpeg".into(), width: 10, height: 10, stream: 1 }), track: 0, tracks: 1,
         };
         let a = remux_args("enc.mp3", "a.flac", "out.mp3", "mp3", &f, true).join(" ");
         assert!(a.contains("-map 0:a:0 -map 1:1 -c copy -map_metadata 1 -disposition:v:0 attached_pic"), "{a}");
@@ -652,6 +668,32 @@ mod tests {
             String::from_utf8_lossy(&o.stdout).trim().to_string()
         };
         assert_eq!(md5(&out), md5(&src), "ไม่เสียคุณภาพ");
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// AUDIT 12 พ.ย. 2569 ข้อ 22 หนังดาวเหนือมีเสียงไทย AAC 1 ช่องเป็นแทร็กแรก เสียงอังกฤษ AC-3 5.1 เป็นแทร็กที่สอง
+    /// ขอแทร็กที่สองต้องได้สตรีม 2 และแปลงออกมาได้ 6 ช่อง · เดิมได้แทร็กแรกเสมอ · ขอแทร็กที่ไม่มีต้องบอกว่ามีกี่แทร็ก
+    #[test]
+    fn probe_and_convert_picked_audio_track() {
+        let p = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("test-media").join("สร้าง").join("หนัง").join("ดาวเหนือ (2023).mkv");
+        let Ok(src) = dunce::canonicalize(&p) else {
+            assert_eq!(std::env::var("MOVIE_SHELF_SKIP_MEDIA").as_deref(), Ok("1"), "ไม่มีไฟล์ทดสอบ {} · รัน node scripts/make-test-media.mjs ก่อน", p.display());
+            return;
+        };
+        let a = probe(&tools(), &src).unwrap();
+        assert_eq!((a.track, a.tracks, a.stream, a.codec.as_str(), a.channels), (0, 2, 1, "aac", 1));
+        let b = probe_track(&tools(), &src, 1).unwrap();
+        assert_eq!((b.track, b.tracks, b.stream, b.codec.as_str(), b.channels), (1, 2, 2, "ac3", 6));
+        let e = probe_track(&tools(), &src, 2).unwrap_err();
+        assert!(e.contains("มีแทร็กเสียง 2 แทร็ก") && e.contains("ไม่มีแทร็กที่ 3"), "{e}");
+        let dir = std::env::temp_dir().join(format!("ms-track-{}", crate::poster_image::unique()));
+        std::fs::create_dir_all(&dir).unwrap();
+        let out = dir.join("track2.flac");
+        let spec = EncodeSpec { codec: "flac".into(), ..Default::default() };
+        let plan = encode::build(&spec, &src.to_string_lossy(), b.stream, &out.to_string_lossy(), Some(b.channels), b.bits).unwrap();
+        assert!(matches!(encode::run(&|_| tools(), &plan, Some(b.duration), &|| false, &mut |_| {}).unwrap(), encode::Done::Ok));
+        let g = probe(&tools(), &out).unwrap();
+        assert_eq!(g.channels, 6, "ไฟล์ที่แปลงต้องเป็นเสียงแทร็กที่สอง 5.1");
         let _ = std::fs::remove_dir_all(&dir);
     }
 

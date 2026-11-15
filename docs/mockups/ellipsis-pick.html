@@ -1,0 +1,117 @@
+<!doctype html>
+<html lang="th">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>เลือกแบบ ชื่อยาวที่เกินช่อง แทนจุดสามจุด</title>
+<!--
+  มอคอัปให้พี่กันเลือกแบบ BUGS ข้อ 51 ส่วนที่ค้าง จุดสามจุดที่ตัดท้ายชื่อยาว 38 จุด (15 พ.ย. 2569 พี่กันสั่ง "ลองทำมอคอัป")
+  ทุกกรอบเป็นหน้าจอจริงของโปรแกรม (src/main.tsx) ผ่าน theme-live-app.html ที่แทนฝั่ง Rust ด้วยข้อมูลตัวอย่าง ไม่ได้วาดใหม่
+  ตัวอย่างใช้ชื่อใต้ปกบนชั้นวาง (.bn1) จุดที่เห็นบ่อยที่สุด · ชื่อเรื่องตัวอย่างสั้น สคริปต์ท้ายไฟล์เปลี่ยนชื่อสี่เรื่องแถวบนให้ยาวแบบชื่อไฟล์จริง
+  แต่ละแบบใส่สไตล์ทับในกรอบ ยังไม่ได้แก้โค้ดของโปรแกรม · แบบที่เลือกจะใช้กับทุกจุดที่ตัดชื่อ เช่นชื่อไฟล์ในหน้าเสียงและซับ คิวแปลงเสียง ตารางจับคู่ปก หัวหน้ากราฟเสียง
+  กรอบเท่าหน้าต่างตอนยังไม่กดขยาย 1280 × 800 (width height ใน src-tauri/tauri.conf.json) ไม่ย่อ
+  เปิดด้วยเซิร์ฟเวอร์ทดสอบ npm run dev แล้วเข้า http://127.0.0.1:1420/docs/mockups/ellipsis-pick.html
+-->
+<style>
+  :root { --font: Sarabun, "Noto Sans Thai", Tahoma, sans-serif; --ink: #3a252c; --ink2: #7a5a66; --line: #ecd3dc; --acc: #a8456b; }
+  body { margin: 0; background: #fbf5f7; color: var(--ink); font-family: var(--font); }
+  .page { padding: 24px 20px 60px; }
+  h1 { font-size: 22px; margin: 0 0 6px; }
+  .lead { color: var(--ink2); margin: 0 0 22px; font-size: 15px; max-width: 1280px; }
+  .opt { margin: 26px 0 44px; }
+  .opt h3 { font-size: 18px; margin: 0 0 4px; }
+  .opt > p { margin: 0 0 12px; color: var(--ink2); font-size: 15px; max-width: 1280px; }
+  .frame { border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 6px 22px rgba(60, 25, 40, .12); background: #fff; display: block; width: 1280px; height: 800px; }
+  .state { font-size: 13px; color: #b0303f; margin-top: 6px; }
+</style>
+</head>
+<body>
+<div class="page">
+  <h1>เลือกแบบ ชื่อยาวที่เกินช่อง แทนจุดสามจุด</h1>
+  <p class="lead"><b>พี่กันเลือกแล้ว 15 พ.ย. 2569 เอาทุกแบบ เลือกได้ในหน้าตั้งค่า หัวข้อชั้นวาง แถวชื่อที่ยาวเกินช่อง และแบบ 4 เป็นค่าตั้งต้น ลงโปรแกรมแล้ว</b> ทุกกรอบเป็นหน้าจอจริงของโปรแกรมขนาดหน้าต่างตอนยังไม่กดขยาย 1280 × 800 ตัวอย่างคือชื่อใต้ปกบนชั้นวาง สี่เรื่องแถวบนเปลี่ยนชื่อให้ยาวแบบชื่อไฟล์จริง กรอบแรกคือหน้าตาตอนนี้ แบบที่เลือกจะใช้กับทุกจุดที่ตัดชื่อยาวในโปรแกรม ในกรอบเอาเมาส์ชี้และเลื่อนได้เหมือนโปรแกรมจริง</p>
+  <div id="opts"></div>
+</div>
+
+<script>
+const OPTS = [
+  { mode: "now", name: "ตอนนี้ ตัดท้ายเป็นจุดสามจุด", desc: "ชื่อที่ยาวเกินช่องโดนตัดท้ายแล้วใส่ … ให้เอง ซึ่งกฎข้อความบนจอให้ใช้ … เฉพาะท้ายคำว่ากำลังทำ ชื่อเต็มอ่านได้ตอนชี้เท่านั้น" },
+  { mode: "two", name: "แบบ 1 ขึ้นบรรทัดใหม่ได้สองบรรทัด", desc: "ชื่อยาวขึ้นบรรทัดที่สองแทนการตัด ทุกเรื่องจองที่สองบรรทัดเท่ากัน ปกแถวเดียวกันจึงยังตรงแนว ชื่อที่ยาวเกินสองบรรทัดจางท้ายบรรทัดที่สอง ข้อดีคือเห็นชื่อเต็มเกือบทุกเรื่อง ข้อเสียคือใต้ปกสูงขึ้นหนึ่งบรรทัด และชื่อไฟล์ที่ใช้จุดแทนเว้นวรรคจะขึ้นบรรทัดกลางคำ ถ้าเลือกแบบนี้ แคลร์จะทำให้คำไทยไม่ขาดกลางคำตอนลงโปรแกรม" },
+  { mode: "fade", name: "แบบ 2 จางท้ายแทนจุด", desc: "ยังเป็นบรรทัดเดียวเท่าเดิม แต่ท้ายชื่อที่ล้นค่อย ๆ จางหายแทนการใส่ … ชื่อที่สั้นพอดีช่องไม่จาง ข้อดีคือหน้าตาเหมือนเดิมและไม่มีเครื่องหมาย ข้อเสียคือท้ายชื่อยังมองไม่เห็นเหมือนเดิม" },
+  { mode: "year", name: "แบบ 3 จางกลางชื่อ เก็บปีไว้ท้ายเสมอ", desc: "บรรทัดเดียว ส่วนชื่อเรื่องจางตรงที่ล้น แล้วปีในวงเล็บอยู่ท้ายให้เห็นเสมอ ข้อดีคือรู้ว่าเป็นเรื่องปีไหนแม้ชื่อยาว ข้อเสียคือใช้ได้กับชื่อที่มีปีหรือนามสกุลท้ายเท่านั้น จุดอื่นใช้จางท้ายแบบ 2" },
+  { mode: "slide", name: "แบบ 4 จางท้าย และเอาเมาส์ชี้แล้วชื่อค่อย ๆ เลื่อนให้อ่านจบ", desc: "ปกติเหมือนแบบ 2 พอเอาเมาส์ชี้ชื่อที่ล้น ชื่อค่อย ๆ เลื่อนไปทางซ้ายจนเห็นท้ายชื่อ เอาเมาส์ออกแล้วกลับที่เดิม ลองชี้ชื่อแถวบนในกรอบได้ ข้อดีคืออ่านจบได้โดยไม่ต้องเปิดอะไร ข้อเสียคือต้องชี้ทีละชื่อ" },
+];
+
+const host = document.getElementById("opts");
+for (const o of OPTS) {
+  const box = document.createElement("div");
+  box.className = "opt";
+  box.innerHTML = `<h3></h3><p></p><iframe class="frame" title=""></iframe><div class="state" data-state></div>`;
+  box.querySelector("h3").textContent = o.name;
+  box.querySelector("p").textContent = o.desc;
+  const f = box.querySelector("iframe");
+  f.title = o.name; f.dataset.v = o.mode;
+  host.appendChild(box);
+}
+
+const sleep = (ms) => new Promise((r) => setTimeout(r, ms));
+async function until(fn, ms = 10000) { const t = Date.now(); while (Date.now() - t < ms) { try { const v = fn(); if (v) return v; } catch (e) { /* ยังโหลด */ } await sleep(120); } return null; }
+
+// ชื่อยาวแบบชื่อไฟล์จริง ใส่แทนชื่อสี่เรื่องแถวบน (ชื่อตัวอย่างเดิมสั้นพอดีช่อง ไม่เห็นการตัด)
+const LONG = [
+  ["ดาวเหนือ ภาคพิเศษ ฉบับผู้กำกับ", "2023"],
+  ["Harbor Lights เรือนไฟริมท่า Extended Cut", "2021"],
+  ["สายลมเดือนเมษา ภาคสมบูรณ์ ฉบับฉายโรง", "2017"],
+  ["The.Last.Orchard.Remastered.1080p.BluRay", "2022"],
+];
+const CSS = {
+  now: "",
+  two: ".bn1{white-space:normal;text-overflow:clip;height:calc(1.6em * 2);overflow:hidden;-webkit-mask-image:linear-gradient(180deg,#000 50%,transparent 50%),linear-gradient(90deg,#000 calc(100% - 28px),transparent);-webkit-mask-composite:source-over;mask-composite:add}",
+  fade: ".bn1{text-overflow:clip}.bn1.mk-over{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 30px),transparent)}",
+  year: ".bn1{text-overflow:clip;display:flex;min-width:0}.bn1 .mk-t{flex:0 1 auto;min-width:0;overflow:hidden;white-space:nowrap}.bn1.mk-over .mk-t{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 24px),transparent)}.bn1 .mk-y{flex:none;padding-left:4px}",
+  slide: ".bn1{text-overflow:clip}.bn1.mk-over{-webkit-mask-image:linear-gradient(90deg,#000 calc(100% - 30px),transparent)}.bn1 .mk-mv{display:inline-block;transition:transform 0s}.bn1.mk-over:hover{-webkit-mask-image:linear-gradient(90deg,transparent,#000 14px,#000 calc(100% - 14px),transparent)}.bn1.mk-over:hover .mk-mv{transform:translateX(calc(-1 * var(--mk-d)));transition:transform var(--mk-t) linear .3s}",
+};
+
+async function drive(f) {
+  const mode = f.dataset.v;
+  const d = f.contentDocument, w = f.contentWindow, state = f.parentElement.querySelector("[data-state]");
+  if (!w || !String(w.location.href).includes("theme-live-app")) return;
+  try {
+    await until(() => d.querySelector(".side .nav"));
+    (await until(() => [...d.querySelectorAll(".side .nav")].find((b) => b.innerText.trim().split(/\s*\n/)[0] === "ชั้นวางหนัง")))?.click();
+    // แถบเตือนไดรฟ์ใกล้เต็ม (ขึ้นเมื่อเปิดในหน้าต่างโปรแกรมทดสอบ) ดันชั้นวางลง กดไว้ทีหลังให้เห็นแถวบนเต็ม
+    await sleep(600);
+    [...d.querySelectorAll(".btn")].find((b) => b.innerText.trim() === "ไว้ทีหลัง")?.click();
+    const names = await until(() => { const n = [...d.querySelectorAll(".bn1")]; return n.length >= 4 ? n : null; });
+    if (!names) throw new Error("ชั้นวางไม่มีชื่อใต้ปก");
+    names.slice(0, 4).forEach((el, i) => { const [t, y] = LONG[i]; el.textContent = `${t} (${y})`; el.dataset.mkT = t; el.dataset.mkY = y; el.title = `${t} (${y})`; });
+    const st = d.createElement("style"); st.textContent = CSS[mode]; d.head.appendChild(st);
+    await sleep(100);
+    for (const el of d.querySelectorAll(".bn1")) {
+      const full = el.textContent;
+      const m = full.match(/^(.*?)\s*(\(\d{4}\))$/);
+      if (mode === "year" && m) el.innerHTML = `<span class="mk-t"></span><span class="mk-y"></span>`, el.querySelector(".mk-t").textContent = m[1], el.querySelector(".mk-y").textContent = m[2];
+      if (mode === "slide") { el.innerHTML = `<span class="mk-mv"></span>`; el.querySelector(".mk-mv").textContent = full; }
+    }
+    await sleep(100);
+    for (const el of d.querySelectorAll(".bn1")) {
+      const t = el.querySelector(".mk-t") ?? el;
+      const mv = el.querySelector(".mk-mv");
+      const over = mv ? mv.scrollWidth > el.clientWidth + 1 : t.scrollWidth > t.clientWidth + 1;
+      el.classList.toggle("mk-over", over);
+      if (mv && over) { const dist = mv.scrollWidth - el.clientWidth + 18; el.style.setProperty("--mk-d", dist + "px"); el.style.setProperty("--mk-t", Math.max(1.2, dist / 60) + "s"); }
+    }
+    state.textContent = "";
+  } catch (e) { state.textContent = "จัดหน้าไม่สำเร็จ " + e.message; }
+}
+
+const io = new IntersectionObserver((ents) => {
+  for (const e of ents) {
+    const f = e.target;
+    if (e.isIntersecting && !f.dataset.on) { f.dataset.on = "1"; f.src = "theme-live-app.html"; }
+    else if (!e.isIntersecting && f.dataset.on) { delete f.dataset.on; f.src = "about:blank"; }
+  }
+}, { rootMargin: "900px 0px" });
+document.querySelectorAll("iframe[data-v]").forEach((f) => { f.addEventListener("load", () => drive(f)); io.observe(f); });
+</script>
+</body>
+</html>

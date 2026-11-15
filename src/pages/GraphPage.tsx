@@ -665,7 +665,8 @@ function loadPrefs(): Prefs {
 
 /** โหมดของหน้า กับการเทียบที่เปิดอยู่ · จำระดับโปรแกรม ไปหน้าอื่นแล้วกลับมาอยู่ที่เดิม (คิวแปลงเก็บใน convertJob.ts) */
 let lastMode: "graph" | "convert" = "graph";
-type CmpState = { files: string[]; note?: string; free?: boolean } | null;
+// tracks แทร็กเสียงของแต่ละไฟล์ (ไม่มี = แทร็กแรก) · เดิมหน้าเทียบใช้แทร็กแรกเสมอ ดูเสียง 2 อยู่แล้วกดเทียบ ได้เสียง 1 มาเทียบ (AUDIT 12 พ.ย. 2569 ข้อ 22)
+type CmpState = { files: string[]; note?: string; free?: boolean; tracks?: Record<string, number> } | null;
 let lastCmp: CmpState = null;
 /** การเทียบที่ออกมาดูกราฟเดี่ยว ใช้ปุ่มกลับไปเทียบ */
 let lastBack: CmpState = null;
@@ -1024,11 +1025,19 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
 
   const toggleCh = (c: string) => setHidden((h) => h.includes(c) ? h.filter((x) => x !== c) : vis.length > 1 ? [...h, c] : h);
   const openOther = async () => { const f = await pickFile("media"); if (f) setPath(f); };
+  // กลับจากหน้าเทียบมากราฟเดี่ยว เปิดแทร็กเดียวกับที่เทียบอยู่ (AUDIT ข้อ 22)
+  const openSingle = (p: string, t: number) => {
+    wantTrack.current = t || null;
+    if (p === path && info && t < info.tracks.length) setTrack(t);
+    setPath(p);
+  };
   const compareOther = async () => {
     if (!path) return;
-    const f = await pickFile("media"); if (!f) return;
-    if (f.toLowerCase() === path.toLowerCase()) { toast({ kind: "warn", title: "เลือกไฟล์เดียวกับที่เปิดอยู่", detail: "เลือกไฟล์อื่นเพื่อเทียบ" }); return; }
-    setCmpBack(null); setCmp({ files: [path, f], free: true });
+    // ตัวตรวจในโหมดพัฒนาส่งไฟล์ผ่าน __cmpPick ไม่เปิดกล่องเลือกไฟล์ของ Windows
+    const w2 = window as unknown as { __cmpPick?: string };
+    const f = import.meta.env.DEV && w2.__cmpPick ? w2.__cmpPick : await pickFile("media"); if (!f) return;
+    if (f.toLowerCase() === path.toLowerCase()) { toast({ kind: "warn", ms: 6000, key: "graph-pick", title: "เลือกไฟล์เดียวกับที่เปิดอยู่", detail: "เลือกไฟล์อื่นเพื่อเทียบ" }); return; }
+    setCmpBack(null); setCmp({ files: [path, f], free: true, tracks: track ? { [path]: track } : undefined });
   };
   const play = async () => {
     if (!path) return;
@@ -1077,7 +1086,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
   const tagDlg = tagFor && <TagDialog path={tagFor} onClose={() => setTagFor(null)} />;
   if (cmp) {
     return (<>
-      <CompareView files={cmp.files} note={cmp.note} free={cmp.free} onFiles={(files, freed) => setCmp(freed ? { files, free: true } : { ...cmp, files })} onSingle={(p) => { setCmpBack(cmp); setCmp(null); setMode("graph"); setPath(p); }} onBack={() => { const a = cmp.files[0], free = cmp.free; setCmp(null); if (free) { setMode("graph"); setPath(a); } else setMode("convert"); }} onClose={() => { const a = cmp.files[0]; setCmp(null); setMode("graph"); setPath(a); }} />
+      <CompareView key={JSON.stringify(cmp.tracks ?? {})} files={cmp.files} tracks={cmp.tracks} note={cmp.note} free={cmp.free} onFiles={(files, freed) => setCmp(freed ? { files, free: true, tracks: cmp.tracks } : { ...cmp, files })} onSingle={(p) => { setCmpBack(cmp); setCmp(null); setMode("graph"); openSingle(p, cmp.tracks?.[p] ?? 0); }} onBack={() => { const a = cmp.files[0], free = cmp.free; setCmp(null); if (free) { setMode("graph"); openSingle(a, cmp.tracks?.[a] ?? 0); } else setMode("convert"); }} onClose={() => { const a = cmp.files[0]; setCmp(null); setMode("graph"); openSingle(a, cmp.tracks?.[a] ?? 0); }} />
       {tagDlg}
     </>);
   }
@@ -1085,7 +1094,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
     return (
       <div className="ag" data-graph data-graphmode="convert">
         <div className="gmodebar">{modeSeg}<span className="small">แปลงไฟล์เสียงอย่างเดียว ไม่รวมเข้าหนัง และไฟล์เดิมไม่ถูกแก้</span></div>
-        <ConvertPane onCompare={(a, b, note) => setCmp({ files: [a, b], note })} onTags={setTagFor} />
+        <ConvertPane onCompare={(a, b, note, tr) => setCmp({ files: [a, b], note, tracks: tr ? { [a]: tr } : undefined })} onTags={setTagFor} />
         {tagDlg}
       </div>
     );
@@ -1160,7 +1169,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
       {/* เทียบกับไฟล์อื่นจากกราฟที่เปิดอยู่ ไม่ต้องผ่านคิวแปลง (พี่กันสั่ง 9 พ.ย. 2569 "เราเปิดกราฟอยู่แล้ว เราอยากเปิดเทียบกับไฟล์อื่นเลย") */}
       <button type="button" className="btn btn-ghost" onClick={compareOther} title="เลือกไฟล์อื่นมาเทียบกับไฟล์นี้" data-graphcompare><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><path d="M12 3v18M4 7h4v10H4zM16 7h4v10h-4z" /></svg>เทียบ</button>
       {/* หน้าแปลงเสียงอยู่ข้างปุ่มเปิดไฟล์อื่น (มอคอัปหัวข้อ 7) · กดจากหน้ากราฟ ไฟล์ที่ดูอยู่เข้าคิวเลย ไม่ต้องเลือกใหม่ (พี่กันบอก 9 พ.ย. 2569 "มันต้องใช้ไฟล์นั้นเลยสิ") · รอแปลงอยู่แล้วไม่เพิ่มแถว กันกดซ้ำโดยไม่ตั้งใจ */}
-      <button type="button" className="btn btn-ghost" onClick={() => { if (path) addFiles([path], true); setMode("convert"); }} title="แปลงไฟล์นี้ โดยใส่เข้าคิวแปลงเสียง" data-graphconvert><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 7h13l-3-3M20 17H7l3 3" /></svg>แปลงเสียง</button>
+      <button type="button" className="btn btn-ghost" onClick={() => { if (path) addFiles([path], true, track); setMode("convert"); }} title="แปลงไฟล์นี้ โดยใส่เข้าคิวแปลงเสียง" data-graphconvert><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M4 7h13l-3-3M20 17H7l3 3" /></svg>แปลงเสียง</button>
       {/* ดูบิตเรตของแทร็กเสียงที่ดูอยู่ ไปหน้าบิตเรตพร้อมไฟล์และแทร็กนี้ · ไฟล์เสียงล้วนก็กดได้ (พี่กันสั่ง 10 พ.ย. 2569 "เพิ่มดูบิตเรต จากดูกราฟเสียงได้" · "ทำไมเราดูบิตเรตของเสียงไม่ได้") */}
       {onBitrate && path && info && <button type="button" className="btn btn-ghost" onClick={() => onBitrate(path, `a${track}`)} title="ดูบิตเรตของแทร็กเสียงนี้ และสลับไปดูวิดีโอหรือแทร็กอื่นได้ในหน้าบิตเรต" data-graphbitrate><IcBitrate size={16} />Bitrate</button>}
     </div>
@@ -1402,7 +1411,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
   } else if (view === "spek") {
     plot = <SpekView axis={prefs.spekAxis} setAxis={(v) => setPref("spekAxis", v)} res={spekRes} setRes={setSpekRes} onBusy={grabBusy} held={heldShown} resetN={resetN} tools={styleTools} light={prefs.spekLight} onPanT={panTo} scroller={scroller} ov={ov} win={winNow} track={t} fileName={fileName} names={names} t0={t0} t1={t1} zoomBox={zoomBox(ZOOMS, "ซูม")} scmap={prefs.scmap} setScmap={(v) => setPref("scmap", v)} th={th} audioOnly={!!info?.audioOnly} play={play} save={saveImage} exportRef={exportRef} plotRef={plotRef} at={at} />;
   } else {
-    plot = <PsdView filePath={path ?? ""} onReset={() => { setZoom("all"); setWin(null); setResetN((n) => n + 1); }} resetN={resetN} scroller={scroller} psd={psd && psd.db.length === psdSeries.length + (psdMs ? 2 : 0) ? psd : null} names={names} psdCh={psdCh} setPsdCh={setPsdCh} psdLog={psdLog} setPsdLog={setPsdLog} psdSize={psdSize} setPsdSize={setPsdSize} th={th} ov={ov} t0={t0} t1={t1}
+    plot = <PsdView codec={t?.codec ?? ""} filePath={path ?? ""} onReset={() => { setZoom("all"); setWin(null); setResetN((n) => n + 1); }} resetN={resetN} scroller={scroller} psd={psd && psd.db.length === psdSeries.length + (psdMs ? 2 : 0) ? psd : null} names={names} psdCh={psdCh} setPsdCh={setPsdCh} psdLog={psdLog} setPsdLog={setPsdLog} psdSize={psdSize} setPsdSize={setPsdSize} th={th} ov={ov} t0={t0} t1={t1}
       zoomBox={zoomBox(PSD_SPANS, "ช่วงที่เลือก")} onPick={(x) => { setCenter(x); if (zoom === "all") setZoom(30); }} f={psdF} setF={setPsdF} fileName={fileName} save={saveImage} exportRef={exportRef} plotRef={plotRef} toast={toast} />;
   }
 
@@ -1813,8 +1822,10 @@ function edgeOf(srcs: Uint8Array[], B: number, c0: number, c1: number, nyq: numb
 /** ตีความขอบบน · เกณฑ์ตามมอคอัปที่พี่กันผ่าน FLAC ต่ำกว่า 19.5 kHz · AC-3 กับ E-AC-3 ต่ำกว่า 19 kHz · AAC ต่ำกว่า 15.5 kHz · เพิ่มเงื่อนไขว่าต้องตัดเป็นหน้าผา
     ไฟล์ไม่บีบอัดทุกชนิดใช้เกณฑ์ 19.5 kHz แบบ FLAC · เดิมรู้จักแค่บางชื่อ WavPack TrueHD DTS-HD MA ที่แปลงจาก MP3 ขึ้นว่าไม่มีร่องรอย APE TAK TTA ไม่ถูกตรวจ (AUDIT 12 พ.ย. 2569 ข้อ 2)
     ชื่อชนิดเสียงมาจาก probe.rs audio_name ชนิดที่ไม่มีชื่อเฉพาะเป็นชื่อ ffmpeg ตัวพิมพ์ใหญ่ เช่น WAVPACK APE TAK TTA MLP */
+/** ชนิดเสียงที่ไม่ลดคุณภาพ ใช้ทั้งหน้าความถี่และหน้าความถี่เฉลี่ย (AUDIT 12 พ.ย. 2569 ข้อ 21 ใช้รายชื่อเดียวกัน) */
+const LOSSLESS_CODECS = ["FLAC", "PCM", "ALAC", "TrueHD", "MLP", "DTS-HD MA", "WAVPACK", "APE", "TAK", "TTA"];
 function spekVerdict(codec: string, rate: number, e: { top: number; cliff: number; full: boolean }): { warn: boolean; b: string; d: string; s?: string; c?: string } {
-  const LOSSLESS = ["FLAC", "PCM", "ALAC", "TrueHD", "MLP", "DTS-HD MA", "WAVPACK", "APE", "TAK", "TTA"];
+  const LOSSLESS = LOSSLESS_CODECS;
   const SHOW: Record<string, string> = { WAVPACK: "WavPack", APE: "Monkey's Audio" };
   const LOSSY_LIMIT: Record<string, number> = { "AC-3": 19000, "E-AC-3": 19000, AAC: 15500 };
   const lossless = LOSSLESS.includes(codec), nm = SHOW[codec] ?? codec;
@@ -2086,7 +2097,7 @@ const PSD_HZ_MAX = 32;
 function cubicAt(y0: number, y1: number, y2: number, y3: number, x: number) {
   return y0 * -(x - 1) * (x - 2) * (x - 3) / 6 + y1 * x * (x - 2) * (x - 3) / 2 - y2 * x * (x - 1) * (x - 3) / 2 + y3 * x * (x - 1) * (x - 2) / 6;
 }
-function PsdView({ filePath, onReset, resetN, scroller, psd, names, psdCh, setPsdCh, psdLog, setPsdLog, psdSize, setPsdSize, th, ov, t0, t1, zoomBox, onPick, f, setF, fileName, save, exportRef, plotRef, toast }: CommonProps & { filePath: string; onReset: () => void; resetN: number;
+function PsdView({ codec, filePath, onReset, resetN, scroller, psd, names, psdCh, setPsdCh, psdLog, setPsdLog, psdSize, setPsdSize, th, ov, t0, t1, zoomBox, onPick, f, setF, fileName, save, exportRef, plotRef, toast }: CommonProps & { codec: string; filePath: string; onReset: () => void; resetN: number;
   psd: GPsd | null; names: string[]; psdCh: string; setPsdCh: (v: string) => void; psdLog: boolean; setPsdLog: (b: boolean) => void; psdSize: number; setPsdSize: (n: number) => void; th: Theme; ov: GOverview; t0: number; t1: number;
   zoomBox: React.ReactNode; onPick: (t: number) => void; f: number | null; setF: (f: number | null) => void; fileName: string; toast: ReturnType<typeof useToast>;
 }) {
@@ -2147,7 +2158,9 @@ function PsdView({ filePath, onReset, resetN, scroller, psd, names, psdCh, setPs
     // อัปแซมเปิล ดูว่าเหนือ 25 kHz เงียบสนิทไหม ไม่ดูความดิ่ง เพราะตัวแปลงอัตราสุ่มทำให้เสียงค่อย ๆ จางจาก 20 ถึง 24 kHz (ลองกับไฟล์ที่แปลง 44.1 เป็น 96 kHz ด้วย ffmpeg เหนือ 24 kHz อยู่ที่ −140 dB)
     const hiBand = rate >= 88200 ? avg(25000, Math.min(40000, nyq * 0.9)) : 0, upsampled = rate >= 88200 && hiBand < -125 && avg(8000, 16000) > -105;
     if (upsampled) out.push({ k: "upsample", warn: true, b: `อาจเป็นไฟล์อัปแซมเปิล ไฟล์ ${(rate / 1000).toFixed(1)} kHz แต่ไม่มีเสียงเหนือ ${(top / 1000).toFixed(1)} kHz`, d: "น่าจะแปลงมาจากไฟล์ 44.1 หรือ 48 kHz ไม่ได้ละเอียดจริงตามตัวเลข", title: "อัปแซมเปิล", tip: "ไฟล์ความละเอียดสูง (88.2 ถึง 192 kHz) ที่ทำมาจริงมีเสียงเหนือ 22 kHz บ้าง ถ้าเสียงหยุดดิ่งที่ราว 22 ถึง 24 kHz พอดี มักเป็นไฟล์ 44.1 หรือ 48 kHz ที่แปลงตัวเลขให้สูงขึ้น ขนาดไฟล์ใหญ่ขึ้นแต่เสียงไม่ได้ดีขึ้น แต่เพลงบางเพลงก็ไม่มีเสียงสูงจริง จึงควรดูประกอบกับกราฟความถี่" });
-    else if (cliff && top >= 15000 && top <= 20600) out.push({ k: "lossy", warn: true, b: `อาจเคยเป็น MP3 หรือ AAC มาก่อน เสียงสูงถูกตัดเป็นเส้นตรงที่ราว ${(top / 1000).toFixed(1)} kHz`, d: "ไฟล์ไม่ลดคุณภาพที่ทำจากต้นฉบับจริงไม่ควรถูกตัดดิ่งที่ 16 19 หรือ 20 kHz", title: "ไฟล์ไม่ลดคุณภาพปลอม", tip: "MP3 และ AAC ตัดเสียงสูงทิ้งเป็นเส้นตรงที่ราว 16 kHz เมื่อใช้ 128 kb/s และราว 19 ถึง 20 kHz เมื่อใช้ 320 kb/s ถ้าไฟล์ FLAC WAV หรือไฟล์ไม่ลดคุณภาพแบบอื่นมีรอยตัดแบบนี้ มักแปลงมาจาก MP3 หรือ AAC อีกที คุณภาพจึงไม่เกินต้นทาง ส่วนเสียงที่ค่อย ๆ จางลงตามธรรมชาติไม่นับ" });
+    // เตือนไฟล์ไม่ลดคุณภาพปลอมเฉพาะชนิดไม่ลดคุณภาพ · MP3 AAC AC-3 ขอบบนตัดเป็นหน้าผาเป็นเรื่องปกติของชนิดนั้น
+    // เดิมไม่รู้ชนิดเสียง เตือนไฟล์ MP3 AAC AC-3 ทุกไฟล์ และขัดกับหน้าความถี่ (AUDIT 12 พ.ย. 2569 ข้อ 21)
+    else if (cliff && top >= 15000 && top <= 20600 && LOSSLESS_CODECS.includes(codec)) out.push({ k: "lossy", warn: true, b: `อาจเคยเป็น MP3 หรือ AAC มาก่อน เสียงสูงถูกตัดเป็นเส้นตรงที่ราว ${(top / 1000).toFixed(1)} kHz`, d: "ไฟล์ไม่ลดคุณภาพที่ทำจากต้นฉบับจริงไม่ควรถูกตัดดิ่งที่ 16 19 หรือ 20 kHz", title: "ไฟล์ไม่ลดคุณภาพปลอม", tip: "MP3 และ AAC ตัดเสียงสูงทิ้งเป็นเส้นตรงที่ราว 16 kHz เมื่อใช้ 128 kb/s และราว 19 ถึง 20 kHz เมื่อใช้ 320 kb/s ถ้าไฟล์ FLAC WAV หรือไฟล์ไม่ลดคุณภาพแบบอื่นมีรอยตัดแบบนี้ มักแปลงมาจาก MP3 หรือ AAC อีกที คุณภาพจึงไม่เกินต้นทาง ส่วนเสียงที่ค่อย ๆ จางลงตามธรรมชาติไม่นับ" });
     // เกือบโมโน ดูได้เมื่อมีเส้น S (โหมดซ้อนทุกช่องของไฟล์สองช่อง)
     const iM = series.findIndex((sr) => sr.key === "M"), iS = series.findIndex((sr) => sr.key === "S");
     if (iM >= 0 && iS >= 0) {
@@ -2540,8 +2553,9 @@ function composeAll(box: HTMLElement | null, outW: number): HTMLCanvasElement | 
   return out;
 }
 
-export function CompareView({ files, note, free, onFiles, onSingle, onBack, onClose }: { files: string[]; note?: string; free?: boolean; onFiles: (files: string[], freed?: boolean) => void; onSingle: (p: string) => void; onBack: () => void; onClose: () => void }) {
+export function CompareView({ files, tracks, note, free, onFiles, onSingle, onBack, onClose }: { files: string[]; tracks?: Record<string, number>; note?: string; free?: boolean; onFiles: (files: string[], freed?: boolean) => void; onSingle: (p: string) => void; onBack: () => void; onClose: () => void }) {
   const n = files.length;
+  const trOf = (p: string) => tracks?.[p] ?? 0;
   LABELS = files.map((_, i) => (!free && i < 2 ? ["ต้นฉบับ", "หลังแปลง"][i] : `ไฟล์ ${i + 1}`));
   CONV = !free && n === 2;
   const allTxt = n === 2 ? "สองไฟล์" : `ทั้ง ${n} ไฟล์`;
@@ -2584,7 +2598,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
         try {
           const info = await graphApi.info(p); if (!live) return;
           patch(p, { info, pct: 0 });
-          const ov = await overviewOnce(p, 0); if (!live) return;
+          const ov = await overviewOnce(p, trOf(p)); if (!live) return;
           patch(p, { ov, pct: null, err: ov ? null : "หยุดอ่านเสียงแล้ว" });
         } catch (e) { if (live) patch(p, { err: String(e), pct: null }); }
         if (live) readDone.current.add(p);
@@ -2595,7 +2609,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
   }, [filesKey]);
 
   const S = files.map((p) => sides[p] ?? EMPTY);
-  const T = S.map((s) => s.info?.tracks[0]);
+  const T = S.map((s, i) => s.info?.tracks[trOf(files[i])] ?? s.info?.tracks[0]);
   const NM = T.map((t) => t?.names ?? []);
   const union = [...new Set(NM.flat())];
   const vis = union.filter((c) => !hidden.includes(c));
@@ -2652,7 +2666,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
   // เพิ่มไฟล์เทียบได้สูงสุด 4 ไฟล์ (พี่กันเคาะ 9 พ.ย. 2569 "ตามนั้น")
   const addFile = async () => {
     const f = await pickFile("media"); if (!f) return;
-    if (files.some((p) => p.toLowerCase() === f.toLowerCase())) { toast({ kind: "warn", title: "ไฟล์นี้อยู่ในการเทียบแล้ว" }); return; }
+    if (files.some((p) => p.toLowerCase() === f.toLowerCase())) { toast({ kind: "warn", ms: 6000, key: "graph-pick", title: "ไฟล์นี้อยู่ในการเทียบแล้ว" }); return; }
     onFiles([...files, f]);
   };
 
@@ -2699,7 +2713,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
         for (let i = 0; i < n; i++) {
           const end = Math.min(psdT[1], S[i].ov!.duration), size = sz(T[i]!.rate), mem = `${files[i]}|${psdCh}|${psdT[0].toFixed(2)}|${end.toFixed(2)}|${size}`;
           let p = psdMem.current.get(mem) ?? null;
-          if (!p) { p = await graphApi.psd(files[i], 0, psdT[0], end, series(NM[i]), size, null); if (!live || !p) return; memPut(psdMem.current, mem, p, 24); }
+          if (!p) { p = await graphApi.psd(files[i], trOf(files[i]), psdT[0], end, series(NM[i]), size, null); if (!live || !p) return; memPut(psdMem.current, mem, p, 24); }
           list.push(p);
         }
         if (live) setPsd({ key: psdKey, list });
@@ -2725,7 +2739,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
         for (let i = 0; i < n; i++) {
           const end = Math.min(t1, S[i].ov?.duration ?? t1);
           if (end <= t0) continue;
-          const w = await graphApi.window(files[i], 0, t0, end, cols, 512, false, true);
+          const w = await graphApi.window(files[i], trOf(files[i]), t0, end, cols, 512, false, true);
           if (!w) throw new Error("การอ่านถูกยกเลิก");
           got[files[i]] = w;
         }
@@ -2754,7 +2768,7 @@ export function CompareView({ files, note, free, onFiles, onSingle, onBack, onCl
         <div className="fnote" style={{ background: TH_FILE[i].lane, color: FILE_INK[i], border: `1px solid ${TH_FILE[i].peak}` }}><svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><path d="M9 18V5l11-2v13" /><circle cx="6" cy="18" r="3" /><circle cx="17" cy="16" r="3" /></svg></div>
         <div style={{ minWidth: 0, flex: 1 }}>
           <div className="nm"><span className="nmtx">{nm.replace(/\.[^.]+$/, "")}</span>{/\.[^.]+$/.test(nm) && <span className="extcard" style={{ background: FILE_INK[i] }} data-cmpext={k}>{nm.match(/\.([^.]+)$/)?.[1].toUpperCase()}</span>}<Who i={i} /></div>
-          <div className="meta">{s.info ? `${s.info.audioOnly ? "ไฟล์เสียง" : "ไฟล์หนัง"} ${fmtSize(s.info.size)} ยาว ${tfmt(s.info.duration)}${i === 1 && note ? " แปลงเมื่อสักครู่" : ""}` : s.err ? "อ่านไม่ได้" : "กำลังอ่านข้อมูลไฟล์"}</div>
+          <div className="meta">{s.info ? `${s.info.audioOnly ? "ไฟล์เสียง" : "ไฟล์หนัง"} ${fmtSize(s.info.size)} ยาว ${tfmt(s.info.duration)}${i === 1 && note ? " แปลงเมื่อสักครู่" : ""}${s.info.tracks.length > 1 && T[i] ? ` เสียง ${T[i]!.index + 1}${T[i]!.lang ? " " + T[i]!.lang : ""}` : ""}` : s.err ? "อ่านไม่ได้" : "กำลังอ่านข้อมูลไฟล์"}</div>
         </div>
         {n > 2 && <button type="button" className="rmx" aria-label={`เอา ${nm} ออกจากการเทียบ`} title="เอาออกจากการเทียบ ไฟล์ในเครื่องไม่ถูกแตะ" onClick={(e) => { e.stopPropagation(); onFiles(files.filter((x) => x !== p), true); }} data-cmpremove={k}><svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.8" strokeLinecap="round" aria-hidden="true"><path d="M6 6l12 12M18 6L6 18" /></svg></button>}
       </div>

@@ -249,7 +249,9 @@ pub fn render(src: &RgbImage, g: &Geometry, shrink: bool) -> (RgbImage, (u32, u3
     let ch = ((g.h.clamp(0.0, 1.0) * h as f64).round() as u32).clamp(1, h - cy);
     let part = imageops::crop_imm(&turned, cx, cy, cw, ch).to_image();
     // ไม่ย่อ ส่วนที่ครอปใหญ่กว่า 1000 × 1500 คงขนาดเดิม (กรอบเป็น 2 : 3 อยู่แล้ว ปัดให้พอดี 2 : 3) · ปกนอนเทียบกับ 1920 × 1080 แบบเดียวกัน
-    let (bw, bh) = if g.aspect == "wide" { (WIDE_W, WIDE_H) } else { (OUT_W, OUT_H) };
+    // ปกนอนเฉพาะเมื่อกรอบที่ตัดเป็น 16 : 9 จริง (คลาดได้ 3%) · เดิมเชื่อค่า aspect อย่างเดียว กรอบ 2 : 3 ที่ติดค่าปกนอนมาถูกบีบลง 1920 × 1080 (AUDIT 12 พ.ย. 2569 ข้อ 8)
+    let wide = g.aspect == "wide" && ((cw as f64 / ch as f64) / (WIDE_W as f64 / WIDE_H as f64) - 1.0).abs() < 0.03;
+    let (bw, bh) = if wide { (WIDE_W, WIDE_H) } else { (OUT_W, OUT_H) };
     let (ow, oh) = if !shrink && cw > bw { (cw, ((cw as f64) * bh as f64 / bw as f64).round() as u32) } else { (bw, bh) };
     (imageops::resize(&part, ow, oh, imageops::FilterType::Lanczos3), (cw, ch))
 }
@@ -501,6 +503,10 @@ mod tests {
         let g = Geometry { x: bx, y: by, w: bw, h: bh, aspect: "wide".into(), ..plain };
         assert_eq!(render(&big, &g, true).0.dimensions(), (WIDE_W, WIDE_H));
         assert_eq!(render(&big, &g, false).0.dimensions(), (3840, 2160), "ปิดสวิตช์ย่อ คงขนาดเดิม");
+        // AUDIT 12 พ.ย. 2569 ข้อ 8 กรอบ 2 : 3 กลางรูปนอนที่ยังติดค่าปกนอนมา ต้องได้ปกตั้ง 2 : 3 ไม่ถูกบีบลง 1920 × 1080
+        let (tx, ty, tw, th) = default_crop(3840, 2160);
+        let bad = Geometry { x: tx, y: ty, w: tw, h: th, aspect: "wide".into(), ..g.clone() };
+        assert_eq!(render(&big, &bad, true).0.dimensions(), (OUT_W, OUT_H), "กรอบ 2 : 3 ต้องเป็นปกตั้ง");
     }
 
     #[test]

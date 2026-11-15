@@ -53,6 +53,8 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
    ล็อกเฉพาะ .nobr ของที่ต้องอยู่ด้วยกันจริง (เดิมชื่อ .keep ชนกับปุ่ม Keep 11 พ.ย. 2569) ตัวเลขกับหน่วย "พอ ๆ กัน" ตัวย่อกับวงเล็บคำเต็ม */
 /* เป็นกล่องเล็กไม่ถูกถ่างข้างใน ตัวเลขกับตัวอังกฤษ "512 kbps" ไม่กลายเป็น "5 1 2  k b p s" ตอนกระจายแบบไทย */
 .nobr { white-space: nowrap; display: inline-block; }
+/* ชื่อไฟล์ยาวไม่มีเว้นวรรค ตัดบรรทัดได้ทุกตัวอักษร ไม่ล้นกรอบ (AUDIT 12 พ.ย. 2569 ข้อ 34 · ตัวจัดบรรทัด Phrases ใน ui.tsx) */
+.brk { overflow-wrap: anywhere; }
 /* คำประสมที่ห้ามตัดกลาง "ตัวแปลง" "ติดตั้ง" · ไม่เป็นกล่อง ตัวอักษรยังกระจายได้ */
 .kw { white-space: nowrap; }
 /* ข้อความย่อหน้าทั้งโปรแกรมจัดแบบกระจายแบบไทย (Thai Distributed) เต็มบรรทัดเสมอกันซ้ายขวา กระจายระหว่างตัวอักษร บรรทัดสุดท้ายชิดซ้าย
@@ -330,7 +332,8 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
 /* ---------- แถบแจ้งผล ลอยกลางล่าง (save-status ข้อ 3) ---------- */
 .toasts { position: fixed; left: 50%; bottom: 20px; translate: -50% 0; z-index: var(--z-toast); display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
 /* พี่กันบอก 9 พ.ย. 2569 "สีไม่เข้า แถมไม่อยู่กึ่งกลาง และอ้วน" · บางลง ไอคอน ข้อความ ปุ่มปิด อยู่กลางแนวเดียวกัน กว้างตามข้อความ · สำเร็จกับแจ้งทั่วไปใช้สีโทนของโปรแกรม ผิดพลาดกับเตือนยังคงสีสถานะ */
-.toast { pointer-events: auto; display: flex; align-items: center; gap: 8px; max-width: 560px; border-radius: 10px; padding: 5px 6px 5px 12px; font-size: 13.5px; line-height: 1.4; box-shadow: 0 6px 16px rgba(60,25,40,.16); animation: pop-in .14s ease-out; }
+/* ทุกแถบกว้างเท่ากัน ไม่ยาวสั้นตามข้อความ (พี่กันทัก 15 พ.ย. 2569 "มันควร popup ขนาดเท่ากัน ไม่ใช่อันนึงยาว อันนึงสั้น") · เท่าความกว้างสูงสุดเดิม ข้อความยาวตัดบรรทัดที่เดิม */
+.toast { pointer-events: auto; display: flex; align-items: center; gap: 8px; width: min(560px, calc(100vw - 32px)); box-sizing: border-box; border-radius: 10px; padding: 5px 6px 5px 12px; font-size: 13.5px; line-height: 1.4; box-shadow: 0 6px 16px rgba(60,25,40,.16); animation: pop-in .14s ease-out; }
 .toast.ok, .toast.info { background: var(--accent-soft); color: var(--accent-ink); border: 1px solid var(--line); }
 .toast.ok svg circle, .toast.info svg circle { fill: var(--accent); }
 .toast > svg { flex: none; }
@@ -364,7 +367,8 @@ tbody tr:last-child td { border-bottom: 0; }
 .search:hover { border: 1px solid #e2bfcb; }
 .search.focus { border: 1px solid var(--accent); box-shadow: 0 0 0 3px rgba(200,64,111,.22); }
 .sb-field { position: relative; flex: 1; min-width: 0; height: 100%; }
-.sb-draw { position: absolute; left: 0; right: 0; top: -7px; bottom: -7px; overflow: hidden; display: flex; align-items: center; pointer-events: none; white-space: pre; font-size: 14px; }
+/* เว้นซ้าย 2 จุดแล้วดึงกลับ หัว ไ ใ โ ของ Sarabun ยื่นเลยขอบซ้ายไม่โดนตัด ตัวหนังสือยังตรงขีดกะพริบ (AUDIT 12 พ.ย. 2569 ข้อ 36 · เดิมกันแค่บนล่าง) */
+.sb-draw { position: absolute; left: -2px; padding-left: 2px; right: 0; top: -7px; bottom: -7px; overflow: hidden; display: flex; align-items: center; pointer-events: none; white-space: pre; font-size: 14px; }
 .sb-draw span { color: var(--txt); }
 .sb-draw span.ph { color: var(--txt3); }
 .sb-field input { position: relative; width: 100%; height: 100%; border: 0; outline: 0; background: transparent; color: transparent; caret-color: var(--accent-ink); font: inherit; font-size: 14px; padding: 0; }
@@ -618,6 +622,9 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
 /* แถวลากเพิ่มใต้คิวแปลงเสียงเป็นแถวเตี้ย ไม่มีที่ให้วงใหญ่ */
 .drop[data-qdrop][style*="min-height: 0"]::before { display: none; }
 .drop.over { border: 2px solid var(--accent); background: #f6d3df; color: var(--accent-ink); }
+/* กำลังทำงานอยู่ ช่องวางไม่รับไฟล์ เส้นประจาง วงจาง เคอร์เซอร์รอ (AUDIT 12 พ.ย. 2569 ข้อ 10 หน้าจับคู่ปกกำลังอ่านรูป) */
+.drop.wait { cursor: progress; border-color: var(--line); background: var(--win); color: var(--txt2); }
+.drop.wait::before { opacity: .45; }
 .drop.bad { border: 2px dashed var(--bad); background: var(--bad-soft); color: var(--bad-ink); }
 .drop.bad span, .drop.bad .small { color: inherit; }
 .drop.bad::before { background: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24' fill='none' stroke='%23ffffff' stroke-width='2.2' stroke-linecap='round' stroke-linejoin='round'%3E%3Cpath d='M12 16V5M7.5 9.5L12 5l4.5 4.5M4 15v3a2 2 0 002 2h12a2 2 0 002-2v-3'/%3E%3C/svg%3E") center / 29px no-repeat, var(--bad-ink); }
@@ -1355,7 +1362,8 @@ div.avthumb { background: repeating-linear-gradient(135deg, #fff 0 5px, #fbf2f5 
 /* ข้อความชิดล่างสุดของพื้นที่จอง ตรงแนวกันทั้งสามคอลัมน์ */
 [data-poster-page] .pcap { display: flex; flex-direction: column; justify-content: flex-end; }
 /* ปุ่มเลือกรูปสองปุ่มอยู่แถวเดียว ความสูงใต้ช่องลากจะคงที่ แนวตรงกับช่องตัวอย่าง */
-[data-card="poster"] .drop span .btn { padding-inline: 10px; }
+/* ระยะขอบใน 6 จุด กับคำสั้นของปุ่มแรกตอนมีสองปุ่ม ทำให้อยู่แถวเดียวที่หน้าต่าง 1280 ได้จริง (ที่ข้างในช่องลาก 268 จุด สองปุ่มรวมช่องห่างราว 261 จุด · เดิม 10 จุดกับคำเต็มรวม 292 จุดจึงตกสองแถว) */
+[data-card="poster"] .drop span .btn { padding-inline: 6px; }
 /* รูปตัวอย่างหนังเต็มคอลัมน์ ขอบล่างของส่วนนี้ตรงกับช่องลากรูปข้าง ๆ */
 [data-poster-page] [data-card="movie"] .vfile { flex: 1 1 0; min-height: 0; flex-direction: column; align-items: stretch; gap: 10px; padding: 0; background: none; border-radius: 0; }
 /* รูปตัวอย่างหดตามที่ว่าง เห็นทั้งภาพไม่ครอป */
@@ -1692,3 +1700,27 @@ html[data-full] .titlebar, html[data-full] .sidewrap, html[data-full] aside.side
 .mkt-name { flex: none; font-weight: 600; color: var(--txt); }
 .mkt-val { min-width: 0; color: var(--txt2); overflow-wrap: anywhere; }
 .mkt-pos { margin-left: auto; flex: none; padding-left: 10px; }
+
+/* ---------- ชื่อยาวเกินช่อง แทนจุดสามจุด (BUGS ข้อ 51 · lib/longName.ts ติดป้าย data-ov ให้กล่องที่ชื่อล้น) ----------
+   พี่กันเลือก 15 พ.ย. 2569 "เอาทุกตัว กดเปลี่ยนได้ที่หน้าตังค่า เเต่เเบบ 4 คือตัวหลัก"
+   ทุกแบบไม่มีจุดสามจุด · m จางท้ายด้วยหน้ากาก · c กล่องมีพื้นหรือขอบ ตัดเฉย ๆ · r ชื่อชิดขวา (ที่อยู่ไฟล์) จางหัว · t ชื่อใต้ปกสองบรรทัดที่ยังล้น */
+:root[data-longname] :is(.bn1, .lvchips .ft, .lvchips.tight .lvchip, .runline .runtxt b, .runline .runl1, .runline .runl2, .fchip .nm, .lab span,
+  .wavelg .lgnote, .thanklink, .psdchecks .psdck-txt, .cpcmp-grid .a, .cpcmp-grid .b, .icv-path, .avchip .nm, .avchip .meta, .lrow .en, .avfoot-sum,
+  .cqrow .nm, .cqrow .dt, .cmpchip .meta, .cmpchip .nm .nmtx, [data-extract] .xdest > b, .subpage-bar .subpage-name, .pathline b, .lname .fn,
+  [data-subedit] .se-grid .se-cut, .se-saveas .se-path, .se-auto .se-cut, .se-fontlist button, [data-subedit] .se-pgs .se-path) { text-overflow: clip; }
+:root[data-longname] [style*="text-overflow: ellipsis"] { text-overflow: clip !important; }
+:root[data-longname] [data-ov="m"] { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
+:root[data-longname] [data-ov="r"] { -webkit-mask-image: linear-gradient(90deg, transparent, #000 28px); mask-image: linear-gradient(90deg, transparent, #000 28px); }
+/* แบบ 4 ชี้แล้วชื่อค่อย ๆ เลื่อนไปทางซ้ายจนเห็นท้ายชื่อ หัวกับท้ายจางทั้งสองข้างระหว่างเลื่อน · เอาเมาส์ออกแล้วกลับที่เดิม */
+:root[data-longname="slide"] :is([data-ov="m"], [data-ov="c"]) { transition: text-indent .25s ease; }
+:root[data-longname="slide"] :is([data-ov="m"], [data-ov="c"]):hover { text-indent: calc(-1 * var(--ov, 0px)); transition: text-indent var(--ovt, 2s) linear .3s; }
+:root[data-longname="slide"] [data-ov="m"]:hover { -webkit-mask-image: linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 14px), transparent); mask-image: linear-gradient(90deg, transparent, #000 14px, #000 calc(100% - 14px), transparent); }
+/* แบบ 3 ชื่อใต้ปกจางกลางชื่อ ปีในวงเล็บอยู่ท้ายเสมอ (ShelfPage แยกชื่อกับปี) */
+:root[data-longname="year"] .bn1:has(> .bn1-t) { display: flex; min-width: 0; }
+.bn1 > .bn1-t { flex: 0 1 auto; min-width: 0; overflow: hidden; white-space: nowrap; }
+.bn1 > .bn1-y { flex: none; padding-left: 4px; }
+:root[data-longname="year"] .bn1[data-ov="m"] { -webkit-mask-image: none; mask-image: none; }
+:root[data-longname="year"] .bn1[data-ov="m"] > .bn1-t { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 24px), transparent); }
+/* แบบ 1 ชื่อใต้ปกขึ้นได้สองบรรทัด ทุกเรื่องจองสองบรรทัดเท่ากัน ปกแถวเดียวกันตรงแนว · ยาวเกินสองบรรทัดจางท้ายบรรทัดที่สอง */
+:root[data-longname="two"] .bn1 { white-space: normal; height: calc(1.6em * 2); overflow: hidden; }
+:root[data-longname="two"] .bn1[data-ov="t"] { -webkit-mask-image: linear-gradient(180deg, #000 50%, transparent 50%), linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(180deg, #000 50%, transparent 50%), linear-gradient(90deg, #000 calc(100% - 28px), transparent); }

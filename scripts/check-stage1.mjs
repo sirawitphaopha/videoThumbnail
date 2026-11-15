@@ -190,6 +190,9 @@ await c.key("Escape"); await sleep(200);
 await c.click("[data-open=toast-ok]"); await c.click("[data-open=toast-bad]"); await sleep(400);
 await c.shot(`${OUT}/07-แถบแจ้งผล.png`, ".toasts", 12);
 const t0 = await c.evaluate("[...document.querySelectorAll('.toast')].map(t => t.className).join(' ')");
+// ทุกแถบกว้างเท่ากัน ไม่ยาวสั้นตามข้อความ (BUGS ข้อ 138 · พี่กันทัก 15 พ.ย. 2569 "มันควร popup ขนาดเท่ากัน")
+const tw = await c.evaluate("[...document.querySelectorAll('.toast')].map(t => Math.round(t.getBoundingClientRect().width))");
+check("แถบสำเร็จกับแถบผิดพลาดกว้างเท่ากัน", tw.length === 2 && tw[0] === tw[1], JSON.stringify(tw));
 await sleep(3300);
 const t1 = await c.evaluate("[...document.querySelectorAll('.toast')].map(t => t.className).join(' ')");
 check("แถบสำเร็จหายเองใน 3 วินาที แถบผิดพลาดยังอยู่", t0.includes("ok") && t0.includes("bad") && !t1.includes("ok") && t1.includes("bad"), `ก่อน [${t0}] · หลัง 3.7 วินาที [${t1}]`);
@@ -224,6 +227,8 @@ await sleep(200);
 const RM = await css(".side"), RMS = await css(".skel");
 check("ปิดภาพเคลื่อนไหวในเครื่อง เมนูไม่เลื่อน โครงจางไม่กะพริบ", RM.trans === "0s" && RMS.anim === "none", `เมนู ${RM.trans} · โครงจาง ${RMS.anim}`);
 await c.send("Emulation.setEmulatedMedia", { features: [] });
+// คืนเมนูกาง 200 จุดตามตอนเริ่ม · เดิมทิ้งเมนูพับไว้ ตัวตรวจตัวถัดไปเห็นคำอังกฤษใต้ไอคอนแล้วตก (เจอ 15 พ.ย. 2569 check-link ข้อเลขรอ)
+if ((await css(".side")).w !== 200) { await c.click(".navtoggle"); await sleep(450); }
 
 writeFileSync(`${OUT}/ผลเทส.json`, JSON.stringify(results, null, 2) + "\n");
 const bad = results.filter((x) => !x.pass);

@@ -98,7 +98,7 @@ export default function LinkBoard() {
   const addMovieFolders = useCallback(async (dirs: string[]) => {
     if (!settings) return;
     const fresh = dirs.filter((d, i) => !settings.folders.some((x) => x.toLowerCase() === d.toLowerCase()) && dirs.findIndex((o) => o.toLowerCase() === d.toLowerCase()) === i);
-    if (!fresh.length) { toast({ kind: "info", title: "โฟลเดอร์นี้อยู่บนชั้นวางแล้ว", detail: dirs.join(", ") }); return; }
+    if (!fresh.length) { toast({ kind: "warn", ms: 6000, key: "board-drop", title: "โฟลเดอร์นี้อยู่บนชั้นวางแล้ว", detail: dirs.join(", ") }); return; }
     // บันทึกไม่สำเร็จ ตัวบันทึกขึ้นแถบแดงเองแล้ว ไม่อ่านโฟลเดอร์ ไม่ขึ้นแถบเขียว (AUDIT ข้อ 135 ต้นเหตุเดียวกับหน้าตั้งค่า)
     if (!(await update({ folders: [...settings.folders, ...fresh] }))) return;
     scan();
@@ -135,7 +135,7 @@ export default function LinkBoard() {
       // รูปปนไฟล์อื่น รับเฉพาะรูป บอกว่าข้ามอะไร · เดิมบนจอขึ้นกรอบปกติ แต่ปล่อยแล้วโดนปฏิเสธทั้งชุด
       const imgs = paths.filter(isImage);
       await pair(id, imgs.length ? imgs : paths, "explorer");
-      if (imgs.length && imgs.length < paths.length) toast({ kind: "info", title: "ข้ามไฟล์ที่ไม่ใช่รูป", detail: paths.filter((p) => !isImage(p)).map(baseName).join(", ") });
+      if (imgs.length && imgs.length < paths.length) toast({ kind: "warn", ms: 6000, key: "board-drop", title: "ข้ามไฟล์ที่ไม่ใช่รูป", detail: paths.filter((p) => !isImage(p)).map(baseName).join(", ") });
       return;
     }
     const pane = el?.closest<HTMLElement>("[data-board-pane]")?.dataset.boardPane;
@@ -143,7 +143,7 @@ export default function LinkBoard() {
       // แผงหนัง · โฟลเดอร์เพิ่มเข้าชั้นวาง รูปต้องวางบนหนังเรื่องใดเรื่องหนึ่ง
       const flags = await linkApi.isDir(paths);
       const dirs = paths.filter((_, i) => flags[i]);
-      if (!dirs.length) { toast({ kind: "info", title: "วางรูปบนหนังเรื่องที่ต้องการ", detail: "หรือลากโฟลเดอร์หนังมาวางเพื่อเพิ่มเข้าชั้น" }); return; }
+      if (!dirs.length) { toast({ kind: "warn", ms: 6000, key: "board-drop", title: "วางรูปบนหนังเรื่องที่ต้องการ", detail: "หรือลากโฟลเดอร์หนังมาวางเพื่อเพิ่มเข้าชั้น" }); return; }
       await addMovieFolders(dirs);
       return;
     }

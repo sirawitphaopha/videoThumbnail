@@ -148,6 +148,8 @@ fn ff_format(ext: &str) -> Option<&'static str> {
 /// ไฟล์ที่ไม่ใช่ MKV แยกด้วย ffmpeg · นามสกุลที่ ffmpeg เขียนแยกเดี่ยวไม่ได้ (เช่น ซับ VobSub .sub) เปลี่ยนเป็นไฟล์ Matroska ตามชนิด
 /// เดิมเขียนข้างในเป็น Matroska ใต้นามสกุลเดิม ได้ไฟล์ .sup .thd ที่ข้างในเป็น MKV เปิดไม่ได้ (ผู้ช่วยตรวจโค้ดเจอ)
 pub fn fix_ext_for_ffmpeg(it: &mut Item) {
+    // บทเขียนเป็น XML เองไม่ผ่าน ffmpeg (AUDIT ข้อ 17)
+    if it.kind == "menu" { return; }
     if ff_format(&it.ext).is_none() {
         it.ext = match it.kind.as_str() { "audio" => "mka", "text" => "mks", _ => "mkv" }.into();
     }
@@ -180,7 +182,8 @@ fn mkv_attachment_id(tools: &Path, file: &Path, nth: usize) -> Result<u64, Strin
 fn ff_stream(tools: &Path, file: &Path, kind: &str, nth: usize) -> Result<(u64, String), String> {
     let out = run_tool_timeout(tools, "ffprobe", [OsStr::new("-v"), OsStr::new("error"), OsStr::new("-print_format"), OsStr::new("json"), OsStr::new("-show_streams"), file.as_os_str()], Duration::from_secs(60))?;
     let j: Value = serde_json::from_slice(&out.stdout).map_err(|e| e.to_string())?;
-    let want = match kind { "video" => "video", "audio" => "audio", _ => "subtitle" };
+    // ชนิดอื่น (บท ไฟล์แนบ) ไม่ใช่สตรีมของ ffmpeg · เดิมนับเป็นซับ ติ๊กบทของ MP4 ได้ซับแทร็กแรกใต้ชื่อ .chapters.xml (AUDIT 12 พ.ย. 2569 ข้อ 17)
+    let want = match kind { "video" => "video", "audio" => "audio", "text" => "subtitle", k => return Err(format!("แยก {k} จากไฟล์ที่ไม่ใช่ MKV ด้วยวิธีนี้ไม่ได้")) };
     j["streams"].as_array().and_then(|s| s.iter().filter(|x| x["codec_type"] == want && x["disposition"]["attached_pic"].as_i64() != Some(1)).nth(nth - 1))
         .and_then(|x| Some((x["index"].as_u64()?, x["codec_name"].as_str().unwrap_or("").to_string()))).ok_or_else(|| format!("ไม่เจอแทร็กที่ {nth} ในไฟล์"))
 }
@@ -237,6 +240,14 @@ pub fn extract_one(tools: &Path, file: &Path, it: &Item, partial: &Path, on: &dy
         }
     } else if matches!(it.kind.as_str(), "tags" | "ogm" | "cue" | "timestamps") {
         return Err("แยกชิ้นนี้ได้เฉพาะไฟล์ MKV".into());
+    } else if it.kind == "menu" {
+        // บทของ MP4 และไฟล์อื่น อ่านด้วย ffprobe แล้วเขียนเป็น Matroska XML แบบที่ mkvextract เขียน (AUDIT ข้อ 17)
+        let chs = crate::chapters::read(tools, file)?;
+        if chs.is_empty() { return Err("ไฟล์นี้ไม่มีบทของหนัง".into()); }
+        let dur = crate::probe::probe(tools, file).ok().and_then(|x| x.duration);
+        std::fs::write(partial, crate::chapters::xml_text(&chs, dur)).map_err(|e| format!("เขียนไฟล์บทไม่ได้: {e}"))?;
+        on(100.0);
+        return Ok(Done::Ok);
     } else {
         let (idx, codec) = ff_stream(tools, file, &it.kind, it.nth)?;
         let fmt = ff_format(&it.ext).unwrap_or("matroska");
@@ -423,6 +434,43 @@ mod tests {
         assert!(matches!(extract_one(&tools(), &src, &it, &out, &|_| {}, &|| false).unwrap(), Done::Ok));
         let t = std::fs::read_to_string(&out).unwrap();
         assert!(t.contains("-->") && t.trim_start().starts_with('1'), "ต้องได้ SRT จริง: {}", t.chars().take(80).collect::<String>());
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    /// AUDIT 12 พ.ย. 2569 ข้อ 17 หนัง MP4 ที่มีบทและมีซับ แยกบทต้องได้ Matroska XML ที่ mkvmerge อ่านได้ครบทุกบท
+    /// เดิมได้ซับแทร็กแรกเป็นไฟล์ Matroska ใต้ชื่อ .chapters.xml · ชนิดที่ไม่ใช่สตรีม (ไฟล์แนบ) ต้องบอกว่าแยกไม่ได้ ไม่หยิบซับมาแทน
+    #[test]
+    fn mp4_chapters_extract_as_matroska_xml() {
+        let src = movie().parent().unwrap().join("The Last Orchard (2022).mp4");
+        let d = std::env::temp_dir().join(format!("ชั้นหนัง-แยกบท-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        let meta = d.join("meta.txt");
+        std::fs::write(&meta, ";FFMETADATA1\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=4000\ntitle=เปิดเรื่อง\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=4000\nEND=8000\ntitle=ฉาก <สอง> & จบ\n").unwrap();
+        let mp4 = d.join("มีบท.mp4");
+        let o = crate::tools::run_tool(&tools(), "ffmpeg", [OsStr::new("-v"), OsStr::new("error"), OsStr::new("-i"), src.as_os_str(), OsStr::new("-f"), OsStr::new("ffmetadata"), OsStr::new("-i"), meta.as_os_str(),
+            OsStr::new("-map"), OsStr::new("0"), OsStr::new("-map_chapters"), OsStr::new("1"), OsStr::new("-c"), OsStr::new("copy"), mp4.as_os_str()]).unwrap();
+        assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
+        let mut it = Item { kind: "menu".into(), nth: 1, ext: "xml".into(), lang: None, name: None, of: None };
+        fix_ext_for_ffmpeg(&mut it);
+        assert_eq!(it.ext, "xml", "บทไม่ผ่าน ffmpeg นามสกุลต้องคงเป็น xml");
+        let ch = d.join("บท.chapters.xml");
+        assert!(matches!(extract_one(&tools(), &mp4, &it, &ch, &|_| {}, &|| false).unwrap(), Done::Ok));
+        let t = std::fs::read_to_string(&ch).expect("ไฟล์บทต้องเป็นข้อความ ไม่ใช่ Matroska");
+        assert!(t.starts_with("<?xml") && t.matches("<ChapterAtom>").count() == 2 && t.contains("เปิดเรื่อง") && t.contains("ฉาก &lt;สอง&gt; &amp; จบ"), "{t}");
+        // mkvmerge อ่านไฟล์บทนี้ได้ครบสองบท
+        let back = d.join("ใส่บทกลับ.mkv");
+        let o = crate::tools::run_tool(&tools(), "mkvmerge", [OsStr::new("-o"), back.as_os_str(), OsStr::new("--chapters"), ch.as_os_str(), src.as_os_str()]).unwrap();
+        assert!(o.status.code().unwrap_or(9) <= 1, "{}", String::from_utf8_lossy(&o.stdout));
+        let j: Value = serde_json::from_slice(&crate::tools::run_tool(&tools(), "mkvmerge", [OsStr::new("-J"), back.as_os_str()]).unwrap().stdout).unwrap();
+        assert_eq!(j["chapters"][0]["num_entries"].as_u64(), Some(2), "{}", j["chapters"]);
+        // หนัง MP4 ที่ไม่มีบท บอกตรง ๆ ว่าไม่มีบท
+        let e = extract_one(&tools(), &src, &it, &d.join("ไม่มีบท.xml"), &|_| {}, &|| false).err().unwrap_or_default();
+        assert!(e.contains("ไม่มีบท"), "{e}");
+        // ไฟล์แนบของไฟล์ที่ไม่ใช่ MKV ไม่หยิบซับมาแทน
+        let e = extract_one(&tools(), &mp4, &Item { kind: "attachment".into(), nth: 1, ext: "ttf".into(), lang: None, name: Some("a.ttf".into()), of: None }, &d.join("a.ttf"), &|_| {}, &|| false).err().unwrap_or_default();
+        assert!(e.contains("ไม่ใช่ MKV"), "{e}");
+        assert!(!d.join("a.ttf").exists());
         let _ = std::fs::remove_dir_all(&d);
     }
 

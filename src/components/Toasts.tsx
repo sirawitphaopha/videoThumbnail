@@ -8,7 +8,9 @@ import { Phr, StatIcon } from "./ui";
 
 /** ok หายเองใน 3 วินาที · bad warn info ไม่หายเอง ต้องกดปิด · warn ใช้กับเรื่องที่ต้องรู้แต่ไม่ใช่ความผิดพลาด (เช่น ใช้ไฟล์สำรอง) */
 export type ToastKind = "ok" | "bad" | "warn" | "info";
-type Toast = { id: number; kind: ToastKind; title: string; detail?: string };
+/** ms หายเองหลังเวลานี้ ใช้กับแถบบอกผลการลากวางหรือสถานะชั่วคราว ไม่ใช่ความผิดพลาดของการบันทึก (พี่กันทัก 15 พ.ย. 2569 "มันจะค้างไปถึงไหน")
+    key แถบที่ key ซ้ำแทนแถบเดิม ไม่ซ้อนกันหลายแถบ */
+type Toast = { id: number; kind: ToastKind; title: string; detail?: string; ms?: number; key?: string };
 type Push = (t: Omit<Toast, "id">) => void;
 
 const Ctx = createContext<Push>(() => {});
@@ -20,8 +22,8 @@ export function ToastHost({ children }: { children: React.ReactNode }) {
   const remove = useCallback((id: number) => setList((l) => l.filter((t) => t.id !== id)), []);
   const push = useCallback<Push>((t) => {
     const id = next.current++;
-    setList((l) => [...l.slice(-3), { ...t, id }]);
-    if (t.kind === "ok") setTimeout(() => remove(id), 3000);
+    setList((l) => [...l.filter((x) => !t.key || x.key !== t.key).slice(-3), { ...t, id }]);
+    if (t.kind === "ok" || t.ms) setTimeout(() => remove(id), t.ms ?? 3000);
   }, [remove]);
 
   return (

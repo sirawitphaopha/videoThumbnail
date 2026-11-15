@@ -295,7 +295,7 @@ function HashCard({ m }: { m: Movie }) {
               actions={<>
                 {paste && <button type="button" className="clr" aria-label="ล้างค่าที่วาง" title="ล้างค่าที่วาง" onClick={() => setPaste("")} data-hash-clear><IcClose size={14} /></button>}
                 <button type="button" className="clr" aria-label="วางจากคลิปบอร์ด" title="วางจากคลิปบอร์ด" data-hash-paste
-                  onClick={async () => { try { const t = (await infoApi.clipboardText()).trim(); if (t) setPaste(t); else toast({ kind: "warn", title: "คลิปบอร์ดไม่มีข้อความ", detail: "คัดลอกค่า hash จากเว็บต้นทางก่อน แล้วกดวางอีกครั้ง" }); } catch (e) { toast({ kind: "bad", title: "วางไม่ได้", detail: String(e) }); } }}><IcPaste size={16} /></button>
+                  onClick={async () => { try { const t = (await infoApi.clipboardText()).trim(); if (t) setPaste(t); else toast({ kind: "warn", ms: 6000, key: "hash-paste", title: "คลิปบอร์ดไม่มีข้อความ", detail: "คัดลอกค่า hash จากเว็บต้นทางก่อน แล้วกดวางอีกครั้ง" }); } catch (e) { toast({ kind: "bad", title: "วางไม่ได้", detail: String(e) }); } }}><IcPaste size={16} /></button>
               </>} />
             {!paste && <div className="hint">วางค่า hash ที่เว็บต้นทางให้มา เพื่อเทียบว่าไฟล์ครบและตรงกับต้นฉบับทุกไบต์</div>}
             {cmp && (cmp.same

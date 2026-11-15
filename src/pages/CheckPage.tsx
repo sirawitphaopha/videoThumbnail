@@ -120,7 +120,7 @@ export default function CheckPage(p: { req: CheckReq | null; onConsumed: () => v
       setMode(r.mode);
       setSel(new Set(r.ids));
       if (!s.running) start(r.ids, r.mode);
-      else toast({ kind: "warn", title: "กำลังตรวจชุดก่อนอยู่", detail: "รอให้เสร็จ หรือกดหยุดตรวจทั้งชุดก่อน แล้วค่อยกดตรวจเรื่องนี้อีกครั้ง" });
+      else toast({ kind: "warn", ms: 6000, key: "check-start", title: "กำลังตรวจชุดก่อนอยู่", detail: "รอให้เสร็จ หรือกดหยุดตรวจทั้งชุดก่อน แล้วค่อยกดตรวจเรื่องนี้อีกครั้ง" });
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [p.req]);
@@ -142,7 +142,7 @@ export default function CheckPage(p: { req: CheckReq | null; onConsumed: () => v
   const stop = () => { setStopping(true); cancel(); };
   const onlyUnchecked = () => {
     const ids = available.filter((m) => m.status === "unchecked").map((m) => m.id);
-    if (!ids.length) { toast({ kind: "info", title: "ไม่มีเรื่องที่ยังไม่เคยตรวจ", detail: "ทุกเรื่องบนชั้นเคยตรวจแล้ว" }); return; }
+    if (!ids.length) { toast({ kind: "warn", ms: 6000, key: "check-start", title: "ไม่มีเรื่องที่ยังไม่เคยตรวจ", detail: "ทุกเรื่องบนชั้นเคยตรวจแล้ว" }); return; }
     setSel(new Set(ids));
   };
 

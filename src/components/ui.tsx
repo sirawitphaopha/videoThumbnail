@@ -204,6 +204,26 @@ export function Phrases({ parts, head, tail }: { parts: Part[]; head?: React.Rea
   const flush = () => {
     if (!cur.length) return;
     const bound = cur.length > 1 || cur.some((x) => typeof x === "string" && x.includes(" "));
+    // ชื่อไฟล์ยาวที่ไม่มีเว้นวรรค (Interstellar.2014.2160p.UHD.BluRay.x265-TERMiNAL) ห้ามผูกทั้งก้อน ล้นกรอบ
+    // ผูกนามสกุลไว้กับท้ายชื่อ 6 ตัวอักษร ส่วนหน้าตัดบรรทัดได้ทุกตัวอักษร (AUDIT 12 พ.ย. 2569 ข้อ 34)
+    // เฉพาะก้อนแบบชื่อไฟล์ ไม่มีอักษรไทย หรือมีจุด ขีดล่าง ขีดกลาง · ประโยคไทยยาวที่ผูกตัวเลขกับคำไว้คงเดิม
+    const fileLike = (x: React.ReactNode): x is string => typeof x === "string" && !x.includes(" ") && (!/[฀-๿]/.test(x) || /[._-]/.test(x));
+    const li = bound ? cur.findIndex((x) => fileLike(x) && x.length >= 16) : -1;
+    if (li >= 0) {
+      const s = cur[li] as string;
+      // ผูกตั้งแต่ตัวคั่นสุดท้าย (จุด ขีด ขีดล่าง) ถ้าท้ายชื่อไม่เกิน 14 ตัว ไม่งั้นผูก 6 ตัวท้าย · ส่วนหน้าใส่จุดตัดหลังตัวคั่นทุกตัว คำไม่ขาดกลาง
+      const sep = Math.max(s.lastIndexOf("."), s.lastIndexOf("-"), s.lastIndexOf("_"));
+      const at = sep >= 0 && s.length - sep - 1 <= 14 ? sep + 1 : s.length - 6;
+      const head = s.slice(0, at).split(/(?<=[._-])/).flatMap((x, i) => (i ? [<wbr key={`w${k++}`} />, x] : [x]));
+      out.push(<span key={k++} className="phr brk">{cur.slice(0, li)}{head}<span className="nobr">{s.slice(at)}{cur.slice(li + 1)}</span></span>);
+      cur = [];
+      return;
+    }
+    if (bound && cur.reduce<number>((n, x) => n + (typeof x === "string" ? x.length : 0), 0) >= 24 && cur.every((x) => typeof x !== "string" || fileLike(x))) {
+      out.push(<span key={k++} className="phr brk">{cur}</span>);
+      cur = [];
+      return;
+    }
     if (bound && cur.every((x) => typeof x === "string")) out.push(<span key={k++} className="phr">{keepNodes((cur as string[]).join(""), () => k++)}</span>);
     // คำที่ไม่มีตัวไทย (ตัวอังกฤษ ตัวเลข) เป็นกล่อง ไม่ถูกถ่างตอนกระจายแบบไทย
     else if (!bound && cur.length === 1 && typeof cur[0] === "string" && /[฀-๿]/.test(cur[0])) out.push(<span key={k++} className="phr">{thaiKeep(cur[0], () => k++)}</span>);

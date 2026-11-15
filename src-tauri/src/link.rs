@@ -482,7 +482,7 @@ pub struct LinkStore {
     busy: AtomicBool,
 }
 
-const BUSY_MSG: &str = "กำลังยืนยัน ย้ายที่เก็บรูป หรือจำค่าครอปอยู่ รอให้เสร็จก่อน";
+const BUSY_MSG: &str = "กำลังอ่านรูปเพื่อจับคู่ ยืนยัน ย้ายที่เก็บรูป หรือจำค่าครอปอยู่ รอให้เสร็จก่อน";
 
 /// ถือไว้ตลอดงาน หลุดจากขอบเขตเมื่อไหร่ก็ปลดเอง รวมตอนงานล้ม
 pub struct BusyGuard(Arc<LinkStore>);
@@ -911,7 +911,9 @@ pub async fn link_auto(app: AppHandle, scope: String) -> Result<AutoSummary, Str
     tauri::async_runtime::spawn_blocking(move || {
         let d = dirs(&app)?;
         let store = app.state::<Arc<LinkStore>>().inner().clone();
-        store.idle()?;
+        // ถือตัวกันงานตลอดการอ่านรูป · เดิมเช็กว่างแค่ตอนเริ่ม แล้วเขียนรายการที่จดไว้ตอนเริ่มทับตอนจบ
+        // ครอป เอาติ๊กออก หรือยืนยันระหว่างอ่านจึงหายหมด และจับคู่ซ้อนสองงานได้ (AUDIT 12 พ.ย. 2569 ข้อ 10)
+        let _busy = begin_busy(&store)?;
         let movies = movies_of(&app.state::<Arc<LibraryStore>>());
         let scope = if scope == "all" { "all".to_string() } else { "nocover".to_string() };
         let (folders, loose, keep) = {

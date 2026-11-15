@@ -10,6 +10,8 @@ export type QState = "wait" | "work" | "done" | "fail" | "stop";
 export type QItem = {
   id: string;
   path: string;
+  /** ลำดับแทร็กเสียงที่จะแปลง นับจาก 0 · มาจากแทร็กที่ดูอยู่ในหน้ากราฟ (AUDIT 12 พ.ย. 2569 ข้อ 22) */
+  track: number;
   /** ข้อมูลไฟล์ · null = กำลังอ่าน */
   file: AudioFile | null;
   /** อ่านไฟล์ไม่ได้ (ไม่มีแทร็กเสียง ไฟล์เสีย) แปลงไม่ได้ */
@@ -68,16 +70,16 @@ const same = (a: string, b: string) => a.toLowerCase() === b.toLowerCase();
 
 /** เพิ่มไฟล์เข้าคิว · ไฟล์เดียวกันเพิ่มซ้ำได้ แปลงเป็นหลายชนิดจากต้นฉบับเดียว ไฟล์ใหม่ชื่อชนต่อท้าย (2) ไม่เขียนทับ
     (พี่กันถาม 9 พ.ย. 2569 "เราเลือกซ้ำไม่ได้รึไง") · unique ใช้กับปุ่มแปลงเสียงบนหน้ากราฟ กดซ้ำไม่เพิ่มแถวถ้าไฟล์นั้นรอแปลงอยู่ */
-export function addFiles(paths: string[], unique = false) {
+export function addFiles(paths: string[], unique = false, track = 0) {
   const add: QItem[] = [];
   for (const p of paths) {
-    if (unique && q.items.some((x) => same(x.path, p) && x.state === "wait")) continue;
-    add.push({ id: `q${++seq}`, path: p, file: null, bad: null, spec: q.all, state: "wait", picked: true, progress: null, result: null, problem: null });
+    if (unique && q.items.some((x) => same(x.path, p) && x.track === track && x.state === "wait")) continue;
+    add.push({ id: `q${++seq}`, path: p, track, file: null, bad: null, spec: q.all, state: "wait", picked: true, progress: null, result: null, problem: null });
   }
   if (!add.length) return;
   set({ items: [...q.items, ...add] });
   for (const it of add) {
-    convertApi.probe(it.path).then((f) => {
+    convertApi.probe(it.path, it.track).then((f) => {
       patchItem(it.id, { file: f, thumb: f.cover ? undefined : null });
       if (f.cover) convertApi.cover(it.path).then((c) => patchItem(it.id, { thumb: c?.url ?? null }), () => patchItem(it.id, { thumb: null }));
     }, (e) => patchItem(it.id, { bad: String(e), state: "fail" }));
@@ -137,7 +139,7 @@ export async function startQueue(ids?: string[]) {
       if (next.bad) { patchItem(next.id, { state: "fail" }); set({ runDone: q.runDone + 1 }); continue; }
       patchItem(next.id, { state: "work", progress: { id: next.id, percent: 0, eta: null, phase: "กำลังเริ่ม" }, problem: null, result: null });
       try {
-        const r = await convertApi.one({ id: next.id, path: next.path, spec: next.spec, outDir: q.outDir });
+        const r = await convertApi.one({ id: next.id, path: next.path, spec: next.spec, outDir: q.outDir, track: next.track });
         patchItem(next.id, { state: "done", result: r, progress: null });
         set({ runDone: q.runDone + 1 });
       } catch (e) {

@@ -39,7 +39,9 @@ export default function LinkPage() {
   const toast = useToast();
   const { reply, view } = job;
   const [summary, setSummary] = useState<AutoSummary | null>(null);
-  const [reading, setReading] = useState(false);
+  // กำลังอ่านรูปอยู่ในสถานะกลาง ตารางตรวจผลเห็นด้วย (AUDIT ข้อ 10)
+  const reading = job.reading;
+  const setReading = (v: boolean) => setLinkJob({ reading: v });
   const [summarySec, setSummarySec] = useState(0);
   const { movies } = useLibrary();
   const nocover = movies.filter((m) => !m.hasCover && !m.linked?.length).length;
@@ -55,6 +57,7 @@ export default function LinkPage() {
   }, []);
 
   const runAuto = useCallback(async (scope: "nocover" | "all") => {
+    if (getLinkJob().reading) return;
     setReading(true);
     const t0 = performance.now();
     try {
@@ -98,14 +101,22 @@ export default function LinkPage() {
     setLinkJob({ overRow: null });
     dragPaths.current = [];
     if (!paths.length) return;
+    // ระหว่างอ่านรูปเพื่อจับคู่ ไม่รับไฟล์ ผลของงานที่อ่านอยู่จะทับสิ่งที่แก้ (AUDIT ข้อ 10)
+    if (getLinkJob().reading) { toast({ kind: "warn", ms: 6000, key: "link-drop", title: "กำลังอ่านรูปเพื่อจับคู่อยู่ รอให้เสร็จก่อน", detail: "อ่านเสร็จแล้วค่อยลากรูปมาวางอีกครั้ง" }); return; }
     const id = rowAt(x, y);
     if (id) {
       // รูปปนไฟล์อื่น รับเฉพาะรูป บอกว่าข้ามอะไร · ไฟล์ที่ไม่ใช่รูปล้วน ส่งไปให้ฝั่ง Rust ปฏิเสธพร้อมเหตุผล
       const imgs = paths.filter(isImagePath);
       try {
         setReply(await linkApi.pair(id, imgs.length ? imgs : paths, "explorer"));
-        if (imgs.length && imgs.length < paths.length) toast({ kind: "info", title: "ข้ามไฟล์ที่ไม่ใช่รูป", detail: paths.filter((p) => !isImagePath(p)).map(baseName).join(", ") });
+        if (imgs.length && imgs.length < paths.length) toast({ kind: "warn", ms: 6000, key: "link-drop", title: "ข้ามไฟล์ที่ไม่ใช่รูป", detail: paths.filter((p) => !isImagePath(p)).map(baseName).join(", ") });
       } catch (e) { toast({ kind: "bad", title: "ใช้ไฟล์นี้ไม่ได้", detail: String(e) }); }
+      return;
+    }
+    // ในตาราง วางไม่โดนแถว ไม่เอาไปเพิ่มเป็นแหล่งรูปแล้วจับคู่ใหม่ทั้งชุดเงียบ ๆ บอกให้วางบนแถว (AUDIT 12 พ.ย. 2569 ข้อ 12)
+    if (getLinkJob().view === "table") {
+      if (!paths.some(isImagePath)) { toast({ kind: "warn", ms: 6000, key: "link-drop", title: "ไฟล์ที่ลากมาไม่ใช่รูป", detail: "รับเฉพาะรูป JPG PNG WebP BMP TIFF และ HEIC" }); return; }
+      toast({ kind: "warn", ms: 6000, key: "link-drop", title: "วางรูปบนแถวของเรื่องที่ต้องการ", detail: "รูปที่วางนอกแถวยังไม่ถูกใช้ ถ้าต้องการเพิ่มเป็นแหล่งรูปเพื่อจับคู่ใหม่ กดปุ่มเพิ่มรูปด้านบน" });
       return;
     }
     addPaths(paths);
@@ -135,7 +146,9 @@ export default function LinkPage() {
     const w = window as unknown as Record<string, unknown>;
     w.__linkDrop = handleDrop;
     w.__linkHover = (paths: string[], x: number, y: number) => { dragPaths.current = paths; hoverRow(x, y); };
-    return () => { delete w.__linkDrop; delete w.__linkHover; };
+    // ตั้งหน้าจอเป็นกำลังอ่านรูป ไม่ต้องรอโฟลเดอร์รูปใหญ่ (AUDIT ข้อ 10 · ตัวตรวจคืนเป็น false ตอนจบ)
+    w.__linkReading = (v: boolean) => setLinkJob({ reading: v });
+    return () => { delete w.__linkDrop; delete w.__linkHover; delete w.__linkReading; };
   }, [handleDrop, hoverRow]);
 
   if (view === "board") return <LinkBoard />;
@@ -145,13 +158,14 @@ export default function LinkPage() {
       <div className="wrapin">
         <div className="card">
           <h3><span className="step">1</span>รูปที่จะเอามาจับคู่</h3>
-          <div className={"drop" + (over ? " over" : badDrop ? " bad" : "")} style={{ minHeight: 130 }} data-link-drop onClick={dropClick(async () => { const d = await pickFolder("เลือกโฟลเดอร์รูป"); if (d) addPaths([d]); })}>
-            {over ? <b>ปล่อยเมาส์เพื่อเพิ่มรูป</b>
+          <div className={"drop" + (reading ? " wait" : over ? " over" : badDrop ? " bad" : "")} style={{ minHeight: 130 }} data-link-drop aria-disabled={reading || undefined} onClick={dropClick(async () => { if (reading) return; const d = await pickFolder("เลือกโฟลเดอร์รูป"); if (d) addPaths([d]); })}>
+            {reading ? <b>กำลังอ่านรูปเพื่อจับคู่ อ่านเสร็จแล้วค่อยเพิ่มรูปอีก</b>
+              : over ? <b>ปล่อยเมาส์เพื่อเพิ่มรูป</b>
               : badDrop ? <><b><Phr>{badDrop}</Phr></b></>
               : <><b style={{ color: "var(--txt2)" }}>ลากโฟลเดอร์รูป หรือรูปหลายรูปมาวางตรงนี้</b><div><Phr>รับ JPG PNG WebP BMP TIFF และ HEIC รวมถึงรูปในโฟลเดอร์ย่อย โดยรูปต้นฉบับไม่ถูกแก้</Phr></div></>}
             <div className="row8" style={{ justifyContent: "center" }}>
-              <button type="button" className="btn btn-ghost btn-sm" data-link-pick onClick={async () => { const d = await pickFolder("เลือกโฟลเดอร์รูป"); if (d) addPaths([d]); }}><IcFolder size={15} />เลือกโฟลเดอร์</button>
-              <button type="button" className="btn btn-ghost btn-sm" onClick={async () => { const f = await pickFile("image"); if (f) addPaths([f]); }}><IcPoster size={15} />เลือกรูป</button>
+              <button type="button" className={"btn btn-sm " + (reading ? "btn-wait" : "btn-ghost")} aria-disabled={reading || undefined} title={reading ? "กำลังอ่านรูปเพื่อจับคู่อยู่ รอให้เสร็จก่อน" : undefined} data-link-pick onClick={async () => { if (reading) return; const d = await pickFolder("เลือกโฟลเดอร์รูป"); if (d) addPaths([d]); }}><IcFolder size={15} />เลือกโฟลเดอร์</button>
+              <button type="button" className={"btn btn-sm " + (reading ? "btn-wait" : "btn-ghost")} aria-disabled={reading || undefined} title={reading ? "กำลังอ่านรูปเพื่อจับคู่อยู่ รอให้เสร็จก่อน" : undefined} data-link-pickimg onClick={async () => { if (reading) return; const f = await pickFile("image"); if (f) addPaths([f]); }}><IcPoster size={15} />เลือกรูป</button>
             </div>
           </div>
           {reply.imageFolders.length + reply.loose.length > 0 && (
@@ -195,6 +209,9 @@ function ReviewTable() {
   const { movies } = useLibrary();
   const { reply, run } = job;
   const working = run.state === "working";
+  // กำลังอ่านรูปเพื่อจับคู่ แถวแก้ไม่ได้จนอ่านเสร็จ (AUDIT 12 พ.ย. 2569 ข้อ 10)
+  const reading = job.reading && !working;
+  const busyWhy = working ? "กำลังยืนยันอยู่ รอให้เสร็จก่อน" : reading ? "กำลังอ่านรูปเพื่อจับคู่อยู่ รอให้เสร็จก่อน" : "";
   const [tab, setTab] = useState<Tab>("all");
   const [query, setQuery] = useState("");
   const { settings } = useSettings();
@@ -268,7 +285,7 @@ function ReviewTable() {
     }
   };
   const confirm = async (which: string) => {
-    if (cropping.length) { toast({ kind: "info", title: "กำลังจำค่าครอป", detail: "รอให้เสร็จก่อน แล้วค่อยกดยืนยัน" }); return; }
+    if (cropping.length) { toast({ kind: "warn", ms: 6000, key: "link-busy", title: "กำลังจำค่าครอป", detail: "รอให้เสร็จก่อน แล้วค่อยกดยืนยัน" }); return; }
     const r = await runConfirm(which);
     if (!r) {
       // ล้มทั้งงาน เช่น ดิสก์เต็ม · เดิมแถบหายเงียบ ไม่มีอะไรบอก (ผู้ช่วยตรวจขั้น 8)
@@ -279,7 +296,7 @@ function ReviewTable() {
     }
     await reloadImages();
     if (r.failed) toast({ kind: "warn", title: `ยืนยันแล้ว ${COUNT(r.done)} คู่ และไม่สำเร็จ ${COUNT(r.failed)} คู่`, detail: "แถวที่ไม่สำเร็จยังอยู่ในตารางพร้อมเหตุผล" });
-    else if (r.stopped) toast({ kind: "info", title: `หยุดแล้ว ยืนยันไป ${COUNT(r.done)} คู่`, detail: "คู่ที่เหลือยังรอยืนยันอยู่" });
+    else if (r.stopped) toast({ kind: "info", ms: 6000, title: `หยุดแล้ว ยืนยันไป ${COUNT(r.done)} คู่`, detail: "คู่ที่เหลือยังรอยืนยันอยู่" });
     else if (r.done) toast({ kind: "ok", title: `ยืนยันแล้ว ${COUNT(r.done)} คู่ และปกขึ้นชั้นวางแล้ว` });
     r.notes.forEach((n) => toast({ kind: "warn", title: "มีไฟล์ที่ไม่ได้ลบ", detail: n }));
   };
@@ -310,7 +327,7 @@ function ReviewTable() {
         {shown.items.length === 0 ? (
           <div className="empty-search"><div style={{ fontSize: 14 }}>{rows.length === 0 ? "ยังไม่มีคู่ให้ตรวจ ลากโฟลเดอร์รูปมาวางก่อน" : "ไม่มีแถวตามที่เลือก"}</div></div>
         ) : shown.items.map((r) => (
-          <RowView key={r.id} r={r} coverThumb={(() => { const m = movies.find((x) => x.id === r.id); return m?.thumb ?? m?.linked?.find((c) => c.orient === "tall")?.thumb ?? m?.linked?.[0]?.thumb ?? null; })()} busy={working} cropping={cropping.includes(r.id)} over={job.overRow?.id === r.id ? job.overRow : null} onBoard={() => setLinkJob({ view: "board" })}
+          <RowView key={r.id} r={r} coverThumb={(() => { const m = movies.find((x) => x.id === r.id); return m?.thumb ?? m?.linked?.find((c) => c.orient === "tall")?.thumb ?? m?.linked?.[0]?.thumb ?? null; })()} busy={working || reading} busyWhy={busyWhy} cropping={cropping.includes(r.id)} over={job.overRow?.id === r.id ? job.overRow : null} onBoard={() => setLinkJob({ view: "board" })}
             onTick={(v) => act(() => linkApi.update(r.id, { ticked: v }), "ติ๊กไม่สำเร็จ")}
             onChoose={(p) => act(() => linkApi.update(r.id, { choose: p }), "เลือกรูปไม่สำเร็จ")}
             onCrop={() => openCrop(r.id, r.tall ? "tall" : "wide")}
@@ -329,6 +346,7 @@ function ReviewTable() {
             <div className="bar"><i style={{ width: `${run.progress ? (run.progress.done / Math.max(1, run.progress.total)) * 100 : 0}%` }} /></div>
           </div>
         ) : (
+          reading ? <span className="small" style={{ flex: 1, minWidth: 0 }} data-link-reading-table>กำลังอ่านรูปเพื่อจับคู่ แถวในตารางแก้ได้อีกครั้งเมื่ออ่านเสร็จ</span> :
           <span className="small" style={{ flex: 1, minWidth: 0 }} title="รูปต้นฉบับไม่ถูกแก้ ไฟล์หนังไม่ถูกแตะ" data-link-count>
             บันทึกแล้ว <span className="nw">{COUNT(counts.saved)} คู่</span> รอยืนยัน <span className="nw">{COUNT(waitingRows.length)} คู่</span> และติ๊กไว้ <span className="nw">{COUNT(ticked)} คู่</span> ปิดโปรแกรมแล้วกลับมาทำต่อได้
           </span>
@@ -338,9 +356,9 @@ function ReviewTable() {
             <button type="button" className="btn btn-ghost" data-link-stop onClick={() => linkApi.cancel()}><IbStop size={15} />หยุด</button>
           ) : (
             <>
-              <button type="button" className="btn btn-ghost" data-link-goboard onClick={() => setLinkJob({ view: "board" })}><Keep icon={<IcLink size={15} />} all={["ไปกระดาน (000 ที่เหลือ)"]}>ไปกระดาน ({COUNT(left)} ที่เหลือ)</Keep></button>
-              <button type="button" className={"btn " + (ticked ? "btn-ghost" : "btn-wait")} aria-disabled={!ticked || undefined} data-link-confirm-ticked onClick={() => { if (ticked) confirm("ticked"); }}><Keep icon={<IbTick size={15} />} all={["ยืนยัน 000 คู่ที่ติ๊กไว้"]}>ยืนยัน {COUNT(ticked)} คู่ที่ติ๊กไว้</Keep></button>
-              <button type="button" className={"btn " + (waitingRows.length ? "btn-main" : "btn-wait")} aria-disabled={!waitingRows.length || undefined} title="ไม่รวมแถวไม่แน่ใจที่ยังไม่ได้เลือกรูป กับแถวที่หาคู่ไม่เจอ" data-link-confirm-all onClick={() => { if (waitingRows.length) confirm("all"); }}><Keep icon={<IbTick size={15} />} all={["ยืนยันทั้งหมด 000 คู่"]}>ยืนยันทั้งหมด {COUNT(waitingRows.length)} คู่</Keep></button>
+              <button type="button" className={"btn " + (reading ? "btn-wait" : "btn-ghost")} aria-disabled={reading || undefined} title={reading ? busyWhy : undefined} data-link-goboard onClick={() => { if (!reading) setLinkJob({ view: "board" }); }}><Keep icon={<IcLink size={15} />} all={["ไปกระดาน (000 ที่เหลือ)"]}>ไปกระดาน ({COUNT(left)} ที่เหลือ)</Keep></button>
+              <button type="button" className={"btn " + (ticked && !reading ? "btn-ghost" : "btn-wait")} aria-disabled={!ticked || reading || undefined} title={reading ? busyWhy : undefined} data-link-confirm-ticked onClick={() => { if (ticked && !reading) confirm("ticked"); }}><Keep icon={<IbTick size={15} />} all={["ยืนยัน 000 คู่ที่ติ๊กไว้"]}>ยืนยัน {COUNT(ticked)} คู่ที่ติ๊กไว้</Keep></button>
+              <button type="button" className={"btn " + (waitingRows.length && !reading ? "btn-main" : "btn-wait")} aria-disabled={!waitingRows.length || reading || undefined} title={reading ? busyWhy : "ไม่รวมแถวไม่แน่ใจที่ยังไม่ได้เลือกรูป กับแถวที่หาคู่ไม่เจอ"} data-link-confirm-all onClick={() => { if (waitingRows.length && !reading) confirm("all"); }}><Keep icon={<IbTick size={15} />} all={["ยืนยันทั้งหมด 000 คู่"]}>ยืนยันทั้งหมด {COUNT(waitingRows.length)} คู่</Keep></button>
             </>
           )}
         </span>
@@ -394,7 +412,7 @@ function Thumb({ p, wide }: { p: LinkPick | null; wide?: boolean }) {
 }
 
 function RowView(p: {
-  r: LinkRow; coverThumb: string | null; busy: boolean; cropping?: boolean; over: { names: string; bad: boolean } | null; onBoard: () => void;
+  r: LinkRow; coverThumb: string | null; busy: boolean; busyWhy?: string; cropping?: boolean; over: { names: string; bad: boolean } | null; onBoard: () => void;
   onTick: (v: boolean) => void; onChoose: (path: string) => void; onCrop: () => void; onChange: () => void; onConfirm: () => void; onSkip: () => void; onUndo: () => void; onUnsave: () => void; onResolve: (how: "use" | "app") => void;
 }) {
   const { r } = p;
@@ -405,7 +423,7 @@ function RowView(p: {
   const pillText = saved ? r.reason : r.reason;
   /** ระหว่างยืนยัน ห้ามแก้แถว ฝั่ง Rust กันอยู่แล้ว ปุ่มต้องบอกตั้งแต่บนจอ */
   const g = (f: () => void) => () => { if (!p.busy) f(); };
-  const dis = { "aria-disabled": p.busy || undefined, title: p.busy ? "กำลังยืนยันอยู่ รอให้เสร็จก่อน" : undefined };
+  const dis = { "aria-disabled": p.busy || undefined, title: p.busy ? (p.busyWhy || "กำลังยืนยันอยู่ รอให้เสร็จก่อน") : undefined };
   const ghost = "btn btn-sm " + (p.busy ? "btn-wait" : "btn-ghost");
   const candThumbs = (
     <div className={"lsugg" + (has ? " mini" : "")} data-link-cands>

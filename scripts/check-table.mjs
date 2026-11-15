@@ -22,7 +22,7 @@ const measure = () => q(`const w = document.querySelector('[data-table]'), t = w
     ปุ่มกรองล้น: [...document.querySelectorAll('[data-shelf-tab]')].filter((b) => b.scrollWidth > b.clientWidth).map((b) => b.innerText),
     โซ่เห็น: !!document.querySelector('[data-shelf-tab="linked"] svg')?.getClientRects().length,
     ป้ายศูนย์: [...t.querySelectorAll('.lvmore')].filter((x) => x.style.display !== 'none' && x.textContent === '+0').length,
-    ป้ายตัดไม่มีจุด: [...t.querySelectorAll('.lvchips')].filter((x) => { const on = [...x.querySelectorAll('.lvchip')].filter((k) => k.style.display !== 'none'); return on.some((k) => r(k).right > r(x).right + 0.5 || (k.scrollWidth > k.clientWidth && getComputedStyle(k).textOverflow !== 'ellipsis')); }).length,
+    ป้ายตัดไม่มีจุด: [...t.querySelectorAll('.lvchips')].filter((x) => { const on = [...x.querySelectorAll('.lvchip')].filter((k) => k.style.display !== 'none'); return on.some((k) => r(k).right > r(x).right + 0.5 || (k.scrollWidth > k.clientWidth && (getComputedStyle(k).textOverflow === 'ellipsis' || !k.dataset.ov))); }).length,
     ป้ายบวก: t.querySelectorAll('.lvmore:not([style*="none"])').length,
     ตัวอย่าง: rows.slice(0, 3).map((x) => [...x.querySelectorAll('.lv-a .lvchip, .lv-s .lvchip')].filter((e) => e.style.display !== 'none').map((e) => e.textContent).join(' , ')) };`);
 const m0 = (m) => m.ชื่อกว้าง >= 90 && m.ขวาสุดเกิน <= 0 && m.กว้างตาราง <= m.กว้างกรอบ;
@@ -44,7 +44,7 @@ try {
       if (w === 1280 && !panel) { console.log(m.ตัวอย่าง.join("\n")); check("มีคอลัมน์ Subtitle ระหว่าง Audio กับสภาพไฟล์", JSON.stringify(m.head.slice(-3)) === '["Audio","Subtitle","สภาพไฟล์"]', m.head.join(" ")); }
       check(`${tag} เสียงกับซับบรรทัดเดียว เครื่องหมายมีรูป`, m.เสียงแถวเดียว && m.ซับแถวเดียว && m.สถานะมีรูป, `แถวสูง ${m.แถวสูง}`);
       check(`${tag} คอลัมน์ขวาสุดไม่ตกขอบ`, m.ขวาสุดเกิน <= 0 && m.กว้างตาราง <= m.กว้างกรอบ, `ตาราง ${m.กว้างตาราง} กรอบ ${m.กว้างกรอบ} ชื่อกว้าง ${m.ชื่อกว้าง} ป้ายบวก ${m.ป้ายบวก}`);
-      check(`${tag} ไม่มีป้าย +0 ป้ายยาวตัดท้ายมีจุดไข่ปลา`, m.ป้ายศูนย์ === 0 && m.ป้ายตัดไม่มีจุด === 0, `+0 ${m.ป้ายศูนย์} · ตัดไม่มีจุด ${m.ป้ายตัดไม่มีจุด}`);
+      check(`${tag} ไม่มีป้าย +0 ป้ายยาวที่ล้นไม่มีจุดไข่ปลาและได้ป้ายจางหรือเลื่อนตอนชี้ (BUGS 51)`, m.ป้ายศูนย์ === 0 && m.ป้ายตัดไม่มีจุด === 0, `+0 ${m.ป้ายศูนย์} · ตัดไม่มีจุด ${m.ป้ายตัดไม่มีจุด}`);
       const st = await q("const r = (e) => e.getBoundingClientRect(); return [...document.querySelectorAll('[data-table] tbody tr')].filter((x) => { const c = x.children[1], s = c.querySelector('.stars'); return !s || r(s).right > r(c).right + 0.5; }).length;");
       check(`${tag} ดาวใต้ชื่อไม่ล้นช่องชื่อ`, st === 0, st);
       check(`${tag} ข้อความ Video ไม่ชนป้ายเสียง`, !m.videoชน, `ตัดท้าย ${m.videoตัด.length} แถว · โซ่ปุ่มกรอง ${m.โซ่เห็น ? "เห็น" : "ซ่อน"} · ปุ่มล้น ${m.ปุ่มกรองล้น.join(", ") || "ไม่มี"}`);

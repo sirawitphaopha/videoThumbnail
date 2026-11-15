@@ -85,14 +85,20 @@ await q(`document.querySelector('${G} [data-loudmode] [data-k=mix]')?.click()`);
 
 // ข้อ 25 ตรวจเกณฑ์กับไฟล์ที่ทำให้ตัดจริง (ทำด้วย ffmpeg ใน D:/dev/tmp/ชั้นตรวจ6 · ผ่าน MP3 128 kb/s แล้วกลับเป็น FLAC · อัปแซมเปิล 44.1 เป็น 96 kHz)
 import { existsSync } from "node:fs";
-for (const [file, want] of [["D:/dev/tmp/ชั้นตรวจ6/ตัดแบบ mp3.flac", "lossy"], ["D:/dev/tmp/ชั้นตรวจ6/อัปแซมเปิล 96k.flac", "upsample"]]) {
+// AUDIT 12 พ.ย. 2569 ข้อ 21 ไฟล์ MP3 ต้นทางของ "ตัดแบบ mp3.flac" ขอบบนตัดเหมือนกัน แต่เป็น MP3 อยู่แล้ว ห้ามเตือนว่าเป็นไฟล์ไม่ลดคุณภาพปลอม
+for (const [file, want] of [["D:/dev/tmp/ชั้นตรวจ6/ตัดแบบ mp3.flac", "lossy"], ["D:/dev/tmp/ชั้นตรวจ6/อัปแซมเปิล 96k.flac", "upsample"], ["D:/dev/tmp/ชั้นตรวจ6/mp3tmp.mp3", "no-lossy"]]) {
   if (!existsSync(file)) { check(`ข้อ 25 ไฟล์ทดสอบ ${file} ไม่มี ข้าม`, false); continue; }
   await c.evaluate(`window.__TAURI_INTERNALS__.invoke('plugin:event|emit_to', { target: { kind: 'Webview', label: 'main' }, event: 'tauri://drag-drop', payload: { paths: [${JSON.stringify(file)}], position: { x: 700, y: 400 } } })`);
-  await waitFor(`return (document.querySelector('${G} .fchip .nm')?.innerText ?? '').startsWith(${JSON.stringify(file.split("/").pop().replace(/\.flac$/, ""))})`, 20000);
+  await waitFor(`return (document.querySelector('${G} .fchip .nm')?.innerText ?? '').startsWith(${JSON.stringify(file.split("/").pop().replace(/\.(flac|mp3)$/, ""))})`, 20000);
   await view("psd"); await sleep(1500);
   await q(`document.querySelector('${G} [data-psdch=mix]')?.click()`);
   await waitFor(`return !!document.querySelector('${G} [data-psdcheck]')`, 30000); await sleep(1200);
   const got = await q(`return [...document.querySelectorAll('${G} [data-psdcheck]')].map((e) => e.dataset.psdcheck + ':' + e.innerText.replace(/\\s+/g, ' ').slice(0, 80))`);
+  if (want === "no-lossy") {
+    check(`AUDIT ข้อ 21 ${file.split("/").pop()} เป็น MP3 อยู่แล้ว ไม่ขึ้นเตือนไฟล์ไม่ลดคุณภาพปลอม`, got.length > 0 && !got.some((x) => x.startsWith("lossy:")), got.join(" | "));
+    await c.shot(`${ROOT}/docs/report-2026-11-15/AUDIT-กลุ่ม1/21-ไฟล์mp3ไม่ขึ้นเตือน.png`, `${G} [data-psdchecks]`, 6);
+    continue;
+  }
   check(`ข้อ 25 ${file.split("/").pop()} ขึ้นเตือน ${want === "lossy" ? "อาจเคยเป็น MP3" : "อาจเป็นไฟล์อัปแซมเปิล"}`, got.some((x) => x.startsWith(want + ":")), got.join(" | "));
   await c.shot(`${OUT}/25-${want === "lossy" ? "ตรวจเจอรอยตัด-mp3" : "ตรวจเจออัปแซมเปิล"}.png`, `${G} [data-psdchecks]`, 6);
 }

@@ -14,6 +14,7 @@ import Dropdown from "../components/Dropdown";
 import InfoTip from "../components/InfoTip";
 import { OV_START_TIP, SPEK_RES_TIP } from "../lib/graphTips";
 import { ovStart, setOvStart, type OvStart } from "../lib/ovFold";
+import { setLongName, useLongName, type LongName } from "../lib/longName";
 import { IcPalette, IcCheck, IcCoverL, IcCoverM, IcCoverS, IcTall, IcWide, IcFolder, IcGraph, IcLink, IcMix, IcPoster, IcSettings, IcShelf, IcExtract } from "../components/icons";
 import { CardIcon, J, Keep, Phr, Range, Seg, Skel, Switch } from "../components/ui";
 import { setSkelPreview, useSkelPreview } from "../lib/skelPreview";
@@ -199,6 +200,27 @@ function OvStartRow() {
   );
 }
 
+/** ชื่อที่ยาวเกินช่อง แทนจุดสามจุด (BUGS ข้อ 51 · พี่กันเลือก 15 พ.ย. 2569 "เอาทุกตัว กดเปลี่ยนได้ที่หน้าตังค่า เเต่เเบบ 4 คือตัวหลัก") */
+const LONG_NAME_TIP: Tip = {
+  // ขึ้นบรรทัดใหม่ (\n) ตรงรอยต่อความหมายที่บรรทัดตัดอยู่แล้วในกล่อง (วัดด้วยตัวอ่านจุดตัดบรรทัด 15 พ.ย. 2569)
+  w: "ชื่อเรื่องหรือชื่อไฟล์ที่ยาวเกินช่อง ใช้กับทุกจุดในโปรแกรม\nเช่นชื่อใต้ปก ชื่อไฟล์ในหน้าเสียงและซับ และคิวแปลงเสียง",
+  o: [
+    ["เลื่อนให้อ่านจบตอนชี้", "ท้ายชื่อที่ล้นจางหาย\nและเอาเมาส์ชี้แล้วชื่อค่อย ๆ เลื่อนจนเห็นท้ายชื่อ", "อ่านชื่อเต็มได้โดยไม่ต้องเปิดอะไร", "ต้องชี้ทีละชื่อ"],
+    ["จางท้าย", "ท้ายชื่อที่ล้นจางหายแทนจุดสามจุด", "หน้าตาเรียบเหมือนเดิม", "ท้ายชื่อมองไม่เห็น"],
+    ["เก็บปีไว้ท้าย", "ชื่อใต้ปกจางตรงที่ล้น และปีในวงเล็บอยู่ท้ายเสมอ\nส่วนจุดอื่นจางท้าย", "รู้ว่าเป็นเรื่องปีไหนแม้ชื่อยาว", "ใช้ได้กับชื่อที่มีปีท้ายเท่านั้น"],
+    ["ขึ้นสองบรรทัด", "ชื่อใต้ปกขึ้นบรรทัดที่สองได้\nโดยทุกเรื่องจองที่สองบรรทัดเท่ากัน ส่วนจุดอื่นจางท้าย", "เห็นชื่อเต็มเกือบทุกเรื่อง", "ใต้ปกสูงขึ้นหนึ่งบรรทัด"],
+  ] as [string, string, string, string][],
+  r: "เลื่อนให้อ่านจบตอนชี้",
+};
+function LongNameRow() {
+  const v = useLongName();
+  return (
+    <div className="setrow" data-longname-set><div className="lbl"><span>ชื่อที่ยาวเกินช่อง <InfoTip title="ชื่อที่ยาวเกินช่อง" tip={LONG_NAME_TIP} /></span><span className="small">ใช้กับชื่อเรื่องและชื่อไฟล์ทุกจุดในโปรแกรม</span></div>
+      <span data-seg260><Dropdown label="ชื่อที่ยาวเกินช่อง" value={v} onChange={(n) => setLongName(n as LongName)}
+        options={[{ value: "slide", label: "เลื่อนให้อ่านจบตอนชี้" }, { value: "fade", label: "จางท้าย" }, { value: "year", label: "เก็บปีไว้ท้าย" }, { value: "two", label: "ขึ้นสองบรรทัด" }]} /></span></div>
+  );
+}
+
 /** คำอธิบายตัวเล่นหนังสองแบบของหน้าแก้ซับ */
 const SUB_PLAYER_TIP = {
   // ขึ้นบรรทัดใหม่ (\n) ตรงจุดที่บรรทัดตัดอยู่แล้วที่กล่องกว้าง 380 จุด ให้ตัดตรงรอยต่อของความหมาย ไม่ตัดกลางวลี (วัดด้วยตัวอ่านจุดตัดบรรทัด 14 พ.ย. 2569)
@@ -316,7 +338,7 @@ export default function SettingsPage() {
     const f = await pickFolder("เลือกโฟลเดอร์หนัง");
     if (!f) return;
     // D:\หนัง กับ D:\หนัง\ คือโฟลเดอร์เดียวกัน (AUDIT ข้อ 130)
-    if (settings.folders.some((x) => folderKey(x) === folderKey(f))) { toast({ kind: "info", title: "โฟลเดอร์นี้อยู่บนชั้นแล้ว", detail: f }); return; }
+    if (settings.folders.some((x) => folderKey(x) === folderKey(f))) { toast({ kind: "warn", ms: 6000, key: "set-folder", title: "โฟลเดอร์นี้อยู่บนชั้นแล้ว", detail: f }); return; }
     // บันทึกไม่สำเร็จ ไม่อ่านโฟลเดอร์ ไม่ขึ้นแถบเขียว (AUDIT ข้อ 135 · เดิมขึ้นแถบเขียวว่าเพิ่มแล้วทั้งที่ค่ายังไม่เปลี่ยน)
     if (!(await set({ folders: [...settings.folders, f] }))) return;
     scan();
@@ -362,7 +384,7 @@ export default function SettingsPage() {
   const appLow = drives.list?.find((d) => d.app && isLow(d)) ?? null;
   const toggleStore = (v: Settings["linkStore"]) => {
     const on = stores.includes(v);
-    if (on && stores.length === 1) { toast({ kind: "info", title: "ต้องเลือกอย่างน้อยหนึ่งแบบ", detail: "ติ๊กแบบอื่นก่อน แล้วค่อยเอาแบบนี้ออก" }); return; }
+    if (on && stores.length === 1) { toast({ kind: "warn", ms: 6000, key: "set-store", title: "ต้องเลือกอย่างน้อยหนึ่งแบบ", detail: "ติ๊กแบบอื่นก่อน แล้วค่อยเอาแบบนี้ออก" }); return; }
     const next = (["beside", "app", "link"] as const).filter((x) => (x === v ? !on : stores.includes(x)));
     void set({ linkStores: next, linkStore: next[0] });
   };
@@ -542,6 +564,7 @@ export default function SettingsPage() {
         <div className="setrow" data-seg-cover><div className="lbl">ดูปก<span className="small"><Phr>เรื่องที่แนบทั้งปกตั้งและปกนอนจะขึ้นแบบที่เลือก ส่วนเรื่องที่มีแบบเดียวขึ้นแบบนั้น</Phr></span></div>
           <Seg label="ดูปก" value={settings.coverOrient} onChange={(v) => set({ coverOrient: v })} options={[{ value: "tall", label: <><IcTall />ปกตั้ง</> }, { value: "wide", label: <><IcWide />ปกนอน</> }]} /></div>
         <div className="setrow"><div className="lbl">ชื่อไฟล์ใต้ปก</div><Switch on={settings.showNames} onChange={(v) => set({ showNames: v })} label="ชื่อไฟล์ใต้ปก" /></div>
+        <LongNameRow />
         <div className="setrow"><div className="lbl">ภาพจากหนังในเรื่องที่ยังไม่มีปก<span className="small"><Phr>{"เปิดแล้วเรื่องที่ยังไม่มีปกจะขึ้นภาพหนึ่งภาพที่สุ่มจากในหนังแทนแถบทะแยง ทั้งบนชั้นวาง ในตาราง และแผงขวา ปิดแล้วกลับเป็นแถบทะแยงตามเดิม ภาพเก็บในโฟลเดอร์ของโปรแกรมโดยไม่เขียนลงไฟล์หนัง และไม่นับ" + J + "เป็นปก ตัวกรองจึงยังนับเรื่องนั้นว่ายังไม่มีปก ปุ่มเดียวกันนี้อยู่ที่ปุ่มการแสดงผลบนชั้นวางด้วย"}</Phr></span></div><Switch on={settings.showFrames} onChange={(v) => set({ showFrames: v })} label="ภาพจากหนังในเรื่องที่ยังไม่มีปก" /></div>
         <div className="setrow"><div className="lbl">จุดสีบอกสภาพไฟล์</div><Switch on={settings.showDots} onChange={(v) => set({ showDots: v })} label="จุดสีบอกสภาพไฟล์" /></div>
         <div className="setrow"><div className="lbl">แสดงโครงจางค้างไว้<span className="small"><Phr>ไว้ดูหน้าตาตอนรออ่านโฟลเดอร์ และกลับเป็นปิดเองเมื่อปิดโปรแกรม</Phr></span></div>

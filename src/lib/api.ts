@@ -227,19 +227,20 @@ export type LatestInfo = { name: string; installed: string | null; latest: strin
 /* ---------- แปลงเสียงเป็นคิว หน้ากราฟเสียง (convert.rs · แผนเสียงและซับ ขั้น 8) ---------- */
 /** ข้อมูลเพลงหนึ่งช่อง · key ชื่อกลาง title artist album album_artist date track disc genre composer comment replaygain_* */
 export type AudioTag = { key: string; value: string };
-/** ไฟล์เสียงหนึ่งไฟล์ในคิว · แทร็กเสียงแรกของไฟล์ · stream เลขสตรีมของ ffprobe · codec ชื่อของ ffprobe */
+/** ไฟล์เสียงหนึ่งไฟล์ในคิว · แทร็กเสียงที่เลือก · stream เลขสตรีมของ ffprobe · codec ชื่อของ ffprobe · track ลำดับแทร็กเสียงนับจาก 0 tracks จำนวนแทร็กเสียงทั้งไฟล์ (AUDIT ข้อ 22) */
 export type AudioFile = {
   path: string; name: string; size: number; duration: number; audioOnly: boolean; stream: number; codec: string; profile: string;
   layout: string; channels: number; rate: number; bits: number | null; bitrate: number | null;
   tags: AudioTag[]; tagsInStream: boolean; cover: { codec: string; width: number; height: number; stream: number } | null;
+  track: number; tracks: number;
 };
 export type CoverData = { url: string; bytes: number; codec: string; width: number; height: number };
-export type ConvReq = { id: string; path: string; spec: EncodeSpec; outDir: string | null };
+export type ConvReq = { id: string; path: string; spec: EncodeSpec; outDir: string | null; track?: number };
 /** same เสียงตรงกับต้นฉบับทุกบิตไหม (BUGS ข้อ 121) · null ไม่ได้เทียบ เหตุผลอยู่ sameNote */
 export type ConvResult = { out: string; size: number; srcSize: number; tags: number; cover: boolean; notes: string[]; tool: string; cmd: string; secs: number; same: boolean | null; sameNote: string };
 export type ConvProgress = { id: string; percent: number; eta: number | null; phase: string };
 export const convertApi = {
-  probe: (path: string) => call<AudioFile>("convert_probe", { path }),
+  probe: (path: string, track = 0) => call<AudioFile>("convert_probe", { path, track }),
   /** ขนาดที่คาดจากการลองแปลงจริง 4 ช่วง ช่วงละ 10 วินาที แล้วคูณขยาย (BUGS ข้อ 120) · bytes เสียงล้วน · cover ขนาดปกเมื่อขอ withCover */
   sizeProbe: (path: string, stream: number, spec: EncodeSpec, channels: number | null, bits: number | null, rate: number | null, duration: number, withCover: boolean) =>
     call<{ bytes: number; cover: number; whole: boolean }>("convert_size_probe", { path, stream, spec, channels, bits, rate, duration, withCover }),

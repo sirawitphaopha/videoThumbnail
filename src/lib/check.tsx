@@ -63,7 +63,7 @@ export function CheckHost({ children }: { children: React.ReactNode }) {
         setS((x) => ({ ...x, running: false, current: null, last: r }));
         const counts = [r.ok && `สมบูรณ์ ${r.ok}`, r.bad && `เสียหาย ${r.bad}`, r.changed && `ถูกเปลี่ยน ${r.changed}`, r.partial && `ตรวจได้บางส่วน ${r.partial}`, r.failed && `ตรวจไม่ได้ ${r.failed}`].filter(Boolean).join(", ");
         if (r.cancelled) {
-          toast({ kind: "info", title: `หยุดตรวจแล้ว ตรวจไป ${r.done} จาก ${r.total} เรื่อง`, detail: counts || undefined });
+          toast({ kind: "info", ms: 6000, title: `หยุดตรวจแล้ว ตรวจไป ${r.done} จาก ${r.total} เรื่อง`, detail: counts || undefined });
         } else if (r.partial && !r.bad && !r.changed && !r.failed) {
           // ไฟล์ที่ตรวจแบบเร็วบอกไม่ได้ว่าครบ ไม่ใช่ปัญหา แต่ชวนตรวจละเอียด (AUDIT ข้อ 28) · ไม่หายเอง
           toast({ kind: "warn", title: `ตรวจ ${r.total} เรื่องเสร็จ มีเรื่องที่ควรตรวจละเอียด`, detail: counts });

@@ -148,7 +148,7 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
   useEffect(() => {
     if (!p.initialPath) return;
     if (getPosterJob().run.state === "working") {
-      toast({ kind: "info", title: "กำลังใส่โปสเตอร์อีกเรื่องอยู่", detail: "รอให้เสร็จก่อน แล้วค่อยกดใหม่" });
+      toast({ kind: "warn", ms: 6000, key: "poster-busy", title: "กำลังใส่โปสเตอร์อีกเรื่องอยู่", detail: "รอให้เสร็จก่อน แล้วค่อยกดใหม่" });
       p.onConsumed();
       return;
     }
@@ -176,7 +176,7 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
     setOver(null);
     const f = paths[0];
     if (!f) return;
-    if (busyNow()) { toast({ kind: "info", title: "กำลังใส่โปสเตอร์อยู่", detail: "รอให้งานนี้เสร็จก่อน แล้วค่อยลากไฟล์มาใหม่" }); return; }
+    if (busyNow()) { toast({ kind: "warn", ms: 6000, key: "poster-busy", title: "กำลังใส่โปสเตอร์อยู่", detail: "รอให้งานนี้เสร็จก่อน แล้วค่อยลากไฟล์มาใหม่" }); return; }
     const zone = zoneAt(x, y, paths) ?? "movie";
     if (zone === "poster") loadPoster(f); else loadMovie(f);
     // eslint-disable-next-line react-hooks/exhaustive-deps
@@ -292,7 +292,8 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
     if (!poster || !choice) return;
     let geo = choice.geo;
     if (patch.mode && patch.mode !== geo.mode) {
-      geo = { ...geo, mode: patch.mode };
+      // เปลี่ยนแบบปกบนการ์ดใช้กรอบปกตั้งเสมอ ไม่พาค่าปกนอนไปด้วย (AUDIT ข้อ 8)
+      geo = { ...geo, mode: patch.mode, aspect: "" };
       if (patch.mode === "crop") { const [x, y, w, h] = centerCrop(poster, geo.rotate); geo = { ...geo, x, y, w, h }; }
     }
     const format = patch.format ?? choice.format;
@@ -388,15 +389,17 @@ export default function PosterPage(p: { initialPath: string | null; initialImage
                   {over === "poster" ? <b>ปล่อยเมาส์เพื่อใส่รูปนี้</b>
                     : posterErr ? <><b>{posterErr.split(/ · |  /)[0]}</b><div><Phr>รับรูป JPG PNG WebP BMP TIFF และ HEIC</Phr></div></>
                     : loading === "poster" ? "กำลังอ่านรูป…" : <>{movie && !poster && <b data-moviefirst>ไฟล์หนังใส่ให้แล้ว เหลือรูปโปสเตอร์</b>}ลากรูปโปสเตอร์มาวางตรงนี้<br />JPG PNG WebP BMP TIFF และ HEIC</>}
-                  <span style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" }}>
-                    <Btn off={working && BUSY} onClick={async () => { const f = await pickFile("image"); if (f) loadPoster(f); }}><IcPoster size={15} />เลือกรูปจากเครื่อง</Btn>
+                  {/* ใส่หนังแล้วมีสองปุ่ม ปุ่มแรกใช้คำสั้น ระยะขอบในปุ่ม 6 จุด (app.css) ให้อยู่แถวเดียวที่หน้าต่าง 1280 */}
+                  <span style={{ display: "flex", gap: 6, justifyContent: "center", flexWrap: "wrap" }} data-pickrow>
+                    <Btn off={working && BUSY} onClick={async () => { const f = await pickFile("image"); if (f) loadPoster(f); }}><IcPoster size={15} />{moviePath ? "เลือกจากเครื่อง" : "เลือกรูปจากเครื่อง"}</Btn>
                     {moviePath && <Btn off={working && BUSY} onClick={() => setListOpen(true)}><IcFolder size={15} />รูปในโฟลเดอร์หนัง</Btn>}
                   </span>
                 </div>
               </>
             )}
             {/* รูปไม่ใช่ 2:3 เลือกแบบปกบนการ์ดได้เลย (สเปกข้อ 7 · เดิมบอกแค่แบบที่เลือกไว้ ต้องเปิดหน้าต่างครอปถึงเปลี่ยนได้ ผู้ช่วยตรวจสเปกเจอ) · ตามรูปเดิม พี่กันสั่งเพิ่ม */}
-            {poster && !poster.twoThree && choice && !userCrop && (
+            {/* ปกนอน 16 : 9 ที่ส่งมาจากปกจับคู่ ครอปไว้แล้วเหมือนครอปเอง ไม่ขึ้นการ์ดเลือกแบบ · เดิมกดตัดพอดีหรือเติมขอบแล้วรูปบีบหรือกลายเป็นปกตั้ง (AUDIT 12 พ.ย. 2569 ข้อ 8) */}
+            {poster && !poster.twoThree && choice && !userCrop && choice.geo.aspect !== "wide" && (
               <div className="stat warn" style={{ marginTop: 12, flexWrap: "wrap" }} data-not23><CardIcon kind="warn" /><div style={{ flex: 1, minWidth: 0 }}><b>รูปนี้เป็น{poster.aspect.replace(/^รูป/, "")}</b></div>
                 <div className="not23seg">
                   <Seg small label="แบบปก" value={choice.geo.mode} onChange={(v) => { if (!working && !rendering) rechoose({ mode: v }); }} disabledReason={working ? "รอให้งานที่ทำอยู่เสร็จก่อน" : undefined}
