@@ -1,0 +1,449 @@
+//! แต่งภาพซับก่อนอ่าน และแบ่งภาพเป็นบรรทัด (แผน OCR ขั้น 2 · BUGS ข้อ 143)
+//! ① แต่งภาพตามหน้าต่างแต่งภาพของ Subtitle Edit ครอปส่วนใส ลบขอบ กลับสี สีเดียวตามระดับความมืด ขาวดำแบบ Otsu
+//!    ของชั้นหนังเพิ่ม ขยายภาพเล็ก (ซับ VobSub 480p ตัวหนังสือสูงไม่กี่จุด ตัวอ่านแยกตัวอักษรไม่ออก)
+//! ② แบ่งบรรทัดจากแถวที่ใสทั้งแถว แบบที่ลองกับซับ ACCA แล้ว PP-OCRv6 small อ่านถูก 436 จาก 439 ภาพ (docs/research/ocr-ซับรูป.md)
+//!    ของชั้นหนังเพิ่ม สระบน สระล่าง วรรณยุกต์ไทย จุดของ i และเครื่องหมายบนตัวอักษรที่แยกเป็นแถบบางเหนือหรือใต้บรรทัด ต่อกลับเข้าบรรทัดของมัน
+//!    เดิมตอนลอง แถบที่เตี้ยกว่า 6 จุดถูกทิ้ง ภาษาไทยจะเสียวรรณยุกต์ไปทั้งแถว
+//! ③ ตัวแบ่งบรรทัดของ Subtitle Edit (ใช้กับ nOCR ในขั้น 5 และหาก้อนบรรทัดที่วางห่างกันเพื่อใส่ตำแหน่งทีละก้อน)
+//!    กรอบหมึก (BitmapInkBounds) และเกณฑ์ขาวดำก่อนจับคู่ (OcrTwoColorThreshold)
+//!
+//! แปลจากซอร์ส Subtitle Edit (src/ui/Features/Ocr/PreProcessingSettings.cs · src/libuilogic/Ocr/OcrTwoColorThreshold.cs
+//! BitmapInkBounds.cs NikseBitmap2.cs NikseBitmapImageSplitter2.cs) สัญญา MIT
+//!   Copyright (c) 2001-2026 Nikolaj Lynge Olsson and contributors · ประกาศสัญญาเต็มอยู่หัวไฟล์ vobsub.rs
+//! ตัวหาเส้นฐาน (ImageBaselineFinder.cs) ใช้ตัวแยกตัวอักษรของ nOCR จึงทำในขั้น 5 พร้อมตัวแยกตัวอักษร
+
+// ตัวอ่านทุกตัว (ขั้น 3 ถึง 7) กับตัวคุมงาน (ขั้น 10) เป็นคนเรียก ระหว่างนี้ยังไม่มีผู้ใช้นอกเทส
+#![allow(dead_code)]
+
+use image::{Rgba, RgbaImage};
+
+/// ค่าตั้งของการแต่งภาพ ตาม PreProcessingSettings ของ Subtitle Edit บวกการขยายภาพของชั้นหนัง
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
+#[serde(rename_all = "camelCase", default)]
+pub struct Prep {
+    pub crop_transparent: bool,
+    pub invert: bool,
+    pub binarize: bool,
+    pub remove_borders: bool,
+    pub border_size: u32,
+    pub to_one_color: bool,
+    /// 0–255 จุดที่สว่างไม่เกินค่านี้กลายเป็นใส ที่สว่างกว่ากลายเป็นสีขาว
+    pub one_color_threshold: u8,
+    /// ขยายภาพจนบรรทัดสูงอย่างน้อยเท่านี้ (จุด) · 0 คือไม่ขยาย
+    pub upscale_to: u32,
+}
+
+impl Default for Prep {
+    fn default() -> Self {
+        Prep { crop_transparent: false, invert: false, binarize: false, remove_borders: false, border_size: 2, to_one_color: false, one_color_threshold: 128, upscale_to: 0 }
+    }
+}
+
+/// แต่งภาพตามลำดับของ PreProcess ใน Subtitle Edit · ครอปส่วนใส ลบขอบ (แล้วครอปซ้ำ) กลับสี สีเดียว ขาวดำ แล้วขยายภาพเล็กเป็นขั้นสุดท้าย
+pub fn preprocess(img: &RgbaImage, p: &Prep) -> RgbaImage {
+    let mut b = img.clone();
+    if p.crop_transparent { b = crop_transparent(&b).0; }
+    if p.remove_borders {
+        b = remove_border(&b, p.border_size);
+        if p.crop_transparent { b = crop_transparent(&b).0; }
+    }
+    if p.invert { invert(&mut b); }
+    if p.to_one_color { b = one_color(&b, p.one_color_threshold); }
+    if p.binarize { b = binarize_otsu(&b); }
+    if p.upscale_to > 0 {
+        let f = upscale_factor(&split_lines(&b), p.upscale_to);
+        if f > 1 { b = upscale(&b, f); }
+    }
+    b
+}
+
+/// ครอปให้เหลือกรอบของจุดที่ไม่ใสเลย (alpha > 0) · ไม่มีจุดเลยคืนภาพเดิม · คืนตำแหน่งที่ครอปด้วย
+pub fn crop_transparent(img: &RgbaImage) -> (RgbaImage, (u32, u32)) {
+    match ink_bounds(img, 0) {
+        Some((x, y, w, h)) => (image::imageops::crop_imm(img, x, y, w, h).to_image(), (x, y)),
+        None => (img.clone(), (0, 0)),
+    }
+}
+
+/// กรอบเล็กที่สุดที่คลุมทุกจุดที่ alpha มากกว่า min (x y กว้าง สูง) · ไม่มีคืน None · ตาม BitmapInkBounds.Get (min 0)
+pub fn ink_bounds(img: &RgbaImage, min: u8) -> Option<(u32, u32, u32, u32)> {
+    let (mut x0, mut y0, mut x1, mut y1) = (u32::MAX, u32::MAX, 0u32, 0u32);
+    let mut any = false;
+    for (x, y, p) in img.enumerate_pixels() {
+        if p[3] > min { any = true; x0 = x0.min(x); y0 = y0.min(y); x1 = x1.max(x); y1 = y1.max(y); }
+    }
+    any.then(|| (x0, y0, x1 - x0 + 1, y1 - y0 + 1))
+}
+
+/// ตัดขอบรอบภาพออก n จุดทุกด้าน · ภาพเล็กเกินคืนภาพเดิม · ตาม RemoveBorder
+pub fn remove_border(img: &RgbaImage, n: u32) -> RgbaImage {
+    let (w, h) = img.dimensions();
+    if n == 0 || n * 2 >= w || n * 2 >= h { return img.clone(); }
+    image::imageops::crop_imm(img, n, n, w - n * 2, h - n * 2).to_image()
+}
+
+/// กลับสี RGB คง alpha · ตาม InvertColors
+pub fn invert(img: &mut RgbaImage) {
+    for p in img.pixels_mut() { p[0] = 255 - p[0]; p[1] = 255 - p[1]; p[2] = 255 - p[2]; }
+}
+
+/// ความสว่างแบบ 0.299 0.587 0.114 ตามที่ Subtitle Edit ใช้
+fn luma(p: &Rgba<u8>) -> u8 { (0.299 * p[0] as f64 + 0.587 * p[1] as f64 + 0.114 * p[2] as f64) as u8 }
+
+/// จุดที่สว่างกว่าเกณฑ์เป็นขาวทึบ ที่เหลือเป็นใส · ตาม ConvertToOneColor
+pub fn one_color(img: &RgbaImage, threshold: u8) -> RgbaImage {
+    let mut out = img.clone();
+    for p in out.pixels_mut() {
+        *p = if p[3] != 0 && luma(p) > threshold { Rgba([255, 255, 255, 255]) } else { Rgba([0, 0, 0, 0]) };
+    }
+    out
+}
+
+/// ขาวดำด้วยเกณฑ์ของ Otsu จากฮิสโตแกรมความสว่างทุกจุด (รวมจุดใส) คง alpha · ตาม BinarizeOtsu
+pub fn binarize_otsu(img: &RgbaImage) -> RgbaImage {
+    let total = (img.width() * img.height()) as f64;
+    let mut hist = [0f64; 256];
+    for p in img.pixels() { hist[luma(p) as usize] += 1.0; }
+    let sum: f64 = (0..256).map(|i| i as f64 * hist[i]).sum();
+    let (mut sum_b, mut w_b, mut best, mut thr) = (0f64, 0f64, 0f64, 0usize);
+    for i in 0..256 {
+        w_b += hist[i];
+        if w_b == 0.0 { continue; }
+        let w_f = total - w_b;
+        if w_f == 0.0 { break; }
+        sum_b += i as f64 * hist[i];
+        let (m_b, m_f) = (sum_b / w_b, (sum - sum_b) / w_f);
+        let v = w_b * w_f * (m_b - m_f) * (m_b - m_f);
+        if v > best { best = v; thr = i; }
+    }
+    let mut out = img.clone();
+    for p in out.pixels_mut() {
+        let v = if luma(p) as usize >= thr { 255 } else { 0 };
+        *p = Rgba([v, v, v, p[3]]);
+    }
+    out
+}
+
+/// เกณฑ์ผลรวม R+G+B ก่อนทำภาพสองสีให้ตัวจับคู่ (nOCR Binary OCR) · ปกติ 200 เก็บตัวขาวหรือเหลือง ทิ้งขอบดำ
+/// ซับที่มีเงาเทา (ตัวสามมิติ) ผลรวมของเงาอยู่ราว 190–290 จะติดกับตัวอักษร ถ้าส่วนที่ 200 เก็บไว้เป็นเทากลางที่ Otsu นับเป็นฝั่งมืดเกิน 20% ใช้เกณฑ์ของ Otsu แทน
+/// ตาม OcrTwoColorThreshold.Get
+pub fn two_color_threshold(img: &RgbaImage) -> u32 {
+    const DEFAULT: usize = 200;
+    let mut hist = vec![0f64; 766];
+    for p in img.pixels() {
+        if p[3] == 0 { continue; }
+        hist[p[0] as usize + p[1] as usize + p[2] as usize] += p[3] as f64 / 255.0;
+    }
+    let total: f64 = hist.iter().sum();
+    let sum_all: f64 = hist.iter().enumerate().map(|(i, v)| i as f64 * v).sum();
+    let (mut w_b, mut s_b, mut best, mut otsu) = (0f64, 0f64, -1f64, DEFAULT);
+    for i in 0..hist.len() {
+        w_b += hist[i];
+        if w_b == 0.0 { continue; }
+        let w_f = total - w_b;
+        if w_f <= 0.0 { break; }
+        s_b += i as f64 * hist[i];
+        let (m_b, m_f) = (s_b / w_b, (sum_all - s_b) / w_f);
+        let v = w_b * w_f * (m_b - m_f) * (m_b - m_f);
+        if v > best { best = v; otsu = i + 1; }
+    }
+    if otsu <= DEFAULT { return DEFAULT as u32; }
+    let kept: f64 = hist[DEFAULT..].iter().sum();
+    let shadow: f64 = hist[DEFAULT..otsu.min(hist.len())].iter().sum();
+    if kept > 0.0 && shadow / kept > 0.2 { otsu as u32 } else { DEFAULT as u32 }
+}
+
+/// ภาพสองสี จุดใสหรือผลรวม R+G+B ต่ำกว่าเกณฑ์เป็นพื้นใส ที่เหลือเป็นขาวทึบ · ตาม NikseBitmap2.MakeTwoColor(minRgb)
+pub fn make_two_color(img: &RgbaImage, min_rgb: u32) -> RgbaImage {
+    let mut out = img.clone();
+    for p in out.pixels_mut() {
+        let s = p[0] as u32 + p[1] as u32 + p[2] as u32;
+        *p = if p[3] < 1 || s < min_rgb { Rgba([0, 0, 0, 0]) } else { Rgba([255, 255, 255, 255]) };
+    }
+    out
+}
+
+/// ทุกจุดที่ช่องสีน้ำเงินเกิน 20 เป็นสีที่ให้ ที่เหลือใส · ตาม NikseBitmap2.MakeOneColor (ใช้ก่อนแบ่งก้อนบรรทัดของตำแหน่ง ASS)
+pub fn make_one_color(img: &RgbaImage, c: Rgba<u8>) -> RgbaImage {
+    let mut out = img.clone();
+    for p in out.pixels_mut() { *p = if p[2] > 20 { c } else { Rgba([0, 0, 0, 0]) }; }
+    out
+}
+
+// ---------------------------------------------------------------- แบ่งบรรทัด
+
+/// บรรทัดหนึ่งในภาพ · y คือแถวบนสุดในภาพเดิม · img กว้างเท่าภาพเดิม
+#[derive(Debug, Clone)]
+pub struct Line {
+    pub y: u32,
+    pub h: u32,
+    pub img: RgbaImage,
+}
+
+/// แถวที่มีจุดทึบเกิน 40 อย่างน้อยหนึ่งจุด (ค่าเดียวกับตอนลองกับซับ ACCA)
+fn ink_rows(img: &RgbaImage, min_alpha: u8) -> Vec<bool> {
+    (0..img.height()).map(|y| (0..img.width()).any(|x| img.get_pixel(x, y)[3] > min_alpha)).collect()
+}
+
+/// ช่วงแถวที่มีหมึกติดกัน (เริ่ม, สิ้นสุดแบบไม่รวม)
+fn runs(rows: &[bool]) -> Vec<(u32, u32)> {
+    let mut out = vec![];
+    let mut y = 0usize;
+    while y < rows.len() {
+        if !rows[y] { y += 1; continue; }
+        let s = y;
+        while y < rows.len() && rows[y] { y += 1; }
+        out.push((s as u32, y as u32));
+    }
+    out
+}
+
+/// ต่อแถบบางเข้าบรรทัดของมัน · แถบที่สูงไม่ถึง 45% ของแถบที่สูงที่สุด (เกณฑ์เดียวกับเครื่องหมายลอยในตัวหาเส้นฐานของ Subtitle Edit)
+/// คือสระบน วรรณยุกต์ สระล่าง จุด หรือเครื่องหมายเหนือตัวอักษร · ต่อเข้าบรรทัดหลักที่ช่องว่างใกล้กว่า เท่ากันเลือกบรรทัดล่าง (ของที่ลอยเหนือบรรทัดพบบ่อยกว่า)
+/// ช่องว่างไกลเกินครึ่งความสูงของบรรทัดหลักนั้น ไม่ต่อ เป็นบรรทัดของตัวเอง (บรรทัดที่มีแต่จุดสามจุด ขีด)
+pub fn merge_marks(runs: &[(u32, u32)]) -> Vec<(u32, u32)> {
+    if runs.len() < 2 { return runs.to_vec(); }
+    let tallest = runs.iter().map(|r| r.1 - r.0).max().unwrap_or(0);
+    let main: Vec<bool> = runs.iter().map(|r| (r.1 - r.0) * 100 >= tallest * 45).collect();
+    let mut groups: Vec<(u32, u32)> = runs.iter().zip(&main).filter(|(_, m)| **m).map(|(r, _)| *r).collect();
+    if groups.is_empty() { return runs.to_vec(); }
+    let mut alone: Vec<(u32, u32)> = vec![];
+    for (r, m) in runs.iter().zip(&main) {
+        if *m { continue; }
+        // บรรทัดหลักที่อยู่ใต้กับเหนือแถบนี้
+        let below = groups.iter().enumerate().filter(|(_, g)| g.0 >= r.1).min_by_key(|(_, g)| g.0 - r.1).map(|(i, g)| (i, g.0 - r.1, g.1 - g.0));
+        let above = groups.iter().enumerate().filter(|(_, g)| g.1 <= r.0).min_by_key(|(_, g)| r.0 - g.1).map(|(i, g)| (i, r.0 - g.1, g.1 - g.0));
+        let pick = match (below, above) {
+            (Some(b), Some(a)) => if b.1 <= a.1 { Some(b) } else { Some(a) },
+            (b, a) => b.or(a),
+        };
+        match pick {
+            Some((i, gap, h)) if gap * 2 <= h.max(4) => { let g = &mut groups[i]; g.0 = g.0.min(r.0); g.1 = g.1.max(r.1); }
+            _ => alone.push(*r),
+        }
+    }
+    groups.extend(alone);
+    groups.sort();
+    groups
+}
+
+/// แบ่งภาพเป็นบรรทัดจากแถวที่ใส แล้วต่อแถบบางเข้าบรรทัดของมัน (merge_marks) · ใช้ก่อนส่งให้ PaddleOCR กับ Tesseract
+pub fn split_lines(img: &RgbaImage) -> Vec<Line> {
+    split_lines_alpha(img, 40)
+}
+
+pub fn split_lines_alpha(img: &RgbaImage, min_alpha: u8) -> Vec<Line> {
+    merge_marks(&runs(&ink_rows(img, min_alpha))).into_iter().map(|(a, b)| Line {
+        y: a,
+        h: b - a,
+        img: image::imageops::crop_imm(img, 0, a, img.width(), b - a).to_image(),
+    }).collect()
+}
+
+/// แถวนี้ใสทั้งแถว (alpha เป็น 0 ทุกจุด) · ตาม NikseBitmap2.IsLineTransparent
+fn row_clear(img: &RgbaImage, y: u32) -> bool { y >= img.height() || (0..img.width()).all(|x| img.get_pixel(x, y)[3] == 0) }
+
+fn copy_rows(img: &RgbaImage, y: u32, h: u32) -> Line {
+    let h = h.min(img.height().saturating_sub(y));
+    Line { y, h, img: image::imageops::crop_imm(img, 0, y, img.width(), h).to_image() }
+}
+
+/// ตัวแบ่งบรรทัดของ Subtitle Edit นับแถวที่ไม่ใสหรือไม่ดำ (alpha > 20 และ R+G+B > 20) · ส่วนบนที่สูงไม่เกิน 15 จุดต่อเข้าบรรทัดถัดไป
+/// ตาม NikseBitmapImageSplitter2.SplitToLinesTransparentOrBlack
+pub fn split_lines_transparent_or_black(img: &RgbaImage) -> Vec<Line> {
+    let (mut start, mut size) = (0u32, 0u32);
+    let mut parts = vec![];
+    for y in 0..img.height() {
+        let clear = (0..img.width()).all(|x| { let c = img.get_pixel(x, y); !(c[3] > 20 && c[0] as u32 + c[1] as u32 + c[2] as u32 > 20) });
+        if clear {
+            if size > 2 && size <= 15 {
+                size += 1;
+            } else {
+                if size > 8 { parts.push(copy_rows(img, start, size + 1)); }
+                size = 0;
+                start = y;
+            }
+        } else {
+            size += 1;
+        }
+    }
+    if size > 2 { parts.push(if size == img.height() { Line { y: start, h: size, img: img.clone() } } else { copy_rows(img, start, size + 1) }); }
+    parts
+}
+
+/// ตัวแบ่งบรรทัดของ Subtitle Edit · ส่วนบนที่สูงไม่เกิน min_line_height (จุดของ i) ต่อเข้าบรรทัดถัดไป
+/// ส่วนห้อยใต้บรรทัด (หางของ g ที่แยกแถว) ต่อเข้าบรรทัดเดิม · ภาพเป็นบรรทัดเดียวสูงเกิน 100 ใช้ตัวแบ่งแบบไม่ใสหรือไม่ดำ
+/// ตาม NikseBitmapImageSplitter2.SplitToLines (average_line_height ไม่ใช้ แบบแบ่งเข้มขึ้นทำในขั้น 5 ถ้าจำเป็น)
+pub fn split_lines_se(img: &RgbaImage, min_line_height: u32) -> Vec<Line> {
+    let h = img.height();
+    let (mut start, mut size) = (0u32, 0u32);
+    let mut parts = vec![];
+    for y in 0..h {
+        if row_clear(img, y) {
+            let mut appendix = y + min_line_height >= h;
+            if !appendix && y + 10 < h && size > min_line_height && min_line_height > 15 {
+                let near = (1..=5).all(|k| row_clear(img, y + k));
+                if !near && (6..=9).all(|k| row_clear(img, y + k)) { appendix = true; }
+            }
+            if appendix || (size > 1 && size <= min_line_height) {
+                size += 1;
+            } else {
+                if size > 1 { parts.push(copy_rows(img, start, size + 1)); }
+                size = 0;
+                start = y;
+            }
+        } else {
+            size += 1;
+        }
+    }
+    if size > 1 {
+        if size == h {
+            if size > 100 { return split_lines_transparent_or_black(img); }
+            parts.push(Line { y: start, h: size, img: img.clone() });
+        } else {
+            parts.push(copy_rows(img, start, size + 1));
+        }
+    }
+    parts
+}
+
+// ---------------------------------------------------------------- ขยายภาพเล็ก
+
+/// ตัวคูณที่ทำให้บรรทัดที่สูงที่สุดสูงอย่างน้อย target จุด ไม่เกิน 4 เท่า · ไม่มีบรรทัดหรือสูงพอแล้วคืน 1
+pub fn upscale_factor(lines: &[Line], target: u32) -> u32 {
+    let tall = lines.iter().map(|l| l.h).max().unwrap_or(0);
+    if tall == 0 || tall >= target { return 1; }
+    target.div_ceil(tall).clamp(1, 4)
+}
+
+/// ขยายภาพ f เท่าด้วย Lanczos3 ขอบตัวหนังสือเรียบกว่าขยายแบบจุดต่อจุด ตัวอ่านแยกเส้นได้ดีกว่า
+pub fn upscale(img: &RgbaImage, f: u32) -> RgbaImage {
+    if f <= 1 { return img.clone(); }
+    image::imageops::resize(img, img.width() * f, img.height() * f, image::imageops::FilterType::Lanczos3)
+}
+
+/// ภาพบนพื้นดำเผื่อขอบ pad จุดทุกด้าน สีคูณด้วยความทึบ · สูตรที่ลองกับ PaddleOCR แล้วแม่นที่สุด (ขั้น 3 ใช้)
+pub fn on_black(img: &RgbaImage, pad: u32) -> image::RgbImage {
+    let (w, h) = img.dimensions();
+    let mut out = image::RgbImage::new(w + pad * 2, h + pad * 2);
+    for (x, y, p) in img.enumerate_pixels() {
+        let a = p[3] as u32;
+        out.put_pixel(x + pad, y + pad, image::Rgb([(p[0] as u32 * a / 255) as u8, (p[1] as u32 * a / 255) as u8, (p[2] as u32 * a / 255) as u8]));
+    }
+    out
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    fn bar(img: &mut RgbaImage, x0: u32, y0: u32, w: u32, h: u32) {
+        for y in y0..y0 + h { for x in x0..x0 + w { img.put_pixel(x, y, Rgba([255, 255, 255, 255])); } }
+    }
+
+    /// บรรทัดไทยสองบรรทัด บรรทัดบนมีวรรณยุกต์ลอยเหนือ บรรทัดล่างมีสระล่างห้อยใต้ แยกจากตัวด้วยแถวใส
+    /// ต้องได้สองบรรทัด และแถบบางอยู่ในบรรทัดของมัน ไม่ถูกทิ้ง ไม่เป็นบรรทัดของตัวเอง
+    #[test]
+    fn thai_marks_join_their_line() {
+        let mut img = RgbaImage::new(200, 120);
+        bar(&mut img, 20, 4, 6, 4);    // วรรณยุกต์เหนือบรรทัด 1 (y 4–8)
+        bar(&mut img, 10, 11, 150, 30); // บรรทัด 1 (y 11–41)
+        bar(&mut img, 10, 60, 150, 30); // บรรทัด 2 (y 60–90)
+        bar(&mut img, 40, 93, 5, 5);    // สระล่างใต้บรรทัด 2 (y 93–98)
+        let l = split_lines(&img);
+        assert_eq!(l.len(), 2, "{:?}", l.iter().map(|x| (x.y, x.h)).collect::<Vec<_>>());
+        assert_eq!((l[0].y, l[0].h), (4, 37));
+        assert_eq!((l[1].y, l[1].h), (60, 38));
+    }
+
+    /// แถบบางที่อยู่ห่างทุกบรรทัด (บรรทัดที่มีแต่ขีดหรือจุด) เป็นบรรทัดของตัวเอง ไม่ถูกดึงเข้าบรรทัดอื่น
+    #[test]
+    fn far_thin_strip_stays_alone() {
+        assert_eq!(merge_marks(&[(0, 30), (80, 84)]), vec![(0, 30), (80, 84)]);
+        // ใกล้บรรทัดบนกว่า ต่อเข้าบรรทัดบน
+        assert_eq!(merge_marks(&[(0, 30), (33, 37), (60, 90)]), vec![(0, 37), (60, 90)]);
+        // เท่ากันเลือกบรรทัดล่าง
+        assert_eq!(merge_marks(&[(0, 30), (35, 40), (45, 75)]), vec![(0, 30), (35, 75)]);
+    }
+
+    /// ตัวแบ่งของ Subtitle Edit ต่อจุดของ i ที่สูงไม่เกิน min เข้าบรรทัดถัดไป
+    #[test]
+    fn se_splitter_keeps_i_dot() {
+        let mut img = RgbaImage::new(60, 80);
+        bar(&mut img, 5, 2, 4, 4);   // จุด
+        bar(&mut img, 5, 8, 4, 20);  // ตัว i
+        bar(&mut img, 5, 50, 30, 20); // บรรทัดสอง
+        let l = split_lines_se(&img, 10);
+        assert_eq!(l.len(), 2, "{:?}", l.iter().map(|x| (x.y, x.h)).collect::<Vec<_>>());
+        assert!(l[0].y <= 2 && l[0].y + l[0].h >= 28);
+    }
+
+    #[test]
+    fn preprocess_steps() {
+        let mut img = RgbaImage::new(40, 20);
+        bar(&mut img, 10, 5, 8, 6);
+        img.put_pixel(12, 7, Rgba([60, 60, 60, 255]));
+        let c = preprocess(&img, &Prep { crop_transparent: true, ..Default::default() });
+        assert_eq!(c.dimensions(), (8, 6));
+        let o = one_color(&c, 128);
+        assert_eq!(o.get_pixel(2, 2)[3], 0, "จุดมืดกลายเป็นใส");
+        assert_eq!(o.get_pixel(0, 0), &Rgba([255, 255, 255, 255]));
+        let mut i = c.clone();
+        invert(&mut i);
+        assert_eq!(i.get_pixel(0, 0), &Rgba([0, 0, 0, 255]));
+        assert_eq!(remove_border(&c, 1).dimensions(), (6, 4));
+        assert_eq!(remove_border(&c, 3).dimensions(), (8, 6), "ขอบกินทั้งภาพ คืนภาพเดิม");
+        let u = preprocess(&img, &Prep { crop_transparent: true, upscale_to: 24, ..Default::default() });
+        assert_eq!(u.dimensions(), (32, 24), "บรรทัดสูง 6 ขยาย 4 เท่าให้ถึง 24");
+        assert_eq!(on_black(&c, 8).dimensions(), (24, 22));
+    }
+
+    /// จำนวนบรรทัดที่แบ่งได้เทียบคำตอบ (นับ ¶ บวกหนึ่ง) ทุกภาพของไฟล์ .sup · คืนภาพที่ไม่ตรง (เลขภาพ ได้ ควรได้)
+    fn line_mismatch(sup: &std::path::Path, truth: &std::path::Path) -> (usize, Vec<(usize, usize, usize)>) {
+        let shows = crate::subs::parse_sup(&std::fs::read(sup).unwrap());
+        let want: Vec<usize> = std::fs::read_to_string(truth).unwrap().lines().filter(|l| !l.trim().is_empty())
+            .map(|l| l.split_once('\t').map(|(_, t)| t).unwrap_or(l).matches('¶').count() + 1).collect();
+        assert_eq!(shows.len(), want.len(), "จำนวนภาพไม่เท่าคำตอบ");
+        let bad = shows.iter().zip(&want).enumerate().filter_map(|(k, (s, w))| {
+            let got = split_lines(&s.img).len();
+            (got != *w).then_some((k + 1, got, *w))
+        }).collect();
+        (shows.len(), bad)
+    }
+
+    /// ซับรูปไทย 1920 × 1080 ที่ make-test-media สร้างจากข้อความที่รู้คำตอบ · ทุกภาพต้องแบ่งบรรทัดได้เท่าคำตอบ สระวรรณยุกต์ไม่แตกเป็นบรรทัดเกิน
+    #[test]
+    fn thai_test_sub_line_counts() {
+        let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("test-media").join("สร้าง").join("ocr");
+        if !dir.join("th.sup").exists() {
+            assert_eq!(std::env::var("MOVIE_SHELF_SKIP_MEDIA").as_deref(), Ok("1"), "ไม่มี th.sup รัน node scripts/make-test-media.mjs ก่อน");
+            return;
+        }
+        let (n, bad) = line_mismatch(&dir.join("th.sup"), &dir.join("th.truth.txt"));
+        assert!(bad.is_empty(), "{n} ภาพ แบ่งบรรทัดไม่ตรง {bad:?}");
+    }
+
+    /// ซับ PGS ของ ACCA ที่พี่กันให้ (ห้ามขึ้น git) · ตั้ง MOVIE_SHELF_OCR_SUP กับ MOVIE_SHELF_OCR_TRUTH · ต้องแบ่งบรรทัดตรงคำตอบทุกภาพ
+    #[test]
+    fn acca_line_counts() {
+        let (Ok(sup), Ok(truth)) = (std::env::var("MOVIE_SHELF_OCR_SUP"), std::env::var("MOVIE_SHELF_OCR_TRUTH")) else { eprintln!("ข้าม ไม่ได้ตั้งไฟล์ ACCA"); return };
+        let (n, bad) = line_mismatch(std::path::Path::new(&sup), std::path::Path::new(&truth));
+        eprintln!("ACCA {n} ภาพ แบ่งบรรทัดไม่ตรง {} ภาพ {bad:?}", bad.len());
+        assert!(bad.is_empty());
+    }
+
+    /// เกณฑ์สองสี ซับขาวขอบดำปกติได้ 200 · ซับที่มีเงาเทากว้างได้เกณฑ์ของ Otsu ที่สูงกว่า
+    #[test]
+    fn two_color_threshold_shadow() {
+        let mut normal = RgbaImage::new(20, 10);
+        for (x, _, p) in normal.enumerate_pixels_mut() { *p = if x < 10 { Rgba([255, 255, 255, 255]) } else { Rgba([0, 0, 0, 255]) }; }
+        assert_eq!(two_color_threshold(&normal), 200);
+        let mut shadow = RgbaImage::new(30, 10);
+        for (x, _, p) in shadow.enumerate_pixels_mut() { *p = if x < 10 { Rgba([255, 255, 255, 255]) } else if x < 22 { Rgba([80, 80, 80, 255]) } else { Rgba([0, 0, 0, 255]) }; }
+        let t = two_color_threshold(&shadow);
+        assert!(t > 240, "เงาเทา 240 ต้องได้เกณฑ์สูงกว่า ได้ {t}");
+        let two = make_two_color(&shadow, t);
+        assert_eq!(two.get_pixel(15, 0)[3], 0, "เงาเทาต้องเป็นพื้น");
+        assert_eq!(two.get_pixel(5, 0)[3], 255);
+    }
+}

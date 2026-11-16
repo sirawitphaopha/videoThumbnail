@@ -55,6 +55,36 @@ pub fn an_of(i: &SubImg) -> u8 {
     an_from_screen((i.at[0] as f64 + i.w as f64 / 2.0) / sw, i.at[1] as f64 / sh, (i.at[1] + i.h) as f64 / sh)
 }
 
+/// ภาพสูงที่มีก้อนบรรทัดวางห่างกัน (ป้ายบนจอกับบทพูดข้างล่างในภาพเดียว) ตำแหน่งแบบ ASS ทีละบรรทัดของข้อความที่อ่านได้
+/// ภาพสูงไม่เกินหนึ่งในสามของจอ หรือเป็นก้อนเดียว หรือข้อความบรรทัดเดียว คืน None ให้ใช้ an_of ทั้งภาพ
+/// ก้อนแยกกันเมื่อช่องว่างระหว่างบรรทัดเกิน 15% ของความสูงจอ · ข้อความมีจำนวนบรรทัดไม่เท่าภาพ จับคู่บรรทัดแรกกับแรก สุดท้ายกับสุดท้าย
+/// ตาม GetImageLineBlocks กับ DetectFromPlacedImage ของ OcrAssaAlignment.cs ใน Subtitle Edit
+#[allow(dead_code)] // ตัวคุมงาน OCR เรียกหลังอ่านข้อความได้ (ขั้น 10)
+pub fn an_lines(img: &image::RgbaImage, i: &SubImg, text_lines: usize) -> Option<Vec<u8>> {
+    let (sw, sh) = (i.canvas[0] as f64, i.canvas[1] as f64);
+    if sw <= 0.0 || sh <= 0.0 || text_lines < 2 || img.height() as f64 / sh <= 0.33 { return None; }
+    let one = crate::ocrprep::make_one_color(img, image::Rgba([255, 255, 255, 255]));
+    let mut lines = crate::ocrprep::split_lines_transparent_or_black(&one);
+    if lines.len() < 2 { lines = crate::ocrprep::split_lines_se(&one, 20); }
+    if lines.is_empty() { return None; }
+    let min_gap = sh * 0.15;
+    let mut blocks = vec![(0f64, 0f64); lines.len()];
+    let mut start = 0usize;
+    for k in 1..=lines.len() {
+        let bottom = (lines[k - 1].y + lines[k - 1].h) as f64;
+        if k < lines.len() && lines[k].y as f64 - bottom <= min_gap { continue; }
+        for b in blocks.iter_mut().take(k).skip(start) { *b = (lines[start].y as f64, bottom); }
+        start = k;
+    }
+    if blocks[0] == blocks[blocks.len() - 1] { return None; }
+    let rel_x = (i.at[0] as f64 + img.width() as f64 / 2.0) / sw;
+    Some((0..text_lines).map(|t| {
+        let k = (t as f64 * (blocks.len() as f64 - 1.0) / (text_lines as f64 - 1.0)).round() as usize;
+        let (top, bottom) = blocks[k.min(blocks.len() - 1)];
+        an_from_screen(rel_x, (i.at[1] as f64 + top) / sh, (i.at[1] as f64 + bottom) / sh)
+    }).collect())
+}
+
 fn items_of(v: Vec<SubImg>) -> Vec<OcrItem> { v.into_iter().map(|img| OcrItem { an: an_of(&img), img }).collect() }
 
 /// ชนิดของซับรูปที่เปิด ดูจากนามสกุลกับชนิดสตรีม
@@ -210,6 +240,23 @@ mod tests {
         assert_eq!(an_of(&i), 2);
         let top = SubImg { canvas: [1920, 1080], at: [700, 40], w: 520, h: 60, ..i };
         assert_eq!(an_of(&top), 8);
+    }
+
+    /// ภาพเดียวมีป้ายบนจอกับบทพูดสองบรรทัดข้างล่าง ต้องได้ \an8 กับ \an2 \an2 · ภาพเตี้ยหรือก้อนเดียวคืน None (BUGS ข้อ 143 ACCA มี 68 ภาพแบบนี้)
+    #[test]
+    fn an_per_block() {
+        let mut img = image::RgbaImage::new(600, 900);
+        let mut bar = |y0: u32, h: u32| for y in y0..y0 + h { for x in 50..550 { img.put_pixel(x, y, image::Rgba([255, 255, 255, 255])); } };
+        bar(0, 40);
+        bar(780, 40);
+        bar(840, 40);
+        let i = SubImg { n: 1, start: 0.0, end: None, w: 600, h: 900, canvas: [1920, 1080], at: [660, 60], forced: false, file: PathBuf::new() };
+        assert_eq!(an_lines(&img, &i, 3), Some(vec![8, 2, 2]));
+        // ข้อความอ่านได้แค่สองบรรทัด บรรทัดแรกคู่ก้อนบน บรรทัดสุดท้ายคู่ก้อนล่าง
+        assert_eq!(an_lines(&img, &i, 2), Some(vec![8, 2]));
+        assert_eq!(an_lines(&img, &i, 1), None);
+        let short = image::RgbaImage::new(600, 120);
+        assert_eq!(an_lines(&short, &SubImg { h: 120, ..i.clone() }, 2), None);
     }
 
     #[test]

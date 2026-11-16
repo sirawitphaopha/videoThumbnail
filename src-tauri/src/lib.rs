@@ -41,6 +41,7 @@ mod tools;
 mod vidframes;
 mod vidplay;
 mod mpvplay;
+mod ocrprep;
 mod ocrsrc;
 mod vobsub;
 mod winutil;
