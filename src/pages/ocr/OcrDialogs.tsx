@@ -306,8 +306,35 @@ function OptionsDialog({ open, onClose }: { open: boolean; onClose: () => void }
   );
 }
 
+/* ---------- ค้นและแทนที่ (FindReplace ของหน้าต่าง OCR ใน Subtitle Edit) ---------- */
+function FindDialog({ open, onClose, rows }: { open: boolean; onClose: () => void; rows: OcrRow[] }) {
+  const [a, setA] = useState("");
+  const [b, setB] = useState("");
+  const [done, setDone] = useState<number | null>(null);
+  useEffect(() => { if (open) setDone(null); }, [open]);
+  const hits = a ? rows.filter((r) => r.text.includes(a)).length : 0;
+  const run = () => {
+    if (!a) return;
+    let n = 0;
+    rows.forEach((r, k) => { if (r.text.includes(a)) { setRowText(k, r.text.split(a).join(b)); n++; } });
+    setDone(n);
+  };
+  return (
+    <Dialog open={open} onClose={onClose} kind="work" title="ค้นและแทนที่" width={DLG_W} height={DLG_H}
+      actions={<><button type="button" className="btn btn-ghost" onClick={onClose}><IcClose size={15} />ปิด</button><span style={{ flex: 1 }} />
+        <button type="button" className={"btn " + (hits ? "btn-main" : "btn-wait")} aria-disabled={!hits || undefined} title={hits ? `แทนที่ใน ${hits} บรรทัด` : "ไม่เจอคำที่ค้นในบรรทัดไหน"} onClick={() => { if (hits) run(); }} data-find-run><IbSwap size={15} />แทนที่ทั้งหมด</button></>}>
+      <div className="ocr-dlg" data-ocr-find-dlg>
+        <div className="small"><Phr>แทนที่ข้อความในทุกบรรทัดที่อ่านแล้ว ตรงตัวพิมพ์เล็กใหญ่ ไฟล์ยังไม่ถูกแตะจนกว่าจะส่งออก</Phr></div>
+        <div className="icv-row"><span className="icv-lbl">ค้นหา</span><input className="inp" style={{ width: 320 }} value={a} onChange={(e) => { setA(e.target.value); setDone(null); }} data-find-a /></div>
+        <div className="icv-row"><span className="icv-lbl">แทนที่ด้วย</span><input className="inp" style={{ width: 320 }} value={b} onChange={(e) => setB(e.target.value)} data-find-b /></div>
+        <div className="small" data-find-status>{done != null ? `แทนที่แล้ว ${done} บรรทัด` : a ? `เจอใน ${hits} บรรทัด` : "พิมพ์คำที่จะค้น"}</div>
+      </div>
+    </Dialog>
+  );
+}
+
 export function OcrDialogs({ dlg, setDlg, ask, setAsk, rows, imgs, need, sel }: {
-  dlg: null | "prep" | "models" | "options"; setDlg: (d: null | "prep" | "models" | "options") => void; ask: { word: string; i: number } | null; setAsk: (a: null) => void;
+  dlg: null | "prep" | "models" | "options" | "find"; setDlg: (d: null | "prep" | "models" | "options" | "find") => void; ask: { word: string; i: number } | null; setAsk: (a: null) => void;
   rows: OcrRow[]; imgs: Map<number, SubImg>; need: (n: number) => void; sel: number;
 }) {
   return (<>
@@ -316,5 +343,6 @@ export function OcrDialogs({ dlg, setDlg, ask, setAsk, rows, imgs, need, sel }: 
     <PrepDialog open={dlg === "prep"} onClose={() => setDlg(null)} rows={rows} imgs={imgs} need={need} sel={sel} />
     <ModelsDialog open={dlg === "models"} onClose={() => setDlg(null)} />
     <OptionsDialog open={dlg === "options"} onClose={() => setDlg(null)} />
+    <FindDialog open={dlg === "find"} onClose={() => setDlg(null)} rows={rows} />
   </>);
 }

@@ -7,9 +7,9 @@ import { createPortal } from "react-dom";
 import Dropdown from "../../components/Dropdown";
 import InfoTip from "../../components/InfoTip";
 import { CardIcon, Keep, Phr, Seg, Skel, Switch } from "../../components/ui";
-import { IbBack, IbBold, IbCrop, IbItalic, IbNext, IbPencil, IbPlay, IbStop, IbSwap, IbTable, IbTick, IbWand, IcCopy, IcExpand, IcRefresh, IcSettings, IbSave } from "../../components/icons";
+import { IbBack, IbBold, IbCrop, IbItalic, IbNext, IbPencil, IbPlay, IbStop, IbSwap, IbTable, IbTick, IbWand, IcCopy, IcExpand, IcRefresh, IcSearch, IcSettings, IbSave, IcFile } from "../../components/icons";
 import type { Tip } from "../../lib/codecAdv";
-import { ocrApi, pickSave, subApi, type OcrCfg, type OcrDbList, type OcrReason, type OcrTessLang, type SubImg } from "../../lib/api";
+import { ocrApi, pickFile, pickSave, subApi, type OcrCfg, type OcrDbList, type OcrReason, type OcrTessLang, type SubImg } from "../../lib/api";
 import type { AvTrack } from "../../lib/avJob";
 import { getOcrJob, ocrElapsed, openSource, pauseOcr, resumeOcr, rowReasons, setOcrCfg, setRowOk, setRowText, startOcr, stopOcr, useOcrJob, type OcrRow } from "../../lib/ocrJob";
 import { OcrDialogs, tessName } from "./OcrDialogs";
@@ -421,9 +421,10 @@ export default function OcrPage({ track, movie }: { track: AvTrack; movie: strin
   const [only, setOnly] = useState(false);
   const [forcedOnly, setForcedOnly] = useState(false);
   const [view, setView] = useState<"table" | "one">(() => { try { return localStorage.getItem(VIEW_KEY) === "one" ? "one" : "table"; } catch { return "table"; } });
-  const [dlg, setDlg] = useState<null | "prep" | "models" | "options">(null);
+  const [dlg, setDlg] = useState<null | "prep" | "models" | "options" | "find">(null);
   const [ask, setAsk] = useState<{ word: string; i: number } | null>(null);
   const [dbs, setDbs] = useState<OcrDbList | null>(null);
+  const [impMsg, setImpMsg] = useState<string | null>(null);
   const [tess, setTess] = useState<OcrTessLang[]>([]);
   const [, tick] = useState(0);
   // เปิดซับรูปนี้ในตัวคุมงาน · กลับมาที่หน้าเดิม งานเดิมยังอยู่
@@ -449,6 +450,23 @@ export default function OcrPage({ track, movie }: { track: AvTrack; movie: strin
     return `อ่านครบ ${total.toLocaleString("en-US")} ภาพแล้ว ${flagged ? `มี ${flagged.toLocaleString("en-US")} ภาพที่ควรตรวจ` : "ไม่มีภาพที่ควรตรวจ"}${tops ? ` และ ${tops.toLocaleString("en-US")} ภาพที่ซับอยู่บนจอ` : ""}`;
   }, [allDone, total, flagged, tops]);
   const teachRow = () => startOcr([sel]);
+  /** นำข้อความจากไฟล์ซับที่เวลาซ้อนกันมากที่สุดมาใส่แต่ละบรรทัด (Import text with matching time codes ของ Subtitle Edit)
+      ไม่ทับบรรทัดที่ไม่มีซับเวลาตรงกัน · ตัวตรวจส่งไฟล์ผ่าน window.__ocrImport ไม่เปิดกล่องเลือกไฟล์ */
+  const importText = async () => {
+    const w = window as unknown as { __ocrImport?: string };
+    const p = import.meta.env.DEV && w.__ocrImport ? w.__ocrImport : await pickFile("subtitle");
+    if (!p) return;
+    try {
+      const t = await subApi.text(p, false, 0, 0);
+      rows.forEach((r, k) => {
+        const s0 = r.item.start, e0 = r.item.end ?? r.item.start + 2;
+        let best = -1, bo = 0;
+        t.cues.forEach((c, ci) => { const o = Math.min(e0, c.end) - Math.max(s0, c.start); if (o > bo) { bo = o; best = ci; } });
+        if (best >= 0) setRowText(k, t.cues[best].text);
+      });
+      setImpMsg(null);
+    } catch (e) { setImpMsg(String(e)); }
+  };
 
   if (job.openError && job.path === path) return <section className="card ocr-page" data-ocr-page><div className="stat bad"><CardIcon kind="bad" /><div><b>เปิดซับรูปไม่ได้</b><Phr>{job.openError}</Phr></div></div></section>;
   if (!rows.length) return (
@@ -473,6 +491,7 @@ export default function OcrPage({ track, movie }: { track: AvTrack; movie: strin
           <OcrTable rows={rows} sel={sel} setSel={setSel} onlyFlag={only} onlyForced={forcedOnly} imgs={imgs} need={need} current={job.current} />
           <EditArea i={Math.min(sel, rows.length - 1)} rows={rows} movie={movie} imgs={imgs} setSel={setSel} onTeach={teachRow} onUnknown={(word, i) => setAsk({ word, i })} />
         </>}
+      {impMsg && <div className="stat bad" data-ocr-import-err><CardIcon kind="bad" /><div style={{ flex: 1 }}><b>นำข้อความจากไฟล์ซับไม่ได้</b><Phr>{impMsg}</Phr><div className="minirow"><button type="button" className="btn btn-ghost btn-sm" onClick={() => setImpMsg(null)}>ปิด</button></div></div></div>}
       <div className="ocr-foot" data-ocr-foot>
         {!job.running && <>
           <button type="button" className="btn btn-ghost btn-sm ocr-tool" onClick={() => setDlg("prep")} title="แต่งภาพก่อนส่งให้ตัวอ่าน" data-ocr-prep-open><IbCrop size={14} />แต่งภาพ</button>
@@ -492,6 +511,8 @@ export default function OcrPage({ track, movie }: { track: AvTrack; movie: strin
             : <button type="button" className="btn btn-ghost" onClick={pauseOcr} data-ocr-pause><IbStop size={15} />หยุดชั่วคราว</button>}
           <button type="button" className="btn btn-ghost" onClick={stopOcr} data-ocr-stop>หยุด</button>
         </> : <>
+          <button type="button" className="btn btn-ghost" onClick={() => void importText()} title="ใส่ข้อความจากไฟล์ซับตัวหนังสือที่เวลาตรงกัน แทนการอ่านภาพ" data-ocr-import><IcFile size={15} />นำข้อความจากไฟล์ซับ</button>
+          {done > 0 && <button type="button" className="btn btn-ghost" onClick={() => setDlg("find")} title="ค้นและแทนที่ข้อความในทุกบรรทัด" data-ocr-find-open><IcSearch size={15} />ค้นและแทนที่</button>}
           {done > 0 && <button type="button" className="btn btn-ghost" onClick={() => void startOcr([sel])} title={`อ่านภาพที่ ${rows[sel]?.item.n ?? ""} ใหม่ด้วยค่าที่ตั้งตอนนี้`} data-ocr-reread><IcRefresh size={15} />อ่านใหม่เฉพาะที่เลือก</button>}
           {!allDone && <button type="button" className="btn btn-main" onClick={() => void startOcr()} data-ocr-start><IbPlay size={15} />{done ? "อ่านต่อที่เหลือ" : "เริ่มอ่าน"}</button>}
         </>}

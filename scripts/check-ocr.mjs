@@ -118,6 +118,27 @@ for (const [name, v] of [["ดำ", "dark"], ["ขาว", "white"], ["ลาย
   if (v === "dark") await c.shot(`${SHOT}/08-พื้นดำ.png`, "[data-ocr-table]");
 }
 
+// ---------- ค้นและแทนที่ ----------
+const w0 = await job("return j.get().rows[1].text.split(/\\s/)[0];");
+await click("[data-ocr-find-open]");
+await waitFor("return !!document.querySelector('[data-ocr-find-dlg]');", 3000);
+await click("[data-find-a]"); await c.type(w0); await sleep(200);
+const hitsTxt = await q("return document.querySelector('[data-find-status]').innerText;");
+await click("[data-find-b]"); await c.type("ทดแทน"); await click("[data-find-run]"); await sleep(300);
+check("ค้นและแทนที่ แทนคำในบรรทัดที่เจอ บอกจำนวน", (await job("return j.get().rows[1].text;")).includes("ทดแทน") && /เจอใน \d+ บรรทัด/.test(hitsTxt) && (await q("return document.querySelector('[data-find-status]').innerText;")).startsWith("แทนที่แล้ว"), hitsTxt);
+await c.key("Escape"); await sleep(300);
+await job("const r = j.get().rows[1]; j.setText(1, r.line.text); return 1;");
+
+// ---------- นำข้อความจากไฟล์ซับ (ไฟล์ต้นทางของ th.sup เวลาตรงกันทุกภาพ) ----------
+await q(`window.__ocrImport = ${JSON.stringify("D:/movie-shelf/test-media/src/ocr/th.ass")}; return 1;`);
+const keep = await job("return j.get().rows.map((r) => r.text);");
+await job("j.get().rows.forEach((r, i) => j.setText(i, '')); return 1;");
+await click("[data-ocr-import]"); await sleep(1500);
+const imp = await job("return j.get().rows.map((r) => r.text);");
+check("นำข้อความจากไฟล์ซับใส่ทุกบรรทัดตามเวลา (ล้างข้อความก่อนนำเข้า)", imp.filter((t) => t).length === imp.length && !(await q("return !!document.querySelector('[data-ocr-import-err]');")), imp[0]);
+await job(`const k = ${JSON.stringify(keep)}; k.forEach((t, i) => j.setText(i, t)); return 1;`);
+await q("delete window.__ocrImport; return 1;");
+
 // ---------- แบบตรวจทีละจุด ----------
 await q("[...document.querySelectorAll('[data-ocr-sum] .seg button')].find((b) => b.innerText.includes('ทีละจุด')).click(); return 1;"); await sleep(600);
 const one = await q("return { list: document.querySelectorAll('[data-ocr-one] .ocr-onelist .ocr-eitem').length, flagged: window.__ocrJob.get().rows.filter((r) => !r.ok && r.line && (r.line.reasons.length + r.names.length)).length, img: !!document.querySelector('[data-ocr-one] .ocr-screen img') };");
