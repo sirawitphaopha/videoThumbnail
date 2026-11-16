@@ -613,6 +613,36 @@ pub fn ocr_dbs(app: tauri::AppHandle) -> Result<DbList, String> { Ok(db_list(&Di
 #[tauri::command]
 pub fn ocr_history() -> Vec<Taught> { session().as_ref().map(|s| s.history.clone()).unwrap_or_default() }
 
+/// ภาพที่แต่งแล้วของภาพลำดับ index ให้หน้าต่างแต่งภาพก่อนอ่านดู (PNG data URL)
+#[tauri::command]
+pub async fn ocr_prep_preview(index: usize, prep: Prep) -> Result<String, String> {
+    tauri::async_runtime::spawn_blocking(move || {
+        let file = session().as_ref().and_then(|s| s.items.get(index)).map(|it| it.img.file.clone()).ok_or("ยังไม่ได้เปิดซับรูปในหน้า OCR")?;
+        let img = image::open(&file).map_err(|e| format!("เปิดภาพซับไม่ได้ {e}"))?.to_rgba8();
+        Ok(png_url(&crate::ocrprep::preprocess(&img, &prep)))
+    }).await.map_err(|e| e.to_string())?
+}
+
+/// โมเดล PaddleOCR ที่แนบมา (ชื่อโฟลเดอร์ที่มี inference.onnx)
+#[tauri::command]
+pub fn ocr_paddle_models(app: tauri::AppHandle) -> Result<Vec<String>, String> { Ok(crate::paddle::models(&Dirs::of(&app)?.ocr)) }
+
+/// ลบฐานของผู้ใช้ลงถังขยะ (หน้าต่างตั้งค่า nOCR ปุ่มลบ) · ฐานที่แนบมาลบไม่ได้ · ฐานที่โหลดอยู่ในงานนี้ปิดก่อน
+#[tauri::command]
+pub fn ocr_db_delete(app: tauri::AppHandle, kind: String, name: String) -> Result<(), String> {
+    check_name(&name)?;
+    let d = Dirs::of(&app)?;
+    let (_, user) = db_paths(&d, &kind, &name);
+    if !user.is_file() { return Err(format!("ฐาน {name} เป็นฐานที่แนบมากับโปรแกรม ลบไม่ได้")); }
+    crate::outfile::to_trash(&user)?;
+    if let Some(s) = session().as_mut() {
+        if s.nocr.as_ref().is_some_and(|x| x.0 == name) && kind == "nocr" { s.nocr = None; }
+        if s.bin.as_ref().is_some_and(|x| x.0 == name) && kind == "binary" { s.bin = None; }
+        if s.own.as_ref().is_some_and(|x| x.0 == name) && kind == "own" { s.own = None; }
+    }
+    Ok(())
+}
+
 /// หยุดงาน · ล้างตัวที่รอสอนกับคำตอบที่ผูกกับภาพ
 #[tauri::command]
 pub fn ocr_stop() {

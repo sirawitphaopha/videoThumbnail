@@ -18,6 +18,8 @@ export type OcrRow = {
   edited: boolean;
   /** ชื่อเดียวกันเขียนสองแบบ คิดจากทั้งไฟล์หลังอ่านจบรอบ */
   names: OcrReason[];
+  /** ผู้ใช้กดว่าถูกแล้ว ไม่นับเป็นจุดที่ต้องตรวจ */
+  ok: boolean;
   error: string | null;
 };
 /** คำที่ไม่รู้จักที่รอถาม · ปุ่มตาม PromptUnknownWordWindow ของ Subtitle Edit */
@@ -115,7 +117,7 @@ export function ocrElapsed(now = Date.now()) {
 // ---------------------------------------------------------------- เปิดซับรูป
 
 function rowsOf(src: OcrSource): OcrRow[] {
-  return src.items.map((item) => ({ item, state: "wait", text: "", line: null, edited: false, names: [], error: null }));
+  return src.items.map((item) => ({ item, state: "wait", text: "", line: null, edited: false, names: [], ok: false, error: null }));
 }
 
 /** เปิดซับรูป (ไฟล์ .sup .idx .xml หรือแทร็กในหนัง ff) · งานเดิมที่ยังอ่านอยู่ต้องหยุดก่อน */
@@ -162,6 +164,22 @@ export function setPromptUnknown(on: boolean) {
 export function setRowText(i: number, text: string) {
   if (!j.rows[i]) return;
   patchRow(i, { text, edited: true });
+}
+/** กดว่าบรรทัดนี้ถูกแล้ว หรือเอาออก */
+export function setRowOk(i: number, ok: boolean) {
+  if (j.rows[i]) patchRow(i, { ok });
+}
+/** เหตุที่สงสัยของบรรทัด รวมชื่อสองแบบ · กดถูกแล้วไม่มีเหตุ */
+export function rowReasons(r: OcrRow): OcrReason[] {
+  return r.ok || !r.line ? [] : [...r.line.reasons, ...r.names];
+}
+/** คำที่ผู้ใช้จำแล้ว (เพิ่มชื่อ เพิ่มพจนานุกรม ข้ามทุกที่ เปลี่ยนทุกที่) ไม่นับเป็นคำที่ไม่รู้จักอีกในทุกบรรทัด ไม่ต้องอ่านใหม่ */
+export function forgetWord(w: string) {
+  set({ rows: j.rows.map((r) => {
+    if (!r.line || !r.line.unknown.includes(w)) return r;
+    const reasons = r.line.reasons.map((x) => (x.kind === "unknown" ? { ...x, words: x.words.filter((y) => y !== w) } : x)).filter((x) => x.kind !== "unknown" || x.words.length);
+    return { ...r, line: { ...r.line, unknown: r.line.unknown.filter((y) => y !== w), reasons } };
+  }) });
 }
 /** คิดชื่อสองแบบใหม่ทั้งไฟล์ · เรียกหลังอ่านจบรอบและหลังแก้ข้อความ */
 export async function refreshNames() {
@@ -214,13 +232,13 @@ async function askWords(i: number, words: string[]): Promise<boolean> {
       case "stop": return false;
       case "useOnce": patchRow(i, { text: replaceWord(j.rows[i].text, w, a.to) }); break;
       case "changeAll":
-        await ocrApi.word("changeAll", w, a.to).catch(() => {});
+        await ocrApi.word("changeAll", w, a.to).catch(() => {}); forgetWord(w);
         patchRow(i, { text: replaceWord(j.rows[i].text, w, a.to) });
         break;
       case "skipOnce": skipped.add(w); break;
-      case "skipAll": await ocrApi.word("skipAll", w).catch(() => {}); skipped.add(w); break;
-      case "addWord": await ocrApi.word("addWord", w).catch(() => {}); skipped.add(w); break;
-      case "addName": await ocrApi.word("addName", w).catch(() => {}); skipped.add(w); break;
+      case "skipAll": await ocrApi.word("skipAll", w).catch(() => {}); forgetWord(w); skipped.add(w); break;
+      case "addWord": await ocrApi.word("addWord", w).catch(() => {}); forgetWord(w); skipped.add(w); break;
+      case "addName": await ocrApi.word("addName", w).catch(() => {}); forgetWord(w); skipped.add(w); break;
       case "editLine": patchRow(i, { text: a.text, edited: true }); return true;
     }
   }
@@ -242,7 +260,7 @@ async function readOne(i: number): Promise<boolean> {
     const { kind: _k, ...line } = r;
     void _k;
     // สั่งอ่านบรรทัดนี้เอง ผลใหม่แทนข้อความที่แก้ไว้ (บรรทัดที่อ่านแล้วไม่อยู่ในรอบอ่านทั้งไฟล์ จึงไม่ถูกทับเอง)
-    patchRow(i, { state: "done", line, text: line.text, edited: false, error: null });
+    patchRow(i, { state: "done", line, text: line.text, edited: false, ok: false, error: null });
     if (j.promptUnknown && line.unknown.length) return askWords(i, line.unknown);
     return true;
   }
@@ -312,6 +330,9 @@ if (inApp) {
     if (j.opening && e.payload.path === j.path && e.payload.ff === j.ff) set({ openPercent: e.payload.percent });
   });
 }
+
+/** รุ่นทดสอบ ตัวตรวจคุมงานผ่านตัวนี้แทนการกดดรอปดาวน์ทีละชั้น · ตัวจริงไม่มี */
+if (import.meta.env.DEV) (window as unknown as { __ocrJob: object }).__ocrJob = { get: getOcrJob, setCfg: setOcrCfg, start: startOcr, pause: pauseOcr, resume: resumeOcr, stop: stopOcr, answerTeach, answerWord, setText: setRowText, setPrompt: setPromptUnknown };
 
 /** ตรรกะล้วนให้ตัวตรวจเรียกตรง (ไม่แตะ Rust) */
 export const __ocrJobLib = { replaceWord };

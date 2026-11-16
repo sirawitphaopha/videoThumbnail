@@ -18,8 +18,9 @@ import { usePageActiveRef } from "../lib/pageActive";
 import { ftName, isImageSub } from "../lib/ftypes";
 import { langName } from "../lib/langs";
 import { CardIcon, J, Keep, Phr, Seg, Skel, dropClick } from "../components/ui";
-import { IbPencil, IbTable, IcExtract, IcFile, IcFolder, IcMix } from "../components/icons";
+import { IbPencil, IbTable, IbWand, IcExtract, IcFile, IcFolder, IcMix, IcSubtitle } from "../components/icons";
 import SubViewer from "../components/SubViewer";
+import OcrPage from "./ocr/OcrPage";
 import InfoTip from "../components/InfoTip";
 
 const MOVIE_EXT = ["mkv", "mp4", "m4v", "mov", "avi", "webm", "ts", "m2ts", "mpg", "mpeg", "vob", "flv"];
@@ -62,6 +63,8 @@ export default function SubtitlePage({ onAv, onSettings }: { onAv: () => void; o
   const [videoErr, setVideoErr] = useState<string | null>(null);
   const [exp, setExp] = useState<Exp | null>(null);
   const [subTab, setSubTab] = useState<"aeg" | "long" | "pad">("aeg");
+  /** งานที่ทำกับซับรูป ดูซับ หรือ OCR เป็นตัวหนังสือ (แผน OCR ขั้น 11 · ข้อ 143 ㉔) */
+  const [imgMode, setImgMode] = useState<"view" | "ocr" | "edit">("view");
   const pageOn = usePageActiveRef();
   /** งานที่รอถามก่อน เพราะซับที่แก้ยังไม่บันทึก · busy ระหว่างบันทึก */
   const [guard, setGuard] = useState<{ go: () => void; busy: boolean; err: string | null } | null>(null);
@@ -186,7 +189,7 @@ export default function SubtitlePage({ onAv, onSettings }: { onAv: () => void; o
   const showDrop = !file || over;
   const many = !!file && (file.movie || file.subs.length > 1);
   return (
-    <div className="pagewrap" data-subtitle-page>
+    <div className="pagewrap" data-subtitle-page data-ocr-on={(st && isImage(st) && imgMode === "ocr") || undefined}>
       <div className="ag">
         <div className="gmodebar subpage-bar" data-sub-bar>
           <button type="button" className="btn btn-ghost" style={{ height: 36 }} onClick={onAv} data-subtitle-go-av><IcMix />ไปหน้าเสียงและซับ</button>
@@ -195,6 +198,9 @@ export default function SubtitlePage({ onAv, onSettings }: { onAv: () => void; o
             {file.video && <span className="small subpage-name" title={file.video}>ดูคู่กับ {nameOf(file.video)}</span>}
             <span style={{ flex: 1 }} />
             {/* ปุ่มเลือกแบบการดูอยู่แถวบนข้างปุ่มเพิ่มไฟล์ (BUGS ข้อ 109 พี่กัน "เอาปุ่มเลือกรูปแบบไปไว้ตรงปุ่มเพิ่มวิดีโอ") · ซับรูปมีแบบเดียว ไม่ขึ้น */}
+            {st && isImage(st) && <span className="subpage-seg" data-sub-mode><Seg label="งานที่ทำกับซับนี้" value={imgMode} onChange={setImgMode}
+              options={[{ value: "view", label: <><IcSubtitle size={14} />ดูซับ</> }, { value: "ocr", label: <><IbWand size={14} />OCR เป็นตัวหนังสือ</> },
+                { value: "edit", label: <><IbTable size={14} />แก้ซับกับวิดีโอ</>, off: "ซับรูปต้อง OCR เป็นตัวหนังสือก่อน จึงจะแก้กับวิดีโอได้" }]} /></span>}
             {st && !isImage(st) && <span className="subpage-seg" data-sub-tabs><Seg label="แบบการดู" value={subTab} onChange={setSubTab}
               options={[{ value: "aeg", label: <><IbTable size={14} />แบบ Aegisub</> }, { value: "long", label: <><IcFile size={14} />แบบอ่านยาว</> }, { value: "pad", label: <><IbPencil size={14} />แบบ notepad</> }]} /></span>}
             {file.movie
@@ -270,7 +276,8 @@ export default function SubtitlePage({ onAv, onSettings }: { onAv: () => void; o
           </div>
         )}
         {st && file && !busy && (isImage(st)
-          ? <SubViewer inline tab={subTab} key={`${st.key}|${file.video ?? ""}`} track={st} movie={file.movie ? file.path : file.video ?? ""} refStream={refStream} refIdx={file.refIdx}
+          ? imgMode === "ocr" ? <OcrPage key={st.key} track={st} movie={file.movie ? file.path : file.video ?? ""} />
+          : <SubViewer inline onOcr={() => setImgMode("ocr")} tab={subTab} key={`${st.key}|${file.video ?? ""}`} track={st} movie={file.movie ? file.path : file.video ?? ""} refStream={refStream} refIdx={file.refIdx}
             onAddMovie={!file.movie ? () => void addVideo() : undefined} onClose={() => setView(null)} />
           : <SubEditor key={st.key} track={st} tab={subTab} moviePath={file.path} video={file.movie ? file.path : file.video ?? ""} refStream={refStream} refIdx={file.refIdx}
             label={st.inMovie ? `${nameOf(file.path)} ซับที่ ${file.subs.indexOf(st) + 1}` : nameOf(st.src)} fps={file.vid?.fps ?? null} playRes={file.vid?.res ?? null}

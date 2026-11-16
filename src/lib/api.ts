@@ -776,7 +776,13 @@ export type OcrWordAction = "changeAll" | "skipAll" | "addName" | "addWord";
 export type OcrTaught = { index: number; engine: OcrEngine; db: string; text: string; italic: boolean; pieces: number };
 export type OcrDbList = { nocr: string[]; binary: string[]; own: string[] };
 
+/** ชุดภาษาของ Tesseract · have bundled แนบมา downloaded โหลดแล้ว ว่างคือยังไม่มี */
+export type OcrTessLang = { code: string; name: string; have: "" | "bundled" | "downloaded" };
 export const ocrApi = {
+  tessLangs: () => call<OcrTessLang[]>("ocr_tess_langs"),
+  /** โหลดชุดภาษา · ความคืบหน้าทางเหตุการณ์ ocr-tess-progress { code percent } */
+  tessDownload: (code: string) => call<void>("ocr_tess_download", { code }),
+  tessCancel: () => call<void>("ocr_tess_cancel"),
   /** เปิดซับรูป · ความคืบหน้าทางเหตุการณ์ subimg-progress · ภาพเก็บไว้ฝั่ง Rust ให้ read อ่านต่อ */
   source: (path: string, ff: number) => call<OcrSource>("ocr_source", { path, ff }),
   sourcePngs: (files: string[]) => call<OcrSource>("ocr_source_pngs", { files }),
@@ -790,4 +796,9 @@ export const ocrApi = {
   dbs: () => call<OcrDbList>("ocr_dbs"),
   history: () => call<OcrTaught[]>("ocr_history"),
   stop: () => call<void>("ocr_stop"),
+  /** ภาพที่แต่งแล้วของภาพลำดับ index (นับจาก 0) */
+  prepPreview: (index: number, prep: OcrPrep) => call<string>("ocr_prep_preview", { index, prep }),
+  paddleModels: () => call<string[]>("ocr_paddle_models"),
+  /** ลบฐานของผู้ใช้ลงถังขยะ · kind nocr binary own */
+  dbDelete: (kind: "nocr" | "binary" | "own", name: string) => call<void>("ocr_db_delete", { kind, name }),
 };

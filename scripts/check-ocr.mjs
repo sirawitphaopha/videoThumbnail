@@ -1,0 +1,170 @@
+// หน้า OCR ซับรูป (แผน OCR ขั้น 11 · BUGS ข้อ 143 · src/pages/ocr/OcrPage.tsx OcrDialogs.tsx lib/ocrJob.ts ocrjob.rs)
+// ตรวจ ปุ่มเปิด OCR ข้างปุ่มแปลงซับภาพ · ปุ่มเลือกงานสามแบบ · แถวเลือกตัวอ่านไม่ล้นไม่ซ้อน · อ่านจริงทั้งไฟล์ด้วย PaddleOCR ไทย ความคืบหน้า สรุป
+//   · แก้ข้อความ ตัวเอียง ถูกแล้ว · แบบตรวจทีละจุด · หน้าต่างสอนตัวอักษรกับฐาน nOCR ว่าง (ขยายกรอบ จำ ข้าม ใช้ครั้งเดียว หยุด) ฐานลงโฟลเดอร์ผู้ใช้แล้วลบลงถังขยะตอนจบ
+//   · หน้าต่างแต่งภาพ ตัวอ่านและชุดภาษา ตัวเลือก ขนาดเท่ากัน ไม่ต้องเลื่อน Esc ปิด · ภาพหลังแต่งจาก Rust · ระยะใต้แถวบน กรอบลงถึงล่างหน้าต่าง
+//   · ตั้ง MOVIE_SHELF_OCR_SUP (ซับ ACCA) ตรวจหน้าต่างคำที่ไม่รู้จักระหว่างอ่านเพิ่ม ภาพของไฟล์นี้ไม่บันทึก (ห้ามขึ้น git)
+// ใช้: เปิด scripts/dev-app.ps1 ก่อน แล้ว node scripts/check-ocr.mjs · ตอนพี่กันทำงานอยู่ส่ง NOGATE=1
+// คืนค่าตั้ง OCR แบบตรวจทาน และการถามคำที่ไม่รู้จักเป็นค่าเดิมตอนจบ · ล้างหน้าซับไตเติลก่อนและหลัง · ภาพลง docs/report-2026-11-16/OCR-ขั้น11/
+import { mkdirSync } from "node:fs";
+import { execFileSync } from "node:child_process";
+import { connect, sleep } from "./lib/cdp-client.mjs";
+
+const NOGATE = process.env.NOGATE === "1";
+const gate = () => { if (NOGATE) return; try { execFileSync("powershell", ["-NoProfile", "-ExecutionPolicy", "Bypass", "-File", "scripts/fg-gate.ps1"], { stdio: "ignore" }); } catch { console.log("หน้าต่างชั้นหนังอยู่หน้าสุดของจอ หยุดตรวจ"); process.exit(2); } };
+gate();
+const TH = "D:/movie-shelf/test-media/สร้าง/ocr/th.sup";
+const ACCA = process.env.MOVIE_SHELF_OCR_SUP?.replace(/\\/g, "/");
+const SHOT = "docs/report-2026-11-16/OCR-ขั้น11";
+const DB = "ตรวจหน้าOCR";
+mkdirSync(SHOT, { recursive: true });
+
+const c = await connect();
+const q = (js) => c.evaluate(`(async () => { ${js} })()`);
+const results = [];
+const check = (name, ok, note = "") => { results.push(!!ok); console.log(`${ok ? "✅" : "❌"} ${name}${note !== "" ? " · " + note : ""}`); };
+const waitFor = async (js, ms = 8000) => { const t = Date.now(); while (Date.now() - t < ms) { if (await q(js)) return true; await sleep(200); } return false; };
+const nav = (label) => q(`[...document.querySelectorAll('.side .nav')].find((b) => b.innerText.trim().split('\\n')[0] === ${JSON.stringify(label)})?.click(); return 1;`);
+const click = async (sel) => { gate(); await c.click(sel); };
+const job = (js) => q(`const j = window.__ocrJob; ${js}`);
+
+// เริ่มจากหน้าโหลดใหม่ ตัวเก็บงานว่าง · เก็บค่าตั้งเดิมไว้คืนตอนจบ
+await q("location.reload(); return 1;").catch(() => {});
+await sleep(5000);
+const saved = await q("return { cfg: localStorage.getItem('ms.ocrCfg'), prompt: localStorage.getItem('ms.ocrPrompt'), view: localStorage.getItem('ms.ocrView') };");
+await q("localStorage.removeItem('ms.ocrCfg'); localStorage.removeItem('ms.ocrPrompt'); localStorage.setItem('ms.ocrView', 'table'); location.reload(); return 1;").catch(() => {});
+await sleep(5000);
+await q(`await window.__TAURI_INTERNALS__.invoke('ocr_db_delete', { kind: 'nocr', name: ${JSON.stringify(DB)} }).catch(() => {}); return 1;`);
+await nav("ซับไตเติล"); await sleep(600);
+await q(`window.__subClear(); window.__subOpen(${JSON.stringify(TH)}); return 1;`);
+
+// ---------- ปุ่มเปิดกับปุ่มเลือกงาน ----------
+check("ซับรูปมีปุ่ม OCR เป็นตัวหนังสือข้างปุ่มแปลงซับภาพ", await waitFor("const a = document.querySelector('[data-imgconv-open]'), b = document.querySelector('[data-ocr-open]'); return !!(a && b && a.nextElementSibling === b);", 30000));
+const modes = await q("return [...document.querySelectorAll('[data-sub-mode] button')].map((b) => ({ t: b.innerText.trim(), off: b.getAttribute('aria-disabled'), why: b.title }));");
+check("ปุ่มเลือกงานสามแบบ ดูซับ OCR แก้ซับกับวิดีโอ", modes.length === 3 && modes[0].t === "ดูซับ" && modes[1].t.includes("OCR"), JSON.stringify(modes.map((m) => m.t)));
+check("แก้ซับกับวิดีโอยังกดไม่ได้พร้อมเหตุผล", modes[2]?.off === "true" && modes[2].why.includes("OCR"), modes[2]?.why);
+await click("[data-ocr-open]");
+check("กดแล้วขึ้นหน้า OCR แทนตัวดูซับรูป 17 ภาพ", await waitFor("return document.querySelectorAll('[data-ocr-table] tbody tr').length === 17 && !document.querySelector('[data-subviewer-inline]');", 30000));
+check("ปุ่มเลือกงานเปลี่ยนเป็น OCR", await q("return document.querySelector('[data-sub-mode] button[aria-pressed=true]')?.innerText.includes('OCR');"));
+
+// ---------- แถวเลือกตัวอ่าน ----------
+const row = await q(`const r = document.querySelector('[data-ocr-engine]'); const kids = [...r.children].map((k) => k.getBoundingClientRect()).filter((b) => b.width > 0);
+  let lap = 0; for (let i = 1; i < kids.length; i++) if (kids[i].left < kids[i - 1].right - 0.5) lap++;
+  return { over: r.scrollWidth - r.clientWidth, lap, right: Math.max(...kids.map((b) => b.right)), box: r.getBoundingClientRect().right };`);
+check("แถวเลือกตัวอ่านไม่ล้นไม่ซ้อนที่หน้าต่าง 1280 × 800", row.over <= 0 && row.lap === 0 && row.right <= row.box + 0.5, JSON.stringify(row));
+const gap = await q("const b = document.querySelector('[data-sub-bar]').getBoundingClientRect(), d = document.querySelector('[data-ocr-engine] > div').getBoundingClientRect(), f = document.querySelector('[data-ocr-foot]').getBoundingClientRect(); return { gap: Math.round(d.top - b.bottom), foot: Math.round(innerHeight - f.bottom) };");
+check("ระยะใต้แถวบนถึงแถวเลือกตัวอ่านไม่เกิน 24 จุด", gap.gap <= 24, `${gap.gap} จุด`);
+check("แถบล่างลงถึงล่างหน้าต่าง เหลือไม่เกิน 16 จุด", gap.foot <= 16, `${gap.foot} จุด`);
+await c.shot(`${SHOT}/01-ก่อนอ่าน.png`);
+
+// ---------- อ่านจริงด้วย PaddleOCR ไทย ----------
+await job("j.setCfg({ engine: 'paddle', paddle: { lang: 'th', size: 'small', vertical: 'auto', orientation: false }, helpers: ['own'], lang3: 'tha', dict: '' }); return 1;");
+await click("[data-ocr-start]");
+check("ระหว่างอ่านมีแถบความคืบหน้ากับปุ่มหยุดชั่วคราว", await waitFor("return !!document.querySelector('[data-ocr-prog]') && !!document.querySelector('[data-ocr-pause]');", 8000));
+check("ระหว่างอ่านแถวเลือกตัวอ่านเปลี่ยนไม่ได้พร้อมเหตุผล", await q("return [...document.querySelectorAll('[data-ocr-engine] .dd')].some((d) => (d.title || d.closest('[title]')?.title || '').includes('หยุดอ่านก่อน'));"));
+check("อ่านครบ 17 ภาพ", await waitFor("const g = window.__ocrJob.get(); return !g.running && g.rows.every((r) => r.state === 'done');", 120000));
+const sum = await q("return { sum: document.querySelector('[data-ocr-sum]')?.innerText ?? '', foot: document.querySelector('[data-ocr-foot]')?.innerText ?? '', flagged: document.querySelectorAll('[data-ocr-table] tbody tr.flag').length, rs: window.__ocrJob.get().rows.filter((r) => !r.ok && r.line && (r.line.reasons.length + r.names.length)).length };");
+check("สรุปบอกอ่านครบกับจำนวนภาพที่ควรตรวจ", sum.sum.includes("อ่านครบ 17 ภาพแล้ว") && sum.sum.includes(`${sum.rs} ภาพที่ควรตรวจ`), sum.sum.replace(/\n/g, " "));
+check("แถวที่ติดแถบเหลืองเท่าจำนวนที่ควรตรวจ", sum.flagged === sum.rs, `${sum.flagged} กับ ${sum.rs}`);
+check("แถบล่างบอกเวลาที่ใช้อ่าน", /อ่าน 17 ภาพ ใช้เวลา \d+:\d\d/.test(sum.foot), sum.foot.replace(/\n/g, " "));
+check("ตัวช่วยตรวจ (ตัวสอนเองฐานว่าง) อ่านไม่ตรงจึงถูกชี้ทุกภาพที่มีข้อความ", sum.rs >= 15, `${sum.rs} ภาพ`);
+await c.shot(`${SHOT}/02-อ่านครบ.png`);
+
+// ---------- แก้ข้อความ ตัวเอียง ถูกแล้ว ----------
+await q("document.querySelector('[data-ocr-table] tbody tr[data-i=\"0\"]').click(); return 1;"); await sleep(400);
+const t0 = await job("return j.get().rows[0].text;");
+await click("[data-ocr-edit] [aria-label=ตัวเอียง]"); await sleep(300);
+check("ปุ่มตัวเอียงไม่ได้เลือกครอบทั้งบรรทัดด้วย <i>", (await job("return j.get().rows[0].text;")) === `<i>${t0}</i>`);
+await click("[data-ocr-edit] [aria-label=ตัวเอียง]"); await sleep(300);
+check("กดซ้ำเอาแท็กออก", (await job("return j.get().rows[0].text;")) === t0);
+await click("[data-ocr-text]"); await c.key("End"); await c.type(" ก"); await sleep(300);
+check("พิมพ์ในช่องข้อความแล้วงานเปลี่ยนตาม", (await job("return j.get().rows[0].text;")) === `${t0} ก`);
+await job(`j.setText(0, ${JSON.stringify(t0)}); return 1;`);
+const before = await q("return document.querySelectorAll('[data-ocr-table] tbody tr.flag').length;");
+await click("[data-ocr-ok]"); await sleep(400);
+check("ถูกแล้วเอาบรรทัดออกจากจุดที่ต้องตรวจ", (await q("return document.querySelectorAll('[data-ocr-table] tbody tr.flag').length;")) === before - 1 && (await job("return j.get().rows[0].ok;")));
+check("แถวที่กดถูกแล้วขึ้นว่าตรวจแล้ว", (await q("return document.querySelector('[data-ocr-table] tbody tr[data-i=\"0\"]').innerText;")).includes("ตรวจแล้ว"));
+
+// ---------- แบบตรวจทีละจุด ----------
+await q("[...document.querySelectorAll('[data-ocr-sum] .seg button')].find((b) => b.innerText.includes('ทีละจุด')).click(); return 1;"); await sleep(600);
+const one = await q("return { list: document.querySelectorAll('[data-ocr-one] .ocr-onelist .ocr-eitem').length, flagged: window.__ocrJob.get().rows.filter((r) => !r.ok && r.line && (r.line.reasons.length + r.names.length)).length, img: !!document.querySelector('[data-ocr-one] .ocr-screen img') };");
+check("แบบทีละจุดมีรายการเท่าจุดที่ต้องตรวจ และภาพบนจอ", one.list === one.flagged && one.img, JSON.stringify(one));
+await click("[data-ocr-oknext]"); await sleep(500);
+check("ถูกแล้วไปจุดถัดไป รายการลดหนึ่ง", (await q("return document.querySelectorAll('[data-ocr-one] .ocr-onelist .ocr-eitem').length;")) === one.list - 1);
+check("ปุ่มสอนตัวอักษรกดไม่ได้เมื่อตัวหลักเป็น PaddleOCR พร้อมเหตุผล", await q("const b = [...document.querySelectorAll('[data-ocr-one] button')].find((x) => x.innerText.includes('สอนตัวอักษร')); return b?.getAttribute('aria-disabled') === 'true' && b.title.includes('nOCR');"));
+await c.shot(`${SHOT}/03-ทีละจุด.png`);
+await q("[...document.querySelectorAll('[data-ocr-sum] .seg button')].find((b) => b.innerText.includes('ตาราง')).click(); return 1;"); await sleep(500);
+check("จำแบบตรวจทานล่าสุด", (await q("return localStorage.getItem('ms.ocrView');")) === "table");
+
+// ---------- หน้าต่างสอนตัวอักษร ฐาน nOCR ว่าง ----------
+await job(`j.setCfg({ engine: 'nocr', nocrDb: ${JSON.stringify(DB)}, fix: false, teach: true, helpers: [] }); return 1;`);
+await job("j.start([0]); return 1;");
+check("ฐานว่างอ่านแล้วขึ้นหน้าต่างสอน", await waitFor("return !!document.querySelector('[data-ocr-teach-dlg]') && !!window.__ocrJob.get().teach;", 15000));
+const t1 = await job("const t = j.get().teach; return { letter: t.letter, exp: t.expandMax, title: document.querySelector('.dlg h2, .dlg .ttl, .dlg header')?.innerText ?? '' };");
+check("หัวหน้าต่างบอกภาพ ตัวที่ และฐาน", /สอนตัวอักษร ภาพที่ 1 ตัวที่ 1 จาก \d+ ฐาน ตรวจหน้าOCR/.test(await q("return document.querySelector('.dlg')?.innerText ?? '';")));
+check("ปุ่มหดกรอบกดไม่ได้ตอนกรอบเหลือชิ้นเดียว", await q("return document.querySelector('[data-teach-shrink]').getAttribute('aria-disabled') === 'true';"));
+await c.shot(`${SHOT}/04-สอนตัวอักษร.png`);
+await click("[data-teach-text]"); await c.type("ก"); await sleep(200);
+await click("[data-teach-learn]");
+check("จำตัวนี้แล้วถามตัวถัดไป ไม่ถามตัวที่สอนแล้ว", await waitFor(`const t = window.__ocrJob.get().teach; return !!t && t.letter > ${t1.letter};`, 15000));
+const dbs = await q("return await window.__TAURI_INTERNALS__.invoke('ocr_dbs');");
+check("ฐานที่สอนไปอยู่ในรายชื่อฐาน", dbs.nocr.includes(DB), JSON.stringify(dbs.nocr));
+const l2 = await job("return j.get().teach.letter;");
+await click("[data-teach-skip]");
+check("ข้ามใส่ * แล้วถามตัวถัดไป", await waitFor(`const t = window.__ocrJob.get().teach; return !!t && t.letter > ${l2};`, 15000));
+await click("[data-teach-text]"); await c.type("x"); await sleep(200);
+await click("[data-teach-once]");
+check("ใช้ครั้งเดียวแล้วอ่านต่อ", await waitFor("const g = window.__ocrJob.get(); return !!g.teach || !g.running;", 15000));
+await click("[data-teach-stop]");
+check("หยุดอ่านปิดหน้าต่าง งานหยุด ภาพกลับเป็นรออ่าน", await waitFor("const g = window.__ocrJob.get(); return !g.running && !g.teach && !document.querySelector('[data-ocr-teach-dlg]') && g.rows[0].state !== 'work';", 8000));
+const hist = await q("return await window.__TAURI_INTERNALS__.invoke('ocr_history');");
+check("ประวัติที่สอนมีตัวที่จำ", hist.some((h) => h.text === "ก" && h.db === DB), JSON.stringify(hist.slice(0, 3)));
+
+// ---------- หน้าต่างแต่งภาพ ตัวอ่านและชุดภาษา ตัวเลือก ----------
+await job("j.setCfg({ engine: 'paddle', fix: true }); return 1;");
+const sizes = [];
+for (const [btn, sel, name] of [["[data-ocr-prep-open]", "[data-ocr-prep-dlg]", "05-แต่งภาพ"], ["[data-ocr-models-open]", "[data-ocr-models-dlg]", "06-ตัวอ่านและชุดภาษา"], ["[data-ocr-options-open]", "[data-ocr-options-dlg]", "07-ตัวเลือก"]]) {
+  await click(btn);
+  const ok = await waitFor(`return !!document.querySelector('${sel}');`, 5000);
+  await sleep(1500);
+  const m = await q(`const d = document.querySelector('.dlg').getBoundingClientRect(), b = document.querySelector('${sel}'); return { w: Math.round(d.width), h: Math.round(d.height), scroll: b.scrollHeight - b.clientHeight, prev: !!document.querySelector('[data-prep-preview] img') };`);
+  sizes.push(m);
+  check(`${name.slice(3)} เปิดได้ ไม่ต้องเลื่อน`, ok && m.scroll <= 0, JSON.stringify(m));
+  if (name.includes("แต่งภาพ")) check("ภาพที่ส่งให้ตัวอ่านมาจาก Rust", m.prev);
+  await c.shot(`${SHOT}/${name}.png`);
+  await c.key("Escape");
+  check(`${name.slice(3)} กด Esc ปิด`, await waitFor(`return !document.querySelector('${sel}');`, 3000));
+}
+check("หน้าต่างซ้อนทุกหน้าต่างขนาดเท่ากัน", sizes.every((s) => s.w === sizes[0].w && s.h === sizes[0].h), JSON.stringify(sizes.map((s) => `${s.w}×${s.h}`)));
+
+// ---------- คำที่ไม่รู้จักระหว่างอ่าน (ซับ ACCA ไม่บันทึกภาพ) ----------
+if (ACCA) {
+  await q(`window.__subClear(); window.__subOpen(${JSON.stringify(ACCA)}); return 1;`);
+  // หน้ายังอยู่ในงาน OCR ต่อจากไฟล์ก่อน หน้า OCR ขึ้นเลย ไม่ต้องกดปุ่มเปิด
+  await waitFor("return !!document.querySelector('[data-ocr-open]') || !!document.querySelector('[data-ocr-page]');", 60000);
+  check("เปิดไฟล์อื่นตอนอยู่ในงาน OCR หน้า OCR ขึ้นต่อเลย", await q("return !!document.querySelector('[data-ocr-page]') && !document.querySelector('[data-subviewer-inline]');"));
+  await waitFor("return document.querySelectorAll('[data-ocr-table] tbody tr').length === 439;", 120000);
+  // อ่าน 12 ภาพแรกโดยไม่ถาม หาภาพแรกที่มีคำที่ไม่รู้จัก แล้วอ่านภาพนั้นใหม่แบบถามทีละคำ
+  // ทดสอบด้วยปุ่มข้ามทุกที่ซึ่งไม่จำถาวร ตัวตรวจรันซ้ำได้ (เพิ่มชื่อกับเพิ่มพจนานุกรมจำลงไฟล์ของผู้ใช้ คำที่เคยเพิ่มจะไม่ถูกถามอีก)
+  await job("j.setCfg({ engine: 'paddle', paddle: { lang: '', size: 'small', vertical: 'auto', orientation: false }, helpers: [], fix: true, lang3: 'eng', dict: 'en_US' }); j.setPrompt(false); j.start([0,1,2,3,4,5,6,7,8,9,10,11]); return 1;");
+  await waitFor("const g = window.__ocrJob.get(); return !g.running && g.rows.slice(0, 12).every((r) => r.state === 'done');", 60000);
+  const hit = await job("const k = j.get().rows.findIndex((r) => r.line && r.line.unknown.length); return k < 0 ? null : { k, w: j.get().rows[k].line.unknown[0] };");
+  check("ACCA 12 ภาพแรกมีคำที่ไม่รู้จัก", !!hit, JSON.stringify(hit));
+  if (hit) {
+    await job(`j.setPrompt(true); j.start([${hit.k}]); return 1;`);
+    check(`ถามคำที่ไม่รู้จัก ${hit.w} ระหว่างอ่าน`, await waitFor(`const a = window.__ocrJob.get().ask; return !!a && a.word === ${JSON.stringify(hit.w)} && !!document.querySelector('[data-ocr-unknown-dlg]');`, 20000));
+    check("ช่องเปลี่ยนเป็นตั้งต้นเป็นคำเดิม", (await q("return document.querySelector('[data-unk-to]')?.value;")) === hit.w);
+    await click("[data-unk-skipall]");
+    check("ข้ามทุกที่แล้วอ่านจบ คำนั้นไม่ติดเหตุแล้ว", await waitFor(`const g = window.__ocrJob.get(); return !g.running && !g.ask && g.rows[${hit.k}].state === 'done' && !g.rows[${hit.k}].line.unknown.includes(${JSON.stringify(hit.w)});`, 10000));
+  }
+  await job("j.setPrompt(false); return 1;");
+} else console.log("ข้าม คำที่ไม่รู้จักระหว่างอ่าน ไม่ได้ตั้ง MOVIE_SHELF_OCR_SUP");
+
+// ---------- คืนค่า ----------
+await q(`await window.__TAURI_INTERNALS__.invoke('ocr_db_delete', { kind: 'nocr', name: ${JSON.stringify(DB)} }); return 1;`).catch((e) => console.log("ลบฐานทดสอบไม่ได้", e.message));
+check("ลบฐานทดสอบลงถังขยะแล้ว", !(await q("return (await window.__TAURI_INTERNALS__.invoke('ocr_dbs')).nocr;")).includes(DB));
+check("ฐานที่แนบมาลบไม่ได้", await q("try { await window.__TAURI_INTERNALS__.invoke('ocr_db_delete', { kind: 'nocr', name: 'Latin' }); return false; } catch (e) { return String(e).includes('แนบมา'); }"));
+await q(`const s = ${JSON.stringify(saved)}; for (const [k, v] of [['ms.ocrCfg', s.cfg], ['ms.ocrPrompt', s.prompt], ['ms.ocrView', s.view]]) { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } window.__subClear(); return 1;`);
+await q("location.reload(); return 1;").catch(() => {});
+const bad = results.filter((x) => !x).length;
+console.log(`\nผ่าน ${results.length - bad} จาก ${results.length} ข้อ`);
+process.exit(bad ? 1 : 0);

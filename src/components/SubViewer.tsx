@@ -14,7 +14,7 @@ import { listen } from "@tauri-apps/api/event";
 import { checkApi, graphApi, subApi, type GWindow, type SubImg, type SubText } from "../lib/api";
 import type { AvTrack } from "../lib/avJob";
 import { ftName, isImageSub } from "../lib/ftypes";
-import { IbBack, IbNext, IbPlay } from "./icons";
+import { IbBack, IbNext, IbPlay, IbWand } from "./icons";
 import { IcGraph, IbEye, IbTable, IcFile, IbPencil, IbResample } from "./icons";
 import ImgConvDialog from "./ImgConvDialog";
 import InfoTip from "./InfoTip";
@@ -497,6 +497,8 @@ function InlineCard(p: { image: boolean; children: React.ReactNode }) {
 }
 
 export default function SubViewer(p: { track: AvTrack; movie: string; refStream: number | null; refIdx: number | null; onClose: () => void; onAddMovie?: () => void; inline?: boolean;
+  /** ปุ่ม OCR เป็นตัวหนังสือข้างปุ่มแปลงซับภาพ (แผน OCR ขั้น 11 · ข้อ 143 ㉔) · ไม่ส่งไม่มีปุ่ม */
+  onOcr?: () => void;
   /** หน้าซับไตเติลคุมแบบการดูเอง ปุ่มเลือกแบบอยู่แถวบนของหน้า (BUGS ข้อ 109 พี่กัน "เอาปุ่มเลือกรูปแบบไปไว้ตรงปุ่มเพิ่มวิดีโอ") */
   tab?: "aeg" | "long" | "pad" }) {
   const t = p.track;
@@ -527,6 +529,7 @@ export default function SubViewer(p: { track: AvTrack; movie: string; refStream:
         <div className="small"><Phr>{sub}</Phr></div>
         {/* แปลงซับภาพเป็นซับภาพชนิดอื่น (BUGS ข้อ 125 · ImgConvDialog.tsx) */}
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConv(true)} title="แปลงเป็น PGS VobSub หรือ BDN XML และย่อขยายภาพ เปลี่ยนอัตราเฟรม หรือเลื่อนเวลาได้" data-imgconv-open><IbResample size={14} />แปลงซับภาพ</button>
+        {p.onOcr && <button type="button" className="btn btn-main btn-sm" onClick={p.onOcr} title="อ่านซับรูปเป็นตัวหนังสือ แล้วตรวจทานก่อนส่งออก" data-ocr-open><IbWand size={14} />OCR เป็นตัวหนังสือ</button>}
       </div> : <div className="small" style={{ marginTop: p.inline ? 0 : -6 }}><Phr>{sub}</Phr></div>}
       {image && conv && createPortal(<ImgConvDialog open onClose={() => setConv(false)} track={t} movie={p.movie} />, document.body)}
       {image ? <ImageView track={t} path={t.inMovie ? p.movie : t.src} ff={ff} movie={p.movie || undefined} onClose={p.inline ? undefined : p.onClose} onTotal={setImgTotal} />

@@ -34,6 +34,7 @@ const WATCH: &[(&str, &str)] = &[
     ("ocr_tess_download", "โหลดชุดภาษา Tesseract"),
     ("ocr_teach", "สอนตัวอักษร OCR บันทึกลงฐาน"),
     ("ocr_word", "เพิ่มคำของ OCR ลงพจนานุกรม รายชื่อ หรือรายการแก้คำ"),
+    ("ocr_db_delete", "ลบฐานตัวอักษร OCR ลงถังขยะ"),
     ("pgs_export", "ส่งออกซับเป็น PGS"),
     ("imgsub_convert", "แปลงซับภาพเป็นซับภาพ"),
     ("vid_snapshot", "บันทึกหรือคัดลอกภาพจากหน้าแก้ซับ"),
