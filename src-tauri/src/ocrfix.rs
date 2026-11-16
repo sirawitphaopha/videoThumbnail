@@ -854,7 +854,8 @@ mod tests {
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tools/ocr");
         let dict = root.join("Dictionaries");
         let db = crate::nocr::NOcrDb::load(&root.join("Ocr/Latin.nocr")).unwrap();
-        let spell = Hunspell::open(&dict.join("en_US.aff"), &dict.join("en_US.dic")).unwrap();
+        let hun = root.join("hunspell");
+        let spell = Hunspell::open(&hun.join("en_US.aff"), &hun.join("en_US.dic")).unwrap();
         let mut fx = FixEngine::new(&dict, &std::env::temp_dir().join("movie-shelf-ocrfix-acca"), "eng", "en_US", Box::new(spell));
         fx.image_misreads = true;
         fx.fill_unknown = true;
@@ -884,6 +885,18 @@ mod tests {
         eprintln!("ACCA nOCR ฐาน Latin ก่อนแก้ ถูก {ok_raw} อักขระผิด {e_raw} · หลังแก้ ถูก {ok_fix} อักขระผิด {e_fix} จาก {total} ตัว ใน {:.1} วินาที", t.elapsed().as_secs_f64());
         for s in &samples { eprintln!("ภาพ {} ก่อน {:?} หลัง {:?}", s.0, s.1, s.2); }
         assert!(ok_fix > ok_raw && e_fix < e_raw, "ตัวแก้คำไม่ได้ทำให้ใกล้คำตอบขึ้น");
+    }
+
+    /// พจนานุกรมที่แนบมา (LibreOffice ใน tools/ocr/hunspell) รู้จักคำที่เติมท้าย · ชุด en_US ในโฟลเดอร์ Dictionaries ของ Subtitle Edit
+    /// เขียนเครื่องหมายคำเป็นตัวเลขกับตารางย่อ spellbook อ่านไม่ครบ ไม่รู้จัก including business rounds (เจอตอนเทสขั้น 9 วันที่ 16 พ.ย. 2569)
+    #[test]
+    fn bundled_hunspell_knows_inflected_words() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tools/ocr/hunspell");
+        for five in ["en_US", "en_GB"] {
+            let Ok(h) = Hunspell::open(&root.join(format!("{five}.aff")), &root.join(format!("{five}.dic"))) else { return };
+            for w in ["including", "business", "rounds", "nationally", "managing", "Constables", "wrongdoing", "you're"] { assert!(h.correct(w), "{five} ไม่รู้จัก {w}"); }
+            for w in ["Mais", "Dowa", "wronqdoing"] { assert!(!h.correct(w), "{five} ไม่ควรรู้จัก {w}"); }
+        }
     }
 
     #[test]

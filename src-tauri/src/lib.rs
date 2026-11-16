@@ -50,6 +50,7 @@ mod nocr_train;
 mod ownocr;
 mod ocrprep;
 mod ocrfix;
+mod suspect;
 mod ocrfix_guess;
 mod ocrfix_list;
 mod ocrfix_words;
