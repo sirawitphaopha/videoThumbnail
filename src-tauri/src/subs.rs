@@ -866,7 +866,8 @@ mod tests {
         }
         for a in &fast {
             if slow.iter().any(|b| (a.start - b.start).abs() < 0.05) { continue; }
-            assert!(a.end.is_some_and(|e| e - a.start < 0.1), "ภาพ {} ที่ {} วินาทีมีแค่ทางใหม่ และไม่ใช่ภาพสั้น", a.n, a.start);
+            let near = |v: &[SubImg]| v.iter().filter(|x| (x.start - a.start).abs() < 4.0).map(|x| (x.start, x.end, x.at, x.w, x.h)).collect::<Vec<_>>();
+            assert!(a.end.is_some_and(|e| e - a.start < 0.1), "ภาพ {} ที่ {} วินาทีมีแค่ทางใหม่ และไม่ใช่ภาพสั้น · ทางใหม่ใกล้ ๆ {:?} · ทางเดิมใกล้ ๆ {:?}", a.n, a.start, near(&fast), near(&slow));
         }
         let _ = std::fs::remove_dir_all(&w);
     }

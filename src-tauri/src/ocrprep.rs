@@ -232,12 +232,96 @@ pub fn split_lines(img: &RgbaImage) -> Vec<Line> {
     split_lines_alpha(img, 40)
 }
 
+/// แบ่งทีละก้อนหมึกทั้งภาพ แทนการแบ่งทีละแถวแบบเดิม (merge_marks) · สระล่างของบรรทัดบนกับสระบนวรรณยุกต์ของบรรทัดล่างอยู่แถวเดียวกันได้
+/// โดยไม่มีแถวใสคั่น แบ่งทีละแถวแล้วสระบนของบรรทัดล่างไปติดบรรทัดบน · ภาพของแต่ละบรรทัดลบหมึกของบรรทัดอื่นออกแล้ว
+/// (เจอตอนเทส 16 พ.ย. 2569 ซับไทย "ปู่ของฉันเล่าว่า" ได้สระบนของบรรทัดล่างติดมา PaddleOCR อ่านเป็นขีดสองข้าง)
 pub fn split_lines_alpha(img: &RgbaImage, min_alpha: u8) -> Vec<Line> {
-    merge_marks(&runs(&ink_rows(img, min_alpha))).into_iter().map(|(a, b)| Line {
-        y: a,
-        h: b - a,
-        img: image::imageops::crop_imm(img, 0, a, img.width(), b - a).to_image(),
-    }).collect()
+    split_by_components(img, min_alpha).into_iter().map(|(y, im)| Line { y, h: im.height(), img: im }).collect()
+}
+
+/// ก้อนหมึกที่ติดกัน (8 ทิศ) กรอบ (x0 y0 x1 y1 แบบไม่รวมปลาย) กับจุดทั้งหมด
+struct Blob { y0: u32, y1: u32, px: Vec<(u32, u32)> }
+
+fn blobs(img: &RgbaImage, min_alpha: u8) -> Vec<Blob> {
+    let (w, h) = img.dimensions();
+    let mut seen = vec![false; (w * h) as usize];
+    let mut out = vec![];
+    for sy in 0..h {
+        for sx in 0..w {
+            let i = (sy * w + sx) as usize;
+            if seen[i] || img.get_pixel(sx, sy)[3] <= min_alpha { continue; }
+            seen[i] = true;
+            let mut stack = vec![(sx, sy)];
+            let mut b = Blob { y0: sy, y1: sy + 1, px: vec![] };
+            while let Some((x, y)) = stack.pop() {
+                b.px.push((x, y));
+                b.y0 = b.y0.min(y);
+                b.y1 = b.y1.max(y + 1);
+                for dy in -1i32..=1 { for dx in -1i32..=1 {
+                    let (nx, ny) = (x as i32 + dx, y as i32 + dy);
+                    if nx < 0 || ny < 0 || nx >= w as i32 || ny >= h as i32 { continue; }
+                    let j = (ny as u32 * w + nx as u32) as usize;
+                    if !seen[j] && img.get_pixel(nx as u32, ny as u32)[3] > min_alpha { seen[j] = true; stack.push((nx as u32, ny as u32)); }
+                } }
+            }
+            out.push(b);
+        }
+    }
+    out
+}
+
+/// แบ่งภาพเป็นบรรทัดด้วยก้อนหมึก · ก้อนที่สูงอย่างน้อย 45% ของก้อนที่สูงที่สุดเป็นตัวหลัก (เกณฑ์เดียวกับเครื่องหมายลอยในตัวหาเส้นฐานของ Subtitle Edit)
+/// ตัวหลักที่แถวซ้อนกันอย่างน้อยครึ่งของตัวที่เตี้ยกว่าอยู่บรรทัดเดียวกัน · ก้อนเล็ก (สระ วรรณยุกต์ จุด) อยู่กับบรรทัดที่แถวซ้อนกันมากที่สุด
+/// ไม่ซ้อนอยู่กับบรรทัดที่ช่องว่างใกล้กว่า เท่ากันเลือกบรรทัดล่าง (ของที่ลอยเหนือบรรทัดพบบ่อยกว่า) · ช่องว่างไกลเกินครึ่งความสูงของบรรทัดนั้น
+/// เป็นบรรทัดของตัวเอง (บรรทัดที่มีแต่จุดสามจุดหรือขีด) · คืนตำแหน่งบนกับภาพของแต่ละบรรทัดที่ลบหมึกของบรรทัดอื่นออกแล้ว เรียงบนลงล่าง
+fn split_by_components(img: &RgbaImage, min_alpha: u8) -> Vec<(u32, RgbaImage)> {
+    let bl = blobs(img, min_alpha);
+    let hmax = bl.iter().map(|b| b.y1 - b.y0).max().unwrap_or(0);
+    if hmax == 0 { return vec![]; }
+    let is_main: Vec<bool> = bl.iter().map(|b| (b.y1 - b.y0) * 100 >= hmax * 45).collect();
+    let mut mains: Vec<(u32, u32)> = bl.iter().zip(&is_main).filter(|(_, m)| **m).map(|(b, _)| (b.y0, b.y1)).collect();
+    mains.sort();
+    let mut lines: Vec<(u32, u32)> = vec![];
+    for (a, b) in mains {
+        if let Some(l) = lines.last_mut() {
+            let ov = l.1.min(b).saturating_sub(l.0.max(a));
+            if ov * 2 >= (l.1 - l.0).min(b - a) { l.0 = l.0.min(a); l.1 = l.1.max(b); continue; }
+        }
+        lines.push((a, b));
+    }
+    // ก้อนไหนอยู่บรรทัดไหน · usize::MAX คือก้อนที่ห่างทุกบรรทัด
+    let mut owner: Vec<usize> = bl.iter().zip(&is_main).map(|(b, m)| {
+        let best = lines.iter().enumerate().map(|(i, l)| (i, l.1.min(b.y1).saturating_sub(l.0.max(b.y0)))).max_by_key(|x| (x.1, x.0)).unwrap();
+        if best.1 > 0 || *m { return best.0; }
+        let (i, gap) = lines.iter().enumerate().map(|(i, l)| (i, if l.0 >= b.y1 { l.0 - b.y1 } else { b.y0.saturating_sub(l.1) }))
+            .min_by_key(|x| (x.1, std::cmp::Reverse(x.0))).unwrap();
+        if gap * 2 <= (lines[i].1 - lines[i].0).max(4) { i } else { usize::MAX }
+    }).collect();
+    // ก้อนที่ห่างทุกบรรทัด รวมกลุ่มตามแถวที่ซ้อนหรือติดกัน แล้วเป็นบรรทัดของตัวเอง
+    let mut alone: Vec<(u32, u32)> = bl.iter().zip(&owner).filter(|(_, o)| **o == usize::MAX).map(|(b, _)| (b.y0, b.y1)).collect();
+    alone.sort();
+    let mut groups: Vec<(u32, u32)> = vec![];
+    for (a, b) in alone {
+        match groups.last_mut() { Some(g) if a <= g.1 => g.1 = g.1.max(b), _ => groups.push((a, b)) }
+    }
+    for (k, o) in owner.iter_mut().enumerate() {
+        if *o == usize::MAX { *o = lines.len() + groups.iter().position(|g| bl[k].y0 >= g.0 && bl[k].y1 <= g.1).unwrap(); }
+    }
+    lines.extend(groups);
+    let (w, _) = img.dimensions();
+    let mut out: Vec<(u32, RgbaImage)> = (0..lines.len()).filter_map(|li| {
+        let mine: Vec<&Blob> = bl.iter().zip(&owner).filter(|(_, o)| **o == li).map(|(b, _)| b).collect();
+        let top = mine.iter().map(|b| b.y0).min()?;
+        let bottom = mine.iter().map(|b| b.y1).max()?;
+        let mut im = image::imageops::crop_imm(img, 0, top, w, bottom - top).to_image();
+        for (b, o) in bl.iter().zip(&owner) {
+            if *o == li || b.y1 <= top || b.y0 >= bottom { continue; }
+            for &(x, y) in &b.px { if y >= top && y < bottom { im.put_pixel(x, y - top, image::Rgba([0, 0, 0, 0])); } }
+        }
+        Some((top, im))
+    }).collect();
+    out.sort_by_key(|x| x.0);
+    out
 }
 
 /// แถวนี้ใสทั้งแถว (alpha เป็น 0 ทุกจุด) · ตาม NikseBitmap2.IsLineTransparent
@@ -274,7 +358,10 @@ pub fn split_lines_transparent_or_black(img: &RgbaImage) -> Vec<Line> {
 /// ตัวแบ่งบรรทัดของ Subtitle Edit · ส่วนบนที่สูงไม่เกิน min_line_height (จุดของ i) ต่อเข้าบรรทัดถัดไป
 /// ส่วนห้อยใต้บรรทัด (หางของ g ที่แยกแถว) ต่อเข้าบรรทัดเดิม · ภาพเป็นบรรทัดเดียวสูงเกิน 100 ใช้ตัวแบ่งแบบไม่ใสหรือไม่ดำ
 /// ตาม NikseBitmapImageSplitter2.SplitToLines (average_line_height ไม่ใช้ แบบแบ่งเข้มขึ้นทำในขั้น 5 ถ้าจำเป็น)
-pub fn split_lines_se(img: &RgbaImage, min_line_height: u32) -> Vec<Line> {
+pub fn split_lines_se(img: &RgbaImage, min_line_height: u32) -> Vec<Line> { split_lines_se_ex(img, min_line_height).0 }
+
+/// เหมือน split_lines_se และบอกด้วยว่าไปทางภาพทึบทั้งภาพ (split_lines_transparent_or_black) ไหม · ทางนั้น Subtitle Edit ไม่ลองแบ่งแบบเข้มต่อ
+pub fn split_lines_se_ex(img: &RgbaImage, min_line_height: u32) -> (Vec<Line>, bool) {
     let h = img.height();
     let (mut start, mut size) = (0u32, 0u32);
     let mut parts = vec![];
@@ -298,13 +385,13 @@ pub fn split_lines_se(img: &RgbaImage, min_line_height: u32) -> Vec<Line> {
     }
     if size > 1 {
         if size == h {
-            if size > 100 { return split_lines_transparent_or_black(img); }
+            if size > 100 { return (split_lines_transparent_or_black(img), true); }
             parts.push(Line { y: start, h: size, img: img.clone() });
         } else {
             parts.push(copy_rows(img, start, size + 1));
         }
     }
-    parts
+    (parts, false)
 }
 
 // ---------------------------------------------------------------- ขยายภาพเล็ก
@@ -354,6 +441,21 @@ mod tests {
         assert_eq!(l.len(), 2, "{:?}", l.iter().map(|x| (x.y, x.h)).collect::<Vec<_>>());
         assert_eq!((l[0].y, l[0].h), (4, 37));
         assert_eq!((l[1].y, l[1].h), (60, 38));
+    }
+
+    /// สระล่างของบรรทัดบนกับสระบนของบรรทัดล่างอยู่แถวเดียวกัน ไม่มีแถวใสคั่น · ต้องได้สองบรรทัด สระบนอยู่กับบรรทัดล่าง และภาพบรรทัดบนไม่มีสระบนนั้น
+    #[test]
+    fn marks_sharing_rows_go_to_their_own_line() {
+        let mut img = RgbaImage::new(300, 120);
+        bar(&mut img, 100, 10, 80, 30);  // บรรทัด 1 สั้น อยู่กลาง (y 10–40)
+        bar(&mut img, 120, 42, 6, 10);   // สระล่างของบรรทัด 1 (y 42–52)
+        bar(&mut img, 20, 50, 6, 8);     // สระบนของบรรทัด 2 ทางซ้าย นอกแนวบรรทัด 1 (y 50–58) แถวซ้อนกับสระล่าง
+        bar(&mut img, 10, 60, 280, 30);  // บรรทัด 2 ยาว (y 60–90)
+        let l = split_lines(&img);
+        assert_eq!(l.len(), 2, "{:?}", l.iter().map(|x| (x.y, x.h)).collect::<Vec<_>>());
+        assert_eq!((l[0].y, l[0].y + l[0].h), (10, 52));
+        assert_eq!((l[1].y, l[1].y + l[1].h), (50, 90));
+        assert!(ink_bounds(&l[0].img, 40).unwrap().0 >= 100, "ภาพบรรทัดบนต้องไม่มีสระบนของบรรทัดล่าง");
     }
 
     /// แถบบางที่อยู่ห่างทุกบรรทัด (บรรทัดที่มีแต่ขีดหรือจุด) เป็นบรรทัดของตัวเอง ไม่ถูกดึงเข้าบรรทัดอื่น
