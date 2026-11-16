@@ -378,6 +378,43 @@ mkdirSync(SE, { recursive: true });
   console.log("สร้างแล้ว  แก้ซับ/ยาว 2000 บรรทัด.th.srt");
 }
 
+// ซับรูปเทส OCR ที่รู้คำตอบแน่นอน (แผน OCR ขั้น 0 · BUGS ข้อ 143) ข้อความแคลร์แต่งเองใน test-media/src/ocr
+// ASS เป็น PGS 1920×1080 ด้วย SeConv ที่แนบมา · ไทยย่อเป็น VobSub 720×480 ด้วย BDSup2Sub++ แบบซับ DVD ความละเอียดต่ำที่พี่กันห่วง (⑨)
+// คำตอบเขียนคู่กันเป็น .truth.txt บรรทัดละภาพตามลำดับเวลา ภาพเดียวกันที่มีซับบนจอ บรรทัดบนจออยู่ก่อน ขึ้นบรรทัดใหม่ในภาพเขียนเป็น ¶ ตัวเอียงเขียนแท็ก i
+// แบบเดียวกับคำตอบของซับ ACCA (D:\dev\tmp\ocr-test\truth\truth.txt)
+{
+  const SEC = join(root, "src-tauri", "tools", "seconv", "seconv.exe");
+  const BDS = join(root, "src-tauri", "tools", "bdsup2sub", "bdsup2sub++.exe");
+  const OCR = join(OUT, "ocr");
+  mkdirSync(OCR, { recursive: true });
+  const toMs = (t) => { const [h, m, s] = t.split(":"); return Math.round((+h * 3600 + +m * 60 + +s) * 1000); };
+  for (const name of ["th", "ja", "ja-vert"]) {
+    const src = join(SRC, "ocr", `${name}.ass`);
+    const ev = readFileSync(src, "utf8").split(/\r?\n/).filter((l) => l.startsWith("Dialogue:")).map((l) => {
+      const p = l.slice(9).split(","); const text = p.slice(9).join(",");
+      const t = text.replace(/\{\\i1\}/g, "<i>").replace(/\{\\i0\}/g, "</i>").replace(/\{[^}]*\}/g, "").replace(/\\N/g, name === "ja-vert" ? "" : "¶");
+      // แนวตั้งวางทีละตัวซ้อนลงมา คำตอบคือข้อความทั้งบรรทัด ไม่มีขึ้นบรรทัดใหม่
+      return { start: toMs(p[1].trim()), style: p[3].trim(), t };
+    });
+    // ภาพเดียวกันคือบรรทัดที่เริ่มเวลาเดียวกัน ป้ายบนจอ (สไตล์ Sign) ขึ้นก่อนบทพูด
+    const groups = new Map();
+    for (const e of ev) { if (!groups.has(e.start)) groups.set(e.start, []); groups.get(e.start).push(e); }
+    const truth = [...groups.keys()].sort((a, b) => a - b).map((k) => groups.get(k).sort((a, b) => (b.style === "Sign") - (a.style === "Sign")).map((e) => e.t).join("¶"));
+    writeFileSync(join(OCR, `${name}.truth.txt`), truth.join("\n") + "\n");
+    if (!existsSync(SEC)) { console.log("ไม่มี SeConv รัน scripts/fetch-tools.ps1 ก่อน"); process.exitCode = 1; continue; }
+    const r = spawnSync(SEC, [src, "bluraysup", "--resolution:1920x1080", "--fps:23.976", `--output-folder:${OCR}`, `--output-filename:${name}.sup`, "--overwrite", "--quiet"], { encoding: "utf8" });
+    if (r.status !== 0 || !existsSync(join(OCR, `${name}.sup`))) { console.log(`พัง  ocr/${name}.sup\n${r.stdout}${r.stderr}`); process.exitCode = 1; continue; }
+    console.log(`สร้างแล้ว  ocr/${name}.sup กับ ${name}.truth.txt (${truth.length} ภาพ)`);
+  }
+  if (existsSync(BDS) && existsSync(join(OCR, "th.sup"))) {
+    // BDSup2Sub++ เขียนค่าตั้งลง APPDATA ตั้งไว้ในโฟลเดอร์ทดสอบ ไม่แตะของผู้ใช้ · ต้องส่ง --output ทุกครั้ง ไม่งั้นเปิดหน้าต่างขึ้นจอ
+    const cfg = join(OCR, "bdsup2sub-cfg"); mkdirSync(cfg, { recursive: true });
+    const r = spawnSync(BDS, ["--resolution", "480", "--output", join(OCR, "th-480.idx"), join(OCR, "th.sup")], { encoding: "utf8", env: { ...process.env, APPDATA: cfg }, windowsHide: true });
+    if (r.status !== 0 || !existsSync(join(OCR, "th-480.idx"))) { console.log(`พัง  ocr/th-480.idx\n${r.stdout}${r.stderr}`); process.exitCode = 1; }
+    else { copyFileSync(join(OCR, "th.truth.txt"), join(OCR, "th-480.truth.txt")); console.log("สร้างแล้ว  ocr/th-480.idx กับ th-480.sub (VobSub 720×480)"); }
+  }
+}
+
 // ไฟล์ของพี่กัน
 const fromGun = join(root, "test-media", "จากพี่กัน");
 if (existsSync(join(fromGun, "IMG_4149.HEIC"))) copyFileSync(join(fromGun, "IMG_4149.HEIC"), join(IMG, "IMG_4149.HEIC"));

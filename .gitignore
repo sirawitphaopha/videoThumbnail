@@ -60,3 +60,7 @@ docs/report-2026-11-15/ดูซับรูป/
 docs/report-2026-11-15/แยกไฟล์ที่อยู่ยาว/ปุ่มกราฟเสียงในแถว.png
 # ภาพมอคอัป OCR รุ่นแรกที่ข้อความตัวอย่างยังมีบทจากซับที่ใช้เทส (16 พ.ย. 2569)
 docs/report-2026-11-16/มอคอัป-OCR/
+# ของที่แนบกับระบบ OCR ซับรูป (scripts/fetch-ocr.py โหลด fetch-tools แตกลง src-tauri/tools/ocr) ใหญ่ราว 400 MB เก็บแค่ manifest.json ที่จด sha256
+vendor/ocr/*
+!vendor/ocr/manifest.json
+src-tauri/tools/ocr/

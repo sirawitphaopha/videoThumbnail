@@ -1,0 +1,932 @@
+{
+ "paddle/PP-OCRv6_tiny_rec/inference.json": {
+  "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_rec_onnx/resolve/2612ab37152ae0a677521bae4e1e3d4fb4cf7c30/inference.json",
+  "sha256": "b5b14770c7dcf092781e92f4278a2ae5f95048f08b4b8a04140e88cb2745f147",
+  "size": 108959
+ },
+ "paddle/PP-OCRv6_tiny_rec/inference.onnx": {
+  "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_rec_onnx/resolve/2612ab37152ae0a677521bae4e1e3d4fb4cf7c30/inference.onnx",
+  "sha256": "9ef676d6ed3c88256a2d92c640c44f25b0c40947e111b14b8be8f594091563e6",
+  "size": 4462639
+ },
+ "paddle/PP-OCRv6_tiny_rec/inference.yml": {
+  "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_rec_onnx/resolve/2612ab37152ae0a677521bae4e1e3d4fb4cf7c30/inference.yml",
+  "sha256": "66170210bad538e83fff3c4a3867e547d6bf20b50d64b20347c4b913f3034ea1",
+  "size": 55571
+ },
+ "paddle/PP-OCRv6_small_rec/inference.json": {
+  "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_small_rec_onnx/resolve/b8f84f0b80c529de40b4fbb3544b84fa7233a513/inference.json",
+  "sha256": "f0bf53c853937a917affdd74467472167727f8ab0f0f7bded01c4a16c27e46e6",
+  "size": 208004
+ },
+ "paddle/PP-OCRv6_small_rec/inference.onnx": {
+  "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_small_rec_onnx/resolve/b8f84f0b80c529de40b4fbb3544b84fa7233a513/inference.onnx",
+  "sha256": "5435fd747c9e0efe15a96d0b378d5bd157e9492ed8fd80edf08f30d02fa24634",
+  "size": 21159378
+ },
+ "paddle/PP-OCRv6_small_rec/inference.yml": {
+  "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_small_rec_onnx/resolve/b8f84f0b80c529de40b4fbb3544b84fa7233a513/inference.yml",
+  "sha256": "ab078671bb49f06228eadccd34f1bb501e157f7a047095ffb943ba81512c77d1",
+  "size": 150579
+ },
+ "paddle/PP-OCRv6_medium_rec/inference.json": {
+  "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_medium_rec_onnx/resolve/50c7eacafc52fa7bcf4194e8cd08e46f8558504b/inference.json",
+  "sha256": "0b2e25e990bd072f1bf77d59d67d508bce6c4bd44af6624e0fb27d6da2cd00e8",
+  "size": 221814
+ },
+ "paddle/PP-OCRv6_medium_rec/inference.onnx": {
+  "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_medium_rec_onnx/resolve/50c7eacafc52fa7bcf4194e8cd08e46f8558504b/inference.onnx",
+  "sha256": "9c09abf0957f7968c7586464b7397b84ad2387a0497a351af40e9acc71b673ba",
+  "size": 76554979
+ },
+ "paddle/PP-OCRv6_medium_rec/inference.yml": {
+  "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_medium_rec_onnx/resolve/50c7eacafc52fa7bcf4194e8cd08e46f8558504b/inference.yml",
+  "sha256": "991b700facf5b50a7de193468207d5f4255b538dde0d312ae3b7c7a9b6873129",
+  "size": 150580
+ },
+ "paddle/PP-OCRv6_tiny_det/inference.json": {
+  "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_det_onnx/resolve/2ba1506c0380b8f0b03dd142459aac66d4421f6c/inference.json",
+  "sha256": "935c18972799dd8f2a2ff424b9f8b2c6adee4b89f3a76f0746210ec33ba9b3d8",
+  "size": 229184
+ },
+ "paddle/PP-OCRv6_tiny_det/inference.onnx": {
+  "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_det_onnx/resolve/2ba1506c0380b8f0b03dd142459aac66d4421f6c/inference.onnx",
+  "sha256": "193bab7a04fca699a6c82e6abb5b81bdb28177f0abd4062552b04908dafb19f8",
+  "size": 1780590
+ },
+ "paddle/PP-OCRv6_tiny_det/inference.yml": {
+  "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_tiny_det_onnx/resolve/2ba1506c0380b8f0b03dd142459aac66d4421f6c/inference.yml",
+  "sha256": "3ac018be6f97499a08faa3bbdeb33640968d9307f6736d152902747a9f259593",
+  "size": 883
+ },
+ "paddle/PP-OCRv6_small_det/inference.json": {
+  "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_small_det_onnx/resolve/28fe5895c24fd108c19eb3e8479f4ab385fbfc62/inference.json",
+  "sha256": "89240f689a4a77aad75ef55a8df0a15c8e1d4980a327d17e58f24bbadde5aeab",
+  "size": 229307
+ },
+ "paddle/PP-OCRv6_small_det/inference.onnx": {
+  "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_small_det_onnx/resolve/28fe5895c24fd108c19eb3e8479f4ab385fbfc62/inference.onnx",
+  "sha256": "d73e0058b7a8086bbd57f3d10b8bcd4ff95363f67e06e2762b5e814fe9c9410e",
+  "size": 9880512
+ },
+ "paddle/PP-OCRv6_small_det/inference.yml": {
+  "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_small_det_onnx/resolve/28fe5895c24fd108c19eb3e8479f4ab385fbfc62/inference.yml",
+  "sha256": "193f435274bf9f0b5f71a929bbfbcf148282df7e633b34e7c373e8f44741b516",
+  "size": 885
+ },
+ "paddle/PP-OCRv6_medium_det/inference.json": {
+  "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_medium_det_onnx/resolve/61323801669c338b7891481ec7bac61ce31b576a/inference.json",
+  "sha256": "0f1a7ec35da36173529c7a60238b7f7919e3831929c3f700ad90ad4896adecd5",
+  "size": 312150
+ },
+ "paddle/PP-OCRv6_medium_det/inference.onnx": {
+  "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_medium_det_onnx/resolve/61323801669c338b7891481ec7bac61ce31b576a/inference.onnx",
+  "sha256": "eb13b44b25bb36f89528b68720af8a61d9cf381176107f465db1757b65d086e1",
+  "size": 62032837
+ },
+ "paddle/PP-OCRv6_medium_det/inference.yml": {
+  "url": "https://huggingface.co/PaddlePaddle/PP-OCRv6_medium_det_onnx/resolve/61323801669c338b7891481ec7bac61ce31b576a/inference.yml",
+  "sha256": "7298d5ead546584af2504d03355f881ac7a7bc0eb1e282d3e159277c1d0af871",
+  "size": 886
+ },
+ "paddle/th_PP-OCRv5_mobile_rec/inference.onnx": {
+  "url": "https://huggingface.co/PaddlePaddle/th_PP-OCRv5_mobile_rec_onnx/resolve/1d4adbbafb1034a2fd6618498575b81ea7b69f69/inference.onnx",
+  "sha256": "27618be66018f8598ac0a526a593f9f1cebf794e7eded93428e8fb016e537f5f",
+  "size": 7891015
+ },
+ "paddle/th_PP-OCRv5_mobile_rec/inference.yml": {
+  "url": "https://huggingface.co/PaddlePaddle/th_PP-OCRv5_mobile_rec_onnx/resolve/1d4adbbafb1034a2fd6618498575b81ea7b69f69/inference.yml",
+  "sha256": "f6ba7fefc38ca1ff398ddafa75d67d16e0b3757c4e6c833adffee98a981766c9",
+  "size": 4667
+ },
+ "paddle/en_PP-OCRv5_mobile_rec/inference.onnx": {
+  "url": "https://huggingface.co/PaddlePaddle/en_PP-OCRv5_mobile_rec_onnx/resolve/3fafbc3b5dcf93dd72add9f48368be8a3a2cd33b/inference.onnx",
+  "sha256": "b5f833dfc5d0eb71da397b4efa06ebeee9b431b690a47d6af40d77d8eabc557f",
+  "size": 7848423
+ },
+ "paddle/en_PP-OCRv5_mobile_rec/inference.yml": {
+  "url": "https://huggingface.co/PaddlePaddle/en_PP-OCRv5_mobile_rec_onnx/resolve/3fafbc3b5dcf93dd72add9f48368be8a3a2cd33b/inference.yml",
+  "sha256": "27e91d0582f40168aa218303c76e184bc78fa7a5d105aad0cfbad8458b441067",
+  "size": 3964
+ },
+ "paddle/latin_PP-OCRv5_mobile_rec/inference.onnx": {
+  "url": "https://huggingface.co/PaddlePaddle/latin_PP-OCRv5_mobile_rec_onnx/resolve/89d3a50e2c27e2e7cceeab0e944c25c807d5db4f/inference.onnx",
+  "sha256": "7888113072263cb471b93f66dd5e2ad70548dc526fa1ace760d0d973dd121498",
+  "size": 8042023
+ },
+ "paddle/latin_PP-OCRv5_mobile_rec/inference.yml": {
+  "url": "https://huggingface.co/PaddlePaddle/latin_PP-OCRv5_mobile_rec_onnx/resolve/89d3a50e2c27e2e7cceeab0e944c25c807d5db4f/inference.yml",
+  "sha256": "0bbe984570f597af3638e50bdf2e8276f3ab26a61966096538b3b0d1849f5c84",
+  "size": 6817
+ },
+ "paddle/korean_PP-OCRv5_mobile_rec/inference.onnx": {
+  "url": "https://huggingface.co/PaddlePaddle/korean_PP-OCRv5_mobile_rec_onnx/resolve/5c6f574b8e2230adf4287b33e736d71b9fabd28e/inference.onnx",
+  "sha256": "92f0b7785e64fc9090106a241cf4c1eb97472824558272751b88a2a4476d3a08",
+  "size": 13418787
+ },
+ "paddle/korean_PP-OCRv5_mobile_rec/inference.yml": {
+  "url": "https://huggingface.co/PaddlePaddle/korean_PP-OCRv5_mobile_rec_onnx/resolve/5c6f574b8e2230adf4287b33e736d71b9fabd28e/inference.yml",
+  "sha256": "f757fa1c40e99edcf27e9cce879b93eb2a51fa46f5ef39095689b8c37dd75998",
+  "size": 96039
+ },
+ "paddle/cyrillic_PP-OCRv5_mobile_rec/inference.onnx": {
+  "url": "https://huggingface.co/PaddlePaddle/cyrillic_PP-OCRv5_mobile_rec_onnx/resolve/2cef88145434beb8afa9dd82d77d799eb1ad7b29/inference.onnx",
+  "sha256": "5371ee1ddaa7983cc62d0818d99e982b6804638c85e4f960d59a574094e172e5",
+  "size": 8048799
+ },
+ "paddle/cyrillic_PP-OCRv5_mobile_rec/inference.yml": {
+  "url": "https://huggingface.co/PaddlePaddle/cyrillic_PP-OCRv5_mobile_rec_onnx/resolve/2cef88145434beb8afa9dd82d77d799eb1ad7b29/inference.yml",
+  "sha256": "5c76cc91fa98410178a09f498db10050d0ec1634a660053d3005ab7be581f501",
+  "size": 6991
+ },
+ "paddle/arabic_PP-OCRv5_mobile_rec/inference.onnx": {
+  "url": "https://huggingface.co/PaddlePaddle/arabic_PP-OCRv5_mobile_rec_onnx/resolve/14aaedcd75825982689ecf5cd64ab33ee083215a/inference.onnx",
+  "sha256": "799113ebf267fbe742deb99eb36e8d42c9ddc5291ceacf92add41b4d52a59110",
+  "size": 7998947
+ },
+ "paddle/arabic_PP-OCRv5_mobile_rec/inference.yml": {
+  "url": "https://huggingface.co/PaddlePaddle/arabic_PP-OCRv5_mobile_rec_onnx/resolve/14aaedcd75825982689ecf5cd64ab33ee083215a/inference.yml",
+  "sha256": "21368419e6c016c31db55d316d59e11c128e1913e6e6fe10287084710043d3a6",
+  "size": 6165
+ },
+ "paddle/devanagari_PP-OCRv5_mobile_rec/inference.onnx": {
+  "url": "https://huggingface.co/PaddlePaddle/devanagari_PP-OCRv5_mobile_rec_onnx/resolve/251aec19e36739540d35e2cc943f6aa7503b98e5/inference.onnx",
+  "sha256": "cb789212ce96c69d3e74728ae4309d179281d68cb3945d0616b67cafab41c986",
+  "size": 7912311
+ },
+ "paddle/devanagari_PP-OCRv5_mobile_rec/inference.yml": {
+  "url": "https://huggingface.co/PaddlePaddle/devanagari_PP-OCRv5_mobile_rec_onnx/resolve/251aec19e36739540d35e2cc943f6aa7503b98e5/inference.yml",
+  "sha256": "9bd172dd26440c8ce94d1cde5d5baea6aefdc7cf3c5c8492e0beedef656d4e54",
+  "size": 5027
+ },
+ "paddle/el_PP-OCRv5_mobile_rec/inference.onnx": {
+  "url": "https://huggingface.co/PaddlePaddle/el_PP-OCRv5_mobile_rec_onnx/resolve/8152b89d2ee0e1d4c92decab75fe75e5e3d836b6/inference.onnx",
+  "sha256": "2acf17fcaea2bc81b878e311e6263b8885f48bb03796f75f9f30ed3242bbaa6d",
+  "size": 7808735
+ },
+ "paddle/el_PP-OCRv5_mobile_rec/inference.yml": {
+  "url": "https://huggingface.co/PaddlePaddle/el_PP-OCRv5_mobile_rec_onnx/resolve/8152b89d2ee0e1d4c92decab75fe75e5e3d836b6/inference.yml",
+  "sha256": "17d85b2fe2d2f24cd4ab07bcbc33e0c126859b956ced36e281dc65e2d0c1f0bf",
+  "size": 3317
+ },
+ "paddle/eslav_PP-OCRv5_mobile_rec/inference.onnx": {
+  "url": "https://huggingface.co/PaddlePaddle/eslav_PP-OCRv5_mobile_rec_onnx/resolve/9a32171fc5718746875e1a261818884517975013/inference.onnx",
+  "sha256": "b3018ef2b09a0250b6e0c8e871c927098363e5fd4df890cc68e8358eb0aaf1bd",
+  "size": 7887627
+ },
+ "paddle/eslav_PP-OCRv5_mobile_rec/inference.yml": {
+  "url": "https://huggingface.co/PaddlePaddle/eslav_PP-OCRv5_mobile_rec_onnx/resolve/9a32171fc5718746875e1a261818884517975013/inference.yml",
+  "sha256": "025039bac23eb4a308efcefa4d58eab3af440767815c6ba6938468bf6353ee5a",
+  "size": 4538
+ },
+ "paddle/ta_PP-OCRv5_mobile_rec/inference.onnx": {
+  "url": "https://huggingface.co/PaddlePaddle/ta_PP-OCRv5_mobile_rec_onnx/resolve/0db89798af0d5218fad9ea7ace0557526e9077f1/inference.onnx",
+  "sha256": "c6d2b682d2a0ea4cb1fccdba295976f93fd439964d16cdc666cadef531accbee",
+  "size": 7885691
+ },
+ "paddle/ta_PP-OCRv5_mobile_rec/inference.yml": {
+  "url": "https://huggingface.co/PaddlePaddle/ta_PP-OCRv5_mobile_rec_onnx/resolve/0db89798af0d5218fad9ea7ace0557526e9077f1/inference.yml",
+  "sha256": "88a28f5a1bb30cabe38a0985cb5e6619fa4f0c7c78e57a08274674228c5219a6",
+  "size": 4579
+ },
+ "paddle/te_PP-OCRv5_mobile_rec/inference.onnx": {
+  "url": "https://huggingface.co/PaddlePaddle/te_PP-OCRv5_mobile_rec_onnx/resolve/f1197c83430241c58c64b0952b3a80366d04eeba/inference.onnx",
+  "sha256": "8238bfc46d4cffe720ed6706e3842802467343497428693ff2bfb4e6b3caa36b",
+  "size": 7898759
+ },
+ "paddle/te_PP-OCRv5_mobile_rec/inference.yml": {
+  "url": "https://huggingface.co/PaddlePaddle/te_PP-OCRv5_mobile_rec_onnx/resolve/f1197c83430241c58c64b0952b3a80366d04eeba/inference.yml",
+  "sha256": "acebbe53f1831bf28ddfed75aedf58225d7aa5d09100c1d5a9140a2a53b137ce",
+  "size": 4795
+ },
+ "paddle/PP-LCNet_x0_25_textline_ori/inference.onnx": {
+  "url": "https://huggingface.co/PaddlePaddle/PP-LCNet_x0_25_textline_ori_onnx/resolve/aea1f18d97338aaf84b463f90192f2820524a00a/inference.onnx",
+  "sha256": "94a6a0a0425f2b5f08b5df72086f2d72abe40f1d22f6d12d2cd83674f11f2ff3",
+  "size": 1019454
+ },
+ "paddle/PP-LCNet_x0_25_textline_ori/inference.yml": {
+  "url": "https://huggingface.co/PaddlePaddle/PP-LCNet_x0_25_textline_ori_onnx/resolve/aea1f18d97338aaf84b463f90192f2820524a00a/inference.yml",
+  "sha256": "d9a0a3fc7c5c0ae416dbb565d63a32cb4692f05aee1bf7b677b9dd571adaa759",
+  "size": 736
+ },
+ "paddle/PP-LCNet_x1_0_textline_ori/inference.onnx": {
+  "url": "https://huggingface.co/PaddlePaddle/PP-LCNet_x1_0_textline_ori_onnx/resolve/7fdcf3cf7061163eda7183b224aa334bd33068f7/inference.onnx",
+  "sha256": "38aa97cd4be591e0ad304e659f07ba30d946f27a63315433f6659c69c8778345",
+  "size": 6777816
+ },
+ "paddle/PP-LCNet_x1_0_textline_ori/inference.yml": {
+  "url": "https://huggingface.co/PaddlePaddle/PP-LCNet_x1_0_textline_ori_onnx/resolve/7fdcf3cf7061163eda7183b224aa334bd33068f7/inference.yml",
+  "sha256": "8d5120d0e1a30a9df7ed46aa9119da3796ed066777089d1c1d705f132d5e90f9",
+  "size": 735
+ },
+ "onnxruntime-win-x64-1.32.0.zip": {
+  "url": "https://github.com/microsoft/onnxruntime/releases/download/v1.32.0/onnxruntime-win-x64-1.32.0.zip",
+  "sha256": "aaa1d04fcf86bd31e84b90bc0cbde80e632bd0720dcc5d8ba05c4fe45c09d127",
+  "size": 96945131
+ },
+ "tessdata/eng.traineddata": {
+  "url": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/e12c65a915945e4c28e237a9b52bc4a8f39a0cec/eng.traineddata",
+  "sha256": "8280aed0782fe27257a68ea10fe7ef324ca0f8d85bd2fd145d1c2b560bcb66ba",
+  "size": 15400601
+ },
+ "tessdata/tha.traineddata": {
+  "url": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/e12c65a915945e4c28e237a9b52bc4a8f39a0cec/tha.traineddata",
+  "sha256": "ee8adab6dc69eb8df3d3c8307ae8295471b7bd7d86a06d9267aa8f479b064eac",
+  "size": 7614571
+ },
+ "tessdata/jpn.traineddata": {
+  "url": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/e12c65a915945e4c28e237a9b52bc4a8f39a0cec/jpn.traineddata",
+  "sha256": "36bdf9ac823f5911e624c30d0553e890b8abc7c31a65b3ef14da943658c40b79",
+  "size": 14330109
+ },
+ "tessdata/jpn_vert.traineddata": {
+  "url": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/e12c65a915945e4c28e237a9b52bc4a8f39a0cec/jpn_vert.traineddata",
+  "sha256": "1258be6eb2a9851f18043234ad18cca13ed32690bfff62b335c898bbea371548",
+  "size": 14330809
+ },
+ "tessdata/osd.traineddata": {
+  "url": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/e12c65a915945e4c28e237a9b52bc4a8f39a0cec/osd.traineddata",
+  "sha256": "9cf5d576fcc47564f11265841e5ca839001e7e6f38ff7f7aacf46d15a96b00ff",
+  "size": 10562727
+ },
+ "tessdata/LICENSE": {
+  "url": "https://raw.githubusercontent.com/tesseract-ocr/tessdata_best/e12c65a915945e4c28e237a9b52bc4a8f39a0cec/LICENSE",
+  "sha256": "a6cba85bc92e0cff7a450b1d873c0eaa2e9fc96bf472df0247a26bec77bf3ff9",
+  "size": 10173
+ },
+ "hunspell/en_US.aff": {
+  "url": "https://raw.githubusercontent.com/LibreOffice/dictionaries/c0865a85eb67dc377f2cf8e8fe2c4fa9e53f0dcb/en/en_US.aff",
+  "sha256": "e746c882dd6f303c2c46e7452804b9201115a6942cfeb15f18f8edf774d2e24e",
+  "size": 3205
+ },
+ "hunspell/en_US.dic": {
+  "url": "https://raw.githubusercontent.com/LibreOffice/dictionaries/c0865a85eb67dc377f2cf8e8fe2c4fa9e53f0dcb/en/en_US.dic",
+  "sha256": "f0b1a234bd178bdd01875b2a392a9647f888b8fe879f79c52aae62c2759b3647",
+  "size": 551762
+ },
+ "hunspell/en_GB.aff": {
+  "url": "https://raw.githubusercontent.com/LibreOffice/dictionaries/c0865a85eb67dc377f2cf8e8fe2c4fa9e53f0dcb/en/en_GB.aff",
+  "sha256": "0fd6ed120ef28957847d98ba5149b117e27116cf81b5aa36208453f6755a36fd",
+  "size": 44158
+ },
+ "hunspell/en_GB.dic": {
+  "url": "https://raw.githubusercontent.com/LibreOffice/dictionaries/c0865a85eb67dc377f2cf8e8fe2c4fa9e53f0dcb/en/en_GB.dic",
+  "sha256": "04e90f34f5263bf26780e9c4a442e9ad16584e227af49ddd1b3b21b01df5b29c",
+  "size": 1230571
+ },
+ "hunspell/th_TH.aff": {
+  "url": "https://raw.githubusercontent.com/LibreOffice/dictionaries/c0865a85eb67dc377f2cf8e8fe2c4fa9e53f0dcb/th_TH/th_TH.aff",
+  "sha256": "a99ba46a0899a9155cd0d4f7f823ef9f5686281220ae2eb355c8b576d166e243",
+  "size": 1555
+ },
+ "hunspell/th_TH.dic": {
+  "url": "https://raw.githubusercontent.com/LibreOffice/dictionaries/c0865a85eb67dc377f2cf8e8fe2c4fa9e53f0dcb/th_TH/th_TH.dic",
+  "sha256": "42e9f145eb6744a3a24c498e143229a7ce7fb2cb67c8e8e94b42fde808dbf28f",
+  "size": 1239954
+ },
+ "hunspell/README_en_US.txt": {
+  "url": "https://raw.githubusercontent.com/LibreOffice/dictionaries/c0865a85eb67dc377f2cf8e8fe2c4fa9e53f0dcb/en/README_en_US.txt",
+  "sha256": "168b4c01cb841f766a72f310b065c04d09cff46376c37a81d799593ce751c371",
+  "size": 15732
+ },
+ "hunspell/README_en_GB.txt": {
+  "url": "https://raw.githubusercontent.com/LibreOffice/dictionaries/c0865a85eb67dc377f2cf8e8fe2c4fa9e53f0dcb/en/README_en_GB.txt",
+  "sha256": "18b5833de60a52ffcb6e5b6b5048bb5a5d910acfecd5b096985b77058223880c",
+  "size": 10644
+ },
+ "hunspell/README_th_TH.txt": {
+  "url": "https://raw.githubusercontent.com/LibreOffice/dictionaries/c0865a85eb67dc377f2cf8e8fe2c4fa9e53f0dcb/th_TH/README_th_TH.txt",
+  "sha256": "87049058b4b6e4f22cf01720bcbb416dfe14bc7ca5f6ae7927821a231d559e10",
+  "size": 321
+ },
+ "Tesseract553.zip": {
+  "url": "https://github.com/SubtitleEdit/support-files/releases/download/tesseract553/Tesseract553.zip",
+  "sha256": "fef2dbb1de8f25d660301c17aff107c0d9b0dc99e0d4f0eee938eb7238d7d2dc",
+  "size": 21772789
+ },
+ "subtitleedit/Dictionaries/ar_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/ar_NoBreakAfterList.xml",
+  "sha256": "fad701979ecb3d4a1a939eb23a2e9fec8a514c9089a67b5eccfbeb50a993d199",
+  "size": 601
+ },
+ "subtitleedit/Dictionaries/bg_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/bg_NoBreakAfterList.xml",
+  "sha256": "90153f69d89f062cbc3ca3438d8b43a8335c44091352813825328b63c0df6be1",
+  "size": 380
+ },
+ "subtitleedit/Dictionaries/bg_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/bg_abbreviations.xml",
+  "sha256": "bbb190bc9e5b1a6c87a81d17a88d41f52adf3b20fcd447da368a0258883cdd4c",
+  "size": 698
+ },
+ "subtitleedit/Dictionaries/bs_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/bs_NoBreakAfterList.xml",
+  "sha256": "ddc40fdfb59ace490cbbe21ae92b3b267b49d2fdb31f4d2c00034bdb9dcee58a",
+  "size": 387
+ },
+ "subtitleedit/Dictionaries/bs_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/bs_abbreviations.xml",
+  "sha256": "e06b4a1f7a6e1db6cf34d485afde7150353f4e774d1a00562843de2fd593c82b",
+  "size": 648
+ },
+ "subtitleedit/Dictionaries/cs_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/cs_NoBreakAfterList.xml",
+  "sha256": "95e4503875ef1e6d8ec4160b67e8f8ba49fcf098a973f1d128a73a75ccdf4a71",
+  "size": 293
+ },
+ "subtitleedit/Dictionaries/cs_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/cs_abbreviations.xml",
+  "sha256": "96e0fb21488e767cac7dfbbf3272b55993f053b0c25933976cbaec6f163a1543",
+  "size": 790
+ },
+ "subtitleedit/Dictionaries/cs_names.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/cs_names.xml",
+  "sha256": "af155bc4ecfed0fff8db9e0c7fab02dac85348f89824c8f10790d436863f7ab2",
+  "size": 303
+ },
+ "subtitleedit/Dictionaries/da_DK_se.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/da_DK_se.xml",
+  "sha256": "c5eb46505cf7596afbe50510fbdeb68b9a1c978af1bda5e3a2bb10966a5a2a31",
+  "size": 4233
+ },
+ "subtitleedit/Dictionaries/da_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/da_NoBreakAfterList.xml",
+  "sha256": "1c156c23fa5402c4f6fdd3b5205e3a04a35b6391b2e85dd02dda9a49624c82c5",
+  "size": 495
+ },
+ "subtitleedit/Dictionaries/da_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/da_abbreviations.xml",
+  "sha256": "b05e279328e5ff5953536dd28e02d919ffb26da36cea61e6a62544f2ca52f7ef",
+  "size": 822
+ },
+ "subtitleedit/Dictionaries/da_names.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/da_names.xml",
+  "sha256": "82067bdafbc55ba249e03f740c4d4b8b67381e8cbecee7bd5e05ace0baa52ea4",
+  "size": 8599
+ },
+ "subtitleedit/Dictionaries/dan_OCRFixReplaceList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/dan_OCRFixReplaceList.xml",
+  "sha256": "c95e7efde15ce6382e2442b2bd160d3cf146d164587a8e1c90c25be59005085d",
+  "size": 36066
+ },
+ "subtitleedit/Dictionaries/dan_WordSplitList.txt": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/dan_WordSplitList.txt",
+  "sha256": "026a83e1cce6fc8858f6687dac1a44fb356a54f479e180117936244afb2639d1",
+  "size": 25124
+ },
+ "subtitleedit/Dictionaries/de_DE_se.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/de_DE_se.xml",
+  "sha256": "8ada84b4093cb969d6f089c2d8e6a8feda667b7edeb7da71dd310be9c50b9657",
+  "size": 37301
+ },
+ "subtitleedit/Dictionaries/de_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/de_NoBreakAfterList.xml",
+  "sha256": "c95599e72fda751f965f3be127a9545725f27f0735cc8019f36daddfbaba933b",
+  "size": 1054
+ },
+ "subtitleedit/Dictionaries/de_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/de_abbreviations.xml",
+  "sha256": "78a7b6c246112ecb4fa1db1b0444c13fd056ea951a08a44537726fedb09aee01",
+  "size": 1212
+ },
+ "subtitleedit/Dictionaries/de_names.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/de_names.xml",
+  "sha256": "a4655ecccabd2ec41f28bf5f1515a76baabbbd3c27818fec3621cabf3753ae70",
+  "size": 30161
+ },
+ "subtitleedit/Dictionaries/deu_Nouns.txt": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/deu_Nouns.txt",
+  "sha256": "5d1d3136a6a6c2c773cfab1dc12f49fa5c723e0f5e652269052cae1474bd5a80",
+  "size": 45837
+ },
+ "subtitleedit/Dictionaries/deu_OCRFixReplaceList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/deu_OCRFixReplaceList.xml",
+  "sha256": "a744aa8479903366c092548c2c9a1c14a2e378de48267028cafe7969273ffe62",
+  "size": 329803
+ },
+ "subtitleedit/Dictionaries/deu_WordSplitList.txt": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/deu_WordSplitList.txt",
+  "sha256": "b3e5b8884f938aaca210892f00ce899199f8b611f0d9d533c62b36501645fc52",
+  "size": 54165
+ },
+ "subtitleedit/Dictionaries/el_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/el_NoBreakAfterList.xml",
+  "sha256": "3d722d92ac0b2f58e7a19beed21826038cc53602acfac28adc88699be3655147",
+  "size": 2763
+ },
+ "subtitleedit/Dictionaries/el_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/el_abbreviations.xml",
+  "sha256": "0d27f71735ca3c94d43f766f7d02218266720981a2fe37920faf0538cb01fa12",
+  "size": 560
+ },
+ "subtitleedit/Dictionaries/en_GB_se.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/en_GB_se.xml",
+  "sha256": "3da36981042489edf894879a3ca7a9e2c11fff68522b95201c3980c6934899c5",
+  "size": 25165
+ },
+ "subtitleedit/Dictionaries/en_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/en_NoBreakAfterList.xml",
+  "sha256": "02893b72c3f2f36e1982552310e494110cc8645186bd26e793e1be993383d1b1",
+  "size": 395
+ },
+ "subtitleedit/Dictionaries/en_US.aff": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/en_US.aff",
+  "sha256": "f8c65affc45f70d5962fe9c709a363e8f7e86e7b23c524b871affbd7521ec7cc",
+  "size": 64136
+ },
+ "subtitleedit/Dictionaries/en_US.dic": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/en_US.dic",
+  "sha256": "a63b51cf7766173858cbf731afe8cf494c5bb2e400e2ae189f8739a16e8dd710",
+  "size": 641024
+ },
+ "subtitleedit/Dictionaries/en_US_se.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/en_US_se.xml",
+  "sha256": "9b254b3f8b6127379abd9655c1cc4ea7c41ff25f46fdef341ab0142f079c87f5",
+  "size": 27115
+ },
+ "subtitleedit/Dictionaries/en_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/en_abbreviations.xml",
+  "sha256": "8b1a476126ef637342a880724cb38e33141d3a848d89123af20a03ec99bb5174",
+  "size": 907
+ },
+ "subtitleedit/Dictionaries/en_names.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/en_names.xml",
+  "sha256": "9ee802fcba93210314ca30df6df7d2a5c27ef9690f12119c75b3b7ca36acb6de",
+  "size": 46261
+ },
+ "subtitleedit/Dictionaries/eng_OCRFixReplaceList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/eng_OCRFixReplaceList.xml",
+  "sha256": "4e7a16c8f24703562fca27f71a35680c67c35f6d874fa1970048cf0e3f68fba6",
+  "size": 142070
+ },
+ "subtitleedit/Dictionaries/eng_WordSplitList.txt": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/eng_WordSplitList.txt",
+  "sha256": "145ae28e6d77fbc7f5a8f793822cac2ff5faebd666c05dcc252d4f91e228c265",
+  "size": 163359
+ },
+ "subtitleedit/Dictionaries/es_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/es_NoBreakAfterList.xml",
+  "sha256": "f529bc2c84cf6ddd28460bff93f000d52c3419c41125c067b73f9fd7c1b16170",
+  "size": 473
+ },
+ "subtitleedit/Dictionaries/es_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/es_abbreviations.xml",
+  "sha256": "512cf923e06d7219f3459fe4b1ae1910f50dfd808e087cf424c91b3abd9f76d3",
+  "size": 1134
+ },
+ "subtitleedit/Dictionaries/es_names.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/es_names.xml",
+  "sha256": "f8460170933546cbded22b83a4fdcf4894a4d51acc80505d3491f97b5b13ecc3",
+  "size": 29688
+ },
+ "subtitleedit/Dictionaries/es_se.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/es_se.xml",
+  "sha256": "35970cf4236d8e75f0933c7f92afe0c35b1a8a8111dd30a97629953edc3a6374",
+  "size": 296548
+ },
+ "subtitleedit/Dictionaries/et_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/et_NoBreakAfterList.xml",
+  "sha256": "b869b450b0820f2cf855ca8f2734d36d6df68553982c98cda7947932ad5efc5c",
+  "size": 265
+ },
+ "subtitleedit/Dictionaries/et_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/et_abbreviations.xml",
+  "sha256": "1bed25235f396ed135f709acf119171f6a0c90adab4ecf67855bca43672dda24",
+  "size": 582
+ },
+ "subtitleedit/Dictionaries/fi_FI_se.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/fi_FI_se.xml",
+  "sha256": "f213ee5af7542fa99ae70c2eedafea18a87a3cc56bdc54abad50f7dcaa56edae",
+  "size": 50299
+ },
+ "subtitleedit/Dictionaries/fi_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/fi_NoBreakAfterList.xml",
+  "sha256": "a90f899a7c162432c2dc9dd1dbc20f0fe34be428f4f914eef6a2e7d2bdf609d9",
+  "size": 351
+ },
+ "subtitleedit/Dictionaries/fi_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/fi_abbreviations.xml",
+  "sha256": "9eda7e56fadcf6e5c39db97fd19fa734e21101d0d0e20413d93311d08c04e6f8",
+  "size": 824
+ },
+ "subtitleedit/Dictionaries/fi_names.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/fi_names.xml",
+  "sha256": "5cd9d2e92334c08c592996891f60935dce0bb3723b4d00b43744d43b09126f25",
+  "size": 77488
+ },
+ "subtitleedit/Dictionaries/fin_OCRFixReplaceList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/fin_OCRFixReplaceList.xml",
+  "sha256": "f0bccba43044b59e3faa649b505f8cc236d6ef1d5353129c62e453b130baf040",
+  "size": 50480
+ },
+ "subtitleedit/Dictionaries/fr_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/fr_NoBreakAfterList.xml",
+  "sha256": "4299d9515c9f04ae11e2001d4cb2db4a089c14b61759d4af6a68e701e9280546",
+  "size": 385
+ },
+ "subtitleedit/Dictionaries/fr_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/fr_abbreviations.xml",
+  "sha256": "5a99a714435920e2573aab7946d8d7e70d44d75746c0fc88fce0c96bd8785332",
+  "size": 864
+ },
+ "subtitleedit/Dictionaries/fr_names.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/fr_names.xml",
+  "sha256": "4023889d866d9a375ed996eaf1344271584e95c9d51bfa98bf00f8990740ebfc",
+  "size": 26848
+ },
+ "subtitleedit/Dictionaries/fra_OCRFixReplaceList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/fra_OCRFixReplaceList.xml",
+  "sha256": "f192e7fe9597ae9525b83ef306f0330c141030f0ad15f6f46029c945201bf9d7",
+  "size": 19490
+ },
+ "subtitleedit/Dictionaries/fra_WordSplitList.txt": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/fra_WordSplitList.txt",
+  "sha256": "d9a5814a50f258117267cd9d91831c0ba3b6b24990c651438761e19106e4b00c",
+  "size": 37449
+ },
+ "subtitleedit/Dictionaries/hr_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/hr_NoBreakAfterList.xml",
+  "sha256": "fb509f258589ec73d0c1ac98aefe452f642b72e4cc5b33205a56693df1bea80f",
+  "size": 555
+ },
+ "subtitleedit/Dictionaries/hr_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/hr_abbreviations.xml",
+  "sha256": "bb40f8baada1e5f03457ee3233ae19f62275ddf3dc30efe2241a2c70d2782fb0",
+  "size": 824
+ },
+ "subtitleedit/Dictionaries/hr_names.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/hr_names.xml",
+  "sha256": "f89a863454d56d2fa0431bf1d38826ad9bbba94f21c579fb4992292b18a5482c",
+  "size": 14292
+ },
+ "subtitleedit/Dictionaries/hrv_OCRFixReplaceList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/hrv_OCRFixReplaceList.xml",
+  "sha256": "0257e0f1dddf8691ec0c5c3fd7cd4be314cd0e552d8b134b22a24e10540bc33e",
+  "size": 322211
+ },
+ "subtitleedit/Dictionaries/hu_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/hu_NoBreakAfterList.xml",
+  "sha256": "f1f785ee3efaae1d9e84a14c848674e3bd252fda4c0a592a9d3d4319dccccb11",
+  "size": 361
+ },
+ "subtitleedit/Dictionaries/hu_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/hu_abbreviations.xml",
+  "sha256": "7e757ffcb17662ad6e225296c11b07c7c740f1db108ae50267ce8343e1562ea8",
+  "size": 645
+ },
+ "subtitleedit/Dictionaries/hun_OCRFixReplaceList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/hun_OCRFixReplaceList.xml",
+  "sha256": "b9f93f48164bdca3ee709d16f964ee070940ce38b38c48d1cd8bb17683b08439",
+  "size": 3280
+ },
+ "subtitleedit/Dictionaries/id_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/id_NoBreakAfterList.xml",
+  "sha256": "7bc1b55f73e47037306de2ff09673718a2214e30e29d7e8e3841cd67d10b04cd",
+  "size": 253
+ },
+ "subtitleedit/Dictionaries/id_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/id_abbreviations.xml",
+  "sha256": "71ebcf4e0f51b4623c91f9af4e8cc63be5839da9efd642d6dbe55d9f94e3ea0a",
+  "size": 609
+ },
+ "subtitleedit/Dictionaries/it_IT_se.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/it_IT_se.xml",
+  "sha256": "803cca21ccc68e9d32b77789189400c3fb0493ae7bfc4a4fe904a375cdb7bed5",
+  "size": 102
+ },
+ "subtitleedit/Dictionaries/it_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/it_NoBreakAfterList.xml",
+  "sha256": "cff2fe1c37b11ff75b5ac6e94dc9d16615fc8df5f900395358158824607ff696",
+  "size": 445
+ },
+ "subtitleedit/Dictionaries/it_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/it_abbreviations.xml",
+  "sha256": "a8862abaf24d69d8a008966e0596a83f2051b937a2f8748108365bc8a9c67ecf",
+  "size": 807
+ },
+ "subtitleedit/Dictionaries/ita_OCRFixReplaceList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/ita_OCRFixReplaceList.xml",
+  "sha256": "f6f1f6d67ec65ecb44621060fd45997c0a8733e1dd62330e2910fbee7e3f7b46",
+  "size": 8105
+ },
+ "subtitleedit/Dictionaries/ita_WordSplitList.txt": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/ita_WordSplitList.txt",
+  "sha256": "2137cda11b4ed71126b568fe71809796cfcc164d35dd2179ab0588f62e52066e",
+  "size": 18384
+ },
+ "subtitleedit/Dictionaries/lt_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/lt_NoBreakAfterList.xml",
+  "sha256": "4065315a3cc5386683f22c82abc4b76602330c4519345aafddeacfc67f8ca22f",
+  "size": 207
+ },
+ "subtitleedit/Dictionaries/lt_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/lt_abbreviations.xml",
+  "sha256": "7dc6ac3c25b6d0971a09edee34d70ca01a69ec6891c974990c8f0f7cf95b3b2f",
+  "size": 566
+ },
+ "subtitleedit/Dictionaries/lv_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/lv_NoBreakAfterList.xml",
+  "sha256": "c4d8658a2ea552577f4c1b9d879112cb07c305e4930df6093fd382c11d237abc",
+  "size": 213
+ },
+ "subtitleedit/Dictionaries/lv_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/lv_abbreviations.xml",
+  "sha256": "056ab2d67c900ca4856fd4e97d9261980d8afd894757abb3ef2b3cdc077440ef",
+  "size": 565
+ },
+ "subtitleedit/Dictionaries/mk_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/mk_NoBreakAfterList.xml",
+  "sha256": "4b20d2d67107e19805750d6b3bd7fa4381a23d2911a79da7c0b094e204079281",
+  "size": 949
+ },
+ "subtitleedit/Dictionaries/mk_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/mk_abbreviations.xml",
+  "sha256": "0646ed2537b211b4bee6e9d9562ae5f21347d76e90100e6d06ac6e04a86d3c8e",
+  "size": 638
+ },
+ "subtitleedit/Dictionaries/mkd_OCRFixReplaceList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/mkd_OCRFixReplaceList.xml",
+  "sha256": "0ebcad940e03fe403aa5047f4c59902d8ffdc3dc9eb66a0908b823963ddf679e",
+  "size": 5318
+ },
+ "subtitleedit/Dictionaries/mkd_WordSplitList.txt": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/mkd_WordSplitList.txt",
+  "sha256": "7a88ccd301469845c5a3c9f651623c98a852d12c2316165ba20fd7a4277c52e7",
+  "size": 115939
+ },
+ "subtitleedit/Dictionaries/names.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/names.xml",
+  "sha256": "31d69bdbd5d8df8186b1f64580cb36e9d3b21daf25ecaaf24592316a044ae04b",
+  "size": 140348
+ },
+ "subtitleedit/Dictionaries/nb_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/nb_NoBreakAfterList.xml",
+  "sha256": "273c780680e8cc02d3210553582720a8bfc248b60707588f313e28c8225908a7",
+  "size": 631
+ },
+ "subtitleedit/Dictionaries/nb_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/nb_abbreviations.xml",
+  "sha256": "8e90bf9571ad0e7134f96ee4c0df74e1c6c9ca516eb205dbf376613d9517ad53",
+  "size": 825
+ },
+ "subtitleedit/Dictionaries/nb_names.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/nb_names.xml",
+  "sha256": "a25bacd574a5b1048554c3597601309acab628e91b0056bf28000db47ef1c4e4",
+  "size": 61249
+ },
+ "subtitleedit/Dictionaries/nl_NL_se.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/nl_NL_se.xml",
+  "sha256": "7fbef4f5d3bd2e03061287c9402a6f94cc53e7b95377c39daaaa9d729dfc21ac",
+  "size": 1002
+ },
+ "subtitleedit/Dictionaries/nl_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/nl_NoBreakAfterList.xml",
+  "sha256": "3510aaa4eca3984d7bf2be40e584dba3eb10e66b31d90fbd0cd7304f5b784174",
+  "size": 497
+ },
+ "subtitleedit/Dictionaries/nl_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/nl_abbreviations.xml",
+  "sha256": "3e3c3f0b003ef80ba14d4965779786b9718c3761fe214a63ffde546a59f35e32",
+  "size": 1379
+ },
+ "subtitleedit/Dictionaries/nl_names.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/nl_names.xml",
+  "sha256": "653c1b269bc9804715a3cdd9fa40f77e4d0cf74aab56dc53ea7b676f0c25689b",
+  "size": 8902
+ },
+ "subtitleedit/Dictionaries/nld_OCRFixReplaceList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/nld_OCRFixReplaceList.xml",
+  "sha256": "dd2d3189d50d54b80876221fcd20623e130c82f4f36cee779d5e60601da38325",
+  "size": 19871
+ },
+ "subtitleedit/Dictionaries/nob_OCRFixReplaceList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/nob_OCRFixReplaceList.xml",
+  "sha256": "7d2bed823915b97e6ec4a64ba46050f5bae8bbc4edb063fe9826de6701e22fc5",
+  "size": 10040
+ },
+ "subtitleedit/Dictionaries/nor_OCRFixReplaceList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/nor_OCRFixReplaceList.xml",
+  "sha256": "88af217c8b1228af3aa38fbe061e199551aa5ff955a8c785ae0212d0597fe151",
+  "size": 10110
+ },
+ "subtitleedit/Dictionaries/pl_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/pl_NoBreakAfterList.xml",
+  "sha256": "aad4e933fd4ef44a75d7d6bb8a24b41ac695ed683cdd5d10880cc38bdc7890b1",
+  "size": 211
+ },
+ "subtitleedit/Dictionaries/pl_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/pl_abbreviations.xml",
+  "sha256": "1fd5ae53f5b43c802048e2f010d82161a8518aea2e5a90c28ed2081b9685fe8e",
+  "size": 2389
+ },
+ "subtitleedit/Dictionaries/pl_names.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/pl_names.xml",
+  "sha256": "51a62cb2377cfeec725f57d8be24da196715d0113b77044b1ccb897722dacd09",
+  "size": 18367
+ },
+ "subtitleedit/Dictionaries/pol_OCRFixReplaceList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/pol_OCRFixReplaceList.xml",
+  "sha256": "4152c8c9cf00260b6d12a1e2ce3f97753a56304a80e1761e68f3280cae256aa1",
+  "size": 2221
+ },
+ "subtitleedit/Dictionaries/pol_WordSplitList.txt": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/pol_WordSplitList.txt",
+  "sha256": "bce51225411b4c107c21e8e9c10bc8151c2b69aefd7fbb3f4f61001183b591ea",
+  "size": 354283
+ },
+ "subtitleedit/Dictionaries/por_OCRFixReplaceList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/por_OCRFixReplaceList.xml",
+  "sha256": "fec0a446b7b8a7294f226ab6de2551d399c1d096102011d058337151a718fbb0",
+  "size": 30617
+ },
+ "subtitleedit/Dictionaries/pt_BR_names.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/pt_BR_names.xml",
+  "sha256": "bf0c0c51f10a854d8bf31a37300384e69c644a1087f7a1b124c63520b1801636",
+  "size": 111449
+ },
+ "subtitleedit/Dictionaries/pt_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/pt_NoBreakAfterList.xml",
+  "sha256": "91e88a6fdafedd4c502c9f600987559b166a490697ca8318620aa04d35ced6b1",
+  "size": 2356
+ },
+ "subtitleedit/Dictionaries/pt_PT_names.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/pt_PT_names.xml",
+  "sha256": "3c9e4e9d8b3ddc568330ac0e2a291d258d60137965081092f03f67832655959b",
+  "size": 116963
+ },
+ "subtitleedit/Dictionaries/pt_PT_se.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/pt_PT_se.xml",
+  "sha256": "f1277fca0799a93742964d6acf98e6f732e9af26ef2c344432d200034280d655",
+  "size": 13187
+ },
+ "subtitleedit/Dictionaries/pt_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/pt_abbreviations.xml",
+  "sha256": "f79730ee8f8b2e2e6898ef7f49b1cf0a3c08564c1e8590da4bc753c486a60ccf",
+  "size": 1333
+ },
+ "subtitleedit/Dictionaries/ro_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/ro_NoBreakAfterList.xml",
+  "sha256": "b6e398afd9f36f74d5ebeba3fec2b80ca58eb9b49f61b228e60733417aed6f1c",
+  "size": 351
+ },
+ "subtitleedit/Dictionaries/ro_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/ro_abbreviations.xml",
+  "sha256": "a043357e6c7ce21248df8f5e089ce999d8640f40526d6e81f95bf55bf6ba88c3",
+  "size": 709
+ },
+ "subtitleedit/Dictionaries/ron_OCRFixReplaceList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/ron_OCRFixReplaceList.xml",
+  "sha256": "6c6ae6fda35fd2ce3d86f221dfeeece412d05f4d87d6e672576e4608d9ef1607",
+  "size": 893
+ },
+ "subtitleedit/Dictionaries/ru_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/ru_NoBreakAfterList.xml",
+  "sha256": "57a90791e22126c5f3d42c449e697471b61b2d561538e76db545cf1cc35e7371",
+  "size": 2267
+ },
+ "subtitleedit/Dictionaries/ru_RU_se.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/ru_RU_se.xml",
+  "sha256": "3ae736934e37d4d6fc7999c7a9c9d173484c31cf0ef962bce3cdfdc65ebf4164",
+  "size": 1660
+ },
+ "subtitleedit/Dictionaries/ru_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/ru_abbreviations.xml",
+  "sha256": "b4887c3021b142a7adfaec9d9c0b382e29ccb6631b4e5079c8158cd79b690ed1",
+  "size": 819
+ },
+ "subtitleedit/Dictionaries/ru_names.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/ru_names.xml",
+  "sha256": "7dd7a6fa920d9325a6f0bfbc42fd6a379d402fcb32cac5ba52788012a4218b31",
+  "size": 107666
+ },
+ "subtitleedit/Dictionaries/rus_OCRFixReplaceList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/rus_OCRFixReplaceList.xml",
+  "sha256": "dc099862bb905844f75679db02a35c852672a54b726805b3ed6b3f4d420a06d7",
+  "size": 17040
+ },
+ "subtitleedit/Dictionaries/rus_WordSplitList.txt": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/rus_WordSplitList.txt",
+  "sha256": "6dd33ac325249b6e1703c4f98c7c6d6ffa9169bf527091ffee177bc1e8a63aca",
+  "size": 130468
+ },
+ "subtitleedit/Dictionaries/sk_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/sk_NoBreakAfterList.xml",
+  "sha256": "5f91df9decb73a3a42e36a79ca09221317822230f1e761f397da5a7f1646f2b9",
+  "size": 295
+ },
+ "subtitleedit/Dictionaries/sk_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/sk_abbreviations.xml",
+  "sha256": "b4f55ccf9a6e7a74d414c0ddcb77273a72061f965d331dc38f0bacf23f9dda43",
+  "size": 769
+ },
+ "subtitleedit/Dictionaries/sl_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/sl_NoBreakAfterList.xml",
+  "sha256": "2212339c54208719dc8cd5e52064bdf46f16df58a63e8153aea6c79f1359289f",
+  "size": 291
+ },
+ "subtitleedit/Dictionaries/sl_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/sl_abbreviations.xml",
+  "sha256": "bae0a82ebad11338a05c162cefc9f97af76a9f2e7d97bc93d8bde8eae1e00d3e",
+  "size": 645
+ },
+ "subtitleedit/Dictionaries/spa_OCRFixReplaceList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/spa_OCRFixReplaceList.xml",
+  "sha256": "518b0404498ae7a73699e83e78ae2d109a8bf33268404553084af984d1583a12",
+  "size": 53681
+ },
+ "subtitleedit/Dictionaries/spa_WordSplitList.txt": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/spa_WordSplitList.txt",
+  "sha256": "2d7d94c9be6113ec5dc6bc555822d8773720d6b85fa62f99d3f7fab8fe54e3b3",
+  "size": 29622
+ },
+ "subtitleedit/Dictionaries/sq_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/sq_NoBreakAfterList.xml",
+  "sha256": "632389aaca7fd9adb13d77e0d5c1f064fc787553226b1935596a9d0ff743f834",
+  "size": 285
+ },
+ "subtitleedit/Dictionaries/sq_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/sq_abbreviations.xml",
+  "sha256": "a8303e7dc62b9b7ffb682dd8b70bcacee672b7e422f838d25d1543e232f9e8c3",
+  "size": 565
+ },
+ "subtitleedit/Dictionaries/sr_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/sr_NoBreakAfterList.xml",
+  "sha256": "fb509f258589ec73d0c1ac98aefe452f642b72e4cc5b33205a56693df1bea80f",
+  "size": 555
+ },
+ "subtitleedit/Dictionaries/sr_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/sr_abbreviations.xml",
+  "sha256": "46da6c7e55ab2948a3e9c06c154cbdfb01796c6c93d2c3af9c5b5939a80f6923",
+  "size": 823
+ },
+ "subtitleedit/Dictionaries/srp_OCRFixReplaceList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/srp_OCRFixReplaceList.xml",
+  "sha256": "1ef0c3b21001c5f60d822bbe07fedb5d751f3fecf73deaecb001828d4b0dc177",
+  "size": 17606
+ },
+ "subtitleedit/Dictionaries/sv_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/sv_NoBreakAfterList.xml",
+  "sha256": "a8b71416aadc674ea65ef91b6f1e70e2998a87c3bb6cc01d66ccba9d09498288",
+  "size": 594
+ },
+ "subtitleedit/Dictionaries/sv_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/sv_abbreviations.xml",
+  "sha256": "41e54c4633b8d0add2d390a9dfd67dab83809e3f69c387c63b3e9be86b1b5fbe",
+  "size": 824
+ },
+ "subtitleedit/Dictionaries/swe_OCRFixReplaceList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/swe_OCRFixReplaceList.xml",
+  "sha256": "eb6b9fad08532ce27158dc69ce63d9523ed0dd72eedb737f9e038d2a2133575e",
+  "size": 27344
+ },
+ "subtitleedit/Dictionaries/tr_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/tr_NoBreakAfterList.xml",
+  "sha256": "5e96ddc28ac41c89f07657333a9d8129f3f39ee447e5cd8c511af9038f9fb54f",
+  "size": 283
+ },
+ "subtitleedit/Dictionaries/tr_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/tr_abbreviations.xml",
+  "sha256": "c769788aa335f5e5ee362ad44abf6d41e3183786d72f419ddbd0e82b7c2c1527",
+  "size": 761
+ },
+ "subtitleedit/Dictionaries/uk_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/uk_NoBreakAfterList.xml",
+  "sha256": "63a49621115de4e52dfd2fc58e8101aa027813a161c478a629f13f9502e7af0b",
+  "size": 294
+ },
+ "subtitleedit/Dictionaries/uk_abbreviations.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/uk_abbreviations.xml",
+  "sha256": "3f812824fad171ed7038bcc3b0a872f4ecd3c9bc427a78fec176995dd81096e4",
+  "size": 754
+ },
+ "subtitleedit/Dictionaries/vi_NoBreakAfterList.xml": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Dictionaries/vi_NoBreakAfterList.xml",
+  "sha256": "d2a74a541ee761e4a72b65f16a3e6bf53f2710b579dbdd6968f44e6ffd42c315",
+  "size": 117
+ },
+ "subtitleedit/LICENSE": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/LICENSE",
+  "sha256": "1bc4dcdb06d5507eacf67399674a5a6fa0f5f5270d15eefd7b4b2040319ceba0",
+  "size": 1071
+ },
+ "subtitleedit/Ocr/Cyrillic.nocr": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Ocr/Cyrillic.nocr",
+  "sha256": "7902a5ab7b85b6e51c939a2153638d35218cf68359ac48df4966f5a5d9343d07",
+  "size": 274847
+ },
+ "subtitleedit/Ocr/Latin.db": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Ocr/Latin.db",
+  "sha256": "dff65d2d9aeb0bb5d9cc6fc251491b25abe1292270a2691477b4ef5237eb1a55",
+  "size": 491747
+ },
+ "subtitleedit/Ocr/Latin.nocr": {
+  "url": "https://raw.githubusercontent.com/SubtitleEdit/subtitleedit/0a323e27ddf2d9263fd7d1253ce7f7ae284dc827/Ocr/Latin.nocr",
+  "sha256": "cdc1f081bafde8cf8a7b378472e513fa6f3100ddbb102811c22ab19b3270aa3d",
+  "size": 516505
+ },
+ "tesseract-LICENSE": {
+  "url": "https://raw.githubusercontent.com/tesseract-ocr/tesseract/5.5.0/LICENSE",
+  "sha256": "cfc7749b96f63bd31c3c42b5c471bf756814053e847c10f3eb003417bc523d30",
+  "size": 11358
+ }
+}

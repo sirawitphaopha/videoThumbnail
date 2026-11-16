@@ -1,0 +1,21 @@
+[Script Info]
+; ซับเทส OCR ภาษาญี่ปุ่นแนวตั้ง ข้อความแคลร์แต่งเอง (แผน OCR ขั้น 0) · วางทีละตัวซ้อนลงมา (\N คั่นทุกตัว) ตัวอักษรตั้งตรงแบบซับแนวตั้งจริง วางกลางขอบขวาของจอ
+; รุ่นแรกใช้ฟอนต์ @Yu Gothic หมุน 270 องศา ตัววาดของ SeConv หมุนทั้งบรรทัด ตัวอักษรนอนตะแคง ไม่เหมือนซับจริง (ดูภาพแล้ว 16 พ.ย. 2569)
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+WrapStyle: 2
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Vert,Yu Gothic,60,&H00F0F0F0,&H000000FF,&H00101010,&H00000000,1,0,0,0,100,100,0,0,1,4,0,6,60,80,60,128
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:01.00,0:00:03.00,Vert,,0,0,0,,こ\Nん\Nば\Nん\Nは
+Dialogue: 0,0:00:03.50,0:00:06.00,Vert,,0,0,0,,月\Nが\Nき\Nれ\Nい\Nで\Nす\Nね
+Dialogue: 0,0:00:06.50,0:00:08.50,Vert,,0,0,0,,静\Nか\Nな\N夜\Nの\N海
+Dialogue: 0,0:00:09.00,0:00:11.00,Vert,,0,0,0,,灯\N台\Nが\N見\Nえ\Nて\Nき\Nた
+Dialogue: 0,0:00:11.50,0:00:14.00,Vert,,0,0,0,,港\Nに\N着\Nく\Nよ
+Dialogue: 0,0:00:14.50,0:00:16.50,Vert,,0,0,0,,あ\Nり\Nが\Nと\Nう

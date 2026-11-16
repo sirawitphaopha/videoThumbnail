@@ -216,3 +216,21 @@
 - อ่านซับ VobSub ตัวอย่างของ ffmpeg (`test-media/ซับตัวอย่าง-ffmpeg/vobsub.idx`) ไม่ได้ ตัวโปรแกรมล้ม 0xC0000005 ที่ภาพที่ 5 · โปรแกรมปิดกล่องรายงานข้อผิดพลาดของ Windows ด้วย `SetErrorMode` ตอนเรียก แล้วบอกให้เลือก Subtitle Edit แทน
 - คำสั่งทั้งหมดดูได้จาก `bdsup2sub++.exe --help` ที่ใช้คือ `--resolution` `--fps-source` `--fps-target` `--delay` `--filter` `--palette-mode` `--minimum-time` `--move-in-ratio` `--move-out-ratio` `--move-y-offset` `--move-y-origin` `--move-x` `--move-x-offset` `--scale-x` `--scale-y` `--forced-only` `--exclude-forced` `--force-all` `--fix-invisible` `--alpha-thr` `--med-low-thr` `--med-hi-thr` `--language`
 - ไม่ขึ้น git ทั้ง zip และไฟล์ที่แตก (`.gitignore` กัน `vendor/**/*.zip` กับ `src-tauri/tools/bdsup2sub/`)
+
+## ระบบ OCR ซับรูป · โหลด 16 พ.ย. 2569 แนบไปกับตัวติดตั้ง (แผน OCR ขั้น 0 · BUGS ข้อ 143)
+
+พี่กันสั่ง 16 พ.ย. 2569 *"ก็เอามาทุกตัวที่เอาเข้ามาได้ ใส่ในโปรแกรมเลย เอาให้ครบ ไม่ต้อโหลดเเยก"* · โหลดด้วย `py -3 scripts/fetch-ocr.py` ลง `vendor/ocr/` ทุกไฟล์ล็อกรุ่นด้วยรหัส commit · **ค่า SHA-256 กับที่อยู่ที่โหลดของทุกไฟล์อยู่ใน `vendor/ocr/manifest.json`** (186 ไฟล์ 467.6 MB ไฟล์เดียวที่ขึ้น git ในโฟลเดอร์นี้) · แตกด้วย `scripts/fetch-ocr-tools.ps1` (fetch-tools เรียกต่อท้าย) ลง `src-tauri/tools/ocr/` เช็ก SHA-256 ทุกไฟล์กับ manifest ก่อน ไม่ตรงหยุด
+
+| ของ | มาจาก | รุ่น | สัญญา |
+|---|---|---|---|
+| `onnxruntime-win-x64-1.32.0.zip` (ใช้แค่ `onnxruntime.dll` กับ `onnxruntime_providers_shared.dll`) | https://github.com/microsoft/onnxruntime/releases | 1.32.0 ออก 13 พ.ย. 2569 รุ่นล่าสุด | MIT |
+| `paddle/<โมเดล>/inference.onnx` กับ `inference.yml` 19 โมเดล 278 MB | https://huggingface.co/PaddlePaddle (ชุด `*_onnx`) | PP-OCRv6 tiny small medium rec det · PP-OCRv5 mobile rec ของ th en latin korean cyrillic arabic devanagari el eslav ta te · PP-LCNet x0_25 x1_0 textline_ori | Apache 2.0 |
+| `Tesseract553.zip` | https://github.com/SubtitleEdit/support-files/releases (tesseract553 ที่ Subtitle Edit ใช้) | 5.5.3 | Apache 2.0 (`tesseract-LICENSE` จากที่เก็บ Tesseract) |
+| `tessdata/eng tha jpn jpn_vert osd .traineddata` | https://github.com/tesseract-ocr/tessdata_best | commit ล่าสุดตอนโหลด | Apache 2.0 |
+| `hunspell/en_US en_GB th_TH .aff .dic` | https://github.com/LibreOffice/dictionaries (ลิงก์เดียวกับ Subtitle Edit) | commit ล่าสุดตอนโหลด | ตาม `README_*.txt` ของแต่ละชุด |
+| `subtitleedit/Dictionaries/*` `subtitleedit/Ocr/*` (ฐาน nOCR Latin Cyrillic ฐาน Binary OCR Latin รายการแก้คำ OCR ชื่อเฉพาะ รายการแยกคำ) | https://github.com/SubtitleEdit/subtitleedit | commit `0a323e27` (16 พ.ย. 2569 รุ่นที่แคลร์อ่านซอร์ส) | MIT |
+
+- 🔴 Tesseract ต้นทางออก 5.5.4 แล้ว (28 ต.ค. 2569) แต่ยังไม่มีตัว Windows ที่โหลดได้ (UB Mannheim บน GitHub มีถึง 5.4.0 · เว็บ digi.bib.uni-mannheim.de ตอบ 403 กับโปรแกรม ลอง 16 พ.ย. 2569) จึงใช้ 5.5.3 แบบไม่ต้องติดตั้งของ Subtitle Edit ซึ่งใหม่สุดที่โหลดได้ · ใน zip เป็นตัวที่สร้างด้วย MSYS2 มีห้องสมุด Leptonica libpng libjpeg libtiff libwebp libcurl libarchive และอื่น ๆ ราว 38 ไฟล์ ไม่มีข้อความสัญญาแนบ
+- ชุดภาษา Tesseract ภาษาอื่นกว่า 120 ภาษารวมกันเกิน 1 GB ไม่แนบ ผู้ใช้โหลดในโปรแกรม (แผน OCR ขั้น 4)
+- ไฟล์ zip ของ ONNX Runtime ใหญ่ 97 MB เพราะมีไฟล์ของนักพัฒนา ที่แนบในตัวติดตั้งมีแค่ dll สองไฟล์
+- ไม่ขึ้น git (`.gitignore` กัน `vendor/ocr/*` ยกเว้น `manifest.json` และกัน `src-tauri/tools/ocr/`)

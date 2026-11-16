@@ -1,0 +1,34 @@
+[Script Info]
+; ซับเทส OCR ภาษาไทย ข้อความแคลร์แต่งเอง (แผน OCR ขั้น 0) · สระบน สระล่าง วรรณยุกต์ซ้อน ไม้ยมก ตัวเลข ตัวเอียง ซับบนจอ ซับสองบรรทัด
+ScriptType: v4.00+
+PlayResX: 1920
+PlayResY: 1080
+WrapStyle: 0
+ScaledBorderAndShadow: yes
+
+[V4+ Styles]
+Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding
+Style: Default,Leelawadee UI,64,&H00F0F0F0,&H000000FF,&H00101010,&H00000000,0,0,0,0,100,100,0,0,1,4,0,2,60,60,60,222
+Style: Sign,Leelawadee UI,52,&H00F0F0F0,&H000000FF,&H00101010,&H00000000,0,0,0,0,100,100,0,0,1,3,0,8,60,60,50,222
+
+[Events]
+Format: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text
+Dialogue: 0,0:00:01.00,0:00:03.00,Default,,0,0,0,,สวัสดีครับ ผู้ใหญ่บ้านอยู่ไหม
+Dialogue: 0,0:00:03.50,0:00:06.00,Default,,0,0,0,,ท่านไปที่ท่าน้ำตั้งแต่เช้าแล้ว\Nน่าจะกลับมาก่อนเที่ยง
+Dialogue: 0,0:00:06.50,0:00:08.50,Default,,0,0,0,,ขอบคุณมากนะคะ
+Dialogue: 0,0:00:06.50,0:00:08.50,Sign,,0,0,0,,ตลาดน้ำบ้านเก่า
+Dialogue: 0,0:00:09.00,0:00:11.00,Default,,0,0,0,,เดี๋ยวก่อน ๆ อย่าเพิ่งไป
+Dialogue: 0,0:00:11.50,0:00:14.00,Default,,0,0,0,,ปู่ของฉันเล่าว่า\Nเมื่อก่อนที่นี่มีเรือมากกว่าร้อยลำ
+Dialogue: 0,0:00:14.50,0:00:16.50,Default,,0,0,0,,{\i1}สามปีก่อน{\i0}
+Dialogue: 0,0:00:17.00,0:00:19.00,Default,,0,0,0,,น้ำขึ้นสูงจนท่วมถึงเก้าอี้
+Dialogue: 0,0:00:19.50,0:00:22.00,Default,,0,0,0,,ฤดูฝนปีนี้คงไม่หนักเท่าปีนั้น
+Dialogue: 0,0:00:22.50,0:00:24.50,Default,,0,0,0,,ใครทิ้งร่มไว้ตรงนี้
+Dialogue: 0,0:00:25.00,0:00:27.00,Default,,0,0,0,,ของผู้หญิงที่ขายก๋วยเตี๋ยวน่ะ
+Dialogue: 0,0:00:27.50,0:00:30.00,Default,,0,0,0,,ราคาสี่สิบห้าบาท\Nใส่ไข่เพิ่มอีกสิบบาท
+Dialogue: 0,0:00:30.50,0:00:32.50,Default,,0,0,0,,ฝนตกหนักแบบนี้ ไม่น่าออกไปไหนเลย
+Dialogue: 0,0:00:30.50,0:00:32.50,Sign,,0,0,0,,{\i1}ร้านเปิดทุกวัน{\i0}
+Dialogue: 0,0:00:33.00,0:00:35.00,Default,,0,0,0,,เธอรู้จักชื่อเล่นของเขาไหม
+Dialogue: 0,0:00:35.50,0:00:37.50,Default,,0,0,0,,ฉันไม่แน่ใจ แต่คิดว่าชื่อ "ต้อม"
+Dialogue: 0,0:00:38.00,0:00:40.00,Default,,0,0,0,,ปีหน้าค่อยกลับมาเยี่ยมอีกครั้ง
+Dialogue: 0,0:00:40.50,0:00:43.00,Default,,0,0,0,,พรุ่งนี้เช้าเจ็ดโมงครึ่ง\Nเจอกันที่ศาลาริมน้ำ
+Dialogue: 0,0:00:43.50,0:00:45.50,Default,,0,0,0,,{\i1}ตอนต่อไป ความลับของเรือลำสุดท้าย{\i0}

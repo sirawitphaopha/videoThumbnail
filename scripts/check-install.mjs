@@ -112,6 +112,12 @@ const toolDiff = toolNames.filter((t) => !existsSync(join(DEST, "tools", t)) || 
 const countFiles = (d) => existsSync(d) ? readdirSync(d, { recursive: true, withFileTypes: true }).filter((e) => e.isFile()).length : 0;
 const supSrc = countFiles(resolve("src-tauri", "tools", "super")), supDst = countFiles(join(DEST, "tools", "super"));
 check("โฟลเดอร์ SUPer ลงครบทุกไฟล์เท่าต้นฉบับ", supSrc > 100 && supDst === supSrc, `ต้นฉบับ ${supSrc} ไฟล์ ลงแล้ว ${supDst} ไฟล์`);
+// ระบบ OCR ซับรูป (แผน OCR ขั้น 0) โฟลเดอร์ ocr ทั้งโฟลเดอร์ นับไฟล์เทียบต้นฉบับ และตัวหลักแต่ละตัวต้องมีค่า hash ตรง
+const ocrSrc = countFiles(resolve("src-tauri", "tools", "ocr")), ocrDst = countFiles(join(DEST, "tools", "ocr"));
+const ocrKey = ["ocr/onnxruntime/onnxruntime.dll", "ocr/paddle/PP-OCRv6_small_rec/inference.onnx", "ocr/paddle/th_PP-OCRv5_mobile_rec/inference.onnx", "ocr/paddle/PP-OCRv6_medium_det/inference.onnx",
+  "ocr/tesseract/tesseract.exe", "ocr/tesseract/tessdata/tha.traineddata", "ocr/tesseract/tessdata/jpn_vert.traineddata", "ocr/hunspell/th_TH.dic", "ocr/Ocr/Latin.nocr", "ocr/Ocr/Latin.db", "ocr/Dictionaries/eng_OCRFixReplaceList.xml"];
+const ocrDiff = ocrKey.filter((t) => !existsSync(join(DEST, "tools", t)) || fileSha(join(DEST, "tools", t)) !== fileSha(resolve("src-tauri", "tools", t)));
+check("โฟลเดอร์ OCR ลงครบทุกไฟล์เท่าต้นฉบับ ตัวรัน โมเดล Tesseract พจนานุกรม ฐาน nOCR ค่า hash ตรง", ocrSrc > 150 && ocrDst === ocrSrc && ocrDiff.length === 0, `ต้นฉบับ ${ocrSrc} ไฟล์ ลงแล้ว ${ocrDst} ไฟล์${ocrDiff.length ? ` · ไม่ตรง ${ocrDiff.join(" ")}` : ""}`);
 const lic = existsSync(join(DEST, "tools", "licenses")) ? readdirSync(join(DEST, "tools", "licenses")).length : 0;
 check(`เครื่องมือ ${toolNames.length} ไฟล์ลงครบ (รวมตัวแปลงเสียง) ค่า hash ตรงกับที่โหลดมา (vendor/README.md) · มีไฟล์สัญญาอนุญาต`, toolDiff.length === 0 && lic > 0, toolDiff.length ? `ไม่ตรง ${toolDiff.join(" ")}` : `ครบ ${toolNames.length} ไฟล์ · สัญญาอนุญาต ${lic} ไฟล์`);
 const uninst = existsSync(DEST) ? readdirSync(DEST).find((f) => f.toLowerCase().startsWith("uninstall")) : null;
