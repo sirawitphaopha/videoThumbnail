@@ -7,9 +7,9 @@ import { createPortal } from "react-dom";
 import Dropdown from "../../components/Dropdown";
 import InfoTip from "../../components/InfoTip";
 import { CardIcon, Keep, Phr, Seg, Skel, Switch } from "../../components/ui";
-import { IbBack, IbBold, IbCrop, IbItalic, IbNext, IbPencil, IbPlay, IbStop, IbSwap, IbTable, IbTick, IbWand, IcExpand, IcRefresh, IcSettings } from "../../components/icons";
+import { IbBack, IbBold, IbCrop, IbItalic, IbNext, IbPencil, IbPlay, IbStop, IbSwap, IbTable, IbTick, IbWand, IcCopy, IcExpand, IcRefresh, IcSettings, IbSave } from "../../components/icons";
 import type { Tip } from "../../lib/codecAdv";
-import { ocrApi, subApi, type OcrCfg, type OcrDbList, type OcrReason, type OcrTessLang, type SubImg } from "../../lib/api";
+import { ocrApi, pickSave, subApi, type OcrCfg, type OcrDbList, type OcrReason, type OcrTessLang, type SubImg } from "../../lib/api";
 import type { AvTrack } from "../../lib/avJob";
 import { getOcrJob, ocrElapsed, openSource, pauseOcr, resumeOcr, rowReasons, setOcrCfg, setRowOk, setRowText, startOcr, stopOcr, useOcrJob, type OcrRow } from "../../lib/ocrJob";
 import { OcrDialogs, tessName } from "./OcrDialogs";
@@ -151,6 +151,20 @@ export function Txt({ r }: { r: OcrRow }) {
 }
 const hasTop = (r: OcrRow) => (r.line?.anLines ?? [r.item.an]).some((a) => a >= 7);
 
+/* ---------- สีพื้นหลังของภาพซับ (BUGS ข้อ 143.2 พี่กันสั่ง "ขอปุ่มเปลี่ยนสีพื้นหลังด้วยหน่อย") ----------
+   ซับตัวขาวขอบดำเห็นชัดบนพื้นเทา ซับตัวเหลืองหรือตัวดำเห็นชัดบนพื้นอื่น · ใช้กับภาพบรรทัดในตาราง หน้าต่างสอน คำที่ไม่รู้จัก แต่งภาพ · จำไว้ในเครื่อง */
+type ImgBg = "gray" | "dark" | "white" | "check";
+const BG_KEY = "ms.ocrImgBg";
+function loadBg(): ImgBg { try { const v = localStorage.getItem(BG_KEY); return v === "dark" || v === "white" || v === "check" ? v : "gray"; } catch { return "gray"; } }
+function applyBg(v: ImgBg) { document.documentElement.dataset.ocrImgbg = v; }
+applyBg(loadBg());
+function BgPick() {
+  const [v, setV] = useState<ImgBg>(loadBg);
+  const pick = (x: ImgBg) => { setV(x); applyBg(x); try { localStorage.setItem(BG_KEY, x); } catch { /* จำไม่ได้ก็ใช้ค่านี้ไปก่อน */ } };
+  return <span className="ocr-bgpick" data-ocr-bg><Dropdown label="สีพื้นหลังของภาพซับ" value={v} onChange={pick} display={(o) => `พื้น${o?.label ?? ""}`}
+    options={[{ value: "gray", label: "เทา" }, { value: "dark", label: "ดำ" }, { value: "white", label: "ขาว" }, { value: "check", label: "ลายตาราง" }]} /></span>;
+}
+
 /* ---------- แถวเลือกตัวอ่าน ---------- */
 const MATCH = ["nocr", "binary", "own"];
 function EngineRow({ busy, dbs, tess }: { busy: boolean; dbs: OcrDbList | null; tess: OcrTessLang[] }) {
@@ -207,9 +221,9 @@ function EngineRow({ busy, dbs, tess }: { busy: boolean; dbs: OcrDbList | null; 
 }
 
 /* ---------- ตาราง ---------- */
-function OcrTable({ rows, sel, setSel, onlyFlag, imgs, need, current }: { rows: OcrRow[]; sel: number; setSel: (i: number) => void; onlyFlag: boolean; imgs: Map<number, SubImg>; need: (n: number) => void; current: number | null }) {
+function OcrTable({ rows, sel, setSel, onlyFlag, onlyForced, imgs, need, current }: { rows: OcrRow[]; sel: number; setSel: (i: number) => void; onlyFlag: boolean; onlyForced: boolean; imgs: Map<number, SubImg>; need: (n: number) => void; current: number | null }) {
   const box = useRef<HTMLDivElement>(null);
-  const list = rows.map((r, i) => ({ r, i })).filter(({ r }) => !onlyFlag || rowReasons(r).length);
+  const list = rows.map((r, i) => ({ r, i })).filter(({ r }) => (!onlyFlag || rowReasons(r).length) && (!onlyForced || r.item.forced));
   // ขอภาพของแถวที่เห็นในกรอบ
   useEffect(() => {
     const el = box.current;
@@ -227,12 +241,12 @@ function OcrTable({ rows, sel, setSel, onlyFlag, imgs, need, current }: { rows: 
     <div className="ocr-grid" ref={box} data-ocr-table>
       <table>
         <colgroup><col style={{ width: 52 }} /><col style={{ width: 120 }} /><col style={{ width: 240 }} /><col style={{ width: 40 }} /><col /><col style={{ width: 176 }} /></colgroup>
-        <thead><tr><th className="num">#</th><th>เวลา</th><th>ภาพ</th><th aria-label="ขยายภาพ" /><th>ข้อความ</th><th><span className="ocr-th">ตรวจ<InfoTip title="จุดที่ต้องตรวจ" tip={FLAG_TIP} /></span></th></tr></thead>
+        <thead><tr><th className="num">#</th><th>เวลา</th><th><span className="ocr-th">ภาพ<BgPick /></span></th><th aria-label="ขยายภาพ" /><th>ข้อความ</th><th><span className="ocr-th">ตรวจ<InfoTip title="จุดที่ต้องตรวจ" tip={FLAG_TIP} /></span></th></tr></thead>
         <tbody>{list.map(({ r, i }) => {
           const rs = rowReasons(r);
           return (
             <tr key={i} data-n={r.item.n} data-i={i} className={(sel === i ? "on" : "") + (rs.length ? " flag" : "")} onClick={() => setSel(i)}>
-              <td className="num">{r.item.n}</td>
+              <td className="num">{r.item.n}{r.item.forced && <span className="ocr-forced" title="ซับบังคับ (forced) ขึ้นแม้ปิดซับ">บังคับ</span>}</td>
               <td className="ocr-time">{ts(r.item.start)}<span>{r.item.end != null ? `${(r.item.end - r.item.start).toFixed(1)} วิ` : ""}</span></td>
               <td><LineImg img={imgs.get(r.item.n)} n={r.item.n} zoom={false} /></td>
               <td className="ocr-zcol"><ZoomCell img={imgs.get(r.item.n)} n={r.item.n} /></td>
@@ -278,6 +292,30 @@ function useFrame(movie: string, r: OcrRow | undefined, on: boolean) {
   }, [movie, r?.item.n, on]); // eslint-disable-line react-hooks/exhaustive-deps
   return f;
 }
+/** ปุ่มคัดลอกภาพกับบันทึกภาพของภาพที่เลือก (Subtitle Edit มีในเมนูคลิกขวาของตาราง) · ผลสำเร็จหายเอง ผิดพลาดค้างจนกดปิด (สกิล save-status) */
+function ImgOut({ i, n }: { i: number; n: number }) {
+  const [st, setSt] = useState<{ s: "busy" | "ok" | "bad"; m: string } | null>(null);
+  useEffect(() => { if (st?.s !== "ok") return; const t = setTimeout(() => setSt(null), 4000); return () => clearTimeout(t); }, [st]);
+  useEffect(() => setSt(null), [i]);
+  const w = window as unknown as { __ocrImgDry?: boolean; __ocrImgTarget?: string };
+  const copy = async () => {
+    setSt({ s: "busy", m: "" });
+    try { await ocrApi.imageOut(i, "copy", null, import.meta.env.DEV && !!w.__ocrImgDry); setSt({ s: "ok", m: `คัดลอกภาพ ${n} แล้ว` }); } catch (e) { setSt({ s: "bad", m: String(e) }); }
+  };
+  const save = async () => {
+    const p = import.meta.env.DEV && w.__ocrImgTarget ? `${w.__ocrImgTarget}/ภาพซับ ${n}.png` : await pickSave(`ภาพซับ ${n}.png`, "png", "ภาพ PNG");
+    if (!p) return;
+    setSt({ s: "busy", m: "" });
+    try { const f = await ocrApi.imageOut(i, "save", p); setSt({ s: "ok", m: `บันทึกแล้ว ${baseName(f)}` }); } catch (e) { setSt({ s: "bad", m: String(e) }); }
+  };
+  return (<>
+    <button type="button" className="btn btn-ghost btn-sm ocr-ic" title="คัดลอกภาพซับนี้" aria-label="คัดลอกภาพ" onClick={() => void copy()} data-ocr-copyimg><IcCopy size={14} /></button>
+    <button type="button" className="btn btn-ghost btn-sm ocr-ic" title="บันทึกภาพซับนี้เป็นไฟล์ PNG" aria-label="บันทึกภาพ" onClick={() => void save()} data-ocr-saveimg><IbSave size={14} /></button>
+    {st && st.s !== "busy" && <span className={"small ocr-imgst " + st.s} title={st.m} data-ocr-imgst={st.s} onClick={() => { if (st.s === "bad") setSt(null); }}>{st.s === "ok" ? st.m : "ทำไม่สำเร็จ กดเพื่อปิด"}</span>}
+  </>);
+}
+const baseName = (p: string) => p.split("/").pop()?.split(String.fromCharCode(92)).pop() ?? p;
+
 function EditArea({ i, rows, movie, imgs, setSel, onTeach, onUnknown }: { i: number; rows: OcrRow[]; movie: string; imgs: Map<number, SubImg>; setSel: (i: number) => void; onTeach: () => void; onUnknown: (w: string, i: number) => void }) {
   const r = rows[i];
   const [tab, setTab] = useState<"flag" | "word" | "fix" | "guess">("flag");
@@ -295,7 +333,9 @@ function EditArea({ i, rows, movie, imgs, setSel, onTeach, onUnknown }: { i: num
   return (
     <div className="ocr-edit" data-ocr-edit>
       <div className="ocr-editl">
-        <div className="ocr-edhead"><b>ภาพที่ {r.item.n}</b><span className="small">{ts(r.item.start)}{r.item.end != null ? `–${ts(r.item.end)}` : ""}</span><span style={{ flex: 1 }} />
+        {/* เวลาอยู่ในคำบอกตอนชี้ หัวช่องแคบ ใส่ปุ่มคัดลอกบันทึกภาพแล้วชื่อตกสองบรรทัด เวลาตัวอักษรถ่าง (เจอตอนดูภาพ 16 พ.ย. 2569) */}
+        <div className="ocr-edhead"><b title={`${ts(r.item.start)}${r.item.end != null ? `–${ts(r.item.end)}` : ""}`} data-ocr-edtitle>ภาพ {r.item.n}</b><span style={{ flex: 1 }} />
+          <ImgOut i={i} n={r.item.n} />
           <label className={"sv-frame" + (movie ? "" : " off")} title={movie ? undefined : "ซับที่เปิดจากไฟล์ซับ ไม่มีไฟล์หนังให้ดึงภาพ"}><Switch on={frameOn && !!movie} onChange={(v) => { if (movie) setFrameOn(v); }} label="ภาพจากหนังข้างหลังซับ" /><span>ภาพหนัง</span></label></div>
         <ScreenImg img={imgs.get(r.item.n)} n={r.item.n} frame={frameOn ? frame : null} />
       </div>
@@ -379,6 +419,7 @@ export default function OcrPage({ track, movie }: { track: AvTrack; movie: strin
   const { imgs, need } = useSubImgs(path, ff);
   const [sel, setSel] = useState(0);
   const [only, setOnly] = useState(false);
+  const [forcedOnly, setForcedOnly] = useState(false);
   const [view, setView] = useState<"table" | "one">(() => { try { return localStorage.getItem(VIEW_KEY) === "one" ? "one" : "table"; } catch { return "table"; } });
   const [dlg, setDlg] = useState<null | "prep" | "models" | "options">(null);
   const [ask, setAsk] = useState<{ word: string; i: number } | null>(null);
@@ -398,6 +439,7 @@ export default function OcrPage({ track, movie }: { track: AvTrack; movie: strin
   const done = rows.filter((r) => r.state === "done").length;
   const flagged = rows.filter((r) => rowReasons(r).length).length;
   const tops = rows.filter((r) => r.state === "done" && hasTop(r)).length;
+  const forcedCount = rows.filter((r) => r.item.forced).length;
   const allDone = total > 0 && done === total;
   const ms = ocrElapsed();
   const pct = job.runIds.length ? Math.round((job.runDone / job.runIds.length) * 100) : 0;
@@ -421,13 +463,14 @@ export default function OcrPage({ track, movie }: { track: AvTrack; movie: strin
         <CardIcon kind={flagged ? "warn" : "ok"} /><Phr>{sum ?? `อ่านแล้ว ${done.toLocaleString("en-US")} จาก ${total.toLocaleString("en-US")} ภาพ มี ${flagged.toLocaleString("en-US")} ภาพที่ควรตรวจ`}</Phr>
         <InfoTip title="จุดที่ต้องตรวจ" tip={FLAG_TIP} />
         <span style={{ flex: 1 }} />
+        {view === "table" && forcedCount > 0 && <label className="ocr-only" data-ocr-forced><Switch on={forcedOnly} onChange={setForcedOnly} label="แสดงเฉพาะซับบังคับ" /><span>{`เฉพาะซับบังคับ ${forcedCount}`}</span></label>}
         {view === "table" && <label className="ocr-only"><Switch on={only} onChange={setOnly} label="แสดงเฉพาะจุดที่ต้องตรวจ" /><span>เฉพาะจุดที่ต้องตรวจ</span></label>}
         <Seg small label="แบบตรวจทาน" value={view} onChange={setView} options={[{ value: "table", label: <><IbTable size={14} />ตาราง</> }, { value: "one", label: <><IbNext size={14} />ทีละจุด</> }]} />
       </div>}
       {view === "one" && done > 0
         ? <ReviewOne rows={rows} movie={movie} imgs={imgs} need={need} sel={sel} setSel={setSel} onTeach={teachRow} />
         : <>
-          <OcrTable rows={rows} sel={sel} setSel={setSel} onlyFlag={only} imgs={imgs} need={need} current={job.current} />
+          <OcrTable rows={rows} sel={sel} setSel={setSel} onlyFlag={only} onlyForced={forcedOnly} imgs={imgs} need={need} current={job.current} />
           <EditArea i={Math.min(sel, rows.length - 1)} rows={rows} movie={movie} imgs={imgs} setSel={setSel} onTeach={teachRow} onUnknown={(word, i) => setAsk({ word, i })} />
         </>}
       <div className="ocr-foot" data-ocr-foot>

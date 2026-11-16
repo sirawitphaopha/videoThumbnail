@@ -130,8 +130,8 @@ try {
   // F6 หนังมีซับสองแทร็ก (ASS ครบทุกช่อง กับ SRT แท็ก SRT) กดแทร็กที่ 2 แล้วรีบกดกลับแทร็กที่ 1 · แทร็กที่ 2 ถอดเสร็จทีหลังต้องไม่ทับ
   // และกดแทร็กที่ 2 แล้วกดแทร็กที่ 1 ตอนเอกสารของแทร็กที่ 1 ไม่อยู่แล้ว (เปิดใหม่ทั้งคู่) ผลของอันที่กดก่อนต้องไม่ทับอันล่าสุด
   check("F6 เปิดหนังที่มีซับสองแทร็ก", await open(MKV));
-  const pick = (i) => q(`document.querySelectorAll('[data-sub-list] .subpage-trkpick')[${i}].click(); return 1;`);
-  const tidOn = () => q(`return { tid: ${S}.get().doc?.source?.tid ?? null, sel: [...document.querySelectorAll('[data-sub-list] .subpage-trkpick')].findIndex((b) => b.getAttribute('aria-pressed') === 'true') };`);
+  const pick = (i) => q(`window.__subPick(${i}); return 1;`);
+  const tidOn = () => q(`return { tid: ${S}.get().doc?.source?.tid ?? null, sel: window.__subTracks().cur };`);
   const t1 = (await tidOn()).tid;
   await pick(1); await sleep(40); await pick(0);
   await sleep(6000);

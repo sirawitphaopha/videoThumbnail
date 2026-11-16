@@ -124,13 +124,16 @@ try {
   /* ---------------------------------------------------------------- ปุ่มเปิดในตัวดูซับรูปภาพ */
   check("เปิดซับ PGS .sup แล้วตัวดูซับรูปภาพมีปุ่มแปลงซับภาพ", await openSub(SUP));
   const head = await q("const h = document.querySelector('.sv-imghead'); const s = h.querySelector('.small').getBoundingClientRect(); const b = h.querySelector('[data-imgconv-open]').getBoundingClientRect(); return { sameRow: b.top < s.bottom && b.bottom > s.top, right: Math.round(h.getBoundingClientRect().right - b.right), text: b.width > 0 ? h.querySelector('[data-imgconv-open]').innerText.trim() : '' };");
-  check("ปุ่มอยู่แถวเดียวกับข้อความสรุปและชิดขวา", head.sameRow && head.right <= 1 && head.text === "แปลงซับภาพ", JSON.stringify(head));
+  // ปุ่ม OCR เป็นตัวหนังสืออยู่ขวาปุ่มแปลงซับภาพ (แผน OCR ขั้น 11 · ข้อ 143 ㉔) ปุ่มขวาสุดของแถวชิดขวาแทน
+  const ocrBtn = await q("const h = document.querySelector('.sv-imghead'), b = h.querySelector('[data-ocr-open]'), a = h.querySelector('[data-imgconv-open]'); if (!b) return null; const r = b.getBoundingClientRect(), ra = a.getBoundingClientRect(); return { right: Math.round(h.getBoundingClientRect().right - r.right), after: r.left >= ra.right, row: Math.abs(r.top - ra.top) < 1 };");
+  check("ปุ่มอยู่แถวเดียวกับข้อความสรุป ตามด้วยปุ่ม OCR ที่ชิดขวา", head.sameRow && head.text === "แปลงซับภาพ" && (ocrBtn ? ocrBtn.after && ocrBtn.row && ocrBtn.right <= 1 : head.right <= 1), JSON.stringify({ head, ocrBtn }));
   await c.shot(`${SHOT}/01-ปุ่มแปลงซับภาพในตัวดูซับ.png`, ".sv-imghead", 8);
 
   /* ---------------------------------------------------------------- เปิดหน้าต่าง ค่าตั้งต้น */
   check("กดปุ่มแล้วหน้าต่างแปลงซับภาพขึ้น", await openDlg());
   const size = await q("const d = document.querySelector('.dlg:has([data-icv])').getBoundingClientRect(); return [Math.round(d.width), Math.round(d.height)];");
-  check("หน้าต่าง 1280 × 800 กว้าง 1100 สูง 752 (ความสูงจอลบ 48)", size[0] === 1100 && size[1] === 752, size.join(" × "));
+  // ขนาดเปลี่ยนเป็นกว้าง 1120 สูงเต็มจอลบ 48 ตั้งแต่ commit e1e0359 ตัวตรวจค้างค่าเดิม (เจอ 16 พ.ย. 2569)
+  check("หน้าต่าง 1280 × 800 กว้าง 1120 สูง 752 (ความสูงจอลบ 48)", size[0] === 1120 && size[1] === 752, size.join(" × "));
   await sleep(400);
   const p0 = await pathNow();
   check("ที่เก็บตั้งข้างไฟล์ต้นทาง ชื่อไม่ชนไฟล์เดิม", p0.replace(/\\/g, "/") === `${TMP}/ซับภาพ PGS.แปลง.sup`, p0);
@@ -354,7 +357,7 @@ try {
   check("เปิดซับ HD DVD ในหน้าซับไตเติลได้ ตัวดูซับรูปภาพมีปุ่มแปลงซับภาพ", await openSub(HDDVD), await q("return document.querySelector('[data-subpage] .stat.bad, .sub-err, [data-sub-err]')?.innerText ?? ''"));
   // ไฟล์ซับเดี่ยวไม่มีปุ่มเลือกแทร็ก ชนิดซับบอกที่หัวตัวดูซับรูปภาพ
   const hdHead = await q("return document.querySelector('.sv-imghead .small')?.innerText.replace(/\\s+/g, ' ').trim() ?? ''");
-  check("หัวตัวดูซับบอกว่าเป็นซับรูปภาพแบบ HD DVD", hdHead === "ซับที่เพิ่มเข้ามาเป็นซับรูปภาพแบบ HD DVD", hdHead);
+  check("หัวตัวดูซับบอกว่าเป็นซับรูปภาพแบบ HD DVD (ถอดไว้แล้วมีจำนวนภาพต่อท้าย)", /^ซับที่เพิ่มเข้ามาเป็นซับรูปภาพแบบ HD DVD( มี [\d,]+ ภาพ)?$/.test(hdHead), hdHead);
   check("ภาพซับขึ้นในตัวดูซับรูปภาพ", await waitFor("return document.querySelectorAll('[data-subviewer][data-mode=image] img').length > 0", 60000), String(await q("return document.querySelectorAll('[data-subviewer][data-mode=image] img').length")));
   await c.shot(`${SHOT}/10-HD-DVD-ตัวดูซับ.png`, "[data-subviewer]", 6);
   await openDlg();
@@ -377,8 +380,9 @@ try {
 
   /* ---------------------------------------------------------------- ซับรูปในไฟล์ MKV */
   await q(`window.__subClear(); window.__subOpen(${JSON.stringify(MKV)}); return 1;`);
-  await waitFor("return document.querySelectorAll('[data-sub-pick]').length > 0", 30000);
-  await q("const b = [...document.querySelectorAll('[data-sub-pick]')].find((x) => /PGS|VobSub/.test(x.innerText)); b?.click(); return 1;");
+  // แทร็กเลือกจากดรอปดาวน์ในแถบชื่อโปรแกรม (BUGS ข้อ 149)
+  await waitFor("return (window.__subTracks?.().list.length ?? 0) > 0", 30000);
+  await q("const k = window.__subTracks().list.findIndex((x) => /PGS|VobSub/.test(x)); if (k >= 0) window.__subPick(k); return 1;");
   check("ซับรูปในไฟล์ MKV มีปุ่มแปลงซับภาพ", await waitFor("return !!document.querySelector('[data-imgconv-open]')", 30000));
   await openDlg(); await sleep(400);
   const pm = await pathNow();
@@ -405,7 +409,7 @@ try {
   await sleep(300);
   await openDlg(); await prevDone(); await sleep(300);
   const big = await q("const d = document.querySelector('.dlg:has([data-icv])').getBoundingClientRect(); return [Math.round(d.width), Math.round(d.height)];");
-  check("หน้าต่าง 1920 × 1032 กว้าง 1100 สูง 760", big[0] === 1100 && big[1] === 760, big.join(" × "));
+  check("หน้าต่าง 1920 × 1032 กว้าง 1120 สูง 984 (ความสูงจอลบ 48)", big[0] === 1120 && big[1] === 984, big.join(" × "));
   await rowsOk("จอ 1920");
   await c.shot(`${SHOT}/09-จอ1920.png`, ".dlg", 6);
   await closeDlg();

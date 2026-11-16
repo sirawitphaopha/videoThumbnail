@@ -8,13 +8,15 @@
    ข้อ 109 ซับตัวหนังสือเปิดเป็นหน้าแก้ซับแบบ Aegisub (แผนหน้าแก้ซับ · components/subedit/SubEditor.tsx) ซับรูปยังเป็นตัวดูเดิม
    เปลี่ยนแทร็กหรือเปิดไฟล์อื่นตอนซับที่แก้ยังไม่บันทึก ถามก่อน บันทึก ไม่บันทึก (เก็บฉบับอัตโนมัติให้) หรือยกเลิก */
 import { useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import Dropdown from "../components/Dropdown";
 import Dialog from "../components/Dialog";
 import SubEditor from "../components/subedit/SubEditor";
 import { autosaveStrict, closeDoc, getSubEdit, requestSave } from "../lib/subEdit";
 import { flushPad } from "../components/subedit/PadView";
 import { api, infoApi, inApp, mergeApi, pickFile, SUB_EXT, type ExtractItem, type MergeTrack } from "../lib/api";
 import { trackFrom, type AvTrack } from "../lib/avJob";
-import { usePageActiveRef } from "../lib/pageActive";
+import { usePageActive, usePageActiveRef } from "../lib/pageActive";
 import { ftName, isImageSub } from "../lib/ftypes";
 import { langName } from "../lib/langs";
 import { CardIcon, J, Keep, Phr, Seg, Skel, dropClick } from "../components/ui";
@@ -66,6 +68,10 @@ export default function SubtitlePage({ onAv, onSettings }: { onAv: () => void; o
   /** งานที่ทำกับซับรูป ดูซับ หรือ OCR เป็นตัวหนังสือ (แผน OCR ขั้น 11 · ข้อ 143 ㉔) */
   const [imgMode, setImgMode] = useState<"view" | "ocr" | "edit">("view");
   const pageOn = usePageActiveRef();
+  const active = usePageActive();
+  /** ช่องในแถบชื่อโปรแกรม แถวบนเดิมของหน้านี้ย้ายขึ้นไปทั้งแถว (BUGS ข้อ 149 พี่กันสั่ง "ย้ายขึ้นไป เเถบนี้" แล้ว "ย้ายขึ้นไปบนสุดให้หมด") */
+  const [ttl, setTtl] = useState<HTMLElement | null>(null);
+  useEffect(() => { setTtl(document.querySelector<HTMLElement>("[data-ttl-slot]")); }, []);
   /** งานที่รอถามก่อน เพราะซับที่แก้ยังไม่บันทึก · busy ระหว่างบันทึก */
   const [guard, setGuard] = useState<{ go: () => void; busy: boolean; err: string | null } | null>(null);
   /** ซับที่แก้ยังไม่บันทึก ถามก่อนเปลี่ยนแทร็กหรือเปิดไฟล์อื่น · ไม่มีอะไรค้างทำเลย */
@@ -101,6 +107,10 @@ export default function SubtitlePage({ onAv, onSettings }: { onAv: () => void; o
   const open = (p: string) => whenSaved(() => void openNow(p));
   const pick = async () => { const p = await pickFile("subtitle"); if (p) open(p); };
   const openRef = useRef(open); openRef.current = open;
+  const fileRef = useRef(file); fileRef.current = file;
+  const viewRef = useRef(view); viewRef.current = view;
+  /** เลือกแทร็กซับที่แก้ · ซับที่แก้ยังไม่บันทึกถามก่อน */
+  const pickTrack = (key: string) => { if (key !== view) whenSaved(() => setView(key)); };
 
   /** เพิ่มไฟล์วิดีโอคู่กับไฟล์ซับ (ข้อ 107) · อ่านแทร็กเสียงไว้วาดคลื่น ไฟล์ไม่ถูกแตะ */
   const setVideo = async (v: string) => {
@@ -176,6 +186,9 @@ export default function SubtitlePage({ onAv, onSettings }: { onAv: () => void; o
     // ตัวตรวจเริ่มจากหน้าว่างและล้างหน้ากลับตอนจบ ไม่ทิ้งไฟล์ทดสอบค้างให้พี่กันเห็น
     (w as { __subClear?: () => void }).__subClear = () => { closeDoc(); setFile(null); setErr(null); setView(null); setExp(null); setVideoErr(null); };
     w.__subOpen = (p) => openRef.current(p);
+    (w as { __subPick?: (i: number) => void }).__subPick = (i) => { const t = fileRef.current?.subs[i]; if (t) pickTrack(t.key); };
+    // ตัวตรวจอ่านรายชื่อแทร็กกับแทร็กที่เลือก (ดรอปดาวน์ไม่มีรายการใน DOM จนกว่าจะกาง)
+    (w as { __subTracks?: () => { list: string[]; cur: number } }).__subTracks = () => { const f = fileRef.current; return { list: f ? f.subs.map((t, i) => label(t, i)) : [], cur: f ? f.subs.findIndex((t) => t.key === viewRef.current) : -1 }; };
     w.__subVideo = (p) => void videoRef.current(p);
   });
 
@@ -188,27 +201,46 @@ export default function SubtitlePage({ onAv, onSettings }: { onAv: () => void; o
   const isImage = (t: AvTrack) => isImageSub(t.codec, t.profile);
   const showDrop = !file || over;
   const many = !!file && (file.movie || file.subs.length > 1);
+  // แถวบนทั้งแถวอยู่ในแถบชื่อโปรแกรม (BUGS ข้อ 149) · เสียบเฉพาะตอนหน้านี้เปิดอยู่ · ช่องว่างกลางแถวลากหน้าต่างได้
+  const label = (t: AvTrack, i: number) => { const lang = langName(t.lang); return `${!t.inMovie ? nameOf(t.src) : `ซับที่ ${i + 1}`} ${ftName("subtitle", t.codec, t.profile)}${lang ? ` ${lang}` : ""}${t.name ? ` ${t.name}` : ""}`; };
+  const si = file && st ? file.subs.indexOf(st) : -1;
+  const item = si >= 0 ? file?.items?.[si] ?? null : null;
+  const canExport = !!file && file.movie && !!st?.inMovie;
+  const expWhy = !file?.items ? "กำลังอ่านข้อมูลซับ" : !item ? "ซับชนิดนี้ Export ไม่ได้" : undefined;
+  const top = (
+    <span className="ttl-sub subpage-bar" data-sub-bar>
+      <span className="sv-sep" aria-hidden />
+      <button type="button" className="btn btn-ghost" onClick={onAv} data-subtitle-go-av><IcMix size={14} />ไปหน้าเสียงและซับ</button>
+      {file && !busy && <>
+        <b className="subpage-name" title={file.path} data-tauri-drag-region data-sub-name>{nameOf(file.path)}</b>
+        {file.video && <span className="small subpage-name" title={file.video} data-tauri-drag-region>ดูคู่กับ {nameOf(file.video)}</span>}
+        {/* เลือกแทร็กเป็นดรอปดาวน์ แทนแถวแทร็กเดิมที่กินที่ส่วนบน · เพิ่มไฟล์ซับอยู่ท้ายรายการ (มอคอัป OCR ที่พี่กันเคาะ) */}
+        {many && view && <span className="ttl-dd" data-sub-list><Dropdown label="ซับที่แก้" value={view} portal
+          onChange={(v) => { if (v === "__add") void addSub(); else pickTrack(v); }}
+          options={[...file.subs.map((t, i) => ({ value: t.key, label: label(t, i) })), ...(file.movie ? [{ value: "__add", label: "เพิ่มไฟล์ซับที่แยกจากหนัง" }] : [])]} /></span>}
+        {canExport && st && (
+          <button type="button" className={"btn " + (expWhy || exportBusy ? "btn-wait" : "btn-ghost")} aria-disabled={!!expWhy || exportBusy || undefined}
+            title={expWhy ?? (item ? `เก็บซับที่ ${si + 1} เป็นไฟล์ .${item.ext} ไว้ที่โฟลเดอร์ ${nameOf(file.path).replace(/\.[^.]+$/, "")} แยกไฟล์ ข้างไฟล์หนัง` : undefined)}
+            onClick={() => { if (!expWhy && item && !exportBusy) void doExport(st.key, `ซับที่ ${si + 1}`, item); }} data-sub-export={si}>
+            <Keep all={["Export", "กำลัง Export…"]} icon={<IcExtract size={14} />}>{exportBusy ? "กำลัง Export…" : "Export"}</Keep>
+          </button>)}
+      </>}
+      <span className="ttl-gap" data-tauri-drag-region />
+      {file && !busy && <>
+        {st && isImage(st) && <span className="subpage-seg" data-sub-mode><Seg small label="งานที่ทำกับซับนี้" value={imgMode} onChange={setImgMode}
+          options={[{ value: "view", label: <><IcSubtitle size={14} />ดูซับ</> }, { value: "ocr", label: <><IbWand size={14} />OCR เป็นตัวหนังสือ</> },
+            { value: "edit", label: <><IbTable size={14} />แก้ซับกับวิดีโอ</>, off: "ซับรูปต้อง OCR เป็นตัวหนังสือก่อน จึงจะแก้กับวิดีโอได้" }]} /></span>}
+        {st && !isImage(st) && <span className="subpage-seg" data-sub-tabs><Seg small label="แบบการดู" value={subTab} onChange={setSubTab}
+          options={[{ value: "aeg", label: <><IbTable size={14} />แบบ Aegisub</> }, { value: "long", label: <><IcFile size={14} />แบบอ่านยาว</> }, { value: "pad", label: <><IbPencil size={14} />แบบ notepad</> }]} /></span>}
+        {!file.movie && <button type="button" className="btn btn-ghost" onClick={() => void addVideo()} title="เพิ่มไฟล์วิดีโอคู่กับซับ แล้วตัวดูซับแสดงภาพหนังกับคลื่นเสียง" data-sub-addvideo-page><IcFile size={14} />{file.video ? "เปลี่ยนไฟล์วิดีโอ" : "เพิ่มไฟล์วิดีโอ"}</button>}
+        {file.movie && file.subs.length === 0 && <button type="button" className="btn btn-ghost" onClick={() => void addSub()} title="เพิ่มไฟล์ซับที่แยกจากหนัง มาดูคู่กับหนังเรื่องนี้" data-sub-addsub><IcFile size={14} />เพิ่มไฟล์ซับ</button>}
+        <button type="button" className="btn btn-ghost" onClick={() => void pick()} title="เปิดไฟล์หนังหรือไฟล์ซับอื่น หรือลากไฟล์มาวางที่หน้านี้" data-sub-openother><IcFolder size={14} />เปิดไฟล์อื่น</button>
+      </>}
+    </span>);
   return (
     <div className="pagewrap" data-subtitle-page data-ocr-on={(st && isImage(st) && imgMode === "ocr") || undefined}>
+      {active && ttl && createPortal(top, ttl)}
       <div className="ag">
-        <div className="gmodebar subpage-bar" data-sub-bar>
-          <button type="button" className="btn btn-ghost" style={{ height: 36 }} onClick={onAv} data-subtitle-go-av><IcMix />ไปหน้าเสียงและซับ</button>
-          {file && !busy ? (<>
-            <b className="subpage-name" title={file.path} data-sub-name>{nameOf(file.path)}</b>
-            {file.video && <span className="small subpage-name" title={file.video}>ดูคู่กับ {nameOf(file.video)}</span>}
-            <span style={{ flex: 1 }} />
-            {/* ปุ่มเลือกแบบการดูอยู่แถวบนข้างปุ่มเพิ่มไฟล์ (BUGS ข้อ 109 พี่กัน "เอาปุ่มเลือกรูปแบบไปไว้ตรงปุ่มเพิ่มวิดีโอ") · ซับรูปมีแบบเดียว ไม่ขึ้น */}
-            {st && isImage(st) && <span className="subpage-seg" data-sub-mode><Seg label="งานที่ทำกับซับนี้" value={imgMode} onChange={setImgMode}
-              options={[{ value: "view", label: <><IcSubtitle size={14} />ดูซับ</> }, { value: "ocr", label: <><IbWand size={14} />OCR เป็นตัวหนังสือ</> },
-                { value: "edit", label: <><IbTable size={14} />แก้ซับกับวิดีโอ</>, off: "ซับรูปต้อง OCR เป็นตัวหนังสือก่อน จึงจะแก้กับวิดีโอได้" }]} /></span>}
-            {st && !isImage(st) && <span className="subpage-seg" data-sub-tabs><Seg label="แบบการดู" value={subTab} onChange={setSubTab}
-              options={[{ value: "aeg", label: <><IbTable size={14} />แบบ Aegisub</> }, { value: "long", label: <><IcFile size={14} />แบบอ่านยาว</> }, { value: "pad", label: <><IbPencil size={14} />แบบ notepad</> }]} /></span>}
-            {file.movie
-              ? <button type="button" className="btn btn-ghost" style={{ height: 36 }} onClick={() => void addSub()} title="เพิ่มไฟล์ซับที่แยกจากหนัง มาดูคู่กับหนังเรื่องนี้" data-sub-addsub><IcFile size={16} />เพิ่มไฟล์ซับ</button>
-              : <button type="button" className="btn btn-ghost" style={{ height: 36 }} onClick={() => void addVideo()} title="เพิ่มไฟล์วิดีโอคู่กับซับ แล้วตัวดูซับแสดงภาพหนังกับคลื่นเสียง" data-sub-addvideo-page><IcFile size={16} />{file.video ? "เปลี่ยนไฟล์วิดีโอ" : "เพิ่มไฟล์วิดีโอ"}</button>}
-            <button type="button" className="btn btn-ghost" style={{ height: 36 }} onClick={() => void pick()} title="เปิดไฟล์หนังหรือไฟล์ซับอื่น หรือลากไฟล์มาวางที่หน้านี้" data-sub-openother><IcFolder size={16} />เปิดไฟล์อื่น</button>
-          </>) : <span className="small"><Phr>แก้ซับในไฟล์หนังหรือไฟล์ซับแบบ Aegisub  ไฟล์ไม่ถูกแตะจนกว่าจะกดบันทึก</Phr></span>}
-        </div>
         {showDrop && (
           <div className={"drop" + (over ? " over" : err ? " bad" : "")} style={{ minHeight: file ? 120 : 180 }} onClick={dropClick(pick)} data-drop="subtitle">
             {over ? <b>ปล่อยเมาส์เพื่อเปิดไฟล์นี้</b>
@@ -227,31 +259,7 @@ export default function SubtitlePage({ onAv, onSettings }: { onAv: () => void; o
         ) : file && file.subs.length === 0 ? (
           <div className="stat info" data-sub-file><CardIcon kind="info" /><div><b>ไฟล์นี้ไม่มีซับในตัว</b><Phr>เพิ่มไฟล์ซับเพื่อดูคู่กับหนังเรื่องนี้</Phr>
             <div className="minirow"><button type="button" className="btn btn-ghost btn-sm" onClick={() => void addSub()} data-sub-addsub-empty><IcFile size={15} />เพิ่มไฟล์ซับ</button></div></div></div>
-        ) : file && many && (
-          // แถบเลือกแทร็กซับแถวเดียว ไม่เป็นการ์ดใหญ่ · ซับในไฟล์หนังมีปุ่ม Export ติดแทร็ก
-          <div className="subpage-tracks" data-sub-file data-sub-list>{file.subs.map((t, i) => {
-            const ft = ftName("subtitle", t.codec, t.profile);
-            const lang = langName(t.lang);
-            const label = !t.inMovie ? nameOf(t.src) : `ซับที่ ${i + 1}`;
-            const item = file.items?.[i] ?? null;
-            const mine = exp?.key === t.key;
-            const why = !file.items ? "กำลังอ่านข้อมูลซับ" : !item ? "ซับชนิดนี้ Export ไม่ได้" : exportBusy && !mine ? "รอ Export ที่ทำอยู่ให้เสร็จก่อน" : undefined;
-            return (
-              <div key={t.key} className={"subpage-trk" + (view === t.key ? " on" : "")}>
-                <button type="button" className="subpage-trkpick" aria-pressed={view === t.key} onClick={() => { if (view !== t.key) whenSaved(() => setView(t.key)); }} title={view === t.key ? "กำลังแก้ซับนี้" : "แก้ซับนี้"} data-sub-pick={i}>
-                  <span className="rext">{ft}</span><span className="subpage-trkname">{label}{lang ? ` ${lang}` : ""}{t.name ? ` ${t.name}` : ""}</span>
-                </button>
-                {file.movie && t.inMovie && (
-                  <button type="button" className={"btn btn-sm " + (why || (mine && exportBusy) ? "btn-wait" : "btn-ghost")} aria-disabled={!!why || (mine && exportBusy) || undefined}
-                    title={why ?? (item ? `เก็บ${label}เป็นไฟล์ .${item.ext} ไว้ที่โฟลเดอร์ ${nameOf(file.path).replace(/\.[^.]+$/, "")} แยกไฟล์ ข้างไฟล์หนัง` : undefined)}
-                    onClick={() => { if (!why && item && !exportBusy) void doExport(t.key, label, item); }} data-sub-export={i}>
-                    <Keep all={["Export", "กำลัง Export…"]} icon={<IcExtract size={14} />}>{mine && exportBusy ? "กำลัง Export…" : "Export"}</Keep>
-                  </button>
-                )}
-              </div>
-            );
-          })}</div>
-        )}
+        ) : null}
         {exp && exp.s !== "busy" && (
           <div className={"stat " + (exp.s === "done" ? "ok" : exp.s === "conflict" ? "warn" : "bad")} data-sub-exp={exp.s}>
             <CardIcon kind={exp.s === "done" ? "ok" : exp.s === "conflict" ? "warn" : "bad"} />

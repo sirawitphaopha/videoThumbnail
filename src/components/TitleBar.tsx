@@ -23,6 +23,8 @@ export default function TitleBar() {
   return (
     <header className="titlebar" data-tauri-drag-region>
       <span className="ttl-text" data-tauri-drag-region>ชั้นหนัง</span>
+      {/* ช่องให้หน้าเสียบของขึ้นแถบชื่อ (หน้าซับไตเติล BUGS ข้อ 149) · ว่างแล้วไม่กินที่ */}
+      <span className="ttl-slot" data-ttl-slot data-tauri-drag-region />
       <div className="ctl">
         <button type="button" aria-label="ย่อหน้าต่าง" title="ย่อหน้าต่าง" onClick={() => win()?.minimize()}>
           <TbMin />

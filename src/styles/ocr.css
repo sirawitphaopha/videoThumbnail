@@ -282,3 +282,18 @@
 /* ระยะใต้แถวบนถึงแถวเลือกตัวอ่านราว 16 จุด (มอคอัปพี่กันสั่ง "ลดระยะห่าง") · กรอบการ์ดของโปรแกรมมีขอบใน 14 ต้องทับด้วยตัวเลือกที่เจาะจงกว่า */
 [data-subtitle-page][data-ocr-on] .ag { row-gap: 8px; }
 [data-ocr-on] .card.ocr-page { padding-top: 0; }
+/* ป้ายซับบังคับในคอลัมน์เลข · ผลคัดลอกบันทึกภาพข้างปุ่ม */
+.ocr-forced { display: block; font-size: 10.5px; line-height: 15px; color: var(--info-ink); }
+.ocr-imgst { white-space: nowrap; overflow: hidden; max-width: 120px; }
+.ocr-imgst.ok { color: var(--ok-ink); }
+.ocr-imgst.bad { color: var(--bad-ink); cursor: pointer; }
+/* สีพื้นหลังของภาพซับเลือกได้ (BUGS ข้อ 143.2) · ปุ่มเลือกเล็กพอดีหัวตาราง */
+.ocr-bgpick { margin-left: 8px; display: inline-flex; }
+.ocr-grid th .ocr-bgpick .dd { height: 22px; min-height: 22px; padding-top: 0; padding-bottom: 0; font-size: 12px; font-weight: 500; }
+:root[data-ocr-imgbg="dark"] :is(.ocr-line, .ocr-teachimg, .ocr-crop) { background: color-mix(in srgb, black 88%, slategray); }
+:root[data-ocr-imgbg="white"] :is(.ocr-line, .ocr-teachimg, .ocr-crop) { background: white; }
+:root[data-ocr-imgbg="check"] :is(.ocr-line, .ocr-teachimg, .ocr-crop) { background: repeating-conic-gradient(color-mix(in srgb, gray 30%, white) 0 25%, white 0 50%); background-size: 16px 16px; }
+/* หัวช่องภาพในช่องแก้อยู่บรรทัดเดียว · ผลคัดลอกบันทึกภาพลอยทับมุมบนของภาพ ไม่ดันหัวช่อง */
+.ocr-editl { position: relative; }
+.ocr-editl .ocr-edhead { white-space: nowrap; flex-wrap: nowrap; }
+.ocr-editl .ocr-imgst { position: absolute; left: 4px; top: 36px; z-index: 1; max-width: calc(100% - 8px); background: var(--win); border: 1px solid var(--line); border-radius: 7px; padding: 2px 8px; }

@@ -799,6 +799,8 @@ export const ocrApi = {
   /** ภาพที่แต่งแล้วของภาพลำดับ index (นับจาก 0) */
   prepPreview: (index: number, prep: OcrPrep) => call<string>("ocr_prep_preview", { index, prep }),
   paddleModels: () => call<string[]>("ocr_paddle_models"),
+  /** คัดลอกภาพซับลงคลิปบอร์ดหรือบันทึกเป็น PNG · คืนที่อยู่ไฟล์ที่ได้ (ชื่อชนต่อท้ายเลข) */
+  imageOut: (index: number, dest: "copy" | "save", path: string | null, dry = false) => call<string>("ocr_image_out", { index, dest, path, dry }),
   /** ลบฐานของผู้ใช้ลงถังขยะ · kind nocr binary own */
   dbDelete: (kind: "nocr" | "binary" | "own", name: string) => call<void>("ocr_db_delete", { kind, name }),
 };

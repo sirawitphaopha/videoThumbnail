@@ -643,6 +643,28 @@ pub fn ocr_db_delete(app: tauri::AppHandle, kind: String, name: String) -> Resul
     Ok(())
 }
 
+/// คัดลอกภาพซับลงคลิปบอร์ด (dest copy) หรือบันทึกเป็น PNG ที่ path (dest save) · ปุ่มคัดลอกภาพ บันทึกภาพ ของ Subtitle Edit
+/// บันทึกไม่เขียนทับ ชื่อชนต่อท้ายเลข คืนที่อยู่ไฟล์ที่ได้ · dry ไม่แตะคลิปบอร์ด (ตัวตรวจ ห้ามแตะคลิปบอร์ดของคนที่ใช้คอม)
+#[tauri::command]
+pub async fn ocr_image_out(app: tauri::AppHandle, index: usize, dest: String, path: Option<String>, dry: bool) -> Result<String, String> {
+    use tauri::Manager;
+    let hwnd = app.get_webview_window("main").and_then(|w| w.hwnd().ok()).map(|h| h.0 as isize).unwrap_or(0);
+    tauri::async_runtime::spawn_blocking(move || {
+        let file = session().as_ref().and_then(|s| s.items.get(index)).map(|it| it.img.file.clone()).ok_or("ยังไม่ได้เปิดซับรูปในหน้า OCR")?;
+        let png = std::fs::read(&file).map_err(|e| format!("อ่านภาพซับไม่ได้ {e}"))?;
+        if dest == "copy" {
+            let img = image::load_from_memory(&png).map_err(|e| format!("อ่านภาพซับไม่ได้ {e}"))?.to_rgba8();
+            if !dry { crate::winutil::clipboard_image(hwnd, &png, &img)?; }
+            return Ok(String::new());
+        }
+        let want = PathBuf::from(path.ok_or("ยังไม่ได้เลือกที่เก็บ")?);
+        let dir = want.parent().filter(|d| d.is_dir()).ok_or("หาโฟลเดอร์ที่เก็บไม่เจอ")?.to_path_buf();
+        let out = crate::outfile::free_name(&dir, &want);
+        std::fs::write(&out, &png).map_err(|e| format!("บันทึกภาพไม่ได้ {e}"))?;
+        Ok(out.display().to_string())
+    }).await.map_err(|e| e.to_string())?
+}
+
 /// หยุดงาน · ล้างตัวที่รอสอนกับคำตอบที่ผูกกับภาพ
 #[tauri::command]
 pub fn ocr_stop() {

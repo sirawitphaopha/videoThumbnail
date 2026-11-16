@@ -269,14 +269,14 @@ try {
   await q(`window.__subOpen(${JSON.stringify(MKV)}); return 1;`);
   await waitFor(`return !!document.querySelector('${ED} [data-se-text]')`, 15000);
   await q(`${S}.updateEvent(${S}.get().active, { text: "แก้แล้วยังไม่บันทึก" }, "แก้ข้อความ"); return 1;`);
-  await q("document.querySelector('[data-sub-pick=\"1\"]').click(); return 1;");
+  await q("window.__subPick(1); return 1;");
   check("เปลี่ยนแทร็กตอนยังไม่บันทึก ถามก่อน", await waitFor("return !!document.querySelector('[data-sub-guard-back]')", 4000));
   await sleep(400); // รอหน้าต่างค่อย ๆ ปรากฏจนเต็มก่อนถ่าย
   await c.shot("docs/report-2026-11-13/แก้ซับ-ขั้น3/5-ถามก่อนเปลี่ยนแทร็ก.png", ".dlg", 10);
   await q("document.querySelector('[data-sub-guard-back]').click(); return 1;");
   await sleep(200);
   check("กลับไปแก้ต่อ ยังเป็นแทร็กเดิม ที่แก้ยังอยู่", await q(`return ${S}.get().doc.kind === 'ass' && ${S}.get().dirty;`));
-  await q("document.querySelector('[data-sub-pick=\"1\"]').click(); return 1;");
+  await q("window.__subPick(1); return 1;");
   await waitFor("return !!document.querySelector('[data-sub-guard-skip]')", 4000);
   await q("document.querySelector('[data-sub-guard-skip]').click(); return 1;");
   check("ไม่บันทึก แล้วเปลี่ยนเป็นแทร็ก SRT", await waitFor(`return ${S}.get().doc?.kind === 'srt' && !${S}.get().dirty`, 8000));

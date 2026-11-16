@@ -1740,3 +1740,20 @@ html[data-full] .titlebar, html[data-full] .sidewrap, html[data-full] aside.side
 /* แบบ 1 ชื่อใต้ปกขึ้นได้สองบรรทัด ทุกเรื่องจองสองบรรทัดเท่ากัน ปกแถวเดียวกันตรงแนว · ยาวเกินสองบรรทัดจางท้ายบรรทัดที่สอง */
 :root[data-longname="two"] .bn1 { white-space: normal; height: calc(1.6em * 2); overflow: hidden; }
 :root[data-longname="two"] .bn1[data-ov="t"] { -webkit-mask-image: linear-gradient(180deg, #000 50%, transparent 50%), linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(180deg, #000 50%, transparent 50%), linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
+
+/* ช่องในแถบชื่อโปรแกรมให้หน้าเสียบของ (หน้าซับไตเติล BUGS ข้อ 149) · มีของแล้วชื่อโปรแกรมไม่ยืด ของในช่องสูง 26 ตัวเล็กลง (มอคอัป OCR .ocm-ttlslot) */
+.titlebar .ttl-slot { display: flex; align-items: center; min-width: 0; height: 100%; }
+.titlebar .ttl-slot:empty { display: none; }
+.titlebar:has(.ttl-slot:not(:empty)) .ttl-text { flex: none; }
+.titlebar .ttl-slot:not(:empty) { flex: 1; margin-right: 8px; }
+.ttl-sub { display: flex; align-items: center; gap: 8px; min-width: 0; flex: 1; height: 100%; margin-left: 10px; }
+.ttl-sub .btn { height: 26px; padding: 0 10px; font-size: 12.5px; gap: 6px; flex: none; }
+.ttl-sub .subpage-name { color: var(--txt); font-size: 13px; white-space: nowrap; overflow: hidden; min-width: 50px; flex: 0 1 auto; }
+.ttl-sub .ttl-dd { display: flex; flex: 0 1 auto; min-width: 120px; }
+.ttl-sub .dd { height: 26px; min-height: 26px; font-size: 12.5px; padding-top: 0; padding-bottom: 0; }
+.ttl-sub .seg { flex: none; }
+.ttl-sub .seg button { height: 26px; font-size: 12.5px; }
+.ttl-sub .ttl-gap { flex: 1; align-self: stretch; min-width: 8px; }
+.ttl-sub .sv-sep { flex: none; width: 1px; height: 18px; background: color-mix(in srgb, var(--accent) 30%, white); }
+/* แถวบนเดิมย้ายขึ้นแถบชื่อโปรแกรมแล้ว (BUGS ข้อ 149) ระยะบนของหน้าซับไตเติลเหลือ 6 จุดเท่ากันทุกงาน กดสลับดูซับกับ OCR ของไม่ขยับ (มอคอัปพี่กันทัก "ทำไมกดอันนึ ที่ว่างมันขยับ") */
+[data-subtitle-page] .ag { padding-top: 6px; }

@@ -17,7 +17,7 @@ const waitFor = async (js, ms = 8000) => { const t = Date.now(); while (Date.now
 const nav = (label) => q(`[...document.querySelectorAll('.side .nav')].find((b) => b.innerText.trim().split('\\n')[0] === ${JSON.stringify(label)})?.click();`);
 const AV = "[data-pageslot=av]";
 /** เลื่อนกรอบที่เลื่อนได้ทุกชั้นของหน้าซับไตเติลกลับขึ้นบนสุด ก่อนถ่ายภาพการ์ดไฟล์ ไม่ให้แถบบนที่ตรึงไว้บังหัวการ์ด */
-const subTop = () => q("for (let p = document.querySelector('[data-sub-bar]'); p; p = p.parentElement) if (p.scrollHeight > p.clientHeight) p.scrollTop = 0; return 1;");
+const subTop = () => q("for (let p = document.querySelector('[data-subtitle-page] .ag'); p; p = p.parentElement) if (p.scrollHeight > p.clientHeight) p.scrollTop = 0; return 1;");
 
 await c.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
 const tpBefore = await q("return localStorage.getItem('ms.trackPanel');");
@@ -27,7 +27,7 @@ try {
   const ia = items.indexOf("เสียงและซับ"), is = items.indexOf("ซับไตเติล");
   check("เมนูซ้ายมีซับไตเติลต่อจากเสียงและซับ (BUGS 101)", ia >= 0 && is === ia + 1, JSON.stringify(items));
   await nav("ซับไตเติล"); await sleep(500);
-  const sp = await q("const p = document.querySelector('[data-subtitle-page]'); return p ? { t: p.innerText.replace(/\\s+/g, ' ').slice(0, 80), btn: !!p.querySelector('[data-subtitle-go-av]'), vis: p.getBoundingClientRect().width > 0 } : null;");
+  const sp = await q("const p = document.querySelector('[data-subtitle-page]'); return p ? { t: p.innerText.replace(/\\s+/g, ' ').slice(0, 80), btn: !!document.querySelector('.titlebar [data-subtitle-go-av]'), vis: p.getBoundingClientRect().width > 0 } : null;");
   check("หน้าซับไตเติลมีปุ่มไปหน้าเสียงและซับ", sp?.vis && sp.btn, JSON.stringify(sp));
   await c.shot(`${OUT}/20b-เมนูซับไตเติล.png`, "[data-navbar]", 0);
   // ---------- 104 ใส่ไฟล์แล้วดูซับในหน้านี้ ----------
@@ -37,10 +37,11 @@ try {
   await c.shot(`${OUT}/30-หน้าซับไตเติล-ว่าง.png`, "[data-subtitle-page] .ag", 8);
   rmSync(XDIR, { recursive: true, force: true });
   await q(`window.__subOpen(${JSON.stringify(MOVIE)})`);
-  await waitFor("return document.querySelectorAll('[data-sub-pick]').length > 0;", 15000);
-  const list = await q("return [...document.querySelectorAll('[data-sub-pick]')].map((b) => b.innerText.replace(/\\s+/g, ' ').trim());");
-  const pressed = await q("return [...document.querySelectorAll('[data-sub-pick]')].map((b) => b.getAttribute('aria-pressed'));");
-  check("ใส่ไฟล์หนังแล้วขึ้นแถบแทร็กซับทุกแทร็ก แทร็กแรกเลือกอยู่", list.length >= 2 && pressed[0] === "true" && pressed.slice(1).every((x) => x === "false"), JSON.stringify({ list, pressed }));
+  // แถวแทร็กย้ายเป็นดรอปดาวน์ในแถบชื่อโปรแกรมแล้ว (BUGS ข้อ 149)
+  await waitFor("return !!document.querySelector('.titlebar [data-sub-list] button');", 15000);
+  const tr = await q("return { ...window.__subTracks(), shown: document.querySelector('.titlebar [data-sub-list] button').innerText.trim() };");
+  check("ใส่ไฟล์หนังแล้วดรอปดาวน์แทร็กในแถบชื่อโปรแกรมมีทุกแทร็ก แทร็กแรกเลือกอยู่ (BUGS 149)", tr.list.length >= 2 && tr.cur === 0 && tr.shown === tr.list[0], JSON.stringify(tr));
+  check("แถวบนเดิมกับแถวแทร็กเดิมไม่อยู่ในหน้าแล้ว (BUGS 149)", await q("return !document.querySelector('.ag [data-sub-bar]') && !document.querySelector('.subpage-tracks');"));
   // เปิดซับแล้วจุดลากไฟล์ใหญ่หายไป ตัวดูซับขึ้นมาใกล้บน (BUGS ข้อ 109 "ย้ายปุ่มอัปซับไปที่อื่น มันโคตรกินที่")
   const lay = await q("const v = document.querySelector('[data-subedit]'); return { drop: !!document.querySelector('[data-drop=subtitle]'), other: !!document.querySelector('[data-sub-openother]'), top: v ? Math.round(v.getBoundingClientRect().top) : null };");
   check("เปิดซับแล้วจุดลากไฟล์ใหญ่หายไป แถวบนมีปุ่มเปิดไฟล์อื่น หน้าแก้ซับเริ่มที่ครึ่งบนของจอ (BUGS 109)", !lay.drop && lay.other && lay.top != null && lay.top < 260, JSON.stringify(lay));
@@ -52,8 +53,10 @@ try {
   await subTop(); await sleep(150);
   await c.shot(`${OUT}/31-หน้าซับไตเติล-เปิดไฟล์แล้ว.png`, "[data-subtitle-page] .ag", 0);
   await c.shot(`${OUT}/32-หน้าซับไตเติล-ดูซับในหน้า.png`, "[data-subedit]", 8);
-  await c.click("[data-sub-pick='1']"); await sleep(800);
-  check("กดซับแถวที่สอง หน้าแก้ซับเปลี่ยนเป็นซับนั้น", await waitFor("return document.querySelector('[data-subedit]')?.getAttribute('data-se-kind') === 'ass' && document.querySelector('[data-sub-pick=\"1\"]').getAttribute('aria-pressed') === 'true';", 8000));
+  await q("window.__subPick(1)"); await sleep(800);
+  check("เลือกซับแทร็กที่สอง หน้าแก้ซับเปลี่ยนเป็นซับนั้น", await waitFor("return document.querySelector('[data-subedit]')?.getAttribute('data-se-kind') === 'ass' && window.__subTracks().cur === 1;", 8000));
+  // ปุ่ม Export อยู่ในแถบชื่อ เก็บแทร็กที่เลือกอยู่ · กลับไปแทร็กแรกก่อน
+  await q("window.__subPick(0)"); await sleep(800);
 
   // ---------- 108 Export ----------
   await waitFor("return document.querySelector('[data-sub-export=\"0\"]')?.getAttribute('aria-disabled') !== 'true';", 10000);
@@ -64,7 +67,7 @@ try {
   const ew2 = await q("return Math.round(document.querySelector('[data-sub-export=\"0\"]').getBoundingClientRect().width);");
   check("กด Export ได้ไฟล์ซับชนิดเดิมในโฟลเดอร์แยกไฟล์ข้างหนัง ปุ่มกว้างเท่าเดิม (BUGS 108)", ok1 && /\.srt/.test(t1) && ew === ew2, JSON.stringify({ t1, ew, ew2 }));
   await subTop(); await sleep(150);
-  const eb = await q("const a = document.querySelector('[data-sub-bar]').getBoundingClientRect(), b = document.querySelector('[data-sub-exp]').getBoundingClientRect(); return [Math.round(a.left), Math.round(a.top), Math.round(a.width), Math.round(b.bottom - a.top + 8)];");
+  const eb = await q("const a = document.querySelector('.titlebar').getBoundingClientRect(), b = document.querySelector('[data-sub-exp]').getBoundingClientRect(); return [Math.round(a.left), Math.round(a.top), Math.round(a.width), Math.round(b.bottom - a.top + 8)];");
   await c.shotRect(`${OUT}/35-หน้าซับไตเติล-Export-แล้ว.png`, ...eb);
   await q("window.__openDry = true; window.__openDryLog = [];");
   await c.click("[data-sub-reveal]"); await sleep(200);
@@ -79,10 +82,10 @@ try {
 
   // ---------- เพิ่มไฟล์ซับคู่กับหนัง ----------
   await q(`window.__subAddSub(${JSON.stringify(SRT)})`);
-  await waitFor("return document.querySelectorAll('[data-sub-pick]').length === 3;", 15000);
+  await waitFor("return window.__subTracks().list.length === 3;", 15000);
   await sleep(1200);
-  const added = await q("const b = document.querySelector('[data-sub-pick=\"2\"]'); return { t: b.innerText.replace(/\\s+/g, ' '), on: b.getAttribute('aria-pressed'), exp: !!document.querySelector('[data-sub-export=\"2\"]'), img: !!document.querySelector('[data-subedit] [data-vframe] img') };");
-  check("เพิ่มไฟล์ซับคู่กับหนัง ขึ้นเป็นแถวใหม่ ดูพร้อมภาพหนัง ไม่มีปุ่ม Export เพราะเป็นไฟล์อยู่แล้ว", added.t.includes("th.srt") && added.on === "true" && !added.exp && added.img, JSON.stringify(added));
+  const added = await q("const t = window.__subTracks(); return { t: t.list[2], on: t.cur === 2, exp: !!document.querySelector('[data-sub-export]'), img: !!document.querySelector('[data-subedit] [data-vframe] img') };");
+  check("เพิ่มไฟล์ซับคู่กับหนัง ขึ้นเป็นแทร็กใหม่ในดรอปดาวน์ ดูพร้อมภาพหนัง ไม่มีปุ่ม Export เพราะเป็นไฟล์อยู่แล้ว", added.t.includes("th.srt") && added.on && !added.exp && added.img, JSON.stringify(added));
 
   // ---------- 107 ไฟล์ซับอย่างเดียว เพิ่มวิดีโอ ----------
   await q(`window.__subOpen(${JSON.stringify(SRT)})`);
@@ -92,7 +95,7 @@ try {
   check("ใส่ไฟล์ซับอย่างเดียว ตัวดูซับขึ้นในหน้า บอกว่าไม่มีภาพหนัง มีปุ่มเพิ่มไฟล์วิดีโอ ไม่มีปุ่มเปิดเล่น (BUGS 107)", auto && fr2.t.includes("ไม่มีภาพหนัง") && fr2.btn && !fr2.play, JSON.stringify(fr2));
   await c.shot(`${OUT}/33-หน้าซับไตเติล-ไฟล์ซับ.png`, "[data-subedit]", 8);
   await subTop(); await sleep(150);
-  await c.shot(`${OUT}/37-หน้าซับไตเติล-เพิ่มวิดีโอ.png`, "[data-sub-bar]", 8);
+  await c.shot(`${OUT}/37-หน้าซับไตเติล-เพิ่มวิดีโอ.png`, ".titlebar", 0);
   await q(`window.__subVideo(${JSON.stringify(MOVIE)})`);
   const vid = await waitFor("return !!document.querySelector('[data-subedit] [data-vframe] img') && !!document.querySelector('[data-subedit] canvas[data-aud]');", 20000);
   const vt = await q("return document.querySelector('[data-sub-bar]')?.innerText.replace(/\\s+/g, ' ');");
@@ -106,7 +109,7 @@ try {
   check("ไฟล์ชนิดอื่นบอกว่าไม่ใช่ไฟล์หนังหรือไฟล์ซับ", wrong.includes("ไม่ใช่ไฟล์หนังหรือไฟล์ซับ"), wrong.slice(0, 60));
   // ล้างหน้ากลับเป็นว่าง ไม่ทิ้งจุดลากไฟล์สีแดงหรือไฟล์ทดสอบค้างให้พี่กันเห็น (พี่กันทัก "เราใช้สีนี้เหรอ")
   await q("window.__subClear?.()"); await sleep(300);
-  check("ตัวตรวจล้างหน้าซับไตเติลกลับเป็นว่าง ไม่มีสีแดงค้าง", await q("return !document.querySelector('[data-drop=subtitle].bad') && !document.querySelector('[data-sub-file]');"));
+  check("ตัวตรวจล้างหน้าซับไตเติลกลับเป็นว่าง ไม่มีสีแดงค้าง", await q("return !document.querySelector('[data-drop=subtitle].bad') && !document.querySelector('[data-sub-name]');"));
   await c.click("[data-subtitle-go-av]"); await sleep(500);
   check("กดไปหน้าเสียงและซับแล้วไปจริง", await q("return document.querySelector('.side .nav.on')?.innerText.trim().split('\\n')[0] === 'เสียงและซับ';"));
 

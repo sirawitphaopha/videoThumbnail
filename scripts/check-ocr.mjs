@@ -5,7 +5,7 @@
 //   · ตั้ง MOVIE_SHELF_OCR_SUP (ซับ ACCA) ตรวจหน้าต่างคำที่ไม่รู้จักระหว่างอ่านเพิ่ม ภาพของไฟล์นี้ไม่บันทึก (ห้ามขึ้น git)
 // ใช้: เปิด scripts/dev-app.ps1 ก่อน แล้ว node scripts/check-ocr.mjs · ตอนพี่กันทำงานอยู่ส่ง NOGATE=1
 // คืนค่าตั้ง OCR แบบตรวจทาน และการถามคำที่ไม่รู้จักเป็นค่าเดิมตอนจบ · ล้างหน้าซับไตเติลก่อนและหลัง · ภาพลง docs/report-2026-11-16/OCR-ขั้น11/
-import { mkdirSync } from "node:fs";
+import { mkdirSync, rmSync, existsSync, readFileSync } from "node:fs";
 import { execFileSync } from "node:child_process";
 import { connect, sleep } from "./lib/cdp-client.mjs";
 
@@ -30,8 +30,8 @@ const job = (js) => q(`const j = window.__ocrJob; ${js}`);
 // เริ่มจากหน้าโหลดใหม่ ตัวเก็บงานว่าง · เก็บค่าตั้งเดิมไว้คืนตอนจบ
 await q("location.reload(); return 1;").catch(() => {});
 await sleep(5000);
-const saved = await q("return { cfg: localStorage.getItem('ms.ocrCfg'), prompt: localStorage.getItem('ms.ocrPrompt'), view: localStorage.getItem('ms.ocrView') };");
-await q("localStorage.removeItem('ms.ocrCfg'); localStorage.removeItem('ms.ocrPrompt'); localStorage.setItem('ms.ocrView', 'table'); location.reload(); return 1;").catch(() => {});
+const saved = await q("return { cfg: localStorage.getItem('ms.ocrCfg'), prompt: localStorage.getItem('ms.ocrPrompt'), view: localStorage.getItem('ms.ocrView'), bg: localStorage.getItem('ms.ocrImgBg') };");
+await q("localStorage.removeItem('ms.ocrCfg'); localStorage.removeItem('ms.ocrPrompt'); localStorage.removeItem('ms.ocrImgBg'); localStorage.setItem('ms.ocrView', 'table'); location.reload(); return 1;").catch(() => {});
 await sleep(5000);
 await q(`await window.__TAURI_INTERNALS__.invoke('ocr_db_delete', { kind: 'nocr', name: ${JSON.stringify(DB)} }).catch(() => {}); return 1;`);
 await nav("ซับไตเติล"); await sleep(600);
@@ -51,8 +51,9 @@ const row = await q(`const r = document.querySelector('[data-ocr-engine]'); cons
   let lap = 0; for (let i = 1; i < kids.length; i++) if (kids[i].left < kids[i - 1].right - 0.5) lap++;
   return { over: r.scrollWidth - r.clientWidth, lap, right: Math.max(...kids.map((b) => b.right)), box: r.getBoundingClientRect().right };`);
 check("แถวเลือกตัวอ่านไม่ล้นไม่ซ้อนที่หน้าต่าง 1280 × 800", row.over <= 0 && row.lap === 0 && row.right <= row.box + 0.5, JSON.stringify(row));
-const gap = await q("const b = document.querySelector('[data-sub-bar]').getBoundingClientRect(), d = document.querySelector('[data-ocr-engine] > div').getBoundingClientRect(), f = document.querySelector('[data-ocr-foot]').getBoundingClientRect(); return { gap: Math.round(d.top - b.bottom), foot: Math.round(innerHeight - f.bottom) };");
-check("ระยะใต้แถวบนถึงแถวเลือกตัวอ่านไม่เกิน 24 จุด", gap.gap <= 24, `${gap.gap} จุด`);
+const gap = await q("const b = document.querySelector('.titlebar').getBoundingClientRect(), d = document.querySelector('[data-ocr-engine] > div').getBoundingClientRect(), f = document.querySelector('[data-ocr-foot]').getBoundingClientRect(); return { gap: Math.round(d.top - b.bottom), foot: Math.round(innerHeight - f.bottom) };");
+check("ระยะใต้แถบชื่อโปรแกรมถึงแถวเลือกตัวอ่านไม่เกิน 16 จุด (แถวบนย้ายขึ้นแถบชื่อ BUGS 149)", gap.gap <= 16, `${gap.gap} จุด`);
+check("แถวบนของหน้าซับไตเติลอยู่ในแถบชื่อโปรแกรม", await q("return !!document.querySelector('.titlebar [data-sub-bar] [data-sub-mode]') && !document.querySelector('.ag [data-sub-bar]');"));
 check("แถบล่างลงถึงล่างหน้าต่าง เหลือไม่เกิน 16 จุด", gap.foot <= 16, `${gap.foot} จุด`);
 await c.shot(`${SHOT}/01-ก่อนอ่าน.png`);
 
@@ -83,6 +84,39 @@ const before = await q("return document.querySelectorAll('[data-ocr-table] tbody
 await click("[data-ocr-ok]"); await sleep(400);
 check("ถูกแล้วเอาบรรทัดออกจากจุดที่ต้องตรวจ", (await q("return document.querySelectorAll('[data-ocr-table] tbody tr.flag').length;")) === before - 1 && (await job("return j.get().rows[0].ok;")));
 check("แถวที่กดถูกแล้วขึ้นว่าตรวจแล้ว", (await q("return document.querySelector('[data-ocr-table] tbody tr[data-i=\"0\"]').innerText;")).includes("ตรวจแล้ว"));
+
+// ---------- คัดลอกภาพ บันทึกภาพ เฉพาะซับบังคับ ----------
+// คัดลอกส่ง dry ไม่แตะคลิปบอร์ดของคนที่ใช้คอม · บันทึกลงโฟลเดอร์ทดสอบแทนกล่องเลือกที่เก็บ แล้วลบตอนจบ
+const IMGDIR = "D:/dev/tmp/ชั้นตรวจOCR";
+rmSync(IMGDIR, { recursive: true, force: true }); mkdirSync(IMGDIR, { recursive: true });
+await q(`window.__ocrImgDry = true; window.__ocrImgTarget = ${JSON.stringify(IMGDIR)}; return 1;`);
+// กดถูกแล้วเลื่อนไปจุดถัดไป เลือกแถวแรกกลับมาก่อน
+await q("document.querySelector('[data-ocr-table] tbody tr[data-i=\"0\"]').click(); return 1;"); await sleep(400);
+await click("[data-ocr-copyimg]");
+check("คัดลอกภาพขึ้นผลสำเร็จ (ไม่แตะคลิปบอร์ด)", await waitFor("const s = document.querySelector('[data-ocr-imgst]'); return s?.dataset.ocrImgst === 'ok' && s.innerText.includes('คัดลอกภาพ 1');", 5000));
+await click("[data-ocr-saveimg]"); await sleep(800);
+await click("[data-ocr-saveimg]"); await sleep(800);
+const saved1 = existsSync(`${IMGDIR}/ภาพซับ 1.png`), saved2 = existsSync(`${IMGDIR}/ภาพซับ 1 (2).png`);
+check("บันทึกภาพเป็น PNG ชื่อชนต่อท้ายเลข ไม่เขียนทับ", saved1 && saved2 && readFileSync(`${IMGDIR}/ภาพซับ 1.png`).subarray(1, 4).toString() === "PNG", `${saved1} ${saved2}`);
+check("ผลบันทึกบอกชื่อไฟล์ที่ได้", (await q("return document.querySelector('[data-ocr-imgst]')?.innerText ?? '';")).includes("ภาพซับ 1 (2).png"));
+await q("delete window.__ocrImgDry; delete window.__ocrImgTarget; return 1;");
+rmSync(IMGDIR, { recursive: true, force: true });
+check("ซับไม่มีซับบังคับ ไม่ขึ้นสวิตช์เฉพาะซับบังคับ", await q("return !document.querySelector('[data-ocr-forced]');"));
+check("หัวช่องภาพในช่องแก้อยู่บรรทัดเดียว เวลาอยู่ในคำบอกตอนชี้", await q("const h = document.querySelector('[data-ocr-edit] .ocr-editl .ocr-edhead').getBoundingClientRect().height, t = document.querySelector('[data-ocr-edtitle]'); return h <= 30 && /\\d:\\d\\d\\.\\d\\d/.test(t.title);"));
+
+// ---------- สีพื้นหลังของภาพซับ (BUGS ข้อ 143.2) ----------
+const bg0 = await q("return { v: document.documentElement.dataset.ocrImgbg, c: getComputedStyle(document.querySelector('[data-ocr-table] .ocr-line')).backgroundColor, txt: document.querySelector('[data-ocr-bg] button').innerText };");
+check("ปุ่มสีพื้นหลังอยู่หัวคอลัมน์ภาพ ตั้งต้นพื้นเทา", bg0.v === "gray" && bg0.txt.includes("พื้นเทา"), JSON.stringify(bg0));
+const bgBox = await q("const b = document.querySelector('[data-ocr-bg] button').getBoundingClientRect(), th = b && document.querySelector('[data-ocr-bg]').closest('th').getBoundingClientRect(); return b.top >= th.top - 0.5 && b.bottom <= th.bottom + 0.5 && b.right <= th.right;");
+check("ปุ่มสีพื้นหลังไม่ล้นหัวตาราง", bgBox);
+for (const [name, v] of [["ดำ", "dark"], ["ขาว", "white"], ["ลายตาราง", "check"], ["เทา", "gray"]]) {
+  await click("[data-ocr-bg] button"); await sleep(400);
+  await q(`const o = [...document.querySelectorAll('[role=option]')].find((b) => b.innerText.trim() === ${JSON.stringify(name)}); o?.setAttribute('data-pick-bg', ''); return 1;`);
+  await click("[data-pick-bg]"); await sleep(400);
+  const r = await q("return { v: document.documentElement.dataset.ocrImgbg, saved: localStorage.getItem('ms.ocrImgBg'), c: getComputedStyle(document.querySelector('[data-ocr-table] .ocr-line')).background };");
+  check(`เลือกพื้น${name} ภาพในตารางเปลี่ยนและจำไว้`, r.v === v && r.saved === v && (v !== "dark" || r.c !== bg0.c), r.v);
+  if (v === "dark") await c.shot(`${SHOT}/08-พื้นดำ.png`, "[data-ocr-table]");
+}
 
 // ---------- แบบตรวจทีละจุด ----------
 await q("[...document.querySelectorAll('[data-ocr-sum] .seg button')].find((b) => b.innerText.includes('ทีละจุด')).click(); return 1;"); await sleep(600);
@@ -163,7 +197,7 @@ if (ACCA) {
 await q(`await window.__TAURI_INTERNALS__.invoke('ocr_db_delete', { kind: 'nocr', name: ${JSON.stringify(DB)} }); return 1;`).catch((e) => console.log("ลบฐานทดสอบไม่ได้", e.message));
 check("ลบฐานทดสอบลงถังขยะแล้ว", !(await q("return (await window.__TAURI_INTERNALS__.invoke('ocr_dbs')).nocr;")).includes(DB));
 check("ฐานที่แนบมาลบไม่ได้", await q("try { await window.__TAURI_INTERNALS__.invoke('ocr_db_delete', { kind: 'nocr', name: 'Latin' }); return false; } catch (e) { return String(e).includes('แนบมา'); }"));
-await q(`const s = ${JSON.stringify(saved)}; for (const [k, v] of [['ms.ocrCfg', s.cfg], ['ms.ocrPrompt', s.prompt], ['ms.ocrView', s.view]]) { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } window.__subClear(); return 1;`);
+await q(`const s = ${JSON.stringify(saved)}; for (const [k, v] of [['ms.ocrCfg', s.cfg], ['ms.ocrPrompt', s.prompt], ['ms.ocrView', s.view], ['ms.ocrImgBg', s.bg]]) { if (v == null) localStorage.removeItem(k); else localStorage.setItem(k, v); } window.__subClear(); return 1;`);
 await q("location.reload(); return 1;").catch(() => {});
 const bad = results.filter((x) => !x).length;
 console.log(`\nผ่าน ${results.length - bad} จาก ${results.length} ข้อ`);
