@@ -43,6 +43,7 @@ mod vidplay;
 mod mpvplay;
 mod ocrprep;
 mod ocrsrc;
+mod paddle;
 mod vobsub;
 mod winutil;
 
