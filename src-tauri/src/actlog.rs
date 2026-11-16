@@ -32,6 +32,8 @@ const WATCH: &[(&str, &str)] = &[
     ("vid_keys_save", "บันทึกไฟล์ keyframe ในหน้าแก้ซับ"),
     ("sub_audio_save", "บันทึกเสียงของบรรทัดซับเป็นไฟล์"),
     ("ocr_tess_download", "โหลดชุดภาษา Tesseract"),
+    ("ocr_teach", "สอนตัวอักษร OCR บันทึกลงฐาน"),
+    ("ocr_word", "เพิ่มคำของ OCR ลงพจนานุกรม รายชื่อ หรือรายการแก้คำ"),
     ("pgs_export", "ส่งออกซับเป็น PGS"),
     ("imgsub_convert", "แปลงซับภาพเป็นซับภาพ"),
     ("vid_snapshot", "บันทึกหรือคัดลอกภาพจากหน้าแก้ซับ"),

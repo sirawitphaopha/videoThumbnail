@@ -521,6 +521,8 @@ impl FixEngine {
     }
     pub fn skip_all(&mut self, w: &str) { if !w.trim().is_empty() { self.skip.insert(w.into()); } }
     pub fn add_name(&mut self, n: &str) { if !n.trim().is_empty() { self.lists.add_name(n.trim()); } }
+    /// เพิ่มคำลงพจนานุกรมของผู้ใช้ (บันทึกลงไฟล์ของผู้ใช้) · ตาม AddToUserDictionary
+    pub fn add_user_word(&mut self, w: &str) -> bool { self.lists.add_user_word(w) }
 
     // ---- ที่ตัวจับคู่ภาพพลาด
 

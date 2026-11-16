@@ -728,3 +728,66 @@ export const checkApi = {
   /** เปิดเล่นที่วินาทีนั้น · โปรแกรมที่ตั้งไว้ หรือที่หาเจอในเครื่อง (VLC MPC-HC PotPlayer mpv) */
   playAt: (path: string, secs: number) => call<PlayResult>("play_at", { path, secs }),
 };
+
+/* ---------- OCR ซับรูป (แผน OCR ขั้น 1 กับขั้น 10 · ocrsrc.rs ocrjob.rs suspect.rs) ---------- */
+/** ภาพหนึ่งบรรทัดของ OCR · an ตำแหน่งแบบ ASS 1–9 (2 คือกลางล่าง) */
+export type OcrItem = { n: number; start: number; end: number | null; w: number; h: number; canvas: [number, number]; at: [number, number]; forced: boolean; an: number };
+export type OcrSource = { kind: "pgs" | "vobsub" | "bdn" | "png" | "other"; items: OcrItem[] };
+export type OcrEngine = "paddle" | "tesseract" | "nocr" | "binary" | "own";
+export type OcrPrep = { cropTransparent: boolean; invert: boolean; binarize: boolean; removeBorders: boolean; borderSize: number; toOneColor: boolean; oneColorThreshold: number; upscaleTo: number };
+export type OcrPaddleOpts = { lang: string; size: "tiny" | "small" | "medium"; vertical: "auto" | "on" | "off"; orientation: boolean };
+export type OcrTessOpts = { lang: string; oem: number; perLine: boolean; vertical: "auto" | "on" | "off" };
+/** ค่าตั้งของงาน OCR ส่งไปทุกคำสั่ง (OcrCfg ใน ocrjob.rs) */
+export type OcrCfg = {
+  engine: OcrEngine; paddle: OcrPaddleOpts; tess: OcrTessOpts;
+  nocrDb: string; maxWrong: number; italic: boolean; spacePx: number; lastDitch: boolean;
+  binDb: string; binMaxErr: number; binSpacePx: number; ownDb: string;
+  fallback: boolean; teach: boolean; lines: number; algo: "Random" | "SkeletonDistance" | "EdgeHough";
+  /** ตัวช่วยตรวจ paddle:tiny paddle:small paddle:medium tesseract nocr binary own */
+  helpers: string[]; prep: OcrPrep;
+  fix: boolean; lang3: string; dict: string; guess: boolean; confMin: number;
+};
+/** เหตุที่บรรทัดน่าสงสัย (suspect.rs Reason) */
+export type OcrReason =
+  | { kind: "disagree"; engine: string; text: string }
+  | { kind: "unknown"; words: string[] }
+  | { kind: "nameVariant"; word: string; other: string; count: number }
+  | { kind: "lowConf"; conf: number }
+  | { kind: "unreadable" }
+  | { kind: "empty" };
+export type OcrLine = {
+  index: number; text: string; raw: string; conf: number | null; reasons: OcrReason[]; unknown: string[];
+  guesses: [string, string][]; fixes: [string, string][]; helpers: [string, string][];
+  an: number; anLines: number[] | null; unreadable: number; ms: number;
+};
+/** คำขอสอนหนึ่งตัว · image ภาพตัวขาวบนพื้นใส boxes กรอบของทุกชิ้น x y กว้าง สูง (เว้นวรรคเป็น null) */
+export type OcrTeachReq = {
+  index: number; engine: OcrEngine; db: string; letter: number; image: string; width: number; height: number;
+  boxes: ([number, number, number, number] | null)[]; expandMax: number; top: number; guess: string;
+};
+export type OcrReadResult = ({ kind: "done" } & OcrLine) | ({ kind: "teach" } & OcrTeachReq);
+/** คำตอบของหน้าต่างสอน · expand จำนวนชิ้นถัดไปที่รวมเป็นตัวเดียวกัน · lines เส้นที่วาดเอง (พิกัดในตัวอักษร) */
+export type OcrTeachAnswer =
+  | { kind: "learn"; text: string; italic: boolean; expand: number; lines?: { fg: [number, number, number, number][]; bg: [number, number, number, number][] } }
+  | { kind: "once"; text: string; expand: number }
+  | { kind: "skip" }
+  | { kind: "stop" };
+export type OcrWordAction = "changeAll" | "skipAll" | "addName" | "addWord";
+export type OcrTaught = { index: number; engine: OcrEngine; db: string; text: string; italic: boolean; pieces: number };
+export type OcrDbList = { nocr: string[]; binary: string[]; own: string[] };
+
+export const ocrApi = {
+  /** เปิดซับรูป · ความคืบหน้าทางเหตุการณ์ subimg-progress · ภาพเก็บไว้ฝั่ง Rust ให้ read อ่านต่อ */
+  source: (path: string, ff: number) => call<OcrSource>("ocr_source", { path, ff }),
+  sourcePngs: (files: string[]) => call<OcrSource>("ocr_source_pngs", { files }),
+  /** อ่านหนึ่งภาพ (นับจาก 0) · ได้ผลหรือคำขอสอน */
+  read: (index: number, cfg: OcrCfg) => call<OcrReadResult>("ocr_read", { index, cfg }),
+  teach: (answer: OcrTeachAnswer, cfg: OcrCfg) => call<void>("ocr_teach", { answer, cfg }),
+  word: (action: OcrWordAction, word: string, to?: string) => call<void>("ocr_word", { action, word, to: to ?? null }),
+  suggest: (word: string) => call<string[]>("ocr_suggest", { word }),
+  /** ชื่อเดียวกันเขียนสองแบบ ดูทั้งไฟล์ */
+  names: (lines: string[]) => call<OcrReason[][]>("ocr_names", { lines }),
+  dbs: () => call<OcrDbList>("ocr_dbs"),
+  history: () => call<OcrTaught[]>("ocr_history"),
+  stop: () => call<void>("ocr_stop"),
+};

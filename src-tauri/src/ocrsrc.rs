@@ -203,7 +203,9 @@ pub async fn ocr_source(app: AppHandle, path: String, ff: u64) -> Result<OcrSour
     tauri::async_runtime::spawn_blocking(move || {
         let p = PathBuf::from(&path);
         if !p.exists() { return Err("หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่".into()); }
-        open(&tools, &work, &p, ff, &on)
+        let src = open(&tools, &work, &p, ff, &on)?;
+        crate::ocrjob::set_source(src.items.clone());
+        Ok(src)
     }).await.map_err(|e| e.to_string())?
 }
 
@@ -211,8 +213,11 @@ pub async fn ocr_source(app: AppHandle, path: String, ff: u64) -> Result<OcrSour
 #[tauri::command]
 pub async fn ocr_source_pngs(app: AppHandle, files: Vec<String>) -> Result<OcrSource, String> {
     let work = crate::subs::work_dir(&app)?;
-    tauri::async_runtime::spawn_blocking(move || from_pngs(&work, &files.iter().map(PathBuf::from).collect::<Vec<_>>()))
-        .await.map_err(|e| e.to_string())?
+    tauri::async_runtime::spawn_blocking(move || {
+        let src = from_pngs(&work, &files.iter().map(PathBuf::from).collect::<Vec<_>>())?;
+        crate::ocrjob::set_source(src.items.clone());
+        Ok(src)
+    }).await.map_err(|e| e.to_string())?
 }
 
 #[cfg(test)]
