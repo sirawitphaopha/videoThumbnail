@@ -326,7 +326,8 @@ button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visib
 .dlg { background: #fff; border-radius: 14px; box-shadow: 0 18px 40px rgba(60,25,40,.25); padding: 20px; width: 100%; max-width: 440px; min-height: 236px; display: flex; flex-direction: column; gap: 10px; max-height: calc(100vh - 48px); overflow-y: auto; overscroll-behavior: contain; animation: pop-in .14s ease-out; }
 .dlg h4 { margin: 0; font-size: 16px; line-height: 1.5; }
 /* ปุ่มล่างติดขอบล่างของหน้าต่างเสมอ เนื้อหายาวเกินจอก็ยังเห็นปุ่ม */
-.dlg .acts { margin: auto -20px -20px; display: flex; gap: 8px; justify-content: flex-end; padding: 12px 20px 20px; position: sticky; bottom: -20px; background: #fff; border-top: 1px solid var(--line); z-index: 1; }
+/* ปุ่มอยู่กลางแนวตั้งของแถบ ระยะบนเท่าระยะล่าง (BUGS ข้อ 143 พี่กันสั่ง "ขอกลาง" · เดิมบน 12 ล่าง 20) */
+.dlg .acts { margin: auto -20px -20px; display: flex; gap: 8px; justify-content: flex-end; align-items: center; padding: 14px 20px; position: sticky; bottom: -20px; background: #fff; border-top: 1px solid var(--line); z-index: 1; }
 .dlg .acts.split { justify-content: space-between; }
 
 /* ---------- แถบแจ้งผล ลอยกลางล่าง (save-status ข้อ 3) ---------- */
@@ -1608,7 +1609,7 @@ html[data-full] .titlebar, html[data-full] .sidewrap, html[data-full] aside.side
    สองคอลัมน์แบบหน้าต่าง PGS ซ้ายตัวเลือกตามกลุ่มของ BDSup2Sub ขวาภาพต้นทางกับภาพที่จะได้วางคู่กัน
    อยู่นอก [data-subedit] เพราะเปิดจากตัวดูซับรูปภาพทั้งในหน้าซับไตเติลและหน้าเสียงและซับ */
 .icv { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
-.icv-cols { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 18px; }
+.icv-cols { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 10px; }
 .icv-l, .icv-r { min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 9px; }
 .icv-l > *, .icv-r > * { flex: none; }
 .icv-l { padding-right: 8px; }
@@ -1616,7 +1617,8 @@ html[data-full] .titlebar, html[data-full] .sidewrap, html[data-full] aside.side
 .icv-intro { font-size: 13px; color: var(--txt2); display: flex; align-items: center; gap: 4px; }
 .icv-row { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--txt2); min-height: 30px; }
 .icv-lbl { width: 128px; flex: none; display: inline-flex; align-items: center; gap: 4px; }
-.icv-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; color: var(--txt); }
+/* ที่อยู่เต็มชิดซ้าย ตัดบรรทัดหลังเครื่องหมาย \ (wbr ในหน้าจอ) ไม่ย่อ ไม่กระจาย (พี่กันทัก 15 พ.ย. 2569 "มันแปลกๆ") */
+.icv-path { flex: 1; min-width: 0; text-align: left; text-justify: auto; overflow-wrap: anywhere; color: var(--txt); }
 .icv-head { display: flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 700; color: var(--txt); min-height: 30px; }
 .icv-l > .icv-head { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 6px; }
 .icv-reset { margin-left: auto; gap: 4px; font-weight: 400; }
@@ -1635,7 +1637,9 @@ html[data-full] .titlebar, html[data-full] .sidewrap, html[data-full] aside.side
 .icv-val { min-width: 36px; color: var(--txt); font-variant-numeric: tabular-nums; }
 .icv-note { color: var(--txt2); }
 .icv-bad { color: var(--bad-ink); }
+/* คำเตือนจาก BDSup2Sub++ มีคำอังกฤษยาว ชิดซ้ายไม่กระจาย ไม่งั้นตัวอักษรถ่าง (พี่กันส่งภาพ 15 พ.ย. 2569) */
 .icv-warn { color: var(--warn-ink); display: flex; flex-direction: column; gap: 2px; }
+.icv-warn, .icv-warn * { text-align: left; text-justify: auto; overflow-wrap: anywhere; }
 .icv-rhead { margin-top: 0; }
 .icv-pick { display: flex; align-items: center; gap: 8px; }
 .icv-pick .small { flex: 1; text-align: center; font-variant-numeric: tabular-nums; }
@@ -1664,6 +1668,8 @@ html[data-full] .titlebar, html[data-full] .sidewrap, html[data-full] aside.side
 .icv-crop { display: flex; height: 150px; overflow: auto; overscroll-behavior: contain; border-radius: 8px; border: 1px solid var(--line); padding: 8px;
   background: repeating-conic-gradient(color-mix(in srgb, black 80%, white) 0 25%, color-mix(in srgb, black 70%, white) 0 50%) 0 0 / 16px 16px; }
 .icv-crop.zoom { height: 210px; }
+.icv-crop.zoom, .icv-crop:has(.icv-cropin) { cursor: grab; }
+.icv-crop.grabbing { cursor: grabbing; user-select: none; }
 .icv-cropin { position: relative; flex: none; margin: auto; }
 .icv-cropin img { position: absolute; display: block; }
 .icv-crop.zoom .icv-cropin img { image-rendering: pixelated; }
@@ -1705,7 +1711,7 @@ html[data-full] .titlebar, html[data-full] .sidewrap, html[data-full] aside.side
    พี่กันเลือก 15 พ.ย. 2569 "เอาทุกตัว กดเปลี่ยนได้ที่หน้าตังค่า เเต่เเบบ 4 คือตัวหลัก"
    ทุกแบบไม่มีจุดสามจุด · m จางท้ายด้วยหน้ากาก · c กล่องมีพื้นหรือขอบ ตัดเฉย ๆ · r ชื่อชิดขวา (ที่อยู่ไฟล์) จางหัว · t ชื่อใต้ปกสองบรรทัดที่ยังล้น */
 :root[data-longname] :is(.bn1, .lvchips .ft, .lvchips.tight .lvchip, .runline .runtxt b, .runline .runl1, .runline .runl2, .fchip .nm, .lab span,
-  .wavelg .lgnote, .thanklink, .psdchecks .psdck-txt, .cpcmp-grid .a, .cpcmp-grid .b, .icv-path, .avchip .nm, .avchip .meta, .lrow .en, .avfoot-sum,
+  .wavelg .lgnote, .thanklink, .psdchecks .psdck-txt, .cpcmp-grid .a, .cpcmp-grid .b, .avchip .nm, .avchip .meta, .lrow .en, .avfoot-sum,
   .cqrow .nm, .cqrow .dt, .cmpchip .meta, .cmpchip .nm .nmtx, [data-extract] .xdest > b, .subpage-bar .subpage-name, .pathline b, .lname .fn,
   [data-subedit] .se-grid .se-cut, .se-saveas .se-path, .se-auto .se-cut, .se-fontlist button, [data-subedit] .se-pgs .se-path) { text-overflow: clip; }
 :root[data-longname] [style*="text-overflow: ellipsis"] { text-overflow: clip !important; }

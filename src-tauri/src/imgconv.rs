@@ -482,7 +482,154 @@ static PREVIEW_GEN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64:
 
 /// ภาพตัวอย่างของผลที่จะได้ ภาพที่ index · แปลงทั้งไฟล์ด้วยตัวเลือกเดียวกับตอนแปลงจริงลงโฟลเดอร์ชั่วคราว แล้วให้ BDSup2Sub++ แปลงผลนั้นต่อเป็น BDN XML กับ PNG
 /// (palette keep resolution keep ภาพจึงเป็นพิกเซลของผลจริง รวม VobSub ที่เหลือ 4 สี) · เก็บผลไว้ตามตัวเลือก เปลี่ยนแค่ภาพที่ดูไม่ต้องแปลงใหม่
+
+/// ชุดแสดงของไฟล์ PGS ทีละชุด (ตำแหน่งเริ่ม ตำแหน่งจบ มีภาพไหม เริ่มยุคใหม่ไหม เวลาวินาที) · ชุดหนึ่งคือ PCS ไปจนถึง END
+fn sup_sets(data: &[u8]) -> Vec<(usize, usize, bool, bool, f64)> {
+    let mut out = vec![];
+    let mut cur: Option<(usize, bool, bool, f64)> = None;
+    let mut i = 0usize;
+    while i + 13 <= data.len() && &data[i..i + 2] == b"PG" {
+        let kind = data[i + 10];
+        let size = ((data[i + 11] as usize) << 8) | data[i + 12] as usize;
+        let p = data.get(i + 13..i + 13 + size).unwrap_or(&[]);
+        if kind == 0x16 {
+            let pts = u32::from_be_bytes([data[i + 2], data[i + 3], data[i + 4], data[i + 5]]) as f64 / 90000.0;
+            // สถานะ 0x80 เริ่มยุคใหม่ 0x40 จุดเริ่มอ่าน ทั้งสองแบบมีวัตถุครบในตัว ไม่พึ่งชุดก่อนหน้า
+            let state = p.get(7).copied().unwrap_or(0);
+            cur = Some((i, p.get(10).copied().unwrap_or(0) > 0, state & 0xC0 != 0, pts));
+        }
+        i += 13 + size;
+        if kind == 0x80 { if let Some((s, has, ep, pts)) = cur.take() { out.push((s, i, has, ep, pts)); } }
+    }
+    out
+}
+
+/// ตัดไฟล์ PGS ให้เหลือภาพที่ขึ้นเวลา start จนถึงชุดที่ปิดภาพนั้นตอน end เริ่มจากต้นยุคของภาพ เพราะวัตถุอาจนิยามไว้ในชุดก่อนหน้า
+/// เลือกจากเวลา ไม่ใช่ลำดับชุด เพราะไฟล์จริงส่งภาพเดิมซ้ำได้หลายชุด (เปลี่ยนจานสี จุดเริ่มอ่าน) ตัวแปลงนับเป็นภาพเดียว
+fn sup_cut(data: &[u8], start: f64, end: Option<f64>) -> Option<Vec<u8>> {
+    let sets = sup_sets(data);
+    let near = |a: f64, b: f64| (a - b).abs() < 0.0015;
+    let j = sets.iter().position(|s| s.2 && near(s.4, start))?;
+    let e = (0..=j).rev().find(|&k| sets[k].3).unwrap_or(0);
+    let k = end.and_then(|te| (j + 1..sets.len()).find(|&k| near(sets[k].4, te))).unwrap_or((j + 1).min(sets.len() - 1));
+    Some(data[sets[e].0..sets[k].1].to_vec())
+}
+
+/// เวลาขึ้นกับเวลาหายของทุกภาพในไฟล์ PGS จากตัวอ่านของตัวดูซับ (subs::parse_sup นับภาพเดิมที่ส่งซ้ำเป็นภาพเดียว ได้เท่ากับ BDSup2Sub++)
+/// ตัวอ่านถอดภาพทุกภาพ ไฟล์ 439 ภาพราว 2 วินาที จึงจำผลไว้ข้างไฟล์ที่ดึงมา ไฟล์เปลี่ยนแล้วอ่านใหม่
+fn sup_shows(work: &Path, src: &Path, data: &[u8]) -> Vec<(f64, Option<f64>)> {
+    let meta = std::fs::metadata(src).ok();
+    let stamp = format!("{}|{:?}|{:?}", src.display(), meta.as_ref().map(|m| m.len()), meta.and_then(|m| m.modified().ok()));
+    let mut h: u64 = 0xcbf29ce484222325;
+    for b in stamp.bytes() { h ^= b as u64; h = h.wrapping_mul(0x100000001b3); }
+    let keep = work.join(format!("imgconv-shows-{h:016x}.txt"));
+    if let Ok(s) = std::fs::read_to_string(&keep) {
+        return s.lines().filter_map(|l| { let mut it = l.split(' '); Some((it.next()?.parse().ok()?, it.next().and_then(|e| e.parse().ok()))) }).collect();
+    }
+    let shows: Vec<(f64, Option<f64>)> = crate::subs::parse_sup(data).into_iter().map(|s| (s.start, s.end)).collect();
+    let text: Vec<String> = shows.iter().map(|(a, b)| format!("{a} {}", b.map(|b| b.to_string()).unwrap_or_default())).collect();
+    let _ = std::fs::write(&keep, text.join("\n"));
+    shows
+}
+
+/// แทร็ก PGS ในหนังดึงออกมาครั้งเดียวแล้วเก็บไว้ ภาพตัวอย่างครั้งต่อไปไม่ต้องอ่านหนังทั้งไฟล์อีก · ไฟล์หนังเปลี่ยน (ขนาดหรือเวลาแก้ไข) ดึงใหม่
+fn sup_source(tools: &Path, work: &Path, req: &ImgReq) -> Result<PathBuf, String> {
+    let src = PathBuf::from(&req.src);
+    if !req.in_movie { return Ok(src); }
+    let meta = std::fs::metadata(&src).map_err(|_| "หาไฟล์ต้นทางไม่เจอ ไดรฟ์อาจถอดออกอยู่".to_string())?;
+    let stamp = format!("{}|{}|{}|{}|{:?}", req.src, req.tid, req.ff, meta.len(), meta.modified().ok());
+    let mut h: u64 = 0xcbf29ce484222325;
+    for b in stamp.bytes() { h ^= b as u64; h = h.wrapping_mul(0x100000001b3); }
+    let keep = work.join(format!("imgconv-src-{h:016x}.sup"));
+    if keep.exists() { return Ok(keep); }
+    let (input, _tmp) = input_file(tools, work, req)?;
+    std::fs::copy(&input, &keep).map_err(|e| e.to_string())?;
+    // เก็บไว้ 3 แทร็กล่าสุด
+    let mut v: Vec<(std::time::SystemTime, PathBuf)> = std::fs::read_dir(work).into_iter().flatten().flatten()
+        .filter(|e| e.file_name().to_string_lossy().starts_with("imgconv-src-") && e.path() != keep)
+        .map(|e| (e.metadata().and_then(|m| m.modified()).unwrap_or(std::time::UNIX_EPOCH), e.path())).collect();
+    v.sort_by(|a, b| b.0.cmp(&a.0));
+    for (_, p) in v.into_iter().skip(2) { let _ = std::fs::remove_file(p); }
+    Ok(keep)
+}
+
+/// ภาพตัวอย่างของซับ PGS แปลงเฉพาะภาพที่ดูอยู่ (BUGS ข้อ 142 พี่กันทัก 16 พ.ย. 2569 "ช้ามากตรงนี้ มันควรแปลเเค่ภาพที่ดูอยู่ไหม")
+/// เดิมแปลงทั้งไฟล์แล้วแปลงกลับเป็น BDN อีกรอบ ไฟล์ 439 ภาพรอนาน · ซับ VobSub และการเปลี่ยนอัตราเฟรมที่ให้เดาอัตราเฟรมต้นทางเอง ยังแปลงทั้งไฟล์
+fn preview_one(tools: &Path, work: &Path, req: &ImgReq, index: usize, cancel: &dyn Fn() -> bool) -> Result<Option<ImgPreview>, String> {
+    if req.kind == "vobsub" || (req.fps_source == "auto" && req.fps_target != "keep") { return Ok(None); }
+    let src = sup_source(tools, work, req)?;
+    if !src.extension().is_some_and(|e| e.eq_ignore_ascii_case("sup")) { return Ok(None); }
+    let data = std::fs::read(&src).map_err(|e| e.to_string())?;
+    let shows = sup_shows(work, &src, &data);
+    let total = shows.len();
+    if total == 0 { return Ok(None); }
+    let i = index.min(total - 1);
+    let (t, te) = shows[i];
+    let Some(one) = sup_cut(&data, t, te) else { return Ok(None) };
+    // เวลาที่ภาพนี้ควรขึ้นในผล ใช้เลือกภาพจากผลของไฟล์เล็ก (ไฟล์เล็กอาจมีภาพก่อนหน้าในยุคเดียวกันหรือภาพที่ขึ้นต่อทันที)
+    let factor = match (req.fps_source.parse::<f64>(), req.fps_target.parse::<f64>()) { (Ok(a), Ok(b)) if b > 0.0 => a / b, _ => 1.0 };
+    let want = (t * 1000.0 * factor) as i64 + req.delay;
+    let target = PathBuf::from(&req.target);
+    let kind = out_kind(&target)?;
+    let key = {
+        let mut r = req.clone();
+        r.target = format!("x.{kind}");
+        // v2 เลือกภาพจากเวลา ผลของรุ่นแรกที่นับชุดแสดงผิดใช้ไม่ได้
+        let s = format!("v2|{r:?}|{}|{i}", src.display());
+        let mut h: u64 = 0xcbf29ce484222325;
+        for b in s.bytes() { h ^= b as u64; h = h.wrapping_mul(0x100000001b3); }
+        format!("{h:016x}")
+    };
+    let dir = work.join(format!("imgconv-one-{key}"));
+    let xml = dir.join("bdn").join("prev.xml");
+    let log_file = dir.join("warnings.txt");
+    if !dir.join(".ok").exists() {
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(dir.join("bdn")).map_err(|e| e.to_string())?;
+        let input = dir.join("one.sup");
+        std::fs::write(&input, &one).map_err(|e| e.to_string())?;
+        let cfg = work.join("bdsup2sub-cfg");
+        let _ = std::fs::create_dir_all(&cfg);
+        let out = dir.join(format!("t.{kind}"));
+        let args = if req.engine == "seconv" { seconv_args(req, &input, &out, kind) } else { bdsup_args(req, &input, &out, kind)? };
+        let log = run(tools, &cfg, &req.engine, &args, &|_, _| {}, cancel)?;
+        if req.engine == "seconv" { seconv_settle(kind, &out)?; }
+        let warns: Vec<String> = log.iter().map(|l| l.trim()).filter(|l| l.starts_with("WARNING")).map(|l| l.trim_start_matches("WARNING:").trim().to_string()).collect();
+        let _ = std::fs::write(&log_file, warns.join("\n"));
+        let back: Vec<OsString> = vec!["--resolution".into(), "keep".into(), "--palette-mode".into(), "keep".into(), "--no-export-palette".into(), "--output".into(), xml.clone().into(), out.into()];
+        run(tools, &cfg, "bdsup", &back, &|_, _| {}, cancel)?;
+        std::fs::write(dir.join(".ok"), b"").map_err(|e| e.to_string())?;
+        // เก็บภาพตัวอย่างทีละภาพไว้ 60 ภาพล่าสุด กดย้อนกลับไปภาพเดิมได้ทันที
+        let mut v: Vec<(std::time::SystemTime, PathBuf)> = std::fs::read_dir(work).into_iter().flatten().flatten()
+            .filter(|e| e.file_name().to_string_lossy().starts_with("imgconv-one-") && e.path() != dir)
+            .map(|e| (e.metadata().and_then(|m| m.modified()).unwrap_or(std::time::UNIX_EPOCH), e.path())).collect();
+        v.sort_by(|a, b| b.0.cmp(&a.0));
+        for (_, p) in v.into_iter().skip(59) { let _ = std::fs::remove_dir_all(p); }
+    }
+    let s = std::fs::read_to_string(&xml).map_err(|_| "ทำภาพตัวอย่างไม่ได้")?;
+    let ((w, h), evs) = parse_bdn(&s);
+    let Some(ev) = evs.iter().min_by_key(|e| (e.start - want).abs()) else { return Ok(Some(ImgPreview { w, h, total, index: i, ..Default::default() })) };
+    let mut graphics = vec![];
+    for (f, x, y, gw, gh) in &ev.graphics {
+        let b = std::fs::read(dir.join("bdn").join(f)).map_err(|e| format!("อ่านภาพตัวอย่างไม่ได้ {e}"))?;
+        graphics.push(PrevGraphic { png: format!("data:image/png;base64,{}", crate::audiograph::b64(&b)), x: *x, y: *y, w: *gw, h: *gh });
+    }
+    let warnings = std::fs::read_to_string(&log_file).unwrap_or_default().lines().filter(|l| !l.is_empty()).map(str::to_string).collect();
+    Ok(Some(ImgPreview { total, index: i, w, h, start: ev.start, end: ev.end, forced: ev.forced, graphics, warnings }))
+}
+
 pub fn preview(tools: &Path, work: &Path, req: &ImgReq, index: usize, cancel: &dyn Fn() -> bool) -> Result<ImgPreview, String> {
+    // แปลงทีละภาพไม่สำเร็จ ลองแบบทั้งไฟล์ต่อ ยกเว้นคนกดเปลี่ยนภาพหรือปิดหน้าต่างไปแล้ว
+    match preview_one(tools, work, req, index, cancel) {
+        Ok(Some(r)) => return Ok(r),
+        Err(e) if cancel() => return Err(e),
+        _ => {}
+    }
+    preview_full(tools, work, req, index, cancel)
+}
+
+/// ภาพตัวอย่างแบบแปลงทั้งไฟล์แล้วแปลงกลับเป็น BDN (ทางเดิม) เก็บผลไว้ เปลี่ยนภาพที่ดูไม่ต้องแปลงใหม่
+fn preview_full(tools: &Path, work: &Path, req: &ImgReq, index: usize, cancel: &dyn Fn() -> bool) -> Result<ImgPreview, String> {
     let target = PathBuf::from(&req.target);
     let kind = out_kind(&target)?;
     let key = {
@@ -684,6 +831,52 @@ mod tests {
         assert_eq!(ev[1].start, 60060);
     }
 
+    /// ตัดไฟล์ PGS เหลือภาพเดียวตามเวลา (BUGS ข้อ 142) · เริ่มจากต้นยุคของภาพนั้น จบที่ชุดที่ปิดภาพ · ภาพเดิมที่ส่งซ้ำอยู่ในไฟล์เล็กด้วย ไม่นับเป็นภาพใหม่
+    #[test]
+    fn sup_cut_by_time_keeps_epoch_and_end() {
+        // ชุดแสดงหนึ่งชุด PCS (เวลา สถานะ จำนวนวัตถุ) แล้ว END
+        let set = |sec: f64, state: u8, objs: u8| -> Vec<u8> {
+            let pts = ((sec * 90000.0) as u32).to_be_bytes();
+            let mut pcs = vec![0x07, 0x80, 0x04, 0x38, 0x10, 0, 0, state, 0, 0, objs];
+            for _ in 0..objs { pcs.extend_from_slice(&[0, 0, 0, 0, 0, 10, 0, 10]); }
+            let mut v = b"PG".to_vec(); v.extend_from_slice(&pts); v.extend_from_slice(&[0; 4]); v.push(0x16); v.extend_from_slice(&(pcs.len() as u16).to_be_bytes()); v.extend(pcs);
+            v.extend_from_slice(b"PG"); v.extend_from_slice(&pts); v.extend_from_slice(&[0; 4]); v.push(0x80); v.extend_from_slice(&[0, 0]);
+            v
+        };
+        let a = set(1.0, 0x80, 1); // ยุคใหม่ มีภาพ
+        let b = set(2.0, 0x00, 0); // ล้างจอ
+        let c = set(3.0, 0x00, 1); // ภาพในยุคเดิม
+        let c2 = set(3.5, 0x40, 1); // ภาพเดิมส่งซ้ำ (จุดเริ่มอ่าน) ตัวแปลงนับเป็นภาพเดียวกับ c
+        let d = set(4.0, 0x00, 0); // ล้างจอ
+        let e = set(5.0, 0x40, 1); // จุดเริ่มอ่าน มีภาพ
+        let all = [a.clone(), b.clone(), c.clone(), c2.clone(), d.clone(), e.clone()].concat();
+        assert_eq!(super::sup_cut(&all, 3.0, Some(4.0)).unwrap(), [a.clone(), b.clone(), c.clone(), c2.clone(), d.clone()].concat(), "ภาพ c เริ่มจากต้นยุค มีชุดที่ส่งซ้ำ จบที่ชุดล้างจอ");
+        assert_eq!(super::sup_cut(&all, 5.0, None).unwrap(), e.clone(), "ภาพสุดท้ายเริ่มจุดเริ่มอ่านของตัวเอง ไม่มีชุดถัดไป");
+        assert_eq!(super::sup_cut(&all, 1.0, Some(2.0)).unwrap(), [a, b].concat());
+        assert!(super::sup_cut(&all, 9.0, None).is_none(), "เวลาที่ไม่มีภาพไม่ตัดผิดภาพ");
+        assert!(super::sup_cut(b"", 0.0, None).is_none(), "ไฟล์ว่างไม่พัง");
+    }
+
+    /// ไฟล์ .sup จริงที่ส่งภาพเดิมซ้ำหลายชุด (ตั้ง MOVIE_SHELF_SUP) · ภาพตัวอย่างทีละภาพต้องได้จำนวนภาพและภาพตรงกับแปลงทั้งไฟล์
+    /// (เดิมนับชุดแสดงที่มีภาพได้ 699 แทน 439 และภาพผลเลื่อนไปคนละภาพกับต้นฉบับ เจอกับไฟล์ ACCA 16 พ.ย. 2569)
+    #[test]
+    fn preview_one_matches_full_on_real_file() {
+        let Ok(p) = std::env::var("MOVIE_SHELF_SUP") else { return };
+        if !ready() { return; }
+        let dir = tmp("prevreal");
+        let r = req(Path::new(&p), "pgs", &dir.join("x.sup"));
+        let full0 = super::preview_full(&tools(), &dir, &r, 0, &none).unwrap();
+        let step = (full0.total / 25).max(1);
+        for i in (0..full0.total).step_by(step) {
+            let one = preview(&tools(), &dir, &r, i, &none).unwrap();
+            let full = super::preview_full(&tools(), &dir, &r, i, &none).unwrap();
+            let geo = |p: &ImgPreview| p.graphics.iter().map(|g| (g.x, g.y, g.w, g.h)).collect::<Vec<_>>();
+            assert_eq!((one.total, geo(&one)), (full.total, geo(&full)), "ภาพที่ {i}");
+            assert!((one.start - full.start).abs() <= 1 && (one.end - full.end).abs() <= 1, "เวลาภาพที่ {i} ทีละภาพ {}–{} ทั้งไฟล์ {}–{}", one.start, one.end, full.start, full.end);
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     /// ภาพตัวอย่างตรงกับผลจริง · ย่อเป็น 720 แล้วจอเป็น 1280 × 720 ภาพอยู่ในจอ เวลาเลื่อนตาม · เปลี่ยนแค่ภาพที่ดูใช้ผลเดิม
     #[test]
     fn preview_matches_options() {
@@ -697,9 +890,20 @@ mod tests {
         assert!(p.total >= 1 && !p.graphics.is_empty() && p.graphics.iter().all(|g| g.x + g.w <= 1280 && g.y + g.h <= 720 && g.png.starts_with("data:image/png")), "{:?}", p.graphics.iter().map(|g| (g.x, g.y, g.w, g.h)).collect::<Vec<_>>());
         let t0 = crate::pgs::first_shown(&std::fs::read(media().join("pgs_sub.sup")).unwrap()).unwrap();
         assert!((p.start - t0 - 1000).abs() <= 45, "เวลาเริ่ม {} เดิม {t0}", p.start);
-        let n = std::fs::read_dir(&dir).unwrap().flatten().filter(|e| e.file_name().to_string_lossy().starts_with("imgconv-prev-")).count();
-        let _ = preview(&tools(), &dir, &r, 5, &none).unwrap();
-        assert_eq!(std::fs::read_dir(&dir).unwrap().flatten().filter(|e| e.file_name().to_string_lossy().starts_with("imgconv-prev-")).count(), n, "เปลี่ยนแค่ภาพที่ดูต้องไม่แปลงใหม่");
+        // ซับ PGS แปลงทีละภาพ (BUGS ข้อ 142) ผลต้องตรงกับแปลงทั้งไฟล์ทุกภาพ ทั้งจอ เวลา ตำแหน่ง ขนาดภาพ และจำนวนภาพทั้งไฟล์
+        let count = |p: &str| std::fs::read_dir(&dir).unwrap().flatten().filter(|e| e.file_name().to_string_lossy().starts_with(p)).count();
+        assert_eq!(count("imgconv-prev-"), 0, "ซับ PGS ไม่แปลงทั้งไฟล์แล้ว");
+        let full0 = super::preview_full(&tools(), &dir, &r, 0, &none).unwrap();
+        for i in 0..full0.total.min(8) {
+            let one = preview(&tools(), &dir, &r, i, &none).unwrap();
+            let full = super::preview_full(&tools(), &dir, &r, i, &none).unwrap();
+            let geo = |p: &ImgPreview| p.graphics.iter().map(|g| (g.x, g.y, g.w, g.h)).collect::<Vec<_>>();
+            assert_eq!((one.total, one.index, one.w, one.h, geo(&one)), (full.total, full.index, full.w, full.h, geo(&full)), "ภาพที่ {i}");
+            assert!((one.start - full.start).abs() <= 1 && (one.end - full.end).abs() <= 1, "เวลาภาพที่ {i} ทีละภาพ {}–{} ทั้งไฟล์ {}–{}", one.start, one.end, full.start, full.end);
+        }
+        let n = count("imgconv-one-");
+        let _ = preview(&tools(), &dir, &r, 0, &none).unwrap();
+        assert_eq!(count("imgconv-one-"), n, "ดูภาพเดิมซ้ำใช้ผลที่เก็บไว้ ไม่แปลงใหม่");
         let _ = std::fs::remove_dir_all(&dir);
     }
 

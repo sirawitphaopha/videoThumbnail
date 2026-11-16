@@ -160,9 +160,68 @@
   const seFrame = (ms, h) => { const k = Math.floor(ms / 4000) % 6, P = [["ดาวเหนือ", "#0f2747", "#1e5a7a", "#7fc1c4"], ["ทางขึ้นเขา", "#0b3a42", "#147a78", "#e0b44c"], ["หมอก", "#23303b", "#51707f", "#d9e2e2"], ["ค่ำคืน", "#0a1230", "#22358a", "#f0a640"], ["กองไฟ", "#2a0a06", "#a3320f", "#f2a23a"], ["หมู่บ้าน", "#0d3550", "#2f8fc0", "#d5eef5"]][k]; return poster(P[0], "", P[1], P[2], P[3], Math.round(h * 16 / 9), h); };
   const SE_PATH = (p) => String(p).includes("ฉากตัด");
 
+  /* มอคอัประบบ OCR ซับรูป (BUGS ข้อ 143) · หนังตัวอย่าง ซับรูปตัวอย่าง (2024).mkv มีซับ PGS ภาษาอังกฤษ 36 ภาพ
+     ภาพซับวาดในหน้าเองด้วย canvas ตัวขาวขอบดำแบบซับ Blu-ray ข้อความแคลร์แต่งเอง ไม่ใช้ภาพหรือบทจากหนังจริง (repo สาธารณะ · รุ่นแรกมีบทจากซับที่ใช้เทส แก้ก่อน commit 16 พ.ย. 2569)
+     บรรทัดที่มี top คือป้ายบนจอ (ชื่อสถานที่ ชื่อตัวละคร) ขึ้นพร้อมบทพูดล่างจอในภาพเดียวกัน · ตัวเอียงเขียนด้วยแท็ก i */
+  const OCR_PATH = (p) => String(p).includes("ซับรูป");
+  const OCR_SRC = [
+    ["Good morning, everyone."], ["We're live from Rōdan Station", "for the early report."], ["Trains are running on time today.", null, "Rōdan Station"],
+    ["I didn't know it was that late."], ["I... I see."], ["<i>Three weeks earlier</i>"], ["Have you been to the north district?", "It's quieter there."], ["Not once."],
+    ["This street never ends.", null, "Kōbe Street", "right"], ["I see..."], ["Thanks for the coffee."], ["The new clerk starts", "at the harbor office today."],
+    ["It's too sudden."], ["A surprise visit only works as a surprise."], ["Who knows?"], ["I'll take the early train tomorrow.", null, "<i>Harbor Records Office</i>"],
+    ["Huh?"], ["I'm supposed to meet a friend tonight."], ["Is something wrong?"], ["No."], ["That's an interesting rumor."], ["A naïve café owner in such quiet times?"],
+    ["Well, then..."], ["The river has been rising all week."], ["I wonder if that's another one."], ["It's nearly half past six."], ["You didn't know?"],
+    ["I thought she was speaking", "for the whole committee."], ["Sorry to keep you waiting."], ["Take care."], ["Hello, Mira."], ["Oh, hello..."], ["Checking the ledgers again?"],
+    ["Yes."], ["Those two never agree on anything."], ["<i>Next Episode:</i>", "<i>\"The Lantern by the Pier\"</i>"],
+  ];
+  const OCR_SAMPLE = (() => {
+    const CW = 1920, CH = 1080, FS = 54, LH = 66;
+    const strip = (s) => s.replace(/<\/?i>/g, ""), isIt = (s) => /^<i>.*<\/i>$/.test(s);
+    let t = 5.0;
+    const cues = OCR_SRC.map((r, i) => {
+      const [a, b, top, side] = r, lines = [a, b].filter((x) => x != null);
+      const len = 1.4 + strip(lines.join(" ")).length * 0.045;
+      const c = { n: i + 1, start: +t.toFixed(3), end: +(t + len).toFixed(3), lines, top: top ?? null, side: side ?? "center" };
+      t += len + 0.5 + (i % 3) * 0.4;
+      return c;
+    });
+    const draw = (c) => {
+      // ส่วนล่างจอ บรรทัดกลางจอ ขอบล่างที่ 1000 · ป้ายบนจอที่ 70 กลางหรือชิดขวา
+      const parts = [];
+      const mc = document.createElement("canvas").getContext("2d");
+      const font = (it) => `${it ? "italic " : ""}600 ${FS}px "Segoe UI", Arial, sans-serif`;
+      const measure = (s) => { mc.font = font(isIt(s)); return Math.ceil(mc.measureText(strip(s)).width); };
+      c.lines.forEach((s, k) => { const w = measure(s); parts.push({ s, x: Math.round((CW - w) / 2), y: 1000 - (c.lines.length - k) * LH, w }); });
+      if (c.top) { const w = measure(c.top); parts.push({ s: c.top, x: c.side === "right" ? CW - 90 - w : Math.round((CW - w) / 2), y: 62, w }); }
+      const x0 = Math.min(...parts.map((p) => p.x)) - 8, y0 = Math.min(...parts.map((p) => p.y)) - 6;
+      const x1 = Math.max(...parts.map((p) => p.x + p.w)) + 8, y1 = Math.max(...parts.map((p) => p.y)) + LH + 4;
+      const cv = document.createElement("canvas"); cv.width = x1 - x0; cv.height = y1 - y0;
+      const g = cv.getContext("2d");
+      g.lineJoin = "round"; g.textBaseline = "top";
+      for (const p of parts) { g.font = font(isIt(p.s)); g.lineWidth = 7; g.strokeStyle = "#101010"; g.strokeText(strip(p.s), p.x - x0, p.y - y0 + 6); g.fillStyle = "#f1f1f1"; g.fillText(strip(p.s), p.x - x0, p.y - y0 + 6); }
+      // ภาพแบบชิดกันสำหรับตารางของหน้า OCR · ตัดพื้นใสระหว่างป้ายบนจอกับบทพูดล่างจอออก วางทุกบรรทัดซ้อนกัน (ตัวอ่านก็อ่านทีละบรรทัดแบบนี้)
+      const order = [...parts].sort((a, b) => a.y - b.y), lw = Math.max(...parts.map((p) => p.w)) + 16;
+      const lc = document.createElement("canvas"); lc.width = lw; lc.height = order.length * LH + 6;
+      const lg = lc.getContext("2d"); lg.lineJoin = "round"; lg.textBaseline = "top";
+      order.forEach((p, k) => { lg.font = font(isIt(p.s)); lg.lineWidth = 7; lg.strokeStyle = "#101010"; lg.strokeText(strip(p.s), (lw - p.w) / 2, k * LH + 8); lg.fillStyle = "#f1f1f1"; lg.fillText(strip(p.s), (lw - p.w) / 2, k * LH + 8); });
+      return { n: c.n, start: c.start, end: c.end, w: cv.width, h: cv.height, canvas: [CW, CH], at: [x0, y0], png: cv.toDataURL("image/png"), line: lc.toDataURL("image/png") };
+    };
+    let imgs = null;
+    const all = () => (imgs ??= cues.map(draw));
+    return { cues, all };
+  })();
+  window.__ocrSample = OCR_SAMPLE;
+  const ocrMovie = (p) => ({ path: p, name: String(p).split("\\").pop(), ext: "mkv", size: 5.2e9, duration: 1440, free: 512e9, drive: "D:", mp4Ok: false, attachments: [], tracks: [
+    trackOf(p, 0, "video", "h264", "und", "", { width: 1920, height: 1080, fps: 23.976, frames: 34500, bitrate: 8400000, duration: 1440 }),
+    trackOf(p, 1, "audio", "flac", "jpn", "", { channels: 2, layout: "stereo", rate: 48000, bits: 24, duration: 1440 }),
+    trackOf(p, 2, "subtitle", "hdmv_pgs_subtitle", "eng", "English", { mp4: "no", why: "MP4 ใส่ซับ PGS ไม่ได้", duration: 1440 }),
+  ] });
+
   const FX = {
     ...GRAPH,
-    merge_inspect: (a) => (SE_PATH(a.path) ? seMovie(a.path) : mergeMovie(a.path)),
+    merge_inspect: (a) => (OCR_PATH(a.path) ? ocrMovie(a.path) : SE_PATH(a.path) ? seMovie(a.path) : mergeMovie(a.path)),
+    sub_images: (a) => { const all = OCR_SAMPLE.all(), off = Math.round(a.page * a.per); return { total: all.length, items: all.slice(off, off + a.per) }; },
+    sub_image_times: () => OCR_SAMPLE.all().map(({ png, ...x }) => ({ ...x, png: "" })),
     subdoc_open: (a) => seDoc(a.path, a.tid === 2),
     subdoc_render: (a) => seRender(a.doc),
     subdoc_set_dirty: () => null, subdoc_autosaves: () => [], subdoc_autosave: () => null,
@@ -226,7 +285,10 @@
 
 })();
 </script>
-<script type="module" src="/src/main.tsx"></script>
+<!-- ?ocr=<สภาพ> เปิดมอคอัประบบ OCR (src/mockups/ocr/main.tsx) ซึ่งเป็นโปรแกรมจริงทั้งตัวกับหน้า OCR ที่ยังไม่ได้ลงโปรแกรม · ไม่ใส่ เปิดโปรแกรมจริงตามเดิม -->
+<script type="module">
+  if (new URLSearchParams(location.search).has("ocr")) import("/src/mockups/ocr/main.tsx"); else import("/src/main.tsx");
+</script>
 </head>
 <body><div id="root"></div></body>
 </html>

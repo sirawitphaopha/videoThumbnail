@@ -45,7 +45,7 @@ const clickAt = async (x, y) => { gate(); await c.move(x, y); await c.send("Inpu
 const prevDone = () => waitFor("return document.querySelector('[data-pgs-imgs]')?.dataset.state === 'done' || !!document.querySelector('[data-pgs-prev-err]')", 60000);
 const estDone = () => waitFor("const s = document.querySelector('[data-pgs-est]')?.dataset.pgsEst; return s === 'done' || s === 'fail'", 90000);
 const openDlg = async () => { await click('[data-cmdmenu="tool"]'); await sleep(300); await click('[data-cmd="pgs"]'); return waitFor("return !!document.querySelector('[data-pgs]')", 4000); };
-const closeDlg = async () => { await q("[...document.querySelectorAll('.dlg .acts .btn-ghost')].find((b) => /ยกเลิก|ปิด/.test(b.innerText))?.click(); return 1;"); await sleep(300); };
+const closeDlg = async () => { await q("const b = [...document.querySelectorAll('.dlg .acts .btn-ghost')].find((b) => /ยกเลิก|ปิด/.test(b.innerText)); (b ?? document.querySelector('[data-sv-close]'))?.click(); return 1;"); await sleep(300); };
 const openSub = async (file, rows = 2) => {
   await q(`window.__subClear(); window.__subOpen(${JSON.stringify(file)}); return 1;`);
   return waitFor(`return document.querySelectorAll('[data-subedit] .se-grid tbody tr').length > ${rows}`, 25000);

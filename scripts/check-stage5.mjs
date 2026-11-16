@@ -69,7 +69,7 @@ await c.evaluate("document.querySelector('[data-extract-start]').click()");
 for (let i = 0; i < 100 && !(await q("return document.querySelector('[data-extract]').innerText.includes('แยกครบ')")); i++) await sleep(150);
 const xdone = await q("return document.querySelector('[data-extract]').innerText");
 await shot("03-แยกครบ.png", "[data-extract]");
-const xdir = join(DIR, "ดาวเหนือ (2023) แยกไฟล์");
+const xdir = join(DIR, "แยกไฟล์");
 const files = existsSync(xdir) ? readdirSync(xdir) : [];
 check("หน้าเสียงและซับ ติ๊ก 3 อย่างแล้วแยก ได้ครบ 3 ไฟล์ ชื่อแบบต้นแบบ · ไฟล์หนังเดิม hash เท่าเดิม", bar.includes("เลือกไว้ 3 อย่าง") && barTitle === "เสียงที่ 2, ซับที่ 1, Chapter ของหนัง" && xdone.includes("แยกครบ 3 ไฟล์") && files.includes("ดาวเหนือ (2023).Audio2.en.ac3") && files.includes("ดาวเหนือ (2023).Text1.th.srt") && files.includes("ดาวเหนือ (2023).chapters.xml") && sha(movie) === h0, files.join(", "));
 
@@ -156,7 +156,7 @@ copyFileSync(join(SRC, "The Last Orchard (2022).mp4"), join(DIR, "The Last Orcha
 const att = await inv("media_info", { path: join(DIR, "Harbor Lights (2021).mkv") });
 const a1 = att.sections.find((s) => s.kind === "attachment");
 const xr = await inv("extract_start", { req: { path: join(DIR, "Harbor Lights (2021).mkv"), folder: null, items: [{ kind: "attachment", nth: 1, ext: a1?.ext ?? "jpg", lang: null, name: a1?.rows.find((r) => r[0] === "File name")?.[1] ?? null }], policy: ["ask"] } });
-const cover = join(DIR, "Harbor Lights (2021) แยกไฟล์", "Harbor Lights (2021).cover.jpg");
+const cover = join(DIR, "แยกไฟล์", "Harbor Lights (2021).cover.jpg");
 check("ไฟล์แนบใน MKV ขึ้นเป็นหัวข้อ Attachment บอกขนาดรูป แยกปกออกมาเป็น .cover.jpg", a1 && a1.rows.some((r) => r[1] === "cover.jpg") && a1.rows.some((r) => r[0] === "Dimensions" && / × /.test(r[1])) && xr.states[0] === "done" && existsSync(cover), a1?.rows.map((r) => r.join(" ")).join(" · "));
 const mp4 = join(DIR, "The Last Orchard (2022).mp4");
 const mi = await inv("media_info", { path: mp4 });
@@ -174,7 +174,7 @@ check("ไฟล์ MP4 แยกเสียงเป็น .aac ด้วย f
   spawnSync(join("src-tauri", "tools", "ffmpeg.exe"), ["-v", "error", "-nostdin", "-n", "-f", "concat", "-safe", "0", "-i", list, "-map", "0:v", "-map", "0:a", "-c", "copy", big]);
   rmSync(list);
   const hb = sha(big);
-  const xdir2 = join(DIR, "หนังยาว (2020) แยกไฟล์");
+  const xdir2 = join(DIR, "แยกไฟล์");
   const run = c.evaluate(`window.__TAURI_INTERNALS__.invoke("extract_start", { req: { path: ${JSON.stringify(big)}, folder: null, items: [{ kind: "video", nth: 1, ext: "mkv", lang: null, name: null }], policy: ["ask"] } })`);
   let seen = false;
   for (let i = 0; i < 200 && !seen; i++) { await sleep(50); seen = existsSync(xdir2) && readdirSync(xdir2).some((f) => f.endsWith(".partial")); }

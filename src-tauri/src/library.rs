@@ -179,7 +179,8 @@ struct Found {
 }
 
 fn is_skipped_dir(name: &str) -> bool {
-    name == "ไฟล์เดิม" || name.ends_with(" แยกไฟล์")
+    // "แยกไฟล์" โฟลเดอร์ตั้งต้นของงานแยกไฟล์ตั้งแต่ 15 พ.ย. 2569 · "<ชื่อหนัง> แยกไฟล์" แบบเดิมที่ผู้ใช้มีอยู่แล้วยังข้าม
+    name == "ไฟล์เดิม" || name == "แยกไฟล์" || name.ends_with(" แยกไฟล์")
         || name.starts_with('$') || name == "System Volume Information" || name.starts_with('.')
 }
 
@@ -755,6 +756,7 @@ mod tests {
     fn skipped_folders() {
         assert!(is_skipped_dir("ไฟล์เดิม"));
         assert!(is_skipped_dir("ดาวเหนือ (2023) แยกไฟล์"));
+        assert!(is_skipped_dir("แยกไฟล์"), "โฟลเดอร์ตั้งต้นใหม่ของงานแยกไฟล์ ไฟล์ภาพที่แยกต้องไม่ขึ้นชั้นวาง");
         assert!(is_skipped_dir("$RECYCLE.BIN"));
         assert!(!is_skipped_dir("หนังไทย"));
     }

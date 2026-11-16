@@ -984,7 +984,7 @@ function BitrateModern({ onClassic, initialPath = null, initialTrack = null, onC
           {/* หัวกราฟไม่พอ ซ่อนข้อความช่วงเวลา (แกนเวลาบอกอยู่แล้ว) วัดจากที่ว่างจริง · เดิมข้อความตกสองบรรทัดหัวกราฟสูงขึ้น (เจอตอนตรวจที่ 1280) */}
           <div className="brn-head" ref={headRef} data-brnhead={headCompact ? "compact" : "full"}>
             <div>
-              <b>{audio ? "Audio Bitrate" : "Video Bitrate"}</b>{!headCompact && <span className="small" data-brnheadinfo>{S.n ? ` ช่วง ${clock(z0)} ถึง ${clock(z1)}` : ""}</span>}
+              <b>{audio ? "Audio Bitrate" : "Video Bitrate"}</b>{!headCompact && <span className="small" data-brnheadinfo>{S.n ? ` ช่วง ${clock(z0)}–${clock(z1)}` : ""}</span>}
             </div>
             {/* รูปแบบกราฟ (BUGS ข้อ 42) */}
             {/* ชื่อหน้าดรอปดาวน์ เดิมเห็นแค่คำว่าแท่ง ไม่รู้ว่าเลือกอะไร (BUGS ข้อ 105 พี่กันสั่ง 13 พ.ย. 2569 "ใส่ชื่อหน่อย แบบ ชนิดกราฟ หรืออะไรก็ได้ ตามที่เธอคิด") */}

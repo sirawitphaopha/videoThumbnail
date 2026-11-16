@@ -315,7 +315,7 @@ check("กดลำโพงปิดช่อง ปิดทั้งสอง
 await c.evaluate(`document.querySelector('[data-cmpzoom="30"]').click()`);
 await sleep(500);
 const head = await q("return document.querySelector('[data-cmpview] .plothead').innerText");
-check("ซูม 30 วินาที ใช้กับสองไฟล์พร้อมกัน", head.includes("0:15 ถึง 0:30") || /\d:\d\d ถึง \d:\d\d/.test(head), head.slice(0, 80));
+check("ซูม 30 วินาที ใช้กับสองไฟล์พร้อมกัน", head.includes("0:15–0:30") || /\d:\d\d–\d:\d\d/.test(head), head.slice(0, 80));
 await c.click("[data-cmpback]");
 await waitFor("return !!document.querySelector('[data-convert]')", 5000);
 check("กดคิวแปลง กลับหน้าคิว แถวครบเหมือนเดิม", (await q("return document.querySelectorAll('[data-qrow]').length")) === ORDER.length);

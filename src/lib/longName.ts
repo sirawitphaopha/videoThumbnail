@@ -14,7 +14,7 @@ const MODES: LongName[] = ["slide", "fade", "year", "two"];
 /** ทุกจุดที่เคยตัดท้ายเป็นจุดสามจุด · จุดใหม่ที่ตัดชื่อยาวเพิ่มที่นี่ */
 export const LONG_SEL = [
   ".bn1", ".lvchips .ft", ".lvchips.tight .lvchip", ".runline .runtxt b", ".runline .runl1", ".runline .runl2", ".fchip .nm", ".lab span",
-  ".wavelg .lgnote", ".thanklink", ".psdchecks .psdck-txt", ".cpcmp-grid .a", ".cpcmp-grid .b", ".icv-path", ".avchip .nm", ".avchip .meta",
+  ".wavelg .lgnote", ".thanklink", ".psdchecks .psdck-txt", ".cpcmp-grid .a", ".cpcmp-grid .b", ".avchip .nm", ".avchip .meta",
   ".lrow .en", ".avfoot-sum", ".cqrow .nm", ".cqrow .dt", ".cmpchip .meta", ".cmpchip .nm .nmtx", "[data-extract] .xdest > b",
   ".subpage-bar .subpage-name", ".pathline b", ".lname .fn", "[data-subedit] .se-grid .se-cut", ".se-saveas .se-path", ".se-auto .se-cut",
   ".se-fontlist button", "[data-subedit] .se-pgs .se-path", "[style*=\"text-overflow: ellipsis\"]",

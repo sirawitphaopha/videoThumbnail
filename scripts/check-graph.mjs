@@ -155,7 +155,7 @@ await c.move(500, 12); await sleep(200);
 const xhBefore = await count("[data-plot] .xh") + await count("[data-plot] .tip");
 await hoverMid("[data-lanes]", 0.8, 0.4);
 const tipRows = await count(".tip .r b"), tipAt = await text(".tip .t");
-check("ซูม 30 วินาที ก่อนชี้ไม่มีเส้นตั้งกับกล่องค่า · ชี้บนกราฟแล้วขึ้นกล่องค่าทุกช่องที่เวลานั้น 6 แถว", tipRows === 6 && /ถึง/.test(head30) && xhBefore === 0, `${head30} · ก่อนชี้มี ${xhBefore} ชิ้น · ชี้แล้ว ${tipAt} · ${tipRows} แถว`);
+check("ซูม 30 วินาที ก่อนชี้ไม่มีเส้นตั้งกับกล่องค่า · ชี้บนกราฟแล้วขึ้นกล่องค่าทุกช่องที่เวลานั้น 6 แถว", tipRows === 6 && /–/.test(head30) && xhBefore === 0, `${head30} · ก่อนชี้มี ${xhBefore} ชิ้น · ชี้แล้ว ${tipAt} · ${tipRows} แถว`);
 await shotHere("05-ซูมแล้วชี้อ่านค่า.png");
 await c.move(500, 12); await sleep(200);
 check("เอาเมาส์ออกจากกราฟ เส้นตั้งกับกล่องค่าหาย", (await count("[data-plot] .xh")) + (await count("[data-plot] .tip")) === 0);
@@ -231,7 +231,7 @@ await c.click("[data-ckgraph]");
 await plotReady(); await sleep(1500);
 const headCk = await text(".plothead");
 const marks = await text("[data-mark]");
-check("หน้าต่างผลตรวจ ปุ่มดูกราฟเสียงช่วงนี้ พาไปหน้ากราฟ ซูม 30 วินาทีรอบจุดเสีย และมีแถบแดงผลตรวจ", hasCkGraph === 1 && headCk.includes("0:15 ถึง 0:45") && marks.includes("ผลตรวจ"), `${headCk} · ${marks}`);
+check("หน้าต่างผลตรวจ ปุ่มดูกราฟเสียงช่วงนี้ พาไปหน้ากราฟ ซูม 30 วินาทีรอบจุดเสีย และมีแถบแดงผลตรวจ", hasCkGraph === 1 && headCk.includes("0:15–0:45") && marks.includes("ผลตรวจ"), `${headCk} · ${marks}`);
 await shot("15-กราฟจากผลตรวจ-แถบแดง.png");
 
 /* ---------- 11 ทางเข้าจากแผงขวาของชั้นวาง ---------- */
@@ -316,7 +316,7 @@ if (existsSync(SONG)) {
 
   // ---------- รูปคลื่นแบบ Audacity ตัวซูม ตัวเลื่อน (พี่กัน *"พวกตัวซูม พวกตัวขยาย ตัวเลื่อนซ้ายขวา เอามาได้เลย"*) ----------
   // ช่วงสั้นหัวกราฟแสดงทศนิยม (2:22.4 ถึง 3:27.0)
-  const range = async () => { const m = (await text(".plothead span")).match(/(\d+):(\d\d(?:\.\d+)?) ถึง (\d+):(\d\d(?:\.\d+)?)/); return m ? [+m[1] * 60 + +m[2], +m[3] * 60 + +m[4]] : [NaN, NaN]; };
+  const range = async () => { const m = (await text(".plothead span")).match(/(\d+):(\d\d(?:\.\d+)?)–(\d+):(\d\d(?:\.\d+)?)/); return m ? [+m[1] * 60 + +m[2], +m[3] * 60 + +m[4]] : [NaN, NaN]; };
   const rangeAfter = async (prev) => { const t = Date.now(); let r = await range(); while (Date.now() - t < 15000 && r[0] === prev[0] && r[1] === prev[1]) { await sleep(150); r = await range(); } await sleep(200); return r; };
   await q("document.querySelector('[data-style=aud]').click()"); await sleep(500);
   const audInk = await inked("[data-lane] canvas");

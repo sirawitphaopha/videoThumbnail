@@ -323,6 +323,7 @@ export const subApi = {
   frame: (movie: string, t: number, h?: number) => call<string>("sub_frame", { movie, t, h: h ?? null }),
   wave: (movie: string, stream: number, t0: number, t1: number, cols: number) => call<number[]>("sub_wave", { movie, stream, t0, t1, cols }),
   images: (path: string, ff: number, page: number, per: number) => call<{ total: number; items: SubImg[] }>("sub_images", { path, ff, page, per }),
+  imageTimes: (path: string, ff: number) => call<SubImg[]>("sub_image_times", { path, ff }),
 };
 
 /* ตัวอ่านเขียนซับของหน้าแก้ซับ (แผนหน้าแก้ซับ ขั้น 1 · subdoc.rs) · เวลาเป็นมิลลิวินาทีตามไฟล์
@@ -529,7 +530,8 @@ export type HashCompare = { algo: string | null; same: boolean; diff: string | n
 export type ExtractItem = { kind: string; nth: number; ext: string; lang: string | null; name: string | null; of?: string | null };
 /** ไฟล์ MKV มีแท็กกับ chapter ไหม และดีเลย์ของแทร็กเสียงแต่ละแทร็ก มิลลิวินาที (extract.rs info_of) */
 export type ExtractInfo = { mkv: boolean; tags: boolean; chapters: boolean; delays: number[] };
-export type ExtractResult = { folder: string; states: string[]; files: (string | null)[]; error: string | null };
+/** notes เรื่องที่ควรรู้ เช่น ตัดชื่อให้สั้นลงเพราะที่อยู่ยาวเกินที่ Windows รับ */
+export type ExtractResult = { folder: string; states: string[]; files: (string | null)[]; error: string | null; notes?: string[] };
 /** หนึ่งชั้นในโครงสร้างไฟล์ MKV (mkvtree.rs · BUGS ข้อ 131) · แถวสรุปไม่มี id */
 export type MkvNode = { name: string; id: string; pos: number; size: number | null; value: string | null; kids: MkvNode[] };
 export const infoApi = {

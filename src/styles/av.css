@@ -259,6 +259,8 @@
 .simg .t { font-size: 12px; color: var(--txt2); font-variant-numeric: tabular-nums; display: flex; justify-content: space-between; }
 .bigsub { position: relative; width: 100%; border-radius: 8px; overflow: hidden; background: repeating-conic-gradient(#f4dbe3 0% 25%, #fbf0f4 0% 50%) 50% / 18px 18px; }
 .bigsub img { position: absolute; }
+/* ภาพจากหนังเป็นพื้นหลังเต็มกรอบ ซับวางทับตามตำแหน่งจริง (BUGS ข้อ 142) */
+.bigsub img.bigsub-frame { inset: 0; width: 100%; height: 100%; object-fit: cover; }
 
 /* ---------- จับคู่ไว้ ไม่รวม (มอคอัปหัวข้อ 5) · การ์ดในแผงขวาของชั้นวาง กับจุดมุมปก ---------- */
 .paircard { display: flex; flex-direction: column; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px; margin-bottom: 12px; font-size: 13px; }
@@ -453,13 +455,17 @@
 .trk-actbtn.btn-ghost { justify-self: stretch; justify-content: center; background-color: #faedf1; border-color: #e2bfcb; color: var(--accent-ink); }
 .trk-actbtn.btn-ghost:hover { background-color: #f5dde5; border-color: #d8a9b9; color: var(--accent-ink); }
 .avxfoot:has(> .card) { display: block; padding-block: 8px; }
-.avxfoot > .card { margin: 0; max-height: 50vh; overflow-y: auto; }
+/* เว้นขวา 16 จุดให้แถบเลื่อนลอย (กว้าง 7 จุด) ไม่ทับคำสถานะชิดขวา ไม่สำเร็จ รอคิว (พี่กันทัก 15 พ.ย. 2569 "เเล้วเเถบเลื่อนบัด้วย") */
+.avxfoot > .card { margin: 0; max-height: 50vh; overflow-y: auto; padding-right: 16px; }
 /* ยังไม่กดแยก แถวเดียวเต็มความกว้างแบบแถบปุ่มรวม */
 .avxfoot > .xidle { flex: 1; min-width: 0; }
 [data-extract] .xpicks .hint { white-space: nowrap; }
 /* แถวกดแยก สรุปที่ติ๊กชิดซ้าย ที่เก็บกับปุ่มชิดขวา (BUGS ข้อ 92) · ที่เก็บกรอบสีโทนตัวหนา บรรทัดเดียว ไม่ดันแถบให้สูง */
 [data-extract] .xrow { display: flex; align-items: center; gap: 10px; }
 [data-extract] .xpicks { flex: 1; min-width: 0; font-size: 14px; }
+/* ปุ่มล้างการเลือกต่อท้ายคำว่าเลือกไว้ (พี่กันทัก "ล้างการเลือก ไหม มาติ๊กอะไรไม่ทางการ" · ขอ 15 พ.ย. 2569 "เราติ๊กไปเป็นสิบ ขอปุ่มล้างงการติ๊กด้วย")
+   สูง 26 จุดให้ ิ กับ ๊ ที่ซ้อนกันอยู่ในกรอบ · เดิม 22 จุด หัววรรณยุกต์ทับเส้นขอบบน (พี่กันทัก "มันเเคปไป") */
+[data-extract] .xclear { height: 26px; padding: 0 9px; gap: 5px; margin-left: 8px; font-size: 12.5px; vertical-align: middle; }
 [data-extract] .xdest { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; max-width: 440px; min-width: 0; border: 1.5px solid var(--accent); border-radius: 9px; background: color-mix(in srgb, var(--accent) 9%, var(--win)); color: var(--accent-ink); font-size: 13.5px; white-space: nowrap; flex: 0 1 auto; }
 [data-extract] .xdest svg { flex: none; }
 [data-extract] .xdest > span { flex: none; color: var(--txt2); }
@@ -497,6 +503,8 @@
 .subpage-row > .dd.on { border-color: var(--accent); background-color: #faedf1; }
 /* ตัวดูซับในหน้าซับไตเติลชิดแถวบน ไม่มีขอบในด้านบน · ต้องเป็น .card.subviewer-inline เพราะ .card ใน app.css มาทีหลังแล้วทับ padding 14 (พี่กัน "ระยะห่างเยอะไป") */
 .card.subviewer-inline { margin-top: 0; padding-top: 0; }
+/* ซับรูปในหน้าซับไตเติล กรอบสูงตายตัวตามที่เหลือของหน้าต่าง เนื้อในยืดเต็มกรอบ (BUGS ข้อ 142) */
+.card.subviewer-inline.fitimg { display: flex; flex-direction: column; min-height: 0; }
 /* หน้าซับไตเติลตอนเปิดไฟล์แล้ว แถวบทแถวเดียว กับแถบเลือกแทร็กซับ (BUGS ข้อ 109) */
 .subpage-bar { gap: 10px; min-width: 0; }
 .subpage-bar .subpage-name { min-width: 0; max-width: 40%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -507,3 +515,47 @@
 .subpage-trkpick:hover { background: #faedf1; }
 .subpage-trk .btn { height: 28px; }
 .subpage-seg { display: flex; flex: none; }
+
+/* ตัวดูซับรูป (BUGS ข้อ 141 · 15 พ.ย. 2569) รายการเวลาทุกภาพซ้าย กดแล้วไปหน้านั้น · ตารางภาพขวาเต็มความสูง ภาพต่อหน้าคิดจากความสูงกรอบ */
+.simgwrap { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+.simgview { flex: 1; min-height: 0; display: flex; gap: 12px; }
+.simglist { flex: none; width: 150px; overflow-y: auto; overscroll-behavior: contain; border: 1px solid var(--line); border-radius: 10px; padding: 4px; display: flex; flex-direction: column; gap: 1px; position: relative; }
+.simglist-row { flex: none; display: flex; justify-content: space-between; gap: 8px; padding: 4px 8px; border: 0; border-radius: 6px; background: transparent; font: inherit; font-size: 12.5px; color: var(--txt2); font-variant-numeric: tabular-nums; cursor: pointer; text-align: left; transition: background-color .15s, color .15s; }
+.simglist-row:hover { background: #fcf5f7; color: var(--txt); }
+.simglist-row.on { background: color-mix(in srgb, var(--accent) 10%, white); color: var(--txt); }
+.simglist-row.pick { box-shadow: inset 0 0 0 1px var(--accent); color: var(--accent-ink); font-weight: 600; }
+.simgmain { flex: 1; min-width: 0; display: flex; flex-direction: column; gap: 10px; }
+/* กรอบที่คิดจำนวนแถว สูงตามที่เหลือในหน้าต่าง · หน้าซับไตเติลไม่มีความสูงตายตัว ให้อย่างน้อยสองแถว */
+.simgfit { flex: 1; min-height: 242px; overflow: hidden; }
+.simgfit > .subimgs { align-content: start; }
+.simgfit .simg .pic { height: var(--simg-pic, 74px); }
+/* ภาพเต็มชิดบนสุดของกรอบ ไม่เว้นที่ว่างด้านบน (พี่กันขอ 16 พ.ย. 2569 "เอาไปไว้บนสุด") */
+.simgfit.big { container-type: size; display: flex; align-items: flex-start; justify-content: center; }
+.simg.pick { border-color: var(--accent); box-shadow: 0 0 0 1px var(--accent); }
+.simgbar { display: flex; align-items: center; justify-content: space-between; gap: 8px; flex: none; }
+/* ปุ่มปิดของตัวดูซับรูปต่อท้ายปุ่มเปลี่ยนหน้า เส้นแบ่งกั้นเพราะทำงานต่างกลุ่ม */
+/* เส้นแบ่งกลุ่มปุ่มในแถวล่างของตัวดูซับรูป */
+/* เส้นแบ่งแนวนอนเหนือแถวปุ่มล่าง กั้นภาพออกจากแถวปุ่ม สีเดียวกับเส้นใต้หัว (พี่กันสั่ง 16 พ.ย. 2569 "เส้นเเบ่ง เเนวนอนไง") */
+/* แถวปุ่มอยู่กึ่งกลางระหว่างเส้นกับขอบล่างหน้าต่าง บนล่างข้างละ 15 (หน้าต่างเว้นขอบล่าง 20 จึงดึงลง 5 · พี่กันถาม 16 พ.ย. 2569 "มันกึ่งกลารึยัง") */
+.simgmain > .simgbar { border-top: 1px solid color-mix(in srgb, var(--accent) 22%, white); padding-top: 14px; margin-bottom: -5px; }
+/* เส้นตั้งแบ่งกลุ่มปุ่มในแถวล่าง สีเข้มกว่า --line ซึ่งจางจนมองไม่เห็นบนพื้นขาว (พี่กันสั่งเก็บไว้ 16 พ.ย. 2569 "ไม่ต้องลบ") */
+.simgbar .sv-sep { flex: none; align-self: center; width: 1px; height: 22px; margin: 0 4px; background: color-mix(in srgb, var(--accent) 30%, white); }
+/* เส้นแบ่งใต้หัวของตัวดูซับรูป กั้นคำอธิบายกับปุ่มแปลงออกจากรายการเวลาและภาพ (พี่กันขอ 16 พ.ย. 2569 "ขอขีดเเบ่ง") */
+[data-mode="image"] > .sv-imghead { padding-bottom: 10px; border-bottom: 1px solid color-mix(in srgb, var(--accent) 22%, white); }
+/* แถบเวลาแบบแถบเลื่อนวิดีโอของตัวดูซับรูป (BUGS ข้อ 141 · 16 พ.ย. 2569) ขีดเล็กทุกภาพ ช่วงสีคือภาพที่เห็นอยู่ */
+.simgseek { flex: none; display: flex; align-items: center; gap: 10px; }
+.simgseek-t { flex: none; width: 52px; font-size: 12.5px; color: var(--txt2); font-variant-numeric: tabular-nums; }
+.simgseek-t.end { text-align: right; }
+.simgseek-bar { position: relative; flex: 1; height: 22px; cursor: pointer; touch-action: none; }
+.simgseek-bar::before { content: ""; position: absolute; left: 0; right: 0; top: 8px; height: 6px; border-radius: 3px; background: var(--line); }
+.simgseek-ticks { position: absolute; left: 0; top: 7px; width: 100%; height: 8px; }
+.simgseek-ticks line { stroke: color-mix(in srgb, var(--accent) 35%, transparent); stroke-width: 1; vector-effect: non-scaling-stroke; }
+.simgseek-on { position: absolute; top: 8px; height: 6px; border-radius: 3px; background: color-mix(in srgb, var(--accent) 55%, transparent); pointer-events: none; }
+.simgseek-knob { position: absolute; top: 4px; width: 14px; height: 14px; margin-left: -7px; border-radius: 50%; background: #fff; border: 2px solid var(--accent); box-shadow: 0 1px 3px rgba(60,25,40,.25); pointer-events: none; transition: left .12s ease; }
+.simgseek-bar:hover .simgseek-knob, .simgseek-bar.hold .simgseek-knob { transform: scale(1.15); }
+.simgseek-bar.hold .simgseek-knob { transition: none; }
+.simgseek-tip { position: absolute; bottom: 22px; transform: translateX(-50%); padding: 1px 7px; border-radius: 6px; background: var(--txt); color: #fff; font-size: 12px; white-space: nowrap; pointer-events: none; }
+/* สวิตช์ภาพหนังในแถวล่างของตัวดูซับรูป (BUGS ข้อ 142) · ยังไม่มีวิดีโอจางลงและกดไม่ได้ */
+.simgbar .sv-frame { display: inline-flex; align-items: center; gap: 7px; font-size: 13px; color: var(--txt); cursor: pointer; user-select: none; margin-right: 4px; }
+.simgbar .sv-frame.off { opacity: .5; cursor: not-allowed; }
+.simgbar .sv-frame.off .switch { pointer-events: none; }

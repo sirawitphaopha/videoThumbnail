@@ -30,7 +30,7 @@ import { kb, useEscClose } from "../lib/popup";
 import { FtChip, ftName } from "../lib/ftypes";
 import { langName } from "../lib/langs";
 import { getAv, resetAv, setAv, trackFrom, tracksOfAdded, useAv, type AvTrack, type CoverSlot } from "../lib/avJob";
-import { IcExtract, IcFile, IcPoster, IbCrop, IcClose } from "../components/icons";
+import { IcExtract, IcFile, IcPoster, IbCrop, IcClose, IbUndo } from "../components/icons";
 import { glideBox } from "../lib/glide";
 import { spaceShort, useFree } from "../lib/drives";
 import { IbSwap, IcSearch, IbTrash, IbBack, IbNext, IbStop, IcRefresh, IcShelf, IcGraph, IcLink, IcMix } from "../components/icons";
@@ -100,7 +100,7 @@ function KindIcon({ k }: { k: AvTrack["kind"] }) {
   );
 }
 
-export default function AvPage(p: { initialPath: string | null; onConsumed: () => void; onPage: (pg: Page) => void; onGraph: (path: string) => void }) {
+export default function AvPage(p: { initialPath: string | null; onConsumed: () => void; onPage: (pg: Page) => void; onGraph: (path: string, track?: number) => void }) {
   const { settings } = useSettings();
   const toast = useToast();
   const { movies } = useLibrary();
@@ -379,8 +379,9 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
   const blocked = !movie ? "ยังกดไม่ได้ ใส่ไฟล์หนังก่อน"
     : !kept.some((t) => t.kind === "video") ? "ไฟล์ใหม่ต้องมีภาพ เอาแทร็กภาพกลับมาก่อน"
     : mp4Bad.length ? "เลือกก่อนว่าจะเอาแทร็กที่ใส่ใน MP4 ไม่ได้ออก หรือกลับไปใช้ MKV"
-    : !changed ? "ยังไม่ได้เปลี่ยนอะไร เพิ่มไฟล์ แก้แทร็ก หรือใส่ปกก่อน"
     : mergeShort;
+  // ไม่ได้เปลี่ยนอะไรก็รวมได้ ได้ไฟล์ใหม่ที่ทำด้วย mkvmerge ทั้งไฟล์ · บรรทัดสรุปบอกว่าแทร็กเหมือนไฟล์เดิม
+  // เดิมปุ่มรวมกดไม่ได้ (พี่กันทัก 15 พ.ย. 2569 "เราเเค่อยากรวมใไม่ มันต้อทำได้สิ")
 
   const start = async () => {
     const s = getAv();
@@ -409,6 +410,16 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
     if (vtts.length && !stepVttDone) { setAskVtt(true); return; }
     if (original === "trash") { setAskDelete(1); return; }
     start();
+  };
+  // คืนตารางเป็นแทร็กเดิมของหนัง เอาไฟล์ที่เพิ่ม ปก ฟอนต์ บท และที่แก้ในตารางออก ไฟล์หนังยังอยู่ ไม่ต้องใส่ใหม่
+  // (พี่กันขอ 15 พ.ย. 2569 "เราอยากได้ ปุ่มที่ ปิดทั้งหมดที่เอาเข้ามาทิ้งได้ โดยไม่ต้องไปอัแปใหม่" · ล้างทั้งหมดล้างทั้งไฟล์หนัง)
+  const resetEdits = () => {
+    const m = getAv().movie;
+    if (working || !m) return;
+    setAv((s) => ({ tracks: m.tracks.map((t) => trackFrom(t)), sel: null, fontExtra: [], fontOff: [], chapters: null,
+      covers: { cover: { ...s.covers.cover, mode: "keep", neu: null }, cover_land: { ...s.covers.cover_land, mode: "keep", neu: null } } }));
+    mergeApi.coverDrop(null).catch(() => {});
+    posterApi.clear("cover").catch(() => {});
   };
   const clearAll = () => {
     if (working) return;
@@ -675,7 +686,11 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
         {/* ตารางแทร็ก */}
         <div className="card">
           <h3 style={{ justifyContent: "space-between" }}><span>{method === "extract" ? "แทร็กในหนัง ติ๊กชิ้นที่จะแยก" : "แทร็กในไฟล์ใหม่ เรียงตามลำดับ"}</span>
-            <span className="small" style={{ fontWeight: 400 }} data-counts>ภาพ {counts.video} เสียง {counts.audio} ซับ {counts.subs}{counts.out ? ` เอาออก ${counts.out}` : ""}</span></h3>
+            <span className="row8" style={{ flexWrap: "nowrap" }}>
+              {/* สูง 24 เท่าหัวตาราง ปุ่มโผล่แล้วตารางไม่ขยับ */}
+              {method !== "extract" && changed && <button type="button" className={"btn btn-xs " + (working ? "btn-wait" : "btn-ghost")} style={{ height: 24, gap: 5 }} aria-disabled={working || undefined}
+                title={working ? BUSY : "เอาไฟล์ที่เพิ่ม ปก ฟอนต์ และที่แก้ในตารางออกทั้งหมด ไฟล์หนังยังอยู่"} onClick={resetEdits} data-reset-edits><IbUndo size={14} />คืนเป็นไฟล์เดิม</button>}
+              <span className="small" style={{ fontWeight: 400 }} data-counts>ภาพ {counts.video} เสียง {counts.audio} ซับ {counts.subs}{counts.out ? ` เอาออก ${counts.out}` : ""}</span></span></h3>
           <div className="tracks" role="list" aria-label="แทร็กในไฟล์ใหม่">
             <div className="trk head"><span></span><span></span><span>ชนิด</span><span>แทร็กและชื่อแทร็ก</span><span>ภาษา</span><span style={{ textAlign: "center" }}>หลัก<span className="hd-tip">{/* คนอาจเข้าใจว่าวงกลมคือปุ่มติ๊กเลือกแทร็ก (BUGS ข้อ 66 พี่กันสั่ง 12 พ.ย. 2569 "ใส่ ปุ่มรายละเอียดหน่อย เพราะคนน่าจะสับสนกับปุ่มเลือก") */}<InfoTip title="แทร็กหลักคืออะไร" tip={{ w: MAIN_TIP + "\nกดวงกลมเพื่อตั้งแทร็กนั้นเป็นหลัก วงกลมไม่ใช่การติ๊กเลือกว่าจะเอาแทร็กไหน ถ้าไม่อยากได้แทร็กไหนให้กดกากบาทท้ายแถวนั้น" }} /></span></span><span style={{ textAlign: "center", width: 118 }}>ดีเลย์ (ms)</span><span className="trk-naword trk-hd" aria-label="แปลง"><i aria-hidden="true">ไม่แปลง</i><span>แปลง</span></span><span></span></div>
             {tracks.map((t, i) => {
@@ -751,6 +766,9 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
                       </span>
                     : <span className="trk-naword" aria-label="ไม่มีการแปลง"><i aria-hidden="true">ไม่แปลง</i><span>—</span></span>}
                   <div className="avacts" onClick={(e) => e.stopPropagation()}>
+                    {/* ดูกราฟเสียงของแทร็กนี้ เปิดหน้ากราฟที่แทร็กเดียวกัน ลำดับนับจากแทร็กเสียงของไฟล์นั้น (พี่กันขอ 15 พ.ย. 2569 "อยากได้ปุ่มกดดูกราฟเสียง") */}
+                    {t.kind === "audio" && t.ff != null && !xMode && <button type="button" className="ib" aria-label={`ดูกราฟเสียง ${title}`} title="เปิดหน้ากราฟเสียงของแทร็กนี้"
+                      onClick={() => p.onGraph(t.src, tracks.filter((x) => x.src === t.src && x.kind === "audio" && x.ff != null).sort((a, b) => a.ff! - b.ff!).findIndex((x) => x.key === t.key))} data-trkgraph><IcGraph size={14} /></button>}
                     {/* แถวภาพของหนังไม่มีปุ่ม · แถวภาพของไฟล์ที่เพิ่มใช้ปุ่มเอาออกและเอากลับแบบแถวในหนัง (AUDIT ข้อ 15) */}
                     {t.kind === "video" && t.inMovie ? null : !t.inMovie && t.kind !== "video" ? (
                       <button type="button" className="ib bad" aria-label={`เอาไฟล์ ${baseName(t.src)} ออก`} title={off ?? "เอาไฟล์นี้ออก"} aria-disabled={!!off || undefined} onClick={() => { if (!off) removeAdded(t.src); }} data-remove>
@@ -965,10 +983,12 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
                 ))}
               </div></div>
         {/* การ์ดแยกไฟล์ตรึงล่างสุดของจอแบบแถบปุ่มรวม ไม่ต้องเลื่อนหา (BUGS ข้อ 35 ต่อ พี่กันสั่ง 12 พ.ย. 2569 "ตัวนี้ควรอยู่ล่าสุดตลอด") */}
-        {method === "extract" && <div className="avfoot avxfoot"><ExtractCard path={movie.path} picks={xPicks} busy={working ? BUSY : undefined} srcSize={movie.size} pattern={settings?.extractPattern} batchable={!!xi} /></div>}
+        {method === "extract" && <div className="avfoot avxfoot"><ExtractCard path={movie.path} picks={xPicks} onClear={() => setAv(() => ({ xPick: [] }))} onClearAll={working ? undefined : clearAll} busy={working ? BUSY : undefined} srcSize={movie.size} pattern={settings?.extractPattern} batchable={!!xi} /></div>}
         {method !== "extract" && <div className="avfoot">
           {method === "pair" ? (<>
             {pairBlocked && <div className="hint" style={{ color: "#94680f", margin: 0 }} data-blocked>{pairBlocked}</div>}
+            {/* ล้างทั้งหมดมีทุกวิธี ไม่ใช่แค่วิธีรวม (พี่กันทัก 15 พ.ย. 2569 "ปุ่มล้างทั้งหมด ในหน้าเสียงเเละซับ มันอยู่เเค่ merge น่ะ มันควรอยู่ทั้งหมดนะ") */}
+            <button type="button" className={"btn " + (working ? "btn-wait" : "btn-ghost")} style={{ height: 44 }} aria-disabled={working || undefined} title={working ? BUSY : undefined} onClick={clearAll} data-clear-all><IbTrash size={15} />ล้างทั้งหมด</button>
             <button type="button" className={"btn " + (pairBlocked ? "btn-wait" : "btn-main")} style={{ height: 44, padding: "0 26px", fontSize: 15 }}
               aria-disabled={!!pairBlocked || undefined} title={pairBlocked ?? undefined} onClick={savePairs} data-pair-save><IcLink size={15} />จับคู่ไว้กับหนังเรื่องนี้</button>
           </>) : (<>
@@ -992,7 +1012,7 @@ export default function AvPage(p: { initialPath: string | null; onConsumed: () =
             ], r: "MKV กับเก็บไฟล์เดิมไว้\nยกเว้นอยากได้ไอคอนเป็นรูปปกโดยไม่ต้องลง Icaros" }} />
           </div>
           {/* ขนาดไฟล์ที่คาดอยู่ข้างปุ่มรวมเมื่อกดได้ ตอนกดไม่ได้เหตุผลขึ้นแทนที่ตรงนี้ */}
-          {!blocked && !working && <div className="small avfoot-sum" data-summary title={`ไฟล์ใหม่ ${movie.name}.${output} ขนาดราว ${fmtSize(Math.max(0, estimate))} ${(settings?.checkOutputAfter ?? true) ? "และจะตรวจไฟล์ใหม่หลังรวมเสร็จ" : "และไม่ได้ตั้งให้ตรวจไฟล์ใหม่ ตั้งได้ที่หน้าตั้งค่า"}`}>{`ไฟล์ใหม่ .${output} ราว ${fmtSize(Math.max(0, estimate))}`}</div>}
+          {!blocked && !working && <div className="small avfoot-sum" data-summary title={`ไฟล์ใหม่ ${movie.name}.${output} ขนาดราว ${fmtSize(Math.max(0, estimate))} ${(settings?.checkOutputAfter ?? true) ? "และจะตรวจไฟล์ใหม่หลังรวมเสร็จ" : "และไม่ได้ตั้งให้ตรวจไฟล์ใหม่ ตั้งได้ที่หน้าตั้งค่า"}`}>{`ไฟล์ใหม่ .${output} ราว ${fmtSize(Math.max(0, estimate))}${changed ? "" : " แทร็กเหมือนไฟล์เดิม"}`}</div>}
           {blocked && !working && <div className="hint" style={{ color: "#94680f", margin: 0 }} data-blocked>{blocked}</div>}
           <button type="button" className={"btn " + (working ? "btn-wait" : "btn-ghost")} style={{ height: 44 }} aria-disabled={working || undefined} title={working ? BUSY : undefined} onClick={clearAll}><IbTrash size={15} />ล้างทั้งหมด</button>
           <button type="button" className={"btn " + (blocked || working ? "btn-wait" : "btn-main")} style={{ height: 44, padding: "0 26px", fontSize: 15 }}

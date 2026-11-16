@@ -220,8 +220,28 @@ function Crop(p: { parts: Part[]; box: { x: number; y: number; w: number; h: num
     b.scrollTop = fy * (b.scrollHeight - b.clientHeight);
     requestAnimationFrame(() => { delete b.dataset.syncing; });
   };
+  // จับลากด้วยเมาส์เลื่อนดูส่วนที่ล้นกรอบ อีกกรอบเลื่อนตามผ่าน onScroll (พี่กันขอ 15 พ.ย. 2569 "เราขอเอาเมาส์จับลากซ้ายขวาได้")
+  const drag = useRef<{ x: number; y: number; l: number; t: number } | null>(null);
+  const down = (e: React.PointerEvent<HTMLDivElement>) => {
+    const a = p.el.current;
+    if (!a || e.button !== 0 || (a.scrollWidth <= a.clientWidth && a.scrollHeight <= a.clientHeight)) return;
+    drag.current = { x: e.clientX, y: e.clientY, l: a.scrollLeft, t: a.scrollTop };
+    a.setPointerCapture(e.pointerId);
+    a.classList.add("grabbing");
+  };
+  const move = (e: React.PointerEvent<HTMLDivElement>) => {
+    const a = p.el.current, d = drag.current;
+    if (!a || !d) return;
+    a.scrollLeft = d.l - (e.clientX - d.x);
+    a.scrollTop = d.t - (e.clientY - d.y);
+  };
+  const up = (e: React.PointerEvent<HTMLDivElement>) => {
+    drag.current = null;
+    p.el.current?.classList.remove("grabbing");
+    if (p.el.current?.hasPointerCapture(e.pointerId)) p.el.current.releasePointerCapture(e.pointerId);
+  };
   return (
-    <div ref={p.el} className={"icv-crop" + (z > 1 ? " zoom" : "")} onScroll={sync} data-icv-crop={p.data}>
+    <div ref={p.el} className={"icv-crop" + (z > 1 ? " zoom" : "")} onScroll={sync} onPointerDown={down} onPointerMove={move} onPointerUp={up} onPointerCancel={up} data-icv-crop={p.data}>
       <div className="icv-cropin" style={{ width: p.box.w * z, height: p.box.h * z }}>
         {p.parts.map((g, i) => <img key={i} src={g.png} alt="" style={{ left: (g.x - p.box.x) * z, top: (g.y - p.box.y) * z, width: g.w * z, height: g.h * z }} />)}
       </div>
@@ -387,7 +407,7 @@ export default function ImgConvDialog(p: { open: boolean; onClose: () => void; t
   const onOff = (k: "useRes" | "useScale" | "useFps" | "useMove", label: string) => <Switch on={opts[k]} onChange={(v) => set(k, v)} label={label} />;
 
   return (
-    <Dialog open={p.open} onClose={() => { if (!busy) p.onClose(); }} kind="work" title="แปลงซับภาพ" width={1100} height="min(760px, calc(100vh - 48px))"
+    <Dialog open={p.open} onClose={() => { if (!busy) p.onClose(); }} kind="work" title="แปลงซับภาพ" width={1120} height="calc(100vh - 48px)"
       actions={<>
         {busy ? <button type="button" className="btn btn-ghost" onClick={() => void imgApi.cancel()} data-icv-stop>หยุด</button>
           : <button type="button" className="btn btn-ghost" onClick={p.onClose}>{out ? "ปิด" : "ยกเลิก"}</button>}
@@ -399,7 +419,7 @@ export default function ImgConvDialog(p: { open: boolean; onClose: () => void; t
         <div className="icv-cols">
           <div className="icv-l" data-icv-left>
             <div className="icv-intro"><Phr>{`แปลงซับภาพ ${ft} เป็นไฟล์ชนิดอื่น และย่อขยายภาพ เปลี่ยนอัตราเฟรม หรือเลื่อนเวลาได้ในรอบเดียว`}</Phr> <InfoTip title="แปลงซับภาพ" tip={INTRO_TIP} /></div>
-            {row("ที่เก็บ", <><span className="icv-path small" title={path} data-icv-path>{path}</span>
+            {row("ที่เก็บ", <><span className="icv-path small" title={path} data-icv-path>{path.split(/(?<=[\\/])/).map((s, i) => <span key={i}>{s}<wbr /></span>)}</span>
               <button type="button" className={"btn btn-ghost btn-sm" + (busy ? " btn-wait" : "")} aria-disabled={busy || undefined} onClick={() => { if (!busy) void browse(); }} data-icv-browse><IcFolder size={15} />เปลี่ยนที่เก็บ</button></>)}
 
             <div className="icv-head">ตัวแปลง<InfoTip title="ตัวแปลงซับภาพ" tip={ENGINE_TIP} />
@@ -459,7 +479,7 @@ export default function ImgConvDialog(p: { open: boolean; onClose: () => void; t
 
             {opts.out === "idx" && <>
               <div className="icv-head">เฉพาะ VobSub</div>
-              {row(<>ภาษา<InfoTip title="ภาษาของ VobSub" tip={LANG_TIP} /></>, <Dropdown label="ภาษา" value={lang} search options={langOpts} onChange={setLang} />, "lang")}
+              {row(<>ภาษา<InfoTip title="ภาษาของ VobSub" tip={LANG_TIP} /></>, <Dropdown label="ภาษา" value={lang} search hint="พิมพ์ค้น เช่น tha หรือ ไทย" options={langOpts} onChange={setLang} />, "lang")}
               {!se && row(<>เกณฑ์ความทึบ<InfoTip title="เกณฑ์ความทึบ" tip={ALPHA_TIP} /></>, <><div className="icv-range" data-icv-alpha><Range value={opts.alphaThr} min={0} max={255} step={1} onChange={(v) => set("alphaThr", v)} label="เกณฑ์ความทึบ" /></div><span className="icv-val">{opts.alphaThr}</span></>, "alpha")}
               {!se && row(<>เกณฑ์ความสว่าง<InfoTip title="เกณฑ์ความสว่าง" tip={LUM_TIP} /></>, <>
                 <label className="icv-f">ระหว่างเข้มกับกลาง<NumBox value={opts.lumLow} onChange={(x) => set("lumLow", Math.round(Math.max(0, Math.min(255, x))))} width={56} data="icv-lum-low" /></label>
@@ -480,7 +500,7 @@ export default function ImgConvDialog(p: { open: boolean; onClose: () => void; t
                 : s0 ? <Frame cw={s0.canvas[0]} ch={s0.canvas[1]} parts={[{ png: s0.png, x: s0.at[0], y: s0.at[1], w: s0.w, h: s0.h }]} data="src" />
                 : src?.err && !src.pages[page] ? <div className={"icv-frame icv-none" + (view !== "full" ? " icv-cropskel" : "")} style={{ aspectRatio: view === "full" ? `${d?.w || 16} / ${d?.h || 9}` : undefined }} data-icv-src-err><span className="small">ตัวถอดภาพต้นฉบับอ่านไฟล์นี้ไม่ได้ จึงไม่มีภาพให้เทียบ</span></div>
                 : <div className={"icv-frame skel" + (view !== "full" ? " icv-cropskel" : "")} style={{ aspectRatio: view === "full" ? "16 / 9" : undefined }} />}
-              <div className="small icv-info" data-icv-info="src">{s0 ? `ภาพ ${(srcInk ?? s0).w} × ${(srcInk ?? s0).h} ที่ ${srcInk?.x ?? s0.at[0]}, ${srcInk?.y ?? s0.at[1]} เวลา ${ts(s0.start * 1000)}${s0.end != null ? ` ถึง ${ts(s0.end * 1000)}` : ""}` : " "}</div></figure>
+              <div className="small icv-info" data-icv-info="src">{s0 ? `ภาพ ${(srcInk ?? s0).w} × ${(srcInk ?? s0).h} ที่ ${srcInk?.x ?? s0.at[0]}, ${srcInk?.y ?? s0.at[1]} เวลา ${ts(s0.start * 1000)}${s0.end != null ? `–${ts(s0.end * 1000)}` : ""}` : " "}</div></figure>
             <figure className="icv-fig"><figcaption data-icv-cap="out">{`ไฟล์ที่จะได้เป็น ${OUT_NAME[opts.out]}${d && d.w ? ` จอ ${d.w} × ${d.h}` : ""}`}</figcaption>
               <div className="icv-wrap">
                 {d && ob && view !== "full" ? <Crop parts={d.graphics} box={outInk ?? ob} zoom={view === "zoom" ? 2 : 1} data="out" el={cropOut} other={cropSrc} />
@@ -490,7 +510,7 @@ export default function ImgConvDialog(p: { open: boolean; onClose: () => void; t
                   : <div className={"icv-frame skel" + (view !== "full" ? " icv-cropskel" : "")} style={{ aspectRatio: view === "full" ? "16 / 9" : undefined }} />}
                 {prev.s === "busy" && <span className="icv-wait small" data-icv-wait>{se ? "Subtitle Edit กำลังแปลงภาพตัวอย่าง…" : "BDSup2Sub++ กำลังแปลงภาพตัวอย่าง…"}</span>}
               </div>
-              <div className="small icv-info" data-icv-info="out">{d && ob ? `ภาพ ${(outInk ?? ob).w} × ${(outInk ?? ob).h} ที่ ${(outInk ?? ob).x}, ${(outInk ?? ob).y} เวลา ${ts(d.start)} ถึง ${ts(d.end)}${d.forced ? " เป็นซับบังคับ" : ""}` : " "}</div></figure>
+              <div className="small icv-info" data-icv-info="out">{d && ob ? `ภาพ ${(outInk ?? ob).w} × ${(outInk ?? ob).h} ที่ ${(outInk ?? ob).x}, ${(outInk ?? ob).y} เวลา ${ts(d.start)}–${ts(d.end)}${d.forced ? " เป็นซับบังคับ" : ""}` : " "}</div></figure>
             {d && d.warnings.length > 0 && <div className="small icv-warn" data-icv-warn>{d.warnings.slice(0, 3).map((w) => <div key={w}><Phr>{warnTh(w)}</Phr></div>)}</div>}
             {d && src && d.total !== src.total && src.total > 0 && <div className="small icv-note" data-icv-count-note><Phr>{`ต้นฉบับมี ${src.total.toLocaleString("en-US")} ภาพ แต่ไฟล์ที่จะได้มี ${d.total.toLocaleString("en-US")} ภาพ เพราะตัวแปลงรวมภาพที่ติดกันหรือข้ามภาพว่าง ภาพเลขเดียวกันจึงอาจไม่ใช่ภาพเดียวกัน`}</Phr></div>}
           </div>

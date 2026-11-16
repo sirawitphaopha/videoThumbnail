@@ -35,6 +35,8 @@ export default function Dropdown<T extends string>(p: {
   sizes?: string[];
   /** ขอบขวาของรายการต้องไม่เลยจุดนี้ (พิกัดบนจอ) · ใช้กันรายการบังของสำคัญทางขวา เช่นแถบสีของกราฟความถี่ (BUGS ข้อ 77 ต่อ) */
   keepLeftOf?: () => number | null;
+  /** คำแนะนำในช่องค้นหา · ไม่ส่ง = "พิมพ์ค้น" (เดิมเขียนตัวอย่างของเสียงตายตัว ทุกดรอปดาวน์ที่ค้นได้ขึ้น alac 5.1 320 · BUGS ข้อ 143) */
+  hint?: string;
 }) {
   const [open, setOpen] = useState(false);
   const [hi, setHi] = useState(-1);
@@ -131,12 +133,15 @@ export default function Dropdown<T extends string>(p: {
           aria-label={p.label}
           style={p.portal && fixedPos
             ? { position: "fixed", left: fixedPos.left, minWidth: fixedPos.width, maxWidth: window.innerWidth - fixedPos.left - 8, zIndex: "var(--z-menu)" as unknown as number, maxHeight: place.max, ...(place.up ? { bottom: window.innerHeight - fixedPos.top + 6 } : { top: fixedPos.bottom + 6 }) }
-            : { position: "absolute", ...sideStyle(side, "right"), minWidth: "100%", zIndex: "var(--z-menu)" as unknown as number, ...dropStyle(place) }}
+            // แบบยืดเต็มช่อง รายการกว้างเท่าช่องพอดี ขอบซ้ายขวาตรงช่อง (พี่กันทัก "มันไม่เท่ากัน" สองรอบ · เดิมกว้างตามช่องค้นหาแล้วยึดขอบขวา ยื่นไม่ตรงช่อง)
+            : p.stretch
+              ? { position: "absolute", left: 0, right: 0, zIndex: "var(--z-menu)" as unknown as number, ...dropStyle(place) }
+              : { position: "absolute", ...sideStyle(side, "right"), minWidth: "100%", zIndex: "var(--z-menu)" as unknown as number, ...dropStyle(place) }}
         >
           {p.search && (
             <div className="ddsearch" onMouseDown={(e) => e.stopPropagation()}>
               <IcSearch size={14} />
-              <input ref={searchRef} value={qy} onChange={(e) => setQy(e.target.value)} onKeyDown={onKey} placeholder="พิมพ์ค้น เช่น alac 5.1 320" aria-label={"ค้นใน" + p.label} data-ddsearch />
+              <input ref={searchRef} value={qy} onChange={(e) => setQy(e.target.value)} onKeyDown={onKey} placeholder={p.hint ?? "พิมพ์ค้น"} style={{ minWidth: 0, width: "100%" }} aria-label={"ค้นใน" + p.label} data-ddsearch />
             </div>
           )}
           {p.search && !list.length && <div className="ddempty">ไม่เจอตัวเลือกที่ตรงกับ “{qy}”</div>}

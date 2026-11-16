@@ -202,7 +202,8 @@ check("เอาไฟล์ PAL ที่ลากมาทดสอบออ�
 
 // ---------- ตัวดูซับ (ขั้น 6) · ซับตัวหนังสือ แบบ Aegisub แบบอ่านยาว แบบ notepad · ดีเลย์ +500 ของซับไทยเลื่อนเวลาที่แสดง ----------
 const openSub = async (text) => { await c.evaluate(`${findRow(text)}.querySelector('[data-subview]').click()`); await waitFor("return !!document.querySelector('[data-subviewer]')", 8000); };
-const closeDlg = async () => { await clickTextAny("[role=dialog] .acts button", "ปิด"); await sleep(250); };
+// ปุ่มปิดของตัวดูซับ (data-sv-close) ซับตัวหนังสืออยู่แถบล่าง ซับรูปอยู่แถวปุ่มเปลี่ยนหน้า (BUGS ข้อ 141)
+const closeDlg = async () => { await c.evaluate("document.querySelector('[data-sv-close]').click()"); await sleep(250); };
 await openSub("(2024).th.srt");
 await waitFor("return document.querySelectorAll('[data-sub-table] tbody tr').length > 0", 15000);
 const subRows = await q("return [...document.querySelectorAll('[data-sub-table] tbody tr')].map(r => [...r.children].map(td => td.innerText).join('|'))");
@@ -557,14 +558,56 @@ await c.evaluate(`${findRow("VobSub")}.querySelector('[data-subview]').click()`)
 await waitFor("return !!document.querySelector('[data-subimgs]') || !!document.querySelector('[data-subviewer] .stat.bad')", 60000);
 const vob = await q("return (document.querySelector('[data-simg-count]')?.innerText ?? '') + ' · ' + document.querySelectorAll('[data-simg] img').length");
 const imgOk = await waitFor("return [...document.querySelectorAll('[data-simg] img')].every(i => i.complete && i.naturalWidth > 0)", 8000);
-check("ซับรูป VobSub ถอดเป็นภาพ 42 ภาพ หน้าละ 6 ภาพ รูปขึ้นครบ", vob.startsWith("ภาพที่ 1–6 จาก 42") && vob.endsWith("· 6") && imgOk, vob);
+// ภาพต่อหน้าคิดจากความสูงกรอบ เป็นแถวละ 3 ภาพ (BUGS ข้อ 141 "เว้นที่ไว้ข้างล่างทำไมเยอะเเยะ") · จำนวนขึ้นกับความสูงหน้าต่างของตัวตรวจ
+const per = Number((vob.match(/^ภาพที่ 1–(\d+) จาก 42/) ?? [])[1] ?? 0);
+check("ซับรูป VobSub ถอดเป็นภาพ 42 ภาพ ภาพต่อหน้าเต็มแถวละ 3 อย่างน้อย 9 ภาพ รูปขึ้นครบ", per >= 9 && per % 3 === 0 && vob.endsWith(`· ${per}`) && imgOk, vob);
+await waitFor("return document.querySelectorAll('[data-simg-at]').length === 42", 15000);
+const lay = await q(`const d = document.querySelector('.dlg'); const f = document.querySelector('.simgfit').getBoundingClientRect(); const g = document.querySelector('[data-subimgs]').getBoundingClientRect();
+  return JSON.stringify({ scroll: d.scrollHeight - d.clientHeight, gap: Math.round(f.bottom - g.bottom), list: document.querySelectorAll('[data-simg-at]').length, on: document.querySelectorAll('.simglist-row.on').length,
+    close: !!document.querySelector('[role=dialog] .simgbar [data-sv-close]'), acts: !!document.querySelector('[role=dialog] .acts'), tall: Math.round(d.getBoundingClientRect().height), vh: innerHeight })`);
+const L = JSON.parse(lay);
+check("ตัวดูซับรูปไม่ต้องเลื่อนหน้าต่าง ตารางเต็มกรอบเหลือไม่เกิน 10 จุด ไม่ล้น หน้าต่างสูงเต็มจอเว้นขอบ 24 จุด", L.scroll === 0 && L.gap >= 0 && L.gap <= 10 && L.tall === L.vh - 48, lay);
+check("รายการเวลาซ้ายครบ 42 ภาพ ไฮไลต์แถวของหน้านี้เท่าภาพต่อหน้า ปุ่มปิดต่อท้ายปุ่มหน้าถัดไป ไม่มีแถบปุ่มท้ายอีกชั้น", L.list === 42 && L.on === per && L.close && !L.acts, lay);
 await shot("19-ดูซับรูป.png", "[role=dialog]", 8);
 await c.evaluate("document.querySelector('[data-simg-next]').click()");
-await waitFor("return document.querySelector('[data-simg-count]')?.innerText.startsWith('ภาพที่ 7–12') && document.querySelector('[data-simg] img')?.alt === 'ซับภาพ 7'", 15000);
-await c.evaluate("document.querySelector('[data-simg]').click()");
+const nextOk = await waitFor(`return document.querySelector('[data-simg-count]')?.innerText.startsWith('ภาพที่ ${per + 1}–${Math.min(42, per * 2)}') && document.querySelector('[data-simg] img')?.alt === 'ซับภาพ ${per + 1}'`, 15000);
+check(`หน้าถัดไปได้ภาพ ${per + 1}–${Math.min(42, per * 2)}`, nextOk, await q("return document.querySelector('[data-simg-count]')?.innerText"));
+// กดเวลาในรายการ ไปหน้าที่มีภาพนั้น และกรอบภาพนั้นขึ้นสี
+await c.evaluate("document.querySelector('[data-simg-at=\"40\"]').click()");
+const p40 = Math.floor(39 / per) * per;
+const jump = await waitFor(`return document.querySelector('[data-simg-count]')?.innerText.startsWith('ภาพที่ ${p40 + 1}–${Math.min(42, p40 + per)}') && document.querySelector('.simg.pick img')?.alt === 'ซับภาพ 40'`, 15000);
+check(`กดเวลาภาพ 40 ในรายการ ไปหน้าภาพ ${p40 + 1}–${Math.min(42, p40 + per)} กรอบภาพ 40 ขึ้นสี`, jump, await q("return document.querySelector('[data-simg-count]')?.innerText + ' · ' + document.querySelector('.simg.pick img')?.alt"));
+await c.evaluate("document.querySelector('.simg.pick').click()");
 await sleep(300);
-const big = await q("const b = document.querySelector('[data-bigsub]'); if (!b) return ''; const r = b.getBoundingClientRect(); return Math.round(r.width) + 'x' + Math.round(r.height) + ' · ' + b.nextElementSibling.innerText");
-check("หน้าถัดไปได้ภาพ 7–12 · กดภาพดูเต็มจอ วางตรงตำแหน่งจริงบนจอ 720 × 480", big.includes("ภาพที่ 7") && big.includes("720 × 480") && Math.abs(Number(big.split("x")[0]) / Number(big.split("x")[1].split(" ")[0]) - 1.5) < 0.05, big);
+const big = await q("const b = document.querySelector('[data-bigsub]'); if (!b) return ''; const r = b.getBoundingClientRect(); const f = b.parentElement.getBoundingClientRect(); const d = document.querySelector('.dlg'); return Math.round(r.width) + 'x' + Math.round(r.height) + ' · ' + (r.bottom <= f.bottom + 1 && r.right <= f.right + 1) + ' · ' + (d.scrollHeight - d.clientHeight) + ' · ' + document.querySelector('.simgbar .small').innerText");
+check("กดภาพดูเต็ม วางตรงตำแหน่งจริงบนจอ 720 × 480 ภาพพอดีกรอบ หน้าต่างไม่เลื่อน", big.includes("ภาพที่ 40") && big.includes("720 × 480") && big.includes("· true · 0 ·") && Math.abs(Number(big.split("x")[0]) / Number(big.split("x")[1].split(" ")[0]) - 1.5) < 0.05, big);
+// ภาพก่อนกับภาพถัดไปตอนดูภาพเต็ม ลูกศรซ้ายบนแป้น และกลับไปหน้าที่มีภาพที่ดูอยู่ (BUGS ข้อ 141 "ขอปุ่มกดไปข้างหน้า เเละย้อนกลับด้วย")
+await c.evaluate("document.querySelector('[data-bigsub-next]').click()");
+const n41 = await waitFor("return document.querySelector('[data-bigsub] img')?.alt === 'ซับภาพ 41'", 8000);
+await c.evaluate("document.querySelector('[data-bigsub-prev]').click()");
+const n40 = await waitFor("return document.querySelector('[data-bigsub] img')?.alt === 'ซับภาพ 40'", 8000);
+await c.key("ArrowLeft");
+const n39 = await waitFor("return document.querySelector('[data-bigsub] img')?.alt === 'ซับภาพ 39' && document.querySelector('.simglist-row.on')?.dataset.simgAt === '39'", 8000);
+check("ดูภาพเต็ม กดภาพถัดไปได้ภาพ 41 กดภาพก่อนกลับภาพ 40 ลูกศรซ้ายได้ภาพ 39 และรายการเวลาขึ้นสีตาม", n41 && n40 && n39, await q("return document.querySelector('[data-bigsub] img')?.alt"));
+await c.evaluate("document.querySelector('[data-simg-at=\"42\"]').click()");
+const last = await waitFor("return document.querySelector('[data-bigsub] img')?.alt === 'ซับภาพ 42' && document.querySelector('[data-bigsub-next]')?.getAttribute('aria-disabled') === 'true'", 8000);
+check("ตอนดูภาพเต็ม กดเวลาภาพ 42 ในรายการ ภาพเต็มเปลี่ยนเป็นภาพ 42 และปุ่มภาพถัดไปกดไม่ได้เพราะเป็นภาพสุดท้าย", last, await q("return document.querySelector('[data-bigsub] img')?.alt + ' · ' + document.querySelector('[data-bigsub-next]')?.title"));
+await c.evaluate("document.querySelector('[data-bigsub-back]').click()");
+const backOk = await waitFor(`return document.querySelector('.simg.pick img')?.alt === 'ซับภาพ 42'`, 8000);
+check("กลับไปดูทีละหน้า ไปหน้าที่มีภาพ 42 และกรอบภาพนั้นขึ้นสี", backOk, await q("return document.querySelector('[data-simg-count]')?.innerText"));
+// แถบเวลาด้านบน กดต้นแถบไปภาพแรก ลูกศรขวาและล้อเมาส์ลงไปหน้าถัดไป (BUGS ข้อ 141 "ใส่บาร์ข้างบนตรงนี้" · "สฎคลเมาส์ต้องเลื่อนลงได้")
+const sb = await c.box("[data-simg-seek] .simgseek-bar");
+for (const type of ["mousePressed", "mouseReleased"]) await c.send("Input.dispatchMouseEvent", { type, x: sb.x - sb.w / 2 + 2, y: sb.y, button: "left", clickCount: 1 });
+const seekFirst = await waitFor("return document.querySelector('[data-simg-count]')?.innerText.startsWith('ภาพที่ 1–')", 8000);
+check("กดต้นแถบเวลา ไปหน้าแรกที่มีภาพ 1", seekFirst, await q("return document.querySelector('[data-simg-count]')?.innerText + ' · ' + document.querySelector('.simgseek-t')?.innerText"));
+await c.key("ArrowRight");
+const keyNext = await waitFor(`return document.querySelector('[data-simg-count]')?.innerText.startsWith('ภาพที่ ${per + 1}–')`, 8000);
+const fb = await c.box(".simgfit");
+await c.send("Input.dispatchMouseEvent", { type: "mouseWheel", x: fb.x, y: fb.y, deltaX: 0, deltaY: -120 });
+const wheelBack = await waitFor("return document.querySelector('[data-simg-count]')?.innerText.startsWith('ภาพที่ 1–')", 8000);
+check("ดูทีละหน้า ลูกศรขวาไปหน้าถัดไป ล้อเมาส์หมุนขึ้นกลับหน้าแรก", keyNext && wheelBack, await q("return document.querySelector('[data-simg-count]')?.innerText"));
+const lines = await q("const b = getComputedStyle(document.querySelector('.simgmain > .simgbar')); const h = getComputedStyle(document.querySelector('[data-mode=image] > .sv-imghead')); return b.borderTopWidth + ' ' + b.borderTopColor + ' | ' + h.borderBottomWidth + ' ' + h.borderBottomColor + ' | ตั้ง ' + document.querySelectorAll('.simgbar .sv-sep').length");
+check("เส้นแบ่งแนวนอนเหนือแถวปุ่มล่างกับใต้หัวหนา 1 จุด สีเข้มกว่าสีเส้นจางของโปรแกรม และมีเส้นตั้งก่อนปุ่มปิด", /^1px (?!rgb\(246, 230, 236\)).+\| 1px (?!rgb\(246, 230, 236\)).+\| ตั้ง 1$/.test(lines), lines);
 await closeDlg();
 
 await c.send("Emulation.clearDeviceMetricsOverride");

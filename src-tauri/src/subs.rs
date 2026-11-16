@@ -367,6 +367,148 @@ impl Drop for BusyGuard {
     fn drop(&mut self) { IMG_BUSY.get_or_init(Default::default).lock().unwrap().remove(&self.0); }
 }
 
+/// ภาพซับหนึ่งภาพที่อ่านจากไฟล์ .sup · ตำแหน่งบนจอกับภาพเฉพาะกรอบที่มีตัวหนังสือ
+pub struct SupShow { pub start: f64, pub end: Option<f64>, pub canvas: (u32, u32), pub at: (u32, u32), pub img: image::RgbaImage }
+
+/// ถอดภาพตามแบบ RLE ของ PGS · ไบต์ไม่ศูนย์คือสีหนึ่งจุด · 0 ตามด้วยตัวบอกความยาวและสี · 0 0 จบแถว
+fn pgs_rle(data: &[u8], w: usize, h: usize, pal: &[[u8; 4]; 256]) -> image::RgbaImage {
+    let mut img = image::RgbaImage::new(w as u32, h as u32);
+    let (mut x, mut y, mut i) = (0usize, 0usize, 0usize);
+    let mut put = |x: &mut usize, y: usize, n: usize, c: u8| {
+        for _ in 0..n { if *x < w && y < h { img.put_pixel(*x as u32, y as u32, image::Rgba(pal[c as usize])); } *x += 1; }
+    };
+    while i < data.len() && y < h {
+        let b = data[i]; i += 1;
+        if b != 0 { put(&mut x, y, 1, b); continue; }
+        let Some(&f) = data.get(i) else { break }; i += 1;
+        if f == 0 { x = 0; y += 1; continue; }
+        let mut n = (f & 0x3F) as usize;
+        if f & 0x40 != 0 { let Some(&lo) = data.get(i) else { break }; i += 1; n = (n << 8) | lo as usize; }
+        let c = if f & 0x80 != 0 { let Some(&c) = data.get(i) else { break }; i += 1; c } else { 0 };
+        put(&mut x, y, n, c);
+    }
+    img
+}
+
+/// อ่านไฟล์ซับรูป PGS (.sup) ตรง ๆ ได้ภาพกับเวลาจากในไฟล์ · ไม่ต้องให้ ffmpeg วาดภาพเต็มจอทุกครั้งที่ซับเปลี่ยน
+/// เดิมเปิดดูซับ PGS ของหนังหนึ่งเรื่องนานมาก (พี่กันทัก 15 พ.ย. 2569 "เราเปิดดู PGS นานมากกก")
+/// ภาพที่เหมือนภาพก่อนหน้า (แสดงซ้ำ) รวมเป็นภาพเดียว · สีแปลงตาม BT.709 เมื่อจอสูงตั้งแต่ 720 นอกนั้น BT.601 แบบ pgs::rgb_of
+pub fn parse_sup(data: &[u8]) -> Vec<SupShow> {
+    let be16 = |p: &[u8], i: usize| -> usize { p.get(i..i + 2).map(|b| ((b[0] as usize) << 8) | b[1] as usize).unwrap_or(0) };
+    let mut out: Vec<SupShow> = Vec::new();
+    let mut pals: std::collections::HashMap<u8, [[u8; 4]; 256]> = Default::default();
+    let mut objs: std::collections::HashMap<u16, (usize, usize, Vec<u8>)> = Default::default();
+    // องค์ประกอบของชุดแสดงที่กำลังอ่าน (เวลา จอ จานสี และวัตถุพร้อมตำแหน่ง)
+    let mut pcs: Option<(f64, (u32, u32), u8, Vec<(u16, u32, u32)>)> = None;
+    let mut i = 0usize;
+    while i + 13 <= data.len() {
+        if &data[i..i + 2] != b"PG" { break; }
+        let pts = u32::from_be_bytes([data[i + 2], data[i + 3], data[i + 4], data[i + 5]]) as f64 / 90000.0;
+        let kind = data[i + 10];
+        let size = be16(data, i + 11);
+        let p = data.get(i + 13..i + 13 + size).unwrap_or(&[]);
+        i += 13 + size;
+        match kind {
+            0x16 => {
+                let (w, h) = (be16(p, 0) as u32, be16(p, 2) as u32);
+                let pal_id = p.get(9).copied().unwrap_or(0);
+                let n = p.get(10).copied().unwrap_or(0) as usize;
+                let mut list = Vec::new();
+                let mut o = 11;
+                for _ in 0..n {
+                    if o + 8 > p.len() { break; }
+                    let id = be16(p, o) as u16;
+                    let cropped = p[o + 3] & 0x80 != 0;
+                    list.push((id, be16(p, o + 4) as u32, be16(p, o + 6) as u32));
+                    o += if cropped { 16 } else { 8 };
+                }
+                pcs = Some((pts, (w, h), pal_id, list));
+            }
+            0x14 => {
+                let bt709 = pcs.as_ref().map(|c| c.1 .1 >= 720).unwrap_or(true);
+                let id = p.first().copied().unwrap_or(0);
+                let pal = pals.entry(id).or_insert([[0; 4]; 256]);
+                for e in p.get(2..).unwrap_or(&[]).chunks_exact(5) {
+                    let [r, g, b] = crate::pgs::rgb_of(e[1], e[2], e[3], bt709);
+                    pal[e[0] as usize] = [r, g, b, e[4]];
+                }
+            }
+            0x15 => {
+                let id = be16(p, 0) as u16;
+                let seq = p.get(3).copied().unwrap_or(0);
+                if seq & 0x80 != 0 {
+                    let (w, h) = (be16(p, 7), be16(p, 9));
+                    objs.insert(id, (w, h, p.get(11..).unwrap_or(&[]).to_vec()));
+                } else if let Some(o) = objs.get_mut(&id) {
+                    o.2.extend_from_slice(p.get(4..).unwrap_or(&[]));
+                }
+            }
+            0x80 => {
+                let Some((t, canvas, pal_id, list)) = pcs.take() else { continue };
+                // ชุดแสดงที่ไม่มีวัตถุคือซับหาย ปิดภาพก่อนหน้า
+                if let Some(prev) = out.last_mut() { if prev.end.is_none() { prev.end = Some(t); } }
+                if list.is_empty() { continue; }
+                let pal = pals.get(&pal_id).copied().unwrap_or([[0; 4]; 256]);
+                let parts: Vec<(u32, u32, image::RgbaImage)> = list.iter().filter_map(|(id, x, y)| objs.get(id).map(|(w, h, d)| (*x, *y, pgs_rle(d, *w, *h, &pal)))).collect();
+                if parts.is_empty() { continue; }
+                let x0 = parts.iter().map(|p| p.0).min().unwrap();
+                let y0 = parts.iter().map(|p| p.1).min().unwrap();
+                let x1 = parts.iter().map(|p| p.0 + p.2.width()).max().unwrap();
+                let y1 = parts.iter().map(|p| p.1 + p.2.height()).max().unwrap();
+                let mut img = image::RgbaImage::new(x1 - x0, y1 - y0);
+                for (x, y, part) in &parts { image::imageops::overlay(&mut img, part, (*x - x0) as i64, (*y - y0) as i64); }
+                if img.pixels().all(|p| p[3] <= 8) { continue; }
+                // ภาพเดิมแสดงซ้ำ (เริ่ม epoch ใหม่) ต่อเวลาภาพเดิม ไม่นับเป็นภาพใหม่
+                if let Some(prev) = out.last_mut() {
+                    if prev.end == Some(t) && prev.at == (x0, y0) && prev.img == img { prev.end = None; continue; }
+                }
+                out.push(SupShow { start: t, end: None, canvas, at: (x0, y0), img });
+            }
+            _ => {}
+        }
+    }
+    out
+}
+
+/// ทางเร็วของซับรูป PGS · ลอกแทร็กออกมาเป็น .sup (ไม่ถอดภาพหนัง) แล้วอ่านเอง · อ่านไม่ได้หรือไม่ใช่ PGS คืน None ให้ใช้ทางเดิม
+fn images_from_sup(tools: &Path, dir: &Path, path: &Path, ff: u64) -> Option<Vec<SubImg>> {
+    let is_sup = path.extension().map(|e| e.eq_ignore_ascii_case("sup")).unwrap_or(false);
+    let data = if is_sup && ff == 0 {
+        std::fs::read(path).ok()?
+    } else {
+        let sup = dir.join("track.sup");
+        let args: Vec<OsString> = vec!["-v".into(), "error".into(), "-nostdin".into(), "-y".into(), "-copyts".into(), "-i".into(), path.into(),
+            "-map".into(), format!("0:{ff}").into(), "-c".into(), "copy".into(), "-f".into(), "sup".into(), sup.clone().into()];
+        let o = run_tool_timeout(tools, "ffmpeg", &args, Duration::from_secs(600)).ok()?;
+        if !tool_succeeded("ffmpeg", &o.status) { return None; }
+        let d = std::fs::read(&sup).ok()?;
+        let _ = std::fs::remove_file(&sup);
+        d
+    };
+    let shows = parse_sup(&data);
+    if shows.is_empty() { return None; }
+    let mut out = Vec::with_capacity(shows.len());
+    for (k, s) in shows.into_iter().enumerate() {
+        let n = k + 1;
+        let file = dir.join(format!("c{n:06}.png"));
+        // ภาพของ PGS มีขอบใสรอบตัวหนังสือ ตัดเหลือเฉพาะตัวหนังสือแล้วเผื่อขอบ 4 จุดแบบทางเดิม หน้าจอวางภาพที่เดิม
+        let (iw, ih) = s.img.dimensions();
+        let (mut x0, mut y0, mut x1, mut y1) = (iw, ih, 0u32, 0u32);
+        for (x, y, p) in s.img.enumerate_pixels() { if p[3] > 8 { x0 = x0.min(x); y0 = y0.min(y); x1 = x1.max(x); y1 = y1.max(y); } }
+        let pad = 4u32;
+        let (cx, cy) = ((s.at.0 + x0).saturating_sub(pad), (s.at.1 + y0).saturating_sub(pad));
+        let (ex, ey) = ((s.at.0 + x1 + pad + 1).min(s.canvas.0.max(s.at.0 + iw)), (s.at.1 + y1 + pad + 1).min(s.canvas.1.max(s.at.1 + ih)));
+        let mut img = image::RgbaImage::new(ex - cx, ey - cy);
+        image::imageops::overlay(&mut img, &s.img, s.at.0 as i64 - cx as i64, s.at.1 as i64 - cy as i64);
+        let s = SupShow { at: (cx, cy), img, ..s };
+        s.img.save(&file).ok()?;
+        // เวลาจบห่างเกิน 60 วินาที (ภาพค้างท้ายไฟล์) ถือว่าไม่รู้เวลาจบ เหมือนทางเดิม
+        let end = s.end.filter(|e| *e >= s.start && e - s.start <= 60.0).map(|e| (e * 1000.0).round() / 1000.0);
+        out.push(SubImg { n, start: (s.start * 1000.0).round() / 1000.0, end, w: s.img.width(), h: s.img.height(), canvas: [s.canvas.0, s.canvas.1], at: [s.at.0, s.at.1], file });
+    }
+    Some(out)
+}
+
 pub fn images(tools: &Path, work: &Path, path: &Path, ff: u64) -> Result<Vec<SubImg>, String> {
     // ซับ HD DVD ffmpeg อ่านไม่ได้ ถอดจากไฟล์ PGS ที่ BDSup2Sub++ แปลงไว้ในโฟลเดอร์ทำงานแทน (BUGS ข้อ 129)
     let hd;
@@ -391,6 +533,19 @@ pub fn images(tools: &Path, work: &Path, path: &Path, ff: u64) -> Result<Vec<Sub
     let raw = dir.join("raw");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&raw).map_err(|e| e.to_string())?;
+    // ซับ PGS อ่านจากไฟล์ .sup ตรง ๆ ก่อน เร็วกว่าให้ ffmpeg วาดภาพเต็มจอหลายเท่า · VobSub หรืออ่านไม่ได้ใช้ทางเดิมข้างล่าง
+    if let Some(out) = images_from_sup(tools, &dir, path, ff) {
+        let _ = std::fs::remove_dir_all(&raw);
+        let _ = std::fs::write(&idx, serde_json::to_string(&out).unwrap_or_default());
+        return Ok(out);
+    }
+    let out = images_by_render(tools, &dir, &raw, path, ff)?;
+    let _ = std::fs::write(&idx, serde_json::to_string(&out).unwrap_or_default());
+    Ok(out)
+}
+
+/// ทางเดิม ให้ ffmpeg วาดซับแบบ sub2video เป็นภาพเต็มจอทุกครั้งที่ซับเปลี่ยน แล้วหากรอบตัวหนังสือ · ใช้กับ VobSub และไฟล์ที่ทางเร็วอ่านไม่ได้
+pub(crate) fn images_by_render(tools: &Path, dir: &Path, raw: &Path, path: &Path, ff: u64) -> Result<Vec<SubImg>, String> {
     // sub2video ได้ภาพทุกครั้งที่ซับเปลี่ยน · showinfo บอกเวลาของแต่ละภาพ
     // -copyts คงเวลาจริงของไฟล์ เดิมไม่ใส่ ffmpeg เลื่อนภาพแรกให้เริ่มที่ศูนย์ ซับที่ภาพแรกอยู่ 2:12.48 ขึ้นว่า 0:00.0 (เจอตอนทำหน้าต่างแปลงซับภาพ 15 พ.ย. 2569)
     let args: Vec<OsString> = vec!["-v".into(), "info".into(), "-nostdin".into(), "-nostats".into(), "-copyts".into(), "-i".into(), path.into(),
@@ -403,7 +558,7 @@ pub fn images(tools: &Path, work: &Path, path: &Path, ff: u64) -> Result<Vec<Sub
         p.split_whitespace().next()?.parse::<f64>().ok()
     }).collect();
     if times.is_empty() {
-        let _ = std::fs::remove_dir_all(&dir);
+        let _ = std::fs::remove_dir_all(dir);
         return Err(format!("ถอดซับรูปไม่ได้  {}", log.lines().filter(|l| l.contains("rror")).last().unwrap_or("ffmpeg ไม่ได้ภาพ")));
     }
     let mut out: Vec<SubImg> = Vec::new();
@@ -444,7 +599,6 @@ pub fn images(tools: &Path, work: &Path, path: &Path, ff: u64) -> Result<Vec<Sub
     // ภาพสุดท้ายที่ไม่มีภาพว่างตามมา หรือเวลาจบห่างเกิน 60 วินาที (ภาพปิดท้ายไฟล์) ไม่รู้เวลาจบ
     for i in out.iter_mut() { if let Some(e) = i.end { if e - i.start > 60.0 || e < i.start { i.end = None; } else { i.end = Some((e * 1000.0).round() / 1000.0); } } }
     let _ = std::fs::remove_dir_all(&raw);
-    let _ = std::fs::write(&idx, serde_json::to_string(&out).unwrap_or_default());
     Ok(out)
 }
 
@@ -490,6 +644,16 @@ pub async fn sub_images(app: AppHandle, path: String, ff: u64, page: usize, per:
         }).collect();
         Ok(ImgPage { total: all.len(), items })
     }).await.map_err(|e| e.to_string())?
+}
+
+/// เวลาของทุกภาพในซับรูป ไม่มีตัวภาพ ไว้ทำรายการเวลาด้านซ้ายของตัวดูซับรูปให้กดไปภาพนั้น
+/// (BUGS ข้อ 141 พี่กันขอ 15 พ.ย. 2569 "ขอฝั่งซ้าย มีเวลาให้กดได้") · ใช้ผลถอดชุดเดียวกับ sub_images ไม่ถอดซ้ำ
+#[tauri::command]
+pub async fn sub_image_times(app: AppHandle, path: String, ff: u64) -> Result<Vec<SubImg>, String> {
+    let tools = tools_dir(&app)?;
+    let work = work_dir(&app)?;
+    tauri::async_runtime::spawn_blocking(move || images(&tools, &work, &need(&path)?, ff))
+        .await.map_err(|e| e.to_string())?
 }
 
 #[cfg(test)]
@@ -541,6 +705,52 @@ mod tests {
     /// ซับรูป .sup ที่ภาพแรกไม่ได้อยู่ที่ศูนย์ เวลาของภาพต้องเป็นเวลาจริงของไฟล์ · ให้ ffmpeg เลื่อนซับตัวอย่างไปเริ่มที่ 100 วินาที
     /// (เดิมไม่ใส่ -copyts ffmpeg เลื่อนภาพแรกเป็น 0 วินาที ตัวดูซับรูปกับหน้าต่างแปลงซับภาพบอกเวลาผิดทุกภาพ เจอ 15 พ.ย. 2569
     ///  ไฟล์ VobSub ตัวอย่างไม่โดนเลื่อนเพราะเวลาเริ่มของไฟล์เป็นศูนย์ ใช้พิสูจน์บั๊กนี้ไม่ได้)
+    /// ตัวอ่าน PGS ตรง ๆ ได้ภาพชุดเดียวกับทางเดิมที่ให้ ffmpeg วาด · จำนวนภาพ เวลาเริ่ม เวลาจบ ตำแหน่ง ขนาด ตรงกัน
+    /// (พี่กันทัก 15 พ.ย. 2569 "เราเปิดดู PGS นานมากกก") · ไฟล์ .sup ตัวอย่างของ ffmpeg กับแทร็ก PGS ในหนังทดสอบซับรูป
+    #[test]
+    fn sup_reader_matches_render() {
+        let base = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("test-media");
+        for (path, ff) in [(base.join("ซับตัวอย่าง-ffmpeg").join("pgs_sub.sup"), 0u64), (base.join("สร้าง").join("เสียงซับ").join("ซับรูป (2024).mkv"), 2)] {
+            if !path.exists() { continue; }
+            let w = work().join(format!("supcmp-{ff}"));
+            let _ = std::fs::remove_dir_all(&w);
+            std::fs::create_dir_all(w.join("raw")).unwrap();
+            let fast = images_from_sup(&tools(), &w, &path, ff).expect("ทางเร็วต้องอ่าน PGS ได้");
+            let slow = images_by_render(&tools(), &w, &w.join("raw"), &path, ff).unwrap();
+            assert_eq!(fast.len(), slow.len(), "{} จำนวนภาพ", path.display());
+            for (a, b) in fast.iter().zip(&slow) {
+                assert!((a.start - b.start).abs() < 0.05, "เริ่ม {} กับ {}", a.start, b.start);
+                assert_eq!(a.end.is_some(), b.end.is_some(), "ภาพ {} เวลาจบ {:?} กับ {:?}", a.n, a.end, b.end);
+                if let (Some(x), Some(y)) = (a.end, b.end) { assert!((x - y).abs() < 0.05, "จบ {x} กับ {y}"); }
+                assert_eq!(a.canvas, b.canvas);
+                // ทางเดิมเผื่อขอบ 4 จุดรอบตัวหนังสือ ตำแหน่งกับขนาดจึงต่างได้ไม่เกินนั้น
+                assert!(a.at[0].abs_diff(b.at[0]) <= 8 && a.at[1].abs_diff(b.at[1]) <= 8, "ตำแหน่ง {:?} กับ {:?}", a.at, b.at);
+                assert!(a.w.abs_diff(b.w) <= 16 && a.h.abs_diff(b.h) <= 16, "ขนาด {}×{} กับ {}×{}", a.w, a.h, b.w, b.h);
+            }
+            let _ = std::fs::remove_dir_all(&w);
+        }
+    }
+
+    /// วัดเวลากับไฟล์จริงที่ส่งมา (ตั้ง MOVIE_SHELF_SUP เป็นที่อยู่ไฟล์ .sup) · อ่านอย่างเดียว ไม่แตะไฟล์
+    #[test]
+    fn sup_reader_speed_on_real_file() {
+        let Ok(p) = std::env::var("MOVIE_SHELF_SUP") else { return };
+        let path = PathBuf::from(p);
+        let w = work().join("supspeed");
+        let _ = std::fs::remove_dir_all(&w);
+        std::fs::create_dir_all(w.join("raw")).unwrap();
+        let t = std::time::Instant::now();
+        let fast = images_from_sup(&tools(), &w, &path, 0).expect("ทางเร็วต้องอ่านได้");
+        let tf = t.elapsed().as_secs_f64();
+        eprintln!("ทางใหม่ {} ภาพ {:.1} วินาที", fast.len(), tf);
+        if std::env::var("MOVIE_SHELF_SUP_SLOW").is_ok() {
+            let t = std::time::Instant::now();
+            let slow = images_by_render(&tools(), &w, &w.join("raw"), &path, 0).unwrap();
+            eprintln!("ทางเดิม {} ภาพ {:.1} วินาที", slow.len(), t.elapsed().as_secs_f64());
+        }
+        let _ = std::fs::remove_dir_all(&w);
+    }
+
     #[test]
     fn image_times_are_real_file_times() {
         let sup = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("test-media").join("ซับตัวอย่าง-ffmpeg").join("pgs_sub.sup");

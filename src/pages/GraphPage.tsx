@@ -113,7 +113,7 @@ function rulerTicks(a: number, b: number, maxN = 9): { x: number; label: string 
 const laneMinH = (n: number, wave: boolean) => { const m = n > 6 ? 52 : n > 2 ? 72 : 120; return wave ? Math.max(m, 60) : m; };
 function RangeTime({ t0, t1, dur }: { t0: number; t1: number; dur: number }) {
   const d = spanDigits(t1 - t0), far = tfmtD(Math.max(dur, t1), 3);
-  return <FixedTime t={`${tfmtD(t0, d)} ถึง ${tfmtD(t1, d)}`} longest={`${far} ถึง ${far}`} />;
+  return <FixedTime t={`${tfmtD(t0, d)}–${tfmtD(t1, d)}`} longest={`${far}–${far}`} />;
 }
 /** แถบเวลาแบบไม้บรรทัด ขีดยาวตรงเลข ขีดสั้นแบ่งช่วงละ 5 · เลขชิดขอบไม่แสดงกันล้น แต่ขีดยังอยู่
     (พี่กันสั่ง 11 พ.ย. 2569 "ขอขีดตั้งเหมือนกับไม้บรรทัดด้วย ตรงเลขเวลา") */
@@ -2370,7 +2370,7 @@ function PsdView({ codec, filePath, onReset, resetN, scroller, psd, names, psdCh
         <span className="psdch-seg"><div className="seg sm">{opts.map(([k, l]) => <button key={k} type="button" className={psdCh === k ? "on" : ""} onClick={() => setPsdCh(k)} data-psdch={k}>{l}</button>)}</div></span>
         <span className="psdch-dd" data-psdchdd><Dropdown label="ช่องที่ดู" value={psdCh} onChange={setPsdCh} options={opts.map(([value, l]) => ({ value, label: l }))} /></span></span>
         <span className="psdright" style={{ display: "flex", alignItems: "center", gap: 10, justifyContent: "flex-end", minWidth: 0 }}>{hzoomBox}<span className="fsep" aria-hidden="true" />{zoomBox}<span className="fsep" aria-hidden="true" />{resetBtn}</span></div>
-      <Overview ov={ov} th={th} t0={t0} t1={t1} onPick={onPick} left={52} caption={t1 - t0 >= ov.duration - 0.01 ? `เฉลี่ยทั้งไฟล์ ${tfmt(ov.duration)}` : `ช่วงที่เอามาเฉลี่ย ${tfmtD(t0, spanDigits(t1 - t0))} ถึง ${tfmtD(t1, spanDigits(t1 - t0))}`} />
+      <Overview ov={ov} th={th} t0={t0} t1={t1} onPick={onPick} left={52} caption={t1 - t0 >= ov.duration - 0.01 ? `เฉลี่ยทั้งไฟล์ ${tfmt(ov.duration)}` : `ช่วงที่เอามาเฉลี่ย ${tfmtD(t0, spanDigits(t1 - t0))}–${tfmtD(t1, spanDigits(t1 - t0))}`} />
       {scroller?.(52, 0)}
       </div>
       <div style={{ flex: "1 0 300px", marginTop: 8, display: "flex", gap: 8, minHeight: 0 }}>
@@ -3006,7 +3006,7 @@ export function CompareView({ files, tracks, note, free, onFiles, onSingle, onBa
               <span className="zseg"><div className="seg sm">{PSD_SPANS.map(([k, l2]) => <button key={String(k)} type="button" className={String(psdSpan) === String(k) ? "on" : ""} onClick={() => setPsdSpan(k)} data-cmppsdspan={String(k)}>{l2}</button>)}</div></span>
               <span className="zdd" data-cmppsdspandd><Dropdown label="ช่วงที่เลือก" value={String(psdSpan)} onChange={(v) => setPsdSpan(v === "all" ? "all" : Number(v))} options={PSD_SPANS.map(([k, l2]) => ({ value: String(k), label: l2 }))} /></span></span></div>
           {ok ? <PsdCmp list={psd.list} maxNyq={maxNyq} f={psdF} setF={setPsdF} vr={vrPsd} hr={hrPsd} grab={cmpGrab} onReset={() => { setPsdSpan("all"); zoomReset(); }} /> : <div className="skel" style={{ height: 300, borderRadius: 8 }} data-cmppsdwait />}
-          <div className="small" style={{ marginTop: 4 }}>{psdSpan === "all" ? `ทั้งไฟล์ ${tfmt(dur)}` : `${tfmt(psdT[0])} ถึง ${tfmt(psdT[1])} รอบกลางช่วงที่ดู`} คิดทีละไฟล์ตามลำดับ{ok ? ` และ${n === 2 ? "ทั้งสองไฟล์" : allTxt}ใช้ช่องความถี่กว้าง ${(psd.list[0].rate / psd.list[0].size).toFixed(1)} Hz เท่ากัน จึงเทียบกันได้ตรง` : ""}</div>
+          <div className="small" style={{ marginTop: 4 }}>{psdSpan === "all" ? `ทั้งไฟล์ ${tfmt(dur)}` : `${tfmt(psdT[0])}–${tfmt(psdT[1])} รอบกลางช่วงที่ดู`} คิดทีละไฟล์ตามลำดับ{ok ? ` และ${n === 2 ? "ทั้งสองไฟล์" : allTxt}ใช้ช่องความถี่กว้าง ${(psd.list[0].rate / psd.list[0].size).toFixed(1)} Hz เท่ากัน จึงเทียบกันได้ตรง` : ""}</div>
           {foot(null)}
         </div>
       );

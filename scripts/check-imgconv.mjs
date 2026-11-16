@@ -53,7 +53,7 @@ const openSub = async (file) => {
   return waitFor("return !!document.querySelector('[data-subviewer][data-mode=image] [data-imgconv-open]')", 30000);
 };
 const openDlg = async () => { await click("[data-imgconv-open]"); return waitFor("return !!document.querySelector('[data-icv]')", 4000); };
-const closeDlg = async () => { await q("[...document.querySelectorAll('.dlg .acts .btn-ghost')].find((b) => /ยกเลิก|ปิด/.test(b.innerText))?.click(); return 1;"); await sleep(300); };
+const closeDlg = async () => { await q("const b = [...document.querySelectorAll('.dlg .acts .btn-ghost')].find((b) => /ยกเลิก|ปิด/.test(b.innerText)); (b ?? document.querySelector('[data-sv-close]'))?.click(); return 1;"); await sleep(300); };
 /** รอภาพตัวอย่างของผลเสร็จ (มีภาพ หรือขึ้นกล่องทำไม่ได้) */
 const prevDone = (ms = 60000) => waitFor("return !document.querySelector('[data-icv-wait]') && (!!document.querySelector('[data-icv-frame=out] img') || !!document.querySelector('[data-icv-prev-err]'))", ms);
 const seg = (label, text) => q(`const g = [...document.querySelectorAll('[data-icv] .seg')].find((s) => s.getAttribute('aria-label') === ${JSON.stringify(label)}); const b = g && [...g.querySelectorAll('button')].find((x) => x.innerText.trim() === ${JSON.stringify(text)}); if (b) { b.click(); return true; } return false;`);

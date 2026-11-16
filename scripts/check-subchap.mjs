@@ -7,7 +7,7 @@ import { connect, sleep } from "./lib/cdp-client.mjs";
 const OUT = "docs/report-2026-11-13/ชุด11";
 mkdirSync(OUT, { recursive: true });
 const MOVIE = "D:/movie-shelf/test-media/สร้าง/หนัง/ดาวเหนือ (2023).mkv";
-const XDIR = "D:/movie-shelf/test-media/สร้าง/หนัง/ดาวเหนือ (2023) แยกไฟล์";
+const XDIR = "D:/movie-shelf/test-media/สร้าง/หนัง/แยกไฟล์";
 const SRT = "D:/movie-shelf/test-media/สร้าง/เสียงซับ/ดาวตก (2024).th.srt";
 const c = await connect();
 const q = (js) => c.evaluate(`(async () => { ${js} })()`);

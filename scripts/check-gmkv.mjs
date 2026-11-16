@@ -34,8 +34,12 @@ const check = (name, ok, note = "") => { results.push(!!ok); console.log(`${ok ?
 const waitFor = async (js, ms = 8000) => { const t = Date.now(); while (Date.now() - t < ms) { if (await q(js)) return true; await sleep(150); } return false; };
 const nav = (label) => q(`[...document.querySelectorAll('.side .nav')].find((b) => b.innerText.trim().split('\\n')[0] === ${JSON.stringify(label)})?.click(); return 1;`);
 const click = async (sel) => { gate(); await c.click(sel); };
-const folderOf = (m) => m.replace(/\.mkv$/, " แยกไฟล์");
+// โฟลเดอร์ตั้งต้น "แยกไฟล์" ข้างไฟล์หนัง หลายเรื่องอยู่โฟลเดอร์เดียวกัน ดูเฉพาะไฟล์ที่มีชื่อหนังเรื่องนั้น
+// (เดิม "<ชื่อหนัง> แยกไฟล์" ชื่อซ้ำสองรอบจนที่อยู่ยาวเกิน พี่กันเจอ 15 พ.ย. 2569)
+const folderOf = (m) => m.replace(/[\\/][^\\/]+$/, "") + "/แยกไฟล์";
+const stemOf = (m) => m.split(/[\\/]/).pop().replace(/\.mkv$/, "");
 const ls = (d) => existsSync(d) ? readdirSync(d).sort() : [];
+const lsOf = (m) => ls(folderOf(m)).filter((f) => f.includes(stemOf(m)));
 
 await c.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
 const before = (await inv("get_settings")).settings;
@@ -90,7 +94,7 @@ try {
   await click("[data-extract-start]");
   check("แยกครบ 7 ไฟล์", await waitFor("return (document.querySelector('[data-extract]')?.innerText ?? '').includes('แยกครบ 7 ไฟล์')", 60000), await q("return document.querySelector('[data-extract]')?.innerText.replace(/\\s+/g, ' ') ?? ''"));
   const out = folderOf(MOVIE);
-  const got = ls(out);
+  const got = lsOf(MOVIE);
   const want = ["Audio1 - th - ดาวเหนือ (2023).aac", "Text2 - en - ดาวเหนือ (2023).ass", "ดาวเหนือ (2023).tags.xml", "ดาวเหนือ (2023).chapters.txt", "ดาวเหนือ (2023).cue", "Audio1 - th - ดาวเหนือ (2023).timestamps.txt", "Text2 - en - ดาวเหนือ (2023).timestamps.txt"].sort();
   check("ชื่อไฟล์ตามรูปแบบที่ตั้ง ตรงกับตัวอย่างในหน้าตั้งค่า", JSON.stringify(got) === JSON.stringify(want), JSON.stringify(got));
   const rd = (n) => existsSync(`${out}/${n}`) ? readFileSync(`${out}/${n}`, "utf8") : "";
@@ -110,10 +114,10 @@ try {
   const br = await q("return [...document.querySelectorAll('[data-batch-row]')].map((r) => r.innerText.replace(/\\s+/g, ' ').trim())");
   check("ไฟล์แรกแยกครบ 7 ไฟล์ ไฟล์ที่สองบอกจำนวนชิ้นที่ไฟล์นั้นไม่มี", br.length === 2 && br[0].endsWith("แยกแล้ว 7 ไฟล์") && /แยกแล้ว \d+ ไฟล์ และไฟล์นี้ไม่มี \d+ อย่าง$/.test(br[1]), JSON.stringify(br));
   await c.shot(`${SHOT}/05-แยกหลายไฟล์.png`, "[data-extract-batchrun]", 6);
-  const late = ls(folderOf(LATE));
+  const late = lsOf(LATE);
   check("เสียงที่ช้ากว่าภาพ 120 มิลลิวินาที ชื่อไฟล์มี DELAY 120ms ตรงตัวแทน {Delay}", late.includes("Audio1 DELAY 120ms - th - เสียงช้า (2023).aac"), JSON.stringify(late));
-  check("ไฟล์ที่ไม่มีภาษาไม่ทิ้งเว้นวรรคซ้อน", !ls(folderOf(OTHER)).some((f) => f.includes("  ")), JSON.stringify(ls(folderOf(OTHER))));
-  const oth = ls(folderOf(OTHER));
+  check("ไฟล์ที่ไม่มีภาษาไม่ทิ้งเว้นวรรคซ้อน", !lsOf(OTHER).some((f) => f.includes("  ")), JSON.stringify(lsOf(OTHER)));
+  const oth = lsOf(OTHER);
   check("ไฟล์ที่สอง นามสกุลตามเสียงของไฟล์นั้น (Vorbis เป็น .ogg) ไม่ใช้ของเรื่องแรก", oth.some((f) => /^Audio1 .*\.ogg$/.test(f)), JSON.stringify(oth));
   // ดีเลย์ในชื่อ หน้าเสียงและซับอ่านกลับเป็นดีเลย์ของแทร็ก
   const back = await inv("merge_add_file", { path: `${folderOf(LATE)}/Audio1 DELAY 120ms - th - เสียงช้า (2023).aac`, movieDuration: null, view: null }).catch((e) => ({ delayFromName: String(e) }));

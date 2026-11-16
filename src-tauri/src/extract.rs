@@ -44,13 +44,15 @@ pub fn pattern_name(pattern: &str, stem: &str, it: &Item, delay: Option<i64>, tr
     let d = match delay { Some(v) if v != 0 => format!(" DELAY {v}ms"), _ => String::new() };
     let tn: String = track_name.unwrap_or("").chars().map(|c| if c.is_control() || "<>:\"/\\|?*".contains(c) { '_' } else { c }).collect();
     let p = if pattern.trim().is_empty() { DEFAULT_PATTERN } else { pattern };
-    let mut s = p.replace("{Filename}", stem).replace("{Type}", ty).replace("{Number}", &it.nth.to_string()).replace("{Language}", &lang).replace("{Delay}", &d).replace("{TrackName}", tn.trim());
+    // ชื่อหนังใส่ตอนท้ายสุด ตัวเก็บกวาดไม่แตะ · เดิม "Dept. (2017)" กลายเป็น "Dept (2017)" เพราะลบจุดหน้าเว้นวรรค (พี่กันเจอ 15 พ.ย. 2569)
+    const STEM: &str = "\u{E000}";
+    let mut s = p.replace("{Filename}", STEM).replace("{Type}", ty).replace("{Number}", &it.nth.to_string()).replace("{Language}", &lang).replace("{Delay}", &d).replace("{TrackName}", tn.trim());
     s = s.chars().map(|c| if c.is_control() || "<>:\"/\\|?*".contains(c) { '_' } else { c }).collect();
     while s.contains("..") { s = s.replace("..", "."); }
     while s.contains(". ") { s = s.replace(". ", " "); }
     // ตัวแทนว่างระหว่างเว้นวรรค เช่น " - {Language} - " ไม่ทิ้งเว้นวรรคซ้อน
     while s.contains("  ") { s = s.replace("  ", " "); }
-    let s = s.trim().trim_matches('.').trim().to_string();
+    let s = s.trim().trim_matches('.').trim().replace(STEM, stem);
     let s = if s.is_empty() { format!("{stem}.{ty}{}", it.nth) } else { s };
     if it.kind == "timestamps" { format!("{s}.timestamps.txt") } else { format!("{s}.{}", it.ext) }
 }
@@ -340,6 +342,31 @@ mod tests {
         assert_eq!(out_name(s, &it("cue", 1, "cue", None)), "ดาวเหนือ (2023).cue");
     }
 
+    /// พี่กันเจอ 15 พ.ย. 2569 แยกซับของซีรีส์ ACCA ไม่ได้ ขึ้นที่อยู่ยาวเกิน ทั้งที่ชื่อไม่ยาว
+    /// เดิมโฟลเดอร์ "<ชื่อหนัง> แยกไฟล์" ชื่อหนังซ้ำสองรอบ ที่อยู่ยาว 291 ตัว · ชื่อ "Dept. (2017)" โดนลบจุด
+    #[test]
+    fn long_series_paths_fit_and_names_keep_dots() {
+        let dir = Path::new(r"D:\ACCA 13-Territory Inspection Dept. (2017) [Season 1+OVA] [BD 1080p HEVC OPUS] [Dual-Audio]\Season 1");
+        let stem = "ACCA 13-Territory Inspection Dept. (2017) - S01E01 - Jean the Cigarette-Peddler";
+        let movie = dir.join(format!("{stem}.mkv"));
+        let out = default_folder(&movie);
+        assert_eq!(out, dir.join("แยกไฟล์"), "โฟลเดอร์ตั้งต้นไม่ซ้ำชื่อหนัง");
+        let it = Item { kind: "text".into(), nth: 1, ext: "ass".into(), lang: Some("en".into()), name: None, of: None };
+        let name_of = |st: &str| out_name_with(st, &it, DEFAULT_PATTERN, None, None);
+        let (name, cut) = fit_name(&out, stem, &name_of);
+        assert_eq!(name, format!("{stem}.Text1.en.ass"), "ชื่อเต็มคงจุดหลัง Dept");
+        assert!(!cut);
+        assert!(out.join(&name).to_string_lossy().encode_utf16().count() + 8 <= crate::rename::MAX_PATH_LEN);
+        // โฟลเดอร์ที่ผู้ใช้เลือกยาวมาก ตัดท้ายชื่อหนังให้พอดี ส่วนแทร็ก ภาษา นามสกุลคงไว้
+        let deep = dir.join("โฟลเดอร์ที่เลือกเองซึ่งยาวมากเป็นพิเศษสำหรับทดสอบการตัดชื่อไฟล์ให้พอดีกับที่ Windows รับได้ครบทุกตัว");
+        let (short, cut2) = fit_name(&deep, stem, &name_of);
+        assert!(cut2 && short.ends_with("….Text1.en.ass") && short.starts_with("ACCA 13"), "{short}");
+        assert!(deep.join(&short).to_string_lossy().encode_utf16().count() + 8 <= crate::rename::MAX_PATH_LEN, "{}", deep.join(&short).display());
+        // โฟลเดอร์ยาวจนไม่เหลือที่ให้ชื่อ คืนชื่อเต็มให้ตัวตรวจความยาวบอกว่าไม่สำเร็จ
+        let huge = PathBuf::from(format!(r"D:\{}", "ก".repeat(250)));
+        assert!(!fit_name(&huge, stem, &name_of).1);
+    }
+
     /// แยกแท็ก chapter แบบ OGM CUE sheet และเวลาของแต่ละเฟรมจากหนังทดสอบได้ไฟล์จริง · ดีเลย์ของเสียงจาก minimum_timestamp · ปรับชิ้นตอนแยกหลายไฟล์ (BUGS ข้อ 130)
     #[test]
     fn gmkv_style_extras() {
@@ -553,6 +580,8 @@ pub struct ExtractResult {
     states: Vec<String>,
     files: Vec<Option<String>>,
     error: Option<String>,
+    /// เรื่องที่ควรรู้ เช่น ตัดชื่อให้สั้นลง
+    notes: Vec<String>,
 }
 
 #[derive(Serialize, Clone)]
@@ -591,9 +620,28 @@ fn fit_item(j: &Value, info: &ExtractInfo, it: &Item) -> Option<Item> {
     Some(x)
 }
 
+/// โฟลเดอร์ "แยกไฟล์" ข้างไฟล์หนัง · ไฟล์ที่แยกขึ้นต้นด้วยชื่อหนังอยู่แล้ว หลายเรื่องอยู่โฟลเดอร์เดียวกันได้
+/// เดิม "<ชื่อหนัง> แยกไฟล์" ชื่อหนังซ้ำสองรอบในที่อยู่ ซีรีส์ที่โฟลเดอร์ยาวเกิน 259 ตัว แยกไม่ได้เลย (พี่กันเจอ 15 พ.ย. 2569 "เเล้วจะเอาชื่อโฟลเด้อมาตั้งทำไมมมม")
 pub fn default_folder(movie: &Path) -> PathBuf {
-    let stem = movie.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
-    movie.parent().unwrap_or(Path::new("")).join(format!("{stem} แยกไฟล์"))
+    movie.parent().unwrap_or(Path::new("")).join("แยกไฟล์")
+}
+
+/// ชื่อไฟล์ที่ไม่ทำให้ที่อยู่ (รวม .partial) ยาวเกินที่ Windows รับ · ยาวเกินตัดท้ายชื่อหนังลงจนพอดี ส่วนแทร็ก ภาษา นามสกุลคงไว้
+/// คืน (ชื่อ, ตัดไหม) · โฟลเดอร์ยาวจนชื่อหนังเหลือไม่ถึง 8 ตัวอักษร คืนชื่อเต็มให้ตัวตรวจความยาวบอกว่าไม่สำเร็จ
+pub fn fit_name(dir: &Path, stem: &str, name_of: &dyn Fn(&str) -> String) -> (String, bool) {
+    let len = |n: &str| dir.join(n).to_string_lossy().encode_utf16().count() + ".partial".len();
+    let full = name_of(stem);
+    let over = len(&full).saturating_sub(crate::rename::MAX_PATH_LEN);
+    if over == 0 { return (full, false); }
+    let chars: Vec<char> = stem.chars().collect();
+    let mut keep = chars.len().saturating_sub(over + 1);
+    while keep >= 8 {
+        let short: String = chars[..keep].iter().collect::<String>().trim_end_matches([' ', '.', '-', '_']).to_string() + "…";
+        let n = name_of(&short);
+        if len(&n) <= crate::rename::MAX_PATH_LEN { return (n, true); }
+        keep -= 1;
+    }
+    (full, false)
 }
 
 #[tauri::command]
@@ -627,7 +675,7 @@ pub async fn extract_start(app: tauri::AppHandle, req: ExtractReq) -> Result<Ext
         let dir = req.folder.clone().filter(|f| !f.trim().is_empty()).map(PathBuf::from).unwrap_or_else(|| default_folder(&src));
         std::fs::create_dir_all(&dir).map_err(|e| format!("สร้างโฟลเดอร์ที่เก็บไม่ได้: {e}"))?;
         let n = req.items.len();
-        let mut r = ExtractResult { folder: dir.to_string_lossy().to_string(), states: vec!["queued".into(); n], files: vec![None; n], error: None };
+        let mut r = ExtractResult { folder: dir.to_string_lossy().to_string(), states: vec!["queued".into(); n], files: vec![None; n], error: None, notes: vec![] };
         let src_size = std::fs::metadata(&src).map(|m| m.len()).unwrap_or(0);
         let src_mkv = src.extension().map(|e| e.eq_ignore_ascii_case("mkv")).unwrap_or(false);
         // ข้อมูลแทร็กของไฟล์นี้ ใช้ทำดีเลย์ในชื่อเสียง ชื่อแทร็ก และแยกหลายไฟล์ (BUGS ข้อ 130)
@@ -648,7 +696,9 @@ pub async fn extract_start(app: tauri::AppHandle, req: ExtractReq) -> Result<Ext
                 let want = match k { "video" => "video", "audio" => "audio", "text" => "subtitles", _ => return None };
                 j["tracks"].as_array()?.iter().filter(|t| t["type"] == want).nth(it.nth.checked_sub(1)?)?["properties"]["track_name"].as_str().map(String::from)
             });
-            let mut target = dir.join(out_name_with(&stem, it, &pattern, delay, track_name.as_deref()));
+            let (name, cut) = fit_name(&dir, &stem, &|st| out_name_with(st, it, &pattern, delay, track_name.as_deref()));
+            if cut { r.notes.push(format!("{} ชื่อยาวเกินที่ Windows รับ จึงตัดท้ายชื่อหนังเป็น {name}", title_of(it))); }
+            let mut target = dir.join(name);
             // ไฟล์ที่แยกต้องอยู่ในโฟลเดอร์ที่เลือกเท่านั้น · กันชื่อที่หลุดตัวกรอง
             if target.parent() != Some(dir.as_path()) {
                 r.states[i] = "failed".into();
@@ -678,8 +728,8 @@ pub async fn extract_start(app: tauri::AppHandle, req: ExtractReq) -> Result<Ext
             // ที่อยู่ยาวเกินที่ Windows รับ · บอกตรงสาเหตุก่อนเริ่ม (เดิมเครื่องมือหรือตัวย้ายล้มแล้วขึ้นว่าหาไฟล์ไม่เจอ ผู้ช่วยตรวจโค้ดเจอ · TECH-REVIEW ข้อ 16)
             if partial.to_string_lossy().encode_utf16().count() > crate::rename::MAX_PATH_LEN {
                 r.states[i] = "failed".into();
-                r.error = Some(format!("แยก {} ไม่สำเร็จ ที่อยู่ไฟล์ยาวเกินไป  เลือกที่เก็บที่สั้นกว่า หรือเปลี่ยนชื่อไฟล์หนังให้สั้นลง  ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ", title_of(it)));
-                break;
+                r.error = Some(format!("แยก {} ไม่สำเร็จ โฟลเดอร์ที่เก็บยาวเกินไป  กดเปลี่ยนที่เก็บเป็นโฟลเดอร์ที่สั้นกว่า แล้วลองใหม่  ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ", title_of(it)));
+                continue;
             }
             let _ = std::fs::remove_file(&partial);
             let stop = || STOP.load(std::sync::atomic::Ordering::SeqCst) || jobs.cancelled();

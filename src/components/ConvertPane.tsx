@@ -175,7 +175,7 @@ export default function ConvertPane(p: { onCompare: (a: string, b: string, note:
                 <span style={{ color: "var(--txt3)" }} aria-hidden="true">→</span>
                 {locked ? <span className="dd locked" style={{ flex: 1 }}><span style={{ whiteSpace: "nowrap", minWidth: 0 }}>{specLabel(it.spec)}</span></span> : (
                   <span style={{ display: "flex", gap: 4, minWidth: 0 }}>
-                    <Dropdown stretch search portal label={"ปลายทาง " + baseName(it.path)} value={presetOf(it.spec)} options={presets} display={(o) => o?.label ?? specLabel(it.spec)} onChange={(v) => { const sp = specOf(v); if (sp) setItemSpec(it.id, sp); }} />
+                    <Dropdown stretch search portal hint="พิมพ์ค้น เช่น alac 5.1 320" label={"ปลายทาง " + baseName(it.path)} value={presetOf(it.spec)} options={presets} display={(o) => o?.label ?? specLabel(it.spec)} onChange={(v) => { const sp = specOf(v); if (sp) setItemSpec(it.id, sp); }} />
                     <button type="button" className="btn btn-ghost btn-sm" style={{ width: 34, padding: 0, flex: "none" }} title="ตั้งละเอียดในแผงตั้งค่าเสียง" aria-label="ตั้งละเอียดในแผงตั้งค่าเสียง" onClick={() => openPanel(it.id)} data-qto><IcSettings size={15} /></button>
                   </span>
                 )}
@@ -211,7 +211,7 @@ export default function ConvertPane(p: { onCompare: (a: string, b: string, note:
       <div className="cqcards">
         <div className="card"><h3>ตั้งทีเดียวทั้งคิว</h3>
           <div className="optline">
-            <Dropdown stretch search label="ตั้งทีเดียวทั้งคิว" value={pending.length === 0 ? presetOf(q.all) : allSame ? presetOf(pending[0].spec) : ""} options={presets}
+            <Dropdown stretch search hint="พิมพ์ค้น เช่น alac 5.1 320" label="ตั้งทีเดียวทั้งคิว" value={pending.length === 0 ? presetOf(q.all) : allSame ? presetOf(pending[0].spec) : ""} options={presets}
               display={(o) => o?.label ?? (pending.length === 0 ? specLabel(q.all) : allSame ? specLabel(pending[0].spec) : "ตั้งทีละไฟล์ (ตามแถว)")} onChange={(v) => { const sp = specOf(v); if (sp) setAll(sp); }} />
             <button type="button" className="btn btn-ghost btn-sm" onClick={() => openPanel("all")} data-qall><IcSettings size={15} />เปิดแผงตั้งค่าเสียง</button>
           </div>
