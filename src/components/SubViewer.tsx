@@ -10,6 +10,7 @@ import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Dialog from "./Dialog";
 import { CardIcon, FixedTime, Phr, Seg, Skel, Switch } from "./ui";
+import { listen } from "@tauri-apps/api/event";
 import { checkApi, graphApi, subApi, type GWindow, type SubImg, type SubText } from "../lib/api";
 import type { AvTrack } from "../lib/avJob";
 import { ftName, isImageSub } from "../lib/ftypes";
@@ -249,6 +250,23 @@ function SimgSeek(p: { times: SubImg[] | null; d: number; at: number; upto: numb
   );
 }
 
+/** แถบความคืบหน้าตอนถอดซับรูปครั้งแรก แทนที่แถบเวลาในความสูงเดียวกัน ตัวเลขกับเวลาที่เดินกว้างคงที่ไม่ดันแถบ
+ *  (BUGS ข้อ 144 พี่กันทัก 16 พ.ย. 2569 "เเต่พอเอาไฟล์นี้เข้าเพื่อดูเเค่ซํบ มันรอนานมากกกกก") */
+function SimgProgress(p: { pct: number | null; since: number }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(id); }, []);
+  const s = Math.max(0, Math.floor((now - p.since) / 1000));
+  const t = s >= 3600 ? `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}` : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  const pct = p.pct ?? 0;
+  return (
+    <div className="simgseek simgprog" data-simg-progress role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
+      <span className="simgprog-t">กำลังอ่านซับรูปจากไฟล์ <FixedTime t={`${pct}%`} longest="100%" /></span>
+      <div className="simgprog-bar"><i style={{ width: `${pct}%` }} /></div>
+      <span className="simgprog-t">ใช้ไป <FixedTime t={t} longest="00:00" /></span>
+    </div>
+  );
+}
+
 function ImageView(p: { track: AvTrack; path: string; ff: number; movie?: string; onClose?: () => void; onTotal?: (n: number) => void }) {
   const d = p.track.delay / 1000;
   // ภาพแรกของหน้า (นับจาก 0) แทนเลขหน้า เพราะจำนวนภาพต่อหน้าเปลี่ยนตามความสูงหน้าต่าง
@@ -276,10 +294,23 @@ function ImageView(p: { track: AvTrack; path: string; ff: number; movie?: string
     return () => ro.disconnect();
   }, [big]);
   const start = Math.floor(first / per) * per;
+  // ความคืบหน้าของการถอดทั้งแทร็กครั้งแรก จากเหตุการณ์ subimg-progress ของไฟล์และแทร็กนี้ · ถอดไว้แล้วหน้าแรกมาเร็ว แถบไม่ทันขึ้น
+  const [prog, setProg] = useState<{ pct: number | null; since: number }>(() => ({ pct: null, since: Date.now() }));
+  useEffect(() => {
+    const un = listen<{ path: string; ff: number; percent: number }>("subimg-progress", (e) => {
+      if (e.payload.path !== p.path || e.payload.ff !== p.ff) return;
+      // ตัวตรวจ check-av อ่านลำดับเปอร์เซ็นต์ที่ได้ (รุ่นทดสอบเท่านั้น)
+      if (import.meta.env.DEV) (((window as unknown as { __simgProg?: number[] }).__simgProg ??= [])).push(e.payload.percent);
+      setProg((o) => ({ ...o, pct: e.payload.percent }));
+    });
+    return () => { void un.then((f) => f()); };
+  }, [p.path, p.ff]);
   useEffect(() => {
     let live = true;
     setErr(null);
-    subApi.images(p.path, p.ff, start / per, per).then((r) => { if (live) setData({ ...r, first: start, per }); }, (e) => { if (live) setErr(String(e)); });
+    // window.__simgHold ให้ตัวตรวจค้างหน้ากำลังอ่านไว้วัดแถบความคืบหน้า (รุ่นทดสอบเท่านั้น)
+    const hold = () => import.meta.env.DEV && (window as unknown as { __simgHold?: boolean }).__simgHold;
+    subApi.images(p.path, p.ff, start / per, per).then((r) => { if (live && !hold()) setData({ ...r, first: start, per }); }, (e) => { if (live) setErr(String(e)); });
     return () => { live = false; };
   }, [p.path, p.ff, start, per]);
   // รายการเวลาทั้งไฟล์ ขอหลังหน้าแรกมาแล้ว ไม่ให้สองคำสั่งถอดไฟล์เดียวกันพร้อมกันตอนเปิดครั้งแรก
@@ -374,7 +405,8 @@ function ImageView(p: { track: AvTrack; path: string; ff: number; movie?: string
   return (
     <div className="simgwrap">
     {/* แถบเวลาแบบแถบเลื่อนวิดีโอ บอกว่าดูอยู่ที่เวลาเท่าไหร่ กดหรือลากไปภาพตรงเวลานั้น (BUGS ข้อ 141 พี่กันขอ 16 พ.ย. 2569 "ใส่บาร์ข้างบนตรงนี้ เพื่อบ่งบอกว่าตอนนี้เวลาเท่าไหร่") */}
-    <SimgSeek times={times} d={d} at={big ? big.n : start + 1} upto={big ? big.n : Math.min(total, start + per)} onSeek={(x) => go(x)} />
+    {data ? <SimgSeek times={times} d={d} at={big ? big.n : start + 1} upto={big ? big.n : Math.min(total, start + per)} onSeek={(x) => go(x)} />
+      : <SimgProgress pct={prog.pct} since={prog.since} />}
     <div className="simgview" data-simgview>
       {/* เวลาของทุกภาพ กดแล้วไปหน้าที่มีภาพนั้น (พี่กันขอ 15 พ.ย. 2569 "ขอฝั่งซ้าย มีเวลาให้กดได้") */}
       <div className="simglist" ref={list} data-simg-list>

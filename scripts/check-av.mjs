@@ -554,6 +554,21 @@ await waitFor("return !!document.querySelector('[data-subimgs]') || !!document.q
 const pgs = await q("return (document.querySelector('[data-simg-count]')?.innerText ?? '') + ' · ' + document.querySelectorAll('[data-simg] img').length + ' · ' + (document.querySelector('[data-simg] .t')?.innerText.replace(/\\s+/g, ' ') ?? '')");
 check("ซับรูป PGS ถอดเป็นภาพ 1 ภาพ ขึ้นที่ 0:01.0", pgs.startsWith("ภาพที่ 1–1 จาก 1") && pgs.includes("· 1 ·") && pgs.includes("0:01.0"), pgs);
 await closeDlg();
+// แถบความคืบหน้าตอนถอดครั้งแรก (BUGS ข้อ 144) · ค้างหน้ากำลังอ่านด้วย __simgHold ไว้วัด แล้วปล่อยเปิดใหม่
+// สำเนาในโฟลเดอร์ทดสอบเป็นไฟล์ใหม่ทุกรอบ ผลถอดเดิมไม่มี จึงได้เปอร์เซ็นต์จริงจากตัวอ่าน VobSub
+await c.evaluate("window.__simgProg = []; window.__simgHold = true");
+await c.evaluate(`${findRow("VobSub")}.querySelector('[data-subview]').click()`);
+await waitFor("return (window.__simgProg || []).includes(100)", 60000);
+const progLay = await q(`const r = document.querySelector('[data-simg-progress]'); if (!r) return 'ไม่มีแถบ';
+  const b = r.getBoundingClientRect(); const kids = [...r.children].map(k => k.getBoundingClientRect());
+  const over = kids.some(k => k.right > b.right + 0.5 || k.left < b.left - 0.5) || kids.some((k, i) => i && k.left < kids[i - 1].right - 0.5);
+  return JSON.stringify({ h: Math.round(b.height), over, text: r.innerText.replace(/\\s+/g, ' '), seq: window.__simgProg })`);
+const pl = (() => { try { return JSON.parse(progLay); } catch { return null; } })();
+check("ระหว่างถอดซับรูปครั้งแรกขึ้นแถบความคืบหน้า เปอร์เซ็นต์ไม่ถอยหลังและจบที่ 100 ชิ้นในแถบไม่ซ้อนไม่ล้น",
+  !!pl && pl.h >= 20 && pl.h <= 26 && !pl.over && /กำลังอ่านซับรูปจากไฟล์ \d+% .*ใช้ไป \d+:\d\d/.test(pl.text) && pl.seq.every((v, i) => !i || v >= pl.seq[i - 1]), progLay);
+await shot("ดูซับรูป-แถบความคืบหน้า.png", "[data-subviewer]").catch(() => {});
+await c.evaluate("window.__simgHold = false");
+await closeDlg();
 await c.evaluate(`${findRow("VobSub")}.querySelector('[data-subview]').click()`);
 await waitFor("return !!document.querySelector('[data-subimgs]') || !!document.querySelector('[data-subviewer] .stat.bad')", 60000);
 const vob = await q("return (document.querySelector('[data-simg-count]')?.innerText ?? '') + ' · ' + document.querySelectorAll('[data-simg] img').length");

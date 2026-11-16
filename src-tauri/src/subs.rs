@@ -330,6 +330,9 @@ pub struct SubImg {
     pub canvas: [u32; 2],
     /// ตำแหน่งบนจอ x y
     pub at: [u32; 2],
+    /// ซับบังคับ (forced) · ซับรูปที่ ffmpeg วาดให้ไม่รู้ค่านี้ เป็น false
+    #[serde(default)]
+    pub forced: bool,
     #[serde(skip)]
     pub file: PathBuf,
 }
@@ -368,7 +371,8 @@ impl Drop for BusyGuard {
 }
 
 /// ภาพซับหนึ่งภาพที่อ่านจากไฟล์ .sup · ตำแหน่งบนจอกับภาพเฉพาะกรอบที่มีตัวหนังสือ
-pub struct SupShow { pub start: f64, pub end: Option<f64>, pub canvas: (u32, u32), pub at: (u32, u32), pub img: image::RgbaImage }
+/// forced คือซับบังคับ (ธงในส่วนองค์ประกอบของ PGS) ไว้ใช้กับตัวกรองเฉพาะซับบังคับของ OCR
+pub struct SupShow { pub start: f64, pub end: Option<f64>, pub canvas: (u32, u32), pub at: (u32, u32), pub img: image::RgbaImage, pub forced: bool }
 
 /// ถอดภาพตามแบบ RLE ของ PGS · ไบต์ไม่ศูนย์คือสีหนึ่งจุด · 0 ตามด้วยตัวบอกความยาวและสี · 0 0 จบแถว
 fn pgs_rle(data: &[u8], w: usize, h: usize, pal: &[[u8; 4]; 256]) -> image::RgbaImage {
@@ -399,7 +403,7 @@ pub fn parse_sup(data: &[u8]) -> Vec<SupShow> {
     let mut pals: std::collections::HashMap<u8, [[u8; 4]; 256]> = Default::default();
     let mut objs: std::collections::HashMap<u16, (usize, usize, Vec<u8>)> = Default::default();
     // องค์ประกอบของชุดแสดงที่กำลังอ่าน (เวลา จอ จานสี และวัตถุพร้อมตำแหน่ง)
-    let mut pcs: Option<(f64, (u32, u32), u8, Vec<(u16, u32, u32)>)> = None;
+    let mut pcs: Option<(f64, (u32, u32), u8, Vec<(u16, u32, u32)>, bool)> = None;
     let mut i = 0usize;
     while i + 13 <= data.len() {
         if &data[i..i + 2] != b"PG" { break; }
@@ -414,15 +418,17 @@ pub fn parse_sup(data: &[u8]) -> Vec<SupShow> {
                 let pal_id = p.get(9).copied().unwrap_or(0);
                 let n = p.get(10).copied().unwrap_or(0) as usize;
                 let mut list = Vec::new();
+                let mut forced = false;
                 let mut o = 11;
                 for _ in 0..n {
                     if o + 8 > p.len() { break; }
                     let id = be16(p, o) as u16;
                     let cropped = p[o + 3] & 0x80 != 0;
+                    forced |= p[o + 3] & 0x40 != 0;
                     list.push((id, be16(p, o + 4) as u32, be16(p, o + 6) as u32));
                     o += if cropped { 16 } else { 8 };
                 }
-                pcs = Some((pts, (w, h), pal_id, list));
+                pcs = Some((pts, (w, h), pal_id, list, forced));
             }
             0x14 => {
                 let bt709 = pcs.as_ref().map(|c| c.1 .1 >= 720).unwrap_or(true);
@@ -444,7 +450,7 @@ pub fn parse_sup(data: &[u8]) -> Vec<SupShow> {
                 }
             }
             0x80 => {
-                let Some((t, canvas, pal_id, list)) = pcs.take() else { continue };
+                let Some((t, canvas, pal_id, list, forced)) = pcs.take() else { continue };
                 // ชุดแสดงที่ไม่มีวัตถุคือซับหาย ปิดภาพก่อนหน้า
                 if let Some(prev) = out.last_mut() { if prev.end.is_none() { prev.end = Some(t); } }
                 if list.is_empty() { continue; }
@@ -462,7 +468,7 @@ pub fn parse_sup(data: &[u8]) -> Vec<SupShow> {
                 if let Some(prev) = out.last_mut() {
                     if prev.end == Some(t) && prev.at == (x0, y0) && prev.img == img { prev.end = None; continue; }
                 }
-                out.push(SupShow { start: t, end: None, canvas, at: (x0, y0), img });
+                out.push(SupShow { start: t, end: None, canvas, at: (x0, y0), img, forced });
             }
             _ => {}
         }
@@ -470,17 +476,36 @@ pub fn parse_sup(data: &[u8]) -> Vec<SupShow> {
     out
 }
 
+/// ตัดภาพให้เหลือเฉพาะตัวหนังสือแล้วเผื่อขอบ 4 จุด · ภาพที่ PGS กับ VobSub ให้มามีขอบใสรอบตัวหนังสือ หน้าจอวางภาพที่ตำแหน่งเดิม
+/// ภาพไม่มีหมึกเลยคืน None
+pub(crate) fn crop_ink(img: &image::RgbaImage, at: (u32, u32), canvas: (u32, u32)) -> Option<((u32, u32), image::RgbaImage)> {
+    let (iw, ih) = img.dimensions();
+    let (mut x0, mut y0, mut x1, mut y1) = (iw, ih, 0u32, 0u32);
+    for (x, y, p) in img.enumerate_pixels() { if p[3] > 8 { x0 = x0.min(x); y0 = y0.min(y); x1 = x1.max(x); y1 = y1.max(y); } }
+    if x1 < x0 { return None; }
+    let pad = 4u32;
+    let (cx, cy) = ((at.0 + x0).saturating_sub(pad), (at.1 + y0).saturating_sub(pad));
+    let (ex, ey) = ((at.0 + x1 + pad + 1).min(canvas.0.max(at.0 + iw)), (at.1 + y1 + pad + 1).min(canvas.1.max(at.1 + ih)));
+    let mut out = image::RgbaImage::new(ex - cx, ey - cy);
+    image::imageops::overlay(&mut out, img, at.0 as i64 - cx as i64, at.1 as i64 - cy as i64);
+    Some(((cx, cy), out))
+}
+
+/// ความยาวของไฟล์ (วินาที) ไว้คิดเปอร์เซ็นต์ของ ffmpeg · ไม่รู้คืน 0
+fn duration_of(tools: &Path, path: &Path) -> f64 { crate::vobsub::stream_codec(tools, path, u64::MAX).1 }
+
 /// ทางเร็วของซับรูป PGS · ลอกแทร็กออกมาเป็น .sup (ไม่ถอดภาพหนัง) แล้วอ่านเอง · อ่านไม่ได้หรือไม่ใช่ PGS คืน None ให้ใช้ทางเดิม
-fn images_from_sup(tools: &Path, dir: &Path, path: &Path, ff: u64) -> Option<Vec<SubImg>> {
+/// การลอกแทร็กอ่านไฟล์หนังทั้งไฟล์ บอกเปอร์เซ็นต์ตามเวลาที่ ffmpeg อ่านถึง (BUGS ข้อ 144)
+fn images_from_sup(tools: &Path, dir: &Path, path: &Path, ff: u64, on: &dyn Fn(f64)) -> Option<Vec<SubImg>> {
     let is_sup = path.extension().map(|e| e.eq_ignore_ascii_case("sup")).unwrap_or(false);
     let data = if is_sup && ff == 0 {
         std::fs::read(path).ok()?
     } else {
         let sup = dir.join("track.sup");
-        let args: Vec<OsString> = vec!["-v".into(), "error".into(), "-nostdin".into(), "-y".into(), "-copyts".into(), "-i".into(), path.into(),
+        let args: Vec<OsString> = vec!["-v".into(), "error".into(), "-nostdin".into(), "-nostats".into(), "-y".into(), "-progress".into(), "pipe:1".into(), "-copyts".into(), "-i".into(), path.into(),
             "-map".into(), format!("0:{ff}").into(), "-c".into(), "copy".into(), "-f".into(), "sup".into(), sup.clone().into()];
-        let o = run_tool_timeout(tools, "ffmpeg", &args, Duration::from_secs(600)).ok()?;
-        if !tool_succeeded("ffmpeg", &o.status) { return None; }
+        let (ok, _, _) = crate::vobsub::run_progress(tools, "ffmpeg", &args, duration_of(tools, path), &|p| on(p * 0.95)).ok()?;
+        if !ok { let _ = std::fs::remove_file(&sup); return None; }
         let d = std::fs::read(&sup).ok()?;
         let _ = std::fs::remove_file(&sup);
         d
@@ -488,34 +513,60 @@ fn images_from_sup(tools: &Path, dir: &Path, path: &Path, ff: u64) -> Option<Vec
     let shows = parse_sup(&data);
     if shows.is_empty() { return None; }
     let mut out = Vec::with_capacity(shows.len());
-    for (k, s) in shows.into_iter().enumerate() {
-        let n = k + 1;
+    for s in shows.into_iter() {
+        let Some((at, img)) = crop_ink(&s.img, s.at, s.canvas) else { continue };
+        let n = out.len() + 1;
         let file = dir.join(format!("c{n:06}.png"));
-        // ภาพของ PGS มีขอบใสรอบตัวหนังสือ ตัดเหลือเฉพาะตัวหนังสือแล้วเผื่อขอบ 4 จุดแบบทางเดิม หน้าจอวางภาพที่เดิม
-        let (iw, ih) = s.img.dimensions();
-        let (mut x0, mut y0, mut x1, mut y1) = (iw, ih, 0u32, 0u32);
-        for (x, y, p) in s.img.enumerate_pixels() { if p[3] > 8 { x0 = x0.min(x); y0 = y0.min(y); x1 = x1.max(x); y1 = y1.max(y); } }
-        let pad = 4u32;
-        let (cx, cy) = ((s.at.0 + x0).saturating_sub(pad), (s.at.1 + y0).saturating_sub(pad));
-        let (ex, ey) = ((s.at.0 + x1 + pad + 1).min(s.canvas.0.max(s.at.0 + iw)), (s.at.1 + y1 + pad + 1).min(s.canvas.1.max(s.at.1 + ih)));
-        let mut img = image::RgbaImage::new(ex - cx, ey - cy);
-        image::imageops::overlay(&mut img, &s.img, s.at.0 as i64 - cx as i64, s.at.1 as i64 - cy as i64);
-        let s = SupShow { at: (cx, cy), img, ..s };
-        s.img.save(&file).ok()?;
+        img.save(&file).ok()?;
         // เวลาจบห่างเกิน 60 วินาที (ภาพค้างท้ายไฟล์) ถือว่าไม่รู้เวลาจบ เหมือนทางเดิม
         let end = s.end.filter(|e| *e >= s.start && e - s.start <= 60.0).map(|e| (e * 1000.0).round() / 1000.0);
-        out.push(SubImg { n, start: (s.start * 1000.0).round() / 1000.0, end, w: s.img.width(), h: s.img.height(), canvas: [s.canvas.0, s.canvas.1], at: [s.at.0, s.at.1], file });
+        out.push(SubImg { n, start: (s.start * 1000.0).round() / 1000.0, end, w: img.width(), h: img.height(), canvas: [s.canvas.0, s.canvas.1], at: [at.0, at.1], forced: s.forced, file });
     }
     Some(out)
 }
 
+/// ซับรูป VobSub อ่านเอง (vobsub.rs) · ไฟล์ .idx กับ .sub ที่เปิดตรงอ่านทันที · ซับในหนังดึงคู่ไฟล์ออกมาเก็บในโฟลเดอร์ของผลก่อน
+/// คู่ไฟล์ที่ดึงมาเก็บไว้กับภาพ (track.idx track.sub) ให้ OCR วาดภาพใหม่ด้วยสีที่เลือกได้ ไม่ต้องดึงจากหนังซ้ำ · ไม่ใช่ VobSub คืน Ok(None)
+fn images_from_vobsub(tools: &Path, dir: &Path, path: &Path, ff: u64, on: &dyn Fn(f64)) -> Result<Option<Vec<SubImg>>, String> {
+    let (idx, sub) = if let (Some(pair), 0) = (crate::vobsub::pair_of(path), ff) {
+        pair
+    } else if crate::vobsub::is_vobsub_stream(tools, path, ff) {
+        crate::vobsub::extract_pair(tools, dir, path, ff, &|p| on(p * 0.9))?
+    } else {
+        return Ok(None);
+    };
+    let text = std::fs::read(&idx).map_err(|e| format!("อ่านไฟล์ .idx ไม่ได้ {e}"))?;
+    let data = std::fs::read(&sub).map_err(|e| format!("อ่านไฟล์ .sub ไม่ได้ {e}"))?;
+    let file = crate::vobsub::parse_idx(&decode_text(&text).0);
+    let shows = crate::vobsub::read(&file, &data, 0, &|p| on(90.0 + p * 0.1));
+    if shows.is_empty() { return Err("อ่านภาพในซับ VobSub ไม่ได้สักภาพ ไฟล์ .sub อาจไม่ตรงกับไฟล์ .idx".into()); }
+    let mut out = Vec::with_capacity(shows.len());
+    for s in shows {
+        let Some((at, img)) = crop_ink(&s.img, s.at, s.canvas) else { continue };
+        let n = out.len() + 1;
+        let f = dir.join(format!("c{n:06}.png"));
+        img.save(&f).map_err(|e| format!("เก็บภาพซับไม่ได้ {e}"))?;
+        let r = |v: f64| (v * 1000.0).round() / 1000.0;
+        out.push(SubImg { n, start: r(s.start), end: s.end.map(r), w: img.width(), h: img.height(), canvas: [s.canvas.0, s.canvas.1], at: [at.0, at.1], forced: s.forced, file: f });
+    }
+    Ok(Some(out))
+}
+
+/// ถอดแบบไม่รายงานความคืบหน้า ใช้ในเทส
+#[cfg(test)]
 pub fn images(tools: &Path, work: &Path, path: &Path, ff: u64) -> Result<Vec<SubImg>, String> {
+    images_with(tools, work, path, ff, &|_| {})
+}
+
+/// ถอดซับรูปทั้งแทร็กพร้อมบอกความคืบหน้า 0–100 · หนังยาวส่วนที่นานคืออ่านไฟล์หนังทั้งไฟล์ (BUGS ข้อ 144)
+pub fn images_with(tools: &Path, work: &Path, path: &Path, ff: u64, on: &dyn Fn(f64)) -> Result<Vec<SubImg>, String> {
     // ซับ HD DVD ffmpeg อ่านไม่ได้ ถอดจากไฟล์ PGS ที่ BDSup2Sub++ แปลงไว้ในโฟลเดอร์ทำงานแทน (BUGS ข้อ 129)
     let hd;
     let (path, ff) = if crate::imgconv::is_hddvd_sup(path) { hd = crate::imgconv::hddvd_pgs(tools, work, path)?.0; (hd.as_path(), 0) } else { (path, ff) };
     let key = cache_key(path, ff);
     // v2 ใส่ -copyts แล้ว ผลที่ถอดไว้ก่อนหน้านี้เวลาเริ่มที่ศูนย์ผิด ใช้ชื่อใหม่ไม่ให้หยิบของเก่า (BUGS ข้อ 125 เจอ 15 พ.ย. 2569)
-    let dir = work.join(format!("subimg-v2-{key}"));
+    // v3 อ่าน VobSub เองและเก็บธงซับบังคับ ผลเก่าของ VobSub เป็นภาพที่ ffmpeg วาด ไม่มีคู่ไฟล์ให้ OCR วาดสีใหม่ (แผน OCR ขั้น 1)
+    let dir = work.join(format!("subimg-v3-{key}"));
     let idx = dir.join("index.json");
     let cached = || -> Option<Vec<SubImg>> {
         let mut v = serde_json::from_str::<Vec<SubImg>>(&std::fs::read_to_string(&idx).ok()?).ok()?;
@@ -533,26 +584,30 @@ pub fn images(tools: &Path, work: &Path, path: &Path, ff: u64) -> Result<Vec<Sub
     let raw = dir.join("raw");
     let _ = std::fs::remove_dir_all(&dir);
     std::fs::create_dir_all(&raw).map_err(|e| e.to_string())?;
-    // ซับ PGS อ่านจากไฟล์ .sup ตรง ๆ ก่อน เร็วกว่าให้ ffmpeg วาดภาพเต็มจอหลายเท่า · VobSub หรืออ่านไม่ได้ใช้ทางเดิมข้างล่าง
-    if let Some(out) = images_from_sup(tools, &dir, path, ff) {
+    on(0.0);
+    let save = |out: Vec<SubImg>| -> Result<Vec<SubImg>, String> {
         let _ = std::fs::remove_dir_all(&raw);
         let _ = std::fs::write(&idx, serde_json::to_string(&out).unwrap_or_default());
-        return Ok(out);
-    }
-    let out = images_by_render(tools, &dir, &raw, path, ff)?;
-    let _ = std::fs::write(&idx, serde_json::to_string(&out).unwrap_or_default());
-    Ok(out)
+        on(100.0);
+        Ok(out)
+    };
+    // VobSub อ่านเองตามตำแหน่งในไฟล์ .idx (BUGS ข้อ 144) · ล้มกลางทางบอกสาเหตุ ไม่ไปวาดด้วย ffmpeg ซ้ำอีกรอบที่นานกว่า
+    if let Some(out) = images_from_vobsub(tools, &dir, path, ff, on).inspect_err(|_| { let _ = std::fs::remove_dir_all(&dir); })? { return save(out); }
+    // ซับ PGS อ่านจากไฟล์ .sup ตรง ๆ เร็วกว่าให้ ffmpeg วาดภาพเต็มจอหลายเท่า · ชนิดอื่นหรืออ่านไม่ได้ใช้ทางเดิมข้างล่าง
+    if let Some(out) = images_from_sup(tools, &dir, path, ff, on) { return save(out); }
+    let out = images_by_render(tools, &dir, &raw, path, ff, on)?;
+    save(out)
 }
 
-/// ทางเดิม ให้ ffmpeg วาดซับแบบ sub2video เป็นภาพเต็มจอทุกครั้งที่ซับเปลี่ยน แล้วหากรอบตัวหนังสือ · ใช้กับ VobSub และไฟล์ที่ทางเร็วอ่านไม่ได้
-pub(crate) fn images_by_render(tools: &Path, dir: &Path, raw: &Path, path: &Path, ff: u64) -> Result<Vec<SubImg>, String> {
+/// ทางเดิม ให้ ffmpeg วาดซับแบบ sub2video เป็นภาพเต็มจอทุกครั้งที่ซับเปลี่ยน แล้วหากรอบตัวหนังสือ · ใช้กับ DVB DivX และไฟล์ที่ทางเร็วอ่านไม่ได้
+pub(crate) fn images_by_render(tools: &Path, dir: &Path, raw: &Path, path: &Path, ff: u64, on: &dyn Fn(f64)) -> Result<Vec<SubImg>, String> {
     // sub2video ได้ภาพทุกครั้งที่ซับเปลี่ยน · showinfo บอกเวลาของแต่ละภาพ
     // -copyts คงเวลาจริงของไฟล์ เดิมไม่ใส่ ffmpeg เลื่อนภาพแรกให้เริ่มที่ศูนย์ ซับที่ภาพแรกอยู่ 2:12.48 ขึ้นว่า 0:00.0 (เจอตอนทำหน้าต่างแปลงซับภาพ 15 พ.ย. 2569)
-    let args: Vec<OsString> = vec!["-v".into(), "info".into(), "-nostdin".into(), "-nostats".into(), "-copyts".into(), "-i".into(), path.into(),
+    // -progress pipe:1 บอกเวลาที่อ่านถึงทางช่องออก ใช้คิดเปอร์เซ็นต์ (BUGS ข้อ 144) · showinfo ยังออกทางช่องผิดพลาดเหมือนเดิม
+    let args: Vec<OsString> = vec!["-v".into(), "info".into(), "-nostdin".into(), "-nostats".into(), "-progress".into(), "pipe:1".into(), "-copyts".into(), "-i".into(), path.into(),
         "-filter_complex".into(), format!("[0:{ff}]format=rgba,showinfo[v]").into(), "-map".into(), "[v]".into(), "-fps_mode".into(), "passthrough".into(),
         "-f".into(), "image2".into(), raw.join("%06d.png").into()];
-    let o = run_tool_timeout(tools, "ffmpeg", &args, Duration::from_secs(1800))?;
-    let log = String::from_utf8_lossy(&o.stderr);
+    let (_, _, log) = crate::vobsub::run_progress(tools, "ffmpeg", &args, duration_of(tools, path), &|p| on(p * 0.9))?;
     let times: Vec<f64> = log.lines().filter(|l| l.contains("Parsed_showinfo") && l.contains(" n:")).filter_map(|l| {
         let p = l.split("pts_time:").nth(1)?;
         p.split_whitespace().next()?.parse::<f64>().ok()
@@ -594,7 +649,7 @@ pub(crate) fn images_by_render(tools: &Path, dir: &Path, raw: &Path, path: &Path
         let n = out.len() + 1;
         let file = dir.join(format!("c{n:06}.png"));
         crop.save(&file).map_err(|e| format!("เก็บภาพซับไม่ได้ {e}"))?;
-        out.push(SubImg { n, start: (t * 1000.0).round() / 1000.0, end: None, w: cw, h: ch, canvas: [w, h], at: [cx, cy], file });
+        out.push(SubImg { n, start: (t * 1000.0).round() / 1000.0, end: None, w: cw, h: ch, canvas: [w, h], at: [cx, cy], forced: false, file });
     }
     // ภาพสุดท้ายที่ไม่มีภาพว่างตามมา หรือเวลาจบห่างเกิน 60 วินาที (ภาพปิดท้ายไฟล์) ไม่รู้เวลาจบ
     for i in out.iter_mut() { if let Some(e) = i.end { if e - i.start > 60.0 || e < i.start { i.end = None; } else { i.end = Some((e * 1000.0).round() / 1000.0); } } }
@@ -630,13 +685,28 @@ pub async fn sub_wave(app: AppHandle, movie: String, stream: u64, t0: f64, t1: f
     }).await.map_err(|e| e.to_string())?
 }
 
+/// ความคืบหน้าของการถอดซับรูปทั้งแทร็ก ส่งทางเหตุการณ์ subimg-progress { path ff percent } เมื่อเปอร์เซ็นต์เต็มเปลี่ยน
+/// หน้าจอใช้แสดงแถบความคืบหน้ากับเวลาที่เดินระหว่างรอ (BUGS ข้อ 144)
+pub(crate) fn progress_to(app: &AppHandle, path: &str, ff: u64) -> impl Fn(f64) + Send + Sync + use<> {
+    let app = app.clone();
+    let path = path.to_string();
+    let last = std::sync::atomic::AtomicI64::new(-1);
+    move |p: f64| {
+        let v = p.clamp(0.0, 100.0).floor() as i64;
+        if last.swap(v, std::sync::atomic::Ordering::Relaxed) != v {
+            let _ = tauri::Emitter::emit(&app, "subimg-progress", serde_json::json!({ "path": path, "ff": ff, "percent": v }));
+        }
+    }
+}
+
 /// ซับรูปทีละหน้า · ครั้งแรกถอดทั้งแทร็ก (หนังยาวใช้เวลา เพราะต้องอ่านทั้งไฟล์)
 #[tauri::command]
 pub async fn sub_images(app: AppHandle, path: String, ff: u64, page: usize, per: usize) -> Result<ImgPage, String> {
     let tools = tools_dir(&app)?;
     let work = work_dir(&app)?;
+    let on = progress_to(&app, &path, ff);
     tauri::async_runtime::spawn_blocking(move || {
-        let all = images(&tools, &work, &need(&path)?, ff)?;
+        let all = images_with(&tools, &work, &need(&path)?, ff, &on)?;
         let per = per.clamp(1, 48);
         let items = all.iter().skip(page * per).take(per).map(|i| {
             let png = std::fs::read(&i.file).map(|b| format!("data:image/png;base64,{}", crate::audiograph::b64(&b))).unwrap_or_default();
@@ -652,7 +722,8 @@ pub async fn sub_images(app: AppHandle, path: String, ff: u64, page: usize, per:
 pub async fn sub_image_times(app: AppHandle, path: String, ff: u64) -> Result<Vec<SubImg>, String> {
     let tools = tools_dir(&app)?;
     let work = work_dir(&app)?;
-    tauri::async_runtime::spawn_blocking(move || images(&tools, &work, &need(&path)?, ff))
+    let on = progress_to(&app, &path, ff);
+    tauri::async_runtime::spawn_blocking(move || images_with(&tools, &work, &need(&path)?, ff, &on))
         .await.map_err(|e| e.to_string())?
 }
 
@@ -715,8 +786,8 @@ mod tests {
             let w = work().join(format!("supcmp-{ff}"));
             let _ = std::fs::remove_dir_all(&w);
             std::fs::create_dir_all(w.join("raw")).unwrap();
-            let fast = images_from_sup(&tools(), &w, &path, ff).expect("ทางเร็วต้องอ่าน PGS ได้");
-            let slow = images_by_render(&tools(), &w, &w.join("raw"), &path, ff).unwrap();
+            let fast = images_from_sup(&tools(), &w, &path, ff, &|_| {}).expect("ทางเร็วต้องอ่าน PGS ได้");
+            let slow = images_by_render(&tools(), &w, &w.join("raw"), &path, ff, &|_| {}).unwrap();
             assert_eq!(fast.len(), slow.len(), "{} จำนวนภาพ", path.display());
             for (a, b) in fast.iter().zip(&slow) {
                 assert!((a.start - b.start).abs() < 0.05, "เริ่ม {} กับ {}", a.start, b.start);
@@ -740,12 +811,12 @@ mod tests {
         let _ = std::fs::remove_dir_all(&w);
         std::fs::create_dir_all(w.join("raw")).unwrap();
         let t = std::time::Instant::now();
-        let fast = images_from_sup(&tools(), &w, &path, 0).expect("ทางเร็วต้องอ่านได้");
+        let fast = images_from_sup(&tools(), &w, &path, 0, &|_| {}).expect("ทางเร็วต้องอ่านได้");
         let tf = t.elapsed().as_secs_f64();
         eprintln!("ทางใหม่ {} ภาพ {:.1} วินาที", fast.len(), tf);
         if std::env::var("MOVIE_SHELF_SUP_SLOW").is_ok() {
             let t = std::time::Instant::now();
-            let slow = images_by_render(&tools(), &w, &w.join("raw"), &path, 0).unwrap();
+            let slow = images_by_render(&tools(), &w, &w.join("raw"), &path, 0, &|_| {}).unwrap();
             eprintln!("ทางเดิม {} ภาพ {:.1} วินาที", slow.len(), t.elapsed().as_secs_f64());
         }
         let _ = std::fs::remove_dir_all(&w);
@@ -765,6 +836,56 @@ mod tests {
         let v = images(&tools(), &w, &late, 0).unwrap();
         assert!(!v.is_empty());
         assert!((v[0].start - 100.0).abs() < 0.1, "ภาพแรก {} ต้องราว 100 วินาที", v[0].start);
+        let _ = std::fs::remove_dir_all(&w);
+    }
+
+    /// VobSub ในหนัง MKV อ่านเองด้วย vobsub.rs ได้ภาพชุดเดียวกับทางเดิมที่ให้ ffmpeg วาด (BUGS ข้อ 144)
+    /// จำนวนภาพ เวลาเริ่ม ตำแหน่ง ตรงกัน · ความคืบหน้าไปถึง 100 · ผลเก็บคู่ไฟล์ track.idx track.sub ไว้ให้ OCR
+    #[test]
+    fn vobsub_in_movie_matches_render() {
+        let Some(mkv) = av("ซับรูป (2024).mkv") else { return };
+        let ff = (0..8u64).find(|i| crate::vobsub::is_vobsub_stream(&tools(), &mkv, *i)).expect("หนังทดสอบต้องมีแทร็ก VobSub");
+        let w = work().join("vobmkv");
+        let _ = std::fs::remove_dir_all(&w);
+        std::fs::create_dir_all(&w).unwrap();
+        let top = std::sync::atomic::AtomicI64::new(-1);
+        let t = std::time::Instant::now();
+        let fast = images_with(&tools(), &w, &mkv, ff, &|p| { top.fetch_max(p as i64, std::sync::atomic::Ordering::Relaxed); }).unwrap();
+        eprintln!("ทางใหม่ {} ภาพ ใน {:.2} วินาที", fast.len(), t.elapsed().as_secs_f64());
+        assert_eq!(top.load(std::sync::atomic::Ordering::Relaxed), 100, "ความคืบหน้าต้องจบที่ 100");
+        assert!(fast[0].file.parent().unwrap().join("track.idx").is_file(), "ต้องเก็บคู่ไฟล์ไว้ให้ OCR");
+        let raw = w.join("slow");
+        std::fs::create_dir_all(raw.join("raw")).unwrap();
+        let slow = images_by_render(&tools(), &raw, &raw.join("raw"), &mkv, ff, &|_| {}).unwrap();
+        eprintln!("ทางเดิม {} ภาพ", slow.len());
+        // ทุกภาพของทางเดิมต้องมีในทางใหม่ เวลากับตำแหน่งตรงกัน · ทางใหม่นับตามไฟล์ .idx แบบ Subtitle Edit
+        // ภาพที่ทางเดิมไม่มีต้องเป็นภาพสั้นกว่า 0.1 วินาทีที่ ffmpeg รวมกับภาพข้าง ๆ (ไฟล์ทดสอบมีคู่ภาพห่างกันราว 10 มิลลิวินาที)
+        for b in &slow {
+            let a = fast.iter().find(|a| (a.start - b.start).abs() < 0.05).unwrap_or_else(|| panic!("ทางใหม่ไม่มีภาพที่ {} วินาที", b.start));
+            assert!(a.at[0].abs_diff(b.at[0]) <= 2 && a.at[1].abs_diff(b.at[1]) <= 2, "ภาพ {} ตำแหน่ง {:?} กับ {:?}", a.n, a.at, b.at);
+        }
+        for a in &fast {
+            if slow.iter().any(|b| (a.start - b.start).abs() < 0.05) { continue; }
+            assert!(a.end.is_some_and(|e| e - a.start < 0.1), "ภาพ {} ที่ {} วินาทีมีแค่ทางใหม่ และไม่ใช่ภาพสั้น", a.n, a.start);
+        }
+        let _ = std::fs::remove_dir_all(&w);
+    }
+
+    /// ซับ VobSub ไทย 720 × 480 ที่ make-test-media สร้างพร้อมคำตอบ · เปิดไฟล์ .idx ตรงได้ครบทุกภาพ ขนาดจอตามไฟล์ ทุกภาพมีเวลาจบ
+    #[test]
+    fn vobsub_pair_file_reads_all() {
+        let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("test-media").join("สร้าง").join("ocr");
+        let idx = dir.join("th-480.idx");
+        if !idx.exists() {
+            assert_eq!(std::env::var("MOVIE_SHELF_SKIP_MEDIA").as_deref(), Ok("1"), "ไม่มี {} รัน node scripts/make-test-media.mjs ก่อน", idx.display());
+            return;
+        }
+        let want = std::fs::read_to_string(dir.join("th-480.truth.txt")).unwrap().lines().filter(|l| !l.trim().is_empty()).count();
+        let w = work().join("vobpair");
+        let _ = std::fs::remove_dir_all(&w);
+        let v = images(&tools(), &w, &idx, 0).unwrap();
+        assert_eq!(v.len(), want, "จำนวนภาพต้องเท่าคำตอบ");
+        assert!(v.iter().all(|i| i.canvas == [720, 480] && i.end.is_some_and(|e| e > i.start)));
         let _ = std::fs::remove_dir_all(&w);
     }
 

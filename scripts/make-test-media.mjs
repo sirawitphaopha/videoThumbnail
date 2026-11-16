@@ -378,7 +378,7 @@ mkdirSync(SE, { recursive: true });
   console.log("สร้างแล้ว  แก้ซับ/ยาว 2000 บรรทัด.th.srt");
 }
 
-// ซับรูปเทส OCR ที่รู้คำตอบแน่นอน (แผน OCR ขั้น 0 · BUGS ข้อ 143) ข้อความแคลร์แต่งเองใน test-media/src/ocr
+// ซับรูปเทส OCR ภาษาไทยที่รู้คำตอบแน่นอน (แผน OCR ขั้น 0 · BUGS ข้อ 143) ข้อความแคลร์แต่งเองใน test-media/src/ocr · ยังไม่มีซับรูปไทยจริง
 // ASS เป็น PGS 1920×1080 ด้วย SeConv ที่แนบมา · ไทยย่อเป็น VobSub 720×480 ด้วย BDSup2Sub++ แบบซับ DVD ความละเอียดต่ำที่พี่กันห่วง (⑨)
 // คำตอบเขียนคู่กันเป็น .truth.txt บรรทัดละภาพตามลำดับเวลา ภาพเดียวกันที่มีซับบนจอ บรรทัดบนจออยู่ก่อน ขึ้นบรรทัดใหม่ในภาพเขียนเป็น ¶ ตัวเอียงเขียนแท็ก i
 // แบบเดียวกับคำตอบของซับ ACCA (D:\dev\tmp\ocr-test\truth\truth.txt)
@@ -388,12 +388,12 @@ mkdirSync(SE, { recursive: true });
   const OCR = join(OUT, "ocr");
   mkdirSync(OCR, { recursive: true });
   const toMs = (t) => { const [h, m, s] = t.split(":"); return Math.round((+h * 3600 + +m * 60 + +s) * 1000); };
-  for (const name of ["th", "ja", "ja-vert"]) {
+  // ญี่ปุ่นใช้ซับ VobSub ของ Shin Godzilla แทน มีทั้งแนวนอนและแนวตั้ง (พี่กันสั่ง 16 พ.ย. 2569 "เอาซับญี่ปุ่นที่แต่งเองออก ใช้ของ godzilla")
+  for (const name of ["th"]) {
     const src = join(SRC, "ocr", `${name}.ass`);
     const ev = readFileSync(src, "utf8").split(/\r?\n/).filter((l) => l.startsWith("Dialogue:")).map((l) => {
       const p = l.slice(9).split(","); const text = p.slice(9).join(",");
-      const t = text.replace(/\{\\i1\}/g, "<i>").replace(/\{\\i0\}/g, "</i>").replace(/\{[^}]*\}/g, "").replace(/\\N/g, name === "ja-vert" ? "" : "¶");
-      // แนวตั้งวางทีละตัวซ้อนลงมา คำตอบคือข้อความทั้งบรรทัด ไม่มีขึ้นบรรทัดใหม่
+      const t = text.replace(/\{\\i1\}/g, "<i>").replace(/\{\\i0\}/g, "</i>").replace(/\{[^}]*\}/g, "").replace(/\\N/g, "¶");
       return { start: toMs(p[1].trim()), style: p[3].trim(), t };
     });
     // ภาพเดียวกันคือบรรทัดที่เริ่มเวลาเดียวกัน ป้ายบนจอ (สไตล์ Sign) ขึ้นก่อนบทพูด
