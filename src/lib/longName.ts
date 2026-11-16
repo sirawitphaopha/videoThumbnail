@@ -50,6 +50,7 @@ function scan() {
   pending = false;
   const two = document.documentElement.dataset.longname === "two";
   for (const el of document.querySelectorAll<HTMLElement>(LONG_SEL)) {
+    if (!watched.has(el)) { watched.add(el); sizeObs?.observe(el); }
     if (!el.isConnected || el.clientWidth === 0) continue;
     const tall = two && el.classList.contains("bn1");
     // แบบเก็บปีไว้ท้าย ส่วนชื่อเรื่องเป็นกล่องลูกที่ล้นแทนตัวกล่องเอง
@@ -67,6 +68,9 @@ function scan() {
   }
 }
 let pending = false;
+// กรอบกว้างหรือแคบลงเองโดยเนื้อหาไม่เปลี่ยน (พับเมนูซ้าย แผงข้างเปิดปิด) ต้องวัดใหม่ ไม่งั้นป้ายจางค้าง (เจอตอนแก้ BUGS ข้อ 146)
+const watched = new WeakSet<HTMLElement>();
+const sizeObs = typeof ResizeObserver === "undefined" ? null : new ResizeObserver(() => schedule());
 function schedule() {
   if (pending) return;
   pending = true;

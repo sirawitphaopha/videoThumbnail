@@ -700,18 +700,23 @@ pub fn overview(tools: &Path, path: &Path, track: &GTrack, duration: f64, on: &d
     let total = (duration * track.rate as f64).max(1.0);
     let (cols, spec_cols, spec_bins) = (1200usize, 800usize, 256usize);
     let mut an = Analyzer::new(ch, track.rate, total, cols, 1024, spec_cols, 4);
+    // ความดังวัดในโปรแกรมไปพร้อมกัน ไม่ให้ ffmpeg วัด (ตัววัดของ ffmpeg ช้ากว่าการถอดเสียง 20 เท่า BUGS ข้อ 145)
+    let mut r128 = crate::loudness::R128::new(&track.names, track.rate);
     let mut last = Instant::now();
     let mut feed = |f: &[f32]| {
         an.push(f);
+        r128.push(f);
         if an.frame % 4096 == 0 && last.elapsed() >= Duration::from_millis(100) {
             on((an.frame as f64 / total * 100.0).min(99.0));
             last = Instant::now();
         }
     };
-    let Some(run) = decode(tools, path, track.index, ch, None, None, true, &mut feed, stop)? else { return Ok(None) };
+    let Some(run) = decode(tools, path, track.index, ch, None, None, false, &mut feed, stop)? else { return Ok(None) };
     if an.frame == 0 {
         return Err(format!("อ่านเสียงไม่ได้  {}", run.tail.last().cloned().unwrap_or_default()));
     }
+    let (r_loud, r_integrated, r_lra, r_tp) = r128.finish();
+    let run = Run { loud: r_loud, integrated: r_integrated, lra: r_lra, true_peak: r_tp, ..run };
     // ความดังต่อคอลัมน์ เฉลี่ยพลังงานของค่า Momentary ที่ตกในคอลัมน์นั้น
     let mut e = vec![0.0f64; cols];
     let mut n = vec![0u32; cols];
@@ -1048,12 +1053,43 @@ mod tests {
         assert_eq!(o.env.len(), 6);
         assert_eq!(o.env[0].len(), o.cols * 3);
         assert!((o.read_to - g.duration).abs() < 0.5, "อ่านได้ถึง {} ความยาว {}", o.read_to, g.duration);
-        assert!(o.integrated.is_some(), "ต้องได้ความดังรวมจาก ebur128");
+        assert!(o.integrated.is_some(), "ต้องได้ความดังรวมจากตัววัดในโปรแกรม");
         assert!(o.peaks.iter().all(|p| *p <= 0.0));
         assert_eq!(o.spec.len(), 6);
         // ไฟล์มีเสียงโทนตลอดเรื่อง เส้นความดังต้องต่อเนื่อง ไม่มีคอลัมน์ตกลง −70 (ไฟล์ 20 วินาที คอลัมน์แคบกว่ารอบค่าของ ebur128)
         let mid = &o.loud[o.cols / 10..o.cols * 9 / 10];
         assert!(mid.iter().all(|v| *v > -40.0), "เส้นความดังมีรู ต่ำสุด {:?}", mid.iter().cloned().fold(f32::MAX, f32::min));
+    }
+
+    /// ตัววัดความดังในโปรแกรม (loudness.rs) ได้ค่าเท่าตัววัด ebur128 ของ ffmpeg ที่ใช้เดิม (BUGS ข้อ 145)
+    /// ไฟล์ทดสอบ AC-3 5.1 และไฟล์จริงผ่านตัวแปร MOVIE_SHELF_LOUD_FILE (อ่าน 5 นาทีแรก อ่านอย่างเดียว)
+    #[test]
+    fn loudness_matches_ffmpeg() {
+        let check = |f: &Path, len: Option<f64>| {
+            let g = info(&tools(), f).unwrap();
+            for t in &g.tracks {
+                let ch = t.names.len();
+                let mut r = crate::loudness::R128::new(&t.names, t.rate);
+                let ff = decode(&tools(), f, t.index, ch, None, len, true, &mut |fr| r.push(fr), &|| false).unwrap().unwrap();
+                let (m, i, lra, tp) = r.finish();
+                let (fi, fl, ft) = (ff.integrated.unwrap(), ff.lra.unwrap(), ff.true_peak.unwrap());
+                let (i, lra, tp) = (i.unwrap(), lra.unwrap(), tp.unwrap());
+                eprintln!("{} แทร็ก {} integrated {i:.2}/{fi:.2} LRA {lra:.2}/{fl:.2} TP {tp:.2}/{ft:.2}", f.display(), t.index);
+                assert!((i - fi).abs() <= 0.2, "integrated ของเรา {i:.2} ffmpeg {fi:.2}");
+                assert!((lra - fl).abs() <= 1.0, "LRA ของเรา {lra:.2} ffmpeg {fl:.2}");
+                assert!((tp - ft).abs() <= 0.3, "true peak ของเรา {tp:.2} ffmpeg {ft:.2}");
+                // Momentary เทียบตามเวลา ช่วงที่ไม่เงียบ
+                let mut worst = 0.0f64;
+                for &(t_ff, v_ff) in ff.loud.iter().filter(|x| x.1 > -50.0) {
+                    if let Some(&(_, v)) = m.iter().min_by(|a, b| (a.0 - t_ff).abs().partial_cmp(&(b.0 - t_ff).abs()).unwrap()) {
+                        worst = worst.max((v - v_ff).abs());
+                    }
+                }
+                assert!(worst <= 0.5, "momentary ต่างกันมากสุด {worst:.2} LU");
+            }
+        };
+        if let Some(f) = media("ดาวเหนือ (2023).mkv") { check(&f, None); }
+        if let Ok(p) = std::env::var("MOVIE_SHELF_LOUD_FILE") { check(Path::new(&p), Some(300.0)); }
     }
 
     #[test]

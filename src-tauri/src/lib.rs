@@ -18,6 +18,7 @@ mod hashes;
 mod jobs;
 mod latest;
 mod library;
+mod loudness;
 mod link;
 mod merge;
 mod mkvtree;

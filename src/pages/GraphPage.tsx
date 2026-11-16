@@ -546,21 +546,38 @@ function Speakers({ names, th, levels, hidden, onToggle }: { names: string[]; th
 type Mark = { from: number; to: number; text: string };
 
 type Draw = (g: CanvasRenderingContext2D, w: number, h: number) => void;
-function Lane({ code, th: thai, peak, height, draw, deps, ruler, room }: { code: string; th: string; peak: string; height: number; draw: Draw; deps: unknown[]; ruler?: Draw; room?: boolean }) {
+/** ปุ่มปิดเปิดลำโพงของช่องที่ป้ายชื่อช่อง ทำงานเหมือนกดลำโพงในผังช่องเสียง · ช่องสุดท้ายที่ยังเปิดอยู่ปิดไม่ได้ บอกเหตุผลที่ปุ่ม
+ *  (BUGS ข้อ 148 พี่กันสั่ง 16 พ.ย. 2569 "อยากให้มีปุ่มปิดช่อง ที่จุดนี้ด้วย") */
+type LaneTog = { onToggle?: () => void; last?: boolean };
+function LaneBtn({ code, off, onToggle, last }: LaneTog & { code: string; off: boolean }) {
+  if (!onToggle) return null;
+  const why = !off && last ? "ต้องเปิดอย่างน้อยหนึ่งช่อง จึงปิดช่องนี้ไม่ได้" : undefined;
+  return (
+    <button type="button" className={"lanetog" + (why ? " wait" : "")} aria-pressed={!off} aria-disabled={why ? true : undefined}
+      title={why ?? (off ? `เปิดลำโพงช่อง ${code}` : `ปิดลำโพงช่อง ${code}`)} aria-label={off ? `เปิดลำโพงช่อง ${code}` : `ปิดลำโพงช่อง ${code}`}
+      onClick={() => { if (!why) onToggle(); }} data-lanetog={code}>
+      <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+        <path d="M11 5 6 9H3v6h3l5 4z" fill="currentColor" fillOpacity=".15" />
+        {off ? <path d="m16 9 5 6M21 9l-5 6" /> : <path d="M15.5 8.5a5 5 0 0 1 0 7M18.5 5.5a9 9 0 0 1 0 13" />}
+      </svg>
+    </button>
+  );
+}
+function Lane({ code, th: thai, peak, height, draw, deps, ruler, room, onToggle, last }: { code: string; th: string; peak: string; height: number; draw: Draw; deps: unknown[]; ruler?: Draw; room?: boolean } & LaneTog) {
   const ref = useCanvas((g, w, h) => draw(g, w, h), deps);
   return (
     <div className="lane" data-lane={code} style={ruler || room ? { gridTemplateColumns: `96px ${RUL_W}px 1fr` } : undefined}>
-      <div className="lab"><b>{code}</b><span>{thai}</span><em>{peak}</em></div>
+      <div className="lab"><b>{code}<LaneBtn code={code} off={false} onToggle={onToggle} last={last} /></b><span>{thai}</span><em>{peak}</em></div>
       {ruler ? <RulerCv height={height} draw={ruler} deps={deps} /> : room ? <span aria-hidden="true" /> : null}
       <canvas className="cv" style={{ height }} ref={ref} data-rawdraw />
     </div>
   );
 }
 /** ช่องที่ปิดลำโพง แถบยังอยู่ที่เดิมสูงเท่าเดิม กราฟช่องอื่นไม่ขยับ */
-function LaneOff({ code, th: thai, peak, height }: { code: string; th: string; peak: string; height: number }) {
+function LaneOff({ code, th: thai, peak, height, onToggle }: { code: string; th: string; peak: string; height: number } & LaneTog) {
   return (
     <div className="lane" data-lane={code} data-off>
-      <div className="lab"><b>{code}</b><span>{thai}</span><em>{peak}</em></div>
+      <div className="lab"><b>{code}<LaneBtn code={code} off onToggle={onToggle} /></b><span>{thai}</span><em>{peak}</em></div>
       <div className="laneoff" style={{ height }}>ปิดลำโพง</div>
     </div>
   );
@@ -588,17 +605,56 @@ function Fragment2({ v, k, color }: { v: string; k: string; color?: string }) {
   return <><b>{v}</b><span>{color && <i className="key" style={{ background: color }} />}{k}</span></>;
 }
 
+/** ความกว้างป้ายเครื่องหมายโดยประมาณ (ตัวอักษร 600 11.5px ไอคอน 12 ช่องไฟ 4 ระยะใน 12 เส้นขอบ 2) */
+let markCtx: CanvasRenderingContext2D | null = null;
+function markLabelW(text: string) {
+  markCtx ??= document.createElement("canvas").getContext("2d");
+  if (!markCtx) return text.length * 7 + 30;
+  markCtx.font = `600 11.5px ${getComputedStyle(document.body).fontFamily}`;
+  return Math.ceil(markCtx.measureText(text).width) + 30;
+}
+/** จัดกลุ่มป้ายที่จะทับกัน · ป้ายแบบลอยเหนือกราฟอยู่กลางกลุ่ม · แบบในกราฟ (inline) อยู่ข้างแถบแรกของกลุ่ม */
+function markGroups(items: { m: Mark; a: number; b: number }[], inline?: boolean) {
+  const out: { first: number; n: number; center: number }[] = [];
+  const GAP = 6;
+  let cur: { first: number; n: number; a: number; b: number } | null = null;
+  const box = (g: { first: number; n: number; a: number; b: number }) => {
+    const t = items[g.first].m.text + (g.n > 1 ? ` และอีก ${g.n - 1} จุดใกล้กัน` : "");
+    const w = markLabelW(t);
+    if (inline) return [g.a + 6, g.a + 6 + w];
+    const c = (g.a + g.b) / 2;
+    return [c - w / 2, c + w / 2];
+  };
+  items.forEach((it, i) => {
+    if (cur) {
+      const [, r] = box(cur);
+      const next = { first: i, n: 1, a: it.a, b: it.b };
+      const [l2] = box(next);
+      if (l2 < r + GAP) { cur.n += 1; cur.b = Math.max(cur.b, it.b); return; }
+      out.push({ first: cur.first, n: cur.n, center: (cur.a + cur.b) / 2 });
+    }
+    cur = { first: i, n: 1, a: it.a, b: it.b };
+  });
+  if (cur) { const g = cur as { first: number; n: number; a: number; b: number }; out.push({ first: g.first, n: g.n, center: (g.a + g.b) / 2 }); }
+  return out;
+}
+
 function Marks({ marks, t0, t1, left, right, inline }: { marks: Mark[]; t0: number; t1: number; left: number; right: number; inline?: boolean }) {
   const ref = useRef<HTMLDivElement>(null);
   const [w, setW] = useState(0);
   useLayoutEffect(() => { const p = ref.current?.parentElement; if (p) setW(p.clientWidth); });
   const W = w - left - right;
-  return <div ref={ref} style={{ display: "contents" }}>{W > 0 && marks.filter((m) => m.to > t0 && m.from < t1).map((m, i) => {
-    const a = Math.max(0, (m.from - t0) / (t1 - t0) * W), b = Math.min(W, (m.to - t0) / (t1 - t0) * W);
+  // ป้ายที่อยู่ใกล้กันจนทับกัน รวมเป็นป้ายเดียวของกลุ่ม แถบสีของทุกจุดยังอยู่ครบ
+  // (BUGS ข้อ 147 พี่กันทัก 16 พ.ย. 2569 "มันดูทัยซ้อนกันแปลกๆนะ" ป้ายเงียบทุกช่อง 4.7 กับ 1.0 วินาทีทับกัน)
+  const items = W > 0 ? marks.filter((m) => m.to > t0 && m.from < t1).map((m) => ({ m, a: Math.max(0, (m.from - t0) / (t1 - t0) * W), b: Math.min(W, (m.to - t0) / (t1 - t0) * W) })).sort((x, y) => x.a - y.a) : [];
+  const groups = markGroups(items, inline);
+  return <div ref={ref} style={{ display: "contents" }}>{items.map(({ m, a, b }, i) => {
+    const g = groups.find((x) => x.first === i);
     const near = left + a > w * 0.6;
+    const label = g && (g.n > 1 ? `${m.text} และอีก ${g.n - 1} จุดใกล้กัน` : m.text);
     return (
       <div key={i} className="mark" data-mark style={{ left: left + a, width: Math.max(3, b - a), ...(inline ? { top: 8, bottom: 8 } : {}) }}>
-        <span className="ml" style={inline ? (near ? { top: 0, left: "auto", right: "calc(100% + 6px)", transform: "none" } : { top: 0, left: "calc(100% + 6px)", transform: "none" }) : undefined}>{WARN}{m.text}</span>
+        {label && <span className="ml" data-mark-label style={inline ? (near ? { top: 0, left: "auto", right: "calc(100% + 6px)", transform: "none" } : { top: 0, left: "calc(100% + 6px)", transform: "none" }) : { left: g.center - a }}>{WARN}{label}</span>}
       </div>
     );
   })}</div>;
@@ -694,6 +750,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
   /** ภาพรวมพร้อมไฟล์และแทร็กที่อ่านมา · เปลี่ยนแทร็กแล้วหน้าจอวาดหนึ่งรอบก่อนล้างค่า ช่องของแทร็กใหม่ต้องไม่ไปหยิบข้อมูลแทร็กเก่า (เจอตอนเทส 7 พ.ย. 2569 หน้าว่างทั้งโปรแกรม) */
   const [ovRaw, setOvRaw] = useState<{ key: string; o: GOverview } | null>(null);
   const [progress, setProgress] = useState<number | null>(null);
+  const [readSince, setReadSince] = useState(() => Date.now());
   const [error, setError] = useState<string | null>(null);
   /** กดอ่านใหม่ หรือกดกราฟเสียงเรื่องเดิมซ้ำตอนอ่านไม่สำเร็จ */
   const [nonce, setNonce] = useState(0);
@@ -817,7 +874,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
   useEffect(() => {
     if (!path || !info) return;
     let live = true;
-    setOvRaw(null); setWin(null); setPsd(null); setProgress(0); setError(null);
+    setOvRaw(null); setWin(null); setPsd(null); setProgress(0); setReadSince(Date.now()); setError(null);
     let off: (() => void) | undefined;
     if (inApp) listen<GProgress>("graph-progress", (e) => { if (live && e.payload.path === path && e.payload.track === track) setProgress(e.payload.percent); }).then((u) => { if (live) off = u; else u(); });
     overviewOnce(path, track).then((o) => {
@@ -1282,7 +1339,7 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
         <div className={"agb" + (prefs.wide ? " wide" : "")}>{prefs.wide ? null : panel}
           <div className="plot" data-graphloading>
             <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", gap: 8, marginBottom: 8 }}>
-              <div style={{ fontSize: 13.5 }}>อ่านเสียง {names.length || ""} ช่อง <b>{Math.round(progress ?? 0)}%</b></div>
+              <div style={{ fontSize: 13.5 }}>อ่านเสียง {names.length || ""} ช่อง <b>{Math.round(progress ?? 0)}%</b> <Elapsed since={readSince} /></div>
               <button type="button" className="btn btn-bad btn-sm" onClick={() => graphApi.cancel()}><IbStop size={15} />หยุด</button>
             </div>
             <div className="bar"><i style={{ width: `${progress ?? 0}%` }} /></div>
@@ -1358,12 +1415,13 @@ export default function GraphPage({ req, onConsumed, onBitrate }: { req: GraphRe
             // ทั้งสามแบบ (รูปคลื่น แท่ง เต็มช่อง) ช่องสูงเท่ากัน มีแกนตัวเลขซ้ายเหมือนกัน ช่องคั่นเท่ากัน กรอบกราฟอยู่ตำแหน่งเดียวกันทุกแบบ
             // (พี่กันทัก 11 พ.ย. 2569 "มันไม่เท่ากันเลย" · เดิมแบบแท่งไม่มีแกนตัวเลข แบบเต็มช่องไม่มีช่องคั่น ช่องล่างกับแถบเลื่อนขึ้นไป 6 จุด)
             // แท่งสูงครึ่งละ ดังสุด × ครึ่งช่อง ตรงกับสเกลของแกนตัวเลขอยู่แล้ว
-            if (hidden.includes(c)) return <LaneOff key={c + "off"} code={l.code} th={l.th} peak={peakTxt(c)} height={view === "wave" ? Math.max(laneH, 60) : laneH} />;
+            const tog = { onToggle: () => toggleCh(c), last: vis.length <= 1 };
+            if (hidden.includes(c)) return <LaneOff key={c + "off"} code={l.code} th={l.th} peak={peakTxt(c)} height={view === "wave" ? Math.max(laneH, 60) : laneH} {...tog} />;
             return view === "wave"
-              ? <Lane key={c + view} room code={l.code} th={l.th} peak={peakTxt(c)} height={Math.max(laneH, 60)} deps={[src, t0, t1, th, prefs.style, i, vz, laneH]}
+              ? <Lane key={c + view} room {...tog} code={l.code} th={l.th} peak={peakTxt(c)} height={Math.max(laneH, 60)} deps={[src, t0, t1, th, prefs.style, i, vz, laneH]}
                   draw={(g, w, h) => drawWave(g, w, h, sample(src, i, t0, t1, w), th, prefs.style, vz)}
                   ruler={(g, w, h) => drawAmpRuler(g, w, h, vz)} />
-              : <Lane key={c + view} code={l.code} th={l.th} peak={peakTxt(c)} height={laneH} deps={[src, winNow, heldShown, t0, t1, prefs.cmap, th, i, laneH, sz, sb]}
+              : <Lane key={c + view} {...tog} code={l.code} th={l.th} peak={peakTxt(c)} height={laneH} deps={[src, winNow, heldShown, t0, t1, prefs.cmap, th, i, laneH, sz, sb]}
                   draw={(g, w, h) => drawSpecLane(g, w, h, i, winNow, ov, t0, t1, t?.rate ?? 48000, colors, sz, sb, heldShown)} />;
           })}
           <Marks marks={marks} t0={t0} t1={t1} left={LW} right={0} />
@@ -2440,7 +2498,17 @@ const FILE_INK = [INK_A, INK_B, "#12705a", "#6a3fb5"];
 const TH_A: Theme = { lane: "#f1f7fd", peak: "#a9cdf2", rms: INK_A, dark: "#0b2747", ramp: THEMES["ฟ้า"].ramp };
 const TH_B: Theme = { lane: "#fdf4ef", peak: "#f6c2a8", rms: INK_B, dark: "#3d1406", ramp: THEMES["พีช"].ramp };
 const TH_FILE: Theme[] = [TH_A, TH_B, { lane: "#eef9f5", peak: "#a6dfcd", rms: FILE_INK[2], dark: "#06382c", ramp: THEMES["ฟ้า"].ramp }, { lane: "#f5f0fd", peak: "#cfbdf2", rms: FILE_INK[3], dark: "#2a1450", ramp: THEMES["ม่วง"].ramp }];
-type Side = { info: GInfo | null; ov: GOverview | null; err: string | null; pct: number | null };
+/** เวลาที่ใช้ไปตั้งแต่เริ่มอ่าน เดินทุกวินาที ความกว้างคงที่ ตัวเลขเปลี่ยนแล้วข้อความข้าง ๆ ไม่ขยับ
+ *  (BUGS ข้อ 145 พี่กันสั่ง 16 พ.ย. 2569 "ใส่เวลาที่กำลังวิ่ง% ไว้ด้วย") */
+function Elapsed({ since }: { since: number }) {
+  const [now, setNow] = useState(() => Date.now());
+  useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(id); }, []);
+  const s = Math.max(0, Math.floor((now - since) / 1000));
+  const t = s >= 3600 ? `${Math.floor(s / 3600)}:${String(Math.floor(s / 60) % 60).padStart(2, "0")}:${String(s % 60).padStart(2, "0")}` : `${Math.floor(s / 60)}:${String(s % 60).padStart(2, "0")}`;
+  return <span data-graph-elapsed>ใช้ไป <FixedTime t={t} longest="00:00" /></span>;
+}
+
+type Side = { info: GInfo | null; ov: GOverview | null; err: string | null; pct: number | null; since?: number };
 const EMPTY: Side = { info: null, ov: null, err: null, pct: null };
 
 function Who({ i }: { i: number }) {
@@ -2597,7 +2665,7 @@ export function CompareView({ files, tracks, note, free, onFiles, onSingle, onBa
         if (readDone.current.has(p)) continue;
         try {
           const info = await graphApi.info(p); if (!live) return;
-          patch(p, { info, pct: 0 });
+          patch(p, { info, pct: 0, since: Date.now() });
           const ov = await overviewOnce(p, trOf(p)); if (!live) return;
           patch(p, { ov, pct: null, err: ov ? null : "หยุดอ่านเสียงแล้ว" });
         } catch (e) { if (live) patch(p, { err: String(e), pct: null }); }
@@ -2834,10 +2902,10 @@ export function CompareView({ files, tracks, note, free, onFiles, onSingle, onBa
   if (errAt >= 0) {
     body = <div className="plot"><div className="stat bad"><CardIcon kind="bad" /><div><b>อ่าน{LABELS[errAt]}ไม่ได้</b><Phr>{S[errAt].err ?? ""}</Phr></div></div></div>;
   } else if (!ready) {
-    const at = Math.max(0, S.findIndex((s) => !s.ov)), pct = S[at].pct ?? 0;
+    const at = Math.max(0, S.findIndex((s) => !s.ov)), pct = S[at].pct ?? 0, since = S[at].since;
     body = (
       <div className="plot" data-cmploading>
-        <div style={{ fontSize: 13.5, marginBottom: 8 }}>อ่านเสียง{LABELS[at]} <b>{Math.round(pct)}%</b> อ่านทีละไฟล์ตามลำดับ</div>
+        <div style={{ fontSize: 13.5, marginBottom: 8 }}>อ่านเสียง{LABELS[at]} <b>{Math.round(pct)}%</b>{since != null && <> <Elapsed since={since} /></>} อ่านทีละไฟล์ตามลำดับ</div>
         <div className="bar"><i style={{ width: `${pct}%` }} /></div>
         <LoadLanes n={files.length * 2} />
       </div>
@@ -2886,11 +2954,12 @@ export function CompareView({ files, tracks, note, free, onFiles, onSingle, onBa
         if (i < 0) return [];
         const l = label(names, c), pk = ov.peaks[i], k = "abcd"[f];
         const peak = pk == null ? "" : pk <= -119 ? "เงียบทั้งไฟล์" : "ดังสุด " + pkTxt(pk);
-        if (hidden.includes(c)) return [<LaneOff key={c + k + "off"} code={l.code} th={`${l.th} ${LABELS[f]}`} peak={peak} height={laneH} />];
+        const tog = { onToggle: () => toggleCh(c), last: vis.length <= 1 };
+        if (hidden.includes(c)) return [<LaneOff key={c + k + "off"} code={l.code} th={`${l.th} ${LABELS[f]}`} peak={peak} height={laneH} {...tog} />];
         return [tab === "wave"
-          ? <Lane key={c + k + tab} code={l.code} th={`${l.th} ${LABELS[f]}`} peak={peak} height={laneH} deps={[ov, t0, t1, i, laneH, vz, f, hiC[files[f]]]}
+          ? <Lane key={c + k + tab} {...tog} code={l.code} th={`${l.th} ${LABELS[f]}`} peak={peak} height={laneH} deps={[ov, t0, t1, i, laneH, vz, f, hiC[files[f]]]}
               draw={(g, w, h) => { const hi = hiC[files[f]]; drawWave(g, w, h, sample(hi ? { env: hi.env, cols: hi.cols, t0: hi.t0, t1: hi.t1 } : { env: ov.env, cols: ov.cols, t0: 0, t1: ov.duration }, i, t0, t1, w), TH_FILE[f], "fine", vz); }} />
-          : <Lane key={c + k + tab} code={l.code} th={`${l.th} ${LABELS[f]}`} peak={peak} height={laneH} deps={[ov, t0, t1, i, laneH, maxNyq, vrSpec.z, vrSpec.b, hiC[files[f]]]}
+          : <Lane key={c + k + tab} {...tog} code={l.code} th={`${l.th} ${LABELS[f]}`} peak={peak} height={laneH} deps={[ov, t0, t1, i, laneH, maxNyq, vrSpec.z, vrSpec.b, hiC[files[f]]]}
               draw={(g, w, h) => drawSpecCmp(g, w, h, i, ov, t0, t1, nyq[f], maxNyq, colors, vrSpec.z, vrSpec.b, hiC[files[f]])} />];
       }));
       const pks = OV.map((ov) => Math.max(...ov.peaks));
