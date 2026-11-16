@@ -213,7 +213,7 @@ mod heif {
         let wide: Vec<u16> = OsStr::new(p.as_os_str()).encode_wide().chain(std::iter::once(0)).collect();
         // หาไฟล์ที่ heif.dll ต้องใช้ในโฟลเดอร์เดียวกันก่อน
         let h = unsafe { LoadLibraryExW(wide.as_ptr(), null_mut(), LOAD_WITH_ALTERED_SEARCH_PATH) };
-        if h.is_null() { return Err(format!("เปิด heif.dll ไม่ได้ (รหัส {})", std::io::Error::last_os_error().raw_os_error().unwrap_or(0))); }
+        if h.is_null() { return Err(format!("เปิด heif.dll ไม่ได้ {}", crate::tools::dll_reason("heif.dll"))); }
         let need = |n: &str| -> Result<*const (), String> {
             let z = format!("{n}\0");
             unsafe { GetProcAddress(h, z.as_ptr()) }.map(|f| f as *const ()).ok_or_else(|| format!("heif.dll ไม่มีคำสั่ง {n}"))
@@ -242,7 +242,22 @@ mod heif {
     fn check(e: HeifError, what: &str) -> Result<(), String> {
         if e.code == 0 { return Ok(()); }
         let msg = if e.message.is_null() { String::new() } else { unsafe { CStr::from_ptr(e.message) }.to_string_lossy().into_owned() };
-        Err(format!("{what} ไม่สำเร็จ: {msg} (รหัส {}.{})", e.code, e.subcode))
+        Err(heif_fail(what, e.code, &msg))
+    }
+
+    /// รหัสของ libheif เป็นประโยคไทย (BUGS ข้อ 150) เดิมขึ้น "(รหัส 2.100)" · ตาราง heif_error_code จาก heif_error.h ใน libheif 1.23.7 (vendor/heif) · ข้อความของ libheif ไว้ท้ายในวงเล็บ
+    pub(super) fn heif_fail(what: &str, code: c_int, msg: &str) -> String {
+        let why = match code {
+            1 => "หาไฟล์ต้นทางไม่เจอ",
+            2 => "ข้อมูลภาพผิดรูปแบบ",
+            3 | 4 => "libheif ไม่รองรับชนิดหรือความสามารถนี้",
+            6 => "หน่วยความจำของเครื่องไม่พอ",
+            7 | 8 | 11 => "ตัวแปลงภาพของ libheif ทำงานไม่ได้ ลองติดตั้งโปรแกรมใหม่",
+            9 => "บีบภาพเป็น HEIC ไม่สำเร็จ",
+            12 => "งานถูกยกเลิก",
+            _ => "libheif ตอบว่าทำไม่ได้",
+        };
+        if msg.is_empty() { format!("{what} ไม่สำเร็จ {why}") } else { format!("{what} ไม่สำเร็จ {why} ({msg})") }
     }
 
     unsafe extern "C" fn collect(_ctx: *mut c_void, data: *const c_void, size: usize, out: *mut c_void) -> HeifError {
@@ -310,6 +325,14 @@ pub async fn graph_save_image(app: tauri::AppHandle, path: String, b64: String, 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// รหัสของ libheif เป็นประโยคไทย ไม่ขึ้นแค่รหัส ข้อความของ libheif อยู่ท้ายในวงเล็บ (BUGS ข้อ 150)
+    #[test]
+    fn heif_errors_in_thai() {
+        assert_eq!(heif::heif_fail("บันทึกรูป", 9, "Encoder plugin generated an error"), "บันทึกรูป ไม่สำเร็จ บีบภาพเป็น HEIC ไม่สำเร็จ (Encoder plugin generated an error)");
+        assert_eq!(heif::heif_fail("บันทึกรูป", 6, ""), "บันทึกรูป ไม่สำเร็จ หน่วยความจำของเครื่องไม่พอ");
+        for c in 1..=13 { assert!(!heif::heif_fail("x", c, "").contains("รหัส"), "{c}"); }
+    }
 
     fn sample_png() -> Vec<u8> {
         let img = image::RgbImage::from_fn(32, 16, |x, y| image::Rgb([(x * 7) as u8, (y * 15) as u8, 90]));

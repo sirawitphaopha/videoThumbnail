@@ -116,6 +116,141 @@ pub fn exit_text(status: &ExitStatus) -> String {
     status.code().map_or("ไม่มีรหัส (โดนปิดกลางคัน)".to_string(), |c| c.to_string())
 }
 
+/// เครื่องมือทำไม่สำเร็จ (BUGS ข้อ 150 พี่กันสั่ง "เขียนเป็นภาษาคนด้วยว่ามันจากสาเหตุอะไร ไม่ใช่เเค่บอกว่าไม่สำเร็จ")
+/// why ประโยคไทยบอกสาเหตุ · detail บรรทัดสุดท้ายที่เครื่องมือพิมพ์ หน้าจอใส่ในปุ่ม ⓘ · known เป็นเท็จเมื่อแปลสาเหตุไม่ได้
+#[derive(Debug, Clone, Default, PartialEq)]
+pub struct ToolFail {
+    pub why: String,
+    pub detail: Option<String>,
+    pub known: bool,
+}
+
+impl From<String> for ToolFail {
+    fn from(why: String) -> Self {
+        ToolFail { why, detail: None, known: true }
+    }
+}
+
+impl From<&str> for ToolFail {
+    fn from(why: &str) -> Self {
+        why.to_string().into()
+    }
+}
+
+impl ToolFail {
+    /// ข้อความบรรทัดเดียวสำหรับจุดที่ไม่มีปุ่ม ⓘ · แปลไม่ได้ต่อท้ายข้อความของเครื่องมือในวงเล็บ
+    pub fn line(&self) -> String {
+        match (&self.detail, self.known) {
+            (Some(d), false) => format!("{} ({d})", self.why),
+            _ => self.why.clone(),
+        }
+    }
+}
+
+/// บรรทัดที่เครื่องมือพิมพ์ ไม่นับความคืบหน้า · ตัดป้าย #GUI#error #GUI#warning ของ MKVToolNix แบบ --gui-mode และคำนำหน้า Error: Warning: ออก
+pub fn tool_lines(text: &str) -> Vec<String> {
+    text.split(['\n', '\r'])
+        .flat_map(|l| l.split("Progress: "))
+        .map(str::trim)
+        .filter(|l| !l.is_empty() && !l.starts_with("#GUI#progress") && !l.starts_with("#GUI#begin_scanning") && !l.starts_with("#GUI#end_scanning") && !l.trim_end_matches('%').chars().all(|c| c.is_ascii_digit()))
+        .map(|l| {
+            let l = l.strip_prefix("#GUI#error ").or_else(|| l.strip_prefix("#GUI#warning ")).unwrap_or(l);
+            let l = l.strip_prefix("Error: ").or_else(|| l.strip_prefix("Warning: ")).unwrap_or(l);
+            l.trim().to_string()
+        })
+        .filter(|l| !l.is_empty())
+        .collect()
+}
+
+/// ที่อยู่ไฟล์ในข้อความของเครื่องมือเหลือแค่ชื่อไฟล์ · ที่อยู่ยาวตัดบรรทัดไม่ได้ กล่อง ⓘ กระจายตัวอักษรจนถ่าง (เจอ 16 พ.ย. 2569)
+/// ในเครื่องหมาย ' ' แบบ mkvextract กับคำที่ขึ้นต้นด้วยไดรฟ์แบบ ffmpeg
+pub fn short_paths(line: &str) -> String {
+    let base = |p: &str| p.rsplit(['/', '\\']).next().unwrap_or(p).to_string();
+    let is_path = |p: &str| p.len() > 3 && p.as_bytes()[1] == b':' && matches!(p.as_bytes()[2], b'/' | b'\\');
+    let quoted: Vec<String> = line.split('\'').enumerate().map(|(i, s)| if i % 2 == 1 && (s.contains('/') || s.contains('\\')) { base(s) } else { s.to_string() }).collect();
+    quoted.join("'").split(' ').map(|w| { let t = w.trim_end_matches([':', '.', ',']); if is_path(t) { format!("{}{}", base(t), &w[t.len()..]) } else { w.to_string() } }).collect::<Vec<_>>().join(" ")
+}
+
+/// แปลสาเหตุที่ mkvextract mkvmerge ffmpeg ffprobe ทำไม่สำเร็จเป็นประโยคไทย จากข้อความที่มันพิมพ์ (BUGS ข้อ 150)
+/// status None = เครื่องมือจบปกติแต่ไม่ได้ไฟล์ที่ควรได้ · เดิมขึ้นแค่รหัส เช่น "แยกไม่สำเร็จ (รหัส 0)" ซึ่งขัดกันเอง เพราะรหัส 0 แปลว่าจบปกติ
+pub fn explain_fail(tool: &str, lines: &[String], status: Option<&ExitStatus>) -> ToolFail {
+    let all = lines.join("\n").to_lowercase();
+    let has = |keys: &[&str]| keys.iter().any(|k| all.contains(k));
+    let detail = lines.last().map(|l| short_paths(l)).or_else(|| status.map(|s| format!("{tool} ตอบรหัส {}", exit_text(s))));
+    let known = |why: String| ToolFail { why, detail: detail.clone(), known: true };
+    if has(&["no space left", "not enough space", "disk full", "disk is full", "enospc"]) {
+        return known("พื้นที่ในไดรฟ์ที่เก็บเต็ม ลบไฟล์ที่ไม่ใช้หรือเปลี่ยนที่เก็บ แล้วลองใหม่".into());
+    }
+    if has(&["permission denied", "access is denied", "access denied", "operation not permitted"]) {
+        return known("Windows ไม่ให้เขียนไฟล์ลงที่เก็บนี้ ซึ่งโฟลเดอร์อาจตั้งเป็นอ่านอย่างเดียว หรือโปรแกรมอื่นถือไฟล์ไว้ ลองเปลี่ยนที่เก็บ".into());
+    }
+    if has(&["device is not ready", "network name is no longer available", "network path was not found", "input/output error", "i/o error", "semaphore timeout", "device does not recognize", "write protected", "cyclic redundancy"]) {
+        return known("อ่านหรือเขียนไดรฟ์ไม่ได้กลางคัน ไดรฟ์อาจหลุดหรือถูกถอดออก เสียบให้แน่นแล้วลองใหม่".into());
+    }
+    if has(&["filename too long", "file name too long", "path too long", "name is too long"]) {
+        return known("ที่อยู่ไฟล์ยาวเกินที่ Windows รับ เปลี่ยนที่เก็บเป็นโฟลเดอร์ที่สั้นกว่า แล้วลองใหม่".into());
+    }
+    if has(&["out of memory", "cannot allocate memory", "bad_alloc", "not enough memory"]) {
+        return known("หน่วยความจำของเครื่องไม่พอ ปิดโปรแกรมอื่นแล้วลองใหม่".into());
+    }
+    if has(&["no track with the id", "matches no streams"]) {
+        return known("ไม่เจอแทร็กนี้ในไฟล์ ไฟล์อาจถูกแก้หลังจากที่เปิดอ่าน ลองเปิดไฟล์ใหม่อีกครั้ง".into());
+    }
+    if has(&["not supported", "unsupported", "could not find tag for codec", "not currently supported in container", "unable to choose an output format", "not a suitable output format", "unknown codec"]) {
+        return known(format!("แทร็กนี้เป็นชนิดที่ {tool} แยกออกเป็นไฟล์แบบนี้ไม่ได้"));
+    }
+    // ข้อความจริง mkvextract "Failed to create the file '…': 0 (create_directory() failed)" · ffmpeg "Error opening output files: No such file or directory"
+    if has(&["failed to create the file", "create_directory", "could not be opened for writing", "could not open output", "error opening output", "open file error"]) {
+        return known("เปิดไฟล์ปลายทางเพื่อเขียนไม่ได้ โฟลเดอร์ที่เก็บอาจหายไปหรือเขียนไม่ได้ หรือโปรแกรมอื่นเปิดไฟล์ชื่อนี้อยู่".into());
+    }
+    if has(&["end of file", "invalid data found", "exceeds containing master element", "error in the matroska", "ebml", "truncat", "corrupt", "moov atom not found", "premature", "unexpected end", "error while decoding"]) {
+        return known("ไฟล์หนังเสียหรือดาวน์โหลดมาไม่ครบ ข้อมูลบางช่วงในไฟล์ขาดหรือผิดรูปแบบ".into());
+    }
+    if has(&["no such file or directory", "could not be found", "cannot find the file", "cannot find the path"]) {
+        return known("หาไฟล์หนังหรือโฟลเดอร์ที่เก็บไม่เจอ ไฟล์อาจถูกย้าย ถูกลบ หรือไดรฟ์ถูกถอดออก".into());
+    }
+    match status {
+        None => known(format!("{tool} ทำงานจบแล้วแต่ไม่ได้ไฟล์ออกมา")),
+        // Windows ให้รหัสเสมอ โปรแกรมที่พังหรือโดนปิดได้รหัสแบบ 0xC0000005 0xC000013A
+        Some(s) if s.code().is_none_or(|c| (c as u32) >= 0xC000_0000) => known(format!("{tool} พังหรือถูกปิดกลางคัน เช่น โดนโปรแกรมป้องกันไวรัสหยุด หรือหน่วยความจำของเครื่องไม่พอ")),
+        Some(_) => ToolFail { why: format!("{tool} หยุดเพราะเจอปัญหาที่โปรแกรมแปลเป็นภาษาไทยไม่ได้"), detail, known: false },
+    }
+}
+
+/// สาเหตุเป็นประโยคไทยจากผลของเครื่องมือที่รันจบแล้ว (stdout กับ stderr) · made = ได้ไฟล์ที่ควรได้ไหม จบปกติแต่ไม่ได้ไฟล์บอกตรง ๆ (BUGS ข้อ 150)
+pub fn output_fail(tool: &str, out: &Output, made: bool) -> String {
+    let mut lines = tool_lines(&String::from_utf8_lossy(&out.stdout));
+    lines.extend(tool_lines(&String::from_utf8_lossy(&out.stderr)));
+    let status = if tool_succeeded(tool, &out.status) && !made { None } else { Some(&out.status) };
+    explain_fail(tool, &lines, status).line()
+}
+
+/// รหัสของ Windows เป็นประโยคไทย (BUGS ข้อ 150) · รหัสที่ไม่รู้จักใช้ข้อความของ Windows เอง
+pub fn win_reason(code: i32) -> String {
+    match code {
+        2 | 3 => "หาไฟล์หรือโฟลเดอร์ไม่เจอ ไดรฟ์อาจถูกถอดออก หรือไฟล์ถูกย้ายไปแล้ว".into(),
+        5 => "Windows ไม่อนุญาต ไฟล์อาจตั้งเป็นอ่านอย่างเดียว หรือโปรแกรมอื่นถือไฟล์ไว้".into(),
+        19 => "ไดรฟ์นี้กันเขียนอยู่".into(),
+        21 => "ไดรฟ์ยังไม่พร้อม อาจถูกถอดออกหรือหลุด".into(),
+        23 | 1117 => "อ่านหรือเขียนไดรฟ์ไม่ได้ ไดรฟ์อาจหลุดหรือเสีย".into(),
+        32 | 33 => "ไฟล์ถูกเปิดอยู่ในโปรแกรมอื่น ปิดโปรแกรมนั้นก่อน".into(),
+        39 | 112 => "พื้นที่ในไดรฟ์เต็ม".into(),
+        206 => "ชื่อหรือที่อยู่ไฟล์ยาวเกินที่ Windows รับ".into(),
+        c => format!("Windows ตอบว่า {}", std::io::Error::from_raw_os_error(c)),
+    }
+}
+
+/// เปิดไฟล์ DLL ที่แนบมาไม่ได้ เป็นประโยคไทยจากรหัสของ Windows ล่าสุด (BUGS ข้อ 150) · เรียกต่อจาก LoadLibrary ทันที
+pub fn dll_reason(name: &str) -> String {
+    match std::io::Error::last_os_error().raw_os_error().unwrap_or(0) {
+        126 => format!("Windows หาไฟล์ {name} หรือไฟล์ที่มันต้องใช้ไม่เจอ ลองติดตั้งโปรแกรมใหม่"),
+        193 => format!("ไฟล์ {name} เสียหรือเป็นรุ่นที่ใช้กับเครื่องนี้ไม่ได้ ลองติดตั้งโปรแกรมใหม่"),
+        5 => format!("Windows ไม่ให้เปิดไฟล์ {name} ซึ่งโปรแกรมป้องกันไวรัสอาจกันไว้"),
+        1114 => format!("ไฟล์ {name} เริ่มทำงานไม่ได้ ลองติดตั้งโปรแกรมใหม่"),
+        c => format!("{} ลองติดตั้งโปรแกรมใหม่", win_reason(c)),
+    }
+}
+
 /// บรรทัดแรกที่ไม่ว่างของผลลัพธ์
 fn first_line(bytes: &[u8]) -> String {
     String::from_utf8_lossy(bytes)
@@ -154,7 +289,7 @@ pub fn check_all(dir: &Path) -> Vec<ToolCheck> {
             Ok(out) => ToolCheck {
                 name: name.to_string(),
                 ok: false,
-                version: format!("ตอบรหัส {} {}", exit_text(&out.status), first_line(&out.stderr)),
+                version: output_fail(name, &out, true),
             },
             Err(e) => ToolCheck { name: name.to_string(), ok: false, version: e },
         })
@@ -195,6 +330,28 @@ mod tests {
 
     fn dev_tools_dir() -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tools")
+    }
+
+    /// รหัสของ Windows กับผลของเครื่องมือเป็นประโยคไทย ไม่มีแค่รหัส (BUGS ข้อ 150)
+    #[test]
+    fn reasons_in_thai() {
+        assert!(win_reason(32).contains("ถูกเปิดอยู่ในโปรแกรมอื่น"));
+        assert!(win_reason(112).contains("พื้นที่ในไดรฟ์เต็ม"));
+        assert!(win_reason(2).starts_with("หาไฟล์หรือโฟลเดอร์ไม่เจอ"));
+        assert!(win_reason(1392).starts_with("Windows ตอบว่า") && !win_reason(1392).contains("(รหัส"), "{}", win_reason(1392));
+        // ffprobe เปิดไฟล์ที่ไม่มีจริง ได้สาเหตุภาษาไทย
+        let out = run_tool(&dev_tools_dir(), "ffprobe", [OsStr::new("-v"), OsStr::new("error"), OsStr::new(r"D:\ไม่มีไฟล์นี้จริง\x.mkv")]).unwrap();
+        let s = output_fail("ffprobe", &out, true);
+        assert!(s.starts_with("หาไฟล์หนังหรือโฟลเดอร์ที่เก็บไม่เจอ") && !s.contains("รหัส"), "{s}");
+        // จบปกติแต่ไม่ได้ไฟล์ บอกตรง ๆ ไม่บอกรหัส 0
+        let ok = Output { status: { use std::os::windows::process::ExitStatusExt; ExitStatus::from_raw(0) }, stdout: vec![], stderr: vec![] };
+        assert_eq!(output_fail("ffprobe", &ok, false), "ffprobe ทำงานจบแล้วแต่ไม่ได้ไฟล์ออกมา");
+        // เปิด DLL ที่ไม่มีจริง Windows ตอบ 126 ได้ประโยคไทย
+        let w: Vec<u16> = std::os::windows::ffi::OsStrExt::encode_wide(OsStr::new(r"D:\ไม่มีไฟล์นี้จริง\x.dll")).chain(Some(0)).collect();
+        let h = unsafe { windows_sys::Win32::System::LibraryLoader::LoadLibraryW(w.as_ptr()) };
+        assert!(h.is_null());
+        let s = dll_reason("x.dll");
+        assert!(s.starts_with("Windows หาไฟล์ x.dll หรือไฟล์ที่มันต้องใช้ไม่เจอ") && !s.contains("รหัส"), "{s}");
     }
 
     /// ไฟล์ทดสอบชื่อไทย · ไม่มีไฟล์ = เทสล้มพร้อมบอกวิธีสร้าง ห้ามผ่านเงียบ ๆ (ผลตรวจขั้น 0 โค้ดข้อ 3)

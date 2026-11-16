@@ -195,6 +195,8 @@
 .infotip .tiph { display: flex; align-items: center; justify-content: space-between; gap: 8px; margin-bottom: 2px; }
 .infotip .tiph b { font-size: 14.5px; color: var(--accent-ink); }
 .infotip .tw { margin: 0 0 6px; color: var(--txt2); }
+/* ข้อความดิบของเครื่องมือ (ปุ่ม ⓘ ข้างการ์ดไม่สำเร็จ) ชิดซ้าย ชื่อไฟล์ยาวตัดได้ทุกตัว ไม่กระจายจนถ่าง (BUGS ข้อ 150) */
+.infotip.plain .tw { text-align: left; text-justify: auto; overflow-wrap: anywhere; }
 .infotip .tw, .infotip .tp > div, .infotip .tc > div, .infotip .tr, .infotip .to { text-wrap: pretty; }
 .infotip .to { padding: 6px 0 4px; border-top: 1px dashed #f4d8e1; }
 .infotip .tp, .infotip .tc { display: flex; gap: 6px; align-items: baseline; margin-top: 3px; }

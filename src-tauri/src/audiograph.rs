@@ -20,7 +20,7 @@ use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Emitter, Manager};
 
 use crate::jobs::Jobs;
-use crate::tools::{exit_text, run_tool_timeout, tool_succeeded, tools_dir};
+use crate::tools::{run_tool_timeout, tool_succeeded, tools_dir};
 
 /// ชื่อช่องตามลำดับที่ ffmpeg ถอดออกมา (ลำดับมาตรฐานของ ffmpeg ต่อแบบช่องเสียง)
 pub fn layout_names(layout: &str, n: usize) -> Vec<String> {
@@ -146,8 +146,8 @@ pub fn info(tools: &Path, path: &Path) -> Result<GInfo, String> {
         OsStr::new("-show_format"), OsStr::new("-show_streams"), path.as_os_str(),
     ], Duration::from_secs(60))?;
     if !tool_succeeded("ffprobe", &out.status) {
-        let msg = String::from_utf8_lossy(&out.stderr);
-        return Err(format!("อ่านไฟล์ไม่ได้ (รหัส {}) {}", exit_text(&out.status), msg.lines().last().unwrap_or("").trim()));
+        // สาเหตุเป็นประโยคไทย ไม่ใช่แค่รหัส (BUGS ข้อ 150)
+        return Err(format!("อ่านไฟล์ไม่ได้ {}", crate::tools::output_fail("ffprobe", &out, true)));
     }
     let j: Value = serde_json::from_slice(&out.stdout).map_err(|e| format!("อ่านผลของ ffprobe ไม่ได้: {e}"))?;
     let g = parse_info(&j);
@@ -525,7 +525,7 @@ fn decode(tools: &Path, path: &Path, track: usize, ch: usize, start: Option<f64>
     if stopped { return Ok(None); }
     let run = std::mem::replace(&mut *state.lock().unwrap(), Run { tail: Vec::new(), loud: Vec::new(), integrated: None, lra: None, true_peak: None });
     if !tool_succeeded("ffmpeg", &status) && run.loud.is_empty() {
-        return Err(format!("ffmpeg อ่านเสียงไม่ได้  {}", run.tail.last().cloned().unwrap_or_else(|| format!("รหัส {}", exit_text(&status)))));
+        return Err(format!("ffmpeg อ่านเสียงไม่ได้  {}", crate::tools::explain_fail("ffmpeg", &crate::tools::tool_lines(&run.tail.join("\n")), Some(&status)).line()));
     }
     Ok(Some(run))
 }

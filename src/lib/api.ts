@@ -531,7 +531,11 @@ export type ExtractItem = { kind: string; nth: number; ext: string; lang: string
 /** ไฟล์ MKV มีแท็กกับ chapter ไหม และดีเลย์ของแทร็กเสียงแต่ละแทร็ก มิลลิวินาที (extract.rs info_of) */
 export type ExtractInfo = { mkv: boolean; tags: boolean; chapters: boolean; delays: number[] };
 /** notes เรื่องที่ควรรู้ เช่น ตัดชื่อให้สั้นลงเพราะที่อยู่ยาวเกินที่ Windows รับ */
-export type ExtractResult = { folder: string; states: string[]; files: (string | null)[]; error: string | null; notes?: string[] };
+export type ExtractResult = { folder: string; states: string[]; files: (string | null)[]; error: string | null; notes?: string[];
+  /** ไฟล์ที่สองของชิ้นเดียวกัน ซับ VobSub ได้ .idx ใน files กับ .sub ในช่องนี้ (BUGS ข้อ 150) */
+  pair?: (string | null)[];
+  /** บรรทัดสุดท้ายที่เครื่องมือพิมพ์ตอนหยุด ใส่ในปุ่ม ⓘ ข้างข้อความไม่สำเร็จ (BUGS ข้อ 150) */
+  detail?: string | null };
 /** หนึ่งชั้นในโครงสร้างไฟล์ MKV (mkvtree.rs · BUGS ข้อ 131) · แถวสรุปไม่มี id */
 export type MkvNode = { name: string; id: string; pos: number; size: number | null; value: string | null; kids: MkvNode[] };
 export const infoApi = {

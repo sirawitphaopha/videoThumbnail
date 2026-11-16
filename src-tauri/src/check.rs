@@ -478,7 +478,8 @@ fn rough_pass(tools: &Path, path: &Path, total: Option<f64>, on: &dyn Fn(f64), s
     let _ = reader.join();
     let (rough, tail) = std::mem::take(&mut *state.lock().unwrap());
     if !rough.progressed || (rough.last <= 0.0 && !crate::tools::tool_succeeded("ffmpeg", &status)) {
-        let why = tail.back().cloned().unwrap_or_else(|| format!("รหัส {}", crate::tools::exit_text(&status)));
+        // สาเหตุเป็นประโยคไทย ไม่ใช่แค่รหัส (BUGS ข้อ 150)
+        let why = crate::tools::explain_fail("ffmpeg", &crate::tools::tool_lines(&tail.iter().cloned().collect::<Vec<_>>().join("\n")), Some(&status)).line();
         return Err(format!("ffmpeg อ่านภาพเสียงในไฟล์ไม่ได้เลย  {why}"));
     }
     Ok(Some(rough))

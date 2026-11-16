@@ -64,6 +64,8 @@ export default function ExtractCard({ path, picks, busy, srcSize, pattern, batch
     run(conflicts.map((i) => xRun.items[i]), conflicts.map((i) => xRun.labels[i]), conflicts.map(() => how));
   };
   const done = xRun?.result ? xRun.result.states.filter((s) => s === "done").length : 0;
+  // ไฟล์ที่ได้จริงทุกไฟล์ ซับ VobSub ชิ้นเดียวได้สองไฟล์ .idx กับ .sub (BUGS ข้อ 150)
+  const doneFiles = xRun?.result ? xRun.result.states.flatMap((s, i) => s === "done" ? [xRun.result!.files[i], xRun.result!.pair?.[i]].filter((f): f is string => !!f) : []) : [];
   // ลองใหม่แยกเฉพาะชิ้นที่ยังไม่เสร็จ · เดิมแยกทุกชิ้นซ้ำ ชิ้นที่เสร็จแล้วชนชื่อไฟล์ของตัวเอง (พี่กันเจอ 15 พ.ย. 2569 "เเล้วพอเป็นแบบนี้ ทำอะไรไม่ได้เลย")
   const retry = (dest?: string) => {
     if (!xRun?.result) return;
@@ -95,9 +97,11 @@ export default function ExtractCard({ path, picks, busy, srcSize, pattern, batch
       let row: { file: string; text: string; ok: boolean };
       try {
         const r = await infoApi.extract(f, null, batchItems, batchItems.map(() => "number"), pattern, true);
-        const ok = r.states.filter((s) => s === "done").length, miss = r.states.filter((s) => s === "missing").length;
+        // ซับ VobSub ชิ้นเดียวได้สองไฟล์ นับไฟล์ที่ได้จริง (BUGS ข้อ 150)
+        const ok = r.states.reduce((n, s, i) => n + (s === "done" ? (r.pair?.[i] ? 2 : 1) : 0), 0), miss = r.states.filter((s) => s === "missing").length;
         if (r.states.includes("cancelled")) { stopBatch.current = true; row = { file: f, text: "หยุดแล้ว", ok: false }; }
-        else if (r.error) row = { file: f, text: r.error.split("  ")[0], ok: false };
+        // แถวของแต่ละไฟล์บอกสาเหตุด้วย ไม่ใช่แค่ว่าไม่สำเร็จ (BUGS ข้อ 150)
+        else if (r.error) row = { file: f, text: r.error.split("  ").slice(0, 2).join(" "), ok: false };
         else row = { file: f, text: `แยกแล้ว ${ok} ไฟล์${miss ? ` และไฟล์นี้ไม่มี ${miss} อย่าง` : ""}`, ok: true };
       } catch (e) { row = { file: f, text: String(e), ok: false }; }
       setBatch((b) => b && { ...b, rows: [...b.rows, row] });
@@ -168,7 +172,10 @@ export default function ExtractCard({ path, picks, busy, srcSize, pattern, batch
           )}
           {xRun.result?.error && (
             <>
-              <div className="stat bad"><CardIcon kind="bad" /><div>{xRun.result.error.split(/ · |  /).map((l, i) => i === 0 ? <b key={i}>{l}</b> : <div key={i}><Phr>{l}</Phr></div>)}</div></div>
+              {/* ข้อความจากเครื่องมือ (mkvextract ffmpeg) อยู่ในปุ่ม ⓘ ข้างหัวข้อ ประโยคบนการ์ดเป็นสาเหตุภาษาไทยที่แปลแล้ว (BUGS ข้อ 150) */}
+              <div className="stat bad" data-extract-error><CardIcon kind="bad" /><div>{xRun.result.error.split(/ · |  /).map((l, i) => i === 0
+                ? <b key={i}>{l}{xRun.result!.detail && <InfoTip title="ข้อความจากเครื่องมือ" tip={{ w: `บรรทัดสุดท้ายที่เครื่องมือพิมพ์ไว้ตอนหยุด\n${xRun.result!.detail}` }} noAbbr plain />}</b>
+                : <div key={i}><Phr>{l}</Phr></div>)}</div></div>
               {/* ไม่สำเร็จแล้วเปลี่ยนที่เก็บได้ทันที ไม่ต้องย้อนกลับไปหน้าแรก (พี่กันทัก 15 พ.ย. 2569 "ไม่สำเร็จก็ไม่มีปุ่มให้เปลี่ยนชื่อเลยเหรอ") */}
               <div className="minirow" style={{ marginTop: 0 }}>
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => retry()} data-extract-retry><IcRefresh size={15} />ลองใหม่</button>
@@ -181,7 +188,7 @@ export default function ExtractCard({ path, picks, busy, srcSize, pattern, batch
           {xRun.result && !xRun.result.error && conflicts.length === 0 && (
             <>
               {(xRun.result.notes?.length ?? 0) > 0 && <div className="stat warn" data-extract-notes><CardIcon kind="warn" /><div><b>ตัดชื่อไฟล์ให้สั้นลง</b>{xRun.result.notes!.map((n, i) => <div key={i} style={{ overflowWrap: "anywhere" }}>{n}</div>)}</div></div>}
-              {done > 0 && <div className="stat ok"><CardIcon kind="done" /><div><b>แยกครบ {done} ไฟล์</b>{xRun.result.files.filter((f, i) => f && xRun.result!.states[i] === "done").map((f, i) => <div key={i} style={{ overflowWrap: "anywhere" }}>{f!.split(/[\\/]/).pop()}</div>)}</div></div>}
+              {done > 0 && <div className="stat ok"><CardIcon kind="done" /><div><b>แยกครบ {doneFiles.length} ไฟล์</b>{doneFiles.map((f, i) => <div key={i} style={{ overflowWrap: "anywhere" }}>{f.split(/[\\/]/).pop()}</div>)}</div></div>}
               <div className="minirow" style={{ marginTop: 0 }}>
                 {done > 0 && <button type="button" className="btn btn-ok btn-sm" onClick={() => { const f = xRun.result!.files.find((f, i) => f && xRun.result!.states[i] === "done"); if (f) api.revealMovie(f).catch(() => {}); }}><IcFolder size={15} />เปิดโฟลเดอร์ที่เก็บ</button>}
                 <button type="button" className="btn btn-ghost btn-sm" onClick={() => setXRun(null)}><IbNext size={15} />แยกอย่างอื่นต่อ</button>

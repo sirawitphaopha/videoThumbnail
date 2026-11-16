@@ -119,7 +119,7 @@ fn load_lib(dir: &Path) -> Result<windows_sys::Win32::Foundation::HMODULE, Strin
     let p = dir.join("MACDll64.dll");
     if !p.exists() { return Err("ไม่มี MACDll64.dll ในโฟลเดอร์เครื่องมือ".into()); }
     let h = unsafe { LoadLibraryExW(wide(p.as_os_str()).as_ptr(), std::ptr::null_mut(), LOAD_WITH_ALTERED_SEARCH_PATH) };
-    if h.is_null() { return Err(format!("เปิด MACDll64.dll ไม่ได้ (รหัส {})", std::io::Error::last_os_error().raw_os_error().unwrap_or(0))); }
+    if h.is_null() { return Err(format!("เปิด MACDll64.dll ไม่ได้ {}", crate::tools::dll_reason("MACDll64.dll"))); }
     Ok(h)
 }
 
@@ -239,15 +239,20 @@ pub fn run(dir: &Path, ff_dir: &Path, plan: &Plan, total_secs: Option<f64>, stop
         Err(e) => {
             kill(&mut ff);
             let msg = reader.join().unwrap_or_default();
-            let first = msg.lines().find(|l| !l.trim().is_empty()).unwrap_or("").chars().take(160).collect::<String>();
-            return Ok(Done::Failed(if first.is_empty() { e } else { format!("ffmpeg ถอดเสียงไม่สำเร็จ {first}") }));
+            // สาเหตุเป็นประโยคไทยจากข้อความของ ffmpeg (BUGS ข้อ 150)
+            let lines = crate::tools::tool_lines(&msg);
+            if lines.is_empty() { return Ok(Done::Failed(e)); }
+            let f = crate::tools::explain_fail("ffmpeg", &lines, None);
+            // ยังไม่จบงาน คำว่าจบแล้วแต่ไม่ได้ไฟล์ไม่ตรง ใช้ข้อความของ ffmpeg แทน
+            let why = if f.why.ends_with("ไม่ได้ไฟล์ออกมา") { format!("ซึ่งโปรแกรมแปลสาเหตุเป็นภาษาไทยไม่ได้ ({})", crate::tools::short_paths(lines.last().unwrap())) } else { f.why };
+            return Ok(Done::Failed(format!("ffmpeg ถอดเสียงไม่สำเร็จ {why}")));
         }
     };
     let align = ch as usize * bits as usize / 8;
     let wf = WaveFormatEx { tag: 1, channels: ch, rate, avg_bytes: rate * align as u32, block_align: align as u16, bits, cb_size: 0 };
     let mut code = 0i32;
     let h = unsafe { (mac.create)(&mut code) };
-    if h.is_null() { kill(&mut ff); return Ok(Done::Failed(format!("สร้างตัวบีบ Monkey's Audio ไม่ได้ (รหัส {code})"))); }
+    if h.is_null() { kill(&mut ff); return Ok(Done::Failed(format!("สร้างตัวบีบ Monkey's Audio ไม่ได้ {}", mac_reason(code)))); }
     let destroy = |h: *mut c_void| unsafe { (mac.destroy)(h) };
     if let Some(t) = mac.threads { unsafe { t(h, threads) }; }
     let w = wide(OsStr::new(&out));
@@ -255,7 +260,7 @@ pub fn run(dir: &Path, ff_dir: &Path, plan: &Plan, total_secs: Option<f64>, stop
     // หัวไฟล์ SDK บอกว่าแบบไม่รู้ขนาดรับได้ถึง 2 GB (ผู้ช่วยตรวจขั้น 10 ข้อ 27) · -1 ตัวท้ายให้ตัวบีบสร้างหัว WAV เองตอนถอดกลับ
     let max_bytes: i64 = total_secs.filter(|t| *t > 0.0).map(|t| (t * 1.15 * rate as f64 * align as f64) as i64 + (16 << 20)).unwrap_or(-1);
     let r = unsafe { (mac.start)(h, w.as_ptr(), &wf, max_bytes, level, std::ptr::null(), -1) };
-    if r != 0 { destroy(h); kill(&mut ff); return Ok(Done::Failed(format!("เริ่มเขียนไฟล์ .ape ไม่ได้ (รหัส {r})"))); }
+    if r != 0 { destroy(h); kill(&mut ff); return Ok(Done::Failed(format!("เริ่มเขียนไฟล์ .ape ไม่ได้ {}", mac_reason(r)))); }
 
     let mut buf = vec![0u8; 1 << 20];
     let mut fill = 0usize;
@@ -272,7 +277,7 @@ pub fn run(dir: &Path, ff_dir: &Path, plan: &Plan, total_secs: Option<f64>, stop
         let whole = fill / align * align;
         if whole > 0 {
             let r = unsafe { (mac.add)(h, buf.as_mut_ptr(), whole as i32) };
-            if r != 0 { destroy(h); kill(&mut ff); let _ = reader.join(); return Ok(Done::Failed(format!("Monkey's Audio บีบเสียงไม่สำเร็จ (รหัส {r})"))); }
+            if r != 0 { destroy(h); kill(&mut ff); let _ = reader.join(); return Ok(Done::Failed(format!("Monkey's Audio บีบเสียงไม่สำเร็จ {}", mac_reason(r)))); }
             buf.copy_within(whole..fill, 0);
             fill -= whole;
         }
@@ -289,18 +294,55 @@ pub fn run(dir: &Path, ff_dir: &Path, plan: &Plan, total_secs: Option<f64>, stop
     let msg = reader.join().unwrap_or_default();
     if !st.success() {
         destroy(h);
-        return Ok(Done::Failed(format!("ffmpeg ถอดเสียงไม่สำเร็จ {}", msg.lines().find(|l| !l.trim().is_empty()).unwrap_or("").chars().take(160).collect::<String>())));
+        return Ok(Done::Failed(format!("ffmpeg ถอดเสียงไม่สำเร็จ {}", crate::tools::explain_fail("ffmpeg", &crate::tools::tool_lines(&msg), Some(&st)).line())));
     }
     let r = unsafe { (mac.finish)(h, std::ptr::null_mut(), 0, 0) };
     destroy(h);
-    if r != 0 { return Ok(Done::Failed(format!("ปิดไฟล์ .ape ไม่สำเร็จ (รหัส {r})"))); }
+    if r != 0 { return Ok(Done::Failed(format!("ปิดไฟล์ .ape ไม่สำเร็จ {}", mac_reason(r)))); }
     progress(100.0);
     Ok(Done::Ok)
+}
+
+/// รหัสผิดพลาดของ MACDll64 เป็นประโยคไทย (BUGS ข้อ 150) · ตาราง APE_ERROR_* จาก Shared/All.h ใน MAC_1346_SDK.zip (vendor/monkeys-audio)
+fn mac_reason(code: impl Into<i64>) -> String {
+    let code: i64 = code.into();
+    match code {
+        1000 => "อ่านเสียงต้นทางไม่ได้".into(),
+        1001 => "เขียนไฟล์ .ape ไม่ได้ ไดรฟ์อาจเต็ม หลุด หรือเขียนไม่ได้".into(),
+        1002 => "เสียงต้นทางเสียหรือเป็นชนิดที่ Monkey's Audio ไม่รับ".into(),
+        1003 => "สร้างไฟล์ปลายทางไม่ได้ ที่เก็บอาจเขียนไม่ได้".into(),
+        1004 => "เสียงยาวหรือใหญ่เกินที่ Monkey's Audio รับ".into(),
+        1005 => "Monkey's Audio ไม่รับความลึกบิตนี้".into(),
+        1006 => "Monkey's Audio ไม่รับอัตราสุ่มนี้".into(),
+        1007 => "Monkey's Audio ไม่รับจำนวนช่องเสียงนี้".into(),
+        1008 => "เสียงสั้นเกินไป".into(),
+        1009 | 1010 => "ข้อมูลเสียงเสีย ถอดหรือตรวจค่าไม่ผ่าน".into(),
+        1012 | 5000 => "ค่าที่ตั้งให้ตัวบีบไม่ถูกต้อง".into(),
+        1013 | 1014 => "Monkey's Audio ไม่รองรับชนิดหรือรุ่นของไฟล์นี้".into(),
+        1015 => "ไฟล์ถูกเปิดอยู่ในโปรแกรมอื่น".into(),
+        1016 => "Windows ไม่ให้เขียนไฟล์ที่นี่ ต้องใช้สิทธิ์ผู้ดูแล".into(),
+        2000 => "หน่วยความจำของเครื่องไม่พอ".into(),
+        3000..=3002 => "โหลดไฟล์ DLL ของ Monkey's Audio ไม่ได้ ลองติดตั้งโปรแกรมใหม่".into(),
+        4000 => "งานถูกหยุดกลางคัน".into(),
+        6000 => "เสียงยาวกว่าที่บอกตัวบีบไว้ล่วงหน้า".into(),
+        c => format!("ซึ่ง Monkey's Audio ตอบรหัส {c} ที่ไม่มีคำอธิบาย"),
+    }
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// ทุกรหัสในตาราง APE_ERROR_* ของ SDK 13.46 (Shared/All.h) มีประโยคไทย ไม่ตกไปข้อความรหัสที่ไม่มีคำอธิบาย (BUGS ข้อ 150)
+    #[test]
+    fn mac_codes_in_thai() {
+        for c in [1000, 1001, 1002, 1003, 1004, 1005, 1006, 1007, 1008, 1009, 1010, 1012, 1013, 1014, 1015, 1016, 2000, 3000, 3001, 3002, 4000, 5000, 6000] {
+            let s = mac_reason(c);
+            assert!(!s.contains("รหัส"), "{c} {s}");
+        }
+        assert!(mac_reason(1001).starts_with("เขียนไฟล์ .ape ไม่ได้"));
+        assert!(mac_reason(1011).contains("ตอบรหัส 1011"), "รหัสที่ไม่มีในตารางยังบอกเลขไว้ให้ไล่ต่อ");
+    }
 
     #[test]
     fn ape_tag_layout() {

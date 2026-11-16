@@ -14,7 +14,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::tools::{run_tool_timeout, tool_command, tool_succeeded};
+use crate::tools::{run_tool_timeout, tool_command, tool_succeeded, ToolFail};
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -88,7 +88,21 @@ pub struct ExtractInfo {
 
 fn mkv_json(tools: &Path, file: &Path) -> Result<Value, String> {
     let out = run_tool_timeout(tools, "mkvmerge", [OsStr::new("-J"), file.as_os_str()], Duration::from_secs(60))?;
-    serde_json::from_slice(&out.stdout).map_err(|e| e.to_string())
+    tool_json("mkvmerge", &out)
+}
+
+/// ผล JSON ของ mkvmerge -J หรือ ffprobe · อ่านไฟล์ไม่ได้บอกสาเหตุเป็นประโยคไทย (BUGS ข้อ 150) เดิมขึ้นข้อความภาษาอังกฤษของตัวอ่าน JSON
+/// mkvmerge บอกปัญหาในช่อง errors ของ JSON ส่วน ffprobe บอกทาง stderr
+fn tool_json(tool: &str, out: &std::process::Output) -> Result<Value, String> {
+    let j: Option<Value> = serde_json::from_slice(&out.stdout).ok();
+    let mut lines: Vec<String> = j.as_ref().and_then(|j| j["errors"].as_array()).map(|a| a.iter().filter_map(|e| e.as_str().map(String::from)).collect()).unwrap_or_default();
+    match j {
+        Some(j) if tool_succeeded(tool, &out.status) && lines.is_empty() => Ok(j),
+        _ => {
+            lines.extend(crate::tools::tool_lines(&String::from_utf8_lossy(&out.stderr)));
+            Err(crate::tools::explain_fail(tool, &lines, Some(&out.status)).line())
+        }
+    }
 }
 
 /// แท็ก chapter และดีเลย์จาก mkvmerge -J · ดีเลย์ = เวลาแรกของเสียงลบเวลาแรกของภาพ (minimum_timestamp หน่วยนาโนวินาที) · ไม่มีภาพนับจากศูนย์
@@ -157,33 +171,48 @@ pub fn fix_ext_for_ffmpeg(it: &mut Item) {
     }
 }
 
-/// ชื่อชนต่อท้าย 2 3 (ตั้งชื่อใหม่ต่อท้ายเลข 2)
+/// ชื่อชนต่อท้าย 2 3 (ตั้งชื่อใหม่ต่อท้ายเลข 2) · งานจริงใช้ numbered_free (เทสใช้)
+#[cfg(test)]
 pub fn numbered(p: &Path) -> PathBuf {
+    numbered_free(p, false)
+}
+
+/// ไฟล์ปลายทางทุกไฟล์ของชิ้นนี้ · VobSub คือ .idx กับ .sub ชื่อเดียวกัน (BUGS ข้อ 150) · ชิ้นอื่นไฟล์เดียว
+pub fn finals_of(target: &Path, vobsub: bool) -> Vec<PathBuf> {
+    if vobsub { vec![target.with_extension("idx"), target.with_extension("sub")] } else { vec![target.to_path_buf()] }
+}
+
+/// ต่อท้ายเลขจนชื่อว่าง · VobSub ต้องว่างทั้ง .idx และ .sub ไม่งั้นได้คู่ที่ไฟล์หนึ่งเป็นของเรื่องอื่น
+pub fn numbered_free(p: &Path, vobsub: bool) -> PathBuf {
     let stem = p.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
     let ext = p.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default();
     let dir = p.parent().unwrap_or(Path::new(""));
-    (2..).map(|n| dir.join(format!("{stem} {n}{ext}"))).find(|x| !x.exists()).unwrap()
+    (2..).map(|n| dir.join(format!("{stem} {n}{ext}"))).find(|x| finals_of(x, vobsub).iter().all(|f| !f.exists())).unwrap()
 }
 
 /// เลขแทร็กของ mkvmerge (เริ่ม 0) ของแทร็กลำดับที่ nth ในชนิดนั้น
 fn mkv_track_id(tools: &Path, file: &Path, kind: &str, nth: usize) -> Result<u64, String> {
-    let out = run_tool_timeout(tools, "mkvmerge", [OsStr::new("-J"), file.as_os_str()], Duration::from_secs(60))?;
-    let j: Value = serde_json::from_slice(&out.stdout).map_err(|e| e.to_string())?;
+    mkv_track(tools, file, kind, nth).map(|(id, _)| id)
+}
+
+/// เลขแทร็กของ mkvmerge กับ codec id ของ Matroska (ซับ VobSub คือ S_VOBSUB · BUGS ข้อ 150)
+fn mkv_track(tools: &Path, file: &Path, kind: &str, nth: usize) -> Result<(u64, String), String> {
+    let j = mkv_json(tools, file)?;
     let want = match kind { "video" => "video", "audio" => "audio", _ => "subtitles" };
-    j["tracks"].as_array().and_then(|t| t.iter().filter(|x| x["type"] == want).nth(nth - 1)).and_then(|x| x["id"].as_u64())
+    j["tracks"].as_array().and_then(|t| t.iter().filter(|x| x["type"] == want).nth(nth.checked_sub(1)?))
+        .and_then(|x| Some((x["id"].as_u64()?, x["properties"]["codec_id"].as_str().unwrap_or("").to_string())))
         .ok_or_else(|| format!("ไม่เจอแทร็กที่ {nth} ในไฟล์"))
 }
 
 fn mkv_attachment_id(tools: &Path, file: &Path, nth: usize) -> Result<u64, String> {
-    let out = run_tool_timeout(tools, "mkvmerge", [OsStr::new("-J"), file.as_os_str()], Duration::from_secs(60))?;
-    let j: Value = serde_json::from_slice(&out.stdout).map_err(|e| e.to_string())?;
+    let j = mkv_json(tools, file)?;
     j["attachments"].as_array().and_then(|a| a.get(nth - 1)).and_then(|x| x["id"].as_u64()).ok_or_else(|| "ไม่เจอไฟล์แนบ".into())
 }
 
 /// เลขสตรีมของ ffmpeg กับชนิดข้อมูล ของแทร็กลำดับที่ nth ในชนิดนั้น (ไม่นับรูปปก)
 fn ff_stream(tools: &Path, file: &Path, kind: &str, nth: usize) -> Result<(u64, String), String> {
     let out = run_tool_timeout(tools, "ffprobe", [OsStr::new("-v"), OsStr::new("error"), OsStr::new("-print_format"), OsStr::new("json"), OsStr::new("-show_streams"), file.as_os_str()], Duration::from_secs(60))?;
-    let j: Value = serde_json::from_slice(&out.stdout).map_err(|e| e.to_string())?;
+    let j = tool_json("ffprobe", &out)?;
     // ชนิดอื่น (บท ไฟล์แนบ) ไม่ใช่สตรีมของ ffmpeg · เดิมนับเป็นซับ ติ๊กบทของ MP4 ได้ซับแทร็กแรกใต้ชื่อ .chapters.xml (AUDIT 12 พ.ย. 2569 ข้อ 17)
     let want = match kind { "video" => "video", "audio" => "audio", "text" => "subtitle", k => return Err(format!("แยก {k} จากไฟล์ที่ไม่ใช่ MKV ด้วยวิธีนี้ไม่ได้")) };
     j["streams"].as_array().and_then(|s| s.iter().filter(|x| x["codec_type"] == want && x["disposition"]["attached_pic"].as_i64() != Some(1)).nth(nth - 1))
@@ -196,13 +225,42 @@ pub fn is_raw_video(ext: &str) -> bool {
 }
 
 pub enum Done {
-    Ok,
+    /// ไฟล์ที่เครื่องมือเขียนจริง · ซับ VobSub ได้สองไฟล์ .idx กับ .sub ชิ้นอื่นได้ไฟล์เดียวตามชื่อที่ส่งไป
+    Ok(Vec<PathBuf>),
     Cancelled,
 }
 
+/// ซับ VobSub ในไฟล์ MKV (BUGS ข้อ 150) · หน้าเสียงและซับตั้งนามสกุล sub ให้แทร็ก S_VOBSUB เท่านั้น (fileinfo.rs กับ ext_of_codec)
+/// ไฟล์อื่นแยกด้วย ffmpeg เป็น Matroska ไฟล์เดียว (fix_ext_for_ffmpeg)
+pub fn is_vobsub(src_mkv: bool, it: &Item) -> bool {
+    src_mkv && it.kind == "text" && it.ext.eq_ignore_ascii_case("sub")
+}
+
+/// ไฟล์ที่ mkvextract เขียนจริงเมื่อส่งชื่อ p ให้แยก VobSub · มันเปลี่ยนนามสกุลท้ายของชื่อที่ส่งไปเป็น .idx กับ .sub เอง
+/// ส่ง a.sub.partial ได้ a.sub.idx กับ a.sub.sub (ลองจริงกับ mkvextract ที่แนบมา 16 พ.ย. 2569) · .idx ก่อน .sub
+pub fn vobsub_outputs(p: &Path) -> Vec<PathBuf> {
+    vec![p.with_extension("idx"), p.with_extension("sub")]
+}
+
+/// ชื่อชั่วคราวที่ส่งให้เครื่องมือ · VobSub ใช้ <ชื่อ>.partial.sub จึงได้ <ชื่อ>.partial.idx กับ <ชื่อ>.partial.sub ที่ดูออกว่ายังไม่เสร็จ
+/// ชิ้นอื่นใช้ <ชื่อ>.partial แบบเดิม
+pub fn partial_of(target: &Path, vobsub: bool) -> PathBuf {
+    PathBuf::from(format!("{}.partial{}", target.to_string_lossy(), if vobsub { ".sub" } else { "" }))
+}
+
+/// ข้อความที่เครื่องมือพิมพ์ เก็บไว้ 60 บรรทัดท้าย ใช้บอกสาเหตุตอนไม่สำเร็จ
+fn keep_tail(buf: &std::sync::Mutex<Vec<String>>, text: &str) {
+    let mut b = buf.lock().unwrap();
+    b.extend(crate::tools::tool_lines(text));
+    let n = b.len();
+    if n > 60 { b.drain(..n - 60); }
+}
+
 /// แยกหนึ่งชิ้นลง partial · ความคืบหน้า 0–100 · stop = กดหยุด
-pub fn extract_one(tools: &Path, file: &Path, it: &Item, partial: &Path, on: &dyn Fn(f64), stop: &dyn Fn() -> bool) -> Result<Done, String> {
+/// ซับ VobSub ของ MKV ได้สองไฟล์ตาม vobsub_outputs(partial) · ไม่สำเร็จบอกสาเหตุเป็นประโยคไทยจากข้อความของเครื่องมือ (BUGS ข้อ 150)
+pub fn extract_one(tools: &Path, file: &Path, it: &Item, partial: &Path, on: &dyn Fn(f64), stop: &dyn Fn() -> bool) -> Result<Done, ToolFail> {
     let mkv = file.extension().map(|e| e.eq_ignore_ascii_case("mkv")).unwrap_or(false);
+    let mut outs = vec![partial.to_path_buf()];
     let (tool, args): (&str, Vec<OsString>) = if mkv {
         match it.kind.as_str() {
             // ภาพที่เลือกแบบสตรีมล้วน (.h264 .h265) ใช้ mkvextract แบบเดียวกับเสียงและซับ ได้สตรีมดิบที่ MKVToolNix กับโปรแกรมรวมไฟล์อื่นรับได้ (BUGS ข้อ 35 ต่อ)
@@ -234,7 +292,9 @@ pub fn extract_one(tools: &Path, file: &Path, it: &Item, partial: &Path, on: &dy
                 ("mkvextract", vec!["--gui-mode".into(), file.into(), "attachments".into(), t])
             }
             k => {
-                let id = mkv_track_id(tools, file, k, it.nth)?;
+                let (id, codec) = mkv_track(tools, file, k, it.nth)?;
+                // ดูจากชนิดแทร็กจริง ไม่พึ่งนามสกุลที่หน้าจอส่งมา
+                if codec.eq_ignore_ascii_case("S_VOBSUB") { outs = vobsub_outputs(partial); }
                 let mut t = OsString::from(format!("{id}:"));
                 t.push(partial.as_os_str());
                 ("mkvextract", vec!["--gui-mode".into(), file.into(), "tracks".into(), t])
@@ -249,7 +309,7 @@ pub fn extract_one(tools: &Path, file: &Path, it: &Item, partial: &Path, on: &dy
         let dur = crate::probe::probe(tools, file).ok().and_then(|x| x.duration);
         std::fs::write(partial, crate::chapters::xml_text(&chs, dur)).map_err(|e| format!("เขียนไฟล์บทไม่ได้: {e}"))?;
         on(100.0);
-        return Ok(Done::Ok);
+        return Ok(Done::Ok(outs));
     } else {
         let (idx, codec) = ff_stream(tools, file, &it.kind, it.nth)?;
         let fmt = ff_format(&it.ext).unwrap_or("matroska");
@@ -258,18 +318,31 @@ pub fn extract_one(tools: &Path, file: &Path, it: &Item, partial: &Path, on: &dy
         ("ffmpeg", vec!["-hide_banner".into(), "-nostdin".into(), "-n".into(), "-v".into(), "error".into(), "-i".into(), file.into(), "-map".into(), format!("0:{idx}").into(),
             "-c".into(), codec_arg.into(), "-f".into(), fmt.into(), partial.into()])
     };
-    let mut child = tool_command(tools, tool, &args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::null())
+    // ข้อความผิดพลาดของ mkvextract แบบ --gui-mode ออกทาง stdout (#GUI#error) ของ ffmpeg ออกทาง stderr · เดิมทิ้ง stderr จึงบอกได้แค่รหัส (BUGS ข้อ 150)
+    let mut child = tool_command(tools, tool, &args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped())
         .spawn().map_err(|e| format!("เรียก {tool} ไม่ได้: {e}"))?;
     crate::winutil::kill_with_app(&child);
     let out = child.stdout.take().unwrap();
+    let err = child.stderr.take().unwrap();
+    let msgs = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
     let (tx, rx) = std::sync::mpsc::channel::<f64>();
+    let m1 = msgs.clone();
     let reader = std::thread::spawn(move || {
         for l in BufReader::new(out).lines().map_while(Result::ok) {
             if let Some(p) = l.strip_prefix("#GUI#progress ").and_then(|v| v.trim_end_matches('%').parse::<f64>().ok()) {
                 let _ = tx.send(p);
+            } else {
+                keep_tail(&m1, &l);
             }
         }
     });
+    let m2 = msgs.clone();
+    let err_reader = std::thread::spawn(move || {
+        let mut buf = Vec::new();
+        let _ = std::io::Read::read_to_end(&mut BufReader::new(err), &mut buf);
+        keep_tail(&m2, &String::from_utf8_lossy(&buf));
+    });
+    let clean = |outs: &[PathBuf]| for p in outs { let _ = std::fs::remove_file(p); };
     loop {
         while let Ok(p) = rx.try_recv() {
             on(p);
@@ -278,17 +351,32 @@ pub fn extract_one(tools: &Path, file: &Path, it: &Item, partial: &Path, on: &dy
             let _ = child.kill();
             let _ = child.wait();
             let _ = reader.join();
-            let _ = std::fs::remove_file(partial);
+            let _ = err_reader.join();
+            clean(&outs);
             return Ok(Done::Cancelled);
         }
         if let Some(st) = child.try_wait().map_err(|e| e.to_string())? {
             let _ = reader.join();
-            if !tool_succeeded(tool, &st) || !partial.exists() {
-                let _ = std::fs::remove_file(partial);
-                return Err(format!("{tool} แยกไม่สำเร็จ (รหัส {})", crate::tools::exit_text(&st)));
+            let _ = err_reader.join();
+            let lines = msgs.lock().unwrap().clone();
+            if !tool_succeeded(tool, &st) {
+                clean(&outs);
+                return Err(crate::tools::explain_fail(tool, &lines, Some(&st)));
+            }
+            // เครื่องมือจบปกติแต่ไม่ได้ไฟล์ครบ · เดิมขึ้น "แยกไม่สำเร็จ (รหัส 0)" ที่ขัดกันเอง
+            if let Some(miss) = outs.iter().find(|p| !p.exists()) {
+                let got: Vec<String> = outs.iter().filter(|p| p.exists()).filter_map(|p| p.file_name().map(|n| n.to_string_lossy().to_string())).collect();
+                clean(&outs);
+                let name = miss.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
+                let mut f = crate::tools::explain_fail(tool, &lines, None);
+                if f.why.ends_with("ไม่ได้ไฟล์ออกมา") {
+                    f.why = format!("{tool} ทำงานจบแล้วแต่ไม่พบไฟล์ {name} ที่ควรได้");
+                    if !got.is_empty() { f.detail = Some(format!("ได้แค่ {}", got.join(" และ "))); }
+                }
+                return Err(f);
             }
             on(100.0);
-            return Ok(Done::Ok);
+            return Ok(Done::Ok(outs));
         }
         std::thread::sleep(Duration::from_millis(80));
     }
@@ -382,7 +470,7 @@ mod tests {
         let x = |kind: &str, ext: &str, of: Option<&str>| Item { kind: kind.into(), nth: 1, ext: ext.into(), lang: None, name: None, of: of.map(String::from) };
         for (it, want) in [(x("tags", "xml", None), "<Tags>"), (x("ogm", "txt", None), "CHAPTER01="), (x("cue", "cue", None), "TRACK 01"), (x("timestamps", "txt", Some("audio")), "format v2")] {
             let out = d.join(out_name("t", &it));
-            assert!(matches!(extract_one(&tools(), &src, &it, &out, &|_| {}, &|| false).unwrap(), Done::Ok), "{}", it.kind);
+            assert!(matches!(extract_one(&tools(), &src, &it, &out, &|_| {}, &|| false).unwrap(), Done::Ok(_)), "{}", it.kind);
             let t = std::fs::read_to_string(&out).unwrap();
             assert!(t.contains(want), "{} ต้องมี {want}: {}", it.kind, t.chars().take(200).collect::<String>());
         }
@@ -458,7 +546,7 @@ mod tests {
         std::fs::create_dir_all(&d).unwrap();
         let out = d.join("sub.srt");
         let it = Item { kind: "text".into(), nth: 1, ext: "srt".into(), lang: None, name: None, of: None };
-        assert!(matches!(extract_one(&tools(), &src, &it, &out, &|_| {}, &|| false).unwrap(), Done::Ok));
+        assert!(matches!(extract_one(&tools(), &src, &it, &out, &|_| {}, &|| false).unwrap(), Done::Ok(_)));
         let t = std::fs::read_to_string(&out).unwrap();
         assert!(t.contains("-->") && t.trim_start().starts_with('1'), "ต้องได้ SRT จริง: {}", t.chars().take(80).collect::<String>());
         let _ = std::fs::remove_dir_all(&d);
@@ -482,7 +570,7 @@ mod tests {
         fix_ext_for_ffmpeg(&mut it);
         assert_eq!(it.ext, "xml", "บทไม่ผ่าน ffmpeg นามสกุลต้องคงเป็น xml");
         let ch = d.join("บท.chapters.xml");
-        assert!(matches!(extract_one(&tools(), &mp4, &it, &ch, &|_| {}, &|| false).unwrap(), Done::Ok));
+        assert!(matches!(extract_one(&tools(), &mp4, &it, &ch, &|_| {}, &|| false).unwrap(), Done::Ok(_)));
         let t = std::fs::read_to_string(&ch).expect("ไฟล์บทต้องเป็นข้อความ ไม่ใช่ Matroska");
         assert!(t.starts_with("<?xml") && t.matches("<ChapterAtom>").count() == 2 && t.contains("เปิดเรื่อง") && t.contains("ฉาก &lt;สอง&gt; &amp; จบ"), "{t}");
         // mkvmerge อ่านไฟล์บทนี้ได้ครบสองบท
@@ -492,10 +580,10 @@ mod tests {
         let j: Value = serde_json::from_slice(&crate::tools::run_tool(&tools(), "mkvmerge", [OsStr::new("-J"), back.as_os_str()]).unwrap().stdout).unwrap();
         assert_eq!(j["chapters"][0]["num_entries"].as_u64(), Some(2), "{}", j["chapters"]);
         // หนัง MP4 ที่ไม่มีบท บอกตรง ๆ ว่าไม่มีบท
-        let e = extract_one(&tools(), &src, &it, &d.join("ไม่มีบท.xml"), &|_| {}, &|| false).err().unwrap_or_default();
+        let e = extract_one(&tools(), &src, &it, &d.join("ไม่มีบท.xml"), &|_| {}, &|| false).err().unwrap_or_default().why;
         assert!(e.contains("ไม่มีบท"), "{e}");
         // ไฟล์แนบของไฟล์ที่ไม่ใช่ MKV ไม่หยิบซับมาแทน
-        let e = extract_one(&tools(), &mp4, &Item { kind: "attachment".into(), nth: 1, ext: "ttf".into(), lang: None, name: Some("a.ttf".into()), of: None }, &d.join("a.ttf"), &|_| {}, &|| false).err().unwrap_or_default();
+        let e = extract_one(&tools(), &mp4, &Item { kind: "attachment".into(), nth: 1, ext: "ttf".into(), lang: None, name: Some("a.ttf".into()), of: None }, &d.join("a.ttf"), &|_| {}, &|| false).err().unwrap_or_default().why;
         assert!(e.contains("ไม่ใช่ MKV"), "{e}");
         assert!(!d.join("a.ttf").exists());
         let _ = std::fs::remove_dir_all(&d);
@@ -511,7 +599,7 @@ mod tests {
         for (kind, nth, ext) in [("audio", 2, "ac3"), ("text", 1, "srt"), ("text", 2, "ass")] {
             let it = Item { kind: kind.into(), nth, ext: ext.into(), lang: None, name: None, of: None };
             let mine = d.join(format!("mine-{kind}{nth}.{ext}"));
-            assert!(matches!(extract_one(&tools(), &src, &it, &mine, &|_| {}, &|| false).unwrap(), Done::Ok));
+            assert!(matches!(extract_one(&tools(), &src, &it, &mine, &|_| {}, &|| false).unwrap(), Done::Ok(_)));
             // ดึงเองด้วย mkvextract เลขแทร็ก mkvmerge (วิดีโอ 0 · เสียง 1 2 · ซับ 3 4)
             let id = match (kind, nth) { ("audio", 2) => 2, ("text", 1) => 3, _ => 4 };
             let theirs = d.join(format!("theirs-{id}.{ext}"));
@@ -521,16 +609,189 @@ mod tests {
             assert_eq!(sha(&mine), sha(&theirs), "{kind}{nth} ไม่ตรงกับที่ดึงด้วย mkvextract เอง");
         }
         let ch = d.join("chapters.xml");
-        assert!(matches!(extract_one(&tools(), &src, &Item { kind: "menu".into(), nth: 1, ext: "xml".into(), lang: None, name: None, of: None }, &ch, &|_| {}, &|| false).unwrap(), Done::Ok));
+        assert!(matches!(extract_one(&tools(), &src, &Item { kind: "menu".into(), nth: 1, ext: "xml".into(), lang: None, name: None, of: None }, &ch, &|_| {}, &|| false).unwrap(), Done::Ok(_)));
         assert!(std::fs::read_to_string(&ch).unwrap().contains("<Chapters>"), "บทต้องออกมาเป็น XML");
         let v = d.join("video.mkv");
-        assert!(matches!(extract_one(&tools(), &src, &Item { kind: "video".into(), nth: 1, ext: "mkv".into(), lang: None, name: None, of: None }, &v, &|_| {}, &|| false).unwrap(), Done::Ok));
+        assert!(matches!(extract_one(&tools(), &src, &Item { kind: "video".into(), nth: 1, ext: "mkv".into(), lang: None, name: None, of: None }, &v, &|_| {}, &|| false).unwrap(), Done::Ok(_)));
         let j: Value = serde_json::from_slice(&crate::tools::run_tool(&tools(), "mkvmerge", [OsStr::new("-J"), v.as_os_str()]).unwrap().stdout).unwrap();
         assert_eq!(j["tracks"].as_array().unwrap().len(), 1, "แยกภาพต้องได้แทร็กภาพอย่างเดียว");
         assert_eq!(sha(&src), before, "ไฟล์หนังเดิมต้องไม่ถูกแตะ");
         // ชื่อชนต่อท้ายเลข 2 ไม่ทับ
         assert_eq!(numbered(&v), d.join("video 2.mkv"));
         let _ = std::fs::remove_dir_all(&d);
+    }
+
+    fn names_in(d: &Path) -> Vec<String> {
+        let mut v: Vec<String> = std::fs::read_dir(d).unwrap().map(|e| e.unwrap().file_name().to_string_lossy().to_string()).collect();
+        v.sort();
+        v
+    }
+
+    /// BUGS ข้อ 150 พี่กันแยกซับญี่ปุ่น VobSub ของ Shin Godzilla ขึ้น "mkvextract แยกไม่สำเร็จ (รหัส 0)" แล้วเหลือไฟล์ชื่อผิด .sub.idx กับ .sub.sub
+    /// mkvextract เขียน VobSub เป็นสองไฟล์โดยเปลี่ยนนามสกุลท้ายของชื่อที่ส่งไปเอง · โค้ดเดิมรอไฟล์ .partial ไฟล์เดียว (เทสนี้แดงกับโค้ดเดิม 16 พ.ย. 2569)
+    /// ต้องได้ .idx กับ .sub ชื่อถูก เนื้อไฟล์ตรงกับที่ mkvextract แยกเอง ไม่มีไฟล์ชั่วคราวค้าง ไฟล์หนังไม่ถูกแตะ
+    #[test]
+    fn vobsub_extracts_as_idx_and_sub_pair() {
+        let src = movie().parent().unwrap().parent().unwrap().join("เสียงซับ").join("ซับรูป (2024).mkv");
+        assert!(src.exists(), "ไม่มีไฟล์ทดสอบ ซับรูป (2024).mkv รัน node scripts/make-test-media.mjs ก่อน");
+        let before = sha(&src);
+        let d = std::env::temp_dir().join(format!("ชั้นหนัง-แยกvobsub-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        let it = Item { kind: "text".into(), nth: 2, ext: "sub".into(), lang: Some("en".into()), name: None, of: None };
+        assert!(is_vobsub(true, &it) && !is_vobsub(false, &it), "ไฟล์ที่ไม่ใช่ MKV แยกด้วย ffmpeg เป็น Matroska ไฟล์เดียว");
+        let name = out_name("ซับรูป (2024)", &it);
+        assert_eq!(name, "ซับรูป (2024).Text2.en.sub");
+        let target = d.join(&name);
+        assert_eq!(partial_of(&target, true), d.join("ซับรูป (2024).Text2.en.sub.partial.sub"));
+        let got = match place_item(&tools(), &src, &it, &target, true, &|_| {}, &|| false) {
+            Ok(Placed::Done(fs)) => fs,
+            Ok(Placed::Cancelled) => panic!("ไม่ได้กดหยุด"),
+            Err(e) => panic!("แยก VobSub ต้องสำเร็จ ได้ {e:?} ไฟล์ที่ค้าง {:?}", names_in(&d)),
+        };
+        assert_eq!(got, vec![d.join("ซับรูป (2024).Text2.en.idx"), d.join("ซับรูป (2024).Text2.en.sub")]);
+        assert_eq!(names_in(&d), vec!["ซับรูป (2024).Text2.en.idx", "ซับรูป (2024).Text2.en.sub"], "ต้องเหลือแค่สองไฟล์ ไม่มีไฟล์ชั่วคราว");
+        let idx = std::fs::read_to_string(&got[0]).unwrap();
+        assert!(idx.contains("VobSub index file") && idx.contains("timestamp:"), "ไฟล์ .idx ต้องเป็นดัชนีของ VobSub: {}", idx.chars().take(120).collect::<String>());
+        // เทียบกับที่ mkvextract แยกเอง (แทร็ก 3 ของไฟล์นี้คือ S_VOBSUB)
+        let theirs = d.join("เทียบ").join("x.sub");
+        std::fs::create_dir_all(theirs.parent().unwrap()).unwrap();
+        let mut t = OsString::from("3:");
+        t.push(theirs.as_os_str());
+        crate::tools::run_tool(&tools(), "mkvextract", [src.as_os_str(), OsStr::new("tracks"), &t]).unwrap();
+        assert_eq!(sha(&got[1]), sha(&theirs), ".sub ต้องตรงกับที่ mkvextract แยกเอง");
+        assert_eq!(std::fs::read_to_string(&got[0]).unwrap().replace("x.sub", ""), std::fs::read_to_string(theirs.with_extension("idx")).unwrap().replace("x.sub", ""), ".idx ต้องตรงกับที่ mkvextract แยกเอง");
+        // แยกหลายไฟล์แบบ gMKVExtractGUI (BUGS ข้อ 130) หานามสกุลจาก codec ได้ sub จึงเข้าทาง VobSub เดียวกัน
+        let j = mkv_json(&tools(), &src).unwrap();
+        let fx = fit_item(&j, &info_of(&j), &Item { ext: "srt".into(), ..it.clone() }).unwrap();
+        assert!(fx.ext == "sub" && is_vobsub(true, &fx), "{fx:?}");
+        // หน้าจอส่งนามสกุลผิดมา ตัวแยกดูชนิดแทร็กจริงแล้วยังได้คู่ .idx .sub ชื่อเดียวกับชิ้นนี้
+        let odd = d.join("นามสกุลผิด.mks");
+        match place_item(&tools(), &src, &Item { ext: "mks".into(), ..it.clone() }, &odd, false, &|_| {}, &|| false) {
+            Ok(Placed::Done(fs)) => assert_eq!(fs, vec![d.join("นามสกุลผิด.idx"), d.join("นามสกุลผิด.sub")]),
+            _ => panic!("ต้องแยกได้"),
+        }
+        assert_eq!(sha(&src), before, "ไฟล์หนังเดิมต้องไม่ถูกแตะ");
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    /// BUGS ข้อ 150 กับไฟล์จริงของพี่กัน Shin Godzilla ซับ VobSub อังกฤษ (Text #1) กับญี่ปุ่น (Text #2) · ไฟล์ใหญ่ ไม่ขึ้น git รันเฉพาะตอนตั้งตัวแปร
+    /// MOVIE_SHELF_GODZILLA ที่อยู่ไฟล์หนัง (อ่านอย่างเดียว) · ผลลง MOVIE_SHELF_GODZILLA_OUT ค่าตั้งต้น D:\dev\tmp\ocr-test\godzilla ซึ่งเป็นไฟล์เทส OCR ภาษาญี่ปุ่น
+    #[test]
+    fn godzilla_vobsub_pair() {
+        let Ok(src) = std::env::var("MOVIE_SHELF_GODZILLA") else { return };
+        let src = PathBuf::from(src);
+        let out = PathBuf::from(std::env::var("MOVIE_SHELF_GODZILLA_OUT").unwrap_or_else(|_| r"D:\dev\tmp\ocr-test\godzilla".into()));
+        std::fs::create_dir_all(&out).unwrap();
+        let meta = |p: &Path| { let m = std::fs::metadata(p).unwrap(); (m.len(), m.modified().unwrap()) };
+        let before = meta(&src);
+        for (nth, lang) in [(1, "en"), (2, "ja")] {
+            let it = Item { kind: "text".into(), nth, ext: "sub".into(), lang: Some(lang.into()), name: None, of: None };
+            let target = out.join(out_name("shin godzilla", &it));
+            for f in finals_of(&target, true) { let _ = std::fs::remove_file(f); }
+            let fs = match place_item(&tools(), &src, &it, &target, true, &|_| {}, &|| false) { Ok(Placed::Done(fs)) => fs, Ok(_) => panic!("ไม่ได้กดหยุด"), Err(e) => panic!("Text #{nth} {e:?}") };
+            assert_eq!(fs, finals_of(&target, true));
+            let idx = std::fs::read_to_string(&fs[0]).unwrap();
+            assert!(idx.contains("VobSub index file") && idx.matches("timestamp:").count() > 100, "Text #{nth} .idx ต้องมีภาพหลายร้อยภาพ");
+            assert!(std::fs::metadata(&fs[1]).unwrap().len() > 1 << 20, "Text #{nth} .sub ต้องมีข้อมูลภาพ");
+            eprintln!("Text #{nth} ได้ {} ({} ภาพ) กับ {} ({} ไบต์)", fs[0].display(), idx.matches("timestamp:").count(), fs[1].display(), std::fs::metadata(&fs[1]).unwrap().len());
+        }
+        assert!(std::fs::read_dir(&out).unwrap().all(|e| !e.unwrap().file_name().to_string_lossy().contains("partial")), "ไม่มีไฟล์ชั่วคราวค้าง");
+        assert_eq!(meta(&src), before, "ไฟล์หนังของพี่กันต้องไม่ถูกแตะ");
+    }
+
+    /// VobSub เช็กชื่อชนทั้งสองไฟล์ ต่อท้ายเลขจนว่างทั้งคู่ · ย้ายไม่ได้กลางทาง ลบไฟล์ของเราที่ย้ายไปแล้วและไฟล์ชั่วคราว ไม่แตะไฟล์ที่มีอยู่ก่อน (BUGS ข้อ 150)
+    #[test]
+    fn vobsub_conflicts_check_both_files() {
+        let src = movie().parent().unwrap().parent().unwrap().join("เสียงซับ").join("ซับรูป (2024).mkv");
+        let d = std::env::temp_dir().join(format!("ชั้นหนัง-แยกvobsub-ชน-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        let target = d.join("ก.Text2.en.sub");
+        assert_eq!(finals_of(&target, true), vec![d.join("ก.Text2.en.idx"), target.clone()]);
+        assert_eq!(finals_of(&target, false), vec![target.clone()]);
+        // มีแค่ .idx ของเดิม ก็ถือว่าชน
+        std::fs::write(d.join("ก.Text2.en.idx"), "ของเดิม").unwrap();
+        assert!(finals_of(&target, true).iter().any(|f| f.exists()));
+        assert_eq!(numbered_free(&target, true), d.join("ก.Text2.en 2.sub"));
+        std::fs::write(d.join("ก.Text2.en 2.idx"), "ของเดิม").unwrap();
+        assert_eq!(numbered_free(&target, true), d.join("ก.Text2.en 3.sub"), "เลข 2 มี .idx แล้ว ต้องข้ามไปเลข 3");
+        assert_eq!(numbered(&target), d.join("ก.Text2.en 2.sub"), "ชิ้นอื่นดูแค่ไฟล์เดียวแบบเดิม");
+        // ไฟล์ .idx โผล่มาก่อนย้าย ย้ายไม่ทับ ไม่เหลือ .sub ครึ่งคู่ ไม่มีไฟล์ชั่วคราวค้าง ไฟล์ของเดิมไม่ถูกแตะ
+        let it = Item { kind: "text".into(), nth: 2, ext: "sub".into(), lang: Some("en".into()), name: None, of: None };
+        let e = match place_item(&tools(), &src, &it, &target, true, &|_| {}, &|| false) { Err(e) => e, _ => panic!("ต้องย้ายไม่ได้") };
+        assert!(e.why.contains("มีไฟล์ชื่อนี้อยู่แล้ว"), "{e:?}");
+        assert_eq!(names_in(&d), vec!["ก.Text2.en 2.idx", "ก.Text2.en.idx"]);
+        assert_eq!(std::fs::read_to_string(d.join("ก.Text2.en.idx")).unwrap(), "ของเดิม");
+        // กดหยุดตั้งแต่ต้น ไม่เหลือไฟล์ชั่วคราว
+        let t2 = d.join("ข.sub");
+        assert!(matches!(place_item(&tools(), &src, &it, &t2, true, &|_| {}, &|| true), Ok(Placed::Cancelled)));
+        assert_eq!(names_in(&d), vec!["ก.Text2.en 2.idx", "ก.Text2.en.idx"]);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    /// เครื่องมือล้มจริง ข้อความบนการ์ดเป็นประโยคไทย ไม่มีแค่รหัส และมีข้อความของเครื่องมือไว้ใส่ปุ่ม ⓘ (BUGS ข้อ 150)
+    #[test]
+    fn tool_failures_explain_in_thai() {
+        let src = movie();
+        let d = std::env::temp_dir().join(format!("ชั้นหนัง-แยกพัง-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&d);
+        std::fs::create_dir_all(&d).unwrap();
+        // ที่เก็บเป็นไฟล์ ไม่ใช่โฟลเดอร์ เครื่องมือสร้างไฟล์ปลายทางไม่ได้
+        let blk = d.join("ไม่ใช่โฟลเดอร์");
+        std::fs::write(&blk, "x").unwrap();
+        let it = Item { kind: "text".into(), nth: 1, ext: "srt".into(), lang: None, name: None, of: None };
+        let out = blk.join("ก.srt");
+        let e = match extract_one(&tools(), &src, &it, &out, &|_| {}, &|| false) { Err(e) => e, Ok(_) => panic!("ต้องแยกไม่ได้") };
+        assert!(e.why.starts_with("เปิดไฟล์ปลายทางเพื่อเขียนไม่ได้") && !e.why.contains("รหัส"), "mkvextract {e:?}");
+        assert!(e.detail.as_deref().is_some_and(|x| x.contains("Failed to create the file")), "ปุ่ม ⓘ ต้องมีข้อความของ mkvextract {e:?}");
+        // ไฟล์ .mp4 แยกด้วย ffmpeg
+        let mp4 = src.parent().unwrap().join("The Last Orchard (2022).mp4");
+        let e = match extract_one(&tools(), &mp4, &Item { kind: "audio".into(), nth: 1, ext: "aac".into(), lang: None, name: None, of: None }, &blk.join("ก.aac"), &|_| {}, &|| false) { Err(e) => e, Ok(_) => panic!("ต้องแยกไม่ได้") };
+        assert!(e.why.starts_with("เปิดไฟล์ปลายทางเพื่อเขียนไม่ได้") && e.detail.as_deref().is_some_and(|x| x.contains("Error opening output")), "ffmpeg {e:?}");
+        // ซับ VobSub ล้มแล้วไม่เหลือไฟล์ชั่วคราวทั้งสองไฟล์
+        let img = src.parent().unwrap().parent().unwrap().join("เสียงซับ").join("ซับรูป (2024).mkv");
+        let vs = Item { kind: "text".into(), nth: 2, ext: "sub".into(), lang: None, name: None, of: None };
+        assert!(place_item(&tools(), &img, &vs, &blk.join("ข.sub"), true, &|_| {}, &|| false).is_err());
+        assert_eq!(names_in(&d), vec!["ไม่ใช่โฟลเดอร์"]);
+        let _ = std::fs::remove_dir_all(&d);
+    }
+
+    /// ข้อความจริงที่เครื่องมือพิมพ์ (จับจาก mkvextract กับ ffmpeg ที่แนบมา 16 พ.ย. 2569) แปลเป็นสาเหตุภาษาไทยได้ · แปลไม่ได้ใส่บรรทัดสุดท้ายไว้ให้ปุ่ม ⓘ
+    #[test]
+    fn explain_tool_messages() {
+        use crate::tools::{explain_fail, tool_lines};
+        let st = |code: u32| -> std::process::ExitStatus { use std::os::windows::process::ExitStatusExt; std::process::ExitStatus::from_raw(code) };
+        let l = tool_lines("#GUI#error No track with the ID 9 was found in the source file.\n");
+        assert_eq!(l, vec!["No track with the ID 9 was found in the source file."]);
+        assert!(explain_fail("mkvextract", &l, Some(&st(2))).why.starts_with("ไม่เจอแทร็กนี้ในไฟล์"));
+        let ff = tool_lines("[in#0 @ 000002a2594d5dc0] Element at 0x45 ending at 0x34e05 exceeds containing master element ending at 0x13f1\r\nError opening input file D:/x.mkv.\nError opening input files: End of file\n");
+        let f = explain_fail("ffmpeg", &ff, Some(&st(1)));
+        assert!(f.known && f.why.starts_with("ไฟล์หนังเสีย") && f.detail.as_deref() == Some("Error opening input files: End of file"), "{f:?}");
+        assert!(explain_fail("ffmpeg", &tool_lines("D:/a.aac: No space left on device"), Some(&st(1))).why.starts_with("พื้นที่ในไดรฟ์ที่เก็บเต็ม"));
+        assert!(explain_fail("mkvextract", &tool_lines("#GUI#error The file 'D:\\a.srt' could not be opened for writing: Permission denied."), Some(&st(2))).why.starts_with("Windows ไม่ให้เขียน"));
+        assert!(explain_fail("mkvextract", &tool_lines("#GUI#warning x\n#GUI#error The device is not ready."), Some(&st(2))).why.starts_with("อ่านหรือเขียนไดรฟ์ไม่ได้กลางคัน"));
+        assert!(explain_fail("ffmpeg", &tool_lines("Could not find tag for codec dvd_subtitle in stream #0, codec not currently supported in container"), Some(&st(1))).why.contains("แยกออกเป็นไฟล์แบบนี้ไม่ได้"));
+        // ความคืบหน้าของ mkvextract แบบไม่ใช้ --gui-mode ไม่นับเป็นข้อความ
+        assert!(tool_lines("Progress: 1%Progress: 3%Progress: 100%\n").is_empty());
+        // แปลไม่ได้ บอกว่าแปลไม่ได้ เก็บบรรทัดสุดท้ายไว้ และข้อความบรรทัดเดียวต่อท้ายให้เอง
+        let u = explain_fail("ffmpeg", &tool_lines("something odd\nweird thing happened"), Some(&st(1)));
+        assert!(!u.known && u.detail.as_deref() == Some("weird thing happened") && u.line().ends_with("(weird thing happened)"), "{u:?}");
+        assert!(!u.why.contains("รหัส"));
+        // ไม่มีข้อความเลย ปุ่ม ⓘ บอกรหัสแทน · จบปกติแต่ไม่ได้ไฟล์ ไม่บอกว่ารหัส 0
+        let z = explain_fail("mkvextract", &[], Some(&st(2)));
+        assert_eq!(z.detail.as_deref(), Some("mkvextract ตอบรหัส 2"));
+        let n = explain_fail("mkvextract", &[], None);
+        assert!(n.why.contains("ทำงานจบแล้วแต่ไม่ได้ไฟล์ออกมา") && !n.why.contains("รหัส 0"), "{n:?}");
+        assert!(explain_fail("ffmpeg", &[], Some(&st(0xC000013A))).why.contains("พังหรือถูกปิดกลางคัน"));
+        // ที่อยู่ในข้อความของเครื่องมือเหลือแค่ชื่อไฟล์ กล่อง ⓘ ไม่กระจายตัวอักษรจนถ่าง
+        let v = explain_fail("mkvextract", &tool_lines("#GUI#error Failed to create the VobSub data file 'D:/dev/tmp/ชั้นแยกVobSub\\แยกไฟล์\\ซับรูป (2024).Text2.en.sub.partial.sub': open file error"), Some(&st(2)));
+        assert!(v.why.starts_with("เปิดไฟล์ปลายทางเพื่อเขียนไม่ได้"), "{v:?}");
+        assert_eq!(v.detail.as_deref(), Some("Failed to create the VobSub data file 'ซับรูป (2024).Text2.en.sub.partial.sub': open file error"));
+        assert_eq!(crate::tools::short_paths("Error opening output D:/dev/tmp/x/o.aac: No such file or directory"), "Error opening output o.aac: No such file or directory");
+        assert_eq!(crate::tools::short_paths("Error opening output files: No such file or directory"), "Error opening output files: No such file or directory");
+        assert!(explain_fail("mkvextract", &tool_lines("#GUI#error Failed to create the file 'D:/a/o.srt': 0 (create_directory() failed)"), Some(&st(2))).why.starts_with("เปิดไฟล์ปลายทางเพื่อเขียนไม่ได้"));
+        assert!(explain_fail("ffmpeg", &tool_lines("Error opening output files: No such file or directory"), Some(&st(1))).why.starts_with("เปิดไฟล์ปลายทางเพื่อเขียนไม่ได้"), "ปลายทางเปิดไม่ได้ ไม่ใช่หาไฟล์หนังไม่เจอ");
     }
 }
 
@@ -579,7 +840,11 @@ pub struct ExtractResult {
     /// ต่อชิ้น done skipped conflict failed cancelled queued
     states: Vec<String>,
     files: Vec<Option<String>>,
+    /// ไฟล์ที่สองของชิ้นเดียวกัน · ซับ VobSub ได้ .idx ใน files กับ .sub ในช่องนี้ (BUGS ข้อ 150)
+    pair: Vec<Option<String>>,
     error: Option<String>,
+    /// บรรทัดสุดท้ายที่เครื่องมือพิมพ์ตอนไม่สำเร็จ หน้าจอใส่ในปุ่ม ⓘ (BUGS ข้อ 150)
+    detail: Option<String>,
     /// เรื่องที่ควรรู้ เช่น ตัดชื่อให้สั้นลง
     notes: Vec<String>,
 }
@@ -628,8 +893,15 @@ pub fn default_folder(movie: &Path) -> PathBuf {
 
 /// ชื่อไฟล์ที่ไม่ทำให้ที่อยู่ (รวม .partial) ยาวเกินที่ Windows รับ · ยาวเกินตัดท้ายชื่อหนังลงจนพอดี ส่วนแทร็ก ภาษา นามสกุลคงไว้
 /// คืน (ชื่อ, ตัดไหม) · โฟลเดอร์ยาวจนชื่อหนังเหลือไม่ถึง 8 ตัวอักษร คืนชื่อเต็มให้ตัวตรวจความยาวบอกว่าไม่สำเร็จ
+/// งานจริงใช้ fit_name_with ที่บอกความยาวของชื่อชั่วคราวเอง (เทสใช้)
+#[cfg(test)]
 pub fn fit_name(dir: &Path, stem: &str, name_of: &dyn Fn(&str) -> String) -> (String, bool) {
-    let len = |n: &str| dir.join(n).to_string_lossy().encode_utf16().count() + ".partial".len();
+    fit_name_with(dir, stem, ".partial".len(), name_of)
+}
+
+/// extra ความยาวที่ชื่อชั่วคราวยาวกว่าชื่อจริง · VobSub ใช้ .partial.sub กับ .partial.idx (BUGS ข้อ 150)
+pub fn fit_name_with(dir: &Path, stem: &str, extra: usize, name_of: &dyn Fn(&str) -> String) -> (String, bool) {
+    let len = |n: &str| dir.join(n).to_string_lossy().encode_utf16().count() + extra;
     let full = name_of(stem);
     let over = len(&full).saturating_sub(crate::rename::MAX_PATH_LEN);
     if over == 0 { return (full, false); }
@@ -654,6 +926,35 @@ pub fn extract_cancel() {
     STOP.store(true, std::sync::atomic::Ordering::SeqCst);
 }
 
+pub enum Placed {
+    /// ไฟล์ปลายทางที่ได้ · VobSub เรียง .idx ก่อน .sub
+    Done(Vec<PathBuf>),
+    Cancelled,
+}
+
+/// แยกหนึ่งชิ้นลงไฟล์ชั่วคราวแล้วย้ายเข้าชื่อจริงแบบไม่เขียนทับ · target ชื่อจริงของชิ้น (VobSub คือไฟล์ .sub ส่วน .idx อยู่ข้างกัน)
+/// ย้ายไม่ครบ ลบไฟล์ที่ย้ายไปแล้วกับไฟล์ชั่วคราวที่เหลือ ไม่ทิ้งไว้ครึ่งคู่ (BUGS ข้อ 150)
+pub fn place_item(tools: &Path, src: &Path, it: &Item, target: &Path, vobsub: bool, on: &dyn Fn(f64), stop: &dyn Fn() -> bool) -> Result<Placed, ToolFail> {
+    let partial = partial_of(target, vobsub);
+    let temps = if vobsub { vobsub_outputs(&partial) } else { vec![partial.clone()] };
+    for t in &temps { let _ = std::fs::remove_file(t); }
+    let made = match extract_one(tools, src, it, &partial, on, stop)? {
+        Done::Cancelled => return Ok(Placed::Cancelled),
+        Done::Ok(made) => made,
+    };
+    // ชนิดแทร็กจริงเป็น VobSub แต่หน้าจอส่งนามสกุลอื่นมา ก็ยังได้คู่ชื่อเดียวกับชิ้นนี้
+    let finals: Vec<PathBuf> = if made.len() == 1 { vec![target.to_path_buf()] } else { made.iter().map(|m| target.with_extension(m.extension().unwrap_or_default())).collect() };
+    let mut moved: Vec<PathBuf> = vec![];
+    for (m, f) in made.iter().zip(&finals) {
+        if let Err(p) = crate::rename::move_no_replace(m, f) {
+            for x in moved.iter().chain(made.iter()) { let _ = std::fs::remove_file(x); }
+            return Err(p.title.into());
+        }
+        moved.push(f.clone());
+    }
+    Ok(Placed::Done(finals))
+}
+
 /// แยกชิ้นที่ติ๊กทีละชิ้นตามลำดับ · ความคืบหน้าทางเหตุการณ์ extract-progress · ชื่อชนไม่ทำ บอกกลับให้ถาม
 #[tauri::command]
 pub async fn extract_start(app: tauri::AppHandle, req: ExtractReq) -> Result<ExtractResult, String> {
@@ -673,9 +974,10 @@ pub async fn extract_start(app: tauri::AppHandle, req: ExtractReq) -> Result<Ext
         let src = PathBuf::from(&req.path);
         let stem = src.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
         let dir = req.folder.clone().filter(|f| !f.trim().is_empty()).map(PathBuf::from).unwrap_or_else(|| default_folder(&src));
-        std::fs::create_dir_all(&dir).map_err(|e| format!("สร้างโฟลเดอร์ที่เก็บไม่ได้: {e}"))?;
+        // สาเหตุเป็นประโยคไทย ไม่ใช่ข้อความภาษาอังกฤษของ Windows (BUGS ข้อ 150)
+        std::fs::create_dir_all(&dir).map_err(|e| format!("สร้างโฟลเดอร์ที่เก็บไม่ได้ {}", e.raw_os_error().map(crate::tools::win_reason).unwrap_or_else(|| e.to_string())))?;
         let n = req.items.len();
-        let mut r = ExtractResult { folder: dir.to_string_lossy().to_string(), states: vec!["queued".into(); n], files: vec![None; n], error: None, notes: vec![] };
+        let mut r = ExtractResult { folder: dir.to_string_lossy().to_string(), states: vec!["queued".into(); n], files: vec![None; n], pair: vec![None; n], ..Default::default() };
         let src_size = std::fs::metadata(&src).map(|m| m.len()).unwrap_or(0);
         let src_mkv = src.extension().map(|e| e.eq_ignore_ascii_case("mkv")).unwrap_or(false);
         // ข้อมูลแทร็กของไฟล์นี้ ใช้ทำดีเลย์ในชื่อเสียง ชื่อแทร็ก และแยกหลายไฟล์ (BUGS ข้อ 130)
@@ -696,7 +998,9 @@ pub async fn extract_start(app: tauri::AppHandle, req: ExtractReq) -> Result<Ext
                 let want = match k { "video" => "video", "audio" => "audio", "text" => "subtitles", _ => return None };
                 j["tracks"].as_array()?.iter().filter(|t| t["type"] == want).nth(it.nth.checked_sub(1)?)?["properties"]["track_name"].as_str().map(String::from)
             });
-            let (name, cut) = fit_name(&dir, &stem, &|st| out_name_with(st, it, &pattern, delay, track_name.as_deref()));
+            let vobsub = is_vobsub(src_mkv, it);
+            let extra = partial_of(Path::new(""), vobsub).to_string_lossy().encode_utf16().count();
+            let (name, cut) = fit_name_with(&dir, &stem, extra, &|st| out_name_with(st, it, &pattern, delay, track_name.as_deref()));
             if cut { r.notes.push(format!("{} ชื่อยาวเกินที่ Windows รับ จึงตัดท้ายชื่อหนังเป็น {name}", title_of(it))); }
             let mut target = dir.join(name);
             // ไฟล์ที่แยกต้องอยู่ในโฟลเดอร์ที่เลือกเท่านั้น · กันชื่อที่หลุดตัวกรอง
@@ -705,12 +1009,13 @@ pub async fn extract_start(app: tauri::AppHandle, req: ExtractReq) -> Result<Ext
                 r.error = Some(format!("แยก {} ไม่สำเร็จ ชื่อไฟล์ไม่ปลอดภัย  ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ", title_of(it)));
                 break;
             }
-            if target.exists() {
+            // VobSub เช็กชื่อชนทั้ง .idx และ .sub (BUGS ข้อ 150)
+            if let Some(hit) = finals_of(&target, vobsub).into_iter().find(|f| f.exists()) {
                 match req.policy.get(i).map(String::as_str).unwrap_or("ask") {
                     "skip" => { r.states[i] = "skipped".into(); continue; }
-                    "number" => target = numbered(&target),
+                    "number" => target = numbered_free(&target, vobsub),
                     // ชื่อไฟล์ที่มีอยู่แล้ว ส่งกลับให้การ์ดบอกว่าไฟล์ไหนชน (ต้นแบบ ในที่เก็บมีไฟล์ … อยู่แล้ว)
-                    _ => { r.states[i] = "conflict".into(); r.files[i] = Some(target.to_string_lossy().to_string()); continue; }
+                    _ => { r.states[i] = "conflict".into(); r.files[i] = Some(hit.to_string_lossy().to_string()); continue; }
                 }
             }
             // ที่ว่างในไดรฟ์ · ภาพต้องการราวขนาดไฟล์หนัง · เสียง ซับ บท ไฟล์แนบ ไม่เกินขนาดไฟล์หนัง เผื่ออย่างน้อย 64 MB
@@ -724,25 +1029,27 @@ pub async fn extract_start(app: tauri::AppHandle, req: ExtractReq) -> Result<Ext
                 r.error = Some(format!("แยก {title} ไม่สำเร็จ พื้นที่ในไดรฟ์ {drive} ไม่พอ  ต้องการ {} แต่เหลือ {}  ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ", gb(need), gb(free)));
                 break;
             }
-            let partial = PathBuf::from(format!("{}.partial", target.to_string_lossy()));
+            let partial = partial_of(&target, vobsub);
             // ที่อยู่ยาวเกินที่ Windows รับ · บอกตรงสาเหตุก่อนเริ่ม (เดิมเครื่องมือหรือตัวย้ายล้มแล้วขึ้นว่าหาไฟล์ไม่เจอ ผู้ช่วยตรวจโค้ดเจอ · TECH-REVIEW ข้อ 16)
             if partial.to_string_lossy().encode_utf16().count() > crate::rename::MAX_PATH_LEN {
                 r.states[i] = "failed".into();
                 r.error = Some(format!("แยก {} ไม่สำเร็จ โฟลเดอร์ที่เก็บยาวเกินไป  กดเปลี่ยนที่เก็บเป็นโฟลเดอร์ที่สั้นกว่า แล้วลองใหม่  ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ", title_of(it)));
                 continue;
             }
-            let _ = std::fs::remove_file(&partial);
             let stop = || STOP.load(std::sync::atomic::Ordering::SeqCst) || jobs.cancelled();
-            match extract_one(&tools, &src, it, &partial, &|p| { let _ = app.emit("extract-progress", ExtractProgress { index: i, percent: p }); }, &stop) {
-                Ok(Done::Ok) => match crate::rename::move_no_replace(&partial, &target) {
-                    Ok(()) => { r.states[i] = "done".into(); r.files[i] = Some(target.to_string_lossy().to_string()); }
-                    Err(p) => { let _ = std::fs::remove_file(&partial); r.states[i] = "failed".into(); r.error = Some(p.title); break; }
-                },
-                Ok(Done::Cancelled) => {
+            match place_item(&tools, &src, it, &target, vobsub, &|p| { let _ = app.emit("extract-progress", ExtractProgress { index: i, percent: p }); }, &stop) {
+                // VobSub ได้สองไฟล์ files เก็บ .idx ที่โปรแกรมอื่นเปิด pair เก็บ .sub (BUGS ข้อ 150)
+                Ok(Placed::Done(fs)) => {
+                    r.states[i] = "done".into();
+                    r.files[i] = fs.first().map(|f| f.to_string_lossy().to_string());
+                    r.pair[i] = fs.get(1).map(|f| f.to_string_lossy().to_string());
+                }
+                Ok(Placed::Cancelled) => {
                     r.states[i] = "cancelled".into();
                     break;
                 }
-                Err(e) => { r.states[i] = "failed".into(); r.error = Some(format!("แยก {} ไม่สำเร็จ  {e}  ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ", title_of(it))); break; }
+                // ข้อความบนการ์ดเป็นสาเหตุภาษาไทย ข้อความของเครื่องมือไปอยู่ในปุ่ม ⓘ
+                Err(e) => { r.states[i] = "failed".into(); r.error = Some(format!("แยก {} ไม่สำเร็จ  {}  ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ", title_of(it), e.why)); r.detail = e.detail; break; }
             }
         }
         Ok(r)

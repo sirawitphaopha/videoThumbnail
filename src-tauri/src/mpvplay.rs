@@ -58,13 +58,31 @@ static SUB_ID: Mutex<Option<i64>> = Mutex::new(None);
 /// คำสั่งเล่นทำทีละคำสั่ง (กดเล่นซ้ำเร็ว ๆ ไม่เปิดไฟล์ซ้อนกัน) · คำสั่งอื่นไม่รอกุญแจนี้
 static PLAY: Mutex<()> = Mutex::new(());
 
+/// รหัสผิดพลาดของ libmpv เป็นประโยคไทย (BUGS ข้อ 150) · ตาราง mpv_error จาก include/mpv/client.h ใน vendor/mpv
+fn mpv_reason(code: i32) -> String {
+    match code {
+        -2 => "หน่วยความจำของเครื่องไม่พอ".into(),
+        -4 | -5 | -6 | -7 => "ค่าที่ตั้งให้ mpv ไม่ถูกต้อง".into(),
+        -8 | -9 | -10 | -11 => "mpv ยังไม่มีค่านี้ เช่นยังเปิดไฟล์ไม่เสร็จ".into(),
+        -12 => "คำสั่งที่ส่งให้ mpv ทำงานไม่สำเร็จ".into(),
+        -13 => "mpv เปิดไฟล์ไม่ได้ ไฟล์อาจถูกย้าย เสีย หรือเป็นชนิดที่เล่นไม่ได้".into(),
+        -14 => "mpv เปิดลำโพงไม่ได้ ลองเช็กอุปกรณ์เสียงของ Windows".into(),
+        -15 => "mpv เปิดตัววาดภาพไม่ได้ การ์ดจออาจไม่รองรับ".into(),
+        -16 => "ไฟล์นี้ไม่มีภาพหรือเสียงให้เล่น".into(),
+        -17 => "mpv ไม่รู้จักชนิดไฟล์นี้".into(),
+        -18 | -19 => "mpv รุ่นที่แนบมาทำอย่างนี้ไม่ได้".into(),
+        -1 | -3 => "mpv ยังไม่พร้อม ลองปิดแล้วเปิดไฟล์ใหม่".into(),
+        c => format!("ซึ่ง mpv ตอบรหัส {c} ที่ไม่มีคำอธิบาย"),
+    }
+}
+
 fn wide(s: &OsStr) -> Vec<u16> { s.encode_wide().chain(std::iter::once(0)).collect() }
 fn cs(s: &str) -> CString { CString::new(s.replace('\0', "")).unwrap_or_default() }
 
 impl Mpv {
     fn set(&self, name: &str, v: &str) -> Result<(), String> {
         let r = unsafe { (self.set_prop)(self.h, cs(name).as_ptr(), cs(v).as_ptr()) };
-        if r < 0 { Err(format!("ตั้งค่า {name} ของ mpv ไม่ได้ (รหัส {r})")) } else { Ok(()) }
+        if r < 0 { Err(format!("ตั้งค่า {name} ของ mpv ไม่ได้ {}", mpv_reason(r))) } else { Ok(()) }
     }
     fn get(&self, name: &str) -> Option<String> {
         let p = unsafe { (self.get)(self.h, cs(name).as_ptr()) };
@@ -78,7 +96,7 @@ impl Mpv {
         let mut ptrs: Vec<*const c_char> = owned.iter().map(|c| c.as_ptr()).collect();
         ptrs.push(std::ptr::null());
         let r = unsafe { (self.cmd)(self.h, ptrs.as_mut_ptr()) };
-        if r < 0 { Err(format!("mpv ทำคำสั่ง {} ไม่ได้ (รหัส {r})", args.first().copied().unwrap_or(""))) } else { Ok(()) }
+        if r < 0 { Err(format!("mpv ทำคำสั่ง {} ไม่ได้ {}", args.first().copied().unwrap_or(""), mpv_reason(r))) } else { Ok(()) }
     }
     /// ซูมกับเลื่อนภาพ (ภาพที่ซูมเกินกรอบ หน้าจอคิดมาให้) · zoom เป็น log2 ของตัวคูณ pan เป็นสัดส่วนของความกว้างหรือสูงของภาพ
     fn view(&self, zoom: f64, pan_x: f64, pan_y: f64) {
@@ -124,7 +142,7 @@ fn load(app: &AppHandle) -> Result<Mpv, String> {
     let dll = dir.join("libmpv-2.dll");
     if !dll.exists() { return Err("ไม่มี libmpv-2.dll ในโฟลเดอร์เครื่องมือ ใช้ตัวเล่นแบบ Aegisub แทนได้ในหน้าตั้งค่า".into()); }
     let lib: HMODULE = unsafe { LoadLibraryExW(wide(dll.as_os_str()).as_ptr(), std::ptr::null_mut(), LOAD_WITH_ALTERED_SEARCH_PATH) };
-    if lib.is_null() { return Err(format!("เปิด libmpv-2.dll ไม่ได้ (รหัส {})", std::io::Error::last_os_error().raw_os_error().unwrap_or(0))); }
+    if lib.is_null() { return Err(format!("เปิด libmpv-2.dll ไม่ได้ {}", crate::tools::dll_reason("libmpv-2.dll"))); }
     let sym = |n: &[u8]| unsafe { GetProcAddress(lib, n.as_ptr()) }.ok_or_else(|| format!("libmpv-2.dll ไม่มีคำสั่ง {}", String::from_utf8_lossy(&n[..n.len() - 1])));
     // ชนิดฟังก์ชันตรงกับ include/mpv/client.h ของชุดที่แนบ (cdecl บน 64 บิตเป็นแบบเดียวกับ system)
     let (create, init, set_opt, set_prop, cmd, get, free): (FCreate, FInit, FSetStr, FSetStr, FCmd, FGetStr, FFree) = unsafe {
@@ -153,7 +171,7 @@ fn load(app: &AppHandle) -> Result<Mpv, String> {
     ] { opt(k, v); }
     opt("wid", &wnd.to_string());
     let r = unsafe { init(h) };
-    if r < 0 { return Err(format!("เริ่ม mpv ไม่ได้ (รหัส {r})")); }
+    if r < 0 { return Err(format!("เริ่ม mpv ไม่ได้ {}", mpv_reason(r))); }
     Ok(Mpv { h, set_prop, cmd, get, free, wnd })
 }
 
@@ -330,3 +348,19 @@ pub fn mpv_dev_shot(path: String) -> Result<(), String> {
 #[cfg(not(debug_assertions))]
 #[tauri::command]
 pub fn mpv_dev_shot(_path: String) -> Result<(), String> { Err("ใช้ได้เฉพาะรุ่นทดสอบ".into()) }
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    /// ทุกรหัสใน mpv_error ของ client.h (vendor/mpv) มีประโยคไทย ไม่ขึ้นแค่รหัส (BUGS ข้อ 150)
+    #[test]
+    fn mpv_codes_in_thai() {
+        for c in -19..=-1 {
+            let s = mpv_reason(c);
+            assert!(!s.contains("รหัส"), "{c} {s}");
+        }
+        assert!(mpv_reason(-13).starts_with("mpv เปิดไฟล์ไม่ได้"));
+        assert!(mpv_reason(-20).contains("ตอบรหัส -20"));
+    }
+}

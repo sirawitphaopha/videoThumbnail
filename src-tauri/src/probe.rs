@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
-use crate::tools::{exit_text, run_tool_timeout, tool_succeeded};
+use crate::tools::{run_tool_timeout, tool_succeeded};
 
 const PROBE_TIMEOUT: Duration = Duration::from_secs(60);
 
@@ -61,8 +61,7 @@ pub fn probe(tools: &Path, file: &Path) -> Result<Probe, String> {
         OsStr::new("-show_format"), OsStr::new("-show_streams"), file.as_os_str(),
     ], PROBE_TIMEOUT)?;
     if !tool_succeeded("ffprobe", &out.status) {
-        let msg = String::from_utf8_lossy(&out.stderr);
-        return Err(format!("อ่านข้อมูลไฟล์ไม่ได้ (รหัส {}) {}", exit_text(&out.status), msg.lines().last().unwrap_or("").trim()));
+        return Err(format!("อ่านข้อมูลไฟล์ไม่ได้ {}", fail_line("ffprobe", &out, true)));
     }
     let j: Value = serde_json::from_slice(&out.stdout).map_err(|e| format!("อ่านผลของ ffprobe ไม่ได้: {e}"))?;
     Ok(parse(&j))
@@ -254,6 +253,11 @@ pub struct Thumb {
     pub aspect: f32,
 }
 
+/// สาเหตุที่เครื่องมือทำไม่สำเร็จเป็นประโยคไทย (BUGS ข้อ 150) เดิมบอกแค่รหัส · made = เครื่องมือจบแล้วได้ไฟล์ไหม
+fn fail_line(tool: &str, out: &std::process::Output, made: bool) -> String {
+    crate::tools::output_fail(tool, out, made)
+}
+
 /// ดึงปกออกจากไฟล์หนัง แล้วย่อเป็น 300 × 450 (คมพอสำหรับปกใหญ่ 150 × 225 บนจอขยาย 200%)
 /// ชื่อภาพเล็กมีค่า hash ของปก เปลี่ยนปกแล้วได้ชื่อใหม่ หน้าจอไม่ได้ภาพเก่าค้าง (TECH-REVIEW ข้อ 5)
 pub fn make_thumb(tools: &Path, file: &Path, cover: &CoverSource, work: &Path, thumbs: &Path, id: &str) -> Result<Thumb, String> {
@@ -269,7 +273,7 @@ pub fn make_thumb(tools: &Path, file: &Path, cover: &CoverSource, work: &Path, t
             target.push(raw.as_os_str());
             let out = run_tool_timeout(tools, "mkvextract", [file.as_os_str(), OsStr::new("attachments"), &target], PROBE_TIMEOUT)?;
             if !tool_succeeded("mkvextract", &out.status) || !raw.exists() {
-                return Err(format!("ดึงปกออกจากไฟล์ไม่ได้ (รหัส {})", exit_text(&out.status)));
+                return Err(format!("ดึงปกออกจากไฟล์ไม่ได้ {}", fail_line("mkvextract", &out, raw.exists())));
             }
             (raw, name.clone())
         }
@@ -284,7 +288,7 @@ pub fn make_thumb(tools: &Path, file: &Path, cover: &CoverSource, work: &Path, t
                 raw.as_os_str(),
             ], PROBE_TIMEOUT)?;
             if !tool_succeeded("ffmpeg", &out.status) || !raw.exists() {
-                return Err(format!("ดึงภาพปกออกจากไฟล์ไม่ได้ (รหัส {})", exit_text(&out.status)));
+                return Err(format!("ดึงภาพปกออกจากไฟล์ไม่ได้ {}", fail_line("ffmpeg", &out, raw.exists())));
             }
             (raw, format!("ภาพปก.{ext}"))
         }
@@ -306,7 +310,7 @@ pub fn make_thumb(tools: &Path, file: &Path, cover: &CoverSource, work: &Path, t
         ], PROBE_TIMEOUT);
         match out {
             Ok(o) if tool_succeeded("ffmpeg", &o.status) && thumb.exists() => Ok(()),
-            Ok(o) => Err(format!("ย่อปกไม่ได้ (รหัส {})", exit_text(&o.status))),
+            Ok(o) => Err(format!("ย่อปกไม่ได้ {}", fail_line("ffmpeg", &o, thumb.exists()))),
             Err(e) => Err(e),
         }
     };

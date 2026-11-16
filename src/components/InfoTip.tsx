@@ -87,8 +87,9 @@ function scrollParent(el: HTMLElement | null): HTMLElement | null {
   return null;
 }
 
-/** children กับ btnClass ใช้ของอื่นเป็นปุ่มเปิดแทนไอคอน ⓘ เช่นป้ายนามสกุลในหัวข้อชนิดไฟล์ · noAbbr ไม่ขยายตัวย่อ (BUGS ข้อ 127) */
-export default function InfoTip({ title, tip, children, btnClass, noAbbr }: { title: string; tip: Tip; children?: ReactNode; btnClass?: string; noAbbr?: boolean }) {
+/** children กับ btnClass ใช้ของอื่นเป็นปุ่มเปิดแทนไอคอน ⓘ เช่นป้ายนามสกุลในหัวข้อชนิดไฟล์ · noAbbr ไม่ขยายตัวย่อ (BUGS ข้อ 127)
+    plain จัดย่อหน้าชิดซ้ายแทนกระจายแบบไทย ใช้กับข้อความดิบของเครื่องมือที่มีชื่อไฟล์ยาว ไม่งั้นตัวอักษรถ่าง (BUGS ข้อ 150) */
+export default function InfoTip({ title, tip, children, btnClass, noAbbr, plain }: { title: string; tip: Tip; children?: ReactNode; btnClass?: string; noAbbr?: boolean; plain?: boolean }) {
   const [open, setOpen] = useState(false);
   const [pos, setPos] = useState<{ top: number; left: number; max: number; up: boolean } | null>(null);
   const btn = useRef<HTMLButtonElement>(null);
@@ -161,7 +162,7 @@ export default function InfoTip({ title, tip, children, btnClass, noAbbr }: { ti
       <button ref={btn} type="button" className={btnClass ?? "infob"} aria-label={`${title} คืออะไร`} title={`${title} คืออะไร`} aria-expanded={open} data-info={title}
         onClick={(e) => { e.stopPropagation(); if (open) { close(); return; } closeOpen?.(); setPos(null); setOpen(true); }}>{children ?? INFO}</button>
       {open && createPortal(
-        <div ref={box} className="infotip pop-in" role="dialog" aria-label={`คำอธิบาย ${title}`} data-tip={title} data-side={pos?.up ? "บน" : "ล่าง"}
+        <div ref={box} className={"infotip pop-in" + (plain ? " plain" : "")} role="dialog" aria-label={`คำอธิบาย ${title}`} data-tip={title} data-side={pos?.up ? "บน" : "ล่าง"}
           style={pos ? { top: pos.top, left: pos.left, maxHeight: pos.max } : { top: 0, left: 0, visibility: "hidden" }}>
           <div className="tiph"><b>{ex(title)}</b>
             <button type="button" className="icon-btn" style={{ width: 26, height: 26, flex: "none" }} aria-label="ปิดคำอธิบาย" onClick={close}><IcClose /></button></div>

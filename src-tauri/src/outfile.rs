@@ -169,10 +169,38 @@ pub fn to_trash(p: &Path) -> Result<(), String> {
     // ทุกไฟล์ที่โปรแกรมส่งลงถังขยะจดลงบันทึกการใช้งาน ทั้งสำเร็จและไม่สำเร็จ · ทางนี้ทางเดียวทั้งโปรแกรม
     if r != 0 || op.fAnyOperationsAborted != 0 || p.exists() {
         crate::actlog::note("ส่งลงถังขยะไม่สำเร็จ", &format!("{} รหัส {r}", p.display()));
-        return Err(format!("ส่งไฟล์เดิมลงถังขยะไม่สำเร็จ (รหัส {r})"));
+        return Err(format!("ส่งไฟล์เดิมลงถังขยะไม่สำเร็จ {}", trash_reason(r, p.exists())));
     }
     crate::actlog::note("ลงถังขยะ", &p.display().to_string());
     Ok(())
+}
+
+/// สาเหตุที่ส่งลงถังขยะไม่สำเร็จเป็นประโยคไทย ไม่ใช่แค่รหัส (BUGS ข้อ 150) · still = ไฟล์ยังอยู่ที่เดิม
+/// รหัสเฉพาะของ SHFileOperation ตามเอกสาร Microsoft หัวข้อ Return value ส่วนที่เหลือเป็นรหัสของ Windows
+fn trash_reason(r: i32, still: bool) -> String {
+    match r {
+        0 if still => "Windows ตอบว่าลบแล้วแต่ไฟล์ยังอยู่ที่เดิม".to_string(),
+        0 | 0x75 => "การลบถูกยกเลิกกลางคัน".to_string(),
+        0x78 => "Windows ไม่อนุญาต ไฟล์อาจตั้งเป็นอ่านอย่างเดียว หรือโปรแกรมอื่นถือไฟล์ไว้".to_string(),
+        0x7C | 0x402 => "ที่อยู่ไฟล์ใช้ไม่ได้ ไฟล์อาจถูกย้ายไปแล้ว".to_string(),
+        c => crate::tools::win_reason(c),
+    }
+}
+
+#[cfg(test)]
+mod trash_tests {
+    use super::*;
+
+    /// ส่งลงถังขยะไม่สำเร็จบอกสาเหตุเป็นภาษาไทย ไม่ขึ้นแค่รหัส (BUGS ข้อ 150)
+    #[test]
+    fn trash_reasons_in_thai() {
+        assert!(trash_reason(0, true).contains("ยังอยู่ที่เดิม"));
+        assert!(trash_reason(0x75, false).contains("ยกเลิก"));
+        assert!(trash_reason(0x78, true).starts_with("Windows ไม่อนุญาต"));
+        assert!(trash_reason(0x402, true).starts_with("ที่อยู่ไฟล์ใช้ไม่ได้"));
+        assert!(trash_reason(32, true).contains("ถูกเปิดอยู่ในโปรแกรมอื่น"));
+        for r in [0, 0x75, 0x78, 0x7C, 0x402, 2, 5, 32] { assert!(!trash_reason(r, true).contains("รหัส"), "{r}"); }
+    }
 }
 
 /// เอาไฟล์ใหม่ที่เขียนเสร็จแล้ว (partial) มาแทน target · target เดิมลงถังขยะก่อน (กู้คืนได้ด้วยชื่อจริง)

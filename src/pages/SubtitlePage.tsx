@@ -20,6 +20,7 @@ import { langName } from "../lib/langs";
 import { CardIcon, J, Keep, Phr, Seg, Skel, dropClick } from "../components/ui";
 import { IbPencil, IbTable, IcExtract, IcFile, IcFolder, IcMix } from "../components/icons";
 import SubViewer from "../components/SubViewer";
+import InfoTip from "../components/InfoTip";
 
 const MOVIE_EXT = ["mkv", "mp4", "m4v", "mov", "avi", "webm", "ts", "m2ts", "mpg", "mpeg", "vob", "flv"];
 const extOf = (p: string) => (p.match(/\.([^.\\/]+)$/)?.[1] ?? "").toLowerCase();
@@ -28,7 +29,8 @@ const nameOf = (p: string) => p.split(/[\\/]/).pop() ?? p;
 /** path ไฟล์ที่ใส่ · movie ใส่ไฟล์หนัง · video ไฟล์วิดีโอที่เพิ่มคู่กับไฟล์ซับ (ข้อ 107) · ref แทร็กเสียงที่ใช้วาดคลื่น · items ชิ้นที่ Export ได้ เรียงตามซับ (ข้อ 108) */
 type Vid = { fps: number | null; res: [number, number] | null };
 type Loaded = { path: string; movie: boolean; subs: AvTrack[]; video: string | null; ref: AvTrack | null; refIdx: number | null; items: (ExtractItem | null)[] | null; vid: Vid | null };
-type Exp = { key: string; label: string; item: ExtractItem } & ({ s: "busy" } | { s: "done"; file: string } | { s: "conflict"; file: string } | { s: "failed"; err: string });
+/** pair ไฟล์ที่สองของชิ้นเดียวกัน ซับ VobSub ได้ .idx กับ .sub · detail ข้อความจากเครื่องมือตอนไม่สำเร็จ (BUGS ข้อ 150) */
+type Exp = { key: string; label: string; item: ExtractItem } & ({ s: "busy" } | { s: "done"; file: string; pair?: string | null } | { s: "conflict"; file: string } | { s: "failed"; err: string; detail?: string | null });
 
 const PLANNED = [
   "ลากเวลาบนคลื่นเสียง ฟังเสียงเป็นช่วง และเส้นแบ่งฉากแบบ Aegisub",
@@ -130,10 +132,10 @@ export default function SubtitlePage({ onAv, onSettings }: { onAv: () => void; o
     try {
       const r = await infoApi.extract(file.path, null, [item], [policy]);
       const st = r.states[0], f = r.files[0] ?? "";
-      setExp(st === "done" ? { key, label, item, s: "done", file: f }
+      setExp(st === "done" ? { key, label, item, s: "done", file: f, pair: r.pair?.[0] }
         : st === "conflict" ? { key, label, item, s: "conflict", file: f }
         : st === "skipped" ? null
-        : { key, label, item, s: "failed", err: r.error ?? "Export ไม่สำเร็จ" });
+        : { key, label, item, s: "failed", err: r.error ?? "Export ไม่สำเร็จ", detail: r.detail });
     } catch (e) { setExp({ key, label, item, s: "failed", err: String(e) }); }
   };
   // ผลสำเร็จหายเอง ผิดพลาดกับชื่อชนค้างไว้จนกว่าจะกด (สกิล save-status)
@@ -248,8 +250,8 @@ export default function SubtitlePage({ onAv, onSettings }: { onAv: () => void; o
           <div className={"stat " + (exp.s === "done" ? "ok" : exp.s === "conflict" ? "warn" : "bad")} data-sub-exp={exp.s}>
             <CardIcon kind={exp.s === "done" ? "ok" : exp.s === "conflict" ? "warn" : "bad"} />
             <div style={{ flex: 1, minWidth: 0 }}>
-              <b>{exp.s === "done" ? `Export ${exp.label} แล้ว` : exp.s === "conflict" ? "ในโฟลเดอร์มีไฟล์ชื่อนี้อยู่แล้ว" : `Export ${exp.label} ไม่สำเร็จ`}</b>
-              <Phr>{exp.s === "failed" ? exp.err : `${nameOf(exp.file)}${exp.s === "conflict" ? "  ตั้งชื่อใหม่โดยต่อเลขท้าย หรือไม่ Export ไฟล์นี้ ไฟล์เดิมไม่ถูกเขียนทับ" : ""}`}</Phr>
+              <b>{exp.s === "done" ? `Export ${exp.label} แล้ว` : exp.s === "conflict" ? "ในโฟลเดอร์มีไฟล์ชื่อนี้อยู่แล้ว" : `Export ${exp.label} ไม่สำเร็จ`}{exp.s === "failed" && exp.detail && <InfoTip title="ข้อความจากเครื่องมือ" tip={{ w: `บรรทัดสุดท้ายที่เครื่องมือพิมพ์ไว้ตอนหยุด\n${exp.detail}` }} noAbbr plain />}</b>
+              <Phr>{exp.s === "failed" ? exp.err : `${nameOf(exp.file)}${exp.s === "done" && exp.pair ? ` และ ${nameOf(exp.pair)}` : ""}${exp.s === "conflict" ? "  ตั้งชื่อใหม่โดยต่อเลขท้าย หรือไม่ Export ไฟล์นี้ ไฟล์เดิมไม่ถูกเขียนทับ" : ""}`}</Phr>
               <div className="minirow">
                 {exp.s === "done" && <button type="button" className="btn btn-ghost btn-sm" onClick={() => reveal(exp.file)} data-sub-reveal><IcFolder size={15} />เปิดโฟลเดอร์</button>}
                 {exp.s === "conflict" && <>
