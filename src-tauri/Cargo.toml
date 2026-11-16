@@ -35,6 +35,10 @@ qcms = "0.3"
 # เข้ารหัส JPG แบบตารางฮัฟแมนที่คำนวณจากรูปจริง ไฟล์เล็กกว่าตัวเข้ารหัสของ image
 jpeg-encoder = "0.6"
 flate2 = "1.1"
+# ตรวจคำของตัวแก้คำ OCR (แผน OCR ขั้น 8) อ่านพจนานุกรม Hunspell .aff .dic
+spellbook = "0.3"
+# นิพจน์ของรายการแก้คำ OCR แบบ .NET (มองหน้า มองหลัง)
+fancy-regex = "0.20"
 ort = { version = "=2.0.0-rc.13", default-features = false, features = ["std", "load-dynamic", "api-22"] }
 
 # งานรูปและ hash ช้าลง 10–30 เท่าในโหมดทดสอบ ถ้าไม่เปิดตัวเลือกนี้ (TECH-REVIEW ข้อ 10)
