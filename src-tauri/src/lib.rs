@@ -41,6 +41,7 @@ mod tools;
 mod vidframes;
 mod vidplay;
 mod mpvplay;
+mod binocr;
 mod nocr;
 mod nocr_lines;
 mod nocr_split;

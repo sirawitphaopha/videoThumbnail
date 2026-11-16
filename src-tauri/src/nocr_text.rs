@@ -537,9 +537,12 @@ impl CaseFixer {
 
 /// ตัวเอียงเอนข้ามช่องเว้นคำ ตัวแยกที่ตัดตามแนวตั้งจึงนับช่องขาด · วัดช่องระหว่างตัวที่จับคู่แล้วตามแนวเอียง แล้วใส่เว้นวรรคที่ขาด
 /// ผู้เรียกเก็บผลนี้เมื่อได้คำที่ไม่รู้จักน้อยกว่าเท่านั้น (Subtitle Edit ใช้ค่าเอียง 0.33) · ตาม ItalicSpaceFixer.GetTextWithMoreSpacesInItalic
-pub fn more_italic_spaces(hits: &[Hit], list: &[Piece], parent: &Bmp, factor: f64, px: i32) -> String {
+pub fn more_italic_spaces(hits: &[Hit], list: &[Piece], parent: &Bmp, factor: f64, px: i32) -> String { more_italic_spaces_with(hits, list, parent, factor, px, true) }
+
+/// cap เป็นเท็จสำหรับ Binary OCR ที่ Subtitle Edit ใช้เกณฑ์จุดเว้นวรรคตามที่ตั้งตรง ๆ ไม่จำกัดด้วยความสูงตัว (รุ่น CompareMatch ของ GetTextWithMoreSpacesInItalic)
+pub fn more_italic_spaces_with(hits: &[Hit], list: &[Piece], parent: &Bmp, factor: f64, px: i32, cap: bool) -> String {
     let mut hits = hits.to_vec();
-    let px = italic_space_threshold(list, px);
+    let px = if cap { italic_space_threshold(list, px) } else { px };
     let mut could = vec![false; list.len()];
     for i in 0..hits.len().saturating_sub(1) {
         let (m, n) = (&hits[i], &hits[i + 1]);
