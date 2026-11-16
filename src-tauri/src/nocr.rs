@@ -562,7 +562,7 @@ impl NOcrDb {
     }
 
     /// ตัวที่ข้อความนี้และสัดส่วนใกล้กันที่เข้ากับภาพที่สุด ถ้าสัดส่วนจุดผิดต่ำกว่า max_rate · ตาม FindBestByText
-    fn best_by_text(&self, b: &Bmp, text: &str, max_rate: f64) -> (Option<NChar>, f64) {
+    pub(crate) fn best_by_text(&self, b: &Bmp, text: &str, max_rate: f64) -> (Option<NChar>, f64) {
         let (w, h) = (b.width() as i32, b.height() as i32);
         let h2w = h as f64 * 100.0 / w.max(1) as f64;
         let (mut best, mut br) = (None, max_rate);

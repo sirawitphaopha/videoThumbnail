@@ -71,6 +71,12 @@ fn ass_time(cs: u64) -> String { format!("{}:{:02}:{:02}.{:02}", cs / 360000, cs
 /// วาดหลายข้อความด้วยฟอนต์เดียวในรอบเดียวของ ffmpeg แบบซับรูปทั่วไป ตัวขาว ขอบดำ 2 จุด พื้นใส · ข้อความที่มีปีกกาหรือแบ็กสแลชข้าม (แท็กของ ASS)
 /// ตาม NOcrTrainer.RenderCharacterImage แล้ว MakeTwoColor(200) CropTop SplitBitmapToLettersNew(เว้นวรรค 10 ล่างขึ้นบน ความสูงขั้นต่ำ 25)
 pub fn render(tools: &Path, work: &Path, texts: &[String], font: &str, size: f32, bold: bool, italic: bool) -> Result<Vec<Option<Rendered>>, String> {
+    render_with(tools, work, texts, "H   ", 1.0, font, size, bold, italic)
+}
+
+/// แบบ render แต่เลือกข้อความนำหน้าได้ และความสูงภาพเป็นกี่เท่าของขนาดฟอนต์ (ตัวสอนเองของไทยนำด้วย "กกก" และเผื่อที่ให้สระวรรณยุกต์สองชั้น)
+#[allow(clippy::too_many_arguments)]
+pub fn render_with(tools: &Path, work: &Path, texts: &[String], prefix: &str, tall: f32, font: &str, size: f32, bold: bool, italic: bool) -> Result<Vec<Option<Rendered>>, String> {
     let mut out: Vec<Option<Rendered>> = Vec::with_capacity(texts.len());
     // ทีละไม่เกิน 64 ข้อความแบบ BATCH ของ pgs.rs · 100 ภาพต่อรอบ ffmpeg ฟ้องหน่วยความจำไม่พอ (นิพจน์ setpts ยาวเกิน เจอตอนเทส 16 พ.ย. 2569)
     for chunk in texts.chunks(64) {
@@ -78,7 +84,7 @@ pub fn render(tools: &Path, work: &Path, texts: &[String], font: &str, size: f32
         let w = (((size * longest as f32 * 1.4) as u32 + 48).max(64) + 1) & !1;
         // สูงพอดีบรรทัดบวกขอบบนล่างข้างละ 12 แบบภาพของ Subtitle Edit (ขอบ 10 กับเส้นขอบ 2) · ภาพสูงกว่านี้ ที่ว่างใต้ตัวอักษรยาวเกินความสูงบรรทัดขั้นต่ำ 25
         // ตัวแบ่งบรรทัดจะนับเป็นบรรทัดว่างอีกบรรทัด ชิ้นที่ได้ไม่ใช่ [H][เว้นวรรค][ตัว] ฝึกไม่ได้สักตัว (เจอตอนเทส 16 พ.ย. 2569) · ขนาดฟอนต์ของ ASS คือความสูงบรรทัด
-        let h = ((size.ceil() as u32 + 24).max(32) + 1) & !1;
+        let h = (((size * tall).ceil() as u32 + 24).max(32) + 1) & !1;
         let mut ass = format!(
             "[Script Info]\nScriptType: v4.00+\nPlayResX: {w}\nPlayResY: {h}\nScaledBorderAndShadow: yes\nYCbCr Matrix: None\nWrapStyle: 2\n\n[V4+ Styles]\n\
              Format: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\n\
@@ -92,7 +98,7 @@ pub fn render(tools: &Path, work: &Path, texts: &[String], font: &str, size: f32
             let ok = !t.contains(['{', '}', '\\', '\n']);
             used.push(ok);
             times.push(i as i64 * 1_000_000 + 500_000);
-            if ok { ass.push_str(&format!("Dialogue: 0,{},{},T,,0,0,0,,H   {t}\n", ass_time(i as u64 * 100), ass_time(i as u64 * 100 + 100))); }
+            if ok { ass.push_str(&format!("Dialogue: 0,{},{},T,,0,0,0,,{prefix}{t}\n", ass_time(i as u64 * 100), ass_time(i as u64 * 100 + 100))); }
         }
         let file = work.join(format!("sub-nocrtrain-{}.ass", std::process::id()));
         std::fs::write(&file, ass).map_err(|e| format!("เขียนไฟล์ชั่วคราวไม่ได้ {e}"))?;

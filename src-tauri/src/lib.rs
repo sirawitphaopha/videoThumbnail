@@ -47,6 +47,7 @@ mod nocr_lines;
 mod nocr_split;
 mod nocr_text;
 mod nocr_train;
+mod ownocr;
 mod ocrprep;
 mod ocrsrc;
 mod paddle;
