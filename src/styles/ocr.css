@@ -199,6 +199,17 @@
 .ocr-dbtools { display: flex; gap: 6px; flex-wrap: wrap; }
 .ocr-dlg.ocr-train { grid-template-columns: minmax(0, 1fr) 300px; }
 .ocr-trchars { height: 70px; flex: none; font-size: 14px; }
+/* หน้าต่างฐานตัวอักษร · รูปแบบวาดเส้นเทียบบนพื้นเทาแบบหน้าต่างแก้ฐานของ Subtitle Edit (ฐาน nOCR ไม่เก็บภาพ) · สีเส้นเป็นชื่อสี ไม่ให้ตัวแปลงโทนเปลี่ยน */
+.ocr-gv { display: block; image-rendering: pixelated; flex: none; }
+.ocr-gvbg { fill: lightgray; }
+.ocr-gv line { stroke-width: 2px; vector-effect: non-scaling-stroke; stroke-linecap: round; }
+.ocr-gv line.hit { stroke: limegreen; }
+.ocr-gv line.miss { stroke: crimson; }
+.ocr-lch .ocr-gv line { stroke-width: 1px; }
+.ocr-dbcanvas { flex: 1; min-height: 120px; overflow: auto; display: grid; place-items: center; background: var(--win2); border: 1px solid var(--line); border-radius: 10px; padding: 8px; }
+.ocr-dbvars > .ocr-dbempty { grid-column: 1 / -1; }
+.ocr-dbask { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--win2); }
+.ocr-engine .ocr-dbbtn { height: 38px; width: 38px; padding: 0; justify-content: center; flex: none; }
 .ocr-trgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; align-content: start; }
 
 /* หน้าต่างซ้อน · ขนาดเท่ากันทุกหน้าต่าง ส่วน ocr-fill ยืดใช้ที่ที่เหลือ */

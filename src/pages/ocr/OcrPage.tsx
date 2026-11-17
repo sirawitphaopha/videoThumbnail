@@ -12,7 +12,7 @@ import type { Tip } from "../../lib/codecAdv";
 import { ocrApi, pickFile, pickSave, subApi, type OcrCfg, type OcrDbList, type OcrReason, type OcrTessLang, type SubImg } from "../../lib/api";
 import type { AvTrack } from "../../lib/avJob";
 import { getOcrJob, ocrElapsed, openSource, pauseOcr, resumeOcr, rowReasons, setOcrCfg, setRowOk, setRowText, startOcr, stopOcr, useOcrJob, type OcrRow } from "../../lib/ocrJob";
-import { OcrDialogs, tessName } from "./OcrDialogs";
+import { OcrDialogs, tessName, type OcrDlg } from "./OcrDialogs";
 import "../../styles/ocr.css";
 
 /* ---------- คำอธิบาย ⓘ (ข้อความเดียวกับมอคอัปที่พี่กันดูแล้ว ตัวเลขจากผลเทสจริง) ---------- */
@@ -167,7 +167,7 @@ function BgPick() {
 
 /* ---------- แถวเลือกตัวอ่าน ---------- */
 const MATCH = ["nocr", "binary", "own"];
-function EngineRow({ busy, dbs, tess }: { busy: boolean; dbs: OcrDbList | null; tess: OcrTessLang[] }) {
+function EngineRow({ busy, dbs, tess, onDb }: { busy: boolean; dbs: OcrDbList | null; tess: OcrTessLang[]; onDb: () => void }) {
   const { cfg } = useOcrJob();
   const why = busy ? "หยุดอ่านก่อนจึงจะเปลี่ยนได้" : undefined;
   const matcher = MATCH.includes(cfg.engine);
@@ -186,6 +186,7 @@ function EngineRow({ busy, dbs, tess }: { busy: boolean; dbs: OcrDbList | null; 
       {matcher ? <>
         <span className="ocr-f">ฐาน</span>
         <Dropdown label="ฐานตัวอักษร" value={cfg[dbKey]} onChange={(v) => setCfg({ [dbKey]: v } as Partial<OcrCfg>)} disabled={why} stretch options={dbOpts} />
+        <button type="button" className="btn btn-ghost ocr-dbbtn" onClick={onDb} title="ฐานใหม่ เปลี่ยนชื่อ ลบฐาน และแก้ตัวอักษรในฐาน" aria-label="จัดการฐานตัวอักษร" data-ocr-db-open><IcSettings size={15} /></button>
         {cfg.engine !== "binary" ? <>
           <span className="ocr-f">จุดผิดที่ยอม<InfoTip title="เส้นที่ใช้เทียบ" tip={LINES_TIP} /></span>
           <input className="inp ocr-numi" inputMode="numeric" value={cfg.maxWrong} disabled={busy} title={why} aria-label="จุดผิดที่ยอม" onChange={(e) => setCfg({ maxWrong: num(e.target.value, 0, 200) })} />
@@ -421,7 +422,7 @@ export default function OcrPage({ track, movie }: { track: AvTrack; movie: strin
   const [only, setOnly] = useState(false);
   const [forcedOnly, setForcedOnly] = useState(false);
   const [view, setView] = useState<"table" | "one">(() => { try { return localStorage.getItem(VIEW_KEY) === "one" ? "one" : "table"; } catch { return "table"; } });
-  const [dlg, setDlg] = useState<null | "prep" | "models" | "options" | "find">(null);
+  const [dlg, setDlg] = useState<OcrDlg>(null);
   const [ask, setAsk] = useState<{ word: string; i: number } | null>(null);
   const [dbs, setDbs] = useState<OcrDbList | null>(null);
   const [impMsg, setImpMsg] = useState<string | null>(null);
@@ -476,7 +477,7 @@ export default function OcrPage({ track, movie }: { track: AvTrack; movie: strin
     </section>);
   return (
     <section className="card ocr-page" data-ocr-page>
-      <EngineRow busy={job.running} dbs={dbs} tess={tess} />
+      <EngineRow busy={job.running} dbs={dbs} tess={tess} onDb={() => setDlg("db")} />
       {done > 0 && <div className="ocr-sum" data-ocr-sum>
         <CardIcon kind={flagged ? "warn" : "ok"} /><Phr>{sum ?? `อ่านแล้ว ${done.toLocaleString("en-US")} จาก ${total.toLocaleString("en-US")} ภาพ มี ${flagged.toLocaleString("en-US")} ภาพที่ควรตรวจ`}</Phr>
         <InfoTip title="จุดที่ต้องตรวจ" tip={FLAG_TIP} />

@@ -113,7 +113,7 @@ fn db_kind(kind: &str) -> (&'static str, &'static str) {
 }
 
 /// ชื่อฐานต้องเป็นชื่อไฟล์ล้วน กันชื่อที่พาออกนอกโฟลเดอร์
-fn check_name(name: &str) -> Result<(), String> {
+pub(crate) fn check_name(name: &str) -> Result<(), String> {
     if name.trim().is_empty() || name.contains(['/', '\\', ':']) || name.contains("..") { return Err(format!("ชื่อฐาน \"{name}\" ใช้ไม่ได้")); }
     Ok(())
 }
@@ -126,7 +126,7 @@ pub fn db_paths(d: &Dirs, kind: &str, name: &str) -> (PathBuf, PathBuf) {
     (if user.is_file() || !bundled.is_file() { user.clone() } else { bundled }, user)
 }
 
-fn load_nocr(d: &Dirs, kind: &str, name: &str) -> Result<NOcrDb, String> {
+pub(crate) fn load_nocr(d: &Dirs, kind: &str, name: &str) -> Result<NOcrDb, String> {
     check_name(name)?;
     let (from, to) = db_paths(d, kind, name);
     let mut db = if from.is_file() { NOcrDb::load(&from)? } else { NOcrDb::empty(&to) };
@@ -134,7 +134,7 @@ fn load_nocr(d: &Dirs, kind: &str, name: &str) -> Result<NOcrDb, String> {
     Ok(db)
 }
 
-fn load_bin(d: &Dirs, name: &str) -> Result<BinDb, String> {
+pub(crate) fn load_bin(d: &Dirs, name: &str) -> Result<BinDb, String> {
     check_name(name)?;
     let (from, to) = db_paths(d, "binary", name);
     let mut db = if from.is_file() { BinDb::load(&from)? } else { BinDb::empty(&to) };
@@ -142,7 +142,7 @@ fn load_bin(d: &Dirs, name: &str) -> Result<BinDb, String> {
     Ok(db)
 }
 
-fn ensure_parent(f: &Path) -> Result<(), String> {
+pub(crate) fn ensure_parent(f: &Path) -> Result<(), String> {
     if let Some(p) = f.parent() { std::fs::create_dir_all(p).map_err(|e| format!("สร้างโฟลเดอร์เก็บฐานไม่ได้ {e}"))?; }
     Ok(())
 }
@@ -208,7 +208,7 @@ pub struct Session {
 
 static SESSION: Mutex<Option<Session>> = Mutex::new(None);
 
-fn session() -> MutexGuard<'static, Option<Session>> { SESSION.lock().unwrap_or_else(|e| e.into_inner()) }
+pub(crate) fn session() -> MutexGuard<'static, Option<Session>> { SESSION.lock().unwrap_or_else(|e| e.into_inner()) }
 
 /// เปิดซับรูปใหม่ · ฐานกับตัวแก้คำที่โหลดไว้ใช้ต่อ ค่าที่ผูกกับภาพเดิมล้างทิ้ง
 pub fn set_source(items: Vec<OcrItem>) {
@@ -387,7 +387,7 @@ pub enum ReadResult {
     Teach(TeachReq),
 }
 
-fn png_url(img: &Bmp) -> String {
+pub(crate) fn png_url(img: &Bmp) -> String {
     let mut v = std::io::Cursor::new(Vec::new());
     let _ = img.write_to(&mut v, image::ImageFormat::Png);
     format!("data:image/png;base64,{}", crate::audiograph::b64(&v.into_inner()))
@@ -644,12 +644,17 @@ pub fn ocr_db_delete(app: tauri::AppHandle, kind: String, name: String) -> Resul
     let (_, user) = db_paths(&d, &kind, &name);
     if !user.is_file() { return Err(format!("ฐาน {name} เป็นฐานที่แนบมากับโปรแกรม ลบไม่ได้")); }
     crate::outfile::to_trash(&user)?;
+    forget_db(&kind, &name);
+    Ok(())
+}
+
+/// ฐานที่โหลดค้างในงานนี้ปิดทิ้ง ให้อ่านครั้งต่อไปโหลดจากไฟล์ใหม่ (หลังลบ เปลี่ยนชื่อ แก้ฐานจากหน้าต่างอื่น)
+pub(crate) fn forget_db(kind: &str, name: &str) {
     if let Some(s) = session().as_mut() {
         if s.nocr.as_ref().is_some_and(|x| x.0 == name) && kind == "nocr" { s.nocr = None; }
         if s.bin.as_ref().is_some_and(|x| x.0 == name) && kind == "binary" { s.bin = None; }
         if s.own.as_ref().is_some_and(|x| x.0 == name) && kind == "own" { s.own = None; }
     }
-    Ok(())
 }
 
 /// คัดลอกภาพซับลงคลิปบอร์ด (dest copy) หรือบันทึกเป็น PNG ที่ path (dest save) · ปุ่มคัดลอกภาพ บันทึกภาพ ของ Subtitle Edit

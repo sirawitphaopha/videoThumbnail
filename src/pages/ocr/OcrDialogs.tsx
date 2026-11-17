@@ -12,6 +12,10 @@ import { inApp, ocrApi, type OcrDbList, type OcrPrep, type OcrTaught, type OcrTe
 import { answerTeach, answerWord, forgetWord, getOcrJob, setOcrCfg, setPromptUnknown, setRowText, useOcrJob, __ocrJobLib, type OcrRow } from "../../lib/ocrJob";
 import Dropdown from "../../components/Dropdown";
 import { LineImg, ScreenImg } from "./OcrPage";
+import { DbDialog } from "./OcrDbDialog";
+
+/** หน้าต่างซ้อนที่เปิดอยู่ของหน้า OCR */
+export type OcrDlg = null | "prep" | "models" | "options" | "find" | "db";
 
 const DLG_W = 880, DLG_H = "min(640px, calc(100vh - 48px))";
 
@@ -336,7 +340,7 @@ function FindDialog({ open, onClose, rows }: { open: boolean; onClose: () => voi
 }
 
 export function OcrDialogs({ dlg, setDlg, ask, setAsk, rows, imgs, need, sel }: {
-  dlg: null | "prep" | "models" | "options" | "find"; setDlg: (d: null | "prep" | "models" | "options" | "find") => void; ask: { word: string; i: number } | null; setAsk: (a: null) => void;
+  dlg: OcrDlg; setDlg: (d: OcrDlg) => void; ask: { word: string; i: number } | null; setAsk: (a: null) => void;
   rows: OcrRow[]; imgs: Map<number, SubImg>; need: (n: number) => void; sel: number;
 }) {
   return (<>
@@ -346,5 +350,6 @@ export function OcrDialogs({ dlg, setDlg, ask, setAsk, rows, imgs, need, sel }: 
     <ModelsDialog open={dlg === "models"} onClose={() => setDlg(null)} />
     <OptionsDialog open={dlg === "options"} onClose={() => setDlg(null)} />
     <FindDialog open={dlg === "find"} onClose={() => setDlg(null)} rows={rows} />
+    <DbDialog open={dlg === "db"} onClose={() => setDlg(null)} />
   </>);
 }

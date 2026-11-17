@@ -51,6 +51,18 @@ const row = await q(`const r = document.querySelector('[data-ocr-engine]'); cons
   let lap = 0; for (let i = 1; i < kids.length; i++) if (kids[i].left < kids[i - 1].right - 0.5) lap++;
   return { over: r.scrollWidth - r.clientWidth, lap, right: Math.max(...kids.map((b) => b.right)), box: r.getBoundingClientRect().right };`);
 check("แถวเลือกตัวอ่านไม่ล้นไม่ซ้อนที่หน้าต่าง 1280 × 800", row.over <= 0 && row.lap === 0 && row.right <= row.box + 0.5, JSON.stringify(row));
+// ตัวอ่านแบบเทียบภาพมีปุ่มจัดการฐานเพิ่มในแถว ต้องไม่ล้นไม่ซ้อนทุกแบบ (ชื่อฐานที่ยาวจางท้ายในดรอปดาวน์ได้)
+{
+  const cfg0 = await job("return JSON.stringify(j.get().cfg);");
+  for (const e of ["nocr", "binary", "own"]) {
+    await job(`j.setCfg({ engine: '${e}' }); return 1;`); await sleep(250);
+    const r2 = await q(`const r = document.querySelector('[data-ocr-engine]'); const kids = [...r.children].map((k) => k.getBoundingClientRect()).filter((b) => b.width > 0);
+      let lap = 0; for (let i = 1; i < kids.length; i++) if (kids[i].left < kids[i - 1].right - 0.5) lap++;
+      return { over: r.scrollWidth - r.clientWidth, lap, right: Math.max(...kids.map((b) => b.right)), box: r.getBoundingClientRect().right, db: !!document.querySelector('[data-ocr-db-open]') };`);
+    check(`แถวเลือกตัวอ่าน ${e} มีปุ่มจัดการฐาน ไม่ล้นไม่ซ้อน`, r2.db && r2.over <= 0 && r2.lap === 0 && r2.right <= r2.box + 0.5, JSON.stringify(r2));
+  }
+  await job(`j.setCfg(${cfg0}); return 1;`); await sleep(250);
+}
 const gap = await q("const b = document.querySelector('.titlebar').getBoundingClientRect(), d = document.querySelector('[data-ocr-engine] > div').getBoundingClientRect(), f = document.querySelector('[data-ocr-foot]').getBoundingClientRect(); return { gap: Math.round(d.top - b.bottom), foot: Math.round(innerHeight - f.bottom) };");
 check("ระยะใต้แถบชื่อโปรแกรมถึงแถวเลือกตัวอ่านไม่เกิน 16 จุด (แถวบนย้ายขึ้นแถบชื่อ BUGS 149)", gap.gap <= 16, `${gap.gap} จุด`);
 check("แถวบนของหน้าซับไตเติลอยู่ในแถบชื่อโปรแกรม", await q("return !!document.querySelector('.titlebar [data-sub-bar] [data-sub-mode]') && !document.querySelector('.ag [data-sub-bar]');"));
@@ -206,6 +218,73 @@ for (const [btn, sel, name] of [["[data-ocr-prep-open]", "[data-ocr-prep-dlg]", 
   await c.shot(`${SHOT}/${name}.png`);
   await c.key("Escape");
   check(`${name.slice(3)} กด Esc ปิด`, await waitFor(`return !document.querySelector('${sel}');`, 3000));
+}
+// ---------- หน้าต่างฐานตัวอักษร (ระบบแมนนวล ocrmanual.rs · NOcrSettingsWindow NOcrDbEditWindow ของ Subtitle Edit) ----------
+{
+  const inv = (cmd, a) => q(`return await window.__TAURI_INTERNALS__.invoke(${JSON.stringify(cmd)}, ${JSON.stringify(a)});`);
+  const before = await job("return { engine: j.get().cfg.engine, nocrDb: j.get().cfg.nocrDb, binDb: j.get().cfg.binDb };");
+  const latin0 = await inv("ocr_db_chars", { kind: "nocr", name: "Latin" });
+  await job("j.setCfg({ engine: 'nocr', nocrDb: 'Latin' }); return 1;");
+  await sleep(300);
+  await click("[data-ocr-db-open]");
+  const okDb = await waitFor("return document.querySelectorAll('[data-ocr-db-dlg] [data-db-var]').length > 0;", 15000);
+  await sleep(500);
+  const m = await q("const d = document.querySelector('.dlg').getBoundingClientRect(), b = document.querySelector('[data-ocr-db-dlg]'); return { w: Math.round(d.width), h: Math.round(d.height), scroll: b.scrollHeight - b.clientHeight, title: document.querySelector('.dlg').innerText.split('\\n')[0] };");
+  sizes.push(m);
+  check("หน้าต่างฐานตัวอักษรเปิดได้ ไม่ต้องเลื่อน หัวบอกชนิดกับชื่อฐาน", okDb && m.scroll <= 0 && m.title.includes("nOCR Latin.nocr"), JSON.stringify(m));
+  const z = await q("const s = document.querySelector('[data-db-canvas] svg').getBoundingClientRect(), b = document.querySelector('[data-db-canvas]').getBoundingClientRect(); return { sw: s.width, sh: s.height, bw: b.width, bh: b.height, z: document.querySelector('[data-db-zoom]').innerText };");
+  check("รูปแบบที่เลือกขยายพอดีกรอบ ไม่ล้นกรอบ", z.sh > z.bh * 0.5 && z.sw <= z.bw && z.sh <= z.bh, JSON.stringify(z));
+  await c.shot(`${SHOT}/08-ฐานตัวอักษร.png`);
+  if (!latin0.saved) {
+    check("ฐานที่แนบมา ปุ่มเปลี่ยนชื่อกับลบฐานกดไม่ได้พร้อมเหตุผล", await q("return ['rename','delete'].every((k) => { const b = document.querySelector(`[data-db=${k}]`); return b.getAttribute('aria-disabled') === 'true' && b.title.includes('แนบมา'); });"));
+    // แก้รูปแบบที่สองของตัวแรก แล้วได้สำเนาในโฟลเดอร์ของผู้ใช้ ฐานที่แนบมาไม่ถูกแตะ
+    await q("document.querySelectorAll('[data-db-var]')[1].click(); return 1;"); await sleep(300);
+    const key = Number(await q("return document.querySelector('[data-db-var].on').dataset.dbVar;"));
+    await q("const t = document.querySelector('[data-db-text]'); t.focus(); t.select(); return 1;"); await c.type("Q");
+    await click("[data-db-save]");
+    check("บันทึกตัวอักษรแล้วขึ้นผลสำเร็จ", await waitFor("return !!document.querySelector('[data-db-msg]') && /บันทึกตัว\\s*Q/.test(document.querySelector('[data-db-msg]').innerText);", 5000));
+    const after = await inv("ocr_db_chars", { kind: "nocr", name: "Latin" });
+    check("แก้แล้วได้สำเนาของผู้ใช้ ตัวนั้นเป็น Q จำนวนเท่าเดิม", after.saved && after.items.find((i) => i.key === key)?.text === "Q" && after.total === latin0.total, `${after.saved} ${after.total}/${latin0.total}`);
+    check("ผลสำเร็จหายเองใน 3 วินาที", await waitFor("return !document.querySelector('[data-db-msg]');", 5000));
+    // ลบรูปแบบ ถามก่อนแล้วจำนวนลดหนึ่ง
+    await click("[data-db-delitem]");
+    check("ลบรูปแบบถามยืนยันก่อน", await waitFor("return !!document.querySelector('[data-db-delitem-ok]');", 3000));
+    await click("[data-db-delitem-ok]");
+    await waitFor("return !!document.querySelector('[data-db-msg]');", 5000);
+    check("ลบรูปแบบแล้วจำนวนลดหนึ่ง", (await inv("ocr_db_chars", { kind: "nocr", name: "Latin" })).total === latin0.total - 1);
+    check("ฐานที่มีสำเนาแล้ว ปุ่มเปลี่ยนชื่อกับลบฐานกดได้", await q("return ['rename','delete'].every((k) => document.querySelector(`[data-db=${k}]`).getAttribute('aria-disabled') !== 'true');"));
+    await inv("ocr_db_delete", { kind: "nocr", name: "Latin" });
+    check("ลบสำเนาของผู้ใช้แล้วกลับเป็นฐานที่แนบมา", (await inv("ocr_db_chars", { kind: "nocr", name: "Latin" })).bundled);
+  } else console.log("ข้าม แก้ฐาน Latin เพราะโปรแกรมทดสอบมีสำเนาของผู้ใช้อยู่แล้ว ไม่ทับของเดิม");
+  // ฐานใหม่ เปลี่ยนชื่อ ลบฐาน ผ่านหน้าต่าง
+  const N1 = "ตรวจฐานOCR", N2 = "ตรวจฐานOCR2";
+  for (const n of [N1, N2]) { try { await inv("ocr_db_delete", { kind: "nocr", name: n }); } catch { /* ไม่มีก็ดีแล้ว */ } }
+  await click("[data-db=new]");
+  await waitFor("return !!document.querySelector('[data-db-name]');", 3000);
+  check("ปุ่มตกลงของชื่อฐานว่างกดไม่ได้พร้อมเหตุผล", await q("const b = document.querySelector('[data-db-ok]'); return b.getAttribute('aria-disabled') === 'true' && b.title.includes('ชื่อ');"));
+  await sleep(200); await c.type(N1); await c.key("Enter");
+  check("ฐานใหม่สร้างแล้ว ตัวอ่านเปลี่ยนไปใช้ฐานนั้น หน้าต่างบอกฐานว่าง", await waitFor(`return window.__ocrJob.get().cfg.nocrDb === ${JSON.stringify(N1)} && !!document.querySelector('.ocr-dbempty');`, 5000));
+  await click("[data-db=new]"); await waitFor("return !!document.querySelector('[data-db-name]');", 3000);
+  await sleep(200); await c.type(N1); await c.key("Enter");
+  check("ชื่อฐานซ้ำขึ้นการ์ดแดงบอกเหตุ", await waitFor("return (document.querySelector('[data-db-err]')?.innerText ?? '').includes('อยู่แล้ว');", 5000));
+  await q("[...document.querySelectorAll('[data-db-ask] button')].find((b) => b.innerText === 'ยกเลิก')?.click(); return 1;");
+  await sleep(200);
+  check("ฐานที่ยังไม่มีตัว ปุ่มเปลี่ยนชื่อกดได้ (มีไฟล์แล้ว)", await q("return document.querySelector('[data-db=rename]').getAttribute('aria-disabled') !== 'true';"));
+  await click("[data-db=rename]"); await waitFor("return !!document.querySelector('[data-db-name]');", 3000);
+  await sleep(100); await q("document.querySelector('[data-db-name]').select(); return 1;"); await c.type(N2); await c.key("Enter");
+  const dl = await waitFor(`return window.__ocrJob.get().cfg.nocrDb === ${JSON.stringify(N2)};`, 5000) && await inv("ocr_dbs", {});
+  check("เปลี่ยนชื่อแล้วรายการฐานมีชื่อใหม่ ไม่มีชื่อเก่า", dl && dl.nocr.includes(N2) && !dl.nocr.includes(N1), JSON.stringify(dl?.nocr));
+  await click("[data-db=delete]");
+  check("ลบฐานถามยืนยันพร้อมชื่อฐาน", await waitFor(`return (document.querySelector('[data-db-ask]')?.innerText ?? '').includes(${JSON.stringify(N2 + ".nocr")});`, 3000));
+  await click("[data-db-del-ok]");
+  check("ลบฐานแล้วหน้าต่างปิด รายการไม่มีฐานนั้น", await waitFor("return !document.querySelector('[data-ocr-db-dlg]');", 5000) && !(await inv("ocr_dbs", {})).nocr.includes(N2));
+  // ฐาน Binary OCR แสดงเป็นภาพ
+  await job("j.setCfg({ engine: 'binary', binDb: 'Latin' }); return 1;"); await sleep(300);
+  await click("[data-ocr-db-open]");
+  check("ฐาน Binary OCR แสดงรูปแบบเป็นภาพ", await waitFor("return !!document.querySelector('[data-db-canvas] img') && document.querySelectorAll('[data-db-var] img').length > 0;", 15000));
+  await c.key("Escape");
+  check("หน้าต่างฐานกด Esc ปิด", await waitFor("return !document.querySelector('[data-ocr-db-dlg]');", 3000));
+  await job(`j.setCfg(${JSON.stringify(before)}); return 1;`);
 }
 check("หน้าต่างซ้อนทุกหน้าต่างขนาดเท่ากัน", sizes.every((s) => s.w === sizes[0].w && s.h === sizes[0].h), JSON.stringify(sizes.map((s) => `${s.w}×${s.h}`)));
 

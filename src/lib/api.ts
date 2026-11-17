@@ -774,6 +774,10 @@ export type OcrTeachAnswer =
   | { kind: "stop" };
 export type OcrWordAction = "changeAll" | "skipAll" | "addName" | "addWord";
 export type OcrTaught = { index: number; engine: OcrEngine; db: string; text: string; italic: boolean; pieces: number };
+export type OcrDbKind = "nocr" | "binary" | "own";
+/** รูปแบบหนึ่งตัวในฐาน · key ลำดับในรายการรวม · fg bg เส้นเทียบ nOCR (x1 y1 x2 y2 พิกัดของตัว) · png ภาพของ Binary OCR */
+export interface OcrDbItem { key: number; text: string; w: number; h: number; top: number; italic: boolean; expand: number; fg: [number, number, number, number][]; bg: [number, number, number, number][]; png: string | null }
+export interface OcrDbChars { name: string; total: number; bundled: boolean; saved: boolean; items: OcrDbItem[] }
 export type OcrDbList = { nocr: string[]; binary: string[]; own: string[] };
 
 /** ชุดภาษาของ Tesseract · have bundled แนบมา downloaded โหลดแล้ว ว่างคือยังไม่มี */
@@ -802,5 +806,14 @@ export const ocrApi = {
   /** คัดลอกภาพซับลงคลิปบอร์ดหรือบันทึกเป็น PNG · คืนที่อยู่ไฟล์ที่ได้ (ชื่อชนต่อท้ายเลข) */
   imageOut: (index: number, dest: "copy" | "save", path: string | null, dry = false) => call<string>("ocr_image_out", { index, dest, path, dry }),
   /** ลบฐานของผู้ใช้ลงถังขยะ · kind nocr binary own */
-  dbDelete: (kind: "nocr" | "binary" | "own", name: string) => call<void>("ocr_db_delete", { kind, name }),
+  dbDelete: (kind: OcrDbKind, name: string) => call<void>("ocr_db_delete", { kind, name }),
+  /** สร้างฐานว่างในโฟลเดอร์ของผู้ใช้ · ชื่อซ้ำตอบผิดพลาด */
+  dbNew: (kind: OcrDbKind, name: string) => call<void>("ocr_db_new", { kind, name }),
+  /** เปลี่ยนชื่อฐานของผู้ใช้ · ฐานที่แนบมาเปลี่ยนไม่ได้ */
+  dbRename: (kind: OcrDbKind, from: string, to: string) => call<void>("ocr_db_rename", { kind, from, to }),
+  /** ทุกรูปแบบในฐาน (หน้าต่างแก้ฐาน) */
+  dbChars: (kind: OcrDbKind, name: string) => call<OcrDbChars>("ocr_db_chars", { kind, name }),
+  /** แก้ข้อความกับตัวเอียงของรูปแบบ key · was ข้อความเดิม กันฐานเปลี่ยนระหว่างเปิดหน้าต่าง */
+  dbCharUpdate: (kind: OcrDbKind, name: string, key: number, was: string, text: string, italic: boolean) => call<void>("ocr_db_char_update", { kind, name, key, was, text, italic }),
+  dbCharDelete: (kind: OcrDbKind, name: string, key: number, was: string) => call<void>("ocr_db_char_delete", { kind, name, key, was }),
 };
