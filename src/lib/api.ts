@@ -800,7 +800,13 @@ export type OcrDbList = { nocr: string[]; binary: string[]; own: string[] };
 
 /** ชุดภาษาของ Tesseract · have bundled แนบมา downloaded โหลดแล้ว ว่างคือยังไม่มี */
 export type OcrTessLang = { code: string; name: string; have: "" | "bundled" | "downloaded" };
+/** โมเดลภาษาของ PaddleOCR ที่โหลดเพิ่มได้ (BUGS ข้อ 152) · mb ขนาดที่ต้องโหลด · have มีในเครื่องแล้ว */
+export type OcrPaddleLang = { code: string; name: string; mb: number; have: boolean };
 export const ocrApi = {
+  paddleLangs: () => call<OcrPaddleLang[]>("ocr_paddle_langs"),
+  /** โหลดโมเดลภาษา · ความคืบหน้าทางเหตุการณ์ ocr-paddle-progress { code percent } */
+  paddleDownload: (code: string) => call<void>("ocr_paddle_download", { code }),
+  paddleCancel: () => call<void>("ocr_paddle_cancel"),
   tessLangs: () => call<OcrTessLang[]>("ocr_tess_langs"),
   /** โหลดชุดภาษา · ความคืบหน้าทางเหตุการณ์ ocr-tess-progress { code percent } */
   tessDownload: (code: string) => call<void>("ocr_tess_download", { code }),

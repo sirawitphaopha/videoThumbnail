@@ -6,6 +6,7 @@
 // ใช้: เปิด scripts/dev-app.ps1 ก่อน แล้ว node scripts/check-ocr.mjs · ตอนพี่กันทำงานอยู่ส่ง NOGATE=1
 // คืนค่าตั้ง OCR แบบตรวจทาน และการถามคำที่ไม่รู้จักเป็นค่าเดิมตอนจบ · ล้างหน้าซับไตเติลก่อนและหลัง · ภาพลง docs/report-2026-11-16/OCR-ขั้น11/
 import { mkdirSync, rmSync, existsSync, readFileSync } from "node:fs";
+import { join } from "node:path";
 import { execFileSync } from "node:child_process";
 import { connect, sleep } from "./lib/cdp-client.mjs";
 
@@ -430,6 +431,39 @@ for (const [btn, sel, name] of [["[data-ocr-prep-open]", "[data-ocr-prep-dlg]", 
   await sleep(300);
   await tipCheck("[data-ocr-engine]", "เปอร์เซ็นต์ผิดสูงสุด");
   await job(`j.setCfg({ engine: ${JSON.stringify(eng0)} }); return 1;`);
+}
+// ---------- โมเดลภาษาของ PaddleOCR ที่โหลดเพิ่ม (BUGS ข้อ 152) แนบแค่อังกฤษ ไทย ญี่ปุ่น ----------
+{
+  const inv = (cmd, a = {}) => q(`return await window.__TAURI_INTERNALS__.invoke(${JSON.stringify(cmd)}, ${JSON.stringify(a)});`);
+  const ELDIR = join(process.env.LOCALAPPDATA, "com.pkh.movieshelf", "ocr", "paddle", "el_PP-OCRv5_mobile_rec");
+  rmSync(ELDIR, { recursive: true, force: true });
+  const langs = await inv("ocr_paddle_langs");
+  const bundled = await inv("ocr_paddle_models");
+  check("ข้อ 152 โหลดเพิ่มได้เก้าภาษา ภาษาที่แนบมาเหลือ PP-OCRv5 ไทยกับอังกฤษ", langs.length === 9 && !langs.some((l) => ["th", "en"].includes(l.code))
+    && bundled.filter((m) => m.endsWith("_PP-OCRv5_mobile_rec")).sort().join(",") === "en_PP-OCRv5_mobile_rec,th_PP-OCRv5_mobile_rec", JSON.stringify({ langs: langs.map((l) => l.code + (l.have ? "+" : "")), bundled }));
+  const lang0 = await job("return j.get().cfg.paddle.lang;");
+  await job("j.setCfg({ engine: 'paddle', paddle: { ...j.get().cfg.paddle, lang: 'el' } }); return 1;");
+  const card = await waitFor("return !!document.querySelector('[data-ocr-need-lang]');", 5000);
+  const st = await q("const b = document.querySelector('[data-ocr-start]'); return { dis: b?.getAttribute('aria-disabled'), why: b?.title ?? '', text: document.querySelector('[data-ocr-need-lang]')?.innerText ?? '' };");
+  check("ข้อ 152 เลือกภาษาที่ยังไม่ได้โหลด ขึ้นการ์ดบอกขนาด ปุ่มเริ่มอ่านกดไม่ได้พร้อมเหตุผล", card && st.dis === "true" && st.why.includes("โหลดโมเดลภาษากรีก") && st.text.includes("MB"), JSON.stringify(st));
+  // กรีก 7.5 MB เล็กที่สุดชุดหนึ่ง โหลดจริงจาก Hugging Face ตรวจค่า SHA-256 ในโปรแกรม แล้วลบทิ้งตอนจบ
+  await click("[data-ocr-need-get]");
+  const got = await waitFor("return !document.querySelector('[data-ocr-need-lang]');", 180000);
+  const after = await inv("ocr_paddle_langs");
+  check("ข้อ 152 กดโหลดในการ์ด โหลดจริงสำเร็จ การ์ดหาย ภาษากรีกนับว่ามีแล้ว ปุ่มเริ่มอ่านกดได้", got && after.find((l) => l.code === "el")?.have === true
+    && existsSync(join(ELDIR, "inference.onnx")) && (await q("return document.querySelector('[data-ocr-start]')?.getAttribute('aria-disabled');")) == null,
+    (await q("return document.querySelector('[data-ocr-lang-err]')?.innerText ?? '';")) || "");
+  await click("[data-ocr-models-open]");
+  await waitFor("return !!document.querySelector('[data-paddle-dl]');", 5000);
+  // รอรายชื่อโมเดลโหลดเสร็จก่อนอ่าน (รอบแรกอ่านเร็วไปแล้วตก ทั้งที่ภาพมีกรีกอยู่)
+  await waitFor("return (document.querySelector('[data-paddle-v5]')?.dataset.paddleV5 ?? '').includes('กรีก');", 8000);
+  await sleep(500);
+  const dl = await q("const b = document.querySelector('[data-ocr-models-dlg]'); return { list: (document.querySelector('[data-paddle-v5]')?.dataset.paddleV5 ?? '').includes('กรีก'), get: document.querySelector('[data-paddle-get]')?.getAttribute('aria-disabled'), scroll: b.scrollHeight - b.clientHeight };");
+  check("ข้อ 152 หน้าต่างตัวอ่านมีแถวโหลดโมเดลภาษา ภาษาที่โหลดแล้วขึ้นในแถว PP-OCRv5 ปุ่มโหลดกดไม่ได้จนกว่าจะเลือกภาษา หน้าต่างไม่ต้องเลื่อน", dl.list && dl.get === "true" && dl.scroll <= 0, JSON.stringify(dl));
+  await c.shot(`docs/report-2026-11-17/OCR-ขั้น14/7-โหลดโมเดลภาษา.png`, ".dlg").catch(() => {});
+  await c.key("Escape"); await sleep(300);
+  await job(`j.setCfg({ paddle: { ...j.get().cfg.paddle, lang: ${JSON.stringify(lang0)} } }); return 1;`);
+  rmSync(ELDIR, { recursive: true, force: true });
 }
 // ---------- หน้าต่างฐานตัวอักษร (ระบบแมนนวล ocrmanual.rs · NOcrSettingsWindow NOcrDbEditWindow ของ Subtitle Edit) ----------
 {

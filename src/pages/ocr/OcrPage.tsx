@@ -21,6 +21,7 @@ import { autosaveStrict, getSubEdit, openDoc } from "../../lib/subEdit";
 import { useHotkeys } from "../../lib/hotkeys";
 import { useEscClose } from "../../lib/popup";
 import { usePageActiveRef } from "../../lib/pageActive";
+import { cancelPaddleLang, clearPaddleErr, downloadPaddleLang, loadPaddleLangs, usePaddleLangs } from "../../lib/paddleLangs";
 import "../../styles/ocr.css";
 
 /* ---------- คำอธิบาย ⓘ (ข้อความเดียวกับมอคอัปที่พี่กันดูแล้ว ตัวเลขจากผลเทสจริง) ---------- */
@@ -242,6 +243,7 @@ const INSPECT_OFF = "ตรวจบรรทัดได้เฉพาะต�
 const MATCH = ["nocr", "binary", "own"];
 function EngineRow({ busy, dbs, tess, onDb }: { busy: boolean; dbs: OcrDbList | null; tess: OcrTessLang[]; onDb: () => void }) {
   const { cfg } = useOcrJob();
+  const plang = usePaddleLangs();
   const why = busy ? "หยุดอ่านก่อนจึงจะเปลี่ยนได้" : undefined;
   const matcher = MATCH.includes(cfg.engine);
   const dbKey = cfg.engine === "binary" ? "binDb" : cfg.engine === "own" ? "ownDb" : "nocrDb";
@@ -278,7 +280,7 @@ function EngineRow({ busy, dbs, tess, onDb }: { busy: boolean; dbs: OcrDbList | 
         <Seg small label="ขนาดโมเดล" value={cfg.paddle.size} onChange={(v) => setCfg({ paddle: { ...cfg.paddle, size: v } })} disabledReason={why ?? (v5 ? "โมเดลของภาษานี้มีขนาดเดียว" : undefined)}
           options={[{ value: "tiny", label: "tiny" }, { value: "small", label: "small" }, { value: "medium", label: "medium" }]} />
         <span className="ocr-f">ภาษา</span>
-        <Dropdown label="ภาษา" value={cfg.paddle.lang} onChange={(v) => setCfg({ paddle: { ...cfg.paddle, lang: v } })} disabled={why} options={PADDLE_LANGS.map((l) => ({ value: l.value, label: l.label }))} />
+        <Dropdown label="ภาษา" value={cfg.paddle.lang} onChange={(v) => setCfg({ paddle: { ...cfg.paddle, lang: v } })} disabled={why} options={PADDLE_LANGS.map((l) => ({ value: l.value, label: plang.langs.some((x) => x.code === l.value && !x.have) ? `${l.label} ต้องโหลด` : l.label }))} />
       </> : <>
         <span className="ocr-f">ภาษา</span>
         <Dropdown label="ภาษา" value={cfg.tess.lang} onChange={(v) => setCfg({ tess: { ...cfg.tess, lang: v } })} disabled={why} search hint="พิมพ์ชื่อภาษา"
@@ -505,6 +507,11 @@ function ReviewOne({ rows, movie, imgs, need, sel, setSel, onTeach }: { rows: Oc
 const VIEW_KEY = "ms.ocrView";
 export default function OcrPage({ track, movie, onEdit }: { track: AvTrack; movie: string; onEdit?: () => void }) {
   const job = useOcrJob();
+  // โมเดลภาษาของ PaddleOCR ที่ต้องโหลดก่อนอ่าน (BUGS ข้อ 152)
+  const plang = usePaddleLangs();
+  useEffect(() => { void loadPaddleLangs(); }, []);
+  const usesPaddle = job.cfg.engine === "paddle" || job.cfg.helpers.some((h) => h.startsWith("paddle"));
+  const needLang = usesPaddle ? plang.langs.find((x) => x.code === job.cfg.paddle.lang && !x.have) ?? null : null;
   const path = track.inMovie ? movie : track.src;
   const ff = track.ff ?? track.tid;
   // ชื่อตั้งต้นของไฟล์ที่ส่งออกกับเอกสารของหน้าแก้ซับ แบบ base ของ SubEditor · ซับในหนังต่อรหัสภาษาของแทร็ก
@@ -679,6 +686,13 @@ export default function OcrPage({ track, movie, onEdit }: { track: AvTrack; movi
           <EditArea i={Math.min(sel, rows.length - 1)} rows={rows} movie={movie} imgs={imgs} setSel={setSel} onTeach={teachRow} onUnknown={(word, i) => setAsk({ word, i })} onInspect={() => setInsp(Math.min(sel, rows.length - 1))} picked={picked.length} onDelete={() => setDelAsk(true)} onFill={() => void fillClip()} clipMsg={clipMsg} />
         </>}
       {editErr && <div className="stat bad" data-ocr-edit-err><CardIcon kind="bad" /><div style={{ flex: 1 }}><b>ส่งไปหน้าแก้ซับไม่ได้</b><Phr>{editErr}</Phr><div className="minirow"><button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditErr(null)}>ปิด</button></div></div></div>}
+      {needLang && <div className="stat warn" data-ocr-need-lang><CardIcon kind="warn" /><div style={{ flex: 1 }}><b>{`โมเดลภาษา${needLang.name}ยังไม่ได้โหลด`}</b>
+        <Phr>{`ภาษานี้ไม่ได้แนบมากับตัวติดตั้ง ต้องโหลดก่อนอ่าน ขนาดราว ${needLang.mb} MB และโหลดครั้งเดียวใช้ได้ตลอด`}</Phr>
+        <div className="minirow">{plang.dl?.code === needLang.code
+          ? <><span className="small" data-ocr-need-pct>{`กำลังโหลด ${Math.round(plang.dl.pct)}%`}</span><button type="button" className="btn btn-ghost btn-sm" onClick={cancelPaddleLang}>หยุดโหลด</button></>
+          : <button type="button" className={"btn btn-sm " + (plang.dl ? "btn-wait" : "btn-main")} aria-disabled={!!plang.dl || undefined} title={plang.dl ? "กำลังโหลดภาษาอื่นอยู่ รอให้เสร็จก่อน" : undefined}
+              onClick={() => { if (!plang.dl) void downloadPaddleLang(needLang.code); }} data-ocr-need-get>{`โหลดโมเดลภาษา${needLang.name}`}</button>}</div></div></div>}
+      {plang.err && <div className="stat bad" data-ocr-lang-err><CardIcon kind="bad" /><div style={{ flex: 1 }}><b>โหลดโมเดลภาษาไม่สำเร็จ</b><Phr>{plang.err}</Phr><div className="minirow"><button type="button" className="btn btn-ghost btn-sm" onClick={clearPaddleErr}>ปิด</button></div></div></div>}
       {job.wordErr && <div className="stat bad" data-ocr-word-err><CardIcon kind="bad" /><div style={{ flex: 1 }}><b>บันทึกรายการคำไม่ได้</b><Phr>{job.wordErr}</Phr><div className="minirow"><button type="button" className="btn btn-ghost btn-sm" onClick={clearWordErr}>ปิด</button></div></div></div>}
       {impMsg && <div className="stat bad" data-ocr-import-err><CardIcon kind="bad" /><div style={{ flex: 1 }}><b>นำข้อความจากไฟล์ซับไม่ได้</b><Phr>{impMsg}</Phr><div className="minirow"><button type="button" className="btn btn-ghost btn-sm" onClick={() => setImpMsg(null)}>ปิด</button></div></div></div>}
       <div className="ocr-foot" data-ocr-foot>
@@ -704,7 +718,8 @@ export default function OcrPage({ track, movie, onEdit }: { track: AvTrack; movi
           <button type="button" className="btn btn-ghost ocr-tool" onClick={() => void importText()} title="นำข้อความจากไฟล์ซับตัวหนังสือที่เวลาตรงกัน แทนการอ่านภาพ" aria-label="นำข้อความจากไฟล์ซับ" data-ocr-import><IcFile size={15} /><span className="ocr-tl">นำข้อความจากไฟล์ซับ</span></button>
           {done > 0 && <button type="button" className="btn btn-ghost ocr-tool" onClick={() => setDlg("find")} title="ค้นและแทนที่ข้อความในทุกบรรทัด" aria-label="ค้นและแทนที่" data-ocr-find-open><IcSearch size={15} /><span className="ocr-tl">ค้นและแทนที่</span></button>}
           {done > 0 && <button type="button" className="btn btn-ghost" onClick={() => void startOcr([sel])} title={`อ่านภาพที่ ${rows[sel]?.item.n ?? ""} ใหม่ด้วยค่าที่ตั้งตอนนี้${rows[sel]?.edited ? " ข้อความที่แก้เองจะถูกแทนด้วยผลอ่านใหม่" : ""}`} data-ocr-reread><IcRefresh size={15} />อ่านใหม่เฉพาะที่เลือก</button>}
-          {!allDone && <button type="button" className={"btn " + (done ? "btn-ghost" : "btn-main")} onClick={() => void startOcr()} data-ocr-start><Keep all={["อ่านต่อที่เหลือ", "เริ่มอ่าน"]} icon={<IbPlay size={15} />}>{done ? "อ่านต่อที่เหลือ" : "เริ่มอ่าน"}</Keep></button>}
+          {!allDone && <button type="button" className={"btn " + (needLang ? "btn-wait" : done ? "btn-ghost" : "btn-main")} aria-disabled={!!needLang || undefined}
+            title={needLang ? `โหลดโมเดลภาษา${needLang.name}ก่อนจึงจะอ่านได้` : undefined} onClick={() => { if (!needLang) void startOcr(); }} data-ocr-start><Keep all={["อ่านต่อที่เหลือ", "เริ่มอ่าน"]} icon={<IbPlay size={15} />}>{done ? "อ่านต่อที่เหลือ" : "เริ่มอ่าน"}</Keep></button>}
           {/* อ่านแล้วตรวจทานในหน้านี้ แล้วเลือกไปหน้าแก้ซับหรือส่งออก (ข้อ 143 ㉕) */}
           {done > 0 && <>
             <span className="sv-sep" aria-hidden />

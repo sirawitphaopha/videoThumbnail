@@ -9,6 +9,7 @@ import { CardIcon, Keep, Phr, Switch } from "../../components/ui";
 import { IbBack, IbNext, IbJump, IbStop, IbSwap, IbTick, IcClock, IcClose, IcRefresh } from "../../components/icons";
 import type { Tip } from "../../lib/codecAdv";
 import { inApp, ocrApi, type OcrDbList, type OcrPrep, type OcrTaught, type OcrTessLang, type SubImg } from "../../lib/api";
+import { cancelPaddleLang, downloadPaddleLang, loadPaddleLangs, usePaddleLangs } from "../../lib/paddleLangs";
 import { answerTeach, answerWord, forgetWord, getOcrJob, saveWord, setOcrCfg, setPromptUnknown, setRowText, useOcrJob, __ocrJobLib, type OcrRow } from "../../lib/ocrJob";
 import Dropdown from "../../components/Dropdown";
 import { LineImg, ScreenImg } from "./OcrPage";
@@ -227,8 +228,13 @@ function ModelsDialog({ open, onClose }: { open: boolean; onClose: () => void })
   const [dl, setDl] = useState<{ code: string; pct: number } | null>(null);
   const [err, setErr] = useState<string | null>(null);
   const [pick, setPick] = useState("");
-  const load = () => { ocrApi.paddleModels().then(setModels, () => {}); ocrApi.tessLangs().then(setTess, () => {}); ocrApi.dbs().then(setDbs, () => {}); };
+  const plang = usePaddleLangs();
+  const [ppick, setPpick] = useState("");
+  const load = () => { ocrApi.paddleModels().then(setModels, () => {}); ocrApi.tessLangs().then(setTess, () => {}); ocrApi.dbs().then(setDbs, () => {}); void loadPaddleLangs(); };
   useEffect(() => { if (open) load(); }, [open]);
+  // โหลดโมเดลภาษาเสร็จแล้วอ่านรายชื่อโมเดลใหม่ ให้แถว PP-OCRv5 นับภาษาที่โหลดด้วย
+  useEffect(() => { if (open && !plang.dl) ocrApi.paddleModels().then(setModels, () => {}); }, [plang.dl, open]);
+  const pmore = plang.langs.filter((l) => !l.have);
   useEffect(() => {
     if (!inApp) return;
     const un = listen<{ code: string; percent: number }>("ocr-tess-progress", (e) => setDl({ code: e.payload.code, pct: e.payload.percent }));
@@ -254,8 +260,17 @@ function ModelsDialog({ open, onClose }: { open: boolean; onClose: () => void })
         <div className="ocr-mgrid">
           <div className="ocr-mcard"><div className="ocr-mhead"><b>PaddleOCR<InfoTip title="PaddleOCR" tip={PADDLE_TIP} /></b><span className="small">ตัวรัน ONNX Runtime แนบมากับโปรแกรม</span></div>
             {row("v6", "PP-OCRv6 อังกฤษ ญี่ปุ่น จีน", v6.join(" "))}
-            {row("v5", "PP-OCRv5 ภาษาอื่น", `${v5.length} ภาษา`)}
-            <div className="small ocr-mlist">{v5.join(" ")}</div>
+            {/* ชื่อภาษาอยู่ในแถวเดียวกับจำนวน แถวโหลดเพิ่มข้างล่างจะได้ไม่ดันการ์ดอื่นจนหน้าต่างต้องเลื่อน (BUGS ข้อ 152) · มีเกินสี่ภาษาบอกจำนวน ชี้ดูชื่อ */}
+            <div className="ocr-mrow" title={`ภาษาที่มี ${v5.join(" ")}`} data-paddle-v5={v5.join(" ")}><span>PP-OCRv5 ภาษาอื่น</span>
+              <span className="small">{v5.length <= 4 ? v5.join(" ") : `${v5.length} ภาษา`}</span>{ok}</div>
+            {/* ภาษาที่ไม่ได้แนบมา กดโหลดเพิ่ม (BUGS ข้อ 152) */}
+            <div className="ocr-mrow ocr-mdl" data-paddle-dl><Dropdown label="โมเดลภาษาที่โหลดเพิ่มได้" value={ppick} onChange={setPpick} stretch
+              display={(o) => o?.label ?? (pmore.length ? `เลือกจาก ${pmore.length} ภาษา` : "โหลดครบทุกภาษาแล้ว")} options={pmore.map((l) => ({ value: l.code, label: `${l.name} ${l.mb} MB` }))} />
+              <span className="small">{plang.dl ? `${Math.round(plang.dl.pct)}%` : ""}</span>
+              {plang.dl ? <button type="button" className="btn btn-ghost btn-sm" onClick={cancelPaddleLang} data-paddle-cancel>หยุดโหลด</button>
+                : <button type="button" className={"btn btn-sm " + (ppick ? "btn-ghost" : "btn-wait")} aria-disabled={!ppick || undefined} title={ppick ? "โหลดจาก Hugging Face ของ PaddlePaddle แล้วตรวจค่า SHA-256" : "เลือกภาษาก่อน"}
+                  onClick={() => { if (ppick) { const c = ppick; setPpick(""); void downloadPaddleLang(c); } }} data-paddle-get>โหลด</button>}</div>
+            {plang.err && <div className="stat bad"><CardIcon kind="bad" /><div><b>โหลดโมเดลภาษาไม่สำเร็จ</b><Phr>{plang.err}</Phr></div></div>}
             {row("det", "ตัวหาบรรทัดของซับแนวตั้ง", "", det ? ok : <span />)}
             {row("ori", "ตัวหมุนบรรทัดที่กลับหัว", "", ori ? ok : <span />)}</div>
           <div className="ocr-mcard"><div className="ocr-mhead"><b>Tesseract 5.5.3<InfoTip title="ชุดภาษาของ Tesseract" tip={TESS_TIP} /></b><span className="small">ชุดภาษาที่มีในเครื่อง</span></div>

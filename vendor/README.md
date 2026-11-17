@@ -232,5 +232,6 @@
 
 - 🔴 Tesseract ต้นทางออก 5.5.4 แล้ว (28 ต.ค. 2569) แต่ยังไม่มีตัว Windows ที่โหลดได้ (UB Mannheim บน GitHub มีถึง 5.4.0 · เว็บ digi.bib.uni-mannheim.de ตอบ 403 กับโปรแกรม ลอง 16 พ.ย. 2569) จึงใช้ 5.5.3 แบบไม่ต้องติดตั้งของ Subtitle Edit ซึ่งใหม่สุดที่โหลดได้ · ใน zip เป็นตัวที่สร้างด้วย MSYS2 มีห้องสมุด Leptonica libpng libjpeg libtiff libwebp libcurl libarchive และอื่น ๆ ราว 38 ไฟล์ ไม่มีข้อความสัญญาแนบ
 - ชุดภาษา Tesseract ภาษาอื่นกว่า 120 ภาษารวมกันเกิน 1 GB ไม่แนบ ผู้ใช้โหลดในโปรแกรม (แผน OCR ขั้น 4)
+- 🔴 โมเดล PaddleOCR ใน vendor ยังโหลดครบ 19 โมเดล แต่ตัวติดตั้งแนบ 10 โมเดล (PP-OCRv6 ทั้งหมด ตัวหมุนบรรทัด PP-OCRv5 th กับ en) · PP-OCRv5 ของ latin korean cyrillic arabic devanagari el eslav ta te ผู้ใช้กดโหลดในโปรแกรมจากที่อยู่เดียวกับ manifest.json แล้วตรวจค่า SHA-256 (`src-tauri/src/paddle_dl.rs`) · พี่กันสั่ง 17 พ.ย. 2569 *"ส่วนโมเดลภาษาอ่ะ เราต้องการแค่ อัฃกิด  ไทย ญี่ปุ่น ที่เหลือไว้โหลดเพิ่ม (ทำตอนนี้)"* (BUGS ข้อ 152) · `fetch-ocr-tools.ps1` ข้ามเก้าโฟลเดอร์นี้ตอนแตก
 - ไฟล์ zip ของ ONNX Runtime ใหญ่ 97 MB เพราะมีไฟล์ของนักพัฒนา ที่แนบในตัวติดตั้งมีแค่ dll สองไฟล์
 - ไม่ขึ้น git (`.gitignore` กัน `vendor/ocr/*` ยกเว้น `manifest.json` และกัน `src-tauri/tools/ocr/`)

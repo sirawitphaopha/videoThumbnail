@@ -34,12 +34,23 @@ pub const V5_LANGS: [(&str, &str); 11] = [
     ("hi", "devanagari"), ("el", "el"), ("uk", "eslav"), ("ta", "ta"), ("te", "te"),
 ];
 
+/// โฟลเดอร์โมเดลที่ผู้ใช้โหลดเอง (BUGS ข้อ 152) · ตัวคุมงานตั้งตอนเปิดคำสั่ง OCR (ocrjob::Dirs::of)
+static USER_DIR: OnceLock<PathBuf> = OnceLock::new();
+pub fn set_user_dir(p: PathBuf) { let _ = USER_DIR.set(p); }
+
+/// โมเดลชื่อนี้ หาในที่แนบมาก่อน แล้วในที่ผู้ใช้โหลด · ไม่มีทั้งสองที่คืนที่แนบมา (ข้อความผิดพลาดบอกให้โหลด)
+fn resolve(paddle: &Path, name: &str) -> PathBuf {
+    let b = paddle.join(name);
+    if b.join("inference.onnx").is_file() { return b; }
+    match USER_DIR.get().map(|u| u.join(name)) { Some(u) if u.join("inference.onnx").is_file() => u, _ => b }
+}
+
 /// โฟลเดอร์โมเดลอ่านของภาษาและขนาดนี้ · ไทยใช้ th_PP-OCRv5_mobile_rec เสมอ (PP-OCRv6 ไม่มีตัวอักษรไทย)
 /// ภาษาอังกฤษเลือกได้ทั้ง PP-OCRv6 (ค่าตั้งต้น แม่นกว่าในผลเทียบ) หรือ en_PP-OCRv5 ผ่านรหัส en5
 pub fn rec_dir(paddle: &Path, lang: &str, size: &str) -> PathBuf {
     let size = if SIZES.contains(&size) { size } else { "small" };
     let lang = lang.to_ascii_lowercase();
-    let v5 = |code: &str| V5_LANGS.iter().find(|(l, _)| *l == code).map(|(_, d)| paddle.join(format!("{d}_PP-OCRv5_mobile_rec")));
+    let v5 = |code: &str| V5_LANGS.iter().find(|(l, _)| *l == code).map(|(_, d)| resolve(paddle, &format!("{d}_PP-OCRv5_mobile_rec")));
     match lang.as_str() {
         "th" | "tha" => v5("th").unwrap(),
         "en5" => v5("en").unwrap(),
@@ -360,6 +371,12 @@ fn cached<T>(map: &'static OnceLock<Mutex<HashMap<PathBuf, Arc<T>>>>, key: &Path
 
 pub fn rec_for(ocr: &Path, lang: &str, size: &str) -> Result<Arc<Rec>, String> {
     let dir = rec_dir(&ocr.join("paddle"), lang, size);
+    // ภาษาที่ไม่ได้แนบมาและยังไม่ได้โหลด บอกให้โหลด ไม่ใช่บอกให้ติดตั้งใหม่ (BUGS ข้อ 152)
+    if !dir.join("inference.onnx").is_file() {
+        if let Some(m) = dir.file_name().and_then(|n| crate::paddle_dl::find_dir(&n.to_string_lossy())) {
+            return Err(format!("ยังไม่ได้โหลดโมเดลภาษา{} ({:.1} MB) กดโหลดได้ที่ปุ่มตัวอ่านและชุดภาษาในแถบล่าง", m.name, m.bytes() as f64 / 1048576.0));
+        }
+    }
     cached(&RECS, &dir, || Rec::load(ocr, &dir))
 }
 
@@ -483,10 +500,12 @@ pub fn read_text(ocr: &Path, img: &RgbaImage, o: &PaddleOpts) -> Result<(String,
     Ok((kept.iter().map(|l| l.text.as_str()).collect::<Vec<_>>().join("\n"), if kept.is_empty() { 0.0 } else { conf }))
 }
 
-/// รายชื่อโมเดลที่แนบมา (ชื่อโฟลเดอร์ที่มี inference.onnx) ให้หน้าต่างตัวอ่านแสดงว่ามีครบ
+/// รายชื่อโมเดลที่มี (ชื่อโฟลเดอร์ที่มี inference.onnx) ทั้งที่แนบมาและที่ผู้ใช้โหลด ให้หน้าต่างตัวอ่านแสดงว่ามีอะไรบ้าง
 pub fn models(ocr: &Path) -> Vec<String> {
-    let mut v: Vec<String> = std::fs::read_dir(ocr.join("paddle")).map(|d| d.filter_map(|e| e.ok())
-        .filter(|e| e.path().join("inference.onnx").is_file()).map(|e| e.file_name().to_string_lossy().to_string()).collect()).unwrap_or_default();
+    let list = |p: &Path| std::fs::read_dir(p).map(|d| d.filter_map(|e| e.ok())
+        .filter(|e| e.path().join("inference.onnx").is_file()).map(|e| e.file_name().to_string_lossy().to_string()).collect::<Vec<_>>()).unwrap_or_default();
+    let mut v = list(&ocr.join("paddle"));
+    if let Some(u) = USER_DIR.get() { for m in list(u) { if !v.contains(&m) { v.push(m); } } }
     v.sort();
     v
 }

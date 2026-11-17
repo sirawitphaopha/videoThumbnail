@@ -33,8 +33,14 @@ $ortLib = Get-ChildItem -LiteralPath $ortWork -Directory | Select-Object -First 
 New-Item -ItemType Directory -Force (Join-Path $ocrDest 'onnxruntime') | Out-Null
 foreach ($n in 'onnxruntime.dll', 'onnxruntime_providers_shared.dll') { Copy-Item -LiteralPath (Join-Path $ortLib.FullName "lib\$n") -Destination (Join-Path $ocrDest "onnxruntime\$n") -Force }
 Copy-Item -LiteralPath (Join-Path $ortLib.FullName 'LICENSE') -Destination (Join-Path $lic 'onnxruntime-MIT.txt') -Force
-# โมเดล PaddleOCR ทุกตัว (โฟลเดอร์ละโมเดล inference.onnx กับ inference.yml ที่มีพจนานุกรมตัวอักษร)
-Copy-Item -LiteralPath (Join-Path $ocrSrc 'paddle') -Destination (Join-Path $ocrDest 'paddle') -Recurse -Force
+# โมเดล PaddleOCR (โฟลเดอร์ละโมเดล inference.onnx กับ inference.yml ที่มีพจนานุกรมตัวอักษร)
+# แนบเฉพาะ PP-OCRv6 (อังกฤษ ญี่ปุ่น จีน) ตัวหาบรรทัด ตัวหมุนบรรทัด และ PP-OCRv5 ไทยกับอังกฤษ · ภาษาอื่นเก้าภาษาผู้ใช้กดโหลดในโปรแกรม (paddle_dl.rs)
+# พี่กันสั่ง 17 พ.ย. 2569 "ส่วนโมเดลภาษาอ่ะ เราต้องการแค่ อัฃกิด  ไทย ญี่ปุ่น ที่เหลือไว้โหลดเพิ่ม (ทำตอนนี้)" (BUGS ข้อ 152)
+$paddleSkip = 'korean', 'latin', 'cyrillic', 'eslav', 'arabic', 'devanagari', 'el', 'ta', 'te' | ForEach-Object { "${_}_PP-OCRv5_mobile_rec" }
+$paddleDest = Join-Path $ocrDest 'paddle'
+if (Test-Path -LiteralPath $paddleDest) { Remove-Item -LiteralPath $paddleDest -Recurse -Force }
+New-Item -ItemType Directory -Force $paddleDest | Out-Null
+Get-ChildItem -LiteralPath (Join-Path $ocrSrc 'paddle') -Directory | Where-Object { $paddleSkip -notcontains $_.Name } | ForEach-Object { Copy-Item -LiteralPath $_.FullName -Destination (Join-Path $paddleDest $_.Name) -Recurse -Force }
 Copy-Item -LiteralPath (Join-Path $ocrSrc 'tesseract-LICENSE') -Destination (Join-Path $lic 'PaddleOCR-models-Apache-2.0.txt') -Force
 # Tesseract 5.5.3 แบบไม่ต้องติดตั้ง แตกทั้งชุดลง tools\ocr\tesseract แล้ววางชุดภาษาแบบ best ทับใน tessdata
 $tesDest = Join-Path $ocrDest 'tesseract'

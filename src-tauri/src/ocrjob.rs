@@ -101,6 +101,8 @@ impl Dirs {
         use tauri::Manager;
         let tools = crate::tools::tools_dir(app)?;
         let user = app.path().app_local_data_dir().map_err(|e| e.to_string())?.join("ocr");
+        // โมเดลภาษาของ PaddleOCR ที่ผู้ใช้โหลดเอง (BUGS ข้อ 152)
+        crate::paddle::set_user_dir(user.join("paddle"));
         Ok(Dirs { ocr: tools.join("ocr"), tools, user, work: crate::subs::work_dir(app)? })
     }
 }
