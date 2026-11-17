@@ -42,7 +42,7 @@ const TP_OPTS: { value: TrackPanel; name: string; desc: string; img: string }[] 
 ];
 // คำอธิบายการ์ดกว้าง 250 px ที่หน้าต่าง 1280 แต่ละวลีวัดแล้วพอดีบรรทัดเดียว (ยาวสุด 203 px) ขึ้นบรรทัดตรงรอยต่อวลี ไม่ตัดกลางวลี ไม่ถ่าง (เดิมตัด "อีก / ครั้ง" และบรรทัดบนถ่าง)
 import { IbTrash, IcRefresh } from "../components/icons";
-import { IbTick, IcClose, IcPlus, IbTable, IbPlay, IbEye, IbCrop, IcFile } from "../components/icons";
+import { IbTick, IcClose, IcPlus, IbTable, IbPlay, IbEye, IbCrop, IcFile, IbWand } from "../components/icons";
 
 const FolderIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b0355f" strokeWidth="2" aria-hidden="true"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>;
 
@@ -94,7 +94,16 @@ const THANKS: { title: string; note: string; rows: { name: string; ver?: string;
     { icon: <IbPlay />, name: "BDSup2Sub++", ver: "1.0.5", what: "แปลงซับภาพในหน้าต่างแปลงซับภาพ\nเป็น PGS VobSub หรือ BDN XML\nพร้อมย่อขยายและเปลี่ยนอัตราเฟรม", tag: "Apache-2.0", url: "github.com/TheGreatMcPain/BDSup2SubPlusPlus" },
     // BUGS ข้อ 122 เดิมอยู่กลุ่มไอเดีย (วิธีฝัง libmpv ในหน้าต่างโปรแกรม ไม่ได้ใช้โค้ด) · BUGS ข้อ 123 แนบตัวแปลง SeConv มาเป็นตัวสร้าง PGS ตัวที่สาม จึงย้ายมากลุ่มนี้ (15 พ.ย. 2569)
     // รุ่นกับสัญญาเช็กจากหน้ารุ่นบน GitHub 14 พ.ย. 2569 (v5.4.0 สัญญา MIT) · สัญญาเต็มอยู่ tools\licenses\SubtitleEdit-SeConv-MIT.txt
-    { icon: <IbPlay />, name: "Subtitle Edit", ver: "5.4.0", what: "ตัวสร้าง PGS ที่เลือกได้ในหน้าต่างส่งออก PGS\nโดยแนบตัวแปลง SeConv มาทำงานจริง\nและเป็นต้นแบบวิธีฝัง mpv ในหน้าแก้ซับ", tag: "MIT", url: "github.com/SubtitleEdit/subtitleedit" },
+    // แผน OCR (BUGS ข้อ 143) แปลระบบ OCR จากซอร์ส se4 ใส่ประกาศลิขสิทธิ์เดิมหัวไฟล์ · แนบฐาน nOCR Binary OCR และรายการแก้คำของ Subtitle Edit · SeConv ส่งออกซับชนิดอื่น (ขั้น 12)
+    { icon: <IbPlay />, name: "Subtitle Edit", ver: "5.4.0", what: "ระบบ OCR แปลวิธีจากซอร์สของ Subtitle Edit\nพร้อมฐานตัวอักษรกับรายการแก้คำที่แนบมา\nและ SeConv สร้าง PGS กับส่งออกซับชนิดอื่น", tag: "MIT", url: "github.com/SubtitleEdit/subtitleedit" },
+    // แผน OCR ขั้น 0 กับขั้น 3 · โมเดลชุด *_onnx บน Hugging Face ของ PaddlePaddle รุ่นตาม vendor/README.md · สัญญา tools\licenses\PaddleOCR-models-Apache-2.0.txt
+    { icon: <IbWand />, name: "PaddleOCR", what: "โมเดล PP-OCRv6 กับ PP-OCRv5 อ่านซับรูป\nเป็นตัวหนังสือในหน้า OCR หลายภาษา\nโดยทำงานในเครื่อง ไม่ส่งภาพออกเน็ต", tag: "Apache-2.0", url: "github.com/PaddlePaddle/PaddleOCR" },
+    // onnxruntime.dll 1.32.0 (vendor/README.md) · สัญญา tools\licenses\onnxruntime-MIT.txt
+    { icon: <IbWand />, name: "ONNX Runtime", ver: "1.32.0", what: "ตัวรันโมเดล PaddleOCR ในเครื่อง\nโดยห้องสมุด ort ของ Rust เรียกใช้", tag: "MIT", url: "onnxruntime.ai" },
+    // Tesseract553.zip ชุดที่ Subtitle Edit ใช้ กับชุดภาษา tessdata_best · สัญญา tools\licenses\Tesseract-Apache-2.0.txt กับ tessdata_best-Apache-2.0.txt
+    { icon: <IbWand />, name: "Tesseract", ver: "5.5.3", what: "ตัวอ่าน OCR อีกตัวในหน้า OCR\nพร้อมชุดภาษาแบบ best ของ tessdata\nโดยใช้ชุดเดียวกับ Subtitle Edit", tag: "Apache-2.0", url: "github.com/tesseract-ocr/tesseract" },
+    // พจนานุกรม en_US en_GB th_TH จาก LibreOffice/dictionaries (ลิงก์เดียวกับ Subtitle Edit) · สัญญาตาม tools\licenses\Hunspell-README_*.txt
+    { icon: <IbWand />, name: "Hunspell", what: "พจนานุกรมตรวจคำที่ไม่รู้จักในหน้า OCR\nทั้ง en_US en_GB และ th_TH\nโดยใช้ชุดจาก LibreOffice", tag: "ตามแต่ละชุด", url: "github.com/LibreOffice/dictionaries" },
   ] },
   { title: "ใช้สร้างโปรแกรม", note: "ซอร์สโค้ดของห้องสมุดเหล่านี้รวมอยู่ในตัวโปรแกรมตอนสร้าง", rows: [
     { icon: <IcSettings />, name: "Claude", what: "ตัวช่วยเขียนโปรแกรม คือ Claude Code กับโมเดล Claude Opus 5.5 ของ Anthropic", tag: "Anthropic", url: "claude.com/claude-code" },
@@ -106,7 +115,7 @@ const THANKS: { title: string; note: string; rows: { name: string; ver?: string;
     { icon: <IbTable />, name: "Vite", ver: "8.3.6", what: "ตัวสร้างหน้าจอ รวมไฟล์ตอนสร้างโปรแกรม", tag: "MIT", url: "vite.dev" },
     { icon: <IbTable />, name: "React", ver: "19.3.1", what: "หน้าจอทั้งหมด", tag: "MIT", url: "react.dev" },
     { icon: <IbCrop />, name: "image (Rust)", ver: "0.25.10", what: "อ่าน ครอป และเข้ารหัสรูป", tag: "MIT, Apache-2.0", url: "github.com/image-rs/image" },
-    { icon: <IcSettings />, name: "ห้องสมุด Rust อื่น ๆ", what: "serde อ่านเขียนข้อมูล qcms แปลงสีรูป jpeg-encoder เข้ารหัสรูป sha2 md-5 sha1 crc32fast คิดค่า hash และ windows-sys", tag: "MIT, Apache-2.0", url: "crates.io" },
+    { icon: <IcSettings />, name: "ห้องสมุด Rust อื่น ๆ", what: "serde อ่านเขียนข้อมูล qcms แปลงสีรูป jpeg-encoder เข้ารหัสรูป sha2 md-5 sha1 crc32fast คิดค่า hash windows-sys ort เรียก ONNX Runtime spellbook อ่านพจนานุกรม Hunspell และ fancy-regex นิพจน์ของรายการแก้คำ OCR", tag: "MIT, Apache-2.0, MPL-2.0", url: "crates.io" },
     { icon: <b>ก</b>, name: "ฟอนต์ Sarabun", what: "ตัวหนังสือทั้งโปรแกรม ออกแบบโดย Cadson Demak ใช้ชุดจาก Fontsource", tag: "OFL", url: "fonts.google.com/specimen/Sarabun" },
     { icon: <IcPalette />, name: "ไอคอนในหน้านี้", what: "Simple Icons กับ SVG Logos (CC0) Icons8 Wikimedia Commons และไอคอนจากตัวโปรแกรมของแต่ละโครงการ", tag: "ตามแต่ละรูป", url: "simpleicons.org, icons8.com, commons.wikimedia.org" },
   ] },

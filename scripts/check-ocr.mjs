@@ -15,8 +15,10 @@ gate();
 const TH = "D:/movie-shelf/test-media/สร้าง/ocr/th.sup";
 const ACCA = process.env.MOVIE_SHELF_OCR_SUP?.replace(/\\/g, "/");
 const SHOT = "docs/report-2026-11-16/OCR-ขั้น11";
+const SHOT12 = "docs/report-2026-11-17/OCR-ขั้น12";
 const DB = "ตรวจหน้าOCR";
 mkdirSync(SHOT, { recursive: true });
+mkdirSync(SHOT12, { recursive: true });
 
 const c = await connect();
 const q = (js) => c.evaluate(`(async () => { ${js} })()`);
@@ -151,6 +153,109 @@ check("นำข้อความจากไฟล์ซับใส่ทุ�
 await job(`const k = ${JSON.stringify(keep)}; k.forEach((t, i) => j.setText(i, t)); return 1;`);
 await q("delete window.__ocrImport; return 1;");
 
+// ---------- ส่งออกและส่งต่อ (แผน OCR ขั้น 12 · ExportTextAsSubtitle SaveAllImagesWithHtmlIndex Ok ของ Subtitle Edit) ----------
+// ข้อความที่รู้คำตอบ ภาพที่ 3 ทำเป็นป้ายบนจอกับบทพูดล่างจอ (แก้ตำแหน่งในที่เก็บงานของรุ่นทดสอบ) · ภาพที่ 5 ไม่มีข้อความ
+const EXPDIR = "D:/dev/tmp/ชั้นตรวจส่งออกOCR";
+rmSync(EXPDIR, { recursive: true, force: true }); mkdirSync(EXPDIR, { recursive: true });
+const keep2 = await job("return j.get().rows.map((r) => r.text);");
+await job(`j.get().rows.forEach((r, i) => j.setText(i, 'บรรทัด ' + (i + 1))); const r = j.get().rows[2]; r.line.anLines = [8, 2]; j.setText(2, 'ป้ายบนจอ\\nบทพูด <i>เอียง</i>'); j.setText(4, ''); return 1;`);
+await sleep(300);
+const topNs = await job("return j.get().rows.filter((r) => r.state === 'done' && r.text.trim() && (r.line?.anLines ?? [r.item.an]).some((a) => a >= 7)).map((r) => r.item.n);");
+// ชนิดไฟล์ที่จำไว้ (WebVTT) ขึ้นทันทีตอนเปิดหน้าต่าง · เดิมรายชื่อชนิดของ SeConv โหลดตามมาทีหลัง หน้าต่างขึ้น SubRip .srt ก่อนแล้วสลับเอง ตัวตรวจรอบแรกจึงส่งออกผิดชนิด
+const expSaved = await q("return localStorage.getItem('ms.ocrExport');");
+await q(`localStorage.setItem('ms.ocrExport', JSON.stringify({ fmt: 'WebVTT', top: 'tag', italic: true, enc: 'utf8bom' })); return 1;`);
+await click("[data-ocr-export]");
+const firstT = await q("return document.querySelector('[data-ocr-exp-target]')?.innerText ?? '';");
+check("ขั้น 12 ชนิดไฟล์ที่จำไว้ขึ้นทันทีตอนเปิดหน้าต่าง ไม่ขึ้น SubRip ก่อนแล้วสลับ", firstT.endsWith(".vtt") && await waitFor("return document.querySelector('[data-ocr-exp-text]')?.innerText.startsWith('WEBVTT');", 8000), firstT);
+await c.key("Escape"); await sleep(300);
+await q("localStorage.removeItem('ms.ocrExport'); return 1;");
+const ft = await q("return { exp: !!document.querySelector('[data-ocr-export]'), edit: !!document.querySelector('[data-ocr-to-edit]'), over: (() => { const f = document.querySelector('[data-ocr-foot]'); return f.scrollWidth - f.clientWidth; })() };");
+check("ขั้น 12 แถบล่างมีปุ่มไปหน้าแก้ซับกับปุ่มส่งออก ไม่ล้นขวา", ft.exp && ft.edit && ft.over <= 0, JSON.stringify(ft));
+await click("[data-ocr-export]");
+check("ขั้น 12 กดส่งออกขึ้นหน้าต่างส่งออก ตัวอย่างไฟล์ SRT", await waitFor("return (document.querySelector('[data-ocr-exp-text]')?.innerText ?? '').startsWith('1');", 10000));
+const ex = await q(`const d = document.querySelector('[data-ocr-exp]'), l = d.querySelector('.ocr-expl').getBoundingClientRect(), r = d.querySelector('.ocr-expr').getBoundingClientRect(), dlg = d.closest('.dlg').getBoundingClientRect();
+  const kids = [...d.querySelectorAll('.ocr-expl > *')].filter((k) => k.getBoundingClientRect().width > 0);
+  const wide = kids.filter((k) => k.getBoundingClientRect().right > l.right + 0.5).length;
+  return { lap: l.right > r.left + 0.5, wide, rr: Math.round(dlg.right - r.right), top: d.querySelector('[data-ocr-exp-top]')?.innerText.replace(/\\s+/g, ' ') ?? null, skip: d.querySelector('[data-ocr-exp-skip]')?.innerText.replace(/\\s+/g, ' ') ?? null,
+    target: d.querySelector('[data-ocr-exp-target]').innerText, text: d.querySelector('[data-ocr-exp-text]').innerText, head: d.querySelector('.ocr-expr .icv-head').innerText.replace(/\\s+/g, ' ') };`);
+check("ขั้น 12 สองคอลัมน์ไม่ทับกัน ของในคอลัมน์ตั้งค่าไม่ล้น ฝั่งไฟล์ที่จะได้ชนขอบขวาหน้าต่าง", !ex.lap && ex.wide === 0 && Math.abs(ex.rr) <= 1, JSON.stringify({ lap: ex.lap, wide: ex.wide, rr: ex.rr }));
+check("ขั้น 12 เตือนซับบนจอบอกเลขภาพ และบอกภาพที่ไม่มีข้อความไม่ถูกส่งออก", topNs.includes(3) && ex.top?.includes(`มี ${topNs.length} ภาพที่ซับอยู่บนจอ`) && ex.top.includes(`ภาพ ${topNs.length > 1 ? topNs.slice(0, -1).join(", ") + " และ " + topNs.at(-1) : topNs[0]} มี`) && ex.skip?.includes("ไม่มีข้อความ 1 ภาพ"), `${ex.top} | ${ex.skip}`);
+check("ขั้น 12 ที่เก็บตั้งต้นข้างไฟล์ซับ ชื่อเดียวกัน นามสกุล .srt", ex.target.replace(/\\/g, "/") === TH.replace(/\.sup$/, ".srt"), ex.target);
+check("ขั้น 12 ตัวอย่าง SRT ป้ายบนจอแยกแถวติด {\\an8} เวลาเดียวกับบทพูด ภาพไม่มีข้อความไม่อยู่ในไฟล์ 17 แถว",
+  ex.text.includes("{\\an8}ป้ายบนจอ") && ex.text.includes("บทพูด <i>เอียง</i>") && !/บรรทัด 5\r?\n/.test(ex.text) && ex.head.includes(`${16 + 1} แถว`), ex.head);
+await c.shot(`${SHOT12}/12-ส่งออก.png`, ".dlg").catch(() => {});
+// รวมไว้ล่างจอ · ตัดตัวเอียง
+await q("[...document.querySelectorAll('[data-ocr-exp-top] .seg button')].find((b) => b.innerText.includes('รวมไว้ล่างจอ')).click(); return 1;");
+await click("[data-ocr-exp] .icv-row [role=switch]");
+check("ขั้น 12 รวมไว้ล่างจอได้แถวเดียวไม่มีแท็ก ปิดตัวเอียงแล้วแท็กหาย 16 แถว",
+  await waitFor("const t = document.querySelector('[data-ocr-exp-text]').innerText.replace(/\\r/g, ''); return t.includes('ป้ายบนจอ\\nบทพูด เอียง') && !t.includes('{\\\\an8}') && document.querySelector('.ocr-expr .icv-head').innerText.includes('16 แถว');", 5000));
+await q("[...document.querySelectorAll('[data-ocr-exp-top] .seg button')].find((b) => b.innerText.includes('แยกแถว')).click(); return 1;");
+await click("[data-ocr-exp] .icv-row [role=switch]");
+// เขียนจริง เปลี่ยนที่เก็บผ่าน __ocrExpTarget แทนกล่องของ Windows
+await q(`window.__ocrExpTarget = ${JSON.stringify(EXPDIR + "/ผลOCR.srt")}; return 1;`);
+await click("[data-ocr-exp-pick]");
+await click("[data-ocr-exp-go]");
+check("ขั้น 12 ส่งออก SRT จริง ขึ้นการ์ดส่งออกแล้ว 17 แถว", await waitFor("return !!document.querySelector('[data-ocr-exp-done]');", 10000) && (await q("return document.querySelector('[data-ocr-exp-done]').innerText;")).includes("17 แถว"));
+const srtFile = existsSync(`${EXPDIR}/ผลOCR.srt`) ? readFileSync(`${EXPDIR}/ผลOCR.srt`) : Buffer.alloc(0);
+const srtTxt = srtFile.toString("utf8");
+check("ขั้น 12 ไฟล์ SRT มี BOM ข้อความตรงทุกบรรทัด ป้ายบนจอติด {\\an8}", srtFile[0] === 0xef && srtTxt.includes("1\r\n") && srtTxt.includes("บรรทัด 17") && srtTxt.includes("{\\an8}ป้ายบนจอ"), String(srtFile.length));
+await q("window.__openDry = true; window.__openDryLog = []; return 1;");
+await click("[data-ocr-exp-reveal]");
+check("ขั้น 12 ปุ่มเปิดโฟลเดอร์ส่งที่อยู่ไฟล์ที่ส่งออก", (await q("return window.__openDryLog[0] ?? '';")).replace(/\\/g, "/").endsWith("ผลOCR.srt"));
+await click("[data-ocr-exp-go]");
+check("ขั้น 12 ส่งออกซ้ำชื่อเดิม ไม่ทับไฟล์ ขึ้นการ์ดชื่อซ้ำ", await waitFor("return !!document.querySelector('[data-ocr-exp-exists]');", 8000));
+await click("[data-ocr-exp-renum]");
+check("ขั้น 12 ตั้งชื่อใหม่ต่อเลขท้าย ได้ไฟล์ที่สอง", await waitFor("return !!document.querySelector('[data-ocr-exp-done]');", 8000) && existsSync(`${EXPDIR}/ผลOCR (2).srt`));
+// ชนิดของ SeConv · ค้นในดรอปดาวน์ แล้วตัวอย่างเป็น WebVTT
+await click("[data-ocr-exp-fmt] button");
+await q("const i = document.querySelector('.ddsearch input'); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set; set.call(i, 'webvtt'); i.dispatchEvent(new Event('input', { bubbles: true })); return 1;");
+await sleep(300);
+await q("[...document.querySelectorAll('.ddmenu [role=option], .ddlist [role=option], [role=listbox] [role=option]')].find((o) => o.innerText.startsWith('WebVTT'))?.click(); return 1;");
+check("ขั้น 12 เลือก WebVTT จากชนิดของ Subtitle Edit ตัวอย่างขึ้นต้นด้วย WEBVTT ที่เก็บเปลี่ยนเป็น .vtt",
+  await waitFor("return document.querySelector('[data-ocr-exp-text]')?.innerText.startsWith('WEBVTT') && document.querySelector('[data-ocr-exp-target]').innerText.endsWith('.vtt');", 10000),
+  await q("return document.querySelector('[data-ocr-exp-target]').innerText + ' | ' + (document.querySelector('[data-ocr-exp-text]')?.innerText ?? '').slice(0, 20);"));
+await click("[data-ocr-exp-go]");
+const vttOk = await waitFor("return !!document.querySelector('[data-ocr-exp-done]');", 15000);
+const vttPath = `${EXPDIR}/ผลOCR (2).vtt`;
+const vttTxt = existsSync(vttPath) ? readFileSync(vttPath, "utf8") : "";
+check("ขั้น 12 ส่งออก WebVTT จริงผ่าน SeConv (ชื่อตามที่เก็บที่ตั้งใหม่ล่าสุด)", vttOk && vttTxt.startsWith("﻿WEBVTT") && vttTxt.includes("ป้ายบนจอ"), vttTxt.slice(0, 30));
+// ภาพพร้อมหน้า HTML ลงโฟลเดอร์ใหม่ ผ่าน __ocrHtmlFolder แทนกล่องเลือกโฟลเดอร์
+await q(`window.__ocrHtmlFolder = ${JSON.stringify(EXPDIR)}; return 1;`);
+await click("[data-ocr-html-go]");
+check("ขั้น 12 บันทึกภาพพร้อมหน้า HTML 17 ภาพลงโฟลเดอร์ใหม่", await waitFor("return !!document.querySelector('[data-ocr-html-done]');", 15000) && (await q("return document.querySelector('[data-ocr-html-done]').innerText;")).includes("17 ภาพ"));
+const seen = await q("const c = document.querySelector('[data-ocr-html-done]').getBoundingClientRect(), b = document.querySelector('.ocr-expl').getBoundingClientRect(), t = document.querySelector('[data-ocr-exp-target]').innerText; return { inside: c.top >= b.top - 0.5 && c.bottom <= b.bottom + 0.5, slash: t.includes('/') };");
+check("ขั้น 12 การ์ดผลบันทึกภาพเลื่อนเข้ามาให้เห็นเอง ที่อยู่ไฟล์ใช้ทับแบบ Windows แบบเดียว", seen.inside && !seen.slash, JSON.stringify(seen));
+const htmlFile = `${EXPDIR}/th OCR/index.html`;
+const htmlTxt = existsSync(htmlFile) ? readFileSync(htmlFile, "utf8") : "";
+check("ขั้น 12 หน้า HTML มีภาพครบ ข้อความเข้ารหัสแล้ว ภาพไม่มีข้อความติดป้าย", existsSync(`${EXPDIR}/th OCR/images/0017.png`) && htmlTxt.includes("ป้ายบนจอ<br />บทพูด <i>เอียง</i>") && htmlTxt.includes("ภาพนี้ยังไม่มีข้อความ") && htmlTxt.includes("17 ภาพ ไม่มีข้อความ 1 ภาพ"), String(htmlTxt.length));
+await c.shot(`${SHOT12}/13-ส่งออก-ผล.png`, ".dlg").catch(() => {});
+await q("delete window.__ocrExpTarget; delete window.__ocrHtmlFolder; return 1;");
+await c.key("Escape");
+check("ขั้น 12 Esc ปิดหน้าต่างส่งออก", await waitFor("return !document.querySelector('[data-ocr-exp]');", 3000));
+// ไปหน้าแก้ซับ · เอกสาร ASS 17 แถว แก้กับวิดีโอได้ · กลับมา OCR แล้วกดอีกครั้ง ถามก่อนแทนที่ที่แก้ค้าง
+await click("[data-ocr-to-edit]");
+check("ขั้น 12 ไปหน้าแก้ซับ เปิดผล OCR เป็น ASS 17 แถว ปุ่มแก้ซับกับวิดีโอกดได้และถูกเลือก",
+  await waitFor("return document.querySelector('[data-subedit][data-se-kind=ass]') && document.querySelector('[data-se-count]')?.innerText.startsWith('17 บรรทัด');", 15000)
+  && await q("const b = [...document.querySelectorAll('[data-sub-mode] button')][2]; return b.getAttribute('aria-pressed') === 'true' && b.getAttribute('aria-disabled') !== 'true';"));
+const ed = await q("const s = window.__subEdit.get(); return { dirty: s.dirty, name: s.meta?.name, an8: s.doc.events.filter((e) => e.text.startsWith('{\\\\an8}')).length, res: s.doc.skeleton.filter((i) => i.t && i.t.startsWith('PlayRes')).map((i) => i.t).join(',') };");
+check("ขั้น 12 เอกสารยังไม่บันทึก ชื่อ th OCR ป้ายบนจอเก็บ {\\an8} ขนาดภาพตามจอของซับรูป", ed.dirty && ed.name === "th OCR" && ed.an8 === topNs.length && ed.res.includes("PlayResX"), JSON.stringify(ed));
+await c.shot(`${SHOT12}/14-หน้าแก้ซับ.png`, "[data-subedit]").catch(() => {});
+await q("[...document.querySelectorAll('[data-sub-mode] button')][1].click(); return 1;");
+await waitFor("return !!document.querySelector('[data-ocr-to-edit]');", 8000);
+await click("[data-ocr-to-edit]");
+check("ขั้น 12 ส่งซ้ำตอนหน้าแก้ซับยังไม่บันทึก ถามก่อน มีปุ่มไปหน้าแก้ซับเดิมกับแทนที่", await waitFor("return !!document.querySelector('[data-ocr-edit-old]') && !!document.querySelector('[data-ocr-edit-replace]');", 5000));
+await click("[data-ocr-edit-old]");
+check("ขั้น 12 ไปหน้าแก้ซับเดิม เอกสารเดิมไม่ถูกแทน", await waitFor("return !!document.querySelector('[data-subedit][data-se-kind=ass]');", 8000));
+// คืน · ปิดเอกสาร กลับหน้า OCR คืนข้อความเดิม
+await q("window.__subEdit.closeDoc(); return 1;");
+await waitFor("return [...document.querySelectorAll('[data-sub-mode] button')][2]?.getAttribute('aria-disabled') === 'true';", 5000);
+await q("[...document.querySelectorAll('[data-sub-mode] button')][1].click(); return 1;");
+await waitFor("return !!document.querySelector('[data-ocr-table]');", 8000);
+await job(`const k = ${JSON.stringify(keep2)}; k.forEach((t, i) => j.setText(i, t)); const r = j.get().rows[2]; r.line.anLines = null; return 1;`);
+check("ขั้น 12 ปิดเอกสารแล้วปุ่มแก้ซับกับวิดีโอกลับเป็นกดไม่ได้", await q("return [...document.querySelectorAll('[data-sub-mode] button')][2].getAttribute('aria-disabled') === 'true';"));
+rmSync(EXPDIR, { recursive: true, force: true });
+await q(`${expSaved == null ? "localStorage.removeItem('ms.ocrExport')" : `localStorage.setItem('ms.ocrExport', ${JSON.stringify(expSaved)})`}; window.__openDry = false; return 1;`);
+
 // ---------- แบบตรวจทีละจุด ----------
 await q("[...document.querySelectorAll('[data-ocr-sum] .seg button')].find((b) => b.innerText.includes('ทีละจุด')).click(); return 1;"); await sleep(600);
 const one = await q("return { list: document.querySelectorAll('[data-ocr-one] .ocr-onelist .ocr-eitem').length, flagged: window.__ocrJob.get().rows.filter((r) => !r.ok && r.line && (r.line.reasons.length + r.names.length)).length, img: !!document.querySelector('[data-ocr-one] .ocr-screen img') };");
@@ -183,13 +288,13 @@ await click("[data-teach-once]");
 check("ใช้ครั้งเดียวแล้วอ่านต่อ", await waitFor("const g = window.__ocrJob.get(); return !!g.teach || !g.running;", 15000));
 await click("[data-teach-stop]");
 check("หยุดอ่านปิดหน้าต่าง งานหยุด ภาพกลับเป็นรออ่าน", await waitFor("const g = window.__ocrJob.get(); return !g.running && !g.teach && !document.querySelector('[data-ocr-teach-dlg]') && g.rows[0].state !== 'work';", 8000));
-// แถบล่างตอนอ่านแล้วบางภาพ ปุ่มครบเก้าปุ่ม · เดิมปุ่มอ่านต่อที่เหลือล้นขวา 47 จุด ข้อความสถานะถูกบีบกว้างศูนย์
+// แถบล่างตอนอ่านแล้วบางภาพ ปุ่มครบ · เดิมปุ่มอ่านต่อที่เหลือล้นขวา 47 จุด ข้อความสถานะถูกบีบกว้างศูนย์ · ขั้น 12 เพิ่มปุ่มไปหน้าแก้ซับกับส่งออก รวมเก้าปุ่ม
 await sleep(400);
 const foot = await q(`const f = document.querySelector('[data-ocr-foot]'), fr = f.getBoundingClientRect(), ks = [...f.children].filter((k) => k.getBoundingClientRect().width > 0);
   const st = f.querySelector(':scope > .small'), bs = ks.filter((k) => k.tagName === 'BUTTON').map((k) => k.getBoundingClientRect());
   return { over: f.scrollWidth - f.clientWidth, right: Math.round(Math.max(...ks.map((k) => k.getBoundingClientRect().right)) - fr.right), lap: bs.filter((a, i) => bs.some((b, j) => j !== i && a.left < b.right - 0.5 && b.left < a.right - 0.5)).length,
     status: st ? Math.round(st.getBoundingClientRect().width) : 0, statusNeed: st ? st.scrollWidth - st.clientWidth : 0, buttons: bs.length, start: !!f.querySelector('[data-ocr-start]'), icon: getComputedStyle(f.querySelector('[data-ocr-import] .ocr-tl')).display };`);
-check("แถบล่างตอนปุ่มครบไม่ล้น ปุ่มไม่ซ้อน ข้อความสถานะเห็นครบ ที่ 1280 × 800", foot.start && foot.buttons === 7 && foot.over <= 0 && foot.right <= 0 && foot.lap === 0 && foot.status > 60 && foot.statusNeed <= 0, JSON.stringify(foot));
+check("แถบล่างตอนปุ่มครบไม่ล้น ปุ่มไม่ซ้อน ข้อความสถานะเห็นครบ ที่ 1280 × 800", foot.start && foot.buttons === 9 && foot.over <= 0 && foot.right <= 0 && foot.lap === 0 && foot.status > 60 && foot.statusNeed <= 0, JSON.stringify(foot));
 check("แถบล่างแคบกว่า 1,280 จุด ปุ่มเครื่องมือเหลือไอคอน", foot.icon === "none", foot.icon);
 const hist = await q("return await window.__TAURI_INTERNALS__.invoke('ocr_history');");
 check("ประวัติที่สอนมีตัวที่จำ", hist.some((h) => h.text === "ก" && h.db === DB), JSON.stringify(hist.slice(0, 3).map((h) => ({ ...h, png: h.png.slice(0, 30) }))));

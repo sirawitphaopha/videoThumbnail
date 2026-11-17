@@ -278,6 +278,9 @@ impl Session {
     #[cfg(test)]
     pub fn with_items(items: Vec<OcrItem>) -> Self { Session { items, ..Default::default() } }
 
+    /// ภาพของงานตามลำดับบรรทัดในหน้า OCR (บันทึกภาพพร้อมหน้า HTML ขั้น 12)
+    pub fn items(&self) -> &[OcrItem] { &self.items }
+
     /// โหลดฐาน ตัวอ่าน และตัวแก้คำที่ค่าตั้งนี้ต้องใช้ · ชื่อฐานเปลี่ยน โหลดใหม่และเริ่มตัวอ่านใหม่
     fn ensure(&mut self, d: &Dirs, cfg: &OcrCfg) -> Result<(), String> {
         let uses = |k: &str| cfg.engine == k || cfg.helpers.iter().any(|h| h == k);

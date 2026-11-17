@@ -9,7 +9,7 @@
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import Dialog from "./Dialog";
-import { CardIcon, FixedTime, Phr, Seg, Skel, Switch } from "./ui";
+import { CardIcon, FixedTime, Keep, Phr, Seg, Skel, Switch } from "./ui";
 import { listen } from "@tauri-apps/api/event";
 import { checkApi, graphApi, subApi, type GWindow, type SubImg, type SubText } from "../lib/api";
 import type { AvTrack } from "../lib/avJob";
@@ -252,6 +252,7 @@ function SimgSeek(p: { times: SubImg[] | null; d: number; at: number; upto: numb
 
 /** แถบความคืบหน้าตอนถอดซับรูปครั้งแรก แทนที่แถบเวลาในความสูงเดียวกัน ตัวเลขกับเวลาที่เดินกว้างคงที่ไม่ดันแถบ
  *  (BUGS ข้อ 144 พี่กันทัก 16 พ.ย. 2569 "เเต่พอเอาไฟล์นี้เข้าเพื่อดูเเค่ซํบ มันรอนานมากกกกก") */
+const PROG_T = ["กำลังอ่านซับรูปจากไฟล์", "กำลังเก็บภาพซับ"];
 function SimgProgress(p: { pct: number | null; since: number }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(id); }, []);
@@ -260,7 +261,8 @@ function SimgProgress(p: { pct: number | null; since: number }) {
   const pct = p.pct ?? 0;
   return (
     <div className="simgseek simgprog" data-simg-progress role="progressbar" aria-valuemin={0} aria-valuemax={100} aria-valuenow={pct}>
-      <span className="simgprog-t">กำลังอ่านซับรูปจากไฟล์ <FixedTime t={`${pct}%`} longest="100%" /></span>
+      {/* 85% ขึ้นไปคือช่วงเก็บภาพทีละภาพ ซับยาวเป็นพันภาพใช้เวลา จึงบอกว่าทำอะไรอยู่ (BUGS ข้อ 151) */}
+      <span className="simgprog-t"><Keep all={PROG_T}>{pct >= 85 ? PROG_T[1] : PROG_T[0]}</Keep> <FixedTime t={`${pct}%`} longest="100%" /></span>
       <div className="simgprog-bar"><i style={{ width: `${pct}%` }} /></div>
       <span className="simgprog-t">ใช้ไป <FixedTime t={t} longest="00:00" /></span>
     </div>

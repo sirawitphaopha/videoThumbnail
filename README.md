@@ -90,7 +90,11 @@ cd src-tauri; cargo test
 | Visual C++ Runtime | 14.51 | ไฟล์ที่ libheif ต้องใช้ · ของ Microsoft | ข้อตกลง MS | [microsoft.com](https://microsoft.com) |
 | SUPer | 0.3.0 | ตัวสร้าง PGS แบบมาตรฐาน Blu-ray ที่เลือกได้ในหน้าต่างส่งออก PGS · ข้างในมี libimagequant ช่วยลดสี | GPLv3 | [github.com/cubicibo/SUPer](https://github.com/cubicibo/SUPer) |
 | BDSup2Sub++ | 1.0.5 | แปลงซับภาพเป็นซับภาพในหน้าต่างแปลงซับภาพ ทั้ง PGS VobSub และ BDN XML พร้อมย่อขยาย เปลี่ยนอัตราเฟรม เลื่อนเวลา ย้ายตำแหน่ง และตั้งจานสี · หน้าตาของหน้าต่างยกกลุ่มตัวเลือกมาจาก BDSup2Sub · ข้างในรวม Qt ไว้ในตัว | Apache-2.0 (Qt LGPL) | [github.com/TheGreatMcPain/BDSup2SubPlusPlus](https://github.com/TheGreatMcPain/BDSup2SubPlusPlus) |
-| Subtitle Edit | 5.4.0 | ตัวแปลง SeConv เป็นตัวสร้าง PGS ตัวที่สามในหน้าต่างส่งออก PGS และเป็นตัวสำรองตอนแปลงซับภาพที่ BDSup2Sub++ อ่านไม่ได้ · และเป็นต้นแบบวิธีฝัง mpv ไว้ในหน้าต่างโปรแกรมเพื่อเล่นหนังในหน้าแก้ซับ | MIT | [github.com/SubtitleEdit/subtitleedit](https://github.com/SubtitleEdit/subtitleedit) |
+| Subtitle Edit | 5.4.0 | ระบบ OCR ซับรูปแปลวิธีจากซอร์สเป็น Rust (nOCR Binary OCR ตัวแก้คำ คำที่ไม่รู้จัก หน้าต่างสอน ตรวจบรรทัด ฝึกจากฟอนต์ ส่งออก) ใส่ประกาศลิขสิทธิ์เดิมไว้หัวไฟล์ แนบฐาน nOCR Binary OCR และรายการแก้คำของ Subtitle Edit · ตัวแปลง SeConv เป็นตัวสร้าง PGS ตัวที่สาม ตัวสำรองตอนแปลงซับภาพ และส่งออกผล OCR เป็นซับชนิดอื่น · และเป็นต้นแบบวิธีฝัง mpv ไว้ในหน้าต่างโปรแกรมเพื่อเล่นหนังในหน้าแก้ซับ | MIT | [github.com/SubtitleEdit/subtitleedit](https://github.com/SubtitleEdit/subtitleedit) |
+| PaddleOCR | – | โมเดล PP-OCRv6 กับ PP-OCRv5 อ่านซับรูปเป็นตัวหนังสือในหน้า OCR ทั้งอังกฤษ ญี่ปุ่น ไทย และภาษาอื่น ทำงานในเครื่อง ไม่ส่งภาพออกเน็ต · ชุด ONNX จาก Hugging Face ของ PaddlePaddle | Apache-2.0 | [github.com/PaddlePaddle/PaddleOCR](https://github.com/PaddlePaddle/PaddleOCR) |
+| ONNX Runtime | 1.32.0 | ตัวรันโมเดล PaddleOCR ในเครื่อง | MIT | [onnxruntime.ai](https://onnxruntime.ai) |
+| Tesseract | 5.5.3 | ตัวอ่าน OCR อีกตัวในหน้า OCR พร้อมชุดภาษา eng tha jpn jpn_vert osd แบบ best · ชุดเดียวกับที่ Subtitle Edit ใช้ | Apache-2.0 | [github.com/tesseract-ocr/tesseract](https://github.com/tesseract-ocr/tesseract) |
+| Hunspell | – | พจนานุกรมตรวจคำที่ไม่รู้จักในหน้า OCR ทั้ง en_US en_GB และ th_TH · ชุดจาก LibreOffice | ตามแต่ละชุด | [github.com/LibreOffice/dictionaries](https://github.com/LibreOffice/dictionaries) |
 | mpv (libmpv) | 0.42.0 · ชุด 20261111 | เล่นหนังในหน้าแก้ซับ ถอดภาพด้วยการ์ดจอ วาดซับ ASS ครบทุกแท็ก · ชุดจาก shinchiro (mpv-winbuild-cmake) | GPLv2 ขึ้นไป | [mpv.io](https://mpv.io) |
 
 ### ใช้สร้างโปรแกรม
@@ -107,7 +111,7 @@ cd src-tauri; cargo test
 | Vite | 8.3.6 | ตัวสร้างหน้าจอ รวมไฟล์ตอนสร้างโปรแกรม | MIT | [vite.dev](https://vite.dev) |
 | React | 19.3.1 | หน้าจอทั้งหมด | MIT | [react.dev](https://react.dev) |
 | image (Rust) | 0.25.10 | อ่าน ครอป และเข้ารหัสรูป | MIT · Apache-2.0 | [github.com/image-rs/image](https://github.com/image-rs/image) |
-| ห้องสมุด Rust อื่น ๆ | – | serde อ่านเขียนข้อมูล · qcms แปลงสีรูป · jpeg-encoder · sha2 md-5 sha1 crc32fast คิดค่า hash · windows-sys | MIT · Apache-2.0 | [crates.io](https://crates.io) |
+| ห้องสมุด Rust อื่น ๆ | – | serde อ่านเขียนข้อมูล · qcms แปลงสีรูป · jpeg-encoder · sha2 md-5 sha1 crc32fast คิดค่า hash · windows-sys · ort 2.0.0-rc.13 เรียก ONNX Runtime · spellbook 0.3.5 อ่านพจนานุกรม Hunspell (MPL-2.0 ซอร์สที่ [github.com/helix-editor/spellbook](https://github.com/helix-editor/spellbook)) · fancy-regex 0.20.2 นิพจน์ของรายการแก้คำ OCR | MIT · Apache-2.0 · MPL-2.0 | [crates.io](https://crates.io) |
 | ฟอนต์ Sarabun | – | ตัวหนังสือทั้งโปรแกรม · Cadson Demak · ชุดจาก Fontsource | OFL | [fonts.google.com/specimen/Sarabun](https://fonts.google.com/specimen/Sarabun) |
 | ไอคอนในหน้านี้ | – | Simple Icons กับ SVG Logos (CC0) · Icons8 · Wikimedia Commons · ไอคอนจากตัวโปรแกรมของแต่ละโครงการ | ตามแต่ละรูป | [simpleicons.org](https://simpleicons.org) · [icons8.com](https://icons8.com) · [commons.wikimedia.org](https://commons.wikimedia.org) |
 

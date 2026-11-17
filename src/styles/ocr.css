@@ -274,6 +274,9 @@
 .ocr-pathrow .btn { flex: none; white-space: nowrap; }
 .ocr-expl .ocr-pathrow .ocr-pathbox { flex: 1 1 0; min-width: 0; min-height: 38px; box-sizing: border-box; display: flex; align-items: center; padding: 6px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--win2); }
 .ocr-posw .ocr-br { white-space: pre-line; }
+/* ส่วนภาพพร้อมหน้า HTML ท้ายคอลัมน์ตั้งค่า เส้นคั่นจากการตั้งค่าซับ (ขั้น 12) · คำอธิบายยืดเต็มช่องข้างปุ่ม */
+.ocr-expl .ocr-exphtml { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 8px; }
+.ocr-pathrow .ocr-htmlnote { flex: 1 1 0; min-width: 0; display: flex; align-items: center; }
 .ocr-expr { display: flex; flex-direction: column; gap: 6px; min-height: 0; border-left: 1px solid var(--line); padding-left: 16px; }
 /* ฝั่งไฟล์ที่จะได้ยืดชนขอบขวาของหน้าต่าง (พี่กันสั่ง "รอบที่สอง บอกให้ขยายไปนสุดไง ฝั่งนี้") · หักระยะขอบ 20 จุดของ .dlg */
 .ocr-exp { margin-right: -20px; }

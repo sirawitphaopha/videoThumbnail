@@ -777,6 +777,12 @@ export type OcrWordAction = "changeAll" | "skipAll" | "addName" | "addWord";
 export type OcrTaught = { index: number; engine: OcrEngine; db: string; text: string; italic: boolean; pieces: number; png: string; at: number };
 export type OcrDbKind = "nocr" | "binary" | "own";
 /** ผลฝึกจากฟอนต์ · stopped กดหยุดกลางทาง (บันทึกเท่าที่ได้) */
+/** ส่งออกผล OCR (ขั้น 12) · an ตำแหน่งแบบ ASS ต่อบรรทัดของข้อความ · fmt รหัสชนิดของ SeConv · top tag แยกแถวเก็บไว้บนจอ down รวมไว้ล่างจอ */
+export type OcrExpRow = { start: number; end: number | null; text: string; an: number[] };
+export type OcrExpReq = { rows: OcrExpRow[]; fmt: string; top: "tag" | "down"; italic: boolean; enc: "utf8bom" | "utf8" | "utf16" | "tis"; canvas: [number, number] };
+export type OcrExpFormat = { id: string; name: string; ext: string };
+export type OcrExpOut = { path: string; lines: number; bytes: number };
+export type OcrHtmlOut = { folder: string; html: string; images: number; empty: number };
 export type OcrTrainDone = { name: string; learned: number; skipped: number; total: number; stopped: boolean };
 export type OcrTrainReq = { kind: OcrDbKind; name: string; base: string; overwrite: boolean; fonts: string[]; sizes: number[]; bold: boolean; italic: boolean; lines: number; chars: string; merged: string };
 /** ผลย่อฐาน · backup ชื่อไฟล์สำรองของฐานเดิม */
@@ -834,6 +840,13 @@ export const ocrApi = {
   vobsubRecolor: (path: string, ff: number, colors: [number, number, number, number][] | null) => call<SubImg[]>("ocr_vobsub_recolor", { path, ff, colors }),
   /** ลบภาพลำดับที่ระบุออกจากงาน OCR */
   removeItems: (idx: number[]) => call<void>("ocr_remove_items", { idx }),
+  exportFormats: () => call<OcrExpFormat[]>("ocr_export_formats"),
+  exportPreview: (req: OcrExpReq) => call<string>("ocr_export_preview", { req }),
+  /** ไฟล์ชื่อนี้มีอยู่แล้วตอบผิดพลาด exists ไม่เขียนทับ */
+  exportFile: (req: OcrExpReq, target: string) => call<OcrExpOut>("ocr_export", { req, target }),
+  exportDoc: (req: OcrExpReq) => call<SubDoc>("ocr_export_doc", { req }),
+  /** ความคืบหน้าทางเหตุการณ์ ocr-html-progress */
+  saveHtml: (texts: string[], folder: string, source: string) => call<OcrHtmlOut>("ocr_save_html", { texts, folder, source }),
   vobsubPreview: (path: string, ff: number, n: number, colors: [number, number, number, number][] | null) => call<string>("ocr_vobsub_preview", { path, ff, n, colors }),
   stop: () => call<void>("ocr_stop"),
   /** ภาพที่แต่งแล้วของภาพลำดับ index (นับจาก 0) */

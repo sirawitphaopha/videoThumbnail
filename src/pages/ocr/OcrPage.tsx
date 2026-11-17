@@ -7,7 +7,7 @@ import { createPortal } from "react-dom";
 import Dropdown from "../../components/Dropdown";
 import InfoTip from "../../components/InfoTip";
 import { CardIcon, Keep, Phr, Seg, Skel, Switch } from "../../components/ui";
-import { IbBack, IbBold, IbCrop, IbItalic, IbNext, IbPencil, IbPlay, IbStop, IbSwap, IbTable, IbTick, IbWand, IcCopy, IcExpand, IcRefresh, IcSearch, IcSettings, IbSave, IcFile, IcPalette, IcPaste, IbTrash } from "../../components/icons";
+import { IbBack, IbBold, IbCrop, IbItalic, IbNext, IbPencil, IbPlay, IbStop, IbSwap, IbTable, IbTick, IbWand, IcCopy, IcExpand, IcRefresh, IcSearch, IcSettings, IbSave, IcFile, IcPalette, IcPaste, IbTrash, IcExtract, IcClose } from "../../components/icons";
 import type { Tip } from "../../lib/codecAdv";
 import { infoApi, ocrApi, pickFile, pickSave, subApi, type OcrCfg, type OcrDbList, type OcrReason, type OcrTessLang, type SubImg } from "../../lib/api";
 import type { AvTrack } from "../../lib/avJob";
@@ -15,6 +15,9 @@ import { fillRows, getOcrJob, ocrElapsed, removeRows, openSource, pauseOcr, resu
 import { OcrDialogs, tessName, type OcrDlg } from "./OcrDialogs";
 import { InspectDialog } from "./OcrInspectDialog";
 import { VobColorDialog, storedVobColors } from "./OcrVobColorDialog";
+import { ExportDialog, expRows, loadExpFormats } from "./OcrExportDialog";
+import Dialog from "../../components/Dialog";
+import { getSubEdit, openDoc } from "../../lib/subEdit";
 import "../../styles/ocr.css";
 
 /* ---------- คำอธิบาย ⓘ (ข้อความเดียวกับมอคอัปที่พี่กันดูแล้ว ตัวเลขจากผลเทสจริง) ---------- */
@@ -433,10 +436,15 @@ function ReviewOne({ rows, movie, imgs, need, sel, setSel, onTeach }: { rows: Oc
 
 /* ---------- หน้า OCR ---------- */
 const VIEW_KEY = "ms.ocrView";
-export default function OcrPage({ track, movie }: { track: AvTrack; movie: string }) {
+export default function OcrPage({ track, movie, onEdit }: { track: AvTrack; movie: string; onEdit?: () => void }) {
   const job = useOcrJob();
   const path = track.inMovie ? movie : track.src;
   const ff = track.ff ?? track.tid;
+  // ชื่อตั้งต้นของไฟล์ที่ส่งออกกับเอกสารของหน้าแก้ซับ แบบ base ของ SubEditor · ซับในหนังต่อรหัสภาษาของแทร็ก
+  const expBase = path.replace(/\.[^.\\/]+$/, "") +(track.inMovie && track.lang ? `.${track.lang}` : "");
+  const [expOpen, setExpOpen] = useState(false);
+  useEffect(() => { void loadExpFormats(); }, []);
+  const [editAsk, setEditAsk] = useState(false);
   const { imgs, need, reload } = useSubImgs(path, ff);
   const [vob, setVob] = useState(false);
   // VobSub ที่เปิดใหม่ใช้สีที่จำไว้เอง แบบ ApplyStoredVobSubColors ของ Subtitle Edit
@@ -473,6 +481,17 @@ export default function OcrPage({ track, movie }: { track: AvTrack; movie: strin
   const tops = rows.filter((r) => r.state === "done" && hasTop(r)).length;
   const forcedCount = rows.filter((r) => r.item.forced).length;
   const allDone = total > 0 && done === total;
+  const canvas: [number, number] = rows.find((r) => r.item.canvas[0] > 0)?.item.canvas ?? [1920, 1080];
+  // ส่งผล OCR ไปหน้าแก้ซับ (ขั้น 12 ตาม Ok ของ OcrWindow) · เอกสาร ASS ขนาดภาพตามจอของซับรูป บรรทัดบนจอแยกแถวติด {\an8}
+  // ยังไม่มีไฟล์ของตัวเอง นับว่ายังไม่บันทึก กดบันทึกในหน้าแก้ซับแล้วถามที่เก็บ · หน้าแก้ซับมีที่แก้ค้างอยู่ ถามก่อนแทนที่
+  const toEditor = async (force = false) => {
+    const s = getSubEdit();
+    if (!force && s.doc && s.dirty) { setEditAsk(true); return; }
+    setEditAsk(false);
+    const doc = await ocrApi.exportDoc({ rows: expRows(rows), fmt: "AdvancedSubStationAlpha", top: "tag", italic: true, enc: "utf8bom", canvas });
+    openDoc(doc, { name: `${baseName(expBase)} OCR`, movie, key: track.key, base: expBase }, { dirty: true });
+    onEdit?.();
+  };
   const ms = ocrElapsed();
   const pct = job.runIds.length ? Math.round((job.runDone / job.runIds.length) * 100) : 0;
   const eta = job.runDone > 0 ? (ms / job.runDone) * (job.runIds.length - job.runDone) : null;
@@ -541,7 +560,7 @@ export default function OcrPage({ track, movie }: { track: AvTrack; movie: strin
   if (!rows.length) return (
     <section className="card ocr-page" data-ocr-page aria-busy="true">
       <Skel w="100%" h={38} /><Skel w="100%" h={240} style={{ marginTop: 8 }} />
-      <div className="small"><Phr>{`กำลังอ่านภาพซับจากไฟล์ ${job.openPercent}%`}</Phr></div>
+      <div className="small"><Phr>{`${job.openPercent >= 85 ? "กำลังเก็บภาพซับ" : "กำลังอ่านภาพซับจากไฟล์"} ${job.openPercent}%`}</Phr></div>
     </section>);
   return (
     <section className="card ocr-page" data-ocr-page>
@@ -586,9 +605,22 @@ export default function OcrPage({ track, movie }: { track: AvTrack; movie: strin
           <button type="button" className="btn btn-ghost ocr-tool" onClick={() => void importText()} title="นำข้อความจากไฟล์ซับตัวหนังสือที่เวลาตรงกัน แทนการอ่านภาพ" aria-label="นำข้อความจากไฟล์ซับ" data-ocr-import><IcFile size={15} /><span className="ocr-tl">นำข้อความจากไฟล์ซับ</span></button>
           {done > 0 && <button type="button" className="btn btn-ghost ocr-tool" onClick={() => setDlg("find")} title="ค้นและแทนที่ข้อความในทุกบรรทัด" aria-label="ค้นและแทนที่" data-ocr-find-open><IcSearch size={15} /><span className="ocr-tl">ค้นและแทนที่</span></button>}
           {done > 0 && <button type="button" className="btn btn-ghost" onClick={() => void startOcr([sel])} title={`อ่านภาพที่ ${rows[sel]?.item.n ?? ""} ใหม่ด้วยค่าที่ตั้งตอนนี้`} data-ocr-reread><IcRefresh size={15} />อ่านใหม่เฉพาะที่เลือก</button>}
-          {!allDone && <button type="button" className="btn btn-main" onClick={() => void startOcr()} data-ocr-start><IbPlay size={15} />{done ? "อ่านต่อที่เหลือ" : "เริ่มอ่าน"}</button>}
+          {!allDone && <button type="button" className={"btn " + (done ? "btn-ghost" : "btn-main")} onClick={() => void startOcr()} data-ocr-start><IbPlay size={15} />{done ? "อ่านต่อที่เหลือ" : "เริ่มอ่าน"}</button>}
+          {/* อ่านแล้วตรวจทานในหน้านี้ แล้วเลือกไปหน้าแก้ซับหรือส่งออก (ข้อ 143 ㉕) */}
+          {done > 0 && <>
+            <span className="sv-sep" aria-hidden />
+            {onEdit && <button type="button" className="btn btn-ghost ocr-tool" onClick={() => void toEditor()} title="เปิดผลที่อ่านในหน้าแก้ซับกับวิดีโอ แก้เวลาและข้อความต่อ แล้วบันทึกเป็นไฟล์ซับ" aria-label="ไปหน้าแก้ซับ" data-ocr-to-edit><IbTable size={15} /><span className="ocr-tl">ไปหน้าแก้ซับ</span></button>}
+            <button type="button" className="btn btn-main" onClick={() => setExpOpen(true)} title="ส่งออกเป็นไฟล์ซับตัวหนังสือ หรือบันทึกภาพพร้อมหน้า HTML" data-ocr-export><IcExtract size={15} />ส่งออก</button>
+          </>}
         </>}
       </div>
+      <ExportDialog open={expOpen} onClose={() => setExpOpen(false)} rows={rows} canvas={canvas} base={expBase} source={path} />
+      <Dialog open={editAsk} onClose={() => setEditAsk(false)} kind="work" title="หน้าแก้ซับมีซับที่แก้ไว้ยังไม่บันทึก" width={560}
+        actions={<><button type="button" className="btn btn-ghost" onClick={() => setEditAsk(false)}><IcClose size={15} />ยกเลิก</button><span style={{ flex: 1 }} />
+          {getSubEdit().meta?.key === track.key && <button type="button" className="btn btn-ghost" onClick={() => { setEditAsk(false); onEdit?.(); }} data-ocr-edit-old>ไปหน้าแก้ซับเดิม</button>}
+          <button type="button" className="btn btn-main" onClick={() => void toEditor(true)} data-ocr-edit-replace>แทนที่ด้วยผล OCR</button></>}>
+        <div className="small"><Phr>{`${getSubEdit().meta?.name ?? "ซับ"} ยังไม่ได้บันทึกเป็นไฟล์ ส่งผล OCR ไปแทนแล้วที่แก้ไว้ในหน้าแก้ซับจะหาย`}</Phr></div>
+      </Dialog>
       <InspectDialog open={insp != null} index={insp ?? 0} onClose={() => setInsp(null)} />
       <VobColorDialog open={vob} onClose={() => setVob(false)} path={path} ff={ff} n={rows[Math.min(sel, rows.length - 1)]?.item.n ?? 1} onApplied={reload} />
       <OcrDialogs dlg={dlg} setDlg={setDlg} ask={ask} setAsk={setAsk} rows={rows} imgs={imgs} need={need} sel={sel} />

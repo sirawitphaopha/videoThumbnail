@@ -232,6 +232,11 @@ const THANK_LINKS: &[(&str, &str)] = &[
     ("react.dev", "https://react.dev/"),
     ("github.com/image-rs/image", "https://github.com/image-rs/image"),
     ("fonts.google.com/specimen/Sarabun", "https://fonts.google.com/specimen/Sarabun"),
+    // ระบบ OCR ซับรูป (แผน OCR ขั้น 12 · BUGS ข้อ 143)
+    ("github.com/PaddlePaddle/PaddleOCR", "https://github.com/PaddlePaddle/PaddleOCR"),
+    ("onnxruntime.ai", "https://onnxruntime.ai/"),
+    ("github.com/tesseract-ocr/tesseract", "https://github.com/tesseract-ocr/tesseract"),
+    ("github.com/LibreOffice/dictionaries", "https://github.com/LibreOffice/dictionaries"),
 ];
 
 fn thank_url(link: &str) -> Option<&'static str> {

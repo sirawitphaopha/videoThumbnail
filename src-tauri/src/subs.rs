@@ -491,6 +491,40 @@ pub(crate) fn crop_ink(img: &image::RgbaImage, at: (u32, u32), canvas: (u32, u32
     Some(((cx, cy), out))
 }
 
+/// เขียนภาพซับทีละไฟล์แบบสี่เธรดพร้อมกัน · on บอกสัดส่วนที่เขียนแล้ว 0–1 ทุก 1% (BUGS ข้อ 151)
+/// ซับยาวเป็นพันภาพ เขียนทีละไฟล์ทีละภาพช่วงนี้ไม่มีความคืบหน้า แถบค้าง 100% ระหว่างที่ยังเขียนภาพอยู่
+/// on ถูกเรียกจากเธรดที่เรียกฟังก์ชันนี้เท่านั้น (ตัวรับความคืบหน้าไม่ต้องข้ามเธรดได้)
+pub(crate) fn save_pngs(items: Vec<(PathBuf, image::RgbaImage)>, on: &dyn Fn(f64)) -> Result<(), String> {
+    let total = items.len();
+    if total == 0 { return Ok(()); }
+    let threads = std::thread::available_parallelism().map(|n| n.get()).unwrap_or(2).clamp(1, 4);
+    let mut lanes: Vec<Vec<(PathBuf, image::RgbaImage)>> = (0..threads).map(|_| Vec::new()).collect();
+    for (k, it) in items.into_iter().enumerate() { lanes[k % threads].push(it); }
+    let (tx, rx) = std::sync::mpsc::channel::<Result<(), String>>();
+    std::thread::scope(|sc| {
+        for lane in lanes {
+            let tx = tx.clone();
+            sc.spawn(move || {
+                for (f, img) in lane {
+                    let r = img.save(&f).map_err(|e| format!("เก็บภาพซับไม่ได้ {e}"));
+                    let bad = r.is_err();
+                    if tx.send(r).is_err() || bad { return; }
+                }
+            });
+        }
+        drop(tx);
+        let (mut done, mut last) = (0usize, usize::MAX);
+        for r in rx {
+            r?;
+            done += 1;
+            let pct = done * 100 / total;
+            if pct != last { last = pct; on(done as f64 / total as f64); }
+        }
+        if done < total { return Err("เก็บภาพซับไม่ครบ".to_string()); }
+        Ok(())
+    })
+}
+
 /// ความยาวของไฟล์ (วินาที) ไว้คิดเปอร์เซ็นต์ของ ffmpeg · ไม่รู้คืน 0
 fn duration_of(tools: &Path, path: &Path) -> f64 { crate::vobsub::stream_codec(tools, path, u64::MAX).1 }
 
@@ -504,7 +538,7 @@ fn images_from_sup(tools: &Path, dir: &Path, path: &Path, ff: u64, on: &dyn Fn(f
         let sup = dir.join("track.sup");
         let args: Vec<OsString> = vec!["-v".into(), "error".into(), "-nostdin".into(), "-nostats".into(), "-y".into(), "-progress".into(), "pipe:1".into(), "-copyts".into(), "-i".into(), path.into(),
             "-map".into(), format!("0:{ff}").into(), "-c".into(), "copy".into(), "-f".into(), "sup".into(), sup.clone().into()];
-        let (ok, _, _) = crate::vobsub::run_progress(tools, "ffmpeg", &args, duration_of(tools, path), &|p| on(p * 0.95)).ok()?;
+        let (ok, _, _) = crate::vobsub::run_progress(tools, "ffmpeg", &args, duration_of(tools, path), &|p| on(p * 0.85)).ok()?;
         if !ok { let _ = std::fs::remove_file(&sup); return None; }
         let d = std::fs::read(&sup).ok()?;
         let _ = std::fs::remove_file(&sup);
@@ -513,15 +547,17 @@ fn images_from_sup(tools: &Path, dir: &Path, path: &Path, ff: u64, on: &dyn Fn(f
     let shows = parse_sup(&data);
     if shows.is_empty() { return None; }
     let mut out = Vec::with_capacity(shows.len());
+    let mut pics = Vec::with_capacity(shows.len());
     for s in shows.into_iter() {
         let Some((at, img)) = crop_ink(&s.img, s.at, s.canvas) else { continue };
         let n = out.len() + 1;
         let file = dir.join(format!("c{n:06}.png"));
-        img.save(&file).ok()?;
         // เวลาจบห่างเกิน 60 วินาที (ภาพค้างท้ายไฟล์) ถือว่าไม่รู้เวลาจบ เหมือนทางเดิม
         let end = s.end.filter(|e| *e >= s.start && e - s.start <= 60.0).map(|e| (e * 1000.0).round() / 1000.0);
-        out.push(SubImg { n, start: (s.start * 1000.0).round() / 1000.0, end, w: img.width(), h: img.height(), canvas: [s.canvas.0, s.canvas.1], at: [at.0, at.1], forced: s.forced, file });
+        out.push(SubImg { n, start: (s.start * 1000.0).round() / 1000.0, end, w: img.width(), h: img.height(), canvas: [s.canvas.0, s.canvas.1], at: [at.0, at.1], forced: s.forced, file: file.clone() });
+        pics.push((file, img));
     }
+    save_pngs(pics, &|f| on(85.0 + f * 15.0)).ok()?;
     Some(out)
 }
 
@@ -531,22 +567,28 @@ fn images_from_vobsub(tools: &Path, dir: &Path, path: &Path, ff: u64, on: &dyn F
     let (idx, sub) = if let (Some(pair), 0) = (crate::vobsub::pair_of(path), ff) {
         pair
     } else if crate::vobsub::is_vobsub_stream(tools, path, ff) {
-        crate::vobsub::extract_pair(tools, dir, path, ff, &|p| on(p * 0.9))?
+        crate::vobsub::extract_pair(tools, dir, path, ff, &|p| on(p * 0.8))?
     } else {
         return Ok(None);
     };
     let text = std::fs::read(&idx).map_err(|e| format!("อ่านไฟล์ .idx ไม่ได้ {e}"))?;
     let data = std::fs::read(&sub).map_err(|e| format!("อ่านไฟล์ .sub ไม่ได้ {e}"))?;
     let file = crate::vobsub::parse_idx(&decode_text(&text).0);
-    let shows = crate::vobsub::read(&file, &data, 0, &|p| on(90.0 + p * 0.1));
+    let t0 = std::time::Instant::now();
+    let shows = crate::vobsub::read(&file, &data, 0, &|p| on(80.0 + p * 0.05));
     if shows.is_empty() { return Err("อ่านภาพในซับ VobSub ไม่ได้สักภาพ ไฟล์ .sub อาจไม่ตรงกับไฟล์ .idx".into()); }
-    save_vob_shows(dir, &shows, None, None).map(Some)
+    let t1 = t0.elapsed();
+    let out = save_vob_shows(dir, &shows, None, None, &|f| on(85.0 + f * 15.0));
+    // เวลาของแต่ละช่วงไว้ไล่ข้อ 151 ตอนพี่กันลองกับไฟล์จริง (ขึ้นในบันทึกของโหมดพัฒนา)
+    eprintln!("[ซับรูป VobSub] {} ภาพ อ่าน {:?} เก็บภาพ {:?}", shows.len(), t1, t0.elapsed() - t1);
+    out.map(Some)
 }
 
 /// เก็บภาพของ VobSub ทีละภาพเป็น c000001.png · ภาพที่ครอปด้วยสีจากจานสีแล้วว่างตัดทิ้ง (ลำดับภาพจึงตรงกันทุกครั้ง)
 /// custom สีสี่ช่องที่ผู้ใช้เลือก (พื้น ตัว เน้น 1 เน้น 2) วาดใหม่จากข้อมูลดิบ ครอปแล้วว่างใช้ทั้งกรอบ · only เก็บเฉพาะภาพลำดับนั้น ไม่เขียนไฟล์
-fn save_vob_shows(dir: &Path, shows: &[crate::vobsub::VobShow], custom: Option<[[u8; 4]; 4]>, only: Option<usize>) -> Result<Vec<SubImg>, String> {
+fn save_vob_shows(dir: &Path, shows: &[crate::vobsub::VobShow], custom: Option<[[u8; 4]; 4]>, only: Option<usize>, on: &dyn Fn(f64)) -> Result<Vec<SubImg>, String> {
     let mut out = Vec::with_capacity(shows.len());
+    let mut pics = Vec::with_capacity(shows.len());
     let mut n = 0usize;
     for s in shows {
         let Some((at0, img0)) = crop_ink(&s.img, s.at, s.canvas) else { continue };
@@ -560,10 +602,11 @@ fn save_vob_shows(dir: &Path, shows: &[crate::vobsub::VobShow], custom: Option<[
             _ => (at0, img0),
         };
         let f = dir.join(format!("c{n:06}.png"));
-        if only.is_none() { img.save(&f).map_err(|e| format!("เก็บภาพซับไม่ได้ {e}"))?; } else { img.save(&f).ok(); }
         let r = |v: f64| (v * 1000.0).round() / 1000.0;
-        out.push(SubImg { n, start: r(s.start), end: s.end.map(r), w: img.width(), h: img.height(), canvas: [s.canvas.0, s.canvas.1], at: [at.0, at.1], forced: s.forced, file: f });
+        out.push(SubImg { n, start: r(s.start), end: s.end.map(r), w: img.width(), h: img.height(), canvas: [s.canvas.0, s.canvas.1], at: [at.0, at.1], forced: s.forced, file: f.clone() });
+        if only.is_some() { img.save(&f).ok(); } else { pics.push((f, img)); }
     }
+    save_pngs(pics, on)?;
     Ok(out)
 }
 
@@ -589,7 +632,7 @@ pub fn vobsub_recolor(work: &Path, path: &Path, ff: u64, custom: Option<[[u8; 4]
     let (i, s, dir) = vob_pair(work, path, ff)?;
     let shows = vob_shows(&i, &s)?;
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-    let out = save_vob_shows(&dir, &shows, custom, None)?;
+    let out = save_vob_shows(&dir, &shows, custom, None, &|_| {})?;
     std::fs::write(dir.join("index.json"), serde_json::to_string(&out).unwrap_or_default()).map_err(|e| e.to_string())?;
     Ok(out)
 }
@@ -600,7 +643,7 @@ pub fn vobsub_preview(work: &Path, path: &Path, ff: u64, n: usize, custom: Optio
     let shows = vob_shows(&i, &s)?;
     let tmp = work.join("vobcolor-preview");
     std::fs::create_dir_all(&tmp).map_err(|e| e.to_string())?;
-    let v = save_vob_shows(&tmp, &shows, custom, Some(n.max(1)))?;
+    let v = save_vob_shows(&tmp, &shows, custom, Some(n.max(1)), &|_| {})?;
     let f = v.first().ok_or("ไม่มีภาพลำดับนี้")?.file.clone();
     let b = std::fs::read(&f).map_err(|e| e.to_string())?;
     Ok(format!("data:image/png;base64,{}", crate::audiograph::b64(&b)))
@@ -800,6 +843,47 @@ pub async fn sub_image_times(app: AppHandle, path: String, ff: u64) -> Result<Ve
 
 #[cfg(test)]
 mod tests {
+    /// จับเวลาเปิด VobSub ยาว (BUGS ข้อ 151) แยกช่วงอ่านภาพกับช่วงครอปและบันทึก PNG · ตั้ง MOVIE_SHELF_VOB_IDX
+    #[test]
+    fn vobsub_open_timing() {
+        let Ok(idx) = std::env::var("MOVIE_SHELF_VOB_IDX") else { eprintln!("ข้าม ไม่ได้ตั้ง MOVIE_SHELF_VOB_IDX"); return };
+        let idx = PathBuf::from(idx);
+        let sub = idx.with_extension("sub");
+        let t0 = std::time::Instant::now();
+        let shows = vob_shows(&idx, &sub).unwrap();
+        let t1 = t0.elapsed();
+        let dir = std::env::temp_dir().join("movie-shelf-vobtiming");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let t2 = std::time::Instant::now();
+        let out = save_vob_shows(&dir, &shows, None, None, &|_| {}).unwrap();
+        let t3 = t2.elapsed();
+        eprintln!("ภาพ {} อ่าน {:?} ครอปและบันทึก {:?}", out.len(), t1, t3);
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
+    /// ตัวเก็บภาพหลายเธรด (BUGS ข้อ 151) · เขียนครบทุกไฟล์ ภาพตรงชื่อ ความคืบหน้าเพิ่มขึ้นทีละขั้นจนถึง 1 · เขียนไม่ได้บอกผิดพลาด
+    #[test]
+    fn save_pngs_writes_all_with_progress() {
+        let dir = std::env::temp_dir().join("movie-shelf-savepngs");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let items: Vec<_> = (1..=250u32).map(|k| (dir.join(format!("c{k:06}.png")), image::RgbaImage::from_pixel(k, 3, image::Rgba([k as u8, 0, 0, 255])))).collect();
+        let seen = std::cell::RefCell::new(Vec::new());
+        save_pngs(items, &|f| seen.borrow_mut().push(f)).unwrap();
+        let seen = seen.into_inner();
+        assert!(seen.windows(2).all(|w| w[0] < w[1]), "ความคืบหน้าต้องเพิ่มขึ้นเสมอ");
+        assert_eq!(seen.last().copied(), Some(1.0));
+        assert!(seen.len() >= 50 && seen.len() <= 101, "บอกทุก 1% {}", seen.len());
+        for k in [1u32, 77, 250] {
+            let img = image::open(dir.join(format!("c{k:06}.png"))).unwrap().to_rgba8();
+            assert_eq!((img.width(), img.get_pixel(0, 0)[0]), (k, k as u8), "ภาพที่ {k} ต้องตรงชื่อ");
+        }
+        let bad = vec![(dir.join("ไม่มีโฟลเดอร์").join("x.png"), image::RgbaImage::new(2, 2))];
+        assert!(save_pngs(bad, &|_| {}).is_err());
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     /// สีของ VobSub · ซับไทยทดสอบ 480p วาดใหม่ด้วยตัวแดงบนพื้นใส จำนวนภาพเท่าเดิม ภาพเป็นสีแดง · คืนจานสีของไฟล์แล้วภาพกลับเหมือนเดิม
     #[test]
     fn vobsub_custom_colors() {

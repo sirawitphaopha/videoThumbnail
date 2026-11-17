@@ -12,7 +12,7 @@ import { createPortal } from "react-dom";
 import Dropdown from "../components/Dropdown";
 import Dialog from "../components/Dialog";
 import SubEditor from "../components/subedit/SubEditor";
-import { autosaveStrict, closeDoc, getSubEdit, requestSave } from "../lib/subEdit";
+import { autosaveStrict, closeDoc, getSubEdit, requestSave, useSubEdit } from "../lib/subEdit";
 import { flushPad } from "../components/subedit/PadView";
 import { api, infoApi, inApp, mergeApi, pickFile, SUB_EXT, type ExtractItem, type MergeTrack } from "../lib/api";
 import { trackFrom, type AvTrack } from "../lib/avJob";
@@ -199,6 +199,10 @@ export default function SubtitlePage({ onAv, onSettings }: { onAv: () => void; o
   // เปิดซับแล้ว จุดลากไฟล์ใหญ่หายไป เหลือแถวบนแถวเดียว ตัวดูซับขึ้นมาอยู่บน · ลากไฟล์มาวางที่หน้ายังได้ จุดลากไฟล์ขึ้นตอนลากผ่าน
   // (BUGS ข้อ 109 พี่กันสั่ง 13 พ.ย. 2569 "เราเปิดซับเเล้ว ย้่ายปุ่มอัปซับไปที่อื่น มันโคตรกินที่")
   const isImage = (t: AvTrack) => isImageSub(t.codec, t.profile);
+  // ซับรูปที่ส่งผล OCR ไปหน้าแก้ซับแล้ว (แผน OCR ขั้น 12) · เอกสารของแทร็กนี้เปิดอยู่ จึงแก้กับวิดีโอได้
+  const sed = useSubEdit();
+  const ocrDoc = !!st && !!sed.doc && sed.meta?.key === st.key;
+  useEffect(() => { if (imgMode === "edit" && !ocrDoc) setImgMode("view"); }, [imgMode, ocrDoc]);
   const showDrop = !file || over;
   const many = !!file && (file.movie || file.subs.length > 1);
   // แถวบนทั้งแถวอยู่ในแถบชื่อโปรแกรม (BUGS ข้อ 149) · เสียบเฉพาะตอนหน้านี้เปิดอยู่ · ช่องว่างกลางแถวลากหน้าต่างได้
@@ -229,7 +233,7 @@ export default function SubtitlePage({ onAv, onSettings }: { onAv: () => void; o
       {file && !busy && <>
         {st && isImage(st) && <span className="subpage-seg" data-sub-mode><Seg small label="งานที่ทำกับซับนี้" value={imgMode} onChange={setImgMode}
           options={[{ value: "view", label: <><IcSubtitle size={14} />ดูซับ</> }, { value: "ocr", label: <><IbWand size={14} />OCR เป็นตัวหนังสือ</> },
-            { value: "edit", label: <><IbTable size={14} />แก้ซับกับวิดีโอ</>, off: "ซับรูปต้อง OCR เป็นตัวหนังสือก่อน จึงจะแก้กับวิดีโอได้" }]} /></span>}
+            { value: "edit", label: <><IbTable size={14} />แก้ซับกับวิดีโอ</>, off: ocrDoc ? undefined : "ซับรูปต้อง OCR เป็นตัวหนังสือก่อน แล้วกดไปหน้าแก้ซับในหน้า OCR" }]} /></span>}
         {st && !isImage(st) && <span className="subpage-seg" data-sub-tabs><Seg small label="แบบการดู" value={subTab} onChange={setSubTab}
           options={[{ value: "aeg", label: <><IbTable size={14} />แบบ Aegisub</> }, { value: "long", label: <><IcFile size={14} />แบบอ่านยาว</> }, { value: "pad", label: <><IbPencil size={14} />แบบ notepad</> }]} /></span>}
         {!file.movie && <button type="button" className="btn btn-ghost" onClick={() => void addVideo()} title="เพิ่มไฟล์วิดีโอคู่กับซับ แล้วตัวดูซับแสดงภาพหนังกับคลื่นเสียง" data-sub-addvideo-page><IcFile size={14} />{file.video ? "เปลี่ยนไฟล์วิดีโอ" : "เพิ่มไฟล์วิดีโอ"}</button>}
@@ -283,8 +287,8 @@ export default function SubtitlePage({ onAv, onSettings }: { onAv: () => void; o
             <ul style={{ margin: 0, paddingLeft: 20, lineHeight: 1.8 }}>{PLANNED.map((t) => <li key={t}><Phr>{t}</Phr></li>)}</ul>
           </div>
         )}
-        {st && file && !busy && (isImage(st)
-          ? imgMode === "ocr" ? <OcrPage key={st.key} track={st} movie={file.movie ? file.path : file.video ?? ""} />
+        {st && file && !busy && (isImage(st) && !(imgMode === "edit" && ocrDoc)
+          ? imgMode === "ocr" ? <OcrPage key={st.key} track={st} movie={file.movie ? file.path : file.video ?? ""} onEdit={() => setImgMode("edit")} />
           : <SubViewer inline onOcr={() => setImgMode("ocr")} tab={subTab} key={`${st.key}|${file.video ?? ""}`} track={st} movie={file.movie ? file.path : file.video ?? ""} refStream={refStream} refIdx={file.refIdx}
             onAddMovie={!file.movie ? () => void addVideo() : undefined} onClose={() => setView(null)} />
           : <SubEditor key={st.key} track={st} tab={subTab} moviePath={file.path} video={file.movie ? file.path : file.video ?? ""} refStream={refStream} refIdx={file.refIdx}

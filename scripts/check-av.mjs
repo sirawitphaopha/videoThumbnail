@@ -565,7 +565,9 @@ const progLay = await q(`const r = document.querySelector('[data-simg-progress]'
   return JSON.stringify({ h: Math.round(b.height), over, text: r.innerText.replace(/\\s+/g, ' '), seq: window.__simgProg })`);
 const pl = (() => { try { return JSON.parse(progLay); } catch { return null; } })();
 check("ระหว่างถอดซับรูปครั้งแรกขึ้นแถบความคืบหน้า เปอร์เซ็นต์ไม่ถอยหลังและจบที่ 100 ชิ้นในแถบไม่ซ้อนไม่ล้น",
-  !!pl && pl.h >= 20 && pl.h <= 26 && !pl.over && /กำลังอ่านซับรูปจากไฟล์ \d+% .*ใช้ไป \d+:\d\d/.test(pl.text) && pl.seq.every((v, i) => !i || v >= pl.seq[i - 1]), progLay);
+  !!pl && pl.h >= 20 && pl.h <= 26 && !pl.over && /กำลังเก็บภาพซับ 100% .*ใช้ไป \d+:\d\d/.test(pl.text) && pl.seq.every((v, i) => !i || v >= pl.seq[i - 1]), progLay);
+// ช่วงเก็บภาพนับเป็น 85–100% มีความคืบหน้าของตัวเอง ไม่ค้าง 100% ระหว่างยังเขียนภาพ (BUGS ข้อ 151) · ช่วงอ่านจบไม่เกิน 85
+check("ข้อ 151 ช่วงอ่านจบที่ 85% แล้วช่วงเก็บภาพนับต่อจนถึง 100", !!pl && pl.seq.includes(85) && pl.seq.at(-1) === 100, progLay);
 await shot("ดูซับรูป-แถบความคืบหน้า.png", "[data-subviewer]").catch(() => {});
 await c.evaluate("window.__simgHold = false");
 await closeDlg();

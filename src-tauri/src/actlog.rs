@@ -44,6 +44,8 @@ const WATCH: &[(&str, &str)] = &[
     ("ocr_history_delete", "ลบตัวอักษรที่สอนไปแล้วออกจากฐาน OCR"),
     ("ocr_train", "ฝึกฐานตัวอักษร OCR จากฟอนต์"),
     ("ocr_db_optimize", "ย่อฐานตัวอักษร OCR สำรองไฟล์เดิมเป็น .bak"),
+    ("ocr_export", "ส่งออกซับจาก OCR เป็นไฟล์ซับตัวหนังสือ"),
+    ("ocr_save_html", "บันทึกภาพซับพร้อมหน้า HTML จาก OCR"),
     ("ocr_inspect_update", "แก้ตัวอักษรในฐาน OCR จากหน้าต่างตรวจบรรทัด"),
     ("ocr_inspect_delete", "ลบตัวอักษรออกจากฐาน OCR จากหน้าต่างตรวจบรรทัด"),
     ("pgs_export", "ส่งออกซับเป็น PGS"),
