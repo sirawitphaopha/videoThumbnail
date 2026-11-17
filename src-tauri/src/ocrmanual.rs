@@ -199,6 +199,8 @@ pub struct TrainTick { pub percent: f64, pub font: String, pub size: f32, pub te
 pub struct TrainDone { pub name: String, pub learned: usize, pub skipped: usize, pub total: usize, pub stopped: bool }
 
 /// ขนาดฟอนต์จากข้อความ "30, 40" · 10 ถึง 200 ไม่ซ้ำ · ตาม ParseFontSizes
+/// หน้าต่างฝึกจากฟอนต์ (OcrTrainDialog.tsx) แยกขนาดด้วยกติกาเดียวกันแล้วส่งเป็นตัวเลข ตัวนี้เหลือไว้เป็นต้นแบบให้เทสเทียบ จึงสร้างเฉพาะตอนเทส (ตัวจริงเตือนว่าไม่ถูกเรียก)
+#[cfg(test)]
 pub fn parse_sizes(s: &str) -> Vec<f32> {
     let mut v: Vec<f32> = vec![];
     for t in s.split([',', ';', ' ']) {

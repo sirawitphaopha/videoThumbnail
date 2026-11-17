@@ -503,6 +503,76 @@ mod tests {
         assert!(ok >= 436, "ต่ำกว่าผลในไฟล์ค้นคว้า");
     }
 
+    /// ซับ VobSub ญี่ปุ่นของ Shin Godzilla ทุกภาพ ทั้งแนวนอนและแนวตั้ง (แผน OCR ขั้น 13 · ห้ามขึ้น git)
+    /// ตั้ง MOVIE_SHELF_VOB_IDX (คู่ไฟล์ .idx ที่แยกไว้แล้ว) กับ MOVIE_SHELF_GODZILLA_SRT (SRT ญี่ปุ่นของ Amazon ที่พี่กันให้ ตรงกับภาพเกือบหนึ่งต่อหนึ่ง)
+    /// จับคู่ภาพกับบรรทัดของ SRT ที่เวลาเริ่มห่างไม่เกิน 0.3 วินาที · นับถูกทั้งภาพและความถูกรายตัวอักษร (ไม่นับเว้นวรรคกับบรรทัด)
+    #[test]
+    fn godzilla_japanese_accuracy() {
+        let (Ok(idx), Ok(srt)) = (std::env::var("MOVIE_SHELF_VOB_IDX"), std::env::var("MOVIE_SHELF_GODZILLA_SRT")) else { eprintln!("ข้าม ไม่ได้ตั้งไฟล์ Godzilla"); return };
+        let idx = PathBuf::from(idx);
+        let file = crate::vobsub::parse_idx(&crate::subs::decode_text(&std::fs::read(&idx).unwrap()).0);
+        let shows = crate::vobsub::read(&file, &std::fs::read(idx.with_extension("sub")).unwrap(), 0, &|_| {});
+        let text = crate::subs::decode_text(&std::fs::read(srt).unwrap()).0.replace("\r\n", "\n");
+        let tag = |s: &str| { let mut o = String::new(); let mut inside = false; for ch in s.chars() { match ch { '<' | '{' => inside = true, '>' | '}' => inside = false, _ if !inside => o.push(ch), _ => {} } } o };
+        let refs: Vec<(f64, String)> = text.split("\n\n").filter_map(|b| {
+            let mut ls = b.lines().skip_while(|l| !l.contains("-->"));
+            let t = ls.next()?;
+            let s = t.split("-->").next()?.trim().replace(',', ".");
+            let p: Vec<f64> = s.split(':').filter_map(|x| x.parse().ok()).collect();
+            (p.len() == 3).then(|| (p[0] * 3600.0 + p[1] * 60.0 + p[2], tag(&ls.collect::<Vec<_>>().join(""))))
+        }).collect();
+        // ไม่นับความต่างที่ไม่ใช่ตัวอ่านผิด อักษรเต็มความกว้างกับครึ่งความกว้าง（Ａ？ กับ (A?) และคำอ่านในวงเล็บหลังคันจิของ SRT เช่น 咆哮(ほうこう) ที่ภาพไม่มี
+        let squash = |s: &str| {
+            let w: String = s.chars().map(|c| if ('\u{FF01}'..='\u{FF5E}').contains(&c) { char::from_u32(c as u32 - 0xFEE0).unwrap_or(c) } else { c }).collect();
+            let mut out = Vec::new();
+            let cs: Vec<char> = w.chars().filter(|c| !c.is_whitespace()).collect();
+            let mut i = 0;
+            while i < cs.len() {
+                if cs[i] == '(' && i > 0 && !('\u{3040}'..='\u{30FF}').contains(&cs[i - 1]) {
+                    if let Some(e) = cs[i + 1..].iter().position(|&c| c == ')') {
+                        if e > 0 && cs[i + 1..i + 1 + e].iter().all(|c| ('\u{3041}'..='\u{3096}').contains(c)) { i += e + 2; continue; }
+                    }
+                }
+                out.push(cs[i]);
+                i += 1;
+            }
+            out
+        };
+        let lev = |a: &[char], b: &[char]| -> usize {
+            let mut prev: Vec<usize> = (0..=b.len()).collect();
+            for (i, ca) in a.iter().enumerate() {
+                let mut cur = vec![i + 1; b.len() + 1];
+                for (j, cb) in b.iter().enumerate() { cur[j + 1] = (prev[j] + usize::from(ca != cb)).min(prev[j + 1] + 1).min(cur[j] + 1); }
+                prev = cur;
+            }
+            prev[b.len()]
+        };
+        let t = std::time::Instant::now();
+        let (mut matched, mut exact, mut chars, mut errs, mut vertical, mut vexact) = (0, 0, 0usize, 0usize, 0, 0);
+        let mut worst: Vec<(usize, String, String)> = vec![];
+        for (k, s) in shows.iter().enumerate() {
+            let Some((_, want)) = refs.iter().filter(|r| (r.0 - s.start).abs() <= 0.3).min_by(|a, b| (a.0 - s.start).abs().total_cmp(&(b.0 - s.start).abs())) else { continue };
+            let Some((_, img)) = crate::subs::crop_ink(&s.img, s.at, s.canvas) else { continue };
+            let (got, _) = read_text(&ocr_dir(), &img, &PaddleOpts::default()).unwrap();
+            let (g, w) = (squash(&got), squash(want));
+            let tall = img.height() > img.width();
+            matched += 1;
+            if tall { vertical += 1; }
+            if g == w { exact += 1; if tall { vexact += 1; } }
+            let e = lev(&g, &w);
+            chars += w.len();
+            errs += e;
+            if e > 0 && worst.len() < 15 { worst.push((k + 1, got.replace('\n', "/"), want.clone())); }
+        }
+        let acc = 1.0 - errs as f64 / chars.max(1) as f64;
+        eprintln!("Godzilla ญี่ปุ่น {} ภาพ จับคู่ได้ {matched} ถูกทั้งภาพ {exact} ({:.1}%) แนวตั้ง {vertical} ภาพ ถูก {vexact} · ถูกรายตัวอักษร {:.1}% ใน {:.0} วินาที · ตัวอย่างที่ผิด {worst:?}",
+            shows.len(), exact as f64 * 100.0 / matched.max(1) as f64, acc * 100.0, t.elapsed().as_secs_f64());
+        assert!(matched >= 1800, "จับคู่กับ SRT ได้น้อยไป {matched}");
+        // ผลวัด 17 พ.ย. 2569 ถูกทั้งภาพ 1,498 จาก 1,853 (80.8%) ถูกรายตัวอักษร 96.8% · ตั้งเกณฑ์ต่ำกว่าผลวัดเล็กน้อยกันผลถอยหลัง
+        assert!(acc >= 0.96, "ถูกรายตัวอักษรต่ำ {acc}");
+        assert!(exact * 100 >= matched * 78, "ถูกทั้งภาพน้อยลง {exact} จาก {matched}");
+    }
+
     /// อ่านซับไทยที่รู้คำตอบ ทุกภาพต้องถูกทั้งภาพ (โมเดลไทยของ PP-OCRv5)
     #[test]
     fn thai_test_sub() {

@@ -113,7 +113,7 @@ try {
   for (const [w, h, label] of SIZES) {
     await c.send("Emulation.setDeviceMetricsOverride", { width: w, height: h, deviceScaleFactor: 1, mobile: false });
     await sleep(600);
-    for (const page of PAGES) {
+    for (const page of PAGES.filter((p) => p !== "OCR")) {
       await nav(page); await sleep(900);
       if (page === "กราฟเสียง") {
         for (const v of VIEWS) {
@@ -145,6 +145,45 @@ try {
       check(`${w}×${h} ${label} ${page} ไม่มีแถบเลื่อนแนวนอน ไม่มีปุ่มยื่นเลยขอบขวา`, e.pageX <= 0 && !e.out.length && !e.boxX.length, JSON.stringify(e));
       await shot(`${w}x${h}-${page}`, w, h);
     }
+  }
+  // หน้า OCR ซับรูป (แผน OCR ขั้น 13) · ใช้หน้าซับไตเติลเดียวกับหน้าแก้ซับ จึงตรวจเป็นรอบแยกหลังหน้าอื่น
+  // เปิดซับไทยทดสอบ อ่านด้วย PaddleOCR ให้แถบล่างมีปุ่มครบ (ไปหน้าแก้ซับ ส่งออก) แล้วตรวจทุกขนาดจอ ทั้งหน้าหลักกับหน้าต่างส่งออก
+  if (!process.env.PAGES || PAGES.includes("OCR")) {
+    await c.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
+    await nav("ซับไตเติล"); await sleep(600);
+    await q(`window.__subClear?.(); window.__subOpen?.(${JSON.stringify(resolve("test-media", "สร้าง", "ocr", "th.sup").replace(/\\/g, "/"))}); return 1`);
+    await waitFor("return !!document.querySelector('[data-ocr-open]') || !!document.querySelector('[data-ocr-table]')", 30000);
+    if (!(await q("return !!document.querySelector('[data-ocr-table]')"))) await c.click("[data-ocr-open]");
+    await waitFor("return document.querySelectorAll('[data-ocr-table] tbody tr').length > 0", 30000);
+    const cfgKeep = await q("return localStorage.getItem('ms.ocrCfg')");
+    // ซับไทยทดสอบอ่านด้วย PaddleOCR ไทยทุกครั้ง ภาพในรายงานจึงเป็นข้อความที่อ่านถูก (ไม่ใช้ภาษาที่จำค้างไว้)
+    await q("window.__ocrJob.setCfg({ engine: 'paddle', paddle: { lang: 'th', size: 'small', vertical: 'auto', orientation: false }, helpers: [], lang3: 'tha', dict: '' }); return 1");
+    await sleep(300);
+    if (await q("return !!document.querySelector('[data-ocr-reread]') && !document.querySelector('[data-ocr-start]')")) await q("window.__ocrJob.start(window.__ocrJob.get().rows.map((_, i) => i)); return 1");
+    else await c.click("[data-ocr-start]");
+    await sleep(500);
+    await waitFor("const g = window.__ocrJob.get(); return !g.running && g.rows.every((r) => r.state === 'done')", 120000);
+    const OCRROWS = "[data-ocr-engine] > div, [data-ocr-foot], [data-ocr-edit] .ocr-edhead";
+    for (const [w, h, label] of SIZES) {
+      await c.send("Emulation.setDeviceMetricsOverride", { width: w, height: h, deviceScaleFactor: 1, mobile: false });
+      await sleep(1000);
+      const e = JSON.parse(await q(EDGE)), o = JSON.parse(await q(OVERLAP(OCRROWS)));
+      const pv = await q("const pw = [...document.querySelectorAll('.pagewrap')].find((x) => x.querySelector('[data-ocr-table]')); return pw ? pw.scrollHeight - pw.clientHeight : -1");
+      const btn = await q("return !!document.querySelector('[data-ocr-export]') && !!document.querySelector('[data-ocr-to-edit]')");
+      check(`${w}×${h} ${label} หน้า OCR ไม่ล้นขวา ปุ่มไม่ซ้อน หน้าไม่เลื่อนแนวตั้ง แถบล่างมีปุ่มส่งออกกับไปหน้าแก้ซับ`, btn && e.pageX <= 0 && !e.out.length && !e.boxX.length && o.rows >= 3 && !o.hits.length && pv <= 0, JSON.stringify({ ...e, ...o, pv }));
+      await shot(`${w}x${h}-OCR`, w, h);
+      await c.click("[data-ocr-export]");
+      await waitFor("return !!document.querySelector('[data-ocr-exp-text]')", 10000);
+      await sleep(400);
+      const d = await q(`const d = document.querySelector('[data-ocr-exp]'), dlg = d.closest('.dlg').getBoundingClientRect(), l = d.querySelector('.ocr-expl').getBoundingClientRect(), r = d.querySelector('.ocr-expr').getBoundingClientRect();
+        const wide = [...d.querySelectorAll('.ocr-expl > *')].filter((k) => k.getBoundingClientRect().width > 0 && k.getBoundingClientRect().right > l.right + 0.5).length;
+        return JSON.stringify({ inWin: dlg.left >= 0 && dlg.top >= 0 && dlg.right <= innerWidth && dlg.bottom <= innerHeight, lap: l.right > r.left + 0.5, wide, rr: Math.round(dlg.right - r.right) });`);
+      const dd = JSON.parse(d);
+      check(`${w}×${h} ${label} หน้าต่างส่งออกอยู่ในจอ สองคอลัมน์ไม่ทับ ของไม่ล้น`, dd.inWin && !dd.lap && dd.wide === 0 && Math.abs(dd.rr) <= 1, d);
+      await shot(`${w}x${h}-OCR-ส่งออก`, w, h);
+      await c.key("Escape"); await sleep(400);
+    }
+    await q(`${cfgKeep == null ? "localStorage.removeItem('ms.ocrCfg')" : `localStorage.setItem('ms.ocrCfg', ${JSON.stringify(cfgKeep)})`}; window.__subClear?.(); return 1`);
   }
 } finally {
   if (zoomKeep !== undefined) await q(`window.__vidLib?.setZoom(${Number(zoomKeep) || 0}); return 1`).catch(() => {});
