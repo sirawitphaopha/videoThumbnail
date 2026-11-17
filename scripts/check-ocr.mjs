@@ -185,6 +185,13 @@ rmSync(EXPDIR, { recursive: true, force: true }); mkdirSync(EXPDIR, { recursive:
 const keep2 = await job("return j.get().rows.map((r) => r.text);");
 await job(`j.get().rows.forEach((r, i) => j.setText(i, 'บรรทัด ' + (i + 1))); const r = j.get().rows[2]; r.line.anLines = [8, 2]; j.setText(2, 'ป้ายบนจอ\\nบทพูด <i>เอียง</i>'); j.setText(4, ''); return 1;`);
 await sleep(300);
+// ภาพที่มีป้ายบนจอกับบทพูดล่างจอในภาพเดียว ภาพในแถวตัดช่องว่างกลางออก ตัวหนังสือใหญ่พออ่าน · ภาพบรรทัดเดียวไม่ถูกแตะ (เจอจากภาพตรวจขนาดจอหลังขั้น 14)
+{
+  await waitFor("return document.querySelectorAll('[data-ocr-table] tbody tr')[2]?.querySelector('.ocr-line img')?.dataset.compact === 'true';", 8000);
+  const cmp = await q("const rs = document.querySelectorAll('[data-ocr-table] tbody tr'); const im = rs[2]?.querySelector('.ocr-line img'); if (!im) return null; await im.decode().catch(() => {}); const r = im.getBoundingClientRect(); return { cut: im.dataset.compact === 'true', h: im.naturalHeight, orig: window.__ocrJob.get().rows[2].item.h, shownH: Math.round(r.height), row1: rs[0]?.querySelector('.ocr-line img')?.dataset.compact ?? null };");
+  check("ภาพป้ายบนจอกับบทพูดในแถวตัดช่องว่างกลางออก สูงไม่ถึงครึ่งของภาพจริง ภาพบรรทัดเดียวไม่ถูกแตะ", cmp && cmp.cut && cmp.h < cmp.orig / 2 && cmp.row1 == null, JSON.stringify(cmp));
+  await c.shot(`docs/report-2026-11-17/OCR-ขั้น14/5-ภาพป้ายบนจอในแถว.png`, "[data-ocr-table]").catch(() => {});
+}
 // ภาพที่มีบรรทัดบนจอ คิดแบบ lines_of ใน ocrexport.rs · จำนวนบรรทัดไม่เท่าตอนอ่านใช้ตำแหน่งบรรทัดสุดท้าย (ผู้ช่วยตรวจทาน T10)
 const topNs = await job("return j.get().rows.filter((r) => { if (r.state !== 'done') return false; const ls = r.text.split('\\n').filter((l) => l.trim()); const an = r.line?.anLines ?? [r.item.an]; const use = an.length === ls.length || an.length <= 1 ? an : [an[an.length - 1]]; return ls.length > 0 && use.some((a) => a >= 7); }).map((r) => r.item.n);");
 // แถวที่ตัวตรวจแทนข้อความเป็นบรรทัดเดียว แต่ตอนอ่านมีป้ายบนจอสองบรรทัด ต้องไม่นับว่าอยู่บนจอ (เดิมไฟล์ได้ {\an8} ผิดที่บทพูด)

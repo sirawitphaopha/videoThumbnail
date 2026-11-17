@@ -115,11 +115,67 @@ export function useSubImgs(path: string, ff: number) {
 }
 
 /** ภาพบรรทัดซับบนพื้นเทา · ปุ่มขยายมุมขวาล่างแบบ .bigbtn ของโปรแกรม (ซ่อนได้ในตารางที่ปุ่มอยู่อีกคอลัมน์) */
+/** ภาพที่ตัดช่องว่างแนวตั้งกว้างออกแล้ว จำตามภาพต้นฉบับ */
+const compactCache = new Map<string, string>();
+/** ภาพซับที่มีป้ายบนจอกับบทพูดล่างจอในภาพเดียว ช่องว่างตรงกลางสูงเกือบทั้งจอ ย่อลงแถวแล้วตัวหนังสืออ่านไม่ออก
+ *  ตัดช่องว่างที่กว้างเกิน 60 จุดให้เหลือ 16 จุด ช่องระหว่างบรรทัดปกติกับสระบนล่างไม่แตะ · ภาพขยายยังเป็นภาพจริง */
+function useCompact(src: string | undefined): { url: string | undefined; cut: boolean } {
+  const [out, setOut] = useState<string | undefined>(() => (src ? compactCache.get(src) : undefined));
+  useEffect(() => {
+    if (!src) return;
+    const hit = compactCache.get(src);
+    if (hit) { setOut(hit); return; }
+    let live = true;
+    const im = new Image();
+    im.onload = () => {
+      let url = src;
+      try {
+        const w = im.naturalWidth, h = im.naturalHeight;
+        const cv = document.createElement("canvas"); cv.width = w; cv.height = h;
+        const g = cv.getContext("2d");
+        if (g && w > 0 && h > 0) {
+          g.drawImage(im, 0, 0);
+          const d = g.getImageData(0, 0, w, h).data;
+          const runs: [number, number][] = [];
+          for (let y = 0, start = -1; y <= h; y++) {
+            let ink = false;
+            if (y < h) for (let x = 0; x < w; x++) if (d[(y * w + x) * 4 + 3] > 20) { ink = true; break; }
+            if (ink && start < 0) start = y;
+            if (!ink && start >= 0) { runs.push([start, y]); start = -1; }
+          }
+          // ต่อแถบที่ห่างกันไม่เกิน 60 จุด (สระบน วรรณยุกต์ บรรทัดถัดไปของบทพูดเดียวกัน) เป็นก้อนเดียว
+          const groups: [number, number][] = [];
+          for (const r of runs) { const last = groups[groups.length - 1]; if (last && r[0] - last[1] <= 60) last[1] = r[1]; else groups.push([r[0], r[1]]); }
+          if (groups.length > 1) {
+            const GAP = 16, PAD = 4;
+            const oh = groups.reduce((s, [a, b]) => s + b - a, 0) + GAP * (groups.length - 1) + PAD * 2;
+            const c2 = document.createElement("canvas"); c2.width = w; c2.height = oh;
+            const g2 = c2.getContext("2d");
+            if (g2) {
+              let y = PAD;
+              for (const [a, b] of groups) { g2.drawImage(cv, 0, a, w, b - a, 0, y, w, b - a); y += b - a + GAP; }
+              url = c2.toDataURL("image/png");
+            }
+          }
+        }
+      } catch { url = src; }
+      compactCache.set(src, url);
+      if (live) setOut(url);
+    };
+    im.onerror = () => { compactCache.set(src, src); if (live) setOut(src); };
+    im.src = src;
+    return () => { live = false; };
+  }, [src]);
+  return { url: out ?? src, cut: !!src && !!out && out !== src };
+}
+
 export function LineImg({ img, n, zoom = true }: { img: SubImg | undefined; n: number; zoom?: boolean }) {
   const [big, setBig] = useState(false);
+  const shown = useCompact(img?.png);
   if (!img) return <div className="ocr-line" style={{ height: 46 }} aria-busy="true" />;
   return (<>
-    <div className={zoom ? "ocr-zwrap" : undefined}><div className="ocr-line"><img src={img.png} alt={`ซับภาพ ${n}`} /></div>
+    <div className={zoom ? "ocr-zwrap" : undefined}><div className="ocr-line"><img src={shown.url} alt={`ซับภาพ ${n}`} data-compact={shown.cut || undefined}
+      title={shown.cut ? "ตัดช่องว่างระหว่างป้ายบนจอกับบทพูดออกให้อ่านง่าย กดขยายเพื่อดูภาพจริง" : undefined} /></div>
       {zoom && <button type="button" className="bigbtn" title="ขยายดูเต็มหน้าต่าง" aria-label={`ขยายดูภาพ ${n} เต็มหน้าต่าง`} onClick={(e) => { e.stopPropagation(); setBig(true); }}><IcExpand size={11} /></button>}</div>
     {big && <BigView img={img} n={n} line onClose={() => setBig(false)} />}
   </>);
