@@ -12,7 +12,7 @@ import { inApp, ocrApi, type OcrDbList, type OcrPrep, type OcrTaught, type OcrTe
 import { answerTeach, answerWord, forgetWord, getOcrJob, setOcrCfg, setPromptUnknown, setRowText, useOcrJob, __ocrJobLib, type OcrRow } from "../../lib/ocrJob";
 import Dropdown from "../../components/Dropdown";
 import { LineImg, ScreenImg } from "./OcrPage";
-import { DbDialog } from "./OcrDbDialog";
+import { DbDialog, HistoryDialog } from "./OcrDbDialog";
 
 /** หน้าต่างซ้อนที่เปิดอยู่ของหน้า OCR */
 export type OcrDlg = null | "prep" | "models" | "options" | "find" | "db";
@@ -35,6 +35,7 @@ function TeachDialog() {
   const [italic, setItalic] = useState(false);
   const [expand, setExpand] = useState(0);
   const [hist, setHist] = useState<OcrTaught[]>([]);
+  const [histPick, setHistPick] = useState<number | null>(null);
   const [busy, setBusy] = useState(false);
   const input = useRef<HTMLInputElement>(null);
   useEffect(() => {
@@ -90,8 +91,11 @@ function TeachDialog() {
           </div>
         </div>
         <div className="ocr-fill"><div className="icv-head">ตัวที่สอนในรอบนี้<span className="small" style={{ fontWeight: 400 }}>{hist.length ? `${hist.length} ตัว` : "ยังไม่ได้สอน"}</span></div>
-          <div className="ocr-learned">{hist.slice(-40).reverse().map((h, n) => (
-            <div key={n} className="ocr-lch"><b>{h.text || "ไม่ใช่ตัวอักษร"}</b><span className="small">{`ภาพ ${rows[h.index]?.item.n ?? h.index + 1}${h.italic ? " ตัวเอียง" : ""}`}</span></div>))}</div></div>
+          <div className="ocr-learned">{hist.map((h, i) => ({ h, i })).slice(-40).reverse().map(({ h, i }) => (
+            <button key={i} type="button" className="ocr-lch" onClick={() => setHistPick(i)} title="แก้หรือลบตัวที่สอนนี้" data-teach-hist={i}>
+              {h.png && <img className="ocr-gv ocr-gvimg ocr-histimg" src={h.png} alt={`ภาพของ ${h.text}`} />}
+              <b>{h.text || "ไม่ใช่ตัวอักษร"}</b><span className="small">{`ภาพ ${rows[h.index]?.item.n ?? h.index + 1}${h.italic ? " ตัวเอียง" : ""}`}</span></button>))}</div></div>
+        <HistoryDialog open={histPick != null} pick={histPick ?? undefined} onClose={() => { setHistPick(null); ocrApi.history().then(setHist, () => {}); }} />
       </div>
     </Dialog>
   );

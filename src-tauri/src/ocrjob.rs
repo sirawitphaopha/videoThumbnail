@@ -183,7 +183,19 @@ struct Pending { index: usize, engine: String, letter: usize, parent: Bmp, piece
 /// ตัวที่สอนไปแล้วในงานนี้ (หน้าต่างดูที่สอนไปแล้ว)
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
-pub struct Taught { pub index: usize, pub engine: String, pub db: String, pub text: String, pub italic: bool, pub pieces: usize }
+pub struct Taught {
+    pub index: usize, pub engine: String, pub db: String, pub text: String, pub italic: bool, pub pieces: usize,
+    /// ภาพตัวที่สอน (ชิ้นเดียวหรือหลายชิ้นรวมกัน) PNG data URL · เวลาที่สอน มิลลิวินาที
+    pub png: String,
+    pub at: u64,
+    /// ตัวที่เพิ่มเข้าฐาน ไว้หาในฐานตอนแก้หรือลบจากหน้าต่างตัวที่สอนไปแล้ว (NOcrAddHistoryItem.NOcrChar)
+    #[serde(skip)]
+    pub key: HistKey,
+}
+
+/// ตัวในฐานของประวัติหนึ่งรายการ · nOCR กับตัวสอนเองเก็บตัวทั้งตัว Binary OCR เก็บกุญแจของภาพ
+#[derive(Clone, Debug, Default)]
+pub enum HistKey { #[default] None, N(NChar), B(String) }
 
 #[derive(Default)]
 pub struct Session {
@@ -505,33 +517,39 @@ pub fn teach(s: &mut Session, cfg: &OcrCfg, ans: TeachAnswer) -> Result<(), Stri
         TeachAnswer::Learn { text, italic, expand, lines } => {
             let n = 1 + expand.min(room);
             let rng = s.rng.get_or_insert_with(Rng::from_time);
-            let db_name = match p.engine.as_str() {
+            let (db_name, key) = match p.engine.as_str() {
                 "binary" => {
                     let (name, db) = s.bin.as_mut().ok_or("ยังไม่ได้โหลดฐาน Binary OCR")?;
                     let b = crate::binocr::teach_bitmap(&p.pieces, p.letter, n, &text, italic).ok_or("สร้างภาพตัวอักษรไม่ได้")?;
+                    let key = b.key();
                     db.add(b)?;
                     ensure_parent(&db.file)?;
                     db.save()?;
-                    name.clone()
+                    (name.clone(), HistKey::B(key))
                 }
                 "own" => {
                     let (name, db) = s.own.as_mut().ok_or("ยังไม่ได้โหลดฐานของตัวสอนเอง")?;
                     let group: Vec<usize> = (p.letter..p.letter + n).collect();
+                    let ex = db.expanded.len();
                     crate::ownocr::teach(db, &p.pieces, &group, &text, italic, cfg.lines, cfg.algo, rng).ok_or("สร้างตัวอักษรไม่ได้")?;
+                    // add ใส่ตัวใหม่ไว้หน้าสุดของรายการตัวเดี่ยวหรือตัวขยายจับ
+                    let added = if db.expanded.len() > ex { db.expanded.first() } else { db.chars.first() }.cloned();
                     ensure_parent(&db.file)?;
                     db.save()?;
-                    name.clone()
+                    (name.clone(), added.map(HistKey::N).unwrap_or_default())
                 }
                 _ => {
                     let (name, db) = s.nocr.as_mut().ok_or("ยังไม่ได้โหลดฐาน nOCR")?;
                     let c = nocr_char(&p.parent, &p.pieces, p.letter, n, &text, italic, lines.as_ref(), cfg, rng).ok_or("สร้างตัวอักษรไม่ได้")?;
-                    db.add(c);
+                    db.add(c.clone());
                     ensure_parent(&db.file)?;
                     db.save()?;
-                    name.clone()
+                    (name.clone(), HistKey::N(c))
                 }
             };
-            s.history.push(Taught { index: p.index, engine: p.engine.clone(), db: db_name, text, italic, pieces: n });
+            let preview = if n <= 1 { p.pieces.get(p.letter).and_then(|x| x.bmp.clone()) } else { crate::nocr_train::Group::create(&p.parent, &p.pieces, p.letter, n).map(|g| g.preview) };
+            let at = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);
+            s.history.push(Taught { index: p.index, engine: p.engine.clone(), db: db_name, text, italic, pieces: n, png: preview.map(|b| png_url(&b)).unwrap_or_default(), at, key });
         }
     }
     Ok(())
@@ -618,9 +636,104 @@ pub fn ocr_names(lines: Vec<String>) -> Vec<Vec<Reason>> { crate::suspect::name_
 #[tauri::command]
 pub fn ocr_dbs(app: tauri::AppHandle) -> Result<DbList, String> { Ok(db_list(&Dirs::of(&app)?)) }
 
-/// ตัวที่สอนไปแล้วในงานนี้
+/// ตัวที่สอนไปแล้วในงานนี้ ใหม่สุดก่อน · ตัวที่ไม่อยู่ในฐานที่โหลดแล้ว (ลบไปจากหน้าต่างอื่น) ตัดออกแบบ ClearNotInOcrDb ของ Subtitle Edit
 #[tauri::command]
-pub fn ocr_history() -> Vec<Taught> { session().as_ref().map(|s| s.history.clone()).unwrap_or_default() }
+pub fn ocr_history() -> Vec<Taught> {
+    let mut g = session();
+    let Some(s) = g.as_mut() else { return vec![] };
+    let keep: Vec<bool> = s.history.iter().map(|t| s.taught_alive(t)).collect();
+    let mut it = keep.into_iter();
+    s.history.retain(|_| it.next().unwrap_or(true));
+    s.history.clone()
+}
+
+impl Session {
+    /// ตัวที่สอนยังอยู่ในฐานที่โหลดอยู่ไหม · ฐานไม่ได้โหลดหรือไม่มีกุญแจ ถือว่ายังอยู่ (ไม่ตัดทิ้งเอง)
+    fn taught_alive(&self, t: &Taught) -> bool {
+        match (&t.key, t.engine.as_str()) {
+            (HistKey::N(c), "own") => self.own.as_ref().filter(|o| o.0 == t.db).map(|o| o.1.chars.contains(c) || o.1.expanded.contains(c)).unwrap_or(true),
+            (HistKey::N(c), _) => self.nocr.as_ref().filter(|o| o.0 == t.db).map(|o| o.1.chars.contains(c) || o.1.expanded.contains(c)).unwrap_or(true),
+            (HistKey::B(k), _) => self.bin.as_ref().filter(|o| o.0 == t.db).map(|o| o.1.images.iter().chain(&o.1.expanded).any(|b| b.key() == *k)).unwrap_or(true),
+            (HistKey::None, _) => true,
+        }
+    }
+
+    /// ฐาน nOCR หรือตัวสอนเองของรายการประวัติ
+    fn hist_ndb(&mut self, t: &Taught) -> Result<&mut NOcrDb, String> {
+        let slot = if t.engine == "own" { &mut self.own } else { &mut self.nocr };
+        slot.as_mut().filter(|o| o.0 == t.db).map(|o| &mut o.1).ok_or_else(|| format!("ฐาน {} ไม่ได้โหลดอยู่ เลือกฐานนี้ในแถวตัวอ่านก่อน", t.db))
+    }
+}
+
+/// แก้ข้อความกับตัวเอียงของตัวที่สอนไปแล้วลำดับ k แล้วบันทึกฐาน · ตาม Update ของ NOcrCharacterHistoryViewModel
+pub fn history_update(s: &mut Session, k: usize, text: &str, italic: bool) -> Result<(), String> {
+    if text.is_empty() { return Err("ข้อความของตัวอักษรว่างไม่ได้".into()); }
+    let t = s.history.get(k).cloned().ok_or("หาตัวนี้ในประวัติไม่เจอ เปิดหน้าต่างใหม่")?;
+    let key = match &t.key {
+        HistKey::N(c) => {
+            let db = s.hist_ndb(&t)?;
+            let slot = db.chars.iter_mut().chain(db.expanded.iter_mut()).find(|x| *x == c).ok_or("ตัวนี้ไม่อยู่ในฐานแล้ว")?;
+            slot.text = text.into();
+            slot.italic = italic;
+            let nk = slot.clone();
+            db.clear_cache();
+            ensure_parent(&db.file)?;
+            db.save()?;
+            HistKey::N(nk)
+        }
+        HistKey::B(kk) => {
+            let (_, db) = s.bin.as_mut().filter(|o| o.0 == t.db).ok_or_else(|| format!("ฐาน {} ไม่ได้โหลดอยู่ เลือกฐานนี้ในแถวตัวอ่านก่อน", t.db))?;
+            let b = db.images.iter_mut().chain(db.expanded.iter_mut()).find(|b| b.key() == *kk).ok_or("ตัวนี้ไม่อยู่ในฐานแล้ว")?;
+            b.text = Some(text.into());
+            b.italic = italic;
+            let nk = b.key();
+            ensure_parent(&db.file)?;
+            db.save()?;
+            HistKey::B(nk)
+        }
+        HistKey::None => return Err("ตัวนี้สอนก่อนเปิดหน้าต่าง แก้จากหน้าต่างฐานตัวอักษรแทน".into()),
+    };
+    let h = &mut s.history[k];
+    h.text = text.into();
+    h.italic = italic;
+    h.key = key;
+    Ok(())
+}
+
+/// ลบตัวที่สอนไปแล้วลำดับ k ออกจากฐานและประวัติ · ตาม Delete ของ NOcrCharacterHistoryViewModel
+pub fn history_delete(s: &mut Session, k: usize) -> Result<(), String> {
+    let t = s.history.get(k).cloned().ok_or("หาตัวนี้ในประวัติไม่เจอ เปิดหน้าต่างใหม่")?;
+    match &t.key {
+        HistKey::N(c) => {
+            let db = s.hist_ndb(&t)?;
+            if let Some(i) = db.chars.iter().position(|x| x == c) { db.chars.remove(i); } else if let Some(i) = db.expanded.iter().position(|x| x == c) { db.expanded.remove(i); } else { return Err("ตัวนี้ไม่อยู่ในฐานแล้ว".into()); }
+            db.clear_cache();
+            ensure_parent(&db.file)?;
+            db.save()?;
+        }
+        HistKey::B(kk) => {
+            let (_, db) = s.bin.as_mut().filter(|o| o.0 == t.db).ok_or_else(|| format!("ฐาน {} ไม่ได้โหลดอยู่ เลือกฐานนี้ในแถวตัวอ่านก่อน", t.db))?;
+            db.remove(kk);
+            ensure_parent(&db.file)?;
+            db.save()?;
+        }
+        HistKey::None => return Err("ตัวนี้สอนก่อนเปิดหน้าต่าง ลบจากหน้าต่างฐานตัวอักษรแทน".into()),
+    }
+    s.history.remove(k);
+    Ok(())
+}
+
+#[tauri::command]
+pub fn ocr_history_update(k: usize, text: String, italic: bool) -> Result<(), String> {
+    let mut g = session();
+    history_update(g.as_mut().ok_or("ยังไม่ได้เปิดซับรูปในหน้า OCR")?, k, &text, italic)
+}
+
+#[tauri::command]
+pub fn ocr_history_delete(k: usize) -> Result<(), String> {
+    let mut g = session();
+    history_delete(g.as_mut().ok_or("ยังไม่ได้เปิดซับรูปในหน้า OCR")?, k)
+}
 
 /// ภาพที่แต่งแล้วของภาพลำดับ index ให้หน้าต่างแต่งภาพก่อนอ่านดู (PNG data URL)
 #[tauri::command]
@@ -737,6 +850,14 @@ mod tests {
         assert!(file.is_file(), "ฐานต้องบันทึกลงโฟลเดอร์ของผู้ใช้");
         assert_eq!(NOcrDb::load(&file).unwrap().chars.iter().filter(|c| c.text == "ก").count(), 1);
         assert_eq!(s.history.len(), 1);
+        // หน้าต่างตัวที่สอนไปแล้ว มีภาพ แก้ข้อความกับตัวเอียงแล้วฐานเปลี่ยนตาม ข้อความว่างไม่บันทึก
+        assert!(s.history[0].png.starts_with("data:image/png") && s.history[0].at > 0);
+        history_update(&mut s, 0, "ข", true).unwrap();
+        let f = NOcrDb::load(&file).unwrap();
+        assert!(f.chars.iter().any(|c| c.text == "ข" && c.italic) && !f.chars.iter().any(|c| c.text == "ก"));
+        assert!(s.history[0].text == "ข" && s.history[0].italic);
+        assert!(history_update(&mut s, 0, "", false).is_err());
+        assert!(history_update(&mut s, 5, "x", false).is_err());
         // อ่านซ้ำ ตัวแรกจับคู่ได้แล้ว ตัวที่ถามต้องไม่ใช่ตัวแรก แล้วใช้ครั้งเดียว "x" กับตัวนั้น หยุดทั้งงาน
         let ReadResult::Teach(r2) = read(&mut s, &d, &cfg, 0).unwrap() else { panic!("ยังมีตัวที่ไม่รู้จัก") };
         assert!(r2.letter > 0, "ตัวที่สอนแล้วต้องไม่ถามซ้ำ");
@@ -749,6 +870,10 @@ mod tests {
         // เปิดงานใหม่ ฐานของผู้ใช้ถูกเปิดแทนฐานว่าง
         let s2 = load_nocr(&d, "nocr", "ทดสอบ").unwrap();
         assert_eq!(s2.chars.len(), 1);
+        // ลบจากหน้าต่างตัวที่สอนไปแล้ว ฐานกับประวัติไม่มีตัวนั้น
+        history_delete(&mut s, 0).unwrap();
+        assert!(s.history.is_empty());
+        assert_eq!(NOcrDb::load(&file).unwrap().chars.len(), 0);
         assert!(load_nocr(&d, "nocr", "../x").is_err());
         let _ = std::fs::remove_dir_all(d.user.parent().unwrap());
     }

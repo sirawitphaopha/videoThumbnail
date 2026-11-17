@@ -773,7 +773,8 @@ export type OcrTeachAnswer =
   | { kind: "skip" }
   | { kind: "stop" };
 export type OcrWordAction = "changeAll" | "skipAll" | "addName" | "addWord";
-export type OcrTaught = { index: number; engine: OcrEngine; db: string; text: string; italic: boolean; pieces: number };
+/** ตัวที่สอนไปแล้ว · png ภาพตัวที่สอน · at เวลาที่สอน (มิลลิวินาที) */
+export type OcrTaught = { index: number; engine: OcrEngine; db: string; text: string; italic: boolean; pieces: number; png: string; at: number };
 export type OcrDbKind = "nocr" | "binary" | "own";
 /** รูปแบบหนึ่งตัวในฐาน · key ลำดับในรายการรวม · fg bg เส้นเทียบ nOCR (x1 y1 x2 y2 พิกัดของตัว) · png ภาพของ Binary OCR */
 export interface OcrDbItem { key: number; text: string; w: number; h: number; top: number; italic: boolean; expand: number; fg: [number, number, number, number][]; bg: [number, number, number, number][]; png: string | null }
@@ -799,6 +800,9 @@ export const ocrApi = {
   names: (lines: string[]) => call<OcrReason[][]>("ocr_names", { lines }),
   dbs: () => call<OcrDbList>("ocr_dbs"),
   history: () => call<OcrTaught[]>("ocr_history"),
+  /** แก้ข้อความกับตัวเอียงของตัวที่สอนไปแล้วลำดับ k (ลำดับในรายการที่ history คืน) */
+  historyUpdate: (k: number, text: string, italic: boolean) => call<void>("ocr_history_update", { k, text, italic }),
+  historyDelete: (k: number) => call<void>("ocr_history_delete", { k }),
   stop: () => call<void>("ocr_stop"),
   /** ภาพที่แต่งแล้วของภาพลำดับ index (นับจาก 0) */
   prepPreview: (index: number, prep: OcrPrep) => call<string>("ocr_prep_preview", { index, prep }),

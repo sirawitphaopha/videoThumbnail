@@ -192,7 +192,29 @@ const foot = await q(`const f = document.querySelector('[data-ocr-foot]'), fr = 
 check("แถบล่างตอนปุ่มครบไม่ล้น ปุ่มไม่ซ้อน ข้อความสถานะเห็นครบ ที่ 1280 × 800", foot.start && foot.buttons === 7 && foot.over <= 0 && foot.right <= 0 && foot.lap === 0 && foot.status > 60 && foot.statusNeed <= 0, JSON.stringify(foot));
 check("แถบล่างแคบกว่า 1,280 จุด ปุ่มเครื่องมือเหลือไอคอน", foot.icon === "none", foot.icon);
 const hist = await q("return await window.__TAURI_INTERNALS__.invoke('ocr_history');");
-check("ประวัติที่สอนมีตัวที่จำ", hist.some((h) => h.text === "ก" && h.db === DB), JSON.stringify(hist.slice(0, 3)));
+check("ประวัติที่สอนมีตัวที่จำ", hist.some((h) => h.text === "ก" && h.db === DB), JSON.stringify(hist.slice(0, 3).map((h) => ({ ...h, png: h.png.slice(0, 30) }))));
+// หน้าต่างตัวที่สอนไปแล้ว (NOcrCharacterHistoryWindow) เปิดจากหน้าต่างฐาน แก้เป็น ข แล้วฐานเปลี่ยนตาม แล้วแก้คืนเป็น ก
+{
+  await click("[data-ocr-db-open]");
+  await waitFor("return !!document.querySelector('[data-db=history]');", 8000);
+  await click("[data-db=history]");
+  const okH = await waitFor("return document.querySelectorAll('[data-ocr-hist-dlg] [data-hist-item] img').length > 0;", 8000);
+  const hm = await q("const d = [...document.querySelectorAll('.dlg')].pop().getBoundingClientRect(), b = document.querySelector('[data-ocr-hist-dlg]'); return { w: Math.round(d.width), h: Math.round(d.height), scroll: b.scrollHeight - b.clientHeight, img: !!document.querySelector('[data-hist-canvas] img'), text: document.querySelector('[data-hist-text]')?.value };");
+  check("หน้าต่างตัวที่สอนไปแล้ว มีภาพตัวที่สอน ขนาดเท่าหน้าต่างอื่น ไม่เลื่อน", okH && hm.img && hm.text === "ก" && hm.w === 880 && hm.scroll <= 0, JSON.stringify(hm));
+  await c.shot(`${SHOT}/09-ตัวที่สอนไปแล้ว.png`);
+  await q("const t = document.querySelector('[data-hist-text]'); t.focus(); t.select(); return 1;"); await c.type("ข");
+  await click("[data-hist-save]");
+  await waitFor("return !!document.querySelector('[data-hist-msg]');", 5000);
+  const dbH = await q(`return await window.__TAURI_INTERNALS__.invoke('ocr_db_chars', { kind: 'nocr', name: ${JSON.stringify(DB)} });`);
+  const hs = await q("return await window.__TAURI_INTERNALS__.invoke('ocr_history');");
+  check("แก้จากหน้าต่างตัวที่สอนแล้ว ฐานกับประวัติเป็น ข", dbH.items.some((i) => i.text === "ข") && !dbH.items.some((i) => i.text === "ก") && hs.some((h) => h.text === "ข"), JSON.stringify(dbH.items.map((i) => i.text)));
+  await q("const t = document.querySelector('[data-hist-text]'); t.focus(); t.select(); return 1;"); await c.type("ก");
+  await click("[data-hist-saveclose]");
+  check("บันทึกแล้วปิด หน้าต่างตัวที่สอนปิด หน้าต่างฐานยังเปิด", await waitFor("return !document.querySelector('[data-ocr-hist-dlg]') && !!document.querySelector('[data-ocr-db-dlg]');", 5000));
+  check("แก้คืนเป็น ก แล้ว", (await q(`return await window.__TAURI_INTERNALS__.invoke('ocr_db_chars', { kind: 'nocr', name: ${JSON.stringify(DB)} });`)).items.some((i) => i.text === "ก"));
+  await c.key("Escape");
+  await waitFor("return !document.querySelector('[data-ocr-db-dlg]');", 3000);
+}
 
 // ---------- หน้าต่างแต่งภาพ ตัวอ่านและชุดภาษา ตัวเลือก ----------
 await job("j.setCfg({ engine: 'paddle', fix: true }); return 1;");

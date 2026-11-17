@@ -208,6 +208,10 @@
 .ocr-lch .ocr-gv line { stroke-width: 1px; }
 .ocr-dbcanvas { flex: 1; min-height: 120px; overflow: auto; display: grid; place-items: center; background: var(--win2); border: 1px solid var(--line); border-radius: 10px; padding: 8px; }
 .ocr-dbvars > .ocr-dbempty { grid-column: 1 / -1; }
+/* ภาพตัวที่สอน ย่อขยายให้พอดีช่อง จุดคมไม่เบลอ */
+.ocr-histimg { height: 40px; width: auto; max-width: 100%; object-fit: contain; }
+/* ภาพตัวอักษรเป็นหมึกขาวบนพื้นใส วางพื้นดำให้เห็นตัวชัดแบบหน้าต่างของ Subtitle Edit (ชื่อสี ไม่ให้ตัวแปลงโทนเปลี่ยน) */
+.ocr-gvimg { background: black; }
 .ocr-dbask { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--win2); }
 .ocr-engine .ocr-dbbtn { height: 38px; width: 38px; padding: 0; justify-content: center; flex: none; }
 .ocr-trgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; align-content: start; }

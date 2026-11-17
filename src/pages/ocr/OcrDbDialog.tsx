@@ -8,7 +8,7 @@ import InfoTip from "../../components/InfoTip";
 import Dropdown from "../../components/Dropdown";
 import { CardIcon, Phr, Switch } from "../../components/ui";
 import { IbTick, IcClose, IcPlus } from "../../components/icons";
-import { ocrApi, type OcrDbChars, type OcrDbItem, type OcrDbKind } from "../../lib/api";
+import { ocrApi, type OcrDbChars, type OcrDbItem, type OcrDbKind, type OcrTaught } from "../../lib/api";
 import { setOcrCfg, useOcrJob } from "../../lib/ocrJob";
 import { LINES_TIP } from "./OcrPage";
 
@@ -45,6 +45,7 @@ export function DbDialog({ open, onClose }: { open: boolean; onClose: () => void
   const [text, setText] = useState("");
   const [italic, setItalic] = useState(false);
   const [ask, setAsk] = useState<Ask>(null);
+  const [hist, setHist] = useState(false);
   // ซูม 0 คือพอดีกรอบ (ค่าตั้งต้น แคลร์ตั้ง) · กดย่อขยายแล้วจำเป็นจำนวนเท่า แบบ NOcrZoomFactor ของ Subtitle Edit
   const [zoom, setZoom] = useState(() => { try { return Math.max(0, Math.min(20, Number(localStorage.getItem(ZOOM_KEY)) || 0)); } catch { return 0; } });
   const canvas = useRef<HTMLDivElement>(null);
@@ -130,6 +131,7 @@ export function DbDialog({ open, onClose }: { open: boolean; onClose: () => void
               {tbtn("ฐานใหม่", () => setAsk({ kind: "new", value: "" }), why, "new")}
               {tbtn("เปลี่ยนชื่อ", () => setAsk({ kind: "rename", value: name }), why ?? fileWhy, "rename")}
               {tbtn("ลบฐาน", () => setAsk({ kind: "delete" }), why ?? fileWhy, "delete")}
+              {tbtn("ตัวที่สอนในงานนี้", () => setHist(true), why, "history")}
             </div>)}
         </div>
         <div className="ocr-dbr">
@@ -155,6 +157,95 @@ export function DbDialog({ open, onClose }: { open: boolean; onClose: () => void
                 <button type="button" className={"btn btn-sm " + (why || !text.trim() ? "btn-wait" : "btn-ghost")} aria-disabled={!!why || !text.trim() || undefined} title={why ?? (text.trim() ? undefined : "ข้อความของตัวว่างไม่ได้")} onClick={() => { if (!why) save(); }} data-db-save><IbTick size={14} />บันทึก</button>
                 <button type="button" className={"btn btn-sm " + (why ? "btn-wait" : "btn-ghost")} aria-disabled={!!why || undefined} title={why} onClick={() => { if (!why) setAsk({ kind: "delItem" }); }} data-db-delitem><IcClose size={14} />ลบรูปแบบนี้</button></div>)}
           </> : <span className="small">{db ? (chars.length ? "เลือกตัวอักษรทางซ้าย" : "ฐานนี้ยังไม่มีตัวอักษร") : err ? "" : "กำลังเปิดฐาน…"}</span>}
+        </div>
+      </div>
+      <HistoryDialog open={hist} onClose={() => { setHist(false); load(ch); }} />
+    </Dialog>
+  );
+}
+
+/* ---------- ตัวที่สอนไปแล้ว ตาม NOcrCharacterHistoryWindow ของ Subtitle Edit ----------
+   ใหม่สุดก่อน กดเลือกแล้วเห็นภาพที่สอน แก้ข้อความกับตัวเอียง บันทึก บันทึกแล้วปิด ลบออกจากฐาน ซูม
+   ตัวที่ถูกลบจากหน้าต่างอื่นไปแล้วไม่ขึ้น (ClearNotInOcrDb) */
+const fmtTime = (ms: number) => { const d = new Date(ms); return `${String(d.getHours()).padStart(2, "0")}:${String(d.getMinutes()).padStart(2, "0")}`; };
+export function HistoryDialog({ open, onClose, pick }: { open: boolean; onClose: () => void; pick?: number }) {
+  const [list, setList] = useState<OcrTaught[]>([]);
+  const [k, setK] = useState<number | null>(null);
+  const [text, setText] = useState("");
+  const [italic, setItalic] = useState(false);
+  const [err, setErr] = useState<string | null>(null);
+  const [msg, setMsg] = useState<string | null>(null);
+  const [del, setDel] = useState(false);
+  const [zoom, setZoom] = useState(0);
+  const box = useRef<HTMLDivElement>(null);
+  const [bs, setBs] = useState<[number, number]>([400, 200]);
+  const [iw, setIw] = useState<[number, number]>([1, 1]);
+  const load = (want?: number | null) => ocrApi.history().then((h) => {
+    setList(h);
+    setK(want != null && want < h.length ? want : h.length ? h.length - 1 : null);
+  }, (e) => setErr(String(e)));
+  useEffect(() => { if (open) { setErr(null); setMsg(null); setDel(false); void load(pick ?? null); } }, [open]); // eslint-disable-line react-hooks/exhaustive-deps
+  const cur = k != null ? list[k] : undefined;
+  useEffect(() => { setText(cur?.text ?? ""); setItalic(!!cur?.italic); setDel(false); }, [cur]);
+  useEffect(() => { if (!msg) return; const t = setTimeout(() => setMsg(null), 3000); return () => clearTimeout(t); }, [msg]);
+  useEffect(() => {
+    const el = box.current;
+    if (!el) return;
+    const ro = new ResizeObserver(() => setBs([el.clientWidth, el.clientHeight]));
+    ro.observe(el);
+    return () => ro.disconnect();
+  });
+  const fit = Math.max(1, Math.min(20, Math.floor(Math.min((bs[0] - 18) / iw[0], (bs[1] - 18) / iw[1]))));
+  const z = zoom || fit;
+  // แก้ได้ตอนงานหยุดรอสอนด้วย แบบที่ Subtitle Edit เปิดจากหน้าต่างสอนตัวอักษร (ฝั่ง Rust ล็อกงานไว้ ไม่ชนกับการอ่าน)
+  const running = false;
+  const why: string | undefined = undefined;
+  const run = async (f: () => Promise<unknown>, done: string, after?: () => void) => {
+    setErr(null); setMsg(null);
+    try { await f(); setMsg(done); after?.(); } catch (e) { setErr(String(e)); }
+  };
+  const save = (close: boolean) => {
+    if (k == null || !text || why) return;
+    void run(() => ocrApi.historyUpdate(k, text, italic), `บันทึกตัว ${text} แล้ว`, () => { if (close) onClose(); else void load(k); });
+  };
+  return (
+    <Dialog open={open} onClose={onClose} kind="work" title={`ตัวที่สอนในงานนี้ ${list.length.toLocaleString("en-US")} ตัว`} width={DLG_W} height={DLG_H}
+      actions={<><span style={{ flex: 1 }} /><button type="button" className="btn btn-main" onClick={onClose}><IcClose size={15} />ปิด</button></>}>
+      <div className="ocr-dlg ocr-db" data-ocr-hist-dlg>
+        <div className="ocr-dbl">
+          <div className="icv-head">ใหม่สุดก่อน</div>
+          <div className="ocr-dbvars" data-hist-list>{list.map((h, i) => ({ h, i })).reverse().map(({ h, i }) => (
+            <button key={i} type="button" className={"ocr-lch" + (k === i ? " on" : "")} onClick={() => setK(i)} data-hist-item={i}>
+              {h.png ? <img className="ocr-gv ocr-gvimg ocr-histimg" src={h.png} alt={`ภาพของ ${h.text}`} /> : <span className="ocr-histimg" />}
+              <b>{h.text || "ไม่ใช่ตัวอักษร"}</b><span className="small">{`${h.engine === "binary" ? "Binary" : h.engine === "own" ? "สอนเอง" : "nOCR"} ${fmtTime(h.at)}`}</span></button>))}
+            {!list.length && <span className="small ocr-dbempty"><Phr>ยังไม่ได้สอนตัวอักษรในงานนี้ ตัวที่สอนจากหน้าต่างสอนตัวอักษรจะขึ้นที่นี่</Phr></span>}</div>
+        </div>
+        <div className="ocr-dbr">
+          <div className="icv-head">ตัวที่เลือก</div>
+          {err && <div className="stat bad" data-hist-err><CardIcon kind="bad" /><div style={{ flex: 1 }}><b>ทำกับฐานไม่สำเร็จ</b><Phr>{err}</Phr></div></div>}
+          {msg && !err && <div className="stat ok" data-hist-msg><CardIcon kind="ok" /><Phr>{msg}</Phr></div>}
+          {cur ? <>
+            <div className="ocr-dbcanvas" ref={box} data-hist-canvas>{cur.png && <img className="ocr-gv ocr-gvimg" src={cur.png} alt={`ภาพของ ${cur.text}`} onLoad={(e) => setIw([e.currentTarget.naturalWidth || 1, e.currentTarget.naturalHeight || 1])} style={{ width: iw[0] * z, height: iw[1] * z }} />}</div>
+            <div className="icv-row"><span className="icv-lbl" style={{ width: 80 }}>ซูม</span>
+              <button type="button" className={"btn btn-sm " + (z > 1 ? "btn-ghost" : "btn-wait")} aria-disabled={z <= 1 || undefined} title={z > 1 ? "ย่อ" : "ย่อสุดแล้ว"} aria-label="ย่อ" onClick={() => { if (z > 1) setZoom(z - 1); }}>−</button>
+              <span className="small" style={{ minWidth: 44, textAlign: "center" }} data-hist-zoom>{z} เท่า</span>
+              <button type="button" className={"btn btn-sm " + (z < 20 ? "btn-ghost" : "btn-wait")} aria-disabled={z >= 20 || undefined} title={z < 20 ? "ขยาย" : "ขยายสุดแล้ว"} aria-label="ขยาย" onClick={() => { if (z < 20) setZoom(z + 1); }}><IcPlus size={13} /></button>
+              <button type="button" className={"btn btn-sm " + (zoom ? "btn-ghost" : "btn-wait")} aria-disabled={!zoom || undefined} title={zoom ? "ขยายให้พอดีกรอบ" : "พอดีกรอบอยู่แล้ว"} onClick={() => setZoom(0)}>พอดีกรอบ</button></div>
+            <div className="icv-row"><span className="icv-lbl" style={{ width: 80 }}>ตัวนี้คือ</span>
+              <input className="inp" style={{ width: 90, fontSize: 18, fontStyle: italic ? "italic" : undefined }} value={text} disabled={running} title={why} aria-label="ข้อความของตัวนี้"
+                onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && text) { e.preventDefault(); save(true); } }} data-hist-text /></div>
+            <div className="icv-row"><span className="icv-lbl" style={{ width: 80 }}>ตัวเอียง</span><Switch on={italic} onChange={(v) => { if (!running) setItalic(v); }} label="ตัวเอียง" /></div>
+            <div className="small" data-hist-info>{`สอนจากภาพที่ ${cur.index + 1} ฐาน ${cur.db} เวลา ${fmtTime(cur.at)}`}{cur.pieces > 1 ? ` ตัวนี้ประกอบจาก ${cur.pieces} ชิ้น` : ""}</div>
+            {del ? (
+              <div className="ocr-dbask" data-hist-ask><Phr>{`ลบตัว ${cur.text || "ไม่ใช่ตัวอักษร"} ที่สอนนี้ออกจากฐาน ${cur.db}`}</Phr>
+                <div className="ocr-dbtools"><button type="button" className="btn btn-danger btn-sm" onClick={() => void run(() => ocrApi.historyDelete(k!), "ลบออกจากฐานแล้ว", () => void load(null))} data-hist-del-ok>ลบออกจากฐาน</button>
+                  <button type="button" className="btn btn-ghost btn-sm" onClick={() => setDel(false)}>ยกเลิก</button></div></div>
+            ) : (
+              <div className="ocr-dbtools">
+                <button type="button" className={"btn btn-sm " + (why || !text ? "btn-wait" : "btn-ghost")} aria-disabled={!!why || !text || undefined} title={why ?? (text ? undefined : "ข้อความของตัวว่างไม่ได้")} onClick={() => save(false)} data-hist-save><IbTick size={14} />บันทึก</button>
+                <button type="button" className={"btn btn-sm " + (why || !text ? "btn-wait" : "btn-ghost")} aria-disabled={!!why || !text || undefined} title={why ?? (text ? undefined : "ข้อความของตัวว่างไม่ได้")} onClick={() => save(true)} data-hist-saveclose><IbTick size={14} />บันทึกแล้วปิด</button>
+                <button type="button" className={"btn btn-sm " + (why ? "btn-wait" : "btn-ghost")} aria-disabled={!!why || undefined} title={why} onClick={() => { if (!why) setDel(true); }} data-hist-del><IcClose size={14} />ลบออกจากฐาน</button></div>)}
+          </> : <span className="small">{list.length ? "เลือกตัวทางซ้าย" : ""}</span>}
         </div>
       </div>
     </Dialog>

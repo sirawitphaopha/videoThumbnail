@@ -40,6 +40,8 @@ const WATCH: &[(&str, &str)] = &[
     ("ocr_db_rename", "เปลี่ยนชื่อฐานตัวอักษร OCR"),
     ("ocr_db_char_update", "แก้ตัวอักษรในฐาน OCR"),
     ("ocr_db_char_delete", "ลบตัวอักษรออกจากฐาน OCR"),
+    ("ocr_history_update", "แก้ตัวอักษรที่สอนไปแล้วในฐาน OCR"),
+    ("ocr_history_delete", "ลบตัวอักษรที่สอนไปแล้วออกจากฐาน OCR"),
     ("pgs_export", "ส่งออกซับเป็น PGS"),
     ("imgsub_convert", "แปลงซับภาพเป็นซับภาพ"),
     ("vid_snapshot", "บันทึกหรือคัดลอกภาพจากหน้าแก้ซับ"),
