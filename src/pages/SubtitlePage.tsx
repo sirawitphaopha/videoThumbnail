@@ -182,14 +182,15 @@ export default function SubtitlePage({ onAv, onSettings }: { onAv: () => void; o
   // ตัวตรวจเปิดไฟล์ได้โดยไม่ต้องเปิดกล่องเลือกไฟล์ (กล่องจะเด้งขึ้นจอ)
   useEffect(() => {
     const w = window as unknown as { __subOpen?: (p: string) => void; __subVideo?: (p: string) => void; __subAddSub?: (p: string) => void };
-    w.__subAddSub = (p) => void subRef.current(p);
+    // ตัวจริงมีแค่ __subOpen กับ __subClear (ตัวตรวจของตัวจริงใช้) ตัวอื่นเฉพาะรุ่นทดสอบ (ผู้ช่วยตรวจทาน U20)
+    if (import.meta.env.DEV) w.__subAddSub = (p) => void subRef.current(p);
     // ตัวตรวจเริ่มจากหน้าว่างและล้างหน้ากลับตอนจบ ไม่ทิ้งไฟล์ทดสอบค้างให้พี่กันเห็น
     (w as { __subClear?: () => void }).__subClear = () => { closeDoc(); setFile(null); setErr(null); setView(null); setExp(null); setVideoErr(null); };
     w.__subOpen = (p) => openRef.current(p);
-    (w as { __subPick?: (i: number) => void }).__subPick = (i) => { const t = fileRef.current?.subs[i]; if (t) pickTrack(t.key); };
+    if (import.meta.env.DEV) (w as { __subPick?: (i: number) => void }).__subPick = (i) => { const t = fileRef.current?.subs[i]; if (t) pickTrack(t.key); };
     // ตัวตรวจอ่านรายชื่อแทร็กกับแทร็กที่เลือก (ดรอปดาวน์ไม่มีรายการใน DOM จนกว่าจะกาง)
-    (w as { __subTracks?: () => { list: string[]; cur: number } }).__subTracks = () => { const f = fileRef.current; return { list: f ? f.subs.map((t, i) => label(t, i)) : [], cur: f ? f.subs.findIndex((t) => t.key === viewRef.current) : -1 }; };
-    w.__subVideo = (p) => void videoRef.current(p);
+    if (import.meta.env.DEV) (w as { __subTracks?: () => { list: string[]; cur: number } }).__subTracks = () => { const f = fileRef.current; return { list: f ? f.subs.map((t, i) => label(t, i)) : [], cur: f ? f.subs.findIndex((t) => t.key === viewRef.current) : -1 }; };
+    if (import.meta.env.DEV) w.__subVideo = (p) => void videoRef.current(p);
   });
 
   const st = file?.subs.find((t) => t.key === view) ?? null;

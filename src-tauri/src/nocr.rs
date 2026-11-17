@@ -120,8 +120,11 @@ impl NChar {
         };
         c.fg = lines(pos)?;
         c.bg = lines(pos)?;
-        (c.width > 0 && c.height > 0 && c.width <= 1920 && c.height <= 1080 && !c.text.contains('\0')).then_some(c)
+        Some(c)
     }
+
+    /// ตัวที่ใช้ได้ ขนาดไม่เกินจอ 1080p และข้อความไม่มี \0 · ตาม NOcrChar.cs ของ Subtitle Edit
+    pub fn is_valid(&self) -> bool { self.width > 0 && self.height > 0 && self.width <= 1920 && self.height <= 1080 && !self.text.contains('\0') }
 
     fn all_byte(&self) -> bool {
         let ok = |l: &[NLine]| l.len() <= 255 && l.iter().all(|p| [p.start.x, p.start.y, p.end.x, p.end.y].iter().all(|v| (0..=255).contains(v)));
@@ -294,7 +297,9 @@ impl NOcrDb {
         flate2::read::GzDecoder::new(&raw[..]).read_to_end(&mut buf).map_err(|_| "ไฟล์ฐาน nOCR เสีย ถอดไฟล์ที่บีบไว้ไม่ได้".to_string())?;
         let v2 = buf.starts_with(b"V2");
         let mut pos = if v2 { 2 } else { 0 };
+        // ตัวที่ใช้ไม่ได้ข้ามไปอ่านตัวถัดไป · เดิมเจอตัวเสียตัวแรกแล้วหยุดทั้งไฟล์ ตัวที่สอนใหม่อยู่หน้าสุด เปิดฐานจึงได้ฐานว่างแล้วบันทึกทับจนหาย (ผู้ช่วยตรวจทาน R3)
         while let Some(c) = NChar::read(&mut pos, &buf, v2) {
+            if !c.is_valid() { continue; }
             if c.expand_count > 0 { db.expanded.push(c); } else { db.chars.push(c); }
         }
         Ok(db)
@@ -303,14 +308,15 @@ impl NOcrDb {
     /// บันทึกลงชื่อชั่วคราวแล้วย้ายทับไฟล์เดิม (ไฟล์เดิมลงถังขยะ) · ตาม Save
     pub fn save(&self) -> Result<(), String> {
         let mut raw = b"V2".to_vec();
-        for c in self.chars.iter().chain(&self.expanded) { c.write(&mut raw); }
+        // ตัวที่เปิดฐานแล้วใช้ไม่ได้ (ใหญ่เกิน 1920 × 1080) ไม่บันทึก · ใช้ได้ในรอบนี้แต่ไม่ทำให้ฐานเสีย (ผู้ช่วยตรวจทาน R3)
+        for c in self.chars.iter().chain(&self.expanded).filter(|c| c.is_valid()) { c.write(&mut raw); }
         let mut enc = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
         enc.write_all(&raw).map_err(|e| e.to_string())?;
         let gz = enc.finish().map_err(|e| e.to_string())?;
         if let Some(d) = self.file.parent() { std::fs::create_dir_all(d).map_err(|e| format!("สร้างโฟลเดอร์ฐานไม่ได้ {e}"))?; }
         let part = PathBuf::from(format!("{}.partial", self.file.display()));
         std::fs::write(&part, gz).map_err(|e| format!("เขียนไฟล์ฐาน nOCR ไม่ได้ {e}"))?;
-        crate::outfile::replace_with(&part, &self.file)?;
+        crate::outfile::replace_often(&part, &self.file)?;
         self.cache.lock().unwrap().clear();
         Ok(())
     }
@@ -873,9 +879,26 @@ mod tests {
         a.write(&mut buf);
         b.write(&mut buf);
         let mut p = 0;
-        assert_eq!(NChar::read(&mut p, &buf, true), Some(a));
-        assert_eq!(NChar::read(&mut p, &buf, true), Some(b));
+        assert_eq!(NChar::read(&mut p, &buf, true), Some(a.clone()));
+        assert_eq!(NChar::read(&mut p, &buf, true), Some(b.clone()));
         assert_eq!(NChar::read(&mut p, &buf, true), None);
+        // ตัวใหญ่เกินจอ 1080p อ่านได้แต่ใช้ไม่ได้ · ฐานที่มีตัวนี้หน้าสุดยังเปิดได้ตัวอื่นครบ (ผู้ช่วยตรวจทาน R3)
+        let mut big = a.clone();
+        big.width = 2000;
+        assert!(!big.is_valid());
+        let dir = std::env::temp_dir().join("movie-shelf-nocr-big");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let f = dir.join("big.nocr");
+        let mut raw = b"V2".to_vec();
+        big.write(&mut raw);
+        b.write(&mut raw);
+        let mut enc = flate2::write::GzEncoder::new(Vec::new(), flate2::Compression::default());
+        std::io::Write::write_all(&mut enc, &raw).unwrap();
+        std::fs::write(&f, enc.finish().unwrap()).unwrap();
+        let db = NOcrDb::load(&f).unwrap();
+        assert_eq!(db.total(), 1, "ตัวถัดไปต้องอ่านได้");
+        let _ = std::fs::remove_dir_all(&dir);
     }
 
     /// ภาพสี่เหลี่ยมทึบ 10 × 20 กับตัวอักษรที่สอนจากภาพเดียวกัน (เส้นหน้าตามแนวตั้ง เส้นหลังรอบนอก) ต้องตรงพอดี

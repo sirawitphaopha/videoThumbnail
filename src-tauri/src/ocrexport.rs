@@ -6,12 +6,10 @@
 //! Subtitle Edit · Copyright (c) Nikolaj Olsson · MIT License (ข้อความเต็มใน tools/licenses)
 
 use crate::subdoc::{self, Enc, Event, Item, SubDoc};
-use crate::tools::{tool_command, tools_dir};
+use crate::tools::tools_dir;
 use serde::{Deserialize, Serialize};
 use std::ffi::OsString;
-use std::io::Read;
 use std::path::{Path, PathBuf};
-use std::process::Stdio;
 use std::sync::OnceLock;
 use tauri::AppHandle;
 
@@ -71,7 +69,11 @@ pub fn lines_of(req: &ExpReq) -> Vec<(i64, i64, String)> {
         let lines: Vec<&str> = text.split('\n').map(str::trim_end).filter(|l| !l.trim().is_empty()).collect();
         if lines.is_empty() { continue; }
         let (s, e) = ((r.start * 1000.0).round() as i64, (end_of(&req.rows, k) * 1000.0).round() as i64);
-        let an_at = |i: usize| -> u8 { r.an.get(i).or(r.an.last()).copied().filter(|a| (1..=9).contains(a)).unwrap_or(2) };
+        // ตำแหน่งรายบรรทัดมาจากตอนอ่าน · ผู้ใช้แก้จนจำนวนบรรทัดไม่เท่าเดิม จับคู่บรรทัดกับตำแหน่งไม่ได้แล้ว ใช้ตำแหน่งของบรรทัดสุดท้าย (บทพูด) ทั้งภาพ
+        // ไม่ให้บทพูดเลื่อนไปได้ตำแหน่งของป้ายที่ถูกลบ (ผู้ช่วยตรวจทาน T10)
+        let an_ok = |a: &u8| (1..=9).contains(a);
+        let an: Vec<u8> = if r.an.len() == lines.len() || r.an.len() <= 1 { r.an.clone() } else { vec![*r.an.last().unwrap(); lines.len()] };
+        let an_at = |i: usize| -> u8 { an.get(i).or(an.last()).copied().filter(an_ok).unwrap_or(2) };
         if req.top != "tag" {
             out.push((s, e, lines.join("\n")));
             continue;
@@ -81,8 +83,18 @@ pub fn lines_of(req: &ExpReq) -> Vec<(i64, i64, String)> {
             let a = an_at(i);
             match groups.last_mut() { Some(g) if g.0 == a => g.1.push(l), _ => groups.push((a, vec![l])) }
         }
+        // แท็ก <i> <b> <u> ที่คร่อมรอยแยกกลุ่ม ปิดท้ายกลุ่มแล้วเปิดใหม่ต้นกลุ่มถัดไป · เดิมแถวหลังเสียตัวเอียงและ SRT ได้แท็กไม่ครบคู่ (ผู้ช่วยตรวจทาน T6)
+        let mut open: Vec<&str> = Vec::new();
         for (a, g) in groups {
-            let body = g.join("\n");
+            let mut body: String = open.iter().map(|t| format!("<{t}>")).collect();
+            body.push_str(&g.join("\n"));
+            for tag in ["i", "b", "u"] {
+                let o = body.matches(&format!("<{tag}>")).count();
+                let c = body.matches(&format!("</{tag}>")).count();
+                open.retain(|t| *t != tag);
+                if o > c { open.push(tag); }
+            }
+            for t in open.iter().rev() { body.push_str(&format!("</{t}>")); }
             out.push((s, e, if a == 2 { body } else { format!("{{\\an{a}}}{body}") }));
         }
     }
@@ -121,15 +133,17 @@ pub fn doc_of(req: &ExpReq) -> SubDoc {
 
 /// ชนิดไฟล์ทั้งหมดที่ SeConv เขียนเป็นตัวหนังสือได้ (ถาม seconv formats --json ครั้งเดียวแล้วจำ) · SubRip กับ ASS อยู่บนสุด
 pub fn formats(tools: &Path) -> Vec<ExpFormat> {
+    // จำเฉพาะตอนอ่านรายชื่อได้ · ครั้งแรกล้ม (SeConv ช้าตอนเครื่องเพิ่งเปิด) ครั้งหน้าถามใหม่ ไม่จำรายการสั้นจนปิดโปรแกรม (ผู้ช่วยตรวจทาน R21)
     static CACHE: OnceLock<Vec<ExpFormat>> = OnceLock::new();
     let base = || vec![
         ExpFormat { id: SRT.into(), name: "SubRip".into(), ext: ".srt".into() },
         ExpFormat { id: ASS.into(), name: "Advanced Sub Station Alpha".into(), ext: ".ass".into() },
     ];
     if !crate::pgs::seconv_exe(tools).exists() { return base(); }
-    CACHE.get_or_init(|| {
+    if let Some(v) = CACHE.get() { return v.clone(); }
+    let v = (|| {
         let args: Vec<OsString> = vec!["formats".into(), "--json".into()];
-        let out = tool_command(&tools.join("seconv"), "seconv", &args).stdin(Stdio::null()).output().ok();
+        let out = crate::tools::run_tool_timeout(&tools.join("seconv"), "seconv", &args, std::time::Duration::from_secs(60)).ok();
         let json = out.and_then(|o| serde_json::from_slice::<serde_json::Value>(&o.stdout).ok());
         let mut v = base();
         if let Some(list) = json.as_ref().and_then(|j| j["formats"].as_array()) {
@@ -141,7 +155,9 @@ pub fn formats(tools: &Path) -> Vec<ExpFormat> {
             }
         }
         v
-    }).clone()
+    })();
+    if v.len() > 2 { let _ = CACHE.set(v.clone()); }
+    v
 }
 
 /// ให้ SeConv แปลงไฟล์ ASS เป็นชนิด id ลงโฟลเดอร์ชั่วคราว คืนที่อยู่ไฟล์ผล
@@ -151,13 +167,10 @@ fn seconv_to(tools: &Path, input: &Path, dir: &Path, name: &str, id: &str, enc: 
     let encoding = match enc { "utf16" => "utf-16", "tis" => "windows-874", _ => "utf-8" };
     let args: Vec<OsString> = vec![input.as_os_str().to_owned(), id.into(), format!("--output-folder:{}", dir.display()).into(),
         format!("--output-filename:{name}").into(), format!("--encoding:{encoding}").into(), "--overwrite".into(), "--quiet".into()];
-    let mut child = tool_command(&tools.join("seconv"), "seconv", &args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped())
-        .spawn().map_err(|e| format!("เปิด SeConv ไม่ได้ {e}"))?;
-    crate::winutil::kill_with_app(&child);
-    let mut msg = String::new();
-    if let Some(mut s) = child.stdout.take() { let _ = s.read_to_string(&mut msg); }
-    if let Some(mut s) = child.stderr.take() { let _ = s.read_to_string(&mut msg); }
-    let st = child.wait().map_err(|e| e.to_string())?;
+    // อ่านสองท่อพร้อมกันและมีเวลาหมด · เดิมอ่านท่อผลจนจบก่อน SeConv เขียนข้อผิดพลาดยาวแล้วค้างทั้งคู่ (ผู้ช่วยตรวจทาน R6)
+    let o = crate::tools::run_tool_timeout(&tools.join("seconv"), "seconv", &args, std::time::Duration::from_secs(120))?;
+    let msg = format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
+    let st = o.status;
     let out = dir.join(name);
     let made = if out.is_file() { Some(out) } else {
         // บางชนิด SeConv ต่อนามสกุลของชนิดเอง ใช้ไฟล์เดียวที่ได้ในโฟลเดอร์
@@ -425,10 +438,11 @@ pub fn ocr_export_doc(req: ExpReq) -> SubDoc {
 /// บันทึกภาพทุกภาพพร้อมหน้า HTML · texts ข้อความของทุกบรรทัดตามลำดับภาพของงาน OCR · ความคืบหน้าทางเหตุการณ์ ocr-html-progress
 #[tauri::command]
 pub async fn ocr_save_html(app: AppHandle, texts: Vec<String>, folder: String, source: String) -> Result<HtmlOut, String> {
-    let files: Vec<(PathBuf, f64, Option<f64>, u32, u32)> = crate::ocrjob::session().as_ref()
-        .map(|s| s.items().iter().map(|i| (i.img.file.clone(), i.img.start, i.img.end, i.img.w, i.img.h)).collect())
-        .ok_or("ยังไม่ได้เปิดซับรูปในหน้า OCR")?;
     tauri::async_runtime::spawn_blocking(move || {
+        // อ่านรายการภาพในเธรดงาน ไม่รอล็อกของงานอ่านบนเธรดของ async runtime (ผู้ช่วยตรวจทาน R19)
+        let files: Vec<(PathBuf, f64, Option<f64>, u32, u32)> = crate::ocrjob::session().as_ref()
+            .map(|s| s.items().iter().map(|i| (i.img.file.clone(), i.img.start, i.img.end, i.img.w, i.img.h)).collect())
+            .ok_or("ยังไม่ได้เปิดซับรูปในหน้า OCR")?;
         let last = std::sync::atomic::AtomicI64::new(-1);
         save_html(&files, &texts, Path::new(&folder), &source, &|f| {
             let v = (f * 100.0).floor() as i64;
@@ -461,6 +475,11 @@ mod tests {
             (3000, 4000, "No end time".to_string()),
             (20000, 25000, "Last".to_string()),
         ]);
+        // ตัวเอียงคร่อมป้ายกับบทพูด ปิดเปิดแท็กครบทั้งสองแถว (T6) · ลบบรรทัดป้ายแล้วตำแหน่งไม่เลื่อนไปบทพูด (T10)
+        let tagged = lines_of(&req(vec![row(1.0, Some(2.0), "<i>ป้าย\nบทพูด</i>", &[8, 2])], SRT, "tag"));
+        assert_eq!(tagged.iter().map(|x| x.2.clone()).collect::<Vec<_>>(), vec!["{\\an8}<i>ป้าย</i>".to_string(), "<i>บทพูด</i>".to_string()]);
+        let edited = lines_of(&req(vec![row(1.0, Some(2.0), "บทพูดหนึ่ง\nบทพูดสอง", &[8, 2, 2])], SRT, "tag"));
+        assert_eq!(edited, vec![(1000, 2000, "บทพูดหนึ่ง\nบทพูดสอง".to_string())]);
         let d = lines_of(&req(rows.clone(), SRT, "down"));
         assert_eq!(d[0], (1000, 2500, "Kobe Street\nI'm here.\n<i>Hello.</i>".to_string()));
         assert_eq!(d.len(), 3);

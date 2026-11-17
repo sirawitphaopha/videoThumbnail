@@ -225,7 +225,7 @@ impl FixEngine {
     }
 
     fn known(&self, w: &str, line: &str) -> bool {
-        self.skip.contains(w) || self.spelled(w) || self.lists.has_name(w) || self.lists.has_user_word(w) || self.lists.has_name_extended(w, line)
+        no_dict_script(w) || self.skip.contains(w) || self.spelled(w) || self.lists.has_name(w) || self.lists.has_user_word(w) || self.lists.has_name_extended(w, line)
     }
 
     fn replace_line(&self, index: usize, text: &str, next_soon_lower: bool, ignore: &mut Vec<String>) -> String {
@@ -515,14 +515,15 @@ impl FixEngine {
         s
     }
 
-    pub fn change_all(&mut self, from: &str, to: &str) {
-        self.change_all.entry(from.into()).or_insert_with(|| to.into());
-        self.replace.add_word_or_partial(from, to);
+    /// คู่ใหม่ของคำเดิมแทนคู่เก่า · ใช้ในงานนี้ก่อน แล้วค่อยบันทึกลงไฟล์ของผู้ใช้ เขียนไม่ได้คืนผิดพลาด (ผู้ช่วยตรวจทาน R13)
+    pub fn change_all(&mut self, from: &str, to: &str) -> Result<(), String> {
+        self.change_all.insert(from.into(), to.into());
+        self.replace.add_word_or_partial(from, to).map(|_| ())
     }
     pub fn skip_all(&mut self, w: &str) { if !w.trim().is_empty() { self.skip.insert(w.into()); } }
-    pub fn add_name(&mut self, n: &str) { if !n.trim().is_empty() { self.lists.add_name(n.trim()); } }
+    pub fn add_name(&mut self, n: &str) -> Result<(), String> { if n.trim().is_empty() { Ok(()) } else { self.lists.add_name(n.trim()).map(|_| ()) } }
     /// เพิ่มคำลงพจนานุกรมของผู้ใช้ (บันทึกลงไฟล์ของผู้ใช้) · ตาม AddToUserDictionary
-    pub fn add_user_word(&mut self, w: &str) -> bool { self.lists.add_user_word(w) }
+    pub fn add_user_word(&mut self, w: &str) -> Result<bool, String> { self.lists.add_user_word(w) }
 
     // ---- ที่ตัวจับคู่ภาพพลาด
 
@@ -554,13 +555,14 @@ impl FixEngine {
         }
         let snapshot = text.clone();
         let cs: Vec<char> = snapshot.chars().collect();
-        replace_tokens(&snapshot, |c, i| !(i > 0 && (is_lod(c[i - 1]) || matches!(c[i - 1], '/' | '\'' | '’' | '<'))), |x| is_letter(x) || matches!(x, '\'' | '’' | '/'),
+        replace_tokens_at(&snapshot, |c, i| !(i > 0 && (is_lod(c[i - 1]) || matches!(c[i - 1], '/' | '\'' | '’' | '<'))), |x| is_letter(x) || matches!(x, '\'' | '’' | '/'),
             |t| { let c: Vec<char> = t.chars().collect(); (0..c.len()).any(|k| (k > 0 && c[k] == '/' && is_letter(c[k - 1])) || (c[k] == '/' && (c.get(k + 1).is_some_and(|x| is_letter(*x)) || (c.get(k + 1).is_some_and(|x| matches!(x, '\'' | '’')) && c.get(k + 2).is_some_and(|x| is_letter(*x)))))) },
-            |token| self.slash_token(token, &cs, &snapshot))
+            |token, at| self.slash_token(token, &cs, &snapshot, at))
     }
 
-    fn slash_token(&self, token: &str, _cs: &[char], text: &str) -> String {
-        let idx = text.find(token).unwrap_or(0);
+    fn slash_token(&self, token: &str, _cs: &[char], text: &str, at: usize) -> String {
+        // ตำแหน่งไบต์ของชิ้นนี้จริง ไม่ใช่ของคำแรกที่หน้าตาเหมือนกัน (ผู้ช่วยตรวจทาน R22)
+        let idx = text.char_indices().nth(at).map(|(b, _)| b).unwrap_or(text.len());
         if token.starts_with("//") || (idx > 0 && text[..idx].ends_with(':')) { return token.into(); }
         let parts: Vec<&str> = token.split('/').filter(|p| !p.is_empty()).collect();
         if parts.len() > 1 && parts.iter().all(|p| p.chars().count() > 1 && self.spelled(p)) { return token.into(); }
@@ -610,6 +612,11 @@ fn first_word(t: &str) -> String {
 
 /// แทนทุกชิ้นที่ขึ้นต้นตรงตำแหน่งที่ start_ok ยอม ประกอบด้วยอักขระที่ part ยอม และ want ยอมทั้งชิ้น · ใช้แทน regex ที่มองย้อนหลัง
 fn replace_tokens(text: &str, start_ok: impl Fn(&[char], usize) -> bool, part: impl Fn(char) -> bool, want: impl Fn(&str) -> bool, f: impl Fn(&str) -> String) -> String {
+    replace_tokens_at(text, start_ok, part, want, |t, _| f(t))
+}
+
+/// แบบเดียวกับ replace_tokens แต่ส่งตำแหน่งอักษรแรกของชิ้นให้ด้วย · คำซ้ำในบรรทัดเดียวกันจึงไม่ไปใช้ตำแหน่งของคำแรก (ผู้ช่วยตรวจทาน R22)
+fn replace_tokens_at(text: &str, start_ok: impl Fn(&[char], usize) -> bool, part: impl Fn(char) -> bool, want: impl Fn(&str) -> bool, f: impl Fn(&str, usize) -> String) -> String {
     let c: Vec<char> = text.chars().collect();
     let mut out = String::new();
     let mut i = 0;
@@ -618,7 +625,7 @@ fn replace_tokens(text: &str, start_ok: impl Fn(&[char], usize) -> bool, part: i
             let mut j = i;
             while j < c.len() && part(c[j]) { j += 1; }
             let tok: String = c[i..j].iter().collect();
-            if want(&tok) { out.push_str(&f(&tok)); } else { out.push_str(&tok); }
+            if want(&tok) { out.push_str(&f(&tok, i)); } else { out.push_str(&tok); }
             i = j;
             continue;
         }
@@ -798,6 +805,12 @@ pub fn split_line(line: &str, index: usize) -> LineFix {
     res
 }
 
+/// คำที่มีอักษรไทย คานะ คันจิ หรือฮันกึล · ไม่มีพจนานุกรมที่ตรวจคำแบบนี้ได้ (ไทยไม่เว้นวรรคระหว่างคำ ญี่ปุ่นจีนต่อกันทั้งวลี) จึงนับว่ารู้จัก
+/// เดิม PaddleOCR แบบหลายภาษาได้พจนานุกรม en_US ซับญี่ปุ่นทุกบรรทัดเป็นคำที่ไม่รู้จัก ตัวชี้จุดสงสัยแยกบรรทัดที่ผิดจริงไม่ออก (ผู้ช่วยตรวจทาน T3)
+pub fn no_dict_script(w: &str) -> bool {
+    w.chars().any(|c| matches!(c, '\u{0E00}'..='\u{0E7F}' | '\u{3040}'..='\u{30FF}' | '\u{3400}'..='\u{9FFF}' | '\u{AC00}'..='\u{D7AF}' | '\u{FF66}'..='\u{FF9F}'))
+}
+
 /// ขีดหน้าบทพูดที่ตัวอ่านทีละบรรทัดแยกเป็นบรรทัดของตัวเอง ต่อกลับเข้าบรรทัดข้อความ · จำนวนขีดเท่าบรรทัดที่ขาดขีด เติมทุกบรรทัดที่ขาด
 /// ไม่เท่า ต่อเข้าบรรทัดถัดไป · ตาม OcrLoneDashFixer.FixLoneDashes (Subtitle Edit ใช้กับ Google Lens · ชั้นหนังใช้กับ PaddleOCR Tesseract)
 pub fn fix_lone_dashes(text: &str) -> String {
@@ -837,6 +850,13 @@ fn standalone(res: &LineFix, idx: usize) -> bool {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// คำไทย ญี่ปุ่น จีน เกาหลี ไม่นับเป็นคำที่ไม่รู้จัก คำอังกฤษยังตรวจตามพจนานุกรม (ผู้ช่วยตรวจทาน T3)
+    #[test]
+    fn cjk_and_thai_words_are_not_unknown() {
+        for w in ["咆哮が聞こえる", "ゴジラ", "สวัสดี", "안녕"] { assert!(no_dict_script(w), "{w}"); }
+        for w in ["Hello", "Beets", "123"] { assert!(!no_dict_script(w), "{w}"); }
+    }
 
     fn lev(a: &[char], b: &[char]) -> usize {
         let mut prev: Vec<usize> = (0..=b.len()).collect();
@@ -899,6 +919,16 @@ mod tests {
             for w in ["including", "business", "rounds", "nationally", "managing", "Constables", "wrongdoing", "you're"] { assert!(h.correct(w), "{five} ไม่รู้จัก {w}"); }
             for w in ["Mais", "Dowa", "wronqdoing"] { assert!(!h.correct(w), "{five} ไม่ควรรู้จัก {w}"); }
         }
+    }
+
+    /// / ที่อ่านพลาดในคำซ้ำ ตัดสินต้นประโยคจากตำแหน่งของคำนั้นเอง ไม่ใช่ของคำแรกที่หน้าตาเหมือนกัน (ผู้ช่วยตรวจทาน R22)
+    #[test]
+    fn slash_uses_own_position() {
+        let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tools/ocr");
+        let hun = root.join("hunspell");
+        let Ok(spell) = Hunspell::open(&hun.join("en_US.aff"), &hun.join("en_US.dic")) else { return };
+        let fx = FixEngine::new(&root.join("Dictionaries"), &std::env::temp_dir().join("movie-shelf-ocrfix-r22"), "eng", "en_US", Box::new(spell));
+        assert_eq!(fx.fix_slash("/t's fine. Yes, /t's me"), "It's fine. Yes, it's me");
     }
 
     #[test]

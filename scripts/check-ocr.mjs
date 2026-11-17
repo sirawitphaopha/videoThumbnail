@@ -28,6 +28,31 @@ const waitFor = async (js, ms = 8000) => { const t = Date.now(); while (Date.now
 const nav = (label) => q(`[...document.querySelectorAll('.side .nav')].find((b) => b.innerText.trim().split('\\n')[0] === ${JSON.stringify(label)})?.click(); return 1;`);
 const click = async (sel) => { gate(); await c.click(sel); };
 const job = (js) => q(`const j = window.__ocrJob; ${js}`);
+// กล่อง ⓘ ที่เพิ่มตอนแก้ผลผู้ช่วยตรวจทาน U16 ตรวจจุดตัดบรรทัดทุกย่อหน้า · DUMP=1 พิมพ์จุดตัดไว้อ่านแล้วแก้ตาราง TIPS
+const DUMP = process.env.DUMP === "1";
+const { linesOf } = await import("./lib/lines.mjs");
+// จุดตัดที่คาดไว้ที่หน้าต่าง 1280 × 800 อ่านเองทุกย่อหน้าแล้ว 17 พ.ย. 2569
+const TIPS = {
+  "PaddleOCR": ["PaddleOCR เป็นโมเดล AI อ่านตัวหนังสือจากภาพ ⏎ และทำงานในเครื่องทั้งหมด", "ONNX Runtime ตัวรันโมเดล AI บนซีพียูของ Microsoft ⏎ ชั้นหนังใช้ตัวนี้รันโมเดลของ PaddleOCR", "PP-OCRv6 รุ่นล่าสุด อ่านอังกฤษ ญี่ปุ่น และจีนได้ในโมเดลเดียว ⏎ มีสามขนาด tiny small และ medium", "PP-OCRv5 โมเดลแยกตามภาษา ใช้กับภาษาที่ PP-OCRv6 ไม่มี ⏎ เช่นไทย เกาหลี และรัสเซีย"],
+  "ชุดภาษาของ Tesseract": ["ชุดภาษาคือไฟล์ที่สอน Tesseract ให้รู้จักตัวอักษรของภาษานั้น ⏎ โดยภาษาละหนึ่งไฟล์", "แนบมา อังกฤษ ไทย ญี่ปุ่นแนวนอนกับแนวตั้ง ⏎ และไฟล์หาทิศทางภาพ มากับตัวติดตั้งแล้ว", "tessdata_best ชุดภาษาแบบแม่นที่สุดของโครงการ Tesseract ⏎ ภาษาอื่นโหลดเพิ่มจากชุดนี้ ไฟล์ใหญ่กว่าแบบเร็วแต่อ่านแม่นกว่า"],
+  "ตัวเลือกการอ่าน": ["ตัวเลือกที่ใช้ตอนอ่าน ค่าที่ตั้งจำไว้ในเครื่อง ใช้กับการอ่านครั้งต่อไป", "แก้คำ OCR แก้คำที่ตัวอ่านมักอ่านผิด เช่นขีดตั้งที่ควรเป็นตัว I ⏎ ด้วยรายการแก้คำของ Subtitle Edit และพจนานุกรม", "เดาคำที่ไม่รู้จัก คำที่พจนานุกรมไม่รู้จัก ลองเปลี่ยนตัวที่มักอ่านผิด ⏎ จนได้คำที่รู้จัก", "ถามคำที่ไม่รู้จักทีละคำ หยุดถามคำที่ไม่รู้จักระหว่างอ่าน ⏎ ปิดไว้แล้วตรวจจากรายการหลังอ่านได้", "หยุดสอนตัวที่ไม่รู้จัก เจอตัวที่ฐานไม่รู้จักแล้วเปิดหน้าต่างสอน ⏎ ปิดไว้จะใส่ * แทน", "ฐานสำรอง nOCR อ่านไม่ออกให้ Binary OCR ลอง หรือกลับกัน", "ลองบิดตัวเอียง ตัวที่จับคู่กับฐานไม่ได้ บิดภาพให้ตั้งตรงแล้วเทียบใหม่ ⏎ ถ้าตรงจะนับเป็นตัวเอียง ⏎ ข้อดีอ่านซับตัวเอียงได้โดยไม่ต้องสอนตัวเอียงแยก ⏎ ข้อเสียช้าลงเล็กน้อย", "เดาตัวที่ใกล้ที่สุด ตัวที่ฐานไม่รู้จัก ใช้ตัวที่หน้าตาใกล้ที่สุดในฐานแทน ⏎ ไม่หยุดเปิดหน้าต่างสอน ⏎ ข้อดีอ่านจบรวดเดียว ⏎ ข้อเสียตัวที่เดาอาจผิด ต้องตรวจทานเอง", "ตัดบรรทัดเอง เกินสองบรรทัดจะตัดใหม่ให้เหลือสองบรรทัด ⏎ บรรทัดละไม่เกิน 43 ตัว โดยบรรทัดล่างยาวกว่าเล็กน้อย ⏎ ข้อดีบทพูดสองคนที่ขึ้นด้วยขีด เพลงที่มี ♪ ⏎ และป้ายบนจอที่แยกจากบทพูดข้างล่าง ไม่ถูกตัดใหม่"],
+  "วิธีวาดเส้น": ["วิธีที่โปรแกรมเลือกตำแหน่งเส้นเทียบตอนสอนตัวอักษรหนึ่งตัว ⏎ แบบเดียวกับหน้าต่างสอนของ Subtitle Edit", "สุ่มเส้น สุ่มเส้นตั้ง เส้นนอน และเส้นเอียงหลายความยาว ⏎ แล้วเก็บเส้นที่ทับตัวอักษรหรือพื้นจริง ⏎ ข้อดีค่าตั้งต้นของ Subtitle Edit ใช้ได้กับทุกฟอนต์", "ตามโครงตัวอักษร หาแกนกลางของตัวอักษรแล้ววางเส้นตามแกน ⏎ ข้อดีแยกตัวที่เส้นบางและคล้ายกันได้ดี ⏎ ข้อเสียตัวเล็กมากจะกลับไปใช้สุ่มเส้น", "ตามขอบตัวอักษร หาเส้นตรงที่ยาวที่สุด ⏎ ทั้งบนตัวอักษรและบนพื้นรอบตัว ⏎ ข้อดีเหมาะกับฟอนต์ที่มีเส้นตรงชัด ⏎ ข้อเสียตัวโค้งมากได้เส้นน้อย", "แนะนำสุ่มเส้น"],
+  "เปอร์เซ็นต์ผิดสูงสุด": ["Binary OCR เทียบภาพตัวอักษรกับภาพในฐานทีละจุด ⏎ ค่านี้คือเปอร์เซ็นต์ของจุดที่ต่างได้มากสุดที่ยังนับเป็นตัวเดียวกัน", "แนะนำใช้ค่าตั้งต้นก่อน ถ้าหยุดสอนบ่อยจึงค่อยเพิ่มทีละน้อย ⏎ ตั้งสูงไปตัวที่คล้ายกันจะอ่านสลับกัน"],
+};
+const tipCheck = async (scope, title) => {
+  const sel = `${scope} .infob[data-info="${title}"]`;
+  if (!(await q(`return !!document.querySelector(${JSON.stringify(sel)});`))) { check(`ผู้ช่วยตรวจทาน U16 มีปุ่ม ⓘ ${title}`, false); return; }
+  await q(`document.querySelector(${JSON.stringify(sel)}).scrollIntoView({ block: 'center' }); return 1;`);
+  await sleep(120);
+  await click(sel); await sleep(350);
+  const got = await linesOf(q, `.infotip[data-tip="${title}"]`);
+  await c.key("Escape"); await sleep(200);
+  if (DUMP) { console.log(`TIP ${JSON.stringify(title)}: ${JSON.stringify(got)},`); return; }
+  const want = TIPS[title];
+  if (!want) { check(`ผู้ช่วยตรวจทาน U16 กล่อง ⓘ ${title} มีค่าที่คาดไว้ในตัวตรวจ`, false, JSON.stringify(got)); return; }
+  const bad = (got ?? []).filter((l, i) => l !== want[i]);
+  check(`ผู้ช่วยตรวจทาน U16 กล่อง ⓘ ${title} ตัดบรรทัดตรงที่คาดทุกย่อหน้า`, !!got && got.length === want.length && !bad.length, bad.join(" | ") || `${got?.length} ย่อหน้า`);
+};
 
 // เริ่มจากหน้าโหลดใหม่ ตัวเก็บงานว่าง · เก็บค่าตั้งเดิมไว้คืนตอนจบ
 await q("location.reload(); return 1;").catch(() => {});
@@ -160,7 +185,11 @@ rmSync(EXPDIR, { recursive: true, force: true }); mkdirSync(EXPDIR, { recursive:
 const keep2 = await job("return j.get().rows.map((r) => r.text);");
 await job(`j.get().rows.forEach((r, i) => j.setText(i, 'บรรทัด ' + (i + 1))); const r = j.get().rows[2]; r.line.anLines = [8, 2]; j.setText(2, 'ป้ายบนจอ\\nบทพูด <i>เอียง</i>'); j.setText(4, ''); return 1;`);
 await sleep(300);
-const topNs = await job("return j.get().rows.filter((r) => r.state === 'done' && r.text.trim() && (r.line?.anLines ?? [r.item.an]).some((a) => a >= 7)).map((r) => r.item.n);");
+// ภาพที่มีบรรทัดบนจอ คิดแบบ lines_of ใน ocrexport.rs · จำนวนบรรทัดไม่เท่าตอนอ่านใช้ตำแหน่งบรรทัดสุดท้าย (ผู้ช่วยตรวจทาน T10)
+const topNs = await job("return j.get().rows.filter((r) => { if (r.state !== 'done') return false; const ls = r.text.split('\\n').filter((l) => l.trim()); const an = r.line?.anLines ?? [r.item.an]; const use = an.length === ls.length || an.length <= 1 ? an : [an[an.length - 1]]; return ls.length > 0 && use.some((a) => a >= 7); }).map((r) => r.item.n);");
+// แถวที่ตัวตรวจแทนข้อความเป็นบรรทัดเดียว แต่ตอนอ่านมีป้ายบนจอสองบรรทัด ต้องไม่นับว่าอยู่บนจอ (เดิมไฟล์ได้ {\an8} ผิดที่บทพูด)
+const t10 = await job("return j.get().rows.filter((r) => r.state === 'done' && r.text.trim() && !r.text.includes('\\n') && (r.line?.anLines ?? []).length > 1 && r.line.anLines[0] >= 7).map((r) => r.item.n);");
+check("ผู้ช่วยตรวจทาน T10 แถวที่แก้จนเหลือบรรทัดเดียวไม่ถูกนับเป็นซับบนจอ", t10.length > 0 && t10.every((n) => !topNs.includes(n)), `แถว ${t10.join(",")} บนจอ ${topNs.join(",")}`);
 // ชนิดไฟล์ที่จำไว้ (WebVTT) ขึ้นทันทีตอนเปิดหน้าต่าง · เดิมรายชื่อชนิดของ SeConv โหลดตามมาทีหลัง หน้าต่างขึ้น SubRip .srt ก่อนแล้วสลับเอง ตัวตรวจรอบแรกจึงส่งออกผิดชนิด
 const expSaved = await q("return localStorage.getItem('ms.ocrExport');");
 await q(`localStorage.setItem('ms.ocrExport', JSON.stringify({ fmt: 'WebVTT', top: 'tag', italic: true, enc: 'utf8bom' })); return 1;`);
@@ -370,6 +399,9 @@ for (const [btn, sel, name] of [["[data-ocr-prep-open]", "[data-ocr-prep-dlg]", 
   sizes.push(m);
   check(`${name.slice(3)} เปิดได้ ไม่ต้องเลื่อน`, ok && m.scroll <= 0, JSON.stringify(m));
   if (name.includes("แต่งภาพ")) check("ภาพที่ส่งให้ตัวอ่านมาจาก Rust", m.prev);
+  if (name.includes("ชุดภาษา")) { await tipCheck("[data-ocr-models-dlg]", "PaddleOCR"); await tipCheck("[data-ocr-models-dlg]", "ชุดภาษาของ Tesseract"); }
+  if (name.includes("ตัวเลือก")) { await tipCheck("[data-ocr-options-dlg]", "ตัวเลือกการอ่าน"); await tipCheck("[data-ocr-options-dlg]", "วิธีวาดเส้น"); }
+  check(`${name.slice(3)} กด Esc ปิดกล่อง ⓘ แล้วหน้าต่างยังอยู่`, await q(`return !!document.querySelector('${sel}');`));
   if (name.includes("ตัวเลือก")) {
     // ตัดบรรทัดเอง (ocrbreak.rs) ค่าตั้งต้นเปิดแบบ DoAutoBreak ของ Subtitle Edit · กดแล้วค่าตั้งเปลี่ยนจริง แล้วคืน
     const sw = "[data-ocr-options-dlg] [role=switch][aria-label='ตัดบรรทัดเอง']";
@@ -383,6 +415,14 @@ for (const [btn, sel, name] of [["[data-ocr-prep-open]", "[data-ocr-prep-dlg]", 
   await c.shot(`${SHOT}/${name}.png`);
   await c.key("Escape");
   check(`${name.slice(3)} กด Esc ปิด`, await waitFor(`return !document.querySelector('${sel}');`, 3000));
+}
+// ---------- ป้ายผิดได้ของ Binary OCR มีปุ่ม ⓘ (ผู้ช่วยตรวจทาน U16) ----------
+{
+  const eng0 = await job("return j.get().cfg.engine;");
+  await job("j.setCfg({ engine: 'binary' }); return 1;");
+  await sleep(300);
+  await tipCheck("[data-ocr-engine]", "เปอร์เซ็นต์ผิดสูงสุด");
+  await job(`j.setCfg({ engine: ${JSON.stringify(eng0)} }); return 1;`);
 }
 // ---------- หน้าต่างฐานตัวอักษร (ระบบแมนนวล ocrmanual.rs · NOcrSettingsWindow NOcrDbEditWindow ของ Subtitle Edit) ----------
 {
@@ -514,6 +554,35 @@ check("หน้าต่างซ้อนทุกหน้าต่างข�
   await waitFor(`return document.querySelectorAll('[data-ocr-table] tbody tr').length === ${n0 - 2};`, 5000);
   const left = await q("return [...document.querySelectorAll('[data-ocr-table] tbody tr')].map((r) => r.dataset.n);");
   check("ลบแล้วตารางเหลือน้อยลงสองบรรทัด ภาพที่ลบไม่อยู่", left.length === n0 - 2 && nums.every((x) => !left.includes(x)), `${n0} → ${left.length} ลบ ${nums}`);
+  // U18 ลูกศรขึ้นลงเลือกบรรทัดในตาราง · U6 คีย์ลัดผ่าน useHotkeys กด Delete แล้วถามยืนยัน มีหน้าต่างซ้อนเปิดอยู่ไม่ทำงาน
+  await clickRow(0); await sleep(150);
+  await q("document.activeElement?.blur(); return 1;");
+  await c.key("ArrowDown"); await c.key("ArrowDown"); await sleep(200);
+  check("ผู้ช่วยตรวจทาน U18 ลูกศรลงสองครั้งเลือกบรรทัดที่สาม", (await q("return [...document.querySelectorAll('[data-ocr-table] tbody tr')].findIndex((r) => r.classList.contains('on'));")) === 2);
+  await c.key("ArrowUp"); await sleep(200);
+  check("ผู้ช่วยตรวจทาน U18 ลูกศรขึ้นกลับบรรทัดที่สอง", (await q("return [...document.querySelectorAll('[data-ocr-table] tbody tr')].findIndex((r) => r.classList.contains('on'));")) === 1);
+  await c.key("Delete");
+  check("ผู้ช่วยตรวจทาน U6 กด Delete ถามยืนยันลบ", await waitFor("return !!document.querySelector('[data-ocr-del-ask]');", 3000));
+  await q("[...document.querySelectorAll('[data-ocr-del-ask] button')].find((b) => b.innerText.trim() === 'ยกเลิก').click(); return 1;"); await sleep(200);
+  await click("[data-ocr-export]"); await waitFor("return !!document.querySelector('[data-ocr-exp]');", 5000);
+  await q("document.activeElement?.blur(); return 1;");
+  await c.key("Delete"); await sleep(300);
+  check("ผู้ช่วยตรวจทาน U6 มีหน้าต่างซ้อนเปิดอยู่ กด Delete ไม่ถามลบบรรทัดข้างหลัง", !(await q("return !!document.querySelector('[data-ocr-del-ask]');")));
+  await c.key("Escape"); await sleep(300);
+  // U2 เปิดเฉพาะจุดที่ต้องตรวจ แล้ว Shift เลือกช่วง ได้เฉพาะแถวที่เห็น
+  const flagged = await q("return document.querySelectorAll('[data-ocr-table] tbody tr.flag').length;");
+  if (flagged >= 2) {
+    await click("[data-ocr-only] [role=switch], [data-ocr-onlyflag] [role=switch]").catch(() => {});
+    await q("const s = [...document.querySelectorAll('[role=switch]')].find((x) => (x.getAttribute('aria-label') ?? '').includes('เฉพาะจุดที่ต้องตรวจ')); if (s && s.getAttribute('aria-checked') !== 'true') s.click(); return 1;"); await sleep(300);
+    const vis = await rowsN();
+    await clickRow(0); await sleep(100); await clickRow(vis - 1, "shift"); await sleep(150);
+    const picked = await q("return document.querySelectorAll('[data-ocr-table] tbody tr.on').length;");
+    const all = await job("return j.get().rows.length;");
+    check("ผู้ช่วยตรวจทาน U2 เปิดเฉพาะจุดที่ต้องตรวจแล้ว Shift เลือกช่วง ได้เฉพาะแถวที่เห็น", vis < all && picked === vis, `เห็น ${vis} เลือก ${picked} ทั้งหมด ${all}`);
+    await click("[data-ocr-del]");
+    check("ผู้ช่วยตรวจทาน U2 แถบยืนยันลบนับเฉพาะแถวที่เห็น", await waitFor(`return (document.querySelector('[data-ocr-del-ask]')?.innerText ?? '').includes('${vis} บรรทัด');`, 3000));
+    await q("[...document.querySelectorAll('[data-ocr-del-ask] button')].find((b) => b.innerText.trim() === 'ยกเลิก').click(); const s = [...document.querySelectorAll('[role=switch]')].find((x) => (x.getAttribute('aria-label') ?? '').includes('เฉพาะจุดที่ต้องตรวจ')); if (s && s.getAttribute('aria-checked') === 'true') s.click(); return 1;"); await sleep(300);
+  } else check("ผู้ช่วยตรวจทาน U2 ต้องมีจุดที่ต้องตรวจอย่างน้อยสองบรรทัด", false, String(flagged));
 }
 
 // ---------- สีของ VobSub (VobSubColorChooserWindow) ซับไทย 480p ----------
@@ -523,6 +592,11 @@ check("หน้าต่างซ้อนทุกหน้าต่างข�
   await q(`window.__subClear(); window.__subOpen(${JSON.stringify(VOB)}); return 1;`);
   await waitFor("return !!document.querySelector('[data-ocr-open]') || !!document.querySelector('[data-ocr-page]');", 60000);
   if (!(await q("return !!document.querySelector('[data-ocr-page]');"))) await click("[data-ocr-open]");
+  // ผล OCR ของซับก่อนค้างอยู่ ไม่เปิดทับเงียบ ๆ ถามก่อน งานเดิมยังอยู่จนกดเปิด (ผู้ช่วยตรวจทาน U1 · เดิมผลหายทันที)
+  const other = await waitFor("return !!document.querySelector('[data-ocr-other]');", 8000);
+  const kept = await job("return j.get().rows.filter((r) => r.state === 'done').length;");
+  check("ผู้ช่วยตรวจทาน U1 เปิดซับอื่นตอนผล OCR เดิมค้าง ขึ้นการ์ดถามก่อน ผลเดิมยังอยู่", other && kept > 0 && (await q("return document.querySelector('[data-ocr-other]').innerText;")).includes("th.sup"), String(kept));
+  await click("[data-ocr-other-open]");
   await waitFor("return document.querySelectorAll('[data-ocr-table] tbody tr').length > 0 && window.__ocrJob.get().kind === 'vobsub';", 60000);
   check("ซับ VobSub มีปุ่มสีของ VobSub ในแถบล่าง", await waitFor("return !!document.querySelector('[data-ocr-vob-open]');", 5000));
   await click("[data-ocr-vob-open]");
@@ -535,6 +609,9 @@ check("หน้าต่างซ้อนทุกหน้าต่างข�
   await sleep(600);
   await c.shot(`${SHOT}/12-สีของVobSub.png`);
   await click("[data-vob-apply]");
+  // ระหว่างวาดใหม่ ปุ่มที่กดไม่ได้บอกเหตุผลติดปุ่ม ไม่ใช้ disabled เปล่า (ผู้ช่วยตรวจทาน U15) · วาดเสร็จก่อนอ่านได้ บอกในหมายเหตุ
+  const busyV = await q("const d = document.querySelector('[data-ocr-vob-dlg]'); if (!d) return { gone: true }; const dlg = d.closest('.dlg') ?? document; const sw = dlg.querySelector('[data-vob-swap]'); return { gone: false, swap: sw?.getAttribute('aria-disabled'), why: sw?.title ?? '', bare: dlg.querySelectorAll('button[disabled]').length };");
+  check("ผู้ช่วยตรวจทาน U15 ระหว่างวาดใหม่ ปุ่มที่กดไม่ได้บอกเหตุผล ไม่มีปุ่ม disabled เปล่า", busyV.gone || (busyV.swap === "true" && busyV.why.includes("กำลังวาด") && busyV.bare === 0), JSON.stringify(busyV));
   await waitFor("return !document.querySelector('[data-ocr-vob-dlg]');", 30000);
   await sleep(1500);
   const red = await q(`const img = document.querySelector('[data-ocr-table] tbody tr .ocr-line img'); if (!img) return null; await img.decode().catch(() => {});
@@ -561,6 +638,7 @@ if (ACCA) {
   await q(`window.__subClear(); window.__subOpen(${JSON.stringify(ACCA)}); return 1;`);
   // หน้ายังอยู่ในงาน OCR ต่อจากไฟล์ก่อน หน้า OCR ขึ้นเลย ไม่ต้องกดปุ่มเปิด
   await waitFor("return !!document.querySelector('[data-ocr-open]') || !!document.querySelector('[data-ocr-page]');", 60000);
+  if (await waitFor("return !!document.querySelector('[data-ocr-other-open]');", 5000)) await click("[data-ocr-other-open]");
   check("เปิดไฟล์อื่นตอนอยู่ในงาน OCR หน้า OCR ขึ้นต่อเลย", await q("return !!document.querySelector('[data-ocr-page]') && !document.querySelector('[data-subviewer-inline]');"));
   await waitFor("return document.querySelectorAll('[data-ocr-table] tbody tr').length === 439;", 120000);
   // อ่าน 12 ภาพแรกโดยไม่ถาม หาภาพแรกที่มีคำที่ไม่รู้จัก แล้วอ่านภาพนั้นใหม่แบบถามทีละคำ

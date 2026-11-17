@@ -5,6 +5,7 @@
    confirm = ป๊อปยืนยัน อยู่ชั้นบนสุดของหน้าต่างทั้งหมด */
 import { useEffect, useRef } from "react";
 import { useEscClose } from "../lib/popup";
+import { usePageActive } from "../lib/pageActive";
 
 let openCount = 0;
 
@@ -23,10 +24,14 @@ export default function Dialog(p: {
   height?: string;
 }) {
   const box = useRef<HTMLDivElement>(null);
-  useEscClose(p.open, p.onClose);
+  // หน้าต่างของหน้าที่ซ่อนอยู่ (ไปเมนูอื่นแล้ว) ยังไม่แสดง ไม่ลงชั้น Esc ไม่ปิดคีย์ลัดของหน้าที่ดูอยู่ · กลับมาที่หน้านั้นแล้วค่อยขึ้น
+  // (ผู้ช่วยตรวจทาน U5 · เดิมหน้าต่างสอนตัวอักษรของงาน OCR เปิดในหน้าที่ซ่อน มองไม่เห็นแต่คีย์ลัดทั้งโปรแกรมใช้ไม่ได้ และกด Esc แล้วงานหยุด)
+  const active = usePageActive();
+  const shown = p.open && active;
+  useEscClose(shown, p.onClose);
 
   useEffect(() => {
-    if (!p.open) return;
+    if (!shown) return;
     openCount++;
     document.body.dataset.dialogOpen = "1";
     const prev = document.activeElement as HTMLElement | null;
@@ -38,9 +43,9 @@ export default function Dialog(p: {
       if (openCount <= 0) { openCount = 0; delete document.body.dataset.dialogOpen; }
       prev?.focus?.();
     };
-  }, [p.open]);
+  }, [shown]);
 
-  if (!p.open) return null;
+  if (!shown) return null;
   return (
     <div
       className={"dlg-back" + (p.confirm ? " confirm" : "")}

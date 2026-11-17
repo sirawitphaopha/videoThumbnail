@@ -11,7 +11,7 @@ import { CardIcon, Keep, Phr, Seg, Switch } from "../../components/ui";
 import { IcClose, IcExtract, IcFolder } from "../../components/icons";
 import { listen } from "@tauri-apps/api/event";
 import { api, ocrApi, pickFolder, pickSave, subDocApi, type OcrExpFormat, type OcrExpReq, type OcrExpRow } from "../../lib/api";
-import type { OcrRow } from "../../lib/ocrJob";
+import { lineAns, type OcrRow } from "../../lib/ocrJob";
 import type { Tip } from "../../lib/codecAdv";
 
 const DLG_W = 880, DLG_H = "min(640px, calc(100vh - 48px))";
@@ -48,7 +48,7 @@ const HTML_TIP: Tip = { w: "บันทึกภาพซับทุกภา�
 const nameOf = (p: string) => p.split(/[\\/]/).pop() ?? p;
 const dirOf = (p: string) => p.replace(/[\\/][^\\/]*$/, "");
 const anOf = (r: OcrRow) => r.line?.anLines ?? [r.item.an];
-const hasTop = (r: OcrRow) => anOf(r).some((a) => a >= 7);
+const hasTop = (r: OcrRow) => lineAns(r).some((a) => a >= 7);
 /** รายการเลขภาพแบบประโยค "3, 9 และ 16" ไม่เกินหกเลข เกินนั้นต่อท้ายจำนวนที่เหลือ */
 function listNums(ns: number[]): string {
   if (ns.length <= 1) return ns.join("");
@@ -62,9 +62,9 @@ function countLines(rows: OcrRow[], top: "tag" | "down"): number {
     const ls = r.text.replace(/\r\n/g, "\n").split("\n").filter((l) => l.trim());
     if (!ls.length) continue;
     if (top !== "tag") { n++; continue; }
-    const an = anOf(r);
+    const an = lineAns(r);
     let prev = -1;
-    ls.forEach((_, i) => { const a = an[i] ?? an[an.length - 1] ?? 2; if (a !== prev) { n++; prev = a; } });
+    ls.forEach((_, i) => { const a = an[i] ?? 2; if (a !== prev) { n++; prev = a; } });
   }
   return n;
 }
@@ -168,7 +168,8 @@ export function ExportDialog({ open, onClose, rows, canvas, base, source }: { op
 
   return (
     <Dialog open={open} onClose={() => { if (!busy && html.s !== "busy") onClose(); }} kind="work" title="ส่งออกเป็นซับตัวหนังสือ" width={DLG_W} height={DLG_H}
-      actions={<><button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}><IcClose size={15} />ปิด</button><span style={{ flex: 1 }} />
+      actions={<><button type="button" className={"btn " + (busy || html.s === "busy" ? "btn-wait" : "btn-ghost")} aria-disabled={busy || html.s === "busy" || undefined}
+        title={busy ? "กำลังส่งออก รอให้เสร็จก่อน" : html.s === "busy" ? "กำลังบันทึกภาพ รอให้เสร็จก่อน" : undefined} onClick={() => { if (!busy && html.s !== "busy") onClose(); }}><IcClose size={15} />ปิด</button><span style={{ flex: 1 }} />
         <button type="button" className={"btn " + (why ? "btn-wait" : "btn-main")} aria-disabled={!!why || undefined} title={why ?? `เขียน ${nameOf(target)} ไม่ทับไฟล์เดิม`}
           onClick={() => { if (!why) void doExport(); }} data-ocr-exp-go><Keep all={["ส่งออก", "กำลังส่งออก…"]} icon={<IcExtract size={15} />}>{busy ? "กำลังส่งออก…" : "ส่งออก"}</Keep></button></>}>
       <div className="ocr-exp" data-ocr-exp>
@@ -180,7 +181,7 @@ export function ExportDialog({ open, onClose, rows, canvas, base, source }: { op
           <span className="small"><Phr>{fmts ? `ชนิดอื่นตามที่ Subtitle Edit เขียนได้ ${fmts.length.toLocaleString("en-US")} ชนิด พิมพ์ค้นในช่องได้` : "กำลังอ่านรายชื่อชนิดไฟล์ของ Subtitle Edit…"}</Phr></span>
           <div className="icv-head">ที่เก็บ</div>
           <div className="ocr-pathrow"><span className="small icv-path ocr-pathbox" data-ocr-exp-target>{target}</span>
-            <button type="button" className="btn btn-ghost" onClick={() => void changeTarget()} disabled={busy} data-ocr-exp-pick><IcFolder size={15} />เปลี่ยนที่เก็บ</button></div>
+            <button type="button" className={"btn " + (busy ? "btn-wait" : "btn-ghost")} aria-disabled={busy || undefined} title={busy ? "กำลังส่งออก รอให้เสร็จก่อน" : "เลือกโฟลเดอร์และชื่อไฟล์ที่จะเขียน"} onClick={() => { if (!busy) void changeTarget(); }} data-ocr-exp-pick><IcFolder size={15} />เปลี่ยนที่เก็บ</button></div>
           {tops.length > 0 && <div className="stat warn ocr-posw" data-ocr-exp-top><CardIcon kind="warn" /><div style={{ flex: 1 }}><b>{`มี ${tops.length.toLocaleString("en-US")} ภาพที่ซับอยู่บนจอ`}</b>
             <Phr>{`ภาพ ${listNums(tops)} มีข้อความอยู่บนจอ เลือกว่าจะเก็บไว้อย่างไร`}</Phr>
             <div className="ocr-posopts">

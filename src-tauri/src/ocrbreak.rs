@@ -410,7 +410,8 @@ pub fn auto_break_line_private(input: &str, max_len: usize, merge_shorter: usize
         if DASH_EARLY && is_dialog(&lines, lang) && lines.len() <= MAX_LINES { return input.to_string(); }
     }
 
-    let mut s = remove_line_breaks(&text);
+    // ภาษาที่ไม่เว้นวรรคระหว่างคำ (จีน ญี่ปุ่น เกาหลี) ต่อบรรทัดชิดกัน ไม่แทรกเว้นวรรคตรงรอยต่อ (ผู้ช่วยตรวจทาน T1)
+    let mut s = if is_cjk(lang) { remove_line_breaks(&text.split('\n').map(str::trim).collect::<Vec<_>>().join("")) } else { remove_line_breaks(&text) };
     if s.contains("  ") { s = collapse_spaces(&s); }
 
     // ข้อความสั้นรวมเป็นบรรทัดเดียว · ถ้ามีขีดขึ้นคนที่สองหลังประโยคจบ ตัดตรงนั้น
@@ -482,6 +483,17 @@ pub fn auto_break_line(text: &str, lang: &str) -> String {
 /// ภาษาสองตัวจากชื่อพจนานุกรม (en_US → en) แบบ GetAutoBreakLanguage · ไม่มีพจนานุกรมคือว่าง
 pub fn lang_of_dict(dict: &str) -> String {
     dict.split(['_', '-']).next().unwrap_or("").to_lowercase()
+}
+
+/// ภาษาจากตัวอักษรในข้อความ · คานะเป็นญี่ปุ่น ฮันกึลเป็นเกาหลี มีแต่คันจิเป็นจีน อักษรไทยเป็นไทย ไม่ใช่ทั้งหมดใช้ภาษาจากพจนานุกรม
+/// PaddleOCR แบบหลายภาษา (อังกฤษ ญี่ปุ่น จีน) ใช้พจนานุกรม en_US ซับญี่ปุ่นเลยได้ภาษา en ตัวตัดบรรทัดรวมบรรทัดแล้วแทรกเว้นวรรค (ผู้ช่วยตรวจทาน T1)
+pub fn lang_of_text(text: &str, fallback: &str) -> String {
+    let has = |a: char, b: char| text.chars().any(|c| (a..=b).contains(&c));
+    if has('\u{3040}', '\u{30FF}') { return "ja".into(); }
+    if has('\u{AC00}', '\u{D7AF}') { return "ko".into(); }
+    if has('\u{4E00}', '\u{9FFF}') { return "zh".into(); }
+    if has('\u{0E00}', '\u{0E7F}') { return "th".into(); }
+    fallback.to_string()
 }
 
 #[cfg(test)]
@@ -598,6 +610,19 @@ mod tests {
         assert_eq!(fix_upper_tags("<I>a</I>"), "<i>a</i>");
         assert_eq!(lang_of_dict("en_US"), "en");
         assert_eq!(lang_of_dict(""), "");
+    }
+
+    /// ซับญี่ปุ่นสามบรรทัด (บรรทัดคำอ่านเกินมา) ตัดบรรทัดเองแล้วไม่มีเว้นวรรคแทรก · ภาษาดูจากตัวอักษร (ผู้ช่วยตรวจทาน T1)
+    #[test]
+    fn japanese_joins_without_spaces() {
+        let t = "ほうこう\n咆哮が聞こえる\n逃げろ";
+        assert_eq!(lang_of_text(t, "en"), "ja");
+        assert_eq!(lang_of_text("สวัสดี", "en"), "th");
+        assert_eq!(lang_of_text("咆哮", "en"), "zh");
+        assert_eq!(lang_of_text("Hello", "en"), "en");
+        let r = auto_break_line(t, &lang_of_text(t, "en"));
+        assert!(!r.contains(' '), "{r:?}");
+        assert_eq!(r.replace('\n', ""), t.replace('\n', ""));
     }
 
     #[test]

@@ -4,7 +4,7 @@
 import { useEffect, useState } from "react";
 import Dialog from "../../components/Dialog";
 import InfoTip from "../../components/InfoTip";
-import { CardIcon, Phr, Switch } from "../../components/ui";
+import { CardIcon, Keep, Phr, Switch } from "../../components/ui";
 import { IbSwap, IbTick, IcClose, IcRefresh } from "../../components/icons";
 import { ocrApi } from "../../lib/api";
 
@@ -56,18 +56,18 @@ export function VobColorDialog({ open, onClose, path, ff, n, onApplied }: { open
   const isDef = same(c, VOB_DEFAULT);
   return (
     <Dialog open={open} onClose={() => { if (!busy) onClose(); }} kind="work" title="สีของ VobSub" width={DLG_W} height={DLG_H}
-      actions={<><button type="button" className="btn btn-ghost" onClick={onClose} disabled={busy}><IcClose size={15} />ยกเลิก</button><span style={{ flex: 1 }} />
-        <button type="button" className={"btn " + (busy ? "btn-wait" : "btn-main")} aria-disabled={busy || undefined} title={busy ? "กำลังวาดภาพใหม่" : isDef ? "กลับไปใช้จานสีของไฟล์" : "วาดภาพทั้งไฟล์ใหม่ด้วยสีนี้"} onClick={() => { if (!busy) void apply(); }} data-vob-apply><IbTick size={15} />{busy ? "กำลังวาดใหม่…" : "ใช้สีนี้"}</button></>}>
+      actions={<><button type="button" className={"btn " + (busy ? "btn-wait" : "btn-ghost")} aria-disabled={busy || undefined} title={busy ? "กำลังวาดภาพใหม่ รอให้เสร็จก่อน" : undefined} onClick={() => { if (!busy) onClose(); }}><IcClose size={15} />ยกเลิก</button><span style={{ flex: 1 }} />
+        <button type="button" className={"btn " + (busy ? "btn-wait" : "btn-main")} aria-disabled={busy || undefined} title={busy ? "กำลังวาดภาพใหม่" : isDef ? "กลับไปใช้จานสีของไฟล์" : "วาดภาพทั้งไฟล์ใหม่ด้วยสีนี้"} onClick={() => { if (!busy) void apply(); }} data-vob-apply><Keep all={["ใช้สีนี้", "กำลังวาดใหม่…"]} icon={<IbTick size={15} />}>{busy ? "กำลังวาดใหม่…" : "ใช้สีนี้"}</Keep></button></>}>
       <div className="ocr-dlg ocr-vob" data-ocr-vob-dlg>
         <div className="small"><Phr>เลือกสีที่ใช้วาดภาพซับแทนจานสีของไฟล์ ใช้เมื่อตัวหนังสือมืดหรือกลืนกับพื้นจนอ่านไม่ออก</Phr> <InfoTip title="สีของ VobSub" tip={TIP} /></div>
         <div className="ocr-vobgrid">
           <div className="ocr-vobrows">{c.map((col, i) => (
             <div key={i} className="icv-row" data-vob-row={i}><span className="icv-lbl" style={{ width: 110 }}>{NAMES[i]}</span>
-              <input type="color" className="ocr-vobpick" value={hex(col)} disabled={busy} onChange={(e) => set(i, fromHex(e.target.value, col[3]))} aria-label={`สี${NAMES[i]}`} data-vob-color={i} />
+              <input type="color" className="ocr-vobpick" value={hex(col)} disabled={busy} title={busy ? "กำลังวาดภาพใหม่ รอให้เสร็จก่อน" : undefined} onChange={(e) => set(i, fromHex(e.target.value, col[3]))} aria-label={`สี${NAMES[i]}`} data-vob-color={i} />
               <label className="ocr-only"><Switch on={col[3] > 0} onChange={(v) => { if (!busy) set(i, [col[0], col[1], col[2], v ? 255 : 0]); }} label={`${NAMES[i]} ทึบ`} /><span>{col[3] > 0 ? "ทึบ" : "ใส"}</span></label>
               <span className="small ocr-vobhex">{hex(col).toUpperCase()}</span></div>))}
             <div className="ocr-dbtools">
-              <button type="button" className="btn btn-ghost btn-sm" disabled={busy} onClick={() => setC((x) => [x[2], x[1], x[0], x[3]])} title="สลับสีพื้นหลังกับ Emphasis 1" data-vob-swap><IbSwap size={14} />สลับพื้นกับตัวหนังสือ</button>
+              <button type="button" className={"btn btn-sm " + (busy ? "btn-wait" : "btn-ghost")} aria-disabled={busy || undefined} onClick={() => { if (!busy) setC((x) => [x[2], x[1], x[0], x[3]]); }} title={busy ? "กำลังวาดภาพใหม่ รอให้เสร็จก่อน" : "สลับสีพื้นหลังกับ Emphasis 1"} data-vob-swap><IbSwap size={14} />สลับพื้นกับตัวหนังสือ</button>
               <button type="button" className={"btn btn-sm " + (isDef ? "btn-wait" : "btn-ghost")} aria-disabled={isDef || undefined} title={isDef ? "เป็นค่าตั้งต้นอยู่แล้ว" : "กลับไปใช้จานสีของไฟล์"} onClick={() => { if (!isDef && !busy) setC(VOB_DEFAULT); }} data-vob-reset><IcRefresh size={14} />คืนค่าตั้งต้น</button></div>
             <div className="small">{isDef ? "ค่าตั้งต้น ใช้จานสีของไฟล์" : "ใช้สีที่ตั้งเองแทนจานสีของไฟล์"}</div>
           </div>

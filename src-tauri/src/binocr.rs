@@ -92,7 +92,9 @@ impl BBmp {
             b.text = Some(String::from_utf8_lossy(t).to_string());
             *pos += tl;
         }
-        let n = (b.w * b.h) as usize;
+        let n = (b.w as usize) * (b.h as usize);
+        // ไฟล์ฐานเสียบอกขนาดเกินไบต์ที่เหลือในไฟล์ ถือว่าเสีย หยุดอ่าน ไม่จองหน่วยความจำมหึมา (ผู้ช่วยตรวจทาน R10)
+        if n > buf.len().saturating_sub(*pos) + 16 { return None; }
         let end = (*pos + n).min(buf.len());
         b.colors = buf[*pos..end].to_vec();
         b.colors.resize(n, 0);
@@ -104,7 +106,11 @@ impl BBmp {
         for v in [self.w, self.h, self.x, self.y, self.colored] { out.extend_from_slice(&(v as u16).to_be_bytes()); }
         out.push((self.expand & 0x7f) as u8 + if self.italic { 0x80 } else { 0 });
         out.extend_from_slice(&self.hash.to_be_bytes());
-        match &self.text { Some(t) => { out.push(t.len() as u8); out.extend_from_slice(t.as_bytes()); } None => out.push(0) }
+        // ความยาวเก็บหนึ่งไบต์ ข้อความยาวเกิน 255 ไบต์ตัดที่ขอบอักษร · เดิมความยาววนรอบ ภาพหลังจากนั้นเพี้ยนทั้งไฟล์ (ผู้ช่วยตรวจทาน R12)
+        match &self.text {
+            Some(t) => { let mut n = t.len().min(255); while !t.is_char_boundary(n) { n -= 1; } out.push(n as u8); out.extend_from_slice(&t.as_bytes()[..n]); }
+            None => out.push(0),
+        }
         out.extend_from_slice(&self.colors);
     }
 
@@ -329,7 +335,7 @@ impl BinDb {
         if let Some(d) = self.file.parent() { std::fs::create_dir_all(d).map_err(|e| format!("สร้างโฟลเดอร์ฐานไม่ได้ {e}"))?; }
         let part = PathBuf::from(format!("{}.partial", self.file.display()));
         std::fs::write(&part, gz).map_err(|e| format!("เขียนไฟล์ฐาน Binary OCR ไม่ได้ {e}"))?;
-        crate::outfile::replace_with(&part, &self.file)
+        crate::outfile::replace_often(&part, &self.file)
     }
 
     pub fn total(&self) -> usize { self.images.len() + self.expanded.len() }

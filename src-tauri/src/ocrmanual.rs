@@ -41,7 +41,8 @@ pub fn db_rename(d: &Dirs, kind: &str, from: &str, to: &str) -> Result<(), Strin
     if !old.is_file() { return Err(format!("ฐาน {from} เป็นฐานที่แนบมากับโปรแกรม เปลี่ยนชื่อไม่ได้")); }
     if exists(d, kind, to) { return Err(format!("มีฐานชื่อ {to} อยู่แล้ว ตั้งชื่ออื่น")); }
     let (_, new) = db_paths(d, kind, to);
-    std::fs::rename(&old, &new).map_err(|e| format!("เปลี่ยนชื่อฐานไม่ได้ {e}"))?;
+    // ย้ายแบบไม่ทับ · std::fs::rename บน Windows ทับไฟล์ปลายทางที่มีอยู่ (ผู้ช่วยตรวจทาน R14)
+    crate::rename::move_no_replace(&old, &new).map_err(|p| format!("เปลี่ยนชื่อฐานไม่ได้ {}", p.title))?;
     forget_db(kind, from);
     Ok(())
 }
@@ -218,6 +219,7 @@ pub fn train(d: &Dirs, r: &TrainReq, tick: &dyn Fn(&TrainTick)) -> Result<TrainD
     if r.sizes.is_empty() { return Err("ใส่ขนาดฟอนต์ 10 ถึง 200 อย่างน้อยหนึ่งขนาด คั่นด้วยจุลภาค".into()); }
     let (_, user) = db_paths(d, &r.kind, name);
     if user.is_file() && !r.overwrite && r.base != name { return Err(format!("มีฐานชื่อ {name} อยู่แล้ว")); }
+    let stamp0 = stamp(&user);
     let mut db = if r.base.is_empty() { crate::nocr::NOcrDb::empty(&user) } else { let mut b = load_nocr(d, &r.kind, &r.base)?; b.file = user.clone(); b };
     std::fs::create_dir_all(&d.work).map_err(|e| e.to_string())?;
     STOP.store(false, std::sync::atomic::Ordering::SeqCst);
@@ -256,6 +258,7 @@ pub fn train(d: &Dirs, r: &TrainReq, tick: &dyn Fn(&TrainTick)) -> Result<TrainD
         }
     }
     ensure_parent(&user)?;
+    unchanged(&user, stamp0)?;
     db.save()?;
     forget_db(&r.kind, name);
     Ok(TrainDone { name: name.into(), learned, skipped, total: db.total(), stopped: stop() })
@@ -280,23 +283,39 @@ pub fn optimize(d: &Dirs, name: &str, max_wrong: i32, tick: &(dyn Fn(usize, usiz
     ensure_parent(&user)?;
     let backup = crate::nocr_train::free_backup_name(&user);
     std::fs::copy(&from, &backup).map_err(|e| format!("สำรองฐานก่อนย่อไม่ได้ {e}"))?;
+    let stamp0 = stamp(&user);
     let mut db = load_nocr(d, "nocr", name)?;
     let o = crate::nocr_train::OptimizeOpts { max_wrong: crate::nocr_train::OptimizeOpts::default().max_wrong.max(max_wrong * 2), ..Default::default() };
     std::fs::create_dir_all(&d.work).map_err(|e| e.to_string())?;
     let (glyphs, fonts) = crate::nocr_train::validation_glyphs(&d.tools, &d.work, &db, &o)?;
     STOP.store(false, std::sync::atomic::Ordering::SeqCst);
     let res = crate::nocr_train::optimize(&mut db, &glyphs, fonts, &o, &|| STOP.load(std::sync::atomic::Ordering::SeqCst), tick).ok_or("หยุดย่อฐานแล้ว ฐานไม่เปลี่ยน")?;
+    unchanged(&user, stamp0)?;
     db.save()?;
     forget_db("nocr", name);
     Ok((res, backup.file_name().map(|f| f.to_string_lossy().to_string()).unwrap_or_default()))
 }
 
+/// ขนาดกับเวลาแก้ของไฟล์ฐาน · ไม่มีไฟล์คือ None
+fn stamp(p: &std::path::Path) -> Option<(u64, std::time::SystemTime)> {
+    std::fs::metadata(p).ok().and_then(|m| Some((m.len(), m.modified().ok()?)))
+}
+
+/// ฝึกหรือย่อฐานใช้เวลาหลายนาที ถือสำเนาที่โหลดตอนเริ่ม · ระหว่างนั้นฐานถูกบันทึกจากที่อื่น (สอนตัวอักษรจากหน้า OCR) ไม่บันทึกทับ บอกให้ทำใหม่
+/// เดิมบันทึกทับ ตัวที่สอนระหว่างนั้นหาย (ผู้ช่วยตรวจทาน R9)
+fn unchanged(p: &std::path::Path, at_start: Option<(u64, std::time::SystemTime)>) -> Result<(), String> {
+    if stamp(p) != at_start { return Err("ฐานนี้ถูกบันทึกจากที่อื่นระหว่างทำงาน (เช่นสอนตัวอักษรจากหน้า OCR) ไม่บันทึกทับ ทำใหม่อีกครั้ง".into()); }
+    Ok(())
+}
+
 // ---------------------------------------------------------------- คำสั่งของหน้าจอ
 
-#[tauri::command]
+// รันนอกเธรดหลักของหน้าต่าง · คำสั่งนี้รอล็อกของงานอ่านได้ระหว่างอ่านภาพ บนเธรดหลักหน้าต่างค้าง (ผู้ช่วยตรวจทาน R5)
+#[tauri::command(async)]
 pub fn ocr_db_new(app: tauri::AppHandle, kind: String, name: String) -> Result<(), String> { db_new(&Dirs::of(&app)?, &kind, &name) }
 
-#[tauri::command]
+// รันนอกเธรดหลักของหน้าต่าง · คำสั่งนี้รอล็อกของงานอ่านได้ระหว่างอ่านภาพ บนเธรดหลักหน้าต่างค้าง (ผู้ช่วยตรวจทาน R5)
+#[tauri::command(async)]
 pub fn ocr_db_rename(app: tauri::AppHandle, kind: String, from: String, to: String) -> Result<(), String> { db_rename(&Dirs::of(&app)?, &kind, &from, &to) }
 
 #[tauri::command]
@@ -305,12 +324,14 @@ pub async fn ocr_db_chars(app: tauri::AppHandle, kind: String, name: String) -> 
     tauri::async_runtime::spawn_blocking(move || db_chars(&d, &kind, &name)).await.map_err(|e| e.to_string())?
 }
 
-#[tauri::command]
+// รันนอกเธรดหลักของหน้าต่าง · คำสั่งนี้รอล็อกของงานอ่านได้ระหว่างอ่านภาพ บนเธรดหลักหน้าต่างค้าง (ผู้ช่วยตรวจทาน R5)
+#[tauri::command(async)]
 pub fn ocr_db_char_update(app: tauri::AppHandle, kind: String, name: String, key: usize, was: String, text: String, italic: bool) -> Result<(), String> {
     db_char_update(&Dirs::of(&app)?, &kind, &name, key, &was, &text, italic)
 }
 
-#[tauri::command]
+// รันนอกเธรดหลักของหน้าต่าง · คำสั่งนี้รอล็อกของงานอ่านได้ระหว่างอ่านภาพ บนเธรดหลักหน้าต่างค้าง (ผู้ช่วยตรวจทาน R5)
+#[tauri::command(async)]
 pub fn ocr_db_char_delete(app: tauri::AppHandle, kind: String, name: String, key: usize, was: String) -> Result<(), String> {
     db_char_delete(&Dirs::of(&app)?, &kind, &name, key, &was)
 }

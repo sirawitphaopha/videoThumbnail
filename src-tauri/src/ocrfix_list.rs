@@ -76,6 +76,27 @@ fn section_items(doc: &str, section: &str) -> Vec<String> {
 fn has_section(doc: &str, section: &str) -> bool { doc.contains(&format!("<{section}>")) || doc.contains(&format!("<{section} ")) }
 
 /// รายการคู่ from to ไม่ซ้ำคีย์ ตามลำดับในไฟล์ · from กับ to ต้องต่างกัน · ตาม LoadReplaceList
+/// เอาแท็กที่ from ตรงกับคำนี้ออกจากหมวดในไฟล์ของผู้ใช้ (ก่อนใส่คู่ใหม่ของคำเดียวกัน)
+fn remove_items(doc: &mut String, section: &str, from: &str) {
+    let (open, close) = (format!("<{section}>"), format!("</{section}>"));
+    let mut from_at = 0;
+    while let Some(a) = doc[from_at..].find(&open).map(|x| x + from_at + open.len()) {
+        let Some(end) = doc[a..].find(&close).map(|x| x + a) else { break };
+        let mut i = a;
+        let mut stop = end;
+        while let Some(lt) = doc[i..stop].find('<').map(|x| x + i) {
+            let Some(gt) = doc[lt..stop].find('>').map(|x| x + lt) else { break };
+            let tag = doc[lt + 1..gt].trim_end_matches('/').to_string();
+            if !tag.starts_with('/') && attr(&tag, "from").as_deref() == Some(from) {
+                doc.replace_range(lt..=gt, "");
+                stop -= gt + 1 - lt;
+                i = lt;
+            } else { i = gt + 1; }
+        }
+        from_at = stop + close.len();
+    }
+}
+
 fn load_pairs(doc: &str, section: &str, unique_key: bool) -> Vec<(String, String)> {
     let mut v: Vec<(String, String)> = vec![];
     if !has_section(doc, section) { return v; }
@@ -365,20 +386,27 @@ impl ReplaceList {
     }
 
     /// คู่แก้ที่ผู้ใช้เพิ่ม · มีเว้นวรรคเป็นส่วนของบรรทัด ไม่มีเป็นทั้งคำ · บันทึกลงไฟล์ของผู้ใช้ · ตาม AddWordOrPartial
-    pub fn add_word_or_partial(&mut self, from: &str, to: &str) -> bool {
+    /// คืน false เมื่อมีคู่เดียวกันอยู่แล้ว · คำเดิมที่เคยแก้เป็นคำอื่น แทนด้วยคำใหม่ทั้งในงานและในไฟล์ · เขียนไฟล์ไม่ได้คืนผิดพลาด
+    /// (ผู้ช่วยตรวจทาน R13 · เดิมคู่แรกชนะตลอด และเขียนไม่ได้ก็ตอบว่าสำเร็จ)
+    pub fn add_word_or_partial(&mut self, from: &str, to: &str) -> Result<bool, String> {
         let (section, element) = if from.contains(' ') { ("PartialLines", "LinePart") } else { ("WholeWords", "Word") };
         let mut doc = std::fs::read_to_string(&self.user_file).unwrap_or_else(|_| "<ReplaceList></ReplaceList>".into());
-        if load_pairs(&doc, section, true).iter().any(|p| p.0 == from) { return false; }
+        match load_pairs(&doc, section, true).into_iter().find(|p| p.0 == from) {
+            Some(p) if p.1 == to => return Ok(false),
+            Some(_) => remove_items(&mut doc, section, from),
+            None => {}
+        }
+        let list = if from.contains(' ') { &mut self.partial_lines } else { &mut self.words };
+        match list.iter_mut().find(|p| p.0 == from) { Some(p) => p.1 = to.into(), None => list.push((from.into(), to.into())) }
         let item = format!("<{element} from=\"{}\" to=\"{}\" />", crate::ocrfix_words::xml_escape(from).replace('"', "&quot;"), crate::ocrfix_words::xml_escape(to).replace('"', "&quot;"));
         let close = format!("</{section}>");
         if let Some(p) = doc.find(&close) { doc.insert_str(p, &item); }
         else if let Some(p) = doc.rfind("</") { doc.insert_str(p, &format!("<{section}>{item}</{section}>")); }
-        if let Some(d) = self.user_file.parent() { let _ = std::fs::create_dir_all(d); }
+        if let Some(d) = self.user_file.parent() { std::fs::create_dir_all(d).map_err(|e| format!("สร้างโฟลเดอร์ {} ไม่ได้ {e}", d.display()))?; }
         let part = PathBuf::from(format!("{}.partial", self.user_file.display()));
-        if std::fs::write(&part, &doc).is_err() || crate::outfile::replace_with(&part, &self.user_file).is_err() { return false; }
-        let list = if from.contains(' ') { &mut self.partial_lines } else { &mut self.words };
-        if !list.iter().any(|p| p.0 == from) { list.push((from.into(), to.into())); }
-        true
+        std::fs::write(&part, &doc).map_err(|e| format!("เขียนไฟล์ {} ไม่ได้ {e}", self.user_file.display()))?;
+        crate::outfile::replace_often(&part, &self.user_file)?;
+        Ok(true)
     }
 }
 
@@ -515,5 +543,26 @@ mod tests {
         assert_eq!(l.regex.len() + l.spell_regex.len(), in_file, "นิพจน์บางตัวคอมไพล์ไม่ผ่าน");
         let (from, to) = l.words[0].clone();
         assert_eq!(l.fix_common_word_errors(&from), to);
+    }
+
+    /// เปลี่ยนทั้งหมดซ้ำด้วยคำใหม่ คู่ใหม่แทนคู่เดิมทั้งในงานและในไฟล์ · เขียนไฟล์ไม่ได้คืนผิดพลาด (ผู้ช่วยตรวจทาน R13)
+    #[test]
+    fn user_pair_replaced_and_write_error_reported() {
+        let ud = std::env::temp_dir().join(format!("movie-shelf-r13-{}", std::process::id()));
+        let _ = std::fs::remove_dir_all(&ud);
+        let mut l = ReplaceList::from_lang(&ud, &ud, "tst");
+        assert_eq!(l.add_word_or_partial("Tbe", "The"), Ok(true));
+        assert_eq!(l.add_word_or_partial("Tbe", "The"), Ok(false));
+        assert_eq!(l.add_word_or_partial("Tbe", "Tbe."), Ok(true));
+        let doc = std::fs::read_to_string(ud.join("tst_OCRFixReplaceList_User.xml")).unwrap();
+        assert_eq!(doc.matches("from=\"Tbe\"").count(), 1, "{doc}");
+        assert!(doc.contains("to=\"Tbe.\""), "{doc}");
+        assert_eq!(l.words.iter().filter(|p| p.0 == "Tbe").map(|p| p.1.as_str()).collect::<Vec<_>>(), ["Tbe."]);
+        // ที่เก็บของผู้ใช้เป็นไฟล์ ไม่ใช่โฟลเดอร์ เขียนไม่ได้
+        let blocked = ud.join("เป็นไฟล์");
+        std::fs::write(&blocked, b"x").unwrap();
+        let mut l2 = ReplaceList::from_lang(&ud, &blocked.join("ใน"), "tst");
+        assert!(l2.add_word_or_partial("rn", "m").is_err());
+        let _ = std::fs::remove_dir_all(&ud);
     }
 }

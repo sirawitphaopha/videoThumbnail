@@ -9,7 +9,7 @@ import { CardIcon, Keep, Phr, Switch } from "../../components/ui";
 import { IbBack, IbNext, IbJump, IbStop, IbSwap, IbTick, IcClock, IcClose, IcRefresh } from "../../components/icons";
 import type { Tip } from "../../lib/codecAdv";
 import { inApp, ocrApi, type OcrDbList, type OcrPrep, type OcrTaught, type OcrTessLang, type SubImg } from "../../lib/api";
-import { answerTeach, answerWord, forgetWord, getOcrJob, setOcrCfg, setPromptUnknown, setRowText, useOcrJob, __ocrJobLib, type OcrRow } from "../../lib/ocrJob";
+import { answerTeach, answerWord, forgetWord, getOcrJob, saveWord, setOcrCfg, setPromptUnknown, setRowText, useOcrJob, __ocrJobLib, type OcrRow } from "../../lib/ocrJob";
 import Dropdown from "../../components/Dropdown";
 import { LineImg, ScreenImg } from "./OcrPage";
 import { DbDialog, HistoryDialog } from "./OcrDbDialog";
@@ -130,8 +130,8 @@ function UnknownDialog({ manual, onClose, rows, imgs, need }: { manual: { word: 
       return;
     }
     if (kind === "useOnce") setRowText(cur.i, rep(r.text, cur.word, to));
-    if (kind === "changeAll") { await ocrApi.word("changeAll", cur.word, to).catch(() => {}); forgetWord(cur.word); getOcrJob().rows.forEach((x, k) => { if (x.text.includes(cur.word)) setRowText(k, rep(x.text, cur.word, to)); }); }
-    if (kind === "skipAll" || kind === "addWord" || kind === "addName") { await ocrApi.word(kind, cur.word).catch(() => {}); forgetWord(cur.word); }
+    if (kind === "changeAll") { await saveWord("changeAll", cur.word, to); forgetWord(cur.word); getOcrJob().rows.forEach((x, k) => { if (x.text.includes(cur.word)) setRowText(k, rep(x.text, cur.word, to)); }); }
+    if (kind === "skipAll" || kind === "addWord" || kind === "addName") { await saveWord(kind, cur.word); forgetWord(cur.word); }
     if (kind === "editLine") setRowText(cur.i, line);
     onClose();
   };
@@ -252,13 +252,13 @@ function ModelsDialog({ open, onClose }: { open: boolean; onClose: () => void })
         <div className="small"><Phr>ทุกตัวทำงานในเครื่อง โมเดลกับชุดภาษาหลักแนบมากับโปรแกรมแล้ว ปุ่มโหลดออกเน็ตเฉพาะตอนกด</Phr></div>
         {err && <div className="stat bad"><CardIcon kind="bad" /><div><b>โหลดชุดภาษาไม่สำเร็จ</b><Phr>{err}</Phr></div></div>}
         <div className="ocr-mgrid">
-          <div className="ocr-mcard"><div className="ocr-mhead"><b>PaddleOCR</b><span className="small">ตัวรัน ONNX Runtime แนบมากับโปรแกรม</span></div>
+          <div className="ocr-mcard"><div className="ocr-mhead"><b>PaddleOCR<InfoTip title="PaddleOCR" tip={PADDLE_TIP} /></b><span className="small">ตัวรัน ONNX Runtime แนบมากับโปรแกรม</span></div>
             {row("v6", "PP-OCRv6 อังกฤษ ญี่ปุ่น จีน", v6.join(" "))}
             {row("v5", "PP-OCRv5 ภาษาอื่น", `${v5.length} ภาษา`)}
             <div className="small ocr-mlist">{v5.join(" ")}</div>
             {row("det", "ตัวหาบรรทัดของซับแนวตั้ง", "", det ? ok : <span />)}
             {row("ori", "ตัวหมุนบรรทัดที่กลับหัว", "", ori ? ok : <span />)}</div>
-          <div className="ocr-mcard"><div className="ocr-mhead"><b>Tesseract 5.5.3</b><span className="small">ชุดภาษาที่มีในเครื่อง</span></div>
+          <div className="ocr-mcard"><div className="ocr-mhead"><b>Tesseract 5.5.3<InfoTip title="ชุดภาษาของ Tesseract" tip={TESS_TIP} /></b><span className="small">ชุดภาษาที่มีในเครื่อง</span></div>
             {have.map((l) => row(l.code, `${tessName(l)} ${l.code}`, l.have === "bundled" ? "แนบมา" : "โหลดแล้ว"))}
             <div className="ocr-mrow ocr-mdl"><Dropdown label="ชุดภาษาที่โหลดเพิ่มได้" value={pick} onChange={setPick} search stretch hint="พิมพ์ชื่อภาษา"
               display={(o) => o?.label ?? `เลือกจาก ${more.length} ภาษา`} options={more.map((l) => ({ value: l.code, label: `${tessName(l)} ${l.code}` }))} />
@@ -278,15 +278,32 @@ function ModelsDialog({ open, onClose }: { open: boolean; onClose: () => void })
   );
 }
 
+const PADDLE_TIP: Tip = { w: "PaddleOCR เป็นโมเดล AI อ่านตัวหนังสือจากภาพ\nและทำงานในเครื่องทั้งหมด", o: [
+  ["ONNX Runtime", "ตัวรันโมเดล AI บนซีพียูของ Microsoft\nชั้นหนังใช้ตัวนี้รันโมเดลของ PaddleOCR", "", ""],
+  ["PP-OCRv6", "รุ่นล่าสุด อ่านอังกฤษ ญี่ปุ่น และจีนได้ในโมเดลเดียว\nมีสามขนาด tiny small และ medium", "", ""],
+  ["PP-OCRv5", "โมเดลแยกตามภาษา ใช้กับภาษาที่ PP-OCRv6 ไม่มี\nเช่นไทย เกาหลี และรัสเซีย", "", ""],
+] };
+const TESS_TIP: Tip = { w: "ชุดภาษาคือไฟล์ที่สอน Tesseract ให้รู้จักตัวอักษรของภาษานั้น\nโดยภาษาละหนึ่งไฟล์", o: [
+  ["แนบมา", "อังกฤษ ไทย ญี่ปุ่นแนวนอนกับแนวตั้ง\nและไฟล์หาทิศทางภาพ มากับตัวติดตั้งแล้ว", "", ""],
+  ["tessdata_best", "ชุดภาษาแบบแม่นที่สุดของโครงการ Tesseract ภาษาอื่นโหลดเพิ่มจากชุดนี้ ไฟล์ใหญ่กว่าแบบเร็วแต่อ่านแม่นกว่า", "", ""],
+] };
+
 /* ---------- ตัวเลือกการอ่าน (ช่องติ๊กของหน้าต่าง OCR ใน Subtitle Edit กับหน้าต่างตั้งค่า nOCR) ---------- */
 const OPT_TIP: Tip = { w: "ตัวเลือกที่ใช้ตอนอ่าน ค่าที่ตั้งจำไว้ในเครื่อง ใช้กับการอ่านครั้งต่อไป", o: [
-  ["แก้คำ OCR", "แก้คำที่ตัวอ่านมักอ่านผิด เช่นขีดตั้งที่ควรเป็นตัว I ด้วยรายการแก้คำของ Subtitle Edit และพจนานุกรม", "", ""],
+  ["แก้คำ OCR", "แก้คำที่ตัวอ่านมักอ่านผิด เช่นขีดตั้งที่ควรเป็นตัว I\nด้วยรายการแก้คำของ Subtitle Edit และพจนานุกรม", "", ""],
   ["เดาคำที่ไม่รู้จัก", "คำที่พจนานุกรมไม่รู้จัก ลองเปลี่ยนตัวที่มักอ่านผิดจนได้คำที่รู้จัก", "", ""],
-  ["ถามคำที่ไม่รู้จักทีละคำ", "หยุดถามทุกคำที่พจนานุกรมไม่รู้จักระหว่างอ่าน ปิดไว้แล้วตรวจจากรายการหลังอ่านได้", "", ""],
-  ["หยุดสอนตัวที่ไม่รู้จัก", "ตัวสอนเองเจอตัวที่ฐานไม่รู้จักแล้วเปิดหน้าต่างสอน ปิดไว้ใส่ * แทน", "", ""],
+  ["ถามคำที่ไม่รู้จักทีละคำ", "หยุดถามคำที่ไม่รู้จักระหว่างอ่าน\nปิดไว้แล้วตรวจจากรายการหลังอ่านได้", "", ""],
+  ["หยุดสอนตัวที่ไม่รู้จัก", "เจอตัวที่ฐานไม่รู้จักแล้วเปิดหน้าต่างสอน\nปิดไว้จะใส่ * แทน", "", ""],
   ["ฐานสำรอง", "nOCR อ่านไม่ออกให้ Binary OCR ลอง หรือกลับกัน", "", ""],
-  ["ตัดบรรทัดเอง", "ข้อความที่อ่านได้เกินสองบรรทัด รวมเป็นบรรทัดเดียวแล้วตัดใหม่ให้เหลือสองบรรทัด บรรทัดละไม่เกิน 43 ตัว โดยให้บรรทัดล่างยาวกว่านิดหน่อยแบบ Subtitle Edit", "บทพูดสองคนที่ขึ้นด้วยขีด เพลงที่มี ♪ และภาพที่มีป้ายบนจอแยกจากบทพูดข้างล่าง ไม่ถูกตัดใหม่", ""],
+  ["ลองบิดตัวเอียง", "ตัวที่จับคู่กับฐานไม่ได้ บิดภาพให้ตั้งตรงแล้วเทียบใหม่\nถ้าตรงจะนับเป็นตัวเอียง", "อ่านซับตัวเอียงได้โดยไม่ต้องสอนตัวเอียงแยก", "ช้าลงเล็กน้อย"],
+  ["เดาตัวที่ใกล้ที่สุด", "ตัวที่ฐานไม่รู้จัก ใช้ตัวที่หน้าตาใกล้ที่สุดในฐานแทน ไม่หยุดเปิดหน้าต่างสอน", "อ่านจบรวดเดียว", "ตัวที่เดาอาจผิด ต้องตรวจทานเอง"],
+  ["ตัดบรรทัดเอง", "เกินสองบรรทัดจะตัดใหม่ให้เหลือสองบรรทัด\nบรรทัดละไม่เกิน 43 ตัว โดยบรรทัดล่างยาวกว่าเล็กน้อย", "บทพูดสองคนที่ขึ้นด้วยขีด เพลงที่มี ♪\nและป้ายบนจอที่แยกจากบทพูดข้างล่าง ไม่ถูกตัดใหม่", ""],
 ] };
+const ALGO_TIP: Tip = { w: "วิธีที่โปรแกรมเลือกตำแหน่งเส้นเทียบตอนสอนตัวอักษรหนึ่งตัว\nแบบเดียวกับหน้าต่างสอนของ Subtitle Edit", o: [
+  ["สุ่มเส้น", "สุ่มเส้นตั้ง เส้นนอน และเส้นเอียงหลายความยาว\nแล้วเก็บเส้นที่ทับตัวอักษรหรือพื้นจริง", "ค่าตั้งต้นของ Subtitle Edit ใช้ได้กับทุกฟอนต์", ""],
+  ["ตามโครงตัวอักษร", "หาแกนกลางของตัวอักษรแล้ววางเส้นตามแกน", "แยกตัวที่เส้นบางและคล้ายกันได้ดี", "ตัวเล็กมากจะกลับไปใช้สุ่มเส้น"],
+  ["ตามขอบตัวอักษร", "หาเส้นตรงที่ยาวที่สุด\nทั้งบนตัวอักษรและบนพื้นรอบตัว", "เหมาะกับฟอนต์ที่มีเส้นตรงชัด", "ตัวโค้งมากได้เส้นน้อย"],
+], r: "สุ่มเส้น" };
 function OptionsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { cfg, promptUnknown, running } = useOcrJob();
   const why = running ? "หยุดอ่านก่อนจึงจะเปลี่ยนได้" : undefined;
@@ -308,8 +325,8 @@ function OptionsDialog({ open, onClose }: { open: boolean; onClose: () => void }
         {sw(cfg.italic, (v) => setOcrCfg({ italic: v }), "ลองบิดตัวเอียง", "จับคู่ไม่ได้แล้วลองบิดให้ตั้งตรง", "it")}
         {sw(cfg.lastDitch, (v) => setOcrCfg({ lastDitch: v }), "เดาตัวที่ใกล้ที่สุด", "ไม่หยุดสอน ใช้ตัวที่ใกล้ที่สุดในฐานแทน", "ld")}
         <div className="icv-row"><span className="icv-lbl">เส้นตอนสอน<InfoTip title="เส้นที่ใช้เทียบ" tip={{ w: "จำนวนเส้นที่โปรแกรมวาดเองตอนสอนตัวอักษรหนึ่งตัว ยิ่งมากยิ่งแยกตัวคล้ายได้ดี แต่ฐานใหญ่ขึ้น", r: "60 ตามค่าตั้งต้นของ Subtitle Edit" }} /></span>
-          <input className="inp" style={{ width: 70 }} inputMode="numeric" value={cfg.lines} disabled={running} onChange={(e) => setOcrCfg({ lines: Math.max(5, Math.min(300, parseInt(e.target.value, 10) || 0)) })} data-opt-lines />
-          <span className="icv-lbl" style={{ width: "auto" }}>วิธีวาด</span>
+          <input className="inp" style={{ width: 70 }} inputMode="numeric" value={cfg.lines} disabled={running} title={why} onChange={(e) => setOcrCfg({ lines: Math.max(5, Math.min(300, parseInt(e.target.value, 10) || 0)) })} data-opt-lines />
+          <span className="icv-lbl" style={{ width: "auto" }}>วิธีวาด<InfoTip title="วิธีวาดเส้น" tip={ALGO_TIP} /></span>
           <Dropdown label="วิธีวาดเส้น" value={cfg.algo} onChange={(v) => setOcrCfg({ algo: v })} disabled={why} options={[{ value: "Random", label: "สุ่มเส้น" }, { value: "SkeletonDistance", label: "ตามโครงตัวอักษร" }, { value: "EdgeHough", label: "ตามขอบตัวอักษร" }]} /></div>
       </div>
     </Dialog>

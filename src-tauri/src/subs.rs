@@ -444,6 +444,8 @@ pub fn parse_sup(data: &[u8]) -> Vec<SupShow> {
                 let seq = p.get(3).copied().unwrap_or(0);
                 if seq & 0x80 != 0 {
                     let (w, h) = (be16(p, 7), be16(p, 9));
+                    // ไฟล์เสียบอกขนาดเป็นขยะได้ถึง 65535 × 65535 จองหน่วยความจำไม่ได้แล้วโปรแกรมปิดตัว · ข้ามวัตถุที่ใหญ่เกินจอ 4K (ผู้ช่วยตรวจทาน R10)
+                    if w == 0 || h == 0 || w > 4096 || h > 2304 { continue; }
                     objs.insert(id, (w, h, p.get(11..).unwrap_or(&[]).to_vec()));
                 } else if let Some(o) = objs.get_mut(&id) {
                     o.2.extend_from_slice(p.get(4..).unwrap_or(&[]));
@@ -461,6 +463,7 @@ pub fn parse_sup(data: &[u8]) -> Vec<SupShow> {
                 let y0 = parts.iter().map(|p| p.1).min().unwrap();
                 let x1 = parts.iter().map(|p| p.0 + p.2.width()).max().unwrap();
                 let y1 = parts.iter().map(|p| p.1 + p.2.height()).max().unwrap();
+                if x1 - x0 > 4096 || y1 - y0 > 2304 { continue; }
                 let mut img = image::RgbaImage::new(x1 - x0, y1 - y0);
                 for (x, y, part) in &parts { image::imageops::overlay(&mut img, part, (*x - x0) as i64, (*y - y0) as i64); }
                 if img.pixels().all(|p| p[3] <= 8) { continue; }
@@ -506,7 +509,10 @@ pub(crate) fn save_pngs(items: Vec<(PathBuf, image::RgbaImage)>, on: &dyn Fn(f64
             let tx = tx.clone();
             sc.spawn(move || {
                 for (f, img) in lane {
-                    let r = img.save(&f).map_err(|e| format!("เก็บภาพซับไม่ได้ {e}"));
+                    // เขียนไฟล์ชั่วคราวแล้วแทนทีเดียว · วาดสีใหม่ทับภาพเดิมระหว่างที่ตัวอ่านเปิดไฟล์เดียวกันอยู่ ตัวอ่านไม่ได้ไฟล์ครึ่งไฟล์ (ผู้ช่วยตรวจทาน R1)
+                    let tmp = f.with_extension("png.part");
+                    let r = img.save_with_format(&tmp, image::ImageFormat::Png).and_then(|_| std::fs::rename(&tmp, &f).map_err(image::ImageError::IoError))
+                        .map_err(|e| { let _ = std::fs::remove_file(&tmp); format!("เก็บภาพซับไม่ได้ {e}") });
                     let bad = r.is_err();
                     if tx.send(r).is_err() || bad { return; }
                 }

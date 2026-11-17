@@ -58,6 +58,8 @@ export type OcrJob = {
   /** ถามคำที่ไม่รู้จักทีละคำระหว่างอ่าน (PromptForUnknownWords ของ Subtitle Edit ค่าตั้งต้นปิด) */
   promptUnknown: boolean;
   error: string | null;
+  /** ปุ่มของหน้าต่างคำที่ไม่รู้จักใช้ในงานแล้ว แต่บันทึกลงไฟล์ของผู้ใช้ไม่ได้ (ผู้ช่วยตรวจทาน R13) */
+  wordErr: string | null;
 };
 
 const CFG_KEY = "ms.ocrCfg";
@@ -91,7 +93,7 @@ function loadPrompt(): boolean {
 let j: OcrJob = {
   path: null, ff: 0, kind: null, rows: [], opening: false, openPercent: 0, openError: null,
   running: false, paused: false, stopping: false, runIds: [], runDone: 0, startedAt: null, elapsedMs: 0, current: null,
-  teach: null, ask: null, cfg: loadCfg(), promptUnknown: loadPrompt(), error: null,
+  teach: null, ask: null, cfg: loadCfg(), promptUnknown: loadPrompt(), error: null, wordErr: null,
 };
 const subs = new Set<() => void>();
 
@@ -164,6 +166,20 @@ export function setPromptUnknown(on: boolean) {
 export function setRowText(i: number, text: string) {
   if (!j.rows[i]) return;
   patchRow(i, { text, edited: true });
+  namesSoon();
+}
+/** คิดชื่อเขียนสองแบบใหม่หลังผู้ใช้หยุดพิมพ์ครึ่งวินาที · เดิมคิดแค่ตอนจบรอบอ่าน แก้แล้วป้ายไม่เปลี่ยน (ผู้ช่วยตรวจทาน U8) */
+let namesTimer: ReturnType<typeof setTimeout> | null = null;
+function namesSoon() {
+  if (j.running) return;
+  if (namesTimer) clearTimeout(namesTimer);
+  namesTimer = setTimeout(() => { namesTimer = null; void refreshNames(); }, 500);
+}
+/** ข้อความที่นำจากไฟล์ซับ นับว่าบรรทัดนี้มีข้อความแล้ว (ขึ้นบนจอ ส่งออกได้ เริ่มอ่านหรืออ่านต่อที่เหลือไม่ทับ) · อ่านใหม่เฉพาะที่เลือกยังทับได้
+ *  เดิมตั้งแค่ข้อความ บรรทัดที่ยังไม่อ่านไม่แสดง ส่งออกไม่ได้ และกดเริ่มอ่านแล้วถูกทับหมด (ผู้ช่วยตรวจทาน U3) */
+export function importRowText(i: number, text: string) {
+  if (!j.rows[i] || j.running) return;
+  patchRow(i, { text, edited: true, state: "done", error: null });
 }
 /** ลบบรรทัดออกจากงาน (ภาพไม่ถูกส่งออก) · ระหว่างอ่านลบไม่ได้ เพราะรอบอ่านถือลำดับภาพอยู่ · ตาม DeleteSelectedLines */
 export async function removeRows(ids: number[]) {
@@ -181,8 +197,26 @@ export function setRowOk(i: number, ok: boolean) {
 }
 /** เหตุที่สงสัยของบรรทัด รวมชื่อสองแบบ · กดถูกแล้วไม่มีเหตุ */
 export function rowReasons(r: OcrRow): OcrReason[] {
-  return r.ok || !r.line ? [] : [...r.line.reasons, ...r.names];
+  if (r.ok || !r.line) return [];
+  // คำที่ไม่รู้จักที่ผู้ใช้แก้ออกจากข้อความแล้วไม่นับ · เหตุที่ไม่เหลือคำไม่นับ (ผู้ช่วยตรวจทาน U8 · เดิมแก้แล้วป้ายยังติด)
+  const own = r.line.reasons.map((x) => (x.kind === "unknown" ? { ...x, words: x.words.filter((w) => r.text.includes(w)) } : x)).filter((x) => x.kind !== "unknown" || x.words.length);
+  return [...own, ...r.names];
 }
+/** ตำแหน่งบนจอของแต่ละบรรทัดที่มีข้อความ ตามกติกาเดียวกับ lines_of ใน ocrexport.rs
+ *  จำนวนบรรทัดไม่เท่าตอนอ่าน (ผู้ใช้แก้) ใช้ตำแหน่งของบรรทัดสุดท้ายทั้งภาพ · ป้ายบนจอ คำเตือน และไฟล์ที่ส่งออกจึงตรงกัน (ผู้ช่วยตรวจทาน T10) */
+export function lineAns(r: OcrRow): number[] {
+  const ls = r.text.replace(/\r\n/g, "\n").split("\n").filter((l) => l.trim());
+  const an = r.line?.anLines ?? [r.item.an];
+  const ok = (a: number | undefined) => (a != null && a >= 1 && a <= 9 ? a : 2);
+  const use = an.length === ls.length || an.length <= 1 ? an : ls.map(() => an[an.length - 1]);
+  return ls.map((_, i) => ok(use[i] ?? use[use.length - 1]));
+}
+/** ส่งปุ่มของหน้าต่างคำที่ไม่รู้จักไปฝั่ง Rust · บันทึกลงไฟล์ไม่ได้ขึ้นกล่องแจ้งบนหน้า OCR ไม่กลืนเงียบ (ผู้ช่วยตรวจทาน R13) */
+export async function saveWord(kind: "changeAll" | "skipAll" | "addWord" | "addName", w: string, to?: string) {
+  try { await ocrApi.word(kind, w, to); }
+  catch (e) { set({ wordErr: String(e instanceof Error ? e.message : e) }); }
+}
+export function clearWordErr() { set({ wordErr: null }); }
 /** คำที่ผู้ใช้จำแล้ว (เพิ่มชื่อ เพิ่มพจนานุกรม ข้ามทุกที่ เปลี่ยนทุกที่) ไม่นับเป็นคำที่ไม่รู้จักอีกในทุกบรรทัด ไม่ต้องอ่านใหม่ */
 export function forgetWord(w: string) {
   set({ rows: j.rows.map((r) => {
@@ -195,7 +229,10 @@ export function forgetWord(w: string) {
 export async function refreshNames() {
   if (!j.rows.length) return;
   try {
-    const names = await ocrApi.names(j.rows.map((r) => r.text));
+    const rows0 = j.rows, key = `${j.path}|${j.ff}`;
+    const names = await ocrApi.names(rows0.map((r) => r.text));
+    // ระหว่างรอผล แถวถูกลบหรือเปิดซับอื่น ผลไม่ตรงแถวแล้ว ทิ้ง (ผู้ช่วยตรวจทาน U9)
+    if (`${j.path}|${j.ff}` !== key || j.rows.length !== rows0.length) return;
     set({ rows: j.rows.map((r, k) => ({ ...r, names: names[k] ?? [] })) });
   } catch { /* ไม่มีผลชื่อก็ไม่เป็นไร */ }
 }
@@ -248,13 +285,13 @@ async function askWords(i: number, words: string[]): Promise<boolean> {
       case "stop": return false;
       case "useOnce": patchRow(i, { text: replaceWord(j.rows[i].text, w, a.to) }); break;
       case "changeAll":
-        await ocrApi.word("changeAll", w, a.to).catch(() => {}); forgetWord(w);
+        await saveWord("changeAll", w, a.to); forgetWord(w);
         patchRow(i, { text: replaceWord(j.rows[i].text, w, a.to) });
         break;
       case "skipOnce": skipped.add(w); break;
-      case "skipAll": await ocrApi.word("skipAll", w).catch(() => {}); forgetWord(w); skipped.add(w); break;
-      case "addWord": await ocrApi.word("addWord", w).catch(() => {}); forgetWord(w); skipped.add(w); break;
-      case "addName": await ocrApi.word("addName", w).catch(() => {}); forgetWord(w); skipped.add(w); break;
+      case "skipAll": await saveWord("skipAll", w); forgetWord(w); skipped.add(w); break;
+      case "addWord": await saveWord("addWord", w); forgetWord(w); skipped.add(w); break;
+      case "addName": await saveWord("addName", w); forgetWord(w); skipped.add(w); break;
       case "editLine": patchRow(i, { text: a.text, edited: true }); return true;
     }
   }

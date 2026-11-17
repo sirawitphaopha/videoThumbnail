@@ -9,7 +9,7 @@ import Dropdown from "../../components/Dropdown";
 import { CardIcon, Phr, Switch } from "../../components/ui";
 import { IbTick, IcClose, IcPlus } from "../../components/icons";
 import { ocrApi, type OcrDbChars, type OcrDbItem, type OcrDbKind, type OcrTaught } from "../../lib/api";
-import { setOcrCfg, useOcrJob } from "../../lib/ocrJob";
+import { getOcrJob, setOcrCfg, useOcrJob } from "../../lib/ocrJob";
 import { listen } from "@tauri-apps/api/event";
 import { inApp } from "../../lib/api";
 import { TrainDialog } from "./OcrTrainDialog";
@@ -261,7 +261,7 @@ export function HistoryDialog({ open, onClose, pick }: { open: boolean; onClose:
               <input className="inp" style={{ width: 90, fontSize: 18, fontStyle: italic ? "italic" : undefined }} value={text} disabled={running} title={why} aria-label="ข้อความของตัวนี้"
                 onChange={(e) => setText(e.target.value)} onKeyDown={(e) => { if (e.key === "Enter" && text) { e.preventDefault(); save(true); } }} data-hist-text /></div>
             <div className="icv-row"><span className="icv-lbl" style={{ width: 80 }}>ตัวเอียง</span><Switch on={italic} onChange={(v) => { if (!running) setItalic(v); }} label="ตัวเอียง" /></div>
-            <div className="small" data-hist-info>{`สอนจากภาพที่ ${cur.index + 1} ฐาน ${cur.db} เวลา ${fmtTime(cur.at)}`}{cur.pieces > 1 ? ` ตัวนี้ประกอบจาก ${cur.pieces} ชิ้น` : ""}</div>
+            <div className="small" data-hist-info>{`สอนจากภาพที่ ${getOcrJob().rows[cur.index]?.item.n ?? cur.index + 1} ฐาน ${cur.db} เวลา ${fmtTime(cur.at)}`}{cur.pieces > 1 ? ` ตัวนี้ประกอบจาก ${cur.pieces} ชิ้น` : ""}</div>
             {del ? (
               <div className="ocr-dbask" data-hist-ask><Phr>{`ลบตัว ${cur.text || "ไม่ใช่ตัวอักษร"} ที่สอนนี้ออกจากฐาน ${cur.db}`}</Phr>
                 <div className="ocr-dbtools"><button type="button" className="btn btn-danger btn-sm" onClick={() => void run(() => ocrApi.historyDelete(k!), "ลบออกจากฐานแล้ว", () => void load(null))} data-hist-del-ok>ลบออกจากฐาน</button>

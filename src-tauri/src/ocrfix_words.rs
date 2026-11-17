@@ -94,15 +94,16 @@ impl NameList {
         c.iter().any(|m| text.contains(m.as_str()))
     }
 
-    /// เพิ่มชื่อลงไฟล์ของผู้ใช้ (ไฟล์เดิมลงถังขยะ) · ตาม NameList.Add
-    pub fn add(&mut self, name: &str) {
+    /// เพิ่มชื่อลงไฟล์ของผู้ใช้ (ไฟล์เดิมลงถังขยะ) · ตาม NameList.Add · เขียนไฟล์ไม่ได้คืนผิดพลาด (ผู้ช่วยตรวจทาน R13)
+    pub fn add(&mut self, name: &str) -> Result<(), String> {
         self.black.remove(name);
         if name.contains(' ') { self.multi.insert(name.into()); } else { self.names.insert(name.into()); }
         let mut doc = read(&self.user_file).unwrap_or_else(|| "<names><blacklist></blacklist></names>".into());
         if !xml_tags(&doc, "name").iter().any(|x| x == name) {
             if let Some(p) = doc.rfind("</names>") { doc.insert_str(p, &format!("<name>{}</name>", xml_escape(name))); }
-            let _ = write_user(&self.user_file, &doc);
+            write_user(&self.user_file, &doc)?;
         }
+        Ok(())
     }
 }
 
@@ -110,7 +111,7 @@ fn write_user(file: &Path, doc: &str) -> Result<(), String> {
     if let Some(d) = file.parent() { std::fs::create_dir_all(d).map_err(|e| format!("สร้างโฟลเดอร์ไม่ได้ {e}"))?; }
     let part = PathBuf::from(format!("{}.partial", file.display()));
     std::fs::write(&part, doc).map_err(|e| format!("เขียนไฟล์ {} ไม่ได้ {e}", file.display()))?;
-    crate::outfile::replace_with(&part, file)
+    crate::outfile::replace_often(&part, file)
 }
 
 // ---------------------------------------------------------------- รายชื่อกับคำของผู้ใช้
@@ -192,28 +193,28 @@ impl WordLists {
     }
 
     /// เพิ่มชื่อ · ภาษาอังกฤษเพิ่มรูป s และ 's ให้ด้วย · ตาม AddName
-    pub fn add_name(&mut self, w: &str) -> bool {
-        if w.is_empty() || self.names.names.contains(w) { return false; }
+    pub fn add_name(&mut self, w: &str) -> Result<bool, String> {
+        if w.is_empty() || self.names.names.contains(w) { return Ok(false); }
         self.names.names.insert(w.into());
         self.upper.insert(w.to_uppercase());
         if self.lang.starts_with("en_") && !w.ends_with('s') { self.names.names.insert(format!("{w}s")); self.upper.insert(format!("{}S", w.to_uppercase())); }
         if !w.ends_with('s') { self.apostrophe.insert(format!("{w}'s")); self.upper.insert(format!("{}'S", w.to_uppercase())); }
         if !w.ends_with('\'') { self.apostrophe.insert(format!("{w}'")); }
         if w.contains(PERIOD_AND_DASH) { self.add_dashed(w); }
-        self.names.add(w);
-        true
+        self.names.add(w)?;
+        Ok(true)
     }
 
     /// เพิ่มคำลงพจนานุกรมของผู้ใช้ · ตาม AddUserWord
-    pub fn add_user_word(&mut self, w: &str) -> bool {
+    pub fn add_user_word(&mut self, w: &str) -> Result<bool, String> {
         let w = normalize_user_word(w);
-        if w.is_empty() || self.user_words.contains(&w) { return false; }
+        if w.is_empty() || self.user_words.contains(&w) { return Ok(false); }
         if w.contains(' ') { self.user_phrases.insert(w.clone()); } else { self.user_words.insert(w.clone()); }
         self.removed.remove(&w);
         let mut doc = read(&self.user_file).unwrap_or_else(|| "<words></words>".into());
         if let Some(p) = doc.rfind("</words>") { doc.insert_str(p, &format!("<word>{}</word>", xml_escape(&w))); }
-        let _ = write_user(&self.user_file, &doc);
-        true
+        write_user(&self.user_file, &doc)?;
+        Ok(true)
     }
 }
 

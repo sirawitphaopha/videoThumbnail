@@ -163,10 +163,11 @@ pub fn make_two_color(img: &RgbaImage, min_rgb: u32) -> RgbaImage {
     out
 }
 
-/// ทุกจุดที่ช่องสีน้ำเงินเกิน 20 เป็นสีที่ให้ ที่เหลือใส · ตาม NikseBitmap2.MakeOneColor (ใช้ก่อนแบ่งก้อนบรรทัดของตำแหน่ง ASS)
+/// ทุกจุดที่มีหมึก (ไม่ใสและสีช่องใดช่องหนึ่งเกิน 20) เป็นสีที่ให้ ที่เหลือใส · จาก NikseBitmap2.MakeOneColor (ใช้ก่อนแบ่งก้อนบรรทัดของตำแหน่ง ASS)
+/// Subtitle Edit ดูแค่ช่องน้ำเงิน ซับตัวเหลือง (255 255 0) ว่างทั้งภาพ ป้ายบนจอเสียตำแหน่งและถูกรวมเข้าบทพูด (ผู้ช่วยตรวจทาน T7)
 pub fn make_one_color(img: &RgbaImage, c: Rgba<u8>) -> RgbaImage {
     let mut out = img.clone();
-    for p in out.pixels_mut() { *p = if p[2] > 20 { c } else { Rgba([0, 0, 0, 0]) }; }
+    for p in out.pixels_mut() { *p = if p[3] > 20 && p[0].max(p[1]).max(p[2]) > 20 { c } else { Rgba([0, 0, 0, 0]) }; }
     out
 }
 
@@ -426,6 +427,17 @@ mod tests {
 
     fn bar(img: &mut RgbaImage, x0: u32, y0: u32, w: u32, h: u32) {
         for y in y0..y0 + h { for x in x0..x0 + w { img.put_pixel(x, y, Rgba([255, 255, 255, 255])); } }
+    }
+
+    /// ซับตัวเหลือง (ช่องน้ำเงินศูนย์) ยังนับเป็นหมึก · จุดใสหรือดำสนิทไม่นับ (ผู้ช่วยตรวจทาน T7 · เดิมดูแค่ช่องน้ำเงิน ภาพว่างทั้งภาพ)
+    #[test]
+    fn one_color_counts_yellow_ink() {
+        let mut img = RgbaImage::new(3, 1);
+        img.put_pixel(0, 0, Rgba([255, 255, 0, 255]));
+        img.put_pixel(1, 0, Rgba([0, 0, 0, 255]));
+        img.put_pixel(2, 0, Rgba([255, 255, 255, 0]));
+        let one = make_one_color(&img, Rgba([255, 255, 255, 255]));
+        assert_eq!(one.pixels().map(|p| p[3]).collect::<Vec<_>>(), vec![255, 0, 0]);
     }
 
     /// บรรทัดไทยสองบรรทัด บรรทัดบนมีวรรณยุกต์ลอยเหนือ บรรทัดล่างมีสระล่างห้อยใต้ แยกจากตัวด้วยแถวใส

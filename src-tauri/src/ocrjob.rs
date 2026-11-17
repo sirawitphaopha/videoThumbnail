@@ -225,9 +225,34 @@ static SESSION: Mutex<Option<Session>> = Mutex::new(None);
 pub(crate) fn session() -> MutexGuard<'static, Option<Session>> { SESSION.lock().unwrap_or_else(|e| e.into_inner()) }
 
 /// ภาพของงานถูกวาดใหม่ (สีของ VobSub) · ตั้งภาพ ขนาด ตำแหน่งตามภาพใหม่ ข้อความ คำตอบ และประวัติที่ผูกกับลำดับภาพคงไว้
+/// จับคู่ด้วยที่อยู่ไฟล์ภาพ (โฟลเดอร์ของซับนี้กับเลขภาพ) ไม่ใช่ลำดับ · ลบบรรทัดไปแล้วภาพไม่เลื่อนไปบรรทัดอื่น
+/// และงานเป็นของซับอื่นแล้ว (เปิดไฟล์อื่นระหว่างวาดสีใหม่) ไม่มีไฟล์ไหนตรง จึงไม่แตะ (ผู้ช่วยตรวจทาน R1 · เดิมจับคู่ตามลำดับ)
+/// เก็บกวาดผลของ PaddleOCR กับ Tesseract ที่อ่านเป็นข้อความอิสระ
+/// ① ขีดบทพูดที่แยกเป็นบรรทัดของตัวเองต่อกลับเข้าบรรทัด (OcrLoneDashFixer · ผู้ช่วยตรวจทาน T14 เดิมไม่ถูกเรียก)
+/// ② เว้นวรรคครึ่งความกว้างระหว่างอักษร CJK สองตัวตัดทิ้ง ภาษาญี่ปุ่นจีนไม่เว้นวรรคระหว่างคำ คงเว้นวรรคเต็มความกว้าง (ผู้ช่วยตรวจทาน T8)
+pub fn tidy_free(t: &str) -> String {
+    let t = crate::ocrfix::fix_lone_dashes(t);
+    let cjk = |c: char| matches!(c, '\u{3001}'..='\u{30FF}' | '\u{3400}'..='\u{9FFF}' | '\u{FF01}'..='\u{FF5E}');
+    let cs: Vec<char> = t.chars().collect();
+    let mut out = String::with_capacity(t.len());
+    for (k, &c) in cs.iter().enumerate() {
+        if c == ' ' {
+            let prev = cs[..k].iter().rev().find(|x| **x != ' ').copied();
+            let next = cs[k + 1..].iter().find(|x| **x != ' ').copied();
+            if prev.is_some_and(cjk) && next.is_some_and(cjk) { continue; }
+        }
+        out.push(c);
+    }
+    out
+}
+
 pub fn update_images(v: &[crate::subs::SubImg]) {
-    if let Some(s) = session().as_mut() {
-        for (it, img) in s.items.iter_mut().zip(v) { it.an = crate::ocrsrc::an_of(img); it.img = img.clone(); }
+    if let Some(s) = session().as_mut() { apply_images(s, v); }
+}
+pub(crate) fn apply_images(s: &mut Session, v: &[crate::subs::SubImg]) {
+    let by: HashMap<&std::path::Path, &crate::subs::SubImg> = v.iter().map(|i| (i.file.as_path(), i)).collect();
+    for it in s.items.iter_mut() {
+        if let Some(img) = by.get(it.img.file.as_path()) { it.an = crate::ocrsrc::an_of(img); it.img = (*img).clone(); }
     }
 }
 
@@ -248,7 +273,8 @@ pub fn remove_items(s: &mut Session, idx: &[usize]) {
     s.insp = None;
 }
 
-#[tauri::command]
+// รันนอกเธรดหลักของหน้าต่าง · คำสั่งนี้รอล็อกของงานอ่านได้ระหว่างอ่านภาพ บนเธรดหลักหน้าต่างค้าง (ผู้ช่วยตรวจทาน R5)
+#[tauri::command(async)]
 pub fn ocr_remove_items(idx: Vec<usize>) -> Result<(), String> {
     let mut g = session();
     remove_items(g.as_mut().ok_or("ยังไม่ได้เปิดซับรูปในหน้า OCR")?, &idx);
@@ -353,8 +379,8 @@ impl Session {
             return crate::paddle::read_text(&d.ocr, img, &o).ok().map(|x| x.0);
         }
         match h {
-            "paddle" => crate::paddle::read_text(&d.ocr, img, &cfg.paddle).ok().map(|x| x.0),
-            "tesseract" => crate::tesseract::read(&d.ocr, &d.user.join("tessdata"), &d.work, img, &cfg.tess, None).ok().map(|x| x.text),
+            "paddle" => crate::paddle::read_text(&d.ocr, img, &cfg.paddle).ok().map(|x| tidy_free(&x.0)),
+            "tesseract" => crate::tesseract::read(&d.ocr, &d.user.join("tessdata"), &d.work, img, &cfg.tess, None).ok().map(|x| tidy_free(&x.text)),
             "nocr" => self.nocr.as_ref().map(|n| self.help_n.read_text(&n.1, img, &Self::read_opts(cfg, false)).text),
             "binary" => match (&self.bin, &self.help_b) {
                 (Some(b), Some(r)) => Some(r.read_text(&b.1, img, &BinOpts { space_px: cfg.bin_space_px, max_err: cfg.bin_max_err, teach: false }).text),
@@ -465,8 +491,8 @@ pub fn read(s: &mut Session, d: &Dirs, cfg: &OcrCfg, i: usize) -> Result<ReadRes
     let t0 = std::time::Instant::now();
     let matcher = MATCHERS.contains(&cfg.engine.as_str());
     let (raw, conf, unreadable, lr): (String, Option<f32>, usize, Option<LineRead>) = match cfg.engine.as_str() {
-        "paddle" => { let (t, c) = crate::paddle::read_text(&d.ocr, &img, &cfg.paddle)?; (t, Some(c), 0, None) }
-        "tesseract" => { let o = crate::tesseract::read(&d.ocr, &d.user.join("tessdata"), &d.work, &img, &cfg.tess, None)?; (o.text, Some(o.conf), 0, None) }
+        "paddle" => { let (t, c) = crate::paddle::read_text(&d.ocr, &img, &cfg.paddle)?; (tidy_free(&t), Some(c), 0, None) }
+        "tesseract" => { let o = crate::tesseract::read(&d.ocr, &d.user.join("tessdata"), &d.work, &img, &cfg.tess, None)?; (tidy_free(&o.text), Some(o.conf), 0, None) }
         e if MATCHERS.contains(&e) => match s.read_matcher(cfg, i, &img)? {
             ReadOut::Done(r) => (r.text.clone(), None, r.unknown, Some(r)),
             ReadOut::Teach { letter, parent, pieces } => {
@@ -484,7 +510,7 @@ pub fn read(s: &mut Session, d: &Dirs, cfg: &OcrCfg, i: usize) -> Result<ReadRes
     }
     // ตัดบรรทัดเองก่อนตัวแก้คำ เมื่อเกินสองบรรทัดและไม่ใช่ภาพที่มีก้อนบนกับก้อนล่างแยกกัน · AutoBreakIfNeeded ของ OcrViewModel
     let broke = if cfg.auto_break && crate::ocrbreak::number_of_lines(&raw) > crate::ocrbreak::MAX_LINES && !crate::ocrsrc::has_separated_blocks(&raw_img, &item.img) {
-        Some(crate::ocrbreak::auto_break_line(&raw, &crate::ocrbreak::lang_of_dict(&cfg.dict)))
+        Some(crate::ocrbreak::auto_break_line(&raw, &crate::ocrbreak::lang_of_text(&raw, &crate::ocrbreak::lang_of_dict(&cfg.dict))))
     } else { None };
     let src = broke.as_deref().unwrap_or(&raw);
     // ตัวแก้คำ · แก้ภาพที่ตัวจับคู่ภาพพลาด (# / |) เฉพาะตัวอ่านแบบเทียบภาพ แบบ Subtitle Edit
@@ -621,14 +647,15 @@ fn nocr_char(parent: &Bmp, pieces: &[Piece], letter: usize, n: usize, text: &str
 /// changeAll เปลี่ยนทั้งหมด (จำไว้ในรายการแก้คำของผู้ใช้) · skipAll ข้ามทั้งหมดในงานนี้ · addName เพิ่มชื่อ · addWord เพิ่มพจนานุกรมของผู้ใช้
 pub fn word(s: &mut Session, action: &str, w: &str, to: Option<&str>) -> Result<(), String> {
     let fx = &mut s.fix.as_mut().ok_or("ยังไม่ได้เปิดตัวแก้คำ")?.1;
-    match action {
+    let saved = match action {
         "changeAll" => fx.change_all(w, to.ok_or("ไม่มีคำที่จะเปลี่ยน")?),
-        "skipAll" => fx.skip_all(w),
+        "skipAll" => { fx.skip_all(w); Ok(()) }
         "addName" => fx.add_name(w),
-        "addWord" => { fx.add_user_word(w); }
+        "addWord" => fx.add_user_word(w).map(|_| ()),
         x => return Err(format!("ไม่รู้จักคำสั่ง {x}")),
-    }
-    Ok(())
+    };
+    // ใช้ในงานนี้แล้วเสมอ เขียนไฟล์ไม่ได้บอกหน้าจอ (ผู้ช่วยตรวจทาน R13 · เดิมตอบว่าสำเร็จเสมอ)
+    saved.map_err(|e| format!("ใช้ในงานนี้แล้ว แต่บันทึกลงไฟล์ของผู้ใช้ไม่ได้ {e}"))
 }
 
 // ---------------------------------------------------------------- คำสั่งของหน้าจอ
@@ -653,13 +680,15 @@ pub async fn ocr_teach(answer: TeachAnswer, cfg: OcrCfg) -> Result<(), String> {
 }
 
 /// ปุ่มของหน้าต่างคำที่ไม่รู้จัก
-#[tauri::command]
+// รันนอกเธรดหลักของหน้าต่าง · คำสั่งนี้รอล็อกของงานอ่านได้ระหว่างอ่านภาพ บนเธรดหลักหน้าต่างค้าง (ผู้ช่วยตรวจทาน R5)
+#[tauri::command(async)]
 pub fn ocr_word(action: String, word: String, to: Option<String>) -> Result<(), String> {
     with_session(|s| self::word(s, &action, &word, to.as_deref()))
 }
 
 /// คำแนะนำของคำที่ไม่รู้จัก
-#[tauri::command]
+// รันนอกเธรดหลักของหน้าต่าง · คำสั่งนี้รอล็อกของงานอ่านได้ระหว่างอ่านภาพ บนเธรดหลักหน้าต่างค้าง (ผู้ช่วยตรวจทาน R5)
+#[tauri::command(async)]
 pub fn ocr_suggest(word: String) -> Result<Vec<String>, String> {
     with_session(|s| Ok(s.fix.as_ref().map(|f| f.1.suggestions(&word)).unwrap_or_default()))
 }
@@ -673,7 +702,8 @@ pub fn ocr_names(lines: Vec<String>) -> Vec<Vec<Reason>> { crate::suspect::name_
 pub fn ocr_dbs(app: tauri::AppHandle) -> Result<DbList, String> { Ok(db_list(&Dirs::of(&app)?)) }
 
 /// ตัวที่สอนไปแล้วในงานนี้ ใหม่สุดก่อน · ตัวที่ไม่อยู่ในฐานที่โหลดแล้ว (ลบไปจากหน้าต่างอื่น) ตัดออกแบบ ClearNotInOcrDb ของ Subtitle Edit
-#[tauri::command]
+// รันนอกเธรดหลักของหน้าต่าง · คำสั่งนี้รอล็อกของงานอ่านได้ระหว่างอ่านภาพ บนเธรดหลักหน้าต่างค้าง (ผู้ช่วยตรวจทาน R5)
+#[tauri::command(async)]
 pub fn ocr_history() -> Vec<Taught> {
     let mut g = session();
     let Some(s) = g.as_mut() else { return vec![] };
@@ -759,13 +789,15 @@ pub fn history_delete(s: &mut Session, k: usize) -> Result<(), String> {
     Ok(())
 }
 
-#[tauri::command]
+// รันนอกเธรดหลักของหน้าต่าง · คำสั่งนี้รอล็อกของงานอ่านได้ระหว่างอ่านภาพ บนเธรดหลักหน้าต่างค้าง (ผู้ช่วยตรวจทาน R5)
+#[tauri::command(async)]
 pub fn ocr_history_update(k: usize, text: String, italic: bool) -> Result<(), String> {
     let mut g = session();
     history_update(g.as_mut().ok_or("ยังไม่ได้เปิดซับรูปในหน้า OCR")?, k, &text, italic)
 }
 
-#[tauri::command]
+// รันนอกเธรดหลักของหน้าต่าง · คำสั่งนี้รอล็อกของงานอ่านได้ระหว่างอ่านภาพ บนเธรดหลักหน้าต่างค้าง (ผู้ช่วยตรวจทาน R5)
+#[tauri::command(async)]
 pub fn ocr_history_delete(k: usize) -> Result<(), String> {
     let mut g = session();
     history_delete(g.as_mut().ok_or("ยังไม่ได้เปิดซับรูปในหน้า OCR")?, k)
@@ -1017,21 +1049,24 @@ pub async fn ocr_inspect_delete(li: usize, cfg: OcrCfg) -> Result<InspView, Stri
     tauri::async_runtime::spawn_blocking(move || { let mut g = session(); inspect_delete(g.as_mut().ok_or("ยังไม่ได้เปิดซับรูปในหน้า OCR")?, &cfg, li) }).await.map_err(|e| e.to_string())?
 }
 
-#[tauri::command]
+// รันนอกเธรดหลักของหน้าต่าง · คำสั่งนี้รอล็อกของงานอ่านได้ระหว่างอ่านภาพ บนเธรดหลักหน้าต่างค้าง (ผู้ช่วยตรวจทาน R5)
+#[tauri::command(async)]
 pub fn ocr_inspect_draw(li: usize, lines: usize, cfg: OcrCfg) -> Result<DrawnLines, String> {
     let mut g = session();
     let (fg, bg) = inspect_draw(g.as_mut().ok_or("ยังไม่ได้เปิดซับรูปในหน้า OCR")?, &cfg, li, lines)?;
     Ok(DrawnLines { fg, bg })
 }
 
-#[tauri::command]
+// รันนอกเธรดหลักของหน้าต่าง · คำสั่งนี้รอล็อกของงานอ่านได้ระหว่างอ่านภาพ บนเธรดหลักหน้าต่างค้าง (ผู้ช่วยตรวจทาน R5)
+#[tauri::command(async)]
 pub fn ocr_inspect_teach(li: usize, cfg: OcrCfg) -> Result<TeachReq, String> {
     let mut g = session();
     inspect_teach(g.as_mut().ok_or("ยังไม่ได้เปิดซับรูปในหน้า OCR")?, &cfg, li)
 }
 
 /// ตรวจบรรทัดใหม่หลังสอนคู่ที่ดีกว่า (ฐานเปลี่ยนแล้ว) · ตาม ReloadMatches
-#[tauri::command]
+// รันนอกเธรดหลักของหน้าต่าง · คำสั่งนี้รอล็อกของงานอ่านได้ระหว่างอ่านภาพ บนเธรดหลักหน้าต่างค้าง (ผู้ช่วยตรวจทาน R5)
+#[tauri::command(async)]
 pub fn ocr_inspect_reload(cfg: OcrCfg) -> Result<InspView, String> {
     let mut g = session();
     let s = g.as_mut().ok_or("ยังไม่ได้เปิดซับรูปในหน้า OCR")?;
@@ -1054,7 +1089,8 @@ pub async fn ocr_prep_preview(index: usize, prep: Prep) -> Result<String, String
 pub fn ocr_paddle_models(app: tauri::AppHandle) -> Result<Vec<String>, String> { Ok(crate::paddle::models(&Dirs::of(&app)?.ocr)) }
 
 /// ลบฐานของผู้ใช้ลงถังขยะ (หน้าต่างตั้งค่า nOCR ปุ่มลบ) · ฐานที่แนบมาลบไม่ได้ · ฐานที่โหลดอยู่ในงานนี้ปิดก่อน
-#[tauri::command]
+// รันนอกเธรดหลักของหน้าต่าง · คำสั่งนี้รอล็อกของงานอ่านได้ระหว่างอ่านภาพ บนเธรดหลักหน้าต่างค้าง (ผู้ช่วยตรวจทาน R5)
+#[tauri::command(async)]
 pub fn ocr_db_delete(app: tauri::AppHandle, kind: String, name: String) -> Result<(), String> {
     check_name(&name)?;
     let d = Dirs::of(&app)?;
@@ -1091,13 +1127,17 @@ pub async fn ocr_image_out(app: tauri::AppHandle, index: usize, dest: String, pa
         let want = PathBuf::from(path.ok_or("ยังไม่ได้เลือกที่เก็บ")?);
         let dir = want.parent().filter(|d| d.is_dir()).ok_or("หาโฟลเดอร์ที่เก็บไม่เจอ")?.to_path_buf();
         let out = crate::outfile::free_name(&dir, &want);
-        std::fs::write(&out, &png).map_err(|e| format!("บันทึกภาพไม่ได้ {e}"))?;
+        // เขียนไฟล์ชั่วคราวแล้วย้ายแบบไม่ทับ ตามกฎไฟล์ของโปรแกรม (ผู้ช่วยตรวจทาน R14 · เดิมเขียนตรงที่ชื่อว่าง)
+        let part = crate::subdoc::partial_of(&out);
+        std::fs::write(&part, &png).map_err(|e| format!("บันทึกภาพไม่ได้ {e}"))?;
+        crate::rename::move_no_replace(&part, &out).map_err(|p| { let _ = std::fs::remove_file(&part); format!("บันทึกภาพไม่ได้ {}", p.title) })?;
         Ok(out.display().to_string())
     }).await.map_err(|e| e.to_string())?
 }
 
 /// หยุดงาน · ล้างตัวที่รอสอนกับคำตอบที่ผูกกับภาพ
-#[tauri::command]
+// รันนอกเธรดหลักของหน้าต่าง · คำสั่งนี้รอล็อกของงานอ่านได้ระหว่างอ่านภาพ บนเธรดหลักหน้าต่างค้าง (ผู้ช่วยตรวจทาน R5)
+#[tauri::command(async)]
 pub fn ocr_stop() {
     if let Some(s) = session().as_mut() { s.pending = None; s.skip.clear(); s.once.clear(); }
 }
@@ -1162,6 +1202,37 @@ mod tests {
         assert!(vo.letters.iter().any(|l| l.special.is_none()));
         assert!(inspect(&mut s, &d, &OcrCfg { engine: "paddle".into(), ..cfg.clone() }, 0).is_err());
         let _ = std::fs::remove_dir_all(d.user.parent().unwrap());
+    }
+
+    /// ผลของตัวอ่านข้อความอิสระ ขีดบทพูดต่อกลับเข้าบรรทัด เว้นวรรคระหว่างอักษรญี่ปุ่นตัดทิ้ง ไทยกับอังกฤษคงเดิม (ผู้ช่วยตรวจทาน T8 T14)
+    #[test]
+    fn tidy_free_text() {
+        assert_eq!(tidy_free("ゴ ジ ラ が\n来る"), "ゴジラが\n来る");
+        assert_eq!(tidy_free("สวัสดี ครับ Hello world"), "สวัสดี ครับ Hello world");
+        assert_eq!(tidy_free("咆哮　が"), "咆哮　が");
+        assert_eq!(tidy_free("-\nHello\n-\nBye"), crate::ocrfix::fix_lone_dashes("-\nHello\n-\nBye"));
+        assert_ne!(tidy_free("-\nHello\n-\nBye"), "-\nHello\n-\nBye");
+    }
+
+    /// วาดสีใหม่หลังลบบรรทัด ภาพตามเลขภาพ ไม่ตามลำดับ (ผู้ช่วยตรวจทาน R1)
+    #[test]
+    fn images_follow_file_not_order() {
+        // ลบบรรทัดที่ 2 แล้ววาดสีใหม่ทั้งไฟล์ (ได้ภาพครบทุกเลข) ภาพของบรรทัดที่เหลือต้องเป็นเลขเดิมของตัวเอง ไม่เลื่อน (ผู้ช่วยตรวจทาน R1)
+        let d = dirs("apply");
+        let Some(items) = th_items(&d) else { return };
+        let mut s = Session::with_items(items.clone());
+        remove_items(&mut s, &[1]);
+        let mut fresh: Vec<crate::subs::SubImg> = items.iter().map(|i| i.img.clone()).collect();
+        for f in fresh.iter_mut() { f.w += 1000; }
+        apply_images(&mut s, &fresh);
+        assert_eq!(s.items.len(), items.len() - 1);
+        for it in &s.items { assert_eq!(it.img.w, items.iter().find(|x| x.img.n == it.img.n).unwrap().img.w + 1000, "ภาพที่ {} ต้องได้ภาพของตัวเอง", it.img.n); }
+        assert!(s.items.iter().all(|it| it.img.n != items[1].img.n));
+        // ภาพของซับอื่น (ไฟล์คนละที่) ไม่แตะ
+        let mut other = fresh.clone();
+        for f in other.iter_mut() { f.file = std::path::PathBuf::from("Z:/อื่น").join(f.file.file_name().unwrap()); f.w = 1; }
+        apply_images(&mut s, &other);
+        assert!(s.items.iter().all(|it| it.img.w > 1000));
     }
 
     /// ลบภาพลำดับ 1 กับ 3 ข้อความของภาพอื่นเลื่อนลำดับตาม ประวัติของภาพที่ลบหายไป

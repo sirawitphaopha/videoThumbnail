@@ -11,13 +11,16 @@ import { IbBack, IbBold, IbCrop, IbItalic, IbNext, IbPencil, IbPlay, IbStop, IbS
 import type { Tip } from "../../lib/codecAdv";
 import { infoApi, ocrApi, pickFile, pickSave, subApi, type OcrCfg, type OcrDbList, type OcrReason, type OcrTessLang, type SubImg } from "../../lib/api";
 import type { AvTrack } from "../../lib/avJob";
-import { fillRows, getOcrJob, ocrElapsed, removeRows, openSource, pauseOcr, resumeOcr, rowReasons, setOcrCfg, setRowOk, setRowText, startOcr, stopOcr, useOcrJob, type OcrRow } from "../../lib/ocrJob";
+import { clearWordErr, fillRows, importRowText, getOcrJob, lineAns, ocrElapsed, removeRows, openSource, pauseOcr, resumeOcr, rowReasons, setOcrCfg, setRowOk, setRowText, startOcr, stopOcr, useOcrJob, type OcrRow } from "../../lib/ocrJob";
 import { OcrDialogs, tessName, type OcrDlg } from "./OcrDialogs";
 import { InspectDialog } from "./OcrInspectDialog";
 import { VobColorDialog, storedVobColors } from "./OcrVobColorDialog";
 import { ExportDialog, expRows, loadExpFormats } from "./OcrExportDialog";
 import Dialog from "../../components/Dialog";
-import { getSubEdit, openDoc } from "../../lib/subEdit";
+import { autosaveStrict, getSubEdit, openDoc } from "../../lib/subEdit";
+import { useHotkeys } from "../../lib/hotkeys";
+import { useEscClose } from "../../lib/popup";
+import { usePageActiveRef } from "../../lib/pageActive";
 import "../../styles/ocr.css";
 
 /* ---------- คำอธิบาย ⓘ (ข้อความเดียวกับมอคอัปที่พี่กันดูแล้ว ตัวเลขจากผลเทสจริง) ---------- */
@@ -41,6 +44,8 @@ export const FLAG_TIP: Tip = { w: "จุดที่ต้องตรวจค
   ["มีตัวที่อ่านไม่ออก", "ตัวสอนเองไม่รู้จักตัวนี้ ใส่ * ไว้แทน", "", ""],
 ] };
 export const POS_TIP: Tip = { w: "ซับบางภาพไม่ได้อยู่ล่างจอ เช่นชื่อสถานที่บนจอหรือป้ายชื่อตัวละคร โปรแกรมดูจากพิกัดในไฟล์ซับรูปแล้วติดป้ายบนจอให้\nตอนส่งออกเป็นซับตัวหนังสือ บรรทัดบนจอจะเก็บตำแหน่งไว้ให้อยู่ที่เดิม" };
+const BINERR_TIP: Tip = { w: "Binary OCR เทียบภาพตัวอักษรกับภาพในฐานทีละจุด\nค่านี้คือเปอร์เซ็นต์ของจุดที่ต่างได้มากสุดที่ยังนับเป็นตัวเดียวกัน", r: "ใช้ค่าตั้งต้นก่อน ถ้าหยุดสอนบ่อยจึงค่อยเพิ่มทีละน้อย ตั้งสูงไปตัวที่คล้ายกันจะอ่านสลับกัน" };
+const FORCED_TIP: Tip = { w: "ซับบังคับ (forced) คือบรรทัดที่ขึ้นบนจอแม้ผู้ชมปิดซับ เช่นคำแปลป้ายหรือบทพูดภาษาต่างประเทศในเรื่อง ไฟล์ซับรูปติดธงนี้ไว้ทีละภาพ" };
 const SPACE_TIP: Tip = { w: "ช่องห่างระหว่างตัวอักษรกว้างเกินกี่จุดถึงนับเป็นเว้นวรรค ใส่ 0 ให้ตัวอ่านตัดสินเองจากความสูงของตัว" };
 export const LINES_TIP: Tip = { w: "ตัวสอนเองจำตัวอักษรเป็นเส้นสั้น ๆ ที่ลากผ่านภาพ ตอนอ่านจะเทียบว่าเส้นตกที่เดิมไหม", o: [
   ["เส้นเขียว", "ต้องผ่านเนื้อตัวอักษร", "", ""],
@@ -94,15 +99,18 @@ const PER = 40;
 export function useSubImgs(path: string, ff: number) {
   const [imgs, setImgs] = useState<Map<number, SubImg>>(() => new Map());
   const asked = useRef(new Set<number>());
-  useEffect(() => { setImgs(new Map()); asked.current = new Set(); }, [path, ff]);
+  // รุ่นของชุดภาพ · คำขอที่ส่งก่อนวาดสีใหม่หรือก่อนเปลี่ยนซับ ตอบทีหลังแล้วทิ้ง ไม่ให้ภาพสีเดิมกลับมาทับ (ผู้ช่วยตรวจทาน U21)
+  const gen = useRef(0);
+  useEffect(() => { gen.current++; setImgs(new Map()); asked.current = new Set(); }, [path, ff]);
   const need = (n: number) => {
     const page = Math.floor((n - 1) / PER);
     if (asked.current.has(page)) return;
     asked.current.add(page);
-    subApi.images(path, ff, page, PER).then((r) => setImgs((m) => { const x = new Map(m); r.items.forEach((it) => x.set(it.n, it)); return x; }), () => asked.current.delete(page));
+    const my = gen.current;
+    subApi.images(path, ff, page, PER).then((r) => { if (my === gen.current) setImgs((m) => { const x = new Map(m); r.items.forEach((it) => x.set(it.n, it)); return x; }); }, () => { if (my === gen.current) asked.current.delete(page); });
   };
   /** ภาพถูกวาดใหม่ (สีของ VobSub) ล้างที่จำไว้แล้วขอใหม่ */
-  const reload = () => { setImgs(new Map()); asked.current = new Set(); };
+  const reload = () => { gen.current++; setImgs(new Map()); asked.current = new Set(); };
   return { imgs, need, reload };
 }
 
@@ -133,12 +141,9 @@ export function ScreenImg({ img, n, frame }: { img: SubImg | undefined; n: numbe
     {big && <EscClose onClose={() => setBig(false)} />}
   </>);
 }
+/** Esc ปิดภาพขยาย ผ่านชั้น Esc กลางของโปรแกรม (useEscClose) · เดิมดักที่หน้าต่างเอง ผิดกฎชั้น Esc (ผู้ช่วยตรวจทาน U13) */
 function EscClose({ onClose }: { onClose: () => void }) {
-  useEffect(() => {
-    const k = (e: KeyboardEvent) => { if (e.key === "Escape") { e.stopPropagation(); onClose(); } };
-    window.addEventListener("keydown", k, true);
-    return () => window.removeEventListener("keydown", k, true);
-  }, [onClose]);
+  useEscClose(true, onClose);
   return null;
 }
 function BigView({ img, n, onClose }: { img: SubImg; n: number; line?: boolean; onClose: () => void }) {
@@ -152,11 +157,14 @@ function BigView({ img, n, onClose }: { img: SubImg; n: number; line?: boolean; 
 /** ข้อความหลายบรรทัด บรรทัดที่อยู่บนจอติดป้าย ตัวเอียงแสดงเอียง */
 export function Txt({ r }: { r: OcrRow }) {
   const ls = r.text.split("\n");
-  const top = (k: number) => { const a = r.line?.anLines?.[k] ?? (k === 0 ? r.item.an : 2); return a >= 7; };
+  // ลำดับในบรรทัดที่มีข้อความ ตรงกับ lineAns ที่ไฟล์ส่งออกใช้ (ผู้ช่วยตรวจทาน T10)
+  const an = lineAns(r);
+  const idx = ls.map((_, k) => ls.slice(0, k).filter((l) => l.trim()).length);
+  const top = (k: number) => !!ls[k].trim() && (an[idx[k]] ?? 2) >= 7;
   return <span className="ocr-txt">{ls.map((l, k) => (
     <span key={k} className="ocr-tl">{top(k) && <span className="ocr-pos">บนจอ</span>}{/^<i>.*<\/i>$/.test(l) ? <i>{l.replace(/<\/?i>/g, "")}</i> : l.replace(/<\/?[ib]>/g, "")}</span>))}</span>;
 }
-const hasTop = (r: OcrRow) => (r.line?.anLines ?? [r.item.an]).some((a) => a >= 7);
+const hasTop = (r: OcrRow) => lineAns(r).some((a) => a >= 7);
 
 /* ---------- สีพื้นหลังของภาพซับ (BUGS ข้อ 143.2 พี่กันสั่ง "ขอปุ่มเปลี่ยนสีพื้นหลังด้วยหน่อย") ----------
    ซับตัวขาวขอบดำเห็นชัดบนพื้นเทา ซับตัวเหลืองหรือตัวดำเห็นชัดบนพื้นอื่น · ใช้กับภาพบรรทัดในตาราง หน้าต่างสอน คำที่ไม่รู้จัก แต่งภาพ · จำไว้ในเครื่อง */
@@ -200,7 +208,7 @@ function EngineRow({ busy, dbs, tess, onDb }: { busy: boolean; dbs: OcrDbList | 
           <span className="ocr-f">จุดผิดที่ยอม<InfoTip title="เส้นที่ใช้เทียบ" tip={LINES_TIP} /></span>
           <input className="inp ocr-numi" inputMode="numeric" value={cfg.maxWrong} disabled={busy} title={why} aria-label="จุดผิดที่ยอม" onChange={(e) => setCfg({ maxWrong: num(e.target.value, 0, 200) })} />
         </> : <>
-          <span className="ocr-f">ผิดได้</span>
+          <span className="ocr-f">ผิดได้<InfoTip title="เปอร์เซ็นต์ผิดสูงสุด" tip={BINERR_TIP} /></span>
           <input className="inp ocr-numi" inputMode="numeric" value={Math.round(cfg.binMaxErr * 100)} disabled={busy} title={why ?? "เปอร์เซ็นต์ที่ภาพต่างจากตัวในฐานได้"} aria-label="เปอร์เซ็นต์ผิดสูงสุด" onChange={(e) => setCfg({ binMaxErr: num(e.target.value, 0, 100) / 100 })} />
           <span className="small">%</span>
         </>}
@@ -258,8 +266,10 @@ function OcrTable({ rows, sel, setSel, onlyFlag, onlyForced, imgs, need, current
             <tr key={i} data-n={r.item.n} data-i={i} className={(sel === i || multi.has(i) ? "on" : "") + (rs.length ? " flag" : "")} aria-selected={sel === i || multi.has(i)}
               onClick={(e) => {
                 // Ctrl เลือกเพิ่มหรือเอาออก Shift เลือกช่วงจากบรรทัดที่เลือกอยู่ แบบตารางของ Subtitle Edit
-                if (e.ctrlKey || e.metaKey) { const m = new Set(multi.size ? multi : [sel]); if (m.has(i)) m.delete(i); else m.add(i); setMulti(m); setSel(i); return; }
-                if (e.shiftKey) { const m = new Set<number>(); for (let k = Math.min(sel, i); k <= Math.max(sel, i); k++) m.add(k); setMulti(m); return; }
+                // เลือกได้เฉพาะแถวที่เห็น · เปิดสวิตช์เฉพาะจุดที่ต้องตรวจแล้วแถวที่ซ่อนไม่โดนเลือกไปลบหรือเติมข้อความ (ผู้ช่วยตรวจทาน U2)
+                const seen = new Set(list.map((x) => x.i));
+                if (e.ctrlKey || e.metaKey) { const m = new Set(multi.size ? multi : seen.has(sel) ? [sel] : []); if (m.has(i)) m.delete(i); else m.add(i); setMulti(m); setSel(i); return; }
+                if (e.shiftKey) { const m = new Set<number>(); const a = seen.has(sel) ? sel : i; for (let k = Math.min(a, i); k <= Math.max(a, i); k++) if (seen.has(k)) m.add(k); setMulti(m); return; }
                 setMulti(new Set()); setSel(i);
               }}>
               <td className="num">{r.item.n}{r.item.forced && <span className="ocr-forced" title="ซับบังคับ (forced) ขึ้นแม้ปิดซับ">บังคับ</span>}</td>
@@ -359,8 +369,9 @@ function EditArea({ i, rows, movie, imgs, setSel, onTeach, onUnknown, onInspect,
         <div className="ocr-edhead"><b>ข้อความ</b><span style={{ flex: 1 }} />
           <button type="button" className="btn btn-ghost btn-sm ocr-ic" title="ตัวหนา Ctrl+B" aria-label="ตัวหนา" disabled={r.state !== "done"} onClick={() => set(wrapTag(ta.current, r.text, "b"))}><IbBold size={14} /></button>
           <button type="button" className="btn btn-ghost btn-sm ocr-ic" title="ตัวเอียง Ctrl+I" aria-label="ตัวเอียง" disabled={r.state !== "done"} onClick={() => set(wrapTag(ta.current, r.text, "i"))}><IbItalic size={14} /></button>
-          <button type="button" className={"btn btn-sm " + (MATCH.includes(cfg.engine) ? "btn-ghost" : "btn-wait")} aria-disabled={!MATCH.includes(cfg.engine) || undefined}
-            title={MATCH.includes(cfg.engine) ? "แยกบรรทัดเป็นตัว ๆ ดูว่าแต่ละตัวจับคู่กับอะไรในฐาน แก้ ลบ เพิ่มคู่ Ctrl+Shift+I" : INSPECT_OFF} onClick={() => { if (MATCH.includes(cfg.engine)) onInspect(); }} data-ocr-inspect><IcSearch size={14} />ตรวจบรรทัด</button>
+          {/* ระหว่างอ่านกดไม่ได้ · หน้าต่างตรวจบรรทัดกับงานอ่านใช้ตัวรอคำตอบสอนตัวเดียวกัน คำตอบหนึ่งหายแล้วค้าง (ผู้ช่วยตรวจทาน U7) */}
+          <button type="button" className={"btn btn-sm " + (MATCH.includes(cfg.engine) && !running ? "btn-ghost" : "btn-wait")} aria-disabled={!MATCH.includes(cfg.engine) || running || undefined}
+            title={running ? "หยุดอ่านก่อน แล้วค่อยตรวจบรรทัด" : MATCH.includes(cfg.engine) ? "แยกบรรทัดเป็นตัว ๆ ดูว่าแต่ละตัวจับคู่กับอะไรในฐาน แก้ ลบ เพิ่มคู่ Ctrl+Shift+I" : INSPECT_OFF} onClick={() => { if (MATCH.includes(cfg.engine) && !running) onInspect(); }} data-ocr-inspect><IcSearch size={14} />ตรวจบรรทัด</button>
           <button type="button" className={"btn btn-sm ocr-ic " + (picked > 1 && !running ? "btn-ghost" : "btn-wait")} aria-disabled={picked < 2 || running || undefined} aria-label="เติมข้อความจากคลิปบอร์ด"
             title={running ? "หยุดอ่านก่อน" : picked > 1 ? `ใส่ข้อความในคลิปบอร์ดลง ${picked} บรรทัดที่เลือก Ctrl+Shift+V` : "เลือกตั้งแต่สองบรรทัดในตาราง (กด Ctrl หรือ Shift ค้างแล้วคลิก) เพื่อใส่ข้อความในคลิปบอร์ดเหมือนกันทุกบรรทัด"}
             onClick={() => { if (picked > 1 && !running) onFill(); }} data-ocr-fill><IcPaste size={14} /></button>
@@ -467,10 +478,25 @@ export default function OcrPage({ track, movie, onEdit }: { track: AvTrack; movi
   const [tess, setTess] = useState<OcrTessLang[]>([]);
   const [, tick] = useState(0);
   // เปิดซับรูปนี้ในตัวคุมงาน · กลับมาที่หน้าเดิม งานเดิมยังอยู่
+  // ตัวคุมงานเก็บได้ทีละซับ · ซับอื่นยังอ่านอยู่หรืออ่านไว้แล้ว ไม่เปิดทับเงียบ ๆ ถามก่อน (ผู้ช่วยตรวจทาน U1 U4 · เดิมเปลี่ยนแทร็กแล้วผลที่อ่านกับที่แก้หายทันที และระหว่างอ่านอยู่หน้าค้างเป็นโครงจาง)
+  const [other, setOther] = useState<{ name: string; done: number; total: number; running: boolean } | null>(null);
   useEffect(() => {
     const j = getOcrJob();
-    if ((j.path !== path || j.ff !== ff) && !j.running) void openSource(path, ff);
+    if (j.path === path && j.ff === ff) { setOther(null); return; }
+    const done = j.rows.filter((r) => r.state === "done").length;
+    if (j.running || done > 0) { setOther({ name: baseName(j.path ?? ""), done, total: j.rows.length, running: j.running }); return; }
+    setOther(null);
+    void openSource(path, ff);
   }, [path, ff]);
+  const openHere = async () => {
+    if (getOcrJob().running) {
+      stopOcr();
+      for (let k = 0; k < 100 && getOcrJob().running; k++) await new Promise((r) => setTimeout(r, 100));
+    }
+    if (getOcrJob().running) return;
+    setOther(null);
+    void openSource(path, ff);
+  };
   useEffect(() => { ocrApi.dbs().then(setDbs, () => {}); ocrApi.tessLangs().then(setTess, () => {}); }, [dlg]);
   useEffect(() => { if (!job.running) return; const t = setInterval(() => tick((x) => x + 1), 1000); return () => clearInterval(t); }, [job.running]);
   useEffect(() => { try { localStorage.setItem(VIEW_KEY, view); } catch { /* จำไม่ได้ก็ไม่เป็นไร */ } }, [view]);
@@ -484,13 +510,19 @@ export default function OcrPage({ track, movie, onEdit }: { track: AvTrack; movi
   const canvas: [number, number] = rows.find((r) => r.item.canvas[0] > 0)?.item.canvas ?? [1920, 1080];
   // ส่งผล OCR ไปหน้าแก้ซับ (ขั้น 12 ตาม Ok ของ OcrWindow) · เอกสาร ASS ขนาดภาพตามจอของซับรูป บรรทัดบนจอแยกแถวติด {\an8}
   // ยังไม่มีไฟล์ของตัวเอง นับว่ายังไม่บันทึก กดบันทึกในหน้าแก้ซับแล้วถามที่เก็บ · หน้าแก้ซับมีที่แก้ค้างอยู่ ถามก่อนแทนที่
+  const [editErr, setEditErr] = useState<string | null>(null);
   const toEditor = async (force = false) => {
     const s = getSubEdit();
     if (!force && s.doc && s.dirty) { setEditAsk(true); return; }
     setEditAsk(false);
-    const doc = await ocrApi.exportDoc({ rows: expRows(rows), fmt: "AdvancedSubStationAlpha", top: "tag", italic: true, enc: "utf8bom", canvas });
-    openDoc(doc, { name: `${baseName(expBase)} OCR`, movie, key: track.key, base: expBase }, { dirty: true });
-    onEdit?.();
+    setEditErr(null);
+    try {
+      const doc = await ocrApi.exportDoc({ rows: expRows(rows), fmt: "AdvancedSubStationAlpha", top: "tag", italic: true, enc: "utf8bom", canvas });
+      // แทนที่ซับที่แก้ค้างอยู่ เก็บฉบับบันทึกอัตโนมัติไว้ก่อน แบบด่านของหน้าซับไตเติล (ผู้ช่วยตรวจทาน U11 · เดิมที่แก้ไว้หายถาวร)
+      if (force && s.doc && s.dirty) await autosaveStrict();
+      openDoc(doc, { name: `${baseName(expBase)} OCR`, movie, key: track.key, base: expBase }, { dirty: true });
+      onEdit?.();
+    } catch (e) { setEditErr(String(e instanceof Error ? e.message : e)); }
   };
   const ms = ocrElapsed();
   const pct = job.runIds.length ? Math.round((job.runDone / job.runIds.length) * 100) : 0;
@@ -516,28 +548,29 @@ export default function OcrPage({ track, movie, onEdit }: { track: AvTrack; movi
   };
   useEffect(() => { if (!clipMsg) return; const t = setTimeout(() => setClipMsg(null), 3000); return () => clearTimeout(t); }, [clipMsg]);
   useEffect(() => { setMulti(new Set()); setDelAsk(false); }, [path, ff]);
-  // Delete ลบบรรทัด Ctrl+Shift+V เติมจากคลิปบอร์ด (เมื่อเลือกตั้งแต่สองบรรทัด) · ไม่ทำงานตอนพิมพ์ในช่อง
-  useEffect(() => {
-    const on = (e: KeyboardEvent) => {
-      if (dlg || insp != null || job.running || !rows.length) return;
-      const t = e.target as HTMLElement | null;
-      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
-      if (e.key === "Delete" && !e.ctrlKey && !e.altKey) { e.preventDefault(); setDelAsk(true); }
-      else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "v" && picked.length > 1) { e.preventDefault(); void fillClip(); }
-    };
-    window.addEventListener("keydown", on);
-    return () => window.removeEventListener("keydown", on);
-  });
-  // Ctrl+Shift+I เปิดหน้าต่างตรวจบรรทัดของบรรทัดที่เลือก แบบตาราง OCR ของ Subtitle Edit
-  useEffect(() => {
-    const on = (e: KeyboardEvent) => {
-      if (!(e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "i") || dlg || insp != null || job.running || !MATCH.includes(job.cfg.engine) || !rows.length) return;
-      e.preventDefault();
-      setInsp(Math.min(sel, rows.length - 1));
-    };
-    window.addEventListener("keydown", on);
-    return () => window.removeEventListener("keydown", on);
-  });
+  // เปลี่ยนตัวกรองแล้วล้างที่เลือกไว้ แถวที่เพิ่งถูกซ่อนไม่ค้างอยู่ในที่เลือก (ผู้ช่วยตรวจทาน U2)
+  useEffect(() => { setMulti(new Set()); setDelAsk(false); }, [only, forcedOnly]);
+  // คีย์ลัดของหน้า OCR ผ่านตัวกลาง useHotkeys · ทำงานเฉพาะตอนหน้านี้เปิดอยู่ ไม่มีหน้าต่างซ้อน และไม่ได้พิมพ์ในช่อง
+  // (ผู้ช่วยตรวจทาน U6 · เดิมดักที่หน้าต่างเอง กด Ctrl+Shift+V ในหน้าอื่นแล้วข้อความคลิปบอร์ดทับบรรทัดที่เลือกไว้เงียบ ๆ)
+  // Delete ลบบรรทัด (เฉพาะแบบตาราง แถบยืนยันอยู่ในแบบตาราง · U19) · Ctrl+Shift+V เติมจากคลิปบอร์ด · Ctrl+Shift+I ตรวจบรรทัด · ลูกศรขึ้นลงเลือกบรรทัดแบบตารางของ Subtitle Edit (U18)
+  const pageOn = usePageActiveRef();
+  const free = () => !dlg && insp == null && !job.running && rows.length > 0;
+  const seenIdx = () => rows.map((r, i) => ({ r, i })).filter(({ r }) => (!only || rowReasons(r).length) && (!forcedOnly || r.item.forced)).map((x) => x.i);
+  const moveSel = (d: number) => {
+    const v = seenIdx();
+    if (!v.length) return;
+    const at = v.indexOf(sel);
+    const k = at < 0 ? 0 : Math.max(0, Math.min(v.length - 1, at + d));
+    setMulti(new Set()); setSel(v[k]);
+  };
+  useHotkeys([
+    { code: "Delete", run: () => { if (free() && view === "table") setDelAsk(true); } },
+    { code: "KeyV", ctrl: true, shift: true, run: () => { if (free() && picked.length > 1) void fillClip(); } },
+    { code: "KeyI", ctrl: true, shift: true, run: () => { if (free() && MATCH.includes(job.cfg.engine)) setInsp(Math.min(sel, rows.length - 1)); } },
+    { code: "ArrowDown", noButton: true, run: () => { if (view === "table" && rows.length) moveSel(1); } },
+    { code: "ArrowUp", noButton: true, run: () => { if (view === "table" && rows.length) moveSel(-1); } },
+  ], pageOn);
+  useEffect(() => { if (view !== "table") setDelAsk(false); }, [view]);
   /** นำข้อความจากไฟล์ซับที่เวลาซ้อนกันมากที่สุดมาใส่แต่ละบรรทัด (Import text with matching time codes ของ Subtitle Edit)
       ไม่ทับบรรทัดที่ไม่มีซับเวลาตรงกัน · ตัวตรวจส่งไฟล์ผ่าน window.__ocrImport ไม่เปิดกล่องเลือกไฟล์ */
   const importText = async () => {
@@ -550,12 +583,20 @@ export default function OcrPage({ track, movie, onEdit }: { track: AvTrack; movi
         const s0 = r.item.start, e0 = r.item.end ?? r.item.start + 2;
         let best = -1, bo = 0;
         t.cues.forEach((c, ci) => { const o = Math.min(e0, c.end) - Math.max(s0, c.start); if (o > bo) { bo = o; best = ci; } });
-        if (best >= 0) setRowText(k, t.cues[best].text);
+        if (best >= 0) importRowText(k, t.cues[best].text);
       });
       setImpMsg(null);
     } catch (e) { setImpMsg(String(e)); }
   };
 
+  if (other) return (
+    <section className="card ocr-page" data-ocr-page>
+      <div className="stat warn" data-ocr-other><CardIcon kind="warn" /><div style={{ flex: 1, minWidth: 0 }}>
+        <b>{other.running ? `กำลังอ่าน ${other.name} อยู่` : `ผล OCR ของ ${other.name} ยังค้างอยู่`}</b>
+        <Phr>{`${other.running ? "อ่านไปแล้ว" : "อ่านแล้ว"} ${other.done.toLocaleString("en-US")} จาก ${other.total.toLocaleString("en-US")} ภาพ  ตัวคุมงานเก็บผลได้ทีละซับ เปิดซับนี้แล้วผลเดิมจะหาย ถ้ายังไม่ได้ส่งออก ให้เลือกแทร็กเดิมแล้วส่งออกก่อน`}</Phr>
+        <div className="minirow"><button type="button" className="btn btn-ghost btn-sm" onClick={() => void openHere()} data-ocr-other-open>{other.running ? "หยุดอ่านแล้วเปิดซับนี้" : "เปิดซับนี้ ทิ้งผลเดิม"}</button></div>
+      </div></div>
+    </section>);
   if (job.openError && job.path === path) return <section className="card ocr-page" data-ocr-page><div className="stat bad"><CardIcon kind="bad" /><div><b>เปิดซับรูปไม่ได้</b><Phr>{job.openError}</Phr></div></div></section>;
   if (!rows.length) return (
     <section className="card ocr-page" data-ocr-page aria-busy="true">
@@ -569,7 +610,7 @@ export default function OcrPage({ track, movie, onEdit }: { track: AvTrack; movi
         <CardIcon kind={flagged ? "warn" : "ok"} /><Phr>{sum ?? `อ่านแล้ว ${done.toLocaleString("en-US")} จาก ${total.toLocaleString("en-US")} ภาพ มี ${flagged.toLocaleString("en-US")} ภาพที่ควรตรวจ`}</Phr>
         <InfoTip title="จุดที่ต้องตรวจ" tip={FLAG_TIP} />
         <span style={{ flex: 1 }} />
-        {view === "table" && forcedCount > 0 && <label className="ocr-only" data-ocr-forced><Switch on={forcedOnly} onChange={setForcedOnly} label="แสดงเฉพาะซับบังคับ" /><span>{`เฉพาะซับบังคับ ${forcedCount}`}</span></label>}
+        {view === "table" && forcedCount > 0 && <label className="ocr-only" data-ocr-forced><Switch on={forcedOnly} onChange={setForcedOnly} label="แสดงเฉพาะซับบังคับ" /><span>{`เฉพาะซับบังคับ ${forcedCount}`}</span><InfoTip title="ซับบังคับ" tip={FORCED_TIP} /></label>}
         {view === "table" && <label className="ocr-only"><Switch on={only} onChange={setOnly} label="แสดงเฉพาะจุดที่ต้องตรวจ" /><span>เฉพาะจุดที่ต้องตรวจ</span></label>}
         <Seg small label="แบบตรวจทาน" value={view} onChange={setView} options={[{ value: "table", label: <><IbTable size={14} />ตาราง</> }, { value: "one", label: <><IbNext size={14} />ทีละจุด</> }]} />
       </div>}
@@ -581,6 +622,8 @@ export default function OcrPage({ track, movie, onEdit }: { track: AvTrack; movi
           <OcrTable rows={rows} sel={sel} setSel={setSel} onlyFlag={only} onlyForced={forcedOnly} imgs={imgs} need={need} current={job.current} multi={multi} setMulti={setMulti} />
           <EditArea i={Math.min(sel, rows.length - 1)} rows={rows} movie={movie} imgs={imgs} setSel={setSel} onTeach={teachRow} onUnknown={(word, i) => setAsk({ word, i })} onInspect={() => setInsp(Math.min(sel, rows.length - 1))} picked={picked.length} onDelete={() => setDelAsk(true)} onFill={() => void fillClip()} clipMsg={clipMsg} />
         </>}
+      {editErr && <div className="stat bad" data-ocr-edit-err><CardIcon kind="bad" /><div style={{ flex: 1 }}><b>ส่งไปหน้าแก้ซับไม่ได้</b><Phr>{editErr}</Phr><div className="minirow"><button type="button" className="btn btn-ghost btn-sm" onClick={() => setEditErr(null)}>ปิด</button></div></div></div>}
+      {job.wordErr && <div className="stat bad" data-ocr-word-err><CardIcon kind="bad" /><div style={{ flex: 1 }}><b>บันทึกรายการคำไม่ได้</b><Phr>{job.wordErr}</Phr><div className="minirow"><button type="button" className="btn btn-ghost btn-sm" onClick={clearWordErr}>ปิด</button></div></div></div>}
       {impMsg && <div className="stat bad" data-ocr-import-err><CardIcon kind="bad" /><div style={{ flex: 1 }}><b>นำข้อความจากไฟล์ซับไม่ได้</b><Phr>{impMsg}</Phr><div className="minirow"><button type="button" className="btn btn-ghost btn-sm" onClick={() => setImpMsg(null)}>ปิด</button></div></div></div>}
       <div className="ocr-foot" data-ocr-foot>
         {!job.running && <>
@@ -598,14 +641,14 @@ export default function OcrPage({ track, movie, onEdit }: { track: AvTrack; movi
         <span style={{ flex: 1 }} />
         {job.running ? <>
           {job.paused
-            ? <button type="button" className="btn btn-ghost" onClick={resumeOcr} data-ocr-resume><IbPlay size={15} />อ่านต่อ</button>
-            : <button type="button" className="btn btn-ghost" onClick={pauseOcr} data-ocr-pause><IbStop size={15} />หยุดชั่วคราว</button>}
+            ? <button type="button" className="btn btn-ghost" onClick={resumeOcr} data-ocr-resume><Keep all={["อ่านต่อ", "หยุดชั่วคราว"]} icon={<IbPlay size={15} />}>อ่านต่อ</Keep></button>
+            : <button type="button" className="btn btn-ghost" onClick={pauseOcr} data-ocr-pause><Keep all={["อ่านต่อ", "หยุดชั่วคราว"]} icon={<IbStop size={15} />}>หยุดชั่วคราว</Keep></button>}
           <button type="button" className="btn btn-ghost" onClick={stopOcr} data-ocr-stop>หยุด</button>
         </> : <>
           <button type="button" className="btn btn-ghost ocr-tool" onClick={() => void importText()} title="นำข้อความจากไฟล์ซับตัวหนังสือที่เวลาตรงกัน แทนการอ่านภาพ" aria-label="นำข้อความจากไฟล์ซับ" data-ocr-import><IcFile size={15} /><span className="ocr-tl">นำข้อความจากไฟล์ซับ</span></button>
           {done > 0 && <button type="button" className="btn btn-ghost ocr-tool" onClick={() => setDlg("find")} title="ค้นและแทนที่ข้อความในทุกบรรทัด" aria-label="ค้นและแทนที่" data-ocr-find-open><IcSearch size={15} /><span className="ocr-tl">ค้นและแทนที่</span></button>}
-          {done > 0 && <button type="button" className="btn btn-ghost" onClick={() => void startOcr([sel])} title={`อ่านภาพที่ ${rows[sel]?.item.n ?? ""} ใหม่ด้วยค่าที่ตั้งตอนนี้`} data-ocr-reread><IcRefresh size={15} />อ่านใหม่เฉพาะที่เลือก</button>}
-          {!allDone && <button type="button" className={"btn " + (done ? "btn-ghost" : "btn-main")} onClick={() => void startOcr()} data-ocr-start><IbPlay size={15} />{done ? "อ่านต่อที่เหลือ" : "เริ่มอ่าน"}</button>}
+          {done > 0 && <button type="button" className="btn btn-ghost" onClick={() => void startOcr([sel])} title={`อ่านภาพที่ ${rows[sel]?.item.n ?? ""} ใหม่ด้วยค่าที่ตั้งตอนนี้${rows[sel]?.edited ? " ข้อความที่แก้เองจะถูกแทนด้วยผลอ่านใหม่" : ""}`} data-ocr-reread><IcRefresh size={15} />อ่านใหม่เฉพาะที่เลือก</button>}
+          {!allDone && <button type="button" className={"btn " + (done ? "btn-ghost" : "btn-main")} onClick={() => void startOcr()} data-ocr-start><Keep all={["อ่านต่อที่เหลือ", "เริ่มอ่าน"]} icon={<IbPlay size={15} />}>{done ? "อ่านต่อที่เหลือ" : "เริ่มอ่าน"}</Keep></button>}
           {/* อ่านแล้วตรวจทานในหน้านี้ แล้วเลือกไปหน้าแก้ซับหรือส่งออก (ข้อ 143 ㉕) */}
           {done > 0 && <>
             <span className="sv-sep" aria-hidden />

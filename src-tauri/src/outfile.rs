@@ -191,6 +191,25 @@ fn trash_reason(r: i32, still: bool) -> String {
 mod trash_tests {
     use super::*;
 
+    /// บันทึกฐานซ้ำในรอบเดียว ครั้งที่สองแทนที่ตรง ๆ ไม่ผ่านถังขยะ ข้อความใหม่ทุกครั้ง ไม่มีไฟล์ชั่วคราวค้าง (ผู้ช่วยตรวจทาน R2)
+    /// ครั้งแรกเป็นไฟล์ใหม่ (ไม่มีของเดิมให้ลงถังขยะ) ครั้งที่สองกับสามต้องไม่เรียกตัวลงถังขยะ วัดจากบันทึกการใช้งานไม่ได้ จึงวัดว่าไม่ผิดพลาดและไฟล์ถูก
+    #[test]
+    fn replace_often_second_save_replaces_in_place() {
+        let dir = std::env::temp_dir().join("movie-shelf-replace-often");
+        let _ = std::fs::remove_dir_all(&dir);
+        std::fs::create_dir_all(&dir).unwrap();
+        let f = dir.join("db.nocr");
+        for (k, t) in ["หนึ่ง", "สอง", "สาม"].iter().enumerate() {
+            let part = dir.join(format!("db.nocr.{k}.partial"));
+            std::fs::write(&part, t).unwrap();
+            // ครั้งแรกของไฟล์นี้ในรอบ ไฟล์ยังไม่มี ไม่มีอะไรลงถังขยะ · ครั้งถัดไปแทนที่ตรง ๆ
+            replace_often(&part, &f).unwrap();
+            assert_eq!(std::fs::read_to_string(&f).unwrap(), *t);
+            assert!(!part.exists());
+        }
+        let _ = std::fs::remove_dir_all(&dir);
+    }
+
     /// ส่งลงถังขยะไม่สำเร็จบอกสาเหตุเป็นภาษาไทย ไม่ขึ้นแค่รหัส (BUGS ข้อ 150)
     #[test]
     fn trash_reasons_in_thai() {
@@ -212,6 +231,16 @@ pub fn replace_with(partial: &Path, target: &Path) -> Result<(), String> {
         if had { format!("เอาไฟล์ใหม่มาแทนไม่สำเร็จ {}  ไฟล์เดิมอยู่ในถังขยะ ไฟล์ใหม่อยู่ที่ {}", p.title, partial.display()) }
         else { let _ = std::fs::remove_file(partial); p.title }
     })
+}
+
+/// ไฟล์ฐานตัวอักษรกับรายการคำของ OCR ที่บันทึกบ่อย (สอนทีละตัว เพิ่มทีละคำ) · ไฟล์เดิมลงถังขยะครั้งแรกของการเปิดโปรแกรมรอบนี้ครั้งเดียว
+/// ครั้งถัดไปแทนที่ตรง ๆ ไม่ผ่านถังขยะ · เดิมทุกตัวที่สอนส่งฐานทั้งไฟล์ลงถังขยะ สอนร้อยตัวได้สำเนาร้อยชุดบนไดรฟ์ C (ผู้ช่วยตรวจทาน R2)
+/// ยังกู้ฐานก่อนเปิดโปรแกรมรอบนี้ได้จากถังขยะเสมอ
+pub fn replace_often(partial: &Path, target: &Path) -> Result<(), String> {
+    static DONE: std::sync::Mutex<Option<std::collections::HashSet<PathBuf>>> = std::sync::Mutex::new(None);
+    let first = DONE.lock().map(|mut g| g.get_or_insert_with(Default::default).insert(target.to_path_buf())).unwrap_or(true);
+    if first || !target.exists() { return replace_with(partial, target); }
+    std::fs::rename(partial, target).map_err(|e| { let _ = std::fs::remove_file(partial); format!("บันทึกทับไฟล์ไม่ได้ {e}") })
 }
 
 /// ที่เก็บไฟล์เดิมที่ชื่อไม่ชนใคร · ชื่อซ้ำต่อท้าย (2) (3) ไม่เขียนทับ

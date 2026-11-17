@@ -104,7 +104,21 @@ pub struct TessOut {
     pub conf: f32,
 }
 
+/// อักษรที่ไม่เว้นวรรคระหว่างคำ ไทย คานะ คันจิ ฮันกึล และเครื่องหมายเต็มความกว้าง
+fn no_space_script(c: char) -> bool {
+    matches!(c, '\u{0E00}'..='\u{0E7F}' | '\u{3000}'..='\u{30FF}' | '\u{3400}'..='\u{9FFF}' | '\u{AC00}'..='\u{D7AF}' | '\u{FF00}'..='\u{FFEF}')
+}
+
+/// ตัวอักษรตัวแรกกับตัวสุดท้ายของคำ ไม่นับแท็ก
+fn edge_chars(w: &str) -> (Option<char>, Option<char>) {
+    let mut plain = String::new();
+    let mut inside = false;
+    for c in w.chars() { match c { '<' => inside = true, '>' => inside = false, _ if !inside => plain.push(c), _ => {} } }
+    (plain.chars().next(), plain.chars().last())
+}
+
 /// อ่าน hOCR ทีละบรรทัดทีละคำ · ตาม ParseHOcr ของ Subtitle Edit บวกค่า x_wconf ของคำ
+/// คำที่ต่อกันด้วยอักษรไทยหรือ CJK ทั้งสองข้าง ต่อชิดกันไม่เว้นวรรค · Tesseract แบ่งไทยกับญี่ปุ่นเป็นหลายคำ Subtitle Edit ใส่เว้นวรรคทุกคำจนข้อความมีเว้นวรรคแทรกกลาง (ผู้ช่วยตรวจทาน T2)
 pub fn parse_hocr(html: &str) -> TessOut {
     let mut sb = String::new();
     let mut confs: Vec<f32> = vec![];
@@ -121,7 +135,12 @@ pub fn parse_hocr(html: &str) -> TessOut {
                 let head = &html[w..gt];
                 if let Some(c) = head.split("x_wconf ").nth(1).and_then(|v| v.split(|ch: char| !ch.is_ascii_digit()).next()).and_then(|v| v.parse::<f32>().ok()) { confs.push(c / 100.0); }
                 if let Some(end) = find(html, "</span>", gt + 1) {
-                    sb.push_str(html[gt + 1..end].trim());
+                    let word = html[gt + 1..end].trim();
+                    if sb.ends_with(' ') {
+                        let prev = edge_chars(sb.trim_end().rsplit(['\n']).next().unwrap_or("")).1;
+                        if prev.is_some_and(no_space_script) && edge_chars(word).0.is_some_and(no_space_script) { sb.pop(); }
+                    }
+                    sb.push_str(word);
                     sb.push(' ');
                 }
             }
@@ -355,6 +374,15 @@ mod tests {
         assert_eq!(o.text, "Hello <i>there</i>\nTom&Jerry's");
         assert!((o.conf - 0.61).abs() < 1e-6);
         assert_eq!(parse_hocr("<html></html>"), TessOut::default());
+    }
+
+    /// คำไทยกับญี่ปุ่นที่ Tesseract แบ่งเป็นหลายคำต่อชิดกัน คำอังกฤษยังเว้นวรรค · ระหว่างไทยกับอังกฤษเว้นวรรคเดิม (ผู้ช่วยตรวจทาน T2)
+    #[test]
+    fn hocr_no_spaces_inside_thai_and_japanese() {
+        let w = |t: &str| format!("<span class='ocrx_word' id='w' title='bbox 1 1 2 2; x_wconf 90'>{t}</span> ");
+        let h = format!("<span class='ocr_line' id='l1'>{}{}{}</span><span class='ocr_line' id='l2'>{}{}</span><span class='ocr_line' id='l3'>{}{}</span>",
+            w("สวัสดี"), w("ครับ"), w("OK"), w("咆哮が"), w("<em>聞こえる</em>"), w("Hello"), w("world"));
+        assert_eq!(parse_hocr(&h).text, "สวัสดีครับ OK\n咆哮が<i>聞こえる</i>\nHello world");
     }
 
     #[test]

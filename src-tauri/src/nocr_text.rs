@@ -293,11 +293,12 @@ fn has_italic_tag(t: &str) -> bool { let l = t.to_lowercase(); l.contains("<i>")
 
 /// ตัวที่สอนพร้อมแท็กในข้อความ ("<i>i</i>t") กำหนดตัวเอียงของตัวเอง · ตาม AddTaggedRuns
 fn tagged_runs(segs: &mut Vec<Seg>, text: &str) {
-    let lower = text.to_lowercase();
-    let (lb, b) = (lower.as_bytes(), text.as_bytes());
+    // หาแท็กบนข้อความเดิมแบบไม่สนตัวพิมพ์ทีละไบต์ (แท็กเป็น ASCII) · เดิมหาบนข้อความที่แปลงเป็นตัวเล็ก ตัวอย่าง İ ยาวขึ้นหนึ่งไบต์ ตำแหน่งเลื่อนแล้วตัดกลางตัวอักษรจนโปรแกรมพัง (ผู้ช่วยตรวจทาน T16)
+    let b = text.as_bytes();
+    let at = |i: usize, p: &[u8]| b.get(i..i + p.len()).is_some_and(|s| s.eq_ignore_ascii_case(p));
     let (mut on, mut start, mut i) = (false, 0usize, 0usize);
     while i < b.len() {
-        let tag = if lb[i..].starts_with(b"<i>") { 3 } else if lb[i..].starts_with(b"</i>") { 4 } else { 0 };
+        let tag = if at(i, b"<i>") { 3 } else if at(i, b"</i>") { 4 } else { 0 };
         if tag == 0 { i += 1; continue; }
         if i > start { segs.push(Seg { text: text[start..i].into(), italic: on, ws: false }); }
         on = tag == 3;
@@ -407,7 +408,9 @@ fn number_like_runs(t: &str) -> String {
 /// (?<![\p{L}\d])[\p{L}0]*0[\p{L}0]*(?![\p{L}\d]) คำของตัวอักษรที่มี 0 ปน เปลี่ยน 0 เป็น o หรือ O
 fn words_with_zero(t: &str) -> String {
     let c: Vec<char> = t.chars().collect();
-    let part = |x: char| is_letter(x) || x == '0';
+    // นับเป็นคำเฉพาะอักษรละติน กรีก ซีริลลิก ที่ 0 กับ O หน้าเหมือนกัน · 第0話 กับ ห้อง0 ไม่เปลี่ยนเลขศูนย์เป็น o (ผู้ช่วยตรวจทาน T15)
+    let latin = |x: char| is_letter(x) && (x as u32) < 0x0530;
+    let part = |x: char| latin(x) || x == '0';
     let mut out = String::new();
     let mut i = 0;
     while i < c.len() {
@@ -772,6 +775,17 @@ pub fn italic_retry(r: &LineRead) -> Option<String> {
 mod tests {
     use super::*;
     use image::{Rgba, RgbaImage};
+
+    /// 0 เป็น o เฉพาะคำละติน · ญี่ปุ่นกับไทยเลขศูนย์คงเดิม (T15) · แท็กตัวเอียงกับตัวที่ตัวเล็กยาวกว่าตัวใหญ่ ไม่พัง แยกช่วงถูก (T16)
+    #[test]
+    fn zero_only_latin_and_tags_by_bytes() {
+        assert_eq!(words_with_zero("H0me"), "Home");
+        assert_eq!(words_with_zero("第0話"), "第0話");
+        assert_eq!(words_with_zero("ห้อง0"), "ห้อง0");
+        let mut segs = vec![];
+        tagged_runs(&mut segs, "<I>İ</I>t");
+        assert_eq!(segs.iter().map(|s| (s.text.as_str(), s.italic)).collect::<Vec<_>>(), vec![("İ", true), ("t", false)]);
+    }
 
     fn hit(t: &str, italic: bool) -> Hit { Hit { text: t.into(), italic, ..Default::default() } }
 

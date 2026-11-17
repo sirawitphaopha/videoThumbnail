@@ -106,7 +106,7 @@ export function InspectDialog({ open, index, onClose }: { open: boolean; index: 
   // ปุ่มทีละตัวแบ่งแถวตามตัวขึ้นบรรทัด · ตัวที่ถูกตัวขยายจับกินไปไม่แสดง
   const rowsOf: { k: number }[][] = [[]];
   v?.letters.forEach((l, k) => { if (l.special === "\n") rowsOf.push([]); else if (!l.cont) rowsOf[rowsOf.length - 1].push({ k }); });
-  const title = v ? `ตรวจบรรทัด ภาพที่ ${v.index + 1} ${v.engine === "binary" ? "Binary OCR" : v.engine === "own" ? "ตัวสอนเอง" : "nOCR"} ${v.db}` : "ตรวจบรรทัด";
+  const title = v ? `ตรวจบรรทัด ภาพที่ ${getOcrJob().rows[v.index]?.item.n ?? v.index + 1} ${v.engine === "binary" ? "Binary OCR" : v.engine === "own" ? "ตัวสอนเอง" : "nOCR"} ${v.db}` : "ตรวจบรรทัด";
   const numBtn = (dis: boolean, why: string, label: string, onClick: () => void, child: React.ReactNode, data?: string) => (
     <button type="button" className={"btn btn-sm " + (dis ? "btn-wait" : "btn-ghost")} aria-disabled={dis || undefined} title={dis ? why : label} aria-label={label} onClick={() => { if (!dis) onClick(); }} data-insp={data}>{child}</button>);
   return (

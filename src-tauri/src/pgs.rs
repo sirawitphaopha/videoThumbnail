@@ -933,6 +933,8 @@ pub(crate) fn spawn_pair(tools: &Path, sub: &Path, fonts: Option<&Path>, w: u32,
         "-f".into(), "rawvideo".into(), "-pix_fmt".into(), "rgb24".into(), "-".into(),
     ];
     let mut child = tool_command(tools, "ffmpeg", &args).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(|e| format!("เปิด ffmpeg ไม่ได้ {e}"))?;
+    // ปิดโปรแกรมระหว่างวาด ffmpeg ตายตาม (ผู้ช่วยตรวจทาน R18)
+    crate::winutil::kill_with_app(&child);
     let out = child.stdout.take().ok_or("อ่านผลของ ffmpeg ไม่ได้")?;
     Ok((child, out))
 }

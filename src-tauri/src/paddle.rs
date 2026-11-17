@@ -158,7 +158,8 @@ impl Rec {
     pub fn line(&self, img: &RgbaImage) -> Result<LineText, String> {
         if img.width() == 0 || img.height() == 0 { return Ok(LineText { text: String::new(), conf: 0.0 }); }
         // ตัดเหลือส่วนที่มีหมึกก่อน · บรรทัดสั้นที่ได้ภาพกว้างเท่าบรรทัดยาว พื้นดำว่างสองข้าง โมเดลไทยอ่านเป็นขีด "-----" (เจอตอนเทส 16 พ.ย. 2569)
-        let Some((x, y, w, h)) = crate::ocrprep::ink_bounds(img, 0) else { return Ok(LineText { text: String::new(), conf: 0.0 }) };
+        // เกณฑ์ alpha 40 เท่าตัวแบ่งบรรทัด · จุดจางของบรรทัดอื่นที่ตัวแบ่งไม่ลบ ไม่ยืดกรอบจนเหลือพื้นดำข้างเดียว (ผู้ช่วยตรวจทาน T11)
+        let Some((x, y, w, h)) = crate::ocrprep::ink_bounds(img, 40).or_else(|| crate::ocrprep::ink_bounds(img, 0)) else { return Ok(LineText { text: String::new(), conf: 0.0 }) };
         let ink = image::imageops::crop_imm(img, x, y, w, h).to_image();
         let rgb = crate::ocrprep::on_black(&ink, 8);
         self.line_rgb(&rgb)
@@ -252,8 +253,9 @@ impl Det {
         Ok(found.into_iter().filter_map(|(x, y, bw, bh)| {
             let x0 = ((x as f64 * sx) as i64 - pad as i64).max(0) as u32;
             let y0 = ((y as f64 * sy) as i64 - pad as i64).max(0) as u32;
-            let x1 = (((x + bw) as f64 * sx) as i64 - pad as i64).min(img.width() as i64) as u32;
-            let y1 = (((y + bh) as f64 * sy) as i64 - pad as i64).min(img.height() as i64) as u32;
+            // ค่าติดลบ (กรอบอยู่ในขอบที่เผื่อ) แปลงเป็น u32 แล้ววนเป็นเลขใหญ่มาก จึงหนีบไว้ในภาพ (ผู้ช่วยตรวจทาน R17)
+            let x1 = (((x + bw) as f64 * sx) as i64 - pad as i64).clamp(0, img.width() as i64) as u32;
+            let y1 = (((y + bh) as f64 * sy) as i64 - pad as i64).clamp(0, img.height() as i64) as u32;
             (x1 > x0 + 2 && y1 > y0 + 2).then_some((x0, y0, x1 - x0, y1 - y0))
         }).collect())
     }
@@ -387,17 +389,90 @@ pub fn read(ocr: &Path, img: &RgbaImage, o: &PaddleOpts) -> Result<Vec<LineText>
     if is_vertical(img, &o.vertical) {
         let dd = det_dir(&ocr.join("paddle"), &o.size);
         let det = cached(&DETS, &dd, || Det::load(ocr, &dd))?;
-        let mut cols = det.boxes(img)?;
+        let cols = det.boxes(img)?;
         if !cols.is_empty() {
-            cols.sort_by_key(|c| std::cmp::Reverse(c.0 + c.2 / 2));
-            return cols.into_iter().map(|(x, y, w, h)| {
-                let crop = image::imageops::crop_imm(img, x, y, w, h).to_image();
-                // คอลัมน์หมุน 90 องศาทวนเข็ม ตัวบนสุดไปอยู่ซ้ายสุด ตัวอ่านอ่านจากซ้ายไปขวาจึงได้ลำดับบนลงล่าง
-                read_one(if h as f64 > w as f64 * 1.5 { image::imageops::rotate270(&crop) } else { crop })
-            }).collect();
+            // จัดกรอบเป็นคอลัมน์ ขวาไปซ้าย ในคอลัมน์บนลงล่าง ต่อข้อความเป็นบรรทัดเดียว · คอลัมน์คำอ่านตัวเล็กทางขวาทิ้งเมื่ออ่านได้คานะล้วน
+            // (ผู้ช่วยตรวจทาน T5 · เดิมเรียงด้วยกึ่งกลางแนวนอนอย่างเดียว คำอ่านขึ้นหน้าประโยค และคอลัมน์ที่แบ่งเป็นสองกรอบสลับบนล่างได้)
+            let (groups, ruby) = vertical_columns(&cols);
+            let mut out = Vec::with_capacity(groups.len());
+            for g in groups {
+                let mut text = String::new();
+                let mut conf = f32::INFINITY;
+                for &k in &g {
+                    let (x, y, w, h) = cols[k];
+                    let crop = image::imageops::crop_imm(img, x, y, w, h).to_image();
+                    // คอลัมน์หมุน 90 องศาทวนเข็ม ตัวบนสุดไปอยู่ซ้ายสุด ตัวอ่านอ่านจากซ้ายไปขวาจึงได้ลำดับบนลงล่าง
+                    let t = read_one(if h as f64 > w as f64 * 1.5 { image::imageops::rotate270(&crop) } else { crop })?;
+                    if ruby[k] && !t.text.is_empty() && t.text.chars().all(|c| ('\u{3040}'..='\u{30FF}').contains(&c) || c.is_whitespace()) { continue; }
+                    if t.text.is_empty() { continue; }
+                    text.push_str(&t.text);
+                    conf = conf.min(t.conf);
+                }
+                if !text.is_empty() { out.push(LineText { text, conf }); }
+            }
+            return Ok(out);
         }
     }
-    crate::ocrprep::split_lines(img).into_iter().map(|l| read_one(l.img)).collect()
+    let lines = crate::ocrprep::split_lines(img);
+    let ruby = if matches!(o.lang.as_str(), "" | "ja" | "zh" | "ch") { ruby_lines(&lines) } else { vec![false; lines.len()] };
+    let mut out = Vec::with_capacity(lines.len());
+    for (k, l) in lines.into_iter().enumerate() {
+        let t = read_one(l.img)?;
+        // บรรทัดคำอ่านตัวเล็กเหนือคันจิ (ฟุริงานะ) ทิ้งเมื่ออ่านได้คานะล้วน · อ่านได้อย่างอื่นแปลว่าไม่ใช่คำอ่าน เก็บไว้
+        if ruby[k] && !t.text.is_empty() && t.text.chars().all(|c| ('\u{3040}'..='\u{30FF}').contains(&c) || c.is_whitespace()) { continue; }
+        out.push(t);
+    }
+    Ok(out)
+}
+
+/// กรอบข้อความของซับแนวตั้ง (x y w h) จัดเป็นคอลัมน์ · คืนลำดับกรอบของแต่ละคอลัมน์ (ขวาไปซ้าย ในคอลัมน์บนลงล่าง) กับธงคอลัมน์คำอ่าน
+/// คอลัมน์คำอ่าน แคบกว่า 0.6 เท่าของความกว้างกลาง อยู่ชิดขวาของคอลัมน์ที่กว้างกว่า (ห่างไม่ถึงครึ่งความกว้างกลาง) และช่วงแนวตั้งอยู่ในคอลัมน์นั้น
+pub(crate) fn vertical_columns(cols: &[(u32, u32, u32, u32)]) -> (Vec<Vec<usize>>, Vec<bool>) {
+    let mut ws: Vec<u32> = cols.iter().map(|c| c.2).collect();
+    ws.sort_unstable();
+    let mw = ws.get(ws.len() / 2).copied().unwrap_or(1) as f64;
+    let ruby: Vec<bool> = cols.iter().map(|c| {
+        (c.2 as f64) < mw * 0.6 && cols.iter().any(|d| {
+            (d.2 as f64) >= mw * 0.8 && c.0 as f64 >= d.0 as f64 + d.2 as f64 / 2.0 && (c.0 as f64) <= (d.0 + d.2) as f64 + mw * 0.5
+                && c.1 as f64 >= d.1 as f64 - mw * 0.5 && ((c.1 + c.3) as f64) <= (d.1 + d.3) as f64 + mw * 0.5
+        })
+    }).collect();
+    // กรอบที่ช่วงแนวนอนซ้อนกันเกินครึ่งของกรอบที่แคบกว่าอยู่คอลัมน์เดียวกัน · คำอ่านอยู่กลุ่มของตัวเอง
+    let mut groups: Vec<Vec<usize>> = Vec::new();
+    let mut order: Vec<usize> = (0..cols.len()).collect();
+    order.sort_by_key(|&k| std::cmp::Reverse(cols[k].0 + cols[k].2 / 2));
+    for k in order {
+        let c = cols[k];
+        let same = groups.iter_mut().find(|g| g.iter().all(|&j| ruby[j] == ruby[k]) && g.iter().any(|&j| {
+            let d = cols[j];
+            let ov = (c.0 + c.2).min(d.0 + d.2) as i64 - c.0.max(d.0) as i64;
+            ov as f64 > c.2.min(d.2) as f64 * 0.5
+        }));
+        match same { Some(g) => g.push(k), None => groups.push(vec![k]) }
+    }
+    for g in groups.iter_mut() { g.sort_by_key(|&k| cols[k].1); }
+    (groups, ruby)
+}
+
+/// บรรทัดที่น่าจะเป็นคำอ่านตัวเล็กเหนือคันจิ (ฟุริงานะ) ของซับญี่ปุ่น · ผู้ช่วยตรวจทาน T4
+/// เตี้ยกว่า 0.6 เท่าของความสูงกลางของบรรทัด อยู่ชิดเหนือบรรทัดถัดไป (ห่างไม่เกินครึ่งความสูงกลาง) อยู่ในช่วงแนวนอนของบรรทัดนั้นและแคบกว่า 0.8 เท่า
+/// เดิมอ่านเป็นบรรทัดแรกของข้อความ เช่น ほうこう นำหน้า 咆哮が聞こえる · ไม่ใช้กับไทย เพราะสระบนวรรณยุกต์ของไทยเป็นแถบเตี้ยเหมือนกัน
+pub(crate) fn ruby_lines(lines: &[crate::ocrprep::Line]) -> Vec<bool> {
+    let b: Vec<Option<(u32, u32, u32, u32)>> = lines.iter().map(|l| crate::ocrprep::ink_bounds(&l.img, 40).map(|(x, y, w, h)| (x, l.y + y, w, h))).collect();
+    let mut hs: Vec<u32> = b.iter().flatten().map(|r| r.3).collect();
+    let mut out = vec![false; lines.len()];
+    if hs.len() < 2 { return out; }
+    hs.sort_unstable();
+    let mid = hs[hs.len() / 2] as f64;
+    for k in 0..lines.len().saturating_sub(1) {
+        let (Some(a), Some(n)) = (b[k], b[k + 1]) else { continue };
+        let short = (a.3 as f64) < mid * 0.6;
+        let close = (n.1 as f64) - ((a.1 + a.3) as f64) <= mid * 0.5;
+        let inside = (a.0 as f64) >= n.0 as f64 - mid * 0.5 && ((a.0 + a.2) as f64) <= (n.0 + n.2) as f64 + mid * 0.5;
+        let narrow = (a.2 as f64) < n.2 as f64 * 0.8;
+        out[k] = short && close && inside && narrow && n.3 as f64 >= mid * 0.8;
+    }
+    out
 }
 
 /// ข้อความของทั้งภาพ บรรทัดคั่นด้วยขึ้นบรรทัดใหม่ บรรทัดที่อ่านไม่ได้ข้าม · ความมั่นใจต่ำสุดของบรรทัดที่มีข้อความ
@@ -428,6 +503,30 @@ mod tests {
     use super::*;
 
     fn ocr_dir() -> PathBuf { PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tools").join("ocr") }
+
+    /// ซับแนวตั้งสองคอลัมน์ คอลัมน์ขวาแบ่งเป็นสองกรอบ และมีคอลัมน์คำอ่านแคบชิดขวา · ได้สองคอลัมน์ขวาไปซ้าย กรอบในคอลัมน์บนลงล่าง คำอ่านถูกติดธง (T5)
+    #[test]
+    fn vertical_columns_order() {
+        let cols = vec![(100, 220, 40, 180), (40, 0, 40, 300), (100, 0, 42, 200), (146, 20, 16, 60)];
+        let (g, ruby) = vertical_columns(&cols);
+        assert_eq!(ruby, vec![false, false, false, true]);
+        assert_eq!(g, vec![vec![3], vec![2, 0], vec![1]]);
+    }
+
+    /// บรรทัดเตี้ยแคบชิดเหนือบรรทัดหลักเป็นคำอ่าน · บรรทัดเต็มสองบรรทัดไม่ใช่ (ผู้ช่วยตรวจทาน T4)
+    #[test]
+    fn ruby_line_detected() {
+        let line = |y: u32, x: u32, w: u32, h: u32| {
+            let mut img = RgbaImage::new(200, h);
+            for yy in 0..h { for xx in x..x + w { img.put_pixel(xx, yy, Rgba([255, 255, 255, 255])); } }
+            crate::ocrprep::Line { y, h, img }
+        };
+        let ruby = line(0, 60, 40, 12);
+        let main = line(16, 20, 160, 30);
+        let second = line(56, 20, 150, 30);
+        assert_eq!(ruby_lines(&[ruby, main, second]), vec![true, false, false]);
+        assert_eq!(ruby_lines(&[line(0, 20, 160, 30), line(40, 20, 150, 30)]), vec![false, false]);
+    }
 
     #[test]
     fn dict_from_yml() {
@@ -568,7 +667,7 @@ mod tests {
         eprintln!("Godzilla ญี่ปุ่น {} ภาพ จับคู่ได้ {matched} ถูกทั้งภาพ {exact} ({:.1}%) แนวตั้ง {vertical} ภาพ ถูก {vexact} · ถูกรายตัวอักษร {:.1}% ใน {:.0} วินาที · ตัวอย่างที่ผิด {worst:?}",
             shows.len(), exact as f64 * 100.0 / matched.max(1) as f64, acc * 100.0, t.elapsed().as_secs_f64());
         assert!(matched >= 1800, "จับคู่กับ SRT ได้น้อยไป {matched}");
-        // ผลวัด 17 พ.ย. 2569 ถูกทั้งภาพ 1,498 จาก 1,853 (80.8%) ถูกรายตัวอักษร 96.8% · ตั้งเกณฑ์ต่ำกว่าผลวัดเล็กน้อยกันผลถอยหลัง
+        // ผลวัด 17 พ.ย. 2569 ถูกทั้งภาพ 1,498 จาก 1,853 (80.8%) ถูกรายตัวอักษร 96.8% · หลังแก้คอลัมน์ซับแนวตั้งกับคำอ่านตัวเล็ก (T4 T5) 1,503 (81.1%) 97.0% · ตั้งเกณฑ์ต่ำกว่าผลวัดเล็กน้อยกันผลถอยหลัง
         assert!(acc >= 0.96, "ถูกรายตัวอักษรต่ำ {acc}");
         assert!(exact * 100 >= matched * 78, "ถูกทั้งภาพน้อยลง {exact} จาก {matched}");
     }
