@@ -72,7 +72,7 @@ export const DEFAULT_OCR_CFG: OcrCfg = {
   fallback: false, teach: true, lines: 60, algo: "Random",
   helpers: [],
   prep: { cropTransparent: false, invert: false, binarize: false, removeBorders: false, borderSize: 2, toOneColor: false, oneColorThreshold: 128, upscaleTo: 0 },
-  fix: true, lang3: "eng", dict: "en_US", guess: true, confMin: 0.9,
+  fix: true, lang3: "eng", dict: "en_US", guess: true, confMin: 0.9, autoBreak: true,
 };
 
 function loadCfg(): OcrCfg {

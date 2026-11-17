@@ -85,6 +85,9 @@ pub fn an_lines(img: &image::RgbaImage, i: &SubImg, text_lines: usize) -> Option
     }).collect())
 }
 
+/// ภาพที่มีก้อนบรรทัดวางห่างกัน (ป้ายบนจอกับบทพูดข้างล่าง) ไม่ตัดบรรทัดใหม่ · HasSeparatedBlocks ของ OcrAssaAlignment.cs
+pub fn has_separated_blocks(img: &image::RgbaImage, i: &SubImg) -> bool { an_lines(img, i, 2).is_some() }
+
 fn items_of(v: Vec<SubImg>) -> Vec<OcrItem> { v.into_iter().map(|img| OcrItem { an: an_of(&img), img }).collect() }
 
 /// ชนิดของซับรูปที่เปิด ดูจากนามสกุลกับชนิดสตรีม

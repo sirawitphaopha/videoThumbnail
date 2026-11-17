@@ -494,9 +494,9 @@ export default function OcrPage({ track, movie }: { track: AvTrack; movie: strin
       {impMsg && <div className="stat bad" data-ocr-import-err><CardIcon kind="bad" /><div style={{ flex: 1 }}><b>นำข้อความจากไฟล์ซับไม่ได้</b><Phr>{impMsg}</Phr><div className="minirow"><button type="button" className="btn btn-ghost btn-sm" onClick={() => setImpMsg(null)}>ปิด</button></div></div></div>}
       <div className="ocr-foot" data-ocr-foot>
         {!job.running && <>
-          <button type="button" className="btn btn-ghost btn-sm ocr-tool" onClick={() => setDlg("prep")} title="แต่งภาพก่อนส่งให้ตัวอ่าน" data-ocr-prep-open><IbCrop size={14} />แต่งภาพ</button>
-          <button type="button" className="btn btn-ghost btn-sm ocr-tool" onClick={() => setDlg("models")} title="ดูโมเดล ชุดภาษา และฐานตัวอักษรที่มี โหลดชุดภาษาเพิ่ม" data-ocr-models-open><IcSettings size={14} />ตัวอ่านและชุดภาษา</button>
-          <button type="button" className="btn btn-ghost btn-sm ocr-tool" onClick={() => setDlg("options")} title="แก้คำ OCR ถามคำที่ไม่รู้จัก หยุดสอน ฐานสำรอง" data-ocr-options-open><IbWand size={14} />ตัวเลือก</button>
+          <button type="button" className="btn btn-ghost btn-sm ocr-tool" onClick={() => setDlg("prep")} title="แต่งภาพก่อนส่งให้ตัวอ่าน" aria-label="แต่งภาพ" data-ocr-prep-open><IbCrop size={14} /><span className="ocr-tl">แต่งภาพ</span></button>
+          <button type="button" className="btn btn-ghost btn-sm ocr-tool" onClick={() => setDlg("models")} title="ดูโมเดล ชุดภาษา และฐานตัวอักษรที่มี โหลดชุดภาษาเพิ่ม" aria-label="ตัวอ่านและชุดภาษา" data-ocr-models-open><IcSettings size={14} /><span className="ocr-tl">ตัวอ่านและชุดภาษา</span></button>
+          <button type="button" className="btn btn-ghost btn-sm ocr-tool" onClick={() => setDlg("options")} title="แก้คำ OCR ถามคำที่ไม่รู้จัก ตัดบรรทัดเอง หยุดสอน ฐานสำรอง" aria-label="ตัวเลือก" data-ocr-options-open><IbWand size={14} /><span className="ocr-tl">ตัวเลือก</span></button>
           <span className="sv-sep" aria-hidden />
         </>}
         {job.running ? <div className="ocr-prog" data-ocr-prog><div className="ocr-bar2"><span style={{ width: `${pct}%` }} /></div>
@@ -511,8 +511,8 @@ export default function OcrPage({ track, movie }: { track: AvTrack; movie: strin
             : <button type="button" className="btn btn-ghost" onClick={pauseOcr} data-ocr-pause><IbStop size={15} />หยุดชั่วคราว</button>}
           <button type="button" className="btn btn-ghost" onClick={stopOcr} data-ocr-stop>หยุด</button>
         </> : <>
-          <button type="button" className="btn btn-ghost" onClick={() => void importText()} title="ใส่ข้อความจากไฟล์ซับตัวหนังสือที่เวลาตรงกัน แทนการอ่านภาพ" data-ocr-import><IcFile size={15} />นำข้อความจากไฟล์ซับ</button>
-          {done > 0 && <button type="button" className="btn btn-ghost" onClick={() => setDlg("find")} title="ค้นและแทนที่ข้อความในทุกบรรทัด" data-ocr-find-open><IcSearch size={15} />ค้นและแทนที่</button>}
+          <button type="button" className="btn btn-ghost ocr-tool" onClick={() => void importText()} title="นำข้อความจากไฟล์ซับตัวหนังสือที่เวลาตรงกัน แทนการอ่านภาพ" aria-label="นำข้อความจากไฟล์ซับ" data-ocr-import><IcFile size={15} /><span className="ocr-tl">นำข้อความจากไฟล์ซับ</span></button>
+          {done > 0 && <button type="button" className="btn btn-ghost ocr-tool" onClick={() => setDlg("find")} title="ค้นและแทนที่ข้อความในทุกบรรทัด" aria-label="ค้นและแทนที่" data-ocr-find-open><IcSearch size={15} /><span className="ocr-tl">ค้นและแทนที่</span></button>}
           {done > 0 && <button type="button" className="btn btn-ghost" onClick={() => void startOcr([sel])} title={`อ่านภาพที่ ${rows[sel]?.item.n ?? ""} ใหม่ด้วยค่าที่ตั้งตอนนี้`} data-ocr-reread><IcRefresh size={15} />อ่านใหม่เฉพาะที่เลือก</button>}
           {!allDone && <button type="button" className="btn btn-main" onClick={() => void startOcr()} data-ocr-start><IbPlay size={15} />{done ? "อ่านต่อที่เหลือ" : "เริ่มอ่าน"}</button>}
         </>}

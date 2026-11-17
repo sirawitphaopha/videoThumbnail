@@ -171,6 +171,14 @@ await click("[data-teach-once]");
 check("ใช้ครั้งเดียวแล้วอ่านต่อ", await waitFor("const g = window.__ocrJob.get(); return !!g.teach || !g.running;", 15000));
 await click("[data-teach-stop]");
 check("หยุดอ่านปิดหน้าต่าง งานหยุด ภาพกลับเป็นรออ่าน", await waitFor("const g = window.__ocrJob.get(); return !g.running && !g.teach && !document.querySelector('[data-ocr-teach-dlg]') && g.rows[0].state !== 'work';", 8000));
+// แถบล่างตอนอ่านแล้วบางภาพ ปุ่มครบเก้าปุ่ม · เดิมปุ่มอ่านต่อที่เหลือล้นขวา 47 จุด ข้อความสถานะถูกบีบกว้างศูนย์
+await sleep(400);
+const foot = await q(`const f = document.querySelector('[data-ocr-foot]'), fr = f.getBoundingClientRect(), ks = [...f.children].filter((k) => k.getBoundingClientRect().width > 0);
+  const st = f.querySelector(':scope > .small'), bs = ks.filter((k) => k.tagName === 'BUTTON').map((k) => k.getBoundingClientRect());
+  return { over: f.scrollWidth - f.clientWidth, right: Math.round(Math.max(...ks.map((k) => k.getBoundingClientRect().right)) - fr.right), lap: bs.filter((a, i) => bs.some((b, j) => j !== i && a.left < b.right - 0.5 && b.left < a.right - 0.5)).length,
+    status: st ? Math.round(st.getBoundingClientRect().width) : 0, statusNeed: st ? st.scrollWidth - st.clientWidth : 0, buttons: bs.length, start: !!f.querySelector('[data-ocr-start]'), icon: getComputedStyle(f.querySelector('[data-ocr-import] .ocr-tl')).display };`);
+check("แถบล่างตอนปุ่มครบไม่ล้น ปุ่มไม่ซ้อน ข้อความสถานะเห็นครบ ที่ 1280 × 800", foot.start && foot.buttons === 7 && foot.over <= 0 && foot.right <= 0 && foot.lap === 0 && foot.status > 60 && foot.statusNeed <= 0, JSON.stringify(foot));
+check("แถบล่างแคบกว่า 1,280 จุด ปุ่มเครื่องมือเหลือไอคอน", foot.icon === "none", foot.icon);
 const hist = await q("return await window.__TAURI_INTERNALS__.invoke('ocr_history');");
 check("ประวัติที่สอนมีตัวที่จำ", hist.some((h) => h.text === "ก" && h.db === DB), JSON.stringify(hist.slice(0, 3)));
 
@@ -185,6 +193,16 @@ for (const [btn, sel, name] of [["[data-ocr-prep-open]", "[data-ocr-prep-dlg]", 
   sizes.push(m);
   check(`${name.slice(3)} เปิดได้ ไม่ต้องเลื่อน`, ok && m.scroll <= 0, JSON.stringify(m));
   if (name.includes("แต่งภาพ")) check("ภาพที่ส่งให้ตัวอ่านมาจาก Rust", m.prev);
+  if (name.includes("ตัวเลือก")) {
+    // ตัดบรรทัดเอง (ocrbreak.rs) ค่าตั้งต้นเปิดแบบ DoAutoBreak ของ Subtitle Edit · กดแล้วค่าตั้งเปลี่ยนจริง แล้วคืน
+    const sw = "[data-ocr-options-dlg] [role=switch][aria-label='ตัดบรรทัดเอง']";
+    const before = await job("return j.get().cfg.autoBreak;");
+    check("สวิตช์ตัดบรรทัดเองมี ค่าตั้งต้นเปิด", (await q(`return document.querySelector("${sw}")?.getAttribute('aria-checked');`)) === "true" && before === true, String(before));
+    await click(sw);
+    const off = await job("return j.get().cfg.autoBreak;");
+    await click(sw);
+    check("กดสวิตช์ตัดบรรทัดเองแล้วค่าตั้งเปลี่ยน กดอีกครั้งคืน", off === false && (await job("return j.get().cfg.autoBreak;")) === true, String(off));
+  }
   await c.shot(`${SHOT}/${name}.png`);
   await c.key("Escape");
   check(`${name.slice(3)} กด Esc ปิด`, await waitFor(`return !document.querySelector('${sel}');`, 3000));

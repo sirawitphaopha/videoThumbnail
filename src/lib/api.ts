@@ -745,7 +745,7 @@ export type OcrCfg = {
   fallback: boolean; teach: boolean; lines: number; algo: "Random" | "SkeletonDistance" | "EdgeHough";
   /** ตัวช่วยตรวจ paddle:tiny paddle:small paddle:medium tesseract nocr binary own */
   helpers: string[]; prep: OcrPrep;
-  fix: boolean; lang3: string; dict: string; guess: boolean; confMin: number;
+  fix: boolean; lang3: string; dict: string; guess: boolean; confMin: number; autoBreak: boolean;
 };
 /** เหตุที่บรรทัดน่าสงสัย (suspect.rs Reason) */
 export type OcrReason =

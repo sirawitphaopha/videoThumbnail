@@ -277,6 +277,7 @@ const OPT_TIP: Tip = { w: "ตัวเลือกที่ใช้ตอน�
   ["ถามคำที่ไม่รู้จักทีละคำ", "หยุดถามทุกคำที่พจนานุกรมไม่รู้จักระหว่างอ่าน ปิดไว้แล้วตรวจจากรายการหลังอ่านได้", "", ""],
   ["หยุดสอนตัวที่ไม่รู้จัก", "ตัวสอนเองเจอตัวที่ฐานไม่รู้จักแล้วเปิดหน้าต่างสอน ปิดไว้ใส่ * แทน", "", ""],
   ["ฐานสำรอง", "nOCR อ่านไม่ออกให้ Binary OCR ลอง หรือกลับกัน", "", ""],
+  ["ตัดบรรทัดเอง", "ข้อความที่อ่านได้เกินสองบรรทัด รวมเป็นบรรทัดเดียวแล้วตัดใหม่ให้เหลือสองบรรทัด บรรทัดละไม่เกิน 43 ตัว โดยให้บรรทัดล่างยาวกว่านิดหน่อยแบบ Subtitle Edit", "บทพูดสองคนที่ขึ้นด้วยขีด เพลงที่มี ♪ และภาพที่มีป้ายบนจอแยกจากบทพูดข้างล่าง ไม่ถูกตัดใหม่", ""],
 ] };
 function OptionsDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { cfg, promptUnknown, running } = useOcrJob();
@@ -292,6 +293,7 @@ function OptionsDialog({ open, onClose }: { open: boolean; onClose: () => void }
         {sw(cfg.fix, (v) => setOcrCfg({ fix: v }), "แก้คำ OCR", cfg.dict ? `ภาษา ${cfg.lang3} พจนานุกรม ${cfg.dict}` : `ภาษา ${cfg.lang3 || "ไม่มีรายการแก้คำ"} ยังไม่มีพจนานุกรม`, "fix")}
         {sw(cfg.guess, (v) => setOcrCfg({ guess: v }), "เดาคำที่ไม่รู้จัก", "ใช้กับคำที่พจนานุกรมไม่รู้จัก", "guess")}
         {sw(promptUnknown, setPromptUnknown, "ถามคำที่ไม่รู้จักทีละคำ", "หยุดถามระหว่างอ่าน", "prompt")}
+        {sw(cfg.autoBreak, (v) => setOcrCfg({ autoBreak: v }), "ตัดบรรทัดเอง", "อ่านได้เกินสองบรรทัดแล้วตัดใหม่ให้เหลือสองบรรทัด", "ab")}
         <div className="icv-head">ตัวสอนเอง</div>
         {sw(cfg.teach, (v) => setOcrCfg({ teach: v }), "หยุดสอนตัวที่ไม่รู้จัก", "ปิดไว้ใส่ * แทน", "teach")}
         {sw(cfg.fallback, (v) => setOcrCfg({ fallback: v }), "ฐานสำรอง", "nOCR กับ Binary OCR ช่วยกันอ่าน", "fb")}

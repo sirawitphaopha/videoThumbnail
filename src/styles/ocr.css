@@ -111,7 +111,10 @@
 .ocr-eitem.on { background: var(--accent-soft); }
 .ocr-eact { display: flex; gap: 6px; justify-content: flex-end; }
 
-.ocr-foot { display: flex; align-items: center; gap: 8px; flex: none; border-top: 1px solid var(--line); padding-top: 8px; min-height: 44px; }
+.ocr-foot { display: flex; align-items: center; gap: 8px; flex: none; border-top: 1px solid var(--line); padding-top: 8px; min-height: 44px; container: ocrfoot / inline-size; }
+/* แถบล่างกว้างไม่ถึง 1,280 จุด (หน้าต่าง 1280 × 800 กับแบ่งครึ่งจอ) ปุ่มเครื่องมือห้าปุ่มเหลือไอคอนอย่างเดียว ชี้แล้วขึ้นชื่อ
+   ปุ่มอ่านกับข้อความสถานะคงคำไว้ · แบบเดียวกับแถวปุ่มเสียงของหน้าแก้ซับตอนที่ว่างไม่พอ (แคลร์ตั้งเกณฑ์ วัดจากของจริงตอนปุ่มครบ ยาว 1,260 จุด) */
+@container ocrfoot (max-width: 1279px) { .ocr-foot .ocr-tool .ocr-tl { display: none; } }
 .ocr-prog { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
 .ocr-bar2 { height: 8px; border-radius: 4px; background: var(--accent-soft); overflow: hidden; }
 .ocr-bar2 span { display: block; height: 100%; background: var(--accent); border-radius: 4px; }

@@ -56,6 +56,7 @@ mod ocrfix_list;
 mod ocrfix_words;
 mod ocrsrc;
 mod ocrjob;
+mod ocrbreak;
 mod paddle;
 mod tesseract;
 mod vobsub;

@@ -68,6 +68,8 @@ pub struct OcrCfg {
     pub guess: bool,
     /// เกณฑ์ค่าความมั่นใจของ PaddleOCR (suspect.rs CONF_MIN)
     pub conf_min: f32,
+    /// ตัดบรรทัดเองเมื่ออ่านได้เกินสองบรรทัด (DoAutoBreak ของ Subtitle Edit ค่าตั้งต้นเปิด · ocrbreak.rs)
+    pub auto_break: bool,
 }
 
 impl Default for OcrCfg {
@@ -78,6 +80,7 @@ impl Default for OcrCfg {
             bin_db: "Latin".into(), bin_max_err: 0.5, bin_space_px: 12, own_db: "Thai".into(),
             fallback: false, teach: true, lines: 60, algo: Algo::Random, helpers: vec![], prep: Prep::default(),
             fix: true, lang3: "eng".into(), dict: "en_US".into(), guess: true, conf_min: crate::suspect::CONF_MIN,
+            auto_break: true,
         }
     }
 }
@@ -431,6 +434,11 @@ pub fn read(s: &mut Session, d: &Dirs, cfg: &OcrCfg, i: usize) -> Result<ReadRes
         if same_as_primary(cfg, h) { continue; }
         if let Some(t) = s.helper_text(d, cfg, h, &img) { helpers.push((engine_label(h), t)); }
     }
+    // ตัดบรรทัดเองก่อนตัวแก้คำ เมื่อเกินสองบรรทัดและไม่ใช่ภาพที่มีก้อนบนกับก้อนล่างแยกกัน · AutoBreakIfNeeded ของ OcrViewModel
+    let broke = if cfg.auto_break && crate::ocrbreak::number_of_lines(&raw) > crate::ocrbreak::MAX_LINES && !crate::ocrsrc::has_separated_blocks(&raw_img, &item.img) {
+        Some(crate::ocrbreak::auto_break_line(&raw, &crate::ocrbreak::lang_of_dict(&cfg.dict)))
+    } else { None };
+    let src = broke.as_deref().unwrap_or(&raw);
     // ตัวแก้คำ · แก้ภาพที่ตัวจับคู่ภาพพลาด (# / |) เฉพาะตัวอ่านแบบเทียบภาพ แบบ Subtitle Edit
     let (text, unknown, guesses, fixes) = match s.fix.as_mut() {
         Some((_, fx)) if cfg.fix => {
@@ -440,10 +448,11 @@ pub fn read(s: &mut Session, d: &Dirs, cfg: &OcrCfg, i: usize) -> Result<ReadRes
             let next = s.items.get(i + 1).map(|n| n.img.start * 1000.0);
             let end_ms = item.img.end.unwrap_or(item.img.start) * 1000.0;
             let ctx = Ctx::new(prev.as_deref(), end_ms, next.map(|t| (t, "")));
-            let mut lf = fx.fix(i, &raw, &ctx, cfg.guess);
+            let mut lf = fx.fix(i, src, &ctx, cfg.guess);
             // ตัวเอียงที่เว้นวรรคหาย ลองใส่เว้นวรรคเพิ่ม ใช้เมื่อคำที่ไม่รู้จักน้อยกว่า · ตาม Subtitle Edit
             if let Some(alt) = lr.as_ref().and_then(|r| if cfg.engine == "binary" { crate::binocr::italic_retry(r) } else if cfg.engine == "nocr" { crate::nocr_text::italic_retry(r) } else { None }) {
                 if !lf.unknown().is_empty() {
+                    let alt = if broke.is_some() { crate::ocrbreak::auto_break_line(&alt, &crate::ocrbreak::lang_of_dict(&cfg.dict)) } else { alt };
                     let lf2 = fx.fix(i, &alt, &ctx, cfg.guess);
                     if lf2.unknown().len() < lf.unknown().len() { lf = lf2; }
                 }
@@ -453,7 +462,7 @@ pub fn read(s: &mut Session, d: &Dirs, cfg: &OcrCfg, i: usize) -> Result<ReadRes
             let fixes: Vec<(String, String)> = lf.parts.iter().filter_map(|p| p.replacement.clone()).chain(lf.replacement.clone()).collect();
             (lf.text(), unknown, guesses, fixes)
         }
-        _ => (raw.clone(), vec![], vec![], vec![]),
+        _ => (src.to_string(), vec![], vec![], vec![]),
     };
     // ค่าความมั่นใจวัดเกณฑ์ไว้กับ PaddleOCR เท่านั้น (suspect.rs) · Tesseract ส่งค่าไปให้หน้าจอแต่ไม่ใช้ติดเหตุ
     let reasons = crate::suspect::check_line(&text, if cfg.engine == "paddle" { conf } else { None }, &helpers, &unknown, cfg.conf_min);
@@ -777,6 +786,46 @@ mod tests {
         }
         eprintln!("ซับไทย {n} ภาพ มีภาพที่ตำแหน่งแยกทีละบรรทัด {any_split}");
         assert_eq!(s.texts.len(), n);
+        let _ = std::fs::remove_dir_all(d.user.parent().unwrap());
+    }
+
+    /// ภาพซับไทยสามภาพวางซ้อนเป็นภาพเดียวสามบรรทัด (ห่างกัน 10 จุด ก้อนเดียวกัน) อ่านจริงด้วย PaddleOCR
+    /// เปิดตัดบรรทัดเองได้สองบรรทัด ข้อความครบ · ปิดได้สามบรรทัดตามภาพ (ocrbreak.rs AutoBreakIfNeeded)
+    #[test]
+    fn auto_break_three_line_image() {
+        let d = dirs("autobreak");
+        let Some(items) = th_items(&d) else { return };
+        // ภาพบรรทัดเดียว ครอปส่วนใสออก (ภาพบางภาพของไฟล์ทดสอบมีป้ายบนจอแยกจากบทพูด)
+        let parts: Vec<image::RgbaImage> = items.iter().map(|it| crate::ocrprep::crop_transparent(&image::open(&it.img.file).unwrap().to_rgba8()).0).filter(|p| p.height() < 110).take(3).collect();
+        assert_eq!(parts.len(), 3, "ซับไทยทดสอบต้องมีภาพบรรทัดเดียวอย่างน้อยสามภาพ");
+        let w = parts.iter().map(|p| p.width()).max().unwrap();
+        let h = parts.iter().map(|p| p.height()).sum::<u32>() + 20;
+        let mut big = image::RgbaImage::new(w, h);
+        let mut y = 0;
+        for p in &parts {
+            image::imageops::overlay(&mut big, p, ((w - p.width()) / 2) as i64, y as i64);
+            y += p.height() + 10;
+        }
+        let file = d.work.join("three.png");
+        big.save(&file).unwrap();
+        let first = &items[0].img;
+        let img = crate::subs::SubImg { n: 1, start: first.start, end: first.end, w, h, canvas: first.canvas, at: [first.canvas[0].saturating_sub(w) / 2, first.canvas[1].saturating_sub(h + 40)], forced: false, file };
+        eprintln!("จอ {:?} ภาพ {w}x{h}", first.canvas);
+        assert!(!crate::ocrsrc::has_separated_blocks(&big, &img), "สามบรรทัดชิดกันต้องเป็นก้อนเดียว");
+        let base = OcrCfg { paddle: PaddleOpts { lang: "th".into(), ..Default::default() }, lang3: "tha".into(), dict: String::new(), fix: false, ..Default::default() };
+        let run = |auto: bool| {
+            let mut s = Session::with_items(vec![OcrItem { an: 2, img: img.clone() }]);
+            let ReadResult::Done(o) = read(&mut s, &d, &OcrCfg { auto_break: auto, ..base.clone() }, 0).unwrap() else { panic!() };
+            o
+        };
+        let off = run(false);
+        let on = run(true);
+        eprintln!("ปิด {:?}\nเปิด {:?}", off.text, on.text);
+        assert!(crate::ocrbreak::number_of_lines(&off.text) >= 3, "{:?}", off.text);
+        assert_eq!(crate::ocrbreak::number_of_lines(&on.text), 2, "{:?}", on.text);
+        let squash = |t: &str| t.split_whitespace().collect::<String>();
+        assert_eq!(squash(&on.text), squash(&off.text), "ตัดบรรทัดแล้วข้อความต้องครบ");
+        assert_eq!(on.raw, off.raw, "ข้อความดิบของตัวอ่านไม่ถูกแก้");
         let _ = std::fs::remove_dir_all(d.user.parent().unwrap());
     }
 
