@@ -7,12 +7,14 @@ import { createPortal } from "react-dom";
 import Dropdown from "../../components/Dropdown";
 import InfoTip from "../../components/InfoTip";
 import { CardIcon, Keep, Phr, Seg, Skel, Switch } from "../../components/ui";
-import { IbBack, IbBold, IbCrop, IbItalic, IbNext, IbPencil, IbPlay, IbStop, IbSwap, IbTable, IbTick, IbWand, IcCopy, IcExpand, IcRefresh, IcSearch, IcSettings, IbSave, IcFile } from "../../components/icons";
+import { IbBack, IbBold, IbCrop, IbItalic, IbNext, IbPencil, IbPlay, IbStop, IbSwap, IbTable, IbTick, IbWand, IcCopy, IcExpand, IcRefresh, IcSearch, IcSettings, IbSave, IcFile, IcPalette, IcPaste, IbTrash } from "../../components/icons";
 import type { Tip } from "../../lib/codecAdv";
-import { ocrApi, pickFile, pickSave, subApi, type OcrCfg, type OcrDbList, type OcrReason, type OcrTessLang, type SubImg } from "../../lib/api";
+import { infoApi, ocrApi, pickFile, pickSave, subApi, type OcrCfg, type OcrDbList, type OcrReason, type OcrTessLang, type SubImg } from "../../lib/api";
 import type { AvTrack } from "../../lib/avJob";
-import { getOcrJob, ocrElapsed, openSource, pauseOcr, resumeOcr, rowReasons, setOcrCfg, setRowOk, setRowText, startOcr, stopOcr, useOcrJob, type OcrRow } from "../../lib/ocrJob";
+import { fillRows, getOcrJob, ocrElapsed, removeRows, openSource, pauseOcr, resumeOcr, rowReasons, setOcrCfg, setRowOk, setRowText, startOcr, stopOcr, useOcrJob, type OcrRow } from "../../lib/ocrJob";
 import { OcrDialogs, tessName, type OcrDlg } from "./OcrDialogs";
+import { InspectDialog } from "./OcrInspectDialog";
+import { VobColorDialog, storedVobColors } from "./OcrVobColorDialog";
 import "../../styles/ocr.css";
 
 /* ---------- คำอธิบาย ⓘ (ข้อความเดียวกับมอคอัปที่พี่กันดูแล้ว ตัวเลขจากผลเทสจริง) ---------- */
@@ -96,7 +98,9 @@ export function useSubImgs(path: string, ff: number) {
     asked.current.add(page);
     subApi.images(path, ff, page, PER).then((r) => setImgs((m) => { const x = new Map(m); r.items.forEach((it) => x.set(it.n, it)); return x; }), () => asked.current.delete(page));
   };
-  return { imgs, need };
+  /** ภาพถูกวาดใหม่ (สีของ VobSub) ล้างที่จำไว้แล้วขอใหม่ */
+  const reload = () => { setImgs(new Map()); asked.current = new Set(); };
+  return { imgs, need, reload };
 }
 
 /** ภาพบรรทัดซับบนพื้นเทา · ปุ่มขยายมุมขวาล่างแบบ .bigbtn ของโปรแกรม (ซ่อนได้ในตารางที่ปุ่มอยู่อีกคอลัมน์) */
@@ -165,6 +169,8 @@ function BgPick() {
     options={[{ value: "gray", label: "เทา" }, { value: "dark", label: "ดำ" }, { value: "white", label: "ขาว" }, { value: "check", label: "ลายตาราง" }]} /></span>;
 }
 
+/** ปุ่มตรวจบรรทัดกดไม่ได้กับตัวอ่านที่ไม่มีฐานตัวอักษร */
+const INSPECT_OFF = "ตรวจบรรทัดได้เฉพาะตัวอ่านที่สอนเอง nOCR Binary OCR และตัวสอนเอง";
 /* ---------- แถวเลือกตัวอ่าน ---------- */
 const MATCH = ["nocr", "binary", "own"];
 function EngineRow({ busy, dbs, tess, onDb }: { busy: boolean; dbs: OcrDbList | null; tess: OcrTessLang[]; onDb: () => void }) {
@@ -222,7 +228,7 @@ function EngineRow({ busy, dbs, tess, onDb }: { busy: boolean; dbs: OcrDbList | 
 }
 
 /* ---------- ตาราง ---------- */
-function OcrTable({ rows, sel, setSel, onlyFlag, onlyForced, imgs, need, current }: { rows: OcrRow[]; sel: number; setSel: (i: number) => void; onlyFlag: boolean; onlyForced: boolean; imgs: Map<number, SubImg>; need: (n: number) => void; current: number | null }) {
+function OcrTable({ rows, sel, setSel, onlyFlag, onlyForced, imgs, need, current, multi, setMulti }: { rows: OcrRow[]; sel: number; setSel: (i: number) => void; onlyFlag: boolean; onlyForced: boolean; imgs: Map<number, SubImg>; need: (n: number) => void; current: number | null; multi: Set<number>; setMulti: (s: Set<number>) => void }) {
   const box = useRef<HTMLDivElement>(null);
   const list = rows.map((r, i) => ({ r, i })).filter(({ r }) => (!onlyFlag || rowReasons(r).length) && (!onlyForced || r.item.forced));
   // ขอภาพของแถวที่เห็นในกรอบ
@@ -246,7 +252,13 @@ function OcrTable({ rows, sel, setSel, onlyFlag, onlyForced, imgs, need, current
         <tbody>{list.map(({ r, i }) => {
           const rs = rowReasons(r);
           return (
-            <tr key={i} data-n={r.item.n} data-i={i} className={(sel === i ? "on" : "") + (rs.length ? " flag" : "")} onClick={() => setSel(i)}>
+            <tr key={i} data-n={r.item.n} data-i={i} className={(sel === i || multi.has(i) ? "on" : "") + (rs.length ? " flag" : "")} aria-selected={sel === i || multi.has(i)}
+              onClick={(e) => {
+                // Ctrl เลือกเพิ่มหรือเอาออก Shift เลือกช่วงจากบรรทัดที่เลือกอยู่ แบบตารางของ Subtitle Edit
+                if (e.ctrlKey || e.metaKey) { const m = new Set(multi.size ? multi : [sel]); if (m.has(i)) m.delete(i); else m.add(i); setMulti(m); setSel(i); return; }
+                if (e.shiftKey) { const m = new Set<number>(); for (let k = Math.min(sel, i); k <= Math.max(sel, i); k++) m.add(k); setMulti(m); return; }
+                setMulti(new Set()); setSel(i);
+              }}>
               <td className="num">{r.item.n}{r.item.forced && <span className="ocr-forced" title="ซับบังคับ (forced) ขึ้นแม้ปิดซับ">บังคับ</span>}</td>
               <td className="ocr-time">{ts(r.item.start)}<span>{r.item.end != null ? `${(r.item.end - r.item.start).toFixed(1)} วิ` : ""}</span></td>
               <td><LineImg img={imgs.get(r.item.n)} n={r.item.n} zoom={false} /></td>
@@ -317,7 +329,7 @@ function ImgOut({ i, n }: { i: number; n: number }) {
 }
 const baseName = (p: string) => p.split("/").pop()?.split(String.fromCharCode(92)).pop() ?? p;
 
-function EditArea({ i, rows, movie, imgs, setSel, onTeach, onUnknown }: { i: number; rows: OcrRow[]; movie: string; imgs: Map<number, SubImg>; setSel: (i: number) => void; onTeach: () => void; onUnknown: (w: string, i: number) => void }) {
+function EditArea({ i, rows, movie, imgs, setSel, onTeach, onUnknown, onInspect, picked, onDelete, onFill, clipMsg }: { i: number; rows: OcrRow[]; movie: string; imgs: Map<number, SubImg>; setSel: (i: number) => void; onTeach: () => void; onUnknown: (w: string, i: number) => void; onInspect: () => void; picked: number; onDelete: () => void; onFill: () => void; clipMsg: string | null }) {
   const r = rows[i];
   const [tab, setTab] = useState<"flag" | "word" | "fix" | "guess">("flag");
   const [frameOn, setFrameOn] = useState(true);
@@ -328,7 +340,7 @@ function EditArea({ i, rows, movie, imgs, setSel, onTeach, onUnknown }: { i: num
   const fixes = rows.flatMap((x, k) => (x.line ? x.line.fixes.map((f) => ({ f, k })) : []));
   const guesses = rows.flatMap((x, k) => (x.line ? x.line.guesses.map((f) => ({ f, k })) : []));
   const helper = r?.line?.reasons.find((x) => x.kind === "disagree") as Extract<OcrReason, { kind: "disagree" }> | undefined;
-  const { cfg } = useOcrJob();
+  const { cfg, running } = useOcrJob();
   if (!r) return null;
   const set = (t: string) => setRowText(i, t);
   return (
@@ -343,7 +355,15 @@ function EditArea({ i, rows, movie, imgs, setSel, onTeach, onUnknown }: { i: num
       <div className="ocr-editm">
         <div className="ocr-edhead"><b>ข้อความ</b><span style={{ flex: 1 }} />
           <button type="button" className="btn btn-ghost btn-sm ocr-ic" title="ตัวหนา Ctrl+B" aria-label="ตัวหนา" disabled={r.state !== "done"} onClick={() => set(wrapTag(ta.current, r.text, "b"))}><IbBold size={14} /></button>
-          <button type="button" className="btn btn-ghost btn-sm ocr-ic" title="ตัวเอียง Ctrl+I" aria-label="ตัวเอียง" disabled={r.state !== "done"} onClick={() => set(wrapTag(ta.current, r.text, "i"))}><IbItalic size={14} /></button></div>
+          <button type="button" className="btn btn-ghost btn-sm ocr-ic" title="ตัวเอียง Ctrl+I" aria-label="ตัวเอียง" disabled={r.state !== "done"} onClick={() => set(wrapTag(ta.current, r.text, "i"))}><IbItalic size={14} /></button>
+          <button type="button" className={"btn btn-sm " + (MATCH.includes(cfg.engine) ? "btn-ghost" : "btn-wait")} aria-disabled={!MATCH.includes(cfg.engine) || undefined}
+            title={MATCH.includes(cfg.engine) ? "แยกบรรทัดเป็นตัว ๆ ดูว่าแต่ละตัวจับคู่กับอะไรในฐาน แก้ ลบ เพิ่มคู่ Ctrl+Shift+I" : INSPECT_OFF} onClick={() => { if (MATCH.includes(cfg.engine)) onInspect(); }} data-ocr-inspect><IcSearch size={14} />ตรวจบรรทัด</button>
+          <button type="button" className={"btn btn-sm ocr-ic " + (picked > 1 && !running ? "btn-ghost" : "btn-wait")} aria-disabled={picked < 2 || running || undefined} aria-label="เติมข้อความจากคลิปบอร์ด"
+            title={running ? "หยุดอ่านก่อน" : picked > 1 ? `ใส่ข้อความในคลิปบอร์ดลง ${picked} บรรทัดที่เลือก Ctrl+Shift+V` : "เลือกตั้งแต่สองบรรทัดในตาราง (กด Ctrl หรือ Shift ค้างแล้วคลิก) เพื่อใส่ข้อความในคลิปบอร์ดเหมือนกันทุกบรรทัด"}
+            onClick={() => { if (picked > 1 && !running) onFill(); }} data-ocr-fill><IcPaste size={14} /></button>
+          <button type="button" className={"btn btn-sm ocr-ic " + (running ? "btn-wait" : "btn-ghost")} aria-disabled={running || undefined} aria-label="ลบบรรทัด"
+            title={running ? "ระหว่างอ่านลบบรรทัดไม่ได้" : picked > 1 ? `ลบ ${picked} บรรทัดที่เลือก Delete` : "ลบบรรทัดนี้ออกจากรายการ Delete"} onClick={() => { if (!running) onDelete(); }} data-ocr-del><IbTrash size={14} /></button></div>
+        {clipMsg && <div className="small ocr-clipmsg" data-ocr-clipmsg>{clipMsg}</div>}
         <textarea ref={ta} className="inp ocr-ta" value={r.text} spellCheck={false} disabled={r.state !== "done"} placeholder={r.state === "done" ? "ภาพนี้ไม่มีข้อความ" : "ยังไม่ได้อ่านภาพนี้"} data-ocr-text
           onChange={(e) => set(e.target.value)}
           onKeyDown={(e) => { if (e.ctrlKey && (e.key === "i" || e.key === "b")) { e.preventDefault(); set(wrapTag(ta.current, r.text, e.key as "i" | "b")); } }} />
@@ -417,7 +437,17 @@ export default function OcrPage({ track, movie }: { track: AvTrack; movie: strin
   const job = useOcrJob();
   const path = track.inMovie ? movie : track.src;
   const ff = track.ff ?? track.tid;
-  const { imgs, need } = useSubImgs(path, ff);
+  const { imgs, need, reload } = useSubImgs(path, ff);
+  const [vob, setVob] = useState(false);
+  // VobSub ที่เปิดใหม่ใช้สีที่จำไว้เอง แบบ ApplyStoredVobSubColors ของ Subtitle Edit
+  const vobApplied = useRef("");
+  useEffect(() => {
+    const k = `${path}|${ff}`;
+    if (job.kind !== "vobsub" || !job.rows.length || vobApplied.current === k) return;
+    vobApplied.current = k;
+    const c = storedVobColors();
+    if (c) void ocrApi.vobsubRecolor(path, ff, c).then(() => reload(), () => {});
+  }, [job.kind, job.rows.length, path, ff]); // eslint-disable-line react-hooks/exhaustive-deps
   const [sel, setSel] = useState(0);
   const [only, setOnly] = useState(false);
   const [forcedOnly, setForcedOnly] = useState(false);
@@ -451,6 +481,44 @@ export default function OcrPage({ track, movie }: { track: AvTrack; movie: strin
     return `อ่านครบ ${total.toLocaleString("en-US")} ภาพแล้ว ${flagged ? `มี ${flagged.toLocaleString("en-US")} ภาพที่ควรตรวจ` : "ไม่มีภาพที่ควรตรวจ"}${tops ? ` และ ${tops.toLocaleString("en-US")} ภาพที่ซับอยู่บนจอ` : ""}`;
   }, [allDone, total, flagged, tops]);
   const teachRow = () => startOcr([sel]);
+  const [insp, setInsp] = useState<number | null>(null);
+  // เลือกหลายบรรทัด (Ctrl Shift) สำหรับลบบรรทัดกับเติมจากคลิปบอร์ด · ไม่ได้เลือกเพิ่ม ใช้บรรทัดที่เลือกอยู่
+  const [multi, setMulti] = useState<Set<number>>(() => new Set());
+  const picked = multi.size ? [...multi].sort((a, b) => a - b) : rows.length ? [Math.min(sel, rows.length - 1)] : [];
+  const [delAsk, setDelAsk] = useState(false);
+  const [clipMsg, setClipMsg] = useState<string | null>(null);
+  const doDelete = async () => { setDelAsk(false); const keep = picked[0]; await removeRows(picked); setMulti(new Set()); setSel(Math.max(0, Math.min(keep, getOcrJob().rows.length - 1))); };
+  const fillClip = async () => {
+    if (picked.length < 2) return;
+    const w = window as unknown as { __ocrClip?: string };
+    const t = import.meta.env.DEV && w.__ocrClip != null ? w.__ocrClip : await infoApi.clipboardText().catch(() => "");
+    if (!t) { setClipMsg("คลิปบอร์ดไม่มีข้อความ"); return; }
+    fillRows(picked, t); setClipMsg(`ใส่ข้อความจากคลิปบอร์ดแล้ว ${picked.length} บรรทัด`);
+  };
+  useEffect(() => { if (!clipMsg) return; const t = setTimeout(() => setClipMsg(null), 3000); return () => clearTimeout(t); }, [clipMsg]);
+  useEffect(() => { setMulti(new Set()); setDelAsk(false); }, [path, ff]);
+  // Delete ลบบรรทัด Ctrl+Shift+V เติมจากคลิปบอร์ด (เมื่อเลือกตั้งแต่สองบรรทัด) · ไม่ทำงานตอนพิมพ์ในช่อง
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => {
+      if (dlg || insp != null || job.running || !rows.length) return;
+      const t = e.target as HTMLElement | null;
+      if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA" || t.isContentEditable)) return;
+      if (e.key === "Delete" && !e.ctrlKey && !e.altKey) { e.preventDefault(); setDelAsk(true); }
+      else if (e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "v" && picked.length > 1) { e.preventDefault(); void fillClip(); }
+    };
+    window.addEventListener("keydown", on);
+    return () => window.removeEventListener("keydown", on);
+  });
+  // Ctrl+Shift+I เปิดหน้าต่างตรวจบรรทัดของบรรทัดที่เลือก แบบตาราง OCR ของ Subtitle Edit
+  useEffect(() => {
+    const on = (e: KeyboardEvent) => {
+      if (!(e.ctrlKey && e.shiftKey && e.key.toLowerCase() === "i") || dlg || insp != null || job.running || !MATCH.includes(job.cfg.engine) || !rows.length) return;
+      e.preventDefault();
+      setInsp(Math.min(sel, rows.length - 1));
+    };
+    window.addEventListener("keydown", on);
+    return () => window.removeEventListener("keydown", on);
+  });
   /** นำข้อความจากไฟล์ซับที่เวลาซ้อนกันมากที่สุดมาใส่แต่ละบรรทัด (Import text with matching time codes ของ Subtitle Edit)
       ไม่ทับบรรทัดที่ไม่มีซับเวลาตรงกัน · ตัวตรวจส่งไฟล์ผ่าน window.__ocrImport ไม่เปิดกล่องเลือกไฟล์ */
   const importText = async () => {
@@ -489,14 +557,17 @@ export default function OcrPage({ track, movie }: { track: AvTrack; movie: strin
       {view === "one" && done > 0
         ? <ReviewOne rows={rows} movie={movie} imgs={imgs} need={need} sel={sel} setSel={setSel} onTeach={teachRow} />
         : <>
-          <OcrTable rows={rows} sel={sel} setSel={setSel} onlyFlag={only} onlyForced={forcedOnly} imgs={imgs} need={need} current={job.current} />
-          <EditArea i={Math.min(sel, rows.length - 1)} rows={rows} movie={movie} imgs={imgs} setSel={setSel} onTeach={teachRow} onUnknown={(word, i) => setAsk({ word, i })} />
+          {delAsk && <div className="ocr-delask" data-ocr-del-ask><Phr>{picked.length > 1 ? `ลบ ${picked.length} บรรทัดที่เลือกออกจากรายการ ภาพเหล่านี้จะไม่ถูกส่งออก` : `ลบภาพที่ ${rows[picked[0]]?.item.n ?? ""} ออกจากรายการ ภาพนี้จะไม่ถูกส่งออก`}</Phr>
+            <button type="button" className="btn btn-danger btn-sm" onClick={() => void doDelete()} data-ocr-del-ok>ลบ</button><button type="button" className="btn btn-ghost btn-sm" onClick={() => setDelAsk(false)}>ยกเลิก</button></div>}
+          <OcrTable rows={rows} sel={sel} setSel={setSel} onlyFlag={only} onlyForced={forcedOnly} imgs={imgs} need={need} current={job.current} multi={multi} setMulti={setMulti} />
+          <EditArea i={Math.min(sel, rows.length - 1)} rows={rows} movie={movie} imgs={imgs} setSel={setSel} onTeach={teachRow} onUnknown={(word, i) => setAsk({ word, i })} onInspect={() => setInsp(Math.min(sel, rows.length - 1))} picked={picked.length} onDelete={() => setDelAsk(true)} onFill={() => void fillClip()} clipMsg={clipMsg} />
         </>}
       {impMsg && <div className="stat bad" data-ocr-import-err><CardIcon kind="bad" /><div style={{ flex: 1 }}><b>นำข้อความจากไฟล์ซับไม่ได้</b><Phr>{impMsg}</Phr><div className="minirow"><button type="button" className="btn btn-ghost btn-sm" onClick={() => setImpMsg(null)}>ปิด</button></div></div></div>}
       <div className="ocr-foot" data-ocr-foot>
         {!job.running && <>
           <button type="button" className="btn btn-ghost btn-sm ocr-tool" onClick={() => setDlg("prep")} title="แต่งภาพก่อนส่งให้ตัวอ่าน" aria-label="แต่งภาพ" data-ocr-prep-open><IbCrop size={14} /><span className="ocr-tl">แต่งภาพ</span></button>
           <button type="button" className="btn btn-ghost btn-sm ocr-tool" onClick={() => setDlg("models")} title="ดูโมเดล ชุดภาษา และฐานตัวอักษรที่มี โหลดชุดภาษาเพิ่ม" aria-label="ตัวอ่านและชุดภาษา" data-ocr-models-open><IcSettings size={14} /><span className="ocr-tl">ตัวอ่านและชุดภาษา</span></button>
+          {job.kind === "vobsub" && <button type="button" className="btn btn-ghost btn-sm ocr-tool" onClick={() => setVob(true)} title="ตั้งสีที่ใช้วาดภาพซับ DVD แทนจานสีของไฟล์" aria-label="สีของ VobSub" data-ocr-vob-open><IcPalette size={14} /><span className="ocr-tl">สีของ VobSub</span></button>}
           <button type="button" className="btn btn-ghost btn-sm ocr-tool" onClick={() => setDlg("options")} title="แก้คำ OCR ถามคำที่ไม่รู้จัก ตัดบรรทัดเอง หยุดสอน ฐานสำรอง" aria-label="ตัวเลือก" data-ocr-options-open><IbWand size={14} /><span className="ocr-tl">ตัวเลือก</span></button>
           <span className="sv-sep" aria-hidden />
         </>}
@@ -518,6 +589,8 @@ export default function OcrPage({ track, movie }: { track: AvTrack; movie: strin
           {!allDone && <button type="button" className="btn btn-main" onClick={() => void startOcr()} data-ocr-start><IbPlay size={15} />{done ? "อ่านต่อที่เหลือ" : "เริ่มอ่าน"}</button>}
         </>}
       </div>
+      <InspectDialog open={insp != null} index={insp ?? 0} onClose={() => setInsp(null)} />
+      <VobColorDialog open={vob} onClose={() => setVob(false)} path={path} ff={ff} n={rows[Math.min(sel, rows.length - 1)]?.item.n ?? 1} onApplied={reload} />
       <OcrDialogs dlg={dlg} setDlg={setDlg} ask={ask} setAsk={setAsk} rows={rows} imgs={imgs} need={need} sel={sel} />
     </section>
   );

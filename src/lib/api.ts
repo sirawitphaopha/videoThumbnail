@@ -776,6 +776,17 @@ export type OcrWordAction = "changeAll" | "skipAll" | "addName" | "addWord";
 /** ตัวที่สอนไปแล้ว · png ภาพตัวที่สอน · at เวลาที่สอน (มิลลิวินาที) */
 export type OcrTaught = { index: number; engine: OcrEngine; db: string; text: string; italic: boolean; pieces: number; png: string; at: number };
 export type OcrDbKind = "nocr" | "binary" | "own";
+/** ผลฝึกจากฟอนต์ · stopped กดหยุดกลางทาง (บันทึกเท่าที่ได้) */
+export type OcrTrainDone = { name: string; learned: number; skipped: number; total: number; stopped: boolean };
+export type OcrTrainReq = { kind: OcrDbKind; name: string; base: string; overwrite: boolean; fonts: string[]; sizes: number[]; bold: boolean; italic: boolean; lines: number; chars: string; merged: string };
+/** ผลย่อฐาน · backup ชื่อไฟล์สำรองของฐานเดิม */
+export type OcrOptimizeDone = { linesBefore: number; linesAfter: number; entries: number; backup: string };
+/** หน้าต่างตรวจบรรทัด · เส้นเทียบในพิกัดของภาพที่แสดง (x1 y1 x2 y2) · inDb ตัวนี้อยู่ในฐาน แก้หรือลบได้ */
+export type OcrInspMatch = { text: string; italic: boolean; w: number; h: number; top: number; expand: number; fg: [number, number, number, number][]; bg: [number, number, number, number][]; inDb: boolean };
+/** ชิ้นหนึ่งของบรรทัด · special เว้นวรรคหรือ 
+ · cont ชิ้นที่ตัวขยายจับก่อนหน้ากินไป */
+export type OcrInspLetter = { special: string | null; cont: boolean; x: number; y: number; w: number; h: number; top: number; png: string; m: OcrInspMatch | null };
+export type OcrInspView = { index: number; engine: OcrEngine; db: string; sentence: string; sentW: number; sentH: number; letters: OcrInspLetter[] };
 /** รูปแบบหนึ่งตัวในฐาน · key ลำดับในรายการรวม · fg bg เส้นเทียบ nOCR (x1 y1 x2 y2 พิกัดของตัว) · png ภาพของ Binary OCR */
 export interface OcrDbItem { key: number; text: string; w: number; h: number; top: number; italic: boolean; expand: number; fg: [number, number, number, number][]; bg: [number, number, number, number][]; png: string | null }
 export interface OcrDbChars { name: string; total: number; bundled: boolean; saved: boolean; items: OcrDbItem[] }
@@ -803,6 +814,27 @@ export const ocrApi = {
   /** แก้ข้อความกับตัวเอียงของตัวที่สอนไปแล้วลำดับ k (ลำดับในรายการที่ history คืน) */
   historyUpdate: (k: number, text: string, italic: boolean) => call<void>("ocr_history_update", { k, text, italic }),
   historyDelete: (k: number) => call<void>("ocr_history_delete", { k }),
+  /** เปิดหน้าต่างตรวจบรรทัดของภาพลำดับ index */
+  inspect: (index: number, cfg: OcrCfg) => call<OcrInspView>("ocr_inspect", { index, cfg }),
+  inspectUpdate: (li: number, text: string, italic: boolean, lines: { fg: [number, number, number, number][]; bg: [number, number, number, number][] } | null, cfg: OcrCfg) => call<OcrInspView>("ocr_inspect_update", { li, text, italic, lines, cfg }),
+  inspectDelete: (li: number, cfg: OcrCfg) => call<OcrInspView>("ocr_inspect_delete", { li, cfg }),
+  /** วาดเส้นใหม่ตามจำนวน ยังไม่บันทึก */
+  inspectDraw: (li: number, lines: number, cfg: OcrCfg) => call<{ fg: [number, number, number, number][]; bg: [number, number, number, number][] }>("ocr_inspect_draw", { li, lines, cfg }),
+  /** คำขอสอนของชิ้น li (เพิ่มคู่ที่ดีกว่า) ตอบผ่าน teach ตามปกติ */
+  inspectTeach: (li: number, cfg: OcrCfg) => call<OcrTeachReq>("ocr_inspect_teach", { li, cfg }),
+  inspectReload: (cfg: OcrCfg) => call<OcrInspView>("ocr_inspect_reload", { cfg }),
+  /** ฝึกฐานจากฟอนต์ · ความคืบหน้าส่งทาง ocr-train-progress */
+  train: (req: OcrTrainReq) => call<OcrTrainDone>("ocr_train", { req }),
+  trainCancel: () => call<void>("ocr_train_cancel"),
+  trainPreview: (font: string, size: number, bold: boolean, italic: boolean, text: string) => call<string>("ocr_train_preview", { font, size, bold, italic, text }),
+  fontFamilies: () => call<string[]>("font_families"),
+  /** ย่อฐาน nOCR สำรองไฟล์เดิมก่อน · ความคืบหน้าส่งทาง ocr-optimize-progress */
+  dbOptimize: (name: string, maxWrong: number) => call<OcrOptimizeDone>("ocr_db_optimize", { name, maxWrong }),
+  /** วาดภาพ VobSub ทั้งไฟล์ใหม่ด้วยสีสี่ช่อง (null ใช้จานสีของไฟล์) · ข้อความที่อ่านไว้ไม่หาย */
+  vobsubRecolor: (path: string, ff: number, colors: [number, number, number, number][] | null) => call<SubImg[]>("ocr_vobsub_recolor", { path, ff, colors }),
+  /** ลบภาพลำดับที่ระบุออกจากงาน OCR */
+  removeItems: (idx: number[]) => call<void>("ocr_remove_items", { idx }),
+  vobsubPreview: (path: string, ff: number, n: number, colors: [number, number, number, number][] | null) => call<string>("ocr_vobsub_preview", { path, ff, n, colors }),
   stop: () => call<void>("ocr_stop"),
   /** ภาพที่แต่งแล้วของภาพลำดับ index (นับจาก 0) */
   prepPreview: (index: number, prep: OcrPrep) => call<string>("ocr_prep_preview", { index, prep }),

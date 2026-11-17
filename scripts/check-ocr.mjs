@@ -215,6 +215,44 @@ check("ประวัติที่สอนมีตัวที่จำ", h
   await c.key("Escape");
   await waitFor("return !document.querySelector('[data-ocr-db-dlg]');", 3000);
 }
+// หน้าต่างตรวจบรรทัด (NOcrInspectWindow) ภาพแรกของซับไทย ฐานทดสอบที่สอน ก ไว้แล้ว
+{
+  await q("document.querySelector('[data-ocr-table] tbody tr')?.click(); return 1;"); await sleep(300);
+  await click("[data-ocr-inspect]");
+  const okI = await waitFor("return document.querySelectorAll('[data-insp-let]').length > 0;", 15000);
+  await sleep(500);
+  const im = await q("const d = [...document.querySelectorAll('.dlg')].pop().getBoundingClientRect(), b = document.querySelector('[data-ocr-insp-dlg]'); const ls = [...document.querySelectorAll('[data-insp-let]')]; return { w: Math.round(d.width), h: Math.round(d.height), scroll: b.scrollHeight - b.clientHeight, n: ls.length, ko: ls.findIndex((x) => x.innerText === 'ก'), miss: ls.filter((x) => x.classList.contains('miss')).length, sent: !!document.querySelector('[data-insp-sentence] img') && !!document.querySelector('.ocr-insprect') };");
+  check("หน้าต่างตรวจบรรทัด ขนาดเท่าหน้าต่างอื่น ไม่เลื่อน มีปุ่มทีละตัว ภาพบรรทัดกับกรอบแดง", okI && im.w === 880 && im.scroll <= 0 && im.n > 3 && im.sent, JSON.stringify(im));
+  check("ตัวที่สอน ก ไว้จับคู่ได้ ตัวที่ฐานไม่รู้จักเป็นปุ่มแดง", im.ko >= 0 && im.miss > 0, JSON.stringify(im));
+  await q(`document.querySelectorAll('[data-insp-let]')[${im.ko}].click(); return 1;`); await sleep(300);
+  const before = await q("return document.querySelector('[data-insp-canvas] svg').querySelectorAll('line').length;");
+  await q("const n = document.querySelector('[data-insp-n]'); n.focus(); n.select(); return 1;"); await c.type("12");
+  await click("[data-insp=draw]");
+  await waitFor(`return document.querySelector('[data-insp-canvas] svg').querySelectorAll('line').length !== ${before};`, 5000);
+  const after = await q("return document.querySelector('[data-insp-canvas] svg').querySelectorAll('line').length;");
+  check("วาดใหม่ 12 เส้น (เส้นเขียวกับเส้นแดงอย่างละไม่เกิน 12 แบบ GenerateLineSegments) แล้วเส้นบนภาพเปลี่ยน ปุ่มบันทึกกดได้", after > 0 && after <= 24 && after !== before && await q("return document.querySelector('[data-insp=save]').getAttribute('aria-disabled') !== 'true';"), `${before} → ${after}`);
+  await click("[data-insp=undo]");
+  check("ย้อนแล้วกลับเป็นเส้นเดิม", await waitFor(`return document.querySelector('[data-insp-canvas] svg').querySelectorAll('line').length === ${before};`, 3000));
+  await click("[data-insp=redo]");
+  await waitFor(`return document.querySelector('[data-insp-canvas] svg').querySelectorAll('line').length === ${after};`, 3000);
+  await click("[data-insp=save]");
+  check("บันทึกเส้นที่วาดลงฐาน", await waitFor("return /บันทึกตัว\\s*ก/.test(document.querySelector('[data-insp-msg]')?.innerText ?? '');", 5000));
+  const dbI = await q(`return await window.__TAURI_INTERNALS__.invoke('ocr_db_chars', { kind: 'nocr', name: ${JSON.stringify(DB)} });`);
+  check("ตัว ก ในฐานมีเส้นตามที่วาด", dbI.items.some((i) => i.text === "ก" && i.fg.length + i.bg.length === after), JSON.stringify(dbI.items.map((i) => [i.text, i.fg.length + i.bg.length])));
+  await c.shot(`${SHOT}/10-ตรวจบรรทัด.png`);
+  // เพิ่มคู่ที่ดีกว่าให้ตัวที่ไม่รู้จัก ขึ้นหน้าต่างสอนตัวอักษรตัวเดิม กดหยุดแล้วกลับมาที่หน้าต่างตรวจบรรทัด
+  await q("document.querySelector('[data-insp-let].miss').click(); return 1;"); await sleep(300);
+  check("ตัวที่ไม่รู้จัก ปุ่มบันทึกกับลบกดไม่ได้พร้อมเหตุผล", await q("return ['save','del'].every((k) => { const b = document.querySelector(`[data-insp=${k}]`); return b.getAttribute('aria-disabled') === 'true' && b.title.includes('ยังไม่มีในฐาน'); });"));
+  await click("[data-insp=better]");
+  check("เพิ่มคู่ที่ดีกว่าเปิดหน้าต่างสอนตัวอักษร", await waitFor("return !!document.querySelector('[data-ocr-teach-dlg]');", 8000));
+  await click("[data-teach-stop]");
+  check("หยุดสอนแล้วกลับมาที่หน้าต่างตรวจบรรทัด", await waitFor("return !document.querySelector('[data-ocr-teach-dlg]') && !!document.querySelector('[data-ocr-insp-dlg]');", 5000));
+  await c.key("Escape");
+  check("หน้าต่างตรวจบรรทัดกด Esc ปิด", await waitFor("return !document.querySelector('[data-ocr-insp-dlg]');", 3000));
+  await job("j.setCfg({ engine: 'paddle' }); return 1;"); await sleep(300);
+  check("ตัวอ่าน PaddleOCR ปุ่มตรวจบรรทัดกดไม่ได้พร้อมเหตุผล", await q("const b = document.querySelector('[data-ocr-inspect]'); return b.getAttribute('aria-disabled') === 'true' && b.title.includes('nOCR');"));
+  await job(`j.setCfg({ engine: 'nocr', nocrDb: ${JSON.stringify(DB)} }); return 1;`); await sleep(300);
+}
 
 // ---------- หน้าต่างแต่งภาพ ตัวอ่านและชุดภาษา ตัวเลือก ----------
 await job("j.setCfg({ engine: 'paddle', fix: true }); return 1;");
@@ -304,11 +342,114 @@ for (const [btn, sel, name] of [["[data-ocr-prep-open]", "[data-ocr-prep-dlg]", 
   await job("j.setCfg({ engine: 'binary', binDb: 'Latin' }); return 1;"); await sleep(300);
   await click("[data-ocr-db-open]");
   check("ฐาน Binary OCR แสดงรูปแบบเป็นภาพ", await waitFor("return !!document.querySelector('[data-db-canvas] img') && document.querySelectorAll('[data-db-var] img').length > 0;", 15000));
+  check("ฐาน Binary OCR ปุ่มฝึกจากฟอนต์กดไม่ได้พร้อมเหตุผล ไม่มีปุ่มย่อฐาน", await q("const b = document.querySelector('[data-db=train]'); return b.getAttribute('aria-disabled') === 'true' && b.title.includes('Binary') && !document.querySelector('[data-db=optimize]');"));
   await c.key("Escape");
   check("หน้าต่างฐานกด Esc ปิด", await waitFor("return !document.querySelector('[data-ocr-db-dlg]');", 3000));
+  // ฝึกจากฟอนต์ (NOcrTrainWindow) ชุดเล็ก Arial ขนาดเดียวสามตัว แล้วย่อฐานนั้น (OptimizeNOcrDb) · ลบฐานทดสอบตอนจบ
+  const NT = "ตรวจฝึกOCR";
+  // ค่าที่หน้าต่างฝึกจำไว้ในเครื่อง ตัวตรวจเปลี่ยนแล้วคืนตอนจบ (รอบก่อนไม่คืน ภาพรอบถัดไปเห็นค่าของตัวตรวจ)
+  const train0 = await q("return localStorage.getItem('ms.ocrTrain');");
+  await q("localStorage.removeItem('ms.ocrTrain'); return 1;");
+  for (const n of [NT]) { try { await inv("ocr_db_delete", { kind: "nocr", name: n }); } catch { /* ไม่มีก็ดีแล้ว */ } }
+  await job("j.setCfg({ engine: 'nocr', nocrDb: 'Latin' }); return 1;"); await sleep(300);
+  await click("[data-ocr-db-open]");
+  await waitFor("return !!document.querySelector('[data-db=train]');", 8000);
+  await click("[data-db=train]");
+  const okT = await waitFor("return document.querySelectorAll('[data-ocr-train-dlg] .ocr-trfont').length > 0;", 15000);
+  await waitFor("return !!document.querySelector('[data-train-prev] img');", 20000);
+  const tm = await q("const d = [...document.querySelectorAll('.dlg')].pop().getBoundingClientRect(), b = document.querySelector('[data-ocr-train-dlg]'); return { w: Math.round(d.width), h: Math.round(d.height), scroll: b.scrollHeight - b.clientHeight, prev: !!document.querySelector('[data-train-prev] img'), start: document.querySelector('[data-train-start]').getAttribute('aria-disabled'), why: document.querySelector('[data-train-start]').title };");
+  check("หน้าต่างฝึกจากฟอนต์ ขนาดเท่าหน้าต่างอื่น ไม่เลื่อน มีตัวอย่างฟอนต์ เริ่มฝึกกดไม่ได้จนตั้งชื่อ", okT && tm.w === 880 && tm.scroll <= 0 && tm.prev && tm.start === "true" && tm.why.includes("ชื่อ"), JSON.stringify(tm));
+  await c.shot(`${SHOT}/11-ฝึกจากฟอนต์.png`);
+  await q(`const set = (sel, v) => { const e = document.querySelector(sel); const p = Object.getPrototypeOf(e); Object.getOwnPropertyDescriptor(p, 'value').set.call(e, v); e.dispatchEvent(new Event('input', { bubbles: true })); };
+    set('[data-train-name]', ${JSON.stringify(NT)}); set('[data-train-sizes]', '30'); set('[data-train-chars]', 'abc'); return 1;`);
+  await q("const s = [...document.querySelectorAll('[data-ocr-train-dlg] [role=switch]')].find((x) => x.getAttribute('aria-label') === 'ฝึกตัวเอียงด้วย'); if (s.getAttribute('aria-checked') === 'true') s.click(); return 1;");
+  await sleep(300);
+  await click("[data-train-start]");
+  check("ฝึกเสร็จขึ้นผลจำนวนตัว ตัวอ่านเปลี่ยนไปใช้ฐานที่ฝึก", await waitFor(`return !!document.querySelector('[data-train-done]') && window.__ocrJob.get().cfg.nocrDb === ${JSON.stringify(NT)};`, 120000), await q("return document.querySelector('[data-train-done]')?.innerText ?? document.querySelector('[data-train-err]')?.innerText ?? '';"));
+  const dT = await inv("ocr_db_chars", { kind: "nocr", name: NT });
+  check("ฐานที่ฝึกมีตัว a b c", ["a", "b", "c"].every((t) => dT.items.some((i) => i.text === t)), JSON.stringify(dT.items.map((i) => i.text)));
+  await c.key("Escape");
+  await waitFor("return !document.querySelector('[data-ocr-train-dlg]') && !!document.querySelector('[data-ocr-db-dlg]');", 5000);
+  check("หน้าต่างฐานเปิดฐานที่ฝึกแล้ว", await waitFor(`return (document.querySelector('.dlg')?.innerText ?? '').includes(${JSON.stringify(NT + ".nocr")});`, 5000));
+  await click("[data-db=optimize]");
+  check("ย่อฐานถามยืนยันพร้อมบอกว่าสำรองไฟล์เดิม", await waitFor("return (document.querySelector('[data-db-ask]')?.innerText ?? '').includes('.bak');", 3000));
+  await click("[data-db-opt-ok]");
+  check("ย่อฐานเสร็จบอกจำนวนเส้นก่อนหลังกับไฟล์สำรอง", await waitFor("return /เส้นเทียบจาก[\\s\\S]*\\.bak/.test(document.querySelector('[data-db-msg]')?.innerText ?? '');", 180000), await q("return document.querySelector('[data-db-msg]')?.innerText ?? document.querySelector('[data-db-err]')?.innerText ?? '';"));
+  await c.key("Escape");
+  await waitFor("return !document.querySelector('[data-ocr-db-dlg]');", 3000);
+  try { await inv("ocr_db_delete", { kind: "nocr", name: NT }); } catch { /* ลบไม่ได้ไม่เป็นไร */ }
+  await q(train0 == null ? "localStorage.removeItem('ms.ocrTrain'); return 1;" : `localStorage.setItem('ms.ocrTrain', ${JSON.stringify(train0)}); return 1;`);
   await job(`j.setCfg(${JSON.stringify(before)}); return 1;`);
 }
 check("หน้าต่างซ้อนทุกหน้าต่างขนาดเท่ากัน", sizes.every((s) => s.w === sizes[0].w && s.h === sizes[0].h), JSON.stringify(sizes.map((s) => `${s.w}×${s.h}`)));
+
+// ---------- เลือกหลายบรรทัด เติมจากคลิปบอร์ด ลบบรรทัด (FillSelectedLinesWithClipboard DeleteSelectedLines) ----------
+{
+  const rowsN = () => q("return document.querySelectorAll('[data-ocr-table] tbody tr').length;");
+  const n0 = await rowsN();
+  const clickRow = (k, mod) => q(`const r = document.querySelectorAll('[data-ocr-table] tbody tr')[${k}]; r.dispatchEvent(new MouseEvent('click', { bubbles: true, ctrlKey: ${mod === "ctrl"}, shiftKey: ${mod === "shift"} })); return 1;`);
+  await clickRow(1); await sleep(150);
+  check("เลือกบรรทัดเดียว ปุ่มเติมจากคลิปบอร์ดกดไม่ได้พร้อมเหตุผล", await q("const b = document.querySelector('[data-ocr-fill]'); return b.getAttribute('aria-disabled') === 'true' && b.title.includes('สองบรรทัด');"));
+  await clickRow(3, "shift"); await sleep(150);
+  check("Shift เลือกช่วงได้สามบรรทัด", (await q("return document.querySelectorAll('[data-ocr-table] tbody tr.on').length;")) === 3);
+  await clickRow(5, "ctrl"); await sleep(150);
+  check("Ctrl เลือกเพิ่มเป็นสี่บรรทัด", (await q("return document.querySelectorAll('[data-ocr-table] tbody tr.on').length;")) === 4);
+  const keep = await job("return [1,2,3,5].map((k) => j.get().rows[k].text);");
+  await q("window.__ocrClip = 'ข้อความจากคลิปบอร์ด'; return 1;");
+  await click("[data-ocr-fill]");
+  check("เติมจากคลิปบอร์ดใส่ข้อความเดียวกันทุกบรรทัดที่เลือก บอกจำนวน", await waitFor("const r = window.__ocrJob.get().rows; return [1,2,3,5].every((k) => r[k].text === 'ข้อความจากคลิปบอร์ด') && r[4].text !== 'ข้อความจากคลิปบอร์ด' && (document.querySelector('[data-ocr-clipmsg]')?.innerText ?? '').includes('4 บรรทัด');", 3000));
+  await job(`[1,2,3,5].forEach((k, x) => j.setText(k, ${JSON.stringify(keep)}[x])); return 1;`);
+  await q("delete window.__ocrClip; return 1;");
+  // ลบสองบรรทัดที่เลือก ถามก่อน แล้วตารางเหลือน้อยลงสอง
+  await clickRow(2); await sleep(100); await clickRow(4, "ctrl"); await sleep(150);
+  const nums = await q("return [...document.querySelectorAll('[data-ocr-table] tbody tr.on')].map((r) => r.dataset.n);");
+  await click("[data-ocr-del]");
+  check("ลบบรรทัดถามยืนยันก่อน บอกจำนวน", await waitFor("return (document.querySelector('[data-ocr-del-ask]')?.innerText ?? '').includes('2 บรรทัด');", 3000));
+  await click("[data-ocr-del-ok]");
+  await waitFor(`return document.querySelectorAll('[data-ocr-table] tbody tr').length === ${n0 - 2};`, 5000);
+  const left = await q("return [...document.querySelectorAll('[data-ocr-table] tbody tr')].map((r) => r.dataset.n);");
+  check("ลบแล้วตารางเหลือน้อยลงสองบรรทัด ภาพที่ลบไม่อยู่", left.length === n0 - 2 && nums.every((x) => !left.includes(x)), `${n0} → ${left.length} ลบ ${nums}`);
+}
+
+// ---------- สีของ VobSub (VobSubColorChooserWindow) ซับไทย 480p ----------
+{
+  const VOB = "D:/movie-shelf/test-media/สร้าง/ocr/th-480.idx";
+  const vob0 = await q("return localStorage.getItem('ms.ocrVobColors');");
+  await q(`window.__subClear(); window.__subOpen(${JSON.stringify(VOB)}); return 1;`);
+  await waitFor("return !!document.querySelector('[data-ocr-open]') || !!document.querySelector('[data-ocr-page]');", 60000);
+  if (!(await q("return !!document.querySelector('[data-ocr-page]');"))) await click("[data-ocr-open]");
+  await waitFor("return document.querySelectorAll('[data-ocr-table] tbody tr').length > 0 && window.__ocrJob.get().kind === 'vobsub';", 60000);
+  check("ซับ VobSub มีปุ่มสีของ VobSub ในแถบล่าง", await waitFor("return !!document.querySelector('[data-ocr-vob-open]');", 5000));
+  await click("[data-ocr-vob-open]");
+  const okV = await waitFor("return !!document.querySelector('[data-vob-prev] img');", 15000);
+  const vm = await q("const d = [...document.querySelectorAll('.dlg')].pop().getBoundingClientRect(), b = document.querySelector('[data-ocr-vob-dlg]'); return { w: Math.round(d.width), h: Math.round(d.height), scroll: b.scrollHeight - b.clientHeight, rows: document.querySelectorAll('[data-vob-row]').length, reset: document.querySelector('[data-vob-reset]').getAttribute('aria-disabled') };");
+  check("หน้าต่างสีของ VobSub ขนาดเท่าหน้าต่างอื่น สี่สี ตัวอย่างภาพ คืนค่าตั้งต้นกดไม่ได้ตอนเป็นค่าตั้งต้น", okV && vm.w === 880 && vm.scroll <= 0 && vm.rows === 4 && vm.reset === "true", JSON.stringify(vm));
+  // Pattern กับ Emphasis เป็นแดง แล้วใช้สีนี้ ภาพในตารางเป็นสีแดง
+  await q(`const set = (sel, v) => { const e = document.querySelector(sel); Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, 'value').set.call(e, v); e.dispatchEvent(new Event('input', { bubbles: true })); };
+    set('[data-vob-color="1"]', '#ff0000'); set('[data-vob-color="2"]', '#ff0000'); set('[data-vob-color="3"]', '#ff0000'); return 1;`);
+  await sleep(600);
+  await c.shot(`${SHOT}/12-สีของVobSub.png`);
+  await click("[data-vob-apply]");
+  await waitFor("return !document.querySelector('[data-ocr-vob-dlg]');", 30000);
+  await sleep(1500);
+  const red = await q(`const img = document.querySelector('[data-ocr-table] tbody tr .ocr-line img'); if (!img) return null; await img.decode().catch(() => {});
+    const cv = document.createElement('canvas'); cv.width = img.naturalWidth; cv.height = img.naturalHeight; const g = cv.getContext('2d'); g.drawImage(img, 0, 0);
+    const d = g.getImageData(0, 0, cv.width, cv.height).data; let ink = 0, r = 0; for (let k = 0; k < d.length; k += 4) if (d[k + 3] > 0) { ink++; if (d[k] > 200 && d[k + 1] < 40 && d[k + 2] < 40) r++; } return { ink, r };`);
+  check("ใช้สีแดงแล้วภาพในตารางวาดใหม่เป็นสีแดง", red && red.ink > 0 && red.r / red.ink > 0.95, JSON.stringify(red));
+  check("สีที่ตั้งจำไว้ในเครื่อง", (await q("return localStorage.getItem('ms.ocrVobColors') ?? '';")).includes("255,0,0"));
+  // คืนค่าตั้งต้น กลับไปใช้จานสีของไฟล์
+  await click("[data-ocr-vob-open]");
+  await waitFor("return !!document.querySelector('[data-vob-reset]');", 5000);
+  await click("[data-vob-reset]");
+  await click("[data-vob-apply]");
+  await waitFor("return !document.querySelector('[data-ocr-vob-dlg]');", 30000);
+  await sleep(1500);
+  const back = await q(`const img = document.querySelector('[data-ocr-table] tbody tr .ocr-line img'); await img.decode().catch(() => {});
+    const cv = document.createElement('canvas'); cv.width = img.naturalWidth; cv.height = img.naturalHeight; const g = cv.getContext('2d'); g.drawImage(img, 0, 0);
+    const d = g.getImageData(0, 0, cv.width, cv.height).data; let r = 0; for (let k = 0; k < d.length; k += 4) if (d[k + 3] > 0 && d[k] > 200 && d[k + 1] < 40 && d[k + 2] < 40) r++; return r;`);
+  check("คืนค่าตั้งต้นแล้วภาพกลับไปใช้จานสีของไฟล์ ไม่มีสีแดง", back === 0, String(back));
+  await q(vob0 == null ? "localStorage.removeItem('ms.ocrVobColors'); return 1;" : `localStorage.setItem('ms.ocrVobColors', ${JSON.stringify(vob0)}); return 1;`);
+}
 
 // ---------- คำที่ไม่รู้จักระหว่างอ่าน (ซับ ACCA ไม่บันทึกภาพ) ----------
 if (ACCA) {

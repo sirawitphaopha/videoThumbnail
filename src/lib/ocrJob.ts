@@ -165,6 +165,16 @@ export function setRowText(i: number, text: string) {
   if (!j.rows[i]) return;
   patchRow(i, { text, edited: true });
 }
+/** ลบบรรทัดออกจากงาน (ภาพไม่ถูกส่งออก) · ระหว่างอ่านลบไม่ได้ เพราะรอบอ่านถือลำดับภาพอยู่ · ตาม DeleteSelectedLines */
+export async function removeRows(ids: number[]) {
+  if (j.running || !ids.length) return;
+  await ocrApi.removeItems(ids);
+  set({ rows: j.rows.filter((_, k) => !ids.includes(k)) });
+}
+/** ใส่ข้อความเดียวกันทุกบรรทัดที่เลือก (เติมจากคลิปบอร์ด Ctrl+Shift+V) · ตาม FillSelectedLinesWithClipboard */
+export function fillRows(ids: number[], text: string) {
+  for (const k of ids) if (j.rows[k]) patchRow(k, { text, edited: true, state: "done" });
+}
 /** กดว่าบรรทัดนี้ถูกแล้ว หรือเอาออก */
 export function setRowOk(i: number, ok: boolean) {
   if (j.rows[i]) patchRow(i, { ok });
@@ -206,6 +216,12 @@ export function answerTeach(a: OcrTeachAnswer) {
   teachWait = null;
   set({ teach: null });
   f?.(a);
+}
+/** สอนหนึ่งตัวนอกงานอ่าน (เพิ่มคู่ที่ดีกว่าจากหน้าต่างตรวจบรรทัด) · ใช้หน้าต่างสอนตัวอักษรตัวเดิม แล้วส่งคำตอบให้ Rust */
+export async function teachOnce(req: OcrTeachReq): Promise<OcrTeachAnswer> {
+  const a = await new Promise<OcrTeachAnswer>((res) => { teachWait = res; set({ teach: req }); });
+  await ocrApi.teach(a, j.cfg);
+  return a;
 }
 /** คำตอบของหน้าต่างคำที่ไม่รู้จัก */
 export function answerWord(a: OcrWordAnswer) {

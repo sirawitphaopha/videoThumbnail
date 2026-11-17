@@ -169,6 +169,126 @@ pub fn db_char_delete(d: &Dirs, kind: &str, name: &str, key: usize, text_was: &s
     Ok(())
 }
 
+// ---------------------------------------------------------------- ฝึกจากฟอนต์ ย่อฐาน
+
+static STOP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+
+/// ค่าของหน้าต่างฝึกจากฟอนต์ · ตาม NOcrTrainViewModel · base ว่างคือเริ่มจากฐานว่าง · kind own ใช้ชุดพยางค์ไทยของตัวสอนเอง (ไม่ใช้ chars merged)
+#[derive(serde::Deserialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct TrainReq {
+    pub kind: String,
+    pub name: String,
+    pub base: String,
+    pub overwrite: bool,
+    pub fonts: Vec<String>,
+    pub sizes: Vec<f32>,
+    pub bold: bool,
+    pub italic: bool,
+    pub lines: usize,
+    pub chars: String,
+    pub merged: String,
+}
+
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct TrainTick { pub percent: f64, pub font: String, pub size: f32, pub text: String, pub learned: usize, pub skipped: usize }
+
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct TrainDone { pub name: String, pub learned: usize, pub skipped: usize, pub total: usize, pub stopped: bool }
+
+/// ขนาดฟอนต์จากข้อความ "30, 40" · 10 ถึง 200 ไม่ซ้ำ · ตาม ParseFontSizes
+pub fn parse_sizes(s: &str) -> Vec<f32> {
+    let mut v: Vec<f32> = vec![];
+    for t in s.split([',', ';', ' ']) {
+        if let Ok(x) = t.trim().parse::<f32>() { if (10.0..=200.0).contains(&x) && !v.contains(&x) { v.push(x); } }
+    }
+    v
+}
+
+/// ฝึกฐานจากฟอนต์ในเครื่อง ทุกขนาดที่ตั้ง แล้วบันทึกฐาน (หยุดกลางทางบันทึกเท่าที่ได้ แบบ Subtitle Edit) · ตาม StartOrAbortTraining
+pub fn train(d: &Dirs, r: &TrainReq, tick: &dyn Fn(&TrainTick)) -> Result<TrainDone, String> {
+    if !matches!(r.kind.as_str(), "nocr" | "own") { return Err("ฝึกจากฟอนต์ได้เฉพาะฐาน nOCR กับตัวสอนเอง".into()); }
+    let name = r.name.trim();
+    check_name(name)?;
+    if r.fonts.is_empty() { return Err("เลือกฟอนต์อย่างน้อยหนึ่งตัว".into()); }
+    if r.sizes.is_empty() { return Err("ใส่ขนาดฟอนต์ 10 ถึง 200 อย่างน้อยหนึ่งขนาด คั่นด้วยจุลภาค".into()); }
+    let (_, user) = db_paths(d, &r.kind, name);
+    if user.is_file() && !r.overwrite && r.base != name { return Err(format!("มีฐานชื่อ {name} อยู่แล้ว")); }
+    let mut db = if r.base.is_empty() { crate::nocr::NOcrDb::empty(&user) } else { let mut b = load_nocr(d, &r.kind, &r.base)?; b.file = user.clone(); b };
+    std::fs::create_dir_all(&d.work).map_err(|e| e.to_string())?;
+    STOP.store(false, std::sync::atomic::Ordering::SeqCst);
+    let stop = || STOP.load(std::sync::atomic::Ordering::SeqCst);
+    let (mut learned, mut skipped) = (0usize, 0usize);
+    if r.kind == "own" {
+        let steps = (r.fonts.len() * r.sizes.len()).max(1);
+        let mut rng = crate::nocr_lines::Rng::from_time();
+        let mut done = 0;
+        'outer: for size in &r.sizes {
+            for font in &r.fonts {
+                if stop() { break 'outer; }
+                tick(&TrainTick { percent: done as f64 * 100.0 / steps as f64, font: font.clone(), size: *size, text: String::new(), learned, skipped });
+                let (n, sk) = crate::ownocr::train_font(&d.tools, &d.work, &mut db, font, *size, r.bold, r.italic, r.lines, crate::nocr_lines::Algo::Random, &mut rng)?;
+                learned += n;
+                skipped += sk.len();
+                done += 1;
+            }
+        }
+    } else {
+        let per = r.chars.chars().filter(|c| !c.is_whitespace()).count() + r.merged.split(' ').filter(|m| m.trim().chars().count() > 1).count();
+        let total = (per * r.fonts.len() * r.sizes.len()).max(1);
+        let step = std::cell::Cell::new(0usize);
+        for size in &r.sizes {
+            if stop() { break; }
+            let o = crate::nocr_train::TrainOpts { fonts: r.fonts.clone(), size: *size, bold: r.bold, italic: r.italic, lines: r.lines, chars: r.chars.clone(), merged: r.merged.clone(), ..Default::default() };
+            let (l0, s0) = (learned, skipped);
+            let last = std::cell::Cell::new((0usize, 0usize));
+            crate::nocr_train::train(&d.tools, &d.work, &o, &mut db, &stop, &|p| {
+                step.set(step.get() + 1);
+                last.set((p.learned, p.skipped));
+                tick(&TrainTick { percent: (step.get() as f64 * 100.0 / total as f64).min(100.0), font: p.font.clone(), size: *size, text: p.text.clone(), learned: l0 + p.learned, skipped: s0 + p.skipped });
+            })?;
+            learned = l0 + last.get().0;
+            skipped = s0 + last.get().1;
+        }
+    }
+    ensure_parent(&user)?;
+    db.save()?;
+    forget_db(&r.kind, name);
+    Ok(TrainDone { name: name.into(), learned, skipped, total: db.total(), stopped: stop() })
+}
+
+/// ภาพตัวอย่างของฟอนต์ที่ชี้ · วาดตัวอักษรแรก ๆ ของชุดที่ฝึกด้วยตัววาดเดียวกับตอนฝึก
+pub fn train_preview(d: &Dirs, font: &str, size: f32, bold: bool, italic: bool, text: &str) -> Result<String, String> {
+    std::fs::create_dir_all(&d.work).map_err(|e| e.to_string())?;
+    let t: String = text.chars().filter(|c| !c.is_whitespace()).take(26).collect();
+    if t.is_empty() { return Err("ยังไม่มีตัวอักษรที่จะฝึก".into()); }
+    let r = crate::nocr_train::render_with(&d.tools, &d.work, &[t], "", 1.0, font, size.clamp(10.0, 60.0), bold, italic)?;
+    let two = r.into_iter().next().flatten().map(|x| x.two).ok_or("วาดตัวอย่างของฟอนต์นี้ไม่ได้")?;
+    // ภาพที่วาดกว้างกว่าตัวอักษรมาก ตัดส่วนใสรอบตัวออก ตัวอย่างจึงไม่ถูกย่อจนเล็ก
+    Ok(png_url(&crate::ocrprep::crop_transparent(&two).0))
+}
+
+/// ย่อฐาน nOCR · สำรองไฟล์เดิมเป็น .bak ชื่อที่ยังว่างก่อน แล้วเอาเส้นที่ไม่ช่วยแยกตัวคล้ายออก · ตาม OptimizeNOcrDb
+pub fn optimize(d: &Dirs, name: &str, max_wrong: i32, tick: &(dyn Fn(usize, usize) + Sync)) -> Result<(crate::nocr_train::OptimizeResult, String), String> {
+    check_name(name)?;
+    let (from, user) = db_paths(d, "nocr", name);
+    if !from.is_file() { return Err(format!("ฐาน {name} ยังไม่มีไฟล์ ไม่มีอะไรให้ย่อ")); }
+    ensure_parent(&user)?;
+    let backup = crate::nocr_train::free_backup_name(&user);
+    std::fs::copy(&from, &backup).map_err(|e| format!("สำรองฐานก่อนย่อไม่ได้ {e}"))?;
+    let mut db = load_nocr(d, "nocr", name)?;
+    let o = crate::nocr_train::OptimizeOpts { max_wrong: crate::nocr_train::OptimizeOpts::default().max_wrong.max(max_wrong * 2), ..Default::default() };
+    std::fs::create_dir_all(&d.work).map_err(|e| e.to_string())?;
+    let (glyphs, fonts) = crate::nocr_train::validation_glyphs(&d.tools, &d.work, &db, &o)?;
+    STOP.store(false, std::sync::atomic::Ordering::SeqCst);
+    let res = crate::nocr_train::optimize(&mut db, &glyphs, fonts, &o, &|| STOP.load(std::sync::atomic::Ordering::SeqCst), tick).ok_or("หยุดย่อฐานแล้ว ฐานไม่เปลี่ยน")?;
+    db.save()?;
+    forget_db("nocr", name);
+    Ok((res, backup.file_name().map(|f| f.to_string_lossy().to_string()).unwrap_or_default()))
+}
+
 // ---------------------------------------------------------------- คำสั่งของหน้าจอ
 
 #[tauri::command]
@@ -193,6 +313,37 @@ pub fn ocr_db_char_delete(app: tauri::AppHandle, kind: String, name: String, key
     db_char_delete(&Dirs::of(&app)?, &kind, &name, key, &was)
 }
 
+
+#[tauri::command]
+pub async fn ocr_train(app: tauri::AppHandle, req: TrainReq) -> Result<TrainDone, String> {
+    use tauri::Emitter;
+    let d = Dirs::of(&app)?;
+    tauri::async_runtime::spawn_blocking(move || train(&d, &req, &|t| { let _ = app.emit("ocr-train-progress", t); })).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub fn ocr_train_cancel() { STOP.store(true, std::sync::atomic::Ordering::SeqCst); }
+
+#[tauri::command]
+pub async fn ocr_train_preview(app: tauri::AppHandle, font: String, size: f32, bold: bool, italic: bool, text: String) -> Result<String, String> {
+    let d = Dirs::of(&app)?;
+    tauri::async_runtime::spawn_blocking(move || train_preview(&d, &font, size, bold, italic, &text)).await.map_err(|e| e.to_string())?
+}
+
+#[derive(Serialize, Clone, Debug)]
+#[serde(rename_all = "camelCase")]
+pub struct OptimizeDone { pub lines_before: usize, pub lines_after: usize, pub entries: usize, pub backup: String }
+
+#[tauri::command]
+pub async fn ocr_db_optimize(app: tauri::AppHandle, name: String, max_wrong: i32) -> Result<OptimizeDone, String> {
+    use tauri::Emitter;
+    let d = Dirs::of(&app)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let (r, backup) = optimize(&d, &name, max_wrong, &|done, total| { if done % 50 == 0 || done == total { let _ = app.emit("ocr-optimize-progress", (done, total)); } })?;
+        Ok(OptimizeDone { lines_before: r.lines_before, lines_after: r.lines_after, entries: r.entries, backup })
+    }).await.map_err(|e| e.to_string())?
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -204,6 +355,30 @@ mod tests {
         let _ = std::fs::remove_dir_all(&tmp);
         std::fs::create_dir_all(&tmp).unwrap();
         Dirs { ocr: root.join("ocr"), tools: root, user: tmp.join("user"), work: tmp.join("work") }
+    }
+
+    /// ฝึกฐานใหม่จากฟอนต์ Arial ตัวอักษรไม่กี่ตัว ได้ไฟล์ของผู้ใช้ ชื่อซ้ำไม่ทับเว้นสั่งทับ · ขนาดฟอนต์จากข้อความ · ย่อฐานสำรองไฟล์เดิม
+    #[test]
+    fn train_and_optimize_small_db() {
+        let d = dirs("train");
+        if !d.tools.join("ffmpeg.exe").exists() { assert_eq!(std::env::var("MOVIE_SHELF_SKIP_MEDIA").as_deref(), Ok("1"), "ไม่มี ffmpeg"); return; }
+        assert_eq!(parse_sizes("30, 40;40 5 300 x 24.5"), vec![30.0, 40.0, 24.5]);
+        let req = TrainReq { kind: "nocr".into(), name: "ฝึก".into(), base: String::new(), overwrite: false, fonts: vec!["Arial".into()], sizes: vec![30.0], bold: false, italic: false, lines: 30, chars: "abcXYZ1".into(), merged: String::new() };
+        let ticks = std::cell::Cell::new(0);
+        let r = train(&d, &req, &|_| ticks.set(ticks.get() + 1)).unwrap();
+        assert!(r.learned >= 5 && r.total == r.learned && !r.stopped && ticks.get() >= 7, "{r:?} {}", ticks.get());
+        assert!(d.user.join("nocr").join("ฝึก.nocr").is_file());
+        assert!(train(&d, &req, &|_| {}).unwrap_err().contains("อยู่แล้ว"));
+        assert!(train(&d, &TrainReq { fonts: vec![], ..req.clone() }, &|_| {}).is_err());
+        assert!(train(&d, &TrainReq { kind: "binary".into(), ..req.clone() }, &|_| {}).is_err());
+        // ต่อจากฐานเดิม ตัวที่อ่านได้แล้วไม่ฝึกซ้ำ
+        let r2 = train(&d, &TrainReq { base: "ฝึก".into(), ..req.clone() }, &|_| {}).unwrap();
+        assert!(r2.learned < r.learned, "{r2:?}");
+        assert!(train_preview(&d, "Arial", 30.0, false, false, "abc").unwrap().starts_with("data:image/png"));
+        let (o, backup) = optimize(&d, "ฝึก", 25, &|_, _| {}).unwrap();
+        assert!(o.lines_after <= o.lines_before && backup.ends_with(".bak"), "{o:?} {backup}");
+        assert!(d.user.join("nocr").join(&backup).is_file());
+        let _ = std::fs::remove_dir_all(d.user.parent().unwrap());
     }
 
     /// ฐานใหม่ ชื่อซ้ำ ชื่อพาออกนอกโฟลเดอร์ เปลี่ยนชื่อ ฐานที่แนบมาเปลี่ยนชื่อไม่ได้

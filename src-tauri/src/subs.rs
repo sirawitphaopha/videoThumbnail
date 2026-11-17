@@ -540,16 +540,87 @@ fn images_from_vobsub(tools: &Path, dir: &Path, path: &Path, ff: u64, on: &dyn F
     let file = crate::vobsub::parse_idx(&decode_text(&text).0);
     let shows = crate::vobsub::read(&file, &data, 0, &|p| on(90.0 + p * 0.1));
     if shows.is_empty() { return Err("อ่านภาพในซับ VobSub ไม่ได้สักภาพ ไฟล์ .sub อาจไม่ตรงกับไฟล์ .idx".into()); }
+    save_vob_shows(dir, &shows, None, None).map(Some)
+}
+
+/// เก็บภาพของ VobSub ทีละภาพเป็น c000001.png · ภาพที่ครอปด้วยสีจากจานสีแล้วว่างตัดทิ้ง (ลำดับภาพจึงตรงกันทุกครั้ง)
+/// custom สีสี่ช่องที่ผู้ใช้เลือก (พื้น ตัว เน้น 1 เน้น 2) วาดใหม่จากข้อมูลดิบ ครอปแล้วว่างใช้ทั้งกรอบ · only เก็บเฉพาะภาพลำดับนั้น ไม่เขียนไฟล์
+fn save_vob_shows(dir: &Path, shows: &[crate::vobsub::VobShow], custom: Option<[[u8; 4]; 4]>, only: Option<usize>) -> Result<Vec<SubImg>, String> {
     let mut out = Vec::with_capacity(shows.len());
+    let mut n = 0usize;
     for s in shows {
-        let Some((at, img)) = crop_ink(&s.img, s.at, s.canvas) else { continue };
-        let n = out.len() + 1;
+        let Some((at0, img0)) = crop_ink(&s.img, s.at, s.canvas) else { continue };
+        n += 1;
+        if only.is_some_and(|k| k != n) { continue; }
+        let (at, img) = match (custom, crate::vobsub::parse_spu(&s.spu)) {
+            (Some(c), Some(spu)) => {
+                let full = crate::vobsub::render(&s.spu, &spu, c);
+                crop_ink(&full, s.at, s.canvas).unwrap_or((s.at, full))
+            }
+            _ => (at0, img0),
+        };
         let f = dir.join(format!("c{n:06}.png"));
-        img.save(&f).map_err(|e| format!("เก็บภาพซับไม่ได้ {e}"))?;
+        if only.is_none() { img.save(&f).map_err(|e| format!("เก็บภาพซับไม่ได้ {e}"))?; } else { img.save(&f).ok(); }
         let r = |v: f64| (v * 1000.0).round() / 1000.0;
         out.push(SubImg { n, start: r(s.start), end: s.end.map(r), w: img.width(), h: img.height(), canvas: [s.canvas.0, s.canvas.1], at: [at.0, at.1], forced: s.forced, file: f });
     }
-    Ok(Some(out))
+    Ok(out)
+}
+
+/// คู่ไฟล์ .idx .sub กับโฟลเดอร์ภาพของซับรูปที่เปิด · ไฟล์ .idx ที่เปิดตรงใช้คู่เดิม ซับในหนังใช้คู่ที่ดึงเก็บไว้ตอนถอดภาพ (ไม่ดึงจากหนังซ้ำ)
+fn vob_pair(work: &Path, path: &Path, ff: u64) -> Result<(PathBuf, PathBuf, PathBuf), String> {
+    let dir = work.join(format!("subimg-v3-{}", cache_key(path, ff)));
+    let (i, s) = match (crate::vobsub::pair_of(path), ff) {
+        (Some(p), 0) => p,
+        _ => (dir.join("track.idx"), dir.join("track.sub")),
+    };
+    if !i.is_file() || !s.is_file() { return Err("ซับนี้ไม่ใช่ VobSub หรือยังไม่ได้อ่านภาพ เปิดซับใหม่ในหน้า OCR".into()); }
+    Ok((i, s, dir))
+}
+
+fn vob_shows(idx: &Path, sub: &Path) -> Result<Vec<crate::vobsub::VobShow>, String> {
+    let text = std::fs::read(idx).map_err(|e| format!("อ่านไฟล์ .idx ไม่ได้ {e}"))?;
+    let data = std::fs::read(sub).map_err(|e| format!("อ่านไฟล์ .sub ไม่ได้ {e}"))?;
+    Ok(crate::vobsub::read(&crate::vobsub::parse_idx(&decode_text(&text).0), &data, 0, &|_| {}))
+}
+
+/// วาดภาพทั้งไฟล์ของ VobSub ใหม่ด้วยสีที่เลือก (None กลับไปใช้จานสีของไฟล์) เขียนทับภาพชั่วคราวกับรายการภาพ · ตาม PickVobSubColors แล้ว RefreshOcrSubtitleItemBitmaps
+pub fn vobsub_recolor(work: &Path, path: &Path, ff: u64, custom: Option<[[u8; 4]; 4]>) -> Result<Vec<SubImg>, String> {
+    let (i, s, dir) = vob_pair(work, path, ff)?;
+    let shows = vob_shows(&i, &s)?;
+    std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
+    let out = save_vob_shows(&dir, &shows, custom, None)?;
+    std::fs::write(dir.join("index.json"), serde_json::to_string(&out).unwrap_or_default()).map_err(|e| e.to_string())?;
+    Ok(out)
+}
+
+/// ภาพตัวอย่างลำดับ n ที่วาดด้วยสีที่เลือก ไม่เขียนทับรายการ · หน้าต่างสีของ VobSub
+pub fn vobsub_preview(work: &Path, path: &Path, ff: u64, n: usize, custom: Option<[[u8; 4]; 4]>) -> Result<String, String> {
+    let (i, s, _) = vob_pair(work, path, ff)?;
+    let shows = vob_shows(&i, &s)?;
+    let tmp = work.join("vobcolor-preview");
+    std::fs::create_dir_all(&tmp).map_err(|e| e.to_string())?;
+    let v = save_vob_shows(&tmp, &shows, custom, Some(n.max(1)))?;
+    let f = v.first().ok_or("ไม่มีภาพลำดับนี้")?.file.clone();
+    let b = std::fs::read(&f).map_err(|e| e.to_string())?;
+    Ok(format!("data:image/png;base64,{}", crate::audiograph::b64(&b)))
+}
+
+/// คำสั่งของหน้าต่างสีของ VobSub · วาดใหม่แล้วตั้งภาพของงาน OCR ตามภาพใหม่ ข้อความที่อ่านไว้ไม่หาย
+#[tauri::command]
+pub async fn ocr_vobsub_recolor(app: AppHandle, path: String, ff: u64, colors: Option<[[u8; 4]; 4]>) -> Result<Vec<SubImg>, String> {
+    let work = work_dir(&app)?;
+    tauri::async_runtime::spawn_blocking(move || {
+        let out = vobsub_recolor(&work, &need(&path)?, ff, colors)?;
+        crate::ocrjob::update_images(&out);
+        Ok(out)
+    }).await.map_err(|e| e.to_string())?
+}
+
+#[tauri::command]
+pub async fn ocr_vobsub_preview(app: AppHandle, path: String, ff: u64, n: usize, colors: Option<[[u8; 4]; 4]>) -> Result<String, String> {
+    let work = work_dir(&app)?;
+    tauri::async_runtime::spawn_blocking(move || vobsub_preview(&work, &need(&path)?, ff, n, colors)).await.map_err(|e| e.to_string())?
 }
 
 /// ถอดแบบไม่รายงานความคืบหน้า ใช้ในเทส
@@ -729,6 +800,32 @@ pub async fn sub_image_times(app: AppHandle, path: String, ff: u64) -> Result<Ve
 
 #[cfg(test)]
 mod tests {
+    /// สีของ VobSub · ซับไทยทดสอบ 480p วาดใหม่ด้วยตัวแดงบนพื้นใส จำนวนภาพเท่าเดิม ภาพเป็นสีแดง · คืนจานสีของไฟล์แล้วภาพกลับเหมือนเดิม
+    #[test]
+    fn vobsub_custom_colors() {
+        let idx = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("test-media").join("สร้าง").join("ocr").join("th-480.idx");
+        if !idx.exists() { assert_eq!(std::env::var("MOVIE_SHELF_SKIP_MEDIA").as_deref(), Ok("1"), "ไม่มี th-480.idx"); return; }
+        let tools = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tools");
+        let work = std::env::temp_dir().join("movie-shelf-vobcolor");
+        let _ = std::fs::remove_dir_all(&work);
+        std::fs::create_dir_all(&work).unwrap();
+        let first = images_with(&tools, &work, &idx, 0, &|_| {}).unwrap();
+        let before = std::fs::read(&first[0].file).unwrap();
+        let red = [[0, 0, 0, 0], [255, 0, 0, 255], [255, 0, 0, 255], [255, 0, 0, 255]];
+        let v = vobsub_recolor(&work, &idx, 0, Some(red)).unwrap();
+        assert_eq!(v.len(), first.len(), "จำนวนภาพต้องเท่าเดิม");
+        let img = image::open(&v[0].file).unwrap().to_rgba8();
+        let reds = img.pixels().filter(|p| p[3] > 0).all(|p| p[0] == 255 && p[1] == 0 && p[2] == 0);
+        assert!(reds && img.pixels().any(|p| p[3] > 0), "ภาพต้องเป็นสีแดงทั้งหมด");
+        // รายการภาพที่อ่านจากที่เก็บได้ภาพใหม่
+        assert_eq!(images_with(&tools, &work, &idx, 0, &|_| {}).unwrap().len(), first.len());
+        assert!(vobsub_preview(&work, &idx, 0, 1, Some(red)).unwrap().starts_with("data:image/png"));
+        let back = vobsub_recolor(&work, &idx, 0, None).unwrap();
+        assert_eq!(std::fs::read(&back[0].file).unwrap(), before, "คืนจานสีของไฟล์แล้วภาพเหมือนเดิม");
+        assert!(vobsub_recolor(&work, &PathBuf::from("ไม่มี.idx"), 0, None).is_err());
+        let _ = std::fs::remove_dir_all(&work);
+    }
+
     #[test]
     fn frame_time_stays_inside_the_movie() {
         for seed in [0u64, 1, 75, 76, 12345, u64::MAX] {

@@ -10,6 +10,9 @@ import { CardIcon, Phr, Switch } from "../../components/ui";
 import { IbTick, IcClose, IcPlus } from "../../components/icons";
 import { ocrApi, type OcrDbChars, type OcrDbItem, type OcrDbKind, type OcrTaught } from "../../lib/api";
 import { setOcrCfg, useOcrJob } from "../../lib/ocrJob";
+import { listen } from "@tauri-apps/api/event";
+import { inApp } from "../../lib/api";
+import { TrainDialog } from "./OcrTrainDialog";
 import { LINES_TIP } from "./OcrPage";
 
 const DLG_W = 880, DLG_H = "min(640px, calc(100vh - 48px))";
@@ -31,7 +34,7 @@ export function GlyphView({ it, box, zoom }: { it: OcrDbItem; box?: number; zoom
     </svg>);
 }
 
-type Ask = null | { kind: "new" | "rename"; value: string } | { kind: "delete" } | { kind: "delItem" };
+type Ask = null | { kind: "new" | "rename"; value: string } | { kind: "delete" } | { kind: "delItem" } | { kind: "optimize" };
 
 export function DbDialog({ open, onClose }: { open: boolean; onClose: () => void }) {
   const { cfg, running } = useOcrJob();
@@ -46,6 +49,15 @@ export function DbDialog({ open, onClose }: { open: boolean; onClose: () => void
   const [italic, setItalic] = useState(false);
   const [ask, setAsk] = useState<Ask>(null);
   const [hist, setHist] = useState(false);
+  const [train, setTrain] = useState(false);
+  const [opt, setOpt] = useState<[number, number] | null>(null);
+  const [dbList, setDbList] = useState<string[]>([]);
+  useEffect(() => { if (open) ocrApi.dbs().then((l) => setDbList(kind === "own" ? l.own : kind === "binary" ? l.binary : l.nocr), () => {}); }, [open, kind, train]);
+  useEffect(() => {
+    if (!inApp) return;
+    const un = listen<[number, number]>("ocr-optimize-progress", (e) => setOpt(e.payload));
+    return () => { void un.then((f) => f()); };
+  }, []);
   // ซูม 0 คือพอดีกรอบ (ค่าตั้งต้น แคลร์ตั้ง) · กดย่อขยายแล้วจำเป็นจำนวนเท่า แบบ NOcrZoomFactor ของ Subtitle Edit
   const [zoom, setZoom] = useState(() => { try { return Math.max(0, Math.min(20, Number(localStorage.getItem(ZOOM_KEY)) || 0)); } catch { return 0; } });
   const canvas = useRef<HTMLDivElement>(null);
@@ -97,6 +109,15 @@ export function DbDialog({ open, onClose }: { open: boolean; onClose: () => void
   const save = () => { if (cur && text.trim()) void run(() => ocrApi.dbCharUpdate(kind, name, cur.key, cur.text, text, italic), `บันทึกตัว ${text} แล้ว`, () => load(text)); };
   const delItem = () => { if (cur) void run(() => ocrApi.dbCharDelete(kind, name, cur.key, cur.text), `ลบรูปแบบของตัว ${cur.text} แล้ว`, () => { setAsk(null); load(cur.text); }); };
   const delDb = () => void run(() => ocrApi.dbDelete(kind, name), `ลบฐาน ${name}.${EXT[kind]} ลงถังขยะแล้ว`, () => { setAsk(null); onClose(); });
+  const optimize = async () => {
+    setAsk(null); setErr(null); setMsg(null); setOpt([0, 0]);
+    try {
+      const r = await ocrApi.dbOptimize(name, cfg.maxWrong);
+      setMsg(`ย่อฐานแล้ว เส้นเทียบจาก ${r.linesBefore.toLocaleString("en-US")} เหลือ ${r.linesAfter.toLocaleString("en-US")} เส้น ฐานเดิมสำรองไว้เป็น ${r.backup}`);
+      load(ch);
+    } catch (e) { setErr(String(e)); }
+    setOpt(null);
+  };
 
   const fit = cur ? Math.max(1, Math.min(20, Math.floor(Math.min((box[0] - 18) / Math.max(1, cur.w), (box[1] - 18) / Math.max(1, cur.h))))) : 1;
   const z = zoom || fit;
@@ -132,7 +153,11 @@ export function DbDialog({ open, onClose }: { open: boolean; onClose: () => void
               {tbtn("เปลี่ยนชื่อ", () => setAsk({ kind: "rename", value: name }), why ?? fileWhy, "rename")}
               {tbtn("ลบฐาน", () => setAsk({ kind: "delete" }), why ?? fileWhy, "delete")}
               {tbtn("ตัวที่สอนในงานนี้", () => setHist(true), why, "history")}
+              {tbtn("ฝึกจากฟอนต์", () => setTrain(true), why ?? (kind === "binary" ? "Binary OCR ฝึกจากฟอนต์ไม่ได้ เก็บเป็นภาพจากซับจริงเท่านั้น" : undefined), "train")}
+              {kind === "nocr" && tbtn(opt ? (opt[1] ? `ย่อฐาน ${Math.round((opt[0] * 100) / opt[1])}%` : "กำลังเตรียมย่อฐาน…") : "ย่อฐาน", () => setAsk({ kind: "optimize" }), why ?? (opt ? "กำลังย่อฐาน" : !db?.total ? "ฐานนี้ยังไม่มีตัวอักษร" : undefined), "optimize")}
             </div>)}
+          {ask?.kind === "optimize" && <div className="ocr-dbask" data-db-ask><Phr>{`ย่อฐาน ${name}.nocr เอาเส้นเทียบที่ไม่ช่วยแยกตัวคล้ายออก ฐานเล็กลงและอ่านเร็วขึ้น ฐานเดิมสำรองไว้เป็นไฟล์ .bak ก่อน`}</Phr>
+            <div className="ocr-dbtools"><button type="button" className="btn btn-main btn-sm" onClick={() => void optimize()} data-db-opt-ok>ย่อฐาน</button><button type="button" className="btn btn-ghost btn-sm" onClick={() => setAsk(null)}>ยกเลิก</button></div></div>}
         </div>
         <div className="ocr-dbr">
           <div className="icv-head">รูปแบบที่เลือก{kind !== "binary" && <InfoTip title="เส้นที่ใช้เทียบ" tip={LINES_TIP} />}</div>
@@ -160,6 +185,7 @@ export function DbDialog({ open, onClose }: { open: boolean; onClose: () => void
         </div>
       </div>
       <HistoryDialog open={hist} onClose={() => { setHist(false); load(ch); }} />
+      <TrainDialog open={train} onClose={() => { setTrain(false); load(ch); }} kind={kind === "own" ? "own" : "nocr"} current={name} dbs={dbList} />
     </Dialog>
   );
 }
