@@ -3,34 +3,34 @@
    ชั้นไม้ แถวละกี่เรื่องคิดจากความกว้างจริง · ตารางกดหัวคอลัมน์เรียง · แผงรายละเอียด การ์ดสถานะทุกแบบ ปุ่ม 6 ปุ่ม
    ไดรฟ์ที่ถอดออก หนังยังอยู่บนชั้นแบบจาง เปิดเล่นไม่ได้ · กำลังอ่านมีโครงจาง ปกขึ้นทีละเรื่อง */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import type { CheckReq } from "./CheckPage";
-import type { Page } from "../components/Sidebar";
-import SearchBox from "../components/SearchBox";
-import RenameBox from "../components/RenameBox";
-import Dropdown from "../components/Dropdown";
-import { Badge, CardIcon, J, Keep, Phr, Phrases, Seg, Skel, SortArrow, Switch, chText } from "../components/ui";
-import Dialog from "../components/Dialog";
-import { IcBitrate, IcClock, IcFolder, IcLink, IcCoverL, IcCoverM, IcCoverS, IcTall, IcWide } from "../components/icons";
-import { openLinkRow, setLinkJob, setReply, useLinkJob } from "../lib/linkJob";
-import type { PosterStart } from "./PosterPage";
-import { useToast } from "../components/Toasts";
-import { useMovieFrame } from "../lib/frames";
-import { api, driveApi, linkApi, thumbUrl, type Geometry, type LinkedCover, type Movie, pairApi, pickAddFiles, type Pair, type PairPlay } from "../lib/api";
-import { langName } from "../lib/langs";
-import { useLibrary } from "../lib/library";
-import { useSettings } from "../lib/settings";
-import { searchByName, highlightParts } from "../lib/thaiSearch";
-import { fmtDateTime, fmtDuration, fmtSize } from "../lib/format";
-import { kindOf, KIND_ORDER, SHELF_LABEL, TABLE_LABEL, type Kind } from "../lib/status";
-import { dropStyle, sideStyle, useDropPlacement, useSideFit } from "../lib/popupFit";
-import { useClickOutside, useEscClose, kb } from "../lib/popup";
-import { useSkelPreview } from "../lib/skelPreview";
-import { driveName, freePct, isLow, requestSettingsSec, sizeNb, useDriveSpace } from "../lib/drives";
-import HoverBig from "../components/HoverBig";
-import { usePageActive } from "../lib/pageActive";
-import { ftLook } from "../lib/ftypes";
-import { useLongName } from "../lib/longName";
-import { IcSearch, IbTrash, IbNext, IcRefresh, IcCheck, IbPencil, IcMix, IcClose, IbEye, IbPlay, IcPoster, IbCrop, IcSettings } from "../components/icons";
+import type { CheckReq } from "../CheckPage";
+import type { Page } from "../../components/Sidebar";
+import SearchBox from "../../components/SearchBox";
+import RenameBox from "../../components/RenameBox";
+import Dropdown from "../../components/Dropdown";
+import { Badge, CardIcon, J, Keep, Phr, Phrases, Seg, Skel, SortArrow, Switch, chText } from "../../components/ui";
+import Dialog from "../../components/Dialog";
+import { IcBitrate, IcClock, IcFolder, IcLink, IcCoverL, IcCoverM, IcCoverS, IcTall, IcWide } from "../../components/icons";
+import { openLinkRow, setLinkJob, setReply, useLinkJob } from "../../lib/linkJob";
+import type { PosterStart } from "../PosterPage";
+import { useToast } from "../../components/Toasts";
+import { useMovieFrame } from "../../lib/frames";
+import { api, driveApi, linkApi, thumbUrl, type Geometry, type LinkedCover, type Movie, pairApi, pickAddFiles, type Pair, type PairPlay } from "../../lib/api";
+import { langName } from "../../lib/langs";
+import { useLibrary } from "../../lib/library";
+import { useSettings } from "../../lib/settings";
+import { searchByName, highlightParts } from "../../lib/thaiSearch";
+import { fmtDateTime, fmtDuration, fmtSize } from "../../lib/format";
+import { kindOf, KIND_ORDER, SHELF_LABEL, TABLE_LABEL, type Kind } from "../../lib/status";
+import { dropStyle, sideStyle, useDropPlacement, useSideFit } from "../../lib/popupFit";
+import { useClickOutside, useEscClose, kb } from "../../lib/popup";
+import { useSkelPreview } from "../../lib/skelPreview";
+import { driveName, freePct, isLow, requestSettingsSec, sizeNb, useDriveSpace } from "../../lib/drives";
+import HoverBig from "../../components/HoverBig";
+import { usePageActive } from "../../lib/pageActive";
+import { ftLook } from "../../lib/ftypes";
+import { useLongName } from "../../lib/longName";
+import { IcSearch, IbTrash, IbNext, IcRefresh, IcCheck, IbPencil, IcMix, IcClose, IbEye, IbPlay, IcPoster, IbCrop, IcSettings } from "../../components/icons";
 
 const SORTS = [
   { value: "name-asc", label: "ชื่อ ก–ฮ" },

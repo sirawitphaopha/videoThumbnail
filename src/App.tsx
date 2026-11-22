@@ -14,7 +14,7 @@ import { fmtSize } from "./lib/format";
 import SettingsPage from "./pages/SettingsPage";
 import BitratePage from "./pages/bitrate/BitratePage";
 import DevParts from "./pages/DevParts";
-import ShelfPage from "./pages/ShelfPage";
+import ShelfPage from "./pages/shelf/ShelfPage";
 import PosterPage, { type PosterStart } from "./pages/PosterPage";
 import LinkPage from "./pages/LinkPage";
 import { setLinkJob, useLinkJob } from "./lib/linkJob";

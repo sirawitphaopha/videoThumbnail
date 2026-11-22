@@ -23,7 +23,7 @@ import { kindOf } from "../../lib/status";
 import { fmtSize } from "../../lib/format";
 import { applySavedTone, applyTone } from "../../lib/tones";
 import { useLinkJob } from "../../lib/linkJob";
-import ShelfPage from "../../pages/ShelfPage";
+import ShelfPage from "../../pages/shelf/ShelfPage";
 import PosterPage from "../../pages/PosterPage";
 import LinkPage from "../../pages/LinkPage";
 import AvPage from "../../pages/av/AvPage";
