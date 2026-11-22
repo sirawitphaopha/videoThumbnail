@@ -28,7 +28,7 @@ import PosterPage from "../../pages/PosterPage";
 import LinkPage from "../../pages/LinkPage";
 import AvPage from "../../pages/AvPage";
 import CheckPage from "../../pages/CheckPage";
-import GraphPage, { GraphBoundary } from "../../pages/GraphPage";
+import GraphPage, { GraphBoundary } from "../../pages/graph/GraphPage";
 import SettingsPage from "../../pages/SettingsPage";
 import BitratePage from "../../pages/BitratePage";
 

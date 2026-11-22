@@ -2,32 +2,32 @@
    6 แบบ รูปคลื่น (เส้นละเอียด หรือ แท่ง) · ความถี่ (สีตามชุด หรือ สีรุ้ง) · ความดัง · ซ้อนเทียบ · วิเคราะห์ (แบบ Spek) · ความถี่เฉลี่ย (แบบ Plot Spectrum ของ Audacity)
    ข้อมูลจริงจาก audiograph.rs · ภาพรวมทั้งไฟล์อ่านครั้งเดียว ช่วงที่ซูมอ่านเฉพาะช่วง ระหว่างรอใช้ภาพรวมวาดไปก่อน ไม่มีจอว่าง */
 import { Component, type CSSProperties, createContext, useCallback, useContext, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { usePageActiveRef } from "../lib/pageActive";
+import { usePageActiveRef } from "../../lib/pageActive";
 import { flushSync } from "react-dom";
 import { listen } from "@tauri-apps/api/event";
-import { AUDIO_EXT, GRAPH_IMG_DEFAULT, checkApi, convertApi, graphApi, inApp, pickFile, pickFolder, pickSave, thumbUrl, type GInfo, type GOverview, type GProgress, type GPsd, type GTrack, type GWindow, type Movie, type AudioFile, type CoverData, type GraphImg } from "../lib/api";
-import ConvertPane from "../components/ConvertPane";
-import "../styles/av.css";
-import TagDialog, { tagRows, whyNone } from "../components/TagDialog";
-import { addFiles } from "../lib/convertJob";
-import { useLibrary } from "../lib/library";
-import { useToast } from "../components/Toasts";
-import Dropdown from "../components/Dropdown";
-import { CardIcon, FixedTime, Keep, LoadPill, Phr, Skel, Switch, chText, dropClick } from "../components/ui";
-import { fmtSize } from "../lib/format";
-import { diffOf, type DiffResult } from "../lib/graphDiff";
-import { useSettings } from "../lib/settings";
-import { dropStyle, sideStyle, useDropPlacement, useSideFit } from "../lib/popupFit";
-import { useClickOutside, useEscClose } from "../lib/popup";
-import { IcExpand, IcFile, IcFolder, IcMix, IcPlus, IcBitrate, IcChevronDown } from "../components/icons";
-import InfoTip from "../components/InfoTip";
-import FullBtn from "../components/FullBtn";
-import { useFitClass } from "../lib/fitSwitch";
-import { PadCustom, hexRgb, hslRgb, rgbHsl, toHex } from "../components/ColorPick";
-import type { Tip } from "../lib/codecAdv";
-import { SPEK_RES_TIP } from "../lib/graphTips";
-import { useOvFold } from "../lib/ovFold";
-import { IcSearch, IbStop, IcRefresh, IcGraph, IbSave, IcClose, IbTable, IbPlay } from "../components/icons";
+import { AUDIO_EXT, GRAPH_IMG_DEFAULT, checkApi, convertApi, graphApi, inApp, pickFile, pickFolder, pickSave, thumbUrl, type GInfo, type GOverview, type GProgress, type GPsd, type GTrack, type GWindow, type Movie, type AudioFile, type CoverData, type GraphImg } from "../../lib/api";
+import ConvertPane from "../../components/ConvertPane";
+import "../../styles/av.css";
+import TagDialog, { tagRows, whyNone } from "../../components/TagDialog";
+import { addFiles } from "../../lib/convertJob";
+import { useLibrary } from "../../lib/library";
+import { useToast } from "../../components/Toasts";
+import Dropdown from "../../components/Dropdown";
+import { CardIcon, FixedTime, Keep, LoadPill, Phr, Skel, Switch, chText, dropClick } from "../../components/ui";
+import { fmtSize } from "../../lib/format";
+import { diffOf, type DiffResult } from "../../lib/graphDiff";
+import { useSettings } from "../../lib/settings";
+import { dropStyle, sideStyle, useDropPlacement, useSideFit } from "../../lib/popupFit";
+import { useClickOutside, useEscClose } from "../../lib/popup";
+import { IcExpand, IcFile, IcFolder, IcMix, IcPlus, IcBitrate, IcChevronDown } from "../../components/icons";
+import InfoTip from "../../components/InfoTip";
+import FullBtn from "../../components/FullBtn";
+import { useFitClass } from "../../lib/fitSwitch";
+import { PadCustom, hexRgb, hslRgb, rgbHsl, toHex } from "../../components/ColorPick";
+import type { Tip } from "../../lib/codecAdv";
+import { SPEK_RES_TIP } from "../../lib/graphTips";
+import { useOvFold } from "../../lib/ovFold";
+import { IcSearch, IbStop, IcRefresh, IcGraph, IbSave, IcClose, IbTable, IbPlay } from "../../components/icons";
 
 /** track ลำดับแทร็กเสียงที่จะเปิด (หน้าบิตเรตส่งแทร็กที่ดูอยู่ BUGS ข้อ 119) · ไม่ส่งเปิดแทร็กแรก */
 export type GraphReq = { path: string; t?: number; track?: number };

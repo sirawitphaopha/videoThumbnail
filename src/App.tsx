@@ -24,7 +24,7 @@ import MediaInfoPage from "./pages/MediaInfoPage";
 import SubtitlePage from "./pages/SubtitlePage";
 import FirstRun from "./pages/FirstRun";
 import CheckPage, { type CheckReq } from "./pages/CheckPage";
-import GraphPage, { GraphBoundary, type GraphReq } from "./pages/GraphPage";
+import GraphPage, { GraphBoundary, type GraphReq } from "./pages/graph/GraphPage";
 import { CheckHost } from "./lib/check";
 import { applyTone } from "./lib/tones";
 import { requestSettingsSec } from "./lib/drives";

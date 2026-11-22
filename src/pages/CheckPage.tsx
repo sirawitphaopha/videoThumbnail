@@ -13,7 +13,7 @@ import { FULL_SPEED, reminderDue } from "../lib/status";
 import type { Page } from "../components/Sidebar";
 import Dialog from "../components/Dialog";
 import { FixedTime, J, Keep, Phr, Skel, SortArrow, StatIcon } from "../components/ui";
-import type { GraphReq } from "./GraphPage";
+import type { GraphReq } from "./graph/GraphPage";
 import { IbStop, IcGraph, IbTick, IcCheck } from "../components/icons";
 
 type CkCol = "name" | "size" | "at" | "status";
