@@ -3,11 +3,11 @@
    โปรแกรมเทียบ 3 ช่วง ต้นเรื่อง กลางเรื่อง ท้ายเรื่อง · ค่าต่างกันเพราะเสียงเร็วไม่เท่าหนัง เสนอคู่ความเร็วพร้อมปุ่มไปตั้งในแผงตั้งค่าเสียง
    ลองฟัง 20 วินาที ทำไฟล์ชั่วคราวช่วงที่เห็น ภาพจากหนัง เสียงใหม่ใส่ดีเลย์แล้ว เปิดด้วยโปรแกรมเล่นที่ตั้งไว้ · ไฟล์หนังไม่ถูกแก้ */
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
-import Dialog from "./Dialog";
-import { CardIcon, Keep, Phr, Range } from "./ui";
-import { delayApi, type DelayFound, type DelayPreview, type DelayView } from "../lib/api";
-import type { AvTrack } from "../lib/avJob";
-import { IcSearch, IbTick, IbPlay } from "./icons";
+import Dialog from "../../components/Dialog";
+import { CardIcon, Keep, Phr, Range } from "../../components/ui";
+import { delayApi, type DelayFound, type DelayPreview, type DelayView } from "../../lib/api";
+import type { AvTrack } from "../../lib/avJob";
+import { IcSearch, IbTick, IbPlay } from "../../components/icons";
 
 const baseName = (p: string) => p.split(/[\\/]/).pop() ?? p;
 const sign = (v: number) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(Math.round(v)).toLocaleString("en-US")}`;

@@ -3,11 +3,11 @@
    เวลาพิมพ์แบบ ชั่วโมง:นาที:วินาที หรือ นาที:วินาที ทศนิยมได้ · ผิดรูปแบบหรือเกินความยาวหนัง ขึ้นเหตุผลใต้แถว กดเสร็จสิ้นไม่ได้
    หน้าต่างสูงคงที่ รายการยาวเลื่อนในหน้าต่าง */
 import { useEffect, useState } from "react";
-import Dialog from "./Dialog";
-import ThaiInput from "./ThaiInput";
-import { Skel } from "./ui";
-import { IcClose, IcPlus, IcRefresh } from "./icons";
-import { mergeApi, type Chapter } from "../lib/api";
+import Dialog from "../../components/Dialog";
+import ThaiInput from "../../components/ThaiInput";
+import { Skel } from "../../components/ui";
+import { IcClose, IcPlus, IcRefresh } from "../../components/icons";
+import { mergeApi, type Chapter } from "../../lib/api";
 
 type Row = { id: number; time: string; title: string };
 

@@ -3,12 +3,12 @@
    แยกทีละชิ้น หยุดได้ ชื่อชนถามก่อน ไม่เขียนทับ ไฟล์หนังเดิมไม่ถูกแตะ (extract.rs) · ชิ้นที่ติ๊กส่งมาจากหน้าที่ใช้การ์ดนี้ */
 import { useEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { api, infoApi, inApp, pickFolder, pickMkvFiles, type ExtractItem, type ExtractResult } from "../lib/api";
-import { useElsewhere } from "../lib/elsewhere";
-import { CardIcon, Phr } from "./ui";
-import { spaceShort, useFree } from "../lib/drives";
-import { IbEraser, IbNext, IbPencil, IbStop, IbTrash, IcExtract, IcFolder, IcRefresh } from "./icons";
-import InfoTip from "./InfoTip";
+import { api, infoApi, inApp, pickFolder, pickMkvFiles, type ExtractItem, type ExtractResult } from "../../lib/api";
+import { useElsewhere } from "../../lib/elsewhere";
+import { CardIcon, Phr } from "../../components/ui";
+import { spaceShort, useFree } from "../../lib/drives";
+import { IbEraser, IbNext, IbPencil, IbStop, IbTrash, IcExtract, IcFolder, IcRefresh } from "../../components/icons";
+import InfoTip from "../../components/InfoTip";
 
 /** แยกหลายไฟล์ (BUGS ข้อ 130 แบบ gMKVExtractGUI) */
 const BATCH_TIP = { w: "แยกชิ้นที่ติ๊กไว้แบบเดียวกันจากไฟล์ MKV อื่นหลายไฟล์ทีละไฟล์\nโดยไฟล์ที่ได้ของแต่ละเรื่องอยู่ในโฟลเดอร์แยกไฟล์ข้างไฟล์นั้น",

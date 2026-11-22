@@ -4,11 +4,11 @@
    ✓ พิมพ์ค้นได้ทั้งชื่อไทย ชื่ออังกฤษ รหัส · ลืมสลับแป้นพิมพ์ก็หาเจอ (ตัวค้นเดียวกับชั้นวาง)
    ✓ วัดที่ว่างก่อนกางด้วยตัววัดกลาง ล่างไม่พอพลิกขึ้น (popup-fit) · ลูกศรขึ้นลง Enter เลือก Esc ปิด กดข้างนอกปิด */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { dropStyle, sideStyle, useDropPlacement, useSideFit } from "../lib/popupFit";
-import { useClickOutside, useEscClose } from "../lib/popup";
-import { searchByName } from "../lib/thaiSearch";
-import { LANG_ALL, LANG_OFTEN, LANG_UND, langCode, langName, type Lang } from "../lib/langs";
-import { IcChevronDown, IcSearch } from "./icons";
+import { dropStyle, sideStyle, useDropPlacement, useSideFit } from "../../lib/popupFit";
+import { useClickOutside, useEscClose } from "../../lib/popup";
+import { searchByName } from "../../lib/thaiSearch";
+import { LANG_ALL, LANG_OFTEN, LANG_UND, langCode, langName, type Lang } from "../../lib/langs";
+import { IcChevronDown, IcSearch } from "../../components/icons";
 
 type Row = { group: string; lang: Lang };
 
