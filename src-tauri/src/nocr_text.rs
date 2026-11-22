@@ -888,7 +888,7 @@ mod tests {
         let (Ok(sup), Ok(se)) = (std::env::var("MOVIE_SHELF_OCR_SUP"), std::env::var("MOVIE_SHELF_OCR_SECONV_NOCR")) else { eprintln!("ข้าม ไม่ได้ตั้งไฟล์ ACCA"); return };
         let db = NOcrDb::load(&std::path::Path::new(env!("CARGO_MANIFEST_DIR")).join("tools/ocr/Ocr/Latin.nocr")).unwrap();
         let cues = srt_cues(&se);
-        let shows = crate::subs::parse_sup(&std::fs::read(sup).unwrap());
+        let shows = crate::subtitle::subs::parse_sup(&std::fs::read(sup).unwrap());
         let reader = NOcrReader::default();
         let o = ReadOpts { max_wrong: 25, italic: 0.0, space_px: 0, last_ditch: true, teach: false };
         let t = std::time::Instant::now();

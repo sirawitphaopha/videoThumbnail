@@ -286,7 +286,7 @@ pub fn sub_charset(path: &Path) -> Option<String> {
         return None;
     }
     // กติกาเดียวกับตัวดูซับ · ไม่ใช่ไทยจริงถือเป็น Windows-1252 ไม่เดาเป็นไทย (ผู้ช่วยตรวจขั้น 10 ข้อ 4)
-    Some(crate::subs::guess_charset(&b).into())
+    Some(crate::subtitle::subs::guess_charset(&b).into())
 }
 
 // ---------------------------------------------------------------- เปิดไฟล์หนัง · เพิ่มไฟล์
@@ -357,23 +357,23 @@ pub fn inspect(tools: &Path, p: &Path) -> Result<MergeMovie, String> {
 /// ฟอนต์ที่ซับซึ่งจะใส่กลับเข้าหนังเรียก แต่ยังไม่มีในไฟล์แนบของหนัง (BUGS ข้อ 114 · ผู้ช่วยตรวจทาน R6)
 /// ชื่อฟอนต์ในหนังอ่านจากไฟล์ฟอนต์ที่ดึงออกมาจริง (subshot movie_fonts) ไม่ใช่จากชื่อไฟล์แนบ · หาไฟล์ข้างหนังก่อน แล้วฟอนต์ของผู้ใช้ แล้วของ Windows
 /// คืนทุกชื่อที่ยังไม่มี ทั้งที่หาเจอ (file มีค่า) และหาไม่เจอ ให้หน้าจอบอกก่อนกด
-pub fn missing_fonts(tools: &Path, work: &Path, movie: &Path, sub_text: &str) -> Vec<crate::fonts::FontHit> {
-    let wanted = crate::fonts::ass_fonts(sub_text);
+pub fn missing_fonts(tools: &Path, work: &Path, movie: &Path, sub_text: &str) -> Vec<crate::subtitle::fonts::FontHit> {
+    let wanted = crate::subtitle::fonts::ass_fonts(sub_text);
     if wanted.is_empty() { return vec![]; }
     let mut have: Vec<String> = vec![];
-    if let Some(dir) = crate::subshot::movie_fonts(tools, work, movie) {
+    if let Some(dir) = crate::subtitle::subshot::movie_fonts(tools, work, movie) {
         for e in std::fs::read_dir(&dir).into_iter().flatten().flatten() {
             if e.file_name() == ".ok" { continue; }
-            have.extend(crate::fonts::font_names(&e.path()).into_iter().map(|n| n.to_lowercase()));
+            have.extend(crate::subtitle::fonts::font_names(&e.path()).into_iter().map(|n| n.to_lowercase()));
         }
     }
     let missing: Vec<String> = wanted.into_iter().filter(|w| !have.contains(&w.to_lowercase())).collect();
     if missing.is_empty() { return vec![]; }
-    crate::fonts::find(movie, &missing)
+    crate::subtitle::fonts::find(movie, &missing)
 }
 
 #[tauri::command]
-pub async fn remux_fonts(app: AppHandle, movie: String, text: String) -> Result<Vec<crate::fonts::FontHit>, String> {
+pub async fn remux_fonts(app: AppHandle, movie: String, text: String) -> Result<Vec<crate::subtitle::fonts::FontHit>, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let (tools, work) = tools_of(&app)?;
         std::fs::create_dir_all(&work).map_err(|e| e.to_string())?;
@@ -406,7 +406,7 @@ pub struct AddedFile {
     longer_by: Option<f64>,
     notes: Vec<String>,
     /// ซับ ASS SSA · ฟอนต์ที่ซับใช้กับไฟล์ฟอนต์ที่หาเจอ (fonts.rs)
-    fonts: Vec<crate::fonts::FontHit>,
+    fonts: Vec<crate::subtitle::fonts::FontHit>,
 }
 
 /// ชื่อชนิดซับตามที่ ffprobe เรียก ของนามสกุลใน subs::FF_TEXT · หน้าจอแปลงเป็นป้าย SAMI MicroDVD ฯลฯ (ftypes.tsx ftName)
@@ -432,17 +432,17 @@ pub fn add_file(tools: &Path, path: &Path, movie_duration: Option<f64>) -> Resul
     }
     let size = std::fs::metadata(&p).map_err(|_| "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่".to_string())?.len();
     // ซับ HD DVD mkvmerge อ่านไม่ได้ จึงรวมเข้าหนังไม่ได้ · เดิมขึ้นข้อความผิดพลาดของ mkvmerge (BUGS ข้อ 129)
-    if crate::imgconv::is_hddvd_sup(&p) { return Err(HD_DVD_MERGE.into()); }
+    if crate::subtitle::imgconv::is_hddvd_sup(&p) { return Err(HD_DVD_MERGE.into()); }
     // SBV กับ TTML ffprobe อ่านไม่ได้ ทำแทร็กซับขึ้นเองหนึ่งแทร็ก นับบรรทัดจากที่แปลงเป็น SRT (subconv.rs) · ใส่ในหนังตรง ๆ ไม่ได้
-    let mut tracks = if crate::subs::OWN_TEXT.contains(&ext.as_str()) {
+    let mut tracks = if crate::subtitle::subs::OWN_TEXT.contains(&ext.as_str()) {
         let raw = std::fs::read(&p).map_err(|e| format!("อ่านไฟล์ไม่ได้ {e}"))?;
-        let srt = crate::subconv::to_srt(&ext, &crate::subs::decode_text(&raw).0)?;
+        let srt = crate::subtitle::subconv::to_srt(&ext, &crate::subtitle::subs::decode_text(&raw).0)?;
         let lines = srt.split("\r\n\r\n").filter(|b| b.contains("-->")).count() as u64;
         vec![Track {
             src: p.to_string_lossy().to_string(), tid: 0, ff: Some(0), kind: "subtitle".into(), codec: ext.clone(), lang: "und".into(), frames: Some(lines),
             mp4: "no".into(), why: Some("ไฟล์ชนิดนี้ใส่ในหนังตรง ๆ ไม่ได้ เปิดในหน้าซับไตเติลแล้วบันทึกเป็น SRT หรือ ASS ก่อน".into()), keep: true, ..Default::default()
         }]
-    } else if crate::subs::FF_TEXT.contains(&ext.as_str()) {
+    } else if crate::subtitle::subs::FF_TEXT.contains(&ext.as_str()) {
         // SAMI MicroDVD LRC และพวก mkvmerge ไม่รู้จัก แต่ ffmpeg อ่านได้ (หน้าซับไตเติลแปลงเป็น ASS ตอนเปิด subs.rs bytes_of) · ทำแทร็กซับเองหนึ่งแทร็ก จำนวนบรรทัดให้ ffprobe นับข้างล่าง
         // เดิมส่งให้ mkvmerge อย่างเดียว เปิดซับ SAMI ไม่ได้ว่า mkvmerge อ่านไม่ได้ (BUGS ข้อ 123 เจอจากตัวตรวจ check-pgs 15 พ.ย. 2569)
         // จำนวนบรรทัดนับจากซับที่แปลงแล้ว เพราะ ffprobe นับบรรทัดว่างที่ใช้ปิดซับ (SAMI &nbsp;) เป็นบรรทัดด้วย ได้เกินจริงเท่าตัว
@@ -450,7 +450,7 @@ pub fn add_file(tools: &Path, path: &Path, movie_duration: Option<f64>) -> Resul
             Ok(t) if t.iter().any(|x| x.kind == "subtitle") => t,
             _ => vec![Track {
                 src: p.to_string_lossy().to_string(), tid: 0, ff: Some(0), kind: "subtitle".into(), codec: ff_text_codec(&ext).into(), lang: "und".into(),
-                frames: crate::subs::bytes_of(tools, &std::env::temp_dir(), &p, false, 0, 0).ok().map(|(b, _)| String::from_utf8_lossy(&b).lines().filter(|l| l.starts_with("Dialogue:")).count() as u64),
+                frames: crate::subtitle::subs::bytes_of(tools, &std::env::temp_dir(), &p, false, 0, 0).ok().map(|(b, _)| String::from_utf8_lossy(&b).lines().filter(|l| l.starts_with("Dialogue:")).count() as u64),
                 mp4: "no".into(), why: Some("ไฟล์ชนิดนี้ใส่ในหนังตรง ๆ ไม่ได้ เปิดในหน้าซับไตเติลแล้วบันทึกเป็น SRT หรือ ASS ก่อน".into()), keep: true, ..Default::default()
             }],
         }
@@ -497,7 +497,7 @@ pub fn add_file(tools: &Path, path: &Path, movie_duration: Option<f64>) -> Resul
     let longer_by = match (dur, movie_duration) { (Some(a), Some(m)) if m > 0.0 => Some(a - m), _ => None };
     // ซับ ASS บอกแค่ชื่อฟอนต์ · หาไฟล์ฟอนต์ให้ ไว้ฝังไปกับไฟล์ใหม่ (พี่กันสั่ง 8 พ.ย. 2569)
     let fonts = if matches!(ext.as_str(), "ass" | "ssa") {
-        std::fs::read(&p).ok().map(|b| crate::fonts::find(&p, &crate::fonts::ass_fonts(&crate::subs::decode_text(&b).0))).unwrap_or_default()
+        std::fs::read(&p).ok().map(|b| crate::subtitle::fonts::find(&p, &crate::subtitle::fonts::ass_fonts(&crate::subtitle::subs::decode_text(&b).0))).unwrap_or_default()
     } else {
         vec![]
     };
@@ -511,9 +511,9 @@ const HD_DVD_MERGE: &str = "ไฟล์นี้เป็นซับภาพ�
 /// หน้าซับไตเติลเปิดไฟล์ซับเพื่อดูและแปลง ไม่ใช่รวมไฟล์ · รับซับ HD DVD ที่ mkvmerge อ่านไม่ได้เพิ่ม (BUGS ข้อ 129 ย้ายจาก ROADMAP พี่กันสั่ง "ทำเลย เอาไปใส่คิว")
 /// ตัวดูซับรูปถอดภาพจาก PGS ที่ BDSup2Sub++ แปลงไว้ (imgconv::hddvd_pgs) และหน้าต่างแปลงซับภาพส่งไฟล์ต้นฉบับให้ BDSup2Sub++ ตรง ๆ
 pub fn add_file_view(tools: &Path, work: &Path, path: &Path) -> Result<AddedFile, String> {
-    if !crate::imgconv::is_hddvd_sup(path) { return add_file(tools, path, None); }
+    if !crate::subtitle::imgconv::is_hddvd_sup(path) { return add_file(tools, path, None); }
     let size = std::fs::metadata(path).map_err(|_| "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่".to_string())?.len();
-    let (_, n) = crate::imgconv::hddvd_pgs(tools, work, path)?;
+    let (_, n) = crate::subtitle::imgconv::hddvd_pgs(tools, work, path)?;
     let name = path.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
     let stem = path.file_stem().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
     let lang = lang_from_name(&stem);
@@ -532,7 +532,7 @@ pub fn add_file_view(tools: &Path, work: &Path, path: &Path) -> Result<AddedFile
 pub async fn merge_add_file(app: AppHandle, path: String, movie_duration: Option<f64>, view: Option<bool>) -> Result<AddedFile, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let (tools, _) = tools_of(&app)?;
-        if view == Some(true) { return add_file_view(&tools, &crate::subs::work_dir(&app)?, Path::new(&path)); }
+        if view == Some(true) { return add_file_view(&tools, &crate::subtitle::subs::work_dir(&app)?, Path::new(&path)); }
         add_file(&tools, Path::new(&path), movie_duration)
     }).await.map_err(|e| e.to_string())?
 }
@@ -1171,7 +1171,7 @@ pub fn produce(
     if !mp4 {
         for f in &req.fonts {
             let p = PathBuf::from(f);
-            let is_font = p.extension().map(|e| crate::fonts::FONT_EXT.contains(&e.to_string_lossy().to_lowercase().as_str())).unwrap_or(false);
+            let is_font = p.extension().map(|e| crate::subtitle::fonts::FONT_EXT.contains(&e.to_string_lossy().to_lowercase().as_str())).unwrap_or(false);
             if !is_font || !p.is_file() {
                 return Err(fail("other", "หาไฟล์ฟอนต์ไม่เจอ", vec![f.clone(), "เอาฟอนต์นี้ออกจากการ์ดฟอนต์ หรือลากไฟล์ฟอนต์มาใหม่".into(), untouched.into()]));
             }
@@ -1181,7 +1181,7 @@ pub fn produce(
                 notes.push(format!("ฟอนต์ {name} มีในไฟล์แนบอยู่แล้ว ไม่ใส่ซ้ำ"));
                 continue;
             }
-            fonts.push(NewCover { name, mime: crate::fonts::mime_of(&p).into(), file: p, sha: String::new() });
+            fonts.push(NewCover { name, mime: crate::subtitle::fonts::mime_of(&p).into(), file: p, sha: String::new() });
         }
         if !fonts.is_empty() {
             notes.push(format!("ฝังฟอนต์ของซับ {} ไฟล์ {}", fonts.len(), fonts.iter().map(|c| c.name.as_str()).collect::<Vec<_>>().join(" ")));
@@ -1538,17 +1538,17 @@ mod tests {
         let subs: Vec<usize> = m.tracks.iter().enumerate().filter(|(_, t)| t.kind == "subtitle").map(|(i, _)| i).collect();
         assert_eq!(subs.len(), 2, "หนังทดสอบมีซับ ASS กับ SRT");
         let read = |file: &Path, t: &Track| {
-            let (b, h) = crate::subs::bytes_of(&tl, &dir.0, file, true, t.tid, t.ff.unwrap_or(t.tid)).unwrap();
-            crate::subdoc::parse_doc(&b, &h, None)
+            let (b, h) = crate::subtitle::subs::bytes_of(&tl, &dir.0, file, true, t.tid, t.ff.unwrap_or(t.tid)).unwrap();
+            crate::subtitle::subdoc::parse_doc(&b, &h, None)
         };
-        let lines = |d: &crate::subdoc::SubDoc| d.events.iter().map(|e| (e.comment, e.layer, e.start, e.end, e.style.clone(), e.actor.clone(), e.text.clone())).collect::<Vec<_>>();
+        let lines = |d: &crate::subtitle::subdoc::SubDoc| d.events.iter().map(|e| (e.comment, e.layer, e.start, e.end, e.style.clone(), e.actor.clone(), e.text.clone())).collect::<Vec<_>>();
         let old = m.tracks[subs[0]].clone();
         let mut doc = read(&movie, &old);
         let srt0 = read(&movie, &m.tracks[subs[1]]);
         let i = doc.events.iter().position(|e| e.start == 500 && !e.comment).expect("บรรทัด 0.50");
         doc.events[i].text = "ใส่กลับเข้าหนังแล้ว".into();
         let temp = dir.0.join("sub-remux-test.ass");
-        std::fs::write(&temp, crate::subdoc::to_bytes(&doc).0).unwrap();
+        std::fs::write(&temp, crate::subtitle::subdoc::to_bytes(&doc).0).unwrap();
         let mut nt = add_file(&tl, &temp, m.duration).unwrap().tracks.remove(0);
         nt.lang = old.lang.clone();
         nt.name = old.name.clone();
@@ -1594,16 +1594,16 @@ mod tests {
         assert_eq!((s2.lang_ietf.as_str(), s2.original), ("es-419", true));
         assert_eq!(mkv_lang(s1), "zh-Hant");
         // ซับที่แก้เรียกฟอนต์ Courier New ซึ่งหนังไม่มี (มีใน Windows)
-        let (b, h) = crate::subs::bytes_of(&tl, &dir.0, &movie, true, s1.tid, s1.ff.unwrap_or(s1.tid)).unwrap();
-        let mut doc = crate::subdoc::parse_doc(&b, &h, None);
+        let (b, h) = crate::subtitle::subs::bytes_of(&tl, &dir.0, &movie, true, s1.tid, s1.ff.unwrap_or(s1.tid)).unwrap();
+        let mut doc = crate::subtitle::subdoc::parse_doc(&b, &h, None);
         let i = doc.events.iter().position(|e| !e.comment).unwrap();
         doc.events[i].text = format!("{{\\fnCourier New}}{}", doc.events[i].text);
-        let text = crate::subdoc::render(&doc);
+        let text = crate::subtitle::subdoc::render(&doc);
         let miss = missing_fonts(&tl, &dir.0, &movie, &text);
         let courier = miss.iter().find(|f| f.name == "Courier New").expect("Courier New อยู่ในรายการที่ต้องฝัง");
         assert!(courier.file.is_some(), "หาไฟล์ Courier New ใน Windows เจอ");
         let temp = dir.0.join("sub-ietf-test.ass");
-        std::fs::write(&temp, crate::subdoc::to_bytes(&doc).0).unwrap();
+        std::fs::write(&temp, crate::subtitle::subdoc::to_bytes(&doc).0).unwrap();
         // แทร็กใหม่ได้ภาษา ภาษาแบบละเอียด ป้าย จากแทร็กเดิม แบบ subRemux.ts
         let mut nt = add_file(&tl, &temp, m.duration).unwrap().tracks.remove(0);
         nt.lang = s1.lang.clone(); nt.lang_ietf = s1.lang_ietf.clone(); nt.lang_was = s1.lang.clone();

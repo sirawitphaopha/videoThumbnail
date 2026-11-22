@@ -605,7 +605,7 @@ mod tests {
     #[test]
     fn acca_accuracy() {
         let (Ok(sup), Ok(truth)) = (std::env::var("MOVIE_SHELF_OCR_SUP"), std::env::var("MOVIE_SHELF_OCR_TRUTH")) else { eprintln!("ข้าม ไม่ได้ตั้งไฟล์ ACCA"); return };
-        let shows = crate::subs::parse_sup(&std::fs::read(sup).unwrap());
+        let shows = crate::subtitle::subs::parse_sup(&std::fs::read(sup).unwrap());
         let want: Vec<String> = std::fs::read_to_string(truth).unwrap().lines().filter(|l| !l.trim().is_empty())
             .map(|l| l.split_once('\t').map(|(_, t)| t).unwrap_or(l).to_string()).collect();
         let norm = |s: &str| s.replace("<i>", "").replace("</i>", "").replace(['“', '”'], "\"").replace(['‘', '’'], "'").replace(" ¶ ", "\n").replace('¶', "\n")
@@ -628,9 +628,9 @@ mod tests {
     fn godzilla_japanese_accuracy() {
         let (Ok(idx), Ok(srt)) = (std::env::var("MOVIE_SHELF_VOB_IDX"), std::env::var("MOVIE_SHELF_GODZILLA_SRT")) else { eprintln!("ข้าม ไม่ได้ตั้งไฟล์ Godzilla"); return };
         let idx = PathBuf::from(idx);
-        let file = crate::vobsub::parse_idx(&crate::subs::decode_text(&std::fs::read(&idx).unwrap()).0);
-        let shows = crate::vobsub::read(&file, &std::fs::read(idx.with_extension("sub")).unwrap(), 0, &|_| {});
-        let text = crate::subs::decode_text(&std::fs::read(srt).unwrap()).0.replace("\r\n", "\n");
+        let file = crate::subtitle::vobsub::parse_idx(&crate::subtitle::subs::decode_text(&std::fs::read(&idx).unwrap()).0);
+        let shows = crate::subtitle::vobsub::read(&file, &std::fs::read(idx.with_extension("sub")).unwrap(), 0, &|_| {});
+        let text = crate::subtitle::subs::decode_text(&std::fs::read(srt).unwrap()).0.replace("\r\n", "\n");
         let tag = |s: &str| { let mut o = String::new(); let mut inside = false; for ch in s.chars() { match ch { '<' | '{' => inside = true, '>' | '}' => inside = false, _ if !inside => o.push(ch), _ => {} } } o };
         let refs: Vec<(f64, String)> = text.split("\n\n").filter_map(|b| {
             let mut ls = b.lines().skip_while(|l| !l.contains("-->"));
@@ -670,7 +670,7 @@ mod tests {
         let mut worst: Vec<(usize, String, String)> = vec![];
         for (k, s) in shows.iter().enumerate() {
             let Some((_, want)) = refs.iter().filter(|r| (r.0 - s.start).abs() <= 0.3).min_by(|a, b| (a.0 - s.start).abs().total_cmp(&(b.0 - s.start).abs())) else { continue };
-            let Some((_, img)) = crate::subs::crop_ink(&s.img, s.at, s.canvas) else { continue };
+            let Some((_, img)) = crate::subtitle::subs::crop_ink(&s.img, s.at, s.canvas) else { continue };
             let (got, _) = read_text(&ocr_dir(), &img, &PaddleOpts::default()).unwrap();
             let (g, w) = (squash(&got), squash(want));
             let tall = img.height() > img.width();
@@ -696,7 +696,7 @@ mod tests {
     fn thai_test_sub() {
         let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("test-media").join("สร้าง").join("ocr");
         if !dir.join("th.sup").exists() { assert_eq!(std::env::var("MOVIE_SHELF_SKIP_MEDIA").as_deref(), Ok("1"), "ไม่มี th.sup"); return; }
-        let shows = crate::subs::parse_sup(&std::fs::read(dir.join("th.sup")).unwrap());
+        let shows = crate::subtitle::subs::parse_sup(&std::fs::read(dir.join("th.sup")).unwrap());
         let want: Vec<String> = std::fs::read_to_string(dir.join("th.truth.txt")).unwrap().lines().map(|l| l.replace("<i>", "").replace("</i>", "").replace('¶', "\n")).collect();
         let o = PaddleOpts { lang: "th".into(), ..Default::default() };
         let mut bad = vec![];

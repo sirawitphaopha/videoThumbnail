@@ -514,7 +514,7 @@ mod tests {
 
     /// จำนวนบรรทัดที่แบ่งได้เทียบคำตอบ (นับ ¶ บวกหนึ่ง) ทุกภาพของไฟล์ .sup · คืนภาพที่ไม่ตรง (เลขภาพ ได้ ควรได้)
     fn line_mismatch(sup: &std::path::Path, truth: &std::path::Path) -> (usize, Vec<(usize, usize, usize)>) {
-        let shows = crate::subs::parse_sup(&std::fs::read(sup).unwrap());
+        let shows = crate::subtitle::subs::parse_sup(&std::fs::read(sup).unwrap());
         let want: Vec<usize> = std::fs::read_to_string(truth).unwrap().lines().filter(|l| !l.trim().is_empty())
             .map(|l| l.split_once('\t').map(|(_, t)| t).unwrap_or(l).matches('¶').count() + 1).collect();
         assert_eq!(shows.len(), want.len(), "จำนวนภาพไม่เท่าคำตอบ");

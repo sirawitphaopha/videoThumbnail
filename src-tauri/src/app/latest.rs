@@ -330,9 +330,9 @@ mod tests {
         let outs: Vec<&str> = codecs.iter().map(|c| crate::audio::encode::EncodeSpec { codec: c.to_string(), ..Default::default() }.ext()).collect();
         assert_eq!(sorted(list("ENCODE_OUT_EXT")), own(&outs), "นามสกุลไฟล์ที่ได้จากการแปลงเสียง");
         let sub = list("SUB_EXT");
-        for e in crate::subs::FF_TEXT.iter().chain(crate::subs::OWN_TEXT) { assert!(sub.iter().any(|s| s == e), "ซับ .{e} ที่ฝั่ง Rust แปลงได้ ต้องอยู่ใน SUB_EXT"); }
+        for e in crate::subtitle::subs::FF_TEXT.iter().chain(crate::subtitle::subs::OWN_TEXT) { assert!(sub.iter().any(|s| s == e), "ซับ .{e} ที่ฝั่ง Rust แปลงได้ ต้องอยู่ใน SUB_EXT"); }
         for e in ["srt", "ass", "ssa", "vtt", "sup", "idx", "sub"] { assert!(sub.iter().any(|s| s == e), "SUB_EXT ขาด .{e}"); }
-        let known: Vec<&str> = ["srt", "ass", "ssa", "vtt", "sup", "idx", "sub"].into_iter().chain(crate::subs::FF_TEXT.iter().copied()).chain(crate::subs::OWN_TEXT.iter().copied()).collect();
+        let known: Vec<&str> = ["srt", "ass", "ssa", "vtt", "sup", "idx", "sub"].into_iter().chain(crate::subtitle::subs::FF_TEXT.iter().copied()).chain(crate::subtitle::subs::OWN_TEXT.iter().copied()).collect();
         for e in &sub { assert!(known.contains(&e.as_str()), "SUB_EXT มี .{e} ที่ฝั่ง Rust ไม่รู้จัก"); }
     }
 

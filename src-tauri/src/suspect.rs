@@ -146,7 +146,7 @@ mod tests {
         for (size, italic) in [(64.0, false), (52.0, false), (64.0, true)] {
             crate::ownocr::train_font(&tools, &work, &mut db, "Leelawadee UI", size, false, italic, 60, crate::nocr_lines::Algo::Random, &mut rng).unwrap();
         }
-        let shows = crate::subs::parse_sup(&std::fs::read(dir.join("th.sup")).unwrap());
+        let shows = crate::subtitle::subs::parse_sup(&std::fs::read(dir.join("th.sup")).unwrap());
         let want: Vec<String> = std::fs::read_to_string(dir.join("th.truth.txt")).unwrap().lines().map(|l| l.replace('¶', "\n")).collect();
         let o = crate::paddle::PaddleOpts { lang: "th".into(), ..Default::default() };
         let (mut n_bad, mut caught, mut false_flags, mut confs_bad, mut confs_ok) = (0, 0, 0, vec![], vec![]);
@@ -166,7 +166,7 @@ mod tests {
     #[test]
     fn acca_wrong_lines_are_flagged() {
         let (Ok(sup), Ok(truth)) = (std::env::var("MOVIE_SHELF_OCR_SUP"), std::env::var("MOVIE_SHELF_OCR_TRUTH")) else { eprintln!("ข้าม ไม่ได้ตั้งไฟล์ ACCA"); return };
-        let shows = crate::subs::parse_sup(&std::fs::read(sup).unwrap());
+        let shows = crate::subtitle::subs::parse_sup(&std::fs::read(sup).unwrap());
         let want: Vec<String> = std::fs::read_to_string(truth).unwrap().lines().filter(|l| !l.trim().is_empty())
             .map(|l| l.split_once('\t').map(|(_, t)| t).unwrap_or(l).replace(" ¶ ", "\n").replace('¶', "\n")).collect();
         let work = std::env::temp_dir().join("movie-shelf-suspect-acca");

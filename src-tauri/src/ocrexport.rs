@@ -5,7 +5,7 @@
 //! ④ ภาพทุกภาพพร้อมหน้า HTML ค้นคำได้ แปลจาก OcrHtmlExporter.cs
 //! Subtitle Edit · Copyright (c) Nikolaj Olsson · MIT License (ข้อความเต็มใน tools/licenses)
 
-use crate::subdoc::{self, Enc, Event, Item, SubDoc};
+use crate::subtitle::subdoc::{self, Enc, Event, Item, SubDoc};
 use crate::app::tools::tools_dir;
 use serde::{Deserialize, Serialize};
 use std::ffi::OsString;
@@ -139,7 +139,7 @@ pub fn formats(tools: &Path) -> Vec<ExpFormat> {
         ExpFormat { id: SRT.into(), name: "SubRip".into(), ext: ".srt".into() },
         ExpFormat { id: ASS.into(), name: "Advanced Sub Station Alpha".into(), ext: ".ass".into() },
     ];
-    if !crate::pgs::seconv_exe(tools).exists() { return base(); }
+    if !crate::subtitle::pgs::seconv_exe(tools).exists() { return base(); }
     if let Some(v) = CACHE.get() { return v.clone(); }
     let v = (|| {
         let args: Vec<OsString> = vec!["formats".into(), "--json".into()];
@@ -162,7 +162,7 @@ pub fn formats(tools: &Path) -> Vec<ExpFormat> {
 
 /// ให้ SeConv แปลงไฟล์ ASS เป็นชนิด id ลงโฟลเดอร์ชั่วคราว คืนที่อยู่ไฟล์ผล
 fn seconv_to(tools: &Path, input: &Path, dir: &Path, name: &str, id: &str, enc: &str) -> Result<PathBuf, String> {
-    if !crate::pgs::seconv_exe(tools).exists() { return Err("ยังไม่มี SeConv ในโฟลเดอร์เครื่องมือ ส่งออกได้เฉพาะ SubRip กับ Advanced SubStation".into()); }
+    if !crate::subtitle::pgs::seconv_exe(tools).exists() { return Err("ยังไม่มี SeConv ในโฟลเดอร์เครื่องมือ ส่งออกได้เฉพาะ SubRip กับ Advanced SubStation".into()); }
     std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     let encoding = match enc { "utf16" => "utf-16", "tis" => "windows-874", _ => "utf-8" };
     let args: Vec<OsString> = vec![input.as_os_str().to_owned(), id.into(), format!("--output-folder:{}", dir.display()).into(),
@@ -418,14 +418,14 @@ pub async fn ocr_export_formats(app: AppHandle) -> Result<Vec<ExpFormat>, String
 #[tauri::command]
 pub async fn ocr_export_preview(app: AppHandle, req: ExpReq) -> Result<String, String> {
     let tools = tools_dir(&app)?;
-    let work = crate::subs::work_dir(&app)?;
+    let work = crate::subtitle::subs::work_dir(&app)?;
     tauri::async_runtime::spawn_blocking(move || preview(&tools, &work, &req)).await.map_err(|e| e.to_string())?
 }
 
 #[tauri::command]
 pub async fn ocr_export(app: AppHandle, req: ExpReq, target: String) -> Result<ExpOut, String> {
     let tools = tools_dir(&app)?;
-    let work = crate::subs::work_dir(&app)?;
+    let work = crate::subtitle::subs::work_dir(&app)?;
     tauri::async_runtime::spawn_blocking(move || export(&tools, &work, &req, Path::new(&target))).await.map_err(|e| e.to_string())?
 }
 
@@ -528,7 +528,7 @@ mod tests {
         let u16f = work.join("c.srt");
         export(&tools, &work, &r, &u16f).unwrap();
         assert!(std::fs::read(&u16f).unwrap().starts_with(&[0xFF, 0xFE]));
-        if crate::pgs::seconv_exe(&tools).exists() {
+        if crate::subtitle::pgs::seconv_exe(&tools).exists() {
             let mut v = req(rows, "WebVTT", "tag");
             v.enc = "utf8".into();
             // ที่เก็บคนละไดรฟ์กับโฟลเดอร์ทำงาน (โฟลเดอร์ทำงานอยู่ไดรฟ์ C โปรเจกต์อยู่ไดรฟ์ D) · เดิมย้ายข้ามไดรฟ์ไม่ได้ ขึ้นเปลี่ยนชื่อไม่สำเร็จ

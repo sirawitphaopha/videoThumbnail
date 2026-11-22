@@ -13,7 +13,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 
-use crate::subdoc::SubDoc;
+use crate::subtitle::subdoc::SubDoc;
 use crate::app::tools::{run_tool_timeout, tool_succeeded, tools_dir};
 
 pub(crate) fn work_dir(app: &AppHandle) -> Result<PathBuf, String> {
@@ -44,7 +44,7 @@ impl TmpSub {
     pub(crate) fn new(work: &Path, doc: &SubDoc) -> Result<Self, String> {
         let ext = match doc.kind.as_str() { "ass" => "ass", "ssa" => "ssa", "vtt" => "vtt", _ => "srt" };
         let p = work.join(format!("sub-shot-{}.{ext}", crate::cover::poster_image::unique()));
-        std::fs::write(&p, crate::subdoc::render(doc)).map_err(|e| e.to_string())?;
+        std::fs::write(&p, crate::subtitle::subdoc::render(doc)).map_err(|e| e.to_string())?;
         Ok(Self(p))
     }
 }
@@ -138,9 +138,9 @@ const PNG_OUT: [&str; 6] = ["-frames:v", "1", "-f", "image2pipe", "-c:v", "png"]
 /// แล้วคิดสีแบบ VSFilter เมื่อซับเป็น TV.601 (หรือไม่บอก) บนหนัง HD สูงเกิน 576 จุด แบบที่ mpv แสดง · SRT VTT ffmpeg ใส่ None ให้เองอยู่แล้ว
 fn prep(doc: &SubDoc, oh: u32) -> (SubDoc, bool) {
     if doc.kind == "ass" || doc.kind == "ssa" {
-        let tv601 = crate::pgs::script_tv601(doc);
+        let tv601 = crate::subtitle::pgs::script_tv601(doc);
         let mut d = doc.clone();
-        crate::pgs::set_matrix_none(&mut d);
+        crate::subtitle::pgs::set_matrix_none(&mut d);
         return (d, tv601 && oh > 576);
     }
     (doc.clone(), false)
@@ -153,8 +153,8 @@ fn subs_rgba(tools: &Path, work: &Path, doc: &SubDoc, fonts: Option<&Path>, t_ms
     let (ow, oh) = if ow > 0 && oh > 0 { (ow, oh) } else { (w, h) };
     let (d, mangle) = prep(doc, oh);
     let sub = TmpSub::new(work, &d)?;
-    let buf = crate::pgs::render_pair(tools, &sub.0, fonts, w, h, ow, oh, (t_ms.max(0.0) * 1000.0).round() as i64)?;
-    Ok(crate::pgs::straight_px(&buf, mangle, 0.0))
+    let buf = crate::subtitle::pgs::render_pair(tools, &sub.0, fonts, w, h, ow, oh, (t_ms.max(0.0) * 1000.0).round() as i64)?;
+    Ok(crate::subtitle::pgs::straight_px(&buf, mangle, 0.0))
 }
 
 fn png_rgba(px: Vec<u8>, w: u32, h: u32) -> Result<Vec<u8>, String> {
@@ -343,7 +343,7 @@ mod tests {
     fn yellow(matrix: &str) -> SubDoc {
         let m = if matrix.is_empty() { String::new() } else { format!("YCbCr Matrix: {matrix}\r\n") };
         let ass = format!("[Script Info]\r\nScriptType: v4.00+\r\nPlayResX: 1280\r\nPlayResY: 720\r\n{m}ScaledBorderAndShadow: yes\r\n\r\n[V4+ Styles]\r\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\r\nStyle: Default,Arial,120,&H0000D7FF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,0,12,5,20,20,40,1\r\n\r\n[Events]\r\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\r\nDialogue: 0,0:00:00.50,0:00:02.00,Default,,0,0,0,,MMMM\r\n");
-        crate::subdoc::parse_doc(ass.as_bytes(), "ass", None)
+        crate::subtitle::subdoc::parse_doc(ass.as_bytes(), "ass", None)
     }
     fn rgba(png: &[u8]) -> Vec<u8> { image::load_from_memory(png).unwrap().to_rgba8().into_raw() }
     /// สีที่เจอมากที่สุดของจุดที่ทึบเต็มที่และไม่ใช่สีพื้นหรือเงา
@@ -373,7 +373,7 @@ mod tests {
     #[test]
     fn overlay_tv601_on_hd_like_player() {
         let dir = tmpd("ov601");
-        let want = crate::pgs::mangle601([255, 215, 0]);
+        let want = crate::subtitle::pgs::mangle601([255, 215, 0]);
         for m in ["TV.601", ""] {
             let px = rgba(&overlay_png(&tools(), &dir, &yellow(m), None, 1000.0, 1280, 720, 1280, 720).unwrap());
             let got = top(&px, [0, 0, 0]);

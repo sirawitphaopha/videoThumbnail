@@ -881,7 +881,7 @@ mod tests {
         let mut fx = FixEngine::new(&dict, &std::env::temp_dir().join("movie-shelf-ocrfix-acca"), "eng", "en_US", Box::new(spell));
         fx.image_misreads = true;
         fx.fill_unknown = true;
-        let shows = crate::subs::parse_sup(&std::fs::read(sup).unwrap());
+        let shows = crate::subtitle::subs::parse_sup(&std::fs::read(sup).unwrap());
         let want: Vec<String> = std::fs::read_to_string(truth).unwrap().lines().filter(|l| !l.trim().is_empty())
             .map(|l| l.split_once('\t').map(|(_, t)| t).unwrap_or(l).replace(" ¶ ", "\n").replace('¶', "\n")).collect();
         let plain = |s: &str| remove_tags(s).replace(['“', '”'], "\"").replace(['‘', '’'], "'").lines().map(|l| l.split_whitespace().collect::<Vec<_>>().join(" ")).collect::<Vec<_>>().join("\n");

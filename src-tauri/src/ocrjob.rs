@@ -103,7 +103,7 @@ impl Dirs {
         let user = app.path().app_local_data_dir().map_err(|e| e.to_string())?.join("ocr");
         // โมเดลภาษาของ PaddleOCR ที่ผู้ใช้โหลดเอง (BUGS ข้อ 152)
         crate::paddle::set_user_dir(user.join("paddle"));
-        Ok(Dirs { ocr: tools.join("ocr"), tools, user, work: crate::subs::work_dir(app)? })
+        Ok(Dirs { ocr: tools.join("ocr"), tools, user, work: crate::subtitle::subs::work_dir(app)? })
     }
 }
 
@@ -248,11 +248,11 @@ pub fn tidy_free(t: &str) -> String {
     out
 }
 
-pub fn update_images(v: &[crate::subs::SubImg]) {
+pub fn update_images(v: &[crate::subtitle::subs::SubImg]) {
     if let Some(s) = session().as_mut() { apply_images(s, v); }
 }
-pub(crate) fn apply_images(s: &mut Session, v: &[crate::subs::SubImg]) {
-    let by: HashMap<&std::path::Path, &crate::subs::SubImg> = v.iter().map(|i| (i.file.as_path(), i)).collect();
+pub(crate) fn apply_images(s: &mut Session, v: &[crate::subtitle::subs::SubImg]) {
+    let by: HashMap<&std::path::Path, &crate::subtitle::subs::SubImg> = v.iter().map(|i| (i.file.as_path(), i)).collect();
     for it in s.items.iter_mut() {
         if let Some(img) = by.get(it.img.file.as_path()) { it.an = crate::ocrsrc::an_of(img); it.img = (*img).clone(); }
     }
@@ -1130,7 +1130,7 @@ pub async fn ocr_image_out(app: tauri::AppHandle, index: usize, dest: String, pa
         let dir = want.parent().filter(|d| d.is_dir()).ok_or("หาโฟลเดอร์ที่เก็บไม่เจอ")?.to_path_buf();
         let out = crate::app::outfile::free_name(&dir, &want);
         // เขียนไฟล์ชั่วคราวแล้วย้ายแบบไม่ทับ ตามกฎไฟล์ของโปรแกรม (ผู้ช่วยตรวจทาน R14 · เดิมเขียนตรงที่ชื่อว่าง)
-        let part = crate::subdoc::partial_of(&out);
+        let part = crate::subtitle::subdoc::partial_of(&out);
         std::fs::write(&part, &png).map_err(|e| format!("บันทึกภาพไม่ได้ {e}"))?;
         crate::cover::rename::move_no_replace(&part, &out).map_err(|p| { let _ = std::fs::remove_file(&part); format!("บันทึกภาพไม่ได้ {}", p.title) })?;
         Ok(out.display().to_string())
@@ -1224,7 +1224,7 @@ mod tests {
         let Some(items) = th_items(&d) else { return };
         let mut s = Session::with_items(items.clone());
         remove_items(&mut s, &[1]);
-        let mut fresh: Vec<crate::subs::SubImg> = items.iter().map(|i| i.img.clone()).collect();
+        let mut fresh: Vec<crate::subtitle::subs::SubImg> = items.iter().map(|i| i.img.clone()).collect();
         for f in fresh.iter_mut() { f.w += 1000; }
         apply_images(&mut s, &fresh);
         assert_eq!(s.items.len(), items.len() - 1);
@@ -1379,7 +1379,7 @@ mod tests {
         let file = d.work.join("three.png");
         big.save(&file).unwrap();
         let first = &items[0].img;
-        let img = crate::subs::SubImg { n: 1, start: first.start, end: first.end, w, h, canvas: first.canvas, at: [first.canvas[0].saturating_sub(w) / 2, first.canvas[1].saturating_sub(h + 40)], forced: false, file };
+        let img = crate::subtitle::subs::SubImg { n: 1, start: first.start, end: first.end, w, h, canvas: first.canvas, at: [first.canvas[0].saturating_sub(w) / 2, first.canvas[1].saturating_sub(h + 40)], forced: false, file };
         eprintln!("จอ {:?} ภาพ {w}x{h}", first.canvas);
         assert!(!crate::ocrsrc::has_separated_blocks(&big, &img), "สามบรรทัดชิดกันต้องเป็นก้อนเดียว");
         let base = OcrCfg { paddle: PaddleOpts { lang: "th".into(), ..Default::default() }, lang3: "tha".into(), dict: String::new(), fix: false, ..Default::default() };

@@ -485,7 +485,7 @@ mod tests {
             learned += n;
         }
         assert!(learned > 100);
-        let shows = crate::subs::parse_sup(&std::fs::read(dir.join("th.sup")).unwrap());
+        let shows = crate::subtitle::subs::parse_sup(&std::fs::read(dir.join("th.sup")).unwrap());
         let want: Vec<String> = std::fs::read_to_string(dir.join("th.truth.txt")).unwrap().lines().map(|l| l.replace('¶', "\n")).collect();
         let reader = OwnReader;
         let (mut ok, mut bad, mut edits, mut total) = (0, vec![], 0, 0);

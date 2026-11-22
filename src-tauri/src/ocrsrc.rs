@@ -8,7 +8,7 @@
 //! and contributors · ประกาศสัญญาเต็มอยู่หัวไฟล์ vobsub.rs) · ภาพสูงที่มีหลายก้อนห่างกันแยกตำแหน่งทีละบรรทัดในขั้น 2 ที่มีตัวแบ่งบรรทัดแล้ว
 //! อ่านอย่างเดียว ไม่แตะไฟล์หนังและไฟล์ซับ ภาพที่ได้อยู่ในโฟลเดอร์ทำงานของโปรแกรม
 
-use crate::subs::SubImg;
+use crate::subtitle::subs::SubImg;
 use crate::app::tools::tools_dir;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
@@ -93,9 +93,9 @@ fn items_of(v: Vec<SubImg>) -> Vec<OcrItem> { v.into_iter().map(|img| OcrItem { 
 /// ชนิดของซับรูปที่เปิด ดูจากนามสกุลกับชนิดสตรีม
 fn kind_of(tools: &Path, path: &Path, ff: u64) -> &'static str {
     let ext = path.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
-    if crate::vobsub::pair_of(path).is_some() { return "vobsub"; }
+    if crate::subtitle::vobsub::pair_of(path).is_some() { return "vobsub"; }
     if ext == "sup" { return "pgs"; }
-    match crate::vobsub::stream_codec(tools, path, ff).0.as_str() {
+    match crate::subtitle::vobsub::stream_codec(tools, path, ff).0.as_str() {
         "hdmv_pgs_subtitle" => "pgs",
         "dvd_subtitle" => "vobsub",
         _ => "other",
@@ -107,10 +107,10 @@ pub fn open(tools: &Path, work: &Path, path: &Path, ff: u64, on: &dyn Fn(f64)) -
     let ext = path.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
     if ext == "xml" { return from_bdn(work, path); }
     let kind = kind_of(tools, path, ff);
-    let imgs = crate::subs::images_with(tools, work, path, ff, on)?;
+    let imgs = crate::subtitle::subs::images_with(tools, work, path, ff, on)?;
     // คู่ไฟล์ของ VobSub · เปิดไฟล์ .idx ตรงใช้คู่เดิม · ซับในหนังใช้คู่ที่ดึงไว้ในโฟลเดอร์ของผลถอด
     let vobsub = if kind == "vobsub" {
-        crate::vobsub::pair_of(path).or_else(|| {
+        crate::subtitle::vobsub::pair_of(path).or_else(|| {
             let dir = imgs.first()?.file.parent()?.to_path_buf();
             let (i, s) = (dir.join("track.idx"), dir.join("track.sub"));
             (i.is_file() && s.is_file()).then_some((i, s))
@@ -130,10 +130,10 @@ fn own_dir(work: &Path, key: &str) -> Result<PathBuf, String> {
 /// BDN XML กับภาพ PNG ข้างไฟล์ · เหตุการณ์ที่มีหลายภาพรวมเป็นภาพเดียวตามตำแหน่ง แล้วครอปเหลือตัวหนังสือ
 pub fn from_bdn(work: &Path, xml: &Path) -> Result<OcrSource, String> {
     let raw = std::fs::read(xml).map_err(|e| format!("อ่านไฟล์ BDN XML ไม่ได้ {e}"))?;
-    let (canvas, events) = crate::imgconv::parse_bdn(&crate::subs::decode_text(&raw).0);
+    let (canvas, events) = crate::subtitle::imgconv::parse_bdn(&crate::subtitle::subs::decode_text(&raw).0);
     if events.is_empty() { return Err("ไฟล์ XML นี้ไม่มีภาพซับแบบ BDN".into()); }
     let base = xml.parent().unwrap_or(Path::new("."));
-    let dir = own_dir(work, &crate::subs::cache_key(xml, 0))?;
+    let dir = own_dir(work, &crate::subtitle::subs::cache_key(xml, 0))?;
     let mut out = Vec::new();
     for ev in events {
         let mut parts = Vec::new();
@@ -148,7 +148,7 @@ pub fn from_bdn(work: &Path, xml: &Path) -> Result<OcrSource, String> {
         let mut img = image::RgbaImage::new(x1 - x0, y1 - y0);
         for (x, y, p) in &parts { image::imageops::overlay(&mut img, p, (*x - x0) as i64, (*y - y0) as i64); }
         let cv = if canvas.0 > 0 { canvas } else { (x1.max(1920), y1.max(1080)) };
-        let Some((at, img)) = crate::subs::crop_ink(&img, (x0, y0), cv) else { continue };
+        let Some((at, img)) = crate::subtitle::subs::crop_ink(&img, (x0, y0), cv) else { continue };
         let n = out.len() + 1;
         let file = dir.join(format!("c{n:06}.png"));
         img.save(&file).map_err(|e| format!("เก็บภาพซับไม่ได้ {e}"))?;
@@ -183,7 +183,7 @@ pub fn png_times(stem: &str) -> Option<(f64, f64)> {
 pub fn from_pngs(work: &Path, files: &[PathBuf]) -> Result<OcrSource, String> {
     let mut files = files.to_vec();
     files.sort_by_key(|f| f.file_name().map(|n| n.to_string_lossy().to_lowercase()).unwrap_or_default());
-    let key = format!("png-{}", crate::subs::cache_key(files.first().ok_or("ยังไม่ได้เลือกภาพ")?, files.len() as u64));
+    let key = format!("png-{}", crate::subtitle::subs::cache_key(files.first().ok_or("ยังไม่ได้เลือกภาพ")?, files.len() as u64));
     let dir = own_dir(work, &key)?;
     let mut out = Vec::new();
     for f in &files {
@@ -201,8 +201,8 @@ pub fn from_pngs(work: &Path, files: &[PathBuf]) -> Result<OcrSource, String> {
 #[tauri::command]
 pub async fn ocr_source(app: AppHandle, path: String, ff: u64) -> Result<OcrSource, String> {
     let tools = tools_dir(&app)?;
-    let work = crate::subs::work_dir(&app)?;
-    let on = crate::subs::progress_to(&app, &path, ff);
+    let work = crate::subtitle::subs::work_dir(&app)?;
+    let on = crate::subtitle::subs::progress_to(&app, &path, ff);
     tauri::async_runtime::spawn_blocking(move || {
         let p = PathBuf::from(&path);
         if !p.exists() { return Err("หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่".into()); }
@@ -215,7 +215,7 @@ pub async fn ocr_source(app: AppHandle, path: String, ff: u64) -> Result<OcrSour
 /// นำเข้าภาพ PNG ทีละไฟล์ให้หน้า OCR
 #[tauri::command]
 pub async fn ocr_source_pngs(app: AppHandle, files: Vec<String>) -> Result<OcrSource, String> {
-    let work = crate::subs::work_dir(&app)?;
+    let work = crate::subtitle::subs::work_dir(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
         let src = from_pngs(&work, &files.iter().map(PathBuf::from).collect::<Vec<_>>())?;
         crate::ocrjob::set_source(src.items.clone());

@@ -118,7 +118,7 @@ pub fn is_hddvd_sup(p: &Path) -> bool {
 /// แปลงซับ HD DVD เป็น PGS ไว้ในโฟลเดอร์ทำงานของโปรแกรม ให้ตัวดูซับรูปใช้ตัวถอดภาพเดิม (ffmpeg) · ไฟล์ต้นฉบับไม่ถูกแตะ
 /// ใช้ของที่แปลงไว้แล้วถ้ามี (กุญแจตามที่อยู่ ขนาด และเวลาแก้ไฟล์) · คืนที่อยู่ไฟล์ PGS กับจำนวนภาพที่ BDSup2Sub++ อ่านได้
 pub fn hddvd_pgs(tools: &Path, work: &Path, p: &Path) -> Result<(PathBuf, usize), String> {
-    let key = crate::subs::cache_key(p, 0);
+    let key = crate::subtitle::subs::cache_key(p, 0);
     let out = work.join(format!("hddvd-{key}.sup"));
     let cnt = work.join(format!("hddvd-{key}.n"));
     if out.is_file() {
@@ -380,7 +380,7 @@ pub fn convert(tools: &Path, work: &Path, req: &ImgReq, progress: &dyn Fn(usize,
         "sup" => {
             let (c, w, h) = probe(tools, &out).ok_or("ไฟล์ PGS ที่ได้อ่านไม่ได้")?;
             if c != "hdmv_pgs_subtitle" { return Err(format!("ไฟล์ที่ได้ไม่ใช่ PGS ({c})")); }
-            (crate::pgs::shown_sets(&std::fs::read(&out).map_err(|e| e.to_string())?), w, h)
+            (crate::subtitle::pgs::shown_sets(&std::fs::read(&out).map_err(|e| e.to_string())?), w, h)
         }
         "idx" => {
             let (c, w, h) = probe(tools, &out.with_extension("idx")).ok_or("ไฟล์ VobSub ที่ได้อ่านไม่ได้")?;
@@ -526,7 +526,7 @@ fn sup_shows(work: &Path, src: &Path, data: &[u8]) -> Vec<(f64, Option<f64>)> {
     if let Ok(s) = std::fs::read_to_string(&keep) {
         return s.lines().filter_map(|l| { let mut it = l.split(' '); Some((it.next()?.parse().ok()?, it.next().and_then(|e| e.parse().ok()))) }).collect();
     }
-    let shows: Vec<(f64, Option<f64>)> = crate::subs::parse_sup(data).into_iter().map(|s| (s.start, s.end)).collect();
+    let shows: Vec<(f64, Option<f64>)> = crate::subtitle::subs::parse_sup(data).into_iter().map(|s| (s.start, s.end)).collect();
     let text: Vec<String> = shows.iter().map(|(a, b)| format!("{a} {}", b.map(|b| b.to_string()).unwrap_or_default())).collect();
     let _ = std::fs::write(&keep, text.join("\n"));
     shows
@@ -682,7 +682,7 @@ fn preview_full(tools: &Path, work: &Path, req: &ImgReq, index: usize, cancel: &
 #[tauri::command]
 pub async fn imgsub_preview(app: AppHandle, req: ImgReq, index: usize) -> Result<ImgPreview, String> {
     let tools = tools_dir(&app)?;
-    let work = crate::subshot::work_dir(&app)?;
+    let work = crate::subtitle::subshot::work_dir(&app)?;
     let my = PREVIEW_GEN.fetch_add(1, Ordering::SeqCst) + 1;
     tauri::async_runtime::spawn_blocking(move || preview(&tools, &work, &req, index, &|| PREVIEW_GEN.load(Ordering::SeqCst) != my)).await.map_err(|e| e.to_string())?
 }
@@ -694,7 +694,7 @@ struct Progress { done: usize, total: usize }
 pub async fn imgsub_convert(app: AppHandle, req: ImgReq) -> Result<ImgOut, String> {
     STOP.store(false, Ordering::SeqCst);
     let tools = tools_dir(&app)?;
-    let work = crate::subshot::work_dir(&app)?;
+    let work = crate::subtitle::subshot::work_dir(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
         let r = convert(&tools, &work, &req, &|done, total| { let _ = app.emit("imgsub-progress", Progress { done, total }); }, &|| STOP.load(Ordering::SeqCst))?;
         crate::app::actlog::note("แปลงซับภาพ", &format!("{} ({} ภาพ)", r.files.join(" "), r.images));
@@ -713,7 +713,7 @@ pub struct ImgTools { pub bdsup_ok: bool, pub seconv_ok: bool }
 #[tauri::command]
 pub fn imgsub_tools(app: AppHandle) -> Result<ImgTools, String> {
     let tools = tools_dir(&app)?;
-    Ok(ImgTools { bdsup_ok: bdsup_exe(&tools).exists(), seconv_ok: crate::pgs::seconv_exe(&tools).exists() })
+    Ok(ImgTools { bdsup_ok: bdsup_exe(&tools).exists(), seconv_ok: crate::subtitle::pgs::seconv_exe(&tools).exists() })
 }
 
 #[cfg(test)]
@@ -755,7 +755,7 @@ mod tests {
         let mt = std::fs::metadata(&pgs).unwrap().modified().unwrap();
         assert_eq!(hddvd_pgs(&tools(), &w, &src).unwrap(), (pgs.clone(), 630));
         assert_eq!(std::fs::metadata(&pgs).unwrap().modified().unwrap(), mt);
-        let imgs = crate::subs::images(&tools(), &w, &src, 0).unwrap();
+        let imgs = crate::subtitle::subs::images(&tools(), &w, &src, 0).unwrap();
         assert!(imgs.len() > 50 && imgs.iter().all(|i| i.w > 0 && i.h > 0), "ภาพ {}", imgs.len());
         let v = crate::merge::merge::add_file_view(&tools(), &w, &src).unwrap();
         assert_eq!((v.tracks.len(), v.tracks[0].codec.as_str(), v.tracks[0].frames, v.tracks[0].kind.as_str()), (1, "hddvd_sup", Some(630), "subtitle"));
@@ -809,8 +809,8 @@ mod tests {
         r.delay = 500;
         let pgs = convert(&tools(), &dir, &r, &|_, _| {}, &none).unwrap();
         assert_eq!((pgs.w, pgs.h), (1280, 720), "{pgs:?}");
-        let t0 = crate::pgs::first_shown(&before).unwrap();
-        let t1 = crate::pgs::first_shown(&std::fs::read(dir.join("กลับ.sup")).unwrap()).unwrap();
+        let t0 = crate::subtitle::pgs::first_shown(&before).unwrap();
+        let t1 = crate::subtitle::pgs::first_shown(&std::fs::read(dir.join("กลับ.sup")).unwrap()).unwrap();
         assert!((t1 - t0 - 500).abs() <= 45, "ภาพแรกเดิม {t0} ms ได้ {t1} ms ต้องช้ากว่า 500 ms");
         assert_eq!(std::fs::read(&src).unwrap(), before, "ไฟล์ต้นทางต้องไม่ถูกแตะ");
         let leftover: Vec<_> = std::fs::read_dir(&dir).unwrap().flatten().filter(|e| e.file_name().to_string_lossy().starts_with(".imgconv")).collect();
@@ -888,7 +888,7 @@ mod tests {
         let p = preview(&tools(), &dir, &r, 0, &none).unwrap();
         assert_eq!((p.w, p.h), (1280, 720), "{p:?}");
         assert!(p.total >= 1 && !p.graphics.is_empty() && p.graphics.iter().all(|g| g.x + g.w <= 1280 && g.y + g.h <= 720 && g.png.starts_with("data:image/png")), "{:?}", p.graphics.iter().map(|g| (g.x, g.y, g.w, g.h)).collect::<Vec<_>>());
-        let t0 = crate::pgs::first_shown(&std::fs::read(media().join("pgs_sub.sup")).unwrap()).unwrap();
+        let t0 = crate::subtitle::pgs::first_shown(&std::fs::read(media().join("pgs_sub.sup")).unwrap()).unwrap();
         assert!((p.start - t0 - 1000).abs() <= 45, "เวลาเริ่ม {} เดิม {t0}", p.start);
         // ซับ PGS แปลงทีละภาพ (BUGS ข้อ 142) ผลต้องตรงกับแปลงทั้งไฟล์ทุกภาพ ทั้งจอ เวลา ตำแหน่ง ขนาดภาพ และจำนวนภาพทั้งไฟล์
         let count = |p: &str| std::fs::read_dir(&dir).unwrap().flatten().filter(|e| e.file_name().to_string_lossy().starts_with(p)).count();
@@ -927,7 +927,7 @@ mod tests {
         let e = convert(&tools(), &dir, &req(&media().join("vobsub.idx"), "vobsub", &dir.join("v.sup")), &|_, _| {}, &none).unwrap_err();
         assert!(e.contains("Subtitle Edit"), "{e}");
         assert!(!dir.join("v.sup").exists());
-        if crate::pgs::seconv_exe(&tools()).exists() {
+        if crate::subtitle::pgs::seconv_exe(&tools()).exists() {
             let mut r = req(&media().join("vobsub.idx"), "vobsub", &dir.join("v.sup"));
             r.engine = "seconv".into();
             let o = convert(&tools(), &dir, &r, &|_, _| {}, &none).unwrap();
@@ -940,7 +940,7 @@ mod tests {
     /// (เดิมส่งชื่อ .idx ให้ SeConv มันเขียนไฟล์ .sub ลงชื่อนั้นแล้วล้ม · BDN XML ได้โฟลเดอร์ชื่อ t.xml ที่มี index.xml ตัวแปลงหาไฟล์ไม่เจอ เจอ 15 พ.ย. 2569)
     #[test]
     fn seconv_vobsub_and_bdn() {
-        if !ready() || !crate::pgs::seconv_exe(&tools()).exists() { return; }
+        if !ready() || !crate::subtitle::pgs::seconv_exe(&tools()).exists() { return; }
         let dir = tmp("seconv");
         let mut r = req(&media().join("pgs_sub.sup"), "pgs", &dir.join("ผล.idx"));
         r.engine = "seconv".into();

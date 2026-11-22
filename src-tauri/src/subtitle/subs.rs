@@ -225,7 +225,7 @@ pub fn bytes_of(tools: &Path, work: &Path, path: &Path, in_movie: bool, tid: u64
     let plain = matches!(ext.as_str(), "srt" | "ass" | "ssa" | "vtt" | "txt");
     if !in_movie && OWN_TEXT.contains(&ext.as_str()) {
         let raw = std::fs::read(path).map_err(|e| format!("อ่านไฟล์ซับไม่ได้ {e}"))?;
-        return Ok((crate::subconv::to_srt(&ext, &decode_text(&raw).0)?.into_bytes(), "srt".into()));
+        return Ok((crate::subtitle::subconv::to_srt(&ext, &decode_text(&raw).0)?.into_bytes(), "srt".into()));
     }
     if !in_movie && FF_TEXT.contains(&ext.as_str()) {
         // ffmpeg อ่านซับข้อความเป็น UTF-8 · ไฟล์ไทยแบบเก่าบอกชุดอักษรที่เดาได้ก่อน
@@ -435,7 +435,7 @@ pub fn parse_sup(data: &[u8]) -> Vec<SupShow> {
                 let id = p.first().copied().unwrap_or(0);
                 let pal = pals.entry(id).or_insert([[0; 4]; 256]);
                 for e in p.get(2..).unwrap_or(&[]).chunks_exact(5) {
-                    let [r, g, b] = crate::pgs::rgb_of(e[1], e[2], e[3], bt709);
+                    let [r, g, b] = crate::subtitle::pgs::rgb_of(e[1], e[2], e[3], bt709);
                     pal[e[0] as usize] = [r, g, b, e[4]];
                 }
             }
@@ -532,7 +532,7 @@ pub(crate) fn save_pngs(items: Vec<(PathBuf, image::RgbaImage)>, on: &dyn Fn(f64
 }
 
 /// ความยาวของไฟล์ (วินาที) ไว้คิดเปอร์เซ็นต์ของ ffmpeg · ไม่รู้คืน 0
-fn duration_of(tools: &Path, path: &Path) -> f64 { crate::vobsub::stream_codec(tools, path, u64::MAX).1 }
+fn duration_of(tools: &Path, path: &Path) -> f64 { crate::subtitle::vobsub::stream_codec(tools, path, u64::MAX).1 }
 
 /// ทางเร็วของซับรูป PGS · ลอกแทร็กออกมาเป็น .sup (ไม่ถอดภาพหนัง) แล้วอ่านเอง · อ่านไม่ได้หรือไม่ใช่ PGS คืน None ให้ใช้ทางเดิม
 /// การลอกแทร็กอ่านไฟล์หนังทั้งไฟล์ บอกเปอร์เซ็นต์ตามเวลาที่ ffmpeg อ่านถึง (BUGS ข้อ 144)
@@ -544,7 +544,7 @@ fn images_from_sup(tools: &Path, dir: &Path, path: &Path, ff: u64, on: &dyn Fn(f
         let sup = dir.join("track.sup");
         let args: Vec<OsString> = vec!["-v".into(), "error".into(), "-nostdin".into(), "-nostats".into(), "-y".into(), "-progress".into(), "pipe:1".into(), "-copyts".into(), "-i".into(), path.into(),
             "-map".into(), format!("0:{ff}").into(), "-c".into(), "copy".into(), "-f".into(), "sup".into(), sup.clone().into()];
-        let (ok, _, _) = crate::vobsub::run_progress(tools, "ffmpeg", &args, duration_of(tools, path), &|p| on(p * 0.85)).ok()?;
+        let (ok, _, _) = crate::subtitle::vobsub::run_progress(tools, "ffmpeg", &args, duration_of(tools, path), &|p| on(p * 0.85)).ok()?;
         if !ok { let _ = std::fs::remove_file(&sup); return None; }
         let d = std::fs::read(&sup).ok()?;
         let _ = std::fs::remove_file(&sup);
@@ -570,18 +570,18 @@ fn images_from_sup(tools: &Path, dir: &Path, path: &Path, ff: u64, on: &dyn Fn(f
 /// ซับรูป VobSub อ่านเอง (vobsub.rs) · ไฟล์ .idx กับ .sub ที่เปิดตรงอ่านทันที · ซับในหนังดึงคู่ไฟล์ออกมาเก็บในโฟลเดอร์ของผลก่อน
 /// คู่ไฟล์ที่ดึงมาเก็บไว้กับภาพ (track.idx track.sub) ให้ OCR วาดภาพใหม่ด้วยสีที่เลือกได้ ไม่ต้องดึงจากหนังซ้ำ · ไม่ใช่ VobSub คืน Ok(None)
 fn images_from_vobsub(tools: &Path, dir: &Path, path: &Path, ff: u64, on: &dyn Fn(f64)) -> Result<Option<Vec<SubImg>>, String> {
-    let (idx, sub) = if let (Some(pair), 0) = (crate::vobsub::pair_of(path), ff) {
+    let (idx, sub) = if let (Some(pair), 0) = (crate::subtitle::vobsub::pair_of(path), ff) {
         pair
-    } else if crate::vobsub::is_vobsub_stream(tools, path, ff) {
-        crate::vobsub::extract_pair(tools, dir, path, ff, &|p| on(p * 0.8))?
+    } else if crate::subtitle::vobsub::is_vobsub_stream(tools, path, ff) {
+        crate::subtitle::vobsub::extract_pair(tools, dir, path, ff, &|p| on(p * 0.8))?
     } else {
         return Ok(None);
     };
     let text = std::fs::read(&idx).map_err(|e| format!("อ่านไฟล์ .idx ไม่ได้ {e}"))?;
     let data = std::fs::read(&sub).map_err(|e| format!("อ่านไฟล์ .sub ไม่ได้ {e}"))?;
-    let file = crate::vobsub::parse_idx(&decode_text(&text).0);
+    let file = crate::subtitle::vobsub::parse_idx(&decode_text(&text).0);
     let t0 = std::time::Instant::now();
-    let shows = crate::vobsub::read(&file, &data, 0, &|p| on(80.0 + p * 0.05));
+    let shows = crate::subtitle::vobsub::read(&file, &data, 0, &|p| on(80.0 + p * 0.05));
     if shows.is_empty() { return Err("อ่านภาพในซับ VobSub ไม่ได้สักภาพ ไฟล์ .sub อาจไม่ตรงกับไฟล์ .idx".into()); }
     let t1 = t0.elapsed();
     let out = save_vob_shows(dir, &shows, None, None, &|f| on(85.0 + f * 15.0));
@@ -592,7 +592,7 @@ fn images_from_vobsub(tools: &Path, dir: &Path, path: &Path, ff: u64, on: &dyn F
 
 /// เก็บภาพของ VobSub ทีละภาพเป็น c000001.png · ภาพที่ครอปด้วยสีจากจานสีแล้วว่างตัดทิ้ง (ลำดับภาพจึงตรงกันทุกครั้ง)
 /// custom สีสี่ช่องที่ผู้ใช้เลือก (พื้น ตัว เน้น 1 เน้น 2) วาดใหม่จากข้อมูลดิบ ครอปแล้วว่างใช้ทั้งกรอบ · only เก็บเฉพาะภาพลำดับนั้น ไม่เขียนไฟล์
-fn save_vob_shows(dir: &Path, shows: &[crate::vobsub::VobShow], custom: Option<[[u8; 4]; 4]>, only: Option<usize>, on: &dyn Fn(f64)) -> Result<Vec<SubImg>, String> {
+fn save_vob_shows(dir: &Path, shows: &[crate::subtitle::vobsub::VobShow], custom: Option<[[u8; 4]; 4]>, only: Option<usize>, on: &dyn Fn(f64)) -> Result<Vec<SubImg>, String> {
     let mut out = Vec::with_capacity(shows.len());
     let mut pics = Vec::with_capacity(shows.len());
     let mut n = 0usize;
@@ -600,9 +600,9 @@ fn save_vob_shows(dir: &Path, shows: &[crate::vobsub::VobShow], custom: Option<[
         let Some((at0, img0)) = crop_ink(&s.img, s.at, s.canvas) else { continue };
         n += 1;
         if only.is_some_and(|k| k != n) { continue; }
-        let (at, img) = match (custom, crate::vobsub::parse_spu(&s.spu)) {
+        let (at, img) = match (custom, crate::subtitle::vobsub::parse_spu(&s.spu)) {
             (Some(c), Some(spu)) => {
-                let full = crate::vobsub::render(&s.spu, &spu, c);
+                let full = crate::subtitle::vobsub::render(&s.spu, &spu, c);
                 crop_ink(&full, s.at, s.canvas).unwrap_or((s.at, full))
             }
             _ => (at0, img0),
@@ -619,7 +619,7 @@ fn save_vob_shows(dir: &Path, shows: &[crate::vobsub::VobShow], custom: Option<[
 /// คู่ไฟล์ .idx .sub กับโฟลเดอร์ภาพของซับรูปที่เปิด · ไฟล์ .idx ที่เปิดตรงใช้คู่เดิม ซับในหนังใช้คู่ที่ดึงเก็บไว้ตอนถอดภาพ (ไม่ดึงจากหนังซ้ำ)
 fn vob_pair(work: &Path, path: &Path, ff: u64) -> Result<(PathBuf, PathBuf, PathBuf), String> {
     let dir = work.join(format!("subimg-v3-{}", cache_key(path, ff)));
-    let (i, s) = match (crate::vobsub::pair_of(path), ff) {
+    let (i, s) = match (crate::subtitle::vobsub::pair_of(path), ff) {
         (Some(p), 0) => p,
         _ => (dir.join("track.idx"), dir.join("track.sub")),
     };
@@ -627,10 +627,10 @@ fn vob_pair(work: &Path, path: &Path, ff: u64) -> Result<(PathBuf, PathBuf, Path
     Ok((i, s, dir))
 }
 
-fn vob_shows(idx: &Path, sub: &Path) -> Result<Vec<crate::vobsub::VobShow>, String> {
+fn vob_shows(idx: &Path, sub: &Path) -> Result<Vec<crate::subtitle::vobsub::VobShow>, String> {
     let text = std::fs::read(idx).map_err(|e| format!("อ่านไฟล์ .idx ไม่ได้ {e}"))?;
     let data = std::fs::read(sub).map_err(|e| format!("อ่านไฟล์ .sub ไม่ได้ {e}"))?;
-    Ok(crate::vobsub::read(&crate::vobsub::parse_idx(&decode_text(&text).0), &data, 0, &|_| {}))
+    Ok(crate::subtitle::vobsub::read(&crate::subtitle::vobsub::parse_idx(&decode_text(&text).0), &data, 0, &|_| {}))
 }
 
 /// วาดภาพทั้งไฟล์ของ VobSub ใหม่ด้วยสีที่เลือก (None กลับไปใช้จานสีของไฟล์) เขียนทับภาพชั่วคราวกับรายการภาพ · ตาม PickVobSubColors แล้ว RefreshOcrSubtitleItemBitmaps
@@ -682,7 +682,7 @@ pub fn images(tools: &Path, work: &Path, path: &Path, ff: u64) -> Result<Vec<Sub
 pub fn images_with(tools: &Path, work: &Path, path: &Path, ff: u64, on: &dyn Fn(f64)) -> Result<Vec<SubImg>, String> {
     // ซับ HD DVD ffmpeg อ่านไม่ได้ ถอดจากไฟล์ PGS ที่ BDSup2Sub++ แปลงไว้ในโฟลเดอร์ทำงานแทน (BUGS ข้อ 129)
     let hd;
-    let (path, ff) = if crate::imgconv::is_hddvd_sup(path) { hd = crate::imgconv::hddvd_pgs(tools, work, path)?.0; (hd.as_path(), 0) } else { (path, ff) };
+    let (path, ff) = if crate::subtitle::imgconv::is_hddvd_sup(path) { hd = crate::subtitle::imgconv::hddvd_pgs(tools, work, path)?.0; (hd.as_path(), 0) } else { (path, ff) };
     let key = cache_key(path, ff);
     // v2 ใส่ -copyts แล้ว ผลที่ถอดไว้ก่อนหน้านี้เวลาเริ่มที่ศูนย์ผิด ใช้ชื่อใหม่ไม่ให้หยิบของเก่า (BUGS ข้อ 125 เจอ 15 พ.ย. 2569)
     // v3 อ่าน VobSub เองและเก็บธงซับบังคับ ผลเก่าของ VobSub เป็นภาพที่ ffmpeg วาด ไม่มีคู่ไฟล์ให้ OCR วาดสีใหม่ (แผน OCR ขั้น 1)
@@ -727,7 +727,7 @@ pub(crate) fn images_by_render(tools: &Path, dir: &Path, raw: &Path, path: &Path
     let args: Vec<OsString> = vec!["-v".into(), "info".into(), "-nostdin".into(), "-nostats".into(), "-progress".into(), "pipe:1".into(), "-copyts".into(), "-i".into(), path.into(),
         "-filter_complex".into(), format!("[0:{ff}]format=rgba,showinfo[v]").into(), "-map".into(), "[v]".into(), "-fps_mode".into(), "passthrough".into(),
         "-f".into(), "image2".into(), raw.join("%06d.png").into()];
-    let (_, _, log) = crate::vobsub::run_progress(tools, "ffmpeg", &args, duration_of(tools, path), &|p| on(p * 0.9))?;
+    let (_, _, log) = crate::subtitle::vobsub::run_progress(tools, "ffmpeg", &args, duration_of(tools, path), &|p| on(p * 0.9))?;
     let times: Vec<f64> = log.lines().filter(|l| l.contains("Parsed_showinfo") && l.contains(" n:")).filter_map(|l| {
         let p = l.split("pts_time:").nth(1)?;
         p.split_whitespace().next()?.parse::<f64>().ok()
@@ -1031,7 +1031,7 @@ mod tests {
     #[test]
     fn vobsub_in_movie_matches_render() {
         let Some(mkv) = av("ซับรูป (2024).mkv") else { return };
-        let ff = (0..8u64).find(|i| crate::vobsub::is_vobsub_stream(&tools(), &mkv, *i)).expect("หนังทดสอบต้องมีแทร็ก VobSub");
+        let ff = (0..8u64).find(|i| crate::subtitle::vobsub::is_vobsub_stream(&tools(), &mkv, *i)).expect("หนังทดสอบต้องมีแทร็ก VobSub");
         let w = work().join("vobmkv");
         let _ = std::fs::remove_dir_all(&w);
         std::fs::create_dir_all(&w).unwrap();

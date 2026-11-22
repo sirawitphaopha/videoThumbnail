@@ -160,7 +160,7 @@ pub async fn sub_audio_save(app: AppHandle, path: String, map: String, t0: f64, 
         let key = |p: &std::path::Path| p.display().to_string().replace('/', "\\").to_lowercase();
         if key(&target) == key(&src) { return Err("บันทึกทับไฟล์ต้นทางไม่ได้ เลือกชื่ออื่น".into()); }
         if !target.extension().is_some_and(|e| e.eq_ignore_ascii_case("wav")) { return Err("ไฟล์เสียงที่บันทึกต้องเป็นไฟล์ .wav".into()); }
-        let partial = crate::subdoc::partial_of(&target);
+        let partial = crate::subtitle::subdoc::partial_of(&target);
         let map = map_ok(&map)?;
         // เวลาเดียวกับคลื่นเสียง ช่วงที่เสียงยังไม่เริ่มเติมเงียบหน้าไฟล์ (BUGS ข้อ 115)
         let (ss, lead) = place_of(&tools, &src, &map, zero, t0);

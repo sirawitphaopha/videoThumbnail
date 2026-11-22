@@ -104,7 +104,7 @@ pub fn render_with(tools: &Path, work: &Path, texts: &[String], prefix: &str, ta
         let file = work.join(format!("sub-nocrtrain-{}-{}.ass", std::process::id(), crate::cover::poster_image::unique()));
         std::fs::write(&file, ass).map_err(|e| format!("เขียนไฟล์ชั่วคราวไม่ได้ {e}"))?;
         let res = (|| {
-            let (mut child, mut o) = crate::pgs::spawn_pair(tools, &file, None, w, h, w, h, &times)?;
+            let (mut child, mut o) = crate::subtitle::pgs::spawn_pair(tools, &file, None, w, h, w, h, &times)?;
             let mut pair = vec![0u8; (w * h * 6) as usize];
             let mut buf = vec![0u8; (w * h * 4) as usize];
             let mut part = vec![];
@@ -117,7 +117,7 @@ pub fn render_with(tools: &Path, work: &Path, texts: &[String], prefix: &str, ta
                     return Err(format!("ffmpeg วาดตัวอักษรไม่ครบ {e} {last}"));
                 }
                 if !ok { part.push(None); continue; }
-                crate::pgs::pair_to_rgba(&pair, &mut buf);
+                crate::subtitle::pgs::pair_to_rgba(&pair, &mut buf);
                 let img = image::RgbaImage::from_raw(w, h, buf.clone()).ok_or("ภาพผิดขนาด")?;
                 part.push(Some(split_rendered(&img)));
             }
@@ -141,7 +141,7 @@ pub fn split_rendered(img: &Bmp) -> Rendered {
 /// ฟอนต์ที่ลงไว้ในเครื่อง (ของ Windows หรือลงเฉพาะผู้ใช้) ตามลำดับที่ส่งมา ไม่ซ้ำ · ไม่เจอสักตัวใช้ Arial · ตาม GetInstalledFonts
 pub fn installed_fonts(names: &[String]) -> Vec<String> {
     let mut v: Vec<String> = vec![];
-    for h in crate::fonts::find(Path::new(""), names) {
+    for h in crate::subtitle::fonts::find(Path::new(""), names) {
         if !h.from.is_empty() && !v.iter().any(|x| x.eq_ignore_ascii_case(&h.name)) { v.push(h.name); }
     }
     if v.is_empty() { v.push("Arial".into()); }

@@ -20,7 +20,7 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 
-use crate::subdoc::SubDoc;
+use crate::subtitle::subdoc::SubDoc;
 use crate::app::tools::{tool_command, tools_dir};
 
 static STOP: AtomicBool = AtomicBool::new(false);
@@ -630,7 +630,7 @@ pub fn mangle601(c: [u8; 3]) -> [u8; 3] {
 /// ซับบอกตารางสีเป็น TV.601 ไหม · ไม่มีบรรทัด YCbCr Matrix นับเป็น TV.601 แบบ libass กับ mpv (ค่าเดิมของ VSFilter)
 /// PlayResY ของซับ ASS · ไม่มีใช้ 288 แบบ libass
 pub fn script_play_res_y(doc: &SubDoc) -> f64 {
-    use crate::subdoc::Item;
+    use crate::subtitle::subdoc::Item;
     doc.skeleton.iter().find_map(|it| match it {
         Item::Line { t, .. } => t.trim_start_matches('\u{FEFF}').trim().to_ascii_lowercase().strip_prefix("playresy:").and_then(|v| v.trim().parse::<f64>().ok()),
         _ => None,
@@ -647,7 +647,7 @@ pub fn move_dy(text: &str) -> Option<f64> {
 }
 
 pub fn script_tv601(doc: &SubDoc) -> bool {
-    use crate::subdoc::Item;
+    use crate::subtitle::subdoc::Item;
     let v = doc.skeleton.iter().find_map(|it| match it {
         Item::Line { t, .. } => { let s = t.trim_start_matches('\u{FEFF}').trim(); s.to_ascii_lowercase().strip_prefix("ycbcr matrix:").map(|v| v.trim().to_string()) }
         _ => None,
@@ -659,7 +659,7 @@ pub fn script_tv601(doc: &SubDoc) -> bool {
 /// ตัวกรอง subtitles ของ ffmpeg วาดซับ TV.601 TV.709 หรือไม่มีบรรทัดนี้ลงภาพ RGB แล้วบีบสีเหลือช่วง 16 ถึง 235 สีจึงหม่น
 /// (วัดแล้ว 14 พ.ย. 2569 สีเหลือง 255,215,0 ได้ 235,201,16 เท่าสูตร 16 + สี × 219 ÷ 255 · ตั้ง None หรือ PC.709 ได้ 255,215,0)
 pub fn set_matrix_none(doc: &mut SubDoc) {
-    use crate::subdoc::Item;
+    use crate::subtitle::subdoc::Item;
     let eol = doc.eol.clone();
     let mut found = false;
     for it in doc.skeleton.iter_mut() {
@@ -687,7 +687,7 @@ fn ass_col(hex: &str, alpha: u8) -> String {
 }
 
 /// สไตล์ Default ของซับ SRT ตามที่ตั้งในหน้าต่างส่งออก · ช่องเรียงตาม Format ของ [V4+ Styles] ใน subdoc.rs (23 ช่อง)
-pub fn srt_style(st: &SrtStyle) -> crate::subdoc::Style {
+pub fn srt_style(st: &SrtStyle) -> crate::subtitle::subdoc::Style {
     let n = |v: f64, lo: f64, hi: f64| { let v = if v.is_finite() { v.clamp(lo, hi) } else { lo }; let s = format!("{v:.2}"); s.trim_end_matches('0').trim_end_matches('.').to_string() };
     let font = { let f = st.font.replace(',', " "); if f.trim().is_empty() { "Tahoma".to_string() } else { f.trim().to_string() } };
     let shadow_a = (255.0 * (1.0 - st.shadow_opacity.min(100) as f64 / 100.0)).round() as u8;
@@ -697,7 +697,7 @@ pub fn srt_style(st: &SrtStyle) -> crate::subdoc::Style {
         b(st.bold), b(st.italic), "0".into(), "0".into(), "100".into(), "100".into(), "0".into(), "0".into(), "1".into(),
         n(st.outline, 0.0, 20.0), n(st.shadow, 0.0, 20.0), st.align.clamp(1, 9).to_string(), n(st.margin_h, 0.0, 900.0), n(st.margin_h, 0.0, 900.0), n(st.margin_v, 0.0, 500.0), "1".into(),
     ];
-    crate::subdoc::Style { id: 1, fields, ..Default::default() }
+    crate::subtitle::subdoc::Style { id: 1, fields, ..Default::default() }
 }
 
 /// เอกสารที่ส่งให้ libass วาด กับข้อมูลสีของซับ
@@ -716,7 +716,7 @@ pub fn prepare(doc: &SubDoc, req: &PgsReq) -> Prepared {
         return Prepared { doc: d, tv601 };
     }
     let (w, h) = (req.w.max(16) as f64, req.h.max(16) as f64);
-    let mut d = crate::subdoc::to_ass(doc, (((1080.0 * w / h).round() as u32).max(16), 1080));
+    let mut d = crate::subtitle::subdoc::to_ass(doc, (((1080.0 * w / h).round() as u32).max(16), 1080));
     set_matrix_none(&mut d);
     d.styles = vec![srt_style(&req.style.clone().unwrap_or_default())];
     Prepared { doc: d, tv601: false }
@@ -922,7 +922,7 @@ pub(crate) fn spawn_pair(tools: &Path, sub: &Path, fonts: Option<&Path>, w: u32,
     let times = times_us;
     // เวลาของภาพที่ N เป็นไมโครวินาที ผลรวม T × (N เท่ากับ i) · หน่วยเวลา AVTB ไม่ปัดเป็นวินาที (ภาพแหล่ง 1 ภาพต่อวินาทีปัด 4.5 วินาทีเป็น 4 บรรทัดที่เริ่ม 4.1 หาย)
     let expr = times.iter().enumerate().map(|(i, t)| format!("{}*eq(N,{i})", t.max(&0))).collect::<Vec<_>>().join("+");
-    let s = crate::subshot::subs_filter(sub, fonts, ow, oh, false);
+    let s = crate::subtitle::subshot::subs_filter(sub, fonts, ow, oh, false);
     let fc = format!("[0:v]settb=AVTB,setpts='{expr}',{s}[k];[1:v]settb=AVTB,setpts='{expr}',{s}[l];[k][l]vstack=inputs=2,format=rgb24[o]");
     let n = times.len();
     let args: Vec<OsString> = vec![
@@ -980,7 +980,7 @@ pub fn pgs_cancel() { STOP.store(true, Ordering::SeqCst); }
 pub async fn pgs_export(app: AppHandle, doc: SubDoc, req: PgsReq) -> Result<PgsOut, String> {
     STOP.store(false, Ordering::SeqCst);
     let tools = tools_dir(&app)?;
-    let work = crate::subshot::work_dir(&app)?;
+    let work = crate::subtitle::subshot::work_dir(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
         let r = export(&tools, &work, &doc, &req, &|done, total, phase| { let _ = app.emit("pgs-progress", Progress { done, total, phase }); })?;
         crate::app::actlog::note("ส่งออกซับเป็น PGS", &format!("{} ({} ภาพ)", r.path, r.images));
@@ -1006,8 +1006,8 @@ pub fn export(tools: &Path, work: &Path, doc: &SubDoc, req: &PgsReq, progress: &
         if req.engine == "seconv" { return export_seconv(tools, work, doc, req, progress); }
         let enc = Enc::of(&req.opts);
         let doc = &prep.doc;
-        let sub = crate::subshot::TmpSub::new(work, doc)?;
-        let fonts = req.movie.as_deref().filter(|m| !m.is_empty()).and_then(|m| crate::subshot::movie_fonts(tools, work, Path::new(m)));
+        let sub = crate::subtitle::subshot::TmpSub::new(work, doc)?;
+        let fonts = req.movie.as_deref().filter(|m| !m.is_empty()).and_then(|m| crate::subtitle::subshot::movie_fonts(tools, work, Path::new(m)));
         let pts = change_points(doc, frame_ms);
         let need: Vec<usize> = (0..pts.len()).filter(|&i| active_at(doc, pts[i])).collect();
         let total = need.len();
@@ -1055,7 +1055,7 @@ pub fn export(tools: &Path, work: &Path, doc: &SubDoc, req: &PgsReq, progress: &
             }, &|| STOP.load(Ordering::SeqCst))?;
             if STOP.load(Ordering::SeqCst) { return Err("stopped".into()); }
         }
-        let partial = crate::subdoc::partial_of(&target);
+        let partial = crate::subtitle::subdoc::partial_of(&target);
         let file = std::fs::OpenOptions::new().write(true).create_new(true).open(&partial).map_err(|e| format!("เขียนไฟล์ไม่ได้ {e}"))?;
         let mut wr = BufWriter::new(file);
         let mut res = PgsOut::default();
@@ -1330,7 +1330,7 @@ pub(crate) fn render_pair(tools: &Path, sub: &Path, fonts: Option<&Path>, w: u32
 
 /// วาดซับหนึ่งภาพที่เวลา t ได้ RGBA แบบคูณความโปร่งใส (แบบที่ ffmpeg ให้มา)
 fn render_one(tools: &Path, work: &Path, doc: &SubDoc, fonts: Option<&Path>, w: u32, h: u32, t: i64) -> Result<Vec<u8>, String> {
-    let sub = crate::subshot::TmpSub::new(work, doc)?;
+    let sub = crate::subtitle::subshot::TmpSub::new(work, doc)?;
     let (mut c, mut o) = spawn_batch(tools, &sub.0, fonts, w, h, &[t])?;
     let mut buf = vec![0u8; (w * h * 4) as usize];
     if let Err(e) = read_frame(&mut o, &mut vec![], &mut buf) { let m = ffmpeg_err(&mut c); let _ = c.kill(); return Err(format!("{m} ({e})")); }
@@ -1503,8 +1503,8 @@ fn export_super(tools: &Path, work: &Path, prep: &Prepared, req: &PgsReq, progre
     let total = need.len();
     let dir = TmpDir(work.join(format!("pgs-super-{}", crate::cover::poster_image::unique())));
     std::fs::create_dir_all(&dir.0).map_err(|e| e.to_string())?;
-    let sub = crate::subshot::TmpSub::new(work, doc)?;
-    let fonts = req.movie.as_deref().filter(|m| !m.is_empty()).and_then(|m| crate::subshot::movie_fonts(tools, work, Path::new(m)));
+    let sub = crate::subtitle::subshot::TmpSub::new(work, doc)?;
+    let fonts = req.movie.as_deref().filter(|m| !m.is_empty()).and_then(|m| crate::subtitle::subshot::movie_fonts(tools, work, Path::new(m)));
     let times: Vec<i64> = need.iter().map(|&i| pts[i]).collect();
     let mut ev: Vec<BdnEvent> = vec![];
     let mut prev: Option<Vec<u8>> = None;
@@ -1619,7 +1619,7 @@ fn export_seconv(tools: &Path, work: &Path, doc: &SubDoc, req: &PgsReq, progress
     let target = PathBuf::from(&req.target);
     let (w, h) = (req.w.clamp(16, 4096), req.h.clamp(16, 4096));
     let input = work.join(format!("seconv-{}.{}", crate::cover::poster_image::unique(), kind_ext(&doc.kind)));
-    std::fs::write(&input, crate::subdoc::render(doc)).map_err(|e| e.to_string())?;
+    std::fs::write(&input, crate::subtitle::subdoc::render(doc)).map_err(|e| e.to_string())?;
     let name = target.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
     let tmp = target.with_file_name(format!("{name}.{}.partial.sup", crate::cover::poster_image::unique()));
     progress(0, 1, "seconv");
@@ -1668,8 +1668,8 @@ pub fn estimate(tools: &Path, work: &Path, doc: &SubDoc, req: &PgsReq, cancel: &
     let times: Vec<i64> = (0..n).map(|k| pool[k * pool.len() / n]).collect();
     let (_, coef709) = matrices(&req.opts, h, prep.tv601);
     let enc = Enc::of(&req.opts);
-    let sub = crate::subshot::TmpSub::new(work, d)?;
-    let fonts = req.movie.as_deref().filter(|m| !m.is_empty()).and_then(|m| crate::subshot::movie_fonts(tools, work, Path::new(m)));
+    let sub = crate::subtitle::subshot::TmpSub::new(work, d)?;
+    let fonts = req.movie.as_deref().filter(|m| !m.is_empty()).and_then(|m| crate::subtitle::subshot::movie_fonts(tools, work, Path::new(m)));
     let mut sizes: Vec<(i64, usize)> = vec![];
     let mut pal_lens: Vec<usize> = vec![];
     render_all(tools, &sub.0, fonts.as_deref(), w, h, &times, &mut |k: usize, buf: &[u8]| {
@@ -1713,7 +1713,7 @@ static EST_GEN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64::new
 #[tauri::command]
 pub async fn pgs_estimate(app: AppHandle, doc: SubDoc, req: PgsReq) -> Result<PgsEstimate, String> {
     let tools = tools_dir(&app)?;
-    let work = crate::subshot::work_dir(&app)?;
+    let work = crate::subtitle::subshot::work_dir(&app)?;
     let my = EST_GEN.fetch_add(1, Ordering::SeqCst) + 1;
     tauri::async_runtime::spawn_blocking(move || estimate(&tools, &work, &doc, &req, &|| EST_GEN.load(Ordering::SeqCst) != my)).await.map_err(|e| e.to_string())?
 }
@@ -1834,12 +1834,12 @@ pub fn preview(tools: &Path, work: &Path, doc: &SubDoc, req: &PgsReq, at: i64, s
     let mut prep = prepare(doc, req);
     let mut at = at.max(0);
     if let Some(s) = sample.filter(|s| !s.trim().is_empty() && !is_ass) {
-        prep.doc.events = vec![crate::subdoc::Event { id: 1, start: 0, end: 10_000, style: "Default".into(), text: crate::subdoc::srt_to_ass_text(s), ..Default::default() }];
+        prep.doc.events = vec![crate::subtitle::subdoc::Event { id: 1, start: 0, end: 10_000, style: "Default".into(), text: crate::subtitle::subdoc::srt_to_ass_text(s), ..Default::default() }];
         at = 5_000;
     }
     let (out709, coef709) = matrices(&req.opts, h, prep.tv601);
     let mangle = req.opts.vsfilter && prep.tv601 && out709;
-    let fonts = req.movie.as_deref().filter(|m| !m.is_empty()).and_then(|m| crate::subshot::movie_fonts(tools, work, Path::new(m)));
+    let fonts = req.movie.as_deref().filter(|m| !m.is_empty()).and_then(|m| crate::subtitle::subshot::movie_fonts(tools, work, Path::new(m)));
     let buf = render_one(tools, work, &prep.doc, fonts.as_deref(), w, h, at)?;
     let (wu, hu) = (w as usize, h as usize);
     let asspx = straight_px(&buf, mangle, 0.0);
@@ -1868,7 +1868,7 @@ pub fn preview(tools: &Path, work: &Path, doc: &SubDoc, req: &PgsReq, at: i64, s
         let mut mini = doc.clone();
         match sample.filter(|s| !s.trim().is_empty() && !is_ass) {
             Some(s) => {
-                mini = crate::subdoc::parse_doc(format!("1\r\n00:00:00,000 --> 00:00:10,000\r\n{}\r\n", s.trim()).as_bytes(), "srt", None);
+                mini = crate::subtitle::subdoc::parse_doc(format!("1\r\n00:00:00,000 --> 00:00:10,000\r\n{}\r\n", s.trim()).as_bytes(), "srt", None);
             }
             None => mini.events.retain(|e| !e.comment && e.start <= at && at < e.end),
         }
@@ -1876,7 +1876,7 @@ pub fn preview(tools: &Path, work: &Path, doc: &SubDoc, req: &PgsReq, at: i64, s
         let dir = TmpDir(work.join(format!("pgs-prev-{}", crate::cover::poster_image::unique())));
         std::fs::create_dir_all(&dir.0).map_err(|e| e.to_string())?;
         let input = dir.0.join(format!("prev.{}", kind_ext(&mini.kind)));
-        std::fs::write(&input, crate::subdoc::render(&mini)).map_err(|e| e.to_string())?;
+        std::fs::write(&input, crate::subtitle::subdoc::render(&mini)).map_err(|e| e.to_string())?;
         let out = dir.0.join("prev.sup");
         run_seconv(tools, &input, &out, w, h, req, cancel)?;
         let b = std::fs::read(&out).map_err(|e| e.to_string())?;
@@ -1909,7 +1909,7 @@ static PREVIEW_GEN: std::sync::atomic::AtomicU64 = std::sync::atomic::AtomicU64:
 #[tauri::command]
 pub async fn pgs_preview(app: AppHandle, doc: SubDoc, req: PgsReq, at: i64, sample: Option<String>) -> Result<PgsPreview, String> {
     let tools = tools_dir(&app)?;
-    let work = crate::subshot::work_dir(&app)?;
+    let work = crate::subtitle::subshot::work_dir(&app)?;
     let my = PREVIEW_GEN.fetch_add(1, Ordering::SeqCst) + 1;
     tauri::async_runtime::spawn_blocking(move || preview(&tools, &work, &doc, &req, at, sample.as_deref(), &|| PREVIEW_GEN.load(Ordering::SeqCst) != my)).await.map_err(|e| e.to_string())?
 }
@@ -2017,7 +2017,7 @@ mod tests {
         std::fs::create_dir_all(&dir).unwrap();
         // สีเหลืองขอบน้ำเงิน ไว้ดูว่าสีแปลง YCbCr ถูกแบบ (ขาวดำแปลงแบบไหนก็ได้ค่าเดิม)
         let ass = "[Script Info]\r\nScriptType: v4.00+\r\nPlayResX: 1280\r\nPlayResY: 720\r\nScaledBorderAndShadow: yes\r\n\r\n[V4+ Styles]\r\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\r\nStyle: Default,Arial,60,&H0000FFFF,&H000000FF,&H00FF0000,&H00000000,-1,0,0,0,100,100,0,0,1,3,0,2,20,20,40,1\r\n\r\n[Events]\r\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\r\nDialogue: 0,0:00:00.50,0:00:02.00,Default,,0,0,0,,Bottom line\r\nDialogue: 0,0:00:01.00,0:00:02.00,Default,,0,0,0,,{\\an8}Top sign\r\nDialogue: 0,0:00:03.00,0:00:03.50,Default,,0,0,0,,{\\fad(300,0)}Fade\r\n";
-        let doc = crate::subdoc::parse_doc(ass.as_bytes(), "ass", None);
+        let doc = crate::subtitle::subdoc::parse_doc(ass.as_bytes(), "ass", None);
         assert_eq!(doc.events.len(), 3);
         let target = dir.join("out.sup");
         let req = PgsReq { target: target.display().to_string(), w: 1280, h: 720, fps_num: 24000, fps_den: 1001, movie: None, ..Default::default() };
@@ -2041,8 +2041,8 @@ mod tests {
         // -copyts ให้ใช้เวลาเดิมของไฟล์ ไม่งั้น ffmpeg ขยับไฟล์ที่เริ่ม 0.5 วินาทีให้เริ่มที่ศูนย์ ภาพขึ้นเร็วไปครึ่งวินาที
         let sup_in: Vec<OsString> = vec!["-copyts".into(), "-i".into(), target.as_os_str().to_owned()];
         let a = frame(&sup_in, "[0:v][1:s]overlay", 1280, 720, 1.5);
-        let sub = crate::subshot::TmpSub::new(&dir, &doc).unwrap();
-        let vf = format!("[0:v]{}", crate::subshot::subs_filter(&sub.0, None, 1280, 720, false));
+        let sub = crate::subtitle::subshot::TmpSub::new(&dir, &doc).unwrap();
+        let vf = format!("[0:v]{}", crate::subtitle::subshot::subs_filter(&sub.0, None, 1280, 720, false));
         let l = frame(&[], &vf, 1280, 720, 1.5);
         let lit = |v: &[u8]| v.chunks(3).filter(|p| p[0] as u32 + p[1] as u32 + p[2] as u32 > 60).count();
         assert!(lit(&l) > 2000, "libass วาดซับขึ้น");
@@ -2062,7 +2062,7 @@ mod tests {
     #[test]
     fn animation_points_never_after_frame_time() {
         let ass = "[Script Info]\r\nPlayResX: 320\r\nPlayResY: 180\r\n\r\n[Events]\r\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\r\nDialogue: 0,0:00:05.00,0:00:07.00,Default,,0,0,0,,{\\move(0,0,100,0)}A\r\n";
-        let doc = crate::subdoc::parse_doc(ass.as_bytes(), "ass", None);
+        let doc = crate::subtitle::subdoc::parse_doc(ass.as_bytes(), "ass", None);
         let f = 1001.0 / 24.0;
         let pts = change_points(&doc, f);
         let late: Vec<i64> = pts.iter().copied().filter(|&t| t > 5000 && t < 7000).filter(|&t| { let k = (t as f64 / f).round(); t as f64 > k * f }).collect();
@@ -2077,7 +2077,7 @@ mod tests {
         let _ = std::fs::remove_dir_all(&dir);
         std::fs::create_dir_all(&dir).unwrap();
         let ass = "[Script Info]\r\nScriptType: v4.00+\r\nPlayResX: 320\r\nPlayResY: 180\r\n\r\n[V4+ Styles]\r\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\r\nStyle: Default,Arial,24,&H00FFFFFF,&H000000FF,&H00000000,&H00000000,0,0,0,0,100,100,0,0,1,2,0,2,10,10,10,1\r\n\r\n[Events]\r\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\r\nDialogue: 0,0:00:00.00,0:00:05.00,Default,,0,0,0,,{\\move(40,90,280,90)}Move\r\n";
-        let doc = crate::subdoc::parse_doc(ass.as_bytes(), "ass", None);
+        let doc = crate::subtitle::subdoc::parse_doc(ass.as_bytes(), "ass", None);
         let target = dir.join("long.sup");
         let req = PgsReq { target: target.display().to_string(), w: 320, h: 180, fps_num: 24000, fps_den: 1001, movie: None, ..Default::default() };
         let r = export(&tools(), &dir, &doc, &req, &|_, _, _| {}).unwrap();
@@ -2092,7 +2092,7 @@ mod tests {
     fn export_file_from_env() {
         let (Ok(src), Ok(out)) = (std::env::var("PGS_IN"), std::env::var("PGS_OUT")) else { return; };
         let hint = if src.to_lowercase().ends_with(".srt") { "srt" } else { "ass" };
-        let doc = crate::subdoc::parse_doc(&std::fs::read(&src).unwrap(), hint, None);
+        let doc = crate::subtitle::subdoc::parse_doc(&std::fs::read(&src).unwrap(), hint, None);
         let num = |k: &str, d: u32| std::env::var(k).ok().and_then(|v| v.parse().ok()).unwrap_or(d);
         let work = std::env::temp_dir().join(format!("movie-shelf-pgs-env-{}", std::process::id()));
         std::fs::create_dir_all(&work).unwrap();
@@ -2122,7 +2122,7 @@ mod tests {
     fn yellow_ass(matrix: &str) -> SubDoc {
         let m = if matrix.is_empty() { String::new() } else { format!("YCbCr Matrix: {matrix}\r\n") };
         let ass = format!("[Script Info]\r\nScriptType: v4.00+\r\nPlayResX: 1280\r\nPlayResY: 720\r\n{m}ScaledBorderAndShadow: yes\r\n\r\n[V4+ Styles]\r\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\r\nStyle: Default,Arial,120,&H0000D7FF,&H000000FF,&H00000000,&H00000000,-1,0,0,0,100,100,0,0,1,0,0,5,20,20,40,1\r\n\r\n[Events]\r\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\r\nDialogue: 0,0:00:00.50,0:00:02.00,Default,,0,0,0,,MMMM\r\n");
-        crate::subdoc::parse_doc(ass.as_bytes(), "ass", None)
+        crate::subtitle::subdoc::parse_doc(ass.as_bytes(), "ass", None)
     }
     /// สีที่เจอมากที่สุดของจุดที่ทึบเต็มที่ (RGBA ไม่คูณความโปร่งใส)
     fn top_color(px: &[u8]) -> [u8; 3] {
@@ -2166,7 +2166,7 @@ mod tests {
     fn half_transparent_shadow_keeps_alpha() {
         let dir = tmp("shadow");
         let ass = "[Script Info]\r\nScriptType: v4.00+\r\nPlayResX: 1280\r\nPlayResY: 720\r\nYCbCr Matrix: None\r\nScaledBorderAndShadow: yes\r\n\r\n[V4+ Styles]\r\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\r\nStyle: Default,Arial,120,&H0000D7FF,&H000000FF,&H00000000,&H80000000,-1,0,0,0,100,100,0,0,1,0,12,5,20,20,40,1\r\n\r\n[Events]\r\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\r\nDialogue: 0,0:00:00.50,0:00:02.00,Default,,0,0,0,,MMMM\r\n";
-        let doc = crate::subdoc::parse_doc(ass.as_bytes(), "ass", None);
+        let doc = crate::subtitle::subdoc::parse_doc(ass.as_bytes(), "ass", None);
         let target = dir.join("sh.sup");
         export(&tools(), &dir, &doc, &req_at(&target, 1280, 720), &|_, _, _| {}).unwrap();
         let px = decode_at(&std::fs::read(&target).unwrap(), 1000, 1280, 720, true);
@@ -2207,7 +2207,7 @@ mod tests {
     #[test]
     fn srt_style_color_and_outline() {
         let dir = tmp("srt");
-        let doc = crate::subdoc::parse_doc(b"1\r\n00:00:00,500 --> 00:00:02,000\r\nHELLO\r\n", "srt", None);
+        let doc = crate::subtitle::subdoc::parse_doc(b"1\r\n00:00:00,500 --> 00:00:02,000\r\nHELLO\r\n", "srt", None);
         let count = |px: &[u8], f: &dyn Fn(&[u8]) -> bool| px.chunks_exact(4).filter(|p| p[3] == 255 && f(p)).count();
         let target = dir.join("s.sup");
         let mut req = req_at(&target, 1280, 720);
@@ -2289,14 +2289,14 @@ mod tests {
         for m in ["TV.709", ""] {
             let mut d = yellow_ass(m);
             set_matrix_none(&mut d);
-            let s = crate::subdoc::render(&d);
+            let s = crate::subtitle::subdoc::render(&d);
             assert_eq!(s.matches("YCbCr Matrix:").count(), 1, "{s}");
             assert!(s.contains("YCbCr Matrix: None") && s.find("[Script Info]").unwrap() < s.find("YCbCr Matrix").unwrap());
         }
         assert!(script_tv601(&yellow_ass("")) && script_tv601(&yellow_ass("TV.601")) && !script_tv601(&yellow_ass("TV.709")) && !script_tv601(&yellow_ass("None")));
-        let srt = crate::subdoc::parse_doc(b"1\r\n00:00:01,000 --> 00:00:02,000\r\nx\r\n", "srt", None);
+        let srt = crate::subtitle::subdoc::parse_doc(b"1\r\n00:00:01,000 --> 00:00:02,000\r\nx\r\n", "srt", None);
         let p = prepare(&srt, &PgsReq { w: 1920, h: 800, ..Default::default() });
-        let s = crate::subdoc::render(&p.doc);
+        let s = crate::subtitle::subdoc::render(&p.doc);
         assert!(s.contains("YCbCr Matrix: None") && s.contains("PlayResY: 1080") && s.contains("PlayResX: 2592") && !p.tv601, "{s}");
     }
 
@@ -2313,7 +2313,7 @@ mod tests {
         // เวลาที่ไม่มีซับ
         assert!(preview(&tools(), &dir, &yellow_ass("TV.709"), &req, 5000, None, &|| false).unwrap().empty);
         // SRT กับประโยคตัวอย่าง ไม่มีภาพ ASS
-        let srt = crate::subdoc::parse_doc(b"1\r\n00:00:01,000 --> 00:00:02,000\r\nx\r\n", "srt", None);
+        let srt = crate::subtitle::subdoc::parse_doc(b"1\r\n00:00:01,000 --> 00:00:02,000\r\nx\r\n", "srt", None);
         let s = preview(&tools(), &dir, &srt, &req, 0, Some("ตัวอย่างซับไทย"), &|| false).unwrap();
         assert!(!s.empty && s.ass.is_none() && s.w > 100, "{} × {}", s.w, s.h);
         let _ = std::fs::remove_dir_all(&dir);
@@ -2347,7 +2347,7 @@ mod tests {
     fn seconv_engine_uses_style() {
         if !seconv_exe(&tools()).exists() { eprintln!("ข้าม ยังไม่มี tools\\seconv\\seconv.exe"); return; }
         let dir = tmp("seconv");
-        let doc = crate::subdoc::parse_doc(b"1\r\n00:00:00,500 --> 00:00:02,000\r\nHELLO\r\n", "srt", None);
+        let doc = crate::subtitle::subdoc::parse_doc(b"1\r\n00:00:00,500 --> 00:00:02,000\r\nHELLO\r\n", "srt", None);
         let target = dir.join("se.sup");
         let mut req = req_at(&target, 1280, 720);
         req.engine = "seconv".into();
@@ -2388,14 +2388,14 @@ mod tests {
         let dir = tmp("other");
         let smi = dir.join("t.smi");
         std::fs::write(&smi, "<SAMI><BODY>\r\n<SYNC Start=1000><P Class=THTH>สวัสดี <i>ตัวเอียง</i>\r\n<SYNC Start=3000><P Class=THTH>&nbsp;\r\n</BODY></SAMI>\r\n").unwrap();
-        let (b, hint) = crate::subs::bytes_of(&tools(), &dir, &smi, false, 0, 0).unwrap();
-        let d = crate::subdoc::parse_doc(&b, &hint, None);
+        let (b, hint) = crate::subtitle::subs::bytes_of(&tools(), &dir, &smi, false, 0, 0).unwrap();
+        let d = crate::subtitle::subdoc::parse_doc(&b, &hint, None);
         assert_eq!(hint, "ass");
         assert!(d.events.iter().any(|e| e.start == 1000 && e.text.contains("สวัสดี") && e.text.contains("\\i1")), "{:?}", d.events.iter().map(|e| (&e.start, &e.text)).collect::<Vec<_>>());
         let sbv = dir.join("t.sbv");
         std::fs::write(&sbv, "0:00:01.000,0:00:02.500\nสวัสดี\n").unwrap();
-        let (b, hint) = crate::subs::bytes_of(&tools(), &dir, &sbv, false, 0, 0).unwrap();
-        let d = crate::subdoc::parse_doc(&b, &hint, None);
+        let (b, hint) = crate::subtitle::subs::bytes_of(&tools(), &dir, &sbv, false, 0, 0).unwrap();
+        let d = crate::subtitle::subdoc::parse_doc(&b, &hint, None);
         assert_eq!((hint.as_str(), d.events.len(), d.events[0].start, d.events[0].end), ("srt", 1, 1000, 2500));
         // ทางเพิ่มไฟล์ของหน้าซับไตเติล (merge::add_file) ต้องได้แทร็กซับหนึ่งแทร็กทั้งสองชนิด · เดิม SAMI ล้มว่า mkvmerge อ่านไม่ได้ เปิดในหน้าซับไตเติลไม่ขึ้น (เจอจากตัวตรวจ check-pgs 15 พ.ย. 2569)
         for (f, codec) in [(&smi, "sami"), (&sbv, "sbv")] {
@@ -2433,7 +2433,7 @@ mod tests {
 
     fn one_line_ass(text: &str, w: u32, h: u32) -> SubDoc {
         let ass = format!("[Script Info]\r\nScriptType: v4.00+\r\nPlayResX: {w}\r\nPlayResY: {h}\r\nScaledBorderAndShadow: yes\r\n\r\n[V4+ Styles]\r\nFormat: Name, Fontname, Fontsize, PrimaryColour, SecondaryColour, OutlineColour, BackColour, Bold, Italic, Underline, StrikeOut, ScaleX, ScaleY, Spacing, Angle, BorderStyle, Outline, Shadow, Alignment, MarginL, MarginR, MarginV, Encoding\r\nStyle: Default,Arial,64,&H00FFFFFF,&H000000FF,&H00800000,&H80000000,-1,0,0,0,100,100,0,0,1,3,2,2,20,20,40,1\r\n\r\n[Events]\r\nFormat: Layer, Start, End, Style, Name, MarginL, MarginR, MarginV, Effect, Text\r\nDialogue: 0,0:00:01.00,0:00:03.00,Default,,0,0,0,,{text}\r\n");
-        crate::subdoc::parse_doc(ass.as_bytes(), "ass", None)
+        crate::subtitle::subdoc::parse_doc(ass.as_bytes(), "ass", None)
     }
     /// ทุกส่วนของไฟล์ (PTS DTS หน่วย 90 kHz ชนิด ข้อมูล ขนาดทั้งส่วนรวมหัว)
     fn raw_sets(b: &[u8]) -> Vec<(u32, u32, u8, Vec<u8>, usize)> {
@@ -2510,8 +2510,8 @@ mod tests {
         assert_eq!(r.late, 0, "{r:?}");
         assert_eq!((pcs[0].3[7], pcs[0].3[0..2].to_vec()), (EPOCH_START, 1280u16.to_be_bytes().to_vec()), "ชุดแรกเริ่ม epoch กว้าง 1280");
         // ภาพกลางเฟดเข้า (1.25 วินาที) ตอนทึบ (2 วินาที) และกลางเฟดออก (2.75 วินาที) จาก ffmpeg ตรงกับ libass
-        let sub = crate::subshot::TmpSub::new(&dir, &doc).unwrap();
-        let vf = format!("[0:v]{}", crate::subshot::subs_filter(&sub.0, None, 1280, 720, false));
+        let sub = crate::subtitle::subshot::TmpSub::new(&dir, &doc).unwrap();
+        let vf = format!("[0:v]{}", crate::subtitle::subshot::subs_filter(&sub.0, None, 1280, 720, false));
         let sup_in: Vec<OsString> = vec!["-copyts".into(), "-i".into(), target.as_os_str().to_owned()];
         for t in [1.25, 2.0, 2.75] {
             let a = frame(&sup_in, "[0:v][1:s]overlay", 1280, 720, t);
@@ -2557,8 +2557,8 @@ mod tests {
         // กรอบกว้างเต็มจอ
         let wds = sets.iter().find(|s| s.2 == 0x17).unwrap();
         assert_eq!(u16::from_be_bytes([wds.3[6], wds.3[7]]), 1280, "กรอบกว้างเต็มจอ");
-        let sub = crate::subshot::TmpSub::new(&dir, &doc).unwrap();
-        let vf = format!("[0:v]{}", crate::subshot::subs_filter(&sub.0, None, 1280, 720, false));
+        let sub = crate::subtitle::subshot::TmpSub::new(&dir, &doc).unwrap();
+        let vf = format!("[0:v]{}", crate::subtitle::subshot::subs_filter(&sub.0, None, 1280, 720, false));
         let sup_in: Vec<OsString> = vec!["-copyts".into(), "-i".into(), target.as_os_str().to_owned()];
         for t in [1.5, 2.5] {
             let m = mean_diff(&frame(&sup_in, "[0:v][1:s]overlay", 1280, 720, t), &frame(&[], &vf, 1280, 720, t));

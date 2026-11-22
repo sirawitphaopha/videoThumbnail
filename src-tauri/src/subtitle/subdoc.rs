@@ -42,7 +42,7 @@
 //! copyright notice and this permission notice appear in all copies.
 //! (ไฟล์ ass_parser.cpp กับ time.cpp ของ Thomas Goyne ใช้สัญญาแบบ ISC ข้างบนนี้)
 
-use crate::subs::{cp1252, cp874, guess_charset};
+use crate::subtitle::subs::{cp1252, cp874, guess_charset};
 use serde::{Deserialize, Serialize};
 use std::path::{Path, PathBuf};
 use tauri::{AppHandle, Manager};
@@ -973,7 +973,7 @@ pub async fn subdoc_open(app: AppHandle, path: String, in_movie: bool, tid: u64,
         // จดขนาดกับเวลาแก้ก่อนอ่าน ไฟล์ถูกเขียนระหว่างอ่าน ค่าที่จดเป็นของเก่า เช็กตอนบันทึกจึงเตือน (ผู้ช่วยตรวจทาน R14)
         // ซับในหนังจดของไฟล์หนังไว้ด้วย ก่อนใส่กลับเข้าหนังเทียบว่าหนังยังเป็นไฟล์เดิม ไม่ถูกรวมไฟล์ใหม่ระหว่างแก้ แทร็กเลขเดิมจึงยังเป็นแทร็กเดิม (R3)
         let (size, mtime) = stamp(&p);
-        let (bytes, hint) = crate::subs::bytes_of(&tools, &work, &p, in_movie, tid, ff)?;
+        let (bytes, hint) = crate::subtitle::subs::bytes_of(&tools, &work, &p, in_movie, tid, ff)?;
         let mut doc = parse_doc(&bytes, &hint, charset.as_deref());
         let plain = !in_movie && matches!(hint.as_str(), "srt" | "ass" | "ssa" | "vtt" | "txt");
         doc.source = Some(Source { path, in_movie: !plain, size, mtime, tid: (!plain).then_some(tid) });
@@ -1420,7 +1420,7 @@ mod tests {
         let tools = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tools");
         let work = std::env::temp_dir();
         for (tid, kind, n) in [(2, "ass", 7), (3, "srt", 5)] {
-            let (b, hint) = crate::subs::bytes_of(&tools, &work, &m, true, tid, 0).unwrap();
+            let (b, hint) = crate::subtitle::subs::bytes_of(&tools, &work, &m, true, tid, 0).unwrap();
             let d = roundtrip(&b, &hint);
             assert_eq!((d.kind.as_str(), d.events.len()), (kind, n), "แทร็ก {tid}");
         }

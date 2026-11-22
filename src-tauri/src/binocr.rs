@@ -828,7 +828,7 @@ mod tests {
         let (Ok(sup), Ok(se)) = (std::env::var("MOVIE_SHELF_OCR_SUP"), std::env::var("MOVIE_SHELF_OCR_SECONV_BIN")) else { eprintln!("ข้าม ไม่ได้ตั้งไฟล์ ACCA"); return };
         let Some(db) = latin() else { return };
         let cues = srt_cues(&se);
-        let shows = crate::subs::parse_sup(&std::fs::read(sup).unwrap());
+        let shows = crate::subtitle::subs::parse_sup(&std::fs::read(sup).unwrap());
         let reader = BinReader::new("Latin");
         let t = std::time::Instant::now();
         let (mut same, mut n, mut diff) = (0, 0, vec![]);

@@ -428,7 +428,7 @@ mod tests {
     fn reads_thai_test_sub() {
         let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("test-media").join("สร้าง").join("ocr");
         if !dir.join("th.sup").exists() { assert_eq!(std::env::var("MOVIE_SHELF_SKIP_MEDIA").as_deref(), Ok("1"), "ไม่มี th.sup"); return; }
-        let shows = crate::subs::parse_sup(&std::fs::read(dir.join("th.sup")).unwrap());
+        let shows = crate::subtitle::subs::parse_sup(&std::fs::read(dir.join("th.sup")).unwrap());
         let work = std::env::temp_dir();
         let user = work.join("ms-tess-none");
         let o = TessOpts { lang: "tha".into(), ..Default::default() };
