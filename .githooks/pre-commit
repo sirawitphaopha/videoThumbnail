@@ -1,0 +1,4 @@
+#!/bin/sh
+# ตัวเฝ้าขนาดไฟล์ก่อน commit (แบ่งไฟล์ทั้งโปรเจกต์ BUGS ข้อ 153 ขั้น 13) · ตั้งอัตโนมัติตอน npm install (สคริปต์ prepare ใน package.json ตั้ง core.hooksPath เป็น .githooks)
+# ไฟล์โค้ดเกิน 600 บรรทัด (ไม่นับเทส) commit ไม่ได้ จนกว่าจะแบ่ง หรือลงรายการยกเว้นพร้อมเหตุผลใน scripts/file-size-allow.json
+exec node scripts/file-size.mjs --staged
