@@ -37,7 +37,7 @@ pub fn play_args(movie: &str, ss: f64, h: u32) -> Vec<String> {
 
 /// ภาพ JPEG ที่ครบแล้วในก้อนที่อ่านมา · คืนรายการภาพกับจำนวนไบต์ที่ใช้ไป (ที่เหลือคือภาพที่ยังมาไม่ครบ)
 fn take_jpegs(b: &[u8]) -> (Vec<Vec<u8>>, usize) {
-    let v = crate::vidframes::split_jpegs(b);
+    let v = crate::video::vidframes::split_jpegs(b);
     let used = v.last().map(|s| s.as_ptr() as usize + s.len() - b.as_ptr() as usize).unwrap_or(0);
     (v.into_iter().map(|x| x.to_vec()).collect(), used)
 }

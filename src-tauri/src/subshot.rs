@@ -257,7 +257,7 @@ pub async fn vid_snapshot(app: AppHandle, req: SnapReq, doc: Option<SubDoc>, bg:
         } else {
             let base = match &movie {
                 Some(m) => {
-                    let mut a = crate::vidframes::seek_args(m, req.ss, 1);
+                    let mut a = crate::video::vidframes::seek_args(m, req.ss, 1);
                     a.push("-vf".into());
                     a.push(frame_filter(w, h).into());
                     a.extend(PNG_OUT.iter().map(OsString::from));

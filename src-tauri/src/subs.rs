@@ -271,7 +271,7 @@ pub fn frame(tools: &Path, movie: &Path, t: f64, h: u32) -> Result<String, Strin
 /// ภาพหนังหนึ่งภาพ เป็นไบต์ JPEG · ใช้ตัวดึงภาพตรงเฟรมของหน้าแก้ซับ (vidframes.rs) ตัวเดียวกัน
 /// เลือกภาพแรกที่ไม่ใช่รูปปก เดิมไม่ระบุ ไฟล์ MP4 ที่มีปกใหญ่กว่าภาพหนัง ffmpeg หยิบปกมาแทนภาพหนัง
 fn frame_jpg(tools: &Path, movie: &Path, t: f64, h: u32) -> Result<Vec<u8>, String> {
-    crate::vidframes::frames_jpg(tools, movie, t, 1, h)?.into_iter().next().ok_or_else(|| "ดึงภาพหนังไม่ได้".into())
+    crate::video::vidframes::frames_jpg(tools, movie, t, 1, h)?.into_iter().next().ok_or_else(|| "ดึงภาพหนังไม่ได้".into())
 }
 
 /// เวลาที่จะดึงภาพ · อยู่ช่วง 12% ถึง 87% ของเรื่อง เลี่ยงโลโก้ต้นเรื่องกับเครดิตท้ายเรื่อง · ลองรอบใหม่ได้เวลาใหม่
