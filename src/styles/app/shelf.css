@@ -1,0 +1,212 @@
+/* หน้าตากลาง ชั้นวาง ปก แถบใต้ปก ดาว ตาราง แผงรายละเอียด แถวสวิตช์ และการ์ดทั่วไป
+   แยกจาก app.css ตอนแบ่งไฟล์ทั้งโปรเจกต์ (BUGS ข้อ 153 · แผนแบ่งไฟล์ขั้น 8.5) ย้ายมาทั้งก้อน กฎไม่เปลี่ยน ลำดับใน app.css ตามลำดับเดิม */
+/* ---------- ชั้นวาง (ต้นแบบบรรทัด 72–105 249–270) ---------- */
+.content { display: flex; flex: 1; min-height: 0; }
+.shelfwrap { flex: 1; padding: 18px 18px 24px; min-width: 0; overflow-y: auto; background: var(--bg); }
+.legend { display: flex; align-items: center; gap: 14px; font-size: 13px; color: var(--txt2); margin: 6px 0 16px; flex-wrap: wrap; }
+.legend i { display: inline-block; width: 10px; height: 10px; border-radius: 50%; margin-right: 6px; }
+[data-shelf], .size-s, .size-m, .size-l { padding-top: 0; }
+/* ต่างจากต้นแบบ: ต้นแบบจัดขอบล่างตรงกัน (flex-end) ชื่อยาวสามบรรทัดดันปกขึ้นไม่ตรงแถว · ของจริงจัดขอบบนปกให้ตรงกัน */
+.shelf { position: relative; display: flex; gap: 18px; margin-bottom: 26px; align-items: flex-start; }
+.book { width: 140px; flex: none; cursor: pointer; position: relative; z-index: 1; border-radius: 6px; }
+.book:focus-visible { outline: none; }
+.book:focus-visible .cover { outline: 2px solid var(--accent-d); outline-offset: 3px; }
+.cover { width: 140px; height: 210px; border-radius: 0; position: relative; overflow: hidden; box-shadow: 0 1px 2px rgba(60,25,40,.22), 0 3px 10px rgba(60,25,40,.12); transition: translate .15s, box-shadow .15s; display: flex; flex-direction: column; justify-content: flex-end; padding: 10px; background: #f4d8e1; }
+.cover.has-img { padding: 0; }
+.cover img { width: 100%; height: 100%; object-fit: cover; display: block; }
+.book:hover .cover { translate: 0 -3px; box-shadow: 0 2px 4px rgba(60,25,40,.24), 0 8px 18px rgba(60,25,40,.2); }
+.book.sel .cover { outline: 2px solid var(--accent); outline-offset: 2px; }
+/* ช่องไม่มีปกเป็นแถบเอียงแบบเดิม พี่กันสั่ง 8 พ.ย. 2569 "เรื่องที่ไม่มีปก เราอยากได้อันเดิม คือเเถบเอียง" · ตอนปรับหน้าตาอย่าเปลี่ยน */
+.cover.none { background: repeating-linear-gradient(135deg, #fff 0 10px, #fbf2f5 10px 20px); border: 2px dashed #eeb3c8; box-shadow: none; align-items: center; justify-content: center; text-align: center; color: var(--txt3); font-size: 13px; gap: 6px; }
+.book.missing { opacity: .45; }
+.badge { position: absolute; top: 7px; right: 7px; width: 22px; height: 22px; border-radius: 50%; display: flex; align-items: center; justify-content: center; box-shadow: 0 0 0 2px #fff; }
+.b-ok { background: var(--ok); } .b-bad { background: var(--bad); } .b-warn { background: var(--warn); } .b-info { background: var(--info); }
+.bname { font-size: 12.5px; color: var(--txt2); margin-top: 8px; line-height: 1.5; word-break: break-word; }
+/* แถบใต้ปก บรรทัด 1 ชื่อ · 2 เครื่องหมาย · 3 ป้าย แบบ ค ที่พี่กันเลือก ไฟล์สีหลัก เสียงเขียว ซับเหลือง */
+.bn1 { color: var(--txt); font-weight: 600; line-height: 1.6; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+/* ชื่อใต้ปกเป็นบรรทัดเดียวอยู่แล้ว ก้อนวลีไม่ต้องเป็นกล่อง · กล่องตัดท้ายด้วยจุดสามจุดไม่ได้ ชื่อไม่มีตัวไทยเคยโดนตัดเงียบ "Harbor.Lights.2021.2160p" (เจอตอนทดสอบจอ 1366 11 พ.ย. 2569) */
+.bn1 .nobr { display: inline; }
+.bn2 { display: flex; align-items: center; gap: 5px; height: 18px; margin-top: 2px; }
+.book .bn2 .badge { margin-right: 0; }
+.book .bn2 .linkb { margin-right: 0; }
+/* ดาวเป็นสีเนื้อหา ไม่เปลี่ยนตามโทน เขียนด้วยชื่อสี ตัวแปลงโทนไม่แตะ */
+.stars { display: inline-flex; margin-left: auto; flex: none; }
+.star { width: 14px; height: 18px; padding: 0; border: 0; background: none; cursor: pointer; display: inline-flex; align-items: center; justify-content: center; }
+.size-s .star { width: 12px; }
+.size-s .star svg { width: 11px; height: 11px; }
+.star svg { display: block; fill: none; stroke: goldenrod; transition: fill .1s; }
+.star.on svg { fill: goldenrod; }
+/* ดาวในแผงขวา ใต้ชื่อเรื่อง ใหญ่กว่าบนชั้น */
+.fstars { margin-top: -6px; }
+.fstars .stars { margin-left: -2px; }
+.fstars .star { width: 22px; height: 24px; }
+.fstars .star svg { width: 18px; height: 18px; }
+.star:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; border-radius: 3px; }
+.bn3 { display: flex; flex-wrap: wrap; gap: 3px; margin-top: 3px; }
+.bn3 .bt { height: 16px; padding: 0 5px; border-radius: 4px; font-family: Consolas, "Cascadia Mono", monospace; font-size: 10.5px; font-weight: 700; line-height: 16px; white-space: nowrap; }
+.bn3 .bt.f { background: var(--accent); color: white; }
+.bn3 .bt.a { background: var(--ok-soft); color: var(--ok-ink); }
+.bn3 .bt.s { background: var(--warn-soft); color: var(--warn-ink); }
+.bn3 .btmore { padding: 0 3px; color: var(--txt2); }
+.bn3.nochan .ch { display: none; }
+.book .bname .badge { position: static; display: inline-flex; vertical-align: -2px; width: 15px; height: 15px; margin-right: 5px; box-shadow: none; }
+.book .bname .badge svg { width: 10px; height: 10px; }
+.ext { color: var(--txt3); font-weight: 400; }
+.size-s .book { width: 100px; } .size-s .cover { width: 100px; height: 150px; padding: 7px; } .size-s .cover.has-img { padding: 0; } .size-s .bname { font-size: 11.5px; } .size-s .cover.none { font-size: 11px; }
+.size-l .book { width: 180px; } .size-l .cover { width: 180px; height: 270px; padding: 12px; } .size-l .cover.has-img { padding: 0; } .size-l .bname { font-size: 13.5px; }
+.size-s .shelf { gap: 14px; } .size-l .shelf { gap: 20px; }
+/* ความกว้างปกคิดจากหน้าจอ ให้เต็มแถวพอดี (ShelfGrid ตั้ง --bw) */
+[data-shelf] .book { width: var(--bw, 140px); }
+[data-shelf] .cover { width: var(--bw, 140px); height: calc(var(--bw, 140px) * 1.5); }
+.empty-search { text-align: center; padding: 40px 6px 6px; display: flex; flex-direction: column; align-items: center; gap: 8px; }
+.minirow { display: flex; gap: 8px; margin-top: 10px; flex-wrap: wrap; }
+.btn-ghost.pressed { background-color: #faedf1; border: 1px solid #d8a9b9; color: var(--accent-ink); }
+
+/* ตาราง (ต้นแบบบรรทัด 257–264) */
+.lv { width: 100%; border-collapse: collapse; font-size: 13.5px; }
+.lv th { text-align: left; color: var(--txt2); font-weight: 600; font-size: 12.5px; padding: 9px 10px; background: var(--win2); white-space: nowrap; }
+/* หัวตารางตรึง · top ติดลบเท่าระยะขอบในบนของ .shelfwrap (18) หัวจึงชิดขอบบนพอดี ไม่มีร่องให้แถวลอด
+   เส้นใต้หัววาดด้วย box-shadow ตารางแบบ collapse วาดเส้นที่ตัวตาราง ตรึงแล้วเส้นไม่ลอยตาม (web-craft 6.2.1) */
+.lv thead th { position: sticky; top: -18px; z-index: 2; box-shadow: inset 0 -1px 0 var(--line); }
+/* หัวคอลัมน์เด่นแบบเดียวกับตารางจับคู่ปก (พี่กันสั่ง 8 พ.ย. 2569) */
+.lv thead th, .ck thead th { background: var(--accent-soft); color: var(--accent-ink); font-size: 14px; font-weight: 700; }
+.lv td { padding: 7px 10px; border-bottom: 1px solid #f7e4ea; vertical-align: middle; }
+.lv tr.sel td { background: #faedf1; }
+.lv tbody tr { cursor: pointer; transition: background-color .15s; }
+.lv tbody tr:hover td { background: #fbf2f5; }
+.lv tbody tr.sel:hover td { background: #f7e4ea; }
+.lv tr.missing td { opacity: .5; }
+/* คอลัมน์กว้างตายตัวตามขนาดกรอบ ชื่อไฟล์ได้ที่เหลือ · เปิดแผงขวาหรือหน้าต่างแคบ คอลัมน์ขวาสุดไม่ตกขอบ */
+.tblwrap { container-type: inline-size; }
+[data-table] .lv { table-layout: fixed; }
+[data-table] .lv th { overflow: hidden; }
+.lv .c-size { width: 84px; } .lv .c-video { width: 130px; } .lv .c-a { width: 256px; } .lv .c-s { width: 170px; } .lv .c-st { width: 128px; }
+/* ปุ่มเล็ก กลาง ใหญ่ ปรับรูปในตาราง (พี่กันสั่ง 9 พ.ย. 2569 "ตารางก็ปรับขนาดโปสเตอร์ได้นะ") · เล็กเท่าเดิม */
+.lv td:first-child { padding-inline: 6px; text-align: center; }
+.lv td:first-child .hoverbig { vertical-align: middle; }
+.lv .th { max-width: 100%; }
+.tb-s .lv .c-th { width: 58px; } .tb-m .lv .c-th { width: 76px; } .tb-l .lv .c-th { width: 104px; }
+.tb-m .lv .th { width: 40px; height: 60px; } .tb-m .lv .th.wide { width: 62px; height: 35px; margin-block: 12px; }
+.tb-l .lv .th { width: 64px; height: 96px; } .tb-l .lv .th.wide { width: 90px; height: 51px; margin-block: 22px; }
+/* ขั้นกลาง กรอบ 900 ถึง 1,100 (หน้าต่าง 1024 ตอนย่อเมนู) คอลัมน์ใหญ่กิน 844 เหลือชื่อไฟล์ 78 ชื่อตัดสามบรรทัด ดาวล้นช่อง (เจอ 10 พ.ย. 2569 ตอนรันตัวตรวจทั้งชุด) */
+@container (max-width: 1100px) { .lv .c-video { width: 110px; } .lv .c-a { width: 200px; } .lv .c-s { width: 130px; } }
+@container (max-width: 900px) { .lv .c-size { width: 72px; } .lv .c-video { width: 84px; } .lv .c-a { width: 150px; } .lv .c-s { width: 100px; } .lv .c-st { width: 118px; } .tb-m .lv .c-th { width: 66px; } .tb-l .lv .c-th { width: 76px; } }
+@container (max-width: 720px) { .tblwrap .lv .c-th { width: 42px; } .lv .c-size { width: 62px; } .lv .c-video { width: 56px; } .lv .c-a { width: 104px; } .lv .c-s { width: 64px; } .lv .c-st { width: 40px; } .tblwrap[class] .lv .th { width: 30px; height: 45px; } .tblwrap[class] .lv .th.wide { height: 20px; margin-block: 12px; } .lv td, .lv th { padding-inline: 5px; } .lv .lvword { display: none; } }
+.lvchips { display: flex; gap: 4px; overflow: hidden; }
+/* สีมาจาก .ft ใน av.css ตัวเดียวกับหน้าเสียงและซับ ที่นี่ปรับแค่ขนาด */
+.lvchips .ft { display: block; flex: none; max-width: 100%; overflow: hidden; text-overflow: ellipsis; height: 20px; padding: 0 6px; border-radius: 5px; font-size: 11.5px; letter-spacing: 0; line-height: 18px; }
+.lvchips.tight .lvchip { flex: 0 1 auto; min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+.lvchips .lvmore { flex: none; height: 20px; padding: 0 3px; color: var(--txt2); font-size: 11.5px; font-weight: 700; line-height: 20px; white-space: nowrap; }
+/* นามสกุลไฟล์ตัวหนาในตาราง (พี่กันสั่ง 9 พ.ย. 2569 "ทำตัวหนานามสกุลที") */
+.lv .lvext { font-weight: 700; }
+/* ดาวใต้ชื่อหนังในตาราง ชิดแนวเดียวกับชื่อ */
+.lvstars { margin: 1px 0 -3px -1px; line-height: 0; }
+.lvstars .stars { margin-left: 0; }
+.lv .lvstat { display: inline-flex; align-items: center; gap: 6px; }
+.lv .lvstat .badge { position: static; flex: none; width: 15px; height: 15px; box-shadow: none; }
+.lv .lvstat .badge svg { width: 10px; height: 10px; }
+.lv .th { width: 30px; height: 45px; border-radius: 3px; display: block; object-fit: cover; }
+.lv .th.none { border: 1.5px dashed #e2bfcb; background: repeating-linear-gradient(135deg, #fff 0 5px, #fbf2f5 5px 10px); }
+.thsort { all: unset; cursor: pointer; display: inline-flex; align-items: center; border-radius: 5px; padding: 1px 4px; margin: -1px -4px; transition: background-color .15s, color .15s; }
+.thsort:hover { background-color: #f6e2e9; color: var(--accent-ink); }
+.thsort:focus-visible { outline: 2px solid var(--accent-d); outline-offset: 2px; }
+
+/* แผงรายละเอียด (ต้นแบบบรรทัด 90–105) */
+.detail { width: 320px; flex: none; background: var(--win); border-left: 1px solid var(--line); padding: 18px; display: flex; flex-direction: column; gap: 14px; overflow-y: auto; }
+/* หัวแผงขวา ปุ่มปิด (คิว 6 แผงขึ้นเฉพาะตอนกดเลือกเรื่อง) */
+.dhead { display: flex; align-items: center; justify-content: space-between; margin: -6px -4px -4px 0; font-size: 13px; font-weight: 600; color: var(--txt3); }
+.dclose { width: 32px; height: 32px; border-radius: 8px; border: 1px solid #e8cdd6; background-color: #fff; color: var(--txt2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; transition: background-color .15s, color .15s; }
+.dclose:hover { background-color: #faedf1; color: var(--accent-ink); }
+.dclose:focus-visible { outline: none; box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent-d); }
+.dposter { width: 200px; height: 300px; border-radius: 0; margin: 0 auto; box-shadow: 0 2px 4px rgba(60,25,40,.2), 0 8px 20px rgba(60,25,40,.16); object-fit: cover; display: block; flex: none; }
+.dposter.none { display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 6px; background: repeating-linear-gradient(135deg, #fff 0 10px, #fbf2f5 10px 20px); border: 2px dashed #eeb3c8; box-shadow: none; color: var(--txt3); font-size: 13px; }
+.fname { display: flex; align-items: flex-start; gap: 6px; }
+.fname .nm { font-weight: 600; font-size: 15px; line-height: 1.6; word-break: break-word; flex: 1; }
+.kv { display: grid; grid-template-columns: 90px 1fr; gap: 4px 10px; font-size: 13.5px; margin: 0; }
+.kv dt { color: var(--txt3); } .kv dd { margin: 0; color: var(--txt); }
+.actions { display: grid; grid-template-columns: 1fr 1fr; gap: 8px; }
+/* ปุ่มแผงขวาสองคอลัมน์เท่ากันทุกแถว ไอคอนกับตัวหนังสือตรงแนว (พี่กันสั่ง 9 พ.ย. 2569 "ขอ icon ให้ตรงกันที" · "เรียงตรงกันห่น่อย") */
+.detail .actions, .detail .minirow.half { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px; }
+.detail .actions .btn, .detail .minirow.half .btn { justify-content: flex-start; gap: 7px; padding-inline: 9px; }
+.detail .actions .btn svg, .detail .minirow.half .btn svg { width: 15px; height: 15px; flex: none; }
+.detail .minirow.half .btn.wide { grid-column: 1 / -1; }
+/* การ์ดที่กดแล้วไปหน้าตรวจไฟล์ */
+.statgo { width: 100%; border: 0; font: inherit; font-size: 13.5px; text-align: left; align-items: center; cursor: pointer; transition: background-color .15s; }
+.statgo > div { flex: 1; min-width: 0; }
+.statgo svg { margin-top: 0; }
+.statgo:hover { background: color-mix(in srgb, var(--warn-soft) 93%, var(--warn-ink)); }
+.statgo:focus-visible { outline: 2px solid var(--warn-ink); outline-offset: 2px; }
+
+/* แถวสวิตช์ (ต้นแบบบรรทัด 298–301) */
+.setrow { display: flex; align-items: center; justify-content: space-between; gap: 14px; padding: 11px 0; border-top: 1px solid #f7e4ea; }
+.setrow .lbl { font-size: 14px; line-height: 1.5; }
+/* หน้าตั้งค่า (ต้นแบบบรรทัด 295–317 · ขั้น 7) */
+/* การ์ดสูงตามเนื้อหา ไม่ยืดเท่าการ์ดข้าง ๆ (เดิมการ์ดสั้นมีที่ว่างโล่งครึ่งการ์ด เจอตอนตรวจภาพ) */
+/* การ์ดเรียงต่อกันเป็นคอลัมน์ตามความกว้างหน้าต่าง ไม่เป็นแถวตาราง การ์ดสั้นจะได้ไม่ทิ้งที่ว่างข้าง ๆ การ์ดยาว (พี่กันสั่ง 8 พ.ย. 2569 *"ที่ว่างเยอะ ไปจัดเรียงเลย์เอ้าใหม่"*) */
+/* หน้าตั้งค่า เมนูหัวข้อซ้าย เปิดทีละหัวข้อ แถวเรียงคอลัมน์เดียว (พี่กันส่งภาพหน้าการตั้งค่าของโปรแกรม Claude เป็นแบบ 8 พ.ย. 2569) */
+.setpage { display: flex; min-height: 100%; background: var(--win); }
+.setnav { width: 196px; flex: none; border-right: 1px solid var(--line); }
+.setnav-in { position: sticky; top: 0; padding: 14px 10px; }
+.setnav-g + .setnav-g { margin-top: 14px; }
+.setnav-t { font-size: 12px; color: var(--txt3); padding: 0 10px 4px; }
+.setnav-b { display: flex; align-items: center; gap: 10px; width: 100%; height: 36px; padding: 0 10px; border: 0; border-radius: 9px; background: transparent; color: var(--txt); font: inherit; font-size: 14px; text-align: left; cursor: pointer; white-space: nowrap; transition: background-color .15s, color .15s; }
+.setnav-b svg { flex: none; }
+.setnav-b:hover { background-color: var(--win2); color: var(--accent-ink); }
+.setnav-b.on, .setnav-b.on:hover { background-color: var(--accent-soft); color: var(--accent-ink); font-weight: 600; }
+.setwrap { flex: 1; min-width: 0; }
+.setcard { padding: 20px 28px 32px; min-width: 0; }
+.setcard h3 { margin: 0 0 6px; font-size: 18px; font-weight: 700; line-height: 1.5; display: flex; align-items: center; gap: 8px; color: var(--txt); }
+.setcard .setrow { padding: 13px 0; }
+.setver { margin-left: 8px; font-size: 12.5px; font-weight: 400; color: var(--txt2); }
+.setcard .setrow:first-of-type { border-top: 0; }
+.setrow .lbl .small { display: block; }
+/* ชื่อแถวตั้งค่าตัวหลักสีและตัวหนาแบบหัวข้อย่อย (.imghead) · แถวที่อยู่ใต้หัวข้อย่อยคงสีเดิม คำอธิบายตัวเล็กคงเดิมทุกแถว
+   (BUGS ข้อ 137 พี่กัน "หัวข้อตั้ค่าตัวหลัก ขอสีเเละตัวหนาเหมือนกับ รูปกราฟที่บันทึก เเต่ตัวรองจากตัวหลัก ก็สีเดิม") */
+.setcard .setrow > .lbl { font-weight: 700; color: var(--accent-ink); }
+.setcard .setrow > .lbl .small { font-weight: 400; }
+/* แถวตัวหลักที่วางต่อท้ายกลุ่มย่อย ติด setmain (อ่านโฟลเดอร์ใหม่ทุกครั้ง ผลอ่านคลื่นที่เก็บไว้) */
+.setcard .imghead ~ .setrow:not(.setmain) > .lbl { font-weight: 400; color: var(--txt); }
+.folder { display: flex; align-items: center; gap: 10px; background: var(--win2); border-radius: 9px; padding: 9px 12px; font-size: 14px; margin-top: 6px; }
+.setwrap .folder { background: transparent; border-radius: 0; padding: 9px 0; margin-top: 0; border-top: 1px solid #f7e4ea; }
+.folder .grow { flex: 1; min-width: 0; }
+/* แถวโปรแกรมเล่นในหน้าตั้งค่า · ปุ่มกับป้ายกว้างเท่ากัน สลับค่าตั้งต้นแล้วแถวไม่ขยับ */
+.plrow > svg { flex: none; color: var(--accent); }
+/* ไอคอนจริงของโปรแกรม ไม่ตัดมุมไม่ใส่กรอบ */
+.plrow .plicon { flex: none; width: 24px; height: 24px; object-fit: contain; }
+.plrow b { display: block; font-weight: 600; line-height: 1.5; }
+.plrow .small { overflow-wrap: anywhere; }
+.plrow .plset, .plrow .pldef { flex: none; width: 150px; }
+.plrow .pldef { height: 32px; display: inline-flex; align-items: center; justify-content: center; position: relative; border-radius: 9px; background: var(--accent-soft); color: var(--accent-ink); font-size: 13px; font-weight: 600; }
+.plrow .pldef svg { position: absolute; left: 24px; top: 50%; translate: 0 -50%; }
+.plrow .plgap { flex: none; width: 32px; }
+.plmiss { margin-top: 2px; font-size: 12.5px; line-height: 1.5; color: var(--bad-ink); }
+.toolok, .toolwarn, .toolbad { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; border-radius: 20px; padding: 1px 10px; font-weight: 600; white-space: nowrap; }
+.toolok { color: var(--ok-ink); background: var(--ok-soft); }
+/* บรรทัดรุ่นล่าสุดใต้ตัวแปลงในหน้าตั้งค่า (latest.rs) */
+.latok { color: var(--ok-ink); font-weight: 600; }
+.latnew { color: var(--warn-ink); font-weight: 700; }
+.latbad { color: var(--bad-ink); font-weight: 600; }
+.latlink { background: none; border: 0; padding: 0; font: inherit; color: var(--accent-ink); text-decoration: underline; text-decoration-color: #e2bfcb; text-underline-offset: 3px; cursor: pointer; }
+.latlink:hover { text-decoration-color: currentColor; }
+.latlink:focus-visible { outline: 2px solid #d8a9b9; outline-offset: 2px; border-radius: 4px; }
+.toolwarn { color: var(--warn-ink); background: var(--warn-soft); }
+.toolbad { color: var(--bad-ink); background: var(--bad-soft); }
+/* ป้ายสถานะในหน้าตั้งค่า (เครื่องมือเบื้องหลัง ตัวแปลงเสียง) กว้างอย่างน้อยเท่า พร้อมใช้งาน ขอบซ้ายของป้ายตรงแนวเดียวกันทั้งคอลัมน์ (พี่กันสั่ง 15 พ.ย. 2569 กรอบเรียงแนวเดียวกันขนาดเท่ากัน) */
+.setcard .toolok, .setcard .toolwarn, .setcard .toolbad { min-width: 88px; justify-content: center; box-sizing: border-box; }
+ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height: 1.6; }
+
+/* ชั้นว่าง (ต้นแบบบรรทัด 1105–1111) */
+.firstrun { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; background: var(--bg); }
+.firstrun-card { width: 760px; max-width: 100%; background: var(--win); border: 1px solid var(--line); border-radius: 12px; box-shadow: 0 18px 40px rgba(200,64,111,.18); padding: 60px 40px; display: flex; flex-direction: column; align-items: center; gap: 14px; text-align: center; }
+
+/* ---------- การ์ดทั่วไป ---------- */
+.card { padding: 0; }
+.card h3 { margin: 0 0 10px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+  .side { transition: none; }
+  .skel { background: #f7e2e9; }
+  .pop-in, .dlg, .toast { translate: 0 0; opacity: 1; }
+}
+
