@@ -636,7 +636,7 @@ pub struct MergeReq {
     pub fonts: Vec<String>,
     /// บทที่แก้ในหน้าต่างดูและแก้บท (BUGS ข้อ 99) · ไม่ส่ง = บทของหนังติดไปตามเดิม · รายการว่าง = ไฟล์ใหม่ไม่มีบท
     #[serde(default)]
-    pub chapters: Option<Vec<crate::chapters::Chapter>>,
+    pub chapters: Option<Vec<crate::media::chapters::Chapter>>,
 }
 
 fn yes() -> bool {
@@ -923,7 +923,7 @@ fn cover_matches(tools: &Path, work: &Path, file: &Path, mk: &Value, c: &NewCove
     let mut target = OsString::from(format!("{}:", att.id));
     target.push(out.as_os_str());
     let r = run_tool_timeout(tools, "mkvextract", [file.as_os_str(), OsStr::new("attachments"), &target], Duration::from_secs(120))?;
-    let got = std::fs::read(&out).map(|b| crate::probe::hex(&Sha256::digest(&b)));
+    let got = std::fs::read(&out).map(|b| crate::media::probe::hex(&Sha256::digest(&b)));
     let _ = std::fs::remove_file(&out);
     if !tool_succeeded("mkvextract", &r.status) || got.as_deref().ok() != Some(c.sha.as_str()) {
         return Err(format!("{} ที่ดึงออกมาไม่ตรงกับรูปที่ใส่", c.name));
@@ -1015,7 +1015,7 @@ pub fn mp4_unfit(t: &Track) -> bool {
 }
 
 fn cover_slot(name: &str) -> Option<&'static str> {
-    match crate::probe::att_stem(name).as_str() {
+    match crate::media::probe::att_stem(name).as_str() {
         "cover" => Some("cover"),
         "cover_land" => Some("cover_land"),
         _ => None,
@@ -1042,7 +1042,7 @@ pub fn produce(
     let chap_file: Option<PathBuf> = match &req.chapters {
         Some(chs) if !chs.is_empty() => {
             let f = work.join(format!("merge-chap-{}.txt", crate::cover::poster_image::unique()));
-            let text = if mp4 { crate::chapters::ffmetadata_text(chs, movie_duration) } else { crate::chapters::ogm_text(chs) };
+            let text = if mp4 { crate::media::chapters::ffmetadata_text(chs, movie_duration) } else { crate::media::chapters::ogm_text(chs) };
             std::fs::write(&f, text).map_err(|e| fail("other", "เขียนไฟล์บทที่แก้ไม่ได้", vec![e.to_string(), untouched.into()]))?;
             guards.push(scopeguard(f.clone()));
             Some(f)
@@ -1142,7 +1142,7 @@ pub fn produce(
         std::fs::write(&file, bytes).map_err(|e| fail("other", "เขียนรูปปกไม่ได้", vec![e.to_string()]))?;
         guards.push(scopeguard(file.clone()));
         covers.push(NewCover {
-            name: format!("{slot}.{fmt}"), mime: if fmt == "png" { "image/png".into() } else { "image/jpeg".into() }, file, sha: crate::probe::hex(&Sha256::digest(bytes)),
+            name: format!("{slot}.{fmt}"), mime: if fmt == "png" { "image/png".into() } else { "image/jpeg".into() }, file, sha: crate::media::probe::hex(&Sha256::digest(bytes)),
         });
     }
     // ไฟล์แนบของหนังที่เก็บไว้ · ปกช่องที่ใส่ใหม่หรือเอาออก ไม่เก็บ · ไฟล์แนบอื่น (ฟอนต์ของซับ ASS) เก็บทั้งหมด
@@ -1871,12 +1871,12 @@ mod tests {
     fn merge_with_edited_chapters_real_files() {
         let Some(movie) = av("หนัง/ดาวเหนือ (2023).mkv") else { return };
         let tl = tools();
-        let before = crate::chapters::read(&tl, &movie).unwrap();
+        let before = crate::media::chapters::read(&tl, &movie).unwrap();
         assert!(!before.is_empty(), "ไฟล์ทดสอบต้องมีบทเดิม");
         let m = inspect(&tl, &movie).unwrap();
         let edited = vec![
-            crate::chapters::Chapter { start: 8.5, title: "ฉากกลาง = ทดสอบ; ชื่อ".into() },
-            crate::chapters::Chapter { start: 0.0, title: "เปิดเรื่อง".into() },
+            crate::media::chapters::Chapter { start: 8.5, title: "ฉากกลาง = ทดสอบ; ชื่อ".into() },
+            crate::media::chapters::Chapter { start: 0.0, title: "เปิดเรื่อง".into() },
         ];
         for out_kind in ["mkv", "mp4"] {
             let dir = temp_dir(&format!("chap-{out_kind}"));
@@ -1885,7 +1885,7 @@ mod tests {
             let out = dir.0.join(format!("ดาวเหนือ (2023).{out_kind}.partial"));
             let (res, _) = run(&r, &HashMap::new(), &out, &dir.0);
             res.unwrap_or_else(|p| panic!("{out_kind} {} {:?}", p.title, p.detail));
-            let got = crate::chapters::read(&tl, &out).unwrap();
+            let got = crate::media::chapters::read(&tl, &out).unwrap();
             assert_eq!(got.iter().map(|c| c.title.as_str()).collect::<Vec<_>>(), vec!["เปิดเรื่อง", "ฉากกลาง = ทดสอบ; ชื่อ"], "{out_kind}");
             assert!((got[1].start - 8.5).abs() < 0.01, "{out_kind} เวลาบทที่สอง {}", got[1].start);
             // ลบบทหมด
@@ -1895,9 +1895,9 @@ mod tests {
             let out0 = dir2.0.join(format!("ดาวเหนือ (2023).{out_kind}.partial"));
             let (res0, _) = run(&r0, &HashMap::new(), &out0, &dir2.0);
             res0.unwrap_or_else(|p| panic!("{out_kind} ลบบท {} {:?}", p.title, p.detail));
-            assert!(crate::chapters::read(&tl, &out0).unwrap().is_empty(), "{out_kind} ลบบทหมดแล้วต้องไม่มีบท");
+            assert!(crate::media::chapters::read(&tl, &out0).unwrap().is_empty(), "{out_kind} ลบบทหมดแล้วต้องไม่มีบท");
         }
-        assert_eq!(crate::chapters::read(&tl, &movie).unwrap(), before, "ไฟล์หนังเดิมไม่ถูกแตะ");
+        assert_eq!(crate::media::chapters::read(&tl, &movie).unwrap(), before, "ไฟล์หนังเดิมไม่ถูกแตะ");
     }
 
     /// MP4 · พากย์ไทย −120 + ซับไทย +500 + ปกตั้งใหม่ · ซับรูปใส่ไม่ได้ต้องถูกกันก่อนเริ่ม (กันที่ apply ทดสอบตัวสร้างคำสั่งแทน)

@@ -3,22 +3,15 @@
 mod app;
 mod ape;
 mod audiograph;
-mod bitrate;
-mod chapters;
-mod check;
+mod media;
 mod convert;
 mod delay;
 mod encode;
 mod graphimg;
-mod extract;
-mod fileinfo;
 mod fonts;
 mod loudness;
 mod cover;
 mod merge;
-mod mkvtree;
-mod players;
-mod probe;
 mod subaudio;
 mod subconv;
 mod imgconv;
@@ -174,13 +167,13 @@ pub fn run() {
     #[cfg(debug_assertions)]
     let handler = typed(tauri::generate_handler![
         app::actlog::actlog_info, app::actlog::actlog_open_dir,
-        app::tools::check_tools, app::tools::check_icaros, app::tools::open_icaros_page, app::store::get_settings, app::store::set_settings, app::drives::drive_space, app::drives::drive_open, app::drives::drive_free, chapters::chapters_read,
+        app::tools::check_tools, app::tools::check_icaros, app::tools::open_icaros_page, app::store::get_settings, app::store::set_settings, app::drives::drive_space, app::drives::drive_open, app::drives::drive_free, media::chapters::chapters_read,
         app::jobs::running_jobs, app::jobs::force_close, app::jobs::dev_fake_job, cover::poster::dev_fake_free, app::library::dev_set_check, app::library::dev_clear_parked,
         app::library::get_library, app::library::scan_library, app::library::play_movie, app::library::reveal_movie, app::library::set_rating,
         cover::rename::check_rename, cover::rename::rename_movie,
         cover::poster::poster_open, cover::poster::poster_view, cover::poster::poster_render, cover::poster::poster_clear, cover::poster::poster_folder_images,
         cover::poster::poster_inspect, cover::poster::poster_apply, cover::poster::poster_cancel, cover::poster::poster_check_name,
-        app::latest::thanks_open, bitrate::bitrate_start, bitrate::bitrate_tracks, bitrate::bitrate_stop, merge::merge_inspect, merge::remux_fonts, merge::merge_add_file, merge::merge_apply, merge::merge_cancel, merge::merge_cover_preview, merge::merge_cover_drop, encode::encode_preview, encode::encoders_status, encode::encoders_open_dir, encode::encoders_user_dir, app::latest::encoders_latest, app::latest::encoders_open_page, app::latest::open_itunes_page, fonts::font_info,
+        app::latest::thanks_open, media::bitrate::bitrate_start, media::bitrate::bitrate_tracks, media::bitrate::bitrate_stop, merge::merge_inspect, merge::remux_fonts, merge::merge_add_file, merge::merge_apply, merge::merge_cancel, merge::merge_cover_preview, merge::merge_cover_drop, encode::encode_preview, encode::encoders_status, encode::encoders_open_dir, encode::encoders_user_dir, app::latest::encoders_latest, app::latest::encoders_open_page, app::latest::open_itunes_page, fonts::font_info,
         delay::delay_find, delay::delay_view, delay::delay_preview,
         subs::movie_frame, subs::sub_text, subs::sub_frame, subs::sub_wave, subs::sub_images, subs::sub_image_times, ocrsrc::ocr_source, ocrsrc::ocr_source_pngs, subs::ocr_vobsub_recolor, subs::ocr_vobsub_preview, ocrjob::ocr_read, ocrjob::ocr_teach, ocrjob::ocr_word, ocrjob::ocr_suggest, ocrjob::ocr_names, ocrjob::ocr_dbs, ocrjob::ocr_history, ocrjob::ocr_history_update, ocrjob::ocr_history_delete, ocrjob::ocr_inspect, ocrjob::ocr_inspect_update, ocrjob::ocr_inspect_delete, ocrjob::ocr_inspect_draw, ocrjob::ocr_inspect_teach, ocrjob::ocr_inspect_reload, ocrjob::ocr_remove_items, ocrjob::ocr_stop, ocrjob::ocr_prep_preview, ocrjob::ocr_paddle_models, ocrjob::ocr_db_delete, ocrjob::ocr_image_out, ocrmanual::ocr_db_new, ocrmanual::ocr_db_rename, ocrmanual::ocr_db_chars, ocrmanual::ocr_db_char_update, ocrmanual::ocr_db_char_delete, ocrmanual::ocr_train, ocrmanual::ocr_train_cancel, ocrmanual::ocr_train_preview, ocrmanual::ocr_db_optimize, ocrexport::ocr_export_formats, ocrexport::ocr_export_preview, ocrexport::ocr_export, ocrexport::ocr_export_doc, ocrexport::ocr_save_html, tesseract::ocr_tess_langs, tesseract::ocr_tess_download, tesseract::ocr_tess_cancel, paddle_dl::ocr_paddle_langs, paddle_dl::ocr_paddle_download, paddle_dl::ocr_paddle_cancel,
         subdoc::subdoc_open, subdoc::subdoc_stamp, subdoc::subdoc_save, subdoc::subdoc_convert, subdoc::subdoc_free_name, subdoc::subdoc_render, subdoc::subdoc_parse_text, subdoc::subdoc_temp, subshot::sub_overlay, subshot::vid_snapshot, vidframes::vid_colorspace,
@@ -190,22 +183,22 @@ pub fn run() {
         cover::pairs::pair_set, cover::pairs::pair_check, cover::pairs::pair_play,
         cover::link::link_state, cover::link::link_titles, cover::link::link_is_dir, cover::link::link_images, cover::link::link_add_images, cover::link::link_remove_images, cover::link::link_auto, cover::link::link_pair, cover::link::link_undo, cover::link::link_row_update, cover::link::link_set_crop, cover::link::link_confirm, cover::link::link_cancel, cover::link::link_resolve, cover::link::link_unsave, cover::link::link_remove, cover::link::link_open_row, cover::link::link_cover_pick, cover::link::link_migrate,
         convert::convert_probe, convert::convert_size_probe, convert::convert_cover, convert::convert_one, convert::convert_cancel,
-        fileinfo::media_info, mkvtree::mkv_tree, fileinfo::audio_codec_detail, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_running, fileinfo::hash_compare, fileinfo::hash_save, app::winutil::clipboard_text,
-        extract::extract_start, extract::extract_info, extract::extract_cancel, extract::extract_running, extract::extract_default_folder,
-        check::check_start, check::check_cancel, check::check_running, check::play_at, players::list_players,
+        media::fileinfo::media_info, media::mkvtree::mkv_tree, media::fileinfo::audio_codec_detail, media::fileinfo::hash_file, media::fileinfo::hash_cancel, media::fileinfo::hash_running, media::fileinfo::hash_compare, media::fileinfo::hash_save, app::winutil::clipboard_text,
+        media::extract::extract_start, media::extract::extract_info, media::extract::extract_cancel, media::extract::extract_running, media::extract::extract_default_folder,
+        media::check::check_start, media::check::check_cancel, media::check::check_running, media::check::play_at, media::players::list_players,
         audiograph::graph_info, audiograph::graph_exist, audiograph::graph_overview, audiograph::graph_window, audiograph::graph_psd, audiograph::graph_cancel, audiograph::graph_save, graphimg::graph_save_image,
         audiograph::graph_cache_info, audiograph::graph_cache_clear, audiograph::graph_dev_forget,
     ]);
     #[cfg(not(debug_assertions))]
     let handler = typed(tauri::generate_handler![
         app::actlog::actlog_info, app::actlog::actlog_open_dir,
-        app::tools::check_tools, app::tools::check_icaros, app::tools::open_icaros_page, app::store::get_settings, app::store::set_settings, app::drives::drive_space, app::drives::drive_open, app::drives::drive_free, chapters::chapters_read,
+        app::tools::check_tools, app::tools::check_icaros, app::tools::open_icaros_page, app::store::get_settings, app::store::set_settings, app::drives::drive_space, app::drives::drive_open, app::drives::drive_free, media::chapters::chapters_read,
         app::jobs::running_jobs, app::jobs::force_close,
         app::library::get_library, app::library::scan_library, app::library::play_movie, app::library::reveal_movie, app::library::set_rating,
         cover::rename::check_rename, cover::rename::rename_movie,
         cover::poster::poster_open, cover::poster::poster_view, cover::poster::poster_render, cover::poster::poster_clear, cover::poster::poster_folder_images,
         cover::poster::poster_inspect, cover::poster::poster_apply, cover::poster::poster_cancel, cover::poster::poster_check_name,
-        app::latest::thanks_open, bitrate::bitrate_start, bitrate::bitrate_tracks, bitrate::bitrate_stop, merge::merge_inspect, merge::remux_fonts, merge::merge_add_file, merge::merge_apply, merge::merge_cancel, merge::merge_cover_preview, merge::merge_cover_drop, encode::encode_preview, encode::encoders_status, encode::encoders_open_dir, encode::encoders_user_dir, app::latest::encoders_latest, app::latest::encoders_open_page, app::latest::open_itunes_page, fonts::font_info,
+        app::latest::thanks_open, media::bitrate::bitrate_start, media::bitrate::bitrate_tracks, media::bitrate::bitrate_stop, merge::merge_inspect, merge::remux_fonts, merge::merge_add_file, merge::merge_apply, merge::merge_cancel, merge::merge_cover_preview, merge::merge_cover_drop, encode::encode_preview, encode::encoders_status, encode::encoders_open_dir, encode::encoders_user_dir, app::latest::encoders_latest, app::latest::encoders_open_page, app::latest::open_itunes_page, fonts::font_info,
         delay::delay_find, delay::delay_view, delay::delay_preview,
         subs::movie_frame, subs::sub_text, subs::sub_frame, subs::sub_wave, subs::sub_images, subs::sub_image_times, ocrsrc::ocr_source, ocrsrc::ocr_source_pngs, subs::ocr_vobsub_recolor, subs::ocr_vobsub_preview, ocrjob::ocr_read, ocrjob::ocr_teach, ocrjob::ocr_word, ocrjob::ocr_suggest, ocrjob::ocr_names, ocrjob::ocr_dbs, ocrjob::ocr_history, ocrjob::ocr_history_update, ocrjob::ocr_history_delete, ocrjob::ocr_inspect, ocrjob::ocr_inspect_update, ocrjob::ocr_inspect_delete, ocrjob::ocr_inspect_draw, ocrjob::ocr_inspect_teach, ocrjob::ocr_inspect_reload, ocrjob::ocr_remove_items, ocrjob::ocr_stop, ocrjob::ocr_prep_preview, ocrjob::ocr_paddle_models, ocrjob::ocr_db_delete, ocrjob::ocr_image_out, ocrmanual::ocr_db_new, ocrmanual::ocr_db_rename, ocrmanual::ocr_db_chars, ocrmanual::ocr_db_char_update, ocrmanual::ocr_db_char_delete, ocrmanual::ocr_train, ocrmanual::ocr_train_cancel, ocrmanual::ocr_train_preview, ocrmanual::ocr_db_optimize, ocrexport::ocr_export_formats, ocrexport::ocr_export_preview, ocrexport::ocr_export, ocrexport::ocr_export_doc, ocrexport::ocr_save_html, tesseract::ocr_tess_langs, tesseract::ocr_tess_download, tesseract::ocr_tess_cancel, paddle_dl::ocr_paddle_langs, paddle_dl::ocr_paddle_download, paddle_dl::ocr_paddle_cancel,
         subdoc::subdoc_open, subdoc::subdoc_stamp, subdoc::subdoc_save, subdoc::subdoc_convert, subdoc::subdoc_free_name, subdoc::subdoc_render, subdoc::subdoc_parse_text, subdoc::subdoc_temp, subshot::sub_overlay, subshot::vid_snapshot, vidframes::vid_colorspace,
@@ -215,9 +208,9 @@ pub fn run() {
         cover::pairs::pair_set, cover::pairs::pair_check, cover::pairs::pair_play,
         cover::link::link_state, cover::link::link_titles, cover::link::link_is_dir, cover::link::link_images, cover::link::link_add_images, cover::link::link_remove_images, cover::link::link_auto, cover::link::link_pair, cover::link::link_undo, cover::link::link_row_update, cover::link::link_set_crop, cover::link::link_confirm, cover::link::link_cancel, cover::link::link_resolve, cover::link::link_unsave, cover::link::link_remove, cover::link::link_open_row, cover::link::link_cover_pick, cover::link::link_migrate,
         convert::convert_probe, convert::convert_size_probe, convert::convert_cover, convert::convert_one, convert::convert_cancel,
-        fileinfo::media_info, mkvtree::mkv_tree, fileinfo::audio_codec_detail, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_running, fileinfo::hash_compare, fileinfo::hash_save, app::winutil::clipboard_text,
-        extract::extract_start, extract::extract_info, extract::extract_cancel, extract::extract_running, extract::extract_default_folder,
-        check::check_start, check::check_cancel, check::check_running, check::play_at, players::list_players,
+        media::fileinfo::media_info, media::mkvtree::mkv_tree, media::fileinfo::audio_codec_detail, media::fileinfo::hash_file, media::fileinfo::hash_cancel, media::fileinfo::hash_running, media::fileinfo::hash_compare, media::fileinfo::hash_save, app::winutil::clipboard_text,
+        media::extract::extract_start, media::extract::extract_info, media::extract::extract_cancel, media::extract::extract_running, media::extract::extract_default_folder,
+        media::check::check_start, media::check::check_cancel, media::check::check_running, media::check::play_at, media::players::list_players,
         audiograph::graph_info, audiograph::graph_exist, audiograph::graph_overview, audiograph::graph_window, audiograph::graph_psd, audiograph::graph_cancel, audiograph::graph_save, graphimg::graph_save_image,
         audiograph::graph_cache_info, audiograph::graph_cache_clear,
     ]);

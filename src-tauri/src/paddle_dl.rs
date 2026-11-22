@@ -72,7 +72,7 @@ fn sha256_of(p: &Path) -> Result<String, String> {
     let mut f = std::fs::File::open(p).map_err(|e| format!("เปิดไฟล์ที่โหลดไม่ได้ {e}"))?;
     let mut h = Sha256::new();
     std::io::copy(&mut f, &mut h).map_err(|e| format!("อ่านไฟล์ที่โหลดไม่ได้ {e}"))?;
-    Ok(crate::probe::hex(&h.finalize()))
+    Ok(crate::media::probe::hex(&h.finalize()))
 }
 
 /// โหลดโมเดลภาษาลง user/<โฟลเดอร์โมเดล> · ความคืบหน้าเป็นเปอร์เซ็นต์ของขนาดรวม · stop = กดหยุด

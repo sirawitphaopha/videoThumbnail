@@ -151,7 +151,7 @@ pub fn pair_play(app: AppHandle, lib: State<'_, Arc<LibraryStore>>, movie: Strin
         if !ok { notes.push(format!("หา{}ที่จับคู่ไม่เจอ {}  ไดรฟ์อาจถอดออกอยู่ หรือไฟล์ถูกย้าย", if p.kind == "audio" { "เสียง" } else { "ซับ" }, p.path)); }
         ok
     }).cloned().collect();
-    let player = crate::check::player_for(&app, &file)?;
+    let player = crate::media::check::player_for(&app, &file)?;
     let (args, more) = player_args(player.as_deref(), &file, &found);
     notes.extend(more);
     let name = player.as_ref().and_then(|p| p.file_stem()).map(|n| n.to_string_lossy().to_string()).unwrap_or_default();

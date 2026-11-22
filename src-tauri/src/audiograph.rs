@@ -109,16 +109,16 @@ pub fn parse_info(j: &Value) -> GInfo {
                 let short = match lay {
                     "mono" => "1.0".to_string(),
                     "stereo" => "2.0".to_string(),
-                    "" => crate::probe::layout(ch as u64),
+                    "" => crate::media::probe::layout(ch as u64),
                     l => l.split('(').next().unwrap_or(l).to_string(),
                 };
                 let bits = num::<u32>(st, "bits_per_raw_sample").filter(|b| *b > 0).or(num::<u32>(st, "bits_per_sample").filter(|b| *b > 0));
                 tracks.push(GTrack {
                     index: tracks.len(),
-                    codec: crate::probe::audio_name(st["codec_name"].as_str().unwrap_or(""), st["profile"].as_str().unwrap_or("")),
+                    codec: crate::media::probe::audio_name(st["codec_name"].as_str().unwrap_or(""), st["profile"].as_str().unwrap_or("")),
                     layout: short,
                     names: layout_names(lay, ch),
-                    lang: crate::probe::lang_th(st["tags"]["language"].as_str().unwrap_or("")),
+                    lang: crate::media::probe::lang_th(st["tags"]["language"].as_str().unwrap_or("")),
                     title: st["tags"]["title"].as_str().map(|s| s.to_string()).filter(|s| !s.is_empty()),
                     rate: num::<u32>(st, "sample_rate").unwrap_or(48000),
                     bits,

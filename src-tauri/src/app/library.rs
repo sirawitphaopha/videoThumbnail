@@ -16,7 +16,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use crate::probe::{self, Track};
+use crate::media::probe::{self, Track};
 use crate::app::store::{write_atomic, SettingsStore};
 
 /// ไฟล์หนังที่รับ 12 ชนิด (สเปกข้อ 10 · แผนค่าที่ต้นแบบยังไม่กำหนด) · WMV ISO ไม่รับ
@@ -626,7 +626,7 @@ pub fn play_movie(app: AppHandle, path: String) -> Result<(), String> {
     if !p.exists() {
         return Err("หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่".into());
     }
-    match crate::check::player_for(&app, p)? {
+    match crate::media::check::player_for(&app, p)? {
         Some(exe) => std::process::Command::new(&exe).arg(p).spawn().map(|_| ()).map_err(|e| format!("เปิดโปรแกรมเล่นหนังไม่ได้: {e}")),
         None => {
             use tauri_plugin_opener::OpenerExt;

@@ -575,7 +575,7 @@ fn thumb_key(path: &Path) -> String {
     let md = fs::metadata(path).ok();
     let mtime = md.as_ref().and_then(|m| m.modified().ok()).and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok()).map(|d| d.as_secs()).unwrap_or(0);
     let text = format!("{}|{}|{mtime}", path.to_string_lossy().to_lowercase(), md.map(|m| m.len()).unwrap_or(0));
-    crate::probe::hex(&Sha256::digest(text.as_bytes()))[..20].to_string()
+    crate::media::probe::hex(&Sha256::digest(text.as_bytes()))[..20].to_string()
 }
 
 /// ภาพเล็กที่ทำไว้แล้ว ชื่อไฟล์ลงท้ายด้วยขนาดรูปจริง key-1000x1500.jpg
@@ -1195,7 +1195,7 @@ fn uses(c: &LinkedCover, f: &str) -> bool {
 }
 
 fn sha_of(bytes: &[u8]) -> String {
-    crate::probe::hex(&Sha256::digest(bytes))
+    crate::media::probe::hex(&Sha256::digest(bytes))
 }
 
 fn file_sha(p: &Path) -> Option<String> {

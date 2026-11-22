@@ -276,7 +276,7 @@ fn make_preview(app: &AppHandle, movie: &Path, file: &Path, tid: u64, delay_ms: 
     let made = std::fs::read_dir(&tmp).ok().and_then(|rd| rd.flatten().map(|e| e.path()).find(|p| p.file_name().is_some_and(|n| n.to_string_lossy().starts_with(&stem))))
         .ok_or("ทำไฟล์ลองฟังไม่สำเร็จ หาไฟล์ที่ได้ไม่เจอ")?;
     let mut cmd = format!("mkvmerge {}", args.iter().map(quote).collect::<Vec<_>>().join(" "));
-    let player = crate::check::player_for(app, &made)?;
+    let player = crate::media::check::player_for(app, &made)?;
     let name = player.as_ref().and_then(|p| p.file_stem()).map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
     if let Some(exe) = &player {
         cmd.push_str(&format!("\n{} {}", quote(&exe.clone().into_os_string()), quote(&made.clone().into_os_string())));

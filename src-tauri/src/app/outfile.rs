@@ -454,5 +454,5 @@ pub fn sha256_file(p: &Path, on: &dyn Fn(f64)) -> Result<String, String> {
             on(done as f64 / total as f64 * 100.0);
         }
     }
-    Ok(crate::probe::hex(&h.finalize()))
+    Ok(crate::media::probe::hex(&h.finalize()))
 }

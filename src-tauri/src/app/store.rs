@@ -121,7 +121,7 @@ impl Default for Settings {
             hash_save_ask: true,
             window_maximized: false,
             sub_player: "mpv".into(),
-            extract_pattern: crate::extract::DEFAULT_PATTERN.into(),
+            extract_pattern: crate::media::extract::DEFAULT_PATTERN.into(),
         }
     }
 }

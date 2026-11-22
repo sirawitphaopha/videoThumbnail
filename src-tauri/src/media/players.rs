@@ -162,7 +162,7 @@ fn rows(found: &[PathBuf], added: &[String], set: &str, auto: Option<&Path>, exi
 pub fn list_players(app: AppHandle) -> PlayerList {
     let s = app.state::<SettingsStore>().current.lock().unwrap().clone();
     let found = scan();
-    let auto = crate::check::auto_player(&found, Path::new("x.mkv"));
+    let auto = crate::media::check::auto_player(&found, Path::new("x.mkv"));
     let mut players = rows(&found, &s.players, &s.player_path, auto.as_deref(), &|p| p.is_file());
     for p in &mut players {
         p.icon = exe_icon(Path::new(&p.path));

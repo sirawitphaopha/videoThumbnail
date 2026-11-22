@@ -583,7 +583,7 @@ fn apply(app: &AppHandle, req: &ApplyReq, jobs: &Arc<crate::app::jobs::Jobs>) ->
     let mime = if pformat == "png" { "image/png" } else { "image/jpeg" };
     let cover_file = d.work.join(format!("poster-{}.{pformat}", pi::unique()));
     std::fs::write(&cover_file, &poster).map_err(|e| fail("other", "เขียนรูปโปสเตอร์ไม่ได้", vec![e.to_string()]))?;
-    let poster_sha = crate::probe::hex(&Sha256::digest(&poster));
+    let poster_sha = crate::media::probe::hex(&Sha256::digest(&poster));
     let cleanup_cover = scopeguard(cover_file.clone());
 
     let mut notes: Vec<String> = vec![];
@@ -596,7 +596,7 @@ fn apply(app: &AppHandle, req: &ApplyReq, jobs: &Arc<crate::app::jobs::Jobs>) ->
         let atts = mkv_attachments(&d.tools, &src).map_err(|e| fail("tool", "อ่านไฟล์แนบเดิมไม่ได้", vec![e, untouched.clone()]))?;
         // ปกเดิมแต่ละอันเป็นแนวไหน · cover_land = แนวนอน · cover.* ดูสัดส่วนจริง (รูปแนวนอนที่แนบชื่อ cover ก่อนมีระบบนี้)
         let olds: Vec<(String, bool)> = atts.iter().filter_map(|a| {
-            let st = crate::probe::att_stem(&a.0);
+            let st = crate::media::probe::att_stem(&a.0);
             (st == "cover" || st == "cover_land").then(|| (a.0.clone(), st == "cover_land" || attachment_is_land(&d, &src, a.2).unwrap_or(false)))
         }).collect();
         let mut drops: Vec<String> = olds.iter().filter(|o| o.1 == land).map(|o| o.0.clone()).collect();
@@ -604,8 +604,8 @@ fn apply(app: &AppHandle, req: &ApplyReq, jobs: &Arc<crate::app::jobs::Jobs>) ->
         // ปกแนวนอนเก่าชื่อ cover.* ตอนใส่ปกตั้ง · เปลี่ยนชื่อเป็น cover_land ไม่ลบ (มี cover_land อยู่แล้ว อันชื่อ cover ซ้ำแนว ลบได้)
         let mut rename: Option<(String, String)> = None;
         if !land {
-            let has_land_name = others.iter().any(|o| crate::probe::att_stem(&o.0) == "cover_land");
-            for o in others.iter().filter(|o| crate::probe::att_stem(&o.0) == "cover") {
+            let has_land_name = others.iter().any(|o| crate::media::probe::att_stem(&o.0) == "cover_land");
+            for o in others.iter().filter(|o| crate::media::probe::att_stem(&o.0) == "cover") {
                 if has_land_name || rename.is_some() { drops.push(o.0.clone()); }
                 else { rename = Some((o.0.clone(), format!("cover_land.{}", Path::new(&o.0).extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_else(|| "jpg".into())))); }
             }
@@ -639,7 +639,7 @@ fn apply(app: &AppHandle, req: &ApplyReq, jobs: &Arc<crate::app::jobs::Jobs>) ->
             verify_cover(&d, &target, &cover_name, mime, &poster_sha).map_err(|e| ("ตรวจรูปแนบไม่ผ่าน".to_string(), e))?;
             // ปกอีกแนวที่ตั้งใจเก็บไว้ ต้องยังอยู่ (ไฟล์จากที่อื่นอาจมีปกอีกแนวมากกว่าหนึ่งอัน เช่น cover.jpg กับ cover.png · เดิมนับว่าต้องเท่ากับ 1 พอดี ขึ้นแดงทั้งที่แนบสำเร็จ ผู้ช่วยตรวจโค้ดเจอ)
             let other_stem = if land { "cover" } else { "cover_land" };
-            let kept = mkv_attachments(&d.tools, &target).map(|a| a.iter().filter(|x| crate::probe::att_stem(&x.0) == other_stem).count()).unwrap_or(0);
+            let kept = mkv_attachments(&d.tools, &target).map(|a| a.iter().filter(|x| crate::media::probe::att_stem(&x.0) == other_stem).count()).unwrap_or(0);
             if (kept >= 1) != keep_other {
                 return Err(("ปกอีกแนวในไฟล์ไม่ตรงกับที่ควรเป็น".into(), format!("{other_stem} ควร{} เจอ {kept} อัน", if keep_other { "ยังอยู่" } else { "ไม่มี" })));
             }
@@ -812,8 +812,8 @@ fn attachment_is_land(d: &Dirs, file: &Path, id: u64) -> Option<bool> {
 /// ปกแนวเดียวกัน (ชื่อ cover หรือ cover_land ตามรูปใหม่) มีอันเดียว ชื่อกับชนิดถูก ดึงออกมาแล้ว hash ตรงกับรูปที่โปรแกรมทำ
 fn verify_cover(d: &Dirs, file: &Path, name: &str, mime: &str, sha: &str) -> Result<(), String> {
     let atts = mkv_attachments(&d.tools, file)?;
-    let stem = crate::probe::att_stem(name);
-    let covers: Vec<&(String, String, u64)> = atts.iter().filter(|a| crate::probe::att_stem(&a.0) == stem).collect();
+    let stem = crate::media::probe::att_stem(name);
+    let covers: Vec<&(String, String, u64)> = atts.iter().filter(|a| crate::media::probe::att_stem(&a.0) == stem).collect();
     if covers.len() != 1 || covers[0].0 != name || covers[0].1 != mime {
         return Err(format!("ปกในไฟล์ {:?} ต้องมี {name} อันเดียว", covers.iter().map(|c| &c.0).collect::<Vec<_>>()));
     }
@@ -821,7 +821,7 @@ fn verify_cover(d: &Dirs, file: &Path, name: &str, mime: &str, sha: &str) -> Res
     let mut target = OsString::from(format!("{}:", covers[0].2));
     target.push(out.as_os_str());
     let r = run_tool_timeout(&d.tools, "mkvextract", [file.as_os_str(), OsStr::new("attachments"), &target], Duration::from_secs(120))?;
-    let got = std::fs::read(&out).map(|b| crate::probe::hex(&Sha256::digest(&b)));
+    let got = std::fs::read(&out).map(|b| crate::media::probe::hex(&Sha256::digest(&b)));
     let _ = std::fs::remove_file(&out);
     if !tool_succeeded("mkvextract", &r.status) || got.as_deref().ok() != Some(sha) {
         return Err("ปกที่ดึงออกมาไม่ตรงกับรูปที่ทำ".into());

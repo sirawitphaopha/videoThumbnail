@@ -304,10 +304,10 @@ pub fn extract_one(tools: &Path, file: &Path, it: &Item, partial: &Path, on: &dy
         return Err("แยกชิ้นนี้ได้เฉพาะไฟล์ MKV".into());
     } else if it.kind == "menu" {
         // บทของ MP4 และไฟล์อื่น อ่านด้วย ffprobe แล้วเขียนเป็น Matroska XML แบบที่ mkvextract เขียน (AUDIT ข้อ 17)
-        let chs = crate::chapters::read(tools, file)?;
+        let chs = crate::media::chapters::read(tools, file)?;
         if chs.is_empty() { return Err("ไฟล์นี้ไม่มีบทของหนัง".into()); }
-        let dur = crate::probe::probe(tools, file).ok().and_then(|x| x.duration);
-        std::fs::write(partial, crate::chapters::xml_text(&chs, dur)).map_err(|e| format!("เขียนไฟล์บทไม่ได้: {e}"))?;
+        let dur = crate::media::probe::probe(tools, file).ok().and_then(|x| x.duration);
+        std::fs::write(partial, crate::media::chapters::xml_text(&chs, dur)).map_err(|e| format!("เขียนไฟล์บทไม่ได้: {e}"))?;
         on(100.0);
         return Ok(Done::Ok(outs));
     } else {
@@ -396,7 +396,7 @@ mod tests {
         p
     }
     fn sha(p: &Path) -> String {
-        crate::probe::hex(&sha2::Sha256::digest(std::fs::read(p).unwrap()))
+        crate::media::probe::hex(&sha2::Sha256::digest(std::fs::read(p).unwrap()))
     }
 
     #[test]

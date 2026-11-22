@@ -802,7 +802,7 @@ pub struct PlayResult {
 /// None = เครื่องนี้ไม่มี ใช้โปรแกรมหลักของ Windows
 pub fn auto_player(found: &[PathBuf], file: &Path) -> Option<PathBuf> {
     let ext = file.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default();
-    crate::players::mpc_hc(found)
+    crate::media::players::mpc_hc(found)
         .or_else(|| crate::app::winutil::default_app_for(&ext).filter(|p| seek_args(p, file, 0.0).is_some()))
         .or_else(|| found.iter().find(|p| seek_args(p, file, 0.0).is_some()).cloned())
 }
@@ -811,10 +811,10 @@ pub fn auto_player(found: &[PathBuf], file: &Path) -> Option<PathBuf> {
 /// ใช้ร่วมกับปุ่มเปิดเล่นบนชั้นวาง (library.rs) และปุ่มลองฟัง 20 วินาทีของตัวช่วยหาดีเลย์ (delay.rs)
 pub fn player_for(app: &AppHandle, file: &Path) -> Result<Option<PathBuf>, String> {
     let set = app.state::<SettingsStore>().current.lock().unwrap().player_path.clone();
-    if set.trim() == crate::players::SYSTEM {
+    if set.trim() == crate::media::players::SYSTEM {
         Ok(None)
     } else if set.trim().is_empty() {
-        Ok(auto_player(&crate::players::scan(), file))
+        Ok(auto_player(&crate::media::players::scan(), file))
     } else if Path::new(&set).exists() {
         Ok(Some(PathBuf::from(&set)))
     } else {
@@ -1136,7 +1136,7 @@ mod tests {
         assert!(r.summary.contains("ไฟล์ขาดท้าย เล่นได้ถึง") && r.summary.contains("จากความยาว 1:00"), "{}", r.summary);
         assert!(r.spans.iter().all(|s| s.get("tail").is_some()), "{:?}", r.spans);
         let Some(good) = media("ดาวเหนือ (2023).mkv") else { return };
-        let len = crate::probe::probe(&tools(), &good).ok().and_then(|x| x.duration);
+        let len = crate::media::probe::probe(&tools(), &good).ok().and_then(|x| x.duration);
         let pct = Mutex::new(Vec::new());
         let ok = deep(&tools(), &good, len, &|p| pct.lock().unwrap().push(p), &|| false).unwrap().unwrap();
         assert_eq!(ok.result, "ok", "{}", ok.summary);

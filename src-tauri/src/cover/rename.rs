@@ -13,7 +13,7 @@ use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::app::library::{LibraryStore, Movie};
-use crate::probe;
+use crate::media::probe;
 
 /// เหตุที่เปลี่ยนชื่อไม่ได้ ส่งให้หน้าจอเลือกว่าจะขึ้นใต้ช่องพิมพ์ (ชื่อผิดกติกา ชื่อซ้ำ) หรือการ์ดแดง (ไฟล์ถูกเปิดอยู่)
 #[derive(Serialize, Debug, Clone, PartialEq)]
