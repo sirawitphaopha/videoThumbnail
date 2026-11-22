@@ -3,21 +3,21 @@
    Monkey's Audio กับ TAK มีเฉพาะที่นี่ · ไฟล์ใหม่ข้างไฟล์เดิมหรือโฟลเดอร์ที่เลือก ชื่อชนต่อท้าย (2) ไม่เขียนทับ · ข้อมูลเพลงกับรูปปกติดไป
    แปลงเสร็จกดเทียบความถี่ เปิดหน้ากราฟเสียงแบบเทียบสองไฟล์ · กดชื่อไฟล์ดูข้อมูลเพลงกับรูปปก (ดูอย่างเดียว) */
 import { useEffect, useMemo, useState } from "react";
-import "../styles/av.css";
-import CodecPanel, { presetSpec } from "./CodecPanel";
-import Dropdown from "./Dropdown";
-import { CardIcon, Keep, Phr, Seg, Skel, chText, dropClick } from "./ui";
-import { checkApi, encodeApi, pickAudioFiles, pickFolder, type AudioFile, type EncodeSpec, type EncoderInfo, type MergeTrack } from "../lib/api";
-import { addFiles, clearDone, removeItem, retry, setAll, setItemSpec, setOutDir, setPicked, setPickedAll, startQueue, stopQueue, useConvQueue, type QItem } from "../lib/convertJob";
-import { CODECS, codecOf } from "../lib/codecs";
-import { ftName } from "../lib/ftypes";
-import { fmtSize } from "../lib/format";
-import { IcFile, IcFolder, IcPlus } from "./icons";
-import { IbPlay, IbTrash, IbStop, IcRefresh, IcGraph, IcMix, IcSettings } from "./icons";
-import { useToast } from "./Toasts";
-import { spaceShort, useFree } from "../lib/drives";
-import InfoTip from "./InfoTip";
-import type { Tip } from "../lib/codecAdv";
+import "../../styles/av.css";
+import CodecPanel, { presetSpec } from "../../components/CodecPanel";
+import Dropdown from "../../components/Dropdown";
+import { CardIcon, Keep, Phr, Seg, Skel, chText, dropClick } from "../../components/ui";
+import { checkApi, encodeApi, pickAudioFiles, pickFolder, type AudioFile, type EncodeSpec, type EncoderInfo, type MergeTrack } from "../../lib/api";
+import { addFiles, clearDone, removeItem, retry, setAll, setItemSpec, setOutDir, setPicked, setPickedAll, startQueue, stopQueue, useConvQueue, type QItem } from "../../lib/convertJob";
+import { CODECS, codecOf } from "../../lib/codecs";
+import { ftName } from "../../lib/ftypes";
+import { fmtSize } from "../../lib/format";
+import { IcFile, IcFolder, IcPlus } from "../../components/icons";
+import { IbPlay, IbTrash, IbStop, IcRefresh, IcGraph, IcMix, IcSettings } from "../../components/icons";
+import { useToast } from "../../components/Toasts";
+import { spaceShort, useFree } from "../../lib/drives";
+import InfoTip from "../../components/InfoTip";
+import type { Tip } from "../../lib/codecAdv";
 
 /** ติ๊กเขียวหลังแปลงแบบไม่เสียคุณภาพ (BUGS ข้อ 121) */
 const SAME_TIP: Tip = {

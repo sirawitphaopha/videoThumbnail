@@ -130,7 +130,10 @@ async function shoot({ w, h, act, file }) {
     // รูปทุกรูปโหลดและถอดเสร็จก่อนถ่าย ไม่งั้นตอนเครื่องทำงานหนัก รูปย่อบางรูปยังเป็นภาพหยาบ (เจอที่รูปตัวอย่างในหน้าตั้งค่า เสียงและซับ)
     await p.evaluate(() => Promise.all([...document.images].map((i) => (i.complete ? i.decode().catch(() => {}) : new Promise((r) => { i.onload = i.onerror = r; })))));
     await p.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
-    await p.screenshot({ path: join(OUT, file) });
+    // ถ่ายซ้ำจนสองภาพติดกันตรงกัน (สูงสุด 6 รอบ) ตอนเครื่องทำงานหนัก เบราว์เซอร์วาดรูปย่อแบบหยาบก่อนแล้วค่อยวาดละเอียดทีหลัง
+    let shot = await p.screenshot();
+    for (let k = 0; k < 6; k++) { await p.waitForTimeout(250); const again = await p.screenshot(); if (again.equals(shot)) break; shot = again; }
+    writeFileSync(join(OUT, file), shot);
     n++;
     if (errs.length) fails.push(`${file} หน้าเว็บฟ้อง ${errs[0]}`);
   } catch (e) {

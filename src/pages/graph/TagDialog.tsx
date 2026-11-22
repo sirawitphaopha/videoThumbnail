@@ -2,13 +2,13 @@
    กดชื่อไฟล์บนหน้ากราฟเสียงหรือในคิวแปลง · แก้ไม่ได้ (พี่กันสั่ง การแก้ข้อมูลหนังและเพลงอยู่ในโรดแมป)
    ไฟล์ที่ไม่มีข้อมูลเพลงขึ้นว่าไม่มี พร้อมบอกเหตุ · ปุ่มคัดลอกข้อมูลเป็นข้อความ แบบหน้าข้อมูลไฟล์ */
 import { useEffect, useState } from "react";
-import Dialog from "./Dialog";
-import ImageViewer from "./ImageViewer";
-import { CardIcon, Keep, Phr, Skel } from "./ui";
-import { convertApi, type AudioFile, type CoverData } from "../lib/api";
-import { ftName } from "../lib/ftypes";
-import { fmtSize } from "../lib/format";
-import { IcCopy } from "./icons";
+import Dialog from "../../components/Dialog";
+import ImageViewer from "../../components/ImageViewer";
+import { CardIcon, Keep, Phr, Skel } from "../../components/ui";
+import { convertApi, type AudioFile, type CoverData } from "../../lib/api";
+import { ftName } from "../../lib/ftypes";
+import { fmtSize } from "../../lib/format";
+import { IcCopy } from "../../components/icons";
 
 const LABEL: Record<string, string> = {
   title: "ชื่อเพลง", artist: "ศิลปิน", album: "อัลบั้ม", album_artist: "ศิลปินอัลบั้ม", date: "ปี", track: "แทร็ก", disc: "แผ่น",
