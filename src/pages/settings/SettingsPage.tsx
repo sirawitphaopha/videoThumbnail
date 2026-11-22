@@ -21,7 +21,7 @@ import { DEFAULT_PATTERN } from "../../lib/extractName";
 import { driveName, freePct, isLow, takeSettingsSec, useDriveSpace } from "../../lib/drives";
 import { folderKey } from "../../lib/folders";
 import "../../styles/av.css";
-import ToneCard from "../../components/ToneCard";
+import ToneCard from "./ToneCard";
 import { DEFAULT_TONE, TONES } from "../../lib/tones";
 import { TRACK_PANEL_DEFAULT, setTrackPanel, useTrackPanel } from "../../lib/trackPanel";
 import ImageViewer from "../../components/ImageViewer";

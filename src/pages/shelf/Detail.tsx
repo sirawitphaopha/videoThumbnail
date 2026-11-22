@@ -1,9 +1,9 @@
 /* ชั้นวาง แผงรายละเอียดด้านขวา (Detail) · ปุ่มจับคู่ปก การ์ดปกที่จับคู่ การ์ดคู่ที่จับไว้ การ์ดสถานะไฟล์
    แยกจาก ShelfPage.tsx ตอนแบ่งไฟล์ทั้งโปรเจกต์ (BUGS ข้อ 153 · แผนแบ่งไฟล์ขั้น 4.2) ย้ายมาทั้งก้อน เนื้อโค้ดไม่เปลี่ยน */
 import { useEffect, useState } from "react";
-import type { CheckReq } from "../CheckPage";
+import type { CheckReq } from "../check/CheckPage";
 import type { Page } from "../../components/Sidebar";
-import RenameBox from "../../components/RenameBox";
+import RenameBox from "./RenameBox";
 import { CardIcon, J, Keep, Phr, Seg, Skel } from "../../components/ui";
 import Dialog from "../../components/Dialog";
 import { IcBitrate, IcLink } from "../../components/icons";

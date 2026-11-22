@@ -9,21 +9,21 @@
    เปลี่ยนแทร็กหรือเปิดไฟล์อื่นตอนซับที่แก้ยังไม่บันทึก ถามก่อน บันทึก ไม่บันทึก (เก็บฉบับอัตโนมัติให้) หรือยกเลิก */
 import { useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
-import Dropdown from "../components/Dropdown";
-import Dialog from "../components/Dialog";
-import SubEditor from "../components/subedit/SubEditor";
-import { autosaveStrict, closeDoc, getSubEdit, requestSave, useSubEdit } from "../lib/subEdit";
-import { flushPad } from "../components/subedit/PadView";
-import { api, infoApi, inApp, mergeApi, pickFile, SUB_EXT, type ExtractItem, type MergeTrack } from "../lib/api";
-import { trackFrom, type AvTrack } from "../lib/avJob";
-import { usePageActive, usePageActiveRef } from "../lib/pageActive";
-import { ftName, isImageSub } from "../lib/ftypes";
-import { langName } from "../lib/langs";
-import { CardIcon, J, Keep, Phr, Seg, Skel, dropClick } from "../components/ui";
-import { IbPencil, IbTable, IbWand, IcExtract, IcFile, IcFolder, IcMix, IcSubtitle } from "../components/icons";
-import SubViewer from "../components/SubViewer";
-import OcrPage from "./ocr/OcrPage";
-import InfoTip from "../components/InfoTip";
+import Dropdown from "../../components/Dropdown";
+import Dialog from "../../components/Dialog";
+import SubEditor from "../../components/subedit/SubEditor";
+import { autosaveStrict, closeDoc, getSubEdit, requestSave, useSubEdit } from "../../lib/subEdit";
+import { flushPad } from "../../components/subedit/PadView";
+import { api, infoApi, inApp, mergeApi, pickFile, SUB_EXT, type ExtractItem, type MergeTrack } from "../../lib/api/index";
+import { trackFrom, type AvTrack } from "../../lib/avJob";
+import { usePageActive, usePageActiveRef } from "../../lib/pageActive";
+import { ftName, isImageSub } from "../../lib/ftypes";
+import { langName } from "../../lib/langs";
+import { CardIcon, J, Keep, Phr, Seg, Skel, dropClick } from "../../components/ui";
+import { IbPencil, IbTable, IbWand, IcExtract, IcFile, IcFolder, IcMix, IcSubtitle } from "../../components/icons";
+import SubViewer from "../../components/SubViewer";
+import OcrPage from "../ocr/OcrPage";
+import InfoTip from "../../components/InfoTip";
 
 const MOVIE_EXT = ["mkv", "mp4", "m4v", "mov", "avi", "webm", "ts", "m2ts", "mpg", "mpeg", "vob", "flv"];
 const extOf = (p: string) => (p.match(/\.([^.\\/]+)$/)?.[1] ?? "").toLowerCase();

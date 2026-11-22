@@ -1,10 +1,10 @@
 /* ตอนเปิดโปรแกรมครั้งแรก ยังไม่ได้เลือกโฟลเดอร์ (สเปกข้อ 10 ชั้นว่าง · ต้นแบบบรรทัด 1102–1112)
    ไม่มีเมนู · คนละอย่างกับอ่านโฟลเดอร์ไม่สำเร็จ ชั้นว่างคือยังไม่ได้เลือกโฟลเดอร์ */
-import { pickFolder } from "../lib/api";
-import { useSettings } from "../lib/settings";
-import { useLibrary } from "../lib/library";
-import { Phr } from "../components/ui";
-import { IcFolder } from "../components/icons";
+import { pickFolder } from "../../lib/api/index";
+import { useSettings } from "../../lib/settings";
+import { useLibrary } from "../../lib/library";
+import { Phr } from "../../components/ui";
+import { IcFolder } from "../../components/icons";
 
 export default function FirstRun() {
   const { update } = useSettings();

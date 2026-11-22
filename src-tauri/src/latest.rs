@@ -339,7 +339,7 @@ mod tests {
     /// ทุกลิงก์บนการ์ดขอบคุณในหน้าตั้งค่ากดเปิดได้ · เพิ่มการ์ดแล้วลืมเพิ่มที่อยู่ในรายการตายตัว ปุ่มบนการ์ดจะขึ้นว่าไม่รู้จักลิงก์นี้ (BUGS ข้อ 122 เพิ่ม mpv กับ Subtitle Edit)
     #[test]
     fn every_thanks_card_link_is_in_the_fixed_list() {
-        let src = include_str!("../../src/pages/SettingsPage.tsx");
+        let src = include_str!("../../src/pages/settings/data.tsx"); // รายการ THANKS อยู่ settings/data.tsx ตั้งแต่แบ่งไฟล์ขั้น 5.2
         let start = src.find("const THANKS:").expect("หารายการ THANKS ในหน้าตั้งค่าไม่เจอ");
         let end = start + src[start..].find("\n];").expect("หาท้ายรายการ THANKS ไม่เจอ");
         let mut links = Vec::new();

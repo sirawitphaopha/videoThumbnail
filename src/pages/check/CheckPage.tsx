@@ -2,19 +2,19 @@
    เลือกแบบตรวจ · เลือกเรื่อง · เริ่มตรวจ หยุดทั้งชุดได้ · ตารางผล · สรุปหลังตรวจครบ · หน้าต่างผลตรวจพร้อมปุ่มเปิดเล่นที่นาทีที่เสีย
    คิวตรวจอยู่ตัวกลาง lib/check.tsx งานรันฝั่ง Rust (check.rs) ออกจากหน้านี้ไปแล้วงานยังเดินต่อ */
 import { useEffect, useMemo, useState } from "react";
-import { checkApi, type CheckMode, type CheckSpan, type Movie } from "../lib/api";
-import { useLibrary } from "../lib/library";
-import { useSettings } from "../lib/settings";
-import { useCheck } from "../lib/check";
-import { useToast } from "../components/Toasts";
-import { kb } from "../lib/popup";
-import { fmtDateTime, fmtDuration, fmtRoughMinutes, fmtSize } from "../lib/format";
-import { FULL_SPEED, reminderDue } from "../lib/status";
-import type { Page } from "../components/Sidebar";
-import Dialog from "../components/Dialog";
-import { FixedTime, J, Keep, Phr, Skel, SortArrow, StatIcon } from "../components/ui";
-import type { GraphReq } from "./graph/GraphPage";
-import { IbStop, IcGraph, IbTick, IcCheck } from "../components/icons";
+import { checkApi, type CheckMode, type CheckSpan, type Movie } from "../../lib/api/index";
+import { useLibrary } from "../../lib/library";
+import { useSettings } from "../../lib/settings";
+import { useCheck } from "../../lib/check";
+import { useToast } from "../../components/Toasts";
+import { kb } from "../../lib/popup";
+import { fmtDateTime, fmtDuration, fmtRoughMinutes, fmtSize } from "../../lib/format";
+import { FULL_SPEED, reminderDue } from "../../lib/status";
+import type { Page } from "../../components/Sidebar";
+import Dialog from "../../components/Dialog";
+import { FixedTime, J, Keep, Phr, Skel, SortArrow, StatIcon } from "../../components/ui";
+import type { GraphReq } from "../graph/GraphPage";
+import { IbStop, IcGraph, IbTick, IcCheck } from "../../components/icons";
 
 type CkCol = "name" | "size" | "at" | "status";
 const CK_ORDER: Record<string, number> = { bad: 0, changed: 1, partial: 2, unchecked: 3, ok: 4 };

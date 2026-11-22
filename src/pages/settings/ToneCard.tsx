@@ -1,5 +1,5 @@
 /* การ์ดเลือกโทนสีในหน้าตั้งค่า พร้อมรูปตัวอย่าง · หน้าตาเดียวกับการ์ดในหน้าเลือกโทน · สีของการ์ดเป็นของโทนนั้น ไม่เปลี่ยนตามโทนที่ใช้อยู่ (data-keepcolor) */
-import { minContrast, ratio, type Tone } from "../lib/tones";
+import { minContrast, ratio, type Tone } from "../../lib/tones";
 
 const POSTERS = ["linear-gradient(170deg,#0f2747,#1e5a7a 55%,#7fc1c4)", "linear-gradient(170deg,#7a1f2b,#c9503a 55%,#f3b96a)", "linear-gradient(170deg,#0b3a42,#147a78 60%,#e0b44c)"];
 

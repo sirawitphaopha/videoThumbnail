@@ -5,10 +5,10 @@
    ตัวเช็กชื่อมีที่เดียวฝั่ง Rust (rename.rs) เรียกทุกครั้งที่พิมพ์ · ตอนบันทึกฝั่ง Rust เช็กซ้ำอีกรอบก่อนย้ายจริง
    ปุ่มบันทึก 4 สถานะ (สกิล save-status) กดได้ · กำลังเปลี่ยนชื่อ (ล็อกปุ่มยกเลิกด้วย) · กดไม่ได้พร้อมเหตุผลใต้ช่อง */
 import { useEffect, useRef, useState } from "react";
-import { api, type Movie, type RenameProblem } from "../lib/api";
-import ThaiInput from "./ThaiInput";
-import { CardIcon, Phr } from "./ui";
-import { IcRefresh, IbTick } from "./icons";
+import { api, type Movie, type RenameProblem } from "../../lib/api/index";
+import ThaiInput from "../../components/ThaiInput";
+import { CardIcon, Phr } from "../../components/ui";
+import { IcRefresh, IbTick } from "../../components/icons";
 
 const CARD_KINDS = new Set(["inuse", "denied", "missing", "busy", "other"]);
 

@@ -4,19 +4,19 @@
    หัวแผงเป็นรายการโฟลเดอร์ เพิ่มได้เรื่อย ๆ แถวยาวลงมาตามจำนวน (พี่กันสั่ง *"เลือกโฟลเดอร์เพิ่มได้เรื่อยๆ"*) · โฟลเดอร์หนังคือโฟลเดอร์ของชั้นวาง (พี่กันตอบตอนทำแผน)
    สลับดูรายการกับแค่รูปได้ทั้งสองแผง จำค่าไว้ · ชี้ที่รูปเห็นชื่อไฟล์ */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { usePageActiveRef } from "../lib/pageActive";
-import Dialog from "./Dialog";
-import SearchBox from "./SearchBox";
-import { Keep, Phr, Seg } from "./ui";
-import { useToast } from "./Toasts";
-import { useLibrary } from "../lib/library";
-import { useSettings } from "../lib/settings";
-import { IMAGE_EXT, inApp, linkApi, pickFile, pickFolder, thumbUrl, type LinkImage, type Movie } from "../lib/api";
-import { searchByName } from "../lib/thaiSearch";
-import { reloadImages, setLinkJob, setReply, thumbOf, useLinkJob } from "../lib/linkJob";
-import { IcPoster } from "./icons";
-import { IbTrash, IbBack } from "./icons";
-import { IbTable } from "./icons";
+import { usePageActiveRef } from "../../lib/pageActive";
+import Dialog from "../../components/Dialog";
+import SearchBox from "../../components/SearchBox";
+import { Keep, Phr, Seg } from "../../components/ui";
+import { useToast } from "../../components/Toasts";
+import { useLibrary } from "../../lib/library";
+import { useSettings } from "../../lib/settings";
+import { IMAGE_EXT, inApp, linkApi, pickFile, pickFolder, thumbUrl, type LinkImage, type Movie } from "../../lib/api/index";
+import { searchByName } from "../../lib/thaiSearch";
+import { reloadImages, setLinkJob, setReply, thumbOf, useLinkJob } from "../../lib/linkJob";
+import { IcPoster } from "../../components/icons";
+import { IbTrash, IbBack } from "../../components/icons";
+import { IbTable } from "../../components/icons";
 
 const extOf = (p: string) => (p.match(/\.([^.\\/]+)$/)?.[1] ?? "").toLowerCase();
 const baseName = (p: string) => p.split(/[\\/]/).pop() ?? p;

@@ -2,10 +2,10 @@
    ฝั่ง Rust อ่านแบบ EBML เอง (mkvtree.rs) อ่านอย่างเดียว · กดปุ่มแล้วค่อยอ่าน ไม่ให้ดิสก์ทำงานทุกครั้งที่เปิดหน้า
    ต้นไม้กางพับได้ ชั้นที่สำคัญมีปุ่ม ⓘ อธิบายภาษาไทย ชื่อชั้นเป็นคำอังกฤษตามมาตรฐาน Matroska (กฎคำเทคนิคใช้คำอังกฤษ) */
 import { useState } from "react";
-import { infoApi, type MkvNode } from "../lib/api";
-import InfoTip from "./InfoTip";
-import { CardIcon, Phr, Skel } from "./ui";
-import type { Tip } from "../lib/codecAdv";
+import { infoApi, type MkvNode } from "../../lib/api/index";
+import InfoTip from "../../components/InfoTip";
+import { CardIcon, Phr, Skel } from "../../components/ui";
+import type { Tip } from "../../lib/codecAdv";
 
 const t = (w: string): Tip => ({ w });
 /** คำอธิบายของแต่ละชั้น · ชื่อตรงกับ element() ใน mkvtree.rs */

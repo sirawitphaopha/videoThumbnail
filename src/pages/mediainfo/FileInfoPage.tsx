@@ -3,18 +3,18 @@
    แยกแทร็กออกจากหนังย้ายไปหน้าเสียงและซับแล้ว ที่เดียวกับงานรวม (BUGS ข้อ 35 พี่กันเคาะ 10 พ.ย. 2569 "ปุ่มเเยก กับรวม เอาที่เดียวกันในหน้นี้เลย") */
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
-import { api, infoApi, inApp, pickSave, thumbUrl, type HashCompare, type Hashes, type MiSection, type Movie } from "../lib/api";
-import { CardIcon, Keep, Phr, Skel } from "../components/ui";
-import { useSettings } from "../lib/settings";
-import ThaiInput from "../components/ThaiInput";
-import { useToast } from "../components/Toasts";
-import { fmtDateTime, fmtSize } from "../lib/format";
-import { kb } from "../lib/popup";
-import { IcCopy, IcPaste, IcClose } from "../components/icons";
-import { IbBack, IbStop, IcRefresh, IcMix, IcFolder, IbSave, IbTick, IcSideHide, IcSideShow } from "../components/icons";
-import { useElsewhere } from "../lib/elsewhere";
-import { glideBox } from "../lib/glide";
-import MkvTree from "../components/MkvTree";
+import { api, infoApi, inApp, pickSave, thumbUrl, type HashCompare, type Hashes, type MiSection, type Movie } from "../../lib/api/index";
+import { CardIcon, Keep, Phr, Skel } from "../../components/ui";
+import { useSettings } from "../../lib/settings";
+import ThaiInput from "../../components/ThaiInput";
+import { useToast } from "../../components/Toasts";
+import { fmtDateTime, fmtSize } from "../../lib/format";
+import { kb } from "../../lib/popup";
+import { IcCopy, IcPaste, IcClose } from "../../components/icons";
+import { IbBack, IbStop, IcRefresh, IcMix, IcFolder, IbSave, IbTick, IcSideHide, IcSideShow } from "../../components/icons";
+import { useElsewhere } from "../../lib/elsewhere";
+import { glideBox } from "../../lib/glide";
+import MkvTree from "./MkvTree";
 
 const ALGOS: [string, string][] = [["md5", "MD5"], ["sha1", "SHA-1"], ["sha256", "SHA-256"], ["crc32", "CRC32"], ["sha512", "SHA-512"]];
 

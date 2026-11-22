@@ -4,22 +4,22 @@
    ยืนยันทีละเรื่อง ที่ติ๊กไว้ หรือทั้งหมด · ยังไม่ยืนยันไม่มีอะไรถูกบันทึก คู่ที่รออยู่โปรแกรมจำไว้
    แถววาดด้วย content-visibility แถวนอกจอไม่กินเวลาวาด ร้อยแถวเลื่อนลื่น */
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
-import { usePageActiveRef } from "../lib/pageActive";
-import { CardIcon, Keep, Phr, Seg, dropClick } from "../components/ui";
-import SearchBox from "../components/SearchBox";
-import LinkBoard from "../components/LinkBoard";
-import CropDialog, { type CropChoice } from "../components/CropDialog";
-import { useSettings } from "../lib/settings";
-import { useToast } from "../components/Toasts";
-import { useLibrary } from "../lib/library";
-import { inApp, linkApi, pickFile, pickFolder, posterApi, thumbUrl, type PosterInfo, type AutoSummary, type LinkPick, type LinkRow, type LinkStatus } from "../lib/api";
-import { searchByName } from "../lib/thaiSearch";
-import { getLinkJob, reloadImages, runConfirm, setLinkJob, setReply, thumbOf, useLinkJob } from "../lib/linkJob";
-import "../styles/link.css";
-import { IcPoster, IcFolder, IcPlus } from "../components/icons";
-import HoverBig from "../components/HoverBig";
-import { IbBack, IbStop, IcLink, IbTick, IbEye, IbCrop, IbTrash } from "../components/icons";
-import Dialog from "../components/Dialog";
+import { usePageActiveRef } from "../../lib/pageActive";
+import { CardIcon, Keep, Phr, Seg, dropClick } from "../../components/ui";
+import SearchBox from "../../components/SearchBox";
+import LinkBoard from "./LinkBoard";
+import CropDialog, { type CropChoice } from "../../components/CropDialog";
+import { useSettings } from "../../lib/settings";
+import { useToast } from "../../components/Toasts";
+import { useLibrary } from "../../lib/library";
+import { inApp, linkApi, pickFile, pickFolder, posterApi, thumbUrl, type PosterInfo, type AutoSummary, type LinkPick, type LinkRow, type LinkStatus } from "../../lib/api/index";
+import { searchByName } from "../../lib/thaiSearch";
+import { getLinkJob, reloadImages, runConfirm, setLinkJob, setReply, thumbOf, useLinkJob } from "../../lib/linkJob";
+import "../../styles/link.css";
+import { IcPoster, IcFolder, IcPlus } from "../../components/icons";
+import HoverBig from "../../components/HoverBig";
+import { IbBack, IbStop, IcLink, IbTick, IbEye, IbCrop, IbTrash } from "../../components/icons";
+import Dialog from "../../components/Dialog";
 
 const isImagePath = (p: string) => /\.(jpe?g|png|webp|bmp|tiff?|heic|heif)$/i.test(p);
 const baseName = (p: string) => p.split(/[\\/]/).pop() ?? p;

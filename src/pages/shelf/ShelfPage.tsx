@@ -3,7 +3,7 @@
    ชั้นไม้ แถวละกี่เรื่องคิดจากความกว้างจริง · ตารางกดหัวคอลัมน์เรียง · แผงรายละเอียด การ์ดสถานะทุกแบบ ปุ่ม 6 ปุ่ม
    ไดรฟ์ที่ถอดออก หนังยังอยู่บนชั้นแบบจาง เปิดเล่นไม่ได้ · กำลังอ่านมีโครงจาง ปกขึ้นทีละเรื่อง */
 import { useEffect, useMemo, useRef, useState } from "react";
-import type { CheckReq } from "../CheckPage";
+import type { CheckReq } from "../check/CheckPage";
 import type { Page } from "../../components/Sidebar";
 import SearchBox from "../../components/SearchBox";
 import Dropdown from "../../components/Dropdown";

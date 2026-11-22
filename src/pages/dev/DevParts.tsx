@@ -3,11 +3,11 @@
    ตัวติดตั้งจริงไม่มีหน้านี้ */
 import { useState } from "react";
 import { invoke } from "@tauri-apps/api/core";
-import Dialog from "../components/Dialog";
-import Dropdown from "../components/Dropdown";
-import { useToast } from "../components/Toasts";
-import { Range, Seg, Skel, StatIcon, Switch } from "../components/ui";
-import { inApp } from "../lib/api";
+import Dialog from "../../components/Dialog";
+import Dropdown from "../../components/Dropdown";
+import { useToast } from "../../components/Toasts";
+import { Range, Seg, Skel, StatIcon, Switch } from "../../components/ui";
+import { inApp } from "../../lib/api/index";
 
 const SORTS = [
   { value: "name-asc", label: "ชื่อ ก–ฮ" },
