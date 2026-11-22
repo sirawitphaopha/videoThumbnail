@@ -127,6 +127,8 @@ async function shoot({ w, h, act, file }) {
     await act(p);
     await p.waitForTimeout(700);
     await p.evaluate(() => document.fonts.ready);
+    // รูปทุกรูปโหลดและถอดเสร็จก่อนถ่าย ไม่งั้นตอนเครื่องทำงานหนัก รูปย่อบางรูปยังเป็นภาพหยาบ (เจอที่รูปตัวอย่างในหน้าตั้งค่า เสียงและซับ)
+    await p.evaluate(() => Promise.all([...document.images].map((i) => (i.complete ? i.decode().catch(() => {}) : new Promise((r) => { i.onload = i.onerror = r; })))));
     await p.evaluate(() => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r))));
     await p.screenshot({ path: join(OUT, file) });
     n++;
