@@ -2,7 +2,8 @@
 // เกิดจริง 9 พ.ย. 2569 โลโก้ถูกบีบหายตอนย่อ ตัววัดเดิมดูแค่ตำแหน่ง จึงต้องวัดความกว้างด้วย
 import { mkdirSync } from "node:fs";
 import { connect, sleep } from "./lib/cdp-client.mjs";
-const PKG_VER = "v" + JSON.parse((await import("node:fs")).readFileSync("D:/movie-shelf/package.json", "utf8")).version;
+// เลขรุ่นบนจอแสดงขีดเป็นจุด (0.10.1-1 → v0.10.1.1 · Sidebar.tsx shownVersion)
+const PKG_VER = "v" + JSON.parse((await import("node:fs")).readFileSync("D:/movie-shelf/package.json", "utf8")).version.replace("-", ".");
 const OUT = "docs/report-2026-11-09/เมนูย่อขยาย";
 mkdirSync(OUT, { recursive: true });
 const c = await connect();

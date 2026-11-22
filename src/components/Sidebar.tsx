@@ -3,6 +3,8 @@
    ค่าย่อกางจำไว้ในการตั้งค่า (sidebarCollapsed) เปิดครั้งหน้ายังเหมือนเดิม */
 import { useState } from "react";
 import { version } from "../../package.json";
+/** เลขรุ่นบนจอ · ไฟล์ตั้งค่าของ npm cargo tauri บังคับเลขสามหลัก รุ่นย่อยจึงเก็บเป็น 0.10.1-1 แล้วแสดงเป็น 0.10.1.1 ตามที่พี่กันเรียก (BUGS ข้อ 153 · 22 พ.ย. 2569) */
+const shownVersion = version.replace("-", ".");
 import { IcBitrate, IcBrand, IcCheck, IcCollapse, IcGraph, IcInfo, IcLink, IcMix, IcSubtitle, IcPoster, IcSettings, IcShelf } from "./icons";
 
 export type Page = "shelf" | "poster" | "link" | "av" | "subtitle" | "check" | "graph" | "bitrate" | "mediainfo" | "settings";
@@ -99,7 +101,7 @@ export default function Sidebar({ page, onPage, collapsed, onToggle, shelfCount,
         <span className="navtxt">{collapsed ? "ขยายเมนู" : "ย่อเมนู"}</span>
         <span className="naven" aria-hidden="true">Expand</span>
       </button>
-      <div className="navver" title={"ชั้นหนัง รุ่น " + version} data-version>v{version}</div>
+      <div className="navver" title={"ชั้นหนัง รุ่น " + shownVersion} data-version>v{shownVersion}</div>
       {tip && (
         <div className="navtip" role="tooltip" style={{ left: tip.x, top: tip.y, translate: "0 -50%" }}>
           {tip.text}
