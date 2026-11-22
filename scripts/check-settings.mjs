@@ -184,7 +184,7 @@ try {
   // ---------- BUGS 127 หัวข้อชนิดไฟล์ที่รองรับ (พี่กันสั่ง 15 พ.ย. 2569 "เขียนชนิดไฟล์ทั้งหมดที่โปรแกรมเรารองรับ เเล้วรายละเอียดคร่าวๆ เพราะเราจำไม่ได้") ----------
   // ป้ายนามสกุลต้องตรงกับรายการใน api.ts ที่ทุกหน้าใช้ (cargo test file_types_match_frontend ตรวจว่า api.ts ตรงกับฝั่ง Rust) · คำอธิบายบรรทัดเดียวทุกแถว ไม่ถ่าง
   {
-    const api = readFileSync("src/lib/api.ts", "utf8");
+    const api = readFileSync("src/lib/api/files.ts", "utf8"); // รายการนามสกุลอยู่ api/files.ts ตั้งแต่แบ่งไฟล์ขั้น 6.1
     const apiList = (name) => { const k = `export const ${name} = [`; const s = api.indexOf(k) + k.length; return api.slice(s, api.indexOf("]", s)).split(",").map((x) => x.trim().replace(/"/g, "")).filter(Boolean).map((x) => x.toUpperCase()); };
     await c.setNav("types"); await sleep(400);
     const ft = await q("return [...document.querySelectorAll('[data-ft-group]')].map((g) => ({ g: g.getAttribute('data-ft-group'), t: g.querySelector('h4').innerText.trim(), rows: [...g.querySelectorAll('[data-ft-row]')].map((r) => ({ k: r.getAttribute('data-ft-row'), chips: [...r.querySelectorAll('.ftchip')].map((x) => x.innerText.trim()), over: r.scrollWidth - r.clientWidth })) }));");
