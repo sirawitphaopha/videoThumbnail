@@ -70,13 +70,5 @@ pub fn guesses_from_letters(word: &str, lang3: &str) -> Vec<String> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    #[test]
-    fn guesses() {
-        let g = guesses_from_letters("ofit", "eng");
-        assert!(g.contains(&"of it".to_string()), "{g:?}");
-        assert!(guesses_from_letters("Andy", "eng").is_empty());
-        assert!(guesses_from_letters("thecatsat", "eng").iter().any(|s| s == "the catsat"));
-    }
-}
+#[path = "ocrfix_guess_tests.rs"]
+mod tests;
