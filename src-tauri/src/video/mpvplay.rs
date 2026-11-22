@@ -350,17 +350,5 @@ pub fn mpv_dev_shot(path: String) -> Result<(), String> {
 pub fn mpv_dev_shot(_path: String) -> Result<(), String> { Err("ใช้ได้เฉพาะรุ่นทดสอบ".into()) }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    /// ทุกรหัสใน mpv_error ของ client.h (vendor/mpv) มีประโยคไทย ไม่ขึ้นแค่รหัส (BUGS ข้อ 150)
-    #[test]
-    fn mpv_codes_in_thai() {
-        for c in -19..=-1 {
-            let s = mpv_reason(c);
-            assert!(!s.contains("รหัส"), "{c} {s}");
-        }
-        assert!(mpv_reason(-13).starts_with("mpv เปิดไฟล์ไม่ได้"));
-        assert!(mpv_reason(-20).contains("ตอบรหัส -20"));
-    }
-}
+#[path = "mpvplay_tests.rs"]
+mod tests;
