@@ -315,7 +315,7 @@ mod tests {
     /// ไม่งั้นหน้าตั้งค่าบอกว่ารองรับทั้งที่โปรแกรมไม่รับ หรือกลับกัน (BUGS ข้อ 127)
     #[test]
     fn file_types_match_frontend() {
-        let api = include_str!("../../src/lib/api.ts");
+        let api = include_str!("../../src/lib/api/files.ts"); // รายการนามสกุลอยู่ api/files.ts ตั้งแต่แบ่งไฟล์ขั้น 6.1
         let list = |name: &str| -> Vec<String> {
             let key = format!("export const {name} = [");
             let start = api.find(&key).unwrap_or_else(|| panic!("หา {name} ใน api.ts ไม่เจอ")) + key.len();
