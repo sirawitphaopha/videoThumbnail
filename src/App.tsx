@@ -11,7 +11,7 @@ import { SettingsHost, useSettings } from "./lib/settings";
 import { LibraryHost, useLibrary } from "./lib/library";
 import { kindOf } from "./lib/status";
 import { fmtSize } from "./lib/format";
-import SettingsPage from "./pages/SettingsPage";
+import SettingsPage from "./pages/settings/SettingsPage";
 import BitratePage from "./pages/bitrate/BitratePage";
 import DevParts from "./pages/DevParts";
 import ShelfPage from "./pages/shelf/ShelfPage";

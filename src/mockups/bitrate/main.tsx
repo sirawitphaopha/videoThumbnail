@@ -29,7 +29,7 @@ import LinkPage from "../../pages/LinkPage";
 import AvPage from "../../pages/av/AvPage";
 import CheckPage from "../../pages/CheckPage";
 import GraphPage, { GraphBoundary } from "../../pages/graph/GraphPage";
-import SettingsPage from "../../pages/SettingsPage";
+import SettingsPage from "../../pages/settings/SettingsPage";
 import BitratePage from "../../pages/bitrate/BitratePage";
 
 applySavedTone();

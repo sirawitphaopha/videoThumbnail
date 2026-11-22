@@ -2,37 +2,37 @@
    ตั้งแล้วมีผลทันที ไม่ต้องกดบันทึก · สวิตช์ชมพู = เปิด · ค่าเก็บในไฟล์ค่าตั้งของโปรแกรมผ่าน set_settings (store.rs เขียนแบบปลอดภัยมีสำรอง)
    ค่าที่นี่คือค่าตั้งต้น ทุกครั้งที่ใส่โปสเตอร์หรือตรวจไฟล์ยังเปลี่ยนเฉพาะครั้งนั้นได้ */
 import { useEffect, useRef, useState } from "react";
-import { GRAPH_IMG_DEFAULT, api, vidApi, encodeApi, graphApi, linkApi, logApi, pickExe, pickFolder, playerApi, type EncoderInfo, type LatestInfo, type GraphImg, type LogInfo, type PlayerList, type Settings, type ToolCheck } from "../lib/api";
-import { kb } from "../lib/popup";
+import { GRAPH_IMG_DEFAULT, api, vidApi, encodeApi, graphApi, linkApi, logApi, pickExe, pickFolder, playerApi, type EncoderInfo, type LatestInfo, type GraphImg, type LogInfo, type PlayerList, type Settings, type ToolCheck } from "../../lib/api";
+import { kb } from "../../lib/popup";
 import { listen } from "@tauri-apps/api/event";
-import { inApp } from "../lib/api";
-import { useSettings } from "../lib/settings";
-import { useLibrary } from "../lib/library";
-import { useToast } from "../components/Toasts";
-import Dialog from "../components/Dialog";
-import Dropdown from "../components/Dropdown";
-import InfoTip from "../components/InfoTip";
-import { OV_START_TIP, SPEK_RES_TIP } from "../lib/graphTips";
-import { ovStart, setOvStart, type OvStart } from "../lib/ovFold";
-import { setLongName, useLongName, type LongName } from "../lib/longName";
-import { IcPalette, IcCheck, IcCoverL, IcCoverM, IcCoverS, IcTall, IcWide, IcFolder, IcGraph, IcLink, IcMix, IcPoster, IcSettings, IcShelf, IcExtract } from "../components/icons";
-import { CardIcon, J, Keep, Phr, Range, Seg, Skel, Switch } from "../components/ui";
-import { setSkelPreview, useSkelPreview } from "../lib/skelPreview";
-import { fmtSize } from "../lib/format";
-import { EXT_INFO, FILE_TYPES } from "../lib/fileTypes";
-import { DEFAULT_PATTERN, PATTERN_TOKENS, patternName } from "../lib/extractName";
-import type { Tip } from "../lib/codecAdv";
-import { driveName, freePct, isLow, takeSettingsSec, useDriveSpace } from "../lib/drives";
-import { folderKey } from "../lib/folders";
-import "../styles/av.css";
-import ToneCard from "../components/ToneCard";
-import { DEFAULT_TONE, TONES } from "../lib/tones";
-import { TRACK_PANEL_DEFAULT, setTrackPanel, useTrackPanel, type TrackPanel } from "../lib/trackPanel";
-import ImageViewer from "../components/ImageViewer";
-import { IcExpand } from "../components/icons";
-import tpUnder from "../assets/track-panel/under.png";
-import tpDialog from "../assets/track-panel/dialog.png";
-import tpSide from "../assets/track-panel/side.png";
+import { inApp } from "../../lib/api";
+import { useSettings } from "../../lib/settings";
+import { useLibrary } from "../../lib/library";
+import { useToast } from "../../components/Toasts";
+import Dialog from "../../components/Dialog";
+import Dropdown from "../../components/Dropdown";
+import InfoTip from "../../components/InfoTip";
+import { OV_START_TIP, SPEK_RES_TIP } from "../../lib/graphTips";
+import { ovStart, setOvStart, type OvStart } from "../../lib/ovFold";
+import { setLongName, useLongName, type LongName } from "../../lib/longName";
+import { IcPalette, IcCheck, IcCoverL, IcCoverM, IcCoverS, IcTall, IcWide, IcFolder, IcGraph, IcLink, IcMix, IcPoster, IcSettings, IcShelf, IcExtract } from "../../components/icons";
+import { CardIcon, J, Keep, Phr, Range, Seg, Skel, Switch } from "../../components/ui";
+import { setSkelPreview, useSkelPreview } from "../../lib/skelPreview";
+import { fmtSize } from "../../lib/format";
+import { EXT_INFO, FILE_TYPES } from "../../lib/fileTypes";
+import { DEFAULT_PATTERN, PATTERN_TOKENS, patternName } from "../../lib/extractName";
+import type { Tip } from "../../lib/codecAdv";
+import { driveName, freePct, isLow, takeSettingsSec, useDriveSpace } from "../../lib/drives";
+import { folderKey } from "../../lib/folders";
+import "../../styles/av.css";
+import ToneCard from "../../components/ToneCard";
+import { DEFAULT_TONE, TONES } from "../../lib/tones";
+import { TRACK_PANEL_DEFAULT, setTrackPanel, useTrackPanel, type TrackPanel } from "../../lib/trackPanel";
+import ImageViewer from "../../components/ImageViewer";
+import { IcExpand } from "../../components/icons";
+import tpUnder from "../../assets/track-panel/under.png";
+import tpDialog from "../../assets/track-panel/dialog.png";
+import tpSide from "../../assets/track-panel/side.png";
 
 /** แบบของส่วนตั้งค่าแทร็กในหน้าเสียงและซับ พร้อมรูปจากหน้าจริงที่หน้าต่าง 1280 × 800 ถ่ายสองเท่า (BUGS ข้อ 33) */
 const TP_OPTS: { value: TrackPanel; name: string; desc: string; img: string }[] = [
@@ -41,8 +41,8 @@ const TP_OPTS: { value: TrackPanel; name: string; desc: string; img: string }[] 
   { value: "side", name: "แผงขวา", desc: "อยู่ด้านขวาระหว่างแถบชื่อหนังกับแถววิธี\nเห็นชื่อแทร็กทุกแถวและปุ่มรวมยังกดได้", img: tpSide },
 ];
 // คำอธิบายการ์ดกว้าง 250 px ที่หน้าต่าง 1280 แต่ละวลีวัดแล้วพอดีบรรทัดเดียว (ยาวสุด 203 px) ขึ้นบรรทัดตรงรอยต่อวลี ไม่ตัดกลางวลี ไม่ถ่าง (เดิมตัด "อีก / ครั้ง" และบรรทัดบนถ่าง)
-import { IbTrash, IcRefresh } from "../components/icons";
-import { IbTick, IcClose, IcPlus, IbTable, IbPlay, IbEye, IbCrop, IcFile, IbWand } from "../components/icons";
+import { IbTrash, IcRefresh } from "../../components/icons";
+import { IbTick, IcClose, IcPlus, IbTable, IbPlay, IbEye, IbCrop, IcFile, IbWand } from "../../components/icons";
 
 const FolderIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b0355f" strokeWidth="2" aria-hidden="true"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>;
 
@@ -51,13 +51,13 @@ const IcHeart = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none
 /* พี่กันสั่ง 9 พ.ย. 2569 "อยากให้เมนูนึงในตั้งค่า นั่นคือเขียนว่าบางหน้าเราเอาไอเดีย เอาซอสโค้ดมาจากเจ้าไหน เขียนขอบคุณเขาหน่อย"
    ข้อความเช็กกับของจริง · ที่อยู่เว็บกดเปิดในเบราว์เซอร์หลัก รายการตายตัวอยู่ฝั่ง Rust โปรแกรมไม่ออกเน็ตเอง */
 /* พี่กันบอก 9 พ.ย. 2569 "เราหมายถึง icon โปรแกรมนั้น ๆ ของจริงนะ" · ใช้แบบเวกเตอร์จากคลังเปิดก่อน (SVG Logos กับ Simple Icons CC0 · Wikimedia Commons) ไม่มีค่อยใช้จากเว็บทางการหรือไฟล์โปรแกรม เก็บในโปรแกรม เปิดหน้านี้ไม่ออกเน็ต · ตัวที่หาไม่ได้ใช้ไอคอนกลาง */
-const THANK_FILES = import.meta.glob("../assets/thanks/*", { eager: true, query: "?url", import: "default" }) as Record<string, string>;
+const THANK_FILES = import.meta.glob("../../assets/thanks/*", { eager: true, query: "?url", import: "default" }) as Record<string, string>;
 const THANK_ICON: Record<string, string> = { "Spek": "spek.png", "FFBitrateViewer": "ffbitrateviewer.ico", "Claude": "claude.svg", "TypeScript": "typescript.svg", "Vite": "vite.svg", "ห้องสมุด Rust อื่น ๆ": "rust.svg", "ไอคอนในหน้านี้": "simpleicons.svg", "Bitrate Viewer": "bitrateviewer.ico", "Audacity": "audacity.svg", "Aegisub": "aegisub.svg", "Subtitle Edit": "subtitleedit.svg", "mpv (libmpv)": "mpv.svg", "SUPer": "super.png", "BDSup2Sub++": "bdsup2sub.png", "Kodi": "kodi.svg", "Claude Desktop": "claude.svg", "FFmpeg": "ffmpeg.png", "MKVToolNix": "mkvtoolnix.png", "MediaInfo": "mediainfo.svg", "FLAC": "flac.svg", "LAME กับ libmpg123": "lame.ico", "opus-tools": "opus.svg", "WavPack": "wavpack.svg", "Monkey's Audio": "monkeys.ico", "TAK": "tak.png", "libheif กับ libde265": "libheif.png", "Visual C++ Runtime": "microsoft.svg", "Rust": "rust.svg", "Tauri": "tauri.svg", "React": "react.svg", "image (Rust)": "image-rs.png" };
 /** MKVToolNix ใช้สองไอคอน พื้นหลังขาว (พี่กันสั่ง 10 พ.ย. 2569 "เอาใส่ทั้งสอง icon แต่ขอพื้นหลังขาว" · ยืนยันว่าเป็นของ MKVToolNix ทั้งคู่) */
 const WHITE_ICON = new Set(["MKVToolNix"]);
 const THANK_ICON2: Record<string, string> = { "MKVToolNix": "mkvtoolnix-2.png" };
-const thankImg2 = (name: string) => { const f = THANK_ICON2[name]; return f ? THANK_FILES["../assets/thanks/" + f] : undefined; };
-const thankImg = (name: string) => { const f = THANK_ICON[name]; return f ? THANK_FILES["../assets/thanks/" + f] : undefined; };
+const thankImg2 = (name: string) => { const f = THANK_ICON2[name]; return f ? THANK_FILES["../../assets/thanks/" + f] : undefined; };
+const thankImg = (name: string) => { const f = THANK_ICON[name]; return f ? THANK_FILES["../../assets/thanks/" + f] : undefined; };
 
 const THANKS: { title: string; note: string; rows: { name: string; ver?: string; what: string; tag: string; url: string; icon: React.ReactNode }[] }[] = [
   { title: "ไอเดียและหน้าตา", note: "ดูเป็นแบบแล้วเขียนเอง ไม่ได้ใช้โค้ดของโปรแกรมเหล่านี้", rows: [
