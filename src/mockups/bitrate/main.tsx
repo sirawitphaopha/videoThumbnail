@@ -26,7 +26,7 @@ import { useLinkJob } from "../../lib/linkJob";
 import ShelfPage from "../../pages/ShelfPage";
 import PosterPage from "../../pages/PosterPage";
 import LinkPage from "../../pages/LinkPage";
-import AvPage from "../../pages/AvPage";
+import AvPage from "../../pages/av/AvPage";
 import CheckPage from "../../pages/CheckPage";
 import GraphPage, { GraphBoundary } from "../../pages/graph/GraphPage";
 import SettingsPage from "../../pages/SettingsPage";

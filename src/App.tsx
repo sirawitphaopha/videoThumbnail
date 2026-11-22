@@ -18,7 +18,7 @@ import ShelfPage from "./pages/ShelfPage";
 import PosterPage, { type PosterStart } from "./pages/PosterPage";
 import LinkPage from "./pages/LinkPage";
 import { setLinkJob, useLinkJob } from "./lib/linkJob";
-import AvPage from "./pages/AvPage";
+import AvPage from "./pages/av/AvPage";
 import FileInfoPage from "./pages/FileInfoPage";
 import MediaInfoPage from "./pages/MediaInfoPage";
 import SubtitlePage from "./pages/SubtitlePage";
