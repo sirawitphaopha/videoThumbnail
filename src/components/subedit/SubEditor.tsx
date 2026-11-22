@@ -8,8 +8,7 @@
    ปุ่มบันทึกบอกสถานะทุกจังหวะ สำเร็จหายเอง ผิดพลาดค้างไว้ (สกิล save-status)
    คีย์ลัด Ctrl+Z เลิกทำ Ctrl+Y หรือ Ctrl+Shift+Z ทำซ้ำ Ctrl+S บันทึก Ctrl+Shift+S บันทึกเป็นไฟล์ใหม่ (ใช้ได้ตอนพิมพ์ในช่องด้วย) */
 import { useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { pickSave, subDocApi, type SubAutosave, type SubDoc, type SubLost } from "../../lib/api";
-import type { AvTrack } from "../../lib/avJob";
+import { pickSave, subDocApi, type SubAutosave, type SubDoc } from "../../lib/api";
 import { autosaveStrict, blankEvent, deleteEvents, edit, editedCount, getSubEdit, insertEvent, markSaved, openDoc, redo, select, setSaver, undo, useSubEdit, type SaveResult } from "../../lib/subEdit";
 import { useHotkeys } from "../../lib/hotkeys";
 import { usePageActiveRef } from "../../lib/pageActive";
@@ -39,57 +38,8 @@ import PadView, { flushPad, padBusy } from "./PadView";
 import RemuxDialog from "./RemuxDialog";
 import PgsDialog from "./PgsDialog";
 import "../../styles/subedit.css";
+import { Ask, CHARSETS, ENC_TIP, KIND_EXT, LEAD_IN, LEAD_OUT, LOST, Save, SubEditorProps, dirOf, extOf, nameOf } from "./editorParts";
 
-const nameOf = (p: string) => p.split(/[\\/]/).pop() ?? p;
-const dirOf = (p: string) => p.replace(/[\\/][^\\/]*$/, "");
-const extOf = (p: string) => (p.match(/\.([^.\\/]+)$/)?.[1] ?? "").toLowerCase();
-const KIND_EXT: Record<SubDoc["kind"], string> = { ass: "ass", ssa: "ssa", srt: "srt", vtt: "vtt" };
-/** เผื่อหน้า เผื่อท้าย ms (Audio/Lead/IN OUT ของ Aegisub) */
-const LEAD_IN = 100, LEAD_OUT = 350;
-const CHARSETS = ["UTF-8", "TIS-620", "Windows-1252", "UTF-16LE", "UTF-16BE"] as const;
-/** สิ่งที่หายตอนบันทึกเป็น SRT เป็นประโยค (subdoc.rs to_srt ส่งคีย์มา) */
-const LOST: Record<string, string> = {
-  comment: "บรรทัดความคิดเห็น", actor: "ชื่อตัวละคร", layer: "ลำดับชั้น (เลเยอร์)", style: "สไตล์ของแต่ละบรรทัด ซับ SRT ทุกบรรทัดใช้หน้าตาตั้งต้นของโปรแกรมเล่น",
-  effect: "เอฟเฟกต์", margin: "ระยะขอบของแต่ละบรรทัด", tags: "แท็กฟอนต์ ขนาด สี ตำแหน่ง และแท็กอื่นที่ไม่ใช่ตัวหนา ตัวเอียง ขีดเส้นใต้ ขีดฆ่า", fonts: "ฟอนต์หรือรูปที่ฝังไว้ในไฟล์ ASS", settings: "ค่าตั้งตำแหน่งของ VTT",
-};
-const ENC_TIP = {
-  w: "รหัสที่ใช้เก็บตัวอักษรในไฟล์ โปรแกรมเดาให้ตอนเปิด และบันทึกกลับด้วยรหัสเดิม ถ้าภาษาไทยขึ้นเป็นตัวแปลก ๆ ให้เปิดด้วยรหัสอื่น",
-  o: [
-    ["UTF-8", "รหัสสากล เก็บได้ทุกภาษา", "โปรแกรมเล่นทุกตัวอ่านได้", "ไฟล์ไทยใหญ่กว่า TIS-620 ราวสามเท่า"] as [string, string, string, string],
-    ["TIS-620", "รหัสไทยแบบเก่า ซับไทยเก่า ๆ ใช้กันเยอะ", "ไฟล์เล็ก", "เก็บได้แค่ไทยกับอังกฤษ ตัวอื่นต้องบันทึกเป็น UTF-8"] as [string, string, string, string],
-    ["Windows-1252", "รหัสภาษายุโรปแบบเก่า", "ซับฝรั่งเศส เยอรมัน สเปนเก่าอ่านถูก", "เก็บภาษาไทยไม่ได้"] as [string, string, string, string],
-    ["UTF-16", "รหัสสากลอีกแบบ ตัวละสองไบต์", "เก็บได้ทุกภาษา", "โปรแกรมเล่นบางตัวอ่านไม่ได้"] as [string, string, string, string],
-  ],
-  r: "เปิดแล้วอ่านออกถูกต้องอยู่แล้ว ไม่ต้องเปลี่ยน",
-};
-
-type Save = { s: "idle" } | { s: "saving" } | { s: "done"; note: string | null } | { s: "failed"; err: string };
-type Ask =
-  | { k: "changed" }
-  | { k: "inexact" }
-  | { k: "saveas"; to: SubDoc["kind"]; lost: SubLost[] | null; path: string }
-  | { k: "exists"; path: string; to: SubDoc["kind"] };
-
-export type SubEditorProps = {
-  track: AvTrack;
-  /** ชื่อที่แสดงและใช้ตั้งชื่อฉบับบันทึกอัตโนมัติ */
-  label: string;
-  /** ไฟล์หนังที่ซับนี้อยู่ข้างใน (ซับในหนัง) */
-  moviePath: string;
-  /** หนังที่ใช้ดูภาพกับฟังเสียง · ว่าง = ยังไม่มีวิดีโอ */
-  video: string;
-  refStream: number | null;
-  refIdx: number | null;
-  fps: number | null;
-  /** ขนาดภาพของหนัง ใช้เป็นขนาดภาพของซับตอนเปลี่ยน SRT เป็น ASS */
-  playRes: [number, number] | null;
-  tab: "aeg" | "long" | "pad";
-  onAddMovie?: () => void;
-  /** ใส่ซับกลับเข้าหนังแล้วไฟล์หนังได้ชื่อใหม่ (หนัง MP4 กับซับ ASS ได้ไฟล์ .mkv) หน้าซับไตเติลชี้ไฟล์ใหม่ (ผู้ช่วยตรวจทาน F9) */
-  onMovieMoved?: (from: string, to: string) => void;
-  /** ปุ่มตั้งค่าในแถบปุ่มย่อ พาไปหน้าตั้งค่าหัวข้อเสียงและซับ (app/options ของ Aegisub · BUGS ข้อ 113) */
-  onSettings?: () => void;
-};
 
 /** เลขคำขอเปิดซับล่าสุด (F6) · เป็นของโมดูลเพราะที่เก็บเอกสารเป็นของโมดูล หน้าแก้ซับที่ถอดไปแล้วก็ยังเรียก openDoc ได้ */
 let openSeq = 0;
