@@ -1,0 +1,39 @@
+/* หน้าตากลาง ตัวดูรูปเต็มจอ การ์ดโทนสี และแบบส่วนตั้งค่าแทร็กในหน้าตั้งค่า (ไฟล์เดิมวางคั่นกลางหัวข้อหน้ากราฟเสียง ย้ายตามลำดับเดิม)
+   แยกจาก app.css ตอนแบ่งไฟล์ทั้งโปรเจกต์ (BUGS ข้อ 153 · แผนแบ่งไฟล์ขั้น 8.7) ย้ายมาทั้งก้อน กฎไม่เปลี่ยน ลำดับใน app.css ตามลำดับเดิม */
+/* ตัวดูรูปเต็มจอ (components/ImageViewer.tsx · สกิล image-viewer) */
+.ivw-bar { width: 35%; border-radius: 0 3px 3px 0; animation: ivwBar 1.05s ease-in-out infinite; }
+@keyframes ivwBar { 0% { transform: translateX(-120%); } 100% { transform: translateX(420%); } }
+.ivw-btn { transition: background-color .15s ease, color .15s ease; }
+.ivw-btn:hover { background: var(--accent) !important; color: #fff !important; }
+
+/* การ์ดโทนสีในหน้าตั้งค่า (components/ToneCard.tsx) */
+.tncards { display: grid; grid-template-columns: repeat(5, minmax(0, 1fr)); gap: 12px; }
+.tncard { border-radius: 12px; overflow: hidden; text-align: left; background: var(--t-surface); color: var(--t-txt); border: 1px solid var(--t-line); padding: 0; font: inherit; cursor: pointer; display: flex; flex-direction: column; transition: translate .15s, box-shadow .15s; }
+.tncard:hover { translate: 0 -2px; box-shadow: 0 6px 16px rgba(60,20,35,.14); }
+.tncard:focus-visible { outline: 2px solid var(--t-accent); outline-offset: 2px; }
+.tncard.on { border-color: var(--t-accent); box-shadow: 0 0 0 2px var(--t-accent); }
+.tnmini { display: flex; height: 80px; background: var(--t-canvas); flex: none; }
+.tnmini i { display: block; }
+.tnside { width: 20px; background: var(--t-side); border-right: 1px solid var(--t-sideline); flex: none; }
+.tnposters { display: flex; gap: 5px; padding: 10px 8px; align-items: flex-start; min-width: 0; }
+.tnposters i { width: 30px; height: 45px; flex: none; box-shadow: 0 2px 5px rgba(0,0,0,.25); }
+.tnbody { padding: 10px; display: flex; flex-direction: column; gap: 6px; flex: 1; width: 100%; }
+.tnname { font-weight: 700; font-size: 14px; line-height: 1.35; }
+.tnrec { display: inline-block; margin-left: 6px; vertical-align: 1px; font-size: 11px; font-weight: 600; padding: 0 6px; border-radius: 5px; background: var(--t-accent); color: var(--t-on); white-space: nowrap; }
+.tnratio { display: flex; height: 14px; border: 1px solid var(--t-line); border-radius: 5px; overflow: hidden; flex: none; }
+.tnratio i { display: block; }
+.tndesc { font-size: 12px; line-height: 1.5; color: var(--t-txt2); flex: 1; }
+.tncon { font-size: 11px; line-height: 1.45; color: var(--t-txt3); border-top: 1px solid var(--t-line); padding-top: 6px; }
+@media (max-width: 1120px) { .tncards { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+/* หน้าตั้งค่า แบบของส่วนตั้งค่าแทร็ก การ์ดมีรูปจากหน้าจริง (BUGS ข้อ 33 พี่กันสั่ง "ใส่รูปไว้หน่อยนะ แบบความละเอียดสูง") · ชี้ ยก และที่เลือกแบบเดียวกับการ์ดโทนสี */
+.tpcards { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; margin-top: 12px; }
+.tpcard { border-radius: 12px; border: 1px solid var(--line); background: var(--win); padding: 8px 8px 10px; cursor: pointer; display: flex; flex-direction: column; gap: 6px; transition: translate .15s, box-shadow .15s, border-color .15s; }
+.tpcard:hover { translate: 0 -2px; box-shadow: 0 6px 16px rgba(60, 20, 35, .14); border-color: var(--accent); }
+.tpcard:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; }
+.tpcard.on { border-color: var(--accent); box-shadow: 0 0 0 2px var(--accent); }
+.tpimg { position: relative; display: block; border-radius: 8px; overflow: hidden; border: 1px solid var(--line); aspect-ratio: 1080 / 766; background: var(--win2); }
+.tpimg > img { display: block; width: 100%; height: 100%; object-fit: cover; }
+.tpimg > .tpbig { right: 6px; bottom: 6px; width: 26px; height: 26px; border-radius: 7px; }
+.tpname { display: flex; align-items: center; gap: 8px; font-weight: 600; font-size: 14px; }
+.tptag { font-size: 11.5px; font-weight: 600; padding: 1px 8px; border-radius: 999px; background: var(--accent-soft); color: var(--accent-ink); }
+

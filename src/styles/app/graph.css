@@ -1,0 +1,293 @@
+/* หน้าตากลาง หน้ากราฟเสียง ส่วนแรก กราฟทุกมุมมอง แถบช่อง ลำโพง แถบภาพรวม แถบซูม
+   แยกจาก app.css ตอนแบ่งไฟล์ทั้งโปรเจกต์ (BUGS ข้อ 153 · แผนแบ่งไฟล์ขั้น 8.7) ย้ายมาทั้งก้อน กฎไม่เปลี่ยน ลำดับใน app.css ตามลำดับเดิม */
+/* ---------- หน้ากราฟเสียง (มอคอัป docs/mockups/audio-graph.html · ทุกคลาสอยู่ใต้ .ag ไม่กระทบหน้าอื่น) ---------- */
+.ag { display: flex; flex-direction: column; gap: 12px; padding: 16px 18px 18px; min-width: 0; }
+.agtop { display: flex; align-items: center; gap: 10px; }
+.fchip { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 6px 12px 6px 6px; }
+.fthumb { width: 30px; height: 44px; border-radius: 4px; flex: none; object-fit: cover; box-shadow: 0 2px 6px rgba(60,25,40,.25); }
+.fnote { width: 44px; height: 44px; border-radius: 8px; flex: none; display: flex; align-items: center; justify-content: center; }
+.fchip .nm { font-weight: 600; font-size: 14.5px; line-height: 1.4; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.fchip .ext { color: var(--txt3); font-weight: 400; }
+.fchip .meta { font-size: 12.5px; color: var(--txt3); line-height: 1.4; }
+.agctl { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; }
+.agctl .seg { flex: none; }
+.agctl .seg button { height: 30px; font-size: 13px; padding: 0 8px; gap: 5px; white-space: nowrap; }
+@media (max-width: 1240px) { .agctl .seg button { padding: 0 5px; font-size: 12.5px; gap: 3px; } }
+@media (max-width: 1040px) { .agctl { flex-wrap: wrap; } }
+.ag .lbl { font-size: 13px; color: var(--txt2); }
+.sws { display: flex; align-items: center; gap: 6px; }
+/* ปุ่มเลือกธีมหน้ากราฟเสียง · ต้องอยู่ใต้ .sws เท่านั้น ชื่อ sw ชนมุมจับซ้ายล่างของกรอบครอป (.hd.sw) เดิมมุมนั้นกลายเป็นวงกลมขาว */
+.sws .sw { width: 26px; height: 26px; border-radius: 50%; border: 2px solid #fff; box-shadow: 0 0 0 1px #e7c8d2; cursor: pointer; padding: 0; transition: box-shadow .15s, transform .15s; }
+.sws .sw:hover { box-shadow: 0 0 0 2px var(--accent); }
+.sws .sw.on { box-shadow: 0 0 0 2px var(--accent-d); }
+.ag .seg button:disabled { color: #c9aab4; cursor: not-allowed; background-color: #f7f7f7; }
+.agb { display: grid; grid-template-columns: 232px 1fr; gap: 14px; align-items: start; }
+.agb.wide { grid-template-columns: minmax(0, 1fr); }
+.apanel { display: flex; flex-direction: column; gap: 12px; }
+/* ชิ้นในแผงไม่หด แผงสูงไม่พอให้เลื่อนในแผง */
+.apanel > * { flex-shrink: 0; }
+.ag .card { padding: 14px; }
+.ag .card h3 { margin: 0 0 8px; font-size: 14.5px; justify-content: space-between; color: var(--accent-ink); }
+/* คอลัมน์ค่ากว้างได้ไม่เกินแผง ค่ายาว (ชื่อศิลปิน) ตัดบรรทัดในแผง ไม่ดันแผงจนเลื่อนแนวนอน (พี่กันทัก 10 พ.ย. 2569 "แถบเลื่อนมันทับ") */
+.ag .kv { grid-template-columns: auto minmax(0, 1fr); gap: 5px 10px; }
+.ag .kv dt { color: var(--txt2); white-space: nowrap; }
+.ag .kv .nw { white-space: nowrap; }
+.ag .kv dd { font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; min-width: 0; overflow-wrap: anywhere; }
+.plot { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px 12px; min-width: 0; position: relative; }
+.plothead { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--txt2); margin-bottom: 8px; min-height: 32px; flex-wrap: wrap; }
+.plothead b { color: var(--txt); font-size: 14px; }
+.plothead .dd, .agfoot .dd { height: 30px; font-size: 13px; }
+.ovw { position: relative; height: 38px; border-radius: 6px; overflow: hidden; cursor: pointer; }
+/* ปุ่มพับกางแถบภาพรวม (BUGS ข้อ 17) · ตอนกางอยู่มุมขวาบนของแถบ ตอนพับเหลือแถบบางมีปุ่มกาง */
+.ovwrap { position: relative; }
+.ovtog { display: inline-flex; align-items: center; gap: 6px; border: 0; border-radius: 6px; background: color-mix(in srgb, var(--win) 88%, transparent); color: var(--txt2); font: inherit; font-size: 12px; cursor: pointer; padding: 2px 8px; transition: background-color .12s, color .12s; }
+.ovtog:hover { background: color-mix(in srgb, var(--accent) 14%, var(--win)); color: var(--accent-ink); }
+.ovtog:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.ovtog.out { position: absolute; top: 50%; transform: translateY(-50%); width: 24px; height: 20px; padding: 0; justify-content: center; }
+.ovtog.out.up svg, .ovtog.ovleft svg { transform: rotate(180deg); }
+.ovtog.ovleft { position: absolute; right: calc(100% + 4px); top: 50%; transform: translateY(-50%); gap: 4px; padding: 2px 4px 2px 8px; white-space: nowrap; }
+.ovfold { position: relative; height: 10px; border-radius: 5px; cursor: pointer; background: color-mix(in srgb, var(--accent) 7%, var(--win)); box-shadow: inset 0 0 0 1px color-mix(in srgb, var(--accent) 14%, transparent); }
+.ovfold:hover { background: color-mix(in srgb, var(--accent) 12%, var(--win)); }
+/* ข้อความแสดงภาพรวมทั้งไฟล์ อยู่ช่องว่างซ้ายตรงกับเส้น ชิดขวาเข้าหาเส้น (พี่กันถาม "เเล้วคำยาวๆมันหายไปไหน" ตอนเส้นหนา 10 ใส่ตัวหนังสือในเส้นไม่ได้) */
+.ovfoldtxt { position: absolute; right: calc(100% + 8px); top: 50%; transform: translateY(-50%); text-align: right; font-size: 11.5px; line-height: 14px; color: var(--txt2); }
+.ovfold:hover .ovfoldtxt { color: var(--accent-ink); }
+/* ช่วงที่ดูอยู่บนเส้นตอนพับ สีเดียวกับกรอบช่วงบนแถบตอนกาง (พี่กันสั่ง "แม้จะไม่มีกราฟ เเต่มันก็จะไฮไลต์เวลานั้นๆด้วย") · สีตั้งจากโค้ดตรงกับผืนวาด ตัวแปลงโทนไม่แปลง */
+.ovfoldwin { position: absolute; top: 0; bottom: 0; border-radius: 5px; pointer-events: none; }
+/* ปุ่มพับกับปุ่มกางอยู่ที่เดียวกันนอกแถบ (พี่กันสั่ง "มันควรจะอยู่ฝั่งเดียวกัน" · ทักว่าปุ่มในแถบ "บัง") ตำแหน่งตั้งจากโค้ด togPos · แถบตอนพับเป็นเส้นเดียวหนา 10 พื้นจางขอบจาง (พี่กันสั่ง "เอาเส้นเดียว หนา 10") · ตอนกางขนาดและสีเดิม */
+.ovw canvas { width: 100%; height: 100%; display: block; }
+.ruler { position: relative; height: 26px; border-bottom: 1px solid #efdbe2; font-size: 11.5px; color: var(--txt3); font-variant-numeric: tabular-nums; }
+.ruler span { position: absolute; bottom: 3px; transform: translateX(-50%); white-space: nowrap; }
+/* ขีดแบบไม้บรรทัด ขีดยาวตรงเลข ขีดสั้นระหว่างเลข ตั้งขึ้นจากเส้นล่างของแถบ (พี่กันสั่ง "ขอขีดตั้งเหมือนกับไม้บรรทัดด้วย ตรงเลขเวลา") */
+.ruler .tk { position: absolute; bottom: 0; width: 1px; height: 6px; margin-left: -0.5px; background: #cfa9b7; font-style: normal; }
+.ruler .tk.sm { height: 3px; background: #e2c6d0; }
+/* เลขอยู่กลางระหว่างขอบบนของแถบกับปลายขีด วัดจากตัวอักษรจริง ห่างบนกับล่างเท่ากัน (พี่กันทัก "มันชิดขอบบนมากกว่าขอบล่าง ขอกลางกว่านี้" · เดิมบน 0 ล่าง 12) */
+.ruler .tk span { bottom: 5px; left: 0; }
+.ovrul { position: relative; height: 16px; font-size: 11px; color: var(--txt3); font-variant-numeric: tabular-nums; }
+.ovrul span { position: absolute; top: 1px; transform: translateX(-50%); white-space: nowrap; }
+.ovrul span:first-child { transform: none; }
+.ovrul span:last-child { transform: translateX(-100%); }
+.lanes { position: relative; display: flex; flex-direction: column; gap: 6px; margin-top: 6px; }
+.lane { display: grid; grid-template-columns: 96px 1fr; align-items: stretch; }
+.lab { display: flex; flex-direction: column; justify-content: center; padding-right: 8px; line-height: 1.25; min-width: 0; }
+.lab b { font-size: 13px; color: var(--txt); display: flex; align-items: center; gap: 4px; }
+/* ปุ่มปิดเปิดลำโพงที่ป้ายชื่อช่อง (BUGS ข้อ 148) · ชี้แล้วพื้นอมสีหลัก · ช่องที่ปิดอยู่ไอคอนเป็นลำโพงกากบาท */
+.lanetog { display: inline-grid; place-items: center; width: 22px; height: 22px; flex: none; padding: 0; border: 1px solid var(--line); border-radius: 6px; background: #fff; color: var(--txt2); cursor: pointer; }
+.lanetog:hover { background: var(--accent-soft); border-color: var(--accent); color: var(--accent-ink); }
+.lanetog[aria-pressed="false"] { color: var(--bad, #b03535); }
+.lanetog.wait { cursor: not-allowed; opacity: .5; }
+.lanetog.wait:hover { background: #fff; border-color: var(--line); color: var(--txt2); }
+.lab span { font-size: 11.5px; color: var(--txt2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.lab em { font-style: normal; font-size: 11px; color: var(--txt3); font-variant-numeric: tabular-nums; }
+.cv { width: 100%; display: block; border-radius: 4px; }
+/* แบบเต็มช่อง ช่องคั่นกับมุมเท่าแบบอื่น กรอบกราฟอยู่ตำแหน่งเดียวกันทุกแบบ (เดิมช่องติดกัน มุมเหลี่ยม ช่องล่างขึ้นไป 6 จุด พี่กันทัก 11 พ.ย. 2569 "มันไม่เท่ากันเลย") */
+/* เส้นแบ่งช่องกลางช่องคั่น ยาวเท่าตัวกราฟ ไม่กินที่ ช่องอยู่ตำแหน่งเดิม (พี่กันสั่ง "ขอเส้นเเบ้งเสียงซ้ายขวา" · พื้นช่องขาวเท่าพื้นการ์ด ช่องคั่นมองไม่เห็น) */
+.lanes[data-wstyle=real] > .lane + .lane { position: relative; }
+.lanes[data-wstyle=real] > .lane + .lane::before { content: ""; position: absolute; left: calc(96px + 40px); right: 0; top: -3.5px; height: 1px; background: color-mix(in srgb, black 25%, white); pointer-events: none; }
+.xh { position: absolute; top: 0; bottom: 0; width: 1px; background: #472e36; opacity: .55; pointer-events: none; }
+.tip { position: absolute; top: 6px; background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 10px 22px rgba(60,25,40,.18); padding: 8px 10px; font-size: 12px; pointer-events: none; min-width: 150px; z-index: 3; }
+.tip .t { font-weight: 700; color: var(--txt); margin-bottom: 3px; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.tip .r { display: grid; grid-template-columns: auto 1fr; gap: 0 10px; line-height: 1.55; }
+.tip .r b { font-variant-numeric: tabular-nums; text-align: right; color: var(--txt); white-space: nowrap; }
+.tip .r span { color: var(--txt2); white-space: nowrap; }
+.tip .key { display: inline-block; width: 12px; height: 2px; border-radius: 1px; vertical-align: middle; margin-right: 5px; }
+.mark { position: absolute; top: 0; bottom: 0; background: rgba(208,59,59,.13); border-left: 1px solid rgba(208,59,59,.75); border-right: 1px solid rgba(208,59,59,.75); pointer-events: none; }
+.mark .ml { position: absolute; top: -24px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 11.5px; font-weight: 600; color: #b03535; background: #fff; border: 1px solid #f1b7b7; border-radius: 6px; padding: 0 6px; display: flex; align-items: center; gap: 4px; line-height: 1.6; }
+.agfoot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+.lg { display: flex; align-items: center; gap: 14px; font-size: 12.5px; color: var(--txt2); flex-wrap: wrap; }
+.lg i { display: inline-block; width: 12px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
+.lg .ln { display: inline-block; width: 14px; height: 2px; border-radius: 1px; margin-right: 5px; vertical-align: 3px; }
+/* แถบล่างหน้ารูปคลื่น โครงเดียวกันทั้งสามแบบ แถวบนป้ายสี แถวล่างหมายเหตุบรรทัดเดียว ยาวเกินตัดด้วย … ชี้ดูเต็ม · สูงคงที่ สลับแบบแล้วไม่ขยับ (พี่กันสั่ง "ทำห้มันเหมือนกัน เเล้ว fiix") */
+.lg.wavelg { flex-direction: column; align-items: flex-start; gap: 2px; flex-wrap: nowrap; min-width: 0; flex: 1 1 auto; }
+.wavelg .lgrow { display: flex; align-items: center; gap: 14px; height: 22px; white-space: nowrap; }
+.wavelg .lgnote { max-width: 100%; height: 19px; line-height: 19px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.speclegend { display: flex; align-items: center; gap: 8px; font-size: 12px; color: var(--txt2); flex-wrap: wrap; }
+.speclegend .rampbar { width: 90px; height: 10px; border-radius: 3px; }
+.tiles { display: grid; grid-template-columns: repeat(4, 1fr); gap: 10px; margin-bottom: 10px; }
+.tile { background: var(--win2); border-radius: 10px; padding: 10px 12px; }
+.tile b { display: block; font-size: 20px; line-height: 1.3; color: var(--txt); font-variant-numeric: tabular-nums; }
+.tile span { font-size: 12.5px; color: var(--txt2); }
+.tile em { display: block; font-style: normal; font-size: 11.5px; color: var(--txt3); line-height: 1.45; }
+.pbars { display: grid; grid-template-columns: 96px 1fr 64px; gap: 4px 10px; align-items: center; font-size: 12.5px; margin-top: 6px; }
+.pbars .bt { height: 10px; border-radius: 0 4px 4px 0; background: #f7e5eb; position: relative; }
+.pbars .bt i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 0 4px 4px 0; }
+.pbars .v { text-align: right; font-variant-numeric: tabular-nums; color: var(--txt); }
+.ag .sub { font-size: 13.5px; font-weight: 600; color: var(--txt); margin: 12px 0 2px; }
+.spk { display: block; margin: 0 auto; }
+.spk .s { cursor: pointer; outline: none; }
+.spk .s.solo { cursor: default; }
+.spk .s:focus-visible circle, .spk .s:focus-visible rect { stroke: var(--accent-d); stroke-width: 2.5; }
+.graph-recent { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 8px; }
+.graph-recent .dd { height: auto; min-height: 42px; padding: 6px 12px; }
+/* รายการเปิดล่าสุด ปุ่มเปิดกับปุ่มกากบาทเอาออก (คิว 7) */
+.recentrow { position: relative; min-width: 0; }
+.recentrow .dd { width: 100%; min-width: 0; padding-right: 38px; }
+.recentrow > button:last-child { position: absolute; right: 6px; top: 50%; translate: 0 -50%; width: 26px; height: 26px; min-height: 0; padding: 0; border: 0; border-radius: 7px; background: transparent; display: flex; align-items: center; justify-content: center; }
+.recentrow > button:last-child:hover { background: var(--accent-soft); }
+/* ไฟล์หาย บอกตั้งแต่ก่อนกด กดไม่ได้ เหลือปุ่มกากบาทเอาออกจากรายการ */
+.recentrow.lost .dd { cursor: not-allowed; background: var(--bad-soft); border-color: #f1b7b7; color: var(--txt3); }
+.recentrow.lost .dd:hover { background: var(--bad-soft); border-color: #f1b7b7; color: var(--txt3); }
+.recentrow.lost .dd img, .recentrow.lost .dd i { opacity: .5; }
+.recentrow.lost .lostmark { color: var(--bad-ink); font-weight: 600; }
+/* พี่กันสั่ง 9 พ.ย. 2569 "เอามาต่อกัน icon สองอันนี้" ไอคอนหรือปกกับป้ายนามสกุลติดกันเป็นก้อนเดียว สูงเท่ากัน */
+.rtype { flex: none; display: inline-flex; align-items: stretch; height: 27px; }
+.rtype > .rnote, .rtype > img { border-radius: 3px 0 0 3px !important; }
+/* หน้าขอบคุณ การ์ดเรียงเป็นตาราง พี่กันสั่ง 9 พ.ย. 2569 "ใส่ icon ด้วย และทำเป็นการ์ดหน่อย" */
+.thanksgrid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 10px; margin: 8px 0 18px; }
+.thankcard { display: flex; flex-direction: column; gap: 6px; min-width: 0; padding: 12px; border: 1px solid var(--line); border-radius: 10px; background: #fff; }
+.thankhead { display: flex; flex-wrap: nowrap; align-items: center; gap: 4px 9px; min-width: 0; font-size: 14px; }
+.thankhead b { font-weight: 600; overflow-wrap: anywhere; }
+/* พื้นหลังขาวทุกไอคอน (พี่กันสั่ง 10 พ.ย. 2569 "พื้นหลังขาวให้หมด") */
+.thankicon { flex: none; width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border-radius: 8px; background: white; box-shadow: inset 0 0 0 1px var(--line); color: var(--accent-ink); }
+.thankicon b { font-size: 16px; }
+.thankicon img { width: 28px; height: 28px; object-fit: contain; display: block; }
+.thankicon.white img { width: 28px; height: 28px; }
+/* เลขรุ่นต่อท้ายชื่อ (พี่กันสั่ง 10 พ.ย. 2569 "ทุกตัว เธอใส่เวอร์ชั่นด้วยนะ ถ้ามี") */
+/* ชื่อการ์ดอยู่บรรทัดเดียวเสมอ ป้ายสัญญาหดแทน (พี่กันทัก 10 พ.ย. 2569 "ตกบรรทัด" ห้องสมุด Rust อื่น ๆ ตัด ๆ ลงบรรทัดใหม่) */
+.thankname { display: flex; flex-direction: column; flex: 1 1 auto; min-width: 0; line-height: 1.3; }
+.thankname b { white-space: normal; }
+/* แถวเดียวไม่พอ ป้ายสัญญาลงบรรทัดถัดไปทั้งป้าย ชิดขวา · ชื่อสัญญาไม่ถูกตัดกลาง (เดิม 2.0 ตกบรรทัดเดียว) */
+.thanktag > span { white-space: nowrap; }
+/* ป้ายยาวแยกเป็นบรรทัดละส่วน ชิดขวา (BUGS ข้อ 3) */
+.thanktag.lines > span { display: block; }
+.thankver { font-size: 12px; font-weight: 500; color: var(--muted); font-variant-numeric: tabular-nums; }
+.thankicon.two { width: auto; gap: 4px; padding: 0 3px; }
+.thankwhat { flex: 1; font-size: 12.5px; line-height: 1.5; color: var(--txt2); }
+/* แถวล่างมีแต่ลิงก์ ยาวได้เต็มความกว้าง ไม่ตัดกลางคำ · ยาวเกินการ์ดค่อยตัดท้ายเป็นสามจุด ชี้แล้วเห็นเต็ม (พี่กันสั่ง 10 พ.ย. 2569 "ให้ลิงก์มันยาวได้") */
+.thankfoot { display: flex; align-items: flex-end; gap: 8px; min-width: 0; font-size: 11.5px; color: var(--txt3); }
+.thankurl { min-width: 0; flex: 1; display: flex; flex-wrap: wrap; gap: 0 10px; }
+.thanklink { padding: 0; border: 0; background: none; font: inherit; color: var(--accent-ink); text-align: left; cursor: pointer; min-width: 0; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.thanklink:hover { text-decoration: underline; }
+.thanklink:focus-visible { outline: 2px solid var(--accent); outline-offset: 2px; border-radius: 3px; }
+/* ป้ายสัญญาอยู่มุมขวาบน ข้างชื่อ (พี่กันสั่ง 10 พ.ย. 2569 "ย้ายไฮไลต์ไปบนขวา") */
+.thanktag { flex: 0 0 auto; margin-left: auto; align-self: flex-start; max-width: 100%; text-align: right; font-size: 11.5px; line-height: 1.6; padding: 1px 7px; border-radius: 6px; background: color-mix(in srgb, var(--accent) 10%, white); color: var(--accent-ink); white-space: normal; }
+/* ตั้งค่ารูปกราฟ */
+.imghead { margin: 14px 0 2px; font-size: 14px; font-weight: 700; color: var(--accent-ink); }
+.imgctl { display: inline-flex; align-items: center; gap: 8px; flex: none; }
+/* พี่กันบอก 9 พ.ย. 2569 "แนวเดียวกัน" ช่องตัวเลข ปุ่มเปลี่ยน แถบสองกับสามตัวเลือกกว้าง 165 จุด ขอบซ้ายขวาตรงกัน · ช่องตัวเลขกับปุ่มเปลี่ยนกว้าง 96 จุด (พี่กันบอก "ไม่ต้องยาวขนาดนั้น") · ทุกอย่างขอบขวาตรงกัน */
+/* พี่กันบอก 9 พ.ย. 2569 "ช่องเท่ากัน" ทุกช่องในแถบเลือกของชุดนี้กว้างเท่าช่องที่ยาวสุด */
+[data-img-row] .seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; }
+[data-img-row] .seg > * { white-space: nowrap; }
+/* แถวพื้นหลังกว้างเท่าแถวสองปุ่มอื่น ขอบซ้ายตรงแนว (พี่กันทัก 10 พ.ย. 2569 "แนวเดียวกันด้วยสิ อย่าลืม") */
+[data-img-row="bits"] .seg, [data-img-row="gray"] .seg, [data-img-row="sub"] .seg, [data-img-row="compress"] .seg, [data-img-row="bg"] .seg { width: 165px; box-sizing: border-box; }
+[data-img-row="bits"] .seg > *, [data-img-row="gray"] .seg > *, [data-img-row="sub"] .seg > *, [data-img-row="compress"] .seg > *, [data-img-row="bg"] .seg > * { flex: 1 1 0; min-width: 0; padding-left: 0; padding-right: 0; white-space: nowrap; }
+/* แถวกราฟความถี่เปิดมาแบบ อยู่หัวข้อเดียวกัน กว้าง 165 เท่าปุ่มสองตัวเลือกแถวอื่น (เดิม 148 · พี่กันสั่ง 15 พ.ย. 2569 กรอบในหน้าตั้งค่าขนาดเท่ากัน) */
+/* แถวแถบภาพรวมเปิดมาแบบ (BUGS ข้อ 50) กว้างเท่ากัน */
+[data-spekres-default] .seg, [data-ovstart] .seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; width: 165px; box-sizing: border-box; }
+[data-spekres-default] .seg > *, [data-ovstart] .seg > * { min-width: 0; padding-left: 0; padding-right: 0; justify-content: center; white-space: nowrap; }
+.imgctl > .btn { width: 82.5px; padding-left: 0; padding-right: 0; justify-content: center; flex: none; }
+/* พี่กันบอก 9 พ.ย. 2569 "ยังไม่เรียงตามปุ่มอื่น" ปุ่มกลับค่าตั้งต้นกับล้าง กว้างเท่าแถบสองตัวเลือก 165 จุด ขอบซ้ายขวาตรงกัน */
+.btn[data-img-reset], .btn[data-clearcache] { width: 165px; padding-left: 0; padding-right: 0; justify-content: center; flex: none; }
+/* พี่กันบอก 9 พ.ย. 2569 "แนวเดียวกัน" หัวข้อใส่โปสเตอร์ แถบสองตัวเลือกกว้าง 165 ปุ่มเปลี่ยนกว้าง 82.5 ขอบซ้ายตรงช่องขวาของแถบ */
+/* หัวข้อใส่โปสเตอร์กับตรวจไฟล์ ปุ่มเลือกและดรอปดาวน์ทุกแถวกว้าง 260 เท่ากัน ขอบซ้ายตรงแนวกัน · ปุ่มเปลี่ยนโฟลเดอร์ยังกว้างครึ่งแถบ (130) ขอบซ้ายตรงช่องขวาตามที่พี่กันเคาะ 9 พ.ย.
+   (พี่กันสั่ง 15 พ.ย. 2569 "ฝากดูหน้าตั้งค่า บางกรอบควรเรียงแนวเดียวกัน ขนาดเท่ากัน" · เดิม MKV MP4 กับ JPG PNG กว้าง 165 แต่ เก็บไว้ ลบเมื่อตรวจผ่าน กว้าง 220 และดรอปดาวน์เตือนตรวจซ้ำกว้าง 117
+   · วัดแล้วคำ ลบเมื่อตรวจผ่าน กว้างราว 112 จุด ที่ 225 ห่างขอบปุ่ม 0 จุด ที่ 240 ห่าง 4 จุด จึงใช้ 260 ห่างราว 9 จุด) */
+[data-seg260] .seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; width: 260px; box-sizing: border-box; }
+[data-seg260] .seg > * { min-width: 0; padding-left: 0; padding-right: 0; justify-content: center; white-space: nowrap; }
+[data-seg260] .dd, [data-seg260].dd, span[data-seg260] > .dd { width: 260px; box-sizing: border-box; }
+.btn[data-orig-change] { width: 130px; padding-left: 0; padding-right: 0; justify-content: center; flex: none; }
+/* พี่กันบอก 9 พ.ย. 2569 "แนวตรงกัน" หัวข้อชั้นวาง แถบขนาดปกกับแถบดูปกกว้างเท่ากัน ขอบซ้ายขวาตรงกัน */
+[data-seg-cover] .seg { display: inline-grid; grid-auto-flow: column; grid-auto-columns: 1fr; width: 225px; box-sizing: border-box; }
+[data-seg-cover] .seg > * { min-width: 0; padding-left: 0; padding-right: 0; justify-content: center; white-space: nowrap; }
+.imgnum { display: inline-flex; align-items: center; justify-content: flex-end; width: 82.5px; box-sizing: border-box; gap: 5px; height: 30px; padding: 0 8px; border: 1px solid var(--line); border-radius: 8px; background: #fff; font-size: 12.5px; color: var(--txt3); flex: none; }
+.imgnum:focus-within { border-color: var(--accent); }
+/* ช่องที่ใช้กับชนิดไฟล์นี้ไม่ได้ จางไว้ ชี้แล้วขึ้นเหตุผล เคอร์เซอร์บอกว่ากดไม่ได้ และขอบเข้มขึ้นนิดเดียวให้รู้ว่าเมาส์อยู่ตรงนี้ (AUDIT ข้อ 155 · เดิม pointer-events: none ชี้แล้วเงียบ) */
+.imgnum.off { opacity: .45; cursor: not-allowed; }
+.imgnum.off input { cursor: not-allowed; }
+.imgnum.off:hover { border-color: #e3c3cd; background-color: #fbf3f6; }
+.imgstack { display: inline-flex; flex-direction: column; align-items: flex-end; gap: 8px; flex: none; }
+/* แถบเลื่อนยาวเท่าแถวปุ่ม 216 + 8 + 96 · แถบห้าตัวเลือกกับแถวที่เก็บกว้าง 216 เท่าแถบ DPI (พี่กันบอก "เอายาวเท่า DPI") */
+.imgslide { display: block; width: 320px; flex: none; padding-top: 2px; }
+.imgslidebox { display: inline-flex; align-items: flex-start; gap: 10px; flex: none; }
+.imgslidebox.off { opacity: .45; cursor: not-allowed; }
+.imgslidebox.off * { cursor: not-allowed !important; }
+.imgslidebox.off:hover { opacity: .55; }
+/* ปุ่มกลับค่าตั้งต้นรูปกราฟ (BUGS ข้อ 7) · กดแล้วไอคอนหมุนครึ่งรอบ ติ๊กถูกเด้งขึ้น ตัวหนังสือสีเขียวแล้วค่อยจาง · เป็นค่าตั้งต้นอยู่แล้ว จางกดไม่ได้ ชี้แล้วเข้มขึ้นนิดเดียว */
+.resetbtn.idle { opacity: .5; cursor: not-allowed; }
+.resetbtn.idle:hover { opacity: .62; background-color: transparent; }
+.resetbtn.done { color: var(--ok-ink); border-color: color-mix(in srgb, var(--ok-ink) 35%, transparent); background-color: var(--ok-soft); animation: resetfade 1.8s ease forwards; cursor: default; }
+.resetbtn.done svg { animation: resettick .5s cubic-bezier(.3, 1.6, .5, 1); }
+@keyframes resettick { 0% { scale: .2; rotate: -90deg; opacity: 0; } 60% { scale: 1.25; rotate: 0deg; opacity: 1; } 100% { scale: 1; } }
+@keyframes resetfade { 0%, 55% { opacity: 1; } 100% { opacity: .5; } }
+/* ความจุไดรฟ์ในหัวข้อโฟลเดอร์หนัง (BUGS ข้อ 88) · แถบใช้ไปสีโทน ไดรฟ์ที่เหลือไม่ถึง 10% แถบสีเตือน */
+.drive { padding: 9px 0; border-top: 1px solid #f7e4ea; }
+.drive:first-child { border-top: 0; }
+.drivehead { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; font-size: 14px; }
+.drivewarn { display: inline-flex; align-items: center; gap: 4px; font-size: 12.5px; font-weight: 600; color: var(--warn-ink); background: var(--warn-soft); border-radius: 999px; padding: 1px 9px 1px 6px; align-self: center; }
+.drivewarn svg { width: 14px; height: 14px; }
+.drivebar { height: 8px; margin: 7px 0 5px; border-radius: 4px; background: #f7e2e9; overflow: hidden; }
+.drivebar > i { display: block; height: 100%; border-radius: 4px; background: var(--accent); }
+.drive.low .drivebar > i { background: var(--warn); }
+@media (prefers-reduced-motion: reduce) { .resetbtn.done, .resetbtn.done svg { animation: none; } .resetbtn.done { opacity: 1; } }
+.imgfine { display: inline-flex; align-items: center; gap: 5px; margin-top: 8px; padding: 0; border: 0; background: none; font: inherit; font-size: 12.5px; color: var(--txt2); cursor: pointer; white-space: nowrap; }
+.imgfine > i { width: 16px; height: 16px; flex: none; display: inline-flex; align-items: center; justify-content: center; border: 1.5px solid var(--line-strong, #c9a9b6); border-radius: 4px; background: #fff; color: #fff; }
+.imgfine.on > i { background: var(--accent); border-color: var(--accent); }
+/* พี่กันบอก 9 พ.ย. 2569 "กรอบที่กรอก ขอเรียงแนวนี้" กรอบกรอกกับปุ่มเปลี่ยนกว้างเท่าช่องขวาของแถบสองตัวเลือก ขอบซ้ายตรงกัน แถวรวมยังยาว 320 */
+[data-img-row="width"] .seg, [data-img-row="dpi"] .seg, [data-img-row="dir"] .seg { width: 229.5px; box-sizing: border-box; }
+[data-img-row="format"] .seg { width: 320px; box-sizing: border-box; }
+[data-img-row="width"] .seg > *, [data-img-row="format"] .seg > *, [data-img-row="dpi"] .seg > *, [data-img-row="dir"] .seg > * { min-width: 0; padding-left: 0; padding-right: 0; }
+.imgnum input { flex: 1; min-width: 0; width: 44px; border: 0; outline: 0; background: transparent; font: inherit; font-size: 13px; color: var(--txt); text-align: right; font-variant-numeric: tabular-nums; }
+.rext { display: inline-flex; align-items: center; padding: 0 7px 0 3px; border-radius: 0 3px 3px 0; background: #f8e6ec; color: var(--accent-ink); font-size: 12px; font-weight: 700; letter-spacing: .02em; }
+.rnote { width: 18px; height: 27px; border-radius: 3px; background: #f8e6ec; color: var(--accent-ink); display: inline-flex; align-items: center; justify-content: center; flex: none; }
+.rmx { width: 32px; flex: none; border-radius: 10px; border: 1px solid #e8cdd6; background-color: #fff; color: var(--txt3); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; transition: background-color .15s, color .15s; }
+.rmx:hover { background-color: #faedf1; color: var(--bad, #c0392b); }
+.rmx:focus-visible { outline: none; box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent-d); }
+@media (max-width: 1100px) { .tiles { grid-template-columns: repeat(2, 1fr); } }
+/* ความถี่เฉลี่ยแบบ Audacity · วงกลมที่ยอดใกล้สุด กับช่องบอกค่าใต้กราฟ (Cursor · Peak) */
+.psdpk { position: absolute; width: 11px; height: 11px; margin: -6px 0 0 -6px; border-radius: 50%; border: 2px solid #472e36; background: #fff; pointer-events: none; }
+.psdread { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; margin-top: 8px; }
+.psdbox { min-width: 230px; padding: 4px 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--win2); font-size: 13px; color: var(--txt); font-variant-numeric: tabular-nums; white-space: nowrap; }
+/* ปุ่ม 6 แบบมีไอคอนนำหน้า ตามมอคอัป */
+.agviews button { display: inline-flex; align-items: center; gap: 6px; }
+/* ปกแนวนอน (พี่กัน 7 พ.ย. 2569) · ชั้นวาง สูงเท่าเล่มอื่น กว้างตามสัดส่วน (ความกว้างตั้งที่ตัวเล่ม) · แผงขวา กว้างเต็มแผง · ตาราง ภาพเล็กแนวนอน */
+.book.wide .cover { width: 100%; }
+.dposter.wide { width: 100%; max-width: 290px; height: auto; object-fit: contain; }
+.lv .th.wide { width: 45px; height: 26px; margin: 9px auto; }
+/* ตัวซูม ตัวเลื่อน แบบหน้าดูคลื่นของ Audacity */
+.zbtns { display: inline-flex; gap: 4px; }
+.zb { width: 30px; height: 30px; border-radius: 8px; border: 1px solid #e8cdd6; background-color: #fff; color: var(--txt2); display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; transition: background-color .15s, color .15s; }
+.zb:hover { background-color: #faedf1; color: var(--accent-ink); }
+.zb:disabled { color: #c9aab4; background-color: #f7f7f7; cursor: not-allowed; }
+/* กดไม่ได้ ชี้แล้วยังเปลี่ยนนิดเดียวแบบปุ่มแถวที่กดไม่ได้ (.seg-off) · เดิม :hover กับ :disabled น้ำหนักเท่ากัน ตัวหลังชนะ ชี้แล้วนิ่ง (AUDIT ข้อ 155) */
+.zb:disabled:hover { background-color: #f9e9ee; color: #b8919e; }
+/* แถบเลื่อนเวลาบางลงครึ่งหนึ่ง สีเดิม (BUGS ข้อ 18 · พี่กัน "เเค่ลดความสูงของเส้นลงครึ่งนึง") · ที่กดยังสูง 12 จุดเท่าเดิม วาดร่องกับแท่งแค่ 6 จุดกลาง */
+.tscroll { position: relative; height: 12px; margin-top: 8px; border-radius: 6px; background: linear-gradient(#f7e2e9, #f7e2e9) center / 100% 6px no-repeat; cursor: pointer; }
+.tscroll .thumb { position: absolute; top: 3px; bottom: 3px; border-radius: 3px; background: var(--accent); cursor: grab; outline: none; }
+.tscroll .thumb:hover { background: var(--accent-d); }
+.tscroll .thumb:focus-visible { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent-d); }
+.tscroll .thumb.all { background: #e8cbd5; cursor: default; }
+/* แถบเลื่อนแนวตั้งบีบยืดคลื่น อยู่ขวามือแถบคลื่น (กว้าง 22 + ช่องห่าง 8 = 30 ตรงกับ VZ_W) · ไม้บรรทัดตัวเลขนอกกราฟ */
+.lanewrap { display: flex; gap: 8px; align-items: stretch; }
+.lanewrap > .lanes { flex: 1; min-width: 0; }
+.vzoom { width: 22px; flex: none; display: flex; flex-direction: column; align-items: center; gap: 4px; user-select: none; }
+/* หน้ากราฟเสียง ชิ้นขวาสุดเรียงแนวตั้งเดียวกัน ⓘ ของปุ่มเต็มจอ ปุ่มรีเซ็ต ลูกศรพับภาพรวม แถบซูมแนวตั้ง ตรงกลางเดียวกับปุ่มกว้าง 30 จุด
+   เดิมต่างกันราว 4 จุด ⓘ 1,249 ปุ่ม 1,247 แถบซูม 1,251 ที่หน้าต่าง 1280 (พี่กันสั่ง 13 พ.ย. 2569 "ขอเเนวเดียวกัน") */
+.ag[data-graphview] .vzoom { width: 30px; }
+.ag[data-graphview] .agctl [data-fullbtn] + * { margin-right: 2px; }
+.vzoom .ic { color: var(--txt3); line-height: 0; }
+.vzoom .track { position: relative; flex: 1; width: 8px; min-height: 60px; border-radius: 4px; background: #f7e2e9; cursor: pointer; touch-action: none; }
+.vzoom .fit { position: absolute; left: -5px; right: -5px; height: 2px; margin-bottom: -1px; border-radius: 1px; background: #daacbb; }
+.vzoom .knob { position: absolute; left: 50%; width: 20px; height: 12px; transform: translate(-50%, 50%); border-radius: 6px; background: var(--accent); cursor: grab; outline: none; transition: background-color .15s; }
+.vzoom .knob:hover { background: var(--accent-d); }
+.vzoom .knob:focus-visible { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent-d); }
+.vzval { min-width: 38px; font-size: 12.5px; font-weight: 600; color: var(--txt2); font-variant-numeric: tabular-nums; }
+.vrul { width: 100%; display: block; }
+/* แถบซูมเวลาแนวนอน ระหว่างปุ่มแว่นขยายสองปุ่ม · ส่วนที่ระบายบอกว่าซูมเข้าไปแค่ไหน */
+.hzoom { display: inline-flex; align-items: center; width: 220px; height: 30px; padding: 0 8px; touch-action: none; }
+.hzoom .track { position: relative; flex: 1; height: 8px; border-radius: 4px; background: #f7e2e9; cursor: pointer; }
+.hzoom .fill { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 4px; background: #e7c8d2; pointer-events: none; }
+.hzoom .knob { position: absolute; top: 50%; width: 12px; height: 20px; transform: translate(-50%, -50%); border-radius: 6px; background: var(--accent); cursor: grab; outline: none; transition: background-color .15s; }
+.hzoom .knob:hover { background: var(--accent-d); }
+.hzoom .knob:focus-visible { box-shadow: 0 0 0 2px #fff, 0 0 0 4px var(--accent-d); }
+.hzoom.off .track { cursor: default; }
+.hzoom.off .knob { background: #e8cbd5; cursor: default; }
+/* ป้ายสีของความถี่เฉลี่ยแบบซ้อนทุกช่อง กดซ่อนแสดงทีละเส้น · ปิดอยู่เป็นกรอบสีโปร่ง ตัวหนังสือจาง */
+.psdlg { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 8px; }
+.psdk { display: inline-flex; align-items: center; gap: 6px; height: 28px; padding: 0 10px; border-radius: 14px; border: 1px solid #e8cdd6; background-color: #fff; color: var(--txt3); font: inherit; font-size: 12.5px; cursor: pointer; transition: background-color .15s, color .15s; }
+.psdk.on { color: var(--txt); }
+.psdk:hover { background-color: #faedf1; }
+.psdk[aria-disabled] { cursor: not-allowed; }
+.psdk i { width: 12px; height: 12px; border-radius: 3px; border: 2px solid; box-sizing: border-box; }
+/* ที่จับใต้แถบกราฟ ลากลงขยายความสูง */
+/* ตาราง ภาพเล็กอยู่กลางช่องทั้งปกตั้งและปกแนวนอน (พี่กัน 7 พ.ย. 2569 *"ตอนปรับเป็นมุมมองตารา เราอยากห้รู้มันอยู่เเนวกลาง"*) */
+.lv td .th { margin-left: auto; margin-right: auto; }
+
