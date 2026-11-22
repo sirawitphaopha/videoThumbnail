@@ -209,7 +209,7 @@ pub async fn poster_render(app: AppHandle, req: RenderReq) -> Result<RenderInfo,
                 if slot != "cover" && slot != "cover_land" {
                     return Err(format!("ไม่รู้จักช่องปก {slot}"));
                 }
-                app.state::<crate::merge::merge::MergeState>().covers.lock().unwrap().insert(slot.clone(), (bytes, format.to_string()));
+                app.state::<crate::merge::MergeState>().covers.lock().unwrap().insert(slot.clone(), (bytes, format.to_string()));
             } else {
                 *st.chosen.lock().unwrap() = Some((bytes, format.to_string()));
             }

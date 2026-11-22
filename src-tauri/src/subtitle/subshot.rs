@@ -86,7 +86,7 @@ pub(crate) fn movie_fonts(tools: &Path, work: &Path, movie: &Path) -> Option<Pat
         let has = std::fs::read_dir(&dir).ok()?.flatten().any(|e| e.file_name() != ".ok");
         return has.then_some(dir);
     }
-    let j = crate::merge::merge::mkv_json(tools, movie).ok()?;
+    let j = crate::merge::mkv_json(tools, movie).ok()?;
     let fonts: Vec<(u64, String)> = j["attachments"].as_array().map(|a| a.iter().filter_map(|x| {
         let name = x["file_name"].as_str().unwrap_or("");
         let mime = x["content_type"].as_str().unwrap_or("");
