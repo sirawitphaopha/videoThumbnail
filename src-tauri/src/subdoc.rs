@@ -898,7 +898,7 @@ fn stamp(p: &Path) -> (u64, u64) {
 /// ไฟล์ชั่วคราวข้างไฟล์ปลายทาง ชื่อไม่ชนใคร
 pub(crate) fn partial_of(target: &Path) -> PathBuf {
     let name = target.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-    target.with_file_name(format!("{name}.{}.partial", crate::poster_image::unique()))
+    target.with_file_name(format!("{name}.{}.partial", crate::cover::poster_image::unique()))
 }
 
 #[derive(Serialize, Clone, Debug)]
@@ -938,8 +938,8 @@ pub fn save(doc: &SubDoc, target: &Path, mode: &str, force: bool) -> Result<Save
     if mode == "replace" {
         // ไฟล์เดิมลงถังขยะด้วยชื่อจริง (กู้คืนได้) แล้วเอาไฟล์ใหม่มาแทน · ย้ายไม่สำเร็จ ไฟล์เดิมยังอยู่ในถังขยะ ไฟล์ใหม่อยู่ที่ .partial
         crate::app::outfile::to_trash(target).map_err(|e| { let _ = std::fs::remove_file(&partial); e })?;
-        crate::rename::move_no_replace(&partial, target).map_err(|p| format!("เอาไฟล์ใหม่มาแทนไม่สำเร็จ {}  ไฟล์เดิมอยู่ในถังขยะ ไฟล์ใหม่อยู่ที่ {}", p.title, partial.display()))?;
-    } else if let Err(p) = crate::rename::move_no_replace(&partial, target) {
+        crate::cover::rename::move_no_replace(&partial, target).map_err(|p| format!("เอาไฟล์ใหม่มาแทนไม่สำเร็จ {}  ไฟล์เดิมอยู่ในถังขยะ ไฟล์ใหม่อยู่ที่ {}", p.title, partial.display()))?;
+    } else if let Err(p) = crate::cover::rename::move_no_replace(&partial, target) {
         let _ = std::fs::remove_file(&partial);
         return Err(if p.kind == "duplicate" { "exists".into() } else { p.title });
     }
@@ -1429,7 +1429,7 @@ mod tests {
     #[test]
     fn save_replaces_and_keeps_others() {
         if std::env::var("MOVIE_SHELF_SKIP_MEDIA").is_ok() { return; }
-        let dir = std::env::temp_dir().join(format!("ชั้นหนัง-subdoc-{}", crate::poster_image::unique()));
+        let dir = std::env::temp_dir().join(format!("ชั้นหนัง-subdoc-{}", crate::cover::poster_image::unique()));
         std::fs::create_dir_all(&dir).unwrap();
         let f = dir.join("ทดสอบ.th.srt");
         std::fs::write(&f, "1\r\n00:00:01,000 --> 00:00:02,000\r\nเดิม\r\n").unwrap();
@@ -1464,7 +1464,7 @@ mod tests {
 
     #[test]
     fn autosave_keeps_ten_and_reopens_to_the_original() {
-        let dir = std::env::temp_dir().join(format!("ชั้นหนัง-autosave-{}", crate::poster_image::unique()));
+        let dir = std::env::temp_dir().join(format!("ชั้นหนัง-autosave-{}", crate::cover::poster_image::unique()));
         std::fs::create_dir_all(&dir).unwrap();
         let orig = dir.join("เดิม.th.srt");
         std::fs::write(&orig, "1\n00:00:01,000 --> 00:00:02,000\nก\n").unwrap();

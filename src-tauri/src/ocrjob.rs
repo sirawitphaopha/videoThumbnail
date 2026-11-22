@@ -1132,7 +1132,7 @@ pub async fn ocr_image_out(app: tauri::AppHandle, index: usize, dest: String, pa
         // เขียนไฟล์ชั่วคราวแล้วย้ายแบบไม่ทับ ตามกฎไฟล์ของโปรแกรม (ผู้ช่วยตรวจทาน R14 · เดิมเขียนตรงที่ชื่อว่าง)
         let part = crate::subdoc::partial_of(&out);
         std::fs::write(&part, &png).map_err(|e| format!("บันทึกภาพไม่ได้ {e}"))?;
-        crate::rename::move_no_replace(&part, &out).map_err(|p| { let _ = std::fs::remove_file(&part); format!("บันทึกภาพไม่ได้ {}", p.title) })?;
+        crate::cover::rename::move_no_replace(&part, &out).map_err(|p| { let _ = std::fs::remove_file(&part); format!("บันทึกภาพไม่ได้ {}", p.title) })?;
         Ok(out.display().to_string())
     }).await.map_err(|e| e.to_string())?
 }

@@ -21,7 +21,7 @@ use crate::app::outfile::{
     cancelled, count, drive_letter, duration_of, eta, fail, ffprobe_json, finish_output, fmt_gb, free_space, kind_word, mp4_fit,
     not_in_use, run_live, scopeguard, streams_of, ApplyProblem, Counts, Run,
 };
-use crate::rename::MAX_PATH_LEN;
+use crate::cover::rename::MAX_PATH_LEN;
 use crate::app::tools::{run_tool_timeout, tool_succeeded};
 
 // ---------------------------------------------------------------- สถานะของหน้า
@@ -557,7 +557,7 @@ pub async fn merge_cover_preview(app: AppHandle, path: String, id: u64, slot: St
         let (tools, _) = tools_of(&app)?;
         let dir = app.path().app_local_data_dir().map_err(|e| e.to_string())?.join("previews");
         std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
-        let out = dir.join(format!("merge-old-{slot}-{}", crate::poster_image::unique()));
+        let out = dir.join(format!("merge-old-{slot}-{}", crate::cover::poster_image::unique()));
         let src = Path::new(&path);
         let ok = if is_matroska(src) {
             let mut target = OsString::from(format!("{id}:"));
@@ -919,7 +919,7 @@ fn cover_matches(tools: &Path, work: &Path, file: &Path, mk: &Value, c: &NewCove
         return Err(format!("{} ชนิด {} ที่ใส่ {}", c.name, att.mime, c.mime));
     }
     std::fs::create_dir_all(work).map_err(|e| e.to_string())?;
-    let out = work.join(format!("merge-verify-{}", crate::poster_image::unique()));
+    let out = work.join(format!("merge-verify-{}", crate::cover::poster_image::unique()));
     let mut target = OsString::from(format!("{}:", att.id));
     target.push(out.as_os_str());
     let r = run_tool_timeout(tools, "mkvextract", [file.as_os_str(), OsStr::new("attachments"), &target], Duration::from_secs(120))?;
@@ -1041,7 +1041,7 @@ pub fn produce(
     // MKV ใช้ไฟล์บทแบบง่ายของ mkvmerge · MP4 ใช้ไฟล์ข้อมูลของ ffmpeg · รายการว่าง = ไม่มีบท ไม่ต้องเขียนไฟล์
     let chap_file: Option<PathBuf> = match &req.chapters {
         Some(chs) if !chs.is_empty() => {
-            let f = work.join(format!("merge-chap-{}.txt", crate::poster_image::unique()));
+            let f = work.join(format!("merge-chap-{}.txt", crate::cover::poster_image::unique()));
             let text = if mp4 { crate::chapters::ffmetadata_text(chs, movie_duration) } else { crate::chapters::ogm_text(chs) };
             std::fs::write(&f, text).map_err(|e| fail("other", "เขียนไฟล์บทที่แก้ไม่ได้", vec![e.to_string(), untouched.into()]))?;
             guards.push(scopeguard(f.clone()));
@@ -1054,7 +1054,7 @@ pub fn produce(
     // (ลองแล้ว ffprobe ขึ้น unknown codec · โปรแกรมเล่นที่ใช้ ffmpeg เช่น mpv จะไม่เห็นซับ) · MP4 แปลงเป็น mov_text เองอยู่แล้ว
     if !mp4 {
         for t in tracks.iter_mut().filter(|t| t.keep && !t.in_movie && t.codec == "webvtt") {
-            let srt = work.join(format!("merge-vtt-{}.srt", crate::poster_image::unique()));
+            let srt = work.join(format!("merge-vtt-{}.srt", crate::cover::poster_image::unique()));
             let args: Vec<OsString> = ["-hide_banner", "-nostdin", "-n", "-v", "error", "-i"].iter().map(OsString::from)
                 .chain([OsString::from(&t.src)]).chain(["-map".into(), format!("0:{}", t.ff.unwrap_or(0)).into(), "-c:s".into(), "srt".into()])
                 .chain([srt.as_os_str().to_owned()]).collect();
@@ -1084,7 +1084,7 @@ pub fn produce(
         for t in tracks.into_iter() {
             let Some(spec) = t.convert.clone().filter(|_| t.keep && t.kind == "audio") else { list.push(t); continue };
             n += 1;
-            let out = work.join(format!("merge-conv-{}.{}", crate::poster_image::unique(), spec.ext()));
+            let out = work.join(format!("merge-conv-{}.{}", crate::cover::poster_image::unique(), spec.ext()));
             let mut spec = spec;
             spec.src_rate = t.rate.map(|r| r as u32);
             let plan = crate::encode::build(&spec, &t.src, t.ff.unwrap_or(t.tid), &out.to_string_lossy(), t.channels.map(|c| c as u32), t.bits.map(|b| b as u32))
@@ -1138,7 +1138,7 @@ pub fn produce(
             return Err(fail("nocover", "ยังไม่ได้ใส่รูปปก", vec![format!("ช่อง{} ตั้งว่าใช้รูปใหม่ แต่ยังไม่มีรูป", if slot == "cover" { "ปกตั้ง" } else { "ปกนอน" }), untouched.into()]));
         };
         let fmt = if fmt == "png" { "png" } else { "jpg" };
-        let file = work.join(format!("merge-{slot}-{}.{fmt}", crate::poster_image::unique()));
+        let file = work.join(format!("merge-{slot}-{}.{fmt}", crate::cover::poster_image::unique()));
         std::fs::write(&file, bytes).map_err(|e| fail("other", "เขียนรูปปกไม่ได้", vec![e.to_string()]))?;
         guards.push(scopeguard(file.clone()));
         covers.push(NewCover {
@@ -1199,7 +1199,7 @@ pub fn produce(
             let had_cover = kept_atts.iter().any(|a| cover_slot(&a.name) == Some("cover"));
             let found = if let Some(a) = kept_atts.iter().find(|a| cover_slot(&a.name) == Some("cover")).filter(|_| is_matroska(movie)) {
                 // ปกเดิมที่เป็นไฟล์แนบของ MKV ดึงออกมาเป็นไฟล์ก่อน
-                let out = work.join(format!("merge-oldcover-{}.{}", crate::poster_image::unique(), Path::new(&a.name).extension().map(|e| e.to_string_lossy().to_string()).unwrap_or("jpg".into())));
+                let out = work.join(format!("merge-oldcover-{}.{}", crate::cover::poster_image::unique(), Path::new(&a.name).extension().map(|e| e.to_string_lossy().to_string()).unwrap_or("jpg".into())));
                 let mut target = OsString::from(format!("{}:", a.id));
                 target.push(out.as_os_str());
                 let ok = run_tool_timeout(tools, "mkvextract", [movie.as_os_str(), OsStr::new("attachments"), &target], Duration::from_secs(120))

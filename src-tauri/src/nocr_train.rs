@@ -101,7 +101,7 @@ pub fn render_with(tools: &Path, work: &Path, texts: &[String], prefix: &str, ta
             if ok { ass.push_str(&format!("Dialogue: 0,{},{},T,,0,0,0,,{prefix}{t}\n", ass_time(i as u64 * 100), ass_time(i as u64 * 100 + 100))); }
         }
         // ชื่อไม่ซ้ำต่อครั้ง · ภาพตัวอย่างกับการฝึกที่รันพร้อมกันไม่เขียนทับไฟล์ของกันและกัน (ผู้ช่วยตรวจทาน R4 · เดิมผูกเลขโปรเซสอย่างเดียว ฝึกผิดฟอนต์ได้)
-        let file = work.join(format!("sub-nocrtrain-{}-{}.ass", std::process::id(), crate::poster_image::unique()));
+        let file = work.join(format!("sub-nocrtrain-{}-{}.ass", std::process::id(), crate::cover::poster_image::unique()));
         std::fs::write(&file, ass).map_err(|e| format!("เขียนไฟล์ชั่วคราวไม่ได้ {e}"))?;
         let res = (|| {
             let (mut child, mut o) = crate::pgs::spawn_pair(tools, &file, None, w, h, w, h, &times)?;

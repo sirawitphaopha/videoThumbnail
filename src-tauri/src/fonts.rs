@@ -244,7 +244,7 @@ mod tests {
 
     #[test]
     fn finds_folder_fonts_first_then_windows() {
-        let dir = std::env::temp_dir().join(format!("ms-fonts-{}", crate::poster_image::unique()));
+        let dir = std::env::temp_dir().join(format!("ms-fonts-{}", crate::cover::poster_image::unique()));
         std::fs::create_dir_all(dir.join("Fonts")).unwrap();
         let win = PathBuf::from(std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into())).join("Fonts");
         // ชุดซับที่มีฟอนต์ในโฟลเดอร์ย่อย Fonts · ชื่อไฟล์ไม่บอกชื่อฟอนต์ ต้องอ่านจากในไฟล์

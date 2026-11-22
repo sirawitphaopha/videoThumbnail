@@ -444,12 +444,12 @@ mod tests {
         let (name, cut) = fit_name(&out, stem, &name_of);
         assert_eq!(name, format!("{stem}.Text1.en.ass"), "ชื่อเต็มคงจุดหลัง Dept");
         assert!(!cut);
-        assert!(out.join(&name).to_string_lossy().encode_utf16().count() + 8 <= crate::rename::MAX_PATH_LEN);
+        assert!(out.join(&name).to_string_lossy().encode_utf16().count() + 8 <= crate::cover::rename::MAX_PATH_LEN);
         // โฟลเดอร์ที่ผู้ใช้เลือกยาวมาก ตัดท้ายชื่อหนังให้พอดี ส่วนแทร็ก ภาษา นามสกุลคงไว้
         let deep = dir.join("โฟลเดอร์ที่เลือกเองซึ่งยาวมากเป็นพิเศษสำหรับทดสอบการตัดชื่อไฟล์ให้พอดีกับที่ Windows รับได้ครบทุกตัว");
         let (short, cut2) = fit_name(&deep, stem, &name_of);
         assert!(cut2 && short.ends_with("….Text1.en.ass") && short.starts_with("ACCA 13"), "{short}");
-        assert!(deep.join(&short).to_string_lossy().encode_utf16().count() + 8 <= crate::rename::MAX_PATH_LEN, "{}", deep.join(&short).display());
+        assert!(deep.join(&short).to_string_lossy().encode_utf16().count() + 8 <= crate::cover::rename::MAX_PATH_LEN, "{}", deep.join(&short).display());
         // โฟลเดอร์ยาวจนไม่เหลือที่ให้ชื่อ คืนชื่อเต็มให้ตัวตรวจความยาวบอกว่าไม่สำเร็จ
         let huge = PathBuf::from(format!(r"D:\{}", "ก".repeat(250)));
         assert!(!fit_name(&huge, stem, &name_of).1);
@@ -903,14 +903,14 @@ pub fn fit_name(dir: &Path, stem: &str, name_of: &dyn Fn(&str) -> String) -> (St
 pub fn fit_name_with(dir: &Path, stem: &str, extra: usize, name_of: &dyn Fn(&str) -> String) -> (String, bool) {
     let len = |n: &str| dir.join(n).to_string_lossy().encode_utf16().count() + extra;
     let full = name_of(stem);
-    let over = len(&full).saturating_sub(crate::rename::MAX_PATH_LEN);
+    let over = len(&full).saturating_sub(crate::cover::rename::MAX_PATH_LEN);
     if over == 0 { return (full, false); }
     let chars: Vec<char> = stem.chars().collect();
     let mut keep = chars.len().saturating_sub(over + 1);
     while keep >= 8 {
         let short: String = chars[..keep].iter().collect::<String>().trim_end_matches([' ', '.', '-', '_']).to_string() + "…";
         let n = name_of(&short);
-        if len(&n) <= crate::rename::MAX_PATH_LEN { return (n, true); }
+        if len(&n) <= crate::cover::rename::MAX_PATH_LEN { return (n, true); }
         keep -= 1;
     }
     (full, false)
@@ -946,7 +946,7 @@ pub fn place_item(tools: &Path, src: &Path, it: &Item, target: &Path, vobsub: bo
     let finals: Vec<PathBuf> = if made.len() == 1 { vec![target.to_path_buf()] } else { made.iter().map(|m| target.with_extension(m.extension().unwrap_or_default())).collect() };
     let mut moved: Vec<PathBuf> = vec![];
     for (m, f) in made.iter().zip(&finals) {
-        if let Err(p) = crate::rename::move_no_replace(m, f) {
+        if let Err(p) = crate::cover::rename::move_no_replace(m, f) {
             for x in moved.iter().chain(made.iter()) { let _ = std::fs::remove_file(x); }
             return Err(p.title.into());
         }
@@ -1031,7 +1031,7 @@ pub async fn extract_start(app: tauri::AppHandle, req: ExtractReq) -> Result<Ext
             }
             let partial = partial_of(&target, vobsub);
             // ที่อยู่ยาวเกินที่ Windows รับ · บอกตรงสาเหตุก่อนเริ่ม (เดิมเครื่องมือหรือตัวย้ายล้มแล้วขึ้นว่าหาไฟล์ไม่เจอ ผู้ช่วยตรวจโค้ดเจอ · TECH-REVIEW ข้อ 16)
-            if partial.to_string_lossy().encode_utf16().count() > crate::rename::MAX_PATH_LEN {
+            if partial.to_string_lossy().encode_utf16().count() > crate::cover::rename::MAX_PATH_LEN {
                 r.states[i] = "failed".into();
                 r.error = Some(format!("แยก {} ไม่สำเร็จ โฟลเดอร์ที่เก็บยาวเกินไป  กดเปลี่ยนที่เก็บเป็นโฟลเดอร์ที่สั้นกว่า แล้วลองใหม่  ไฟล์ที่แยกเสร็จแล้วยังอยู่ครบ", title_of(it)));
                 continue;

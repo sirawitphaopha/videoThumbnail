@@ -244,7 +244,7 @@ pub fn bytes_of(tools: &Path, work: &Path, path: &Path, in_movie: bool, tid: u64
     let bytes = if !in_movie && plain {
         std::fs::read(path).map_err(|e| format!("อ่านไฟล์ซับไม่ได้ {e}"))?
     } else if is_mkv(path) {
-        let out = work.join(format!("sub-{}.txt", crate::poster_image::unique()));
+        let out = work.join(format!("sub-{}.txt", crate::cover::poster_image::unique()));
         let args: Vec<OsString> = vec!["--ui-language".into(), "en".into(), "tracks".into(), path.into(), format!("{tid}:{}", out.display()).into()];
         let o = run_tool_timeout(tools, "mkvextract", &args, Duration::from_secs(600))?;
         let b = std::fs::read(&out);

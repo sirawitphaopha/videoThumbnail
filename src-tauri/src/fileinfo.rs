@@ -131,7 +131,7 @@ fn attachments(tools: &Path, file: &Path) -> Vec<(String, String, u64, u64)> {
 /// กว้าง สูง ของรูปที่แนบ · ดึงออกมาไว้ในโฟลเดอร์ชั่วคราวของโปรแกรม อ่านหัวรูป แล้วลบ
 fn attachment_size(tools: &Path, file: &Path, id: u64, work: &Path) -> Option<(u32, u32)> {
     std::fs::create_dir_all(work).ok()?;
-    let out = work.join(format!("att-{}-{id}", crate::poster_image::unique()));
+    let out = work.join(format!("att-{}-{id}", crate::cover::poster_image::unique()));
     let mut t = std::ffi::OsString::from(format!("{id}:"));
     t.push(out.as_os_str());
     let r = run_tool_timeout(tools, "mkvextract", [file.as_os_str(), OsStr::new("attachments"), &t], Duration::from_secs(60)).ok();

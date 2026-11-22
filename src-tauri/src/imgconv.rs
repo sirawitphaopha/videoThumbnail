@@ -127,7 +127,7 @@ pub fn hddvd_pgs(tools: &Path, work: &Path, p: &Path) -> Result<(PathBuf, usize)
     let cfg = work.join("bdsup2sub-cfg");
     std::fs::create_dir_all(&cfg).map_err(|e| e.to_string())?;
     // ชื่อชั่วคราวไม่ซ้ำ หน้าซับไตเติลกับตัวดูซับรูปขอพร้อมกันได้โดยไม่เขียนไฟล์เดียวกัน
-    let part = work.join(format!("hddvd-{key}-{}.partial.sup", crate::poster_image::unique()));
+    let part = work.join(format!("hddvd-{key}-{}.partial.sup", crate::cover::poster_image::unique()));
     let total = std::cell::Cell::new(0usize);
     let args: Vec<OsString> = vec!["--no-export-palette".into(), "--output".into(), part.clone().into(), p.into()];
     let r = run(tools, &cfg, "bdsup", &args, &|_, m| total.set(m), &|| false);
@@ -258,7 +258,7 @@ fn input_file(tools: &Path, work: &Path, req: &ImgReq) -> Result<(PathBuf, Optio
         }
         return Ok((src, None));
     }
-    let dir = TmpDir(work.join(format!("imgconv-in-{}", crate::poster_image::unique())));
+    let dir = TmpDir(work.join(format!("imgconv-in-{}", crate::cover::poster_image::unique())));
     std::fs::create_dir_all(&dir.0).map_err(|e| e.to_string())?;
     if is_mkv(&src) {
         let out = dir.0.join(if vob { "in.sub" } else { "in.sup" });
@@ -365,7 +365,7 @@ pub fn convert(tools: &Path, work: &Path, req: &ImgReq, progress: &dyn Fn(usize,
     let cfg = work.join("bdsup2sub-cfg");
     let _ = std::fs::create_dir_all(&cfg);
     // ทำในโฟลเดอร์ชั่วคราวข้างปลายทาง ไดรฟ์เดียวกัน ย้ายชื่อได้ทันที
-    let stage = TmpDir(parent.join(format!(".imgconv-{}", crate::poster_image::unique())));
+    let stage = TmpDir(parent.join(format!(".imgconv-{}", crate::cover::poster_image::unique())));
     std::fs::create_dir_all(&stage.0).map_err(|e| format!("เขียนในโฟลเดอร์ปลายทางไม่ได้ {e}"))?;
     let out_dir = if kind == "xml" { stage.0.join(&stem) } else { stage.0.clone() };
     std::fs::create_dir_all(&out_dir).map_err(|e| e.to_string())?;
@@ -405,8 +405,8 @@ pub fn convert(tools: &Path, work: &Path, req: &ImgReq, progress: &dyn Fn(usize,
         _ => vec![(made[0].clone(), finals[0].clone())],
     };
     for (a, b) in pairs {
-        if let Err(p) = crate::rename::move_no_replace(&a, &b) {
-            for (x, y) in moved.iter().rev() { let _ = crate::rename::move_no_replace(y, x); }
+        if let Err(p) = crate::cover::rename::move_no_replace(&a, &b) {
+            for (x, y) in moved.iter().rev() { let _ = crate::cover::rename::move_no_replace(y, x); }
             return Err(if p.kind == "duplicate" { "exists".into() } else { p.title });
         }
         moved.push((a, b));

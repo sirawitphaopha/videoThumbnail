@@ -182,7 +182,7 @@ pub fn rename_in_library(lib: &LibraryStore, id: &str, stem: &str) -> Result<(Mo
 #[tauri::command]
 pub fn rename_movie(app: AppHandle, lib: State<'_, Arc<LibraryStore>>, id: String, stem: String) -> Result<Movie, RenameProblem> {
     // ระหว่างยืนยันปกหรือย้ายที่เก็บ เปลี่ยนชื่อแล้วรูปจะออกมาเป็นชื่อเก่า (ผู้ช่วยตรวจขั้น 8)
-    if app.try_state::<Arc<crate::link::LinkStore>>().is_some_and(|s| s.is_busy()) {
+    if app.try_state::<Arc<crate::cover::link::LinkStore>>().is_some_and(|s| s.is_busy()) {
         return Err(problem("inuse", "กำลังยืนยันปกจับคู่อยู่ รอให้เสร็จก่อน", None));
     }
     let (mut m, changed) = rename_in_library(&lib, &id, &stem)?;
@@ -190,7 +190,7 @@ pub fn rename_movie(app: AppHandle, lib: State<'_, Arc<LibraryStore>>, id: Strin
         // รูปที่โปรแกรมคัดลอกไว้ข้างไฟล์หนัง เปลี่ยนชื่อตาม (แผนจับคู่รูปปก)
         if !m.linked.is_empty() {
             let new_path = PathBuf::from(&m.path);
-            if let Some(up) = lib.update_movie(&id, |x| crate::link::rename_beside(x, &new_path)) { m = up; }
+            if let Some(up) = lib.update_movie(&id, |x| crate::cover::link::rename_beside(x, &new_path)) { m = up; }
         }
         let _ = app.emit("movie-updated", &m);
         // ไฟล์เปลี่ยนชื่อแล้วจริง · บันทึกคลังไม่สำเร็จก็ยังนับว่าเปลี่ยนชื่อสำเร็จ อ่านโฟลเดอร์ครั้งหน้าคลังตามทันเอง (จำด้วยเลขประจำไฟล์)

@@ -42,7 +42,7 @@ pub fn db_rename(d: &Dirs, kind: &str, from: &str, to: &str) -> Result<(), Strin
     if exists(d, kind, to) { return Err(format!("มีฐานชื่อ {to} อยู่แล้ว ตั้งชื่ออื่น")); }
     let (_, new) = db_paths(d, kind, to);
     // ย้ายแบบไม่ทับ · std::fs::rename บน Windows ทับไฟล์ปลายทางที่มีอยู่ (ผู้ช่วยตรวจทาน R14)
-    crate::rename::move_no_replace(&old, &new).map_err(|p| format!("เปลี่ยนชื่อฐานไม่ได้ {}", p.title))?;
+    crate::cover::rename::move_no_replace(&old, &new).map_err(|p| format!("เปลี่ยนชื่อฐานไม่ได้ {}", p.title))?;
     forget_db(kind, from);
     Ok(())
 }

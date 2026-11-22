@@ -43,7 +43,7 @@ pub(crate) struct TmpSub(pub(crate) PathBuf);
 impl TmpSub {
     pub(crate) fn new(work: &Path, doc: &SubDoc) -> Result<Self, String> {
         let ext = match doc.kind.as_str() { "ass" => "ass", "ssa" => "ssa", "vtt" => "vtt", _ => "srt" };
-        let p = work.join(format!("sub-shot-{}.{ext}", crate::poster_image::unique()));
+        let p = work.join(format!("sub-shot-{}.{ext}", crate::cover::poster_image::unique()));
         std::fs::write(&p, crate::subdoc::render(doc)).map_err(|e| e.to_string())?;
         Ok(Self(p))
     }
@@ -428,7 +428,7 @@ mod tests {
 
     #[test]
     fn save_new_never_overwrites() {
-        let d = std::env::temp_dir().join(format!("subshot-test-{}", crate::poster_image::unique()));
+        let d = std::env::temp_dir().join(format!("subshot-test-{}", crate::cover::poster_image::unique()));
         std::fs::create_dir_all(&d).unwrap();
         std::fs::write(d.join("หนัง_001_96.png"), b"old").unwrap();
         let p = save_new(&d, "หนัง", 96, b"new").unwrap();

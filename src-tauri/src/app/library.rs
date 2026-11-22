@@ -68,9 +68,9 @@ pub struct Movie {
     /// อ่านข้อมูลไฟล์ไม่ได้ บอกสาเหตุ
     pub error: Option<String>,
     /// เสียงกับซับที่จับคู่ไว้ ไม่รวมเข้าไฟล์ (แผนเสียงและซับ ขั้น 7) · คลังเก่าไม่มีช่องนี้ อ่านได้เป็นว่าง
-    pub pairs: Vec<crate::pairs::Pair>,
+    pub pairs: Vec<crate::cover::pairs::Pair>,
     /// ปกที่จับคู่ไว้ ไม่ได้อยู่ในไฟล์ (แผนจับคู่รูปปก) · ปกตั้งกับปกนอนอย่างละหนึ่ง · คลังเก่าไม่มีช่องนี้ อ่านได้เป็นว่าง
-    pub linked: Vec<crate::link::LinkedCover>,
+    pub linked: Vec<crate::cover::link::LinkedCover>,
     /// เรื่องที่มีทั้งปกในไฟล์และปกจับคู่ เลือกปกที่แสดง "file" ปกในไฟล์ · ว่าง = ปกจับคู่ (พี่กันตอบตอนทำแผน *"เลือกได้"*)
     pub cover_pick: String,
     /// คะแนนดาวที่พี่กันให้ 0 ถึง 5 · 0 = ยังไม่ให้ · เก็บในคลังของโปรแกรม ไม่แตะไฟล์หนัง
@@ -101,7 +101,7 @@ struct LibraryFile {
 pub struct ParkedCovers {
     pub id: String,
     pub path: String,
-    pub linked: Vec<crate::link::LinkedCover>,
+    pub linked: Vec<crate::cover::link::LinkedCover>,
     pub cover_pick: String,
     pub rating: u8,
 }
@@ -659,7 +659,7 @@ pub fn reveal_movie(app: AppHandle, path: String) -> Result<(), String> {
 #[cfg(test)]
 mod park_tests {
     use super::*;
-    use crate::link::LinkedCover;
+    use crate::cover::link::LinkedCover;
 
     fn cover() -> LinkedCover { LinkedCover { orient: "tall".into(), source: "D:\\รูป.jpg".into(), thumb: "D:\\t.jpg".into(), ..Default::default() } }
 

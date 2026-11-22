@@ -160,7 +160,7 @@ pub fn parse_hocr(html: &str) -> TessOut {
 pub fn ocr_once(ocr: &Path, data: &Path, work: &Path, img: &RgbaImage, lang: &str, oem: u32, psm: u32, sx: u32, sy: u32) -> Result<TessOut, String> {
     let exe = exe(ocr);
     if !exe.is_file() { return Err("ไม่มี tesseract.exe ในโฟลเดอร์เครื่องมือ ลองติดตั้งโปรแกรมใหม่".into()); }
-    let id = crate::poster_image::unique();
+    let id = crate::cover::poster_image::unique();
     let png = work.join(format!("tess-{id}.png"));
     let base = work.join(format!("tess-{id}"));
     prepare(img, sx, sy).save(&png).map_err(|e| format!("เขียนภาพให้ Tesseract ไม่ได้ {e}"))?;

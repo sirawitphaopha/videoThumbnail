@@ -265,7 +265,7 @@ fn make_preview(app: &AppHandle, movie: &Path, file: &Path, tid: u64, delay_ms: 
             if e.file_name().to_string_lossy().starts_with("delay-preview-") { let _ = std::fs::remove_file(e.path()); }
         }
     }
-    let base = tmp.join(format!("delay-preview-{}.mkv", crate::poster_image::unique()));
+    let base = tmp.join(format!("delay-preview-{}.mkv", crate::cover::poster_image::unique()));
     let args = preview_args(movie, file, tid, delay_ms, at, 20.0, &base);
     let o = run_tool_timeout(&tools, "mkvmerge", &args, Duration::from_secs(120))?;
     if !tool_succeeded("mkvmerge", &o.status) {

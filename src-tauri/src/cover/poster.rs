@@ -19,8 +19,8 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use crate::poster_image::{self as pi, Geometry};
-use crate::rename::{self, RenameProblem, MAX_PATH_LEN};
+use crate::cover::poster_image::{self as pi, Geometry};
+use crate::cover::rename::{self, RenameProblem, MAX_PATH_LEN};
 use crate::app::outfile::{
     cancelled, fail, finish_output, ApplyProblem, count, drive_letter, duration_of, eta, ffprobe_json, fmt_gb, free_space, has_attached_pic, kind_word,
     mkv_attachments, not_in_use, run_live, scopeguard, streams_of, Counts, Run, StreamInfo,

@@ -16,7 +16,7 @@ use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::app::library::{LibraryStore, Movie};
-use crate::poster_image::{self as pi, Geometry};
+use crate::cover::poster_image::{self as pi, Geometry};
 use crate::app::store::write_atomic;
 
 // ---------------------------------------------------------------- เทียบชื่อ (ฟังก์ชันล้วน)
@@ -1221,7 +1221,7 @@ fn write_thumb(env: &WriteEnv, id: &str, orient: &str, img: &image::RgbImage, sh
 fn write_new(target: &Path, bytes: &[u8]) -> Result<(), String> {
     let temp = target.with_extension(format!("{}.partial", pi::unique()));
     fs::write(&temp, bytes).map_err(|e| e.to_string())?;
-    if let Err(p) = crate::rename::move_no_replace(&temp, target) {
+    if let Err(p) = crate::cover::rename::move_no_replace(&temp, target) {
         let _ = fs::remove_file(&temp);
         return Err(p.title);
     }
@@ -1233,12 +1233,12 @@ fn replace_own(target: &Path, bytes: &[u8]) -> Result<(), String> {
     let temp = target.with_extension(format!("{}.partial", pi::unique()));
     fs::write(&temp, bytes).map_err(|e| e.to_string())?;
     let old = target.with_extension(format!("{}.old", pi::unique()));
-    if let Err(p) = crate::rename::move_no_replace(target, &old) {
+    if let Err(p) = crate::cover::rename::move_no_replace(target, &old) {
         let _ = fs::remove_file(&temp);
         return Err(p.title);
     }
-    if let Err(p) = crate::rename::move_no_replace(&temp, target) {
-        let _ = crate::rename::move_no_replace(&old, target);
+    if let Err(p) = crate::cover::rename::move_no_replace(&temp, target) {
+        let _ = crate::cover::rename::move_no_replace(&old, target);
         let _ = fs::remove_file(&temp);
         return Err(p.title);
     }
@@ -1434,7 +1434,7 @@ pub fn rename_beside(m: &mut Movie, new_movie: &Path) {
         let ext = old.extension().map(|e| e.to_string_lossy().to_string()).unwrap_or_else(|| "jpg".into());
         let new = beside_target(new_movie, &c.orient, &ext);
         // ไฟล์ที่ผู้ใช้แก้เองแล้วไม่ใช่ของโปรแกรมอีกต่อไป ไม่เปลี่ยนชื่อให้
-        if !same_file(&old, &new) && file_sha(&old) == c.sha256 && crate::rename::move_no_replace(&old, &new).is_ok() {
+        if !same_file(&old, &new) && file_sha(&old) == c.sha256 && crate::cover::rename::move_no_replace(&old, &new).is_ok() {
             c.file = Some(new.to_string_lossy().to_string());
         }
     }

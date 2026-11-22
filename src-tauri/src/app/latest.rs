@@ -325,7 +325,7 @@ mod tests {
         let sorted = |mut v: Vec<String>| { v.sort(); v.dedup(); v };
         let own = |v: &[&str]| sorted(v.iter().map(|s| s.to_string()).collect());
         assert_eq!(sorted(list("MOVIE_EXT")), own(&crate::app::library::ACCEPTED), "ไฟล์หนังที่ชั้นวางรับ");
-        assert_eq!(sorted(list("IMAGE_EXT")), own(&crate::poster_image::ACCEPTED), "รูปโปสเตอร์ที่รับ");
+        assert_eq!(sorted(list("IMAGE_EXT")), own(&crate::cover::poster_image::ACCEPTED), "รูปโปสเตอร์ที่รับ");
         let codecs = ["opus", "aac", "mp3", "ac3", "eac3", "flac", "alac", "wv", "ape", "tak"];
         let outs: Vec<&str> = codecs.iter().map(|c| crate::encode::EncodeSpec { codec: c.to_string(), ..Default::default() }.ext()).collect();
         assert_eq!(sorted(list("ENCODE_OUT_EXT")), own(&outs), "นามสกุลไฟล์ที่ได้จากการแปลงเสียง");

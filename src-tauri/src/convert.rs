@@ -238,7 +238,7 @@ pub fn size_probe(work: &Path, dir_of: &dyn Fn(&str) -> PathBuf, path: &str, str
         let segs: Vec<(f64, f64)> = if whole { vec![(0.0, duration.max(0.1))] } else { (0..4).map(|i| ((duration * (i as f64 + 0.5) / 4.0 - 5.0).max(0.0), 10.0)).collect() };
         let (mut bytes, mut secs) = (0u64, 0.0f64);
         for (at, len) in &segs {
-            let out = work.join(format!("sizeprobe-{}.{}", crate::poster_image::unique(), spec.ext()));
+            let out = work.join(format!("sizeprobe-{}.{}", crate::cover::poster_image::unique(), spec.ext()));
             let _g = scopeguard(out.clone());
             let mut plan = encode::build(&spec_r, path, stream, &out.to_string_lossy(), channels, bits)?;
             if !whole { insert_before(&mut plan.steps[0].args, "-i", vec!["-ss".into(), format!("{at:.3}"), "-t".into(), format!("{len:.3}")]); }
@@ -420,7 +420,7 @@ fn convert(app: &AppHandle, req: &ConvReq, jobs: &Arc<crate::app::jobs::Jobs>) -
 
     let user = encode::user_dir(app).unwrap_or_default();
     let encs = encode::status(&tools, &user);
-    let partial = dir.join(format!("{stem}.partial-{}.{ext}", crate::poster_image::unique()));
+    let partial = dir.join(format!("{stem}.partial-{}.{ext}", crate::cover::poster_image::unique()));
     let _g1 = scopeguard(partial.clone());
     let opus_native = codec == "opus" && (spec.encoder.is_empty() || spec.encoder == "native");
     let own_tag = matches!(codec, "wv" | "ape" | "tak");
@@ -430,7 +430,7 @@ fn convert(app: &AppHandle, req: &ConvReq, jobs: &Arc<crate::app::jobs::Jobs>) -
     if let Some(c) = &f.cover {
         if opus_native || own_tag {
             if let Ok(b) = cover_bytes(&tools, &src, c.stream) {
-                let p = work.join(format!("conv-cover-{}.{}", crate::poster_image::unique(), cover_ext(&c.codec)));
+                let p = work.join(format!("conv-cover-{}.{}", crate::cover::poster_image::unique(), cover_ext(&c.codec)));
                 if std::fs::write(&p, &b).is_ok() { _g2 = Some(scopeguard(p.clone())); cover_file = Some((p, b)); }
             }
         }
@@ -481,7 +481,7 @@ fn convert(app: &AppHandle, req: &ConvReq, jobs: &Arc<crate::app::jobs::Jobs>) -
     let mut _g3 = None;
     let has_meta = !f.tags.is_empty() || f.cover.is_some();
     if remux_kind(codec) && has_meta {
-        let p2 = dir.join(format!("{stem}.partial-{}.{ext}", crate::poster_image::unique()));
+        let p2 = dir.join(format!("{stem}.partial-{}.{ext}", crate::cover::poster_image::unique()));
         _g3 = Some(scopeguard(p2.clone()));
         let cover_fits = f.cover.as_ref().is_some_and(|c| matches!(c.codec.as_str(), "mjpeg" | "png"));
         let try_once = |with_cover: bool| -> bool {
@@ -537,10 +537,10 @@ fn convert(app: &AppHandle, req: &ConvReq, jobs: &Arc<crate::app::jobs::Jobs>) -
     if stop() { return Err(fail("cancelled", "หยุดแปลงแล้ว", vec!["ไฟล์ที่ทำค้างถูกลบ".into(), untouched])); }
     // ย้ายชื่อแบบไม่เขียนทับ · ระหว่างแปลงมีไฟล์ชื่อนี้โผล่มา ใช้ชื่อถัดไป
     let mut dest = free_name(&dir, Path::new(&format!("{stem}.{ext}")));
-    if let Err(p) = crate::rename::move_no_replace(&final_tmp, &dest) {
+    if let Err(p) = crate::cover::rename::move_no_replace(&final_tmp, &dest) {
         if p.kind == "duplicate" {
             dest = free_name(&dir, Path::new(&format!("{stem}.{ext}")));
-            crate::rename::move_no_replace(&final_tmp, &dest).map_err(|p| fail("other", "ตั้งชื่อไฟล์ใหม่ไม่ได้", vec![p.title, untouched.clone()]))?;
+            crate::cover::rename::move_no_replace(&final_tmp, &dest).map_err(|p| fail("other", "ตั้งชื่อไฟล์ใหม่ไม่ได้", vec![p.title, untouched.clone()]))?;
         } else {
             return Err(fail("other", "ตั้งชื่อไฟล์ใหม่ไม่ได้", vec![p.title, untouched]));
         }
@@ -638,7 +638,7 @@ mod tests {
         let Some(src) = av("เพลงทดสอบ 96k.flac") else { return };
         let f = probe(&tools(), &src).unwrap();
         assert!(!f.tags.is_empty() && f.cover.is_some(), "ไฟล์ทดสอบต้องมีแท็กกับปก {:?}", f.tags);
-        let dir = std::env::temp_dir().join(format!("ms-conv-{}", crate::poster_image::unique()));
+        let dir = std::env::temp_dir().join(format!("ms-conv-{}", crate::cover::poster_image::unique()));
         std::fs::create_dir_all(&dir).unwrap();
         let out = dir.join("ape.ape");
         let spec = EncodeSpec { codec: "ape".into(), p: json!({"level": "High"}).as_object().cloned().unwrap(), ..Default::default() };
@@ -686,7 +686,7 @@ mod tests {
         assert_eq!((b.track, b.tracks, b.stream, b.codec.as_str(), b.channels), (1, 2, 2, "ac3", 6));
         let e = probe_track(&tools(), &src, 2).unwrap_err();
         assert!(e.contains("มีแทร็กเสียง 2 แทร็ก") && e.contains("ไม่มีแทร็กที่ 3"), "{e}");
-        let dir = std::env::temp_dir().join(format!("ms-track-{}", crate::poster_image::unique()));
+        let dir = std::env::temp_dir().join(format!("ms-track-{}", crate::cover::poster_image::unique()));
         std::fs::create_dir_all(&dir).unwrap();
         let out = dir.join("track2.flac");
         let spec = EncodeSpec { codec: "flac".into(), ..Default::default() };
@@ -702,7 +702,7 @@ mod tests {
     fn bit_exact_after_lossless_and_reasons() {
         let Some(src) = av("เพลงทดสอบ 96k.flac") else { return };
         let f = probe(&tools(), &src).unwrap();
-        let dir = std::env::temp_dir().join(format!("ms-same-{}", crate::poster_image::unique()));
+        let dir = std::env::temp_dir().join(format!("ms-same-{}", crate::cover::poster_image::unique()));
         std::fs::create_dir_all(&dir).unwrap();
         let out = dir.join("same.wv");
         let spec = EncodeSpec { codec: "wv".into(), p: json!({"mode": "Normal"}).as_object().cloned().unwrap(), ..Default::default() };
@@ -733,7 +733,7 @@ mod tests {
     /// เพลงทดสอบ 150 วินาที เสียงรบกวนสีชมพูที่ดังเบาสลับกัน บีบได้ไม่เท่ากันทั้งเพลงแบบเพลงจริง · ไฟล์สั้นไม่เกิน 60 วินาทีแปลงทั้งเพลง ได้ขนาดตรงเป๊ะ
     #[test]
     fn size_probe_close_to_real() {
-        let dir = std::env::temp_dir().join(format!("ms-probe-{}", crate::poster_image::unique()));
+        let dir = std::env::temp_dir().join(format!("ms-probe-{}", crate::cover::poster_image::unique()));
         std::fs::create_dir_all(&dir).unwrap();
         let src = dir.join("long.flac");
         let o = crate::app::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-f", "lavfi", "-i", "anoisesrc=color=pink:amplitude=0.4:duration=150:sample_rate=48000", "-af", "volume=0.25+0.7*abs(sin(2*PI*t/23)):eval=frame", "-ac", "2", "-sample_fmt", "s32", "-c:a", "flac"].iter().map(OsStr::new).chain([src.as_os_str()])).unwrap();
@@ -766,7 +766,7 @@ mod tests {
     fn flac_to_tak_with_tags_real() {
         let Some(src) = av("เพลงทดสอบ 96k.flac") else { return };
         let f = probe(&tools(), &src).unwrap();
-        let dir = std::env::temp_dir().join(format!("ms-conv-{}", crate::poster_image::unique()));
+        let dir = std::env::temp_dir().join(format!("ms-conv-{}", crate::cover::poster_image::unique()));
         std::fs::create_dir_all(&dir).unwrap();
         let tak = dir.join("TAK 2.3.3");
         encode::ensure_tak(&tools(), &tak).expect("แตก Takc.exe จาก zip ที่แนบมาได้");
@@ -799,7 +799,7 @@ mod tests {
         let Some(src) = av("เพลงทดสอบ.wav") else { return };
         let f = probe(&tools(), &src).unwrap();
         assert_eq!(f.rate, 44100);
-        let dir = std::env::temp_dir().join(format!("ms-conv-{}", crate::poster_image::unique()));
+        let dir = std::env::temp_dir().join(format!("ms-conv-{}", crate::cover::poster_image::unique()));
         std::fs::create_dir_all(&dir).unwrap();
         let out = dir.join("ln.flac");
         let spec = EncodeSpec { codec: "flac".into(), loudnorm: true, src_rate: Some(f.rate), ..Default::default() };
@@ -816,7 +816,7 @@ mod tests {
     fn ape_stop_returns_cancelled() {
         let Some(src) = av("เพลงทดสอบ 96k.flac") else { return };
         let f = probe(&tools(), &src).unwrap();
-        let dir = std::env::temp_dir().join(format!("ms-conv-{}", crate::poster_image::unique()));
+        let dir = std::env::temp_dir().join(format!("ms-conv-{}", crate::cover::poster_image::unique()));
         std::fs::create_dir_all(&dir).unwrap();
         let out = dir.join("stop.ape");
         let spec = EncodeSpec { codec: "ape".into(), ..Default::default() };

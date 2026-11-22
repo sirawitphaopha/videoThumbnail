@@ -125,7 +125,7 @@ fn download_model(user: &Path, m: &DlModel, on: &dyn Fn(f64), stop: &dyn Fn() ->
         }
         done += f.size;
     }
-    if let Err(p) = crate::rename::move_no_replace(&stage, &dest) { return fail(format!("ย้ายโมเดลเข้าที่เก็บไม่ได้ {}", p.title)); }
+    if let Err(p) = crate::cover::rename::move_no_replace(&stage, &dest) { return fail(format!("ย้ายโมเดลเข้าที่เก็บไม่ได้ {}", p.title)); }
     on(100.0);
     Ok(dest)
 }

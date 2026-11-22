@@ -1170,7 +1170,7 @@ pub fn export(tools: &Path, work: &Path, doc: &SubDoc, req: &PgsReq, progress: &
         if let Err(e) = wr.flush() { drop(wr); return fail(format!("เขียนไฟล์ไม่ได้ {e}"), &partial); }
         drop(wr);
         if res.images == 0 { return fail("ซับนี้ไม่มีบรรทัดที่ขึ้นบนภาพ จึงไม่มีภาพให้ส่งออก".into(), &partial); }
-        if let Err(p) = crate::rename::move_no_replace(&partial, &target) {
+        if let Err(p) = crate::cover::rename::move_no_replace(&partial, &target) {
             let _ = std::fs::remove_file(&partial);
             return Err(if p.kind == "duplicate" { "exists".into() } else { p.title });
         }
@@ -1501,7 +1501,7 @@ fn export_super(tools: &Path, work: &Path, prep: &Prepared, req: &PgsReq, progre
     let pts = change_points(doc, frame_ms);
     let need: Vec<usize> = (0..pts.len()).filter(|&i| active_at(doc, pts[i]) && i + 1 < pts.len()).collect();
     let total = need.len();
-    let dir = TmpDir(work.join(format!("pgs-super-{}", crate::poster_image::unique())));
+    let dir = TmpDir(work.join(format!("pgs-super-{}", crate::cover::poster_image::unique())));
     std::fs::create_dir_all(&dir.0).map_err(|e| e.to_string())?;
     let sub = crate::subshot::TmpSub::new(work, doc)?;
     let fonts = req.movie.as_deref().filter(|m| !m.is_empty()).and_then(|m| crate::subshot::movie_fonts(tools, work, Path::new(m)));
@@ -1525,10 +1525,10 @@ fn export_super(tools: &Path, work: &Path, prep: &Prepared, req: &PgsReq, progre
     if ev.is_empty() { return Err("ซับนี้ไม่มีบรรทัดที่ขึ้นบนภาพ จึงไม่มีภาพให้ส่งออก".into()); }
     let bdn = write_bdn(&dir.0, &ev, vf, rate, base, req.fps_num, req.fps_den)?;
     let name = target.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-    let tmp = target.with_file_name(format!("{name}.{}.partial.sup", crate::poster_image::unique()));
+    let tmp = target.with_file_name(format!("{name}.{}.partial.sup", crate::cover::poster_image::unique()));
     let r = run_super(tools, &bdn, &tmp, &req.opts, out709, progress, &|| STOP.load(Ordering::SeqCst));
     if let Err(e) = r { let _ = std::fs::remove_file(&tmp); return Err(e); }
-    if let Err(p) = crate::rename::move_no_replace(&tmp, &target) {
+    if let Err(p) = crate::cover::rename::move_no_replace(&tmp, &target) {
         let _ = std::fs::remove_file(&tmp);
         return Err(if p.kind == "duplicate" { "exists".into() } else { p.title });
     }
@@ -1618,17 +1618,17 @@ fn export_seconv(tools: &Path, work: &Path, doc: &SubDoc, req: &PgsReq, progress
     if !seconv_exe(tools).exists() { return Err("ยังไม่มี SeConv ในโฟลเดอร์เครื่องมือ".into()); }
     let target = PathBuf::from(&req.target);
     let (w, h) = (req.w.clamp(16, 4096), req.h.clamp(16, 4096));
-    let input = work.join(format!("seconv-{}.{}", crate::poster_image::unique(), kind_ext(&doc.kind)));
+    let input = work.join(format!("seconv-{}.{}", crate::cover::poster_image::unique(), kind_ext(&doc.kind)));
     std::fs::write(&input, crate::subdoc::render(doc)).map_err(|e| e.to_string())?;
     let name = target.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-    let tmp = target.with_file_name(format!("{name}.{}.partial.sup", crate::poster_image::unique()));
+    let tmp = target.with_file_name(format!("{name}.{}.partial.sup", crate::cover::poster_image::unique()));
     progress(0, 1, "seconv");
     let r = run_seconv(tools, &input, &tmp, w, h, req, &|| STOP.load(Ordering::SeqCst));
     let _ = std::fs::remove_file(&input);
     if let Err(e) = r { let _ = std::fs::remove_file(&tmp); return Err(e); }
     progress(1, 1, "seconv");
     let images = std::fs::read(&tmp).map(|b| shown_sets(&b)).unwrap_or(0);
-    if let Err(p) = crate::rename::move_no_replace(&tmp, &target) {
+    if let Err(p) = crate::cover::rename::move_no_replace(&tmp, &target) {
         let _ = std::fs::remove_file(&tmp);
         return Err(if p.kind == "duplicate" { "exists".into() } else { p.title });
     }
@@ -1846,7 +1846,7 @@ pub fn preview(tools: &Path, work: &Path, doc: &SubDoc, req: &PgsReq, at: i64, s
     let (pgspx, before, after) = if req.engine == "super" {
         let (vf, (rate, base)) = (video_format(w, h, req.fps_num, req.fps_den).ok_or("SUPer รับเฉพาะขนาดภาพของ Blu-ray")?, bdn_rate(req.fps_num, req.fps_den));
         if !super_exe(tools).exists() { return Err("ยังไม่มี SUPer ในโฟลเดอร์เครื่องมือ".into()); }
-        let dir = TmpDir(work.join(format!("pgs-prev-{}", crate::poster_image::unique())));
+        let dir = TmpDir(work.join(format!("pgs-prev-{}", crate::cover::poster_image::unique())));
         std::fs::create_dir_all(&dir.0).map_err(|e| e.to_string())?;
         let px = straight_px(&buf, mangle, req.opts.vivid.min(100) as f64 / 100.0);
         let Some((x, y, cw, ch)) = write_png(&dir.0, "00000000.png", &px, wu, hu)? else { return Ok(PgsPreview { empty: true, ..Default::default() }) };
@@ -1873,7 +1873,7 @@ pub fn preview(tools: &Path, work: &Path, doc: &SubDoc, req: &PgsReq, at: i64, s
             None => mini.events.retain(|e| !e.comment && e.start <= at && at < e.end),
         }
         if mini.events.is_empty() { return Ok(PgsPreview { empty: true, ..Default::default() }); }
-        let dir = TmpDir(work.join(format!("pgs-prev-{}", crate::poster_image::unique())));
+        let dir = TmpDir(work.join(format!("pgs-prev-{}", crate::cover::poster_image::unique())));
         std::fs::create_dir_all(&dir.0).map_err(|e| e.to_string())?;
         let input = dir.0.join(format!("prev.{}", kind_ext(&mini.kind)));
         std::fs::write(&input, crate::subdoc::render(&mini)).map_err(|e| e.to_string())?;

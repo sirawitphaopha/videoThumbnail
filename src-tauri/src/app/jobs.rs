@@ -89,7 +89,7 @@ pub fn guard_close(app: &AppHandle) -> bool {
     if jobs.force_exit.load(Ordering::SeqCst) {
         return false;
     }
-    let waiting = app.try_state::<Arc<crate::link::LinkStore>>().map(|s| s.waiting()).unwrap_or(0);
+    let waiting = app.try_state::<Arc<crate::cover::link::LinkStore>>().map(|s| s.waiting()).unwrap_or(0);
     if waiting > 0 {
         let _ = app.emit("close-pairs", waiting);
         return true;

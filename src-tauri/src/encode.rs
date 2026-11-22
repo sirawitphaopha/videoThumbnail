@@ -536,7 +536,7 @@ pub fn ensure_tak(tools: &Path, dir: &Path) -> Result<(), String> {
     if dir.join("Takc.exe").exists() { return Ok(()); }
     let zip = tools.join(TAK_ZIP);
     if !zip.exists() { return Err("missing".into()); }
-    let tmp = std::env::temp_dir().join(format!("movie-shelf-tak-{}", crate::poster_image::unique()));
+    let tmp = std::env::temp_dir().join(format!("movie-shelf-tak-{}", crate::cover::poster_image::unique()));
     std::fs::create_dir_all(&tmp).map_err(|e| e.to_string())?;
     struct Clean(PathBuf);
     impl Drop for Clean { fn drop(&mut self) { let _ = std::fs::remove_dir_all(&self.0); } }
@@ -550,7 +550,7 @@ pub fn ensure_tak(tools: &Path, dir: &Path) -> Result<(), String> {
     std::fs::create_dir_all(dir).map_err(|e| e.to_string())?;
     let _ = std::fs::copy(tmp.join("Readme.html"), dir.join("Readme.html"));
     // คัดลอกเป็นชื่อชั่วคราวก่อนแล้วเปลี่ยนชื่อ · สองงานแตกพร้อมกันไม่ได้ไฟล์ครึ่งไฟล์
-    let part = dir.join(format!("Takc.partial-{}", crate::poster_image::unique()));
+    let part = dir.join(format!("Takc.partial-{}", crate::cover::poster_image::unique()));
     std::fs::copy(tmp.join("Takc.exe"), &part).map_err(|e| e.to_string())?;
     if std::fs::rename(&part, dir.join("Takc.exe")).is_err() {
         let _ = std::fs::remove_file(&part);

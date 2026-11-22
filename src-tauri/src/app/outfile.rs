@@ -227,7 +227,7 @@ mod trash_tests {
 pub fn replace_with(partial: &Path, target: &Path) -> Result<(), String> {
     let had = target.exists();
     if had { to_trash(target).map_err(|e| { let _ = std::fs::remove_file(partial); e })?; }
-    crate::rename::move_no_replace(partial, target).map_err(|p| {
+    crate::cover::rename::move_no_replace(partial, target).map_err(|p| {
         if had { format!("เอาไฟล์ใหม่มาแทนไม่สำเร็จ {}  ไฟล์เดิมอยู่ในถังขยะ ไฟล์ใหม่อยู่ที่ {}", p.title, partial.display()) }
         else { let _ = std::fs::remove_file(partial); p.title }
     })
@@ -387,7 +387,7 @@ pub fn cancelled(untouched: &str, partial: Option<&Path>) -> ApplyProblem {
 pub fn finish_output(
     app: &AppHandle, src: &Path, target: &Path, partial: &Path, original_mode: &str, verified: bool, untouched: &str, notes: &mut Vec<String>,
 ) -> Result<(String, Option<String>), ApplyProblem> {
-    use crate::rename::move_no_replace;
+    use crate::cover::rename::move_no_replace;
     let dir = src.parent().map(Path::to_path_buf).unwrap_or_default();
     let same_name = target.to_string_lossy().to_lowercase() == src.to_string_lossy().to_lowercase();
     let mut original = "none".to_string();

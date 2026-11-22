@@ -14,15 +14,11 @@ mod extract;
 mod fileinfo;
 mod fonts;
 mod loudness;
-mod link;
+mod cover;
 mod merge;
 mod mkvtree;
-mod pairs;
 mod players;
-mod poster;
-mod poster_image;
 mod probe;
-mod rename;
 mod subaudio;
 mod subconv;
 mod imgconv;
@@ -76,7 +72,7 @@ pub fn run() {
         .plugin(tauri_plugin_dialog::init())
         .plugin(tauri_plugin_opener::init())
         .manage(Arc::new(Jobs::default()))
-        .manage(poster::PosterState::default())
+        .manage(cover::poster::PosterState::default())
         .manage(merge::MergeState::default())
         .manage(convert::ConvertState::default())
         .setup(|app| {
@@ -98,8 +94,8 @@ pub fn run() {
             if n > 0 { app::actlog::note("ไฟล์ตั้งค่าเสียทั้งสองชุด", &format!("เอารายชื่อโฟลเดอร์หนังคืนจากคลังหนัง {n} โฟลเดอร์")); }
             app.manage(settings);
             app.manage(Arc::new(library));
-            let pending = link::link_path(app.handle())?;
-            app.manage(Arc::new(link::LinkStore::load(pending)));
+            let pending = cover::link::link_path(app.handle())?;
+            app.manage(Arc::new(cover::link::LinkStore::load(pending)));
             // โฟลเดอร์รูปที่หน้าจอเปิดผ่าน asset protocol (thumbs previews frames ใน tauri.conf.json)
             // เปิดโปรแกรมจากโปรแกรมแบบแพ็กเกจของ Windows (เช่นตอนแคลร์เปิดโหมดพัฒนาจากโปรแกรม Claude) Windows เก็บไฟล์ใหม่ไว้ในโฟลเดอร์ของแพ็กเกจแทน
             // Tauri เทียบที่อยู่จริงของไฟล์หลังคลี่ (canonicalize) กับกติกา ไม่ตรง รูปขึ้น 403 · เจอ 11 พ.ย. 2569 รูปในหน้าครอปของโหมดพัฒนาเป็นรูปเสีย
@@ -179,11 +175,11 @@ pub fn run() {
     let handler = typed(tauri::generate_handler![
         app::actlog::actlog_info, app::actlog::actlog_open_dir,
         app::tools::check_tools, app::tools::check_icaros, app::tools::open_icaros_page, app::store::get_settings, app::store::set_settings, app::drives::drive_space, app::drives::drive_open, app::drives::drive_free, chapters::chapters_read,
-        app::jobs::running_jobs, app::jobs::force_close, app::jobs::dev_fake_job, poster::dev_fake_free, app::library::dev_set_check, app::library::dev_clear_parked,
+        app::jobs::running_jobs, app::jobs::force_close, app::jobs::dev_fake_job, cover::poster::dev_fake_free, app::library::dev_set_check, app::library::dev_clear_parked,
         app::library::get_library, app::library::scan_library, app::library::play_movie, app::library::reveal_movie, app::library::set_rating,
-        rename::check_rename, rename::rename_movie,
-        poster::poster_open, poster::poster_view, poster::poster_render, poster::poster_clear, poster::poster_folder_images,
-        poster::poster_inspect, poster::poster_apply, poster::poster_cancel, poster::poster_check_name,
+        cover::rename::check_rename, cover::rename::rename_movie,
+        cover::poster::poster_open, cover::poster::poster_view, cover::poster::poster_render, cover::poster::poster_clear, cover::poster::poster_folder_images,
+        cover::poster::poster_inspect, cover::poster::poster_apply, cover::poster::poster_cancel, cover::poster::poster_check_name,
         app::latest::thanks_open, bitrate::bitrate_start, bitrate::bitrate_tracks, bitrate::bitrate_stop, merge::merge_inspect, merge::remux_fonts, merge::merge_add_file, merge::merge_apply, merge::merge_cancel, merge::merge_cover_preview, merge::merge_cover_drop, encode::encode_preview, encode::encoders_status, encode::encoders_open_dir, encode::encoders_user_dir, app::latest::encoders_latest, app::latest::encoders_open_page, app::latest::open_itunes_page, fonts::font_info,
         delay::delay_find, delay::delay_view, delay::delay_preview,
         subs::movie_frame, subs::sub_text, subs::sub_frame, subs::sub_wave, subs::sub_images, subs::sub_image_times, ocrsrc::ocr_source, ocrsrc::ocr_source_pngs, subs::ocr_vobsub_recolor, subs::ocr_vobsub_preview, ocrjob::ocr_read, ocrjob::ocr_teach, ocrjob::ocr_word, ocrjob::ocr_suggest, ocrjob::ocr_names, ocrjob::ocr_dbs, ocrjob::ocr_history, ocrjob::ocr_history_update, ocrjob::ocr_history_delete, ocrjob::ocr_inspect, ocrjob::ocr_inspect_update, ocrjob::ocr_inspect_delete, ocrjob::ocr_inspect_draw, ocrjob::ocr_inspect_teach, ocrjob::ocr_inspect_reload, ocrjob::ocr_remove_items, ocrjob::ocr_stop, ocrjob::ocr_prep_preview, ocrjob::ocr_paddle_models, ocrjob::ocr_db_delete, ocrjob::ocr_image_out, ocrmanual::ocr_db_new, ocrmanual::ocr_db_rename, ocrmanual::ocr_db_chars, ocrmanual::ocr_db_char_update, ocrmanual::ocr_db_char_delete, ocrmanual::ocr_train, ocrmanual::ocr_train_cancel, ocrmanual::ocr_train_preview, ocrmanual::ocr_db_optimize, ocrexport::ocr_export_formats, ocrexport::ocr_export_preview, ocrexport::ocr_export, ocrexport::ocr_export_doc, ocrexport::ocr_save_html, tesseract::ocr_tess_langs, tesseract::ocr_tess_download, tesseract::ocr_tess_cancel, paddle_dl::ocr_paddle_langs, paddle_dl::ocr_paddle_download, paddle_dl::ocr_paddle_cancel,
@@ -191,8 +187,8 @@ pub fn run() {
         subdoc::subdoc_set_dirty, subdoc::subdoc_autosave, subdoc::subdoc_autosaves, subdoc::subdoc_open_autosave, fonts::font_families,
         vidframes::vid_table, vidframes::vid_table_stop, vidframes::vid_frames, vidframes::vid_scenes, vidframes::vid_scenes_stop, vidframes::vid_keys_load, vidframes::vid_keys_save, vidplay::vid_play, vidplay::vid_play_stop, mpvplay::mpv_play, mpvplay::mpv_state, mpvplay::mpv_rect, mpvplay::mpv_sub, mpvplay::mpv_volume, mpvplay::mpv_stop, mpvplay::mpv_available, mpvplay::mpv_dev_props, mpvplay::mpv_dev_shot,
         subaudio::sub_pcm, subaudio::sub_audio_save, subaudio::sub_peaks, pgs::pgs_export, pgs::pgs_cancel, pgs::pgs_preview, pgs::pgs_engines, pgs::pgs_estimate, imgconv::imgsub_convert, imgconv::imgsub_cancel, imgconv::imgsub_tools, imgconv::imgsub_preview,
-        pairs::pair_set, pairs::pair_check, pairs::pair_play,
-        link::link_state, link::link_titles, link::link_is_dir, link::link_images, link::link_add_images, link::link_remove_images, link::link_auto, link::link_pair, link::link_undo, link::link_row_update, link::link_set_crop, link::link_confirm, link::link_cancel, link::link_resolve, link::link_unsave, link::link_remove, link::link_open_row, link::link_cover_pick, link::link_migrate,
+        cover::pairs::pair_set, cover::pairs::pair_check, cover::pairs::pair_play,
+        cover::link::link_state, cover::link::link_titles, cover::link::link_is_dir, cover::link::link_images, cover::link::link_add_images, cover::link::link_remove_images, cover::link::link_auto, cover::link::link_pair, cover::link::link_undo, cover::link::link_row_update, cover::link::link_set_crop, cover::link::link_confirm, cover::link::link_cancel, cover::link::link_resolve, cover::link::link_unsave, cover::link::link_remove, cover::link::link_open_row, cover::link::link_cover_pick, cover::link::link_migrate,
         convert::convert_probe, convert::convert_size_probe, convert::convert_cover, convert::convert_one, convert::convert_cancel,
         fileinfo::media_info, mkvtree::mkv_tree, fileinfo::audio_codec_detail, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_running, fileinfo::hash_compare, fileinfo::hash_save, app::winutil::clipboard_text,
         extract::extract_start, extract::extract_info, extract::extract_cancel, extract::extract_running, extract::extract_default_folder,
@@ -206,9 +202,9 @@ pub fn run() {
         app::tools::check_tools, app::tools::check_icaros, app::tools::open_icaros_page, app::store::get_settings, app::store::set_settings, app::drives::drive_space, app::drives::drive_open, app::drives::drive_free, chapters::chapters_read,
         app::jobs::running_jobs, app::jobs::force_close,
         app::library::get_library, app::library::scan_library, app::library::play_movie, app::library::reveal_movie, app::library::set_rating,
-        rename::check_rename, rename::rename_movie,
-        poster::poster_open, poster::poster_view, poster::poster_render, poster::poster_clear, poster::poster_folder_images,
-        poster::poster_inspect, poster::poster_apply, poster::poster_cancel, poster::poster_check_name,
+        cover::rename::check_rename, cover::rename::rename_movie,
+        cover::poster::poster_open, cover::poster::poster_view, cover::poster::poster_render, cover::poster::poster_clear, cover::poster::poster_folder_images,
+        cover::poster::poster_inspect, cover::poster::poster_apply, cover::poster::poster_cancel, cover::poster::poster_check_name,
         app::latest::thanks_open, bitrate::bitrate_start, bitrate::bitrate_tracks, bitrate::bitrate_stop, merge::merge_inspect, merge::remux_fonts, merge::merge_add_file, merge::merge_apply, merge::merge_cancel, merge::merge_cover_preview, merge::merge_cover_drop, encode::encode_preview, encode::encoders_status, encode::encoders_open_dir, encode::encoders_user_dir, app::latest::encoders_latest, app::latest::encoders_open_page, app::latest::open_itunes_page, fonts::font_info,
         delay::delay_find, delay::delay_view, delay::delay_preview,
         subs::movie_frame, subs::sub_text, subs::sub_frame, subs::sub_wave, subs::sub_images, subs::sub_image_times, ocrsrc::ocr_source, ocrsrc::ocr_source_pngs, subs::ocr_vobsub_recolor, subs::ocr_vobsub_preview, ocrjob::ocr_read, ocrjob::ocr_teach, ocrjob::ocr_word, ocrjob::ocr_suggest, ocrjob::ocr_names, ocrjob::ocr_dbs, ocrjob::ocr_history, ocrjob::ocr_history_update, ocrjob::ocr_history_delete, ocrjob::ocr_inspect, ocrjob::ocr_inspect_update, ocrjob::ocr_inspect_delete, ocrjob::ocr_inspect_draw, ocrjob::ocr_inspect_teach, ocrjob::ocr_inspect_reload, ocrjob::ocr_remove_items, ocrjob::ocr_stop, ocrjob::ocr_prep_preview, ocrjob::ocr_paddle_models, ocrjob::ocr_db_delete, ocrjob::ocr_image_out, ocrmanual::ocr_db_new, ocrmanual::ocr_db_rename, ocrmanual::ocr_db_chars, ocrmanual::ocr_db_char_update, ocrmanual::ocr_db_char_delete, ocrmanual::ocr_train, ocrmanual::ocr_train_cancel, ocrmanual::ocr_train_preview, ocrmanual::ocr_db_optimize, ocrexport::ocr_export_formats, ocrexport::ocr_export_preview, ocrexport::ocr_export, ocrexport::ocr_export_doc, ocrexport::ocr_save_html, tesseract::ocr_tess_langs, tesseract::ocr_tess_download, tesseract::ocr_tess_cancel, paddle_dl::ocr_paddle_langs, paddle_dl::ocr_paddle_download, paddle_dl::ocr_paddle_cancel,
@@ -216,8 +212,8 @@ pub fn run() {
         subdoc::subdoc_set_dirty, subdoc::subdoc_autosave, subdoc::subdoc_autosaves, subdoc::subdoc_open_autosave, fonts::font_families,
         vidframes::vid_table, vidframes::vid_table_stop, vidframes::vid_frames, vidframes::vid_scenes, vidframes::vid_scenes_stop, vidframes::vid_keys_load, vidframes::vid_keys_save, vidplay::vid_play, vidplay::vid_play_stop, mpvplay::mpv_play, mpvplay::mpv_state, mpvplay::mpv_rect, mpvplay::mpv_sub, mpvplay::mpv_volume, mpvplay::mpv_stop, mpvplay::mpv_available, mpvplay::mpv_dev_props, mpvplay::mpv_dev_shot,
         subaudio::sub_pcm, subaudio::sub_audio_save, subaudio::sub_peaks, pgs::pgs_export, pgs::pgs_cancel, pgs::pgs_preview, pgs::pgs_engines, pgs::pgs_estimate, imgconv::imgsub_convert, imgconv::imgsub_cancel, imgconv::imgsub_tools, imgconv::imgsub_preview,
-        pairs::pair_set, pairs::pair_check, pairs::pair_play,
-        link::link_state, link::link_titles, link::link_is_dir, link::link_images, link::link_add_images, link::link_remove_images, link::link_auto, link::link_pair, link::link_undo, link::link_row_update, link::link_set_crop, link::link_confirm, link::link_cancel, link::link_resolve, link::link_unsave, link::link_remove, link::link_open_row, link::link_cover_pick, link::link_migrate,
+        cover::pairs::pair_set, cover::pairs::pair_check, cover::pairs::pair_play,
+        cover::link::link_state, cover::link::link_titles, cover::link::link_is_dir, cover::link::link_images, cover::link::link_add_images, cover::link::link_remove_images, cover::link::link_auto, cover::link::link_pair, cover::link::link_undo, cover::link::link_row_update, cover::link::link_set_crop, cover::link::link_confirm, cover::link::link_cancel, cover::link::link_resolve, cover::link::link_unsave, cover::link::link_remove, cover::link::link_open_row, cover::link::link_cover_pick, cover::link::link_migrate,
         convert::convert_probe, convert::convert_size_probe, convert::convert_cover, convert::convert_one, convert::convert_cancel,
         fileinfo::media_info, mkvtree::mkv_tree, fileinfo::audio_codec_detail, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_running, fileinfo::hash_compare, fileinfo::hash_save, app::winutil::clipboard_text,
         extract::extract_start, extract::extract_info, extract::extract_cancel, extract::extract_running, extract::extract_default_folder,

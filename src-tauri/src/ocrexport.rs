@@ -195,7 +195,7 @@ fn seconv_to(tools: &Path, input: &Path, dir: &Path, name: &str, id: &str, enc: 
 pub fn preview(tools: &Path, work: &Path, req: &ExpReq) -> Result<String, String> {
     let doc = doc_of(req);
     if req.fmt == SRT || req.fmt == ASS { return Ok(subdoc::render(&doc)); }
-    let dir = work.join(format!("ocrexp-{}", crate::poster_image::unique()));
+    let dir = work.join(format!("ocrexp-{}", crate::cover::poster_image::unique()));
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let input = dir.join("ocr.ass");
     let r = std::fs::write(&input, subdoc::to_bytes(&SubDoc { enc: enc_of("utf8bom"), ..doc }).0).map_err(|e| e.to_string())
@@ -224,7 +224,7 @@ pub fn export(tools: &Path, work: &Path, req: &ExpReq, target: &Path) -> Result<
         let saved = subdoc::save(&doc, target, "new", false)?;
         return Ok(ExpOut { path: saved.path, lines, bytes: std::fs::metadata(target).map(|m| m.len()).unwrap_or(0) });
     }
-    let dir = work.join(format!("ocrexp-{}", crate::poster_image::unique()));
+    let dir = work.join(format!("ocrexp-{}", crate::cover::poster_image::unique()));
     std::fs::create_dir_all(&dir).map_err(|e| e.to_string())?;
     let input = dir.join("ocr.ass");
     let name = target.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_else(|| "ocr".into());
@@ -234,7 +234,7 @@ pub fn export(tools: &Path, work: &Path, req: &ExpReq, target: &Path) -> Result<
     let r = std::fs::write(&input, subdoc::to_bytes(&SubDoc { enc: enc_of("utf8bom"), ..doc }).0).map_err(|e| e.to_string())
         .and_then(|_| seconv_to(tools, &input, &dir.join("out"), &name, &req.fmt, &req.enc))
         .and_then(|p| std::fs::copy(&p, &partial).map(|_| ()).map_err(|e| format!("เขียนไฟล์ไม่ได้ {e}")))
-        .and_then(|_| crate::rename::move_no_replace(&partial, target).map_err(|e| if e.kind == "duplicate" { "exists".to_string() } else { e.title }));
+        .and_then(|_| crate::cover::rename::move_no_replace(&partial, target).map_err(|e| if e.kind == "duplicate" { "exists".to_string() } else { e.title }));
     let _ = std::fs::remove_dir_all(&dir);
     if r.is_err() { let _ = std::fs::remove_file(&partial); }
     r?;
