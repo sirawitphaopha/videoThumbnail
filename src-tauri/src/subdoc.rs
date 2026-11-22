@@ -920,7 +920,7 @@ pub fn save(doc: &SubDoc, target: &Path, mode: &str, force: bool) -> Result<Save
         if Path::new(&src.path) != target { return Err("บันทึกทับได้เฉพาะไฟล์ที่เปิดอยู่".into()); }
         if !target.exists() { return Err("missing".into()); }
         if !force && stamp(target) != (src.size, src.mtime) { return Err("changed".into()); }
-        if !crate::outfile::not_in_use(target) { return Err("ไฟล์ซับถูกเปิดอยู่ในโปรแกรมอื่น ปิดโปรแกรมนั้นก่อนแล้วกดบันทึกใหม่".into()); }
+        if !crate::app::outfile::not_in_use(target) { return Err("ไฟล์ซับถูกเปิดอยู่ในโปรแกรมอื่น ปิดโปรแกรมนั้นก่อนแล้วกดบันทึกใหม่".into()); }
     } else if target.exists() {
         return Err("exists".into());
     }
@@ -937,13 +937,13 @@ pub fn save(doc: &SubDoc, target: &Path, mode: &str, force: bool) -> Result<Save
     }
     if mode == "replace" {
         // ไฟล์เดิมลงถังขยะด้วยชื่อจริง (กู้คืนได้) แล้วเอาไฟล์ใหม่มาแทน · ย้ายไม่สำเร็จ ไฟล์เดิมยังอยู่ในถังขยะ ไฟล์ใหม่อยู่ที่ .partial
-        crate::outfile::to_trash(target).map_err(|e| { let _ = std::fs::remove_file(&partial); e })?;
+        crate::app::outfile::to_trash(target).map_err(|e| { let _ = std::fs::remove_file(&partial); e })?;
         crate::rename::move_no_replace(&partial, target).map_err(|p| format!("เอาไฟล์ใหม่มาแทนไม่สำเร็จ {}  ไฟล์เดิมอยู่ในถังขยะ ไฟล์ใหม่อยู่ที่ {}", p.title, partial.display()))?;
     } else if let Err(p) = crate::rename::move_no_replace(&partial, target) {
         let _ = std::fs::remove_file(&partial);
         return Err(if p.kind == "duplicate" { "exists".into() } else { p.title });
     }
-    crate::actlog::note("บันทึกไฟล์ซับ", &format!("{} ({}{})", target.display(), enc.charset, if bad.is_some() { " เปลี่ยนรหัสเพราะมีตัวอักษรที่รหัสเดิมเก็บไม่ได้" } else { "" }));
+    crate::app::actlog::note("บันทึกไฟล์ซับ", &format!("{} ({}{})", target.display(), enc.charset, if bad.is_some() { " เปลี่ยนรหัสเพราะมีตัวอักษรที่รหัสเดิมเก็บไม่ได้" } else { "" }));
     let (size, mtime) = stamp(target);
     Ok(Saved { path: target.display().to_string(), enc, bad_char: bad.map(|c| c.to_string()), source: Source { path: target.display().to_string(), in_movie: false, size, mtime, tid: None } })
 }
@@ -965,7 +965,7 @@ pub fn subdoc_stamp(path: String) -> (u64, u64) {
 
 #[tauri::command]
 pub async fn subdoc_open(app: AppHandle, path: String, in_movie: bool, tid: u64, ff: u64, charset: Option<String>) -> Result<SubDoc, String> {
-    let tools = crate::tools::tools_dir(&app)?;
+    let tools = crate::app::tools::tools_dir(&app)?;
     let work = work_dir(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
         let p = PathBuf::from(&path);
@@ -1013,7 +1013,7 @@ pub fn subdoc_convert(doc: SubDoc, to: String, play_res: Option<(u32, u32)>) -> 
 pub fn subdoc_free_name(path: String) -> String {
     let p = PathBuf::from(&path);
     let dir = p.parent().map(Path::to_path_buf).unwrap_or_default();
-    crate::outfile::free_name(&dir, Path::new(p.file_name().unwrap_or_default())).display().to_string()
+    crate::app::outfile::free_name(&dir, Path::new(p.file_name().unwrap_or_default())).display().to_string()
 }
 
 /// ข้อความทั้งไฟล์ตามที่จะบันทึก (แบบ notepad กับตัวตรวจ)
@@ -1106,7 +1106,7 @@ fn safe_name(s: &str) -> String {
 
 /// เขียนฉบับบันทึกอัตโนมัติ ไฟล์ซับจริงที่เปิดด้วยโปรแกรมอื่นได้ กับไฟล์ .json ข้างกัน · เก็บ 10 ฉบับล่าสุดต่อชื่อ
 pub fn autosave_to(dir: &Path, doc: &SubDoc, name: &str) -> Result<AutoItem, String> {
-    let t = crate::actlog::now_local();
+    let t = crate::app::actlog::now_local();
     let ext = match doc.kind.as_str() { "ass" => "ass", "ssa" => "ssa", "vtt" => "vtt", _ => "srt" };
     let base = safe_name(name);
     let stamp = format!("{:04}{:02}{:02}-{:02}{:02}{:02}", t.y, t.mo, t.d, t.h, t.mi, t.s);

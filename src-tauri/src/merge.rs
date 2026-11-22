@@ -17,12 +17,12 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use crate::outfile::{
+use crate::app::outfile::{
     cancelled, count, drive_letter, duration_of, eta, fail, ffprobe_json, finish_output, fmt_gb, free_space, kind_word, mp4_fit,
     not_in_use, run_live, scopeguard, streams_of, ApplyProblem, Counts, Run,
 };
 use crate::rename::MAX_PATH_LEN;
-use crate::tools::{run_tool_timeout, tool_succeeded};
+use crate::app::tools::{run_tool_timeout, tool_succeeded};
 
 // ---------------------------------------------------------------- สถานะของหน้า
 
@@ -327,12 +327,12 @@ fn attachments_of(j: &Value) -> Vec<Attachment> {
 
 fn tools_of(app: &AppHandle) -> Result<(PathBuf, PathBuf), String> {
     let local = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
-    Ok((crate::tools::tools_dir(app)?, local.join("tmp")))
+    Ok((crate::app::tools::tools_dir(app)?, local.join("tmp")))
 }
 
 pub fn inspect(tools: &Path, p: &Path) -> Result<MergeMovie, String> {
     let ext = p.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
-    if !crate::library::ACCEPTED.contains(&ext.as_str()) {
+    if !crate::app::library::ACCEPTED.contains(&ext.as_str()) {
         return Err(format!("ไฟล์ .{ext} ไม่ใช่ไฟล์หนังที่ใช้ได้"));
     }
     let size = std::fs::metadata(p).map_err(|_| "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่".to_string())?.len();
@@ -960,7 +960,7 @@ pub fn verify_mp4(tools: &Path, file: &Path, tracks: &[Track], want_cover: bool,
             why.push(format!("แทร็กที่ {} ธงหลักไม่ตรงที่สั่ง", i + 1));
         }
     }
-    if want_cover && !crate::outfile::has_attached_pic(&ff) {
+    if want_cover && !crate::app::outfile::has_attached_pic(&ff) {
         why.push("ไม่เจอปกในไฟล์ใหม่".into());
     }
     if let (Some(a), Some(b)) = (movie_duration, duration_of(&ff)) {
@@ -1324,7 +1324,7 @@ pub async fn merge_apply(app: AppHandle, req: MergeReq) -> Result<MergeResult, A
             return Err(fail("other", "กำลังรวมไฟล์อีกเรื่องอยู่", vec!["รอให้เสร็จก่อน".into()]));
         }
         st.cancel.store(false, Ordering::SeqCst);
-        let jobs = app.state::<Arc<crate::jobs::Jobs>>().inner().clone();
+        let jobs = app.state::<Arc<crate::app::jobs::Jobs>>().inner().clone();
         let _guard = jobs.start();
         let r = apply(&app, &req, &jobs);
         st.running.store(false, Ordering::SeqCst);
@@ -1338,7 +1338,7 @@ fn movie_path(p: &str) -> PathBuf {
     PathBuf::from(p.replace('/', "\\"))
 }
 
-fn apply(app: &AppHandle, req: &MergeReq, jobs: &Arc<crate::jobs::Jobs>) -> Result<MergeResult, ApplyProblem> {
+fn apply(app: &AppHandle, req: &MergeReq, jobs: &Arc<crate::app::jobs::Jobs>) -> Result<MergeResult, ApplyProblem> {
     let st = app.state::<MergeState>();
     let (tools, work) = tools_of(app).map_err(|e| fail("other", "รวมไฟล์ไม่สำเร็จ", vec![e]))?;
     let stop = || st.cancel.load(Ordering::SeqCst) || jobs.cancelled();
@@ -1450,7 +1450,7 @@ fn apply(app: &AppHandle, req: &MergeReq, jobs: &Arc<crate::jobs::Jobs>) -> Resu
         return Err(cancelled(&untouched, None));
     }
     // การจับคู่เก็บไว้กับเรื่องเดิม · ไฟล์ใหม่คนละชื่อ (เช่น MP4 เป็น MKV) การจับคู่ไม่ตามไป บอกในผล (ข้อ 13)
-    let old_pairs = { let lib = app.state::<Arc<crate::library::LibraryStore>>(); let k = src.to_string_lossy().to_lowercase(); lib.movies.lock().unwrap().iter().find(|m| m.path.to_lowercase() == k).map(|m| m.pairs.len()).unwrap_or(0) };
+    let old_pairs = { let lib = app.state::<Arc<crate::app::library::LibraryStore>>(); let k = src.to_string_lossy().to_lowercase(); lib.movies.lock().unwrap().iter().find(|m| m.path.to_lowercase() == k).map(|m| m.pairs.len()).unwrap_or(0) };
     // จากนี้ไฟล์เดิมจะถูกย้าย หยุดไม่ได้แล้ว บอกหน้าจอก่อนแตะไฟล์เดิม (AUDIT ข้อ 14)
     // เดิมปุ่มหยุดยังอยู่จนจบ กล่องยืนยันบอกว่าไฟล์เดิมไม่ถูกแตะ ทั้งที่ไฟล์เดิมย้ายไปแล้วและงานไม่หยุด
     emit_final("กำลังย้ายไฟล์ใหม่เข้าที่", 100.0);
@@ -1462,12 +1462,12 @@ fn apply(app: &AppHandle, req: &MergeReq, jobs: &Arc<crate::jobs::Jobs>) -> Resu
     // ไฟล์ใหม่ชื่อเดิม จดขนาดกับค่า hash ใหม่เป็นงานของโปรแกรมเอง ไม่ให้ชั้นวางขึ้นว่าไฟล์ถูกเปลี่ยนหลังตรวจ (ข้อ 14 · แบบหน้าใส่โปสเตอร์)
     if target.to_string_lossy().eq_ignore_ascii_case(&src.to_string_lossy()) {
         emit_final("กำลังจดข้อมูลไฟล์ใหม่", 100.0);
-        crate::library::refresh_own_edit(app, &target, &|pct| emit_final("กำลังจดค่า hash ใหม่", pct));
+        crate::app::library::refresh_own_edit(app, &target, &|pct| emit_final("กำลังจดค่า hash ใหม่", pct));
     }
     // ใส่รูปปกใหม่เข้าไฟล์แล้ว ล้างช่องรูป ไม่ให้ติดไปเรื่องถัดไป
     st.covers.lock().unwrap().clear();
-    let lib = app.state::<Arc<crate::library::LibraryStore>>();
-    let _ = crate::library::scan_library(app.clone(), lib);
+    let lib = app.state::<Arc<crate::app::library::LibraryStore>>();
+    let _ = crate::app::library::scan_library(app.clone(), lib);
     Ok(MergeResult {
         mode: req.output.clone(), output: target.to_string_lossy().to_string(), counts: made.counts, verified: made.verified, original, original_to, notes,
     })
@@ -1476,7 +1476,7 @@ fn apply(app: &AppHandle, req: &MergeReq, jobs: &Arc<crate::jobs::Jobs>) -> Resu
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::outfile::mkv_attachments;
+    use crate::app::outfile::mkv_attachments;
 
     fn tools() -> PathBuf {
         PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tools")
@@ -1518,7 +1518,7 @@ mod tests {
 
     /// เวลาของแพ็กเก็ตแรกที่มีเนื้อ · ข้ามแพ็กเก็ตว่าง (ซับ mov_text ใน MP4 มีแพ็กเก็ตว่าง 2 ไบต์คั่นช่วงที่ไม่มีซับ เริ่มที่วินาที 0)
     fn first_packet(file: &Path, sel: &str) -> f64 {
-        let o = crate::tools::run_tool(&tools(), "ffprobe", ["-v", "error", "-select_streams", sel, "-show_entries", "packet=pts_time,size", "-of", "csv=p=0"].iter().map(OsString::from).chain([file.as_os_str().to_owned()])).unwrap();
+        let o = crate::app::tools::run_tool(&tools(), "ffprobe", ["-v", "error", "-select_streams", sel, "-show_entries", "packet=pts_time,size", "-of", "csv=p=0"].iter().map(OsString::from).chain([file.as_os_str().to_owned()])).unwrap();
         String::from_utf8_lossy(&o.stdout).lines().filter_map(|l| {
             let mut it = l.trim().trim_end_matches(',').split(',');
             let t: f64 = it.next()?.parse().ok()?;
@@ -1584,7 +1584,7 @@ mod tests {
         let movie = dir.0.join("ฉากตัด (2025).mkv");
         std::fs::copy(&src, &movie).unwrap();
         // ตั้งภาษาแบบละเอียดกับป้ายพิเศษให้ซับสองแทร็กของสำเนา
-        let pe = crate::tools::run_tool(&tl, "mkvpropedit", [movie.as_os_str(), "--edit".as_ref(), "track:s1".as_ref(), "--set".as_ref(), "language-ietf=zh-Hant".as_ref(), "--set".as_ref(), "flag-hearing-impaired=1".as_ref(), "--set".as_ref(), "flag-commentary=1".as_ref(),
+        let pe = crate::app::tools::run_tool(&tl, "mkvpropedit", [movie.as_os_str(), "--edit".as_ref(), "track:s1".as_ref(), "--set".as_ref(), "language-ietf=zh-Hant".as_ref(), "--set".as_ref(), "flag-hearing-impaired=1".as_ref(), "--set".as_ref(), "flag-commentary=1".as_ref(),
             "--edit".as_ref(), "track:s2".as_ref(), "--set".as_ref(), "language-ietf=es-419".as_ref(), "--set".as_ref(), "flag-original=1".as_ref()]).unwrap();
         assert!(pe.status.success(), "mkvpropedit {}", String::from_utf8_lossy(&pe.stdout));
         let m = inspect(&tl, &movie).unwrap();
@@ -1855,7 +1855,7 @@ mod tests {
         let a_dub = first_packet(&out, "a:0");
         assert!((0.0..0.033).contains(&a_dub), "พากย์ไทยเริ่มที่ {a_dub}");
         // ซับ TIS-620 อ่านเป็นภาษาไทยถูก
-        let o = crate::tools::run_tool(&tl, "ffmpeg", ["-v", "error", "-i"].iter().map(OsString::from).chain([out.as_os_str().to_owned()])
+        let o = crate::app::tools::run_tool(&tl, "ffmpeg", ["-v", "error", "-i"].iter().map(OsString::from).chain([out.as_os_str().to_owned()])
             .chain(["-map", "0:s:1", "-f", "srt", "-"].iter().map(OsString::from))).unwrap();
         let text = String::from_utf8_lossy(&o.stdout).to_string();
         assert!(text.contains("สวัสดีค่ะ นี่คือซับไตเติลภาษาไทย"), "ซับ TIS-620 อ่านได้ {text}");
@@ -1932,7 +1932,7 @@ mod tests {
         assert_eq!(st[1]["disposition"]["default"], 1);
         assert_eq!(st[2]["disposition"]["default"], 0);
         assert_eq!(st[3]["codec_name"], "mov_text");
-        assert!(crate::outfile::has_attached_pic(&j));
+        assert!(crate::app::outfile::has_attached_pic(&j));
     }
 
     /// ฟอนต์ที่แนบในหนังต้องติดไปด้วย · เพิ่มซับไทยเข้าไป
@@ -2000,7 +2000,7 @@ mod tests {
         let dir = temp_dir("mp4cover");
         let tl = tools();
         let movie = dir.0.join("มีปก.mp4");
-        let o = crate::tools::run_tool(&tl, "ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=size=320x240:rate=25:duration=3", "-f", "lavfi", "-i", "sine=frequency=440:duration=3"].iter().map(OsString::from)
+        let o = crate::app::tools::run_tool(&tl, "ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "testsrc2=size=320x240:rate=25:duration=3", "-f", "lavfi", "-i", "sine=frequency=440:duration=3"].iter().map(OsString::from)
             .chain([OsString::from("-i"), poster.into_os_string()])
             .chain(["-map", "0:v", "-map", "1:a", "-map", "2:v", "-c:v:0", "libx264", "-pix_fmt", "yuv420p", "-c:a", "aac", "-c:v:1", "copy", "-disposition:v:1", "attached_pic"].iter().map(OsString::from))
             .chain([movie.clone().into_os_string()])).unwrap();

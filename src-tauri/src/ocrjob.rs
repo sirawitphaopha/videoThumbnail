@@ -99,7 +99,7 @@ pub struct Dirs {
 impl Dirs {
     pub fn of(app: &tauri::AppHandle) -> Result<Dirs, String> {
         use tauri::Manager;
-        let tools = crate::tools::tools_dir(app)?;
+        let tools = crate::app::tools::tools_dir(app)?;
         let user = app.path().app_local_data_dir().map_err(|e| e.to_string())?.join("ocr");
         // โมเดลภาษาของ PaddleOCR ที่ผู้ใช้โหลดเอง (BUGS ข้อ 152)
         crate::paddle::set_user_dir(user.join("paddle"));
@@ -1098,7 +1098,7 @@ pub fn ocr_db_delete(app: tauri::AppHandle, kind: String, name: String) -> Resul
     let d = Dirs::of(&app)?;
     let (_, user) = db_paths(&d, &kind, &name);
     if !user.is_file() { return Err(format!("ฐาน {name} เป็นฐานที่แนบมากับโปรแกรม ลบไม่ได้")); }
-    crate::outfile::to_trash(&user)?;
+    crate::app::outfile::to_trash(&user)?;
     forget_db(&kind, &name);
     Ok(())
 }
@@ -1123,12 +1123,12 @@ pub async fn ocr_image_out(app: tauri::AppHandle, index: usize, dest: String, pa
         let png = std::fs::read(&file).map_err(|e| format!("อ่านภาพซับไม่ได้ {e}"))?;
         if dest == "copy" {
             let img = image::load_from_memory(&png).map_err(|e| format!("อ่านภาพซับไม่ได้ {e}"))?.to_rgba8();
-            if !dry { crate::winutil::clipboard_image(hwnd, &png, &img)?; }
+            if !dry { crate::app::winutil::clipboard_image(hwnd, &png, &img)?; }
             return Ok(String::new());
         }
         let want = PathBuf::from(path.ok_or("ยังไม่ได้เลือกที่เก็บ")?);
         let dir = want.parent().filter(|d| d.is_dir()).ok_or("หาโฟลเดอร์ที่เก็บไม่เจอ")?.to_path_buf();
-        let out = crate::outfile::free_name(&dir, &want);
+        let out = crate::app::outfile::free_name(&dir, &want);
         // เขียนไฟล์ชั่วคราวแล้วย้ายแบบไม่ทับ ตามกฎไฟล์ของโปรแกรม (ผู้ช่วยตรวจทาน R14 · เดิมเขียนตรงที่ชื่อว่าง)
         let part = crate::subdoc::partial_of(&out);
         std::fs::write(&part, &png).map_err(|e| format!("บันทึกภาพไม่ได้ {e}"))?;

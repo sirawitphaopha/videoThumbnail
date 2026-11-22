@@ -20,8 +20,8 @@ use serde::Serialize;
 use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use crate::library::LibraryStore;
-use crate::store::SettingsStore;
+use crate::app::library::LibraryStore;
+use crate::app::store::SettingsStore;
 
 /// จุดเสียต่อกันห่างไม่เกินนี้ (วินาที) นับเป็นช่วงเดียว (TECH-REVIEW ข้อ 13)
 pub const MERGE_GAP: f64 = 5.0;
@@ -296,9 +296,9 @@ fn bad(summary: String, spans: Vec<Value>) -> Outcome {
 fn sha256(path: &Path, on: &dyn Fn(f64), stop: &dyn Fn() -> bool) -> Result<Option<String>, String> {
     let algos = vec!["sha256".to_string()];
     let pct = |d: u64, t: u64| on(if t > 0 { d as f64 / t as f64 * 100.0 } else { 100.0 });
-    Ok(match crate::hashes::compute(path, &algos, &pct, stop)? {
-        crate::hashes::Outcome::Cancelled => None,
-        crate::hashes::Outcome::Done(h) => h.sha256,
+    Ok(match crate::app::hashes::compute(path, &algos, &pct, stop)? {
+        crate::app::hashes::Outcome::Cancelled => None,
+        crate::app::hashes::Outcome::Done(h) => h.sha256,
     })
 }
 
@@ -426,9 +426,9 @@ fn rough_pass(tools: &Path, path: &Path, total: Option<f64>, on: &dyn Fn(f64), s
         "-stats_period".into(), "0.05".into(), "-i".into(), path.into(), "-map".into(), "0:V?".into(), "-map".into(), "0:a?".into(),
         "-f".into(), "null".into(), "-".into(),
     ];
-    let mut child = crate::tools::tool_command(tools, "ffmpeg", &args).stdout(Stdio::null()).stderr(Stdio::piped())
+    let mut child = crate::app::tools::tool_command(tools, "ffmpeg", &args).stdout(Stdio::null()).stderr(Stdio::piped())
         .spawn().map_err(|e| format!("เรียก ffmpeg ไม่ได้: {e}"))?;
-    crate::winutil::kill_with_app(&child);
+    crate::app::winutil::kill_with_app(&child);
     let err = child.stderr.take().unwrap();
     let state = Arc::new(Mutex::new((Rough::default(), VecDeque::<String>::new())));
     let st = state.clone();
@@ -477,9 +477,9 @@ fn rough_pass(tools: &Path, path: &Path, total: Option<f64>, on: &dyn Fn(f64), s
     };
     let _ = reader.join();
     let (rough, tail) = std::mem::take(&mut *state.lock().unwrap());
-    if !rough.progressed || (rough.last <= 0.0 && !crate::tools::tool_succeeded("ffmpeg", &status)) {
+    if !rough.progressed || (rough.last <= 0.0 && !crate::app::tools::tool_succeeded("ffmpeg", &status)) {
         // สาเหตุเป็นประโยคไทย ไม่ใช่แค่รหัส (BUGS ข้อ 150)
-        let why = crate::tools::explain_fail("ffmpeg", &crate::tools::tool_lines(&tail.iter().cloned().collect::<Vec<_>>().join("\n")), Some(&status)).line();
+        let why = crate::app::tools::explain_fail("ffmpeg", &crate::app::tools::tool_lines(&tail.iter().cloned().collect::<Vec<_>>().join("\n")), Some(&status)).line();
         return Err(format!("ffmpeg อ่านภาพเสียงในไฟล์ไม่ได้เลย  {why}"));
     }
     Ok(Some(rough))
@@ -492,9 +492,9 @@ fn exact_pass(tools: &Path, path: &Path, from: f64, to: f64) -> Result<Vec<Hit>,
         "-show_entries".into(), "frame=media_type,best_effort_timestamp_time:log=context,level".into(),
         "-of".into(), "compact=p=0".into(), path.into(),
     ];
-    let out = crate::tools::run_tool_timeout(tools, "ffprobe", &args, Duration::from_secs(600))?;
+    let out = crate::app::tools::run_tool_timeout(tools, "ffprobe", &args, Duration::from_secs(600))?;
     // ffprobe เปิดไฟล์ไม่ได้ (ไดรฟ์หลุด) ได้ผลว่าง เดิมถือว่าไม่เจอแล้วใช้จุดคร่าวจากรอบแรกแทน (AUDIT ข้อ 29)
-    if out.stdout.is_empty() && !crate::tools::tool_succeeded("ffprobe", &out.status) {
+    if out.stdout.is_empty() && !crate::app::tools::tool_succeeded("ffprobe", &out.status) {
         return Err(IO_FAIL.into());
     }
     let mut hits = Vec::new();
@@ -663,7 +663,7 @@ pub fn check_start(app: AppHandle, lib: State<'_, Arc<LibraryStore>>, ids: Vec<S
     if mode != "quick" && mode != "full" {
         return Err(format!("ไม่รู้จักแบบตรวจ {mode}"));
     }
-    let tools = crate::tools::tools_dir(&app)?;
+    let tools = crate::app::tools::tools_dir(&app)?;
     if RUNNING.swap(true, Ordering::SeqCst) {
         return Err("กำลังตรวจชุดก่อนอยู่ รอให้เสร็จ หรือกดหยุดตรวจทั้งชุดก่อน".into());
     }
@@ -678,7 +678,7 @@ pub fn check_start(app: AppHandle, lib: State<'_, Arc<LibraryStore>>, ids: Vec<S
 }
 
 fn run_batch(app: &AppHandle, lib: &LibraryStore, tools: &Path, ids: &[String], mode: &str) -> CheckFinished {
-    let jobs = app.state::<Arc<crate::jobs::Jobs>>().inner().clone();
+    let jobs = app.state::<Arc<crate::app::jobs::Jobs>>().inner().clone();
     let _guard = jobs.start();
     let t0 = Instant::now();
     let mut r = CheckFinished { mode: mode.into(), total: ids.len(), ..Default::default() };
@@ -803,7 +803,7 @@ pub struct PlayResult {
 pub fn auto_player(found: &[PathBuf], file: &Path) -> Option<PathBuf> {
     let ext = file.extension().map(|e| format!(".{}", e.to_string_lossy())).unwrap_or_default();
     crate::players::mpc_hc(found)
-        .or_else(|| crate::winutil::default_app_for(&ext).filter(|p| seek_args(p, file, 0.0).is_some()))
+        .or_else(|| crate::app::winutil::default_app_for(&ext).filter(|p| seek_args(p, file, 0.0).is_some()))
         .or_else(|| found.iter().find(|p| seek_args(p, file, 0.0).is_some()).cloned())
 }
 
@@ -997,12 +997,12 @@ mod tests {
     #[test]
     fn asks_windows_for_the_default_app() {
         // นามสกุลที่ไม่มีโปรแกรมเปิด = ไม่มี · .msc Windows ทุกเครื่องเปิดด้วย mmc.exe
-        let none = crate::winutil::default_app_for(".ไม่มีนามสกุลนี้");
+        let none = crate::app::winutil::default_app_for(".ไม่มีนามสกุลนี้");
         assert!(none.is_none(), "นามสกุลที่ไม่มีโปรแกรมเปิด ได้ {none:?}");
-        let mmc = crate::winutil::default_app_for(".msc").expect("Windows ต้องบอกโปรแกรมที่เปิด .msc ได้");
+        let mmc = crate::app::winutil::default_app_for(".msc").expect("Windows ต้องบอกโปรแกรมที่เปิด .msc ได้");
         assert!(mmc.file_name().unwrap().to_string_lossy().eq_ignore_ascii_case("mmc.exe"), "{}", mmc.display());
         // โปรแกรมหลักของ .mkv ในเครื่องนี้ (จดไว้ดูในผลเทส ไม่ได้บังคับว่าต้องมี)
-        eprintln!("โปรแกรมหลักของ .mkv ในเครื่องนี้ {:?}", crate::winutil::default_app_for(".mkv"));
+        eprintln!("โปรแกรมหลักของ .mkv ในเครื่องนี้ {:?}", crate::app::winutil::default_app_for(".mkv"));
     }
 
     #[test]

@@ -335,7 +335,7 @@ impl BinDb {
         if let Some(d) = self.file.parent() { std::fs::create_dir_all(d).map_err(|e| format!("สร้างโฟลเดอร์ฐานไม่ได้ {e}"))?; }
         let part = PathBuf::from(format!("{}.partial", self.file.display()));
         std::fs::write(&part, gz).map_err(|e| format!("เขียนไฟล์ฐาน Binary OCR ไม่ได้ {e}"))?;
-        crate::outfile::replace_often(&part, &self.file)
+        crate::app::outfile::replace_often(&part, &self.file)
     }
 
     pub fn total(&self) -> usize { self.images.len() + self.expanded.len() }

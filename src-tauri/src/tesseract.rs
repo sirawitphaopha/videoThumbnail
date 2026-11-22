@@ -17,7 +17,7 @@
 // ตัวคุมงาน OCR (ขั้น 10) เป็นคนเรียกตัวอ่าน ระหว่างนี้ยังไม่มีผู้ใช้นอกเทส
 #![allow(dead_code)]
 
-use crate::tools::{run_tool_timeout, tool_command};
+use crate::app::tools::{run_tool_timeout, tool_command};
 use image::{Rgba, RgbaImage};
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -173,8 +173,8 @@ pub fn ocr_once(ocr: &Path, data: &Path, work: &Path, img: &RgbaImage, lang: &st
     let hocr = ["hocr", "html"].iter().map(|e| base.with_extension(e)).find(|p| p.is_file());
     let text = hocr.as_ref().and_then(|p| std::fs::read_to_string(p).ok());
     for e in ["hocr", "html"] { let _ = std::fs::remove_file(base.with_extension(e)); }
-    if !crate::tools::tool_succeeded("tesseract", &o.status) {
-        let lines = crate::tools::tool_lines(&String::from_utf8_lossy(&o.stderr));
+    if !crate::app::tools::tool_succeeded("tesseract", &o.status) {
+        let lines = crate::app::tools::tool_lines(&String::from_utf8_lossy(&o.stderr));
         let all = lines.join(" ").to_lowercase();
         if all.contains("legacy") || all.contains("tessedit_ocr_engine_mode") {
             return Err(format!("ชุดภาษา {lang} ไม่มีเครื่องยนต์แบบเก่า (Legacy) โหลดชุดภาษาแบบมาตรฐานเพิ่ม หรือเลือกโหมด LSTM"));
@@ -182,7 +182,7 @@ pub fn ocr_once(ocr: &Path, data: &Path, work: &Path, img: &RgbaImage, lang: &st
         if all.contains("failed loading language") || all.contains("couldn't load any languages") {
             return Err(format!("ไม่มีชุดภาษา {lang} ในเครื่อง โหลดเพิ่มในหน้าต่างตัวอ่านและชุดภาษา"));
         }
-        return Err(format!("Tesseract อ่านไม่สำเร็จ {}", crate::tools::explain_fail("tesseract", &lines, Some(&o.status)).line()));
+        return Err(format!("Tesseract อ่านไม่สำเร็จ {}", crate::app::tools::explain_fail("tesseract", &lines, Some(&o.status)).line()));
     }
     Ok(text.map(|t| parse_hocr(&t)).unwrap_or_default())
 }
@@ -296,7 +296,7 @@ pub fn download(user: &Path, code: &str, on: &dyn Fn(f64), stop: &dyn Fn() -> bo
     let mut child = tool_command(&sys, "curl", [OsString::from("-sSLf"), "--max-time".into(), "900".into(), "-o".into(), part.clone().into(), url.clone().into()])
         .stdin(std::process::Stdio::null()).stdout(std::process::Stdio::null()).stderr(std::process::Stdio::piped())
         .spawn().map_err(|e| format!("เรียก curl ไม่ได้ {e}"))?;
-    crate::winutil::kill_with_app(&child);
+    crate::app::winutil::kill_with_app(&child);
     let st = loop {
         if stop() { let _ = child.kill(); let _ = child.wait(); let _ = std::fs::remove_file(&part); return Err("หยุดโหลดแล้ว".into()); }
         if let Some(st) = child.try_wait().map_err(|e| e.to_string())? { break st; }
@@ -315,7 +315,7 @@ pub fn download(user: &Path, code: &str, on: &dyn Fn(f64), stop: &dyn Fn() -> bo
         });
     }
     let dest = user.join(format!("{code}.traineddata"));
-    crate::outfile::replace_with(&part, &dest)?;
+    crate::app::outfile::replace_with(&part, &dest)?;
     on(100.0);
     Ok(dest)
 }
@@ -335,7 +335,7 @@ pub struct TessLang { code: String, name: String, have: String }
 /// ทุกภาษาที่โหลดได้ กับสถานะ bundled (แนบมา) downloaded (โหลดแล้ว) หรือว่าง (ยังไม่มี)
 #[tauri::command]
 pub fn ocr_tess_langs(app: tauri::AppHandle) -> Result<Vec<TessLang>, String> {
-    let ocr = crate::tools::tools_dir(&app)?.join("ocr");
+    let ocr = crate::app::tools::tools_dir(&app)?.join("ocr");
     let have = installed(&ocr, &user_dir(&app)?);
     Ok(LANGS.iter().filter(|(c, _)| *c != "osd").map(|(c, n)| TessLang {
         code: c.to_string(), name: n.to_string(), have: have.iter().find(|(h, _)| h == c).map(|(_, f)| f.to_string()).unwrap_or_default(),

@@ -14,7 +14,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Manager};
 
 use crate::subdoc::SubDoc;
-use crate::tools::{run_tool_timeout, tool_succeeded, tools_dir};
+use crate::app::tools::{run_tool_timeout, tool_succeeded, tools_dir};
 
 pub(crate) fn work_dir(app: &AppHandle) -> Result<PathBuf, String> {
     let d = app.path().app_local_data_dir().map_err(|e| e.to_string())?.join("tmp");
@@ -289,7 +289,7 @@ fn bytes_out(png: Vec<u8>, req: &SnapReq, hwnd: isize, movie: &Option<PathBuf>) 
     let img = image::load_from_memory_with_format(&png, image::ImageFormat::Png).map_err(|e| format!("อ่านภาพที่วาดไม่ได้ {e}"))?;
     let (iw, ih) = (img.width(), img.height());
     if req.dest == "copy" {
-        if !req.dry { crate::winutil::clipboard_image(hwnd, &png, &img.to_rgba8())?; }
+        if !req.dry { crate::app::winutil::clipboard_image(hwnd, &png, &img.to_rgba8())?; }
         return Ok(SnapOut { path: None, w: iw, h: ih, bytes: png.len() });
     }
     // ที่เก็บแบบ Aegisub ?video โฟลเดอร์ของหนัง · วิดีโอจำลองใช้โฟลเดอร์ของซับ ไม่มีใช้โฟลเดอร์ผู้ใช้ ชื่อ dummy

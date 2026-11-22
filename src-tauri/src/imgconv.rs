@@ -22,7 +22,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 
-use crate::tools::{run_tool_timeout, tool_command, tool_succeeded, tools_dir};
+use crate::app::tools::{run_tool_timeout, tool_command, tool_succeeded, tools_dir};
 
 static STOP: AtomicBool = AtomicBool::new(false);
 
@@ -297,7 +297,7 @@ fn run(tools: &Path, cfg: &Path, engine: &str, args: &[OsString], progress: &dyn
     let mut cmd = tool_command(&dir, name, args);
     cmd.env("APPDATA", cfg).stdout(Stdio::piped()).stderr(Stdio::piped());
     let mut child = spawn_quiet(cmd).map_err(|e| format!("เปิด {label} ไม่ได้ {e}"))?;
-    crate::winutil::kill_with_app(&child);
+    crate::app::winutil::kill_with_app(&child);
     let out = child.stdout.take().ok_or("อ่านผลของตัวแปลงไม่ได้")?;
     let mut err = child.stderr.take().ok_or("อ่านผลของตัวแปลงไม่ได้")?;
     let (tx, rx) = std::sync::mpsc::channel::<String>();
@@ -697,7 +697,7 @@ pub async fn imgsub_convert(app: AppHandle, req: ImgReq) -> Result<ImgOut, Strin
     let work = crate::subshot::work_dir(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
         let r = convert(&tools, &work, &req, &|done, total| { let _ = app.emit("imgsub-progress", Progress { done, total }); }, &|| STOP.load(Ordering::SeqCst))?;
-        crate::actlog::note("แปลงซับภาพ", &format!("{} ({} ภาพ)", r.files.join(" "), r.images));
+        crate::app::actlog::note("แปลงซับภาพ", &format!("{} ({} ภาพ)", r.files.join(" "), r.images));
         Ok(r)
     }).await.map_err(|e| e.to_string())?
 }

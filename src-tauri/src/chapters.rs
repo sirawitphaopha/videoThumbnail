@@ -9,7 +9,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::tools::run_tool_timeout;
+use crate::app::tools::run_tool_timeout;
 
 #[derive(Serialize, Deserialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -103,7 +103,7 @@ fn one_line(s: &str) -> String {
 #[tauri::command]
 pub async fn chapters_read(app: tauri::AppHandle, path: String) -> Result<Vec<Chapter>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let tools = crate::tools::tools_dir(&app)?;
+        let tools = crate::app::tools::tools_dir(&app)?;
         read(&tools, Path::new(&path))
     }).await.map_err(|e| e.to_string())?
 }

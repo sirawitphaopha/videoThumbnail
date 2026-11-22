@@ -83,7 +83,7 @@ fn vcodec(c: &str) -> String {
 
 /// ข้อมูลไฟล์กับแทร็กที่จะอ่าน · track ว่างหรือ auto = วิดีโอถ้ามี ไม่มีใช้เสียงแทร็กแรก · คืนข้อมูลกับตัวเลือกแทร็กของ ffprobe (V:0 a:1)
 fn info(tools: &Path, path: &Path, track: &str) -> Result<(BrInfo, String), String> {
-    let out = crate::tools::run_tool_timeout(tools, "ffprobe", [
+    let out = crate::app::tools::run_tool_timeout(tools, "ffprobe", [
         "-v".as_ref(), "error".as_ref(), "-print_format".as_ref(), "json".as_ref(), "-show_format".as_ref(), "-show_streams".as_ref(), path.as_os_str(),
     ], Duration::from_secs(60))?;
     let j: Value = serde_json::from_slice(&out.stdout).map_err(|_| "อ่านข้อมูลไฟล์ไม่ได้".to_string())?;
@@ -189,11 +189,11 @@ pub fn read_frames(tools: &Path, path: &Path, sel: &str, frames: bool, keep: boo
     let audio = sel.starts_with('a');
     let frames = frames && !audio;
     let what = if frames { "frame=best_effort_timestamp_time,pkt_dts_time,pkt_size,pict_type" } else { "packet=pts_time,dts_time,size,flags" };
-    let mut child = crate::tools::tool_command(tools, "ffprobe", [
+    let mut child = crate::app::tools::tool_command(tools, "ffprobe", [
         "-v".as_ref(), "error".as_ref(), "-select_streams".as_ref(), sel.as_ref(),
         "-show_entries".as_ref(), what.as_ref(), "-of".as_ref(), "compact=p=0".as_ref(), path.as_os_str(),
     ]).stdout(Stdio::piped()).stderr(Stdio::null()).spawn().map_err(|e| format!("เรียก ffprobe ไม่ได้: {e}"))?;
-    crate::winutil::kill_with_app(&child);
+    crate::app::winutil::kill_with_app(&child);
     let out = child.stdout.take().ok_or("อ่านผลของ ffprobe ไม่ได้")?;
     let mut f = Frames::default();
     let mut last = Instant::now();
@@ -225,7 +225,7 @@ fn drain(f: &mut Frames) {
 #[tauri::command]
 /// track v หรือ a0 a1 … · ไม่ส่งหรือ auto = วิดีโอถ้ามี ไม่มีใช้เสียงแทร็กแรก
 pub async fn bitrate_start(app: AppHandle, path: String, mode: Option<String>, run: Option<u64>, track: Option<String>) -> Result<BrInfo, String> {
-    let tools = crate::tools::tools_dir(&app)?;
+    let tools = crate::app::tools::tools_dir(&app)?;
     let run = match run { Some(r) => { RUN.store(r, Ordering::SeqCst); r } None => RUN.fetch_add(1, Ordering::SeqCst) + 1 };
     let frm = mode.as_deref() == Some("frm");
     let p = std::path::PathBuf::from(&path);
@@ -256,7 +256,7 @@ pub async fn bitrate_start(app: AppHandle, path: String, mode: Option<String>, r
 /// (พี่กันสั่ง 10 พ.ย. 2569 "ถ้าไฟล์ที่มีทั้งเสียงและภาพ … จะให้เลือกก่อนว่าจะดูภาพ หรือเสียงตัวไหน")
 #[tauri::command]
 pub async fn bitrate_tracks(app: AppHandle, path: String) -> Result<Vec<BrTrack>, String> {
-    let tools = crate::tools::tools_dir(&app)?;
+    let tools = crate::app::tools::tools_dir(&app)?;
     tauri::async_runtime::spawn_blocking(move || info(&tools, std::path::Path::new(&path), "auto").map(|(i, _)| i.tracks)).await.map_err(|e| e.to_string())?
 }
 
@@ -290,7 +290,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("ชั้นหนังบิตเรต-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let f = dir.join("คลิป บิตเรต.mkv");
-        let out = crate::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "testsrc=duration=3:size=320x240:rate=25", "-c:v", "libx264", "-g", "25", "-keyint_min", "25", "-sc_threshold", "0", "-bf", "2", f.to_str().unwrap()]).unwrap();
+        let out = crate::app::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "testsrc=duration=3:size=320x240:rate=25", "-c:v", "libx264", "-g", "25", "-keyint_min", "25", "-sc_threshold", "0", "-bf", "2", f.to_str().unwrap()]).unwrap();
         assert!(out.status.success());
         let (inf, sel) = info(&tools(), &f, "auto").unwrap();
         assert_eq!((inf.kind.as_str(), inf.track.as_str(), sel.as_str(), inf.tracks.len()), ("video", "v", "V:0", 1));
@@ -323,7 +323,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("ชั้นหนังบิตเรตเสียง-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let f = dir.join("หนัง สองเสียง.mkv");
-        let out = crate::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "testsrc=duration=3:size=160x120:rate=25",
+        let out = crate::app::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "testsrc=duration=3:size=160x120:rate=25",
             "-f", "lavfi", "-i", "sine=frequency=440:duration=3", "-f", "lavfi", "-i", "sine=frequency=880:duration=3:sample_rate=48000",
             "-map", "0", "-map", "1", "-map", "2", "-c:v", "libx264", "-c:a", "flac", "-metadata:s:a:1", "language=tha", f.to_str().unwrap()]).unwrap();
         assert!(out.status.success());
@@ -340,7 +340,7 @@ mod tests {
         assert!(p.read_to > 2.5);
         assert!(info(&tools(), &f, "a5").is_err());
         let m = dir.join("เพลง.flac");
-        let out = crate::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "sine=duration=2", m.to_str().unwrap()]).unwrap();
+        let out = crate::app::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "sine=duration=2", m.to_str().unwrap()]).unwrap();
         assert!(out.status.success());
         let (b, sel2) = info(&tools(), &m, "").unwrap();
         assert_eq!((b.kind.as_str(), b.track.as_str(), sel2.as_str(), b.tracks.len(), b.video), ("audio", "a0", "a:0", 1, 0));
@@ -353,7 +353,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("ชั้นหนังบิตเรตหยุด-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let f = dir.join("หยุด.mkv");
-        let out = crate::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "testsrc=duration=2:size=160x120:rate=25", "-c:v", "libx264", f.to_str().unwrap()]).unwrap();
+        let out = crate::app::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "testsrc=duration=2:size=160x120:rate=25", "-c:v", "libx264", f.to_str().unwrap()]).unwrap();
         assert!(out.status.success());
         let r = read_frames(&tools(), &f, "V:0", false, true, &|| true, &mut |_| {}).unwrap();
         let _ = std::fs::remove_dir_all(&dir);

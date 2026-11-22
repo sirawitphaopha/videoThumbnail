@@ -4,7 +4,7 @@
 //! ที่อยู่ล็อกที่ commit เดียวกับที่เคยแนบ (vendor/ocr/manifest.json) ตรวจค่า SHA-256 ทุกไฟล์หลังโหลด
 //! โหลดลงโฟลเดอร์ชั่วคราวข้างที่เก็บ ครบและตรงแล้วจึงย้ายเข้าชื่อจริง · แบบชุดภาษาของ Tesseract (tesseract.rs download)
 
-use crate::tools::{run_tool_timeout, tool_command};
+use crate::app::tools::{run_tool_timeout, tool_command};
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -99,7 +99,7 @@ fn download_model(user: &Path, m: &DlModel, on: &dyn Fn(f64), stop: &dyn Fn() ->
             Ok(c) => c,
             Err(e) => return fail(format!("เรียก curl ไม่ได้ {e}")),
         };
-        crate::winutil::kill_with_app(&child);
+        crate::app::winutil::kill_with_app(&child);
         let st = loop {
             if stop() { let _ = child.kill(); let _ = child.wait(); return fail("หยุดโหลดแล้ว".into()); }
             match child.try_wait() { Ok(Some(st)) => break st, Ok(None) => {}, Err(e) => return fail(e.to_string()) }
@@ -146,7 +146,7 @@ pub struct PaddleLang { code: String, name: String, mb: f64, have: bool }
 /// โมเดลภาษาที่โหลดเพิ่มได้ กับสถานะว่าโหลดแล้วหรือยัง (แนบมากับโปรแกรมนับว่ามีแล้ว)
 #[tauri::command]
 pub fn ocr_paddle_langs(app: tauri::AppHandle) -> Result<Vec<PaddleLang>, String> {
-    let ocr = crate::tools::tools_dir(&app)?.join("ocr").join("paddle");
+    let ocr = crate::app::tools::tools_dir(&app)?.join("ocr").join("paddle");
     let user = user_dir(&app)?;
     Ok(DOWNLOADABLE.iter().map(|m| PaddleLang {
         code: m.code.into(), name: m.name.into(), mb: (m.bytes() as f64 / 1048576.0 * 10.0).round() / 10.0,

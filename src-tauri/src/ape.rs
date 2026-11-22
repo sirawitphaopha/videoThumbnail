@@ -12,7 +12,7 @@ use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
 use crate::encode::{Done, Plan};
-use crate::tools::tool_command;
+use crate::app::tools::tool_command;
 
 // ---------------------------------------------------------------- แท็ก APEv2
 
@@ -119,7 +119,7 @@ fn load_lib(dir: &Path) -> Result<windows_sys::Win32::Foundation::HMODULE, Strin
     let p = dir.join("MACDll64.dll");
     if !p.exists() { return Err("ไม่มี MACDll64.dll ในโฟลเดอร์เครื่องมือ".into()); }
     let h = unsafe { LoadLibraryExW(wide(p.as_os_str()).as_ptr(), std::ptr::null_mut(), LOAD_WITH_ALTERED_SEARCH_PATH) };
-    if h.is_null() { return Err(format!("เปิด MACDll64.dll ไม่ได้ {}", crate::tools::dll_reason("MACDll64.dll"))); }
+    if h.is_null() { return Err(format!("เปิด MACDll64.dll ไม่ได้ {}", crate::app::tools::dll_reason("MACDll64.dll"))); }
     Ok(h)
 }
 
@@ -220,7 +220,7 @@ pub fn run(dir: &Path, ff_dir: &Path, plan: &Plan, total_secs: Option<f64>, stop
 
     let mut ff = tool_command(ff_dir, &plan.steps[0].tool, plan.steps[0].args.iter().map(OsStr::new))
         .stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(|e| format!("เรียก ffmpeg ไม่ได้: {e}"))?;
-    crate::winutil::kill_with_app(&ff);
+    crate::app::winutil::kill_with_app(&ff);
     let err = ff.stderr.take().unwrap();
     let (tx, rx) = mpsc::channel::<f64>();
     let reader = std::thread::spawn(move || {
@@ -240,11 +240,11 @@ pub fn run(dir: &Path, ff_dir: &Path, plan: &Plan, total_secs: Option<f64>, stop
             kill(&mut ff);
             let msg = reader.join().unwrap_or_default();
             // สาเหตุเป็นประโยคไทยจากข้อความของ ffmpeg (BUGS ข้อ 150)
-            let lines = crate::tools::tool_lines(&msg);
+            let lines = crate::app::tools::tool_lines(&msg);
             if lines.is_empty() { return Ok(Done::Failed(e)); }
-            let f = crate::tools::explain_fail("ffmpeg", &lines, None);
+            let f = crate::app::tools::explain_fail("ffmpeg", &lines, None);
             // ยังไม่จบงาน คำว่าจบแล้วแต่ไม่ได้ไฟล์ไม่ตรง ใช้ข้อความของ ffmpeg แทน
-            let why = if f.why.ends_with("ไม่ได้ไฟล์ออกมา") { format!("ซึ่งโปรแกรมแปลสาเหตุเป็นภาษาไทยไม่ได้ ({})", crate::tools::short_paths(lines.last().unwrap())) } else { f.why };
+            let why = if f.why.ends_with("ไม่ได้ไฟล์ออกมา") { format!("ซึ่งโปรแกรมแปลสาเหตุเป็นภาษาไทยไม่ได้ ({})", crate::app::tools::short_paths(lines.last().unwrap())) } else { f.why };
             return Ok(Done::Failed(format!("ffmpeg ถอดเสียงไม่สำเร็จ {why}")));
         }
     };
@@ -294,7 +294,7 @@ pub fn run(dir: &Path, ff_dir: &Path, plan: &Plan, total_secs: Option<f64>, stop
     let msg = reader.join().unwrap_or_default();
     if !st.success() {
         destroy(h);
-        return Ok(Done::Failed(format!("ffmpeg ถอดเสียงไม่สำเร็จ {}", crate::tools::explain_fail("ffmpeg", &crate::tools::tool_lines(&msg), Some(&st)).line())));
+        return Ok(Done::Failed(format!("ffmpeg ถอดเสียงไม่สำเร็จ {}", crate::app::tools::explain_fail("ffmpeg", &crate::app::tools::tool_lines(&msg), Some(&st)).line())));
     }
     let r = unsafe { (mac.finish)(h, std::ptr::null_mut(), 0, 0) };
     destroy(h);

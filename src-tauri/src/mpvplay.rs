@@ -25,7 +25,7 @@ use windows_sys::Win32::UI::WindowsAndMessaging::{
     SWP_ASYNCWINDOWPOS, SWP_HIDEWINDOW, SWP_NOACTIVATE, SWP_SHOWWINDOW, WM_NCHITTEST, WNDCLASSW, WS_CHILD, WS_CLIPCHILDREN, WS_CLIPSIBLINGS, WS_DISABLED,
 };
 
-use crate::tools::tools_dir;
+use crate::app::tools::tools_dir;
 
 type FCreate = unsafe extern "C" fn() -> *mut c_void;
 type FInit = unsafe extern "C" fn(*mut c_void) -> c_int;
@@ -142,7 +142,7 @@ fn load(app: &AppHandle) -> Result<Mpv, String> {
     let dll = dir.join("libmpv-2.dll");
     if !dll.exists() { return Err("ไม่มี libmpv-2.dll ในโฟลเดอร์เครื่องมือ ใช้ตัวเล่นแบบ Aegisub แทนได้ในหน้าตั้งค่า".into()); }
     let lib: HMODULE = unsafe { LoadLibraryExW(wide(dll.as_os_str()).as_ptr(), std::ptr::null_mut(), LOAD_WITH_ALTERED_SEARCH_PATH) };
-    if lib.is_null() { return Err(format!("เปิด libmpv-2.dll ไม่ได้ {}", crate::tools::dll_reason("libmpv-2.dll"))); }
+    if lib.is_null() { return Err(format!("เปิด libmpv-2.dll ไม่ได้ {}", crate::app::tools::dll_reason("libmpv-2.dll"))); }
     let sym = |n: &[u8]| unsafe { GetProcAddress(lib, n.as_ptr()) }.ok_or_else(|| format!("libmpv-2.dll ไม่มีคำสั่ง {}", String::from_utf8_lossy(&n[..n.len() - 1])));
     // ชนิดฟังก์ชันตรงกับ include/mpv/client.h ของชุดที่แนบ (cdecl บน 64 บิตเป็นแบบเดียวกับ system)
     let (create, init, set_opt, set_prop, cmd, get, free): (FCreate, FInit, FSetStr, FSetStr, FCmd, FGetStr, FFree) = unsafe {

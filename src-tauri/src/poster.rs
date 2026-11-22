@@ -21,11 +21,11 @@ use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::poster_image::{self as pi, Geometry};
 use crate::rename::{self, RenameProblem, MAX_PATH_LEN};
-use crate::outfile::{
+use crate::app::outfile::{
     cancelled, fail, finish_output, ApplyProblem, count, drive_letter, duration_of, eta, ffprobe_json, fmt_gb, free_space, has_attached_pic, kind_word,
     mkv_attachments, not_in_use, run_live, scopeguard, streams_of, Counts, Run, StreamInfo,
 };
-use crate::tools::{run_tool_timeout, tool_succeeded};
+use crate::app::tools::{run_tool_timeout, tool_succeeded};
 
 // ---------------------------------------------------------------- ที่เก็บสถานะของหน้า
 
@@ -67,7 +67,7 @@ struct Dirs {
 
 fn dirs(app: &AppHandle) -> Result<Dirs, String> {
     let local = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
-    Ok(Dirs { tools: crate::tools::tools_dir(app)?, work: local.join("tmp"), previews: local.join("previews") })
+    Ok(Dirs { tools: crate::app::tools::tools_dir(app)?, work: local.join("tmp"), previews: local.join("previews") })
 }
 
 // ---------------------------------------------------------------- รูป
@@ -166,7 +166,7 @@ pub async fn poster_render(app: AppHandle, req: RenderReq) -> Result<RenderInfo,
         let d = dirs(&app)?;
         let st = app.state::<PosterState>();
         // สวิตช์ ย่อรูปโปสเตอร์ที่ใหญ่เกิน ในหน้าตั้งค่า (เดิมไม่มีโค้ดอ่านค่านี้ ย่อเป็น 1000 × 1500 ทุกครั้ง ผู้ช่วยตรวจสเปกเจอ)
-        let shrink = app.state::<crate::store::SettingsStore>().current.lock().unwrap().shrink_large_posters;
+        let shrink = app.state::<crate::app::store::SettingsStore>().current.lock().unwrap().shrink_large_posters;
         let merge = req.target.is_some();
         let mut cache = if merge { st.m_rendered.lock().unwrap() } else { st.rendered.lock().unwrap() };
         if cache.as_ref().map(|c| c.0 != req.geo || c.3 != shrink).unwrap_or(true) {
@@ -337,7 +337,7 @@ pub async fn poster_inspect(app: AppHandle, path: String) -> Result<MovieInfo, S
         let d = dirs(&app)?;
         let p = PathBuf::from(&path);
         let ext = p.extension().map(|e| e.to_string_lossy().to_lowercase()).unwrap_or_default();
-        if !crate::library::ACCEPTED.contains(&ext.as_str()) {
+        if !crate::app::library::ACCEPTED.contains(&ext.as_str()) {
             return Err(format!("ไฟล์ .{ext} ใช้ไม่ได้"));
         }
         let size = std::fs::metadata(&p).map_err(|_| "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่".to_string())?.len();
@@ -359,7 +359,7 @@ pub async fn poster_inspect(app: AppHandle, path: String) -> Result<MovieInfo, S
 #[cfg(debug_assertions)]
 #[tauri::command]
 pub fn dev_fake_free(bytes: u64) {
-    crate::outfile::FAKE_FREE.store(bytes, Ordering::SeqCst);
+    crate::app::outfile::FAKE_FREE.store(bytes, Ordering::SeqCst);
 }
 
 // ---------------------------------------------------------------- ใส่โปสเตอร์
@@ -452,7 +452,7 @@ pub async fn poster_apply(app: AppHandle, req: ApplyReq) -> Result<ApplyResult, 
             return Err(fail("other", "กำลังใส่โปสเตอร์อีกเรื่องอยู่", vec!["รอให้เสร็จก่อน".into()]));
         }
         st.cancel.store(false, Ordering::SeqCst);
-        let jobs = app.state::<Arc<crate::jobs::Jobs>>().inner().clone();
+        let jobs = app.state::<Arc<crate::app::jobs::Jobs>>().inner().clone();
         let _guard = jobs.start();
         let r = apply(&app, &req, &jobs);
         st.running.store(false, Ordering::SeqCst);
@@ -478,7 +478,7 @@ fn mp4_refusal(src: &[StreamInfo], drop: &[u64]) -> Option<(String, Vec<String>)
     None
 }
 
-fn apply(app: &AppHandle, req: &ApplyReq, jobs: &Arc<crate::jobs::Jobs>) -> Result<ApplyResult, ApplyProblem> {
+fn apply(app: &AppHandle, req: &ApplyReq, jobs: &Arc<crate::app::jobs::Jobs>) -> Result<ApplyResult, ApplyProblem> {
     let st = app.state::<PosterState>();
     let d = dirs(app).map_err(|e| fail("other", "ใส่โปสเตอร์ไม่สำเร็จ", vec![e]))?;
     let stop = || st.cancel.load(Ordering::SeqCst) || jobs.cancelled();
@@ -653,7 +653,7 @@ fn apply(app: &AppHandle, req: &ApplyReq, jobs: &Arc<crate::jobs::Jobs>) -> Resu
             Ok(after) => { verified = true; result_counts = after; }
             Err((title, why)) => {
                 // ไฟล์ถูกแก้ไปแล้ว จดขนาดกับ hash ใหม่ลงคลังเสมอ ไม่งั้นอ่านโฟลเดอร์ครั้งหน้าขึ้นว่าไฟล์ถูกเปลี่ยน · บอกตรง ๆ ว่าแนบปกใหม่ไปแล้ว
-                crate::library::refresh_own_edit(app, &target, &|pct| emit("กำลังจดค่า hash ใหม่", pct, None, None));
+                crate::app::library::refresh_own_edit(app, &target, &|pct| emit("กำลังจดค่า hash ใหม่", pct, None, None));
                 return Err(fail("verify", title, vec![why, "แนบปกใหม่ลงไฟล์แล้ว โดยภาพ เสียง และซับไม่ได้ถูกแปลงใหม่  ควรตรวจละเอียดเรื่องนี้".into()]));
             }
         }
@@ -788,10 +788,10 @@ fn apply(app: &AppHandle, req: &ApplyReq, jobs: &Arc<crate::jobs::Jobs>) -> Resu
     // คลังหนัง · แก้ในไฟล์เดิม จดขนาดใหม่ไม่ให้ขึ้นว่าไฟล์ถูกเปลี่ยน · ไฟล์ใหม่ อ่านโฟลเดอร์ใหม่ให้ขึ้นชั้น
     if mode == "cover" {
         emit("กำลังจดข้อมูลไฟล์ใหม่", 100.0, None, None);
-        crate::library::refresh_own_edit(app, &target, &|pct| emit("กำลังจดค่า hash ใหม่", pct, None, None));
+        crate::app::library::refresh_own_edit(app, &target, &|pct| emit("กำลังจดค่า hash ใหม่", pct, None, None));
     } else {
-        let lib = app.state::<Arc<crate::library::LibraryStore>>();
-        let _ = crate::library::scan_library(app.clone(), lib);
+        let lib = app.state::<Arc<crate::app::library::LibraryStore>>();
+        let _ = crate::app::library::scan_library(app.clone(), lib);
     }
     Ok(ApplyResult {
         mode: mode.into(), output: target.to_string_lossy().to_string(), counts: result_counts, verified, original, original_to, notes,

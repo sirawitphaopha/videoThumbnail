@@ -19,8 +19,8 @@ use serde_json::{json, Value};
 use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::jobs::Jobs;
-use crate::tools::{run_tool_timeout, tool_succeeded, tools_dir};
+use crate::app::jobs::Jobs;
+use crate::app::tools::{run_tool_timeout, tool_succeeded, tools_dir};
 
 /// ชื่อช่องตามลำดับที่ ffmpeg ถอดออกมา (ลำดับมาตรฐานของ ffmpeg ต่อแบบช่องเสียง)
 pub fn layout_names(layout: &str, n: usize) -> Vec<String> {
@@ -147,7 +147,7 @@ pub fn info(tools: &Path, path: &Path) -> Result<GInfo, String> {
     ], Duration::from_secs(60))?;
     if !tool_succeeded("ffprobe", &out.status) {
         // สาเหตุเป็นประโยคไทย ไม่ใช่แค่รหัส (BUGS ข้อ 150)
-        return Err(format!("อ่านไฟล์ไม่ได้ {}", crate::tools::output_fail("ffprobe", &out, true)));
+        return Err(format!("อ่านไฟล์ไม่ได้ {}", crate::app::tools::output_fail("ffprobe", &out, true)));
     }
     let j: Value = serde_json::from_slice(&out.stdout).map_err(|e| format!("อ่านผลของ ffprobe ไม่ได้: {e}"))?;
     let g = parse_info(&j);
@@ -475,9 +475,9 @@ fn decode(tools: &Path, path: &Path, track: usize, ch: usize, start: Option<f64>
     } else {
         args.extend(["-map".into(), format!("0:a:{track}").into(), "-f".into(), "f32le".into(), "-c:a".into(), "pcm_f32le".into(), "pipe:1".into()]);
     }
-    let mut child = crate::tools::tool_command(tools, "ffmpeg", &args).stdout(Stdio::piped()).stderr(Stdio::piped())
+    let mut child = crate::app::tools::tool_command(tools, "ffmpeg", &args).stdout(Stdio::piped()).stderr(Stdio::piped())
         .spawn().map_err(|e| format!("เรียก ffmpeg ไม่ได้: {e}"))?;
-    crate::winutil::kill_with_app(&child);
+    crate::app::winutil::kill_with_app(&child);
     let err = child.stderr.take().unwrap();
     let state = Arc::new(Mutex::new(Run { tail: Vec::new(), loud: Vec::new(), integrated: None, lra: None, true_peak: None }));
     let st = state.clone();
@@ -525,7 +525,7 @@ fn decode(tools: &Path, path: &Path, track: usize, ch: usize, start: Option<f64>
     if stopped { return Ok(None); }
     let run = std::mem::replace(&mut *state.lock().unwrap(), Run { tail: Vec::new(), loud: Vec::new(), integrated: None, lra: None, true_peak: None });
     if !tool_succeeded("ffmpeg", &status) && run.loud.is_empty() {
-        return Err(format!("ffmpeg อ่านเสียงไม่ได้  {}", crate::tools::explain_fail("ffmpeg", &crate::tools::tool_lines(&run.tail.join("\n")), Some(&status)).line()));
+        return Err(format!("ffmpeg อ่านเสียงไม่ได้  {}", crate::app::tools::explain_fail("ffmpeg", &crate::app::tools::tool_lines(&run.tail.join("\n")), Some(&status)).line()));
     }
     Ok(Some(run))
 }
@@ -1098,7 +1098,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("ชั้นหนังกราฟ-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let f = dir.join("เงียบกลาง.wav");
-        let out = crate::tools::run_tool(&tools(), "ffmpeg", [
+        let out = crate::app::tools::run_tool(&tools(), "ffmpeg", [
             "-v", "error", "-y", "-f", "lavfi", "-i", "sine=frequency=440:duration=8",
             "-af", "volume='if(between(t,3,5),0,1)':eval=frame", f.to_str().unwrap(),
         ]).unwrap();
@@ -1116,7 +1116,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("ชั้นหนังกราฟ2-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let f = dir.join("ไซน์1000.flac");
-        let out = crate::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "sine=frequency=1000:sample_rate=48000:duration=3", f.to_str().unwrap()]).unwrap();
+        let out = crate::app::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "sine=frequency=1000:sample_rate=48000:duration=3", f.to_str().unwrap()]).unwrap();
         assert!(out.status.success());
         let g = info(&tools(), &f).unwrap();
         let p = psd(&tools(), &f, &g.tracks[0], 0.5, 2.5, &[vec![0]], None, 4096, &|| false).unwrap().unwrap();
@@ -1132,7 +1132,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("ชั้นหนังกราฟ24-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let f = dir.join("เบามาก.flac");
-        let out = crate::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "aevalsrc=3.16e-6*sin(2*PI*1000*t):s=48000:d=3", "-c:a", "flac", "-sample_fmt", "s32", "-bits_per_raw_sample", "24", f.to_str().unwrap()]).unwrap();
+        let out = crate::app::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "aevalsrc=3.16e-6*sin(2*PI*1000*t):s=48000:d=3", "-c:a", "flac", "-sample_fmt", "s32", "-bits_per_raw_sample", "24", f.to_str().unwrap()]).unwrap();
         assert!(out.status.success());
         let g = info(&tools(), &f).unwrap();
         let p = psd(&tools(), &f, &g.tracks[0], 0.5, 2.5, &[vec![0]], None, 4096, &|| false).unwrap().unwrap();
@@ -1172,7 +1172,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("ชั้นหนังกราฟ3-{}", std::process::id()));
         std::fs::create_dir_all(&dir).unwrap();
         let f = dir.join("ไซน์สองข้างเท่ากัน.flac");
-        let out = crate::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "sine=frequency=1000:sample_rate=48000:duration=3", "-ac", "2", f.to_str().unwrap()]).unwrap();
+        let out = crate::app::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "sine=frequency=1000:sample_rate=48000:duration=3", "-ac", "2", f.to_str().unwrap()]).unwrap();
         assert!(out.status.success());
         let g = info(&tools(), &f).unwrap();
         let p = psd(&tools(), &f, &g.tracks[0], 0.5, 2.5, &[vec![0], vec![1]], Some([0, 1]), 4096, &|| false).unwrap().unwrap();

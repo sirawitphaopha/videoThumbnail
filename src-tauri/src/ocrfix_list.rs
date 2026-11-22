@@ -405,7 +405,7 @@ impl ReplaceList {
         if let Some(d) = self.user_file.parent() { std::fs::create_dir_all(d).map_err(|e| format!("สร้างโฟลเดอร์ {} ไม่ได้ {e}", d.display()))?; }
         let part = PathBuf::from(format!("{}.partial", self.user_file.display()));
         std::fs::write(&part, &doc).map_err(|e| format!("เขียนไฟล์ {} ไม่ได้ {e}", self.user_file.display()))?;
-        crate::outfile::replace_often(&part, &self.user_file)?;
+        crate::app::outfile::replace_often(&part, &self.user_file)?;
         Ok(true)
     }
 }

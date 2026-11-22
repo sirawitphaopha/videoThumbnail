@@ -16,7 +16,7 @@
 //! ตัวถอดภาพแบบ RLE เขียนตามแบบมาตรฐานของ DVD (http://www.mpucoder.com/DVD/spu.html) แบบเดียวกับตัวถอดของ ffmpeg
 //! ไม่แตะไฟล์หนังและไฟล์ซับต้นฉบับ อ่านอย่างเดียว ไฟล์ชั่วคราวอยู่ในโฟลเดอร์ทำงานของโปรแกรม ลบเมื่อจบ
 
-use crate::tools::{run_tool_timeout, tool_command, tool_succeeded};
+use crate::app::tools::{run_tool_timeout, tool_command, tool_succeeded};
 use std::ffi::OsString;
 use std::io::{BufRead, BufReader};
 use std::path::{Path, PathBuf};
@@ -368,7 +368,7 @@ pub fn is_vobsub_stream(tools: &Path, file: &Path, ff: u64) -> bool { stream_cod
 pub(crate) fn run_progress(tools: &Path, tool: &str, args: &[OsString], dur: f64, on: &dyn Fn(f64)) -> Result<(bool, Vec<String>, String), String> {
     let mut child = tool_command(tools, tool, args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped())
         .spawn().map_err(|e| format!("เรียก {tool} ไม่ได้: {e}"))?;
-    crate::winutil::kill_with_app(&child);
+    crate::app::winutil::kill_with_app(&child);
     let err = child.stderr.take().unwrap();
     let err_t = std::thread::spawn(move || {
         let mut s = String::new();
@@ -394,7 +394,7 @@ pub(crate) fn run_progress(tools: &Path, tool: &str, args: &[OsString], dur: f64
 
 /// เหตุผลเป็นภาษาคนจากบรรทัดผิดพลาดของเครื่องมือ
 fn why(tool: &str, tail: &[String]) -> String {
-    crate::tools::explain_fail(tool, tail, None).line()
+    crate::app::tools::explain_fail(tool, tail, None).line()
 }
 
 /// ไฟล์ .idx กับ .sub ของซับ VobSub ในหนัง · ส่วนที่ใช้เวลานานคืออ่านไฟล์หนังทั้งไฟล์ รายงานความคืบหน้า 0–100

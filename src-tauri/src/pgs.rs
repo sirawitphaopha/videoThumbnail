@@ -21,7 +21,7 @@ use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter};
 
 use crate::subdoc::SubDoc;
-use crate::tools::{tool_command, tools_dir};
+use crate::app::tools::{tool_command, tools_dir};
 
 static STOP: AtomicBool = AtomicBool::new(false);
 /// ภาพต่อหนึ่งรอบของ ffmpeg · นิพจน์ setpts ต่อด้วย + ได้ไม่ถึง 100 ส่วน (99 ผ่าน 100 ล้ม "Cannot allocate memory" ลองแล้ว 14 พ.ย. 2569)
@@ -934,7 +934,7 @@ pub(crate) fn spawn_pair(tools: &Path, sub: &Path, fonts: Option<&Path>, w: u32,
     ];
     let mut child = tool_command(tools, "ffmpeg", &args).stdout(Stdio::piped()).stderr(Stdio::piped()).spawn().map_err(|e| format!("เปิด ffmpeg ไม่ได้ {e}"))?;
     // ปิดโปรแกรมระหว่างวาด ffmpeg ตายตาม (ผู้ช่วยตรวจทาน R18)
-    crate::winutil::kill_with_app(&child);
+    crate::app::winutil::kill_with_app(&child);
     let out = child.stdout.take().ok_or("อ่านผลของ ffmpeg ไม่ได้")?;
     Ok((child, out))
 }
@@ -983,7 +983,7 @@ pub async fn pgs_export(app: AppHandle, doc: SubDoc, req: PgsReq) -> Result<PgsO
     let work = crate::subshot::work_dir(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
         let r = export(&tools, &work, &doc, &req, &|done, total, phase| { let _ = app.emit("pgs-progress", Progress { done, total, phase }); })?;
-        crate::actlog::note("ส่งออกซับเป็น PGS", &format!("{} ({} ภาพ)", r.path, r.images));
+        crate::app::actlog::note("ส่งออกซับเป็น PGS", &format!("{} ({} ภาพ)", r.path, r.images));
         Ok(r)
     }).await.map_err(|e| e.to_string())?
 }
@@ -1083,7 +1083,7 @@ pub fn export(tools: &Path, work: &Path, doc: &SubDoc, req: &PgsReq, progress: &
                 // ภาพถัดไปของรอบที่วาดอยู่ หมดรอบเริ่มรอบใหม่
                 if cur.as_ref().is_none_or(|c| c.2 == 0) {
                     if let Some((mut c, _, _)) = cur.take() {
-                        let ok = c.wait().map(|s| crate::tools::tool_succeeded("ffmpeg", &s)).unwrap_or(false);
+                        let ok = c.wait().map(|s| crate::app::tools::tool_succeeded("ffmpeg", &s)).unwrap_or(false);
                         if !ok { let e = ffmpeg_err(&mut c); drop(wr); return fail(e, &partial); }
                     }
                     let times: Vec<i64> = need[next_batch..(next_batch + BATCH).min(need.len())].iter().map(|&k| pts[k]).collect();
@@ -1351,7 +1351,7 @@ fn render_all(tools: &Path, sub: &Path, fonts: Option<&Path>, w: u32, h: u32, ti
             if let Err(e) = on(k, &buf) { let _ = c.kill(); let _ = c.wait(); return Err(e); }
             k += 1;
         }
-        let ok = c.wait().map(|s| crate::tools::tool_succeeded("ffmpeg", &s)).unwrap_or(false);
+        let ok = c.wait().map(|s| crate::app::tools::tool_succeeded("ffmpeg", &s)).unwrap_or(false);
         if !ok { return Err(ffmpeg_err(&mut c)); }
     }
     Ok(())
@@ -1774,7 +1774,7 @@ fn hex(c: [u8; 3]) -> String { format!("#{:02X}{:02X}{:02X}", c[0], c[1], c[2]) 
 fn movie_rgb(tools: &Path, movie: &str, t: i64, w: u32, h: u32) -> Option<Vec<u8>> {
     let args: Vec<OsString> = vec!["-v".into(), "error".into(), "-nostdin".into(), "-ss".into(), format!("{:.3}", t.max(0) as f64 / 1000.0).into(), "-i".into(), movie.into(),
         "-frames:v".into(), "1".into(), "-vf".into(), format!("scale={w}:{h}").into(), "-f".into(), "rawvideo".into(), "-pix_fmt".into(), "rgb24".into(), "-".into()];
-    let o = crate::tools::run_tool_timeout(tools, "ffmpeg", &args, std::time::Duration::from_secs(20)).ok()?;
+    let o = crate::app::tools::run_tool_timeout(tools, "ffmpeg", &args, std::time::Duration::from_secs(20)).ok()?;
     (o.status.success() && o.stdout.len() == (w * h * 3) as usize).then_some(o.stdout)
 }
 
@@ -2004,7 +2004,7 @@ mod tests {
         a.push(format!("color=c=black:s={w}x{h}:r=25:d=6").into());
         a.extend(input.iter().cloned());
         a.extend(["-filter_complex".into(), vf.into(), "-ss".into(), format!("{t:.3}").into(), "-frames:v".into(), "1".into(), "-f".into(), "rawvideo".into(), "-pix_fmt".into(), "rgb24".into(), "-".into()]);
-        let o = crate::tools::run_tool(&tools(), "ffmpeg", &a).unwrap();
+        let o = crate::app::tools::run_tool(&tools(), "ffmpeg", &a).unwrap();
         assert!(o.status.success(), "ffmpeg {}", String::from_utf8_lossy(&o.stderr));
         assert_eq!(o.stdout.len(), (w * h * 3) as usize);
         o.stdout

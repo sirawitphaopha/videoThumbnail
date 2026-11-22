@@ -1,6 +1,6 @@
 //! ชั้นหนัง · ฝั่งทำงานหนักของโปรแกรม
 
-mod actlog;
+mod app;
 mod ape;
 mod audiograph;
 mod bitrate;
@@ -8,28 +8,21 @@ mod chapters;
 mod check;
 mod convert;
 mod delay;
-mod drives;
 mod encode;
 mod graphimg;
 mod extract;
 mod fileinfo;
 mod fonts;
-mod hashes;
-mod jobs;
-mod latest;
-mod library;
 mod loudness;
 mod link;
 mod merge;
 mod mkvtree;
-mod outfile;
 mod pairs;
 mod players;
 mod poster;
 mod poster_image;
 mod probe;
 mod rename;
-mod store;
 mod subaudio;
 mod subconv;
 mod imgconv;
@@ -37,7 +30,6 @@ mod pgs;
 mod subdoc;
 mod subs;
 mod subshot;
-mod tools;
 mod vidframes;
 mod vidplay;
 mod mpvplay;
@@ -63,14 +55,13 @@ mod paddle;
 mod paddle_dl;
 mod tesseract;
 mod vobsub;
-mod winutil;
 
 use std::sync::Arc;
 
 use tauri::{Emitter, Manager, RunEvent, WindowEvent};
 
-use jobs::Jobs;
-use store::SettingsStore;
+use app::jobs::Jobs;
+use app::store::SettingsStore;
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
 pub fn run() {
@@ -91,20 +82,20 @@ pub fn run() {
         .setup(|app| {
             // บันทึกการใช้งาน ตั้งก่อนอย่างอื่น งานที่ตามมาจะได้จดลงไฟล์ได้ (พี่กันเสนอ 12 พ.ย. 2569)
             if let Ok(local) = app.path().app_local_data_dir() {
-                actlog::init(local.join("logs"));
-                actlog::note("เปิดโปรแกรม", &format!("รุ่น {}", app.package_info().version));
+                app::actlog::init(local.join("logs"));
+                app::actlog::note("เปิดโปรแกรม", &format!("รุ่น {}", app.package_info().version));
             }
-            let path = store::settings_path(app.handle())?;
+            let path = app::store::settings_path(app.handle())?;
             let settings = SettingsStore::load(path);
-            if settings.loaded_from == store::LoadedFrom::Partial {
-                actlog::note("ไฟล์ตั้งค่าเสียบางช่อง", &format!("กลับเป็นค่าตั้งต้นเฉพาะ {}", settings.reset_fields.join(", ")));
+            if settings.loaded_from == app::store::LoadedFrom::Partial {
+                app::actlog::note("ไฟล์ตั้งค่าเสียบางช่อง", &format!("กลับเป็นค่าตั้งต้นเฉพาะ {}", settings.reset_fields.join(", ")));
             }
-            let lib = library::library_path(app.handle())?;
-            let library = library::LibraryStore::load(lib);
+            let lib = app::library::library_path(app.handle())?;
+            let library = app::library::LibraryStore::load(lib);
             // ไฟล์ตั้งค่าเสียทั้งสองชุด รายชื่อโฟลเดอร์คืนจากคลังหนัง ชั้นวางกับประวัติตรวจไม่หาย (AUDIT ข้อ 129)
             let roots: Vec<String> = library.movies.lock().unwrap().iter().map(|m| m.root.clone()).filter(|r| !r.is_empty()).collect();
             let n = settings.recover_folders(roots);
-            if n > 0 { actlog::note("ไฟล์ตั้งค่าเสียทั้งสองชุด", &format!("เอารายชื่อโฟลเดอร์หนังคืนจากคลังหนัง {n} โฟลเดอร์")); }
+            if n > 0 { app::actlog::note("ไฟล์ตั้งค่าเสียทั้งสองชุด", &format!("เอารายชื่อโฟลเดอร์หนังคืนจากคลังหนัง {n} โฟลเดอร์")); }
             app.manage(settings);
             app.manage(Arc::new(library));
             let pending = link::link_path(app.handle())?;
@@ -141,10 +132,10 @@ pub fn run() {
             // รุ่นจริงที่ติดตั้งแล้วก็ใช้ได้เมื่อคนเปิดตั้งตัวแปรนี้เอง ใช้เทสตัวติดตั้งตอนพี่กันลงเวร ไม่ให้หน้าต่างเด้งขึ้นหน้าจอคนอื่น (ขั้น 8)
             // ตัวแปรนี้แค่วางหน้าต่างไว้หลังสุด ไม่เปิดสิทธิ์หรือคำสั่งอะไรเพิ่ม
             // หน้าต่างใหญ่กว่าจอ (จอเล็ก หรือจำขนาดจากจอใหญ่) ย่อให้พอดีก่อนแสดง
-            if let Some(w) = app.get_webview_window("main") { winutil::fit_monitor(&w); }
+            if let Some(w) = app.get_webview_window("main") { app::winutil::fit_monitor(&w); }
             match app.get_webview_window("main") {
                 Some(w) if std::env::var("MOVIE_SHELF_BACKGROUND").as_deref() == Ok("1") => {
-                    winutil::show_behind(&w);
+                    app::winutil::show_behind(&w);
                     eprintln!("ชั้นหนัง: หน้าต่างเทสเปิดแบบไม่แย่งโฟกัส อยู่หลังสุด");
                 }
                 Some(w) => {
@@ -166,7 +157,7 @@ pub fn run() {
                 if let Some(w) = window.app_handle().get_webview_window(window.label()) {
                     std::thread::spawn(move || {
                         std::thread::sleep(std::time::Duration::from_millis(400));
-                        if MOVES.load(std::sync::atomic::Ordering::SeqCst) == n { winutil::fit_monitor(&w); }
+                        if MOVES.load(std::sync::atomic::Ordering::SeqCst) == n { app::winutil::fit_monitor(&w); }
                     });
                 }
             }
@@ -175,7 +166,7 @@ pub fn run() {
                 if !window.is_minimized().unwrap_or(false) {
                     window.app_handle().state::<SettingsStore>().remember_maximized(window.is_maximized().unwrap_or(false));
                 }
-                if jobs::guard_close(window.app_handle()) {
+                if app::jobs::guard_close(window.app_handle()) {
                     api.prevent_close();
                 }
             }
@@ -186,14 +177,14 @@ pub fn run() {
     fn typed<F: Fn(tauri::ipc::Invoke<tauri::Wry>) -> bool>(f: F) -> F { f }
     #[cfg(debug_assertions)]
     let handler = typed(tauri::generate_handler![
-        actlog::actlog_info, actlog::actlog_open_dir,
-        tools::check_tools, tools::check_icaros, tools::open_icaros_page, store::get_settings, store::set_settings, drives::drive_space, drives::drive_open, drives::drive_free, chapters::chapters_read,
-        jobs::running_jobs, jobs::force_close, jobs::dev_fake_job, poster::dev_fake_free, library::dev_set_check, library::dev_clear_parked,
-        library::get_library, library::scan_library, library::play_movie, library::reveal_movie, library::set_rating,
+        app::actlog::actlog_info, app::actlog::actlog_open_dir,
+        app::tools::check_tools, app::tools::check_icaros, app::tools::open_icaros_page, app::store::get_settings, app::store::set_settings, app::drives::drive_space, app::drives::drive_open, app::drives::drive_free, chapters::chapters_read,
+        app::jobs::running_jobs, app::jobs::force_close, app::jobs::dev_fake_job, poster::dev_fake_free, app::library::dev_set_check, app::library::dev_clear_parked,
+        app::library::get_library, app::library::scan_library, app::library::play_movie, app::library::reveal_movie, app::library::set_rating,
         rename::check_rename, rename::rename_movie,
         poster::poster_open, poster::poster_view, poster::poster_render, poster::poster_clear, poster::poster_folder_images,
         poster::poster_inspect, poster::poster_apply, poster::poster_cancel, poster::poster_check_name,
-        latest::thanks_open, bitrate::bitrate_start, bitrate::bitrate_tracks, bitrate::bitrate_stop, merge::merge_inspect, merge::remux_fonts, merge::merge_add_file, merge::merge_apply, merge::merge_cancel, merge::merge_cover_preview, merge::merge_cover_drop, encode::encode_preview, encode::encoders_status, encode::encoders_open_dir, encode::encoders_user_dir, latest::encoders_latest, latest::encoders_open_page, latest::open_itunes_page, fonts::font_info,
+        app::latest::thanks_open, bitrate::bitrate_start, bitrate::bitrate_tracks, bitrate::bitrate_stop, merge::merge_inspect, merge::remux_fonts, merge::merge_add_file, merge::merge_apply, merge::merge_cancel, merge::merge_cover_preview, merge::merge_cover_drop, encode::encode_preview, encode::encoders_status, encode::encoders_open_dir, encode::encoders_user_dir, app::latest::encoders_latest, app::latest::encoders_open_page, app::latest::open_itunes_page, fonts::font_info,
         delay::delay_find, delay::delay_view, delay::delay_preview,
         subs::movie_frame, subs::sub_text, subs::sub_frame, subs::sub_wave, subs::sub_images, subs::sub_image_times, ocrsrc::ocr_source, ocrsrc::ocr_source_pngs, subs::ocr_vobsub_recolor, subs::ocr_vobsub_preview, ocrjob::ocr_read, ocrjob::ocr_teach, ocrjob::ocr_word, ocrjob::ocr_suggest, ocrjob::ocr_names, ocrjob::ocr_dbs, ocrjob::ocr_history, ocrjob::ocr_history_update, ocrjob::ocr_history_delete, ocrjob::ocr_inspect, ocrjob::ocr_inspect_update, ocrjob::ocr_inspect_delete, ocrjob::ocr_inspect_draw, ocrjob::ocr_inspect_teach, ocrjob::ocr_inspect_reload, ocrjob::ocr_remove_items, ocrjob::ocr_stop, ocrjob::ocr_prep_preview, ocrjob::ocr_paddle_models, ocrjob::ocr_db_delete, ocrjob::ocr_image_out, ocrmanual::ocr_db_new, ocrmanual::ocr_db_rename, ocrmanual::ocr_db_chars, ocrmanual::ocr_db_char_update, ocrmanual::ocr_db_char_delete, ocrmanual::ocr_train, ocrmanual::ocr_train_cancel, ocrmanual::ocr_train_preview, ocrmanual::ocr_db_optimize, ocrexport::ocr_export_formats, ocrexport::ocr_export_preview, ocrexport::ocr_export, ocrexport::ocr_export_doc, ocrexport::ocr_save_html, tesseract::ocr_tess_langs, tesseract::ocr_tess_download, tesseract::ocr_tess_cancel, paddle_dl::ocr_paddle_langs, paddle_dl::ocr_paddle_download, paddle_dl::ocr_paddle_cancel,
         subdoc::subdoc_open, subdoc::subdoc_stamp, subdoc::subdoc_save, subdoc::subdoc_convert, subdoc::subdoc_free_name, subdoc::subdoc_render, subdoc::subdoc_parse_text, subdoc::subdoc_temp, subshot::sub_overlay, subshot::vid_snapshot, vidframes::vid_colorspace,
@@ -203,7 +194,7 @@ pub fn run() {
         pairs::pair_set, pairs::pair_check, pairs::pair_play,
         link::link_state, link::link_titles, link::link_is_dir, link::link_images, link::link_add_images, link::link_remove_images, link::link_auto, link::link_pair, link::link_undo, link::link_row_update, link::link_set_crop, link::link_confirm, link::link_cancel, link::link_resolve, link::link_unsave, link::link_remove, link::link_open_row, link::link_cover_pick, link::link_migrate,
         convert::convert_probe, convert::convert_size_probe, convert::convert_cover, convert::convert_one, convert::convert_cancel,
-        fileinfo::media_info, mkvtree::mkv_tree, fileinfo::audio_codec_detail, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_running, fileinfo::hash_compare, fileinfo::hash_save, winutil::clipboard_text,
+        fileinfo::media_info, mkvtree::mkv_tree, fileinfo::audio_codec_detail, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_running, fileinfo::hash_compare, fileinfo::hash_save, app::winutil::clipboard_text,
         extract::extract_start, extract::extract_info, extract::extract_cancel, extract::extract_running, extract::extract_default_folder,
         check::check_start, check::check_cancel, check::check_running, check::play_at, players::list_players,
         audiograph::graph_info, audiograph::graph_exist, audiograph::graph_overview, audiograph::graph_window, audiograph::graph_psd, audiograph::graph_cancel, audiograph::graph_save, graphimg::graph_save_image,
@@ -211,14 +202,14 @@ pub fn run() {
     ]);
     #[cfg(not(debug_assertions))]
     let handler = typed(tauri::generate_handler![
-        actlog::actlog_info, actlog::actlog_open_dir,
-        tools::check_tools, tools::check_icaros, tools::open_icaros_page, store::get_settings, store::set_settings, drives::drive_space, drives::drive_open, drives::drive_free, chapters::chapters_read,
-        jobs::running_jobs, jobs::force_close,
-        library::get_library, library::scan_library, library::play_movie, library::reveal_movie, library::set_rating,
+        app::actlog::actlog_info, app::actlog::actlog_open_dir,
+        app::tools::check_tools, app::tools::check_icaros, app::tools::open_icaros_page, app::store::get_settings, app::store::set_settings, app::drives::drive_space, app::drives::drive_open, app::drives::drive_free, chapters::chapters_read,
+        app::jobs::running_jobs, app::jobs::force_close,
+        app::library::get_library, app::library::scan_library, app::library::play_movie, app::library::reveal_movie, app::library::set_rating,
         rename::check_rename, rename::rename_movie,
         poster::poster_open, poster::poster_view, poster::poster_render, poster::poster_clear, poster::poster_folder_images,
         poster::poster_inspect, poster::poster_apply, poster::poster_cancel, poster::poster_check_name,
-        latest::thanks_open, bitrate::bitrate_start, bitrate::bitrate_tracks, bitrate::bitrate_stop, merge::merge_inspect, merge::remux_fonts, merge::merge_add_file, merge::merge_apply, merge::merge_cancel, merge::merge_cover_preview, merge::merge_cover_drop, encode::encode_preview, encode::encoders_status, encode::encoders_open_dir, encode::encoders_user_dir, latest::encoders_latest, latest::encoders_open_page, latest::open_itunes_page, fonts::font_info,
+        app::latest::thanks_open, bitrate::bitrate_start, bitrate::bitrate_tracks, bitrate::bitrate_stop, merge::merge_inspect, merge::remux_fonts, merge::merge_add_file, merge::merge_apply, merge::merge_cancel, merge::merge_cover_preview, merge::merge_cover_drop, encode::encode_preview, encode::encoders_status, encode::encoders_open_dir, encode::encoders_user_dir, app::latest::encoders_latest, app::latest::encoders_open_page, app::latest::open_itunes_page, fonts::font_info,
         delay::delay_find, delay::delay_view, delay::delay_preview,
         subs::movie_frame, subs::sub_text, subs::sub_frame, subs::sub_wave, subs::sub_images, subs::sub_image_times, ocrsrc::ocr_source, ocrsrc::ocr_source_pngs, subs::ocr_vobsub_recolor, subs::ocr_vobsub_preview, ocrjob::ocr_read, ocrjob::ocr_teach, ocrjob::ocr_word, ocrjob::ocr_suggest, ocrjob::ocr_names, ocrjob::ocr_dbs, ocrjob::ocr_history, ocrjob::ocr_history_update, ocrjob::ocr_history_delete, ocrjob::ocr_inspect, ocrjob::ocr_inspect_update, ocrjob::ocr_inspect_delete, ocrjob::ocr_inspect_draw, ocrjob::ocr_inspect_teach, ocrjob::ocr_inspect_reload, ocrjob::ocr_remove_items, ocrjob::ocr_stop, ocrjob::ocr_prep_preview, ocrjob::ocr_paddle_models, ocrjob::ocr_db_delete, ocrjob::ocr_image_out, ocrmanual::ocr_db_new, ocrmanual::ocr_db_rename, ocrmanual::ocr_db_chars, ocrmanual::ocr_db_char_update, ocrmanual::ocr_db_char_delete, ocrmanual::ocr_train, ocrmanual::ocr_train_cancel, ocrmanual::ocr_train_preview, ocrmanual::ocr_db_optimize, ocrexport::ocr_export_formats, ocrexport::ocr_export_preview, ocrexport::ocr_export, ocrexport::ocr_export_doc, ocrexport::ocr_save_html, tesseract::ocr_tess_langs, tesseract::ocr_tess_download, tesseract::ocr_tess_cancel, paddle_dl::ocr_paddle_langs, paddle_dl::ocr_paddle_download, paddle_dl::ocr_paddle_cancel,
         subdoc::subdoc_open, subdoc::subdoc_stamp, subdoc::subdoc_save, subdoc::subdoc_convert, subdoc::subdoc_free_name, subdoc::subdoc_render, subdoc::subdoc_parse_text, subdoc::subdoc_temp, subshot::sub_overlay, subshot::vid_snapshot, vidframes::vid_colorspace,
@@ -228,14 +219,14 @@ pub fn run() {
         pairs::pair_set, pairs::pair_check, pairs::pair_play,
         link::link_state, link::link_titles, link::link_is_dir, link::link_images, link::link_add_images, link::link_remove_images, link::link_auto, link::link_pair, link::link_undo, link::link_row_update, link::link_set_crop, link::link_confirm, link::link_cancel, link::link_resolve, link::link_unsave, link::link_remove, link::link_open_row, link::link_cover_pick, link::link_migrate,
         convert::convert_probe, convert::convert_size_probe, convert::convert_cover, convert::convert_one, convert::convert_cancel,
-        fileinfo::media_info, mkvtree::mkv_tree, fileinfo::audio_codec_detail, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_running, fileinfo::hash_compare, fileinfo::hash_save, winutil::clipboard_text,
+        fileinfo::media_info, mkvtree::mkv_tree, fileinfo::audio_codec_detail, fileinfo::hash_file, fileinfo::hash_cancel, fileinfo::hash_running, fileinfo::hash_compare, fileinfo::hash_save, app::winutil::clipboard_text,
         extract::extract_start, extract::extract_info, extract::extract_cancel, extract::extract_running, extract::extract_default_folder,
         check::check_start, check::check_cancel, check::check_running, check::play_at, players::list_players,
         audiograph::graph_info, audiograph::graph_exist, audiograph::graph_overview, audiograph::graph_window, audiograph::graph_psd, audiograph::graph_cancel, audiograph::graph_save, graphimg::graph_save_image,
         audiograph::graph_cache_info, audiograph::graph_cache_clear,
     ]);
     let builder = builder.invoke_handler(move |invoke| {
-        actlog::invoke(invoke.message.command(), invoke.message.payload());
+        app::actlog::invoke(invoke.message.command(), invoke.message.payload());
         handler(invoke)
     });
 

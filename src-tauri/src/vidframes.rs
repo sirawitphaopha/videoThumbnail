@@ -33,8 +33,8 @@ use serde::{Deserialize, Serialize};
 use serde_json::{json, Value};
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::jobs::Jobs;
-use crate::tools::{run_tool_timeout, tool_succeeded, tools_dir};
+use crate::app::jobs::Jobs;
+use crate::app::tools::{run_tool_timeout, tool_succeeded, tools_dir};
 
 /// ตารางเฟรมของหนังหนึ่งเรื่อง
 #[derive(Serialize, Deserialize, Clone, Debug, Default)]
@@ -108,7 +108,7 @@ fn build(pk: &mut [(i64, bool)]) -> (Vec<i32>, Vec<u32>, i64) {
 
 /// อ่านตารางเฟรมทั้งไฟล์ · on(วินาทีที่อ่านถึง) ระหว่างอ่าน · stop() จริง = หยุด คืน None
 pub fn scan(tools: &Path, movie: &Path, stop: &dyn Fn() -> bool, on: &mut dyn FnMut(f64, f64)) -> Result<Option<VidTable>, String> {
-    let j = crate::outfile::ffprobe_json(tools, movie)?;
+    let j = crate::app::outfile::ffprobe_json(tools, movie)?;
     let st = video_stream(&j).ok_or("ไฟล์นี้ไม่มีภาพวิดีโอ")?;
     let mut t = VidTable {
         key: key_of(movie),
@@ -119,14 +119,14 @@ pub fn scan(tools: &Path, movie: &Path, stop: &dyn Fn() -> bool, on: &mut dyn Fn
         dar: st["display_aspect_ratio"].as_str().unwrap_or("").to_string(),
         codec: st["codec_name"].as_str().unwrap_or("").to_string(),
         rate: st["r_frame_rate"].as_str().unwrap_or("").to_string(),
-        duration: crate::outfile::duration_of(&j).unwrap_or(0.0),
+        duration: crate::app::outfile::duration_of(&j).unwrap_or(0.0),
         ..Default::default()
     };
-    let mut child = crate::tools::tool_command(tools, "ffprobe", [
+    let mut child = crate::app::tools::tool_command(tools, "ffprobe", [
         "-v".as_ref(), "error".as_ref(), "-select_streams".as_ref(), "V:0".as_ref(),
         "-show_entries".as_ref(), "packet=pts_time,dts_time,flags".as_ref(), "-of".as_ref(), "compact=p=0".as_ref(), movie.as_os_str(),
     ]).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::null()).spawn().map_err(|e| format!("เรียก ffprobe ไม่ได้: {e}"))?;
-    crate::winutil::kill_with_app(&child);
+    crate::app::winutil::kill_with_app(&child);
     let out = child.stdout.take().ok_or("อ่านผลของ ffprobe ไม่ได้")?;
     let mut pk: Vec<(i64, bool)> = Vec::new();
     let (mut read_to, mut last) = (0i64, Instant::now());
@@ -339,9 +339,9 @@ pub fn scenes(tools: &Path, t: &VidTable, movie: &Path, threshold: f64, stop: &d
     let mut on_line = |l: &str| {
         if let Some(us) = l.strip_prefix("out_time_us=").and_then(|v| v.trim().parse::<i64>().ok()) { on(us as f64 / 1e6); }
     };
-    match crate::outfile::run_live(tools, "ffmpeg", &args, stop, &mut on_line)? {
-        crate::outfile::Run::Cancelled => Ok(None),
-        crate::outfile::Run::Done(st, err) => {
+    match crate::app::outfile::run_live(tools, "ffmpeg", &args, stop, &mut on_line)? {
+        crate::app::outfile::Run::Cancelled => Ok(None),
+        crate::app::outfile::Run::Done(st, err) => {
             if !tool_succeeded("ffmpeg", &st) { return Err("หาจุดเปลี่ยนฉากไม่สำเร็จ ffmpeg ถอดภาพไม่จบ".into()); }
             let mut v: Vec<u32> = scene_times(&err).into_iter().map(|s| frame_near(t, s)).collect();
             v.sort_unstable();
@@ -460,8 +460,8 @@ pub fn vid_keys_save(path: String, keys: Vec<u32>) -> Result<String, String> {
         let mut f = std::fs::OpenOptions::new().write(true).create_new(true).open(&partial).map_err(|e| format!("เขียนไฟล์ไม่ได้ {e}"))?;
         f.write_all(&bytes).and_then(|_| f.sync_all()).map_err(|e| { let _ = std::fs::remove_file(&partial); format!("เขียนไฟล์ไม่ได้ {e}") })?;
     }
-    crate::outfile::replace_with(&partial, &target)?;
-    crate::actlog::note("บันทึกไฟล์ keyframe", &format!("{} ({} เฟรม)", target.display(), keys.len()));
+    crate::app::outfile::replace_with(&partial, &target)?;
+    crate::app::actlog::note("บันทึกไฟล์ keyframe", &format!("{} ({} เฟรม)", target.display(), keys.len()));
     Ok(target.display().to_string())
 }
 

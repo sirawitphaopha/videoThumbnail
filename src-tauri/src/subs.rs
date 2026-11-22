@@ -4,7 +4,7 @@
 //! ภาพหนังตรงเวลานั้น (ffmpeg 1 ภาพ) · คลื่นเสียงช่วงนั้น (ตัวถอดเสียงเดียวกับตัวช่วยหาดีเลย์)
 //! ซับรูป PGS VobSub ถอดด้วย ffmpeg แบบ sub2video ได้ภาพทุกครั้งที่ซับเปลี่ยน · ตัดภาพว่าง (ตอนซับหาย) กับภาพซ้ำออก ครอปเฉพาะส่วนที่มีตัวหนังสือ เก็บไว้ในโฟลเดอร์ชั่วคราว
 
-use crate::tools::{run_tool_timeout, tool_succeeded, tools_dir};
+use crate::app::tools::{run_tool_timeout, tool_succeeded, tools_dir};
 use serde::{Deserialize, Serialize};
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -311,7 +311,7 @@ pub async fn movie_frame(app: AppHandle, path: String, duration: f64) -> Result<
         }
         // ดึงภาพไม่ได้ (ไฟล์ไม่มีภาพ หรือเสีย) ยังเป็นแถบทะแยงตามเดิม ไม่ถือว่าผิดพลาด
         let Some(jpg) = best else { return Ok(None) };
-        crate::store::write_atomic(&out, &jpg, false).map_err(|e| e.to_string())?;
+        crate::app::store::write_atomic(&out, &jpg, false).map_err(|e| e.to_string())?;
         Ok(Some(out.to_string_lossy().to_string()))
     }).await.map_err(|e| e.to_string())?
 }
@@ -1103,7 +1103,7 @@ mod tests {
     #[test]
     fn added_container_sub_is_extracted() {
         let Some(mkv) = av("ฟอนต์แนบ (2024).mkv") else { return };
-        let o = crate::tools::run_tool(&tools(), "mkvmerge", [std::ffi::OsStr::new("-J"), mkv.as_os_str()]).unwrap();
+        let o = crate::app::tools::run_tool(&tools(), "mkvmerge", [std::ffi::OsStr::new("-J"), mkv.as_os_str()]).unwrap();
         let j: serde_json::Value = serde_json::from_slice(&o.stdout).unwrap();
         let tid = j["tracks"].as_array().unwrap().iter().find(|t| t["type"] == "subtitles" && t["codec"].as_str().unwrap_or("") == "SubStationAlpha").and_then(|t| t["id"].as_u64()).expect("หนังทดสอบมีซับ ASS");
         let s = text_of(&tools(), &work(), &mkv, false, tid, tid).unwrap();

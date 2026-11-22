@@ -17,7 +17,7 @@ use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::probe::{self, Track};
-use crate::store::{write_atomic, SettingsStore};
+use crate::app::store::{write_atomic, SettingsStore};
 
 /// ไฟล์หนังที่รับ 12 ชนิด (สเปกข้อ 10 · แผนค่าที่ต้นแบบยังไม่กำหนด) · WMV ISO ไม่รับ
 pub const ACCEPTED: [&str; 12] = ["mkv", "mp4", "m4v", "mov", "avi", "webm", "ts", "m2ts", "mpg", "mpeg", "vob", "flv"];
@@ -285,7 +285,7 @@ pub fn scan_core(env: &ScanEnv, existing: Vec<Movie>, on_movie: &(dyn Fn(&Movie,
     let mut todo: VecDeque<(Found, String, Option<Movie>)> = VecDeque::new();
     let mut seen: HashSet<String> = HashSet::new();
     for f in found {
-        let fid = crate::winutil::file_id(&f.path).unwrap_or_else(|| format!("path:{}", f.path.to_string_lossy().to_lowercase()));
+        let fid = crate::app::winutil::file_id(&f.path).unwrap_or_else(|| format!("path:{}", f.path.to_string_lossy().to_lowercase()));
         if !seen.insert(fid.clone()) {
             continue; // ฮาร์ดลิงก์ไฟล์เดียวกัน ขึ้นชั้นครั้งเดียว
         }
@@ -450,7 +450,7 @@ pub fn refresh_own_edit(app: &AppHandle, path: &Path, on_hash: &dyn Fn(f64)) {
     let lib = app.state::<Arc<LibraryStore>>();
     let key = path.to_string_lossy().to_lowercase();
     let Some(old) = lib.movies.lock().unwrap().iter().find(|m| m.path.to_lowercase() == key).cloned() else { return };
-    let (Ok(tools), Ok(local), Ok(md)) = (crate::tools::tools_dir(app), app.path().app_local_data_dir(), fs::metadata(path)) else { return };
+    let (Ok(tools), Ok(local), Ok(md)) = (crate::app::tools::tools_dir(app), app.path().app_local_data_dir(), fs::metadata(path)) else { return };
     let (folders, originals) = {
         let s = app.state::<SettingsStore>();
         let s = s.current.lock().unwrap();
@@ -463,7 +463,7 @@ pub fn refresh_own_edit(app: &AppHandle, path: &Path, on_hash: &dyn Fn(f64)) {
     m.status = old.status.clone();
     m.check = old.check.clone();
     if old.sha256.is_some() {
-        m.sha256 = crate::outfile::sha256_file(path, on_hash).ok();
+        m.sha256 = crate::app::outfile::sha256_file(path, on_hash).ok();
     }
     lib.update_movie(&old.id, |x| *x = m.clone());
     let _ = app.emit("movie-updated", &m);
@@ -538,7 +538,7 @@ pub fn scan_library(app: AppHandle, lib: State<'_, Arc<LibraryStore>>) -> Result
         return Ok(());
     }
     let lib = lib.inner().clone();
-    let tools = crate::tools::tools_dir(&app)?;
+    let tools = crate::app::tools::tools_dir(&app)?;
     let local = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
     let (folders, originals) = {
         let s = app.state::<SettingsStore>();
@@ -806,7 +806,7 @@ mod tests {
         let mine = t.0.join("ปกเทียบ.jpg");
         let mut target = std::ffi::OsString::from("1:");
         target.push(mine.as_os_str());
-        crate::tools::run_tool(&dev_tools(), "mkvextract", [std::ffi::OsStr::new(&harbor.path), std::ffi::OsStr::new("attachments"), &target]).unwrap();
+        crate::app::tools::run_tool(&dev_tools(), "mkvextract", [std::ffi::OsStr::new(&harbor.path), std::ffi::OsStr::new("attachments"), &target]).unwrap();
         use sha2::Digest;
         let sha = probe::hex(&sha2::Sha256::digest(fs::read(&mine).unwrap()));
         assert_eq!(harbor.cover_sha256.as_deref(), Some(sha.as_str()), "ปกบนชั้นไม่ตรงกับปกในไฟล์");

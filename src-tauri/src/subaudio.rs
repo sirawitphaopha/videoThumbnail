@@ -10,7 +10,7 @@ use std::time::Duration;
 
 use tauri::AppHandle;
 
-use crate::tools::{run_tool_timeout, tool_succeeded, tools_dir};
+use crate::app::tools::{run_tool_timeout, tool_succeeded, tools_dir};
 
 /// อัตราตัวอย่างเสียงที่ส่งให้หน้าจอ · หน้าจอสร้าง AudioBuffer ที่อัตรานี้
 pub const PCM_RATE: u32 = 48_000;
@@ -172,8 +172,8 @@ pub async fn sub_audio_save(app: AppHandle, path: String, map: String, t0: f64, 
             let _ = std::fs::remove_file(&partial);
             return Err(format!("บันทึกเสียงไม่สำเร็จ  {}", String::from_utf8_lossy(&o.stderr).lines().last().unwrap_or("")));
         }
-        crate::outfile::replace_with(&partial, &target)?;
-        crate::actlog::note("บันทึกเสียงของบรรทัดซับ", &format!("{} ({:.2} ถึง {:.2} วินาที)", target.display(), t0, t1));
+        crate::app::outfile::replace_with(&partial, &target)?;
+        crate::app::actlog::note("บันทึกเสียงของบรรทัดซับ", &format!("{} ({:.2} ถึง {:.2} วินาที)", target.display(), t0, t1));
         Ok(target.display().to_string())
     }).await.map_err(|e| e.to_string())?
 }
@@ -231,7 +231,7 @@ mod tests {
         let m = dir.join("late-video.mkv");
         let args: Vec<std::ffi::OsString> = ["-v", "error", "-itsoffset", "0.3", "-f", "lavfi", "-i", "color=c=red:s=64x64:r=25:d=3", "-f", "lavfi", "-i", "aevalsrc=if(between(t\\,1\\,1.2)\\,0.8*sin(2*PI*1000*t)\\,0):s=48000:d=3",
             "-map", "0:v", "-map", "1:a", "-c:v", "libx264", "-c:a", "flac"].iter().map(std::ffi::OsString::from).chain([m.as_os_str().to_owned()]).collect();
-        let o = crate::tools::run_tool(&tools(), "ffmpeg", &args).unwrap();
+        let o = crate::app::tools::run_tool(&tools(), "ffmpeg", &args).unwrap();
         assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
         let (s, a) = starts(&tools(), &m, "0:1").expect("อ่านเวลาเริ่มได้");
         assert!(s.abs() < 0.05 && a.abs() < 0.05, "ไฟล์กับเสียงเริ่มที่ 0 {s} {a}");

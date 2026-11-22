@@ -15,7 +15,7 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::tools::tool_command;
+use crate::app::tools::tool_command;
 
 /// ค่าในแผงตั้งค่าเสียงของแทร็กหนึ่งแทร็ก · p เก็บค่าของการ์ดแต่ละใบ ชื่อเดียวกับมอคอัป
 #[derive(Serialize, Deserialize, Clone, Debug, Default, PartialEq)]
@@ -434,7 +434,7 @@ pub fn run(dir_of: &dyn Fn(&str) -> PathBuf, plan: &Plan, total_secs: Option<f64
     let mut ff =tool_command(&dir_of(&plan.steps[0].tool), &plan.steps[0].tool, plan.steps[0].args.iter().map(OsStr::new))
         .stdout(if plan.piped { Stdio::piped() } else { Stdio::null() }).stderr(Stdio::piped())
         .spawn().map_err(|e| format!("เรียก {} ไม่ได้: {e}", plan.steps[0].tool))?;
-    crate::winutil::kill_with_app(&ff);
+    crate::app::winutil::kill_with_app(&ff);
     let mut enc = if plan.piped {
         let pipe = ff.stdout.take().ok_or("ต่อท่อเสียงไม่ได้")?;
         let s = &plan.steps[1];
@@ -442,7 +442,7 @@ pub fn run(dir_of: &dyn Fn(&str) -> PathBuf, plan: &Plan, total_secs: Option<f64
             Ok(c) => c,
             Err(e) => { let _ = ff.kill(); let _ = ff.wait(); return Err(format!("เรียก {} ไม่ได้: {e}", s.tool)); }
         };
-        crate::winutil::kill_with_app(&child);
+        crate::app::winutil::kill_with_app(&child);
         Some(child)
     } else {
         None
@@ -542,8 +542,8 @@ pub fn ensure_tak(tools: &Path, dir: &Path) -> Result<(), String> {
     impl Drop for Clean { fn drop(&mut self) { let _ = std::fs::remove_dir_all(&self.0); } }
     let _clean = Clean(tmp.clone());
     let sys = PathBuf::from(std::env::var_os("SystemRoot").unwrap_or_else(|| "C:\\Windows".into())).join("System32");
-    let out = crate::tools::run_tool_timeout(&sys, "tar", [OsStr::new("-x"), OsStr::new("-f"), zip.as_os_str(), OsStr::new("-C"), tmp.as_os_str(),
-        OsStr::new("--strip-components"), OsStr::new("1"), OsStr::new("Applications/Takc.exe"), OsStr::new("Applications/Readme.html")], crate::tools::SHORT_TIMEOUT)?;
+    let out = crate::app::tools::run_tool_timeout(&sys, "tar", [OsStr::new("-x"), OsStr::new("-f"), zip.as_os_str(), OsStr::new("-C"), tmp.as_os_str(),
+        OsStr::new("--strip-components"), OsStr::new("1"), OsStr::new("Applications/Takc.exe"), OsStr::new("Applications/Readme.html")], crate::app::tools::SHORT_TIMEOUT)?;
     if !out.status.success() || !tmp.join("Takc.exe").exists() {
         return Err(format!("แตก Takc.exe จาก {TAK_ZIP} ไม่สำเร็จ {}", String::from_utf8_lossy(&out.stderr).trim()));
     }
@@ -612,7 +612,7 @@ pub fn core_audio_of(text: &str) -> Option<String> {
 fn probe_one(dir: &Path, name: &str, arg: &str) -> Result<String, String> {
     let exe = dir.join(format!("{name}.exe"));
     if !exe.exists() { return Err("missing".into()); }
-    let out = crate::tools::run_tool_timeout(dir, name, [arg], crate::tools::SHORT_TIMEOUT)?;
+    let out = crate::app::tools::run_tool_timeout(dir, name, [arg], crate::app::tools::SHORT_TIMEOUT)?;
     let mut t = String::from_utf8_lossy(&out.stdout).to_string();
     t.push_str(&String::from_utf8_lossy(&out.stderr));
     // Windows ตอบ 0xC0000135 = หา DLL ที่ต้องใช้ไม่เจอ (ลองแล้วกับ flac ที่ไม่มี libFLAC.dll)
@@ -671,7 +671,7 @@ pub fn dir_for(list: &[EncoderInfo], tools: &Path, name: &str) -> PathBuf {
 #[tauri::command]
 pub async fn encoders_status(app: tauri::AppHandle) -> Result<Vec<EncoderInfo>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let tools = crate::tools::tools_dir(&app)?;
+        let tools = crate::app::tools::tools_dir(&app)?;
         let user = user_dir(&app)?;
         let _ = std::fs::create_dir_all(&user);
         Ok(status(&tools, &user))
@@ -892,10 +892,10 @@ mod tests {
             let r = run(&|_| tools(), &plan, Some(60.0), &|| false, &mut |p| seen = p).unwrap();
             assert!(matches!(r, Done::Ok), "{} {} ไม่สำเร็จ {}", s.codec, s.encoder, match r { Done::Failed(m) => m, _ => String::new() });
             assert_eq!(seen, 100.0);
-            let j = crate::outfile::ffprobe_json(&tools(), &out).unwrap();
+            let j = crate::app::outfile::ffprobe_json(&tools(), &out).unwrap();
             let st = &j["streams"][0];
             assert_eq!(st["codec_name"].as_str(), Some(s.probe_codec()), "{} {}", s.codec, s.encoder);
-            let d = crate::outfile::duration_of(&j).unwrap();
+            let d = crate::app::outfile::duration_of(&j).unwrap();
             assert!((d - 60.0).abs() < 0.2, "{} {} ยาว {d}", s.codec, s.encoder);
             // บิตเรตเป๊ะเฉพาะโหมดบิตเรตคงที่ · VBR ตัวเข้ารหัสใช้บิตตามเนื้อเสียง (เสียงซ่าทดสอบ Opus VBR 96 ได้ราว 62) เช็กแค่ไม่เกิน
             if let Some(k) = s.p.get("bitrate").and_then(|v| v.as_f64()) {
@@ -912,15 +912,15 @@ mod tests {
         let out = dir.join("pal.flac");
         let plan = build(&s, &pal.to_string_lossy(), 0, &out.to_string_lossy(), Some(2), None).unwrap();
         assert!(matches!(run(&|_| tools(), &plan, Some(57.6), &|| false, &mut |_| {}).unwrap(), Done::Ok));
-        let d = crate::outfile::duration_of(&crate::outfile::ffprobe_json(&tools(), &out).unwrap()).unwrap();
+        let d = crate::app::outfile::duration_of(&crate::app::outfile::ffprobe_json(&tools(), &out).unwrap()).unwrap();
         assert!((d - 60.03).abs() < 0.1, "ยืดแล้วยาว {d}");
         // ระดับเสียง · เสียงทดสอบ 1,000 Hz 3 วินาที เปลี่ยน 25 → 23.976 · คืนระดับเสียงได้ราว 959 Hz (เหมือนหมุนแผ่นช้าลง) คงระดับเสียงได้ 1,000 Hz · ยาว 3.128 วินาทีทั้งคู่
         // (ข้อ 29 · นับจุดที่คลื่นตัดศูนย์จากเสียงดิบที่ถอดกลับ)
         let tone = dir.join("tone1k.wav");
         let tp = tone.to_string_lossy().to_string();
-        let _ = crate::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "sine=frequency=1000:sample_rate=48000:duration=3", "-c:a", "pcm_s16le", tp.as_str()]);
+        let _ = crate::app::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "sine=frequency=1000:sample_rate=48000:duration=3", "-c:a", "pcm_s16le", tp.as_str()]);
         let freq_of = |p: &std::path::Path| -> (f64, f64) {
-            let o = crate::tools::run_tool(&tools(), "ffmpeg", [OsStr::new("-v"), OsStr::new("error"), OsStr::new("-i"), p.as_os_str(), OsStr::new("-ac"), OsStr::new("1"), OsStr::new("-f"), OsStr::new("s16le"), OsStr::new("-")]).unwrap();
+            let o = crate::app::tools::run_tool(&tools(), "ffmpeg", [OsStr::new("-v"), OsStr::new("error"), OsStr::new("-i"), p.as_os_str(), OsStr::new("-ac"), OsStr::new("1"), OsStr::new("-f"), OsStr::new("s16le"), OsStr::new("-")]).unwrap();
             let s: Vec<i16> = o.stdout.chunks_exact(2).map(|b| i16::from_le_bytes([b[0], b[1]])).collect();
             // ตัดหัวท้าย 0.3 วินาที (ตัวยืดเสียงเริ่มกับจบไม่นิ่ง)
             let cut = &s[14400.min(s.len())..s.len().saturating_sub(14400)];
@@ -942,7 +942,7 @@ mod tests {
         if let Some(wav) = av("เพลงทดสอบ.wav") {
             let wav = wav.to_string_lossy().to_string();
             let bits_of = |p: &std::path::Path| {
-                let j = crate::outfile::ffprobe_json(&tools(), p).unwrap();
+                let j = crate::app::outfile::ffprobe_json(&tools(), p).unwrap();
                 j["streams"][0]["bits_per_raw_sample"].as_str().and_then(|s| s.parse::<u32>().ok())
                     .or_else(|| match j["streams"][0]["sample_fmt"].as_str() { Some("s16") => Some(16), Some("s32") => Some(24), _ => None })
             };

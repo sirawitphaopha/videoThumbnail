@@ -118,7 +118,7 @@ fn decode_ffmpeg(tools: &Path, work: &Path, path: &Path, icc: Option<Vec<u8>>) -
         "-i".as_ref(), path.as_os_str(), "-frames:v".as_ref(), "1".as_ref(), "-update".as_ref(), "1".as_ref(),
         "-pix_fmt".as_ref(), "rgb24".as_ref(), png.as_os_str(),
     ];
-    let out = crate::tools::run_tool_timeout(tools, "ffmpeg", args, Duration::from_secs(90))?;
+    let out = crate::app::tools::run_tool_timeout(tools, "ffmpeg", args, Duration::from_secs(90))?;
     let result = (|| {
         if !out.status.success() || !png.exists() {
             return Err(format!("ถอดรูปไม่สำเร็จ: {}", String::from_utf8_lossy(&out.stderr).trim()));

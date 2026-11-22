@@ -10,7 +10,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use sha2::{Digest, Sha256};
 
-use crate::tools::{run_tool_timeout, tool_succeeded};
+use crate::app::tools::{run_tool_timeout, tool_succeeded};
 
 const PROBE_TIMEOUT: Duration = Duration::from_secs(60);
 
@@ -255,7 +255,7 @@ pub struct Thumb {
 
 /// สาเหตุที่เครื่องมือทำไม่สำเร็จเป็นประโยคไทย (BUGS ข้อ 150) เดิมบอกแค่รหัส · made = เครื่องมือจบแล้วได้ไฟล์ไหม
 fn fail_line(tool: &str, out: &std::process::Output, made: bool) -> String {
-    crate::tools::output_fail(tool, out, made)
+    crate::app::tools::output_fail(tool, out, made)
 }
 
 /// ดึงปกออกจากไฟล์หนัง แล้วย่อเป็น 300 × 450 (คมพอสำหรับปกใหญ่ 150 × 225 บนจอขยาย 200%)

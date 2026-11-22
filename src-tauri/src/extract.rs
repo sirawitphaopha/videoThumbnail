@@ -14,7 +14,7 @@ use std::time::Duration;
 use serde::{Deserialize, Serialize};
 use serde_json::Value;
 
-use crate::tools::{run_tool_timeout, tool_command, tool_succeeded, ToolFail};
+use crate::app::tools::{run_tool_timeout, tool_command, tool_succeeded, ToolFail};
 
 #[derive(Deserialize, Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -99,8 +99,8 @@ fn tool_json(tool: &str, out: &std::process::Output) -> Result<Value, String> {
     match j {
         Some(j) if tool_succeeded(tool, &out.status) && lines.is_empty() => Ok(j),
         _ => {
-            lines.extend(crate::tools::tool_lines(&String::from_utf8_lossy(&out.stderr)));
-            Err(crate::tools::explain_fail(tool, &lines, Some(&out.status)).line())
+            lines.extend(crate::app::tools::tool_lines(&String::from_utf8_lossy(&out.stderr)));
+            Err(crate::app::tools::explain_fail(tool, &lines, Some(&out.status)).line())
         }
     }
 }
@@ -251,7 +251,7 @@ pub fn partial_of(target: &Path, vobsub: bool) -> PathBuf {
 /// ข้อความที่เครื่องมือพิมพ์ เก็บไว้ 60 บรรทัดท้าย ใช้บอกสาเหตุตอนไม่สำเร็จ
 fn keep_tail(buf: &std::sync::Mutex<Vec<String>>, text: &str) {
     let mut b = buf.lock().unwrap();
-    b.extend(crate::tools::tool_lines(text));
+    b.extend(crate::app::tools::tool_lines(text));
     let n = b.len();
     if n > 60 { b.drain(..n - 60); }
 }
@@ -321,7 +321,7 @@ pub fn extract_one(tools: &Path, file: &Path, it: &Item, partial: &Path, on: &dy
     // ข้อความผิดพลาดของ mkvextract แบบ --gui-mode ออกทาง stdout (#GUI#error) ของ ffmpeg ออกทาง stderr · เดิมทิ้ง stderr จึงบอกได้แค่รหัส (BUGS ข้อ 150)
     let mut child = tool_command(tools, tool, &args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped())
         .spawn().map_err(|e| format!("เรียก {tool} ไม่ได้: {e}"))?;
-    crate::winutil::kill_with_app(&child);
+    crate::app::winutil::kill_with_app(&child);
     let out = child.stdout.take().unwrap();
     let err = child.stderr.take().unwrap();
     let msgs = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
@@ -361,14 +361,14 @@ pub fn extract_one(tools: &Path, file: &Path, it: &Item, partial: &Path, on: &dy
             let lines = msgs.lock().unwrap().clone();
             if !tool_succeeded(tool, &st) {
                 clean(&outs);
-                return Err(crate::tools::explain_fail(tool, &lines, Some(&st)));
+                return Err(crate::app::tools::explain_fail(tool, &lines, Some(&st)));
             }
             // เครื่องมือจบปกติแต่ไม่ได้ไฟล์ครบ · เดิมขึ้น "แยกไม่สำเร็จ (รหัส 0)" ที่ขัดกันเอง
             if let Some(miss) = outs.iter().find(|p| !p.exists()) {
                 let got: Vec<String> = outs.iter().filter(|p| p.exists()).filter_map(|p| p.file_name().map(|n| n.to_string_lossy().to_string())).collect();
                 clean(&outs);
                 let name = miss.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default();
-                let mut f = crate::tools::explain_fail(tool, &lines, None);
+                let mut f = crate::app::tools::explain_fail(tool, &lines, None);
                 if f.why.ends_with("ไม่ได้ไฟล์ออกมา") {
                     f.why = format!("{tool} ทำงานจบแล้วแต่ไม่พบไฟล์ {name} ที่ควรได้");
                     if !got.is_empty() { f.detail = Some(format!("ได้แค่ {}", got.join(" และ "))); }
@@ -479,7 +479,7 @@ mod tests {
         assert!(extract_one(&tools(), &mp4, &x("tags", "xml", None), &d.join("x.xml"), &|_| {}, &|| false).is_err());
         // เสียงเลื่อนไป 120 ms (mkvmerge --sync) ได้ดีเลย์ 120 แล้วชื่อไฟล์ต่อท้าย DELAY 120ms
         let late = d.join("เสียงช้า.mkv");
-        crate::tools::run_tool(&tools(), "mkvmerge", [OsStr::new("-o"), late.as_os_str(), OsStr::new("--sync"), OsStr::new("1:120"), src.as_os_str()]).unwrap();
+        crate::app::tools::run_tool(&tools(), "mkvmerge", [OsStr::new("-o"), late.as_os_str(), OsStr::new("--sync"), OsStr::new("1:120"), src.as_os_str()]).unwrap();
         let li = info_of(&mkv_json(&tools(), &late).unwrap());
         assert_eq!(li.delays[0], 120, "{li:?}");
         let a1 = Item { kind: "audio".into(), nth: 1, ext: "aac".into(), lang: Some("th".into()), name: None, of: None };
@@ -563,7 +563,7 @@ mod tests {
         let meta = d.join("meta.txt");
         std::fs::write(&meta, ";FFMETADATA1\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=0\nEND=4000\ntitle=เปิดเรื่อง\n[CHAPTER]\nTIMEBASE=1/1000\nSTART=4000\nEND=8000\ntitle=ฉาก <สอง> & จบ\n").unwrap();
         let mp4 = d.join("มีบท.mp4");
-        let o = crate::tools::run_tool(&tools(), "ffmpeg", [OsStr::new("-v"), OsStr::new("error"), OsStr::new("-i"), src.as_os_str(), OsStr::new("-f"), OsStr::new("ffmetadata"), OsStr::new("-i"), meta.as_os_str(),
+        let o = crate::app::tools::run_tool(&tools(), "ffmpeg", [OsStr::new("-v"), OsStr::new("error"), OsStr::new("-i"), src.as_os_str(), OsStr::new("-f"), OsStr::new("ffmetadata"), OsStr::new("-i"), meta.as_os_str(),
             OsStr::new("-map"), OsStr::new("0"), OsStr::new("-map_chapters"), OsStr::new("1"), OsStr::new("-c"), OsStr::new("copy"), mp4.as_os_str()]).unwrap();
         assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
         let mut it = Item { kind: "menu".into(), nth: 1, ext: "xml".into(), lang: None, name: None, of: None };
@@ -575,9 +575,9 @@ mod tests {
         assert!(t.starts_with("<?xml") && t.matches("<ChapterAtom>").count() == 2 && t.contains("เปิดเรื่อง") && t.contains("ฉาก &lt;สอง&gt; &amp; จบ"), "{t}");
         // mkvmerge อ่านไฟล์บทนี้ได้ครบสองบท
         let back = d.join("ใส่บทกลับ.mkv");
-        let o = crate::tools::run_tool(&tools(), "mkvmerge", [OsStr::new("-o"), back.as_os_str(), OsStr::new("--chapters"), ch.as_os_str(), src.as_os_str()]).unwrap();
+        let o = crate::app::tools::run_tool(&tools(), "mkvmerge", [OsStr::new("-o"), back.as_os_str(), OsStr::new("--chapters"), ch.as_os_str(), src.as_os_str()]).unwrap();
         assert!(o.status.code().unwrap_or(9) <= 1, "{}", String::from_utf8_lossy(&o.stdout));
-        let j: Value = serde_json::from_slice(&crate::tools::run_tool(&tools(), "mkvmerge", [OsStr::new("-J"), back.as_os_str()]).unwrap().stdout).unwrap();
+        let j: Value = serde_json::from_slice(&crate::app::tools::run_tool(&tools(), "mkvmerge", [OsStr::new("-J"), back.as_os_str()]).unwrap().stdout).unwrap();
         assert_eq!(j["chapters"][0]["num_entries"].as_u64(), Some(2), "{}", j["chapters"]);
         // หนัง MP4 ที่ไม่มีบท บอกตรง ๆ ว่าไม่มีบท
         let e = extract_one(&tools(), &src, &it, &d.join("ไม่มีบท.xml"), &|_| {}, &|| false).err().unwrap_or_default().why;
@@ -605,7 +605,7 @@ mod tests {
             let theirs = d.join(format!("theirs-{id}.{ext}"));
             let mut t = OsString::from(format!("{id}:"));
             t.push(theirs.as_os_str());
-            crate::tools::run_tool(&tools(), "mkvextract", [src.as_os_str(), OsStr::new("tracks"), &t]).unwrap();
+            crate::app::tools::run_tool(&tools(), "mkvextract", [src.as_os_str(), OsStr::new("tracks"), &t]).unwrap();
             assert_eq!(sha(&mine), sha(&theirs), "{kind}{nth} ไม่ตรงกับที่ดึงด้วย mkvextract เอง");
         }
         let ch = d.join("chapters.xml");
@@ -613,7 +613,7 @@ mod tests {
         assert!(std::fs::read_to_string(&ch).unwrap().contains("<Chapters>"), "บทต้องออกมาเป็น XML");
         let v = d.join("video.mkv");
         assert!(matches!(extract_one(&tools(), &src, &Item { kind: "video".into(), nth: 1, ext: "mkv".into(), lang: None, name: None, of: None }, &v, &|_| {}, &|| false).unwrap(), Done::Ok(_)));
-        let j: Value = serde_json::from_slice(&crate::tools::run_tool(&tools(), "mkvmerge", [OsStr::new("-J"), v.as_os_str()]).unwrap().stdout).unwrap();
+        let j: Value = serde_json::from_slice(&crate::app::tools::run_tool(&tools(), "mkvmerge", [OsStr::new("-J"), v.as_os_str()]).unwrap().stdout).unwrap();
         assert_eq!(j["tracks"].as_array().unwrap().len(), 1, "แยกภาพต้องได้แทร็กภาพอย่างเดียว");
         assert_eq!(sha(&src), before, "ไฟล์หนังเดิมต้องไม่ถูกแตะ");
         // ชื่อชนต่อท้ายเลข 2 ไม่ทับ
@@ -658,7 +658,7 @@ mod tests {
         std::fs::create_dir_all(theirs.parent().unwrap()).unwrap();
         let mut t = OsString::from("3:");
         t.push(theirs.as_os_str());
-        crate::tools::run_tool(&tools(), "mkvextract", [src.as_os_str(), OsStr::new("tracks"), &t]).unwrap();
+        crate::app::tools::run_tool(&tools(), "mkvextract", [src.as_os_str(), OsStr::new("tracks"), &t]).unwrap();
         assert_eq!(sha(&got[1]), sha(&theirs), ".sub ต้องตรงกับที่ mkvextract แยกเอง");
         assert_eq!(std::fs::read_to_string(&got[0]).unwrap().replace("x.sub", ""), std::fs::read_to_string(theirs.with_extension("idx")).unwrap().replace("x.sub", ""), ".idx ต้องตรงกับที่ mkvextract แยกเอง");
         // แยกหลายไฟล์แบบ gMKVExtractGUI (BUGS ข้อ 130) หานามสกุลจาก codec ได้ sub จึงเข้าทาง VobSub เดียวกัน
@@ -760,7 +760,7 @@ mod tests {
     /// ข้อความจริงที่เครื่องมือพิมพ์ (จับจาก mkvextract กับ ffmpeg ที่แนบมา 16 พ.ย. 2569) แปลเป็นสาเหตุภาษาไทยได้ · แปลไม่ได้ใส่บรรทัดสุดท้ายไว้ให้ปุ่ม ⓘ
     #[test]
     fn explain_tool_messages() {
-        use crate::tools::{explain_fail, tool_lines};
+        use crate::app::tools::{explain_fail, tool_lines};
         let st = |code: u32| -> std::process::ExitStatus { use std::os::windows::process::ExitStatusExt; std::process::ExitStatus::from_raw(code) };
         let l = tool_lines("#GUI#error No track with the ID 9 was found in the source file.\n");
         assert_eq!(l, vec!["No track with the ID 9 was found in the source file."]);
@@ -788,8 +788,8 @@ mod tests {
         let v = explain_fail("mkvextract", &tool_lines("#GUI#error Failed to create the VobSub data file 'D:/dev/tmp/ชั้นแยกVobSub\\แยกไฟล์\\ซับรูป (2024).Text2.en.sub.partial.sub': open file error"), Some(&st(2)));
         assert!(v.why.starts_with("เปิดไฟล์ปลายทางเพื่อเขียนไม่ได้"), "{v:?}");
         assert_eq!(v.detail.as_deref(), Some("Failed to create the VobSub data file 'ซับรูป (2024).Text2.en.sub.partial.sub': open file error"));
-        assert_eq!(crate::tools::short_paths("Error opening output D:/dev/tmp/x/o.aac: No such file or directory"), "Error opening output o.aac: No such file or directory");
-        assert_eq!(crate::tools::short_paths("Error opening output files: No such file or directory"), "Error opening output files: No such file or directory");
+        assert_eq!(crate::app::tools::short_paths("Error opening output D:/dev/tmp/x/o.aac: No such file or directory"), "Error opening output o.aac: No such file or directory");
+        assert_eq!(crate::app::tools::short_paths("Error opening output files: No such file or directory"), "Error opening output files: No such file or directory");
         assert!(explain_fail("mkvextract", &tool_lines("#GUI#error Failed to create the file 'D:/a/o.srt': 0 (create_directory() failed)"), Some(&st(2))).why.starts_with("เปิดไฟล์ปลายทางเพื่อเขียนไม่ได้"));
         assert!(explain_fail("ffmpeg", &tool_lines("Error opening output files: No such file or directory"), Some(&st(1))).why.starts_with("เปิดไฟล์ปลายทางเพื่อเขียนไม่ได้"), "ปลายทางเปิดไม่ได้ ไม่ใช่หาไฟล์หนังไม่เจอ");
     }
@@ -826,7 +826,7 @@ pub struct ExtractReq {
 #[tauri::command]
 pub async fn extract_info(app: tauri::AppHandle, path: String) -> Result<ExtractInfo, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let tools = crate::tools::tools_dir(&app)?;
+        let tools = crate::app::tools::tools_dir(&app)?;
         let p = PathBuf::from(&path);
         if !p.extension().is_some_and(|e| e.eq_ignore_ascii_case("mkv")) { return Ok(ExtractInfo::default()); }
         Ok(info_of(&mkv_json(&tools, &p)?))
@@ -968,14 +968,14 @@ pub async fn extract_start(app: tauri::AppHandle, req: ExtractReq) -> Result<Ext
     impl Drop for Release { fn drop(&mut self) { RUNNING.store(false, std::sync::atomic::Ordering::SeqCst); } }
     let _release = Release;
     tauri::async_runtime::spawn_blocking(move || {
-        let tools = crate::tools::tools_dir(&app)?;
-        let jobs = app.state::<std::sync::Arc<crate::jobs::Jobs>>().inner().clone();
+        let tools = crate::app::tools::tools_dir(&app)?;
+        let jobs = app.state::<std::sync::Arc<crate::app::jobs::Jobs>>().inner().clone();
         let _guard = jobs.start();
         let src = PathBuf::from(&req.path);
         let stem = src.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
         let dir = req.folder.clone().filter(|f| !f.trim().is_empty()).map(PathBuf::from).unwrap_or_else(|| default_folder(&src));
         // สาเหตุเป็นประโยคไทย ไม่ใช่ข้อความภาษาอังกฤษของ Windows (BUGS ข้อ 150)
-        std::fs::create_dir_all(&dir).map_err(|e| format!("สร้างโฟลเดอร์ที่เก็บไม่ได้ {}", e.raw_os_error().map(crate::tools::win_reason).unwrap_or_else(|| e.to_string())))?;
+        std::fs::create_dir_all(&dir).map_err(|e| format!("สร้างโฟลเดอร์ที่เก็บไม่ได้ {}", e.raw_os_error().map(crate::app::tools::win_reason).unwrap_or_else(|| e.to_string())))?;
         let n = req.items.len();
         let mut r = ExtractResult { folder: dir.to_string_lossy().to_string(), states: vec!["queued".into(); n], files: vec![None; n], pair: vec![None; n], ..Default::default() };
         let src_size = std::fs::metadata(&src).map(|m| m.len()).unwrap_or(0);
@@ -1020,7 +1020,7 @@ pub async fn extract_start(app: tauri::AppHandle, req: ExtractReq) -> Result<Ext
             }
             // ที่ว่างในไดรฟ์ · ภาพต้องการราวขนาดไฟล์หนัง · เสียง ซับ บท ไฟล์แนบ ไม่เกินขนาดไฟล์หนัง เผื่ออย่างน้อย 64 MB
             let need = if it.kind == "video" { src_size } else { (src_size / 4).max(64 << 20).min(src_size + (64 << 20)) };
-            let free = crate::outfile::free_space(&dir);
+            let free = crate::app::outfile::free_space(&dir);
             if free < need {
                 let title = title_of(it);
                 let drive = dir.to_string_lossy().chars().next().unwrap_or('?').to_ascii_uppercase();

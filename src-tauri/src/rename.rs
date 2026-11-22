@@ -12,7 +12,7 @@ use std::sync::Arc;
 use serde::Serialize;
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use crate::library::{LibraryStore, Movie};
+use crate::app::library::{LibraryStore, Movie};
 use crate::probe;
 
 /// เหตุที่เปลี่ยนชื่อไม่ได้ ส่งให้หน้าจอเลือกว่าจะขึ้นใต้ช่องพิมพ์ (ชื่อผิดกติกา ชื่อซ้ำ) หรือการ์ดแดง (ไฟล์ถูกเปิดอยู่)
@@ -91,7 +91,7 @@ pub fn check_name(old: &Path, stem: &str) -> Result<PathBuf, RenameProblem> {
     }
     if new.as_os_str() != old.as_os_str() && std::fs::symlink_metadata(&new).is_ok() {
         // มีของชื่อนี้อยู่แล้ว · ถ้าเป็นไฟล์เดียวกัน (เปลี่ยนแค่ตัวพิมพ์เล็กใหญ่) ยอมให้เปลี่ยน
-        let same = match (crate::winutil::file_id(old), crate::winutil::file_id(&new)) {
+        let same = match (crate::app::winutil::file_id(old), crate::app::winutil::file_id(&new)) {
             (Some(a), Some(b)) => a == b,
             _ => false,
         };
@@ -134,7 +134,7 @@ pub fn move_no_replace(old: &Path, new: &Path) -> Result<(), RenameProblem> {
         19 => problem("denied", "ไดรฟ์นี้กันเขียนอยู่", Some("ปลดตัวกันเขียนของไดรฟ์ก่อน แล้วกดลองใหม่  แถบนี้ไม่หายเอง".into())),
         206 => problem("long", "ชื่อยาวเกินไป", Some("ตั้งชื่อให้สั้นลง".into())),
         // รหัสอื่นเป็นประโยคไทย ไม่ใช่แค่รหัส (BUGS ข้อ 150)
-        _ => problem("other", "เปลี่ยนชื่อไม่สำเร็จ", Some(format!("{}  ไฟล์ยังชื่อเดิม  แถบนี้ไม่หายเอง", crate::tools::win_reason(code)))),
+        _ => problem("other", "เปลี่ยนชื่อไม่สำเร็จ", Some(format!("{}  ไฟล์ยังชื่อเดิม  แถบนี้ไม่หายเอง", crate::app::tools::win_reason(code)))),
     })
 }
 
@@ -300,11 +300,11 @@ mod tests {
         assert_eq!(hashes(&t.0), before, "ห้ามมีไฟล์ไหนโดนทับ");
 
         // เปลี่ยนชื่อสำเร็จ · เนื้อไฟล์เท่าเดิม ไฟล์อื่นไม่ถูกแตะ
-        let id = crate::winutil::file_id(&a).unwrap();
+        let id = crate::app::winutil::file_id(&a).unwrap();
         let new = check_name(&a, "ดาวเหนือ (2023) 1080p").unwrap();
         move_no_replace(&a, &new).unwrap();
         assert!(!a.exists() && new.exists());
-        assert_eq!(crate::winutil::file_id(&new).unwrap(), id, "เปลี่ยนชื่อแล้วต้องเป็นไฟล์เดิม");
+        assert_eq!(crate::app::winutil::file_id(&new).unwrap(), id, "เปลี่ยนชื่อแล้วต้องเป็นไฟล์เดิม");
         let after = hashes(&t.0);
         assert_eq!(after.len(), before.len());
         assert_eq!(after["ดาวเหนือ (2023) 1080p.mkv"], before["ดาวเหนือ (2023).mkv"]);
@@ -345,7 +345,7 @@ mod tests {
         let t = tmp("คลัง");
         let a = t.0.join("ฝนแรก (2025).mkv");
         fs::write(&a, b"y").unwrap();
-        let id = crate::winutil::file_id(&a).unwrap();
+        let id = crate::app::winutil::file_id(&a).unwrap();
         let lib = LibraryStore::load(t.0.join("library.json"));
         lib.movies.lock().unwrap().push(Movie {
             id: id.clone(), path: a.to_string_lossy().to_string(), name: "ฝนแรก (2025)".into(), ext: "mkv".into(),

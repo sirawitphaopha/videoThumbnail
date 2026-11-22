@@ -16,7 +16,7 @@ use serde_json::Value;
 use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Manager};
 
-use crate::tools::{run_tool_timeout, tool_command, tool_succeeded};
+use crate::app::tools::{run_tool_timeout, tool_command, tool_succeeded};
 
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
@@ -168,10 +168,10 @@ pub fn to_trash(p: &Path) -> Result<(), String> {
     let r = unsafe { SHFileOperationW(&mut op) };
     // ทุกไฟล์ที่โปรแกรมส่งลงถังขยะจดลงบันทึกการใช้งาน ทั้งสำเร็จและไม่สำเร็จ · ทางนี้ทางเดียวทั้งโปรแกรม
     if r != 0 || op.fAnyOperationsAborted != 0 || p.exists() {
-        crate::actlog::note("ส่งลงถังขยะไม่สำเร็จ", &format!("{} รหัส {r}", p.display()));
+        crate::app::actlog::note("ส่งลงถังขยะไม่สำเร็จ", &format!("{} รหัส {r}", p.display()));
         return Err(format!("ส่งไฟล์เดิมลงถังขยะไม่สำเร็จ {}", trash_reason(r, p.exists())));
     }
-    crate::actlog::note("ลงถังขยะ", &p.display().to_string());
+    crate::app::actlog::note("ลงถังขยะ", &p.display().to_string());
     Ok(())
 }
 
@@ -183,7 +183,7 @@ fn trash_reason(r: i32, still: bool) -> String {
         0 | 0x75 => "การลบถูกยกเลิกกลางคัน".to_string(),
         0x78 => "Windows ไม่อนุญาต ไฟล์อาจตั้งเป็นอ่านอย่างเดียว หรือโปรแกรมอื่นถือไฟล์ไว้".to_string(),
         0x7C | 0x402 => "ที่อยู่ไฟล์ใช้ไม่ได้ ไฟล์อาจถูกย้ายไปแล้ว".to_string(),
-        c => crate::tools::win_reason(c),
+        c => crate::app::tools::win_reason(c),
     }
 }
 
@@ -270,7 +270,7 @@ pub enum Run {
 pub fn run_live(tools: &Path, name: &str, args: &[OsString], stop: &dyn Fn() -> bool, on_line: &mut dyn FnMut(&str)) -> Result<Run, String> {
     let mut child = tool_command(tools, name, args).stdin(Stdio::null()).stdout(Stdio::piped()).stderr(Stdio::piped())
         .spawn().map_err(|e| format!("เรียก {name} ไม่ได้: {e}"))?;
-    crate::winutil::kill_with_app(&child);
+    crate::app::winutil::kill_with_app(&child);
     let out = child.stdout.take().unwrap();
     let mut err = child.stderr.take().unwrap();
     let (tx, rx) = mpsc::channel::<String>();
@@ -321,7 +321,7 @@ pub fn eta(t0: Instant, pct: f64) -> Option<f64> {
 
 /// โฟลเดอร์เก็บไฟล์เดิม · ตั้งไว้ในหน้าตั้งค่า (ต้องอยู่ไดรฟ์เดียวกัน ย้ายข้ามไดรฟ์ = คัดลอกแล้วลบ พังกลางทางได้) · ไม่ตั้ง = ไฟล์เดิม ข้างไฟล์หนัง
 pub fn originals_dir(app: &AppHandle, dir: &Path) -> PathBuf {
-    let set = app.state::<crate::store::SettingsStore>().current.lock().unwrap().originals_folder.clone();
+    let set = app.state::<crate::app::store::SettingsStore>().current.lock().unwrap().originals_folder.clone();
     if !set.trim().is_empty() && drive_letter(Path::new(&set)) == drive_letter(dir) {
         PathBuf::from(set)
     } else {

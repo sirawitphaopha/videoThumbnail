@@ -15,9 +15,9 @@ use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use crate::library::{LibraryStore, Movie};
+use crate::app::library::{LibraryStore, Movie};
 use crate::poster_image::{self as pi, Geometry};
-use crate::store::write_atomic;
+use crate::app::store::write_atomic;
 
 // ---------------------------------------------------------------- เทียบชื่อ (ฟังก์ชันล้วน)
 
@@ -705,7 +705,7 @@ struct Dirs { tools: PathBuf, work: PathBuf, thumbs: PathBuf }
 
 fn dirs(app: &AppHandle) -> Result<Dirs, String> {
     let local = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
-    Ok(Dirs { tools: crate::tools::tools_dir(app)?, work: local.join("tmp"), thumbs: local.join("thumbs").join("link-src") })
+    Ok(Dirs { tools: crate::app::tools::tools_dir(app)?, work: local.join("tmp"), thumbs: local.join("thumbs").join("link-src") })
 }
 
 #[derive(Serialize, Clone)]
@@ -1243,7 +1243,7 @@ fn replace_own(target: &Path, bytes: &[u8]) -> Result<(), String> {
         return Err(p.title);
     }
     // ไฟล์รุ่นก่อนลงถังขยะ กู้คืนได้ (AUDIT 12 พ.ย. 2569 ข้อ 11 · เดิมลบถาวร ไฟล์ครอปเดิมหายกู้ไม่ได้)
-    if crate::outfile::to_trash(&old).is_err() { let _ = fs::remove_file(&old); }
+    if crate::app::outfile::to_trash(&old).is_err() { let _ = fs::remove_file(&old); }
     Ok(())
 }
 
@@ -1367,10 +1367,10 @@ fn trash_own(f: &Path, sha: &Option<String>) -> Option<String> {
     if file_sha(f) != *sha {
         return Some(format!("{} ถูกแก้หลังโปรแกรมทำไว้ ไม่ลบให้", f.file_name().unwrap_or_default().to_string_lossy()));
     }
-    if !crate::outfile::drive_is_fixed(f.parent().unwrap_or(Path::new(""))) {
+    if !crate::app::outfile::drive_is_fixed(f.parent().unwrap_or(Path::new(""))) {
         return Some(format!("{} อยู่บนไดรฟ์ที่ไม่มีถังขยะ ไม่ลบให้ ลบเองได้", f.file_name().unwrap_or_default().to_string_lossy()));
     }
-    crate::outfile::to_trash(f).err().map(|e| format!("{} {e}", f.file_name().unwrap_or_default().to_string_lossy()))
+    crate::app::outfile::to_trash(f).err().map(|e| format!("{} {e}", f.file_name().unwrap_or_default().to_string_lossy()))
 }
 
 /// เก็บทุกช่องของแถว · ช่องหลังล้ม เอาไฟล์ใหม่ของช่องก่อนออก แถวนั้นไม่ครึ่ง ๆ กลาง ๆ
@@ -1444,7 +1444,7 @@ pub fn rename_beside(m: &mut Movie, new_movie: &Path) {
 
 fn write_env_dirs(app: &AppHandle) -> Result<(PathBuf, PathBuf, PathBuf, PathBuf), String> {
     let local = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
-    Ok((crate::tools::tools_dir(app)?, local.join("tmp"), local.join("thumbs"), local.join("covers")))
+    Ok((crate::app::tools::tools_dir(app)?, local.join("tmp"), local.join("thumbs"), local.join("covers")))
 }
 
 #[derive(Serialize, Clone)]
@@ -1478,14 +1478,14 @@ pub fn select_rows(rows: &[Row], which: &str) -> Vec<String> {
 #[tauri::command]
 pub async fn link_confirm(app: AppHandle, which: String) -> Result<ConfirmResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let jobs = app.state::<Arc<crate::jobs::Jobs>>().inner().clone();
+        let jobs = app.state::<Arc<crate::app::jobs::Jobs>>().inner().clone();
         let _guard = jobs.start();
         let store = app.state::<Arc<LinkStore>>().inner().clone();
         let _busy = begin_busy(&store)?;
         let lib = app.state::<Arc<LibraryStore>>().inner().clone();
         let (tools, work, thumbs, covers) = write_env_dirs(&app)?;
         let (mode, shrink, format, quality, also_app) = {
-            let s = app.state::<crate::store::SettingsStore>();
+            let s = app.state::<crate::app::store::SettingsStore>();
             let s = s.current.lock().unwrap();
             (s.link_store.clone(), s.shrink_large_posters, s.poster_format.clone(), s.jpg_quality, s.also_app())
         };
@@ -1535,7 +1535,7 @@ pub async fn link_confirm(app: AppHandle, which: String) -> Result<ConfirmResult
         }
         let _ = app.emit("link-progress", LinkProgress { done: total, total, title: String::new() });
         let movies = movies_of(&lib);
-        crate::actlog::note("ยืนยันปกจับคู่ เสร็จ", &format!("สำเร็จ {done} เรื่อง ไม่สำเร็จ {failed} เรื่อง{}  {}", if stopped { " หยุดกลางทาง" } else { "" }, notes.join("  ")));
+        crate::app::actlog::note("ยืนยันปกจับคู่ เสร็จ", &format!("สำเร็จ {done} เรื่อง ไม่สำเร็จ {failed} เรื่อง{}  {}", if stopped { " หยุดกลางทาง" } else { "" }, notes.join("  ")));
         Ok(ConfirmResult { done, failed, stopped, notes, reply: reply(&store, &movies) })
     }).await.map_err(|e| e.to_string())?
 }
@@ -1702,14 +1702,14 @@ pub struct MigrateResult {
 #[tauri::command]
 pub async fn link_migrate(app: AppHandle, to: String) -> Result<MigrateResult, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let jobs = app.state::<Arc<crate::jobs::Jobs>>().inner().clone();
+        let jobs = app.state::<Arc<crate::app::jobs::Jobs>>().inner().clone();
         let _guard = jobs.start();
         let store = app.state::<Arc<LinkStore>>().inner().clone();
         let _busy = begin_busy(&store)?;
         let lib = app.state::<Arc<LibraryStore>>().inner().clone();
         let (tools, work, thumbs, covers) = write_env_dirs(&app)?;
         let (shrink, format, quality, also_app) = {
-            let s = app.state::<crate::store::SettingsStore>();
+            let s = app.state::<crate::app::store::SettingsStore>();
             let s = s.current.lock().unwrap();
             (s.shrink_large_posters, s.poster_format.clone(), s.jpg_quality, s.also_app())
         };
@@ -1734,7 +1734,7 @@ pub async fn link_migrate(app: AppHandle, to: String) -> Result<MigrateResult, S
         }
         let _ = app.emit("link-progress", LinkProgress { done: total, total, title: String::new() });
         let to_name = match to.as_str() { "beside" => "ข้างไฟล์หนัง", "app" => "ในโปรแกรม", "link" => "จับคู่อย่างเดียว", x => x };
-        crate::actlog::note("ย้ายที่เก็บรูปจับคู่ เสร็จ", &format!("ไปแบบ{to_name} {} ย้ายแล้ว {done} เรื่อง ไม่สำเร็จ {failed} เรื่อง  {}", if want_copy { "มีสำเนาในโปรแกรม" } else { "ไม่มีสำเนาที่สอง" }, notes.join("  ")));
+        crate::app::actlog::note("ย้ายที่เก็บรูปจับคู่ เสร็จ", &format!("ไปแบบ{to_name} {} ย้ายแล้ว {done} เรื่อง ไม่สำเร็จ {failed} เรื่อง  {}", if want_copy { "มีสำเนาในโปรแกรม" } else { "ไม่มีสำเนาที่สอง" }, notes.join("  ")));
         Ok(MigrateResult { done, failed, notes })
     }).await.map_err(|e| e.to_string())?
 }
@@ -1957,7 +1957,7 @@ mod tests {
         fn walk(d: &Path, out: &mut Vec<PathBuf>) {
             for e in fs::read_dir(d).unwrap().flatten() {
                 if e.path().is_dir() { walk(&e.path(), out); }
-                else if crate::library::ACCEPTED.contains(&pi::ext_of(&e.path()).as_str()) { out.push(e.path()); }
+                else if crate::app::library::ACCEPTED.contains(&pi::ext_of(&e.path()).as_str()) { out.push(e.path()); }
             }
         }
         walk(&root.join("หนัง"), &mut files);
@@ -2251,12 +2251,12 @@ mod tests {
     /// ค่าตั้งไฟล์เก่ามีแค่แบบเดียว อ่านแล้วคงแบบเดิม · ติ๊กหลายแบบ แบบหลักข้างไฟล์หนังก่อน
     #[test]
     fn store_settings_old_and_many() {
-        let mut old: crate::store::Settings = serde_json::from_str(r#"{"linkStore":"app"}"#).unwrap();
+        let mut old: crate::app::store::Settings = serde_json::from_str(r#"{"linkStore":"app"}"#).unwrap();
         old.normalize_link_stores();
         assert_eq!(old.link_stores, vec!["app".to_string()]);
         assert_eq!(old.link_store, "app");
         assert!(!old.also_app());
-        let mut all: crate::store::Settings = serde_json::from_str(r#"{"linkStores":["link","app","beside"]}"#).unwrap();
+        let mut all: crate::app::store::Settings = serde_json::from_str(r#"{"linkStores":["link","app","beside"]}"#).unwrap();
         all.normalize_link_stores();
         assert_eq!(all.link_store, "beside");
         assert!(all.also_app());
@@ -2461,7 +2461,7 @@ mod tests {
     fn old_data_still_reads() {
         let old: Movie = serde_json::from_str(r#"{"id":"1","path":"D:\\a.mkv","name":"a"}"#).unwrap();
         assert!(old.linked.is_empty() && old.cover_pick.is_empty());
-        let s: crate::store::Settings = serde_json::from_str("{}").unwrap();
+        let s: crate::app::store::Settings = serde_json::from_str("{}").unwrap();
         assert_eq!(s.link_store, "beside");
     }
 

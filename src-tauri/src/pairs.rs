@@ -7,7 +7,7 @@
 //! PotPlayer  /sub= (ไฟล์เดียว) · ใส่เสียงแยกกับดีเลย์จากคำสั่งไม่ได้
 //! โปรแกรมหลักของ Windows (ภาพยนตร์และทีวี) รับไฟล์แยกไม่ได้ เปิดได้เฉพาะหนัง
 
-use crate::library::LibraryStore;
+use crate::app::library::LibraryStore;
 use serde::{Deserialize, Serialize};
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -121,7 +121,7 @@ fn quote(a: &OsString) -> String {
 
 /// บันทึกการจับคู่ของหนังหนึ่งเรื่อง (แทนของเดิมทั้งชุด) · ว่าง = เลิกจับคู่
 #[tauri::command]
-pub fn pair_set(app: AppHandle, lib: State<'_, Arc<LibraryStore>>, movie: String, pairs: Vec<Pair>) -> Result<crate::library::Movie, String> {
+pub fn pair_set(app: AppHandle, lib: State<'_, Arc<LibraryStore>>, movie: String, pairs: Vec<Pair>) -> Result<crate::app::library::Movie, String> {
     let key = movie.to_lowercase();
     let id = lib.movies.lock().unwrap().iter().find(|m| m.path.to_lowercase() == key).map(|m| m.id.clone())
         .ok_or("หนังเรื่องนี้ไม่ได้อยู่บนชั้น เพิ่มโฟลเดอร์ของหนังในหน้าตั้งค่าก่อน")?;
@@ -226,11 +226,11 @@ mod tests {
     /// คลังเก่าที่ไม่มีช่องจับคู่ยังอ่านได้ · บันทึกแล้วอ่านกลับได้ครบ
     #[test]
     fn pairs_round_trip() {
-        let old: crate::library::Movie = serde_json::from_str(r#"{"id":"1","path":"D:\\a.mkv","name":"a"}"#).unwrap();
+        let old: crate::app::library::Movie = serde_json::from_str(r#"{"id":"1","path":"D:\\a.mkv","name":"a"}"#).unwrap();
         assert!(old.pairs.is_empty());
         let mut m = old.clone();
         m.pairs = pairs();
-        let back: crate::library::Movie = serde_json::from_str(&serde_json::to_string(&m).unwrap()).unwrap();
+        let back: crate::app::library::Movie = serde_json::from_str(&serde_json::to_string(&m).unwrap()).unwrap();
         assert_eq!(back.pairs, pairs());
     }
 }

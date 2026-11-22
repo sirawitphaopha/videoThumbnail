@@ -16,8 +16,8 @@ use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, State};
 
 use crate::encode::{self, EncodeSpec};
-use crate::outfile::{drive_letter, fail, fmt_gb, free_name, free_space, scopeguard, ApplyProblem};
-use crate::tools::{run_tool_timeout, tool_succeeded};
+use crate::app::outfile::{drive_letter, fail, fmt_gb, free_name, free_space, scopeguard, ApplyProblem};
+use crate::app::tools::{run_tool_timeout, tool_succeeded};
 
 #[derive(Default)]
 pub struct ConvertState {
@@ -200,7 +200,7 @@ fn tools_of(app: &AppHandle) -> Result<(PathBuf, PathBuf), String> {
     let local = app.path().app_local_data_dir().map_err(|e| e.to_string())?;
     let work = local.join("tmp");
     std::fs::create_dir_all(&work).map_err(|e| e.to_string())?;
-    Ok((crate::tools::tools_dir(app)?, work))
+    Ok((crate::app::tools::tools_dir(app)?, work))
 }
 
 /// ขนาดที่คาดจากการลองแปลงจริง (BUGS ข้อ 120)
@@ -349,7 +349,7 @@ pub async fn convert_one(app: AppHandle, req: ConvReq) -> Result<ConvResult, App
             return Err(fail("other", "กำลังแปลงไฟล์อื่นอยู่", vec!["รอให้เสร็จก่อน".into()]));
         }
         st.cancel.store(false, Ordering::SeqCst);
-        let jobs = app.state::<Arc<crate::jobs::Jobs>>().inner().clone();
+        let jobs = app.state::<Arc<crate::app::jobs::Jobs>>().inner().clone();
         let _guard = jobs.start();
         let r = convert(&app, &req, &jobs);
         st.running.store(false, Ordering::SeqCst);
@@ -381,7 +381,7 @@ pub fn remux_args(enc: &str, src: &str, out: &str, codec: &str, f: &AudioFile, w
     a
 }
 
-fn convert(app: &AppHandle, req: &ConvReq, jobs: &Arc<crate::jobs::Jobs>) -> Result<ConvResult, ApplyProblem> {
+fn convert(app: &AppHandle, req: &ConvReq, jobs: &Arc<crate::app::jobs::Jobs>) -> Result<ConvResult, ApplyProblem> {
     let st = app.state::<ConvertState>();
     let stop = || st.cancel.load(Ordering::SeqCst) || jobs.cancelled();
     let emit = |phase: &str, percent: f64, eta: Option<f64>| {
@@ -489,7 +489,7 @@ fn convert(app: &AppHandle, req: &ConvReq, jobs: &Arc<crate::jobs::Jobs>) -> Res
             let a = remux_args(&partial.to_string_lossy(), &req.path, &p2.to_string_lossy(), codec, &f, with_cover);
             // ฟังตัวหยุดระหว่างคัดลอกเสียงลงไฟล์ชั่วคราวที่สอง · ปิดโปรแกรมแล้วงานจบเอง ลบไฟล์ทำค้างได้ (ผู้ช่วยตรวจขั้น 10 ข้อ 10 · เดิมรอได้ถึง 600 วินาที)
             let a: Vec<std::ffi::OsString> = a.iter().map(std::ffi::OsString::from).collect();
-            matches!(crate::outfile::run_live(&tools, "ffmpeg", &a, &stop, &mut |_| {}), Ok(crate::outfile::Run::Done(st, _)) if tool_succeeded("ffmpeg", &st))
+            matches!(crate::app::outfile::run_live(&tools, "ffmpeg", &a, &stop, &mut |_| {}), Ok(crate::app::outfile::Run::Done(st, _)) if tool_succeeded("ffmpeg", &st))
         };
         if try_once(cover_fits) { cover_ok = cover_fits; tags_n = f.tags.len(); final_tmp = p2.clone(); }
         else if cover_fits && try_once(false) { tags_n = f.tags.len(); final_tmp = p2.clone(); notes.push("ใส่รูปปกไม่ได้ ใส่แค่ข้อมูลเพลง".into()); }
@@ -664,7 +664,7 @@ mod tests {
         assert!(g.cover.is_some(), "รูปปกติดไป");
         // ถอดกลับได้เสียงตรงต้นฉบับทุกตัวอย่าง (เทียบ MD5 ของเสียงดิบ)
         let md5 = |p: &Path| {
-            let o = crate::tools::run_tool(&tools(), "ffmpeg", [OsStr::new("-v"), OsStr::new("error"), OsStr::new("-i"), p.as_os_str(), OsStr::new("-map"), OsStr::new("0:a:0"), OsStr::new("-c:a"), OsStr::new("pcm_s24le"), OsStr::new("-f"), OsStr::new("md5"), OsStr::new("-")]).unwrap();
+            let o = crate::app::tools::run_tool(&tools(), "ffmpeg", [OsStr::new("-v"), OsStr::new("error"), OsStr::new("-i"), p.as_os_str(), OsStr::new("-map"), OsStr::new("0:a:0"), OsStr::new("-c:a"), OsStr::new("pcm_s24le"), OsStr::new("-f"), OsStr::new("md5"), OsStr::new("-")]).unwrap();
             String::from_utf8_lossy(&o.stdout).trim().to_string()
         };
         assert_eq!(md5(&out), md5(&src), "ไม่เสียคุณภาพ");
@@ -713,7 +713,7 @@ mod tests {
         assert!(note.starts_with("MD5 ของเสียง "), "{note}");
         // ไฟล์คนละเสียง ต้องขึ้นไม่ตรง
         let other = dir.join("other.flac");
-        let o = crate::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-f", "lavfi", "-i", "sine=frequency=500:sample_rate=96000:duration=3", "-ac", "2", "-sample_fmt", "s32", "-c:a", "flac"].iter().map(OsStr::new).chain([other.as_os_str()])).unwrap();
+        let o = crate::app::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-f", "lavfi", "-i", "sine=frequency=500:sample_rate=96000:duration=3", "-ac", "2", "-sample_fmt", "s32", "-c:a", "flac"].iter().map(OsStr::new).chain([other.as_os_str()])).unwrap();
         assert!(o.status.success());
         assert_eq!(bit_exact(&tools(), &src, &f, &other, &spec).0, Some(false));
         // ตั้งให้เสียงเปลี่ยน ไม่เทียบ บอกเหตุผล
@@ -736,7 +736,7 @@ mod tests {
         let dir = std::env::temp_dir().join(format!("ms-probe-{}", crate::poster_image::unique()));
         std::fs::create_dir_all(&dir).unwrap();
         let src = dir.join("long.flac");
-        let o = crate::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-f", "lavfi", "-i", "anoisesrc=color=pink:amplitude=0.4:duration=150:sample_rate=48000", "-af", "volume=0.25+0.7*abs(sin(2*PI*t/23)):eval=frame", "-ac", "2", "-sample_fmt", "s32", "-c:a", "flac"].iter().map(OsStr::new).chain([src.as_os_str()])).unwrap();
+        let o = crate::app::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-f", "lavfi", "-i", "anoisesrc=color=pink:amplitude=0.4:duration=150:sample_rate=48000", "-af", "volume=0.25+0.7*abs(sin(2*PI*t/23)):eval=frame", "-ac", "2", "-sample_fmt", "s32", "-c:a", "flac"].iter().map(OsStr::new).chain([src.as_os_str()])).unwrap();
         assert!(o.status.success(), "{}", String::from_utf8_lossy(&o.stderr));
         let f = probe(&tools(), &src).unwrap();
         let spec = EncodeSpec { codec: "flac".into(), p: json!({"level": 8}).as_object().cloned().unwrap(), ..Default::default() };
@@ -750,7 +750,7 @@ mod tests {
         assert!(err.abs() < 0.05, "คาด {est:.0} จริง {real:.0} คลาด {:.1}%", err * 100.0);
         // เพลงสั้น แปลงทั้งเพลง
         let short = dir.join("short.flac");
-        let o = crate::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-i"].iter().map(OsStr::new).chain([src.as_os_str()]).chain(["-t", "30", "-c:a", "flac"].iter().map(OsStr::new)).chain([short.as_os_str()])).unwrap();
+        let o = crate::app::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-i"].iter().map(OsStr::new).chain([src.as_os_str()]).chain(["-t", "30", "-c:a", "flac"].iter().map(OsStr::new)).chain([short.as_os_str()])).unwrap();
         assert!(o.status.success());
         let fs = probe(&tools(), &short).unwrap();
         let (est2, whole2) = size_probe(&dir, &|_| tools(), &short.to_string_lossy(), fs.stream, &spec, Some(fs.channels), fs.bits, Some(fs.rate), fs.duration).unwrap();
@@ -786,7 +786,7 @@ mod tests {
         assert!((g.duration - f.duration).abs() < 0.1, "ยาว {} เทียบ {}", g.duration, f.duration);
         assert_eq!(g.tags.iter().find(|t| t.key == "title").map(|t| t.value.clone()), f.tags.iter().find(|t| t.key == "title").map(|t| t.value.clone()), "ชื่อเพลงภาษาไทยติดไป");
         let md5 = |p: &Path| {
-            let o = crate::tools::run_tool(&tools(), "ffmpeg", [OsStr::new("-v"), OsStr::new("error"), OsStr::new("-i"), p.as_os_str(), OsStr::new("-map"), OsStr::new("0:a:0"), OsStr::new("-c:a"), OsStr::new("pcm_s24le"), OsStr::new("-f"), OsStr::new("md5"), OsStr::new("-")]).unwrap();
+            let o = crate::app::tools::run_tool(&tools(), "ffmpeg", [OsStr::new("-v"), OsStr::new("error"), OsStr::new("-i"), p.as_os_str(), OsStr::new("-map"), OsStr::new("0:a:0"), OsStr::new("-c:a"), OsStr::new("pcm_s24le"), OsStr::new("-f"), OsStr::new("md5"), OsStr::new("-")]).unwrap();
             String::from_utf8_lossy(&o.stdout).trim().to_string()
         };
         assert_eq!(md5(&out), md5(&src), "ไม่เสียคุณภาพ");

@@ -8,7 +8,7 @@ use std::path::{Path, PathBuf};
 use serde::Serialize;
 use tauri::{AppHandle, Manager};
 
-use crate::store::SettingsStore;
+use crate::app::store::SettingsStore;
 
 /// ค่าใน player_path ที่แปลว่าใช้โปรแกรมหลักของ Windows · ว่าง = โปรแกรมเลือกเอง MPC-HC ก่อน
 pub const SYSTEM: &str = "system";
@@ -87,10 +87,10 @@ pub fn scan() -> Vec<PathBuf> {
         scan_dir(r, 2, &mut found);
     }
     for (exe, _) in KNOWN {
-        found.extend(crate::winutil::app_path_for(exe));
+        found.extend(crate::app::winutil::app_path_for(exe));
     }
     for ext in VIDEO_EXT {
-        if let Some(p) = crate::winutil::default_app_for(ext) {
+        if let Some(p) = crate::app::winutil::default_app_for(ext) {
             if !NOT_PLAYER.iter().any(|n| n.eq_ignore_ascii_case(&file_name_of(&p))) {
                 found.push(p);
             }
@@ -168,7 +168,7 @@ pub fn list_players(app: AppHandle) -> PlayerList {
         p.icon = exe_icon(Path::new(&p.path));
     }
     let system_default = !players.iter().any(|p| p.is_default);
-    let system_icon = crate::winutil::default_app_for(".mkv").and_then(|p| exe_icon(&p));
+    let system_icon = crate::app::winutil::default_app_for(".mkv").and_then(|p| exe_icon(&p));
     PlayerList { players, system_default, system_icon }
 }
 

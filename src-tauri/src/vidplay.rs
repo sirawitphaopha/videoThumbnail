@@ -14,7 +14,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use tauri::ipc::{Channel, InvokeResponseBody};
 use tauri::AppHandle;
 
-use crate::tools::tools_dir;
+use crate::app::tools::tools_dir;
 
 /// รุ่นของการเล่น · เล่นใหม่หรือหยุดแล้วเพิ่มเลข ตัวที่รุ่นไม่ตรงปิดเอง
 static GEN: AtomicU64 = AtomicU64::new(0);
@@ -49,9 +49,9 @@ pub async fn vid_play(app: AppHandle, movie: String, ss: f64, h: u32, out: Chann
     let my = GEN.fetch_add(1, Ordering::SeqCst) + 1;
     tauri::async_runtime::spawn_blocking(move || {
         if !PathBuf::from(&movie).exists() { return Err("หาไฟล์หนังไม่เจอ ไดรฟ์อาจถอดออกอยู่".to_string()); }
-        let mut child = crate::tools::tool_command(&tools, "ffmpeg", play_args(&movie, ss, h))
+        let mut child = crate::app::tools::tool_command(&tools, "ffmpeg", play_args(&movie, ss, h))
             .stdout(Stdio::piped()).stderr(Stdio::null()).spawn().map_err(|e| format!("เรียก ffmpeg ไม่ได้: {e}"))?;
-        crate::winutil::kill_with_app(&child);
+        crate::app::winutil::kill_with_app(&child);
         let mut stdout = child.stdout.take().ok_or("อ่านภาพจาก ffmpeg ไม่ได้")?;
         let mut chunk = vec![0u8; 256 * 1024];
         let mut buf: Vec<u8> = Vec::new();

@@ -213,7 +213,7 @@ mod heif {
         let wide: Vec<u16> = OsStr::new(p.as_os_str()).encode_wide().chain(std::iter::once(0)).collect();
         // หาไฟล์ที่ heif.dll ต้องใช้ในโฟลเดอร์เดียวกันก่อน
         let h = unsafe { LoadLibraryExW(wide.as_ptr(), null_mut(), LOAD_WITH_ALTERED_SEARCH_PATH) };
-        if h.is_null() { return Err(format!("เปิด heif.dll ไม่ได้ {}", crate::tools::dll_reason("heif.dll"))); }
+        if h.is_null() { return Err(format!("เปิด heif.dll ไม่ได้ {}", crate::app::tools::dll_reason("heif.dll"))); }
         let need = |n: &str| -> Result<*const (), String> {
             let z = format!("{n}\0");
             unsafe { GetProcAddress(h, z.as_ptr()) }.map(|f| f as *const ()).ok_or_else(|| format!("heif.dll ไม่มีคำสั่ง {n}"))
@@ -313,7 +313,7 @@ fn encode_heic(tools: &Path, png: &[u8], o: &GraphImg) -> Result<(Vec<u8>, u32, 
 
 #[tauri::command]
 pub async fn graph_save_image(app: tauri::AppHandle, path: String, b64: String, opt: GraphImg) -> Result<SavedImg, String> {
-    let tools = crate::tools::tools_dir(&app)?;
+    let tools = crate::app::tools::tools_dir(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
         let png = crate::audiograph::unb64(b64.split(',').next_back().unwrap_or(""))?;
         let (data, width, height) = if opt.format == "heic" { encode_heic(&tools, &png, &opt)? } else { encode_image(&png, &opt)? };

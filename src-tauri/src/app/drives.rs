@@ -7,7 +7,7 @@ use std::path::Path;
 use serde::Serialize;
 use tauri::Manager;
 
-use crate::outfile::wide;
+use crate::app::outfile::wide;
 
 #[derive(Serialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -84,13 +84,13 @@ pub fn drive_free(path: String) -> FreeInfo {
     let mut p = std::path::PathBuf::from(&path);
     if p.is_file() { p.pop(); }
     while !p.as_os_str().is_empty() && !p.is_dir() { if !p.pop() { break; } }
-    FreeInfo { free: crate::outfile::free_space(&p), drive: crate::outfile::drive_letter(&p) }
+    FreeInfo { free: crate::app::outfile::free_space(&p), drive: crate::app::outfile::drive_letter(&p) }
 }
 
 /// เปิดรากไดรฟ์ใน Explorer จากคำเตือนไดรฟ์ใกล้เต็มบนชั้นวาง (BUGS ข้อ 88 พี่กันสั่ง 13 พ.ย. 2569 "ให้กดเเล้วเปิดโฟลเด้อไดรฟื C เลย")
 /// เปิดได้เฉพาะรากไดรฟ์ที่โฟลเดอร์หนังหรือโปรแกรมใช้อยู่ หน้าจอส่งที่อยู่อื่นมาเปิดไม่ได้ (แบบเดียวกับ encoders_open_page)
 #[tauri::command]
-pub fn drive_open(app: tauri::AppHandle, store: tauri::State<'_, crate::store::SettingsStore>, root: String) -> Result<(), String> {
+pub fn drive_open(app: tauri::AppHandle, store: tauri::State<'_, crate::app::store::SettingsStore>, root: String) -> Result<(), String> {
     use tauri_plugin_opener::OpenerExt;
     let folders = store.current.lock().unwrap().folders.clone();
     let app_dir = app.path().app_data_dir().ok();

@@ -9,7 +9,7 @@
 //! อ่านอย่างเดียว ไม่แตะไฟล์หนังและไฟล์ซับ ภาพที่ได้อยู่ในโฟลเดอร์ทำงานของโปรแกรม
 
 use crate::subs::SubImg;
-use crate::tools::tools_dir;
+use crate::app::tools::tools_dir;
 use serde::Serialize;
 use std::path::{Path, PathBuf};
 use tauri::AppHandle;

@@ -111,7 +111,7 @@ fn write_user(file: &Path, doc: &str) -> Result<(), String> {
     if let Some(d) = file.parent() { std::fs::create_dir_all(d).map_err(|e| format!("สร้างโฟลเดอร์ไม่ได้ {e}"))?; }
     let part = PathBuf::from(format!("{}.partial", file.display()));
     std::fs::write(&part, doc).map_err(|e| format!("เขียนไฟล์ {} ไม่ได้ {e}", file.display()))?;
-    crate::outfile::replace_often(&part, file)
+    crate::app::outfile::replace_often(&part, file)
 }
 
 // ---------------------------------------------------------------- รายชื่อกับคำของผู้ใช้

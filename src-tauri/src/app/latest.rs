@@ -92,7 +92,7 @@ fn fetch(url: &str) -> Result<String, String> {
     let args = ["-sS", "-L", "--fail", "--compressed", "--max-time", "20",
         "-A", "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36",
         "-H", "Accept: text/html,application/json;q=0.9,*/*;q=0.8", "-H", "Accept-Language: en-US,en;q=0.9", url];
-    let out = crate::tools::run_tool_timeout(&sys, "curl", args.iter().map(OsStr::new), Duration::from_secs(25))?;
+    let out = crate::app::tools::run_tool_timeout(&sys, "curl", args.iter().map(OsStr::new), Duration::from_secs(25))?;
     if !out.status.success() {
         let err = String::from_utf8_lossy(&out.stderr).trim().to_string();
         return Err(match out.status.code() {
@@ -168,7 +168,7 @@ pub fn check_all(status: &[EncoderInfo]) -> Vec<LatestInfo> {
 #[tauri::command]
 pub async fn encoders_latest(app: tauri::AppHandle) -> Result<Vec<LatestInfo>, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let tools = crate::tools::tools_dir(&app)?;
+        let tools = crate::app::tools::tools_dir(&app)?;
         let user = crate::encode::user_dir(&app)?;
         Ok(check_all(&crate::encode::status(&tools, &user)))
     }).await.map_err(|e| e.to_string())?
@@ -315,7 +315,7 @@ mod tests {
     /// ไม่งั้นหน้าตั้งค่าบอกว่ารองรับทั้งที่โปรแกรมไม่รับ หรือกลับกัน (BUGS ข้อ 127)
     #[test]
     fn file_types_match_frontend() {
-        let api = include_str!("../../src/lib/api/files.ts"); // รายการนามสกุลอยู่ api/files.ts ตั้งแต่แบ่งไฟล์ขั้น 6.1
+        let api = include_str!("../../../src/lib/api/files.ts"); // รายการนามสกุลอยู่ api/files.ts ตั้งแต่แบ่งไฟล์ขั้น 6.1
         let list = |name: &str| -> Vec<String> {
             let key = format!("export const {name} = [");
             let start = api.find(&key).unwrap_or_else(|| panic!("หา {name} ใน api.ts ไม่เจอ")) + key.len();
@@ -324,7 +324,7 @@ mod tests {
         };
         let sorted = |mut v: Vec<String>| { v.sort(); v.dedup(); v };
         let own = |v: &[&str]| sorted(v.iter().map(|s| s.to_string()).collect());
-        assert_eq!(sorted(list("MOVIE_EXT")), own(&crate::library::ACCEPTED), "ไฟล์หนังที่ชั้นวางรับ");
+        assert_eq!(sorted(list("MOVIE_EXT")), own(&crate::app::library::ACCEPTED), "ไฟล์หนังที่ชั้นวางรับ");
         assert_eq!(sorted(list("IMAGE_EXT")), own(&crate::poster_image::ACCEPTED), "รูปโปสเตอร์ที่รับ");
         let codecs = ["opus", "aac", "mp3", "ac3", "eac3", "flac", "alac", "wv", "ape", "tak"];
         let outs: Vec<&str> = codecs.iter().map(|c| crate::encode::EncodeSpec { codec: c.to_string(), ..Default::default() }.ext()).collect();
@@ -339,7 +339,7 @@ mod tests {
     /// ทุกลิงก์บนการ์ดขอบคุณในหน้าตั้งค่ากดเปิดได้ · เพิ่มการ์ดแล้วลืมเพิ่มที่อยู่ในรายการตายตัว ปุ่มบนการ์ดจะขึ้นว่าไม่รู้จักลิงก์นี้ (BUGS ข้อ 122 เพิ่ม mpv กับ Subtitle Edit)
     #[test]
     fn every_thanks_card_link_is_in_the_fixed_list() {
-        let src = include_str!("../../src/pages/settings/data.tsx"); // รายการ THANKS อยู่ settings/data.tsx ตั้งแต่แบ่งไฟล์ขั้น 5.2
+        let src = include_str!("../../../src/pages/settings/data.tsx"); // รายการ THANKS อยู่ settings/data.tsx ตั้งแต่แบ่งไฟล์ขั้น 5.2
         let start = src.find("const THANKS:").expect("หารายการ THANKS ในหน้าตั้งค่าไม่เจอ");
         let end = start + src[start..].find("\n];").expect("หาท้ายรายการ THANKS ไม่เจอ");
         let mut links = Vec::new();

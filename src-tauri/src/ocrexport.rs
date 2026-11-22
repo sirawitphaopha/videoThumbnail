@@ -6,7 +6,7 @@
 //! Subtitle Edit · Copyright (c) Nikolaj Olsson · MIT License (ข้อความเต็มใน tools/licenses)
 
 use crate::subdoc::{self, Enc, Event, Item, SubDoc};
-use crate::tools::tools_dir;
+use crate::app::tools::tools_dir;
 use serde::{Deserialize, Serialize};
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -143,7 +143,7 @@ pub fn formats(tools: &Path) -> Vec<ExpFormat> {
     if let Some(v) = CACHE.get() { return v.clone(); }
     let v = (|| {
         let args: Vec<OsString> = vec!["formats".into(), "--json".into()];
-        let out = crate::tools::run_tool_timeout(&tools.join("seconv"), "seconv", &args, std::time::Duration::from_secs(60)).ok();
+        let out = crate::app::tools::run_tool_timeout(&tools.join("seconv"), "seconv", &args, std::time::Duration::from_secs(60)).ok();
         let json = out.and_then(|o| serde_json::from_slice::<serde_json::Value>(&o.stdout).ok());
         let mut v = base();
         if let Some(list) = json.as_ref().and_then(|j| j["formats"].as_array()) {
@@ -168,7 +168,7 @@ fn seconv_to(tools: &Path, input: &Path, dir: &Path, name: &str, id: &str, enc: 
     let args: Vec<OsString> = vec![input.as_os_str().to_owned(), id.into(), format!("--output-folder:{}", dir.display()).into(),
         format!("--output-filename:{name}").into(), format!("--encoding:{encoding}").into(), "--overwrite".into(), "--quiet".into()];
     // อ่านสองท่อพร้อมกันและมีเวลาหมด · เดิมอ่านท่อผลจนจบก่อน SeConv เขียนข้อผิดพลาดยาวแล้วค้างทั้งคู่ (ผู้ช่วยตรวจทาน R6)
-    let o = crate::tools::run_tool_timeout(&tools.join("seconv"), "seconv", &args, std::time::Duration::from_secs(120))?;
+    let o = crate::app::tools::run_tool_timeout(&tools.join("seconv"), "seconv", &args, std::time::Duration::from_secs(120))?;
     let msg = format!("{}{}", String::from_utf8_lossy(&o.stdout), String::from_utf8_lossy(&o.stderr));
     let st = o.status;
     let out = dir.join(name);
@@ -238,7 +238,7 @@ pub fn export(tools: &Path, work: &Path, req: &ExpReq, target: &Path) -> Result<
     let _ = std::fs::remove_dir_all(&dir);
     if r.is_err() { let _ = std::fs::remove_file(&partial); }
     r?;
-    crate::actlog::note("ส่งออกซับจาก OCR", &format!("{} ({})", target.display(), req.fmt));
+    crate::app::actlog::note("ส่งออกซับจาก OCR", &format!("{} ({})", target.display(), req.fmt));
     Ok(ExpOut { path: target.display().to_string(), lines, bytes: std::fs::metadata(target).map(|m| m.len()).unwrap_or(0) })
 }
 
@@ -272,7 +272,7 @@ pub struct HtmlOut {
 pub fn save_html(files: &[(PathBuf, f64, Option<f64>, u32, u32)], texts: &[String], parent: &Path, source: &str, on: &dyn Fn(f64)) -> Result<HtmlOut, String> {
     if files.len() != texts.len() { return Err("รายการภาพไม่ตรงกับบรรทัดในหน้า OCR เปิดซับใหม่แล้วลองอีกครั้ง".into()); }
     let stem = Path::new(source).file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_else(|| "ซับรูป".into());
-    let folder = crate::outfile::free_name(parent, Path::new(&format!("{stem} OCR")));
+    let folder = crate::app::outfile::free_name(parent, Path::new(&format!("{stem} OCR")));
     let images = folder.join("images");
     std::fs::create_dir_all(&images).map_err(|e| format!("สร้างโฟลเดอร์ไม่ได้ {e}"))?;
     let mut rows = String::new();
@@ -299,7 +299,7 @@ pub fn save_html(files: &[(PathBuf, f64, Option<f64>, u32, u32)], texts: &[Strin
         .replace("{ROWS}", &rows);
     let index = folder.join("index.html");
     std::fs::write(&index, html.as_bytes()).map_err(|e| format!("เขียน index.html ไม่ได้ {e}"))?;
-    crate::actlog::note("บันทึกภาพซับพร้อมหน้า HTML", &format!("{} ({} ภาพ)", folder.display(), count));
+    crate::app::actlog::note("บันทึกภาพซับพร้อมหน้า HTML", &format!("{} ({} ภาพ)", folder.display(), count));
     Ok(HtmlOut { folder: folder.display().to_string(), html: index.display().to_string(), images: count, empty })
 }
 

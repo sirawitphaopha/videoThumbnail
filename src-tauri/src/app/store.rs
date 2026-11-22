@@ -301,8 +301,8 @@ impl SettingsStore {
         let current_ok = read_settings(&self.path).is_some();
         // ไดรฟ์เต็มบอกตรง ๆ ว่าไดรฟ์ไหนเต็ม ไม่ใช่ข้อความของ Windows ภาษาอังกฤษ (BUGS ข้อ 88 ① · พี่กัน "ต้องบอกด้วยว่าตอนนี้ไดรฟ์เต็ม")
         // ขึ้นต้นด้วย DISK_FULL: ให้หน้าจอแยกแถบแจ้งแบบไดรฟ์เต็มได้
-        write_atomic(&self.path, &bytes, current_ok).map_err(|e| if crate::drives::is_disk_full(&e) {
-            format!("DISK_FULL:{}", crate::outfile::drive_letter(&self.path))
+        write_atomic(&self.path, &bytes, current_ok).map_err(|e| if crate::app::drives::is_disk_full(&e) {
+            format!("DISK_FULL:{}", crate::app::outfile::drive_letter(&self.path))
         } else { format!("บันทึกการตั้งค่าไม่สำเร็จ: {e}") })?;
         self.saved_once.store(true, std::sync::atomic::Ordering::Relaxed);
         Ok(())

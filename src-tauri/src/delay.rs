@@ -5,7 +5,7 @@
 //! ลองฟัง 20 วินาที ทำไฟล์ MKV ชั่วคราวช่วงนั้น ภาพจากหนัง เสียงใหม่ใส่ดีเลย์แล้ว เปิดด้วยโปรแกรมเล่นที่ตั้งไว้ · ไฟล์หนังไม่ถูกแก้
 
 use crate::audiograph::fft;
-use crate::tools::{run_tool_timeout, tool_succeeded, tools_dir};
+use crate::app::tools::{run_tool_timeout, tool_succeeded, tools_dir};
 use serde::Serialize;
 use std::ffi::OsString;
 use std::path::{Path, PathBuf};
@@ -144,8 +144,8 @@ fn median(mut v: Vec<f64>) -> f64 {
 }
 
 fn duration(tools: &Path, p: &Path) -> Result<f64, String> {
-    let j = crate::outfile::ffprobe_json(tools, p).map_err(|e| format!("อ่านไฟล์ไม่ได้ {e}"))?;
-    crate::outfile::duration_of(&j).ok_or_else(|| "ไม่รู้ความยาวไฟล์".to_string())
+    let j = crate::app::outfile::ffprobe_json(tools, p).map_err(|e| format!("อ่านไฟล์ไม่ได้ {e}"))?;
+    crate::app::outfile::duration_of(&j).ok_or_else(|| "ไม่รู้ความยาวไฟล์".to_string())
 }
 
 /// ตำแหน่งสามช่วง ต้น กลาง ท้าย กับความยาวช่วง

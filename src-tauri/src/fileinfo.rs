@@ -13,8 +13,8 @@ use serde::Serialize;
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager};
 
-use crate::hashes::{self, Hashes, Outcome};
-use crate::tools::{run_tool_timeout, tool_succeeded};
+use crate::app::hashes::{self, Hashes, Outcome};
+use crate::app::tools::{run_tool_timeout, tool_succeeded};
 
 #[derive(Serialize, Clone, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
@@ -84,7 +84,7 @@ pub struct MediaInfoReply {
 #[tauri::command]
 pub async fn media_info(app: AppHandle, path: String) -> Result<MediaInfoReply, String> {
     tauri::async_runtime::spawn_blocking(move || {
-        let tools = crate::tools::tools_dir(&app)?;
+        let tools = crate::app::tools::tools_dir(&app)?;
         let p = PathBuf::from(&path);
         let out = run_tool_timeout(&tools, "MediaInfo", [p.as_os_str()], Duration::from_secs(60))?;
         if !out.status.success() {
@@ -171,7 +171,7 @@ pub async fn hash_file(app: AppHandle, path: String, algos: Vec<String>) -> Resu
     let _release = Release;
     HASH_STOP.store(false, Ordering::SeqCst);
     tauri::async_runtime::spawn_blocking(move || {
-        let jobs = app.state::<Arc<crate::jobs::Jobs>>().inner().clone();
+        let jobs = app.state::<Arc<crate::app::jobs::Jobs>>().inner().clone();
         let _guard = jobs.start();
         let p = PathBuf::from(&path);
         let r = hashes::compute(&p, &algos, &|done, total| { let _ = app.emit("hash-progress", HashProgress { done, total }); },
@@ -180,10 +180,10 @@ pub async fn hash_file(app: AppHandle, path: String, algos: Vec<String>) -> Resu
         if let Some(sha) = &h.sha256 {
             // จดเป็นค่าอ้างอิงเฉพาะตอนยังไม่มี · มีแล้วไม่ตรง = ไฟล์ถูกเปลี่ยนหรือเสีย ตั้งสถานะ changed คงค่าเดิมไว้เทียบ แบบตรวจแบบเร็ว (check.rs quick)
             // เดิมจดทับทุกครั้ง ไฟล์ที่เสียแล้วกลายเป็นค่าอ้างอิงใหม่ ตรวจแบบเร็วครั้งหน้าขึ้นสมบูรณ์ (ผู้ช่วยตรวจทั้งสองตัวเจอ)
-            let lib = app.state::<Arc<crate::library::LibraryStore>>();
+            let lib = app.state::<Arc<crate::app::library::LibraryStore>>();
             let id = lib.movies.lock().unwrap().iter().find(|m| m.path.eq_ignore_ascii_case(&path)).map(|m| m.id.clone());
             // เรื่องที่ตรวจเจอว่าเสียหาย ไม่จดค่า hash ของไฟล์ที่เสียเป็นค่าอ้างอิง (AUDIT 12 พ.ย. 2569 ข้อ 3)
-            let remember = |m: &mut crate::library::Movie| match m.sha256.as_deref() {
+            let remember = |m: &mut crate::app::library::Movie| match m.sha256.as_deref() {
                 None => { if m.status != "bad" { m.sha256 = Some(sha.clone()); } }
                 Some(old) if old.eq_ignore_ascii_case(sha) => {}
                 Some(_) => { if m.status != "bad" { m.status = "changed".into(); } }
@@ -246,7 +246,7 @@ pub fn codec_detail(t: &Value) -> Option<String> {
 /// รายละเอียด codec ของแทร็กเสียงทุกแทร็ก เรียงตามลำดับแทร็กเสียงในไฟล์ · อ่านไม่ได้คืนรายการว่าง หน้าจอใช้ชื่อสั้นจาก ffprobe แทน
 #[tauri::command]
 pub async fn audio_codec_detail(app: AppHandle, path: String) -> Result<Vec<Option<String>>, String> {
-    let tools = crate::tools::tools_dir(&app)?;
+    let tools = crate::app::tools::tools_dir(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
         let p = PathBuf::from(&path);
         let out = run_tool_timeout(&tools, "MediaInfo", [OsStr::new("--Output=JSON"), p.as_os_str()], Duration::from_secs(60))?;
