@@ -192,6 +192,16 @@ await sleep(300);
   const cmp = await q("const rs = document.querySelectorAll('[data-ocr-table] tbody tr'); const im = rs[2]?.querySelector('.ocr-line img'); if (!im) return null; await im.decode().catch(() => {}); const r = im.getBoundingClientRect(); return { cut: im.dataset.compact === 'true', h: im.naturalHeight, orig: window.__ocrJob.get().rows[2].item.h, shownH: Math.round(r.height), row1: rs[0]?.querySelector('.ocr-line img')?.dataset.compact ?? null };");
   check("ภาพป้ายบนจอกับบทพูดในแถวตัดช่องว่างกลางออก สูงไม่ถึงครึ่งของภาพจริง ภาพบรรทัดเดียวไม่ถูกแตะ", cmp && cmp.cut && cmp.h < cmp.orig / 2 && cmp.row1 == null, JSON.stringify(cmp));
   await c.shot(`docs/report-2026-11-17/OCR-ขั้น14/5-ภาพป้ายบนจอในแถว.png`, "[data-ocr-table]").catch(() => {});
+  // กล่อง ⓘ ตำแหน่งบนจอในแถวต้องเป็นคำอธิบายของตาราง (POS_TIP ใน tips.tsx) ไม่ใช่ของหน้าต่างส่งออก ที่ชื่อตัวแปรเหมือนกัน
+  // (แบ่งไฟล์ขั้น 7.1 OcrTable.tsx เคย import POS_TIP จาก OcrExportDialog ผู้ช่วยตรวจทานขั้น 13.5 เจอ · tsc จับไม่ได้เพราะชนิดเดียวกัน)
+  // ป้ายบนจออยู่ในช่องแก้ของแถวที่เลือก เลือกภาพที่ 3 ก่อน
+  await q("document.querySelector('[data-ocr-table] tbody tr[data-i=\"2\"]').click(); return 1;"); await sleep(400);
+  const posSel = "[data-ocr-edit] .ocr-posnote .infob[data-info=\"ตำแหน่งบนจอ\"]";
+  await q(`document.querySelector(${JSON.stringify(posSel)})?.scrollIntoView({ block: 'center' }); return 1;`); await sleep(120);
+  await click(posSel).catch(() => {}); await sleep(350);
+  const posTip = await q("return document.querySelector('.infotip[data-tip=\"ตำแหน่งบนจอ\"]')?.innerText ?? null;");
+  await c.key("Escape"); await sleep(200);
+  check("แบ่งไฟล์ 13.5 กล่อง ⓘ ตำแหน่งบนจอในแถวเป็นคำอธิบายของตาราง ไม่ใช่ของหน้าต่างส่งออก", !!posTip && posTip.includes("ซับบางภาพไม่ได้อยู่ล่างจอ") && !posTip.includes("ซับแถวเดียวมีได้ตำแหน่งเดียว"), (posTip ?? "ไม่มีกล่อง").slice(0, 80));
 }
 // ภาพที่มีบรรทัดบนจอ คิดแบบ lines_of ใน ocrexport.rs · จำนวนบรรทัดไม่เท่าตอนอ่านใช้ตำแหน่งบรรทัดสุดท้าย (ผู้ช่วยตรวจทาน T10)
 const topNs = await job("return j.get().rows.filter((r) => { if (r.state !== 'done') return false; const ls = r.text.split('\\n').filter((l) => l.trim()); const an = r.line?.anLines ?? [r.item.an]; const use = an.length === ls.length || an.length <= 1 ? an : [an[an.length - 1]]; return ls.length > 0 && use.some((a) => a >= 7); }).map((r) => r.item.n);");

@@ -12,6 +12,7 @@
 // ภาพจาก Linux ฟอนต์เรนเดอร์ต่างจาก Windows นิดหน่อย ใช้เทียบก่อนกับหลังในเครื่องเดียวกันเท่านั้น
 import { createRequire } from "module";
 import { mkdirSync, rmSync, writeFileSync } from "fs";
+import { fileURLToPath } from "url";
 import { spawn } from "child_process";
 import { join } from "path";
 
@@ -36,6 +37,14 @@ if (!(await up())) {
   vite = spawn(process.platform === "win32" ? "npx.cmd" : "npx", ["vite", "--port", "1420"], { stdio: "ignore", shell: process.platform === "win32" });
   for (let i = 0; i < 60 && !(await up()); i++) await new Promise((r) => setTimeout(r, 500));
   if (!(await up())) { console.error("เปิด vite ที่พอร์ต 1420 ไม่ขึ้น"); process.exit(1); }
+}
+// เซิร์ฟเวอร์ที่พอร์ต 1420 ต้องเสิร์ฟโฟลเดอร์นี้ ไม่ใช่โปรเจกต์ชุดอื่นที่เปิดค้าง ไม่งั้นชุดก่อนกับชุดหลังมาจากโค้ดเดียวกัน เทียบผ่านเสมอ (ผู้ช่วยตรวจทานแบ่งไฟล์ขั้น 13.5)
+{
+  const tok = join(fileURLToPath(import.meta.url), "../../docs/mockups/web-shots-token.txt"), val = String(process.pid) + "-" + Date.now();
+  writeFileSync(tok, val);
+  const got = await fetch(`${BASE}/docs/mockups/web-shots-token.txt`).then((r) => r.text()).catch(() => "");
+  rmSync(tok, { force: true });
+  if (got.trim() !== val) { console.error("เซิร์ฟเวอร์ที่พอร์ต 1420 ไม่ได้เสิร์ฟโฟลเดอร์นี้ ปิดตัวที่เปิดค้างแล้วรันใหม่"); vite?.kill(); process.exit(1); }
 }
 
 // ---------------------------------------------------------------- ตัวช่วยกด
@@ -81,7 +90,7 @@ const SHOTS = [
   // ขั้น 0.7 เสียงและซับ บิตเรต MediaInfo ตรวจไฟล์ ใส่โปสเตอร์ที่มีไฟล์
   ["เสียงและซับ-หน้าแรก", async (p) => { await nav(p, "เสียงและซับ"); }],
   ["เสียงและซับ-หนัง", async (p) => { await nav(p, "เสียงและซับ"); await p.waitForTimeout(300); await drop(p, MOVIE); await p.waitForTimeout(1500); }],
-  ["เสียงและซับ-ตั้งค่าแทร็ก", async (p) => { await nav(p, "เสียงและซับ"); await p.waitForTimeout(300); await drop(p, MOVIE); await p.waitForTimeout(1500); await p.evaluate(() => [...document.querySelectorAll("tr, [data-track], .trow")].find((r) => r.innerText.includes("E-AC-3"))?.click()); }],
+  ["เสียงและซับ-ตั้งค่าแทร็ก", async (p) => { await nav(p, "เสียงและซับ"); await p.waitForTimeout(300); await drop(p, MOVIE); await p.waitForTimeout(1500); await p.evaluate(() => { const r = [...document.querySelectorAll("[data-trk]")].find((x) => x.innerText.includes("E-AC-3")); if (!r) throw new Error("ไม่เจอแถว E-AC-3"); r.click(); }); await waitSel(p, "[data-track-detail], .trk.sel"); }], // เดิมหาแถวด้วย tr ที่ไม่มีในหน้า ภาพนี้จึงซ้ำกับ เสียงและซับ-หนัง (ผู้ช่วยตรวจทานขั้น 13.5)
   ["เสียงและซับ-แยกออก", async (p) => { await nav(p, "เสียงและซับ"); await p.waitForTimeout(300); await drop(p, MOVIE); await p.waitForTimeout(1500); await clickText(p, "แยกออกจากหนัง"); }],
   ["บิตเรต-หน้าแรก", async (p) => { await nav(p, "บิตเรต"); }],
   ["บิตเรต-กราฟ", async (p) => { await nav(p, "บิตเรต"); await p.waitForTimeout(300); await p.evaluate((x) => { window.__pickNext = x; }, MOVIE); await clickText(p, "เลือกไฟล์จากเครื่อง"); await p.waitForFunction(() => window.__brDone === true, null, { timeout: 15000 }); }],

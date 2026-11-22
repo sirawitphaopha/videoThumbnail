@@ -9,9 +9,8 @@ import { ocrApi, pickSave, subApi, type OcrCfg, type OcrDbList, type OcrReason, 
 import { rowReasons, setRowOk, setRowText, useOcrJob, type OcrRow } from "../../lib/ocrJob";
 import { tessName } from "./OcrDialogs";
 import { usePaddleLangs } from "../../lib/paddleLangs";
-import { BINERR_TIP, CHECK_TIP, ENGINE_TIP, FLAG_TIP, FlagChips, LINES_TIP, PADDLE_LANGS, REASON_NAME, SIZE_TIP, SPACE_TIP, TEACH_OFF, kinds, setCfg, ts, whyText } from "./tips";
-import { BgPick, BigView, LineImg, ScreenImg, Txt } from "./images";
-import { POS_TIP, hasTop } from "./OcrExportDialog";
+import { BINERR_TIP, CHECK_TIP, ENGINE_TIP, FLAG_TIP, FlagChips, LINES_TIP, PADDLE_LANGS, POS_TIP, REASON_NAME, SIZE_TIP, SPACE_TIP, TEACH_OFF, kinds, setCfg, ts, whyText } from "./tips";
+import { BgPick, BigView, LineImg, ScreenImg, Txt, hasTop } from "./images";
 
 /** ปุ่มตรวจบรรทัดกดไม่ได้กับตัวอ่านที่ไม่มีฐานตัวอักษร */
 const INSPECT_OFF = "ตรวจบรรทัดได้เฉพาะตัวอ่านที่สอนเอง nOCR Binary OCR และตัวสอนเอง";

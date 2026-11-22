@@ -64,3 +64,4 @@ docs/report-2026-11-16/มอคอัป-OCR/
 vendor/ocr/*
 !vendor/ocr/manifest.json
 src-tauri/tools/ocr/
+docs/mockups/web-shots-token.txt

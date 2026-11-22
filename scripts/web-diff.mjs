@@ -17,6 +17,7 @@ const TOL = Number(process.env.TOL ?? 6);
 const pngs = (d) => readdirSync(d).filter((f) => f.endsWith(".png")).sort();
 const a = pngs(A), b = new Set(pngs(B));
 const onlyA = a.filter((f) => !b.has(f)), onlyB = [...b].filter((f) => !a.includes(f));
+if (!a.length && !b.size) { console.error("ไม่มีภาพในทั้งสองชุด ตรวจที่อยู่โฟลเดอร์"); process.exit(1); }
 
 const browser = await chromium.launch();
 const page = await browser.newPage();
@@ -54,6 +55,9 @@ for (const f of a.filter((x) => b.has(x))) {
 }
 await browser.close();
 for (const f of onlyA) fails.push(`${f} มีแต่ในชุดก่อน`);
+// คำสั่งที่หน้าจำลองไม่มีข้อมูล (.missing.txt) ต้องเหมือนกันสองชุด ชื่อคำสั่งที่พังหรือเปลี่ยน หน้าอาจขึ้นสภาพว่างที่หน้าตาเหมือนเดิม (ผู้ช่วยตรวจทานขั้น 13.5)
+const miss = (d, f) => { const p = join(d, f + ".missing.txt"); return existsSync(p) ? readFileSync(p, "utf8").trim() : ""; };
+for (const f of a.filter((x) => b.has(x))) { const x = miss(A, f), y = miss(B, f); if (x !== y) fails.push(`${f} คำสั่งที่หน้าจำลองไม่มีข้อมูลต่างกัน ก่อน [${x.replace(/\n/g, " ")}] หลัง [${y.replace(/\n/g, " ")}]`); }
 for (const f of onlyB) fails.push(`${f} มีแต่ในชุดหลัง`);
 console.log(`ภาพตรงกัน ${same} จาก ${a.length + onlyB.length} ภาพ` + (noisy.length ? ` (ในนั้น ${noisy.length} ภาพมีสัญญาณรบกวนสีห่างไม่เกิน ${TOL} ระดับ ${noisy.join(" · ")})` : " ทุกจุดภาพ"));
 if (fails.length) { console.log(`ไม่ตรง ${fails.length} ภาพ ภาพเทียบอยู่ ${OUT}`); for (const f of fails) console.log("  " + f); process.exit(1); }
