@@ -338,7 +338,7 @@ pub fn build(spec: &EncodeSpec, src: &str, stream: u64, out: &str, src_channels:
             let mut ff = ff_head(src, stream, spec, dither16, None);
             ff_pipe_tail(&mut ff, pcm16);
             let threads = std::thread::available_parallelism().map(|n| n.get().min(8)).unwrap_or(2);
-            let e = vec!["--level".to_string(), crate::ape::level_of(&spec.s("level", "Normal")).to_string(), "--threads".into(), threads.to_string(), out.into()];
+            let e = vec!["--level".to_string(), crate::audio::ape::level_of(&spec.s("level", "Normal")).to_string(), "--threads".into(), threads.to_string(), out.into()];
             (vec![Step { tool: "ffmpeg".into(), args: ff }, Step { tool: "MACDll64".into(), args: e }], true,
              "ffmpeg ถอดเสียงส่งทางท่อให้ MACDll64.dll (Monkey's Audio) บีบในโปรแกรม  ชุดของผู้ทำไม่มีตัวแปลงแบบคำสั่ง".into())
         }
@@ -429,7 +429,7 @@ pub enum Done {
 pub fn run(dir_of: &dyn Fn(&str) -> PathBuf, plan: &Plan, total_secs: Option<f64>, stop: &dyn Fn() -> bool, progress: &mut dyn FnMut(f64)) -> Result<Done, String> {
     // Monkey's Audio ไม่ใช่โปรแกรม เป็น DLL ที่โปรแกรมป้อนเสียงให้เอง (ape.rs)
     if plan.piped && plan.steps.get(1).is_some_and(|s| s.tool == "MACDll64") {
-        return crate::ape::run(&dir_of("MACDll64"), &dir_of(&plan.steps[0].tool), plan, total_secs, stop, progress);
+        return crate::audio::ape::run(&dir_of("MACDll64"), &dir_of(&plan.steps[0].tool), plan, total_secs, stop, progress);
     }
     let mut ff =tool_command(&dir_of(&plan.steps[0].tool), &plan.steps[0].tool, plan.steps[0].args.iter().map(OsStr::new))
         .stdout(if plan.piped { Stdio::piped() } else { Stdio::null() }).stderr(Stdio::piped())
@@ -626,7 +626,7 @@ fn probe_one(dir: &Path, name: &str, arg: &str) -> Result<String, String> {
 pub fn status(tools: &Path, user: &Path) -> Vec<EncoderInfo> {
     let mut list = cli_status(tools, user);
     // Monkey's Audio เป็น DLL ไม่ใช่ตัวแปลงแบบคำสั่ง · ถามรุ่นจาก DLL เอง · วางต่อจาก wavpack
-    let mac = crate::ape::version(tools);
+    let mac = crate::audio::ape::version(tools);
     let at = list.iter().position(|e| e.name == "wavpack").map(|i| i + 1).unwrap_or(list.len());
     list.insert(at, EncoderInfo {
         name: "MACDll64".into(), codecs: "Monkey's Audio (ใช้เฉพาะหน้าแปลงเสียง)".into(),

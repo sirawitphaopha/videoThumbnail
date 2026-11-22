@@ -11,7 +11,7 @@ use std::time::Duration;
 
 use serde::Serialize;
 
-use crate::encode::EncoderInfo;
+use crate::audio::encode::EncoderInfo;
 
 /// อ่านเลขรุ่นจากหน้าเว็บแบบไหน
 #[derive(Clone, Copy)]
@@ -169,8 +169,8 @@ pub fn check_all(status: &[EncoderInfo]) -> Vec<LatestInfo> {
 pub async fn encoders_latest(app: tauri::AppHandle) -> Result<Vec<LatestInfo>, String> {
     tauri::async_runtime::spawn_blocking(move || {
         let tools = crate::app::tools::tools_dir(&app)?;
-        let user = crate::encode::user_dir(&app)?;
-        Ok(check_all(&crate::encode::status(&tools, &user)))
+        let user = crate::audio::encode::user_dir(&app)?;
+        Ok(check_all(&crate::audio::encode::status(&tools, &user)))
     }).await.map_err(|e| e.to_string())?
 }
 
@@ -327,7 +327,7 @@ mod tests {
         assert_eq!(sorted(list("MOVIE_EXT")), own(&crate::app::library::ACCEPTED), "ไฟล์หนังที่ชั้นวางรับ");
         assert_eq!(sorted(list("IMAGE_EXT")), own(&crate::cover::poster_image::ACCEPTED), "รูปโปสเตอร์ที่รับ");
         let codecs = ["opus", "aac", "mp3", "ac3", "eac3", "flac", "alac", "wv", "ape", "tak"];
-        let outs: Vec<&str> = codecs.iter().map(|c| crate::encode::EncodeSpec { codec: c.to_string(), ..Default::default() }.ext()).collect();
+        let outs: Vec<&str> = codecs.iter().map(|c| crate::audio::encode::EncodeSpec { codec: c.to_string(), ..Default::default() }.ext()).collect();
         assert_eq!(sorted(list("ENCODE_OUT_EXT")), own(&outs), "นามสกุลไฟล์ที่ได้จากการแปลงเสียง");
         let sub = list("SUB_EXT");
         for e in crate::subs::FF_TEXT.iter().chain(crate::subs::OWN_TEXT) { assert!(sub.iter().any(|s| s == e), "ซับ .{e} ที่ฝั่ง Rust แปลงได้ ต้องอยู่ใน SUB_EXT"); }
@@ -356,7 +356,7 @@ mod tests {
 
     #[test]
     fn every_encoder_has_a_source() {
-        for (n, ..) in crate::encode::ENCODERS { assert!(SOURCES.iter().any(|s| s.name == n), "ไม่มีที่เช็กรุ่นของ {n}"); }
+        for (n, ..) in crate::audio::encode::ENCODERS { assert!(SOURCES.iter().any(|s| s.name == n), "ไม่มีที่เช็กรุ่นของ {n}"); }
         assert!(SOURCES.iter().any(|s| s.name == "MACDll64"));
     }
 }

@@ -1816,14 +1816,14 @@ fn png_rgba_url(rgba: Vec<u8>, w: usize, h: usize) -> Result<String, String> {
     let img = image::RgbaImage::from_raw(w as u32, h as u32, rgba).ok_or("ทำภาพตัวอย่างไม่ได้")?;
     let mut v = std::io::Cursor::new(Vec::new());
     img.write_to(&mut v, image::ImageFormat::Png).map_err(|e| e.to_string())?;
-    Ok(format!("data:image/png;base64,{}", crate::audiograph::b64(&v.into_inner())))
+    Ok(format!("data:image/png;base64,{}", crate::audio::audiograph::b64(&v.into_inner())))
 }
 
 fn png_url(rgb: Vec<u8>, w: usize, h: usize) -> Result<String, String> {
     let img = image::RgbImage::from_raw(w as u32, h as u32, rgb).ok_or("ทำภาพตัวอย่างไม่ได้")?;
     let mut v = std::io::Cursor::new(Vec::new());
     img.write_to(&mut v, image::ImageFormat::Png).map_err(|e| e.to_string())?;
-    Ok(format!("data:image/png;base64,{}", crate::audiograph::b64(&v.into_inner())))
+    Ok(format!("data:image/png;base64,{}", crate::audio::audiograph::b64(&v.into_inner())))
 }
 
 /// ภาพตัวอย่างหนึ่งเวลา · ASS ได้ภาพ ASS ตอนเล่นเทียบกับ PGS ที่จะได้พร้อมสีหลักทีละสี · SRT ได้ภาพ PGS ตามสไตล์ที่ตั้ง

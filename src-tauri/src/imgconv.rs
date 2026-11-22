@@ -612,7 +612,7 @@ fn preview_one(tools: &Path, work: &Path, req: &ImgReq, index: usize, cancel: &d
     let mut graphics = vec![];
     for (f, x, y, gw, gh) in &ev.graphics {
         let b = std::fs::read(dir.join("bdn").join(f)).map_err(|e| format!("อ่านภาพตัวอย่างไม่ได้ {e}"))?;
-        graphics.push(PrevGraphic { png: format!("data:image/png;base64,{}", crate::audiograph::b64(&b)), x: *x, y: *y, w: *gw, h: *gh });
+        graphics.push(PrevGraphic { png: format!("data:image/png;base64,{}", crate::audio::audiograph::b64(&b)), x: *x, y: *y, w: *gw, h: *gh });
     }
     let warnings = std::fs::read_to_string(&log_file).unwrap_or_default().lines().filter(|l| !l.is_empty()).map(str::to_string).collect();
     Ok(Some(ImgPreview { total, index: i, w, h, start: ev.start, end: ev.end, forced: ev.forced, graphics, warnings }))
@@ -673,7 +673,7 @@ fn preview_full(tools: &Path, work: &Path, req: &ImgReq, index: usize, cancel: &
     let mut graphics = vec![];
     for (f, x, y, gw, gh) in &ev.graphics {
         let b = std::fs::read(dir.join("bdn").join(f)).map_err(|e| format!("อ่านภาพตัวอย่างไม่ได้ {e}"))?;
-        graphics.push(PrevGraphic { png: format!("data:image/png;base64,{}", crate::audiograph::b64(&b)), x: *x, y: *y, w: *gw, h: *gh });
+        graphics.push(PrevGraphic { png: format!("data:image/png;base64,{}", crate::audio::audiograph::b64(&b)), x: *x, y: *y, w: *gw, h: *gh });
     }
     let warnings = std::fs::read_to_string(&log_file).unwrap_or_default().lines().filter(|l| !l.is_empty()).map(str::to_string).collect();
     Ok(ImgPreview { total: evs.len(), index: i, w, h, start: ev.start, end: ev.end, forced: ev.forced, graphics, warnings })

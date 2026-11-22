@@ -701,7 +701,7 @@ pub fn overview(tools: &Path, path: &Path, track: &GTrack, duration: f64, on: &d
     let (cols, spec_cols, spec_bins) = (1200usize, 800usize, 256usize);
     let mut an = Analyzer::new(ch, track.rate, total, cols, 1024, spec_cols, 4);
     // ความดังวัดในโปรแกรมไปพร้อมกัน ไม่ให้ ffmpeg วัด (ตัววัดของ ffmpeg ช้ากว่าการถอดเสียง 20 เท่า BUGS ข้อ 145)
-    let mut r128 = crate::loudness::R128::new(&track.names, track.rate);
+    let mut r128 = crate::audio::loudness::R128::new(&track.names, track.rate);
     let mut last = Instant::now();
     let mut feed = |f: &[f32]| {
         an.push(f);
@@ -1069,7 +1069,7 @@ mod tests {
             let g = info(&tools(), f).unwrap();
             for t in &g.tracks {
                 let ch = t.names.len();
-                let mut r = crate::loudness::R128::new(&t.names, t.rate);
+                let mut r = crate::audio::loudness::R128::new(&t.names, t.rate);
                 let ff = decode(&tools(), f, t.index, ch, None, len, true, &mut |fr| r.push(fr), &|| false).unwrap().unwrap();
                 let (m, i, lra, tp) = r.finish();
                 let (fi, fl, ft) = (ff.integrated.unwrap(), ff.lra.unwrap(), ff.true_peak.unwrap());

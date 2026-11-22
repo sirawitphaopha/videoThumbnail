@@ -4,7 +4,7 @@
 //! ค่าดีเลย์ที่ได้คือค่าที่ใส่ให้เสียงใหม่ (mkvmerge --sync) · ติดลบ = เสียงใหม่ต้องมาเร็วขึ้น
 //! ลองฟัง 20 วินาที ทำไฟล์ MKV ชั่วคราวช่วงนั้น ภาพจากหนัง เสียงใหม่ใส่ดีเลย์แล้ว เปิดด้วยโปรแกรมเล่นที่ตั้งไว้ · ไฟล์หนังไม่ถูกแก้
 
-use crate::audiograph::fft;
+use crate::audio::audiograph::fft;
 use crate::app::tools::{run_tool_timeout, tool_succeeded, tools_dir};
 use serde::Serialize;
 use std::ffi::OsString;

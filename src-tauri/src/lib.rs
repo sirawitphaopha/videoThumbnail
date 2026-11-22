@@ -1,15 +1,9 @@
 //! ชั้นหนัง · ฝั่งทำงานหนักของโปรแกรม
 
 mod app;
-mod ape;
-mod audiograph;
+mod audio;
 mod media;
-mod convert;
-mod delay;
-mod encode;
-mod graphimg;
 mod fonts;
-mod loudness;
 mod cover;
 mod merge;
 mod subaudio;
@@ -67,7 +61,7 @@ pub fn run() {
         .manage(Arc::new(Jobs::default()))
         .manage(cover::poster::PosterState::default())
         .manage(merge::merge::MergeState::default())
-        .manage(convert::ConvertState::default())
+        .manage(audio::convert::ConvertState::default())
         .setup(|app| {
             // บันทึกการใช้งาน ตั้งก่อนอย่างอื่น งานที่ตามมาจะได้จดลงไฟล์ได้ (พี่กันเสนอ 12 พ.ย. 2569)
             if let Ok(local) = app.path().app_local_data_dir() {
@@ -173,8 +167,8 @@ pub fn run() {
         cover::rename::check_rename, cover::rename::rename_movie,
         cover::poster::poster_open, cover::poster::poster_view, cover::poster::poster_render, cover::poster::poster_clear, cover::poster::poster_folder_images,
         cover::poster::poster_inspect, cover::poster::poster_apply, cover::poster::poster_cancel, cover::poster::poster_check_name,
-        app::latest::thanks_open, media::bitrate::bitrate_start, media::bitrate::bitrate_tracks, media::bitrate::bitrate_stop, merge::merge::merge_inspect, merge::merge::remux_fonts, merge::merge::merge_add_file, merge::merge::merge_apply, merge::merge::merge_cancel, merge::merge::merge_cover_preview, merge::merge::merge_cover_drop, encode::encode_preview, encode::encoders_status, encode::encoders_open_dir, encode::encoders_user_dir, app::latest::encoders_latest, app::latest::encoders_open_page, app::latest::open_itunes_page, fonts::font_info,
-        delay::delay_find, delay::delay_view, delay::delay_preview,
+        app::latest::thanks_open, media::bitrate::bitrate_start, media::bitrate::bitrate_tracks, media::bitrate::bitrate_stop, merge::merge::merge_inspect, merge::merge::remux_fonts, merge::merge::merge_add_file, merge::merge::merge_apply, merge::merge::merge_cancel, merge::merge::merge_cover_preview, merge::merge::merge_cover_drop, audio::encode::encode_preview, audio::encode::encoders_status, audio::encode::encoders_open_dir, audio::encode::encoders_user_dir, app::latest::encoders_latest, app::latest::encoders_open_page, app::latest::open_itunes_page, fonts::font_info,
+        audio::delay::delay_find, audio::delay::delay_view, audio::delay::delay_preview,
         subs::movie_frame, subs::sub_text, subs::sub_frame, subs::sub_wave, subs::sub_images, subs::sub_image_times, ocrsrc::ocr_source, ocrsrc::ocr_source_pngs, subs::ocr_vobsub_recolor, subs::ocr_vobsub_preview, ocrjob::ocr_read, ocrjob::ocr_teach, ocrjob::ocr_word, ocrjob::ocr_suggest, ocrjob::ocr_names, ocrjob::ocr_dbs, ocrjob::ocr_history, ocrjob::ocr_history_update, ocrjob::ocr_history_delete, ocrjob::ocr_inspect, ocrjob::ocr_inspect_update, ocrjob::ocr_inspect_delete, ocrjob::ocr_inspect_draw, ocrjob::ocr_inspect_teach, ocrjob::ocr_inspect_reload, ocrjob::ocr_remove_items, ocrjob::ocr_stop, ocrjob::ocr_prep_preview, ocrjob::ocr_paddle_models, ocrjob::ocr_db_delete, ocrjob::ocr_image_out, ocrmanual::ocr_db_new, ocrmanual::ocr_db_rename, ocrmanual::ocr_db_chars, ocrmanual::ocr_db_char_update, ocrmanual::ocr_db_char_delete, ocrmanual::ocr_train, ocrmanual::ocr_train_cancel, ocrmanual::ocr_train_preview, ocrmanual::ocr_db_optimize, ocrexport::ocr_export_formats, ocrexport::ocr_export_preview, ocrexport::ocr_export, ocrexport::ocr_export_doc, ocrexport::ocr_save_html, tesseract::ocr_tess_langs, tesseract::ocr_tess_download, tesseract::ocr_tess_cancel, paddle_dl::ocr_paddle_langs, paddle_dl::ocr_paddle_download, paddle_dl::ocr_paddle_cancel,
         subdoc::subdoc_open, subdoc::subdoc_stamp, subdoc::subdoc_save, subdoc::subdoc_convert, subdoc::subdoc_free_name, subdoc::subdoc_render, subdoc::subdoc_parse_text, subdoc::subdoc_temp, subshot::sub_overlay, subshot::vid_snapshot, vidframes::vid_colorspace,
         subdoc::subdoc_set_dirty, subdoc::subdoc_autosave, subdoc::subdoc_autosaves, subdoc::subdoc_open_autosave, fonts::font_families,
@@ -182,12 +176,12 @@ pub fn run() {
         subaudio::sub_pcm, subaudio::sub_audio_save, subaudio::sub_peaks, pgs::pgs_export, pgs::pgs_cancel, pgs::pgs_preview, pgs::pgs_engines, pgs::pgs_estimate, imgconv::imgsub_convert, imgconv::imgsub_cancel, imgconv::imgsub_tools, imgconv::imgsub_preview,
         cover::pairs::pair_set, cover::pairs::pair_check, cover::pairs::pair_play,
         cover::link::link_state, cover::link::link_titles, cover::link::link_is_dir, cover::link::link_images, cover::link::link_add_images, cover::link::link_remove_images, cover::link::link_auto, cover::link::link_pair, cover::link::link_undo, cover::link::link_row_update, cover::link::link_set_crop, cover::link::link_confirm, cover::link::link_cancel, cover::link::link_resolve, cover::link::link_unsave, cover::link::link_remove, cover::link::link_open_row, cover::link::link_cover_pick, cover::link::link_migrate,
-        convert::convert_probe, convert::convert_size_probe, convert::convert_cover, convert::convert_one, convert::convert_cancel,
+        audio::convert::convert_probe, audio::convert::convert_size_probe, audio::convert::convert_cover, audio::convert::convert_one, audio::convert::convert_cancel,
         media::fileinfo::media_info, media::mkvtree::mkv_tree, media::fileinfo::audio_codec_detail, media::fileinfo::hash_file, media::fileinfo::hash_cancel, media::fileinfo::hash_running, media::fileinfo::hash_compare, media::fileinfo::hash_save, app::winutil::clipboard_text,
         media::extract::extract_start, media::extract::extract_info, media::extract::extract_cancel, media::extract::extract_running, media::extract::extract_default_folder,
         media::check::check_start, media::check::check_cancel, media::check::check_running, media::check::play_at, media::players::list_players,
-        audiograph::graph_info, audiograph::graph_exist, audiograph::graph_overview, audiograph::graph_window, audiograph::graph_psd, audiograph::graph_cancel, audiograph::graph_save, graphimg::graph_save_image,
-        audiograph::graph_cache_info, audiograph::graph_cache_clear, audiograph::graph_dev_forget,
+        audio::audiograph::graph_info, audio::audiograph::graph_exist, audio::audiograph::graph_overview, audio::audiograph::graph_window, audio::audiograph::graph_psd, audio::audiograph::graph_cancel, audio::audiograph::graph_save, audio::graphimg::graph_save_image,
+        audio::audiograph::graph_cache_info, audio::audiograph::graph_cache_clear, audio::audiograph::graph_dev_forget,
     ]);
     #[cfg(not(debug_assertions))]
     let handler = typed(tauri::generate_handler![
@@ -198,8 +192,8 @@ pub fn run() {
         cover::rename::check_rename, cover::rename::rename_movie,
         cover::poster::poster_open, cover::poster::poster_view, cover::poster::poster_render, cover::poster::poster_clear, cover::poster::poster_folder_images,
         cover::poster::poster_inspect, cover::poster::poster_apply, cover::poster::poster_cancel, cover::poster::poster_check_name,
-        app::latest::thanks_open, media::bitrate::bitrate_start, media::bitrate::bitrate_tracks, media::bitrate::bitrate_stop, merge::merge::merge_inspect, merge::merge::remux_fonts, merge::merge::merge_add_file, merge::merge::merge_apply, merge::merge::merge_cancel, merge::merge::merge_cover_preview, merge::merge::merge_cover_drop, encode::encode_preview, encode::encoders_status, encode::encoders_open_dir, encode::encoders_user_dir, app::latest::encoders_latest, app::latest::encoders_open_page, app::latest::open_itunes_page, fonts::font_info,
-        delay::delay_find, delay::delay_view, delay::delay_preview,
+        app::latest::thanks_open, media::bitrate::bitrate_start, media::bitrate::bitrate_tracks, media::bitrate::bitrate_stop, merge::merge::merge_inspect, merge::merge::remux_fonts, merge::merge::merge_add_file, merge::merge::merge_apply, merge::merge::merge_cancel, merge::merge::merge_cover_preview, merge::merge::merge_cover_drop, audio::encode::encode_preview, audio::encode::encoders_status, audio::encode::encoders_open_dir, audio::encode::encoders_user_dir, app::latest::encoders_latest, app::latest::encoders_open_page, app::latest::open_itunes_page, fonts::font_info,
+        audio::delay::delay_find, audio::delay::delay_view, audio::delay::delay_preview,
         subs::movie_frame, subs::sub_text, subs::sub_frame, subs::sub_wave, subs::sub_images, subs::sub_image_times, ocrsrc::ocr_source, ocrsrc::ocr_source_pngs, subs::ocr_vobsub_recolor, subs::ocr_vobsub_preview, ocrjob::ocr_read, ocrjob::ocr_teach, ocrjob::ocr_word, ocrjob::ocr_suggest, ocrjob::ocr_names, ocrjob::ocr_dbs, ocrjob::ocr_history, ocrjob::ocr_history_update, ocrjob::ocr_history_delete, ocrjob::ocr_inspect, ocrjob::ocr_inspect_update, ocrjob::ocr_inspect_delete, ocrjob::ocr_inspect_draw, ocrjob::ocr_inspect_teach, ocrjob::ocr_inspect_reload, ocrjob::ocr_remove_items, ocrjob::ocr_stop, ocrjob::ocr_prep_preview, ocrjob::ocr_paddle_models, ocrjob::ocr_db_delete, ocrjob::ocr_image_out, ocrmanual::ocr_db_new, ocrmanual::ocr_db_rename, ocrmanual::ocr_db_chars, ocrmanual::ocr_db_char_update, ocrmanual::ocr_db_char_delete, ocrmanual::ocr_train, ocrmanual::ocr_train_cancel, ocrmanual::ocr_train_preview, ocrmanual::ocr_db_optimize, ocrexport::ocr_export_formats, ocrexport::ocr_export_preview, ocrexport::ocr_export, ocrexport::ocr_export_doc, ocrexport::ocr_save_html, tesseract::ocr_tess_langs, tesseract::ocr_tess_download, tesseract::ocr_tess_cancel, paddle_dl::ocr_paddle_langs, paddle_dl::ocr_paddle_download, paddle_dl::ocr_paddle_cancel,
         subdoc::subdoc_open, subdoc::subdoc_stamp, subdoc::subdoc_save, subdoc::subdoc_convert, subdoc::subdoc_free_name, subdoc::subdoc_render, subdoc::subdoc_parse_text, subdoc::subdoc_temp, subshot::sub_overlay, subshot::vid_snapshot, vidframes::vid_colorspace,
         subdoc::subdoc_set_dirty, subdoc::subdoc_autosave, subdoc::subdoc_autosaves, subdoc::subdoc_open_autosave, fonts::font_families,
@@ -207,12 +201,12 @@ pub fn run() {
         subaudio::sub_pcm, subaudio::sub_audio_save, subaudio::sub_peaks, pgs::pgs_export, pgs::pgs_cancel, pgs::pgs_preview, pgs::pgs_engines, pgs::pgs_estimate, imgconv::imgsub_convert, imgconv::imgsub_cancel, imgconv::imgsub_tools, imgconv::imgsub_preview,
         cover::pairs::pair_set, cover::pairs::pair_check, cover::pairs::pair_play,
         cover::link::link_state, cover::link::link_titles, cover::link::link_is_dir, cover::link::link_images, cover::link::link_add_images, cover::link::link_remove_images, cover::link::link_auto, cover::link::link_pair, cover::link::link_undo, cover::link::link_row_update, cover::link::link_set_crop, cover::link::link_confirm, cover::link::link_cancel, cover::link::link_resolve, cover::link::link_unsave, cover::link::link_remove, cover::link::link_open_row, cover::link::link_cover_pick, cover::link::link_migrate,
-        convert::convert_probe, convert::convert_size_probe, convert::convert_cover, convert::convert_one, convert::convert_cancel,
+        audio::convert::convert_probe, audio::convert::convert_size_probe, audio::convert::convert_cover, audio::convert::convert_one, audio::convert::convert_cancel,
         media::fileinfo::media_info, media::mkvtree::mkv_tree, media::fileinfo::audio_codec_detail, media::fileinfo::hash_file, media::fileinfo::hash_cancel, media::fileinfo::hash_running, media::fileinfo::hash_compare, media::fileinfo::hash_save, app::winutil::clipboard_text,
         media::extract::extract_start, media::extract::extract_info, media::extract::extract_cancel, media::extract::extract_running, media::extract::extract_default_folder,
         media::check::check_start, media::check::check_cancel, media::check::check_running, media::check::play_at, media::players::list_players,
-        audiograph::graph_info, audiograph::graph_exist, audiograph::graph_overview, audiograph::graph_window, audiograph::graph_psd, audiograph::graph_cancel, audiograph::graph_save, graphimg::graph_save_image,
-        audiograph::graph_cache_info, audiograph::graph_cache_clear,
+        audio::audiograph::graph_info, audio::audiograph::graph_exist, audio::audiograph::graph_overview, audio::audiograph::graph_window, audio::audiograph::graph_psd, audio::audiograph::graph_cancel, audio::audiograph::graph_save, audio::graphimg::graph_save_image,
+        audio::audiograph::graph_cache_info, audio::audiograph::graph_cache_clear,
     ]);
     let builder = builder.invoke_handler(move |invoke| {
         app::actlog::invoke(invoke.message.command(), invoke.message.payload());

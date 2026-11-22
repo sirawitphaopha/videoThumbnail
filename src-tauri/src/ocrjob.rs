@@ -466,7 +466,7 @@ pub enum ReadResult {
 pub(crate) fn png_url(img: &Bmp) -> String {
     let mut v = std::io::Cursor::new(Vec::new());
     let _ = img.write_to(&mut v, image::ImageFormat::Png);
-    format!("data:image/png;base64,{}", crate::audiograph::b64(&v.into_inner()))
+    format!("data:image/png;base64,{}", crate::audio::audiograph::b64(&v.into_inner()))
 }
 
 fn teach_req(s: &Session, cfg: &OcrCfg, index: usize, letter: usize, parent: &Bmp, pieces: &[Piece]) -> TeachReq {

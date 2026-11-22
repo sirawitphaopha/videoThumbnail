@@ -229,7 +229,7 @@ fn exe_icon(path: &Path) -> Option<String> {
         EnumResourceNamesW(h, RT_GROUP_ICON as *const u16, Some(first), &mut group as *mut _ as isize);
         let ico = group.as_deref().and_then(pick_icon).and_then(|(head, id)| resource(h, id as usize as *const u16, RT_ICON).map(|d| build_ico(&head, &d)));
         FreeLibrary(h);
-        ico.map(|b| format!("data:image/x-icon;base64,{}", crate::audiograph::b64(&b)))
+        ico.map(|b| format!("data:image/x-icon;base64,{}", crate::audio::audiograph::b64(&b)))
     }
 }
 

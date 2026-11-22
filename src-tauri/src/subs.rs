@@ -265,7 +265,7 @@ pub fn bytes_of(tools: &Path, work: &Path, path: &Path, in_movie: bool, tid: u64
 
 /// ภาพหนังหนึ่งภาพที่เวลา t สูง h จุด เป็น data URL (JPEG)
 pub fn frame(tools: &Path, movie: &Path, t: f64, h: u32) -> Result<String, String> {
-    Ok(format!("data:image/jpeg;base64,{}", crate::audiograph::b64(&frame_jpg(tools, movie, t, h)?)))
+    Ok(format!("data:image/jpeg;base64,{}", crate::audio::audiograph::b64(&frame_jpg(tools, movie, t, h)?)))
 }
 
 /// ภาพหนังหนึ่งภาพ เป็นไบต์ JPEG · ใช้ตัวดึงภาพตรงเฟรมของหน้าแก้ซับ (vidframes.rs) ตัวเดียวกัน
@@ -652,7 +652,7 @@ pub fn vobsub_preview(work: &Path, path: &Path, ff: u64, n: usize, custom: Optio
     let v = save_vob_shows(&tmp, &shows, custom, Some(n.max(1)), &|_| {})?;
     let f = v.first().ok_or("ไม่มีภาพลำดับนี้")?.file.clone();
     let b = std::fs::read(&f).map_err(|e| e.to_string())?;
-    Ok(format!("data:image/png;base64,{}", crate::audiograph::b64(&b)))
+    Ok(format!("data:image/png;base64,{}", crate::audio::audiograph::b64(&b)))
 }
 
 /// คำสั่งของหน้าต่างสีของ VobSub · วาดใหม่แล้วตั้งภาพของงาน OCR ตามภาพใหม่ ข้อความที่อ่านไว้ไม่หาย
@@ -800,8 +800,8 @@ pub async fn sub_frame(app: AppHandle, movie: String, t: f64, h: Option<u32>) ->
 pub async fn sub_wave(app: AppHandle, movie: String, stream: u64, t0: f64, t1: f64, cols: usize) -> Result<Vec<f32>, String> {
     let tools = tools_dir(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
-        let x = crate::delay::decode(&tools, &need(&movie)?, stream, t0, (t1 - t0).max(0.2))?;
-        Ok(crate::delay::peaks(&x, (x.len() / cols.max(50)).max(1)))
+        let x = crate::audio::delay::decode(&tools, &need(&movie)?, stream, t0, (t1 - t0).max(0.2))?;
+        Ok(crate::audio::delay::peaks(&x, (x.len() / cols.max(50)).max(1)))
     }).await.map_err(|e| e.to_string())?
 }
 
@@ -829,7 +829,7 @@ pub async fn sub_images(app: AppHandle, path: String, ff: u64, page: usize, per:
         let all = images_with(&tools, &work, &need(&path)?, ff, &on)?;
         let per = per.clamp(1, 48);
         let items = all.iter().skip(page * per).take(per).map(|i| {
-            let png = std::fs::read(&i.file).map(|b| format!("data:image/png;base64,{}", crate::audiograph::b64(&b))).unwrap_or_default();
+            let png = std::fs::read(&i.file).map(|b| format!("data:image/png;base64,{}", crate::audio::audiograph::b64(&b))).unwrap_or_default();
             ImgItem { img: i.clone(), png }
         }).collect();
         Ok(ImgPage { total: all.len(), items })

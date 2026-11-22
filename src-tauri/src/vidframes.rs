@@ -195,7 +195,7 @@ fn mem_put(t: Arc<VidTable>) {
 }
 
 fn disk_load(dir: &Path, key: &str) -> Option<VidTable> {
-    let f = crate::audiograph::cache_file(dir, key);
+    let f = crate::audio::audiograph::cache_file(dir, key);
     let c: Cached = serde_json::from_slice(&std::fs::read(&f).ok()?).ok()?;
     if c.ver != CACHE_VER || c.key != key { return None; }
     let _ = std::fs::File::options().write(true).open(&f).and_then(|h| h.set_modified(std::time::SystemTime::now()));
@@ -204,11 +204,11 @@ fn disk_load(dir: &Path, key: &str) -> Option<VidTable> {
 
 fn disk_save(dir: &Path, t: &VidTable) {
     if std::fs::create_dir_all(dir).is_err() { return; }
-    let f = crate::audiograph::cache_file(dir, &t.key);
+    let f = crate::audio::audiograph::cache_file(dir, &t.key);
     let tmp = f.with_extension("tmp");
     let Ok(bytes) = serde_json::to_vec(&Cached { ver: CACHE_VER, key: t.key.clone(), t: t.clone() }) else { return };
     if std::fs::write(&tmp, &bytes).is_ok() && std::fs::rename(&tmp, &f).is_err() { let _ = std::fs::remove_file(&tmp); }
-    crate::audiograph::prune(dir, CACHE_LIMIT);
+    crate::audio::audiograph::prune(dir, CACHE_LIMIT);
 }
 
 /// ตารางของหนัง · หน่วยความจำ ไฟล์ที่เก็บไว้ หรืออ่านใหม่ · ffprobe จบไม่ครบไม่เก็บลงเครื่อง เปิดครั้งหน้าลองอ่านใหม่
@@ -311,7 +311,7 @@ pub async fn vid_frames(app: AppHandle, movie: String, ss: f64, count: u32, h: u
     let tools = tools_dir(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
         let v = frames_jpg(&tools, &need(&movie)?, ss, count.clamp(1, 8), h.clamp(90, 2160))?;
-        Ok(v.iter().map(|b| format!("data:image/jpeg;base64,{}", crate::audiograph::b64(b))).collect())
+        Ok(v.iter().map(|b| format!("data:image/jpeg;base64,{}", crate::audio::audiograph::b64(b))).collect())
     }).await.map_err(|e| e.to_string())?
 }
 

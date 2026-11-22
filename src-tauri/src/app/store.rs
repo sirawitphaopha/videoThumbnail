@@ -50,7 +50,7 @@ pub struct Settings {
     /// หน้ากราฟเสียง ซูมเหมือนกันทุกกราฟ · ปิด = ซูมเฉพาะกราฟที่ดูอยู่
     pub graph_zoom_all: bool,
     /// รูปกราฟที่บันทึก ขนาด ชนิด bit DPI
-    pub graph_img: crate::graphimg::GraphImg,
+    pub graph_img: crate::audio::graphimg::GraphImg,
     // การ์ดเปิดเล่นหนัง · ว่าง = โปรแกรมเลือกเอง MPC-HC ก่อน (players.rs) · "system" = โปรแกรมหลักของ Windows · นอกนั้นคือที่อยู่โปรแกรม
     pub player_path: String,
     /// โปรแกรมเล่นที่พี่กันเพิ่มเอง

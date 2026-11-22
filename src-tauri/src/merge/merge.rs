@@ -93,7 +93,7 @@ pub struct Track {
     /// แทร็กในหนัง (true) หรือไฟล์ที่เพิ่ม (false)
     pub in_movie: bool,
     /// แปลงชนิดเสียงตอนรวม (ค่าในแผงตั้งค่าเสียง) · ไม่มี = ไม่แปลง เสียงเดิมทุกไบต์
-    pub convert: Option<crate::encode::EncodeSpec>,
+    pub convert: Option<crate::audio::encode::EncodeSpec>,
     /// แทร็กในหนังที่แปลง · true เพิ่มคู่กับแทร็กเดิม (ค่าตั้งต้นที่พี่กันเคาะ) · false แทนที่แทร็กเดิม
     pub pair: bool,
     /// ชื่อแทร็กใหม่ที่ได้จากการแปลงแบบเพิ่มคู่ · ว่าง = ชื่อเดิมต่อด้วยชนิดใหม่
@@ -1078,7 +1078,7 @@ pub fn produce(
     if total_conv > 0 {
         // ตัวแปลงที่ใส่เองในโฟลเดอร์ตัวแปลง (qaac fdkaac หรือรุ่นใหม่กว่า) · ไม่มีโฟลเดอร์ก็ใช้ตัวที่แนบมา
         let user = std::env::var_os("LOCALAPPDATA").map(|d| PathBuf::from(d).join("ชั้นหนัง").join("ตัวแปลง")).unwrap_or_default();
-        let encs = crate::encode::status(tools, &user);
+        let encs = crate::audio::encode::status(tools, &user);
         let mut n = 0;
         let mut list = vec![];
         for t in tracks.into_iter() {
@@ -1087,7 +1087,7 @@ pub fn produce(
             let out = work.join(format!("merge-conv-{}.{}", crate::cover::poster_image::unique(), spec.ext()));
             let mut spec = spec;
             spec.src_rate = t.rate.map(|r| r as u32);
-            let plan = crate::encode::build(&spec, &t.src, t.ff.unwrap_or(t.tid), &out.to_string_lossy(), t.channels.map(|c| c as u32), t.bits.map(|b| b as u32))
+            let plan = crate::audio::encode::build(&spec, &t.src, t.ff.unwrap_or(t.tid), &out.to_string_lossy(), t.channels.map(|c| c as u32), t.bits.map(|b| b as u32))
                 .map_err(|e| fail("tool", "ตั้งค่าแปลงเสียงไม่ถูก", vec![e, untouched.into()]))?;
             let ft = spec.codec.to_uppercase();
             let phase = format!("กำลังแปลงเสียง {n} จาก {total_conv} เป็น {ft}");
@@ -1095,12 +1095,12 @@ pub fn produce(
             emit(&phase, 0.0, None, Some(next));
             let t0 = Instant::now();
             guards.push(scopeguard(out.clone()));
-            let r = crate::encode::run(&|name| crate::encode::dir_for(&encs, tools, name), &plan, t.duration.or(movie_duration), stop, &mut |p| emit(&phase, p, eta(t0, p), Some(next)))
+            let r = crate::audio::encode::run(&|name| crate::audio::encode::dir_for(&encs, tools, name), &plan, t.duration.or(movie_duration), stop, &mut |p| emit(&phase, p, eta(t0, p), Some(next)))
                 .map_err(|e| fail("tool", "แปลงเสียงไม่สำเร็จ", vec![e, untouched.into()]))?;
             match r {
-                crate::encode::Done::Ok => {}
-                crate::encode::Done::Cancelled => return Err(cancelled(untouched, None)),
-                crate::encode::Done::Failed(m) => return Err(fail("tool", "แปลงเสียงไม่สำเร็จ", vec![m, untouched.into()])),
+                crate::audio::encode::Done::Ok => {}
+                crate::audio::encode::Done::Cancelled => return Err(cancelled(untouched, None)),
+                crate::audio::encode::Done::Failed(m) => return Err(fail("tool", "แปลงเสียงไม่สำเร็จ", vec![m, untouched.into()])),
             }
             let mut nt = t.clone();
             nt.src = out.to_string_lossy().to_string();
@@ -2069,10 +2069,10 @@ mod tests {
         let tl = tools();
         let m = inspect(&tl, &movie).unwrap();
         let mut dub = add_file(&tl, &av("เสียงซับ/ดาวตก (2024) พากย์ไทย DELAY -120ms.ac3").unwrap(), m.duration).unwrap().tracks.remove(0);
-        dub.convert = Some(crate::encode::EncodeSpec { codec: "opus".into(), encoder: "native".into(), p: serde_json::json!({"bitrate": 256}).as_object().cloned().unwrap(), ..Default::default() });
+        dub.convert = Some(crate::audio::encode::EncodeSpec { codec: "opus".into(), encoder: "native".into(), p: serde_json::json!({"bitrate": 256}).as_object().cloned().unwrap(), ..Default::default() });
         dub.name = "พากย์ไทย Opus".into();
         let mut eng = m.tracks[1].clone();
-        eng.convert = Some(crate::encode::EncodeSpec { codec: "flac".into(), encoder: "native".into(), ..Default::default() });
+        eng.convert = Some(crate::audio::encode::EncodeSpec { codec: "flac".into(), encoder: "native".into(), ..Default::default() });
         eng.pair = true;
         let out = dir.0.join("c.mkv.partial");
         let (res, notes) = run(&req(&movie, vec![m.tracks[0].clone(), dub, eng], "mkv"), &HashMap::new(), &out, &dir.0);
@@ -2093,13 +2093,13 @@ mod tests {
     fn converted_size_estimates() {
         let mut t = Track { kind: "audio".into(), duration: Some(7680.0), channels: Some(6), rate: Some(48000), keep: true, ..Default::default() };
         assert_eq!(conv_estimate(&t), None, "ไม่แปลง ไม่บวก");
-        t.convert = Some(crate::encode::EncodeSpec { codec: "opus".into(), p: serde_json::json!({"bitrate": 384}).as_object().cloned().unwrap(), ..Default::default() });
+        t.convert = Some(crate::audio::encode::EncodeSpec { codec: "opus".into(), p: serde_json::json!({"bitrate": 384}).as_object().cloned().unwrap(), ..Default::default() });
         // 384 kbps 7,680 วินาที = 368,640,000 ไบต์ (ราว 352 MB ตรงกับมอคอัป 1 kbps ≈ 0.96 MB)
         assert_eq!(conv_estimate(&t), Some(368_640_000));
-        t.convert = Some(crate::encode::EncodeSpec { codec: "flac".into(), ..Default::default() });
+        t.convert = Some(crate::audio::encode::EncodeSpec { codec: "flac".into(), ..Default::default() });
         // 5.1 24 บิต 48 kHz 7,680 วินาที เสียงดิบ 6.6 พันล้านไบต์ (มอคอัป WAV ราว 6.2 GB) 60% ราว 3.98 พันล้าน
         assert_eq!(conv_estimate(&t), Some((7680.0 * 48000.0 * 6.0 * 3.0 * 0.6) as u64));
-        t.convert = Some(crate::encode::EncodeSpec { codec: "mp3".into(), channels: Some(2), speed: Some([25.0, 23.976]), ..Default::default() });
+        t.convert = Some(crate::audio::encode::EncodeSpec { codec: "mp3".into(), channels: Some(2), speed: Some([25.0, 23.976]), ..Default::default() });
         // MP3 VBR ไม่มีบิตเรต คิด 320 · ยืดความเร็วแล้วยาวขึ้น
         assert_eq!(conv_estimate(&t), Some((7680.0 * 25.0 / 23.976 * 320_000.0 / 8.0) as u64));
     }

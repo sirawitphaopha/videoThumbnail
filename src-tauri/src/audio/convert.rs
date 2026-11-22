@@ -15,7 +15,7 @@ use serde::{Deserialize, Serialize};
 use serde_json::Value;
 use tauri::{AppHandle, Emitter, Manager, State};
 
-use crate::encode::{self, EncodeSpec};
+use crate::audio::encode::{self, EncodeSpec};
 use crate::app::outfile::{drive_letter, fail, fmt_gb, free_name, free_space, scopeguard, ApplyProblem};
 use crate::app::tools::{run_tool_timeout, tool_succeeded};
 
@@ -121,7 +121,7 @@ pub fn vorbis_key(canon: &str) -> String {
 
 /// track ลำดับแทร็กเสียงนับจาก 0 · เดิมเลือกแทร็กเสียงแรกเสมอ ดูเสียง 2 ในหน้ากราฟแล้วกดแปลงเสียง ได้เสียง 1 (AUDIT 12 พ.ย. 2569 ข้อ 22)
 pub fn parse_file(path: &Path, j: &Value, track: usize) -> Result<AudioFile, String> {
-    let g = crate::audiograph::parse_info(j);
+    let g = crate::audio::audiograph::parse_info(j);
     let streams = j["streams"].as_array().cloned().unwrap_or_default();
     let audio: Vec<&Value> = streams.iter().filter(|s| s["codec_type"] == "audio").collect();
     if audio.is_empty() { return Err("ไฟล์นี้ไม่มีแทร็กเสียง".into()); }
@@ -286,7 +286,7 @@ pub async fn convert_cover(app: AppHandle, path: String) -> Result<Option<CoverD
         let Some(c) = f.cover else { return Ok(None) };
         let b = cover_bytes(&tools, &p, c.stream)?;
         let mime = match c.codec.as_str() { "png" => "image/png", "bmp" => "image/bmp", _ => "image/jpeg" };
-        Ok(Some(CoverData { url: format!("data:{mime};base64,{}", crate::audiograph::b64(&b)), bytes: b.len() as u64, codec: c.codec, width: c.width, height: c.height }))
+        Ok(Some(CoverData { url: format!("data:{mime};base64,{}", crate::audio::audiograph::b64(&b)), bytes: b.len() as u64, codec: c.codec, width: c.width, height: c.height }))
     }).await.map_err(|e| e.to_string())?
 }
 
@@ -500,17 +500,17 @@ fn convert(app: &AppHandle, req: &ConvReq, jobs: &Arc<crate::app::jobs::Jobs>) -
         if opus_native { cover_ok = cover_file.is_some(); }
         else if f.cover.is_some() { notes.push("Opus ที่แปลงด้วย ffmpeg ใส่รูปปกไม่ได้  ถ้าอยากได้รูปปกให้ใช้ตัวต้นฉบับ opusenc".into()); }
     } else if own_tag && has_meta {
-        if crate::ape::has_ape_tag(&final_tmp) {
+        if crate::audio::ape::has_ape_tag(&final_tmp) {
             notes.push("ตัวแปลงเขียนข้อมูลเพลงไว้แล้ว ไม่เขียนซ้อน".into());
         } else {
-            let mut items: Vec<crate::ape::ApeItem> = f.tags.iter().map(|t| crate::ape::ApeItem { key: ape_key(&t.key), value: t.value.as_bytes().to_vec(), binary: false }).collect();
+            let mut items: Vec<crate::audio::ape::ApeItem> = f.tags.iter().map(|t| crate::audio::ape::ApeItem { key: ape_key(&t.key), value: t.value.as_bytes().to_vec(), binary: false }).collect();
             if let Some((p, b)) = &cover_file {
                 let mut v = format!("cover.{}", p.extension().map(|e| e.to_string_lossy().to_string()).unwrap_or_else(|| "jpg".into())).into_bytes();
                 v.push(0);
                 v.extend_from_slice(b);
-                items.push(crate::ape::ApeItem { key: "Cover Art (Front)".into(), value: v, binary: true });
+                items.push(crate::audio::ape::ApeItem { key: "Cover Art (Front)".into(), value: v, binary: true });
             }
-            match crate::ape::append_tag(&final_tmp, &items) {
+            match crate::audio::ape::append_tag(&final_tmp, &items) {
                 Ok(()) => { tags_n = f.tags.len(); cover_ok = cover_file.is_some(); }
                 Err(e) => notes.push(e),
             }
@@ -650,11 +650,11 @@ mod tests {
         assert!(matches!(r, encode::Done::Ok), "แปลงสำเร็จ");
         assert_eq!(last, 100.0);
         let cover = cover_bytes(&tools(), &src, f.cover.as_ref().unwrap().stream).unwrap();
-        let mut items: Vec<crate::ape::ApeItem> = f.tags.iter().map(|t| crate::ape::ApeItem { key: ape_key(&t.key), value: t.value.as_bytes().to_vec(), binary: false }).collect();
+        let mut items: Vec<crate::audio::ape::ApeItem> = f.tags.iter().map(|t| crate::audio::ape::ApeItem { key: ape_key(&t.key), value: t.value.as_bytes().to_vec(), binary: false }).collect();
         let mut v = b"cover.jpg\0".to_vec();
         v.extend_from_slice(&cover);
-        items.push(crate::ape::ApeItem { key: "Cover Art (Front)".into(), value: v, binary: true });
-        crate::ape::append_tag(&out, &items).unwrap();
+        items.push(crate::audio::ape::ApeItem { key: "Cover Art (Front)".into(), value: v, binary: true });
+        crate::audio::ape::append_tag(&out, &items).unwrap();
         let g = probe(&tools(), &out).unwrap();
         assert_eq!(g.codec, "ape");
         assert_eq!(g.channels, f.channels);
@@ -779,8 +779,8 @@ mod tests {
         let r = encode::run(&|n: &str| if n == "Takc" { tak.clone() } else { tools() }, &plan, Some(f.duration), &|| false, &mut |p| last = p).unwrap();
         assert!(matches!(r, encode::Done::Ok), "แปลงสำเร็จ");
         assert_eq!(last, 100.0);
-        let items: Vec<crate::ape::ApeItem> = f.tags.iter().map(|t| crate::ape::ApeItem { key: ape_key(&t.key), value: t.value.as_bytes().to_vec(), binary: false }).collect();
-        crate::ape::append_tag(&out, &items).unwrap();
+        let items: Vec<crate::audio::ape::ApeItem> = f.tags.iter().map(|t| crate::audio::ape::ApeItem { key: ape_key(&t.key), value: t.value.as_bytes().to_vec(), binary: false }).collect();
+        crate::audio::ape::append_tag(&out, &items).unwrap();
         let g = probe(&tools(), &out).unwrap();
         assert_eq!((g.codec.as_str(), g.channels, g.rate), ("tak", f.channels, f.rate));
         assert!((g.duration - f.duration).abs() < 0.1, "ยาว {} เทียบ {}", g.duration, f.duration);

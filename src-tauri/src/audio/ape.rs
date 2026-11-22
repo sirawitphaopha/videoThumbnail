@@ -11,7 +11,7 @@ use std::process::Stdio;
 use std::sync::mpsc;
 use std::time::{Duration, Instant};
 
-use crate::encode::{Done, Plan};
+use crate::audio::encode::{Done, Plan};
 use crate::app::tools::tool_command;
 
 // ---------------------------------------------------------------- แท็ก APEv2

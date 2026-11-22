@@ -173,7 +173,7 @@ pub async fn sub_overlay(app: AppHandle, doc: SubDoc, t: f64, w: u32, h: u32, ow
     tauri::async_runtime::spawn_blocking(move || {
         let fonts = movie.as_deref().filter(|m| !m.is_empty()).and_then(|m| movie_fonts(&tools, &work, Path::new(m)));
         let png = overlay_png(&tools, &work, &doc, fonts.as_deref(), t, w.clamp(16, 4096), h.clamp(16, 4096), ow, oh)?;
-        Ok(format!("data:image/png;base64,{}", crate::audiograph::b64(&png)))
+        Ok(format!("data:image/png;base64,{}", crate::audio::audiograph::b64(&png)))
     }).await.map_err(|e| e.to_string())?
 }
 
@@ -267,7 +267,7 @@ pub async fn vid_snapshot(app: AppHandle, req: SnapReq, doc: Option<SubDoc>, bg:
                 // วิดีโอจำลอง ภาพพื้นที่หน้าจอวาดขนาดเต็มส่งมา
                 None => {
                     let data = bg.as_deref().and_then(|s| s.split_once(',').map(|x| x.1)).ok_or("ไม่มีภาพของวิดีโอจำลอง")?;
-                    crate::audiograph::unb64(data)?
+                    crate::audio::audiograph::unb64(data)?
                 }
             };
             match sub_doc {
