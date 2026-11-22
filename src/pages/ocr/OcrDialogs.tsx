@@ -12,7 +12,7 @@ import { inApp, ocrApi, type OcrDbList, type OcrPrep, type OcrTaught, type OcrTe
 import { cancelPaddleLang, downloadPaddleLang, loadPaddleLangs, usePaddleLangs } from "../../lib/paddleLangs";
 import { answerTeach, answerWord, forgetWord, getOcrJob, saveWord, setOcrCfg, setPromptUnknown, setRowText, useOcrJob, __ocrJobLib, type OcrRow } from "../../lib/ocrJob";
 import Dropdown from "../../components/Dropdown";
-import { LineImg, ScreenImg } from "./OcrPage";
+import { LineImg, ScreenImg } from "./images";
 import { DbDialog, HistoryDialog } from "./OcrDbDialog";
 
 /** หน้าต่างซ้อนที่เปิดอยู่ของหน้า OCR */

@@ -10,7 +10,7 @@ import { CardIcon, Phr, Seg, Switch } from "../../components/ui";
 import { IbPencil, IbRedo, IbTick, IbUndo, IcClose, IcPlus, IcRefresh } from "../../components/icons";
 import { ocrApi, type OcrInspView } from "../../lib/api";
 import { getOcrJob, teachOnce, useOcrJob } from "../../lib/ocrJob";
-import { LINES_TIP } from "./OcrPage";
+import { LINES_TIP } from "./tips";
 
 const DLG_W = 880, DLG_H = "min(640px, calc(100vh - 48px))";
 type L4 = [number, number, number, number];

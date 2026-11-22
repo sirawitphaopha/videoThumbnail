@@ -13,7 +13,7 @@ import { getOcrJob, setOcrCfg, useOcrJob } from "../../lib/ocrJob";
 import { listen } from "@tauri-apps/api/event";
 import { inApp } from "../../lib/api";
 import { TrainDialog } from "./OcrTrainDialog";
-import { LINES_TIP } from "./OcrPage";
+import { LINES_TIP } from "./tips";
 
 const DLG_W = 880, DLG_H = "min(640px, calc(100vh - 48px))";
 const EXT: Record<OcrDbKind, string> = { nocr: "nocr", binary: "db", own: "nocr" };
