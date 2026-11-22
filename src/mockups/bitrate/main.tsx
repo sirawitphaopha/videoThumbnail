@@ -30,7 +30,7 @@ import AvPage from "../../pages/av/AvPage";
 import CheckPage from "../../pages/CheckPage";
 import GraphPage, { GraphBoundary } from "../../pages/graph/GraphPage";
 import SettingsPage from "../../pages/SettingsPage";
-import BitratePage from "../../pages/BitratePage";
+import BitratePage from "../../pages/bitrate/BitratePage";
 
 applySavedTone();
 

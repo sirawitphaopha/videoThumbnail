@@ -7,21 +7,21 @@
    โครงหน้ายึดหน้ากราฟเสียง การ์ดชื่อไฟล์ด้านบน แผงข้อมูลซ้าย หัวกราฟพร้อมปุ่มซูม แถบภาพรวมทั้งไฟล์ คำอธิบายสีด้านล่าง
    สีกราฟอ่านจากตัวแปรสีของโทนที่เลือก เปลี่ยนโทนแล้ววาดใหม่ทันที */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { usePageActiveRef } from "../lib/pageActive";
+import { usePageActiveRef } from "../../lib/pageActive";
 import { listen } from "@tauri-apps/api/event";
-import { bitrateApi, inApp, pickFile, thumbUrl, type BrInfo, type BrTrack } from "../lib/api";
-import Dropdown from "../components/Dropdown";
-import { useLibrary } from "../lib/library";
-import { Seg, dropClick } from "../components/ui";
-import InfoTip from "../components/InfoTip";
-import { IbStop, IcBitrate, IcFile, IcGraph, IcRefresh } from "../components/icons";
-import type { Tip } from "../lib/codecAdv";
+import { bitrateApi, inApp, pickFile, thumbUrl, type BrInfo, type BrTrack } from "../../lib/api";
+import Dropdown from "../../components/Dropdown";
+import { useLibrary } from "../../lib/library";
+import { Seg, dropClick } from "../../components/ui";
+import InfoTip from "../../components/InfoTip";
+import { IbStop, IcBitrate, IcFile, IcGraph, IcRefresh } from "../../components/icons";
+import type { Tip } from "../../lib/codecAdv";
 import BitrateClassic from "./BitrateClassic";
-import bvIcon from "../assets/thanks/bitrateviewer.ico";
-import "../styles/bitrate.css";
-import FullBtn from "../components/FullBtn";
-import { PadCustom } from "../components/ColorPick";
-import { useFitClass, useFitSwitch } from "../lib/fitSwitch";
+import bvIcon from "../../assets/thanks/bitrateviewer.ico";
+import "../../styles/bitrate.css";
+import FullBtn from "../../components/FullBtn";
+import { PadCustom } from "../../components/ColorPick";
+import { useFitClass, useFitSwitch } from "../../lib/fitSwitch";
 
 type Mode = "sec" | "gop" | "gopx" | "frm";
 const MODES: { value: Mode; label: string; letter: string }[] = [

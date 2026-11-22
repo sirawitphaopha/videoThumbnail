@@ -12,7 +12,7 @@ import { LibraryHost, useLibrary } from "./lib/library";
 import { kindOf } from "./lib/status";
 import { fmtSize } from "./lib/format";
 import SettingsPage from "./pages/SettingsPage";
-import BitratePage from "./pages/BitratePage";
+import BitratePage from "./pages/bitrate/BitratePage";
 import DevParts from "./pages/DevParts";
 import ShelfPage from "./pages/ShelfPage";
 import PosterPage, { type PosterStart } from "./pages/PosterPage";

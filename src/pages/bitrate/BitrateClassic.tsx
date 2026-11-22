@@ -17,13 +17,13 @@
    สีวัดจากภาพหน้าจอตัวจริง · สีเป็นเนื้อหา ไม่เปลี่ยนตามโทน · สีที่วาดและ inline อยู่ในไฟล์นี้ รากของหน้าติด data-keepcolor ตัวแปลงโทนไม่แตะ
    สีของปุ่มกับเมนูอยู่ styles/bitrate-classic.css เขียนด้วย hsl() (แท็ก style ที่สร้างตอนรันโดนกติกาความปลอดภัยของตัวจริงกัน AUDIT ข้อ 27) */
 import { useCallback, useEffect, useLayoutEffect, useMemo, useRef, useState } from "react";
-import { usePageActiveRef } from "../lib/pageActive";
+import { usePageActiveRef } from "../../lib/pageActive";
 import { listen } from "@tauri-apps/api/event";
-import { bitrateApi, inApp, pickFile, type BrInfo, type BrTrack } from "../lib/api";
-import { useClickOutside, useEscClose } from "../lib/popup";
-import { dropStyle, sideStyle, useDropPlacement, useSideFit } from "../lib/popupFit";
-import { FixedTime, Phr } from "../components/ui";
-import "../styles/bitrate-classic.css";
+import { bitrateApi, inApp, pickFile, type BrInfo, type BrTrack } from "../../lib/api";
+import { useClickOutside, useEscClose } from "../../lib/popup";
+import { dropStyle, sideStyle, useDropPlacement, useSideFit } from "../../lib/popupFit";
+import { FixedTime, Phr } from "../../components/ui";
+import "../../styles/bitrate-classic.css";
 
 const C = {
   win: "rgb(240,240,240)", plot: "rgb(255,255,255)", frame: "rgb(160,160,160)",
