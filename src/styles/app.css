@@ -3,69 +3,7 @@
    สีของปุ่มทุกแบบรวมสีตอนชี้อยู่ไฟล์นี้ที่เดียว ห้ามเขียนสีฝังในแท็ก ไม่งั้นสีตอนชี้ไม่ติด (สกิล button-feedback · web-craft 6.21 ⑪)
    ส่วนที่ต่างจากต้นแบบ เขียนกำกับไว้ทุกจุดว่าทำไมต่าง */
 
-:root {
-  --bg: #fffafb; --ink: #3a2630; --muted: #7a5c68;
-  --win: #ffffff; --win2: #fdf6f8; --line: #f6e6ec;
-  --txt: #3a2630; --txt2: #6b4f5c; --txt3: #876572;
-  --accent: #c8406f; --accent-d: #ad3560; --accent-soft: #fbe9ef; --accent-ink: #b0355f;
-  --ok: #7fc9a2; --ok-soft: #e2f5ea; --ok-ink: #2f7a52;
-  --bad: #ec8f8f; --bad-soft: #fde5e5; --bad-ink: #b04545;
-  --warn: #f2c76e; --warn-soft: #fdf1d6; --warn-ink: #8a600e;
-  --info: #8dbbe8; --info-soft: #e4effb; --info-ink: #2f6496;
-  --font: Sarabun, "Noto Sans Thai", Tahoma, sans-serif;
-  --mono: Consolas, "Cascadia Mono", "Courier New", monospace;
-  /* ความสูงแถบชื่อ ประกาศที่นี่ที่เดียว ทุกที่อ้างตัวนี้ (web-craft 6.22 ①) */
-  --titlebar-h: 34px;
-  /* ชั้นของที่ลอยทับกัน ตารางกลางตัวเดียว ห้ามตั้งเลขเอง (web-craft 6.4) */
-  --z-bar: 6; --z-float: 15; --z-menu: 29; --z-panel: 32; --z-over: 52; --z-pick: 70; --z-confirm: 85; --z-viewer: 90; --z-toast: 95;
-}
-
-* { box-sizing: border-box; }
-html, body, #root { height: 100%; }
-/* โปรแกรมลากไฮไลต์ตัวหนังสือไม่ได้ ยกเว้นหน้าที่มีไว้ให้คัดลอก (พี่กัน 7 พ.ย. 2569 *"โปรแกรมไม่ควรไฮไลต์แบบนี้ได้ ยกเว้นหน้าที่ปล่อยให้ copy"*)
-   หน้าข้อมูลไฟล์ (ข้อความ MediaInfo กับค่า hash) เลือกได้ · ช่องพิมพ์ทุกช่องเลือกได้ · ปุ่มกับช่องติ๊กในหน้านั้นยังเลือกไม่ได้ ดับเบิลคลิกปุ่มไม่ติดไฮไลต์ */
-body { user-select: none; }
-input, textarea, [contenteditable="true"], [data-info-page] { user-select: text; }
-[data-info-page] button, [data-info-page] .btn, [data-info-page] [role="checkbox"] { user-select: none; }
-/* ต่างจากต้นแบบ: ต้นแบบเป็นหน้าเว็บกว้าง 1260 · โปรแกรมจริงเต็มหน้าต่าง เลื่อนเฉพาะกล่องข้างใน */
-body {
-  margin: 0; background: var(--bg); color: var(--ink);
-  font-family: var(--font); font-size: 15px; line-height: 1.6;
-  overflow: hidden;
-}
-
-/* แถบเลื่อนของระบบซ่อนทั้งโปรแกรม แล้ววาดแถบลอยเอง (web-craft 6.23) */
-::-webkit-scrollbar { width: 0; height: 0; }
-* { scrollbar-width: none; }
-.ovthumb {
-  position: fixed; border-radius: 4px; background: #e7c8d2; opacity: 0;
-  pointer-events: none; z-index: 99999; will-change: top, left, width, height, opacity;
-}
-.ovthumb:hover { background: #cdb0ba; }
-
-button { font: inherit; }
-button:focus { outline: none; }
-button:focus-visible, [role="option"]:focus-visible, [role="button"]:focus-visible { outline: 2px solid var(--accent-d); outline-offset: 2px; }
-.nw { white-space: nowrap; }
-/* วลีไทยหนึ่งวลี ขึ้นบรรทัดใหม่ได้เฉพาะตรงเว้นวรรค (ui.tsx Phrases) · วลีที่ยาวกว่าช่องค่อยตัดข้างใน */
-/* ตัดบรรทัดที่ขอบคำไทยได้ตามปกติแบบ Word บรรทัดเกือบเต็ม ระยะที่กระจายแบบไทยเติมจึงน้อย
-   เดิมล็อกทั้งวลี บรรทัดตัดเร็ว พอกระจายแล้วตัวอักษรถ่างมาก (พี่กันทัก 11 พ.ย. 2569 "ระยะห่างมึงไปแหกตาด้วย")
-   ล็อกเฉพาะ .nobr ของที่ต้องอยู่ด้วยกันจริง (เดิมชื่อ .keep ชนกับปุ่ม Keep 11 พ.ย. 2569) ตัวเลขกับหน่วย "พอ ๆ กัน" ตัวย่อกับวงเล็บคำเต็ม */
-/* เป็นกล่องเล็กไม่ถูกถ่างข้างใน ตัวเลขกับตัวอังกฤษ "512 kbps" ไม่กลายเป็น "5 1 2  k b p s" ตอนกระจายแบบไทย */
-.nobr { white-space: nowrap; display: inline-block; }
-/* ชื่อไฟล์ยาวไม่มีเว้นวรรค ตัดบรรทัดได้ทุกตัวอักษร ไม่ล้นกรอบ (AUDIT 12 พ.ย. 2569 ข้อ 34 · ตัวจัดบรรทัด Phrases ใน ui.tsx) */
-.brk { overflow-wrap: anywhere; }
-/* คำประสมที่ห้ามตัดกลาง "ตัวแปลง" "ติดตั้ง" · ไม่เป็นกล่อง ตัวอักษรยังกระจายได้ */
-.kw { white-space: nowrap; }
-/* ข้อความย่อหน้าทั้งโปรแกรมจัดแบบกระจายแบบไทย (Thai Distributed) เต็มบรรทัดเสมอกันซ้ายขวา กระจายระหว่างตัวอักษร บรรทัดสุดท้ายชิดซ้าย
-   :where ไม่เพิ่มน้ำหนัก ที่ตั้งกึ่งกลางหรือชิดขวาไว้เองยังชนะ (พี่กันสั่ง 11 พ.ย. 2569 "ไปไล่ดูทั้งเว็บ กระจายแบบไทย เท่านั้น") */
-:where(p, li, .small, .hint, .stat div, .dlg div, .infotip, .warnline, .note) { text-align: justify; text-justify: inter-character; }
-/* ประโยคหนึ่งเป็นก้อน ไม่พอที่ย้ายลงบรรทัดใหม่ทั้งก้อน ยาวกว่าบรรทัดตัดตรงเว้นวรรคข้างใน (รอยต่อประโยคคือเว้นวรรคสองช่อง · แทนจุดคั่น ·) */
-/* เลิกจับประโยคเป็นก้อน ก้อนทำให้บรรทัดตัดเร็ว กระจายแบบไทยแล้วถ่าง */
-.clause { display: inline; }
-/* เติมบรรทัดให้เต็มก่อน กันแค่คำเดียวตกท้าย · เดิม balance เฉลี่ยความยาวบรรทัด บรรทัดแรกตัดเร็วทั้งที่ยังเหลือที่ ข้อความแตกหลายบรรทัด (พี่กันทัก 11 พ.ย. 2569 "แบ่งเหี้ยไรเนี่ย") */
-.stat div, .hint, .small, .dlg div, li, .bname, .fmt td { text-wrap: pretty; }
-
+@import "./app/base.css";
 /* ---------- โครงหน้าต่าง ---------- */
 .app { height: 100%; display: flex; flex-direction: column; background: var(--win); color: var(--txt); }
 .titlebar {
