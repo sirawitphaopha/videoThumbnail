@@ -6,17 +6,17 @@
 //! หลังอ่าน ตัวแก้คำ OCR (ocrfix.rs) แก้ข้อความ ตัวชี้จุดสงสัย (suspect.rs) ติดเหตุ และหาตำแหน่งแบบ ASS ทีละบรรทัด (ocrsrc.rs an_lines)
 //! อ่านภาพจากโฟลเดอร์ทำงานของโปรแกรมอย่างเดียว ไม่แตะไฟล์หนังและไฟล์ซับ
 
-use crate::binocr::{BinDb, BinOpts, BinReader};
-use crate::nocr::{Bmp, NChar, NLine, NOcrDb, Piece};
-use crate::nocr_lines::{generate, Algo, Rng};
-use crate::nocr_text::{LineRead, NOcrReader, ReadOpts, ReadOut};
-use crate::ocrfix::{Ctx, FixEngine, Hunspell, NoSpell, Spell};
-use crate::ocrprep::Prep;
-use crate::ocrsrc::OcrItem;
-use crate::ownocr::{OwnOpts, OwnReader};
-use crate::paddle::PaddleOpts;
-use crate::suspect::Reason;
-use crate::tesseract::TessOpts;
+use crate::ocr::binocr::{BinDb, BinOpts, BinReader};
+use crate::ocr::nocr::{Bmp, NChar, NLine, NOcrDb, Piece};
+use crate::ocr::nocr_lines::{generate, Algo, Rng};
+use crate::ocr::nocr_text::{LineRead, NOcrReader, ReadOpts, ReadOut};
+use crate::ocr::ocrfix::{Ctx, FixEngine, Hunspell, NoSpell, Spell};
+use crate::ocr::ocrprep::Prep;
+use crate::ocr::ocrsrc::OcrItem;
+use crate::ocr::ownocr::{OwnOpts, OwnReader};
+use crate::ocr::paddle::PaddleOpts;
+use crate::ocr::suspect::Reason;
+use crate::ocr::tesseract::TessOpts;
 use serde::{Deserialize, Serialize};
 use std::collections::{HashMap, HashSet};
 use std::path::{Path, PathBuf};
@@ -79,7 +79,7 @@ impl Default for OcrCfg {
             nocr_db: "Latin".into(), max_wrong: 25, italic: true, space_px: 0, last_ditch: false,
             bin_db: "Latin".into(), bin_max_err: 0.5, bin_space_px: 12, own_db: "Thai".into(),
             fallback: false, teach: true, lines: 60, algo: Algo::Random, helpers: vec![], prep: Prep::default(),
-            fix: true, lang3: "eng".into(), dict: "en_US".into(), guess: true, conf_min: crate::suspect::CONF_MIN,
+            fix: true, lang3: "eng".into(), dict: "en_US".into(), guess: true, conf_min: crate::ocr::suspect::CONF_MIN,
             auto_break: true,
         }
     }
@@ -102,7 +102,7 @@ impl Dirs {
         let tools = crate::app::tools::tools_dir(app)?;
         let user = app.path().app_local_data_dir().map_err(|e| e.to_string())?.join("ocr");
         // โมเดลภาษาของ PaddleOCR ที่ผู้ใช้โหลดเอง (BUGS ข้อ 152)
-        crate::paddle::set_user_dir(user.join("paddle"));
+        crate::ocr::paddle::set_user_dir(user.join("paddle"));
         Ok(Dirs { ocr: tools.join("ocr"), tools, user, work: crate::subtitle::subs::work_dir(app)? })
     }
 }
@@ -156,9 +156,9 @@ pub struct DbList { pub nocr: Vec<String>, pub binary: Vec<String>, pub own: Vec
 pub fn db_list(d: &Dirs) -> DbList {
     let merge = |mut a: Vec<String>, b: Vec<String>| { for x in b { if !a.contains(&x) { a.push(x); } } a.sort(); a };
     DbList {
-        nocr: merge(crate::nocr::databases(&d.ocr.join("Ocr")), crate::nocr::databases(&d.user.join("nocr"))),
-        binary: merge(crate::binocr::databases(&d.ocr.join("Ocr")), crate::binocr::databases(&d.user.join("binary"))),
-        own: crate::nocr::databases(&d.user.join("own")),
+        nocr: merge(crate::ocr::nocr::databases(&d.ocr.join("Ocr")), crate::ocr::nocr::databases(&d.user.join("nocr"))),
+        binary: merge(crate::ocr::binocr::databases(&d.ocr.join("Ocr")), crate::ocr::binocr::databases(&d.user.join("binary"))),
+        own: crate::ocr::nocr::databases(&d.user.join("own")),
     }
 }
 
@@ -233,7 +233,7 @@ pub(crate) fn session() -> MutexGuard<'static, Option<Session>> { SESSION.lock()
 /// ① ขีดบทพูดที่แยกเป็นบรรทัดของตัวเองต่อกลับเข้าบรรทัด (OcrLoneDashFixer · ผู้ช่วยตรวจทาน T14 เดิมไม่ถูกเรียก)
 /// ② เว้นวรรคครึ่งความกว้างระหว่างอักษร CJK สองตัวตัดทิ้ง ภาษาญี่ปุ่นจีนไม่เว้นวรรคระหว่างคำ คงเว้นวรรคเต็มความกว้าง (ผู้ช่วยตรวจทาน T8)
 pub fn tidy_free(t: &str) -> String {
-    let t = crate::ocrfix::fix_lone_dashes(t);
+    let t = crate::ocr::ocrfix::fix_lone_dashes(t);
     let cjk = |c: char| matches!(c, '\u{3001}'..='\u{30FF}' | '\u{3400}'..='\u{9FFF}' | '\u{FF01}'..='\u{FF5E}');
     let cs: Vec<char> = t.chars().collect();
     let mut out = String::with_capacity(t.len());
@@ -254,7 +254,7 @@ pub fn update_images(v: &[crate::subtitle::subs::SubImg]) {
 pub(crate) fn apply_images(s: &mut Session, v: &[crate::subtitle::subs::SubImg]) {
     let by: HashMap<&std::path::Path, &crate::subtitle::subs::SubImg> = v.iter().map(|i| (i.file.as_path(), i)).collect();
     for it in s.items.iter_mut() {
-        if let Some(img) = by.get(it.img.file.as_path()) { it.an = crate::ocrsrc::an_of(img); it.img = (*img).clone(); }
+        if let Some(img) = by.get(it.img.file.as_path()) { it.an = crate::ocr::ocrsrc::an_of(img); it.img = (*img).clone(); }
     }
 }
 
@@ -353,19 +353,19 @@ impl Session {
             "nocr" => {
                 let db = &self.nocr.as_ref().ok_or("ยังไม่ได้โหลดฐาน nOCR")?.1;
                 let fbf = match (&self.bin, &self.breader) {
-                    (Some(b), Some(r)) if cfg.fallback => Some(crate::binocr::binary_fallback(&b.1, &r.matcher, cfg.bin_max_err)),
+                    (Some(b), Some(r)) if cfg.fallback => Some(crate::ocr::binocr::binary_fallback(&b.1, &r.matcher, cfg.bin_max_err)),
                     _ => None,
                 };
-                Ok(self.nreader.read(db, img, &Self::read_opts(cfg, cfg.teach), skip, once, fbf.as_ref().map(|f| f as crate::nocr_text::Fallback)))
+                Ok(self.nreader.read(db, img, &Self::read_opts(cfg, cfg.teach), skip, once, fbf.as_ref().map(|f| f as crate::ocr::nocr_text::Fallback)))
             }
             "binary" => {
                 let db = &self.bin.as_ref().ok_or("ยังไม่ได้โหลดฐาน Binary OCR")?.1;
                 let r = self.breader.as_ref().ok_or("ยังไม่ได้เตรียมตัวอ่าน Binary OCR")?;
                 let fbf = match &self.nocr {
-                    Some(n) if cfg.fallback => Some(crate::binocr::nocr_fallback(&n.1, &self.nreader.case, cfg.max_wrong, if cfg.italic { 0.2 } else { 0.0 })),
+                    Some(n) if cfg.fallback => Some(crate::ocr::binocr::nocr_fallback(&n.1, &self.nreader.case, cfg.max_wrong, if cfg.italic { 0.2 } else { 0.0 })),
                     _ => None,
                 };
-                Ok(r.read(db, img, &BinOpts { space_px: cfg.bin_space_px, max_err: cfg.bin_max_err, teach: cfg.teach }, skip, once, fbf.as_ref().map(|f| f as crate::nocr_text::Fallback)))
+                Ok(r.read(db, img, &BinOpts { space_px: cfg.bin_space_px, max_err: cfg.bin_max_err, teach: cfg.teach }, skip, once, fbf.as_ref().map(|f| f as crate::ocr::nocr_text::Fallback)))
             }
             _ => {
                 let db = &self.own.as_ref().ok_or("ยังไม่ได้โหลดฐานของตัวสอนเอง")?.1;
@@ -378,11 +378,11 @@ impl Session {
     fn helper_text(&self, d: &Dirs, cfg: &OcrCfg, h: &str, img: &Bmp) -> Option<String> {
         if let Some(size) = h.strip_prefix("paddle:") {
             let o = PaddleOpts { size: size.into(), ..cfg.paddle.clone() };
-            return crate::paddle::read_text(&d.ocr, img, &o).ok().map(|x| x.0);
+            return crate::ocr::paddle::read_text(&d.ocr, img, &o).ok().map(|x| x.0);
         }
         match h {
-            "paddle" => crate::paddle::read_text(&d.ocr, img, &cfg.paddle).ok().map(|x| tidy_free(&x.0)),
-            "tesseract" => crate::tesseract::read(&d.ocr, &d.user.join("tessdata"), &d.work, img, &cfg.tess, None).ok().map(|x| tidy_free(&x.text)),
+            "paddle" => crate::ocr::paddle::read_text(&d.ocr, img, &cfg.paddle).ok().map(|x| tidy_free(&x.0)),
+            "tesseract" => crate::ocr::tesseract::read(&d.ocr, &d.user.join("tessdata"), &d.work, img, &cfg.tess, None).ok().map(|x| tidy_free(&x.text)),
             "nocr" => self.nocr.as_ref().map(|n| self.help_n.read_text(&n.1, img, &Self::read_opts(cfg, false)).text),
             "binary" => match (&self.bin, &self.help_b) {
                 (Some(b), Some(r)) => Some(r.read_text(&b.1, img, &BinOpts { space_px: cfg.bin_space_px, max_err: cfg.bin_max_err, teach: false }).text),
@@ -476,8 +476,8 @@ fn teach_req(s: &Session, cfg: &OcrCfg, index: usize, letter: usize, parent: &Bm
     let db_name = match cfg.engine.as_str() { "binary" => &cfg.bin_db, "own" => &cfg.own_db, _ => &cfg.nocr_db };
     // ตัวที่ใกล้ที่สุด ใช้ทางสุดท้ายแบบไม่จำกัดจุดผิด (เฉพาะฐานแบบเส้น)
     let guess = match (cfg.engine.as_str(), p.bmp.as_ref()) {
-        ("nocr", Some(b)) => s.nocr.as_ref().and_then(|n| n.1.match_single(b, p.top, true, 999, true, false, crate::nocr::Placement::Unknown).0).map(|c| c.text).unwrap_or_default(),
-        ("own", Some(b)) => s.own.as_ref().and_then(|n| n.1.match_single(b, p.top, true, 999, true, false, crate::nocr::Placement::Unknown).0).map(|c| c.text).unwrap_or_default(),
+        ("nocr", Some(b)) => s.nocr.as_ref().and_then(|n| n.1.match_single(b, p.top, true, 999, true, false, crate::ocr::nocr::Placement::Unknown).0).map(|c| c.text).unwrap_or_default(),
+        ("own", Some(b)) => s.own.as_ref().and_then(|n| n.1.match_single(b, p.top, true, 999, true, false, crate::ocr::nocr::Placement::Unknown).0).map(|c| c.text).unwrap_or_default(),
         _ => String::new(),
     };
     TeachReq { index, engine: cfg.engine.clone(), db: db_name.clone(), letter, image: png_url(parent), width: parent.width(), height: parent.height(), boxes, expand_max, top: p.top, guess }
@@ -487,14 +487,14 @@ fn teach_req(s: &Session, cfg: &OcrCfg, index: usize, letter: usize, parent: &Bm
 pub fn read(s: &mut Session, d: &Dirs, cfg: &OcrCfg, i: usize) -> Result<ReadResult, String> {
     let item = s.items.get(i).ok_or("ไม่มีภาพลำดับนี้ เปิดซับรูปใหม่")?.clone();
     let raw_img = image::open(&item.img.file).map_err(|e| format!("เปิดภาพซับลำดับที่ {} ไม่ได้ {e}", i + 1))?.to_rgba8();
-    let img = crate::ocrprep::preprocess(&raw_img, &cfg.prep);
+    let img = crate::ocr::ocrprep::preprocess(&raw_img, &cfg.prep);
     s.ensure(d, cfg)?;
     s.pending = None;
     let t0 = std::time::Instant::now();
     let matcher = MATCHERS.contains(&cfg.engine.as_str());
     let (raw, conf, unreadable, lr): (String, Option<f32>, usize, Option<LineRead>) = match cfg.engine.as_str() {
-        "paddle" => { let (t, c) = crate::paddle::read_text(&d.ocr, &img, &cfg.paddle)?; (tidy_free(&t), Some(c), 0, None) }
-        "tesseract" => { let o = crate::tesseract::read(&d.ocr, &d.user.join("tessdata"), &d.work, &img, &cfg.tess, None)?; (tidy_free(&o.text), Some(o.conf), 0, None) }
+        "paddle" => { let (t, c) = crate::ocr::paddle::read_text(&d.ocr, &img, &cfg.paddle)?; (tidy_free(&t), Some(c), 0, None) }
+        "tesseract" => { let o = crate::ocr::tesseract::read(&d.ocr, &d.user.join("tessdata"), &d.work, &img, &cfg.tess, None)?; (tidy_free(&o.text), Some(o.conf), 0, None) }
         e if MATCHERS.contains(&e) => match s.read_matcher(cfg, i, &img)? {
             ReadOut::Done(r) => (r.text.clone(), None, r.unknown, Some(r)),
             ReadOut::Teach { letter, parent, pieces } => {
@@ -511,8 +511,8 @@ pub fn read(s: &mut Session, d: &Dirs, cfg: &OcrCfg, i: usize) -> Result<ReadRes
         if let Some(t) = s.helper_text(d, cfg, h, &img) { helpers.push((engine_label(h), t)); }
     }
     // ตัดบรรทัดเองก่อนตัวแก้คำ เมื่อเกินสองบรรทัดและไม่ใช่ภาพที่มีก้อนบนกับก้อนล่างแยกกัน · AutoBreakIfNeeded ของ OcrViewModel
-    let broke = if cfg.auto_break && crate::ocrbreak::number_of_lines(&raw) > crate::ocrbreak::MAX_LINES && !crate::ocrsrc::has_separated_blocks(&raw_img, &item.img) {
-        Some(crate::ocrbreak::auto_break_line(&raw, &crate::ocrbreak::lang_of_text(&raw, &crate::ocrbreak::lang_of_dict(&cfg.dict))))
+    let broke = if cfg.auto_break && crate::ocr::ocrbreak::number_of_lines(&raw) > crate::ocr::ocrbreak::MAX_LINES && !crate::ocr::ocrsrc::has_separated_blocks(&raw_img, &item.img) {
+        Some(crate::ocr::ocrbreak::auto_break_line(&raw, &crate::ocr::ocrbreak::lang_of_text(&raw, &crate::ocr::ocrbreak::lang_of_dict(&cfg.dict))))
     } else { None };
     let src = broke.as_deref().unwrap_or(&raw);
     // ตัวแก้คำ · แก้ภาพที่ตัวจับคู่ภาพพลาด (# / |) เฉพาะตัวอ่านแบบเทียบภาพ แบบ Subtitle Edit
@@ -526,9 +526,9 @@ pub fn read(s: &mut Session, d: &Dirs, cfg: &OcrCfg, i: usize) -> Result<ReadRes
             let ctx = Ctx::new(prev.as_deref(), end_ms, next.map(|t| (t, "")));
             let mut lf = fx.fix(i, src, &ctx, cfg.guess);
             // ตัวเอียงที่เว้นวรรคหาย ลองใส่เว้นวรรคเพิ่ม ใช้เมื่อคำที่ไม่รู้จักน้อยกว่า · ตาม Subtitle Edit
-            if let Some(alt) = lr.as_ref().and_then(|r| if cfg.engine == "binary" { crate::binocr::italic_retry(r) } else if cfg.engine == "nocr" { crate::nocr_text::italic_retry(r) } else { None }) {
+            if let Some(alt) = lr.as_ref().and_then(|r| if cfg.engine == "binary" { crate::ocr::binocr::italic_retry(r) } else if cfg.engine == "nocr" { crate::ocr::nocr_text::italic_retry(r) } else { None }) {
                 if !lf.unknown().is_empty() {
-                    let alt = if broke.is_some() { crate::ocrbreak::auto_break_line(&alt, &crate::ocrbreak::lang_of_dict(&cfg.dict)) } else { alt };
+                    let alt = if broke.is_some() { crate::ocr::ocrbreak::auto_break_line(&alt, &crate::ocr::ocrbreak::lang_of_dict(&cfg.dict)) } else { alt };
                     let lf2 = fx.fix(i, &alt, &ctx, cfg.guess);
                     if lf2.unknown().len() < lf.unknown().len() { lf = lf2; }
                 }
@@ -541,8 +541,8 @@ pub fn read(s: &mut Session, d: &Dirs, cfg: &OcrCfg, i: usize) -> Result<ReadRes
         _ => (src.to_string(), vec![], vec![], vec![]),
     };
     // ค่าความมั่นใจวัดเกณฑ์ไว้กับ PaddleOCR เท่านั้น (suspect.rs) · Tesseract ส่งค่าไปให้หน้าจอแต่ไม่ใช้ติดเหตุ
-    let reasons = crate::suspect::check_line(&text, if cfg.engine == "paddle" { conf } else { None }, &helpers, &unknown, cfg.conf_min);
-    let an_lines = crate::ocrsrc::an_lines(&raw_img, &item.img, text.lines().count());
+    let reasons = crate::ocr::suspect::check_line(&text, if cfg.engine == "paddle" { conf } else { None }, &helpers, &unknown, cfg.conf_min);
+    let an_lines = crate::ocr::ocrsrc::an_lines(&raw_img, &item.img, text.lines().count());
     s.texts.insert(i, text.clone());
     s.skip.remove(&i);
     s.once.remove(&i);
@@ -584,7 +584,7 @@ pub fn teach(s: &mut Session, cfg: &OcrCfg, ans: TeachAnswer) -> Result<(), Stri
             let (db_name, key) = match p.engine.as_str() {
                 "binary" => {
                     let (name, db) = s.bin.as_mut().ok_or("ยังไม่ได้โหลดฐาน Binary OCR")?;
-                    let b = crate::binocr::teach_bitmap(&p.pieces, p.letter, n, &text, italic).ok_or("สร้างภาพตัวอักษรไม่ได้")?;
+                    let b = crate::ocr::binocr::teach_bitmap(&p.pieces, p.letter, n, &text, italic).ok_or("สร้างภาพตัวอักษรไม่ได้")?;
                     let key = b.key();
                     db.add(b)?;
                     ensure_parent(&db.file)?;
@@ -595,7 +595,7 @@ pub fn teach(s: &mut Session, cfg: &OcrCfg, ans: TeachAnswer) -> Result<(), Stri
                     let (name, db) = s.own.as_mut().ok_or("ยังไม่ได้โหลดฐานของตัวสอนเอง")?;
                     let group: Vec<usize> = (p.letter..p.letter + n).collect();
                     let ex = db.expanded.len();
-                    crate::ownocr::teach(db, &p.pieces, &group, &text, italic, cfg.lines, cfg.algo, rng).ok_or("สร้างตัวอักษรไม่ได้")?;
+                    crate::ocr::ownocr::teach(db, &p.pieces, &group, &text, italic, cfg.lines, cfg.algo, rng).ok_or("สร้างตัวอักษรไม่ได้")?;
                     // add ใส่ตัวใหม่ไว้หน้าสุดของรายการตัวเดี่ยวหรือตัวขยายจับ
                     let added = if db.expanded.len() > ex { db.expanded.first() } else { db.chars.first() }.cloned();
                     ensure_parent(&db.file)?;
@@ -611,7 +611,7 @@ pub fn teach(s: &mut Session, cfg: &OcrCfg, ans: TeachAnswer) -> Result<(), Stri
                     (name.clone(), HistKey::N(c))
                 }
             };
-            let preview = if n <= 1 { p.pieces.get(p.letter).and_then(|x| x.bmp.clone()) } else { crate::nocr_train::Group::create(&p.parent, &p.pieces, p.letter, n).map(|g| g.preview) };
+            let preview = if n <= 1 { p.pieces.get(p.letter).and_then(|x| x.bmp.clone()) } else { crate::ocr::nocr_train::Group::create(&p.parent, &p.pieces, p.letter, n).map(|g| g.preview) };
             let at = std::time::SystemTime::now().duration_since(std::time::UNIX_EPOCH).map(|d| d.as_millis() as u64).unwrap_or(0);
             s.history.push(Taught { index: p.index, engine: p.engine.clone(), db: db_name, text, italic, pieces: n, png: preview.map(|b| png_url(&b)).unwrap_or_default(), at, key });
         }
@@ -627,7 +627,7 @@ fn nocr_char(parent: &Bmp, pieces: &[Piece], letter: usize, n: usize, text: &str
         let b = p.bmp.clone()?;
         (NChar { width: b.width() as i32, height: b.height() as i32, margin_top: p.top, ..Default::default() }, b)
     } else {
-        let g = crate::nocr_train::Group::create(parent, pieces, letter, n)?;
+        let g = crate::ocr::nocr_train::Group::create(parent, pieces, letter, n)?;
         let c = g.nchar(pieces);
         (c, g.preview)
     };
@@ -697,7 +697,7 @@ pub fn ocr_suggest(word: String) -> Result<Vec<String>, String> {
 
 /// ชื่อเดียวกันเขียนสองแบบ ดูทั้งไฟล์ · หน้าจอเรียกหลังอ่านครบหรือหลังแก้ข้อความ
 #[tauri::command]
-pub fn ocr_names(lines: Vec<String>) -> Vec<Vec<Reason>> { crate::suspect::name_variants(&lines) }
+pub fn ocr_names(lines: Vec<String>) -> Vec<Vec<Reason>> { crate::ocr::suspect::name_variants(&lines) }
 
 /// รายชื่อฐานที่มี
 #[tauri::command]
@@ -808,7 +808,7 @@ pub fn ocr_history_delete(k: usize) -> Result<(), String> {
 // ---------------------------------------------------------------- ตรวจบรรทัด
 
 /// สถานะของหน้าต่างตรวจบรรทัด · ชิ้นของบรรทัดกับตัวในฐานที่จับคู่ได้ทีละชิ้น (ชิ้นที่ถูกตัวขยายจับกินไปชี้ตัวเดียวกัน)
-pub struct Insp { index: usize, engine: String, db: String, parent: Bmp, letters: Vec<Piece>, nm: Vec<Option<NChar>>, bm: Vec<Option<crate::binocr::BMatch>> }
+pub struct Insp { index: usize, engine: String, db: String, parent: Bmp, letters: Vec<Piece>, nm: Vec<Option<NChar>>, bm: Vec<Option<crate::ocr::binocr::BMatch>> }
 
 /// ตัวที่จับคู่ได้ของชิ้นหนึ่ง · fg bg เส้นเทียบในพิกัดของภาพที่แสดง (ภาพชิ้นหรือภาพรวมของตัวขยายจับ) · in_db ตัวนี้มาจากฐาน แก้หรือลบได้
 #[derive(Serialize, Clone, Debug)]
@@ -834,7 +834,7 @@ impl Session {
     fn insp_display(p: &Insp, i: usize, n: usize) -> Option<(Bmp, (i32, i32, i32, i32), i32)> {
         let it = p.letters.get(i)?;
         if n > 1 {
-            if let Some(g) = crate::nocr_train::Group::create(&p.parent, &p.letters, i, n) {
+            if let Some(g) = crate::ocr::nocr_train::Group::create(&p.parent, &p.letters, i, n) {
                 let (x0, y0, x1, y1) = g.bounds;
                 return Some((g.preview.clone(), (x0, y0, x1 - x0, y1 - y0), g.top_margin(&p.letters)));
             }
@@ -892,7 +892,7 @@ impl Session {
             "own" => {
                 let db = &self.own.as_ref().ok_or("ยังไม่ได้โหลดฐานของตัวสอนเอง")?.1;
                 for (i, it) in p.letters.iter().enumerate() {
-                    if let Some(b) = &it.bmp { p.nm[i] = db.match_single(b, it.top, true, cfg.max_wrong, false, false, crate::nocr::Placement::Unknown).0; }
+                    if let Some(b) = &it.bmp { p.nm[i] = db.match_single(b, it.top, true, cfg.max_wrong, false, false, crate::ocr::nocr::Placement::Unknown).0; }
                 }
             }
             _ => {
@@ -929,14 +929,14 @@ pub fn inspect(s: &mut Session, d: &Dirs, cfg: &OcrCfg, index: usize) -> Result<
     if !MATCHERS.contains(&cfg.engine.as_str()) { return Err("ตรวจบรรทัดได้เฉพาะตัวอ่านที่สอนเอง nOCR Binary OCR และตัวสอนเองของชั้นหนัง".into()); }
     let item = s.items.get(index).ok_or("ไม่มีภาพลำดับนี้ เปิดซับรูปใหม่")?.clone();
     let raw = image::open(&item.img.file).map_err(|e| format!("เปิดภาพซับลำดับที่ {} ไม่ได้ {e}", index + 1))?.to_rgba8();
-    let img = crate::ocrprep::preprocess(&raw, &cfg.prep);
+    let img = crate::ocr::ocrprep::preprocess(&raw, &cfg.prep);
     s.ensure(d, cfg)?;
     let (parent, letters, db) = match cfg.engine.as_str() {
         "binary" => {
-            let two = crate::ocrprep::make_two_color(&img, 200);
-            let (parent, _) = crate::nocr_text::crop_top(&two);
+            let two = crate::ocr::ocrprep::make_two_color(&img, 200);
+            let (parent, _) = crate::ocr::nocr_text::crop_top(&two);
             let r = s.breader.as_ref().ok_or("ยังไม่ได้เตรียมตัวอ่าน Binary OCR")?;
-            let letters = crate::nocr_split::split_letters(&parent, cfg.bin_space_px, false, true, r.tracker.min_line_height(), true, r.tracker.average());
+            let letters = crate::ocr::nocr_split::split_letters(&parent, cfg.bin_space_px, false, true, r.tracker.min_line_height(), true, r.tracker.average());
             (parent, letters, cfg.bin_db.clone())
         }
         "own" => {
@@ -945,8 +945,8 @@ pub fn inspect(s: &mut Session, d: &Dirs, cfg: &OcrCfg, index: usize) -> Result<
             (r.parent, r.pieces, cfg.own_db.clone())
         }
         _ => {
-            let two = crate::ocrprep::make_two_color(&img, crate::ocrprep::two_color_threshold(&img));
-            let (parent, _) = crate::nocr_text::crop_top(&two);
+            let two = crate::ocr::ocrprep::make_two_color(&img, crate::ocr::ocrprep::two_color_threshold(&img));
+            let (parent, _) = crate::ocr::nocr_text::crop_top(&two);
             let (letters, _) = s.nreader.split(&parent, cfg.space_px);
             (parent, letters, cfg.nocr_db.clone())
         }
@@ -1082,13 +1082,13 @@ pub async fn ocr_prep_preview(index: usize, prep: Prep) -> Result<String, String
     tauri::async_runtime::spawn_blocking(move || {
         let file = session().as_ref().and_then(|s| s.items.get(index)).map(|it| it.img.file.clone()).ok_or("ยังไม่ได้เปิดซับรูปในหน้า OCR")?;
         let img = image::open(&file).map_err(|e| format!("เปิดภาพซับไม่ได้ {e}"))?.to_rgba8();
-        Ok(png_url(&crate::ocrprep::preprocess(&img, &prep)))
+        Ok(png_url(&crate::ocr::ocrprep::preprocess(&img, &prep)))
     }).await.map_err(|e| e.to_string())?
 }
 
 /// โมเดล PaddleOCR ที่แนบมา (ชื่อโฟลเดอร์ที่มี inference.onnx)
 #[tauri::command]
-pub fn ocr_paddle_models(app: tauri::AppHandle) -> Result<Vec<String>, String> { Ok(crate::paddle::models(&Dirs::of(&app)?.ocr)) }
+pub fn ocr_paddle_models(app: tauri::AppHandle) -> Result<Vec<String>, String> { Ok(crate::ocr::paddle::models(&Dirs::of(&app)?.ocr)) }
 
 /// ลบฐานของผู้ใช้ลงถังขยะ (หน้าต่างตั้งค่า nOCR ปุ่มลบ) · ฐานที่แนบมาลบไม่ได้ · ฐานที่โหลดอยู่ในงานนี้ปิดก่อน
 // รันนอกเธรดหลักของหน้าต่าง · คำสั่งนี้รอล็อกของงานอ่านได้ระหว่างอ่านภาพ บนเธรดหลักหน้าต่างค้าง (ผู้ช่วยตรวจทาน R5)
@@ -1160,7 +1160,7 @@ mod tests {
         let sup = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("test-media").join("สร้าง").join("ocr").join("th.sup");
         if !sup.exists() || !d.tools.join("ffmpeg.exe").exists() { assert_eq!(std::env::var("MOVIE_SHELF_SKIP_MEDIA").as_deref(), Ok("1"), "ไม่มี th.sup"); return None; }
         std::fs::create_dir_all(&d.work).unwrap();
-        let src = crate::ocrsrc::open(&d.tools, &d.work, &sup, 0, &|_: f64| {}).unwrap();
+        let src = crate::ocr::ocrsrc::open(&d.tools, &d.work, &sup, 0, &|_: f64| {}).unwrap();
         Some(src.items)
     }
 
@@ -1212,7 +1212,7 @@ mod tests {
         assert_eq!(tidy_free("ゴ ジ ラ が\n来る"), "ゴジラが\n来る");
         assert_eq!(tidy_free("สวัสดี ครับ Hello world"), "สวัสดี ครับ Hello world");
         assert_eq!(tidy_free("咆哮　が"), "咆哮　が");
-        assert_eq!(tidy_free("-\nHello\n-\nBye"), crate::ocrfix::fix_lone_dashes("-\nHello\n-\nBye"));
+        assert_eq!(tidy_free("-\nHello\n-\nBye"), crate::ocr::ocrfix::fix_lone_dashes("-\nHello\n-\nBye"));
         assert_ne!(tidy_free("-\nHello\n-\nBye"), "-\nHello\n-\nBye");
     }
 
@@ -1366,7 +1366,7 @@ mod tests {
         let d = dirs("autobreak");
         let Some(items) = th_items(&d) else { return };
         // ภาพบรรทัดเดียว ครอปส่วนใสออก (ภาพบางภาพของไฟล์ทดสอบมีป้ายบนจอแยกจากบทพูด)
-        let parts: Vec<image::RgbaImage> = items.iter().map(|it| crate::ocrprep::crop_transparent(&image::open(&it.img.file).unwrap().to_rgba8()).0).filter(|p| p.height() < 110).take(3).collect();
+        let parts: Vec<image::RgbaImage> = items.iter().map(|it| crate::ocr::ocrprep::crop_transparent(&image::open(&it.img.file).unwrap().to_rgba8()).0).filter(|p| p.height() < 110).take(3).collect();
         assert_eq!(parts.len(), 3, "ซับไทยทดสอบต้องมีภาพบรรทัดเดียวอย่างน้อยสามภาพ");
         let w = parts.iter().map(|p| p.width()).max().unwrap();
         let h = parts.iter().map(|p| p.height()).sum::<u32>() + 20;
@@ -1381,7 +1381,7 @@ mod tests {
         let first = &items[0].img;
         let img = crate::subtitle::subs::SubImg { n: 1, start: first.start, end: first.end, w, h, canvas: first.canvas, at: [first.canvas[0].saturating_sub(w) / 2, first.canvas[1].saturating_sub(h + 40)], forced: false, file };
         eprintln!("จอ {:?} ภาพ {w}x{h}", first.canvas);
-        assert!(!crate::ocrsrc::has_separated_blocks(&big, &img), "สามบรรทัดชิดกันต้องเป็นก้อนเดียว");
+        assert!(!crate::ocr::ocrsrc::has_separated_blocks(&big, &img), "สามบรรทัดชิดกันต้องเป็นก้อนเดียว");
         let base = OcrCfg { paddle: PaddleOpts { lang: "th".into(), ..Default::default() }, lang3: "tha".into(), dict: String::new(), fix: false, ..Default::default() };
         let run = |auto: bool| {
             let mut s = Session::with_items(vec![OcrItem { an: 2, img: img.clone() }]);
@@ -1391,8 +1391,8 @@ mod tests {
         let off = run(false);
         let on = run(true);
         eprintln!("ปิด {:?}\nเปิด {:?}", off.text, on.text);
-        assert!(crate::ocrbreak::number_of_lines(&off.text) >= 3, "{:?}", off.text);
-        assert_eq!(crate::ocrbreak::number_of_lines(&on.text), 2, "{:?}", on.text);
+        assert!(crate::ocr::ocrbreak::number_of_lines(&off.text) >= 3, "{:?}", off.text);
+        assert_eq!(crate::ocr::ocrbreak::number_of_lines(&on.text), 2, "{:?}", on.text);
         let squash = |t: &str| t.split_whitespace().collect::<String>();
         assert_eq!(squash(&on.text), squash(&off.text), "ตัดบรรทัดแล้วข้อความต้องครบ");
         assert_eq!(on.raw, off.raw, "ข้อความดิบของตัวอ่านไม่ถูกแก้");
@@ -1405,7 +1405,7 @@ mod tests {
         let Ok(sup) = std::env::var("MOVIE_SHELF_OCR_SUP") else { eprintln!("ข้าม ไม่ได้ตั้งไฟล์ ACCA"); return };
         let d = dirs("acca");
         std::fs::create_dir_all(&d.work).unwrap();
-        let src = crate::ocrsrc::open(&d.tools, &d.work, Path::new(&sup), 0, &|_: f64| {}).unwrap();
+        let src = crate::ocr::ocrsrc::open(&d.tools, &d.work, Path::new(&sup), 0, &|_: f64| {}).unwrap();
         assert_eq!(src.items.len(), 439);
         let mut s = Session::with_items(src.items);
         let cfg = OcrCfg { helpers: vec!["tesseract".into()], ..Default::default() };

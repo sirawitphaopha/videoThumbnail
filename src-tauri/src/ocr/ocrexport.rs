@@ -440,7 +440,7 @@ pub fn ocr_export_doc(req: ExpReq) -> SubDoc {
 pub async fn ocr_save_html(app: AppHandle, texts: Vec<String>, folder: String, source: String) -> Result<HtmlOut, String> {
     tauri::async_runtime::spawn_blocking(move || {
         // อ่านรายการภาพในเธรดงาน ไม่รอล็อกของงานอ่านบนเธรดของ async runtime (ผู้ช่วยตรวจทาน R19)
-        let files: Vec<(PathBuf, f64, Option<f64>, u32, u32)> = crate::ocrjob::session().as_ref()
+        let files: Vec<(PathBuf, f64, Option<f64>, u32, u32)> = crate::ocr::ocrjob::session().as_ref()
             .map(|s| s.items().iter().map(|i| (i.img.file.clone(), i.img.start, i.img.end, i.img.w, i.img.h)).collect())
             .ok_or("ยังไม่ได้เปิดซับรูปในหน้า OCR")?;
         let last = std::sync::atomic::AtomicI64::new(-1);

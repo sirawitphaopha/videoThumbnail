@@ -141,18 +141,18 @@ mod tests {
         if !dir.join("th.sup").exists() || !tools.join("ffmpeg.exe").exists() { assert_eq!(std::env::var("MOVIE_SHELF_SKIP_MEDIA").as_deref(), Ok("1")); return; }
         let work = std::env::temp_dir().join("movie-shelf-suspect");
         std::fs::create_dir_all(&work).unwrap();
-        let mut db = crate::nocr::NOcrDb::empty(&work.join("th.nocr"));
-        let mut rng = crate::nocr_lines::Rng::new(11);
+        let mut db = crate::ocr::nocr::NOcrDb::empty(&work.join("th.nocr"));
+        let mut rng = crate::ocr::nocr_lines::Rng::new(11);
         for (size, italic) in [(64.0, false), (52.0, false), (64.0, true)] {
-            crate::ownocr::train_font(&tools, &work, &mut db, "Leelawadee UI", size, false, italic, 60, crate::nocr_lines::Algo::Random, &mut rng).unwrap();
+            crate::ocr::ownocr::train_font(&tools, &work, &mut db, "Leelawadee UI", size, false, italic, 60, crate::ocr::nocr_lines::Algo::Random, &mut rng).unwrap();
         }
         let shows = crate::subtitle::subs::parse_sup(&std::fs::read(dir.join("th.sup")).unwrap());
         let want: Vec<String> = std::fs::read_to_string(dir.join("th.truth.txt")).unwrap().lines().map(|l| l.replace('¶', "\n")).collect();
-        let o = crate::paddle::PaddleOpts { lang: "th".into(), ..Default::default() };
+        let o = crate::ocr::paddle::PaddleOpts { lang: "th".into(), ..Default::default() };
         let (mut n_bad, mut caught, mut false_flags, mut confs_bad, mut confs_ok) = (0, 0, 0, vec![], vec![]);
         for (s, w) in shows.iter().zip(&want) {
-            let (p, conf) = crate::paddle::read_text(&ocr_dir(), &s.img, &o).unwrap();
-            let own = crate::ownocr::OwnReader.read_text(&db, &s.img, &crate::ownocr::OwnOpts::default()).text;
+            let (p, conf) = crate::ocr::paddle::read_text(&ocr_dir(), &s.img, &o).unwrap();
+            let own = crate::ocr::ownocr::OwnReader.read_text(&db, &s.img, &crate::ocr::ownocr::OwnOpts::default()).text;
             let r = check_line(&p, Some(conf), &[("ตัวสอนเอง".into(), own)], &[], CONF_MIN);
             let bad = wrong(&p, w);
             if bad { n_bad += 1; confs_bad.push(conf); if !r.is_empty() { caught += 1; } } else { confs_ok.push(conf); if !r.is_empty() { false_flags += 1; } }
@@ -171,18 +171,18 @@ mod tests {
             .map(|l| l.split_once('\t').map(|(_, t)| t).unwrap_or(l).replace(" ¶ ", "\n").replace('¶', "\n")).collect();
         let work = std::env::temp_dir().join("movie-shelf-suspect-acca");
         std::fs::create_dir_all(&work).unwrap();
-        let to = crate::tesseract::TessOpts::default();
+        let to = crate::ocr::tesseract::TessOpts::default();
         // ตัวแก้คำ OCR ภาษาอังกฤษกับพจนานุกรม en_US แบบที่ตัวคุมงานใช้ · ข้อความที่ผู้ใช้เห็นคือข้อความหลังแก้
         let dict = ocr_dir().join("Dictionaries");
         let hun = ocr_dir().join("hunspell");
-        let spell = crate::ocrfix::Hunspell::open(&hun.join("en_US.aff"), &hun.join("en_US.dic")).unwrap();
-        let fx = crate::ocrfix::FixEngine::new(&dict, &work.join("user"), "eng", "en_US", Box::new(spell));
+        let spell = crate::ocr::ocrfix::Hunspell::open(&hun.join("en_US.aff"), &hun.join("en_US.dic")).unwrap();
+        let fx = crate::ocr::ocrfix::FixEngine::new(&dict, &work.join("user"), "eng", "en_US", Box::new(spell));
         let mut prev: Option<String> = None;
         let mut rows = vec![];
         for (k, s) in shows.iter().enumerate() {
-            let (p, conf) = crate::paddle::read_text(&ocr_dir(), &s.img, &crate::paddle::PaddleOpts::default()).unwrap();
-            let t = crate::tesseract::read(&ocr_dir(), &work, &work, &s.img, &to, None).map(|x| x.text).unwrap_or_default();
-            let lf = fx.fix(k, &p, &crate::ocrfix::Ctx { prev: prev.as_deref(), next_soon_lower: false }, false);
+            let (p, conf) = crate::ocr::paddle::read_text(&ocr_dir(), &s.img, &crate::ocr::paddle::PaddleOpts::default()).unwrap();
+            let t = crate::ocr::tesseract::read(&ocr_dir(), &work, &work, &s.img, &to, None).map(|x| x.text).unwrap_or_default();
+            let lf = fx.fix(k, &p, &crate::ocr::ocrfix::Ctx { prev: prev.as_deref(), next_soon_lower: false }, false);
             let text = lf.text();
             let unknown: Vec<String> = lf.unknown().iter().map(|x| x.word.clone()).collect();
             let r = check_line(&text, Some(conf), &[("Tesseract".into(), t)], &unknown, CONF_MIN);

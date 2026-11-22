@@ -9,8 +9,8 @@
 
 #![allow(dead_code)]
 
-use crate::ocrfix_list::ReplaceList;
-use crate::ocrfix_words::WordLists;
+use crate::ocr::ocrfix_list::ReplaceList;
+use crate::ocr::ocrfix_words::WordLists;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
 
@@ -144,7 +144,7 @@ fn starts_with_url(t: &str) -> bool {
     w.starts_with("http://") || w.starts_with("https://") || w.starts_with("www.")
 }
 
-fn is_letter(c: char) -> bool { c.is_alphabetic() && !crate::nocr_text::is_digit(c) }
+fn is_letter(c: char) -> bool { c.is_alphabetic() && !crate::ocr::nocr_text::is_digit(c) }
 fn is_lod(c: char) -> bool { c.is_alphanumeric() }
 
 // ---------------------------------------------------------------- ตัวแก้
@@ -175,13 +175,13 @@ pub struct FixEngine {
 impl FixEngine {
     /// เตรียมตัวแก้ของภาษา (รหัสสามตัว เช่น eng tha) · dict_dir โฟลเดอร์รายการแก้คำและรายชื่อ · five ชื่อพจนานุกรม (en_US) ว่างคือไม่มี
     pub fn new(dict_dir: &Path, user_dir: &Path, lang3: &str, five: &str, spell: Box<dyn Spell>) -> Self {
-        let lang2 = crate::ocrfix_words::two_letter(lang3);
+        let lang2 = crate::ocr::ocrfix_words::two_letter(lang3);
         let lists = WordLists::load(dict_dir, user_dir, five);
-        let split_list = crate::ocrfix_words::load_split_list(dict_dir, lang3, &lists.all_names());
+        let split_list = crate::ocr::ocrfix_words::load_split_list(dict_dir, lang3, &lists.all_names());
         FixEngine {
             lang3: lang3.into(), lang2, spell, lists,
             replace: ReplaceList::from_lang(dict_dir, user_dir, lang3),
-            split_list, abbreviations: crate::ocrfix_words::load_abbreviations(dict_dir, five),
+            split_list, abbreviations: crate::ocr::ocrfix_words::load_abbreviations(dict_dir, five),
             skip: HashSet::new(), change_all: HashMap::new(),
             fill_unknown: false, image_misreads: false, hardcoded: true, word_split: false, dictionary: !five.is_empty(),
         }
@@ -231,7 +231,7 @@ impl FixEngine {
     fn replace_line(&self, index: usize, text: &str, next_soon_lower: bool, ignore: &mut Vec<String>) -> String {
         let ok = self.spelled(text);
         let line = self.replace.fix_line(text, next_soon_lower, index, self.spell(), ignore, ok, &|w| self.known(w, text));
-        if self.lang2 == "fr" { crate::ocrfix_list::add_space_before_french_punctuation(&line) } else { line }
+        if self.lang2 == "fr" { crate::ocr::ocrfix_list::add_space_before_french_punctuation(&line) } else { line }
     }
 
     /// บรรทัดที่ตามหลังประโยคที่จบแล้วขึ้นต้นด้วยตัวใหญ่ เฉพาะเมื่อมั่นใจ · ตาม FixStartWithUppercaseLetterAfterSentenceEnd
@@ -313,11 +313,11 @@ impl FixEngine {
                 if w.chars().count() > 4 && standalone && self.word_split {
                     let skip_in = self.lang3 == "eng" && w.ends_with("in") && result.contains(&format!("{w}'")) && self.do_spell(&format!("{w}g"));
                     if !skip_in {
-                        let sw = crate::ocrfix_words::split_word(&self.split_list, &w, &self.lang3);
+                        let sw = crate::ocr::ocrfix_words::split_word(&self.split_list, &w, &self.lang3);
                         if sw != w && !self.misplaced_upper(&sw) { guesses.push(sw); }
                     }
                 }
-                if guess && standalone && self.word_split { guesses.extend(crate::ocrfix_guess::guesses_from_letters(&result, &self.lang3)); }
+                if guess && standalone && self.word_split { guesses.extend(crate::ocr::ocrfix_guess::guesses_from_letters(&result, &self.lang3)); }
                 if guess && w.chars().count() > 4 { guesses.extend(self.replace.guesses_from_letters(&result, &self.lang3)); }
                 for g in guesses {
                     let gw = g.trim_matches(|c| matches!(c, '\'' | '"' | '-'));
@@ -447,7 +447,7 @@ impl FixEngine {
             let word = m.trim_end_matches('*').to_string();
             let trailing = &m[word.len()..];
             let (mut gaps, mut letters, mut digit) = (0, 0, false);
-            for ch in word.chars() { if ch == '*' { gaps += 1 } else if is_letter(ch) { letters += 1 } else if crate::nocr_text::is_digit(ch) { digit = true } }
+            for ch in word.chars() { if ch == '*' { gaps += 1 } else if is_letter(ch) { letters += 1 } else if crate::ocr::nocr_text::is_digit(ch) { digit = true } }
             if digit || gaps == 0 || gaps > 2 || letters < 3 { out.push_str(&m); continue; }
             let mut chars: Vec<char> = word.chars().collect();
             let mut found: Option<String> = None;
@@ -643,7 +643,7 @@ fn has_lone_slash(t: &str) -> bool {
 /// / ข้างตัวเลข หรือระหว่างคำตัวใหญ่ล้วนสองคำ คือตัวคั่น · ตาม IsSeparatorSlash
 fn separator_slash(c: &[char], idx: usize) -> bool {
     let (b, a) = (neighbour(c, idx, -1), neighbour(c, idx, 1));
-    if b.chars().any(crate::nocr_text::is_digit) || a.chars().any(crate::nocr_text::is_digit) { return true; }
+    if b.chars().any(crate::ocr::nocr_text::is_digit) || a.chars().any(crate::ocr::nocr_text::is_digit) { return true; }
     let caps = |w: &str| w.chars().any(|x| x.is_uppercase()) && w.chars().all(|x| !x.is_lowercase() || x == 'l');
     caps(&b) && caps(&a)
 }
@@ -875,7 +875,7 @@ mod tests {
         let (Ok(sup), Ok(truth)) = (std::env::var("MOVIE_SHELF_OCR_SUP"), std::env::var("MOVIE_SHELF_OCR_TRUTH")) else { eprintln!("ข้าม ไม่ได้ตั้งไฟล์ ACCA"); return };
         let root = Path::new(env!("CARGO_MANIFEST_DIR")).join("tools/ocr");
         let dict = root.join("Dictionaries");
-        let db = crate::nocr::NOcrDb::load(&root.join("Ocr/Latin.nocr")).unwrap();
+        let db = crate::ocr::nocr::NOcrDb::load(&root.join("Ocr/Latin.nocr")).unwrap();
         let hun = root.join("hunspell");
         let spell = Hunspell::open(&hun.join("en_US.aff"), &hun.join("en_US.dic")).unwrap();
         let mut fx = FixEngine::new(&dict, &std::env::temp_dir().join("movie-shelf-ocrfix-acca"), "eng", "en_US", Box::new(spell));
@@ -885,8 +885,8 @@ mod tests {
         let want: Vec<String> = std::fs::read_to_string(truth).unwrap().lines().filter(|l| !l.trim().is_empty())
             .map(|l| l.split_once('\t').map(|(_, t)| t).unwrap_or(l).replace(" ¶ ", "\n").replace('¶', "\n")).collect();
         let plain = |s: &str| remove_tags(s).replace(['“', '”'], "\"").replace(['‘', '’'], "'").lines().map(|l| l.split_whitespace().collect::<Vec<_>>().join(" ")).collect::<Vec<_>>().join("\n");
-        let reader = crate::nocr_text::NOcrReader::default();
-        let o = crate::nocr_text::ReadOpts { max_wrong: 25, italic: 0.0, space_px: 0, last_ditch: true, teach: false };
+        let reader = crate::ocr::nocr_text::NOcrReader::default();
+        let o = crate::ocr::nocr_text::ReadOpts { max_wrong: 25, italic: 0.0, space_px: 0, last_ditch: true, teach: false };
         let t = std::time::Instant::now();
         let (mut ok_raw, mut ok_fix, mut e_raw, mut e_fix, mut total) = (0, 0, 0, 0, 0);
         let mut prev: Option<String> = None;

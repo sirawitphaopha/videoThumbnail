@@ -9,9 +9,9 @@
 
 #![allow(dead_code)]
 
-use crate::nocr::{copy_rect, Bmp, NChar, NLine, NOcrDb, Piece, Placement, Pt};
-use crate::nocr_lines::{fg_ok, bg_ok, generate, Algo, Rng};
-use crate::nocr_split::split_letters;
+use crate::ocr::nocr::{copy_rect, Bmp, NChar, NLine, NOcrDb, Piece, Placement, Pt};
+use crate::ocr::nocr_lines::{fg_ok, bg_ok, generate, Algo, Rng};
+use crate::ocr::nocr_split::split_letters;
 use std::io::Read;
 use std::path::Path;
 
@@ -132,8 +132,8 @@ pub fn render_with(tools: &Path, work: &Path, texts: &[String], prefix: &str, ta
 
 /// ภาพที่วาดแล้วเป็นภาพสองสีกับชิ้น
 pub fn split_rendered(img: &Bmp) -> Rendered {
-    let two = crate::ocrprep::make_two_color(img, TWO_COLOR);
-    let (two, _) = crate::nocr_text::crop_top(&two);
+    let two = crate::ocr::ocrprep::make_two_color(img, TWO_COLOR);
+    let (two, _) = crate::ocr::nocr_text::crop_top(&two);
     let pieces = split_letters(&two, PIXELS_ARE_SPACE, false, false, MIN_LINE_HEIGHT, false, -1.0);
     Rendered { two, pieces }
 }
@@ -330,7 +330,7 @@ fn count_errors(c: &NChar, b: &Bmp) -> (i32, i32) {
 pub fn can_be_multi_part(text: &str) -> bool {
     let mut it = text.chars();
     let (Some(c), None) = (it.next(), it.next()) else { return false };
-    if c.is_alphanumeric() { return crate::nocr::unicode_normalization_lite::decomposed_len(text) > 1 || matches!(c, 'Ø' | 'ø' | 'ы' | 'Ы'); }
+    if c.is_alphanumeric() { return crate::ocr::nocr::unicode_normalization_lite::decomposed_len(text) > 1 || matches!(c, 'Ø' | 'ø' | 'ы' | 'Ы'); }
     matches!(c, '"' | '%' | ';' | ':' | '?' | '!' | '=' | '÷' | '¡' | '¿' | '‰' | '«' | '»' | '‹' | '›' | '“' | '”' | '„' | '‟' | '″' | '‴' | '…' | '‼' | '⁇' | '⁈' | '⁉')
 }
 

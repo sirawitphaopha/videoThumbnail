@@ -246,13 +246,13 @@ impl Default for TessOpts {
 
 /// อ่านทั้งภาพตามวิธีของ Subtitle Edit พร้อมลองซ้ำ (RetryTesseractIfNeededAsync)
 pub fn read(ocr: &Path, user: &Path, work: &Path, img: &RgbaImage, o: &TessOpts, score: Option<Scorer>) -> Result<TessOut, String> {
-    let vertical = crate::paddle::is_vertical(img, &o.vertical);
+    let vertical = crate::ocr::paddle::is_vertical(img, &o.vertical);
     let lang = if vertical && o.lang == "jpn" { "jpn_vert".to_string() } else { o.lang.clone() };
     let data = data_dir_for(ocr, user, &lang).ok_or_else(|| format!("ไม่มีชุดภาษา {lang} ในเครื่อง โหลดเพิ่มในหน้าต่างตัวอ่านและชุดภาษา"))?;
     if o.per_line && !vertical {
         let mut lines = vec![];
         let mut conf = f32::INFINITY;
-        for l in crate::ocrprep::split_lines(img) {
+        for l in crate::ocr::ocrprep::split_lines(img) {
             let r = retry(ocr, &data, work, &l.img, &lang, o.oem, PSM_LINE, score)?;
             if !r.text.is_empty() { conf = conf.min(r.conf); lines.push(r.text); }
         }

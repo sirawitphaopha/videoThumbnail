@@ -9,9 +9,9 @@
 
 #![allow(dead_code)]
 
-use crate::nocr::{copy_rect, Bmp, Piece};
-use crate::nocr_split::split_letters;
-use crate::nocr_text::{crop_top, merge_italic, Fallback, Hit, LineHeightTracker, LineRead, ReadOut};
+use crate::ocr::nocr::{copy_rect, Bmp, Piece};
+use crate::ocr::nocr_split::split_letters;
+use crate::ocr::nocr_text::{crop_top, merge_italic, Fallback, Hit, LineHeightTracker, LineRead, ReadOut};
 use std::collections::{HashMap, HashSet};
 use std::io::{Read, Write};
 use std::path::{Path, PathBuf};
@@ -595,7 +595,7 @@ impl BinReader {
         if img.width() == 0 || img.height() == 0 {
             return ReadOut::Done(LineRead { text: String::new(), hits: vec![], pieces: vec![], parent: img.clone(), space_px: o.space_px, unknown: 0 });
         }
-        let two = crate::ocrprep::make_two_color(img, 200);
+        let two = crate::ocr::ocrprep::make_two_color(img, 200);
         let (parent, _) = crop_top(&two);
         let letters = split_letters(&parent, o.space_px, false, true, self.tracker.min_line_height(), true, self.tracker.average());
         self.tracker.update(&letters);
@@ -646,7 +646,7 @@ impl BinReader {
 /// ผลที่ใส่เว้นวรรคในตัวเอียงเพิ่มของ Binary OCR (เกณฑ์จุดเว้นวรรคตามที่ตั้ง ไม่จำกัดด้วยความสูง)
 pub fn italic_retry(r: &LineRead) -> Option<String> {
     if !r.text.contains("<i>") { return None; }
-    Some(crate::nocr_text::more_italic_spaces_with(&r.hits, &r.pieces, &r.parent, 0.33, r.space_px, false))
+    Some(crate::ocr::nocr_text::more_italic_spaces_with(&r.hits, &r.pieces, &r.parent, 0.33, r.space_px, false))
 }
 
 /// ภาพที่สอนจากชิ้นในบรรทัด · count มากกว่าหนึ่งเป็นตัวขยายจับ ชิ้นตามมาเก็บเป็นภาพย่อยไม่มีข้อความ
@@ -671,7 +671,7 @@ pub fn teach_bitmap(list: &[Piece], idx: usize, count: usize, text: &str, italic
 }
 
 /// nOCR เป็นฐานสำรองของ Binary OCR · ทางสุดท้ายเปิด แก้ตัวพิมพ์ด้วยตัวแก้ของ nOCR · ตาม RunBinaryImageCompareOcrLoop
-pub fn nocr_fallback<'a>(db: &'a crate::nocr::NOcrDb, case: &'a Mutex<crate::nocr_text::CaseFixer>, max_wrong: i32, italic: f64)
+pub fn nocr_fallback<'a>(db: &'a crate::ocr::nocr::NOcrDb, case: &'a Mutex<crate::ocr::nocr_text::CaseFixer>, max_wrong: i32, italic: f64)
     -> impl Fn(&Bmp, &[Piece], usize) -> Option<(String, bool, i32)> + 'a {
     move |parent, list, i| {
         let m = db.get_match(parent, list, i, list[i].top, true, max_wrong, true, italic)?;
@@ -757,24 +757,24 @@ mod tests {
         let mut bdb = BinDb::empty(Path::new("t.db"));
         bdb.add(teach_bitmap(&probe.pieces, glyphs[0], 1, "l", false).unwrap()).unwrap();
         bdb.add(teach_bitmap(&probe.pieces, glyphs[1], 1, "I", false).unwrap()).unwrap();
-        let ndb = crate::nocr::NOcrDb::empty(Path::new("t.nocr"));
-        let reader = crate::nocr_text::NOcrReader::default();
-        let alone = reader.read_text(&ndb, &img, &crate::nocr_text::ReadOpts::default());
+        let ndb = crate::ocr::nocr::NOcrDb::empty(Path::new("t.nocr"));
+        let reader = crate::ocr::nocr_text::NOcrReader::default();
+        let alone = reader.read_text(&ndb, &img, &crate::ocr::nocr_text::ReadOpts::default());
         assert_eq!(alone.unknown, 2, "nOCR ฐานว่างต้องอ่านไม่ออก {:?}", alone.text);
         let m = Mutex::new(Matcher::new(false));
         let fb = binary_fallback(&bdb, &m, 0.5);
-        let out = match reader.read(&ndb, &img, &crate::nocr_text::ReadOpts::default(), &HashSet::new(), &HashMap::new(), Some(&fb)) { ReadOut::Done(r) => r, _ => panic!("ไม่ควรหยุดสอน") };
+        let out = match reader.read(&ndb, &img, &crate::ocr::nocr_text::ReadOpts::default(), &HashSet::new(), &HashMap::new(), Some(&fb)) { ReadOut::Done(r) => r, _ => panic!("ไม่ควรหยุดสอน") };
         assert_eq!((out.unknown, out.text.replace(' ', "")), (0, "lI".to_string()), "nOCR ใช้ Binary OCR สำรอง");
         // nOCR รู้จักทั้งสองตัว · Binary OCR ฐานว่าง
-        let mut ndb = crate::nocr::NOcrDb::empty(Path::new("t.nocr"));
+        let mut ndb = crate::ocr::nocr::NOcrDb::empty(Path::new("t.nocr"));
         for (k, t) in [(glyphs[0], "l"), (glyphs[1], "I")] {
             let p = &probe.pieces[k];
             let b = p.bmp.as_ref().unwrap();
-            let mut c = crate::nocr::NChar { text: t.into(), width: b.width() as i32, height: b.height() as i32, margin_top: p.top, ..Default::default() };
-            crate::nocr_lines::generate(60, false, &mut c, b, crate::nocr_lines::Algo::Random, &mut crate::nocr_lines::Rng::new(3));
+            let mut c = crate::ocr::nocr::NChar { text: t.into(), width: b.width() as i32, height: b.height() as i32, margin_top: p.top, ..Default::default() };
+            crate::ocr::nocr_lines::generate(60, false, &mut c, b, crate::ocr::nocr_lines::Algo::Random, &mut crate::ocr::nocr_lines::Rng::new(3));
             ndb.add(c);
         }
-        let case = Mutex::new(crate::nocr_text::CaseFixer::default());
+        let case = Mutex::new(crate::ocr::nocr_text::CaseFixer::default());
         let fb = nocr_fallback(&ndb, &case, 25, 0.0);
         let out = match BinReader::new("Test").read(&BinDb::empty(Path::new("t.db")), &img, &BinOpts::default(), &HashSet::new(), &HashMap::new(), Some(&fb)) { ReadOut::Done(r) => r, _ => panic!("ไม่ควรหยุดสอน") };
         assert_eq!((out.unknown, out.text.replace(' ', "")), (0, "lI".to_string()), "Binary OCR ใช้ nOCR สำรอง");

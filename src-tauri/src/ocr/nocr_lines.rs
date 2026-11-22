@@ -11,7 +11,7 @@
 
 #![allow(dead_code)]
 
-use crate::nocr::{Bmp, NChar, NLine, Pt};
+use crate::ocr::nocr::{Bmp, NChar, NLine, Pt};
 
 const FG: u8 = 150;
 
@@ -569,10 +569,10 @@ mod tests {
             let mut c = NChar { text: "L".into(), width: 20, height: 30, ..Default::default() };
             generate(20, false, &mut c, &b, algo, &mut Rng::new(42));
             assert!(!c.fg.is_empty() && !c.bg.is_empty(), "{algo:?} {} {}", c.fg.len(), c.bg.len());
-            assert!(crate::nocr::is_match(&b, &c, 0), "{algo:?} เส้นต้องเข้ากับภาพที่สอน");
+            assert!(crate::ocr::nocr::is_match(&b, &c, 0), "{algo:?} เส้นต้องเข้ากับภาพที่สอน");
             // ภาพอื่น (ตัว I เต็มกรอบ) ต้องไม่เข้ากันแบบไม่ผิดเลย
             let full = RgbaImage::from_pixel(20, 30, Rgba([255, 255, 255, 255]));
-            assert!(!crate::nocr::is_match(&full, &c, 0), "{algo:?}");
+            assert!(!crate::ocr::nocr::is_match(&full, &c, 0), "{algo:?}");
         }
     }
 

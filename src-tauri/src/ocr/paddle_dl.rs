@@ -180,7 +180,7 @@ mod tests {
     fn table_matches_reader() {
         assert_eq!(DOWNLOADABLE.len(), 9);
         for m in DOWNLOADABLE {
-            let want = crate::paddle::V5_LANGS.iter().find(|(l, _)| *l == m.code).map(|(_, d)| format!("{d}_PP-OCRv5_mobile_rec"));
+            let want = crate::ocr::paddle::V5_LANGS.iter().find(|(l, _)| *l == m.code).map(|(_, d)| format!("{d}_PP-OCRv5_mobile_rec"));
             assert_eq!(want.as_deref(), Some(m.dir), "{}", m.code);
             assert!(!["th", "en"].contains(&m.code));
             assert_eq!(m.files.len(), 2);

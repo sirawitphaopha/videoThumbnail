@@ -63,9 +63,9 @@ pub fn an_of(i: &SubImg) -> u8 {
 pub fn an_lines(img: &image::RgbaImage, i: &SubImg, text_lines: usize) -> Option<Vec<u8>> {
     let (sw, sh) = (i.canvas[0] as f64, i.canvas[1] as f64);
     if sw <= 0.0 || sh <= 0.0 || text_lines < 2 || img.height() as f64 / sh <= 0.33 { return None; }
-    let one = crate::ocrprep::make_one_color(img, image::Rgba([255, 255, 255, 255]));
-    let mut lines = crate::ocrprep::split_lines_transparent_or_black(&one);
-    if lines.len() < 2 { lines = crate::ocrprep::split_lines_se(&one, 20); }
+    let one = crate::ocr::ocrprep::make_one_color(img, image::Rgba([255, 255, 255, 255]));
+    let mut lines = crate::ocr::ocrprep::split_lines_transparent_or_black(&one);
+    if lines.len() < 2 { lines = crate::ocr::ocrprep::split_lines_se(&one, 20); }
     if lines.is_empty() { return None; }
     let min_gap = sh * 0.15;
     let mut blocks = vec![(0f64, 0f64); lines.len()];
@@ -207,7 +207,7 @@ pub async fn ocr_source(app: AppHandle, path: String, ff: u64) -> Result<OcrSour
         let p = PathBuf::from(&path);
         if !p.exists() { return Err("หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่".into()); }
         let src = open(&tools, &work, &p, ff, &on)?;
-        crate::ocrjob::set_source(src.items.clone());
+        crate::ocr::ocrjob::set_source(src.items.clone());
         Ok(src)
     }).await.map_err(|e| e.to_string())?
 }
@@ -218,7 +218,7 @@ pub async fn ocr_source_pngs(app: AppHandle, files: Vec<String>) -> Result<OcrSo
     let work = crate::subtitle::subs::work_dir(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
         let src = from_pngs(&work, &files.iter().map(PathBuf::from).collect::<Vec<_>>())?;
-        crate::ocrjob::set_source(src.items.clone());
+        crate::ocr::ocrjob::set_source(src.items.clone());
         Ok(src)
     }).await.map_err(|e| e.to_string())?
 }

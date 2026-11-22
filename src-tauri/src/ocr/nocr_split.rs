@@ -9,7 +9,7 @@
 
 #![allow(dead_code)]
 
-use crate::nocr::{copy_rect, Bmp, Piece};
+use crate::ocr::nocr::{copy_rect, Bmp, Piece};
 use image::{Rgba, RgbaImage};
 
 #[inline]
@@ -307,7 +307,7 @@ fn set_baseline(list: &mut [Piece], start: usize) {
 /// แบ่งภาพทั้งภาพเป็นชิ้นตัวอักษรเรียงตามลำดับการอ่าน คั่นบรรทัดด้วยชิ้นขึ้นบรรทัดใหม่ · ตาม SplitBitmapToLettersNew
 /// avg_h ความสูงเฉลี่ยของตัวอักษรจากภาพก่อน ๆ (LineHeightTracker) ยังไม่รู้ส่ง −1 · รู้แล้วภาพบรรทัดเดียวที่สูงเกินสามเท่าลองแบ่งแบบเข้ม
 pub fn split_letters(b: &Bmp, space_px: i32, rtl: bool, top_to_bottom: bool, min_h: i32, auto_height: bool, avg_h: f64) -> Vec<Piece> {
-    let (se, dark) = crate::ocrprep::split_lines_se_ex(b, min_h.max(0) as u32);
+    let (se, dark) = crate::ocr::ocrprep::split_lines_se_ex(b, min_h.max(0) as u32);
     let mut old: Vec<Piece> = se.into_iter().map(|l| Piece::glyph(0, l.y as i32, l.img)).collect();
     if !dark && old.len() == 1 && avg_h > 5.0 && b.height() as f64 > avg_h * 3.0 { old = split_lines_aggressive(b, min_h, avg_h); }
     let mut lines = if auto_height {
@@ -369,7 +369,7 @@ fn split_lines_aggressive(b: &Bmp, min_h: i32, avg: f64) -> Vec<Piece> {
     }
     if size > 2 {
         if size == h {
-            if size > 100 { return crate::ocrprep::split_lines_transparent_or_black(b).into_iter().map(|l| Piece::glyph(0, l.y as i32, l.img)).collect(); }
+            if size > 100 { return crate::ocr::ocrprep::split_lines_transparent_or_black(b).into_iter().map(|l| Piece::glyph(0, l.y as i32, l.img)).collect(); }
             parts.push(Piece::glyph(0, start, b.clone()));
         } else { parts.push(Piece::glyph(0, start, copy_rect(b, 0, start, w, size + 1))); }
     }

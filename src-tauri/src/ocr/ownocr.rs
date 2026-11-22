@@ -8,9 +8,9 @@
 
 #![allow(dead_code)]
 
-use crate::nocr::{Bmp, NChar, NOcrDb, Piece, Placement};
-use crate::nocr_lines::{generate, Algo, Rng};
-use crate::nocr_text::{merge_italic, Hit, LineRead, ReadOut};
+use crate::ocr::nocr::{Bmp, NChar, NOcrDb, Piece, Placement};
+use crate::ocr::nocr_lines::{generate, Algo, Rng};
+use crate::ocr::nocr_text::{merge_italic, Hit, LineRead, ReadOut};
 use image::RgbaImage;
 use std::collections::{HashMap, HashSet};
 use std::path::Path;
@@ -196,15 +196,15 @@ impl OwnReader {
         if img.width() == 0 || img.height() == 0 { return empty(); }
         // แบ่งบรรทัดจากภาพเดิมด้วยตัวแบ่งที่ใช้กับ PaddleOCR ก่อน แล้วค่อยทำภาพสองสีทีละบรรทัด
         // (แบ่งจากภาพสองสีแล้วสระบนบางตัวแยกเป็นบรรทัดของตัวเอง เจอตอนเทส 16 พ.ย. 2569)
-        let thr2 = crate::ocrprep::two_color_threshold(img);
-        let parent = crate::ocrprep::make_two_color(img, thr2);
-        let lines = crate::ocrprep::split_lines(img);
+        let thr2 = crate::ocr::ocrprep::two_color_threshold(img);
+        let parent = crate::ocr::ocrprep::make_two_color(img, thr2);
+        let lines = crate::ocr::ocrprep::split_lines(img);
         let mut pieces: Vec<Piece> = vec![];
         let mut hits: Vec<Hit> = vec![];
         let mut unknown = 0;
         for (li, line) in lines.iter().enumerate() {
             if li > 0 { hits.push(Hit::text("\n", None)); }
-            let l = layout(blobs(&crate::ocrprep::make_two_color(&line.img, thr2)));
+            let l = layout(blobs(&crate::ocr::ocrprep::make_two_color(&line.img, thr2)));
             let start = pieces.len();
             let lp = line_pieces(&l, line.y as i32);
             let order: HashMap<usize, usize> = lp.iter().enumerate().map(|(k, (_, bi))| (*bi, start + k)).collect();
@@ -291,7 +291,7 @@ fn match_group(db: &NOcrDb, l: &Layout, parts: &[usize], max_wrong: i32) -> Opti
         if h.max(oc.height) > 2 * h.min(oc.height) { continue; }
         let scale = (h as f64 / oc.height as f64).max(1.0);
         let budget = ((max_wrong as f64 * scale).round_ties_even() as i32).min(8.max(w * h / 8));
-        if let Some((e, p)) = crate::nocr::count_errors(&im, oc, budget) {
+        if let Some((e, p)) = crate::ocr::nocr::count_errors(&im, oc, budget) {
             if p == 0 { continue; }
             let r = e as f64 / p as f64;
             if best.is_none_or(|b| r < b.1) { best = Some((oc, r)); }
@@ -365,7 +365,7 @@ pub fn split_cluster(s: &str) -> (Vec<String>, Vec<String>, Vec<String>) {
 pub fn train_font(tools: &Path, work: &Path, db: &mut NOcrDb, font: &str, size: f32, bold: bool, italic: bool, lines: usize, algo: Algo, rng: &mut Rng) -> Result<(usize, Vec<String>), String> {
     let clusters = thai_clusters();
     // นำด้วย ก สามตัว แถบตัวอักษรของภาพจึงเป็นแถบของพยัญชนะไทยแบบตอนอ่าน (นำด้วย H แล้วแถบเพี้ยน ไ ใ ป ฝ จับคู่ไม่ได้ เจอตอนเทส 16 พ.ย. 2569)
-    let renders = crate::nocr_train::render_with(tools, work, &clusters, "กกก   ", 1.7, font, size, bold, italic)?;
+    let renders = crate::ocr::nocr_train::render_with(tools, work, &clusters, "กกก   ", 1.7, font, size, bold, italic)?;
     let mut learned = 0;
     let mut skipped = vec![];
     let mut made: Vec<(String, Bmp)> = vec![];
@@ -414,7 +414,7 @@ pub fn train_font(tools: &Path, work: &Path, db: &mut NOcrDb, font: &str, size: 
     // วรรณยุกต์กับสระบนรูปคล้ายกัน (ไม้เอก ไม้จัตวา) เพิ่มเส้นตรงจุดที่ต่างจากตัวคล้าย
     for c in db.chars.iter_mut() {
         let Some((_, own)) = made.iter().find(|m| m.0 == c.text && m.1.width() as i32 == c.width && m.1.height() as i32 == c.height) else { continue };
-        for (t, other) in &made { if *t != c.text { crate::nocr_train::add_discriminative_lines(c, own, other, rng); } }
+        for (t, other) in &made { if *t != c.text { crate::ocr::nocr_train::add_discriminative_lines(c, own, other, rng); } }
     }
     db.clear_cache();
     Ok((learned, skipped))

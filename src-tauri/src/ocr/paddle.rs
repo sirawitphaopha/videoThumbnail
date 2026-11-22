@@ -170,9 +170,9 @@ impl Rec {
         if img.width() == 0 || img.height() == 0 { return Ok(LineText { text: String::new(), conf: 0.0 }); }
         // ตัดเหลือส่วนที่มีหมึกก่อน · บรรทัดสั้นที่ได้ภาพกว้างเท่าบรรทัดยาว พื้นดำว่างสองข้าง โมเดลไทยอ่านเป็นขีด "-----" (เจอตอนเทส 16 พ.ย. 2569)
         // เกณฑ์ alpha 40 เท่าตัวแบ่งบรรทัด · จุดจางของบรรทัดอื่นที่ตัวแบ่งไม่ลบ ไม่ยืดกรอบจนเหลือพื้นดำข้างเดียว (ผู้ช่วยตรวจทาน T11)
-        let Some((x, y, w, h)) = crate::ocrprep::ink_bounds(img, 40).or_else(|| crate::ocrprep::ink_bounds(img, 0)) else { return Ok(LineText { text: String::new(), conf: 0.0 }) };
+        let Some((x, y, w, h)) = crate::ocr::ocrprep::ink_bounds(img, 40).or_else(|| crate::ocr::ocrprep::ink_bounds(img, 0)) else { return Ok(LineText { text: String::new(), conf: 0.0 }) };
         let ink = image::imageops::crop_imm(img, x, y, w, h).to_image();
-        let rgb = crate::ocrprep::on_black(&ink, 8);
+        let rgb = crate::ocr::ocrprep::on_black(&ink, 8);
         self.line_rgb(&rgb)
     }
 
@@ -240,7 +240,7 @@ impl Det {
     /// กลุ่มที่ค่าเฉลี่ยไม่ถึง box_thresh ทิ้ง · ขยายกรอบด้วยระยะ พื้นที่ × unclip ÷ เส้นรอบรูป แบบ DBPostProcess
     pub fn boxes(&self, img: &RgbaImage) -> Result<Vec<Rect>, String> {
         let pad = 16u32;
-        let rgb = crate::ocrprep::on_black(img, pad);
+        let rgb = crate::ocr::ocrprep::on_black(img, pad);
         let (w0, h0) = rgb.dimensions();
         let scale = (960.0 / w0.max(h0) as f64).min(1.0);
         let r32 = |v: f64| (((v / 32.0).round() as u32).max(1)) * 32;
@@ -319,7 +319,7 @@ impl Ori {
 
     /// บรรทัดนี้กลับหัวไหม · ย่อขยายเป็น 160 × 80 ปรับค่าแบบ ImageNet · คลาส 0 คือ 0 องศา 1 คือ 180 องศา นับว่ากลับหัวเมื่อมั่นใจเกิน 0.9
     pub fn upside_down(&self, img: &RgbaImage) -> Result<bool, String> {
-        let rgb = crate::ocrprep::on_black(img, 4);
+        let rgb = crate::ocr::ocrprep::on_black(img, 4);
         let im = image::imageops::resize(&rgb, 160, 80, image::imageops::FilterType::Triangle);
         let plane = 160 * 80;
         let mut data = vec![0f32; 3 * plane];
@@ -373,7 +373,7 @@ pub fn rec_for(ocr: &Path, lang: &str, size: &str) -> Result<Arc<Rec>, String> {
     let dir = rec_dir(&ocr.join("paddle"), lang, size);
     // ภาษาที่ไม่ได้แนบมาและยังไม่ได้โหลด บอกให้โหลด ไม่ใช่บอกให้ติดตั้งใหม่ (BUGS ข้อ 152)
     if !dir.join("inference.onnx").is_file() {
-        if let Some(m) = dir.file_name().and_then(|n| crate::paddle_dl::find_dir(&n.to_string_lossy())) {
+        if let Some(m) = dir.file_name().and_then(|n| crate::ocr::paddle_dl::find_dir(&n.to_string_lossy())) {
             return Err(format!("ยังไม่ได้โหลดโมเดลภาษา{} ({:.1} MB) กดโหลดได้ที่ปุ่มตัวอ่านและชุดภาษาในแถบล่าง", m.name, m.bytes() as f64 / 1048576.0));
         }
     }
@@ -388,7 +388,7 @@ pub fn is_vertical(img: &RgbaImage, mode: &str) -> bool {
         "on" => true,
         "off" => false,
         _ => img.height() as f64 > img.width() as f64 * 1.5
-            && !crate::ocrprep::split_lines(img).iter().any(|l| crate::ocrprep::ink_bounds(&l.img, 40).is_some_and(|(_, _, w, h)| w > h * 4)),
+            && !crate::ocr::ocrprep::split_lines(img).iter().any(|l| crate::ocr::ocrprep::ink_bounds(&l.img, 40).is_some_and(|(_, _, w, h)| w > h * 4)),
     }
 }
 
@@ -430,7 +430,7 @@ pub fn read(ocr: &Path, img: &RgbaImage, o: &PaddleOpts) -> Result<Vec<LineText>
             return Ok(out);
         }
     }
-    let lines = crate::ocrprep::split_lines(img);
+    let lines = crate::ocr::ocrprep::split_lines(img);
     let ruby = if matches!(o.lang.as_str(), "" | "ja" | "zh" | "ch") { ruby_lines(&lines) } else { vec![false; lines.len()] };
     let mut out = Vec::with_capacity(lines.len());
     for (k, l) in lines.into_iter().enumerate() {
@@ -474,8 +474,8 @@ pub(crate) fn vertical_columns(cols: &[(u32, u32, u32, u32)]) -> (Vec<Vec<usize>
 /// บรรทัดที่น่าจะเป็นคำอ่านตัวเล็กเหนือคันจิ (ฟุริงานะ) ของซับญี่ปุ่น · ผู้ช่วยตรวจทาน T4
 /// เตี้ยกว่า 0.6 เท่าของความสูงกลางของบรรทัด อยู่ชิดเหนือบรรทัดถัดไป (ห่างไม่เกินครึ่งความสูงกลาง) อยู่ในช่วงแนวนอนของบรรทัดนั้นและแคบกว่า 0.8 เท่า
 /// เดิมอ่านเป็นบรรทัดแรกของข้อความ เช่น ほうこう นำหน้า 咆哮が聞こえる · ไม่ใช้กับไทย เพราะสระบนวรรณยุกต์ของไทยเป็นแถบเตี้ยเหมือนกัน
-pub(crate) fn ruby_lines(lines: &[crate::ocrprep::Line]) -> Vec<bool> {
-    let b: Vec<Option<(u32, u32, u32, u32)>> = lines.iter().map(|l| crate::ocrprep::ink_bounds(&l.img, 40).map(|(x, y, w, h)| (x, l.y + y, w, h))).collect();
+pub(crate) fn ruby_lines(lines: &[crate::ocr::ocrprep::Line]) -> Vec<bool> {
+    let b: Vec<Option<(u32, u32, u32, u32)>> = lines.iter().map(|l| crate::ocr::ocrprep::ink_bounds(&l.img, 40).map(|(x, y, w, h)| (x, l.y + y, w, h))).collect();
     let mut hs: Vec<u32> = b.iter().flatten().map(|r| r.3).collect();
     let mut out = vec![false; lines.len()];
     if hs.len() < 2 { return out; }
@@ -538,7 +538,7 @@ mod tests {
         let line = |y: u32, x: u32, w: u32, h: u32| {
             let mut img = RgbaImage::new(200, h);
             for yy in 0..h { for xx in x..x + w { img.put_pixel(xx, yy, Rgba([255, 255, 255, 255])); } }
-            crate::ocrprep::Line { y, h, img }
+            crate::ocr::ocrprep::Line { y, h, img }
         };
         let ruby = line(0, 60, 40, 12);
         let main = line(16, 20, 160, 30);

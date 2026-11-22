@@ -661,7 +661,7 @@ pub async fn ocr_vobsub_recolor(app: AppHandle, path: String, ff: u64, colors: O
     let work = work_dir(&app)?;
     tauri::async_runtime::spawn_blocking(move || {
         let out = vobsub_recolor(&work, &need(&path)?, ff, colors)?;
-        crate::ocrjob::update_images(&out);
+        crate::ocr::ocrjob::update_images(&out);
         Ok(out)
     }).await.map_err(|e| e.to_string())?
 }

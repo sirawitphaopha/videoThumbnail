@@ -8,7 +8,7 @@
 
 #![allow(dead_code)]
 
-use crate::ocrfix::Spell;
+use crate::ocr::ocrfix::Spell;
 use fancy_regex::Regex;
 use std::path::{Path, PathBuf};
 
@@ -398,7 +398,7 @@ impl ReplaceList {
         }
         let list = if from.contains(' ') { &mut self.partial_lines } else { &mut self.words };
         match list.iter_mut().find(|p| p.0 == from) { Some(p) => p.1 = to.into(), None => list.push((from.into(), to.into())) }
-        let item = format!("<{element} from=\"{}\" to=\"{}\" />", crate::ocrfix_words::xml_escape(from).replace('"', "&quot;"), crate::ocrfix_words::xml_escape(to).replace('"', "&quot;"));
+        let item = format!("<{element} from=\"{}\" to=\"{}\" />", crate::ocr::ocrfix_words::xml_escape(from).replace('"', "&quot;"), crate::ocr::ocrfix_words::xml_escape(to).replace('"', "&quot;"));
         let close = format!("</{section}>");
         if let Some(p) = doc.find(&close) { doc.insert_str(p, &item); }
         else if let Some(p) = doc.rfind("</") { doc.insert_str(p, &format!("<{section}>{item}</{section}>")); }

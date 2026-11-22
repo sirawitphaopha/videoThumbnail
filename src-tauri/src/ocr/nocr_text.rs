@@ -9,8 +9,8 @@
 
 #![allow(dead_code)]
 
-use crate::nocr::{Bmp, NOcrDb, Piece};
-use crate::nocr_split::split_letters;
+use crate::ocr::nocr::{Bmp, NOcrDb, Piece};
+use crate::ocr::nocr_split::split_letters;
 use std::collections::{HashMap, HashSet};
 use std::sync::Mutex;
 
@@ -629,7 +629,7 @@ pub fn baseline_descent(img: &Bmp, min_h: i32) -> i32 {
 }
 
 fn descent_at(img: &Bmp, min_rgb: u32, min_h: i32) -> i32 {
-    let two = crate::ocrprep::make_two_color(img, min_rgb);
+    let two = crate::ocr::ocrprep::make_two_color(img, min_rgb);
     let letters = split_letters(&two, 1, false, true, min_h, true, -1.0);
     let Some(last) = letters.iter().rposition(|p| p.bmp.is_some()) else { return -1 };
     let start = letters[..=last].iter().rposition(|p| p.is_newline()).map_or(0, |k| k + 1);
@@ -713,7 +713,7 @@ impl NOcrReader {
         if img.width() == 0 || img.height() == 0 {
             return ReadOut::Done(LineRead { text: String::new(), hits: vec![], pieces: vec![], parent: img.clone(), space_px: 12, unknown: 0 });
         }
-        let two = crate::ocrprep::make_two_color(img, crate::ocrprep::two_color_threshold(img));
+        let two = crate::ocr::ocrprep::make_two_color(img, crate::ocr::ocrprep::two_color_threshold(img));
         let (parent, _) = crop_top(&two);
         let (letters, px) = self.split(&parent, o.space_px);
         self.tracker.update(&letters);

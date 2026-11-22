@@ -5,7 +5,7 @@
 //! NOcrDbEditViewModel BinaryOcrSettingsViewModel BinaryOcrDbEditViewModel (src/ui/Features/Ocr) ของ Subtitle Edit สัญญา MIT
 //! Copyright (c) 2001-2026 Nikolaj Lynge Olsson and contributors · ประกาศสัญญาเต็มอยู่หัวไฟล์ vobsub.rs
 
-use crate::ocrjob::{check_name, db_paths, ensure_parent, forget_db, load_bin, load_nocr, png_url, Dirs};
+use crate::ocr::ocrjob::{check_name, db_paths, ensure_parent, forget_db, load_bin, load_nocr, png_url, Dirs};
 use serde::Serialize;
 
 /// ชนิดฐานที่หน้าจอส่งมา
@@ -27,7 +27,7 @@ pub fn db_new(d: &Dirs, kind: &str, name: &str) -> Result<(), String> {
     if exists(d, kind, name) { return Err(format!("มีฐานชื่อ {name} อยู่แล้ว ตั้งชื่ออื่น")); }
     let (_, user) = db_paths(d, kind, name);
     ensure_parent(&user)?;
-    if kind == "binary" { crate::binocr::BinDb::empty(&user).save() } else { crate::nocr::NOcrDb::empty(&user).save() }
+    if kind == "binary" { crate::ocr::binocr::BinDb::empty(&user).save() } else { crate::ocr::nocr::NOcrDb::empty(&user).save() }
 }
 
 /// เปลี่ยนชื่อฐานของผู้ใช้ · ฐานที่แนบมาเปลี่ยนไม่ได้ ชื่อใหม่ซ้ำไม่เปลี่ยน แบบ RenamePressed
@@ -76,11 +76,11 @@ pub struct DbChars {
     pub items: Vec<DbItem>,
 }
 
-fn lines(v: &[crate::nocr::NLine]) -> Vec<[i32; 4]> { v.iter().map(|l| [l.start.x, l.start.y, l.end.x, l.end.y]).collect() }
+fn lines(v: &[crate::ocr::nocr::NLine]) -> Vec<[i32; 4]> { v.iter().map(|l| [l.start.x, l.start.y, l.end.x, l.end.y]).collect() }
 
 /// ภาพสองสีของ Binary OCR เป็น PNG หมึกขาวบนพื้นดำ · ตัวขยายจับวาดทุกชิ้นตามตำแหน่ง x y ของแต่ละชิ้น แบบ ToOldBitmap ของ Subtitle Edit
-fn bbmp_png(b: &crate::binocr::BBmp) -> (String, i32, i32) {
-    let all: Vec<&crate::binocr::BBmp> = std::iter::once(b).chain(&b.expanded).collect();
+fn bbmp_png(b: &crate::ocr::binocr::BBmp) -> (String, i32, i32) {
+    let all: Vec<&crate::ocr::binocr::BBmp> = std::iter::once(b).chain(&b.expanded).collect();
     let (x0, y0) = (all.iter().map(|p| p.x).min().unwrap_or(0), all.iter().map(|p| p.y).min().unwrap_or(0));
     let x1 = all.iter().map(|p| p.x + p.w).max().unwrap_or(1);
     let y1 = all.iter().map(|p| p.y + p.h).max().unwrap_or(1);
@@ -220,20 +220,20 @@ pub fn train(d: &Dirs, r: &TrainReq, tick: &dyn Fn(&TrainTick)) -> Result<TrainD
     let (_, user) = db_paths(d, &r.kind, name);
     if user.is_file() && !r.overwrite && r.base != name { return Err(format!("มีฐานชื่อ {name} อยู่แล้ว")); }
     let stamp0 = stamp(&user);
-    let mut db = if r.base.is_empty() { crate::nocr::NOcrDb::empty(&user) } else { let mut b = load_nocr(d, &r.kind, &r.base)?; b.file = user.clone(); b };
+    let mut db = if r.base.is_empty() { crate::ocr::nocr::NOcrDb::empty(&user) } else { let mut b = load_nocr(d, &r.kind, &r.base)?; b.file = user.clone(); b };
     std::fs::create_dir_all(&d.work).map_err(|e| e.to_string())?;
     STOP.store(false, std::sync::atomic::Ordering::SeqCst);
     let stop = || STOP.load(std::sync::atomic::Ordering::SeqCst);
     let (mut learned, mut skipped) = (0usize, 0usize);
     if r.kind == "own" {
         let steps = (r.fonts.len() * r.sizes.len()).max(1);
-        let mut rng = crate::nocr_lines::Rng::from_time();
+        let mut rng = crate::ocr::nocr_lines::Rng::from_time();
         let mut done = 0;
         'outer: for size in &r.sizes {
             for font in &r.fonts {
                 if stop() { break 'outer; }
                 tick(&TrainTick { percent: done as f64 * 100.0 / steps as f64, font: font.clone(), size: *size, text: String::new(), learned, skipped });
-                let (n, sk) = crate::ownocr::train_font(&d.tools, &d.work, &mut db, font, *size, r.bold, r.italic, r.lines, crate::nocr_lines::Algo::Random, &mut rng)?;
+                let (n, sk) = crate::ocr::ownocr::train_font(&d.tools, &d.work, &mut db, font, *size, r.bold, r.italic, r.lines, crate::ocr::nocr_lines::Algo::Random, &mut rng)?;
                 learned += n;
                 skipped += sk.len();
                 done += 1;
@@ -245,10 +245,10 @@ pub fn train(d: &Dirs, r: &TrainReq, tick: &dyn Fn(&TrainTick)) -> Result<TrainD
         let step = std::cell::Cell::new(0usize);
         for size in &r.sizes {
             if stop() { break; }
-            let o = crate::nocr_train::TrainOpts { fonts: r.fonts.clone(), size: *size, bold: r.bold, italic: r.italic, lines: r.lines, chars: r.chars.clone(), merged: r.merged.clone(), ..Default::default() };
+            let o = crate::ocr::nocr_train::TrainOpts { fonts: r.fonts.clone(), size: *size, bold: r.bold, italic: r.italic, lines: r.lines, chars: r.chars.clone(), merged: r.merged.clone(), ..Default::default() };
             let (l0, s0) = (learned, skipped);
             let last = std::cell::Cell::new((0usize, 0usize));
-            crate::nocr_train::train(&d.tools, &d.work, &o, &mut db, &stop, &|p| {
+            crate::ocr::nocr_train::train(&d.tools, &d.work, &o, &mut db, &stop, &|p| {
                 step.set(step.get() + 1);
                 last.set((p.learned, p.skipped));
                 tick(&TrainTick { percent: (step.get() as f64 * 100.0 / total as f64).min(100.0), font: p.font.clone(), size: *size, text: p.text.clone(), learned: l0 + p.learned, skipped: s0 + p.skipped });
@@ -269,27 +269,27 @@ pub fn train_preview(d: &Dirs, font: &str, size: f32, bold: bool, italic: bool, 
     std::fs::create_dir_all(&d.work).map_err(|e| e.to_string())?;
     let t: String = text.chars().filter(|c| !c.is_whitespace()).take(26).collect();
     if t.is_empty() { return Err("ยังไม่มีตัวอักษรที่จะฝึก".into()); }
-    let r = crate::nocr_train::render_with(&d.tools, &d.work, &[t], "", 1.0, font, size.clamp(10.0, 60.0), bold, italic)?;
+    let r = crate::ocr::nocr_train::render_with(&d.tools, &d.work, &[t], "", 1.0, font, size.clamp(10.0, 60.0), bold, italic)?;
     let two = r.into_iter().next().flatten().map(|x| x.two).ok_or("วาดตัวอย่างของฟอนต์นี้ไม่ได้")?;
     // ภาพที่วาดกว้างกว่าตัวอักษรมาก ตัดส่วนใสรอบตัวออก ตัวอย่างจึงไม่ถูกย่อจนเล็ก
-    Ok(png_url(&crate::ocrprep::crop_transparent(&two).0))
+    Ok(png_url(&crate::ocr::ocrprep::crop_transparent(&two).0))
 }
 
 /// ย่อฐาน nOCR · สำรองไฟล์เดิมเป็น .bak ชื่อที่ยังว่างก่อน แล้วเอาเส้นที่ไม่ช่วยแยกตัวคล้ายออก · ตาม OptimizeNOcrDb
-pub fn optimize(d: &Dirs, name: &str, max_wrong: i32, tick: &(dyn Fn(usize, usize) + Sync)) -> Result<(crate::nocr_train::OptimizeResult, String), String> {
+pub fn optimize(d: &Dirs, name: &str, max_wrong: i32, tick: &(dyn Fn(usize, usize) + Sync)) -> Result<(crate::ocr::nocr_train::OptimizeResult, String), String> {
     check_name(name)?;
     let (from, user) = db_paths(d, "nocr", name);
     if !from.is_file() { return Err(format!("ฐาน {name} ยังไม่มีไฟล์ ไม่มีอะไรให้ย่อ")); }
     ensure_parent(&user)?;
-    let backup = crate::nocr_train::free_backup_name(&user);
+    let backup = crate::ocr::nocr_train::free_backup_name(&user);
     std::fs::copy(&from, &backup).map_err(|e| format!("สำรองฐานก่อนย่อไม่ได้ {e}"))?;
     let stamp0 = stamp(&user);
     let mut db = load_nocr(d, "nocr", name)?;
-    let o = crate::nocr_train::OptimizeOpts { max_wrong: crate::nocr_train::OptimizeOpts::default().max_wrong.max(max_wrong * 2), ..Default::default() };
+    let o = crate::ocr::nocr_train::OptimizeOpts { max_wrong: crate::ocr::nocr_train::OptimizeOpts::default().max_wrong.max(max_wrong * 2), ..Default::default() };
     std::fs::create_dir_all(&d.work).map_err(|e| e.to_string())?;
-    let (glyphs, fonts) = crate::nocr_train::validation_glyphs(&d.tools, &d.work, &db, &o)?;
+    let (glyphs, fonts) = crate::ocr::nocr_train::validation_glyphs(&d.tools, &d.work, &db, &o)?;
     STOP.store(false, std::sync::atomic::Ordering::SeqCst);
-    let res = crate::nocr_train::optimize(&mut db, &glyphs, fonts, &o, &|| STOP.load(std::sync::atomic::Ordering::SeqCst), tick).ok_or("หยุดย่อฐานแล้ว ฐานไม่เปลี่ยน")?;
+    let res = crate::ocr::nocr_train::optimize(&mut db, &glyphs, fonts, &o, &|| STOP.load(std::sync::atomic::Ordering::SeqCst), tick).ok_or("หยุดย่อฐานแล้ว ฐานไม่เปลี่ยน")?;
     unchanged(&user, stamp0)?;
     db.save()?;
     forget_db("nocr", name);
