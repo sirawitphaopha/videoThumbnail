@@ -2,6 +2,7 @@
    แยกจาก GraphPage.tsx ตอนแบ่งไฟล์ทั้งโปรเจกต์ (BUGS ข้อ 153 · แผนแบ่งไฟล์ขั้น 1.2) ย้ายมาทั้งก้อน เนื้อโค้ดไม่เปลี่ยน */
 import { FixedTime } from "../../components/ui";
 import { hexRgb, hslRgb, rgbHsl, toHex } from "../../components/ColorPick";
+import type { WaveStyle } from "./draw";
 
 export type View = "wave" | "spec" | "loud" | "cmp" | "spek" | "psd";
 export type Theme = { lane: string; peak: string; rms: string; dark: string; ramp: string[] };
@@ -123,3 +124,5 @@ export function label(names: string[], c: string) {
   const side = names.length === 6 && (c === "SL" || c === "SR");
   return { code: c, th: side ? (c === "SL" ? "ซ้ายเซอร์ราวด์" : "ขวาเซอร์ราวด์") : TH[c] ?? c };
 }
+/** ค่าตั้งของหน้ากราฟที่จำในเครื่อง (ย้ายจาก GraphPage.tsx ขั้น 1.7 เพราะมุมมอง spek ใช้ด้วย) */
+export type Prefs = { view: View; theme: string; style: WaveStyle; cmap: "theme" | "rainbow"; scmap: "heat" | "rainbow" | "mono" | "theme"; spekLight: boolean; wide: boolean; spekAxis: "lin" | "log"; customColor: string };
