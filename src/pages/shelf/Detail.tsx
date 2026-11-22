@@ -8,7 +8,7 @@ import { CardIcon, J, Keep, Phr, Seg, Skel } from "../../components/ui";
 import Dialog from "../../components/Dialog";
 import { IcBitrate, IcLink } from "../../components/icons";
 import { openLinkRow, setReply } from "../../lib/linkJob";
-import type { PosterStart } from "../PosterPage";
+import type { PosterStart } from "../poster/PosterPage";
 import { useToast } from "../../components/Toasts";
 import { useMovieFrame } from "../../lib/frames";
 import { linkApi, thumbUrl, type Geometry, type LinkedCover, type Movie, pairApi, pickAddFiles, type Pair, type PairPlay } from "../../lib/api";

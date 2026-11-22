@@ -10,7 +10,7 @@ import Dropdown from "../../components/Dropdown";
 import { Badge, CardIcon, Phr, Seg, Switch } from "../../components/ui";
 import { IcClock, IcFolder, IcLink, IcCoverL, IcCoverM, IcCoverS, IcTall, IcWide } from "../../components/icons";
 import { setLinkJob, useLinkJob } from "../../lib/linkJob";
-import type { PosterStart } from "../PosterPage";
+import type { PosterStart } from "../poster/PosterPage";
 import { useToast } from "../../components/Toasts";
 import { api, driveApi } from "../../lib/api";
 import { useLibrary } from "../../lib/library";

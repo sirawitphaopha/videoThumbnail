@@ -15,7 +15,7 @@ import SettingsPage from "./pages/settings/SettingsPage";
 import BitratePage from "./pages/bitrate/BitratePage";
 import DevParts from "./pages/DevParts";
 import ShelfPage from "./pages/shelf/ShelfPage";
-import PosterPage, { type PosterStart } from "./pages/PosterPage";
+import PosterPage, { type PosterStart } from "./pages/poster/PosterPage";
 import LinkPage from "./pages/LinkPage";
 import { setLinkJob, useLinkJob } from "./lib/linkJob";
 import AvPage from "./pages/av/AvPage";
