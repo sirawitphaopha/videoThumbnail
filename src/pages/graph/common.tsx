@@ -3,6 +3,7 @@
 import { FixedTime } from "../../components/ui";
 import { hexRgb, hslRgb, rgbHsl, toHex } from "../../components/ColorPick";
 import type { WaveStyle } from "./draw";
+import { graphApi, type GOverview } from "../../lib/api";
 
 export type View = "wave" | "spec" | "loud" | "cmp" | "spek" | "psd";
 export type Theme = { lane: string; peak: string; rms: string; dark: string; ramp: string[] };
@@ -126,3 +127,19 @@ export function label(names: string[], c: string) {
 }
 /** ค่าตั้งของหน้ากราฟที่จำในเครื่อง (ย้ายจาก GraphPage.tsx ขั้น 1.7 เพราะมุมมอง spek ใช้ด้วย) */
 export type Prefs = { view: View; theme: string; style: WaveStyle; cmap: "theme" | "rainbow"; scmap: "heat" | "rainbow" | "mono" | "theme"; spekLight: boolean; wide: boolean; spekAxis: "lin" | "log"; customColor: string };
+
+/* ใช้ทั้งหน้ากราฟกับหน้าเทียบไฟล์ (ย้ายจาก GraphPage.tsx ขั้น 1.9) */
+/** ภาพรวมที่กำลังอ่าน · ออกจากหน้าแล้วกลับมา รอผลรอบเดิมต่อ ไม่สั่งอ่านซ้อน · อ่านได้ทีละไฟล์ ไฟล์ใหม่หยุดไฟล์เก่าเอง (audiograph.rs OVERVIEW_GEN) */
+const inflight = new Map<string, Promise<GOverview | null>>();
+export function overviewOnce(path: string, track: number) {
+  const k = path + "|" + track;
+  let p = inflight.get(k);
+  if (!p) { p = graphApi.overview(path, track).finally(() => inflight.delete(k)); inflight.set(k, p); }
+  return p;
+}
+/** โครงจางตอนอ่านเสียง · แถบละช่อง ชื่อช่องซ้ายกับผืนกราฟขวา สูงเต็มกรอบที่เหลือแบบแถบช่องของกราฟจริง (BUGS ข้อ 75) */
+export const LoadLanes = ({ n }: { n: number }) => (
+  <div className="gload-lanes" aria-hidden="true" data-loadlanes>
+    {Array.from({ length: Math.max(1, Math.min(8, n)) }, (_, i) => <div key={i} className="gload-lane"><div className="skel" style={{ height: 12 }} /><div className="skel" /></div>)}
+  </div>
+);

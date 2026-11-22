@@ -288,3 +288,7 @@ export function SpekView({ onBusy, held, resetN, tools, light, onPanT, scroller,
     </div>
   );
 }
+
+/* ใช้ทั้งหน้ากราฟกับหน้าเทียบไฟล์ (ย้ายจาก GraphPage.tsx ขั้น 1.9 อยู่ไฟล์นี้เพราะอ่านขอบจาก SPK) */
+/** ขอบซ้ายของแถบสีกราฟความถี่ (เส้นกรอบกราฟ) · รายการที่กางจากหัวกราฟต้องไม่เลยเส้นนี้ ไม่บังแถบสีกับตัวเลข dB (BUGS ข้อ 77 ต่อ · พี่กันยืนยัน 13 พ.ย. 2569 "ใช่ บังแถบสี") · ไม่ได้อยู่หน้าความถี่คืน null */
+export const spekEdge = () => { const cv = [...document.querySelectorAll<HTMLElement>(".spekbox canvas[data-spek]")].find((e) => e.offsetParent); return cv ? cv.getBoundingClientRect().right - SPK.R - 4 : null; };
