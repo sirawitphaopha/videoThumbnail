@@ -1,0 +1,91 @@
+/* หน้าตากลาง การ์ดสถานะ ช่องพิมพ์ หน้าต่างซ้อน แถบแจ้งผล ตัวบอกกำลังโหลด โครงจาง ตาราง ช่องค้นหา
+   แยกจาก app.css ตอนแบ่งไฟล์ทั้งโปรเจกต์ (BUGS ข้อ 153 · แผนแบ่งไฟล์ขั้น 8.4) ย้ายมาทั้งก้อน กฎไม่เปลี่ยน ลำดับใน app.css ตามลำดับเดิม */
+/* ---------- การ์ดสถานะ ---------- */
+.stat { display: flex; gap: 10px; align-items: flex-start; border-radius: 10px; padding: 10px 12px; font-size: 13.5px; line-height: 1.55; }
+.stat.ok { background: var(--ok-soft); color: var(--ok-ink); }
+.stat.bad { background: var(--bad-soft); color: var(--bad-ink); }
+.stat.warn { background: var(--warn-soft); color: var(--warn-ink); }
+.stat.info { background: var(--info-soft); color: var(--info-ink); }
+/* ข้อความบอกข้อดีในสีตามโทนของโปรแกรม ไม่ใช่สีเตือน (BUGS ข้อ 8 กล่อง PNG ไม่ลดคุณภาพ) */
+.stat.tone { background: color-mix(in srgb, var(--accent) 9%, var(--win)); color: var(--accent-ink); }
+.stat.tone svg circle { fill: var(--accent); }
+.stat b { display: block; color: inherit; }
+.stat svg { flex: none; margin-top: 3px; }
+/* ไอคอนในปุ่มที่อยู่ในการ์ดแจ้ง ไม่โดนดันลง 3 จุดแบบไอคอนของการ์ด ไม่งั้นไอคอนต่ำกว่าตัวหนังสือ (พี่กันทัก 13 พ.ย. 2569 "icon กับตัวอักษร ไม่เรียงกัน" ที่ปุ่มเปิดไดรฟ์ C · โดนทุกปุ่มในการ์ดแจ้ง เช่นปุ่มทำต่อ) */
+.stat .btn svg { margin-top: 0; }
+.pill { display: inline-flex; align-items: center; border-radius: 20px; padding: 1px 10px; font-size: 13px; font-weight: 600; white-space: nowrap; }
+.p-ok { background: var(--ok-soft); color: var(--ok-ink); } .p-bad { background: var(--bad-soft); color: var(--bad-ink); }
+.p-warn { background: var(--warn-soft); color: var(--warn-ink); } .p-info { background: var(--info-soft); color: var(--info-ink); }
+.p-neutral { background: #f9eaef; color: var(--txt2); }
+.dot { display: inline-block; width: 9px; height: 9px; border-radius: 50%; margin-right: 6px; }
+.hint { font-size: 12.5px; color: var(--txt3); margin-top: 6px; line-height: 1.55; }
+.hint.e { color: var(--bad-ink); }
+/* ช่องพิมพ์ (ต้นแบบ .inp บรรทัด 110–115) · ชั้นวาดกับช่องพิมพ์จริงใช้ .sb-field .sb-draw ตัวเดียวกับช่องค้นหา */
+.inp { display: flex; align-items: center; height: 40px; border-radius: 9px; border: 1px solid #e8cdd6; background: #fff; padding: 0 10px; font-size: 14px; gap: 2px; cursor: text; transition: border .15s, box-shadow .15s; }
+.inp:hover { border: 1px solid #e2bfcb; }
+.inp.focus { border: 1px solid var(--accent); box-shadow: 0 0 0 3px rgba(200,64,111,.25); }
+.inp.err { border: 1px solid var(--bad); box-shadow: 0 0 0 3px rgba(236,143,143,.25); }
+.inp .ext { margin-left: auto; padding-left: 8px; font-size: 13px; flex: none; }
+.rename { margin-bottom: 8px; }
+.small { font-size: 12.5px; color: var(--txt3); line-height: 1.55; }
+
+/* ---------- หน้าต่างซ้อน ---------- */
+.dlg-back { position: fixed; inset: 0; z-index: var(--z-panel); background: rgba(60,25,40,.22); display: flex; align-items: center; justify-content: center; padding: 24px; }
+.dlg-back.confirm { z-index: var(--z-confirm); }
+/* สูงขั้นต่ำ 236 ตามต้นแบบ หน้าต่างลบขั้น 1 กับขั้น 2 สูงเท่ากัน ปุ่มไม่กระโดดตอนกดถัดไป (working-with-gun ข้อ 8) */
+.dlg { background: #fff; border-radius: 14px; box-shadow: 0 18px 40px rgba(60,25,40,.25); padding: 20px; width: 100%; max-width: 440px; min-height: 236px; display: flex; flex-direction: column; gap: 10px; max-height: calc(100vh - 48px); overflow-y: auto; overscroll-behavior: contain; animation: pop-in .14s ease-out; }
+.dlg h4 { margin: 0; font-size: 16px; line-height: 1.5; }
+/* ปุ่มล่างติดขอบล่างของหน้าต่างเสมอ เนื้อหายาวเกินจอก็ยังเห็นปุ่ม */
+/* ปุ่มอยู่กลางแนวตั้งของแถบ ระยะบนเท่าระยะล่าง (BUGS ข้อ 143 พี่กันสั่ง "ขอกลาง" · เดิมบน 12 ล่าง 20) */
+.dlg .acts { margin: auto -20px -20px; display: flex; gap: 8px; justify-content: flex-end; align-items: center; padding: 14px 20px; position: sticky; bottom: -20px; background: #fff; border-top: 1px solid var(--line); z-index: 1; }
+.dlg .acts.split { justify-content: space-between; }
+
+/* ---------- แถบแจ้งผล ลอยกลางล่าง (save-status ข้อ 3) ---------- */
+.toasts { position: fixed; left: 50%; bottom: 20px; translate: -50% 0; z-index: var(--z-toast); display: flex; flex-direction: column; gap: 8px; align-items: center; pointer-events: none; }
+/* พี่กันบอก 9 พ.ย. 2569 "สีไม่เข้า แถมไม่อยู่กึ่งกลาง และอ้วน" · บางลง ไอคอน ข้อความ ปุ่มปิด อยู่กลางแนวเดียวกัน กว้างตามข้อความ · สำเร็จกับแจ้งทั่วไปใช้สีโทนของโปรแกรม ผิดพลาดกับเตือนยังคงสีสถานะ */
+/* ทุกแถบกว้างเท่ากัน ไม่ยาวสั้นตามข้อความ (พี่กันทัก 15 พ.ย. 2569 "มันควร popup ขนาดเท่ากัน ไม่ใช่อันนึงยาว อันนึงสั้น") · เท่าความกว้างสูงสุดเดิม ข้อความยาวตัดบรรทัดที่เดิม */
+.toast { pointer-events: auto; display: flex; align-items: center; gap: 8px; width: min(560px, calc(100vw - 32px)); box-sizing: border-box; border-radius: 10px; padding: 5px 6px 5px 12px; font-size: 13.5px; line-height: 1.4; box-shadow: 0 6px 16px rgba(60,25,40,.16); animation: pop-in .14s ease-out; }
+.toast.ok, .toast.info { background: var(--accent-soft); color: var(--accent-ink); border: 1px solid var(--line); }
+.toast.ok svg circle, .toast.info svg circle { fill: var(--accent); }
+.toast > svg { flex: none; }
+.toast.bad { background: var(--bad-soft); color: var(--bad-ink); border: 1px solid #f1b7b7; }
+.toast.warn { background: var(--warn-soft); color: var(--warn-ink); border: 1px solid #f0d9a2; }
+.toast .grow { flex: 1; min-width: 0; }
+.toast b { display: block; font-weight: 600; }
+.toast .x { width: 24px; height: 24px; flex: none; border-radius: 7px; border: 0; background-color: transparent; color: inherit; cursor: pointer; display: flex; align-items: center; justify-content: center; transition: background-color .15s; }
+.toast.ok .x:hover, .toast.info .x:hover { background-color: color-mix(in srgb, var(--accent) 14%, transparent); }
+.toast.bad .x:hover { background-color: #f9cccc; }
+.toast.warn .x:hover { background-color: #fbecc5; }
+
+/* ---------- ตัวบอกกำลังโหลด ---------- */
+.spinner { flex: none; display: inline-block; width: 15px; height: 15px; box-sizing: border-box; border-radius: 50%; border: 2px solid color-mix(in srgb, var(--accent) 25%, transparent); border-top-color: var(--accent); animation: spin .8s linear infinite; }
+@keyframes spin { to { transform: rotate(360deg); } }
+.loadpill { position: fixed; left: 50%; top: 50%; transform: translate(-50%, -50%); z-index: calc(var(--z-confirm) + 1); display: flex; align-items: center; gap: 10px; padding: 12px 18px; border-radius: 12px; background: var(--win); border: 1px solid var(--line); box-shadow: 0 10px 28px rgba(60,25,40,.28); font-size: 14px; color: var(--txt); pointer-events: none; }
+/* ---------- โครงจาง (loading-skeleton) ---------- */
+.skel { background: linear-gradient(90deg, #f7e2e9 0%, #f7f7f7 42%, #f7e2e9 84%); background-size: 260% 100%; animation: skel-wave 1.4s ease-in-out infinite; border-radius: 6px; }
+@keyframes skel-wave { 0% { background-position: 130% 0; } 100% { background-position: -30% 0; } }
+
+/* ---------- ตาราง ---------- */
+table { width: 100%; border-collapse: collapse; font-size: 14px; background: #fff; }
+th { text-align: left; color: var(--txt2); font-weight: 600; font-size: 13px; padding: 10px 12px; border-bottom: 1px solid var(--line); background: var(--win2); }
+td { padding: 12px; border-bottom: 1px solid #f7e4ea; vertical-align: top; }
+tbody tr:last-child td { border-bottom: 0; }
+/* overflow: clip ตัดมุมมนได้เหมือน hidden แต่ไม่เป็นกล่องเลื่อนเอง หัวตารางจึงตรึงกับชั้น (.shelfwrap) ได้ (web-craft 6.2) */
+.tblwrap { border: 1px solid var(--line); border-radius: 12px; overflow: clip; }
+
+/* ---------- ช่องค้นหา (ต้นแบบบรรทัด 52 165–169) · โครงสามชั้นกันวรรณยุกต์โดนตัด ---------- */
+.search { display: flex; align-items: center; gap: 8px; background: #fff; border: 1px solid var(--line); border-radius: 9px; height: 38px; padding: 0 6px 0 12px; color: var(--txt3); font-size: 14px; flex: none; cursor: text; position: relative; transition: width .15s ease, border .15s, box-shadow .15s; }
+.search:hover { border: 1px solid #e2bfcb; }
+.search.focus { border: 1px solid var(--accent); box-shadow: 0 0 0 3px rgba(200,64,111,.22); }
+.sb-field { position: relative; flex: 1; min-width: 0; height: 100%; }
+/* เว้นซ้าย 2 จุดแล้วดึงกลับ หัว ไ ใ โ ของ Sarabun ยื่นเลยขอบซ้ายไม่โดนตัด ตัวหนังสือยังตรงขีดกะพริบ (AUDIT 12 พ.ย. 2569 ข้อ 36 · เดิมกันแค่บนล่าง) */
+.sb-draw { position: absolute; left: -2px; padding-left: 2px; right: 0; top: -7px; bottom: -7px; overflow: hidden; display: flex; align-items: center; pointer-events: none; white-space: pre; font-size: 14px; }
+.sb-draw span { color: var(--txt); }
+.sb-draw span.ph { color: var(--txt3); }
+.sb-field input { position: relative; width: 100%; height: 100%; border: 0; outline: 0; background: transparent; color: transparent; caret-color: var(--accent-ink); font: inherit; font-size: 14px; padding: 0; }
+.sb-field input::selection { background: rgba(200,64,111,.35); color: transparent; }
+.swap { font-size: 11.5px; font-weight: 600; color: var(--accent-ink); background: #faedf1; border-radius: 6px; padding: 2px 8px; white-space: nowrap; line-height: 1.75; flex: none; pointer-events: none; }
+.clr { width: 28px; height: 28px; flex: none; border-radius: 7px; border: 0; background-color: transparent; color: #a57182; display: flex; align-items: center; justify-content: center; cursor: pointer; transition: background-color .15s, color .15s; }
+.clr:hover { background-color: #f6e2e9; color: var(--accent-ink); }
+.hl { background: #fbe9ef; color: #875666; font-weight: 700; border-radius: 3px; padding: 0 1px; }
+
