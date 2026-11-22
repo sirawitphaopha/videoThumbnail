@@ -258,6 +258,23 @@
     graph_cache_info: () => ({ files: 12, bytes: 88080384 }),
     link_state: reply, link_images: () => images, link_add_images: reply, link_auto: () => ({ images: images.length, sure: 9, unsure: 2, none: 1, tall: 11, wide: 0, reply: reply() }), link_row_update: reply, link_set_crop: reply, link_undo: reply, link_pair: reply, link_open_row: reply, link_remove_images: reply, link_titles: (a) => (a.paths ?? []).map((p) => p.split("\\").pop()), link_is_dir: (a) => (a.paths ?? []).map(() => false), scan_library: () => null,
     extract_default_folder: () => "D:\\หนัง",
+    // ระบบจำลองหน้าโปรแกรมบนเว็บ (แผนแบ่งไฟล์ขั้น 0) คำสั่งที่หน้าเรียกตอนเปิดแต่ยังไม่มีข้อมูลตัวอย่าง
+    drive_space: (a) => [{ root: "C:\\", total: 256e9, free: 18e9, folders: [], app: true }, { root: "D:\\", total: 1e12, free: 412e9, folders: a.folders ?? [], app: false }],
+    mpv_available: () => true,
+    // หน้า OCR ซับรูป ใช้ภาพซับตัวอย่างชุดเดียวกับ sub_images
+    ocr_paddle_langs: () => [["en", "English", 0], ["japan", "日本語 Japanese", 0], ["ch", "中文 Chinese", 0], ["th", "ไทย Thai", 0], ["korean", "한국어 Korean", 12.4], ["latin", "Latin", 8.1]].map(([code, name, mb]) => ({ code, name, mb, have: mb === 0 })),
+    ocr_tess_langs: () => [{ code: "eng", name: "English", have: "bundled" }, { code: "tha", name: "Thai", have: "bundled" }, { code: "jpn", name: "Japanese", have: "" }],
+    ocr_dbs: () => ({ nocr: ["Latin"], binary: ["Latin"], own: [] }),
+    ocr_export_formats: () => [{ id: "srt", name: "SubRip", ext: ".srt" }, { id: "ass", name: "Advanced Sub Station Alpha", ext: ".ass" }, { id: "vtt", name: "WebVTT", ext: ".vtt" }],
+    ocr_source: () => ({ kind: "pgs", items: OCR_SAMPLE.all().map(({ png, line, ...x }) => ({ ...x, forced: false, an: 2 })) }),
+    sub_overlay: () => "",
+    subdoc_free_name: (a) => String(a.path),
+    imgsub_tools: () => ({ bdsupOk: true, seconvOk: true }),
+    imgsub_preview: (a) => { const all = OCR_SAMPLE.all(), i = Math.min(a.index ?? 0, all.length - 1), c = all[i]; return { total: all.length, index: i, w: c.canvas[0], h: c.canvas[1], start: c.start, end: c.end, forced: false, graphics: [{ png: c.png, x: c.at[0], y: c.at[1], w: c.w, h: c.h }], warnings: [] }; },
+    extract_info: () => ({ mkv: true, tags: true, chapters: true, delays: [0, 0, 0, 0] }),
+    drive_free: () => ({ free: 412e9, drive: "D" }),
+    audio_codec_detail: (a) => infoOf(a.path).tracks.map((t) => t.codec === "E-AC-3" ? "E-AC-3 (Dolby Digital Plus)" : t.codec === "TrueHD" ? "MLP FBA 16-ch (Dolby TrueHD with Dolby Atmos)" : t.codec),
+    actlog_info: () => ({ dir: "C:\\Users\\ชื่อผู้ใช้\\AppData\\Local\\com.pkh.movieshelf\\logs", monthLines: 214 }),
     poster_open: (a) => { const u = poster("ตัวอย่าง", 2023, "#0b3a42", "#147a78", "#e0b44c", 1000, 1500); return { path: a.path, name: String(a.path).split("\\").pop(), ext: "jpg", attachable: true, width: 1000, height: 1500, aspect: "แนวตั้ง 2 : 3", twoThree: true, preview: u, fileSize: 412000, exif: 1, icc: false, crop: [0, 0, 1000, 1500] }; },
     poster_render: () => { const u = poster("ตัวอย่าง", 2023, "#0b3a42", "#147a78", "#e0b44c", 1000, 1500); return { bytes: 412000, width: 1000, height: 1500, cropW: 1000, cropH: 1500, small: false, preview: u, sizes: [[1000, 1500]] }; },
     poster_clear: () => null,
@@ -265,7 +282,34 @@
     poster_inspect: (a) => ({ path: a.path, name: String(a.path).split("\\").pop(), ext: "mkv", size: 8e9, duration: 6600, width: 3840, height: 2160, streams: [{ index: 0, kind: "video", codec: "hevc", lang: null, mp4: "ok", why: null }, { index: 1, kind: "audio", codec: "eac3", lang: "tha", mp4: "ok", why: null }, { index: 2, kind: "subtitle", codec: "subrip", lang: "tha", mp4: "style", why: "ซับข้อความแปลงเป็นแบบ MP4" }], counts: { video: 1, audio: 1, subs: 1 }, free: 5e11, drive: "D:" }),
   };
   const missing = (window.__missing = new Set());
+  /* ---------- หน้าบิตเรต · ตัวแทน bitrate.rs ยกจาก bitrate-redesign-app.html (ระบบจำลองหน้าโปรแกรมบนเว็บ แผนแบ่งไฟล์ขั้น 0)
+     ข้อมูลแพ็กเก็ตจริงของหนังตัวอย่างใน bitrate/data-ตัวอย่างหนัง.json ส่งเป็นช่วง ๆ ให้กราฟค่อย ๆ ขึ้น · ตัวถ่ายภาพรอจน window.__brDone เป็นจริง */
+  const BR = { data: null, run: 0 };
+  const brData = fetch(encodeURI("bitrate/data-ตัวอย่างหนัง.json")).then((r) => r.json()).then((d) => (BR.data = d));
+  const brStart = async ({ mode, run: want }) => {
+    const d = BR.data ?? (await brData);
+    const run = want ?? BR.run + 1; BR.run = run; window.__brDone = false;
+    const src = mode === "frm" ? d.frm : d.pkt, n = src.t.length;
+    const steps = 8, per = Math.ceil(n / steps);
+    let from = 0, readTo = 0;
+    const tick = () => {
+      if (BR.run !== run) { window.__emit("bitrate-done", { run, ok: false, stopped: true }); return; }
+      const to = Math.min(n, from + per);
+      const t = src.t.slice(from, to).map((x) => x / 1000);
+      for (const x of t) if (x > readTo) readTo = x;
+      window.__emit("bitrate-progress", { run, from, t, s: src.s.slice(from, to), k: src.k.slice(from, to), readTo });
+      from = to;
+      if (from < n) setTimeout(tick, 60); else { window.__emit("bitrate-done", { run, ok: true, frames: n }); window.__brDone = true; }
+    };
+    setTimeout(tick, 100);
+    return { run, kind: "video", track: "v", tracks: [{ id: "v", label: "วิดีโอ" }], sample_rate: 0, channels: 0, layout: "", lang: "", ...d.info };
+  };
+  FX.bitrate_start = (a) => brStart(a);
+  FX.bitrate_stop = () => { BR.run++; return null; };
+  FX.bitrate_tracks = () => [{ id: "v", label: "วิดีโอ" }];
   let nextId = 1;
+  const listeners = [];
+  window.__emit = (event, payload) => { for (const l of listeners.filter((x) => x.event === event)) window[`_${l.handler}`]?.({ event, id: l.id, payload }); };
   window.isTauri = true;
   window.__TAURI_EVENT_PLUGIN_INTERNALS__ = { unregisterListener() {} };
   window.__TAURI_INTERNALS__ = {
@@ -274,8 +318,14 @@
     transformCallback: (cb, once) => { const id = nextId++; window[`_${id}`] = (x) => { if (once) delete window[`_${id}`]; cb?.(x); }; return id; },
     unregisterCallback: (id) => { delete window[`_${id}`]; },
     invoke: async (cmd, args) => {
-      if (FX[cmd]) return structuredClone(FX[cmd](args ?? {}));
+      if (FX[cmd]) return structuredClone(await FX[cmd](args ?? {}));
+      // ระบบจำลองหน้าโปรแกรมบนเว็บ (แผนแบ่งไฟล์ขั้น 0 · BUGS ข้อ 153) ส่งสัญญาณให้ตัวที่ฟังอยู่จริง เช่นลากไฟล์เข้า (tauri://drag-drop)
+      // window.__emit(ชื่อ, ข้อมูล) ใช้จากสคริปต์ถ่ายภาพ · กล่องเลือกไฟล์คืนค่าที่ตั้งไว้ใน window.__pickNext แทนการเปิดกล่องของ Windows
+      if (cmd === "plugin:event|listen") { const id = nextId++; listeners.push({ id, event: args.event, handler: args.handler }); return id; }
+      if (cmd === "plugin:event|unlisten") { const i = listeners.findIndex((l) => l.id === args.eventId); if (i >= 0) listeners.splice(i, 1); return null; }
+      if (cmd === "plugin:event|emit" || cmd === "plugin:event|emit_to") { window.__emit(args.event, args.payload); return null; }
       if (cmd.startsWith("plugin:event|")) return nextId++;
+      if (cmd === "plugin:dialog|open" || cmd === "plugin:dialog|save") { const p = window.__pickNext ?? null; window.__pickNext = null; return p; }
       if (cmd.startsWith("plugin:window|")) return cmd.includes("is_") ? false : null;
       if (cmd.startsWith("plugin:")) return null;
       missing.add(cmd);
