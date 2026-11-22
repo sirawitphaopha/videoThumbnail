@@ -2399,7 +2399,7 @@ mod tests {
         assert_eq!((hint.as_str(), d.events.len(), d.events[0].start, d.events[0].end), ("srt", 1, 1000, 2500));
         // ทางเพิ่มไฟล์ของหน้าซับไตเติล (merge::add_file) ต้องได้แทร็กซับหนึ่งแทร็กทั้งสองชนิด · เดิม SAMI ล้มว่า mkvmerge อ่านไม่ได้ เปิดในหน้าซับไตเติลไม่ขึ้น (เจอจากตัวตรวจ check-pgs 15 พ.ย. 2569)
         for (f, codec) in [(&smi, "sami"), (&sbv, "sbv")] {
-            let a = crate::merge::add_file(&tools(), f, None).unwrap_or_else(|e| panic!("{} เพิ่มไม่ได้ {e}", f.display()));
+            let a = crate::merge::merge::add_file(&tools(), f, None).unwrap_or_else(|e| panic!("{} เพิ่มไม่ได้ {e}", f.display()));
             assert_eq!(a.tracks.len(), 1, "{}", f.display());
             assert_eq!((a.tracks[0].kind.as_str(), a.tracks[0].codec.as_str()), ("subtitle", codec));
             assert_eq!(a.tracks[0].frames, Some(1), "{} จำนวนบรรทัด", f.display());

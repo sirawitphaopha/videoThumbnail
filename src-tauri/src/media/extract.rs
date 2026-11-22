@@ -417,7 +417,7 @@ mod tests {
         assert_eq!(pattern_name(DEFAULT_PATTERN, s, &it("audio", 2, "ac3", None), Some(0), None), "ดาวเหนือ (2023).Audio2.ac3");
         let d = pattern_name(DEFAULT_PATTERN, s, &it("audio", 1, "ac3", Some("th")), Some(-120), None);
         assert_eq!(d, "ดาวเหนือ (2023).Audio1.th DELAY -120ms.ac3");
-        assert_eq!(crate::merge::delay_from_name(&d), Some(-120), "หน้าเสียงและซับต้องอ่านดีเลย์จากชื่อกลับได้");
+        assert_eq!(crate::merge::merge::delay_from_name(&d), Some(-120), "หน้าเสียงและซับต้องอ่านดีเลย์จากชื่อกลับได้");
         assert_eq!(pattern_name("{Type}{Number} - {Language} - {Filename}", s, &it("text", 3, "srt", Some("en")), None, None), "Text3 - en - ดาวเหนือ (2023).srt");
         assert_eq!(pattern_name("{Filename} [{TrackName}]", s, &it("audio", 1, "aac", None), None, Some("พากย์ไทย: 5.1/ใหม่")), "ดาวเหนือ (2023) [พากย์ไทย_ 5.1_ใหม่].aac");
         assert_eq!(pattern_name("", s, &it("video", 1, "mkv", None), None, None), "ดาวเหนือ (2023).Video1.mkv", "รูปแบบว่างใช้แบบตั้งต้น");

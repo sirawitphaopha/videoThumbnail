@@ -757,12 +757,12 @@ mod tests {
         assert_eq!(std::fs::metadata(&pgs).unwrap().modified().unwrap(), mt);
         let imgs = crate::subs::images(&tools(), &w, &src, 0).unwrap();
         assert!(imgs.len() > 50 && imgs.iter().all(|i| i.w > 0 && i.h > 0), "ภาพ {}", imgs.len());
-        let v = crate::merge::add_file_view(&tools(), &w, &src).unwrap();
+        let v = crate::merge::merge::add_file_view(&tools(), &w, &src).unwrap();
         assert_eq!((v.tracks.len(), v.tracks[0].codec.as_str(), v.tracks[0].frames, v.tracks[0].kind.as_str()), (1, "hddvd_sup", Some(630), "subtitle"));
-        let e = crate::merge::add_file(&tools(), &src, None).unwrap_err();
+        let e = crate::merge::merge::add_file(&tools(), &src, None).unwrap_err();
         assert!(e.contains("HD DVD") && e.contains("หน้าซับไตเติล"), "{e}");
         // ไฟล์อื่นผ่านทางเปิดเพื่อดูได้เหมือนเดิม
-        assert_eq!(crate::merge::add_file_view(&tools(), &w, &media().join("pgs_sub.sup")).unwrap().tracks[0].codec, "hdmv_pgs_subtitle");
+        assert_eq!(crate::merge::merge::add_file_view(&tools(), &w, &media().join("pgs_sub.sup")).unwrap().tracks[0].codec, "hdmv_pgs_subtitle");
         let out = convert(&tools(), &w, &req(&src, "pgs", &w.join("จาก HD DVD.sup")), &|_, _| {}, &none).unwrap();
         assert_eq!((out.images, out.w, out.h), (630, 720, 576));
         assert_eq!(std::fs::read(&src).unwrap(), before, "ไฟล์ต้นฉบับต้องไม่ถูกแตะ");
@@ -979,7 +979,7 @@ mod tests {
     fn pgs_inside_mkv() {
         let movie = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("test-media").join("สร้าง").join("เสียงซับ").join("ซับรูป (2024).mkv");
         if !ready() || !movie.exists() { return; }
-        let j = crate::merge::mkv_json(&tools(), &movie).unwrap();
+        let j = crate::merge::merge::mkv_json(&tools(), &movie).unwrap();
         let tid = j["tracks"].as_array().unwrap().iter().find(|t| t["codec"].as_str().is_some_and(|c| c.contains("PGS"))).and_then(|t| t["id"].as_u64()).unwrap();
         let dir = tmp("mkv");
         let mut r = req(&movie, "pgs", &dir.join("จากหนัง.sup"));
