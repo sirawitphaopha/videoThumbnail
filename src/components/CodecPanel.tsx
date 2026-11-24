@@ -10,7 +10,7 @@ import { baseName } from "./codec/codecCalc";
 import { useCodecVals, type CpProps } from "./codec/useCodecVals";
 import { useCodecOut } from "./codec/useCodecOut";
 import { CodecNoEng, CodecHead } from "./codec/CodecHead";
-import { CodecEasy, CodecAdv } from "./codec/CodecTabs";
+import { easyView, advView } from "./codec/CodecTabs";
 import { CodecFoot } from "./codec/CodecFoot";
 
 /** ชุดค่าแบบง่ายเป็นค่าที่ส่งฝั่ง Rust ใช้กับดรอปดาวน์หน้าแปลงเสียง (ย้ายไป codec/codecCalc.ts ส่งต่อจากที่เดิม) */
@@ -33,7 +33,8 @@ export default function CodecPanel(p: CpProps) {
       </>}>
       <div style={{ display: "flex", flexDirection: "column", gap: 12, flex: "1 0 auto" }} data-codec-panel data-tab={tab}>
         <CodecHead pg={pg} />
-        {tab === "easy" ? <CodecEasy pg={pg} /> : <CodecAdv pg={pg} />}
+        {/* เรียกเป็นฟังก์ชัน ได้ Fragment ชนิดเดียวกันทั้งสองทางแบบโค้ดเดิม React ใช้กล่องที่ตำแหน่งตรงกันต่อตอนสลับแบบง่ายกับขั้นสูง (ผู้ช่วยตรวจทานขั้น 13 ของ BUGS ข้อ 155) · ฟังก์ชัน *View ห้ามมี hook */}
+        {tab === "easy" ? easyView({ pg }) : advView({ pg })}
         <CodecFoot pg={pg} />
       </div>
     </Dialog>

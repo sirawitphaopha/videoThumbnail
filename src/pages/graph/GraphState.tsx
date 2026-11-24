@@ -6,7 +6,7 @@ import { LoadLanes } from "./common";
 import { Elapsed } from "./compareParts";
 import type { B3 } from "./graphCtx";
 
-export function GraphError({ pg }: { pg: B3 }) {
+export function errorView({ pg }: { pg: B3 }) {
   const { head, setNonce, tagDlg } = pg;
   const error = pg.error!;
     const stopped = error === "หยุดอ่านเสียงแล้ว";
@@ -22,7 +22,7 @@ export function GraphError({ pg }: { pg: B3 }) {
 }
 
 
-export function GraphLoading({ pg }: { pg: B3 }) {
+export function loadingView({ pg }: { pg: B3 }) {
   const { ctl, head, names, panel, prefs, progress, readSince, tagDlg, view } = pg;
     // ตอนโหลดใช้โครงเดียวกับหน้าที่มีกราฟ (data-graphview) กรอบสูงเต็มจอ เส้นแบ่งแผงซ้ายอยู่ตลอด โครงจางเต็มความสูงรูปเดียวกับแถบช่อง
     // (BUGS ข้อ 75 · พี่กันทัก 13 พ.ย. 2569 "ตอนเราให้มันโหลดกราฟ หน้ากระดูดมันควรหญ่กว่านี้ เเล้วเส้นเเย่งข้อมูลฝั่งซ้ายันหายไป")

@@ -9,13 +9,14 @@
 // ตัวกันก่อน commit ของ git ตั้งอัตโนมัติตอน npm install (สคริปต์ prepare ตั้ง core.hooksPath เป็น .githooks)
 //
 // นับ โค้ดหน้าจอ src/**/*.ts tsx css (ไม่นับ src/mockups ที่เป็นมอคอัป) · โค้ด Rust src-tauri/src/**/*.rs ไม่นับเทส
-//   ไฟล์ Rust ที่มีเทสต่อท้าย (#[cfg(test)] mod tests) นับเฉพาะส่วนก่อนเทส · ไฟล์ tests.rs ไม่นับ
+//   ไฟล์ Rust ที่มีเทสต่อท้าย (#[cfg(test)] mod tests) นับเฉพาะส่วนก่อนเทส ถ้าเทสอยู่กลางไฟล์นับทั้งไฟล์ · ไฟล์ tests.rs ไม่นับ
 // ไม่นับ ตัวตรวจใน scripts/ มอคอัป เอกสาร (พี่กันเคาะว่าไม่ต้องแบ่ง)
 // เกิน 450 บรรทัด เตือนว่าใกล้ถึงเวลาแบ่ง แบ่งตอนแตะไฟล์นั้นครั้งถัดไป · เกิน 600 บรรทัด ตก ต้องแบ่งก่อน commit
 // ข้อยกเว้นอยู่ scripts/file-size-allow.json ใส่ไฟล์ เพดานใหม่ และเหตุผล · ไฟล์ในรายการโตเกินเพดานก็ตก (เพดานคือความยาวตอนลงรายการ ห้ามโตต่อ)
 // ก้อนยาว (BUGS ข้อ 155) วัดคอมโพเนนต์ ฟังก์ชัน ตารางระดับบนสุดของไฟล์ ts tsx และฟังก์ชัน Rust ทุกระดับ เกิน 200 บรรทัดเตือนให้แยกเป็นส่วนย่อยตอนแตะ
 //   เตือนอย่างเดียว ไม่กัน commit (พี่กันเคาะ 24 พ.ย. 2569 "ไม่ต้องบังคับขนาดนั้น เพราะยังไงก็เเก้ไปก่อน เดี๋ยวถึงวันนึงที่แก้ไปเยอะ เราก็จะมาสั่งให้เธอเเบ่งไฟล์อีกรอบ")
-//   วัดจากรูปแบบการเขียนของโปรเจกต์ ก้อนระดับบนสุดขึ้นต้นที่คอลัมน์แรก จบที่บรรทัดปิดวงเล็บที่คอลัมน์แรก · ฟังก์ชัน Rust จบที่ } ระดับย่อหน้าเดียวกับบรรทัด fn
+//   ts tsx วัดคำสั่งระดับบนสุดด้วยตัวแยกโค้ด oxc ของ rolldown · ฟังก์ชัน Rust จบที่ } ระดับย่อหน้าเดียวกับบรรทัด fn
+//   ตอน --staged วัดก้อนเฉพาะไฟล์ที่ stage · ข้อจำกัดที่รู้ ไฟล์ที่อยู่ใน git แต่ไม่ได้ stage นับจากดิสก์ ไฟล์ .js .mjs ใน src ไม่นับ
 //   ไฟล์ที่ไม่ต้องเตือนก้อนยาวใส่ใน "blocks" ของ file-size-allow.json พร้อมเหตุผล (ไฟล์ข้อมูล ไฟล์ที่ยกจากต้นฉบับ)
 import { readdirSync, readFileSync, statSync, existsSync } from "fs";
 import { join, relative } from "path";
@@ -34,9 +35,20 @@ if (arg("--hook")) {
 }
 
 const allowPath = join(ROOT, "scripts/file-size-allow.json");
-const allowAll = existsSync(allowPath) ? JSON.parse(readFileSync(allowPath, "utf8")) : {};
+// ตอน commit อ่านรายการยกเว้นตามที่จะเข้า commit (แก้เพดานบนดิสก์โดยไม่ stage แล้วต้องไม่ผ่าน · ผู้ช่วยตรวจทานขั้น 13)
+const allowText = () => {
+  if (arg("--staged")) { try { return execSync('git show ":scripts/file-size-allow.json"', { cwd: ROOT, encoding: "utf8", stdio: ["ignore", "pipe", "ignore"] }); } catch { /* ยังไม่อยู่ใน git อ่านจากดิสก์ */ } }
+  return existsSync(allowPath) ? readFileSync(allowPath, "utf8") : "{}";
+};
+const allowAll = JSON.parse(allowText());
 const allow = allowAll.files ?? {};
 const blockAllow = allowAll.blocks ?? {};
+// ตัวแยกโค้ด oxc ที่มากับ rolldown (ตัวรวมไฟล์ของ vite) ใช้วัดก้อน · TypeScript รุ่น 7 ที่ลงอยู่ไม่มีตัวแยกโค้ดให้เรียกจาก JavaScript
+// โคลนใหม่ที่ยังไม่ npm install ไม่มี ข้ามการวัดก้อนของ ts tsx
+let parseSync = null;
+try { ({ parseSync } = await import("rolldown/utils")); } catch { /* ยังไม่มี node_modules */ }
+const notes = [];
+if (!parseSync) notes.push("ไม่ได้วัดก้อนยาวของไฟล์ ts tsx เพราะยังไม่มี rolldown ใน node_modules (สั่ง npm install)");
 
 const walk = (d) => readdirSync(d).flatMap((n) => { const p = join(d, n); return statSync(p).isDirectory() ? walk(p) : [p]; });
 // ที่อยู่ไฟล์เทียบด้วย / เสมอ (Windows ได้ \ จาก path.join · ผู้ช่วยตรวจทานขั้น 13.5 เจอว่าเดิมนับมอคอัปกับ tests.rs บน Windows จนตกทุก commit)
@@ -53,16 +65,22 @@ const files = [
   ...walk(join(ROOT, "src-tauri/src")).filter((p) => { const r = relOf(p); return r.endsWith(".rs") && !r.endsWith("/tests.rs") && !/_tests\.rs$/.test(r); }),
 ].filter((p) => !tracked || tracked.has(relOf(p)) || staged.has(relOf(p)));
 /** เนื้อไฟล์ที่นับ · ตอน commit ไฟล์ที่ stage ไว้อ่านจาก index */
-const textOf = (p) => { const r = relOf(p); if (STAGED && staged.has(r)) { try { return git(`show ":${r}"`); } catch { /* อ่านจากไฟล์ */ } } return readFileSync(p, "utf8"); };
+const textOf = (p) => { const r = relOf(p); if (STAGED && staged.has(r)) { try { return git(`show ":${r}"`); } catch { notes.push(`อ่าน ${r} ตามที่ stage ไว้ไม่ได้ จึงนับจากไฟล์บนดิสก์แทน`); } } return readFileSync(p, "utf8"); };
 
-/** จำนวนบรรทัดที่นับ · Rust ตัดส่วนเทสท้ายไฟล์ */
+/** จำนวนบรรทัดที่นับ · Rust ตัดส่วนเทสเฉพาะเมื่ออยู่ท้ายไฟล์จริง
+    (ผู้ช่วยตรวจทานขั้น 13 ของ BUGS ข้อ 155 เจอว่าเดิมตัดที่ #[cfg(test)] mod … { ตัวแรกที่เจอ ส่วนเทสอยู่กลางไฟล์แล้วโค้ดจริงข้างหลังไม่ถูกนับ ไฟล์เกิน 600 หลุดตัวกัน) */
 function count(p) {
   const L = textOf(p).replace(/\r\n/g, "\n").split("\n");
+  const all = L.length - (L[L.length - 1] === "" ? 1 : 0);
   if (p.endsWith(".rs")) {
-    const i = L.findIndex((l, k) => /^#\[cfg\(test\)\]/.test(l) && /^(pub(\(crate\))?\s+)?mod\s+\w+\s*\{/.test(L[k + 1] ?? ""));
-    if (i >= 0) return i;
+    const i = L.findIndex((l, k) => /^#\[cfg\(test\)\]/.test(l) && /^(pub(\([^)]*\))?\s+)?mod\s+\w+\s*\{/.test(L[k + 1] ?? ""));
+    if (i >= 0) {
+      // โมดูลระดับบนสุดปิดด้วย } ที่คอลัมน์แรก · หลังจากนั้นต้องเหลือแค่บรรทัดว่างหรือความเห็น ถึงนับว่าเทสอยู่ท้ายไฟล์
+      const j = L.findIndex((l, k) => k > i + 1 && l.replace(/\s*\/\/.*$/, "").trimEnd() === "}");
+      if (j >= 0 && L.slice(j + 1).every((l) => !l.trim() || /^\s*\/\//.test(l))) return i;
+    }
   }
-  return L.length - (L[L.length - 1] === "" ? 1 : 0);
+  return all;
 }
 
 /** จุดตัดที่แนะนำ เส้นแบ่งหัวข้อที่ใกล้กลางไฟล์ที่สุด (/* ---- หรือ // ---- หรือฟังก์ชันระดับบนสุด) */
@@ -80,33 +98,34 @@ function longBlocks(p, n) {
   const L = textOf(p).replace(/\r\n/g, "\n").split("\n").slice(0, n);
   const out = [];
   if (p.endsWith(".rs")) {
-    const FN = /^( *)(?:pub(?:\([\w:]+\))? )?(?:const )?(?:async )?(?:unsafe )?(?:extern "[^"]+" )?fn (\w+)/;
+    // pub(crate) pub(super) pub(in path) · บรรทัดปิดที่มีความเห็นต่อท้าย (} // …) นับเป็นบรรทัดปิด (ผู้ช่วยตรวจทานขั้น 13)
+    // ข้อจำกัดที่รู้ raw string ที่มีบรรทัด } ชิดระดับเดียวกับ fn ทำให้นับขาด ยังไม่มีในโค้ด
+    const FN = /^( *)(?:pub(?:\([^)]*\))? )?(?:const )?(?:async )?(?:unsafe )?(?:extern "[^"]+" )?fn (\w+)/;
     for (let i = 0; i < L.length; i++) {
       const m = L[i].match(FN);
       if (!m || /\}\s*$/.test(L[i]) || /;\s*$/.test(L[i])) continue; // ฟังก์ชันบรรทัดเดียว หรือแค่ประกาศ
       const close = m[1] + "}";
       let j = i + 1;
-      while (j < L.length && L[j].trimEnd() !== close) j++;
+      while (j < L.length && L[j].replace(/\s*\/\/.*$/, "").trimEnd() !== close) j++;
       if (j < L.length && j - i + 1 > BLOCK) out.push({ name: m[2], line: i + 1, len: j - i + 1 });
     }
     return out;
   }
-  const DECL = /^(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?|const|let|var|class)\s+([A-Za-z_$][\w$]*)/;
-  for (let i = 0; i < L.length; i++) {
-    const m = L[i].match(DECL);
-    if (!m) continue;
-    let end = i;
-    for (let j = i + 1; j < L.length; j++) {
-      const l = L[j];
-      if (!l || /^\s/.test(l)) continue; // บรรทัดว่างกับบรรทัดที่ย่อหน้า อยู่ในก้อน
-      if (/^[}\])]/.test(l)) {
-        if (/[{(]\s*$/.test(l)) continue; // }) { ปิดช่องรับค่าหลายบรรทัดแล้วเปิดตัวฟังก์ชันต่อ ยังไม่จบก้อน
-        end = j; break; // ปิดวงเล็บที่คอลัมน์แรก จบก้อน
-      }
-      break; // คำสั่งระดับบนสุดตัวถัดไป ก้อนนี้จบบรรทัดเดียว
-    }
-    if (end - i + 1 > BLOCK) out.push({ name: m[1], line: i + 1, len: end - i + 1 });
-    i = Math.max(i, end);
+  // ts tsx วัดคำสั่งระดับบนสุดทุกตัวด้วยตัวแยกโค้ด (คอมโพเนนต์ ฟังก์ชัน ตาราง class interface type enum)
+  // เดิมเดาจากบรรทัดที่คอลัมน์แรก นับขาดเมื่อเนื้อเทมเพลตหรือความเห็นชิดซ้าย หรือปิดด้วย "  });" (ผู้ช่วยตรวจทานขั้น 13 ของ BUGS ข้อ 155)
+  if (!parseSync) return out;
+  const text = L.join("\n");
+  const r = parseSync(p, text, { lang: p.endsWith(".tsx") ? "tsx" : "ts" });
+  if (r.errors.length) { notes.push(`แยกโค้ด ${relOf(p)} ไม่ได้ ข้ามการวัดก้อนของไฟล์นี้ (${String(r.errors[0].message ?? r.errors[0]).slice(0, 80)})`); return out; }
+  const starts = [0];
+  for (let i = 0; i < text.length; i++) if (text[i] === "\n") starts.push(i + 1);
+  const lineOf = (o) => { let lo = 0, hi = starts.length - 1; while (lo < hi) { const m = (lo + hi + 1) >> 1; if (starts[m] <= o) lo = m; else hi = m - 1; } return lo; };
+  for (const st of r.program.body) {
+    const a = lineOf(st.start), b = lineOf(st.end);
+    if (b - a + 1 <= BLOCK) continue;
+    const d = st.declaration ?? st;
+    const name = d.id?.name ?? d.declarations?.[0]?.id?.name ?? (st.type === "ExportDefaultDeclaration" ? "export default" : st.type);
+    out.push({ name, line: a + 1, len: b - a + 1 });
   }
   return out;
 }
@@ -115,7 +134,7 @@ const hint = (p, n) => { const h = cutHint(p, n); return h ? " · " + h : ""; };
 const warn = [], fail = [], stale = [], blocks = [];
 for (const p of files) {
   const rel = relOf(p), n = count(p), a = allow[rel];
-  if (!blockAllow[rel]) for (const b of longBlocks(p, n)) blocks.push(`${rel} ${b.name} บรรทัด ${b.line} ยาว ${b.len} บรรทัด`);
+  if (!blockAllow[rel] && (!STAGED || staged.has(rel))) for (const b of longBlocks(p, n)) blocks.push(`${rel} ${b.name} บรรทัด ${b.line} ยาว ${b.len} บรรทัด`);
   if (a) {
     if (n > a.max) fail.push(`${rel} ${n} บรรทัด เกินเพดานในรายการยกเว้น ${a.max} (${a.why})${hint(p, n)}`);
     else if (n <= MAX) stale.push(`${rel} เหลือ ${n} บรรทัด ไม่เกิน ${MAX} แล้ว เอาออกจากรายการยกเว้นได้`);
@@ -135,6 +154,7 @@ if (blocks.length) out.push(`ก้อนยาว (เกิน ${BLOCK} บร
 if (warn.length) out.push(`ใกล้ถึงเวลาแบ่ง (เกิน ${WARN} บรรทัด) ${warn.length} ไฟล์ แบ่งตอนแตะไฟล์นั้นครั้งถัดไป`, ...warn.map((x) => "  " + x));
 if (stale.length) out.push("รายการยกเว้นที่ควรเก็บกวาด", ...stale.map((x) => "  " + x));
 if (fail.length) out.push(`ต้องแบ่งก่อน commit (เกิน ${MAX} บรรทัด) ${fail.length} ไฟล์ · แนวทางวางไฟล์อยู่ CLAUDE.md หัวข้อแนวทางวางไฟล์`, ...fail.map((x) => "  " + x));
+if (notes.length) out.push("หมายเหตุ", ...notes.map((x) => "  " + x));
 out.push(`ตรวจ ${files.length} ไฟล์ · ตก ${fail.length} · เตือน ${warn.length} · ก้อนยาว ${blocks.length}`);
 (fail.length ? console.error : console.log)(out.join("\n"));
 process.exit(fail.length ? (arg("--hook") ? 2 : 1) : 0);

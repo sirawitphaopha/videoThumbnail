@@ -13,8 +13,8 @@ import { modeBits } from "./graphBits";
 import { headBits } from "./graphHead";
 import { panelBits } from "./graphPanel";
 import { plotBits } from "./graphPlot";
-import { GraphCmp, GraphConvert, GraphStart } from "./GraphHome";
-import { GraphError, GraphLoading } from "./GraphState";
+import { cmpView, convertView, startView } from "./GraphHome";
+import { errorView, loadingView } from "./GraphState";
 export { SPEK_RES_KEY } from "./graphPrefs";
 
 /** track ลำดับแทร็กเสียงที่จะเปิด (หน้าบิตเรตส่งแทร็กที่ดูอยู่ BUGS ข้อ 119) · ไม่ส่งเปิดแทร็กแรก */
@@ -23,15 +23,17 @@ export type GraphReq = { path: string; t?: number; track?: number };
 export default function GraphPage(props: GraphProps) {
   const pg = useGraphPage(props);
   const b1 = { ...pg, ...modeBits(pg) };
-  if (b1.cmp) return <GraphCmp pg={b1} />;
-  if (b1.mode === "convert") return <GraphConvert pg={b1} />;
+  // ทางแยกเรียกเป็นฟังก์ชัน ไม่วางเป็นแท็ก JSX · แท็กคนละตัวทำให้ React สร้างกล่องบนใหม่ทุกครั้งที่สลับ (ปุ่มโหมดสีไม่ค่อย ๆ จาง โฟกัสหลุด)
+  // เรียกตรงแล้วได้กล่อง div.ag ชุดเดียวกับโค้ดเดิมที่ React ใช้ต่อ (ผู้ช่วยตรวจทานขั้น 13 ของ BUGS ข้อ 155) · ฟังก์ชัน *View ห้ามมี hook
+  if (b1.cmp) return cmpView({ pg: b1 });
+  if (b1.mode === "convert") return convertView({ pg: b1 });
   /* ---------- ยังไม่เลือกไฟล์ ---------- */
-  if (!b1.path) return <GraphStart pg={b1} />;
+  if (!b1.path) return startView({ pg: b1 });
   const b2 = { ...b1, ...headBits(b1) };
   const b3 = { ...b2, ...panelBits(b2) };
   /* ---------- กำลังอ่าน · อ่านไม่ได้ ---------- */
-  if (b3.error && !b3.ov) return <GraphError pg={b3} />;
-  if (!b3.ov || !b3.src) return <GraphLoading pg={b3} />;
+  if (b3.error && !b3.ov) return errorView({ pg: b3 });
+  if (!b3.ov || !b3.src) return loadingView({ pg: b3 });
   /* ---------- กราฟ ---------- */
   const g = { ...b3, ...plotBits(b3) };
   const { ctl, head, panel, plot, prefs, saving, tagDlg, view, viewSlow } = g;

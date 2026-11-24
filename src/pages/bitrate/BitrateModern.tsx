@@ -3,15 +3,17 @@
 import { useBrPage } from "./useBrPage";
 import type { BrProps } from "./useBrState";
 import { openVals } from "./brOpenVals";
-import { BrAsking, BrChoose, BrStart } from "./BrHome";
+import { askingView, chooseView, brStartView } from "./BrHome";
 import BrControls from "./BrControls";
 import BrPlot from "./BrPlot";
 
 export default function BitrateModern(p: BrProps) {
   const pg = useBrPage(p);
-  if (pg.asking) return <BrAsking pg={pg} />;
-  if (!pg.path) return <BrStart pg={pg} />;
-  if (pg.choose && pg.choose.path === pg.path) return <BrChoose pg={pg} />;
+  // ทางแยกเรียกเป็นฟังก์ชัน ไม่วางเป็นแท็ก JSX · ได้กล่อง div.ag.brn กับแถบชื่อไฟล์ชุดเดียวกับโค้ดเดิมที่ React ใช้ต่อตอนเปลี่ยนสภาพ
+  // ไม่งั้นปุ่มกลับหน้ารวมกับรูปปกถูกสร้างใหม่ โฟกัสหลุด (ผู้ช่วยตรวจทานขั้น 13 ของ BUGS ข้อ 155) · ฟังก์ชัน *View ห้ามมี hook
+  if (pg.asking) return askingView({ pg });
+  if (!pg.path) return brStartView({ pg });
+  if (pg.choose && pg.choose.path === pg.path) return chooseView({ pg });
   /* ---------- เปิดไฟล์แล้ว ---------- */
   const op = { ...pg, ...openVals(pg) };
   return (

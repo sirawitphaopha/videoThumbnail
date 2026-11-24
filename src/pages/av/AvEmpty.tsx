@@ -7,7 +7,7 @@ import { IcFile } from "../../components/icons";
 import { BUSY, RunCard, StopDialog } from "./parts";
 import type { AvCtx } from "./avCtx";
 
-export default function AvEmpty({ pg }: { pg: AvCtx }) {
+export default function avEmptyView({ pg }: { pg: AvCtx }) {
   const { askStop, av, loadMovie, loading, movieErr, over, p, pct, run, runBox, setAskStop, working } = pg;
   return (
     <>

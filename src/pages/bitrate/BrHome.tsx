@@ -7,7 +7,7 @@ import bvIcon from "../../assets/thanks/bitrateviewer.ico";
 import { audioIcon, clock, codecName, infoOf } from "./common";
 import type { BrCtx } from "./brCtx";
 
-export function BrAsking({ pg }: { pg: BrCtx }) {
+export function askingView({ pg }: { pg: BrCtx }) {
   const { home, pick, thumbOf } = pg;
   const asking = pg.asking!;
     const nm = asking.split(/[\\/]/).pop() ?? asking, tha = thumbOf(asking);
@@ -31,7 +31,7 @@ export function BrAsking({ pg }: { pg: BrCtx }) {
 }
 
 
-export function BrStart({ pg }: { pg: BrCtx }) {
+export function brStartView({ pg }: { pg: BrCtx }) {
   const { extCard, film, forget, modeSel, movies, onClassic, open, pick, recent, thumbOf } = pg;
     const shelf = movies.filter((m) => !m.missing).slice(0, 6);
     return (
@@ -73,7 +73,7 @@ export function BrStart({ pg }: { pg: BrCtx }) {
 }
 
 
-export function BrChoose({ pg }: { pg: BrCtx }) {
+export function chooseView({ pg }: { pg: BrCtx }) {
   const { film, home, modeSel, name, open, pick, thumbOf } = pg;
   const path = pg.path!;
   const choose = pg.choose!;

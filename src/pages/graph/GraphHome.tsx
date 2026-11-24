@@ -8,7 +8,7 @@ import { tfmt } from "./common";
 import { CompareView } from "./CompareView";
 import type { B1 } from "./graphCtx";
 
-export function GraphCmp({ pg }: { pg: B1 }) {
+export function cmpView({ pg }: { pg: B1 }) {
   const { openSingle, setCmp, setCmpBack, setMode, tagDlg } = pg;
   const cmp = pg.cmp!;
     return (<>
@@ -18,7 +18,7 @@ export function GraphCmp({ pg }: { pg: B1 }) {
 }
 
 
-export function GraphConvert({ pg }: { pg: B1 }) {
+export function convertView({ pg }: { pg: B1 }) {
   const { modeSeg, setCmp, setTagFor, tagDlg } = pg;
     return (
       <div className="ag" data-graph data-graphmode="convert">
@@ -30,7 +30,7 @@ export function GraphConvert({ pg }: { pg: B1 }) {
 }
 
 
-export function GraphStart({ pg }: { pg: B1 }) {
+export function startView({ pg }: { pg: B1 }) {
   const { forget, gone, modeSeg, movies, openOther, recent, setPath } = pg;
     const shelfPicks = movies.filter((m) => !m.missing && m.audio.length).slice(0, 6);
     // ไอคอนแถบฟิล์มของไฟล์หนังที่ไม่มีปก · ป้ายนามสกุลเด่นแบบเดียวกับกล่องไอคอน (พี่กันสั่ง 9 พ.ย. 2569 "ใส่นามสกุลไฟล์หน่อย เป็นการ์ดเด่น ๆ เหมือน icon โน้ตดนตรี" · "ขอ icon ที่บ่งบอกว่าเป็นวิดีโอหน่อย")

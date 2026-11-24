@@ -7,7 +7,7 @@
 import "../../styles/av.css";
 import { useAvPage } from "./useAvPage";
 import type { AvProps } from "./useAvBase";
-import AvEmpty from "./AvEmpty";
+import avEmptyView from "./AvEmpty";
 import AvTop from "./AvTop";
 import TrackTable from "./TrackTable";
 import PosterCard from "./PosterCard";
@@ -20,7 +20,8 @@ import AvDialogs from "./AvDialogs";
 export default function AvPage(p: AvProps) {
   const pg = useAvPage(p);
   // ---------- หน้าว่าง ----------
-  if (!pg.movie) return <AvEmpty pg={pg} />;
+  // เรียกเป็นฟังก์ชัน ไม่วางเป็นแท็ก JSX · กรอบเลื่อน .pagewrap เป็นชุดเดียวกับโค้ดเดิมที่ React ใช้ต่อตอนใส่หรือล้างหนัง (ผู้ช่วยตรวจทานขั้น 13 ของ BUGS ข้อ 155) · ห้ามมี hook
+  if (!pg.movie) return avEmptyView({ pg });
   return (
     <div className="pagewrap" data-av-page ref={pg.pageRef}>
       <div className="avwrap">

@@ -47,7 +47,7 @@ function StepCtl({ k, value, onChange }: { k: Card; value: number; onChange: (v:
   );
 }
 
-export function CodecEasy({ pg }: { pg: CpCtx }) {
+export function easyView({ pg }: { pg: CpCtx }) {
   const { c, ctxOf, engUse, gain, loud, pi, pickPreset, setGain, setLoud, setSpeed, sizeFix, speed, speedOpts, srcCh } = pg;
   return (
     <>
@@ -83,7 +83,7 @@ export function CodecEasy({ pg }: { pg: CpCtx }) {
   );
 }
 
-export function CodecAdv({ pg }: { pg: CpCtx }) {
+export function advView({ pg }: { pg: CpCtx }) {
   const { c, ctx, engUse, gain, live, loud, optsOf, setGain, setLoud, setSpeed, setVal, shown, sizeFix, speed, speedOpts } = pg;
   const cardEl = (k: Card, span: number) => {
     const ex = abbrer();
