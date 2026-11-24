@@ -16,6 +16,8 @@ import { fileURLToPath } from "url";
 import { spawn } from "child_process";
 import { join } from "path";
 
+// บนคอม Windows เบราว์เซอร์ทดสอบลงไว้ใน node_modules ของโปรเจกต์ (ไดรฟ์ D) ไม่ใช่ที่ตั้งต้นในไดรฟ์ C (BUGS ข้อ 155)
+if (process.platform === "win32") process.env.PLAYWRIGHT_BROWSERS_PATH ??= "0";
 const { chromium } = createRequire(import.meta.url)("playwright");
 const OUT = process.argv[2];
 if (!OUT) { console.error("ใส่โฟลเดอร์ภาพ เช่น node scripts/web-shots.mjs /tmp/ภาพ"); process.exit(2); }

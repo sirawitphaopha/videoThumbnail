@@ -9,6 +9,8 @@ import { createRequire } from "module";
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from "fs";
 import { join } from "path";
 
+// บนคอม Windows เบราว์เซอร์ทดสอบลงไว้ใน node_modules ของโปรเจกต์ (ไดรฟ์ D) แบบเดียวกับ web-shots.mjs (BUGS ข้อ 155)
+if (process.platform === "win32") process.env.PLAYWRIGHT_BROWSERS_PATH ??= "0";
 const { chromium } = createRequire(import.meta.url)("playwright");
 const [A, B, OUT0] = process.argv.slice(2);
 if (!A || !B) { console.error("ใช้ node scripts/web-diff.mjs <ชุดก่อน> <ชุดหลัง>"); process.exit(2); }
