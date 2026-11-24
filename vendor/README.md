@@ -24,6 +24,15 @@
 - ค่า SHA-256 ที่เว็บให้มา `f0e46253c70dfe902bac915dfb4224f0cf1b7c6eeab9da2ccc9a5581f9a71b13` (เก็บไว้ใน `ffmpeg/ffmpeg-release-full.7z.sha256`)
 - แคลร์ลองโหลดแล้ว เว็บส่งไฟล์มาช้ามากและค้างที่ 25 MB จึงหยุดและลบไฟล์ที่ค้างทิ้ง
 
+## FFmpeg 9.1 · แคลร์โหลด 24 พ.ย. 2569 (BUGS ข้อ 158)
+
+- พี่กันสั่ง *"อัปเดต เเละแก้ 156 เลย"* หลังปุ่มเช็กรุ่นในหน้าตั้งค่าบอกว่ามีรุ่นใหม่
+- ไฟล์ `ffmpeg/ffmpeg-9.1-full_build.7z` ขนาด 75,452,955 ไบต์ SHA-256 `1a86f2c8b51b4990ae9a0b0f8bd4f345f5c79389d293ac3fda128a58ec507b16`
+- ลิงก์ https://www.gyan.dev/ffmpeg/builds/ffmpeg-release-full.7z ส่งต่อไป `packages/ffmpeg-9.1-full_build.7z` · ที่เก็บสำรองของผู้ทำคนเดียวกัน https://github.com/GyanD/codexffmpeg/releases/tag/9.1 (ออก 20 พ.ย. 2569) ให้ขนาดและค่า SHA-256 ตรงกัน
+- เว็บ gyan.dev ส่งช้าราว 70 KB ต่อวินาทีและหน้าไฟล์ค่า hash ตอบ 503 เป็นช่วง ๆ ชุดจาก GitHub โหลดเสร็จในหนึ่งนาที
+- ไฟล์บีบอัดเล็กกว่า 9.0.2 ครึ่งหนึ่ง (161 MB เป็น 72 MB) แต่ ffmpeg.exe ขนาดใกล้เดิม (227,823,104 เป็น 231,078,400 ไบต์) เป็นเรื่องการบีบอัด · ความสามารถที่สร้างมา (--enable) 9.1 มี 105 รายการ ครบทุกรายการของ 9.0.2 ที่มี 99 และเพิ่ม libastcenc libcurl liblcevc-dec libopencolorio librabbitmq vapoursynth
+- ไฟล์ 9.0.2 เดิมเก็บไว้ ไม่ได้ใช้แล้ว
+
 ## MKVToolNix แบบ portable กับ MediaInfo · พี่กันโหลดเอง (6 พ.ย. 2569)
 
 | ไฟล์ | มาจาก | ขนาด | ค่า SHA-256 ที่แคลร์คำนวณ |
@@ -47,16 +56,19 @@
 | `wavpack/wavpack-5.9.0-x64.zip` | https://github.com/dbry/WavPack/releases/download/5.9.0/wavpack-5.9.0-x64.zip (ทางการ) | 426,226 | `ad5e94bcde6f4edfc859210d98f144f225805a391c633c68f6dbb15a9e52570e` |
 | `monkeys-audio/MAC_1345_SDK.zip` | https://www.monkeysaudio.com/files/MAC_1345_SDK.zip (ทางการ รุ่น 13.45 · เก็บไว้ ไม่ได้ใช้แล้ว) | 1,806,340 | `b12bda0eb9e31dbe01d54a970d387add3a8c1079901141021d257de17a6a9106` |
 | `monkeys-audio/MAC_1346_SDK.zip` | https://www.monkeysaudio.com/files/MAC_1346_SDK.zip (ทางการ รุ่น 13.46 ขึ้นเว็บ 7 พ.ย. 2569 23:06 เวลาไทย · โหลด 8 พ.ย. 2569) ใช้แค่ข้อความสัญญาอนุญาต | 1,806,894 | `17359c36099b7e1000da40306905f027088ac798fed1cb5e2405c33aaa030f83` |
-| `monkeys-audio/MAC_1346_x64.exe` | https://monkeysaudio.com/x64 → `files/MAC_1346_x64.exe` (ตัวติดตั้งทางการ ลายเซ็น Open Source Developer Matthew Ashland ถูกต้อง · โหลด 8 พ.ย. 2569) ใช้ดึง `MACDll64.dll` | 2,959,848 | `6a45c39588160e4154f23cb71607062131fbbec1cc4f566ddb92efc5bddbcf49` |
+| `monkeys-audio/MAC_1346_x64.exe` | https://monkeysaudio.com/x64 → `files/MAC_1346_x64.exe` (ตัวติดตั้งทางการ ลายเซ็น Open Source Developer Matthew Ashland ถูกต้อง · โหลด 8 พ.ย. 2569 · เก็บไว้ ไม่ได้ใช้แล้ว) | 2,959,848 | `6a45c39588160e4154f23cb71607062131fbbec1cc4f566ddb92efc5bddbcf49` |
+| `monkeys-audio/MAC_1350_SDK.zip` | https://monkeysaudio.com/files/MAC_1350_SDK.zip (ทางการ รุ่น 13.50 · โหลด 24 พ.ย. 2569 BUGS ข้อ 158) ใช้แค่ข้อความสัญญาอนุญาต ต่างจาก 13.46 แค่ปีลิขสิทธิ์ 2000–2027 | 1,807,646 | `64a347668211efbc564a8543b28be612895caddf0a5f317b9404255fcffc0be1` |
+| `monkeys-audio/MAC_1350_x64.exe` | https://monkeysaudio.com/x64 → `files/MAC_1350_x64.exe` (ตัวติดตั้งทางการ ลายเซ็น Open Source Developer Matthew Ashland ถูกต้อง ประทับเวลา Certum Timestamp 2026 · โหลด 24 พ.ย. 2569) ใช้ดึง `MACDll64.dll` | 2,946,264 | `970d7c70c9ba48ff1aec998e3f4405f0aad92f25ffbb3fe7028e13f9baca0a8d` |
 | `tak/TAK_2.3.3.zip` | http://www.thbeck.de/Download/TAK_2.3.3.zip (เว็บผู้ทำ Thomas Becker · มีแต่ http · TAK 2.3.3 ตัวจริง ออก 30 มิ.ย. 2565 · โหลด 8 พ.ย. 2569) | 1,765,343 | `40d26992266f1377d576b88b84b88d2ab256dc321e47f90314402a80692aba6a` |
 
 - ทุกเว็บไม่ได้ให้ค่า hash ไว้เทียบ ค่าในตารางแคลร์คำนวณเองหลังโหลด ไว้เช็กว่าไฟล์ไม่เปลี่ยนภายหลัง
 - เปิดแต่ละตัวแบบมีแค่ไฟล์ exe ตัวเดียวในโฟลเดอร์ว่างแล้ว `flac.exe` ต้องมี `libFLAC.dll` ข้างกัน · `lame.exe` ต้องมี `libmpg123-0.dll` ข้างกัน · `opusenc.exe` กับ `wavpack.exe` เปิดได้ตัวเดียว
 - 🔴 **ชุด SDK ของ Monkey's Audio ไม่มีตัวแปลงแบบคำสั่ง (`MAC.exe`)** มีแต่ `Shared/64/MACDll64.dll` ซอร์สโค้ด และหัวไฟล์ · ใน DLL มีคำสั่งรับเสียงแบบส่งต่อเนื่อง `c_APECompress_Create` `c_APECompress_StartW` `c_APECompress_AddData` `c_APECompress_Finish` (หัวไฟล์ `Shared/MACDll.h`) โปรแกรมเรียก DLL นี้ตรงจาก Rust ส่งเสียงที่ ffmpeg ถอดแล้วเข้าไป
 - ไฟล์บีบอัดของ opus-tools กับ LAME ไม่มีข้อความสัญญาอนุญาตแนบ · ใช้ข้อความ LGPL 2.1 จากชุด FLAC แทนของ LAME กับ libmpg123 (LAME เขียนว่า LGPL รุ่น 2 หรือใหม่กว่า) · ของ opus-tools จดชื่อสัญญา BSD 2 ข้อกับที่อยู่ข้อความเต็มไว้ใน `src-tauri/tools/licenses/SOURCES.txt`
-- รุ่นที่อ่านจากตัวโปรแกรมจริง `flac 1.5.0` · `LAME 64bits version 4.0` · `opusenc opus-tools 0.2-52-g5f894e9 (using libopus 1.6.1-11-g788cc89)` · `wavpack 5.9.0` · Monkey's Audio `MACDll64.dll` ตอบ `13.46` · TAK `TAKC 2.3.3` (`Takc -version` · Takc เป็นโปรแกรม 32 บิต)
+- รุ่นที่อ่านจากตัวโปรแกรมจริง `flac 1.5.0` · `LAME 64bits version 4.0` · `opusenc opus-tools 0.2-52-g5f894e9 (using libopus 1.6.1-11-g788cc89)` · `wavpack 5.9.0` · Monkey's Audio `MACDll64.dll` ตอบ `13.50` (เดิม 13.46 ถึง 24 พ.ย. 2569) · TAK `TAKC 2.3.3` (`Takc -version` · Takc เป็นโปรแกรม 32 บิต)
 - 🔴 **`MACDll64.dll` ที่คอมไพล์มาแล้วในชุด SDK 13.45 และ 13.46 เป็นไฟล์เดียวกัน รุ่น 12.36** (719,872 ไบต์ ลงวันที่ 25 ก.พ. 2569) · เรียก `GetLibraryVersionString` ได้ `12.36` และในไฟล์ไม่มีเลข 13.x · ซอร์สในชุดเป็นรุ่นใหม่แต่ผู้ทำไม่ได้สร้าง DLL ใหม่ใส่ชุด (ลอง 8 พ.ย. 2569)
 - 🔴 **`MACDll64.dll` รุ่น 13.46 จริงดึงจากตัวติดตั้ง `MAC_1346_x64.exe`** ด้วย `scripts/nsis-extract.py` (8 พ.ย. 2569 พี่กันสั่ง *"จัดเลย / ลิง เอาไงงง ไปหามา"*) · ตัวติดตั้งเป็น NSIS บีบ LZMA ก้อนเดียว สคริปต์ถอดในเครื่องแล้วหาก้อนที่ตาราง export ชื่อ `MACDll64.dll` ไม่รันตัวติดตั้ง ไม่มีหน้าต่าง ไม่ต้องใช้ 7-Zip (เครื่องนี้ไม่มี) · ต้องมี Python (`py`) · DLL ที่ได้ 764,728 ไบต์ รุ่น 13.46.0.0 ลายเซ็น Matthew Ashland ถูกต้อง ประทับเวลา Certum · `fetch-tools.ps1` เช็กทั้ง hash และลายเซ็นทุกครั้ง
+- 🔴 **อัปเดตเป็น 13.50 วันที่ 24 พ.ย. 2569** (BUGS ข้อ 158 พี่กันสั่ง *"อัปเดต เเละแก้ 156 เลย"*) ถอดจาก `MAC_1350_x64.exe` ด้วยสคริปต์เดิม ได้ `MACDll64.dll` 757,048 ไบต์ รุ่น 13.50.0.0 SHA-256 `ebda7497b6d0b9f3292c83b9f6f4b348bf232469a19b7de01635d57069075fca` ลายเซ็น Matthew Ashland ถูกต้อง
 - ในตัวติดตั้ง 13.46 ผู้ทำแนบตัวแปลงอื่นมาด้วย (ตรงกับหน้าเว็บที่เขียนว่า external encoders are part of the install) · `flac.exe` `libFLAC.dll` `wavpack.exe` ในนั้นตรงทุกไบต์กับตัวที่เราใช้ และ `Takc.exe` ตรงทุกไบต์กับตัวในชุด TAK 2.3.3 (SHA-256 `a78a96a6fb7c0a83dfa6d2ed9156f11a51a5f1deed97187c18b24def82dbc195`) · เป็นการยืนยันจากแหล่งที่สองที่มีลายเซ็น
 - fdkaac ไม่แนบ ผู้ใช้ใส่เองในโฟลเดอร์ตัวแปลงที่ใส่เอง · **qaac แนบแล้ว 10 พ.ย. 2569** หัวข้อ qaac ข้างล่าง
 - 🔴 **TAK แนบไฟล์ zip เดิมทั้งไฟล์** · สัญญาใน Readme.html ของชุด (หัวข้อ License กับ Distribution) บอกว่าฟรีสำหรับใช้ส่วนตัวที่ไม่ใช่การค้า แจกต่อได้ถ้าไม่ดัดแปลง ไฟล์ zip เดิมอยู่ครบพร้อมไฟล์ประกอบทุกไฟล์ และไม่คิดเงิน · จึงไม่แยก Takc.exe ออกไปแจกเดี่ยว ๆ · `fetch-tools.ps1` คัดลอก `TAK_2.3.3.zip` ทั้งไฟล์ลง `src-tauri/tools/` โปรแกรมแตก `Takc.exe` กับ `Readme.html` ไปไว้ที่ `AppData\Local\ชั้นหนัง\TAK 2.3.3` ตอนใช้ครั้งแรก (`encode.rs` `ensure_tak` ใช้ tar ของ Windows)
@@ -89,8 +101,8 @@
 
 | ไฟล์ | ขนาด (ไบต์) | ค่า SHA-256 |
 |---|--:|---|
-| `ffmpeg.exe` | 227,823,104 | `589e50b766d251afdf181dd664d40bd94407e200b019989fd7468c7d118a28d0` |
-| `ffprobe.exe` | 227,621,376 | `02264dfa4f56baaa31e443ece8aa16d397f6b008200e7fd184d22b9009e75fd3` |
+| `ffmpeg.exe` | 231,078,400 | `3ab4a9c404504ebff6662d6a48661db952f88ee7fb7d5949a711cad7a763b2cf` (9.1 ตั้งแต่ 24 พ.ย. 2569 · เดิม 9.0.2 227,823,104 ไบต์ `589e50b7…118a28d0`) |
+| `ffprobe.exe` | 230,862,848 | `ff181a5b52664aae7a9f673c3a718440706b33511e8a3e38064ff4f21f1a7bed` (9.1 · เดิม 9.0.2 227,621,376 ไบต์ `02264dfa…9e75fd3`) |
 | `LIBCURL.DLL` | 817,664 | `22b972f008ab8bb5bc225889a8be60683b2bf7546b8e0d699b5b4186bdbb7cc1` |
 | `MediaInfo.exe` | 9,407,896 | `35d5bdf5bd3ef0776c50e22492b4e5b0ee687f9c115d9b61f4feba3e881dfbf9` |
 | `mkvextract.exe` | 23,687,480 | `a7e8b7358c743cbd4d5261ff0d09b1ae0538a5825266a31110c00d978ae36403` |
@@ -102,7 +114,7 @@
 | `libmpg123-0.dll` | 429,481 | `018e6833088b3fc7d9a97c3f45abb5f9f947f7c46de4f17fddf423f430fa70fa` |
 | `opusenc.exe` | 793,600 | `ec1597618e30fbe97b3dfcd60639d444644cf302a777eb92049a61d1930ef5e8` |
 | `wavpack.exe` | 321,536 | `e26ad2ed3c8e417bd62e0b8eb4ee9b9e2f261a859c9cc18c99026e2b7f8fc661` |
-| `MACDll64.dll` | 764,728 | `281a72e6e27a49c03a41b02542490f296f235fd2fec30e62c1b0783f653c3a6c` (13.46 จากตัวติดตั้ง · เดิม 12.36 จากชุด SDK `da666525…39302` 719,872 ไบต์) |
+| `MACDll64.dll` | 757,048 | `ebda7497b6d0b9f3292c83b9f6f4b348bf232469a19b7de01635d57069075fca` (13.50 จากตัวติดตั้ง ตั้งแต่ 24 พ.ย. 2569 · ก่อนหน้า 13.46 764,728 ไบต์ `281a72e6…53c3a6c` · เดิมสุด 12.36 จากชุด SDK `da666525…39302` 719,872 ไบต์) |
 | `TAK_2.3.3.zip` | 1,765,343 | `40d26992266f1377d576b88b84b88d2ab256dc321e47f90314402a80692aba6a` (ไฟล์เดิมทั้งไฟล์) |
 | `heif.dll` | 1,543,680 | `b5209e57d768bd471cecfffbde44f9e0fc2a31d962627fd804b853b7f7dc2950` |
 | `libx265.dll` | 16,844,288 | `14a2f662ab38132e4ea934521ca446964c4fe1de75e4bcea9a6a18493e7bce1f` |

@@ -69,11 +69,11 @@ const sample = [
   { name: "opusenc", installed: "libopus 1.6.1", latest: "1.6.1", state: "ok", from: "RareWares (รุ่น libopus ในชุด)", error: null },
   { name: "lame", installed: "4.0", latest: "4.0", state: "ok", from: "RareWares", error: null },
   { name: "wavpack", installed: "5.9.0", latest: "5.8.1", state: "ahead", from: "WavPack (GitHub)", error: null },
-  { name: "MACDll64", installed: "13.46", latest: null, state: "error", from: "Monkey's Audio", error: "ต่อเว็บไม่ได้หรือรอนานเกิน" },
+  { name: "MACDll64", installed: "13.50", latest: null, state: "error", from: "Monkey's Audio", error: "ต่อเว็บไม่ได้หรือรอนานเกิน" },
   { name: "qaac64", installed: null, latest: "3.07", state: "missing", from: "qaac (GitHub)", error: null },
   { name: "fdkaac", installed: null, latest: "1.0.9", state: "missing", from: "fdkaac (GitHub)", error: null },
   { name: "Takc", installed: "2.3.3", latest: "2.3.3", state: "ok", from: "TAK (Thomas Becker)", error: null },
-  { name: "ffmpeg", installed: "9.0.2", latest: "9.0.2", state: "ok", from: "gyan.dev (ชุด full build ที่แนบมา)", error: null },
+  { name: "ffmpeg", installed: "9.1", latest: "9.1", state: "ok", from: "gyan.dev (ชุด full build ที่แนบมา)", error: null },
 ];
 await c.evaluate(`window.__latestSample = ${JSON.stringify(sample)}`);
 await c.click("[data-enclatest]");

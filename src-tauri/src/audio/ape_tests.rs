@@ -53,8 +53,9 @@ fn wav_head_skips_list_chunk() {
 fn mac_dll_loads_and_reports_version() {
     let dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("tools");
     let v = version(&dir).expect("เปิด MACDll64.dll ได้");
-    // DLL ในชุด SDK 13.45 และ 13.46 ตอบรุ่น 12.36 · ตัวที่ fetch-tools ดึงจากตัวติดตั้ง 13.46 ต้องตอบ 13.46 ขึ้นไป (ลองจริง 8 พ.ย. 2569)
+    // DLL ในชุด SDK 13.45 และ 13.46 ตอบรุ่น 12.36 · ตัวที่ fetch-tools ดึงจากตัวติดตั้งต้องตอบรุ่นที่แนบ (ลองจริง 8 พ.ย. 2569)
+    // แนบ 13.50 ตั้งแต่ 24 พ.ย. 2569 (BUGS ข้อ 158) · เดิมเช็ก 13.46 ขึ้นไป
     let key: Vec<u32> = v.split('.').map(|x| x.parse().unwrap_or(0)).collect();
-    assert!(key >= vec![13, 46], "รุ่น {v} · รัน scripts/fetch-tools.ps1 ใหม่ให้ได้ DLL จากตัวติดตั้ง");
+    assert!(key >= vec![13, 50], "รุ่น {v} · รัน scripts/fetch-tools.ps1 ใหม่ให้ได้ DLL จากตัวติดตั้ง 13.50");
     Mac::load(&dir).expect("มีคำสั่งบีบเสียงครบ");
 }

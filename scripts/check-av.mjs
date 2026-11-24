@@ -1,7 +1,7 @@
 // เทสหน้าเสียงและซับ (แผนเสียงและซับ ขั้น 2) ในหน้าต่างโปรแกรมจริง ผ่านพอร์ตดีบัก · ถ่ายภาพทุกสถานะลงโฟลเดอร์รายงาน
 // ลากไฟล์จำลองด้วยตัวรับไฟล์ของหน้า (window.__avDrop มีเฉพาะตอนทดสอบ) · ไฟล์หนังเป็นสำเนาในโฟลเดอร์ทดสอบ ไม่แตะ test-media
 // ใช้: node scripts/check-av.mjs  (โปรแกรมเปิดผ่าน scripts/dev-app.ps1 แบบอยู่หลังสุด)
-import { mkdirSync, writeFileSync, copyFileSync, rmSync, existsSync, readdirSync, readFileSync, renameSync } from "node:fs";
+import { mkdirSync, writeFileSync, copyFileSync, rmSync, existsSync, readdirSync, readFileSync, renameSync, utimesSync } from "node:fs";
 import { createHash } from "node:crypto";
 import { spawnSync } from "node:child_process";
 import { join } from "node:path";
@@ -44,6 +44,8 @@ await q("window.__setTrackPanel?.('under', false); return 1;"); // หลัง�
 await c.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 900, deviceScaleFactor: 1, mobile: false });
 
 // ---------- เมนูซ้าย · หน้าว่าง ----------
+// รอเมนูขึ้นก่อนกด รอบแรกหลังเปิดโปรแกรม หน้าโหลดนานกว่า 1.5 วินาที ตัวตรวจพังตรงนี้ (24 พ.ย. 2569)
+await waitFor("return [...document.querySelectorAll('.side .nav')].some(b => b.innerText.includes('เสียงและซับ'))", 30000);
 await c.evaluate(`[...document.querySelectorAll('.side .nav')].find(b => b.innerText.includes('เสียงและซับ')).click()`);
 await waitFor("return !!document.querySelector('[data-av-page]')");
 const empty = await q("return document.querySelector('[data-av-page]').innerText");
@@ -398,7 +400,8 @@ const flacCmd = await cmdNow();
 check("เปลี่ยนเป็น FLAC การ์ด Compression level · Threads · Verify · Bit depth · Sample rate · Block size · ไม่มีการ์ดของ Opus ค้าง · เลือก Block size 4,608 คำสั่งมี -b 4608",
   flacCards.split(",").sort().join() === "level,threads,verify,bits,rate,block".split(",").sort().join() && flacCmd.includes("-b 4608") && !flacCmd.includes("--bitrate"), `${flacCards} · ${flacCmd.slice(flacCmd.indexOf("flac --"), flacCmd.indexOf("flac --") + 70)}`);
 await shot("14-แผงขั้นสูง-FLAC.png", "[data-cards]", 8);
-await clickText("[data-codec-panel] .seg button", "ffmpeg 9.0.2");
+// ชื่อปุ่มมาจากเลขรุ่นที่ ffmpeg ตอบจริง (codecCalc.ts) เดิมเขียน ffmpeg 9.0.2 ตายตัว อัปเดตรุ่นแล้วหาปุ่มไม่เจอ (BUGS ข้อ 158)
+await c.evaluate(`[...document.querySelectorAll('[data-codec-panel] .seg button')].find(b => /^ffmpeg \\d/.test(b.innerText.trim())).click()`);
 await waitFor("return document.querySelector('[data-cmd]').innerText.includes('-c:a flac')", 8000);
 const ffCards = await q("return [...document.querySelectorAll('[data-codec-panel] [data-cards] .acard')].map(a => a.dataset.card).join(',')");
 const ffCmd = await cmdNow();
@@ -543,6 +546,9 @@ check("กดใส่ไฟล์ที่จับคู่ไว้ลงต�
 
 // ---------- ตัวดูซับรูป (ขั้น 6) · หนังที่มีซับ PGS กับ VobSub (สำเนาในโฟลเดอร์ทดสอบ) ----------
 copyFileSync(join(AV, "ซับรูป (2024).mkv"), join(DIR, "ซับรูป (2024).mkv"));
+// ตัวเก็บภาพซับรูปจำผลด้วยที่อยู่ ขนาด และเวลาแก้ไฟล์ (subtitle/subs/picture.rs cache_key) Windows คงเวลาแก้ไฟล์เดิมของสำเนา
+// รอบที่สองจึงได้ผลที่จำไว้ ไม่มีความคืบหน้า แถบค้าง 0% ตั้งเวลาแก้ไฟล์เป็นตอนนี้ให้ถอดใหม่ทุกรอบ (BUGS ข้อ 156)
+{ const now = new Date(); utimesSync(join(DIR, "ซับรูป (2024).mkv"), now, now); }
 await c.evaluate(`[...document.querySelectorAll('.side .nav')].find(b => b.innerText.includes('เสียงและซับ')).click()`);
 await sleep(400);
 await clickTextAny(".avfoot button", "ล้างทั้งหมด").catch(() => {});
@@ -599,16 +605,17 @@ await sleep(300);
 const big = await q("const b = document.querySelector('[data-bigsub]'); if (!b) return ''; const r = b.getBoundingClientRect(); const f = b.parentElement.getBoundingClientRect(); const d = document.querySelector('.dlg'); return Math.round(r.width) + 'x' + Math.round(r.height) + ' · ' + (r.bottom <= f.bottom + 1 && r.right <= f.right + 1) + ' · ' + (d.scrollHeight - d.clientHeight) + ' · ' + document.querySelector('.simgbar .small').innerText");
 check("กดภาพดูเต็ม วางตรงตำแหน่งจริงบนจอ 720 × 480 ภาพพอดีกรอบ หน้าต่างไม่เลื่อน", big.includes("ภาพที่ 40") && big.includes("720 × 480") && big.includes("· true · 0 ·") && Math.abs(Number(big.split("x")[0]) / Number(big.split("x")[1].split(" ")[0]) - 1.5) < 0.05, big);
 // ภาพก่อนกับภาพถัดไปตอนดูภาพเต็ม ลูกศรซ้ายบนแป้น และกลับไปหน้าที่มีภาพที่ดูอยู่ (BUGS ข้อ 141 "ขอปุ่มกดไปข้างหน้า เเละย้อนกลับด้วย")
+// ภาพเต็มมีภาพจากหนังวางข้างหลังซับ (img data-bigsub-frame ไม่มีชื่อภาพ) อยู่ก่อนภาพซับ ต้องข้ามภาพนั้น เดิมหยิบ img ตัวแรกได้ชื่อว่าง ตกทั้งที่ปุ่มทำงาน (BUGS ข้อ 156)
 await c.evaluate("document.querySelector('[data-bigsub-next]').click()");
-const n41 = await waitFor("return document.querySelector('[data-bigsub] img')?.alt === 'ซับภาพ 41'", 8000);
+const n41 = await waitFor("return document.querySelector('[data-bigsub] img:not([data-bigsub-frame])')?.alt === 'ซับภาพ 41'", 8000);
 await c.evaluate("document.querySelector('[data-bigsub-prev]').click()");
-const n40 = await waitFor("return document.querySelector('[data-bigsub] img')?.alt === 'ซับภาพ 40'", 8000);
+const n40 = await waitFor("return document.querySelector('[data-bigsub] img:not([data-bigsub-frame])')?.alt === 'ซับภาพ 40'", 8000);
 await c.key("ArrowLeft");
-const n39 = await waitFor("return document.querySelector('[data-bigsub] img')?.alt === 'ซับภาพ 39' && document.querySelector('.simglist-row.on')?.dataset.simgAt === '39'", 8000);
-check("ดูภาพเต็ม กดภาพถัดไปได้ภาพ 41 กดภาพก่อนกลับภาพ 40 ลูกศรซ้ายได้ภาพ 39 และรายการเวลาขึ้นสีตาม", n41 && n40 && n39, await q("return document.querySelector('[data-bigsub] img')?.alt"));
+const n39 = await waitFor("return document.querySelector('[data-bigsub] img:not([data-bigsub-frame])')?.alt === 'ซับภาพ 39' && document.querySelector('.simglist-row.on')?.dataset.simgAt === '39'", 8000);
+check("ดูภาพเต็ม กดภาพถัดไปได้ภาพ 41 กดภาพก่อนกลับภาพ 40 ลูกศรซ้ายได้ภาพ 39 และรายการเวลาขึ้นสีตาม", n41 && n40 && n39, await q("return document.querySelector('[data-bigsub] img:not([data-bigsub-frame])')?.alt"));
 await c.evaluate("document.querySelector('[data-simg-at=\"42\"]').click()");
-const last = await waitFor("return document.querySelector('[data-bigsub] img')?.alt === 'ซับภาพ 42' && document.querySelector('[data-bigsub-next]')?.getAttribute('aria-disabled') === 'true'", 8000);
-check("ตอนดูภาพเต็ม กดเวลาภาพ 42 ในรายการ ภาพเต็มเปลี่ยนเป็นภาพ 42 และปุ่มภาพถัดไปกดไม่ได้เพราะเป็นภาพสุดท้าย", last, await q("return document.querySelector('[data-bigsub] img')?.alt + ' · ' + document.querySelector('[data-bigsub-next]')?.title"));
+const last = await waitFor("return document.querySelector('[data-bigsub] img:not([data-bigsub-frame])')?.alt === 'ซับภาพ 42' && document.querySelector('[data-bigsub-next]')?.getAttribute('aria-disabled') === 'true'", 8000);
+check("ตอนดูภาพเต็ม กดเวลาภาพ 42 ในรายการ ภาพเต็มเปลี่ยนเป็นภาพ 42 และปุ่มภาพถัดไปกดไม่ได้เพราะเป็นภาพสุดท้าย", last, await q("return document.querySelector('[data-bigsub] img:not([data-bigsub-frame])')?.alt + ' · ' + document.querySelector('[data-bigsub-next]')?.title"));
 await c.evaluate("document.querySelector('[data-bigsub-back]').click()");
 const backOk = await waitFor(`return document.querySelector('.simg.pick img')?.alt === 'ซับภาพ 42'`, 8000);
 check("กลับไปดูทีละหน้า ไปหน้าที่มีภาพ 42 และกรอบภาพนั้นขึ้นสี", backOk, await q("return document.querySelector('[data-simg-count]')?.innerText"));

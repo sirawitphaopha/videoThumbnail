@@ -44,7 +44,7 @@ export const THANKS: { title: string; note: string; rows: { name: string; ver?: 
     { icon: <IcSettings />, name: "Claude Desktop", ver: "4.23118.0", what: "รูปแบบเมนูหัวข้อของหน้าตั้งค่า", tag: "ไอเดีย", url: "claude.ai" },
   ] },
   { title: "เครื่องมือที่แนบมาทำงานจริง", note: "ใช้ตามสัญญาอนุญาตของแต่ละตัว ข้อความเต็มอยู่ในโฟลเดอร์ tools\\licenses", rows: [
-    { icon: <IbPlay />, name: "FFmpeg", ver: "9.0.2", what: "ถอด แปลง ตรวจไฟล์เสีย อ่านเสียงมาวาดกราฟ และอ่านบิตเรตวิดีโอ ใช้ชุดจาก gyan.dev และไอคอนจาก Icons8", tag: "GPLv3", url: "ffmpeg.org" },
+    { icon: <IbPlay />, name: "FFmpeg", ver: "9.1", what: "ถอด แปลง ตรวจไฟล์เสีย อ่านเสียงมาวาดกราฟ และอ่านบิตเรตวิดีโอ ใช้ชุดจาก gyan.dev และไอคอนจาก Icons8", tag: "GPLv3", url: "ffmpeg.org" },
     { icon: <IcFile />, name: "MKVToolNix", ver: "103.0", what: "ครอบ MKV แนบปก แยกแทร็ก", tag: "GPLv2", url: "mkvtoolnix.download" },
     { icon: <IbEye />, name: "MediaInfo", ver: "26.10", what: "รายละเอียดไฟล์", tag: "BSD-2", url: "mediaarea.net" },
     { icon: <IcMix />, name: "FLAC", ver: "1.5.0", what: "แปลงเสียง FLAC", tag: "GPLv2, BSD", url: "xiph.org/flac" },
@@ -53,7 +53,7 @@ export const THANKS: { title: string; note: string; rows: { name: string; ver?: 
     { icon: <IcMix />, name: "WavPack", ver: "5.9.0", what: "แปลงเสียง WavPack", tag: "BSD-3", url: "wavpack.com" },
     // qaac เป็น Public Domain · ตัวเข้ารหัส ALAC ข้างในเป็นของ Apple (Apache 2.0) · ไม่แนบ ผู้ใช้วางเอง (อ่าน COPYING ของ qaac 10 พ.ย. 2569)
     { icon: <IcMix />, name: "qaac กับ refalac", ver: "3.07", what: "แปลงเสียง AAC ด้วยตัวของ Apple (ต้องติดตั้ง iTunes เอง) และ ALAC แนบมากับโปรแกรม", tag: "Public Domain, ALAC Apache 2.0", url: "github.com/nu774/qaac" },
-    { icon: <IcMix />, name: "Monkey's Audio", ver: "13.46", what: "แปลงเสียง APE", tag: "BSD-3", url: "monkeysaudio.com" },
+    { icon: <IcMix />, name: "Monkey's Audio", ver: "13.50", what: "แปลงเสียง APE", tag: "BSD-3", url: "monkeysaudio.com" },
     { icon: <IcMix />, name: "TAK", ver: "2.3.3", what: "แปลงเสียง TAK แนบไฟล์เดิมทั้งชุด", tag: "ฟรีใช้ส่วนตัว", url: "thbeck.de/Tak" },
     { icon: <IcPoster />, name: "libheif กับ libde265", ver: "1.23.7, 1.1.3", what: "บันทึกรูปกราฟเป็น HEIC ใช้ชุดจาก conda-forge", tag: "LGPLv3", url: "github.com/strukturag/libheif" },
     { icon: <IcPoster />, name: "x265", ver: "3.5", what: "เข้ารหัสภาพใน HEIC", tag: "GPLv2", url: "bitbucket.org/multicoreware/x265_git" },

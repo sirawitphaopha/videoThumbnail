@@ -135,6 +135,18 @@ try {
   const enc = await q("return document.body.innerText.includes('docs/research') ? 'ยังมี' : (document.querySelector('[data-enc-thanks]') ? 'ok' : 'ไม่เจอปุ่ม');");
   check("หัวข้อตัวแปลงเสียงไม่ชี้ไฟล์ docs แล้ว มีปุ่มไปหัวข้อขอบคุณ (AUDIT 137)", enc === "ok", enc);
 
+  // ---------- BUGS 159 ประวัติรุ่นของตัวแปลงที่แนบมา ท้ายหัวข้อตัวแปลงเสียง (ข้อมูล src/pages/settings/encHistoryData.ts) ----------
+  // ความกว้างวัดด้วยข้อความเดียวกันแบบไม่ตัดบรรทัดเทียบกล่อง (นับกรอบบรรทัดไม่ได้ ลูกศร → ใช้ฟอนต์สำรองกรอบสูงต่างจากตัวอื่น)
+  const hist = await q(`const h = document.querySelector('[data-enc-history]'); if (!h) return null;
+    const t = (x) => x.innerText.replace(/\\s+/g, ' ').trim();
+    const rows = [...h.querySelectorAll('[data-enc-hist]')].map((r) => ({ iso: r.dataset.encHist, date: t(r.querySelector('.ftname')), ch: [...r.querySelectorAll('[data-enc-change]')].map(t) }));
+    const one = [...h.querySelectorAll('[data-enc-change]')].every((x) => { const s = document.createElement('span'); s.style.cssText = 'white-space:nowrap;position:absolute;visibility:hidden;font:' + getComputedStyle(x).font; s.textContent = t(x); document.body.appendChild(s); const w = s.getBoundingClientRect().width; s.remove(); return w <= x.getBoundingClientRect().width + 0.5; });
+    return { head: t(h.querySelector('h4')), rows, one, marks: /·/.test(h.innerText) };`);
+  const top = hist?.rows[0];
+  check("ประวัติรุ่นของตัวแปลง ครั้งล่าสุด 24 พ.ย. 2569 Monkey's Audio 13.46 → 13.50 และ FFmpeg 9.0.2 → 9.1 อยู่บนสุด (BUGS 159)", !!top && top.date === "24 พ.ย. 2569" && top.ch.includes("Monkey's Audio รุ่น 13.46 → 13.50") && top.ch.includes("FFmpeg รุ่น 9.0.2 → 9.1"), JSON.stringify(top));
+  check("ประวัติรุ่นเรียงจากล่าสุดลงไปครบ 5 ครั้ง ถึงครั้งแรก 6 พ.ย. 2569 ที่แนบ FFmpeg 9.0.2", !!hist && hist.rows.length === 5 && hist.rows.every((r, i) => !i || r.iso < hist.rows[i - 1].iso) && hist.rows.at(-1).ch[0] === "FFmpeg รุ่น 9.0.2 แนบมาครั้งแรก", hist?.rows.map((r) => r.iso).join(" "));
+  check("ประวัติรุ่น หัวข้อถูก ทุกบรรทัดอยู่บรรทัดเดียวที่หน้าต่าง 1280 และไม่มีจุดกลางคั่น", !!hist && hist.one && !hist.marks && hist.head === "ประวัติรุ่นของตัวแปลงที่แนบมา", JSON.stringify({ head: hist?.head, one: hist?.one, marks: hist?.marks }));
+
   // ---------- BUGS 122 หัวข้อขอบคุณ Aegisub ย้ายไปกลุ่มใช้สร้างโปรแกรม เพิ่ม mpv กับ Subtitle Edit ----------
   // ลิงก์ของทุกการ์ดอยู่ในรายการตายตัวฝั่ง Rust ตรวจใน cargo test (every_thanks_card_link_is_in_the_fixed_list) · ที่นี่ไม่กดลิงก์ เพราะเบราว์เซอร์จะเด้งขึ้นจอ
   await c.setNav("thanks"); await sleep(400);

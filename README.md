@@ -99,7 +99,7 @@ node scripts/web-diff.mjs /ที่เก็บ/ภาพก่อน /ที�
 
 | โครงการ | รุ่น | ใช้ทำอะไรในชั้นหนัง | สัญญา | เว็บไซต์ |
 |---|---|---|---|---|
-| FFmpeg | 9.0.2 | ถอด แปลง ตรวจไฟล์เสีย อ่านเสียงมาวาดกราฟ และอ่านบิตเรตวิดีโอ · ชุดจาก gyan.dev · ไอคอนจาก Icons8 | GPLv3 | [ffmpeg.org](https://ffmpeg.org) |
+| FFmpeg | 9.1 | ถอด แปลง ตรวจไฟล์เสีย อ่านเสียงมาวาดกราฟ และอ่านบิตเรตวิดีโอ · ชุดจาก gyan.dev · ไอคอนจาก Icons8 | GPLv3 | [ffmpeg.org](https://ffmpeg.org) |
 | MKVToolNix | 103.0 | ครอบ MKV แนบปก แยกแทร็ก | GPLv2 | [mkvtoolnix.download](https://mkvtoolnix.download) |
 | MediaInfo | 26.10 | รายละเอียดไฟล์ | BSD-2 | [mediaarea.net](https://mediaarea.net) |
 | FLAC | 1.5.0 | แปลงเสียง FLAC | GPLv2 · BSD | [xiph.org/flac](https://xiph.org/flac) |
@@ -107,7 +107,7 @@ node scripts/web-diff.mjs /ที่เก็บ/ภาพก่อน /ที�
 | opus-tools | 0.2 · libopus 1.6.1 | แปลงเสียง Opus · ชุดจาก RareWares | BSD-2 | [opus-codec.org](https://opus-codec.org) |
 | WavPack | 5.9.0 | แปลงเสียง WavPack | BSD-3 | [wavpack.com](https://wavpack.com) |
 | qaac กับ refalac | 3.07 | แปลงเสียง AAC ด้วยตัวของ Apple (ต้องติดตั้ง iTunes เอง) กับ ALAC · แนบมากับโปรแกรม | Public Domain · ALAC Apache 2.0 | [github.com/nu774/qaac](https://github.com/nu774/qaac) |
-| Monkey's Audio | 13.46 | แปลงเสียง APE | BSD-3 | [monkeysaudio.com](https://monkeysaudio.com) |
+| Monkey's Audio | 13.50 | แปลงเสียง APE | BSD-3 | [monkeysaudio.com](https://monkeysaudio.com) |
 | TAK | 2.3.3 | แปลงเสียง TAK · แนบไฟล์เดิมทั้งชุด | ฟรีใช้ส่วนตัว | [thbeck.de/Tak](https://thbeck.de/Tak) |
 | libheif กับ libde265 | 1.23.7 · 1.1.3 | บันทึกรูปกราฟเป็น HEIC · ชุดจาก conda-forge | LGPLv3 | [github.com/strukturag/libheif](https://github.com/strukturag/libheif) |
 | x265 | 3.5 | เข้ารหัสภาพใน HEIC | GPLv2 | [bitbucket.org/multicoreware/x265_git](https://bitbucket.org/multicoreware/x265_git) |

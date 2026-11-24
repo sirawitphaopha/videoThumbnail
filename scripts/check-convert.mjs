@@ -326,7 +326,7 @@ await c.setNav("encoders");
 await waitFor("return !!document.querySelector('[data-setcard=encoders] [data-enc]')", 20000);
 await waitFor("return [...document.querySelectorAll('[data-setcard=encoders] [data-enc]')].length >= 9", 20000);
 const enc = await q("return [...document.querySelectorAll('[data-setcard=encoders] [data-enc]')].map(r => r.innerText.replace(/\\s+/g, ' ')).join(' | ')");
-check("หน้าตั้งค่ามีการ์ด Monkey's Audio 13.46 (MACDll64 จากตัวติดตั้งของผู้ทำ) กับ TAK 2.3.3 แนบมากับโปรแกรม พร้อมใช้งาน", /MACDll64[^|]*13\.46/.test(enc) && /Takc[^|]*2\.3\.3 แนบมากับโปรแกรม[^|]*พร้อมใช้งาน/.test(enc), enc.split(" | ").filter((x) => x.includes("MACDll64") || x.includes("Takc")).join(" | "));
+check("หน้าตั้งค่ามีการ์ด Monkey's Audio 13.50 (MACDll64 จากตัวติดตั้งของผู้ทำ) กับ TAK 2.3.3 แนบมากับโปรแกรม พร้อมใช้งาน", /MACDll64[^|]*13\.50/.test(enc) && /Takc[^|]*2\.3\.3 แนบมากับโปรแกรม[^|]*พร้อมใช้งาน/.test(enc), enc.split(" | ").filter((x) => x.includes("MACDll64") || x.includes("Takc")).join(" | "));
 await clickText(".side .nav", "กราฟเสียง");
 await waitFor("return !!document.querySelector('[data-convert]')", 5000);
 check("ไปหน้าอื่นแล้วกลับมา ยังอยู่โหมดแปลงเสียง คิวกับผลอยู่ครบ", (await q("return document.querySelectorAll('[data-qrow][data-qstate=done]').length")) === 6);

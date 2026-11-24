@@ -8,19 +8,20 @@ $root = Split-Path -Parent $PSScriptRoot
 $tar  = Join-Path $env:WINDIR 'System32\tar.exe'
 
 $mkv = @{ path = 'vendor\mkvtoolnix\mkvtoolnix-64-bit-103.0.7z';        sha = '01d76dbfdbd5615d9e02f69b0710d1429a902d47a98c8eee33bd884c4fcb3cbf' }
-$ff  = @{ path = 'vendor\ffmpeg\ffmpeg-9.0.2-full_build.7z';            sha = 'f0e46253c70dfe902bac915dfb4224f0cf1b7c6eeab9da2ccc9a5581f9a71b13' }
+# FFmpeg 9.1 ชุด full ของ gyan.dev ออก 20 พ.ย. 2569 · อัปเดตจาก 9.0.2 พี่กันสั่ง 24 พ.ย. 2569 "อัปเดต เเละแก้ 156 เลย" (BUGS ข้อ 158) · ค่า SHA-256 ตรงกับที่ GitHub ของผู้ทำ (GyanD/codexffmpeg) ให้มา
+$ff  = @{ path = 'vendor\ffmpeg\ffmpeg-9.1-full_build.7z';              sha = '1a86f2c8b51b4990ae9a0b0f8bd4f345f5c79389d293ac3fda128a58ec507b16' }
 $mi  = @{ path = 'vendor\mediainfo\MediaInfo_CLI_26.10_Windows_x64.zip'; sha = '4cc94bd272903914c04f4f9a9f53a6c94b5ea6c6454cf738d29fa182c41e8a29' }
 # ตัวแปลงเสียงของหน้าเสียงและซับกับหน้ากราฟเสียง (พี่กันอนุญาตโหลด 7 พ.ย. 2569 "โหลดเลย / และ mp3 เอาล่าสุด ล่าสุดทุกตัว")
 $fl  = @{ path = 'vendor\flac\flac-1.5.0-win.zip';                      sha = '53f1500f0d6e7c61379d7fee50d4a9f7f504c650009506d9ba015530d76c0dde' }
 $op  = @{ path = 'vendor\opus-tools\opus-tools-0.2-52-g5f894e9(using libopus 1.6.1-11-g788cc89)-x64.zip'; sha = 'e6ed867d539f609da32f4780af70fffe2ed75a2a7a9751d42537341ca7995a09' }
 $lm  = @{ path = 'vendor\lame\lame-4.0-x64.zip';                        sha = '722f4311e2795d5c852076a579b3183beeb76e9010d9cab1e7f9d2e86d9d0808' }
 $wv  = @{ path = 'vendor\wavpack\wavpack-5.9.0-x64.zip';                sha = 'ad5e94bcde6f4edfc859210d98f144f225805a391c633c68f6dbb15a9e52570e' }
-# Monkey's Audio 13.46 (ออก 7 พ.ย. 2569) · ชุด SDK ให้ข้อความสัญญาอนุญาต · ตัวติดตั้งให้ MACDll64.dll รุ่นจริง
-# MACDll64.dll ในชุด SDK 13.45 และ 13.46 เป็นไฟล์เก่ารุ่น 12.36 ที่ผู้ทำไม่ได้สร้างใหม่ (vendor\README.md)
-# พี่กันอนุญาตโหลดตัวติดตั้ง 8 พ.ย. 2569 "จัดเลย / ลิง เอาไงงง ไปหามา"
-$ma  = @{ path = 'vendor\monkeys-audio\MAC_1346_SDK.zip';               sha = '17359c36099b7e1000da40306905f027088ac798fed1cb5e2405c33aaa030f83' }
-$mai = @{ path = 'vendor\monkeys-audio\MAC_1346_x64.exe';               sha = '6a45c39588160e4154f23cb71607062131fbbec1cc4f566ddb92efc5bddbcf49' }
-$macDllSha = '281a72e6e27a49c03a41b02542490f296f235fd2fec30e62c1b0783f653c3a6c'
+# Monkey's Audio 13.50 · ชุด SDK ให้ข้อความสัญญาอนุญาต · ตัวติดตั้งให้ MACDll64.dll รุ่นจริง
+# MACDll64.dll ในชุด SDK 13.45 และ 13.46 เป็นไฟล์เก่ารุ่น 12.36 ที่ผู้ทำไม่ได้สร้างใหม่ (vendor\README.md) จึงถอดจากตัวติดตั้งตลอด
+# พี่กันอนุญาตโหลดตัวติดตั้ง 8 พ.ย. 2569 "จัดเลย / ลิง เอาไงงง ไปหามา" · อัปเดตเป็น 13.50 พี่กันสั่ง 24 พ.ย. 2569 "อัปเดต เเละแก้ 156 เลย" (BUGS ข้อ 158)
+$ma  = @{ path = 'vendor\monkeys-audio\MAC_1350_SDK.zip';               sha = '64a347668211efbc564a8543b28be612895caddf0a5f317b9404255fcffc0be1' }
+$mai = @{ path = 'vendor\monkeys-audio\MAC_1350_x64.exe';               sha = '970d7c70c9ba48ff1aec998e3f4405f0aad92f25ffbb3fe7028e13f9baca0a8d' }
+$macDllSha = 'ebda7497b6d0b9f3292c83b9f6f4b348bf232469a19b7de01635d57069075fca'
 # TAK 2.3.3 ฟรีสำหรับใช้ส่วนตัว แจกต่อได้เฉพาะไฟล์ zip เดิมทั้งไฟล์ไม่ดัดแปลง · แนบ zip ทั้งไฟล์ โปรแกรมแตก Takc.exe เอง (encode.rs ensure_tak)
 # พี่กันสั่ง 7 พ.ย. 2569 "ลิง และ TAK เอามาด้วยนะ" · เว็บผู้ทำมีแต่ http · Takc.exe ในนี้ตรงทุกไบต์กับตัวที่ตัวติดตั้ง Monkey's Audio ที่มีลายเซ็นแนบมา
 # qaac 3.07 (qaac64 refalac64 libsoxr64) Public Domain · ALAC ข้างในเป็น Apache 2.0 · แนบแบบ foobar2000 encoder pack · ไฟล์ของ Apple ไม่แนบ ผู้ใช้ติดตั้ง iTunes เอง
@@ -57,7 +58,7 @@ foreach ($d in @('mediainfo', 'opus', 'lame', 'wavpack')) { New-Item -ItemType D
 if ($LASTEXITCODE -ne 0) { throw 'แตก MKVToolNix ไม่สำเร็จ' }
 
 & $tar -xf (Join-Path $root $ff.path) -C $work `
-  'ffmpeg-9.0.2-full_build/bin/ffmpeg.exe' 'ffmpeg-9.0.2-full_build/bin/ffprobe.exe' 'ffmpeg-9.0.2-full_build/LICENSE'
+  'ffmpeg-9.1-full_build/bin/ffmpeg.exe' 'ffmpeg-9.1-full_build/bin/ffprobe.exe' 'ffmpeg-9.1-full_build/LICENSE'
 if ($LASTEXITCODE -ne 0) { throw 'แตก FFmpeg ไม่สำเร็จ' }
 
 & $tar -xf (Join-Path $root $mi.path) -C (Join-Path $work 'mediainfo') 'MediaInfo.exe' 'LIBCURL.DLL' 'LICENSE'
@@ -109,12 +110,12 @@ $copies = @(
   @('mkvtoolnix\mkvmerge.exe',                     'mkvmerge.exe'),
   @('mkvtoolnix\mkvextract.exe',                   'mkvextract.exe'),
   @('mkvtoolnix\mkvpropedit.exe',                  'mkvpropedit.exe'),
-  @('ffmpeg-9.0.2-full_build\bin\ffmpeg.exe',      'ffmpeg.exe'),
-  @('ffmpeg-9.0.2-full_build\bin\ffprobe.exe',     'ffprobe.exe'),
+  @('ffmpeg-9.1-full_build\bin\ffmpeg.exe',      'ffmpeg.exe'),
+  @('ffmpeg-9.1-full_build\bin\ffprobe.exe',     'ffprobe.exe'),
   @('mediainfo\MediaInfo.exe',                     'MediaInfo.exe'),
   @('mediainfo\LIBCURL.DLL',                       'LIBCURL.DLL'),
   @('mkvtoolnix\doc\COPYING.txt',                  'licenses\MKVToolNix-GPL-2.0.txt'),
-  @('ffmpeg-9.0.2-full_build\LICENSE',             'licenses\FFmpeg-LICENSE.txt'),
+  @('ffmpeg-9.1-full_build\LICENSE',             'licenses\FFmpeg-LICENSE.txt'),
   @('mediainfo\LICENSE',                           'licenses\MediaInfo-LICENSE.txt'),
   @('flac-1.5.0-win\Win64\flac.exe',               'flac.exe'),
   @('flac-1.5.0-win\Win64\libFLAC.dll',            'libFLAC.dll'),
@@ -183,13 +184,13 @@ Copy-Item -LiteralPath (Join-Path $root 'vendor\bdsup2sub\LICENSE.txt') -Destina
 $sources = @"
 ที่มาของเครื่องมือในโฟลเดอร์นี้ (แตกจาก vendor ด้วย scripts\fetch-tools.ps1)
 - MKVToolNix 103.0 แบบพกพา 64 บิต · สัญญา GPL v2 · ซอร์สโค้ด https://mkvtoolnix.download/source.html (เก็บสำเนาไว้ที่ vendor\mkvtoolnix-source)
-- FFmpeg 9.0.2 full build จาก https://www.gyan.dev/ffmpeg/builds/ · สัญญา GPL v3 · ซอร์สโค้ด https://ffmpeg.org/download.html
+- FFmpeg 9.1 full build จาก https://www.gyan.dev/ffmpeg/builds/ · สัญญา GPL v3 · ซอร์สโค้ด https://ffmpeg.org/download.html
 - MediaInfo CLI 26.10 จาก https://mediaarea.net/ · สัญญา BSD-2-Clause
 - FLAC 1.5.0 (flac.exe libFLAC.dll) จาก https://xiph.org/flac/download.html · ตัว flac สัญญา GPL v2 ห้องสมุด libFLAC สัญญา BSD (Xiph) · ซอร์สโค้ด https://github.com/xiph/flac
 - opusenc จาก opus-tools 0.2-52-g5f894e9 ทำด้วย libopus 1.6.1 · ชุดที่ทำโดย RareWares https://www.rarewares.org/files/opus/ · สัญญา BSD 2 ข้อ (Xiph) ไฟล์บีบอัดไม่มีข้อความสัญญาแนบ ข้อความเต็มอยู่ https://github.com/xiph/opus-tools/blob/master/COPYING และ https://opus-codec.org/license/
 - LAME 4.0 (lame.exe libmpg123-0.dll) · ชุดที่ทำโดย RareWares https://www.rarewares.org/files/mp3/ · LAME สัญญา LGPL รุ่น 2 หรือใหม่กว่า libmpg123 สัญญา LGPL 2.1 (ใช้ข้อความ LGPL 2.1 จากชุด FLAC เพราะไฟล์บีบอัดไม่มีข้อความสัญญาแนบ) · ซอร์สโค้ด https://lame.sourceforge.io/ และ https://www.mpg123.de/
 - WavPack 5.9.0 (wavpack.exe) จาก https://github.com/dbry/WavPack/releases · สัญญา BSD 3 ข้อ
-- Monkey's Audio 13.46 (MACDll64.dll จากตัวติดตั้ง MAC_1346_x64.exe มีลายเซ็นของผู้ทำ ข้อความสัญญาจากชุด SDK) จาก https://www.monkeysaudio.com/ · สัญญา BSD 3 ข้อ
+- Monkey's Audio 13.50 (MACDll64.dll จากตัวติดตั้ง MAC_1350_x64.exe มีลายเซ็นของผู้ทำ ข้อความสัญญาจากชุด SDK) จาก https://www.monkeysaudio.com/ · สัญญา BSD 3 ข้อ
 - qaac 3.07 (qaac64.exe refalac64.exe libsoxr64.dll) จาก https://github.com/nu774/qaac/releases · ตัว qaac เป็น Public Domain · ตัวเข้ารหัส ALAC ของ Apple ข้างในสัญญา Apache 2.0 (https://www.apache.org/licenses/LICENSE-2.0) · ส่วนอื่นข้างใน (TagLib libsoxr FDK mmtisobmff และอื่น ๆ) ดู licenses\qaac-COPYING.txt · ซอร์สโค้ด https://github.com/nu774/qaac · qaac ใช้ตัวเข้ารหัส AAC ของ Apple ที่มากับ iTunes ไฟล์ของ Apple ไม่ได้แนบ ผู้ใช้ติดตั้ง iTunes เอง
 - TAK 2.3.3 (TAK_2.3.3.zip ไฟล์เดิมทั้งไฟล์ โปรแกรมแตก Takc.exe ไปใช้เอง) จาก http://www.thbeck.de/Tak/Tak.html · ฟรีสำหรับใช้ส่วนตัวที่ไม่ใช่การค้า แจกต่อได้เฉพาะไฟล์ zip เดิมทั้งไฟล์ ไม่คิดเงิน
 - libheif 1.23.7 (heif.dll ใช้บันทึกรูปกราฟเป็น HEIC) พร้อม libx265 3.5 libde265 1.1.3 aom 3.15.3 dav1d 1.5.4 libsharpyuv จาก libwebp 1.6.0 · ตัวที่ conda-forge สร้าง https://conda-forge.org/ · libheif กับ libde265 สัญญา LGPL รุ่น 3 หรือใหม่กว่า · x265 สัญญา GPL รุ่น 2 หรือใหม่กว่า · aom dav1d libsharpyuv สัญญา BSD · ซอร์สโค้ด https://github.com/strukturag/libheif https://bitbucket.org/multicoreware/x265_git https://github.com/strukturag/libde265 https://aomedia.googlesource.com/aom https://code.videolan.org/videolan/dav1d https://chromium.googlesource.com/webm/libwebp และสูตรสร้าง https://github.com/conda-forge

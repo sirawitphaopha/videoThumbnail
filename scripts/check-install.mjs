@@ -96,7 +96,7 @@ const ins = spawnSync(installer, ["/S", `/D=${DEST}`], { env, windowsVerbatimArg
 const secs = ((Date.now() - t0) / 1000).toFixed(0);
 const exe = existsSync(DEST) ? readdirSync(DEST).find((f) => f.toLowerCase().endsWith(".exe") && !f.toLowerCase().startsWith("uninstall")) : null;
 check("ติดตั้งแบบเงียบลงโฟลเดอร์ที่เลือกได้ ไม่มีหน้าต่าง", ins.status === 0 && exe, `ตัวติดตั้ง ${installer.split("\\").pop()} ${(size / 1048576).toFixed(0)} MB · ใช้ ${secs} วินาที · ได้ ${exe ?? "ไม่มีไฟล์โปรแกรม"} · รหัส ${ins.status}`);
-// เครื่องมือแผนเดิม 7 ไฟล์ กับตัวแปลงเสียงของแผนเสียงและซับ 8 ไฟล์ (flac กับ DLL ประกอบ lame กับ DLL ประกอบ opusenc wavpack MACDll64 13.46 ชุด TAK ทั้ง zip) · รวมตอนนี้ 33 ไฟล์
+// เครื่องมือแผนเดิม 7 ไฟล์ กับตัวแปลงเสียงของแผนเสียงและซับ 8 ไฟล์ (flac กับ DLL ประกอบ lame กับ DLL ประกอบ opusenc wavpack MACDll64 13.50 ชุด TAK ทั้ง zip) · รวมตอนนี้ 33 ไฟล์
 const toolNames = ["mkvmerge.exe", "mkvextract.exe", "mkvpropedit.exe", "ffmpeg.exe", "ffprobe.exe", "MediaInfo.exe", "LIBCURL.DLL",
   "flac.exe", "libFLAC.dll", "lame.exe", "libmpg123-0.dll", "opusenc.exe", "wavpack.exe", "MACDll64.dll", "TAK_2.3.3.zip", "qaac64.exe", "refalac64.exe", "libsoxr64.dll",
   // libheif ตัวจริงกับไฟล์ที่มันต้องใช้ บันทึกรูปกราฟเป็น HEIC (9 ไฟล์)
@@ -146,8 +146,8 @@ if (c) {
   const encOk = ["flac", "opusenc", "lame", "wavpack", "MACDll64", "Takc", "refalac64", "ffmpeg"].every((n) => encs.find((e) => e.name === n)?.ok);
   const ver = (n) => encs.find((e) => e.name === n)?.version;
   const takcSha = existsSync(join(TAK_DIR, "Takc.exe")) ? fileSha(join(TAK_DIR, "Takc.exe")) : "ไม่มีไฟล์";
-  check("ตัวที่ติดตั้งเรียกตัวแปลงเสียงที่แนบมาได้ครบ flac opusenc lame wavpack Monkey's Audio 13.46 TAK 2.3.3 ffmpeg พร้อมเลขรุ่น · Takc.exe แตกจาก zip ที่แนบมาใหม่ hash ตรง พร้อมสัญญาอนุญาต",
-    encOk && ver("MACDll64") === "13.46" && ver("Takc") === "2.3.3" && encs.find((e) => e.name === "Takc")?.source === "bundled" && takcSha === TAKC_SHA && existsSync(join(TAK_DIR, "Readme.html")),
+  check("ตัวที่ติดตั้งเรียกตัวแปลงเสียงที่แนบมาได้ครบ flac opusenc lame wavpack Monkey's Audio 13.50 TAK 2.3.3 ffmpeg พร้อมเลขรุ่น · Takc.exe แตกจาก zip ที่แนบมาใหม่ hash ตรง พร้อมสัญญาอนุญาต",
+    encOk && ver("MACDll64") === "13.50" && ver("Takc") === "2.3.3" && encs.find((e) => e.name === "Takc")?.source === "bundled" && takcSha === TAKC_SHA && existsSync(join(TAK_DIR, "Readme.html")),
     `${encs.map((e) => `${e.name} ${e.ok ? e.version : "ไม่มี"}`).join(" · ")} · Takc.exe ${takcSha.slice(0, 16)}`);
   const probe = await inv("convert_probe", { path: resolve("test-media", "สร้าง", "เสียงซับ", "เพลงทดสอบ 96k.flac") }).then((f) => `${f.codec} ${f.tags.length} ช่อง ปก ${!!f.cover}`, (e) => "ผิด " + String(e));
   check("ตัวที่ติดตั้งอ่านไฟล์เสียงเข้าคิวแปลงได้ (ข้อมูลเพลงกับปก)", probe.startsWith("flac 5 ช่อง ปก true"), probe);

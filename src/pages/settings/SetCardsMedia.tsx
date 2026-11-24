@@ -7,6 +7,7 @@ import { Keep, Phr, Skel, Switch } from "../../components/ui";
 import { fmtSize } from "../../lib/format";
 import { EXT_INFO, FILE_TYPES } from "../../lib/fileTypes";
 import { GraphImgRows, LatestLine, OvStartRow, SpekResRow } from "./rows";
+import EncHistory from "./EncHistory";
 import type { SetOpen } from "./setCtx";
 
 export default function SetCardsMedia({ pg }: { pg: SetOpen }) {
@@ -40,6 +41,7 @@ export default function SetCardsMedia({ pg }: { pg: SetOpen }) {
               {e.ok ? <span className="toolok">พร้อมใช้งาน</span> : e.problem ? <span className="toolwarn">{e.problem.startsWith("ต้องติดตั้ง iTunes") ? "ต้องติดตั้ง iTunes" : "ขาดไฟล์ประกอบ"}</span> : <span className="toolwarn">ยังไม่ได้ใส่</span>}</div>))}
         <div className="small" style={{ marginTop: 6 }}><Phr>{"fdkaac (AAC ของ Fraunhofer) สัญญาอนุญาตไม่ให้แจกไปกับตัวติดตั้ง จึงต้องโหลดเองแล้ววางทุกไฟล์ที่มากับชุดไว้ในโฟลเดอร์ตัวแปลง แล้วกดตรวจตัวแปลงใหม่  ส่วน qaac (AAC ของ Apple) กับ refalac (ALAC) แนบมากับโปรแกรมแล้ว แต่ qaac ต้องติดตั้ง iTunes ก่อน เพราะใช้ตัวเข้ารหัสของ Apple ที่มากับ iTunes ซึ่งแจกไปกับโปรแกรมไม่ได้ ขณะที่ refalac ไม่ต้องมี iTunes  สำหรับ TAK แนบชุดเดิมของผู้ทำมาทั้งไฟล์ตามเงื่อนไขการแจก แล้วโปรแกรมแตกออกมาใช้เอง และใช้ได้เฉพาะหน้าแปลงเสียง  ดูรายชื่อ รุ่น และสัญญาอนุญาตของตัวแปลงทุกตัวได้ที่หัวข้อขอบคุณของหน้านี้"}</Phr> <button type="button" className="latlink" onClick={() => goSec("thanks")} data-enc-thanks>ไปหัวข้อขอบคุณ</button></div>
         {/* AUDIT ข้อ 137 · เดิมชี้ไปไฟล์ docs/research/codec-เสียง.md ที่มีเฉพาะในโฟลเดอร์โปรเจกต์ ตัวติดตั้งไม่ได้แนบไปด้วย */}
+        <EncHistory />
       </div>
 
       {/* ---------- กราฟเสียง (แคลร์เพิ่ม · ผลอ่านคลื่นที่เก็บลงเครื่อง คิว 8) ---------- */}

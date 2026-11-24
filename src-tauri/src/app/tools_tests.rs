@@ -62,9 +62,9 @@ fn all_six_tools_answer_their_version() {
     for c in &checks {
         assert!(c.ok, "{} ไม่พร้อม: {}", c.name, c.version);
     }
-    // ต้องเป็นรุ่นที่แนบไว้ใน vendor/README.md ไม่ใช่แค่ตอบอะไรก็ได้
+    // ต้องเป็นรุ่นที่แนบไว้ใน vendor/README.md ไม่ใช่แค่ตอบอะไรก็ได้ · ffmpeg 9.0.2 → 9.1 วันที่ 24 พ.ย. 2569 (BUGS ข้อ 158)
     let want = [("mkvmerge", "v103.0"), ("mkvextract", "v103.0"), ("mkvpropedit", "v103.0"),
-                ("ffmpeg", "9.0.2"), ("ffprobe", "9.0.2"), ("MediaInfo", "26.10")];
+                ("ffmpeg", "version 9.1-"), ("ffprobe", "version 9.1-"), ("MediaInfo", "26.10")];
     for (name, ver) in want {
         let c = checks.iter().find(|c| c.name == name).unwrap();
         assert!(c.version.contains(ver), "{name} ไม่ใช่รุ่น {ver}: {}", c.version);

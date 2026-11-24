@@ -51,8 +51,8 @@ export async function mock<T>(cmd: string, args?: Record<string, unknown>): Prom
         { name: "mkvmerge", ok: true, version: "mkvmerge v103.0 (จำลอง)" },
         { name: "mkvextract", ok: true, version: "mkvextract v103.0 (จำลอง)" },
         { name: "mkvpropedit", ok: true, version: "mkvpropedit v103.0 (จำลอง)" },
-        { name: "ffmpeg", ok: true, version: "ffmpeg 9.0.2 (จำลอง)" },
-        { name: "ffprobe", ok: true, version: "ffprobe 9.0.2 (จำลอง)" },
+        { name: "ffmpeg", ok: true, version: "ffmpeg 9.1 (จำลอง)" },
+        { name: "ffprobe", ok: true, version: "ffprobe 9.1 (จำลอง)" },
         { name: "MediaInfo", ok: true, version: "MediaInfo 26.10 (จำลอง)" },
       ] as T;
     case "running_jobs":
