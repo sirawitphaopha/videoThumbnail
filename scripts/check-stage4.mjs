@@ -236,8 +236,10 @@ await drop(join(DIR, "หนังเก่า.wmv"), "movie"); await sleep(400)
 s = await page();
 await shot("02-วางผิดชนิด.png", "[data-card=movie]", 8);
 await sleep(1500);
-const still = (await page()).movie.includes("ไฟล์ .wmv ใช้ไม่ได้");
-check("วางไฟล์ผิดชนิด ช่องแดง ไฟล์ .wmv ใช้ไม่ได้ ค้างไว้จนกว่าจะวางใหม่", s.movie.includes("ไฟล์ .wmv ใช้ไม่ได้") && still && (await q("return !!document.querySelector('[data-drop=movie].bad')")));
+// คำเปลี่ยน 15 พ.ย. 2569 ให้บอกทางไปต่อ (usePosterFiles.ts) ข้อนี้เคยรอคำเดิม "ใช้ไม่ได้" ตกมาตั้งแต่นั้น (BUGS ข้อ 157 แก้ 24 พ.ย. 2569)
+const WMV_MSG = "ไฟล์ .wmv ต้องแปลงเป็น MKV หรือ MP4 ก่อน";
+const still = (await page()).movie.includes(WMV_MSG);
+check("วางไฟล์ผิดชนิด ช่องแดง ไฟล์ .wmv ต้องแปลงเป็น MKV หรือ MP4 ก่อน ค้างไว้จนกว่าจะวางใหม่", s.movie.includes(WMV_MSG) && still && (await q("return !!document.querySelector('[data-drop=movie].bad')")), s.movie);
 
 await c.evaluate("window.__posterOver('poster')"); await sleep(200);
 await shot("03-ลากค้างเหนือช่อง.png", "[data-card=poster]", 8);

@@ -172,9 +172,12 @@ if (c) {
   const partials = () => readdirSync(MOVIES).filter((f) => f.endsWith(".partial"));
   const info = await inv("poster_open", { path: resolve("test-media", "สร้าง", "รูป", "poster.jpg") });
   await inv("poster_render", { req: { geo: { rotate: 0, flip: false, mode: "crop", x: info.crop[0], y: info.crop[1], w: info.crop[2], h: info.crop[3], pad: "#ffffff" }, format: "jpg", quality: 90, choose: true, sizes: false } });
-  c.evaluate(`window.__TAURI_INTERNALS__.invoke('poster_apply', { req: { path: ${JSON.stringify(big)}, output: 'mkv', checkSource: false, checkOutput: true, original: 'keep', drop: [] } }).catch(() => {})`).catch(() => {});
+  // จดผลของคำสั่งไว้ในหน้า ถ้างานล้มก่อนเริ่มเขียนไฟล์ จะรู้ว่าล้มเพราะอะไร (เดิมทิ้งผลเงียบ · ตกครั้งแรกรุ่น 0.10.5 ไม่เห็น .partial ภายใน 10 วินาที)
+  c.evaluate(`window.__applyRes = null; window.__TAURI_INTERNALS__.invoke('poster_apply', { req: { path: ${JSON.stringify(big)}, output: 'mkv', checkSource: false, checkOutput: true, original: 'keep', drop: [] } }).then(() => { window.__applyRes = 'สำเร็จ'; }, (e) => { window.__applyRes = 'ล้ม ' + JSON.stringify(e); })`).catch(() => {});
   let sawPartial = false;
-  for (let i = 0; i < 100 && !sawPartial; i++) { await sleep(100); sawPartial = partials().length > 0; }
+  const tApply = Date.now();
+  for (let i = 0; i < 300 && !sawPartial; i++) { await sleep(100); sawPartial = partials().length > 0; }
+  const applyNote = `เห็น .partial หลังสั่ง ${((Date.now() - tApply) / 1000).toFixed(1)} วินาที · ผลคำสั่งตอนนั้น ${await q("return String(window.__applyRes)").catch(() => "อ่านไม่ได้")}`;
   await sleep(300);
   const tClose = Date.now();
   await c.evaluate("window.__TAURI_INTERNALS__.invoke('force_close')").catch(() => {});
@@ -184,7 +187,7 @@ if (c) {
   const closeSecs = ((Date.now() - tClose) / 1000).toFixed(1);
   check("กด หยุดงานแล้วปิดโปรแกรม ระหว่างครอบไฟล์ 1.6 GB · โปรแกรมรองานหยุดแล้วปิดเอง ไฟล์ที่ทำค้างถูกลบ ไม่มีไฟล์ใหม่ ไฟล์เดิม hash เท่าเดิม",
     sawPartial && closed && partials().length === 0 && !existsSync(join(MOVIES, "หนังยาว (2020).mkv")) && fileSha(big) === bigSha,
-    `เห็น .partial ก่อนปิด ${sawPartial} · ปิดเองใน ${closeSecs} วินาที ${closed} · .partial ที่เหลือ ${partials().length}`);
+    `เห็น .partial ก่อนปิด ${sawPartial} · ${applyNote} · ปิดเองใน ${closeSecs} วินาที ${closed} · .partial ที่เหลือ ${partials().length}`);
   await c.close?.();
 }
 testProcs(true);

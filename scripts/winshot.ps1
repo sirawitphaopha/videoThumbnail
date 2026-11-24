@@ -4,6 +4,8 @@
 # พิมพ์ความสว่างเฉลี่ยของส่วนที่ตัด 0 ถึง 255 ให้ตัวตรวจรู้ว่ามีภาพ (ไม่ใช่ดำล้วน)
 param([Parameter(Mandatory = $true)][string]$Out, [int]$X = 0, [int]$Y = 0, [int]$W = 0, [int]$H = 0)
 $ErrorActionPreference = 'Stop'
+# ข้อความไทยที่บอกเหตุส่งเป็น UTF-8 ให้ตัวตรวจ (execFileSync encoding utf8) อ่านออก ไม่งั้นได้รหัสอักษรของเครื่องแล้วเพี้ยน
+[Console]::OutputEncoding = [Text.Encoding]::UTF8
 Add-Type -AssemblyName System.Drawing
 Add-Type @"
 using System;
@@ -16,6 +18,7 @@ public static class WinShot {
   [DllImport("user32.dll")] public static extern bool ClientToScreen(IntPtr h, ref POINT p);
   [DllImport("user32.dll")] public static extern bool PrintWindow(IntPtr h, IntPtr hdc, uint flags);
   [DllImport("user32.dll")] public static extern bool IsWindowVisible(IntPtr h);
+  [DllImport("user32.dll")] public static extern bool IsIconic(IntPtr h);
   public delegate bool EnumProc(IntPtr h, IntPtr l);
   [DllImport("user32.dll")] public static extern bool EnumWindows(EnumProc f, IntPtr l);
   [DllImport("user32.dll")] public static extern uint GetWindowThreadProcessId(IntPtr h, out uint pid);
@@ -39,6 +42,8 @@ $p = Get-Process movie-shelf -ErrorAction SilentlyContinue | Where-Object { $_.P
 if (-not $p) { Write-Output 'ไม่เจอหน้าต่างโปรแกรมทดสอบ'; exit 2 }
 $hwnd = [WinShot]::Biggest([uint32]$p.Id)
 if ($hwnd -eq [IntPtr]::Zero) { Write-Output 'ไม่เจอหน้าต่างโปรแกรมทดสอบ'; exit 2 }
+# บอกเหตุตรง ๆ แทนภาพจุดเดียวที่ขอบ เดิมหน้าต่างผิดสภาพแล้วได้ภาพ 1 × 1 ความสว่าง 0.0 ตัวตรวจขึ้นว่าดำล้วน ทั้งที่ mpv วาดได้ (BUGS ข้อ 157 เจอ 24 พ.ย. 2569)
+if ([WinShot]::IsIconic($hwnd)) { Write-Output 'หน้าต่างโปรแกรมทดสอบถูกย่ออยู่ ถ่ายไม่ได้'; exit 0 }
 $wr = New-Object WinShot+RECT; [void][WinShot]::GetWindowRect($hwnd, [ref]$wr)
 $cr = New-Object WinShot+RECT; [void][WinShot]::GetClientRect($hwnd, [ref]$cr)
 $pt = New-Object WinShot+POINT; [void][WinShot]::ClientToScreen($hwnd, [ref]$pt)
@@ -52,6 +57,10 @@ if (-not $ok) { Write-Output 'PrintWindow ไม่สำเร็จ'; exit 3 }
 # ภาพของ PrintWindow เริ่มที่มุมหน้าต่าง (มีขอบมองไม่เห็นรอบหน้าต่าง) ส่วนที่ขอเทียบมุมพื้นที่หน้าต่าง ต้องบวกระยะขอบ
 $ox = $pt.X - $wr.L; $oy = $pt.Y - $wr.T
 if ($W -le 0 -or $H -le 0) { $X = 0; $Y = 0; $W = $cr.R; $H = $cr.B }
+elseif ($X -ge $cr.R -or $Y -ge $cr.B -or ($X + $W) -le 0 -or ($Y + $H) -le 0) {
+  $bmp.Dispose()
+  Write-Output ("ส่วนที่ขอตัดอยู่นอกหน้าต่าง หน้าต่างกว้าง {0} สูง {1} แต่ขอที่ {2},{3} กว้าง {4} สูง {5}" -f $cr.R, $cr.B, $X, $Y, $W, $H); exit 0
+}
 $rx = [Math]::Max(0, [Math]::Min($bw - 1, $ox + $X)); $ry = [Math]::Max(0, [Math]::Min($bh - 1, $oy + $Y))
 $rw = [Math]::Max(1, [Math]::Min($W, $bw - $rx)); $rh = [Math]::Max(1, [Math]::Min($H, $bh - $ry))
 $crop = $bmp.Clone((New-Object System.Drawing.Rectangle $rx, $ry, $rw, $rh), $bmp.PixelFormat)

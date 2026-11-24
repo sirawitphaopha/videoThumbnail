@@ -22,6 +22,8 @@ await q(`await window.__TAURI_INTERNALS__.invoke('set_settings', { patch: { fold
 await q("location.reload();").catch(() => null);
 await sleep(3000);
 await waitFor("return document.querySelectorAll('.book[data-movie]').length > 5;", 60000);
+// โปรแกรมจำหน้าล่าสุดไว้ โหลดใหม่แล้วอาจอยู่หน้าอื่นที่ตัวตรวจก่อนหน้าค้างไว้ ปกบนชั้นซ่อนอยู่กดไม่ได้ ไปหน้าชั้นวางก่อน (BUGS ข้อ 157 เจอ 24 พ.ย. 2569 เปิดมาที่หน้าซับไตเติล)
+await nav("ชั้นวางหนัง");
 check("ตัวจริงเปิดจาก tauri.localhost ใช้กติกาความปลอดภัยจริง", (await q("return location.host;")) === "tauri.localhost", await q("return location.host;"));
 
 /* ---------- ปุ่มขยายอ่านสีมุมรูปผ่าน asset ---------- */

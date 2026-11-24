@@ -116,6 +116,8 @@ await q("localStorage.removeItem('pgs-engine'); localStorage.removeItem('pgs-opt
 await c.send("Emulation.setDeviceMetricsOverride", { width: 1280, height: 800, deviceScaleFactor: 1, mobile: false });
 try {
   await nav("ซับไตเติล"); await sleep(500);
+  // ช่องลากไฟล์ขึ้นเฉพาะตอนหน้าว่าง ตัวตรวจที่รันก่อนหน้าอาจทิ้งไฟล์ค้างไว้ ล้างก่อนหา (BUGS ข้อ 157 แก้ 24 พ.ย. 2569)
+  await q("window.__subClear?.(); return 1;"); await sleep(400);
   const accept = await q("const s = document.querySelector('[data-sub-accept]'); if (!s) return null; const r = document.createRange(); r.selectNodeContents(s); return { t: s.innerText, h: Math.round(s.getBoundingClientRect().height), lines: new Set([...r.getClientRects()].map((x) => Math.round(x.top))).size };");
   check("ช่องลากไฟล์บอกนามสกุลซับแบบใหม่ SMI SBV TTML ครบ แยกไฟล์หนังกับไฟล์ซับเป็นสองบรรทัดพอดี", !!accept && /SMI/.test(accept.t) && /SBV/.test(accept.t) && /TTML/.test(accept.t) && accept.lines === 2, JSON.stringify(accept));
   if (accept) await c.shot(`${SHOT}/00-ช่องลากไฟล์-นามสกุลที่รับ.png`, "[data-drop=subtitle]", 6);

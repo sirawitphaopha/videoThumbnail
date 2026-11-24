@@ -175,14 +175,16 @@ check("ไฟล์ MP4 แยกเสียงเป็น .aac ด้วย f
   rmSync(list);
   const hb = sha(big);
   const xdir2 = join(DIR, "แยกไฟล์");
+  // โฟลเดอร์นี้มีไฟล์ที่ข้อก่อนหน้าแยกไว้แล้ว นับเฉพาะไฟล์ที่เกิดหลังสั่งงานนี้ (เดิมนับทั้งโฟลเดอร์ ตกทั้งที่ไม่มีไฟล์ค้าง BUGS ข้อ 157 แก้ 24 พ.ย. 2569)
+  const before = new Set(existsSync(xdir2) ? readdirSync(xdir2) : []);
   const run = c.evaluate(`window.__TAURI_INTERNALS__.invoke("extract_start", { req: { path: ${JSON.stringify(big)}, folder: null, items: [{ kind: "video", nth: 1, ext: "mkv", lang: null, name: null }], policy: ["ask"] } })`);
   let seen = false;
   for (let i = 0; i < 200 && !seen; i++) { await sleep(50); seen = existsSync(xdir2) && readdirSync(xdir2).some((f) => f.endsWith(".partial")); }
   await sleep(200);
   await inv("extract_cancel");
   const r = await run;
-  const left = existsSync(xdir2) ? readdirSync(xdir2) : [];
-  check("แยกภาพจากไฟล์ใหญ่แล้วกดหยุด ไฟล์ที่ทำค้างถูกลบ ไฟล์หนังเดิม hash เท่าเดิม", seen && r.states[0] === "cancelled" && left.length === 0 && sha(big) === hb, `${r.states[0]} · เหลือ ${left.length} ไฟล์`);
+  const left = (existsSync(xdir2) ? readdirSync(xdir2) : []).filter((f) => !before.has(f));
+  check("แยกภาพจากไฟล์ใหญ่แล้วกดหยุด ไฟล์ที่ทำค้างถูกลบ ไฟล์หนังเดิม hash เท่าเดิม", seen && r.states[0] === "cancelled" && left.length === 0 && sha(big) === hb, `${r.states[0]} · ไฟล์ใหม่ที่เหลือ ${left.length} ไฟล์ ${left.join(" ")} · ไฟล์ของข้อก่อนหน้า ${before.size} ไฟล์`);
   const hr = c.evaluate(`window.__TAURI_INTERNALS__.invoke("hash_file", { path: ${JSON.stringify(big)}, algos: ["sha256", "sha512"] })`);
   await sleep(300);
   await inv("hash_cancel");

@@ -237,16 +237,22 @@ check("เสียบไดรฟ์กลับ กดลองใหม่ �
 
 // 500 เรื่อง
 await inv("set_settings", { patch: { folders: [MOVIES, MANY] } });
-await c.evaluate("location.reload()");
+await c.evaluate("location.reload()"); await sleep(900);
+// รอหน้าโหลดและชั้นวางขึ้นก่อน เดิมถามคลังทันทีตอนหน้ายังโหลด คลังตอบว่าไม่ได้อ่านอยู่ ตัวตรวจคิดว่าอ่านจบใน 0 วินาที ชั้นวางยังไม่มี (BUGS ข้อ 157 เจอ 24 พ.ย. 2569)
+for (let t = 0; t < 80; t++) { try { if (await q("return !!document.querySelector('.shelfwrap')")) break; } catch { /* หน้ายังโหลด */ } await sleep(250); }
 const s3 = await waitScan(600000);
 const t0 = Date.now();
 const count = await q("return document.querySelectorAll('.book[data-movie]').length");
+// มีเพดาน 6 วินาที เดิมไม่มี ถ้าเฟรมไม่วิ่ง (หน้าต่างถูกบังหรือย่ออยู่) หรือหาชั้นวางไม่เจอ ตัวตรวจค้างจนหมดเวลา (เจอ 24 พ.ย. 2569 ค้าง 30 นาทีสองรอบ BUGS ข้อ 157)
 const perf = await c.evaluate(`new Promise((ok) => {
-  const el = document.querySelector('.shelfwrap'); const frames = []; let last = performance.now(); const end = last + 1500;
-  const step = (t) => { frames.push(t - last); last = t; el.scrollTop += 120; if (t < end) requestAnimationFrame(step); else ok({ n: frames.length, worst: Math.round(Math.max(...frames.slice(1))), avg: Math.round(frames.reduce((a, b) => a + b, 0) / frames.length) }); };
+  const el = document.querySelector('.shelfwrap');
+  if (!el) return ok({ err: 'หาชั้นวาง .shelfwrap ไม่เจอ', n: 0 });
+  const frames = []; let last = performance.now(); const end = last + 1500; let done = false;
+  const step = (t) => { if (done) return; frames.push(t - last); last = t; el.scrollTop += 120; if (t < end) requestAnimationFrame(step); else { done = true; ok({ n: frames.length, worst: Math.round(Math.max(...frames.slice(1))), avg: Math.round(frames.reduce((a, b) => a + b, 0) / frames.length) }); } };
   requestAnimationFrame(step);
+  setTimeout(() => { if (done) return; done = true; ok({ err: 'เฟรมไม่วิ่งครบใน 6 วินาที ได้ ' + frames.length + ' เฟรม หน้าต่าง ' + document.visibilityState + ' โฟกัส ' + document.hasFocus(), n: frames.length }); }, 6000);
 })`);
-check("หนัง 519 เรื่องขึ้นชั้นครบ เลื่อนลื่น ไม่ค้าง", count === got.length + 500 && perf.worst < 120, `อ่าน ${Math.round(s3.ms / 1000)} วินาที · ${count} เรื่อง · เลื่อน 1.5 วินาที ${perf.n} เฟรม เฟรมช้าสุด ${perf.worst} มิลลิวินาที เฉลี่ย ${perf.avg}`);
+check("หนัง 519 เรื่องขึ้นชั้นครบ เลื่อนลื่น ไม่ค้าง", count === got.length + 500 && !perf.err && perf.worst < 120, `อ่าน ${Math.round(s3.ms / 1000)} วินาที · ${count} เรื่อง · ${perf.err ?? `เลื่อน 1.5 วินาที ${perf.n} เฟรม เฟรมช้าสุด ${perf.worst} มิลลิวินาที เฉลี่ย ${perf.avg}`}`);
 await shot("15-ห้าร้อยเรื่อง.png");
 await inv("set_settings", { patch: { folders: [MOVIES] } });
 await c.click(".topbar .btn-ghost"); const s4 = await waitScan();

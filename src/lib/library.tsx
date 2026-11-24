@@ -29,9 +29,12 @@ export function LibraryHost({ children }: { children: React.ReactNode }) {
   const [loaded, setLoaded] = useState(false);
   const [progress, setProgress] = useState<{ done: number; total: number } | null>(null);
   const byId = useRef(new Map<string, Movie>());
+  // หนังที่ขึ้นชั้นแล้วในรอบอ่านนี้ คำว่า อ่านแล้ว X ใช้เลขนี้อย่างเดียว (ดูที่ scan-progress)
+  const seen = useRef(0);
 
   const scan = useCallback(() => {
     setLib((l) => ({ ...l, scanning: true }));
+    // ไม่ล้าง seen ตรงนี้ กดอ่านซ้ำระหว่างกำลังอ่าน ฝั่ง Rust อ่านรอบเดิมต่อ ล้างเฉพาะตอน scan-started กับ scan-finished
     setProgress(null);
     api.scanLibrary().catch((e) => {
       setLib((l) => ({ ...l, scanning: false }));
@@ -66,14 +69,18 @@ export function LibraryHost({ children }: { children: React.ReactNode }) {
         });
         // ฝั่ง Rust ส่งความคืบหน้าไม่เกิน 10 ครั้งต่อวินาที แต่ส่งหนังทุกเรื่อง · นับเพิ่มเองทีละเรื่อง
         // ให้คำว่า อ่านแล้ว X จาก N ตรงกับจำนวนปกที่ขึ้นชั้นจริง (เดิมชั้นขึ้น 12 เรื่อง คำบอกยังเป็น 9)
-        setProgress((p) => (p ? { ...p, done: Math.min(p.total, p.done + 1) } : p));
+        seen.current += 1;
+        setProgress((p) => (p ? { ...p, done: Math.min(p.total, seen.current) } : p));
       }),
-      listen("scan-started", () => setLib((l) => ({ ...l, scanning: true }))),
+      listen("scan-started", () => { seen.current = 0; setLib((l) => ({ ...l, scanning: true })); }),
+      // ใช้แค่จำนวนทั้งหมดจากฝั่ง Rust ส่วนเลขที่อ่านแล้วนับจากหนังที่ขึ้นชั้นจริง
+      // ฝั่ง Rust อ่านสามไฟล์พร้อมกัน เธรดที่ได้เลข 5 ส่งความคืบหน้าก่อนเธรดเลข 4 ส่งหนังได้ เดิมใช้เลขของ Rust คำบอกขึ้น 5 ขณะปกบนชั้นมี 4 (check-stage2 เจอ 24 พ.ย. 2569 BUGS ข้อ 157)
       listen<{ done: number; total: number }>("scan-progress", (e) =>
-        setProgress((p) => ({ total: e.payload.total, done: Math.max(e.payload.done, p?.done ?? 0) }))),
+        setProgress({ total: e.payload.total, done: Math.min(e.payload.total, seen.current) })),
       listen<LibraryReply>("scan-finished", (e) => {
         byId.current = new Map(e.payload.movies.map((m) => [m.id, m]));
         setLib(e.payload);
+        seen.current = 0;
         setProgress(null);
       }),
       listen<string>("library-error", (e) => toast({ kind: "bad", title: "บันทึกคลังหนังไม่สำเร็จ", detail: e.payload })),
