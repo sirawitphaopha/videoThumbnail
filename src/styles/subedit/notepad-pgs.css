@@ -1,0 +1,96 @@
+/* แบบ notepad และหน้าต่างส่งออก PGS
+   แยกจาก subedit.css ตอนจัดโครงไฟล์ตามความหมาย (BUGS ข้อ 155 ขั้น 11) ช่วงต่อเนื่องของไฟล์เดิม ย้ายมาทั้งก้อน กฎไม่เปลี่ยน ลำดับตามสารบัญ */
+/* แบบ notepad แก้ได้ (ขั้น 8) · ช่องพิมพ์ไม่ตัดบรรทัด เลขบรรทัดเลื่อนตามช่อง · ด้านขวาภาพหนังกับรายการปัญหา */
+[data-subedit] .se-pad2 { display: flex; gap: 12px; margin-top: 10px; min-height: 300px; }
+[data-subedit] .se-padmain { flex: 1; min-width: 0; display: flex; border: 1px solid var(--line); border-radius: 10px; overflow: hidden; background: #fff; }
+[data-subedit] .se-padgut { margin: 0; padding: 10px 8px 10px 10px; min-width: 44px; text-align: right; color: var(--txt3); background: #faf6f8; border-right: 1px solid var(--line); font: 13px/21px ui-monospace, Consolas, monospace; overflow: hidden; user-select: none; flex: none; }
+[data-subedit] .se-padtext { flex: 1; min-width: 0; border: 0; outline: none; resize: none; padding: 10px 12px; font: 13.5px/21px "Sarabun", ui-monospace, Consolas, monospace; color: var(--txt); white-space: pre; overflow: auto; tab-size: 4; background: transparent; }
+[data-subedit] .se-padside { width: 300px; flex: none; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+[data-subedit] .se-padhead { display: flex; align-items: center; gap: 6px; font-size: 14px; }
+[data-subedit] .se-padsum { color: var(--txt2); }
+[data-subedit] .se-padprobs { flex: 1; min-height: 0; overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; padding: 4px; display: flex; flex-direction: column; gap: 2px; }
+[data-subedit] .se-padprob { display: flex; gap: 8px; align-items: baseline; text-align: left; border: 0; background: transparent; border-radius: 7px; padding: 4px 8px; font: inherit; font-size: 13px; color: var(--txt); cursor: pointer; }
+[data-subedit] .se-padprob:hover { background-color: #faedf1; }
+[data-subedit] .se-ppl { color: var(--txt2); white-space: nowrap; font-variant-numeric: tabular-nums; min-width: 78px; }
+/* ข้อความปัญหาบรรทัดแรก รายละเอียดบรรทัดที่สอง เวลาแต่ละค่าเป็นก้อนเดียว ไม่ตัดกลางตัวเลข */
+[data-subedit] .se-ppm { display: flex; flex-direction: column; }
+[data-subedit] .se-ppd { color: var(--txt2); font-variant-numeric: tabular-nums; }
+/* ไม่มีปัญหา สองประโยคบรรทัดละประโยค ช่องกว้าง 300 จุดใส่ประโยคเดียวไม่พอ ตัดเองแล้วตกกลางวลี */
+[data-subedit] .se-padnone { display: flex; flex-direction: column; padding: 4px 6px; color: var(--txt2); }
+[data-subedit] .se-pp-time, [data-subedit] .se-pp-order, [data-subedit] .se-pp-cut { color: var(--bad-ink); }
+[data-subedit] .se-pp-overlap { color: #a8812e; }
+
+/* หน้าต่างส่งออก PGS (BUGS ข้อ 118 กับงานต่อ 14 พ.ย. 2569) · ซ้ายตั้งค่า ขวาภาพตัวอย่าง หน้าต่างสูงคงที่ แต่ละฝั่งเลื่อนในตัว
+   แถบผลส่งออกอยู่ล่างเต็มความกว้าง ขึ้นแล้วสองฝั่งหดแทน กรอบหน้าต่างไม่เปลี่ยนขนาด */
+[data-subedit] .se-pgs { flex: 1; min-height: 0; display: flex; flex-direction: column; gap: 10px; }
+[data-subedit] .se-pgscols { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(0, 1fr) 420px; gap: 18px; }
+[data-subedit] .se-pgsl, [data-subedit] .se-pgsr { min-height: 0; overflow-y: auto; overscroll-behavior: contain; display: flex; flex-direction: column; gap: 9px; }
+[data-subedit] .se-pgsl { padding-right: 8px; }
+/* ของในแต่ละฝั่งไม่หดตามความสูงของฝั่ง (เดิมตารางสีโดนบีบจนแถวท้ายโดนตัด) ฝั่งเลื่อนแทน */
+[data-subedit] .se-pgsl > *, [data-subedit] .se-pgsr > * { flex: none; }
+/* ป้ายยาวสุด กรอบพร้อมกัน 86 จุดกับปุ่ม ⓘ ช่อง 104 เดิมตกสองบรรทัด */
+[data-subedit] .se-pgs .se-dlbl { width: 118px; }
+[data-subedit] .se-pgsr { border-left: 1px solid var(--line); padding-left: 18px; }
+[data-subedit] .se-pgs .se-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+[data-subedit] .se-pgshead { display: flex; align-items: center; gap: 6px; font-size: 13.5px; font-weight: 700; color: var(--txt); margin-top: 6px; min-height: 30px; }
+/* เส้นแบ่งแนวนอนเหนือหัวข้อแต่ละส่วนของฝั่งตั้งค่า (พี่กันสั่ง 15 พ.ย. 2569 "ขอเส้นแบ่งแนวนอนด้วย") */
+[data-subedit] .se-pgsl > .se-pgshead { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 8px; }
+[data-subedit] .se-pgsl > .se-pgshead:first-of-type { margin-top: 2px; }
+[data-subedit] .se-pgsr > .se-pgshead { margin-top: 0; }
+[data-subedit] .se-pgshead .seg, [data-subedit] .se-pgsreset { margin-left: auto; }
+[data-subedit] .se-pgsreset { gap: 4px; font-weight: 400; }
+[data-subedit] .se-pgssubhead { font-size: 12.5px; color: var(--txt3); margin-top: 2px; }
+[data-subedit] .se-pgsengs { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 8px; }
+[data-subedit] .se-pgsengn { white-space: pre-line; text-align: left; }
+[data-subedit] .se-pgsest { font-size: 13px; color: var(--txt); font-variant-numeric: tabular-nums; transition: opacity .15s; }
+[data-subedit] .se-pgsest.busy { opacity: .55; }
+/* ช่องเลือกตำแหน่งเก้าจุด ปุ่มละช่องในกรอบเล็ก ๆ แบบหน้าจอ จุดที่เลือกเป็นสีหลัก */
+[data-subedit] .se-pgsalign { display: grid; grid-template-columns: repeat(3, 22px); grid-auto-rows: 16px; gap: 2px; padding: 3px; border: 1px solid var(--line); border-radius: 7px; background: color-mix(in srgb, var(--accent-soft) 35%, white); flex: none; margin-right: 8px; }
+[data-subedit] .se-pgsalign button { display: flex; align-items: center; justify-content: center; padding: 0; border: 0; border-radius: 4px; background: transparent; cursor: pointer; }
+[data-subedit] .se-pgsalign button i { width: 12px; height: 4px; border-radius: 2px; background: color-mix(in srgb, var(--txt3) 45%, white); }
+[data-subedit] .se-pgsalign button:hover { background: color-mix(in srgb, var(--accent-soft) 80%, white); }
+[data-subedit] .se-pgsalign button:hover i { background: color-mix(in srgb, var(--accent) 60%, white); }
+[data-subedit] .se-pgsalign button.on { background: var(--accent-soft); }
+[data-subedit] .se-pgsalign button.on i { background: var(--accent); width: 14px; }
+[data-subedit] .se-pgseng { display: flex; flex-direction: column; align-items: flex-start; gap: 2px; text-align: left; padding: 9px 12px; border: 1.5px solid var(--line); border-radius: 10px; background: #fff; cursor: pointer; font: inherit; color: var(--txt); transition: border-color .15s, background-color .15s; }
+[data-subedit] .se-pgseng:hover { border-color: color-mix(in srgb, var(--accent) 55%, white); background: color-mix(in srgb, var(--accent-soft) 45%, white); }
+[data-subedit] .se-pgseng.on { border-color: var(--accent); background: var(--accent-soft); }
+[data-subedit] .se-pgseng.off { cursor: not-allowed; opacity: .6; }
+[data-subedit] .se-pgseng.off:hover { border-color: var(--line); background: #fff; }
+[data-subedit] .se-pgseng .small { color: var(--txt2); }
+[data-subedit] .se-pgsengt { display: inline-flex; align-items: center; gap: 6px; font-size: 14px; }
+[data-subedit] .se-pgsbadge { font-size: 11.5px; font-weight: 700; padding: 1px 7px; border-radius: 999px; background: var(--ok-soft); color: var(--ok-ink); }
+[data-subedit] .se-pgsrange { flex: 1; max-width: 260px; display: flex; align-items: center; height: 30px; margin: 0 12px 0 9px; }
+[data-subedit] .se-pgsrange.sm { max-width: 110px; }
+[data-subedit] .se-pgsval { min-width: 52px; font-size: 13px; color: var(--txt); font-variant-numeric: tabular-nums; }
+[data-subedit] .se-pgssub { font-size: 13px; color: var(--txt2); }
+[data-subedit] .se-pgsl .se-drow .switch { flex: none; }
+[data-subedit] .se-pgspick { display: flex; align-items: center; gap: 8px; }
+[data-subedit] .se-pgspick .small { flex: 1; text-align: center; font-variant-numeric: tabular-nums; }
+[data-subedit] .se-pgssample .inp { flex: 1; min-width: 0; }
+[data-subedit] .se-pgsimgs { position: relative; display: flex; flex-direction: column; gap: 8px; }
+[data-subedit] .se-pgsimgs figure { margin: 0; display: flex; flex-direction: column; gap: 3px; }
+[data-subedit] .se-pgsimgs figcaption { font-size: 12.5px; color: var(--txt2); }
+/* ภาพตัวอย่างสูงคงที่ ภาพเตี้ยหรือสูงก็ไม่ดันตารางสีขยับ · ขนาดจริงเลื่อนดูในกรอบ */
+[data-subedit] .se-pgsimg { height: 104px; border-radius: 8px; border: 1px solid var(--line); background: repeating-conic-gradient(#d9d0d4 0 25%, #f1ecee 0 50%) 0 0 / 16px 16px; display: flex; align-items: center; justify-content: center; overflow: hidden; }
+[data-subedit] .se-pgsimg img { max-width: 100%; max-height: 100%; object-fit: contain; image-rendering: auto; }
+[data-subedit] .se-pgsimgs.real .se-pgsimg { overflow: auto; justify-content: flex-start; align-items: flex-start; }
+[data-subedit] .se-pgsimgs.real .se-pgsimg img { max-width: none; max-height: none; }
+[data-subedit] .se-pgsskel { display: block; width: 86%; height: 46%; }
+[data-subedit] .se-pgswait { position: absolute; right: 8px; top: 2px; color: var(--txt2); }
+[data-subedit] .se-pgsnote { color: var(--txt2); }
+[data-subedit] .se-pgsctab { display: flex; flex-direction: column; border: 1px solid var(--line); border-radius: 8px; overflow: hidden; }
+[data-subedit] .se-pgscrow { display: grid; grid-template-columns: 1fr 1fr 56px 66px 58px; align-items: center; gap: 6px; padding: 4px 8px; font-size: 12.5px; font-variant-numeric: tabular-nums; border-top: 1px solid var(--line); }
+[data-subedit] .se-pgscrow.head { border-top: 0; background: color-mix(in srgb, var(--accent-soft) 50%, white); color: var(--txt2); }
+[data-subedit] .se-pgscrow span { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+[data-subedit] .se-pgscrow i { width: 18px; height: 14px; border-radius: 3px; border: 1px solid rgba(0,0,0,.18); flex: none; }
+[data-subedit] .se-pgsv { font-weight: 700; }
+[data-subedit] .se-pgsv.ok { color: var(--ok-ink); }
+[data-subedit] .se-pgsv.mid { color: var(--warn-ink); }
+[data-subedit] .se-pgsv.bad { color: var(--bad-ink); }
+[data-subedit] .se-pgssum { color: var(--txt2); }
+[data-subedit] .se-pgssum.ok { color: var(--ok-ink); }
+[data-subedit] .se-pgsstat { display: flex; flex-direction: column; gap: 6px; flex: none; }
+/* ภาพตัวอย่างของซับ SRT วางบนพื้นมืดกับพื้นสว่าง (สีพื้นเป็นเนื้อหา ไม่เปลี่ยนตามโทน) */
+[data-subedit] .se-pgsimg.dark { background: #202020; }
+[data-subedit] .se-pgsimg.light { background: #e9e9e9; }

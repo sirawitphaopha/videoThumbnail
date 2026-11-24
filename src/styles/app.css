@@ -15,4 +15,7 @@
 @import "./app/graph.css";
 @import "./app/viewer-settings.css";
 @import "./app/graph-layout.css";
+@import "./app/poster-crop.css";
+@import "./app/spek-color.css";
+@import "./app/convert-panel.css";
 @import "./app/subs-misc.css";

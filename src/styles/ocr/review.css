@@ -1,0 +1,139 @@
+/* ตรวจทานทีละจุด ระบบสอนเองแบบแมนนวล หน้าต่างฐานตัวอักษร ตรวจบรรทัด ฟอนต์ สีของ VobSub และแถบยืนยันลบ
+   แยกจาก ocr.css ตอนจัดโครงไฟล์ตามความหมาย (BUGS ข้อ 155 ขั้น 11) ช่วงต่อเนื่องของไฟล์เดิม ย้ายมาทั้งก้อน กฎไม่เปลี่ยน ลำดับตามสารบัญ */
+/* ตรวจทานทีละจุด */
+.ocr-onebody { flex: 1; min-height: 0; display: grid; grid-template-columns: 220px minmax(0, 1fr); gap: 12px; }
+.ocr-onelist { overflow-y: auto; border: 1px solid var(--line); border-radius: 10px; padding: 4px; display: flex; flex-direction: column; gap: 2px; }
+.ocr-onemain { display: flex; flex-direction: column; gap: 10px; min-height: 0; min-width: 0; }
+.ocr-fitbox { flex: 1; min-height: 120px; container-type: size; }
+.ocr-fitbox .ocr-screen { width: min(100cqw, 640px, calc(100cqh * 16 / 9)); margin: 0 auto; }
+.ocr-onefields { display: flex; flex-direction: column; gap: 6px; }
+.ocr-onerow { display: grid; grid-template-columns: 110px minmax(0, 1fr); gap: 10px; align-items: start; font-size: 14px; }
+.ocr-onelbl { font-size: 13px; color: var(--txt2); padding-top: 6px; }
+/* ช่องข้างล่างสูงตายตัวทุกจุด ภาพใหญ่จึงเท่ากันทุกจุด (พี่กันทัก "มันควรเท่ากันสิ") */
+.ocr-onerow .ocr-ta { height: 64px; }
+.ocr-onechk { padding: 5px 9px; background: var(--win2); border-radius: 8px; height: 64px; overflow-y: auto; box-sizing: border-box; }
+.ocr-onerow > div:has(.ocr-flag) { min-height: 26px; }
+/* ช่องพิมพ์หลายบรรทัดใช้ฟอนต์ของโปรแกรม (เดิมเป็นฟอนต์ตั้งต้นของเบราว์เซอร์) */
+.ocr-ta { font-family: var(--font); color: var(--txt); }
+/* ปุ่มครอบภาพให้กดขยาย ไม่มีขอบหรือพื้นของปุ่ม */
+/* กรอบภาพที่มีปุ่มขยายของโปรแกรม (.bigbtn ใน link.css) มุมขวาล่าง · ภาพใหญ่ใช้ขนาด 26 แบบ .dpbig */
+.ocr-zwrap { position: relative; width: 100%; }
+.ocr-grid td.ocr-zcol { padding: 0 4px; text-align: center; }
+.ocr-zb { width: 30px; padding: 0; justify-content: center; }
+.ocr-zwrap.lg .bigbtn { right: 6px; bottom: 6px; width: 26px; height: 26px; border-radius: 7px; }
+/* ภาพยืดเต็มที่ว่าง ไม่จำกัดกว้าง (เดิมจำกัด 640 เหลือที่ว่างใต้ภาพ พี่กันทัก "จะเหลือที่ว่างใต้รูปไว้ทำไม") */
+.ocr-fitbox .ocr-zwrap { width: min(100cqw, calc(100cqh * 16 / 9)); margin: 0 auto; }
+.ocr-foot > .small { white-space: nowrap; text-align: left; min-width: 0; overflow: hidden; }
+.ocr-fitbox .ocr-zwrap .ocr-screen { width: 100%; margin: 0; }
+.ocr-zview { position: fixed; inset: 0; z-index: var(--z-viewer); background: rgba(20, 10, 15, .82); display: flex; flex-direction: column; align-items: center; justify-content: center; gap: 12px; padding: 24px; cursor: zoom-out; }
+.ocr-zview .ocr-zscreen { width: min(100%, calc((100vh - 90px) * 16 / 9)); }
+.ocr-zview .ocr-zline { max-width: 100%; }
+.ocr-zview .ocr-zline img { max-height: none; height: auto; max-width: 100%; }
+.ocr-zcap { color: white; font-size: 13px; opacity: .85; }
+.ocr-oneact { display: flex; gap: 8px; align-items: center; }
+/* ปุ่มคู่ขวาของแบบทีละจุดกับปุ่มคู่ของแถบล่างกว้างเท่ากัน ขอบตรงแนวกัน (พี่กันสั่ง "ยาวเท่ากัน") */
+.ocr-one .ocr-w { width: 200px; justify-content: center; }
+.ocr-one .ocr-foot { gap: 8px; }
+/* ตรวจทานแบบ 1 ปุ่มสอนตัวอักษร ถูกแล้ว ไปหน้าแก้ซับ ส่งออก กว้างและสูงเท่ากัน ขอบขวาตรงแนว (พี่กันสั่ง "ให้เท่ากัน") */
+.ocr-w2 { width: 130px; justify-content: center; flex: none; }
+.ocr-eact { gap: 8px; }
+.ocr-page:not(.ocr-one) .ocr-foot { gap: 8px; }
+
+/* ระบบสอนเองแบบแมนนวล ยกจาก Subtitle Edit */
+.ocr-numi { width: 56px; text-align: center; flex: none; }
+.ocr-glines { position: relative; flex: none; display: grid; place-items: center; background: color-mix(in srgb, slategray 55%, white); border: 1px solid var(--line); border-radius: 10px; overflow: hidden; }
+.ocr-gbox { position: relative; outline: 1px dashed color-mix(in srgb, white 60%, transparent); }
+.ocr-gbox img { position: absolute; inset: 0; width: 100%; height: 100%; image-rendering: pixelated; }
+.ocr-gbox svg { position: absolute; inset: 0; width: 100%; height: 100%; overflow: visible; }
+.ocr-glines line { stroke-width: 3px; vector-effect: non-scaling-stroke; stroke-linecap: round; }
+.ocr-glines line.fg { stroke: limegreen; }
+.ocr-glines line.bg { stroke: crimson; }
+.ocr-manual { grid-template-columns: minmax(0, 1fr) 330px 220px; }
+.ocr-strip { display: flex; align-items: flex-end; gap: 4px; flex-wrap: wrap; padding: 6px; border: 1px solid var(--line); border-radius: 10px; background: var(--win2); }
+.ocr-sch { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 3px; border-radius: 8px; border: 2px solid transparent; background: var(--win); cursor: pointer; font: inherit; }
+.ocr-sch .ocr-glyph { width: 42px; height: 48px; }
+.ocr-sch .ocr-glyph img { height: 40px; }
+.ocr-sch b { font-size: 13px; color: var(--txt); }
+.ocr-sch.s-ok { border-color: color-mix(in srgb, var(--ok) 60%, white); }
+.ocr-sch.s-weak { border-color: var(--warn); }
+.ocr-sch.s-new { border-color: var(--bad); }
+.ocr-sch.on { box-shadow: 0 0 0 2px var(--accent); }
+.ocr-sgap { width: 14px; }
+.ocr-mleg { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+.ocr-dot { width: 10px; height: 10px; border-radius: 3px; display: inline-block; border: 2px solid; }
+.ocr-dot.ok { border-color: color-mix(in srgb, var(--ok) 60%, white); }
+.ocr-dot.weak { border-color: var(--warn); margin-left: 8px; }
+.ocr-dot.new { border-color: var(--bad); margin-left: 8px; }
+.ocr-mrow2 { display: flex; gap: 12px; align-items: flex-start; }
+.ocr-mfields { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.ocr-mbtns { display: flex; flex-direction: column; gap: 6px; }
+.ocr-mbtns .btn { justify-content: flex-start; }
+.ocr-mbase { border-top: 1px solid var(--line); padding-top: 6px; margin-top: 2px; }
+.ocr-mbtns2 { display: flex; gap: 6px; }
+.ocr-mbtns2 .btn { flex: 1 1 0; min-width: 0; justify-content: center; padding: 0 6px; gap: 4px; }
+/* ต้องมี .ocr-dlg ด้วย ไม่งั้นกฎ .ocr-dlg (flex แนวตั้ง) ที่อยู่ท้ายไฟล์ทับ สองคอลัมน์กลายเป็นซ้อนกัน (พี่กันทัก "ดูช่อว่าง ตัวทัยรึยัง") */
+.ocr-dlg.ocr-db, .ocr-dlg.ocr-train { display: grid; grid-template-columns: 300px minmax(0, 1fr); gap: 16px; }
+.ocr-dbl, .ocr-dbr, .ocr-trl, .ocr-trr { display: flex; flex-direction: column; gap: 8px; min-height: 0; }
+.ocr-dbr, .ocr-trr { border-left: 1px solid var(--line); padding-left: 16px; }
+.ocr-dbvars { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; overflow-y: auto; min-height: 0; flex: 1; align-content: start; }
+.ocr-lch.on { border-color: var(--accent); background: var(--accent-soft); }
+.ocr-dbtools { display: flex; gap: 6px; flex-wrap: wrap; }
+.ocr-dlg.ocr-train { grid-template-columns: minmax(0, 1fr) 300px; }
+.ocr-trchars { height: 70px; flex: none; font-size: 14px; }
+/* หน้าต่างฐานตัวอักษร · รูปแบบวาดเส้นเทียบบนพื้นเทาแบบหน้าต่างแก้ฐานของ Subtitle Edit (ฐาน nOCR ไม่เก็บภาพ) · สีเส้นเป็นชื่อสี ไม่ให้ตัวแปลงโทนเปลี่ยน */
+.ocr-gv { display: block; image-rendering: pixelated; flex: none; }
+.ocr-gvbg { fill: lightgray; }
+.ocr-gv line { stroke-width: 2px; vector-effect: non-scaling-stroke; stroke-linecap: round; }
+.ocr-gv line.hit { stroke: limegreen; }
+.ocr-gv line.miss { stroke: crimson; }
+.ocr-lch .ocr-gv line { stroke-width: 1px; }
+.ocr-dbcanvas { flex: 1; min-height: 120px; overflow: auto; display: grid; place-items: center; background: var(--win2); border: 1px solid var(--line); border-radius: 10px; padding: 8px; }
+.ocr-dbvars > .ocr-dbempty { grid-column: 1 / -1; }
+/* ภาพตัวที่สอน ย่อขยายให้พอดีช่อง จุดคมไม่เบลอ */
+.ocr-histimg { height: 40px; width: auto; max-width: 100%; object-fit: contain; }
+/* ภาพตัวอักษรเป็นหมึกขาวบนพื้นใส วางพื้นดำให้เห็นตัวชัดแบบหน้าต่างของ Subtitle Edit (ชื่อสี ไม่ให้ตัวแปลงโทนเปลี่ยน) */
+.ocr-gvimg { background: black; }
+/* หน้าต่างตรวจบรรทัด · บนปุ่มทีละตัวกับภาพบรรทัด ล่างสามคอลัมน์ (Binary OCR ไม่มีคอลัมน์เส้น) */
+.ocr-insptop { display: grid; grid-template-columns: minmax(0, 1fr) auto; gap: 14px; align-items: start; border-bottom: 1px solid var(--line); padding-bottom: 10px; flex: none; }
+.ocr-insplets { display: flex; flex-direction: column; gap: 4px; max-height: 120px; overflow-y: auto; }
+.ocr-insprow { display: flex; flex-wrap: wrap; gap: 4px; align-items: center; }
+.ocr-insplet { min-width: 32px; height: 32px; padding: 0 6px; border: 1px solid var(--line); border-radius: 6px; background: var(--win); font: inherit; font-size: 15px; cursor: pointer; color: var(--txt); }
+.ocr-insplet:hover { background: var(--accent-soft); }
+.ocr-insplet.on { border-color: var(--accent); background: var(--accent-soft); font-weight: 700; }
+.ocr-insplet.miss { border-color: color-mix(in srgb, crimson 50%, white); color: crimson; }
+.ocr-inspgap { width: 10px; }
+.ocr-inspsent { position: relative; max-width: 300px; max-height: 120px; background: black; border-radius: 6px; overflow: hidden; line-height: 0; }
+.ocr-inspsent img { max-width: 300px; max-height: 120px; display: block; image-rendering: pixelated; }
+.ocr-insprect { position: absolute; border: 2px solid red; box-sizing: border-box; pointer-events: none; }
+.ocr-inspgrid { display: grid; grid-template-columns: 230px 230px minmax(0, 1fr); gap: 14px; flex: 1; min-height: 0; }
+.ocr-inspgrid.nolines { grid-template-columns: 260px minmax(0, 1fr); }
+.ocr-inspcol { display: flex; flex-direction: column; gap: 6px; min-height: 0; min-width: 0; }
+.ocr-inspcol + .ocr-inspcol { border-left: 1px solid var(--line); padding-left: 14px; }
+.ocr-inspbtns { display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
+.ocr-inspsvg.draw { cursor: crosshair; touch-action: none; }
+.ocr-inspsvg line { stroke-width: 2px; vector-effect: non-scaling-stroke; stroke-linecap: round; }
+.ocr-inspsvg line.hit { stroke: limegreen; }
+.ocr-inspsvg line.miss { stroke: crimson; }
+.ocr-dbask { display: flex; flex-direction: column; gap: 6px; padding: 8px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--win2); }
+.ocr-engine .ocr-dbbtn { height: 38px; width: 38px; padding: 0; justify-content: center; flex: none; }
+.ocr-trgrid { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; align-content: start; }
+/* รายการฟอนต์ติ๊กได้หลายตัว ยืดใช้ที่ที่เหลือ เลื่อนในกรอบตัวเอง · ตัวอย่างฟอนต์บนพื้นดำ */
+.ocr-trfonts { flex: 1; min-height: 80px; overflow-y: auto; border: 1px solid var(--line); border-radius: 9px; padding: 4px; display: flex; flex-direction: column; }
+.ocr-trfont { display: flex; align-items: center; gap: 8px; padding: 3px 6px; border-radius: 6px; cursor: pointer; font-size: 14px; }
+.ocr-trfont:hover, .ocr-trfont.on { background: var(--accent-soft); }
+.ocr-trprev { flex: none; height: 64px; display: grid; place-items: center; background: black; border-radius: 9px; overflow: hidden; }
+.ocr-trprev img { max-width: 100%; max-height: 60px; image-rendering: pixelated; }
+.ocr-trprev .small { color: white; }
+/* หน้าต่างสีของ VobSub · ซ้ายสี่สี ขวาตัวอย่างบนลายตาราง (เห็นส่วนใส) */
+.ocr-vobgrid { display: grid; grid-template-columns: 420px minmax(0, 1fr); gap: 16px; flex: 1; min-height: 0; }
+.ocr-vobrows { display: flex; flex-direction: column; gap: 8px; }
+.ocr-vobpick { width: 44px; height: 32px; padding: 2px; border: 1px solid var(--line); border-radius: 6px; background: var(--win); cursor: pointer; }
+.ocr-vobhex { font-family: var(--mono); min-width: 64px; }
+.ocr-vobprev { display: flex; flex-direction: column; gap: 6px; min-height: 0; border-left: 1px solid var(--line); padding-left: 16px; }
+.ocr-vobimg { flex: 1; min-height: 120px; display: grid; place-items: center; border-radius: 9px; overflow: auto;
+  background: repeating-conic-gradient(color-mix(in srgb, gray 35%, white) 0% 25%, color-mix(in srgb, gray 15%, white) 0% 50%) 50% / 16px 16px; }
+.ocr-vobimg img { max-width: 100%; image-rendering: pixelated; }
+/* แถบยืนยันลบบรรทัดเหนือตาราง · ข้อความผลเติมจากคลิปบอร์ดใต้หัวช่องข้อความ */
+.ocr-delask { display: flex; align-items: center; gap: 8px; padding: 6px 10px; border: 1px solid var(--line); border-radius: 9px; background: var(--win2); flex: none; }
+.ocr-delask > span:first-child { flex: 1; }
+.ocr-clipmsg { color: var(--ok-ink); }

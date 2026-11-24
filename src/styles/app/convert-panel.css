@@ -1,0 +1,64 @@
+/* หน้าแปลงเสียงตอนคิวมีไฟล์ ดรอปดาวน์ที่มีช่องค้น หน้าต่างตั้งค่าแปลงเสียง และการ์ดเทียบ
+   แยกจาก app/graph-layout.css ตอนจัดโครงไฟล์ตามความหมาย (BUGS ข้อ 155 ขั้น 11) ช่วงต่อเนื่องของไฟล์เดิม ย้ายมาทั้งก้อน กฎไม่เปลี่ยน ลำดับตามสารบัญ */
+/* หน้าแปลงเสียงตอนคิวมีไฟล์ (BUGS ข้อ 26) · จุดลากสูงคงที่ 90 จุด ไม่หดตามจำนวนไฟล์ · รายการคิวเลื่อนในกรอบของตัวเอง
+   ส่วนตั้งทีเดียวทั้งคิว ที่เก็บไฟล์ใหม่ ปุ่มแปลง อยู่ล่างจอเสมอ มีเส้นแบ่งด้านบน (พี่กัน "ปุ่มเพิ่มไฟล์มันลดๆๆๆลงเรื่อยๆ" · "จุดนี้ต้องตรึงไว้ด้วย ตอนที่มีเพลเยอะๆ") · คิวว่างใช้จุดลากใหญ่เต็มหน้าเหมือนเดิม */
+.ag[data-graphmode="convert"]:has([data-qlist]) { height: 100%; min-height: 0; box-sizing: border-box; }
+.ag[data-graphmode="convert"]:has([data-qlist]) > .cq { flex: 1 1 0; min-height: 0; }
+.ag[data-graphmode="convert"] > .cq:has([data-qlist]) > .card:first-child { flex: 0 1 auto; min-height: 0; }
+.ag[data-graphmode="convert"] > .cq:has([data-qlist]) > .card:first-child > .cqlist { flex: 0 1 auto; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.ag[data-graphmode="convert"] > .cq:has([data-qlist]) > .card:first-child > .drop { flex: none; height: 90px; min-height: 90px !important; box-sizing: border-box; }
+.ag[data-graphmode="convert"] > .cq:has([data-qlist]) > .cqcards { margin-top: auto; flex: none; }
+.ag[data-graphmode="convert"] > .cq:has([data-qlist]) > .cqfoot { margin-top: 0; flex: none; padding-bottom: 14px; }
+
+/* ดรอปดาวน์มีช่องค้นกับหัวกลุ่ม (BUGS ข้อ 27) · ช่องค้นตรึงบนสุดของรายการ */
+.menu .ddsearch { position: sticky; top: -6px; z-index: 1; margin: -6px -6px 4px; padding: 6px; background: var(--win); border-bottom: 1px solid var(--line); }
+.menu .ddsearch input { width: 100%; box-sizing: border-box; height: 30px; padding: 0 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--win2); color: var(--txt); font: inherit; font-size: 13px; outline: 0; }
+.menu .ddsearch input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
+.menu .ddgroup { padding: 8px 10px 2px; font-size: 12px; font-weight: 700; color: var(--accent-ink); letter-spacing: .02em; }
+.menu .ddgroup:not(:first-of-type) { border-top: 1px solid var(--line); margin-top: 4px; }
+.menu .ddsub { padding: 4px 10px 1px 14px; font-size: 11.5px; font-weight: 600; color: var(--txt3); }
+.menu .ddempty { padding: 10px; font-size: 13px; color: var(--txt3); }
+/* หัวย่อยชนิดเสียงสีเข้มขึ้น มีเส้นแบ่งก่อนแต่ละชนิด (พี่กันสั่ง "หัวข้อ สีเข้มขึ้นได้นะ กับเส้นเเบ่ได้") */
+.menu .ddsub { color: var(--txt); font-size: 12px; font-weight: 700; padding-top: 7px; margin-top: 3px; border-top: 1px solid var(--line); }
+.menu .ddgroup + .ddsub { border-top: 0; margin-top: 0; padding-top: 3px; }
+/* หัวกลุ่มใหญ่มีเส้นแบ่งเข้มกว่าหัวย่อย ยกเว้นกลุ่มแรกใต้ช่องค้น */
+.menu .ddgroup { border-top: 2px solid var(--line); margin-top: 6px; padding-top: 9px; }
+.menu > .ddsearch + div > .ddgroup, .menu > div:first-child > .ddgroup { border-top: 0; margin-top: 0; padding-top: 4px; }
+/* ช่องค้นในดรอปดาวน์มีแว่นขยายด้านซ้าย (พี่กันถาม "icon เเว่นขยายหายไปไหน" · สกิล search-system) */
+.menu .ddsearch { display: flex; align-items: center; }
+.menu .ddsearch svg { position: absolute; left: 16px; color: var(--txt3); pointer-events: none; }
+.menu .ddsearch input { padding-left: 30px; }
+/* หัวย่อยชนิดเสียงใหญ่ขึ้นนิดหน่อย สีตามธีม (พี่กันสั่ง "ขอใหญ่กว่านี้นิดๆ เเละสีตามธีมเว็บ") */
+.menu .ddsub { font-size: 13px; color: var(--accent-ink); }
+/* หัวกลุ่มใหญ่ยังเด่นกว่าหัวย่อย */
+.menu .ddgroup { font-size: 13.5px; }
+
+/* หน้าต่างตั้งค่าแปลงเสียง · เส้นแบ่งระหว่างส่วน (พี่กันสั่ง "เส้นเเบ่งหน่อย") */
+/* หน้าต่างตั้งค่าแปลงเสียง ขอบบนล่าง 16 จุดคงที่ทุกขนาดจอ หน้าต่างสูงตามจอ กล่องคำสั่งยืดรับที่เหลือ (พี่กันสั่ง "ขอบบนล่าง ลดกว่านี้ที เเละให้มัน fix ไว้") */
+.dlg-back:has([data-codec-panel]) { padding: 16px; }
+.dlg:has([data-codec-panel]) { max-height: calc(100vh - 32px); }
+/* ชื่อไฟล์บนหัวหน้าต่าง สีหลักของโทน (พี่กันสั่ง "เปลี่ยนสีชื่อไฟล์") */
+.dlg h4 .cpfile { color: var(--accent-ink); }
+/* ใต้การ์ดเทียบถึงส่วนถัดไปเท่าจุดอื่น (พี่กันสั่ง "ลดช่อว่างให้เหมือนจุดอื่น") */
+[data-codec-panel] .cpcmp { margin-bottom: -4px; }
+/* ระยะเหนือใต้เส้น 7 จุด ครึ่งหนึ่งของเดิม 14 (ช่องห่างของแผง 12 ลบ 5) · พี่กันสั่ง "ลดระยะห่างครึ่งนึง" */
+[data-codec-panel] .cpsep { height: 1px; background: var(--line); margin: -5px 0; flex: none; }
+/* การ์ดเทียบต้นฉบับกับไฟล์ที่จะได้ แทนบรรทัดต้นทาง ไม่ขยายหน้าต่าง · ช่องที่เปลี่ยนเน้นสี */
+.cpcmp { display: flex; align-items: center; gap: 12px; padding: 8px 12px; border: 1px solid var(--line); border-radius: 10px; background: color-mix(in srgb, var(--accent) 4%, var(--win)); }
+.cpcmp-grid { flex: 1; min-width: 0; display: grid; column-gap: 10px; row-gap: 3px; align-items: center; font-size: 12.5px; }
+.cpcmp-grid .h { font-size: 11.5px; color: var(--txt3); white-space: nowrap; }
+.cpcmp-grid .rl { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; font-weight: 600; color: var(--txt2); white-space: nowrap; }
+.cpcmp-grid .a { color: var(--txt2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cpcmp-grid .b { color: var(--txt2); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.cpcmp-grid .b.on { color: var(--accent-ink); font-weight: 700; }
+.cpcmp-sum { flex: none; padding: 4px 10px; border-radius: 999px; font-size: 12.5px; font-weight: 700; background: color-mix(in srgb, seagreen 14%, var(--win)); color: var(--txt); white-space: nowrap; }
+.cpcmp-sum.up { background: color-mix(in srgb, goldenrod 18%, var(--win)); }
+
+/* สวิตช์ย่อรูปที่ใหญ่เกิน มุมซ้ายล่างหน้าครอป (BUGS ข้อ 55 ต่อ) แทนกล่องตั้งค่ารูปที่ซ้ำซ้อน */
+.cropshrink { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--txt2); white-space: nowrap; }
+
+/* ปุ่มขยายดูรูปสามการ์ดหน้าใส่โปสเตอร์ (BUGS ข้อ 56) · กรอบห่อรับขนาดแบบยืดแทนรูป หกกรอบขนาดเท่าเดิม · ปุ่มใช้หน้าตาเดียวกับปุ่มขยายของชั้นวาง */
+[data-poster-page] .pbigwrap { position: relative; display: flex; flex: 1 1 0; min-height: 72px; }
+[data-poster-page] .pbigwrap > .vthumb, [data-poster-page] .pbigwrap > .pp { flex: 1 1 auto; height: auto; min-height: 0; }
+[data-poster-page] .pbigwrap.res { display: inline-flex; flex: none; min-height: 0; }
+[data-poster-page] .pbig { right: 6px; bottom: 6px; width: 26px; height: 26px; border-radius: 7px; }

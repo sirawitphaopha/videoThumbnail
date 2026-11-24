@@ -1,0 +1,104 @@
+/* หน้าต่างส่งออก การ์ดโมเดลภาษา หน้าต่างสอน ป้ายซับบังคับ และสีพื้นหลังของภาพซับ
+   แยกจาก ocr.css ตอนจัดโครงไฟล์ตามความหมาย (BUGS ข้อ 155 ขั้น 11) ช่วงต่อเนื่องของไฟล์เดิม ย้ายมาทั้งก้อน กฎไม่เปลี่ยน ลำดับตามสารบัญ */
+/* หน้าต่างซ้อน · ขนาดเท่ากันทุกหน้าต่าง ส่วน ocr-fill ยืดใช้ที่ที่เหลือ */
+/* ยืดเท่าที่เหลือระหว่างหัวหน้าต่างกับแถบปุ่ม (.dlg เป็น flex แนวตั้ง) · เดิมตั้งสูงเต็มหน้าต่าง เนื้อยาวเกิน หน้าต่างเลื่อนเองจนหัวหาย (พี่กันทัก "จะให้มันเลื่อนขึ้นทำไม") */
+/* เนื้อยาวกว่าที่เหลือเลื่อนในกรอบตัวเอง แถบปุ่มอยู่ล่างสุดตลอด (เดิมล้นทะลุแถบปุ่ม พี่กันทัก "ทับ" หน้าต่างตัวอ่านและชุดภาษา) */
+.ocr-dlg { display: flex; flex-direction: column; gap: 10px; flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; }
+.ocr-fill { flex: 1; min-height: 150px; display: flex; flex-direction: column; gap: 6px; border-top: 1px solid var(--line); padding-top: 8px; }
+.ocr-pre { flex: 1; min-height: 0; margin: 0; overflow: auto; background: var(--win2); border: 1px solid var(--line); border-radius: 8px; padding: 8px 12px; font-family: var(--mono); font-size: 13px; line-height: 1.5; color: var(--txt); }
+/* ฝั่งไฟล์ที่จะได้กว้างที่สุด ฝั่งตั้งค่ากว้างเท่าที่ต้องใช้ (พี่กันสั่ง "ขยายให้สุด") */
+/* ฝั่งตั้งค่า 3 ส่วน ฝั่งไฟล์ที่จะได้ 2 ส่วน (พี่กันสั่ง "ฝั่งซ้าย 3 ส่วน ฝั่ขวา 2 ส่วน") */
+.ocr-exp { display: grid; grid-template-columns: minmax(0, 3fr) minmax(0, 2fr); gap: 16px; flex: 1; min-height: 0; }
+.ocr-expl { display: flex; flex-direction: column; gap: 6px; min-height: 0; overflow-y: auto; padding-right: 4px; }
+.ocr-expl .icv-head { min-height: 24px; margin-top: 4px; }
+/* ทุกชิ้นในคอลัมน์ตั้งค่าไม่ยืด · ป้ายที่อยู่ไฟล์ (.icv-path) ตั้งยืดไว้สำหรับแถวแนวนอนของหน้าต่างแปลงซับภาพ วางในคอลัมน์แล้วยืดลงเป็นช่องว่าง (พี่กันทัก "ช่องไฟน่าเกลียด") */
+.ocr-expl > *, .ocr-expl .icv-path { flex: none; }
+.ocr-pathrow { display: flex; align-items: stretch; gap: 8px; }
+.ocr-pathrow .btn { flex: none; white-space: nowrap; }
+.ocr-expl .ocr-pathrow .ocr-pathbox { flex: 1 1 0; min-width: 0; min-height: 38px; box-sizing: border-box; display: flex; align-items: center; padding: 6px 12px; border: 1px solid var(--line); border-radius: 9px; background: var(--win2); }
+.ocr-posw .ocr-br { white-space: pre-line; }
+/* ส่วนภาพพร้อมหน้า HTML ท้ายคอลัมน์ตั้งค่า เส้นคั่นจากการตั้งค่าซับ (ขั้น 12) · คำอธิบายยืดเต็มช่องข้างปุ่ม */
+.ocr-expl .ocr-exphtml { border-top: 1px solid var(--line); padding-top: 10px; margin-top: 8px; }
+.ocr-pathrow .ocr-htmlnote { flex: 1 1 0; min-width: 0; display: flex; align-items: center; }
+.ocr-expr { display: flex; flex-direction: column; gap: 6px; min-height: 0; border-left: 1px solid var(--line); padding-left: 16px; }
+/* ฝั่งไฟล์ที่จะได้ยืดชนขอบขวาของหน้าต่าง (พี่กันสั่ง "รอบที่สอง บอกให้ขยายไปนสุดไง ฝั่งนี้") · หักระยะขอบ 20 จุดของ .dlg */
+.ocr-exp { margin-right: -20px; }
+/* ยืดขึ้นถึงขอบบนของหน้าต่างทับแถวชื่อหน้าต่างฝั่งขวา และลงชนแถบปุ่ม (พี่กันสั่ง "บอกรอบสี่สี่ ขยายไปบนสุดสิวะ") · 54 = ระยะขอบบน 20 + ชื่อหน้าต่าง 24 + ช่องห่าง 10 */
+.ocr-exp .ocr-expr { position: relative; z-index: 1; background: var(--win); margin: -54px 0 -10px; padding-top: 16px; }
+.ocr-expr .ocr-pre { border-bottom: 0; border-radius: 8px 0 0 0; }
+.ocr-expr .ocr-pre { border-right: 0; border-radius: 8px 0 0 8px; }
+.ocr-two { display: grid; grid-template-columns: minmax(0, 1fr) 260px; gap: 14px; }
+.ocr-two .ocr-fitbox { min-height: 150px; }
+.ocr-side { display: flex; flex-direction: column; gap: 6px; min-height: 0; }
+.ocr-learned { display: grid; grid-template-columns: repeat(auto-fill, minmax(96px, 1fr)); gap: 8px; }
+.ocr-lch { display: flex; flex-direction: column; align-items: center; gap: 2px; padding: 6px; border: 1px solid var(--line); border-radius: 9px; background: var(--win); cursor: pointer; font: inherit; }
+.ocr-lch:hover { background: var(--accent-soft); }
+.ocr-lch b { font-size: 16px; color: var(--txt); }
+.ocr-glyph { display: grid; place-items: center; width: 64px; height: 56px; border-radius: 6px; background: color-mix(in srgb, slategray 55%, white); overflow: hidden; }
+.ocr-glyph img { height: 48px; }
+.ocr-after { font-size: 16px; color: var(--ok-ink); }
+.ocr-prepr .ocr-screen { width: 100%; }
+.ocr-prepr .icv-pick { display: flex; align-items: center; gap: 8px; }
+.ocr-posw .ocr-posopts { display: flex; align-items: center; gap: 6px; margin-top: 8px; flex-wrap: wrap; }
+.ocr-teachimg { position: relative; align-self: flex-start; background: color-mix(in srgb, slategray 55%, white); border-radius: 8px; padding: 8px; }
+.ocr-teachimg img { display: block; }
+.ocr-teachimg { user-select: none; touch-action: none; }
+.ocr-teachbox { position: absolute; top: 6px; bottom: 6px; margin-left: 8px; border: 2px solid var(--accent); border-radius: 0; box-shadow: 0 0 0 2px color-mix(in srgb, white 70%, transparent); }
+/* จุดจับขอบซ้ายขวา ลากเพื่อปรับกรอบเอง */
+.ocr-hdl { position: absolute; top: 50%; width: 10px; height: 26px; margin-top: -13px; background: white; border: 2px solid var(--accent); border-radius: 3px; cursor: ew-resize; }
+.ocr-hdl.l { left: -7px; }
+.ocr-hdl.r { right: -7px; }
+.ocr-teachrow { display: flex; gap: 16px; align-items: flex-start; }
+/* ภาพขยายในกรอบสี่เหลี่ยม 150 × 150 มีกรอบที่เลือกเหมือนภาพบน */
+.ocr-teachchar { width: 150px; height: 150px; flex: none; display: grid; place-items: center; background: var(--win2); border: 1px solid var(--line); border-radius: 10px; }
+.ocr-crop { overflow: hidden; background: color-mix(in srgb, slategray 55%, white); }
+.ocr-crop img { display: block; max-width: none; image-rendering: pixelated; }
+.ocr-teachf { display: flex; flex-direction: column; gap: 4px; flex: 1; min-width: 0; }
+.ocr-word { font-size: 18px; font-weight: 600; color: var(--bad-ink); background: var(--bad-soft); padding: 0 8px; border-radius: 6px; }
+.ocr-sugg { display: flex; gap: 6px; flex-wrap: wrap; }
+.ocr-prep { display: grid; grid-template-columns: minmax(0, 1fr) 360px; gap: 16px; }
+.ocr-prepl { display: flex; flex-direction: column; gap: 4px; min-height: 0; overflow-y: auto; }
+.ocr-prepr { display: flex; flex-direction: column; gap: 8px; border-left: 1px solid var(--line); padding-left: 16px; min-height: 0; overflow-y: auto; }
+.ocr-prepr .icv-fig { margin: 0; }
+.ocr-cmp { display: grid; grid-template-columns: 90px minmax(0, 1fr); gap: 8px; font-size: 14px; color: var(--txt); }
+/* การ์ดสี่ใบสองคอลัมน์สองแถว เห็นครบไม่ต้องเลื่อน (พี่กันสั่ง "เกลาใหม่ ให้เเบบไม่ต้องเลื่อนลง") */
+.ocr-models { gap: 10px; }
+.ocr-mgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; align-items: start; }
+.ocr-mcard { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; display: flex; flex-direction: column; }
+.ocr-mhead { display: flex; flex-direction: column; margin-bottom: 4px; }
+.ocr-mrow { display: grid; grid-template-columns: minmax(0, 1fr) auto 84px; align-items: center; gap: 8px; font-size: 13.5px; min-height: 40px; padding: 4px 0; border-top: 1px solid var(--line); }
+/* คำว่ามีแล้วกับปุ่มโหลดกว้างเท่ากันและอยู่กลางช่องท้ายแถว แนวเดียวกันทุกแถว (พี่กันสั่ง "เเนวเดียวกัน") */
+.ocr-mrow > :last-child { justify-self: stretch; display: flex; justify-content: center; }
+.ocr-mrow > .btn { width: 100%; }
+/* มีแล้วเป็นกรอบขนาดเท่าปุ่มโหลดพอดี ขอบซ้ายขวาตรงกันทุกแถว (พี่กันสั่ง "มีเเล้ว กับโหลด ต้องตรงกัน") */
+.ocr-mrow > .ocr-ok { box-sizing: border-box; width: 100%; height: 32px; border: 1px solid color-mix(in srgb, var(--ok-ink) 30%, white); border-radius: 9px; background: color-mix(in srgb, var(--ok-ink) 7%, white); }
+
+/* หน้าต่างสอน กรอบจาง ๆ ของชิ้นอื่นในภาพ ให้เห็นว่าตัวอ่านแบ่งชิ้นตรงไหน */
+.ocr-pbox { position: absolute; border: 1px dashed color-mix(in srgb, white 55%, transparent); pointer-events: none; }
+.ocr-teachimg { overflow: hidden; max-width: 100%; }
+/* แถวที่เลือกเลื่อนมาให้เห็นแล้วไม่มุดใต้หัวตารางที่ตรึงไว้ (สูง 28) */
+.ocr-grid tbody tr { scroll-margin-top: 30px; }
+.ocr-why { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; min-height: 26px; }
+/* รายชื่อภาษาของ PP-OCRv5 ใต้แถว · แถวโหลดชุดภาษาเพิ่ม ดรอปดาวน์ยืดเต็มช่องแรก */
+.ocr-mlist { padding: 0 0 6px; line-height: 1.6; }
+.ocr-mrow.ocr-mdl > .dd, .ocr-mrow.ocr-mdl > div:first-child { min-width: 0; }
+/* การ์ดสี่ใบเห็นครบไม่ต้องเลื่อนที่หน้าต่าง 1280 × 800 (พี่กันสั่งตอนมอคอัป "เกลาใหม่ ให้เเบบไม่ต้องเลื่อนลง") */
+.ocr-models .ocr-mrow { min-height: 38px; padding: 3px 0; }
+/* ระยะใต้แถวบนถึงแถวเลือกตัวอ่านราว 16 จุด (มอคอัปพี่กันสั่ง "ลดระยะห่าง") · กรอบการ์ดของโปรแกรมมีขอบใน 14 ต้องทับด้วยตัวเลือกที่เจาะจงกว่า */
+[data-subtitle-page][data-ocr-on] .ag { row-gap: 8px; }
+[data-ocr-on] .card.ocr-page { padding-top: 0; }
+/* ป้ายซับบังคับในคอลัมน์เลข · ผลคัดลอกบันทึกภาพข้างปุ่ม */
+.ocr-forced { display: block; font-size: 10.5px; line-height: 15px; color: var(--info-ink); }
+.ocr-imgst { white-space: nowrap; overflow: hidden; max-width: 120px; }
+.ocr-imgst.ok { color: var(--ok-ink); }
+.ocr-imgst.bad { color: var(--bad-ink); cursor: pointer; }
+/* สีพื้นหลังของภาพซับเลือกได้ (BUGS ข้อ 143.2) · ปุ่มเลือกเล็กพอดีหัวตาราง */
+.ocr-bgpick { margin-left: 8px; display: inline-flex; }
+.ocr-grid th .ocr-bgpick .dd { height: 22px; min-height: 22px; padding-top: 0; padding-bottom: 0; font-size: 12px; font-weight: 500; }
+:root[data-ocr-imgbg="dark"] :is(.ocr-line, .ocr-teachimg, .ocr-crop) { background: color-mix(in srgb, black 88%, slategray); }
+:root[data-ocr-imgbg="white"] :is(.ocr-line, .ocr-teachimg, .ocr-crop) { background: white; }
+:root[data-ocr-imgbg="check"] :is(.ocr-line, .ocr-teachimg, .ocr-crop) { background: repeating-conic-gradient(color-mix(in srgb, gray 30%, white) 0 25%, white 0 50%); background-size: 16px 16px; }
+/* หัวช่องภาพในช่องแก้อยู่บรรทัดเดียว · ผลคัดลอกบันทึกภาพลอยทับมุมบนของภาพ ไม่ดันหัวช่อง */
+.ocr-editl { position: relative; }
+.ocr-editl .ocr-edhead { white-space: nowrap; flex-wrap: nowrap; }
+.ocr-editl .ocr-imgst { position: absolute; left: 4px; top: 36px; z-index: 1; max-width: calc(100% - 8px); background: var(--win); border: 1px solid var(--line); border-radius: 7px; padding: 2px 8px; }

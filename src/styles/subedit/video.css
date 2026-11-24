@@ -1,0 +1,112 @@
+/* หน้าแก้ซับ โครงหน้า กรอบวิดีโอ แถบเลื่อนเวลา เครื่องมือบนภาพ เมนูวิดีโอ และหน้าต่างของวิดีโอ
+   แยกจาก subedit.css ตอนจัดโครงไฟล์ตามความหมาย (BUGS ข้อ 155 ขั้น 11) ช่วงต่อเนื่องของไฟล์เดิม ย้ายมาทั้งก้อน กฎไม่เปลี่ยน ลำดับตามสารบัญ */
+.card.se { margin-top: 0; padding-top: 6px; display: flex; flex-direction: column; gap: 6px; }
+[data-subedit] .se-tools { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; padding-bottom: 5px; border-bottom: 1px solid var(--line); min-width: 0; }
+[data-subedit] .se-tools .btn { white-space: nowrap; }
+[data-subedit] .se-sep { width: 1px; height: 22px; background: var(--line); flex: none; }
+[data-subedit] .se-state { font-size: 12.5px; color: var(--txt2); white-space: nowrap; overflow: hidden; text-overflow: clip; min-width: 0; }
+[data-subedit] .se-dirty { color: var(--warn-ink); }
+[data-subedit] .se-ok { display: inline-flex; gap: 4px; align-items: center; color: var(--ok-ink); }
+[data-subedit] .se-enc { display: inline-flex; align-items: center; gap: 4px; flex: none; }
+/* ปุ่มรหัสอักษรสูงเท่าปุ่มอื่นในแถว · เดิมตัวเลือกชี้ปุ่มในปุ่ม (.dd > button) ซึ่งไม่มี ปุ่มสูง 38 แถวสูง 44 (เจอตอนทำ BUGS ข้อ 113) */
+[data-subedit] .se-enc .dd { height: 32px; font-size: 13px; }
+[data-subedit] .se-saveerr, [data-subedit] .se-note { margin: 0; }
+
+/* คอลัมน์ภาพกว้างตามขนาดภาพที่เลือก (พอดีกรอบ 320 × 180) ที่เหลือเป็นคลื่นเสียง */
+[data-subedit] .se-top { grid-template-columns: auto minmax(0, 1fr); }
+
+/* กรอบวิดีโอ (ขั้น 4) · กรอบเลื่อนได้เมื่อภาพใหญ่กว่าที่ว่าง · แถบล่างสูง 30 จุดเท่าปุ่มเล็ก */
+[data-subedit] .se-video { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+[data-subedit] .se-vview { overflow: auto; outline: none; flex: none; }
+/* พื้นดำรอบกรอบภาพ กว้างพอให้แถบใต้ภาพวางปุ่มครบแถว (BAR_MIN ใน SubVideo.tsx) สีเดียวกับพื้นกรอบภาพ (.vframe ใน av.css) ดูเป็นกรอบเดียว */
+[data-subedit] .se-vwrap { flex: none; display: flex; align-items: center; justify-content: center; background: #0d0b1e; border-radius: 8px; }
+[data-subedit] .se-vview:focus-visible { box-shadow: 0 0 0 3px rgba(200, 64, 111, .35); }
+[data-subedit] .se-vimg { position: relative; display: flex; align-items: center; justify-content: center; }
+[data-subedit] .se-vimg img { object-fit: fill; }
+/* ภาพตอนเล่นหนัง (vidPlay.ts) ทับตรงภาพนิ่งพอดี ภาพนิ่งเห็นอยู่ข้างใต้จนเฟรมแรกมาถึง */
+[data-subedit] .se-vplaycv { position: absolute; inset: 0; margin: auto; display: block; }
+[data-subedit] .se-voff { font-variant-numeric: tabular-nums; }
+[data-subedit] .se-vbar { display: flex; align-items: center; gap: 4px; min-width: 0; }
+/* แถบเลื่อนเวลาใต้ภาพ (BUGS ข้อ 113 VideoSlider.tsx) · รางบาง ขีด keyframe ด้านบน ตัวชี้สีเน้น · ขอบซ้ายขวาเว้นข้างละ 5 จุดตามสูตรของ Aegisub
+   ชิดภาพด้านบน กินความสูงน้อยที่สุด หน้าต่าง 1280 × 800 ตารางยังเห็นหัวกับหนึ่งแถวโดยหน้าไม่เลื่อน */
+[data-subedit] .se-vslider { position: relative; height: 14px; margin-top: -3px; cursor: pointer; touch-action: none; outline: none; border-radius: 4px; flex: none; }
+[data-subedit] .se-vslider.off { cursor: default; }
+[data-subedit] .se-vslider:focus-visible { box-shadow: 0 0 0 2px rgba(200, 64, 111, .35); }
+[data-subedit] .se-vstrack { position: absolute; left: 5px; right: 5px; top: 6px; height: 3px; border-radius: 2px; background: #e6cfd8; }
+[data-subedit] .se-vslider:hover .se-vstrack { background: #dcbccb; }
+[data-subedit] .se-vskey { position: absolute; top: 1px; width: 1px; height: 5px; background: #a98593; transform: translateX(-.5px); pointer-events: none; }
+[data-subedit] .se-vsthumb { position: absolute; top: 2px; width: 8px; height: 11px; border-radius: 3px; background: var(--accent); border: 1px solid #fff; box-shadow: 0 0 0 1px rgba(120, 30, 60, .35); transform: translateX(-50%); pointer-events: none; }
+[data-subedit] .se-vslider:focus .se-vsthumb { background: var(--accent-ink); }
+[data-subedit] .se-vbar .btn-sm { height: 28px; }
+[data-subedit] .se-vstep { width: 30px; padding: 0; justify-content: center; flex: none; position: relative; }
+[data-subedit] .se-vpos { flex: 1; min-width: 0; height: 28px; box-sizing: border-box; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--line); border-radius: 8px; background: #fff; color: var(--txt); font-size: 12.5px; font-variant-numeric: tabular-nums; white-space: nowrap; overflow: hidden; }
+/* เฟรมที่เป็น keyframe ช่องเวลาเปลี่ยนสี (Aegisub ใช้สีแถวที่เลือก) */
+[data-subedit] .se-vpos.key { background: #fbe0ea; border-color: #d8a9b9; color: var(--accent-ink); font-weight: 700; }
+[data-subedit] .se-auto { flex: none; padding: 0 8px; font-size: 12px; letter-spacing: .03em; }
+[data-subedit] .se-vmenuwrap { position: relative; flex: none; }
+[data-subedit] .se-vbadge { position: absolute; top: -7px; right: -10px; font-size: 10px; line-height: 15px; background: var(--accent); color: #fff; border-radius: 8px; padding: 0 4px; font-variant-numeric: tabular-nums; }
+[data-subedit] .se-vnonebtns { display: inline-flex; gap: 6px; }
+
+/* เครื่องมือบนภาพ (BUGS ข้อ 111) · แถบเลือกเครื่องมือซ้ายของภาพแบบ Aegisub กว้าง 30 จุดกับช่องห่าง 4 (TOOLBAR_W ใน SubVideo.tsx)
+   สีที่วาดทับภาพเป็นชื่อสีกับ color-mix ไม่ให้ตัวแปลงโทนเปลี่ยน ภาพหนังเป็นเนื้อหา */
+[data-subedit] .se-vrow { position: relative; display: flex; gap: 4px; align-items: flex-start; min-width: 0; }
+[data-subedit] .se-vtoolbar { flex: none; width: 30px; display: flex; flex-direction: column; align-items: center; gap: 4px; }
+[data-subedit] .se-vtoolbar .btn-sm { height: 28px; }
+[data-subedit] .se-vtsep { width: 18px; height: 1px; background: var(--line); margin: 1px 0; }
+[data-subedit] .se-vtinfo { display: inline-flex; margin-top: 2px; }
+[data-subedit] .se-vtools { position: absolute; left: 0; top: 0; display: block; touch-action: none; }
+[data-subedit] .se-vtools.cross { cursor: none; }
+/* เส้นกากบาทขาวมีเงาดำ เห็นทั้งบนภาพสว่างและมืด (Aegisub วาดแบบกลับสี) */
+[data-subedit] .se-vxline path { fill: none; stroke: white; stroke-width: 1; filter: drop-shadow(0 0 1px black); }
+[data-subedit] .se-vxtext { fill: white; font-size: 12px; font-weight: 700; stroke: color-mix(in srgb, black 75%, transparent); stroke-width: 3px; paint-order: stroke; font-variant-numeric: tabular-nums; pointer-events: none; }
+/* ซับที่ libass วาด วางทับภาพหนังพอดี */
+[data-subedit] .se-vsubimg { position: absolute; pointer-events: none; }
+/* แจ้งผลของเมนูคลิกขวา ลอยทับล่างซ้ายของภาพ ไม่ดันกรอบ */
+[data-subedit] .se-vnote { position: absolute; bottom: 6px; display: flex; align-items: center; gap: 6px; padding: 3px 8px; border-radius: 7px; background: color-mix(in srgb, black 68%, transparent); color: white; font-size: 12px; line-height: 1.45; z-index: 2; }
+[data-subedit] .se-vnote.err { background: color-mix(in srgb, firebrick 90%, black); }
+[data-subedit] .se-vnote .btn-sm { height: 22px; padding: 0 8px; color: white; flex: none; }
+[data-subedit] .se-vnote .btn-sm:hover { background: color-mix(in srgb, white 18%, transparent); color: white; }
+/* เมนูคลิกขวาบนภาพ */
+[data-subedit] .se-vctx { padding: 6px; min-width: 236px; display: flex; flex-direction: column; gap: 1px; }
+[data-subedit] .se-vctx .se-vmi { white-space: nowrap; }
+[data-subedit] .se-vctxsep { height: 1px; background: var(--line); margin: 4px 2px; }
+[data-subedit] .se-vctxrow { display: flex; align-items: center; gap: 2px; }
+[data-subedit] .se-vctxrow .se-vmi { flex: 1; width: auto; font-variant-numeric: tabular-nums; }
+
+/* เมนูวิดีโอ */
+[data-subedit] .se-vmenu { padding: 6px; gap: 1px; }
+[data-subedit] .se-vmrow { display: flex; align-items: center; gap: 6px; min-width: 0; padding: 0 4px; }
+[data-subedit] .se-vmrow button.dd { height: 30px; font-size: 13px; }
+[data-subedit] .se-vmh { font-size: 12.5px; font-weight: 700; color: var(--txt2); white-space: nowrap; }
+[data-subedit] .se-vmsec { border-top: 1px solid var(--line); margin-top: 4px; padding-top: 4px; display: flex; flex-direction: column; gap: 1px; }
+[data-subedit] .se-vmkeys { margin-left: auto; white-space: nowrap; overflow: hidden; min-width: 0; }
+[data-subedit] .se-vmi { display: flex; align-items: center; gap: 8px; width: 100%; min-height: 29px; text-align: left; border: 0; background: transparent; padding: 0 8px; border-radius: 7px; font: inherit; font-size: 13px; color: var(--txt); cursor: pointer; }
+[data-subedit] .se-vmi:hover { background-color: #faedf1; color: var(--accent-ink); }
+[data-subedit] .se-vmi.off { color: var(--txt3); cursor: not-allowed; }
+[data-subedit] .se-vmi.off:hover { background-color: #fdf3dc; color: #a8812e; }
+[data-subedit] .se-vmpair { display: grid; grid-template-columns: 1fr 1fr; gap: 1px; }
+[data-subedit] .se-vmsw { justify-content: space-between; min-height: 29px; padding: 0 8px; font-size: 13px; color: var(--txt); }
+[data-subedit] .se-vprog { flex: 1; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
+[data-subedit] .se-vprog > div { height: 100%; background: var(--accent); }
+[data-subedit] .se-vmerr { color: var(--bad-ink); padding: 0 8px; }
+[data-subedit] .se-vmmsg { padding: 4px 8px 0; color: var(--txt2); }
+
+/* หน้าต่างของวิดีโอ ข้ามไปยัง รายละเอียด วิดีโอจำลอง */
+[data-subedit] .dlg .inp { height: 32px; font-size: 13.5px; padding: 0 8px; border-radius: 8px; color: var(--txt); font-family: inherit; }
+[data-subedit] .dlg input.inp:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(200, 64, 111, .18); }
+[data-subedit] .dlg .inp.err { border-color: var(--bad); }
+[data-subedit] .se-dlgform { display: flex; gap: 16px; flex-wrap: wrap; font-size: 13px; color: var(--txt2); }
+[data-subedit] .se-details { display: grid; grid-template-columns: max-content minmax(0, 1fr); gap: 6px 16px; margin: 0; font-size: 13.5px; }
+[data-subedit] .se-details > div { display: contents; }
+[data-subedit] .se-details dt { color: var(--txt2); display: inline-flex; align-items: center; gap: 4px; }
+[data-subedit] .se-details dd { margin: 0; color: var(--txt); font-variant-numeric: tabular-nums; overflow-wrap: anywhere; }
+[data-subedit] .se-dummy { display: flex; flex-direction: column; gap: 8px; }
+[data-subedit] .se-drow { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--txt2); }
+[data-subedit] .se-dlbl { width: 84px; flex: none; }
+[data-subedit] .se-num4 { width: 72px; font-variant-numeric: tabular-nums; }
+[data-subedit] .se-num6 { width: 110px; font-variant-numeric: tabular-nums; }
+[data-subedit] .se-dswatch { position: relative; width: 44px; height: 30px; box-sizing: border-box; border: 1px solid #e8cdd6; border-radius: 8px; overflow: hidden; cursor: pointer; display: inline-block; flex: none; }
+[data-subedit] .se-dswatch:hover { border-color: #d8a9b9; }
+[data-subedit] .se-dswatch span { position: absolute; inset: 3px; border-radius: 5px; }
+[data-subedit] .se-dswatch input { position: absolute; inset: 0; width: 100%; height: 100%; opacity: 0; cursor: pointer; }
+[data-subedit] .se-dsw { display: inline-flex; align-items: center; gap: 8px; margin-left: 12px; color: var(--txt); }

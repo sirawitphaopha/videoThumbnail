@@ -1,0 +1,121 @@
+/* หน้า OCR ซับรูป แถบงาน ตาราง และช่องแก้ข้อความล่างตาราง
+   แยกจาก ocr.css ตอนจัดโครงไฟล์ตามความหมาย (BUGS ข้อ 155 ขั้น 11) ช่วงต่อเนื่องของไฟล์เดิม ย้ายมาทั้งก้อน กฎไม่เปลี่ยน ลำดับตามสารบัญ */
+
+/* แบบ 2 แถบงานเต็มความกว้าง */
+.ocr-tabs { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 8px; }
+.ocr-tab { display: flex; align-items: center; justify-content: center; gap: 8px; height: 36px; padding: 0 12px; border-radius: 9px; border: 1px solid var(--line); background: var(--win); color: var(--txt2); cursor: pointer; font: inherit; font-size: 14px; min-width: 0; }
+.ocr-tab b { font-weight: 600; color: inherit; }
+.ocr-tab:hover { background: var(--accent-soft); }
+.ocr-tab.on { border-color: var(--accent); background: var(--accent-soft); color: var(--accent-ink); box-shadow: inset 0 -3px 0 var(--accent); }
+.ocr-tab.off { opacity: .55; cursor: not-allowed; }
+.ocr-tab.off:hover { background: var(--win); }
+.ocr-tabic { width: 34px; height: 34px; border-radius: 9px; display: grid; place-items: center; background: var(--win2); flex: none; }
+.ocr-tab.on .ocr-tabic { background: var(--win); }
+.ocr-tabt { display: flex; flex-direction: column; min-width: 0; }
+.ocr-tabt b { font-size: 14px; color: var(--txt); }
+.ocr-tabt .small { white-space: nowrap; overflow: hidden; text-overflow: clip; }
+
+/* หน้า OCR */
+/* ระยะใต้แถวบนเหลือราว 10 จุด (พี่กันสั่ง "ลดระยะห่าง") · เดิมช่องห่างของหน้า 12 บวกขอบในกรอบ 12 */
+/* ยืดเต็มที่เหลือของหน้าด้วยสไตล์ ไม่วัดตัวเลข (.ag สูงอย่างน้อยเต็มกล่องเลื่อนของหน้า app.css) · min-height 0 ไม่ให้ยืดตามเนื้อ
+   (พี่กันทักรอบที่สาม "ขยับลงมา" เดิมวัดตำแหน่งแล้วตั้งความสูง ตัวเลขค้างเมื่อของด้านบนเปลี่ยน) */
+/* กรอบลงไปชนขอบล่างของหน้าต่างพอดี ไม่เหลือที่ว่าง มุมล่างเหลี่ยมติดขอบ (พี่กันทักรอบที่สี่ "เราบอกให้ยีดลงมาา" · วัดในโครมของพี่กันเดิมเหลือ 8 จุดกับเงา) */
+/* ระยะบนของหน้าเท่ากันทุกงาน กดแถบงานแล้วของไม่ขยับ (พี่กันทัก "ทำไมกดอันนึ ที่ว่างมันขยับ" · "ลดที่ว่าง") */
+/* ขอบบนในกรอบหน้า OCR ทำหน้าที่ระยะห่างจากแถบชื่อโปรแกรมแทน (พี่กันทักรอบที่สาม "ลดช่องว่าง") */
+
+[data-subtitle-page][data-ocr-on] .ag { height: 100%; min-height: 0; padding-bottom: 0; }
+[data-ocr-on] .ocr-page { border-bottom-left-radius: 0; border-bottom-right-radius: 0; border-bottom: 0; box-shadow: none; }
+/* ที่ว่างเหนือแถวเลือกตัวอ่านเหลือราว 10 จุด (พี่กันสั่ง "ลดที่ว่าง") */
+.ocr-page { display: flex; flex-direction: column; gap: 8px; flex: 1 1 0; min-height: 0; padding: 4px 14px 10px; }
+/* ปุ่มไปหน้าเสียงและซับกับชื่อไฟล์อยู่ในแถบชื่อโปรแกรม (BUGS ข้อ 149 พี่กันสั่ง "ย้ายขึ้นไป เเถบนี้") */
+.ocr-ttlslot { display: inline-flex; align-items: center; gap: 10px; min-width: 0; flex: 1; height: 100%; margin-left: 14px; }
+.ocr-ttlslot { gap: 8px; }
+.ocr-ttlslot .btn { height: 26px; padding: 0 10px; font-size: 12.5px; gap: 6px; flex: none; }
+.ocr-ttlslot b { color: var(--txt); font-size: 13px; white-space: nowrap; overflow: hidden; min-width: 60px; flex: 0 1 auto; }
+.ocr-ttlslot .dd { height: 26px; font-size: 12.5px; padding-top: 0; padding-bottom: 0; }
+.ocr-ttlslot .seg { flex: none; }
+.ocr-ttlslot .seg button { height: 26px; font-size: 12.5px; }
+.ocr-ttlgap { flex: 1; align-self: stretch; }
+.ocr-grid th > .ocr-th { display: inline-flex; align-items: center; gap: 3px; }
+.ocr-foot .ocr-tool { flex: none; }
+/* ระยะบนเท่าระยะล่าง 8 จุด (พี่กันทัก "ระยะบนล่าง ไม่เท่ากัน") · ดรอปดาวน์ยืดเต็มแถว */
+.ocr-engine { display: flex; align-items: center; gap: 8px; flex-wrap: nowrap; min-width: 0; padding: 8px 0; border-bottom: 1px solid var(--line); flex: none; }
+.ocr-engine > div { min-width: 120px; }
+/* ปุ่มเลือกขนาดกับช่องตัวเลขสูงเท่าดรอปดาวน์ 38 จุด (พี่กันสั่ง "ขนาด ต้องเท่ากัน") · กรอบปุ่มมีเส้นขอบ 1 จุดบนล่าง */
+.ocr-engine .seg button { height: 36px; }
+.ocr-engine .ocr-numi { height: 38px; }
+.ocr-page { padding-top: 0; }
+.ocr-engine > .ocr-gap { flex: 1; }
+.ocr-f { display: inline-flex; align-items: center; gap: 3px; font-size: 13px; color: var(--txt2); white-space: nowrap; }
+.ocr-f + * { flex: none; }
+.ocr-sum { display: flex; align-items: center; gap: 8px; font-size: 13.5px; color: var(--txt); background: var(--warn-soft); border-radius: 9px; padding: 6px 10px; }
+.ocr-only { display: inline-flex; align-items: center; gap: 6px; font-size: 13px; color: var(--txt2); white-space: nowrap; }
+
+.ocr-grid { flex: 1; min-height: 120px; border: 1px solid var(--line); border-radius: 10px; overflow: auto; background: var(--win); overscroll-behavior: contain; }
+.ocr-grid table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 13.5px; }
+.ocr-grid th { position: sticky; top: 0; z-index: 1; background: var(--win2); color: var(--txt2); font-size: 12px; font-weight: 600; padding: 0 8px; height: 28px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.ocr-grid td { padding: 4px 8px; border-bottom: 1px solid var(--line); vertical-align: middle; cursor: pointer; }
+.ocr-grid .num { text-align: right; font-variant-numeric: tabular-nums; color: var(--txt3); }
+.ocr-grid tbody tr:hover td { background-color: var(--win2); }
+.ocr-grid tr.on td { background-color: var(--accent-soft); }
+.ocr-grid tr.flag td:first-child { box-shadow: inset 3px 0 0 var(--warn); }
+.ocr-time { font-variant-numeric: tabular-nums; color: var(--txt2); white-space: nowrap; }
+.ocr-time span { display: block; font-size: 11.5px; color: var(--txt3); }
+.ocr-line { background: color-mix(in srgb, slategray 55%, white); border-radius: 6px; padding: 3px; display: flex; justify-content: center; max-width: 100%; }
+.ocr-line img { max-height: 40px; max-width: 100%; object-fit: contain; display: block; }
+.ocr-line.inv { background: white; }
+.ocr-line.inv img { filter: invert(1) grayscale(1) contrast(1.3); }
+.ocr-txt { display: flex; flex-direction: column; gap: 1px; }
+.ocr-tl { display: flex; align-items: center; gap: 6px; min-width: 0; }
+.ocr-pos { flex: none; font-size: 11px; line-height: 17px; padding: 0 6px; border-radius: 5px; background: var(--info-soft); color: var(--info-ink); font-weight: 600; }
+.ocr-reading { color: var(--accent-ink); }
+.ocr-dim { color: var(--txt3); }
+.ocr-flag { display: inline-block; font-size: 11.5px; line-height: 18px; padding: 0 6px; margin: 1px 4px 1px 0; border-radius: 5px; background: var(--warn-soft); color: var(--warn-ink); white-space: nowrap; }
+.ocr-flag.f-word { background: var(--bad-soft); color: var(--bad-ink); }
+.ocr-flag.f-name { background: var(--info-soft); color: var(--info-ink); }
+.ocr-ok { display: inline-flex; align-items: center; gap: 4px; font-size: 12px; color: var(--ok-ink); white-space: nowrap; }
+
+/* ช่องแก้ข้อความล่างตาราง แบบ Subtitle Edit */
+.ocr-edit { display: grid; grid-template-columns: 300px minmax(0, 1fr) 280px; gap: 12px; height: 196px; flex: none; border-top: 1px solid var(--line); padding-top: 8px; }
+.ocr-editl, .ocr-editm, .ocr-editr { display: flex; flex-direction: column; gap: 6px; min-height: 0; min-width: 0; }
+/* เส้นแบ่ง (พี่กันสั่ง "ไปดูมาทั้งหมด จุดไหนควรมีขีดเเนวนอน หรือเเนวตั้ง") · คั่นเฉพาะรอยต่อของกลุ่มที่ทำงานต่างกัน */
+.ocr-editm, .ocr-editr { border-left: 1px solid var(--line); padding-left: 12px; }
+.ocr-onefields { border-top: 1px solid var(--line); padding-top: 8px; }
+.ocr-side { border-left: 1px solid var(--line); padding-left: 14px; }
+/* เส้นตั้งของโปรแกรมมีสไตล์แค่ใต้ .simgbar (av.css) เส้นในมอคอัปจึงต้องใส่เอง สีเดียวกัน */
+.ocr-page .sv-sep, .ocr-ttlslot .sv-sep { flex: none; align-self: center; width: 1px; height: 22px; margin: 0 4px; background: color-mix(in srgb, var(--accent) 30%, white); }
+.ocr-ttlslot .sv-sep { height: 18px; margin: 0; }
+.ocr-engine .sv-sep { height: 24px; }
+.ocr-edhead { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--txt2); min-height: 28px; }
+.ocr-edhead b { color: var(--txt); }
+.ocr-screen { position: relative; width: 100%; background-color: color-mix(in srgb, slategray 30%, black); background-image: linear-gradient(135deg, color-mix(in srgb, steelblue 70%, black), color-mix(in srgb, darkslategray 80%, black)); border-radius: 8px; overflow: hidden; }
+.ocr-screen:not(.withframe) { background-image: repeating-conic-gradient(color-mix(in srgb, gray 30%, white) 0 25%, white 0 50%); background-size: 16px 16px; }
+.ocr-screen img { position: absolute; display: block; }
+/* กรอบภาพในช่องแก้ข้างล่างกว้างตามสัดส่วน 16 : 9 ที่สูง 154 (เดิมกว้างอัตโนมัติ ภาพข้างในวางลอยจึงหดเหลือศูนย์ พี่กันทัก "พั") */
+.ocr-editl .ocr-zwrap { width: min(100%, 274px); }
+.ocr-editl .ocr-screen { width: 100%; }
+.ocr-ic { width: 30px; padding: 0; justify-content: center; }
+.ocr-ta { flex: 1; min-height: 0; resize: none; font-size: 15px; line-height: 1.5; padding: 6px 9px; }
+.ocr-posnote { display: flex; align-items: center; gap: 6px; }
+.ocr-other { display: flex; align-items: center; gap: 8px; background: var(--warn-soft); border-radius: 8px; padding: 4px 8px; min-width: 0; }
+.ocr-other b { color: var(--txt); font-weight: 600; min-width: 0; text-align: left; }
+.ocr-otherl { white-space: nowrap; flex: none; }
+.ocr-edhead .sv-frame { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; }
+.ocr-editr .ocr-edhead .dd { flex: 1; min-width: 0; }
+.ocr-other .btn { margin-left: auto; }
+.ocr-etabs { flex: none; }
+.ocr-etabs button { padding: 0 7px; font-size: 12px; }
+.ocr-elist { flex: 1; min-height: 0; overflow-y: auto; border: 1px solid var(--line); border-radius: 8px; padding: 4px; display: flex; flex-direction: column; gap: 2px; }
+.ocr-eitem { display: flex; flex-direction: column; text-align: left; padding: 4px 8px; border-radius: 6px; border: 0; background: none; font: inherit; font-size: 12.5px; color: var(--txt2); cursor: pointer; }
+.ocr-eitem b { color: var(--txt); font-size: 13px; }
+.ocr-eitem:hover { background: var(--win2); }
+.ocr-eitem.on { background: var(--accent-soft); }
+.ocr-eact { display: flex; gap: 6px; justify-content: flex-end; }
+
+.ocr-foot { display: flex; align-items: center; gap: 8px; flex: none; border-top: 1px solid var(--line); padding-top: 8px; min-height: 44px; container: ocrfoot / inline-size; }
+/* แถบล่างกว้างไม่ถึง 1,280 จุด (หน้าต่าง 1280 × 800 กับแบ่งครึ่งจอ) ปุ่มเครื่องมือห้าปุ่มเหลือไอคอนอย่างเดียว ชี้แล้วขึ้นชื่อ
+   ปุ่มอ่านกับข้อความสถานะคงคำไว้ · แบบเดียวกับแถวปุ่มเสียงของหน้าแก้ซับตอนที่ว่างไม่พอ (แคลร์ตั้งเกณฑ์ วัดจากของจริงตอนปุ่มครบ ยาว 1,260 จุด) */
+@container ocrfoot (max-width: 1279px) { .ocr-foot .ocr-tool .ocr-tl { display: none; } }
+.ocr-prog { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
+.ocr-bar2 { height: 8px; border-radius: 4px; background: var(--accent-soft); overflow: hidden; }
+.ocr-bar2 span { display: block; height: 100%; background: var(--accent); border-radius: 4px; }

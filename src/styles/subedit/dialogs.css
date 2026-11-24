@@ -1,0 +1,123 @@
+/* หน้าต่างคำสั่ง บันทึกเป็นไฟล์ใหม่ ใส่ซับกลับเข้าหนัง คุณสมบัติสคริปต์ และตัวจัดการสไตล์
+   แยกจาก subedit.css ตอนจัดโครงไฟล์ตามความหมาย (BUGS ข้อ 155 ขั้น 11) ช่วงต่อเนื่องของไฟล์เดิม ย้ายมาทั้งก้อน กฎไม่เปลี่ยน ลำดับตามสารบัญ */
+/* หน้าต่างคำสั่ง เลื่อนเวลา ปรับเวลาทั้งไฟล์ เลือกบรรทัด ค้นและแทนที่ วางทับ ไปที่ เรียง */
+[data-subedit] .se-dsw2 { display: inline-flex; align-items: center; gap: 6px; white-space: nowrap; color: var(--txt); }
+[data-subedit] .se-dwide { flex: 1; min-width: 0; }
+[data-subedit] .se-dstyles { display: flex; flex-wrap: wrap; gap: 6px 14px; align-items: center; min-width: 0; flex: 1; }
+[data-subedit] .se-dchk { display: inline-flex; align-items: center; gap: 6px; color: var(--txt); white-space: nowrap; cursor: pointer; }
+[data-subedit] .se-dchk input { accent-color: var(--accent); width: 15px; height: 15px; margin: 0; cursor: pointer; }
+[data-subedit] .se-pin { color: var(--txt2); }
+[data-subedit] .se-pin input:disabled { opacity: .55; }
+[data-subedit] .se-dlgmsg { color: var(--ok-ink); }
+[data-subedit] .se-dlgmsg.bad { color: var(--bad-ink); }
+[data-subedit] .se-dhist { border-top: 1px solid var(--line); padding-top: 6px; display: flex; flex-direction: column; gap: 1px; max-height: 180px; overflow-y: auto; }
+[data-subedit] .se-dhist > .small { padding: 0 8px 2px; }
+[data-subedit] .se-grid { border: 1px solid var(--line); border-radius: 10px; overflow: auto; background: #fff; overscroll-behavior: contain; outline: none; }
+[data-subedit] .se-grid:focus-visible { box-shadow: 0 0 0 3px rgba(200,64,111,.18); }
+[data-subedit] .se-grid table { width: 100%; table-layout: fixed; border-collapse: collapse; font-size: 13.5px; }
+[data-subedit] .se-grid th { position: sticky; top: 0; z-index: 1; background: #f7f7f7; color: var(--txt2); font-size: 12px; font-weight: 600; padding: 0 8px; height: 28px; text-align: left; border-bottom: 1px solid var(--line); white-space: nowrap; }
+[data-subedit] .se-grid td { height: 30px; padding: 0 8px; border-bottom: 1px solid #f7e4ea; cursor: pointer; white-space: nowrap; overflow: hidden; }
+[data-subedit] .se-grid .num { text-align: right; font-variant-numeric: tabular-nums; }
+[data-subedit] .se-grid th.num { text-align: right; }
+[data-subedit] .se-grid .se-cut { text-overflow: ellipsis; }
+[data-subedit] .se-grid tbody tr:hover td { background-color: #fcf5f7; }
+[data-subedit] .se-grid tr.sel td { background-color: #fdf1f5; }
+[data-subedit] .se-grid tr.on td { background-color: #fbe9ef; color: #4c3039; }
+[data-subedit] .se-grid td.bad { background-color: #fde5e5; color: #b04545; font-weight: 600; }
+[data-subedit] .se-grid tr.on td.bad { background-color: #f8c9c9; }
+[data-subedit] .se-grid tr.se-edited td:first-child { box-shadow: inset 3px 0 0 #e0a43a; }
+[data-subedit] .se-grid tr.se-cmt td { color: var(--txt3); font-style: italic; }
+[data-subedit] .se-grid .se-cmtpill { display: inline-block; font-style: normal; font-size: 11.5px; line-height: 18px; padding: 0 6px; margin-right: 6px; border-radius: 5px; background: #eee; color: var(--txt2); }
+[data-subedit] .se-grid tr.se-gap td { padding: 0; border: 0; height: auto; cursor: default; pointer-events: none; }
+[data-subedit] .se-grid tr.se-gap { overflow-anchor: none; }
+
+[data-subedit] .se-long { max-height: 560px; }
+
+/* หน้าต่างบันทึกเป็นไฟล์ใหม่ ฉบับอัตโนมัติ เลือกฟอนต์ (อยู่ในหน้าต่างซ้อน ไม่อยู่ใต้ data-subedit) */
+.se-saveas { display: flex; flex-direction: column; gap: 12px; font-size: 14px; }
+.se-saveas .se-erow { display: flex; align-items: center; gap: 10px; min-width: 0; }
+.se-saveas .se-f { color: var(--txt2); flex: none; width: 64px; }
+.se-saveas .se-path { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; direction: rtl; text-align: left; }
+.se-lostlist { margin: 4px 0; padding-left: 20px; }
+.se-autos { display: flex; flex-direction: column; gap: 6px; max-height: 420px; overflow: auto; }
+.se-auto { display: flex; align-items: center; gap: 10px; padding: 6px 4px; border-bottom: 1px solid #f3e3e8; }
+.se-auto .se-cut { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.se-autos .se-dirty { color: var(--warn-ink); }
+.se-fontdlg { display: grid; grid-template-columns: 260px minmax(0, 1fr); gap: 14px; }
+.se-fontcol { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.se-fsearch { display: flex; align-items: center; gap: 6px; color: var(--txt2); }
+.se-fsearch .inp { flex: 1; height: 34px; font-size: 14px; }
+.se-fontlist { height: 300px; overflow: auto; border: 1px solid var(--line); border-radius: 8px; background: #fff; overscroll-behavior: contain; }
+.se-fontlist button { display: block; width: 100%; text-align: left; border: 0; background: transparent; padding: 5px 10px; font-size: 15px; color: var(--txt); cursor: pointer; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.se-fontlist button:hover { background: #fcf5f7; }
+.se-fontlist button.on { background: var(--accent-soft); color: var(--accent-ink); }
+.se-fontside { display: flex; flex-direction: column; gap: 10px; min-width: 0; }
+.se-fontside .se-f { display: inline-flex; align-items: center; gap: 8px; }
+.se-fontside .se-num { width: 80px; height: 34px; }
+.se-fontprev { border: 1px solid var(--line); border-radius: 8px; padding: 12px; min-height: 90px; font-size: 26px; line-height: 1.5; background: #fff; overflow: hidden; word-break: break-word; }
+
+/* ข้อความในหน้าต่างซ้อน ห่อหนึ่งชั้นไม่ให้แต่ละท่อนกลายเป็นแถวของกรอบหน้าต่าง */
+.se-dlgtext { font-size: 14px; color: var(--txt2); line-height: 1.6; }
+[data-subedit] .se-grid .se-tag { color: var(--txt3); font-size: 12.5px; }
+[data-subedit] .se-grid tr.on .se-tag { color: #a07888; }
+[data-subedit] .se-cmh { min-height: 29px; padding: 0 4px 0 8px; }
+/* หน้าต่างคำสั่ง ช่องป้ายกว้างพอให้ปุ่ม ⓘ อยู่ต่อท้ายคำโดยไม่ทับ · ช่องตัวเลขสามหลัก */
+[data-subedit] .se-cdlg .se-dlbl { width: 104px; display: inline-flex; align-items: center; gap: 4px; }
+[data-subedit] .se-cdlg .se-num4 { width: 60px; }
+
+/* หน้าต่างใส่ซับกลับเข้าหนัง ฟอนต์ที่ฝังเพิ่ม กับของที่ MP4 เก็บไม่ได้ (BUGS ข้อ 114) · รายการยาวเลื่อนในช่อง หน้าต่างไม่สูงเกิน */
+[data-subedit] .se-rmtop { align-items: flex-start; }
+[data-subedit] .se-rmtop .se-dlbl { padding-top: 1px; }
+[data-subedit] .se-rmlist { display: flex; flex-direction: column; gap: 3px; min-width: 0; flex: 1; max-height: 96px; overflow-y: auto; }
+[data-subedit] .se-rmwarn { color: var(--warn-ink); }
+
+/* หน้าต่างคุณสมบัติสคริปต์ (BUGS ข้อ 113) · ช่องข้อความสองคอลัมน์ หัวเรื่องกับรายละเอียดการอัปเดตเต็มแถว */
+[data-subedit] .se-props { gap: 7px; }
+[data-subedit] .se-prhead { display: inline-flex; align-items: center; gap: 4px; font-size: 13px; font-weight: 700; color: var(--txt); margin-top: 4px; }
+[data-subedit] .se-prhead:first-child { margin-top: 0; }
+[data-subedit] .se-prgrid { display: grid; grid-template-columns: 1fr 1fr; gap: 7px 14px; }
+[data-subedit] .se-prf { display: flex; align-items: center; gap: 8px; font-size: 13px; color: var(--txt2); min-width: 0; }
+[data-subedit] .se-prf.wide { grid-column: 1 / -1; }
+[data-subedit] .se-prf .inp { flex: 1; min-width: 0; }
+/* ป้ายยาวสุด รายละเอียดการอัปเดต 118 จุดที่ 13 จุด ช่อง 104 เดิมตกบรรทัดแล้วโดนกระจายแบบไทยจนตัวอักษรถ่าง · ทุกป้ายในหน้าต่างกว้างเท่ากัน ช่องตรงแนวทุกส่วน */
+[data-subedit] .se-props .se-dlbl { width: 122px; }
+[data-subedit] .se-prerr { color: var(--bad-ink); white-space: nowrap; }
+
+/* ตัวจัดการสไตล์ หน้าต่างแก้สไตล์ ตัวช่วยแปล (ขั้น 7) */
+[data-subedit] .se-stylemgr { display: flex; flex-direction: column; gap: 10px; }
+[data-subedit] .se-stylebody { display: flex; gap: 12px; min-height: 0; }
+[data-subedit] .se-stylelist { flex: 1; min-width: 0; border: 1px solid var(--line); border-radius: 10px; max-height: 320px; overflow-y: auto; padding: 4px; display: flex; flex-direction: column; gap: 2px; }
+[data-subedit] .se-stylelist button { display: grid; grid-template-columns: minmax(0, 1fr) auto; grid-template-areas: "n u" "m u"; align-items: center; column-gap: 10px; text-align: left; border: 0; background: transparent; border-radius: 8px; padding: 5px 10px; font: inherit; color: var(--txt); cursor: pointer; }
+[data-subedit] .se-stylelist button:hover { background-color: #faedf1; }
+[data-subedit] .se-stylelist button.on { background: var(--accent-soft); color: var(--accent-ink); }
+[data-subedit] .se-stname { grid-area: n; font-size: 14px; font-weight: 600; white-space: nowrap; overflow: hidden; }
+[data-subedit] .se-stmeta { grid-area: m; color: var(--txt2); white-space: nowrap; overflow: hidden; }
+[data-subedit] .se-stuse { grid-area: u; color: var(--txt3); white-space: nowrap; }
+[data-subedit] .se-stylebtns { display: flex; flex-direction: column; gap: 6px; flex: none; width: 150px; }
+[data-subedit] .se-stylebtns .btn { justify-content: flex-start; gap: 6px; }
+[data-subedit] .se-stsep { height: 1px; background: var(--line); margin: 2px 0; }
+[data-subedit] .se-stfont { min-width: 160px; max-width: 230px; justify-content: flex-start; overflow: hidden; white-space: nowrap; }
+[data-subedit] .se-sttogs { display: inline-flex; gap: 4px; flex-wrap: wrap; }
+[data-subedit] .se-sttog { gap: 4px; padding: 0 8px; }
+[data-subedit] .se-stcolor { display: inline-flex; align-items: center; gap: 6px; }
+[data-subedit] .se-stclbl { color: var(--txt); font-size: 13px; white-space: nowrap; }
+[data-subedit] .se-sttop { align-items: flex-start; }
+[data-subedit] .se-stpad { display: grid; grid-template-columns: repeat(3, 30px); gap: 3px; flex: none; }
+[data-subedit] .se-stpad button { height: 26px; border: 1px solid #e8cdd6; border-radius: 6px; background: #fff; font: inherit; font-size: 12.5px; color: var(--txt2); cursor: pointer; }
+[data-subedit] .se-stpad button:hover { border-color: #d8a9b9; color: var(--accent-ink); }
+[data-subedit] .se-stpad button.on { background: var(--accent); border-color: var(--accent); color: #fff; }
+[data-subedit] .se-stcol { display: flex; flex-direction: column; gap: 6px; margin-left: 18px; }
+[data-subedit] .se-dlbl2 { display: inline-flex; align-items: center; gap: 4px; color: var(--txt2); font-size: 13px; }
+[data-subedit] .se-strow { display: flex; gap: 10px; flex-wrap: wrap; }
+[data-subedit] .se-stprev { height: 150px; border-radius: 10px; border: 1px solid var(--line); display: flex; align-items: center; justify-content: center; overflow: hidden; padding: 0 12px; }
+[data-subedit] .se-stprev span { white-space: nowrap; line-height: 1.3; display: inline-block; }
+[data-subedit] .se-stprev-dark { background: #2b2b33; }
+[data-subedit] .se-stprev-light { background: #f4f1ea; }
+[data-subedit] .se-stprev-check { background: repeating-conic-gradient(#c9c9c9 0 25%, #f2f2f2 0 50%) 0 0 / 20px 20px; }
+[data-subedit] .se-trorig { border: 1px solid var(--line); border-radius: 10px; padding: 8px 12px; min-height: 56px; max-height: 120px; overflow-y: auto; font-size: 15px; line-height: 1.6; background: #fcfafb; white-space: pre-wrap; overflow-wrap: anywhere; }
+[data-subedit] .se-trtag { color: var(--txt3); font-size: 12.5px; }
+[data-subedit] .se-trcur { background: #fdf3dc; color: var(--txt); border-radius: 4px; box-shadow: 0 0 0 2px #fdf3dc; }
+[data-subedit] .se-trbox { width: 100%; box-sizing: border-box; min-height: 72px; }
+[data-subedit] .se-trbtns { flex-wrap: wrap; }
+[data-subedit] .se-stcolors { display: grid; grid-template-columns: repeat(2, max-content); gap: 6px 18px; }
+[data-subedit] .se-trans .se-dlgmsg { margin-left: auto; }

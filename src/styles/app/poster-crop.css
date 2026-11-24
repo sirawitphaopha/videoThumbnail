@@ -1,0 +1,142 @@
+/* หน้าใส่โปสเตอร์ หน้าต่างครอป แผงเลือกสีขอบ และหน้าใส่โปสเตอร์ตอนหน้าต่างเตี้ยหรือแคบ
+   แยกจาก app/graph-layout.css ตอนจัดโครงไฟล์ตามความหมาย (BUGS ข้อ 155 ขั้น 11) ช่วงต่อเนื่องของไฟล์เดิม ย้ายมาทั้งก้อน กฎไม่เปลี่ยน ลำดับตามสารบัญ */
+/* ช่องไฟล์ไม่มีปกในหน้าเสียงและซับเป็นแถบเอียง */
+div.avthumb { background: repeating-linear-gradient(135deg, #fff 0 5px, #fbf2f5 5px 10px); border: 1.5px dashed #eeb3c8; box-shadow: none; }
+/* พื้นแถบตรึงคลุมเลยขอบซ้ายขวา ปลายตัวหนังสือที่เลื่อนลอดข้างใต้ไม่โผล่ข้างแถบ */
+.avfoot, .avtop, .cqfoot, [data-poster-page] .three.pactions { box-shadow: -18px 0 0 var(--win), 18px 0 0 var(--win); }
+/* ขยายให้เต็มพื้นที่ ไม่ทิ้งที่ว่างเหนือแถบปุ่ม (พี่กันสั่ง 9 พ.ย. 2569 "ลองขยายให้เต็ม") · ช่องลากไฟล์ยืด เนื้อหาอื่นสูงเท่าเดิม */
+/* แถวบนใช้ที่ที่เหลือพอดี ไม่ยืดตามเนื้อหา แถวล่างจึงอยู่ที่เดิมก่อนและหลังใส่ไฟล์ */
+[data-poster-page] .three:has(> [data-card="movie"]) { flex: 1 1 0; }
+[data-poster-page] .three:has(> [data-card="movie"]) > .card { display: flex; flex-direction: column; }
+[data-poster-page] .three:has(> [data-card="movie"]) > .card > .drop { flex: 1 0 auto; }
+/* ช่องตัวอย่างสูงเท่าช่องลากไฟล์ กึ่งกลางคอลัมน์ ความกว้างตามสัดส่วนปก · ใต้ช่องลากมีปุ่มกับคำอธิบายสูงรวม 91 จุด ใต้ตัวอย่างจึงเว้นเท่ากัน */
+.resbox { flex: 1 0 auto; display: flex; flex-direction: column; gap: 10px; min-height: 0; }
+.resmain { flex: 1 1 0; min-height: 120px; container-type: size; display: flex; justify-content: center; align-items: center; gap: 14px; }
+.resmain > div { text-align: center; }
+/* สูงกว้างตามสัดส่วนรูปจริง --ar ไม่ส่งมาคือ 2 : 3 */
+[data-card="result"] .resmain .mc { --h: min(100cqh, 100cqw / var(--ar, .6667)); height: var(--h); width: calc(var(--h) * var(--ar, .6667)); }
+[data-card="result"] .resmain.two .mc { --h: min(100cqh - 26px, (100cqw - 14px) / var(--sum, 1.3333)); }
+/* ใต้ช่องทั้งสามคอลัมน์จองที่เท่ากัน 5 บรรทัด พอชื่อไฟล์ยาวสองบรรทัด ขอบล่างช่องตรงกันทั้งแถว (พี่กันสั่ง 9 พ.ย. 2569 "เธอลืมเรื่อองเเนวเดียวกันอีกละ" · "งั้นก็เว้น กรอบไฟล์ฟนัง กับโปสเเต้อด้วย") */
+.rescap { min-height: 98px; text-align: center; }
+/* ช่องตั้งชื่อไฟล์ใหม่ อยู่ในที่จอง 98 จุดของแถวข้อความ แถวล่างไม่ขยับ */
+[data-newname] { margin: 2px 0; text-align: left; }
+[data-newname] .inp { height: 32px; }
+.pnerr { color: var(--bad-ink); }
+/* การ์ดเตือนในหน้าต่างครอป ไอคอนกลางการ์ดทุกใบ */
+[data-crop] .stat { align-items: center; }
+[data-crop] .stat svg { margin-top: 0; }
+/* สองปุ่มท้ายของแถวแบบปกกับแถวชนิดไฟล์กว้างเท่ากัน ตรงแนวบนล่าง */
+[data-crop] .setrow .seg button:nth-last-child(-n+2) { width: 104px; justify-content: center; }
+/* ตารางคุณภาพ สองคอลัมน์แรกกว้างเท่ากัน คอลัมน์ท้ายพอดีข้อความ ไม่เหลือที่ว่างขวา */
+[data-qtable] { table-layout: fixed; }
+[data-qtable] th:nth-child(-n+2) { width: 36%; }
+[data-qtable] td:last-child, [data-qtable] th:last-child { white-space: nowrap; }
+[data-crop-acts] .btn { justify-content: center; }
+/* เส้นตั้งกลางหน้าต่างครอป หยุดก่อนถึงเส้นนอน 18 จุด เหมือนหน้าใส่โปสเตอร์ ไม่ตัดเป็นกากบาท */
+[data-crop] .cropright::before, [data-crop] .cropright::after { content: ""; position: absolute; left: 0; width: 1px; background: var(--line); }
+[data-crop] .cropright::before { top: 0; height: 307px; }
+[data-crop] .cropright::after { top: 343px; bottom: 0; }
+/* ปุ่มขยายมุมรูป กับหน้าครอปเต็มจอ */
+.stageroom { position: relative; width: 520px; height: 293px; flex: none; }
+.stagehold { position: relative; width: 100%; height: 100%; }
+.stagebig { width: 26px; height: 26px; right: 6px; bottom: 6px; border-radius: 7px; z-index: 2; }
+.cropfull { position: fixed; inset: 0; z-index: 30; padding-bottom: 56px; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, black 88%, var(--accent)); }
+.cropfullbar { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 31; width: min(520px, calc(100vw - 32px)); display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 10px; background: var(--win); font-size: 14px; color: var(--txt); }
+.stage .hd { transform: scale(var(--hs, 1)); }
+.stage .cropbox { border-width: calc(2px * var(--hs, 1)); }
+/* แผงเลือกสีขอบเอง */
+:is([data-crop], [data-colorpick]) .padchip { display: inline-block; width: 14px; height: 14px; border-radius: 4px; border: 1px solid var(--line); flex: none; }
+:is([data-crop], [data-colorpick]) .padchip.big { width: 26px; height: 26px; border-radius: 7px; }
+:is([data-crop], [data-colorpick]) .padrgb { z-index: 5; box-sizing: border-box; padding: 12px; background: var(--win); border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 8px 22px rgba(60,25,40,.2); }
+:is([data-crop], [data-colorpick]) .padbody { display: flex; gap: 14px; }
+:is([data-crop], [data-colorpick]) .padtabs { display: flex; gap: 2px; border-bottom: 1px solid var(--line); margin-bottom: 8px; }
+:is([data-crop], [data-colorpick]) .padtabs button { padding: 4px 10px; border: 0; background: transparent; font: inherit; font-size: 13px; color: var(--txt2); border-bottom: 2px solid transparent; margin-bottom: -1px; cursor: pointer; }
+:is([data-crop], [data-colorpick]) .padtabs button:hover { color: var(--txt); }
+:is([data-crop], [data-colorpick]) .padtabs button.on { color: var(--accent-ink); border-bottom-color: var(--accent); font-weight: 600; }
+:is([data-crop], [data-colorpick]) .padarea { width: 226px; height: 168px; }
+:is([data-crop], [data-colorpick]) .honey { zoom: .9; }
+:is([data-crop], [data-colorpick]) .padmix { display: flex; gap: 10px; height: 100%; }
+/* สีในกล่องเป็นเนื้อหา ไม่เปลี่ยนตามโทน เขียนด้วยชื่อสี */
+:is([data-crop], [data-colorpick]) .padbox { position: relative; flex: 1; border-radius: 6px; cursor: crosshair; touch-action: none; background: linear-gradient(to bottom, transparent, gray), linear-gradient(to right, red, yellow, lime, cyan, blue, magenta, red); }
+:is([data-crop], [data-colorpick]) .padmark { position: absolute; width: 12px; height: 12px; margin: -6px 0 0 -6px; border: 2px solid white; border-radius: 50%; box-shadow: 0 0 0 1px black; pointer-events: none; }
+:is([data-crop], [data-colorpick]) .padlight { position: relative; flex: none; width: 16px; border-radius: 4px; border: 1px solid var(--line); cursor: ns-resize; touch-action: none; }
+:is([data-crop], [data-colorpick]) .padarrow { position: absolute; left: -3px; right: -3px; height: 4px; margin-top: -2px; background: white; border: 1px solid black; border-radius: 2px; pointer-events: none; }
+:is([data-crop], [data-colorpick]) .honey { display: flex; flex-direction: column; align-items: center; height: 100%; justify-content: center; }
+:is([data-crop], [data-colorpick]) .honeyrow { display: flex; margin-top: -3px; }
+:is([data-crop], [data-colorpick]) .honeyrow.gray { margin-top: 8px; }
+:is([data-crop], [data-colorpick]) .honeyrow button { width: 14px; height: 15px; padding: 0; border: 0; cursor: pointer; clip-path: polygon(50% 0, 100% 25%, 100% 75%, 50% 100%, 0 75%, 0 25%); }
+:is([data-crop], [data-colorpick]) .honeyrow button:hover { filter: brightness(.82); }
+:is([data-crop], [data-colorpick]) .honeyrow button.on { filter: brightness(.6); }
+:is([data-crop], [data-colorpick]) .padside { flex: none; width: 178px; border-left: 1px solid var(--line); padding-left: 14px; display: flex; flex-direction: column; justify-content: space-between; gap: 8px; }
+:is([data-crop], [data-colorpick]) .padfields { display: flex; flex-direction: column; gap: 6px; }
+:is([data-crop], [data-colorpick]) .padfields label { display: flex; align-items: center; justify-content: flex-end; gap: 8px; font-size: 13px; color: var(--txt2); }
+:is([data-crop], [data-colorpick]) .padfields label span { flex: none; width: 44px; }
+:is([data-crop], [data-colorpick]) .padfields input { flex: 1; min-width: 0; width: 0; height: 28px; box-sizing: border-box; padding: 0 6px; text-align: right; border: 1px solid var(--line); border-radius: 7px; background: var(--win); color: var(--txt); font: inherit; outline: 0; }
+:is([data-crop], [data-colorpick]) .padcopy { flex: none; width: 20px; height: 28px; padding: 0; display: inline-flex; align-items: center; justify-content: center; border: 0; background: transparent; color: var(--txt2); cursor: pointer; transition: color .15s; }
+:is([data-crop], [data-colorpick]) .padcopy:hover { color: var(--accent-ink); }
+:is([data-crop], [data-colorpick]) .padfoot { display: flex; justify-content: space-between; align-items: flex-end; gap: 8px; }
+:is([data-crop], [data-colorpick]) .padcmp { display: flex; gap: 6px; font-size: 12px; color: var(--txt2); text-align: center; }
+:is([data-crop], [data-colorpick]) .padcmp i { display: block; width: 46px; height: 42px; border: 1px solid var(--line); border-radius: 5px; }
+:is([data-crop], [data-colorpick]) .padbtns { display: flex; flex-direction: column; gap: 6px; width: 72px; }
+:is([data-crop], [data-colorpick]) .padbtns .btn { justify-content: center; padding-inline: 4px; }
+/* แบบเตี้ยของหน้าครอปเอาออกแล้ว กล่องเลือกสีขนาดเดียวทั้งโปรแกรม (ขนาดอยู่ที่ [data-colorpick] ข้างล่าง) */
+:is([data-crop], [data-colorpick]) .padfields input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+/* ช่องพิมพ์คุณภาพ JPG */
+[data-crop] .qnum { flex: none; display: inline-flex; align-items: center; gap: 4px; font-size: 13px; color: var(--txt2); }
+[data-crop] .qnum input { width: 42px; height: 28px; padding: 0 6px; text-align: right; border: 1px solid var(--line); border-radius: 7px; background: var(--win); color: var(--txt); font: inherit; outline: 0; }
+[data-crop] .qnum input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
+[data-crop-tools] .btn { flex: 1 1 auto; justify-content: center; white-space: nowrap; }
+[data-poster-page] .three:has(> [data-card="movie"]) > .card > .small { min-height: 98px; }
+/* ข้อความชิดล่างสุดของพื้นที่จอง ตรงแนวกันทั้งสามคอลัมน์ */
+[data-poster-page] .pcap { display: flex; flex-direction: column; justify-content: flex-end; }
+/* ปุ่มเลือกรูปสองปุ่มอยู่แถวเดียว ความสูงใต้ช่องลากจะคงที่ แนวตรงกับช่องตัวอย่าง */
+/* ระยะขอบใน 6 จุด กับคำสั้นของปุ่มแรกตอนมีสองปุ่ม ทำให้อยู่แถวเดียวที่หน้าต่าง 1280 ได้จริง (ที่ข้างในช่องลาก 268 จุด สองปุ่มรวมช่องห่างราว 261 จุด · เดิม 10 จุดกับคำเต็มรวม 292 จุดจึงตกสองแถว) */
+[data-card="poster"] .drop span .btn { padding-inline: 6px; }
+/* รูปตัวอย่างหนังเต็มคอลัมน์ ขอบล่างของส่วนนี้ตรงกับช่องลากรูปข้าง ๆ */
+[data-poster-page] [data-card="movie"] .vfile { flex: 1 1 0; min-height: 0; flex-direction: column; align-items: stretch; gap: 10px; padding: 0; background: none; border-radius: 0; }
+/* รูปตัวอย่างหดตามที่ว่าง เห็นทั้งภาพไม่ครอป */
+[data-poster-page] [data-card="movie"] .vthumb { width: 100%; height: 0; flex: 1 1 0; min-height: 72px; object-fit: contain; background: var(--win2); border-radius: 8px; }
+[data-poster-page] [data-card="movie"] .vthumb.cover { object-fit: contain; background: var(--win2); }
+/* รูปเต็มความกว้าง ยืดตามที่ว่าง เห็นทั้งภาพ แบบเดียวกับการ์ดไฟล์หนัง · ข้อความซ้าย ปุ่มขวา อยู่ใต้รูป */
+[data-poster-page] [data-card="poster"] .pprev { flex: 1 1 0; min-height: 0; flex-direction: column; align-items: stretch; gap: 10px; }
+[data-poster-page] [data-card="poster"] .pp { width: 100%; height: 0; flex: 1 1 0; min-height: 72px; object-fit: contain; background: var(--win2); box-shadow: none; }
+[data-card="poster"] .ppinfo { flex: none; display: flex; gap: 10px; align-items: center; }
+/* ข้อมูลรูปเป็นรายการทีละบรรทัด ไม่ใช่ย่อหน้า ชิดซ้าย ไม่กระจาย ชื่อไฟล์แนบตกบรรทัดแล้วคำข้างหน้าไม่ถ่าง (ภาพรวมชุด 9) */
+[data-card="poster"] .ppinfo > .small { text-align: start; }
+[data-card="poster"] .ppbtns { flex: none; width: 132px; display: flex; flex-direction: column; gap: 6px; }
+[data-card="poster"] .ppbtns .btn { width: 100%; padding-inline: 6px; justify-content: center; white-space: nowrap; }
+/* ปุ่มแบบปกเต็มความกว้างการ์ด กว้างเท่ากันสามปุ่ม ไม่ตัดคำ */
+[data-not23] .not23seg { flex: 0 0 100%; }
+[data-not23] .seg { width: 100%; }
+[data-not23] .seg button { flex: 1 1 0; min-width: 0; padding: 0 4px; gap: 4px; white-space: nowrap; }
+/* มีไฟล์หรือรูปแล้ว ไม่ต้องจองที่ให้ตรงกับช่องลาก คำอธิบายยังชิดล่าง ที่เหลือให้รูป */
+[data-poster-page] [data-card="poster"]:has(.pprev) > .small.pcap, [data-poster-page] [data-card="movie"]:has(.vfile) > .small.pcap { min-height: 0; }
+/* หน้าต่างเตี้ยหรือแคบ ซ่อนคำอธิบายรอง หน้านี้ต้องไม่เลื่อน */
+@media (max-height: 700px), (max-width: 1100px) {
+  [data-poster-page] .small.pcap:not(.rescap) { display: none; }
+  [data-poster-page] [data-opt] .chk .small { display: none; }
+  [data-poster-page] [data-opt] .chk br { display: none; }
+  [data-poster-page] [data-opt="output"] > div > .small, [data-poster-page] [data-opt="output"] > .small { display: none; }
+  [data-poster-page] [data-card="movie"] .vfile .small:last-child { display: none; }
+  [data-poster-page] .rescap { min-height: 0; }
+  [data-poster-page] .wrapin { gap: 12px; padding-top: 14px; }
+  [data-not23] > div:not(.not23seg) > div { display: none; }
+  [data-not23] { row-gap: 6px; }
+  [data-card="poster"] .ppmode { display: none; }
+}
+@media (max-width: 1100px) {
+  [data-not23] .seg svg { display: none; }
+  [data-poster-page] .pact-msg { grid-column: 1 / 2; padding-right: 0; }
+  [data-poster-page] .pact-btns { grid-column: 2 / 4; padding-left: 22px; justify-content: flex-end; }
+  [data-poster-page] .pact-btns .btn { flex: none; white-space: nowrap; }
+}
+.ag[data-graphmode="convert"] > .cq > .card:first-child { flex: 1 0 auto; display: flex; flex-direction: column; }
+.ag[data-graphmode="convert"] > .cq > .card:first-child > .drop { flex: 1 0 auto; }
+[data-link-page] { display: flex; flex-direction: column; }
+[data-link-page] > .wrapin { flex: 1 0 auto; padding-bottom: 0; }
+[data-link-page] > .wrapin > .card:first-child { flex: 1 0 auto; display: flex; flex-direction: column; }
+[data-link-page] > .wrapin > .card:first-child > .drop { flex: 1 0 auto; }
+[data-link-page] .linkfoot { position: sticky; bottom: 0; z-index: var(--z-bar); background: var(--win); padding-block: 12px; border-top: 1px solid var(--line); box-shadow: -22px 0 0 var(--win), 22px 0 0 var(--win); }
+.avwrap:has(> .card > .drop) { min-height: 100%; }
+.avwrap > .card:has(> .drop) { flex: 1 0 auto; display: flex; flex-direction: column; }
+.avwrap > .card:has(> .drop) > .drop { flex: 1 0 auto; }

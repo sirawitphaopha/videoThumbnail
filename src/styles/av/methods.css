@@ -1,0 +1,116 @@
+/* หน้าเสียงและซับส่วนที่ตรึง แถบล่าง ส่วนตั้งค่าแทร็ก การ์ดวิธี หน้าต่างบท และการ์ดแยกไฟล์
+   แยกจาก av.css ตอนจัดโครงไฟล์ตามความหมาย (BUGS ข้อ 155 ขั้น 11) ช่วงต่อเนื่องของไฟล์เดิม ย้ายมาทั้งก้อน กฎไม่เปลี่ยน ลำดับตามสารบัญ */
+/* ตรึงไฟล์หนังบนสุดกับปุ่มรวมล่างสุดของหน้าเสียงและซับ · ปุ่มแปลงล่างสุดของหน้าแปลงเสียง */
+.avtop { position: sticky; top: 0; z-index: var(--z-bar); background: var(--win); padding-block: 10px; }
+.avfoot, .cqfoot { position: sticky; bottom: 0; z-index: var(--z-bar); background: var(--win); padding-block: 12px; border-top: 1px solid var(--line); }
+/* ไม่เว้นที่ใต้แถบปุ่ม เลื่อนสุดแล้วแถบยังชิดล่างเท่าเดิม ไม่ขยับขึ้น */
+.avwrap:has(> .avfoot) { padding-bottom: 0; }
+/* กรอบตรึงล่างสุด แถววิธีกับแถบปุ่มรวม (BUGS ข้อ 68) · แถบปุ่มข้างในไม่ต้องตรึงซ้ำ */
+.avdock { margin-top: auto; position: sticky; bottom: 0; z-index: var(--z-bar); background: var(--win); border-top: 1px solid var(--line); padding-top: 10px; }
+.avdock > .avfoot { position: static; }
+/* แถบล่างสูงเท่ากันทุกวิธี 74 จุด (รวม จับคู่ แยก ยังไม่กดแยก) สลับวิธีแล้วกล่องที่ตรึงล่างไม่ยืดหด (พี่กันทัก 13 พ.ย. 2569 "ก็บอกว่าให้ fix ไง")
+   ตอนกำลังแยกหรือขึ้นผลแยก การ์ดมีรายการไฟล์ สูงตามจำนวนไฟล์ได้ไม่เกินครึ่งจอ */
+.avdock > .avfoot { height: 74px; box-sizing: border-box; }
+.avdock > .avxfoot:has(> .card) { height: auto; }
+/* หน้าสูงอย่างน้อยเต็มจอ กรอบตรึงล่างสุดชิดขอบล่างแม้แทร็กน้อย (เดิมลอยกลางหน้า มีที่ว่างข้างใต้) */
+.avwrap:has(> .avdock) { padding-bottom: 0; min-height: 100%; }
+/* ส่วนตั้งค่าแทร็ก (BUGS ข้อ 33) · แบบกางใต้แถวที่กดเป็นค่าตั้งต้น พี่กันเลือก 12 พ.ย. 2569 · หน้าต่างซ้อนกับแผงขวาเลือกในหน้าตั้งค่า
+   ขนาดกับเงาเท่ามอคอัป batch9-pick ที่พี่กันดูแล้ว */
+.tracks > .trk-under { margin: 4px 0 10px 40px; padding: 14px 18px; border-left: 3px solid var(--accent); border-radius: 10px; background: var(--win); box-shadow: 0 4px 14px rgba(60, 25, 40, .12); }
+.trkdlg-t { display: flex; justify-content: space-between; align-items: center; gap: 10px; }
+.avside { position: fixed; right: 0; width: 400px; display: flex; flex-direction: column; overflow: hidden; background: var(--win); border-top: 1px solid var(--line); border-left: 1px solid var(--line); border-top-left-radius: 12px; box-shadow: -10px 0 30px rgba(40, 20, 30, .14); z-index: var(--z-panel); }
+.avside-body { flex: 1; min-height: 0; overflow-y: auto; overscroll-behavior: contain; padding: 18px 20px; }
+.avside-body > .card { margin: 0; }
+.avside .avdetail { grid-template-columns: 1fr; }
+/* หัวข้อแปลงเสียงในส่วนตั้งค่าแทร็ก (BUGS ข้อ 34) · ปุ่มไม่แปลงสูงเท่าปุ่มเลือกชนิดเสียงข้างกัน 38 px (สกิล form-input ⑥) */
+[data-detail-conv] .btn { height: 38px; }
+/* ปุ่มเสร็จสิ้นติดล่างสุดของแผง มีเส้นแบ่ง (พี่กันสั่ง 12 พ.ย. 2569) */
+.avside-foot { flex: none; display: flex; justify-content: flex-end; padding: 12px 20px; border-top: 1px solid var(--line); }
+/* แถวความเร็ว Gain ความดังมาตรฐาน ปุ่มคู่สูงเท่าช่องเลือกกับปุ่มลบบวก */
+[data-extra] .seg.sm button { height: 32px; }
+
+/* การ์ดวิธีสามใบ รวม จับคู่ แยก (BUGS ข้อ 35 ต่อ · พี่กันสั่ง 12 พ.ย. 2569 "ขยายการ์ดให้ใหญ่กว่านี้ เเยกสามปุ่ม ให้เด่น") · หัว วิธี อยู่แถวเดียวกัน */
+.avm-row { display: flex; align-items: center; gap: 14px; }
+/* ช่องคำว่าวิธีกว้างคงที่ แถบล่างเว้นซ้ายเท่าช่องนี้บวกช่องห่าง ของชิ้นแรกในแถบล่างตรงขอบซ้ายของการ์ดวิธีทุกวิธี (พี่กันสั่ง 13 พ.ย. 2569 "ขยับ MKV ให้ตรงกับการ์ด") */
+.avdock { --avm-lbl: 20px; }
+.avm-row > h3 { flex: none; min-width: var(--avm-lbl); }
+/* การ์ดวิธีห่างเส้นล่าง (ขอบบนแถบปุ่ม) 10 จุดเท่าเส้นบน (พี่กันทัก 13 พ.ย. 2569 "ฝั่งนึงมีระยะห่างจากเส้น ฝั่งนึงติดกับเส้น" · เดิมบน 10 ล่าง 0) */
+.avdock > .avm-row { margin-bottom: 10px; }
+.avdock > .avfoot { padding-inline-start: calc(var(--avm-lbl) + 14px); }
+.avm-cards { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.avm-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid #e8cdd6; border-radius: 10px; background: #fff; color: var(--txt2); font: inherit; text-align: left; cursor: pointer; transition: background-color .15s, border-color .15s, color .15s; min-width: 0; }
+.avm-card:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, #fff); }
+.avm-card.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: color-mix(in srgb, var(--accent) 11%, #fff); color: var(--accent-ink); }
+.avm-card[aria-disabled="true"] { cursor: not-allowed; opacity: .6; }
+/* วิธีที่ไม่ได้เลือกจางลง เห็นทันทีว่าเลือกอันไหนอยู่ ชี้แล้วกลับมาชัด เพราะยังกดเปลี่ยนวิธีได้ (BUGS ข้อ 93 พี่กันสั่ง 13 พ.ย. 2569 "เลือกอันไหนเเล้ว อีกสออัน จางให้ด้วย") */
+/* ไม่จางทั้งใบ จางทั้งใบดูเหมือนกดไม่ได้ แบบปุ่มที่ยังไม่พร้อมทั้งโปรแกรม (พี่กันทัก "เราจะกดเปลี่ยนยังไง ถ้ามันตั้งให้กดไม่ได้" แล้วเคาะ "เอาตามเธอละกัน")
+   ไอคอนหม่นเป็นเทาอมชมพู ตัวหนังสือสีอ่อนลงหนึ่งขั้น กรอบยังอยู่ ชี้แล้วกลับเป็นสีเต็ม · กดไม่ได้จริงระหว่างมีงานยังใช้จางทั้งใบแบบเดิม */
+.avm-card:not(.on) { color: var(--txt3); border-color: #efdde3; }
+.avm-card:not(.on) .avm-ic { filter: saturate(.25); opacity: .75; transition: filter .15s, opacity .15s; }
+.avm-card:not(.on) .avm-desc { color: var(--txt3); }
+.avm-card:not(.on):hover { color: var(--txt2); border-color: var(--accent); }
+.avm-card:not(.on):hover .avm-ic { filter: none; opacity: 1; }
+.avm-ic { flex: none; width: 38px; height: 38px; border-radius: 9px; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--accent) 10%, #fff); color: var(--accent-ink); }
+.avm-card.on .avm-ic { background: var(--accent); color: #fff; }
+.avm-tx { min-width: 0; display: flex; flex-direction: column; gap: 2px; }
+.avm-tx b { font-size: 14.5px; white-space: nowrap; }
+.avm-tx b i { font-style: normal; font-weight: 500; color: var(--txt3); }
+.avm-desc { font-size: 12.5px; color: var(--txt3); }
+/* การ์ดแยกไฟล์ตรึงล่างสุดในที่ของแถบปุ่มรวม (BUGS ข้อ 35 ต่อ) · ตอนกำลังแยกหรือชื่อชน การ์ดสูงได้ไม่เกินครึ่งจอ เกินเลื่อนในการ์ด */
+/* หน้าต่างดูและแก้บท (BUGS ข้อ 99) · เลขบท เวลาเริ่ม ชื่อบท ปุ่มลบ · เวลาที่ผิดขอบแดง เหตุผลใต้แถว */
+.chaphead, .chaprow { display: grid; grid-template-columns: 34px 132px minmax(0, 1fr) 30px; gap: 8px; align-items: center; }
+.chaphead { font-size: 12.5px; color: var(--txt3); padding-bottom: 6px; border-bottom: 1px solid var(--line); }
+.chaprow { padding: 6px 0; border-bottom: 1px solid #f7e4ea; }
+.chapno { font-size: 13px; color: var(--txt3); text-align: center; font-variant-numeric: tabular-nums; }
+/* ช่องเวลากับช่องชื่อบทแถวเดียวกันสูงเท่ากัน ขอบกับมุมแบบเดียวกับ .inp (form-input ⑥) */
+.chaprow .inp { height: 36px; }
+.chaptime { height: 36px; box-sizing: border-box; padding: 0 10px; border: 1px solid #e8cdd6; border-radius: 9px; background: #fff; font: inherit; font-size: 13.5px; font-variant-numeric: tabular-nums; color: var(--txt); transition: border .15s, box-shadow .15s; }
+.chaptime:hover { border-color: #e2bfcb; }
+.chaptime:focus { outline: none; border-color: var(--accent); box-shadow: 0 0 0 3px rgba(200,64,111,.25); }
+.chaptime.err { border-color: var(--bad); background: var(--bad-soft); box-shadow: 0 0 0 3px rgba(236,143,143,.25); }
+.chaperr { grid-column: 2 / 4; font-size: 12.5px; color: var(--bad-ink); }
+/* ปุ่มในช่องแปลงของแถว ดูซับ ดูและแก้บท (BUGS ข้อ 98 99) */
+.trk-actbtn { justify-self: start; height: 30px; }
+/* ปุ่มดูซับกับดูและแก้ Chapter กว้างเต็มช่องเท่าช่องแปลงเสียงของแถวเสียง สีอ่อนกว่าปุ่มปกติ ชี้แล้วกลับเป็นสีเต็มแบบปุ่มโปร่ง
+   (พี่กันสั่ง 13 พ.ย. 2569 "ยาวเท่าเดิม เเต่สีอ่อนขึ้น" แคลร์อ่านผิดเป็นคงความยาวปุ่ม แล้วพี่กันทัก "เราบอกแล้วไงว่าเท่ากับปุ่มแปลง และสีเข้มกว่า" · รอบก่อนจางเกิน) */
+/* พื้นชมพูอ่อน ขอบกับตัวหนังสือสีโทน ต่างจากช่องแปลงที่พื้นขาว (พี่กันสั่งต่อ "ปุ่มมีสีเข้มกว่านี้ ให้มันเเตกต่างจาก ปุ่มแปลง") */
+.trk-actbtn.btn-ghost { justify-self: stretch; justify-content: center; background-color: #faedf1; border-color: #e2bfcb; color: var(--accent-ink); }
+.trk-actbtn.btn-ghost:hover { background-color: #f5dde5; border-color: #d8a9b9; color: var(--accent-ink); }
+.avxfoot:has(> .card) { display: block; padding-block: 8px; }
+/* เว้นขวา 16 จุดให้แถบเลื่อนลอย (กว้าง 7 จุด) ไม่ทับคำสถานะชิดขวา ไม่สำเร็จ รอคิว (พี่กันทัก 15 พ.ย. 2569 "เเล้วเเถบเลื่อนบัด้วย") */
+.avxfoot > .card { margin: 0; max-height: 50vh; overflow-y: auto; padding-right: 16px; }
+/* ยังไม่กดแยก แถวเดียวเต็มความกว้างแบบแถบปุ่มรวม */
+.avxfoot > .xidle { flex: 1; min-width: 0; }
+[data-extract] .xpicks .hint { white-space: nowrap; }
+/* แถวกดแยก สรุปที่ติ๊กชิดซ้าย ที่เก็บกับปุ่มชิดขวา (BUGS ข้อ 92) · ที่เก็บกรอบสีโทนตัวหนา บรรทัดเดียว ไม่ดันแถบให้สูง */
+[data-extract] .xrow { display: flex; align-items: center; gap: 10px; }
+[data-extract] .xpicks { flex: 1; min-width: 0; font-size: 14px; }
+/* ปุ่มล้างการเลือกต่อท้ายคำว่าเลือกไว้ (พี่กันทัก "ล้างการเลือก ไหม มาติ๊กอะไรไม่ทางการ" · ขอ 15 พ.ย. 2569 "เราติ๊กไปเป็นสิบ ขอปุ่มล้างงการติ๊กด้วย")
+   สูง 26 จุดให้ ิ กับ ๊ ที่ซ้อนกันอยู่ในกรอบ · เดิม 22 จุด หัววรรณยุกต์ทับเส้นขอบบน (พี่กันทัก "มันเเคปไป") */
+[data-extract] .xclear { height: 26px; padding: 0 9px; gap: 5px; margin-left: 8px; font-size: 12.5px; vertical-align: middle; }
+[data-extract] .xdest { display: inline-flex; align-items: center; gap: 6px; height: 34px; padding: 0 12px; max-width: 440px; min-width: 0; border: 1.5px solid var(--accent); border-radius: 9px; background: color-mix(in srgb, var(--accent) 9%, var(--win)); color: var(--accent-ink); font-size: 13.5px; white-space: nowrap; flex: 0 1 auto; }
+[data-extract] .xdest svg { flex: none; }
+[data-extract] .xdest > span { flex: none; color: var(--txt2); }
+/* ที่เก็บเป็นปุ่ม ชี้แล้วพื้นเข้มขึ้นในโทนเดิม · ส่วนเปลี่ยนท้ายปุ่มคั่นด้วยเส้นบาง (พี่กันสั่งรวมปุ่มเปลี่ยนที่เก็บเข้ากับที่อยู่) */
+[data-extract] button.xdest { font: inherit; font-size: 13.5px; cursor: pointer; text-align: left; transition: background-color .15s, border-color .15s; max-width: 520px; }
+[data-extract] button.xdest:hover { background: color-mix(in srgb, var(--accent) 16%, var(--win)); border-color: var(--accent-d); }
+[data-extract] .xdest-chg { flex: none; display: inline-flex; align-items: center; gap: 4px; margin-left: 4px; padding-left: 10px; border-left: 1px solid color-mix(in srgb, var(--accent) 35%, transparent); font-style: normal; font-weight: 600; }
+[data-extract] .xdest > b { overflow: hidden; text-overflow: ellipsis; min-width: 0; font-weight: 700; }
+/* วิธีแยก ช่องเลือก .mkv หรือ .h264 ของแถวภาพ ชัดเต็มสี มีหัวบอกว่าแยกภาพเป็น ปุ่มที่เลือกเป็นสีหลัก (BUGS ข้อ 35 ต่อ พี่กันสั่ง 12 พ.ย. 2569 "ขอให้สื่อเเละเด่น") */
+/* หัวกับช่องเลือกรวมกันไม่สูงกว่าเนื้อแถว สลับวิธีรวมกับแยกแล้วแถวภาพสูงเท่าเดิม หน้าไม่ขยับ (เดิมสูงขึ้น 9 px) */
+.xraw { display: inline-flex; flex-direction: column; align-items: flex-start; gap: 1px; justify-self: start; }
+.xraw > .xraw-cap { font-size: 11.5px; font-weight: 600; color: var(--accent-ink); line-height: 1.1; }
+.xraw .seg.sm button { height: 24px; }
+.xraw > .xraw-row { display: inline-flex; align-items: center; gap: 4px; }
+.xraw .seg button.on { background-color: var(--accent); color: white; font-weight: 600; }
+.xraw .seg button.on:hover { background-color: var(--accent-d); color: white; }
+/* ส่วนของงานรวมตอนเลือกวิธีอื่น อยู่ที่เดิมแบบจาง กดไม่ได้ ป้ายเหตุผลกลางส่วน (BUGS ข้อ 35 ต่อ) */
+.avoffwrap { position: relative; }
+.avoffwrap > .avoff { opacity: .4; }
+.avoffwrap::after { content: attr(data-off); position: absolute; left: 50%; top: 50%; translate: -50% -50%; white-space: nowrap; font-size: 13px; font-weight: 600; color: var(--txt2); background: var(--win); border: 1px solid var(--line); border-radius: 999px; padding: 4px 14px; box-shadow: 0 2px 8px rgba(60, 25, 40, .08); pointer-events: none; }
+/* หัวคอลัมน์ แปลง กึ่งกลางตรงกับขีดของแถวภาพ ใช้โครงเดียวกับขีด เงาคำ ไม่แปลง ขนาดตัวอักษรเท่าแถว (BUGS ข้อ 62 พี่กันสั่ง "เอาคำว่า แปลง อยู่ตรงกับ ขีด") */
+.trk.head .trk-hd { font-size: 12px; font-weight: 600; color: var(--txt2); }
+.trk.head .trk-hd > i { font-size: 12.5px; font-weight: 400; }
+/* ปุ่ม ⓘ ข้างคำว่า หลัก ลอยต่อท้ายคำ คำว่า หลัก ยังกึ่งกลางเหนือวงกลม (BUGS ข้อ 66) */
+.trk.head .hd-tip { position: absolute; margin-left: 3px; display: inline-flex; align-items: center; height: 100%; top: 0; }
+.trk.head > span:has(> .hd-tip) { position: relative; }
