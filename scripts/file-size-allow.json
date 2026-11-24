@@ -6,5 +6,9 @@
     "src/pages/graph/GraphPage.tsx": { "max": 854, "why": "คอมโพเนนต์ GraphPage ก้อนเดียว 754 บรรทัด ตัดกลางฟังก์ชันคือเขียนใหม่" },
     "src/components/subedit/SubEditor.tsx": { "max": 653, "why": "คอมโพเนนต์ SubEditor ก้อนเดียว 607 บรรทัด ตัดกลางฟังก์ชันคือเขียนใหม่" },
     "src/lib/langs.ts": { "max": 1036, "why": "ไฟล์ข้อมูลภาษา 1,003 ภาษาที่สร้างด้วยสคริปต์ ไม่ใช่โค้ดที่เขียนมือ" }
+  },
+  "blocks": {
+    "src/lib/langs.ts": "ตาราง LANG_ALL เป็นข้อมูลภาษาที่สคริปต์สร้าง ไม่ใช่ฟังก์ชัน (BUGS ข้อ 155)",
+    "src/components/ImageViewer.tsx": "ยกจากต้นฉบับตัวดูรูปกลางของทุกเว็บ สกิล image-viewer ห้ามเขียนใหม่ ต้องตรงต้นฉบับ (BUGS ข้อ 155)"
   }
 }

@@ -13,13 +13,17 @@
 // ไม่นับ ตัวตรวจใน scripts/ มอคอัป เอกสาร (พี่กันเคาะว่าไม่ต้องแบ่ง)
 // เกิน 450 บรรทัด เตือนว่าใกล้ถึงเวลาแบ่ง แบ่งตอนแตะไฟล์นั้นครั้งถัดไป · เกิน 600 บรรทัด ตก ต้องแบ่งก่อน commit
 // ข้อยกเว้นอยู่ scripts/file-size-allow.json ใส่ไฟล์ เพดานใหม่ และเหตุผล · ไฟล์ในรายการโตเกินเพดานก็ตก (เพดานคือความยาวตอนลงรายการ ห้ามโตต่อ)
+// ก้อนยาว (BUGS ข้อ 155) วัดคอมโพเนนต์ ฟังก์ชัน ตารางระดับบนสุดของไฟล์ ts tsx และฟังก์ชัน Rust ทุกระดับ เกิน 200 บรรทัดเตือนให้แยกเป็นส่วนย่อยตอนแตะ
+//   เตือนอย่างเดียว ไม่กัน commit (พี่กันเคาะ 24 พ.ย. 2569 "ไม่ต้องบังคับขนาดนั้น เพราะยังไงก็เเก้ไปก่อน เดี๋ยวถึงวันนึงที่แก้ไปเยอะ เราก็จะมาสั่งให้เธอเเบ่งไฟล์อีกรอบ")
+//   วัดจากรูปแบบการเขียนของโปรเจกต์ ก้อนระดับบนสุดขึ้นต้นที่คอลัมน์แรก จบที่บรรทัดปิดวงเล็บที่คอลัมน์แรก · ฟังก์ชัน Rust จบที่ } ระดับย่อหน้าเดียวกับบรรทัด fn
+//   ไฟล์ที่ไม่ต้องเตือนก้อนยาวใส่ใน "blocks" ของ file-size-allow.json พร้อมเหตุผล (ไฟล์ข้อมูล ไฟล์ที่ยกจากต้นฉบับ)
 import { readdirSync, readFileSync, statSync, existsSync } from "fs";
 import { join, relative } from "path";
 import { execSync } from "child_process";
 import { fileURLToPath } from "url";
 
 const ROOT = join(fileURLToPath(import.meta.url), "../..");
-const WARN = 450, MAX = 600;
+const WARN = 450, MAX = 600, BLOCK = 200;
 const arg = (a) => process.argv.some((x) => x.trim() === a); // ตัดช่องว่างท้าย กันไฟล์ hook ที่ได้ CRLF ส่ง "--staged\r"
 
 if (arg("--hook")) {
@@ -30,7 +34,9 @@ if (arg("--hook")) {
 }
 
 const allowPath = join(ROOT, "scripts/file-size-allow.json");
-const allow = existsSync(allowPath) ? JSON.parse(readFileSync(allowPath, "utf8")).files ?? {} : {};
+const allowAll = existsSync(allowPath) ? JSON.parse(readFileSync(allowPath, "utf8")) : {};
+const allow = allowAll.files ?? {};
+const blockAllow = allowAll.blocks ?? {};
 
 const walk = (d) => readdirSync(d).flatMap((n) => { const p = join(d, n); return statSync(p).isDirectory() ? walk(p) : [p]; });
 // ที่อยู่ไฟล์เทียบด้วย / เสมอ (Windows ได้ \ จาก path.join · ผู้ช่วยตรวจทานขั้น 13.5 เจอว่าเดิมนับมอคอัปกับ tests.rs บน Windows จนตกทุก commit)
@@ -68,10 +74,48 @@ function cutHint(p, n) {
   return `จุดตัดที่ใกล้กลางไฟล์ บรรทัด ${best + 1}: ${L[best].trim().slice(0, 60)}`;
 }
 
+/** ก้อนที่ยาวเกิน BLOCK บรรทัด คืน [{ name, line, len }] · n คือจำนวนบรรทัดที่นับ (Rust ไม่นับส่วนเทสท้ายไฟล์) */
+function longBlocks(p, n) {
+  if (p.endsWith(".css")) return [];
+  const L = textOf(p).replace(/\r\n/g, "\n").split("\n").slice(0, n);
+  const out = [];
+  if (p.endsWith(".rs")) {
+    const FN = /^( *)(?:pub(?:\([\w:]+\))? )?(?:const )?(?:async )?(?:unsafe )?(?:extern "[^"]+" )?fn (\w+)/;
+    for (let i = 0; i < L.length; i++) {
+      const m = L[i].match(FN);
+      if (!m || /\}\s*$/.test(L[i]) || /;\s*$/.test(L[i])) continue; // ฟังก์ชันบรรทัดเดียว หรือแค่ประกาศ
+      const close = m[1] + "}";
+      let j = i + 1;
+      while (j < L.length && L[j].trimEnd() !== close) j++;
+      if (j < L.length && j - i + 1 > BLOCK) out.push({ name: m[2], line: i + 1, len: j - i + 1 });
+    }
+    return out;
+  }
+  const DECL = /^(?:export\s+)?(?:default\s+)?(?:async\s+)?(?:function\*?|const|let|var|class)\s+([A-Za-z_$][\w$]*)/;
+  for (let i = 0; i < L.length; i++) {
+    const m = L[i].match(DECL);
+    if (!m) continue;
+    let end = i;
+    for (let j = i + 1; j < L.length; j++) {
+      const l = L[j];
+      if (!l || /^\s/.test(l)) continue; // บรรทัดว่างกับบรรทัดที่ย่อหน้า อยู่ในก้อน
+      if (/^[}\])]/.test(l)) {
+        if (/[{(]\s*$/.test(l)) continue; // }) { ปิดช่องรับค่าหลายบรรทัดแล้วเปิดตัวฟังก์ชันต่อ ยังไม่จบก้อน
+        end = j; break; // ปิดวงเล็บที่คอลัมน์แรก จบก้อน
+      }
+      break; // คำสั่งระดับบนสุดตัวถัดไป ก้อนนี้จบบรรทัดเดียว
+    }
+    if (end - i + 1 > BLOCK) out.push({ name: m[1], line: i + 1, len: end - i + 1 });
+    i = Math.max(i, end);
+  }
+  return out;
+}
+
 const hint = (p, n) => { const h = cutHint(p, n); return h ? " · " + h : ""; };
-const warn = [], fail = [], stale = [];
+const warn = [], fail = [], stale = [], blocks = [];
 for (const p of files) {
   const rel = relOf(p), n = count(p), a = allow[rel];
+  if (!blockAllow[rel]) for (const b of longBlocks(p, n)) blocks.push(`${rel} ${b.name} บรรทัด ${b.line} ยาว ${b.len} บรรทัด`);
   if (a) {
     if (n > a.max) fail.push(`${rel} ${n} บรรทัด เกินเพดานในรายการยกเว้น ${a.max} (${a.why})${hint(p, n)}`);
     else if (n <= MAX) stale.push(`${rel} เหลือ ${n} บรรทัด ไม่เกิน ${MAX} แล้ว เอาออกจากรายการยกเว้นได้`);
@@ -81,13 +125,16 @@ for (const p of files) {
   else if (n > WARN) warn.push(`${rel} ${n} บรรทัด`);
 }
 for (const rel of Object.keys(allow)) if (!files.some((p) => relOf(p) === rel)) stale.push(`${rel} ไม่มีไฟล์นี้แล้ว เอาออกจากรายการยกเว้น`);
+for (const rel of Object.keys(blockAllow)) if (!files.some((p) => relOf(p) === rel)) stale.push(`${rel} ไม่มีไฟล์นี้แล้ว เอาออกจากรายการยกเว้นก้อนยาว`);
 
 // ตอน commit เตือนเฉพาะไฟล์ที่แตะ ให้แบ่งตอนแตะไฟล์นั้นตามกติกา ไม่พิมพ์รายการเดิมซ้ำทุก commit
 if (STAGED) warn.splice(0, warn.length, ...warn.filter((x) => staged.has(x.split(" ")[0])));
+if (STAGED) blocks.splice(0, blocks.length, ...blocks.filter((x) => staged.has(x.split(" ")[0])));
 const out = [];
+if (blocks.length) out.push(`ก้อนยาว (เกิน ${BLOCK} บรรทัด) ${blocks.length} ก้อน แยกเป็นส่วนย่อยตอนแตะ ตามแบบโครงใน CLAUDE.md หัวข้อแนวทางวางไฟล์ (เตือนอย่างเดียว ไม่กัน commit)`, ...blocks.map((x) => "  " + x));
 if (warn.length) out.push(`ใกล้ถึงเวลาแบ่ง (เกิน ${WARN} บรรทัด) ${warn.length} ไฟล์ แบ่งตอนแตะไฟล์นั้นครั้งถัดไป`, ...warn.map((x) => "  " + x));
 if (stale.length) out.push("รายการยกเว้นที่ควรเก็บกวาด", ...stale.map((x) => "  " + x));
 if (fail.length) out.push(`ต้องแบ่งก่อน commit (เกิน ${MAX} บรรทัด) ${fail.length} ไฟล์ · แนวทางวางไฟล์อยู่ CLAUDE.md หัวข้อแนวทางวางไฟล์`, ...fail.map((x) => "  " + x));
-out.push(`ตรวจ ${files.length} ไฟล์ · ตก ${fail.length} · เตือน ${warn.length}`);
+out.push(`ตรวจ ${files.length} ไฟล์ · ตก ${fail.length} · เตือน ${warn.length} · ก้อนยาว ${blocks.length}`);
 (fail.length ? console.error : console.log)(out.join("\n"));
 process.exit(fail.length ? (arg("--hook") ? 2 : 1) : 0);
