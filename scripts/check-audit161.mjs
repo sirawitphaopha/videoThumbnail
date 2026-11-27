@@ -352,6 +352,50 @@ T[95] = async (p, check) => {
   check("95 กลับวิธีรวม ช่องแก้ได้เหมือนเดิม", back === false, back);
 };
 
+// ชุด 5 ----------------------------------------------------------------
+T[16] = async (p, check) => {
+  const r = await mod(p, "/src/lib/codecAdv.ts", `
+    const keys = (eng, v) => m.cardsFor("aac", eng, v).map((k) => k.key + (k.eng ? "@" + k.eng.join("/") : ""));
+    const tvbr = { mode: "TVBR", tvbr: 109, bitrate: 465 }, cvbr = { mode: "CVBR", bitrate: 96, tvbr: 45 };
+    return { ff: keys("ffmpeg", tvbr), fdkT: keys("fdkaac", tvbr), fdkC: keys("fdkaac", cvbr), qaac: keys("qaac", tvbr),
+      evFdk: m.engVals("aac", "fdkaac", cvbr).mode, evFdkT: m.engVals("aac", "fdkaac", tvbr).mode, evFf: "mode" in m.engVals("aac", "ffmpeg", tvbr),
+      opusSame: JSON.stringify(m.cardsFor("opus", "native", { bitrate: 160 }).map((k) => k.key)) === JSON.stringify(m.cardsFor("opus", "native", m.engVals("opus", "native", { bitrate: 160 })).map((k) => k.key)) };`);
+  check("16 AAC ด้วย ffmpeg ชุดค่า TVBR ยังเห็นการ์ดบิตเรต ส่งบิตเรตของชุดถึงตัวแปลง", r.ff.includes("bitrate") && !r.evFf, JSON.stringify(r.ff));
+  check("16 fdkaac ชุด TVBR ใช้ VBR และเห็นการ์ดระดับ VBR · ชุด CVBR ใช้ CBR บิตเรตเดียวกัน", r.evFdkT === "VBR" && r.fdkT.some((k) => k.startsWith("vbr")) && r.evFdk === "CBR" && r.fdkC.includes("bitrate"), JSON.stringify(r));
+  check("16 qaac ชุด TVBR เหมือนเดิม มีการ์ดระดับ TVBR ไม่มีการ์ดบิตเรต", r.qaac.some((k) => k.startsWith("tvbr")) && !r.qaac.includes("bitrate") && r.opusSame, JSON.stringify(r.qaac));
+};
+T[90] = async (p, check) => {
+  const r = await mod(p, "/src/lib/codecs.ts", `
+    const L = (pp) => m.convertLabel({ codec: "mp3", encoder: "native", p: pp, channels: null, bits: null, rate: null });
+    return [L({ mode: "ABR", bitrate: 192 }), L({ mode: "CBR", bitrate: 320 }), L({ mode: "VBR", vbrq: 0 })];`);
+  check("90 MP3 แบบ ABR ป้ายขึ้น ABR พร้อมบิตเรต ไม่ใช่ V2", r[0] === "MP3 ABR 192" && r[1] === "MP3 CBR 320" && r[2] === "MP3 V0", JSON.stringify(r));
+};
+T[93] = async (p, check) => {
+  const r = await mod(p, "/src/components/SubViewer.tsx", `return [m.cpsChars("ที่นี่ไม่มีใครรู้"), m.cpsChars("น้ำใจ ไม่เคยเปลี่ยน"), m.cpsChars("Hello world")];`);
+  check("93 นับตัวอักษรต่อวินาทีไม่นับสระบนล่าง วรรณยุกต์ และเว้นวรรค", r[0] === 9 && r[1] === 14 && r[2] === 10, JSON.stringify(r));
+};
+T[94] = async (p, check) => {
+  const r = await mod(p, "/src/lib/ftypes.tsx", `return { dvbName: m.ftName("subtitle", "dvb_subtitle"), dvbBmp: m.isBitmapSub("dvb_subtitle"), dvbConv: m.isImageSub("dvb_subtitle"), xsub: m.isBitmapSub("xsub"), pgs: [m.isBitmapSub("hdmv_pgs_subtitle"), m.isImageSub("hdmv_pgs_subtitle")], srt: m.isBitmapSub("subrip") };`);
+  check("94 ซับ DVB กับ XSUB นับเป็นซับรูปของตัวดูซับ ปุ่มแปลงยังเฉพาะชนิดที่เครื่องมือแปลงรองรับ", r.dvbName === "DVB" && r.dvbBmp && !r.dvbConv && r.xsub && r.pgs[0] && r.pgs[1] && !r.srt, JSON.stringify(r));
+  const t = await mod(p, "/src/pages/av/parts.tsx", `return m.rowText({ kind: "subtitle", codec: "dvb_subtitle", profile: null, inMovie: true, frames: 120, src: "", lang: "tha", name: "", channels: null, bitrate: null, bytes: null }, 1).parts.join(" | ");`);
+  check("94 แถวซับ DVB บอกว่าเป็นซับทีวีดิจิทัลแบบรูป นับเป็นแพ็กเก็ต", t.includes("ซับทีวีดิจิทัลแบบรูป") && t.includes("แพ็กเก็ต") && !t.includes("ตัวหนังสือ"), t);
+};
+T[96] = async (p, check) => {
+  await over(p, "merge_inspect", `const r = await window.__fxOverBase.merge_inspect(a); return { ...r, attachments: [...r.attachments, { id: 9, name: "Sarabun-Bold.ttf", mime: "font/ttf", size: 90000 }] };`);
+  await avMovie(p);
+  const mkv = await p.$("[data-mp4attach]");
+  await clickText(p, "MP4"); await wait(p, 300);
+  const w = await text(p, "[data-mp4attach]");
+  check("96 เลือก MP4 ตอนหนังมีไฟล์แนบ ขึ้นคำเตือนก่อนรวมว่าไฟล์แนบจะไม่อยู่ในไฟล์ใหม่ MKV ไม่ขึ้น", mkv === null && !!w && w.includes("ไฟล์แนบ 1 ไฟล์"), w);
+  const src = await SRC("src/pages/av/TrackTable.tsx") + await SRC("src/pages/av/PosterCard.tsx");
+  check("96 แถวไฟล์แนบกับคำใต้การ์ดโปสเตอร์ตอน MP4 บอกว่าไม่ติดไป", src.includes("MP4 เก็บไฟล์แนบไม่ได้ ไฟล์นี้จะไม่ติดไป") && src.includes("จะไม่ติดไป เพราะ MP4 เก็บไฟล์แนบไม่ได้"));
+};
+T[97] = async (p, check) => {
+  const src = await SRC("src/pages/av/DelayDialog.tsx"), rs = await SRC("src-tauri/src/audio/delay.rs");
+  const m = /const MARGIN: f64 = ([\d.]+);/.exec(rs);
+  check("97 ผลหาไม่เจอบอกว่าค้นได้ไม่เกินบวกลบ 5 วินาที ตรงกับระยะค้นฝั่ง Rust", src.includes("ค้นได้ไม่เกินบวกลบ 5 วินาที") && m && Number(m[1]) === 5, m?.[1]);
+};
+
 // ---------------------------------------------------------------- ตัวรัน
 const want = process.argv.slice(2).map(Number).filter(Boolean);
 const ids = Object.keys(T).map(Number).filter((n) => !want.length || want.includes(n)).sort((a, b) => a - b);

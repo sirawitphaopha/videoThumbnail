@@ -7,7 +7,7 @@ import type { Tip } from "../../lib/codecAdv";
 import { CardIcon, Phr } from "../../components/ui";
 import { mergeApi, thumbUrl, type CoverTarget, type MergeResult } from "../../lib/api";
 import { fmtDuration, fmtSize } from "../../lib/format";
-import { ftName } from "../../lib/ftypes";
+import { BITMAP_SUBS, ftName } from "../../lib/ftypes";
 import { getAv, type AvTrack, type CoverSlot } from "../../lib/avJob";
 import { IcPoster, IbCrop, IcClose } from "../../components/icons";
 import { IbNext, IbStop, IcRefresh, IcShelf, IcGraph } from "../../components/icons";
@@ -51,12 +51,12 @@ export function rowText(t: AvTrack, nth: number): { title: string; parts: string
       parts: [where, t.inMovie || !chWord(t) ? "" : "เสียง " + chWord(t), kbps(t.bitrate), t.bytes ? fmtSize(t.bytes) : ""],
     };
   }
-  const image = ft === "PGS" || ft === "VobSub";
+  const image = BITMAP_SUBS.includes(ft); // ซับรูปทุกชนิด รวม DVB XSUB HD DVD (AUDIT ข้อ 94)
   // ซับรูปนับเป็นแพ็กเก็ต (รวมแพ็กเก็ตล้างจอ) ไม่ใช่จำนวนภาพ · เดิมเขียนว่าภาพ ไม่ตรงกับตัวดูซับเกือบสองเท่า (ผู้ช่วยตรวจขั้น 10 ข้อ 19)
   const count = t.frames ? `${t.frames.toLocaleString("en-US")} ${image ? "แพ็กเก็ต" : "บรรทัด"}` : "";
   return {
     title: t.inMovie ? `ซับที่ ${nth}` : baseName(t.src),
-    parts: [where, image ? (ft === "PGS" ? "ซับบลูเรย์แบบรูป" : "ซับดีวีดีแบบรูป") : ft === "ASS" ? "ตัวหนังสือมีรูปแบบ" : "ตัวหนังสือ", count],
+    parts: [where, image ? ({ PGS: "ซับบลูเรย์แบบรูป", VobSub: "ซับดีวีดีแบบรูป", DVB: "ซับทีวีดิจิทัลแบบรูป", XSUB: "ซับ DivX แบบรูป", "HD DVD": "ซับ HD DVD แบบรูป" } as Record<string, string>)[ft] ?? "ซับแบบรูป" : ft === "ASS" ? "ตัวหนังสือมีรูปแบบ" : "ตัวหนังสือ", count],
   };
 }
 

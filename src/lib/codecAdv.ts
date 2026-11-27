@@ -147,7 +147,7 @@ export const ADV: Record<Codec["id"], { tip: Tip; cards: Card[] }> = {
         tip: { w: "ระดับคุณภาพของโหมด VBR ของ fdkaac 1–5", o: [["5", "ราว 100 kbps ต่อช่อง", "ใกล้ต้นฉบับ", "ใหญ่สุด"], ["1–2", "ราว 30–40 kbps ต่อช่อง", "เล็กมาก", "ใช้กับ HE-AAC เสียงพูด"]], r: "5 สำหรับหนังและเพลง" },
         size: (v, x) => kbpsSize(FDK_VBR[num(v.vbr, 5)] * x.ch, x) },
       { key: "bitrate", label: "Bitrate", kind: "step", def: 256, stops: [32, 48, 64, 80, 96, 128, 160, 192, 224, 256, 320, 384, 448, 512], unit: "kbps", free: [16, 640], major: [32, 96, 160, 256, 384, 512],
-        when: (v) => !((v.mode ?? "TVBR") === "TVBR" || v.mode === "VBR"), note: "บิตเรตรวมทุกช่อง เสียง 2.0 ch ใช้ราว 160–256 kbps และเสียง 5.1 ch ใช้ราว 384–512 kbps",
+        when: (v) => v.mode !== "TVBR" && v.mode !== "VBR", note: "บิตเรตรวมทุกช่อง เสียง 2.0 ch ใช้ราว 160–256 kbps และเสียง 5.1 ch ใช้ราว 384–512 kbps",
         tip: { w: "จำนวนข้อมูลเสียงต่อวินาที รวมทุกช่อง", o: [["ปรับสูง", "เสียงใกล้ต้นฉบับขึ้น", "เสียงสูงครบ", "ไฟล์ใหญ่ขึ้นตามตัวเลข"], ["ปรับต่ำ", "ไฟล์เล็กลง", "ประหยัดที่", "AAC ของ ffmpeg ด้อยชัดที่บิตเรตต่ำ"]], r: "เสียง 2.0 ch ใช้ราว 192 kbps และเสียง 5.1 ch ใช้ราว 448 kbps" },
         size: (v, x) => kbpsSize(num(v.bitrate, 256), x) },
       { key: "profile", label: "Profile", kind: "seg", def: "AAC-LC", opts: ["AAC-LC", "HE-AAC"], eng: ["qaac", "fdkaac"], when: (v) => v.mode !== "TVBR" || false,
@@ -267,8 +267,29 @@ export const ADV: Record<Codec["id"], { tip: Tip; cards: Card[] }> = {
 
 /** การ์ดที่ตัวแปลงนี้มี และค่าตอนนี้ทำให้แสดง */
 export function cardsFor(c: Codec["id"], eng: string, v: Vals): Card[] {
-  const e = eng === "native" || eng === "qaac" || eng === "fdkaac" ? eng : "ffmpeg";
-  return ADV[c].cards.filter((k) => (!k.eng || k.eng.includes(e)) && (!k.when || k.when(v)));
+  const e = engOf(eng), ev = engVals(c, eng, v);
+  return ADV[c].cards.filter((k) => (!k.eng || k.eng.includes(e)) && (!k.when || k.when(ev)));
+}
+
+const engOf = (eng: string) => (eng === "native" || eng === "qaac" || eng === "fdkaac" ? eng : "ffmpeg");
+/** fdkaac ไม่มีโหมด TVBR CVBR ABR · ชุดค่าที่ตั้งเป็นระดับคุณภาพใช้ VBR ชุดที่ตั้งเป็นบิตเรตใช้ CBR บิตเรตเดียวกัน */
+const FDK_MODE: Record<string, string> = { TVBR: "VBR", CVBR: "CBR", ABR: "CBR" };
+
+/** ค่าของการ์ดตามที่ตัวแปลงนี้ใช้จริง ใช้ทั้งตอนเลือกการ์ดที่แสดงและตอนส่งค่าฝั่ง Rust (AUDIT ข้อ 16)
+    โหมดที่ไม่อยู่ในตัวเลือกของการ์ดตัวแปลงนี้กลับเป็นค่าตั้งต้นของการ์ดนั้น · ช่องที่ตัวแปลงนี้ไม่มีการ์ดเลย (โหมดของ AAC ตอนใช้ ffmpeg) ไม่ใส่
+    เดิมเลือกการ์ดจากค่าดิบ โหมด TVBR ของชุดค่าแบบง่ายซ่อนการ์ดบิตเรตของ ffmpeg ได้ 256 kbps ทุกชุด */
+export function engVals(c: Codec["id"], eng: string, v: Vals): Vals {
+  const e = engOf(eng), mine = ADV[c].cards.filter((k) => !k.eng || k.eng.includes(e));
+  const out: Vals = { ...v };
+  for (const k of ADV[c].cards) if (!mine.some((m) => m.key === k.key)) delete out[k.key];
+  for (const k of mine) {
+    // ปรับเฉพาะโหมด การ์ดอื่นบางใบ (จำนวนช่อง ความถี่) ใช้ตัวเลือกที่คิดตอนวาดจากต้นฉบับ ไม่ตรงกับ opts ในตาราง
+    if (!k.opts || k.key !== "mode") continue;
+    const cur = k.key in out ? out[k.key] : k.def;
+    const raw = c === "aac" && e === "fdkaac" && k.key === "mode" ? FDK_MODE[String(cur)] ?? cur : cur;
+    out[k.key] = k.opts.some((o) => optVal(o) === String(raw)) ? raw : k.def;
+  }
+  return out;
 }
 
 /** ค่าตั้งต้นของทุกการ์ดของชนิดนี้ (ทุกตัวแปลง) */

@@ -2,7 +2,7 @@
    แยกจาก CodecPanel.tsx ตอนจัดโครงไฟล์ตามความหมาย (BUGS ข้อ 155 ขั้น 9) เนื้อโค้ดยกมาทั้งก้อน */
 import { type EncodeSpec, type EncoderInfo } from "../../lib/api";
 import { type Codec } from "../../lib/codecs";
-import { ADV, cardDefaults, cardValue, cardsFor, optLabel, optVal, type Card, type Vals } from "../../lib/codecAdv";
+import { ADV, cardDefaults, cardValue, cardsFor, engVals, optLabel, optVal, type Card, type Vals } from "../../lib/codecAdv";
 
 export const baseName = (p: string) => p.split(/[\\/]/).pop() ?? p;
 export const SPEC_KEYS = ["channels", "bits", "rate"];
@@ -32,7 +32,7 @@ export function presetVals(c: Codec, i: number, srcCh: number | null): Vals {
 }
 /** ชุดค่าแบบง่ายเป็นค่าที่ส่งฝั่ง Rust · ใช้กับดรอปดาวน์หน้าแปลงเสียง เลือกได้โดยไม่ต้องเปิดแผง · ตัวแปลงใช้ตัวต้นฉบับถ้ามี */
 export function presetSpec(c: Codec, i: number, encs: EncoderInfo[] | null): EncodeSpec {
-  const eng = engines(c, encs).find((e) => e.ok)?.value ?? "ffmpeg", v = presetVals(c, i, null), pp: Record<string, string | number> = {};
+  const eng = engines(c, encs).find((e) => e.ok)?.value ?? "ffmpeg", v = engVals(c.id, eng, presetVals(c, i, null)), pp: Record<string, string | number> = {};
   for (const k of cardsFor(c.id, eng, v)) {
     if (!SPEC_KEYS.includes(k.key)) pp[k.key] = cardValue(k, v, k.kind === "step" ? undefined : (k.opts ?? []).map((o) => [optVal(o), optLabel(o)] as [string, string]));
   }

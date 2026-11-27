@@ -29,6 +29,9 @@ const FT_LINE = new Set(["APE", "TAK"]);
 /** ซับภาพที่ตัวดูซับรูปภาพเปิดได้และแปลงด้วยหน้าต่างแปลงซับภาพได้ · ใช้ที่เดียว หน้าซับไตเติลกับตัวดูซับเคยเขียนซ้ำกัน (BUGS ข้อ 129 เพิ่ม HD DVD) */
 export const IMAGE_SUBS = ["PGS", "VobSub", "HD DVD"];
 export const isImageSub = (codec: string, profile?: string | null) => IMAGE_SUBS.includes(ftName("subtitle", codec, profile));
+/** ซับรูปทุกชนิดที่ตัวถอดภาพของตัวดูซับเปิดได้ (ffmpeg sub2video) รวมซับทีวีดิจิทัล DVB กับ XSUB · ปุ่มแปลงซับภาพกับ OCR ยังใช้ IMAGE_SUBS (AUDIT ข้อ 94) */
+export const BITMAP_SUBS = [...IMAGE_SUBS, "DVB", "XSUB"];
+export const isBitmapSub = (codec: string, profile?: string | null) => BITMAP_SUBS.includes(ftName("subtitle", codec, profile));
 
 export function ftName(kind: string, codec: string, profile?: string | null): string {
   const c = codec.toLowerCase();
@@ -47,7 +50,7 @@ export function ftName(kind: string, codec: string, profile?: string | null): st
   }
   return ({ subrip: "SRT", srt: "SRT", ass: "ASS", ssa: "ASS", webvtt: "VTT", hdmv_pgs_subtitle: "PGS", dvd_subtitle: "VobSub", mov_text: "mov_text",
     // ซับภาพของแผ่น HD DVD ที่ ffmpeg กับ mkvmerge อ่านไม่ได้ (merge.rs add_file_view · BUGS ข้อ 129)
-    hddvd_sup: "HD DVD",
+    hddvd_sup: "HD DVD", dvb_subtitle: "DVB", xsub: "XSUB",
     // ซับข้อความแบบอื่นที่หน้าซับไตเติลเปิดได้ ชื่อตามที่ ffprobe บอก (BUGS ข้อ 123)
     sami: "SAMI", microdvd: "MicroDVD", lrc: "LRC", aqtitle: "AQTitle", realtext: "RealText", jacosub: "JACOsub", pjs: "PJS", mpl2: "MPL2", eia_608: "SCC", subviewer: "SubViewer", subviewer1: "SubViewer", vplayer: "VPlayer",
     sbv: "SBV", ttml: "TTML", dfxp: "DFXP" } as Record<string, string>)[c] ?? codec;

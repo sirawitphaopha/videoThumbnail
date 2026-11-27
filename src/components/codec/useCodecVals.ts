@@ -3,7 +3,7 @@
 import { useMemo, useState } from "react";
 import { type EncodePlan, type EncodeSpec, type EncoderInfo, type MergeTrack } from "../../lib/api";
 import { codecOf, type Codec } from "../../lib/codecs";
-import { cardValue, cardsFor, optLabel, optVal, type Card, type Vals } from "../../lib/codecAdv";
+import { cardValue, cardsFor, engVals, optLabel, optVal, type Card, type Vals } from "../../lib/codecAdv";
 import { SPEC_KEYS, engines, presetVals, matchPreset, loadLast, valsOf, chName } from "./codecCalc";
 
 export type CpProps = {
@@ -91,9 +91,11 @@ export function useCodecVals(p: CpProps) {
   };
 
   const shown = cardsFor(c.id, engUse, vals);
+  // ค่าตามที่ตัวแปลงนี้ใช้จริง โหมดของการ์ดกับการ์ดที่แสดงมาจากค่าชุดเดียวกัน (AUDIT ข้อ 16)
+  const ev = engVals(c.id, engUse, vals);
   /** ค่าที่ใช้จริงของการ์ดที่แสดงอยู่ · ค่าที่ไม่อยู่ในตัวเลือกกลับเป็นค่าตั้งต้น · การ์ดที่ตัวแปลงนี้ไม่มี ไม่ส่งไปฝั่ง Rust */
   const live: Vals = {};
-  for (const k of shown) live[k.key] = cardValue(k, vals, k.kind === "step" ? undefined : optsOf(k).filter((o) => !o.off).map((o) => [o.value, o.label] as [string, string]));
+  for (const k of shown) live[k.key] = cardValue(k, ev, k.kind === "step" ? undefined : optsOf(k).filter((o) => !o.off).map((o) => [o.value, o.label] as [string, string]));
   const has = (key: string) => shown.some((k) => k.key === key);
   const numOr = (key: string) => (has(key) && live[key] !== "src" && live[key] != null ? Number(live[key]) : null);
   const liveKey = JSON.stringify(live);

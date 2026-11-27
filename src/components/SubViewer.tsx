@@ -13,7 +13,7 @@ import { CardIcon, FixedTime, Keep, Phr, Seg, Skel, Switch } from "./ui";
 import { listen } from "@tauri-apps/api/event";
 import { checkApi, graphApi, subApi, type GWindow, type SubImg, type SubText } from "../lib/api";
 import type { AvTrack } from "../lib/avJob";
-import { ftName, isImageSub } from "../lib/ftypes";
+import { ftName, isBitmapSub, isImageSub } from "../lib/ftypes";
 import { IbBack, IbNext, IbPlay, IbWand } from "./icons";
 import { IcGraph, IbEye, IbTable, IcFile, IbPencil, IbResample } from "./icons";
 import ImgConvDialog from "./ImgConvDialog";
@@ -32,6 +32,9 @@ const LUT = (() => { const o = new Uint8ClampedArray(256 * 3); for (let i = 0; i
 const dec = (b64: string) => Uint8Array.from(atob(b64), (ch) => ch.charCodeAt(0));
 
 /** ข้อความพร้อมไฮไลต์คำที่ค้น */
+/** จำนวนตัวอักษรที่กินที่ในบรรทัด ไม่นับเว้นวรรค สระบนล่าง และวรรณยุกต์ (อักขระหมวด Mn) · เดิมนับทุกหน่วย ซับไทยขึ้นแดงว่าอ่านไม่ทันเกินจริง (AUDIT ข้อ 93) */
+export const cpsChars = (s: string) => s.replace(/[\s\p{Mn}]/gu, "").length;
+
 function Hi({ text, q }: { text: string; q: string }) {
   if (!q) return <>{text}</>;
   const out: React.ReactNode[] = [];
@@ -184,7 +187,7 @@ function TextView(p: { track: AvTrack; movie: string; refStream: number | null; 
     <div className="sgrid" ref={list} data-sub-table>
       <table><thead><tr><th className="num">ลำดับ</th><th className="num">เริ่ม</th><th className="num">จบ</th><th className="num">ยาว (วินาที)</th><th className="num">ตัว/วิ</th><th>ข้อความ</th></tr></thead>
         <tbody>{cues.map((x, i) => {
-          const dur = Math.max(0.01, x.end - x.start), cps = x.text.replace(/\s/g, "").length / dur, prev = cues[i - 1];
+          const dur = Math.max(0.01, x.end - x.start), cps = cpsChars(x.text) / dur, prev = cues[i - 1];
           const overlap = !!prev && x.start < prev.end, fast = cps > 20;
           return (
             <tr key={i} className={i === sel ? "on" : ""} data-i={i} onClick={() => setSel(i)}>
@@ -505,7 +508,8 @@ export default function SubViewer(p: { track: AvTrack; movie: string; refStream:
   tab?: "aeg" | "long" | "pad" }) {
   const t = p.track;
   const ft = ftName("subtitle", t.codec, t.profile);
-  const image = isImageSub(t.codec, t.profile);
+  // ซับรูปทุกชนิดเปิดด้วยตัวถอดภาพ · แปลงซับภาพกับ OCR เฉพาะชนิดที่เครื่องมือแปลงรองรับ (AUDIT ข้อ 94 · เดิม DVB ไปทางตัวหนังสือแล้วอ่านไม่ได้)
+  const image = isBitmapSub(t.codec, t.profile), convOk = isImageSub(t.codec, t.profile);
   const ff = t.ff ?? t.tid;
   const [tabS, setTab] = useState<"aeg" | "long" | "pad">("aeg");
   const tab = p.tab ?? tabS;
@@ -530,8 +534,8 @@ export default function SubViewer(p: { track: AvTrack; movie: string; refStream:
       {image ? <div className="sv-imghead" style={{ marginTop: p.inline ? 0 : -6 }}>
         <div className="small"><Phr>{sub}</Phr></div>
         {/* แปลงซับภาพเป็นซับภาพชนิดอื่น (BUGS ข้อ 125 · ImgConvDialog.tsx) */}
-        <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConv(true)} title="แปลงเป็น PGS VobSub หรือ BDN XML และย่อขยายภาพ เปลี่ยนอัตราเฟรม หรือเลื่อนเวลาได้" data-imgconv-open><IbResample size={14} />แปลงซับภาพ</button>
-        {p.onOcr && <button type="button" className="btn btn-main btn-sm" onClick={p.onOcr} title="อ่านซับรูปเป็นตัวหนังสือ แล้วตรวจทานก่อนส่งออก" data-ocr-open><IbWand size={14} />OCR เป็นตัวหนังสือ</button>}
+        {convOk && <button type="button" className="btn btn-ghost btn-sm" onClick={() => setConv(true)} title="แปลงเป็น PGS VobSub หรือ BDN XML และย่อขยายภาพ เปลี่ยนอัตราเฟรม หรือเลื่อนเวลาได้" data-imgconv-open><IbResample size={14} />แปลงซับภาพ</button>}
+        {p.onOcr && convOk && <button type="button" className="btn btn-main btn-sm" onClick={p.onOcr} title="อ่านซับรูปเป็นตัวหนังสือ แล้วตรวจทานก่อนส่งออก" data-ocr-open><IbWand size={14} />OCR เป็นตัวหนังสือ</button>}
       </div> : <div className="small" style={{ marginTop: p.inline ? 0 : -6 }}><Phr>{sub}</Phr></div>}
       {image && conv && createPortal(<ImgConvDialog open onClose={() => setConv(false)} track={t} movie={p.movie} />, document.body)}
       {image ? <ImageView track={t} path={t.inMovie ? p.movie : t.src} ff={ff} movie={p.movie || undefined} onClose={p.inline ? undefined : p.onClose} onTotal={setImgTotal} />

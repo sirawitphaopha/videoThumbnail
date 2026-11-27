@@ -117,7 +117,9 @@ export default function DelayDialog(p: {
       <div style={{ marginTop: 6 }}><button type="button" className="btn btn-ghost btn-sm" onClick={() => p.onSpeed(found.speed!, delay)} data-delay-speed>{`ตั้งความเร็ว ${pairText} ในแผงตั้งค่าเสียง`}</button></div></div></div>);
   else if (found && found.score < 0.3) res = (
     <div className="stat warn" data-delay-res="none"><CardIcon kind="warn" /><div><b>{`หาไม่เจอ ตรงกันสูงสุด ${pct(found.score)}`}</b>
-      <Phr>เสียงอาจเป็นคนละรุ่น หรือไม่มีเสียงประกอบร่วมกันเลย (เช่น เสียงบรรยายล้วน) ให้ลากแถบเลื่อนเทียบยอดเสียงเองแล้วลองฟัง</Phr></div></div>);
+      {/* ตัวค้นหาได้ไม่เกินบวกลบ 5 วินาที (MARGIN ใน src-tauri/src/audio/delay.rs) บอกเพดานให้รู้ว่าดีเลย์ยาวกว่านั้นต้องพิมพ์เอง (AUDIT ข้อ 97) */}
+      <Phr>เสียงอาจเป็นคนละรุ่น หรือไม่มีเสียงประกอบร่วมกันเลย (เช่น เสียงบรรยายล้วน) ให้ลากแถบเลื่อนเทียบยอดเสียงเองแล้วลองฟัง</Phr>
+      <div data-delay-limit><Phr>โปรแกรมค้นได้ไม่เกินบวกลบ 5 วินาที ถ้าเสียงห่างจากหนังมากกว่านั้น ให้พิมพ์ค่าดีเลย์ในช่องเอง</Phr></div></div></div>);
   else if (found && found.uneven) res = (
     <div className="stat warn" data-delay-res="uneven"><CardIcon kind="warn" /><div><b>{`ค่าสามช่วงไม่เท่ากัน โดย${wText}`}</b>
       <Phr>{`ตั้งไว้ที่ค่ากลาง ${sign(found.delay)} ms  เสียงอาจถูกตัดต่อไม่เหมือนหนังหรือเป็นหนังคนละรุ่น ควรลองฟังหลายช่วงก่อนใช้`}</Phr></div></div>);

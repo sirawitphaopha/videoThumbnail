@@ -141,7 +141,9 @@ export default function TrackTable({ pg }: { pg: AvCtx }) {
               const chip = isMenu ? "XML" : (x.s.ext ?? "").toUpperCase() || "ไฟล์";
               const title = isMenu ? "Chapter ของหนัง" : isCover ? `${slotName} ${x.label}` : x.label;
               const what = xMode ? (isMenu ? `แยกเป็นไฟล์ .${x.item?.ext ?? "xml"} ที่เปิดในโปรแกรมทำบทได้` : "ชื่อไฟล์ที่ได้ต่อท้ายชื่อหนัง")
-                : isMenu ? "Chapter ติดไปกับไฟล์ใหม่ตามเดิม" : isCover ? `กดเพื่อไปที่ช่อง${slotName}ของโปสเตอร์ข้างล่าง` : "ติดไปกับไฟล์ใหม่ตามเดิม";
+                : isMenu ? "Chapter ติดไปกับไฟล์ใหม่ตามเดิม" : isCover ? `กดเพื่อไปที่ช่อง${slotName}ของโปสเตอร์ข้างล่าง`
+                // MP4 เก็บไฟล์แนบไม่ได้ ฝั่ง Rust ข้ามแล้วบอกหลังรวมเท่านั้น (AUDIT ข้อ 96)
+                : output === "mp4" ? "MP4 เก็บไฟล์แนบไม่ได้ ไฟล์นี้จะไม่ติดไป" : "ติดไปกับไฟล์ใหม่ตามเดิม";
               const dims = row("Dimensions").replace(/ pixels?$/, "");
               const pills = [
                 <span key="a" className="tpill in">ในไฟล์</span>,

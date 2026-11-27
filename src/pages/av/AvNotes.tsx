@@ -44,6 +44,8 @@ export default function AvNotes({ pg }: { pg: AvCtx }) {
         ))}
         {/* MP4 เก็บปกนอนไม่ได้ ฝั่ง Rust ข้ามแล้วจดในผลอย่างเดียว เตือนตั้งแต่ก่อนกดรวม (merge/run.rs · AUDIT ข้อ 82) */}
         {method === "merge" && output === "mp4" && covers.cover_land.mode === "new" && <div className="stat warn" data-mp4land><CardIcon kind="warn" /><div><b>MP4 เก็บได้แค่ปกตั้ง ปกนอนที่ใส่จะไม่ได้ใส่ในไฟล์</b><Phr>ถ้าอยากเก็บปกนอนด้วยให้เลือก MKV</Phr></div></div>}
+        {/* MP4 เก็บไฟล์แนบไม่ได้ (ฟอนต์ ไฟล์อื่น ที่ไม่ใช่ปก) เตือนก่อนรวม (AUDIT ข้อ 96) */}
+        {method === "merge" && output === "mp4" && (() => { const n = pg.movie?.attachments.filter((a) => !/^cover(_land)?\./i.test(a.name)).length ?? 0; return n > 0 && <div className="stat warn" data-mp4attach><CardIcon kind="warn" /><div><b>{`MP4 เก็บไฟล์แนบไม่ได้ ไฟล์แนบ ${n} ไฟล์จะไม่อยู่ในไฟล์ใหม่`}</b><Phr>ถ้าอยากเก็บไฟล์แนบไว้ด้วยให้เลือก MKV</Phr></div></div>; })()}
         {method !== "extract" && mp4Style.length > 0 && <div className="stat info"><CardIcon kind="info" /><div><b>ซับ ASS ใน MP4 สีกับฟอนต์หาย เหลือตัวหนังสือล้วน</b><Phr>{`${mp4Style.length} แทร็ก ใช้ MKV ถ้าต้องการเก็บสีกับตำแหน่ง`}</Phr></div></div>}
         {method !== "extract" && vtts.length > 0 && <div className="stat info" data-vttnote><CardIcon kind="info" /><div><b>ซับ VTT จะแปลงเป็น SRT ก่อนรวม</b><Phr>{`${vtts.map((t) => baseName(t.src)).join(", ")} เพราะโปรแกรมเล่นหลายตัวยังไม่รู้จัก VTT ที่อยู่ใน MKV ส่วนข้อความกับเวลาเหมือนเดิม`}</Phr></div></div>}
         {method !== "extract" && longer.map((t) => (

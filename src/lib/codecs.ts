@@ -102,7 +102,7 @@ export const codecOf = (id: string) => CODECS.find((c) => c.id === id) ?? CODECS
 export function convertLabel(spec: EncodeSpec): string {
   const c = codecOf(spec.codec);
   const p = spec.p;
-  const v = c.id === "mp3" ? (p.mode === "CBR" ? `CBR ${p.bitrate}` : `V${p.vbrq ?? 2}`)
+  const v = c.id === "mp3" ? (p.mode === "CBR" || p.mode === "ABR" ? `${p.mode} ${p.bitrate}` : `V${p.vbrq ?? 2}`) // ABR เดิมขึ้น V2 (AUDIT ข้อ 90)
     : c.id === "flac" ? `L${p.level ?? 5}` : c.id === "alac" ? (p.speed === "Fast" ? "Fast" : "") : c.id === "wv" ? String(p.mode ?? "Normal") : c.id === "ape" ? String(p.level ?? "Normal")
     : c.id === "tak" ? `-p${p.preset ?? 2}${p.eval === "Max" ? "m" : p.eval === "Extra" ? "e" : ""}`
     : c.id === "aac" && spec.encoder === "qaac" && p.mode === "TVBR" ? `TVBR ${p.tvbr}` : String(p.bitrate ?? "");

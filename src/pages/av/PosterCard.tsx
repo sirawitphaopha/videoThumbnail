@@ -26,7 +26,7 @@ export default function PosterCard({ pg }: { pg: AvCtx }) {
                 onUndo={() => setSlot(slot, { mode: "keep" })} />
             ))}
           </div>
-          <div className="small" style={{ marginTop: 8 }} data-poster-hint><Phr>ลากรูปมาวางที่ช่องไหนก็ได้ กดเปลี่ยนรูปจะเปิดหน้าครอปเดียวกับหน้าใส่โปสเตอร์ และรูปเข้าไฟล์ใหม่ในคำสั่งรวมเดียวกับเสียงและซับ</Phr>{movie.attachments.some((a) => !/^cover(_land)?\./i.test(a.name)) ? <> <Phr>{`ไฟล์แนบอื่นในหนัง ${movie.attachments.filter((a) => !/^cover(_land)?\./i.test(a.name)).map((a) => a.name).join(" ")} ติดไปด้วย`}</Phr></> : null}</div>
+          <div className="small" style={{ marginTop: 8 }} data-poster-hint><Phr>ลากรูปมาวางที่ช่องไหนก็ได้ กดเปลี่ยนรูปจะเปิดหน้าครอปเดียวกับหน้าใส่โปสเตอร์ และรูปเข้าไฟล์ใหม่ในคำสั่งรวมเดียวกับเสียงและซับ</Phr>{movie.attachments.some((a) => !/^cover(_land)?\./i.test(a.name)) ? <> <Phr>{`ไฟล์แนบอื่นในหนัง ${movie.attachments.filter((a) => !/^cover(_land)?\./i.test(a.name)).map((a) => a.name).join(" ")} ${pg.output === "mp4" ? "จะไม่ติดไป เพราะ MP4 เก็บไฟล์แนบไม่ได้" : "ติดไปด้วย"}`}</Phr></> : null}</div>
           </>
         </div>)}
     </>
