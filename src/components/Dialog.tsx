@@ -8,6 +8,9 @@ import { useEscClose } from "../lib/popup";
 import { usePageActive } from "../lib/pageActive";
 
 let openCount = 0;
+/** หน้าต่างที่เปิดอยู่เรียงตามลำดับเปิด · กักแป้น Tab เฉพาะหน้าต่างบนสุด */
+const stack: HTMLElement[] = [];
+const FOCUSABLE = "button, [href], input, select, textarea, [tabindex]:not([tabindex='-1'])";
 
 export default function Dialog(p: {
   open: boolean;
@@ -38,7 +41,23 @@ export default function Dialog(p: {
     // โฟกัสปุ่มแรกที่ไม่ใช่ปุ่มอันตราย คนกด Enter ทันทีจะได้ไม่ลบโดยไม่ตั้งใจ
     const first = box.current?.querySelector<HTMLElement>("button:not(.btn-danger), [tabindex='0']");
     first?.focus();
+    // กักโฟกัสไว้ในหน้าต่าง Tab กับ Shift+Tab วนเฉพาะของข้างใน ไม่หลุดไปปุ่มของหน้าข้างหลัง (AUDIT ข้อ 142 · เดิม aria-modal บอกโปรแกรมอ่านจออย่างเดียว)
+    const me = box.current;
+    if (me) stack.push(me);
+    const trap = (e: KeyboardEvent) => {
+      if (e.key !== "Tab" || !me || stack[stack.length - 1] !== me) return;
+      const all = [...me.querySelectorAll<HTMLElement>(FOCUSABLE)].filter((x) => !x.hasAttribute("disabled") && x.getClientRects().length > 0);
+      if (!all.length) { e.preventDefault(); return; }
+      const a = document.activeElement as HTMLElement | null, i = a ? all.indexOf(a) : -1;
+      if (i < 0) { e.preventDefault(); (e.shiftKey ? all[all.length - 1] : all[0]).focus(); return; }
+      if (e.shiftKey && i === 0) { e.preventDefault(); all[all.length - 1].focus(); }
+      else if (!e.shiftKey && i === all.length - 1) { e.preventDefault(); all[0].focus(); }
+    };
+    document.addEventListener("keydown", trap, true);
     return () => {
+      document.removeEventListener("keydown", trap, true);
+      const at = me ? stack.lastIndexOf(me) : -1;
+      if (at >= 0) stack.splice(at, 1);
       openCount--;
       if (openCount <= 0) { openCount = 0; delete document.body.dataset.dialogOpen; }
       prev?.focus?.();

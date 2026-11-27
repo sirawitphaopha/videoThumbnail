@@ -583,6 +583,69 @@ T[139] = async (p, check) => {
   check("139 ปุ่มเลือกจากชั้นวางในหน้า MediaInfo พาไปชั้นวาง ไม่ไปหน้าข้อมูลไฟล์ของเรื่องเก่า", info && r.shelf > 0 && !r.info, JSON.stringify({ info, ...r }));
 };
 
+// ชุด 9 ----------------------------------------------------------------
+T[138] = async (p, check) => {
+  const ui = await SRC("src/components/ui.tsx"), it = await SRC("src/components/InfoTip.tsx");
+  const num = new RegExp(/numOnly = \/(.+)\/\.test\(s\);/.exec(ui)[1]);
+  const unit = new RegExp(/const UNIT = \/(.+)\/;/.exec(it)[1]);
+  const ok = ["6–512", "−23", "≈5", "5.1", "1,920", "0:30"].every((x) => num.test(x)) && !["ab", "5.1ch", "ราว"].some((x) => num.test(x));
+  const ok2 = ["ch", "Mbps", "px", "ครั้ง", "เรื่อง", "kbps"].every((x) => unit.test(x));
+  check("138 ตัวผูกตัวเลขกับคำถัดไปนับช่วงตัวเลข เลขติดลบ ค่าประมาณ และหน่วยในกล่อง ⓘ มี ch Mbps px ครั้ง เรื่อง", ok && ok2, `${num} | ${unit}`);
+};
+T[140] = async (p, check) => {
+  // คำสั่งบันทึกแรกตอบช้า 600 ms ครั้งที่สองตอบ 100 ms · กดย่อแล้วกดขยายทันที ต้องจบที่กางและไม่หุบกลับ
+  await over(p, "set_settings", `window.__ssn = (window.__ssn ?? 0) + 1; await new Promise((ok) => setTimeout(ok, window.__ssn === 1 ? 600 : 100)); return await window.__fxOverBase.set_settings(a);`);
+  await p.evaluate(() => { window.__navLog = []; const s = document.querySelector(".sidewrap"); new MutationObserver(() => window.__navLog.push(s.classList.contains("mini"))).observe(s, { attributes: true, attributeFilter: ["class"] }); });
+  const tog = () => p.evaluate(() => [...document.querySelectorAll(".sidewrap button")].find((x) => /ย่อเมนู|ขยายเมนู/.test(x.innerText + " " + (x.getAttribute("aria-label") ?? "")))?.click());
+  await tog(); await wait(p, 30); await tog();
+  await wait(p, 1200);
+  const r = await p.evaluate(() => ({ log: window.__navLog, now: document.querySelector(".sidewrap").classList.contains("mini") }));
+  check("140 กดย่อแล้วขยายเมนูเร็ว ๆ จบที่กาง ไม่หุบกลับตอนคำสั่งแรกตอบช้า", r.now === false && JSON.stringify(r.log) === "[true,false]", JSON.stringify(r));
+};
+T[142] = async (p, check) => {
+  // หน้าต่างถามก่อนเอาปกจับคู่ออก กด Tab ยี่สิบครั้ง โฟกัสต้องอยู่ในหน้าต่างตลอด
+  await p.evaluate(() => [...document.querySelectorAll(".book")].find((b) => b.getAttribute("aria-label")?.includes("ปกจับคู่"))?.click());
+  await p.waitForSelector("[data-link-remove]"); await click(p, "[data-link-remove]"); await wait(p, 300);
+  let out = 0;
+  for (let i = 0; i < 20; i++) { await p.keyboard.press(i % 5 === 4 ? "Shift+Tab" : "Tab"); if (!(await p.evaluate(() => !!document.activeElement?.closest(".dlg")))) out++; }
+  check("142 กด Tab และ Shift+Tab ในหน้าต่างซ้อน โฟกัสไม่หลุดไปปุ่มของหน้าข้างหลัง", out === 0, `หลุด ${out} ครั้ง`);
+};
+T[143] = async (p, check) => {
+  const r = await p.evaluate(() => { const v = (n) => Number(getComputedStyle(document.documentElement).getPropertyValue(n)); return { pop: v("--z-pop"), confirm: v("--z-confirm"), panel: v("--z-panel"), viewer: v("--z-viewer") }; });
+  const css = await SRC("src/styles/av/panels.css"), dd = await SRC("src/components/Dropdown.tsx");
+  check("143 กล่อง ⓘ กับรายการลอยอยู่ชั้นเหนือหน้าต่างซ้อนและป๊อปยืนยัน ใต้ตัวดูรูป", r.pop > r.confirm && r.pop > r.panel && r.pop < r.viewer && css.includes(".infotip { position: fixed; z-index: var(--z-pop);") && dd.includes(`zIndex: "var(--z-pop)"`), JSON.stringify(r));
+};
+T[144] = async (p, check) => {
+  // ⓘ ในหน้าตั้งค่า เปิดแล้วเลื่อนจนปุ่มพ้นกรอบ กล่องต้องปิด
+  await nav(p, "ตั้งค่า"); await p.waitForSelector("[data-setnav=graph]"); await click(p, "[data-setnav=graph]"); await wait(p, 300);
+  const opened = await p.evaluate(() => { const card = document.querySelector("[data-setcard=graph]"); const b = [...card.querySelectorAll("button")].find((x) => (x.getAttribute("aria-label") ?? "").length && x.closest(".lbl, h3") && x.getBoundingClientRect().top > 100 && x.getBoundingClientRect().top < 500 && x.innerText.trim() === ""); b?.click(); return !!b; });
+  await wait(p, 300);
+  const before = await p.evaluate(() => !!document.querySelector(".infotip"));
+  await p.evaluate(() => { const card = document.querySelector("[data-setcard=graph]"); let e = card; while (e && !(e.scrollHeight > e.clientHeight + 50 && /auto|scroll/.test(getComputedStyle(e).overflowY))) e = e.parentElement; (e ?? document.scrollingElement).scrollTop += 3000; });
+  await wait(p, 300);
+  const after = await p.evaluate(() => !!document.querySelector(".infotip"));
+  check("144 เลื่อนจนปุ่ม ⓘ พ้นกรอบ กล่องคำอธิบายปิด ไม่ลอยทับหัวแผง", opened && before && !after, JSON.stringify({ opened, before, after }));
+};
+T[145] = async (p, check) => {
+  await nav(p, "กราฟเสียง"); await wait(p, 300); await click(p, "[data-gmode=convert]"); await wait(p, 400);
+  const paths = Array.from({ length: 12 }, (_, i) => `D:\\เพลง\\เพลงที่ ${i + 1}.flac`);
+  await p.evaluate((ps) => window.__emit("tauri://drag-drop", { paths: ps, position: { x: 900, y: 400 } }), paths); await wait(p, 2500);
+  const dds = await p.locator("button[aria-label^='ปลายทาง']").all();
+  if (dds.length < 2) { check("145 คิวมีดรอปดาวน์ปลายทางอย่างน้อยสองแถว", false, dds.length); return; }
+  await dds[0].click(); await wait(p, 300); await p.keyboard.press("Escape"); await wait(p, 200);
+  // กางของแถวที่สอง จดตำแหน่งรายการตั้งแต่เฟรมแรก
+  await p.evaluate(() => { window.__menuTops = []; new MutationObserver(() => { const m = document.querySelector(".menu[role=listbox]"); if (m) window.__menuTops.push(Math.round(m.getBoundingClientRect().top)); }).observe(document.body, { childList: true, subtree: true, attributes: true }); });
+  const b2 = await dds[1].boundingBox();
+  await dds[1].click(); await wait(p, 300);
+  const tops = await p.evaluate(() => window.__menuTops);
+  const firstOk = tops.length > 0 && Math.abs(tops[0] - (b2.y + b2.height)) < 40;
+  // กล่องอื่นที่ไม่ได้ครอบปุ่มเลื่อนเอง รายการไม่ปิด
+  await p.evaluate(() => { const d = document.createElement("div"); d.style.cssText = "position:fixed;left:0;top:0;width:50px;height:50px;overflow:auto"; d.innerHTML = '<div style="height:500px"></div>'; document.body.append(d); d.scrollTop = 100; d.dispatchEvent(new Event("scroll")); });
+  await wait(p, 200);
+  const still = await p.evaluate(() => !!document.querySelector(".menu[role=listbox]"));
+  check("145 ดรอปดาวน์ลอยในคิวแปลง กางครั้งต่อไปไม่แวบที่ตำแหน่งเก่า และกล่องอื่นเลื่อนแล้วไม่ปิด", firstOk && still, JSON.stringify({ tops: tops.slice(0, 3), want: Math.round(b2.y + b2.height), still }));
+};
+
 // ---------------------------------------------------------------- ตัวรัน
 const want = process.argv.slice(2).map(Number).filter(Boolean);
 const ids = Object.keys(T).map(Number).filter((n) => !want.length || want.includes(n)).sort((a, b) => a - b);

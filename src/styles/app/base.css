@@ -14,7 +14,8 @@
   /* ความสูงแถบชื่อ ประกาศที่นี่ที่เดียว ทุกที่อ้างตัวนี้ (web-craft 6.22 ①) */
   --titlebar-h: 34px;
   /* ชั้นของที่ลอยทับกัน ตารางกลางตัวเดียว ห้ามตั้งเลขเอง (web-craft 6.4) */
-  --z-bar: 6; --z-float: 15; --z-menu: 29; --z-panel: 32; --z-over: 52; --z-pick: 70; --z-confirm: 85; --z-viewer: 90; --z-toast: 95;
+  --z-bar: 6; --z-float: 15; --z-menu: 29; --z-panel: 32; --z-over: 52; --z-pick: 70; --z-confirm: 85; --z-pop: 88; --z-viewer: 90; --z-toast: 95;
+  /* --z-pop รายการลอยที่ย้ายไปไว้บนสุดของหน้า (Dropdown portal) กับกล่อง ⓘ อยู่เหนือหน้าต่างซ้อนและป๊อปยืนยันที่เปิดมัน (AUDIT ข้อ 143) */
 }
 
 * { box-sizing: border-box; }

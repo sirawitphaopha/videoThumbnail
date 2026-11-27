@@ -3,7 +3,7 @@
    ✓ ลูกศรขึ้นลงเลื่อน Enter เลือก Esc ปิด กดข้างนอกปิด (เมนูเลือกค่า ไม่มีงานค้าง)
    ✓ ตัวหนังสือในปุ่มไม่มีอะไรตัด ตัดที่ขอบปุ่มที่เดียว หัว ไ ใ โ ไม่โดนเฉือน
    ✓ ปุ่มกว้างเท่าตัวเลือกที่ยาวที่สุด ไม่หดกระตุกตอนเปลี่ยนค่า */
-import { useCallback, useEffect, useRef, useState } from "react";
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { dropStyle, sideStyle, useDropPlacement, useSideFit } from "../lib/popupFit";
 import { useClickOutside, useEscClose } from "../lib/popup";
@@ -55,12 +55,17 @@ export default function Dropdown<T extends string>(p: {
   useClickOutside(open && !p.portal, wrap, () => setOpen(false));
   // ลอยบนสุดของหน้า กดนอกปุ่มและนอกรายการปิด · หน้าเลื่อนปิด (ตำแหน่งยึดกับจอ)
   const [fixedPos, setFixedPos] = useState<{ left: number; right: number; top: number; bottom: number; width: number } | null>(null);
-  useEffect(() => {
-    if (!open || !p.portal) return;
+  // วัดก่อนจอติด และล้างค่าตอนปิด การกางครั้งต่อไปไม่แวบที่ตำแหน่งเก่าหนึ่งเฟรม (AUDIT ข้อ 145 · สกิล popup-fit ด่านตรวจข้อ 5)
+  useLayoutEffect(() => {
+    if (!open || !p.portal) { setFixedPos(null); return; }
     // กว้างถึงขอบขวาของกลุ่มที่ปุ่มอยู่ (เช่นถึงปุ่มตั้งค่าข้างดรอปดาวน์ในแถวคิว · พี่กันสั่ง "ขยายให้ยาวถึงปุ่มตั้ค่าได้")
     const r = wrap.current?.getBoundingClientRect(), pr = wrap.current?.parentElement?.getBoundingClientRect(); if (r) { const right = Math.max(r.right, pr?.right ?? r.right); setFixedPos({ left: r.left, right, top: r.top, bottom: r.bottom, width: right - r.left }); }
+  }, [open, p.portal]);
+  useEffect(() => {
+    if (!open || !p.portal) return;
     const down = (e: MouseEvent) => { const t = e.target as Node; if (!wrap.current?.contains(t) && !panel.current?.contains(t)) setOpen(false); };
-    const scroll = (e: Event) => { if (!panel.current?.contains(e.target as Node)) setOpen(false); };
+    // ปิดเฉพาะเมื่อกล่องที่ครอบปุ่มเลื่อน (ปุ่มย้ายที่) กล่องอื่นในหน้าเลื่อนเองไม่ปิด (AUDIT ข้อ 145)
+    const scroll = (e: Event) => { const t = e.target as Node; if (panel.current?.contains(t)) return; if (wrap.current && (t === document || (t instanceof Node && t.contains(wrap.current)))) setOpen(false); };
     document.addEventListener("mousedown", down); window.addEventListener("scroll", scroll, true);
     return () => { document.removeEventListener("mousedown", down); window.removeEventListener("scroll", scroll, true); };
   }, [open, p.portal]);
@@ -132,7 +137,7 @@ export default function Dropdown<T extends string>(p: {
           role="listbox"
           aria-label={p.label}
           style={p.portal && fixedPos
-            ? { position: "fixed", left: fixedPos.left, minWidth: fixedPos.width, maxWidth: window.innerWidth - fixedPos.left - 8, zIndex: "var(--z-menu)" as unknown as number, maxHeight: place.max, ...(place.up ? { bottom: window.innerHeight - fixedPos.top + 6 } : { top: fixedPos.bottom + 6 }) }
+            ? { position: "fixed", left: fixedPos.left, minWidth: fixedPos.width, maxWidth: window.innerWidth - fixedPos.left - 8, zIndex: "var(--z-pop)" as unknown as number, maxHeight: place.max, ...(place.up ? { bottom: window.innerHeight - fixedPos.top + 6 } : { top: fixedPos.bottom + 6 }) }
             // แบบยืดเต็มช่อง รายการกว้างเท่าช่องพอดี ขอบซ้ายขวาตรงช่อง (พี่กันทัก "มันไม่เท่ากัน" สองรอบ · เดิมกว้างตามช่องค้นหาแล้วยึดขอบขวา ยื่นไม่ตรงช่อง)
             : p.stretch
               ? { position: "absolute", left: 0, right: 0, zIndex: "var(--z-menu)" as unknown as number, ...dropStyle(place) }

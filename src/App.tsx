@@ -1,7 +1,7 @@
 /* กรอบหน้าต่างโปรแกรมชั้นหนัง (ต้นแบบ docs/mockups/poster-shelf.html · สเปกข้อ 1 กรอบหน้าต่าง และข้อ 3 เมนูซ้าย)
    แถบชื่อทำเอง · เมนูซ้ายกาง 200 ย่อ 64 จำค่าไว้ · 5 หน้า (กราฟเสียงเพิ่ม 7 พ.ย. 2569) · แถบแจ้งผล · หน้าต่างถามตอนปิดขณะมีงาน · แถบเลื่อนลอย
    ยังไม่ได้เลือกโฟลเดอร์ = ชั้นว่าง ไม่มีเมนู (สเปกข้อ 10) */
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import TitleBar from "./components/TitleBar";
 import Sidebar, { type Page } from "./components/Sidebar";
 import { ToastHost } from "./components/Toasts";
@@ -92,6 +92,7 @@ function Frame() {
   const parts = import.meta.env.DEV && hash === "#parts";
   // กดแล้วเมนูขยับทันที ไม่รอบันทึกลงไฟล์ · บันทึกไม่สำเร็จ แถบแจ้งขึ้นแล้วกลับค่าเดิม
   const [navNow, setNavNow] = useState<boolean | null>(null);
+  const navSeq = useRef(0), navChain = useRef<Promise<unknown>>(Promise.resolve());
   const collapsed = navNow ?? settings?.sidebarCollapsed ?? false;
   const reminder = settings?.recheckReminderDays ?? 30;
   const checkCount = useMemo(() => movies.filter((m) => { const k = kindOf(m, reminder); return k === "warn" || k === "bad"; }).length, [movies, reminder]);
@@ -108,7 +109,11 @@ function Frame() {
             page={page}
             onPage={(p) => { goPage(p); if (parts) location.hash = ""; }}
             collapsed={collapsed}
-            onToggle={() => { const next = !collapsed; setNavNow(next); void update({ sidebarCollapsed: next }).finally(() => setNavNow(null)); }}
+            onToggle={() => {
+              // กดเร็วสองครั้ง ค่าที่จะโชว์ล้างเฉพาะเมื่อคำสั่งที่จบเป็นคำสั่งล่าสุด และส่งคำสั่งต่อกันตามลำดับ ค่าที่บันทึกเป็นค่าสุดท้ายเสมอ (AUDIT ข้อ 140)
+              const next = !collapsed, my = ++navSeq.current; setNavNow(next);
+              navChain.current = navChain.current.catch(() => {}).then(() => update({ sidebarCollapsed: next })).finally(() => { if (my === navSeq.current) setNavNow(null); });
+            }}
             shelfCount={movies.length}
             checkCount={checkCount}
             linkCount={linkWaiting}

@@ -28,7 +28,8 @@ export function abbrer(expand = true) {
     type Tok = { w: string; ab?: boolean; bind?: boolean };
     const isNum = (w: string) => /^[−+≈-]?\d/.test(w);
     // หน่วยหลังตัวเลข · คำอื่นหลังตัวเลขตัดบรรทัดได้ ไม่งั้นต่อกันยาวเป็นก้อนเดียว
-    const UNIT = /^(kbps|kHz|Hz|ms|dB|LUFS|KB|MB|GB|%|ช่อง|บิต|วินาที|นาที|fps|เท่า|ระดับ)[),]?$/;
+    // ch ท้ายเลขช่องเสียง (5.1 ch) กับหน่วยที่ขาด (AUDIT ข้อ 138)
+    const UNIT = /^(kbps|Mbps|kHz|Hz|ms|dB|LUFS|KB|MB|GB|%|ch|px|ช่อง|บิต|วินาที|นาที|fps|เท่า|ระดับ|ครั้ง|เรื่อง)[),]?$/;
     const toks = (t: string, ab = false): Tok[] => t.split(/(?<!ๆ) +(?!ๆ)/).filter(Boolean).map((w) => ({ w, ab }));
     const render = (list: Tok[]): ReactNode[] => {
       const groups: Tok[][] = [];
@@ -142,7 +143,19 @@ export default function InfoTip({ title, tip, children, btnClass, noAbbr, plain 
       const t = e.target as Node;
       if (!box.current?.contains(t) && !btn.current?.contains(t)) close();
     };
-    const again = () => { if (!gliding.current) place(false); };
+    // เลื่อนจนปุ่ม ⓘ พ้นกรอบที่เห็น ปิดกล่อง ไม่ลอยตามไปทับหัวแผงหรือแถบชื่อ (AUDIT ข้อ 144 · สกิล web-craft 6.24 ⑤) · เลื่อนในกล่องเองไม่นับ
+    const again = (e?: Event) => {
+      if (gliding.current) return;
+      if (e?.type === "scroll") {
+        if (box.current && e.target instanceof Node && box.current.contains(e.target)) return;
+        const b = btn.current?.getBoundingClientRect(), r = scrollParent(btn.current)?.getBoundingClientRect();
+        if (b) {
+          const top = Math.max(visibleTop(), r?.top ?? 0), bot = Math.min(window.innerHeight, r?.bottom ?? window.innerHeight);
+          if (b.bottom <= top || b.top >= bot) { close(); return; }
+        }
+      }
+      place(false);
+    };
     window.addEventListener("keydown", onKey, true);
     document.addEventListener("mousedown", onDown, true);
     window.addEventListener("resize", again);

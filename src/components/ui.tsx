@@ -247,7 +247,8 @@ export function Phrases({ parts, head, tail }: { parts: Part[]; head?: React.Rea
       // ก้อนที่มีตัวเลขอยู่แล้วไม่ผูกตัวเลขตัวถัดไปเพิ่ม กันต่อกันยาว "ระดับ 0 ถึง 127 ระดับ 91"
       const nextNum = /^[−+≈-]?\d/.test(toks[ti + 1] ?? "") && !cur.some((x) => typeof x === "string" && /\d/.test(x));
       if (!s.trim()) { if (numOnly || nextNum) { cur.push(s); numOnly = false; continue; } flush(); out.push(s); continue; }
-      numOnly = /^[\d.,:]+$/.test(s);
+      // ช่วงตัวเลข เลขติดลบ ค่าประมาณ (6–512 −23 ≈5) นับเป็นตัวเลขด้วย หน่วยถัดไปไม่ตกบรรทัด (AUDIT ข้อ 138 · เดิมนับเฉพาะเลขล้วน)
+      numOnly = /^[−+≈-]?[\d.,:]+(?:[–-][\d.,:]+)?$/.test(s);
       cur.push(p.hit ? <span key={k++} className="hl">{s}</span> : s);
     }
   }
