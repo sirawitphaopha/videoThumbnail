@@ -76,3 +76,44 @@ pub(crate) fn cache_info_in(dir: &Path) -> CacheInfo {
     }
     ci
 }
+
+/* ---------- ภาพรวมในหน่วยความจำ ----------
+   จำไว้ไม่เกิน MEM_LIMIT ไฟล์ล่าสุด เกินแล้วทิ้งอันที่ไม่ได้ใช้นานที่สุด อันที่ทิ้งยังอ่านกลับจากแคชในเครื่องได้
+   (AUDIT ข้อ 110 · เดิมใส่เพิ่มทุกไฟล์ที่เปิดไม่มีวันลบ ไล่ดูเพลงทั้งอัลบั้มแล้วแรมโตหลายร้อย MB) */
+pub(crate) const MEM_LIMIT: usize = 20;
+
+#[derive(Default)]
+pub(crate) struct MemCache {
+    map: HashMap<String, Arc<Overview>>,
+    /// อันที่ใช้ล่าสุดอยู่ท้าย
+    order: std::collections::VecDeque<String>,
+}
+
+impl MemCache {
+    pub(crate) fn get(&mut self, key: &str) -> Option<Arc<Overview>> {
+        let o = self.map.get(key)?.clone();
+        self.touch(key);
+        Some(o)
+    }
+    pub(crate) fn insert(&mut self, key: String, o: Arc<Overview>) {
+        self.map.insert(key.clone(), o);
+        self.touch(&key);
+        while self.order.len() > MEM_LIMIT {
+            if let Some(old) = self.order.pop_front() {
+                self.map.remove(&old);
+            }
+        }
+    }
+    pub(crate) fn clear(&mut self) {
+        self.map.clear();
+        self.order.clear();
+    }
+    #[cfg(test)]
+    pub(crate) fn len(&self) -> usize {
+        self.map.len()
+    }
+    fn touch(&mut self, key: &str) {
+        self.order.retain(|k| k != key);
+        self.order.push_back(key.to_string());
+    }
+}

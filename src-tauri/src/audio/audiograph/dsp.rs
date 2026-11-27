@@ -124,6 +124,12 @@ pub(crate) struct Analyzer {
     ring_pos: usize,
     acc: Vec<Vec<f32>>,
     acc_n: Vec<u32>,
+    /// ตัวอย่างที่ป้อนแล้วทั้งหมด รวมเสียงก่อนขอบซ้าย
+    fed: u64,
+    /// เสียงก่อนขอบซ้ายที่ยังเหลือให้เติมหน้าต่าง FFT (ไม่นับในรูปคลื่น)
+    pre_left: u64,
+    /// เลื่อนจุดเก็บไปครึ่งหน้าต่าง หน้าต่าง FFT อยู่กึ่งกลางคอลัมน์ · 0 = แบบเดิมของภาพรวม
+    shift: u64,
     spectrum: Spectrum,
     tmp: Vec<f32>,
     // สรุปทั้งเรื่อง
@@ -153,14 +159,77 @@ impl Analyzer {
             n_fft, spec_cols, caps, cap_i: 0,
             ring: vec![vec![0.0; n_fft]; ch], ring_pos: 0,
             acc: vec![vec![0.0; spec_cols * (n_fft / 2)]; ch], acc_n: vec![0; spec_cols],
+            fed: 0, pre_left: 0, shift: 0,
             spectrum: Spectrum::new(n_fft), tmp: vec![0.0; n_fft],
             peak: vec![0.0; ch], sq: vec![0.0; ch], clips: vec![0; ch], clip_run: vec![0; ch],
             block: (rate as usize / 10).max(1), block_n: 0, block_max: 0.0, sil_start: None, silences: Vec::new(),
         }
     }
 
+    /// ช่วงที่ซูม · ป้อนเสียงก่อนขอบซ้าย `pre` ตัวอย่างไว้เติมหน้าต่าง FFT และวางหน้าต่างกึ่งกลางคอลัมน์
+    /// (AUDIT ข้อ 23 · เดิมเริ่มที่ขอบซ้ายพอดี คอลัมน์ที่ยังไม่ครบหน้าต่างถูกข้ามเป็นสีดำ ซูมสุดดำทั้งกราฟ
+    ///  และหน้าต่างอยู่หลังจุดเก็บ ภาพช้ากว่าแกนเวลาครึ่งหน้าต่าง) · ภาพรวมไม่ใช้ ผลกับแคชเดิมเหมือนเดิม
+    pub(crate) fn centered(mut self, pre: u64) -> Self {
+        self.pre_left = pre;
+        self.shift = (self.n_fft / 2) as u64;
+        self
+    }
+
+    fn ring_in(&mut self, f: &[f32]) {
+        for i in 0..self.ch {
+            let raw = f.get(i).copied().unwrap_or(0.0);
+            self.ring[i][self.ring_pos] = if raw.is_finite() { raw } else { 0.0 };
+        }
+        self.ring_pos = (self.ring_pos + 1) % self.n_fft;
+        self.fed += 1;
+    }
+
+    /// เก็บคอลัมน์ที่ถึงจุดแล้ว · แบบกึ่งกลาง ส่วนที่ยังไม่มีเสียง (ต้นไฟล์) เป็นศูนย์ในหน้าต่าง ไม่ข้ามคอลัมน์
+    fn capture(&mut self, all: bool) {
+        while self.cap_i < self.caps.len() && (all || self.frame >= self.caps[self.cap_i].0 + self.shift) {
+            let col = self.caps[self.cap_i].1;
+            if self.shift > 0 || self.fed as usize >= self.n_fft {
+                let half = self.n_fft / 2;
+                for i in 0..self.ch {
+                    for j in 0..self.n_fft {
+                        self.tmp[j] = self.ring[i][(self.ring_pos + j) % self.n_fft];
+                    }
+                    let out = &mut self.acc[i][col * half..(col + 1) * half];
+                    self.spectrum.add_power(&self.tmp, out);
+                }
+                self.acc_n[col] += 1;
+            }
+            self.cap_i += 1;
+        }
+    }
+
+    /// คอลัมน์ความถี่ที่ไม่ได้คิดเลย (เทส AUDIT ข้อ 23)
+    #[cfg(test)]
+    pub(crate) fn empty_cols(&self) -> usize {
+        self.acc_n.iter().filter(|&&n| n == 0).count()
+    }
+
+    /// จบช่วงแบบกึ่งกลาง · คอลัมน์ท้ายที่เสียงหลังขอบขวาไม่พอ (ท้ายไฟล์) เก็บจากเสียงที่มี ไม่ปล่อยเป็นสีดำ
+    pub(crate) fn finish(&mut self) {
+        if self.shift > 0 {
+            self.capture(true);
+        }
+    }
+
     /// รับเสียงทศนิยมช่วง ±1 · รูปคลื่น ยอด กับนับเสียงแตก ตัดที่ ±1 เหมือนเดิม · ความถี่ใช้ค่าจริง เสียงเบามากในไฟล์ 24 bit จึงไม่หาย (พี่กันสั่ง 9 พ.ย. 2569)
     pub(crate) fn push(&mut self, f: &[f32]) {
+        if self.pre_left > 0 {
+            self.ring_in(f);
+            self.pre_left -= 1;
+            return;
+        }
+        if self.shift > 0 && self.frame as f64 >= self.total {
+            // เสียงหลังขอบขวา เติมหน้าต่างของคอลัมน์ท้ายอย่างเดียว ไม่นับในรูปคลื่น
+            self.ring_in(f);
+            self.frame += 1;
+            self.capture(false);
+            return;
+        }
         let c = ((self.frame as f64 * self.cols as f64 / self.total.max(1.0)) as usize).min(self.cols - 1);
         let mut fmax = 0.0f32;
         for (i, &raw) in f.iter().enumerate().take(self.ch) {
@@ -185,6 +254,7 @@ impl Analyzer {
         }
         self.env_n[c] += 1;
         self.ring_pos = (self.ring_pos + 1) % self.n_fft;
+        self.fed += 1;
         // ช่วงเงียบ ทุกช่องเบากว่า −70 dBFS ทีละ 0.1 วินาที
         self.block_max = self.block_max.max(fmax);
         self.block_n += 1;
@@ -199,21 +269,7 @@ impl Analyzer {
             self.block_max = 0.0;
         }
         self.frame += 1;
-        while self.cap_i < self.caps.len() && self.frame >= self.caps[self.cap_i].0 {
-            let col = self.caps[self.cap_i].1;
-            if self.frame as usize >= self.n_fft {
-                let half = self.n_fft / 2;
-                for i in 0..self.ch {
-                    for j in 0..self.n_fft {
-                        self.tmp[j] = self.ring[i][(self.ring_pos + j) % self.n_fft];
-                    }
-                    let out = &mut self.acc[i][col * half..(col + 1) * half];
-                    self.spectrum.add_power(&self.tmp, out);
-                }
-                self.acc_n[col] += 1;
-            }
-            self.cap_i += 1;
-        }
+        self.capture(false);
     }
 
     /// รูปคลื่นต่อช่อง · ทีละคอลัมน์ 3 ค่า ยอดบน ยอดล่าง (−1 ถึง 1) และความดังเฉลี่ย RMS

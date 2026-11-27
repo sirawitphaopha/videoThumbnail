@@ -796,6 +796,30 @@ T[47] = async (p, check) => {
   check("47 ปกเสียขึ้นการ์ดทำภาพปกไม่ได้ ไม่ขึ้นว่าอ่านข้อมูลไฟล์ไม่ได้ การ์ดสภาพไฟล์ยังอยู่", !!r.card && r.card.includes("ทำภาพปกไม่ได้") && !r.err && r.stats >= 2, JSON.stringify(r));
 };
 
+// ชุด 14 ---------------------------------------------------------------
+T[107] = async (p, check) => {
+  // ฝั่ง Rust บอกว่าช่วงสั้นกว่าขนาด FFT · หน้าความถี่เฉลี่ยบอกว่าสั้นเกินและต้องยาวเท่าไร บรรทัดเดียวเท่าเดิม
+  await graphOpen(p, MOVIE); await click(p, "[data-view=psd]"); await wait(p, 1500);
+  const h0 = await p.evaluate(() => document.querySelector("[data-psdchecks]")?.parentElement?.getBoundingClientRect().height ?? 0);
+  const line0 = await p.evaluate(() => [...document.querySelectorAll(".small")].find((e) => e.innerText.includes("ช่วงที่เลือก"))?.getBoundingClientRect().height ?? 0);
+  await over(p, "graph_psd", `const r = await window.__fxOverBase.graph_psd(a); return { ...r, short: true, need: a.size / r.rate };`);
+  // เปลี่ยนช่องที่ดู หน้าอ่านความถี่เฉลี่ยใหม่ผ่านคำสั่งที่สลับไว้
+  await p.evaluate(() => [...document.querySelectorAll(".psdch-seg button")].find((b) => !b.classList.contains("on"))?.click()); await wait(p, 1800);
+  const r = await p.evaluate(() => { const e = document.querySelector("[data-psdshort]"); return e ? { t: e.innerText, h: e.getBoundingClientRect().height } : null; });
+  const h1 = await p.evaluate(() => document.querySelector("[data-psdchecks]")?.parentElement?.getBoundingClientRect().height ?? 0);
+  check("107 ช่วงสั้นกว่าขนาด FFT ขึ้นว่าสั้นเกินพร้อมความยาวที่ต้องใช้", !!r && r.t.includes("สั้นเกินไป") && /ความละเอียด [\d,]+ ต้องใช้ช่วงอย่างน้อย 0\.\d\d วินาที/.test(r.t), JSON.stringify(r));
+  check("107 บรรทัดบอกสั้นเกินสูงเท่าบรรทัดเดิม หน้าไม่ขยับ", !!r && Math.abs(r.h - line0) < 1 && Math.abs(h1 - h0) < 1, JSON.stringify({ line0, h: r?.h, h0, h1 }));
+  // หน้าต่าง 1280 × 800 ยังบรรทัดเดียว
+  await p.setViewportSize({ width: 1280, height: 800 }); await wait(p, 600);
+  const narrow = await p.evaluate(() => { const e = document.querySelector("[data-psdshort]"); return e ? { h: e.getBoundingClientRect().height, lh: parseFloat(getComputedStyle(e).lineHeight) } : null; });
+  await p.evaluate(() => document.querySelector("[data-psdshort]")?.scrollIntoView({ block: "center" })); await wait(p, 200);
+  check("107 ที่หน้าต่าง 1280 × 800 บรรทัดบอกสั้นเกินยังบรรทัดเดียว", !!narrow && narrow.h < narrow.lh * 1.5, JSON.stringify(narrow));
+};
+T[108] = async (p, check) => {
+  const t = await SRC("src/pages/graph/useGraphActions.ts"), a = await SRC("src/lib/api/graph.ts");
+  check("108 บันทึกรูปคลื่นส่งค่าไม่ต้องใช้ภาพความถี่ไปฝั่ง Rust", /graphApi\.window\([^)]*true, view === "wave"\)/.test(t) && a.includes("nospec"), "");
+};
+
 // ---------------------------------------------------------------- ตัวรัน
 const want = process.argv.slice(2).map(Number).filter(Boolean);
 const ids = Object.keys(T).map(Number).filter((n) => !want.length || want.includes(n)).sort((a, b) => a - b);

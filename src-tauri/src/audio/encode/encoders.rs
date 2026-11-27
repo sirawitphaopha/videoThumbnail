@@ -141,11 +141,22 @@ pub fn status(tools: &Path, user: &Path) -> Vec<EncoderInfo> {
     list
 }
 
+/// เหตุที่ใช้ตัวแปลงไม่ได้ · ดูตัวในโฟลเดอร์ที่ใส่เองก่อน แล้วตัวที่แนบมา · ไม่มีไฟล์เฉย ๆ ไม่นับเป็นเหตุ
+/// (AUDIT ข้อ 89 · เดิมทิ้งข้อผิดพลาดของตัวที่แนบมา เครื่องที่ไม่มีไฟล์ของ Apple qaac จึงขึ้นว่ายังไม่ได้ใส่ แทนต้องติดตั้ง iTunes)
+pub(crate) fn problem_of(ok: bool, bundled: Option<&Result<String, String>>, user: &Result<String, String>) -> Option<String> {
+    if ok {
+        return None;
+    }
+    let real = |r: &Result<String, String>| r.as_ref().err().filter(|e| e.as_str() != "missing").cloned();
+    real(user).or_else(|| bundled.and_then(real))
+}
+
 fn cli_status(tools: &Path, user: &Path) -> Vec<EncoderInfo> {
     ENCODERS.iter().map(|(name, codecs, arg, bundled)| {
         // TAK ที่แนบมาอยู่ในโฟลเดอร์ที่แตกจาก zip ไม่ได้อยู่ในโฟลเดอร์เครื่องมือ
         let bdir = if *name == "Takc" { let d = tak_dir(user); let _ = ensure_tak(tools, &d); d } else { tools.to_path_buf() };
-        let b = if *bundled { probe_one(&bdir, name, arg).ok().map(|t| (version_of(name, &t), bdir.clone(), core_audio_of(&t))) } else { None };
+        let b_raw = if *bundled { Some(probe_one(&bdir, name, arg)) } else { None };
+        let b = b_raw.as_ref().and_then(|r| r.as_ref().ok()).map(|t| (version_of(name, t), bdir.clone(), core_audio_of(t)));
         let u = probe_one(user, name, arg);
         let u_ok = u.as_ref().ok().map(|t| (version_of(name, t), user.to_path_buf(), core_audio_of(t)));
         let use_user = match (&b, &u_ok) {
@@ -154,7 +165,7 @@ fn cli_status(tools: &Path, user: &Path) -> Vec<EncoderInfo> {
             _ => false,
         };
         let pick = if use_user { u_ok.clone() } else { b.clone() };
-        let problem = match (&pick, &u) { (None, Err(e)) if e != "missing" => Some(e.clone()), _ => None };
+        let problem = problem_of(pick.is_some(), b_raw.as_ref(), &u);
         EncoderInfo {
             name: name.to_string(), codecs: codecs.to_string(),
             source: match (&pick, use_user) { (None, _) => "missing".into(), (Some(_), true) => "user".into(), _ => "bundled".into() },

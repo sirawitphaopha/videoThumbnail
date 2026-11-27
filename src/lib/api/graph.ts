@@ -12,7 +12,8 @@ export type GOverview = {
   peaks: number[]; rms: number[]; clips: number[]; silences: [number, number][]; readTo: number;
 };
 export type GWindow = { t0: number; t1: number; cols: number; env: number[][]; bins: number; spec: string[] };
-export type GPsd = { size: number; rate: number; db: number[][] };
+/** short ช่วงสั้นกว่าขนาด FFT คิดแบบเติมศูนย์ · need ความยาวอย่างน้อยที่ขนาดนี้ใช้ วินาที (AUDIT ข้อ 107) */
+export type GPsd = { size: number; rate: number; short?: boolean; need?: number; db: number[][] };
 export type GProgress = { path: string; track: number; percent: number };
 
 /** รูปกราฟที่บันทึก ตั้งในหน้าตั้งค่า · ค่าตั้งต้นตรงกับ graphimg.rs */
@@ -43,7 +44,8 @@ export const graphApi = {
   /** ไฟล์ยังอยู่ไหม เรียงตามรายการที่ส่งไป · ใช้บอกในรายการเปิดล่าสุดก่อนกด */
   exist: (paths: string[]) => call<boolean[]>("graph_exist", { paths }),
   overview: (path: string, track: number) => call<GOverview | null>("graph_overview", { path, track }),
-  window: (path: string, track: number, t0: number, t1: number, cols: number, bins: number, log: boolean, full = false) => call<GWindow | null>("graph_window", { path, track, t0, t1, cols, bins, log, full }),
+  /** nospec ไม่ต้องใช้ภาพความถี่ (บันทึกรูปคลื่น) ฝั่ง Rust ไม่จองที่เก็บ (AUDIT ข้อ 108) */
+  window: (path: string, track: number, t0: number, t1: number, cols: number, bins: number, log: boolean, full = false, nospec = false) => call<GWindow | null>("graph_window", { path, track, t0, t1, cols, bins, log, full, nospec }),
   /** ผลอ่านคลื่นที่เก็บไว้ในเครื่อง จำนวนไฟล์กับขนาดรวม · ล้างได้จากหน้าตั้งค่า */
   cacheInfo: () => call<{ files: number; bytes: number }>("graph_cache_info"),
   cacheClear: () => call<{ files: number; bytes: number }>("graph_cache_clear"),

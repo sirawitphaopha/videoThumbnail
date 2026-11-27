@@ -207,3 +207,74 @@ fn psd_mid_side_of_identical_channels() {
     assert!((mid - l).abs() < 1.0, "กลาง {mid} ต้องเท่าซ้าย {l}");
     assert!(side < mid - 60.0, "ข้าง {side} ต้องเบากว่ากลาง {mid} เกิน 60 dB");
 }
+
+/// AUDIT ข้อ 110 · ภาพรวมในหน่วยความจำจำไม่เกิน MEM_LIMIT ไฟล์ ทิ้งอันที่ไม่ได้ใช้นานที่สุดก่อน
+#[test]
+fn mem_cache_keeps_recent_only() {
+    let ov = |d: f64| Arc::new(Overview { duration: d, cols: 0, env: vec![], spec_cols: 0, spec_bins: 0, spec: vec![], loud: vec![], integrated: None, lra: None, true_peak: None, peaks: vec![], rms: vec![], clips: vec![], silences: vec![], read_to: d });
+    let mut c = MemCache::default();
+    for i in 0..MEM_LIMIT { c.insert(format!("k{i}"), ov(i as f64)); }
+    // ใช้ k0 ล่าสุด แล้วใส่ไฟล์ใหม่ ต้องทิ้ง k1 ไม่ใช่ k0
+    assert!(c.get("k0").is_some());
+    c.insert("ใหม่".into(), ov(99.0));
+    assert_eq!(c.len(), MEM_LIMIT);
+    assert!(c.get("k0").is_some() && c.get("k1").is_none() && c.get("ใหม่").is_some());
+    // ใส่ซ้ำคีย์เดิมไม่นับเพิ่ม
+    c.insert("ใหม่".into(), ov(100.0));
+    assert_eq!((c.len(), c.get("ใหม่").unwrap().duration), (MEM_LIMIT, 100.0));
+    c.clear();
+    assert_eq!(c.len(), 0);
+}
+
+/// AUDIT ข้อ 23 · ช่วงซูม 0.01 วินาทีที่ 48 kHz (480 ตัวอย่าง) สั้นกว่าหน้าต่าง 1024 · แบบเดิมไม่ได้คิดสักคอลัมน์ (ดำทั้งกราฟ)
+/// แบบกึ่งกลางป้อนเสียงก่อนขอบซ้ายหนึ่งหน้าต่างกับหลังขอบขวาครึ่งหน้าต่าง ต้องได้ทุกคอลัมน์ · ยอดอยู่ที่ความถี่ของเสียง
+#[test]
+fn deep_zoom_spectrum_has_no_empty_columns() {
+    let (rate, n_fft, total) = (48000u32, 1024usize, 480usize);
+    let tone = |i: usize| (2.0 * std::f32::consts::PI * 3000.0 * i as f32 / rate as f32).sin() * 0.5;
+    // แบบเดิม เริ่มที่ขอบซ้ายพอดี
+    let mut old = Analyzer::new(1, rate, total as f64, 64, n_fft, 64, 3);
+    for i in 0..total { old.push(&[tone(i)]); }
+    assert_eq!(old.empty_cols(), 64, "แบบเดิมช่วงสั้นกว่าหน้าต่างไม่ได้คิดเลย");
+    // แบบกึ่งกลาง
+    let mut an = Analyzer::new(1, rate, total as f64, 64, n_fft, 64, 3).centered(n_fft as u64);
+    for i in 0..n_fft + total + n_fft / 2 { an.push(&[tone(i)]); }
+    an.finish();
+    assert_eq!(an.empty_cols(), 0);
+    let env = an.env();
+    assert_eq!(env[0].len(), 64 * 3, "รูปคลื่นนับเฉพาะเสียงในช่วง");
+    // ท้ายไฟล์ เสียงหลังขอบขวาไม่มา คอลัมน์ท้ายยังได้คิด
+    let mut end = Analyzer::new(1, rate, total as f64, 64, n_fft, 64, 3).centered(n_fft as u64);
+    for i in 0..n_fft + total { end.push(&[tone(i)]); }
+    end.finish();
+    assert_eq!(end.empty_cols(), 0);
+}
+
+/// AUDIT ข้อ 107 · ความถี่เฉลี่ยช่วง 0.05 วินาทีกับ FFT 4096 สั้นกว่าหน้าต่าง ต้องได้เส้นจริงพร้อมป้ายช่วงสั้น ไม่ใช่ −140 dB ทุกช่อง
+#[test]
+fn psd_short_range_is_flagged_not_flat() {
+    let dir = std::env::temp_dir().join(format!("ชั้นหนังกราฟสั้น-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let f = dir.join("ไซน์สั้น.flac");
+    let out = crate::app::tools::run_tool(&tools(), "ffmpeg", ["-v", "error", "-y", "-f", "lavfi", "-i", "sine=frequency=1000:sample_rate=48000:duration=3", f.to_str().unwrap()]).unwrap();
+    assert!(out.status.success());
+    let g = info(&tools(), &f).unwrap();
+    let p = psd(&tools(), &f, &g.tracks[0], 1.0, 1.05, &[vec![0]], None, 4096, &|| false).unwrap().unwrap();
+    let long = psd(&tools(), &f, &g.tracks[0], 0.5, 2.5, &[vec![0]], None, 4096, &|| false).unwrap().unwrap();
+    let _ = std::fs::remove_dir_all(&dir);
+    assert!(p.short && !long.short);
+    assert!((p.need - 4096.0 / 48000.0).abs() < 1e-9);
+    let top = p.db[0].iter().copied().fold(-999.0f32, f32::max);
+    assert!(top > -60.0, "ช่วงสั้นต้องมีเส้นจริง ยอด {top} dB");
+}
+
+/// AUDIT ข้อ 108 · บันทึกรูปคลื่นไม่ต้องใช้ภาพความถี่ ไม่จองที่เก็บ ภาพความถี่ว่าง รูปคลื่นครบ
+#[test]
+fn nospec_window_skips_spectrum() {
+    let mut an = Analyzer::new(2, 48000, 4800.0, 100, 2048, 0, 3).centered(0);
+    for i in 0..4800 { let v = (i as f32 * 0.01).sin(); an.push(&[v, -v]); }
+    an.finish();
+    let spec = an.spec(Scale::Log, 64, None);
+    assert!(spec.iter().all(|s| s.is_empty()), "ไม่มีคอลัมน์ความถี่");
+    assert_eq!(an.env()[0].len(), 100 * 3);
+}

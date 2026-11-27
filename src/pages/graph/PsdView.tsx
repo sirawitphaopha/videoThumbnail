@@ -64,7 +64,9 @@ export function PsdView(p: PsdProps) {
       {psd && <div className="psdchecks" data-psdchecks data-top={Math.round(topF)}>{checks.map((c) => (
         <div key={c.k} className={"stat " + (c.warn ? "warn" : "info") + (c.d ? "" : " slim")} data-psdcheck={c.k}>{c.warn ? WARN : <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" aria-hidden="true"><circle cx="12" cy="12" r="9" /><path d="M12 11v6M12 7.5v.5" /></svg>}
           <div className="psdck-txt" title={c.d ? `${c.b} ${c.d}` : c.b}><b>{c.b}</b>{c.d && <span> {c.d}</span>}</div><InfoTip title={c.title} tip={{ w: c.tip }} /></div>))}</div>}
-      <div className="small" style={{ marginTop: 6 }}>{psd ? `เสียงสูงสุดที่มีราว ${(topF / 1000).toFixed(1)} kHz ใน` : ""}ช่วงที่เลือก {tfmtD(t0, spanDigits(t1 - t0))} ถึง {tfmtD(t1, spanDigits(t1 - t0))} และกดที่แถบบนเพื่อย้ายช่วงได้</div>
+      {/* ช่วงสั้นกว่าขนาด FFT ฝั่ง Rust คิดแบบเติมศูนย์ บอกแทนบรรทัดเดิม บรรทัดเดียวเท่าเดิม กรอบไม่เปลี่ยนขนาด (AUDIT ข้อ 107) */}
+      {psd?.short ? <div className="small" style={{ marginTop: 6 }} data-psdshort>{`ช่วงที่เลือกสั้นเกินไป ความละเอียด ${psd.size.toLocaleString("en-US")} ต้องใช้ช่วงอย่างน้อย ${(psd.need ?? 0).toFixed(2)} วินาที เส้นจึงหยาบกว่าปกติ`}</div>
+        : <div className="small" style={{ marginTop: 6 }}>{psd ? `เสียงสูงสุดที่มีราว ${(topF / 1000).toFixed(1)} kHz ใน` : ""}ช่วงที่เลือก {tfmtD(t0, spanDigits(t1 - t0))} ถึง {tfmtD(t1, spanDigits(t1 - t0))} และกดที่แถบบนเพื่อย้ายช่วงได้</div>}
       {/* แต่ละตัวเลือกจับคู่กับปุ่ม ⓘ ของมัน ตกบรรทัดแล้วไม่แยกกัน (เจอตอนตรวจภาพ ⓘ ของเส้นตารางหลุดไปต้นบรรทัดใหม่) */}
       <div className="agfoot"><div className="psdopts" style={{ display: "flex", alignItems: "center", columnGap: 14, rowGap: 6, flexWrap: "wrap" }}>
         <span className="psdopt"><span className="lbl">แกนความถี่</span><InfoTip title="แกนความถี่" tip={PSD_TIPS.axis} />

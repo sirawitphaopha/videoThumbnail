@@ -408,3 +408,14 @@ fn explain_tool_messages() {
     assert!(explain_fail("mkvextract", &tool_lines("#GUI#error Failed to create the file 'D:/a/o.srt': 0 (create_directory() failed)"), Some(&st(2))).why.starts_with("เปิดไฟล์ปลายทางเพื่อเขียนไม่ได้"));
     assert!(explain_fail("ffmpeg", &tool_lines("Error opening output files: No such file or directory"), Some(&st(1))).why.starts_with("เปิดไฟล์ปลายทางเพื่อเขียนไม่ได้"), "ปลายทางเปิดไม่ได้ ไม่ใช่หาไฟล์หนังไม่เจอ");
 }
+
+/// AUDIT ข้อ 98 · ทาง ffmpeg อ่านบรรทัด -progress เป็นเปอร์เซ็นต์เทียบความยาว ไม่ค้าง 0% · บรรทัดอื่นไม่นับ
+#[test]
+fn ffmpeg_progress_lines() {
+    assert_eq!(ff_progress("out_time_us=30000000", 120.0), Some(25.0));
+    assert_eq!(ff_progress("out_time_ms=60000000", 120.0), Some(50.0));
+    assert_eq!(ff_progress("out_time_us=999000000", 120.0), Some(99.9), "ไม่ถึงร้อยจนได้ไฟล์ครบ");
+    assert_eq!(ff_progress("out_time_us=N/A", 120.0), None);
+    assert_eq!(ff_progress("progress=continue", 120.0), None);
+    assert_eq!(ff_progress("out_time=00:00:30.000000", 120.0), None);
+}

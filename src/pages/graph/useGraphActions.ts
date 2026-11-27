@@ -61,7 +61,8 @@ export function useGraphActions(c: G3) {
       await waitPaint();
       if (view !== "loud" && view !== "psd") {
         const log = view !== "spek", cols = Math.min(8192, o.width || Math.round(plotW * screenK()));
-        const w = await graphApi.window(path, track, t0, t1, cols, log ? 256 : 512, log, true);
+        // รูปคลื่นไม่ใช้ภาพความถี่ ฝั่ง Rust ไม่ต้องจองที่เก็บ (AUDIT ข้อ 108)
+        const w = await graphApi.window(path, track, t0, t1, cols, log ? 256 : 512, log, true, view === "wave");
         if (!w) throw new Error("การอ่านถูกยกเลิก เพราะมีการเลื่อนหรือซูมกราฟระหว่างบันทึก");
         flushSync(() => setHiWin(w));
       }

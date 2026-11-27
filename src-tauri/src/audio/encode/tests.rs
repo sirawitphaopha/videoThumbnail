@@ -254,3 +254,19 @@ fn real_encodes() {
     assert!(matches!(run(&|_| tools(), &plan, Some(60.0), &|| true, &mut |_| {}).unwrap(), Done::Cancelled));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// AUDIT ข้อ 89 · ตัวที่แนบมาเรียกไม่ได้เพราะไม่มีไฟล์ของ Apple ต้องบอกเหตุนั้น ไม่ใช่ยังไม่ได้ใส่
+#[test]
+fn bundled_problem_is_kept() {
+    let itunes: Result<String, String> = Err("ต้องติดตั้ง iTunes ก่อน".into());
+    let missing: Result<String, String> = Err("missing".into());
+    let ok: Result<String, String> = Ok("qaac 2.85".into());
+    assert_eq!(problem_of(false, Some(&itunes), &missing).as_deref(), Some("ต้องติดตั้ง iTunes ก่อน"));
+    // ตัวในโฟลเดอร์ที่ใส่เองมีเหตุของมัน ใช้เหตุนั้นก่อน
+    let user_bad: Result<String, String> = Err("เรียกไม่ได้".into());
+    assert_eq!(problem_of(false, Some(&itunes), &user_bad).as_deref(), Some("เรียกไม่ได้"));
+    // ไม่มีไฟล์ทั้งสองที่ ไม่มีเหตุ ใช้ได้แล้วไม่มีเหตุ
+    assert_eq!(problem_of(false, Some(&missing), &missing), None);
+    assert_eq!(problem_of(false, None, &missing), None);
+    assert_eq!(problem_of(true, Some(&itunes), &ok), None);
+}

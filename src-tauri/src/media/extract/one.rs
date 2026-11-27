@@ -148,6 +148,7 @@ fn keep_tail(buf: &std::sync::Mutex<Vec<String>>, text: &str) {
 pub fn extract_one(tools: &Path, file: &Path, it: &Item, partial: &Path, on: &dyn Fn(f64), stop: &dyn Fn() -> bool) -> Result<Done, ToolFail> {
     let mkv = file.extension().map(|e| e.eq_ignore_ascii_case("mkv")).unwrap_or(false);
     let mut outs = vec![partial.to_path_buf()];
+    let mut ff_dur: Option<f64> = None;
     let (tool, args): (&str, Vec<OsString>) = if mkv {
         match it.kind.as_str() {
             // ภาพที่เลือกแบบสตรีมล้วน (.h264 .h265) ใช้ mkvextract แบบเดียวกับเสียงและซับ ได้สตรีมดิบที่ MKVToolNix กับโปรแกรมรวมไฟล์อื่นรับได้ (BUGS ข้อ 35 ต่อ)
@@ -202,7 +203,9 @@ pub fn extract_one(tools: &Path, file: &Path, it: &Item, partial: &Path, on: &dy
         let fmt = ff_format(&it.ext).unwrap_or("matroska");
         // ซับตัวหนังสือของ MP4 (mov_text) ตัวเขียน srt ของ ffmpeg รับแบบ copy ไม่ได้ ต้องแปลงตัวหนังสือเป็น SRT (ไม่ใช่ภาพหรือเสียง ไม่เสียคุณภาพ)
         let codec_arg = if fmt == "srt" && codec != "subrip" && codec != "text" { "srt" } else { "copy" };
-        ("ffmpeg", vec!["-hide_banner".into(), "-nostdin".into(), "-n".into(), "-v".into(), "error".into(), "-i".into(), file.into(), "-map".into(), format!("0:{idx}").into(),
+        // ความคืบหน้าจาก -progress pipe:1 คิดเทียบความยาวของไฟล์ (AUDIT ข้อ 98 · เดิมแถวขึ้นกำลังทำ 0% จนเสร็จ)
+        ff_dur = crate::media::probe::probe(tools, file).ok().and_then(|x| x.duration).filter(|d| *d > 0.0);
+        ("ffmpeg", vec!["-hide_banner".into(), "-nostdin".into(), "-n".into(), "-v".into(), "error".into(), "-nostats".into(), "-progress".into(), "pipe:1".into(), "-i".into(), file.into(), "-map".into(), format!("0:{idx}").into(),
             "-c".into(), codec_arg.into(), "-f".into(), fmt.into(), partial.into()])
     };
     // ข้อความผิดพลาดของ mkvextract แบบ --gui-mode ออกทาง stdout (#GUI#error) ของ ffmpeg ออกทาง stderr · เดิมทิ้ง stderr จึงบอกได้แค่รหัส (BUGS ข้อ 150)
@@ -214,10 +217,14 @@ pub fn extract_one(tools: &Path, file: &Path, it: &Item, partial: &Path, on: &dy
     let msgs = std::sync::Arc::new(std::sync::Mutex::new(Vec::<String>::new()));
     let (tx, rx) = std::sync::mpsc::channel::<f64>();
     let m1 = msgs.clone();
+    let is_ff = tool == "ffmpeg";
     let reader = std::thread::spawn(move || {
         for l in BufReader::new(out).lines().map_while(Result::ok) {
             if let Some(p) = l.strip_prefix("#GUI#progress ").and_then(|v| v.trim_end_matches('%').parse::<f64>().ok()) {
                 let _ = tx.send(p);
+            } else if is_ff {
+                // stdout ของ ffmpeg มีแต่บรรทัดความคืบหน้า ข้อผิดพลาดออกทาง stderr
+                if let Some(p) = ff_dur.and_then(|d| ff_progress(&l, d)) { let _ = tx.send(p); }
             } else {
                 keep_tail(&m1, &l);
             }
@@ -269,3 +276,10 @@ pub fn extract_one(tools: &Path, file: &Path, it: &Item, partial: &Path, on: &dy
     }
 }
 
+/// บรรทัดของ ffmpeg -progress เป็นเปอร์เซ็นต์ · out_time_us เป็นไมโครวินาที (บางรุ่นเขียน out_time_ms เป็นไมโครวินาทีเหมือนกัน) · N/A ไม่นับ
+/// ไม่เกิน 99.9 ร้อยเต็มส่งตอนได้ไฟล์ครบ (AUDIT ข้อ 98)
+pub(crate) fn ff_progress(line: &str, dur: f64) -> Option<f64> {
+    let v = line.strip_prefix("out_time_us=").or_else(|| line.strip_prefix("out_time_ms="))?;
+    let us = v.trim().parse::<f64>().ok()?;
+    Some((us / 1e6 / dur * 100.0).clamp(0.0, 99.9))
+}

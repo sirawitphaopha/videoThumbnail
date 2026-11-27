@@ -199,11 +199,15 @@ pub struct Window {
 pub struct Psd {
     pub size: usize,
     pub rate: u32,
+    /// ช่วงสั้นกว่าขนาด FFT คิดครั้งเดียวแบบเติมศูนย์ เส้นหยาบกว่าความละเอียดที่เลือก (AUDIT ข้อ 107)
+    pub short: bool,
+    /// ความยาวอย่างน้อยที่ขนาด FFT นี้ต้องใช้ วินาที
+    pub need: f64,
     /// ต่อชุดเส้น dB ทีละช่องความถี่ (size/2 ช่อง)
     pub db: Vec<Vec<f32>>,
 }
 
-static OVERVIEWS: OnceLock<Mutex<HashMap<String, Arc<Overview>>>> = OnceLock::new();
+static OVERVIEWS: OnceLock<Mutex<MemCache>> = OnceLock::new();
 /// เลขรอบของภาพรวม · ภาพรวมอันใหม่หรือปุ่มหยุดเพิ่มเลข อันที่อ่านอยู่หยุดเอง อ่านได้ทีละอัน ไม่ซ้อนกัน
 static OVERVIEW_GEN: AtomicU64 = AtomicU64::new(0);
 static WINDOW_GEN: AtomicU64 = AtomicU64::new(0);
@@ -304,84 +308,6 @@ pub fn overview(tools: &Path, path: &Path, track: &GTrack, duration: f64, on: &d
     }))
 }
 
-/// อ่านเฉพาะช่วง t0–t1 · cols คอลัมน์ · ความถี่แบบล็อก (แถบทุกช่อง) หรือเส้นตรง (แบบวิเคราะห์)
-#[allow(clippy::too_many_arguments)]
-/// full = ตอนบันทึกรูป อ่านความถี่ต่อเนื่องครบทุกช่วงไม่สุ่มข้าม คอลัมน์ถึง 8,192 (พี่กันเคาะ 9 พ.ย. 2569 "เอาเท่านี้")
-/// ดูบนจอยังสุ่มคอลัมน์ละ 3 ครั้ง ซูมจะได้ไม่ช้าลง
-#[allow(clippy::too_many_arguments)]
-pub fn window_read(tools: &Path, path: &Path, track: &GTrack, t0: f64, t1: f64, cols: usize, bins: usize, log: bool, full: bool, stop: &dyn Fn() -> bool) -> Result<Option<Window>, String> {
-    let ch = track.names.len();
-    let len = (t1 - t0).max(0.002);
-    let total = (len * track.rate as f64).max(1.0);
-    let n_fft = if log { 2048 } else { 1024 };
-    // ซูมลึกจนตัวอย่างเสียงน้อยกว่าจำนวนคอลัมน์ ให้หนึ่งคอลัมน์เท่าหนึ่งตัวอย่าง ไม่มีคอลัมน์ว่างคั่น (หน้าจอยืดเอง · พี่กันถาม 11 พ.ย. 2569 "ซูมได้มากกว่านี้ได้มั้ย")
-    let cols = cols.clamp(16, 8192).min((total.ceil() as usize).max(16));
-    let spec_cols = if full { cols } else { cols.min(1200) };
-    // ครอบทุกช่วงเมื่อคอลัมน์ยาวกว่าหน้าต่าง FFT · เพดาน 64 กันไฟล์ยาวหลายชั่วโมงกินเวลาเกิน
-    let per_col = if full { ((total / spec_cols as f64 / n_fft as f64).ceil() as usize).clamp(3, 64) } else { 3 };
-    let mut an = Analyzer::new(ch, track.rate, total, cols, n_fft, spec_cols, per_col);
-    let mut feed = |f: &[f32]| an.push(f);
-    let Some(_) = decode(tools, path, track.index, ch, Some(t0.max(0.0)), Some(len), false, &mut feed, stop)? else { return Ok(None) };
-    Ok(Some(Window { t0, t1, cols, env: an.env(), bins, spec: an.spec(if log { Scale::Log } else { Scale::Lin }, bins, None) }))
-}
-
-/// ความถี่เฉลี่ยของช่วง · series = ชุดของช่องที่เอามารวมกันต่อเส้น · size ขนาด FFT
-/// ms = คู่ช่องซ้ายขวา ได้เส้นเพิ่มท้าย 2 เส้น กลาง (ซ้าย+ขวา)÷2 กับ ข้าง (ซ้าย−ขวา)÷2 รวมเสียงก่อนคิด ไม่ใช่เฉลี่ยกำลัง
-/// (พี่กันส่งภาพ SpectrumAnalyzer 7 พ.ย. 2569 *"เราอยากให้มันซ้อนกันแบบนี้ได้ของ spectrum ที่ดูได้ทุกความถี่ เเละมีสีที่ต่างกัน"*)
-#[allow(clippy::too_many_arguments)]
-pub fn psd(tools: &Path, path: &Path, track: &GTrack, t0: f64, t1: f64, series: &[Vec<usize>], ms: Option<[usize; 2]>, size: usize, stop: &dyn Fn() -> bool) -> Result<Option<Psd>, String> {
-    let ch = track.names.len();
-    let size = size.clamp(256, 65536).next_power_of_two();
-    let len = (t1 - t0).max(0.05);
-    let total_frames = (len * track.rate as f64) as u64;
-    let hop = size / 2;
-    // ช่วงยาวมาก คิดแค่ราว 3,000 ครั้ง กระจายเท่า ๆ กัน
-    let hops = (total_frames / hop as u64).max(1);
-    let every = (hops / 3000).max(1);
-    let mut ring = vec![vec![0.0f32; size]; ch];
-    let mut pos = 0usize;
-    let mut frame = 0u64;
-    let mut sp = Spectrum::new(size);
-    let mut tmp = vec![0.0f32; size];
-    let mut one = vec![0.0f32; size / 2];
-    let ms = ms.filter(|[a, b]| *a < ch && *b < ch && a != b);
-    let mut acc = vec![vec![0.0f32; size / 2]; series.len() + if ms.is_some() { 2 } else { 0 }];
-    let mut count = 0u32;
-    let mut hop_i = 0u64;
-    let mut feed = |f: &[f32]| {
-        for i in 0..ch { ring[i][pos] = if f[i].is_finite() { f[i] } else { 0.0 }; }
-        pos = (pos + 1) % size;
-        frame += 1;
-        if frame as usize >= size && frame % hop as u64 == 0 {
-            if hop_i % every == 0 {
-                for (si, chans) in series.iter().enumerate() {
-                    for &c in chans {
-                        if c >= ch { continue; }
-                        for j in 0..size { tmp[j] = ring[c][(pos + j) % size]; }
-                        one.iter_mut().for_each(|v| *v = 0.0);
-                        sp.add_power(&tmp, &mut one);
-                        let w = 1.0 / chans.len() as f32;
-                        for (a, o) in acc[si].iter_mut().zip(&one) { *a += o * w; }
-                    }
-                }
-                if let Some([a, b]) = ms {
-                    for (k, sign) in [(0usize, 1.0f32), (1, -1.0)] {
-                        for j in 0..size { let i = (pos + j) % size; tmp[j] = (ring[a][i] + sign * ring[b][i]) * 0.5; }
-                        one.iter_mut().for_each(|v| *v = 0.0);
-                        sp.add_power(&tmp, &mut one);
-                        for (x, o) in acc[series.len() + k].iter_mut().zip(&one) { *x += o; }
-                    }
-                }
-                count += 1;
-            }
-            hop_i += 1;
-        }
-    };
-    let Some(_) = decode(tools, path, track.index, ch, Some(t0.max(0.0)), Some(len), false, &mut feed, stop)? else { return Ok(None) };
-    let n = count.max(1) as f32;
-    Ok(Some(Psd { size, rate: track.rate, db: acc.iter().map(|a| a.iter().map(|&p| (db(p / n) * 10.0).round() / 10.0).collect()).collect() }))
-}
-
 fn track_of(g: &GInfo, track: usize) -> Result<GTrack, String> {
     g.tracks.get(track).cloned().ok_or_else(|| "ไม่มีแทร็กเสียงนี้".to_string())
 }
@@ -413,7 +339,7 @@ pub async fn graph_overview(app: AppHandle, path: String, track: usize) -> Resul
     let tools = tools_dir(&app)?;
     let key = cache_key(Path::new(&path), track);
     if let Some(o) = OVERVIEWS.get_or_init(Default::default).lock().unwrap().get(&key) {
-        return Ok(Some((**o).clone()));
+        return Ok(Some((*o).clone()));
     }
     // ผลที่เก็บไว้ในเครื่องจากครั้งก่อน (ปิดเปิดโปรแกรมแล้วก็ยังใช้ได้)
     let dir = cache_dir(&app);
@@ -455,7 +381,7 @@ pub fn graph_cancel() {
 
 /// ช่วงที่ซูม · คำขอใหม่ทำให้คำขอเก่าที่ยังอ่านอยู่หยุดเอง (เลื่อนซูมเร็ว ๆ ไม่ค้าง) · None = มีคำขอใหม่แทน
 #[tauri::command]
-pub async fn graph_window(app: AppHandle, path: String, track: usize, t0: f64, t1: f64, cols: usize, bins: usize, log: bool, full: Option<bool>) -> Result<Option<Window>, String> {
+pub async fn graph_window(app: AppHandle, path: String, track: usize, t0: f64, t1: f64, cols: usize, bins: usize, log: bool, full: Option<bool>, nospec: Option<bool>) -> Result<Option<Window>, String> {
     let tools = tools_dir(&app)?;
     let my_gen = WINDOW_GEN.fetch_add(1, Ordering::SeqCst) + 1;
     tauri::async_runtime::spawn_blocking(move || {
@@ -463,7 +389,7 @@ pub async fn graph_window(app: AppHandle, path: String, track: usize, t0: f64, t
         let g = info(&tools, p)?;
         let t = track_of(&g, track)?;
         let stop = || WINDOW_GEN.load(Ordering::SeqCst) != my_gen;
-        window_read(&tools, p, &t, t0, t1, cols, bins.clamp(16, 512), log, full.unwrap_or(false), &stop)
+        window_read(&tools, p, &t, t0, t1, cols, bins.clamp(16, 512), log, full.unwrap_or(false), nospec.unwrap_or(false), &stop)
     }).await.map_err(|e| e.to_string())?
 }
 
@@ -534,6 +460,8 @@ pub(crate) use decode::*;
 
 mod dsp;
 pub use dsp::*;
+mod range;
+pub use range::*;
 
 #[cfg(test)]
 mod tests;
