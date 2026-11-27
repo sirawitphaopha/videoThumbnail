@@ -80,6 +80,8 @@ export function Detail(p: { m: Movie; showFrames: boolean; scanning: boolean; re
         <dt>Attachment</dt><dd>{m.images ? `${m.hasCover ? "โปสเตอร์" : "รูป"} ${m.images} รูป` : "ไม่มี"}</dd>
       </dl>
       <StatusCard m={m} reminder={p.reminder} onCheck={p.onCheck} onPoster={() => p.onPoster(m.path)} />
+      {/* ปกเสียไม่ใช่อ่านไฟล์ไม่ได้ การ์ดสภาพไฟล์ยังอยู่ บอกสั้น ๆ ต่อใต้ (AUDIT ข้อ 47) · ข้อความจากเครื่องมืออยู่ใน title */}
+      {m.coverError && !m.missing && !m.error && <div className="stat warn" data-cover-error title={m.coverError}><CardIcon kind="warn" /><div><b>ทำภาพปกไม่ได้</b><Phr>{"รูปปกที่แนบในไฟล์อาจเสีย\nส่วนภาพ เสียง และซับอ่านได้ครบ"}</Phr></div></div>}
       {(m.pairs?.length ?? 0) > 0 && <PairCard m={m} onEdit={() => p.onAv(m.path)} />}
       {(m.linked?.length ?? 0) > 0 && <LinkCard m={m} onPage={p.onPage} onMerge={p.onMerge} />}
       <div className="actions">

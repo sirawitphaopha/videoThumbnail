@@ -56,3 +56,15 @@ fn mp4_cover_is_attached_pic_not_main_video() {
     assert_eq!(p.video_short.as_deref(), Some("AVC 1080p"));
     assert_eq!(p.cover, Some(CoverSource::AttachedPic { index: 1, codec: "mjpeg".into() }));
 }
+
+/// AUDIT ข้อ 49 · คลิปแนวตั้งได้ป้ายตามด้านยาว ไม่ใช่ความกว้าง · แนวนอนเหมือนเดิม
+#[test]
+fn res_label_uses_long_side() {
+    assert_eq!(res_label(2160, 3840), "2160p");
+    assert_eq!(res_label(1080, 1920), "1080p");
+    assert_eq!(res_label(720, 1280), "720p");
+    assert_eq!(res_label(1920, 800), "1080p");
+    assert_eq!(res_label(3840, 2160), "2160p");
+    assert_eq!(res_label(640, 480), "480p");
+    assert_eq!(res_label(480, 640), "480p");
+}

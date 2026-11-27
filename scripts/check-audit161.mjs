@@ -764,6 +764,38 @@ T[159] = async (p, check) => {
   check("159 ค่าสุดท้ายหลังรวมกฎเท่าเดิม", cs.kv === "76px" && cs.dd === "nowrap" && cs.pin.join() === "46px,0px,10px" && cs.vz.join() === "46px,right" && cs.cl === "181px", JSON.stringify(cs));
 };
 
+// ชุด 12 ---------------------------------------------------------------
+T[42] = async (p, check) => {
+  // รูปแรกที่ยังไม่กดใช้ ยกเลิกหน้าครอปแล้วการ์ดว่างเหมือนเดิม
+  await posterWithImage(p, "D:\\รูปปก\\รูปแรก.jpg");
+  await clickText(p, "ยกเลิก"); await wait(p, 600);
+  const empty = await p.evaluate(() => ({ info: !!document.querySelector(".ppinfo"), drop: !!document.querySelector("[data-drop=poster]") }));
+  check("42 รูปแรกที่ยังไม่กดใช้ ยกเลิกหน้าครอปแล้วการ์ดว่างให้เลือกรูปใหม่", !empty.info && empty.drop, JSON.stringify(empty));
+  // มีรูปที่กดใช้แล้ว ลากรูปใหม่มาวาง หน้าครอปขึ้น กดยกเลิก การ์ดต้องกลับเป็นรูปเดิม
+  await pick(p, "D:\\รูปปก\\รูปเดิม.jpg"); await click(p, "[data-drop=poster]"); await p.waitForSelector("[data-use]"); await wait(p, 300);
+  await click(p, "[data-use]"); await wait(p, 600);
+  const name = () => p.evaluate(() => document.querySelector(".ppinfo")?.innerText.split("\n")[0] ?? null);
+  const before = await name();
+  await p.evaluate(() => { const r = document.querySelector(".ppinfo").getBoundingClientRect(); window.__emit("tauri://drag-drop", { paths: ["D:\\รูปปก\\รูปใหม่.jpg"], position: { x: r.left + 20, y: r.top + 10 } }); });
+  await p.waitForSelector("[data-use]"); await wait(p, 300);
+  await clickText(p, "ยกเลิก"); await wait(p, 600);
+  const after = await name();
+  const again = await p.evaluate(() => window.__TAURI_INTERNALS__.invoke("poster_restore"));
+  check("42 เปลี่ยนรูปแล้วยกเลิกหน้าครอป การ์ดกลับเป็นรูปที่กดใช้ไว้เดิม", before === "รูปเดิม.jpg" && after === "รูปเดิม.jpg" && again === false, JSON.stringify({ before, after, again }));
+};
+
+T[47] = async (p, check) => {
+  // ปกในไฟล์ทำภาพเล็กไม่ได้ ฝั่ง Rust ใส่ช่อง coverError แผงขวายังมีการ์ดสภาพไฟล์ และบอกปกเสียสั้น ๆ ต่อใต้
+  const lib = await p.evaluate(() => window.__TAURI_INTERNALS__.invoke("get_library"));
+  const i = lib.movies.findIndex((x) => !x.missing && !x.error);
+  const mv = lib.movies.map((x, k) => (k === i ? { ...x, coverError: "Invalid data found when processing input", thumb: null, thumb2: null } : x));
+  await p.evaluate(([m, f]) => window.__emit("scan-finished", { movies: m, folders: f, scanning: false }), [mv, lib.folders]); await wait(p, 400);
+  await p.evaluate((n) => [...document.querySelectorAll(".book")].find((b) => b.dataset.movie === n)?.click(), lib.movies[i].name); await wait(p, 400);
+  await p.evaluate(() => document.querySelector("[data-cover-error]")?.scrollIntoView({ block: "center" })); await wait(p, 200);
+  const r = await p.evaluate(() => { const pane = document.querySelector("[data-cover-error]")?.parentElement; return { card: document.querySelector("[data-cover-error]")?.innerText ?? null, stats: pane ? [...pane.querySelectorAll(":scope > .stat")].length : 0, err: document.body.innerText.includes("อ่านข้อมูลไฟล์ไม่ได้") }; });
+  check("47 ปกเสียขึ้นการ์ดทำภาพปกไม่ได้ ไม่ขึ้นว่าอ่านข้อมูลไฟล์ไม่ได้ การ์ดสภาพไฟล์ยังอยู่", !!r.card && r.card.includes("ทำภาพปกไม่ได้") && !r.err && r.stats >= 2, JSON.stringify(r));
+};
+
 // ---------------------------------------------------------------- ตัวรัน
 const want = process.argv.slice(2).map(Number).filter(Boolean);
 const ids = Object.keys(T).map(Number).filter((n) => !want.length || want.includes(n)).sort((a, b) => a - b);

@@ -30,3 +30,30 @@ fn trash_reasons_in_thai() {
     assert!(trash_reason(32, true).contains("ถูกเปิดอยู่ในโปรแกรมอื่น"));
     for r in [0, 0x75, 0x78, 0x7C, 0x402, 2, 5, 32] { assert!(!trash_reason(r, true).contains("รหัส"), "{r}"); }
 }
+
+/// AUDIT ข้อ 46 · เหตุที่ไม่ลงถังขยะบอกตามเหตุจริง ที่อยู่ยาวเกินไม่ใช่ไดรฟ์ไม่มีถังขยะ
+#[test]
+fn trash_block_names_the_real_reason() {
+    assert_eq!(trash_block(true, || true, 120), None);
+    assert!(trash_block(false, || true, 120).unwrap().starts_with("ไม่ได้ตรวจไฟล์ใหม่"));
+    assert!(trash_block(true, || false, 120).unwrap().starts_with("ไดรฟ์นี้ไม่มีถังขยะ"));
+    let long = trash_block(true, || true, 300).unwrap();
+    assert!(long.contains("ยาวเกิน") && !long.contains("ไม่มีถังขยะ"), "{long}");
+    assert!(trash_block(true, || true, 259).is_none());
+    // ไม่ได้ตรวจ ไม่ต้องถามไดรฟ์
+    assert!(trash_block(false, || panic!("ไม่ควรถามไดรฟ์"), 10).is_some());
+}
+
+/// AUDIT ข้อ 50 · ชื่อภาษาของแทร็กในหน้าใส่โปสเตอร์ใช้ตารางเดียวกับชั้นวาง
+#[test]
+fn streams_of_uses_shelf_language_names() {
+    let j = serde_json::json!({ "streams": [
+        { "index": 0, "codec_type": "video", "codec_name": "h264" },
+        { "index": 1, "codec_type": "audio", "codec_name": "vorbis", "tags": { "language": "ger" } },
+        { "index": 2, "codec_type": "audio", "codec_name": "aac", "tags": { "language": "spa" } },
+        { "index": 3, "codec_type": "subtitle", "codec_name": "subrip", "tags": { "language": "dut" } },
+        { "index": 4, "codec_type": "subtitle", "codec_name": "subrip", "tags": { "language": "und" } },
+    ] });
+    let langs: Vec<_> = streams_of(&j).into_iter().map(|s| s.lang).collect();
+    assert_eq!(langs, [None, Some("เยอรมัน".into()), Some("สเปน".into()), Some("DUT".into()), None]);
+}

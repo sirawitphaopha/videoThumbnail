@@ -1,6 +1,6 @@
 /* เปิดไฟล์หนัง เปิดรูป รูปที่เลือกมาจากหน้าอื่น และลากไฟล์จาก Explorer มาวาง
    แยกจาก PosterPage.tsx ตอนจัดโครงไฟล์ตามความหมาย (BUGS ข้อ 155 ขั้น 8) เนื้อโค้ดยกมาทั้งก้อน */
-import { useCallback, useEffect } from "react";
+import { useCallback, useEffect, useRef } from "react";
 import { usePageActiveRef } from "../../lib/pageActive";
 import { type CropChoice } from "../../components/CropDialog";
 import { IMAGE_EXT, MOVIE_EXT, inApp, posterApi } from "../../lib/api/index";
@@ -11,6 +11,11 @@ import type { Po0 } from "./posterCtx";
 
 export function usePosterFiles(c: Po0) {
   const { p, setAck, setChoice, setCropOpen, setDrop, setLoading, setMovie, setMovieErr, setMoviePath, setOnce, setOver, setPoster, setPosterErr, setRun, setTyped, setUserCrop, settings, toast } = c;
+  // รูปที่กดใช้ไว้ก่อนเปิดรูปใหม่ ยกเลิกหน้าครอปของรูปใหม่แล้วคืน (AUDIT ข้อ 42 · เดิมยกเลิกแล้วการ์ดรูปว่าง ต้องหาและครอปรูปเดิมใหม่)
+  const cur = useRef({ poster: c.poster, choice: c.choice, userCrop: c.userCrop });
+  cur.current = { poster: c.poster, choice: c.choice, userCrop: c.userCrop };
+  const prev = useRef<typeof cur.current | null>(null);
+  useEffect(() => { if (c.choice) prev.current = null; }, [c.choice]);
   // ---------- ไฟล์หนัง ----------
   const loadMovie = useCallback(async (path: string) => {
     setTyped(null);
@@ -46,8 +51,11 @@ export function usePosterFiles(c: Po0) {
     const ext = extOf(path);
     if (!IMAGE_EXT.includes(ext)) { setPosterErr(ext ? `ไฟล์ .${ext} ใช้ไม่ได้` : "ไฟล์ที่ไม่มีนามสกุลใช้ไม่ได้"); return; }
     setLoading("poster");
+    const before = cur.current;
     try {
       const info = await posterApi.open(path);
+      // จำเฉพาะตอนมีรูปที่กดใช้ เปิดรูปใหม่ซ้อนจากหน้าครอปที่ยังไม่กดใช้ คงของที่จำไว้เดิม (ฝั่ง Rust จำแบบเดียวกัน stash_for_open)
+      if (before.choice) prev.current = before;
       setPoster(info);
       setChoice(null);
       setCropOpen(true); // วางรูปแล้วหน้าต่างครอปขึ้นเองทุกครั้ง (สเปกข้อ 7)
@@ -58,6 +66,19 @@ export function usePosterFiles(c: Po0) {
       setLoading(null);
     }
   }, []);
+
+  /** ยกเลิกหน้าครอปของรูปที่ยังไม่กดใช้ · มีรูปเดิมให้คืนก็คืน ไม่มีล้างรูป */
+  const cancelCrop = async () => {
+    setCropOpen(false);
+    const back = prev.current;
+    prev.current = null;
+    if (back && (await posterApi.restore().catch(() => false))) {
+      setPoster(back.poster); setChoice(back.choice); setUserCrop(back.userCrop);
+      return;
+    }
+    setPoster(null);
+    posterApi.clear().catch(() => {});
+  };
 
   /** รูปที่ครอปไว้แล้วจากปกจับคู่ · ทำรูปด้วยค่าเดิม ไม่เปิดหน้าครอป */
   const loadChosen = async (img: PosterStart) => {
@@ -155,5 +176,5 @@ export function usePosterFiles(c: Po0) {
   }, []);
 
   // ---------- เงื่อนไขปุ่มเริ่ม ----------
-  return { loadMovie, loadPoster, loadChosen, zoneAt, busyNow, handleDrop, pageOn };
+  return { loadMovie, loadPoster, cancelCrop, loadChosen, zoneAt, busyNow, handleDrop, pageOn };
 }

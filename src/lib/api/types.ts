@@ -75,6 +75,8 @@ export type Movie = {
   cover2Name?: string | null;
   cover2Aspect?: number | null;
   status: MovieStatus; check: CheckInfo | null; sha256: string | null; missing: boolean; error: string | null;
+  /** อ่านไฟล์ได้แต่ทำภาพเล็กของปกไม่ได้ แยกจาก error (AUDIT ข้อ 47) */
+  coverError?: string | null;
   /** เสียงกับซับที่จับคู่ไว้ ไม่รวมเข้าไฟล์ (แผนเสียงและซับ ขั้น 7) */
   pairs?: Pair[];
   /** ปกที่จับคู่ไว้ ไม่ได้อยู่ในไฟล์ (แผนจับคู่รูปปก) */

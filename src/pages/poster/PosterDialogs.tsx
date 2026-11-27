@@ -11,7 +11,7 @@ import { FolderImages, baseName, kindWord, trackTitle } from "./parts";
 import type { PoCtx } from "./posterCtx";
 
 export default function PosterDialogs({ pg }: { pg: PoCtx }) {
-  const { ack, askDelete, askMp4, askStop, big, choice, cropOpen, drop, listOpen, loadPoster, loading, movie, moviePath, mp4Bad, mp4VideoBad, pct, pendingDrop, poster, pressStart, rendering, run, runMode, runMore, setAck, setAskDelete, setAskMp4, setAskStop, setBig, setChoice, setCropOpen, setDrop, setListOpen, setOne, setPoster, setRunMore, setUserCrop, settings, start } = pg;
+  const { ack, askDelete, askMp4, askStop, big, cancelCrop, choice, cropOpen, drop, listOpen, loadPoster, loading, movie, moviePath, mp4Bad, mp4VideoBad, pct, pendingDrop, poster, pressStart, rendering, run, runMode, runMore, setAck, setAskDelete, setAskMp4, setAskStop, setBig, setChoice, setCropOpen, setDrop, setListOpen, setOne, setRunMore, setUserCrop, settings, start } = pg;
   return (
     <>
 
@@ -25,7 +25,7 @@ export default function PosterDialogs({ pg }: { pg: PoCtx }) {
       )}
       {cropOpen && poster && (
         <CropDialog key={poster.path} info={poster} start={choice} defaultFormat={(settings?.posterFormat ?? "jpg") as "jpg" | "png"} defaultQuality={settings?.jpgQuality ?? 90}
-          onCancel={() => { setCropOpen(false); if (!choice) { setPoster(null); posterApi.clear().catch(() => {}); } }}
+          onCancel={() => { if (choice) setCropOpen(false); else void cancelCrop(); }}
           onUse={(c) => { setChoice(c); setUserCrop(true); setCropOpen(false); }}
           onPickImage={loadPoster} />
       )}

@@ -153,3 +153,23 @@ fn scan_test_media() {
     assert!(r5.movies.is_empty(), "เอาโฟลเดอร์ออกแล้วหนังต้องหายจากชั้น");
     assert!(!Path::new(&harbor_thumb).exists(), "ภาพเล็กของหนังที่หายจากชั้นต้องถูกลบ");
 }
+
+/// AUDIT ข้อ 47 · ปกที่ทำภาพเล็กไม่ได้ ไม่ทำให้อ่านไฟล์ซ้ำทุกรอบ และไม่อยู่ช่องเดียวกับอ่านไฟล์ไม่ได้
+#[test]
+fn cover_error_does_not_force_reread() {
+    let base = Movie { size: 100, mtime: 5, has_cover: true, ..Default::default() };
+    // ปกเสีย ภาพเล็กไม่มี ไฟล์ไม่เปลี่ยน ไม่ต้องอ่านใหม่
+    let bad_cover = Movie { cover_error: Some("Invalid data found when processing input".into()), ..base.clone() };
+    assert!(scan::unchanged(&bad_cover, 100, 5));
+    // ไฟล์เปลี่ยนแล้วอ่านใหม่ ลองทำปกอีกครั้ง
+    assert!(!scan::unchanged(&bad_cover, 101, 5));
+    // มีปกแต่ภาพเล็กหายโดยไม่ได้เสีย ยังอ่านใหม่เหมือนเดิม
+    assert!(!scan::unchanged(&base, 100, 5));
+    // อ่านไฟล์ไม่ได้ยังอ่านใหม่ทุกรอบเหมือนเดิม
+    assert!(!scan::unchanged(&Movie { error: Some("x".into()), ..bad_cover.clone() }, 100, 5));
+    // คลังเดิมที่ไม่มีช่องนี้อ่านได้ และไม่มีปัญหาปกไม่เขียนช่องนี้ลงคลัง
+    let j = serde_json::to_value(&base).unwrap();
+    assert!(j.get("coverError").is_none());
+    let back: Movie = serde_json::from_value(serde_json::to_value(&bad_cover).unwrap()).unwrap();
+    assert_eq!(back.cover_error.as_deref(), Some("Invalid data found when processing input"));
+}

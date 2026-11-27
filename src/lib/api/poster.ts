@@ -31,6 +31,8 @@ export const posterApi = {
   render: (geo: Geometry, format: "jpg" | "png", quality: number, opts: { choose?: boolean; sizes?: boolean; target?: CropTarget } = {}) =>
     call<RenderInfo>("poster_render", { req: { geo, format, quality, choose: !!opts.choose, sizes: !!opts.sizes, target: opts.target ?? null } }),
   clear: (target?: CropTarget) => call<void>("poster_clear", { target: target ?? null }),
+  /** ยกเลิกหน้าครอปของรูปที่เปิดใหม่ คืนรูปที่กดใช้ไว้ก่อนเปิด · false ไม่มีอะไรให้คืน (AUDIT ข้อ 42) */
+  restore: () => call<boolean>("poster_restore"),
   /** รูปใหญ่ของตัวดูรูปเต็มจอ · ส่งค่าครอปมาได้ภาพหลังครอป · ไม่แตะรูปที่ค้างในหน้าอื่น */
   view: (path: string, geo: Geometry | null) => call<ViewInfo>("poster_view", { path, geo }),
   folderImages: (movie: string) => call<FolderImage[]>("poster_folder_images", { movie }),

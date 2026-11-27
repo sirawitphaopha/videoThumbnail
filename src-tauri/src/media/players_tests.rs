@@ -100,3 +100,15 @@ fn scan_dir_walks_two_levels_only() {
     names.sort();
     assert_eq!(names, ["mpv.exe", "vlc.exe"]);
 }
+
+/// AUDIT ข้อ 40 · ProgramFiles กับ ProgramW6432 ชี้ที่เดียวกันโดยมี ProgramFiles(x86) คั่นกลาง ต้องเหลือรอบเดียว
+#[test]
+fn unique_roots_drops_non_adjacent_duplicates() {
+    let r = unique_roots(vec![
+        PathBuf::from(r"C:\Program Files"),
+        PathBuf::from(r"C:\Program Files (x86)"),
+        PathBuf::from(r"c:\program files\"),
+        PathBuf::from(r"C:\Users\x\AppData\Local\Programs"),
+    ]);
+    assert_eq!(r, vec![PathBuf::from(r"C:\Program Files"), PathBuf::from(r"C:\Program Files (x86)"), PathBuf::from(r"C:\Users\x\AppData\Local\Programs")]);
+}

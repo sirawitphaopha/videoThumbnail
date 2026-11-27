@@ -47,6 +47,8 @@ pub struct PosterState {
     /// ที่เก็บรูปของช่องปกในหน้าเสียงและซับ แยกจากของหน้าใส่โปสเตอร์ · ครอปรูปในหน้าหนึ่งไม่ทับรูปที่ค้างในอีกหน้า
     m_source: Mutex<Option<Source>>,
     m_rendered: Mutex<Option<(Geometry, RgbImage, (u32, u32), bool)>>,
+    /// รูปที่กดใช้ไว้ก่อนเปิดรูปใหม่ ยกเลิกหน้าครอปของรูปใหม่แล้วคืนได้ (AUDIT ข้อ 42)
+    prev: Mutex<Option<prev::Prev>>,
     cancel: AtomicBool,
     running: AtomicBool,
 }
@@ -109,9 +111,10 @@ pub async fn poster_open(app: AppHandle, path: String, target: Option<String>) -
             *st.m_rendered.lock().unwrap() = None;
             *st.m_source.lock().unwrap() = Some(Source { img: dec.img });
         } else {
+            // เดิมล้างรูปที่กดใช้ทันที ยกเลิกหน้าครอปของรูปใหม่แล้วรูปเดิมหายด้วย (AUDIT ข้อ 42)
+            st.stash_for_open();
             st.keep_preview("src", preview.clone());
             *st.rendered.lock().unwrap() = None;
-            *st.chosen.lock().unwrap() = None;
             *st.source.lock().unwrap() = Some(Source { img: dec.img });
         }
         let ext = pi::ext_of(&p);
@@ -212,6 +215,8 @@ pub async fn poster_render(app: AppHandle, req: RenderReq) -> Result<RenderInfo,
                 app.state::<crate::merge::MergeState>().covers.lock().unwrap().insert(slot.clone(), (bytes, format.to_string()));
             } else {
                 *st.chosen.lock().unwrap() = Some((bytes, format.to_string()));
+                // กดใช้รูปใหม่แล้ว ไม่ต้องจำรูปเดิมไว้คืน
+                st.drop_prev();
             }
         }
         Ok(info)
@@ -258,6 +263,13 @@ pub fn poster_clear(st: State<'_, PosterState>, target: Option<String>) {
     *st.source.lock().unwrap() = None;
     *st.rendered.lock().unwrap() = None;
     *st.chosen.lock().unwrap() = None;
+    st.drop_prev();
+}
+
+/// ยกเลิกหน้าครอปของรูปที่เปิดใหม่ · คืนรูปที่กดใช้ไว้ก่อนเปิด (AUDIT ข้อ 42) · ตอบ false เมื่อไม่มีอะไรให้คืน หน้าจอล้างรูปเอง
+#[tauri::command]
+pub fn poster_restore(st: State<'_, PosterState>) -> bool {
+    st.restore_prev()
 }
 
 #[derive(Serialize, Clone)]
@@ -396,6 +408,10 @@ pub async fn poster_apply(app: AppHandle, req: ApplyReq) -> Result<ApplyResult, 
 
 mod apply;
 pub use apply::*;
+mod prev;
 
 #[cfg(test)]
 mod name_tests;
+
+#[cfg(test)]
+mod state_tests;

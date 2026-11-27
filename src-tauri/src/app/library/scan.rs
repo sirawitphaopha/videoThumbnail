@@ -88,6 +88,15 @@ pub fn restore_parked(movies: &mut [Movie], parked: &mut Vec<ParkedCovers>) -> V
     back
 }
 
+/// ไฟล์ไม่เปลี่ยนตั้งแต่อ่านครั้งก่อน ไม่ต้องเรียกเครื่องมืออ่านใหม่
+/// ปกที่ทำภาพเล็กไม่ได้ (cover_error) ไม่นับว่าต้องอ่านใหม่ อ่านใหม่เฉพาะเมื่อไฟล์เปลี่ยน
+/// (AUDIT ข้อ 47 · เดิมเก็บปัญหาปกในช่อง error แล้วนับเป็นต้องอ่านใหม่ทุกรอบ เรียก ffprobe mkvextract ffmpeg ซ้ำทุกครั้ง)
+pub(crate) fn unchanged(m: &Movie, size: u64, mtime: i64) -> bool {
+    m.size == size && m.mtime == mtime && m.error.is_none()
+        && (!m.has_cover || m.cover_error.is_some() || m.thumb.as_deref().map(probe::thumb_is_current).unwrap_or(false))
+        && m.thumb2.as_deref().map(probe::thumb_is_current).unwrap_or(true)
+}
+
 /// อ่านทุกโฟลเดอร์ เทียบกับคลังเดิม คืนคลังใหม่ · `on_movie` ถูกเรียกทุกครั้งที่หนังเรื่องหนึ่งอ่านเสร็จ (ปกขึ้นทีละเรื่อง)
 pub fn scan_core(env: &ScanEnv, existing: Vec<Movie>, on_movie: &(dyn Fn(&Movie, usize, usize) + Sync)) -> ScanResult {
     let mut skip: Vec<PathBuf> = vec![];
@@ -125,9 +134,7 @@ pub fn scan_core(env: &ScanEnv, existing: Vec<Movie>, on_movie: &(dyn Fn(&Movie,
         let old = by_id.get(&fid).cloned().or_else(|| by_path.get(&f.path.to_string_lossy().to_lowercase()).and_then(|id| by_id.get(id).cloned()));
         let (name, ext) = split_name(&f.path);
         match old {
-            Some(mut m) if m.size == f.size && m.mtime == f.mtime && m.error.is_none()
-                && (!m.has_cover || m.thumb.as_deref().map(probe::thumb_is_current).unwrap_or(false))
-                && m.thumb2.as_deref().map(probe::thumb_is_current).unwrap_or(true) => {
+            Some(mut m) if unchanged(&m, f.size, f.mtime) => {
                 // ไม่เปลี่ยน · อาจแค่เปลี่ยนชื่อหรือย้ายใน Explorer
                 m.id = fid;
                 m.path = f.path.to_string_lossy().to_string();
@@ -230,6 +237,7 @@ pub(crate) fn read_one(env: &ScanEnv, f: &Found, fid: &str, old: Option<Movie>) 
     match probe::probe(env.tools, &f.path) {
         Ok(p) => {
             m.error = None;
+            m.cover_error = None;
             m.duration = p.duration;
             m.video = p.video;
             m.video_short = p.video_short;
@@ -249,7 +257,8 @@ pub(crate) fn read_one(env: &ScanEnv, f: &Found, fid: &str, old: Option<Movie>) 
             for src in [p.cover, p.cover_land].into_iter().flatten() {
                 match probe::make_thumb(env.tools, &f.path, &src, env.work, env.thumbs, &safe_id(fid)) {
                     Ok(t) => made.push(t),
-                    Err(e) => m.error = Some(e),
+                    // ปกเสียไม่ใช่อ่านไฟล์ไม่ได้ ข้อมูลภาพ เสียง ซับ อ่านได้ครบ (AUDIT ข้อ 47)
+                    Err(e) => m.cover_error = Some(e),
                 }
             }
             made.sort_by_key(|t| t.aspect >= 1.0);

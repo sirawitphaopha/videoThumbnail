@@ -74,13 +74,21 @@ fn sorted_unique(mut found: Vec<PathBuf>) -> Vec<PathBuf> {
     found
 }
 
+/// ตัดโฟลเดอร์ซ้ำ ไม่สนตัวพิมพ์ใหญ่เล็กและขีดท้าย ไม่สนว่าซ้ำติดกันไหม
+/// (AUDIT ข้อ 40 · เครื่อง 64 บิต ProgramFiles กับ ProgramW6432 เป็นโฟลเดอร์เดียวกันแต่มี ProgramFiles(x86) คั่นกลาง
+///  dedup ตัดเฉพาะตัวที่ติดกัน จึงเดิน Program Files สองรอบ)
+pub(crate) fn unique_roots(roots: Vec<PathBuf>) -> Vec<PathBuf> {
+    let mut seen = std::collections::HashSet::new();
+    roots.into_iter().filter(|r| seen.insert(r.to_string_lossy().trim_end_matches(['\\', '/']).to_lowercase())).collect()
+}
+
 /// โปรแกรมเล่นทุกตัวที่หาเจอในเครื่อง
 pub fn scan() -> Vec<PathBuf> {
     let mut roots: Vec<PathBuf> = ["ProgramFiles", "ProgramFiles(x86)", "ProgramW6432"].iter().filter_map(|k| std::env::var_os(k).map(PathBuf::from)).collect();
     if let Some(l) = std::env::var_os("LOCALAPPDATA") {
         roots.push(PathBuf::from(l).join("Programs"));
     }
-    roots.dedup();
+    let roots = unique_roots(roots);
     let mut found = vec![];
     // K-Lite Codec Pack วาง MPC-HC ไว้ลึกสองชั้น Program Files (x86)\K-Lite Codec Pack\MPC-HC64 (เจอบนเครื่องพี่กัน 7 พ.ย. 2569)
     for r in &roots {

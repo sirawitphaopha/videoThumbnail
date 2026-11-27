@@ -40,15 +40,6 @@ pub struct Counts {
     pub subs: usize,
 }
 
-/// ภาษาเป็นคำไทย
-pub fn lang_word(code: &str) -> Option<String> {
-    let w = match code {
-        "tha" | "th" => "ไทย", "eng" | "en" => "อังกฤษ", "jpn" | "ja" => "ญี่ปุ่น", "kor" | "ko" => "เกาหลี",
-        "chi" | "zho" | "zh" => "จีน", "fre" | "fra" | "fr" => "ฝรั่งเศส", "" | "und" => return None, _ => return Some(code.to_string()),
-    };
-    Some(w.to_string())
-}
-
 /// แทร็กนี้ใส่ใน MP4 แบบไม่แปลงภาพเสียงใหม่ได้ไหม (ffmpeg ตัวเก็บไฟล์ MP4)
 pub fn mp4_fit(kind: &str, codec: &str) -> (&'static str, Option<String>) {
     match kind {
@@ -88,6 +79,7 @@ pub fn ffprobe_json(tools: &Path, file: &Path) -> Result<Value, String> {
 }
 
 /// แทร็กภาพ เสียง ซับ ของไฟล์ (ไม่นับรูปปกที่ติดมา)
+/// ชื่อภาษาใช้ตาราง probe::lang_th ตัวเดียวกับชั้นวาง (AUDIT ข้อ 50 · เดิมใช้ตารางหกภาษาของตัวเอง เสียงเยอรมันขึ้นว่าเสียงภาษาger)
 pub fn streams_of(j: &Value) -> Vec<StreamInfo> {
     let empty = vec![];
     j["streams"].as_array().unwrap_or(&empty).iter().filter_map(|st| {
@@ -98,7 +90,7 @@ pub fn streams_of(j: &Value) -> Vec<StreamInfo> {
         let codec = st["codec_name"].as_str().unwrap_or("").to_string();
         let (fit, why) = mp4_fit(kind, &codec);
         Some(StreamInfo {
-            index: st["index"].as_u64().unwrap_or(0), kind: kind.into(), lang: lang_word(st["tags"]["language"].as_str().unwrap_or("")),
+            index: st["index"].as_u64().unwrap_or(0), kind: kind.into(), lang: crate::media::probe::lang_th(st["tags"]["language"].as_str().unwrap_or("")),
             mp4: fit.into(), why, codec,
         })
     }).collect()
@@ -349,6 +341,20 @@ pub fn cancelled(untouched: &str, partial: Option<&Path>) -> ApplyProblem {
     fail("cancelled", "หยุดแล้ว", d)
 }
 
+/// เหตุที่ไม่ส่งไฟล์เดิมลงถังขยะ บอกตามเหตุจริง · None ส่งลงถังได้
+/// (AUDIT ข้อ 46 · เดิมที่อยู่ยาวเกิน 260 ตัวก็บอกว่าไดรฟ์นี้ไม่มีถังขยะ ทั้งที่ไดรฟ์มีถังขยะ)
+pub(crate) fn trash_block(verified: bool, fixed_drive: impl FnOnce() -> bool, path_units: usize) -> Option<&'static str> {
+    if !verified {
+        Some("ไม่ได้ตรวจไฟล์ใหม่ จึงไม่ลบไฟล์เดิม ย้ายไปโฟลเดอร์ไฟล์เดิมแทน")
+    } else if !fixed_drive() {
+        Some("ไดรฟ์นี้ไม่มีถังขยะ ย้ายไฟล์เดิมไปโฟลเดอร์ไฟล์เดิมแทน")
+    } else if path_units >= 260 {
+        Some("ที่อยู่ไฟล์เดิมยาวเกินที่ถังขยะของ Windows รับได้ ย้ายไฟล์เดิมไปโฟลเดอร์ไฟล์เดิมแทน")
+    } else {
+        None
+    }
+}
+
 /// ไฟล์ใหม่ที่ทำเสร็จ (.partial) เป็นชื่อจริง แล้วจัดการไฟล์เดิม · คืน (kept | trash, ที่ย้ายไป)
 /// ย้ายไปโฟลเดอร์ไฟล์เดิม หรือลงถังขยะเฉพาะหลังตรวจผ่าน บนไดรฟ์ที่มีถังขยะ · ไฟล์เดิมถูกเปิดอยู่ ไม่ย้าย ไม่ลบ
 /// ชื่อเดียวกัน (MKV เป็น MKV · MP4 เป็น MP4) ต้องย้ายไฟล์เดิมออกก่อน แล้วค่อยเปลี่ยน .partial เป็นชื่อจริง · เปลี่ยนไม่สำเร็จ ย้ายไฟล์เดิมกลับที่เดิม
@@ -367,9 +373,10 @@ pub fn finish_output(
     if !same_name {
         finish_partial()?;
     }
-    let trash = original_mode == "trash" && verified && drive_is_fixed(&dir) && src.to_string_lossy().encode_utf16().count() < 260;
-    if original_mode == "trash" && !trash {
-        notes.push(if !verified { "ไม่ได้ตรวจไฟล์ใหม่ จึงไม่ลบไฟล์เดิม ย้ายไปโฟลเดอร์ไฟล์เดิมแทน".into() } else { "ไดรฟ์นี้ไม่มีถังขยะ ย้ายไฟล์เดิมไปโฟลเดอร์ไฟล์เดิมแทน".into() });
+    let block = if original_mode == "trash" { trash_block(verified, || drive_is_fixed(&dir), src.to_string_lossy().encode_utf16().count()) } else { None };
+    let trash = original_mode == "trash" && block.is_none();
+    if let Some(b) = block {
+        notes.push(b.into());
     }
     // ไฟล์เดิมถูกเปิดระหว่างทำ · ไม่ย้าย ไม่ลบ ทิ้งไว้ที่เดิม (เช็กซ้ำตรงจังหวะที่ย้ายจริง)
     let moved = if !not_in_use(src) {
