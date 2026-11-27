@@ -16,7 +16,7 @@ export const TP_OPTS: { value: TrackPanel; name: string; desc: string; img: stri
   { value: "side", name: "แผงขวา", desc: "อยู่ด้านขวาระหว่างแถบชื่อหนังกับแถววิธี\nเห็นชื่อแทร็กทุกแถวและปุ่มรวมยังกดได้", img: tpSide },
 ];
 // คำอธิบายการ์ดกว้าง 250 px ที่หน้าต่าง 1280 แต่ละวลีวัดแล้วพอดีบรรทัดเดียว (ยาวสุด 203 px) ขึ้นบรรทัดตรงรอยต่อวลี ไม่ตัดกลางวลี ไม่ถ่าง (เดิมตัด "อีก / ครั้ง" และบรรทัดบนถ่าง)
-import { IbTable, IbPlay, IbEye, IbCrop, IcFile, IbWand } from "../../components/icons";
+import { IbTable, IbPlay, IbEye, IbCrop, IcFile, IbWand, IcBitrate } from "../../components/icons";
 
 export const FolderIcon = () => <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="#b0355f" strokeWidth="2" aria-hidden="true"><path d="M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v8a2 2 0 01-2 2H5a2 2 0 01-2-2z" /></svg>;
 
@@ -123,6 +123,7 @@ export const SET_GROUPS: { title: string; items: { id: string; label: string; ic
   { title: "เกี่ยวกับ", items: [
     { id: "types", label: "ชนิดไฟล์", icon: <IcFile /> },
     { id: "thanks", label: "ขอบคุณ", icon: <IcHeart /> },
+    { id: "lines", label: "บรรทัดโค้ด", icon: <IcBitrate /> },
   ] },
 ];
 /** หน้าที่ของเครื่องมือแต่ละตัว (สเปกข้อ 12 หน้าที่ของ ffmpeg = ส่งออก MP4 และตรวจละเอียด) */

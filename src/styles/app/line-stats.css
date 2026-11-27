@@ -1,0 +1,55 @@
+/* หัวข้อบรรทัดโค้ดในหน้าตั้งค่า (BUGS ข้อ 160 · src/pages/settings/lines/)
+   สีใช้ตัวแปรของโทนทั้งหมด ไม่เขียนรหัสสี สีของกลุ่มในกราฟอยู่ในโค้ด lineData.ts ตัวแปลงโทนจะได้ไม่เปลี่ยน */
+.lst-empty { padding: 16px 18px; border: 1px dashed var(--line); border-radius: 10px; background: var(--win2); display: grid; gap: 4px; }
+
+.lst-tiles { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; margin-bottom: 12px; }
+.lst-tile { border: 1px solid var(--line); border-radius: 10px; padding: 10px 14px; background: var(--win2); display: flex; flex-direction: column; min-width: 0; }
+.lst-tile > span { font-size: 13px; color: var(--txt2); }
+.lst-tile > b { font-size: 24px; font-weight: 700; line-height: 1.35; color: var(--txt); font-variant-numeric: tabular-nums; }
+.lst-tile > em { font-style: normal; font-size: 12.5px; color: var(--txt3); }
+.lst-up { color: var(--ok-ink) !important; }
+.lst-down { color: var(--bad-ink) !important; }
+.lst-zero { color: var(--txt3) !important; }
+
+.lst-split { display: flex; height: 8px; border-radius: 4px; overflow: hidden; gap: 2px; background: var(--win); }
+.lst-split > i { display: block; min-width: 2px; }
+.lst-splitlab { display: flex; flex-wrap: wrap; gap: 4px 16px; margin: 6px 0 14px; }
+.lst-splitlab > span, .lst-tip-r { display: inline-flex; align-items: center; gap: 6px; }
+.lst-splitlab i, .lst-chip > i, .lst-tip-r > i { width: 10px; height: 10px; border-radius: 3px; flex: none; display: inline-block; }
+
+.lst-filters { display: grid; gap: 8px; margin-bottom: 10px; }
+.lst-frow { display: flex; align-items: center; flex-wrap: wrap; gap: 8px 10px; }
+.lst-flab { margin-left: 8px; color: var(--txt2); }
+.lst-chips { display: flex; flex-wrap: wrap; align-items: center; gap: 6px; }
+.lst-chip { display: inline-flex; align-items: center; gap: 6px; height: 30px; padding: 0 10px; border-radius: 9px; border: 1px solid var(--line); background: var(--win); color: var(--txt3); font: inherit; font-size: 13px; cursor: pointer; transition: background .15s, border-color .15s, color .15s; }
+.lst-chip > em { font-style: normal; font-variant-numeric: tabular-nums; color: var(--txt3); font-size: 12px; }
+.lst-chip:not(.on) > i { opacity: .3; }
+.lst-chip.on { color: var(--txt); border-color: color-mix(in srgb, var(--accent) 35%, var(--line)); background: var(--accent-soft); }
+.lst-chip:hover { border-color: color-mix(in srgb, var(--accent) 55%, var(--line)); background: color-mix(in srgb, var(--accent-soft) 70%, var(--win)); }
+.lst-chip.on:hover { background: color-mix(in srgb, var(--accent) 16%, var(--win)); }
+.lst-chip:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+
+.lst-chart { position: relative; margin: 4px 0 6px; }
+.lst-chart svg { display: block; font-family: var(--font); }
+.lst-grid { stroke: var(--line); stroke-width: 1; }
+.lst-base { stroke: var(--txt3); stroke-width: 1; opacity: .5; }
+.lst-axis { fill: var(--txt3); font-size: 11.5px; font-variant-numeric: tabular-nums; }
+.lst-edge { fill: none; stroke: var(--win); stroke-width: 1.5; stroke-linejoin: round; }
+.lst-mark { stroke: var(--txt2); stroke-width: 1; stroke-dasharray: 3 3; opacity: .55; }
+.lst-mlab { fill: var(--txt2); font-size: 11px; font-weight: 600; font-variant-numeric: tabular-nums; }
+.lst-cross { stroke: var(--txt); stroke-width: 1; opacity: .6; pointer-events: none; }
+.lst-tip { position: absolute; top: 24px; min-width: 190px; max-width: 280px; padding: 8px 10px; border-radius: 10px; border: 1px solid var(--line); background: var(--win); box-shadow: 0 6px 20px color-mix(in srgb, var(--txt) 16%, transparent); font-size: 12px; color: var(--txt); pointer-events: none; z-index: var(--z-float); }
+.lst-tip-h { font-weight: 700; display: flex; gap: 8px; align-items: baseline; flex-wrap: wrap; }
+.lst-tip-v { font-weight: 600; color: var(--accent-ink); }
+.lst-tip-s { color: var(--txt3); margin: 1px 0 4px; line-height: 1.4; overflow-wrap: anywhere; }
+.lst-tip-r { display: flex; width: 100%; color: var(--txt2); line-height: 1.45; }
+.lst-tip-r > b { margin-left: auto; padding-left: 12px; font-weight: 600; color: var(--txt); font-variant-numeric: tabular-nums; }
+.lst-tip-t { border-top: 1px solid var(--line); margin-top: 3px; padding-top: 3px; font-weight: 600; color: var(--txt); }
+
+.lst-tablewrap { overflow-x: auto; border: 1px solid var(--line); border-radius: 10px; margin-top: 6px; }
+.lst-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.lst-table th { text-align: left; font-weight: 600; color: var(--txt2); background: var(--win2); padding: 7px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+.lst-table td { padding: 6px 12px; border-bottom: 1px solid var(--line); white-space: nowrap; color: var(--txt); }
+.lst-table tr:last-child td { border-bottom: 0; }
+.lst-table .num { text-align: right; font-variant-numeric: tabular-nums; }
+.lst-table tr.now td { background: color-mix(in srgb, var(--accent-soft) 60%, var(--win)); }

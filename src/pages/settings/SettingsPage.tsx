@@ -13,6 +13,7 @@ import SetCardsLinkAv from "./SetCardsLinkAv";
 import SetCardsShelf from "./SetCardsShelf";
 import SetCardsMedia from "./SetCardsMedia";
 import SetThanks from "./SetThanks";
+import SetLines from "./lines/SetLines";
 
 export default function SettingsPage() {
   const c0 = useSetBase();
@@ -30,6 +31,7 @@ export default function SettingsPage() {
       <SetCardsShelf pg={pg} />
       <SetCardsMedia pg={pg} />
       <SetThanks pg={pg} />
+      <SetLines pg={pg} />
     </div>
     </div>
   );
