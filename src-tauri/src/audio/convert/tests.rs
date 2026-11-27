@@ -238,3 +238,59 @@ fn ape_stop_returns_cancelled() {
     assert!(matches!(r, encode::Done::Cancelled));
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// AUDIT ข้อ 116 · ธงกำลังแปลงคืนเองตอนออกจากขอบเขต แม้โค้ดแปลงพังกลางทาง
+#[test]
+fn running_flag_released_even_on_panic() {
+    let flag = std::sync::atomic::AtomicBool::new(false);
+    {
+        let g = Running::take(&flag);
+        assert!(g.is_some());
+        assert!(Running::take(&flag).is_none(), "งานที่สองต้องจองไม่ได้ระหว่างงานแรก");
+    }
+    assert!(!flag.load(std::sync::atomic::Ordering::SeqCst));
+    let r = std::panic::catch_unwind(std::panic::AssertUnwindSafe(|| {
+        let _g = Running::take(&flag).unwrap();
+        panic!("โค้ดแปลงพัง");
+    }));
+    assert!(r.is_err());
+    assert!(Running::take(&flag).is_some(), "พังแล้วธงต้องคืน งานถัดไปจองได้");
+}
+
+/// AUDIT ข้อ 114 · ปกในคิวย่อเหลือด้านยาวไม่เกินที่ขอ คงสัดส่วน · รูปเล็กอยู่แล้วไม่ขยาย · ข้อมูลเสียอ่านไม่ได้ใช้รูปเต็มแทน
+#[test]
+fn small_cover_shrinks_keeping_ratio() {
+    let big = image::RgbImage::from_pixel(1500, 1000, image::Rgb([200, 40, 90]));
+    let mut png = std::io::Cursor::new(Vec::new());
+    image::DynamicImage::ImageRgb8(big).write_to(&mut png, image::ImageFormat::Png).unwrap();
+    let png = png.into_inner();
+    let s = small_cover(&png, 96).unwrap();
+    let back = image::load_from_memory(&s).unwrap();
+    assert_eq!((back.width(), back.height()), (96, 64));
+    assert!(s.len() < png.len());
+    let tiny = image::RgbImage::from_pixel(40, 60, image::Rgb([1, 2, 3]));
+    let mut t = std::io::Cursor::new(Vec::new());
+    image::DynamicImage::ImageRgb8(tiny).write_to(&mut t, image::ImageFormat::Png).unwrap();
+    let b = image::load_from_memory(&small_cover(&t.into_inner(), 96).unwrap()).unwrap();
+    assert_eq!((b.width(), b.height()), (40, 60));
+    assert!(small_cover(b"not an image", 96).is_none());
+}
+
+/// AUDIT ข้อ 115 · โฟลเดอร์ที่ลากมาขยายเป็นไฟล์เสียงข้างใน ลึกสองชั้น เรียงตามที่อยู่ ไม่เอาไฟล์อื่น ไฟล์ตรง ๆ ส่งต่อ
+#[test]
+fn expand_folder_to_audio_files() {
+    let root = std::env::temp_dir().join(format!("ชั้นหนังขยายโฟลเดอร์-{}", std::process::id()));
+    let cd2 = root.join("อัลบั้ม").join("แผ่น 2");
+    let deep = cd2.join("ลึกเกิน");
+    std::fs::create_dir_all(&deep).unwrap();
+    for f in [root.join("อัลบั้ม").join("02.FLAC"), root.join("อัลบั้ม").join("01.flac"), root.join("อัลบั้ม").join("cover.jpg"), cd2.join("01.mp3"), deep.join("x.flac")] {
+        std::fs::write(f, b"x").unwrap();
+    }
+    let exts: Vec<String> = ["flac", "mp3"].iter().map(|s| s.to_string()).collect();
+    let alone = root.join("เดี่ยว.wav").to_string_lossy().to_string();
+    let got = expand_paths(&[root.join("อัลบั้ม").to_string_lossy().to_string(), alone.clone()], &exts, 100);
+    let names: Vec<String> = got.iter().map(|p| PathBuf::from(p).strip_prefix(&root).map(|x| x.to_string_lossy().replace('\\', "/")).unwrap_or_else(|_| p.clone())).collect();
+    assert_eq!(names, ["อัลบั้ม/01.flac", "อัลบั้ม/02.FLAC", "อัลบั้ม/แผ่น 2/01.mp3", "เดี่ยว.wav"]);
+    assert_eq!(expand_paths(&[root.join("อัลบั้ม").to_string_lossy().to_string()], &exts, 2).len(), 2, "ไม่เกินเพดาน");
+    std::fs::remove_dir_all(&root).unwrap();
+}

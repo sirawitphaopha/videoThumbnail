@@ -122,7 +122,7 @@ export function usePsdDraw(c: P0) {
     const where = await pickSave(beside(filePath, fileName.replace(/\.[^.]+$/, "") + " ความถี่เฉลี่ย.csv"), "csv", "ตาราง CSV"); if (!where) return;
     const head = "Hz," + series.map((s) => s.name + " dB").join(",");
     const rows = psd.db[0].map((_, i) => [fOf(i).toFixed(2), ...psd.db.map((d) => d[i].toFixed(1))].join(","));
-    try { const saved = await graphApi.save(where, null, [head, ...rows].join("\r\n")); toast({ kind: "ok", title: "ส่งออกตารางแล้ว", detail: saved }); }
+    try { const saved = await graphApi.save(where, null, [head, ...rows].join("\r\n"), true); toast({ kind: "ok", title: "ส่งออกตารางแล้ว", detail: saved }); }
     catch (e) { toast({ kind: "bad", title: "ส่งออกไม่ได้", detail: String(e) }); }
   };
   // ช่วงความถี่ที่ซูมอยู่ บอกข้างแถบซูม (BUGS ข้อ 16 ซูมแล้วงงว่าซูมอะไร แกนนอนหน้านี้คือความถี่ ไม่ใช่เวลา)

@@ -64,7 +64,10 @@ export const convertApi = {
   /** ขนาดที่คาดจากการลองแปลงจริง 4 ช่วง ช่วงละ 10 วินาที แล้วคูณขยาย (BUGS ข้อ 120) · bytes เสียงล้วน · cover ขนาดปกเมื่อขอ withCover */
   sizeProbe: (path: string, stream: number, spec: EncodeSpec, channels: number | null, bits: number | null, rate: number | null, duration: number, withCover: boolean) =>
     call<{ bytes: number; cover: number; whole: boolean }>("convert_size_probe", { path, stream, spec, channels, bits, rate, duration, withCover }),
-  cover: (path: string) => call<CoverData | null>("convert_cover", { path }),
+  /** โฟลเดอร์ที่ลากมาขยายเป็นไฟล์เสียงข้างใน ลึกสองชั้น ไฟล์ตรง ๆ ส่งต่อตามเดิม (AUDIT ข้อ 115) */
+  expand: (paths: string[], exts: string[]) => call<string[]>("convert_expand", { paths, exts }),
+  /** known ข้อมูลปกที่ probe อ่านไว้แล้ว ไม่อ่านไฟล์ซ้ำ (AUDIT ข้อ 24) · thumb ย่อด้านยาวไม่เกินเท่านี้จุดสำหรับคิว (AUDIT ข้อ 114) */
+  cover: (path: string, known: AudioFile["cover"] = null, thumb: number | null = null) => call<CoverData | null>("convert_cover", { path, known, thumb }),
   /** ไม่สำเร็จ promise ล้มพร้อม ApplyProblem */
   one: (req: ConvReq) => call<ConvResult>("convert_one", { req }),
   cancel: () => call<void>("convert_cancel"),

@@ -523,6 +523,13 @@ T[24] = async (p, check) => {
   await wait(p, 3000);
   const r = await p.evaluate(() => ({ max: window.__pmax ?? 0, rows: document.querySelectorAll("[data-qrow], .qrow, [data-qitem]").length }));
   check("24 ลากเพลง 30 ไฟล์ อ่านข้อมูลไฟล์พร้อมกันไม่เกิน 3 ไฟล์", r.max >= 1 && r.max <= 3, JSON.stringify(r));
+  // ชุด 15 · ปกของแถวคิว ส่งข้อมูลปกที่อ่านแล้วกับขนาดรูปเล็ก ฝั่ง Rust ไม่ต้องอ่านไฟล์ซ้ำและไม่ส่งรูปเต็ม (ส่วน Rust ของข้อ 24 กับข้อ 114)
+  await over(p, "convert_probe", `const r = await window.__fxOverBase.convert_probe(a); return { ...r, cover: { codec: "mjpeg", width: 1500, height: 1500, stream: 1 } };`);
+  await over(p, "convert_cover", `(window.__cov ??= []).push(a); return { url: "data:image/gif;base64,R0lGODlhAQABAAAAACw=", bytes: 900000, codec: "mjpeg", width: 1500, height: 1500 };`);
+  await p.evaluate(() => window.__emit("tauri://drag-drop", { paths: ["D:\\เพลง\\มีปก 1.flac", "D:\\เพลง\\มีปก 2.flac"], position: { x: 900, y: 400 } }));
+  await wait(p, 2500);
+  const cov = await p.evaluate(() => window.__cov ?? []);
+  check("24 114 แถวคิวขอปกพร้อมข้อมูลปกที่อ่านแล้ว (ไม่อ่านไฟล์ซ้ำ) และขอรูปเล็ก 96 จุด", cov.length >= 2 && cov.every((a) => a.known?.stream === 1 && a.thumb === 96), JSON.stringify(cov.slice(0, 2)));
 };
 
 // ชุด 8 ----------------------------------------------------------------
@@ -818,6 +825,28 @@ T[107] = async (p, check) => {
 T[108] = async (p, check) => {
   const t = await SRC("src/pages/graph/useGraphActions.ts"), a = await SRC("src/lib/api/graph.ts");
   check("108 บันทึกรูปคลื่นส่งค่าไม่ต้องใช้ภาพความถี่ไปฝั่ง Rust", /graphApi\.window\([^)]*true, view === "wave"\)/.test(t) && a.includes("nospec"), "");
+};
+
+// ชุด 15 ---------------------------------------------------------------
+T[115] = async (p, check) => {
+  // ลากโฟลเดอร์เข้าคิวแปลง ฝั่ง Rust ขยายเป็นไฟล์เสียง คิวได้ทุกไฟล์ ไม่ใช่แถวเดียวของโฟลเดอร์ · โฟลเดอร์ว่างขึ้นแถบแจ้ง ไม่เพิ่มแถว
+  await over(p, "convert_expand", `window.__exp = a; return a.paths[0].endsWith("ว่าง") ? [] : ["D:\\\\อัลบั้ม\\\\01.flac", "D:\\\\อัลบั้ม\\\\02.flac", "D:\\\\อัลบั้ม\\\\03.flac"];`);
+  await nav(p, "กราฟเสียง"); await wait(p, 300); await click(p, "[data-gmode=convert]"); await wait(p, 400);
+  const rows = () => p.evaluate(() => document.querySelectorAll("[data-qrow], .qrow, [data-qitem]").length);
+  const before = await rows();
+  await p.evaluate(() => window.__emit("tauri://drag-drop", { paths: ["D:\\อัลบั้ม"], position: { x: 900, y: 400 } })); await wait(p, 1500);
+  const after = await rows();
+  const exp = await p.evaluate(() => window.__exp);
+  check("115 ลากโฟลเดอร์ ได้แถวของไฟล์เสียงข้างในครบ ส่งนามสกุลเสียงไปให้ขยาย", after - before === 3 && exp?.exts?.includes("flac"), JSON.stringify({ before, after, exts: exp?.exts?.length }));
+  await p.evaluate(() => window.__emit("tauri://drag-drop", { paths: ["D:\\โฟลเดอร์ว่าง"], position: { x: 900, y: 400 } })); await wait(p, 800);
+  const t = await toastText(p);
+  check("115 โฟลเดอร์ไม่มีไฟล์เสียง ขึ้นแถบแจ้ง ไม่เพิ่มแถว", (await rows()) === after && !!t && t.includes("ไม่มีไฟล์เสียง"), t);
+};
+
+T[112] = async (p, check) => {
+  // ส่งออกตารางผ่านกล่องเลือกที่บันทึกเสมอ ส่ง replace ให้ฝั่ง Rust เขียนตามชื่อที่เลือก · รูปกราฟฝั่ง Rust ใช้ค่า ask ของหน้าตั้งค่า
+  const t = await SRC("src/pages/graph/usePsdDraw.tsx"), a = await SRC("src/lib/api/graph.ts");
+  check("112 ส่งออกตารางที่เลือกชื่อในกล่องของ Windows แล้ว ขอเขียนทับตามชื่อที่เลือก", /graphApi\.save\(where, null, [^;]*, true\)/.test(t) && /replace/.test(a), "");
 };
 
 // ---------------------------------------------------------------- ตัวรัน

@@ -317,7 +317,8 @@ pub async fn graph_save_image(app: tauri::AppHandle, path: String, b64: String, 
     tauri::async_runtime::spawn_blocking(move || {
         let png = crate::audio::audiograph::unb64(b64.split(',').next_back().unwrap_or(""))?;
         let (data, width, height) = if opt.format == "heic" { encode_heic(&tools, &png, &opt)? } else { encode_image(&png, &opt)? };
-        let saved = crate::audio::audiograph::write_unique(Path::new(&path), &data)?;
+        // ถามที่บันทึกทุกครั้ง = ผ่านกล่องของ Windows ที่ถามเขียนทับแล้ว เขียนตามชื่อที่เลือก · ไม่ถาม ชื่อชนต่อท้าย (2) (AUDIT ข้อ 112)
+        let saved = crate::audio::audiograph::write_out(Path::new(&path), &data, opt.ask)?;
         Ok(SavedImg { path: saved, size: data.len() as u64, width, height })
     }).await.map_err(|e| e.to_string())?
 }

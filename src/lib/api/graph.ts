@@ -52,6 +52,7 @@ export const graphApi = {
   /** ms = คู่ช่องซ้ายขวา ได้เส้นกลางกับเส้นข้างเพิ่มท้าย 2 เส้น */
   psd: (path: string, track: number, t0: number, t1: number, series: number[][], size: number, ms: number[] | null = null) => call<GPsd | null>("graph_psd", { path, track, t0, t1, series, size, ms }),
   cancel: () => call<void>("graph_cancel"),
-  save: (path: string, b64: string | null, text: string | null) => call<string>("graph_save", { path, b64, text }),
+  /** replace ผ่านกล่องเลือกที่บันทึกที่ถามเขียนทับแล้ว เขียนตามชื่อที่เลือก (AUDIT ข้อ 112) */
+  save: (path: string, b64: string | null, text: string | null, replace = false) => call<string>("graph_save", { path, b64, text, replace }),
 };
 

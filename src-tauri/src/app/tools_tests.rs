@@ -175,3 +175,10 @@ fn tools_run_from_a_thai_folder() {
         assert!(out.status.success(), "ffprobe ในโฟลเดอร์ชื่อไทยอ่านไฟล์ชื่อไทยไม่ได้");
     }
 }
+
+/// AUDIT ข้อ 134 · ไฟล์แนบ att- ของหน้า MediaInfo อยู่ในรายการกวาด · ภาพซับรูปที่เก็บไว้ใช้ซ้ำไม่อยู่
+#[test]
+fn tmp_sweep_covers_attachments() {
+    assert!(TMP_SWEEP.iter().any(|p| "att-123-0".starts_with(p)));
+    assert!(!TMP_SWEEP.iter().any(|p| "subimg-abc".starts_with(p)), "ภาพซับรูปที่เก็บไว้ใช้ซ้ำห้ามโดนกวาด");
+}

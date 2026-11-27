@@ -341,10 +341,23 @@ pub fn player_for(app: &AppHandle, file: &Path) -> Result<Option<PathBuf>, Strin
     }
 }
 
+/// ไฟล์ที่ปุ่มเปิดเล่นยอมเปิด · นามสกุลหนังกับเสียงชุดเดียวกับ MOVIE_EXT AUDIO_EXT ใน src/lib/api/files.ts
+/// (AUDIT ข้อ 133 · เดิมรับที่อยู่อะไรก็ได้ ไม่มีโปรแกรมเล่นแล้วส่งให้ Windows เปิดตรง ไฟล์ .exe .bat ก็รัน)
+const PLAYABLE: &[&str] = &[
+    "mkv", "mp4", "m4v", "mov", "avi", "webm", "ts", "m2ts", "mpg", "mpeg", "vob", "flv", "wmv",
+    "mp3", "flac", "wav", "m4a", "aac", "ac3", "eac3", "dts", "ogg", "opus", "mka", "wma", "wv", "ape", "tak",
+];
+pub(crate) fn playable(path: &Path) -> bool {
+    path.extension().and_then(|e| e.to_str()).is_some_and(|e| PLAYABLE.iter().any(|x| x.eq_ignore_ascii_case(e)))
+}
+
 /// เปิดเล่นที่นาทีที่เสีย · ใช้โปรแกรมที่ตั้งไว้ ไม่ได้ตั้งเลือกเอง (auto_player) ไม่เจอเปิดด้วยโปรแกรมหลักของ Windows (เปิดตรงนาทีไม่ได้)
 #[tauri::command]
 pub fn play_at(app: AppHandle, path: String, secs: f64) -> Result<PlayResult, String> {
     let file = Path::new(&path);
+    if !playable(file) {
+        return Err("เปิดเล่นได้เฉพาะไฟล์หนังกับไฟล์เสียง".into());
+    }
     if !file.exists() {
         return Err("หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่".into());
     }

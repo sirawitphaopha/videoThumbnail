@@ -2,7 +2,7 @@
    แยกจาก GraphPage.tsx ตอนจัดโครงไฟล์ตามความหมาย (BUGS ข้อ 155 ขั้น 4) เนื้อโค้ดยกมาทั้งก้อน */
 import { useEffect, useMemo, useRef, useState } from "react";
 import { usePageActiveRef } from "../../lib/pageActive";
-import { convertApi, graphApi, inApp, type GPsd, type GWindow, type AudioFile, type CoverData } from "../../lib/api";
+import { AUDIO_EXT, convertApi, graphApi, inApp, type GPsd, type GWindow, type AudioFile, type CoverData } from "../../lib/api";
 import { addFiles } from "../../lib/convertJob";
 import { memPut } from "./common";
 import { Src } from "./draw";
@@ -85,7 +85,14 @@ export function useGraphWindow(c: G2) {
       if (!pageOn.current) return; // หน้านี้ซ่อนอยู่ (ไปเมนูอื่นแล้ว) ไม่รับไฟล์ที่ลากมา (BUGS ข้อ 9)
       if (e.payload.type !== "drop" || !e.payload.paths[0] || !document.querySelector("[data-graph]")) return;
       // โหมดแปลงเสียง ไฟล์ที่ลากมาทุกไฟล์เข้าคิว · โหมดดูกราฟ เปิดไฟล์แรก
-      if (modeRef.current === "convert") addFiles(e.payload.paths);
+      // โฟลเดอร์ขยายเป็นไฟล์เสียงข้างในก่อนเข้าคิว ขยายไม่ได้ใส่ตามที่ลากมา (AUDIT ข้อ 115)
+      if (modeRef.current === "convert") {
+        const ps = e.payload.paths;
+        convertApi.expand(ps, AUDIO_EXT).then((x) => {
+          if (x.length) addFiles(x);
+          else toast({ kind: "warn", ms: 6000, key: "conv-empty", title: "ในโฟลเดอร์ที่ลากมาไม่มีไฟล์เสียง", detail: "ลากไฟล์เสียงหรือโฟลเดอร์ที่มีไฟล์เสียงข้างในมาแทน" });
+        }, () => addFiles(ps));
+      }
       else if (!document.querySelector("[data-compare]")) setPath(e.payload.paths[0]);
     })).then((u) => { if (live) off = u; else u(); });
     return () => { live = false; off?.(); };

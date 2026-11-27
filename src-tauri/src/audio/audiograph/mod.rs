@@ -426,14 +426,27 @@ pub(crate) fn unb64(s: &str) -> Result<Vec<u8>, String> {
 }
 
 /// บันทึกรูปกราฟ (PNG แบบ base64) หรือตาราง (ข้อความ) · ชื่อซ้ำไม่เขียนทับ ต่อท้าย (2) (3) · คืนที่อยู่ที่บันทึกจริง
+/// replace = ผ่านกล่องเลือกที่บันทึกของ Windows ซึ่งถามเขียนทับแล้ว เขียนตามชื่อที่เลือก (AUDIT ข้อ 112)
 #[tauri::command]
-pub fn graph_save(path: String, b64: Option<String>, text: Option<String>) -> Result<String, String> {
+pub fn graph_save(path: String, b64: Option<String>, text: Option<String>, replace: Option<bool>) -> Result<String, String> {
     let data = match (b64, text) {
         (Some(b), _) => unb64(b.split(',').next_back().unwrap_or(""))?,
         (None, Some(t)) => format!("\u{feff}{t}").into_bytes(), // BOM ให้ Excel อ่านภาษาไทยถูก
         _ => return Err("ไม่มีข้อมูลที่จะบันทึก".into()),
     };
-    write_unique(Path::new(&path), &data)
+    write_out(Path::new(&path), &data, replace.unwrap_or(false))
+}
+
+/// เขียนไฟล์ตามที่ขอ · replace คนกดยืนยันเขียนทับในกล่องของ Windows แล้ว เขียนลงไฟล์ชั่วคราวข้างกันแล้วย้ายทับ ไฟล์เดิมไม่ค้างครึ่งไฟล์
+/// ไม่ replace ชื่อชนต่อท้าย (2) แบบเดิม (AUDIT ข้อ 112 · เดิมเปลี่ยนชื่อเองทุกครั้ง กดเขียนทับแล้วได้ไฟล์ชื่อใหม่)
+pub(crate) fn write_out(want: &Path, data: &[u8], replace: bool) -> Result<String, String> {
+    if !replace {
+        return write_unique(want, data);
+    }
+    let tmp = want.with_extension(format!("{}.tmp-{}", want.extension().map(|e| e.to_string_lossy().to_string()).unwrap_or_default(), std::process::id()));
+    std::fs::write(&tmp, data).map_err(|e| format!("บันทึกไม่ได้: {e}"))?;
+    std::fs::rename(&tmp, want).map_err(|e| { let _ = std::fs::remove_file(&tmp); format!("บันทึกทับไฟล์เดิมไม่ได้: {e}") })?;
+    Ok(want.display().to_string())
 }
 
 /// เขียนไฟล์ใหม่ ชื่อชนต่อท้าย (2) ไม่เขียนทับ · คืนที่อยู่จริง

@@ -57,9 +57,9 @@ fn save_never_overwrites() {
     let dir = std::env::temp_dir().join(format!("ชั้นหนังบันทึก-{}", std::process::id()));
     std::fs::create_dir_all(&dir).unwrap();
     let p = dir.join("กราฟ.csv");
-    let a = graph_save(p.display().to_string(), None, Some("Hz,dB".into())).unwrap();
-    let b = graph_save(p.display().to_string(), None, Some("Hz,dB".into())).unwrap();
-    let png = graph_save(dir.join("รูป.png").display().to_string(), Some("data:image/png;base64,TWFu".into()), None).unwrap();
+    let a = graph_save(p.display().to_string(), None, Some("Hz,dB".into()), None).unwrap();
+    let b = graph_save(p.display().to_string(), None, Some("Hz,dB".into()), None).unwrap();
+    let png = graph_save(dir.join("รูป.png").display().to_string(), Some("data:image/png;base64,TWFu".into()), None, None).unwrap();
     assert!(a.ends_with("กราฟ.csv") && b.ends_with("กราฟ (2).csv"), "{a} · {b}");
     assert_eq!(std::fs::read(&png).unwrap(), b"Man");
     let _ = std::fs::remove_dir_all(&dir);
@@ -277,4 +277,21 @@ fn nospec_window_skips_spectrum() {
     let spec = an.spec(Scale::Log, 64, None);
     assert!(spec.iter().all(|s| s.is_empty()), "ไม่มีคอลัมน์ความถี่");
     assert_eq!(an.env()[0].len(), 100 * 3);
+}
+
+/// AUDIT ข้อ 112 · ผ่านกล่องเลือกที่บันทึกแล้ว เขียนทับตามชื่อที่เลือก · ไม่ผ่านกล่อง ชื่อชนต่อท้าย (2) ไม่เขียนทับ · ไม่เหลือไฟล์ชั่วคราว
+#[test]
+fn write_out_replaces_only_when_confirmed() {
+    let dir = std::env::temp_dir().join(format!("ชั้นหนังบันทึกทับ-{}", std::process::id()));
+    std::fs::create_dir_all(&dir).unwrap();
+    let f = dir.join("กราฟ.png");
+    std::fs::write(&f, b"old").unwrap();
+    let a = write_out(&f, b"new", true).unwrap();
+    assert_eq!((PathBuf::from(&a), std::fs::read(&f).unwrap()), (f.clone(), b"new".to_vec()));
+    let b = write_out(&f, b"third", false).unwrap();
+    assert_eq!(PathBuf::from(&b), dir.join("กราฟ (2).png"));
+    assert_eq!(std::fs::read(&f).unwrap(), b"new", "ไม่ผ่านกล่องต้องไม่เขียนทับ");
+    let left: Vec<_> = std::fs::read_dir(&dir).unwrap().flatten().map(|e| e.file_name().to_string_lossy().to_string()).filter(|n| n.contains(".tmp-")).collect();
+    assert!(left.is_empty(), "ไฟล์ชั่วคราวค้าง {left:?}");
+    std::fs::remove_dir_all(&dir).unwrap();
 }

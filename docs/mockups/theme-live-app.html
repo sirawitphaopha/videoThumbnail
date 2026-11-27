@@ -238,6 +238,8 @@
     sub_wave: (a) => Array.from({ length: a.cols }, (_, i) => { const t = a.t0 + (a.t1 - a.t0) * i / a.cols; const inCue = SUBS.cues.some((c) => t >= c.start && t <= c.end); return (inCue ? 0.35 + 0.5 * hash1(i * 7 + 3) : 0.04 + 0.08 * hash1(i * 3 + 1)); }),
     merge_cover_drop: () => null,
     convert_cover: () => null,
+    // โฟลเดอร์ที่ลากมาขยายเป็นไฟล์ (AUDIT ข้อ 115) · ระบบจำลองไม่มีดิสก์ ส่งต่อตามเดิม
+    convert_expand: (a) => a.paths,
     graph_exist: (a) => a.paths.map(() => true),
     set_rating: (a) => { const m = movies.find((x) => x.id === a.id); if (m) m.rating = a.stars; return m; },
     list_players: () => ({ players: [{ path: "C:\\Program Files (x86)\\K-Lite Codec Pack\\MPC-HC64\\mpc-hc64.exe", name: "MPC-HC", exists: true, added: false, isDefault: true }, { path: "C:\\Program Files\\VideoLAN\\VLC\\vlc.exe", name: "VLC", exists: true, added: false, isDefault: false }], systemDefault: false }),

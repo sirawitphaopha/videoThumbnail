@@ -363,6 +363,10 @@ pub fn keep_newer_checks(scanned: &mut [Movie], before: &[Movie], now: &[Movie])
 #[tauri::command(async)]
 pub fn play_movie(app: AppHandle, path: String) -> Result<(), String> {
     let p = Path::new(&path);
+    // กติกาเดียวกับปุ่มเปิดเล่นที่นาทีที่เสีย (AUDIT ข้อ 133)
+    if !crate::media::check::playable(p) {
+        return Err("เปิดเล่นได้เฉพาะไฟล์หนังกับไฟล์เสียง".into());
+    }
     if !p.exists() {
         return Err("หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่".into());
     }

@@ -95,7 +95,8 @@ function pumpProbe() {
     probing++;
     convertApi.probe(it.path, it.track).then(async (f) => {
       patchItem(it.id, { file: f, thumb: f.cover ? undefined : null });
-      if (f.cover) await convertApi.cover(it.path).then((c) => patchItem(it.id, { thumb: c?.url ?? null }), () => patchItem(it.id, { thumb: null }));
+      // ปกที่ probe อ่านไว้แล้วไม่ต้องอ่านไฟล์ซ้ำ และขอรูปเล็ก 96 จุดพอสำหรับแถวคิวที่แสดง 40 จุด (AUDIT ข้อ 24 114)
+      if (f.cover) await convertApi.cover(it.path, f.cover, 96).then((c) => patchItem(it.id, { thumb: c?.url ?? null }), () => patchItem(it.id, { thumb: null }));
     }, (e) => patchItem(it.id, { bad: String(e), state: "fail" })).finally(() => { probing--; pumpProbe(); });
   }
 }

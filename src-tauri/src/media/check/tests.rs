@@ -299,3 +299,10 @@ fn deep_check_finds_truncated_and_passes_good_file() {
     // กดหยุดกลางทาง คืน None และ ffprobe ถูกปิด
     assert!(deep(&tools(), &good, len, &|_| {}, &|| true).unwrap().is_none());
 }
+
+/// AUDIT ข้อ 133 · ปุ่มเปิดเล่นรับเฉพาะนามสกุลหนังกับเสียง ไฟล์โปรแกรมกับไฟล์อื่นไม่เปิด
+#[test]
+fn play_only_media_files() {
+    for ok in [r"D:\หนัง\ดาวเหนือ (2023).mkv", r"D:\a.MP4", r"D:\เพลง\x.flac", r"D:\b.m2ts"] { assert!(playable(Path::new(ok)), "{ok}"); }
+    for bad in [r"C:\Windows\System32\cmd.exe", r"D:\a.bat", r"D:\a.lnk", r"D:\ไม่มีนามสกุล", r"D:\a.mkv.exe"] { assert!(!playable(Path::new(bad)), "{bad}"); }
+}

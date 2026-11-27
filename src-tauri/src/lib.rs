@@ -75,7 +75,7 @@ pub fn run() {
             if let Ok(tmp) = app.path().app_local_data_dir().map(|d| d.join("tmp")) {
                 for e in std::fs::read_dir(&tmp).into_iter().flatten().flatten() {
                     let n = e.file_name().to_string_lossy().to_string();
-                    if ["merge-conv-", "merge-vtt-", "merge-chap-", "merge-oldcover-", "conv-cover-", "sub-"].iter().any(|p| n.starts_with(p)) && e.path().is_file() {
+                    if crate::app::tools::TMP_SWEEP.iter().any(|p| n.starts_with(p)) && e.path().is_file() {
                         let _ = std::fs::remove_file(e.path());
                     }
                 }
@@ -146,7 +146,7 @@ pub fn run() {
         subtitle::subaudio::sub_pcm, subtitle::subaudio::sub_audio_save, subtitle::subaudio::sub_peaks, subtitle::pgs::pgs_export, subtitle::pgs::pgs_cancel, subtitle::pgs::pgs_preview, subtitle::pgs::pgs_engines, subtitle::pgs::pgs_estimate, subtitle::imgconv::imgsub_convert, subtitle::imgconv::imgsub_cancel, subtitle::imgconv::imgsub_tools, subtitle::imgconv::imgsub_preview,
         cover::pairs::pair_set, cover::pairs::pair_check, cover::pairs::pair_play,
         cover::link::rows::link_state, cover::link::link_titles, cover::link::link_is_dir, cover::link::rows::link_images, cover::link::rows::link_add_images, cover::link::rows::link_remove_images, cover::link::rows::link_auto, cover::link::rows::link_pair, cover::link::rows::link_undo, cover::link::rows::link_row_update, cover::link::rows::link_set_crop, cover::link::commands::link_confirm, cover::link::commands::link_cancel, cover::link::commands::link_resolve, cover::link::commands::link_unsave, cover::link::commands::link_remove, cover::link::commands::link_open_row, cover::link::commands::link_cover_pick, cover::link::commands::link_migrate,
-        audio::convert::convert_probe, audio::convert::convert_size_probe, audio::convert::convert_cover, audio::convert::convert_one, audio::convert::convert_cancel,
+        audio::convert::convert_probe, audio::convert::convert_size_probe, audio::convert::convert_cover, audio::convert::convert_expand, audio::convert::convert_one, audio::convert::convert_cancel,
         media::fileinfo::media_info, media::mkvtree::mkv_tree, media::fileinfo::audio_codec_detail, media::fileinfo::hash_file, media::fileinfo::hash_cancel, media::fileinfo::hash_running, media::fileinfo::hash_compare, media::fileinfo::hash_save, app::winutil::clipboard_text,
         media::extract::extract_start, media::extract::extract_info, media::extract::extract_cancel, media::extract::extract_running, media::extract::extract_default_folder,
         media::check::check_start, media::check::check_cancel, media::check::check_running, media::check::play_at, media::players::list_players,
@@ -171,7 +171,7 @@ pub fn run() {
         subtitle::subaudio::sub_pcm, subtitle::subaudio::sub_audio_save, subtitle::subaudio::sub_peaks, subtitle::pgs::pgs_export, subtitle::pgs::pgs_cancel, subtitle::pgs::pgs_preview, subtitle::pgs::pgs_engines, subtitle::pgs::pgs_estimate, subtitle::imgconv::imgsub_convert, subtitle::imgconv::imgsub_cancel, subtitle::imgconv::imgsub_tools, subtitle::imgconv::imgsub_preview,
         cover::pairs::pair_set, cover::pairs::pair_check, cover::pairs::pair_play,
         cover::link::rows::link_state, cover::link::link_titles, cover::link::link_is_dir, cover::link::rows::link_images, cover::link::rows::link_add_images, cover::link::rows::link_remove_images, cover::link::rows::link_auto, cover::link::rows::link_pair, cover::link::rows::link_undo, cover::link::rows::link_row_update, cover::link::rows::link_set_crop, cover::link::commands::link_confirm, cover::link::commands::link_cancel, cover::link::commands::link_resolve, cover::link::commands::link_unsave, cover::link::commands::link_remove, cover::link::commands::link_open_row, cover::link::commands::link_cover_pick, cover::link::commands::link_migrate,
-        audio::convert::convert_probe, audio::convert::convert_size_probe, audio::convert::convert_cover, audio::convert::convert_one, audio::convert::convert_cancel,
+        audio::convert::convert_probe, audio::convert::convert_size_probe, audio::convert::convert_cover, audio::convert::convert_expand, audio::convert::convert_one, audio::convert::convert_cancel,
         media::fileinfo::media_info, media::mkvtree::mkv_tree, media::fileinfo::audio_codec_detail, media::fileinfo::hash_file, media::fileinfo::hash_cancel, media::fileinfo::hash_running, media::fileinfo::hash_compare, media::fileinfo::hash_save, app::winutil::clipboard_text,
         media::extract::extract_start, media::extract::extract_info, media::extract::extract_cancel, media::extract::extract_running, media::extract::extract_default_folder,
         media::check::check_start, media::check::check_cancel, media::check::check_running, media::check::play_at, media::players::list_players,

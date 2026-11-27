@@ -102,12 +102,18 @@ pub fn show_behind(w: &tauri::WebviewWindow) {
     let _ = w.set_focusable(true);
 }
 
+/// ข้อความ UTF-16 ถึงตัวจบ 0 ตัวแรก ไม่มีตัวจบใช้ทั้งก้อน
+pub(crate) fn utf16_until_nul(buf: &[u16]) -> String {
+    let n = buf.iter().position(|&c| c == 0).unwrap_or(buf.len());
+    String::from_utf16_lossy(&buf[..n])
+}
+
 /// ข้อความในคลิปบอร์ดของ Windows · ปุ่มวางในช่องค่า hash (BUGS ข้อ 31)
 /// อ่านฝั่ง Rust เพราะ navigator.clipboard.readText ของ WebView2 ขึ้นหน้าต่างขออนุญาต · คลิปบอร์ดไม่มีข้อความได้ข้อความว่าง
 #[tauri::command]
 pub fn clipboard_text() -> Result<String, String> {
     use windows_sys::Win32::System::DataExchange::{CloseClipboard, GetClipboardData, OpenClipboard};
-    use windows_sys::Win32::System::Memory::{GlobalLock, GlobalUnlock};
+    use windows_sys::Win32::System::Memory::{GlobalLock, GlobalSize, GlobalUnlock};
     const CF_UNICODETEXT: u32 = 13;
     unsafe {
         // โปรแกรมอื่นถือคลิปบอร์ดอยู่ชั่วขณะ ลองซ้ำสั้น ๆ ก่อนบอกว่าเปิดไม่ได้
@@ -125,9 +131,9 @@ pub fn clipboard_text() -> Result<String, String> {
             if p.is_null() {
                 Err("อ่านคลิปบอร์ดไม่ได้".into())
             } else {
-                let mut n = 0usize;
-                while *p.add(n) != 0 { n += 1; }
-                let s = String::from_utf16_lossy(std::slice::from_raw_parts(p, n));
+                // อ่านไม่เกินขนาดของก้อนหน่วยความจำ ข้อความที่โปรแกรมอื่นวางไว้ไม่มีตัวจบ 0 ไม่อ่านเลยขอบ (AUDIT ข้อ 134)
+                let units = GlobalSize(h as _) / 2;
+                let s = utf16_until_nul(std::slice::from_raw_parts(p, units));
                 GlobalUnlock(h as _);
                 Ok(s)
             }
@@ -210,3 +216,7 @@ pub fn fit_monitor(w: &tauri::WebviewWindow) {
     let ny = pos.y.clamp(wa.position.y, wa.position.y + ah - nh);
     let _ = w.set_position(PhysicalPosition::new(nx, ny));
 }
+
+#[cfg(test)]
+#[path = "winutil_tests.rs"]
+mod tests;
