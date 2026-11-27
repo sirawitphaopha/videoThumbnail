@@ -2147,7 +2147,7 @@ dependencies = [
 
 [[package]]
 name = "movie-shelf"
-version = "0.10.9"
+version = "0.10.10"
 dependencies = [
  "crc32fast",
  "dunce",
