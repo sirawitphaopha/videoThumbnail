@@ -179,6 +179,90 @@ T[75] = async (p, check) => {
   check("75 ปุ่มเฉพาะเรื่องที่ยังไม่มีปกไม่นับเรื่องที่ไดรฟ์ถอดออกอยู่ เหมือนตัวจับคู่", n0 > 0 && n1 === n0 - 1, `${n0} → ${n1}`);
 };
 
+// ชุด 3 ----------------------------------------------------------------
+/** หน้าจับคู่ปก ตารางตรวจผล */
+const linkTable = async (p) => {
+  await nav(p, "จับคู่ปก"); await wait(p, 500);
+  if (!(await p.$("[data-link-row]"))) { await click(p, "[data-link-open]"); }
+  await p.waitForSelector("[data-link-row]"); await wait(p, 300);
+};
+const SRC = async (file) => (await fetch(`${BASE}/${file}?raw`)).text();
+const toastText = (p) => p.evaluate(() => document.querySelector(".toasts")?.innerText ?? "");
+T[69] = async (p, check) => {
+  const rt = await SRC("src/pages/link/ReviewTable.tsx"), lj = await SRC("src/lib/linkJob.ts"), dr = await SRC("src/pages/link/useBoardDrag.ts");
+  check("69 ตารางตรวจผลหาภาพปกจากแผนที่ที่ทำครั้งเดียว ไม่ค้นทั้งคลังทุกแถว", rt.includes("coverOf.get(r.id)") && !/movies\.find\(\(x\) => x\.id === r\.id\)/.test(rt));
+  check("69 ภาพเล็กที่เสร็จรวมเป็นชุดก่อนแจ้งหน้าจอ และเงาที่ลากบนกระดานวาดครั้งเดียวต่อเฟรม", lj.includes("flushThumbs") && dr.includes("requestAnimationFrame(flush)"));
+  // ทำงานจริง ภาพปกที่มีอยู่ยังขึ้นในแถว · ภาพเล็กที่แจ้งมาหลายรูปติดกันขึ้นครบหลังรวมชุด
+  await linkTable(p);
+  const imgs = await p.evaluate(async () => (await window.__TAURI_INTERNALS__.invoke("link_images")).slice(0, 5).map((i) => i.path));
+  await nav(p, "จับคู่ปก"); await click(p, "[data-link-goboard]").catch(() => {}); await wait(p, 500);
+  await p.evaluate((ps) => ps.forEach((x, i) => window.__emit("link-thumb", { path: x, thumb: `data:image/gif;base64,R0lGODlhAQABAAAAACw=#${i}` })), imgs);
+  await wait(p, 250);
+  const got = await p.evaluate((ps) => ps.filter((x, i) => [...document.querySelectorAll("img")].some((im) => im.getAttribute("src")?.endsWith("#" + i))).length, imgs);
+  check("69 ภาพเล็กห้ารูปที่แจ้งติดกันขึ้นบนกระดานครบหลังรวมชุด", imgs.length === 0 || got === imgs.length, `${got} จาก ${imgs.length}`);
+};
+T[70] = async (p, check) => {
+  await linkTable(p);
+  const none = await p.evaluate(() => document.querySelector("[data-link-status=none] [data-link-tick]")?.title);
+  check("70 ช่องติ๊กของแถวที่ยังไม่มีรูปบอกเหตุผล", none?.includes("ยังไม่มีรูป"), none);
+  // เอาติ๊กออกทุกแถวแล้วดูปุ่มยืนยันที่ติ๊กไว้
+  await over(p, "link_row_update", `const r = await window.__fxOverBase.link_state(a); r.rows.forEach((x) => { x.ticked = false; }); return r;`);
+  await p.evaluate(() => document.querySelector("[data-link-tick][aria-checked=true]")?.click()); await wait(p, 400);
+  const tk = await p.evaluate(() => { const b = document.querySelector("[data-link-confirm-ticked]"); return { dis: b.getAttribute("aria-disabled"), title: b.title }; });
+  check("70 ปุ่มยืนยันคู่ที่ติ๊กไว้ตอนยังไม่ได้ติ๊ก บอกเหตุผลติดปุ่ม", tk.dis === "true" && tk.title.includes("ยังไม่ได้ติ๊ก"), JSON.stringify(tk));
+  // กดหยุดระหว่างยืนยัน ปุ่มบอกว่ารับคำสั่งแล้วและกดซ้ำไม่ได้
+  await over(p, "link_confirm", `await new Promise((ok) => setTimeout(ok, 4000)); return { done: 0, failed: 0, stopped: true, notes: [], reply: await window.__fxOverBase.link_state(a) };`);
+  await over(p, "link_cancel", `window.__cancels = (window.__cancels ?? 0) + 1; return null;`);
+  await click(p, "[data-link-confirm-all]"); await p.waitForSelector("[data-link-stop]", { timeout: 4000 });
+  await click(p, "[data-link-stop]"); await wait(p, 150); await click(p, "[data-link-stop]"); await wait(p, 150);
+  const st = await p.evaluate(() => { const b = document.querySelector("[data-link-stop]"); return { txt: b?.innerText.trim(), dis: b?.getAttribute("aria-disabled"), n: window.__cancels }; });
+  check("70 กดหยุดแล้วปุ่มขึ้นว่ากำลังหยุดหลังคู่นี้ กดซ้ำไม่ส่งคำสั่งซ้ำ", st.txt === "กำลังหยุดหลังคู่นี้…" && st.dis === "true" && st.n === 1, JSON.stringify(st));
+  await wait(p, 4200);
+};
+T[72] = async (p, check) => {
+  await linkTable(p);
+  await over(p, "link_row_update", `const r = await window.__fxOverBase.link_state(a); r.rows[0].status = "saved"; return r;`);
+  await p.evaluate(() => document.querySelector("[data-link-tick]")?.click()); await wait(p, 400);
+  await p.evaluate(() => window.__applyTone("night")); await wait(p, 300);
+  const r = await p.evaluate(() => {
+    const sv = document.querySelector("[data-link-savedtick]") ?? document.querySelector("[data-link-status=saved] svg[aria-label='บันทึกแล้ว']");
+    const probe = document.createElement("i"); probe.style.color = "var(--ok-ink)"; document.body.append(probe); const want = getComputedStyle(probe).color; probe.remove();
+    return { stroke: sv?.getAttribute("stroke"), color: sv ? getComputedStyle(sv).color : null, want };
+  });
+  check("72 ติ๊กบันทึกแล้วในแถวใช้สีจากตัวแปรโทน ไม่ใช่รหัสสีตายตัว", r.stroke === "currentColor" && r.color === r.want, JSON.stringify(r));
+};
+T[73] = async (p, check) => {
+  await nav(p, "จับคู่ปก"); await wait(p, 400); await click(p, "[data-link-goboard]").catch(() => {}); await wait(p, 500);
+  await over(p, "link_add_images", `throw "ไดรฟ์ C เต็ม";`);
+  await over(p, "link_state", `throw "อ่านไฟล์สถานะไม่ได้";`);
+  await pick(p, "D:\\รูปปก\\รูปใหม่.jpg");
+  await p.evaluate(() => [...document.querySelectorAll(".addbtn")].find((b) => b.innerText.includes("รูป") && !b.dataset.boardAddImages)?.click()); await wait(p, 600);
+  const t = await toastText(p);
+  check("73 เพิ่มรูปไม่สำเร็จแล้วอ่านสถานะซ้ำก็ล้ม ขึ้นแถบแดงทั้งสองเรื่อง ไม่หลุดเงียบ", t.includes("มีไฟล์ที่ไม่รับ") && t.includes("อ่านสถานะกระดานไม่สำเร็จ"), t);
+};
+T[79] = async (p, check) => {
+  await over(p, "font_info", `return { path: a.path, file: "Sarabun-Bold.ttf", names: ["Sarabun Bold"], size: 90000 };`);
+  await nav(p, "เสียงและซับ"); await wait(p, 300);
+  await p.evaluate((x) => window.__emit("tauri://drag-drop", { paths: [x], position: { x: 700, y: 400 } }), MOVIE); await wait(p, 1500);
+  const before = await text(p, "[data-summary]");
+  await p.evaluate(() => window.__emit("tauri://drag-drop", { paths: ["D:\\ฟอนต์\\Sarabun-Bold.ttf"], position: { x: 700, y: 400 } })); await wait(p, 800);
+  const after = await text(p, "[data-summary]");
+  check("79 ลากฟอนต์มาฝังอย่างเดียว แถบสรุปบอกว่าฝังฟอนต์เพิ่ม ไม่บอกว่าเหมือนไฟล์เดิม", before?.includes("เหมือนไฟล์เดิม") && after?.includes("ฝังฟอนต์เพิ่ม 1 ไฟล์") && !after.includes("เหมือนไฟล์เดิม"), `${before} → ${after}`);
+};
+T[81] = async (p, check) => {
+  await nav(p, "เสียงและซับ"); await wait(p, 300);
+  await p.evaluate((x) => window.__emit("tauri://drag-drop", { paths: [x], position: { x: 700, y: 400 } }), MOVIE); await wait(p, 1500);
+  const subRow = async () => { if (await p.$("[data-main-panel]")) return; await p.evaluate(() => { const r = [...document.querySelectorAll("[data-trk]")].find((x) => /SRT|ASS|PGS|ซับ/.test(x.innerText) && x.querySelector("[data-trk-kind=subtitle], .ksub") !== null) ?? [...document.querySelectorAll("[data-trk]")].reverse().find((x) => /SRT|ASS|PGS/.test(x.innerText)); r?.click(); }); await wait(p, 400); };
+  await subRow();
+  const mkv = await p.evaluate(() => document.querySelector("[data-main-panel]")?.parentElement?.innerText ?? "");
+  await clickText(p, "MP4", "button,[role=tab],[role=radio]").catch(() => {}); await wait(p, 400);
+  await subRow();
+  const mp4 = await p.evaluate(() => document.querySelector("[data-main-panel]")?.parentElement?.innerText ?? "");
+  if (process.env.SHOTS) await (await p.$("[data-main-panel]"))?.evaluate((e) => e.parentElement.scrollIntoView({ block: "center" }));
+  check("81 คำอธิบายซับหลักของ MKV ยังบอกว่าไม่เลือกแล้วเปิดแบบไม่มีซับ", mkv.includes("เปิดแบบไม่มีซับ"), mkv);
+  check("81 เลือกไฟล์ที่ได้เป็น MP4 คำอธิบายบอกว่าโปรแกรมเล่นจะเปิดซับแรกให้เอง", mp4.includes("MP4") && mp4.includes("ซับแรก") && !mp4.includes("เปิดแบบไม่มีซับ"), mp4);
+};
+
 // ---------------------------------------------------------------- ตัวรัน
 const want = process.argv.slice(2).map(Number).filter(Boolean);
 const ids = Object.keys(T).map(Number).filter((n) => !want.length || want.includes(n)).sort((a, b) => a - b);

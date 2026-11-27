@@ -15,7 +15,7 @@ import type { AvCtx } from "./avCtx";
 
 /** หัวกับเนื้อของส่วนตั้งค่าแทร็กที่เลือก · ไม่มีแทร็กที่เลือกได้ null ทั้งคู่ */
 export function trackDetail(pg: AvCtx) {
-  const { nth, openCodec, refAudio, selected, setDelayFor, working } = pg;
+  const { nth, openCodec, output, refAudio, selected, setDelayFor, working } = pg;
   const detailHead = selected ? (
     <h3 style={{ justifyContent: "space-between" }}><span style={{ minWidth: 0, overflowWrap: "anywhere" }}>ตั้งค่าแทร็ก {rowText(selected, nth(selected)).title}</span>
       <span className={"tpill " + (selected.inMovie ? "in" : "new")}>{selected.inMovie ? "ในไฟล์" : "เพิ่มใหม่"}</span></h3>
@@ -35,7 +35,7 @@ export function trackDetail(pg: AvCtx) {
           <div className={"chk" + (working || !selected.keep ? " off" : "")} aria-checked={selected.default} {...kb(() => { if (!working && selected.keep) setMain(selected.key); })} role="radio" data-main-panel>
             <span className={"radio" + (selected.default ? " on" : "")} aria-hidden="true" />
             <span>{selected.kind === "audio" ? "เปิดหนังแล้วเล่นเสียงนี้ก่อน" : "เปิดหนังแล้วขึ้นซับนี้ก่อน"}</span></div>
-          <span className="small"><Phr>{`${KIND_WORD[selected.kind]}หลักมีได้แทร็กเดียว เลือกอันนี้แล้วอันเดิมจะเลิกเป็นหลัก ${selected.kind === "audio" ? "ซับหลักตั้งแยกกัน" : "ถ้าไม่เลือกซับหลักเลย หนังจะเปิดแบบไม่มีซับ"}`}</Phr></span></div>
+          <span className="small"><Phr>{`${KIND_WORD[selected.kind]}หลักมีได้แทร็กเดียว เลือกอันนี้แล้วอันเดิมจะเลิกเป็นหลัก${selected.kind === "audio" ? " " : output === "mp4" ? "" : " "}${selected.kind === "audio" ? "ซับหลักตั้งแยกกัน" : output === "mp4" ? "\nไฟล์ MP4 ถ้าไม่เลือกซับหลัก โปรแกรมเล่นส่วนใหญ่จะเปิดซับแรกให้เอง" : "ถ้าไม่เลือกซับหลักเลย หนังจะเปิดแบบไม่มีซับ"}`}</Phr></span></div>
       )}
       {selected.kind !== "video" && (
         <div className="avfield"><span className="avlbl">ดีเลย์</span>

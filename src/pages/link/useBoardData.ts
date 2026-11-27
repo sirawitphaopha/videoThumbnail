@@ -74,8 +74,12 @@ export function useBoardData() {
 
   const addImages = useCallback(async (paths: string[]) => {
     try { setReply(await linkApi.addImages(paths)); }
-    catch (e) { toast({ kind: "bad", title: "มีไฟล์ที่ไม่รับ", detail: String(e) }); setReply(await linkApi.state()); }
-    await after();
+    catch (e) {
+      toast({ kind: "bad", title: "มีไฟล์ที่ไม่รับ", detail: String(e) });
+      // อ่านสถานะซ้ำแล้วล้มอีก ไม่ปล่อยให้หลุดเงียบ (AUDIT ข้อ 73)
+      try { setReply(await linkApi.state()); } catch (e2) { toast({ kind: "bad", title: "อ่านสถานะกระดานไม่สำเร็จ", detail: String(e2) }); }
+    }
+    await after().catch(() => {});
   }, [toast]);
   const addMovieFolders = useCallback(async (dirs: string[]) => {
     if (!settings) return;
@@ -89,7 +93,10 @@ export function useBoardData() {
   const removeMovieFolder = async (dir: string) => {
     if (!settings) return;
     setRemoving(null);
-    if (!(await update({ folders: settings.folders.filter((x) => x !== dir) }))) return;
+    // บันทึกไม่สำเร็จ ตัวบันทึกขึ้นแถบแดงเอง · ทางที่โยนข้อผิดพลาดขึ้นแถบแดงที่นี่ ไม่ปิดหน้าต่างไปเฉย ๆ (AUDIT ข้อ 73)
+    try {
+      if (!(await update({ folders: settings.folders.filter((x) => x !== dir) }))) return;
+    } catch (e) { toast({ kind: "bad", title: "เอาโฟลเดอร์ออกจากชั้นไม่สำเร็จ", detail: String(e) }); return; }
     scan();
     toast({ kind: "ok", title: "เอาออกจากชั้นแล้ว", detail: `${dir} ส่วนไฟล์ในเครื่องยังอยู่ครบ ไม่ถูกลบ` });
   };

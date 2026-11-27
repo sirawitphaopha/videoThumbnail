@@ -63,5 +63,7 @@ export function useAvSummary(c: C1) {
     : mergeShort;
   // ไม่ได้เปลี่ยนอะไรก็รวมได้ ได้ไฟล์ใหม่ที่ทำด้วย mkvmerge ทั้งไฟล์ · บรรทัดสรุปบอกว่าแทร็กเหมือนไฟล์เดิม
   // เดิมปุ่มรวมกดไม่ได้ (พี่กันทัก 15 พ.ย. 2569 "เราเเค่อยากรวมใไม่ มันต้อทำได้สิ")
-  return { kept, counts, coverChanged, movieOrder, origOrder, changed, mp4Of, mp4Bad, mp4Style, vtts, longer, removedBytes, addedFiles, addedBytes, estimate, fontRows, fontFiles, fontBytes, mergeFree, mergeShort, blocked };
+  // ฟอนต์ที่ลากมาฝังอย่างเดียวก็นับว่ามีของเปลี่ยน แถบสรุปไม่บอกว่าเหมือนไฟล์เดิม (AUDIT ข้อ 79)
+  const fontOnly = !changed && fontFiles.length > 0;
+  return { kept, counts, coverChanged, movieOrder, origOrder, changed, fontOnly, mp4Of, mp4Bad, mp4Style, vtts, longer, removedBytes, addedFiles, addedBytes, estimate, fontRows, fontFiles, fontBytes, mergeFree, mergeShort, blocked };
 }

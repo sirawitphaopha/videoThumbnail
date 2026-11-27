@@ -11,7 +11,7 @@ import { BUSY } from "./parts";
 import type { AvCtx } from "./avCtx";
 
 export default function AvDock({ pg }: { pg: AvCtx }) {
-  const { blocked, changed, clearAll, estimate, method, original, output, pairBlocked, pressStart, savePairs, setMethod, setPaired, settings, working, xPicks, xi } = pg;
+  const { blocked, changed, fontOnly, fontFiles, clearAll, estimate, method, original, output, pairBlocked, pressStart, savePairs, setMethod, setPaired, settings, working, xPicks, xi } = pg;
   const movie = pg.movie!;
   return (
     <>
@@ -61,7 +61,7 @@ export default function AvDock({ pg }: { pg: AvCtx }) {
             ], r: "MKV กับเก็บไฟล์เดิมไว้\nยกเว้นอยากได้ไอคอนเป็นรูปปกโดยไม่ต้องลง Icaros" }} />
           </div>
           {/* ขนาดไฟล์ที่คาดอยู่ข้างปุ่มรวมเมื่อกดได้ ตอนกดไม่ได้เหตุผลขึ้นแทนที่ตรงนี้ */}
-          {!blocked && !working && <div className="small avfoot-sum" data-summary title={`ไฟล์ใหม่ ${movie.name}.${output} ขนาดราว ${fmtSize(Math.max(0, estimate))} ${(settings?.checkOutputAfter ?? true) ? "และจะตรวจไฟล์ใหม่หลังรวมเสร็จ" : "และไม่ได้ตั้งให้ตรวจไฟล์ใหม่ ตั้งได้ที่หน้าตั้งค่า"}`}>{`ไฟล์ใหม่ .${output} ราว ${fmtSize(Math.max(0, estimate))}${changed ? "" : " แทร็กเหมือนไฟล์เดิม"}`}</div>}
+          {!blocked && !working && <div className="small avfoot-sum" data-summary title={`ไฟล์ใหม่ ${movie.name}.${output} ขนาดราว ${fmtSize(Math.max(0, estimate))} ${(settings?.checkOutputAfter ?? true) ? "และจะตรวจไฟล์ใหม่หลังรวมเสร็จ" : "และไม่ได้ตั้งให้ตรวจไฟล์ใหม่ ตั้งได้ที่หน้าตั้งค่า"}`}>{`ไฟล์ใหม่ .${output} ราว ${fmtSize(Math.max(0, estimate))}${changed ? "" : fontOnly ? ` ฝังฟอนต์เพิ่ม ${fontFiles.length} ไฟล์` : " แทร็กเหมือนไฟล์เดิม"}`}</div>}
           {blocked && !working && <div className="hint" style={{ color: "#94680f", margin: 0 }} data-blocked>{blocked}</div>}
           <button type="button" className={"btn " + (working ? "btn-wait" : "btn-ghost")} style={{ height: 44 }} aria-disabled={working || undefined} title={working ? BUSY : undefined} onClick={clearAll}><IbTrash size={15} />ล้างทั้งหมด</button>
           <button type="button" className={"btn " + (blocked || working ? "btn-wait" : "btn-main")} style={{ height: 44, padding: "0 26px", fontSize: 15 }}

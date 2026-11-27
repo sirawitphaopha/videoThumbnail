@@ -79,10 +79,19 @@ export async function runConfirm(which: string): Promise<ConfirmResult | null> {
 
 if (inApp) {
   linkApi.state().then((reply) => setLinkJob({ reply, resume: reply.waiting > 0 })).catch(() => {});
+  // ภาพเล็กที่เสร็จรวมเป็นชุดละ 80 ms แล้วแจ้งหน้าจอครั้งเดียว เดิมแจ้งทีละรูป ตารางกับกระดานวาดใหม่ทั้งหน้าเป็นพันรอบ (AUDIT ข้อ 69)
+  let thumbQ = new Map<string, LinkImage>(), thumbT = 0;
+  const flushThumbs = () => {
+    thumbT = 0;
+    const q = thumbQ; thumbQ = new Map();
+    const images = job.images.map((i) => { const m = q.get(i.path); return m ? { ...i, ...m, used: i.used } : i; });
+    const thumbs = { ...job.thumbs };
+    for (const m of q.values()) if (m.thumb) thumbs[m.path] = m.thumb;
+    setLinkJob({ images, thumbs });
+  };
   listen<LinkImage>("link-thumb", (e) => {
-    const m = e.payload;
-    const images = job.images.map((i) => (i.path === m.path ? { ...i, ...m, used: i.used } : i));
-    setLinkJob({ images, thumbs: m.thumb ? { ...job.thumbs, [m.path]: m.thumb } : job.thumbs });
+    thumbQ.set(e.payload.path, e.payload);
+    if (!thumbT) thumbT = window.setTimeout(flushThumbs, 80);
   });
   listen<LinkProgress>("link-progress", (e) => {
     if (job.run.state === "working") setLinkJob({ run: { state: "working", progress: e.payload } });

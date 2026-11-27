@@ -77,12 +77,22 @@ export function useBoardDrag(c: Bo0) {
     // ตัวผูกนี้อยู่ตลอดการลากหนึ่งครั้ง จำว่าขยับแล้วไว้ที่นี่ · อ่านจาก drag ได้ค่าตอนเริ่มกด ปล่อยแล้วไม่จับคู่ (เจอตอนเทส)
     const start = { x: drag.x, y: drag.y, path: drag.path };
     let moved = false;
-    const move = (e: PointerEvent) => {
-      moved = moved || Math.hypot(e.clientX - start.x, e.clientY - start.y) > 6;
+    // วาดเงาที่ลากครั้งเดียวต่อเฟรมจอ เดิมตั้งค่าทุกครั้งที่เมาส์ขยับ กระดานรูปพันรูปวาดใหม่ทั้งแผงจนหน่วง (AUDIT ข้อ 69)
+    let last: PointerEvent | null = null, raf = 0;
+    const flush = () => {
+      raf = 0;
+      const e = last; if (!e) return;
       const on = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>("[data-board-movie]")?.dataset.boardMovie ?? null;
       setDrag((d) => (d ? { ...d, x: e.clientX, y: e.clientY, on, moved } : d));
     };
+    const move = (e: PointerEvent) => {
+      moved = moved || Math.hypot(e.clientX - start.x, e.clientY - start.y) > 6;
+      last = e;
+      if (!raf) raf = requestAnimationFrame(flush);
+    };
     const up = (e: PointerEvent) => {
+      if (raf) cancelAnimationFrame(raf);
+      raf = 0; last = null;
       setDrag(null);
       const id = document.elementFromPoint(e.clientX, e.clientY)?.closest<HTMLElement>("[data-board-movie]")?.dataset.boardMovie;
       if (moved && id) pair(id, [start.path], "board");
@@ -91,7 +101,7 @@ export function useBoardDrag(c: Bo0) {
     window.addEventListener("pointermove", move);
     window.addEventListener("pointerup", up);
     window.addEventListener("keydown", esc);
-    return () => { window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); window.removeEventListener("keydown", esc); };
+    return () => { if (raf) cancelAnimationFrame(raf); window.removeEventListener("pointermove", move); window.removeEventListener("pointerup", up); window.removeEventListener("keydown", esc); };
     // ผูกใหม่ตอนเริ่มลากครั้งใหม่ ไม่ใช่ทุกครั้งที่เมาส์ขยับ
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [drag?.path, pair]);
