@@ -14,24 +14,18 @@
 .menu .ddsearch { position: sticky; top: -6px; z-index: 1; margin: -6px -6px 4px; padding: 6px; background: var(--win); border-bottom: 1px solid var(--line); }
 .menu .ddsearch input { width: 100%; box-sizing: border-box; height: 30px; padding: 0 10px; border: 1px solid var(--line); border-radius: 7px; background: var(--win2); color: var(--txt); font: inherit; font-size: 13px; outline: 0; }
 .menu .ddsearch input:focus { border-color: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 22%, transparent); }
-.menu .ddgroup { padding: 8px 10px 2px; font-size: 12px; font-weight: 700; color: var(--accent-ink); letter-spacing: .02em; }
-.menu .ddgroup:not(:first-of-type) { border-top: 1px solid var(--line); margin-top: 4px; }
-.menu .ddsub { padding: 4px 10px 1px 14px; font-size: 11.5px; font-weight: 600; color: var(--txt3); }
+/* หัวกลุ่มกับหัวย่อยรวมกฎไว้ที่เดียว ค่าเท่าที่เคยทับกันจนสุดท้าย (AUDIT ข้อ 156 · เดิม .ddgroup ห้าที่ .ddsub สามที่ และ :not(:first-of-type) ไม่เคยตรง)
+   หัวกลุ่มใหญ่มีเส้นแบ่งเข้มกว่าหัวย่อย ใหญ่กว่าหัวย่อย · หัวย่อยชนิดเสียงสีตามธีม มีเส้นแบ่งก่อนแต่ละชนิด (พี่กันสั่ง "หัวข้อ สีเข้มขึ้นได้นะ" "ขอใหญ่กว่านี้นิดๆ เเละสีตามธีมเว็บ") */
+.menu .ddgroup { padding: 9px 10px 2px; font-size: 13.5px; font-weight: 700; color: var(--accent-ink); letter-spacing: .02em; border-top: 2px solid var(--line); margin-top: 6px; }
+.menu .ddsub { padding: 7px 10px 1px 14px; font-size: 13px; font-weight: 700; color: var(--accent-ink); margin-top: 3px; border-top: 1px solid var(--line); }
 .menu .ddempty { padding: 10px; font-size: 13px; color: var(--txt3); }
-/* หัวย่อยชนิดเสียงสีเข้มขึ้น มีเส้นแบ่งก่อนแต่ละชนิด (พี่กันสั่ง "หัวข้อ สีเข้มขึ้นได้นะ กับเส้นเเบ่ได้") */
-.menu .ddsub { color: var(--txt); font-size: 12px; font-weight: 700; padding-top: 7px; margin-top: 3px; border-top: 1px solid var(--line); }
 .menu .ddgroup + .ddsub { border-top: 0; margin-top: 0; padding-top: 3px; }
-/* หัวกลุ่มใหญ่มีเส้นแบ่งเข้มกว่าหัวย่อย ยกเว้นกลุ่มแรกใต้ช่องค้น */
-.menu .ddgroup { border-top: 2px solid var(--line); margin-top: 6px; padding-top: 9px; }
+/* กลุ่มแรกใต้ช่องค้นไม่มีเส้นแบ่ง */
 .menu > .ddsearch + div > .ddgroup, .menu > div:first-child > .ddgroup { border-top: 0; margin-top: 0; padding-top: 4px; }
 /* ช่องค้นในดรอปดาวน์มีแว่นขยายด้านซ้าย (พี่กันถาม "icon เเว่นขยายหายไปไหน" · สกิล search-system) */
 .menu .ddsearch { display: flex; align-items: center; }
 .menu .ddsearch svg { position: absolute; left: 16px; color: var(--txt3); pointer-events: none; }
 .menu .ddsearch input { padding-left: 30px; }
-/* หัวย่อยชนิดเสียงใหญ่ขึ้นนิดหน่อย สีตามธีม (พี่กันสั่ง "ขอใหญ่กว่านี้นิดๆ เเละสีตามธีมเว็บ") */
-.menu .ddsub { font-size: 13px; color: var(--accent-ink); }
-/* หัวกลุ่มใหญ่ยังเด่นกว่าหัวย่อย */
-.menu .ddgroup { font-size: 13.5px; }
 
 /* หน้าต่างตั้งค่าแปลงเสียง · เส้นแบ่งระหว่างส่วน (พี่กันสั่ง "เส้นเเบ่งหน่อย") */
 /* หน้าต่างตั้งค่าแปลงเสียง ขอบบนล่าง 16 จุดคงที่ทุกขนาดจอ หน้าต่างสูงตามจอ กล่องคำสั่งยืดรับที่เหลือ (พี่กันสั่ง "ขอบบนล่าง ลดกว่านี้ที เเละให้มัน fix ไว้") */

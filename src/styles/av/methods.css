@@ -39,7 +39,9 @@
 .avdock > .avfoot { padding-inline-start: calc(var(--avm-lbl) + 14px); }
 .avm-cards { flex: 1; min-width: 0; display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .avm-card { display: flex; align-items: center; gap: 12px; padding: 12px 14px; border: 1px solid #e8cdd6; border-radius: 10px; background: #fff; color: var(--txt2); font: inherit; text-align: left; cursor: pointer; transition: background-color .15s, border-color .15s, color .15s; min-width: 0; }
-.avm-card:hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, #fff); }
+/* ชี้ได้เฉพาะการ์ดที่กดได้ การ์ดที่กดไม่ได้ระหว่างกำลังรวมคงหน้าตาเดิมทั้งตัวที่เลือกและไม่ได้เลือก ไม่ชวนกด
+   :not(:where()) ไม่เพิ่มน้ำหนักกฎ ลำดับกับกฎ .on เหมือนเดิม (AUDIT ข้อ 158 · เดิมชี้แล้วขอบกับพื้นเป็นสีหลักเหมือนกดได้) */
+.avm-card:not(:where([aria-disabled="true"])):hover { border-color: var(--accent); background: color-mix(in srgb, var(--accent) 6%, #fff); }
 .avm-card.on { border-color: var(--accent); box-shadow: inset 0 0 0 1px var(--accent); background: color-mix(in srgb, var(--accent) 11%, #fff); color: var(--accent-ink); }
 .avm-card[aria-disabled="true"] { cursor: not-allowed; opacity: .6; }
 /* วิธีที่ไม่ได้เลือกจางลง เห็นทันทีว่าเลือกอันไหนอยู่ ชี้แล้วกลับมาชัด เพราะยังกดเปลี่ยนวิธีได้ (BUGS ข้อ 93 พี่กันสั่ง 13 พ.ย. 2569 "เลือกอันไหนเเล้ว อีกสออัน จางให้ด้วย") */
@@ -48,8 +50,8 @@
 .avm-card:not(.on) { color: var(--txt3); border-color: #efdde3; }
 .avm-card:not(.on) .avm-ic { filter: saturate(.25); opacity: .75; transition: filter .15s, opacity .15s; }
 .avm-card:not(.on) .avm-desc { color: var(--txt3); }
-.avm-card:not(.on):hover { color: var(--txt2); border-color: var(--accent); }
-.avm-card:not(.on):hover .avm-ic { filter: none; opacity: 1; }
+.avm-card:not(.on):not(:where([aria-disabled="true"])):hover { color: var(--txt2); border-color: var(--accent); }
+.avm-card:not(.on):not(:where([aria-disabled="true"])):hover .avm-ic { filter: none; opacity: 1; }
 .avm-ic { flex: none; width: 38px; height: 38px; border-radius: 9px; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, var(--accent) 10%, #fff); color: var(--accent-ink); }
 .avm-card.on .avm-ic { background: var(--accent); color: #fff; }
 .avm-tx { min-width: 0; display: flex; flex-direction: column; gap: 2px; }

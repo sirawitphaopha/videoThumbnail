@@ -1,6 +1,9 @@
 /* หน้าตากลาง หน้ากราฟเสียง ส่วนแรก กราฟทุกมุมมอง แถบช่อง ลำโพง แถบภาพรวม แถบซูม
    แยกจาก app.css ตอนแบ่งไฟล์ทั้งโปรเจกต์ (BUGS ข้อ 153 · แผนแบ่งไฟล์ขั้น 8.7) ย้ายมาทั้งก้อน กฎไม่เปลี่ยน ลำดับใน app.css ตามลำดับเดิม */
-/* ---------- หน้ากราฟเสียง (มอคอัป docs/mockups/audio-graph.html · ทุกคลาสอยู่ใต้ .ag ไม่กระทบหน้าอื่น) ---------- */
+/* ---------- หน้ากราฟเสียง (มอคอัป docs/mockups/audio-graph.html) ----------
+   ระวัง กฎส่วนใหญ่ในไฟล์นี้เป็นชื่อกลางที่ไม่มีกรอบ .ag เช่น .fchip .plot .plothead .lane .lab .cv .tip .mark .tile .lg .spk
+   ใช้ร่วมกับหน้าบิตเรต หน้าเทียบสองไฟล์ และชิ้นที่วาดนอก .ag ตั้งใจ ชื่อพวกนี้จึงห้ามตั้งซ้ำในหน้าอื่น ค้นก่อนตั้งชื่อ
+   (AUDIT ข้อ 151 · คอมเมนต์เดิมบอกว่าทุกคลาสอยู่ใต้ .ag ซึ่งไม่จริง .lg กับ .cv เคยชนมาแล้ว ข้อ 35 กับ BUGS ข้อ 55) */
 .ag { display: flex; flex-direction: column; gap: 12px; padding: 16px 18px 18px; min-width: 0; }
 .agtop { display: flex; align-items: center; gap: 10px; }
 .fchip { display: flex; align-items: center; gap: 10px; flex: 1; min-width: 0; background: #fff; border: 1px solid var(--line); border-radius: 10px; padding: 6px 12px 6px 6px; }
@@ -34,7 +37,7 @@
 .ag .kv .nw { white-space: nowrap; }
 .ag .kv dd { font-weight: 600; text-align: right; font-variant-numeric: tabular-nums; min-width: 0; overflow-wrap: anywhere; }
 .plot { background: #fff; border: 1px solid var(--line); border-radius: 12px; padding: 10px 12px 12px; min-width: 0; position: relative; }
-.plothead { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--txt2); margin-bottom: 8px; min-height: 32px; flex-wrap: wrap; }
+.plothead { display: flex; align-items: center; justify-content: space-between; gap: 10px; font-size: 13px; color: var(--txt2); margin-bottom: 8px; min-height: 32px; flex-wrap: nowrap; container-type: inline-size; }
 .plothead b { color: var(--txt); font-size: 14px; }
 .plothead .dd, .agfoot .dd { height: 30px; font-size: 13px; }
 .ovw { position: relative; height: 38px; border-radius: 6px; overflow: hidden; cursor: pointer; }
@@ -92,7 +95,7 @@
 .tip .key { display: inline-block; width: 12px; height: 2px; border-radius: 1px; vertical-align: middle; margin-right: 5px; }
 .mark { position: absolute; top: 0; bottom: 0; background: rgba(208,59,59,.13); border-left: 1px solid rgba(208,59,59,.75); border-right: 1px solid rgba(208,59,59,.75); pointer-events: none; }
 .mark .ml { position: absolute; top: -24px; left: 50%; transform: translateX(-50%); white-space: nowrap; font-size: 11.5px; font-weight: 600; color: #b03535; background: #fff; border: 1px solid #f1b7b7; border-radius: 6px; padding: 0 6px; display: flex; align-items: center; gap: 4px; line-height: 1.6; }
-.agfoot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; flex-wrap: wrap; }
+.agfoot { display: flex; align-items: center; justify-content: space-between; gap: 10px; margin-top: 10px; flex-wrap: nowrap; } /* ค่าเดียวที่ใช้ เดิมตั้ง wrap ที่นี่แล้วทับเป็น nowrap ใน graph-layout.css (AUDIT ข้อ 156) */
 .lg { display: flex; align-items: center; gap: 14px; font-size: 12.5px; color: var(--txt2); flex-wrap: wrap; }
 .lg i { display: inline-block; width: 12px; height: 10px; border-radius: 2px; margin-right: 5px; vertical-align: -1px; }
 .lg .ln { display: inline-block; width: 14px; height: 2px; border-radius: 1px; margin-right: 5px; vertical-align: 3px; }

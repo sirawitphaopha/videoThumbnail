@@ -40,8 +40,8 @@ div.avthumb { background: repeating-linear-gradient(135deg, #fff 0 5px, #fbf2f5 
 .stageroom { position: relative; width: 520px; height: 293px; flex: none; }
 .stagehold { position: relative; width: 100%; height: 100%; }
 .stagebig { width: 26px; height: 26px; right: 6px; bottom: 6px; border-radius: 7px; z-index: 2; }
-.cropfull { position: fixed; inset: 0; z-index: 30; padding-bottom: 56px; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, black 88%, var(--accent)); }
-.cropfullbar { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: 31; width: min(520px, calc(100vw - 32px)); display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 10px; background: var(--win); font-size: 14px; color: var(--txt); }
+.cropfull { position: fixed; inset: 0; z-index: var(--z-crop); padding-bottom: 56px; display: flex; align-items: center; justify-content: center; background: color-mix(in srgb, black 88%, var(--accent)); }
+.cropfullbar { position: fixed; left: 50%; bottom: 12px; transform: translateX(-50%); z-index: calc(var(--z-crop) + 1); width: min(520px, calc(100vw - 32px)); display: flex; align-items: center; gap: 12px; padding: 8px 12px; border-radius: 10px; background: var(--win); font-size: 14px; color: var(--txt); }
 .stage .hd { transform: scale(var(--hs, 1)); }
 .stage .cropbox { border-width: calc(2px * var(--hs, 1)); }
 /* แผงเลือกสีขอบเอง */

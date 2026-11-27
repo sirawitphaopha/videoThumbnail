@@ -713,6 +713,57 @@ T[153] = async (p, check) => {
   check("153 การ์ดแบบตรวจที่กดไม่ได้ ชี้แล้วขอบไม่เปลี่ยนเหมือนตัวที่กดได้ · ช่องติ๊กที่กดไม่ได้ไม่เข้มขึ้น", m2h !== m1h && c1h !== accentD, JSON.stringify({ m2a, m1h, m2h, c1a, c1h, accentD }));
 };
 
+// ชุด 11 ---------------------------------------------------------------
+T[151] = async (p, check) => {
+  const t = await SRC("src/styles/app/graph.css");
+  check("151 หัวไฟล์ graph.css ไม่บอกว่าทุกคลาสอยู่ใต้ .ag แล้ว และเตือนว่าชื่อกลางห้ามตั้งซ้ำ", !t.includes("ทุกคลาสอยู่ใต้ .ag ไม่กระทบหน้าอื่น") && t.includes("ห้ามตั้งซ้ำในหน้าอื่น"), t.slice(0, 300));
+};
+T[154] = async (p, check) => {
+  const r = await p.evaluate(() => {
+    const z = (cls, attr) => { const d = document.createElement("div"); if (attr) { const w = document.createElement("div"); w.setAttribute(attr, ""); w.append(d); document.body.append(w); } else document.body.append(d); d.className = cls; const v = Number(getComputedStyle(d).zIndex); (attr ? d.parentElement : d).remove(); return v; };
+    const v = (n) => Number(getComputedStyle(document.documentElement).getPropertyValue(n));
+    return { thumb: Number(getComputedStyle(document.querySelector(".ovthumb")).zIndex), crop: z("cropfull"), cropbar: z("cropfullbar"), pad: z("padrgb", "data-colorpick"), over: v("--z-over"), pick: v("--z-pick"), viewer: v("--z-viewer"), toast: v("--z-toast") };
+  });
+  check("154 หน้าครอปเต็มจอและแถบอยู่เหนือหน้าต่างซ้อน แถบเลื่อนลอยอยู่ใต้ตัวดูรูป กล่องสีใช้ชั้นกลาง",
+    r.crop > r.over && r.cropbar > r.crop && r.cropbar < r.viewer && r.thumb < r.viewer && r.thumb > r.cropbar && r.pad === r.pick, JSON.stringify(r));
+};
+T[156] = async (p, check) => {
+  const t = await SRC("src/styles/app/convert-panel.css"), g = await SRC("src/styles/app/graph.css"), gl = await SRC("src/styles/app/graph-layout.css");
+  const n = (s, re) => (s.match(re) ?? []).length;
+  const r = { ddgroup: n(t, /^\.menu \.ddgroup \{/gm), ddsub: n(t, /^\.menu \.ddsub \{/gm), plothead: n(g + gl, /^\.plothead \{/gm), agfoot: n(g + gl, /^\.agfoot \{/gm) };
+  const cs = await p.evaluate(() => { const m = document.createElement("div"); m.className = "menu"; m.innerHTML = '<div class="ddgroup">ก</div><div class="ddsub">ข</div><div class="plothead"></div><div class="ddsub">ค</div>'; document.body.append(m);
+    const g = getComputedStyle(m.children[0]), s = getComputedStyle(m.children[3]), h = getComputedStyle(m.children[2]);
+    const o = { g: [g.fontSize, g.borderTopWidth, g.marginTop, g.paddingTop], s: [s.fontSize, s.borderTopWidth, s.paddingTop, s.fontWeight], h: [h.flexWrap, h.containerType] }; m.remove(); return o; });
+  check("156 หัวกลุ่มกับหัวย่อยของรายการ และ .plothead .agfoot ประกาศที่เดียว", r.ddgroup === 1 && r.ddsub === 1 && r.plothead === 1 && r.agfoot === 1, JSON.stringify(r));
+  check("156 ค่าสุดท้ายเท่าเดิม หัวกลุ่ม 13.5 เส้น 2 หัวย่อย 13 เส้น 1 หัวกราฟไม่ตัดบรรทัด", JSON.stringify(cs) === JSON.stringify({ g: ["13.5px", "2px", "6px", "9px"], s: ["13px", "1px", "7px", "700"], h: ["nowrap", "inline-size"] }), JSON.stringify(cs));
+};
+T[158] = async (p, check) => {
+  await nav(p, "บิตเรต"); await wait(p, 300); await nav(p, "เสียงและซับ"); await wait(p, 300);
+  await p.evaluate(() => { const d = document.createElement("div"); d.id = "t158"; d.style.cssText = "position:fixed;left:300px;top:200px;z-index:999;background:#fff;padding:10px;width:260px";
+    d.innerHTML = '<div class="avm-card" id="a1" style="height:50px">ได้</div><div class="avm-card on" id="a2" aria-disabled="true" style="height:50px;margin-top:8px">ไม่ได้</div><div class="avm-card" id="a3" aria-disabled="true" style="height:50px;margin-top:8px">ไม่ได้ไม่เลือก</div><div class="brn-zoom" style="margin-top:8px"><button class="icon-btn" id="z1" disabled>+</button><button class="icon-btn" id="z2">+</button></div>';
+    document.body.append(d); });
+  const st = (id) => p.evaluate((i) => { const c = getComputedStyle(document.getElementById(i)); return `${c.borderTopColor} ${c.backgroundColor} ${c.color}`; }, id);
+  const hov = async (id) => { const b = await p.evaluate((i) => { const r = document.getElementById(i).getBoundingClientRect(); return { x: r.x + r.width / 2, y: r.y + r.height / 2 }; }, id); await p.mouse.move(b.x, b.y); await wait(p, 300); const v = await st(id); await p.mouse.move(5, 5); await wait(p, 300); return v; };
+  const r = {};
+  for (const id of ["a1", "a2", "a3", "z1", "z2"]) { r[id] = [await st(id), await hov(id)]; }
+  await p.evaluate(() => document.getElementById("t158").remove());
+  check("158 การ์ดวิธีที่กดได้ ชี้แล้วเปลี่ยน · ที่กดไม่ได้ทั้งตัวที่เลือกและไม่ได้เลือก ชี้แล้วคงหน้าตาเดิม", r.a1[0] !== r.a1[1] && r.a2[0] === r.a2[1] && r.a3[0] === r.a3[1], JSON.stringify({ a1: r.a1, a2: r.a2, a3: r.a3 }));
+  check("158 ปุ่มซูมหน้าบิตเรตที่กดไม่ได้ ชี้แล้วไม่ขึ้นพื้นเหมือนตัวที่กดได้", r.z2[0] !== r.z2[1] && r.z1[0] === r.z1[1], JSON.stringify({ z1: r.z1, z2: r.z2 }));
+};
+T[159] = async (p, check) => {
+  await nav(p, "บิตเรต"); await wait(p, 300);
+  const t = await SRC("src/styles/bitrate.css"), a = await SRC("src/styles/av.css");
+  const n = (re) => (t.match(re) ?? []).length;
+  const r = { kv: n(/^\.brn-kv \{/gm), kvdd: n(/^\.brn-kv dd \{/gm), pin: n(/^\.brn-pin \{/gm), classic: n(/^\.brn-classic \{/gm), vz: n(/^\.brn-vz \{/gm), vzval: n(/^\.brn-vzval \{/gm) };
+  check("159 bitrate.css ประกาศ .brn-kv .brn-pin .brn-classic .brn-vz .brn-vzval ที่เดียว", Object.values(r).every((v) => v === 1), JSON.stringify(r));
+  check("159 หัวไฟล์ av.css กับ bitrate.css บอกตรงกับของจริงว่ายังมีชื่อกลางที่ใช้ร่วม", a.includes("ห้ามตั้งซ้ำในหน้าอื่น") && t.includes("ใช้ร่วมกับหน้ากราฟเสียงตั้งใจ"), "");
+  // ค่าสุดท้ายเท่าเดิม
+  const cs = await p.evaluate(() => { const d = document.createElement("div"); d.innerHTML = '<dl class="brn-kv"><dt>ก</dt><dd>ข</dd></dl><div class="brn-pin">ค</div><span class="brn-vzval">1</span><button class="brn-classic">ง</button>'; document.body.append(d);
+    const [kv, pin, vz, cl] = [...d.children].map((e) => getComputedStyle(e)); const dd = getComputedStyle(d.querySelector("dd"));
+    const o = { kv: kv.gridTemplateColumns.split(" ")[0], dd: dd.whiteSpace, pin: [pin.height, pin.paddingTop, pin.paddingLeft], vz: [vz.minWidth, vz.textAlign], cl: cl.width }; d.remove(); return o; });
+  check("159 ค่าสุดท้ายหลังรวมกฎเท่าเดิม", cs.kv === "76px" && cs.dd === "nowrap" && cs.pin.join() === "46px,0px,10px" && cs.vz.join() === "46px,right" && cs.cl === "181px", JSON.stringify(cs));
+};
+
 // ---------------------------------------------------------------- ตัวรัน
 const want = process.argv.slice(2).map(Number).filter(Boolean);
 const ids = Object.keys(T).map(Number).filter((n) => !want.length || want.includes(n)).sort((a, b) => a - b);

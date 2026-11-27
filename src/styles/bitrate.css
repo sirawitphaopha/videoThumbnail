@@ -1,4 +1,6 @@
-/* มอคอัป · หน้าบิตเรตวิดีโอแบบใหม่ · สีทุกจุดมาจากตัวแปรของโทน (โทนเปลี่ยน หน้าเปลี่ยนตาม) · ชื่อคลาสขึ้นต้น brn- ไม่ชนหน้าอื่น */
+/* หน้าบิตเรตแบบใหม่ (src/pages/bitrate/BitratePage.tsx) · สีทุกจุดมาจากตัวแปรของโทน (โทนเปลี่ยน หน้าเปลี่ยนตาม)
+   ชื่อคลาสของหน้านี้ขึ้นต้น brn- ไม่ชนหน้าอื่น ส่วน .fchip .gmodebar .hzoom .zbtns .seg ใช้ร่วมกับหน้ากราฟเสียงตั้งใจ
+   คลาสหนึ่งประกาศที่เดียวในไฟล์นี้ แก้ค่าที่บรรทัดของมันแล้วเห็นผล (AUDIT ข้อ 159 เดิม .brn-kv .brn-pin .brn-classic .brn-vz ประกาศซ้ำสองที่) */
 .brn { height: 100%; min-height: 0; overflow: hidden; }
 /* หน้านี้ไม่เลื่อน แถบบนจึงไม่ต้องติดขอบ (แบบหน้ากราฟเสียงที่อยู่ในกล่องเลื่อน ถ้าติดขอบจะโดนดันลงมาทับจุดลากไฟล์) */
 .brn .gmodebar { position: relative; }
@@ -15,7 +17,8 @@
 .brn-ctl.compact .brn-pal.sws .sw { width: 20px; height: 20px; }
 .brn-ctl .lbl { flex: none; }
 .brn-sep { width: 1px; height: 22px; background: var(--line); flex: none; margin: 0 2px; }
-.brn-classic { margin-left: auto; flex: none; white-space: nowrap; }
+/* กว้างเท่าปุ่มซูมข้างล่าง ขอบซ้ายขวาตรงกัน (พี่กันสั่ง 10 พ.ย. 2569 "ยาวเท่ากัน") */
+.brn-classic { margin-left: auto; flex: none; white-space: nowrap; width: 181px; justify-content: center; }
 .brn-multi button { display: inline-flex; align-items: center; gap: 6px; }
 /* ขีดสีในปุ่มเส้น ใหญ่พอแยกสีออก ลายตรงกับเส้นในกราฟ ค่าเฉลี่ยเส้นทึบ สูงสุดกับต่ำสุดเส้นประ (พี่กันทัก 10 พ.ย. 2569 "เส้นตัวอย่างเล็กไปนะ แทบแยกสีไม่ออก")
    ต่ำสุดใช้ชื่อสี steelblue ตัวแปลงโทนไม่แปลง เดิมใช้ --info-ink ที่โทนแปลงเป็นชมพูเหมือนอีกสองเส้น */
@@ -29,21 +32,20 @@
 .brn-side { display: flex; flex-direction: column; gap: 10px; min-height: 0; overflow-y: auto; }
 .brn-side .card { padding: 12px 14px; }
 .brn-side h3 { margin: 0 0 6px; font-size: 14px; color: var(--accent-ink); }
-.brn-kv { display: grid; grid-template-columns: 66px 1fr; gap: 3px 8px; margin: 0; font-size: 13px; line-height: 1.5; }
+.brn-kv { display: grid; grid-template-columns: 76px 1fr; gap: 3px 8px; margin: 0; font-size: 13px; line-height: 1.5; }
 .brn-kv dt { color: var(--txt3); white-space: nowrap; }
 /* ป้ายที่มีปุ่ม ⓘ ต่อท้าย (เพดาน BUGS ข้อ 119) */
 .brn-kv dt.brn-dtip { display: inline-flex; align-items: center; gap: 3px; }
 /* ปุ่มไปหน้ากราฟเสียงท้ายการ์ด Bitrate ตอนดูไฟล์เสียง */
 .brn-graph { margin-top: 8px; width: 100%; justify-content: center; }
 /* ค่าชิดขวา ช่องที่ยังไม่มีค่าเป็นขีดสีเดียวกับชื่อแถว (พี่กันสั่ง 11 พ.ย. 2569 "ย้ายขีด ไปฝั่งขวา ตอนนี้ฝั่งขวามันว่างไป") · ค่าจริงชิดขวาด้วย ไม่กระโดดตอนอ่านเสร็จ แบบแผงข้อมูลเสียงของหน้ากราฟเสียง */
-.brn-kv dd { margin: 0; color: var(--txt); font-variant-numeric: tabular-nums; min-width: 0; text-align: right; }
+.brn-kv dd { margin: 0; color: var(--txt); font-variant-numeric: tabular-nums; min-width: 0; text-align: right; white-space: nowrap; }
 .brn-na { color: var(--txt3); font-weight: 400; }
 /* ขีดอยู่กึ่งกลางคอลัมน์ค่าฝั่งขวา (พี่กันสั่ง 11 พ.ย. 2569 "ให้มองมันเป็น 2 คอลัมน์ แล้ว ขีด อยู่กึ่งกลางคอลัมน์ฝั่งขวาไง") · ป้าย I P B ไม่อยู่ในคอลัมน์ค่า ไม่โดน */
 .brn-kv dd .brn-na { display: block; text-align: center; }
 /* เวลาที่เกิดค่าสูงสุดต่ำสุด เป็นบรรทัดเล็กใต้ค่า กดแล้วปักจุดตรงนั้น */
 /* เวลาอยู่บรรทัดเดียวกับค่า (พี่กันทัก 10 พ.ย. 2569 "มันตกสองบรรทัด") */
 .brn-at { display: inline; white-space: nowrap; font-size: 12px; padding: 0 3px; margin-left: 2px; border-radius: 4px; }
-.brn-kv dd { white-space: nowrap; }
 .brn-at:hover { background: var(--accent-soft); }
 .brn-hint { margin: 6px 0 0; }
 .brn-types { margin-top: 8px; display: flex; flex-direction: column; gap: 4px; font-size: 13px; }
@@ -65,6 +67,8 @@
 .brn-zoom { display: flex; align-items: center; gap: 6px; flex: none; }
 .brn-zoom .icon-btn { width: 30px; height: 30px; }
 .brn-zoom .icon-btn:disabled { opacity: .4; cursor: default; }
+/* ปุ่มซูมที่กดไม่ได้ ชี้แล้วไม่ขึ้นพื้นเหมือนกดได้ (AUDIT ข้อ 158) */
+.brn-zoom .icon-btn:disabled:hover { background-color: transparent; color: var(--txt2); }
 .brn-prog { position: relative; height: 22px; border-radius: 6px; background: var(--accent-soft); overflow: hidden; font-size: 12.5px; color: var(--accent-ink); display: flex; align-items: center; padding: 0 10px; }
 .brn-prog i { position: absolute; left: 0; top: 0; bottom: 0; background: color-mix(in srgb, var(--accent) 22%, transparent); transition: width .12s linear; }
 .brn-prog span { position: relative; font-weight: 600; }
@@ -100,7 +104,8 @@
 /* ป้ายอ่านไม่ถึงท้ายไฟล์ ลอยในช่วงที่อ่านไม่ได้ ไม่ดันกรอบ (AUDIT ข้อ 118) */
 .brn-cut { position: absolute; z-index: 2; display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 4px 0 10px; border-radius: 13px; background: var(--win); box-shadow: inset 0 0 0 1px var(--line); font-size: 12.5px; color: var(--txt2); white-space: nowrap; }
 .brn-howto { margin-left: auto; color: var(--txt3); }
-.brn-pin { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 7px 10px; border-radius: 9px; background: var(--accent-soft); font-size: 13px; color: var(--txt); }
+/* สูงเท่ากันทั้งตอนว่างและตอนปัก (มีปุ่ม) กราฟไม่ขยับ */
+.brn-pin { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; padding: 0 10px; border-radius: 9px; background: var(--accent-soft); font-size: 13px; color: var(--txt); height: 46px; flex: none; box-sizing: border-box; overflow: hidden; }
 .brn-pin b { font-variant-numeric: tabular-nums; }
 .brn-pinmark { width: 3px; height: 18px; border-radius: 2px; background: var(--accent-d); }
 @media (max-width: 1180px) { .brn-howto { display: none; } }
@@ -132,26 +137,21 @@
 .brn-plotrow { flex: 1; min-height: 160px; display: flex; gap: 6px; }
 .brn-plotrow .brn-plot { flex: 1; min-width: 0; min-height: 0; }
 .brn-vzoom { align-self: stretch; }
-.brn-vz { display: inline-flex; align-items: center; gap: 6px; flex: none; }
-.brn-vzval { min-width: 30px; font-size: 12.5px; color: var(--txt2); font-variant-numeric: tabular-nums; }
+/* ขยายแนวตั้งชิดขวา ใต้แถบซูมแนวตั้ง · ตัวเลขจองที่กว้างคงที่ เปลี่ยนค่าแล้วไม่ขยับ (พี่กันสั่ง 10 พ.ย. 2569 "เอาอันนี้ไปอยู่ฝั่งขวา ข้างเส้นซูม และกันที่ไว้ด้วย") */
+.brn-vz { display: inline-flex; align-items: center; gap: 6px; flex: none; order: 9; margin-left: auto; }
+.brn-vzval { min-width: 46px; font-size: 12.5px; color: var(--txt2); font-variant-numeric: tabular-nums; text-align: right; }
 
-/* แถบปักจุดสูงเท่ากันทั้งตอนว่างและตอนปัก (มีปุ่ม) กราฟไม่ขยับ */
-.brn-pin { height: 46px; flex: none; box-sizing: border-box; padding-block: 0; overflow: hidden; }
+/* แถบปักจุดตอนว่าง */
 .brn-pin.empty { background: transparent; box-shadow: inset 0 0 0 1px var(--line); color: var(--txt3); font-size: 12.5px; justify-content: center; }
 
-/* ปุ่มสลับแบบกว้างเท่าปุ่มซูมข้างล่าง ขอบซ้ายขวาตรงกัน (พี่กันสั่ง 10 พ.ย. 2569 "ยาวเท่ากัน") */
-.brn-classic { width: 181px; justify-content: center; }
+/* ปุ่มช่วงซูมกว้างเท่าปุ่มสลับแบบ (.brn-classic) ขอบซ้ายขวาตรงกัน */
 .brn-zoom .seg { width: 181px; }
 .brn-zoom .seg button { flex: 1; justify-content: center; padding-inline: 0; }
 
-/* ขยายแนวตั้งชิดขวา ใต้แถบซูมแนวตั้ง · ตัวเลขจองที่กว้างคงที่ เปลี่ยนค่าแล้วไม่ขยับ (พี่กันสั่ง 10 พ.ย. 2569 "เอาอันนี้ไปอยู่ฝั่งขวา ข้างเส้นซูม และกันที่ไว้ด้วย") */
-.brn-vz { order: 9; margin-left: auto; }
-.brn-vzval { min-width: 46px; text-align: right; }
 
 /* I P B บรรทัดเดียว (ประหยัดที่ให้ข้อมูลวิดีโอ 10 พ.ย. 2569) */
 .brn-tline { display: flex; gap: 12px; align-items: center; font-variant-numeric: tabular-nums; }
 .brn-tchip { display: inline-flex; align-items: center; gap: 5px; }
-.brn-kv { grid-template-columns: 76px 1fr; }
 
 /* หน้าเลือกแทร็กก่อนเปิด (10 พ.ย. 2569) */
 .brn-choose { max-width: 640px; width: 100%; align-self: center; margin-top: 24px; display: flex; flex-direction: column; gap: 10px; }

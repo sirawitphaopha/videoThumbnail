@@ -83,7 +83,7 @@ canvas.spekpan.dragging { cursor: grabbing; }
 /* เต็มจอ (BUGS ข้อ 39) ซ่อนแถบชื่อหน้าต่าง เมนูซ้าย หัวหน้ากราฟ เหลือกราฟกับแถบเครื่องมือ */
 html[data-full] .titlebar, html[data-full] .sidewrap, html[data-full] aside.side, html[data-full] [data-pageslot=graph] .agtop { display: none !important; }
 /* แผงเลือกสีที่ใช้นอกหน้าครอป (ชุดสีกำหนดเองของหน้ากราฟ BUGS ข้อ 41) กว้างพอให้รังผึ้งกับช่องตัวเลขอยู่แถวเดียว */
-[data-colorpick] .padrgb { width: max-content; z-index: 30; }
+[data-colorpick] .padrgb { width: max-content; z-index: var(--z-pick); }
 [data-colorpick] .padside { width: 236px; flex: none; }
 [data-colorpick] .padarea { height: 230px; }
 /* แถว Hex มีปุ่มคัดลอกกับวาง ช่องรหัสต้องกว้างพอให้เห็นครบ 7 ตัว (เจอตอนตรวจภาพ ตัดเหลือ #1A73E) */
