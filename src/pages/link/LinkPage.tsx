@@ -44,7 +44,8 @@ export default function LinkPage() {
   const setReading = (v: boolean) => setLinkJob({ reading: v });
   const [summarySec, setSummarySec] = useState(0);
   const { movies } = useLibrary();
-  const nocover = movies.filter((m) => !m.hasCover && !m.linked?.length).length;
+  // ไม่นับเรื่องที่ไดรฟ์ถอดออกอยู่ ตัวจับคู่ฝั่ง Rust ข้ามเรื่องพวกนี้ (AUDIT ข้อ 75)
+  const nocover = movies.filter((m) => !m.missing && !m.hasCover && !m.linked?.length).length;
   const [over, setOver] = useState(false);
   const [badDrop, setBadDrop] = useState<string | null>(null);
 

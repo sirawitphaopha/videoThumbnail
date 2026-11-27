@@ -59,7 +59,7 @@ export default function PosterCards({ pg }: { pg: PoCtx }) {
                   <span style={{ wordBreak: "break-all" }}>{poster.name}</span><br />
                   {poster.attachable ? <><span className="extag ok">.{poster.ext}</span> แนบได้เลย</> : <><span className="extag extcv">.{poster.ext}→.{choice.format}</span> แปลงให้ก่อนแนบ</>}<br />
                   <span className="nw">{choice.render.width} × {choice.render.height} px</span> ขนาด <span className="nw">{fmtSize(choice.render.bytes)}</span><br />
-                  <span className="ppmode">{poster.twoThree ? "สัดส่วน 2 : 3 พอดีปก" : choice.geo.mode === "pad" ? "เติมขอบให้เต็มปก" : choice.geo.mode === "original" ? "ใช้ตามรูปเดิม ไม่ตัด" : "ครอปให้พอดีปกแล้ว"}<br /></span>
+                  <span className="ppmode">{choice.geo.aspect === "wide" ? "ครอปเป็นปกนอน 16 : 9 แล้ว" : poster.twoThree ? "สัดส่วน 2 : 3 พอดีปก" : choice.geo.mode === "pad" ? "เติมขอบให้เต็มปก" : choice.geo.mode === "original" ? "ใช้ตามรูปเดิม ไม่ตัด" : "ครอปให้พอดีปกแล้ว"}<br /></span>
                   {/* กติกาเดียวกับ poster.rs กว้างมากกว่าสูงเป็นปกนอน นอกนั้นปกตั้ง · MP4 ไม่มีชื่อไฟล์แนบ ฝังเป็นรูปปกของไฟล์ */}
                   <span data-attach-name><b style={{ color: "var(--txt)" }}>{choice.render.width > choice.render.height ? "ปกนอน" : "ปกตั้ง"}</b> {output === "mp4" ? "ฝังเป็นรูปปกของ MP4" : <>แนบเป็น <span className="nw">{choice.render.width > choice.render.height ? "cover_land" : "cover"}.{choice.format}</span></>}</span>
                 </div>

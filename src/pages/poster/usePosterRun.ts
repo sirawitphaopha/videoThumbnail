@@ -8,7 +8,7 @@ import { centerCrop } from "./parts";
 import type { Po1 } from "./posterCtx";
 
 export function usePosterRun(c: Po1) {
-  const { ack, checkOutput, checkSource, choice, drop, job, movie, moviePath, movies, original, output, poster, run, setAskDelete, setAskMp4, setChoice, setDrop, setMovie, setMovieErr, setMoviePath, setOnce, setPoster, setPosterErr, setRun, setTyped, setUserCrop, toast, typed } = c;
+  const { ack, checkOutput, checkSource, choice, drop, job, movie, moviePath, movies, original, output, poster, posterErr, run, setAskDelete, setAskMp4, setChoice, setDrop, setMovie, setMovieErr, setMoviePath, setOnce, setPoster, setPosterErr, setRun, setTyped, setUserCrop, toast, typed } = c;
   const isMkv = movie?.ext === "mkv";
   const mode = output === "mp4" ? "mp4" : isMkv ? "cover" : "wrap";
   const mp4Bad: StreamInfo[] = output === "mp4" && movie ? movie.streams.filter((s) => (s.mp4 === "no" && !drop.includes(s.index)) || (s.mp4 === "style" && !ack.includes(s.index) && !drop.includes(s.index))) : [];
@@ -46,6 +46,7 @@ export function usePosterRun(c: Po1) {
   const blocked = !movie ? "ยังกดไม่ได้ ใส่ไฟล์หนังก่อน"
     : !choice ? "ยังกดไม่ได้ ใส่รูปโปสเตอร์ก่อน"
     : rendering ? "รอทำรูปให้เสร็จก่อน"
+    : posterErr ? "ยังกดไม่ได้ รูปล่าสุดใช้ไม่ได้ ใส่รูปใหม่ก่อน"
     : mp4VideoBad ? "ไฟล์นี้ส่งออกเป็น MP4 ไม่ได้ ใช้ MKV แทน"
     : nameProblem ? nameProblem.title
     : posterShort;

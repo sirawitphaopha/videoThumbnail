@@ -9,6 +9,8 @@ import { ImageLayer } from "./CropPreview";
 import type { CrCtx } from "./cropCtx";
 
 export function CropLeft({ pg }: { pg: CrCtx }) {
+  // รูปที่ส่งมามีการเอียงตั้งแต่เปิด แถบค้างไว้จนปิด แม้เลื่อนกลับเป็นศูนย์แล้ว
+  const tilted = !!pg.p.start?.geo.tilt;
   const { ar, cropping, down, format, full, fullS, hexCopied, info, lay, mode, move, own, p, pad, pickPad, quality, render, setFull, setHexCopied, setMode, setPad, setTilt, setView, setZoom, short, smallCard, smallLeft, turn, up, view, wideSlot } = pg;
   return (
     <>
@@ -66,7 +68,8 @@ export function CropLeft({ pg }: { pg: CrCtx }) {
               <span className="small" style={{ whiteSpace: "nowrap", minWidth: 40, textAlign: "right" }}>{Math.round(view.z * 100)}%</span>
             </div>
           )}
-          {p.link && (
+          {/* หน้าใส่โปสเตอร์ขึ้นแถบนี้เมื่อรูปที่ส่งมาจากปกจับคู่มีการเอียง ปรับคืนได้โดยไม่ต้องล้างกรอบ (AUDIT ข้อ 53) */}
+          {(p.link || tilted) && (
             <div style={{ display: "flex", alignItems: "center", gap: 12 }} data-tilt>
               <span style={{ fontSize: 14, whiteSpace: "nowrap" }}>ปรับเอียง</span>
               <Range value={view.tilt} min={-15} max={15} step={0.5} label="ปรับเอียง" format={(v) => `${v}°`} onChange={setTilt} />

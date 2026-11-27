@@ -128,7 +128,7 @@ export default function CloseGuard({ onGoLink, onGoSub }: { onGoLink: () => void
         )}
       >
         <div className="small" style={{ fontSize: 14, color: "var(--txt2)", marginBottom: 10 }}>รอยืนยันอยู่ในตารางตรวจผล <span className="nw">{waiting} คู่</span> ติ๊กไว้ <span className="nw">{ticked} คู่</span> ปกยังไม่ขึ้นชั้นวาง</div>
-        <div className="stat info" style={{ margin: 0 }}><CardIcon kind="info" /><div>ปิดโดยไม่ยืนยันก็ไม่หาย โปรแกรมจำคู่ที่ติ๊กไว้ เปิดมาครั้งหน้ามีแถบ <b style={{ display: "inline", whiteSpace: "nowrap" }}>ทำต่อ {waiting} คู่ที่ค้างไว้</b></div></div>
+        <div className="stat info" style={{ margin: 0 }}><CardIcon kind="info" /><div>ปิดโดยไม่ยืนยันก็ไม่หาย โปรแกรมจำทุกคู่ที่รออยู่ ทั้งที่ติ๊กและไม่ได้ติ๊ก เปิดมาครั้งหน้ามีแถบ <b style={{ display: "inline", whiteSpace: "nowrap" }}>ทำต่อ {waiting} คู่ที่ค้างไว้</b></div></div>
         {failed && <div className="hint e" role="alert" style={{ marginTop: 10 }} data-closepairs-failed>{failed}</div>}
       </Dialog>
       <Dialog

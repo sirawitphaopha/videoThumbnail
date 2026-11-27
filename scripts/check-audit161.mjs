@@ -26,6 +26,11 @@ const clickText = (p, text, sel = "button,[role=tab],a") => p.evaluate(([t, s]) 
 const pick = (p, path) => p.evaluate((x) => { window.__pickNext = x; }, path);
 /** สลับคำตอบของคำสั่งในระบบจำลอง · body เป็นฟังก์ชัน async ได้ตัวแปร a · เรียกตัวเดิมด้วย await window.__fxOverBase.<คำสั่ง>(a) */
 const over = (p, cmd, body) => p.evaluate(([c, b]) => { const AF = Object.getPrototypeOf(async function () {}).constructor; (window.__fxOver ??= {})[c] = new AF("a", b); }, [cmd, body]);
+/** สลับคำตอบตั้งแต่ก่อนหน้าโหลด (คำสั่งที่โปรแกรมเรียกตอนเปิด) แล้วโหลดหน้าใหม่ */
+const overBoot = async (p, cmd, body) => {
+  await p.addInitScript(([c, b]) => { const AF = Object.getPrototypeOf(async function () {}).constructor; (window.__fxOver ??= {})[c] = new AF("a", b); }, [cmd, body]);
+  await p.reload(); await p.waitForSelector("[data-navbar]"); await wait(p, 1500);
+};
 const text = (p, sel) => p.evaluate((s) => document.querySelector(s)?.innerText ?? null, sel);
 const wait = (p, ms) => p.waitForTimeout(ms);
 /** เรียกฟังก์ชันจากไฟล์ ts ในหน้า · fn เป็นข้อความ body ที่ได้ตัวแปร m (โมดูล) กับ a (ค่าที่ส่ง) */
@@ -94,6 +99,84 @@ T[45] = async (p, check) => {
   await pick(p, "D:\\รูปปก\\รูปไม่มีนามสกุล"); await click(p, "[data-drop=poster]"); await wait(p, 400);
   const t = await text(p, "[data-drop=poster]");
   check("45 รูปไม่มีนามสกุล ขึ้นเป็นประโยค ไม่มีเครื่องหมายคำถามแทนคำ", !!t && t.includes("ไฟล์ที่ไม่มีนามสกุลใช้ไม่ได้") && !t.includes(".?"), t);
+};
+
+// ชุด 2 ----------------------------------------------------------------
+/** หน้าใส่โปสเตอร์ ใส่หนังกับรูปแล้วหน้าครอปเปิดเอง */
+const posterWithImage = async (p, img = "D:\\รูปปก\\ตัวอย่าง.jpg") => {
+  await nav(p, "ใส่โปสเตอร์"); await wait(p, 300);
+  await pick(p, MOVIE); await click(p, "[data-drop=movie]"); await wait(p, 800);
+  await pick(p, img); await click(p, "[data-drop=poster]"); await p.waitForSelector("[data-use]"); await wait(p, 300);
+};
+/** เรื่องแรกที่มีปกจับคู่บนชั้นวาง แก้ค่าปกจับคู่ได้ก่อนกดรวมเข้าไฟล์ */
+const linkedMerge = async (p, geo) => {
+  if (geo) await p.evaluate(async (g) => {
+    const name = [...document.querySelectorAll(".book")].find((b) => b.getAttribute("aria-label")?.includes("ปกจับคู่"))?.dataset.movie;
+    const lib = await window.__TAURI_INTERNALS__.invoke("get_library");
+    const m = lib.movies.find((x) => x.name === name);
+    window.__emit("movie-updated", { ...m, linked: m.linked.map((c) => ({ ...c, geo: g })) });
+  }, geo);
+  await wait(p, 200);
+  await p.evaluate(() => [...document.querySelectorAll(".book")].find((b) => b.getAttribute("aria-label")?.includes("ปกจับคู่"))?.click());
+  await p.waitForSelector("[data-link-merge]"); await click(p, "[data-link-merge]"); await wait(p, 1200);
+};
+const GEO = { rotate: 0, flip: false, mode: "crop", x: 0, y: 0, w: 1000, h: 1500, pad: "#000000", tilt: 0, aspect: "" };
+T[52] = async (p, check) => {
+  await posterWithImage(p);
+  await p.evaluate(() => [...document.querySelectorAll(".dlg .seg button")].find((b) => b.innerText.includes("ปกนอน 16 : 9"))?.click()); await wait(p, 300);
+  await click(p, "[data-use]"); await wait(p, 800);
+  const t = await text(p, ".ppmode");
+  check("52 รูป 2 : 3 ที่ครอปเป็นปกนอน การ์ดบอกว่าครอปเป็นปกนอน ไม่ใช่สัดส่วน 2 : 3 พอดีปก", t?.includes("ปกนอน 16 : 9") && !t.includes("พอดีปก"), t);
+};
+T[53] = async (p, check) => {
+  await linkedMerge(p, { ...GEO, tilt: Number(process.env.TILT ?? 3) });
+  await clickText(p, "ครอป/แปลงรูป"); await p.waitForSelector("[data-use]"); await wait(p, 300);
+  const r = await p.evaluate(() => { const b = document.querySelector(".dlg"); const body = b?.querySelector(".dlg-body") ?? b; return { tilt: !!document.querySelector("[data-tilt]"), val: document.querySelector("[data-tilt-val]")?.textContent, over: body ? body.scrollHeight - body.clientHeight : -1, wover: b ? b.getBoundingClientRect().bottom - window.innerHeight : 0 }; });
+  check("53 รูปจากปกจับคู่ที่เอียงไว้ หน้าครอปของหน้าใส่โปสเตอร์มีแถบปรับเอียงบอก +3°", r.tilt && r.val === "+3°", JSON.stringify(r));
+  check("53 แถบที่เพิ่มไม่ดันหน้าต่างครอปล้นจอหรือต้องเลื่อน", r.over <= 0 && r.wover <= 0, JSON.stringify(r));
+  if (process.env.SHOTS) await p.screenshot({ path: `${process.env.SHOTS}/ข้อ-53-เอียง.png` });
+  await clickText(p, "ยกเลิก"); await wait(p, 300);
+  await p.goto(URL); await p.waitForSelector("[data-navbar]"); await wait(p, 1500);
+  await posterWithImage(p);
+  const none = await p.evaluate(() => !!document.querySelector("[data-tilt]"));
+  check("53 รูปที่ไม่เอียง หน้าใส่โปสเตอร์ไม่มีแถบปรับเอียงเหมือนเดิม", !none, none);
+};
+T[54] = async (p, check) => {
+  await posterWithImage(p); await click(p, "[data-use]"); await wait(p, 800);
+  const before = await p.evaluate(() => document.querySelector("[data-start]").title);
+  await p.evaluate(() => { const r = document.querySelector("[data-drop=poster]").getBoundingClientRect(); window.__emit("tauri://drag-drop", { paths: ["D:\\รูปปก\\ไฟล์เสีย.txt"], position: { x: r.left + r.width / 2, y: r.top + r.height / 2 } }); }); await wait(p, 500);
+  const r = await p.evaluate(() => { const b = document.querySelector("[data-start]"); return { dis: b.getAttribute("aria-disabled"), title: b.title }; });
+  check("54 รูปใหม่ใช้ไม่ได้ การ์ดรูปแดง ปุ่มเริ่มกดไม่ได้พร้อมเหตุผล ไม่แนบรูปเดิมเงียบ ๆ", before === "" && r.dis === "true" && r.title.includes("รูปล่าสุดใช้ไม่ได้"), JSON.stringify({ before, ...r }));
+};
+T[57] = async (p, check) => {
+  await posterWithImage(p);
+  await p.evaluate(() => [...document.querySelectorAll(".dlg .seg button")].find((b) => b.innerText.includes("เติมขอบ"))?.click()); await wait(p, 300);
+  await click(p, "[data-pad-custom]"); await p.waitForSelector("[data-pad-paste]");
+  await over(p, "clipboard_text", `return "ข้อความอื่นที่ไม่ใช่รหัสสี";`);
+  await click(p, "[data-pad-paste]"); await wait(p, 300);
+  if (process.env.SHOTS) await p.screenshot({ path: `${process.env.SHOTS}/ข้อ-57-วางไม่ได้.png` });
+  const r = await p.evaluate(() => { const b = document.querySelector("[data-pad-paste]"); return { bad: b.dataset.bad, label: b.getAttribute("aria-label"), color: getComputedStyle(b).color }; });
+  check("57 วางรหัสสีไม่สำเร็จ ปุ่มเปลี่ยนหน้าตาและบอกว่าคลิปบอร์ดไม่มีรหัสสี", r.bad === "true" && r.label === "คลิปบอร์ดไม่มีรหัสสี", JSON.stringify(r));
+  await wait(p, 2000);
+  const back = await p.evaluate(() => document.querySelector("[data-pad-paste]").getAttribute("aria-label"));
+  check("57 ผ่านไปสองวินาทีปุ่มกลับเป็นวางรหัสสี", back === "วางรหัสสี", back);
+};
+T[71] = async (p, check) => {
+  const src = await (await fetch(`${BASE}/src/components/CloseGuard.tsx?raw`)).text();
+  check("71 หน้าต่างกันปิดบอกว่าจำทุกคู่ที่รออยู่ ทั้งที่ติ๊กและไม่ได้ติ๊ก", src.includes("จำทุกคู่ที่รออยู่ ทั้งที่ติ๊กและไม่ได้ติ๊ก") && !src.includes("จำคู่ที่ติ๊กไว้"));
+};
+T[75] = async (p, check) => {
+  const count = () => p.evaluate(() => { const b = [...document.querySelectorAll("button")].find((x) => x.innerText.includes("เฉพาะเรื่องที่ยังไม่มีปก")); return b ? Number(b.innerText.replace(/[^\d]/g, "")) : null; });
+  await overBoot(p, "link_state", `return { rows: [], imageFolders: [], loose: [], scope: "nocover", waiting: 0 };`);
+  await nav(p, "จับคู่ปก"); await wait(p, 500);
+  const n0 = await count();
+  await p.evaluate(async () => {
+    const lib = await window.__TAURI_INTERNALS__.invoke("get_library");
+    const m = lib.movies.find((x) => !x.hasCover && !x.linked?.length);
+    window.__emit("movie-updated", { ...m, missing: true });
+  }); await wait(p, 300);
+  const n1 = await count();
+  check("75 ปุ่มเฉพาะเรื่องที่ยังไม่มีปกไม่นับเรื่องที่ไดรฟ์ถอดออกอยู่ เหมือนตัวจับคู่", n0 > 0 && n1 === n0 - 1, `${n0} → ${n1}`);
 };
 
 // ---------------------------------------------------------------- ตัวรัน

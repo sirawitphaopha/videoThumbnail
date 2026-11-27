@@ -1,7 +1,7 @@
 // แผงเลือกสีใช้ร่วม แยกจากหน้าครอป (สีขอบเอง) ไปใช้กับสีกำหนดเองของหน้ากราฟเสียงด้วย (BUGS ข้อ 41 พี่กัน "เราก็ทำระบบสีแบบกำหนดเองไว้เลเล้วนี่นะ ที่ตอนครอปรูป")
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { useEscClose } from "../lib/popup";
-import { IbTick, IcCopy, IcPaste, IcPlus } from "./icons";
+import { IbTick, IcClose, IcCopy, IcPaste, IcPlus } from "./icons";
 import { infoApi } from "../lib/api";
 
 /** แป้นไทยกดแป้นเลขแล้วได้ตัวอักษรไทย ช่องเลขทิ้งหมดจนเหมือนพิมพ์ไม่ได้ · ดูจากตำแหน่งแป้นแทน ใส่เลขให้ */
@@ -154,9 +154,10 @@ export function PadCustom(p: { pad: string; onPad: (c: string) => void; custom: 
                     {copied ? <IbTick size={14} /> : <IcCopy size={14} />}
                   </button>
                   {/* วางรหัสสีจากคลิปบอร์ด รับทั้งมีและไม่มี # (พี่กันสั่ง "ขอปุ่มวางค่าสีด้วย") · อ่านผ่านฝั่ง Rust ตัวเดียวกับช่องค่า hash */}
-                  <button type="button" className="padcopy" aria-label="วางรหัสสี" title={pasteBad ? "คลิปบอร์ดไม่มีรหัสสี" : "วางรหัสสี"} data-pad-paste
+                  <button type="button" className="padcopy" aria-label={pasteBad ? "คลิปบอร์ดไม่มีรหัสสี" : "วางรหัสสี"} title={pasteBad ? "คลิปบอร์ดไม่มีรหัสสี" : "วางรหัสสี"} data-pad-paste data-bad={pasteBad || undefined}
+                    style={pasteBad ? { color: "var(--bad-ink)", borderColor: "var(--bad)" } : undefined}
                     onClick={async (e) => { e.preventDefault(); try { const t = (await infoApi.clipboardText()).trim(), m = /#?([\da-fA-F]{6})\b/.exec(t); if (m) typeHex("#" + m[1]); else { setPasteBad(true); setTimeout(() => setPasteBad(false), 1800); } } catch { setPasteBad(true); setTimeout(() => setPasteBad(false), 1800); } }}>
-                    <IcPaste size={14} />
+                    {pasteBad ? <IcClose size={14} /> : <IcPaste size={14} />}
                   </button>
                 </label>
               </div>
