@@ -1,7 +1,7 @@
 {
   "name": "movie-shelf",
   "private": true,
-  "version": "0.10.11",
+  "version": "0.10.12",
   "type": "module",
   "scripts": {
     "dev": "node scripts/line-stats.mjs && vite",
