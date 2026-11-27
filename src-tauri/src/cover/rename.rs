@@ -185,7 +185,12 @@ pub fn rename_movie(app: AppHandle, lib: State<'_, Arc<LibraryStore>>, id: Strin
     if app.try_state::<Arc<crate::cover::link::LinkStore>>().is_some_and(|s| s.is_busy()) {
         return Err(problem("inuse", "กำลังยืนยันปกจับคู่อยู่ รอให้เสร็จก่อน", None));
     }
-    let (mut m, changed) = rename_in_library(&lib, &id, &stem)?;
+    let res = rename_in_library(&lib, &id, &stem);
+    // คำสั่งอ่านโฟลเดอร์ที่มาระหว่างเปลี่ยนชื่อ (เช่นงานครอบเป็น MKV จบพอดี) สั่งอ่านต่อที่นี่ ทั้งเปลี่ยนชื่อสำเร็จและไม่สำเร็จ (AUDIT ข้อ 51)
+    if lib.take_rescan() {
+        let _ = crate::app::library::scan_library(app.clone(), app.state::<Arc<LibraryStore>>());
+    }
+    let (mut m, changed) = res?;
     if changed {
         // รูปที่โปรแกรมคัดลอกไว้ข้างไฟล์หนัง เปลี่ยนชื่อตาม (แผนจับคู่รูปปก)
         if !m.linked.is_empty() {

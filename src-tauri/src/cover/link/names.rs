@@ -79,6 +79,9 @@ fn parse_name(stem: &str, image: bool) -> Title {
             }
         }
     }
+    // ดูวงเล็บกับจุดจากชื่อก่อนตัดเลข IMDb · ตัดแล้วคำถูกต่อด้วยช่องว่าง วงเล็บกับจุดหาย
+    // (AUDIT ข้อ 76 ① · เดิม Dune (2021) tt1160419 ถูกนับว่าปีอาจเป็นส่วนของชื่อ ได้ไม่แน่ใจ)
+    let marked = s.contains(['(', '[', '.', '_', '-']);
     let imdb = find_imdb(&s);
     if let Some(id) = &imdb {
         // ตัดเลข IMDb ออกจากชื่อ ไม่ให้ไปปนเป็นชื่อเรื่อง · ตำแหน่งไบต์ในตัวเล็กอาจไม่ตรงตัวเดิม เทียบทีละคำแทน
@@ -90,7 +93,7 @@ fn parse_name(stem: &str, image: bool) -> Title {
     let year_at = words.iter().enumerate().skip(1).filter(|(_, w)| is_year(w)).map(|(i, _)| i).last();
     let year = year_at.and_then(|i| words[i].parse::<u32>().ok());
     // เลขปีเป็นคำสุดท้าย ไม่มีวงเล็บ คั่นด้วยช่องว่างล้วน · แบบ Silent.Orbit.2018 กับ iron-tide-2024 เป็นปีแน่ ไม่นับ
-    let loose_year = year_at.is_some_and(|i| i + 1 == words.len()) && !s.contains(['(', '[', '.', '_', '-']);
+    let loose_year = year_at.is_some_and(|i| i + 1 == words.len()) && !marked;
     if let Some(i) = year_at {
         words.truncate(i);
     } else {

@@ -236,9 +236,10 @@ pub async fn link_auto(app: AppHandle, scope: String) -> Result<AutoSummary, Str
         let counts = dir_counts(movies.iter().map(|m| m.path.as_str()));
         let kept: HashSet<&str> = keep.iter().map(|r| r.id.as_str()).collect();
         let shelf: Vec<Title> = movies.iter().map(|m| movie_title(Path::new(&m.path))).collect();
+        let mut beside = BesideCache::new(&d.thumbs, &own);
         let targets: Vec<MovieIn> = movies.iter()
             .filter(|m| !m.missing && !kept.contains(m.id.as_str()) && (scope == "all" || (!m.has_cover && m.linked.is_empty())))
-            .map(|m| movie_in(&m.id, &m.path, m.has_cover, &counts, &d.thumbs, &own)).collect();
+            .map(|m| movie_in(&m.id, &m.path, m.has_cover, &counts, &mut beside)).collect();
         let mut taken: HashSet<String> = keep.iter().flat_map(|r| [&r.tall, &r.wide]).flatten().map(|p| p.path.clone()).collect();
         // เฉพาะเรื่องที่ยังไม่มีปก รูปที่ยืนยันไปแล้วไม่ไปซ้ำเรื่องอื่น · ทุกเรื่องตั้งใจจับคู่ใหม่หมด จึงไม่กัน
         if scope != "all" { taken.extend(movies.iter().flat_map(|m| &m.linked).map(|c| c.source.clone())); }
@@ -290,30 +291,6 @@ pub(crate) fn blank_row(m: &Movie) -> Row {
     Row { id: m.id.clone(), movie: m.path.clone(), title: if t.pretty.is_empty() { m.name.clone() } else { t.pretty }, has_cover: m.has_cover, status: "none".into(), reason: "หาคู่ไม่เจอ".into(), via: "auto".into(), ..Default::default() }
 }
 
-/// จับคู่เองจากกระดาน Explorer หรือปุ่มบนชั้นวาง · หลายรูปแยกปกตั้งปกนอนตามแนวของรูป · แทนรูปเดิมของแถว · ไปรอยืนยันที่ตาราง
-pub fn pair_row(row: &mut Row, picks: Vec<Pick>, via: &str) {
-    let mut before = row.clone();
-    before.prev = None;
-    row.tall = None;
-    row.wide = None;
-    row.derived_tall = false;
-    // รูปแนวตั้งก่อน รูปแนวนอนจะได้ไม่ไปครอปทับปกตั้งจริง · แนวเดียวกันหลายรูปใช้รูปแรก
-    let (t, w): (Vec<Pick>, Vec<Pick>) = picks.into_iter().partition(|p| p.width <= p.height);
-    if let Some(p) = t.into_iter().next() { assign(row, p); }
-    if let Some(p) = w.into_iter().next() { assign(row, p); }
-    row.status = "manual".into();
-    row.via = via.to_string();
-    row.reason = match via { "explorer" => "ลากจาก Explorer".to_string(), "shelf" => "เลือกจากชั้นวาง".to_string(), _ => "จับคู่เองบนกระดาน".to_string() };
-    row.candidates.clear();
-    row.score = 0;
-    row.ticked = true;
-    row.touched = true;
-    row.error = None;
-    row.conflict = None;
-    row.store_override = None;
-    row.prev = Some(Box::new(before));
-}
-
 #[tauri::command]
 pub async fn link_pair(app: AppHandle, id: String, paths: Vec<String>, via: String) -> Result<LinkReply, String> {
     tauri::async_runtime::spawn_blocking(move || {
@@ -324,12 +301,7 @@ pub async fn link_pair(app: AppHandle, id: String, paths: Vec<String>, via: Stri
         let m = movies.iter().find(|m| m.id == id).ok_or("หาหนังในคลังไม่เจอ")?;
         if paths.is_empty() { return Err("ยังไม่ได้เลือกรูป".to_string()); }
         let picks = paths.iter().map(|p| pick_of(&d, p)).collect::<Result<Vec<_>, _>>()?;
-        {
-            let mut x = store.data.lock().unwrap();
-            if !x.rows.iter().any(|r| r.id == id) { x.rows.push(blank_row(m)); }
-            let r = x.rows.iter_mut().find(|r| r.id == id).unwrap();
-            pair_row(r, picks, &via);
-        }
+        pair_into(&mut store.data.lock().unwrap().rows, m, picks, &via);
         store.save()?;
         Ok(reply(&store, &movies))
     }).await.map_err(|e| e.to_string())?
@@ -340,10 +312,7 @@ pub async fn link_pair(app: AppHandle, id: String, paths: Vec<String>, via: Stri
 pub fn link_undo(store: State<'_, Arc<LinkStore>>, lib: State<'_, Arc<LibraryStore>>, id: String) -> Result<LinkReply, String> {
     store.idle()?;
     {
-        let mut x = store.data.lock().unwrap();
-        let i = x.rows.iter().position(|r| r.id == id).ok_or("ไม่เจอแถวนี้")?;
-        let Some(prev) = x.rows[i].prev.take() else { return Err("แถวนี้ไม่มีอะไรให้ย้อน".to_string()) };
-        x.rows[i] = *prev;
+        undo_row(&mut store.data.lock().unwrap().rows, &id)?;
     }
     store.save()?;
     Ok(reply(&store, &movies_of(&lib)))

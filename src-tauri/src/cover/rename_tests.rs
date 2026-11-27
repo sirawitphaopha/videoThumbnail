@@ -162,4 +162,9 @@ fn history_follows_new_name_in_library() {
     // ผิดกติกา ตัวกันต้องปลดด้วย
     assert_eq!(rename_in_library(&lib, &id, "CON").unwrap_err().kind, "reserved");
     assert!(!lib.is_scanning());
+    // AUDIT ข้อ 51 · คำสั่งอ่านโฟลเดอร์ที่ค้างระหว่างเปลี่ยนชื่อ ยังอยู่ให้ rename_movie สั่งอ่านต่อ ไม่หายไปกับการปลดธง
+    lib.mark_rescan();
+    let _ = rename_in_library(&lib, &id, "ฝนแรก (2027)").unwrap();
+    assert!(lib.take_rescan(), "คำสั่งอ่านที่ค้างต้องยังอยู่หลังเปลี่ยนชื่อ");
+    assert!(!lib.take_rescan(), "เอาออกแล้วไม่ค้างให้อ่านซ้ำสองรอบ");
 }

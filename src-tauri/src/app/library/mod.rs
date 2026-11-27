@@ -163,6 +163,17 @@ impl LibraryStore {
         self.scanning.store(false, Ordering::SeqCst);
     }
 
+    /// มีคำสั่งอ่านโฟลเดอร์มาตอนธงจองอยู่ จดไว้ให้คนที่ถือธงสั่งอ่านซ้ำตอนจบ
+    pub(crate) fn mark_rescan(&self) {
+        self.rescan.store(true, Ordering::SeqCst);
+    }
+
+    /// เอาคำสั่งอ่านโฟลเดอร์ที่ค้างไว้ออก · true มีคำสั่งค้าง คนที่ถือธงต้องสั่งอ่านเอง
+    /// (AUDIT ข้อ 51 · เดิมเฉพาะตัวอ่านโฟลเดอร์ที่ดูธงนี้ตอนจบ เปลี่ยนชื่อปลดธงเฉย ๆ คำสั่งอ่านที่มาระหว่างนั้นหายเงียบ)
+    pub fn take_rescan(&self) -> bool {
+        self.rescan.swap(false, Ordering::SeqCst)
+    }
+
     /// แก้หนังหนึ่งเรื่องในคลัง (ในหน่วยความจำ) แล้วคืนของที่แก้แล้ว · บันทึกลงไฟล์ด้วย save
     pub fn update_movie(&self, id: &str, f: impl FnOnce(&mut Movie)) -> Option<Movie> {
         let mut list = self.movies.lock().unwrap();
@@ -263,7 +274,7 @@ pub fn get_library(lib: State<'_, Arc<LibraryStore>>) -> LibraryReply {
 #[tauri::command]
 pub fn scan_library(app: AppHandle, lib: State<'_, Arc<LibraryStore>>) -> Result<(), String> {
     if lib.scanning.swap(true, Ordering::SeqCst) {
-        lib.rescan.store(true, Ordering::SeqCst);
+        lib.mark_rescan();
         return Ok(());
     }
     let lib = lib.inner().clone();
@@ -304,7 +315,7 @@ pub fn scan_library(app: AppHandle, lib: State<'_, Arc<LibraryStore>>) -> Result
         *lib.folders.lock().unwrap() = r.folders.clone();
         let saved = lib.save();
         lib.scanning.store(false, Ordering::SeqCst);
-        let again = lib.rescan.swap(false, Ordering::SeqCst);
+        let again = lib.take_rescan();
         let _ = app.emit("scan-finished", LibraryReply { movies, folders: r.folders, scanning: false });
         if let Err(e) = saved {
             let _ = app.emit("library-error", e);

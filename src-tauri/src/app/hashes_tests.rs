@@ -57,6 +57,11 @@ fn compare_tells_algorithm_and_difference() {
     assert_eq!((ok.algo.as_deref(), ok.same), (Some("SHA-256"), true));
     let bad = compare("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ff", &h);
     assert_eq!((bad.same, bad.diff.as_deref()), (false, Some("ต่างกันที่ 2 ตัวท้าย")));
+    // AUDIT ข้อ 128 · ต่างที่ตัว 62 กับ 64 มีสองตัว อยู่ในสามตัวท้าย · ต่างที่ตัว 1 กับ 3 อยู่ในสามตัวแรก
+    let gap = compare("ba7816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f2001fae", &h);
+    assert_eq!(gap.diff.as_deref(), Some("ต่างกัน 2 ตัว อยู่ใน 3 ตัวท้าย"));
+    let head = compare("0a0816bf8f01cfea414140de5dae2223b00361a396177a9cb410ff61f20015ad", &h);
+    assert_eq!(head.diff.as_deref(), Some("ต่างกัน 2 ตัว อยู่ใน 3 ตัวแรก"));
     assert_eq!(compare("352441c2", &h).algo.as_deref(), Some("CRC32"));
     assert!(compare("352441c2", &h).same);
     assert_eq!(compare("xyz", &h).algo, None);

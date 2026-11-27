@@ -114,8 +114,50 @@ pub fn list_images(folders: &[String], loose: &[String], thumbs: &Path) -> Vec<I
     out
 }
 
+/// ของที่อ่านจากดิสก์ครั้งเดียวต่อรอบจับคู่ ใช้ร่วมทุกเรื่อง
+/// (AUDIT ข้อ 64 · เดิมทุกเรื่องอ่านโฟลเดอร์ภาพเล็กทั้งโฟลเดอร์และอ่านโฟลเดอร์ของหนังใหม่
+///  โฟลเดอร์รวม 300 เรื่องกับรูป 300 รูปได้การเปิดหัวไฟล์ราว 90,000 ครั้ง)
+pub struct BesideCache<'a> {
+    thumbs: HashMap<String, (PathBuf, u32, u32)>,
+    dirs: HashMap<String, Vec<ImgIn>>,
+    own: &'a HashSet<String>,
+    /// อ่านโฟลเดอร์ของหนังจริงกี่ครั้ง (เทสนับ)
+    pub reads: usize,
+}
+
+impl<'a> BesideCache<'a> {
+    pub fn new(thumbs: &Path, own: &'a HashSet<String>) -> Self {
+        Self { thumbs: cached_thumbs(thumbs), dirs: HashMap::new(), own, reads: 0 }
+    }
+    /// รูปในโฟลเดอร์ · อ่านครั้งแรกแล้วจำ เรื่องอื่นในโฟลเดอร์เดียวกันใช้ผลเดิม
+    fn images(&mut self, dir: &Path) -> &[ImgIn] {
+        let key = dir.to_string_lossy().to_lowercase();
+        if !self.dirs.contains_key(&key) {
+            self.reads += 1;
+            let mut out = vec![];
+            if let Ok(rd) = fs::read_dir(dir) {
+                for e in rd.flatten() {
+                    let f = e.path();
+                    // ไฟล์ปกที่โปรแกรมทำเองไม่ใช่รูปต้นทาง · ถ้านับ ปกที่ครอปไว้จะกลายเป็นไฟล์ของคนอื่นตอนจับคู่ทุกเรื่องซ้ำ
+                    if f.is_file() && pi::ACCEPTED.contains(&pi::ext_of(&f).as_str()) && !self.own.contains(&f.to_string_lossy().to_lowercase()) {
+                        let hit = self.thumbs.get(&thumb_key(&f));
+                        let (width, height) = hit.map(|h| (h.1, h.2)).unwrap_or_else(|| header_size(&f));
+                        out.push(ImgIn {
+                            path: f.to_string_lossy().to_string(), name: f.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(),
+                            folder: dir.to_string_lossy().to_string(), width, height, thumb: hit.map(|h| h.0.to_string_lossy().to_string()),
+                        });
+                    }
+                }
+            }
+            out.sort_by_key(|i| i.name.to_lowercase());
+            self.dirs.insert(key.clone(), out);
+        }
+        &self.dirs[&key]
+    }
+}
+
 /// ข้อมูลหนังสำหรับตัวจับคู่ · อ่านรูปข้างไฟล์กับไฟล์ .nfo
-pub fn movie_in(id: &str, path: &str, has_cover: bool, all_dirs: &HashMap<String, usize>, thumbs: &Path, own: &HashSet<String>) -> MovieIn {
+pub fn movie_in(id: &str, path: &str, has_cover: bool, all_dirs: &HashMap<String, usize>, cache: &mut BesideCache) -> MovieIn {
     let p = Path::new(path);
     let stem = p.file_stem().map(|s| s.to_string_lossy().to_string()).unwrap_or_default();
     let dir = p.parent().unwrap_or(Path::new(""));
@@ -134,23 +176,7 @@ pub fn movie_in(id: &str, path: &str, has_cover: bool, all_dirs: &HashMap<String
             }
         }
     }
-    let cache = cached_thumbs(thumbs);
-    let mut beside = vec![];
-    if let Ok(rd) = fs::read_dir(dir) {
-        for e in rd.flatten() {
-            let f = e.path();
-            // ไฟล์ปกที่โปรแกรมทำเองไม่ใช่รูปต้นทาง · ถ้านับ ปกที่ครอปไว้จะกลายเป็นไฟล์ของคนอื่นตอนจับคู่ทุกเรื่องซ้ำ
-            if f.is_file() && pi::ACCEPTED.contains(&pi::ext_of(&f).as_str()) && !own.contains(&f.to_string_lossy().to_lowercase()) {
-                let hit = cache.get(&thumb_key(&f));
-                let (width, height) = hit.map(|h| (h.1, h.2)).unwrap_or_else(|| header_size(&f));
-                beside.push(ImgIn {
-                    path: f.to_string_lossy().to_string(), name: f.file_name().map(|n| n.to_string_lossy().to_string()).unwrap_or_default(),
-                    folder: dir.to_string_lossy().to_string(), width, height, thumb: hit.map(|h| h.0.to_string_lossy().to_string()),
-                });
-            }
-        }
-    }
-    beside.sort_by_key(|i| i.name.to_lowercase());
+    let beside = cache.images(dir).to_vec();
     MovieIn { id: id.to_string(), path: path.to_string(), stem, title, has_cover, imdb, beside, alone }
 }
 

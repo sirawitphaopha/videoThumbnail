@@ -108,10 +108,12 @@ pub fn compare(pasted: &str, h: &Hashes) -> Compare {
     let first = a.iter().zip(&b).position(|(x, y)| x != y).unwrap_or(0);
     let last = a.iter().rev().zip(b.iter().rev()).position(|(x, y)| x != y).unwrap_or(0);
     let count = a.iter().zip(&b).filter(|(x, y)| x != y).count();
+    // ช่วงที่ต่างกับจำนวนที่ต่างไม่เท่ากัน บอกทั้งสองอย่าง (AUDIT ข้อ 128 · เดิมต่างที่ตัว 62 กับ 64 บอกว่าต่างกันที่ 3 ตัวท้าย)
+    let near = |span: usize, side: &str| if count == span { format!("ต่างกันที่ {span} ตัว{side}") } else { format!("ต่างกัน {count} ตัว อยู่ใน {span} ตัว{side}") };
     let diff = if count <= 3 && first >= a.len() - 3 {
-        format!("ต่างกันที่ {} ตัวท้าย", a.len() - first)
+        near(a.len() - first, "ท้าย")
     } else if count <= 3 && last >= a.len() - 3 {
-        format!("ต่างกันที่ {} ตัวแรก", a.len() - last)
+        near(a.len() - last, "แรก")
     } else {
         format!("ต่างกัน {count} ตัว เริ่มต่างที่ตัวที่ {}", first + 1)
     };

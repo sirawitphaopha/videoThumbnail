@@ -83,6 +83,11 @@ pub fn match_core(movies: &[MovieIn], shelf: &[Title], images: &[ImgIn], taken: 
             row.reason = reason.to_string();
             row.score = 100;
             row.ticked = tick;
+        } else if !tick && row.ticked {
+            // อีกช่องได้จากกฎที่ไม่ติ๊ก (④ ชื่อตรงไม่มีปี) เอาติ๊กออกให้กดยืนยันเอง และบอกในเหตุผล
+            // (AUDIT ข้อ 76 ② · เดิมแถวยังติ๊กจากขั้น ③ ปกนอนที่อาจเป็นของภาคอื่นถูกยืนยันไปพร้อมกัน)
+            row.ticked = false;
+            row.reason = format!("{} แต่อีกแนว{}", row.reason, reason.trim_start_matches("ชื่อตรง "));
         }
         true
     }

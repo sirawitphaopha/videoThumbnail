@@ -70,7 +70,7 @@ fn mv(id: &str, stem: &str) -> MovieIn {
     MovieIn { id: id.into(), path: format!("D:\\หนัง\\{stem}.mkv"), stem: stem.into(), title: parse_title(stem), alone: false, ..Default::default() }
 }
 
-/// รูปหนึ่งรูปได้หนังเรื่องเดียว · ภาคต่อชื่อซ้ำไม่กล้าตัดสิน · รูปแนวนอนได้ปกนอนกับปกตั้งที่ครอปให้
+/// รูปหนึ่งรูปได้หนังเรื่องเดียว · ภาคต่อชื่อซ้ำไม่กล้าตัดสิน · รูปแนวนอนได้ปกนอนอย่างเดียว ไม่ครอปเป็นปกตั้งให้ (AUDIT ข้อ 77 คอมเมนต์เดิมบอกว่าครอปให้)
 #[test]
 fn matcher_rules() {
     let ms = vec![mv("a", "Iron Tide (2024)"), mv("b", "Iron Tide (2010)"), mv("c", "Silent.Orbit.2018"), mv("d", "Tidal.2021.1080p"), mv("e", "Paper.Kites.2012")];
@@ -112,6 +112,51 @@ fn manual_pair_and_undo() {
     assert_eq!(r.wide.as_ref().unwrap().name, "w2.jpg");
 }
 
+/// AUDIT ข้อ 74 · จับคู่บนกระดานกับหนังที่ยังไม่มีแถว แล้วย้อน แถวต้องหาย ไม่เหลือแถวหาคู่ไม่เจอ
+/// แถวที่มีอยู่ก่อน (จากจับคู่อัตโนมัติ) ย้อนแล้วกลับเป็นแถวเดิม ไม่ถูกเอาออก
+#[test]
+fn undo_removes_row_made_by_pair() {
+    let pick = |n: &str| Pick { path: n.into(), name: n.into(), width: 1000, height: 1500, ..Default::default() };
+    let m = Movie { id: "m1".into(), path: "D:\\หนัง\\ฝนแรก (2025).mkv".into(), name: "ฝนแรก (2025)".into(), ..Default::default() };
+    let mut rows: Vec<Row> = vec![];
+    pair_into(&mut rows, &m, vec![pick("a.jpg")], "board");
+    assert_eq!((rows.len(), rows[0].status.as_str()), (1, "manual"));
+    undo_row(&mut rows, "m1").unwrap();
+    assert!(rows.is_empty(), "ย้อนแล้วแถวที่จับคู่เองสร้างต้องหาย");
+    // แถวหาคู่ไม่เจอที่มีอยู่ก่อนจากจับคู่อัตโนมัติ ย้อนแล้วต้องยังอยู่
+    let mut rows = vec![blank_row(&m)];
+    pair_into(&mut rows, &m, vec![pick("b.jpg")], "board");
+    undo_row(&mut rows, "m1").unwrap();
+    assert_eq!((rows.len(), rows[0].status.as_str(), rows[0].from_pair), (1, "none", false));
+    // จับคู่สองครั้งกับแถวที่สร้างเอง ย้อนครั้งเดียวกลับเป็นคู่แรก ไม่หาย
+    let mut rows: Vec<Row> = vec![];
+    pair_into(&mut rows, &m, vec![pick("c.jpg")], "board");
+    pair_into(&mut rows, &m, vec![pick("d.jpg")], "board");
+    undo_row(&mut rows, "m1").unwrap();
+    assert_eq!(rows[0].tall.as_ref().unwrap().name, "c.jpg");
+    // ที่เก็บคู่รอของแถวปกติไม่มีช่อง fromPair
+    assert!(serde_json::to_value(blank_row(&m)).unwrap().get("fromPair").is_none());
+}
+
+/// AUDIT ข้อ 76 · ① ชื่อมีวงเล็บกับเลข IMDb ปีไม่ใช่ปีลอย · ② ช่องที่ได้จากกฎไม่ติ๊ก เอาติ๊กของแถวออก
+#[test]
+fn imdb_name_and_untick_on_weak_slot() {
+    let t = parse_title("Dune (2021) tt1160419");
+    assert_eq!((t.year, t.loose_year, t.imdb.as_deref()), (Some(2021), false, Some("tt1160419")));
+    assert!(parse_title("Dune 2021").loose_year, "ปีคั่นช่องว่างล้วนยังเป็นปีลอย");
+    let ms = vec![mv("a", "Dune (2021)")];
+    let shelf: Vec<Title> = ms.iter().map(|m| m.title.clone()).collect();
+    let imgs = vec![img("Dune (2021).jpg", 1000, 1500), img("dune.jpg", 1920, 1080)];
+    let r = match_core(&ms, &shelf, &imgs, &HashSet::new());
+    assert_eq!(r[0].tall.as_ref().unwrap().name, "Dune (2021).jpg");
+    assert_eq!(r[0].wide.as_ref().unwrap().name, "dune.jpg");
+    assert!(!r[0].ticked, "ปกนอนที่ชื่อไม่มีปีต้องไม่ถูกติ๊กไปพร้อมปกตั้ง");
+    assert_eq!(r[0].reason, "ชื่อกับปีตรง แต่อีกแนวไม่มีปีในชื่อรูป");
+    // ปกตั้งชื่อกับปีตรงอย่างเดียว ยังติ๊กเหมือนเดิม
+    let r2 = match_core(&ms, &shelf, &imgs[..1], &HashSet::new());
+    assert!(r2[0].ticked && r2[0].reason == "ชื่อกับปีตรง");
+}
+
 fn jm() -> Option<PathBuf> {
     let p = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("test-media").join("สร้าง").join("จับคู่");
     match dunce::canonicalize(&p) {
@@ -139,7 +184,12 @@ fn real_test_set() {
     let paths: Vec<String> = files.iter().map(|p| p.to_string_lossy().to_string()).collect();
     let counts = dir_counts(paths.iter().map(String::as_str));
     let thumbs = root.join("__ไม่มี");
-    let all: Vec<MovieIn> = paths.iter().map(|p| movie_in(p, p, p.contains("มีปกแล้ว"), &counts, &thumbs, &HashSet::new())).collect();
+    let none = HashSet::new();
+    let mut beside = BesideCache::new(&thumbs, &none);
+    let all: Vec<MovieIn> = paths.iter().map(|p| movie_in(p, p, p.contains("มีปกแล้ว"), &counts, &mut beside)).collect();
+    // AUDIT ข้อ 64 · อ่านแต่ละโฟลเดอร์ครั้งเดียว ไม่ใช่ครั้งละเรื่อง
+    let dirs: HashSet<String> = paths.iter().map(|p| Path::new(p).parent().unwrap().to_string_lossy().to_lowercase()).collect();
+    assert_eq!(beside.reads, dirs.len(), "หนัง {} เรื่องใน {} โฟลเดอร์", paths.len(), dirs.len());
     let shelf: Vec<Title> = all.iter().map(|m| m.title.clone()).collect();
     let imgs = list_images(&[root.join("รูป").to_string_lossy().to_string()], &[], &thumbs);
     assert_eq!(imgs.len(), 15, "รูปในโฟลเดอร์ย่อยต้องอ่านด้วย");
