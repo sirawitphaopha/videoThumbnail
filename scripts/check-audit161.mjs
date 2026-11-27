@@ -186,7 +186,8 @@ const linkTable = async (p) => {
   if (!(await p.$("[data-link-row]"))) { await click(p, "[data-link-open]"); }
   await p.waitForSelector("[data-link-row]"); await wait(p, 300);
 };
-const SRC = async (file) => (await fetch(`${BASE}/${file}?raw`)).text();
+/** เนื้อไฟล์โค้ดตามที่อยู่ในดิสก์ (vite ?raw ส่งเป็น export default "…" ถอดกลับเป็นข้อความ) */
+const SRC = async (file) => { const t = await (await fetch(`${BASE}/${file}?raw`)).text(); const m = /^export default (".*");?\s*$/s.exec(t); return m ? JSON.parse(m[1]) : t; };
 const toastText = (p) => p.evaluate(() => document.querySelector(".toasts")?.innerText ?? "");
 T[69] = async (p, check) => {
   const rt = await SRC("src/pages/link/ReviewTable.tsx"), lj = await SRC("src/lib/linkJob.ts"), dr = await SRC("src/pages/link/useBoardDrag.ts");
@@ -261,6 +262,94 @@ T[81] = async (p, check) => {
   if (process.env.SHOTS) await (await p.$("[data-main-panel]"))?.evaluate((e) => e.parentElement.scrollIntoView({ block: "center" }));
   check("81 คำอธิบายซับหลักของ MKV ยังบอกว่าไม่เลือกแล้วเปิดแบบไม่มีซับ", mkv.includes("เปิดแบบไม่มีซับ"), mkv);
   check("81 เลือกไฟล์ที่ได้เป็น MP4 คำอธิบายบอกว่าโปรแกรมเล่นจะเปิดซับแรกให้เอง", mp4.includes("MP4") && mp4.includes("ซับแรก") && !mp4.includes("เปิดแบบไม่มีซับ"), mp4);
+};
+
+// ชุด 4 ----------------------------------------------------------------
+/** หน้าเสียงและซับ ใส่หนังทดสอบ */
+const avMovie = async (p) => {
+  await nav(p, "เสียงและซับ"); await wait(p, 300);
+  await p.evaluate((x) => window.__emit("tauri://drag-drop", { paths: [x], position: { x: 700, y: 400 } }), MOVIE); await wait(p, 1500);
+};
+const avDrop = (p, path) => p.evaluate((x) => window.__emit("tauri://drag-drop", { paths: [x], position: { x: 700, y: 400 } }), path);
+T[80] = async (p, check) => {
+  const r = await mod(p, "/src/pages/av/useAvSummary.ts", `
+    const t = (convert, extra = {}) => ({ duration: 1000, channels: 6, rate: 48000, bytes: 500e6, bitrate: null, convert, ...extra });
+    return { flac: m.convBytes(t({ codec: "flac", channels: 2, rate: 48000, p: {} })), opus: m.convBytes(t({ codec: "opus", p: { bitrate: 160 } })),
+      nob: m.convBytes(t({ codec: "aac", p: {} })), speed: m.convBytes(t({ codec: "opus", speed: [25, 24], p: { bitrate: 160 } })),
+      none: m.convBytes(t(null)), raw: m.rawBytes(t(null, { bytes: null, bitrate: 640000 })) };`);
+  check("80 ขนาดเสียงหลังแปลงคิดสูตรเดียวกับ conv_estimate ฝั่ง Rust", Math.round(r.flac) === 172800000 && r.opus === 20000000 && r.nob === 40000000 && Math.round(r.speed) === Math.round(1000 * 25 / 24 * 20000) && r.none === null && r.raw === 80000000, JSON.stringify(r));
+  const src = await SRC("src/pages/av/useAvSummary.ts");
+  check("80 ขนาดที่คาดข้างปุ่มรวมใช้ขนาดหลังแปลง และไม่มีบรรทัด addedBytes ที่ได้ศูนย์เสมอ", src.includes("convBytes(t)") && !src.includes("const addedBytes"));
+};
+T[82] = async (p, check) => {
+  await avMovie(p);
+  await clickText(p, "MP4"); await wait(p, 300);
+  // ลากรูปแรกนอกช่องปก การ์ดโปสเตอร์เปิด (รูปลงช่องปกตั้ง) แล้วลากรูปที่สองลงช่องปกนอนตรง ๆ
+  await avDrop(p, "D:\\รูปปก\\ปกตั้ง.jpg"); await p.waitForSelector("[data-use]", { timeout: 5000 }); await wait(p, 300);
+  await click(p, "[data-use]"); await p.waitForSelector("[data-drop=cover_land]", { timeout: 5000 }); await wait(p, 300);
+  await p.evaluate(() => document.querySelector("[data-drop=cover_land]").scrollIntoView({ block: "center" })); await wait(p, 300);
+  await p.evaluate(() => { const r = document.querySelector("[data-drop=cover_land]").getBoundingClientRect(); window.__emit("tauri://drag-drop", { paths: ["D:\\รูปปก\\ปกนอน.jpg"], position: { x: (r.left + r.width / 2) * devicePixelRatio, y: (r.top + r.height / 2) * devicePixelRatio } }); });
+  await p.waitForSelector("[data-use]", { timeout: 5000 }); await wait(p, 300); await click(p, "[data-use]"); await wait(p, 900);
+  if (process.env.SHOTS) await p.screenshot({ path: `${process.env.SHOTS}/ข้อ-82-ปกนอน.png` });
+  const w = await text(p, "[data-mp4land]");
+  check("82 เลือก MP4 แล้วใส่ปกนอนใหม่ ขึ้นคำเตือนก่อนรวมว่า MP4 เก็บได้แค่ปกตั้ง", !!w && w.includes("ปกตั้ง"), w);
+  const src = await SRC("src/pages/av/useAvSummary.ts");
+  check("82 ปกนอนใน MP4 ไม่นับเป็นของเปลี่ยนในแถบสรุป", src.includes(`(output !== "mp4" && covers.cover_land.mode !== "keep")`) && src.includes("|| coverCounts ||"));
+  await clickText(p, "MKV (แนะนำ)"); await wait(p, 300);
+  check("82 กลับเป็น MKV คำเตือนปกนอนหาย", (await p.$("[data-mp4land]")) === null);
+};
+T[83] = async (p, check) => {
+  await nav(p, "ตั้งค่า"); await p.waitForSelector("[data-setnav=poster]"); await click(p, "[data-setnav=poster]"); await wait(p, 300);
+  await click(p, "[role=switch][aria-label='ตรวจไฟล์ใหม่หลังครอบเสร็จ']"); await wait(p, 300);
+  await avMovie(p);
+  await clickText(p, "ลบไฟล์เดิมหลังตรวจผ่าน", "[role=radio]"); await wait(p, 200);
+  await clickText(p, "รวมเข้าไฟล์หนัง"); await wait(p, 400);
+  const d1 = await text(p, ".dlg");
+  check("83 ปิดการตรวจไฟล์ใหม่ไว้ หน้าต่างยืนยันบอกว่าไฟล์เดิมไปโฟลเดอร์ไฟล์เดิม ไม่ลงถังขยะ", !!d1 && d1.includes("ปิดการตรวจไฟล์ใหม่") && d1.includes("โฟลเดอร์ไฟล์เดิม") && !d1.includes("ถังขยะของ Windows"), d1);
+  await clickText(p, "ถัดไป"); await wait(p, 300);
+  const d2 = await text(p, ".dlg");
+  check("83 ขั้นที่ 2 บอกว่าย้ายไปโฟลเดอร์ไฟล์เดิม ไม่บอกว่ากู้จากถังขยะได้", !!d2 && d2.includes("ย้ายไฟล์เดิม") && !d2.includes("ถังขยะ"), d2);
+  await clickText(p, "ย้อนกลับ"); await wait(p, 200); await clickText(p, "ยกเลิก"); await wait(p, 200);
+};
+T[85] = async (p, check) => {
+  await avMovie(p);
+  await avDrop(p, "D:\\หนัง\\ดาวเหนือ (2023).th.srt"); await wait(p, 800);
+  await click(p, "[data-mode=pair]"); await wait(p, 300);
+  await over(p, "pair_set", `window.__pairs = (window.__pairs ?? 0) + 1; await new Promise((ok) => setTimeout(ok, 1500)); return (await window.__TAURI_INTERNALS__.invoke("get_library")).movies[0];`);
+  await click(p, "[data-pair-save]"); await wait(p, 150); await click(p, "[data-pair-save]"); await wait(p, 150);
+  const r = await p.evaluate(() => { const b = document.querySelector("[data-pair-save]"); return { txt: b.innerText.trim(), dis: b.getAttribute("aria-disabled"), n: window.__pairs }; });
+  check("85 กดจับคู่แล้วปุ่มขึ้นว่ากำลังจับคู่ กดซ้ำไม่บันทึกซ้ำ", r.txt === "กำลังจับคู่…" && r.dis === "true" && r.n === 1, JSON.stringify(r));
+  await wait(p, 1700);
+  const done = await p.evaluate(() => ({ txt: document.querySelector("[data-pair-save]").innerText.trim(), ok: !!document.querySelector("[data-paired-ok]") }));
+  check("85 บันทึกเสร็จปุ่มกลับเป็นจับคู่ไว้กับหนังเรื่องนี้ การ์ดผลขึ้น", done.txt === "จับคู่ไว้กับหนังเรื่องนี้" && done.ok, JSON.stringify(done));
+};
+T[86] = async (p, check) => {
+  await avMovie(p);
+  await over(p, "merge_add_file", `const r = await window.__fxOverBase.merge_add_file(a); const idx = String(a.path).replace(/\\.sub$/i, ".idx"); return { ...r, path: idx, name: idx.split("\\\\").pop(), ext: "idx", tracks: r.tracks.map((t) => ({ ...t, src: idx, codec: "dvd_subtitle" })) };`);
+  const rows = () => p.evaluate(() => document.querySelectorAll("[data-trk]").length);
+  const n0 = await rows();
+  await avDrop(p, "D:\\หนัง\\ซับดีวีดี.sub"); await wait(p, 800);
+  const n1 = await rows();
+  await avDrop(p, "D:\\หนัง\\ซับดีวีดี.sub"); await wait(p, 800);
+  const n2 = await rows();
+  const t = await toastText(p);
+  check("86 ลากซับ .sub เดิมซ้ำ ไม่ได้สองแถว ขึ้นแถบว่าเพิ่มไว้แล้ว", n1 === n0 + 1 && n2 === n1 && t.includes("เพิ่มไว้แล้ว"), `${n0} → ${n1} → ${n2} ${t}`);
+  const src = await SRC("src/pages/av/useAvFiles.ts");
+  check("86 งานเพิ่มไฟล์ไม่ทับสถานะกำลังอ่านไฟล์หนัง", src.includes(`setLoading((l) => (l === "movie" ? l : "add"))`) && src.includes(`setLoading((l) => (l === "add" ? null : l))`));
+};
+T[95] = async (p, check) => {
+  await avMovie(p);
+  await click(p, "[data-mode=extract]"); await wait(p, 300);
+  await p.evaluate(() => [...document.querySelectorAll("[data-trk]")].find((r) => /AC-3|TrueHD|AAC|เสียง/.test(r.innerText))?.click()); await wait(p, 400);
+  const r = await p.evaluate(() => {
+    const d = document.querySelector(".avdetail"); if (!d) return null;
+    const delay = d.querySelector("[data-find-delay]"), name = d.querySelector("input[aria-label='ชื่อแทร็ก']"), main = d.querySelector("[data-main-panel]");
+    return { delay: delay ? [delay.getAttribute("aria-disabled"), delay.title] : null, name: name?.readOnly, main: main?.className };
+  });
+  check("95 วิธีแยก ส่วนตั้งค่าแทร็กล็อกช่องพร้อมเหตุผลเดียวกับแถว", r === null || (r.name === true && (!r.delay || (r.delay[0] === "true" && r.delay[1].includes("ตอนแยก"))) && (!r.main || r.main.includes("off"))), JSON.stringify(r));
+  await click(p, "[data-mode=merge]"); await wait(p, 300);
+  const back = await p.evaluate(() => document.querySelector(".avdetail input[aria-label='ชื่อแทร็ก']")?.readOnly);
+  check("95 กลับวิธีรวม ช่องแก้ได้เหมือนเดิม", back === false, back);
 };
 
 // ---------------------------------------------------------------- ตัวรัน

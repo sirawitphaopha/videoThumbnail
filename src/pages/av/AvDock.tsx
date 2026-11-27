@@ -11,7 +11,7 @@ import { BUSY } from "./parts";
 import type { AvCtx } from "./avCtx";
 
 export default function AvDock({ pg }: { pg: AvCtx }) {
-  const { blocked, changed, fontOnly, fontFiles, clearAll, estimate, method, original, output, pairBlocked, pressStart, savePairs, setMethod, setPaired, settings, working, xPicks, xi } = pg;
+  const { blocked, changed, fontOnly, fontFiles, clearAll, estimate, method, original, output, pairBlocked, pairSaving, pressStart, savePairs, setMethod, setPaired, settings, working, xPicks, xi } = pg;
   const movie = pg.movie!;
   return (
     <>
@@ -38,8 +38,8 @@ export default function AvDock({ pg }: { pg: AvCtx }) {
             {pairBlocked && <div className="hint" style={{ color: "#94680f", margin: 0 }} data-blocked>{pairBlocked}</div>}
             {/* ล้างทั้งหมดมีทุกวิธี ไม่ใช่แค่วิธีรวม (พี่กันทัก 15 พ.ย. 2569 "ปุ่มล้างทั้งหมด ในหน้าเสียงเเละซับ มันอยู่เเค่ merge น่ะ มันควรอยู่ทั้งหมดนะ") */}
             <button type="button" className={"btn " + (working ? "btn-wait" : "btn-ghost")} style={{ height: 44 }} aria-disabled={working || undefined} title={working ? BUSY : undefined} onClick={clearAll} data-clear-all><IbTrash size={15} />ล้างทั้งหมด</button>
-            <button type="button" className={"btn " + (pairBlocked ? "btn-wait" : "btn-main")} style={{ height: 44, padding: "0 26px", fontSize: 15 }}
-              aria-disabled={!!pairBlocked || undefined} title={pairBlocked ?? undefined} onClick={savePairs} data-pair-save><IcLink size={15} />จับคู่ไว้กับหนังเรื่องนี้</button>
+            <button type="button" className={"btn " + (pairBlocked || pairSaving ? "btn-wait" : "btn-main")} style={{ height: 44, padding: "0 26px", fontSize: 15 }}
+              aria-disabled={!!pairBlocked || pairSaving || undefined} title={pairBlocked ?? undefined} onClick={savePairs} data-pair-save><Keep icon={<IcLink size={15} />} all={["จับคู่ไว้กับหนังเรื่องนี้", "กำลังจับคู่…"]}>{pairSaving ? "กำลังจับคู่…" : "จับคู่ไว้กับหนังเรื่องนี้"}</Keep></button>
           </>) : (<>
           {/* ชนิดไฟล์กับไฟล์เดิมอยู่ในแถบล่างที่ตรึงไว้ แทร็กยาวแค่ไหนก็เห็นข้างปุ่มรวม (BUGS ข้อ 63 พี่กันเลือกแบบ 2 จากมอคอัป 12 พ.ย. 2569 "มอคอัป เอาข้อสอง")
               เดิมเป็นการ์ดไฟล์ที่ได้และไฟล์เดิมใต้การ์ดวิธี ถูกดันลงล่างเมื่อแทร็กเยอะ */}

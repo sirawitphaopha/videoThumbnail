@@ -12,11 +12,13 @@ export function useAvSummary(c: C1) {
   const kept = tracks.filter((t) => t.keep);
   const counts = { video: kept.filter((t) => t.kind === "video").length, audio: kept.filter((t) => t.kind === "audio").length, subs: kept.filter((t) => t.kind === "subtitle").length, out: tracks.filter((t) => !t.keep).length };
   const coverChanged = covers.cover.mode !== "keep" || covers.cover_land.mode !== "keep";
+  // MP4 เก็บปกนอนไม่ได้ ปกนอนที่เปลี่ยนจึงไม่นับเป็นของเปลี่ยนในแถบสรุป (AUDIT ข้อ 82)
+  const coverCounts = covers.cover.mode !== "keep" || (output !== "mp4" && covers.cover_land.mode !== "keep");
   const movieOrder = tracks.filter((t) => t.inMovie).map((t) => t.tid).join(",");
   const origOrder = movie?.tracks.map((t) => t.tid).join(",") ?? "";
   const changed = !!movie && (
     tracks.some((t) => !t.inMovie) || tracks.some((t) => t.lang !== t.base.lang || t.name !== t.base.name || t.default !== t.base.default || t.delay !== t.base.delay || t.keep !== t.base.keep)
-    || tracks.some((t) => t.keep && !!t.convert) || movieOrder !== origOrder || coverChanged || output !== movie.ext.replace("m4v", "mp4") && !(output === "mkv" && movie.ext === "mkv")
+    || tracks.some((t) => t.keep && !!t.convert) || movieOrder !== origOrder || coverCounts || output !== movie.ext.replace("m4v", "mp4") && !(output === "mkv" && movie.ext === "mkv")
     || av.chapters != null); // แก้บทแล้วก็นับว่ามีของเปลี่ยน รวมได้ (BUGS ข้อ 99)
   // แทร็กที่ตั้งแปลง ใส่ MP4 ได้ไหมดูชนิดหลังแปลง (WavPack ใส่ไม่ได้) · แทร็กในหนังแบบเพิ่มคู่ แทร็กเดิมยังอยู่ ต้องใส่ได้ด้วย
   // กติกาเดียวกับฝั่ง Rust (merge.rs mp4_unfit · ผู้ช่วยตรวจขั้น 10 ข้อ 2 · เดิมแบบเพิ่มคู่ไม่เตือน แบบแทนที่ฝั่ง Rust ปฏิเสธ)
@@ -31,8 +33,14 @@ export function useAvSummary(c: C1) {
   const longer = kept.filter((t) => !t.inMovie && t.kind === "audio" && t.longerBy != null && Math.abs(t.longerBy) >= 2);
   const removedBytes = tracks.filter((t) => !t.keep && t.inMovie).reduce((s, t) => s + (t.bytes ?? 0), 0);
   const addedFiles = [...new Set(kept.filter((t) => !t.inMovie).map((t) => t.src))];
-  const addedBytes = addedFiles.reduce((s, src) => s + (src ? 0 : 0), 0);
-  const estimate = movie ? movie.size - removedBytes + addedBytes + kept.filter((t) => !t.inMovie).reduce((s, t) => s + (t.bytes ?? (t.bitrate && t.duration ? t.bitrate / 8 * t.duration : 0)), 0) : 0;
+  // เสียงที่ตั้งแปลงคิดขนาดใหม่ด้วยสูตรเดียวกับ conv_estimate ฝั่ง Rust (merge/args.rs) · แบบเพิ่มคู่บวกเสียงใหม่ แบบแทนที่ลบเสียงเดิมออก
+  // ไฟล์ที่เพิ่มแล้วแปลงใช้ขนาดหลังแปลง (AUDIT ข้อ 80 · เดิมไม่ดูการแปลงเลย และมีบรรทัด addedBytes ที่ได้ศูนย์เสมอ)
+  const estimate = movie ? movie.size - removedBytes + kept.reduce((s, t) => {
+    const conv = convBytes(t);
+    if (!t.inMovie) return s + (conv ?? rawBytes(t));
+    if (conv == null) return s;
+    return s + (t.pair ?? true ? conv : conv - rawBytes(t));
+  }, 0) : 0;
   // ฟอนต์ของซับ ASS ที่เพิ่ม (fonts.rs) · ชื่อไม่ซ้ำ · ฟอนต์ที่หาไม่เจอใช้ไฟล์ที่ลากมาเพิ่มเองถ้าชื่อในไฟล์ตรง · ไฟล์แนบชื่อเดียวกันในหนังแล้วไม่ฝังซ้ำ
   const fontRows: (FontHit & { inMovie: boolean; on: boolean })[] = (() => {
     const rows: FontHit[] = [];
@@ -65,5 +73,19 @@ export function useAvSummary(c: C1) {
   // เดิมปุ่มรวมกดไม่ได้ (พี่กันทัก 15 พ.ย. 2569 "เราเเค่อยากรวมใไม่ มันต้อทำได้สิ")
   // ฟอนต์ที่ลากมาฝังอย่างเดียวก็นับว่ามีของเปลี่ยน แถบสรุปไม่บอกว่าเหมือนไฟล์เดิม (AUDIT ข้อ 79)
   const fontOnly = !changed && fontFiles.length > 0;
-  return { kept, counts, coverChanged, movieOrder, origOrder, changed, fontOnly, mp4Of, mp4Bad, mp4Style, vtts, longer, removedBytes, addedFiles, addedBytes, estimate, fontRows, fontFiles, fontBytes, mergeFree, mergeShort, blocked };
+  return { kept, counts, coverChanged, movieOrder, origOrder, changed, fontOnly, mp4Of, mp4Bad, mp4Style, vtts, longer, removedBytes, addedFiles, estimate, fontRows, fontFiles, fontBytes, mergeFree, mergeShort, blocked };
+}
+
+/** ขนาดเดิมของแทร็ก ไม่รู้ขนาดคิดจากบิตเรตกับความยาว */
+export const rawBytes = (t: AvTrack) => t.bytes ?? (t.bitrate && t.duration ? t.bitrate / 8 * t.duration : 0);
+
+/** ขนาดเสียงหลังแปลง สูตรเดียวกับ conv_estimate ใน src-tauri/src/merge/args.rs · ไม่ได้ตั้งแปลงหรือไม่รู้ความยาวได้ null */
+export function convBytes(t: AvTrack): number | null {
+  const spec = t.convert;
+  if (!spec || !t.duration) return null;
+  const ch = spec.channels ?? t.channels ?? 2, rate = spec.rate ?? t.rate ?? 48000;
+  const secs = spec.speed && spec.speed[0] > 0 && spec.speed[1] > 0 ? t.duration * spec.speed[0] / spec.speed[1] : t.duration;
+  if (spec.codec === "flac" || spec.codec === "alac" || spec.codec === "wv") return secs * rate * ch * 3 * 0.6;
+  const kbps = Number(spec.p.bitrate);
+  return secs * (Number.isFinite(kbps) && spec.p.bitrate !== "" && spec.p.bitrate != null ? kbps : 320) * 1000 / 8;
 }

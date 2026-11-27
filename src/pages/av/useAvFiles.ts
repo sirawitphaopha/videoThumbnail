@@ -67,10 +67,16 @@ export function useAvFiles(c: C0) {
         toast({ kind: "warn", ms: 6000, key: "av-add", title: "ไฟล์นี้เพิ่มไว้แล้ว", detail: baseName(path) });
         continue;
       }
-      setLoading("add");
+      // ไม่ทับสถานะกำลังอ่านไฟล์หนังที่อาจยังอ่านอยู่ (AUDIT ข้อ 86)
+      setLoading((l) => (l === "movie" ? l : "add"));
       try {
         const f = await mergeApi.addFile(path, m.duration);
         if (getAv().movie?.path !== m.path) break;
+        // ฝั่ง Rust เปลี่ยน .sub เป็น .idx เทียบซ้ำด้วยที่อยู่ที่คืนมาอีกรอบ ลาก .sub เดิมซ้ำไม่ได้สองแถว (AUDIT ข้อ 86)
+        if (f.path.toLowerCase() !== path.toLowerCase() && getAv().tracks.some((t) => !t.inMovie && t.src.toLowerCase() === f.path.toLowerCase())) {
+          toast({ kind: "warn", ms: 6000, key: "av-add", title: "ไฟล์นี้เพิ่มไว้แล้ว", detail: baseName(f.path) });
+          continue;
+        }
         const added = tracksOfAdded(f);
         // แทร็กใหม่ต่อท้ายกลุ่มชนิดเดียวกัน ภาพ เสียง ซับ ยังอยู่เป็นกลุ่ม
         setAv((s) => {
@@ -87,7 +93,7 @@ export function useAvFiles(c: C0) {
       } catch (e) {
         toast({ kind: "bad", title: `เพิ่ม ${baseName(path)} ไม่ได้`, detail: String(e) });
       } finally {
-        setLoading(null);
+        setLoading((l) => (l === "add" ? null : l));
       }
     }
   }, [toast]);

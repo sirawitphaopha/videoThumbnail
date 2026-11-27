@@ -23,13 +23,16 @@ export function usePairs(c: C3) {
       return p ? { ...t, lang: p.lang || t.lang, name: p.name || t.name, delay: p.delay } : t;
     }) }));
   };
+  // กำลังบันทึก ปุ่มบอกสถานะและกดซ้ำไม่ได้จนผลกลับ (AUDIT ข้อ 85)
+  const [pairSaving, setPairSaving] = useState(false);
   const savePairs = () => {
-    if (pairBlocked || !movie) return;
+    if (pairBlocked || !movie || pairSaving) return;
+    setPairSaving(true);
     const list = pairable.map((t) => ({ path: t.src, kind: t.kind as "audio" | "subtitle", lang: t.lang, name: t.name, delay: Math.round(t.delay) }));
     const uniq = list.filter((x, i) => list.findIndex((y) => y.path === x.path && y.kind === x.kind) === i);
     // บอกผลในการ์ดของหน้าที่เดียว (เดิมขึ้นแจ้งเตือนซ้ำ บังการ์ด เจอตอนตรวจภาพ)
     pairApi.set(movie.path, uniq).then(() => setPaired({ n: uniq.length }),
-      (e) => setPaired({ n: 0, err: String(e) }));
+      (e) => setPaired({ n: 0, err: String(e) })).finally(() => setPairSaving(false));
   };
-  return { paired, setPaired, inLib, pairable, pairBlocked, savedPairs, pairsNotInTable, loadSavedPairs, savePairs };
+  return { paired, setPaired, inLib, pairable, pairBlocked, savedPairs, pairsNotInTable, loadSavedPairs, savePairs, pairSaving };
 }

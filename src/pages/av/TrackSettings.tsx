@@ -16,6 +16,9 @@ import type { AvCtx } from "./avCtx";
 /** หัวกับเนื้อของส่วนตั้งค่าแทร็กที่เลือก · ไม่มีแทร็กที่เลือกได้ null ทั้งคู่ */
 export function trackDetail(pg: AvCtx) {
   const { nth, openCodec, output, refAudio, selected, setDelayFor, working } = pg;
+  // วิธีแยกใช้ค่าเดิมในหนัง ช่องในส่วนนี้ล็อกพร้อมเหตุผลเดียวกับแถว (AUDIT ข้อ 95 · เดิมล็อกเฉพาะตอนกำลังทำงาน)
+  const lock = working || pg.method === "extract";
+  const lockWhy = working ? BUSY : pg.method === "extract" ? "ตอนแยกใช้ค่าเดิมในหนัง ค่านี้ใช้ตอนรวมเข้าไฟล์หนัง" : undefined;
   const detailHead = selected ? (
     <h3 style={{ justifyContent: "space-between" }}><span style={{ minWidth: 0, overflowWrap: "anywhere" }}>ตั้งค่าแทร็ก {rowText(selected, nth(selected)).title}</span>
       <span className={"tpill " + (selected.inMovie ? "in" : "new")}>{selected.inMovie ? "ในไฟล์" : "เพิ่มใหม่"}</span></h3>
@@ -25,31 +28,31 @@ export function trackDetail(pg: AvCtx) {
       <div className="avfield"><span className="avlbl">ภาษาและชื่อแทร็ก</span>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           {selected.kind === "video" ? <span className="small" style={{ width: 130 }}>{langName(selected.lang)}</span>
-            : <LangPicker value={selected.lang} width={130} label="ภาษาของแทร็กที่เลือก" onChange={(v) => patch(selected.key, { lang: v })} disabled={working ? BUSY : undefined} />}
-          <div style={{ flex: 1, minWidth: 0 }}><ThaiInput value={selected.name} onChange={(v) => patch(selected.key, { name: v })} label="ชื่อแทร็ก" readOnly={working} /></div>
+            : <LangPicker value={selected.lang} width={130} label="ภาษาของแทร็กที่เลือก" onChange={(v) => patch(selected.key, { lang: v })} disabled={lockWhy} />}
+          <div style={{ flex: 1, minWidth: 0 }}><ThaiInput value={selected.name} onChange={(v) => patch(selected.key, { name: v })} label="ชื่อแทร็ก" readOnly={lock} /></div>
         </div>
         <span className="small"><Phr>{`ชื่อที่โปรแกรมเล่นแสดงตอนเลือกเสียงหรือซับ ส่วนไฟล์ที่เพิ่มจะตั้งภาษาจากชื่อไฟล์ให้ก่อน (คำ${J}ว่า พากย์${J}ไทย th tha)`}</Phr></span></div>
       {selected.kind !== "video" && (
         <div className="avfield"><span className="avlbl"><span>ตั้งเป็น{KIND_WORD[selected.kind]}หลัก <InfoTip title={`${KIND_WORD[selected.kind]}หลักคืออะไร`} tip={{ w: MAIN_TIP }} /></span></span>
           {/* ปุ่มวงกลมแบบเดียวกับคอลัมน์หลักในตาราง หลักมีได้แทร็กเดียวแบบปุ่มเลือกข้อเดียว (BUGS ข้อ 91 พี่กันสั่ง 13 พ.ย. 2569 "เอาปุ่มให้เหมือนกัน ถ้าจะวงกลม ก็วงกลม" · เดิมเป็นช่องติ๊กสี่เหลี่ยม) */}
-          <div className={"chk" + (working || !selected.keep ? " off" : "")} aria-checked={selected.default} {...kb(() => { if (!working && selected.keep) setMain(selected.key); })} role="radio" data-main-panel>
+          <div className={"chk" + (lock || !selected.keep ? " off" : "")} aria-checked={selected.default} {...kb(() => { if (!lock && selected.keep) setMain(selected.key); })} role="radio" data-main-panel>
             <span className={"radio" + (selected.default ? " on" : "")} aria-hidden="true" />
             <span>{selected.kind === "audio" ? "เปิดหนังแล้วเล่นเสียงนี้ก่อน" : "เปิดหนังแล้วขึ้นซับนี้ก่อน"}</span></div>
           <span className="small"><Phr>{`${KIND_WORD[selected.kind]}หลักมีได้แทร็กเดียว เลือกอันนี้แล้วอันเดิมจะเลิกเป็นหลัก${selected.kind === "audio" ? " " : output === "mp4" ? "" : " "}${selected.kind === "audio" ? "ซับหลักตั้งแยกกัน" : output === "mp4" ? "\nไฟล์ MP4 ถ้าไม่เลือกซับหลัก โปรแกรมเล่นส่วนใหญ่จะเปิดซับแรกให้เอง" : "ถ้าไม่เลือกซับหลักเลย หนังจะเปิดแบบไม่มีซับ"}`}</Phr></span></div>
       )}
       {selected.kind !== "video" && (
         <div className="avfield"><span className="avlbl">ดีเลย์</span>
-          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}><DelayBox value={selected.delay} onChange={(v) => setDelay(selected.key, v)} label="แทร็กที่เลือก" wide off={working ? BUSY : undefined} />
+          <div style={{ display: "flex", alignItems: "center", gap: 6, flexWrap: "wrap" }}><DelayBox value={selected.delay} onChange={(v) => setDelay(selected.key, v)} label="แทร็กที่เลือก" wide off={lockWhy} />
             <span className="small">ms ค่าติดลบแปลว่า{KIND_WORD[selected.kind]}มาเร็วขึ้น</span>
             {selected.kind === "audio" && !selected.inMovie && refAudio && (
-              <button type="button" className={"btn btn-sm " + (working ? "btn-wait" : "btn-ghost")} aria-disabled={working || undefined} title={working ? BUSY : "เทียบคลื่นเสียงกับเสียงเดิมในหนัง"}
-                onClick={() => { if (!working) setDelayFor(selected.key); }} data-find-delay><IcSearch size={15} />หาค่าดีเลย์</button>)}</div>
+              <button type="button" className={"btn btn-sm " + (lock ? "btn-wait" : "btn-ghost")} aria-disabled={lock || undefined} title={lockWhy ?? "เทียบคลื่นเสียงกับเสียงเดิมในหนัง"}
+                onClick={() => { if (!lock) setDelayFor(selected.key); }} data-find-delay><IcSearch size={15} />หาค่าดีเลย์</button>)}</div>
           <span className="small">{selected.delayFromName != null ? <Phr>{`อ่านจากชื่อไฟล์ (คำว่า DELAY ${selected.delayFromName}ms) และแก้เองได้`}</Phr> : <Phr>{`ปุ่มลบและบวกปรับทีละ 100 ms กด Shift ค้างไว้จะปรับทีละ 10 ms ส่วน${J}ค่าที่ใส่ได้อยู่ระหว่างลบและบวก 600,000 ms (10 นาที)`}</Phr>}</span></div>
       )}
       {/* แปลงเสียงในส่วนตั้งค่าแทร็ก (BUGS ข้อ 34 พี่กัน "ให้มัน แปลไฟล์ได้ ก็ดีนะ ที่จุดนี้เลย" ยืนยัน 12 พ.ย. 2569 "แปลงไฟล์เสียง เข้าไจถูกละ")
           ปุ่มเดียวกับปุ่มแปลงในแถว เปิดแผงตั้งค่าเสียงตัวเดียวกัน ค่าตรงกันสองที่ · แทร็กซับกับภาพไม่มีหัวข้อนี้ */}
       {selected.kind === "audio" && (() => {
-        const why = working ? BUSY : !selected.keep ? "แทร็กที่เอาออกไม่ต้องแปลง" : undefined;
+        const why = lockWhy ?? (!selected.keep ? "แทร็กที่เอาออกไม่ต้องแปลง" : undefined);
         const how = selected.inMovie ? (selected.pair ?? true ? " เพิ่มคู่" : " แทนที่") : "";
         // ป้ายสั้นแบบปุ่มในแถว (Opus 64) ในประโยคเติมหน่วย kbps ให้บิตเรต · TVBR ของ qaac เป็นระดับคุณภาพ ไม่ใช่ kbps
         const lab = selected.convert ? convertLabel(selected.convert) : "";
