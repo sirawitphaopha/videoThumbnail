@@ -76,7 +76,7 @@ const SHOTS = [
   ["ใส่โปสเตอร์", async (p) => { await nav(p, "ใส่โปสเตอร์"); }],
   ["จับคู่ปก", async (p) => { await nav(p, "จับคู่ปก"); }],
   ["จับคู่ปก-กระดาน", async (p) => { await nav(p, "จับคู่ปก"); await p.waitForTimeout(400); await click(p, "[data-link-goboard]"); }],
-  ...[["folders", "โฟลเดอร์หนัง"], ["shelf", "ชั้นวาง"], ["tone", "โทนสี"], ["player", "เปิดเล่นหนัง"], ["poster", "ใส่โปสเตอร์"], ["link", "เก็บรูปที่จับคู่"], ["av", "เสียงและซับ"], ["check", "ตรวจไฟล์"], ["graph", "กราฟเสียง"], ["tools", "เครื่องมือเบื้องหลัง"], ["encoders", "ตัวแปลงเสียง"], ["log", "บันทึกการใช้งาน"], ["types", "ชนิดไฟล์"], ["thanks", "ขอบคุณ"]]
+  ...[["folders", "โฟลเดอร์หนัง"], ["shelf", "ชั้นวาง"], ["tone", "โทนสี"], ["player", "เปิดเล่นหนัง"], ["poster", "ใส่โปสเตอร์"], ["link", "เก็บรูปที่จับคู่"], ["av", "เสียงและซับ"], ["check", "ตรวจไฟล์"], ["graph", "กราฟเสียง"], ["tools", "เครื่องมือเบื้องหลัง"], ["encoders", "ตัวแปลงเสียง"], ["log", "บันทึกการใช้งาน"], ["types", "ชนิดไฟล์"], ["thanks", "ขอบคุณ"], ["lines", "บรรทัดโค้ด"]]
     .map(([id, th]) => [`ตั้งค่า-${th}`, async (p) => { await nav(p, "ตั้งค่า"); await waitSel(p, `[data-setnav=${id}]`); await click(p, `[data-setnav=${id}]`); }]),
   ["เมนูพับ", async (p) => { await clickText(p, "ย่อเมนู"); }],
   ["ข้อมูลไฟล์", async (p) => { await click(p, ".shelf .card, [data-movie]"); await p.waitForTimeout(300); await clickText(p, "MediaInfo", "[data-detail] button"); }],

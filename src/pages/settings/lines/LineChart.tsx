@@ -6,7 +6,7 @@ import { KIND_NAMES, groupColor, kindColor, shownVer, type Group, type Point } f
 import { cntOf, fmt, niceTicks, type Filter } from "./lineCalc";
 import type { Stack } from "./useLineFilter";
 
-const H = 280, ML = 58, MR = 14, MT = 34, MB = 28;
+const H = 284, ML = 58, MR = 14, MT = 38, MB = 28;
 const MONTHS = ["ม.ค.", "ก.พ.", "มี.ค.", "เม.ย.", "พ.ค.", "มิ.ย.", "ก.ค.", "ส.ค.", "ก.ย.", "ต.ค.", "พ.ย.", "ธ.ค."];
 /** 2026-11-24 เป็น 24 พ.ย. */
 export const thDate = (d: string) => { const [, m, day] = d.slice(0, 10).split("-").map(Number); return `${day} ${MONTHS[m - 1] ?? ""}`; };
@@ -77,7 +77,7 @@ export default function LineChart({ points, now, groups, filter, stack, dark }: 
         {areas.map((a) => <path key={a.s.key + "e"} d={a.edge} className="lst-edge" />)}
         {marks.map((m) => <g key={m.label + m.x} data-lines-mark={m.label}>
           <line x1={m.x} x2={m.x} y1={MT - 4} y2={MT + ph} className="lst-mark" />
-          {m.row >= 0 && <text x={m.x} y={m.row === 0 ? 13 : 26} textAnchor="middle" className="lst-mlab">{m.label}</text>}
+          {m.row >= 0 && <text x={m.x} y={m.row === 0 ? 12 : 29} textAnchor="middle" className="lst-mlab">{m.label}</text>}
         </g>)}
         <line x1={ML} x2={w - MR} y1={MT + ph} y2={MT + ph} className="lst-base" />
         {dateIdx.map((i) => <text key={i} x={X(i)} y={H - 8} textAnchor={i === 0 ? "start" : i === N - 1 ? "end" : "middle"} className="lst-axis">{pts[i].now ? "ตอนนี้" : thDate(pts[i].d)}</text>)}
