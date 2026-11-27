@@ -41,8 +41,11 @@ export function usePosterRun(c: Po1) {
   const pBytes = choice?.render.bytes ?? 0;
   const posterShort = movie && choice ? spaceShort(posterFree, mode === "cover" ? pBytes * 2 + 16 * 1024 * 1024 : movie.size + pBytes + 64 * 1024 * 1024) : null;
   const startLabel = output === "mp4" ? "ส่งออกเป็น MP4 พร้อมโปสเตอร์" : isMkv ? (inLib?.hasCover ? "เปลี่ยนโปสเตอร์" : "ใส่โปสเตอร์ลงไฟล์นี้") : "ครอบเป็น MKV พร้อมโปสเตอร์";
+  // rendering ประกาศก่อน blocked ปุ่มเริ่มต้องรอรูปแบบใหม่ที่เลือกบนการ์ด (AUDIT ข้อ 43 · เดิมกดเริ่มระหว่างทำรูปได้ ไฟล์ได้รูปแบบเก่า)
+  const [rendering, setRendering] = useState(false);
   const blocked = !movie ? "ยังกดไม่ได้ ใส่ไฟล์หนังก่อน"
     : !choice ? "ยังกดไม่ได้ ใส่รูปโปสเตอร์ก่อน"
+    : rendering ? "รอทำรูปให้เสร็จก่อน"
     : mp4VideoBad ? "ไฟล์นี้ส่งออกเป็น MP4 ไม่ได้ ใช้ MKV แทน"
     : nameProblem ? nameProblem.title
     : posterShort;
@@ -75,7 +78,6 @@ export function usePosterRun(c: Po1) {
     start(dropNow);
   };
   /** เลือกแบบปกหรือชนิดไฟล์จากการ์ดรูป · ทำรูปใหม่ด้วยค่าเดิม เปลี่ยนแค่แบบหรือชนิด · กลับเป็นตัดให้พอดีปก ใช้กรอบกลางรูป */
-  const [rendering, setRendering] = useState(false);
   const rechoose = async (patch: { mode?: Geometry["mode"]; format?: "jpg" | "png" }) => {
     if (!poster || !choice) return;
     let geo = choice.geo;

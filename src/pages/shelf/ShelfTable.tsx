@@ -5,7 +5,7 @@ import { Badge, SortArrow, chText } from "../../components/ui";
 import { useMovieFrame } from "../../lib/frames";
 import { thumbUrl, type Movie } from "../../lib/api";
 import { fmtSize } from "../../lib/format";
-import { kindOf, KIND_ORDER, TABLE_LABEL } from "../../lib/status";
+import { kindOf, KIND_ORDER, labelOf, TABLE_LABEL } from "../../lib/status";
 import { kb } from "../../lib/popup";
 import HoverBig from "../../components/HoverBig";
 import { ftLook } from "../../lib/ftypes";
@@ -118,7 +118,7 @@ export function ShelfTable(p: { size: "s" | "m" | "l"; list: Movie[]; selId: str
                 <td className="lv-v" title={m.videoShort ?? undefined}><ChipRow items={videoChips(m.videoShort)} /></td>
                 <td className="lv-a" title={tracks(m.audio, true) || undefined}><ChipRow items={trackChips(m.audio, true)} /></td>
                 <td className="lv-s" title={tracks(m.subs, false) || undefined}><ChipRow items={trackChips(m.subs, false)} /></td>
-                <td style={{ whiteSpace: "nowrap" }}><span className="lvstat"><Badge kind={k} title={TABLE_LABEL[k]} /><span className="lvword">{TABLE_LABEL[k]}</span></span></td>
+                <td style={{ whiteSpace: "nowrap" }}><span className="lvstat"><Badge kind={k} title={labelOf(m, p.reminder)} /><span className="lvword">{TABLE_LABEL[k]}</span></span></td>
               </tr>
             );
           })}

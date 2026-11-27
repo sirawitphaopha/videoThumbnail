@@ -181,7 +181,23 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
               </div>
             </div>
           ))}
-          {!query && filter !== "all" && list.length === 0 && !scanning ? (
+          {/* อ่านเสร็จแล้วไม่มีหนังสักเรื่อง บอกให้ต่างจากกำลังอ่านหรือโหลดไม่สำเร็จ (AUDIT ข้อ 38 · เดิมพื้นที่ว่างทั้งหน้า) */}
+          {!scanning && !skelPreview && movies.length === 0 && folders.length > 0 && missingFolders.length < folders.length ? (
+            <div className="empty-search" data-shelf-nomovies>
+              <div style={{ fontSize: 14 }}>โฟลเดอร์ที่ตั้งไว้ยังไม่มีไฟล์หนังที่โปรแกรมอ่านได้</div>
+              <div className="small">ตรวจว่าตั้งโฟลเดอร์ถูก หรือเพิ่มโฟลเดอร์อื่นในหน้าตั้งค่า</div>
+              <div className="minirow">
+                <button type="button" className="btn btn-ghost btn-sm" onClick={scan}><IcRefresh size={15} />อ่านโฟลเดอร์ใหม่</button>
+                <button type="button" className="btn btn-ghost btn-sm" data-shelf-nomovies-go onClick={() => { requestSettingsSec("folders"); onPage("settings"); }}><IcSettings size={15} />ไปตั้งค่าโฟลเดอร์</button>
+              </div>
+            </div>
+          ) : query && list.length === 0 && found.items.length > 0 ? (
+            /* ชื่อตรงแต่โดนตัวกรองปกหรือดาวซ่อน ไม่โทษคำค้น (AUDIT ข้อ 39) */
+            <div className="empty-search" data-shelf-hidden>
+              <div style={{ fontSize: 14 }}>เจอหนังที่ชื่อมีคำว่า <b>{query.trim()}</b> <span className="nw">{found.items.length} เรื่อง</span> แต่อยู่นอกตัวกรองที่เลือกไว้</div>
+              <button type="button" className="btn btn-ghost btn-sm" onClick={() => { setFilter("all"); setStar("all"); }}><IbEye size={15} />ดูทั้งหมด</button>
+            </div>
+          ) : !query && filter !== "all" && list.length === 0 && !scanning ? (
             <div className="empty-search" data-shelf-empty>
               <div style={{ fontSize: 14 }}>ไม่มีเรื่องในหมวดนี้</div>
               <button type="button" className="btn btn-ghost btn-sm" onClick={() => setFilter("all")}><IbEye size={15} />ดูทั้งหมด</button>

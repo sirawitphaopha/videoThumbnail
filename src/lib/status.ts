@@ -21,10 +21,20 @@ export function kindOf(m: Movie, reminderDays: number): Kind {
 /** คำบนชั้นวาง (ป้ายอธิบายสี) */
 export const SHELF_LABEL: Record<Kind, string> = {
   ok: "ไฟล์สมบูรณ์",
-  warn: "ควรตรวจ (ยังไม่เคยตรวจ หรือไฟล์เปลี่ยนไป)",
+  warn: "ควรตรวจ (ยังไม่เคยตรวจ ไฟล์เปลี่ยนไป หรือถึงเวลาตรวจซ้ำ)",
   bad: "ไฟล์เสียหาย",
   info: "ยังไม่ได้ครอบเป็น MKV",
 };
+
+/** ป้ายของจุดสีบนปกแต่ละเรื่อง จุดเหลืองบอกเหตุของเรื่องนั้น (AUDIT ข้อ 61 · เดิมทุกเรื่องขึ้นว่ายังไม่เคยตรวจหรือไฟล์เปลี่ยน ทั้งที่บางเรื่องแค่ถึงเวลาตรวจซ้ำ) */
+export function labelOf(m: Movie, reminderDays: number): string {
+  const k = kindOf(m, reminderDays);
+  if (k !== "warn") return SHELF_LABEL[k];
+  if (m.status === "unchecked") return "ควรตรวจ ยังไม่เคยตรวจ";
+  if (m.status === "changed") return "ควรตรวจ ไฟล์เปลี่ยนไปหลังตรวจครั้งก่อน";
+  if (m.status === "partial") return "ควรตรวจ ตรวจแบบเร็วได้บางส่วน";
+  return "ควรตรวจ ถึงเวลาตรวจซ้ำ";
+}
 
 /** คำในตาราง */
 export const TABLE_LABEL: Record<Kind, string> = { ok: "สมบูรณ์", warn: "ควรตรวจ", bad: "เสียหาย", info: "ยังไม่ได้ครอบ" };

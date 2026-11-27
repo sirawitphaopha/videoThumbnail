@@ -44,7 +44,7 @@ export function usePosterFiles(c: Po0) {
     setPosterErr(null);
     if (getPosterJob().run.state !== "working") setRun({ state: "idle" });
     const ext = extOf(path);
-    if (!IMAGE_EXT.includes(ext)) { setPosterErr(`ไฟล์ .${ext || "?"} ใช้ไม่ได้`); return; }
+    if (!IMAGE_EXT.includes(ext)) { setPosterErr(ext ? `ไฟล์ .${ext} ใช้ไม่ได้` : "ไฟล์ที่ไม่มีนามสกุลใช้ไม่ได้"); return; }
     setLoading("poster");
     try {
       const info = await posterApi.open(path);

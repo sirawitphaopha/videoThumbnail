@@ -5,7 +5,7 @@ import { Badge, Skel, chText } from "../../components/ui";
 import { useToast } from "../../components/Toasts";
 import { useMovieFrame } from "../../lib/frames";
 import { api, thumbUrl, type Movie } from "../../lib/api";
-import { kindOf, SHELF_LABEL } from "../../lib/status";
+import { kindOf, labelOf } from "../../lib/status";
 import { kb } from "../../lib/popup";
 import { useLongName } from "../../lib/longName";
 import { Hl, LinkMark, SIZES, tracks } from "./common";
@@ -199,7 +199,7 @@ function Book(p: { m: Movie; width: number; sel: boolean; onSel: (id: string) =>
       className={"book" + (wide ? " wide" : "") + (p.sel ? " sel" : "") + (m.missing ? " missing" : "")}
       style={wide ? { width: p.width } : undefined}
       title={[full, m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : ""].filter(Boolean).join("\n") || undefined}
-      aria-label={full + ", " + SHELF_LABEL[k] + (m.shownLink ? ", ปกจับคู่" : "") + (m.missing ? ", หาไฟล์ไม่เจอ" : "")}
+      aria-label={full + ", " + labelOf(m, p.reminder) + (m.shownLink ? ", ปกจับคู่" : "") + (m.missing ? ", หาไฟล์ไม่เจอ" : "")}
       aria-pressed={p.sel}
       data-movie={m.name}
       {...kb(() => p.onSel(m.id))}
@@ -219,7 +219,7 @@ function Book(p: { m: Movie; width: number; sel: boolean; onSel: (id: string) =>
         <div className="bname">
           {/* สามบรรทัด ชื่อ · เครื่องหมาย · ป้าย ตรงแนวกันทุกเรื่อง (พี่กันสั่ง 9 พ.ย. 2569 "ให้มันเป้นระเบีบย" · เลือกแบบ ค จากมอคอัป pick-ui แท็บ 5) · ชื่อยาวตัดท้าย ชี้ดูชื่อเต็ม */}
           {p.showNames && <div className="bn1">{ym ? <><span className="bn1-t"><Hl text={ym[1]} used={p.used} /></span><span className="bn1-y">{ym[2]}</span></> : <Hl text={m.name} used={p.used} />}</div>}
-          {(p.showNames || p.showDots || m.shownLink) && <div className="bn2">{p.showDots && <Badge kind={k} title={SHELF_LABEL[k]} />}{m.shownLink && <LinkMark />}{p.showNames && <Stars m={m} />}</div>}
+          {(p.showNames || p.showDots || m.shownLink) && <div className="bn2">{p.showDots && <Badge kind={k} title={labelOf(m, p.reminder)} />}{m.shownLink && <LinkMark />}{p.showNames && <Stars m={m} />}</div>}
           {p.showNames && <BookTags m={m} />}
         </div>
       )}

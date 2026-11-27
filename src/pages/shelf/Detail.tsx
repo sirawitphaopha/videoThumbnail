@@ -216,8 +216,8 @@ ${whereAll(c)}
           <button type="button" className={"btn " + (busy ? "btn-wait" : "btn-bad")} aria-disabled={busy || undefined} data-link-remove-ok onClick={remove}><Keep icon={<IbTrash size={15} />} all={["กำลังเอาออก…", "เอาปกออก"]}>{busy ? "กำลังเอาออก…" : "เอาปกออก"}</Keep></button>
         </>}>
         <div className="small" style={{ fontSize: 14, color: "var(--txt2)" }}>
-          {trash.length > 0 && <div style={{ overflowWrap: "anywhere" }}>รูปที่โปรแกรมคัดลอกไว้ {trash.join(", ")} ย้ายลงถังขยะแล้ว กู้คืนได้</div>}
-          {hasApp && <div>สำเนาในโปรแกรมย้ายลงถังขยะ กู้คืนได้</div>}
+          {trash.length > 0 && <div style={{ overflowWrap: "anywhere" }}>รูปที่โปรแกรมคัดลอกไว้ {trash.join(", ")} จะย้ายลงถังขยะ กู้คืนได้</div>}
+          {hasApp && <div>สำเนาในโปรแกรมจะย้ายลงถังขยะ กู้คืนได้</div>}
           <div>รูปต้นฉบับและไฟล์หนังไม่ถูกแตะ ส่วนไฟล์ที่โปรแกรมไม่ได้สร้างจะไม่ถูกลบ</div>
         </div>
       </Dialog>

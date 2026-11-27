@@ -318,7 +318,9 @@
     transformCallback: (cb, once) => { const id = nextId++; window[`_${id}`] = (x) => { if (once) delete window[`_${id}`]; cb?.(x); }; return id; },
     unregisterCallback: (id) => { delete window[`_${id}`]; },
     invoke: async (cmd, args) => {
-      if (FX[cmd]) return structuredClone(await FX[cmd](args ?? {}));
+      // window.__fxOver[ชื่อคำสั่ง] ตัวตรวจสลับคำตอบชั่วคราวได้ เช่นคลังหนังว่าง (BUGS ข้อ 161 check-audit161)
+      const f = window.__fxOver?.[cmd] ?? FX[cmd];
+      if (f) return structuredClone(await f(args ?? {}));
       // ระบบจำลองหน้าโปรแกรมบนเว็บ (แผนแบ่งไฟล์ขั้น 0 · BUGS ข้อ 153) ส่งสัญญาณให้ตัวที่ฟังอยู่จริง เช่นลากไฟล์เข้า (tauri://drag-drop)
       // window.__emit(ชื่อ, ข้อมูล) ใช้จากสคริปต์ถ่ายภาพ · กล่องเลือกไฟล์คืนค่าที่ตั้งไว้ใน window.__pickNext แทนการเปิดกล่องของ Windows
       if (cmd === "plugin:event|listen") { const id = nextId++; listeners.push({ id, event: args.event, handler: args.handler }); return id; }
