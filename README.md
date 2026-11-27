@@ -60,6 +60,7 @@ node scripts/web-diff.mjs /ที่เก็บ/ภาพก่อน /ที�
 ทางคุยกับฝั่ง Rust อยู่ `src/lib/api/` แยกตามระบบ (`index.ts` ส่งต่อทุกชื่อ) · สไตล์กลาง `src/styles/app.css` เป็นสารบัญ @import ไฟล์ใน `src/styles/app/` ตามลำดับ
 ฝั่ง Rust อยู่โฟลเดอร์ตามกลุ่มใต้ `src-tauri/src/` (app cover media merge audio video subtitle ocr) · โมดูลที่ยาวเป็นโฟลเดอร์ `mod.rs` กับไฟล์ย่อย · เทสอยู่ไฟล์ของตัวเอง (`<โมดูล>_tests.rs` หรือ `tests.rs`)
 ไฟล์โค้ดละไม่เกิน 600 บรรทัดไม่นับเทส ตัวเฝ้า `npm run check:size` (`scripts/file-size.mjs`) ต่อเข้าตัวกันก่อน commit ของ git `.githooks/pre-commit` ตั้งเองตอน `npm install` · ข้อยกเว้นพร้อมเหตุผลอยู่ `scripts/file-size-allow.json`
+ตัวนับบรรทัดโค้ด `npm run stats:lines` (`scripts/line-stats.mjs`) นับทุก commit แยกโค้ดจริง คอมเมนต์ บรรทัดว่าง 9 กลุ่ม `npm run dev` กับ `npm run build` นับเองทุกครั้ง ผลแสดงในหน้าตั้งค่าหัวข้อบรรทัดโค้ด · ตัวตรวจ `node scripts/check-line-stats.mjs --ui` · แผน [docs/PLAN-2026-11-27-นับบรรทัด.md](docs/PLAN-2026-11-27-นับบรรทัด.md)
 แนวทางวางไฟล์เต็มอยู่ CLAUDE.md หัวข้อแนวทางวางไฟล์ · แผนกับผลทุกขั้นอยู่ `docs/PLAN-2026-11-22-แบ่งไฟล์.md`
 
 ## เครื่องมือที่ใช้
