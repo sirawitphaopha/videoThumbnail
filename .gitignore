@@ -65,3 +65,5 @@ vendor/ocr/*
 !vendor/ocr/manifest.json
 src-tauri/tools/ocr/
 docs/mockups/web-shots-token.txt
+# ผลของตัวนับบรรทัดโค้ด สร้างใหม่ทุกครั้งที่ npm run dev กับ build (BUGS ข้อ 160)
+src/generated/

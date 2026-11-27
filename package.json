@@ -4,11 +4,12 @@
   "version": "0.10.6",
   "type": "module",
   "scripts": {
-    "dev": "vite",
-    "build": "tsc --noEmit && vite build",
+    "dev": "node scripts/line-stats.mjs && vite",
+    "build": "node scripts/line-stats.mjs && tsc --noEmit && vite build",
     "preview": "vite preview",
     "tauri": "tauri",
     "check:size": "node scripts/file-size.mjs",
+    "stats:lines": "node scripts/line-stats.mjs",
     "prepare": "git config core.hooksPath .githooks || exit 0"
   },
   "dependencies": {
