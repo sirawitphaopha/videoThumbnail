@@ -78,13 +78,28 @@ export function addFiles(paths: string[], unique = false, track = 0) {
   }
   if (!add.length) return;
   set({ items: [...q.items, ...add] });
-  for (const it of add) {
-    convertApi.probe(it.path, it.track).then((f) => {
+  for (const it of add) probeQ.push(it);
+  pumpProbe();
+}
+
+/* อ่านข้อมูลไฟล์ในคิวทีละ PROBE_MAX ไฟล์ แบบภาพจากหนังที่ดึงทีละ 2 เรื่อง (AUDIT ข้อ 24)
+   เดิมสั่ง ffprobe ทุกไฟล์พร้อมกันแล้วดึงปกต่อทันที ลากเพลง 200 ไฟล์เกิดโปรเซสหลายร้อยตัว เครื่องแรม 8 GB กระตุก
+   ไฟล์ที่เอาออกจากคิวก่อนถึงตาไม่อ่าน */
+const PROBE_MAX = 3;
+const probeQ: QItem[] = [];
+let probing = 0;
+function pumpProbe() {
+  while (probing < PROBE_MAX && probeQ.length) {
+    const it = probeQ.shift()!;
+    if (!q.items.some((x) => x.id === it.id)) continue;
+    probing++;
+    convertApi.probe(it.path, it.track).then(async (f) => {
       patchItem(it.id, { file: f, thumb: f.cover ? undefined : null });
-      if (f.cover) convertApi.cover(it.path).then((c) => patchItem(it.id, { thumb: c?.url ?? null }), () => patchItem(it.id, { thumb: null }));
-    }, (e) => patchItem(it.id, { bad: String(e), state: "fail" }));
+      if (f.cover) await convertApi.cover(it.path).then((c) => patchItem(it.id, { thumb: c?.url ?? null }), () => patchItem(it.id, { thumb: null }));
+    }, (e) => patchItem(it.id, { bad: String(e), state: "fail" })).finally(() => { probing--; pumpProbe(); });
   }
 }
+if (import.meta.env.DEV) (window as unknown as { __probeLive: () => number }).__probeLive = () => probing;
 
 /** ตั้งทีเดียวทั้งคิว · ใช้กับทุกไฟล์ที่ยังไม่เริ่ม (รอคิว ไม่สำเร็จ หยุดแล้ว) และไฟล์ที่เพิ่มต่อจากนี้ */
 export function setAll(spec: EncodeSpec) {

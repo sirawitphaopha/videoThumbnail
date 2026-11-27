@@ -34,9 +34,11 @@ export function usePsdData(p: PsdProps) {
   const shown = series.filter((s) => !off.includes(s.key));
   const fOf = (i: number) => i * (psd?.rate ?? 48000) / (psd?.size ?? 4096);
   // ยอดแคบ · ตำแหน่งจริงระหว่างช่องความถี่คิดจากพาราโบลาผ่าน 3 ช่อง (ช่องละ 11.7 Hz ที่ 4096 · 50 Hz ตกที่ช่อง 46.9 Hz ถ้าไม่คิดตรงนี้ เจอตอนเทส 7 พ.ย. 2569)
+  // ตรวจเสียงหึ่ง ขอบบน DC จากค่ามากสุดของทุกเส้นในแบบที่เลือก เดิมดูแค่เส้นแรก (FL หรือซ้าย) หึ่งเฉพาะช่องกลางไม่เจอ (AUDIT ข้อ 103)
+  const dTop = useMemo(() => (!psd ? [] : psd.db.length === 1 ? psd.db[0] : psd.db[0].map((_, i) => Math.max(...psd.db.map((d) => d[i])))), [psd]);
   const peaks = useMemo(() => {
     if (!psd) return [] as [number, number][];
-    const d = psd.db[0], out: [number, number][] = [];
+    const d = dTop, out: [number, number][] = [];
     for (let i = 2; i < d.length - 3; i++) {
       // ยอดที่เบากว่า −100 dB เป็นแค่เสียงรบกวนใต้พื้นกราฟ ไม่นับ (กล่องชี้เคยบอกยอดใกล้สุด −124 dB เจอตอนเทส)
       if (!(d[i] > -100 && d[i] > d[i - 1] && d[i] >= d[i + 1] && d[i] - Math.min(d[Math.max(0, i - 3)], d[i + 3]) > 8)) continue;
@@ -58,12 +60,12 @@ export function usePsdData(p: PsdProps) {
     return [] as (readonly [number, number, number])[];
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [peaks]);
-  const topF = useMemo(() => { if (!psd) return 0; const d = psd.db[0]; for (let i = d.length - 1; i > 0; i--) if (d[i] > -90) return fOf(i); return 0; /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [psd]);
+  const topF = useMemo(() => { if (!psd) return 0; const d = dTop; for (let i = d.length - 1; i > 0; i--) if (d[i] > -90) return fOf(i); return 0; /* eslint-disable-next-line react-hooks/exhaustive-deps */ }, [psd]);
   /** ตรวจเพิ่มจากข้อมูลที่กราฟคิดแล้ว ไม่โหลดอะไรใหม่ · ทุกข้อบอกว่าน่าสงสัย */
   const checks = useMemo(() => {
     const out: { k: string; warn: boolean; b: string; d?: string; title: string; tip: string }[] = [];
     if (!psd) return out;
-    const rate = psd.rate, binHz = psd.rate / psd.size, d = psd.db[0], at = (fr: number) => d[Math.max(0, Math.min(d.length - 1, Math.round(fr / binHz)))];
+    const rate = psd.rate, binHz = psd.rate / psd.size, d = dTop, at = (fr: number) => d[Math.max(0, Math.min(d.length - 1, Math.round(fr / binHz)))];
     const avg = (f0: number, f1: number) => { const i0 = Math.max(0, Math.floor(f0 / binHz)), i1 = Math.min(d.length - 1, Math.ceil(f1 / binHz)); let sum = 0, n = 0; for (let i = i0; i <= i1; i++) { sum += d[i]; n++; } return n ? sum / n : -150; };
     if (hum.length) out.push({ k: "hum", warn: true, b: `เสียงหึ่งจากไฟบ้าน (hum) ยอดแคบที่ ${[...new Set(hum.map((x) => x[2]))].sort((a, b) => a - b).join(" ")} Hz`, d: "มักมาจากสายไมค์หรือปลั๊กพ่วง แต่ในหนังอาจเป็นเสียงประกอบที่ตั้งใจใส่", title: "เสียงหึ่งจากไฟบ้าน", tip: "ไฟบ้านในไทยสั่น 50 ครั้งต่อวินาที (50 Hz) ถ้าสายเสียงรับไฟฟ้าเข้ามา จะได้เสียงหึ่งต่ำ ๆ เป็นยอดแคบที่ 50 100 และ 150 Hz ไฟล์จากอเมริกาและญี่ปุ่นบางส่วนเป็น 60 Hz และไม่ใช่เสียงคนฮัมเพลง" });
     // ขอบบนของเสียง เสียงสูงหายดิ่งเป็นเส้นตรง

@@ -123,7 +123,7 @@ export function useCmpView(c: K0) {
   };
   const head = (
     <div className="agtop">
-      <button type="button" className="btn btn-ghost" onClick={onBack} data-cmpback><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>{free ? "กลับกราฟ" : "คิวแปลง"}</button>
+      <button type="button" className="btn btn-ghost" onClick={() => { if (!ready) void graphApi.cancel(); onBack(); }} data-cmpback><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" aria-hidden="true"><path d="M15 18l-6-6 6-6" /></svg>{free ? "กลับกราฟ" : "คิวแปลง"}</button>
       {files.map((_, i) => chip(i))}
       {n < MAX_FILES && <button type="button" className="btn btn-ghost" onClick={addFile} title={`เพิ่มไฟล์มาเทียบ ได้สูงสุด ${MAX_FILES} ไฟล์`} data-cmpadd><IcPlus />เพิ่มไฟล์</button>}
       {!free && <button type="button" className="btn btn-ghost" onClick={onClose} title="เปิดต้นฉบับในหน้ากราฟเสียงแบบไฟล์เดียว" data-cmpclose><IcClose size={15} />ปิดการเทียบ</button>}

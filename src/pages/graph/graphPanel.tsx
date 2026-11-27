@@ -22,7 +22,7 @@ export function panelBits(pg: B2) {
   ] : [];
   const firstMark = marks[0];
   // แถวสั้น ของยาวกับค่าเทคนิคดูเต็มได้จากการกดปกหรือชื่อไฟล์
-  const tagShow = tagFile ? tagRows(tagFile, null).filter(([k]) => !["รูปปก", "ค่าความดัง", "หมายเหตุ"].includes(k)).map(([k, v]): [string, string] => [k === "ชื่อเพลง" && !tagFile.audioOnly ? "ชื่อเรื่อง" : k, v]) : [];
+  const tagShow = tagFile ? tagRows(tagFile, null).filter(([k]) => !["รูปปก", "ค่าความดัง", "หมายเหตุ"].includes(k)) /* ป้ายชื่อเรื่องของไฟล์หนังมาจาก tagRows แล้ว (AUDIT ข้อ 117) */ : [];
   const panel = (
     <div className="apanel">
       <div className="card"><h3><span>ช่องเสียง {chText(t?.layout)}</span><span className="small" style={{ color: "var(--txt3)" }}>{hidden.length ? `แสดง ${vis.length} จาก ${names.length} ช่อง` : `${names.length} ช่อง`}</span></h3>

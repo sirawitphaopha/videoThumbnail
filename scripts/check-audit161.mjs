@@ -463,6 +463,68 @@ T[102] = async (p, check) => {
   check("102 เลื่อนเมาส์บนกราฟ 20 ครั้ง ไม่ติดตัววัดขนาดกรอบกราฟใหม่ทุกครั้งที่หน้าวาดใหม่", n1 - n0 === 0 && n0 >= 1, `${n0} → ${n1}`);
 };
 
+// ชุด 7 ----------------------------------------------------------------
+T[103] = async (p, check) => {
+  // ความถี่เฉลี่ยแบบซ้อนทุกช่อง เสียงหึ่ง 50 100 150 Hz เฉพาะเส้นที่ 3 (FC) เส้นอื่นเรียบ
+  await over(p, "graph_psd", `const r = await window.__fxOverBase.graph_psd(a); const bin = r.rate / r.size;
+    r.db = r.db.map((d, k) => d.map((v, i) => { const f = i * bin; const flat = -60 - f / 1000; if (k !== 2 || a.series.length < 2) return flat; return [50, 100, 150].some((h) => Math.abs(f - h) < bin * 0.6) ? -20 : flat; }));
+    return r;`);
+  await graphOpen(p, MOVIE); await click(p, "[data-view=psd]"); await wait(p, 1200);
+  await p.evaluate(() => [...document.querySelectorAll(".psdch-seg button")].find((b) => b.innerText.includes("ซ้อน"))?.click()); await wait(p, 1500);
+  const r = await p.evaluate(() => ({ mode: document.querySelector(".psdch-seg button.on")?.innerText, hum: !!document.querySelector("[data-psdcheck=hum]") }));
+  check("103 ซ้อนทุกช่อง เสียงหึ่งเฉพาะช่องกลางยังเจอ ไม่ดูแค่เส้นแรก", r.hum && /ซ้อน/.test(r.mode ?? ""), JSON.stringify(r));
+};
+T[104] = async (p, check) => {
+  await over(p, "graph_cancel", `window.__gcancel = (window.__gcancel ?? 0) + 1; return null;`);
+  await over(p, "graph_overview", `await new Promise((ok) => setTimeout(ok, 8000)); return await window.__fxOverBase.graph_overview(a);`);
+  await graphOpen(p, MOVIE).catch(() => {});
+  // ไฟล์ที่สองส่งผ่าน __cmpPick ไม่เปิดกล่องเลือกไฟล์ (useGraphActions compareOther) · ภาพรวมจำลองให้อ่านนาน 8 วินาที
+  await p.evaluate((x) => { window.__cmpPick = x; }, SONG);
+  await p.evaluate(() => [...document.querySelectorAll("button")].find((b) => b.innerText.trim() === "เทียบ")?.click()); await p.waitForSelector("[data-cmpstop]", { timeout: 6000 }).catch(() => {});
+  const stop = await p.$("[data-cmpstop]");
+  if (stop) { await stop.click(); await wait(p, 200); }
+  const n1 = await p.evaluate(() => window.__gcancel ?? 0);
+  if (await p.$("[data-cmpback]")) { await click(p, "[data-cmpback]"); await wait(p, 300); }
+  const n2 = await p.evaluate(() => window.__gcancel ?? 0);
+  const src = await SRC("src/pages/graph/cmpBody.tsx") + await SRC("src/pages/graph/useCmpView.tsx");
+  check("104 หน้ารอของการเทียบมีปุ่มหยุด และกดกลับระหว่างอ่านสั่งหยุดอ่าน", src.includes("data-cmpstop") && src.includes("if (!ready) void graphApi.cancel(); onBack();") && !!stop && n1 >= 1 && n2 >= 2, `ปุ่ม ${!!stop} หยุด ${n1} กลับ ${n2}`);
+};
+T[111] = async (p, check) => {
+  const r = await mod(p, "/src/pages/graph/draw.tsx", `
+    const mk = (bg, fg) => { const c = document.createElement("canvas"); c.width = 100; c.height = 100; const g = c.getContext("2d"); g.fillStyle = bg; g.fillRect(0, 0, 100, 100); g.fillStyle = fg; g.fillRect(10, 10, 30, 10); return c; };
+    const o = { transparent: true, format: "png" };
+    const dark = mk("#000000", "#ffffff"), light = mk("#ffffff", "#000000");
+    const d2 = m.alphaOf(dark, o), l2 = m.alphaOf(light, o);
+    const al = (c, x, y) => c.getContext("2d").getImageData(x, y, 1, 1).data[3];
+    return { darkSame: d2 === dark, darkText: al(d2, 20, 15), lightBg: al(l2, 80, 80), lightText: al(l2, 20, 15) };`);
+  check("111 กราฟพื้นมืดเก็บพื้นทึบ ตัวหนังสือขาวไม่เป็นรูใส · กราฟพื้นสว่างพื้นยังใส", r.darkSame && r.darkText === 255 && r.lightBg === 0 && r.lightText === 255, JSON.stringify(r));
+};
+T[117] = async (p, check) => {
+  const r = await mod(p, "/src/pages/graph/TagDialog.tsx", `
+    const f = (audioOnly) => ({ audioOnly, tags: [{ key: "title", value: "ดาวเหนือ" }], cover: null });
+    return { movie: m.tagRows(f(false), null)[0][0], song: m.tagRows(f(true), null)[0][0] };`);
+  check("117 ข้อมูลในไฟล์ของหนังขึ้นแถวชื่อเรื่อง เพลงยังเป็นชื่อเพลง", r.movie === "ชื่อเรื่อง" && r.song === "ชื่อเพลง", JSON.stringify(r));
+  const src = await SRC("src/pages/graph/TagDialog.tsx");
+  check("117 หัวหน้าต่างของไฟล์หนังเขียนว่าข้อมูลในไฟล์ของ", src.includes(`f && !f.audioOnly ? "ข้อมูลในไฟล์ของ" : "ข้อมูลเพลงของ"`));
+};
+T[26] = async (p, check) => {
+  await nav(p, "บิตเรต"); await wait(p, 300); await pick(p, MOVIE); await clickText(p, "เลือกไฟล์จากเครื่อง");
+  await p.waitForFunction(() => window.__brDone === true, null, { timeout: 15000 }); await wait(p, 300);
+  const t = await text(p, "[data-brn-ceilsrc]");
+  check("26 ป้ายเพดานบอกว่าคิดจากทั้งไฟล์ ไม่บอกว่าเฉลี่ยคูณสองซึ่งไม่ตรงค่าเฉลี่ยในแถวบน", t === "(ทั้งไฟล์ × 2)", t);
+  const src = await SRC("src/pages/bitrate/common.tsx");
+  check("26 กล่อง ⓘ เส้นเพดานบอกว่ารวมเสียงและซับทุกแทร็ก และปัดเป็น 1 2 5", src.includes("ทั้งไฟล์ × 2") && src.includes("รวมเสียงกับซับทุกแทร็ก"));
+};
+T[24] = async (p, check) => {
+  await over(p, "convert_probe", `window.__pn = (window.__pn ?? 0) + 1; window.__pmax = Math.max(window.__pmax ?? 0, window.__pn); await new Promise((ok) => setTimeout(ok, 120)); window.__pn--; return await window.__fxOverBase.convert_probe(a);`);
+  await nav(p, "กราฟเสียง"); await wait(p, 300); await click(p, "[data-gmode=convert]"); await wait(p, 400);
+  const paths = Array.from({ length: 30 }, (_, i) => `D:\\เพลง\\เพลงที่ ${i + 1}.flac`);
+  await p.evaluate((ps) => window.__emit("tauri://drag-drop", { paths: ps, position: { x: 900, y: 400 } }), paths);
+  await wait(p, 3000);
+  const r = await p.evaluate(() => ({ max: window.__pmax ?? 0, rows: document.querySelectorAll("[data-qrow], .qrow, [data-qitem]").length }));
+  check("24 ลากเพลง 30 ไฟล์ อ่านข้อมูลไฟล์พร้อมกันไม่เกิน 3 ไฟล์", r.max >= 1 && r.max <= 3, JSON.stringify(r));
+};
+
 // ---------------------------------------------------------------- ตัวรัน
 const want = process.argv.slice(2).map(Number).filter(Boolean);
 const ids = Object.keys(T).map(Number).filter((n) => !want.length || want.includes(n)).sort((a, b) => a - b);

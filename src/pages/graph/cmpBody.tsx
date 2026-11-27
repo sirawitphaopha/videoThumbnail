@@ -2,7 +2,8 @@
    แยกจาก CompareView.tsx ตอนจัดโครงไฟล์ตามความหมาย (BUGS ข้อ 155 ขั้น 7) เนื้อโค้ดยกมาทั้งก้อน */
 import Dropdown from "../../components/Dropdown";
 import { CardIcon, FixedTime, Phr } from "../../components/ui";
-import { IcRefresh, IbPlay } from "../../components/icons";
+import { IcRefresh, IbPlay, IbStop } from "../../components/icons";
+import { graphApi } from "../../lib/api";
 import { LoadLanes, HEAT, PSD_SPANS, RangeTime, THEMES, TimeRuler, ZOOMS, label, pkTxt, spanDigits, tfmt, tfmtD } from "./common";
 import { SaveBtn, drawWave, lut, sample } from "./draw";
 import { Lane, LaneOff, VBar } from "./parts";
@@ -23,7 +24,9 @@ export function cmpBody(pg: CmpCtx) {
     const at = Math.max(0, S.findIndex((s) => !s.ov)), pct = S[at].pct ?? 0, since = S[at].since;
     body = (
       <div className="plot" data-cmploading>
-        <div style={{ fontSize: 13.5, marginBottom: 8 }}>อ่านเสียง{LABELS[at]} <b>{Math.round(pct)}%</b>{since != null && <> <Elapsed since={since} /></>} อ่านทีละไฟล์ตามลำดับ</div>
+        {/* ปุ่มหยุดแบบหน้าเดี่ยว (AUDIT ข้อ 104 · เดิมหน้ารอของการเทียบไม่มีปุ่มหยุด) */}
+        <div style={{ fontSize: 13.5, marginBottom: 8, display: "flex", alignItems: "center", gap: 10 }}><span>อ่านเสียง{LABELS[at]} <b>{Math.round(pct)}%</b>{since != null && <> <Elapsed since={since} /></>} อ่านทีละไฟล์ตามลำดับ</span>
+          <button type="button" className="btn btn-bad btn-sm" style={{ marginLeft: "auto" }} onClick={() => void graphApi.cancel()} data-cmpstop><IbStop size={15} />หยุด</button></div>
         <div className="bar"><i style={{ width: `${pct}%` }} /></div>
         <LoadLanes n={files.length * 2} />
       </div>

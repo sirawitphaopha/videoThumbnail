@@ -20,7 +20,8 @@ const minus = (s: string) => s.replace(/^-/, "−");
 export function tagRows(f: AudioFile, cover: CoverData | null): [string, string][] {
   const get = (k: string) => f.tags.find((t) => t.key === k)?.value;
   const rows: [string, string][] = [];
-  for (const k of ["title", "artist", "album", "album_artist", "date"]) { const v = get(k); if (v) rows.push([LABEL[k], v]); }
+  // ไฟล์หนังเก็บชื่อเรื่องในช่อง title แบบเดียวกับการ์ดในหน้ากราฟ (AUDIT ข้อ 117)
+  for (const k of ["title", "artist", "album", "album_artist", "date"]) { const v = get(k); if (v) rows.push([k === "title" && !f.audioOnly ? "ชื่อเรื่อง" : LABEL[k], v]); }
   const tr = get("track"), disc = get("disc");
   if (tr || disc) {
     const [n, of] = (tr ?? "").split("/");
@@ -66,9 +67,9 @@ export default function TagDialog({ path, onClose }: { path: string; onClose: ()
     navigator.clipboard?.writeText(txt).then(() => { setCopied(true); setTimeout(() => setCopied(false), 1500); }).catch(() => {});
   };
   return (
-    <Dialog open onClose={onClose} kind="menu" width={620} title={<span>ข้อมูลเพลงของ <span style={{ overflowWrap: "anywhere" }}>{name}</span></span>}
+    <Dialog open onClose={onClose} kind="menu" width={620} title={<span>{f && !f.audioOnly ? "ข้อมูลในไฟล์ของ" : "ข้อมูลเพลงของ"} <span style={{ overflowWrap: "anywhere" }}>{name}</span></span>}
       actions={<>
-        <span className="small" style={{ marginRight: "auto", alignSelf: "center" }}>ดูได้อย่างเดียว ยังแก้ข้อมูลเพลงไม่ได้</span>
+        <span className="small" style={{ marginRight: "auto", alignSelf: "center" }}>{f && !f.audioOnly ? "ดูได้อย่างเดียว ยังแก้ข้อมูลในไฟล์ไม่ได้" : "ดูได้อย่างเดียว ยังแก้ข้อมูลเพลงไม่ได้"}</span>
         {hasTags && <button type="button" className="btn btn-ghost btn-sm" onClick={copy} data-tagcopy><Keep icon={<IcCopy size={14} />} all={["คัดลอกแล้ว", "คัดลอกเป็นข้อความ"]}>{copied ? "คัดลอกแล้ว" : "คัดลอกเป็นข้อความ"}</Keep></button>}
         <button type="button" className="btn btn-main btn-sm" onClick={onClose}>ปิด</button>
       </>}>
@@ -81,7 +82,7 @@ export default function TagDialog({ path, onClose }: { path: string; onClose: ()
           : hasTags || f.cover ? <dl className="kv" data-tagkv>{rows.map(([k, v]) => <FragmentKV key={k} k={k} v={v} />)}</dl>
           : <div className="stat info" data-tagnone><CardIcon kind="info" /><div><b>ไฟล์นี้ไม่มีข้อมูลเพลง</b><Phr>{whyNone(f)}</Phr></div></div>}
       </div>
-      {f && !hasTags && f.cover && <div className="small" style={{ marginTop: 8 }}>มีแต่รูปปก ไม่มีชื่อเพลง</div>}
+      {f && !hasTags && f.cover && <div className="small" style={{ marginTop: 8 }}>{f.audioOnly ? "มีแต่รูปปก ไม่มีชื่อเพลง" : "มีแต่รูปปก ไม่มีชื่อเรื่อง"}</div>}
       {big && cover && <ImageViewer src={cover.url} thumb={cover.url} originRect={big} info={{ name, sizeBytes: cover.bytes }} onClose={() => setBig(null)} />}
     </Dialog>
   );

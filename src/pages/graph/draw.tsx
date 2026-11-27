@@ -52,6 +52,11 @@ export function alphaOf(cv: HTMLCanvasElement, o: GraphImg): HTMLCanvasElement {
   if (!o.transparent || o.format === "jpg" || o.format === "heic") return cv;
   const g = cv.getContext("2d"); if (!g) return cv;
   const im = g.getImageData(0, 0, cv.width, cv.height), d = im.data;
+  // กราฟพื้นมืด (หน้าความถี่) เก็บพื้นทึบตามที่หน้าตั้งค่าบอก ไม่เจาะตัวหนังสือสีขาวเป็นรูใส (AUDIT ข้อ 111)
+  // นับจุดมืดทุก 16 จุด ถ้าเกินสี่ในสิบถือว่าพื้นมืด
+  let dark = 0, seen = 0;
+  for (let i = 0; i < d.length; i += 64) { seen++; if (Math.max(d[i], d[i + 1], d[i + 2]) < 60) dark++; }
+  if (seen && dark / seen > 0.4) return cv;
   for (let i = 0; i < d.length; i += 4) {
     const lo = Math.min(d[i], d[i + 1], d[i + 2]);
     if (lo >= 245) { d[i + 3] = 0; continue; }
