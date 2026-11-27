@@ -101,8 +101,9 @@
 .sgrid td.bad { background-color: #fde5e5; color: #b04545; font-weight: 600; }
 .sgrid tr.on td.bad { background-color: #f8c9c9; }
 .sgrid mark, .subtext mark, .np mark { background: #fde7a6; color: inherit; border-radius: 3px; padding: 0 1px; }
-.lg { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--txt2); }
-.lg .ln { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: #ec8f8f; margin-right: 6px; vertical-align: -1px; }
+/* ป้ายสีของตัวดูซับ ชื่อ .sublg ไม่ชนกับ .lg ของหน้ากราฟ (AUDIT ข้อ 35 · เดิมชื่อ .lg โหลดทีหลัง ป้ายเส้นหน้ากราฟกลายเป็นสี่เหลี่ยมทึบ) */
+.sublg { display: flex; gap: 16px; flex-wrap: wrap; font-size: 12px; color: var(--txt2); }
+.sublg .ln { display: inline-block; width: 12px; height: 12px; border-radius: 3px; background: #ec8f8f; margin-right: 6px; vertical-align: -1px; }
 .subtext { background: #fff; border: 1px solid var(--line); border-radius: 10px; max-height: 420px; overflow: auto; font-size: 14px; overscroll-behavior: contain; }
 .cue { display: grid; grid-template-columns: 44px 210px 1fr; gap: 10px; padding: 7px 14px; border-bottom: 1px solid #f7e4ea; line-height: 1.55; }
 .cue:last-child { border-bottom: 0; }

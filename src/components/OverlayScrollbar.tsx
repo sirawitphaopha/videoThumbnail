@@ -9,67 +9,15 @@ import { useEffect } from "react";
  * 🔴 กล่องพ้นจอหรือลอดใต้แถบชื่อ ต้องซ่อน ห้ามบีบตำแหน่งกลับเข้ามา
  * 🔴 ระหว่างจาง ยังเอาเมาส์ไปโดนได้ ตัดการรับเมาส์หลังจางหมดจริงเท่านั้น
  */
-type Thumb = HTMLDivElement & {
-  _el?: HTMLElement;
-  _k?: ReturnType<typeof setTimeout>;
-  _k2?: ReturnType<typeof setTimeout>;
-  _drag?: boolean;
-  _hov?: boolean;
-};
-
-const NEAR = 16;
-const THICK = 7;
-const MIN_LEN = 24;
-const MIN_LEN_H = 40;
+import { MIN_LEN, MIN_LEN_H, NEAR, THICK, allowBox, makeThumb, scrollableH, scrollableV, stickyBands, topBand, type Thumb } from "./ovbar/ovCalc";
 
 export default function OverlayScrollbar() {
   useEffect(() => {
-    const make = (): Thumb => {
-      const d = document.createElement("div") as Thumb;
-      d.className = "ovthumb";
-      d.setAttribute("aria-hidden", "true");
-      document.body.appendChild(d);
-      return d;
-    };
-    const vt = make();
+    const vt = makeThumb();
     vt.style.width = `${THICK}px`;
-    const ht = make();
+    const ht = makeThumb();
     ht.style.height = `${THICK}px`;
     ht.classList.add("ovthumb-h");
-
-    const topBand = () =>
-      Math.max(
-        document.querySelector("header")?.getBoundingClientRect().bottom ?? 0,
-        ...[...document.querySelectorAll<HTMLElement>("[data-sticky-top]")].map((x) => x.getBoundingClientRect().bottom),
-      );
-
-    const scrollableV = (el: HTMLElement | null): HTMLElement | null => {
-      while (el && el !== document.body) {
-        if (el.scrollHeight > el.clientHeight + 1) {
-          const o = getComputedStyle(el).overflowY;
-          if (o === "auto" || o === "scroll") return el;
-        }
-        el = el.parentElement;
-      }
-      return null;
-    };
-    const scrollableH = (el: HTMLElement | null): HTMLElement | null => {
-      while (el && el !== document.body) {
-        if (el.scrollWidth > el.clientWidth + 1 && !el.hasAttribute("data-no-ovbar")) {
-          const o = getComputedStyle(el).overflowX;
-          if (o === "auto" || o === "scroll") return el;
-        }
-        el = el.parentElement;
-      }
-      return null;
-    };
-
-    /** หัวตารางที่ตรึงอยู่ในกล่อง แถบเลื่อนต้องเริ่มใต้หัวตาราง */
-    const stickyHead = (el: HTMLElement) => {
-      const th = el.querySelector("thead th");
-      if (!th || getComputedStyle(th).position !== "sticky") return 0;
-      return Math.round(th.getBoundingClientRect().height);
-    };
 
     const hideNow = (t: Thumb) => {
       if (t._k) clearTimeout(t._k);
@@ -92,8 +40,8 @@ export default function OverlayScrollbar() {
 
     const posV = (el: HTMLElement) => {
       const r = el.getBoundingClientRect();
-      const head = stickyHead(el);
-      const track = Math.max(MIN_LEN, el.clientHeight - head);
+      const { top: head, bottom: foot } = stickyBands(el);
+      const track = Math.max(MIN_LEN, el.clientHeight - head - foot);
       const len = Math.max(MIN_LEN, (track * el.clientHeight) / el.scrollHeight);
       const run = el.scrollHeight - el.clientHeight;
       const at = run > 0 ? (el.scrollTop / run) * (track - len) : 0;
@@ -147,7 +95,7 @@ export default function OverlayScrollbar() {
 
     const onScroll = (e: Event) => {
       const box = e.target as HTMLElement | null;
-      if (!box || !(box instanceof HTMLElement) || box.hasAttribute("data-no-ovbar")) return;
+      if (!box || !(box instanceof HTMLElement) || box.hasAttribute("data-no-ovbar") || !allowBox(box)) return;
       if (box.scrollHeight > box.clientHeight + 1 && posV(box)) show(vt);
       if (box.scrollWidth > box.clientWidth + 1 && posH(box)) show(ht);
       if (ht._el && ht._el !== box && !ht._drag) { if (ht._el.isConnected) posH(ht._el); else hideNow(ht); }
@@ -159,14 +107,14 @@ export default function OverlayScrollbar() {
       const under = document.elementFromPoint(e.clientX, e.clientY) as HTMLElement | null;
       if (!under || under === vt || under === ht) return;
       const ev = scrollableV(under);
-      if (ev) {
+      if (ev && allowBox(ev)) {
         const r = ev.getBoundingClientRect();
         if (e.clientX >= r.right - NEAR && e.clientX <= r.right + 4 && e.clientY >= r.top && e.clientY <= r.bottom) {
           if (posV(ev)) show(vt);
         }
       }
       const eh = scrollableH(under);
-      if (eh) {
+      if (eh && allowBox(eh)) {
         const r = eh.getBoundingClientRect();
         if (e.clientY >= r.bottom - NEAR && e.clientY <= r.bottom + 4 && e.clientX >= r.left && e.clientX <= r.right) {
           if (posH(eh)) show(ht);
@@ -191,7 +139,8 @@ export default function OverlayScrollbar() {
       const startPos = axis === "y" ? el.scrollTop : el.scrollLeft;
       const len = axis === "y" ? t.offsetHeight : t.offsetWidth;
       const run = axis === "y" ? el.scrollHeight - el.clientHeight : el.scrollWidth - el.clientWidth;
-      const track = (axis === "y" ? el.clientHeight - stickyHead(el) : el.clientWidth) - len;
+      const sb = axis === "y" ? stickyBands(el) : { top: 0, bottom: 0 };
+      const track = (axis === "y" ? el.clientHeight - sb.top - sb.bottom : el.clientWidth) - len;
       const move = (ev: MouseEvent) => {
         if (track <= 0) return;
         const d = ((axis === "y" ? ev.clientY : ev.clientX) - start) / track;
@@ -217,11 +166,10 @@ export default function OverlayScrollbar() {
       queued = requestAnimationFrame(() => {
         queued = 0;
         // มีหน้าต่างซ้อนอยู่ ซ่อนแถบของกล่องที่อยู่หลังหน้าต่าง ส่วนกล่องในหน้าต่างจัดตำแหน่งตามปกติ
-        const dlgs = [...document.querySelectorAll<HTMLElement>("[role=dialog]")];
         for (const t of [vt, ht]) {
           if (t._drag) continue;
           if (!t._el || !t._el.isConnected) { hideNow(t); continue; }
-          if (dlgs.length && !dlgs.some((d) => d.contains(t._el!))) { hideNow(t); continue; }
+          if (!allowBox(t._el)) { hideNow(t); continue; }
           if (t === vt) posV(t._el); else posH(t._el);
         }
       });

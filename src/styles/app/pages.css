@@ -20,8 +20,7 @@
 .pact-btns { grid-column: 3; padding-left: 22px; border-left: 1px solid var(--line); align-self: stretch; align-items: center; display: flex; flex-wrap: nowrap; gap: 8px; min-width: 0; }
 .pact-btns .btn { padding-inline: 10px !important; min-width: 0; }
 .pact-btns .btn:last-child { font-size: 13px !important; }
-.card { padding: 0; }
-.card h3 { margin: 0 0 10px; font-size: 15px; display: flex; align-items: center; gap: 8px; }
+/* .card กับ .card h3 ประกาศที่เดียวใน shelf.css (AUDIT ข้อ 152 · เดิมซ้ำตรงนี้ทุกตัวอักษร) */
 .step { width: 22px; height: 22px; border-radius: 50%; background: #e5c4cf; color: #8f2a4f; font-size: 13px; display: inline-flex; align-items: center; justify-content: center; font-weight: 700; flex: none; }
 /* กดช่องแล้วเลือกไฟล์ได้ด้วย */
 .drop, .avdrop { cursor: pointer; }
@@ -46,6 +45,9 @@
 .pp { width: 96px; height: 144px; border-radius: 6px; flex: none; box-shadow: 0 6px 12px rgba(60,25,40,.25); object-fit: cover; display: block; background: #fbf0f4; }
 .opts { display: flex; flex-direction: column; gap: 12px; }
 .chk.off { cursor: not-allowed; opacity: .55; }
+.chk.off:hover .box, .chk.off:hover .radio { border-color: #daacbb; }
+.chk.off:hover .box.on { background: var(--accent); border-color: var(--accent); }
+.chk.off:hover .radio.on { border-color: var(--accent); }
 .extag { font-family: Consolas, "Cascadia Mono", monospace; font-size: 12px; font-weight: 600; border-radius: 5px; padding: 1px 6px; white-space: nowrap; }
 .extag.ok { background: var(--ok-soft); color: var(--ok-ink); }
 /* ป้ายนามสกุลที่ต้องแปลง · เดิมชื่อ .extag.cv ชนกับ .cv ของผืนกราฟหน้ากราฟเสียง (กว้างเต็ม display block) ป้ายเลยตกบรรทัดเต็มการ์ด (BUGS ข้อ 55) */
@@ -151,6 +153,9 @@
 .mode.on { border: 1px solid var(--accent); background: #faedf1; }
 .mode.on:hover { border-color: var(--accent-d); }
 .mode.off { cursor: not-allowed; }
+/* ตัวเลือกที่กดไม่ได้ ชี้แล้วเปลี่ยนนิดเดียวในโทนจาง ยังอ่านว่ากดไม่ได้ แบบ .ck .cbx.dis (AUDIT ข้อ 153 · เดิมขอบเปลี่ยนเหมือนกดได้) */
+.mode.off:hover { border-color: #ecd6de; }
+.mode.on.off:hover { border-color: var(--accent); }
 .mode:focus-visible { outline: 2px solid var(--accent-d); outline-offset: 2px; }
 .mode h4 { margin: 0 0 4px; font-size: 15px; display: flex; gap: 8px; align-items: center; }
 .ckbar { display: flex; justify-content: space-between; align-items: center; gap: 10px; }

@@ -76,9 +76,7 @@
 .radio.on { border: 2px solid var(--accent); }
 .radio.on::after { content: ""; width: 10px; height: 10px; border-radius: 50%; background: var(--accent); }
 .chk:hover .radio { border-color: var(--accent-d); }
-.cbx { width: 18px; height: 18px; border-radius: 5px; display: inline-flex; align-items: center; justify-content: center; vertical-align: -3px; }
-.cbx.on { background: var(--accent); }
-.cbx.off { border: 2px solid #e1bbc8; background: #fff; }
+/* ช่องติ๊ก .cbx ประกาศที่เดียวใน pages.css (AUDIT ข้อ 152 · เดิมชุดนี้ถูกชุดใน pages.css ทับทุกค่า แก้ตรงนี้แล้วไม่เห็นผล) */
 
 /* แถบความคืบหน้า */
 .bar { height: 10px; border-radius: 6px; background: #f5dde5; overflow: hidden; }

@@ -172,7 +172,7 @@ export function TextView(p: { track: AvTrack; movie: string; refStream: number |
               <td style={{ whiteSpace: "pre-line" }}><Hi text={x.text} q={q.trim()} /></td></tr>);
         })}</tbody></table>
     </div>
-    <div className="lg"><span><i className="ln" />ตัวอักษรเกิน 20 ตัวต่อวินาที จนอ่านไม่ทัน</span><span><i className="ln" />เวลาเริ่มซ้อนกับบรรทัดก่อน</span></div>
+    <div className="sublg"><span><i className="ln" />ตัวอักษรเกิน 20 ตัวต่อวินาที จนอ่านไม่ทัน</span><span><i className="ln" />เวลาเริ่มซ้อนกับบรรทัดก่อน</span></div>
     <div className="small"><Phr>{`ดูได้อย่างเดียวและแก้ไม่ได้  ภาพหนังที่เห็นเป็นภาพที่โปรแกรมถอดจากไฟล์ตรงเวลานั้นทีละภาพ  หน้าตาทำแบบ Aegisub แต่ไม่ได้ใช้โค้ดของ Aegisub${data.kind === "ass" ? "  ซับ ASS แสดงเฉพาะข้อความ" : ""}`}</Phr></div>
   </>);
 }

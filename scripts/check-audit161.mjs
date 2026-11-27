@@ -646,6 +646,73 @@ T[145] = async (p, check) => {
   check("145 ดรอปดาวน์ลอยในคิวแปลง กางครั้งต่อไปไม่แวบที่ตำแหน่งเก่า และกล่องอื่นเลื่อนแล้วไม่ปิด", firstOk && still, JSON.stringify({ tops: tops.slice(0, 3), want: Math.round(b2.y + b2.height), still }));
 };
 
+// ชุด 10 ---------------------------------------------------------------
+T[146] = async (p, check) => {
+  // หน้าต่างถามก่อนเอาปกจับคู่ออกเปิดอยู่ เมาส์ชิดขอบขวาของกล่องเลื่อนของชั้นวางข้างหลัง แถบเลื่อนต้องไม่โผล่
+  await p.evaluate(() => [...document.querySelectorAll(".book")].find((b) => b.getAttribute("aria-label")?.includes("ปกจับคู่"))?.click());
+  await p.waitForSelector("[data-link-remove]"); await click(p, "[data-link-remove]"); await wait(p, 300);
+  // กล่องเลื่อนที่ครอบฉากหลังของหน้าต่าง (หน้าต่างไม่ได้ย้ายไปบนสุดของหน้า) · ชี้ฉากหลังตรงขอบขวาของกล่องนั้น
+  const box = await p.evaluate(() => { let e = document.querySelector(".dlg-back")?.parentElement; while (e && e !== document.body && !(e.scrollHeight > e.clientHeight + 1 && /auto|scroll/.test(getComputedStyle(e).overflowY))) e = e.parentElement; const r = e && e !== document.body ? e.getBoundingClientRect() : null; return r ? { x: r.right - 6, y: r.top + r.height / 2, cls: e.className } : null; });
+  if (!box) { check("146 ฉากหลังของหน้าต่างอยู่ในกล่องเลื่อนของหน้า", false, null); return; }
+  // ส่งการขยับเมาส์แล้วอ่านแถบในจังหวะเดียวกัน ก่อนตัวจัดตำแหน่งรอบถัดไปจะซ่อนให้ (โค้ดเดิมแถบโผล่จังหวะนี้ ลากได้)
+  const r = await p.evaluate(({ x, y }) => { document.dispatchEvent(new MouseEvent("mousemove", { clientX: x, clientY: y, bubbles: true })); const t = [...document.querySelectorAll(".ovthumb")].find((q) => !q.classList.contains("ovthumb-h")); return { op: t?.style.opacity, pe: t?.style.pointerEvents }; }, box);
+  check("146 มีหน้าต่างซ้อนเปิดอยู่ ชี้ขอบขวาของหน้าข้างหลังแล้วแถบเลื่อนไม่โผล่และลากไม่ได้", r.op !== "1" && r.pe !== "auto", JSON.stringify({ ...r, box }));
+};
+T[147] = async (p, check) => {
+  // กล่องเลื่อนที่มีหัวตรึงสูง 40 กับแถบตรึงล่าง 30 · ชี้ขอบขวาแล้วแถบเลื่อนต้องอยู่ระหว่างหัวกับแถบล่าง ทั้งตอนบนสุดและล่างสุด
+  await p.evaluate(() => { const box = document.createElement("div"); box.id = "t147"; box.style.cssText = "position:fixed;left:300px;top:200px;width:400px;height:300px;overflow:auto;z-index:99;background:#fff";
+    box.innerHTML = '<div style="position:sticky;top:0;height:40px;background:#eee">หัว</div><div style="height:1200px"></div><div style="position:sticky;bottom:0;height:30px;background:#ddd">แถบล่าง</div>';
+    document.querySelector("#root").append(box); });
+  const thumb = () => p.evaluate(() => { const t = [...document.querySelectorAll(".ovthumb")].find((x) => !x.classList.contains("ovthumb-h")); return { top: parseFloat(t.style.top), h: parseFloat(t.style.height), op: t.style.opacity }; });
+  await p.mouse.move(650, 350); await p.mouse.move(696, 350); await wait(p, 150);
+  const top0 = await thumb();
+  await p.evaluate(() => { document.getElementById("t147").scrollTop = 99999; }); await wait(p, 150);
+  await p.mouse.move(690, 352); await p.mouse.move(696, 350); await wait(p, 150);
+  const end = await thumb();
+  await p.evaluate(() => document.getElementById("t147").remove());
+  check("147 แถบเลื่อนเริ่มใต้หัวที่ตรึง และตอนเลื่อนสุดไม่ลงไปทับแถบที่ตรึงล่าง", top0.top >= 240 - 0.5 && end.top + end.h <= 500 - 30 + 0.5, JSON.stringify({ top0, end }));
+};
+T[150] = async (p, check) => {
+  const r = await p.evaluate(() => {
+    const out = {};
+    for (const cls of ["empty-search", "drop", "brn-empty"]) {
+      const d = document.createElement("div"); d.className = cls; d.style.width = "220px";
+      d.innerHTML = '<div class="small">ข้อความแนะนำยาวสองบรรทัดเพื่อดูว่าบรรทัดสุดท้ายอยู่กลาง</div>';
+      document.querySelector("#root").append(d); out[cls] = getComputedStyle(d.querySelector(".small")).textAlign; d.remove();
+    }
+    const n = document.createElement("div"); n.innerHTML = '<div class="small">ปกติ</div>'; document.querySelector("#root").append(n); out.normal = getComputedStyle(n.firstChild).textAlign; n.remove();
+    return out;
+  });
+  check("150 ข้อความหลายบรรทัดในกล่องกึ่งกลางกลางทุกบรรทัด ข้อความทั่วไปยังกระจายแบบไทย", r["empty-search"] === "center" && r.drop === "center" && r["brn-empty"] === "center" && r.normal === "justify", JSON.stringify(r));
+};
+T[35] = async (p, check) => {
+  const r = await p.evaluate(() => {
+    const d = document.createElement("div"); d.innerHTML = '<div class="lg"><span class="ln"></span><i></i></div><div class="sublg"><i class="ln"></i></div>';
+    document.querySelector("#root").append(d);
+    const s = (q) => { const e = d.querySelector(q), c = getComputedStyle(e); return `${c.width}×${c.height}`; };
+    const out = { graphLine: s(".lg .ln"), graphFill: s(".lg i"), subSquare: s(".sublg .ln") }; d.remove(); return out;
+  });
+  check("35 ป้ายเส้นในหน้ากราฟเป็นขีดบาง 14 × 2 ไม่ใช่สี่เหลี่ยมของตัวดูซับ · ตัวดูซับยังเป็นสี่เหลี่ยม", r.graphLine === "14px×2px" && r.graphFill === "12px×10px" && r.subSquare === "12px×12px", JSON.stringify(r));
+};
+T[152] = async (p, check) => {
+  const files = ["base", "layout", "controls", "widgets", "shelf", "pages", "graph", "viewer-settings", "graph-layout", "poster-crop", "spek-color", "convert-panel", "subs-misc", "line-stats"];
+  let card = 0, cbx = 0;
+  for (const f of files) { const t = await SRC(`src/styles/app/${f}.css`); card += (t.match(/^\.card \{ padding: 0; \}/gm) ?? []).length; cbx += (t.match(/^\.cbx \{/gm) ?? []).length; }
+  check("152 กฎ .card กับ .cbx ประกาศที่เดียว ไม่ซ้ำสองที่", card === 1 && cbx === 1, `card ${card} cbx ${cbx}`);
+};
+T[153] = async (p, check) => {
+  await p.evaluate(() => { const d = document.createElement("div"); d.id = "t153"; d.style.cssText = "position:fixed;left:400px;top:300px;z-index:999;background:#fff;padding:10px";
+    d.innerHTML = '<div class="mode" id="m1" style="width:160px;height:40px">ได้</div><div class="mode off" id="m2" style="width:160px;height:40px;margin-top:8px">ไม่ได้</div><div class="chk off" id="c1" style="margin-top:8px"><span class="box"></span>ไม่ได้</div>';
+    document.body.append(d); });
+  const bc = (id, q) => p.evaluate(([i, qq]) => { const e = document.getElementById(i); return getComputedStyle(qq ? e.querySelector(qq) : e).borderTopColor; }, [id, q]);
+  const m2a = await bc("m2"); await p.hover("#m1"); await wait(p, 250); const m1h = await bc("m1");
+  await p.hover("#m2"); await wait(p, 250); const m2h = await bc("m2");
+  const c1a = await bc("c1", ".box"); await p.hover("#c1"); await wait(p, 250); const c1h = await bc("c1", ".box");
+  await p.evaluate(() => document.getElementById("t153").remove());
+  const accentD = await p.evaluate(() => { const i = document.createElement("i"); i.style.color = "var(--accent-d)"; document.body.append(i); const c = getComputedStyle(i).color; i.remove(); return c; });
+  check("153 การ์ดแบบตรวจที่กดไม่ได้ ชี้แล้วขอบไม่เปลี่ยนเหมือนตัวที่กดได้ · ช่องติ๊กที่กดไม่ได้ไม่เข้มขึ้น", m2h !== m1h && c1h !== accentD, JSON.stringify({ m2a, m1h, m2h, c1a, c1h, accentD }));
+};
+
 // ---------------------------------------------------------------- ตัวรัน
 const want = process.argv.slice(2).map(Number).filter(Boolean);
 const ids = Object.keys(T).map(Number).filter((n) => !want.length || want.includes(n)).sort((a, b) => a - b);
