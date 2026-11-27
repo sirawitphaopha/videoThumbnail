@@ -28,6 +28,7 @@ export function plotBits(pg: B3) {
     const r = e.currentTarget.getBoundingClientRect(), W = r.width - left - right, x = e.clientX - r.left - left;
     if (x >= 0 && x <= W) setHover(t0 + x / W * (t1 - t0));
   };
+  /** ความดังเฉลี่ย (RMS) ของจุดนั้น กล่องค่าตอนชี้เขียนว่าดังเฉลี่ย ป้ายช่องข้างซ้ายเป็นดังสุด (AUDIT ข้อ 100) */
   const valueAt = (ch: number, time: number) => {
     const s = src, e = s.env[ch], c = Math.max(0, Math.min(s.cols - 1, Math.floor((time - s.t0) / (s.t1 - s.t0 || 1) * s.cols)));
     return e[c * 3 + 2];
@@ -36,6 +37,8 @@ export function plotBits(pg: B3) {
   let plot: React.ReactNode = null;
   const hasLR = names.includes("FL") && names.includes("FR");
   const lrWhy = "ไฟล์นี้ไม่มีช่องซ้ายกับขวาแยกกัน";
+  // ช่องที่เลือกไว้ไม่มีในไฟล์นี้ (เช่นเปิดไฟล์ช่องเดียวหลังดู L ไว้) ใช้รวมทุกช่อง ไม่ส่งช่องที่ไม่มีให้กราฟ (AUDIT ข้อ 20 · เดิมกราฟแบนและชี้เมาส์แล้วหน้าพัง)
+  const loudLive = loudMode === "mix" || (loudMode === "lr" ? hasLR : names.includes(loudMode)) ? loudMode : "mix";
   const loudOpts: [typeof loudMode, string][] = [["mix", "รวมทุกช่อง"], ["FL", "L ซ้าย"], ["FR", "R ขวา"], ["lr", "เทียบซ้ายขวา"]];
   // สลับช่องแบบค่อย ๆ เปลี่ยนด้วย View Transitions ของเบราว์เซอร์ ภาพเก่าจางออก ภาพใหม่ค่อย ๆ ขึ้น หัวกราฟกับแถบล่างเลื่อนไปที่ใหม่ (ชื่อใน app.css)
   // ตั้งในเครื่องให้ลดการเคลื่อนไหว หรือเบราว์เซอร์ไม่รองรับ สลับทันทีแบบเดิม
@@ -60,7 +63,7 @@ export function plotBits(pg: B3) {
   if (lanesView) {
     // แถบสูงขึ้นจากเดิม (พี่กัน 7 พ.ย. 2569 *"ใ้ห้ระบบมันขยายกราฟลงมาได้มากกว่านี้ ตอนนี้มันเเค่สองเเถบที่โคตรจะชิดกัน"*) · ลากที่จับใต้กราฟขยายต่อได้ถึง 4 เท่า
     const minH = laneMinH(names.length, false);
-    // 234 คือหัวกราฟ แถบเลื่อน แถวปุ่มท้าย ระยะขอบรวมกัน
+    // 252 คือหัวกราฟ แถบเลื่อน แถวปุ่มท้าย ระยะขอบรวมกัน (คอมเมนต์เดิมเขียน 234 ไม่ตรงค่า AUDIT ข้อ 101)
     const laneH = Math.max(minH, Math.floor((paneH - 252 + (ovFold ? 44 : 0) + laneAdj - (names.length - 1) * 6) / Math.max(1, names.length)));
     const colors = lut(prefs.cmap === "rainbow" ? RAINBOW : th.ramp);
     plot = (
@@ -94,7 +97,7 @@ export function plotBits(pg: B3) {
           })}
           <Marks marks={marks} t0={t0} t1={t1} left={LW} right={0} />
           {/* เส้นตั้งกับกล่องบอกค่าขึ้นเฉพาะตอนเมาส์ชี้ (พี่กัน 7 พ.ย. 2569 *"ต้องให้เเสดงเฉพาะเมาส์ชี้"*) */}
-          {hover != null && <Crosshair box={boxEl} left={LW} right={0} t0={t0} t1={t1} at={at} rows={vis.map((c) => ({ v: dbTxt(valueAt(names.indexOf(c), at)) + " dB", k: `${label(names, c).code} ${label(names, c).th}` }))} />}
+          {hover != null && <Crosshair box={boxEl} left={LW} right={0} t0={t0} t1={t1} at={at} rows={vis.map((c) => ({ v: "ดังเฉลี่ย " + dbTxt(valueAt(names.indexOf(c), at)) + " dB", k: `${label(names, c).code} ${label(names, c).th}` }))} />}
         </div>
         {view === "spec" && sz > 1 && <div ref={svRef} className="spekvs" style={{ top: 0, bottom: 0, right: VZ_W + 4 }} title="ลากเพื่อเลื่อนย่านความถี่ขึ้นลง หรือหมุนล้อเมาส์บนกราฟก็ได้" data-specvs
           onPointerDown={(e) => { e.currentTarget.setPointerCapture(e.pointerId); svDrag.current = true; svTo(e.clientY); }} onPointerMove={(e) => { if (svDrag.current) svTo(e.clientY); }} onPointerUp={() => { svDrag.current = false; }} onPointerCancel={() => { svDrag.current = false; }}>
@@ -126,8 +129,8 @@ export function plotBits(pg: B3) {
       </div>
     );
     exportRef.current = (outW) => composeLanes(boxEl, outW);
-  } else if (view === "loud" && loudMode !== "mix") {
-    const cc = loudMode === "lr" ? ["FL", "FR"] : [loudMode];
+  } else if (view === "loud" && loudLive !== "mix") {
+    const cc = loudLive === "lr" ? ["FL", "FR"] : [loudLive];
     plot = <CmpView head={loudBox} onPan={panTo} onBusy={grabBusy} resetN={resetN} scroller={scroller} dur={dur} src={src} names={names} cc={cc} t0={t0} t1={t1} marks={marks} zoomBox={zoomBox(ZOOMS, "ซูม")} at={at} live={hover != null} setHover={setHover} play={play} save={saveImage} exportRef={exportRef} plotRef={plotRef} />;
   } else if (view === "loud") {
     plot = <LoudView head={loudBox} onPan={panTo} onBusy={grabBusy} resetN={resetN} scroller={scroller} ov={ov} th={th} t0={t0} t1={t1} names={names} marks={marks} zoomBox={zoomBox(ZOOMS, "ซูม")} at={at} live={hover != null} setHover={setHover} showTable={showTable} setShowTable={setShowTable} save={saveImage} exportRef={exportRef} plotRef={plotRef} />;

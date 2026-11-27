@@ -86,7 +86,12 @@ export function withHeader(cv: HTMLCanvasElement, title: string, sub: string, le
 export function drawRuler(g: CanvasRenderingContext2D, ruler: Element | null | undefined, x: number, w: number, y: number) {
   if (!ruler) return;
   g.fillStyle = "#6b4a58"; g.font = "600 12px Sarabun, sans-serif"; g.textAlign = "center"; g.textBaseline = "middle";
-  for (const sp of ruler.querySelectorAll<HTMLElement>("span")) { const p = parseFloat(sp.style.left); if (!Number.isNaN(p)) g.fillText(sp.innerText, x + p / 100 * w, y); }
+  // ตำแหน่งอยู่ที่ขีด <i class="tk" style="left"> ตัวแม่ของ span ตั้งแต่ทำขีดแบบไม้บรรทัด (bae81f7) · เดิมอ่านจาก span ได้ NaN ทุกตัว รูปไม่มีเลขเวลา (AUDIT ข้อ 19)
+  // อ่านจาก span ก่อนเผื่อแกนแบบเก่าที่ยังใส่ left ที่ span
+  for (const sp of ruler.querySelectorAll<HTMLElement>("span")) {
+    const p = parseFloat(sp.style.left || (sp.parentElement as HTMLElement | null)?.style.left || "");
+    if (!Number.isNaN(p)) g.fillText(sp.innerText, x + p / 100 * w, y);
+  }
   g.textAlign = "left";
 }
 /** กำลังบันทึกอยู่ไหม ปุ่มบันทึกทุกกราฟอ่านจากตัวนี้ */
@@ -147,7 +152,7 @@ export function sample(src: Src, ch: number, a: number, b: number, n: number) {
   return { mx, mn, rm };
 }
 
-/** style fine เส้นละเอียด · bars แท่ง · aud แบบ Audacity · vz ขยายแนวตั้ง (0.25 ถึง 8 เท่า ต่ำกว่า 1 คือบีบ) */
+/** style fine เส้นละเอียด · bars แท่ง · aud แบบ Audacity · vz ขยายแนวตั้ง (0.125 ถึง 8 เท่า ตาม VZ_MIN VZ_MAX ใน zoom.tsx ต่ำกว่า 1 คือบีบ) */
 export function drawWave(g: CanvasRenderingContext2D, w: number, h: number, d: ReturnType<typeof sample>, th: Theme, style: WaveStyle, vz = 1) {
   g.fillStyle = th.lane; g.fillRect(0, 0, w, h);
   const mid = h / 2, A = (h / 2 - 2) * vz;

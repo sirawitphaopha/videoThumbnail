@@ -81,10 +81,10 @@ export function rulerTicks(a: number, b: number, maxN = 9): { x: number; label: 
   for (let n = Math.ceil(a / st - 1e-9); n * st <= b + 1e-9; n++) { const x = n * st; out.push({ x, label: tfmtD(x, d) }); }
   return out;
 }
-/** ช่วงเวลาบนหัวกราฟ กันที่ไว้เท่าข้อความยาวสุดของไฟล์ (ทศนิยม 3 หลัก) ซูมแล้วตัวเลขยาวขึ้นปุ่มข้าง ๆ ไม่ขยับ
-    (พี่กันสั่ง 11 พ.ย. 2569 "fix หน่อยยยย" ตอนหัวกราฟ 0:00 ถึง 5:15 กับ 2:37.158 ถึง 2:37.348 ดันปุ่มแบบกราฟไปคนละที่) */
 /** ความสูงแถบต่ำสุดตามจำนวนช่อง · หน้ารูปคลื่นไม่ต่ำกว่า 60 จุด (ตัวคิดความสูงแถบกับตัวปรับให้พอดีจอใช้ค่าเดียวกัน) */
 export const laneMinH = (n: number, wave: boolean) => { const m = n > 6 ? 52 : n > 2 ? 72 : 120; return wave ? Math.max(m, 60) : m; };
+/** ช่วงเวลาบนหัวกราฟ กันที่ไว้เท่าข้อความยาวสุดของไฟล์ (ทศนิยม 3 หลัก) ซูมแล้วตัวเลขยาวขึ้นปุ่มข้าง ๆ ไม่ขยับ
+    (พี่กันสั่ง 11 พ.ย. 2569 "fix หน่อยยยย" ตอนหัวกราฟ 0:00 ถึง 5:15 กับ 2:37.158 ถึง 2:37.348 ดันปุ่มแบบกราฟไปคนละที่) */
 export function RangeTime({ t0, t1, dur }: { t0: number; t1: number; dur: number }) {
   const d = spanDigits(t1 - t0), far = tfmtD(Math.max(dur, t1), 3);
   return <FixedTime t={`${tfmtD(t0, d)}–${tfmtD(t1, d)}`} longest={`${far}–${far}`} />;

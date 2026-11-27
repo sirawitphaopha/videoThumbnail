@@ -77,13 +77,18 @@ export function useGraphBase(p: GraphProps) {
   const [plotW, setPlotW] = useState(600);
   const plotRef = useRef<HTMLDivElement>(null);
   const [paneH, setPaneH] = useState(0);
+  // ติดตัววัดใหม่เฉพาะตอนกรอบกราฟเปลี่ยนตัว เดิมไม่มีรายการค่าที่เฝ้า ถอดแล้วติดใหม่ทุกครั้งที่หน้าวาดใหม่ รวมทุกครั้งที่เลื่อนเมาส์บนกราฟ (AUDIT ข้อ 102)
+  // เช็กทุกรอบวาดว่ากรอบยังเป็นตัวเดิมไหม (ราคาถูก) ไม่ใส่รายการค่าเพราะกรอบขึ้นหลังเปิดไฟล์ รอบวาดที่กรอบขึ้นอาจเป็นรอบสุดท้าย
+  const roOf = useRef<{ el: HTMLElement; ro: ResizeObserver } | null>(null);
   useEffect(() => {
     const el = plotRef.current;
+    if (roOf.current?.el === el) return;
+    roOf.current?.ro.disconnect(); roOf.current = null;
     if (!el) return;
     const ro = new ResizeObserver(() => setPaneH(el.clientHeight));
-    ro.observe(el);
-    return () => ro.disconnect();
+    ro.observe(el); roOf.current = { el, ro };
   });
+  useEffect(() => () => roOf.current?.ro.disconnect(), []);
   const exportRef = useRef<(outW: number) => HTMLCanvasElement | null>(() => null);
   // ความสูงกราฟปรับตามที่ว่างจริงบนจอ ไม่พึ่งตัวเลขประมาณอย่างเดียว · วัดช่องว่างระหว่างแถบเลื่อนกับแถวท้าย แล้วยืดหรือหดช่องกราฟให้พอดี
   // (พี่กันทัก 11 พ.ย. 2569 "ยัมีที่ว่างอยู่เลย" หน้าต่างบางขนาดเหลือที่ว่างใต้แถบเลื่อนราว 35 จุด) · ปรับเมื่อพอให้ช่องเปลี่ยนได้อย่างน้อย 1 จุด กันวนไม่จบ

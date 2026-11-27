@@ -102,7 +102,7 @@ const vzClamp = (v: number) => { const c = Math.max(VZ_MIN, Math.min(VZ_MAX, v))
 export const vzTxt = (v: number) => (Number.isInteger(v) ? String(v) : v.toFixed(2).replace(/0$/, "")) + "×";
 
 /** แถบเลื่อนแนวตั้งขวามือรูปคลื่น บีบหรือยืดคลื่น (พี่กัน 7 พ.ย. 2569 *"ขอเส้นเเนวตั้ง ที่เอาไว้เลื่อนบีบเส้นกราฟด้วย เพราะตามรูป ตัวกราฟมันเกินกรอบไป"*)
-   ลากขึ้นยืด ลากลงบีบ · สเกลล็อก 0.25 ถึง 8 เท่า · ขีดขวางคือ 1 เท่า ยอดเต็มสเกลชนขอบกรอบพอดี ต่ำกว่านั้นคลื่นไม่ล้นกรอบ
+   ลากขึ้นยืด ลากลงบีบ · สเกลล็อก 0.125 ถึง 8 เท่า · ขีดขวางคือ 1 เท่า ยอดเต็มสเกลชนขอบกรอบพอดี ต่ำกว่านั้นคลื่นไม่ล้นกรอบ
    กดที่แถบกระโดดไปจุดนั้น · หมุนล้อเมาส์บนแถบ · ลูกศรขึ้นลง · PageUp PageDown ทีละสองเท่า · ดับเบิลคลิกกลับ 1 เท่า */
 export function VZoom({ value, onChange }: { value: number; onChange: (v: number) => void }) {
   const root = useRef<HTMLDivElement>(null), track = useRef<HTMLDivElement>(null), drag = useRef(false);

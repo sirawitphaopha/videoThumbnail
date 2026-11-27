@@ -373,6 +373,10 @@ T[90] = async (p, check) => {
 T[93] = async (p, check) => {
   const r = await mod(p, "/src/components/SubViewer.tsx", `return [m.cpsChars("ที่นี่ไม่มีใครรู้"), m.cpsChars("น้ำใจ ไม่เคยเปลี่ยน"), m.cpsChars("Hello world")];`);
   check("93 นับตัวอักษรต่อวินาทีไม่นับสระบนล่าง วรรณยุกต์ และเว้นวรรค", r[0] === 9 && r[1] === 14 && r[2] === 10, JSON.stringify(r));
+  // ตัวดูซับตัวหนังสือยังวาดตารางได้หลังย้ายไป components/subviewer/ (ชุด 6 แบ่งไฟล์)
+  await avMovie(p); await clickText(p, "ดูซับ"); await p.waitForSelector("[data-sub-table] tbody tr", { timeout: 6000 });
+  const rows = await p.evaluate(() => document.querySelectorAll("[data-sub-table] tbody tr").length);
+  check("93 ตัวดูซับตัวหนังสือเปิดจากหน้าเสียงและซับได้ ตารางมีบรรทัด", rows > 0, rows);
 };
 T[94] = async (p, check) => {
   const r = await mod(p, "/src/lib/ftypes.tsx", `return { dvbName: m.ftName("subtitle", "dvb_subtitle"), dvbBmp: m.isBitmapSub("dvb_subtitle"), dvbConv: m.isImageSub("dvb_subtitle"), xsub: m.isBitmapSub("xsub"), pgs: [m.isBitmapSub("hdmv_pgs_subtitle"), m.isImageSub("hdmv_pgs_subtitle")], srt: m.isBitmapSub("subrip") };`);
@@ -394,6 +398,69 @@ T[97] = async (p, check) => {
   const src = await SRC("src/pages/av/DelayDialog.tsx"), rs = await SRC("src-tauri/src/audio/delay.rs");
   const m = /const MARGIN: f64 = ([\d.]+);/.exec(rs);
   check("97 ผลหาไม่เจอบอกว่าค้นได้ไม่เกินบวกลบ 5 วินาที ตรงกับระยะค้นฝั่ง Rust", src.includes("ค้นได้ไม่เกินบวกลบ 5 วินาที") && m && Number(m[1]) === 5, m?.[1]);
+};
+
+// ชุด 6 ----------------------------------------------------------------
+const SONG = "D:\\เพลง\\เพลงตัวอย่าง.flac";
+/** หน้ากราฟเสียงที่จอ 1920 × 1032 หัวกราฟกว้างพอให้ปุ่มเป็นแถว ไม่เป็นดรอปดาวน์ */
+const graphOpen = async (p, path) => { await p.setViewportSize({ width: 1920, height: 1032 }); await nav(p, "กราฟเสียง"); await wait(p, 300); await avDrop(p, path); await p.waitForSelector("[data-plot]", { timeout: 15000 }); await wait(p, 800); };
+T[19] = async (p, check) => {
+  // แกนเวลาแบบไม้บรรทัด ตำแหน่งอยู่ที่ขีด i ตัวแม่ของ span · ตัววาดรูปต้องวาดเลขทุกตัวที่มีตำแหน่ง
+  const n = await mod(p, "/src/pages/graph/draw.tsx", `
+    const r = document.createElement("div"); r.innerHTML = '<i class="tk" style="left: 25%"><span>0:30</span></i><i class="tk" style="left: 75%"><span>1:30</span></i><i class="tk" style="left: 1%"></i>';
+    document.body.append(r); const got = [];
+    const g = { fillText: (t, x) => got.push([t, x]), set fillStyle(v) {}, set font(v) {}, set textAlign(v) {}, set textBaseline(v) {} };
+    m.drawRuler(g, r, 100, 400, 10); r.remove(); return got;`);
+  check("19 รูปกราฟที่บันทึกวาดเลขเวลาใต้กราฟจากตำแหน่งของขีด ครบทุกตัวที่มีเลข", n.length === 2 && n[0][0] === "0:30" && n[0][1] === 200 && n[1][1] === 400, JSON.stringify(n));
+  // หน้าจริง แกนเวลาของรูปคลื่นมีเลขที่ตัววาดอ่านได้
+  await graphOpen(p, MOVIE);
+  const real = await p.evaluate(() => [...document.querySelectorAll(".tk span")].filter((s) => !Number.isNaN(parseFloat(s.style.left || s.parentElement.style.left))).length);
+  check("19 แกนเวลาบนหน้ากราฟจริงมีเลขที่ตัววาดรูปอ่านตำแหน่งได้", real > 2, real);
+};
+T[20] = async (p, check) => {
+  await graphOpen(p, SONG); await click(p, "[data-view=loud]"); await wait(p, 600);
+  await clickText(p, "L ซ้าย"); await wait(p, 600);
+  const before = await p.evaluate(() => [...document.querySelectorAll(".loudseg button.on, [data-loudmode] button.on, button.on")].map((b) => b.innerText.trim()).find((t) => ["รวมทุกช่อง", "L ซ้าย", "R ขวา", "เทียบซ้ายขวา"].includes(t)));
+  await avDrop(p, MOVIE); await p.waitForSelector("[data-plot]"); await wait(p, 1500);
+  const after = await p.evaluate(() => [...document.querySelectorAll("button.on")].map((b) => b.innerText.trim()).find((t) => ["รวมทุกช่อง", "L ซ้าย", "R ขวา", "เทียบซ้ายขวา"].includes(t)));
+  check("20 ดูความดังแบบ L ไว้แล้วเปิดไฟล์อื่น กลับเป็นรวมทุกช่อง", before === "L ซ้าย" && after === "รวมทุกช่อง", `${before} → ${after}`);
+  const src = await SRC("src/pages/graph/graphPlot.tsx");
+  check("20 ช่องที่เลือกไม่มีในไฟล์ ใช้รวมทุกช่อง ไม่ส่งช่องที่ไม่มีให้กราฟ", src.includes("const loudLive =") && src.includes('loudLive !== "mix"') && !src.includes('view === "loud" && loudMode !== "mix"'));
+};
+T[99] = async (p, check) => {
+  await graphOpen(p, MOVIE); await click(p, "[data-view=wave]").catch(() => {}); await wait(p, 400);
+  await clickText(p, "30 วินาที"); await wait(p, 300);
+  await p.evaluate(() => [...document.querySelectorAll("[data-vz], [data-vz] button")].find((b) => b.tagName === "BUTTON" && b.innerText.trim() === "4×")?.click()); await wait(p, 300);
+  const z0 = await p.evaluate(() => ({ zoom: [...document.querySelectorAll("button.on")].map((b) => b.innerText.trim()).find((t) => ["ทั้งไฟล์", "10 นาที", "4 นาที", "30 วินาที"].includes(t)), vz: document.querySelector("button[data-vz].on, [data-vz] button.on")?.innerText.trim() }));
+  await avDrop(p, SONG); await p.waitForSelector("[data-plot]"); await wait(p, 1500);
+  const z1 = await p.evaluate(() => ({ zoom: [...document.querySelectorAll("button.on")].map((b) => b.innerText.trim()).find((t) => ["ทั้งไฟล์", "10 นาที", "4 นาที", "30 วินาที"].includes(t)), vz: document.querySelector("button[data-vz].on, [data-vz] button.on")?.innerText.trim() }));
+  check("99 เปิดไฟล์ใหม่ ซูมกลับเป็นทั้งไฟล์ และขยายแนวตั้งกลับเป็น 1 เท่า", z0.zoom === "30 วินาที" && z0.vz === "4×" && z1.zoom === "ทั้งไฟล์" && z1.vz === "1×", JSON.stringify({ z0, z1 }));
+};
+T[100] = async (p, check) => {
+  await graphOpen(p, MOVIE); await click(p, "[data-view=wave]").catch(() => {}); await wait(p, 400);
+  const box = await (await p.$("[data-plot]")).boundingBox();
+  await p.mouse.move(box.x + box.width / 2, box.y + box.height * 0.55); await wait(p, 300);
+  const t = await p.evaluate(() => document.querySelector(".tip .r")?.innerText ?? "");
+  check("100 ชี้รูปคลื่น กล่องค่าบอกว่าเป็นดังเฉลี่ย", t.includes("ดังเฉลี่ย") && /dB/.test(t), t);
+};
+T[101] = async (p, check) => {
+  const gp = await SRC("src/pages/graph/graphPlot.tsx"), dr = await SRC("src/pages/graph/draw.tsx"), zm = await SRC("src/pages/graph/zoom.tsx"), pa = await SRC("src/pages/graph/parts.tsx"), cm = await SRC("src/pages/graph/common.tsx");
+  const vzMin = /VZ_MIN = ([\d.]+)/.exec(zm)?.[1];
+  const rtAbove = /ช่วงเวลาบนหัวกราฟ[^]*?\*\/\s*export function RangeTime/.test(cm) && !/ช่วงเวลาบนหัวกราฟ[^]*?\*\/\s*\/\*\* ความสูงแถบต่ำสุด/.test(cm);
+  const parts101 = [gp.includes("// 252 คือหัวกราฟ"), !dr.includes("0.25 ถึง 8"), !zm.includes("สเกลล็อก 0.25"), dr.includes(`${vzMin} ถึง 8`), pa.includes("ช่วง 120 dB ได้ 10 เส้น"), rtAbove];
+  check("101 คอมเมนต์ตรงค่าจริง 252 ช่วงขยายแนวตั้งตาม VZ_MIN จำนวนเส้นแกนตั้ง และคำอธิบาย RangeTime อยู่เหนือตัวมันเอง", parts101.every(Boolean), JSON.stringify(parts101));
+};
+T[102] = async (p, check) => {
+  // นับตัววัดขนาดที่สร้างระหว่างเลื่อนเมาส์บนกราฟ ไม่ควรสร้างใหม่ทุกครั้งที่หน้าวาดใหม่
+  // นับเฉพาะตัววัดที่เฝ้ากรอบกราฟ (div.plot data-plot) ตามที่ข้อนี้พูดถึง · แคนวาสที่ถูกสร้างใหม่ตอนชี้เป็นอีกเรื่อง
+  await p.evaluate(() => { const R = window.ResizeObserver; window.__roN = 0; window.ResizeObserver = class extends R { observe(el, o) { if (el?.matches?.("[data-plot]")) window.__roN++; return super.observe(el, o); } }; });
+  await graphOpen(p, MOVIE); await click(p, "[data-view=wave]").catch(() => {}); await wait(p, 500);
+  const box = await (await p.$("[data-plot]")).boundingBox();
+  const n0 = await p.evaluate(() => window.__roN);
+  for (let i = 0; i < 20; i++) { await p.mouse.move(box.x + 160 + i * 25, box.y + box.height * 0.55); await wait(p, 40); }
+  await wait(p, 300);
+  const n1 = await p.evaluate(() => window.__roN);
+  check("102 เลื่อนเมาส์บนกราฟ 20 ครั้ง ไม่ติดตัววัดขนาดกรอบกราฟใหม่ทุกครั้งที่หน้าวาดใหม่", n1 - n0 === 0 && n0 >= 1, `${n0} → ${n1}`);
 };
 
 // ---------------------------------------------------------------- ตัวรัน

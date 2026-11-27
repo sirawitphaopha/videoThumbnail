@@ -40,7 +40,7 @@ export function useVRange(resetN: number) {
   return { z, b, setZ, setB, clampB, wheel };
 }
 export type VRange = ReturnType<typeof useVRange>;
-/** ช่วงค่าของแกนตั้งตามซูม กับระยะเส้นที่ไม่เกินราว 6 เส้น */
+/** ช่วงค่าของแกนตั้งตามซูม กับระยะเส้น ปกติไม่เกินราว 6 เส้น ช่วงกว้างกว่า 72 ใช้ระยะ 12 จึงได้มากกว่านั้น เช่นช่วง 120 dB ได้ 10 เส้น (AUDIT ข้อ 101) */
 export const vWindow = (lo: number, hi: number, v: VRange) => { const f = hi - lo, l = lo + v.b * f, h = l + f / v.z; return { lo: l, hi: h, step: [1, 2, 5, 10, 12].find((k) => (h - l) / k <= 6) ?? 12 }; };
 /** แถบเลื่อนช่วงแกนตั้ง ขึ้นเมื่อซูมเกิน 1 เท่า ทับขอบขวาของกราฟ ไม่ดันเนื้อหา */
 export function VBar({ v, right, top = 12, bottom = 12, dark }: { v: VRange; right: number; top?: number; bottom?: number; dark?: boolean }) {

@@ -75,5 +75,12 @@ export function useGraphView(c: G1) {
 
   // ช่วงที่ซูม อ่านเฉพาะช่วง (รอ 150 ms ก่อนขอ เลื่อนเร็ว ๆ ไม่ขอซ้ำ)
   // จำผลไว้ สลับกราฟไปมาไม่อ่านซ้ำ (พี่กันถาม 9 พ.ย. 2569 "เรากดเปลี่ยนกราฟไปมา ทำไมมันคำนวนใหม่ทุกครั้งเลย")
+  // เปลี่ยนไฟล์ ขยายแนวตั้งของรูปคลื่นกับแถบความถี่กลับเป็น 1 เท่า ไม่ค้างตามไฟล์ก่อน (AUDIT ข้อ 99)
+  const lastPath = useRef(c.path);
+  useEffect(() => {
+    if (lastPath.current === c.path) return;
+    lastPath.current = c.path;
+    setVz(1); setSzRaw(1); setSb(0);
+  }, [c.path]);
   return { settings, updateSettings, zoomAll, switchView, span, rt0, rt1, vz, setVz, VZ_W, sz, setSzRaw, sb, setSb, szNow, szClampB, setSz, svRef, svDrag, svTo, LW, zoomBy, panTo, grabbing, setGrabbing, grabBusy, lanesGrab, setSpan };
 }

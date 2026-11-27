@@ -57,6 +57,9 @@ export function useGraphFile(c: G0) {
     if (!path) return;
     let live = true;
     setInfo(null); setOvRaw(null); setWin(null); setPsd(null); setError(null); setHidden([]); setTrack(0); zoomOf.current = {};
+    // ไฟล์ใหม่เริ่มที่ทั้งไฟล์ ความดังรวมทุกช่อง ความถี่เฉลี่ยรวมทุกช่อง · เปิดพร้อมเวลา (req.t) คงซูมที่ตั้งไว้ (AUDIT ข้อ 20 ข้อ 99)
+    if (!jumped.current) setZoom("all");
+    c.setLoudMode("mix"); c.setPsdCh("mix");
     graphApi.info(path).then((g) => {
       if (!live) return;
       setInfo(g); remember(path, g);
