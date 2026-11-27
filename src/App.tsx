@@ -66,6 +66,8 @@ function Frame() {
   /** มาจากปุ่มกราฟเสียงในแผงขวาของชั้นวาง หรือปุ่มดูกราฟเสียงช่วงนี้ในหน้าต่างผลตรวจ */
   const [graphReq, setGraphReq] = useState<GraphReq | null>(null);
   const openGraph = (r: GraphReq) => { setGraphReq(r); setPage("graph"); };
+  /** ไปหน้าไหนก็ได้ ไปชั้นวางแล้วปิดหน้าข้อมูลไฟล์ที่ค้างอยู่ ทุกปุ่มไปชั้นวางจากหน้าอื่นใช้ตัวนี้ (AUDIT ข้อ 139 · เดิมล้างเฉพาะตอนกดเมนูซ้าย) */
+  const goPage = (p: Page) => { setPage(p); if (p === "shelf") setInfoId(null); };
   /** มาจากปุ่มบิตเรตวิดีโอในแผงขวาของชั้นวาง · หน้าบิตเรตเปิดไฟล์นี้ให้เลย */
   const [bitratePath, setBitratePath] = useState<string | null>(null);
   /** แทร็กที่ส่งมาด้วย (หน้ากราฟเสียงส่งแทร็กเสียงที่ดูอยู่) · ไม่ส่ง หน้าบิตเรตถามเองถ้ามีหลายแทร็ก */
@@ -104,7 +106,7 @@ function Frame() {
         <div className="body">
           <Sidebar
             page={page}
-            onPage={(p) => { setPage(p); if (p === "shelf") setInfoId(null); if (parts) location.hash = ""; }}
+            onPage={(p) => { goPage(p); if (parts) location.hash = ""; }}
             collapsed={collapsed}
             onToggle={() => { const next = !collapsed; setNavNow(next); void update({ sidebarCollapsed: next }).finally(() => setNavNow(null)); }}
             shelfCount={movies.length}
@@ -116,16 +118,16 @@ function Frame() {
             {parts ? <DevParts /> : (
               <>
                 {slot("shelf", infoMovie ? <FileInfoPage m={infoMovie} onBack={() => setInfoId(null)} onAv={(path) => { setInfoId(null); setAvPath(path); setPage("av"); }} />
-                  : <ShelfPage onPage={setPage} onPoster={(path) => { setPosterPath(path); setPosterImage(null); setPage("poster"); }} onMerge={(path, image) => { setPosterPath(path); setPosterImage(image); setPage("poster"); }} onInfo={setInfoId} onCheck={(r) => { setCheckReq(r); setPage("check"); }} onGraph={(path) => openGraph({ path })} onBitrate={(path) => { setBitratePath(path); setBitrateTrack(null); setPage("bitrate"); }} onAv={(path) => { setAvPath(path); setPage("av"); }} sel={shelfSel} setSel={setShelfSel} />)}
-                {slot("poster", <PosterPage initialPath={posterPath} initialImage={posterImage} onPage={setPage} onConsumed={() => { setPosterPath(null); setPosterImage(null); }} />)}
+                  : <ShelfPage onPage={goPage} onPoster={(path) => { setPosterPath(path); setPosterImage(null); setPage("poster"); }} onMerge={(path, image) => { setPosterPath(path); setPosterImage(image); setPage("poster"); }} onInfo={setInfoId} onCheck={(r) => { setCheckReq(r); setPage("check"); }} onGraph={(path) => openGraph({ path })} onBitrate={(path) => { setBitratePath(path); setBitrateTrack(null); setPage("bitrate"); }} onAv={(path) => { setAvPath(path); setPage("av"); }} sel={shelfSel} setSel={setShelfSel} />)}
+                {slot("poster", <PosterPage initialPath={posterPath} initialImage={posterImage} onPage={goPage} onConsumed={() => { setPosterPath(null); setPosterImage(null); }} />)}
                 {slot("link", <LinkPage />)}
-                {slot("av", <AvPage initialPath={avPath} onConsumed={() => setAvPath(null)} onPage={setPage} onGraph={(path, track) => openGraph({ path, track })} />)}
-                {slot("check", <CheckPage req={checkReq} onConsumed={() => setCheckReq(null)} onGraph={openGraph} onPage={setPage} />)}
+                {slot("av", <AvPage initialPath={avPath} onConsumed={() => setAvPath(null)} onPage={goPage} onGraph={(path, track) => openGraph({ path, track })} />)}
+                {slot("check", <CheckPage req={checkReq} onConsumed={() => setCheckReq(null)} onGraph={openGraph} onPage={goPage} />)}
                 {/* หน้ากราฟอยู่ในกล่องเลื่อน แถบสูงขึ้นหรือลากขยายจนยาวกว่าหน้าต่างแล้วเลื่อนลงไปถึงแถวปุ่มล่างได้ (เดิมแถวปุ่มล่างโดนตัดใต้จอ เจอตอนตรวจภาพ) */}
                 {slot("graph", <div className="pagewrap" data-graphscroll><GraphBoundary><GraphPage req={graphReq} onConsumed={() => setGraphReq(null)} onBitrate={(path, track) => { setBitratePath(path); setBitrateTrack(track ?? null); setPage("bitrate"); }} /></GraphBoundary></div>)}
                 {slot("bitrate", <BitratePage initialPath={bitratePath} initialTrack={bitrateTrack} onConsumed={() => { setBitratePath(null); setBitrateTrack(null); }} onGraph={(path, track) => openGraph({ path, track })} />)}
                 {slot("subtitle", <SubtitlePage onAv={() => setPage("av")} onSettings={() => { requestSettingsSec("av"); setPage("settings"); }} />)}
-                {slot("mediainfo", <MediaInfoPage onAv={(path) => { setAvPath(path); setPage("av"); }} onShelf={() => setPage("shelf")} />)}
+                {slot("mediainfo", <MediaInfoPage onAv={(path) => { setAvPath(path); setPage("av"); }} onShelf={() => goPage("shelf")} />)}
                 {slot("settings", <div className="pagewrap" data-settingsscroll><SettingsPage /></div>)}
               </>
             )}

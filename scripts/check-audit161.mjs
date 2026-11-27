@@ -525,6 +525,64 @@ T[24] = async (p, check) => {
   check("24 ลากเพลง 30 ไฟล์ อ่านข้อมูลไฟล์พร้อมกันไม่เกิน 3 ไฟล์", r.max >= 1 && r.max <= 3, JSON.stringify(r));
 };
 
+// ชุด 8 ----------------------------------------------------------------
+const HASHES = `return { md5: "a".repeat(32), sha1: null, sha256: "b".repeat(64), crc32: "cccccccc", sha512: null, bytes: 1000, seconds: 2 };`;
+const hashStart = (p) => p.evaluate(() => [...document.querySelectorAll("[data-hash] button")].find((b) => b.classList.contains("btn-main") && !b.dataset.hashRedo)?.click());
+T[31] = async (p, check) => {
+  await over(p, "hash_file", HASHES);
+  await nav(p, "MediaInfo"); await wait(p, 300);
+  await avDrop(p, "D:\\ดาวน์โหลด\\หนังที่ยังไม่ขึ้นชั้น.mkv"); await wait(p, 1200);
+  await hashStart(p); await wait(p, 600);
+  const out = await text(p, "[data-hash]");
+  await avDrop(p, MOVIE); await wait(p, 1200);
+  await hashStart(p); await wait(p, 600);
+  const inn = await text(p, "[data-hash]");
+  check("31 ไฟล์นอกชั้นวางไม่บอกว่าจำค่า SHA-256 ไว้ เรื่องบนชั้นวางยังบอก", !!out && out.includes("คำนวณเมื่อ") && !out.includes("ถูกจำไว้") && !!inn && inn.includes("ถูกจำไว้"), `${out?.slice(0, 80)} | ${inn?.slice(0, 80)}`);
+};
+T[32] = async (p, check) => {
+  await over(p, "hash_file", HASHES);
+  await nav(p, "MediaInfo"); await wait(p, 300); await avDrop(p, MOVIE); await wait(p, 1200);
+  await p.evaluate(() => window.__applyTone("night")); await wait(p, 400);
+  const bg = () => p.evaluate(() => getComputedStyle(document.querySelector("[data-hash]")).backgroundColor);
+  const b0 = await bg();
+  // ให้หน้ามีของเพิ่มลดหลายรอบ ตัวแปลงโทนวาดซ้ำทุกรอบ
+  for (let i = 0; i < 3; i++) { await p.evaluate(() => { const d = document.createElement("div"); d.style.color = "#123456"; document.querySelector("#root").append(d); setTimeout(() => d.remove(), 50); }); await wait(p, 250); }
+  const b1 = await bg();
+  await p.evaluate(() => window.__applyTone("quartz")); await wait(p, 400);
+  const b2 = await bg();
+  check("32 โทนกลางคืน พื้นการ์ดค่า hash ไม่สลับสีเมื่อหน้าวาดของใหม่ และกลับโทนสว่างแล้วไม่ค้างสีมืด", b0 === b1 && b2 === "rgb(255, 255, 255)" && b0 !== b2, `${b0} → ${b1} → ${b2}`);
+};
+T[126] = async (p, check) => {
+  const src = await SRC("src/pages/check/CheckPage.tsx");
+  check("126 ปุ่มดูกราฟเสียงช่วงนี้ไม่นับช่วงขาดท้ายที่เขียนว่าภาพเสียงจบ", src.includes(`spans.find((sp) => !sp.tail && sp.what.includes("เสียง"))`));
+};
+T[127] = async (p, check) => {
+  await nav(p, "MediaInfo"); await wait(p, 300); await avDrop(p, MOVIE); await wait(p, 1200);
+  await over(p, "hash_running", `return true;`);
+  await nav(p, "ชั้นวางหนัง"); await wait(p, 300); await nav(p, "MediaInfo"); await wait(p, 600);
+  const on = await p.evaluate(() => !!document.querySelector("[data-hash-elsewhere]"));
+  check("127 งานค่า hash ที่เริ่มจากหน้าอื่นระหว่างไปเมนูอื่น กลับมาหน้าที่เปิดค้างแล้วการ์ดเหลืองขึ้น", on, on);
+};
+T[113] = async (p, check) => {
+  await nav(p, "ตั้งค่า"); await p.waitForSelector("[data-setnav=graph]"); await click(p, "[data-setnav=graph]"); await wait(p, 300);
+  await clickText(p, "TIFF"); await wait(p, 200); await clickText(p, "16 bit"); await wait(p, 200);
+  await clickText(p, "7680"); await wait(p, 300);
+  const t = await p.evaluate(() => document.querySelector("[data-img-bits-note]")?.innerText ?? null);
+  if (process.env.SHOTS) { await p.evaluate(() => document.querySelector("[data-img-row=bits]")?.scrollIntoView({ block: "center" })); await wait(p, 200); await p.screenshot({ path: `${process.env.SHOTS}/ข้อ-113-เตือน.png` }); }
+  await clickText(p, "1920"); await wait(p, 300);
+  const t2 = await p.evaluate(() => document.querySelector("[data-img-bits-note]")?.innerText ?? null);
+  await clickText(p, "8 bit"); await clickText(p, "PNG"); await clickText(p, "ตามจอ");
+  check("113 TIFF 16 bit กว้าง 7680 เตือนแรมตอนบันทึก กว้าง 1920 ไม่เตือน", !!t && /แรม/.test(t) && /MB/.test(t) && t2 === null, `${t} | ${t2}`);
+};
+T[139] = async (p, check) => {
+  await p.evaluate(() => [...document.querySelectorAll(".book")][0]?.click()); await wait(p, 300);
+  await p.evaluate(() => [...document.querySelectorAll("button")].find((b) => !b.closest("[data-navbar]") && b.innerText.trim() === "MediaInfo")?.click()); await wait(p, 600);
+  const info = await p.evaluate(() => !!document.querySelector("[data-hash]"));
+  await nav(p, "MediaInfo"); await wait(p, 300); await click(p, "[data-mi-shelf]"); await wait(p, 600);
+  const r = await p.evaluate(() => ({ shelf: document.querySelectorAll(".book").length, info: !!document.querySelector("[data-hash]") }));
+  check("139 ปุ่มเลือกจากชั้นวางในหน้า MediaInfo พาไปชั้นวาง ไม่ไปหน้าข้อมูลไฟล์ของเรื่องเก่า", info && r.shelf > 0 && !r.info, JSON.stringify({ info, ...r }));
+};
+
 // ---------------------------------------------------------------- ตัวรัน
 const want = process.argv.slice(2).map(Number).filter(Boolean);
 const ids = Object.keys(T).map(Number).filter((n) => !want.length || want.includes(n)).sort((a, b) => a - b);

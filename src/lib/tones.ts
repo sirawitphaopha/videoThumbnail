@@ -68,12 +68,12 @@ function walk(rules: CSSRuleList) {
   }
 }
 const collect = () => { for (const sh of Array.from(document.styleSheets)) { try { walk(sh.cssRules); } catch { /* ข้ามชุดที่อ่านไม่ได้ */ } } };
-const inlineOrig = new WeakMap<Element, { style: string | null; stroke: string | null; fill: string | null; wrote: { stroke: string | null; fill: string | null } }>();
+const inlineOrig = new WeakMap<Element, { style: string | null; stroke: string | null; fill: string | null; wrote: { stroke: string | null; fill: string | null; style: string | null } }>();
 function paintInline() {
   document.querySelectorAll("#root [style], #root svg[stroke], #root svg [stroke], #root svg[fill], #root svg [fill]").forEach((e) => {
     if (e.closest(".cover, .dposter, [data-keepcolor]")) return;
     let o = inlineOrig.get(e);
-    if (!o) { o = { style: e.getAttribute("style"), stroke: e.getAttribute("stroke"), fill: e.getAttribute("fill"), wrote: { stroke: null, fill: null } }; o.wrote = { stroke: o.stroke, fill: o.fill }; inlineOrig.set(e, o); }
+    if (!o) { o = { style: e.getAttribute("style"), stroke: e.getAttribute("stroke"), fill: e.getAttribute("fill"), wrote: { stroke: null, fill: null, style: null } }; o.wrote = { stroke: o.stroke, fill: o.fill, style: o.style }; inlineOrig.set(e, o); }
     // หน้าจอเปลี่ยนสีเอง (เช่นลำโพงที่ปิดเป็นสีขาว) ถือค่าใหม่เป็นต้นฉบับ ไม่เอาสีเก่าทับ
     for (const a of ["stroke", "fill"] as const) {
       const cur = e.getAttribute(a);
@@ -82,12 +82,16 @@ function paintInline() {
       if (next !== cur && next !== null) e.setAttribute(a, next);
       o.wrote[a] = next;
     }
+    // แปลงจากค่าต้นฉบับที่จำไว้ทุกครั้งแบบ stroke fill · เดิมแปลงจากค่าที่แปลงไปแล้ว โทนมืดกลับด้านซ้ำ พื้นการ์ดสลับมืดสว่างทุกครั้งที่หน้าวาดของใหม่
+    // และเปลี่ยนกลับโทนสว่างแล้วสีมืดค้าง (AUDIT ข้อ 32) · หน้าจอเปลี่ยน style เอง ถือค่าใหม่เป็นต้นฉบับ
+    const curS = e.getAttribute("style");
+    if (curS !== o.wrote.style) o.style = curS;
     if (o.style && /rgb|#[0-9a-f]{6}/i.test(o.style)) {
-      const cur = e.getAttribute("style") ?? "";
-      const next = mapColors(cur);
+      const next = mapColors(o.style);
       // ตัวจริงมีกติกาความปลอดภัย (CSP) ห้ามเขียนแอตทริบิวต์ style ชิ้นจะเสียสไตล์ ต้องเขียนผ่าน cssText
-      if (next !== cur) (e as HTMLElement).style.cssText = next;
+      if (next !== curS) (e as HTMLElement).style.cssText = next;
     }
+    o.wrote.style = e.getAttribute("style");
   });
 }
 function paint() {

@@ -160,6 +160,9 @@ export function GraphImgRows({ value: saved, onChange }: { value: GraphImg; onCh
   };
   const pickDir = async () => { const d = await pickFolder("เลือกโฟลเดอร์เก็บรูปกราฟ"); if (d) up({ dirMode: "folder", dir: d }); };
   // ทุกแถวอยู่ตลอด เปลี่ยนชนิดไฟล์แล้วเพจไม่เลื่อน อันที่ใช้ไม่ได้จางไว้ เหตุผลขึ้นตอนชี้ (พี่กันสั่ง 9 พ.ย. 2569 "ตอนเราเลือกแต่ละนามสกุล ตัวเพจมันเลื่อน เราอยากให้มัน fix และอันไหนปรับไม่ได้จะจางไว้")
+  // แรมตอนบันทึก 16 bit ฝั่ง Rust ถือภาพราวสามชุด ชุดละ 6 ไบต์ต่อจุด ความสูงราวครึ่งหนึ่งของความกว้าง (graphimg.rs · AUDIT ข้อ 113) เตือนเมื่อเกินราว 300 MB
+  const ram16Raw = o.width && o.bits === 16 && (o.format === "png" || o.format === "tiff") ? Math.round(o.width * o.width * 0.54 * 18 / 1e6 / 50) * 50 : 0;
+  const ram16 = ram16Raw >= 300 ? ram16Raw.toLocaleString("en-US") : "";
   const f = o.format, deepOk = f === "png" || f === "tiff", dpiOk = f === "png" || f === "jpg" || f === "tiff", qualOk = f === "jpg" || f === "heic", subOk = f === "jpg", packOk = f === "png";
   const name = f === "webp" ? "WebP" : f === "heic" ? "HEIC" : f.toUpperCase();
   const cm = o.width && dpiOk ? ` เมื่อ${J}พิมพ์จะ${J}กว้าง ${(o.width / o.dpi * 2.54).toFixed(1)} เซนติเมตร` : "";
@@ -172,7 +175,9 @@ export function GraphImgRows({ value: saved, onChange }: { value: GraphImg; onCh
         <ImgSlide value={o.width || 320} stops={WIDTH_STOPS} major={[320, 1280, 2560, 3840, 6400, 8192]} fineMarks={[320, 1920, 3840, 5760, 8192]} label="ความกว้างรูป" onDrag={(width) => setDraft({ width })} onCommit={(width) => commitSlide("width", width)} data="data-img-slide-width" /></span></div>
     <div className="setrow" data-img-row="format"><div className="lbl">ชนิดไฟล์<span className="small"><Phr>PNG TIFF และ WebP ไม่เสียคุณภาพ ส่วน JPG กับ HEIC ไฟล์เล็กกว่า แต่ขอบตัวหนังสือกับเส้นอาจฟุ้ง</Phr></span></div>
       <Seg small label="ชนิดไฟล์" value={o.format} onChange={(format) => up({ format })} options={[{ value: "png", label: "PNG" }, { value: "jpg", label: "JPG" }, { value: "webp", label: "WebP" }, { value: "heic", label: "HEIC" }, { value: "tiff", label: "TIFF" }]} /></div>
-    <div className="setrow" data-img-row="bits"><div className="lbl">ความลึกสี<span className="small"><Phr>ใช้ได้กับ PNG และ TIFF กราฟวาดจาก 8 bit ต่อช่องสี ถ้าเลือก 16 bit ไฟล์จะใหญ่ขึ้นแต่รายละเอียดสีไม่ได้เพิ่ม</Phr></span></div>
+    <div className="setrow" data-img-row="bits"><div className="lbl">ความลึกสี<span className="small" data-img-bits-note={ram16 ? "ram" : undefined} style={ram16 ? { color: "var(--warn-ink)" } : undefined}><Phr>{ram16
+        ? `ความกว้าง ${o.width.toLocaleString("en-US")} จุดแบบ 16 bit ใช้แรมตอนบันทึกราว ${ram16} MB เครื่องแรมน้อยอาจหน่วง ส่วน 8 bit ได้รายละเอียดเท่ากัน`
+        : "ใช้ได้กับ PNG และ TIFF กราฟวาดจาก 8 bit ต่อช่องสี ถ้าเลือก 16 bit ไฟล์จะใหญ่ขึ้นแต่รายละเอียดสีไม่ได้เพิ่ม"}</Phr></span></div>
       <Seg small label="ความลึกสี" value={String(deepOk ? o.bits : 8)} onChange={(v) => up({ bits: Number(v) as 8 | 16 })} disabledReason={deepOk ? undefined : `${name} เก็บได้ 8 bit`} options={[{ value: "8", label: "8 bit" }, { value: "16", label: "16 bit" }]} /></div>
     <div className="setrow" data-img-row="gray"><div className="lbl">ชุดสี<span className="small"><Phr>ขาวดำเก็บช่องสีเดียว เส้นของแต่ละไฟล์จะแยกกันด้วยสีไม่ได้</Phr></span></div>
       <Seg small label="ชุดสี" value={o.gray ? "gray" : "rgb"} onChange={(v) => up({ gray: v === "gray" })} options={[{ value: "rgb", label: "RGB" }, { value: "gray", label: "ขาวดำ" }]} /></div>

@@ -1,6 +1,7 @@
 /* หน้าข้อมูลไฟล์ (สเปกข้อ 6 · ต้นแบบบรรทัด 606–722 · แผนขั้น 5) เปิดจากปุ่ม ข้อมูลไฟล์ ในแผงขวาของชั้นวาง
    ข้อความ MediaInfo ภาษาอังกฤษ ตัวอักษรความกว้างคงที่ สามคอลัมน์ ดูข้อมูลอย่างเดียว · ค่า hash 5 แบบ อ่านไฟล์รอบเดียว หยุดได้ เทียบค่าที่วาง บันทึก .sha256
    แยกแทร็กออกจากหนังย้ายไปหน้าเสียงและซับแล้ว ที่เดียวกับงานรวม (BUGS ข้อ 35 พี่กันเคาะ 10 พ.ย. 2569 "ปุ่มเเยก กับรวม เอาที่เดียวกันในหน้นี้เลย") */
+import { useLibrary } from "../../lib/library";
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { listen } from "@tauri-apps/api/event";
 import { api, infoApi, inApp, pickSave, thumbUrl, type HashCompare, type Hashes, type MiSection, type Movie } from "../../lib/api/index";
@@ -148,6 +149,9 @@ export default function FileInfoPage({ m, onBack, onAv, backLabel = "กลั�
 /** ค่า hash · ติ๊กได้หลายแบบ · อ่านไฟล์รอบเดียว · หยุดได้ · เทียบค่าที่วาง · บันทึก .sha256 */
 function HashCard({ m }: { m: Movie }) {
   const toast = useToast();
+  // ค่า SHA-256 จดลงคลังเฉพาะเรื่องที่อยู่บนชั้นวาง (fileinfo.rs) ไฟล์นอกชั้นวางกับไฟล์เสียงไม่บอกว่าจำไว้ (AUDIT ข้อ 31)
+  const { movies } = useLibrary();
+  const inLib = movies.some((x) => x.path.toLowerCase() === m.path.toLowerCase());
   const [algos, setAlgos] = useState<string[]>(["md5", "sha256", "crc32"]);
   const [h, setH] = useState<Hashes | null>(null);
   const [at, setAt] = useState<number | null>(null);
@@ -259,7 +263,7 @@ function HashCard({ m }: { m: Movie }) {
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" aria-hidden="true"><rect x="9" y="9" width="11" height="11" rx="2" /><path d="M5 15V5a2 2 0 012-2h10" /></svg>
               </button></div>
           ))}
-          <div className="small" style={{ marginTop: 8 }}>คำนวณเมื่อ <span className="nw">{at ? fmtDateTime(at) : ""}</span> ใช้เวลา <span className="nw">{Math.max(1, Math.round(h.seconds))} วินาที</span>{h.sha256 && (!stored || stored.toLowerCase() === h.sha256.toLowerCase()) ? " และค่า SHA-256 ถูกจำไว้ใช้ตอนตรวจแบบเร็วครั้งต่อไป" : ""}</div>
+          <div className="small" style={{ marginTop: 8 }}>คำนวณเมื่อ <span className="nw">{at ? fmtDateTime(at) : ""}</span> ใช้เวลา <span className="nw">{Math.max(1, Math.round(h.seconds))} วินาที</span>{inLib && h.sha256 && (!stored || stored.toLowerCase() === h.sha256.toLowerCase()) ? " และค่า SHA-256 ถูกจำไว้ใช้ตอนตรวจแบบเร็วครั้งต่อไป" : ""}</div>
           {h.sha256 && stored && stored.toLowerCase() !== h.sha256.toLowerCase() && (
             <div className="stat warn" style={{ marginTop: 8 }} data-hashchanged><CardIcon kind="warn" /><div><b>ค่า SHA-256 ไม่ตรงกับที่จดไว้ตอนตรวจครั้งก่อน</b><Phr>ไฟล์อาจถูกเปลี่ยนหรือเสียระหว่างย้ายไดรฟ์ ค่าที่จดไว้ไม่ถูกเปลี่ยน แต่ชั้นวางจะขึ้นว่าไฟล์ถูกเปลี่ยน ควรตรวจละเอียด</Phr></div></div>
           )}

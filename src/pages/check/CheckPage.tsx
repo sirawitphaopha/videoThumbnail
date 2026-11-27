@@ -295,7 +295,8 @@ function ResultDialog(p: { m: Movie; onClose: () => void; onDeep: () => void; on
   const spans = c.spans ?? [];
   const first = spans[0];
   /** จุดเสียที่เป็นเสียง มีปุ่มดูกราฟเสียงช่วงนี้ พาไปหน้ากราฟเสียงซูมที่เวลานั้น (มอคอัปกราฟเสียง) */
-  const sound = spans.find((sp) => sp.what.includes("เสียง"));
+  // ช่วงขาดท้ายเขียนว่าภาพเสียงจบที่… มีคำว่าเสียงแต่เสียงไม่ได้เสีย ฝั่ง Rust ส่ง tail มาบอกอยู่แล้ว (AUDIT ข้อ 126)
+  const sound = spans.find((sp) => !sp.tail && sp.what.includes("เสียง"));
   const [d, t] = dateParts(c.at);
   const play = async () => {
     try {
