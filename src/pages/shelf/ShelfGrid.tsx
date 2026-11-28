@@ -202,6 +202,7 @@ function Book(p: { m: Movie; width: number; sel: boolean; onSel: (id: string) =>
       aria-label={full + ", " + labelOf(m, p.reminder) + (m.shownLink ? ", ปกจับคู่" : "") + (m.missing ? ", หาไฟล์ไม่เจอ" : "")}
       aria-pressed={p.sel}
       data-movie={m.name}
+      data-mid={m.id}
       {...kb(() => p.onSel(m.id))}
     >
       {(m.pairs?.length ?? 0) > 0 && <span className="pairdot" title="จับคู่เสียงหรือซับไว้" aria-label="จับคู่เสียงหรือซับไว้" data-pairdot />}

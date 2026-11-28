@@ -110,7 +110,7 @@ export function ShelfTable(p: { size: "s" | "m" | "l"; list: Movie[]; selId: str
             const k = kindOf(m, p.reminder);
             const src = thumbUrl(m.thumb);
             return (
-              <tr key={m.id} className={(m.id === p.selId ? "sel" : "") + (m.missing ? " missing" : "")} {...kb(() => p.onSel(m.id))} aria-selected={m.id === p.selId}>
+              <tr key={m.id} className={(m.id === p.selId ? "sel" : "") + (m.missing ? " missing" : "")} {...kb(() => p.onSel(m.id))} aria-selected={m.id === p.selId} data-mid={m.id}>
                 {/* ชี้รูปขึ้นภาพใหญ่ ตัวเดียวกับหน้าจับคู่ปก (พี่กันสั่ง 9 พ.ย. 2569 "เอาเมาส์ชี้ที่รูป จะ popup ภาพขึ้นมาดู") */}
                 <td>{src ? <HoverBig src={src} ratio={m.coverAspect || 2 / 3} name={m.name}><img className={"th" + ((m.coverAspect ?? 0) >= 1 ? " wide" : "")} src={src} alt="" loading="lazy" /></HoverBig> : <NoCoverTh m={m} on={p.showFrames} />}</td>
                 <td><Hl text={m.name} used={p.used} head={m.shownLink ? <LinkMark /> : undefined} tail={<b className="lvext">.{m.ext}</b>} /><div className="lvstars"><Stars m={m} /></div></td>

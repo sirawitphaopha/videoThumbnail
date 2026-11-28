@@ -28,6 +28,8 @@ import { ShelfGrid, SkeletonShelf, withCover } from "./ShelfGrid";
 import { ShelfTable } from "./ShelfTable";
 import { Detail } from "./Detail";
 import { emptyNote } from "./ShelfEmpty";
+import { useMovieMenu } from "./useMovieMenu";
+import type { Movie } from "../../lib/api";
 
 
 let filterMemo: CoverFilter = "all";
@@ -48,6 +50,14 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
   const size = settings?.coverSize ?? "m";
   // สลับภาพปกกับตารางแล้วเลื่อนกลับบนสุด ของข้างในคนละแบบ ระยะเลื่อนเดิมไม่มีความหมาย (เดิมหัวชั้นโดนตัดครึ่ง)
   const wrapRef = useRef<HTMLDivElement>(null);
+  // เปิดเล่นกับเปิดโฟลเดอร์ ใช้ทั้งปุ่มแผงขวาและเมนูคลิกขวา (BUGS ข้อ 163.7)
+  const play = (m: Movie) => api.playMovie(m.path).catch((e) => {
+    toast({ kind: "bad", title: "เปิดเล่นไม่ได้", detail: String(e) });
+    // โปรแกรมเล่นที่เลือกเองหาไม่เจอ พากลับไปตั้งที่หน้าตั้งค่า (สเปกข้อ 9)
+    if (String(e).includes("หาโปรแกรมเล่นหนัง")) onPage("settings");
+  });
+  const reveal = (m: Movie) => api.revealMovie(m.path).catch((e) => toast({ kind: "bad", title: "เปิดโฟลเดอร์ไม่ได้", detail: String(e) }));
+  const mm = useMovieMenu({ movies, scanning, setSel, onPage, onPoster, onInfo, onCheck, onGraph, onBitrate, onAv, play, reveal });
   useEffect(() => { wrapRef.current?.scrollTo({ top: 0 }); }, [view]);
 
   const orient = settings?.coverOrient ?? "tall";
@@ -132,7 +142,7 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
         </div>
       </div>
       <div className="content">
-        <div className="shelfwrap" ref={wrapRef}>
+        <div className="shelfwrap" ref={wrapRef} onContextMenu={mm.onContextMenu}>
           {resume > 0 && (
             <div className="stat info" style={{ margin: "0 0 12px" }} data-link-resume>
               <CardIcon kind="info" />
@@ -196,14 +206,11 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
         {/* key ต่อเรื่อง สลับเรื่องแล้วสร้างแผงกับปุ่มใหม่ ไม่ใช้ปุ่มเดิมซ้ำ (เดิมปุ่มชมพูค่อย ๆ เปลี่ยนเป็นเขียวตอนสลับเรื่อง) */}
         {selected && (
           <Detail key={selected.id} m={selected} showFrames={settings?.showFrames ?? false} scanning={scanning} reminder={reminder} onPage={onPage} onCheck={onCheck} onGraph={onGraph} onBitrate={onBitrate} onAv={onAv} onPoster={onPoster} onMerge={onMerge} onInfo={() => onInfo(selected.id)} onClose={() => setSel(null)}
-            onPlay={() => api.playMovie(selected.path).catch((e) => {
-              toast({ kind: "bad", title: "เปิดเล่นไม่ได้", detail: String(e) });
-              // โปรแกรมเล่นที่เลือกเองหาไม่เจอ พากลับไปตั้งที่หน้าตั้งค่า (สเปกข้อ 9 *"หาไม่เจอวันหลัง กดเปิดเล่นแล้วบอก และพากลับมาตั้ง"*)
-              if (String(e).includes("หาโปรแกรมเล่นหนัง")) onPage("settings");
-            })}
-            onReveal={() => api.revealMovie(selected.path).catch((e) => toast({ kind: "bad", title: "เปิดโฟลเดอร์ไม่ได้", detail: String(e) }))} />
+            renameAsk={mm.renameFor === selected.id} onRenameAsked={mm.renameDone}
+            onPlay={() => play(selected)} onReveal={() => reveal(selected)} />
         )}
       </div>
+      {mm.node}
       {/* แถบสถานะล่างแบบโปรแกรม บอกจำนวนเรื่องกับความหมายเครื่องหมาย ไม่กินที่ด้านบน · ใช้รูปเดียวกับบนชั้น (พี่กันสั่ง 9 พ.ย. 2569 "มันมีเเค่สี มันควรเป้นรูปเดียวกัน") */}
       <div className="statusbar" data-statusbar>
         <span className="sbleft"><span>{query || filter !== "all" || star !== "all" ? <>เจอ {list.length} จาก <span className="nw">{movies.length} เรื่อง</span></> : <>หนังทั้งหมด <span className="nw">{movies.length} เรื่อง</span></>}</span>

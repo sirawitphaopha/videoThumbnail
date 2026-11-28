@@ -108,7 +108,7 @@
 :root[data-longname] :is(.bn1, .lvchips .ft, .lvchips.tight .lvchip, .runline .runtxt b, .runline .runl1, .runline .runl2, .fchip .nm, .lab span,
   .wavelg .lgnote, .thanklink, .psdchecks .psdck-txt, .cpcmp-grid .a, .cpcmp-grid .b, .avchip .nm, .avchip .meta, .lrow .en, .avfoot-sum,
   .cqrow .nm, .cqrow .dt, .cmpchip .meta, .cmpchip .nm .nmtx, [data-extract] .xdest > b, .subpage-bar .subpage-name, .pathline b, .lname .fn,
-  [data-subedit] .se-grid .se-cut, .se-saveas .se-path, .se-auto .se-cut, .se-fontlist button, [data-subedit] .se-pgs .se-path) { text-overflow: clip; }
+  [data-subedit] .se-grid .se-cut, .se-saveas .se-path, .se-auto .se-cut, .se-fontlist button, [data-subedit] .se-pgs .se-path, .mm-head) { text-overflow: clip; }
 :root[data-longname] [style*="text-overflow: ellipsis"] { text-overflow: clip !important; }
 :root[data-longname] [data-ov="m"] { -webkit-mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); mask-image: linear-gradient(90deg, #000 calc(100% - 28px), transparent); }
 :root[data-longname] [data-ov="r"] { -webkit-mask-image: linear-gradient(90deg, transparent, #000 28px); mask-image: linear-gradient(90deg, transparent, #000 28px); }

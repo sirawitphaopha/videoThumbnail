@@ -17,7 +17,7 @@ export const LONG_SEL = [
   ".wavelg .lgnote", ".thanklink", ".psdchecks .psdck-txt", ".cpcmp-grid .a", ".cpcmp-grid .b", ".avchip .nm", ".avchip .meta",
   ".lrow .en", ".avfoot-sum", ".cqrow .nm", ".cqrow .dt", ".cmpchip .meta", ".cmpchip .nm .nmtx", "[data-extract] .xdest > b",
   ".subpage-bar .subpage-name", ".pathline b", ".lname .fn", "[data-subedit] .se-grid .se-cut", ".se-saveas .se-path", ".se-auto .se-cut",
-  ".se-fontlist button", "[data-subedit] .se-pgs .se-path", "[style*=\"text-overflow: ellipsis\"]",
+  ".se-fontlist button", "[data-subedit] .se-pgs .se-path", ".mm-head", "[style*=\"text-overflow: ellipsis\"]",
 ].join(",");
 
 export function longNameNow(): LongName {

@@ -210,3 +210,21 @@ ol.steps { margin: 10px 0 0; padding-left: 20px; font-size: 13.5px; line-height:
   .pop-in, .dlg, .toast { translate: 0 0; opacity: 1; }
 }
 
+
+/* เมนูคลิกขวาที่หนังบนชั้นวาง (BUGS ข้อ 163.7 · ROADMAP ข้อ 39) หน้าตาแบบรายการของดรอปดาวน์ (.menu .opt) ลอยเหนือทุกชั้นที่ตำแหน่งเมาส์ */
+.mm { position: fixed; z-index: var(--z-pop); min-width: 220px; max-width: 320px; max-height: calc(100vh - 16px); background: #fff; border: 1px solid var(--line); border-radius: 10px; box-shadow: 0 12px 26px rgba(60,25,40,.18); padding: 6px; display: flex; flex-direction: column; gap: 1px; overflow-y: auto; overscroll-behavior: contain; }
+.mm-head { padding: 4px 10px 6px; font-size: 12.5px; font-weight: 700; color: var(--txt3); white-space: nowrap; overflow: hidden; border-bottom: 1px solid var(--line); margin-bottom: 4px; }
+.mm-item { display: flex; align-items: center; gap: 10px; padding: 6px 10px; border: 0; border-radius: 7px; background-color: transparent; color: var(--txt); font: inherit; font-size: 14px; line-height: 1.5; text-align: left; cursor: pointer; transition: background-color .12s, color .12s; }
+.mm-item:hover, .mm-item:focus-visible { background-color: #faedf1; color: var(--accent-ink); outline: none; }
+.mm-ic { flex: none; width: 16px; display: inline-flex; justify-content: center; color: var(--txt2); }
+.mm-item:hover .mm-ic { color: var(--accent-ink); }
+.mm-lbl { white-space: nowrap; }
+.mm-item.off { color: #c9aab4; cursor: not-allowed; }
+.mm-item.off .mm-ic { color: #d6bcc5; }
+.mm-item.off:hover { background-color: #f7f2f4; color: #b8919e; }
+.mm-sep { height: 1px; background: var(--line); margin: 4px 6px; }
+.mm-stars { display: flex; align-items: center; gap: 2px; padding: 4px 10px; font-size: 14px; color: var(--txt); }
+.mm-stars .mm-lbl { margin-left: 26px; margin-right: auto; }
+.mm-stars .star { width: 22px; height: 24px; border-radius: 5px; }
+.mm-stars .star:hover, .mm-stars .star:focus-visible { background-color: #faedf1; outline: none; }
+.mm-stars .star svg { width: 15px; height: 15px; }

@@ -274,6 +274,76 @@ T[6] = async (p, check) => {
   check("163.6 ไฟล์วิดีโอไม่ขึ้นรูปคลื่น และไม่มีปุ่มพับรูปคลื่น", v.plot && !v.wave && !v.btn, JSON.stringify(v));
 };
 
+/** 163.7 (เลข 46) เมนูคลิกขวาของโปรแกรม คลิกขวาที่หนังบนชั้นวางแล้วทำได้ทุกอย่างของเรื่องนั้น */
+const PANEL = ["เปิดเล่น", "เปลี่ยนชื่อ", "เปลี่ยนโปสเตอร์", "ตรวจไฟล์", "MediaInfo", "เปิดโฟลเดอร์", "จับคู่รูปปก", "กราฟเสียง", "เสียงและซับ", "Bitrate"];
+const menuState = (p) => p.evaluate(() => { const m = document.querySelector("[data-moviemenu]"); if (!m) return null; const r = m.getBoundingClientRect();
+  return { name: m.dataset.moviemenu, items: [...m.querySelectorAll("[data-mm]")].map((b) => b.querySelector(".mm-lbl").textContent), off: [...m.querySelectorAll("[data-mm].off")].map((b) => b.dataset.mm), stars: m.querySelector("[data-mmstars]")?.dataset.mmstars, focus: document.activeElement?.dataset?.mm ?? null, r: { l: r.left, t: r.top, rr: r.right, b: r.bottom }, W: innerWidth, H: innerHeight }; });
+T[7] = async (p, check) => {
+  await nav(p, "ชั้นวางหนัง"); await wait(p, 500);
+  // คลิกขวาที่ปกเรื่องแรก
+  const first = await p.evaluate(() => { const b = document.querySelector(".book[data-mid]"); const r = b.getBoundingClientRect(); return { id: b.dataset.mid, name: b.dataset.movie, x: r.left + r.width / 2, y: r.top + 40 }; });
+  await p.mouse.click(first.x, first.y, { button: "right" }); await wait(p, 300);
+  const a = await menuState(p);
+  // แผงขวาของเรื่องนั้นเปิด ปุ่มในแผงเรียงแบบเดียวกับเมนู
+  const panel = await p.evaluate(() => [...document.querySelectorAll(".detail .actions .btn")].map((b) => b.innerText.trim()));
+  check("163.7 คลิกขวาที่ปกขึ้นเมนูของเรื่องนั้น และเลือกเรื่องนั้นให้แผงขวาเปิด", !!a && a.name === first.name && panel.length > 0, JSON.stringify({ a, first }));
+  const sameAsPanel = panel.every((t) => a.items.includes(t)) && JSON.stringify(a.items.filter((t) => PANEL.includes(t))) === JSON.stringify(panel.filter((t) => PANEL.includes(t)));
+  check("163.7 ส่วนแรกของเมนูเป็นปุ่มชุดเดียวกับแผงขวา ชื่อและลำดับเดียวกัน", sameAsPanel, JSON.stringify({ menu: a.items, panel }));
+  check("163.7 ใต้เส้นคั่นมีให้ดาว คัดลอกที่อยู่ไฟล์ คัดลอกชื่อเรื่อง", a.items.includes("คัดลอกที่อยู่ไฟล์") && a.items.includes("คัดลอกชื่อเรื่อง") && a.stars != null, JSON.stringify(a.items));
+  check("163.7 เมนูอยู่ในจอทั้งหมด และโฟกัสอยู่ที่ข้อแรก (เปิดเล่น)", a.r.l >= 0 && a.r.t >= 0 && a.r.rr <= a.W && a.r.b <= a.H && a.focus === "play", JSON.stringify(a));
+  // ลูกศรลงเลื่อนข้อ Esc ปิด
+  await p.keyboard.press("ArrowDown"); await wait(p, 80);
+  const f2 = await p.evaluate(() => document.activeElement?.dataset?.mm);
+  await p.keyboard.press("Escape"); await wait(p, 200);
+  check("163.7 ลูกศรลงเลื่อนไปข้อถัดไป Esc ปิดเมนู", f2 === "rename" && !(await menuState(p)), String(f2));
+  // คลิกขวาชิดขอบขวาล่าง เมนูกางกลับทางไม่ล้นจอ (ปิดแผงขวาก่อน ปกแถวบนชิดขอบขวาของหน้าต่าง)
+  await click(p, "[data-detailclose]"); await wait(p, 300);
+  const last = await p.evaluate(() => { const bs = [...document.querySelectorAll(".book[data-mid]")].filter((b) => { const r = b.getBoundingClientRect(); return r.bottom < innerHeight - 40 && r.width > 0; }); const b = bs[bs.length - 1]; const r = b.getBoundingClientRect(); return { x: Math.min(innerWidth - 12, r.right - 4), y: Math.min(innerHeight - 40, r.bottom - 4) }; });
+  await p.mouse.click(last.x, last.y, { button: "right" }); await wait(p, 300);
+  const e = await menuState(p);
+  check("163.7 คลิกขวาใกล้ขอบขวาล่าง เมนูกางไปทางซ้ายและขึ้นบน ไม่ล้นจอ", !!e && e.r.rr <= e.W && e.r.b <= e.H && e.r.rr <= last.x + 1, JSON.stringify({ e, last }));
+  // กดข้างนอกปิด
+  await p.mouse.click(5, 300); await wait(p, 200);
+  check("163.7 กดข้างนอกเมนูแล้วปิด", !(await menuState(p)), "");
+  // ข้อทำงานจริง คัดลอกที่อยู่ไฟล์ลงที่เก็บของตัวตรวจ ไม่แตะคลิปบอร์ด
+  await p.evaluate(() => { window.__shelfClipOut = []; });
+  await p.mouse.click(first.x, first.y, { button: "right" }); await wait(p, 250);
+  await click(p, "[data-mm=copyPath]"); await wait(p, 200);
+  await p.mouse.click(first.x, first.y, { button: "right" }); await wait(p, 250);
+  await click(p, "[data-mm=copyName]"); await wait(p, 200);
+  const clip = await p.evaluate(() => window.__shelfClipOut);
+  check("163.7 คัดลอกที่อยู่ไฟล์กับชื่อเรื่องได้ค่าของเรื่องที่คลิกขวา", clip.length === 2 && /^D:\\.*\.mkv$/.test(clip[0]) && clip[1] === first.name, JSON.stringify(clip));
+  // ให้ดาวจากเมนู เรียกคำสั่งให้คะแนนของเรื่องนั้น
+  await p.evaluate(() => { window.__rated = null; const AF = Object.getPrototypeOf(async function () {}).constructor; (window.__fxOver ??= {}).set_rating = new AF("a", "window.__rated = a; return await window.__fxOverBase.set_rating(a);"); });
+  await p.mouse.click(first.x, first.y, { button: "right" }); await wait(p, 250);
+  await click(p, "[data-mmstar='4']"); await wait(p, 200);
+  const rated = await p.evaluate(() => window.__rated);
+  check("163.7 ให้ดาวจากเมนู ส่งคะแนน 4 ดาวของเรื่องนั้น", !!rated && rated.id === first.id && rated.stars === 4, JSON.stringify(rated));
+  // เปลี่ยนชื่อจากเมนู เปิดช่องเปลี่ยนชื่อในแผงขวา
+  await p.mouse.click(first.x, first.y, { button: "right" }); await wait(p, 250);
+  await click(p, "[data-mm=rename]"); await wait(p, 300);
+  const ren = await p.evaluate(() => !!document.querySelector(".detail input"));
+  check("163.7 เปลี่ยนชื่อจากเมนู เปิดช่องเปลี่ยนชื่อในแผงขวาของเรื่องนั้น", ren, "");
+  await p.keyboard.press("Escape"); await wait(p, 200);
+  // ไปหน้าอื่นจากเมนู กราฟเสียงพาไปหน้ากราฟพร้อมไฟล์นี้
+  await p.mouse.click(first.x, first.y, { button: "right" }); await wait(p, 250);
+  await click(p, "[data-mm=graph]"); await wait(p, 800);
+  const g = await p.evaluate(() => ({ graph: !!document.querySelector("[data-graph]"), page: [...document.querySelectorAll("[data-navbar] button")].find((b) => b.getAttribute("aria-current") === "page" || b.classList.contains("on"))?.innerText.trim() }));
+  check("163.7 กราฟเสียงจากเมนู พาไปหน้ากราฟเสียง", g.graph, JSON.stringify(g));
+  // แบบตาราง คลิกขวาที่แถวได้เมนูเดียวกัน
+  await nav(p, "ชั้นวางหนัง"); await wait(p, 300);
+  await clickText(p, "ตาราง"); await wait(p, 500);
+  const row = await p.evaluate(() => { const r = document.querySelector("tr[data-mid]").getBoundingClientRect(); return { x: r.left + 200, y: r.top + r.height / 2 }; });
+  await p.mouse.click(row.x, row.y, { button: "right" }); await wait(p, 300);
+  const t = await menuState(p);
+  check("163.7 แบบตาราง คลิกขวาที่แถวขึ้นเมนูเดียวกัน", !!t && t.items[0] === "เปิดเล่น" && t.items.includes("Bitrate"), JSON.stringify(t?.items));
+  await p.keyboard.press("Escape");
+  await clickText(p, "ภาพปก"); await wait(p, 300);
+  // คลิกขวาที่ที่ว่างของชั้นวาง ไม่มีเมนูของโปรแกรม
+  await p.mouse.click(700, 140, { button: "right" }); await wait(p, 200);
+  check("163.7 คลิกขวาที่ไม่ใช่หนัง ไม่ขึ้นเมนูของหนัง", !(await menuState(p)), "");
+};
+
 // ---------------------------------------------------------------- ตัวรัน
 const want = process.argv.slice(2).map(Number).filter(Boolean);
 const ids = Object.keys(T).map(Number).filter((n) => !want.length || want.includes(n)).sort((a, b) => a - b);
