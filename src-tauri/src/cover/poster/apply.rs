@@ -25,7 +25,7 @@ pub struct ApplyReq {
 #[derive(Serialize, Clone, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct ApplyResult {
-    /// cover เปลี่ยนแค่รูปแนบ · wrap ครอบเป็น MKV · mp4 ส่งออก MP4
+    /// cover เปลี่ยนแค่รูปแนบ · wrap ห่อเป็น MKV · mp4 ส่งออก MP4
     mode: String,
     output: String,
     counts: Counts,
@@ -104,7 +104,7 @@ pub(crate) fn apply(app: &AppHandle, req: &ApplyReq, jobs: &Arc<crate::app::jobs
     let src_size = std::fs::metadata(&src).map_err(|_| fail("other", "หาไฟล์หนังไม่เจอ", vec!["ไดรฟ์อาจถอดออกอยู่ หรือไฟล์ถูกย้ายไปแล้ว".into()]))?.len();
     let mode = if req.output == "mp4" { "mp4" } else if ext == "mkv" { "cover" } else { "wrap" };
 
-    // ไฟล์ถูกเปิดอยู่ · แก้ในไฟล์เดิม (cover) ต้องเช็กก่อนเสมอ · ครอบใหม่ก็เช็ก เพราะตอนจบต้องย้ายไฟล์เดิม
+    // ไฟล์ถูกเปิดอยู่ · แก้ในไฟล์เดิม (cover) ต้องเช็กก่อนเสมอ · ห่อเป็น MKV ใหม่ก็เช็ก เพราะตอนจบต้องย้ายไฟล์เดิม
     if !not_in_use(&src) {
         return Err(fail("inuse", "ไฟล์ถูกเปิดอยู่ในโปรแกรมอื่น", vec!["ปิดโปรแกรมเล่นหนังก่อน แล้วกดลองใหม่".into(), untouched]));
     }
@@ -131,7 +131,7 @@ pub(crate) fn apply(app: &AppHandle, req: &ApplyReq, jobs: &Arc<crate::app::jobs
         return Err(fail("other", "ที่อยู่ไฟล์ยาวเกินไป", vec!["เปลี่ยนชื่อไฟล์ให้สั้นลงก่อน".into(), untouched]));
     }
 
-    // ที่ว่างในไดรฟ์ · ครอบใหม่ต้องการราวขนาดไฟล์เดิม
+    // ที่ว่างในไดรฟ์ · ห่อเป็น MKV ใหม่ต้องการราวขนาดไฟล์เดิม
     let need = if mode == "cover" { poster.len() as u64 * 2 + 16 * 1024 * 1024 } else { src_size + poster.len() as u64 + 64 * 1024 * 1024 };
     let free = free_space(&dir);
     if free < need {
@@ -147,7 +147,7 @@ pub(crate) fn apply(app: &AppHandle, req: &ApplyReq, jobs: &Arc<crate::app::jobs
     }
 
     // ตรวจไฟล์ต้นทางก่อน · อ่านทุกแพ็กเก็ตโดยไม่ถอดภาพ จับไฟล์ที่โครงเสียหรือขาดท้าย (ตรวจละเอียดจริงอยู่หน้าตรวจไฟล์ ขั้น 6)
-    let next_after_check = if mode == "cover" { "เปลี่ยนรูปแนบ" } else if mode == "mp4" { "ส่งออกเป็น MP4" } else { "ครอบเป็น MKV" };
+    let next_after_check = if mode == "cover" { "เปลี่ยนรูปแนบ" } else if mode == "mp4" { "ส่งออกเป็น MP4" } else { "ห่อเป็น MKV" };
     if req.check_source {
         emit("กำลังตรวจไฟล์ต้นทาง", 0.0, None, Some(next_after_check));
         let args: Vec<OsString> = ["-hide_banner", "-nostdin", "-v", "error", "-progress", "pipe:1", "-nostats", "-i"].iter().map(OsString::from)
@@ -173,7 +173,7 @@ pub(crate) fn apply(app: &AppHandle, req: &ApplyReq, jobs: &Arc<crate::app::jobs
                 if !status.success() || !errs.is_empty() {
                     return Err(fail("badsource", "ไฟล์ต้นทางมีที่เสียอยู่แล้ว", vec![
                         errs.first().map(|e| e.chars().take(120).collect()).unwrap_or_else(|| "อ่านไฟล์ไม่จบ".into()),
-                        "ปิดตัวเลือก ตรวจไฟล์ต้นทางก่อนครอบ ถ้าต้องการทำต่อ".into(), untouched,
+                        "ปิดตัวเลือก ตรวจไฟล์ต้นทางก่อนห่อเป็น MKV ถ้าต้องการทำต่อ".into(), untouched,
                     ]));
                 }
             }
@@ -268,7 +268,7 @@ pub(crate) fn apply(app: &AppHandle, req: &ApplyReq, jobs: &Arc<crate::app::jobs
     } else {
         // ② ③ ทำไฟล์ใหม่เป็น .partial ในโฟลเดอร์เดียวกัน
         let _ = std::fs::remove_file(&partial); // .partial ของรอบก่อนที่ค้าง เป็นของโปรแกรมเอง ไม่ใช่ไฟล์หนัง
-        let phase = if mode == "mp4" { "กำลังส่งออกเป็น MP4" } else { "กำลังครอบเป็น MKV" };
+        let phase = if mode == "mp4" { "กำลังส่งออกเป็น MP4" } else { "กำลังห่อเป็น MKV" };
         let next = if req.check_output { Some("ตรวจไฟล์ใหม่") } else { None };
         emit(phase, 0.0, None, next);
         let kept: Vec<&StreamInfo> = src_streams.iter().filter(|s| !req.drop.contains(&s.index)).collect();
@@ -335,7 +335,7 @@ pub(crate) fn apply(app: &AppHandle, req: &ApplyReq, jobs: &Arc<crate::app::jobs
                 if !tool_succeeded(tool, &status) || !partial.exists() {
                     let _ = std::fs::remove_file(&partial);
                     let msg = tool_errors.first().cloned().or_else(|| stderr.lines().find(|l| !l.trim().is_empty()).map(String::from)).unwrap_or_default();
-                    return Err(fail("tool", if mode == "mp4" { "ส่งออก MP4 ไม่สำเร็จ" } else { "ครอบเป็น MKV ไม่สำเร็จ" }, vec![msg.chars().take(160).collect(), untouched]));
+                    return Err(fail("tool", if mode == "mp4" { "ส่งออก MP4 ไม่สำเร็จ" } else { "ห่อเป็น MKV ไม่สำเร็จ" }, vec![msg.chars().take(160).collect(), untouched]));
                 }
             }
         }

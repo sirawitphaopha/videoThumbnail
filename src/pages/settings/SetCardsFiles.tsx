@@ -64,14 +64,14 @@ export default function SetCardsFiles({ pg }: { pg: SetOpen }) {
 
       {/* ---------- ใส่โปสเตอร์ ---------- */}
       <div className="setcard" data-setcard="poster" hidden={sec !== "poster"}><h3>ใส่โปสเตอร์</h3>
-        <div className="setrow"><div className="lbl">ตรวจไฟล์ต้นทางก่อนครอบ<span className="small"><Phr>ถ้าไฟล์เสียอยู่แล้วจะบอกก่อนลงมือ</Phr></span></div>
-          <Switch on={settings.checkSourceBefore} onChange={(v) => set({ checkSourceBefore: v })} label="ตรวจไฟล์ต้นทางก่อนครอบ" /></div>
-        <div className="setrow"><div className="lbl">ตรวจไฟล์ใหม่หลังครอบเสร็จ<span className="small"><Phr>เทียบว่าภาพ เสียง และซับครบเท่าต้นทาง</Phr></span></div>
-          <Switch on={settings.checkOutputAfter} onChange={(v) => set({ checkOutputAfter: v })} label="ตรวจไฟล์ใหม่หลังครอบเสร็จ" /></div>
+        <div className="setrow"><div className="lbl">ตรวจไฟล์ต้นทางก่อนห่อเป็น MKV<span className="small"><Phr>ถ้าไฟล์เสียอยู่แล้วจะบอกก่อนลงมือ</Phr></span></div>
+          <Switch on={settings.checkSourceBefore} onChange={(v) => set({ checkSourceBefore: v })} label="ตรวจไฟล์ต้นทางก่อนห่อเป็น MKV" /></div>
+        <div className="setrow"><div className="lbl">ตรวจไฟล์ใหม่หลังห่อเป็น MKV<span className="small"><Phr>เทียบว่าภาพ เสียง และซับครบเท่าต้นทาง</Phr></span></div>
+          <Switch on={settings.checkOutputAfter} onChange={(v) => set({ checkOutputAfter: v })} label="ตรวจไฟล์ใหม่หลังห่อเป็น MKV" /></div>
         <div className="setrow" data-seg260><div className="lbl">ไฟล์ที่ได้</div>
           <Seg label="ไฟล์ที่ได้" value={settings.outputFormat} onChange={(v) => set({ outputFormat: v })} options={[{ value: "mkv", label: "MKV" }, { value: "mp4", label: "MP4" }]} /></div>
-        <div className="setrow" data-seg260><div className="lbl">ไฟล์เดิมหลังครอบ</div>
-          <Seg label="ไฟล์เดิมหลังครอบ" value={settings.originalAfter} onChange={(v) => set({ originalAfter: v })} options={[{ value: "keep", label: <><IbTick size={14} />เก็บไว้</> }, { value: "trash", label: <><IbTrash size={14} />ลบเมื่อตรวจผ่าน</> }]} /></div>
+        <div className="setrow" data-seg260><div className="lbl">ไฟล์เดิมหลังห่อเป็น MKV</div>
+          <Seg label="ไฟล์เดิมหลังห่อเป็น MKV" value={settings.originalAfter} onChange={(v) => set({ originalAfter: v })} options={[{ value: "keep", label: <><IbTick size={14} />เก็บไว้</> }, { value: "trash", label: <><IbTrash size={14} />ลบเมื่อตรวจผ่าน</> }]} /></div>
         <div className="setrow"><div className="lbl">โฟลเดอร์เก็บไฟล์เดิม
           <span className="small" style={{ wordBreak: "break-all" }} data-originals>{settings.originalsFolder || <Phr>ข้างไฟล์หนังในโฟลเดอร์ชื่อ “ไฟล์เดิม”</Phr>}</span>
           <span className="small"><Phr>โฟลเดอร์นี้ต้องอยู่ไดรฟ์เดียวกับไฟล์หนัง ถ้าอยู่คนละไดรฟ์จะใช้โฟลเดอร์ “ไฟล์เดิม” ข้างไฟล์หนังแทน</Phr></span></div>

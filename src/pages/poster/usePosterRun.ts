@@ -36,11 +36,11 @@ export function usePosterRun(c: Po1) {
     }, 120);
     return () => clearTimeout(t);
   }, [moviePath, mode, output, newStem, run.state]);
-  // ที่ว่างในโฟลเดอร์ของหนัง · สูตรเดียวกับ poster.rs เปลี่ยนรูปแนบ MKV ใช้สองเท่าของรูปบวก 16 MB ครอบใหม่ใช้ขนาดหนังบวกรูปบวก 64 MB ไม่พอเตือนข้างปุ่มก่อนกด (BUGS ข้อ 94)
+  // ที่ว่างในโฟลเดอร์ของหนัง · สูตรเดียวกับ poster.rs เปลี่ยนรูปแนบ MKV ใช้สองเท่าของรูปบวก 16 MB ห่อเป็น MKV ใหม่ใช้ขนาดหนังบวกรูปบวก 64 MB ไม่พอเตือนข้างปุ่มก่อนกด (BUGS ข้อ 94)
   const posterFree = useFree(moviePath);
   const pBytes = choice?.render.bytes ?? 0;
   const posterShort = movie && choice ? spaceShort(posterFree, mode === "cover" ? pBytes * 2 + 16 * 1024 * 1024 : movie.size + pBytes + 64 * 1024 * 1024) : null;
-  const startLabel = output === "mp4" ? "ส่งออกเป็น MP4 พร้อมโปสเตอร์" : isMkv ? (inLib?.hasCover ? "เปลี่ยนโปสเตอร์" : "ใส่โปสเตอร์ลงไฟล์นี้") : "ครอบเป็น MKV พร้อมโปสเตอร์";
+  const startLabel = output === "mp4" ? "ส่งออกเป็น MP4 พร้อมโปสเตอร์" : isMkv ? (inLib?.hasCover ? "เปลี่ยนโปสเตอร์" : "ใส่โปสเตอร์ลงไฟล์นี้") : "ห่อเป็น MKV พร้อมโปสเตอร์";
   // rendering ประกาศก่อน blocked ปุ่มเริ่มต้องรอรูปแบบใหม่ที่เลือกบนการ์ด (AUDIT ข้อ 43 · เดิมกดเริ่มระหว่างทำรูปได้ ไฟล์ได้รูปแบบเก่า)
   const [rendering, setRendering] = useState(false);
   const blocked = !movie ? "ยังกดไม่ได้ ใส่ไฟล์หนังก่อน"

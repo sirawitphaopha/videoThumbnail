@@ -23,7 +23,7 @@ export const SHELF_LABEL: Record<Kind, string> = {
   ok: "ไฟล์สมบูรณ์",
   warn: "ควรตรวจ (ยังไม่เคยตรวจ ไฟล์เปลี่ยนไป หรือถึงเวลาตรวจซ้ำ)",
   bad: "ไฟล์เสียหาย",
-  info: "ยังไม่ได้ครอบเป็น MKV",
+  info: "ยังไม่ได้ห่อเป็น MKV",
 };
 
 /** ป้ายของจุดสีบนปกแต่ละเรื่อง จุดเหลืองบอกเหตุของเรื่องนั้น (AUDIT ข้อ 61 · เดิมทุกเรื่องขึ้นว่ายังไม่เคยตรวจหรือไฟล์เปลี่ยน ทั้งที่บางเรื่องแค่ถึงเวลาตรวจซ้ำ) */
@@ -37,7 +37,7 @@ export function labelOf(m: Movie, reminderDays: number): string {
 }
 
 /** คำในตาราง */
-export const TABLE_LABEL: Record<Kind, string> = { ok: "สมบูรณ์", warn: "ควรตรวจ", bad: "เสียหาย", info: "ยังไม่ได้ครอบ" };
+export const TABLE_LABEL: Record<Kind, string> = { ok: "สมบูรณ์", warn: "ควรตรวจ", bad: "เสียหาย", info: "ยังไม่ได้ห่อ MKV" };
 
 /** ลำดับ สภาพไฟล์ ที่เสียขึ้นก่อน */
 export const KIND_ORDER: Record<Kind, number> = { bad: 0, warn: 1, info: 2, ok: 3 };

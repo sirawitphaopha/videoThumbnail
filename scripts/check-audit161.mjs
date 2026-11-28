@@ -300,7 +300,7 @@ T[82] = async (p, check) => {
 };
 T[83] = async (p, check) => {
   await nav(p, "ตั้งค่า"); await p.waitForSelector("[data-setnav=poster]"); await click(p, "[data-setnav=poster]"); await wait(p, 300);
-  await click(p, "[role=switch][aria-label='ตรวจไฟล์ใหม่หลังครอบเสร็จ']"); await wait(p, 300);
+  await click(p, "[role=switch][aria-label='ตรวจไฟล์ใหม่หลังห่อเป็น MKV']"); await wait(p, 300);
   await avMovie(p);
   await clickText(p, "ลบไฟล์เดิมหลังตรวจผ่าน", "[role=radio]"); await wait(p, 200);
   await clickText(p, "รวมเข้าไฟล์หนัง"); await wait(p, 400);

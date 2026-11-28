@@ -70,7 +70,7 @@ export default function DevParts() {
         </div>
         <div className="chk" role="checkbox" aria-checked={chk} tabIndex={0} onClick={() => setChk(!chk)} onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); setChk(!chk); } }}>
           <span className={"box" + (chk ? " on" : "")}>{chk && <svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3.5"><path d="M5 12.5l4.5 4.5L19 7.5" /></svg>}</span>
-          ตรวจไฟล์ต้นทางก่อนครอบ
+          ตรวจไฟล์ต้นทางก่อนห่อเป็น MKV
         </div>
         {(["keep", "trash"] as const).map((v) => (
           <div key={v} className="chk" role="radio" aria-checked={radio === v} tabIndex={0} onClick={() => setRadio(v)} onKeyDown={(e) => { if (e.key === " " || e.key === "Enter") { e.preventDefault(); setRadio(v); } }}>
@@ -83,10 +83,10 @@ export default function DevParts() {
         <div className="stat ok"><StatIcon kind="ok" /><div><b>ไฟล์สมบูรณ์</b>ไม่พบภาพหรือเสียงเสีย</div></div>
         <div className="stat bad"><StatIcon kind="bad" /><div><b>ไฟล์เสียหาย</b>ภาพเสียช่วงนาที 1:12:30 ถึง 1:12:41</div></div>
         <div className="stat warn"><StatIcon kind="warn" /><div><b>ยังไม่เคยตรวจไฟล์นี้</b>ตรวจแบบเร็วใช้เวลาไม่กี่วินาที</div></div>
-        <div className="stat info"><StatIcon kind="info" /><div><b>ยังไม่ได้ครอบเป็น MKV</b>ภาพและเสียงไม่ถูกแปลงใหม่</div></div>
+        <div className="stat info"><StatIcon kind="info" /><div><b>ยังไม่ได้ห่อเป็น MKV</b>ภาพและเสียงไม่ถูกแปลงใหม่</div></div>
         <div style={{ display: "flex", gap: 8, flexWrap: "wrap", alignItems: "flex-start", alignContent: "flex-start" }}>
           <span className="pill p-ok">สมบูรณ์</span><span className="pill p-bad">เสียหาย</span>
-          <span className="pill p-warn">ควรตรวจ</span><span className="pill p-info">ยังไม่ได้ครอบ</span>
+          <span className="pill p-warn">ควรตรวจ</span><span className="pill p-info">ยังไม่ได้ห่อ MKV</span>
         </div>
         <div className="bar" style={{ alignSelf: "center" }}><i style={{ width: "64%" }} /></div>
         <div style={{ display: "flex", gap: 10, alignItems: "flex-end" }} data-part="skel">

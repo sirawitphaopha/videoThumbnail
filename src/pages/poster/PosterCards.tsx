@@ -118,7 +118,7 @@ export default function PosterCards({ pg }: { pg: PoCtx }) {
               </div>
               <div className="small rescap pcap" style={{ minWidth: 0 }}><div>
                 ตัวอย่างหน้าตาบนชั้นวางของโปรแกรมนี้<br />
-                {movie ? (mode === "cover" ? <>ไฟล์เดิม<br /><b style={{ color: "var(--txt)", wordBreak: "break-word" }}><Phr>{newName}</Phr></b><br /><b style={{ color: "var(--txt)" }}><Phr>ไฟล์เป็น MKV อยู่แล้ว เปลี่ยนแค่รูปแนบ ไม่ต้องครอบใหม่</Phr></b></>
+                {movie ? (mode === "cover" ? <>ไฟล์เดิม<br /><b style={{ color: "var(--txt)", wordBreak: "break-word" }}><Phr>{newName}</Phr></b><br /><b style={{ color: "var(--txt)" }}><Phr>ไฟล์เป็น MKV อยู่แล้ว เปลี่ยนแค่รูปแนบ ไม่ต้องห่อเป็น MKV ใหม่</Phr></b></>
                   : <>ไฟล์ใหม่ ตั้งชื่อได้
                     <div data-newname><ThaiInput value={newStem} onChange={setTyped} label={"ชื่อไฟล์ใหม่ ไม่รวมนามสกุล " + newExt} suffix={newExt} err={!!nameProblem} readOnly={working} describedBy="newname-hint" /></div>
                     {nameProblem

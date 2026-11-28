@@ -65,8 +65,8 @@ await c.evaluate("document.querySelector('[data-settingsscroll]').scrollTop = 0"
 
 /* ---------- 2 ทุกค่ามีผลทันที เก็บลงไฟล์ โหลดใหม่ยังอยู่ ---------- */
 await pressSwitch("อ่านโฟลเดอร์ใหม่ทุกครั้งที่เปิดโปรแกรม");
-await pressSwitch("ตรวจไฟล์ต้นทางก่อนครอบ");
-await pressSwitch("ตรวจไฟล์ใหม่หลังครอบเสร็จ");
+await pressSwitch("ตรวจไฟล์ต้นทางก่อนห่อเป็น MKV");
+await pressSwitch("ตรวจไฟล์ใหม่หลังห่อเป็น MKV");
 await pressText("poster", "MP4");
 await pressText("poster", "ลบเมื่อตรวจผ่าน");
 await pressText("poster", "PNG");

@@ -161,7 +161,7 @@ if (c) {
   check("ตัวที่ติดตั้ง อ่านโฟลเดอร์หนังขึ้นชั้น ปกโหลดได้ภายใต้กติกาความปลอดภัยของตัวจริง", shelfOk, await q("return [...document.querySelectorAll('.book[data-movie]')].map((b) => b.dataset.movie).join(' · ')"));
   await c.shot(`${OUT}/01-ตัวที่ติดตั้ง-ชั้นวาง.png`, null, 0);
 
-  // ปิดโปรแกรมระหว่างครอบไฟล์ใหญ่ (ผู้ช่วยตรวจโค้ดข้อ 2) · เดิมปิดทันที ไฟล์ .partial ค้าง · ตอนนี้ต้องรองานลบไฟล์ที่ทำค้างก่อนปิด
+  // ปิดโปรแกรมระหว่างห่อเป็น MKV ไฟล์ใหญ่ (ผู้ช่วยตรวจโค้ดข้อ 2) · เดิมปิดทันที ไฟล์ .partial ค้าง · ตอนนี้ต้องรองานลบไฟล์ที่ทำค้างก่อนปิด
   // ไฟล์ใหญ่ราว 1.6 GB ต่อจากคลิปเดิมแบบไม่แปลงใหม่ (แบบตัวเทสขั้น 4) · สั่งปิดผ่านคำสั่งเดียวกับปุ่ม หยุดงานแล้วปิดโปรแกรม
   const big = join(MOVIES, "หนังยาว (2020).mp4");
   const list = join(TMP, "__list-install.txt");
@@ -185,7 +185,7 @@ if (c) {
   let closed = false;
   for (let i = 0; i < 60 && !closed; i++) { await sleep(500); closed = !running(); }
   const closeSecs = ((Date.now() - tClose) / 1000).toFixed(1);
-  check("กด หยุดงานแล้วปิดโปรแกรม ระหว่างครอบไฟล์ 1.6 GB · โปรแกรมรองานหยุดแล้วปิดเอง ไฟล์ที่ทำค้างถูกลบ ไม่มีไฟล์ใหม่ ไฟล์เดิม hash เท่าเดิม",
+  check("กด หยุดงานแล้วปิดโปรแกรม ระหว่างห่อเป็น MKV ไฟล์ 1.6 GB · โปรแกรมรองานหยุดแล้วปิดเอง ไฟล์ที่ทำค้างถูกลบ ไม่มีไฟล์ใหม่ ไฟล์เดิม hash เท่าเดิม",
     sawPartial && closed && partials().length === 0 && !existsSync(join(MOVIES, "หนังยาว (2020).mkv")) && fileSha(big) === bigSha,
     `เห็น .partial ก่อนปิด ${sawPartial} · ${applyNote} · ปิดเองใน ${closeSecs} วินาที ${closed} · .partial ที่เหลือ ${partials().length}`);
   await c.close?.();

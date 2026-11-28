@@ -7,7 +7,7 @@
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@400;500;600;700&display=swap" rel="stylesheet">
 <!--
-  มอคอัปโปรแกรม "ชั้นหนัง" (ชื่อชั่วคราว) — โปรแกรมบนคอม Windows สำหรับครอบโปสเตอร์หนังเข้าไฟล์ MKV
+  มอคอัปโปรแกรม "ชั้นหนัง" (ชื่อชั่วคราว) — โปรแกรมบนคอม Windows สำหรับใส่โปสเตอร์หนังเข้าไฟล์ MKV
   กรอบหน้าต่างทุกจอกว้าง 1200px = ขนาดหน้าต่างโปรแกรมจริงบนจอคอม 1920 px
   ข้อมูลในมอคอัปเป็นของสมมติทั้งหมด ชื่อหนังแต่งขึ้นเอง โปสเตอร์วาดด้วยสีไล่เฉด
 -->
@@ -331,7 +331,7 @@ button:focus-visible,[role=option]:focus-visible{outline:2px solid var(--accent-
 <div class="page">
 
 <h1>มอคอัปโปรแกรม "ชั้นหนัง"</h1>
-<p class="lead">โปรแกรมบนคอม Windows สำหรับครอบโปสเตอร์เข้าไปในไฟล์หนังแบบ MKV จัดหนังขึ้นชั้นให้เห็นเป็นปก และตรวจว่าไฟล์เสียหายหรือเปล่า</p>
+<p class="lead">โปรแกรมบนคอม Windows สำหรับใส่โปสเตอร์เข้าไปในไฟล์หนังแบบ MKV จัดหนังขึ้นชั้นให้เห็นเป็นปก และตรวจว่าไฟล์เสียหายหรือเปล่า</p>
 <p class="lead">ชื่อโปรแกรม ชื่อหนัง และโปสเตอร์ในหน้านี้เป็นของสมมติ · ทุกหน้าและทุกสถานะวางเรียงลงมาให้เห็นครบโดยไม่ต้องกดอะไร · เอาเมาส์ชี้ปุ่มหรือปกหนังเพื่อดูอาการตอนชี้ได้</p>
 <p class="lead">เรียงในหน้านี้ · หน้า 1 ชั้นวางหนัง · เปลี่ยนชื่อไฟล์ · แถบเมนูย่อได้ · สลับมุมมองและขนาดปก · ค้นหา เรียงลำดับ อ่านโฟลเดอร์ · ข้อมูลไฟล์และแยกไฟล์ · หน้า 2 ใส่โปสเตอร์ · ลากวางและไฟล์ไม่ตรงเงื่อนไข · ยืนยันลบไฟล์เดิม · หน้า 3 ตรวจไฟล์ · ผลตรวจ · หน้า 4 ตั้งค่า · ชั้นว่าง · เบื้องหลัง · ไฟล์ที่รองรับ</p>
 
@@ -369,7 +369,7 @@ button:focus-visible,[role=option]:focus-visible{outline:2px solid var(--accent-
               <span><i style="background:var(--ok)"></i>ไฟล์สมบูรณ์</span>
               <span><i style="background:var(--warn)"></i>ควรตรวจ (ยังไม่เคยตรวจ หรือไฟล์เปลี่ยนไป)</span>
               <span><i style="background:var(--bad)"></i>ไฟล์เสียหาย</span>
-              <span><i style="background:var(--info)"></i>ยังไม่ได้ครอบเป็น MKV</span>
+              <span><i style="background:var(--info)"></i>ยังไม่ได้ห่อเป็น MKV</span>
             </div>
 
             <div class="shelf">
@@ -418,9 +418,9 @@ button:focus-visible,[role=option]:focus-visible{outline:2px solid var(--accent-
 
   <p class="note" style="margin-top:18px">แผงขวาเปลี่ยนตามปกที่กด<br>ข้างล่างคือส่วนบอกสภาพไฟล์ในแผงขวา ตอนกดหนังเรื่องอื่นที่สภาพต่างกัน</p>
   <div class="strip" style="grid-template-columns:repeat(3,1fr)">
-    <div class="mini"><div class="cap">กดเรื่องที่ยังไม่ได้ครอบ (ไฟล์ .mp4)</div>
-      <div class="stat info"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></svg><div><b>ยังไม่ได้ครอบเป็น MKV</b>ไฟล์นี้เป็น MP4 ใส่โปสเตอร์ได้หลังครอบเป็น MKV<br>ภาพและเสียงไม่ถูกแปลงใหม่ คุณภาพเท่าเดิม</div></div>
-      <div class="minirow"><button class="btn btn-main">ครอบเป็น MKV และใส่โปสเตอร์</button></div></div>
+    <div class="mini"><div class="cap">กดเรื่องที่ยังไม่ได้ห่อเป็น MKV (ไฟล์ .mp4)</div>
+      <div class="stat info"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><circle cx="12" cy="12" r="9"/><path d="M12 11v6M12 7.5h.01"/></svg><div><b>ยังไม่ได้ห่อเป็น MKV</b>ไฟล์นี้เป็น MP4 ใส่โปสเตอร์ได้หลังห่อเป็น MKV<br>ภาพและเสียงไม่ถูกแปลงใหม่ คุณภาพเท่าเดิม</div></div>
+      <div class="minirow"><button class="btn btn-main">ห่อเป็น MKV และใส่โปสเตอร์</button></div></div>
     <div class="mini"><div class="cap">กดเรื่องที่ตรวจแล้วเจอที่เสีย</div>
       <div class="stat bad"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 3l9.5 17h-19z"/><path d="M12 10v4.5M12 17.5h.01"/></svg><div><b>ไฟล์เสียหาย</b>ภาพเสียช่วงนาที <span class="nw">1:12:30 ถึง 1:12:41</span><br>ไฟล์น่าจะโหลดมาไม่ครบ ควรโหลดใหม่</div></div>
       <div class="minirow"><button class="btn btn-ghost">ดูรายละเอียดผลตรวจ</button><button class="btn btn-ghost">ตรวจซ้ำ</button></div></div>
@@ -530,7 +530,7 @@ button:focus-visible,[role=option]:focus-visible{outline:2px solid var(--accent-
         <div class="content">
           <div class="shelfwrap" style="padding:18px">
             <div class="shelfhead" style="margin-bottom:12px"><b>หนังทั้งหมด <span class="nw">10 เรื่อง</span></b><div style="display:flex;gap:10px;align-items:center"><div class="seg sm" role="group" aria-label="มุมมอง"><button class=""><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><rect x="4" y="4" width="6" height="7" rx="1"/><rect x="14" y="4" width="6" height="7" rx="1"/><rect x="4" y="14" width="6" height="7" rx="1"/><rect x="14" y="14" width="6" height="7" rx="1"/></svg>ภาพปก</button><button class="on"><svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M9 6h11M9 12h11M9 18h11"/><rect x="3.5" y="4.5" width="3" height="3" rx=".6"/><rect x="3.5" y="10.5" width="3" height="3" rx=".6"/><rect x="3.5" y="16.5" width="3" height="3" rx=".6"/></svg>ตาราง</button></div><div class="seg sm seg-off" role="group" aria-label="ขนาดปก" title="ขนาดปกใช้ได้ตอนดูแบบภาพปก"><button>เล็ก</button><button>กลาง</button><button>ใหญ่</button></div></div></div>
-            <div class="tblwrap"><table class="lv"><thead><tr><th style="width:50px">ปก</th><th>ชื่อไฟล์<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="vertical-align:-1px;margin-left:4px"><path d="M6 15l6-6 6 6"/></svg></th><th style="width:80px">ขนาด</th><th style="width:120px">Video</th><th style="width:150px">Audio</th><th style="width:120px">สภาพไฟล์</th></tr></thead><tbody><tr class="sel"><td><span class="th" style="background:linear-gradient(170deg,#8fa8d8,#6f7fb8)"></span></td><td>ดาวเหนือ (2023).mkv</td><td><span class="nw">4.21 GB</span></td><td>AVC 1080p</td><td>AC-3 5.1 · AAC 2.0</td><td style="white-space:nowrap"><span class="dot" style="background:var(--ok)"></span>สมบูรณ์</td></tr><tr><td><span class="th" style="background:linear-gradient(170deg,#f2a08f,#c96f86)"></span></td><td>Harbor Lights (2021).mkv</td><td><span class="nw">3.05 GB</span></td><td>AVC 1080p</td><td>AAC 2.0</td><td style="white-space:nowrap"><span class="dot" style="background:var(--ok)"></span>สมบูรณ์</td></tr><tr><td><span class="th" style="background:linear-gradient(170deg,#b9c4cf,#7f8ea0)"></span></td><td>เมืองในหมอก (2019).mkv</td><td><span class="nw">3.40 GB</span></td><td>HEVC 2160p HDR</td><td>E-AC-3 5.1</td><td style="white-space:nowrap"><span class="dot" style="background:var(--warn)"></span>ควรตรวจ</td></tr><tr><td><span class="th" style="border:1.5px dashed #eeb3c8;background:#fff"></span></td><td>The Last Orchard (2022).mp4</td><td><span class="nw">3.62 GB</span></td><td>AVC 1080p</td><td>AAC 2.0</td><td style="white-space:nowrap"><span class="dot" style="background:var(--info)"></span>ยังไม่ได้ครอบ</td></tr><tr><td><span class="th" style="background:linear-gradient(170deg,#93cfb0,#5e9c80)"></span></td><td>ลมหนาวที่เชียงดาว (2020).mkv</td><td><span class="nw">2.71 GB</span></td><td>AVC 720p</td><td>AAC 2.0</td><td style="white-space:nowrap"><span class="dot" style="background:var(--ok)"></span>สมบูรณ์</td></tr><tr><td><span class="th" style="background:linear-gradient(170deg,#fbe6c8,#e3b98f)"></span></td><td>Paper Moons (2018).mkv</td><td><span class="nw">2.94 GB</span></td><td>AVC 1080p</td><td>AC-3 5.1</td><td style="white-space:nowrap"><span class="dot" style="background:var(--warn)"></span>ควรตรวจ</td></tr><tr><td><span class="th" style="background:linear-gradient(170deg,#a39bc0,#6f6690)"></span></td><td>Iron Tide (2024).mkv</td><td><span class="nw">5.08 GB</span></td><td>HEVC 2160p</td><td>TrueHD 7.1 · AC-3 5.1</td><td style="white-space:nowrap"><span class="dot" style="background:var(--bad)"></span>เสียหาย</td></tr><tr><td><span class="th" style="background:linear-gradient(170deg,#f5c98a,#d0956a)"></span></td><td>บ้านริมคลอง (2017).mkv</td><td><span class="nw">2.20 GB</span></td><td>AVC 1080p</td><td>AAC 2.0</td><td style="white-space:nowrap"><span class="dot" style="background:var(--ok)"></span>สมบูรณ์</td></tr><tr><td><span class="th" style="background:linear-gradient(170deg,#c6a3e0,#8d6bb5)"></span></td><td>Silent Atlas (2016).mkv</td><td><span class="nw">2.12 GB</span></td><td>AVC 1080p</td><td>DTS 5.1</td><td style="white-space:nowrap"><span class="dot" style="background:var(--warn)"></span>ควรตรวจ</td></tr><tr><td><span class="th" style="background:linear-gradient(170deg,#a8d8ea,#6aa5c2)"></span></td><td>ฝนแรก (2025).mkv</td><td><span class="nw">3.88 GB</span></td><td>AV1 1080p</td><td>Opus 5.1</td><td style="white-space:nowrap"><span class="dot" style="background:var(--ok)"></span>สมบูรณ์</td></tr></tbody></table></div>
+            <div class="tblwrap"><table class="lv"><thead><tr><th style="width:50px">ปก</th><th>ชื่อไฟล์<svg width="11" height="11" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="3" style="vertical-align:-1px;margin-left:4px"><path d="M6 15l6-6 6 6"/></svg></th><th style="width:80px">ขนาด</th><th style="width:120px">Video</th><th style="width:150px">Audio</th><th style="width:120px">สภาพไฟล์</th></tr></thead><tbody><tr class="sel"><td><span class="th" style="background:linear-gradient(170deg,#8fa8d8,#6f7fb8)"></span></td><td>ดาวเหนือ (2023).mkv</td><td><span class="nw">4.21 GB</span></td><td>AVC 1080p</td><td>AC-3 5.1 · AAC 2.0</td><td style="white-space:nowrap"><span class="dot" style="background:var(--ok)"></span>สมบูรณ์</td></tr><tr><td><span class="th" style="background:linear-gradient(170deg,#f2a08f,#c96f86)"></span></td><td>Harbor Lights (2021).mkv</td><td><span class="nw">3.05 GB</span></td><td>AVC 1080p</td><td>AAC 2.0</td><td style="white-space:nowrap"><span class="dot" style="background:var(--ok)"></span>สมบูรณ์</td></tr><tr><td><span class="th" style="background:linear-gradient(170deg,#b9c4cf,#7f8ea0)"></span></td><td>เมืองในหมอก (2019).mkv</td><td><span class="nw">3.40 GB</span></td><td>HEVC 2160p HDR</td><td>E-AC-3 5.1</td><td style="white-space:nowrap"><span class="dot" style="background:var(--warn)"></span>ควรตรวจ</td></tr><tr><td><span class="th" style="border:1.5px dashed #eeb3c8;background:#fff"></span></td><td>The Last Orchard (2022).mp4</td><td><span class="nw">3.62 GB</span></td><td>AVC 1080p</td><td>AAC 2.0</td><td style="white-space:nowrap"><span class="dot" style="background:var(--info)"></span>ยังไม่ได้ห่อ MKV</td></tr><tr><td><span class="th" style="background:linear-gradient(170deg,#93cfb0,#5e9c80)"></span></td><td>ลมหนาวที่เชียงดาว (2020).mkv</td><td><span class="nw">2.71 GB</span></td><td>AVC 720p</td><td>AAC 2.0</td><td style="white-space:nowrap"><span class="dot" style="background:var(--ok)"></span>สมบูรณ์</td></tr><tr><td><span class="th" style="background:linear-gradient(170deg,#fbe6c8,#e3b98f)"></span></td><td>Paper Moons (2018).mkv</td><td><span class="nw">2.94 GB</span></td><td>AVC 1080p</td><td>AC-3 5.1</td><td style="white-space:nowrap"><span class="dot" style="background:var(--warn)"></span>ควรตรวจ</td></tr><tr><td><span class="th" style="background:linear-gradient(170deg,#a39bc0,#6f6690)"></span></td><td>Iron Tide (2024).mkv</td><td><span class="nw">5.08 GB</span></td><td>HEVC 2160p</td><td>TrueHD 7.1 · AC-3 5.1</td><td style="white-space:nowrap"><span class="dot" style="background:var(--bad)"></span>เสียหาย</td></tr><tr><td><span class="th" style="background:linear-gradient(170deg,#f5c98a,#d0956a)"></span></td><td>บ้านริมคลอง (2017).mkv</td><td><span class="nw">2.20 GB</span></td><td>AVC 1080p</td><td>AAC 2.0</td><td style="white-space:nowrap"><span class="dot" style="background:var(--ok)"></span>สมบูรณ์</td></tr><tr><td><span class="th" style="background:linear-gradient(170deg,#c6a3e0,#8d6bb5)"></span></td><td>Silent Atlas (2016).mkv</td><td><span class="nw">2.12 GB</span></td><td>AVC 1080p</td><td>DTS 5.1</td><td style="white-space:nowrap"><span class="dot" style="background:var(--warn)"></span>ควรตรวจ</td></tr><tr><td><span class="th" style="background:linear-gradient(170deg,#a8d8ea,#6aa5c2)"></span></td><td>ฝนแรก (2025).mkv</td><td><span class="nw">3.88 GB</span></td><td>AV1 1080p</td><td>Opus 5.1</td><td style="white-space:nowrap"><span class="dot" style="background:var(--ok)"></span>สมบูรณ์</td></tr></tbody></table></div>
           </div>
           <aside class="detail">
             <div class="dposter" style="background:linear-gradient(170deg,#8fa8d8 0%,#6f7fb8 60%,#f3b6c9 140%)"><div class="ttl">ดาวเหนือ</div><div style="color:rgba(255,255,255,.8);font-size:13px">2023</div></div>
@@ -728,7 +728,7 @@ button:focus-visible,[role=option]:focus-visible{outline:2px solid var(--accent-
 <!-- ==================== หน้า 2 ใส่โปสเตอร์ ==================== -->
 <div class="sec">
   <h2><span class="tag">หน้า 2</span>ใส่โปสเตอร์</h2>
-  <p class="note">ลากไฟล์หนังกับรูปโปสเตอร์มาวาง แล้วกดปุ่มเดียว<br>ไฟล์ MP4 จะถูกครอบเป็น MKV ให้เองโดยไม่แปลงภาพและเสียงใหม่ จึงเสร็จในไม่กี่วินาที</p>
+  <p class="note">ลากไฟล์หนังกับรูปโปสเตอร์มาวาง แล้วกดปุ่มเดียว<br>ไฟล์ MP4 จะถูกห่อเป็น MKV ให้เองโดยไม่แปลงภาพและเสียงใหม่ จึงเสร็จในไม่กี่วินาที</p>
 
   <div class="win">
     <div class="titlebar"><span>ชั้นหนัง</span><div class="ctl">
@@ -770,8 +770,8 @@ button:focus-visible,[role=option]:focus-visible{outline:2px solid var(--accent-
           <div class="card"><h3>ตัวเลือก</h3>
             <div style="display:grid;grid-template-columns:1fr 1fr;gap:20px">
               <div class="opts">
-                <label class="chk"><span class="box on"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span>ตรวจไฟล์ต้นทางก่อนครอบ<br><span class="small">ถ้าไฟล์เสียอยู่แล้ว จะบอกก่อนลงมือ</span></span></label>
-                <label class="chk"><span class="box on"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span>ตรวจไฟล์ใหม่หลังครอบเสร็จ<br><span class="small">เทียบว่าภาพ เสียง ซับ ครบเท่าต้นทาง</span></span></label>
+                <label class="chk"><span class="box on"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span>ตรวจไฟล์ต้นทางก่อนห่อเป็น MKV<br><span class="small">ถ้าไฟล์เสียอยู่แล้ว จะบอกก่อนลงมือ</span></span></label>
+                <label class="chk"><span class="box on"><svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="#fff" stroke-width="4"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg></span><span>ตรวจไฟล์ใหม่หลังห่อเป็น MKV<br><span class="small">เทียบว่าภาพ เสียง ซับ ครบเท่าต้นทาง</span></span></label>
               </div>
               <div class="opts">
                 <label class="chk"><span class="radio on"></span><span>เก็บไฟล์เดิมไว้ ย้ายไปโฟลเดอร์ "ไฟล์เดิม"<br><span class="small">ปลอดภัยที่สุด แต่ใช้พื้นที่เพิ่ม <span class="nw">3.62 GB</span></span></span></label>
@@ -789,7 +789,7 @@ button:focus-visible,[role=option]:focus-visible{outline:2px solid var(--accent-
 
           <div style="display:flex;justify-content:flex-end;gap:10px">
             <button class="btn btn-ghost" style="height:44px">ล้างทั้งหมด</button>
-            <button class="btn btn-main" style="height:44px;padding:0 26px;font-size:15px">ครอบเป็น MKV พร้อมโปสเตอร์</button>
+            <button class="btn btn-main" style="height:44px;padding:0 26px;font-size:15px">ห่อเป็น MKV พร้อมโปสเตอร์</button>
           </div>
         </div>
       </div>
@@ -800,15 +800,15 @@ button:focus-visible,[role=option]:focus-visible{outline:2px solid var(--accent-
   <div class="states">
     <div class="st"><div class="cap">ยังไม่ได้ใส่รูปโปสเตอร์</div>
       <div class="drop"><svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#c99aad" stroke-width="2"><path d="M12 16V4M7 9l5-5 5 5M4 20h16"/></svg>ลากรูปโปสเตอร์มาวางตรงนี้<br>JPG หรือ PNG</div>
-      <button class="btn btn-wait">ครอบเป็น MKV พร้อมโปสเตอร์</button>
+      <button class="btn btn-wait">ห่อเป็น MKV พร้อมโปสเตอร์</button>
       <div class="hint" style="color:#94680f;margin:0">ยังกดไม่ได้ ใส่รูปโปสเตอร์ก่อน</div></div>
     <div class="st"><div class="cap">กำลังทำงาน</div>
-      <div style="font-size:14px">กำลังครอบเป็น MKV</div>
+      <div style="font-size:14px">กำลังห่อเป็น MKV</div>
       <div class="bar"><i style="width:64%"></i></div>
       <div class="small">64% · เหลือราว <span class="nw">8 วินาที</span><br>ขั้นถัดไป ตรวจไฟล์ใหม่</div>
       <button class="btn btn-bad btn-sm" style="align-self:flex-start">หยุด</button></div>
     <div class="st"><div class="cap">เสร็จแล้ว</div>
-      <div class="stat ok"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><b>ครอบเสร็จ ไฟล์ใหม่ตรวจผ่าน</b>ภาพ 1 · เสียง 2 · ซับ 2<br>ครบเท่าต้นทาง</div></div>
+      <div class="stat ok"><svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M5 12.5l4.5 4.5L19 7.5"/></svg><div><b>ห่อเป็น MKV เสร็จ ไฟล์ใหม่ตรวจผ่าน</b>ภาพ 1 · เสียง 2 · ซับ 2<br>ครบเท่าต้นทาง</div></div>
       <div class="small">ไฟล์เดิมย้ายไปที่ D:\หนัง\ไฟล์เดิม</div>
       <button class="btn btn-ok btn-sm" style="align-self:flex-start">ไปดูบนชั้นวาง</button></div>
     <div class="st"><div class="cap">ทำไม่สำเร็จ</div>
@@ -840,9 +840,9 @@ button:focus-visible,[role=option]:focus-visible{outline:2px solid var(--accent-
         <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#c2547f" stroke-width="2.4"><path d="M5 12h14M13 6l6 6-6 6"/></svg>
         <div style="text-align:center"><div class="mc" style="background:linear-gradient(170deg,#f3b6c9,#c96f86);margin:0 auto">ดาวเหนือ</div><div class="small" style="margin-top:6px">ปกใหม่</div></div>
       </div>
-      <div class="hint" style="margin:0">ไฟล์หนังใส่ให้แล้ว เหลือแค่ลากรูปใหม่มาวาง<br>ไฟล์เป็น MKV อยู่แล้ว เปลี่ยนแค่รูปแนบ ไม่ต้องครอบใหม่</div></div>
+      <div class="hint" style="margin:0">ไฟล์หนังใส่ให้แล้ว เหลือแค่ลากรูปใหม่มาวาง<br>ไฟล์เป็น MKV อยู่แล้ว เปลี่ยนแค่รูปแนบ ไม่ต้องห่อเป็น MKV ใหม่</div></div>
     <div class="dlgstage"><div class="dlg">
-      <h4>ยืนยันหยุดครอบไฟล์</h4>
+      <h4>ยืนยันหยุดห่อเป็น MKV</h4>
       <div style="font-size:14px;line-height:1.6">ไฟล์ใหม่ที่ทำไปได้ 64% จะถูกลบทิ้ง ไฟล์เดิม The Last Orchard (2022).mp4 ไม่ถูกแตะ</div>
       <div class="acts"><button class="btn btn-ghost btn-sm">ทำต่อ</button><button class="btn btn-bad btn-sm">หยุด</button></div>
     </div></div>
@@ -1034,10 +1034,10 @@ button:focus-visible,[role=option]:focus-visible{outline:2px solid var(--accent-
           </div>
 
           <div class="setcard"><h3>ใส่โปสเตอร์</h3>
-            <div class="setrow"><div class="lbl">ตรวจไฟล์ต้นทางก่อนครอบ<span class="small">ไฟล์เสียอยู่แล้ว จะบอกก่อนลงมือ</span></div><button class="switch on" aria-label="ตรวจไฟล์ต้นทางก่อนครอบ เปิดอยู่"></button></div>
-            <div class="setrow"><div class="lbl">ตรวจไฟล์ใหม่หลังครอบเสร็จ<span class="small">เทียบว่าภาพ เสียง ซับ ครบเท่าต้นทาง</span></div><button class="switch on" aria-label="ตรวจไฟล์ใหม่หลังครอบเสร็จ เปิดอยู่"></button></div>
+            <div class="setrow"><div class="lbl">ตรวจไฟล์ต้นทางก่อนห่อเป็น MKV<span class="small">ไฟล์เสียอยู่แล้ว จะบอกก่อนลงมือ</span></div><button class="switch on" aria-label="ตรวจไฟล์ต้นทางก่อนห่อเป็น MKV เปิดอยู่"></button></div>
+            <div class="setrow"><div class="lbl">ตรวจไฟล์ใหม่หลังห่อเป็น MKV<span class="small">เทียบว่าภาพ เสียง ซับ ครบเท่าต้นทาง</span></div><button class="switch on" aria-label="ตรวจไฟล์ใหม่หลังห่อเป็น MKV เปิดอยู่"></button></div>
             <div class="setrow"><div class="lbl">ไฟล์ที่ได้</div><div class="seg"><button class="on">MKV</button><button>MP4</button></div></div>
-            <div class="setrow"><div class="lbl">ไฟล์เดิมหลังครอบ</div><div class="seg"><button class="on">เก็บไว้</button><button>ลบเมื่อตรวจผ่าน</button></div></div>
+            <div class="setrow"><div class="lbl">ไฟล์เดิมหลังห่อเป็น MKV</div><div class="seg"><button class="on">เก็บไว้</button><button>ลบเมื่อตรวจผ่าน</button></div></div>
             <div class="setrow"><div class="lbl">โฟลเดอร์เก็บไฟล์เดิม<span class="small">D:\หนัง\ไฟล์เดิม</span></div><button class="btn btn-ghost btn-sm">เปลี่ยน</button></div>
             <div class="setrow"><div class="lbl">รูปโปสเตอร์ที่แนบ<span class="small">ใช้กับรูปที่ต้องแปลง และรูปที่ครอป</span></div><div class="seg"><button class="on">JPG</button><button>PNG</button></div></div><div class="setrow" style="display:block"><div style="display:flex;align-items:center;gap:12px"><span style="font-size:14px;white-space:nowrap">คุณภาพ JPG</span><div class="range" role="slider" aria-label="คุณภาพ JPG" aria-valuenow="90"><i style="width:90%"></i><b style="left:90%"></b></div><span class="small" style="white-space:nowrap;min-width:36px;text-align:right">90%</span></div></div><div class="setrow"><div class="lbl">ย่อรูปโปสเตอร์ที่ใหญ่เกิน<span class="small">ย่อเหลือ <span class="nw">1000 × 1500 px</span> ไฟล์หนังไม่บวม</span></div><button class="switch on" aria-label="ย่อรูปโปสเตอร์ที่ใหญ่เกิน เปิดอยู่"></button></div>
           </div>
@@ -1060,7 +1060,7 @@ button:focus-visible,[role=option]:focus-visible{outline:2px solid var(--accent-
           </div>
 
           <div class="setcard"><h3>เครื่องมือเบื้องหลัง</h3>
-            <div class="setrow"><div class="lbl">mkvmerge<span class="small">ใช้ครอบ MKV และแนบโปสเตอร์</span></div><span class="toolok">พร้อมใช้งาน</span></div>
+            <div class="setrow"><div class="lbl">mkvmerge<span class="small">ใช้ห่อเป็น MKV และแนบโปสเตอร์</span></div><span class="toolok">พร้อมใช้งาน</span></div>
             <div class="setrow"><div class="lbl">ffmpeg<span class="small">ใช้ตรวจละเอียด</span></div><span class="toolok">พร้อมใช้งาน</span></div>
             <div class="setrow"><div class="lbl">Icaros<span class="small">ให้ Windows โชว์โปสเตอร์เป็นไอคอนไฟล์ ไม่ลงก็ใช้โปรแกรมนี้ได้ครบ</span></div><div style="display:flex;gap:8px;align-items:center"><span class="toolwarn">ยังไม่ได้ลง</span><button class="btn btn-ghost btn-sm">วิธีลง</button></div></div>
           </div>
@@ -1121,7 +1121,7 @@ button:focus-visible,[role=option]:focus-visible{outline:2px solid var(--accent-
   <h2>เบื้องหลังที่โปรแกรมทำ</h2>
   <div class="explain">
     <ol>
-      <li><b>ครอบเป็น MKV</b> ใช้เครื่องมือฟรี mkvmerge (ชุดเดียวกับ MKVToolNix) ห่อภาพ เสียง ซับ ของเดิมเข้ากล่อง MKV แล้วแนบรูปโปสเตอร์เป็นไฟล์แนบชื่อ cover.jpg · ไม่แปลงภาพใหม่ จึงเร็วและคุณภาพเท่าเดิม</li>
+      <li><b>ห่อเป็น MKV</b> ใช้เครื่องมือฟรี mkvmerge (ชุดเดียวกับ MKVToolNix) ห่อภาพ เสียง ซับ ของเดิมเข้ากล่อง MKV แล้วแนบรูปโปสเตอร์เป็นไฟล์แนบชื่อ cover.jpg · ไม่แปลงภาพใหม่ จึงเร็วและคุณภาพเท่าเดิม</li>
       <li><b>ส่งออกเป็น MP4</b> ใช้ ffmpeg ห่อภาพ เสียง ซับของเดิมเข้ากล่อง MP4 แล้วฝังรูปโปสเตอร์เป็นภาพปก · ไม่แปลงภาพใหม่เหมือนกัน · ซับหรือเสียงที่ MP4 รับไม่ได้ โปรแกรมบอกก่อนลงมือ</li>
       <li><b>ตรวจแบบเร็ว</b> อ่านโครงไฟล์ MKV ว่าครบ ไม่ขาดท้าย แล้วเทียบค่า hash แบบ SHA-256 (ค่าที่คำนวณจากเนื้อไฟล์ทั้งก้อน) กับที่โปรแกรมจดไว้ครั้งก่อน ถ้าไม่ตรง แปลว่าไฟล์ถูกแก้หรือเสียไป</li>
       <li><b>ตรวจละเอียด</b> ใช้ ffmpeg อ่านภาพและเสียงทุกช่วง ถ้าอ่านช่วงไหนไม่ได้ จะจดนาทีไว้ให้</li>
@@ -1140,7 +1140,7 @@ button:focus-visible,[role=option]:focus-visible{outline:2px solid var(--accent-
       <h3 class="sub" style="margin-top:0">ไฟล์หนังที่ใส่เข้ามา</h3>
       <table class="fmt">
         <tr><th>ชนิดไฟล์</th><th>ใช้ได้ไหม</th></tr>
-        <tr><td>MKV</td><td class="y">ได้ · เปลี่ยนแค่รูปแนบ ไม่ต้องครอบใหม่</td></tr>
+        <tr><td>MKV</td><td class="y">ได้ · เปลี่ยนแค่รูปแนบ ไม่ต้องห่อเป็น MKV ใหม่</td></tr>
         <tr><td>MP4 · M4V · MOV</td><td class="y">ได้</td></tr>
         <tr><td>AVI · WebM · FLV</td><td class="y">ได้</td></tr>
         <tr><td>TS · M2TS (ไฟล์จากกล่องทีวี และแผ่นบลูเรย์)</td><td class="y">ได้</td></tr>

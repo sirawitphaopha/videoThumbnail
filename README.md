@@ -101,7 +101,7 @@ node scripts/web-diff.mjs /ที่เก็บ/ภาพก่อน /ที�
 | โครงการ | รุ่น | ใช้ทำอะไรในชั้นหนัง | สัญญา | เว็บไซต์ |
 |---|---|---|---|---|
 | FFmpeg | 9.1 | ถอด แปลง ตรวจไฟล์เสีย อ่านเสียงมาวาดกราฟ และอ่านบิตเรตวิดีโอ · ชุดจาก gyan.dev · ไอคอนจาก Icons8 | GPLv3 | [ffmpeg.org](https://ffmpeg.org) |
-| MKVToolNix | 103.0 | ครอบ MKV แนบปก แยกแทร็ก | GPLv2 | [mkvtoolnix.download](https://mkvtoolnix.download) |
+| MKVToolNix | 103.0 | ห่อเป็น MKV แนบปก แยกแทร็ก | GPLv2 | [mkvtoolnix.download](https://mkvtoolnix.download) |
 | MediaInfo | 26.10 | รายละเอียดไฟล์ | BSD-2 | [mediaarea.net](https://mediaarea.net) |
 | FLAC | 1.5.0 | แปลงเสียง FLAC | GPLv2 · BSD | [xiph.org/flac](https://xiph.org/flac) |
 | LAME กับ libmpg123 | 4.0 | แปลงเสียง MP3 · ชุดจาก RareWares | LGPL | [lame.sourceforge.io](https://lame.sourceforge.io) |

@@ -62,7 +62,7 @@ export default function PosterDialogs({ pg }: { pg: PoCtx }) {
         <div style={{ fontSize: 14, lineHeight: 1.6 }}>ลบไฟล์เดิม <b>{movie ? baseName(movie.path) : ""}</b> <Phr>หลังตรวจไฟล์ใหม่ผ่าน</Phr><br /><Phr>กู้คืนได้จากถังขยะของ Windows จนกว่าจะล้างถังขยะ</Phr></div>
       </Dialog>
       {/* ยืนยันหยุด */}
-      <Dialog open={askStop} onClose={() => setAskStop(false)} title={runMode === "cover" ? "ยืนยันหยุดเปลี่ยนโปสเตอร์" : runMode === "mp4" ? "ยืนยันหยุดส่งออก MP4" : "ยืนยันหยุดครอบไฟล์"}
+      <Dialog open={askStop} onClose={() => setAskStop(false)} title={runMode === "cover" ? "ยืนยันหยุดเปลี่ยนโปสเตอร์" : runMode === "mp4" ? "ยืนยันหยุดส่งออก MP4" : "ยืนยันหยุดห่อเป็น MKV"}
         actions={<><button type="button" className="btn btn-ghost btn-sm" onClick={() => setAskStop(false)}><IbNext size={15} />ทำต่อ</button><button type="button" className="btn btn-bad btn-sm" onClick={() => { setAskStop(false); posterApi.cancel(); }}><IbStop size={15} />หยุด</button></>}>
         <div style={{ fontSize: 14, lineHeight: 1.6 }}>{runMode === "cover"
           ? <><Phr>ยังไม่ได้เปลี่ยนรูปแนบ หยุดตอนนี้</Phr> <Phr>{`ไฟล์เดิม ${movie ? baseName(movie.path) : ""} ไม่ถูกแตะ`}</Phr></>

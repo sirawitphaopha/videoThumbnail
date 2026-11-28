@@ -68,7 +68,7 @@ await c.evaluate("location.hash = ''; location.reload()");
 await sleep(1200);
 await waitScan();
 
-// =====================================================================  ① ครอบไฟล์อื่นเป็น MKV ทุกชนิด
+// =====================================================================  ① ห่อไฟล์อื่นเป็น MKV ทุกชนิด
 const wrapTypes = readdirSync(DIR).filter((f) => /\.(mp4|m4v|mov|avi|webm|ts|m2ts|mpg|mpeg|vob|flv)$/i.test(f));
 const wrapRows = [];
 for (const f of wrapTypes) {
@@ -88,8 +88,8 @@ for (const f of wrapTypes) {
   const keptOk = existsSync(kept) && sha(kept) === h0 && !existsSync(p);
   wrapRows.push({ f, ok: same && d <= 0.1 && cover && keptOk && res.r.verified, why: `แทร็ก ${same ? "เท่า" : "ไม่เท่า " + tracks(before) + " → " + tracks(after)} · ความยาวต่าง ${d.toFixed(3)} · ปก ${cover} · ไฟล์เดิม ${keptOk}` });
 }
-for (const r of wrapRows) check(`ครอบ ${r.f} เป็น MKV · แทร็กชนิดเดิมจำนวนเท่าเดิม ความยาวต่างไม่เกิน 0.1 วินาที ปก cover.jpg ตรงรูปที่ทำ ไฟล์เดิมอยู่ในไฟล์เดิม hash เท่าเดิม`, r.ok, r.why);
-check("ครอบครบทุกชนิดแล้วไม่มีไฟล์ชั่วคราว .partial ค้าง", partials().length === 0, partials().join(", ") || "ไม่มี");
+for (const r of wrapRows) check(`ห่อ ${r.f} เป็น MKV · แทร็กชนิดเดิมจำนวนเท่าเดิม ความยาวต่างไม่เกิน 0.1 วินาที ปก cover.jpg ตรงรูปที่ทำ ไฟล์เดิมอยู่ในไฟล์เดิม hash เท่าเดิม`, r.ok, r.why);
+check("ห่อเป็น MKV ครบทุกชนิดแล้วไม่มีไฟล์ชั่วคราว .partial ค้าง", partials().length === 0, partials().join(", ") || "ไม่มี");
 
 // MP4 ที่มีปกฝังอยู่แล้ว (ผู้ช่วยตรวจโค้ดข้อ 3) · mkvmerge ยกปกเดิมมาเป็น cover.jpg เอง ต้องไม่ได้ปกชื่อซ้ำสองอัน
 {
@@ -99,13 +99,13 @@ check("ครอบครบทุกชนิดแล้วไม่มีไ�
   const ra = await apply(a);
   const ca = ra.ok ? (ident(join(DIR, "มีปกฝัง ก (2022).mkv")).attachments ?? []).map((x) => x.file_name) : [];
   const shaA = ra.ok ? coverSha(join(DIR, "มีปกฝัง ก (2022).mkv"), covers(join(DIR, "มีปกฝัง ก (2022).mkv"))[0]) : null;
-  check("ครอบ MP4 ที่มีปกฝังอยู่แล้วด้วยรูปแนวตั้ง · ได้ cover.jpg อันเดียวเป็นรูปใหม่ ตรวจผ่าน · บอกว่าปกเดิมไม่ได้ยกมา", ra.ok && ra.r.verified && ca.join(" ") === "cover.jpg" && shaA === pa.sha && ra.r.notes.some((n) => n.includes("ไม่ได้ยกมา")), ra.ok ? `ไฟล์แนบ ${ca.join(" ")} · ${ra.r.notes.join(" / ")}` : `${ra.e?.title} ${(ra.e?.detail ?? []).join(" ")}`);
+  check("ห่อ MP4 ที่มีปกฝังอยู่แล้วด้วยรูปแนวตั้ง · ได้ cover.jpg อันเดียวเป็นรูปใหม่ ตรวจผ่าน · บอกว่าปกเดิมไม่ได้ยกมา", ra.ok && ra.r.verified && ca.join(" ") === "cover.jpg" && shaA === pa.sha && ra.r.notes.some((n) => n.includes("ไม่ได้ยกมา")), ra.ok ? `ไฟล์แนบ ${ca.join(" ")} · ${ra.r.notes.join(" / ")}` : `${ra.e?.title} ${(ra.e?.detail ?? []).join(" ")}`);
   const b = mk("มีปกฝัง ข (2022).mp4");
   const wi = await inv("poster_open", { path: join(IMG, "wide.jpg") });
   await inv("poster_render", { req: { geo: { ...GEO(wi), mode: "original", x: 0, y: 0, w: 1, h: 1 }, format: "jpg", quality: 90, choose: true, sizes: false } });
   const rb = await apply(b);
   const cb = rb.ok ? (ident(join(DIR, "มีปกฝัง ข (2022).mkv")).attachments ?? []).map((x) => x.file_name).sort() : [];
-  check("ครอบ MP4 ที่มีปกแนวตั้งฝังอยู่ ด้วยรูปแนวนอน · ได้ cover.jpg (ปกเดิม) กับ cover_land.jpg (รูปใหม่) ตรวจผ่าน", rb.ok && rb.r.verified && cb.join(" ") === "cover.jpg cover_land.jpg" && rb.r.notes.some((n) => n.includes("ยกมาด้วย")), rb.ok ? `ไฟล์แนบ ${cb.join(" ")} · ${rb.r.notes.join(" / ")}` : `${rb.e?.title} ${(rb.e?.detail ?? []).join(" ")}`);
+  check("ห่อ MP4 ที่มีปกแนวตั้งฝังอยู่ ด้วยรูปแนวนอน · ได้ cover.jpg (ปกเดิม) กับ cover_land.jpg (รูปใหม่) ตรวจผ่าน", rb.ok && rb.r.verified && cb.join(" ") === "cover.jpg cover_land.jpg" && rb.r.notes.some((n) => n.includes("ยกมาด้วย")), rb.ok ? `ไฟล์แนบ ${cb.join(" ")} · ${rb.r.notes.join(" / ")}` : `${rb.e?.title} ${(rb.e?.detail ?? []).join(" ")}`);
 }
 
 // =====================================================================  ② ใส่ปกให้ MKV · เปลี่ยน JPG เป็น PNG
@@ -182,7 +182,7 @@ check("ครอบครบทุกชนิดแล้วไม่มีไ�
   holder.kill(); await new Promise((ok) => holder.on("exit", ok));
   check("ไฟล์ถูกเปิดอยู่ในโปรแกรมอื่น ขึ้นข้อความ ไฟล์ไม่ถูกแตะ", !r2.ok && r2.e.kind === "inuse" && sha(held) === h0, r2.e?.title);
 
-  // ที่ว่างในไดรฟ์ไม่พอ · ตัวเทสหลอกว่าเหลือ 10 MB (คลิป 16 MB ต้องการราว 80 MB) · ใช้ไฟล์ที่ยังไม่เคยครอบ ชื่อไม่ชนกับข้อก่อน
+  // ที่ว่างในไดรฟ์ไม่พอ · ตัวเทสหลอกว่าเหลือ 10 MB (คลิป 16 MB ต้องการราว 80 MB) · ใช้ไฟล์ที่ยังไม่เคยห่อเป็น MKV ชื่อไม่ชนกับข้อก่อน
   const fresh = join(DIR, "คลิปสั้น (2015).flv");
   copyFileSync(join(SRC, "Clip (2015).flv"), fresh);
   await inv("dev_fake_free", { bytes: 10 * 1024 * 1024 });
@@ -191,7 +191,7 @@ check("ครอบครบทุกชนิดแล้วไม่มีไ�
   await inv("dev_fake_free", { bytes: 0 });
   check("ที่ว่างในไดรฟ์ไม่พอ ขึ้นต้องการเท่าไหร่ เหลือเท่าไหร่ และไม่เริ่มงาน", !r3.ok && r3.e.kind === "space" && /ต้องการ .+ แต่เหลือ 10 MB/.test(r3.e.detail[0]) && partials().length === 0, `${r3.e?.title} · ${r3.e?.detail?.[0]}`);
 
-  // ไฟล์ต้นทางเสียอยู่แล้ว · ตรวจก่อนครอบจับได้
+  // ไฟล์ต้นทางเสียอยู่แล้ว · ตรวจก่อนห่อเป็น MKV จับได้
   const bad = join(DIR, "เสียกลางเรื่อง (2022).mkv");
   const hb = sha(bad);
   await choose("poster.jpg");
@@ -319,7 +319,7 @@ await c.key("End"); await c.key("ArrowLeft"); await c.key("ArrowLeft"); await sl
 await c.evaluate("document.querySelector('[data-use]').click()"); await sleep(1200);
 s = await page();
 await shot("10-ใส่รูปแล้ว.png", ".main");
-check("กดใช้รูปนี้ การ์ด 2 ขึ้นรูปที่จะแนบ 1000 × 1500 · บอกว่ารูปไม่ใช่ 2 : 3 · การ์ด 3 ขึ้นชื่อไฟล์ใหม่ · ปุ่มกดได้", !s.crop && s.poster.includes("1000 × 1500 px") && s.poster.includes("ครอป") && !s.poster.includes("รูปนี้เป็นแนวนอน") && s.newName === "The Last Orchard (2022).mkv" && !s.startWait && s.start === "ครอบเป็น MKV พร้อมโปสเตอร์", s.start);
+check("กดใช้รูปนี้ การ์ด 2 ขึ้นรูปที่จะแนบ 1000 × 1500 · บอกว่ารูปไม่ใช่ 2 : 3 · การ์ด 3 ขึ้นชื่อไฟล์ใหม่ · ปุ่มกดได้", !s.crop && s.poster.includes("1000 × 1500 px") && s.poster.includes("ครอป") && !s.poster.includes("รูปนี้เป็นแนวนอน") && s.newName === "The Last Orchard (2022).mkv" && !s.startWait && s.start === "ห่อเป็น MKV พร้อมโปสเตอร์", s.start);
 
 // รูปเล็กเกิน
 await drop(join(IMG, "small.jpg"), "poster"); await sleep(1800);
@@ -358,7 +358,7 @@ check("หกกรอบขนาดเท่าเดิมทุกกรอ�
 await c.evaluate("document.querySelector('[data-mp4-mkv]').click()"); await sleep(300);
 check("กดกลับไปใช้ MKV หน้าต่างเตือนปิด ไฟล์ที่ได้เป็น MKV", !(await q("return !!document.querySelector('[data-mp4warn]')")) && (await q("return [...document.querySelectorAll('.seg button.on')].some(b => b.innerText.startsWith('MKV'))")));
 
-// ครอบจริงผ่านปุ่ม · กำลังทำ → เสร็จ (ไฟล์ The Last Orchard ที่อยู่ไฟล์เดิม คัดลอกกลับมาครอบใหม่)
+// ห่อเป็น MKV จริงผ่านปุ่ม · กำลังทำ → เสร็จ (ไฟล์ The Last Orchard ที่อยู่ไฟล์เดิม คัดลอกกลับมาห่อเป็น MKV ใหม่)
 const orchardBack = join(DIR, "สวนผลไม้ (2022).mp4");
 copyFileSync(orchard, orchardBack);
 await inv("scan_library"); await waitScan();
@@ -372,10 +372,10 @@ await sleep(800);
 s = await page();
 const runVisible = await q("const r = document.querySelector('[data-run]').getBoundingClientRect(); return r.top >= 0 && r.bottom <= innerHeight - 8");
 await shot("14-ครอบเสร็จ.png");
-check("ครอบเสร็จแล้วการ์ดผลอยู่ในจอเอง ไม่ต้องเลื่อนหา", runVisible);
-check("กดครอบแล้วขึ้นกำลังทำ แล้วจบด้วย ครอบเสร็จ ไฟล์ใหม่ตรวจผ่าน ภาพ เสียง ซับ ครบเท่าต้นทาง ไฟล์เดิมย้ายไปที่โฟลเดอร์ไฟล์เดิม", sawWorking && s.run.includes("ครอบเสร็จ ไฟล์ใหม่ตรวจผ่าน") && s.run.includes("ภาพ 1 เสียง 1 ซับ 1") && s.run.includes("ครบเท่าต้นทาง") && s.run.includes("ไฟล์เดิมย้ายไปที่ " + DIR + "\\ไฟล์เดิม"), s.run.split("\n").join(" / "));
-// ครอบเสร็จ ช่องไฟล์หนังว่าง รูปยังอยู่ · การ์ดหน้าตาที่จะได้ต้องบอกเฉพาะของที่ขาด ไม่บอกให้ใส่รูปซ้ำ
-check("ครอบเสร็จแล้ว การ์ดหน้าตาที่จะได้บอก ใส่ไฟล์หนังก่อน ไม่บอกให้ใส่รูปที่ใส่แล้ว", s.result.includes("ใส่ไฟล์หนังก่อน") && !s.result.includes("กับรูปโปสเตอร์"), s.result.split("\n").join(" / "));
+check("ห่อเป็น MKV เสร็จแล้วการ์ดผลอยู่ในจอเอง ไม่ต้องเลื่อนหา", runVisible);
+check("กดห่อเป็น MKV แล้วขึ้นกำลังทำ แล้วจบด้วย ห่อเป็น MKV เสร็จ ไฟล์ใหม่ตรวจผ่าน ภาพ เสียง ซับ ครบเท่าต้นทาง ไฟล์เดิมย้ายไปที่โฟลเดอร์ไฟล์เดิม", sawWorking && s.run.includes("ห่อเป็น MKV เสร็จ ไฟล์ใหม่ตรวจผ่าน") && s.run.includes("ภาพ 1 เสียง 1 ซับ 1") && s.run.includes("ครบเท่าต้นทาง") && s.run.includes("ไฟล์เดิมย้ายไปที่ " + DIR + "\\ไฟล์เดิม"), s.run.split("\n").join(" / "));
+// ห่อเป็น MKV เสร็จ ช่องไฟล์หนังว่าง รูปยังอยู่ · การ์ดหน้าตาที่จะได้ต้องบอกเฉพาะของที่ขาด ไม่บอกให้ใส่รูปซ้ำ
+check("ห่อเป็น MKV เสร็จแล้ว การ์ดหน้าตาที่จะได้บอก ใส่ไฟล์หนังก่อน ไม่บอกให้ใส่รูปที่ใส่แล้ว", s.result.includes("ใส่ไฟล์หนังก่อน") && !s.result.includes("กับรูปโปสเตอร์"), s.result.split("\n").join(" / "));
 
 // ลบไฟล์เดิม ยืนยัน 2 ขั้น · ไม่กดยืนยันจริง (กดยกเลิก) ไม่ให้ไฟล์ทดสอบไปกองในถังขยะของพี่กัน
 await drop(join(DIR, "ไฟล์เดิม", "บ้านริมคลอง (2017).ts"), "movie"); await sleep(1200);
@@ -394,11 +394,11 @@ await c.evaluate("[...document.querySelectorAll('.dlg button')].find(b => b.inne
 check("กดยกเลิกในหน้าต่างยืนยัน ไม่เริ่มงาน ไฟล์ไม่ถูกแตะ", !(await q("return !!document.querySelector('.dlg')")) && (await page()).run === "" && existsSync(join(DIR, "ไฟล์เดิม", "บ้านริมคลอง (2017).ts")));
 await c.evaluate("[...document.querySelectorAll('.chk')].find(e => e.innerText.startsWith('เก็บไฟล์เดิมไว้')).click()"); await sleep(200);
 
-// หน้าต่างยืนยันหยุด · เริ่มครอบไฟล์ใหญ่แล้วกดหยุด
+// หน้าต่างยืนยันหยุด · เริ่มห่อเป็น MKV ไฟล์ใหญ่แล้วกดหยุด
 const big2 = join(DIR, "หนังยาว (2020).mp4");
 // ปิดตรวจต้นทางด้วยการกดช่องติ๊กบนจอ (ตั้งผ่านคำสั่งตรง หน้าจอไม่รู้)
 await drop(big2, "movie"); await sleep(1200);
-await c.evaluate("[...document.querySelectorAll('.chk')].find(e => e.innerText.startsWith('ตรวจไฟล์ต้นทางก่อนครอบ')).click()"); await sleep(300);
+await c.evaluate("[...document.querySelectorAll('.chk')].find(e => e.innerText.startsWith('ตรวจไฟล์ต้นทางก่อนห่อเป็น MKV')).click()"); await sleep(300);
 await c.evaluate("document.querySelector('[data-start]').click()");
 for (let i = 0; i < 100; i++) { if ((await q("return document.querySelector('[data-run=working] .bar i')?.style.width ?? ''")) !== "0%" && (await q("return !!document.querySelector('[data-run=working]')"))) break; await sleep(50); }
 await sleep(400);
@@ -412,10 +412,10 @@ for (let i = 0; i < 100; i++) { if ((await q("return document.querySelector('[da
 await sleep(300);
 const stopped = (await page()).run;
 await shot("19-หยุดแล้ว.png", ".main");
-check("กำลังครอบบอกเปอร์เซ็นต์ เวลาที่เหลือ ขั้นถัดไป ปุ่มหยุด · กดหยุดแล้วถามก่อน · หยุดแล้วบอกไฟล์ที่ทำค้างถูกลบ ไฟล์เดิมไม่ถูกแตะ",
-  /กำลังครอบเป็น MKV/.test(prog) && /\d+%/.test(prog) && prog.includes("ขั้นถัดไปคือตรวจไฟล์ใหม่") && ask.includes("ยืนยันหยุดครอบไฟล์") && ask.includes("จะถูกลบทิ้ง") && stopped.includes("หยุดแล้ว") && stopped.includes("ไฟล์ใหม่ที่ทำค้างถูกลบแล้ว") && partials().length === 0,
+check("กำลังห่อเป็น MKV บอกเปอร์เซ็นต์ เวลาที่เหลือ ขั้นถัดไป ปุ่มหยุด · กดหยุดแล้วถามก่อน · หยุดแล้วบอกไฟล์ที่ทำค้างถูกลบ ไฟล์เดิมไม่ถูกแตะ",
+  /กำลังห่อเป็น MKV/.test(prog) && /\d+%/.test(prog) && prog.includes("ขั้นถัดไปคือตรวจไฟล์ใหม่") && ask.includes("ยืนยันหยุดห่อเป็น MKV") && ask.includes("จะถูกลบทิ้ง") && stopped.includes("หยุดแล้ว") && stopped.includes("ไฟล์ใหม่ที่ทำค้างถูกลบแล้ว") && partials().length === 0,
   prog.split("\n").join(" / "));
-await c.evaluate("[...document.querySelectorAll('.chk')].find(e => e.innerText.startsWith('ตรวจไฟล์ต้นทางก่อนครอบ')).click()"); await sleep(300);
+await c.evaluate("[...document.querySelectorAll('.chk')].find(e => e.innerText.startsWith('ตรวจไฟล์ต้นทางก่อนห่อเป็น MKV')).click()"); await sleep(300);
 
 // ไม่สำเร็จ · ที่ว่างไม่พอ ผ่านหน้าจอ
 await inv("dev_fake_free", { bytes: 10 * 1024 * 1024 });
@@ -445,7 +445,7 @@ await drop(join(IMG, "poster.png"), "poster"); await sleep(1500);
 await c.evaluate("document.querySelector('[data-use]').click()"); await sleep(1200);
 s = await page();
 await shot("21-เปลี่ยนโปสเตอร์MKV.png", ".main");
-check("ไฟล์เป็น MKV อยู่แล้ว ขึ้นปกเดิม ปกใหม่ เปลี่ยนแค่รูปแนบ ไม่ต้องครอบใหม่ · ปุ่มเปลี่ยนโปสเตอร์ · ตัวเลือกไฟล์เดิมกดไม่ได้", s.result.includes("ปกเดิม") && s.result.includes("ปกใหม่") && s.result.includes("เปลี่ยนแค่รูปแนบ ไม่ต้องครอบใหม่") && s.start === "เปลี่ยนโปสเตอร์" && (await q("return [...document.querySelectorAll('.chk.off')].length")) === 2, s.start);
+check("ไฟล์เป็น MKV อยู่แล้ว ขึ้นปกเดิม ปกใหม่ เปลี่ยนแค่รูปแนบ ไม่ต้องห่อเป็น MKV ใหม่ · ปุ่มเปลี่ยนโปสเตอร์ · ตัวเลือกไฟล์เดิมกดไม่ได้", s.result.includes("ปกเดิม") && s.result.includes("ปกใหม่") && s.result.includes("เปลี่ยนแค่รูปแนบ ไม่ต้องห่อเป็น MKV ใหม่") && s.start === "เปลี่ยนโปสเตอร์" && (await q("return [...document.querySelectorAll('.chk.off')].length")) === 2, s.start);
 
 // รายการรูปในโฟลเดอร์หนัง
 await c.evaluate("[...document.querySelectorAll('[data-card=poster] button')].find(b => b.innerText === 'เปลี่ยนรูป').click()");

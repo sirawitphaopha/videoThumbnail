@@ -99,7 +99,7 @@ check("กดปกแล้วแผงขวาขึ้นเรื่อง�
 await shot("04-แผงรายละเอียด.png", ".detail", 0);
 await c.book("The Last Orchard (2022)"); await sleep(250);
 const info = await q("return document.querySelector('.detail .stat')?.innerText.replace(/\\n/g, ' / ')");
-check("ไฟล์ MP4 ขึ้นการ์ด ยังไม่ได้ครอบเป็น MKV พร้อมปุ่มครอบ", info.startsWith("ยังไม่ได้ครอบเป็น MKV") && (await q("return document.querySelector('.detail .minirow .btn-main')?.innerText")) === "ครอบเป็น MKV พร้อมโปสเตอร์", info);
+check("ไฟล์ MP4 ขึ้นการ์ด ยังไม่ได้ห่อเป็น MKV พร้อมปุ่มห่อเป็น MKV", info.startsWith("ยังไม่ได้ห่อเป็น MKV") && (await q("return document.querySelector('.detail .minirow .btn-main')?.innerText")) === "ห่อเป็น MKV พร้อมโปสเตอร์", info);
 await shot("05-การ์ดไม่ใช่MKV.png", ".detail", 0);
 const kv = await q("return [...document.querySelectorAll('.detail .kv dd')].map(d => d.innerText).join(' | ')");
 check("แผงรายละเอียดบอกขนาด ความยาว ภาพ เสียง ซับ", /KB|MB/.test(kv) && kv.includes("20 วินาที") && kv.includes("H.264") && kv.includes("AAC"), kv);

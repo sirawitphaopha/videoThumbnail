@@ -1,5 +1,5 @@
 // เทสข้อที่แก้ตามผู้ช่วยตรวจตอนจบ (7 พ.ย. 2569) ในหน้าต่างโปรแกรมจริง ผ่านพอร์ตดีบัก · ถ่ายภาพลงรายงาน
-// ① เปลี่ยนหน้าระหว่างครอบ กลับมาเห็นงานเดิม ความคืบหน้า ปุ่มหยุด (โค้ดข้อ 6) · ② วางไฟล์ .wmv บอกทางไปต่อ (สเปกข้อ 34)
+// ① เปลี่ยนหน้าระหว่างห่อเป็น MKV กลับมาเห็นงานเดิม ความคืบหน้า ปุ่มหยุด (โค้ดข้อ 6) · ② วางไฟล์ .wmv บอกทางไปต่อ (สเปกข้อ 34)
 // ③ เปลี่ยนหน้าระหว่างคิด hash กลับมาเห็นว่างานยังทำอยู่ พร้อมปุ่มหยุด · คิดซ้อนไม่ได้ (โค้ดข้อ 6) · ④ หน้าต่างถามตอนปิด (โค้ดข้อ 2)
 // ไฟล์หนังทุกไฟล์เป็นสำเนาในโฟลเดอร์ทดสอบ · ไม่กดยืนยันปิดโปรแกรมจริง
 // ใช้: node scripts/check-review.mjs  (โปรแกรมเปิดผ่าน scripts/dev-app.ps1 แบบอยู่หลังสุด)
@@ -48,7 +48,7 @@ const wmv = await q("return document.querySelector('[data-card=movie]')?.innerTe
 await shot("01-วางไฟล์wmv.png", "[data-card=movie]", 8);
 check("วางไฟล์ .wmv ช่องแดงบอก ต้องแปลงเป็น MKV หรือ MP4 ก่อน", wmv.includes("ไฟล์ .wmv ต้องแปลงเป็น MKV หรือ MP4 ก่อน"), wmv.split("\n")[0]);
 
-// ② เปลี่ยนหน้าระหว่างครอบ กลับมาเห็นงานเดิม
+// ② เปลี่ยนหน้าระหว่างห่อเป็น MKV กลับมาเห็นงานเดิม
 await drop(big, "movie"); await waitFor("return (document.querySelector('[data-card=movie]')?.innerText ?? '').includes('หนังยาว')");
 await drop(join(IMG, "poster.jpg"), "poster"); await waitFor("return !!document.querySelector('[data-use]')");
 await sleep(600);
@@ -60,14 +60,14 @@ const away = await q("const r = document.querySelector('[data-run]'); return !r 
 await nav("ใส่โปสเตอร์"); await sleep(400);
 const back = await q("return { run: document.querySelector('[data-run]')?.dataset.run, text: ((document.querySelector('[data-run]')?.innerText ?? '') + ' ' + (document.querySelector('[data-run] .runtxt')?.title ?? '')).trim(), movie: document.querySelector('[data-card=movie]')?.innerText ?? '', stop: [...document.querySelectorAll('[data-run] button')].some(b => b.innerText === 'หยุด'), poster: (document.querySelector('[data-card=poster]')?.innerText ?? '').includes('1000 × 1500') }");
 await shot("02-กลับมาเห็นงานเดิม.png", ".main");
-check("เปลี่ยนไปชั้นวางระหว่างครอบ แล้วกลับมา เห็นงานเดิม เปอร์เซ็นต์ ปุ่มหยุด ไฟล์หนังกับรูปโปสเตอร์ของงานนั้น", away && back.run === "working" && /กำลังครอบเป็น MKV/.test(back.text) && /\d+%/.test(back.text) && back.stop && back.movie.includes("หนังยาว (2020)") && back.poster, back.text.split("\n").join(" / "));
+check("เปลี่ยนไปชั้นวางระหว่างห่อเป็น MKV แล้วกลับมา เห็นงานเดิม เปอร์เซ็นต์ ปุ่มหยุด ไฟล์หนังกับรูปโปสเตอร์ของงานนั้น", away && back.run === "working" && /กำลังห่อเป็น MKV/.test(back.text) && /\d+%/.test(back.text) && back.stop && back.movie.includes("หนังยาว (2020)") && back.poster, back.text.split("\n").join(" / "));
 // ปุ่มหยุดยังใช้ได้ หน้าต่างยืนยันใช้โหมดของงานจริง
 await c.evaluate("[...document.querySelectorAll('[data-run] button')].find(b => b.innerText === 'หยุด').click()"); await sleep(300);
 const ask = await q("return document.querySelector('.dlg')?.innerText ?? ''");
 await c.evaluate("[...document.querySelectorAll('.dlg button')].find(b => b.innerText === 'หยุด').click()");
 await waitFor("return document.querySelector('[data-run]')?.dataset.run !== 'working'", 20000); await sleep(400);
 const stopped = await q("return ((document.querySelector('[data-run]')?.innerText ?? '') + ' ' + (document.querySelector('[data-run] .runtxt')?.title ?? '')).trim()");
-check("กดหยุดหลังกลับมา ถามยืนยันหยุดครอบไฟล์ แล้วหยุดจริง ไฟล์ที่ทำค้างถูกลบ", ask.includes("ยืนยันหยุดครอบไฟล์") && stopped.includes("หยุดแล้ว") && partials().length === 0, stopped.split("\n").join(" / "));
+check("กดหยุดหลังกลับมา ถามยืนยันหยุดห่อเป็น MKV แล้วหยุดจริง ไฟล์ที่ทำค้างถูกลบ", ask.includes("ยืนยันหยุดห่อเป็น MKV") && stopped.includes("หยุดแล้ว") && partials().length === 0, stopped.split("\n").join(" / "));
 
 // ③ เปลี่ยนหน้าระหว่างคิด hash กลับมาเห็นว่างานยังทำอยู่
 await nav("ชั้นวางหนัง"); await sleep(500);
@@ -125,7 +125,7 @@ await c.evaluate("[...document.querySelectorAll('.detail .btn')].find(b => b.inn
 await waitFor("return (document.querySelector('[data-card=movie]')?.innerText ?? '').includes('ดาวเหนือ')");
 const first = await q("return { poster: document.querySelector('[data-card=poster]')?.innerText ?? '', result: document.querySelector('[data-card=result]')?.innerText ?? '', bold: [...document.querySelectorAll('[data-card=result] b')].map(b => b.innerText) }");
 await shot("06-มาจากปุ่มเปลี่ยนโปสเตอร์.png", ".cards, .main", 0);
-check("มาจากปุ่มเปลี่ยนโปสเตอร์ ช่องวางรูปบอก ไฟล์หนังใส่ให้แล้ว เหลือรูปโปสเตอร์ · รับ JPG PNG WebP BMP TIFF HEIC · การ์ด 3 ตัวหนา ไฟล์เป็น MKV อยู่แล้ว เปลี่ยนแค่รูปแนบ ไม่ต้องครอบใหม่",
+check("มาจากปุ่มเปลี่ยนโปสเตอร์ ช่องวางรูปบอก ไฟล์หนังใส่ให้แล้ว เหลือรูปโปสเตอร์ · รับ JPG PNG WebP BMP TIFF HEIC · การ์ด 3 ตัวหนา ไฟล์เป็น MKV อยู่แล้ว เปลี่ยนแค่รูปแนบ ไม่ต้องห่อเป็น MKV ใหม่",
   first.poster.includes("ไฟล์หนังใส่ให้แล้ว เหลือรูปโปสเตอร์") && first.poster.includes("JPG PNG WebP BMP TIFF และ HEIC") && (await q("return document.querySelector('[data-opt=original] .opts')?.title ?? ''")).includes("ไฟล์เป็น MKV อยู่แล้ว"), first.poster.split("\n").slice(0, 3).join(" / "));
 await drop(join(IMG, "wide.jpg"), "poster"); await waitFor("return !!document.querySelector('[data-use]')"); await sleep(800);
 const segIn = await q("return { head: document.querySelector('.dlg')?.innerText ?? '', seg: [...document.querySelectorAll('.dlg .seg button')].map(b => b.innerText) }");

@@ -39,7 +39,7 @@ export function DoneCard({ r, onShelf, onClose, onMore }: { r: ApplyResult; onSh
   const c = r.counts;
   const title = r.mode === "cover" ? (r.verified ? "เปลี่ยนโปสเตอร์เสร็จ ไฟล์ตรวจผ่าน" : "เปลี่ยนโปสเตอร์เสร็จ")
     : r.mode === "mp4" ? (r.verified ? "ส่งออก MP4 เสร็จ ไฟล์ใหม่ตรวจผ่าน" : "ส่งออก MP4 เสร็จ")
-    : r.verified ? "ครอบเสร็จ ไฟล์ใหม่ตรวจผ่าน" : "ครอบเสร็จ";
+    : r.verified ? "ห่อเป็น MKV เสร็จ ไฟล์ใหม่ตรวจผ่าน" : "ห่อเป็น MKV เสร็จ";
   const line2 = r.mode === "cover" ? (r.verified ? "ปกในไฟล์ตรงกับรูปที่ทำทุกไบต์ ภาพ เสียง ซับ เท่าเดิม" : "ไม่ได้ตรวจรูปแนบ") : r.verified ? "ครบเท่าต้นทาง" : "ไม่ได้ตรวจเทียบต้นทาง";
   const where = r.original === "kept" && r.originalTo ? r.originalTo.replace(/[\\/][^\\/]+$/, "") : null;
   const counts = `ภาพ ${c.video} เสียง ${c.audio} ซับ ${c.subs}`;

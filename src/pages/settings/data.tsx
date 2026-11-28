@@ -45,7 +45,7 @@ export const THANKS: { title: string; note: string; rows: { name: string; ver?: 
   ] },
   { title: "เครื่องมือที่แนบมาทำงานจริง", note: "ใช้ตามสัญญาอนุญาตของแต่ละตัว ข้อความเต็มอยู่ในโฟลเดอร์ tools\\licenses", rows: [
     { icon: <IbPlay />, name: "FFmpeg", ver: "9.1", what: "ถอด แปลง ตรวจไฟล์เสีย อ่านเสียงมาวาดกราฟ และอ่านบิตเรตวิดีโอ ใช้ชุดจาก gyan.dev และไอคอนจาก Icons8", tag: "GPLv3", url: "ffmpeg.org" },
-    { icon: <IcFile />, name: "MKVToolNix", ver: "103.0", what: "ครอบ MKV แนบปก แยกแทร็ก", tag: "GPLv2", url: "mkvtoolnix.download" },
+    { icon: <IcFile />, name: "MKVToolNix", ver: "103.0", what: "ห่อเป็น MKV แนบปก แยกแทร็ก", tag: "GPLv2", url: "mkvtoolnix.download" },
     { icon: <IbEye />, name: "MediaInfo", ver: "26.10", what: "รายละเอียดไฟล์", tag: "BSD-2", url: "mediaarea.net" },
     { icon: <IcMix />, name: "FLAC", ver: "1.5.0", what: "แปลงเสียง FLAC", tag: "GPLv2, BSD", url: "xiph.org/flac" },
     { icon: <IcMix />, name: "LAME กับ libmpg123", ver: "4.0", what: "แปลงเสียง MP3 ใช้ชุดจาก RareWares", tag: "LGPL", url: "lame.sourceforge.io" },
@@ -129,7 +129,7 @@ export const SET_GROUPS: { title: string; items: { id: string; label: string; ic
 ];
 /** หน้าที่ของเครื่องมือแต่ละตัว (สเปกข้อ 12 หน้าที่ของ ffmpeg = ส่งออก MP4 และตรวจละเอียด) */
 export const TOOL_ROLE: Record<string, string> = {
-  mkvmerge: "ใช้ครอบ MKV และแนบโปสเตอร์",
+  mkvmerge: "ใช้ห่อเป็น MKV และแนบโปสเตอร์",
   mkvextract: "ใช้ดึงปกออกมาโชว์และแยกไฟล์",
   mkvpropedit: "ใช้เปลี่ยนรูปแนบใน MKV",
   ffmpeg: "ใช้ส่งออก MP4 ตรวจละเอียด และวาดกราฟเสียง",

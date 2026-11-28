@@ -186,7 +186,7 @@ pub fn rename_movie(app: AppHandle, lib: State<'_, Arc<LibraryStore>>, id: Strin
         return Err(problem("inuse", "กำลังยืนยันปกจับคู่อยู่ รอให้เสร็จก่อน", None));
     }
     let res = rename_in_library(&lib, &id, &stem);
-    // คำสั่งอ่านโฟลเดอร์ที่มาระหว่างเปลี่ยนชื่อ (เช่นงานครอบเป็น MKV จบพอดี) สั่งอ่านต่อที่นี่ ทั้งเปลี่ยนชื่อสำเร็จและไม่สำเร็จ (AUDIT ข้อ 51)
+    // คำสั่งอ่านโฟลเดอร์ที่มาระหว่างเปลี่ยนชื่อ (เช่นงานห่อเป็น MKV จบพอดี) สั่งอ่านต่อที่นี่ ทั้งเปลี่ยนชื่อสำเร็จและไม่สำเร็จ (AUDIT ข้อ 51)
     if lib.take_rescan() {
         let _ = crate::app::library::scan_library(app.clone(), app.state::<Arc<LibraryStore>>());
     }

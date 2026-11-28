@@ -301,8 +301,8 @@ function StatusCard({ m, reminder, onCheck, onPoster }: { m: Movie; reminder: nu
   if (k === "info") {
     return (
       <>
-        <div className="stat info"><CardIcon kind="info" /><div><b>ยังไม่ได้ครอบเป็น MKV</b><Phr>{`ไฟล์นี้เป็น ${m.ext.toUpperCase()} ครอบ${J}เป็น MKV ก่อนแล้วจึงใส่โปสเตอร์ได้  ภาพและเสียงไม่ถูก${J}แปลง คุณภาพเท่าเดิม`}</Phr></div></div>
-        <div className="minirow half" style={{ marginTop: -4 }}><button type="button" className="btn btn-main wide" onClick={onPoster}><IcPoster size={15} />ครอบเป็น MKV พร้อมโปสเตอร์</button></div>
+        <div className="stat info"><CardIcon kind="info" /><div><b>ยังไม่ได้ห่อเป็น MKV</b><Phr>{`ไฟล์นี้เป็น ${m.ext.toUpperCase()} ห่อ${J}เป็น MKV ก่อนแล้วจึงใส่โปสเตอร์ได้  ภาพและเสียงไม่ถูก${J}แปลง คุณภาพเท่าเดิม`}</Phr></div></div>
+        <div className="minirow half" style={{ marginTop: -4 }}><button type="button" className="btn btn-main wide" onClick={onPoster}><IcPoster size={15} />ห่อเป็น MKV พร้อมโปสเตอร์</button></div>
       </>
     );
   }
