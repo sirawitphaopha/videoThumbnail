@@ -21,5 +21,6 @@ pub mod ocrbreak;
 pub mod ocrmanual;
 pub mod ocrexport;
 pub mod paddle;
+pub mod paddle_cache;
 pub mod paddle_dl;
 pub mod tesseract;

@@ -21,9 +21,9 @@ use image::{Rgba, RgbaImage};
 use ort::session::Session;
 use ort::session::builder::GraphOptimizationLevel;
 use ort::value::Tensor;
-use std::collections::HashMap;
 use std::path::{Path, PathBuf};
 use std::sync::{Arc, Mutex, OnceLock};
+use crate::ocr::paddle_cache::{clear, on_release, Slot};
 
 /// ขนาดโมเดลของ PP-OCRv6 (คำเคาะ ㉒ ค่าตั้งต้น small)
 pub const SIZES: [&str; 3] = ["tiny", "small", "medium"];
@@ -65,16 +65,18 @@ pub fn det_dir(paddle: &Path, size: &str) -> PathBuf {
 }
 
 /// โหลด ONNX Runtime ครั้งเดียวทั้งโปรแกรม · ไฟล์ DLL หาย หรือเปิดไม่ได้ บอกสาเหตุเป็นประโยคไทย
-static ENV: OnceLock<Result<(), String>> = OnceLock::new();
+/// จำเฉพาะตอนโหลดสำเร็จ ไม่สำเร็จครั้งแรก (ไฟล์ยังแตกไม่ครบ) ลองใหม่ได้โดยไม่ต้องปิดเปิดโปรแกรม (ผู้ช่วยตรวจทาน R16 · BUGS ข้อ 162.7)
+static ENV: Mutex<bool> = Mutex::new(false);
 
 fn ensure_env(ocr: &Path) -> Result<(), String> {
-    ENV.get_or_init(|| {
-        let dll = ocr.join("onnxruntime").join("onnxruntime.dll");
-        if !dll.is_file() { return Err("ไม่มี onnxruntime.dll ในโฟลเดอร์เครื่องมือ ลองติดตั้งโปรแกรมใหม่".into()); }
-        let b = ort::init_from(&dll).map_err(|e| format!("เปิด ONNX Runtime ไม่ได้ ลองติดตั้งโปรแกรมใหม่ ({e:?})"))?;
-        b.with_name("movie-shelf").commit();
-        Ok(())
-    }).clone()
+    let mut ok = ENV.lock().unwrap();
+    if *ok { return Ok(()); }
+    let dll = ocr.join("onnxruntime").join("onnxruntime.dll");
+    if !dll.is_file() { return Err("ไม่มี onnxruntime.dll ในโฟลเดอร์เครื่องมือ ลองติดตั้งโปรแกรมใหม่".into()); }
+    let b = ort::init_from(&dll).map_err(|e| format!("เปิด ONNX Runtime ไม่ได้ ลองติดตั้งโปรแกรมใหม่ ({e:?})"))?;
+    b.with_name("movie-shelf").commit();
+    *ok = true;
+    Ok(())
 }
 
 /// จำนวนเธรดของตัวอ่านต่อโมเดล · เครื่องพี่กันแรม 8 GB 12 เธรด ใช้ไม่เกินครึ่งแบบ dev.ps1 และไม่เกิน 4
@@ -356,17 +358,16 @@ impl Default for PaddleOpts {
     fn default() -> Self { PaddleOpts { lang: String::new(), size: "small".into(), vertical: "auto".into(), orientation: false } }
 }
 
-/// โมเดลที่โหลดแล้ว เก็บไว้ใช้ซ้ำทุกภาพ · โหลดใหม่ใช้เวลาราววินาที
-static RECS: OnceLock<Mutex<HashMap<PathBuf, Arc<Rec>>>> = OnceLock::new();
-static DETS: OnceLock<Mutex<HashMap<PathBuf, Arc<Det>>>> = OnceLock::new();
-static ORIS: OnceLock<Mutex<HashMap<PathBuf, Arc<Ori>>>> = OnceLock::new();
+/// โมเดลที่โหลดแล้ว เก็บไว้ใช้ซ้ำทุกภาพ · โหลดใหม่ใช้เวลาราววินาที · เก็บไม่เกินสองตัวล่าสุดต่อชนิด ว่างสามนาทีปล่อยหมด (paddle_cache.rs · BUGS ข้อ 162.7)
+pub(crate) static RECS: Slot<Rec> = OnceLock::new();
+pub(crate) static DETS: Slot<Det> = OnceLock::new();
+pub(crate) static ORIS: Slot<Ori> = OnceLock::new();
 
-fn cached<T>(map: &'static OnceLock<Mutex<HashMap<PathBuf, Arc<T>>>>, key: &Path, load: impl FnOnce() -> Result<T, String>) -> Result<Arc<T>, String> {
-    let m = map.get_or_init(Default::default);
-    if let Some(v) = m.lock().unwrap().get(key) { return Ok(v.clone()); }
-    let v = Arc::new(load()?);
-    m.lock().unwrap().insert(key.to_path_buf(), v.clone());
-    Ok(v)
+fn release() { clear(&RECS); clear(&DETS); clear(&ORIS); }
+
+fn cached<T: Send + Sync + 'static>(slot: &'static Slot<T>, key: &Path, load: impl FnOnce() -> Result<T, String>) -> Result<Arc<T>, String> {
+    on_release(release);
+    crate::ocr::paddle_cache::cached(slot, key, load)
 }
 
 pub fn rec_for(ocr: &Path, lang: &str, size: &str) -> Result<Arc<Rec>, String> {
