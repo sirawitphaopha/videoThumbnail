@@ -57,8 +57,9 @@ pub(crate) fn session() -> MutexGuard<'static, Option<Session>> { SESSION.lock()
 /// เก็บกวาดผลของ PaddleOCR กับ Tesseract ที่อ่านเป็นข้อความอิสระ
 /// ① ขีดบทพูดที่แยกเป็นบรรทัดของตัวเองต่อกลับเข้าบรรทัด (OcrLoneDashFixer · ผู้ช่วยตรวจทาน T14 เดิมไม่ถูกเรียก)
 /// ② เว้นวรรคครึ่งความกว้างระหว่างอักษร CJK สองตัวตัดทิ้ง ภาษาญี่ปุ่นจีนไม่เว้นวรรคระหว่างคำ คงเว้นวรรคเต็มความกว้าง (ผู้ช่วยตรวจทาน T8)
+/// ③ เรียงอักขระไทยตามลำดับที่ภาษาไทยเก็บก่อนถึงตัวแก้คำ (ownocr::normalize_thai · ผู้ช่วยตรวจทาน T12 · BUGS ข้อ 162.5)
 pub fn tidy_free(t: &str) -> String {
-    let t = crate::ocr::ocrfix::fix_lone_dashes(t);
+    let t = crate::ocr::ownocr::normalize_thai(&crate::ocr::ocrfix::fix_lone_dashes(t));
     let cjk = |c: char| matches!(c, '\u{3001}'..='\u{30FF}' | '\u{3400}'..='\u{9FFF}' | '\u{FF01}'..='\u{FF5E}');
     let cs: Vec<char> = t.chars().collect();
     let mut out = String::with_capacity(t.len());

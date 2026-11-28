@@ -129,26 +129,59 @@ pub fn layout(blobs: Vec<Blob>) -> Layout {
 
 // ---------------------------------------------------------------- ข้อความ
 
-/// นิคหิตตามด้วยวรรณยุกต์แล้วสระอา คือสระอำ ("นํ้า" เป็น "น้ำ") · อักขระที่ต้องเรียงตามที่ภาษาไทยเก็บ
+/// เรียงอักขระไทยตามลำดับที่ภาษาไทยเก็บ ข้อความหน้าตาเหมือนกันจะได้ค้นคำเจอและตัวแก้คำรู้จัก (ผู้ช่วยตรวจทาน T12 · BUGS ข้อ 162.5)
+/// ① นิคหิต (ตามด้วยวรรณยุกต์ได้) แล้วสระอา คือสระอำ "นํ้า" เป็น "น้ำ"
+/// ② วรรณยุกต์ที่อยู่หลังสระอำ ย้ายไปก่อนสระอำ "นำ้" เป็น "น้ำ"
+/// ③ สระเอสองตัวติดกันคือสระแอ "เเ" เป็น "แ"
+/// ④ เครื่องหมายบนล่างของพยัญชนะตัวเดียวกัน สระบนล่างก่อน วรรณยุกต์กับทัณฑฆาตทีหลัง "ก่ี" เป็น "กี่" และตัวซ้ำติดกันเหลือตัวเดียว
 pub fn normalize_thai(s: &str) -> String {
     let c: Vec<char> = s.chars().collect();
-    let mut out = String::new();
+    let tone = |x: char| ('\u{e48}'..='\u{e4b}').contains(&x);
+    let mut out: Vec<char> = Vec::with_capacity(c.len());
     let mut i = 0;
     while i < c.len() {
         if c[i] == '\u{e4d}' {
-            let tone = c.get(i + 1).filter(|t| ('\u{e48}'..='\u{e4b}').contains(*t)).copied();
-            let k = i + 1 + tone.is_some() as usize;
+            let t = c.get(i + 1).copied().filter(|x| tone(*x));
+            let k = i + 1 + t.is_some() as usize;
             if c.get(k) == Some(&'\u{e32}') {
-                if let Some(t) = tone { out.push(t); }
+                if let Some(t) = t { out.push(t); }
                 out.push('\u{e33}');
                 i = k + 1;
                 continue;
             }
         }
+        if c[i] == '\u{e40}' && c.get(i + 1) == Some(&'\u{e40}') { out.push('\u{e41}'); i += 2; continue; }
+        // วรรณยุกต์ตามหลังสระอำ ย้ายไปก่อนสระอำ
+        if tone(c[i]) && out.last() == Some(&'\u{e33}') {
+            let am = out.pop().unwrap();
+            if !out.last().is_some_and(|x| tone(*x)) { out.push(c[i]); }
+            out.push(am);
+            i += 1;
+            continue;
+        }
         out.push(c[i]);
         i += 1;
     }
-    out
+    // เรียงเครื่องหมายบนล่างที่ติดกันของพยัญชนะตัวเดียวกัน
+    let rank = |x: char| match x {
+        '\u{e31}' | '\u{e34}'..='\u{e3a}' | '\u{e47}' => Some(0),
+        '\u{e48}'..='\u{e4c}' => Some(1),
+        '\u{e4d}' | '\u{e4e}' => Some(1),
+        _ => None,
+    };
+    let mut res = String::with_capacity(s.len());
+    let mut k = 0;
+    while k < out.len() {
+        if rank(out[k]).is_none() { res.push(out[k]); k += 1; continue; }
+        let mut j = k;
+        while j < out.len() && rank(out[j]).is_some() { j += 1; }
+        let mut run = out[k..j].to_vec();
+        run.sort_by_key(|x| rank(*x));
+        run.dedup();
+        res.extend(run);
+        k = j;
+    }
+    res
 }
 
 /// ค่าที่ใช้อ่าน
@@ -250,7 +283,7 @@ impl OwnReader {
                 }
             }
         }
-        let text = normalize_thai(&join_quotes(&merge_italic(&hits)).replace("เเ", "แ")).trim().to_string();
+        let text = normalize_thai(&join_quotes(&merge_italic(&hits))).trim().to_string();
         ReadOut::Done(LineRead { text, hits, pieces, parent, space_px: 0, unknown })
     }
 

@@ -65,6 +65,7 @@ fn tidy_free_text() {
     assert_eq!(tidy_free("ゴ ジ ラ が\n来る"), "ゴジラが\n来る");
     assert_eq!(tidy_free("สวัสดี ครับ Hello world"), "สวัสดี ครับ Hello world");
     assert_eq!(tidy_free("咆哮　が"), "咆哮　が");
+    assert_eq!(tidy_free("น\u{e33}\u{e49}ใจ \u{e40}\u{e40}ม\u{e48}"), "น้ำใจ แม่", "ผลของ PaddleOCR กับ Tesseract ผ่านตัวเรียงอักขระไทย (BUGS ข้อ 162.5)");
     assert_eq!(tidy_free("-\nHello\n-\nBye"), crate::ocr::ocrfix::fix_lone_dashes("-\nHello\n-\nBye"));
     assert_ne!(tidy_free("-\nHello\n-\nBye"), "-\nHello\n-\nBye");
 }

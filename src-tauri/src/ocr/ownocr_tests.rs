@@ -16,6 +16,17 @@ fn levenshtein(a: &[char], b: &[char]) -> usize {
 fn thai_order_and_sara_am() {
     assert_eq!(normalize_thai("น\u{e4d}\u{e49}า"), "น้ำ");
     assert_eq!(normalize_thai("ก\u{e4d}า"), "กำ");
+    // BUGS ข้อ 162.5 (ผู้ช่วยตรวจทาน T12)
+    assert_eq!(normalize_thai("น\u{e33}\u{e49}"), "น้ำ", "วรรณยุกต์หลังสระอำ");
+    assert_eq!(normalize_thai("ท\u{e33}\u{e48}\u{e48}"), "ท่ำ", "วรรณยุกต์ซ้ำหลังสระอำ");
+    assert_eq!(normalize_thai("\u{e40}\u{e40}ม\u{e48}"), "แม่", "สระเอสองตัวคือสระแอ");
+    assert_eq!(normalize_thai("ก\u{e48}\u{e35}"), "กี่", "วรรณยุกต์ก่อนสระบน");
+    assert_eq!(normalize_thai("ป\u{e48}\u{e39}"), "ปู่", "วรรณยุกต์ก่อนสระล่าง");
+    assert_eq!(normalize_thai("ก\u{e48}\u{e48}า"), "ก่า", "วรรณยุกต์ซ้ำติดกัน");
+    assert_eq!(normalize_thai("ส\u{e4c}\u{e34}"), "ส\u{e34}\u{e4c}", "ทัณฑฆาตหลังสระบน");
+    for ok in ["น้ำใจ ไม่เคยเปลี่ยน", "ที่นี่", "เที่ยว", "แม่", "Hello, world.", "ก่อนฟ้าสาง"] {
+        assert_eq!(normalize_thai(ok), ok, "ข้อความที่ถูกอยู่แล้วต้องเท่าเดิม");
+    }
     let (b, lo, up) = split_cluster("น้ำ");
     assert_eq!((b, lo, up), (vec!["น".to_string(), "า".to_string()], vec![], vec!["\u{e4d}".to_string(), "\u{e49}".to_string()]));
     let (b, lo, up) = split_cluster("ปู่");
