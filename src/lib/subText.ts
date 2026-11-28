@@ -46,9 +46,24 @@ export function fromBox(text: string, d: SubDoc) {
 export function plain(text: string) {
   return text.replace(/\{[^}]*\}/g, "").replace(/<[^>]*>/g, "").replace(/\\[Nnh]/g, "").replace(/\s/g, "");
 }
+/** ตัวแบ่งกลุ่มอักขระที่ตาเห็นเป็นตัวเดียว (grapheme) · WebView2 กับ Chromium มี Intl.Segmenter */
+const GRAPHEME = typeof Intl !== "undefined" && "Segmenter" in Intl ? new Intl.Segmenter("th", { granularity: "grapheme" }) : null;
+const SKIP = /^[\s\p{P}]+$/u;
+
+/** จำนวนตัวอักษรที่ตาอ่าน แบบ Aegisub (libaegisub/common/character_count.cpp ตัวแบ่ง grapheme ของ ICU ไม่นับช่องว่างกับวรรคตอน)
+    สระบน สระล่าง และวรรณยุกต์นับรวมกับพยัญชนะเป็นตัวเดียว ที่ ได้ 1 เที่ยว ได้ 4 · ใช้ทั้งหน้าแก้ซับกับตัวดูซับ
+    (BUGS ข้อ 162.1 พี่กันทัก 14 พ.ย. 2569 "ถ้าเป็นภาษาไทย สระบน สระล่าง และวรรณยุกต์ไม่ควรนับเป็นตัวอักษรแยก เพราะตาเราอ่านมันรวมไปกับพยัญชนะ"
+     เดิมหน้าแก้ซับนับทุกตัวแยกกันรวมวรรคตอน ที่ ได้ 3 · ตัวดูซับตัดแค่อักขระหมวด Mn ตาม AUDIT ข้อ 93) */
+export function readChars(text: string): number {
+  if (!GRAPHEME) return text.replace(/[\s\p{Mn}\p{P}]/gu, "").length;
+  let n = 0;
+  for (const { segment } of GRAPHEME.segment(text)) if (!SKIP.test(segment)) n++;
+  return n;
+}
+
 /** ตัวอักษรต่อวินาที · ระยะไม่ถึง 10 ms นับเป็น 10 ms */
 export function cps(e: SubEvent) {
-  return plain(e.text).length / (Math.max(10, e.end - e.start) / 1000);
+  return readChars(plain(e.text)) / (Math.max(10, e.end - e.start) / 1000);
 }
 
 /** แท็กในตาราง · full แสดงเต็ม · sym ย่อเป็น ☀ แบบ Aegisub · hide ซ่อน · ขึ้นบรรทัดเป็น ↵ ให้แถวสูงเท่ากัน */

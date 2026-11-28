@@ -372,7 +372,8 @@ T[90] = async (p, check) => {
 };
 T[93] = async (p, check) => {
   const r = await mod(p, "/src/components/SubViewer.tsx", `return [m.cpsChars("ที่นี่ไม่มีใครรู้"), m.cpsChars("น้ำใจ ไม่เคยเปลี่ยน"), m.cpsChars("Hello world")];`);
-  check("93 นับตัวอักษรต่อวินาทีไม่นับสระบนล่าง วรรณยุกต์ และเว้นวรรค", r[0] === 9 && r[1] === 14 && r[2] === 10, JSON.stringify(r));
+  // BUGS ข้อ 162.1 เปลี่ยนเป็นนับแบบ Aegisub สระอำนับรวมกับพยัญชนะด้วย น้ำใจ ไม่เคยเปลี่ยน ได้ 13 (เดิม 14)
+  check("93 นับตัวอักษรต่อวินาทีไม่นับสระบนล่าง วรรณยุกต์ และเว้นวรรค", r[0] === 9 && r[1] === 13 && r[2] === 10, JSON.stringify(r));
   // ตัวดูซับตัวหนังสือยังวาดตารางได้หลังย้ายไป components/subviewer/ (ชุด 6 แบ่งไฟล์)
   await avMovie(p); await clickText(p, "ดูซับ"); await p.waitForSelector("[data-sub-table] tbody tr", { timeout: 6000 });
   const rows = await p.evaluate(() => document.querySelectorAll("[data-sub-table] tbody tr").length);

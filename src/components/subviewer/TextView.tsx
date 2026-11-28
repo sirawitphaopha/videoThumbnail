@@ -6,10 +6,11 @@ import type { AvTrack } from "../../lib/avJob";
 import { IbBack, IbNext, IbPlay } from "../icons";
 import { IcGraph, IbEye, IcFile } from "../icons";
 import { LUT, dec, short, ts } from "./svShared";
+import { readChars } from "../../lib/subText";
 
 /** ข้อความพร้อมไฮไลต์คำที่ค้น */
-/** จำนวนตัวอักษรที่กินที่ในบรรทัด ไม่นับเว้นวรรค สระบนล่าง และวรรณยุกต์ (อักขระหมวด Mn) · เดิมนับทุกหน่วย ซับไทยขึ้นแดงว่าอ่านไม่ทันเกินจริง (AUDIT ข้อ 93) */
-export const cpsChars = (s: string) => s.replace(/[\s\p{Mn}]/gu, "").length;
+/** จำนวนตัวอักษรที่ตาอ่าน ตัวนับเดียวกับหน้าแก้ซับ (readChars ใน lib/subText.ts BUGS ข้อ 162.1) · เดิมตัดแค่อักขระหมวด Mn และยังนับวรรคตอน (AUDIT ข้อ 93) */
+export const cpsChars = (s: string) => readChars(s);
 
 function Hi({ text, q }: { text: string; q: string }) {
   if (!q) return <>{text}</>;
