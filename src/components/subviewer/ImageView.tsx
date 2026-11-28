@@ -2,7 +2,7 @@
 import { useEffect, useLayoutEffect, useRef, useState } from "react";
 import { CardIcon, FixedTime, Keep, Phr, Skel, Switch } from "../ui";
 import { listen } from "@tauri-apps/api/event";
-import { subApi, type SubImg } from "../../lib/api";
+import { isImgCancelled, subApi, type SubImg } from "../../lib/api";
 import type { AvTrack } from "../../lib/avJob";
 import { IbBack, IbNext } from "../icons";
 import { IbTable } from "../icons";
@@ -66,7 +66,7 @@ function SimgSeek(p: { times: SubImg[] | null; d: number; at: number; upto: numb
 /** แถบความคืบหน้าตอนถอดซับรูปครั้งแรก แทนที่แถบเวลาในความสูงเดียวกัน ตัวเลขกับเวลาที่เดินกว้างคงที่ไม่ดันแถบ
  *  (BUGS ข้อ 144 พี่กันทัก 16 พ.ย. 2569 "เเต่พอเอาไฟล์นี้เข้าเพื่อดูเเค่ซํบ มันรอนานมากกกกก") */
 const PROG_T = ["กำลังอ่านซับรูปจากไฟล์", "กำลังเก็บภาพซับ"];
-function SimgProgress(p: { pct: number | null; since: number }) {
+function SimgProgress(p: { pct: number | null; since: number; onCancel: () => void }) {
   const [now, setNow] = useState(() => Date.now());
   useEffect(() => { const id = window.setInterval(() => setNow(Date.now()), 1000); return () => window.clearInterval(id); }, []);
   const s = Math.max(0, Math.floor((now - p.since) / 1000));
@@ -78,6 +78,8 @@ function SimgProgress(p: { pct: number | null; since: number }) {
       <span className="simgprog-t"><Keep all={PROG_T}>{pct >= 85 ? PROG_T[1] : PROG_T[0]}</Keep> <FixedTime t={`${pct}%`} longest="100%" /></span>
       <div className="simgprog-bar"><i style={{ width: `${pct}%` }} /></div>
       <span className="simgprog-t">ใช้ไป <FixedTime t={t} longest="00:00" /></span>
+      {/* หนังยาวต้องรอ ffmpeg หรือ mkvextract อ่านทั้งไฟล์ กดยกเลิกได้ (ผู้ช่วยตรวจทาน R23 · BUGS ข้อ 162.8) */}
+      <button type="button" className="btn btn-ghost btn-sm simgprog-x" title="หยุดอ่านซับรูปจากไฟล์" onClick={p.onCancel} data-simg-cancel>ยกเลิก</button>
     </div>
   );
 }
@@ -93,6 +95,11 @@ export function ImageView(p: { track: AvTrack; path: string; ff: number; movie?:
   const [times, setTimes] = useState<SubImg[] | null>(null);
   const [pick, setPick] = useState<number | null>(null);
   const [err, setErr] = useState<string | null>(null);
+  // กดเปิดใหม่หลังยกเลิก ขอภาพหน้าเดิมอีกรอบ (BUGS ข้อ 162.8)
+  const [retry, setRetry] = useState(0);
+  // ยกเลิกแล้วหยุดจริง ตารางภาพหายแล้วจำนวนภาพต่อหน้าเปลี่ยน ห้ามขอภาพใหม่เองจนกว่าจะกดเปิดใหม่ (เดิมขอใหม่แล้ววิ่งอ่านต่อ เจอตอนตรวจด้วยเมาส์จริง)
+  const stopped = useRef(false);
+  useEffect(() => { stopped.current = false; }, [p.path, p.ff]);
   const [big, setBig] = useState<SubImg | null>(null);
   const fit = useRef<HTMLDivElement>(null);
   const list = useRef<HTMLDivElement>(null);
@@ -121,13 +128,14 @@ export function ImageView(p: { track: AvTrack; path: string; ff: number; movie?:
     return () => { void un.then((f) => f()); };
   }, [p.path, p.ff]);
   useEffect(() => {
+    if (stopped.current) return;
     let live = true;
     setErr(null);
     // window.__simgHold ให้ตัวตรวจค้างหน้ากำลังอ่านไว้วัดแถบความคืบหน้า (รุ่นทดสอบเท่านั้น)
     const hold = () => import.meta.env.DEV && (window as unknown as { __simgHold?: boolean }).__simgHold;
-    subApi.images(p.path, p.ff, start / per, per).then((r) => { if (live && !hold()) setData({ ...r, first: start, per }); }, (e) => { if (live) setErr(String(e)); });
+    subApi.images(p.path, p.ff, start / per, per).then((r) => { if (live && !hold()) setData({ ...r, first: start, per }); }, (e) => { if (isImgCancelled(e)) stopped.current = true; if (live || stopped.current) setErr(String(e)); });
     return () => { live = false; };
-  }, [p.path, p.ff, start, per]);
+  }, [p.path, p.ff, start, per, retry]);
   // รายการเวลาทั้งไฟล์ ขอหลังหน้าแรกมาแล้ว ไม่ให้สองคำสั่งถอดไฟล์เดียวกันพร้อมกันตอนเปิดครั้งแรก
   const ready = data != null;
   useEffect(() => {
@@ -210,6 +218,11 @@ export function ImageView(p: { track: AvTrack; path: string; ff: number; movie?:
   const skel = (n: number) => <div className="subimgs">{Array.from({ length: Math.max(1, n) }, (_, i) => <div key={i} className="simg"><Skel w="100%" h={picH} /><Skel w="60%" h={12} /></div>)}</div>;
   // ปุ่มปิดต่อท้ายแถวปุ่มเปลี่ยนหน้า ไม่มีแถบปุ่มท้ายหน้าต่างอีกชั้น (BUGS ข้อ 141 พี่กันสั่ง 16 พ.ย. 2569 "เอามาส่ตรนี้สิ จะเพิ่มอีกชั้นมาทำไม")
   const close = p.onClose && <><span className="sv-sep" aria-hidden /><button type="button" className="btn btn-ghost btn-sm sv-close" onClick={p.onClose} data-sv-close>ปิด</button></>;
+  if (err && isImgCancelled(err)) return (<>
+    <div className="stat info" data-simg-cancelled><CardIcon kind="info" /><div><b>ยกเลิกการเปิดซับรูปแล้ว</b><Phr>{"ภาพที่อ่านไปแล้วไม่ได้เก็บไว้ เปิดใหม่ต้องอ่านจากต้นไฟล์"}</Phr>
+      <div className="minirow"><button type="button" className="btn btn-ghost btn-sm" onClick={() => { stopped.current = false; setProg({ pct: null, since: Date.now() }); setErr(null); setRetry((n) => n + 1); }} data-simg-retry>เปิดใหม่</button></div></div></div>
+    {close && <div className="simgbar" style={{ marginTop: "auto", justifyContent: "flex-end" }}>{close}</div>}
+  </>);
   if (err) return (<>
     <div className="stat bad"><CardIcon kind="bad" /><div><b>ถอดซับรูปไม่ได้</b><Phr>{err}</Phr></div></div>
     {close && <div className="simgbar" style={{ marginTop: "auto", justifyContent: "flex-end" }}>{close}</div>}
@@ -222,7 +235,7 @@ export function ImageView(p: { track: AvTrack; path: string; ff: number; movie?:
     <div className="simgwrap">
     {/* แถบเวลาแบบแถบเลื่อนวิดีโอ บอกว่าดูอยู่ที่เวลาเท่าไหร่ กดหรือลากไปภาพตรงเวลานั้น (BUGS ข้อ 141 พี่กันขอ 16 พ.ย. 2569 "ใส่บาร์ข้างบนตรงนี้ เพื่อบ่งบอกว่าตอนนี้เวลาเท่าไหร่") */}
     {data ? <SimgSeek times={times} d={d} at={big ? big.n : start + 1} upto={big ? big.n : Math.min(total, start + per)} onSeek={(x) => go(x)} />
-      : <SimgProgress pct={prog.pct} since={prog.since} />}
+      : <SimgProgress pct={prog.pct} since={prog.since} onCancel={() => void subApi.cancelImages()} />}
     <div className="simgview" data-simgview>
       {/* เวลาของทุกภาพ กดแล้วไปหน้าที่มีภาพนั้น (พี่กันขอ 15 พ.ย. 2569 "ขอฝั่งซ้าย มีเวลาให้กดได้") */}
       <div className="simglist" ref={list} data-simg-list>

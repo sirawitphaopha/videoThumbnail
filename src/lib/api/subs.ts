@@ -17,7 +17,12 @@ export const subApi = {
   wave: (movie: string, stream: number, t0: number, t1: number, cols: number) => call<number[]>("sub_wave", { movie, stream, t0, t1, cols }),
   images: (path: string, ff: number, page: number, per: number) => call<{ total: number; items: SubImg[] }>("sub_images", { path, ff, page, per }),
   imageTimes: (path: string, ff: number) => call<SubImg[]>("sub_image_times", { path, ff }),
+  /** ยกเลิกการเปิดซับรูปที่ค้างอยู่ คำสั่งที่รอตอบว่า IMG_CANCELLED (BUGS ข้อ 162.8) */
+  cancelImages: () => call<void>("sub_images_cancel"),
 };
+/** ข้อความที่ฝั่ง Rust ตอบตอนยกเลิกการเปิดซับรูป (IMG_CANCELLED ใน subtitle/vobsub.rs) */
+export const IMG_CANCELLED = "ยกเลิกการเปิดซับรูปแล้ว";
+export const isImgCancelled = (e: unknown) => String(e).includes(IMG_CANCELLED);
 
 /* ตัวอ่านเขียนซับของหน้าแก้ซับ (แผนหน้าแก้ซับ ขั้น 1 · subdoc.rs) · เวลาเป็นมิลลิวินาทีตามไฟล์
    raw กับ pre คือข้อความเดิมจากไฟล์ ส่งกลับไปตามเดิมห้ามแก้ ฝั่ง Rust ใช้เทียบว่าบรรทัดไหนไม่ได้แก้ แล้วเขียนข้อความเดิมกลับทุกไบต์ */

@@ -4,7 +4,7 @@
    อ่านอย่างเดียว ไฟล์หนังและไฟล์ซับไม่ถูกแตะ */
 import { useEffect, useMemo, useRef, useState } from "react";
 import InfoTip from "../../components/InfoTip";
-import { CardIcon, Keep, Phr, Seg, Skel, Switch } from "../../components/ui";
+import { CardIcon, Keep, Phr, Seg, Switch } from "../../components/ui";
 import { IbCrop, IbNext, IbPlay, IbStop, IbTable, IbWand, IcRefresh, IcSearch, IcSettings, IcFile, IcPalette, IcExtract, IcClose } from "../../components/icons";
 import { infoApi, ocrApi, pickFile, subApi, type OcrDbList, type OcrTessLang } from "../../lib/api";
 import type { AvTrack } from "../../lib/avJob";
@@ -23,6 +23,7 @@ import { EditArea, EngineRow, MATCH, OcrTable, ReviewOne, baseName } from "./Ocr
 import { hasTop, useSubImgs } from "./images";
 import { FLAG_TIP, FORCED_TIP, dur } from "./tips";
 import { hk } from "../../lib/keymap";
+import { OcrOpenError, OcrOpening } from "./OcrOpening";
 
 /* ---------- หน้า OCR ---------- */
 const VIEW_KEY = "ms.ocrView";
@@ -182,12 +183,8 @@ export default function OcrPage({ track, movie, onEdit }: { track: AvTrack; movi
         <div className="minirow"><button type="button" className="btn btn-ghost btn-sm" onClick={() => void openHere()} data-ocr-other-open>{other.running ? "หยุดอ่านแล้วเปิดซับนี้" : "เปิดซับนี้ ทิ้งผลเดิม"}</button></div>
       </div></div>
     </section>);
-  if (job.openError && job.path === path) return <section className="card ocr-page" data-ocr-page><div className="stat bad"><CardIcon kind="bad" /><div><b>เปิดซับรูปไม่ได้</b><Phr>{job.openError}</Phr></div></div></section>;
-  if (!rows.length) return (
-    <section className="card ocr-page" data-ocr-page aria-busy="true">
-      <Skel w="100%" h={38} /><Skel w="100%" h={240} style={{ marginTop: 8 }} />
-      <div className="small"><Phr>{`${job.openPercent >= 85 ? "กำลังเก็บภาพซับ" : "กำลังอ่านภาพซับจากไฟล์"} ${job.openPercent}%`}</Phr></div>
-    </section>);
+  if (job.openError && job.path === path) return <OcrOpenError error={job.openError} onRetry={() => void openSource(path, ff)} />;
+  if (!rows.length) return <OcrOpening percent={job.openPercent} />;
   return (
     <section className="card ocr-page" data-ocr-page>
       <EngineRow busy={job.running} dbs={dbs} tess={tess} onDb={() => setDlg("db")} />

@@ -119,3 +119,4 @@
 .ocr-prog { display: flex; flex-direction: column; gap: 4px; min-width: 0; flex: 1; }
 .ocr-bar2 { height: 8px; border-radius: 4px; background: var(--accent-soft); overflow: hidden; }
 .ocr-bar2 span { display: block; height: 100%; background: var(--accent); border-radius: 4px; }
+.ocr-opening { display: flex; align-items: center; gap: 10px; }

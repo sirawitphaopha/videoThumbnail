@@ -362,8 +362,11 @@ pub fn images_with(tools: &Path, work: &Path, path: &Path, ff: u64, on: &dyn Fn(
         for i in v.iter_mut() { i.file = dir.join(format!("c{:06}.png", i.n)); }
         Some(v)
     };
+    // คำขอใหม่เริ่มนับใหม่ ตัวหยุดของรอบที่ยกเลิกไปแล้วไม่ค้าง (BUGS ข้อ 162.8)
+    if cached().is_none() { crate::subtitle::vobsub::IMG_STOP.store(false, std::sync::atomic::Ordering::SeqCst); }
     let _busy = loop {
         if let Some(v) = cached() { return Ok(v); }
+        if crate::subtitle::vobsub::img_stopped() { return Err(crate::subtitle::vobsub::IMG_CANCELLED.into()); }
         let mut set = IMG_BUSY.get_or_init(Default::default).lock().unwrap();
         if set.insert(key.clone()) { break BusyGuard(key.clone()); }
         drop(set);
@@ -384,7 +387,9 @@ pub fn images_with(tools: &Path, work: &Path, path: &Path, ff: u64, on: &dyn Fn(
     if let Some(out) = images_from_vobsub(tools, &dir, path, ff, on).inspect_err(|_| { let _ = std::fs::remove_dir_all(&dir); })? { return save(out); }
     // ซับ PGS อ่านจากไฟล์ .sup ตรง ๆ เร็วกว่าให้ ffmpeg วาดภาพเต็มจอหลายเท่า · ชนิดอื่นหรืออ่านไม่ได้ใช้ทางเดิมข้างล่าง
     if let Some(out) = images_from_sup(tools, &dir, path, ff, on) { return save(out); }
-    let out = images_by_render(tools, &dir, &raw, path, ff, on)?;
+    // ยกเลิกระหว่างลอกแทร็ก ทางเร็วคืน None ไม่ไปวาดด้วย ffmpeg ต่อ
+    if crate::subtitle::vobsub::img_stopped() { let _ = std::fs::remove_dir_all(&dir); return Err(crate::subtitle::vobsub::IMG_CANCELLED.into()); }
+    let out = images_by_render(tools, &dir, &raw, path, ff, on).inspect_err(|_| { let _ = std::fs::remove_dir_all(&dir); })?;
     save(out)
 }
 

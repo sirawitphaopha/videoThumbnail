@@ -191,6 +191,46 @@ T[3] = async (p, check) => {
   check("162.3 กล่อง ⓘ คีย์พื้นฐานที่ปรับไม่ได้ตัดบรรทัดตามที่ตรวจไว้", !!fl && JSON.stringify(fl) === JSON.stringify(TIP_LINES.fixed), JSON.stringify(fl));
 };
 
+// 162.8 กดยกเลิกได้ตอนเปิดซับรูปจากหนังยาว (ผู้ช่วยตรวจทาน R23) ------------------------------------------
+const IMG_MOVIE = "D:\\หนัง\\ซับรูปตัวอย่าง (2024).mkv"; // ซับรูป PGS ตัวอย่าง (OCR_PATH ใน theme-live-app.html)
+const CANCEL_MSG = "ยกเลิกการเปิดซับรูปแล้ว";
+/** คำสั่งเปิดซับรูปค้างจนกดยกเลิก แล้วตอบแบบที่ฝั่ง Rust ตอบ */
+const hang = (p, cmd) => over(p, cmd, `window.__hangN = (window.__hangN || 0) + 1; return new Promise((_, rej) => { (window.__hangRej ??= []).push(rej); });`);
+const cancelCmd = (p) => over(p, "sub_images_cancel", `window.__cancelN = (window.__cancelN || 0) + 1; for (const r of window.__hangRej ?? []) r(${JSON.stringify(CANCEL_MSG)}); window.__hangRej = []; return null;`);
+const unhang = (p, cmd) => p.evaluate((c) => { delete window.__fxOver[c]; }, cmd);
+T[8] = async (p, check) => {
+  // ตัวดูซับรูป
+  await hang(p, "sub_images"); await cancelCmd(p);
+  await nav(p, "ซับไตเติล"); await wait(p, 300); await p.evaluate((x) => window.__subOpen(x), IMG_MOVIE);
+  await p.waitForSelector("[data-simg-cancel]", { timeout: 8000 });
+  // กดด้วยเมาส์จริง ตารางภาพหายแล้วจำนวนภาพต่อหน้าเปลี่ยน เดิมตัวดูขอภาพใหม่เองแล้วกลับไปอ่านต่อ
+  await p.click("[data-simg-cancel]");
+  await p.waitForSelector("[data-simg-cancelled]", { timeout: 5000 });
+  const asked = await p.evaluate(() => window.__hangN);
+  await wait(p, 1500);
+  const v = await p.evaluate((a) => ({ n: window.__cancelN, again: window.__hangN - a, text: document.querySelector("[data-simg-cancelled]")?.innerText ?? "", prog: !!document.querySelector("[data-simg-progress]") }), asked);
+  check("162.8 ตัวดูซับรูป กดยกเลิกระหว่างอ่าน เรียกคำสั่งยกเลิกแล้วขึ้นว่ายกเลิกแล้ว ไม่ขึ้นว่าถอดไม่ได้ และไม่ขอภาพใหม่เอง", v.n === 1 && v.again === 0 && v.text.includes(CANCEL_MSG) && !v.text.includes("ถอดซับรูปไม่ได้") && !v.prog, JSON.stringify(v));
+  await unhang(p, "sub_images");
+  await click(p, "[data-simg-retry]");
+  await p.waitForSelector("[data-simg-list] [data-simg-at]", { timeout: 8000 });
+  const back = await p.evaluate(() => ({ cancelled: !!document.querySelector("[data-simg-cancelled]"), imgs: document.querySelectorAll("[data-simgview] img").length }));
+  check("162.8 ตัวดูซับรูป กดเปิดใหม่แล้วขึ้นภาพ", !back.cancelled && back.imgs > 0, JSON.stringify(back));
+  // หน้า OCR
+  await p.reload(); await p.waitForSelector("[data-navbar]"); await wait(p, 1500);
+  await hang(p, "ocr_source"); await cancelCmd(p);
+  await nav(p, "ซับไตเติล"); await wait(p, 300); await p.evaluate((x) => window.__subOpen(x), IMG_MOVIE); await wait(p, 2500);
+  await clickText(p, "ดูซับ"); await wait(p, 300); await clickText(p, "OCR เป็นตัวหนังสือ", "button,[role=option],li");
+  await p.waitForSelector("[data-ocr-open-cancel]", { timeout: 8000 });
+  await p.click("[data-ocr-open-cancel]");
+  await p.waitForSelector("[data-ocr-open-cancelled]", { timeout: 5000 });
+  const o = await p.evaluate(() => ({ n: window.__cancelN, text: document.querySelector("[data-ocr-open-cancelled]")?.innerText ?? "" }));
+  check("162.8 หน้า OCR กดยกเลิกระหว่างเปิด ขึ้นว่ายกเลิกแล้ว ไม่ขึ้นว่าเปิดไม่ได้", o.n === 1 && o.text.includes(CANCEL_MSG) && !o.text.includes("เปิดซับรูปไม่ได้"), JSON.stringify(o));
+  await unhang(p, "ocr_source");
+  await click(p, "[data-ocr-open-retry]");
+  await p.waitForFunction(() => { const s = document.querySelector("[data-ocr-page]"); return s && s.getAttribute("aria-busy") !== "true" && !document.querySelector("[data-ocr-open-cancelled]"); }, null, { timeout: 8000 });
+  check("162.8 หน้า OCR กดเปิดใหม่แล้วเปิดซับได้", true, "");
+};
+
 // ---------------------------------------------------------------- ตัวรัน
 const want = process.argv.slice(2).map(Number).filter(Boolean);
 const ids = Object.keys(T).map(Number).filter((n) => !want.length || want.includes(n)).sort((a, b) => a - b);

@@ -71,3 +71,4 @@
 .simgprog-t { flex: none; font-size: 12.5px; color: var(--txt2); white-space: nowrap; font-variant-numeric: tabular-nums; }
 .simgprog-bar { position: relative; flex: 1; height: 6px; border-radius: 3px; background: var(--line); overflow: hidden; }
 .simgprog-bar i { position: absolute; left: 0; top: 0; bottom: 0; border-radius: 3px; background: var(--accent); transition: width .3s ease; }
+.simgprog-x { flex: none; margin-left: 4px; }

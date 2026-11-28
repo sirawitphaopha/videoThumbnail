@@ -223,6 +223,7 @@
     merge_inspect: (a) => (OCR_PATH(a.path) ? ocrMovie(a.path) : SE_PATH(a.path) ? seMovie(a.path) : mergeMovie(a.path)),
     sub_images: (a) => { const all = OCR_SAMPLE.all(), off = Math.round(a.page * a.per); return { total: all.length, items: all.slice(off, off + a.per) }; },
     sub_image_times: () => OCR_SAMPLE.all().map(({ png, ...x }) => ({ ...x, png: "" })),
+    sub_images_cancel: () => null,
     subdoc_open: (a) => seDoc(a.path, a.tid === 2),
     subdoc_render: (a) => seRender(a.doc),
     subdoc_set_dirty: () => null, subdoc_autosaves: () => [], subdoc_autosave: () => null,

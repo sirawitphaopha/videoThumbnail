@@ -140,6 +140,12 @@ pub async fn sub_images(app: AppHandle, path: String, ff: u64, page: usize, per:
     }).await.map_err(|e| e.to_string())?
 }
 
+/// กดยกเลิกตอนกำลังเปิดซับรูป เครื่องมือที่อ่านหนังอยู่หยุด คำสั่งที่รออยู่ตอบว่ายกเลิกแล้ว (ผู้ช่วยตรวจทาน R23 · BUGS ข้อ 162.8)
+#[tauri::command]
+pub fn sub_images_cancel() {
+    crate::subtitle::vobsub::IMG_STOP.store(true, std::sync::atomic::Ordering::SeqCst);
+}
+
 /// เวลาของทุกภาพในซับรูป ไม่มีตัวภาพ ไว้ทำรายการเวลาด้านซ้ายของตัวดูซับรูปให้กดไปภาพนั้น
 /// (BUGS ข้อ 141 พี่กันขอ 15 พ.ย. 2569 "ขอฝั่งซ้าย มีเวลาให้กดได้") · ใช้ผลถอดชุดเดียวกับ sub_images ไม่ถอดซ้ำ
 #[tauri::command]

@@ -363,6 +363,12 @@ pub(crate) fn stream_codec(tools: &Path, file: &Path, ff: u64) -> (String, f64) 
 /// สตรีมที่ ff ของไฟล์นี้เป็นซับ VobSub ไหม
 pub fn is_vobsub_stream(tools: &Path, file: &Path, ff: u64) -> bool { stream_codec(tools, file, ff).0 == "dvd_subtitle" }
 
+/// ตัวหยุดของการเปิดซับรูป กดยกเลิกในตัวดูซับรูปหรือหน้า OCR แล้วเครื่องมือที่อ่านหนังอยู่หยุดทันที (ผู้ช่วยตรวจทาน R23 · BUGS ข้อ 162.8)
+pub static IMG_STOP: std::sync::atomic::AtomicBool = std::sync::atomic::AtomicBool::new(false);
+/// ข้อความตอนยกเลิก หน้าจอเทียบคำนี้เพื่อขึ้นว่ายกเลิกแล้ว ไม่ใช่เปิดไม่ได้
+pub const IMG_CANCELLED: &str = "ยกเลิกการเปิดซับรูปแล้ว";
+pub fn img_stopped() -> bool { IMG_STOP.load(std::sync::atomic::Ordering::SeqCst) }
+
 /// รันเครื่องมือแล้วอ่านความคืบหน้าทีละบรรทัด · mkvextract แบบ --gui-mode บอก #GUI#progress N%
 /// ffmpeg แบบ -progress pipe:1 บอก out_time_us เทียบกับความยาวไฟล์ · คืนบรรทัดผิดพลาดท้าย ๆ ไว้บอกสาเหตุ
 pub(crate) fn run_progress(tools: &Path, tool: &str, args: &[OsString], dur: f64, on: &dyn Fn(f64)) -> Result<(bool, Vec<String>, String), String> {
@@ -376,7 +382,14 @@ pub(crate) fn run_progress(tools: &Path, tool: &str, args: &[OsString], dur: f64
         s
     });
     let mut tail: Vec<String> = Vec::new();
+    // ffmpeg แบบ -progress กับ mkvextract แบบ --gui-mode พิมพ์บรรทัดความคืบหน้าทุกครึ่งวินาทีโดยประมาณ จึงเช็กตัวหยุดทุกบรรทัดได้ทัน
     for l in BufReader::new(child.stdout.take().unwrap()).lines().map_while(Result::ok) {
+        if img_stopped() {
+            let _ = child.kill();
+            let _ = child.wait();
+            let _ = err_t.join();
+            return Err(IMG_CANCELLED.into());
+        }
         if let Some(p) = l.strip_prefix("#GUI#progress ").and_then(|v| v.trim().trim_end_matches('%').parse::<f64>().ok()) {
             on(p.clamp(0.0, 100.0));
         } else if let Some(us) = l.strip_prefix("out_time_us=").and_then(|v| v.trim().parse::<f64>().ok()) {
@@ -387,6 +400,7 @@ pub(crate) fn run_progress(tools: &Path, tool: &str, args: &[OsString], dur: f64
     }
     let st = child.wait().map_err(|e| e.to_string())?;
     let errs = err_t.join().unwrap_or_default();
+    if img_stopped() { return Err(IMG_CANCELLED.into()); }
     tail.extend(errs.lines().filter(|l| !l.trim().is_empty() && !l.contains("Parsed_showinfo")).map(str::to_string));
     if tail.len() > 6 { tail.drain(..tail.len() - 6); }
     Ok((tool_succeeded(tool, &st), tail, errs))
