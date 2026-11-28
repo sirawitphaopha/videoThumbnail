@@ -66,6 +66,8 @@ pub(super) fn convert(app: &AppHandle, req: &ConvReq, jobs: &Arc<crate::app::job
     let encs = encode::status(&tools, &user);
     let partial = dir.join(format!("{stem}.partial-{}.{ext}", crate::cover::poster_image::unique()));
     let _g1 = scopeguard(partial.clone());
+    // จดไว้ ไฟดับกลางทางแล้วตอนเปิดครั้งหน้าลบให้ (BUGS ข้อ 162.4)
+    let _t1 = crate::app::inflight::track(&partial, None, crate::app::inflight::Kind::Temp);
     let opus_native = codec == "opus" && (spec.encoder.is_empty() || spec.encoder == "native");
     let own_tag = matches!(codec, "wv" | "ape" | "tak");
     // รูปปกสำหรับ opusenc กับแท็ก APEv2 · ดึงลงโฟลเดอร์ชั่วคราวของโปรแกรม เสร็จแล้วลบ
@@ -126,7 +128,7 @@ pub(super) fn convert(app: &AppHandle, req: &ConvReq, jobs: &Arc<crate::app::job
     let has_meta = !f.tags.is_empty() || f.cover.is_some();
     if remux_kind(codec) && has_meta {
         let p2 = dir.join(format!("{stem}.partial-{}.{ext}", crate::cover::poster_image::unique()));
-        _g3 = Some(scopeguard(p2.clone()));
+        _g3 = Some((scopeguard(p2.clone()), crate::app::inflight::track(&p2, None, crate::app::inflight::Kind::Temp)));
         let cover_fits = f.cover.as_ref().is_some_and(|c| matches!(c.codec.as_str(), "mjpeg" | "png"));
         let try_once = |with_cover: bool| -> bool {
             let _ = std::fs::remove_file(&p2);

@@ -1,6 +1,7 @@
 //! จับคู่รูปปก ยืนยันแล้วเก็บรูปจริง เขียนปกตามที่เก็บที่เลือก ไม่เขียนทับไฟล์คนอื่น
 //! แยกจาก link/mod.rs ตอนแบ่งไฟล์ทั้งโปรเจกต์ (BUGS ข้อ 153 ขั้น 12) ย้ายมาทั้งก้อน · ของที่ mod.rs กับไฟล์ข้างกันใช้ร่วม เติม pub(crate) เท่าที่ตัวคอมไพล์ต้องการ
 use super::*;
+use crate::app::inflight;
 
 // ---------------------------------------------------------------- ยืนยันแล้วเก็บรูปจริง (ขั้น 2)
 
@@ -87,7 +88,10 @@ fn write_thumb(env: &WriteEnv, id: &str, orient: &str, img: &image::RgbImage, sh
 /// วางไบต์ลงไฟล์ใหม่แบบไม่มีจังหวะทับ · เขียนไฟล์ชั่วคราวข้าง ๆ แล้วย้ายแบบไม่แทนที่
 fn write_new(target: &Path, bytes: &[u8]) -> Result<(), String> {
     let temp = target.with_extension(format!("{}.partial", pi::unique()));
+    // จดไว้ ไฟดับกลางทาง ตอนเปิดครั้งหน้าลบหรือย้ายเข้าชื่อจริง (BUGS ข้อ 162.4)
+    let t = inflight::track(&temp, Some(target), inflight::Kind::Temp);
     fs::write(&temp, bytes).map_err(|e| e.to_string())?;
+    t.ready();
     if let Err(p) = crate::cover::rename::move_no_replace(&temp, target) {
         let _ = fs::remove_file(&temp);
         return Err(p.title);
@@ -98,8 +102,12 @@ fn write_new(target: &Path, bytes: &[u8]) -> Result<(), String> {
 /// แทนไฟล์ของโปรแกรมเอง · ไฟล์ใหม่เขียนเสร็จก่อน ค่อยเอาของเก่าออก พังกลางทางของเก่ากลับที่เดิม
 pub(crate) fn replace_own(target: &Path, bytes: &[u8]) -> Result<(), String> {
     let temp = target.with_extension(format!("{}.partial", pi::unique()));
+    let t = inflight::track(&temp, Some(target), inflight::Kind::Temp);
     fs::write(&temp, bytes).map_err(|e| e.to_string())?;
+    t.ready();
     let old = target.with_extension(format!("{}.old", pi::unique()));
+    // ปกรุ่นก่อนที่ย้ายหลบ ไฟดับก่อนไฟล์ใหม่เข้าที่ ตอนเปิดครั้งหน้าย้ายกลับ (BUGS ข้อ 162.4)
+    let _o = inflight::track(&old, Some(target), inflight::Kind::Old);
     if let Err(p) = crate::cover::rename::move_no_replace(target, &old) {
         let _ = fs::remove_file(&temp);
         return Err(p.title);

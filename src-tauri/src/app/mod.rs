@@ -12,3 +12,4 @@ pub mod drives;
 pub mod winutil;
 pub mod latest;
 pub mod hashes;
+pub mod inflight;

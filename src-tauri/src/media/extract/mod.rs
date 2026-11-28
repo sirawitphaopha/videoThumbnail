@@ -264,6 +264,8 @@ pub fn place_item(tools: &Path, src: &Path, it: &Item, target: &Path, vobsub: bo
     let partial = partial_of(target, vobsub);
     let temps = if vobsub { vobsub_outputs(&partial) } else { vec![partial.clone()] };
     for t in &temps { let _ = std::fs::remove_file(t); }
+    // จดไว้ ไฟดับกลางทางแล้วตอนเปิดครั้งหน้าลบไฟล์ที่แยกไม่เสร็จข้างหนัง (BUGS ข้อ 162.4)
+    let _tracked: Vec<_> = temps.iter().map(|t| crate::app::inflight::track(t, None, crate::app::inflight::Kind::Temp)).collect();
     let made = match extract_one(tools, src, it, &partial, on, stop)? {
         Done::Cancelled => return Ok(Placed::Cancelled),
         Done::Ok(made) => made,

@@ -196,6 +196,8 @@ pub fn save(doc: &SubDoc, target: &Path, mode: &str, force: bool) -> Result<Save
         return Err("exists".into());
     }
     let partial = partial_of(target);
+    // จดไว้ ไฟดับกลางทาง ตอนเปิดครั้งหน้าลบไฟล์ที่เขียนไม่ครบ หรือย้ายไฟล์ที่ตรวจครบแล้วเข้าชื่อจริงถ้าไฟล์เดิมลงถังขยะไปแล้ว (BUGS ข้อ 162.4)
+    let tracked = crate::app::inflight::track(&partial, Some(target), crate::app::inflight::Kind::Temp);
     {
         use std::io::Write;
         let mut f = std::fs::OpenOptions::new().write(true).create_new(true).open(&partial).map_err(|e| format!("เขียนไฟล์ไม่ได้ {e}"))?;
@@ -206,6 +208,7 @@ pub fn save(doc: &SubDoc, target: &Path, mode: &str, force: bool) -> Result<Save
         let _ = std::fs::remove_file(&partial);
         return Err("เขียนแล้วอ่านกลับไม่ตรง ไฟล์เดิมยังอยู่ครบ".into());
     }
+    tracked.ready();
     if mode == "replace" {
         // ไฟล์เดิมลงถังขยะด้วยชื่อจริง (กู้คืนได้) แล้วเอาไฟล์ใหม่มาแทน · ย้ายไม่สำเร็จ ไฟล์เดิมยังอยู่ในถังขยะ ไฟล์ใหม่อยู่ที่ .partial
         crate::app::outfile::to_trash(target).map_err(|e| { let _ = std::fs::remove_file(&partial); e })?;

@@ -70,6 +70,11 @@ pub fn run() {
                     }
                 }
             }
+            // ไฟล์ทำค้างข้างไฟล์ของผู้ใช้ที่จดไว้รอบก่อน ลบหรือย้ายเข้าชื่อจริง แล้วจดลงบันทึกการใช้งาน (BUGS ข้อ 162.4 · app/inflight.rs)
+            if let Ok(local) = app.path().app_local_data_dir() {
+                let _ = std::fs::create_dir_all(&local);
+                for n in crate::app::inflight::init(local.join("inflight.json")) { crate::app::actlog::note("เก็บกวาดไฟล์ทำค้าง", &n); }
+            }
             // กวาดไฟล์ชั่วคราวที่ค้างจากงานที่โดนปิดกลางทางหรือไฟดับ (โปรแกรมเปิดได้ทีละตัว ตอนนี้ยังไม่มีงานไหนถือไฟล์)
             // ไดรฟ์ C ที่ว่างน้อย เสียงที่แปลงตอนรวมค้างได้หลาย GB (ผู้ช่วยตรวจขั้น 10 ข้อ 11) · ภาพซับรูป subimg- เป็นของที่เก็บไว้ใช้ซ้ำ ไม่ลบ
             if let Ok(tmp) = app.path().app_local_data_dir().map(|d| d.join("tmp")) {
