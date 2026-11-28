@@ -344,6 +344,22 @@ T[7] = async (p, check) => {
   check("163.7 คลิกขวาที่ไม่ใช่หนัง ไม่ขึ้นเมนูของหนัง", !(await menuState(p)), "");
 };
 
+/** 164.6 แถวล่างหน้ารูปคลื่น คำว่า จุดเสีย ไม่ทับกับ ขยายแนวตั้ง ทุกขนาดหน้าต่าง แถวไม่ล้นขวา */
+T[96] = async (p, check) => {
+  for (const [W, H] of [[1280, 800], [1600, 852], [1920, 1032]]) {
+    await p.setViewportSize({ width: W, height: H });
+    await graphOpen(p, MOVIE); await p.click("[data-view=wave]").catch(() => {}); await wait(p, 500);
+    const r = await p.evaluate(() => { const f = document.querySelector(".agfoot"); const kids = [...f.querySelectorAll(".lgrow > *, .agfoot > div:last-child > *")].map((e) => { const r = e.getBoundingClientRect(); return { t: (e.innerText || e.className).slice(0, 14), l: r.left, r: r.right, top: r.top, b: r.bottom }; }).filter((x) => x.r > x.l);
+      const ov = []; for (let i = 0; i < kids.length; i++) for (let j = i + 1; j < kids.length; j++) { const a = kids[i], c = kids[j]; if (a.l < c.r - 1 && c.l < a.r - 1 && a.top < c.b - 1 && c.top < a.b - 1) ov.push(a.t + " × " + c.t); }
+      const t = document.querySelector(".vzlbl-t"); return { ov, over: f.scrollWidth - f.clientWidth, mark: !!document.querySelector(".lgrow")?.innerText.includes("จุดเสีย"), word: t ? getComputedStyle(t).display !== "none" : null, title: document.querySelector(".vzlbl")?.title }; });
+    check(`164.6 หน้าต่าง ${W} × ${H} แถวล่างรูปคลื่นมีจุดเสีย ไม่มีชิ้นทับกัน แถวไม่ล้นขวา`, r.mark && r.ov.length === 0 && r.over <= 0, JSON.stringify(r));
+    if (W === 1280) check("164.6 หน้าต่าง 1280 คำว่า ขยายแนวตั้ง เหลือไอคอนที่ชี้แล้วบอกชื่อ", r.word === false && r.title === "ขยายแนวตั้ง", JSON.stringify(r));
+    else check(`164.6 หน้าต่าง ${W} ยังเขียนคำว่า ขยายแนวตั้ง เต็ม`, r.word === true, JSON.stringify(r));
+    await nav(p, "ชั้นวางหนัง"); await wait(p, 200);
+  }
+  await p.setViewportSize({ width: 1280, height: 800 });
+};
+
 // ---------------------------------------------------------------- ตัวรัน
 const want = process.argv.slice(2).map(Number).filter(Boolean);
 const ids = Object.keys(T).map(Number).filter((n) => !want.length || want.includes(n)).sort((a, b) => a - b);

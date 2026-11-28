@@ -198,3 +198,13 @@
 .gp-tr .btn { margin: 0 2px; }
 .gp-loop.on { background-color: var(--accent-soft); color: var(--accent-ink); }
 .gp-loop.on:hover { background-color: #f8dde7; color: var(--accent-d); }
+/* แถวล่างหน้ารูปคลื่นที่หน้าต่าง 1280 × 800 คำว่า จุดเสีย ทับกับ ขยายแนวตั้ง (BUGS ข้อ 164.6)
+   เดิมกล่องป้ายสีหดได้ถึงศูนย์ แถวป้ายสีที่ห้ามตัดบรรทัดจึงล้นออกไปทับกลุ่มขวา
+   กล่องป้ายสีหดได้ไม่ต่ำกว่าแถวป้ายสี ส่วนหมายเหตุบรรทัดล่างไม่นับในความกว้างขั้นต่ำ (กว้างตามกล่อง จางท้ายด้วยตัวกลาง longName) */
+.lg.wavelg { min-width: min-content; }
+.wavelg .lgnote { width: 0; min-width: 100%; }
+/* แถวล่างแคบ (หน้าต่าง 1280 แบบมีแผงลำโพง) คำว่า ขยายแนวตั้ง เหลือไอคอนลูกศรขึ้นลง ชี้แล้วบอกชื่อ แถวไม่ล้นขวา */
+.ag[data-graphview] .agb > .plot .agfoot { container: agfoot / inline-size; }
+.vzlbl { display: inline-flex; align-items: center; gap: 4px; }
+.vzlbl svg { display: none; flex: none; }
+@container agfoot (max-width: 860px) { .vzlbl svg { display: block; } .vzlbl-t { display: none; } }
