@@ -223,6 +223,57 @@ T[5] = async (p, check) => {
   check("163.5 คำสั่ง หยุด ไปต้นไฟล์ ไปท้ายไฟล์ เล่นวน อยู่ในทะเบียนคีย์ลัด ตั้งเองได้", k.every(Boolean), JSON.stringify(k));
 };
 
+/** 163.6 (เลข 39) หน้าบิตเรตตอนดูแทร็กเสียง มีรูปคลื่นเสียงใต้แถบภาพรวม พับเก็บได้ */
+const brAudio = async (p) => {
+  // ระบบจำลองมีข้อมูลบิตเรตของวิดีโออย่างเดียว ตัวตรวจสลับคำตอบให้เป็นแทร็กเสียงของไฟล์เพลง
+  await over(p, "bitrate_tracks", "return [{ id: 'a0', label: 'เสียง 1 FLAC' }];");
+  await over(p, "bitrate_start", "const r = await window.__fxOverBase.bitrate_start(a); return { ...r, kind: 'audio', track: 'a0', tracks: [{ id: 'a0', label: 'เสียง 1 FLAC' }], codec: 'flac', channels: 2, sample_rate: 44100, video: 0, audio: 1, layout: 'stereo' };");
+  await nav(p, "บิตเรต"); await wait(p, 300); await avDrop(p, SONG);
+  await p.waitForSelector("[data-brnplot]", { timeout: 15000 }); await wait(p, 1500);
+};
+T[6] = async (p, check) => {
+  await p.evaluate(() => { localStorage.removeItem("br-wave-fold"); localStorage.removeItem("br-ov-fold"); });
+  await brAudio(p);
+  await p.waitForSelector("[data-brnwavecv=ready]", { timeout: 8000 }).catch(() => {});
+  const w = await p.evaluate(() => { const wv = document.querySelector("[data-brnwave] .brn-wave"), pl = document.querySelector("[data-brnplot]"), ov = document.querySelector(".brn-ov"); if (!wv || !pl) return null; const a = wv.getBoundingClientRect(), b = pl.getBoundingClientRect(), o = ov.getBoundingClientRect(); return { wl: a.left, ww: a.width, pl: b.left, pw: b.width, below: a.top >= o.bottom - 1, above: a.bottom <= b.top + 1, ready: document.querySelector("[data-brnwavecv]").dataset.brnwavecv }; });
+  check("163.6 ไฟล์เสียงขึ้นรูปคลื่นเสียงใต้แถบภาพรวม เหนือกราฟบิตเรต ขอบซ้ายและความกว้างตรงกับกราฟบิตเรต", !!w && w.ready === "ready" && w.below && w.above && Math.abs(w.wl - w.pl) < 1 && Math.abs(w.ww - w.pw) < 1, JSON.stringify(w));
+  // มีคลื่นจริงในพื้นที่กราฟ (จุดสีจุดเน้นเยอะพอ)
+  const ink = await p.evaluate(() => { const c = document.querySelector("[data-brnwavecv]"), g = c.getContext("2d"), d = g.getImageData(Math.round(c.width * 0.3), 0, Math.round(c.width * 0.4), c.height).data; let n = 0; for (let i = 0; i < d.length; i += 4) if (d[i + 3] > 200 && d[i] < 200) n++; return n; });
+  check("163.6 รูปคลื่นวาดคลื่นจริงในพื้นที่กราฟ", ink > 500, String(ink));
+  if (process.env.SHOTS) { await p.screenshot({ path: `${process.env.SHOTS}/บิตเรต-รูปคลื่น.png` }); }
+  // ชี้ในกราฟบิตเรต ขีดในรูปคลื่นขึ้นตรงตำแหน่งเดียวกัน
+  const pb = await p.evaluate(() => { const r = document.querySelector("[data-brnplot]").getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; });
+  await p.mouse.move(pb.x + pb.w * 0.5, pb.y + pb.h * 0.5); await wait(p, 200);
+  const xh = await p.evaluate(() => { const l = document.querySelector("[data-brnwavexh]"), wv = document.querySelector("[data-brnwave] .brn-wave"); return l ? l.getBoundingClientRect().left - wv.getBoundingClientRect().left : null; });
+  check("163.6 ชี้ในกราฟบิตเรตแล้วขีดในรูปคลื่นตรงตำแหน่งเดียวกัน", xh != null && Math.abs(xh - pb.w * 0.5) < 2, JSON.stringify({ xh, want: pb.w * 0.5 }));
+  // ชี้ในรูปคลื่น กราฟบิตเรตขึ้นกล่องบอกค่าของเวลานั้น
+  const wb = await p.evaluate(() => { const r = document.querySelector("[data-brnwave] .brn-wave").getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width, h: r.height }; });
+  await p.mouse.move(wb.x + wb.w * 0.4, wb.y + wb.h / 2); await wait(p, 200);
+  const tip = await p.evaluate(() => !!document.querySelector("[data-brntip]"));
+  check("163.6 ชี้ในรูปคลื่นแล้วกราฟบิตเรตขึ้นกล่องบอกค่าของเวลาเดียวกัน", tip, "");
+  // ซูมกราฟบิตเรต รูปคลื่นตามช่วงเดียวกัน (ซูมเข้าแล้วภาพเปลี่ยน)
+  const before = await p.evaluate(() => document.querySelector("[data-brnwavecv]").toDataURL().length);
+  await click(p, "[data-brnzoomin]"); await wait(p, 600);
+  const after = await p.evaluate(() => document.querySelector("[data-brnwavecv]").toDataURL().length);
+  check("163.6 ซูมกราฟบิตเรตแล้วรูปคลื่นเปลี่ยนตามช่วงที่ซูม", before !== after, JSON.stringify({ before, after }));
+  // พับรูปคลื่นกับพับภาพรวมได้แยกกัน จำไว้
+  await click(p, "[data-brnwavefold]"); await wait(p, 200);
+  const f1 = await p.evaluate(() => ({ wave: !!document.querySelector("[data-brnwave]"), ov: !document.querySelector(".brn-ov").hidden, saved: localStorage.getItem("br-wave-fold") }));
+  await click(p, "[data-brnovfold]"); await wait(p, 200);
+  const f2 = await p.evaluate(() => ({ ov: !document.querySelector(".brn-ov").hidden, saved: localStorage.getItem("br-ov-fold") }));
+  check("163.6 พับรูปคลื่นแล้วภาพรวมยังอยู่ พับภาพรวมได้แยก และจำไว้ทั้งคู่", !f1.wave && f1.ov && f1.saved === "1" && !f2.ov && f2.saved === "1", JSON.stringify({ f1, f2 }));
+  await click(p, "[data-brnwavefold]"); await click(p, "[data-brnovfold]"); await wait(p, 300);
+  const f3 = await p.evaluate(() => ({ wave: !!document.querySelector("[data-brnwave]"), ov: !document.querySelector(".brn-ov").hidden }));
+  check("163.6 กางคืนได้ทั้งสองแถบ", f3.wave && f3.ov, JSON.stringify(f3));
+  await p.evaluate(() => { localStorage.removeItem("br-wave-fold"); localStorage.removeItem("br-ov-fold"); });
+  // ไฟล์วิดีโอไม่ขึ้นรูปคลื่น
+  await p.evaluate(() => { window.__fxOver = {}; });
+  await nav(p, "ชั้นวางหนัง"); await wait(p, 200); await nav(p, "บิตเรต"); await wait(p, 300); await avDrop(p, MOVIE);
+  await wait(p, 2500);
+  const v = await p.evaluate(() => ({ wave: !!document.querySelector("[data-brnwave]"), btn: !!document.querySelector("[data-brnwavefold]"), plot: !!document.querySelector("[data-brnplot]") }));
+  check("163.6 ไฟล์วิดีโอไม่ขึ้นรูปคลื่น และไม่มีปุ่มพับรูปคลื่น", v.plot && !v.wave && !v.btn, JSON.stringify(v));
+};
+
 // ---------------------------------------------------------------- ตัวรัน
 const want = process.argv.slice(2).map(Number).filter(Boolean);
 const ids = Object.keys(T).map(Number).filter((n) => !want.length || want.includes(n)).sort((a, b) => a - b);

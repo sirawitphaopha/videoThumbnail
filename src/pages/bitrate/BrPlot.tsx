@@ -7,10 +7,15 @@ import { IcFile, IcGraph, IcRefresh } from "../../components/icons";
 import { BV, NA, STYLES, TIP_CEIL, TIP_STYLE, alpha, chTxt, clock, clockMs, codecName, colorTxt, fmtName, mb, rate, scanTxt } from "./common";
 import { BrHZoom, BrVZoom, HZ_MIN, Z_OPTS, vzTxt } from "./zoom";
 import type { BrOpenCtx } from "./brCtx";
+import BrWave, { FoldBtn, OV_FOLD_KEY, WAVE_FOLD_KEY, useFold } from "./BrWave";
 
 export default function BrPlot({ pg }: { pg: BrOpenCtx }) {
   const { B, L, R, S, T, audio, box, bstyle, ceil, custom, cutAt, cvRef, drag, dur, err, gopAvg, group, hb, headCompact, headRef, hi, hover, hv, info, jumpI, mode, onDown, onGraph, onMove, onUp, onWheel, ovDrag, ovH, ovMove, ovRef, overSec, pal, pct, ph, pi, pick, pickZ, pin, plotRef, pv, pw, r, rawKbps, readPct, resetZoom, running, sel, setBStyle, setHover, setPin, setSel, setSpan, setVz, span, st, tTotal, tipLeft, toneVer, total, track, typeName, ver, vz, xOf, z0, z1, zKey, zoom, zoomBy } = pg;
   const path = pg.path!;
+  // แถบภาพรวมกับรูปคลื่นพับเก็บได้แยกกัน จำไว้ในเครื่อง (BUGS ข้อ 163.6 · หลักเดียวกับ BUGS ข้อ 17)
+  const [ovFold, setOvFold] = useFold(OV_FOLD_KEY);
+  const [waveFold, setWaveFold] = useFold(WAVE_FOLD_KEY);
+  const aTrack = Math.max(0, Number((info?.track ?? track).replace(/^a/, "")) || 0);
   return (
     <>
       <div className="agb brn-body">
@@ -102,10 +107,15 @@ export default function BrPlot({ pg }: { pg: BrOpenCtx }) {
             </div>
           </div>
           {running && <div className="brn-prog" data-brnprog><i style={{ width: `${readPct}%` }} /><span>{mode === "frm" ? "ถอดภาพเพื่อดูชนิดเฟรม" : "กำลังอ่านไฟล์"} {readPct}%</span></div>}
-          <div className="brn-ov" onMouseDown={(e) => { ovDrag.current = 1; ovMove(e.clientX, e.currentTarget); }} onMouseMove={(e) => { if (ovDrag.current && (e.buttons & 1)) ovMove(e.clientX, e.currentTarget); }} onMouseUp={() => { ovDrag.current = null; }} title={zoom.length ? "ลากกรอบเพื่อเลื่อนช่วงที่ดู" : "ภาพรวมทั้งไฟล์"} data-brnov>
+          <div className="brn-folds" data-brnfolds>
+            <FoldBtn fold={ovFold} onToggle={() => setOvFold(!ovFold)} what="ภาพรวม" data="data-brnovfold" />
+            {audio && <FoldBtn fold={waveFold} onToggle={() => setWaveFold(!waveFold)} what="รูปคลื่นเสียง" data="data-brnwavefold" />}
+          </div>
+          <div className="brn-ov" hidden={ovFold} onMouseDown={(e) => { ovDrag.current = 1; ovMove(e.clientX, e.currentTarget); }} onMouseMove={(e) => { if (ovDrag.current && (e.buttons & 1)) ovMove(e.clientX, e.currentTarget); }} onMouseUp={() => { ovDrag.current = null; }} title={zoom.length ? "ลากกรอบเพื่อเลื่อนช่วงที่ดู" : "ภาพรวมทั้งไฟล์"} data-brnov>
             <canvas ref={ovRef} style={{ width: "100%", height: ovH, display: "block" }} />
             {zoom.length > 0 && <div className="brn-win" style={{ left: `calc(${L}px + (100% - ${L + R}px) * ${z0 / total})`, width: `calc((100% - ${L + R}px) * ${span / total})` }} />}
           </div>
+          {audio && !waveFold && path && <BrWave path={path} track={aTrack} z0={z0} z1={z1} L={L} R={R} hoverT={hover ? hover.t : null} onHover={(t, x) => setHover(t == null ? null : { x, y: T + 30, t })} />}
           <div className="brn-plotrow">
           <div ref={plotRef} className="brn-plot" onMouseDown={onDown} onMouseMove={onMove} onMouseUp={onUp} onMouseLeave={() => { setHover(null); drag.current = null; setSel(null); }} onWheel={onWheel}
             onDoubleClick={resetZoom} data-brnplot>

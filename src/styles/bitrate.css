@@ -160,3 +160,13 @@
 .brn-pickgrp { display: flex; flex-direction: column; gap: 6px; }
 .brn-pickgrp.sep { border-top: 1px solid var(--line); padding-top: 12px; margin-top: 2px; }
 .brn-pickh { font-weight: 700; color: var(--txt2); }
+
+/* รูปคลื่นเสียงใต้แถบภาพรวมตอนดูแทร็กเสียง (BUGS ข้อ 163.6 · ROADMAP ข้อ 44) แถวเดียวกับกราฟบิตเรต ช่องขวาเท่าแถบขยายแนวตั้ง กราฟสองตัวจึงตรงกันทุกจุด */
+.brn-folds { display: flex; gap: 14px; flex: none; margin-bottom: -4px; }
+.brn-fold { display: inline-flex; align-items: center; gap: 4px; height: 20px; padding: 0 6px; border: 0; border-radius: 6px; background-color: transparent; color: var(--txt3); font: inherit; font-size: 12px; cursor: pointer; transition: background-color .15s, color .15s; }
+.brn-fold:hover { background-color: #faedf1; color: var(--accent-ink); }
+.brn-waverow { flex: none; display: flex; gap: 6px; }
+.brn-wave { position: relative; flex: 1; min-width: 0; cursor: crosshair; }
+.brn-wavepad { width: 22px; flex: none; }
+.brn-wavexh { position: absolute; top: 0; bottom: 0; width: 1px; background: #472e36; opacity: .55; pointer-events: none; }
+.brn-wavemsg { position: absolute; left: 62px; top: 50%; transform: translateY(-50%); color: var(--txt3); }
