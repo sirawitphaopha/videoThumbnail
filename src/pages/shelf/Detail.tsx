@@ -22,7 +22,7 @@ import { Hl, baseName, tracks } from "./common";
 import { Stars } from "./ShelfGrid";
 
 /* ---------- แผงรายละเอียด (ต้นแบบบรรทัด 388–426) ---------- */
-export function Detail(p: { m: Movie; renameAsk?: boolean; onRenameAsked?: () => void; showFrames: boolean; scanning: boolean; reminder: number; onPage: (pg: Page) => void; onCheck: (r: CheckReq) => void; onGraph: (path: string) => void; onBitrate: (path: string) => void; onAv: (path: string) => void; onPoster: (path: string) => void; onMerge: (path: string, image: PosterStart) => void; onInfo: () => void; onPlay: () => void; onReveal: () => void; onClose: () => void }) {
+export function Detail(p: { m: Movie; renameAsk?: boolean; onRenameAsked?: () => void; unlinkAsk?: boolean; onUnlinkAsked?: () => void; showFrames: boolean; scanning: boolean; reminder: number; onPage: (pg: Page) => void; onCheck: (r: CheckReq) => void; onGraph: (path: string) => void; onBitrate: (path: string) => void; onAv: (path: string) => void; onPoster: (path: string) => void; onMerge: (path: string, image: PosterStart) => void; onInfo: () => void; onPlay: () => void; onReveal: () => void; onClose: () => void }) {
   const { m } = p;
   const src = thumbUrl(m.thumb);
   const [imgOk, setImgOk] = useState(true);
@@ -85,7 +85,7 @@ export function Detail(p: { m: Movie; renameAsk?: boolean; onRenameAsked?: () =>
       {/* ปกเสียไม่ใช่อ่านไฟล์ไม่ได้ การ์ดสภาพไฟล์ยังอยู่ บอกสั้น ๆ ต่อใต้ (AUDIT ข้อ 47) · ข้อความจากเครื่องมืออยู่ใน title */}
       {m.coverError && !m.missing && !m.error && <div className="stat warn" data-cover-error title={m.coverError}><CardIcon kind="warn" /><div><b>ทำภาพปกไม่ได้</b><Phr>{"รูปปกที่แนบในไฟล์อาจเสีย\nส่วนภาพ เสียง และซับอ่านได้ครบ"}</Phr></div></div>}
       {(m.pairs?.length ?? 0) > 0 && <PairCard m={m} onEdit={() => p.onAv(m.path)} />}
-      {(m.linked?.length ?? 0) > 0 && <LinkCard m={m} onPage={p.onPage} onMerge={p.onMerge} />}
+      {(m.linked?.length ?? 0) > 0 && <LinkCard m={m} onPage={p.onPage} onMerge={p.onMerge} removeAsk={p.unlinkAsk} onRemoveAsked={p.onUnlinkAsked} />}
       <div className="actions">
         {m.missing ? (
           <button type="button" className="btn btn-wait" aria-disabled="true" title="หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" onClick={p.onPlay}><PlayIcon />เปิดเล่น</button>
@@ -152,13 +152,15 @@ const whereShort = (c: LinkedCover) => c.store === "app" ? "เก็บใน�
 
 /** ปกที่จับคู่ไว้ (มอคอัปหน้า 5) · บอกที่มา ไม่ได้อยู่ในไฟล์ ไอคอนใน Windows ไม่เปลี่ยน · ครอปใหม่กับเปลี่ยนรูปพาไปตาราง แก้แล้วยืนยันอีกครั้งถึงเปลี่ยนบนชั้น
     เอาปกออก รูปที่โปรแกรมคัดลอกเองลงถังขยะ (พี่กันตอบตอนทำแผน) · รวมเข้าไฟล์พาไปหน้าใส่โปสเตอร์พร้อมรูปกับค่าครอป · เรื่องที่มีสองปก เลือกปกที่แสดงได้ */
-function LinkCard({ m, onPage, onMerge }: { m: Movie; onPage: (pg: Page) => void; onMerge: (path: string, image: PosterStart) => void }) {
+function LinkCard({ m, onPage, onMerge, removeAsk, onRemoveAsked }: { m: Movie; onPage: (pg: Page) => void; onMerge: (path: string, image: PosterStart) => void; removeAsk?: boolean; onRemoveAsked?: () => void }) {
   const toast = useToast();
   const linked = m.linked ?? [];
   const c = m.shownLink ?? linked[0];
   const [found, setFound] = useState<{ file: boolean; source: boolean } | null>(null);
   const [ask, setAsk] = useState(false);
   const [busy, setBusy] = useState(false);
+  // กดเอาปกจับคู่ออกจากเมนูคลิกขวา (BUGS ข้อ 164.7) เปิดหน้าต่างยืนยันเดียวกับปุ่มในการ์ดแล้วบอกให้ล้างค่า
+  useEffect(() => { if (removeAsk) { setAsk(true); onRemoveAsked?.(); } });
   const shownFile = c.file ?? c.source;
   useEffect(() => {
     let live = true;

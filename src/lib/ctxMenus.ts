@@ -12,7 +12,8 @@ export const MENUS: MenuDef[] = [
     { id: "play", label: "เปิดเล่น" }, { id: "playWith", label: "เปิดเล่นด้วยโปรแกรมอื่น" }, { id: "rename", label: "เปลี่ยนชื่อ" },
     { id: "poster", label: "เปลี่ยนโปสเตอร์" }, { id: "check", label: "ตรวจไฟล์" }, { id: "info", label: "MediaInfo" }, { id: "reveal", label: "เปิดโฟลเดอร์" },
     { id: "link", label: "จับคู่รูปปก" }, { id: "graph", label: "กราฟเสียง" }, { id: "av", label: "เสียงและซับ" }, { id: "bitrate", label: "Bitrate" },
-    { id: "coverPick", label: "สลับปกที่แสดง" }, { id: "rate", label: "ให้ดาว" }, { id: "copyPath", label: "คัดลอกที่อยู่ไฟล์" }, { id: "copyName", label: "คัดลอกชื่อเรื่อง" },
+    { id: "coverPick", label: "สลับปกที่แสดง" }, { id: "recrop", label: "ครอปปกจับคู่ใหม่" }, { id: "rechange", label: "เปลี่ยนรูปปกจับคู่" }, { id: "unlink", label: "เอาปกจับคู่ออก" },
+    { id: "rate", label: "ให้ดาว" }, { id: "copyPath", label: "คัดลอกที่อยู่ไฟล์" }, { id: "copyName", label: "คัดลอกชื่อเรื่อง" },
   ] },
   { id: "shelfMulti", title: "หนังหลายเรื่องบนชั้นวาง", where: "กด Ctrl ค้างแล้วคลิกเลือกหลายเรื่อง จากนั้นคลิกขวาที่เรื่องที่เลือก", items: [
     { id: "check", label: "ตรวจไฟล์แบบเร็ว" }, { id: "checkFull", label: "ตรวจไฟล์แบบละเอียด" }, { id: "rate", label: "ให้ดาว" },

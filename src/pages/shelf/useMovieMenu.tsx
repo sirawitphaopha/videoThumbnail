@@ -5,7 +5,7 @@
 import { useCallback, useState } from "react";
 import type { CheckReq } from "../check/CheckPage";
 import type { Page } from "../../components/Sidebar";
-import { api, linkApi, playerApi, type Movie, type PlayerInfo } from "../../lib/api";
+import { api, linkApi, pairApi, playerApi, type Movie, type PlayerInfo } from "../../lib/api";
 import { openLinkRow } from "../../lib/linkJob";
 import { useEscClose } from "../../lib/popup";
 import { useToast } from "../../components/Toasts";
@@ -25,6 +25,10 @@ export function useMovieMenu(o: Opts) {
   const [multi, setMulti] = useState<Set<string>>(new Set());
   /** เรื่องที่กดเปลี่ยนชื่อจากเมนู แผงขวาของเรื่องนั้นเปิดช่องเปลี่ยนชื่อแล้วล้างค่า (เลือกเรื่องอื่นทีหลังไม่เปิดเอง) */
   const [renameFor, setRenameFor] = useState<string | null>(null);
+  /** เรื่องที่กดเอาปกจับคู่ออกจากเมนู แผงขวาเปิดหน้าต่างยืนยันของการ์ดปกจับคู่แล้วล้างค่า (ไม่ลบทันที หน้าต่างบอกว่าไฟล์ไหนลงถังขยะ) */
+  const [unlinkFor, setUnlinkFor] = useState<string | null>(null);
+  /** รูปต้นฉบับของปกจับคู่หาไม่เจอ ข้อครอปใหม่จาง (เช็กแบบการ์ดปกจับคู่ ระหว่างเช็กถือว่าเจอ) */
+  const [noSource, setNoSource] = useState(false);
   const close = useCallback(() => setMenu(null), []);
   useEscClose(multi.size > 0 && !menu, () => setMulti(new Set()));
   const onContextMenu = (e: React.MouseEvent) => {
@@ -37,6 +41,10 @@ export function useMovieMenu(o: Opts) {
     setMenu({ id, x: e.clientX, y: e.clientY, multi: inMulti });
     // รายการโปรแกรมเล่นของเครื่อง ใช้ในเมนูย่อย เปิดเล่นด้วยโปรแกรมอื่น
     if (!inMulti) playerApi.list().then((l) => setPlayers(l.players)).catch(() => setPlayers([]));
+    setNoSource(false);
+    const lm = o.movies.find((x) => x.id === id);
+    const src = (lm?.shownLink ?? lm?.linked?.[0])?.source;
+    if (!inMulti && src) pairApi.check([src]).then(([ok]) => setNoSource(!ok)).catch(() => {});
   };
   /** Ctrl คลิกเลือกหลายเรื่อง · คลิกเฉย ๆ เลิกเลือกหลายเรื่อง */
   const onClickCapture = (e: React.MouseEvent) => {
@@ -68,6 +76,8 @@ export function useMovieMenu(o: Opts) {
       case "av": o.onAv(m.path); break;
       case "bitrate": o.onBitrate(m.path); break;
       case "coverPick": linkApi.coverPick(m.id, m.coverPick === "file" ? "linked" : "file").catch(fail("เปลี่ยนปกที่แสดงไม่ได้")); break;
+      case "recrop": case "rechange": openLinkRow(m.id, a === "recrop").then(() => o.onPage("link")).catch(fail("เปิดตารางจับคู่ไม่ได้")); break;
+      case "unlink": o.setSel(m.id); setUnlinkFor(m.id); break;
       case "copyPath": copyText(m.path).then(() => done("คัดลอกที่อยู่ไฟล์แล้ว", m.path)).catch(fail("คัดลอกไม่ได้")); break;
       case "copyName": copyText(m.name).then(() => done("คัดลอกชื่อเรื่องแล้ว", m.name)).catch(fail("คัดลอกไม่ได้")); break;
     }
@@ -86,6 +96,6 @@ export function useMovieMenu(o: Opts) {
   const multiRate = (n: number) => { Promise.all(list.map((x) => api.setRating(x.id, n))).then(() => done(`ให้ ${n} ดาว ${list.length} เรื่องแล้ว`)).catch(fail("ให้คะแนนไม่สำเร็จ")); };
   const node = !menu ? null : menu.multi
     ? <MultiMenu list={list} x={menu.x} y={menu.y} onAct={multiAct} onRate={multiRate} onClose={close} />
-    : m ? <MovieMenu m={m} x={menu.x} y={menu.y} scanning={o.scanning} players={players} onAct={act} onPlayWith={playWith} onRate={rate} onClose={close} /> : null;
-  return { onContextMenu, onClickCapture, multi, node, renameFor, renameDone: () => setRenameFor(null) };
+    : m ? <MovieMenu m={m} x={menu.x} y={menu.y} scanning={o.scanning} players={players} noSource={noSource} onAct={act} onPlayWith={playWith} onRate={rate} onClose={close} /> : null;
+  return { onContextMenu, onClickCapture, multi, node, renameFor, renameDone: () => setRenameFor(null), unlinkFor, unlinkDone: () => setUnlinkFor(null) };
 }

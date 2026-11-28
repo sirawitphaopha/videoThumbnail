@@ -206,7 +206,7 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
         {/* key ต่อเรื่อง สลับเรื่องแล้วสร้างแผงกับปุ่มใหม่ ไม่ใช้ปุ่มเดิมซ้ำ (เดิมปุ่มชมพูค่อย ๆ เปลี่ยนเป็นเขียวตอนสลับเรื่อง) */}
         {selected && (
           <Detail key={selected.id} m={selected} showFrames={settings?.showFrames ?? false} scanning={scanning} reminder={reminder} onPage={onPage} onCheck={onCheck} onGraph={onGraph} onBitrate={onBitrate} onAv={onAv} onPoster={onPoster} onMerge={onMerge} onInfo={() => onInfo(selected.id)} onClose={() => setSel(null)}
-            renameAsk={mm.renameFor === selected.id} onRenameAsked={mm.renameDone}
+            renameAsk={mm.renameFor === selected.id} onRenameAsked={mm.renameDone} unlinkAsk={mm.unlinkFor === selected.id} onUnlinkAsked={mm.unlinkDone}
             onPlay={() => play(selected)} onReveal={() => reveal(selected)} />
         )}
       </div>

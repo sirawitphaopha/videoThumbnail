@@ -5,12 +5,12 @@
    หน้าตาและการกดอยู่ตัวกลาง components/CtxMenu.tsx ข้อที่ซ่อนในหน้าตั้งค่าไม่ขึ้น */
 import CtxMenu, { type CtxItem } from "../../components/CtxMenu";
 import type { Movie, PlayerInfo } from "../../lib/api";
-import { IbPencil, IbPlay, IcBitrate, IcCheck, IcCopy, IcFolder, IcGraph, IcInfo, IcLink, IcMix, IcPoster } from "../../components/icons";
+import { IbCrop, IbPencil, IbPlay, IbTrash, IcBitrate, IcCheck, IcCopy, IcFolder, IcGraph, IcInfo, IcLink, IcMix, IcPoster } from "../../components/icons";
 
-export type MenuAct = "play" | "rename" | "poster" | "check" | "info" | "reveal" | "link" | "graph" | "av" | "bitrate" | "copyPath" | "copyName" | "coverPick";
+export type MenuAct = "play" | "rename" | "poster" | "check" | "info" | "reveal" | "link" | "graph" | "av" | "bitrate" | "copyPath" | "copyName" | "coverPick" | "recrop" | "rechange" | "unlink";
 
 /** รายการในเมนูของหนังเรื่องนี้ · why คือเหตุผลที่กดไม่ได้ (null = กดได้) */
-export function menuItems(m: Movie, scanning: boolean, act: (a: MenuAct) => void, players: PlayerInfo[] | null, playWith: (p: PlayerInfo) => void, rate: (n: number) => void): CtxItem[][] {
+export function menuItems(m: Movie, scanning: boolean, act: (a: MenuAct) => void, players: PlayerInfo[] | null, playWith: (p: PlayerInfo) => void, rate: (n: number) => void, noSource = false): CtxItem[][] {
   const gone = m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : null;
   const it = (a: MenuAct, label: string, icon: React.ReactNode, why: string | null = null): CtxItem => ({ id: a, label, icon, why, run: () => act(a) });
   const others = (players ?? []).filter((p) => p.exists && !p.isDefault);
@@ -34,13 +34,19 @@ export function menuItems(m: Movie, scanning: boolean, act: (a: MenuAct) => void
   const more: CtxItem[] = [];
   // สลับปกที่แสดง เฉพาะเรื่องที่มีทั้งปกในไฟล์และปกจับคู่ (ปุ่มเดียวกับ ปกที่แสดง ในการ์ดปกจับคู่ของแผงขวา)
   if (m.fileCover && m.linked?.length) more.push(it("coverPick", m.coverPick === "file" ? "แสดงปกจับคู่แทนปกในไฟล์" : "แสดงปกในไฟล์แทนปกจับคู่", <IcPoster size={15} />));
+  // ปกจับคู่ ครอปใหม่ เปลี่ยนรูป เอาปกออก (ROADMAP ข้อ 39.2 · BUGS ข้อ 164.7) ปุ่มชุดเดียวกับการ์ดปกจับคู่ในแผงขวา กติกาจางเดียวกัน
+  if (m.linked?.length) more.push(
+    it("recrop", "ครอปปกจับคู่ใหม่", <IbCrop size={15} />, noSource ? "หารูปต้นฉบับไม่เจอ ครอปใหม่ไม่ได้ กดเปลี่ยนรูปแทน" : null),
+    it("rechange", "เปลี่ยนรูปปกจับคู่", <IcPoster size={15} />),
+    it("unlink", "เอาปกจับคู่ออก", <IbTrash size={15} />),
+  );
   more.push({ id: "rate", label: "ให้ดาว", stars: { value: m.rating ?? 0, onRate: rate } },
     it("copyPath", "คัดลอกที่อยู่ไฟล์", <IcCopy size={15} />), it("copyName", "คัดลอกชื่อเรื่อง", <IcCopy size={15} />));
   return [main, more];
 }
 
-export default function MovieMenu({ m, x, y, scanning, players, onAct, onPlayWith, onRate, onClose }: { m: Movie; x: number; y: number; scanning: boolean; players: PlayerInfo[] | null; onAct: (a: MenuAct) => void; onPlayWith: (p: PlayerInfo) => void; onRate: (n: number) => void; onClose: () => void }) {
-  return <CtxMenu menu="shelf" title={m.name} x={x} y={y} groups={menuItems(m, scanning, onAct, players, onPlayWith, onRate)} onClose={onClose} attrs={{ "data-moviemenu": m.name }} />;
+export default function MovieMenu({ m, x, y, scanning, players, noSource, onAct, onPlayWith, onRate, onClose }: { m: Movie; x: number; y: number; scanning: boolean; players: PlayerInfo[] | null; noSource: boolean; onAct: (a: MenuAct) => void; onPlayWith: (p: PlayerInfo) => void; onRate: (n: number) => void; onClose: () => void }) {
+  return <CtxMenu menu="shelf" title={m.name} x={x} y={y} groups={menuItems(m, scanning, onAct, players, onPlayWith, onRate, noSource)} onClose={onClose} attrs={{ "data-moviemenu": m.name }} />;
 }
 
 export type MultiAct = "check" | "checkFull" | "copyPath" | "copyName" | "clear";

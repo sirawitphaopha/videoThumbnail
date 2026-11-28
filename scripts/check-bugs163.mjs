@@ -545,6 +545,56 @@ T[95] = async (p, check) => {
   await p.keyboard.press("Escape");
 };
 
+/** 164.7 (ROADMAP ข้อ 39.2) ครอปใหม่ เปลี่ยนรูป เอาปกออก ของปกจับคู่ ในเมนูคลิกขวาของชั้นวาง */
+T[97] = async (p, check) => {
+  await p.evaluate(() => { localStorage.removeItem("ms.ctxHidden"); window.__linkRemoved = 0; });
+  await over(p, "link_remove", "window.__linkRemoved++; return { reply: await window.__fxOverBase.link_state({}), notes: [] };");
+  await over(p, "pair_check", "return a.paths.map(() => true);");
+  // ระบบจำลองเดิมคืนตารางเฉย ๆ · ของจริง (link_open_row ใน cover/link/commands.rs) เติมแถวรหัสเดียวกับเรื่องบนชั้น ปกเดิมเป็นรูปที่เลือก
+  await over(p, "link_open_row", "const r = await window.__fxOverBase.link_state({}); if (!r.rows.some((x) => x.id === a.id)) { const t = r.rows.find((x) => x.tall); r.rows.unshift({ ...t, id: a.id, via: 'shelf', status: 'sure' }); } return r;");
+  await nav(p, "ชั้นวางหนัง"); await wait(p, 400);
+  const at = (i) => p.evaluate((i) => { const b = document.querySelectorAll(".book[data-mid]")[i]; const r = b.getBoundingClientRect(); return { x: r.left + r.width / 2, y: r.top + 40, name: b.dataset.movie }; }, i);
+  const menuAt = async (i) => { const b = await at(i); await p.mouse.click(b.x, b.y, { button: "right" }); await wait(p, 400); return ctxState(p); };
+  // เรื่องที่ 2 (m1) มีปกจับคู่ · เรื่องแรก (m0) มีปกในไฟล์อย่างเดียว
+  const plain = await menuAt(0); await p.keyboard.press("Escape"); await wait(p, 150);
+  check("164.7 เรื่องที่ไม่มีปกจับคู่ ไม่มีข้อของปกจับคู่ในเมนู", !!plain && !["recrop", "rechange", "unlink"].some((x) => plain.items.includes(x)), JSON.stringify(plain?.items));
+  const lk = await menuAt(1);
+  check("164.7 เรื่องที่มีปกจับคู่ มีครอปปกจับคู่ใหม่ เปลี่ยนรูปปกจับคู่ เอาปกจับคู่ออก กดได้ทั้งสามข้อ", !!lk && ["recrop", "rechange", "unlink"].every((x) => lk.items.includes(x) && !lk.off.includes(x)), JSON.stringify(lk));
+  await snap(p, "164-7-เมนูปกจับคู่");
+  // เอาปกออก เปิดหน้าต่างยืนยันของการ์ดปกจับคู่ในแผงขวา ไม่ลบทันที
+  await click(p, "[data-mm=unlink]"); await wait(p, 500);
+  const dlg = await p.evaluate(() => ({ ok: !!document.querySelector("[data-link-remove-ok]"), title: document.querySelector("[data-link-remove-ok]")?.closest("[role=dialog]")?.textContent.slice(0, 60) ?? "", removed: window.__linkRemoved }));
+  check("164.7 เอาปกจับคู่ออก เปิดหน้าต่างยืนยันเดียวกับปุ่มในแผงขวา ยังไม่ได้ลบ", dlg.ok && dlg.removed === 0, JSON.stringify(dlg));
+  await snap(p, "164-7-ยืนยันเอาปกออก");
+  await clickText(p, "ไม่เอาออก"); await wait(p, 400);
+  check("164.7 กดไม่เอาออก หน้าต่างปิด ไม่ได้ลบ และไม่เปิดซ้ำเอง", await p.evaluate(() => !document.querySelector("[data-link-remove-ok]") && window.__linkRemoved === 0), "");
+  // รูปต้นฉบับหาไม่เจอ ครอปใหม่จางพร้อมเหตุผล
+  await over(p, "pair_check", "return a.paths.map(() => false);");
+  const ns = await menuAt(1);
+  const why = await p.evaluate(() => document.querySelector("[data-ctxmenu] [data-mm=recrop]")?.title ?? "");
+  check("164.7 รูปต้นฉบับหาไม่เจอ ข้อครอปใหม่จาง บอกให้กดเปลี่ยนรูปแทน ข้อเปลี่ยนรูปยังกดได้", !!ns && ns.off.includes("recrop") && !ns.off.includes("rechange") && why.includes("เปลี่ยนรูปแทน"), JSON.stringify({ off: ns?.off, why }));
+  await p.keyboard.press("Escape"); await wait(p, 150);
+  await over(p, "pair_check", "return a.paths.map(() => true);");
+  // ครอปใหม่ พาไปหน้าจับคู่ปกแล้วเปิดหน้าครอปของเรื่องนั้น
+  await menuAt(1); await click(p, "[data-mm=recrop]"); await wait(p, 1200);
+  const cr = await p.evaluate(() => ({ page: document.querySelector("[data-navbar] [aria-current=page]")?.textContent.trim() ?? "", crop: !!document.querySelector(".stagehold, [data-crop-fullview]") }));
+  check("164.7 ครอปปกจับคู่ใหม่ พาไปหน้าจับคู่ปกแล้วเปิดหน้าครอป", cr.page.includes("จับคู่ปก") && cr.crop, JSON.stringify(cr));
+  await p.keyboard.press("Escape"); await wait(p, 300);
+  // เปลี่ยนรูป พาไปหน้าจับคู่ปก ไม่เปิดหน้าครอป
+  await nav(p, "ชั้นวางหนัง"); await wait(p, 400);
+  await menuAt(1); await click(p, "[data-mm=rechange]"); await wait(p, 1000);
+  const ch = await p.evaluate(() => ({ page: document.querySelector("[data-navbar] [aria-current=page]")?.textContent.trim() ?? "", crop: !!document.querySelector(".stagehold, [data-crop-fullview]") }));
+  check("164.7 เปลี่ยนรูปปกจับคู่ พาไปหน้าจับคู่ปก ไม่เปิดหน้าครอป", ch.page.includes("จับคู่ปก") && !ch.crop, JSON.stringify(ch));
+  // ซ่อนในหน้าตั้งค่าแล้วไม่ขึ้น
+  await p.evaluate(() => localStorage.setItem("ms.ctxHidden", JSON.stringify({ shelf: ["unlink"] })));
+  await p.reload(); await p.waitForSelector("[data-navbar]"); await wait(p, 1200);
+  await over(p, "pair_check", "return a.paths.map(() => true);");
+  await nav(p, "ชั้นวางหนัง"); await wait(p, 400);
+  const hid = await menuAt(1); await p.keyboard.press("Escape");
+  check("164.7 ซ่อนข้อเอาปกจับคู่ออกในหน้าตั้งค่าแล้ว ไม่ขึ้นในเมนู ข้ออื่นยังอยู่", !!hid && !hid.items.includes("unlink") && hid.items.includes("recrop"), JSON.stringify(hid?.items));
+  await p.evaluate(() => { localStorage.removeItem("ms.ctxHidden"); delete window.__fxOver.link_remove; delete window.__fxOver.pair_check; delete window.__fxOver.link_open_row; });
+};
+
 // ---------------------------------------------------------------- ตัวรัน
 const want = process.argv.slice(2).map(Number).filter(Boolean);
 const ids = Object.keys(T).map(Number).filter((n) => !want.length || want.includes(n)).sort((a, b) => a - b);
