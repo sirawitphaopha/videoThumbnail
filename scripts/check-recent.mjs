@@ -86,7 +86,7 @@ await c.shot(`${OUT}/05-สวิตช์ตั้งค่า.png`);
 await c.setNav("tone");
 const dot = await q("const i = document.querySelector('.tnrgb i'), s = getComputedStyle(i); const all = [...document.querySelectorAll('.tnrgb > span')]; return { radius: s.borderRadius, border: s.borderTopWidth, w: i.offsetWidth, h: i.offsetHeight, bg: s.backgroundColor, code: all[2]?.textContent, n: all.length };");
 check("การ์ดโทน วงกลมไม่มีขอบ", dot.radius === "50%" && parseFloat(dot.border) === 0 && dot.w === dot.h, JSON.stringify(dot));
-check("คงรหัสสีครบทุกการ์ด 6 โทน โทนละ 3 สี", dot.n === 18 && /#[0-9A-F]{6}/.test(dot.code), dot.code);
+check("คงรหัสสีครบทุกการ์ด 7 โทน โทนละ 3 สี", dot.n === 21 && /#[0-9A-F]{6}/.test(dot.code), dot.code);
 await c.shot(`${OUT}/06-การ์ดโทน.png`, ".tncards", 12);
 
 await nav("ชั้นวางหนัง");

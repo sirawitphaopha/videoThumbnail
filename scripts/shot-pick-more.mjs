@@ -45,7 +45,7 @@ rmSync(TMP, { recursive: true, force: true });
 /* ---------- โทนอื่น ---------- */
 const before = await q("return localStorage.getItem('ms.tone') ?? 'quartz';");
 await nav("ใส่โปสเตอร์");
-for (const t of ["wine", "night", "sage", "mauve", "teal"]) {
+for (const t of ["wine", "night", "sage", "mauve", "teal", "ocean"]) {
   await q(`window.__applyTone(${JSON.stringify(t)});`);
   for (const id of t === "night" ? ["a", "b", "c", "d"] : ["b"]) {
     await style("drop", by(DROP, id)); await sleep(500);
