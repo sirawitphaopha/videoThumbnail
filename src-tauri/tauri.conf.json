@@ -2,7 +2,7 @@
   "$schema": "../node_modules/@tauri-apps/cli/config.schema.json",
   "productName": "ชั้นหนัง",
   "mainBinaryName": "movie-shelf",
-  "version": "0.10.13",
+  "version": "0.10.14",
   "identifier": "com.pkh.movieshelf",
   "build": {
     "frontendDist": "../dist",
