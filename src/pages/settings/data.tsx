@@ -114,6 +114,8 @@ export const SET_GROUPS: { title: string; items: { id: string; label: string; ic
     { id: "av", label: "เสียงและซับ", icon: <IcMix /> },
     { id: "check", label: "ตรวจไฟล์", icon: <IcCheck /> },
     { id: "graph", label: "กราฟเสียง", icon: <IcGraph /> },
+    // ตัวเล่นเสียงในหน้ากราฟ ตัวถอด ความดัง แถบวัด (BUGS ข้อ 164.3)
+    { id: "playback", label: "การเล่นเสียง", icon: <IbPlay size={18} /> },
   ] },
   { title: "เครื่องมือ", items: [
     { id: "tools", label: "เครื่องมือเบื้องหลัง", icon: <IcSettings /> },

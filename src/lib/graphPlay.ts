@@ -7,6 +7,7 @@
    ตัววัดระดับอยู่ก่อนความดังลำโพง แถบวัดจึงบอกระดับของไฟล์จริงเสมอ (พี่กันเคาะ "ปุ่มลดเสียง เเค่ลดเสียงจากลำโพงง") */
 import { useSyncExternalStore } from "react";
 import { graphApi } from "./api";
+import { decoderFor } from "./playPrefs";
 
 const RATE = 48000;
 const CHUNK_S = 4;
@@ -16,11 +17,11 @@ const LOOP_KEY = "ms.graphLoop";
 
 export type GSrc = { path: string; track: number; names: string[] };
 /** paused หยุดชั่วคราวอยู่ที่เวลา pos (ปุ่มเล่นแบบ Audacity BUGS ข้อ 163.5) · loop เล่นวน จำไว้ครั้งหน้า */
-type St = { playing: boolean; err: string; vol: number; path: string | null; paused: boolean; pos: number; loop: boolean };
+type St = { playing: boolean; err: string; vol: number; path: string | null; paused: boolean; pos: number; loop: boolean; dec: string; note: string; noteWhy: string };
 
 const readVol = () => { try { const v = Number(localStorage.getItem(VOL_KEY)); return localStorage.getItem(VOL_KEY) != null && Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 1; } catch { return 1; } };
 const readLoop = () => { try { return localStorage.getItem(LOOP_KEY) === "1"; } catch { return false; } };
-let st: St = { playing: false, err: "", vol: readVol(), path: null, paused: false, pos: 0, loop: readLoop() };
+let st: St = { playing: false, err: "", vol: readVol(), path: null, paused: false, pos: 0, loop: readLoop(), dec: "ffmpeg", note: "", noteWhy: "" };
 const subs = new Set<() => void>();
 const set = (p: Partial<St>) => { st = { ...st, ...p }; subs.forEach((f) => f()); };
 export const useGPlay = () => useSyncExternalStore((f) => { subs.add(f); return () => subs.delete(f); }, () => st);
@@ -158,11 +159,21 @@ export async function gPlay(src: GSrc, from: number, end?: (from: number) => voi
   const c = ctx!, n = Math.max(1, names.length), split = chain!.split;
   const t0 = Math.max(0, from);
   endS = Infinity;
-  set({ playing: true, paused: false, err: "", path: src.path });
+  // ตัวถอดตามหน้าตั้งค่า (BUGS ข้อ 164.3) · ถอดไม่ได้กลับไปใช้ ffmpeg แล้วบอกผู้ใช้ในแถบเล่น
+  const pick = decoderFor(src.path, src.track);
+  let dec = pick.dec;
+  set({ playing: true, paused: false, err: "", path: src.path, dec: pick.name, note: "", noteWhy: "" });
   let next = t0, schedAt = 0;
   for (;;) {
     let ab: ArrayBuffer;
-    try { ab = await graphApi.pcm(src.path, src.track, next, CHUNK_S, n); } catch (e) { if (run === my) set({ playing: false, err: String(e) }); return; }
+    try { ab = await graphApi.pcm(src.path, src.track, next, CHUNK_S, n, dec); } catch (e) {
+      if (run !== my) return;
+      if (dec !== "ffmpeg" && String(e).includes("DECODER:")) {
+        dec = "ffmpeg";
+        set({ dec: "ffmpeg", note: `${pick.name} ถอดไม่ได้ ใช้ ffmpeg แทน`, noteWhy: String(e).replace(/^.*DECODER:\s*/, "") });
+        try { ab = await graphApi.pcm(src.path, src.track, next, CHUNK_S, n, dec); } catch (e2) { if (run === my) set({ playing: false, err: String(e2) }); return; }
+      } else { set({ playing: false, err: String(e) }); return; }
+    }
     if (run !== my) return;
     const b = toBuffer(c, ab, n);
     if (!b) { endS = next; break; }

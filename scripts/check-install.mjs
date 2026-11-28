@@ -98,7 +98,7 @@ const exe = existsSync(DEST) ? readdirSync(DEST).find((f) => f.toLowerCase().end
 check("ติดตั้งแบบเงียบลงโฟลเดอร์ที่เลือกได้ ไม่มีหน้าต่าง", ins.status === 0 && exe, `ตัวติดตั้ง ${installer.split("\\").pop()} ${(size / 1048576).toFixed(0)} MB · ใช้ ${secs} วินาที · ได้ ${exe ?? "ไม่มีไฟล์โปรแกรม"} · รหัส ${ins.status}`);
 // เครื่องมือแผนเดิม 7 ไฟล์ กับตัวแปลงเสียงของแผนเสียงและซับ 8 ไฟล์ (flac กับ DLL ประกอบ lame กับ DLL ประกอบ opusenc wavpack MACDll64 13.50 ชุด TAK ทั้ง zip) · รวมตอนนี้ 33 ไฟล์
 const toolNames = ["mkvmerge.exe", "mkvextract.exe", "mkvpropedit.exe", "ffmpeg.exe", "ffprobe.exe", "MediaInfo.exe", "LIBCURL.DLL",
-  "flac.exe", "libFLAC.dll", "lame.exe", "libmpg123-0.dll", "opusenc.exe", "wavpack.exe", "MACDll64.dll", "TAK_2.3.3.zip", "qaac64.exe", "refalac64.exe", "libsoxr64.dll",
+  "flac.exe", "libFLAC.dll", "lame.exe", "libmpg123-0.dll", "opusenc.exe", "wavpack.exe", "wvunpack.exe", "MACDll64.dll", "TAK_2.3.3.zip", "qaac64.exe", "refalac64.exe", "libsoxr64.dll",
   // libheif ตัวจริงกับไฟล์ที่มันต้องใช้ บันทึกรูปกราฟเป็น HEIC (9 ไฟล์)
   "heif.dll", "libx265.dll", "libde265.dll", "aom.dll", "dav1d.dll", "libsharpyuv.dll", "msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll",
   // libmpv ตัวเล่นหนังในหน้าแก้ซับ (BUGS ข้อ 111)

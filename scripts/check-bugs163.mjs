@@ -400,6 +400,73 @@ T[92] = async (p, check) => {
   check("164.2 แทร็กที่ไม่มีร่องรอยและไม่ใช่ FLAC ไม่ขึ้นการ์ด", !(await p.evaluate(() => !!document.querySelector("[data-enccard]"))), "");
 };
 
+/** 164.3 (ROADMAP ข้อ 35.6) เลือกตัวถอดเสียงได้ และหัวข้อการเล่นเสียงในหน้าตั้งค่า */
+const playSec = async (p) => {
+  await nav(p, "ตั้งค่า"); await wait(p, 400);
+  await p.evaluate(() => [...document.querySelectorAll("button,a,li")].filter((x) => !x.closest("[data-navbar]")).find((x) => x.textContent.trim() === "การเล่นเสียง")?.click()); await wait(p, 400);
+};
+T[93] = async (p, check) => {
+  await p.evaluate(() => { localStorage.removeItem("ms.playPrefs"); localStorage.removeItem("ms.graphVol"); localStorage.removeItem("ms.graphLoop"); });
+  await playSec(p);
+  const rows = await p.evaluate(() => { const c = document.querySelector("[data-setcard=playback]"); if (!c || c.hidden) return null; return { dec: [...c.querySelectorAll("[data-play-dec]")].map((r) => r.dataset.playDec), other: c.querySelector("[data-play-dec=other] .seg")?.classList.contains("seg-off"), lbls: [...c.querySelectorAll(".setrow > .lbl")].map((l) => [...l.childNodes].find((n) => n.nodeType === 3)?.textContent.trim()), reset: c.querySelector("[data-play-reset]")?.getAttribute("aria-disabled") }; });
+  check("164.3 หัวข้อการเล่นเสียงมีตัวถอดห้าชนิด ชนิดอื่นใช้ ffmpeg อย่างเดียวพร้อมเหตุผล และปุ่มกลับค่าตั้งต้นกดไม่ได้ตอนเป็นค่าตั้งต้น", !!rows && rows.dec.join() === "flac,ape,tak,mp3,wv,other" && rows.other && rows.reset === "true", JSON.stringify(rows));
+  const want = ["ความดังลำโพง", "เล่นวน", "กราฟเลื่อนตามขีดตำแหน่งเล่น", "กดปุ่มหยุดแล้ว", "ออกจากหน้ากราฟแล้ว", "คีย์ลัดของการเล่น", "แสดงแถบวัดระดับเสียง", "ขีดค้างยอด", "ช่วงที่แสดง"];
+  check("164.3 หัวข้อการเล่นเสียงมีครบทุกแง่มุม ความดัง เล่นวน กราฟเลื่อนตาม ปุ่มหยุด ออกจากหน้า คีย์ลัด แถบวัดระดับ", want.every((w) => rows.lbls.includes(w)), JSON.stringify(rows.lbls));
+  // กล่อง ⓘ ตัวถอดเสียง ตัดบรรทัดตรงความหมาย
+  await click(p, '[data-info="ตัวถอดเสียง"]'); await p.waitForSelector('[data-tip="ตัวถอดเสียง"]'); await wait(p, 300);
+  const lines = await linesOf((code) => p.evaluate(`(async () => { ${code} })()`), '[data-tip="ตัวถอดเสียง"]');
+  if (process.env.DUMP) console.log(JSON.stringify(lines, null, 1));
+  const tipWant = [
+    "โปรแกรมที่แปลงไฟล์เสียงกลับเป็นเสียงดิบเพื่อเล่นในหน้ากราฟ ⏎ ไม่ได้แก้ไฟล์ และเสียงที่ได้ยินเหมือนกันทุกตัวถอด",
+    "ffmpeg ถอดได้ทุกชนิดและข้ามไปกลางไฟล์ได้ทันที จึงเป็นค่าตั้งต้น",
+    "ตัวถอดของ codec เช่น flac.exe ไว้ลองเทียบเมื่อสงสัยว่าอ่านผิด ⏎ ใช้ได้เฉพาะไฟล์ชนิดนั้น ส่วนเสียงในไฟล์หนังใช้ ffmpeg",
+    "Takc กับ lame ข้ามไปกลางไฟล์ไม่ได้ จึงต้องถอดทั้งไฟล์ก่อนเล่น ⏎ ไฟล์ยาวจึงรอนานขึ้น แล้วเก็บไว้เล่นซ้ำจนปิดโปรแกรม",
+    "ถอดไม่ได้ โปรแกรมกลับไปใช้ ffmpeg แล้วบอกในแถบเล่น",
+  ];
+  check("164.3 กล่อง ⓘ ตัวถอดเสียงแยกหัวข้อ ตัดบรรทัดตรงความหมาย", JSON.stringify(lines) === JSON.stringify(tipWant), JSON.stringify(lines));
+  await p.keyboard.press("Escape"); await wait(p, 200);
+  // เลือก flac.exe สำหรับ FLAC แล้วหน้ากราฟส่งตัวถอดนี้ไปฝั่ง Rust
+  await p.evaluate(() => [...document.querySelectorAll("[data-play-dec=flac] button")].find((b) => b.textContent === "flac.exe").click()); await wait(p, 200);
+  const saved = await p.evaluate(() => JSON.parse(localStorage.getItem("ms.playPrefs") ?? "{}").dec?.flac);
+  await over(p, "graph_pcm", "(window.__decs ??= []).push(a.decoder); return await window.__fxOverBase.graph_pcm(a);");
+  await graphOpen(p, SONG); await p.click("[data-gplay]"); await wait(p, 900);
+  const d1 = await p.evaluate(() => ({ decs: [...new Set(window.__decs)], st: window.__graphPlay() }));
+  check("164.3 เลือก flac.exe แล้วเล่นไฟล์ .flac ส่งตัวถอด flac ไปฝั่ง Rust", saved === "flac" && d1.decs.join() === "flac" && d1.st.playing && d1.st.dec === "flac.exe", JSON.stringify({ saved, d1 }));
+  await click(p, "[data-gpstop]"); await wait(p, 200);
+  // ตัวถอดที่เลือกถอดไม่ได้ กลับไปใช้ ffmpeg แล้วบอกในแถบเล่น
+  await over(p, "graph_pcm", "(window.__decs2 ??= []).push(a.decoder); if (a.decoder !== 'ffmpeg') throw 'DECODER: flac ถอดไม่ได้  ERROR ทดสอบ'; return await window.__fxOverBase.graph_pcm(a);");
+  await p.click("[data-gplay]"); await wait(p, 900);
+  const d2 = await p.evaluate(() => ({ decs: window.__decs2, st: window.__graphPlay(), note: document.querySelector("[data-gpnote]")?.textContent, why: document.querySelector("[data-gpnote]")?.title }));
+  check("164.3 ตัวถอดที่เลือกถอดไม่ได้ กลับไปใช้ ffmpeg เล่นต่อได้ และแถบเล่นบอกสั้น ๆ คำเต็มอยู่ตอนชี้", d2.st.playing && d2.decs[0] === "flac" && d2.decs.includes("ffmpeg") && d2.note === "flac.exe ถอดไม่ได้ ใช้ ffmpeg แทน" && (d2.why ?? "").includes("ERROR ทดสอบ"), JSON.stringify(d2));
+  await click(p, "[data-gpstop]"); await wait(p, 200);
+  await p.evaluate(() => { window.__fxOver = {}; });
+  // ปุ่มหยุดค้างที่จุดที่หยุด
+  await p.evaluate(async () => (await import("/src/lib/playPrefs.ts")).setPlayPrefs({ stopBack: false }));
+  await click(p, "[data-gphome]"); await p.click("[data-gplay]"); await wait(p, 1500);
+  await click(p, "[data-gpstop]"); await wait(p, 250);
+  const stay = await p.evaluate(() => document.querySelector("[data-gptime] span")?.textContent);
+  check("164.3 ตั้งปุ่มหยุดให้ค้างที่จุดที่หยุด กดหยุดแล้วเวลาไม่กลับไปศูนย์", !/^0:00\.000/.test(stay ?? "") && /^0:0[1-3]\./.test(stay ?? ""), String(stay));
+  // ปิดแถบวัดระดับ ตอนเล่นไม่มีแถบวัด
+  await p.evaluate(async () => (await import("/src/lib/playPrefs.ts")).setPlayPrefs({ meter: false }));
+  await p.click("[data-gplay]"); await wait(p, 600);
+  const m = await p.evaluate(() => document.querySelectorAll("[data-meter]").length);
+  check("164.3 ปิดแถบวัดระดับเสียงแล้ว ตอนเล่นไม่มีแถบวัด", m === 0, String(m));
+  // ออกจากหน้ากราฟแล้วเล่นต่อ
+  await p.evaluate(async () => (await import("/src/lib/playPrefs.ts")).setPlayPrefs({ stopOnLeave: false }));
+  await nav(p, "ชั้นวางหนัง"); await wait(p, 500);
+  const keep = await p.evaluate(() => window.__graphPlay().playing);
+  check("164.3 ตั้งให้เล่นต่อ ออกจากหน้ากราฟแล้วเสียงยังเล่นอยู่", keep, "");
+  await nav(p, "กราฟเสียง"); await wait(p, 300); await click(p, "[data-gpstop]");
+  // กลับค่าตั้งต้น
+  await playSec(p);
+  await click(p, "[data-play-reset]"); await wait(p, 200);
+  const r = await p.evaluate(() => ({ saved: localStorage.getItem("ms.playPrefs"), seg: [...document.querySelectorAll("[data-play-dec=flac] button")].find((b) => b.classList.contains("on"))?.textContent, dis: document.querySelector("[data-play-reset]").getAttribute("aria-disabled") }));
+  check("164.3 กลับค่าตั้งต้น ตัวถอดกลับเป็น ffmpeg และปุ่มกลับเป็นกดไม่ได้", r.saved == null && r.seg === "ffmpeg" && r.dis === "true", JSON.stringify(r));
+  // ปุ่มไปหัวข้อคีย์ลัด
+  await click(p, "[data-play-keys]"); await wait(p, 300);
+  check("164.3 ปุ่มคีย์ลัดของการเล่นพาไปหัวข้อคีย์ลัด", await p.evaluate(() => !document.querySelector("[data-setcard=hotkeys]")?.hidden || !!document.querySelector("[data-hk-group]")), "");
+};
+
 // ---------------------------------------------------------------- ตัวรัน
 const want = process.argv.slice(2).map(Number).filter(Boolean);
 const ids = Object.keys(T).map(Number).filter((n) => !want.length || want.includes(n)).sort((a, b) => a - b);

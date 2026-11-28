@@ -155,7 +155,7 @@ pub fn run() {
         media::fileinfo::media_info, media::mkvtree::mkv_tree, media::fileinfo::audio_codec_detail, media::encinfo::audio_encoder_info, media::encinfo::flac_verify, media::fileinfo::hash_file, media::fileinfo::hash_cancel, media::fileinfo::hash_running, media::fileinfo::hash_compare, media::fileinfo::hash_save, app::winutil::clipboard_text,
         media::extract::extract_start, media::extract::extract_info, media::extract::extract_cancel, media::extract::extract_running, media::extract::extract_default_folder,
         media::check::check_start, media::check::check_cancel, media::check::check_running, media::check::play_at, media::players::list_players,
-        audio::audiograph::graph_info, audio::audiograph::graph_exist, audio::audiograph::graph_overview, audio::audiograph::graph_window, audio::audiograph::graph_pcm, audio::audiograph::graph_psd, audio::audiograph::graph_cancel, audio::audiograph::graph_save, audio::graphimg::graph_save_image,
+        audio::audiograph::graph_info, audio::audiograph::graph_exist, audio::audiograph::graph_overview, audio::audiograph::graph_window, audio::audiograph::play::graph_pcm, audio::audiograph::graph_psd, audio::audiograph::graph_cancel, audio::audiograph::graph_save, audio::graphimg::graph_save_image,
         audio::audiograph::graph_cache_info, audio::audiograph::graph_cache_clear, audio::audiograph::graph_dev_forget,
     ]);
     #[cfg(not(debug_assertions))]
@@ -180,7 +180,7 @@ pub fn run() {
         media::fileinfo::media_info, media::mkvtree::mkv_tree, media::fileinfo::audio_codec_detail, media::encinfo::audio_encoder_info, media::encinfo::flac_verify, media::fileinfo::hash_file, media::fileinfo::hash_cancel, media::fileinfo::hash_running, media::fileinfo::hash_compare, media::fileinfo::hash_save, app::winutil::clipboard_text,
         media::extract::extract_start, media::extract::extract_info, media::extract::extract_cancel, media::extract::extract_running, media::extract::extract_default_folder,
         media::check::check_start, media::check::check_cancel, media::check::check_running, media::check::play_at, media::players::list_players,
-        audio::audiograph::graph_info, audio::audiograph::graph_exist, audio::audiograph::graph_overview, audio::audiograph::graph_window, audio::audiograph::graph_pcm, audio::audiograph::graph_psd, audio::audiograph::graph_cancel, audio::audiograph::graph_save, audio::graphimg::graph_save_image,
+        audio::audiograph::graph_info, audio::audiograph::graph_exist, audio::audiograph::graph_overview, audio::audiograph::graph_window, audio::audiograph::play::graph_pcm, audio::audiograph::graph_psd, audio::audiograph::graph_cancel, audio::audiograph::graph_save, audio::graphimg::graph_save_image,
         audio::audiograph::graph_cache_info, audio::audiograph::graph_cache_clear,
     ]);
     let builder = builder.invoke_handler(move |invoke| {

@@ -10,6 +10,7 @@ import { useHotkeys } from "../../lib/hotkeys";
 import { usePageActiveRef } from "../../lib/pageActive";
 import { gLevels, gNow, gPause, gPlay, gSetLoop, gSetMuted, gSetVol, gStop, getGPlay, useGPlay } from "../../lib/graphPlay";
 import { tfmtD } from "./common";
+import { getPlayPrefs, usePlayPrefs } from "../../lib/playPrefs";
 import { Keep } from "../../components/ui";
 
 /** คำบนปุ่มเล่น · ปุ่มกว้างเท่าคำที่ยาวที่สุดเสมอ ไม่หดขยายตอนสลับ */
@@ -51,6 +52,8 @@ export function PlayHead({ t0, t1, left, right, top = 0, bottom = 0 }: { t0: num
     ช่องที่ปิดลำโพงแถบหยุดนิ่ง · สีเป็นสีของแถบวัด ไม่เปลี่ยนตามโทน (data-keepcolor) */
 export function LevelMeter({ ch, frozen }: { ch: number; frozen?: boolean }) {
   const { playing } = useGPlay();
+  // แสดงหรือซ่อน ขีดค้างนานเท่าไร ล่างสุดกี่ dB ตั้งในหน้าตั้งค่าหัวข้อการเล่นเสียง (BUGS ข้อ 164.3)
+  const pp = usePlayPrefs();
   const bar = useRef<HTMLElement>(null), hold = useRef<HTMLElement>(null), clip = useRef<HTMLButtonElement>(null);
   const st = useRef({ v: 0, peak: 0, at: 0 });
   useFrames((now) => {
@@ -59,15 +62,16 @@ export function LevelMeter({ ch, frozen }: { ch: number; frozen?: boolean }) {
     const lv = now == null ? 0 : gLevels()[ch] ?? 0;
     // ตกลงช้า ๆ แบบเข็มวัด ขึ้นทันที
     s.v = lv > s.v ? lv : s.v * 0.86;
-    if (lv >= s.peak || t - s.at > 1500) { s.peak = lv >= s.peak ? lv : Math.max(lv, s.peak * 0.9); if (lv >= s.peak) s.at = t; }
-    // สเกล −60 ถึง 0 dB · แถบสีอยู่ที่พื้นของกล่อง ชิ้น i เป็นฝาเทาปิดจากบนลงมาส่วนที่ยังไม่ถึง
-    const pct = (x: number) => Math.max(0, Math.min(1, (20 * Math.log10(Math.max(x, 1e-6)) + 60) / 60)) * 100;
+    if (lv >= s.peak || t - s.at > pp.hold * 1000) { s.peak = lv >= s.peak ? lv : Math.max(lv, s.peak * 0.9); if (lv >= s.peak) s.at = t; }
+    // สเกลจากค่าตั้งล่างสุด (ค่าตั้งต้น −60 dB) ถึง 0 dB · แถบสีอยู่ที่พื้นของกล่อง ชิ้น i เป็นฝาเทาปิดจากบนลงมาส่วนที่ยังไม่ถึง
+    const fl = -pp.floor;
+    const pct = (x: number) => Math.max(0, Math.min(1, (20 * Math.log10(Math.max(x, 1e-6)) + fl) / fl)) * 100;
     if (bar.current) bar.current.style.height = `${100 - pct(s.v)}%`;
     if (hold.current) { hold.current.style.bottom = `${pct(s.peak)}%`; hold.current.style.opacity = s.peak > 0.001 ? "1" : "0"; }
     // ตัวอย่างเสียง s16 เต็มที่คือ 32767/32768 ถือว่าแตะเพดาน
     if (lv >= 0.999 && clip.current) clip.current.dataset.on = "";
   }, playing);
-  if (!playing) return null;
+  if (!playing || !pp.meter) return null;
   return (
     <span className="gp-meter" data-keepcolor data-meter={ch} aria-hidden="true">
       <i ref={bar} /><b ref={hold} />
@@ -94,7 +98,7 @@ const withKey = (label: string, id: string) => { const k = keysText(id); return 
 
 /** แถบเล่นใต้แถวปุ่มมุมมอง · ปุ่มควบคุมแบบ Audacity เวลาที่เล่น ความดังลำโพง (BUGS ข้อ 163.4 163.5) */
 export function PlayBar({ ctl, dur, at }: { ctl: GPlayCtl; dur: number; at: number }) {
-  const { playing, paused, err, vol, loop } = useGPlay();
+  const { playing, paused, err, vol, loop, note, noteWhy } = useGPlay();
   const time = useRef<HTMLSpanElement>(null);
   const digits = 3;
   useFrames((now) => { if (time.current) time.current.textContent = tfmtD(now ?? at, digits); }, playing);
@@ -121,6 +125,7 @@ export function PlayBar({ ctl, dur, at }: { ctl: GPlayCtl; dur: number; at: numb
       </label>
       <InfoTip title="เล่นเสียงจากกราฟ" tip={PLAY_TIP} />
       {err && <span className="gp-err" role="alert" data-gperr>เล่นไม่ได้ {err}</span>}
+      {!err && note && <span className="gp-note" role="status" title={noteWhy} data-gpnote>{note}</span>}
     </div>
   );
 }
@@ -165,11 +170,12 @@ export function useGraphPlay(o: { path: string | null; track: number; names: str
     from.current = c.tip;
     start(c.tip);
   };
+  // ปุ่มหยุดกลับไปจุดที่เริ่มเล่นแบบ Audacity หรือค้างที่จุดที่หยุด ตามหน้าตั้งค่า (BUGS ข้อ 164.3)
   const stop = () => {
     const g = getGPlay();
     if (!g.playing && !g.paused) return;
-    gStop();
-    now.current.setTip(from.current);
+    const at = gStop();
+    now.current.setTip(getPlayPrefs().stopBack || at == null ? from.current : at);
   };
   /** ไปเวลา t · กำลังเล่นเล่นต่อจากตรงนั้น หยุดชั่วคราวอยู่ย้ายจุดที่หยุด ไม่ได้เล่นย้ายจุดเริ่มเล่น */
   const go = (t: number) => {
@@ -194,13 +200,13 @@ export function useGraphPlay(o: { path: string | null; track: number; names: str
   useEffect(() => { gSetMuted(o.hidden); }, [o.hidden]);
   // เปลี่ยนไฟล์ แทร็ก หรือออกจากหน้า หยุดเล่น
   useEffect(() => () => { gStop(); }, [o.path, o.track]);
-  useEffect(() => { if (!o.active) gStop(); }, [o.active]);
+  useEffect(() => { if (!o.active && getPlayPrefs().stopOnLeave) gStop(); }, [o.active]);
   // ขีดเลยขอบขวาของช่วงที่ซูมอยู่ เลื่อนกราฟไปหน้าถัดไปให้ขีดอยู่ขอบซ้าย
   useEffect(() => {
     if (!playing) return;
     const id = window.setInterval(() => {
       const c = now.current, t = gNow();
-      if (t == null || c.zoomAll) return;
+      if (t == null || c.zoomAll || !getPlayPrefs().follow) return;
       const span = c.t1 - c.t0;
       if (t > c.t1 || t < c.t0) c.setCenter(t + span * 0.48);
     }, 120);

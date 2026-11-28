@@ -30,8 +30,9 @@ pub const SHORT_TIMEOUT: Duration = Duration::from_secs(30);
 
 /// ชื่อไฟล์ชั่วคราวในโฟลเดอร์ tmp ที่กวาดทิ้งตอนเปิดโปรแกรม (งานที่โดนปิดกลางทางหรือไฟดับ) · lib.rs ใช้
 /// att- ไฟล์แนบที่หน้า MediaInfo แยกออกมาอ่าน (AUDIT ข้อ 134 · เดิมไม่อยู่ในรายการ ปิดโปรแกรมกลางทางแล้วค้าง)
+/// play- เสียงที่ lame กับ Takc ถอดทั้งไฟล์ไว้เล่นในหน้ากราฟ (BUGS ข้อ 164.3) ใช้ถึงปิดโปรแกรม เปิดใหม่กวาดทิ้ง
 /// ภาพซับรูป subimg- เป็นของที่เก็บไว้ใช้ซ้ำ ไม่อยู่ในรายการนี้
-pub const TMP_SWEEP: &[&str] = &["merge-conv-", "merge-vtt-", "merge-chap-", "merge-oldcover-", "conv-cover-", "sub-", "att-"];
+pub const TMP_SWEEP: &[&str] = &["merge-conv-", "merge-vtt-", "merge-chap-", "merge-oldcover-", "conv-cover-", "sub-", "att-", "play-"];
 
 /// ที่อยู่โฟลเดอร์เครื่องมือของโปรแกรมที่กำลังรัน
 pub fn tools_dir(app: &AppHandle) -> Result<PathBuf, String> {

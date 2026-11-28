@@ -208,3 +208,5 @@
 .vzlbl { display: inline-flex; align-items: center; gap: 4px; }
 .vzlbl svg { display: none; flex: none; }
 @container agfoot (max-width: 860px) { .vzlbl svg { display: block; } .vzlbl-t { display: none; } }
+/* ตัวถอดที่เลือกถอดไม่ได้ กลับไปใช้ ffmpeg แล้วบอกในแถบเล่น (BUGS ข้อ 164.3) คำเต็มอยู่ตอนชี้ */
+.gp-note { min-width: 0; color: var(--warn-ink); font-size: 13px; white-space: nowrap; overflow: hidden; }

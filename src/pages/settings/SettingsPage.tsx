@@ -15,6 +15,7 @@ import SetCardsMedia from "./SetCardsMedia";
 import SetThanks from "./SetThanks";
 import SetLines from "./lines/SetLines";
 import SetKeys from "./keys/SetKeys";
+import SetPlayback from "./SetPlayback";
 
 export default function SettingsPage() {
   const c0 = useSetBase();
@@ -31,6 +32,7 @@ export default function SettingsPage() {
       <SetCardsLinkAv pg={pg} />
       <SetCardsShelf pg={pg} />
       <SetCardsMedia pg={pg} />
+      <SetPlayback pg={pg} />
       <SetThanks pg={pg} />
       <SetKeys pg={pg} />
       <SetLines pg={pg} />

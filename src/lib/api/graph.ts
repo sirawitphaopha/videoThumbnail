@@ -60,8 +60,8 @@ export const graphApi = {
   /** ms = คู่ช่องซ้ายขวา ได้เส้นกลางกับเส้นข้างเพิ่มท้าย 2 เส้น */
   psd: (path: string, track: number, t0: number, t1: number, series: number[][], size: number, ms: number[] | null = null) => call<GPsd | null>("graph_psd", { path, track, t0, t1, series, size, ms }),
   cancel: () => call<void>("graph_cancel"),
-  /** เสียงสำหรับเล่นในหน้ากราฟ ไบต์ s16le ch ช่องสลับกัน 48 kHz (BUGS ข้อ 163.4) */
-  pcm: (path: string, track: number, t0: number, dur: number, ch: number) => call<ArrayBuffer>("graph_pcm", { path, track, t0, dur, ch }),
+  /** เสียงสำหรับเล่นในหน้ากราฟ ไบต์ s16le ch ช่องสลับกัน 48 kHz (BUGS ข้อ 163.4) · decoder ตัวถอดที่เลือกในหน้าตั้งค่า (BUGS ข้อ 164.3) ถอดไม่ได้ตอบข้อความขึ้นต้น DECODER: */
+  pcm: (path: string, track: number, t0: number, dur: number, ch: number, decoder = "ffmpeg") => call<ArrayBuffer>("graph_pcm", { path, track, t0, dur, ch, decoder }),
   /** replace ผ่านกล่องเลือกที่บันทึกที่ถามเขียนทับแล้ว เขียนตามชื่อที่เลือก (AUDIT ข้อ 112) */
   save: (path: string, b64: string | null, text: string | null, replace = false) => call<string>("graph_save", { path, b64, text, replace }),
 };

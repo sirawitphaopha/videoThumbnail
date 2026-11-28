@@ -76,7 +76,8 @@ if ($LASTEXITCODE -ne 0) { throw 'แตก opusenc ไม่สำเร็จ'
 & $tar -xf (Join-Path $root $lm.path) -C (Join-Path $work 'lame') 'lame.exe' 'libmpg123-0.dll'
 if ($LASTEXITCODE -ne 0) { throw 'แตก LAME ไม่สำเร็จ' }
 
-& $tar -xf (Join-Path $root $wv.path) -C (Join-Path $work 'wavpack') 'wavpack.exe' 'license.txt'
+# wvunpack.exe ตัวถอด WavPack เล่นเสียงในหน้ากราฟ (BUGS ข้อ 164.3 · ROADMAP ข้อ 35.6) อยู่ใน zip เดิม
+& $tar -xf (Join-Path $root $wv.path) -C (Join-Path $work 'wavpack') 'wavpack.exe' 'wvunpack.exe' 'license.txt'
 if ($LASTEXITCODE -ne 0) { throw 'แตก WavPack ไม่สำเร็จ' }
 
 & $tar -xf (Join-Path $root $qa.path) -C $work 'qaac_3.07/x64/qaac64.exe' 'qaac_3.07/x64/refalac64.exe' 'qaac_3.07/x64/libsoxr64.dll'
@@ -123,6 +124,7 @@ $copies = @(
   @('lame\lame.exe',                               'lame.exe'),
   @('lame\libmpg123-0.dll',                        'libmpg123-0.dll'),
   @('wavpack\wavpack.exe',                         'wavpack.exe'),
+  @('wavpack\wvunpack.exe',                        'wvunpack.exe'),
   @('Shared\64\MACDll64.dll',                      'MACDll64.dll'),
   @('qaac_3.07\x64\qaac64.exe',                   'qaac64.exe'),
   @('qaac_3.07\x64\refalac64.exe',                'refalac64.exe'),
