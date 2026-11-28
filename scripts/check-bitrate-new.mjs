@@ -1,6 +1,6 @@
 // ตัวตรวจหน้าบิตเรตแบบใหม่ (ลงโปรแกรม 10 พ.ย. 2569 พี่กันสั่ง "เอามอคอัปเข้าโปรแกรมเลยนะ")
 // เปิดโปรแกรมโหมดพัฒนาก่อน (scripts/dev-app.ps1) · ไม่กดปุ่มเลือกไฟล์ · เปิดไฟล์ผ่าน window.__brnOpen
-// ไล่ เปิดไฟล์ 4 วิธีคิด ชนิดเฟรม ปักจุด ไป I เฟรม ลากซูม แถบซูมสองแนว รีเซ็ต 5 โทน ไฟล์อ่านไม่ได้ สลับแบบเดิมแล้วไฟล์ตามไป
+// ไล่ เปิดไฟล์ 4 วิธีคิด ชนิดเฟรม ปักจุด ไป I เฟรม ลากซูม แถบซูมสองแนว รีเซ็ต 6 โทน ไฟล์อ่านไม่ได้ สลับแบบเดิมแล้วไฟล์ตามไป
 // ภาพลง docs/report-2026-11-10/บิตเรตแบบใหม่/
 import { connect, sleep } from "./lib/cdp-client.mjs";
 import { mkdirSync, writeFileSync, existsSync } from "node:fs";
@@ -85,8 +85,8 @@ await q(`document.querySelector('[data-brnzoomreset]').click()`); await sleep(20
 s = await st();
 check("รีเซ็ตกลับทั้งไฟล์และ 1 เท่า ปุ่มรีเซ็ตจาง", await whole() && s.vz === "1×" && await q(`return document.querySelector('[data-brnzoomreset]').disabled`));
 
-// 5 โทน ไม่มีอะไรล้น กราฟวาด
-for (const [id, name] of [["quartz", "โรสควอตซ์"], ["wine", "ไวน์กับทอง"], ["night", "กุหลาบกลางคืน"], ["sage", "บลัชกับเสจ"], ["mauve", "มอฟหรู"]]) {
+// 6 โทน ไม่มีอะไรล้น กราฟวาด
+for (const [id, name] of [["quartz", "โรสควอตซ์"], ["wine", "ไวน์กับทอง"], ["night", "กุหลาบกลางคืน"], ["sage", "บลัชกับเสจ"], ["mauve", "มอฟหรู"], ["teal", "ฟ้าน้ำทะเล"]]) {
   await q(`window.__applyTone(${JSON.stringify(id)})`); await sleep(500);
   const ok = await q(`const over = [...document.querySelectorAll('[data-brn] *')].some(e => { const r = e.getBoundingClientRect(); return r.width > 0 && (r.right > innerWidth + 1 || r.bottom > innerHeight + 1); }); const cv = document.querySelector('[data-brnplot] canvas'); const d = cv.getContext('2d').getImageData(0, 0, cv.width, cv.height).data; let n = 0; for (let i = 3; i < d.length; i += 400) if (d[i]) n++; return !over && n > 50;`);
   check(`โทน${name} ไม่มีอะไรล้น กราฟวาดแล้ว`, ok);

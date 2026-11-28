@@ -64,7 +64,7 @@ await q("[...document.querySelectorAll('.gmodebar button')].find((b) => b.textCo
 /* ---------- โทนอื่น ---------- */
 const before = await q("return localStorage.getItem('ms.tone') ?? 'quartz';");
 await nav("ใส่โปสเตอร์");
-for (const t of ["wine", "night", "sage", "mauve"]) {
+for (const t of ["wine", "night", "sage", "mauve", "teal"]) {
   await q(`window.__applyTone(${JSON.stringify(t)});`); await sleep(600);
   const m = await q("const e = document.querySelector('[data-drop=movie]'), s = getComputedStyle(e), r = getComputedStyle(document.documentElement); return { img: s.backgroundImage.slice(0, 15), circle: getComputedStyle(e, '::before').backgroundColor, accent: r.getPropertyValue('--accent') };");
   const hex = m.accent.trim().match(/[0-9a-f]{2}/gi).map((x) => parseInt(x, 16)).join(", ");

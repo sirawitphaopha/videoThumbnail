@@ -67,6 +67,24 @@ T[2] = async (p, check) => {
   check("163.2 หน้าใส่โปสเตอร์ ปุ่มเริ่มเป็น ห่อเป็น MKV พร้อมโปสเตอร์ และหัวข้อไฟล์เดิมหลังห่อเป็น MKV", pg.includes("ห่อเป็น MKV พร้อมโปสเตอร์") && pg.includes("ไฟล์เดิมหลังห่อเป็น MKV") && !/ครอบ/.test(pg), "");
 };
 
+/** 163.8 โทนสีฟ้าน้ำทะเล (teal) */
+T[8] = async (p, check) => {
+  const t = await p.evaluate(async () => { const m = await import("/src/lib/tones.ts"); const x = m.TONES.find((q) => q.id === "teal"); return x ? { name: x.name, con: m.minContrast(x), dark: !!x.dark } : null; });
+  check("163.8 มีโทนฟ้าน้ำทะเลในรายการโทน คู่สีที่จางสุดผ่านเกณฑ์ 4.5", !!t && t.name === "ฟ้าน้ำทะเล" && t.con >= 4.5 && !t.dark, JSON.stringify(t));
+  await p.evaluate(() => window.__applyTone("teal")); await wait(p, 400);
+  // สีจุดเน้น ตัวแปร --accent กับสีพื้นปุ่มหลักที่ไฟล์สไตล์เขียนเป็นชมพู ต้องหมุนมาเป็นโทนเขียวอมฟ้า (hue ราว 160 ถึง 200)
+  const c = await p.evaluate(() => { const hue = (rgb) => { const [r, g, b] = rgb.match(/\d+/g).map(Number).map((v) => v / 255); const a = Math.max(r, g, b), z = Math.min(r, g, b), d = a - z; if (!d) return -1; return (a === r ? ((g - b) / d + 6) % 6 : a === g ? (b - r) / d + 2 : (r - g) / d + 4) * 60; };
+    const btn = [...document.querySelectorAll(".btn-main")].find((e) => e.getBoundingClientRect().width); const nav = document.querySelector(".side .nav.on");
+    return { accent: getComputedStyle(document.documentElement).getPropertyValue("--accent").trim(), btn: btn ? hue(getComputedStyle(btn).backgroundColor) : null, nav: nav ? hue(getComputedStyle(nav).backgroundColor) : null }; });
+  check("163.8 เลือกโทนแล้ว --accent เป็น #1d7472 ปุ่มหลักกับเมนูที่เลือกเป็นสีเขียวอมฟ้า", c.accent.toLowerCase() === "#1d7472" && c.btn > 160 && c.btn < 200 && c.nav > 160 && c.nav < 200, JSON.stringify(c));
+  // การ์ดโทนในหน้าตั้งค่า
+  await nav(p, "ตั้งค่า"); await wait(p, 500);
+  await p.evaluate(() => [...document.querySelectorAll("button,a,li")].filter((x) => !x.closest("[data-navbar]")).find((x) => x.textContent.trim() === "โทนสี")?.click()); await wait(p, 500);
+  const n = await p.evaluate(() => [...document.querySelectorAll(".tncard")].map((e) => e.innerText.split("\n")[0].trim()));
+  check("163.8 หน้าตั้งค่าหัวข้อโทนสีมีการ์ดฟ้าน้ำทะเลเป็นการ์ดที่หก", n.length === 6 && n[5].startsWith("ฟ้าน้ำทะเล"), JSON.stringify(n));
+  await p.evaluate(() => window.__applyTone("quartz"));
+};
+
 // ---------------------------------------------------------------- ตัวรัน
 const want = process.argv.slice(2).map(Number).filter(Boolean);
 const ids = Object.keys(T).map(Number).filter((n) => !want.length || want.includes(n)).sort((a, b) => a - b);
