@@ -29,6 +29,7 @@ export const KEY_GROUPS: { id: string; title: string; scope: string; note?: stri
   { id: "ocr", title: "หน้า OCR ซับรูป", scope: "ocr" },
   { id: "viewer", title: "ตัวดูรูปเต็มจอ", scope: "viewer" },
   { id: "subimg", title: "ตัวดูซับรูป", scope: "subimg" },
+  { id: "graph", title: "หน้ากราฟเสียง", scope: "graph" },
 ];
 
 export const ACTIONS: KeyAction[] = [
@@ -119,6 +120,8 @@ export const ACTIONS: KeyAction[] = [
   // ตัวดูซับรูป
   { id: "subimg.prev", group: "subimg", label: "ภาพก่อนหน้า", keys: ["ArrowLeft"] },
   { id: "subimg.next", group: "subimg", label: "ภาพถัดไป", keys: ["ArrowRight"] },
+  // หน้ากราฟเสียง (BUGS ข้อ 163.4 เล่นเสียงจากกราฟ · พี่กันเคาะ "เว้นวรรคเล่นหรือหยุด")
+  { id: "graph.play", group: "graph", label: "เล่นหรือหยุดเสียงในหน้านี้", keys: ["Space"], noButton: true },
 ];
 
 /** คีย์พื้นฐานของช่อง รายการ และหน้าต่าง ปรับไม่ได้ แบบโปรแกรมทั่วไป · แสดงในหน้าตั้งค่าให้รู้ว่ามี */

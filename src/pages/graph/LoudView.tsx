@@ -10,6 +10,7 @@ import { CMP, RangeTime, Theme, dbTxt, label, minus, pkTxt, tfmt } from "./commo
 import { SaveBtn, Src, hiCopy, sample, screenK, useCanvas } from "./draw";
 import { Crosshair, Mark, Marks, VBar, axisY, useGrab, useVRange, vWindow } from "./parts";
 import { FZoom } from "./zoom";
+import { PlayHead } from "./playBar";
 
 /** คำอธิบายตารางหน้าความดัง (BUGS ข้อ 78 · พี่กันถาม 13 พ.ย. 2569 "เเล้วตารานี้มันบอกอะไรแฮะ") */
 const TIP_LOUD_TABLE: Tip = {
@@ -60,6 +61,7 @@ export function LoudView({ head, onPan, onBusy, resetN, scroller, ov, th, t0, t1
       <div className={grab.cls} style={{ position: "relative", flex: 1, minWidth: 0 }} ref={setBox} onWheel={vr.wheel} {...grab.props} onPointerMove={(e) => { if (grab.move(e)) return; const r = e.currentTarget.getBoundingClientRect(), W = r.width - X0 - 4, x = e.clientX - r.left - X0; if (x >= 0 && x <= W) setHover(t0 + x / W * (t1 - t0)); }} onPointerLeave={() => setHover(null)} data-loudbox>
         <canvas className="cv fillcv" ref={ref} />
         <Marks marks={marks} t0={t0} t1={t1} left={X0} right={4} inline />
+        <PlayHead t0={t0} t1={t1} left={X0} right={4} />
         {live && <Crosshair box={box} left={X0} right={4} t0={t0} t1={t1} at={at} rows={[{ v: minus(pick(at).toFixed(1)) + " LUFS", k: "ทุกช่องรวม" }]} />}
         <VBar v={vr} right={6} />
       </div>
@@ -122,6 +124,7 @@ export function CmpView({ head, onPan, onBusy, resetN, scroller, dur, src, names
       <div className={grab.cls} style={{ position: "relative", flex: 1, minWidth: 0 }} ref={setBox} onWheel={vr.wheel} {...grab.props} onPointerMove={(e) => { if (grab.move(e)) return; const r = e.currentTarget.getBoundingClientRect(), W = r.width - X0 - RW, x = e.clientX - r.left - X0; if (x >= 0 && x <= W) setHover(t0 + x / W * (t1 - t0)); }} onPointerLeave={() => setHover(null)} data-cmpbox>
         <canvas className="cv fillcv" ref={ref} />
         <Marks marks={marks} t0={t0} t1={t1} left={X0} right={RW} inline />
+        <PlayHead t0={t0} t1={t1} left={X0} right={RW} />
         {live && <Crosshair box={box} left={X0} right={RW} t0={t0} t1={t1} at={at} rows={cc.map((c) => ({ v: dbTxt(val(c)) + " dB", k: `${label(names, c).code} ${label(names, c).th}`, color: CMP[c] }))} />}
         <VBar v={vr} right={RW + 2} />
       </div>

@@ -67,3 +67,20 @@ fn pcm_peaks_shift_to_first_video_frame() {
     assert_eq!(pre.len(), (0.2 * 48_000.0) as usize * 4);
     let _ = std::fs::remove_dir_all(&dir);
 }
+
+/// BUGS ข้อ 163.4 · เสียงสำหรับเล่นในหน้ากราฟได้ครบทุกช่องตามที่ขอ ไม่รวมเป็นสองช่อง
+#[test]
+fn pcm_ch_keeps_every_channel() {
+    // ช่วงก่อนเวลา 0 ทั้งก้อนเป็นเงียบ ไม่ต้องเรียก ffmpeg · ความยาวต้องคิดตามจำนวนช่อง
+    let any = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("Cargo.toml");
+    let six = pcm_ch(&tools(), &any, "0:a:0", -1.0, 0.5, None, 6).unwrap();
+    assert_eq!(six.len(), 24_000 * 2 * 6, "ครึ่งวินาที หกช่อง ช่องละ 2 ไบต์");
+    assert!(six.iter().all(|b| *b == 0));
+    // ขอเกินแปดช่องได้แปดช่อง
+    assert_eq!(pcm_ch(&tools(), &any, "0:a:0", -1.0, 0.5, None, 12).unwrap().len(), 24_000 * 2 * 8);
+    if std::env::var("MOVIE_SHELF_SKIP_MEDIA").is_ok() { return; }
+    let m = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("..").join("test-media").join("สร้าง").join("แก้ซับ").join("ฉากตัด (2025).mkv");
+    assert!(m.exists(), "ไม่มีไฟล์ทดสอบ รัน node scripts/make-test-media.mjs ก่อน");
+    let one = pcm_ch(&tools(), &m, "0:1", 1.0, 1.0, None, 1).unwrap();
+    assert_eq!(one.len(), 48_000 * 2, "หนึ่งวินาที ช่องเดียว");
+}

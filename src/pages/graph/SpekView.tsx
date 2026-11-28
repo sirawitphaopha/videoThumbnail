@@ -13,6 +13,7 @@ import { SaveBtn, drawMatrix, lut, screenK, useCanvas } from "./draw";
 import { Fragment2 } from "./parts";
 import { FZoom } from "./zoom";
 import { CommonProps } from "./LoudView";
+import { PlayHead } from "./playBar";
 
 /* ---------- วิเคราะห์ (แบบ Spek) ---------- */
 export const SPK = { L: 62, R: 92, T: 58, B: 36 };
@@ -251,7 +252,7 @@ export function SpekView({ onBusy, held, resetN, tools, light, onPanT, scroller,
         {names.length <= 3 && <span className="spekch-seg">{segBox(chOpts, String(ch), (v) => setCh(Number(v)), "data-spekchseg")}</span>}
         <span className={names.length <= 3 ? "spekch-dd" : "spekch-dd on"} data-spekch><Dropdown label="ช่องที่ดู" value={String(ch)} onChange={(v) => setCh(Number(v))} options={chOpts.map(([value, l]) => ({ value, label: l }))} /></span></span>{zoomBox}</div></div>
       <div className="spekarea">
-        <div ref={areaRef} className="spekbox" onPointerLeave={() => setHov(null)}><canvas className={"cv fillcv" + (light ? " spekcv-light" : "") + (canPan ? " spekpan" : "") + (dragging ? " dragging" : "")} style={{ borderRadius: 8 }} ref={ref} data-spek onPointerDown={panDown} onPointerMove={panMove} onPointerUp={panEnd} onPointerCancel={panEnd} /><div ref={toolBox} className="spektools" style={{ right: SPK.R }}>{tools}</div>
+        <div ref={areaRef} className="spekbox" onPointerLeave={() => setHov(null)}><PlayHead t0={t0} t1={t1} left={SPK.L} right={SPK.R} top={SPK.T} bottom={SPK.B} /><canvas className={"cv fillcv" + (light ? " spekcv-light" : "") + (canPan ? " spekpan" : "") + (dragging ? " dragging" : "")} style={{ borderRadius: 8 }} ref={ref} data-spek onPointerDown={panDown} onPointerMove={panMove} onPointerUp={panEnd} onPointerCancel={panEnd} /><div ref={toolBox} className="spektools" style={{ right: SPK.R }}>{tools}</div>
           {probe && <>
             <div className={"spekxh" + (light ? " light" : "")} style={{ left: probe.x, top: probe.top, height: probe.height }} data-spekxh />
             <div className={"spekxh h" + (light ? " light" : "")} style={{ top: probe.y, left: SPK.L, right: SPK.R }} />

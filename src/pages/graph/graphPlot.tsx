@@ -14,9 +14,10 @@ import { SpekView } from "./SpekView";
 import { LOUD_TIP, PsdView } from "./PsdView";
 import { Swatch, PEAK_RMS_TIP, WaveIc } from "./graphPrefs";
 import type { B3 } from "./graphCtx";
+import { PLAYBAR_H, PlayHead, seekProps } from "./playBar";
 
 export function plotBits(pg: B3) {
-  const { LW, VZ_W, at, boxEl, dur, exportRef, fileName, grabBusy, heldShown, hidden, hover, info, laneAdj, lanesGrab, loudMode, marks, names, ovFold, panTo, paneH, play, plotRef, prefs, psd, psdCh, psdF, psdLog, psdMs, psdSeries, psdSize, resetN, saveImage, sb, scroller, seg, setBoxEl, setCenter, setHover, setLoudMode, setPref, setPsdCh, setPsdF, setPsdLog, setPsdSize, setResetN, setSb, setShowTable, setSpekRes, setSz, setTip, setVz, setWin, setZoom, showTable, spekRes, styleTools, svDrag, svRef, svTo, sz, szClampB, t, t0, t1, th, toast, toggleCh, view, vis, vz, winNow, zoom, zoomBox } = pg;
+  const { LW, VZ_W, at, boxEl, dur, exportRef, fileName, grabBusy, heldShown, hidden, hover, info, laneAdj, lanesGrab, loudMode, marks, names, ovFold, panTo, paneH, play, plotRef, prefs, psd, psdCh, psdF, psdLog, psdMs, psdSeries, psdSize, resetN, saveImage, sb, scroller, seg, setBoxEl, setCenter, setHover, setLoudMode, setPref, setPsdCh, setPsdF, setPsdLog, setPsdSize, setResetN, setSb, setShowTable, setSpekRes, setSz, setVz, setWin, setZoom, showTable, spekRes, styleTools, svDrag, svRef, svTo, sz, szClampB, t, t0, t1, th, toast, toggleCh, view, vis, vz, winNow, zoom, zoomBox } = pg;
   const ov = pg.ov!;
   const src = pg.src!;
   const path = pg.path!;
@@ -64,7 +65,7 @@ export function plotBits(pg: B3) {
     // แถบสูงขึ้นจากเดิม (พี่กัน 7 พ.ย. 2569 *"ใ้ห้ระบบมันขยายกราฟลงมาได้มากกว่านี้ ตอนนี้มันเเค่สองเเถบที่โคตรจะชิดกัน"*) · ลากที่จับใต้กราฟขยายต่อได้ถึง 4 เท่า
     const minH = laneMinH(names.length, false);
     // 252 คือหัวกราฟ แถบเลื่อน แถวปุ่มท้าย ระยะขอบรวมกัน (คอมเมนต์เดิมเขียน 234 ไม่ตรงค่า AUDIT ข้อ 101)
-    const laneH = Math.max(minH, Math.floor((paneH - 252 + (ovFold ? 44 : 0) + laneAdj - (names.length - 1) * 6) / Math.max(1, names.length)));
+    const laneH = Math.max(minH, Math.floor((paneH - 252 - PLAYBAR_H + (ovFold ? 44 : 0) + laneAdj - (names.length - 1) * 6) / Math.max(1, names.length)));
     const colors = lut(prefs.cmap === "rainbow" ? RAINBOW : th.ramp);
     plot = (
       <div className="plot" data-plot ref={plotRef}>
@@ -75,27 +76,28 @@ export function plotBits(pg: B3) {
           {view === "wave" && <span className="wstyle-dd" data-styledd><Dropdown label="แบบกราฟ" value={(prefs.style === "fine" ? "aud" : prefs.style) as "aud" | "bars" | "real"} onChange={(v) => setPref("style", v)}
             options={[{ value: "aud", label: "รูปคลื่น" }, { value: "bars", label: "แท่ง" }, { value: "real", label: "เต็มช่อง" }]} /></span>}
           {zoomBox(ZOOMS, "ซูม")}</div>
-        <Overview ov={ov} th={th} t0={t0} t1={t1} onPick={(x) => { setCenter(x); setTip(x); if (zoom === "all") setZoom(240); }} left={LW} right={VZ_W} />
+        <Overview ov={ov} th={th} t0={t0} t1={t1} onPick={(x) => { setCenter(x); pg.gplay.seek(x); if (zoom === "all") setZoom(240); }} left={LW} right={VZ_W} />
         <Ruler left={LW} right={VZ_W} />
         </div>
         <div className="lanewrap" style={{ marginTop: marks.some((m) => m.to > t0 && m.from < t1) ? 28 : 6, position: "relative" }}
           onWheel={(e) => { if (view !== "spec" || sz <= 1 || e.ctrlKey) return; e.stopPropagation(); setSb((b) => szClampB(b + (e.deltaY < 0 ? 0.25 : -0.25) / sz, sz)); }}>
-        <div className={"lanes " + lanesGrab.cls} data-wstyle={view === "wave" ? prefs.style : undefined} ref={setBoxEl} style={{ marginTop: 0 }} {...lanesGrab.props} onPointerMove={(e) => { if (!lanesGrab.move(e)) onMove(LW, 0)(e); }} onPointerLeave={() => setHover(null)} data-lanes>
+        <div className={"lanes " + lanesGrab.cls} data-wstyle={view === "wave" ? prefs.style : undefined} ref={setBoxEl} style={{ marginTop: 0 }} {...lanesGrab.props} {...seekProps(pg.gplay.seek, t0, t1, LW, 0)} onPointerMove={(e) => { if (!lanesGrab.move(e)) onMove(LW, 0)(e); }} onPointerLeave={() => setHover(null)} data-lanes>
           {names.map((c) => {
             const i = names.indexOf(c), l = label(names, c);
             // ทั้งสามแบบ (รูปคลื่น แท่ง เต็มช่อง) ช่องสูงเท่ากัน มีแกนตัวเลขซ้ายเหมือนกัน ช่องคั่นเท่ากัน กรอบกราฟอยู่ตำแหน่งเดียวกันทุกแบบ
             // (พี่กันทัก 11 พ.ย. 2569 "มันไม่เท่ากันเลย" · เดิมแบบแท่งไม่มีแกนตัวเลข แบบเต็มช่องไม่มีช่องคั่น ช่องล่างกับแถบเลื่อนขึ้นไป 6 จุด)
             // แท่งสูงครึ่งละ ดังสุด × ครึ่งช่อง ตรงกับสเกลของแกนตัวเลขอยู่แล้ว
             const tog = { onToggle: () => toggleCh(c), last: vis.length <= 1 };
-            if (hidden.includes(c)) return <LaneOff key={c + "off"} code={l.code} th={l.th} peak={peakTxt(c)} height={view === "wave" ? Math.max(laneH, 60) : laneH} {...tog} />;
+            if (hidden.includes(c)) return <LaneOff key={c + "off"} meter={i} code={l.code} th={l.th} peak={peakTxt(c)} height={view === "wave" ? Math.max(laneH, 60) : laneH} {...tog} />;
             return view === "wave"
-              ? <Lane key={c + view} room {...tog} code={l.code} th={l.th} peak={peakTxt(c)} height={Math.max(laneH, 60)} deps={[src, t0, t1, th, prefs.style, i, vz, laneH]}
+              ? <Lane key={c + view} meter={i} room {...tog} code={l.code} th={l.th} peak={peakTxt(c)} height={Math.max(laneH, 60)} deps={[src, t0, t1, th, prefs.style, i, vz, laneH]}
                   draw={(g, w, h) => drawWave(g, w, h, sample(src, i, t0, t1, w), th, prefs.style, vz)}
                   ruler={(g, w, h) => drawAmpRuler(g, w, h, vz)} />
-              : <Lane key={c + view} {...tog} code={l.code} th={l.th} peak={peakTxt(c)} height={laneH} deps={[src, winNow, heldShown, t0, t1, prefs.cmap, th, i, laneH, sz, sb]}
+              : <Lane key={c + view} meter={i} {...tog} code={l.code} th={l.th} peak={peakTxt(c)} height={laneH} deps={[src, winNow, heldShown, t0, t1, prefs.cmap, th, i, laneH, sz, sb]}
                   draw={(g, w, h) => drawSpecLane(g, w, h, i, winNow, ov, t0, t1, t?.rate ?? 48000, colors, sz, sb, heldShown)} />;
           })}
           <Marks marks={marks} t0={t0} t1={t1} left={LW} right={0} />
+          <PlayHead t0={t0} t1={t1} left={LW} right={0} />
           {/* เส้นตั้งกับกล่องบอกค่าขึ้นเฉพาะตอนเมาส์ชี้ (พี่กัน 7 พ.ย. 2569 *"ต้องให้เเสดงเฉพาะเมาส์ชี้"*) */}
           {hover != null && <Crosshair box={boxEl} left={LW} right={0} t0={t0} t1={t1} at={at} rows={vis.map((c) => ({ v: "ดังเฉลี่ย " + dbTxt(valueAt(names.indexOf(c), at)) + " dB", k: `${label(names, c).code} ${label(names, c).th}` }))} />}
         </div>

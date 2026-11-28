@@ -15,6 +15,7 @@ import { panelBits } from "./graphPanel";
 import { plotBits } from "./graphPlot";
 import { cmpView, convertView, startView } from "./GraphHome";
 import { errorView, loadingView } from "./GraphState";
+import { PlayBar } from "./playBar";
 export { SPEK_RES_KEY } from "./graphPrefs";
 
 /** track ลำดับแทร็กเสียงที่จะเปิด (หน้าบิตเรตส่งแทร็กที่ดูอยู่ BUGS ข้อ 119) · ไม่ส่งเปิดแทร็กแรก */
@@ -36,10 +37,10 @@ export default function GraphPage(props: GraphProps) {
   if (!b3.ov || !b3.src) return loadingView({ pg: b3 });
   /* ---------- กราฟ ---------- */
   const g = { ...b3, ...plotBits(b3) };
-  const { ctl, head, panel, plot, prefs, saving, tagDlg, view, viewSlow } = g;
+  const { ctl, head, panel, plot, prefs, saving, tagDlg, view, viewSlow, gplay, dur, playStart } = g;
   return (
     <SavingCtx.Provider value={saving}><div className="ag" data-graph data-graphview={view}>
-      <div className="agstick">{head}{ctl}</div>
+      <div className="agstick">{head}{ctl}<PlayBar onToggle={gplay.toggle} dur={dur} at={playStart} /></div>
       <div className={"agb" + (prefs.wide ? " wide" : "")}>{prefs.wide ? null : panel}{plot}{viewSlow && !saving && <LoadPill text="กำลังโหลดกราฟ…" />}</div>
       {tagDlg}
     </div></SavingCtx.Provider>

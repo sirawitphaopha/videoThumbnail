@@ -15,7 +15,7 @@ use crate::app::tools::{run_tool_timeout, tool_succeeded, tools_dir};
 /// อัตราตัวอย่างเสียงที่ส่งให้หน้าจอ · หน้าจอสร้าง AudioBuffer ที่อัตรานี้
 pub const PCM_RATE: u32 = 48_000;
 
-fn need(p: &str) -> Result<PathBuf, String> {
+pub fn need(p: &str) -> Result<PathBuf, String> {
     let pb = PathBuf::from(p);
     if pb.exists() { Ok(pb) } else { Err("หาไฟล์เสียงไม่เจอ ไดรฟ์อาจถอดออกอยู่".into()) }
 }
@@ -125,12 +125,19 @@ fn cut_args(path: &std::path::Path, map: &str, t0: f64, dur: f64) -> Vec<OsStrin
 /// เสียงช่วงหนึ่ง เป็นไบต์ s16le สองช่องสลับกัน 48 kHz · ช่วงเลยท้ายไฟล์ได้ไบต์น้อยกว่าที่ขอหรือว่าง
 /// zero แบบเดียวกับ peaks · ช่วงที่เสียงยังไม่เริ่มเติมเงียบหน้าก้อน ตัวอย่างแรกของก้อนจึงตรงเวลา t0 ของภาพเสมอ
 pub fn pcm(tools: &std::path::Path, path: &std::path::Path, map: &str, t0: f64, dur: f64, zero: Option<f64>) -> Result<Vec<u8>, String> {
+    pcm_ch(tools, path, map, t0, dur, zero, 2)
+}
+
+/// เสียงช่วงหนึ่งแบบ pcm แต่ได้ ch ช่องสลับกัน (1 ถึง 8) · หน้ากราฟเสียงขอเท่าจำนวนช่องของแทร็ก ffmpeg จึงไม่รวมช่อง
+/// แต่ละช่องอยู่ลำดับเดียวกับ layout_names ของ audiograph หน้าจอปิดเปิดทีละช่องได้ตอนเล่น (BUGS ข้อ 163.4)
+pub fn pcm_ch(tools: &std::path::Path, path: &std::path::Path, map: &str, t0: f64, dur: f64, zero: Option<f64>, ch: u32) -> Result<Vec<u8>, String> {
+    let ch = ch.clamp(1, 8);
     let (ss, lead) = place_of(tools, path, map, zero, t0);
     let lead = lead.min(dur);
-    let pad = (lead * PCM_RATE as f64).round() as usize * 4;
+    let pad = (lead * PCM_RATE as f64).round() as usize * 2 * ch as usize;
     if dur - lead < 0.005 { return Ok(vec![0u8; pad]); }
     let mut args = cut_args(path, map, ss, dur - lead);
-    args.extend(["-ac".into(), "2".into(), "-ar".into(), PCM_RATE.to_string().into(), "-f".into(), "s16le".into(), "-".into()]);
+    args.extend(["-ac".into(), ch.to_string().into(), "-ar".into(), PCM_RATE.to_string().into(), "-f".into(), "s16le".into(), "-".into()]);
     let o = run_tool_timeout(tools, "ffmpeg", &args, Duration::from_secs(120))?;
     if !tool_succeeded("ffmpeg", &o.status) {
         return Err(format!("ถอดเสียงไม่ได้  {}", String::from_utf8_lossy(&o.stderr).lines().last().unwrap_or("")));

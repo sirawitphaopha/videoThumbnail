@@ -373,6 +373,20 @@ pub async fn graph_overview(app: AppHandle, path: String, track: usize) -> Resul
     Ok(res)
 }
 
+/// เสียงช่วง t0 ถึง t0 + dur วินาทีของแทร็กเสียงลำดับ track สำหรับเล่นในหน้ากราฟ (BUGS ข้อ 163.4 · ROADMAP ข้อ 35)
+/// ได้ไบต์ s16le ch ช่องสลับกัน 48 kHz ตรง ๆ ไม่ผ่านข้อความ · ffmpeg ถอดได้ทุกชนิดที่หน้ากราฟเปิดได้ (APE TAK DTS TrueHD ALAC WavPack)
+/// หน้าจอขอทีละก้อนไม่กี่วินาที เล่นได้ก่อนถอดจบทั้งไฟล์ · ไม่แตะไฟล์ ไม่เขียนไฟล์ชั่วคราว
+#[tauri::command]
+pub async fn graph_pcm(app: AppHandle, path: String, track: usize, t0: f64, dur: f64, ch: u32) -> Result<tauri::ipc::Response, String> {
+    let tools = tools_dir(&app)?;
+    if track > 99 { return Err("แทร็กเสียงไม่ถูกต้อง".into()); }
+    let b = tauri::async_runtime::spawn_blocking(move || {
+        let p = crate::subtitle::subaudio::need(&path)?;
+        crate::subtitle::subaudio::pcm_ch(&tools, &p, &format!("0:a:{track}"), t0.max(0.0), dur.clamp(0.01, 30.0), None, ch)
+    }).await.map_err(|e| e.to_string())??;
+    Ok(tauri::ipc::Response::new(b))
+}
+
 #[tauri::command]
 pub fn graph_cancel() {
     OVERVIEW_GEN.fetch_add(1, Ordering::SeqCst);

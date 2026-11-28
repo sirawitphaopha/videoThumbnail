@@ -8,6 +8,7 @@ import { useFitClass } from "../../lib/fitSwitch";
 import { useOvFold } from "../../lib/ovFold";
 import { Prefs, View, laneMinH } from "./common";
 import { SPEK_RES_KEY, loadPrefs } from "./graphPrefs";
+import { PLAYBAR_H } from "./playBar";
 import type { GraphReq } from "./GraphPage";
 
 export type GraphProps = { req: GraphReq | null; onConsumed: () => void; onBitrate?: (path: string, track?: string) => void };
@@ -104,7 +105,7 @@ export function useGraphBase(p: GraphProps) {
     else { const slack = Math.floor(f.getBoundingClientRect().top - ts.getBoundingClientRect().bottom - 10); if (slack >= n) d = slack; }
     // แถบเตี้ยถึงขั้นต่ำแล้วยังล้น ลดต่อไม่มีผลกับความสูงจริง ห้ามลดค่าต่ำกว่าจุดที่แถบถึงขั้นต่ำ ไม่งั้นตั้งค่าวนจนหน้าพัง
     // (เจอ 11 พ.ย. 2569 ไฟล์ 5.1 หกช่อง หน้าต่างสูง 852 หน้ากราฟขึ้น Maximum update depth exceeded) · กรอบเลื่อนแทนตามเดิม
-    const floor = laneMinH(n, view === "wave") * n - (paneH - 252 + (ovFold ? 44 : 0) - (n - 1) * 6);
+    const floor = laneMinH(n, view === "wave") * n - (paneH - 252 - PLAYBAR_H + (ovFold ? 44 : 0) - (n - 1) * 6);
     if (d) setLaneAdj((a) => Math.max(-400, Math.min(400, Math.max(floor, a + d))));
   });
 

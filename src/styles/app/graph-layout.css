@@ -173,3 +173,23 @@
 [data-poster-page] { display: flex; flex-direction: column; }
 [data-poster-page] > .wrapin { flex: 1 0 auto; padding-bottom: 0; }
 [data-poster-page] .three.pactions { margin-top: auto; }
+
+/* เล่นเสียงจากกราฟ (BUGS ข้อ 163.4 · ROADMAP ข้อ 35) แถบเล่นใต้แถวปุ่มมุมมอง สูง 30 จุด (PLAYBAR_H ใน playBar.tsx รวมช่องห่าง 12) */
+.gp-bar { display: flex; align-items: center; gap: 10px; height: 30px; min-width: 0; }
+.gp-bar .btn { flex: none; }
+.gp-time { flex: none; font-size: 15px; font-weight: 700; color: var(--txt); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.gp-time em { font-style: normal; font-weight: 400; font-size: 13px; color: var(--txt3); }
+.gp-vol { flex: none; display: inline-flex; align-items: center; gap: 6px; color: var(--txt2); font-size: 13px; }
+.gp-vol input { width: 110px; accent-color: var(--accent); }
+.gp-volv { min-width: 36px; font-variant-numeric: tabular-nums; }
+.gp-err { min-width: 0; color: var(--bad-ink); font-size: 13px; white-space: nowrap; overflow: hidden; }
+/* ขีดตำแหน่งเล่น สีน้ำเงินเข้มต่างจากเส้นชี้ (สีเข้มอมชมพู) กับแถบจุดเสีย (แดง) มีขอบขาวให้เห็นบนกราฟสีเข้ม */
+.gp-head { position: absolute; top: 0; bottom: 0; width: 2px; margin-left: -1px; background: #1d4ed8; box-shadow: 0 0 0 1px rgba(255,255,255,.55); pointer-events: none; z-index: 3; }
+/* แถบวัดระดับเสียงแนวตั้งข้างชื่อช่อง ขึ้นเฉพาะตอนเล่น สีเขียว เหลือง แดงเป็นสีของแถบวัด ไม่เปลี่ยนตามโทน */
+.lab { position: relative; }
+.lab:has(.gp-meter) { padding-right: 16px; }
+.gp-meter { position: absolute; right: 4px; top: 14px; bottom: 4px; width: 6px; border-radius: 3px; background: linear-gradient(to top, #3fae5e 0%, #3fae5e 66%, #e6c03c 84%, #d6413b 100%); }
+.gp-meter > i { position: absolute; left: 0; right: 0; top: 0; height: 100%; border-radius: 3px 3px 0 0; background: #e9e5e7; }
+.gp-meter > b { position: absolute; left: -1px; right: -1px; height: 2px; margin-bottom: -1px; background: #3a3a3a; opacity: 0; }
+.gp-clip { position: absolute; left: 0; top: -10px; width: 6px; height: 6px; padding: 0; border: 0; border-radius: 2px; background: #d9d4d6; cursor: pointer; }
+.gp-clip[data-on] { background: #d6413b; }

@@ -9,6 +9,7 @@ import { createRequire } from "module";
 import { readFileSync, readdirSync, statSync } from "fs";
 import { join } from "path";
 import { fileURLToPath } from "url";
+import { linesOf } from "./lib/lines.mjs";
 
 if (process.platform === "win32") process.env.PLAYWRIGHT_BROWSERS_PATH ??= "0";
 const BASE = "http://127.0.0.1:1420", URL = `${BASE}/docs/mockups/theme-live-app.html`;
@@ -85,6 +86,90 @@ T[8] = async (p, check) => {
   await p.evaluate(() => window.__applyTone("quartz"));
 };
 
+const MOVIE = "D:\\หนัง\\ดาวเหนือ (2023).mkv";
+const SONG = "D:\\เพลง\\เพลงตัวอย่าง.flac";
+const avDrop = (p, path) => p.evaluate((x) => window.__emit("tauri://drag-drop", { paths: [x], position: { x: 700, y: 400 } }), path);
+const graphOpen = async (p, path) => { await nav(p, "กราฟเสียง"); await wait(p, 300); await avDrop(p, path); await p.waitForSelector("[data-plot]", { timeout: 15000 }); await wait(p, 800); };
+const gp = (p) => p.evaluate(() => window.__graphPlay());
+
+/** 163.4 (เลข 35) เล่นเสียงจากกราฟ มีขีดเลื่อนตาม */
+T[4] = async (p, check) => {
+  await graphOpen(p, MOVIE);
+  await p.click("[data-view=wave]").catch(() => {}); await wait(p, 500);
+  const bar = await p.evaluate(() => { const b = document.querySelector("[data-playbar]"); const r = b?.getBoundingClientRect(); return b ? { h: Math.round(r.height), txt: b.innerText, over: document.querySelector(".agstick").scrollWidth > document.querySelector(".agstick").clientWidth + 1 } : null; });
+  check("163.4 แถบเล่นอยู่ใต้แถวปุ่มมุมมอง สูง 30 จุด มีปุ่มเล่นในหน้านี้ เวลา และความดัง ไม่ล้นขวาที่ 1280", !!bar && bar.h === 30 && bar.txt.includes("เล่นในหน้านี้") && /จาก/.test(bar.txt) && /%/.test(bar.txt) && !bar.over, JSON.stringify(bar));
+  // กราฟไม่ดันหน้าจนต้องเลื่อน (หักความสูงแถบเล่นออกจากความสูงกราฟแล้ว)
+  const fit = await p.evaluate(() => { const w = document.querySelector("[data-graphscroll]"); return { sh: w.scrollHeight, ch: w.clientHeight }; });
+  check("163.4 หน้ารูปคลื่นที่ 1280 × 800 ไม่ต้องเลื่อนแนวตั้ง", fit.sh <= fit.ch + 1, JSON.stringify(fit));
+  // กดเล่น เวลาเดิน ขอเสียงจากฝั่ง Rust ครบทุกช่อง (5.1 = 6 ช่อง) ขีดตำแหน่งเล่นขึ้นบนกราฟ แถบวัดระดับขึ้นทุกช่อง
+  const w0 = await p.evaluate(() => document.querySelector("[data-gplay]").getBoundingClientRect().width);
+  await p.click("[data-gplay]"); await wait(p, 1200);
+  const a = await gp(p);
+  const w1 = await p.evaluate(() => document.querySelector("[data-gplay]").getBoundingClientRect().width);
+  check("163.4 ปุ่มเล่นกว้างเท่าเดิมตอนสลับเป็นปุ่มหยุด", Math.abs(w0 - w1) < 0.5, JSON.stringify({ w0, w1 }));
+  await wait(p, 700);
+  const b2 = await gp(p);
+  const head = await p.evaluate(() => { const h = document.querySelector(".lanes [data-playhead]"); return h ? { show: h.style.display, left: parseFloat(h.style.left) } : null; });
+  const meters = await p.evaluate(() => document.querySelectorAll(".lanes [data-meter]").length);
+  check("163.4 กดเล่นแล้วกำลังเล่น เวลาเดินหน้า ถอดครบหกช่องของแทร็ก 5.1", a.playing && b2.now > a.now + 0.4 && a.names.length === 6, JSON.stringify({ a, b2 }));
+  check("163.4 ขีดตำแหน่งเล่นขึ้นบนกราฟรูปคลื่นและขยับตามเวลา", !!head && head.show === "block" && head.left > 96, JSON.stringify(head));
+  check("163.4 แถบวัดระดับเสียงขึ้นข้างชื่อช่องครบทุกช่องตอนเล่น", meters === 6, String(meters));
+  const lv = await p.evaluate(() => [...document.querySelectorAll(".lanes [data-meter] > i")].map((i) => parseFloat(i.style.height)));
+  check("163.4 แถบวัดของช่องที่ดังกว่า (ช่องแรก) ขึ้นสูงกว่าช่องสุดท้าย", lv.length === 6 && lv[0] < lv[5], JSON.stringify(lv));
+  // ปุ่มลำโพงปิดช่อง FC ระหว่างเล่น เสียงช่องนั้นเงียบทันที แถบช่องนั้นหยุดนิ่ง
+  await p.click("[data-lanetog=C]").catch(async () => { await p.click("[data-lane] [data-lanetog]:nth-of-type(1)"); }); await wait(p, 300);
+  const m = await gp(p);
+  check("163.4 ปุ่มลำโพงปิดช่องระหว่างเล่น ช่องนั้นเงียบทันที ช่องอื่นยังดัง", m.muted.length === 1 && m.gains.filter((g) => g === 0).length === 1 && m.gains.filter((g) => g === 1).length === 5 && m.playing, JSON.stringify(m));
+  // กดบนกราฟระหว่างเล่น กระโดดไปเล่นตรงนั้น
+  // จุดที่กดคิดจากกรอบของกราฟจริง (canvas ของช่องแรก) ซูมทั้งไฟล์ 1:30:00 สามในสี่คือ 4,050 วินาที
+  const cv = await p.evaluate(() => { const r = document.querySelector(".lanes .lane:not([data-off]) canvas.cv").getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width }; });
+  await p.mouse.click(cv.x + cv.w * 0.75, cv.y + 20); await wait(p, 900);
+  const j = await gp(p);
+  check("163.4 กดบนกราฟระหว่างเล่น กระโดดไปเล่นตรงจุดที่กด (สามในสี่ของไฟล์ราว 4,050 วินาที)", j.playing && Math.abs(j.now - 4050) < 20, JSON.stringify({ now: j.now }));
+  // เว้นวรรคหยุด จุดเริ่มเล่นครั้งถัดไปคือจุดที่หยุด
+  await p.mouse.move(5, 5); await p.keyboard.press("Space"); await wait(p, 300);
+  const st = await gp(p);
+  const shown = await p.evaluate(() => document.querySelector("[data-gptime] span")?.textContent);
+  check("163.4 เว้นวรรคหยุดเล่น ตัวเลขเวลาค้างที่จุดที่หยุด", !st.playing && /^1:/.test(shown ?? ""), JSON.stringify({ st, shown }));
+  await p.keyboard.press("Space"); await wait(p, 900);
+  const again = await gp(p);
+  check("163.4 เว้นวรรคอีกครั้งเล่นต่อจากจุดที่หยุด", again.playing && again.now >= j.now, JSON.stringify({ again: again.now, stop: j.now }));
+  // ความดังลำโพง จำไว้ ไม่เกี่ยวกับแถบวัด
+  await p.evaluate(() => { const r = document.querySelector("[data-gpvol]"); const set = Object.getOwnPropertyDescriptor(HTMLInputElement.prototype, "value").set; set.call(r, "40"); r.dispatchEvent(new Event("input", { bubbles: true })); });
+  await wait(p, 200);
+  const vol = await p.evaluate(() => ({ st: window.__graphPlay().vol, saved: localStorage.getItem("ms.graphVol"), txt: document.querySelector(".gp-volv")?.textContent }));
+  check("163.4 แถบความดังลำโพงปรับเป็น 40% และจำไว้", Math.abs(vol.st - 0.4) < 1e-6 && vol.saved === "0.4" && vol.txt === "40%", JSON.stringify(vol));
+  // เปลี่ยนไปหน้าอื่น หยุดเล่น
+  await nav(p, "ชั้นวางหนัง"); await wait(p, 300);
+  check("163.4 ออกจากหน้ากราฟแล้วหยุดเล่น", !(await gp(p)).playing, "");
+  await p.evaluate(() => localStorage.removeItem("ms.graphVol"));
+  // หน้าวิเคราะห์กับหน้าความดังมีขีดตำแหน่งเล่นด้วย
+  await nav(p, "กราฟเสียง"); await wait(p, 400);
+  for (const v of ["spek", "loud"]) {
+    await p.click(`[data-view=${v}]`); await wait(p, 700);
+    await p.click("[data-gplay]"); await wait(p, 900);
+    const h = await p.evaluate(() => [...document.querySelectorAll("[data-playhead]")].filter((x) => x.style.display === "block").length);
+    check(`163.4 มุมมอง ${v} มีขีดตำแหน่งเล่นตอนเล่น`, h >= 1, String(h));
+    await p.click("[data-gplay]"); await wait(p, 200);
+  }
+  // กล่อง ⓘ ของแถบเล่น แยกหัวข้อละเรื่อง ตัดบรรทัดตรงรอยต่อความหมาย (หน้าต่าง 1280 × 800)
+  await click(p, '[data-info="เล่นเสียงจากกราฟ"]'); await p.waitForSelector('[data-tip="เล่นเสียงจากกราฟ"]'); await wait(p, 300);
+  const lines = await linesOf((code) => p.evaluate(`(async () => { ${code} })()`), '[data-tip="เล่นเสียงจากกราฟ"]');
+  if (process.env.DUMP) console.log(JSON.stringify(lines, null, 1));
+  const want = [
+    "เล่นเสียงของไฟล์ในหน้านี้เลย โดยมีขีดตำแหน่งเล่นวิ่งไปบนกราฟ ⏎ จึงเห็นว่าเสียงที่ได้ยินอยู่ตรงไหนของกราฟ",
+    "กดบนกราฟ ระหว่างเล่น กดตรงไหนก็กระโดดไปเล่นตรงนั้น ⏎ ส่วนตอนหยุด จุดที่กดจะเป็นจุดเริ่มเล่นครั้งถัดไป",
+    "ปุ่มลำโพง ช่องที่ปิดลำโพงจะเงียบทันทีระหว่างเล่น ⏎ และแถบวัดระดับของช่องนั้นหยุดนิ่ง",
+    "ความดัง ปรับเฉพาะเสียงที่ออกลำโพง ไม่แก้ไฟล์ ⏎ ส่วนแถบวัดระดับข้างชื่อช่องบอกระดับของไฟล์จริงเสมอ",
+    "แถบวัดระดับ เขียวคือระดับปกติ เหลืองคือดังใกล้เพดาน ⏎ และแดงคือแตะ 0 dB ซึ่งจุดแดงค้างไว้จนกดล้าง",
+  ];
+  check("163.4 กล่อง ⓘ เล่นเสียงจากกราฟ แยกหัวข้อละเรื่อง ตัดบรรทัดตรงความหมายทุกหัวข้อ", JSON.stringify(lines) === JSON.stringify(want), JSON.stringify(lines));
+  await p.keyboard.press("Escape");
+  // คีย์ลัดอยู่ในทะเบียนกลาง ตั้งใหม่ได้ในหน้าตั้งค่า
+  const k = await p.evaluate(async () => { const m = await import("/src/lib/keymap.ts"); const a = m.actionOf("graph.play"); return a ? { keys: a.keys, group: m.KEY_GROUPS.find((g) => g.id === a.group)?.title } : null; });
+  check("163.4 คีย์ลัดเล่นหรือหยุดอยู่ในทะเบียนกลาง หมวดหน้ากราฟเสียง ตั้งต้นเป็น Space", !!k && k.keys[0] === "Space" && k.group === "หน้ากราฟเสียง", JSON.stringify(k));
+};
+
 // ---------------------------------------------------------------- ตัวรัน
 const want = process.argv.slice(2).map(Number).filter(Boolean);
 const ids = Object.keys(T).map(Number).filter((n) => !want.length || want.includes(n)).sort((a, b) => a - b);
@@ -96,7 +181,8 @@ if (!(await up())) {
   for (let i = 0; i < 60 && !(await up()); i++) await new Promise((r) => setTimeout(r, 500));
 }
 const { chromium } = createRequire(import.meta.url)("playwright");
-const b = await chromium.launch();
+// เสียงในระบบจำลองเล่นได้โดยไม่ต้องมีคนกดก่อน (นโยบายเล่นเสียงอัตโนมัติของเบราว์เซอร์)
+const b = await chromium.launch({ args: ["--autoplay-policy=no-user-gesture-required"] });
 try {
   for (const n of ids) {
     const p = await b.newPage({ viewport: { width: 1280, height: 800 } });

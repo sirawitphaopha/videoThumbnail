@@ -98,6 +98,10 @@
   const GRAPH = {
     graph_info: (a) => infoOf(a.path),
     graph_overview: (a) => overviewOf(a.path, a.track),
+    // เสียงสำหรับเล่นในหน้ากราฟ (BUGS ข้อ 163.4) โทน 440 Hz ทุกช่อง ช่องหลังเบากว่าช่องหน้า แถบวัดระดับแต่ละช่องจึงต่างกัน · ถึงท้ายไฟล์ได้ก้อนสั้น
+    graph_pcm: (a) => { const d = infoOf(a.path).duration, n = Math.max(1, Math.min(8, a.ch)), fr = Math.max(0, Math.round(Math.min(a.dur, d - a.t0) * 48000)), b = new ArrayBuffer(fr * n * 2), v = new DataView(b);
+      for (let i = 0; i < fr; i++) { const x = Math.sin(2 * Math.PI * 440 * (a.t0 + i / 48000)); for (let k = 0; k < n; k++) v.setInt16((i * n + k) * 2, Math.round(x * 32767 * (0.7 / (k + 1))), true); }
+      window.__pcmCalls = (window.__pcmCalls ?? 0) + 1; return b; },
     graph_window: (a) => { const tk = infoOf(a.path).tracks[a.track] ?? infoOf(a.path).tracks[0]; return { t0: a.t0, t1: a.t1, cols: a.cols, env: envOf(tk.names, a.t0, a.t1, a.cols), bins: a.bins, spec: specOf(tk.names, a.t0, a.t1, a.cols, a.bins, tk.rate / 2, a.log) }; },
     graph_psd: (a) => { const rate = (infoOf(a.path).tracks[a.track] ?? infoOf(a.path).tracks[0]).rate, N = a.size / 2 + 1, count = a.series.length + (a.ms ? 2 : 0); return { size: a.size, rate, db: Array.from({ length: count }, (_, k) => Array.from({ length: N }, (_, i) => { const hz = i * rate / a.size; return hz > 18000 ? -118 + hash1(i + k) * 2 : -22 - k * 2.5 - 5.2 * Math.log2(Math.max(hz, 45) / 45) + (vnoise(i * 0.05, k + 2) - 0.5) * 7; })) }; },
     graph_cancel: () => null,

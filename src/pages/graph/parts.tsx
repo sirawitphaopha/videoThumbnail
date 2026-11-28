@@ -7,6 +7,7 @@ import { dropStyle, sideStyle, useDropPlacement, useSideFit } from "../../lib/po
 import { useClickOutside, useEscClose } from "../../lib/popup";
 import { Theme, WARN, label, minus, spanDigits, tfmtD } from "./common";
 import { RUL_W, Src, useCanvas } from "./draw";
+import { LevelMeter } from "./playBar";
 
 
 export function GraphOptions({ on, onChange }: { on: boolean; onChange: (v: boolean) => void }) {
@@ -198,21 +199,21 @@ function LaneBtn({ code, off, onToggle, last }: LaneTog & { code: string; off: b
     </button>
   );
 }
-export function Lane({ code, th: thai, peak, height, draw, deps, ruler, room, onToggle, last }: { code: string; th: string; peak: string; height: number; draw: Draw; deps: unknown[]; ruler?: Draw; room?: boolean } & LaneTog) {
+export function Lane({ code, th: thai, peak, height, draw, deps, ruler, room, onToggle, last, meter }: { code: string; th: string; peak: string; height: number; draw: Draw; deps: unknown[]; ruler?: Draw; room?: boolean; meter?: number } & LaneTog) {
   const ref = useCanvas((g, w, h) => draw(g, w, h), deps);
   return (
     <div className="lane" data-lane={code} style={ruler || room ? { gridTemplateColumns: `96px ${RUL_W}px 1fr` } : undefined}>
-      <div className="lab"><b>{code}<LaneBtn code={code} off={false} onToggle={onToggle} last={last} /></b><span>{thai}</span><em>{peak}</em></div>
+      <div className="lab"><b>{code}<LaneBtn code={code} off={false} onToggle={onToggle} last={last} /></b><span>{thai}</span><em>{peak}</em>{meter != null && <LevelMeter ch={meter} />}</div>
       {ruler ? <RulerCv height={height} draw={ruler} deps={deps} /> : room ? <span aria-hidden="true" /> : null}
       <canvas className="cv" style={{ height }} ref={ref} data-rawdraw />
     </div>
   );
 }
 /** ช่องที่ปิดลำโพง แถบยังอยู่ที่เดิมสูงเท่าเดิม กราฟช่องอื่นไม่ขยับ */
-export function LaneOff({ code, th: thai, peak, height, onToggle }: { code: string; th: string; peak: string; height: number } & LaneTog) {
+export function LaneOff({ code, th: thai, peak, height, onToggle, meter }: { code: string; th: string; peak: string; height: number; meter?: number } & LaneTog) {
   return (
     <div className="lane" data-lane={code} data-off>
-      <div className="lab"><b>{code}<LaneBtn code={code} off onToggle={onToggle} /></b><span>{thai}</span><em>{peak}</em></div>
+      <div className="lab"><b>{code}<LaneBtn code={code} off onToggle={onToggle} /></b><span>{thai}</span><em>{peak}</em>{meter != null && <LevelMeter ch={meter} frozen />}</div>
       <div className="laneoff" style={{ height }}>ปิดลำโพง</div>
     </div>
   );
