@@ -7,6 +7,7 @@ import { useFitClass } from "../../lib/fitSwitch";
 import type { AudOpts } from "../../lib/subTiming";
 import type { Tip } from "../../lib/codecAdv";
 import InfoTip from "../InfoTip";
+import { keysText } from "../../lib/keymap";
 
 const BAR_TIP: Tip = {
   w: "ปุ่มเล่นเสียงกับตั้งเวลาของบรรทัดที่เลือก ชี้ปุ่มไหนขึ้นชื่อปุ่มกับคีย์ลัด ปุ่มสี่ปุ่มท้ายแถวเป็นปุ่มเปิดปิด พื้นสีเข้มคือเปิดอยู่",
@@ -54,6 +55,10 @@ export const AUD_BTNS: Btn[] = [
 ];
 
 /** compact = แบบ 1 ไอคอนอย่างเดียวใต้คลื่นเสียง (หน้าต่างเตี้ย) · ไม่ส่ง = แบบ 2 เต็มความกว้าง ที่ว่างแนวนอนไม่พอเหลือไอคอนเอง */
+/** ปุ่มที่มีคีย์ลัด บอกคีย์จากทะเบียนกลาง ตั้งใหม่ในหน้าตั้งค่าแล้วชื่อปุ่มเปลี่ยนตาม (BUGS ข้อ 162.3) */
+const AUD_KEY: Partial<Record<string, string>> = { prev: "aud.prev", next: "aud.next", playsel: "aud.play-sel", playline: "aud.play-line", stop: "aud.stop",
+  before: "aud.before", after: "aud.after", begin: "aud.begin", end: "aud.end", toend: "aud.to-end", leadin: "aud.lead-in", leadout: "aud.lead-out", commit: "aud.commit" };
+
 export default function AudioBar(p: { opts: AudOpts; noAudio?: string; noLine?: string; compact?: boolean; onAct: (a: AudAct) => void; onToggle: (k: Tog, v: boolean) => void }) {
   useFitClass("[data-subedit] .se-atb:not(.compact)");
   return (
@@ -64,7 +69,7 @@ export default function AudioBar(p: { opts: AudOpts; noAudio?: string; noLine?: 
         const on = b.tog ? !!p.opts[b.id as Tog] : undefined;
         return (
           <button key={b.id} type="button" className={"se-ab" + (why ? " off" : "")} aria-pressed={on} aria-disabled={!!why || undefined} aria-label={b.s}
-            title={why ?? `${b.t} (${b.k})`} data-se-ab={b.id}
+            title={why ?? `${b.t} (${AUD_KEY[b.id] ? keysText(AUD_KEY[b.id]!) : b.k})`} data-se-ab={b.id}
             onClick={() => { if (why) return; if (b.tog) p.onToggle(b.id as Tog, !on); else p.onAct(b.id as AudAct); }}>
             <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">{b.icon}</svg>
             <span>{b.s}</span>

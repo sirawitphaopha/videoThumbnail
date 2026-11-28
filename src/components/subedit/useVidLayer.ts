@@ -11,6 +11,7 @@ import { shownText } from "./vidShared";
 import { docId, ovCache, ovQueue } from "./ovQueue";
 import { dummyPng } from "./VidDummy";
 import type { Vd2 } from "./vidCtx";
+import { isKey as hotkeyIs } from "../../lib/keymap";
 
 /** เครื่องมือบนภาพที่เลือกไว้ จำตลอดที่โปรแกรมเปิด (Aegisub เริ่มที่กากบาททุกครั้งที่เปิด) */
 let toolNow: VTool = "cross";
@@ -71,8 +72,9 @@ export function useVidLayer(hk: Vd2) {
     edit(toMove ? "เปลี่ยนเป็น \\move" : "เปลี่ยนเป็น \\pos", (cur) => ({ ...cur, events: cur.events.map((e) => (ids.has(e.id) ? { ...e, text: togglePosMove(cur, e, d, fr) } : e)) }));
   };
   const keyDown = (e: React.KeyboardEvent) => {
-    // A กากบาท S ลากจัดตำแหน่ง ตอนคลิกภาพไว้ (คีย์ลัด Video ของ Aegisub) · ใช้ปุ่มจริงบนแป้น แป้นไทยก็ได้
-    if (!e.ctrlKey && !e.altKey && !e.metaKey && !e.shiftKey && (e.code === "KeyA" || e.code === "KeyS")) { e.preventDefault(); setTool(e.code === "KeyA" ? "cross" : "drag"); return; }
+    // A กากบาท S ลากจัดตำแหน่ง ตอนคลิกภาพไว้ (คีย์ลัด Video ของ Aegisub) · ใช้ปุ่มจริงบนแป้น แป้นไทยก็ได้ · คีย์มาจากทะเบียนกลาง (BUGS ข้อ 162.3)
+    const ne = e.nativeEvent;
+    if (hotkeyIs(ne, "tool.cross") || hotkeyIs(ne, "tool.drag")) { e.preventDefault(); setTool(hotkeyIs(ne, "tool.cross") ? "cross" : "drag"); return; }
     p.onKey(e);
   };
 

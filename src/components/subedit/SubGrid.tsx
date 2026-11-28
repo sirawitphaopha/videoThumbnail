@@ -99,7 +99,6 @@ export default function SubGrid(p: {
     else if (e.key === "PageUp") go(at - page);
     else if (e.key === "Home") go(0);
     else if (e.key === "End") go(ev.length - 1);
-    else if ((e.ctrlKey || e.metaKey) && e.code === "KeyA") { e.preventDefault(); p.onSelect(ev.map((x) => x.id), p.active ?? ev[0].id); }
     else if (e.key === "ArrowLeft" || e.key === "ArrowRight") p.onSideKey(e);
   };
   const fr = p.fr, dl = p.delayMs;

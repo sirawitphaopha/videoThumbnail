@@ -9,6 +9,7 @@ import { IbTable } from "../icons";
 import InfoTip from "../InfoTip";
 import type { Tip } from "../../lib/codecAdv";
 import { PER, short } from "./svShared";
+import { isKey } from "../../lib/keymap";
 
 // หมายเหตุของตัวดูซับรูป เดิมเป็นบรรทัดใต้แถวปุ่ม ย้ายเข้า ⓘ ให้แถวปุ่มเป็นแถวล่างสุด (BUGS ข้อ 141 พี่กันทัก 16 พ.ย. 2569 "จะเว้นที่ไว้ด้านล่าทำไม")
 const SIMG_TIP: Tip = {
@@ -186,8 +187,9 @@ export function ImageView(p: { track: AvTrack; path: string; ff: number; movie?:
       const el = e.target as HTMLElement | null;
       if (el && (el.tagName === "INPUT" || el.tagName === "TEXTAREA" || el.isContentEditable)) return;
       if (document.querySelector(".infotip") || document.querySelectorAll(".dlg").length > 1) return;
-      if (e.key === "ArrowLeft") { e.preventDefault(); step(-1); }
-      if (e.key === "ArrowRight") { e.preventDefault(); step(1); }
+      // คีย์มาจากทะเบียนกลาง keymap.ts (BUGS ข้อ 162.3)
+      if (isKey(e, "subimg.prev")) { e.preventDefault(); step(-1); }
+      else if (isKey(e, "subimg.next")) { e.preventDefault(); step(1); }
     };
     window.addEventListener("keydown", onKey);
     return () => window.removeEventListener("keydown", onKey);

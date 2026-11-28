@@ -13,21 +13,22 @@ import { Switch } from "../ui";
 import { IbFilm, IbJump } from "../icons";
 import { KEY_TIP } from "./VideoDialogs";
 import type { Props } from "./SubVideo";
+import { keyLabel } from "../../lib/keymap";
 
 /** ขนาดภาพ 24 ขั้น ขั้นละ 12.5% ตั้งแต่ 12.5% ถึง 300% (video_box.cpp) กับพอดีกรอบ */
 const ZOOMS = Array.from({ length: 24 }, (_, i) => (i + 1) * 12.5);
 // กล่อง ⓘ แยกเป็นหัวข้อละเรื่อง เนื้อความสั้นเป็นประโยคมีคำเชื่อม ไม่ขึ้นบรรทัดเอง (พี่กันตีตก 14 พ.ย. 2569 ที่แตกเป็นบรรทัดละวลีจนเป็นก้อนยาว)
-const VIDEO_TIP: Tip = {
+const videoTip = (): Tip => ({
   w: "แถบใต้ภาพมีปุ่มถอยหรือเดินทีละเฟรม\nส่วนช่องกลางบอกเวลากับเลขเฟรม และเป็นสีเข้มเมื่อเป็น keyframe",
   o: [
     ["ตัวเลขมุมขวาบน", "คือระยะห่างจากเวลาเริ่มและเวลาจบของบรรทัดนี้\nถ้าเป็น +0ms แปลว่าภาพอยู่ตรงเวลาเริ่มพอดี", "", ""],
     ["เดินทีละเฟรม", "คลิกภาพแล้วกดลูกศรซ้ายขวา\nกด Shift ด้วยจะไป keyframe กด Ctrl ด้วยจะไปขอบบรรทัด\nและกด Alt ด้วยจะเดินทีละ 10 เฟรม", "", ""],
-    ["คีย์ลัด", "กด Ctrl+1 เพื่อไปเวลาเริ่ม กด Ctrl+2 เพื่อไปเวลาจบ\nและกด Ctrl+G เพื่อข้ามไปเฟรมหรือเวลาที่พิมพ์", "", ""],
+    ["คีย์ลัด", `กด ${keyLabel("vid.to-start")} เพื่อไปเวลาเริ่ม กด ${keyLabel("vid.to-end")} เพื่อไปเวลาจบ\nและกด ${keyLabel("vid.jump")} เพื่อข้ามไปเฟรมหรือเวลาที่พิมพ์`, "", ""],
     ["ล้อเมาส์", "หมุนบนภาพเพื่อปรับขนาด กด Ctrl ด้วยจะขยายเนื้อภาพ\nส่วนกด Shift ด้วยหรือกดล้อค้างแล้วลากจะเลื่อนภาพ", "", ""],
     ["AUTO", "เลือกบรรทัดแล้วภาพไปเวลาเริ่มของบรรทัดนั้นเอง", "ไล่ดูบรรทัดได้เร็ว", "ภาพที่ดูค้างไว้จะกระโดดไปเมื่อเลือกบรรทัดใหม่"],
   ],
   r: "เปิด AUTO ไว้ ตอนจะดูภาพนานค่อยปิด",
-};
+});
 const COORD_TIP: Tip = { w: "เป็นตัวเลขชุดเดียวกับที่ใส่ใน \\pos ของซับ คัดลอกแล้ววางได้เลย" };
 /* ---------------------------------------------------------------- เมนูวิดีโอ */
 
@@ -77,7 +78,7 @@ export function VideoMenu(p: Props & { fitPct: number }) {
             <Dropdown label="ขนาดภาพ" value={ZOOMS.includes(st.zoom) || st.zoom === 0 ? zoomVal : "own"} display={() => (st.zoom ? `${st.zoom}%` : `พอดีกรอบ ${p.fitPct}%`)} sizes={["พอดีกรอบ 100.0%", "1000%"]}
               options={[{ value: "0", label: "พอดีกรอบ" }, ...ZOOMS.map((v) => ({ value: String(v), label: `${v}%` })), ...(st.zoom && !ZOOMS.includes(st.zoom) ? [{ value: "own", label: `${st.zoom}%` }] : [])]}
               onChange={(v) => { if (v !== "own") { setZoom(Number(v)); setOpen(false); } }} />
-            <InfoTip title="กรอบวิดีโอ" tip={VIDEO_TIP} />
+            <InfoTip title="กรอบวิดีโอ" tip={videoTip()} />
           </div>
           <div className="se-vmsec">
             <div className="se-vmrow"><span className="se-vmh">keyframe</span><InfoTip title="keyframe" tip={KEY_TIP} /><span className="small se-vmkeys" data-vkeysrc>{keyText}</span></div>
@@ -97,7 +98,7 @@ export function VideoMenu(p: Props & { fitPct: number }) {
             <div className="se-vmrow se-vmsw"><span>ซ่อนเส้น keyframe บนคลื่นเสียง</span><Switch on={st.hideKeys} onChange={setHideKeys} label="ซ่อนเส้น keyframe บนคลื่นเสียง" /></div>
           </div>
           <div className="se-vmsec">
-            {item("ข้ามไปยังเฟรมหรือเวลา (Ctrl+G)", () => { setOpen(false); p.onJump(); }, vidRate(st) ? undefined : "ยังไม่มีวิดีโอ หรือยังอ่านเวลาเฟรมไม่เสร็จ", "jump", <IbJump size={15} />)}
+            {item(`ข้ามไปยังเฟรมหรือเวลา (${keyLabel("vid.jump")})`, () => { setOpen(false); p.onJump(); }, vidRate(st) ? undefined : "ยังไม่มีวิดีโอ หรือยังอ่านเวลาเฟรมไม่เสร็จ", "jump", <IbJump size={15} />)}
             {item("รายละเอียดวิดีโอ", () => { setOpen(false); p.onDetails(); }, src.kind === "none" ? "ยังไม่มีวิดีโอ" : src.kind === "movie" && !st.table ? "ยังอ่านข้อมูลวิดีโอไม่เสร็จ" : undefined, "details")}
             <div className="se-vmpair">
               {item("วิดีโอจำลอง", () => { setOpen(false); p.onDummy(); }, undefined, "dummy")}

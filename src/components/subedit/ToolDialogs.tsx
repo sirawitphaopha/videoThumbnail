@@ -12,6 +12,7 @@ import { fromBox, isAss } from "../../lib/subText";
 import Dialog from "../Dialog";
 import InfoTip from "../InfoTip";
 import { Phr, Seg, Switch } from "../ui";
+import { isKey } from "../../lib/keymap";
 
 const n0 = (n: number) => n.toLocaleString("en-US");
 
@@ -182,12 +183,14 @@ export function TranslateDialog(p: { open: boolean; onClose: () => void; doc: Su
     if (!go(find(row, blk + 1, 1))) { p.onDone("ไม่มีบรรทัดให้แปลแล้ว"); p.onClose(); }
   };
   const key = (e: React.KeyboardEvent) => {
-    if (e.key === "Enter" && !e.shiftKey && !e.ctrlKey && !e.altKey) { e.preventDefault(); commit(true); }
-    else if (e.key === "F8") { e.preventDefault(); commit(false); }
-    else if (e.key === "PageDown") { e.preventDefault(); if (!go(find(row, blk + 1, 1))) setMsg("เป็นท่อนสุดท้ายแล้ว"); }
-    else if (e.key === "PageUp") { e.preventDefault(); if (!go(find(row, blk - 1, -1))) setMsg("เป็นท่อนแรกแล้ว"); }
-    else if (e.key === "Insert") { e.preventDefault(); insertOrig(); }
-    else if (e.key === "End" && e.ctrlKey === false && !tr) { e.preventDefault(); p.onPlay(); }
+    // คีย์มาจากทะเบียนกลาง ตั้งใหม่ได้ในหน้าตั้งค่า (BUGS ข้อ 162.3)
+    const ne = e.nativeEvent;
+    if (isKey(ne, "tr.commit-next")) { e.preventDefault(); commit(true); }
+    else if (isKey(ne, "tr.commit")) { e.preventDefault(); commit(false); }
+    else if (isKey(ne, "tr.next")) { e.preventDefault(); if (!go(find(row, blk + 1, 1))) setMsg("เป็นท่อนสุดท้ายแล้ว"); }
+    else if (isKey(ne, "tr.prev")) { e.preventDefault(); if (!go(find(row, blk - 1, -1))) setMsg("เป็นท่อนแรกแล้ว"); }
+    else if (isKey(ne, "tr.insert")) { e.preventDefault(); insertOrig(); }
+    else if (isKey(ne, "tr.play") && !tr) { e.preventDefault(); p.onPlay(); }
   };
   const insertOrig = () => {
     const b = blocks[blk];

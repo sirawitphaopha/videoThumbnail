@@ -1,6 +1,7 @@
 /* หน้าต่างของคำสั่งบรรทัด คีย์ลัด และข้อความผลของคำสั่ง (ฟังก์ชันธรรมดา ไม่ใช่ hook)
    แยกจาก LineCmds.tsx ตอนจัดโครงไฟล์ตามความหมาย (BUGS ข้อ 155 ขั้น 10) เนื้อโค้ดยกมาทั้งก้อน */
 import { type Hotkey } from "../../lib/hotkeys";
+import { hk as key } from "../../lib/keymap";
 import { edit, getSubEdit } from "../../lib/subEdit";
 import { gotoTarget, postProcess, selectLines, shiftTimes, sortLines, type PostOpts, type SelectOpts, type ShiftOpts, type SortKey } from "../../lib/subCmds";
 import { FindDialog, GotoDialog, OverDialog, PostDialog, SelectDialog, ShiftDialog, SortDialog } from "./CmdDialogs";
@@ -52,24 +53,27 @@ export function lineDialogs(hk: Ln3) {
     {ass && <PropsDialog open={dlg === "props"} onClose={() => setDlg(null)} doc={doc} video={c.videoRes} movie={c.movie} onDone={(t) => setNote({ t, bad: false })} />}
   </>;
 
+  // คีย์ลัดมาจากทะเบียนกลาง keymap.ts (BUGS ข้อ 162.3) · เลือกทุกบรรทัดใช้ได้ทั้งหน้า ไม่ต้องโฟกัสตาราง ส่วนในช่องพิมพ์ Ctrl+A ยังเลือกข้อความตามปกติ
+  // F3 ค้นต่อไปใช้ได้ระหว่างหน้าต่างค้นหาเปิด แบบ Aegisub (BUGS ข้อ 162.2 · ผู้ช่วยตรวจทาน F21)
   const hotkeys: Hotkey[] = [
-    { code: "KeyI", ctrl: true, run: () => setDlg("shift") },
-    { code: "Digit3", ctrl: true, field: true, run: run.snapStart },
-    { code: "Digit4", ctrl: true, field: true, run: run.snapEnd },
-    { code: "Digit5", ctrl: true, field: true, run: run.snapScene },
-    { code: "Digit6", ctrl: true, field: true, run: run.toFrame },
-    { code: "KeyD", ctrl: true, field: true, run: () => run.duplicate(-1) },
-    { code: "KeyD", ctrl: true, shift: true, field: true, run: () => run.duplicate(1) },
-    { code: "ArrowUp", alt: true, run: () => run.move(-1) },
-    { code: "ArrowDown", alt: true, run: () => run.move(1) },
-    { code: "KeyC", ctrl: true, run: () => void run.copy(false) },
-    { code: "KeyX", ctrl: true, run: () => void run.copy(true) },
-    { code: "KeyV", ctrl: true, run: () => void run.paste() },
-    { code: "KeyV", ctrl: true, shift: true, run: () => void run.pasteOver() },
-    { code: "Delete", ctrl: true, run: run.del },
-    { code: "KeyF", ctrl: true, field: true, run: () => openFind(false) },
-    { code: "KeyH", ctrl: true, field: true, run: () => openFind(true) },
-    { code: "F3", field: true, run: () => { if (find) findNext(); else openFind(false); } },
+    key("sub.shift", () => setDlg("shift")),
+    key("sub.select-all", () => pick(cur().events.map((e) => e.id), getSubEdit().active ?? cur().events[0]?.id)),
+    key("sub.snap-start", run.snapStart),
+    key("sub.snap-end", run.snapEnd),
+    key("sub.snap-scene", run.snapScene),
+    key("sub.to-frame", run.toFrame),
+    key("sub.split-before", () => run.duplicate(-1)),
+    key("sub.split-after", () => run.duplicate(1)),
+    key("sub.move-up", () => run.move(-1)),
+    key("sub.move-down", () => run.move(1)),
+    key("sub.copy", () => void run.copy(false)),
+    key("sub.cut", () => void run.copy(true)),
+    key("sub.paste", () => void run.paste()),
+    key("sub.paste-over", () => void run.pasteOver()),
+    key("sub.delete", run.del),
+    key("sub.find", () => openFind(false)),
+    key("sub.replace", () => openFind(true)),
+    key("sub.find-next", () => { if (find) findNext(); else openFind(false); }, { dialog: "[data-find]" }),
   ];
 
   /** ผลของคำสั่ง ขึ้นแทนที่ตัวนับบรรทัดชั่วคราว แถบไม่แน่นขึ้น */

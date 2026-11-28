@@ -10,6 +10,7 @@ import { OVER_FIELDS, POST_DEFAULT, type Field, type FindOpts, type MatchMode, t
 import Dialog from "../Dialog";
 import InfoTip from "../InfoTip";
 import { Seg, Switch } from "../ui";
+import { keyLabel } from "../../lib/keymap";
 
 const load = <T,>(k: string, def: T): T => { try { const v = JSON.parse(localStorage.getItem(k) ?? "null"); return v && typeof v === "object" ? { ...def, ...v } : def; } catch { return def; } };
 const save = (k: string, v: unknown) => { try { localStorage.setItem(k, JSON.stringify(v)); } catch { /* ไม่มีที่เก็บก็ใช้ได้รอบนี้ */ } };
@@ -245,7 +246,7 @@ export function FindDialog(p: { open: boolean; replace: boolean; onClose: () => 
         <span style={{ flex: 1 }} />
         {p.replace && <button type="button" className="btn btn-ghost" onClick={p.onReplaceAll} data-find-all>แทนที่ทั้งหมด</button>}
         {p.replace && <button type="button" className="btn btn-ghost" onClick={p.onReplace} data-find-one>แทนที่</button>}
-        <button type="button" className="btn btn-main" onClick={p.onNext} title="ค้นต่อไป (F3)" data-find-next>ค้นต่อไป</button>
+        <button type="button" className="btn btn-main" onClick={p.onNext} title={`ค้นต่อไป (${keyLabel("sub.find-next")})`} data-find-next>ค้นต่อไป</button>
       </>}>
       <div className="se-dummy se-cdlg" data-find onKeyDown={(e) => { if (e.key === "Enter" && (e.target as HTMLElement).tagName === "INPUT") { e.preventDefault(); p.onNext(); } }}>
         <Row label="คำที่ค้น" tip={FIND_TIP}><input className="inp se-dwide" value={p.find} onChange={(e) => p.setFind(e.target.value)} aria-label="คำที่ค้น" ref={first} data-find-text /></Row>

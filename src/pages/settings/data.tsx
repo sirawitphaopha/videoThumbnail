@@ -2,7 +2,7 @@
    แยกจาก SettingsPage.tsx ตอนแบ่งไฟล์ทั้งโปรเจกต์ (BUGS ข้อ 153 · แผนแบ่งไฟล์ขั้น 5.2) ย้ายมาทั้งก้อน เนื้อโค้ดไม่เปลี่ยน
    หัวข้อล่าสุด lastSec กับผลเช็กรุ่น latestMemo อยู่ SettingsPage.tsx เพราะหน้าตั้งค่ากำหนดค่าใหม่ */
 import { type Settings } from "../../lib/api";
-import { IcPalette, IcCheck, IcFolder, IcGraph, IcLink, IcMix, IcPoster, IcSettings, IcShelf, IcExtract } from "../../components/icons";
+import { IcPalette, IcCheck, IcFolder, IcGraph, IcLink, IcMix, IcPoster, IcSettings, IcShelf, IcExtract, IcKeyboard } from "../../components/icons";
 import { type TrackPanel } from "../../lib/trackPanel";
 import tpUnder from "../../assets/track-panel/under.png";
 import tpDialog from "../../assets/track-panel/dialog.png";
@@ -119,6 +119,7 @@ export const SET_GROUPS: { title: string; items: { id: string; label: string; ic
     { id: "tools", label: "เครื่องมือเบื้องหลัง", icon: <IcSettings /> },
     { id: "encoders", label: "ตัวแปลงเสียง", icon: <IcMix /> },
     { id: "log", label: "บันทึกการใช้งาน", icon: <IcFile /> },
+    { id: "hotkeys", label: "คีย์ลัด", icon: <IcKeyboard /> },
   ] },
   { title: "เกี่ยวกับ", items: [
     { id: "types", label: "ชนิดไฟล์", icon: <IcFile /> },

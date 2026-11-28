@@ -3,6 +3,7 @@
 import { IbTools, IbRows, IbSelect, IbShiftTime, IbWand, IcClock, IcSearch } from "../icons";
 import { TIME_TIP, LINE_TIP, TOOL_TIP, SEL_TIP, type ToolCmd, type MRow } from "./lineData";
 import { CmdMenu } from "./CmdMenu";
+import { keyLabel } from "../../lib/keymap";
 import type { Ln2 } from "./lineCtx";
 
 export function lineMenus(hk: Ln2) {
@@ -10,10 +11,10 @@ export function lineMenus(hk: Ln2) {
   // ---------------------------------------------------------------- เมนู
   const timeMenu: MRow[][] = [
     [
-      { label: "สอดเวลาเริ่มกับภาพ", key: "Ctrl+3", why: noSel ?? noVid, run: run.snapStart, data: "snapstart" },
-      { label: "สอดเวลาจบกับภาพ", key: "Ctrl+4", why: noSel ?? noVid, run: run.snapEnd, data: "snapend" },
-      { label: "สอดเวลาไปยังฉาก", key: "Ctrl+5", why: noSel ?? noKeys, run: run.snapScene, data: "snapscene" },
-      { label: "เลื่อนไปยังเฟรมปัจจุบัน", key: "Ctrl+6", why: noLine ?? noVid, run: run.toFrame, data: "toframe" },
+      { label: "สอดเวลาเริ่มกับภาพ", key: keyLabel("sub.snap-start"), why: noSel ?? noVid, run: run.snapStart, data: "snapstart" },
+      { label: "สอดเวลาจบกับภาพ", key: keyLabel("sub.snap-end"), why: noSel ?? noVid, run: run.snapEnd, data: "snapend" },
+      { label: "สอดเวลาไปยังฉาก", key: keyLabel("sub.snap-scene"), why: noSel ?? noKeys, run: run.snapScene, data: "snapscene" },
+      { label: "เลื่อนไปยังเฟรมปัจจุบัน", key: keyLabel("sub.to-frame"), why: noLine ?? noVid, run: run.toFrame, data: "toframe" },
     ],
     [
       { label: "ทำให้เวลาต่อกัน เปลี่ยนเวลาเริ่ม", why: adjWhy, run: () => run.adjoin(true), data: "adjstart" },
@@ -30,8 +31,8 @@ export function lineMenus(hk: Ln2) {
     ],
     [
       { label: "ทำสำเนาบรรทัด", why: noSel, run: () => run.duplicate(0), data: "dup" },
-      [{ label: "แยกก่อนเฟรมที่แสดง", key: "Ctrl+D", why: noSel ?? noVid, run: () => run.duplicate(-1), data: "splitbefore" },
-        { label: "แยกหลังเฟรมที่แสดง", key: "Ctrl+Shift+D", why: noSel ?? noVid, run: () => run.duplicate(1), data: "splitafter" }],
+      [{ label: "แยกก่อนเฟรมที่แสดง", key: keyLabel("sub.split-before"), why: noSel ?? noVid, run: () => run.duplicate(-1), data: "splitbefore" },
+        { label: "แยกหลังเฟรมที่แสดง", key: keyLabel("sub.split-after"), why: noSel ?? noVid, run: () => run.duplicate(1), data: "splitafter" }],
       { label: "แยกตรงเคอร์เซอร์ แบ่งเวลาตามความยาวข้อความ", why: noLine, run: () => run.split("estimate"), data: "splitest" },
       { label: "แยกตรงเคอร์เซอร์ ใช้เวลาเดิมทั้งสองบรรทัด", why: noLine, run: () => run.split("preserve"), data: "splitkeep" },
       { label: "แยกตรงเคอร์เซอร์ ที่เฟรมที่แสดง", why: noLine ?? noVid, run: () => run.split("video"), data: "splitvid" },
@@ -39,23 +40,23 @@ export function lineMenus(hk: Ln2) {
         { label: "รวม เก็บข้อความบรรทัดแรก", why: joinWhy, run: () => run.join(true), data: "joinfirst" }],
     ],
     [
-      [{ label: "ย้ายขึ้น", key: "Alt+↑", why: noSel, run: () => run.move(-1), data: "moveup" },
-        { label: "ย้ายลง", key: "Alt+↓", why: noSel, run: () => run.move(1), data: "movedown" }],
+      [{ label: "ย้ายขึ้น", key: keyLabel("sub.move-up"), why: noSel, run: () => run.move(-1), data: "moveup" },
+        { label: "ย้ายลง", key: keyLabel("sub.move-down"), why: noSel, run: () => run.move(1), data: "movedown" }],
       { label: "สลับสองบรรทัด", why: swapWhy, run: run.swap, data: "swap" },
     ],
     [
-      [{ label: "คัดลอก", key: "Ctrl+C", why: noSel, run: () => void run.copy(false), data: "copy" },
-        { label: "ตัด", key: "Ctrl+X", why: noSel, run: () => void run.copy(true), data: "cut" }],
-      [{ label: "วาง", key: "Ctrl+V", run: () => void run.paste(), data: "paste" },
-        { label: "วางทับ…", key: "Ctrl+Shift+V", why: noLine, run: () => void run.pasteOver(), data: "pasteover" }],
-      { label: "ลบบรรทัด", key: "Ctrl+Delete", why: noSel, run: run.del, data: "delete" },
+      [{ label: "คัดลอก", key: keyLabel("sub.copy"), why: noSel, run: () => void run.copy(false), data: "copy" },
+        { label: "ตัด", key: keyLabel("sub.cut"), why: noSel, run: () => void run.copy(true), data: "cut" }],
+      [{ label: "วาง", key: keyLabel("sub.paste"), run: () => void run.paste(), data: "paste" },
+        { label: "วางทับ…", key: keyLabel("sub.paste-over"), why: noLine, run: () => void run.pasteOver(), data: "pasteover" }],
+      { label: "ลบบรรทัด", key: keyLabel("sub.delete"), why: noSel, run: run.del, data: "delete" },
     ],
   ];
   const selMenu: MRow[][] = [
     [
       { label: "เลือกบรรทัดตามเงื่อนไข…", run: () => setDlg("select"), data: "select" },
       { label: "เลือกบรรทัดที่ขึ้นบนภาพ", why: noVid, run: run.visible, data: "visible" },
-      { label: "เลือกทุกบรรทัด", key: "Ctrl+A", run: () => pick(doc.events.map((e) => e.id), c.active ?? doc.events[0]?.id), data: "all" },
+      { label: "เลือกทุกบรรทัด", key: keyLabel("sub.select-all"), run: () => pick(doc.events.map((e) => e.id), c.active ?? doc.events[0]?.id), data: "all" },
     ],
     [{ label: "ไปที่บรรทัดหรือเวลา…", run: () => setDlg("goto"), data: "goto" }],
   ];
@@ -70,8 +71,8 @@ export function lineMenus(hk: Ln2) {
 
   const bar = (
     <div className={"se-cmds" + (c.compact ? " compact" : "")} data-se-cmds data-compact={c.compact ? "1" : undefined}>
-      <button type="button" className="btn btn-ghost btn-sm" title="ค้นหา (Ctrl+F) หรือค้นและแทนที่ (Ctrl+H)" aria-label="ค้นหา" onClick={() => openFind(true)} data-se-find><IcSearch size={15} width={2.2} /><span className="se-cl">ค้นหา</span></button>
-      <button type="button" className="btn btn-ghost btn-sm" title="เลื่อนเวลาของบรรทัดไปข้างหน้าหรือถอยหลัง (Ctrl+I)" aria-label="เลื่อนเวลา" onClick={() => setDlg("shift")} data-se-shift><IbShiftTime size={15} /><span className="se-cl">เลื่อนเวลา</span></button>
+      <button type="button" className="btn btn-ghost btn-sm" title={`ค้นหา (${keyLabel("sub.find")}) หรือค้นและแทนที่ (${keyLabel("sub.replace")})`} aria-label="ค้นหา" onClick={() => openFind(true)} data-se-find><IcSearch size={15} width={2.2} /><span className="se-cl">ค้นหา</span></button>
+      <button type="button" className="btn btn-ghost btn-sm" title={`เลื่อนเวลาของบรรทัดไปข้างหน้าหรือถอยหลัง (${keyLabel("sub.shift")})`} aria-label="เลื่อนเวลา" onClick={() => setDlg("shift")} data-se-shift><IbShiftTime size={15} /><span className="se-cl">เลื่อนเวลา</span></button>
       <button type="button" className="btn btn-ghost btn-sm" title="ปรับเวลาทุกบรรทัดตามกติกาของ Aegisub เผื่อหน้า เผื่อท้าย ต่อบรรทัดที่ใกล้กัน ดูดเข้า keyframe" aria-label="ปรับเวลา" onClick={() => setDlg("post")} data-se-post><IbWand size={15} /><span className="se-cl">ปรับเวลา</span></button>
       <CmdMenu label="เวลา" icon={<IcClock size={15} />} title="เมนูเวลา สอดเวลากับภาพ ทำให้เวลาต่อกัน เรียงบรรทัด" head="เมนูเวลา" tip={TIME_TIP} sections={timeMenu} data="time" width={330} />
       <CmdMenu label="บรรทัด" icon={<IbRows size={15} />} title="เมนูบรรทัด แทรก แยก รวม ย้าย คัดลอก วาง" head="เมนูบรรทัด" tip={LINE_TIP} sections={lineMenu} data="line" width={460} />

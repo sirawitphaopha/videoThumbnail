@@ -1,0 +1,29 @@
+/* หัวข้อคีย์ลัดในหน้าตั้งค่ากับหน้าต่างแก้คีย์ (BUGS ข้อ 162.3 · src/pages/settings/keys/) · สีใช้ตัวแปรของโทนทั้งหมด */
+.hk-top { display: flex; align-items: center; justify-content: space-between; gap: 10px; flex-wrap: wrap; margin-bottom: 4px; }
+.hk-none { padding: 14px 0; }
+.hk-grp { margin-top: 12px; }
+.hk-grp > h4 { display: flex; align-items: baseline; gap: 10px; flex-wrap: wrap; }
+.hk-note { font-weight: 400; color: var(--txt3); }
+.hk-row { display: grid; grid-template-columns: minmax(0, 1fr) minmax(0, auto) auto; align-items: center; gap: 6px 14px; min-height: 40px; padding: 4px 8px; margin: 0 -8px; border-radius: 6px; border-top: 1px solid var(--line); }
+.hk-row:hover { background: color-mix(in srgb, var(--accent-soft) 45%, transparent); }
+.hk-fixrow { grid-template-columns: minmax(0, 1fr) auto; }
+.hk-name { font-size: 14px; color: var(--txt); display: inline-flex; align-items: center; gap: 8px; flex-wrap: wrap; min-width: 0; }
+.hk-mark { font-size: 12px; line-height: 20px; padding: 0 8px; border-radius: 6px; background: var(--accent-soft); color: var(--accent-ink); white-space: nowrap; }
+.hk-keys { display: flex; flex-wrap: wrap; justify-content: flex-end; gap: 6px; }
+.hk-kbd { display: inline-flex; align-items: center; gap: 4px; height: 26px; padding: 0 8px; border-radius: 6px; border: 1px solid var(--line); border-bottom-width: 2px; background: var(--win2); color: var(--txt); font-size: 13px; white-space: nowrap; font-variant-numeric: tabular-nums; }
+.hk-dash { color: var(--txt3); }
+.hk-dlg { display: grid; gap: 8px; }
+.hk-lab { font-weight: 700; color: var(--accent-ink); margin-top: 4px; }
+.hk-cur { display: flex; flex-wrap: wrap; gap: 6px; min-height: 30px; align-items: center; }
+.hk-del { padding-right: 2px; }
+.hk-x { display: inline-grid; place-items: center; width: 20px; height: 20px; border: 0; border-radius: 5px; background: transparent; color: var(--txt3); cursor: pointer; transition: background .15s, color .15s; }
+.hk-x:hover { background: color-mix(in srgb, var(--bad-ink) 14%, transparent); color: var(--bad-ink); }
+.hk-x:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+.hk-cap { display: flex; align-items: center; height: 44px; padding: 0 12px; border: 1px dashed color-mix(in srgb, var(--accent) 45%, var(--line)); border-radius: 9px; background: var(--win2); cursor: text; transition: border-color .15s, background .15s; }
+.hk-cap:hover { border-color: var(--accent); }
+.hk-cap:focus { outline: none; border-style: solid; border-color: var(--accent); background: var(--win); box-shadow: 0 0 0 3px var(--accent-soft); }
+.hk-ph { color: var(--txt3); font-size: 14px; }
+.hk-msg { min-height: 21px; line-height: 21px; color: var(--txt2); }
+.hk-msg.bad { color: var(--bad-ink); }
+.hk-msg.warn { color: var(--warn-ink); }
+.hk-acts { display: flex; gap: 8px; flex-wrap: wrap; }

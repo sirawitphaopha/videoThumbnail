@@ -8,6 +8,7 @@ import { getVidPlay, stopVidPlay } from "../../lib/vidPlay";
 import { FrameMenu, VideoMenu } from "./VideoMenus";
 import { VISUAL_TIP } from "./vidShared";
 import type { VdCtx } from "./vidCtx";
+import { keyLabel } from "../../lib/keymap";
 
 export function VidToolbar({ pg }: { pg: VdCtx }) {
   const { ass, selEvents, setTool, toMove, toggleMove, tool } = pg;
@@ -41,7 +42,7 @@ export function VidBar({ pg }: { pg: VdCtx }) {
         <button type="button" className={"btn btn-ghost btn-sm se-vstep" + (ready ? "" : " btn-wait")} aria-disabled={!ready || undefined} title={noStep ?? "เดินหนึ่งเฟรม (ลูกศรขวา)"} aria-label="เดินหนึ่งเฟรม" onClick={() => { if (!ready) return; const at = getVidPlay().playing ? null : pos!; stopVidPlay(); seek((at ?? getVid().pos ?? 0) + 1); }} data-vnext><IbFrameNext size={15} /></button>
         {/* เล่น เล่นเฉพาะบรรทัด หยุด ตามแถบใต้ภาพของ Aegisub (default_toolbar.json ส่วน video) · กดเล่นตอนกำลังเล่นแล้วหยุดแบบ VideoController::Play */}
         <button type="button" className={"btn btn-ghost btn-sm se-vstep se-vplay" + (playWhy ? " btn-wait" : "") + (playing ? " pressed" : "")} aria-disabled={!!playWhy || undefined} aria-pressed={playing}
-          title={playWhy ?? (playing ? (vp.err ? `กำลังเล่น กดอีกครั้งเพื่อหยุด (Ctrl+P)  ${vp.err}` : "กำลังเล่น กดอีกครั้งเพื่อหยุด (Ctrl+P)") : "เล่นหนังจากภาพนี้ เสียงจากแทร็กเดียวกับคลื่นเสียง (Ctrl+P)")} data-vplayerr={vp.err || undefined} aria-label="เล่นหนัง" onClick={() => { if (!playWhy) togglePlay(); }} data-vplay>
+          title={playWhy ?? (playing ? `กำลังเล่น กดอีกครั้งเพื่อหยุด (${keyLabel("vid.play")})${vp.err ? `  ${vp.err}` : ""}` : `เล่นหนังจากภาพนี้ เสียงจากแทร็กเดียวกับคลื่นเสียง (${keyLabel("vid.play")})`)} data-vplayerr={vp.err || undefined} aria-label="เล่นหนัง" onClick={() => { if (!playWhy) togglePlay(); }} data-vplay>
           <IbPlay size={15} /></button>
         <button type="button" className={"btn btn-ghost btn-sm se-vstep" + (playWhy || !p.ev ? " btn-wait" : "")} aria-disabled={!!playWhy || !p.ev || undefined}
           title={playWhy ?? (p.ev ? "เล่นเฉพาะช่วงของบรรทัดที่กำลังแก้ ตั้งแต่เฟรมแรกถึงเฟรมสุดท้ายของบรรทัด" : "ยังไม่ได้เลือกบรรทัด")} aria-label="เล่นเฉพาะบรรทัด" onClick={() => { if (!playWhy && p.ev) playLine(); }} data-vplayline>

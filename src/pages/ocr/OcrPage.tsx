@@ -22,6 +22,7 @@ import "../../styles/ocr.css";
 import { EditArea, EngineRow, MATCH, OcrTable, ReviewOne, baseName } from "./OcrTable";
 import { hasTop, useSubImgs } from "./images";
 import { FLAG_TIP, FORCED_TIP, dur } from "./tips";
+import { hk } from "../../lib/keymap";
 
 /* ---------- หน้า OCR ---------- */
 const VIEW_KEY = "ms.ocrView";
@@ -147,11 +148,12 @@ export default function OcrPage({ track, movie, onEdit }: { track: AvTrack; movi
     setMulti(new Set()); setSel(v[k]);
   };
   useHotkeys([
-    { code: "Delete", run: () => { if (free() && view === "table") setDelAsk(true); } },
-    { code: "KeyV", ctrl: true, shift: true, run: () => { if (free() && picked.length > 1) void fillClip(); } },
-    { code: "KeyI", ctrl: true, shift: true, run: () => { if (free() && MATCH.includes(job.cfg.engine)) setInsp(Math.min(sel, rows.length - 1)); } },
-    { code: "ArrowDown", noButton: true, run: () => { if (view === "table" && rows.length) moveSel(1); } },
-    { code: "ArrowUp", noButton: true, run: () => { if (view === "table" && rows.length) moveSel(-1); } },
+    // คีย์มาจากทะเบียนกลาง keymap.ts ตั้งใหม่ได้ในหน้าตั้งค่า (BUGS ข้อ 162.3)
+    hk("ocr.delete", () => { if (free() && view === "table") setDelAsk(true); }),
+    hk("ocr.fill", () => { if (free() && picked.length > 1) void fillClip(); }),
+    hk("ocr.inspect", () => { if (free() && MATCH.includes(job.cfg.engine)) setInsp(Math.min(sel, rows.length - 1)); }),
+    hk("ocr.down", () => { if (view === "table" && rows.length) moveSel(1); }),
+    hk("ocr.up", () => { if (view === "table" && rows.length) moveSel(-1); }),
   ], pageOn);
   useEffect(() => { if (view !== "table") setDelAsk(false); }, [view]);
   /** นำข้อความจากไฟล์ซับที่เวลาซ้อนกันมากที่สุดมาใส่แต่ละบรรทัด (Import text with matching time codes ของ Subtitle Edit)

@@ -7,6 +7,8 @@ import type { Geometry } from "./poster";
 
 
 export type Settings = {
+  /** คีย์ลัดที่ตั้งเอง รหัสคำสั่งไปเป็นรายการคีย์ เช่น Ctrl+KeyS (BUGS ข้อ 162.3 · ทะเบียน lib/keymap.ts) */
+  hotkeys?: Record<string, string[]>;
   folders: string[];
   rescanOnStart: boolean;
   checkSourceBefore: boolean;

@@ -175,3 +175,21 @@ fn missing_fields_in_old_file_get_defaults() {
     assert!(s.show_names);
     assert_eq!(s.view_mode, "grid");
 }
+
+/// BUGS ข้อ 162.3 · คีย์ลัดที่ตั้งเองผ่านตัวกรอง รหัสกับคีย์ผิดรูปแบบหลุดออก รายการว่างคงไว้ (ปิดคีย์ของคำสั่งนั้น)
+#[test]
+fn hotkeys_are_cleaned() {
+    let mut s = Settings::default();
+    s.hotkeys.insert("sub.save".into(), vec!["Ctrl+KeyS".into(), "Ctrl+KeyS".into(), "Shift+Ctrl+KeyQ".into(), "Ctrl+Shift+F3".into()]);
+    s.hotkeys.insert("sub.find-next".into(), vec![]);
+    s.hotkeys.insert("Bad Id".into(), vec!["F3".into()]);
+    s.hotkeys.insert("sub.play".into(), vec!["Ctrl+ControlLeft".into(), "Alt+".into(), "Ctrl+Key S".into(), "F5".into(), "Numpad5".into(), "Space".into(), "KeyA".into(), "KeyB".into()]);
+    let s = s.sanitize();
+    assert_eq!(s.hotkeys.get("sub.save").unwrap(), &vec!["Ctrl+KeyS".to_string(), "Ctrl+Shift+F3".to_string()], "ซ้ำกับลำดับตัวกดผิดหลุด");
+    assert_eq!(s.hotkeys.get("sub.find-next").unwrap(), &Vec::<String>::new(), "รายการว่างคงไว้");
+    assert!(!s.hotkeys.contains_key("Bad Id"));
+    assert_eq!(s.hotkeys.get("sub.play").unwrap(), &vec!["F5".to_string(), "Numpad5".to_string(), "Space".to_string(), "KeyA".to_string()], "คำสั่งละไม่เกิน 4 คีย์");
+    // ไฟล์ค่าตั้งเก่าที่ไม่มีช่องนี้อ่านได้เป็นว่าง
+    let old: Settings = serde_json::from_str(r#"{"folders":[]}"#).unwrap();
+    assert!(old.hotkeys.is_empty());
+}

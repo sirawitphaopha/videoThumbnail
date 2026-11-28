@@ -6,6 +6,7 @@ import { createPortal } from "react-dom";
 import { useEscClose } from "../lib/popup";
 import { Keep } from "./ui";
 import { ChevronDown, ChevronLeft, ChevronRight, Grid3x3, HelpCircle, Info, Keyboard, List, Maximize, MoreVertical, Move, PanelBottom, PanelLeft, PanelRight, PanelTop, RotateCcw, RotateCw, Sparkles, X, ZoomIn, ZoomOut } from "./imageViewerIcons";
+import { isKey } from "../lib/keymap";
 
 
 /* สีจากตัวแปรของโปรแกรม เปลี่ยนตามโทน · ตัวหนังสือเน้นบนพื้นดำเป็นสีอ่อนตายตัว ไม่งั้นโทนมืดอ่านไม่ออก */
@@ -240,11 +241,12 @@ export default function ImageViewer({
   // ── คีย์ลัด (ผูกใหม่เมื่อ scale เปลี่ยน เพื่อใช้ค่าล่าสุด) ──
   useEffect(() => {
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === '+' || e.key === '=') zoomTo(scale * 1.25);
-      else if (e.key === '-' || e.key === '_') zoomTo(scale * 0.8);
-      else if (e.key === '0') fit();
-      else if (e.key === 'ArrowLeft' && hasPrev && onPrev) onPrev();
-      else if (e.key === 'ArrowRight' && hasNext && onNext) onNext();
+      // คีย์มาจากทะเบียนกลาง keymap.ts ตั้งใหม่ได้ในหน้าตั้งค่า (BUGS ข้อ 162.3)
+      if (isKey(e, 'viewer.zoom-in')) zoomTo(scale * 1.25);
+      else if (isKey(e, 'viewer.zoom-out')) zoomTo(scale * 0.8);
+      else if (isKey(e, 'viewer.fit')) fit();
+      else if (isKey(e, 'viewer.prev') && hasPrev && onPrev) onPrev();
+      else if (isKey(e, 'viewer.next') && hasNext && onNext) onNext();
     };
     window.addEventListener('keydown', onKey);
     return () => window.removeEventListener('keydown', onKey);

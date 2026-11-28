@@ -4,6 +4,7 @@ import { useEffect, useLayoutEffect, useMemo } from "react";
 import { type SubDoc } from "../../lib/api";
 import { getSubEdit, redo, undo } from "../../lib/subEdit";
 import { useHotkeys } from "../../lib/hotkeys";
+import { hk, keyLabel } from "../../lib/keymap";
 import { type TagMode } from "../../lib/subText";
 import { getVid, seek, seekTime, vidKeys, vidRate, vidSrc, zoomStep } from "../../lib/vidFrames";
 import { groupsW, type TbItem } from "./MainBar";
@@ -29,25 +30,25 @@ export function useSeBar(c: E4) {
   const nextTag: Record<TagMode, TagMode> = { full: "sym", sym: "hide", hide: "full" };
   const tb: TbItem[][] = t ? [
     [
-      { id: "jump", label: "ข้ามไปยัง…", title: "ข้ามไปยังเฟรมหรือเวลา", icon: <IbJump size={15} />, tone: "nav", key: "Ctrl+G", why: noPos, run: () => setVdlg("jump") },
-      { id: "zoomin", label: "ขยายภาพหนัง", title: "ขยายภาพหนังขึ้นหนึ่งขั้น 12.5%", icon: <IbZoomIn size={15} />, tone: "nav", key: "Ctrl+บวกของแป้นตัวเลข", why: noSrc ?? (vst.zoom >= 300 ? "ขยายสุดแล้ว 300%" : undefined), run: () => zoomStep(1) },
-      { id: "zoomout", label: "ย่อภาพหนัง", title: "ย่อภาพหนังลงหนึ่งขั้น 12.5%", icon: <IbZoomOut size={15} />, tone: "nav", key: "Ctrl+ลบของแป้นตัวเลข", why: noSrc ?? (vst.zoom && vst.zoom <= 12.5 ? "ย่อสุดแล้ว 12.5%" : undefined), run: () => zoomStep(-1) },
-      { id: "jumpstart", label: "ภาพไปเวลาเริ่มของบรรทัด", title: "เลื่อนภาพไปเฟรมแรกของบรรทัดที่กำลังแก้", icon: <IbJumpStart size={15} />, tone: "nav", key: "Ctrl+1", why: noPos ?? (ev ? undefined : "ยังไม่ได้เลือกบรรทัด"), run: () => { if (ev) seekTime(ev.start + dl, "start"); } },
-      { id: "jumpend", label: "ภาพไปเวลาจบของบรรทัด", title: "เลื่อนภาพไปเฟรมสุดท้ายของบรรทัดที่กำลังแก้", icon: <IbJumpEnd size={15} />, tone: "nav", key: "Ctrl+2", why: noPos ?? (ev ? undefined : "ยังไม่ได้เลือกบรรทัด"), run: () => { if (ev) seekTime(ev.end + dl, "end"); } },
+      { id: "jump", label: "ข้ามไปยัง…", title: "ข้ามไปยังเฟรมหรือเวลา", icon: <IbJump size={15} />, tone: "nav", key: keyLabel("vid.jump"), why: noPos, run: () => setVdlg("jump") },
+      { id: "zoomin", label: "ขยายภาพหนัง", title: "ขยายภาพหนังขึ้นหนึ่งขั้น 12.5%", icon: <IbZoomIn size={15} />, tone: "nav", key: keyLabel("vid.zoom-in"), why: noSrc ?? (vst.zoom >= 300 ? "ขยายสุดแล้ว 300%" : undefined), run: () => zoomStep(1) },
+      { id: "zoomout", label: "ย่อภาพหนัง", title: "ย่อภาพหนังลงหนึ่งขั้น 12.5%", icon: <IbZoomOut size={15} />, tone: "nav", key: keyLabel("vid.zoom-out"), why: noSrc ?? (vst.zoom && vst.zoom <= 12.5 ? "ย่อสุดแล้ว 12.5%" : undefined), run: () => zoomStep(-1) },
+      { id: "jumpstart", label: "ภาพไปเวลาเริ่มของบรรทัด", title: "เลื่อนภาพไปเฟรมแรกของบรรทัดที่กำลังแก้", icon: <IbJumpStart size={15} />, tone: "nav", key: keyLabel("vid.to-start"), why: noPos ?? (ev ? undefined : "ยังไม่ได้เลือกบรรทัด"), run: () => { if (ev) seekTime(ev.start + dl, "start"); } },
+      { id: "jumpend", label: "ภาพไปเวลาจบของบรรทัด", title: "เลื่อนภาพไปเฟรมสุดท้ายของบรรทัดที่กำลังแก้", icon: <IbJumpEnd size={15} />, tone: "nav", key: keyLabel("vid.to-end"), why: noPos ?? (ev ? undefined : "ยังไม่ได้เลือกบรรทัด"), run: () => { if (ev) seekTime(ev.end + dl, "end"); } },
     ],
     [
-      { id: "snapstart", label: "สอดเวลาเริ่มกับภาพ", title: "ตั้งเวลาเริ่มของบรรทัดที่เลือกเป็นเฟรมที่ภาพแสดงอยู่", icon: <IbSnapStart size={15} />, tone: "edge", key: "Ctrl+3", ...t.snapStart },
-      { id: "snapend", label: "สอดเวลาจบกับภาพ", title: "ตั้งเวลาจบของบรรทัดที่เลือกเป็นเฟรมที่ภาพแสดงอยู่", icon: <IbSnapEnd size={15} />, tone: "edge", key: "Ctrl+4", ...t.snapEnd },
+      { id: "snapstart", label: "สอดเวลาเริ่มกับภาพ", title: "ตั้งเวลาเริ่มของบรรทัดที่เลือกเป็นเฟรมที่ภาพแสดงอยู่", icon: <IbSnapStart size={15} />, tone: "edge", key: keyLabel("sub.snap-start"), ...t.snapStart },
+      { id: "snapend", label: "สอดเวลาจบกับภาพ", title: "ตั้งเวลาจบของบรรทัดที่เลือกเป็นเฟรมที่ภาพแสดงอยู่", icon: <IbSnapEnd size={15} />, tone: "edge", key: keyLabel("sub.snap-end"), ...t.snapEnd },
       { id: "visible", label: "เลือกบรรทัดที่ขึ้นบนภาพ", title: "เลือกทุกบรรทัดที่ขึ้นอยู่ในเฟรมที่ภาพแสดง", icon: <IbSelVisible size={15} />, tone: "edge", ...t.visible },
-      { id: "snapscene", label: "สอดเวลาไปยังฉาก", title: "ตั้งเวลาของบรรทัดที่เลือกให้ยาวเต็มฉากที่ภาพแสดงอยู่ ตั้งแต่ keyframe ก่อนหน้าถึง keyframe ถัดไป", icon: <IbSnapScene size={15} />, tone: "edge", key: "Ctrl+5", ...t.snapScene },
-      { id: "toframe", label: "เลื่อนไปยังเฟรมปัจจุบัน", title: "เลื่อนบรรทัดที่เลือกไปพร้อมกัน ให้บรรทัดที่กำลังแก้เริ่มที่เฟรมที่ภาพแสดง", icon: <IbToFrame size={15} />, tone: "edge", key: "Ctrl+6", ...t.toFrame },
+      { id: "snapscene", label: "สอดเวลาไปยังฉาก", title: "ตั้งเวลาของบรรทัดที่เลือกให้ยาวเต็มฉากที่ภาพแสดงอยู่ ตั้งแต่ keyframe ก่อนหน้าถึง keyframe ถัดไป", icon: <IbSnapScene size={15} />, tone: "edge", key: keyLabel("sub.snap-scene"), ...t.snapScene },
+      { id: "toframe", label: "เลื่อนไปยังเฟรมปัจจุบัน", title: "เลื่อนบรรทัดที่เลือกไปพร้อมกัน ให้บรรทัดที่กำลังแก้เริ่มที่เฟรมที่ภาพแสดง", icon: <IbToFrame size={15} />, tone: "edge", key: keyLabel("sub.to-frame"), ...t.toFrame },
     ],
     [
       { id: "styles", label: "สไตล์ของซับ…", title: "จัดการสไตล์ของซับ ฟอนต์ ขนาด สี ขอบ เงา", icon: <IbStyles size={15} />, tone: "go", ...t.styles },
       { id: "props", label: "คุณสมบัติสคริปต์…", title: "คุณสมบัติสคริปต์ หัวเรื่อง ชื่อคนทำซับ ความละเอียด", icon: <IbProps size={15} />, tone: "go", ...t.props },
     ],
     [
-      { id: "shift", label: "เลื่อนเวลา…", title: "เลื่อนเวลาของบรรทัดไปข้างหน้าหรือถอยหลัง", icon: <IbShiftTime size={15} />, tone: "lead", key: "Ctrl+I", ...t.shift },
+      { id: "shift", label: "เลื่อนเวลา…", title: "เลื่อนเวลาของบรรทัดไปข้างหน้าหรือถอยหลัง", icon: <IbShiftTime size={15} />, tone: "lead", key: keyLabel("sub.shift"), ...t.shift },
       { id: "translate", label: "ตัวช่วยแปล…", title: "ตัวช่วยแปล แปลทีละท่อนข้อความ แท็กอยู่ที่เดิม", icon: <IbTranslate size={15} />, tone: "lead", ...t.translate },
       { id: "resample", label: "เปลี่ยนความละเอียดของคำบรรยาย…", title: "เปลี่ยนขนาดภาพของซับ แล้วคูณขนาดและตำแหน่งให้หน้าตาเท่าเดิม", icon: <IbResample size={15} />, tone: "lead", ...t.resample },
       { id: "post", label: "ปรับเวลาทั้งไฟล์…", title: "ปรับเวลาทุกบรรทัดตามกติกาของ Aegisub เผื่อหน้า เผื่อท้าย ต่อบรรทัดที่ใกล้กัน ดูดเข้า keyframe", icon: <IbWand size={15} />, tone: "lead", ...t.post },
@@ -78,61 +79,56 @@ export function useSeBar(c: E4) {
     return () => ro.disconnect();
   });
 
+  // คีย์ลัดทั้งหมดมาจากทะเบียนกลาง keymap.ts ตั้งใหม่ได้ในหน้าตั้งค่า หัวข้อคีย์ลัด (BUGS ข้อ 162.3) · คีย์ตั้งต้นตาม default_hotkey.json ของ Aegisub
+  const save = () => { const d = getSubEdit().doc; if (!d || (!getSubEdit().dirty && !padBusy() && sameKind(d))) return; void doSave(); };
   useHotkeys([
     ...cmds.hotkeys,
-    { code: "KeyZ", ctrl: true, field: true, run: () => undo() },
-    { code: "KeyY", ctrl: true, field: true, run: () => redo() },
-    { code: "KeyZ", ctrl: true, shift: true, field: true, run: () => redo() },
+    hk("sub.undo", () => undo()),
+    hk("sub.redo", () => redo()),
     // ใช้เงื่อนไขเดียวกับปุ่มบันทึก ยังไม่แก้อะไรแล้วไม่เขียนไฟล์ใหม่ ไม่ส่งไฟล์เดิมลงถังขยะ และข้ามการกดค้าง (ผู้ช่วยตรวจทาน F24)
-    { code: "KeyS", ctrl: true, field: true, run: (e) => { const d = getSubEdit().doc; if (e.repeat || !d || (!getSubEdit().dirty && !padBusy() && sameKind(d))) return; void doSave(); } },
-    // เล่นหรือหยุดหนังในกรอบวิดีโอ (video/play ของ Aegisub Ctrl+P · vidPlay.ts)
-    { code: "KeyP", ctrl: true, field: true, run: () => toggleVidPlay() },
-    { code: "KeyS", ctrl: true, shift: true, field: true, run: () => { const d = getSubEdit().doc; if (d) openSaveAs(d.kind); } },
-    // คีย์ลัดวิดีโอของ Aegisub (default_hotkey.json) ใช้ได้ทั้งหน้า รวมตอนพิมพ์ในช่อง
-    { code: "Numpad6", ctrl: true, field: true, run: () => { const pos = getVid().pos; if (pos != null) seek(pos + 1); } },
-    { code: "Numpad4", ctrl: true, field: true, run: () => { const pos = getVid().pos; if (pos != null) seek(pos - 1); } },
-    { code: "Digit1", ctrl: true, field: true, run: () => { if (ev) seekTime(ev.start + dl, "start"); } },
-    { code: "Digit2", ctrl: true, field: true, run: () => { if (ev) seekTime(ev.end + dl, "end"); } },
-    { code: "KeyG", ctrl: true, field: true, run: () => { if (vidRate()) setVdlg("jump"); } },
-    // คีย์ลัดเสียงของ Aegisub (กลุ่ม Audio) ใช้ตอนไม่ได้พิมพ์ในช่อง · Enter กับ Space ตอนโฟกัสอยู่ที่ปุ่ม ให้ปุ่มทำงานตามปกติ
-    { code: "Enter", noButton: true, run: () => audioAct("commit") },
-    { code: "KeyG", run: () => audioAct("commit") },
-    { code: "Space", noButton: true, run: () => audioAct("playsel") },
-    { code: "KeyS", run: () => audioAct("playsel") },
-    { code: "KeyR", run: () => audioAct("playline") },
-    { code: "KeyQ", run: () => audioAct("before") },
-    { code: "KeyW", run: () => audioAct("after") },
-    { code: "KeyE", run: () => audioAct("begin") },
-    { code: "KeyD", run: () => audioAct("end") },
-    { code: "KeyT", run: () => audioAct("toend") },
-    { code: "KeyH", run: () => audioAct("stop") },
-    { code: "KeyA", run: () => scrollBy(-128) },
-    { code: "KeyF", run: () => scrollBy(128) },
-    { code: "KeyZ", run: () => audioAct("prev") },
-    { code: "KeyX", run: () => audioAct("next") },
-    { code: "KeyC", run: () => audioAct("leadin") },
-    { code: "KeyV", run: () => audioAct("leadout") },
-    // + กับ − ของแป้นตัวเลข ยืดหรือหดเวลาจบทีละ 10 ms (time/length/increase decrease) กด Shift ด้วยก็เหมือนกัน
-    { code: "NumpadAdd", run: () => nudge("len", 1) },
-    { code: "NumpadSubtract", run: () => nudge("len", -1) },
-    { code: "NumpadAdd", shift: true, run: () => nudge("len", 1) },
-    { code: "NumpadSubtract", shift: true, run: () => nudge("len", -1) },
+    hk("sub.save", (e) => { if (!e.repeat) save(); }),
+    hk("sub.save-as", () => { const d = getSubEdit().doc; if (d) openSaveAs(d.kind); }),
+    // เล่นหรือหยุดหนังในกรอบวิดีโอ (video/play ของ Aegisub · vidPlay.ts) กับคีย์ลัดวิดีโอที่ใช้ได้ทั้งหน้า รวมตอนพิมพ์ในช่อง
+    hk("vid.play", () => toggleVidPlay()),
+    hk("vid.next-frame", () => { const pos = getVid().pos; if (pos != null) seek(pos + 1); }),
+    hk("vid.prev-frame", () => { const pos = getVid().pos; if (pos != null) seek(pos - 1); }),
+    hk("vid.to-start", () => { if (ev) seekTime(ev.start + dl, "start"); }),
+    hk("vid.to-end", () => { if (ev) seekTime(ev.end + dl, "end"); }),
+    hk("vid.jump", () => { if (vidRate()) setVdlg("jump"); }),
+    hk("vid.zoom-in", () => zoomStep(1)),
+    hk("vid.zoom-out", () => zoomStep(-1)),
+    // คีย์ลัดเสียง (กลุ่ม Audio ของ Aegisub) ใช้ตอนไม่ได้พิมพ์ในช่อง · Enter กับ Space ตอนโฟกัสอยู่ที่ปุ่ม ให้ปุ่มทำงานตามปกติ
+    hk("aud.commit", () => audioAct("commit")),
+    hk("aud.play-sel", () => audioAct("playsel")),
+    hk("aud.play-line", () => audioAct("playline")),
+    hk("aud.before", () => audioAct("before")),
+    hk("aud.after", () => audioAct("after")),
+    hk("aud.begin", () => audioAct("begin")),
+    hk("aud.end", () => audioAct("end")),
+    hk("aud.to-end", () => audioAct("toend")),
+    hk("aud.stop", () => audioAct("stop")),
+    hk("aud.scroll-left", () => scrollBy(-128)),
+    hk("aud.scroll-right", () => scrollBy(128)),
+    hk("aud.prev", () => audioAct("prev")),
+    hk("aud.next", () => audioAct("next")),
+    hk("aud.lead-in", () => audioAct("leadin")),
+    hk("aud.lead-out", () => audioAct("leadout")),
+    hk("aud.len-up", () => nudge("len", 1)),
+    hk("aud.len-down", () => nudge("len", -1)),
     // แป้นตัวเลข (Medusa Mode) ใช้ได้แม้กำลังพิมพ์ เปิดจากปุ่มแป้นตัวเลขเท่านั้น ปิดอยู่ตัวเลขพิมพ์ลงช่องตามปกติ
     ...(tm.opts.medusa ? [
-      { code: "Numpad0", field: true, run: () => audioAct("prev") },
-      { code: "Numpad2", field: true, run: () => audioAct("next") },
-      { code: "Numpad5", field: true, run: () => audioAct("playsel") },
-      { code: "Numpad1", field: true, run: () => audioAct("before") },
-      { code: "Numpad3", field: true, run: () => audioAct("after") },
-      { code: "Numpad8", field: true, run: () => audioAct("stop") },
-      { code: "Numpad4", field: true, run: () => nudge("start", -1) },
-      { code: "Numpad6", field: true, run: () => nudge("start", 1) },
-      { code: "Numpad7", field: true, run: () => nudge("len", -1) },
-      { code: "Numpad9", field: true, run: () => nudge("len", 1) },
-      { code: "NumpadEnter", field: true, run: () => audioAct("commit") },
+      hk("medusa.prev", () => audioAct("prev")),
+      hk("medusa.next", () => audioAct("next")),
+      hk("medusa.play-sel", () => audioAct("playsel")),
+      hk("medusa.before", () => audioAct("before")),
+      hk("medusa.after", () => audioAct("after")),
+      hk("medusa.stop", () => audioAct("stop")),
+      hk("medusa.start-down", () => nudge("start", -1)),
+      hk("medusa.start-up", () => nudge("start", 1)),
+      hk("medusa.len-down", () => nudge("len", -1)),
+      hk("medusa.len-up", () => nudge("len", 1)),
+      hk("medusa.commit", () => audioAct("commit")),
     ] : []),
-    { code: "NumpadAdd", ctrl: true, field: true, run: () => zoomStep(1) },
-    { code: "NumpadSubtract", ctrl: true, field: true, run: () => zoomStep(-1) },
   ], pageOn);
 
   // ทางลัดให้ตัวตรวจ เฉพาะรุ่นทดสอบ

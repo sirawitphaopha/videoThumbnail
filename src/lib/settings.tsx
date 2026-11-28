@@ -4,6 +4,7 @@
 import { createContext, useCallback, useContext, useEffect, useState } from "react";
 import { api, type LoadedFrom, type Settings } from "./api";
 import { useToast } from "../components/Toasts";
+import { setUserKeys } from "./keymap";
 
 type Ctx = {
   settings: Settings | null;
@@ -27,6 +28,9 @@ export function SettingsHost({ children }: { children: React.ReactNode }) {
     }).catch((e) => { if (live) toast({ kind: "bad", title: "อ่านการตั้งค่าไม่สำเร็จ", detail: String(e) }); });
     return () => { live = false; };
   }, [toast]);
+
+  // คีย์ลัดที่ตั้งเองส่งให้ทะเบียนกลาง ตัวดักคีย์ลัดอ่านตอนกดทุกครั้ง (BUGS ข้อ 162.3)
+  useEffect(() => { setUserKeys(settings?.hotkeys); }, [settings?.hotkeys]);
 
   // แถบแดงขึ้นที่นี่ที่เดียว หน้าที่เรียกห้ามขึ้นซ้ำ และงานที่ทำต่อต้องรอผล true ก่อน (AUDIT ข้อ 135 · เดิมหน้าตั้งค่าขึ้นแถบแดงซ้ำอีกแถบ แล้วขึ้นแถบเขียวว่าเพิ่มโฟลเดอร์แล้วทั้งที่ยังไม่ได้บันทึก)
   const update = useCallback(async (patch: Partial<Settings>) => {

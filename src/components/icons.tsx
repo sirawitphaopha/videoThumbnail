@@ -111,6 +111,9 @@ export const IcChevronDown = ({ size = 16, stroke = "#b07a90" }: P) =>
   svg(size, 2.5, stroke, <path d="M6 9l6 6 6-6" />);
 export const IcRefresh = ({ size = 16, stroke = "currentColor" }: P) =>
   svg(size, 2.5, stroke, <><path d="M4 4v6h6M20 20v-6h-6" /><path d="M20 10a8 8 0 00-14-4L4 10M4 14a8 8 0 0014 4l2-4" /></>);
+/** แป้นพิมพ์ หัวข้อคีย์ลัดในหน้าตั้งค่า (BUGS ข้อ 162.3) */
+export const IcKeyboard = ({ size = 16, stroke = "currentColor", width = 2 }: P) =>
+  svg(size, width, stroke, <><rect x="2.5" y="6" width="19" height="12" rx="2" /><path d="M6 10h.01M9.5 10h.01M13 10h.01M16.5 10h.01M8 14h8" /></>);
 export const IcClose = ({ size = 14, stroke = "currentColor" }: P) =>
   svg(size, 2.4, stroke, <path d="M6 6l12 12M18 6L6 18" />);
 

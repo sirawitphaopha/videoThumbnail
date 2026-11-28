@@ -49,6 +49,16 @@ const TIP_LINES = {
     "เกณฑ์เตือน เกิน 20 ตัวต่อวินาทีคนส่วนใหญ่อ่านไม่ทัน ⏎ ช่องนี้กับช่องในตารางจะเป็นสีเตือน",
     "แนะนำยืดเวลาจบ ตัดคำ หรือแยกเป็นสองบรรทัด",
   ],
+  keys: [
+    "คีย์ลัดของทุกหน้า ตั้งใหม่แล้วใช้ได้ทันทีโดยไม่ต้องเปิดโปรแกรมใหม่",
+    "แก้คีย์ กดปุ่มแก้ไขท้ายแถว แล้วกดคีย์ที่ต้องการในช่องรับคีย์ ⏎ คำสั่งหนึ่งมีได้ถึงสี่คีย์ และเอาคีย์ออกจนไม่มีเลยก็ได้",
+    "คีย์ชนกัน คีย์เดียวกันใช้ได้กับคำสั่งเดียวในหน้าเดียวกัน ⏎ ตั้งคีย์ที่คำสั่งอื่นใช้อยู่แล้ว คีย์จะย้ายมาที่คำสั่งนี้",
+    "ตอนพิมพ์ในช่อง คีย์ที่ไม่มี Ctrl หรือ Alt เป็นคีย์พิมพ์ตัวอักษร ⏎ จึงใช้ได้เฉพาะตอนไม่ได้พิมพ์ในช่อง",
+    "แนะนำตั้งคีย์ที่มี Ctrl นำหน้า ซึ่งใช้ได้ทุกที่",
+  ],
+  fixed: [
+    "คีย์ที่ทุกโปรแกรมของ Windows ใช้แบบเดียวกัน เช่น Esc ปิดหน้าต่าง ⏎ Tab ย้ายช่อง และลูกศรเลื่อนในรายการ จึงไม่เปิดให้ตั้งใหม่ ⏎ เพื่อให้ช่องและหน้าต่างยังใช้ได้แบบที่คุ้นมือ",
+  ],
 };
 
 // 162.1 นับตัวอักษรต่อวินาทีแบบไทย -------------------------------------
@@ -75,6 +85,110 @@ T[1] = async (p, check) => {
   if (process.env.DUMP) console.log(JSON.stringify(lines, null, 1));
   const want = TIP_LINES.cps;
   check("162.1 กล่อง ⓘ ตัวอักษรต่อวินาทีบอกว่าสระบนล่างวรรณยุกต์นับรวมกับพยัญชนะ ตัดบรรทัดตามที่ตรวจไว้", !!lines && JSON.stringify(lines) === JSON.stringify(want), JSON.stringify(lines));
+};
+
+// 162.2 หน้าแก้ซับ Ctrl+A เลือกทุกบรรทัดได้ทุกที่ F3 ค้นต่อไปใช้ได้ตอนหน้าต่างค้นหาเปิด (ผู้ช่วยตรวจทาน F21) ---------
+const seState = (p) => p.evaluate(() => { const s = window.__subEdit.get(); return { sel: s.sel.length, active: s.active, n: s.doc.events.length, text: s.doc.events.find((e) => e.id === s.active)?.text ?? "" }; });
+const blur = (p) => p.evaluate(() => { document.activeElement?.blur?.(); });
+T[2] = async (p, check) => {
+  await subEdit(p);
+  await blur(p);
+  await p.keyboard.press("Control+KeyA"); await wait(p, 200);
+  const all = await seState(p);
+  check("162.2 Ctrl+A ตอนไม่ได้โฟกัสตารางเลือกทุกบรรทัด", all.sel === all.n && all.n > 1, JSON.stringify(all));
+  // ในช่องพิมพ์ Ctrl+A ยังเลือกข้อความในช่อง ไม่เลือกทุกบรรทัด
+  await p.evaluate(() => { const s = window.__subEdit.get(); window.__subEdit.select([s.doc.events[3].id], s.doc.events[3].id); }); await wait(p, 200);
+  await p.focus("[data-se-text]"); await p.keyboard.press("Control+KeyA"); await wait(p, 200);
+  const inField = await seState(p);
+  const fieldSel = await p.evaluate(() => { const t = document.querySelector("[data-se-text]"); return t.selectionEnd - t.selectionStart; });
+  check("162.2 Ctrl+A ในช่องพิมพ์เลือกข้อความในช่อง ไม่เลือกทุกบรรทัด", inField.sel === 1 && fieldSel > 0, JSON.stringify({ inField, fieldSel }));
+  // F3 ระหว่างหน้าต่างค้นหาเปิด ไปบรรทัดที่มีคำถัดไปทีละบรรทัด
+  await blur(p);
+  await p.evaluate(() => window.__subEdit.select([window.__subEdit.get().doc.events[0].id], window.__subEdit.get().doc.events[0].id)); await wait(p, 200);
+  await p.keyboard.press("Control+KeyF"); await p.waitForSelector("[data-find-text]"); await wait(p, 300);
+  await p.fill("[data-find-text]", "ดาว");
+  const seen = [];
+  for (let i = 0; i < 3; i++) { await p.keyboard.press("F3"); await wait(p, 250); seen.push(await seState(p)); }
+  const open = await p.evaluate(() => !!document.querySelector("[data-find]"));
+  check("162.2 F3 ตอนหน้าต่างค้นหาเปิดไปบรรทัดที่มีคำค้นทีละบรรทัด หน้าต่างยังเปิดอยู่",
+    open && seen.every((x) => x.text.includes("ดาว")) && new Set(seen.map((x) => x.active)).size === 3, JSON.stringify({ open, seen }));
+  // คีย์ลัดอื่นของหน้ายังไม่ทะลุหน้าต่างค้นหา Ctrl+A ในหน้าต่างไม่เลือกทุกบรรทัด
+  await p.focus("[data-find-text]"); await p.keyboard.press("Control+KeyA"); await wait(p, 200);
+  const st = await seState(p);
+  check("162.2 คีย์ลัดอื่นยังไม่ทำงานตอนหน้าต่างค้นหาเปิด", st.sel === 1, JSON.stringify(st));
+};
+
+// 162.3 หน้าตั้งค่าหัวข้อคีย์ลัด ตั้งคีย์ใหม่แล้วใช้ได้ทันที ----------------------------------------
+const rowKeys = (p, id) => p.evaluate((i) => { const r = document.querySelector(`[data-hk-row="${i}"]`); return r ? { keys: [...r.querySelectorAll(".hk-kbd")].map((k) => k.innerText.trim()), custom: !!r.querySelector("[data-hk-custom]"), dash: !!r.querySelector(".hk-dash") } : null; }, id);
+const saved = (p) => p.evaluate(async () => (await window.__TAURI_INTERNALS__.invoke("get_settings")).settings.hotkeys ?? {});
+const capture = async (p, combo) => { await p.focus("[data-hk-capture]"); await p.keyboard.press(combo); await wait(p, 150); return p.evaluate(() => { const m = document.querySelector("[data-hk-msg]"); return { text: m.innerText.trim(), cls: m.className }; }); };
+T[3] = async (p, check) => {
+  await nav(p, "ตั้งค่า"); await wait(p, 300);
+  await click(p, '[data-setnav="hotkeys"]'); await p.waitForSelector('[data-setcard="hotkeys"]:not([hidden])'); await wait(p, 300);
+  const groups = await p.evaluate(() => [...document.querySelectorAll("[data-hk-group]")].map((g) => g.dataset.hkGroup));
+  const nrows = await p.evaluate(() => document.querySelectorAll("[data-hk-row]").length);
+  const fixed = await p.evaluate(() => document.querySelectorAll("[data-hk-fixed] .hk-row").length);
+  const KM = await mod(p, "/src/lib/keymap.ts", "return { g: m.KEY_GROUPS.map((x) => x.id), n: m.ACTIONS.length, f: m.FIXED_KEYS.length };");
+  check("162.3 หัวข้อคีย์ลัดมีทุกกลุ่ม ทุกคำสั่งในทะเบียน และคีย์พื้นฐานที่ปรับไม่ได้", JSON.stringify(groups) === JSON.stringify(KM.g) && nrows === KM.n && fixed === KM.f, JSON.stringify({ groups, nrows, fixed, KM }));
+  check("162.3 แถวเลือกทุกบรรทัดบอกคีย์ Ctrl+A และทำซ้ำบอกสองคีย์", JSON.stringify((await rowKeys(p, "sub.select-all")).keys) === '["Ctrl+A"]' && (await rowKeys(p, "sub.redo")).keys.length === 2, JSON.stringify([await rowKeys(p, "sub.select-all"), await rowKeys(p, "sub.redo")]));
+  // ค้นด้วยคีย์และชื่อ
+  await p.fill('[aria-label="ค้นคีย์ลัด"]', "Ctrl+P"); await wait(p, 200);
+  const byKey = await p.evaluate(() => [...document.querySelectorAll("[data-hk-row]")].map((r) => r.dataset.hkRow));
+  await p.fill('[aria-label="ค้นคีย์ลัด"]', "บันทึก"); await wait(p, 200);
+  const byName = await p.evaluate(() => [...document.querySelectorAll("[data-hk-row]")].map((r) => r.dataset.hkRow));
+  await p.fill('[aria-label="ค้นคีย์ลัด"]', "ไม่มีคำสั่งนี้"); await wait(p, 200);
+  const none = await p.evaluate(() => ({ rows: document.querySelectorAll("[data-hk-row]").length, msg: !!document.querySelector("[data-hk-none]"), fixed: !!document.querySelector("[data-hk-fixed]") }));
+  await p.fill('[aria-label="ค้นคีย์ลัด"]', ""); await wait(p, 200);
+  check("162.3 ค้นด้วยคีย์ Ctrl+P เจอเล่นหรือหยุดหนัง ค้นคำว่าบันทึกเจอสองคำสั่ง ไม่เจอบอกว่าไม่มี",
+    JSON.stringify(byKey) === '["vid.play"]' && JSON.stringify(byName) === '["sub.save","sub.save-as"]' && none.rows === 0 && none.msg && !none.fixed, JSON.stringify({ byKey, byName, none }));
+  // แก้คีย์ เลือกทุกบรรทัดเป็น Ctrl+Shift+A
+  await click(p, '[data-hk-edit="sub.select-all"]'); await p.waitForSelector('[data-hk-dialog="sub.select-all"]'); await wait(p, 300);
+  const def0 = await p.evaluate(() => document.querySelector("[data-hk-default]").getAttribute("aria-disabled"));
+  check("162.3 คำสั่งที่ยังใช้คีย์ตั้งต้น ปุ่มกลับค่าตั้งต้นของคำสั่งนี้กดไม่ได้", def0 === "true", def0);
+  const res = await capture(p, "Control+KeyW");
+  check("162.3 คีย์ที่หน้าต่างโปรแกรมใช้อยู่ Ctrl+W ตั้งไม่ได้ ปุ่มกดไม่ได้", res.cls.includes("bad") && /ตั้งไม่ได้/.test(res.text) && await p.evaluate(() => document.querySelector("[data-hk-replace]").getAttribute("aria-disabled") === "true"), JSON.stringify(res));
+  const clash = await capture(p, "Control+KeyZ");
+  check("162.3 คีย์ที่คำสั่งอื่นในหน้าเดียวกันใช้อยู่บอกชื่อคำสั่งนั้น", clash.cls.includes("warn") && clash.text.includes("เลิกทำ"), JSON.stringify(clash));
+  const okMsg = await capture(p, "Control+Shift+KeyA");
+  await click(p, "[data-hk-replace]"); await wait(p, 300);
+  const after = await rowKeys(p, "sub.select-all");
+  const sv = await saved(p);
+  check("162.3 กดใช้แทนคีย์เดิม แถวขึ้น Ctrl+Shift+A มีป้ายตั้งเอง และเก็บในค่าตั้ง hotkeys",
+    okMsg.text === "ตั้ง Ctrl+Shift+A ได้" && JSON.stringify(after.keys) === '["Ctrl+Shift+A"]' && after.custom && JSON.stringify(sv["sub.select-all"]) === '["Ctrl+Shift+KeyA"]', JSON.stringify({ okMsg, after, sv }));
+  // ย้ายคีย์ที่ชนกัน ทำซ้ำให้ใช้ Ctrl+Y แทนที่ไปเพิ่มให้ เลือกทุกบรรทัด แล้วทำซ้ำเหลือคีย์เดียว
+  await capture(p, "Control+KeyY"); await click(p, "[data-hk-add]"); await wait(p, 300);
+  const moved = { sel: await rowKeys(p, "sub.select-all"), redo: await rowKeys(p, "sub.redo") };
+  check("162.3 เพิ่มคีย์ที่ชนกัน คีย์ย้ายมาจากคำสั่งเดิม", JSON.stringify(moved.sel.keys) === '["Ctrl+Shift+A","Ctrl+Y"]' && JSON.stringify(moved.redo.keys) === '["Ctrl+Shift+Z"]' && moved.redo.custom, JSON.stringify(moved));
+  await click(p, '[data-hk-remove="Ctrl+KeyY"]'); await wait(p, 200);
+  await p.keyboard.press("Escape"); await wait(p, 300);
+  const closed = await p.evaluate(() => !document.querySelector("[data-hk-dialog]"));
+  check("162.3 กดเอาคีย์ออกได้ และ Esc ปิดหน้าต่างแก้คีย์", closed && JSON.stringify((await rowKeys(p, "sub.select-all")).keys) === '["Ctrl+Shift+A"]', JSON.stringify(await rowKeys(p, "sub.select-all")));
+  // คีย์ใหม่ใช้ได้ทันทีในหน้าแก้ซับ คีย์เดิมเลิกทำงาน และเมนูบอกคีย์ใหม่
+  await subEdit(p); await blur(p);
+  await p.keyboard.press("Control+KeyA"); await wait(p, 200);
+  const oldKey = await seState(p);
+  await p.keyboard.press("Control+Shift+KeyA"); await wait(p, 200);
+  const newKey = await seState(p);
+  check("162.3 ตั้งใหม่แล้ว Ctrl+A เลิกเลือกทุกบรรทัด Ctrl+Shift+A เลือกแทน โดยไม่ต้องเปิดหน้าใหม่", oldKey.sel === 1 && newKey.sel === newKey.n, JSON.stringify({ oldKey, newKey }));
+  // กลับค่าตั้งต้นทั้งหมด
+  await nav(p, "ตั้งค่า"); await wait(p, 300); await click(p, '[data-setnav="hotkeys"]'); await wait(p, 300);
+  await click(p, "[data-hk-reset-all]"); await p.waitForSelector("[data-hk-reset-yes]"); await click(p, "[data-hk-reset-yes]"); await wait(p, 300);
+  const back = { sel: await rowKeys(p, "sub.select-all"), redo: await rowKeys(p, "sub.redo"), sv: await saved(p), btn: await p.evaluate(() => document.querySelector("[data-hk-reset-all]").getAttribute("aria-disabled")) };
+  check("162.3 กลับค่าตั้งต้นทั้งหมด คีย์คืนครบ ค่าตั้งว่าง ปุ่มกลับค่าตั้งต้นกดไม่ได้พร้อมเหตุผล",
+    JSON.stringify(back.sel.keys) === '["Ctrl+A"]' && back.redo.keys.length === 2 && !back.sel.custom && Object.keys(back.sv).length === 0 && back.btn === "true", JSON.stringify(back));
+  // คีย์ตั้งเองที่เป็นตัวอักษรเดี่ยว ไม่ทำงานตอนพิมพ์ในช่อง แม้คำสั่งใช้ตอนพิมพ์ได้
+  const ty = await mod(p, "/src/lib/keymap.ts", `return [m.typingKey("KeyQ"), m.typingKey("Shift+KeyQ"), m.typingKey("Ctrl+KeyQ"), m.typingKey("F3"), m.typingKey("Numpad5"), m.typingKey("Enter")];`);
+  check("162.3 แยกคีย์พิมพ์ได้ถูก Q กับ Shift+Q และ Enter เป็นคีย์พิมพ์ ส่วน Ctrl+Q F3 Num 5 ไม่ใช่", JSON.stringify(ty) === "[true,true,false,false,false,true]", JSON.stringify(ty));
+  // กล่อง ⓘ ของหัวข้อตัดบรรทัดตามความหมาย
+  await click(p, '[data-info="คีย์ลัด"]'); await p.waitForSelector('[data-tip="คีย์ลัด"]'); await wait(p, 300);
+  const lines = await linesOf((code) => p.evaluate(`(async () => { ${code} })()`), '[data-tip="คีย์ลัด"]');
+  if (process.env.DUMP) console.log(JSON.stringify(lines, null, 1));
+  check("162.3 กล่อง ⓘ คีย์ลัดตัดบรรทัดตามที่ตรวจไว้", !!lines && JSON.stringify(lines) === JSON.stringify(TIP_LINES.keys), JSON.stringify(lines));
+  await p.keyboard.press("Escape"); await wait(p, 200);
+  await click(p, '[data-info="ทำไมปรับไม่ได้"]'); await p.waitForSelector('[data-tip="ทำไมปรับไม่ได้"]'); await wait(p, 300);
+  const fl = await linesOf((code) => p.evaluate(`(async () => { ${code} })()`), '[data-tip="ทำไมปรับไม่ได้"]');
+  if (process.env.DUMP) console.log(JSON.stringify(fl, null, 1));
+  check("162.3 กล่อง ⓘ คีย์พื้นฐานที่ปรับไม่ได้ตัดบรรทัดตามที่ตรวจไว้", !!fl && JSON.stringify(fl) === JSON.stringify(TIP_LINES.fixed), JSON.stringify(fl));
 };
 
 // ---------------------------------------------------------------- ตัวรัน

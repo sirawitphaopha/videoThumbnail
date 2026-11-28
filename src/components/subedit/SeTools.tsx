@@ -9,6 +9,7 @@ import { IbRedo, IbSave, IbTick, IbUndo, IcClock, IcCollapse, IcExpand, IcFile }
 import { padBusy } from "./PadView";
 import { CHARSETS, ENC_TIP, nameOf } from "./editorParts";
 import type { SeOpen } from "./seCtx";
+import { keyLabel } from "../../lib/keymap";
 
 export default function SeTools({ pg }: { pg: SeOpen }) {
   const { doSave, fold, n, openAs, openSaveAs, p, redoTop, sameKind, save, saveWhy, saving, setAutoList, setFold, setSave, st, undoTop } = pg;
@@ -16,8 +17,8 @@ export default function SeTools({ pg }: { pg: SeOpen }) {
   return (
     <>
       <div className="se-tools" data-se-tools>
-        <button type="button" className={"btn btn-ghost btn-sm" + (undoTop ? "" : " btn-wait")} aria-disabled={!undoTop || undefined} title={undoTop ? `เลิกทำ ${undoTop.label} (Ctrl+Z)` : "ยังไม่มีอะไรให้เลิกทำ"} onClick={() => undo()} data-se-undo><IbUndo size={15} />เลิกทำ</button>
-        <button type="button" className={"btn btn-ghost btn-sm" + (redoTop ? "" : " btn-wait")} aria-disabled={!redoTop || undefined} title={redoTop ? `ทำซ้ำ ${redoTop.label} (Ctrl+Y)` : "ยังไม่มีอะไรให้ทำซ้ำ"} onClick={() => redo()} data-se-redo><IbRedo size={15} />ทำซ้ำ</button>
+        <button type="button" className={"btn btn-ghost btn-sm" + (undoTop ? "" : " btn-wait")} aria-disabled={!undoTop || undefined} title={undoTop ? `เลิกทำ ${undoTop.label} (${keyLabel("sub.undo")})` : "ยังไม่มีอะไรให้เลิกทำ"} onClick={() => undo()} data-se-undo><IbUndo size={15} />เลิกทำ</button>
+        <button type="button" className={"btn btn-ghost btn-sm" + (redoTop ? "" : " btn-wait")} aria-disabled={!redoTop || undefined} title={redoTop ? `ทำซ้ำ ${redoTop.label} (${keyLabel("sub.redo")})` : "ยังไม่มีอะไรให้ทำซ้ำ"} onClick={() => redo()} data-se-redo><IbRedo size={15} />ทำซ้ำ</button>
         <span className="se-sep" />
         <span className="se-enc">
           <Dropdown label="รหัสอักษร" value={doc.enc.charset} display={() => `รหัส ${doc.enc.charset}`} sizes={CHARSETS.map((c) => `รหัส ${c}`)}
@@ -33,9 +34,9 @@ export default function SeTools({ pg }: { pg: SeOpen }) {
             : st.dirty ? <span className="se-dirty">{n ? `แก้แล้ว ${n} บรรทัด ยังไม่บันทึก` : "ยังไม่บันทึก"}</span> : st.autosave.at ? `บันทึกอัตโนมัติล่าสุด ${st.autosave.at.slice(11, 16)}` : ""}
         </span>
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => subDocApi.autosaves().then(setAutoList, (e) => setSave({ s: "failed", err: String(e) }))} title="ฉบับที่โปรแกรมบันทึกเองทุก 60 วินาทีระหว่างแก้ เปิดคืนได้" data-se-autos><IcClock size={15} />ฉบับอัตโนมัติ</button>
-        <button type="button" className={"btn btn-ghost btn-sm" + (saving ? " btn-wait" : "")} aria-disabled={saving || undefined} onClick={() => !saving && openSaveAs(doc.kind)} title="บันทึกเป็นไฟล์ใหม่ เลือกชนิดไฟล์ได้ (Ctrl+Shift+S)" data-se-saveas><IcFile size={15} />บันทึกเป็นไฟล์ใหม่</button>
+        <button type="button" className={"btn btn-ghost btn-sm" + (saving ? " btn-wait" : "")} aria-disabled={saving || undefined} onClick={() => !saving && openSaveAs(doc.kind)} title={`บันทึกเป็นไฟล์ใหม่ เลือกชนิดไฟล์ได้ (${keyLabel("sub.save-as")})`} data-se-saveas><IcFile size={15} />บันทึกเป็นไฟล์ใหม่</button>
         <button type="button" className={"btn btn-sm " + (saving || saveWhy ? "btn-wait" : "btn-main")} aria-disabled={saving || !!saveWhy || undefined}
-          title={saveWhy ?? (sameKind(doc) ? `บันทึกทับ ${nameOf(doc.source!.path)} ไฟล์เดิมลงถังขยะ (Ctrl+S)` : "ซับนี้ยังไม่มีไฟล์ของตัวเอง ต้องบันทึกเป็นไฟล์ใหม่")}
+          title={saveWhy ?? (sameKind(doc) ? `บันทึกทับ ${nameOf(doc.source!.path)} ไฟล์เดิมลงถังขยะ (${keyLabel("sub.save")})` : "ซับนี้ยังไม่มีไฟล์ของตัวเอง ต้องบันทึกเป็นไฟล์ใหม่")}
           onClick={() => { if (!saving && (!saveWhy || padBusy())) void doSave(); }} data-se-save>
           <IbSave size={15} /><Keep all={["บันทึก", "กำลังบันทึก…"]}>{saving ? "กำลังบันทึก…" : "บันทึก"}</Keep>
         </button>

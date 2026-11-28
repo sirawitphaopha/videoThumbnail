@@ -81,6 +81,9 @@ pub struct Settings {
     pub sub_player: String,
     /// รูปแบบชื่อไฟล์แทร็กที่แยกออกจากหนัง แบบ gMKVExtractGUI (BUGS ข้อ 130) · ตัวแทน {Filename} {Type} {Number} {Language} {Delay} {TrackName}
     pub extract_pattern: String,
+    /// คีย์ลัดที่ตั้งเอง รหัสคำสั่งในทะเบียน src/lib/keymap.ts ไปเป็นรายการคีย์ เช่น "Ctrl+Shift+KeyS" · คำสั่งที่ไม่มีในนี้ใช้คีย์ตั้งต้น
+    /// รายการว่างคือไม่ใช้คีย์ใดเลย (BUGS ข้อ 162.3 พี่กันสั่ง 28 พ.ย. 2569 "หน้าตั้งค่าที่เขียนคีย์ลัดทั้งหมด ในทุกฟังชั่น และสามารถปรับได้")
+    pub hotkeys: std::collections::BTreeMap<String, Vec<String>>,
 }
 
 impl Default for Settings {
@@ -122,6 +125,7 @@ impl Default for Settings {
             window_maximized: false,
             sub_player: "mpv".into(),
             extract_pattern: crate::media::extract::DEFAULT_PATTERN.into(),
+            hotkeys: Default::default(),
         }
     }
 }
@@ -174,8 +178,33 @@ impl Settings {
         // เดิม dedup_by ตัดเฉพาะตัวที่อยู่ติดกันและข้อความต้องเหมือนกันทุกตัว
         let mut seen = std::collections::HashSet::new();
         self.folders.retain(|f| !f.trim().is_empty() && seen.insert(folder_key(f)));
+        self.hotkeys = clean_hotkeys(std::mem::take(&mut self.hotkeys));
         self
     }
+}
+
+/// กรองคีย์ลัดที่ตั้งเอง ไม่ปล่อยค่ามั่วลงไฟล์ (BUGS ข้อ 162.3)
+/// รหัสคำสั่งเป็นตัวเล็ก ตัวเลข จุด ขีด ยาวไม่เกิน 60 · ไม่เกิน 400 คำสั่ง · คำสั่งละไม่เกิน 4 คีย์ ไม่ซ้ำกัน
+/// คีย์เป็นตัวกด Ctrl Shift Alt ตามลำดับนี้ คั่นด้วย + แล้วตามด้วยชื่อปุ่ม (KeyboardEvent.code) เช่น Ctrl+Shift+KeyS F3 Numpad5
+pub fn clean_hotkeys(map: std::collections::BTreeMap<String, Vec<String>>) -> std::collections::BTreeMap<String, Vec<String>> {
+    let id_ok = |id: &str| !id.is_empty() && id.len() <= 60 && id.chars().all(|c| c.is_ascii_lowercase() || c.is_ascii_digit() || c == '.' || c == '-');
+    let key_ok = |k: &str| {
+        let parts: Vec<&str> = k.split('+').collect();
+        let Some((code, mods)) = parts.split_last() else { return false };
+        let order = ["Ctrl", "Shift", "Alt"];
+        let mut last = -1i32;
+        for m in mods {
+            let Some(i) = order.iter().position(|o| o == m) else { return false };
+            if i as i32 <= last { return false; }
+            last = i as i32;
+        }
+        !code.is_empty() && code.len() <= 24 && code.chars().all(|c| c.is_ascii_alphanumeric()) && !["Control", "Shift", "Alt", "Meta"].iter().any(|x| code.starts_with(x))
+    };
+    map.into_iter().filter(|(id, _)| id_ok(id)).take(400).map(|(id, keys)| {
+        let mut seen = std::collections::HashSet::new();
+        let keys: Vec<String> = keys.into_iter().filter(|k| key_ok(k) && seen.insert(k.clone())).take(4).collect();
+        (id, keys)
+    }).collect()
 }
 
 /// ตัวเทียบโฟลเดอร์ซ้ำ ตัดช่องว่างกับเครื่องหมายคั่นท้าย แล้วเป็นตัวพิมพ์เล็ก · ใช้เทียบอย่างเดียว ค่าที่เก็บยังเป็นแบบที่พี่กันเลือก (ราก D:\ ต้องคง \ ไว้)

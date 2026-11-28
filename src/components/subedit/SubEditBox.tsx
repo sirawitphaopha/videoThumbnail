@@ -17,6 +17,7 @@ import Dropdown from "../Dropdown";
 import InfoTip from "../InfoTip";
 import { Seg } from "../ui";
 import { IbBack, IbBold, IbDrop, IbEraser, IbFont, IbItalic, IbMerge, IbNext, IbOriginal, IbRevert, IbSplit, IbStrike, IbTrash, IbUnderline, IcPlus } from "../icons";
+import { keyLabel } from "../../lib/keymap";
 
 const ASS_TIP: Tip = {
   w: "ช่องเหล่านี้มีเฉพาะซับ ASS ซับ SRT ไม่มีที่เก็บ บันทึกเป็น SRT แล้วหายทั้งหมด",
@@ -37,9 +38,10 @@ const TIME_TIP: Tip = {
   ],
   r: "ใช้เวลาเป็นหลัก สลับเป็นเฟรมตอนต้องการให้ซับขึ้นหรือหายตรงภาพพอดี",
 };
-const TYPE_TIP: Tip = {
-  w: "กด Enter ยืนยันแล้วไปบรรทัดถัดไป บรรทัดสุดท้ายกด Enter แล้วได้บรรทัดใหม่ต่อท้าย ส่วน Shift+Enter ขึ้นบรรทัดใหม่ในซับเดียวกัน  Ctrl+Z เลิกทำ Ctrl+Y ทำซ้ำ Ctrl+S บันทึก ใช้ได้แม้กำลังพิมพ์  ในตาราง ลูกศรขึ้นลงเปลี่ยนบรรทัด Ctrl หรือ Shift กับคลิกเลือกหลายบรรทัด",
-};
+// คีย์ลัดอ่านจากทะเบียนตอนเปิดกล่อง ตั้งใหม่ในหน้าตั้งค่าแล้วคำตรงกับคีย์จริง (BUGS ข้อ 162.3)
+const typeTip = (): Tip => ({
+  w: `กด Enter ยืนยันแล้วไปบรรทัดถัดไป บรรทัดสุดท้ายกด Enter แล้วได้บรรทัดใหม่ต่อท้าย ส่วน Shift+Enter ขึ้นบรรทัดใหม่ในซับเดียวกัน  ${keyLabel("sub.undo")} เลิกทำ ${keyLabel("sub.redo")} ทำซ้ำ ${keyLabel("sub.save")} บันทึก ใช้ได้แม้กำลังพิมพ์  ในตาราง ลูกศรขึ้นลงเปลี่ยนบรรทัด Ctrl หรือ Shift กับคลิกเลือกหลายบรรทัด`,
+});
 const CPS_TIP: Tip = {
   w: "จำนวนตัวอักษรที่ต้องอ่านต่อหนึ่งวินาที",
   // สองเรื่องแยกหัวข้อ วิธีนับแบบ Aegisub (BUGS ข้อ 162.1) กับเกณฑ์เตือน
@@ -247,7 +249,7 @@ export default function SubEditBox(p: Props) {
       <div className="se-erow se-foot">
         <button type="button" className={"btn btn-sm " + (p.why?.prev ? "btn-wait" : "btn-ghost")} aria-disabled={!!p.why?.prev || undefined} onClick={() => { if (!p.why?.prev) p.onPrev(); }} title={p.why?.prev ?? "บรรทัดก่อน (ลูกศรขึ้นในตาราง)"} data-se-prev><IbBack size={15} />บรรทัดก่อน</button>
         <button type="button" className={"btn btn-sm " + (p.why?.next ? "btn-wait" : "btn-ghost")} aria-disabled={!!p.why?.next || undefined} onClick={() => { if (!p.why?.next) p.onNext(false); }} title={p.why?.next ?? "บรรทัดถัดไป (ลูกศรลงในตาราง)"} data-se-next><IbNext size={15} />บรรทัดถัดไป</button>
-        <InfoTip title="วิธีพิมพ์และคีย์ลัด" tip={TYPE_TIP} />
+        <InfoTip title="วิธีพิมพ์และคีย์ลัด" tip={typeTip()} />
         <span className="se-sep" />
         <button type="button" className="btn btn-ghost btn-sm" onClick={p.onInsert} title="แทรกบรรทัดว่างต่อจากบรรทัดนี้ เริ่มที่เวลาจบของบรรทัดนี้ ยาว 3 วินาที" data-se-insert><IcPlus size={15} />แทรกบรรทัด</button>
         <button type="button" className="btn btn-ghost btn-sm" onClick={() => p.onSplit(sel()[0])} title="ตัดข้อความตรงเคอร์เซอร์เป็นสองบรรทัด แบ่งเวลาตามสัดส่วนความยาวข้อความ" data-se-split><IbSplit size={15} />แยก</button>
