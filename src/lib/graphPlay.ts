@@ -12,12 +12,15 @@ const RATE = 48000;
 const CHUNK_S = 4;
 const AHEAD_S = 2;
 const VOL_KEY = "ms.graphVol";
+const LOOP_KEY = "ms.graphLoop";
 
 export type GSrc = { path: string; track: number; names: string[] };
-type St = { playing: boolean; err: string; vol: number; path: string | null };
+/** paused หยุดชั่วคราวอยู่ที่เวลา pos (ปุ่มเล่นแบบ Audacity BUGS ข้อ 163.5) · loop เล่นวน จำไว้ครั้งหน้า */
+type St = { playing: boolean; err: string; vol: number; path: string | null; paused: boolean; pos: number; loop: boolean };
 
 const readVol = () => { try { const v = Number(localStorage.getItem(VOL_KEY)); return localStorage.getItem(VOL_KEY) != null && Number.isFinite(v) ? Math.max(0, Math.min(1, v)) : 1; } catch { return 1; } };
-let st: St = { playing: false, err: "", vol: readVol(), path: null };
+const readLoop = () => { try { return localStorage.getItem(LOOP_KEY) === "1"; } catch { return false; } };
+let st: St = { playing: false, err: "", vol: readVol(), path: null, paused: false, pos: 0, loop: readLoop() };
 const subs = new Set<() => void>();
 const set = (p: Partial<St>) => { st = { ...st, ...p }; subs.forEach((f) => f()); };
 export const useGPlay = () => useSyncExternalStore((f) => { subs.add(f); return () => subs.delete(f); }, () => st);
@@ -77,6 +80,7 @@ function ensure() {
 
 /** เวลาที่กำลังเล่นตอนนี้ (วินาทีของไฟล์) · ไม่ได้เล่นอยู่ = null */
 export function gNow(): number | null {
+  if (st.paused) return st.pos;
   if (!st.playing || !ctx || !startCtx) return null;
   const t = startS + (ctx.currentTime - startCtx);
   return t < startS ? null : Math.min(t, endS);
@@ -89,8 +93,23 @@ export function gStop(): number | null {
   for (const n of nodes) { try { n.stop(); } catch { /* ยังไม่เริ่มหรือจบแล้ว */ } }
   nodes = [];
   startCtx = 0;
-  if (st.playing) set({ playing: false });
+  if (st.playing || st.paused) set({ playing: false, paused: false });
   return at;
+}
+
+/** หยุดชั่วคราว · ขีดตำแหน่งเล่นค้างที่เวลานั้น คืนเวลาที่หยุด */
+export function gPause(): number | null {
+  const at = gNow();
+  if (at == null || st.paused) return at;
+  gStop();
+  set({ paused: true, pos: at });
+  return at;
+}
+
+/** เล่นวน เปิดปิด จำไว้ครั้งหน้า */
+export function gSetLoop(on: boolean) {
+  try { localStorage.setItem(LOOP_KEY, on ? "1" : "0"); } catch { /* จำไม่ได้ ใช้ค่าในหน้าไปก่อน */ }
+  set({ loop: on });
 }
 
 /** ปิดเปิดช่องตอนเล่นได้ทันที (ปุ่มลำโพงของหน้ากราฟ) */
@@ -139,7 +158,7 @@ export async function gPlay(src: GSrc, from: number, end?: (from: number) => voi
   const c = ctx!, n = Math.max(1, names.length), split = chain!.split;
   const t0 = Math.max(0, from);
   endS = Infinity;
-  set({ playing: true, err: "", path: src.path });
+  set({ playing: true, paused: false, err: "", path: src.path });
   let next = t0, schedAt = 0;
   for (;;) {
     let ab: ArrayBuffer;

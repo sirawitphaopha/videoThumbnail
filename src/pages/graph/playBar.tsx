@@ -4,22 +4,22 @@
 import { useEffect, useRef } from "react";
 import InfoTip from "../../components/InfoTip";
 import type { Tip } from "../../lib/codecAdv";
-import { IbPlay, IbStop } from "../../components/icons";
+import { IbLoop, IbPause, IbPlay, IbStop, IbToEnd, IbToStart } from "../../components/icons";
 import { hk, keysText } from "../../lib/keymap";
 import { useHotkeys } from "../../lib/hotkeys";
 import { usePageActiveRef } from "../../lib/pageActive";
-import { gLevels, gNow, gPlay, gSetMuted, gSetVol, gStop, getGPlay, useGPlay } from "../../lib/graphPlay";
+import { gLevels, gNow, gPause, gPlay, gSetLoop, gSetMuted, gSetVol, gStop, getGPlay, useGPlay } from "../../lib/graphPlay";
 import { tfmtD } from "./common";
 import { Keep } from "../../components/ui";
 
 /** คำบนปุ่มเล่น · ปุ่มกว้างเท่าคำที่ยาวที่สุดเสมอ ไม่หดขยายตอนสลับ */
-const PLAY_LBL = ["เล่นในหน้านี้", "หยุด"];
+const PLAY_LBL = ["เล่นในหน้านี้", "หยุดชั่วคราว"];
 
 /** ความสูงแถบเล่นรวมช่องห่างของแถบบน · หักออกจากความสูงกราฟ หน้าไม่ล้น */
 export const PLAYBAR_H = 42;
 
-/** วนเฟรมเฉพาะตอนเล่น · fn ได้เวลาที่เล่น (null = ไม่ได้เล่น) */
-function useFrames(fn: (now: number | null) => void, playing: boolean) {
+/** วนเฟรมเฉพาะตอนเล่น · fn ได้เวลาที่เล่น (null = ไม่ได้เล่น หยุดชั่วคราวได้เวลาที่หยุด) · tag เปลี่ยนแล้วเรียก fn ใหม่ */
+function useFrames(fn: (now: number | null) => void, playing: boolean, tag = "") {
   const f = useRef(fn); f.current = fn;
   useEffect(() => {
     f.current(gNow());
@@ -28,12 +28,12 @@ function useFrames(fn: (now: number | null) => void, playing: boolean) {
     const tick = () => { f.current(gNow()); id = requestAnimationFrame(tick); };
     id = requestAnimationFrame(tick);
     return () => { cancelAnimationFrame(id); f.current(null); };
-  }, [playing]);
+  }, [playing, tag]);
 }
 
 /** ขีดตำแหน่งเล่นบนกราฟ · วางในกล่องที่มี position relative ขอบซ้ายขวาเท่ากับขอบของกราฟ */
 export function PlayHead({ t0, t1, left, right, top = 0, bottom = 0 }: { t0: number; t1: number; left: number; right: number; top?: number; bottom?: number }) {
-  const { playing } = useGPlay();
+  const { playing, paused, pos } = useGPlay();
   const ref = useRef<HTMLDivElement>(null);
   const span = useRef({ t0, t1, left, right }); span.current = { t0, t1, left, right };
   useFrames((now) => {
@@ -43,7 +43,7 @@ export function PlayHead({ t0, t1, left, right, top = 0, bottom = 0 }: { t0: num
     const W = box.clientWidth - s.left - s.right;
     el.style.display = "block";
     el.style.left = `${s.left + (now - s.t0) / (s.t1 - s.t0 || 1) * W}px`;
-  }, playing);
+  }, playing, paused ? `${pos},${t0},${t1}` : "");
   return <div className="gp-head" ref={ref} style={{ display: "none", top, bottom }} aria-hidden="true" data-playhead />;
 }
 
@@ -83,22 +83,35 @@ const PLAY_TIP: Tip = {
     ["ปุ่มลำโพง", "ช่องที่ปิดลำโพงจะเงียบทันทีระหว่างเล่น\nและแถบวัดระดับของช่องนั้นหยุดนิ่ง", "", ""],
     ["ความดัง", "ปรับเฉพาะเสียงที่ออกลำโพง ไม่แก้ไฟล์\nส่วนแถบวัดระดับข้างชื่อช่องบอกระดับของไฟล์จริงเสมอ", "", ""],
     ["แถบวัดระดับ", "เขียวคือระดับปกติ เหลืองคือดังใกล้เพดาน\nและแดงคือแตะ 0 dB ซึ่งจุดแดงค้างไว้จนกดล้าง", "", ""],
+    ["ปุ่มควบคุม", "ไปต้นไฟล์ เล่นหรือหยุดชั่วคราว และไปท้ายไฟล์\nส่วนปุ่มหยุดจะหยุดแล้วกลับไปจุดที่เริ่มเล่น", "", ""],
+    ["เล่นวน", "เล่นจบแล้วกลับไปเล่นจากจุดเริ่มอีกรอบ จนกว่าจะปิดปุ่มนี้", "", ""],
   ],
 };
 
-/** แถบเล่นใต้แถวปุ่มมุมมอง · ปุ่มเล่นหรือหยุด เวลาที่เล่น ความดังลำโพง */
-export function PlayBar({ onToggle, dur, at }: { onToggle: () => void; dur: number; at: number }) {
-  const { playing, err, vol } = useGPlay();
+export type GPlayCtl = { toggle: () => void; stop: () => void; home: () => void; end: () => void; loop: () => void };
+/** ชื่อปุ่มพร้อมคีย์ลัดที่ตั้งไว้ (ไม่มีคีย์ไม่ต่อท้าย) */
+const withKey = (label: string, id: string) => { const k = keysText(id); return k === "ไม่มีคีย์ลัด" ? label : `${label} (${k})`; };
+
+/** แถบเล่นใต้แถวปุ่มมุมมอง · ปุ่มควบคุมแบบ Audacity เวลาที่เล่น ความดังลำโพง (BUGS ข้อ 163.4 163.5) */
+export function PlayBar({ ctl, dur, at }: { ctl: GPlayCtl; dur: number; at: number }) {
+  const { playing, paused, err, vol, loop } = useGPlay();
   const time = useRef<HTMLSpanElement>(null);
   const digits = 3;
   useFrames((now) => { if (time.current) time.current.textContent = tfmtD(now ?? at, digits); }, playing);
   useEffect(() => { if (!playing && time.current) time.current.textContent = tfmtD(at, digits); }, [at, playing]);
-  const keyTxt = keysText("graph.play");
   return (
     <div className="gp-bar" data-playbar>
-      <button type="button" className={"btn btn-sm " + (playing ? "btn-main" : "btn-ghost")} onClick={onToggle} aria-pressed={playing}
-        title={`${playing ? "หยุดเล่น" : "เล่นเสียงจากจุดที่เลือกบนกราฟ"} (${keyTxt})`} data-gplay>
-        {playing ? <IbStop size={15} /> : <IbPlay size={15} />}<Keep all={PLAY_LBL}>{playing ? PLAY_LBL[1] : PLAY_LBL[0]}</Keep></button>
+      <span className="gp-tr" role="group" aria-label="ปุ่มควบคุมการเล่น">
+        <button type="button" className="icon-btn" onClick={ctl.home} title={withKey("ไปต้นไฟล์", "graph.home")} aria-label="ไปต้นไฟล์" data-gphome><IbToStart size={15} /></button>
+        <button type="button" className={"btn btn-sm " + (playing ? "btn-main" : "btn-ghost")} onClick={ctl.toggle} aria-pressed={playing}
+          title={withKey(playing ? "หยุดชั่วคราว" : paused ? "เล่นต่อจากจุดที่หยุดไว้" : "เล่นเสียงจากจุดที่เลือกบนกราฟ", "graph.play")} data-gplay>
+          {playing ? <IbPause size={15} /> : <IbPlay size={15} />}<Keep all={PLAY_LBL}>{playing ? PLAY_LBL[1] : PLAY_LBL[0]}</Keep></button>
+        <button type="button" className={"icon-btn" + (playing || paused ? "" : " off")} onClick={ctl.stop} aria-disabled={!playing && !paused}
+          title={playing || paused ? withKey("หยุด แล้วกลับไปจุดที่เริ่มเล่น", "graph.stop") : "ยังไม่ได้เล่น จึงไม่มีอะไรให้หยุด"} aria-label="หยุด" data-gpstop><IbStop size={15} /></button>
+        <button type="button" className="icon-btn" onClick={ctl.end} title={withKey("ไปท้ายไฟล์", "graph.end")} aria-label="ไปท้ายไฟล์" data-gpend><IbToEnd size={15} /></button>
+        <button type="button" className={"icon-btn gp-loop" + (loop ? " on" : "")} onClick={ctl.loop} aria-pressed={loop}
+          title={withKey(loop ? "เล่นวนอยู่ กดเพื่อเลิกเล่นวน" : "เล่นวน เล่นจบแล้วกลับไปเล่นจากจุดเริ่มอีกรอบ", "graph.loop")} aria-label="เล่นวน" data-gploop><IbLoop size={15} /></button>
+      </span>
       <span className="gp-time" data-gptime><span ref={time} style={{ display: "inline-block", minWidth: `${tfmtD(dur, digits).length}ch` }}>{tfmtD(at, digits)}</span><em> จาก {tfmtD(dur, 0)}</em></span>
       <label className="gp-vol" title={`ความดังลำโพง ${Math.round(vol * 100)}%`}>
         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
@@ -126,25 +139,58 @@ export function seekProps(seek: (t: number) => void, t0: number, t1: number, lef
   };
 }
 
-/** ผูกตัวเล่นกับหน้ากราฟ · เว้นวรรคเล่นหรือหยุด หยุดเมื่อเปลี่ยนไฟล์ เปลี่ยนแทร็ก หรือออกจากหน้า เลื่อนกราฟตามตอนขีดเลยขอบขวา */
-export function useGraphPlay(o: { path: string | null; track: number; names: string[]; hidden: string[]; tip: number; setTip: (t: number) => void; t0: number; t1: number; zoomAll: boolean; setCenter: (c: number) => void; active: boolean }) {
+/** ผูกตัวเล่นกับหน้ากราฟ · ปุ่มควบคุมแบบ Audacity (BUGS ข้อ 163.5) หยุดเมื่อเปลี่ยนไฟล์ เปลี่ยนแทร็ก หรือออกจากหน้า เลื่อนกราฟตามตอนขีดเลยขอบขวา
+    from คือจุดที่เริ่มเล่นรอบนี้ ปุ่มหยุดกลับไปที่นี่ เล่นวนเริ่มใหม่จากที่นี่ แบบ Audacity · หยุดชั่วคราวแล้วเล่นต่อจากจุดที่หยุด */
+export function useGraphPlay(o: { path: string | null; track: number; names: string[]; hidden: string[]; tip: number; setTip: (t: number) => void; t0: number; t1: number; zoomAll: boolean; setCenter: (c: number) => void; active: boolean; dur: number }) {
   const { playing } = useGPlay();
   const now = useRef(o); now.current = o;
+  const from = useRef(0);
   const pageOn = usePageActiveRef();
+  /** เล่นจากเวลา t · จบเองแล้วเล่นวนหรือกลับจุดเริ่ม */
+  const start = (t: number) => {
+    const c = now.current;
+    if (!c.path) return;
+    gSetMuted(c.hidden);
+    void gPlay({ path: c.path, track: c.track, names: c.names }, t, () => {
+      if (getGPlay().loop) start(from.current);
+      else now.current.setTip(from.current);
+    });
+  };
   const toggle = () => {
     const c = now.current;
     if (!c.path) return;
-    if (getGPlay().playing) { const at = gStop(); if (at != null) c.setTip(at); return; }
-    gSetMuted(c.hidden);
-    void gPlay({ path: c.path, track: c.track, names: c.names }, c.tip, (from) => now.current.setTip(from));
+    const g = getGPlay();
+    if (g.playing) { const at = gPause(); if (at != null) c.setTip(at); return; }
+    if (g.paused) { start(g.pos); return; }
+    from.current = c.tip;
+    start(c.tip);
   };
-  /** กดบนกราฟ · ระหว่างเล่นกระโดดไปเล่นตรงนั้น ไม่ได้เล่นอยู่ตั้งจุดเริ่มเล่น */
-  const seek = (t: number) => {
-    const c = now.current;
+  const stop = () => {
+    const g = getGPlay();
+    if (!g.playing && !g.paused) return;
+    gStop();
+    now.current.setTip(from.current);
+  };
+  /** ไปเวลา t · กำลังเล่นเล่นต่อจากตรงนั้น หยุดชั่วคราวอยู่ย้ายจุดที่หยุด ไม่ได้เล่นย้ายจุดเริ่มเล่น */
+  const go = (t: number) => {
+    const c = now.current, g = getGPlay();
     c.setTip(t);
-    if (getGPlay().playing && c.path) void gPlay({ path: c.path, track: c.track, names: c.names }, t, (from) => now.current.setTip(from));
+    if (g.playing) { from.current = t; start(t); }
+    else if (g.paused) { gStop(); from.current = t; }
+    if (!c.zoomAll && (t < c.t0 || t > c.t1)) c.setCenter(t + (c.t1 - c.t0) * (t >= c.dur - 0.01 ? -0.48 : 0.48));
   };
-  useHotkeys([hk("graph.play", (e) => { e.preventDefault(); toggle(); })], pageOn);
+  const home = () => go(0);
+  const end = () => { const g = getGPlay(); if (g.playing || g.paused) gStop(); go(now.current.dur); };
+  const loop = () => gSetLoop(!getGPlay().loop);
+  /** กดบนกราฟ · ระหว่างเล่นกระโดดไปเล่นตรงนั้น ไม่ได้เล่นอยู่ตั้งจุดเริ่มเล่น */
+  const seek = (t: number) => go(t);
+  useHotkeys([
+    hk("graph.play", (e) => { e.preventDefault(); toggle(); }),
+    hk("graph.stop", (e) => { e.preventDefault(); stop(); }),
+    hk("graph.home", (e) => { e.preventDefault(); home(); }),
+    hk("graph.end", (e) => { e.preventDefault(); end(); }),
+    hk("graph.loop", (e) => { e.preventDefault(); loop(); }),
+  ], pageOn);
   useEffect(() => { gSetMuted(o.hidden); }, [o.hidden]);
   // เปลี่ยนไฟล์ แทร็ก หรือออกจากหน้า หยุดเล่น
   useEffect(() => () => { gStop(); }, [o.path, o.track]);
@@ -160,5 +206,6 @@ export function useGraphPlay(o: { path: string | null; track: number; names: str
     }, 120);
     return () => clearInterval(id);
   }, [playing]);
-  return { playing, toggle, seek };
+  const ctl: GPlayCtl = { toggle, stop, home, end, loop };
+  return { playing, toggle, seek, ctl };
 }

@@ -33,6 +33,15 @@ export const IbSave = ({ size = 15, stroke = "currentColor" }: P) =>
   svg(size, 2.2, stroke, <><path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" /></>);
 export const IbPlay = ({ size = 15, stroke = "currentColor" }: P) =>
   svg(size, 2.2, stroke, <><path d="M7 4.5v15l12-7.5z" /></>);
+/* ปุ่มเล่นแบบ Audacity ของหน้ากราฟเสียง (BUGS ข้อ 163.5) หยุดชั่วคราว ไปต้นไฟล์ ไปท้ายไฟล์ เล่นวน · เส้นแบบเดียวกับ IbPlay IbStop */
+export const IbPause = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></>);
+export const IbToStart = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M6 5v14" /><path d="M19 5.5v13L9 12z" /></>);
+export const IbToEnd = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M18 5v14" /><path d="M5 5.5v13L15 12z" /></>);
+export const IbLoop = ({ size = 15, stroke = "currentColor" }: P) =>
+  svg(size, 2.2, stroke, <><path d="M17 2.5 20.5 6 17 9.5" /><path d="M3.5 11.5V10a4 4 0 0 1 4-4h13" /><path d="M7 21.5 3.5 18 7 14.5" /><path d="M20.5 12.5V14a4 4 0 0 1-4 4h-13" /></>);
 export const IbTable = ({ size = 15, stroke = "currentColor" }: P) =>
   svg(size, 2.2, stroke, <><rect x="3" y="4" width="18" height="16" rx="2" /><path d="M3 10h18" /><path d="M9 10v10" /><path d="M15 10v10" /></>);
 export const IbEye = ({ size = 15, stroke = "currentColor" }: P) =>

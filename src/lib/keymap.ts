@@ -121,7 +121,12 @@ export const ACTIONS: KeyAction[] = [
   { id: "subimg.prev", group: "subimg", label: "ภาพก่อนหน้า", keys: ["ArrowLeft"] },
   { id: "subimg.next", group: "subimg", label: "ภาพถัดไป", keys: ["ArrowRight"] },
   // หน้ากราฟเสียง (BUGS ข้อ 163.4 เล่นเสียงจากกราฟ · พี่กันเคาะ "เว้นวรรคเล่นหรือหยุด")
-  { id: "graph.play", group: "graph", label: "เล่นหรือหยุดเสียงในหน้านี้", keys: ["Space"], noButton: true },
+  { id: "graph.play", group: "graph", label: "เล่นหรือหยุดชั่วคราว", keys: ["Space"], noButton: true },
+  // ปุ่มควบคุมแบบ Audacity (BUGS ข้อ 163.5) ไม่มีคีย์ตั้งต้น ไม่ให้ชนกับ Home End ที่ใช้เลื่อนในรายการ ตั้งเองได้ในหน้าตั้งค่า
+  { id: "graph.stop", group: "graph", label: "หยุด แล้วกลับไปจุดที่เริ่มเล่น", keys: [] },
+  { id: "graph.home", group: "graph", label: "ไปต้นไฟล์", keys: [] },
+  { id: "graph.end", group: "graph", label: "ไปท้ายไฟล์", keys: [] },
+  { id: "graph.loop", group: "graph", label: "เปิดปิดเล่นวน", keys: [] },
 ];
 
 /** คีย์พื้นฐานของช่อง รายการ และหน้าต่าง ปรับไม่ได้ แบบโปรแกรมทั่วไป · แสดงในหน้าตั้งค่าให้รู้ว่ามี */

@@ -40,7 +40,7 @@ export default function GraphPage(props: GraphProps) {
   const { ctl, head, panel, plot, prefs, saving, tagDlg, view, viewSlow, gplay, dur, playStart } = g;
   return (
     <SavingCtx.Provider value={saving}><div className="ag" data-graph data-graphview={view}>
-      <div className="agstick">{head}{ctl}<PlayBar onToggle={gplay.toggle} dur={dur} at={playStart} /></div>
+      <div className="agstick">{head}{ctl}<PlayBar ctl={gplay.ctl} dur={dur} at={playStart} /></div>
       <div className={"agb" + (prefs.wide ? " wide" : "")}>{prefs.wide ? null : panel}{plot}{viewSlow && !saving && <LoadPill text="กำลังโหลดกราฟ…" />}</div>
       {tagDlg}
     </div></SavingCtx.Provider>

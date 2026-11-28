@@ -193,3 +193,8 @@
 .gp-meter > b { position: absolute; left: -1px; right: -1px; height: 2px; margin-bottom: -1px; background: #3a3a3a; opacity: 0; }
 .gp-clip { position: absolute; left: 0; top: -10px; width: 6px; height: 6px; padding: 0; border: 0; border-radius: 2px; background: #d9d4d6; cursor: pointer; }
 .gp-clip[data-on] { background: #d6413b; }
+/* ปุ่มควบคุมแบบ Audacity (BUGS ข้อ 163.5) ไปต้นไฟล์ เล่น หยุด ไปท้ายไฟล์ เล่นวน · เล่นวนที่เปิดอยู่เป็นสีของที่เลือก */
+.gp-tr { flex: none; display: inline-flex; align-items: center; gap: 2px; }
+.gp-tr .btn { margin: 0 2px; }
+.gp-loop.on { background-color: var(--accent-soft); color: var(--accent-ink); }
+.gp-loop.on:hover { background-color: #f8dde7; color: var(--accent-d); }

@@ -106,7 +106,7 @@ T[4] = async (p, check) => {
   await p.click("[data-gplay]"); await wait(p, 1200);
   const a = await gp(p);
   const w1 = await p.evaluate(() => document.querySelector("[data-gplay]").getBoundingClientRect().width);
-  check("163.4 ปุ่มเล่นกว้างเท่าเดิมตอนสลับเป็นปุ่มหยุด", Math.abs(w0 - w1) < 0.5, JSON.stringify({ w0, w1 }));
+  check("163.4 ปุ่มเล่นกว้างเท่าเดิมตอนสลับเป็นปุ่มหยุดชั่วคราว", Math.abs(w0 - w1) < 0.5, JSON.stringify({ w0, w1 }));
   await wait(p, 700);
   const b2 = await gp(p);
   const head = await p.evaluate(() => { const h = document.querySelector(".lanes [data-playhead]"); return h ? { show: h.style.display, left: parseFloat(h.style.left) } : null; });
@@ -162,12 +162,65 @@ T[4] = async (p, check) => {
     "ปุ่มลำโพง ช่องที่ปิดลำโพงจะเงียบทันทีระหว่างเล่น ⏎ และแถบวัดระดับของช่องนั้นหยุดนิ่ง",
     "ความดัง ปรับเฉพาะเสียงที่ออกลำโพง ไม่แก้ไฟล์ ⏎ ส่วนแถบวัดระดับข้างชื่อช่องบอกระดับของไฟล์จริงเสมอ",
     "แถบวัดระดับ เขียวคือระดับปกติ เหลืองคือดังใกล้เพดาน ⏎ และแดงคือแตะ 0 dB ซึ่งจุดแดงค้างไว้จนกดล้าง",
+    "ปุ่มควบคุม ไปต้นไฟล์ เล่นหรือหยุดชั่วคราว และไปท้ายไฟล์ ⏎ ส่วนปุ่มหยุดจะหยุดแล้วกลับไปจุดที่เริ่มเล่น",
+    "เล่นวน เล่นจบแล้วกลับไปเล่นจากจุดเริ่มอีกรอบ จนกว่าจะปิดปุ่มนี้",
   ];
   check("163.4 กล่อง ⓘ เล่นเสียงจากกราฟ แยกหัวข้อละเรื่อง ตัดบรรทัดตรงความหมายทุกหัวข้อ", JSON.stringify(lines) === JSON.stringify(want), JSON.stringify(lines));
   await p.keyboard.press("Escape");
   // คีย์ลัดอยู่ในทะเบียนกลาง ตั้งใหม่ได้ในหน้าตั้งค่า
   const k = await p.evaluate(async () => { const m = await import("/src/lib/keymap.ts"); const a = m.actionOf("graph.play"); return a ? { keys: a.keys, group: m.KEY_GROUPS.find((g) => g.id === a.group)?.title } : null; });
   check("163.4 คีย์ลัดเล่นหรือหยุดอยู่ในทะเบียนกลาง หมวดหน้ากราฟเสียง ตั้งต้นเป็น Space", !!k && k.keys[0] === "Space" && k.group === "หน้ากราฟเสียง", JSON.stringify(k));
+};
+
+/** 163.5 (เลข 36) ปุ่มเล่นแบบ Audacity เล่น หยุดชั่วคราว หยุด ไปต้นไฟล์ ไปท้ายไฟล์ เล่นวน */
+T[5] = async (p, check) => {
+  const step = (x) => { if (process.env.STEP) console.log("· " + x); };
+  await graphOpen(p, SONG); step("open");
+  await p.click("[data-view=wave]").catch(() => {}); await wait(p, 400);
+  const btns = await p.evaluate(() => ["gphome", "gplay", "gpstop", "gpend", "gploop"].map((k) => { const b = document.querySelector(`[data-${k}]`); return b ? { k, label: b.getAttribute("aria-label") ?? b.innerText.trim(), title: b.title } : null; }));
+  check("163.5 แถบเล่นมีห้าปุ่ม ไปต้นไฟล์ เล่น หยุด ไปท้ายไฟล์ เล่นวน เรียงตามแบบ Audacity", btns.every(Boolean) && btns.map((b) => b.k).join() === "gphome,gplay,gpstop,gpend,gploop", JSON.stringify(btns));
+  const stopOff = await p.evaluate(() => { const b = document.querySelector("[data-gpstop]"); return { off: b.classList.contains("off"), title: b.title }; });
+  check("163.5 ยังไม่ได้เล่น ปุ่มหยุดกดไม่ได้และบอกเหตุผลติดปุ่ม", stopOff.off && stopOff.title.includes("ยังไม่ได้เล่น"), JSON.stringify(stopOff));
+  // เล่นจากจุดที่กดบนกราฟ (ราวครึ่งไฟล์ 248 วินาที) แล้วหยุดชั่วคราว ขีดค้างที่จุดที่หยุด
+  const cv = await p.evaluate(() => { const r = document.querySelector(".lanes .lane canvas.cv").getBoundingClientRect(); return { x: r.left, y: r.top, w: r.width }; });
+  await p.mouse.click(cv.x + cv.w * 0.5, cv.y + 20); await wait(p, 200);
+  await p.click("[data-gplay]"); await wait(p, 1300);
+  await p.click("[data-gplay]"); await wait(p, 300);
+  const pz = await gp(p);
+  const head = await p.evaluate(() => document.querySelector(".lanes [data-playhead]")?.style.display);
+  const lbl = await p.evaluate(() => document.querySelector("[data-gplay]").innerText.trim());
+  check("163.5 หยุดชั่วคราว ขีดตำแหน่งเล่นค้างที่จุดที่หยุด ปุ่มกลับเป็นเล่น", !pz.playing && pz.paused && pz.pos > 124 && head === "block" && lbl === "เล่นในหน้านี้", JSON.stringify({ pz, head, lbl }));
+  await p.click("[data-gplay]"); await wait(p, 900);
+  const rs = await gp(p);
+  check("163.5 กดเล่นอีกครั้งเล่นต่อจากจุดที่หยุดชั่วคราว", rs.playing && rs.now >= pz.pos && rs.now < pz.pos + 3, JSON.stringify({ now: rs.now, pos: pz.pos }));
+  // หยุด กลับไปจุดที่เริ่มเล่น (จุดที่กดบนกราฟ) ขีดหาย
+  await p.click("[data-gpstop]"); await wait(p, 300);
+  const sp = await gp(p);
+  const shown = await p.evaluate(() => document.querySelector("[data-gptime] span")?.textContent);
+  check("163.5 ปุ่มหยุด หยุดเล่นแล้วกลับไปจุดที่เริ่มเล่น ตัวเลขเวลาเป็นจุดเริ่ม", !sp.playing && !sp.paused && /^2:0[34]\./.test(shown ?? ""), JSON.stringify({ sp, shown }));
+  // ไปต้นไฟล์ระหว่างเล่น เล่นต่อจากศูนย์
+  await p.click("[data-gplay]"); await wait(p, 600);
+  await p.click("[data-gphome]"); await wait(p, 900);
+  const hm = await gp(p);
+  check("163.5 ไปต้นไฟล์ระหว่างเล่น เล่นต่อจากต้นไฟล์", hm.playing && hm.now < 2, JSON.stringify(hm.now));
+  // ไปท้ายไฟล์ หยุดเล่น เวลาเป็นความยาวไฟล์
+  await p.click("[data-gpend]"); await wait(p, 300);
+  const en = await gp(p);
+  const endTxt = await p.evaluate(() => document.querySelector("[data-gptime] span")?.textContent);
+  check("163.5 ไปท้ายไฟล์ หยุดเล่น เวลาเป็นท้ายไฟล์ 4:08", !en.playing && /^4:08/.test(endTxt ?? ""), JSON.stringify({ en, endTxt }));
+  // เล่นวน เปิดแล้วจำไว้ เล่นจากใกล้ท้ายไฟล์ จบแล้ววนกลับไปจุดเริ่ม
+  await p.click("[data-gploop]"); await wait(p, 200);
+  const lp = await p.evaluate(() => ({ on: document.querySelector("[data-gploop]").getAttribute("aria-pressed"), saved: localStorage.getItem("ms.graphLoop") }));
+  check("163.5 ปุ่มเล่นวนเปิดแล้วเป็นสีที่เลือก และจำไว้", lp.on === "true" && lp.saved === "1", JSON.stringify(lp));
+  await p.mouse.click(cv.x + cv.w * (246.5 / 248), cv.y + 20); await wait(p, 200);
+  await p.click("[data-gplay]"); await wait(p, 3200);
+  const lo = await gp(p);
+  check("163.5 เล่นวน เล่นจบไฟล์แล้วกลับไปเล่นจากจุดเริ่มอีกรอบ", lo.playing && lo.now > 245 && lo.now < 248, JSON.stringify(lo.now));
+  await click(p, "[data-gploop]"); await click(p, "[data-gpstop]"); await wait(p, 200);
+  await p.evaluate(() => localStorage.removeItem("ms.graphLoop"));
+  // คีย์ลัดของปุ่มควบคุมอยู่ในทะเบียนกลาง ตั้งได้ในหน้าตั้งค่า
+  const k = await p.evaluate(async () => { const m = await import("/src/lib/keymap.ts"); return ["graph.stop", "graph.home", "graph.end", "graph.loop"].map((id) => !!m.actionOf(id)); });
+  check("163.5 คำสั่ง หยุด ไปต้นไฟล์ ไปท้ายไฟล์ เล่นวน อยู่ในทะเบียนคีย์ลัด ตั้งเองได้", k.every(Boolean), JSON.stringify(k));
 };
 
 // ---------------------------------------------------------------- ตัวรัน

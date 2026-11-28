@@ -150,13 +150,18 @@ T[3] = async (p, check) => {
   const clash = await capture(p, "Control+KeyZ");
   check("162.3 คีย์ที่คำสั่งอื่นในหน้าเดียวกันใช้อยู่บอกชื่อคำสั่งนั้น", clash.cls.includes("warn") && clash.text.includes("เลิกทำ"), JSON.stringify(clash));
   const okMsg = await capture(p, "Control+Shift+KeyA");
-  await click(p, "[data-hk-replace]"); await wait(p, 300);
+  await click(p, "[data-hk-replace]");
+  // รอจนแถวขึ้นคีย์ใหม่ ไม่รอเวลาตายตัว (เพิ่มคำสั่งหน้ากราฟแล้วหน้าวาดช้าลงนิดหนึ่ง ตกบางรอบ BUGS ข้อ 163.5)
+  await p.waitForFunction(() => document.querySelector('[data-hk-row="sub.select-all"]')?.innerText.includes("Ctrl+Shift+A"), null, { timeout: 4000 }).catch(() => {});
+  await wait(p, 150);
   const after = await rowKeys(p, "sub.select-all");
   const sv = await saved(p);
   check("162.3 กดใช้แทนคีย์เดิม แถวขึ้น Ctrl+Shift+A มีป้ายตั้งเอง และเก็บในค่าตั้ง hotkeys",
     okMsg.text === "ตั้ง Ctrl+Shift+A ได้" && JSON.stringify(after.keys) === '["Ctrl+Shift+A"]' && after.custom && JSON.stringify(sv["sub.select-all"]) === '["Ctrl+Shift+KeyA"]', JSON.stringify({ okMsg, after, sv }));
   // ย้ายคีย์ที่ชนกัน ทำซ้ำให้ใช้ Ctrl+Y แทนที่ไปเพิ่มให้ เลือกทุกบรรทัด แล้วทำซ้ำเหลือคีย์เดียว
-  await capture(p, "Control+KeyY"); await click(p, "[data-hk-add]"); await wait(p, 300);
+  await capture(p, "Control+KeyY"); await click(p, "[data-hk-add]");
+  await p.waitForFunction(() => !document.querySelector('[data-hk-row="sub.redo"]')?.innerText.includes("Ctrl+Y"), null, { timeout: 4000 }).catch(() => {});
+  await wait(p, 150);
   const moved = { sel: await rowKeys(p, "sub.select-all"), redo: await rowKeys(p, "sub.redo") };
   check("162.3 เพิ่มคีย์ที่ชนกัน คีย์ย้ายมาจากคำสั่งเดิม", JSON.stringify(moved.sel.keys) === '["Ctrl+Shift+A","Ctrl+Y"]' && JSON.stringify(moved.redo.keys) === '["Ctrl+Shift+Z"]' && moved.redo.custom, JSON.stringify(moved));
   await click(p, '[data-hk-remove="Ctrl+KeyY"]'); await wait(p, 200);
