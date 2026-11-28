@@ -277,6 +277,68 @@ fn save_replaces_and_keeps_others() {
 }
 
 #[test]
+fn autosave_quota_per_path_charset_and_total_cap() {
+    // BUGS ข้อ 162.10 (ROADMAP R11 ข้อ 2 ถึง 4)
+    let dir = std::env::temp_dir().join(format!("ชั้นหนัง-autosave162-{}", crate::cover::poster_image::unique()));
+    let auto = dir.join("autosave");
+    std::fs::create_dir_all(&auto).unwrap();
+    let srt = "1\n00:00:01,000 --> 00:00:02,000\nก\n";
+    let doc_at = |folder: &str| {
+        let f = dir.join(folder);
+        std::fs::create_dir_all(&f).unwrap();
+        let p = f.join("เดิม.th.srt");
+        std::fs::write(&p, srt).unwrap();
+        let mut d = parse_doc(srt.as_bytes(), "srt", None);
+        let (size, mtime) = stamp(&p);
+        d.source = Some(Source { path: p.display().to_string(), in_movie: false, size, mtime, tid: None });
+        d
+    };
+    // ① ซับชื่อเดียวกันคนละโฟลเดอร์ ไม่แย่งโควตากัน
+    let (a, b) = (doc_at("ก"), doc_at("ข"));
+    for _ in 0..3 { autosave_to(&auto, &b, "เดิม.th.srt").unwrap(); }
+    for _ in 0..12 { autosave_to(&auto, &a, "เดิม.th.srt").unwrap(); }
+    let list = list_autosaves(&auto);
+    let of = |d: &SubDoc| list.iter().filter(|x| x.source.as_ref().map(|s| &s.path) == d.source.as_ref().map(|s| &s.path)).count();
+    assert_eq!((of(&a), of(&b)), (10, 3), "นับโควตาตามที่อยู่ไฟล์ ไม่ใช่ชื่อ");
+    // ซับในหนังเดียวกันคนละแทร็กก็แยกโควตา
+    let mut m3 = a.clone();
+    m3.source = Some(Source { path: dir.join("หนัง.mkv").display().to_string(), in_movie: true, size: 0, mtime: 0, tid: Some(3) });
+    let mut m4 = m3.clone();
+    m4.source.as_mut().unwrap().tid = Some(4);
+    assert_ne!(autosave_to(&auto, &m3, "หนัง.mkv").unwrap().key, autosave_to(&auto, &m4, "หนัง.mkv").unwrap().key);
+    // ② จดรหัสอักษร ซับไทย TIS-620 เปิดคืนแล้วได้ TIS-620 กับข้อความเดิม
+    let tis: Vec<u8> = b"1\r\n00:00:01,000 --> 00:00:02,000\r\n".iter().copied().chain([0xA1, 0xD2, 0xC3]).chain(*b"\r\n").collect();
+    let t = parse_doc(&tis, "srt", Some("TIS-620"));
+    let it = autosave_to(&auto, &t, "ไทย.srt").unwrap();
+    assert_eq!(it.charset.as_deref(), Some("TIS-620"));
+    let back = open_autosave(&auto, Path::new(&it.path)).unwrap();
+    assert_eq!(back.enc.charset, "TIS-620");
+    assert_eq!(back.events[0].text, "การ");
+    // ฉบับรุ่นก่อนที่ไม่มี key กับ charset ยังอ่านได้ และนับโควตาตามชื่อ
+    let j = format!("{}.json", it.path);
+    let mut v: serde_json::Value = serde_json::from_slice(&std::fs::read(&j).unwrap()).unwrap();
+    v.as_object_mut().unwrap().remove("key");
+    v.as_object_mut().unwrap().remove("charset");
+    std::fs::write(&j, serde_json::to_vec(&v).unwrap()).unwrap();
+    let old = list_autosaves(&auto).into_iter().find(|x| x.path == it.path).unwrap();
+    assert_eq!((old.key.as_str(), old.charset.as_deref()), ("", None));
+    // ③ เพดานรวมจำนวน เก็บฉบับใหม่สุด ลบเก่าสุดก่อน
+    let total = list_autosaves(&auto).len();
+    let newest = autosave_capped(&auto, &t, "อีก.srt", 5, u64::MAX).unwrap();
+    let left = list_autosaves(&auto);
+    assert!(total > 5);
+    assert_eq!(left.len(), 5);
+    assert_eq!(left[0].path, newest.path, "ฉบับที่เพิ่งเขียนต้องอยู่");
+    // ③ เพดานรวมขนาด ส่งเพดานเท่าฉบับเดียว เหลือแค่ฉบับใหม่
+    let one = autosave_capped(&auto, &t, "ขนาด.srt", 200, 1).unwrap();
+    let left = list_autosaves(&auto);
+    assert_eq!(left.len(), 1);
+    assert_eq!(left[0].path, one.path);
+    assert_eq!((MAX_AUTOSAVES, MAX_AUTOSAVE_BYTES), (200, 100 * 1024 * 1024));
+    let _ = std::fs::remove_dir_all(&dir);
+}
+
+#[test]
 fn autosave_keeps_ten_and_reopens_to_the_original() {
     let dir = std::env::temp_dir().join(format!("ชั้นหนัง-autosave-{}", crate::cover::poster_image::unique()));
     std::fs::create_dir_all(&dir).unwrap();
@@ -291,9 +353,12 @@ fn autosave_keeps_ten_and_reopens_to_the_original() {
         d.events[0].text = format!("แก้ครั้งที่ {k}");
         autosave_to(&auto, &d, "เดิม.th.srt").unwrap();
     }
-    let other = autosave_to(&auto, &d, "อีกไฟล์.ass").unwrap();
+    // อีกไฟล์เป็นซับใหม่ที่ยังไม่มีไฟล์ของตัวเอง โควตาแยกจากไฟล์เดิม (ตั้งแต่ BUGS ข้อ 162.10 นับโควตาตามที่อยู่ไฟล์)
+    let mut fresh = d.clone();
+    fresh.source = None;
+    let other = autosave_to(&auto, &fresh, "อีกไฟล์.ass").unwrap();
     let list = list_autosaves(&auto);
-    assert_eq!(list.iter().filter(|a| a.name == "เดิม.th.srt").count(), 10, "เก็บ 10 ฉบับล่าสุดต่อชื่อ");
+    assert_eq!(list.iter().filter(|a| a.name == "เดิม.th.srt").count(), 10, "เก็บ 10 ฉบับล่าสุดต่อไฟล์");
     assert_eq!(list[0].path, other.path, "ใหม่สุดก่อน");
     let newest = list.iter().find(|a| a.name == "เดิม.th.srt").unwrap();
     // เปิดฉบับใหม่สุด ได้ข้อความล่าสุด ที่มาเป็นไฟล์เดิม

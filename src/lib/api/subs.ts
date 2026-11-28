@@ -166,4 +166,4 @@ export const imgApi = {
 
 
 /** ฉบับบันทึกอัตโนมัติ · at วันเวลาเครื่อง · seq ลำดับที่บันทึก */
-export type SubAutosave = { path: string; name: string; source: SubSource | null; at: string; events: number; seq: number };
+export type SubAutosave = { path: string; name: string; source: SubSource | null; at: string; events: number; seq: number; /** ตัวนับโควตาต่อไฟล์ กับรหัสอักษรที่เขียนจริง (BUGS ข้อ 162.10) */ key?: string; charset?: string | null };
