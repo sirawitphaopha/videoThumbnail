@@ -282,6 +282,9 @@
     extract_info: () => ({ mkv: true, tags: true, chapters: true, delays: [0, 0, 0, 0] }),
     drive_free: () => ({ free: 412e9, drive: "D" }),
     audio_codec_detail: (a) => infoOf(a.path).tracks.map((t) => t.codec === "E-AC-3" ? "E-AC-3 (Dolby Digital Plus)" : t.codec === "TrueHD" ? "MLP FBA 16-ch (Dolby TrueHD with Dolby Atmos)" : t.codec),
+    // ร่องรอยตัวเข้ารหัสกับตรวจ FLAC (BUGS ข้อ 164.2) · เพลงตัวอย่างเป็น FLAC มี MD5 · หนังเป็นเสียงจากแผ่นไม่มีชื่อตัวเข้ารหัส
+    audio_encoder_info: (a) => infoOf(a.path).tracks.map((t) => t.codec === "FLAC" ? { library: "reference libFLAC 1.4.3 20230623", settings: null, app: null, mode: "VBR", md5: "0a1b2c3d4e5f60718293a4b5c6d7e8f9", hint: "ตัวเข้ารหัส FLAC ต้นฉบับ" } : { library: null, settings: null, app: null, mode: null, md5: null, hint: null }),
+    flac_verify: async (a) => { await new Promise((r) => setTimeout(r, 600)); return /\.(flac|oga)$/i.test(a.path) ? { status: "ok", detail: "ถอดเสียงทั้งไฟล์มาเทียบแล้ว", secs: 1.4 } : { status: "unsupported", detail: "ปุ่มนี้ตรวจได้เฉพาะไฟล์ .flac", secs: 0 }; },
     actlog_info: () => ({ dir: "C:\\Users\\ชื่อผู้ใช้\\AppData\\Local\\com.pkh.movieshelf\\logs", monthLines: 214 }),
     poster_open: (a) => { if (!a.target) { if (_pc.chosen) _pc.prev = true; _pc.chosen = false; } const u = poster("ตัวอย่าง", 2023, "#0b3a42", "#147a78", "#e0b44c", 1000, 1500); return { path: a.path, name: String(a.path).split("\\").pop(), ext: "jpg", attachable: true, width: 1000, height: 1500, aspect: "แนวตั้ง 2 : 3", twoThree: true, preview: u, fileSize: 412000, exif: 1, icc: false, crop: [0, 0, 1000, 1500] }; },
     poster_render: (a) => { if (a?.req?.choose && !a.req.target) { _pc.chosen = true; _pc.prev = false; } const u = poster("ตัวอย่าง", 2023, "#0b3a42", "#147a78", "#e0b44c", 1000, 1500); return { bytes: 412000, width: 1000, height: 1500, cropW: 1000, cropH: 1500, small: false, preview: u, sizes: [[1000, 1500]] }; },

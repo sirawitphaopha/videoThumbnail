@@ -15,6 +15,10 @@ export type GWindow = { t0: number; t1: number; cols: number; env: number[][]; b
 /** short ช่วงสั้นกว่าขนาด FFT คิดแบบเติมศูนย์ · need ความยาวอย่างน้อยที่ขนาดนี้ใช้ วินาที (AUDIT ข้อ 107) */
 export type GPsd = { size: number; rate: number; short?: boolean; need?: number; db: number[][] };
 export type GProgress = { path: string; track: number; percent: number };
+/** ร่องรอยตัวเข้ารหัสของแทร็กเสียง (encinfo.rs · BUGS ข้อ 164.2) · เป็นเบาะแสจากแท็ก ไม่ใช่หลักฐานเด็ดขาด */
+export type EncInfo = { library: string | null; settings: string | null; app: string | null; mode: string | null; md5: string | null; hint: string | null };
+/** ผลตรวจ FLAC ด้วย flac -t · nomd5 หัวไฟล์ไม่มี MD5 ตรวจไม่ได้ · unsupported ไม่ใช่ไฟล์ .flac */
+export type FlacCheck = { status: "ok" | "bad" | "nomd5" | "unsupported"; detail: string; secs: number };
 
 /** รูปกราฟที่บันทึก ตั้งในหน้าตั้งค่า · ค่าตั้งต้นตรงกับ graphimg.rs */
 export type GraphImg = { width: number; format: "png" | "jpg" | "webp" | "heic" | "tiff"; bits: 8 | 16; gray: boolean; dpi: number; quality: number; subsampling: "444" | "420"; compress: "fast" | "default" | "best"; title: boolean; nameGraph: boolean; dirMode: "beside" | "folder"; dir: string; ask: boolean; transparent: boolean };
@@ -41,6 +45,10 @@ export const graphApi = {
   info: (path: string) => call<GInfo>("graph_info", { path }),
   /** รายละเอียด codec ของแทร็กเสียงจาก MediaInfo เช่น MPEG-1 Layer 3 (LAME 3.99r) เรียงตามแทร็กเสียง */
   codecDetail: (path: string) => call<(string | null)[]>("audio_codec_detail", { path }),
+  /** ร่องรอยตัวเข้ารหัสเรียงตามแทร็กเสียง (BUGS ข้อ 164.2) */
+  encoderInfo: (path: string) => call<EncInfo[]>("audio_encoder_info", { path }),
+  /** ถอดเสียง FLAC ทั้งไฟล์แล้วเทียบ MD5 ในหัวไฟล์ด้วย flac -t (BUGS ข้อ 164.2) */
+  flacVerify: (path: string) => call<FlacCheck>("flac_verify", { path }),
   /** ไฟล์ยังอยู่ไหม เรียงตามรายการที่ส่งไป · ใช้บอกในรายการเปิดล่าสุดก่อนกด */
   exist: (paths: string[]) => call<boolean[]>("graph_exist", { paths }),
   overview: (path: string, track: number) => call<GOverview | null>("graph_overview", { path, track }),

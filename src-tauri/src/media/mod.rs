@@ -4,6 +4,7 @@
 
 pub mod probe;
 pub mod fileinfo;
+pub mod encinfo;
 pub mod mkvtree;
 pub mod chapters;
 pub mod extract;

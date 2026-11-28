@@ -360,6 +360,46 @@ T[96] = async (p, check) => {
   await p.setViewportSize({ width: 1280, height: 800 });
 };
 
+/** 164.2 (เลข 32) ร่องรอยตัวเข้ารหัส กับปุ่มตรวจ FLAC ด้วย MD5 */
+T[92] = async (p, check) => {
+  await graphOpen(p, SONG); await wait(p, 600);
+  const c = await p.evaluate(() => { const k = document.querySelector("[data-enccard]"); return k ? { rows: [...k.querySelectorAll("[data-encrows] dt")].map((d) => d.textContent), txt: k.innerText, md5Full: k.querySelector("[data-encrows] dd[title]")?.title, btn: !!k.querySelector("[data-flaccheck]"), tip: !!k.querySelector("[data-info='ร่องรอยตัวเข้ารหัส']") } : null; });
+  check("164.2 ไฟล์ FLAC ขึ้นการ์ดร่องรอยตัวเข้ารหัส ตัวเข้ารหัส สรุป MD5 ของเสียง มีปุ่ม ⓘ กับปุ่มตรวจ MD5", !!c && c.rows.join() === "ตัวเข้ารหัส,สรุป,MD5 ของเสียง" && c.txt.includes("libFLAC") && c.md5Full === "0a1b2c3d4e5f60718293a4b5c6d7e8f9" && c.btn && c.tip, JSON.stringify(c));
+  const codecTip = await p.evaluate(() => !!document.querySelector("[data-graphinfo] [data-info='ชื่อตัวเข้ารหัสในวงเล็บ']"));
+  check("164.2 แถว Codec มีปุ่ม ⓘ บอกว่าชื่อตัวเข้ารหัสเป็นเบาะแส", codecTip, "");
+  await click(p, '[data-info="ร่องรอยตัวเข้ารหัส"]'); await p.waitForSelector('[data-tip="ร่องรอยตัวเข้ารหัส"]'); await wait(p, 300);
+  const lines = await linesOf((code) => p.evaluate(`(async () => { ${code} })()`), '[data-tip="ร่องรอยตัวเข้ารหัส"]');
+  if (process.env.DUMP) console.log(JSON.stringify(lines, null, 1));
+  const want = [
+    "ชื่อโปรแกรมที่เข้ารหัสเสียงไฟล์นี้ ซึ่งตัวเข้ารหัสฝากไว้ในไฟล์",
+    "เป็นเบาะแส ข้อความนี้อยู่ในส่วนแท็กซึ่งโปรแกรมแก้แท็กเขียนทับได้ ⏎ จึงไม่ใช่หลักฐานเด็ดขาด ต้องดูคู่กับกราฟความถี่",
+    "MP3 LAME จดโหมดไว้ เช่น VBR ระดับ V0 หรือ CBR 320 kbps ⏎ ส่วน MP3 ที่ไม่มีข้อความของ LAME มักมาจากตัวเข้ารหัสอื่น",
+    "AAC แยกได้ว่ามาจาก qaac หรือ iTunes ซึ่งใช้เอนจินของ Apple ⏎ หรือจากตัวเข้ารหัสในตัวของ ffmpeg ซึ่งคุณภาพต่างกันจริง",
+    "FLAC หัวไฟล์ฝัง MD5 ของเสียงไว้ กดตรวจแล้วถอดเสียงมาเทียบ ⏎ ตรงกันแปลว่าเสียงไม่เสียแม้แต่บิตเดียว แม้แท็กหรือปกจะเปลี่ยน",
+  ];
+  check("164.2 กล่อง ⓘ ร่องรอยตัวเข้ารหัส แยกหัวข้อละเรื่อง ตัดบรรทัดตรงความหมาย", JSON.stringify(lines) === JSON.stringify(want), JSON.stringify(lines));
+  await p.keyboard.press("Escape"); await wait(p, 200);
+  // กดตรวจ ระหว่างตรวจปุ่มบอกกำลังตรวจและกดซ้ำไม่ได้ แล้วขึ้นผลสีเขียว
+  await click(p, "[data-flaccheck]"); await wait(p, 150);
+  const busy = await p.evaluate(() => { const b = document.querySelector("[data-flaccheck]"); return { t: b.innerText.trim(), off: b.getAttribute("aria-disabled") }; });
+  await p.waitForSelector("[data-flacres]", { timeout: 5000 });
+  const res = await p.evaluate(() => { const r = document.querySelector("[data-flacres]"); return { st: r.dataset.flacres, cls: r.className, txt: r.innerText }; });
+  check("164.2 กดตรวจ ปุ่มบอกกำลังตรวจและกดซ้ำไม่ได้ จบแล้วขึ้นผลว่าเสียงตรงกับ MD5", busy.t.includes("กำลังตรวจ") && busy.off === "true" && res.st === "ok" && res.cls.includes("ok") && res.txt.includes("ทุกบิต") && res.txt.includes("ใช้เวลา"), JSON.stringify({ busy, res }));
+  // ไฟล์ที่หัวไฟล์ไม่มี MD5 ขึ้นเหลือง ห้ามบอกว่าผ่าน
+  await over(p, "flac_verify", "return { status: 'nomd5', detail: 'หัวไฟล์ไม่ได้ฝัง MD5 ไว้ ส่วนการถอดเสียงทั้งไฟล์ผ่าน', secs: 1 };");
+  await click(p, "[data-flaccheck]"); await p.waitForFunction(() => document.querySelector("[data-flacres]")?.dataset.flacres === "nomd5", null, { timeout: 5000 });
+  const nm = await p.evaluate(() => { const r = document.querySelector("[data-flacres]"); return { cls: r.className, txt: r.innerText }; });
+  check("164.2 ไม่มี MD5 ขึ้นสีเตือนว่าตรวจไม่ได้ ไม่บอกว่าผ่าน", nm.cls.includes("warn") && nm.txt.includes("ตรวจไม่ได้") && !nm.txt.includes("ทุกบิต"), JSON.stringify(nm));
+  await over(p, "flac_verify", "return { status: 'bad', detail: 'MD5 ของเสียงไม่ตรงกับที่ฝังไว้', secs: 1 };");
+  await click(p, "[data-flaccheck]"); await p.waitForFunction(() => document.querySelector("[data-flacres]")?.dataset.flacres === "bad", null, { timeout: 5000 });
+  const bd = await p.evaluate(() => document.querySelector("[data-flacres]").className);
+  check("164.2 MD5 ไม่ตรง ขึ้นสีแดง", bd.includes("bad"), bd);
+  // ไฟล์หนัง (เสียงไม่มีชื่อตัวเข้ารหัส ไม่ใช่ FLAC) ไม่มีการ์ด
+  await nav(p, "ชั้นวางหนัง"); await wait(p, 200);
+  await graphOpen(p, MOVIE); await wait(p, 600);
+  check("164.2 แทร็กที่ไม่มีร่องรอยและไม่ใช่ FLAC ไม่ขึ้นการ์ด", !(await p.evaluate(() => !!document.querySelector("[data-enccard]"))), "");
+};
+
 // ---------------------------------------------------------------- ตัวรัน
 const want = process.argv.slice(2).map(Number).filter(Boolean);
 const ids = Object.keys(T).map(Number).filter((n) => !want.length || want.includes(n)).sort((a, b) => a - b);

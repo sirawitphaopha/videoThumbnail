@@ -6,11 +6,14 @@ import { IcSearch } from "../../components/icons";
 import { WARN, tfmt } from "./common";
 import { Speakers } from "./parts";
 import type { B2 } from "./graphCtx";
+import InfoTip from "../../components/InfoTip";
+import { ENC_TIP, EncCard } from "./EncCard";
 
 /** แถวข้อมูล · ค่าที่มีวงเล็บท้าย เช่น MPEG-1 Layer 3 (LAME 4.0) ตัดบรรทัดได้เฉพาะหน้าวงเล็บ ไม่ตัดกลางวงเล็บ (พี่กันทัก 10 พ.ย. 2569 "แบ่งบรรทัดดี ๆ") */
 function FragmentKV({ k, v }: { k: string; v: string }) {
   const at = v.lastIndexOf(" (");
-  return <><dt>{k}</dt><dd>{at > 0 && v.endsWith(")") ? <><span className="nw">{v.slice(0, at)}</span> <span className="nw">{v.slice(at + 1)}</span></> : v}</dd></>;
+  // แถว Codec มีปุ่ม ⓘ บอกว่าชื่อตัวเข้ารหัสในวงเล็บเป็นเบาะแส ไม่ใช่หลักฐาน (BUGS ข้อ 164.2 ตามที่จดใน ROADMAP ข้อ 48)
+  return <><dt>{k}{k === "Codec" && <InfoTip title="ชื่อตัวเข้ารหัสในวงเล็บ" tip={ENC_TIP} noAbbr />}</dt><dd>{at > 0 && v.endsWith(")") ? <><span className="nw">{v.slice(0, at)}</span> <span className="nw">{v.slice(at + 1)}</span></> : v}</dd></>;
 }
 
 export function panelBits(pg: B2) {
@@ -29,6 +32,7 @@ export function panelBits(pg: B2) {
         {names.length > 0 && <Speakers names={names} th={th} levels={levels} hidden={hidden} onToggle={toggleCh} />}
         <div className="small" style={{ textAlign: "center", marginTop: 4 }}>{names.length > 1 ? "กดลำโพงเพื่อปิดหรือเปิดช่องนั้น" : "ไฟล์นี้มีเสียงช่องเดียว"}</div></div>
       {t && <div className="card"><h3>ข้อมูลเสียง</h3><dl className="kv" data-graphinfo>{infoRows.map(([k, v]) => <FragmentKV key={k} k={k} v={v} />)}</dl></div>}
+      {t && path && <EncCard path={path} track={t.index} codec={t.codec} />}
       {path && <div className="card gtag" data-graphtagcard><h3>{tagFile && !tagFile.audioOnly ? "ข้อมูลในไฟล์" : "ข้อมูลเพลง"}</h3>
         <div className="gcover">{tagCover === undefined ? <Skel w="100%" h={120} r={0} />
           : tagCover ? <button type="button" onClick={() => setTagFor(path)} title="ดูข้อมูลเพลงทั้งหมด" aria-label="ดูข้อมูลเพลงทั้งหมด" data-graphcover><img src={tagCover.url} alt="รูปปก" /></button>
