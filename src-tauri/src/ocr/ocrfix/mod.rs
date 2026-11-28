@@ -144,8 +144,11 @@ fn starts_with_url(t: &str) -> bool {
     w.starts_with("http://") || w.starts_with("https://") || w.starts_with("www.")
 }
 
-fn is_letter(c: char) -> bool { c.is_alphabetic() && !crate::ocr::nocr_text::is_digit(c) }
-fn is_lod(c: char) -> bool { c.is_alphanumeric() }
+/// วรรณยุกต์ ไม้ไต่คู้ ทัณฑฆาต ไม้ยมก ของไทยไม่อยู่ในกลุ่มตัวอักษรของ Unicode (is_alphabetic เป็นเท็จ) ตัวแยกคำจึงหั่นคำตรงวรรณยุกต์
+/// "ที่นี่" กลายเป็น ที ่ นี ่ · นับเครื่องหมายบนล่างของไทยเป็นส่วนของคำ (ผู้ช่วยตรวจทาน T13 · BUGS ข้อ 162.6) ไม้ยมกเป็นคำของตัวเอง ไม่นับ
+fn thai_mark(c: char) -> bool { matches!(c, '\u{e31}' | '\u{e34}'..='\u{e3a}' | '\u{e47}'..='\u{e4e}') }
+fn is_letter(c: char) -> bool { (c.is_alphabetic() || thai_mark(c)) && !crate::ocr::nocr_text::is_digit(c) }
+fn is_lod(c: char) -> bool { c.is_alphanumeric() || thai_mark(c) }
 
 // ---------------------------------------------------------------- ตัวแก้
 

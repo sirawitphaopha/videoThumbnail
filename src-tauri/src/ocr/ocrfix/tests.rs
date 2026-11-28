@@ -104,4 +104,9 @@ fn small_rules() {
     let l = split_line("<i>He's</i> 10 - ok!", 0);
     let kinds: Vec<PartKind> = l.parts.iter().map(|p| p.kind).collect();
     assert_eq!(kinds, vec![PartKind::Tag, PartKind::Word, PartKind::Tag, PartKind::Whitespace, PartKind::Word, PartKind::Whitespace, PartKind::Special, PartKind::Whitespace, PartKind::Word, PartKind::Special]);
+    // คำไทยที่มีวรรณยุกต์ ไม้ไต่คู้ ทัณฑฆาต เป็นคำเดียว ไม่โดนหั่นตรงเครื่องหมาย (ผู้ช่วยตรวจทาน T13 · BUGS ข้อ 162.6)
+    let th = split_line("ที่นี่ เที่ยว ก็ ศุกร์ น้ำ", 0);
+    let words: Vec<&str> = th.parts.iter().filter(|p| p.kind == PartKind::Word).map(|p| p.word.as_str()).collect();
+    assert_eq!(words, vec!["ที่นี่", "เที่ยว", "ก็", "ศุกร์", "น้ำ"]);
+    assert_eq!(first_word("น้ำใจ ดี"), "น้ำใจ");
 }
