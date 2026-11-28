@@ -2,6 +2,8 @@
    แยกจาก GraphPage.tsx ตอนจัดโครงไฟล์ตามความหมาย (BUGS ข้อ 155 ขั้น 4) เนื้อโค้ดยกมาทั้งก้อน */
 import { AUDIO_EXT, thumbUrl } from "../../lib/api";
 import ConvertPane from "./ConvertPane";
+import { RecentMenu } from "./graphMenus";
+import { addFiles } from "../../lib/convertJob";
 import { chText, dropClick } from "../../components/ui";
 import { IcFile } from "../../components/icons";
 import { tfmt } from "./common";
@@ -19,11 +21,11 @@ export function cmpView({ pg }: { pg: B1 }) {
 
 
 export function convertView({ pg }: { pg: B1 }) {
-  const { modeSeg, setCmp, setTagFor, tagDlg } = pg;
+  const { modeSeg, setCmp, setTagFor, tagDlg, setMode, setPath } = pg;
     return (
       <div className="ag" data-graph data-graphmode="convert">
         <div className="gmodebar">{modeSeg}<span className="small">แปลงไฟล์เสียงอย่างเดียว ไม่รวมเข้าหนัง และไฟล์เดิมไม่ถูกแก้</span></div>
-        <ConvertPane onCompare={(a, b, note, tr) => setCmp({ files: [a, b], note, tracks: tr ? { [a]: tr } : undefined })} onTags={setTagFor} />
+        <ConvertPane onCompare={(a, b, note, tr) => setCmp({ files: [a, b], note, tracks: tr ? { [a]: tr } : undefined })} onTags={setTagFor} onOpen={(path) => { setMode("graph"); setPath(path); }} />
         {tagDlg}
       </div>
     );
@@ -31,7 +33,8 @@ export function convertView({ pg }: { pg: B1 }) {
 
 
 export function startView({ pg }: { pg: B1 }) {
-  const { forget, gone, modeSeg, movies, openOther, recent, setPath } = pg;
+  const { forget, gone, modeSeg, movies, openOther, recent, setPath, recentMenu, onBitrate, setMode, toast } = pg;
+  const rm = recentMenu.at;
     const shelfPicks = movies.filter((m) => !m.missing && m.audio.length).slice(0, 6);
     // ไอคอนแถบฟิล์มของไฟล์หนังที่ไม่มีปก · ป้ายนามสกุลเด่นแบบเดียวกับกล่องไอคอน (พี่กันสั่ง 9 พ.ย. 2569 "ใส่นามสกุลไฟล์หน่อย เป็นการ์ดเด่น ๆ เหมือน icon โน้ตดนตรี" · "ขอ icon ที่บ่งบอกว่าเป็นวิดีโอหน่อย")
     const film = <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round" aria-hidden="true"><rect x="4" y="3" width="16" height="18" rx="2" /><path d="M8 3v18M16 3v18M4 8h4M4 12h4M4 16h4M16 8h4M16 12h4M16 16h4" /></svg>;
@@ -51,7 +54,7 @@ export function startView({ pg }: { pg: B1 }) {
             const mv = movies.find((m) => m.path.toLowerCase() === r.path.toLowerCase());
             const lost = gone.has(r.path);
             return (
-              <div key={r.path} className={"recentrow" + (lost ? " lost" : "")}>
+              <div key={r.path} className={"recentrow" + (lost ? " lost" : "")} onContextMenu={(e) => recentMenu.open(e, r)} data-recentrow={r.name}>
                 <button type="button" className="dd" aria-disabled={lost || undefined} onClick={() => { if (!lost) setPath(r.path); }} data-graphrecentpick={r.name} data-lost={lost || undefined} title={lost ? `หาไฟล์ไม่เจอ ไฟล์อาจถูกย้ายหรือลบ หรือไดรฟ์ถอดออกอยู่\n${r.path}` : r.path}>
                   <span style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0, flex: "1 1 auto", overflow: "hidden" }}>
                     <span className="rtype">{r.audioOnly ? <i className="rnote">{music}</i> : (mv?.thumb ?? mv?.linked?.[0]?.thumb) ? <img src={thumbUrl(mv?.thumb ?? mv?.linked?.[0]?.thumb ?? null) ?? ""} alt="" style={{ width: 18, height: 27, borderRadius: 3, objectFit: "cover" }} /> : <i className="rnote" data-graphfilm>{film}</i>}{extCard(r.name)}</span>
@@ -67,6 +70,9 @@ export function startView({ pg }: { pg: B1 }) {
               </div>
             );
           })}</div></>}
+        {rm && <RecentMenu r={rm.v} lost={gone.has(rm.v.path)} x={rm.x} y={rm.y} onClose={recentMenu.close} toast={toast}
+          open={() => setPath(rm.v.path)} bitrate={onBitrate ? () => onBitrate(rm.v.path) : undefined}
+          convert={() => { addFiles([rm.v.path], true); setMode("convert"); }} forget={() => forget(rm.v.path)} />}
         {shelfPicks.length > 0 && <><div className="small">หรือเลือกจากชั้นวาง</div>
           <div className="graph-recent">{shelfPicks.map((m) => (
             <button key={m.id} type="button" className="dd" onClick={() => setPath(m.path)} data-graphpick={m.name}>

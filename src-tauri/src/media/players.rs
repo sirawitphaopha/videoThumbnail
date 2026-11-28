@@ -125,10 +125,10 @@ pub fn mpc_hc(found: &[PathBuf]) -> Option<PathBuf> {
 #[derive(Serialize, Debug, PartialEq)]
 #[serde(rename_all = "camelCase")]
 pub struct PlayerInfo {
-    path: String,
+    pub path: String,
     name: String,
     /// ไฟล์ยังอยู่ไหม โปรแกรมที่เพิ่มเองอาจถูกย้ายหรือถอนไปแล้ว
-    exists: bool,
+    pub exists: bool,
     /// เพิ่มเอง เอาออกจากรายการได้ · ตัวที่หาเจอในเครื่องเอาออกไม่ได้
     added: bool,
     is_default: bool,
@@ -139,7 +139,7 @@ pub struct PlayerInfo {
 #[derive(Serialize)]
 #[serde(rename_all = "camelCase")]
 pub struct PlayerList {
-    players: Vec<PlayerInfo>,
+    pub players: Vec<PlayerInfo>,
     /// กดเปิดเล่นแล้วใช้โปรแกรมหลักของ Windows
     system_default: bool,
     /// ไอคอนของโปรแกรมที่ Windows ตั้งไว้เปิดไฟล์ MKV

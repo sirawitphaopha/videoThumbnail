@@ -15,6 +15,8 @@ import Dialog from "../../components/Dialog";
 import { FixedTime, J, Keep, Phr, Skel, SortArrow, StatIcon } from "../../components/ui";
 import type { GraphReq } from "../graph/GraphPage";
 import { IbStop, IcGraph, IbTick, IcCheck } from "../../components/icons";
+import { useCtx } from "../../components/CtxMenu";
+import { CheckRowMenu } from "./checkMenu";
 
 type CkCol = "name" | "size" | "at" | "status";
 const CK_ORDER: Record<string, number> = { bad: 0, changed: 1, partial: 2, unchecked: 3, ok: 4 };
@@ -71,7 +73,9 @@ const fmtT = (sec: number) => {
 };
 const spanTime = (sp: CheckSpan) => (fmtT(sp.from) === fmtT(sp.to) ? fmtT(sp.from) : `${fmtT(sp.from)} – ${fmtT(sp.to)}`);
 
-export default function CheckPage(p: { req: CheckReq | null; onConsumed: () => void; onGraph: (r: GraphReq) => void; onPage: (pg: Page) => void }) {
+export default function CheckPage(p: { req: CheckReq | null; onConsumed: () => void; onGraph: (r: GraphReq) => void; onPage: (pg: Page) => void; onInfo?: (id: string) => void }) {
+  // เมนูคลิกขวาของแถวในตาราง (BUGS ข้อ 164.5)
+  const cm = useCtx<Movie>();
   const { movies, loaded } = useLibrary();
   const { settings } = useSettings();
   const { s, start, cancel } = useCheck();
@@ -234,13 +238,15 @@ export default function CheckPage(p: { req: CheckReq | null; onConsumed: () => v
               {loaded && shown.map((m) => (
                 <Row key={m.id} m={m} on={!!sel?.has(m.id)} running={s.running} reminder={reminder}
                   current={s.current?.id === m.id ? s.current.percent : null} queued={queued.has(m.id)} error={s.errors[m.id]}
-                  onToggle={() => { if (!s.running && !m.missing) toggle(m.id); }} onOpen={() => setOpenId(m.id)} />
+                  onToggle={() => { if (!s.running && !m.missing) toggle(m.id); }} onOpen={() => setOpenId(m.id)} onMenu={(e) => cm.open(e, m)} />
               ))}
             </tbody>
           </table>
         </div>
       </div>
 
+      {cm.at && <CheckRowMenu m={movies.find((x) => x.id === cm.at!.v.id) ?? cm.at.v} x={cm.at.x} y={cm.at.y} running={s.running} onClose={cm.close}
+        start={(mode) => { setMode(mode); start([cm.at!.v.id], mode); }} onGraph={(path) => p.onGraph({ path })} onInfo={p.onInfo} />}
       {open && open.check && (
         <ResultDialog m={open} onClose={() => setOpenId(null)} onGraph={p.onGraph} onPage={p.onPage}
           onDeep={() => { setOpenId(null); setMode("full"); start([open.id], "full"); }} running={s.running} />
@@ -249,7 +255,7 @@ export default function CheckPage(p: { req: CheckReq | null; onConsumed: () => v
   );
 }
 
-function Row(p: { m: Movie; on: boolean; running: boolean; reminder: number; current: number | null; queued: boolean; error?: string; onToggle: () => void; onOpen: () => void }) {
+function Row(p: { m: Movie; on: boolean; running: boolean; reminder: number; current: number | null; queued: boolean; error?: string; onToggle: () => void; onOpen: () => void; onMenu: (e: React.MouseEvent) => void }) {
   const { m } = p;
   const c = m.check;
   const pill = p.current != null ? <span className="pill p-info">กำลังตรวจ {Math.floor(p.current)}%</span>
@@ -270,7 +276,7 @@ function Row(p: { m: Movie; on: boolean; running: boolean; reminder: number; cur
   const [d, t] = c ? dateParts(c.at) : ["", ""];
   const canOpen = !!c && p.current == null;
   return (
-    <tr className={(canOpen ? "click" : "") + (m.missing ? " missing" : "")} data-ckrow={m.name}
+    <tr className={(canOpen ? "click" : "") + (m.missing ? " missing" : "")} data-ckrow={m.name} onContextMenu={p.onMenu}
       {...(canOpen ? kb(p.onOpen) : {})} aria-label={canOpen ? `ดูผลตรวจ ${m.name}.${m.ext}` : undefined}>
       <td onClick={(e) => e.stopPropagation()} onKeyDown={(e) => e.stopPropagation()}>
         <span className={"cbx " + (p.on ? "on" : "off") + (p.running || m.missing ? " dis" : "")} {...kb(p.onToggle)}

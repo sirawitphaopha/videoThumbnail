@@ -14,6 +14,8 @@ import { IbStop, IcLink, IbTick, IbTrash } from "../../components/icons";
 import Dialog from "../../components/Dialog";
 import { COUNT, baseName, inTab, type Tab } from "./linkUtil";
 import { RowView } from "./RowView";
+import { useCtx } from "../../components/CtxMenu";
+import { LinkRowMenu } from "./linkMenu";
 
 /* ---------- ตารางตรวจผล ---------- */
 export default function ReviewTable() {
@@ -35,6 +37,8 @@ export default function ReviewTable() {
   const { settings } = useSettings();
   const [crop, setCrop] = useState<{ id: string; orient: "tall" | "wide"; info: PosterInfo; start: CropChoice | null } | null>(null);
   /** เปิดหน้าครอปของช่องนั้น · ช่องยังไม่มีรูป ใช้รูปของอีกช่อง รูปเดียวทำได้ทั้งปกตั้งและปกนอน */
+  // เมนูคลิกขวาของแถว (BUGS ข้อ 164.5)
+  const lm = useCtx<string>();
   const openCrop = async (id: string, orient: "tall" | "wide") => {
     const r = getLinkJob().reply.rows.find((x) => x.id === id);
     if (!r) return;
@@ -141,7 +145,10 @@ export default function ReviewTable() {
         <button type="button" className="btn btn-ghost btn-sm" data-link-addmore onClick={() => setLinkJob({ view: "start" })}><IcPlus size={15} />เพิ่มรูป</button>
       </div>
       <div className="linkhead" aria-hidden="true"><span /><span>หนังบนชั้นวาง</span><span /><span>รูปที่เลือกให้</span><span>เหตุที่จับคู่</span><span /></div>
-      <div className="linkrows" data-link-rows>
+      <div className="linkrows" data-link-rows onContextMenu={(e) => { const id = (e.target as HTMLElement).closest<HTMLElement>("[data-link-row]")?.dataset.linkRow; if (id) lm.open(e, id); }}>
+        {lm.at && (() => { const r = rows.find((x) => x.id === lm.at!.v); if (!r) return null; return <LinkRowMenu r={r} x={lm.at.x} y={lm.at.y} busyWhy={working || reading ? busyWhy : null} onClose={lm.close}
+          confirm={() => confirm(r.id)} crop={() => openCrop(r.id, r.tall ? "tall" : "wide")} skip={() => act(() => linkApi.update(r.id, { skip: true }), "ข้ามไม่สำเร็จ")}
+          change={async () => { const f = await pickFile("image"); if (f) act(() => linkApi.pair(r.id, [f], "board"), "ใช้รูปนี้ไม่ได้"); }} />; })()}
         {shown.items.length === 0 ? (
           <div className="empty-search"><div style={{ fontSize: 14 }}>{rows.length === 0 ? "ยังไม่มีคู่ให้ตรวจ ลากโฟลเดอร์รูปมาวางก่อน" : "ไม่มีแถวตามที่เลือก"}</div></div>
         ) : shown.items.map((r) => (

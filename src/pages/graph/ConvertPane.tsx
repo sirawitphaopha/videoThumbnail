@@ -17,6 +17,8 @@ import { IbPlay, IbTrash, IbStop, IcRefresh, IcGraph, IcMix, IcSettings } from "
 import { useToast } from "../../components/Toasts";
 import { spaceShort, useFree } from "../../lib/drives";
 import InfoTip from "../../components/InfoTip";
+import { useCtx } from "../../components/CtxMenu";
+import { QueueMenu } from "./graphMenus";
 import type { Tip } from "../../lib/codecAdv";
 
 /** ติ๊กเขียวหลังแปลงแบบไม่เสียคุณภาพ (BUGS ข้อ 121) */
@@ -105,7 +107,9 @@ const ddDetail = (label: string, detail: string) => {
   return ch ? detail.replace(` เสียง ${ch}`, "") : detail.replace(/ เสียง (\d\.\d ch)/, " $1");
 };
 
-export default function ConvertPane(p: { onCompare: (a: string, b: string, note: string, track: number) => void; onTags: (path: string) => void }) {
+export default function ConvertPane(p: { onCompare: (a: string, b: string, note: string, track: number) => void; onTags: (path: string) => void; onOpen?: (path: string) => void }) {
+  // เมนูคลิกขวาของแถวในคิว (BUGS ข้อ 164.5)
+  const qm = useCtx<QItem>();
   const q = useConvQueue();
   const toast = useToast();
   // กดเล่นจากคิวได้เลย แปลงเสร็จเปิดไฟล์ใหม่ ยังไม่แปลงเปิดไฟล์เดิม เริ่มจากต้นไฟล์ (พี่กันสั่ง 9 พ.ย. 2569 "อยากให้กดเล่นจากคิวนี้ได้เลย ทำเป็น icon มา")
@@ -158,6 +162,9 @@ export default function ConvertPane(p: { onCompare: (a: string, b: string, note:
 
   return (
     <div className="cq" data-convert>
+      {qm.at && (() => { const it = q.items.find((x) => x.id === qm.at!.v.id) ?? qm.at.v; return <QueueMenu it={it} x={qm.at.x} y={qm.at.y} onClose={qm.close} toast={toast}
+        openGraph={(path) => p.onOpen?.(path)} remove={() => removeItem(it.id)}
+        compare={() => { if (it.result) p.onCompare(it.path, it.result.out, `แปลงเป็น ${specLabel(it.spec)}\nด้วย ${it.result.tool}`, it.track); }} />; })()}
       <div className="card">
         <h3><span>คิวแปลง {n} ไฟล์</span><span className="small" style={{ fontWeight: 400 }} data-qsum>{n ? [`เสร็จ ${done}`, `กำลังทำ ${work}`, `รอ ${wait}`, fail ? `ไม่สำเร็จ ${fail}` : ""].filter(Boolean).join(", ") + " แปลงทีละไฟล์ตามลำดับ" : "ยังไม่มีไฟล์"}</span></h3>
         {n > 0 && <div className="cqlist" data-qlist>
@@ -165,7 +172,7 @@ export default function ConvertPane(p: { onCompare: (a: string, b: string, note:
           {q.items.map((it) => {
             const locked = it.state === "work" || it.state === "done" || !!it.bad;
             return (
-              <div key={it.id} className={"cqrow " + it.state} data-qrow={baseName(it.path)} data-qstate={it.state}>
+              <div key={it.id} className={"cqrow " + it.state} data-qrow={baseName(it.path)} data-qstate={it.state} onContextMenu={(e) => qm.open(e, it)}>
                 <Tick on={it.state === "wait" && !it.bad && it.picked} off={it.state !== "wait" || !!it.bad} label={`เลือก ${baseName(it.path)}`} onChange={(v) => setPicked(it.id, v)} data="data-qtick" />
                 <Cover thumb={it.bad ? null : it.thumb} />
                 <div style={{ minWidth: 0 }}>

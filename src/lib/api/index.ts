@@ -41,6 +41,8 @@ export const api = {
   /** เริ่มอ่านโฟลเดอร์เบื้องหลัง · ผลมาทางเหตุการณ์ movie-updated scan-progress scan-finished */
   scanLibrary: () => call<void>("scan_library"),
   playMovie: (path: string) => call<void>("play_movie", { path }),
+  /** เปิดเล่นด้วยโปรแกรมในรายการโปรแกรมเล่นของเครื่อง (เมนูคลิกขวา BUGS ข้อ 164.5) */
+  playMovieWith: (path: string, player: string) => call<void>("play_movie_with", { path, player }),
   revealMovie: (path: string) => call<void>("reveal_movie", { path }),
   /** ให้คะแนนดาว · 0 ล้างคะแนน */
   setRating: (id: string, stars: number) => call<Movie>("set_rating", { id, stars }),

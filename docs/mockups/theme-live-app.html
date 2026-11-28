@@ -247,6 +247,8 @@
     convert_expand: (a) => a.paths,
     graph_exist: (a) => a.paths.map(() => true),
     set_rating: (a) => { const m = movies.find((x) => x.id === a.id); if (m) m.rating = a.stars; return m; },
+    // เปิดเล่นด้วยโปรแกรมที่เลือกจากเมนูคลิกขวา (BUGS ข้อ 164.5) จดไว้ให้ตัวตรวจอ่าน
+    play_movie_with: (a) => { window.__playedWith = a; return null; },
     list_players: () => ({ players: [{ path: "C:\\Program Files (x86)\\K-Lite Codec Pack\\MPC-HC64\\mpc-hc64.exe", name: "MPC-HC", exists: true, added: false, isDefault: true }, { path: "C:\\Program Files\\VideoLAN\\VLC\\vlc.exe", name: "VLC", exists: true, added: false, isDefault: false }], systemDefault: false }),
     movie_frame: (a) => { const hit = T.find(([t, y, c]) => c && String(a.path).includes(slug(t, y))) ?? T[0]; const [t, y, c1, c2, c3] = hit; return poster(t, y, c1, c2, c3, 1280, 720); },
     convert_one: (a) => ({ out: String(a.req.path).replace(/\.[^.]+$/, ".opus"), size: 5200000, srcSize: 31000000, tags: 1, cover: false, notes: [], tool: "opusenc", cmd: "opusenc --bitrate 160 เพลงตัวอย่าง.flac เพลงตัวอย่าง.opus", secs: 3.2 }),

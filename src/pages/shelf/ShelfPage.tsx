@@ -57,7 +57,7 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
     if (String(e).includes("หาโปรแกรมเล่นหนัง")) onPage("settings");
   });
   const reveal = (m: Movie) => api.revealMovie(m.path).catch((e) => toast({ kind: "bad", title: "เปิดโฟลเดอร์ไม่ได้", detail: String(e) }));
-  const mm = useMovieMenu({ movies, scanning, setSel, onPage, onPoster, onInfo, onCheck, onGraph, onBitrate, onAv, play, reveal });
+  const mm = useMovieMenu({ movies, scanning, selId: sel, setSel, onPage, onPoster, onInfo, onCheck, onGraph, onBitrate, onAv, play, reveal });
   useEffect(() => { wrapRef.current?.scrollTo({ top: 0 }); }, [view]);
 
   const orient = settings?.coverOrient ?? "tall";
@@ -142,7 +142,7 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
         </div>
       </div>
       <div className="content">
-        <div className="shelfwrap" ref={wrapRef} onContextMenu={mm.onContextMenu}>
+        <div className="shelfwrap" ref={wrapRef} onContextMenu={mm.onContextMenu} onClickCapture={mm.onClickCapture}>
           {resume > 0 && (
             <div className="stat info" style={{ margin: "0 0 12px" }} data-link-resume>
               <CardIcon kind="info" />
@@ -196,11 +196,11 @@ export default function ShelfPage({ onPage, onPoster, onMerge, onInfo, onCheck, 
             goFolders: () => { requestSettingsSec("folders"); onPage("settings"); } }) ?? ((scanning && movies.length === 0) || skelPreview ? (
             <SkeletonShelf size={size} />
           ) : view === "grid" ? (
-            <ShelfGrid list={list} size={size} selId={selected?.id ?? null} onSel={(id) => setSel(selected?.id === id ? null : id)} used={found.used} reminder={reminder}
+            <ShelfGrid multi={mm.multi} list={list} size={size} selId={selected?.id ?? null} onSel={(id) => setSel(selected?.id === id ? null : id)} used={found.used} reminder={reminder}
               showNames={settings?.showNames ?? true} showDots={settings?.showDots ?? true} showFrames={settings?.showFrames ?? false}
               pending={scanning && !query && progress ? Math.max(0, progress.total - movies.length) : 0} />
           ) : (
-            <ShelfTable size={size} list={list} selId={selected?.id ?? null} onSel={(id) => setSel(selected?.id === id ? null : id)} used={found.used} reminder={reminder} showFrames={settings?.showFrames ?? false} />
+            <ShelfTable multi={mm.multi} size={size} list={list} selId={selected?.id ?? null} onSel={(id) => setSel(selected?.id === id ? null : id)} used={found.used} reminder={reminder} showFrames={settings?.showFrames ?? false} />
           ))}
         </div>
         {/* key ต่อเรื่อง สลับเรื่องแล้วสร้างแผงกับปุ่มใหม่ ไม่ใช้ปุ่มเดิมซ้ำ (เดิมปุ่มชมพูค่อย ๆ เปลี่ยนเป็นเขียวตอนสลับเรื่อง) */}

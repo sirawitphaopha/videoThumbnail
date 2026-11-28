@@ -66,7 +66,7 @@ function packRows(items: (Movie | null)[], avail: number, bw: number, gap: numbe
 }
 
 /** pending = เรื่องที่เจอในโฟลเดอร์แต่ยังอ่านไม่เสร็จ · ขึ้นเป็นโครงจางต่อท้ายชั้น เต็มแถวที่ค้างกับอีกหนึ่งแถว (ไม่วาดครบทุกเรื่อง ชั้น 500 เรื่องจะหนัก) */
-export function ShelfGrid(p: { list: Movie[]; size: "s" | "m" | "l"; selId: string | null; onSel: (id: string) => void; used: string; reminder: number; showNames: boolean; showDots: boolean; showFrames: boolean; pending: number }) {
+export function ShelfGrid(p: { multi?: Set<string>; list: Movie[]; size: "s" | "m" | "l"; selId: string | null; onSel: (id: string) => void; used: string; reminder: number; showNames: boolean; showDots: boolean; showFrames: boolean; pending: number }) {
   const { ref, w, perRow } = usePerRow(p.size);
   const { w: base, gap } = SIZES[p.size];
   const skel = Math.min(p.pending, ((perRow - (p.list.length % perRow)) % perRow) + perRow);
@@ -84,7 +84,7 @@ export function ShelfGrid(p: { list: Movie[]; size: "s" | "m" | "l"; selId: stri
       {rows.map((row, i) => (
         <div key={i} className="shelf">
           {row.map((m, j) => m
-            ? <Book key={m.id} m={m} width={bookWidth(m, bw)} sel={m.id === p.selId} onSel={p.onSel} used={p.used} reminder={p.reminder} showNames={p.showNames} showDots={p.showDots} showFrames={p.showFrames} />
+            ? <Book key={m.id} m={m} width={bookWidth(m, bw)} multi={!!p.multi?.has(m.id)} sel={m.id === p.selId} onSel={p.onSel} used={p.used} reminder={p.reminder} showNames={p.showNames} showDots={p.showDots} showFrames={p.showFrames} />
             : <SkelBook key={"skel" + j} size={p.size} i={j} />)}
         </div>
       ))}
@@ -184,7 +184,7 @@ export function Stars({ m }: { m: Movie }) {
   );
 }
 
-function Book(p: { m: Movie; width: number; sel: boolean; onSel: (id: string) => void; used: string; reminder: number; showNames: boolean; showDots: boolean; showFrames: boolean }) {
+function Book(p: { m: Movie; width: number; multi?: boolean; sel: boolean; onSel: (id: string) => void; used: string; reminder: number; showNames: boolean; showDots: boolean; showFrames: boolean }) {
   const { m } = p;
   const k = kindOf(m, p.reminder);
   // แบบเก็บปีไว้ท้าย แยกชื่อเรื่องกับปีในวงเล็บ ส่วนชื่อจางตรงที่ล้น ปีอยู่ท้ายเสมอ (BUGS ข้อ 51 · lib/longName.ts)
@@ -196,7 +196,7 @@ function Book(p: { m: Movie; width: number; sel: boolean; onSel: (id: string) =>
   const frame = useMovieFrame(m, p.showFrames && !src);
   return (
     <div
-      className={"book" + (wide ? " wide" : "") + (p.sel ? " sel" : "") + (m.missing ? " missing" : "")}
+      className={"book" + (wide ? " wide" : "") + (p.sel ? " sel" : "") + (p.multi ? " multi" : "") + (m.missing ? " missing" : "")}
       style={wide ? { width: p.width } : undefined}
       title={[full, m.missing ? "หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่" : ""].filter(Boolean).join("\n") || undefined}
       aria-label={full + ", " + labelOf(m, p.reminder) + (m.shownLink ? ", ปกจับคู่" : "") + (m.missing ? ", หาไฟล์ไม่เจอ" : "")}

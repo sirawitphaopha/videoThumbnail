@@ -16,6 +16,7 @@ import SetThanks from "./SetThanks";
 import SetLines from "./lines/SetLines";
 import SetKeys from "./keys/SetKeys";
 import SetPlayback from "./SetPlayback";
+import SetCtxMenus from "./SetCtxMenus";
 
 export default function SettingsPage() {
   const c0 = useSetBase();
@@ -35,6 +36,7 @@ export default function SettingsPage() {
       <SetPlayback pg={pg} />
       <SetThanks pg={pg} />
       <SetKeys pg={pg} />
+      <SetCtxMenus pg={pg} />
       <SetLines pg={pg} />
     </div>
     </div>

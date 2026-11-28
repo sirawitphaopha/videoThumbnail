@@ -33,6 +33,9 @@ export const IbSave = ({ size = 15, stroke = "currentColor" }: P) =>
   svg(size, 2.2, stroke, <><path d="M12 3v12" /><path d="m7 10 5 5 5-5" /><path d="M5 21h14" /></>);
 export const IbPlay = ({ size = 15, stroke = "currentColor" }: P) =>
   svg(size, 2.2, stroke, <><path d="M7 4.5v15l12-7.5z" /></>);
+/** เมนูคลิกขวา (หัวข้อในหน้าตั้งค่า BUGS ข้อ 164.5) · เมาส์กับรายการ */
+export const IcCtxMenu = ({ size = 18, stroke = "currentColor" }: P) =>
+  svg(size, 2, stroke, <><rect x="3" y="3" width="8" height="12" rx="4" /><path d="M7 3v4" /><rect x="13" y="8" width="8" height="13" rx="2" /><path d="M15.5 12h3M15.5 15h3M15.5 18h3" /></>);
 /* ปุ่มเล่นแบบ Audacity ของหน้ากราฟเสียง (BUGS ข้อ 163.5) หยุดชั่วคราว ไปต้นไฟล์ ไปท้ายไฟล์ เล่นวน · เส้นแบบเดียวกับ IbPlay IbStop */
 export const IbPause = ({ size = 15, stroke = "currentColor" }: P) =>
   svg(size, 2.2, stroke, <><rect x="6" y="5" width="4" height="14" rx="1" /><rect x="14" y="5" width="4" height="14" rx="1" /></>);

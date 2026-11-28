@@ -379,6 +379,18 @@ pub fn play_movie(app: AppHandle, path: String) -> Result<(), String> {
     }
 }
 
+/// เปิดเล่นด้วยโปรแกรมที่เลือกจากเมนูคลิกขวา (BUGS ข้อ 164.5 · ROADMAP ข้อ 39 เมนูย่อยเลือกโปรแกรมเล่น)
+/// รับเฉพาะโปรแกรมที่อยู่ในรายการโปรแกรมเล่นของเครื่อง (list_players) ไม่รันไฟล์อื่นตามที่หน้าจอส่งมา
+#[tauri::command]
+pub fn play_movie_with(app: AppHandle, path: String, player: String) -> Result<(), String> {
+    let p = Path::new(&path);
+    if !crate::media::check::playable(p) { return Err("เปิดเล่นได้เฉพาะไฟล์หนังกับไฟล์เสียง".into()); }
+    if !p.exists() { return Err("หาไฟล์ไม่เจอ ไดรฟ์อาจถอดออกอยู่".into()); }
+    let ok = crate::media::players::list_players(app).players.iter().any(|x| x.exists && x.path.eq_ignore_ascii_case(&player));
+    if !ok { return Err("โปรแกรมนี้ไม่อยู่ในรายการโปรแกรมเล่นของเครื่อง".into()); }
+    std::process::Command::new(&player).arg(p).spawn().map(|_| ()).map_err(|e| format!("เปิดโปรแกรมเล่นหนังไม่ได้: {e}"))
+}
+
 /// ให้คะแนนดาว 0 ถึง 5 · 0 = ล้างคะแนน
 #[tauri::command]
 pub fn set_rating(app: AppHandle, lib: State<'_, Arc<LibraryStore>>, id: String, stars: u8) -> Result<Movie, String> {

@@ -295,7 +295,7 @@ T[7] = async (p, check) => {
   await p.keyboard.press("ArrowDown"); await wait(p, 80);
   const f2 = await p.evaluate(() => document.activeElement?.dataset?.mm);
   await p.keyboard.press("Escape"); await wait(p, 200);
-  check("163.7 ลูกศรลงเลื่อนไปข้อถัดไป Esc ปิดเมนู", f2 === "rename" && !(await menuState(p)), String(f2));
+  check("163.7 ลูกศรลงเลื่อนไปข้อถัดไป (เปิดเล่นด้วยโปรแกรมอื่น ข้อ 164.5) Esc ปิดเมนู", f2 === "playWith" && !(await menuState(p)), String(f2));
   // คลิกขวาชิดขอบขวาล่าง เมนูกางกลับทางไม่ล้นจอ (ปิดแผงขวาก่อน ปกแถวบนชิดขอบขวาของหน้าต่าง)
   await click(p, "[data-detailclose]"); await wait(p, 300);
   const last = await p.evaluate(() => { const bs = [...document.querySelectorAll(".book[data-mid]")].filter((b) => { const r = b.getBoundingClientRect(); return r.bottom < innerHeight - 40 && r.width > 0; }); const b = bs[bs.length - 1]; const r = b.getBoundingClientRect(); return { x: Math.min(innerWidth - 12, r.right - 4), y: Math.min(innerHeight - 40, r.bottom - 4) }; });
@@ -465,6 +465,84 @@ T[93] = async (p, check) => {
   // ปุ่มไปหัวข้อคีย์ลัด
   await click(p, "[data-play-keys]"); await wait(p, 300);
   check("164.3 ปุ่มคีย์ลัดของการเล่นพาไปหัวข้อคีย์ลัด", await p.evaluate(() => !document.querySelector("[data-setcard=hotkeys]")?.hidden || !!document.querySelector("[data-hk-group]")), "");
+};
+
+/** 164.5 (ROADMAP ข้อ 39) เมนูคลิกขวาทุกจุดที่ควรมี กับหัวข้อเมนูคลิกขวาในหน้าตั้งค่า */
+const ctxState = (p) => p.evaluate(() => { const m = document.querySelector("[data-ctxmenu]"); return m ? { menu: m.dataset.ctxmenu, items: [...m.querySelectorAll("[data-mm]")].map((b) => b.dataset.mm), off: [...m.querySelectorAll("[data-mm].off")].map((b) => b.dataset.mm) } : null; });
+const snap = (p, name) => process.env.SHOTS ? p.screenshot({ path: `${process.env.SHOTS}/${name}.png` }).catch(() => {}) : null;
+T[95] = async (p, check) => {
+  await p.evaluate(() => { localStorage.removeItem("ms.ctxHidden"); window.__shelfClipOut = []; });
+  await nav(p, "ชั้นวางหนัง"); await wait(p, 400);
+  const books = await p.evaluate(() => [...document.querySelectorAll(".book[data-mid]")].slice(0, 3).map((b) => { const r = b.getBoundingClientRect(); return { id: b.dataset.mid, name: b.dataset.movie, x: r.left + r.width / 2, y: r.top + 40 }; }));
+  // ① เปิดเล่นด้วยโปรแกรมอื่น เป็นเมนูย่อย กดแล้วกางรายชื่อโปรแกรม เลือกแล้วส่งที่อยู่โปรแกรมไปฝั่ง Rust
+  await p.mouse.click(books[0].x, books[0].y, { button: "right" }); await wait(p, 500);
+  await click(p, "[data-mm=playWith]"); await wait(p, 200);
+  const subs = await p.evaluate(() => [...document.querySelectorAll("[data-ctxmenu] .mm-item.sub")].map((b) => b.dataset.mm));
+  check("164.5 เปิดเล่นด้วยโปรแกรมอื่นกางเป็นเมนูย่อย มีโปรแกรมที่ไม่ใช่ตัวหลักของเครื่อง", subs.length >= 1 && subs.every((x) => x.startsWith("with:")), JSON.stringify(subs));
+  await snap(p, "164-5-ชั้นวาง-เมนูย่อย");
+  await click(p, ".mm-item.sub"); await wait(p, 200);
+  const pw = await p.evaluate(() => window.__playedWith);
+  check("164.5 เลือกโปรแกรมจากเมนูย่อย ส่งไฟล์กับที่อยู่โปรแกรมไปเปิดเล่น", !!pw && /\.mkv$/i.test(pw.path) && /\.exe$/i.test(pw.player), JSON.stringify(pw));
+  // ② เลือกหลายเรื่อง Ctrl คลิก แล้วคลิกขวาได้เมนูของหลายเรื่อง
+  await p.keyboard.down("Control"); await p.mouse.click(books[1].x, books[1].y); await p.mouse.click(books[2].x, books[2].y); await p.keyboard.up("Control"); await wait(p, 200);
+  const nMulti = await p.evaluate(() => document.querySelectorAll(".book.multi").length);
+  check("164.5 กด Ctrl ค้างแล้วคลิก เลือกหลายเรื่องมีกรอบเส้นประ (นับเรื่องที่เปิดแผงขวาอยู่ด้วย)", nMulti === 3, String(nMulti));
+  await p.mouse.click(books[2].x, books[2].y, { button: "right" }); await wait(p, 300);
+  const mm = await p.evaluate(() => document.querySelector("[data-multimenu]")?.dataset.multimenu);
+  await snap(p, "164-5-หลายเรื่อง");
+  await click(p, "[data-mm=copyName]"); await wait(p, 200);
+  const clipM = await p.evaluate(() => window.__shelfClipOut.slice(-1)[0] ?? "");
+  check("164.5 คลิกขวาที่เรื่องที่เลือกไว้ได้เมนูของ 3 เรื่อง คัดลอกชื่อได้ครบสามบรรทัด", mm === "3" && clipM.split("\n").length === 3, JSON.stringify({ mm, clipM }));
+  await p.keyboard.press("Escape"); await wait(p, 200);
+  check("164.5 Esc เลิกเลือกหลายเรื่อง", await p.evaluate(() => document.querySelectorAll(".book.multi").length === 0), "");
+  // ③ หน้าตั้งค่าหัวข้อเมนูคลิกขวา ซ่อนข้อแล้วเมนูไม่ขึ้นข้อนั้น
+  await nav(p, "ตั้งค่า"); await wait(p, 400);
+  await p.evaluate(() => [...document.querySelectorAll("button,a,li")].filter((x) => !x.closest("[data-navbar]")).find((x) => x.textContent.trim() === "เมนูคลิกขวา")?.click()); await wait(p, 400);
+  const sets = await p.evaluate(() => [...document.querySelectorAll("[data-ctxset]")].map((x) => x.dataset.ctxset));
+  check("164.5 หัวข้อเมนูคลิกขวามีทุกเมนู ชั้นวาง หลายเรื่อง เปิดล่าสุด คิวแปลง หน้าตรวจไฟล์ ตารางจับคู่ปก", sets.join() === "shelf,shelfMulti,recent,queue,checkRow,linkRow", JSON.stringify(sets));
+  await click(p, '[data-ctxitem="shelf:copyName"]'); await wait(p, 150);
+  await snap(p, "164-5-หน้าตั้งค่า");
+  const saved = await p.evaluate(() => localStorage.getItem("ms.ctxHidden"));
+  await nav(p, "ชั้นวางหนัง"); await wait(p, 300);
+  await p.mouse.click(books[0].x, books[0].y, { button: "right" }); await wait(p, 300);
+  const hid = await ctxState(p);
+  check("164.5 ติ๊กออกในหน้าตั้งค่าแล้ว ข้อคัดลอกชื่อเรื่องไม่ขึ้นในเมนูของชั้นวาง และจำไว้", !!hid && !hid.items.includes("copyName") && hid.items.includes("copyPath") && (saved ?? "").includes("copyName"), JSON.stringify({ hid, saved }));
+  await p.keyboard.press("Escape");
+  await nav(p, "ตั้งค่า"); await wait(p, 300);
+  await click(p, "[data-ctx-reset]"); await wait(p, 150);
+  check("164.5 ปุ่มแสดงทุกข้อ ล้างที่ซ่อนไว้ แล้วปุ่มกลับเป็นกดไม่ได้", await p.evaluate(() => localStorage.getItem("ms.ctxHidden") == null && document.querySelector("[data-ctx-reset]").getAttribute("aria-disabled") === "true"), "");
+  // ④ หน้าตรวจไฟล์ คลิกขวาที่แถว
+  await nav(p, "ตรวจไฟล์"); await wait(p, 500);
+  const row = await p.evaluate(() => { const r = document.querySelector("[data-ckrow]").getBoundingClientRect(); return { x: r.left + 260, y: r.top + r.height / 2 }; });
+  await p.mouse.click(row.x, row.y, { button: "right" }); await wait(p, 300);
+  const ck = await ctxState(p);
+  await snap(p, "164-5-หน้าตรวจไฟล์");
+  check("164.5 หน้าตรวจไฟล์ คลิกขวาที่แถวได้เมนู ตรวจเร็ว ตรวจละเอียด เปิดเล่น กราฟเสียง MediaInfo เปิดโฟลเดอร์ คัดลอก", !!ck && ck.menu === "checkRow" && ["quick", "full", "play", "graph", "info", "reveal", "copyPath"].every((x) => ck.items.includes(x)), JSON.stringify(ck));
+  await p.keyboard.press("Escape");
+  // ⑤ หน้ากราฟเสียง รายการเปิดล่าสุด
+  await graphOpen(p, SONG); await click(p, "[data-graphhome]"); await wait(p, 500);
+  const rr = await p.evaluate(() => { const r = document.querySelector("[data-recentrow]")?.getBoundingClientRect(); return r ? { x: r.left + 80, y: r.top + r.height / 2 } : null; });
+  if (rr) { await p.mouse.click(rr.x, rr.y, { button: "right" }); await wait(p, 300); }
+  const rc = await ctxState(p);
+  await snap(p, "164-5-เปิดล่าสุด");
+  check("164.5 รายการเปิดล่าสุดของหน้ากราฟ คลิกขวาได้เมนู ดูกราฟ Bitrate ใส่คิวแปลง เปิดโฟลเดอร์ คัดลอก เอาออก", !!rc && rc.menu === "recent" && ["open", "convert", "reveal", "copyPath", "forget"].every((x) => rc.items.includes(x)), JSON.stringify(rc));
+  // ใส่คิวแปลงจากเมนู แล้วคลิกขวาที่แถวในคิว
+  await click(p, "[data-mm=convert]"); await wait(p, 700);
+  const qr = await p.evaluate(() => { const r = document.querySelector(".cqrow[data-qrow]")?.getBoundingClientRect(); return r ? { x: r.left + 60, y: r.top + 20 } : null; });
+  if (qr) { await p.mouse.click(qr.x, qr.y, { button: "right" }); await wait(p, 300); }
+  const qc = await ctxState(p);
+  await snap(p, "164-5-คิวแปลง");
+  check("164.5 ใส่คิวแปลงจากเมนูได้ แล้วคลิกขวาที่แถวในคิวได้เมนู ไฟล์ยังไม่แปลงข้อดูไฟล์ใหม่กดไม่ได้", !!qc && qc.menu === "queue" && qc.off.includes("graphOut") && qc.off.includes("compare") && !qc.off.includes("graphSrc"), JSON.stringify(qc));
+  await click(p, "[data-mm=remove]"); await wait(p, 300);
+  check("164.5 เอาออกจากคิวจากเมนูได้", await p.evaluate(() => !document.querySelector(".cqrow[data-qrow]")), "");
+  // ⑥ ตารางจับคู่ปก
+  await nav(p, "จับคู่ปก"); await wait(p, 800);
+  const lr = await p.evaluate(() => { const r = document.querySelector("[data-link-row] .lname")?.getBoundingClientRect(); return r ? { x: r.left + 20, y: r.top + r.height / 2 } : null; });
+  if (lr) { await p.mouse.click(lr.x, lr.y, { button: "right" }); await wait(p, 300); }
+  const lc = await ctxState(p);
+  await snap(p, "164-5-จับคู่ปก");
+  check("164.5 ตารางจับคู่ปก คลิกขวาที่แถวได้เมนู ยืนยัน ครอป เปลี่ยนรูป ข้าม เปิดโฟลเดอร์ คัดลอก", !!lc && lc.menu === "linkRow" && ["confirm", "crop", "change", "skip", "reveal", "copyPath", "copyImg"].every((x) => lc.items.includes(x)), JSON.stringify({ lc, lr }));
+  await p.keyboard.press("Escape");
 };
 
 // ---------------------------------------------------------------- ตัวรัน

@@ -127,7 +127,7 @@ function Frame() {
                 {slot("poster", <PosterPage initialPath={posterPath} initialImage={posterImage} onPage={goPage} onConsumed={() => { setPosterPath(null); setPosterImage(null); }} />)}
                 {slot("link", <LinkPage />)}
                 {slot("av", <AvPage initialPath={avPath} onConsumed={() => setAvPath(null)} onPage={goPage} onGraph={(path, track) => openGraph({ path, track })} />)}
-                {slot("check", <CheckPage req={checkReq} onConsumed={() => setCheckReq(null)} onGraph={openGraph} onPage={goPage} />)}
+                {slot("check", <CheckPage req={checkReq} onConsumed={() => setCheckReq(null)} onGraph={openGraph} onPage={goPage} onInfo={setInfoId} />)}
                 {/* หน้ากราฟอยู่ในกล่องเลื่อน แถบสูงขึ้นหรือลากขยายจนยาวกว่าหน้าต่างแล้วเลื่อนลงไปถึงแถวปุ่มล่างได้ (เดิมแถวปุ่มล่างโดนตัดใต้จอ เจอตอนตรวจภาพ) */}
                 {slot("graph", <div className="pagewrap" data-graphscroll><GraphBoundary><GraphPage req={graphReq} onConsumed={() => setGraphReq(null)} onBitrate={(path, track) => { setBitratePath(path); setBitrateTrack(track ?? null); setPage("bitrate"); }} /></GraphBoundary></div>)}
                 {slot("bitrate", <BitratePage initialPath={bitratePath} initialTrack={bitrateTrack} onConsumed={() => { setBitratePath(null); setBitrateTrack(null); }} onGraph={(path, track) => openGraph({ path, track })} />)}
